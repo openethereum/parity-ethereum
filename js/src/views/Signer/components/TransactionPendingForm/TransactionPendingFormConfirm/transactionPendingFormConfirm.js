@@ -18,6 +18,7 @@ import keycode from 'keycode';
 import RaisedButton from 'material-ui/RaisedButton';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import ReactTooltip from 'react-tooltip';
 
@@ -98,7 +99,11 @@ class TransactionPendingFormConfirm extends Component {
 
     const passwordHintText = this.getPasswordHint();
     const passwordHint = passwordHintText
-      ? (<div><span>(hint) </span>{ passwordHintText }</div>)
+      ? (
+        <div>
+          <span>(hint) </span>{ passwordHintText }
+        </div>
+      )
       : null;
 
     const isWalletOk = !isExternal || (walletError === null && wallet !== null);
@@ -113,13 +118,33 @@ class TransactionPendingFormConfirm extends Component {
           <Input
             hint={
               isExternal
-                ? 'decrypt the key'
-                : 'unlock the account'
+                ? (
+                  <FormattedMessage
+                    id='signer.pending.password.decrypt.hint'
+                    defaultMessage='decrypt the key'
+                  />
+                )
+                : (
+                  <FormattedMessage
+                    id='signer.pending.password.unlock.hint'
+                    defaultMessage='unlock the account'
+                  />
+                )
             }
             label={
               isExternal
-                ? 'Key Password'
-                : 'Account Password'
+                ? (
+                  <FormattedMessage
+                    id='signer.pending.password.decrypt.label'
+                    defaultMessage='Key Password'
+                  />
+                )
+                : (
+                  <FormattedMessage
+                    id='signer.pending.password.unlock.label'
+                    defaultMessage='Account Password'
+                  />
+                )
             }
             onChange={ this.onModifyPassword }
             onKeyDown={ this.onKeyDown }
@@ -149,8 +174,18 @@ class TransactionPendingFormConfirm extends Component {
               }
               label={
                 isSending
-                  ? 'Confirming...'
-                  : 'Confirm Request'
+                  ? (
+                    <FormattedMessage
+                      id='signer.pending.button.confirmBusy'
+                      defaultMessage='Confirming...'
+                    />
+                  )
+                  : (
+                    <FormattedMessage
+                      id='signer.pending.button.confirm'
+                      defaultMessage='Confirm Request'
+                    />
+                  )
               }
               onTouchTap={ this.onConfirm }
               primary
@@ -169,7 +204,18 @@ class TransactionPendingFormConfirm extends Component {
       <Input
         className={ styles.fileInput }
         error={ walletError }
-        label='Select Local Key'
+        hint={
+          <FormattedMessage
+            id='signer.pending.selectKey.hint'
+            defaultMessage='The keyfile to use for this account'
+          />
+        }
+        label={
+          <FormattedMessage
+            id='signer.pending.selectKey.label'
+            defaultMessage='Select Local Key'
+          />
+        }
         onChange={ this.onKeySelect }
         type='file'
       />
@@ -183,7 +229,10 @@ class TransactionPendingFormConfirm extends Component {
 
     return (
       <ReactTooltip id={ `transactionConfirmForm${this.id}` }>
-        Please provide a password for this account
+        <FormattedMessage
+          id='signer.pending.password.tooltip'
+          defaultMessage='Please provide a password for this account'
+        />
       </ReactTooltip>
     );
   }
@@ -216,7 +265,12 @@ class TransactionPendingFormConfirm extends Component {
       } catch (error) {
         this.setState({
           wallet: null,
-          walletError: 'Given wallet file is invalid.'
+          walletError: (
+            <FormattedMessage
+              id='signer.pending.error.walletInvalid'
+              defaultMessage='Given wallet file is invalid.'
+            />
+          )
         });
       }
     };
@@ -236,7 +290,8 @@ class TransactionPendingFormConfirm extends Component {
     const { password, wallet } = this.state;
 
     this.props.onConfirm({
-      password, wallet
+      password,
+      wallet
     });
   }
 
@@ -256,10 +311,16 @@ function mapStateToProps (_, initProps) {
 
   return (state) => {
     const { accounts } = state.personal;
-    let gotAddress = Object.keys(accounts).find(a => a.toLowerCase() === address.toLowerCase());
-    const account = gotAddress ? accounts[gotAddress] : {};
+    const gotAddress = Object
+      .keys(accounts)
+      .find(a => a.toLowerCase() === address.toLowerCase());
+    const account = gotAddress
+      ? accounts[gotAddress]
+      : {};
 
-    return { account };
+    return {
+      account
+    };
   };
 }
 
