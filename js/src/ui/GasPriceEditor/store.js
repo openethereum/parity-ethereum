@@ -85,7 +85,12 @@ export default class GasPriceEditor {
           break;
 
         case CONDITIONS.TIME:
-          this.condition = Object.assign({}, this.condition, { time: new Date() });
+          const time = new Date();
+
+          time.setMilliseconds(0); // ignored by/not passed to Parity
+          time.setSeconds(0); // current time selector doesn't allow seconds
+
+          this.condition = Object.assign({}, this.condition, { time });
           break;
 
         case CONDITIONS.NONE:
