@@ -204,6 +204,10 @@ export default class AddressSelectStore {
     this.handleChange();
   }
 
+  @action resetRegistryValues = () => {
+    this.registryValues = [];
+  }
+
   @action handleChange = (value = '') => {
     let index = 0;
 

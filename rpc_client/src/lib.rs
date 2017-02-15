@@ -18,6 +18,9 @@ extern crate log;
 
 #[cfg(test)]
 mod tests {
+	#[macro_use]
+	extern crate matches;
+
 	use futures::Future;
 	use std::path::PathBuf;
 	use client::{Rpc, RpcError};

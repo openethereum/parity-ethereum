@@ -28,7 +28,7 @@ extern crate ctrlc;
 extern crate docopt;
 extern crate env_logger;
 extern crate fdlimit;
-extern crate hyper; // for price_info.rs
+extern crate hyper;
 extern crate isatty;
 extern crate jsonrpc_core;
 extern crate num_cpus;
@@ -60,14 +60,13 @@ extern crate parity_reactor;
 extern crate parity_updater as updater;
 extern crate rpc_cli;
 
+#[macro_use]
+extern crate log as rlog;
+
 #[cfg(feature="stratum")]
 extern crate ethcore_stratum;
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
-
-
-#[macro_use]
-extern crate log as rlog;
 
 macro_rules! dependency {
 	($dep_ty:ident, $url:expr) => {

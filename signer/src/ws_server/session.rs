@@ -16,15 +16,16 @@
 
 //! Session handlers factory.
 
-use ws;
-use authcode_store::AuthCodes;
 use std::path::{PathBuf, Path};
 use std::sync::Arc;
 use std::str::FromStr;
+
+use authcode_store::AuthCodes;
 use jsonrpc_core::{Metadata, Middleware};
 use jsonrpc_core::reactor::RpcHandler;
 use rpc::informant::RpcStats;
 use util::{H256, version};
+use ws;
 
 #[cfg(feature = "parity-ui")]
 mod ui {
@@ -78,35 +79,39 @@ fn origin_is_allowed(self_origin: &str, header: Option<&[u8]>) -> bool {
 	}
 }
 
-fn auth_is_valid(codes_path: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
+fn auth_token_hash(codes_path: &Path, protocols: ws::Result<Vec<&str>>) -> Option<H256> {
 	match protocols {
 		Ok(ref protocols) if protocols.len() == 1 => {
-			protocols.iter().any(|protocol| {
-				let mut split = protocol.split('_');
-				let auth = split.next().and_then(|v| H256::from_str(v).ok());
-				let time = split.next().and_then(|v| u64::from_str_radix(v, 10).ok());
+			let protocol = protocols[0];
+			let mut split = protocol.split('_');
+			let auth = split.next().and_then(|v| H256::from_str(v).ok());
+			let time = split.next().and_then(|v| u64::from_str_radix(v, 10).ok());
 
-				if let (Some(auth), Some(time)) = (auth, time) {
-					// Check if the code is valid
-					AuthCodes::from_file(codes_path)
-						.map(|mut codes| {
-							// remove old tokens
-							codes.clear_garbage();
+			if let (Some(auth), Some(time)) = (auth, time) {
+				// Check if the code is valid
+				AuthCodes::from_file(codes_path)
+					.ok()
+					.and_then(|mut codes| {
+						// remove old tokens
+						codes.clear_garbage();
 
-							let res = codes.is_valid(&auth, time);
-							// make sure to save back authcodes - it might have been modified
-							if codes.to_file(codes_path).is_err() {
-								warn!(target: "signer", "Couldn't save authorization codes to file.");
-							}
-							res
-						})
-						.unwrap_or(false)
-				} else {
-					false
-				}
-			})
+						let res = codes.is_valid(&auth, time);
+						// make sure to save back authcodes - it might have been modified
+						if codes.to_file(codes_path).is_err() {
+							warn!(target: "signer", "Couldn't save authorization codes to file.");
+						}
+
+						if res {
+							Some(auth)
+						} else {
+							None
+						}
+					})
+			} else {
+				None
+			}
 		},
-		_ => false
+		_ => None,
 	}
 }
 
@@ -125,7 +130,16 @@ fn add_headers(mut response: ws::Response, mime: &str) -> ws::Response {
 	response
 }
 
-pub struct Session<M: Metadata, S: Middleware<M>> {
+/// Metadata extractor from session data.
+pub trait MetaExtractor<M: Metadata>: Send + Clone + 'static {
+	/// Extract metadata for given session
+	fn extract_metadata(&self, _session_id: &H256) -> M {
+		Default::default()
+	}
+}
+
+pub struct Session<M: Metadata, S: Middleware<M>, T> {
+	session_id: H256,
 	out: ws::Sender,
 	skip_origin_validation: bool,
 	self_origin: String,
@@ -134,16 +148,16 @@ pub struct Session<M: Metadata, S: Middleware<M>> {
 	handler: RpcHandler<M, S>,
 	file_handler: Arc<ui::Handler>,
 	stats: Option<Arc<RpcStats>>,
+	meta_extractor: T,
 }
 
-impl<M: Metadata, S: Middleware<M>> Drop for Session<M, S> {
+impl<M: Metadata, S: Middleware<M>, T> Drop for Session<M, S, T> {
 	fn drop(&mut self) {
 		self.stats.as_ref().map(|stats| stats.close_session());
 	}
 }
 
-impl<M: Metadata, S: Middleware<M>> ws::Handler for Session<M, S> {
-	#[cfg_attr(feature="dev", allow(collapsible_if))]
+impl<M: Metadata, S: Middleware<M>, T: MetaExtractor<M>> ws::Handler for Session<M, S, T> {
 	fn on_request(&mut self, req: &ws::Request) -> ws::Result<(ws::Response)> {
 		trace!(target: "signer", "Handling request: {:?}", req);
 
@@ -186,9 +200,15 @@ impl<M: Metadata, S: Middleware<M>> ws::Handler for Session<M, S> {
 		// (styles file skips origin validation, so make sure to prevent WS connections on this resource)
 		if req.header("sec-websocket-key").is_some() && !is_styles_file {
 			// Check authorization
-			if !auth_is_valid(&self.authcodes_path, req.protocols()) {
-				info!(target: "signer", "Unauthorized connection to Signer API blocked.");
-				return Ok(error(ErrorType::Forbidden, "Not Authorized", "Request to this API was not authorized.", None));
+			let auth_token_hash = auth_token_hash(&self.authcodes_path, req.protocols());
+			match auth_token_hash {
+				None => {
+					info!(target: "signer", "Unauthorized connection to Signer API blocked.");
+					return Ok(error(ErrorType::Forbidden, "Not Authorized", "Request to this API was not authorized.", None));
+				},
+				Some(auth) => {
+					self.session_id = auth;
+				},
 			}
 
 			let protocols = req.protocols().expect("Existence checked by authorization.");
@@ -214,8 +234,8 @@ impl<M: Metadata, S: Middleware<M>> ws::Handler for Session<M, S> {
 	fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
 		let req = msg.as_text()?;
 		let out = self.out.clone();
-		// TODO [ToDr] Extract metadata for PubSub/Session
-		let metadata = Default::default();
+		// TODO [ToDr] Move to on_connect
+		let metadata = self.meta_extractor.extract_metadata(&self.session_id);
 
 		self.handler.handle_request(req, metadata, move |response| {
 			if let Some(result) = response {
@@ -229,24 +249,26 @@ impl<M: Metadata, S: Middleware<M>> ws::Handler for Session<M, S> {
 	}
 }
 
-pub struct Factory<M: Metadata, S: Middleware<M>> {
+pub struct Factory<M: Metadata, S: Middleware<M>, T> {
 	handler: RpcHandler<M, S>,
 	skip_origin_validation: bool,
 	self_origin: String,
 	self_port: u16,
 	authcodes_path: PathBuf,
+	meta_extractor: T,
 	file_handler: Arc<ui::Handler>,
 	stats: Option<Arc<RpcStats>>,
 }
 
-impl<M: Metadata, S: Middleware<M>> Factory<M, S> {
+impl<M: Metadata, S: Middleware<M>, T> Factory<M, S, T> {
 	pub fn new(
 		handler: RpcHandler<M, S>,
 		self_origin: String,
-    self_port: u16,
+		self_port: u16,
 		authcodes_path: PathBuf,
 		skip_origin_validation: bool,
 		stats: Option<Arc<RpcStats>>,
+		meta_extractor: T,
 	) -> Self {
 		Factory {
 			handler: handler,
@@ -254,25 +276,28 @@ impl<M: Metadata, S: Middleware<M>> Factory<M, S> {
 			self_origin: self_origin,
 			self_port: self_port,
 			authcodes_path: authcodes_path,
+			meta_extractor: meta_extractor,
 			file_handler: Arc::new(ui::Handler::default()),
 			stats: stats,
 		}
 	}
 }
 
-impl<M: Metadata, S: Middleware<M>> ws::Factory for Factory<M, S> {
-	type Handler = Session<M, S>;
+impl<M: Metadata, S: Middleware<M>, T: MetaExtractor<M>> ws::Factory for Factory<M, S, T> {
+	type Handler = Session<M, S, T>;
 
 	fn connection_made(&mut self, sender: ws::Sender) -> Self::Handler {
 		self.stats.as_ref().map(|stats| stats.open_session());
 
 		Session {
+			session_id: 0.into(),
 			out: sender,
 			handler: self.handler.clone(),
 			skip_origin_validation: self.skip_origin_validation,
 			self_origin: self.self_origin.clone(),
 			self_port: self.self_port,
 			authcodes_path: self.authcodes_path.clone(),
+			meta_extractor: self.meta_extractor.clone(),
 			file_handler: self.file_handler.clone(),
 			stats: self.stats.clone(),
 		}

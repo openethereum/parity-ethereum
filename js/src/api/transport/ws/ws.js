@@ -28,6 +28,7 @@ export default class Ws extends JsonRpcBase {
     this._url = url;
     this._token = token;
     this._messages = {};
+    this._sessionHash = null;
 
     this._connecting = false;
     this._connected = false;
@@ -78,12 +79,14 @@ export default class Ws extends JsonRpcBase {
       this._ws.onmessage = null;
       this._ws.close();
       this._ws = null;
+      this._sessionHash = null;
     }
 
     this._connecting = true;
     this._connected = false;
     this._lastError = null;
 
+    this._sessionHash = sha3;
     this._ws = new WebSocket(this._url, hash);
     this._ws.onerror = this._onError;
     this._ws.onopen = this._onOpen;
@@ -253,6 +256,10 @@ export default class Ws extends JsonRpcBase {
 
   get token () {
     return this._token;
+  }
+
+  get sessionHash () {
+    return this._sessionHash;
   }
 
   get isAutoConnect () {
