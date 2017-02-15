@@ -127,6 +127,16 @@ pub trait NodeInfo {
 	fn pending_transactions(&self) -> Vec<PendingTransaction>;
 }
 
+/// Create a new local data store, given a database, a column to write to, and a node.
+/// Attempts to read data out of the store, and move it into the node.
+pub fn create<T: NodeInfo>(db: Arc<KeyValueDB>, col: Option<u32>, node: T) -> LocalDataStore<T> {
+	LocalDataStore {
+		db: db,
+		col: col,
+		node: node,
+	}
+}
+
 /// Manages local node data.
 ///
 /// In specific, this will be used to store things like unpropagated local transactions
@@ -138,16 +148,6 @@ pub struct LocalDataStore<T: NodeInfo> {
 }
 
 impl<T: NodeInfo> LocalDataStore<T> {
-	/// Create a new local data store, given a database, a column to write to, and a node.
-	/// Attempts to read data out of the store, and move it into the node.
-	pub fn create(db: Arc<KeyValueDB>, col: Option<u32>, node: T) -> Self {
-		LocalDataStore {
-			db: db,
-			col: col,
-			node: node,
-		}
-	}
-
 	/// Attempt to read pending transactions out of the local store.
 	pub fn pending_transactions(&self) -> Result<Vec<PendingTransaction>, Error> {
 		if let Some(val) = self.db.get(self.col, LOCAL_TRANSACTIONS_KEY).map_err(Error::Database)? {
@@ -167,7 +167,7 @@ impl<T: NodeInfo> LocalDataStore<T> {
 	pub fn update(&self) -> Result<(), Error> {
 		let mut batch = self.db.transaction();
 
-		let local_entries: Vec<TransactionEntry> = self.node.local_pending_transactions()
+		let local_entries: Vec<TransactionEntry> = self.node.pending_transactions()
 			.into_iter()
 			.map(Into::into)
 			.collect();
@@ -201,7 +201,7 @@ mod tests {
 
 	struct Dummy(Vec<PendingTransaction>);
 	impl NodeInfo for Dummy {
-		fn local_pending_transactions(&self) -> Vec<PendingTransaction> { self.0.clone() }
+		fn pending_transactions(&self) -> Vec<PendingTransaction> { self.0.clone() }
 	}
 
 	#[test]
@@ -209,12 +209,12 @@ mod tests {
 		let db = Arc::new(::util::kvdb::in_memory(0));
 
 		{
-			let store = LocalDataStore::create(db.clone(), None, Dummy(vec![]));
+			let store = super::create(db.clone(), None, Dummy(vec![]));
 			assert_eq!(store.pending_transactions().unwrap(), vec![])
 		}
 
 		{
-			let store = LocalDataStore::create(db.clone(), None, Dummy(vec![]));
+			let store = super::create(db.clone(), None, Dummy(vec![]));
 			assert_eq!(store.pending_transactions().unwrap(), vec![])
 		}
 	}
@@ -239,17 +239,17 @@ mod tests {
 
 		{
 			// nothing written yet, will write pending.
-			let store = LocalDataStore::create(db.clone(), None, Dummy(transactions.clone()));
+			let store = super::create(db.clone(), None, Dummy(transactions.clone()));
 			assert_eq!(store.pending_transactions().unwrap(), vec![])
 		}
 		{
 			// pending written, will write nothing.
-			let store = LocalDataStore::create(db.clone(), None, Dummy(vec![]));
+			let store = super::create(db.clone(), None, Dummy(vec![]));
 			assert_eq!(store.pending_transactions().unwrap(), transactions)
 		}
 		{
 			// pending removed, will write nothing.
-			let store = LocalDataStore::create(db.clone(), None, Dummy(vec![]));
+			let store = super::create(db.clone(), None, Dummy(vec![]));
 			assert_eq!(store.pending_transactions().unwrap(), vec![])
 		}
 	}
@@ -268,12 +268,12 @@ mod tests {
 		let db = Arc::new(::util::kvdb::in_memory(0));
 		{
 			// nothing written, will write bad.
-			let store = LocalDataStore::create(db.clone(), None, Dummy(transactions.clone()));
+			let store = super::create(db.clone(), None, Dummy(transactions.clone()));
 			assert_eq!(store.pending_transactions().unwrap(), vec![])
 		}
 		{
 			// try to load bad. they will be skipped, leading to empty vector.
-			let store = LocalDataStore::create(db.clone(), None, Dummy(vec![]));
+			let store = super::create(db.clone(), None, Dummy(vec![]));
 			assert_eq!(store.pending_transactions().unwrap(), transactions)
 		}
 	}

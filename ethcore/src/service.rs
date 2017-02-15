@@ -57,6 +57,7 @@ pub struct ClientService {
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
 	panic_handler: Arc<PanicHandler>,
+	database: Arc<Database>,
 	_stop_guard: ::devtools::StopGuard,
 }
 
@@ -95,7 +96,7 @@ impl ClientService {
 
 
 		let pruning = config.pruning;
-		let client = Client::new(config, &spec, db, miner, io_service.channel())?;
+		let client = Client::new(config, &spec, db.clone(), miner, io_service.channel())?;
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
@@ -125,6 +126,7 @@ impl ClientService {
 			client: client,
 			snapshot: snapshot,
 			panic_handler: panic_handler,
+			database: db,
 			_stop_guard: stop_guard,
 		})
 	}
@@ -153,6 +155,9 @@ impl ClientService {
 	pub fn add_notify(&self, notify: Arc<ChainNotify>) {
 		self.client.add_notify(notify);
 	}
+
+	/// Get a handle to the database.
+	pub fn db(&self) -> Arc<KeyValueDB> { self.database.clone() }
 }
 
 impl MayPanic for ClientService {
