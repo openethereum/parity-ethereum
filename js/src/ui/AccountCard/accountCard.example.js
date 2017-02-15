@@ -42,6 +42,16 @@ export default class AccountCardExample extends Component {
       ]
     };
 
+    const accountManyTags = {
+      ...account,
+      meta: { tags: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => `tag #${n}`) }
+    };
+
+    const accountNoTags = {
+      ...account,
+      meta: { tags: [] }
+    };
+
     return (
       <div>
         <PlaygroundExample name='Standard Account Card'>
@@ -55,6 +65,24 @@ export default class AccountCardExample extends Component {
           <div style={ { width: 300 } }>
             <AccountCard
               account={ account }
+              balance={ balance }
+            />
+          </div>
+        </PlaygroundExample>
+
+        <PlaygroundExample name='Many Tags Account Card'>
+          <div style={ { width: 300 } }>
+            <AccountCard
+              account={ accountManyTags }
+              balance={ balance }
+            />
+          </div>
+        </PlaygroundExample>
+
+        <PlaygroundExample name='No Tags Account Card'>
+          <div style={ { width: 300 } }>
+            <AccountCard
+              account={ accountNoTags }
               balance={ balance }
             />
           </div>
