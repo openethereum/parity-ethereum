@@ -30,7 +30,7 @@ export default class HardwareStore {
     this._ledger = Ledger.create();
     this._pollId = null;
 
-    this.pollScan();
+    this._pollScan();
   }
 
   @action setScanning = (isScanning) => {
@@ -39,6 +39,12 @@ export default class HardwareStore {
 
   @action setWallets = (wallets) => {
     this.wallets = wallets;
+  }
+
+  _pollScan = () => {
+    this._pollId = setTimeout(() => {
+      this.scan().then(this._pollScan);
+    }, HW_SCAN_INTERVAL);
   }
 
   scanLedger () {
@@ -126,10 +132,8 @@ export default class HardwareStore {
       });
   }
 
-  pollScan = () => {
-    this._pollId = setTimeout(() => {
-      this.scan().then(this.pollScan);
-    }, HW_SCAN_INTERVAL);
+  signLedger (rawTransaction) {
+    return this._ledger.signTransaction(rawTransaction);
   }
 
   static get (api) {

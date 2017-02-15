@@ -72,6 +72,29 @@ describe('mobx/HardwareStore', () => {
     teardown();
   });
 
+  describe('background polling', () => {
+    let pollId;
+
+    beforeEach(() => {
+      pollId = store._pollId;
+      sinon.spy(store, 'scan');
+    });
+
+    afterEach(() => {
+      store.scan.restore();
+    });
+
+    it('starts the polling at creation', () => {
+      expect(pollId).not.to.be.null;
+    });
+
+    it('scans when timer elapsed', () => {
+      expect(store.scan).not.to.have.been.called;
+      clock.tick(HW_SCAN_INTERVAL + 1);
+      expect(store.scan).to.have.been.called;
+    });
+  });
+
   describe('@action', () => {
     describe('setScanning', () => {
       it('sets the flag', () => {
@@ -167,26 +190,13 @@ describe('mobx/HardwareStore', () => {
       });
     });
 
-    describe('background polling', () => {
-      let pollId;
-
+    describe('signLedger', () => {
       beforeEach(() => {
-        pollId = store._pollId;
-        sinon.spy(store, 'scan');
+        return store.signLedger('testTx');
       });
 
-      afterEach(() => {
-        store.scan.restore();
-      });
-
-      it('starts the polling at creation', () => {
-        expect(pollId).not.to.be.null;
-      });
-
-      it('scans when timer elapsed', () => {
-        expect(store.scan).not.to.have.been.called;
-        clock.tick(HW_SCAN_INTERVAL + 1);
-        expect(store.scan).to.have.been.called;
+      it('calls signTransaction on the ledger', () => {
+        expect(ledger.signTransaction).to.have.been.calledWith('testTx');
       });
     });
   });
