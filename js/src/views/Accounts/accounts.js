@@ -327,10 +327,11 @@ class Accounts extends Component {
     const { accountsInfo } = this.props;
     const { wallets } = this.hwstore;
 
-    wallets
-      .filter((wallet) => !accountsInfo[wallet.address])
-      .forEach((wallet) => {
-        // this.hwstore.createAccountInfo(wallet);
+    Object
+      .keys(wallets)
+      .filter((address) => !accountsInfo[address])
+      .forEach((address) => {
+        // this.hwstore.createAccountInfo(wallets[address]);
       });
 
     this.setVisibleAccounts();

@@ -23,7 +23,7 @@ let instance = null;
 
 export default class HardwareStore {
   @observable isScanning = false;
-  @observable wallets = [];
+  @observable wallets = {};
 
   constructor (api) {
     this._api = api;
@@ -53,15 +53,19 @@ export default class HardwareStore {
       .then((wallet) => {
         console.log('HardwareStore::scanLedger', wallet);
 
-        return [];
-        // return [
-        //   wallet
-        // ];
+        return {};
+        // wallet.manufacturer = 'Ledger';
+        // wallet.name = 'Nano S';
+        // wallet.via = 'ledger';
+        //
+        // return {
+        //   [wallet.address]: wallet
+        // };
       })
       .catch((error) => {
         console.warn('HardwareStore::scanLedger', error);
 
-        return [];
+        return {};
       });
   }
 
@@ -71,19 +75,21 @@ export default class HardwareStore {
       .then((hwInfo) => {
         console.log('HardwareStore::scanParity', hwInfo);
 
-        return [];
-        // return Object
+        return {};
+        // Object
         //   .keys(hwInfo)
-        //   .map((address) => {
-        //     hwInfo[address] = address;
+        //   .forEach((address) => {
+        //     const info = hwInfo[address];
         //
-        //     return hwInfo[address];
+        //     info.address = address;
+        //     info.via = 'parity';
         //   });
+        // return hwInfo;
       })
       .catch((error) => {
         console.warn('HardwareStore::scanParity', error);
 
-        return [];
+        return {};
       });
   }
 
@@ -96,16 +102,12 @@ export default class HardwareStore {
     // not intended as a network call, i.e. hw wallet is with the user)
     return Promise
       .all([
-        this.scanLedger(),
-        this.scanParity()
+        this.scanParity(),
+        this.scanLedger()
       ])
-      .then(([ledgerAccounts, hwAccounts]) => {
+      .then(([hwAccounts, ledgerAccounts]) => {
         transaction(() => {
-          this.setWallets(
-            []
-              .concat(ledgerAccounts)
-              .concat(hwAccounts)
-          );
+          this.setWallets(Object.assign({}, hwAccounts, ledgerAccounts));
           this.setScanning(false);
         });
       });
