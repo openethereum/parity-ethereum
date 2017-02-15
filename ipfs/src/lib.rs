@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+#[macro_use]
+extern crate mime;
 extern crate hyper;
 extern crate multihash;
 extern crate cid;
@@ -58,11 +60,18 @@ impl Handler<HttpStream> for IpfsHandler {
 
 		match *self.out() {
 			OctetStream(ref bytes) => {
-				let headers = res.headers_mut();
+				use mime::{Mime, TopLevel, SubLevel};
 
-				headers.set(ContentLength(bytes.len() as u64));
-				headers.set(ContentType("application/octet-stream".parse()
-					.expect("Static content type; qed")));
+				// `OctetStream` is not a valid variant, so need to construct
+				// the type manually.
+				let content_type = Mime(
+					TopLevel::Application,
+					SubLevel::Ext("octet-stream".into()),
+					vec![]
+				);
+
+				res.headers_mut().set(ContentLength(bytes.len() as u64));
+				res.headers_mut().set(ContentType(content_type));
 
 				Next::write()
 			},
@@ -70,8 +79,7 @@ impl Handler<HttpStream> for IpfsHandler {
 				res.set_status(StatusCode::NotFound);
 
 				res.headers_mut().set(ContentLength(reason.len() as u64));
-				res.headers_mut().set(ContentType("text/plain".parse()
-					.expect("Static content type; qed")));
+				res.headers_mut().set(ContentType(mime!(Text/Plain)));
 
 				Next::write()
 			},
@@ -79,8 +87,7 @@ impl Handler<HttpStream> for IpfsHandler {
 				res.set_status(StatusCode::BadRequest);
 
 				res.headers_mut().set(ContentLength(reason.len() as u64));
-				res.headers_mut().set(ContentType("text/plain".parse()
-					.expect("Static content type; qed")));
+				res.headers_mut().set(ContentType(mime!(Text/Plain)));
 
 				Next::write()
 			}

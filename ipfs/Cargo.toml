@@ -9,6 +9,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ethcore = { path = "../ethcore" }
 ethcore-util = { path = "../util" }
 rlp = { path = "../util/rlp" }
+mime = "0.2"
 hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
-cid = "~0.2.0"
-multihash = "~0.5.0"
+cid = "0.2"
+multihash = "0.5"
