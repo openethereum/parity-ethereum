@@ -19,7 +19,7 @@ $overlayZ: 10000;
 $modalZ: 10001;
 
 .account {
-  width: 100%;
+  width: 20em;
 
   .selected,
   .unselected {
