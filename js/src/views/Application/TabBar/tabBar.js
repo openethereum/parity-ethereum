@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
@@ -65,7 +66,12 @@ class TabBar extends Component {
         ? (
           <Tooltip
             className={ styles.tabbarTooltip }
-            text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view'
+            text={
+              <FormattedMessage
+                id='tabBar.tooltip.overview'
+                defaultMessage='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view'
+              />
+            }
           />
         )
         : null;
