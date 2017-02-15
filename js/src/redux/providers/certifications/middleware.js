@@ -87,12 +87,12 @@ export default class CertificationsMiddleware {
       badgeReg
         .getContract()
         .then((badgeRegContract) => {
-          return badgeRegUpdateFilter(badgeRegContract.address, [
+          return badgeRegUpdateFilter(badgeRegContract.address, [ [
             badgeRegContract.instance.Registered.signature,
             badgeRegContract.instance.Unregistered.signature,
             badgeRegContract.instance.MetaChanged.signature,
             badgeRegContract.instance.AddressChanged.signature
-          ]);
+          ] ]);
         })
         .then(() => {
           shortFetchChanges();
@@ -125,9 +125,13 @@ export default class CertificationsMiddleware {
       }
 
       function onBadgeRegLogs (logs) {
-        const ids = logs.map((log) => log.params.id.value.toNumber());
+        return badgeReg.getContract()
+          .then((badgeRegContract) => {
+            logs = badgeRegContract.parseEventLogs(logs);
+            const ids = logs.map((log) => log.params.id.value.toNumber());
 
-        return fetchCertifiers(uniq(ids));
+            return fetchCertifiers(uniq(ids));
+          });
       }
 
       function _fetchChanges () {
