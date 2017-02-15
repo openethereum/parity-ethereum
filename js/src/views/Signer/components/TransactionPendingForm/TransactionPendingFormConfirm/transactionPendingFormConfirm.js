@@ -95,39 +95,14 @@ class TransactionPendingFormConfirm extends Component {
   render () {
     const { account, address, isSending } = this.props;
     const { wallet, walletError } = this.state;
-    const isExternal = !account.uuid;
-
-    const passwordHint = this.getPasswordHint();
-    const isWalletOk = !isExternal || (walletError === null && wallet !== null);
+    const isWalletOk = account.uuid || (walletError === null && wallet !== null);
 
     return (
       <div className={ styles.confirmForm }>
         <Form>
-          {
-            isExternal
-              ? this.renderKeyInput()
-              : null
-          }
-          {
-            account.hardware
-              ? null
-              : this.renderPassword(isExternal)
-          }
-          <div className={ styles.passwordHint }>
-            {
-              passwordHint
-                ? (
-                  <FormattedMessage
-                    id='signer.pending.passwordHint'
-                    defaultMessage='(hint) {passwordHint}'
-                    values={ {
-                      passwordHint
-                    } }
-                  />
-                )
-                : null
-            }
-          </div>
+          { this.renderKeyInput() }
+          { this.renderPassword() }
+          { this.renderPasswordHint() }
           <div
             data-effect='solid'
             data-for={ `transactionConfirmForm${this.id}` }
@@ -170,38 +145,43 @@ class TransactionPendingFormConfirm extends Component {
     );
   }
 
-  renderPassword (isExternal) {
+  renderPassword () {
+    const { account } = this.props;
     const { password } = this.state;
+
+    if (account.hardware) {
+      return null;
+    }
 
     return (
       <Input
         hint={
-          isExternal
+          account.uuid
             ? (
-              <FormattedMessage
-                id='signer.pending.password.decrypt.hint'
-                defaultMessage='decrypt the key'
-              />
-            )
-            : (
               <FormattedMessage
                 id='signer.pending.password.unlock.hint'
                 defaultMessage='unlock the account'
               />
             )
+            : (
+              <FormattedMessage
+                id='signer.pending.password.decrypt.hint'
+                defaultMessage='decrypt the key'
+              />
+            )
         }
         label={
-          isExternal
+          account.uuid
             ? (
               <FormattedMessage
-                id='signer.pending.password.decrypt.label'
-                defaultMessage='Key Password'
+                id='signer.pending.password.unlock.label'
+                defaultMessage='Account Password'
               />
             )
             : (
               <FormattedMessage
-                id='signer.pending.password.unlock.label'
-                defaultMessage='Account Password'
+                id='signer.pending.password.decrypt.label'
+                defaultMessage='Key Password'
               />
             )
         }
@@ -214,8 +194,33 @@ class TransactionPendingFormConfirm extends Component {
     );
   }
 
+  renderPasswordHint () {
+    const passwordHint = this.getPasswordHint();
+
+    if (!passwordHint) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.passwordHint }>
+        <FormattedMessage
+          id='signer.pending.passwordHint'
+          defaultMessage='(hint) {passwordHint}'
+          values={ {
+            passwordHint
+          } }
+        />
+      </div>
+    );
+  }
+
   renderKeyInput () {
+    const { account } = this.props;
     const { walletError } = this.state;
+
+    if (account.uuid || account.wallet || account.hardware) {
+      return null;
+    }
 
     return (
       <Input
