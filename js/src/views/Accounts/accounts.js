@@ -106,7 +106,7 @@ class Accounts extends Component {
             className={ styles.accountTooltip }
             text={
               <FormattedMessage
-                id='accounts.tooltip.accounts'
+                id='accounts.tooltip.overview'
                 defaultMessage='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account'
               />
             }
@@ -251,7 +251,7 @@ class Accounts extends Component {
           right
           text={
             <FormattedMessage
-              id='accounts.tooltip.toolbar'
+              id='accounts.tooltip.actions'
               defaultMessage='actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item'
             />
           }

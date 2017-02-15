@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
@@ -49,6 +50,15 @@ class TabBar extends Component {
         </ToolbarGroup>
         <div className={ styles.tabs }>
           { this.renderTabItems() }
+          <Tooltip
+            className={ styles.tabbarTooltip }
+            text={
+              <FormattedMessage
+                id='tabBar.tooltip.overview'
+                defaultMessage='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view'
+              />
+            }
+          />
         </div>
         <ToolbarGroup className={ styles.last }>
           <div />
@@ -61,15 +71,6 @@ class TabBar extends Component {
     const { views, pending } = this.props;
 
     return views.map((view, index) => {
-      const body = (view.id === 'accounts')
-        ? (
-          <Tooltip
-            className={ styles.tabbarTooltip }
-            text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view'
-          />
-        )
-        : null;
-
       return (
         <Link
           activeClassName={ styles.tabactive }
@@ -80,9 +81,7 @@ class TabBar extends Component {
           <Tab
             pendings={ pending.length }
             view={ view }
-          >
-            { body }
-          </Tab>
+          />
         </Link>
       );
     });

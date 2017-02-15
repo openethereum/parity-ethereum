@@ -65,7 +65,7 @@ function render () {
   return component;
 }
 
-describe('Tooltips', () => {
+describe('ui/Tooltips', () => {
   beforeEach(() => {
     render();
   });

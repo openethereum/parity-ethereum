@@ -14,26 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use jsonrpc_core;
-
-use v1::types::{DappId, Origin};
-
-/// RPC methods metadata.
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct Metadata {
-	/// Request origin
-	pub origin: Origin,
-}
-
-impl Metadata {
-	/// Get
-	pub fn dapp_id(&self) -> DappId {
-		match self.origin {
-			Origin::Dapps(ref dapp_id) => dapp_id.clone(),
-			_ => DappId::default(),
-		}
-	}
-}
-
-impl jsonrpc_core::Metadata for Metadata {}
-
+export default from './requestOrigin';
