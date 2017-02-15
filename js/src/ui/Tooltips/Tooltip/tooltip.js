@@ -34,10 +34,10 @@ class Tooltip extends Component {
     className: PropTypes.string,
     currentId: PropTypes.number,
     maxId: PropTypes.number,
-    right: PropTypes.bool,
     onNewTooltip: PropTypes.func,
     onNextTooltip: PropTypes.func,
     onCloseTooltips: PropTypes.func,
+    right: PropTypes.bool,
     text: nodeOrStringProptype(),
     title: nodeOrStringProptype()
   }
