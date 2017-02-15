@@ -63,6 +63,7 @@ RUN git clone https://github.com/ethcore/parity && \
         strip /build/parity/target/release/parity
 
 RUN file /build/parity/target/release/parity
+RUN rm -rf /root/.cargo&&rm -rf /root/.multirust&&rm -rf /root/.rustup
 
 EXPOSE 8080 8545 8180
 ENTRYPOINT ["/build/parity/target/release/parity"]
