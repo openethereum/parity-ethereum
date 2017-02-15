@@ -127,4 +127,9 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 			})
 			.boxed()
 	}
+
+	fn sign_and_send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256, Error> {
+		warn!("Using deprecated personal_signAndSendTransaction, use personal_sendTransaction instead.");
+		self.send_transaction(meta, request, password)
+	}
 }
