@@ -94,66 +94,39 @@ class TransactionPendingFormConfirm extends Component {
 
   render () {
     const { account, address, isSending } = this.props;
-    const { password, wallet, walletError } = this.state;
+    const { wallet, walletError } = this.state;
     const isExternal = !account.uuid;
 
-    const passwordHintText = this.getPasswordHint();
-    const passwordHint = passwordHintText
-      ? (
-        <div>
-          <span>(hint) </span>{ passwordHintText }
-        </div>
-      )
-      : null;
-
+    const passwordHint = this.getPasswordHint();
     const isWalletOk = !isExternal || (walletError === null && wallet !== null);
-    const keyInput = isExternal
-      ? this.renderKeyInput()
-      : null;
 
     return (
       <div className={ styles.confirmForm }>
         <Form>
-          { keyInput }
-          <Input
-            hint={
-              isExternal
-                ? (
-                  <FormattedMessage
-                    id='signer.pending.password.decrypt.hint'
-                    defaultMessage='decrypt the key'
-                  />
-                )
-                : (
-                  <FormattedMessage
-                    id='signer.pending.password.unlock.hint'
-                    defaultMessage='unlock the account'
-                  />
-                )
-            }
-            label={
-              isExternal
-                ? (
-                  <FormattedMessage
-                    id='signer.pending.password.decrypt.label'
-                    defaultMessage='Key Password'
-                  />
-                )
-                : (
-                  <FormattedMessage
-                    id='signer.pending.password.unlock.label'
-                    defaultMessage='Account Password'
-                  />
-                )
-            }
-            onChange={ this.onModifyPassword }
-            onKeyDown={ this.onKeyDown }
-            ref='input'
-            type='password'
-            value={ password }
-          />
+          {
+            isExternal
+              ? this.renderKeyInput()
+              : null
+          }
+          {
+            account.hardware
+              ? null
+              : this.renderPassword(isExternal)
+          }
           <div className={ styles.passwordHint }>
-            { passwordHint }
+            {
+              passwordHint
+                ? (
+                  <FormattedMessage
+                    id='signer.pending.passwordHint'
+                    defaultMessage='(hint) {passwordHint}'
+                    values={ {
+                      passwordHint
+                    } }
+                  />
+                )
+                : null
+            }
           </div>
           <div
             data-effect='solid'
@@ -194,6 +167,50 @@ class TransactionPendingFormConfirm extends Component {
           { this.renderTooltip() }
         </Form>
       </div>
+    );
+  }
+
+  renderPassword (isExternal) {
+    const { password } = this.state;
+
+    return (
+      <Input
+        hint={
+          isExternal
+            ? (
+              <FormattedMessage
+                id='signer.pending.password.decrypt.hint'
+                defaultMessage='decrypt the key'
+              />
+            )
+            : (
+              <FormattedMessage
+                id='signer.pending.password.unlock.hint'
+                defaultMessage='unlock the account'
+              />
+            )
+        }
+        label={
+          isExternal
+            ? (
+              <FormattedMessage
+                id='signer.pending.password.decrypt.label'
+                defaultMessage='Key Password'
+              />
+            )
+            : (
+              <FormattedMessage
+                id='signer.pending.password.unlock.label'
+                defaultMessage='Account Password'
+              />
+            )
+        }
+        onChange={ this.onModifyPassword }
+        onKeyDown={ this.onKeyDown }
+        ref='input'
+        type='password'
+        value={ password }
+      />
     );
   }
 
