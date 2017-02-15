@@ -36,21 +36,23 @@ pub enum Out {
 
 /// Request/response handler
 pub struct IpfsHandler {
+	/// Reference to the Blockchain Client
 	client: Arc<BlockChainClient>,
-	out: Out,
+
+	/// Response to send out
+	pub out: Out,
+
+	/// How many bytes from the response have been written
+	pub out_progress: usize,
 }
 
 impl IpfsHandler {
 	pub fn new(client: Arc<BlockChainClient>) -> Self {
 		IpfsHandler {
 			client: client,
-			out: Out::Bad("Invalid Request")
+			out: Out::Bad("Invalid Request"),
+			out_progress: 0,
 		}
-	}
-
-	/// Exposes the outgoing state. The outgoing state should be immutable from the outside.
-	pub fn out(&self) -> &Out {
-		&self.out
 	}
 
 	/// Route path + query string to a specialized method
@@ -216,7 +218,7 @@ mod tests {
 
 		let _ = handler.route("/api/v0/block/get", Some("arg=z43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
 
-		assert_eq!(handler.out(), &Out::NotFound("Block not found"));
+		assert_eq!(handler.out, Out::NotFound("Block not found"));
 	}
 
 	#[test]
@@ -225,7 +227,7 @@ mod tests {
 
 		let _ = handler.route("/api/v0/block/get", None);
 
-		assert_eq!(handler.out(), &Out::Bad("CID parsing failed"));
+		assert_eq!(handler.out, Out::Bad("CID parsing failed"));
 	}
 
 	#[test]
@@ -234,7 +236,7 @@ mod tests {
 
 		let _ = handler.route("/api/v0/block/get", Some("arg=foobarz43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
 
-		assert_eq!(handler.out(), &Out::Bad("CID parsing failed"));
+		assert_eq!(handler.out, Out::Bad("CID parsing failed"));
 	}
 
 	#[test]
@@ -243,6 +245,6 @@ mod tests {
 
 		let _ = handler.route("/foo/bar/baz", Some("arg=z43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
 
-		assert_eq!(handler.out(), &Out::NotFound("Route not found"));
+		assert_eq!(handler.out, Out::NotFound("Route not found"));
 	}
 }
