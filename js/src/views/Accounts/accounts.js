@@ -330,7 +330,7 @@ class Accounts extends Component {
     wallets
       .filter((wallet) => !accountsInfo[wallet.address])
       .forEach((wallet) => {
-        // this.hwstore.createEntry(wallet);
+        // this.hwstore.createAccountInfo(wallet);
       });
 
     this.setVisibleAccounts();
@@ -344,9 +344,9 @@ function mapStateToProps (state) {
   return {
     accounts,
     accountsInfo,
+    balances,
     hardware,
-    hasAccounts,
-    balances
+    hasAccounts
   };
 }
 
