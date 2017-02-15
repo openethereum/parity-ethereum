@@ -33,6 +33,7 @@ function createApi () {
   blockNumber = new BigNumber(100);
   api = {
     eth: {
+      getTransactionByHash: sinon.stub().resolves({ gas: 21000 }),
       getTransactionReceipt: (hash) => {
         return Promise.resolve({
           blockNumber: new BigNumber(100),
