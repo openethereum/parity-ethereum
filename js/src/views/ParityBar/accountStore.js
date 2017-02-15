@@ -111,10 +111,15 @@ export default class AccountStore {
   }
 
   subscribeDefaultAccount () {
-    return this._api.subscribe('parity_defaultAccount', (error, defaultAccount) => {
+    this._api.subscribe('parity_defaultAccount', (error, defaultAccount) => {
       if (!error) {
-      console.warn('OUSADOUASD', defaultAccount);
         this.setDefaultAccount(defaultAccount);
+      }
+    });
+
+    this._api.subscribe('eth_accounts', (error) => {
+      if (!error) {
+        this.loadAccounts();
       }
     });
   }
