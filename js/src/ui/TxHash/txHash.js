@@ -22,6 +22,7 @@ import { connect } from 'react-redux';
 
 import { txLink } from '~/3rdparty/etherscan/links';
 import Warning from '~/ui/Warning';
+import { DEFAULT_GAS } from '~/util/constants';
 
 import ShortenedHash from '../ShortenedHash';
 import styles from './txHash.css';
@@ -44,13 +45,14 @@ class TxHash extends Component {
 
   state = {
     blockNumber: new BigNumber(0),
-    gas: {},
+    isRecipientContract: false,
     subscriptionId: null,
-    transaction: null
+    transaction: null,
+    transactionReceipt: null
   }
 
   componentWillMount () {
-    this.fetchTransactionGas();
+    this.fetchTransaction();
   }
 
   componentWillReceiveProps (nextProps) {
@@ -58,15 +60,14 @@ class TxHash extends Component {
     const nextHash = nextProps.hash;
 
     if (prevHash !== nextHash) {
-      this.fetchTransactionGas(nextProps);
+      this.fetchTransaction(nextProps);
     }
   }
 
   /**
-   * Get the gas send for the current transaction
-   * and save the value in the state
+   * Get the sent transaction data
    */
-  fetchTransactionGas (props = this.props) {
+  fetchTransaction (props = this.props) {
     const { hash } = props;
 
     if (!hash) {
@@ -75,10 +76,27 @@ class TxHash extends Component {
 
     this.context.api.eth
       .getTransactionByHash(hash)
-      .then((transaction = {}) => {
-        const { gas = new BigNumber(0) } = transaction;
+      .then((transaction) => {
+        this.setState({ transaction });
 
-        this.setState({ gas: { hash, value: gas } });
+        return this.fetchRecipientCode(transaction);
+      });
+  }
+
+  fetchRecipientCode (transaction) {
+    if (!transaction || !transaction.to) {
+      return;
+    }
+
+    this.context.api.eth
+      .getCode(transaction.to)
+      .then((code) => {
+        const isRecipientContract = code && !/^(0x)?0*$/.test(code);
+
+        this.setState({ isRecipientContract });
+      })
+      .catch((error) => {
+        console.error('fetchRecipientCode', error);
       });
   }
 
@@ -124,16 +142,22 @@ class TxHash extends Component {
   }
 
   renderWarning () {
-    const { gas, transaction } = this.state;
+    const { isRecipientContract, transaction, transactionReceipt } = this.state;
 
-    if (!(transaction && transaction.blockNumber && transaction.blockNumber.gt(0))) {
+    if (!(transactionReceipt && transactionReceipt.blockNumber && transactionReceipt.blockNumber.gt(0))) {
       return null;
     }
 
-    const { gasUsed = new BigNumber(0) } = transaction;
-    const isOog = transaction.transactionHash === gas.hash && gasUsed.gte(gas.value);
+    const { gas, input } = transaction;
+    const { gasUsed = new BigNumber(0) } = transactionReceipt;
 
-    if (!isOog) {
+    const isOog = gasUsed.gte(gas);
+
+    // Skip OOG check if a simple transaction to a non-contract account
+    // @see: https://github.com/ethcore/parity/issues/4550
+    const skipOogCheck = gasUsed.eq(DEFAULT_GAS) && (!input || input === '0x') && !isRecipientContract;
+
+    if (!isOog || skipOogCheck) {
       return null;
     }
 
@@ -151,9 +175,9 @@ class TxHash extends Component {
 
   renderConfirmations () {
     const { maxConfirmations } = this.props;
-    const { blockNumber, transaction } = this.state;
+    const { blockNumber, transactionReceipt } = this.state;
 
-    if (!(transaction && transaction.blockNumber && transaction.blockNumber.gt(0))) {
+    if (!(transactionReceipt && transactionReceipt.blockNumber && transactionReceipt.blockNumber.gt(0))) {
       return (
         <div className={ styles.confirm }>
           <LinearProgress
@@ -171,7 +195,7 @@ class TxHash extends Component {
       );
     }
 
-    const confirmations = blockNumber.minus(transaction.blockNumber).plus(1);
+    const confirmations = blockNumber.minus(transactionReceipt.blockNumber).plus(1);
     const value = Math.min(confirmations.toNumber(), maxConfirmations);
 
     let count = confirmations.toFormat(0);
@@ -210,21 +234,22 @@ class TxHash extends Component {
     const { api } = this.context;
     const { hash } = this.props;
 
+    const nextState = { blockNumber };
+
     if (error || !hash || /^(0x)?0*$/.test(hash)) {
-      return;
+      return this.setState(nextState);
     }
 
     return api.eth
       .getTransactionReceipt(hash)
-      .then((transaction) => {
-        this.setState({
-          blockNumber,
-          transaction
-        });
+      .then((transactionReceipt) => {
+        nextState.transactionReceipt = transactionReceipt;
       })
       .catch((error) => {
-        console.warn('onBlockNumber', error);
-        this.setState({ blockNumber });
+        console.error('onBlockNumber', error);
+      })
+      .then(() => {
+        this.setState(nextState);
       });
   }
 }
