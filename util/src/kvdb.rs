@@ -129,12 +129,16 @@ enum KeyState {
 /// This makes a distinction between "buffered" and "flushed" values. Values which have been
 /// written can always be read, but may be present in an in-memory buffer. Values which have
 /// been flushed have been moved to backing storage, like a RocksDB instance. There are certain
-/// operations which operate only on flushed data and not buffered.
+/// operations which are only guaranteed to operate on flushed data and not buffered,
+/// although implementations may differ in this regard.
+///
 /// The contents of an interior buffer may be explicitly flushed using the `flush` method.
 ///
 /// The `KeyValueDB` also deals in "column families", which can be thought of as distinct
 /// stores within a database. Keys written in one column family will not be accessible from
-/// any other.
+/// any other. The number of column families must be specified at initialization, with a
+/// differing interface for each database. The `None` argument in place of a column index
+/// is always supported.
 ///
 /// The API laid out here, along with the `Sync` bound implies interior synchronization for
 /// implementation.
@@ -151,11 +155,98 @@ pub trait KeyValueDB: Sync + Send {
 	/// Write a transaction of changes to the buffer.
 	fn write_buffered(&self, transaction: DBTransaction);
 
+	/// Write a transaction of changes to the backing store.
+	fn write(&self, transaction: DBTransaction) -> Result<(), String> {
+		self.write_buffered(transaction);
+		self.flush()
+	}
+
 	/// Flush all buffered data.
 	fn flush(&self) -> Result<(), String>;
 
 	/// Iterate over flushed data for a given column.
 	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
+}
+
+/// A key-value database fulfilling the `KeyValueDB` trait, living in memory.
+/// This is generally intended for tests and is not particularly optimized.
+pub struct InMemory {
+	columns: RwLock<HashMap<Option<u32>, BTreeMap<Vec<u8>, DBValue>>>,
+}
+
+/// Create an in-memory database with the given number of columns.
+/// Columns will be indexable by 0..`num_cols`
+pub fn in_memory(num_cols: u32) -> InMemory {
+	let mut cols = HashMap::new();
+	cols.insert(None, BTreeMap::new());
+
+	for idx in 0..num_cols {
+		cols.insert(Some(idx), BTreeMap::new());
+	}
+
+	InMemory {
+		columns: RwLock::new(cols)
+	}
+}
+
+impl KeyValueDB for InMemory {
+	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String> {
+		let columns = self.columns.read();
+		match columns.get(&col) {
+			None => Err(format!("No such column family: {:?}", col)),
+			Some(map) => Ok(map.get(key).cloned()),
+		}
+	}
+
+	fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>> {
+		let columns = self.columns.read();
+		match columns.get(&col) {
+			None => None,
+			Some(map) =>
+				map.iter()
+					.find(|&(ref k ,_)| k.starts_with(prefix))
+					.map(|(_, v)| (&**v).to_vec().into_boxed_slice())
+		}
+	}
+
+	fn write_buffered(&self, transaction: DBTransaction) {
+		let mut columns = self.columns.write();
+		let ops = transaction.ops;
+		for op in ops {
+			match op {
+				DBOp::Insert { col, key, value } => {
+					if let Some(mut col) = columns.get_mut(&col) {
+						col.insert(key.to_vec(), value);
+					}
+				},
+				DBOp::InsertCompressed { col, key, value } => {
+					if let Some(mut col) = columns.get_mut(&col) {
+						let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
+						let mut value = DBValue::new();
+						value.append_slice(&compressed);
+						col.insert(key.to_vec(), value);
+					}
+				},
+				DBOp::Delete { col, key } => {
+					if let Some(mut col) = columns.get_mut(&col) {
+						col.remove(&*key);
+					}
+				},
+			}
+		}
+	}
+
+	fn flush(&self) -> Result<(), String> { Ok(()) }
+	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a> {
+		match self.columns.read().get(&col) {
+			Some(map) => Box::new( // TODO: worth optimizing at all?
+				map.clone()
+					.into_iter()
+					.map(|(k, v)| (k.into_boxed_slice(), v.to_vec().into_boxed_slice()))
+			),
+			None => Box::new(None.into_iter())
+		}
+	}
 }
 
 /// Compaction profile for the database settings
@@ -687,6 +778,10 @@ impl KeyValueDB for Database {
 
 	fn write_buffered(&self, transaction: DBTransaction) {
 		Database::write_buffered(self, transaction)
+	}
+
+	fn write(&self, transaction: DBTransaction) -> Result<(), String> {
+		Database::write(self, transaction)
 	}
 
 	fn flush(&self) -> Result<(), String> {
