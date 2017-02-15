@@ -166,6 +166,9 @@ pub trait KeyValueDB: Sync + Send {
 
 	/// Iterate over flushed data for a given column.
 	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
+
+	/// Attempt to replace this database with a new one located at the given path.
+	fn restore(&self, new_db: &str) -> Result<(), UtilError>;
 }
 
 /// A key-value database fulfilling the `KeyValueDB` trait, living in memory.
@@ -246,6 +249,10 @@ impl KeyValueDB for InMemory {
 			),
 			None => Box::new(None.into_iter())
 		}
+	}
+
+	fn restore(&self, _new_db: &str) -> Result<(), UtilError> {
+		Err(UtilError::SimpleString("Attempted to restore in-memory database".into()))
 	}
 }
 
@@ -788,10 +795,13 @@ impl KeyValueDB for Database {
 		Database::flush(self)
 	}
 
-	/// Iterate over flushed data for a given column.
 	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a> {
 		let unboxed = Database::iter(self, col);
 		Box::new(unboxed)
+	}
+
+	fn restore(&self, new_db: &str) -> Result<(), UtilError> {
+		Database::restore(self, new_db)
 	}
 }
 

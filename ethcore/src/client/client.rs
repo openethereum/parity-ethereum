@@ -17,7 +17,6 @@
 use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
-use std::path::{Path};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant};
@@ -135,7 +134,7 @@ pub struct Client {
 	engine: Arc<Engine>,
 	config: ClientConfig,
 	pruning: journaldb::Algorithm,
-	db: RwLock<Arc<Database>>,
+	db: RwLock<Arc<KeyValueDB>>,
 	state_db: Mutex<StateDB>,
 	block_queue: BlockQueue,
 	report: RwLock<ClientReport>,
@@ -157,18 +156,16 @@ pub struct Client {
 }
 
 impl Client {
-	/// Create a new client with given spec and DB path and custom verifier.
+	/// Create a new client with given parameters.
+	/// The database is assumed to have been initialized with the correct columns.
 	pub fn new(
 		config: ClientConfig,
 		spec: &Spec,
-		path: &Path,
+		db: Arc<KeyValueDB>,
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
-		db_config: &DatabaseConfig,
 	) -> Result<Arc<Client>, ClientError> {
 
-		let path = path.to_path_buf();
-		let db = Arc::new(Database::open(&db_config, &path.to_str().expect("DB path could not be converted to string.")).map_err(ClientError::Database)?);
 		let trie_spec = match config.fat_db {
 			true => TrieSpec::Fat,
 			false => TrieSpec::Secure,

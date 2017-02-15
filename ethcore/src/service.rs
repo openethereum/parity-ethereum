@@ -88,8 +88,14 @@ impl ClientService {
 		db_config.compaction = config.db_compaction.compaction_profile(client_path);
 		db_config.wal = config.db_wal;
 
+		let db = Arc::new(Database::open(
+			&db_config,
+			&client_path.to_str().expect("DB path could not be converted to string.")
+		).map_err(::client::Error::Database)?);
+
+
 		let pruning = config.pruning;
-		let client = Client::new(config, &spec, client_path, miner, io_service.channel(), &db_config)?;
+		let client = Client::new(config, &spec, db, miner, io_service.channel())?;
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
@@ -121,11 +127,6 @@ impl ClientService {
 			panic_handler: panic_handler,
 			_stop_guard: stop_guard,
 		})
-	}
-
-	/// Add a node to network
-	pub fn add_node(&mut self, _enode: &str) {
-		unimplemented!();
 	}
 
 	/// Get general IO interface

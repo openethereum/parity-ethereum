@@ -19,7 +19,7 @@
 use std::ops::Deref;
 use std::hash::Hash;
 use std::collections::HashMap;
-use util::{DBTransaction, Database, RwLock};
+use util::{DBTransaction, KeyValueDB, RwLock};
 
 use rlp;
 
@@ -214,7 +214,7 @@ impl Writable for DBTransaction {
 	}
 }
 
-impl Readable for Database {
+impl<KVDB: KeyValueDB + ?Sized> Readable for KVDB {
 	fn read<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> Option<T> where T: rlp::Decodable, R: Deref<Target = [u8]> {
 		let result = self.get(col, &key.key());
 
