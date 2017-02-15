@@ -162,9 +162,11 @@ describe('ui/GasPriceEditor/Store', () => {
     });
 
     describe('setConditionDateTime', () => {
-      it('sets the datatime', () => {
-        store.setConditionDateTime('testingDateTime');
-        expect(store.condition.time).to.equal('testingDateTime');
+      it('sets the datetime', () => {
+        const testTime = new Date('1973-06-11 07:52');
+
+        store.setConditionDateTime(testTime);
+        expect(store.condition.time.getTime()).to.equal(testTime.getTime());
       });
     });
 
