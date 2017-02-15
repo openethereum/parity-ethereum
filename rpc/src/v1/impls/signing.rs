@@ -95,7 +95,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 			.and_then(move |payload| {
 				let sender = payload.sender();
 				if accounts.is_unlocked(sender) {
-					dispatch::execute(dispatcher, &accounts, payload, dispatch::SignWith::Nothing)
+					dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Nothing)
 						.map(|v| v.into_value())
 						.map(DispatchResult::Value)
 						.boxed()

@@ -113,7 +113,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		dispatcher.fill_optional_fields(request.into(), default)
 			.and_then(move |filled| {
 				let condition = filled.condition.clone().map(Into::into);
-				dispatcher.sign(&accounts, filled, SignWith::Password(password))
+				dispatcher.sign(accounts, filled, SignWith::Password(password))
 					.map(|tx| tx.into_value())
 					.map(move |tx| PendingTransaction::new(tx, condition))
 					.map(move |tx| (tx, dispatcher))
