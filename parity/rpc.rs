@@ -21,9 +21,10 @@ use std::io;
 use io::PanicHandler;
 
 use dir::default_data_path;
-use ethcore_rpc::{self as rpc, RpcServerError, IpcServerError, Metadata};
+use ethcore_rpc::{self as rpc, RpcServerError, IpcServerError, Metadata, Origin};
 use ethcore_rpc::informant::{RpcStats, Middleware};
 use helpers::parity_ipc_path;
+use hyper;
 use jsonrpc_core::MetaIoHandler;
 use jsonrpc_core::reactor::{RpcHandler, Remote};
 use rpc_apis;
@@ -89,6 +90,18 @@ pub struct Dependencies {
 	pub stats: Arc<RpcStats>,
 }
 
+pub struct RpcExtractor;
+impl rpc::HttpMetaExtractor<Metadata> for RpcExtractor {
+	fn read_metadata(&self, req: &hyper::server::Request<hyper::net::HttpStream>) -> Metadata {
+		let origin = req.headers().get::<hyper::header::Origin>()
+			.map(|origin| format!("{}://{}", origin.scheme, origin.host))
+			.unwrap_or_else(|| "unknown".into());
+		let mut metadata = Metadata::default();
+		metadata.origin = Origin::Rpc(origin);
+		metadata
+	}
+}
+
 pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<HttpServer>, String> {
 	if !conf.enabled {
 		return Ok(None);
@@ -113,7 +126,7 @@ pub fn setup_http_rpc_server(
 	let apis = setup_apis(apis, dependencies);
 	let handler = RpcHandler::new(Arc::new(apis), dependencies.remote.clone());
 	let ph = dependencies.panic_handler.clone();
-	let start_result = rpc::start_http(url, cors_domains, allowed_hosts, ph, handler);
+	let start_result = rpc::start_http(url, cors_domains, allowed_hosts, ph, handler, RpcExtractor);
 	match start_result {
 		Err(RpcServerError::IoError(err)) => match err.kind() {
 			io::ErrorKind::AddrInUse => Err(format!("RPC address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)),

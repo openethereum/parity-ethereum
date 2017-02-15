@@ -145,7 +145,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
-		let dapp_id = meta.dapp_id.unwrap_or_default();
+		let dapp_id = meta.dapp_id();
 		let default_account = move || {
 			Ok(take_weak!(self.accounts)
 				.dapps_addresses(dapp_id.into())

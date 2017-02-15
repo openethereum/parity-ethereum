@@ -24,7 +24,9 @@ export default class AccountStore {
   constructor (api) {
     this._api = api;
 
-    this.loadAccounts();
+    this.loadDefaultAccount()
+      .then(() => this.loadAccounts());
+
     this.subscribeDefaultAccount();
   }
 
@@ -33,7 +35,15 @@ export default class AccountStore {
   }
 
   @action setDefaultAccount = (defaultAccount) => {
-    this.defaultAccount = defaultAccount;
+    transaction(() => {
+      this.accounts = this.accounts.map((account) => {
+        account.default = account.address === defaultAccount;
+
+        return account;
+      });
+
+      this.defaultAccount = defaultAccount;
+    });
   }
 
   @action setLoading = (isLoading) => {
@@ -47,11 +57,20 @@ export default class AccountStore {
         .map((account) => account.address)
     );
 
+    // Have optimistic UI: https://www.smashingmagazine.com/2016/11/true-lies-of-optimistic-user-interfaces/?utm_source=codropscollective
+    this.setDefaultAccount(address);
+
     return this._api.parity
       .setNewDappsWhitelist(accounts)
       .catch((error) => {
         console.warn('makeDefaultAccount', error);
       });
+  }
+
+  loadDefaultAccount () {
+    return this._api.parity
+      .defaultAccount()
+      .then((address) => this.setDefaultAccount(address));
   }
 
   loadAccounts () {

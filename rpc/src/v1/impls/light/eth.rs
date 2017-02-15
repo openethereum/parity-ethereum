@@ -178,7 +178,7 @@ impl Eth for EthClient {
 	}
 
 	fn accounts(&self, meta: Metadata) -> BoxFuture<Vec<RpcH160>, Error> {
-		let dapp: DappId = meta.dapp_id.unwrap_or_default().into();
+		let dapp: DappId = meta.dapp_id().into();
 
 		let accounts = self.accounts
 			.note_dapp_used(dapp.clone())

@@ -22,8 +22,7 @@ use jsonrpc_core;
 use util::{Mutex, RwLock, U256, Address};
 use ethcore::account_provider::DappId;
 use v1::helpers::{ConfirmationRequest, ConfirmationPayload};
-use v1::metadata::Metadata;
-use v1::types::{ConfirmationResponse, H160 as RpcH160};
+use v1::types::{ConfirmationResponse, H160 as RpcH160, Origin, DappId as RpcDappId};
 
 /// Result that can be returned from JSON RPC.
 pub type RpcResult = Result<ConfirmationResponse, jsonrpc_core::Error>;
@@ -37,9 +36,9 @@ pub enum DefaultAccount {
 	ForDapp(DappId),
 }
 
-impl From<Metadata> for DefaultAccount {
-	fn from(meta: Metadata) -> Self {
-		DefaultAccount::ForDapp(meta.dapp_id.unwrap_or_default().into())
+impl From<RpcDappId> for DefaultAccount {
+	fn from(dapp_id: RpcDappId) -> Self {
+		DefaultAccount::ForDapp(dapp_id.into())
 	}
 }
 
@@ -84,7 +83,7 @@ const QUEUE_LIMIT: usize = 50;
 pub trait SigningQueue: Send + Sync {
 	/// Add new request to the queue.
 	/// Returns a `ConfirmationPromise` that can be used to await for resolution of given request.
-	fn add_request(&self, request: ConfirmationPayload) -> Result<ConfirmationPromise, QueueAddError>;
+	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<ConfirmationPromise, QueueAddError>;
 
 	/// Removes a request from the queue.
 	/// Notifies possible token holders that request was rejected.
@@ -267,7 +266,7 @@ impl Drop for ConfirmationsQueue {
 }
 
 impl SigningQueue for ConfirmationsQueue {
-	fn add_request(&self, request: ConfirmationPayload) -> Result<ConfirmationPromise, QueueAddError> {
+	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<ConfirmationPromise, QueueAddError> {
 		if self.len() > QUEUE_LIMIT {
 			return Err(QueueAddError::LimitReached);
 		}
@@ -290,6 +289,7 @@ impl SigningQueue for ConfirmationsQueue {
 				request: ConfirmationRequest {
 					id: id,
 					payload: request,
+					origin: origin,
 				},
 			});
 			queue.get(&id).map(|token| token.as_promise()).expect("Token was just inserted.")
@@ -362,7 +362,7 @@ mod test {
 		// when
 		let q = queue.clone();
 		let handle = thread::spawn(move || {
-			let v = q.add_request(request).unwrap();
+			let v = q.add_request(request, Default::default()).unwrap();
 			let (tx, rx) = mpsc::channel();
 			v.wait_for_result(move |res| {
 				tx.send(res).unwrap();
@@ -397,7 +397,7 @@ mod test {
 				*v = Some(notification);
 			}).expect("Should be closed nicely.")
 		});
-		queue.add_request(request).unwrap();
+		queue.add_request(request, Default::default()).unwrap();
 		queue.finish();
 
 		// then
@@ -413,7 +413,7 @@ mod test {
 		let request = request();
 
 		// when
-		queue.add_request(request.clone()).unwrap();
+		queue.add_request(request.clone(), Default::default()).unwrap();
 		let all = queue.requests();
 
 		// then

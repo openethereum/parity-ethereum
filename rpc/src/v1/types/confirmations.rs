@@ -21,16 +21,19 @@ use serde::{Serialize, Serializer};
 use util::log::Colour;
 use util::bytes::ToPretty;
 
-use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes, TransactionCondition};
+use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes, TransactionCondition, Origin};
 use v1::helpers;
 
 /// Confirmation waiting in a queue
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ConfirmationRequest {
 	/// Id of this confirmation
 	pub id: U256,
 	/// Payload
 	pub payload: ConfirmationPayload,
+	/// Request origin
+	pub origin: Origin,
 }
 
 impl From<helpers::ConfirmationRequest> for ConfirmationRequest {
@@ -38,13 +41,14 @@ impl From<helpers::ConfirmationRequest> for ConfirmationRequest {
 		ConfirmationRequest {
 			id: c.id.into(),
 			payload: c.payload.into(),
+			origin: c.origin,
 		}
 	}
 }
 
 impl fmt::Display for ConfirmationRequest {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "#{}: {}", self.id, self.payload)
+		write!(f, "#{}: {} coming from {}", self.id, self.payload, self.origin)
 	}
 }
 
@@ -61,6 +65,7 @@ impl fmt::Display for ConfirmationPayload {
 
 /// Sign request
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SignRequest {
 	/// Address
 	pub address: H160,
@@ -90,6 +95,7 @@ impl fmt::Display for SignRequest {
 
 /// Decrypt request
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct DecryptRequest {
 	/// Address
 	pub address: H160,
@@ -153,6 +159,7 @@ pub struct ConfirmationResponseWithToken {
 
 /// Confirmation payload, i.e. the thing to be confirmed
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub enum ConfirmationPayload {
 	/// Send Transaction
 	#[serde(rename="sendTransaction")]
@@ -249,11 +256,12 @@ mod tests {
 		let request = helpers::ConfirmationRequest {
 			id: 15.into(),
 			payload: helpers::ConfirmationPayload::Signature(1.into(), vec![5].into()),
+			origin: Origin::Rpc("test service".into()),
 		};
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","data":"0x05"}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","data":"0x05"}},"origin":{"rpc":"test service"}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());
@@ -275,11 +283,12 @@ mod tests {
 				nonce: Some(1.into()),
 				condition: None,
 			}),
+			origin: Origin::Signer(5.into()),
 		};
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"sendTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","condition":null}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"sendTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","condition":null}},"origin":{"signer":"0x0000000000000000000000000000000000000000000000000000000000000005"}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());
@@ -301,11 +310,12 @@ mod tests {
 				nonce: Some(1.into()),
 				condition: None,
 			}),
+			origin: Origin::Dapps("http://parity.io".into()),
 		};
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"signTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","condition":null}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"signTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","condition":null}},"origin":{"dapp":"http://parity.io"}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());
@@ -319,11 +329,12 @@ mod tests {
 			payload: helpers::ConfirmationPayload::Decrypt(
 				10.into(), vec![1, 2, 3].into(),
 			),
+			origin: Default::default(),
 		};
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"decrypt":{"address":"0x000000000000000000000000000000000000000a","msg":"0x010203"}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"decrypt":{"address":"0x000000000000000000000000000000000000000a","msg":"0x010203"}},"origin":"unknown"}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());

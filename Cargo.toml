@@ -16,7 +16,6 @@ number_prefix = "0.2"
 rpassword = "0.2.1"
 semver = "0.5"
 ansi_term = "0.7"
-lazy_static = "0.2"
 regex = "0.1"
 isatty = "0.1"
 toml = "0.2"
@@ -24,7 +23,7 @@ serde = "0.9"
 serde_json = "0.9"
 app_dirs = "1.1.1"
 fdlimit = "0.1"
-hyper = { version = "0.9", default-features = false }
+hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
 ethsync = { path = "sync" }

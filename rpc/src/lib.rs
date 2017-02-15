@@ -65,19 +65,24 @@ use io::PanicHandler;
 use jsonrpc_core::reactor::RpcHandler;
 
 pub use ipc::{Server as IpcServer, Error as IpcServerError};
-pub use jsonrpc_http_server::{ServerBuilder, Server, RpcServerError};
+pub use jsonrpc_http_server::{ServerBuilder, Server, RpcServerError, HttpMetaExtractor};
 pub mod v1;
 pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings, Metadata, Origin, informant, dispatch};
 pub use v1::block_import::is_major_importing;
 
 /// Start http server asynchronously and returns result with `Server` handle on success or an error.
-pub fn start_http<M: jsonrpc_core::Metadata, S: jsonrpc_core::Middleware<M>>(
+pub fn start_http<M, T, S>(
 	addr: &SocketAddr,
 	cors_domains: Option<Vec<String>>,
 	allowed_hosts: Option<Vec<String>>,
 	panic_handler: Arc<PanicHandler>,
 	handler: RpcHandler<M, S>,
-) -> Result<Server, RpcServerError> {
+	extractor: T,
+) -> Result<Server, RpcServerError> where
+	M: jsonrpc_core::Metadata,
+	S: jsonrpc_core::Middleware<M>,
+	T: HttpMetaExtractor<M>,
+{
 
 	let cors_domains = cors_domains.map(|domains| {
 		domains.into_iter()
@@ -90,6 +95,7 @@ pub fn start_http<M: jsonrpc_core::Metadata, S: jsonrpc_core::Middleware<M>>(
 	});
 
 	ServerBuilder::with_rpc_handler(handler)
+		.meta_extractor(Arc::new(extractor))
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into())
 		.panic_handler(move || {
