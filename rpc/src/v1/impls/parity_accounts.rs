@@ -162,11 +162,12 @@ impl ParityAccounts for ParityAccountsClient {
 			.map(into_vec)
 	}
 
-	fn set_new_dapps_whitelist(&self, whitelist: Option<Vec<RpcH160>>) -> Result<bool, Error> {
+	fn set_new_dapps_whitelist(&self, whitelist: Option<Vec<RpcH160>>, default: Trailing<RpcH160>) -> Result<bool, Error> {
 		let store = take_weak!(self.accounts);
+		let default = if default.0 == RpcH160::default() { None } else { Some(default.0.into()) };
 
 		store
-			.set_new_dapps_whitelist(whitelist.map(into_vec))
+			.set_new_dapps_whitelist(whitelist.map(into_vec), default)
 			.map_err(|e| errors::account("Couldn't set dapps whitelist.", e))
 			.map(|_| true)
 	}
