@@ -21,7 +21,6 @@
 extern crate ethcore;
 extern crate rustc_serialize;
 extern crate docopt;
-#[macro_use]
 extern crate ethcore_util as util;
 
 mod ext;

@@ -47,6 +47,7 @@ ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 ethcore-logger = { path = "logger" }
 ethcore-stratum = { path = "stratum" }
 ethcore-dapps = { path = "dapps", optional = true }
+evmbin = { path = "evmbin" }
 rpc-cli = { path = "rpc_cli" }
 parity-rpc-client = { path = "rpc_client" }
 ethcore-light = { path = "ethcore/light" }
