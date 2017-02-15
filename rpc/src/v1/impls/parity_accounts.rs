@@ -25,7 +25,7 @@ use ethcore::account_provider::AccountProvider;
 use jsonrpc_core::Error;
 use v1::helpers::errors;
 use v1::traits::ParityAccounts;
-use v1::types::{H160 as RpcH160, H256 as RpcH256, DappId};
+use v1::types::{H160 as RpcH160, H256 as RpcH256, DappId, Derive, DeriveHierarchical, DeriveHash};
 
 /// Account management (personal) rpc implementation.
 pub struct ParityAccountsClient {
@@ -260,6 +260,32 @@ impl ParityAccounts for ParityAccountsClient {
 			.set_vault_meta(&name, &meta)
 			.map_err(|e| errors::account("Could not update vault metadata.", e))
 			.map(|_| true)
+	}
+
+	fn derive_key_index(&self, addr: RpcH160, password: String, derivation: DeriveHierarchical, save_as_account: bool) -> Result<RpcH160, Error> {
+		let addr: Address = addr.into();
+		take_weak!(self.accounts)
+			.derive_account(
+				&addr,
+				Some(password),
+				Derive::from(derivation).to_derivation()
+					.map_err(|c| errors::account("Could not parse derivation request: {:?}", c))?,
+				save_as_account)
+			.map(Into::into)
+			.map_err(|e| errors::account("Could not derive account.", e))
+	}
+
+	fn derive_key_hash(&self, addr: RpcH160, password: String, derivation: DeriveHash, save_as_account: bool) -> Result<RpcH160, Error> {
+		let addr: Address = addr.into();
+		take_weak!(self.accounts)
+			.derive_account(
+				&addr,
+				Some(password),
+				Derive::from(derivation).to_derivation()
+					.map_err(|c| errors::account("Could not parse derivation request: {:?}", c))?,
+				save_as_account)
+			.map(Into::into)
+			.map_err(|e| errors::account("Could not derive account.", e))
 	}
 }
 

@@ -24,6 +24,7 @@ mod bytes;
 mod call_request;
 mod confirmations;
 mod consensus_status;
+mod derivation;
 mod filter;
 mod hash;
 mod histogram;
@@ -51,6 +52,7 @@ pub use self::confirmations::{
 	TransactionModification, SignRequest, DecryptRequest, Either
 };
 pub use self::consensus_status::*;
+pub use self::derivation::{DeriveHash, DeriveHierarchical, Derive};
 pub use self::filter::{Filter, FilterChanges};
 pub use self::hash::{H64, H160, H256, H512, H520, H2048};
 pub use self::histogram::Histogram;
@@ -70,4 +72,3 @@ pub use self::transaction_request::TransactionRequest;
 pub use self::transaction_condition::TransactionCondition;
 pub use self::uint::{U128, U256};
 pub use self::work::Work;
-

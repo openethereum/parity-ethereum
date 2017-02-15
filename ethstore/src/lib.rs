@@ -57,5 +57,8 @@ pub use self::error::Error;
 pub use self::ethstore::{EthStore, EthMultiStore};
 pub use self::import::{import_accounts, read_geth_accounts};
 pub use self::presale::PresaleWallet;
-pub use self::secret_store::{SecretVaultRef, StoreAccountRef, SimpleSecretStore, SecretStore};
+pub use self::secret_store::{
+	SecretVaultRef, StoreAccountRef, SimpleSecretStore, SecretStore,
+	Derivation, IndexDerivation,
+};
 pub use self::random::{random_phrase, random_string};
