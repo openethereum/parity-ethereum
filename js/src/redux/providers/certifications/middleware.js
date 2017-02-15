@@ -16,10 +16,14 @@
 
 import { uniq, range, debounce } from 'lodash';
 
-import CertifierABI from '~/contracts/abi/certifier.json';
+import { addCertification, removeCertification } from './actions';
+
+import { getLogger, LOG_KEYS } from '~/config';
 import Contract from '~/api/contract';
 import Contracts from '~/contracts';
-import { addCertification, removeCertification } from './actions';
+import CertifierABI from '~/contracts/abi/certifier.json';
+
+const log = getLogger(LOG_KEYS.CertificationsMiddleware);
 
 // TODO: move this to a more general place
 const updatableFilter = (api, onFilter) => {
@@ -180,10 +184,10 @@ export default class CertificationsMiddleware {
                 })
                 .catch((err) => {
                   if (/does not exist/.test(err.toString())) {
-                    return console.warn(err.toString());
+                    return log.info(err.toString());
                   }
 
-                  console.warn(`Could not fetch certifier ${id}:`, err);
+                  log.warn(`Could not fetch certifier ${id}:`, err);
                 });
             });
 
