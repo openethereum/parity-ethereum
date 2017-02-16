@@ -40,10 +40,10 @@ export default class Ledger {
     this.checkJSSupport();
   }
 
-  // FIXME: Until we have https support from Parity u2f will not work. Mark it completely
+  // FIXME: Until we have https support from Parity u2f will not work. Here we mark it completely
   // as unsupported until a full end-to-end environment is available.
   //
-  // To test via http -
+  // To test the implementation via http -
   //   - Install the u2f extension available from the Chrome store, https://chrome.google.com/webstore/detail/fido-u2f-universal-2nd-fa/pfboblefjcgdjicmnffhdgionmgcdmne/related
   //   - Navigate to chrome://extensions and enable Developer Mode by clicking a checkbox in the top right corner.
   //   - Find the FIDO U2F (Universal 2nd Factor) extension.
