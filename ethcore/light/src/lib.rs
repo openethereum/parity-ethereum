@@ -37,6 +37,7 @@ pub mod cht;
 pub mod net;
 pub mod on_demand;
 pub mod transaction_queue;
+pub mod cache;
 
 #[cfg(not(feature = "ipc"))]
 pub mod provider;
