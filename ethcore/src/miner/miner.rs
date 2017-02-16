@@ -984,7 +984,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<SignedTransaction> {
+	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction> {
 		let queue = self.transaction_queue.lock();
 		match self.options.pending_set {
 			PendingSet::AlwaysQueue => queue.find(hash),
@@ -992,14 +992,14 @@ impl MinerService for Miner {
 				self.from_pending_block(
 					best_block,
 					|| queue.find(hash),
-					|sealing| sealing.transactions().iter().find(|t| &t.hash() == hash).cloned()
+					|sealing| sealing.transactions().iter().find(|t| &t.hash() == hash).cloned().map(Into::into)
 				)
 			},
 			PendingSet::AlwaysSealing => {
 				self.from_pending_block(
 					best_block,
 					|| None,
-					|sealing| sealing.transactions().iter().find(|t| &t.hash() == hash).cloned()
+					|sealing| sealing.transactions().iter().find(|t| &t.hash() == hash).cloned().map(Into::into)
 				)
 			},
 		}
