@@ -14,13 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const assert = require('assert');
-
-assert.doesNotThrow(() => {
-  const parity = require('../../npm/parity');
-}, Error, 'requiring @parity/parity.js fails');
-
-const parity = require('../../npm/parity');
-assert.ok(parity);
-assert.ok(parity.Api);
-assert.ok(parity.Abi);
+describe('@parity/parity.js smoke test', () => {
+  it('can be required', function () {
+    this.timeout(5000);
+    expect(() => require('../../npm/parity')).to.not.throw();
+  });
+});

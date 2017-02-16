@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const assert = require('assert');
-
-assert.doesNotThrow(() => {
-  const shapeshift = require('../../npm/shapeshift');
-}, Error, 'requiring @parity/shapeshift fails');
+describe('@parity/shapeshift smoke test', () => {
+  it('can be required', () => {
+    expect(() => require('../../npm/shapeshift')).to.not.throw();
+  });
+});

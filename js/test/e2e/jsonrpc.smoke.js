@@ -14,12 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const assert = require('assert');
-
-assert.doesNotThrow(() => {
-  require('../../npm/jsonrpc');
-}, Error, 'requiring @parity/jsonrpc fails');
-
-assert.doesNotThrow(() => {
-  require('../../npm/jsonrpc/index.json');
-}, Error, 'requiring @parity/jsonrpc/index.json fails');
+describe('@parity/jsonrpc smoke test', () => {
+  it('can be required', () => {
+    expect(() => require('../../npm/jsonrpc')).to.not.throw();
+  });
+  it('index.json can be required', () => {
+    expect(() => require('../../npm/jsonrpc/index.json')).to.not.throw();
+  });
+});
