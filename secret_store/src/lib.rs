@@ -26,7 +26,9 @@ extern crate ethcore_ipc as ipc;
 extern crate ethcrypto;
 extern crate ethkey;
 
-pub mod traits {
+mod types;
+
+mod traits {
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
 	include!(concat!(env!("OUT_DIR"), "/traits.rs"));
 }
@@ -36,21 +38,12 @@ mod http_listener;
 mod key_server;
 mod key_storage;
 
-pub use key_server::KeyServer;
-
-/// Document address type.
-pub type DocumentAddress = util::H256;
-/// Document key type.
-pub type DocumentKey = util::Bytes;
-/// Encrypted key type.
-pub type DocumentEncryptedKey = util::Bytes;
-/// Request signature type.
-pub type RequestSignature = ethkey::Signature;
-/// Public key type.
-pub use ethkey::Public;
+pub use types::all::{DocumentAddress, DocumentKey, DocumentEncryptedKey, RequestSignature, Public,
+	Error, ServiceConfiguration};
+pub use traits::{KeyServer};
 
 /// Start new key server instance
-pub fn start(config: traits::ServiceConfiguration) -> Result<Box<KeyServer>, traits::Error> {
+pub fn start(config: ServiceConfiguration) -> Result<Box<KeyServer>, Error> {
 	let acl_storage = acl_storage::DummyAclStorage::default();
 	let key_storage = key_storage::PersistentKeyStorage::new(&config)?;
 	let key_server = key_server::KeyServerImpl::new(acl_storage, key_storage);

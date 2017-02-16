@@ -16,8 +16,7 @@
 
 use std::path::PathBuf;
 use util::Database;
-use super::traits::{Error, ServiceConfiguration};
-use super::{DocumentAddress, DocumentKey};
+use types::all::{Error, ServiceConfiguration, DocumentAddress, DocumentKey};
 
 /// Document encryption keys storage
 pub trait KeyStorage: Send + Sync {

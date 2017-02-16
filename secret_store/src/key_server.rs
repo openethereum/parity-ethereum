@@ -16,16 +16,11 @@
 
 use ethcrypto;
 use ethkey;
-use super::traits::Error;
 use super::acl_storage::AclStorage;
 use super::key_storage::KeyStorage;
-use super::{RequestSignature, DocumentAddress, DocumentEncryptedKey};
+use traits::KeyServer;
+use types::all::{Error, RequestSignature, DocumentAddress, DocumentEncryptedKey};
 
-/// Secret store key server
-pub trait KeyServer: Send + Sync {
-	/// Request encryption key of given document for given requestor
-	fn document_key(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKey, Error>;
-}
 
 /// Secret store key server implementation
 pub struct KeyServerImpl<T: AclStorage, U: KeyStorage> {

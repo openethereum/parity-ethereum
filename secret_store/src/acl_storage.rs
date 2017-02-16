@@ -16,8 +16,7 @@
 
 use std::collections::{HashMap, HashSet};
 use parking_lot::RwLock;
-use super::traits::Error;
-use super::{DocumentAddress, Public};
+use types::all::{Error, DocumentAddress, Public};
 
 /// ACL storage of Secret Store
 pub trait AclStorage: Send + Sync {

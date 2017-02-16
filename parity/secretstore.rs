@@ -65,7 +65,7 @@ mod server {
 	impl KeyServer {
 		/// Create new key server
 		pub fn new(conf: Configuration, _deps: Dependencies) -> Result<Self, String> {
-			let conf = ethcore_secretstore::traits::ServiceConfiguration {
+			let conf = ethcore_secretstore::ServiceConfiguration {
 				listener_addr: conf.interface,
 				listener_port: conf.port,
 				data_path: conf.data_path,

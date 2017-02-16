@@ -25,9 +25,8 @@ use hyper::server::{Server as HttpServer, Request as HttpRequest, Response as Ht
 use url::percent_encoding::percent_decode;
 
 use util::ToPretty;
-use super::traits::{Error, ServiceConfiguration};
-use super::key_server::KeyServer;
-use super::{RequestSignature, DocumentAddress, DocumentEncryptedKey};
+use traits::KeyServer;
+use types::all::{Error, ServiceConfiguration, RequestSignature, DocumentAddress, DocumentEncryptedKey};
 
 /// Key server http-requests listener
 pub struct KeyServerHttpListener<T: KeyServer + 'static> {

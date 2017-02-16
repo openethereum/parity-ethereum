@@ -17,5 +17,6 @@
 extern crate ethcore_ipc_codegen;
 
 fn main() {
-	ethcore_ipc_codegen::derive_ipc("src/traits.rs").unwrap();
+	ethcore_ipc_codegen::derive_binary("src/types/mod.rs.in").unwrap();
+	ethcore_ipc_codegen::derive_ipc_cond("src/traits.rs", cfg!(feature="ipc")).unwrap();
 }

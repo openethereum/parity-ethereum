@@ -14,11 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use types::all::{Error, RequestSignature, DocumentAddress, DocumentEncryptedKey};
+//! Types used in the public api
 
-#[ipc(client_ident="RemoteKeyServer")]
-/// Secret store key server
-pub trait KeyServer: Send + Sync {
-	/// Request encryption key of given document for given requestor
-	fn document_key(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKey, Error>;
-}
+#![allow(dead_code, unused_assignments, unused_variables)] // codegen issues
+include!(concat!(env!("OUT_DIR"), "/mod.rs.in"));
