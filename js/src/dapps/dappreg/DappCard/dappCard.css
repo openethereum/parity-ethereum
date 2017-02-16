@@ -30,7 +30,7 @@ $imgSize: 6rem;
   padding: 1rem;
   width: 10rem;
 
-  &:hover {
+  &:hover, &:focus {
     cursor: pointer;
     transform: scale(1.05);
   }

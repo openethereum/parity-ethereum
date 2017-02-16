@@ -14,7 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import keycode from 'keycode';
 import React, { Component, PropTypes } from 'react';
+import ReactDOM from 'react-dom';
 
 import DappModal from '../DappModal';
 
@@ -40,6 +42,9 @@ export default class DappCard extends Component {
         <div
           className={ styles.card }
           onClick={ this.handleOpen }
+          onKeyPress={ this.handleKeyPress }
+          ref='card'
+          tabIndex={ 0 }
         >
           <div className={ styles.icon }>
             { this.renderImage(imageUrl) }
@@ -102,8 +107,28 @@ export default class DappCard extends Component {
     );
   }
 
+  handleKeyPress = (event) => {
+    const codeName = keycode(event);
+
+    if (codeName === 'enter') {
+      return this.handleOpen();
+    }
+
+    return event;
+  }
+
   handleClose = () => {
-    this.setState({ open: false });
+    this.setState({ open: false }, () => {
+      if (!this.refs.card) {
+        return false;
+      }
+
+      setTimeout(() => {
+        const element = ReactDOM.findDOMNode(this.refs.card);
+
+        element && element.focus();
+      }, 50);
+    });
   }
 
   handleOpen = () => {
