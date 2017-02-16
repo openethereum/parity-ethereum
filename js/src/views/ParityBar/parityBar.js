@@ -328,6 +328,7 @@ class ParityBar extends Component {
             displayType === DISPLAY_ACCOUNTS
               ? (
                 <SectionList
+                  className={ styles.accountsSection }
                   items={ this.accountStore.accounts }
                   noStretch
                   renderItem={ this.renderAccount }
