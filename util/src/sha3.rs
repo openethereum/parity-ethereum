@@ -68,24 +68,6 @@ impl<T> Hashable for T where T: AsRef<[u8]> {
 	}
 }
 
-impl<T> Hashable for [T] where T: Hashable {
-	fn sha3(&self) -> H256 {
-		use std::ops::BitXor;
-
-		let mut sha3 = SHA3_EMPTY;
-		for t in self.iter() {
-			sha3 = sha3.bitxor(t.sha3());
-		};
-
-		sha3
-	}
-	// todo: optimize?
-	fn sha3_into(&self, dest: &mut [u8]) {
-		let sha3 = self.sha3();
-		dest.copy_from_slice(&*sha3);
-	}	
-}
-
 /// Calculate SHA3 of given stream.
 pub fn sha3(r: &mut io::BufRead) -> Result<H256, io::Error> {
 	let mut output = [0u8; 32];
@@ -137,16 +119,5 @@ mod tests {
 
 		// then
 		assert_eq!(format!("{:?}", hash), "68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87");
-	}
-
-	#[test]
-	fn should_sha3_strs() {
-		let strs = vec!["abc".to_owned(), "gdc".to_owned()];
-		let hash = strs.sha3();
-		assert_eq!(hash, "b8f24d705171c55892a34c7b863c258f4d47e6864f7a7da45f84155597a3b338".parse().unwrap());
-
-		let strs = vec!["abc".to_owned(), "gdc_".to_owned()];
-		let hash = strs.sha3();
-		assert_eq!(hash, "41bd661b8e02faccad55cdbb28db974dd5c9ae41825b89907fcf25db793b8b09".parse().unwrap());
 	}
 }

@@ -27,7 +27,6 @@ use account::SafeAccount;
 use presale::PresaleWallet;
 use json::{self, Uuid};
 use {import, Error, SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation};
-use util::H256;
 
 pub struct EthStore {
 	store: EthMultiStore,
@@ -231,7 +230,7 @@ pub struct EthMultiStore {
 	// order lock: cache, then vaults
 	cache: RwLock<BTreeMap<StoreAccountRef, Vec<SafeAccount>>>,
 	vaults: Mutex<HashMap<String, Box<VaultKeyDirectory>>>,
-	dir_hash: RwLock<Option<H256>>,
+	dir_hash: Mutex<Option<u64>>,
 }
 
 impl EthMultiStore {
@@ -253,7 +252,7 @@ impl EthMultiStore {
 	}
 
 	fn reload_if_changed(&self) -> Result<(), Error> {
-		let mut last_dir_hash = self.dir_hash.write();
+		let mut last_dir_hash = self.dir_hash.lock();
 		let dir_hash = Some(self.dir.hash()?);
 		if *last_dir_hash == dir_hash {
 			return Ok(())

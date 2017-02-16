@@ -22,7 +22,6 @@ use {json, SafeAccount, Error};
 use json::Uuid;
 use super::{KeyDirectory, VaultKeyDirectory, VaultKeyDirectoryProvider, VaultKey};
 use super::vault::{VAULT_FILE_NAME, VaultDiskDirectory};
-use util::H256;
 
 const IGNORED_FILES: &'static [&'static str] = &[
 	"thumbs.db",
@@ -110,11 +109,17 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 		)
 	}
 
-	pub fn files_hash(&self) -> Result<H256, Error> {
-		use util::Hashable;
+	pub fn files_hash(&self) -> Result<u64, Error> {
+		use std::collections::hash_map::DefaultHasher;
+		use std::hash::Hasher;
+
+    	let mut hasher = DefaultHasher::new();
 		let files = self.files()?;
-		let file_strs: Vec<&str> = files.iter().map(|fp| fp.to_str().unwrap_or("")).collect();
-		Ok(file_strs.sha3())
+		for file in files {
+			hasher.write(file.to_str().unwrap_or("").as_bytes())
+		}
+
+		Ok(hasher.finish())
 	}
 
 	/// all accounts found in keys directory
@@ -220,7 +225,7 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 		Some(self)
 	}
 
-	fn hash(&self) -> Result<H256, Error> { 
+	fn hash(&self) -> Result<u64, Error> { 
 		self.files_hash() 
 	}
 }
@@ -360,7 +365,7 @@ mod test {
 		let hash = directory.files_hash().expect("Files hash should be calculated ok"); 
 		assert_eq!( 
 			hash,
-			"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470".parse().unwrap()
+			15130871412783076140
 		);
 
 		let keypair = Random.generate().unwrap();
