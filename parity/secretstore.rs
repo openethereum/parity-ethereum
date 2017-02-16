@@ -41,13 +41,12 @@ mod server {
 	use super::{Configuration, Dependencies};
 
 	/// Noop key server implementation
-	pub struct KeyServer {
-	}
+	pub struct KeyServer;
 
 	impl KeyServer {
 		/// Create new noop key server
 		pub fn new(_conf: Configuration, _deps: Dependencies) -> Result<Self, String> {
-			Ok(KeyServer {})
+			Ok(KeyServer)
 		}
 	}
 }
