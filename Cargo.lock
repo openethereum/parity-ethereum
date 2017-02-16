@@ -1578,6 +1578,7 @@ name = "parity-local-store"
 version = "0.1.0"
 dependencies = [
  "ethcore 1.6.0",
+ "ethcore-io 1.6.0",
  "ethcore-util 1.6.0",
  "ethkey 0.2.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",

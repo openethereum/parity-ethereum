@@ -23,11 +23,14 @@ use ethcore::transaction::{
 	SignedTransaction, PendingTransaction, UnverifiedTransaction,
 	Condition as TransactionCondition
 };
+use ethcore::service::ClientIoMessage;
+use io::IoHandler;
 use rlp::{UntrustedRlp, View};
 use util::kvdb::KeyValueDB;
 
 extern crate ethcore;
 extern crate ethcore_util as util;
+extern crate ethcore_io as io;
 extern crate rlp;
 extern crate serde_json;
 extern crate serde;
@@ -42,6 +45,9 @@ extern crate log;
 extern crate ethkey;
 
 const LOCAL_TRANSACTIONS_KEY: &'static [u8] = &*b"LOCAL_TXS";
+
+const UPDATE_TIMER: ::io::TimerToken = 0;
+const UPDATE_TIMEOUT_MS: u64 = 15 * 60 * 1000; // once every 15 minutes.
 
 /// Errors which can occur while using the local data store.
 #[derive(Debug)]
@@ -122,7 +128,7 @@ impl From<PendingTransaction> for TransactionEntry {
 }
 
 /// Something which can provide information about the local node.
-pub trait NodeInfo {
+pub trait NodeInfo: Send + Sync {
 	/// Get all pending transactions of local origin.
 	fn pending_transactions(&self) -> Vec<PendingTransaction>;
 }
@@ -165,6 +171,8 @@ impl<T: NodeInfo> LocalDataStore<T> {
 
 	/// Update the entries in the database.
 	pub fn update(&self) -> Result<(), Error> {
+		trace!(target: "local_store", "Updating local store entries.");
+
 		let mut batch = self.db.transaction();
 
 		let local_entries: Vec<TransactionEntry> = self.node.pending_transactions()
@@ -177,6 +185,22 @@ impl<T: NodeInfo> LocalDataStore<T> {
 
 		batch.put_vec(self.col, LOCAL_TRANSACTIONS_KEY, json_str.into_bytes());
 		self.db.write(batch).map_err(Error::Database)
+	}
+}
+
+impl<T: NodeInfo> IoHandler<ClientIoMessage> for LocalDataStore<T> {
+	fn initialize(&self, io: &::io::IoContext<ClientIoMessage>) {
+		if let Err(e) = io.register_timer(UPDATE_TIMER, UPDATE_TIMEOUT_MS) {
+			warn!(target: "local_store", "Error registering local store update timer: {}", e);
+		}
+	}
+
+	fn timeout(&self, _io: &::io::IoContext<ClientIoMessage>, timer: ::io::TimerToken) {
+		if let UPDATE_TIMER = timer {
+			if let Err(e) = self.update() {
+				debug!(target: "local_store", "Error updating local store: {}", e);
+			}
+		}
 	}
 }
 

@@ -330,8 +330,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let snapshot_service = service.snapshot_service();
 
 	// initialize the local node information store.
-	// TODO: tick it every once in a while?
-	let _store = {
+	let store = {
 		let db = service.db();
 		let node_info = FullNodeInfo {
 			miner: miner.clone(),
@@ -351,8 +350,11 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 			Err(e) => warn!("Error loading cached pending transactions from disk: {}", e),
 		}
 
-		store
+		Arc::new(store)
 	};
+
+	// register it as an IO service to update periodically.
+	service.register_io_handler(store).map_err(|_| "Unable to register local store handler".to_owned())?;
 
 	// create external miner
 	let external_miner = Arc::new(ExternalMiner::default());
