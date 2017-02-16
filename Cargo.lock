@@ -24,6 +24,7 @@ dependencies = [
  "ethcore-stratum 1.6.0",
  "ethcore-util 1.6.0",
  "ethsync 1.6.0",
+ "evmbin 0.1.0",
  "fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
  "isatty 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -779,6 +780,16 @@ dependencies = [
  "rlp 0.1.0",
  "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "evmbin"
+version = "0.1.0"
+dependencies = [
+ "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore 1.6.0",
+ "ethcore-util 1.6.0",
+ "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1606,7 +1617,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#033b76f68f91e14c886bf1975c1fe7969180276e"
+source = "git+https://github.com/ethcore/js-precompiled.git#3687825172c852e0ad4bea85ec3119e9fedb8414"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
