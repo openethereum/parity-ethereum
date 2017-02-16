@@ -88,7 +88,7 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 			return;
 		}
 
-		if req.headers.get::<header::Origin>().is_some() {
+		if req.headers.has::<header::Origin>() {
 			warn!(target: "secretstore", "Ignoring {}-request {} with Origin header", req.method, req.uri);
 			*res.status_mut() = HttpStatusCode::NotFound;
 			return;
