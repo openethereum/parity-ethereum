@@ -41,7 +41,6 @@ class Accounts extends Component {
     accounts: PropTypes.object.isRequired,
     accountsInfo: PropTypes.object.isRequired,
     balances: PropTypes.object,
-    hardware: PropTypes.object.isRequired,
     hasAccounts: PropTypes.bool.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired
   }
@@ -195,12 +194,19 @@ class Accounts extends Component {
     }
 
     const { searchValues, sortOrder } = this.state;
+    const disabled = Object.keys(hardware)
+      .filter((address) => !this.hwstore.wallets[address])
+      .reduce((result, address) => {
+        result[address] = true;
+        return result;
+      }, {});
 
     return (
       <List
         search={ searchValues }
         accounts={ hardware }
         balances={ balances }
+        disabled={ disabled }
         order={ sortOrder }
         handleAddSearchToken={ this.onAddSearchToken }
       />

@@ -35,6 +35,7 @@ export default class Summary extends Component {
   static propTypes = {
     account: PropTypes.object.isRequired,
     balance: PropTypes.object,
+    disabled: PropTypes.bool,
     link: PropTypes.string,
     name: PropTypes.string,
     noLink: PropTypes.bool,
@@ -90,7 +91,7 @@ export default class Summary extends Component {
   }
 
   render () {
-    const { account, handleAddSearchToken } = this.props;
+    const { account, disabled, handleAddSearchToken } = this.props;
     const { tags } = account.meta;
 
     if (!account) {
@@ -116,6 +117,7 @@ export default class Summary extends Component {
         <div className={ styles.heading }>
           <IdentityIcon
             address={ address }
+            disabled={ disabled }
           />
           <ContainerTitle
             byline={ addressComponent }
