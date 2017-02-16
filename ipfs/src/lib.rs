@@ -34,7 +34,7 @@ use error::ServerError;
 use handler::{IpfsHandler, Out};
 use hyper::server::{Listening, Handler, Request, Response};
 use hyper::net::HttpStream;
-use hyper::header::{ContentLength, ContentType, Origin};
+use hyper::header::{ContentLength, ContentType};
 use hyper::{Next, Encoder, Decoder, Method, RequestUri, StatusCode};
 use ethcore::client::BlockChainClient;
 
@@ -46,11 +46,11 @@ impl Handler<HttpStream> for IpfsHandler {
 		}
 
 		// Reject requests if the Origin header isn't valid
-		if req.headers().get::<Origin>().map(|o| "127.0.0.1" != &o.host.hostname).unwrap_or(false) {
-			self.out = Out::Bad("Illegal Origin");
+		// if req.headers().get::<Origin>().map(|o| "127.0.0.1" != &o.host.hostname).unwrap_or(false) {
+		// 	self.out = Out::Bad("Illegal Origin");
 
-			return Next::write();
-		}
+		// 	return Next::write();
+		// }
 
 		let (path, query) = match *req.uri() {
 			RequestUri::AbsolutePath { ref path, ref query } => (path, query.as_ref().map(AsRef::as_ref)),
@@ -137,7 +137,9 @@ fn write_chunk<W: Write>(transport: &mut W, progress: &mut usize, data: &[u8]) -
 }
 
 pub fn start_server(port: u16, client: Arc<BlockChainClient>) -> Result<Listening, ServerError> {
-	let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
+	// let ip = Ipv4Addr::new(127, 0, 0, 1);
+	let ip = Ipv4Addr::new(0, 0, 0, 0);
+	let addr = SocketAddr::new(IpAddr::V4(ip), port);
 
 	Ok(
 		hyper::Server::http(&addr)?
