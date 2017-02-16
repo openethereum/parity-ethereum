@@ -190,14 +190,14 @@ usage! {
 		flag_dapps_apis_all: bool = false, or |_| None,
 
 		// Secret Store
-		flag_no_sstore: bool = false,
-			or |c: &Config| otry!(c.sstore).disable.clone(),
-		flag_sstore_port: u16 = 8082u16,
-			or |c: &Config| otry!(c.sstore).port.clone(),
-		flag_sstore_interface: String = "local",
-			or |c: &Config| otry!(c.sstore).interface.clone(),
-		flag_sstore_path: String = "$BASE/sstore",
-			or |c: &Config| otry!(c.sstore).path.clone(),
+		flag_no_secretstore: bool = false,
+			or |c: &Config| otry!(c.secretstore).disable.clone(),
+		flag_secretstore_port: u16 = 8082u16,
+			or |c: &Config| otry!(c.secretstore).port.clone(),
+		flag_secretstore_interface: String = "local",
+			or |c: &Config| otry!(c.secretstore).interface.clone(),
+		flag_secretstore_path: String = "$BASE/secretstore",
+			or |c: &Config| otry!(c.secretstore).path.clone(),
 
 		// -- Sealing/Mining Options
 		flag_author: Option<String> = None,
@@ -331,7 +331,7 @@ struct Config {
 	rpc: Option<Rpc>,
 	ipc: Option<Ipc>,
 	dapps: Option<Dapps>,
-	sstore: Option<SecretStore>,
+	secretstore: Option<SecretStore>,
 	mining: Option<Mining>,
 	footprint: Option<Footprint>,
 	snapshots: Option<Snapshots>,
@@ -657,10 +657,10 @@ mod tests {
 			flag_dapps_pass: Some("test_pass".into()),
 			flag_dapps_apis_all: false,
 
-			flag_no_sstore: false,
-			flag_sstore_port: 8082u16,
-			flag_sstore_interface: "local".into(),
-			flag_sstore_path: "$HOME/.parity/sstore".into(),
+			flag_no_secretstore: false,
+			flag_secretstore_port: 8082u16,
+			flag_secretstore_interface: "local".into(),
+			flag_secretstore_path: "$HOME/.parity/secretstore".into(),
 
 			// -- Sealing/Mining Options
 			flag_author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
@@ -847,7 +847,7 @@ mod tests {
 				user: Some("username".into()),
 				pass: Some("password".into())
 			}),
-			sstore: Some(SecretStore {
+			secretstore: Some(SecretStore {
 				disable: None,
 				port: Some(8082),
 				interface: None,

@@ -1,6 +1,6 @@
 [package]
 description = "Ethcore Secret Store"
-name = "ethcore-secstore"
+name = "ethcore-secretstore"
 version = "1.0.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]

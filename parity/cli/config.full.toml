@@ -67,11 +67,11 @@ path = "$HOME/.parity/dapps"
 user = "test_user"
 pass = "test_pass"
 
-[sstore]
+[secretstore]
 disable = false
 port = 8082
 interface = "local"
-path = "$HOME/.parity/sstore"
+path = "$HOME/.parity/secretstore"
 
 [mining]
 author = "0xdeadbeefcafe0000000000000000000000000001"

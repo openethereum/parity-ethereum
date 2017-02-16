@@ -20,7 +20,7 @@ dependencies = [
  "ethcore-light 1.6.0",
  "ethcore-logger 1.6.0",
  "ethcore-rpc 1.6.0",
- "ethcore-secstore 1.0.0",
+ "ethcore-secretstore 1.0.0",
  "ethcore-signer 1.6.0",
  "ethcore-stratum 1.6.0",
  "ethcore-util 1.6.0",
@@ -620,7 +620,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ethcore-secstore"
+name = "ethcore-secretstore"
 version = "1.0.0"
 dependencies = [
  "ethcore-devtools 1.6.0",

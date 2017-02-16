@@ -36,7 +36,7 @@ pub struct Dependencies {
 	// the only dependency will be BlockChainClient
 }
 
-#[cfg(not(feature = "sstore"))]
+#[cfg(not(feature = "secretstore"))]
 mod server {
 	use super::{Configuration, Dependencies};
 
@@ -52,26 +52,26 @@ mod server {
 	}
 }
 
-#[cfg(feature="sstore")]
+#[cfg(feature="secretstore")]
 mod server {
-	use ethcore_secstore;
+	use ethcore_secretstore;
 	use super::{Configuration, Dependencies};
 
 	/// Key server
 	pub struct KeyServer {
-		_key_server: Box<ethcore_secstore::KeyServer>,
+		_key_server: Box<ethcore_secretstore::KeyServer>,
 	}
 
 	impl KeyServer {
 		/// Create new key server
 		pub fn new(conf: Configuration, _deps: Dependencies) -> Result<Self, String> {
-			let conf = ethcore_secstore::traits::ServiceConfiguration {
+			let conf = ethcore_secretstore::traits::ServiceConfiguration {
 				listener_addr: conf.interface,
 				listener_port: conf.port,
 				data_path: conf.data_path,
 			};
 
-			let key_server = ethcore_secstore::start(conf)
+			let key_server = ethcore_secretstore::start(conf)
 				.map_err(Into::<String>::into)?;
 
 			Ok(KeyServer {
@@ -90,7 +90,7 @@ impl Default for Configuration {
 			enabled: true,
 			interface: "127.0.0.1".to_owned(),
 			port: 8082,
-			data_path: replace_home(&data_dir, "$BASE/sstore"),
+			data_path: replace_home(&data_dir, "$BASE/secretstore"),
 		}
 	}
 }

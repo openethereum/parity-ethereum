@@ -84,7 +84,7 @@ impl<T> KeyServer for KeyServerHttpListener<T> where T: KeyServer + 'static {
 impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 	fn handle(&self, req: HttpRequest, mut res: HttpResponse) {
 		if req.method != HttpMethod::Get {
-			warn!(target: "sstore", "Ignoring {}-request {}", req.method, req.uri);
+			warn!(target: "secretstore", "Ignoring {}-request {}", req.method, req.uri);
 			*res.status_mut() = HttpStatusCode::NotFound;
 			return;
 		}
@@ -94,7 +94,7 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 				Request::GetDocumentKey(document, signature) => {
 					let document_key = self.handler.key_server.document_key(&signature, &document)
 						.map_err(|err| {
-							warn!(target: "sstore", "GetDocumentKey request {} has failed with: {}", req.uri, err);
+							warn!(target: "secretstore", "GetDocumentKey request {} has failed with: {}", req.uri, err);
 							err
 						});
 					match document_key {
@@ -103,7 +103,7 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 							res.headers_mut().set(header::ContentType::plaintext());
 							if let Err(err) = res.send(&document_key) {
 								// nothing to do, but log error
-								warn!(target: "sstore", "GetDocumentKey request {} response has failed with: {}", req.uri, err);
+								warn!(target: "secretstore", "GetDocumentKey request {} response has failed with: {}", req.uri, err);
 							}
 						},
 						Err(Error::BadSignature) => *res.status_mut() = HttpStatusCode::BadRequest,
@@ -114,12 +114,12 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 					}
 				},
 				Request::Invalid => {
-					warn!(target: "sstore", "Ignoring invalid {}-request {}", req.method, req.uri);
+					warn!(target: "secretstore", "Ignoring invalid {}-request {}", req.method, req.uri);
 					*res.status_mut() = HttpStatusCode::BadRequest;
 				},
 			},
 			_ => {
-				warn!(target: "sstore", "Ignoring invalid {}-request {}", req.method, req.uri);
+				warn!(target: "secretstore", "Ignoring invalid {}-request {}", req.method, req.uri);
 				*res.status_mut() = HttpStatusCode::NotFound;
 			},
 		};
