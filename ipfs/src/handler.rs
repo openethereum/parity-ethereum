@@ -86,6 +86,7 @@ impl IpfsHandler {
 			Codec::EthereumBlockList => self.block_list(hash),
 			Codec::EthereumTx => self.transaction(hash),
 			Codec::EthereumStateTrie => self.state_trie(hash),
+			Codec::Raw => self.contract_code(hash),
 			_ => return Err(Error::UnsupportedCid),
 		}
 	}
@@ -116,6 +117,13 @@ impl IpfsHandler {
 	/// Get state trie node by hash and return as raw binary.
 	fn state_trie(&self, hash: H256) -> Result<Out> {
 		let data = self.client.state_data(&hash).ok_or(Error::StateRootNotFound)?;
+
+		Ok(Out::OctetStream(data))
+	}
+
+	/// Get state trie node by hash and return as raw binary.
+	fn contract_code(&self, hash: H256) -> Result<Out> {
+		let data = self.client.state_data(&hash).ok_or(Error::ContractNotFound)?;
 
 		Ok(Out::OctetStream(data))
 	}
@@ -190,6 +198,16 @@ mod tests {
 		let cid = "z45oqTS7kR2n2peRGJQ4VCJEeaG9sorqcCyfmznZPJM7FMdhQCT";
 
 		assert_eq!(Err(Error::StateRootNotFound), handler.route_cid(&cid));
+	}
+
+	#[test]
+	fn cid_route_contract_code() {
+		let handler = get_mocked_handler();
+
+		// `raw` with Keccak-256
+		let cid = "zb34WAp1Q5fhtLGZ3w3jhnTWaNbVV5ZZvGq4vuJQzERj6Pu3H";
+
+		assert_eq!(Err(Error::ContractNotFound), handler.route_cid(&cid));
 	}
 
 	#[test]

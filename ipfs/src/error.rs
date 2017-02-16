@@ -36,6 +36,7 @@ pub enum Error {
 	BlockNotFound,
 	TransactionNotFound,
 	StateRootNotFound,
+	ContractNotFound,
 }
 
 /// Convert Error into Out, handy when switching from Rust's Result-based
@@ -51,6 +52,7 @@ impl From<Error> for Out {
 			BlockNotFound => Out::NotFound("Block not found"),
 			TransactionNotFound => Out::NotFound("Transaction not found"),
 			StateRootNotFound => Out::NotFound("State root not found"),
+			ContractNotFound => Out::NotFound("Contract not found"),
 		}
 	}
 }
