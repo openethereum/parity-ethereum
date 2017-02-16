@@ -190,7 +190,7 @@ impl<T: NodeInfo> Drop for LocalDataStore<T> {
 
 #[cfg(test)]
 mod tests {
-	use super::{NodeInfo, LocalDataStore};
+	use super::NodeInfo;
 
 	use std::sync::Arc;
 	use ethcore::transaction::{Transaction, Condition, PendingTransaction};
