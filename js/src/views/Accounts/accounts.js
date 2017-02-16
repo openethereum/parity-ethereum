@@ -182,6 +182,7 @@ class Accounts extends Component {
 
   renderHwWallets () {
     const { accounts, balances } = this.props;
+    const { wallets } = this.hwstore;
     const hardware = pickBy(accounts, (account) => account.hardware);
     const hasHardware = Object.keys(hardware).length > 0;
 
@@ -194,8 +195,9 @@ class Accounts extends Component {
     }
 
     const { searchValues, sortOrder } = this.state;
-    const disabled = Object.keys(hardware)
-      .filter((address) => !this.hwstore.wallets[address])
+    const disabled = Object
+      .keys(hardware)
+      .filter((address) => !wallets[address])
       .reduce((result, address) => {
         result[address] = true;
         return result;
@@ -357,9 +359,7 @@ class Accounts extends Component {
     Object
       .keys(wallets)
       .filter((address) => !accountsInfo[address])
-      .forEach((address) => {
-        // this.hwstore.createAccountInfo(wallets[address]);
-      });
+      .forEach((address) => this.hwstore.createAccountInfo(wallets[address]));
 
     this.setVisibleAccounts();
   }
