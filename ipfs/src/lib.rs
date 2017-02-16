@@ -34,7 +34,7 @@ use error::ServerError;
 use handler::{IpfsHandler, Out};
 use hyper::server::{Listening, Handler, Request, Response};
 use hyper::net::HttpStream;
-use hyper::header::{ContentLength, ContentType};
+use hyper::header::{ContentLength, ContentType, Origin};
 use hyper::{Next, Encoder, Decoder, Method, RequestUri, StatusCode};
 use ethcore::client::BlockChainClient;
 
@@ -42,6 +42,13 @@ use ethcore::client::BlockChainClient;
 impl Handler<HttpStream> for IpfsHandler {
 	fn on_request(&mut self, req: Request<HttpStream>) -> Next {
 		if *req.method() != Method::Get {
+			return Next::write();
+		}
+
+		// Reject requests if the Origin header isn't valid
+		if req.headers().get::<Origin>().map(|o| "127.0.0.1" != &o.host.hostname).unwrap_or(false) {
+			self.out = Out::Bad("Illegal Origin");
+
 			return Next::write();
 		}
 
@@ -130,7 +137,7 @@ fn write_chunk<W: Write>(transport: &mut W, progress: &mut usize, data: &[u8]) -
 }
 
 pub fn start_server(port: u16, client: Arc<BlockChainClient>) -> Result<Listening, ServerError> {
-	let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), port);
+	let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
 
 	Ok(
 		hyper::Server::http(&addr)?
