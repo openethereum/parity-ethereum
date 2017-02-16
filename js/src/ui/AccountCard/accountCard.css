@@ -62,8 +62,7 @@
 }
 
 .tags {
-  background-color: rgba(80, 80, 80, 0.25);
-  border-left: 1px dashed #444;
+  background-color: rgba(0, 0, 0, 0.4);
   box-sizing: content-box;
   height: calc(100% - 0.5em);
   overflow-x: hidden;
@@ -76,7 +75,8 @@
   width: calc(100% + 0.25em);
 
   &:hover {
-    background-color: rgba(80, 80, 80, 0.75);
+    background-color: rgba(0, 0, 0, 0.8);
+    padding-left: 0.5em;
     width: auto;
   }
 }
