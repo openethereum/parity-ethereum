@@ -1,4 +1,4 @@
-pub use parity_ipfs::start_server;
+pub use parity_ipfs_api::start_server;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {

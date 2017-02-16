@@ -1,6 +1,6 @@
 [package]
-description = "Parity IPFS crate"
-name = "parity-ipfs"
+description = "Parity IPFS-compatible API"
+name = "parity-ipfs-api"
 version = "1.6.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]

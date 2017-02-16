@@ -44,7 +44,7 @@ rlp = { path = "util/rlp" }
 rpc-cli = { path = "rpc_cli" }
 parity-rpc-client = { path = "rpc_client" }
 parity-hash-fetch = { path = "hash-fetch" }
-parity-ipfs = { path = "ipfs" }
+parity-ipfs-api = { path = "ipfs" }
 parity-updater = { path = "updater" }
 parity-reactor = { path = "util/reactor" }
 ethcore-dapps = { path = "dapps", optional = true }
