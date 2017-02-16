@@ -18,11 +18,14 @@ import keycode from 'keycode';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 
+import DappsStore from '../dappsStore';
 import DappModal from '../DappModal';
 
 import styles from './dappCard.css';
 
 export default class DappCard extends Component {
+  dappsStore = DappsStore.instance();
+
   static propTypes = {
     dapp: PropTypes.object.isRequired
   };
@@ -132,6 +135,9 @@ export default class DappCard extends Component {
   }
 
   handleOpen = () => {
+    const { id } = this.props.dapp;
+
+    this.dappsStore.setCurrentApp(id);
     this.setState({ open: true });
   }
 }

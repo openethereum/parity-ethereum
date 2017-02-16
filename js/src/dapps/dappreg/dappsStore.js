@@ -56,7 +56,7 @@ export default class DappsStore {
     const app = this.wipApp;
 
     const hasError = app.contentError || app.imageError || app.manifestError;
-    const isDirty = this.isNew || app.contentChanged || app.imageChanged || app.manifestChanged;
+    const isDirty = this.isNew || app.contentChanged || app.imageChanged || app.manifestChanged || app.ownerChanged;
     const isEditMode = this.isEditing || this.isNew;
 
     return isEditMode && isDirty && !hasError;
@@ -113,7 +113,8 @@ export default class DappsStore {
       imageChanged: false,
       imageError: null,
       manifestChanged: false,
-      manifestError: null
+      manifestError: null,
+      ownerChanged: false
     });
 
     return this.wipApp;

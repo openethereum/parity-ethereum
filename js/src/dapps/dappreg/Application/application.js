@@ -64,6 +64,7 @@ export default class Application extends Component {
         <div className={ styles.footer }>
           { this.dappsStore.count } applications registered, { this.dappsStore.ownedCount } owned by user
         </div>
+
         <Warning />
         <ModalDelete />
         <ModalRegister />

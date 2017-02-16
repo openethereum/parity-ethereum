@@ -75,32 +75,4 @@ export default class ButtonBar extends Component {
       </div>
     );
   }
-
-  onCancelClick = () => {
-    if (this.dappsStore.isEditing) {
-      this.dappsStore.setEditing(false);
-    } else {
-      this.dappsStore.setNew(false);
-    }
-  }
-
-  onDeleteClick = () => {
-    this.modalStore.showDelete();
-  }
-
-  onEditClick = () => {
-    this.dappsStore.setEditing(true);
-  }
-
-  onNewClick = () => {
-    this.dappsStore.setNew(true);
-  }
-
-  onSaveClick = () => {
-    if (this.dappsStore.isEditing) {
-      this.modalStore.showUpdate();
-    } else {
-      this.modalStore.showRegister();
-    }
-  }
 }
