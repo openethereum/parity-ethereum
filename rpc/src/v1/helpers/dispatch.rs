@@ -207,7 +207,7 @@ impl Dispatcher for LightDispatcher {
 	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
 		-> BoxFuture<WithToken<SignedTransaction>, Error>
 	{
-		let network_id = None; // TODO: fetch from client.
+		let network_id = self.client.signing_network_id();
 		let address = filled.from;
 		let best_header = self.client.best_block_header();
 
