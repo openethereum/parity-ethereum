@@ -241,10 +241,10 @@ impl AccountProvider {
 		Ok(accounts.into_iter().map(|a| a.address).collect())
 	}
 
-	/// Sets a whitelist of accounts exposed for unknown dapps.
+	/// Sets addresses of accounts exposed for unknown dapps.
 	/// `None` means that all accounts will be visible.
 	/// If not `None` or empty it will also override default account.
-	pub fn set_new_dapps_whitelist(&self, accounts: Option<Vec<Address>>) -> Result<(), Error> {
+	pub fn set_new_dapps_addresses(&self, accounts: Option<Vec<Address>>) -> Result<(), Error> {
 		let current_default = self.new_dapps_default_address()?;
 
 		self.dapps_settings.write().set_policy(match accounts {
@@ -256,9 +256,9 @@ impl AccountProvider {
 		Ok(())
 	}
 
-	/// Gets a whitelist of accounts exposed for unknown dapps.
+	/// Gets addresses of accounts exposed for unknown dapps.
 	/// `None` means that all accounts will be visible.
-	pub fn new_dapps_whitelist(&self) -> Result<Option<Vec<Address>>, Error> {
+	pub fn new_dapps_addresses(&self) -> Result<Option<Vec<Address>>, Error> {
 		Ok(match self.dapps_settings.read().policy() {
 			NewDappsPolicy::AllAccounts { .. } => None,
 			NewDappsPolicy::Whitelist(accounts) => Some(accounts),
@@ -295,7 +295,7 @@ impl AccountProvider {
 
 	/// Returns a list of accounts that new dapp should see.
 	/// First account is always the default account.
-	fn new_dapps_addresses(&self) -> Result<Vec<Address>, Error> {
+	fn new_dapps_addresses_list(&self) -> Result<Vec<Address>, Error> {
 		match self.dapps_settings.read().policy() {
 			NewDappsPolicy::AllAccounts { default } => if default.is_zero() {
 				self.accounts()
@@ -316,7 +316,7 @@ impl AccountProvider {
 	/// Gets a default account for new dapps
 	/// Will return zero address in case the default is not set and there are no accounts configured.
 	pub fn new_dapps_default_address(&self) -> Result<Address, Error> {
-		Ok(self.new_dapps_addresses()?
+		Ok(self.new_dapps_addresses_list()?
 			.get(0)
 			.cloned()
 			.unwrap_or(0.into())
@@ -344,8 +344,8 @@ impl AccountProvider {
 		match accounts {
 			Some((Some(accounts), Some(default))) => self.filter_addresses(Self::insert_default(accounts, default)),
 			Some((Some(accounts), None)) => self.filter_addresses(accounts),
-			Some((None, Some(default))) => self.filter_addresses(Self::insert_default(self.new_dapps_addresses()?, default)),
-			_ => self.new_dapps_addresses(),
+			Some((None, Some(default))) => self.filter_addresses(Self::insert_default(self.new_dapps_addresses_list()?, default)),
+			_ => self.new_dapps_addresses_list(),
 		}
 	}
 
@@ -362,7 +362,7 @@ impl AccountProvider {
 	}
 
 	/// Sets default address for given dapp.
-	/// Does not alter dapp whitelist, but this account will always be returned as the first one.
+	/// Does not alter dapp addresses, but this account will always be returned as the first one.
 	pub fn set_dapp_default_address(&self, dapp: DappId, address: Address) -> Result<(), Error> {
 		if !self.valid_addresses()?.contains(&address) {
 			return Err(SSError::InvalidAccount.into());
@@ -373,7 +373,7 @@ impl AccountProvider {
 	}
 
 	/// Sets addresses visible for given dapp.
-	/// If `None` - falls back to dapps whitelist
+	/// If `None` - falls back to dapps addresses
 	/// If not `None` and not empty it will also override default account.
 	pub fn set_dapp_addresses(&self, dapp: DappId, addresses: Option<Vec<Address>>) -> Result<(), Error> {
 		let (addresses, default) = match addresses {
@@ -847,7 +847,7 @@ mod tests {
 		ap.set_address_name(1.into(), "1".into());
 		ap.set_address_name(2.into(), "2".into());
 		// set `AllAccounts` policy
-		ap.set_new_dapps_whitelist(Some(vec![1.into(), 2.into()])).unwrap();
+		ap.set_new_dapps_addresses(Some(vec![1.into(), 2.into()])).unwrap();
 		assert_eq!(ap.dapp_addresses(app.clone()).unwrap(), vec![1.into(), 2.into()]);
 
 		// Alter and check
@@ -865,7 +865,7 @@ mod tests {
 		let ap = AccountProvider::transient_provider();
 		let app = DappId("app1".into());
 		// set `AllAccounts` policy
-		ap.set_new_dapps_whitelist(None).unwrap();
+		ap.set_new_dapps_addresses(None).unwrap();
 		// add accounts to address book
 		ap.set_address_name(1.into(), "1".into());
 		ap.set_address_name(2.into(), "2".into());
@@ -903,20 +903,20 @@ mod tests {
 		assert_eq!(ap.dapp_default_address("app1".into()).unwrap(), address);
 
 		// Even when returning nothing
-		ap.set_new_dapps_whitelist(Some(vec![])).unwrap();
+		ap.set_new_dapps_addresses(Some(vec![])).unwrap();
 		// Default account is still returned
 		assert_eq!(ap.dapp_addresses("app1".into()).unwrap(), vec![address]);
 
 		// change to all
-		ap.set_new_dapps_whitelist(None).unwrap();
+		ap.set_new_dapps_addresses(None).unwrap();
 		assert_eq!(ap.dapp_addresses("app1".into()).unwrap(), vec![address]);
 
 		// change to non-existent account
-		ap.set_new_dapps_whitelist(Some(vec![2.into()])).unwrap();
+		ap.set_new_dapps_addresses(Some(vec![2.into()])).unwrap();
 		assert_eq!(ap.dapp_addresses("app1".into()).unwrap(), vec![address]);
 
-		// change to a whitelist
-		ap.set_new_dapps_whitelist(Some(vec![1.into()])).unwrap();
+		// change to a addresses
+		ap.set_new_dapps_addresses(Some(vec![1.into()])).unwrap();
 		assert_eq!(ap.dapp_addresses("app1".into()).unwrap(), vec![1.into()]);
 
 		// it overrides default account

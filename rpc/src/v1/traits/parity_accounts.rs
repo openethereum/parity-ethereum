@@ -96,13 +96,13 @@ build_rpc_trait! {
 		/// Setting a non-empty list will also override default account.
 		/// Setting `None` exposes all internal-managed accounts.
 		/// (does not affect default account though)
-		#[rpc(name = "parity_setNewDappsWhitelist")]
-		fn set_new_dapps_whitelist(&self, Option<Vec<H160>>) -> Result<bool, Error>;
+		#[rpc(name = "parity_setNewDappsAddresses")]
+		fn set_new_dapps_addresses(&self, Option<Vec<H160>>) -> Result<bool, Error>;
 
 		/// Gets accounts exposed for new dapps.
 		/// `None` means that all accounts are exposes.
-		#[rpc(name = "parity_getNewDappsWhitelist")]
-		fn new_dapps_whitelist(&self) -> Result<Option<Vec<H160>>, Error>;
+		#[rpc(name = "parity_getNewDappsAddresses")]
+		fn new_dapps_addresses(&self) -> Result<Option<Vec<H160>>, Error>;
 
 		/// Changes default address for new dapps (global default address)
 		/// Does not affect other accounts exposed for new dapps, but

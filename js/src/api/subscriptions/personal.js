@@ -125,7 +125,7 @@ export default class Personal {
 
         case 'parity_setDappAddresses':
         case 'parity_setDappDefaultAddress':
-        case 'parity_setNewDappsWhitelist':
+        case 'parity_setNewDappsAddresses':
         case 'parity_setNewDappsDefaultAddress':
           this._defaultAccount(true);
           return;

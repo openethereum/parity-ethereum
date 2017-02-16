@@ -1255,7 +1255,7 @@ export default {
         type: String,
         desc: 'Dapp Id.',
         example: 'web'
-      },
+      }
     ],
     returns: {
       type: Address,
@@ -1264,7 +1264,7 @@ export default {
     }
   },
 
-  setNewDappsWhitelist: {
+  setNewDappsAddresses: {
     subdoc: SUBDOC_ACCOUNTS,
     desc: 'Sets the list of accounts available to new dapps.',
     params: [
@@ -1281,7 +1281,7 @@ export default {
     }
   },
 
-  getNewDappsWhitelist: {
+  getNewDappsAddresses: {
     subdoc: SUBDOC_ACCOUNTS,
     desc: 'Returns the list of accounts available to a new dapps.',
     params: [],

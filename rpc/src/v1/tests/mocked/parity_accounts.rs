@@ -164,24 +164,24 @@ fn rpc_parity_set_and_get_new_dapps_whitelist() {
 	let tester = setup();
 
 	// when set to whitelist
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_setNewDappsWhitelist","params":[["0x000000000000000000000000000000000000000a"]], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setNewDappsAddresses","params":[["0x000000000000000000000000000000000000000a"]], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
 	// then
-	assert_eq!(tester.accounts.new_dapps_whitelist().unwrap(), Some(vec![10.into()]));
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_getNewDappsWhitelist","params":[], "id": 1}"#;
+	assert_eq!(tester.accounts.new_dapps_addresses().unwrap(), Some(vec![10.into()]));
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_getNewDappsAddresses","params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x000000000000000000000000000000000000000a"],"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
 	// when set to empty
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_setNewDappsWhitelist","params":[null], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setNewDappsAddresses","params":[null], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
 	// then
-	assert_eq!(tester.accounts.new_dapps_whitelist().unwrap(), None);
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_getNewDappsWhitelist","params":[], "id": 1}"#;
+	assert_eq!(tester.accounts.new_dapps_addresses().unwrap(), None);
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_getNewDappsAddresses","params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }

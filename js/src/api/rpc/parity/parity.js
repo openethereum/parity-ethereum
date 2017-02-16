@@ -182,9 +182,9 @@ export default class Parity {
       .then(outAddress);
   }
 
-  getNewDappsWhitelist () {
+  getNewDappsAddresses () {
     return this._transport
-      .execute('parity_getNewDappsWhitelist')
+      .execute('parity_getNewDappsAddresses')
       .then((addresses) => addresses ? addresses.map(outAddress) : null);
   }
 
@@ -448,9 +448,9 @@ export default class Parity {
       .execute('parity_setMode', mode);
   }
 
-  setNewDappsWhitelist (addresses) {
+  setNewDappsAddresses (addresses) {
     return this._transport
-      .execute('parity_setNewDappsWhitelist', addresses ? inAddresses(addresses) : null);
+      .execute('parity_setNewDappsAddresses', addresses ? inAddresses(addresses) : null);
   }
 
   setNewDappsDefaultAddress (address) {

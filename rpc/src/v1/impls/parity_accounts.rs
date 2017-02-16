@@ -174,20 +174,20 @@ impl ParityAccounts for ParityAccountsClient {
 			.map(Into::into)
 	}
 
-	fn set_new_dapps_whitelist(&self, whitelist: Option<Vec<RpcH160>>) -> Result<bool, Error> {
+	fn set_new_dapps_addresses(&self, addresses: Option<Vec<RpcH160>>) -> Result<bool, Error> {
 		let store = take_weak!(self.accounts);
 
 		store
-			.set_new_dapps_whitelist(whitelist.map(into_vec))
-			.map_err(|e| errors::account("Couldn't set dapps whitelist.", e))
+			.set_new_dapps_addresses(addresses.map(into_vec))
+			.map_err(|e| errors::account("Couldn't set dapps addresses.", e))
 			.map(|_| true)
 	}
 
-	fn new_dapps_whitelist(&self) -> Result<Option<Vec<RpcH160>>, Error> {
+	fn new_dapps_addresses(&self) -> Result<Option<Vec<RpcH160>>, Error> {
 		let store = take_weak!(self.accounts);
 
-		store.new_dapps_whitelist()
-			.map_err(|e| errors::account("Couldn't get dapps whitelist.", e))
+		store.new_dapps_addresses()
+			.map_err(|e| errors::account("Couldn't get dapps addresses.", e))
 			.map(|accounts| accounts.map(into_vec))
 	}
 

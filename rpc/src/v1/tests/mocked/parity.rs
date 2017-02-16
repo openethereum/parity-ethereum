@@ -120,7 +120,7 @@ fn rpc_parity_accounts_info() {
 
 	// Change the whitelist
 	let address = Address::from(1);
-	deps.accounts.set_new_dapps_whitelist(Some(vec![address.clone()])).unwrap();
+	deps.accounts.set_new_dapps_addresses(Some(vec![address.clone()])).unwrap();
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 1}"#;
 	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"name\":\"XX\"}}}},\"id\":1}}", address.hex());
 	assert_eq!(io.handle_request_sync(request), Some(response));
