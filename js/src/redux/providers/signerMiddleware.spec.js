@@ -20,9 +20,11 @@ import sinon from 'sinon';
 import SignerMiddleware from './signerMiddleware';
 
 const ADDRESS = '0x3456789012345678901234567890123456789012';
+const RAW_SIGNED = 'testSignResponse';
+const NONCE = new BigNumber(0x123454321);
 const TRANSACTION = {
   from: ADDRESS,
-  nonce: new BigNumber(1)
+  nonce: NONCE
 };
 const PAYLOAD = {
   condition: 'testCondition',
@@ -46,8 +48,11 @@ let store;
 
 function createApi () {
   api = {
+    net: {
+      version: sinon.stub().resolves('2')
+    },
     parity: {
-      nextNonce: sinon.stub().resolves(new BigNumber(1))
+      nextNonce: sinon.stub().resolves(NONCE)
     },
     signer: {
       confirmRequest: sinon.stub().resolves(true),
@@ -61,6 +66,7 @@ function createApi () {
 
 function createHwStore () {
   hwstore = {
+    signLedger: sinon.stub().resolves(RAW_SIGNED),
     wallets: {
       [ADDRESS]: {
         address: ADDRESS,
@@ -106,6 +112,48 @@ describe('redux/SignerMiddleware', () => {
     teardown();
   });
 
+  describe('createNoncePromise', () => {
+    it('resolves via transaction.nonce when available', () => {
+      const nonce = new BigNumber('0xabc');
+
+      return middleware.createNoncePromise({ nonce }).then((_nonce) => {
+        expect(_nonce).to.equal(nonce);
+      });
+    });
+
+    it('calls parity_nextNonce', () => {
+      return middleware.createNoncePromise({ from: 'testing' }).then((nonce) => {
+        expect(api.parity.nextNonce).to.have.been.calledWith('testing');
+        expect(nonce).to.equal(NONCE);
+      });
+    });
+  });
+
+  describe('confirmLedgerTransaction', () => {
+    beforeEach(() => {
+      sinon.spy(middleware, 'createNoncePromise');
+      middleware._hwstore = createHwStore();
+
+      return middleware.confirmLedgerTransaction(store, PAYLOAD.id, TRANSACTION);
+    });
+
+    afterEach(() => {
+      middleware.createNoncePromise.restore();
+    });
+
+    it('creates nonce via createNoncePromise', () => {
+      expect(middleware.createNoncePromise).to.have.been.calledWith(TRANSACTION);
+    });
+
+    it('calls into hardware signLedger', () => {
+      expect(hwstore.signLedger).to.have.been.calledWith(TRANSACTION);
+    });
+
+    it('confirms via signer_confirmRequestRaw', () => {
+      expect(api.signer.confirmRequestRaw).to.have.been.calledWith(PAYLOAD.id, RAW_SIGNED);
+    });
+  });
+
   describe('onConfirmStart', () => {
     describe('normal accounts', () => {
       beforeEach(() => {
@@ -127,18 +175,18 @@ describe('redux/SignerMiddleware', () => {
 
     describe('hardware accounts', () => {
       beforeEach(() => {
-        sinon.spy(middleware, 'confirmHardwareTransaction');
+        sinon.spy(middleware, 'confirmLedgerTransaction');
         middleware._hwstore = createHwStore();
 
         return middleware.onConfirmStart(store, ACTION);
       });
 
       afterEach(() => {
-        middleware.confirmHardwareTransaction.restore();
+        middleware.confirmLedgerTransaction.restore();
       });
 
-      it('calls out to confirmHardwareTransaction', () => {
-        expect(middleware.confirmHardwareTransaction).to.have.been.called;
+      it('calls out to confirmLedgerTransaction', () => {
+        expect(middleware.confirmLedgerTransaction).to.have.been.called;
       });
     });
 

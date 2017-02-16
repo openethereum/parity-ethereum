@@ -71,17 +71,29 @@ export default class SignerMiddleware {
     };
   }
 
-  // TODO: Perform actual signing
-  confirmHardwareTransaction (store, id, transaction, hardwareAccount) {
-    return Promise.resolve(true);
+  createNoncePromise (transaction) {
+    return !transaction.nonce || transaction.nonce.isZero()
+      ? this._api.parity.nextNonce(transaction.from)
+      : Promise.resolve(transaction.nonce);
+  }
+
+  confirmLedgerTransaction (store, id, transaction) {
+    return this
+      .createNoncePromise(transaction)
+      .then((nonce) => {
+        transaction.nonce = nonce;
+
+        return this._hwstore.signLedger(transaction);
+      })
+      .then((rawTx) => {
+        const handlePromise = this._createConfirmPromiseHandler(store, id);
+
+        return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
+      });
   }
 
   confirmWalletTransaction (store, id, transaction, wallet, password) {
     const handlePromise = this._createConfirmPromiseHandler(store, id);
-    const noncePromise = transaction.nonce.isZero()
-      ? this._api.parity.nextNonce(transaction.from)
-      : Promise.resolve(transaction.nonce);
-
     const { worker } = store.getState().worker;
 
     const signerPromise = worker && worker._worker.state === 'activated'
@@ -100,7 +112,7 @@ export default class SignerMiddleware {
     // NOTE: Derving the key takes significant amount of time,
     // make sure to display some kind of "in-progress" state.
     return Promise
-      .all([ signerPromise, noncePromise ])
+      .all([ signerPromise, this.createNoncePromise(transaction) ])
       .then(([ signer, nonce ]) => {
         const txData = {
           to: inHex(transaction.to),
@@ -132,8 +144,15 @@ export default class SignerMiddleware {
 
       if (wallet) {
         return this.confirmWalletTransaction(store, id, transaction, wallet, password);
-      } else if (hardwareAccount && hardwareAccount.via !== 'parity') {
-        return this.confirmHardwareTransaction(store, id, transaction, hardwareAccount);
+      } else if (hardwareAccount) {
+        switch (hardwareAccount.via) {
+          case 'ledger':
+            return this.confirmLedgerTransaction(store, id, transaction);
+
+          case 'parity':
+          default:
+            break;
+        }
       }
     }
 

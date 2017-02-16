@@ -135,8 +135,8 @@ export default class HardwareStore {
       });
   }
 
-  signLedger (rawTransaction) {
-    return this._ledger.signTransaction(rawTransaction);
+  signLedger (transaction) {
+    return this._ledger.signTransaction(transaction);
   }
 
   static get (api) {
