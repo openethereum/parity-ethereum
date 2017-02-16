@@ -49,11 +49,6 @@ export default class Application extends Component {
         <div className={ styles.header }>
           DAPP REGISTRY, a global view of distributed applications available on the network. Putting the puzzle together.
         </div>
-        <div className={ styles.apps }>
-          <SelectDapp />
-          <ButtonBar />
-          <Dapp />
-        </div>
 
         <div>
           <Dapps

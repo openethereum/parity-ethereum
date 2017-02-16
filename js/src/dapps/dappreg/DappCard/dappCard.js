@@ -16,6 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import DappModal from '../DappModal';
+
 import styles from './dappCard.css';
 
 export default class DappCard extends Component {
@@ -23,26 +25,50 @@ export default class DappCard extends Component {
     dapp: PropTypes.object.isRequired
   };
 
+  state = {
+    open: false
+  };
+
   render () {
     const { dapp } = this.props;
     const { id, imageUrl, manifest } = dapp;
 
     return (
-      <div className={ styles.card }>
-        <div className={ styles.icon }>
-          { this.renderImage(imageUrl) }
-        </div>
+      <div>
+        { this.renderModal() }
 
-        <span
-          className={ styles.name }
-          title={ id }
+        <div
+          className={ styles.card }
+          onClick={ this.handleOpen }
         >
-          { manifest && manifest.name || id }
-        </span>
+          <div className={ styles.icon }>
+            { this.renderImage(imageUrl) }
+          </div>
 
-        { this.renderVersion(manifest) }
-        { this.renderAuthor(manifest) }
+          <span
+            className={ styles.name }
+            title={ id }
+          >
+            { manifest && manifest.name || id }
+          </span>
+
+          { this.renderVersion(manifest) }
+          { this.renderAuthor(manifest) }
+        </div>
       </div>
+    );
+  }
+
+  renderModal () {
+    const { dapp } = this.props;
+    const { open } = this.state;
+
+    return (
+      <DappModal
+        dapp={ dapp }
+        onClose={ this.handleClose }
+        open={ open }
+      />
     );
   }
 
@@ -74,5 +100,13 @@ export default class DappCard extends Component {
         by { manifest && manifest.author }
       </span>
     );
+  }
+
+  handleClose = () => {
+    this.setState({ open: false });
+  }
+
+  handleOpen = () => {
+    this.setState({ open: true });
   }
 }
