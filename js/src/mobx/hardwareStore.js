@@ -48,6 +48,10 @@ export default class HardwareStore {
   }
 
   scanLedger () {
+    if (!this._ledger.isSupported) {
+      return Promise.resolve({});
+    }
+
     return this._ledger
       .scan()
       .then((wallets) => {
@@ -74,8 +78,6 @@ export default class HardwareStore {
     return this._api.parity
       .hardwareAccountsInfo()
       .then((hwInfo) => {
-        console.log('HardwareStore::scanParity', hwInfo);
-
         Object
           .keys(hwInfo)
           .forEach((address) => {

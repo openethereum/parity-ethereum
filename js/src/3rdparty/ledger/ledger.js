@@ -14,13 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import 'u2f-api-polyfill';
+
 import BigNumber from 'bignumber.js';
 import Transaction from 'ethereumjs-tx';
+import u2fapi from 'u2f-api';
 
 import Ledger3 from './vendor/ledger3';
 import LedgerEth from './vendor/ledger-eth';
 
-const LEDGER_PATH_ETH = "44'/60'/0'";
+const LEDGER_PATH_ETH = "44'/60'/0'/0";
 const SCRAMBLE_KEY = 'w0w';
 
 function numberToHex (number) {
@@ -31,6 +34,24 @@ export default class Ledger {
   constructor (api, ledger) {
     this._api = api;
     this._ledger = ledger;
+
+    this._isSupported = false;
+
+    this.checkJSSupport();
+  }
+
+  get isSupported () {
+    return this._isSupported;
+  }
+
+  checkJSSupport () {
+    return u2fapi
+      .isSupported()
+      .then((isSupported) => {
+        console.log('Ledger:checkJSSupport', isSupported);
+
+        this._isSupported = isSupported;
+      });
   }
 
   getAppConfiguration () {
@@ -55,7 +76,7 @@ export default class Ledger {
         }
 
         resolve([response.address]);
-      }, false, true);
+      }, true, false);
     });
   }
 
@@ -82,14 +103,17 @@ export default class Ledger {
             return;
           }
 
-          tx.v = new Buffer(response.v, 'hex');
-          tx.r = new Buffer(response.r, 'hex');
-          tx.s = new Buffer(response.s, 'hex');
+          const v = new Buffer(response.v, 'hex');
 
-          if (chainId !== Math.floor((tx.v[0] - 35) / 2)) {
+          if (chainId !== Math.floor((v[0] - 35) / 2)) {
             reject(new Error('Invalid EIP155 signature received from Ledger.'));
             return;
           }
+
+          // https://github.com/ethcore/parity/pull/4578
+          tx.v = new Buffer([(v[0] + 1) % 2]);
+          tx.r = new Buffer(response.r, 'hex');
+          tx.s = new Buffer(response.s, 'hex');
 
           resolve(`0x${tx.serialize().toString('hex')}`);
         });

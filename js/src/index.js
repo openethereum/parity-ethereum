@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import 'babel-polyfill';
-import 'u2f-api-polyfill';
 import 'whatwg-fetch';
 
 import es6Promise from 'es6-promise';
