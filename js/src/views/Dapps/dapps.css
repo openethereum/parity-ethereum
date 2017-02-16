@@ -19,16 +19,18 @@
   flex-wrap: wrap;
   margin: -0.125em;
   position: relative;
+
+  .item {
+    box-sizing: border-box;
+    flex: 0 1 50%;
+    opacity: 0.85;
+    padding: 0.125em;
+  }
+
 }
 
 .list+.list {
   margin-top: -0.25em;
-}
-
-.item {
-  padding: 0.125em;
-  flex: 0 1 50%;
-  box-sizing: border-box;
 }
 
 .overlay {

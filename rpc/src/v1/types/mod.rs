@@ -14,10 +14,61 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Structures used in RPC communication
 
-#[cfg(feature = "serde_macros")]
-include!("mod.rs.in");
+//! RPC types
 
-#[cfg(not(feature = "serde_macros"))]
-include!(concat!(env!("OUT_DIR"), "/mod.rs"));
+mod account_info;
+mod block;
+mod block_number;
+mod bytes;
+mod call_request;
+mod confirmations;
+mod consensus_status;
+mod derivation;
+mod filter;
+mod hash;
+mod histogram;
+mod index;
+mod log;
+mod provenance;
+mod receipt;
+mod rpc_settings;
+mod sync;
+mod trace;
+mod trace_filter;
+mod transaction;
+mod transaction_request;
+mod transaction_condition;
+mod uint;
+mod work;
+
+pub use self::account_info::{AccountInfo, HwAccountInfo};
+pub use self::bytes::Bytes;
+pub use self::block::{RichBlock, Block, BlockTransactions};
+pub use self::block_number::BlockNumber;
+pub use self::call_request::CallRequest;
+pub use self::confirmations::{
+	ConfirmationPayload, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken,
+	TransactionModification, SignRequest, DecryptRequest, Either
+};
+pub use self::consensus_status::*;
+pub use self::derivation::{DeriveHash, DeriveHierarchical, Derive};
+pub use self::filter::{Filter, FilterChanges};
+pub use self::hash::{H64, H160, H256, H512, H520, H2048};
+pub use self::histogram::Histogram;
+pub use self::index::Index;
+pub use self::log::Log;
+pub use self::provenance::{Origin, DappId};
+pub use self::receipt::Receipt;
+pub use self::rpc_settings::RpcSettings;
+pub use self::sync::{
+	SyncStatus, SyncInfo, Peers, PeerInfo, PeerNetworkInfo, PeerProtocolsInfo,
+	TransactionStats, ChainStatus, EthProtocolInfo, LesProtocolInfo,
+};
+pub use self::trace::{LocalizedTrace, TraceResults};
+pub use self::trace_filter::TraceFilter;
+pub use self::transaction::{Transaction, RichRawTransaction, LocalTransactionStatus};
+pub use self::transaction_request::TransactionRequest;
+pub use self::transaction_condition::TransactionCondition;
+pub use self::uint::{U128, U256};
+pub use self::work::Work;

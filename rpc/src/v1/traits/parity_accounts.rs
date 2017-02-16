@@ -18,7 +18,7 @@
 use std::collections::BTreeMap;
 
 use jsonrpc_core::Error;
-use v1::types::{H160, H256, DappId};
+use v1::types::{H160, H256, DappId, DeriveHash, DeriveHierarchical};
 
 build_rpc_trait! {
 	/// Personal Parity rpc interface.
@@ -141,5 +141,16 @@ build_rpc_trait! {
 		/// Set vault metadata string.
 		#[rpc(name = "parity_setVaultMeta")]
 		fn set_vault_meta(&self, String, String) -> Result<bool, Error>;
+
+		/// Derive new address from given account address using specific hash.
+		/// Resulting address can be either saved as a new account (with the same password).
+		#[rpc(name = "parity_deriveAddressHash")]
+		fn derive_key_hash(&self, H160, String, DeriveHash, bool) -> Result<H160, Error>;
+
+		/// Derive new address from given account address using
+		/// hierarchical derivation (sequence of 32-bit integer indices).
+		/// Resulting address can be either saved as a new account (with the same password).
+		#[rpc(name = "parity_deriveAddressIndex")]
+		fn derive_key_index(&self, H160, String, DeriveHierarchical, bool) -> Result<H160, Error>;
 	}
 }

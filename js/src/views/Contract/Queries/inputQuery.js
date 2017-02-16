@@ -14,17 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import LinearProgress from 'material-ui/LinearProgress';
 import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
+import { newError } from '~/redux/actions';
 import { Button, TypedInput } from '~/ui';
 import { arrayOrObjectProptype } from '~/util/proptypes';
 
 import styles from './queries.css';
 
-export default class InputQuery extends Component {
+class InputQuery extends Component {
   static contextTypes = {
     api: PropTypes.object
   };
@@ -35,6 +37,7 @@ export default class InputQuery extends Component {
     inputs: arrayOrObjectProptype().isRequired,
     outputs: arrayOrObjectProptype().isRequired,
     name: PropTypes.string.isRequired,
+    newError: PropTypes.func.isRequired,
     signature: PropTypes.string.isRequired,
     className: PropTypes.string
   };
@@ -65,7 +68,7 @@ export default class InputQuery extends Component {
     const { isValid } = this.state;
 
     const inputsFields = inputs
-      .map(input => this.renderInput(input));
+      .map((input, index) => this.renderInput(input, index));
 
     return (
       <div>
@@ -119,7 +122,7 @@ export default class InputQuery extends Component {
         );
 
         return (
-          <div key={ index }>
+          <div key={ `${out.name}_${out.type}_${index}` }>
             <div className={ styles.queryResultName }>
               { out.name }
             </div>
@@ -129,7 +132,7 @@ export default class InputQuery extends Component {
       });
   }
 
-  renderInput (input) {
+  renderInput (input, index) {
     const { values } = this.state;
     const { name, type } = input;
     const label = `${name ? `${name}: ` : ''}${type}`;
@@ -140,41 +143,42 @@ export default class InputQuery extends Component {
       this.setState({
         values: {
           ...values,
-          [ name ]: value
+          [ index ]: value
         }
       });
     };
 
     return (
-      <div key={ name }>
+      <div key={ `${name}_${type}_${index}` }>
         <TypedInput
           hint={ type }
           label={ label }
           isEth={ false }
           onChange={ onChange }
           param={ type }
-          value={ values[name] }
+          value={ values[index] }
         />
       </div>
     );
   }
 
-  renderValue (value) {
+  renderValue (token) {
+    const { api } = this.context;
+    const { type, value } = token;
+
     if (value === null || value === undefined) {
       return 'no data';
     }
 
-    const { api } = this.context;
-
-    if (api.util.isInstanceOf(value, BigNumber)) {
-      return value.toFormat(0);
+    if (type === 'array' || type === 'fixedArray') {
+      return value.map((tok) => this.renderValue(tok));
     }
 
-    if (api.util.isArray(value)) {
+    if (Array.isArray(value)) {
       return api.util.bytesToHex(value);
     }
 
-    return value.toString();
+    return value;
   }
 
   onClick = () => {
@@ -186,11 +190,11 @@ export default class InputQuery extends Component {
       results: []
     });
 
-    const inputValues = inputs.map(input => values[input.name]);
+    const inputValues = inputs.map((input, index) => values[index] || '');
 
     contract
       .instance[signature]
-      .call({}, inputValues)
+      .call({ rawTokens: true }, inputValues)
       .then(results => {
         if (outputs.length === 1) {
           results = [ results ];
@@ -201,8 +205,24 @@ export default class InputQuery extends Component {
           results
         });
       })
-      .catch(e => {
-        console.error(`sending ${name} with params`, inputValues, e);
+      .catch((error) => {
+        console.error(`sending ${name} with params`, inputValues, error.message);
+
+        this.props.newError(error);
+        this.setState({
+          isLoading: false
+        });
       });
   };
 }
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    newError
+  }, dispatch);
+}
+
+export default connect(
+  null,
+  mapDispatchToProps
+)(InputQuery);

@@ -14,7 +14,6 @@ build = "build.rs"
 log = "0.3"
 env_logger = "0.3"
 rustc-serialize = "0.3"
-heapsize = "0.3"
 rust-crypto = "0.2.34"
 num_cpus = "0.2"
 crossbeam = "0.2.9"
@@ -27,6 +26,8 @@ rand = "0.3"
 byteorder = "1.0"
 transient-hashmap = "0.1"
 linked-hash-map = "0.3.0"
+lru-cache = "0.1.0"
+ethabi = "1.0.0"
 evmjit = { path = "../evmjit", optional = true }
 clippy = { version = "0.0.103", optional = true}
 ethash = { path = "../ethash" }
@@ -40,10 +41,8 @@ ethkey = { path = "../ethkey" }
 ethcore-ipc-nano = { path = "../ipc/nano" }
 rlp = { path = "../util/rlp" }
 ethcore-stratum = { path = "../stratum" }
-lru-cache = "0.1.0"
 ethcore-bloom-journal = { path = "../util/bloom" }
 hardware-wallet = { path = "../hw" }
-ethabi = "0.2.2"
 
 [dependencies.hyper]
 git = "https://github.com/ethcore/hyper"

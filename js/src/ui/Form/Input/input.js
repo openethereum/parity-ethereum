@@ -218,10 +218,11 @@ export default class Input extends Component {
   }
 
   onPaste = (event) => {
-    const value = event.clipboardData.getData('Text');
+    const { value } = event.target;
+    const pasted = event.clipboardData.getData('Text');
 
     window.setTimeout(() => {
-      this.onSubmit(value);
+      this.onSubmit(value + pasted);
     }, 0);
   }
 
