@@ -14,7 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import fs from 'fs';
+import path from 'path';
 import interfaces from '../src/jsonrpc';
+
+const dest = process.argv[2];
 
 const methods = [];
 
@@ -60,4 +64,5 @@ Object.keys(interfaces).sort().forEach((group) => {
   });
 });
 
-process.stdout.write(JSON.stringify({ methods: methods }, null, 2));
+const data = JSON.stringify({ methods: methods }, null, 2);
+fs.writeFileSync(path.join(__dirname, '..', dest), data);

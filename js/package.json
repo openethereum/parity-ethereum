@@ -38,7 +38,7 @@
     "ci:build:lib": "NODE_ENV=production webpack --config webpack/libraries",
     "ci:build:dll": "NODE_ENV=production webpack --config webpack/vendor",
     "ci:build:npm": "NODE_ENV=production babel npm/$LIBRARY/src --out-dir npm/$LIBRARY/dist --ignore spec.js --source-maps",
-    "ci:build:jsonrpc": "babel-node ./scripts/build-rpc-json.js > npm/jsonrpc/index.json",
+    "ci:build:jsonrpc": "babel-node ./scripts/build-rpc-json.js npm/jsonrpc/index.json",
     "ci:build:embed": "NODE_ENV=production EMBED=1 node webpack/embed",
     "start": "npm install && npm run build:lib && npm run build:dll && npm run start:app",
     "start:app": "node webpack/dev.server",
