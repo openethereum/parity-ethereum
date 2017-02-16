@@ -290,7 +290,7 @@ linux-armv6:
 #    - beta
 #    - tags
 #    - stable
-#    - triggers
+    - triggers
   script:
     - export CC=arm-linux-gnueabi-gcc
     - export CXX=arm-linux-gnueabi-g++
