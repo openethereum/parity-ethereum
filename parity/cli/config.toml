@@ -39,7 +39,7 @@ user = "username"
 pass = "password"
 
 [ipfs]
-disable = true
+enable = false
 port = 5001
 
 [mining]

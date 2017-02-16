@@ -68,7 +68,7 @@ user = "test_user"
 pass = "test_pass"
 
 [ipfs]
-disable = true
+enable = false
 port = 5001
 
 [mining]

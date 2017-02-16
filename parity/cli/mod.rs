@@ -190,9 +190,9 @@ usage! {
 		flag_dapps_apis_all: bool = false, or |_| None,
 
 		// IPFS
-		flag_ipfs_off: bool = true,
-			or |c: &Config| otry!(c.ipfs).disable.clone(),
-		flag_ipfs_port: u16 = 5001u16,
+		flag_ipfs_api: bool = false,
+			or |c: &Config| otry!(c.ipfs).enable.clone(),
+		flag_ipfs_api_port: u16 = 5001u16,
 			or |c: &Config| otry!(c.ipfs).port.clone(),
 
 		// -- Sealing/Mining Options
@@ -418,7 +418,7 @@ struct Dapps {
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
 struct Ipfs {
-	disable: Option<bool>,
+	enable: Option<bool>,
 	port: Option<u16>,
 }
 
@@ -651,8 +651,8 @@ mod tests {
 			flag_dapps_apis_all: false,
 
 			// IPFS
-			flag_ipfs_off: true,
-			flag_ipfs_port: 5001u16,
+			flag_ipfs_api: false,
+			flag_ipfs_api_port: 5001u16,
 
 			// -- Sealing/Mining Options
 			flag_author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
@@ -840,7 +840,7 @@ mod tests {
 				pass: Some("password".into())
 			}),
 			ipfs: Some(Ipfs {
-				disable: Some(true),
+				enable: Some(false),
 				port: Some(5001)
 			}),
 			mining: Some(Mining {

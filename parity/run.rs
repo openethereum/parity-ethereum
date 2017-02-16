@@ -94,6 +94,7 @@ pub struct RunCmd {
 	pub ui_address: Option<(String, u16)>,
 	pub net_settings: NetworkSettings,
 	pub dapps_conf: dapps::Configuration,
+	pub ipfs_conf: ipfs::Configuration,
 	pub signer_conf: signer::Configuration,
 	pub dapp: Option<String>,
 	pub ui: bool,
@@ -422,7 +423,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let signer_server = signer::start(cmd.signer_conf.clone(), signer_deps)?;
 
 	// the ipfs server
-	let ipfs_server = ipfs::start_server(client.clone())?;
+	let ipfs_server = match cmd.ipfs_conf.enabled {
+		true => Some(ipfs::start_server(cmd.ipfs_conf.port, client.clone())?),
+		false => None,
+	};
 
 	// the informant
 	let informant = Arc::new(Informant::new(
