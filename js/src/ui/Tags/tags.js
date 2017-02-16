@@ -83,7 +83,7 @@ export default class Tags extends Component {
             onClick={ onClick }
             ref={ setRef }
           >
-            { tag }
+            <span className={ styles.text }>{ tag }</span>
           </div>
         );
       });

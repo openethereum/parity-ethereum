@@ -36,9 +36,14 @@
 
 .horizontal .tag {
   margin: 0.5em 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+
+  .text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 150%;
+  }
 }
 
 .tag {

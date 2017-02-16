@@ -56,22 +56,27 @@
 }
 
 .tagsContainer {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   position: relative;
-  width: 5.25em;
+  width: 3em;
 }
 
 .tags {
-  background-color: rgba(40, 40, 40, 0.15);
+  background-color: rgba(80, 80, 80, 0.25);
   border-left: 1px dashed #444;
+  box-sizing: content-box;
+  height: calc(100% - 0.5em);
+  overflow-x: hidden;
+  overflow-y: scroll;
   padding: 0.25em;
+  padding-right: 2em;
   position: absolute;
-  right: 0;
-  transition: all 0.2s ease-out;
-  width: 2.5em;
+  right: -2.5em;
+  transition: background-color 0.2s ease-out;
+  width: calc(100% + 0.25em);
 
   &:hover {
-    background-color: rgba(40, 40, 40, 0.95);
+    background-color: rgba(80, 80, 80, 0.75);
     width: auto;
   }
 }
