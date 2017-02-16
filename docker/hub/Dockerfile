@@ -58,7 +58,6 @@ g++ -v
 RUN git clone https://github.com/ethcore/parity && \
         cd parity && \
         git checkout $CI_BUILD_REF_NAME && \
-        git pull && \
         cargo build --release --features final && \
         ls /build/parity/target/release/parity && \
         strip /build/parity/target/release/parity
