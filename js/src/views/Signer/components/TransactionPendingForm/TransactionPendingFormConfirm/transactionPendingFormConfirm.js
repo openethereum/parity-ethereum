@@ -245,7 +245,9 @@ class TransactionPendingFormConfirm extends Component {
   }
 
   renderTooltip () {
-    if (this.state.password.length) {
+    const { account } = this.props;
+
+    if (this.state.password.length || account.hardware) {
       return;
     }
 
