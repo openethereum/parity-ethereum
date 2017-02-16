@@ -156,7 +156,7 @@ impl Cache {
 #[cfg(test)]
 mod tests {
 	use super::Cache;
-	use time::{Duration, SteadyTime};
+	use time::Duration;
 
 	#[test]
 	fn corpus_inaccessible() {

@@ -108,7 +108,7 @@ impl EthClient {
 
 						self.sync.with_context(|ctx|
 							self.on_demand.header_by_number(ctx, req)
-								.map(|(h, _)| Some(h))
+								.map(Some)
 								.map_err(err_premature_cancel)
 								.boxed()
 						)
