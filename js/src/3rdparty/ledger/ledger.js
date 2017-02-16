@@ -20,7 +20,7 @@ import Transaction from 'ethereumjs-tx';
 import Ledger3 from './vendor/ledger3';
 import LedgerEth from './vendor/ledger-eth';
 
-const LEDGER_PATH = "44'/60'/0'";
+const LEDGER_PATH_ETH = "44'/60'/0'";
 const SCRAMBLE_KEY = 'w0w';
 
 function numberToHex (number) {
@@ -48,7 +48,7 @@ export default class Ledger {
 
   scan () {
     return new Promise((resolve, reject) => {
-      this._ledger.getAddress(LEDGER_PATH, (response, error) => {
+      this._ledger.getAddress(LEDGER_PATH_ETH, (response, error) => {
         if (error) {
           reject(error);
           return;
@@ -64,34 +64,30 @@ export default class Ledger {
       return new Promise((resolve, reject) => {
         const chainId = new BigNumber(_chainId).toNumber();
         const tx = new Transaction({
-          data: transaction.data,
+          data: transaction.data || transaction.input,
           gasPrice: numberToHex(transaction.gasPrice),
           gasLimit: numberToHex(transaction.gasLimit),
           nonce: numberToHex(transaction.nonce),
-          to: transaction.to.toLowerCase(),
+          to: transaction.to ? transaction.to.toLowerCase() : undefined,
           value: numberToHex(transaction.value),
-          v: new Buffer([chainId * 2 + 35]),
+          v: new Buffer([chainId]), // pass the chainId to the ledger
           r: new Buffer([]),
           s: new Buffer([])
         });
         const rawTransaction = tx.serialize().toString('hex');
 
-        this._ledger.signTransaction(LEDGER_PATH, rawTransaction, (response, error) => {
+        this._ledger.signTransaction(LEDGER_PATH_ETH, rawTransaction, (response, error) => {
           if (error) {
             reject(error);
             return;
           }
 
-          // Store signature in transaction
           tx.v = new Buffer(response.v, 'hex');
           tx.r = new Buffer(response.r, 'hex');
           tx.s = new Buffer(response.s, 'hex');
 
-          // EIP155: v should be chain_id * 2 + {35, 36}
-          const signedChainId = Math.floor((tx.v[0] - 35) / 2);
-
-          if (signedChainId !== chainId) {
-            reject(new Error('Invalid Ledger signature received.'));
+          if (chainId !== Math.floor((tx.v[0] - 35) / 2)) {
+            reject(new Error('Invalid EIP155 signature received from Ledger.'));
             return;
           }
 
