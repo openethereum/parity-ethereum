@@ -88,6 +88,12 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 			return;
 		}
 
+		if req.headers.get::<header::Origin>().is_some() {
+			warn!(target: "secretstore", "Ignoring {}-request {} with Origin header", req.method, req.uri);
+			*res.status_mut() = HttpStatusCode::NotFound;
+			return;
+		}
+
 		match req.uri {
 			RequestUri::AbsolutePath(ref path) => match parse_request(&path) {
 				Request::GetDocumentKey(document, signature) => {
