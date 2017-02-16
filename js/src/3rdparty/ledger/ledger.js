@@ -58,14 +58,13 @@ export default class Ledger {
     return this._api.net.version().then((_chainId) => {
       return new Promise((resolve, reject) => {
         const chainId = parseInt(_chainId, 10);
-        const tx = new Transaction(transaction);
+        const tx = new Transaction(Object.assign({}, transaction, { chainId }));
 
         // Set the EIP155 bits (v, r, s)
-        tx.raw[6] = Buffer.from([chainId]);
-        tx.raw[7] = Buffer.from([]);
-        tx.raw[8] = Buffer.from([]);
+        // tx.raw[6] = Buffer.from([chainId]);
+        // tx.raw[7] = Buffer.from([]);
+        // tx.raw[8] = Buffer.from([]);
 
-        // Encode as hex-rlp for Ledger
         const rawTransaction = tx.serialize().toString('hex');
 
         this._ledger.signTransaction(LEDGER_PATH, rawTransaction, (response, error) => {
