@@ -27,7 +27,7 @@ export default class HardwareStore {
 
   constructor (api) {
     this._api = api;
-    this._ledger = Ledger.create();
+    this._ledger = Ledger.create(api);
     this._pollId = null;
 
     this._pollScan();
@@ -50,17 +50,18 @@ export default class HardwareStore {
   scanLedger () {
     return this._ledger
       .scan()
-      .then((wallet) => {
-        console.log('HardwareStore::scanLedger', wallet);
+      .then((wallets) => {
+        console.log('HardwareStore::scanLedger', wallets);
 
-        return {};
-        // wallet.manufacturer = 'Ledger';
-        // wallet.name = 'Nano S';
-        // wallet.via = 'ledger';
-        //
-        // return {
-        //   [wallet.address]: wallet
-        // };
+        return wallets.reduce((hwInfo, wallet) => {
+          wallet.manufacturer = 'Ledger';
+          wallet.name = 'Nano S';
+          wallet.via = 'ledger';
+
+          hwInfo[wallet.address] = wallet;
+
+          return hwInfo;
+        }, {});
       })
       .catch((error) => {
         console.warn('HardwareStore::scanLedger', error);
@@ -75,16 +76,16 @@ export default class HardwareStore {
       .then((hwInfo) => {
         console.log('HardwareStore::scanParity', hwInfo);
 
-        return {};
-        // Object
-        //   .keys(hwInfo)
-        //   .forEach((address) => {
-        //     const info = hwInfo[address];
-        //
-        //     info.address = address;
-        //     info.via = 'parity';
-        //   });
-        // return hwInfo;
+        Object
+          .keys(hwInfo)
+          .forEach((address) => {
+            const info = hwInfo[address];
+
+            info.address = address;
+            info.via = 'parity';
+          });
+
+        return hwInfo;
       })
       .catch((error) => {
         console.warn('HardwareStore::scanParity', error);
