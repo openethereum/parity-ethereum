@@ -253,7 +253,7 @@ impl EthMultiStore {
 
 	fn reload_if_changed(&self) -> Result<(), Error> {
 		let mut last_dir_hash = self.dir_hash.lock();
-		let dir_hash = Some(self.dir.hash()?);
+		let dir_hash = Some(self.dir.unique_repr()?);
 		if *last_dir_hash == dir_hash {
 			return Ok(())
 		}

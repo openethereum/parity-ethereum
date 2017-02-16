@@ -225,7 +225,7 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 		Some(self)
 	}
 
-	fn hash(&self) -> Result<u64, Error> { 
+	fn unique_repr(&self) -> Result<u64, Error> { 
 		self.files_hash() 
 	}
 }

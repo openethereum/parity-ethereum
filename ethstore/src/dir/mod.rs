@@ -62,8 +62,8 @@ pub trait KeyDirectory: Send + Sync {
 	fn path(&self) -> Option<&PathBuf> { None }
 	/// Return vault provider, if available
 	fn as_vault_provider(&self) -> Option<&VaultKeyDirectoryProvider> { None }
-	/// Returns hash of the directory content, if supported
-	fn hash(&self) -> Result<u64, Error> { Ok(0u64) }
+	/// Unique representation of directory account collection
+	fn unique_repr(&self) -> Result<u64, Error>;
 }
 
 /// Vaults provider
