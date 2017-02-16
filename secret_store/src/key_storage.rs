@@ -64,8 +64,7 @@ pub mod tests {
 	use std::collections::HashMap;
 	use parking_lot::RwLock;
 	use devtools::RandomTempPath;
-	use super::super::traits::{Error, ServiceConfiguration};
-	use super::super::{DocumentAddress, DocumentKey};
+	use super::super::types::all::{Error, ServiceConfiguration, DocumentAddress, DocumentKey};
 	use super::{KeyStorage, PersistentKeyStorage};
 
 	#[derive(Default)]

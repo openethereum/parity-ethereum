@@ -21,7 +21,6 @@ use super::key_storage::KeyStorage;
 use traits::KeyServer;
 use types::all::{Error, RequestSignature, DocumentAddress, DocumentEncryptedKey};
 
-
 /// Secret store key server implementation
 pub struct KeyServerImpl<T: AclStorage, U: KeyStorage> {
 	acl_storage: T,
@@ -66,8 +65,7 @@ mod tests {
 	use acl_storage::DummyAclStorage;
 	use key_storage::KeyStorage;
 	use key_storage::tests::DummyKeyStorage;
-	use super::super::traits::Error;
-	use super::super::{RequestSignature, DocumentAddress};
+	use super::super::{Error, RequestSignature, DocumentAddress};
 	use super::{KeyServer, KeyServerImpl};
 
 	const DOCUMENT1: &'static str = "0000000000000000000000000000000000000000000000000000000000000001";
