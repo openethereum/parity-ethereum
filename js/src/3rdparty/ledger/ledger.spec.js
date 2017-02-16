@@ -62,7 +62,7 @@ function create (error) {
   return ledger;
 }
 
-describe('3rdparty/ledger', () => {
+describe.only('3rdparty/ledger', () => {
   beforeEach(() => {
     create();
 
@@ -99,7 +99,14 @@ describe('3rdparty/ledger', () => {
 
   describe('signTransaction', () => {
     beforeEach(() => {
-      return ledger.signTransaction();
+      return ledger.signTransaction({
+        data: '0x0',
+        gasPrice: 20000000,
+        gasLimit: 1000000,
+        nonce: 2,
+        to: '0x63Cf90D3f0410092FC0fca41846f596223979195',
+        value: 1
+      });
     });
 
     it('retrieves chainId via API', () => {

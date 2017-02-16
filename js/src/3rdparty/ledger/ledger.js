@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import Transaction from 'ethereumjs-tx';
 
 import Ledger3 from './vendor/ledger3';
@@ -21,6 +22,10 @@ import LedgerEth from './vendor/ledger-eth';
 
 const LEDGER_PATH = "44'/60'/0'";
 const SCRAMBLE_KEY = 'w0w';
+
+function numberToHex (number) {
+  return `0x${new BigNumber(number).toString(16)}`;
+}
 
 export default class Ledger {
   constructor (api, ledger) {
@@ -57,14 +62,18 @@ export default class Ledger {
   signTransaction (transaction) {
     return this._api.net.version().then((_chainId) => {
       return new Promise((resolve, reject) => {
-        const chainId = parseInt(_chainId, 10);
-        const tx = new Transaction(Object.assign({}, transaction, { chainId }));
-
-        // Set the EIP155 bits (v, r, s)
-        // tx.raw[6] = Buffer.from([chainId]);
-        // tx.raw[7] = Buffer.from([]);
-        // tx.raw[8] = Buffer.from([]);
-
+        const chainId = new BigNumber(_chainId).toNumber();
+        const tx = new Transaction({
+          data: transaction.data,
+          gasPrice: numberToHex(transaction.gasPrice),
+          gasLimit: numberToHex(transaction.gasLimit),
+          nonce: numberToHex(transaction.nonce),
+          to: transaction.to.toLowerCase(),
+          value: numberToHex(transaction.value),
+          v: new Buffer([chainId * 2 + 35]),
+          r: new Buffer([]),
+          s: new Buffer([])
+        });
         const rawTransaction = tx.serialize().toString('hex');
 
         this._ledger.signTransaction(LEDGER_PATH, rawTransaction, (response, error) => {
