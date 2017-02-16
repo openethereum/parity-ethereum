@@ -17,5 +17,5 @@
 const assert = require('assert');
 
 assert.doesNotThrow(() => {
-  const etherscan = require('..');
-}, Error, 'requiring @parity/etherscan fails');
+  const shapeshift = require('../../npm/shapeshift');
+}, Error, 'requiring @parity/shapeshift fails');

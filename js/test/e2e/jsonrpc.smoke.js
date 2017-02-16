@@ -17,5 +17,9 @@
 const assert = require('assert');
 
 assert.doesNotThrow(() => {
-  const shapeshift = require('..');
-}, Error, 'requiring @parity/shapeshift fails');
+  require('../../npm/jsonrpc');
+}, Error, 'requiring @parity/jsonrpc fails');
+
+assert.doesNotThrow(() => {
+  require('../../npm/jsonrpc/index.json');
+}, Error, 'requiring @parity/jsonrpc/index.json fails');

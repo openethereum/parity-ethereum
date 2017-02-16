@@ -22,9 +22,6 @@
     "Parity",
     "Promise"
   ],
-  "scripts": {
-    "test": "node test/smoke.spec.js"
-  },
   "peerDependencies": {
     "es6-promise": "^4.0.5",
     "isomorphic-fetch": "^2.2.1",
