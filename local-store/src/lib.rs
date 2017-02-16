@@ -255,15 +255,24 @@ mod tests {
 	}
 
 	#[test]
-	#[should_panic]
-	fn bad_transactions() {
-		let transactions: Vec<_> = (0..10u64).map(|nonce| {
+	fn skips_bad_transactions() {
+		let keypair = Brain::new("abcd".into()).generate().unwrap();
+		let mut transactions: Vec<_> = (0..10u64).map(|nonce| {
 			let mut tx = Transaction::default();
 			tx.nonce = nonce.into();
 
-			let signed = tx.fake_sign(Default::default());
+			let signed = tx.sign(keypair.secret(), None);
+
 			PendingTransaction::new(signed, None)
 		}).collect();
+
+		transactions.push({
+			let mut tx = Transaction::default();
+			tx.nonce = 10.into();
+
+			let signed = tx.fake_sign(Default::default());
+			PendingTransaction::new(signed, None)
+		});
 
 		let db = Arc::new(::util::kvdb::in_memory(0));
 		{
@@ -272,9 +281,11 @@ mod tests {
 			assert_eq!(store.pending_transactions().unwrap(), vec![])
 		}
 		{
-			// try to load bad. they will be skipped, leading to empty vector.
+			// try to load transactions. The last transaction, which is invalid, will be skipped.
 			let store = super::create(db.clone(), None, Dummy(vec![]));
-			assert_eq!(store.pending_transactions().unwrap(), transactions)
+			let loaded = store.pending_transactions().unwrap();
+			transactions.pop();
+			assert_eq!(loaded, transactions);
 		}
 	}
 }
