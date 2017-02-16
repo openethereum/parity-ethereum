@@ -95,7 +95,7 @@ class TransactionPendingFormConfirm extends Component {
   render () {
     const { account, address, isSending } = this.props;
     const { wallet, walletError } = this.state;
-    const isWalletOk = account.uuid || (walletError === null && wallet !== null);
+    const isWalletOk = account.hardware || account.uuid || (walletError === null && wallet !== null);
 
     return (
       <div className={ styles.confirmForm }>
