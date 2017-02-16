@@ -22,6 +22,7 @@ use {json, SafeAccount, Error};
 use json::Uuid;
 use super::{KeyDirectory, VaultKeyDirectory, VaultKeyDirectoryProvider, VaultKey};
 use super::vault::{VAULT_FILE_NAME, VaultDiskDirectory};
+use util::H256;
 
 const IGNORED_FILES: &'static [&'static str] = &[
 	"thumbs.db",
@@ -107,6 +108,13 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 			.map(|entry| entry.path())
 			.collect::<Vec<PathBuf>>()
 		)
+	}
+
+	pub fn files_hash(&self) -> Result<H256, Error> {
+		use util::Hashable;
+		let files = self.files()?;
+		let file_strs: Vec<&str> = files.iter().map(|fp| fp.to_str().unwrap_or("")).collect();
+		Ok(file_strs.sha3())
 	}
 
 	/// all accounts found in keys directory
@@ -283,7 +291,6 @@ mod test {
 		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned());
 		let res = directory.insert(account);
 
-
 		// then
 		assert!(res.is_ok(), "Should save account succesfuly.");
 		assert!(res.unwrap().filename.is_some(), "Filename has been assigned.");
@@ -339,5 +346,26 @@ mod test {
 		assert_eq!(vaults.len(), 2);
 		assert!(vaults.iter().any(|v| &*v == "vault1"));
 		assert!(vaults.iter().any(|v| &*v == "vault2"));
+	}
+
+	#[test]
+	fn hash_of_files() {
+		let temp_path = RandomTempPath::new();
+		let directory = RootDiskDirectory::create(&temp_path).unwrap();
+
+		let hash = directory.files_hash().expect("Files hash should be calculated ok"); 
+		assert_eq!( 
+			hash,
+			"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470".parse().unwrap()
+		);
+
+		let keypair = Random.generate().unwrap();
+		let password = "test pass";
+		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned());
+		directory.insert(account).expect("Account should be inserted ok");
+
+		let new_hash = directory.files_hash().expect("New files hash should be calculated ok"); 
+
+		assert!(new_hash != hash, "hash of the file list should change once directory content changed");
 	}
 }
