@@ -70,7 +70,7 @@ build_rpc_trait! {
 		#[rpc(name = "parity_setAccountMeta")]
 		fn set_account_meta(&self, H160, String) -> Result<bool, Error>;
 
-		/// Sets accounts exposed for particular dapp.
+		/// Sets addresses exposed for particular dapp.
 		/// Setting a non-empty list will also override default account.
 		/// Setting `None` will resets visible account to what's visible for new dapps
 		/// (does not affect default account though)
@@ -81,7 +81,7 @@ build_rpc_trait! {
 		#[rpc(name = "parity_getDappAddresses")]
 		fn dapp_addresses(&self, DappId) -> Result<Vec<H160>, Error>;
 
-		/// Alters dapp default address.
+		/// Changes dapp default address.
 		/// Does not affect other accounts exposed for this dapp, but
 		/// default account will always be retured as the first one.
 		#[rpc(name = "parity_setDappDefaultAddress")]
@@ -104,7 +104,7 @@ build_rpc_trait! {
 		#[rpc(name = "parity_getNewDappsWhitelist")]
 		fn new_dapps_whitelist(&self) -> Result<Option<Vec<H160>>, Error>;
 
-		/// Alters default address for new dapps (global default address)
+		/// Changes default address for new dapps (global default address)
 		/// Does not affect other accounts exposed for new dapps, but
 		/// default account will always be retured as the first one.
 		#[rpc(name = "parity_setNewDappsDefaultAddress")]
