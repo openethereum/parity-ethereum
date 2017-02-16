@@ -19,6 +19,7 @@ import { observer } from 'mobx-react';
 
 import Account from '../Account';
 import TransactionPendingForm from '../TransactionPendingForm';
+import RequestOrigin from '../RequestOrigin';
 
 import styles from './signRequest.css';
 
@@ -40,9 +41,9 @@ export default class SignRequest extends Component {
   };
 
   static propTypes = {
-    id: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
     data: PropTypes.string.isRequired,
+    id: PropTypes.object.isRequired,
     isFinished: PropTypes.bool.isRequired,
     isTest: PropTypes.bool.isRequired,
     store: PropTypes.object.isRequired,
@@ -52,11 +53,16 @@ export default class SignRequest extends Component {
     isSending: PropTypes.bool,
     onConfirm: PropTypes.func,
     onReject: PropTypes.func,
+    origin: PropTypes.any,
     status: PropTypes.string
   };
 
   static defaultProps = {
-    focus: false
+    focus: false,
+    origin: {
+      type: 'unknown',
+      details: ''
+    }
   };
 
   componentWillMount () {
@@ -92,7 +98,7 @@ export default class SignRequest extends Component {
 
   renderDetails () {
     const { api } = this.context;
-    const { address, isTest, store, data } = this.props;
+    const { address, isTest, store, data, origin } = this.props;
     const { balances, externalLink } = store;
 
     const balance = balances[address];
@@ -110,6 +116,7 @@ export default class SignRequest extends Component {
             externalLink={ externalLink }
             isTest={ isTest }
           />
+          <RequestOrigin origin={ origin } />
         </div>
         <div className={ styles.info } title={ api.util.sha3(data) }>
           <p>A request to sign data using your account:</p>

@@ -181,6 +181,16 @@ export function outReceipt (receipt) {
   return receipt;
 }
 
+export function outRecentDapps (recentDapps) {
+  if (recentDapps) {
+    Object.keys(recentDapps).forEach((url) => {
+      recentDapps[url] = outDate(recentDapps[url]);
+    });
+  }
+
+  return recentDapps;
+}
+
 export function outSignerRequest (request) {
   if (request) {
     Object.keys(request).forEach((key) => {
@@ -192,6 +202,13 @@ export function outSignerRequest (request) {
         case 'payload':
           request[key].signTransaction = outTransaction(request[key].signTransaction);
           request[key].sendTransaction = outTransaction(request[key].sendTransaction);
+          break;
+
+        case 'origin':
+          const type = Object.keys(request[key])[0];
+          const details = request[key][type];
+
+          request[key] = { type, details };
           break;
       }
     });

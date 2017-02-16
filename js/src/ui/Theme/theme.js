@@ -23,7 +23,7 @@ const lightTheme = getMuiTheme(lightBaseTheme);
 const muiTheme = getMuiTheme(darkBaseTheme);
 
 muiTheme.inkBar.backgroundColor = 'transparent';
-muiTheme.paper.backgroundColor = 'rgba(0, 0, 0, 0.95)';
+muiTheme.paper.backgroundColor = 'rgb(18, 18, 18)';
 muiTheme.raisedButton.primaryTextColor = 'white';
 muiTheme.snackbar.backgroundColor = 'rgba(255, 30, 30, 0.9)';
 muiTheme.snackbar.textColor = 'rgba(255, 255, 255, 0.75)';

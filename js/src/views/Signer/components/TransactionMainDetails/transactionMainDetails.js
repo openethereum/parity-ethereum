@@ -22,6 +22,8 @@ import { Button, MethodDecoding } from '~/ui';
 
 import * as tUtil from '../util/transaction';
 import Account from '../Account';
+import RequestOrigin from '../RequestOrigin';
+
 import styles from './transactionMainDetails.css';
 
 export default class TransactionMainDetails extends Component {
@@ -33,9 +35,17 @@ export default class TransactionMainDetails extends Component {
     gasStore: PropTypes.object,
     id: PropTypes.object.isRequired,
     isTest: PropTypes.bool.isRequired,
+    origin: PropTypes.any,
     totalValue: PropTypes.object.isRequired,
     transaction: PropTypes.object.isRequired,
     value: PropTypes.object.isRequired
+  };
+
+  static defaultProps = {
+    origin: {
+      type: 'unknown',
+      details: ''
+    }
   };
 
   componentWillMount () {
@@ -51,7 +61,7 @@ export default class TransactionMainDetails extends Component {
   }
 
   render () {
-    const { children, externalLink, from, fromBalance, gasStore, isTest, transaction } = this.props;
+    const { children, externalLink, from, fromBalance, gasStore, isTest, transaction, origin } = this.props;
 
     return (
       <div className={ styles.transaction }>
@@ -64,6 +74,7 @@ export default class TransactionMainDetails extends Component {
               isTest={ isTest }
             />
           </div>
+          <RequestOrigin origin={ origin } />
         </div>
         <div className={ styles.method }>
           <MethodDecoding

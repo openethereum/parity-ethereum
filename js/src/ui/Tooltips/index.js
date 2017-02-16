@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Tooltip from './Tooltip';
-import tooltipReducer from './reducers';
-
 export default from './tooltips';
-export { Tooltip, tooltipReducer };
+
+export Tooltip from './Tooltip';
+export tooltipReducer from './reducers';

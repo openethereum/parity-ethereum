@@ -230,7 +230,7 @@ fn should_be_able_to_kill_account() {
 	let address = accounts[0];
 
 	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_killAccount", "params": ["0xf00baba2f00baba2f00baba2f00baba2f00baba2"], "id": 1}}"#);
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params","data":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"invalid length 1, expected a tuple of size 2","data":null},"id":1}"#;
 	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
 
@@ -431,4 +431,44 @@ fn rpc_parity_get_set_vault_meta() {
 	let response = r#"{"jsonrpc":"2.0","result":"updated_vault1_meta","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+// name: parity_deriveAddressHash
+// example: {"jsonrpc": "2.0", "method": "parity_deriveAddressHash", "params": ["0xc171033d5cbff7175f29dfd3a63dda3d6f8f385e", "password1", { "type": "soft", "hash": "0x0c0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0c0c" }, true ], "id": 3}
+#[test]
+fn derive_key_hash() {
+	let tester = setup();
+	let hash = tester.accounts
+		.insert_account(
+			"0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a".parse().unwrap(),
+			"password1")
+		.expect("account should be inserted ok");
+
+	assert_eq!(hash, "c171033d5cbff7175f29dfd3a63dda3d6f8f385e".parse().unwrap());
+
+	// derive by hash
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_deriveAddressHash", "params": ["0xc171033d5cbff7175f29dfd3a63dda3d6f8f385e", "password1", { "type": "soft", "hash": "0x0c0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0c0c" }, true ], "id": 3}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0xf28c28fcddf4a9b8f474237278d3647f9c0d1b3c","id":3}"#;
+	let res = tester.io.handle_request_sync(&request);
+	assert_eq!(res, Some(response.into()));
+}
+
+// name: parity_deriveAddressIndex
+// example: {"jsonrpc": "2.0", "method": "parity_deriveAddressIndex", "params": ["0xc171033d5cbff7175f29dfd3a63dda3d6f8f385e", "password1", [{ "type": "soft", "index": 0 }, { "type": "soft", "index": 1 }], false ], "id": 3}
+#[test]
+fn derive_key_index() {
+	let tester = setup();
+	let hash = tester.accounts
+		.insert_account(
+			"0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a".parse().unwrap(),
+			"password1")
+		.expect("account should be inserted ok");
+
+	assert_eq!(hash, "c171033d5cbff7175f29dfd3a63dda3d6f8f385e".parse().unwrap());
+
+	// derive by hash
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_deriveAddressIndex", "params": ["0xc171033d5cbff7175f29dfd3a63dda3d6f8f385e", "password1", [{ "type": "soft", "index": 0 }, { "type": "soft", "index": 1 }], false ], "id": 3}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0xcc548e0bb2efe792a920ae0fbf583b13919f274f","id":3}"#;
+	let res = tester.io.handle_request_sync(&request);
+	assert_eq!(res, Some(response.into()));
 }

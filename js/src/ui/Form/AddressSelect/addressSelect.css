@@ -107,6 +107,10 @@
   }
 }
 
+.container {
+  margin-bottom: 1em;
+}
+
 .categories {
   display: flex;
   flex: 1;

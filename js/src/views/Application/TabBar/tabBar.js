@@ -15,18 +15,22 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { isEqual } from 'lodash';
 
-import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
 import { Tooltip } from '~/ui';
 
 import Tab from './Tab';
 import styles from './tabBar.css';
 
 class TabBar extends Component {
+  static contextTypes = {
+    router: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     isTest: PropTypes.bool,
     netChain: PropTypes.string,
@@ -41,72 +45,46 @@ class TabBar extends Component {
   render () {
     return (
       <Toolbar className={ styles.toolbar }>
-        { this.renderLogo() }
-        { this.renderTabs() }
-        { this.renderLast() }
+        <ToolbarGroup className={ styles.first }>
+          <div />
+        </ToolbarGroup>
+        <div className={ styles.tabs }>
+          { this.renderTabItems() }
+          <Tooltip
+            className={ styles.tabbarTooltip }
+            text={
+              <FormattedMessage
+                id='tabBar.tooltip.overview'
+                defaultMessage='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view'
+              />
+            }
+          />
+        </div>
+        <ToolbarGroup className={ styles.last }>
+          <div />
+        </ToolbarGroup>
       </Toolbar>
     );
   }
 
-  renderLogo () {
-    return (
-      <ToolbarGroup>
-        <div className={ styles.logo }>
-          <img
-            height={ 28 }
-            src={ imagesEthcoreBlock }
-          />
-        </div>
-      </ToolbarGroup>
-    );
-  }
-
-  renderLast () {
-    return (
-      <ToolbarGroup>
-        <div className={ styles.last }>
-          <div />
-        </div>
-      </ToolbarGroup>
-    );
-  }
-
-  renderTabs () {
+  renderTabItems () {
     const { views, pending } = this.props;
 
-    const items = views
-      .map((view, index) => {
-        const body = (view.id === 'accounts')
-          ? (
-            <Tooltip
-              className={ styles.tabbarTooltip }
-              text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view'
-            />
-          )
-          : null;
-
-        return (
-          <Link
-            activeClassName={ styles.tabactive }
-            className={ styles.tabLink }
-            key={ view.id }
-            to={ view.route }
-          >
-            <Tab
-              pendings={ pending.length }
-              view={ view }
-            >
-              { body }
-            </Tab>
-          </Link>
-        );
-      });
-
-    return (
-      <div className={ styles.tabs }>
-        { items }
-      </div>
-    );
+    return views.map((view, index) => {
+      return (
+        <Link
+          activeClassName={ styles.tabactive }
+          className={ styles.tabLink }
+          key={ view.id }
+          to={ view.route }
+        >
+          <Tab
+            pendings={ pending.length }
+            view={ view }
+          />
+        </Link>
+      );
+    });
   }
 }
 

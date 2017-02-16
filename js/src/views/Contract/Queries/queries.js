@@ -61,12 +61,25 @@ export default class Queries extends Component {
     return (
       <Container title='queries'>
         <div className={ styles.methods }>
-          <div className={ styles.vMethods }>
-            { noInputQueries }
-          </div>
-          <div className={ styles.hMethods }>
-            { withInputQueries }
-          </div>
+          {
+            noInputQueries.length > 0
+            ? (
+              <div className={ styles.vMethods }>
+                { noInputQueries }
+              </div>
+            )
+            : null
+          }
+
+          {
+            withInputQueries.length > 0
+            ? (
+              <div className={ styles.hMethods }>
+                { withInputQueries }
+              </div>
+            )
+            : null
+          }
         </div>
       </Container>
     );

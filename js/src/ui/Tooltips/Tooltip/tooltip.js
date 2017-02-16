@@ -15,12 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
-import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
-import ContentClear from 'material-ui/svg-icons/content/clear';
-import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
+
+import { CancelIcon, DoneIcon, NextIcon } from '~/ui/Icons';
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 import { newTooltip, nextTooltip, closeTooltips } from '../actions';
 
@@ -30,15 +31,15 @@ let tooltipId = 0;
 
 class Tooltip extends Component {
   static propTypes = {
-    title: PropTypes.string,
-    text: PropTypes.string,
-    right: PropTypes.bool,
+    className: PropTypes.string,
     currentId: PropTypes.number,
     maxId: PropTypes.number,
-    className: PropTypes.string,
     onNewTooltip: PropTypes.func,
     onNextTooltip: PropTypes.func,
-    onCloseTooltips: PropTypes.func
+    onCloseTooltips: PropTypes.func,
+    right: PropTypes.bool,
+    text: nodeOrStringProptype(),
+    title: nodeOrStringProptype()
   }
 
   state = {
@@ -54,8 +55,7 @@ class Tooltip extends Component {
 
   render () {
     const { id } = this.state;
-    const { className, currentId, maxId, right, onCloseTooltips, onNextTooltip } = this.props;
-    const classes = `${styles.box} ${right ? styles.arrowRight : styles.arrowLeft} ${className}`;
+    const { className, currentId, maxId, right, onCloseTooltips, onNextTooltip, text, title } = this.props;
 
     if (id !== currentId) {
       return null;
@@ -64,32 +64,57 @@ class Tooltip extends Component {
     const buttons = id !== maxId
       ? [
         <FlatButton
+          icon={ <CancelIcon /> }
           key='skipButton'
-          icon={ <ContentClear /> }
-          label='Skip'
+          label={
+            <FormattedMessage
+              id='ui.tooltips.button.skip'
+              defaultMessage='Skip'
+            />
+          }
           onTouchTap={ onCloseTooltips }
         />,
         <FlatButton
+          icon={ <NextIcon /> }
           key='nextButton'
-          icon={ <NavigationArrowForward /> }
-          label='Next'
+          label={
+            <FormattedMessage
+              id='ui.tooltips.button.next'
+              defaultMessage='Next'
+            />
+          }
           onTouchTap={ onNextTooltip }
         />
       ] : (
         <FlatButton
-          icon={ <ActionDoneAll /> }
-          label='Done'
+          icon={ <DoneIcon /> }
+          label={
+            <FormattedMessage
+              id='ui.tooltips.button.done'
+              defaultMessage='Done'
+            />
+          }
           onTouchTap={ onCloseTooltips }
         />
       );
 
     return (
-      <div className={ classes }>
+      <div
+        className={
+          [
+            styles.box,
+            right
+              ? styles.arrowRight
+              : styles.arrowLeft,
+            className
+          ].join(' ')
+        }
+      >
         <div className={ styles.title }>
-          { this.props.title }
+          { title }
         </div>
         <div className={ styles.text }>
-          { this.props.text }
+          { text }
         </div>
         <div className={ styles.buttons }>
           { buttons }
@@ -102,7 +127,10 @@ class Tooltip extends Component {
 function mapStateToProps (state) {
   const { currentId, maxId } = state.tooltip;
 
-  return { currentId, maxId };
+  return {
+    currentId,
+    maxId
+  };
 }
 
 function mapDispatchToProps (dispatch) {

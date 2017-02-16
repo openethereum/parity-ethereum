@@ -145,12 +145,12 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
-		let dapp_id = meta.dapp_id.unwrap_or_default();
+		let dapp_id = meta.dapp_id();
 		future::ok(
 			take_weakf!(self.accounts)
 				.dapp_default_address(dapp_id.into())
+				.map(Into::into)
 				.ok()
-				.map(|acc| acc.into())
 				.unwrap_or_default()
 		).boxed()
 	}

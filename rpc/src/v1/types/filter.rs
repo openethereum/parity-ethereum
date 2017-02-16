@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer, Error};
-use serde_json::value;
-use jsonrpc_core::Value;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::de::Error;
+use serde_json::{Value, from_value};
 use ethcore::filter::Filter as EthFilter;
 use ethcore::client::BlockId;
 use v1::types::{BlockNumber, H160, H256, Log};
@@ -33,17 +33,17 @@ pub enum VariadicValue<T> where T: Deserialize {
 }
 
 impl<T> Deserialize for VariadicValue<T> where T: Deserialize {
-	fn deserialize<D>(deserializer: &mut D) -> Result<VariadicValue<T>, D::Error>
+	fn deserialize<D>(deserializer: D) -> Result<VariadicValue<T>, D::Error>
 	where D: Deserializer {
-		let v = Value::deserialize(deserializer)?;
+		let v: Value = Deserialize::deserialize(deserializer)?;
 
 		if v.is_null() {
 			return Ok(VariadicValue::Null);
 		}
 
-		Deserialize::deserialize(&mut value::Deserializer::new(v.clone())).map(VariadicValue::Single)
-			.or_else(|_| Deserialize::deserialize(&mut value::Deserializer::new(v.clone())).map(VariadicValue::Multiple))
-			.map_err(|_| Error::custom("")) // unreachable, but types must match
+		from_value(v.clone()).map(VariadicValue::Single)
+			.or_else(|_| from_value(v).map(VariadicValue::Multiple))
+			.map_err(|_| D::Error::custom("Invalid type."))
 	}
 }
 
@@ -111,7 +111,7 @@ pub enum FilterChanges {
 }
 
 impl Serialize for FilterChanges {
-	fn serialize<S>(&self, s: &mut S) -> Result<(), S::Error> where S: Serializer {
+	fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error> where S: Serializer {
 		match *self {
 			FilterChanges::Logs(ref logs) => logs.serialize(s),
 			FilterChanges::Hashes(ref hashes) => hashes.serialize(s),

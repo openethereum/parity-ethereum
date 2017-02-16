@@ -139,7 +139,7 @@ pub enum SyncStatus {
 }
 
 impl Serialize for SyncStatus {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		match *self {
 			SyncStatus::Info(ref info) => info.serialize(serializer),

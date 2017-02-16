@@ -17,8 +17,8 @@
 //! Universaly unique identifier.
 use std::{fmt, str};
 use rustc_serialize::hex::{ToHex, FromHex};
-use serde::{Deserialize, Serialize, Deserializer, Serializer, Error as SerdeError};
-use serde::de::Visitor;
+use serde::{Deserialize, Serialize, Deserializer, Serializer};
+use serde::de::{Visitor, Error as SerdeError};
 use super::Error;
 
 /// Universaly unique identifier.
@@ -101,7 +101,7 @@ impl From<&'static str> for Uuid {
 }
 
 impl Serialize for Uuid {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		let s: String = self.into();
 		serializer.serialize_str(&s)
@@ -109,7 +109,7 @@ impl Serialize for Uuid {
 }
 
 impl Deserialize for Uuid {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer {
 		deserializer.deserialize(UuidVisitor)
 	}
@@ -120,11 +120,15 @@ struct UuidVisitor;
 impl Visitor for UuidVisitor {
 	type Value = Uuid;
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a valid hex-encoded UUID")
+	}
+
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
 		value.parse().map_err(SerdeError::custom)
 	}
 
-	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: SerdeError {
+	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: SerdeError {
 		self.visit_str(value.as_ref())
 	}
 }

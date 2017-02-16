@@ -55,8 +55,8 @@ fn should_extract_metadata() {
 	// given
 	let mut io = MetaIoHandler::default();
 	io.add_method_with_meta("rpc_test", |_params, meta: Metadata| {
-		assert_eq!(meta.dapp_id, Some("https://parity.io/".to_owned()));
-		assert_eq!(meta.origin, Origin::Dapps);
+		assert_eq!(meta.origin, Origin::Dapps("https://parity.io/".into()));
+		assert_eq!(meta.dapp_id(), "https://parity.io/".into());
 		future::ok(Value::String("Hello World!".into())).boxed()
 	});
 	let server = serve_with_rpc(io);
@@ -89,8 +89,8 @@ fn should_extract_metadata_from_custom_header() {
 	// given
 	let mut io = MetaIoHandler::default();
 	io.add_method_with_meta("rpc_test", |_params, meta: Metadata| {
-		assert_eq!(meta.dapp_id, Some("https://parity.io/".to_owned()));
-		assert_eq!(meta.origin, Origin::Dapps);
+		assert_eq!(meta.origin, Origin::Dapps("https://parity.io/".into()));
+		assert_eq!(meta.dapp_id(), "https://parity.io/".into());
 		future::ok(Value::String("Hello World!".into())).boxed()
 	});
 	let server = serve_with_rpc(io);

@@ -4,12 +4,6 @@ name = "parity"
 version = "1.6.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
-
-[build-dependencies]
-rustc_version = "0.1"
-ethcore-ipc-codegen = { path = "ipc/codegen" }
-ethcore-ipc-tests = { path = "ipc/tests" }
 
 [dependencies]
 log = "0.3"
@@ -22,15 +16,14 @@ number_prefix = "0.2"
 rpassword = "0.2.1"
 semver = "0.5"
 ansi_term = "0.7"
-lazy_static = "0.2"
 regex = "0.1"
 isatty = "0.1"
 toml = "0.2"
-serde = "0.8"
-serde_json = "0.8"
+serde = "0.9"
+serde_json = "0.9"
 app_dirs = "1.1.1"
 fdlimit = "0.1"
-hyper = { version = "0.9", default-features = false }
+hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
 ethsync = { path = "sync" }
@@ -46,6 +39,7 @@ ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
 ethcore-stratum = { path = "stratum" }
+evmbin = { path = "evmbin" }
 rlp = { path = "util/rlp" }
 rpc-cli = { path = "rpc_cli" }
 parity-rpc-client = { path = "rpc_client" }
@@ -54,6 +48,9 @@ parity-updater = { path = "updater" }
 parity-reactor = { path = "util/reactor" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}
+
+[dev-dependencies]
+ethcore-ipc-tests = { path = "ipc/tests" }
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"

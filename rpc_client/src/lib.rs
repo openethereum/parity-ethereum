@@ -14,15 +14,13 @@ extern crate tempdir;
 extern crate jsonrpc_core;
 
 #[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate matches;
-
-#[macro_use]
 extern crate log;
 
 #[cfg(test)]
 mod tests {
+	#[macro_use]
+	extern crate matches;
+
 	use futures::Future;
 	use std::path::PathBuf;
 	use client::{Rpc, RpcError};

@@ -26,13 +26,12 @@ const SIGNER_ID = 'signer';
 
 export default class Tab extends Component {
   static propTypes = {
-    children: PropTypes.node,
     pendings: PropTypes.number,
     view: PropTypes.object.isRequired
   };
 
   render () {
-    const { view, children } = this.props;
+    const { view } = this.props;
 
     return (
       <MUITab
@@ -42,9 +41,7 @@ export default class Tab extends Component {
             ? this.renderSignerLabel()
             : this.renderLabel(view.id)
         }
-      >
-        { children }
-      </MUITab>
+      />
     );
   }
 

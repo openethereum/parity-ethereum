@@ -29,7 +29,6 @@ class Tooltips extends Component {
 
   static propTypes = {
     currentId: PropTypes.number,
-    closed: PropTypes.bool,
     onNextTooltip: PropTypes.func
   }
 
@@ -72,7 +71,9 @@ class Tooltips extends Component {
 function mapStateToProps (state) {
   const { currentId } = state.tooltip;
 
-  return { currentId };
+  return {
+    currentId
+  };
 }
 
 function mapDispatchToProps (dispatch) {
