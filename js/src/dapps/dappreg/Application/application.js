@@ -21,6 +21,7 @@ import DappsStore from '../dappsStore';
 
 import ButtonBar from '../ButtonBar';
 import Dapp from '../Dapp';
+import Dapps from '../Dapps';
 import ModalDelete from '../ModalDelete';
 import ModalRegister from '../ModalRegister';
 import ModalUpdate from '../ModalUpdate';
@@ -41,6 +42,8 @@ export default class Application extends Component {
       );
     }
 
+    const { ownDapps, otherDapps } = this.dappsStore;
+
     return (
       <div className={ styles.body }>
         <div className={ styles.header }>
@@ -51,6 +54,18 @@ export default class Application extends Component {
           <ButtonBar />
           <Dapp />
         </div>
+
+        <div>
+          <Dapps
+            dapps={ ownDapps }
+            title='My Dapps'
+          />
+          <Dapps
+            dapps={ otherDapps }
+            title='Other Dapps'
+          />
+        </div>
+
         <div className={ styles.footer }>
           { this.dappsStore.count } applications registered, { this.dappsStore.ownedCount } owned by user
         </div>

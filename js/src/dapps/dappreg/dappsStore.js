@@ -67,7 +67,15 @@ export default class DappsStore {
   }
 
   @computed get ownedCount () {
-    return (this.apps.filter((app) => app.isOwner) || []).length;
+    return this.ownDapps.length;
+  }
+
+  @computed get ownDapps () {
+    return this.apps.filter((app) => app.isOwner);
+  }
+
+  @computed get otherDapps () {
+    return this.apps.filter((app) => !app.isOwner);
   }
 
   @action copyToWip = () => {
