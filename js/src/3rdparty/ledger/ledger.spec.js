@@ -20,31 +20,51 @@ import Ledger from './';
 
 const TEST_ADDRESS = '0x63Cf90D3f0410092FC0fca41846f596223979195';
 
+let api;
 let ledger;
 let vendor;
 
-function createLedger (error = null) {
-  vendor = {
-    getAddress: (path, callback) => {
-      callback(error, {
-        address: TEST_ADDRESS.toLowerCase()
-      });
-    },
-    getAppConfiguration: (callback) => {
-      callback(error, {});
-    },
-    signTransaction: (path, rawTransaction, callback) => {
-      callback(error, {});
+function createApi () {
+  api = {
+    net: {
+      version: sinon.stub().resolves('2')
     }
   };
-  ledger = new Ledger(vendor);
+
+  return api;
+}
+
+function createVendor (error = null) {
+  vendor = {
+    getAddress: (path, callback) => {
+      callback({
+        address: TEST_ADDRESS.toLowerCase()
+      }, error);
+    },
+    getAppConfiguration: (callback) => {
+      callback({}, error);
+    },
+    signTransaction: (path, rawTransaction, callback) => {
+      callback({
+        v: [39],
+        r: [0],
+        s: [0]
+      }, error);
+    }
+  };
+
+  return vendor;
+}
+
+function create (error) {
+  ledger = new Ledger(createApi(), createVendor(error));
 
   return ledger;
 }
 
 describe('3rdparty/ledger', () => {
   beforeEach(() => {
-    createLedger();
+    create();
 
     sinon.spy(vendor, 'getAddress');
     sinon.spy(vendor, 'getAppConfiguration');
@@ -68,28 +88,22 @@ describe('3rdparty/ledger', () => {
   });
 
   describe('scan', () => {
-    let response;
-
     beforeEach(() => {
-      return ledger
-        .scan()
-        .then((_response) => {
-          response = _response;
-        });
+      return ledger.scan();
     });
 
     it('calls into getAddress', () => {
       expect(vendor.getAddress).to.have.been.called;
-    });
-
-    it('converts the address to checksum', () => {
-      expect(response.address).to.equal(TEST_ADDRESS);
     });
   });
 
   describe('signTransaction', () => {
     beforeEach(() => {
       return ledger.signTransaction();
+    });
+
+    it('retrieves chainId via API', () => {
+      expect(api.net.version).to.have.been.called;
     });
 
     it('calls into signTransaction', () => {
