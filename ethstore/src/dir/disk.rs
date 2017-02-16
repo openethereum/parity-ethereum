@@ -90,11 +90,8 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 		}
 	}
 
-	/// all accounts found in keys directory
-	fn files(&self) -> Result<HashMap<PathBuf, SafeAccount>, Error> {
-		// it's not done using one iterator cause
-		// there is an issue with rustc and it takes tooo much time to compile
-		let paths = fs::read_dir(&self.path)?
+	fn files(&self) -> Result<Vec<PathBuf>, Error>  {
+		Ok(fs::read_dir(&self.path)?
 			.flat_map(Result::ok)
 			.filter(|entry| {
 				let metadata = entry.metadata().ok();
@@ -102,14 +99,21 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 				let name = file_name.to_string_lossy();
 				// filter directories
 				metadata.map_or(false, |m| !m.is_dir()) &&
-				// hidden files
-				!name.starts_with(".") &&
-				// other ignored files
-				!IGNORED_FILES.contains(&&*name)
+					// hidden files
+					!name.starts_with(".") &&
+					// other ignored files
+					!IGNORED_FILES.contains(&&*name)
 			})
 			.map(|entry| entry.path())
-			.collect::<Vec<PathBuf>>();
+			.collect::<Vec<PathBuf>>()
+		)
+	}
 
+	/// all accounts found in keys directory
+	fn files_content(&self) -> Result<HashMap<PathBuf, SafeAccount>, Error> {
+		// it's not done using one iterator cause
+		// there is an issue with rustc and it takes tooo much time to compile
+		let paths = self.files()?;
 		Ok(paths
 			.into_iter()
 			.filter_map(|path| {
@@ -166,7 +170,7 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 
 impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 	fn load(&self) -> Result<Vec<SafeAccount>, Error> {
-		let accounts = self.files()?
+		let accounts = self.files_content()?
 			.into_iter()
 			.map(|(_, account)| account)
 			.collect();
@@ -191,7 +195,7 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 	fn remove(&self, account: &SafeAccount) -> Result<(), Error> {
 		// enumerate all entries in keystore
 		// and find entry with given address
-		let to_remove = self.files()?
+		let to_remove = self.files_content()?
 			.into_iter()
 			.find(|&(_, ref acc)| acc.id == account.id && acc.address == account.address);
 
