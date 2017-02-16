@@ -16,6 +16,7 @@
 
 use std::path::{PathBuf};
 use {SafeAccount, Error};
+use util::{H256, FixedHash};
 
 mod disk;
 mod geth;
@@ -62,6 +63,8 @@ pub trait KeyDirectory: Send + Sync {
 	fn path(&self) -> Option<&PathBuf> { None }
 	/// Return vault provider, if available
 	fn as_vault_provider(&self) -> Option<&VaultKeyDirectoryProvider> { None }
+	/// Returns hash of the directory content, if supported
+	fn hash(&self) -> Result<H256, Error> { Ok(H256::zero()) }
 }
 
 /// Vaults provider

@@ -219,6 +219,10 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 	fn as_vault_provider(&self) -> Option<&VaultKeyDirectoryProvider> {
 		Some(self)
 	}
+
+	fn hash(&self) -> Result<H256, Error> { 
+		self.files_hash() 
+	}
 }
 
 impl<T> VaultKeyDirectoryProvider for DiskDirectory<T> where T: KeyFileManager {
