@@ -38,7 +38,7 @@ function createVendor (error = null) {
   vendor = {
     getAddress: (path, callback) => {
       callback({
-        address: TEST_ADDRESS.toLowerCase()
+        address: TEST_ADDRESS
       }, error);
     },
     getAppConfiguration: (callback) => {
