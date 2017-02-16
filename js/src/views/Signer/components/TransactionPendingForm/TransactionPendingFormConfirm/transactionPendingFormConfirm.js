@@ -102,7 +102,7 @@ class TransactionPendingFormConfirm extends Component {
         <Form>
           { this.renderKeyInput() }
           { this.renderPassword() }
-          { this.renderPasswordHint() }
+          { this.renderHint() }
           <div
             data-effect='solid'
             data-for={ `transactionConfirmForm${this.id}` }
@@ -194,7 +194,20 @@ class TransactionPendingFormConfirm extends Component {
     );
   }
 
-  renderPasswordHint () {
+  renderHint () {
+    const { account, isSending } = this.props;
+
+    if (account.hardware && isSending) {
+      return (
+        <div className={ styles.passwordHint }>
+          <FormattedMessage
+            id='signer.sending.unlockHardware'
+            defaultMessage='Please confirm the transaction on your attached hardware device'
+          />
+        </div>
+      );
+    }
+
     const passwordHint = this.getPasswordHint();
 
     if (!passwordHint) {
