@@ -84,7 +84,6 @@ $modalZ: 10001;
 
 .parityBg {
   position: fixed;
-
   transition-property: left, top, right, bottom;
   transition-duration: 0.25s;
   transition-timing-function: ease;
@@ -95,20 +94,25 @@ $modalZ: 10001;
   }
 }
 
+.accountsSection {
+  padding: 0 1em;
+  width: 920px;
+}
+
 .expanded {
   border-radius: 4px 4px 0 0;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   min-height: 30vh;
   max-height: 80vh;
-  max-width: calc(100vw - 1em);
+  max-width: calc(100vw - 2em);
 
   .content {
     flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: auto;
     display: flex;
     background: rgba(0, 0, 0, 0.8);
+    max-width: calc(100vw - 2em);
   }
 }
 
@@ -130,7 +134,8 @@ $modalZ: 10001;
   color: white !important;
   display: inline-block;
 
-  img, svg {
+  img,
+  svg {
     height: 24px !important;
     width: 24px !important;
     margin: 2px 0.5em 0 0;
@@ -160,7 +165,7 @@ $modalZ: 10001;
   min-width: 2em !important;
 
   img {
-    margin: 6px 0.5em 0 0.5em;
+    margin: 6px 0.5em 0;
   }
 }
 
@@ -177,7 +182,7 @@ $modalZ: 10001;
 
 .labelBubble {
   position: absolute;
-  top: 0px;
+  top: 0;
   right: -10px;
 }
 
@@ -187,7 +192,7 @@ $modalZ: 10001;
   background: rgba(0, 0, 0, 0.25);
   margin-bottom: 0;
 
-  &:after {
+  &::after {
     clear: both;
   }
 }
@@ -243,11 +248,9 @@ $modalZ: 10001;
   width: 1em;
   height: 1em;
   margin-left: 0.5em;
-
   background-color: white;
   opacity: 0.25;
   border-radius: 50%;
-
   transition-property: opacity;
   transition-duration: 0.1s;
   transition-timing-function: ease-in-out;

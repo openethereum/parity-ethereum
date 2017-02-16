@@ -486,7 +486,7 @@ docker-build:
   script:
     - cd docker/hub
     - docker login -u $Docker_Hub_User -p $Docker_Hub_Pass
-    - docker build --tag ethcore/parity:$CI_BUILD_REF_NAME .
+    - docker build --no-cache=true --tag ethcore/parity:$CI_BUILD_REF_NAME .
     - docker push ethcore/parity:$CI_BUILD_REF_NAME
   tags:
     - docker
