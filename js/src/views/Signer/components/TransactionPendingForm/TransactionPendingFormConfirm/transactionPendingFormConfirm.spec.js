@@ -41,40 +41,19 @@ const ACCOUNTS = {
 
 let component;
 let instance;
-let store;
 let onConfirm;
-
-function createRedux () {
-  store = {
-    dispatch: sinon.stub(),
-    subscribe: sinon.stub(),
-    getState: () => {
-      return {
-        personal: {
-          accounts: ACCOUNTS
-        }
-      };
-    }
-  };
-
-  return store;
-}
 
 function render (address) {
   onConfirm = sinon.stub();
 
   component = shallow(
     <TransactionPendingFormConfirm
+      account={ ACCOUNTS[address] || {} }
       address={ address }
       onConfirm={ onConfirm }
       isSending={ false }
-    />,
-    {
-      context: {
-        store: createRedux()
-      }
-    }
-  ).find('TransactionPendingFormConfirm').shallow();
+    />
+  );
   instance = component.instance();
 
   return component;

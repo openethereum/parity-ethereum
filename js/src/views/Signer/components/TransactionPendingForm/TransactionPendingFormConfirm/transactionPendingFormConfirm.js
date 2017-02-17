@@ -19,17 +19,17 @@ import RaisedButton from 'material-ui/RaisedButton';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
-import { connect } from 'react-redux';
 import ReactTooltip from 'react-tooltip';
 
 import { Form, Input, IdentityIcon } from '~/ui';
 
 import styles from './transactionPendingFormConfirm.css';
 
-class TransactionPendingFormConfirm extends Component {
+export default class TransactionPendingFormConfirm extends Component {
   static propTypes = {
     account: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
+    disabled: PropTypes.bool,
     isSending: PropTypes.bool.isRequired,
     onConfirm: PropTypes.func.isRequired,
     focus: PropTypes.bool
@@ -93,7 +93,7 @@ class TransactionPendingFormConfirm extends Component {
   }
 
   render () {
-    const { account, address, isSending } = this.props;
+    const { account, address, disabled, isSending } = this.props;
     const { wallet, walletError } = this.state;
     const isWalletOk = account.hardware || account.uuid || (walletError === null && wallet !== null);
 
@@ -111,7 +111,7 @@ class TransactionPendingFormConfirm extends Component {
           >
             <RaisedButton
               className={ styles.confirmButton }
-              disabled={ isSending || !isWalletOk }
+              disabled={ disabled || isSending || !isWalletOk }
               fullWidth
               icon={
                 <IdentityIcon
@@ -149,7 +149,7 @@ class TransactionPendingFormConfirm extends Component {
     const { account } = this.props;
     const { password } = this.state;
 
-    if (account.hardware) {
+    if (account && account.hardware) {
       return null;
     }
 
@@ -342,26 +342,3 @@ class TransactionPendingFormConfirm extends Component {
     this.onConfirm();
   }
 }
-
-function mapStateToProps (_, initProps) {
-  const { address } = initProps;
-
-  return (state) => {
-    const { accounts } = state.personal;
-    const gotAddress = Object
-      .keys(accounts)
-      .find(a => a.toLowerCase() === address.toLowerCase());
-    const account = gotAddress
-      ? accounts[gotAddress]
-      : {};
-
-    return {
-      account
-    };
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(TransactionPendingFormConfirm);

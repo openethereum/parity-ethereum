@@ -120,7 +120,7 @@ export default class Ledger {
           }
 
           // https://github.com/ethcore/parity/pull/4578
-          tx.v = new Buffer([(v[0] + 1) % 2]);
+          tx.v = new Buffer([1]); // new Buffer([(v[0] + 1) % 2]);
           tx.r = new Buffer(response.r, 'hex');
           tx.s = new Buffer(response.s, 'hex');
 

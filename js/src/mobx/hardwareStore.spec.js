@@ -43,6 +43,7 @@ function createApi () {
 
 function createLedger () {
   ledger = {
+    isSupported: true,
     getAppConfiguration: sinon.stub().resolves(),
     scan: sinon.stub().resolves(WALLET),
     signTransaction: sinon.stub().resolves()

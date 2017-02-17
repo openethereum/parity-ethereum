@@ -14,9 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
 import { observer } from 'mobx-react';
+import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
 
+import HardwareStore from '~/mobx/hardwareStore';
 import { Button, GasPriceEditor } from '~/ui';
 
 import TransactionMainDetails from '../TransactionMainDetails';
@@ -27,12 +29,13 @@ import styles from './transactionPending.css';
 import * as tUtil from '../util/transaction';
 
 @observer
-export default class TransactionPending extends Component {
+class TransactionPending extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
 
   static propTypes = {
+    accounts: PropTypes.object.isRequired,
     className: PropTypes.string,
     date: PropTypes.instanceOf(Date).isRequired,
     focus: PropTypes.bool,
@@ -71,6 +74,8 @@ export default class TransactionPending extends Component {
     gasPrice: this.props.transaction.gasPrice.toFixed()
   });
 
+  hwstore = HardwareStore.get(this.context.api);
+
   componentWillMount () {
     const { store, transaction } = this.props;
     const { from, gas, gasPrice, to, value } = transaction;
@@ -92,17 +97,19 @@ export default class TransactionPending extends Component {
   }
 
   renderTransaction () {
-    const { className, focus, id, isSending, isTest, store, transaction, origin } = this.props;
+    const { accounts, className, focus, id, isSending, isTest, store, transaction, origin } = this.props;
     const { totalValue } = this.state;
     const { balances, externalLink } = store;
     const { from, value } = transaction;
-
     const fromBalance = balances[from];
+    const account = accounts[from] || {};
+    const disabled = account.hardware && !this.hwstore.wallets[from];
 
     return (
       <div className={ `${styles.container} ${className}` }>
         <TransactionMainDetails
           className={ styles.transactionDetails }
+          disabled={ disabled }
           externalLink={ externalLink }
           from={ from }
           fromBalance={ fromBalance }
@@ -115,7 +122,9 @@ export default class TransactionPending extends Component {
           value={ value }
         />
         <TransactionPendingForm
+          account={ account }
           address={ from }
+          disabled={ disabled }
           focus={ focus }
           isSending={ isSending }
           onConfirm={ this.onConfirm }
@@ -168,3 +177,16 @@ export default class TransactionPending extends Component {
     this.gasStore.setEditing(false);
   }
 }
+
+function mapStateToProps (state) {
+  const { accounts } = state.personal;
+
+  return {
+    accounts
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(TransactionPending);

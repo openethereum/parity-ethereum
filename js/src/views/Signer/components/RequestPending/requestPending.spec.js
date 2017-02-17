@@ -78,7 +78,7 @@ describe('views/Signer/RequestPending', () => {
     });
 
     it('renders TransactionPending component', () => {
-      expect(component.find('TransactionPending')).to.have.length(1);
+      expect(component.find('Connect(TransactionPending)')).to.have.length(1);
     });
   });
 
@@ -106,7 +106,7 @@ describe('views/Signer/RequestPending', () => {
     });
 
     it('renders TransactionPending component', () => {
-      expect(component.find('TransactionPending')).to.have.length(1);
+      expect(component.find('Connect(TransactionPending)')).to.have.length(1);
     });
   });
 });
