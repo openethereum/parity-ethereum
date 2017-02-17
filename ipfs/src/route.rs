@@ -34,7 +34,7 @@ pub enum Out {
 
 impl IpfsHandler {
 	/// Route path + query string to a specialized method
-	pub fn route(&mut self, path: &str, query: Option<&str>) -> Out {
+	pub fn route(&self, path: &str, query: Option<&str>) -> Out {
 		match path {
 			"/api/v0/block/get" => {
 				let arg = query.and_then(|q| get_param(q, "arg")).unwrap_or("");
@@ -114,11 +114,12 @@ fn get_param<'a>(query: &'a str, name: &str) -> Option<&'a str> {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use super::*;
 	use ethcore::client::TestBlockChainClient;
 
 	fn get_mocked_handler() -> IpfsHandler {
-		IpfsHandler::new(Arc::new(TestBlockChainClient::new()))
+		IpfsHandler::new(None, None, Arc::new(TestBlockChainClient::new()))
 	}
 
 	#[test]
@@ -208,37 +209,37 @@ mod tests {
 
 	#[test]
 	fn route_block() {
-		let mut handler = get_mocked_handler();
+		let handler = get_mocked_handler();
 
-		let _ = handler.route("/api/v0/block/get", Some("arg=z43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
+		let out = handler.route("/api/v0/block/get", Some("arg=z43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
 
-		assert_eq!(handler.out, Out::NotFound("Block not found"));
+		assert_eq!(out, Out::NotFound("Block not found"));
 	}
 
 	#[test]
 	fn route_block_missing_query() {
-		let mut handler = get_mocked_handler();
+		let handler = get_mocked_handler();
 
-		let _ = handler.route("/api/v0/block/get", None);
+		let out = handler.route("/api/v0/block/get", None);
 
-		assert_eq!(handler.out, Out::Bad("CID parsing failed"));
+		assert_eq!(out, Out::Bad("CID parsing failed"));
 	}
 
 	#[test]
 	fn route_block_invalid_query() {
-		let mut handler = get_mocked_handler();
+		let handler = get_mocked_handler();
 
-		let _ = handler.route("/api/v0/block/get", Some("arg=foobarz43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
+		let out = handler.route("/api/v0/block/get", Some("arg=foobarz43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
 
-		assert_eq!(handler.out, Out::Bad("CID parsing failed"));
+		assert_eq!(out, Out::Bad("CID parsing failed"));
 	}
 
 	#[test]
 	fn route_invalid_route() {
-		let mut handler = get_mocked_handler();
+		let handler = get_mocked_handler();
 
-		let _ = handler.route("/foo/bar/baz", Some("arg=z43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
+		let out = handler.route("/foo/bar/baz", Some("arg=z43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
 
-		assert_eq!(handler.out, Out::NotFound("Route not found"));
+		assert_eq!(out, Out::NotFound("Route not found"));
 	}
 }

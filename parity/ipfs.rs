@@ -33,6 +33,8 @@ pub fn start_server(conf: Configuration, client: Arc<BlockChainClient>) -> Resul
     parity_ipfs_api::start_server(
         conf.port,
         conf.interface,
+        conf.cors,
+        conf.hosts,
         client
     ).map(Some)
 }

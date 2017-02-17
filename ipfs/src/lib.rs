@@ -23,6 +23,7 @@ extern crate cid;
 extern crate rlp;
 extern crate ethcore;
 extern crate ethcore_util as util;
+extern crate jsonrpc_http_server;
 
 pub mod error;
 mod route;
@@ -32,23 +33,33 @@ use std::sync::Arc;
 use std::net::{SocketAddr, IpAddr};
 use error::ServerError;
 use route::Out;
+use jsonrpc_http_server::cors;
 use hyper::server::{Listening, Handler, Request, Response};
 use hyper::net::HttpStream;
-use hyper::header::{ContentLength, ContentType};
+use hyper::header::{ContentLength, ContentType, AccessControlAllowOrigin};
 use hyper::{Next, Encoder, Decoder, Method, RequestUri, StatusCode};
 use ethcore::client::BlockChainClient;
 
 
 /// Request/response handler
 pub struct IpfsHandler {
-	/// Reference to the Blockchain Client
-	client: Arc<BlockChainClient>,
-
 	/// Response to send out
 	out: Out,
 
 	/// How many bytes from the response have been written
 	out_progress: usize,
+
+	/// Origin request header
+	origin: Option<String>,
+
+	/// Allowed CORS domains
+	cors_domains: Option<Vec<AccessControlAllowOrigin>>,
+
+	/// Hostnames allowed in the `Host` request header
+	allowed_hosts: Option<Vec<String>>,
+
+	/// Reference to the Blockchain Client
+	client: Arc<BlockChainClient>,
 }
 
 impl IpfsHandler {
@@ -56,11 +67,21 @@ impl IpfsHandler {
 		&*self.client
 	}
 
-	pub fn new(client: Arc<BlockChainClient>) -> Self {
+	pub fn new(cors: Option<Vec<String>>, hosts: Option<Vec<String>>, client: Arc<BlockChainClient>) -> Self {
 		IpfsHandler {
-			client: client,
 			out: Out::Bad("Invalid Request"),
 			out_progress: 0,
+			origin: None,
+			cors_domains: cors.map(|vec| vec.into_iter().map(AccessControlAllowOrigin::Value).collect()),
+			allowed_hosts: hosts,
+			client: client,
+		}
+	}
+
+	fn is_host_allowed(&self, req: &Request<HttpStream>) -> bool {
+		match self.allowed_hosts {
+			Some(ref hosts) => jsonrpc_http_server::is_host_header_valid(&req, hosts),
+			None => true,
 		}
 	}
 }
@@ -72,12 +93,13 @@ impl Handler<HttpStream> for IpfsHandler {
 			return Next::write();
 		}
 
-		// Reject requests if the Origin header isn't valid
-		// if req.headers().get::<Origin>().map(|o| "127.0.0.1" != &o.host.hostname).unwrap_or(false) {
-		// 	self.out = Out::Bad("Illegal Origin");
+		self.origin = cors::read_origin(&req);
 
-		// 	return Next::write();
-		// }
+		if !self.is_host_allowed(&req) {
+			self.out = Out::Bad("Illegal Origin");
+
+			return Next::write();
+		}
 
 		let (path, query) = match *req.uri() {
 			RequestUri::AbsolutePath { ref path, ref query } => (path, query.as_ref().map(AsRef::as_ref)),
@@ -111,25 +133,26 @@ impl Handler<HttpStream> for IpfsHandler {
 				res.headers_mut().set(ContentLength(bytes.len() as u64));
 				res.headers_mut().set(ContentType(content_type));
 
-				Next::write()
 			},
 			NotFound(reason) => {
 				res.set_status(StatusCode::NotFound);
 
 				res.headers_mut().set(ContentLength(reason.len() as u64));
 				res.headers_mut().set(ContentType(mime!(Text/Plain)));
-
-				Next::write()
 			},
 			Bad(reason) => {
 				res.set_status(StatusCode::BadRequest);
 
 				res.headers_mut().set(ContentLength(reason.len() as u64));
 				res.headers_mut().set(ContentType(mime!(Text/Plain)));
-
-				Next::write()
 			}
 		}
+
+		if let Some(cors_header) = cors::get_cors_header(&self.cors_domains, &self.origin) {
+			res.headers_mut().set(cors_header);
+		}
+
+		Next::write()
 	}
 
 	fn on_response_writable(&mut self, transport: &mut Encoder<HttpStream>) -> Next {
@@ -168,7 +191,9 @@ fn write_chunk<W: Write>(transport: &mut W, progress: &mut usize, data: &[u8]) -
 pub fn start_server(
 	port: u16,
 	interface: String,
-	client: Arc<BlockChainClient>
+	cors: Option<Vec<String>>,
+    hosts: Option<Vec<String>>,
+    client: Arc<BlockChainClient>
 ) -> Result<Listening, ServerError> {
 
 	let ip: IpAddr = interface.parse().map_err(|_| ServerError::InvalidInterface)?;
@@ -176,7 +201,7 @@ pub fn start_server(
 
 	Ok(
 		hyper::Server::http(&addr)?
-			.handle(move |_| IpfsHandler::new(client.clone()))
+			.handle(move |_| IpfsHandler::new(cors.clone(), hosts.clone(), client.clone()))
 			.map(|(listening, srv)| {
 
 				::std::thread::spawn(move || {
