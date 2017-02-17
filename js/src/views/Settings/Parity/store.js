@@ -40,7 +40,7 @@ export default class Store {
   }
 
   @action setLogLevels = (logLevels) => {
-    this.logLevels = logLevels;
+    this.logLevels = { ...logLevels };
   }
 
   @action setLogLevelsSelect = (logLevelsSelect) => {
@@ -83,8 +83,8 @@ export default class Store {
     );
   }
 
-  updateLoggerLevel (path, level) {
-    LogLevel.getLogger(path).setLevel(level);
+  updateLoggerLevel (key, level) {
+    LogLevel.getLogger(key).setLevel(level);
     this.loadLogLevels();
   }
 

@@ -33,7 +33,9 @@ function render (props = {}) {
       address: TEST_ADDRESS,
       description: 'testDescription',
       name: TEST_NAME,
-      meta: {}
+      meta: {
+        tags: [ 'tag 1', 'tag 2' ]
+      }
     };
   }
 

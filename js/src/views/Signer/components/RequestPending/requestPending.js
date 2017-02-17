@@ -30,6 +30,7 @@ export default class RequestPending extends Component {
     isTest: PropTypes.bool.isRequired,
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
+    origin: PropTypes.object.isRequired,
     payload: PropTypes.oneOfType([
       PropTypes.shape({ sendTransaction: PropTypes.object.isRequired }),
       PropTypes.shape({ sign: PropTypes.object.isRequired }),
@@ -51,7 +52,7 @@ export default class RequestPending extends Component {
   };
 
   render () {
-    const { className, date, focus, gasLimit, id, isSending, isTest, onReject, payload, store } = this.props;
+    const { className, date, focus, gasLimit, id, isSending, isTest, onReject, payload, store, origin } = this.props;
 
     if (payload.sign) {
       const { sign } = payload;
@@ -68,6 +69,7 @@ export default class RequestPending extends Component {
           isTest={ isTest }
           onConfirm={ this.onConfirm }
           onReject={ onReject }
+          origin={ origin }
           store={ store }
         />
       );
@@ -87,6 +89,7 @@ export default class RequestPending extends Component {
           isTest={ isTest }
           onConfirm={ this.onConfirm }
           onReject={ onReject }
+          origin={ origin }
           store={ store }
           transaction={ transaction }
         />

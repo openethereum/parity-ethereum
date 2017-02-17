@@ -17,15 +17,19 @@
 //! A provider for the LES protocol. This is typically a full node, who can
 //! give as much data as necessary to its peers.
 
+use std::sync::Arc;
+
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{BlockChainClient, ProvingBlockChainClient};
 use ethcore::transaction::PendingTransaction;
 use ethcore::ids::BlockId;
 use ethcore::encoded;
+use util::{Bytes, RwLock, H256};
 
 use cht::{self, BlockInfo};
+use client::{LightChainClient, AsLightClient};
+use transaction_queue::TransactionQueue;
 
-use util::{Bytes, H256};
 
 use request;
 
@@ -281,6 +285,75 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
 		BlockChainClient::ready_transactions(self)
+	}
+}
+
+/// The light client "provider" implementation. This wraps a `LightClient` and
+/// a light transaction queue.
+pub struct LightProvider<L> {
+	client: Arc<L>,
+	txqueue: Arc<RwLock<TransactionQueue>>,
+}
+
+impl<L> LightProvider<L> {
+	/// Create a new `LightProvider` from the given client and transaction queue.
+	pub fn new(client: Arc<L>, txqueue: Arc<RwLock<TransactionQueue>>) -> Self {
+		LightProvider {
+			client: client,
+			txqueue: txqueue,
+		}
+	}
+}
+
+// TODO: draw from cache (shared between this and the RPC layer)
+impl<L: AsLightClient + Send + Sync> Provider for LightProvider<L> {
+	fn chain_info(&self) -> BlockChainInfo {
+		self.client.as_light_client().chain_info()
+	}
+
+	fn reorg_depth(&self, _a: &H256, _b: &H256) -> Option<u64> {
+		None
+	}
+
+	fn earliest_state(&self) -> Option<u64> {
+		None
+	}
+
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
+		self.client.as_light_client().block_header(id)
+	}
+
+	fn block_body(&self, _id: BlockId) -> Option<encoded::Body> {
+		None
+	}
+
+	fn block_receipts(&self, _hash: &H256) -> Option<Bytes> {
+		None
+	}
+
+	fn state_proof(&self, _req: request::StateProof) -> Vec<Bytes> {
+		Vec::new()
+	}
+
+	fn contract_code(&self, _req: request::ContractCode) -> Bytes {
+		Vec::new()
+	}
+
+	fn header_proof(&self, _req: request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
+		None
+	}
+
+	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+		let chain_info = self.chain_info();
+		self.txqueue.read().ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
+	}
+}
+
+impl<L: AsLightClient> AsLightClient for LightProvider<L> {
+	type Client = L::Client;
+
+	fn as_light_client(&self) -> &L::Client {
+		self.client.as_light_client()
 	}
 }
 

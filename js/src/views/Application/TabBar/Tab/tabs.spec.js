@@ -26,7 +26,6 @@ let instance;
 function render (id = 'signer') {
   component = shallow(
     <Tab
-      children={ <div>testChildren</div> }
       pending={ 5 }
       view={ { id } }
     />

@@ -27,8 +27,8 @@ build_rpc_trait! {
 
 		/// Posts sign request asynchronously.
 		/// Will return a confirmation ID for later use with check_transaction.
-		#[rpc(async, name = "parity_postSign")]
-		fn post_sign(&self, H160, Bytes) -> BoxFuture<Either<U256, ConfirmationResponse>, Error>;
+		#[rpc(meta, name = "parity_postSign")]
+		fn post_sign(&self, Self::Metadata, H160, Bytes) -> BoxFuture<Either<U256, ConfirmationResponse>, Error>;
 
 		/// Posts transaction asynchronously.
 		/// Will return a transaction ID for later use with check_transaction.
@@ -42,7 +42,7 @@ build_rpc_trait! {
 
 		/// Decrypt some ECIES-encrypted message.
 		/// First parameter is the address with which it is encrypted, second is the ciphertext.
-		#[rpc(async, name = "parity_decryptMessage")]
-		fn decrypt_message(&self, H160, Bytes) -> BoxFuture<Bytes, Error>;
+		#[rpc(meta, name = "parity_decryptMessage")]
+		fn decrypt_message(&self, Self::Metadata, H160, Bytes) -> BoxFuture<Bytes, Error>;
 	}
 }

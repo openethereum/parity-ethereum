@@ -301,7 +301,7 @@ impl Server {
 
 		let special = Arc::new({
 			let mut special = HashMap::new();
-			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, panic_handler.clone()));
+			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, cors_domains.clone(), panic_handler.clone()));
 			special.insert(router::SpecialEndpoint::Utils, apps::utils());
 			special.insert(
 				router::SpecialEndpoint::Api,

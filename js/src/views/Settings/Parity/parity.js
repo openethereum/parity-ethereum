@@ -106,10 +106,10 @@ export default class Parity extends Component {
       .keys(logLevels)
       .map((key) => {
         const { level, log } = logLevels[key];
-        const { path, desc } = log;
+        const { desc } = log;
 
         const onChange = (_, index) => {
-          this.store.updateLoggerLevel(path, Object.values(LOGLEVEL_OPTIONS)[index].value);
+          this.store.updateLoggerLevel(log.key, Object.values(LOGLEVEL_OPTIONS)[index].value);
         };
 
         return (

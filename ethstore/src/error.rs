@@ -18,6 +18,7 @@ use std::fmt;
 use std::io::Error as IoError;
 use ethkey::Error as EthKeyError;
 use crypto::Error as EthCryptoError;
+use ethkey::DerivationError;
 
 #[derive(Debug)]
 pub enum Error {
@@ -35,6 +36,7 @@ pub enum Error {
 	CreationFailed,
 	EthKey(EthKeyError),
 	EthCrypto(EthCryptoError),
+	Derivation(DerivationError),
 	Custom(String),
 }
 
@@ -55,6 +57,7 @@ impl fmt::Display for Error {
 			Error::CreationFailed => "Account creation failed".into(),
 			Error::EthKey(ref err) => err.to_string(),
 			Error::EthCrypto(ref err) => err.to_string(),
+			Error::Derivation(ref err) => format!("Derivation error: {:?}", err),
 			Error::Custom(ref s) => s.clone(),
 		};
 
@@ -77,5 +80,11 @@ impl From<EthKeyError> for Error {
 impl From<EthCryptoError> for Error {
 	fn from(err: EthCryptoError) -> Self {
 		Error::EthCrypto(err)
+	}
+}
+
+impl From<DerivationError> for Error {
+	fn from(err: DerivationError) -> Self {
+		Error::Derivation(err)
 	}
 }
