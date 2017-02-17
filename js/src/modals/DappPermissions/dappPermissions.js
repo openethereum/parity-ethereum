@@ -17,6 +17,7 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
 
 import { AccountCard, Portal, SectionList } from '~/ui';
 import { CheckIcon, StarIcon, StarOutlineIcon } from '~/ui/Icons';
@@ -24,15 +25,16 @@ import { CheckIcon, StarIcon, StarOutlineIcon } from '~/ui/Icons';
 import styles from './dappPermissions.css';
 
 @observer
-export default class DappPermissions extends Component {
+class DappPermissions extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired
+    balances: PropTypes.object,
+    permissionStore: PropTypes.object.isRequired
   };
 
   render () {
-    const { store } = this.props;
+    const { permissionStore } = this.props;
 
-    if (!store.modalOpen) {
+    if (!permissionStore.modalOpen) {
       return null;
     }
 
@@ -50,7 +52,7 @@ export default class DappPermissions extends Component {
             />
           </div>
         }
-        onClose={ store.closeModal }
+        onClose={ permissionStore.closeModal }
         open
         title={
           <FormattedMessage
@@ -61,7 +63,7 @@ export default class DappPermissions extends Component {
       >
         <div className={ styles.container }>
           <SectionList
-            items={ store.accounts }
+            items={ permissionStore.accounts }
             noStretch
             renderItem={ this.renderAccount }
           />
@@ -71,14 +73,15 @@ export default class DappPermissions extends Component {
   }
 
   renderAccount = (account) => {
-    const { store } = this.props;
+    const { balances, permissionStore } = this.props;
+    const balance = balances[account.address];
 
     const onMakeDefault = () => {
-      store.setDefaultAccount(account.address);
+      permissionStore.setDefaultAccount(account.address);
     };
 
     const onSelect = () => {
-      store.selectAccount(account.address);
+      permissionStore.selectAccount(account.address);
     };
 
     let className;
@@ -95,6 +98,7 @@ export default class DappPermissions extends Component {
       <div className={ styles.item }>
         <AccountCard
           account={ account }
+          balance={ balance }
           className={ className }
           onClick={ onSelect }
         />
@@ -114,3 +118,16 @@ export default class DappPermissions extends Component {
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { balances } = state.balances;
+
+  return {
+    balances
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(DappPermissions);
