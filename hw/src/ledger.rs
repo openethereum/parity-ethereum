@@ -230,7 +230,7 @@ impl Manager {
 		if result.len() != 65 {
 			return Err(Error::Protocol("Signature packet size mismatch"));
 		}
-		let v = result[0];
+		let v = (result[0] + 1) % 2;
 		let r = H256::from_slice(&result[1..33]);
 		let s = H256::from_slice(&result[33..65]);
 		Ok(Signature::from_rsv(&r, &s, v))
@@ -289,7 +289,7 @@ impl Manager {
 			let mut chunk: [u8; HID_PACKET_SIZE] = [0; HID_PACKET_SIZE];
 			let chunk_size = handle.read(&mut chunk)?;
 			trace!("read {:?}", &chunk[..]);
-			if chunk_size < 5 || chunk[1] != 0x01 || chunk[1] != 0x01 || chunk[2] != APDU_TAG {
+			if chunk_size < 5 || chunk[0] != 0x01 || chunk[1] != 0x01 || chunk[2] != APDU_TAG {
 				return Err(Error::Protocol("Unexpected chunk header"));
 			}
 			let seq = (chunk[3] as usize) << 8 | (chunk[4] as usize);
