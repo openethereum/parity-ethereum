@@ -101,7 +101,7 @@ class Account extends Component {
         { this.renderPasswordDialog(account) }
         { this.renderTransferDialog(account, balance) }
         { this.renderVerificationDialog() }
-        { this.renderActionbar(account, balance, isAvailable) }
+        { this.renderActionbar(account, balance) }
         <Page>
           <Header
             account={ account }
@@ -117,12 +117,12 @@ class Account extends Component {
     );
   }
 
-  renderActionbar (account, balance, isAvailable) {
+  renderActionbar (account, balance) {
     const showTransferButton = !!(balance && balance.tokens);
 
     const buttons = [
       <Button
-        disabled={ !showTransferButton || !isAvailable }
+        disabled={ !showTransferButton }
         icon={ <SendIcon /> }
         key='transferFunds'
         label={
@@ -150,7 +150,6 @@ class Account extends Component {
         onClick={ this.store.toggleFundDialog }
       />,
       <Button
-        disabled={ !isAvailable }
         icon={ <VerifyIcon /> }
         key='sms-verification'
         label={

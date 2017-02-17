@@ -47,7 +47,7 @@ class TransactionPending extends Component {
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
     origin: PropTypes.any,
-    store: PropTypes.object.isRequired,
+    signerstore: PropTypes.object.isRequired,
     transaction: PropTypes.shape({
       condition: PropTypes.object,
       data: PropTypes.string,
@@ -77,7 +77,7 @@ class TransactionPending extends Component {
   hwstore = HardwareStore.get(this.context.api);
 
   componentWillMount () {
-    const { store, transaction } = this.props;
+    const { signerstore, transaction } = this.props;
     const { from, gas, gasPrice, to, value } = transaction;
 
     const fee = tUtil.getFee(gas, gasPrice); // BigNumber object
@@ -87,7 +87,7 @@ class TransactionPending extends Component {
 
     this.setState({ gasPriceEthmDisplay, totalValue, gasToDisplay });
     this.gasStore.setEthValue(value);
-    store.fetchBalances([from, to]);
+    signerstore.fetchBalances([from, to]);
   }
 
   render () {
@@ -97,9 +97,9 @@ class TransactionPending extends Component {
   }
 
   renderTransaction () {
-    const { accounts, className, focus, id, isSending, isTest, store, transaction, origin } = this.props;
+    const { accounts, className, focus, id, isSending, isTest, signerstore, transaction, origin } = this.props;
     const { totalValue } = this.state;
-    const { balances, externalLink } = store;
+    const { balances, externalLink } = signerstore;
     const { from, value } = transaction;
     const fromBalance = balances[from];
     const account = accounts[from] || {};
