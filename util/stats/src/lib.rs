@@ -14,22 +14,77 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Statistical functions.
+//! Statistical functions and helpers.
 
-use bigint::prelude::*;
+use std::iter::FromIterator;
+use std::ops::{Add, Sub, Div};
+
+#[macro_use]
+extern crate log;
+
+/// Sorted corpus of data.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Corpus<T: Ord>(Vec<T>);
+
+impl<T: Ord> From<Vec<T>> for Corpus<T> {
+	fn from(mut data: Vec<T>) -> Self {
+		data.sort();
+		Corpus(data)
+	}
+}
+
+impl<T: Ord> FromIterator<T> for Corpus<T> {
+	fn from_iter<I: IntoIterator<Item=T>>(iterable: I) -> Self {
+		iterable.into_iter().collect::<Vec<_>>().into()
+	}
+}
+
+impl<T: Ord> Corpus<T> {
+	/// Get the median element, if it exists.
+	pub fn median(&self) -> Option<&T> {
+		self.0.get(self.0.len() / 2)
+	}
+
+	/// Whether the corpus is empty.
+	pub fn is_empty(&self) -> bool {
+		self.0.is_empty()
+	}
+
+	/// Number of elements in the corpus.
+	pub fn len(&self) -> usize {
+		self.0.len()
+	}
+
+	/// Split the corpus at a given point.
+	pub fn split_at(self, idx: usize) -> (Self, Self) {
+		let (left, right) = self.0.split_at(idx);
+		(Corpus(left), Corpus(right))
+	}
+}
+
+impl<T: Ord + Copy + ::std::fmt::Display> Corpus<T>
+	where T: Add<Output=T> + Sub<Output=T> + Div<Output=T> + From<usize>
+{
+	/// Create a histogram of this corpus if it at least spans the buckets. Bounds are left closed.
+	pub fn histogram(&self, bucket_number: usize) -> Option<Histogram<T>> {
+		Histogram::create(&self.0, bucket_number)
+	}
+}
 
 /// Discretised histogram.
 #[derive(Debug, PartialEq)]
-pub struct Histogram {
+pub struct Histogram<T> {
 	/// Bounds of each bucket.
-	pub bucket_bounds: Vec<U256>,
+	pub bucket_bounds: Vec<T>,
 	/// Count within each bucket.
-	pub counts: Vec<u64>
+	pub counts: Vec<usize>,
 }
 
-impl Histogram {
-	/// Histogram of a sorted corpus if it at least spans the buckets. Bounds are left closed.
-	pub fn new(corpus: &[U256], bucket_number: usize) -> Option<Histogram> {
+impl<T: Ord + Copy + ::std::fmt::Display> Histogram<T>
+	where T: Add<Output=T> + Sub<Output=T> + Div<Output=T> + From<usize>
+{
+	// Histogram of a sorted corpus if it at least spans the buckets. Bounds are left closed.
+	fn create(corpus: &[T], bucket_number: usize) -> Option<Histogram<T>> {
 		if corpus.len() < 1 { return None; }
 		let corpus_end = corpus.last().expect("there is at least 1 element; qed").clone();
 		let corpus_start = corpus.first().expect("there is at least 1 element; qed").clone();
@@ -63,42 +118,41 @@ impl Histogram {
 
 #[cfg(test)]
 mod tests {
-	use bigint::prelude::U256;
 	use super::Histogram;
 
 	#[test]
 	fn check_histogram() {
-		let hist = Histogram::new(slice_into![643,689,1408,2000,2296,2512,4250,4320,4842,4958,5804,6065,6098,6354,7002,7145,7845,8589,8593,8895], 5).unwrap();
-		let correct_bounds: Vec<U256> = vec_into![643, 2294, 3945, 5596, 7247, 8898];
+		let hist = Histogram::create(&[643,689,1408,2000,2296,2512,4250,4320,4842,4958,5804,6065,6098,6354,7002,7145,7845,8589,8593,8895], 5).unwrap();
+		let correct_bounds: Vec<usize> = vec![643, 2294, 3945, 5596, 7247, 8898];
 		assert_eq!(Histogram { bucket_bounds: correct_bounds, counts: vec![4,2,4,6,4] }, hist);
 	}
 
 	#[test]
 	fn smaller_data_range_than_bucket_range() {
 		assert_eq!(
-			Histogram::new(slice_into![1, 2, 2], 3),
-			Some(Histogram { bucket_bounds: vec_into![1, 2, 3, 4], counts: vec![1, 2, 0] })
+			Histogram::create(&[1, 2, 2], 3),
+			Some(Histogram { bucket_bounds: vec![1, 2, 3, 4], counts: vec![1, 2, 0] })
 		);
 	}
 
 	#[test]
 	fn data_range_is_not_multiple_of_bucket_range() {
 		assert_eq!(
-			Histogram::new(slice_into![1, 2, 5], 2),
-			Some(Histogram { bucket_bounds: vec_into![1, 4, 7], counts: vec![2, 1] })
+			Histogram::create(&[1, 2, 5], 2),
+			Some(Histogram { bucket_bounds: vec![1, 4, 7], counts: vec![2, 1] })
 		);
 	}
 
 	#[test]
 	fn data_range_is_multiple_of_bucket_range() {
 		assert_eq!(
-			Histogram::new(slice_into![1, 2, 6], 2),
-			Some(Histogram { bucket_bounds: vec_into![1, 4, 7], counts: vec![2, 1] })
+			Histogram::create(&[1, 2, 6], 2),
+			Some(Histogram { bucket_bounds: vec![1, 4, 7], counts: vec![2, 1] })
 		);
 	}
 
 	#[test]
 	fn none_when_too_few_data() {
-		assert!(Histogram::new(slice_into![], 1).is_none());
+		assert!(Histogram::<usize>::create(&[], 1).is_none());
 	}
 }
