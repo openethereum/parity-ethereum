@@ -31,7 +31,14 @@ function createRedux (state = {}) {
   store = {
     dispatch: sinon.stub(),
     subscribe: sinon.stub(),
-    getState: () => Object.assign({ signer: { pending: [] } }, state)
+    getState: () => Object.assign({
+      balances: {
+        balances: {}
+      },
+      signer: {
+        pending: []
+      }
+    }, state)
   };
 
   return store;

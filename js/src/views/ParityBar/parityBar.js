@@ -48,6 +48,7 @@ class ParityBar extends Component {
   };
 
   static propTypes = {
+    balances: PropTypes.object,
     dapp: PropTypes.bool,
     externalLink: PropTypes.string,
     pending: PropTypes.array
@@ -344,6 +345,8 @@ class ParityBar extends Component {
   }
 
   renderAccount = (account) => {
+    const { balances } = this.props;
+    const balance = balances[account.address];
     const makeDefaultAccount = () => {
       return this.accountStore
         .makeDefaultAccount(account.address)
@@ -363,6 +366,7 @@ class ParityBar extends Component {
       >
         <AccountCard
           account={ account }
+          balance={ balance }
           className={
             account.default
               ? styles.selected
@@ -658,9 +662,11 @@ class ParityBar extends Component {
 }
 
 function mapStateToProps (state) {
+  const { balances } = state.balances;
   const { pending } = state.signer;
 
   return {
+    balances,
     pending
   };
 }
