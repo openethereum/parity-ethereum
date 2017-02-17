@@ -487,9 +487,10 @@ docker-build:
     - docker info
   script:
     - cd docker/hub
+    - if [ "$CI_BUILD_REF_NAME" == "nightly" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
     - docker login -u $Docker_Hub_User -p $Docker_Hub_Pass
-    - docker build --no-cache=true --tag ethcore/parity:$CI_BUILD_REF_NAME .
-    - docker push ethcore/parity:$CI_BUILD_REF_NAME
+    - docker build --no-cache=true --tag ethcore/parity:$DOCKER_TAG .
+    - docker push ethcore/parity:$DOCKER_TAG
   tags:
     - docker
 test-darwin:
