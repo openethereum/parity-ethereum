@@ -47,6 +47,7 @@ use dir::Directories;
 use cache::CacheConfig;
 use user_defaults::UserDefaults;
 use dapps;
+use ipfs;
 use signer;
 use modules;
 use rpc_apis;
@@ -93,6 +94,7 @@ pub struct RunCmd {
 	pub ui_address: Option<(String, u16)>,
 	pub net_settings: NetworkSettings,
 	pub dapps_conf: dapps::Configuration,
+	pub ipfs_conf: ipfs::Configuration,
 	pub signer_conf: signer::Configuration,
 	pub dapp: Option<String>,
 	pub ui: bool,
@@ -420,6 +422,12 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	};
 	let signer_server = signer::start(cmd.signer_conf.clone(), signer_deps)?;
 
+	// the ipfs server
+	let ipfs_server = match cmd.ipfs_conf.enabled {
+		true => Some(ipfs::start_server(cmd.ipfs_conf.port, client.clone())?),
+		false => None,
+	};
+
 	// the informant
 	let informant = Arc::new(Informant::new(
 		service.client(),
@@ -476,7 +484,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let restart = wait_for_exit(panic_handler, Some(updater), can_restart);
 
 	// drop this stuff as soon as exit detected.
-	drop((http_server, ipc_server, dapps_server, signer_server, event_loop));
+	drop((http_server, ipc_server, dapps_server, signer_server, ipfs_server, event_loop));
 
 	info!("Finishing work, please wait...");
 
