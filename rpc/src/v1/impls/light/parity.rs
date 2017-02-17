@@ -15,28 +15,23 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity-specific rpc implementation.
-use std::sync::{Arc, Weak};
-use std::str::FromStr;
+use std::sync::Arc;
 use std::collections::{BTreeMap, HashSet};
-use futures::{self, future, Future, BoxFuture};
+use futures::{self, Future, BoxFuture};
 
-use util::{RotatingLogger, Address};
+use util::RotatingLogger;
 use util::misc::version_data;
 
 use crypto::ecies;
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
-use ethsync::{SyncProvider, ManageNetwork};
-use ethcore::miner::MinerService;
-use ethcore::client::{MiningBlockChainClient};
-use ethcore::mode::Mode;
+use ethsync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
-use updater::{Service as UpdateService};
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
-use v1::helpers::dispatch::DEFAULT_MAC;
+use v1::helpers::dispatch::{LightDispatcher, DEFAULT_MAC};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
@@ -48,19 +43,10 @@ use v1::types::{
 	AccountInfo, HwAccountInfo
 };
 
-/// Parity implementation.
-pub struct ParityClient<C, M, S: ?Sized, U> where
-	C: MiningBlockChainClient,
-	M: MinerService,
-	S: SyncProvider,
-	U: UpdateService,
-{
-	client: Weak<C>,
-	miner: Weak<M>,
-	sync: Weak<S>,
-	updater: Weak<U>,
-	net: Weak<ManageNetwork>,
-	accounts: Weak<AccountProvider>,
+/// Parity implementation for light client.
+pub struct ParityClient {
+	light_dispatch: Arc<LightDispatcher>,
+	accounts: Arc<AccountProvider>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
@@ -68,20 +54,11 @@ pub struct ParityClient<C, M, S: ?Sized, U> where
 	dapps_port: Option<u16>,
 }
 
-impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
-	C: MiningBlockChainClient,
-	M: MinerService,
-	S: SyncProvider,
-	U: UpdateService,
-{
+impl ParityClient {
 	/// Creates new `ParityClient`.
 	pub fn new(
-		client: &Arc<C>,
-		miner: &Arc<M>,
-		sync: &Arc<S>,
-		updater: &Arc<U>,
-		net: &Arc<ManageNetwork>,
-		store: &Arc<AccountProvider>,
+		light_dispatch: Arc<LightDispatcher>,
+		accounts: Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
@@ -89,12 +66,8 @@ impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
 		dapps_port: Option<u16>,
 	) -> Self {
 		ParityClient {
-			client: Arc::downgrade(client),
-			miner: Arc::downgrade(miner),
-			sync: Arc::downgrade(sync),
-			updater: Arc::downgrade(updater),
-			net: Arc::downgrade(net),
-			accounts: Arc::downgrade(store),
+			light_dispatch: light_dispatch,
+			accounts: accounts,
 			logger: logger,
 			settings: settings,
 			signer: signer,
@@ -104,18 +77,13 @@ impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
 	}
 }
 
-impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
-	M: MinerService + 'static,
-	C: MiningBlockChainClient + 'static,
-	S: SyncProvider + 'static,
-	U: UpdateService + 'static,
-{
+impl Parity for ParityClient {
 	type Metadata = Metadata;
 
 	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>, Error> {
 		let dapp = dapp.0;
 
-		let store = take_weak!(self.accounts);
+		let store = &self.accounts;
 		let dapp_accounts = store
 			.note_dapp_used(dapp.clone().into())
 			.and_then(|_| store.dapps_addresses(dapp.into()))
@@ -135,7 +103,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>, Error> {
-		let store = take_weak!(self.accounts);
+		let store = &self.accounts;
 		let info = store.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		Ok(info
 			.into_iter()
@@ -147,7 +115,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
 		let dapp_id = meta.dapp_id();
 		let default_account = move || {
-			Ok(take_weak!(self.accounts)
+			Ok(self.accounts
 				.dapps_addresses(dapp_id.into())
 				.ok()
 				.and_then(|accounts| accounts.get(0).cloned())
@@ -159,23 +127,23 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn transactions_limit(&self) -> Result<usize, Error> {
-		Ok(take_weak!(self.miner).transactions_limit())
+		Ok(usize::max_value())
 	}
 
 	fn min_gas_price(&self) -> Result<U256, Error> {
-		Ok(U256::from(take_weak!(self.miner).minimal_gas_price()))
+		Ok(U256::default())
 	}
 
 	fn extra_data(&self) -> Result<Bytes, Error> {
-		Ok(Bytes::new(take_weak!(self.miner).extra_data()))
+		Ok(Bytes::default())
 	}
 
 	fn gas_floor_target(&self) -> Result<U256, Error> {
-		Ok(U256::from(take_weak!(self.miner).gas_floor_target()))
+		Ok(U256::default())
 	}
 
 	fn gas_ceil_target(&self) -> Result<U256, Error> {
-		Ok(U256::from(take_weak!(self.miner).gas_ceil_target()))
+		Ok(U256::default())
 	}
 
 	fn dev_logs(&self) -> Result<Vec<String>, Error> {
@@ -192,16 +160,14 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn net_peers(&self) -> Result<Peers, Error> {
-		let sync = take_weak!(self.sync);
-		let sync_status = sync.status();
-		let net_config = take_weak!(self.net).network_config();
-		let peers = sync.peers().into_iter().map(Into::into).collect();
+		let peers = self.light_dispatch.sync.peers().into_iter().map(Into::into).collect();
+		let peer_numbers = self.light_dispatch.sync.peer_numbers();
 
 		Ok(Peers {
-			active: sync_status.num_active_peers,
-			connected: sync_status.num_peers,
-			max: sync_status.current_max_peers(net_config.min_peers, net_config.max_peers),
-			peers: peers
+			active: peer_numbers.active,
+			connected: peer_numbers.connected,
+			max: peer_numbers.max as u32,
+			peers: peers,
 		})
 	}
 
@@ -214,13 +180,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn registry_address(&self) -> Result<Option<H160>, Error> {
-		Ok(
-			take_weak!(self.client)
-				.additional_params()
-				.get("registrar")
-				.and_then(|s| Address::from_str(s).ok())
-				.map(|s| H160::from(s))
-		)
+		Err(errors::light_unimplemented(None))
 	}
 
 	fn rpc_settings(&self) -> Result<RpcSettings, Error> {
@@ -236,12 +196,10 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn gas_price_histogram(&self) -> BoxFuture<Histogram, Error> {
-		future::done(take_weakf!(self.client)
-			.gas_price_corpus(100)
-			.histogram(10)
-			.ok_or_else(errors::not_enough_data)
+		self.light_dispatch.gas_price_corpus()
+			.and_then(|corpus| corpus.histogram(10).ok_or_else(errors::not_enough_data))
 			.map(Into::into)
-		).boxed()
+			.boxed()
 	}
 
 	fn unsigned_transactions_count(&self) -> Result<usize, Error> {
@@ -259,16 +217,12 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		Ok(Brain::new(phrase).generate().unwrap().address().into())
 	}
 
-	fn list_accounts(&self, count: u64, after: Option<H160>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H160>>, Error> {
-		Ok(take_weak!(self.client)
-			.list_accounts(block_number.0.into(), after.map(Into::into).as_ref(), count)
-			.map(|a| a.into_iter().map(Into::into).collect()))
+	fn list_accounts(&self, _: u64, _: Option<H160>, _: Trailing<BlockNumber>) -> Result<Option<Vec<H160>>, Error> {
+		Err(errors::light_unimplemented(None))
 	}
 
-	fn list_storage_keys(&self, address: H160, count: u64, after: Option<H256>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H256>>, Error> {
-		Ok(take_weak!(self.client)
-			.list_storage(block_number.0.into(), &address.into(), after.map(Into::into).as_ref(), count)
-			.map(|a| a.into_iter().map(Into::into).collect()))
+	fn list_storage_keys(&self, _: H160, _: u64, _: Option<H256>, _: Trailing<BlockNumber>) -> Result<Option<Vec<H256>>, Error> {
+		Err(errors::light_unimplemented(None))
 	}
 
 	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes, Error> {
@@ -278,15 +232,29 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn pending_transactions(&self) -> Result<Vec<Transaction>, Error> {
-		Ok(take_weak!(self.miner).pending_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
+		let txq = self.light_dispatch.transaction_queue.read();
+		let chain_info = self.light_dispatch.client.chain_info();
+		Ok(
+			txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
+				.into_iter()
+				.map(Into::into)
+				.collect::<Vec<_>>()
+		)
 	}
 
 	fn future_transactions(&self) -> Result<Vec<Transaction>, Error> {
-		Ok(take_weak!(self.miner).future_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
+		let txq = self.light_dispatch.transaction_queue.read();
+		let chain_info = self.light_dispatch.client.chain_info();
+		Ok(
+			txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
+				.into_iter()
+				.map(Into::into)
+				.collect::<Vec<_>>()
+		)
 	}
 
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>, Error> {
-		let stats = take_weak!(self.sync).transactions_stats();
+		let stats = self.light_dispatch.sync.transactions_stats();
 		Ok(stats.into_iter()
 		   .map(|(hash, stats)| (hash.into(), stats.into()))
 		   .collect()
@@ -294,12 +262,22 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>, Error> {
-		let transactions = take_weak!(self.miner).local_transactions();
-		Ok(transactions
-		   .into_iter()
-		   .map(|(hash, status)| (hash.into(), status.into()))
-		   .collect()
-		)
+		let mut map = BTreeMap::new();
+		let chain_info = self.light_dispatch.client.chain_info();
+		let (best_num, best_tm) = (chain_info.best_block_number, chain_info.best_block_timestamp);
+		let txq = self.light_dispatch.transaction_queue.read();
+
+		for pending in txq.ready_transactions(best_num, best_tm) {
+			map.insert(pending.hash().into(), LocalTransactionStatus::Pending);
+		}
+
+		for future in txq.future_transactions(best_num, best_tm) {
+			map.insert(future.hash().into(), LocalTransactionStatus::Future);
+		}
+
+		// TODO: other types?
+
+		Ok(map)
 	}
 
 	fn signer_port(&self) -> Result<u16, Error> {
@@ -321,47 +299,31 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn next_nonce(&self, address: H160) -> BoxFuture<U256, Error> {
-		let address: Address = address.into();
-		let miner = take_weakf!(self.miner);
-		let client = take_weakf!(self.client);
-
-		future::ok(miner.last_nonce(&address)
-			.map(|n| n + 1.into())
-			.unwrap_or_else(|| client.latest_nonce(&address))
-			.into()
-		).boxed()
+		self.light_dispatch.next_nonce(address.into()).map(Into::into).boxed()
 	}
 
 	fn mode(&self) -> Result<String, Error> {
-		Ok(match take_weak!(self.client).mode() {
-			Mode::Off => "offline",
-			Mode::Dark(..) => "dark",
-			Mode::Passive(..) => "passive",
-			Mode::Active => "active",
-		}.into())
+		Err(errors::light_unimplemented(None))
 	}
 
 	fn enode(&self) -> Result<String, Error> {
-		take_weak!(self.sync).enode().ok_or_else(errors::network_disabled)
+		self.light_dispatch.sync.enode().ok_or_else(errors::network_disabled)
 	}
 
 	fn consensus_capability(&self) -> Result<ConsensusCapability, Error> {
-		let updater = take_weak!(self.updater);
-		Ok(updater.capability().into())
+		Err(errors::light_unimplemented(None))
 	}
 
 	fn version_info(&self) -> Result<VersionInfo, Error> {
-		let updater = take_weak!(self.updater);
-		Ok(updater.version_info().into())
+		Err(errors::light_unimplemented(None))
 	}
 
 	fn releases_info(&self) -> Result<Option<OperationsInfo>, Error> {
-		let updater = take_weak!(self.updater);
-		Ok(updater.info().map(Into::into))
+		Err(errors::light_unimplemented(None))
 	}
 
 	fn chain_status(&self) -> Result<ChainStatus, Error> {
-		let chain_info = take_weak!(self.client).chain_info();
+		let chain_info = self.light_dispatch.client.chain_info();
 
 		let gap = chain_info.ancient_block_number.map(|x| U256::from(x + 1))
 			.and_then(|first| chain_info.first_block_number.map(|last| (first, U256::from(last))));

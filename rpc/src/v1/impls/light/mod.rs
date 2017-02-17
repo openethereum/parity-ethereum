@@ -15,7 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! RPC implementations for the light client.
+//!
+//! This doesn't re-implement all of the RPC APIs, just those which aren't
+//! significantly generic to be reused.
 
 pub mod eth;
+pub mod parity;
 
 pub use self::eth::EthClient;
+pub use self::parity::ParityClient;
