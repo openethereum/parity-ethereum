@@ -236,7 +236,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn gas_price_histogram(&self) -> Result<Histogram, Error> {
-		take_weak!(self.client).gas_price_histogram(100, 10).ok_or_else(errors::not_enough_data).map(Into::into)
+		take_weak!(self.client).gas_price_corpus(100).histogram(10).ok_or_else(errors::not_enough_data).map(Into::into)
 	}
 
 	fn unsigned_transactions_count(&self) -> Result<usize, Error> {

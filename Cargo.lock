@@ -393,6 +393,7 @@ dependencies = [
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "stats 0.1.0",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -615,6 +616,7 @@ dependencies = [
  "serde 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "stats 0.1.0",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2128,6 +2130,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "stable-heap"
 version = "0.1.0"
 source = "git+https://github.com/carllerche/stable-heap?rev=3c5cd1ca47#3c5cd1ca4706f167a1de85658b5af0d6d3e65165"
+
+[[package]]
+name = "stats"
+version = "0.1.0"
+dependencies = [
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "strsim"

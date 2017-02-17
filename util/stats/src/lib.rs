@@ -17,14 +17,14 @@
 //! Statistical functions and helpers.
 
 use std::iter::FromIterator;
-use std::ops::{Add, Sub, Div};
+use std::ops::{Add, Sub, Deref, Div};
 
 #[macro_use]
 extern crate log;
 
 /// Sorted corpus of data.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Corpus<T: Ord>(Vec<T>);
+pub struct Corpus<T>(Vec<T>);
 
 impl<T: Ord> From<Vec<T>> for Corpus<T> {
 	fn from(mut data: Vec<T>) -> Self {
@@ -37,6 +37,12 @@ impl<T: Ord> FromIterator<T> for Corpus<T> {
 	fn from_iter<I: IntoIterator<Item=T>>(iterable: I) -> Self {
 		iterable.into_iter().collect::<Vec<_>>().into()
 	}
+}
+
+impl<T> Deref for Corpus<T> {
+	type Target = [T];
+
+	fn deref(&self) -> &[T] { &self.0[..] }
 }
 
 impl<T: Ord> Corpus<T> {
@@ -54,20 +60,17 @@ impl<T: Ord> Corpus<T> {
 	pub fn len(&self) -> usize {
 		self.0.len()
 	}
-
-	/// Split the corpus at a given point.
-	pub fn split_at(self, idx: usize) -> (Self, Self) {
-		let (left, right) = self.0.split_at(idx);
-		(Corpus(left), Corpus(right))
-	}
 }
 
 impl<T: Ord + Copy + ::std::fmt::Display> Corpus<T>
 	where T: Add<Output=T> + Sub<Output=T> + Div<Output=T> + From<usize>
 {
 	/// Create a histogram of this corpus if it at least spans the buckets. Bounds are left closed.
+	/// Excludes outliers.
 	pub fn histogram(&self, bucket_number: usize) -> Option<Histogram<T>> {
-		Histogram::create(&self.0, bucket_number)
+		// TODO: get outliers properly.
+		let upto = self.len() - self.len() / 40;
+		Histogram::create(&self.0[..upto], bucket_number)
 	}
 }
 

@@ -21,11 +21,12 @@ use std::ops::Deref;
 use std::sync::{Arc, Weak};
 
 use futures::{future, Future, BoxFuture};
+use light::cache::Cache as LightDataCache;
 use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
 use light::TransactionQueue as LightTransactionQueue;
 use rlp::{self, Stream};
-use util::{Address, H520, H256, U256, Uint, Bytes, RwLock};
+use util::{Address, H520, H256, U256, Uint, Bytes, Mutex, RwLock};
 use util::sha3::Hashable;
 
 use ethkey::Signature;
@@ -162,6 +163,7 @@ pub struct LightDispatcher {
 	sync: Arc<LightSync>,
 	client: Arc<LightChainClient>,
 	on_demand: Arc<OnDemand>,
+	cache: Arc<Mutex<LightDataCache>>,
 	transaction_queue: Arc<RwLock<LightTransactionQueue>>,
 }
 
@@ -173,12 +175,14 @@ impl LightDispatcher {
 		sync: Arc<LightSync>,
 		client: Arc<LightChainClient>,
 		on_demand: Arc<OnDemand>,
+		cache: Arc<Mutex<LightDataCache>>,
 		transaction_queue: Arc<RwLock<LightTransactionQueue>>,
 	) -> Self {
 		LightDispatcher {
 			sync: sync,
 			client: client,
 			on_demand: on_demand,
+			cache: cache,
 			transaction_queue: transaction_queue,
 		}
 	}
@@ -453,7 +457,7 @@ fn decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, password: S
 pub fn default_gas_price<C, M>(client: &C, miner: &M) -> U256
 	where C: MiningBlockChainClient, M: MinerService
 {
-	client.gas_price_median(100).unwrap_or_else(|| miner.sensible_gas_price())
+	client.gas_price_corpus(100).median().cloned().unwrap_or_else(|| miner.sensible_gas_price())
 }
 
 /// Convert RPC confirmation payload to signer confirmation payload.
