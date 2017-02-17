@@ -314,7 +314,9 @@ export default class DappsStore {
 
     if (builtin) {
       return Promise.resolve(builtin);
-    } else if (!manifestHash) {
+    }
+
+    if (!manifestHash) {
       return Promise.resolve(null);
     }
 
