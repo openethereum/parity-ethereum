@@ -16,8 +16,11 @@
 */
 
 @import '../_colors.css';
+@import '../_utils.css';
 
 .button {
+  composes: bezier-transform;
+
   background: $blue;
   border: none;
   border-radius: 0.25em;
@@ -36,5 +39,9 @@
 
   &[data-warning="true"] {
     background: #e44;
+  }
+
+  &:focus {
+    transform: scale(1.05);
   }
 }

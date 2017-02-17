@@ -39,7 +39,7 @@ export default class DappCard extends Component {
     const { id, imageUrl, manifest } = dapp;
 
     return (
-      <div>
+      <div className={ styles.container }>
         { this.renderModal() }
 
         <div

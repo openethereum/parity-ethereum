@@ -19,6 +19,10 @@
 
 $imgSize: 6rem;
 
+.container {
+  display: flex;
+}
+
 .card {
   composes: bezier-transform;
 

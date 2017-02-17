@@ -237,7 +237,11 @@ export default class DappCard extends Component {
         label='Owner, the application owner and editor'
         overlay={ overlayImage }
       >
-        <input value={ app.ownerName } readOnly />
+        <input
+          readOnly
+          tabIndex={ -1 }
+          value={ app.ownerName }
+        />
       </Input>
     );
   }
@@ -280,6 +284,7 @@ export default class DappCard extends Component {
           data-error={ !!error }
           onChange={ handleChange }
           readOnly={ !isEditing }
+          tabIndex={ isEditing ? 0 : -1 }
           value={ value }
         />
       </Input>
