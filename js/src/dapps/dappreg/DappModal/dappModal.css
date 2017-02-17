@@ -15,6 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+@import '../_colors.css';
 @import '../_utils.css';
 
 $imgSize: 5rem;
@@ -81,7 +82,7 @@ $imgSize: 5rem;
 .close {
   composes: bezier-transform;
 
-  color: #888;
+  color: #ddd;
   display: inline-block;
   font-family: 'Roboto Mono', monospace;
   font-size: 2rem;
@@ -111,7 +112,8 @@ $imgSize: 5rem;
 
 .header {
   align-items: center;
-  border-bottom: 1px solid #888;
+  background-color: $blue;
+  color: white;
   display: flex;
   flex: 0 0 auto;
   flex-direction: row;
@@ -127,7 +129,7 @@ $imgSize: 5rem;
   overflow: hidden;
 
   img {
-    border: 1px solid #444;
+    border: 2px solid #ddd;
     border-radius: 50%;
     height: $imgSize;
     width: $imgSize;
@@ -140,7 +142,7 @@ $imgSize: 5rem;
 }
 
 .info {
-  color: #444;
+  color: #ddd;
   font-size: 0.75rem;
   margin-top: 0.25rem;
 }

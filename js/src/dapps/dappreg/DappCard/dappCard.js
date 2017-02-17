@@ -36,7 +36,8 @@ export default class DappCard extends Component {
 
   render () {
     const { dapp } = this.props;
-    const { id, imageUrl, manifest } = dapp;
+    const { id, image } = dapp;
+    const manifest = dapp.manifest.content;
 
     return (
       <div className={ styles.container }>
@@ -50,7 +51,7 @@ export default class DappCard extends Component {
           tabIndex={ 0 }
         >
           <div className={ styles.icon }>
-            { this.renderImage(imageUrl) }
+            { this.renderImage(image.url) }
           </div>
 
           <span
@@ -135,9 +136,6 @@ export default class DappCard extends Component {
   }
 
   handleOpen = () => {
-    const { id } = this.props.dapp;
-
-    this.dappsStore.setCurrentApp(id);
     this.setState({ open: true });
   }
 }

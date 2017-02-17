@@ -21,7 +21,6 @@ import ReactDOM from 'react-dom';
 
 import { api } from '../parity';
 import Button from '../Button';
-import DappsStore from '../dappsStore';
 import ModalStore from '../modalStore';
 import Input from '../Input';
 import SelectAccount from '../SelectAccount';
@@ -29,8 +28,7 @@ import SelectAccount from '../SelectAccount';
 import styles from './dappModal.css';
 
 @observer
-export default class DappCard extends Component {
-  dappsStore = DappsStore.instance();
+export default class DappModal extends Component {
   modalStore = ModalStore.instance();
 
   static propTypes = {
@@ -84,7 +82,7 @@ export default class DappCard extends Component {
   }
 
   renderContent (dapp) {
-    const manifest = dapp.manifest || {};
+    const manifest = dapp.manifest.content || {};
 
     return (
       <div className={ styles.content }>
@@ -109,14 +107,14 @@ export default class DappCard extends Component {
       return null;
     }
 
-    const { isEditing } = this.dappsStore;
+    const { isEditing } = dapp;
 
     if (isEditing) {
       return (
         <div className={ styles.actions }>
           <Button
             className={ styles.button }
-            disabled={ !this.dappsStore.canSave }
+            disabled={ !dapp.canSave }
             label='Save'
             onClick={ this.handleSave }
           />
@@ -148,8 +146,8 @@ export default class DappCard extends Component {
   }
 
   renderHeader (dapp) {
-    const { id, imageUrl } = dapp;
-    const manifest = dapp.manifest || {};
+    const { id, image } = dapp;
+    const manifest = dapp.manifest.content || {};
 
     const infos = [];
 
@@ -164,7 +162,7 @@ export default class DappCard extends Component {
     return (
       <div className={ styles.header }>
         <div className={ styles.icon }>
-          <img src={ imageUrl } />
+          <img src={ image.url } />
         </div>
         <div>
           <div className={ styles.name }>
@@ -181,82 +179,84 @@ export default class DappCard extends Component {
     );
   }
 
-  renderInputs (app) {
+  renderInputs (dapp) {
     return [
-      this.renderOwner(app),
-      this.renderHashInput(app, 'image', 'Image URL', true),
-      this.renderHashInput(app, 'manifest', 'Manifest URL'),
-      this.renderHashInput(app, 'content', 'Content URL')
+      this.renderOwner(dapp),
+      this.renderHashInput(dapp, 'image', 'Image URL', true),
+      this.renderHashInput(dapp, 'manifest', 'Manifest URL'),
+      this.renderHashInput(dapp, 'content', 'Content URL')
     ];
   }
 
-  renderOwner (app) {
-    const { isEditing } = this.dappsStore;
+  renderOwner (dapp) {
+    const { isEditing } = dapp;
 
     if (isEditing) {
-      return this.renderOwnerSelect(app);
+      return this.renderOwnerSelect(dapp);
     }
 
-    return this.renderOwnerStatic(app);
+    return this.renderOwnerStatic(dapp);
   }
 
-  renderOwnerSelect (app) {
+  renderOwnerSelect (dapp) {
     const overlayImage = (
       <img
         className={ styles.overlayImage }
-        src={ api.util.createIdentityImg(this.dappsStore.currentAccount.address, 4) }
+        src={ api.util.createIdentityImg(this.props.dapp.wip.owner.address, 4) }
       />
     );
 
     return (
       <Input
         key='owner_select'
-        hint={ this.dappsStore.currentAccount.address }
+        hint={ this.props.dapp.wip.owner.address }
         label='Owner, select the application owner and editor'
         overlay={ overlayImage }
       >
         <SelectAccount
           onSelect={ this.handleSelectOwner }
+          value={ dapp.wip.owner.address }
         />
       </Input>
     );
   }
 
-  renderOwnerStatic (app) {
+  renderOwnerStatic (dapp) {
     const overlayImage = (
       <img
         className={ styles.overlayImage }
-        src={ api.util.createIdentityImg(app.owner, 4) }
+        src={ api.util.createIdentityImg(dapp.owner.address, 4) }
       />
     );
 
     return (
       <Input
         key='owner_static'
-        hint={ app.owner }
+        hint={ dapp.owner.address }
         label='Owner, the application owner and editor'
         overlay={ overlayImage }
       >
         <input
           readOnly
           tabIndex={ -1 }
-          value={ app.ownerName }
+          value={ dapp.owner.name || dapp.owner.address }
         />
       </Input>
     );
   }
 
-  renderHashInput (app, type, label, isImage = false) {
+  renderHashInput (dapp, type, label, isImage = false) {
     const handleChange = (event) => {
       return this.handleChangeHash(event, type);
     };
 
-    const { isEditing, wipApp } = this.dappsStore;
+    const { isEditing, wip } = dapp;
 
-    const changed = wipApp && wipApp[`${type}Changed`];
-    const error = app[`${type}Error`];
-    const hash = app[`${type}Hash`];
-    const url = app[`${type}Url`];
+    const changed = wip && wip[type].changed;
+    const error = wip && wip[type].error;
+
+    const hash = dapp[type].hash;
+    const url = dapp[type].url;
 
     const overlayImage = (isImage && hash)
       ? (
@@ -267,7 +267,7 @@ export default class DappCard extends Component {
       )
       : null;
 
-    const wipUrl = isEditing && wipApp && wipApp[`${type}Url`];
+    const wipUrl = isEditing && wip && wip[type].url;
 
     const hint = error || (!changed && hash) || '...';
     const value = wipUrl || url || '';
@@ -339,32 +339,36 @@ export default class DappCard extends Component {
   handleSelectOwner = (event) => {
     const { value } = event.target;
 
-    const changed = (this.dappsStore.currentApp.owner !== value);
+    const changed = (this.props.dapp.owner.address !== value);
 
-    this.dappsStore.editWip({
-      ownerChanged: changed,
-      owner: value
+    this.props.dapp.handleChange({
+      owner: {
+        address: value,
+        changed
+      }
     });
   }
 
   handleChangeHash = (event, type) => {
-    if (!this.dappsStore.isEditing) {
+    if (!this.props.dapp.isEditing) {
       return;
     }
 
     const url = event.target.value;
 
-    let changed = (this.dappsStore.currentApp[`${type}Url`] !== url);
+    let changed = (this.props.dapp[type].url !== url);
 
-    this.dappsStore.editWip({
-      [`${type}Changed`]: changed,
-      [`${type}Error`]: null,
-      [`${type}Url`]: url
+    this.props.dapp.handleChange({
+      [ type ]: {
+        error: null,
+        changed,
+        url
+      }
     });
   }
 
   handleCancel = () => {
-    this.dappsStore.setEditing(false);
+    this.props.dapp.setEditing(false);
   }
 
   handleDelete = () => {
@@ -372,7 +376,7 @@ export default class DappCard extends Component {
   }
 
   handleEdit = () => {
-    this.dappsStore.setEditing(true);
+    this.props.dapp.setEditing(true);
   }
 
   handleSave = () => {

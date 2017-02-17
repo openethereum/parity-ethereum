@@ -19,6 +19,7 @@ import { action, computed, observable, transaction } from 'mobx';
 
 import * as abis from '~/contracts/abi';
 import builtins from '~/views/Dapps/builtin.json';
+import Dapp from './dappStore.js';
 
 import { api } from './parity';
 
@@ -28,15 +29,10 @@ export default class DappsStore {
   @observable accounts = [];
   @observable apps = [];
   @observable contractOwner = null;
-  @observable currentAccount = null;
-  @observable currentApp = null;
   @observable count = 0;
   @observable fee = new BigNumber(0);
   @observable isContractOwner = false;
-  @observable isEditing = false;
   @observable isLoading = true;
-  @observable isNew = false;
-  @observable wipApp = null;
 
   _startTime = Date.now();
 
@@ -52,20 +48,6 @@ export default class DappsStore {
     return instance;
   }
 
-  @computed get canSave () {
-    const app = this.wipApp;
-
-    const hasError = app.contentError || app.imageError || app.manifestError;
-    const isDirty = this.isNew || app.contentChanged || app.imageChanged || app.manifestChanged || app.ownerChanged;
-    const isEditMode = this.isEditing || this.isNew;
-
-    return isEditMode && isDirty && !hasError;
-  }
-
-  @computed get isCurrentEditable () {
-    return !!this.accounts.find((account) => account.address === this.currentApp.owner);
-  }
-
   @computed get ownedCount () {
     return this.ownDapps.length;
   }
@@ -78,124 +60,53 @@ export default class DappsStore {
     return this.apps.filter((app) => !app.isOwner);
   }
 
-  @action copyToWip = () => {
-    let wipApp;
-
-    if (this.isNew) {
-      wipApp = {
-        id: api.util.sha3(`${this._startTime}_${Date.now()}`),
-        contentHash: null,
-        contentUrl: null,
-        imageHash: null,
-        imageUrl: null,
-        manifestHash: null,
-        manifestUrl: null
-      };
-    } else {
-      const app = this.currentApp;
-
-      wipApp = {
-        id: app.id,
-        contentHash: app.contentHash,
-        contentUrl: app.contentUrl,
-        imageHash: app.imageHash,
-        imageUrl: app.imageUrl,
-        manifestHash: app.manifestHash,
-        manifestUrl: app.manifestUrl,
-        owner: app.owner,
-        ownerName: app.ownerName
-      };
-    }
-
-    this.wipApp = Object.assign(wipApp, {
-      contentChanged: false,
-      contentError: null,
-      imageChanged: false,
-      imageError: null,
-      manifestChanged: false,
-      manifestError: null,
-      ownerChanged: false
-    });
-
-    return this.wipApp;
-  }
-
-  @action editWip = (details) => {
-    if (this.isNew || this.isEditing) {
-      transaction(() => {
-        Object
-          .keys(details)
-          .forEach((key) => {
-            this.wipApp[key] = details[key];
-          });
-      });
-    }
-
-    return this.wipApp;
-  }
-
-  @action sortApps = (apps = this.apps) => {
-    transaction(() => {
-      const ownApps = apps
-        .filter((app) => app.isOwner)
-        .sort((a, b) => a.name.localeCompare(b.name));
-      const otherApps = apps
-        .filter((app) => !app.isOwner)
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      this.apps = ownApps.concat(otherApps);
-
-      if (this.apps.length) {
-        this.currentApp = this.apps[0];
+  @action sortApps = () => {
+    // Sort dapps per name, then per id
+    const sort = (a, b) => {
+      if (a.name && b.name) {
+        return a.name.localeCompare(b.name);
       }
-    });
-  }
 
-  @action setApps = (apps) => {
-    this.sortApps(apps.filter((app) => {
-      const bnid = new BigNumber(app.id);
+      if (a.name) {
+        return -1;
+      }
 
-      return bnid.gt(0);
-    }));
+      if (b.name) {
+        return 1;
+      }
 
-    return this.apps;
-  }
+      return a.id - b.id;
+    };
 
-  @action _addApp = (app) => {
     transaction(() => {
-      this.setApps(this.apps.concat([app]));
-      this.setCurrentApp(app.id);
+      const ownDapps = this.ownDapps.sort(sort);
+      const otherDapps = this.otherDapps.sort(sort);
+
+      this.apps = ownDapps.concat(otherDapps);
     });
   }
 
-  @action addApp = (appId, account) => {
-    this
-      ._loadDapp({
-        id: appId,
-        isOwner: true,
-        name: `- ${appId}`,
-        owner: account.address,
-        ownerName: account.name
-      })
-      .then(this._addApp);
-  }
+  @action setApps = (dapps) => {
+    const filteredDapps = dapps.filter((dapp) => {
+      return new BigNumber(dapp.id).gt(0);
+    });
 
-  @action refreshApp = (appId) => {
-    this._loadDapp(this.apps.find((app) => app.id === appId));
-  }
-
-  @action removeApp = (appId) => {
-    this.setApps(this.apps.filter((app) => app.id !== appId));
-  }
-
-  @action setAppInfo = (app, info) => {
     transaction(() => {
-      Object.keys(info).forEach((key) => {
-        app[key] = info[key];
-      });
+      this.apps = filteredDapps;
+      this.sortApps();
     });
+  }
 
-    return app;
+  @action refreshApp = (dappId) => {
+    const dapp = this.apps.find((dapp) => dapp.id === dappId);
+
+    this._loadDapp(dapp);
+  }
+
+  @action removeApp = (dappId) => {
+    const dapps = this.apps.filter((dapp) => dapp.id !== dappId);
+
+    this.setApps(dapps);
   }
 
   @action setAccounts = (accountsInfo) => {
@@ -208,8 +119,6 @@ export default class DappsStore {
           account.address = address;
           return account;
         });
-
-      this.currentAccount = this.accounts[0];
     });
 
     return this.accounts;
@@ -223,28 +132,9 @@ export default class DappsStore {
     return contractOwner;
   }
 
-  @action setCurrentApp = (id) => {
-    this.currentApp = this.apps.find((app) => app.id === id);
-    return this.currentApp;
-  }
-
-  @action setCurrentAccount = (address) => {
-    this.currentAccount = this.accounts.find((account) => account.address === address);
-    return this.currentAccount;
-  }
-
   @action setCount = (count) => {
     this.count = count;
     return count;
-  }
-
-  @action setEditing = (mode) => {
-    transaction(() => {
-      this.isEditing = mode;
-      this.copyToWip();
-    });
-
-    return mode;
   }
 
   @action setFee = (fee) => {
@@ -255,15 +145,6 @@ export default class DappsStore {
   @action setLoading = (loading) => {
     this.isLoading = loading;
     return loading;
-  }
-
-  @action setNew = (mode) => {
-    transaction(() => {
-      this.isNew = mode;
-      this.copyToWip();
-    });
-
-    return mode;
   }
 
   lookupHash (hash) {
@@ -319,26 +200,25 @@ export default class DappsStore {
 
         return Promise.all(promises);
       })
-      .then((appsInfo) => {
-        return Promise.all(
-          this
-            .setApps(appsInfo.map(([appId, owner]) => {
-              const isOwner = !!this.accounts.find((account) => account.address === owner);
-              const account = this.accounts.find((account) => account.address === owner);
-              const id = api.util.bytesToHex(appId);
+      .then((dappsInfo) => {
+        const dapps = dappsInfo.map(([dappId, ownerAddress]) => {
+          const id = api.util.bytesToHex(dappId);
+          const owner = this.accounts.find((account) => account.address === ownerAddress);
+          const isOwner = !!owner;
 
-              return {
-                id,
-                owner,
-                ownerName: account ? account.name : owner,
-                isOwner,
-                name: `- ${id}`
-              };
-            }))
-            .map(this._loadDapp)
-        );
+          return {
+            id,
+            owner: owner || { address: ownerAddress },
+            isOwner
+          };
+        });
+
+        const promises = dapps.map((dapp) => this._loadDapp(dapp));
+
+        return Promise.all(promises);
       })
-      .then(() => {
+      .then((dapps) => {
+        this.setApps(dapps);
         this.sortApps();
         this.setLoading(false);
       })
@@ -347,12 +227,14 @@ export default class DappsStore {
       });
   }
 
-  _loadDapp = (app) => {
+  _loadDapp = (dappData) => {
+    const { id, owner, isOwner } = dappData;
+
     return Promise
       .all([
-        this._loadMeta(app.id, 'CONTENT'),
-        this._loadMeta(app.id, 'IMG'),
-        this._loadMeta(app.id, 'MANIFEST')
+        this._loadMeta(id, 'CONTENT'),
+        this._loadMeta(id, 'IMG'),
+        this._loadMeta(id, 'MANIFEST')
       ])
       .then(([contentHash, imageHash, manifestHash]) => {
         return Promise
@@ -363,25 +245,45 @@ export default class DappsStore {
           ])
           .then(([contentUrl, imageUrl, manifestUrl]) => {
             return this
-              ._loadManifest(app.id, manifestHash, manifestUrl)
-              .then((manifest) => {
-                this.setAppInfo(app, {
-                  manifest,
-                  manifestHash,
-                  manifestUrl,
-                  contentHash,
-                  contentUrl,
-                  imageHash,
-                  imageUrl,
-                  name: (manifest && manifest.name) || `- ${app.id}`
-                });
+              ._loadManifest(id, manifestHash, manifestUrl)
+              .then((manifestContent) => {
+                const content = {
+                  hash: contentHash,
+                  url: contentUrl
+                };
 
-                return app;
+                const image = {
+                  hash: imageHash,
+                  url: imageUrl
+                };
+
+                const manifest = {
+                  content: manifestContent,
+                  hash: manifestHash,
+                  url: manifestUrl
+                };
+
+                return { content, image, manifest };
               });
           });
       })
       .catch((error) => {
-        console.error('Store:loadDapp', error);
+        console.error('dappsStore::loadDapp', error);
+        return {};
+      })
+      .then((data) => {
+        const { content, image, manifest } = data;
+
+        const dapp = new Dapp({
+          id,
+          content,
+          image,
+          manifest,
+          owner,
+          isOwner
+        });
+
+        return dapp;
       });
   }
 
@@ -481,9 +383,11 @@ export default class DappsStore {
       ])
       .then(([dappregAddress, ghhAddress]) => {
         console.log(`dappreg was found at ${dappregAddress}`);
+        console.log(`githubhint was found at ${ghhAddress}`);
+
         this._contractReg = api.newContract(abis.dappreg, dappregAddress);
         this._instanceReg = this._contractReg.instance;
-        console.log(`githubhint was found at ${ghhAddress}`);
+
         this._contractGhh = api.newContract(abis.githubhint, ghhAddress);
         this._instanceGhh = this._contractGhh.instance;
       })

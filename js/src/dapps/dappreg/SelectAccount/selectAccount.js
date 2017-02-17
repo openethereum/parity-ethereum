@@ -24,13 +24,16 @@ export default class SelectAccount extends Component {
   dappsStore = DappsStore.instance();
 
   static propTypes = {
-    onSelect: PropTypes.func
+    value: PropTypes.string.isRequired,
+    onSelect: PropTypes.func.isRequired
   };
 
   render () {
+    const { value } = this.props;
+
     return (
       <select
-        value={ this.dappsStore.currentAccount.address }
+        value={ value }
         onChange={ this.handleSelect }
       >
         { this.renderOptions() }
@@ -49,7 +52,6 @@ export default class SelectAccount extends Component {
   }
 
   handleSelect = (event) => {
-    this.dappsStore.setCurrentAccount(event.target.value);
     this.props.onSelect && this.props.onSelect(event);
   }
 }
