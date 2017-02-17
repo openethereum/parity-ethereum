@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable, transaction } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
 
 import Ledger from '~/3rdparty/ledger';
 
@@ -31,6 +31,10 @@ export default class HardwareStore {
     this._pollId = null;
 
     this._pollScan();
+  }
+
+  isConnected (address) {
+    return computed(() => !!this.wallets[address]).get();
   }
 
   @action setScanning = (isScanning) => {

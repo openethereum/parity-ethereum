@@ -91,7 +91,7 @@ class Account extends Component {
       return null;
     }
 
-    const isAvailable = !account.hardware || this.hwstore.wallets[address];
+    const isAvailable = !account.hardware || this.hwstore.isConnected(address);
 
     return (
       <div>

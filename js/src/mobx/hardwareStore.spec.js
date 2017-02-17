@@ -73,6 +73,22 @@ describe('mobx/HardwareStore', () => {
     teardown();
   });
 
+  describe('@computed', () => {
+    describe('isConnected', () => {
+      beforeEach(() => {
+        store.setWallets({ [ADDRESS]: WALLET });
+      });
+
+      it('returns true for available', () => {
+        expect(store.isConnected(ADDRESS)).to.be.true;
+      });
+
+      it('returns false for non-available', () => {
+        expect(store.isConnected('nothing')).to.be.false;
+      });
+    });
+  });
+
   describe('background polling', () => {
     let pollId;
 

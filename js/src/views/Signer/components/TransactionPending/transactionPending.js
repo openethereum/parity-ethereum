@@ -103,7 +103,7 @@ class TransactionPending extends Component {
     const { from, value } = transaction;
     const fromBalance = balances[from];
     const account = accounts[from] || {};
-    const disabled = account.hardware && !this.hwstore.wallets[from];
+    const disabled = account.hardware && !this.hwstore.isConnected(from);
 
     return (
       <div className={ `${styles.container} ${className}` }>
