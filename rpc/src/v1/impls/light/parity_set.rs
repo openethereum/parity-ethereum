@@ -18,16 +18,12 @@
 //! Implementation for light client.
 
 use std::io;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
-use ethcore::miner::MinerService;
-use ethcore::client::MiningBlockChainClient;
-use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
-use fetch::{self, Fetch};
+use fetch::Fetch;
 use futures::{BoxFuture, Future};
 use util::sha3;
-use updater::{Service as UpdateService};
 
 use jsonrpc_core::Error;
 use v1::helpers::errors;
@@ -51,7 +47,6 @@ impl<F: Fetch> ParitySetClient<F> {
 }
 
 impl<F: Fetch> ParitySet for ParitySetClient<F> {
-
 	fn set_min_gas_price(&self, _gas_price: U256) -> Result<bool, Error> {
 		Err(errors::light_unimplemented(None))
 	}
@@ -118,7 +113,7 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 		Ok(true)
 	}
 
-	fn set_mode(&self, mode: String) -> Result<bool, Error> {
+	fn set_mode(&self, _mode: String) -> Result<bool, Error> {
 		Err(errors::light_unimplemented(None))
 	}
 

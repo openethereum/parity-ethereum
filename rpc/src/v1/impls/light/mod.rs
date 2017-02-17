@@ -22,6 +22,7 @@
 pub mod eth;
 pub mod parity;
 pub mod parity_set;
+pub mod trace;
 
 pub use self::eth::EthClient;
 pub use self::parity::ParityClient;
