@@ -58,7 +58,6 @@ g++ -v
 RUN git clone https://github.com/ethcore/parity && \
         cd parity && \
         git checkout $CI_BUILD_REF_NAME && \
-        git pull && \
         cargo build --release --features final && \
         ls /build/parity/target/release/parity && \
         strip /build/parity/target/release/parity
@@ -68,4 +67,4 @@ RUN file /build/parity/target/release/parity&&mkdir -p /parity&&cp /build/parity
 RUN rm -rf /root/.cargo&&rm -rf /root/.multirust&&rm -rf /root/.rustup&&rm -rf /build
 
 EXPOSE 8080 8545 8180
-ENTRYPOINT ["/parity"]
+ENTRYPOINT ["/parity/parity"]
