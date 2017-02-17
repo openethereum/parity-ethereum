@@ -19,13 +19,10 @@ import { observer } from 'mobx-react';
 
 import DappsStore from '../dappsStore';
 
-import ButtonBar from '../ButtonBar';
-import Dapp from '../Dapp';
 import Dapps from '../Dapps';
 import ModalDelete from '../ModalDelete';
 import ModalRegister from '../ModalRegister';
 import ModalUpdate from '../ModalUpdate';
-import SelectDapp from '../SelectDapp';
 import Warning from '../Warning';
 import styles from './application.css';
 
