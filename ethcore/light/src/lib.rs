@@ -72,6 +72,7 @@ extern crate time;
 extern crate futures;
 extern crate rand;
 extern crate itertools;
+extern crate stats;
 
 #[cfg(feature = "ipc")]
 extern crate ethcore_ipc as ipc;

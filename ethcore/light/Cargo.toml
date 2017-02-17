@@ -23,6 +23,7 @@ smallvec = "0.3.1"
 futures = "0.1"
 rand = "0.3"
 itertools = "0.5"
+stats = { path = "../../util/stats" }
 
 [features]
 default = []

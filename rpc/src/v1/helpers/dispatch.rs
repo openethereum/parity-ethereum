@@ -20,17 +20,18 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::{Arc, Weak};
 
-use futures::{future, Future, BoxFuture};
+use futures::{future, stream, Future, Stream, BoxFuture};
 use light::cache::Cache as LightDataCache;
 use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
 use light::TransactionQueue as LightTransactionQueue;
-use rlp::{self, Stream};
+use rlp::{self, Stream as StreamRlp};
 use util::{Address, H520, H256, U256, Uint, Bytes, Mutex, RwLock};
 use util::sha3::Hashable;
 
 use ethkey::Signature;
 use ethsync::LightSync;
+use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{Action, SignedTransaction, PendingTransaction, Transaction};
@@ -192,20 +193,75 @@ impl Dispatcher for LightDispatcher {
 	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address)
 		-> BoxFuture<FilledTransactionRequest, Error>
 	{
-		let request = request;
-		let gas_limit = self.client.best_block_header().gas_limit();
+		const GAS_PRICE_SAMPLE_SIZE: usize = 100;
+		const DEFAULT_GAS_PRICE: U256 = U256([0, 0, 0, 21_000_000]);
 
-		future::ok(FilledTransactionRequest {
-			from: request.from.unwrap_or(default_sender),
-			used_default_from: request.from.is_none(),
-			to: request.to,
-			nonce: request.nonce,
-			gas_price: request.gas_price.unwrap_or_else(|| 21_000_000.into()), // TODO: fetch corpus from network.
-			gas: request.gas.unwrap_or_else(|| gas_limit / 3.into()),
-			value: request.value.unwrap_or_else(|| 0.into()),
-			data: request.data.unwrap_or_else(Vec::new),
-			condition: request.condition,
-		}).boxed()
+		let gas_limit = self.client.best_block_header().gas_limit();
+		let request_gas_price = request.gas_price.clone();
+
+		let with_gas_price = move |gas_price| {
+			let request = request;
+			FilledTransactionRequest {
+				from: request.from.unwrap_or(default_sender),
+				used_default_from: request.from.is_none(),
+				to: request.to,
+				nonce: request.nonce,
+				gas_price: gas_price,
+				gas: request.gas.unwrap_or_else(|| gas_limit / 3.into()),
+				value: request.value.unwrap_or_else(|| 0.into()),
+				data: request.data.unwrap_or_else(Vec::new),
+				condition: request.condition,
+			}
+		};
+
+		// fast path for gas price supplied or cached corpus.
+		let known_price = request_gas_price.or_else(||
+			self.cache.lock().gas_price_corpus().and_then(|corp| corp.median().cloned())
+		);
+
+		match known_price {
+			Some(gas_price) => future::ok(with_gas_price(gas_price)).boxed(),
+			None => {
+				let cache = self.cache.clone();
+				let gas_price_res = self.sync.with_context(|ctx| {
+
+					// get some recent headers with gas used,
+					// and request each of the blocks from the network.
+					let block_futures = self.client.ancestry_iter(BlockId::Latest)
+						.filter(|hdr| hdr.gas_used() != U256::default())
+						.take(GAS_PRICE_SAMPLE_SIZE)
+						.map(request::Body::new)
+						.map(|req| self.on_demand.block(ctx, req));
+
+					// as the blocks come in, collect gas prices into a vector
+					stream::futures_unordered(block_futures)
+						.fold(Vec::new(), |mut v, block| {
+							for t in block.transaction_views().iter() {
+								v.push(t.gas_price())
+							}
+
+							future::ok(v)
+						})
+						.map(move |v| {
+							// produce a corpus from the vector, cache it, and return
+							// the median as the intended gas price.
+							let corpus: ::stats::Corpus<_> = v.into();
+							cache.lock().set_gas_price_corpus(corpus.clone());
+
+
+							corpus.median().cloned().unwrap_or(DEFAULT_GAS_PRICE)
+						})
+						.map_err(|_| errors::no_light_peers())
+				});
+
+				// attempt to fetch the median, but fall back to a hardcoded
+				// value in case of weak corpus or disconnected network.
+				match gas_price_res {
+					Some(res) => res.map(with_gas_price).boxed(),
+					None => future::ok(with_gas_price(DEFAULT_GAS_PRICE)).boxed()
+				}
+			}
+		}
 	}
 
 	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)

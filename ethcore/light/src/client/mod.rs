@@ -33,7 +33,7 @@ use io::IoChannel;
 
 use util::{Bytes, H256, Mutex, RwLock};
 
-use self::header_chain::HeaderChain;
+use self::header_chain::{AncestryIter, HeaderChain};
 
 pub use self::service::Service;
 
@@ -61,6 +61,9 @@ pub trait LightChainClient: Send + Sync {
 
 	/// Get the best block header.
 	fn best_block_header(&self) -> encoded::Header;
+
+	/// Get an iterator over a block and its ancestry.
+	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a>;
 
 	/// Get the signing network ID.
 	fn signing_network_id(&self) -> Option<u64>;
@@ -167,6 +170,11 @@ impl Client {
 		self.chain.best_header()
 	}
 
+	/// Get an iterator over a block and its ancestry.
+	pub fn ancestry_iter(&self, start: BlockId) -> AncestryIter {
+		self.chain.ancestry_iter(start)
+	}
+
 	/// Get the signing network id.
 	pub fn signing_network_id(&self) -> Option<u64> {
 		self.engine.signing_network_id(&self.latest_env_info())
@@ -267,6 +275,10 @@ impl LightChainClient for Client {
 
 	fn best_block_header(&self) -> encoded::Header {
 		Client::best_block_header(self)
+	}
+
+	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a> {
+		Box::new(Client::ancestry_iter(self, start))
 	}
 
 	fn signing_network_id(&self) -> Option<u64> {

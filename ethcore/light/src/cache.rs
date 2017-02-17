@@ -24,6 +24,7 @@ use ethcore::encoded;
 use ethcore::header::BlockNumber;
 use ethcore::receipt::Receipt;
 
+use stats::Corpus;
 use time::{SteadyTime, Duration};
 use util::{U256, H256};
 use util::cache::MemoryLruCache;
@@ -66,7 +67,7 @@ pub struct Cache {
 	bodies: MemoryLruCache<H256, encoded::Body>,
 	receipts: MemoryLruCache<H256, Vec<Receipt>>,
 	chain_score: MemoryLruCache<H256, U256>,
-	corpus: Option<(Vec<U256>, SteadyTime)>,
+	corpus: Option<(Corpus<U256>, SteadyTime)>,
 	corpus_expiration: Duration,
 }
 
@@ -135,7 +136,7 @@ impl Cache {
 	}
 
 	/// Get gas price corpus, if recent enough.
-	pub fn gas_price_corpus(&self) -> Option<Vec<U256>> {
+	pub fn gas_price_corpus(&self) -> Option<Corpus<U256>> {
 		let now = SteadyTime::now();
 
 		self.corpus.as_ref().and_then(|&(ref corpus, ref tm)| {
@@ -148,7 +149,7 @@ impl Cache {
 	}
 
 	/// Set the cached gas price corpus.
-	pub fn set_gas_price_corpus(&mut self, corpus: Vec<U256>) {
+	pub fn set_gas_price_corpus(&mut self, corpus: Corpus<U256>) {
 		self.corpus = Some((corpus, SteadyTime::now()))
 	}
 }
@@ -162,8 +163,8 @@ mod tests {
 	fn corpus_inaccessible() {
 		let mut cache = Cache::new(Default::default(), Duration::hours(5));
 
-		cache.set_gas_price_corpus(vec![]);
-		assert_eq!(cache.gas_price_corpus(), Some(vec![]));
+		cache.set_gas_price_corpus(vec![].into());
+		assert_eq!(cache.gas_price_corpus(), Some(vec![].into()));
 
 		{
 			let corpus_time = &mut cache.corpus.as_mut().unwrap().1;
