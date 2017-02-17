@@ -17,7 +17,6 @@
 import React, { Component } from 'react';
 import { observer } from 'mobx-react';
 
-import DappsStore from '../dappsStore';
 import ModalStore from '../modalStore';
 
 import Button from '../Button';
@@ -40,7 +39,6 @@ const STEP_DONE = 4;
 
 @observer
 export default class ModalUpdate extends Component {
-  dappsStore = DappsStore.instance();
   modalStore = ModalStore.instance();
 
   render () {
@@ -125,7 +123,7 @@ export default class ModalUpdate extends Component {
             Application identifier
           </div>
           <div>
-            { this.dappsStore.wipApp.id }
+            { this.modalStore.dappId }
           </div>
         </div>
         { this.renderChanges() }
@@ -134,19 +132,20 @@ export default class ModalUpdate extends Component {
   }
 
   renderChanges () {
-    return ['content', 'image', 'manifest']
-      .filter((type) => this.dappsStore.wipApp[`${type}Changed`])
+    const { updates } = this.modalStore;
+
+    return Object.keys(updates)
       .map((type) => {
         return (
-          <div className={ styles.section } key={ `${type}Update` }>
+          <div
+            className={ styles.section }
+            key={ `${type}Update` }
+          >
             <div className={ styles.heading }>
-              Updates to { type } hash
+              Updates to { type }
             </div>
             <div>
-              <div>{ this.dappsStore.wipApp[`${type}Hash`] || '(removed)' }</div>
-              <div className={ styles.hint }>
-                { this.dappsStore.wipApp[`${type}Url`] || 'current url to be removed from registry' }
-              </div>
+              <div>{ updates[type] || '(removed)' }</div>
             </div>
           </div>
         );

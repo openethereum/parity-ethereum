@@ -28,7 +28,9 @@ export default class DappStore {
   @observable isEditing = false;
   @observable wip = null;
 
-  constructor (data) {
+  modalStore = null;
+
+  constructor (data, modalStore) {
     const { id, content = {}, image = {}, manifest = {}, owner = {}, isOwner } = data;
 
     transaction(() => {
@@ -41,6 +43,8 @@ export default class DappStore {
 
       this.copyToWip();
     });
+
+    this.modalStore = modalStore;
   }
 
   @computed get canSave () {
@@ -96,6 +100,36 @@ export default class DappStore {
 
     this.wip = nextWip;
     return this.wip;
+  }
+
+  @action handleDelete = () => {
+    this.modalStore.handleDelete({ id: this.id, owner: this.owner });
+  }
+
+  @action handleSave = () => {
+    const updates = {};
+
+    if (this.wip.content.url !== this.content.url) {
+      updates.content = this.wip.content.url;
+    }
+
+    if (this.wip.image.url !== this.image.url) {
+      updates.image = this.wip.image.url;
+    }
+
+    if (this.wip.manifest.url !== this.manifest.url) {
+      updates.manifest = this.wip.manifest.url;
+    }
+
+    if (this.wip.owner.address !== this.owner.url) {
+      updates.owner = this.wip.owner.address;
+    }
+
+    this.modalStore.handleUpdate({
+      id: this.id,
+      owner: this.owner,
+      updates
+    });
   }
 
   @action setEditing = (mode) => {

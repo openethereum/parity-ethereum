@@ -21,7 +21,6 @@ import ReactDOM from 'react-dom';
 
 import { api } from '../parity';
 import Button from '../Button';
-import ModalStore from '../modalStore';
 import Input from '../Input';
 import SelectAccount from '../SelectAccount';
 
@@ -29,8 +28,6 @@ import styles from './dappModal.css';
 
 @observer
 export default class DappModal extends Component {
-  modalStore = ModalStore.instance();
-
   static propTypes = {
     dapp: PropTypes.object.isRequired,
     open: PropTypes.bool.isRequired,
@@ -371,15 +368,15 @@ export default class DappModal extends Component {
     this.props.dapp.setEditing(false);
   }
 
-  handleDelete = () => {
-    this.modalStore.showDelete();
-  }
-
   handleEdit = () => {
     this.props.dapp.setEditing(true);
   }
 
+  handleDelete = () => {
+    this.props.dapp.handleDelete();
+  }
+
   handleSave = () => {
-    this.modalStore.showUpdate();
+    this.props.dapp.handleSave();
   }
 }

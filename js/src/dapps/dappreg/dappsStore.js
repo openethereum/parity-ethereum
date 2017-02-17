@@ -20,6 +20,7 @@ import { action, computed, observable, transaction } from 'mobx';
 import * as abis from '~/contracts/abi';
 import builtins from '~/views/Dapps/builtin.json';
 import Dapp from './dappStore.js';
+import ModalStore from './modalStore';
 
 import { api } from './parity';
 
@@ -34,10 +35,12 @@ export default class DappsStore {
   @observable isContractOwner = false;
   @observable isLoading = true;
 
+  _modalStore = null;
   _startTime = Date.now();
 
   constructor () {
     this._loadDapps();
+    this._modalStore = ModalStore.instance(this);
   }
 
   static instance () {
@@ -281,7 +284,7 @@ export default class DappsStore {
           manifest,
           owner,
           isOwner
-        });
+        }, this._modalStore);
 
         return dapp;
       });
