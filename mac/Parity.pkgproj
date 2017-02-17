@@ -431,7 +431,7 @@
 													<key>GID</key>
 													<integer>0</integer>
 													<key>PATH</key>
-													<string>../target/release/deps/ethstore</string>
+													<string>../target/release/ethstore</string>
 													<key>PATH_TYPE</key>
 													<integer>3</integer>
 													<key>PERMISSIONS</key>
