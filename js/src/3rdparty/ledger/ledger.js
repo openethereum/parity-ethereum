@@ -23,7 +23,8 @@ import u2fapi from 'u2f-api';
 import Ledger3 from './vendor/ledger3';
 import LedgerEth from './vendor/ledger-eth';
 
-const LEDGER_PATH_ETH = "44'/60'/0'";
+const LEDGER_PATH_ETC = "44’/60’/160720'/0'/0";
+const LEDGER_PATH_ETH = "44'/60'/0'/0";
 const SCRAMBLE_KEY = 'w0w';
 
 function numberToHex (number) {
@@ -128,3 +129,8 @@ export default class Ledger {
     return new Ledger(api, ledger);
   }
 }
+
+export {
+  LEDGER_PATH_ETC,
+  LEDGER_PATH_ETH
+};
