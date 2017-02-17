@@ -354,7 +354,10 @@ impl EncryptedConnection {
 	/// Send a packet
 	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), NetworkError> where Message: Send + Clone + Sync + 'static {
 		let mut header = RlpStream::new();
-		let len = payload.len() as usize;
+		let len = payload.len();
+		if len >= (1 << 24) {
+			return Err(NetworkError::OversizedPacket);
+		}
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
 		header.append_raw(&[0xc2u8, 0x80u8, 0x80u8], 1);
 		//TODO: ger rid of vectors here
