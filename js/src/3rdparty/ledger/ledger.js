@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import 'u2f-api-polyfill';
-
 import BigNumber from 'bignumber.js';
 import Transaction from 'ethereumjs-tx';
 import u2fapi from 'u2f-api';
@@ -42,13 +40,6 @@ export default class Ledger {
 
   // FIXME: Until we have https support from Parity u2f will not work. Here we mark it completely
   // as unsupported until a full end-to-end environment is available.
-  //
-  // To test the implementation via http -
-  //   - Install the u2f extension available from the Chrome store, https://chrome.google.com/webstore/detail/fido-u2f-universal-2nd-fa/pfboblefjcgdjicmnffhdgionmgcdmne/related
-  //   - Navigate to chrome://extensions and enable Developer Mode by clicking a checkbox in the top right corner.
-  //   - Find the FIDO U2F (Universal 2nd Factor) extension.
-  //   - Click on "background page". This will open a Developer Tools window, including a Console.
-  //   - In the console, type: HTTP_ORIGINS_ALLOWED = true;
   get isSupported () {
     return false && this._isSupported;
   }
@@ -112,17 +103,14 @@ export default class Ledger {
             return;
           }
 
-          const v = new Buffer(response.v, 'hex');
+          tx.v = new Buffer(response.v, 'hex');
+          tx.r = new Buffer(response.r, 'hex');
+          tx.s = new Buffer(response.s, 'hex');
 
-          if (chainId !== Math.floor((v[0] - 35) / 2)) {
+          if (chainId !== Math.floor((tx.v[0] - 35) / 2)) {
             reject(new Error('Invalid EIP155 signature received from Ledger.'));
             return;
           }
-
-          // https://github.com/ethcore/parity/pull/4578
-          tx.v = new Buffer([1]); // new Buffer([(v[0] + 1) % 2]);
-          tx.r = new Buffer(response.r, 'hex');
-          tx.s = new Buffer(response.s, 'hex');
 
           resolve(`0x${tx.serialize().toString('hex')}`);
         });
