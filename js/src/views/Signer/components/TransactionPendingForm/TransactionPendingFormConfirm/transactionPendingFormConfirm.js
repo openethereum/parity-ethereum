@@ -195,17 +195,28 @@ export default class TransactionPendingFormConfirm extends Component {
   }
 
   renderHint () {
-    const { account, isSending } = this.props;
+    const { account, disabled, isSending } = this.props;
 
-    if (account.hardware && isSending) {
-      return (
-        <div className={ styles.passwordHint }>
-          <FormattedMessage
-            id='signer.sending.unlockHardware'
-            defaultMessage='Please confirm the transaction on your attached hardware device'
-          />
-        </div>
-      );
+    if (account.hardware) {
+      if (isSending) {
+        return (
+          <div className={ styles.passwordHint }>
+            <FormattedMessage
+              id='signer.sending.hardware.confirm'
+              defaultMessage='Please confirm the transaction on your attached hardware device'
+            />
+          </div>
+        );
+      } else if (disabled) {
+        return (
+          <div className={ styles.passwordHint }>
+            <FormattedMessage
+              id='signer.sending.hardware.connect'
+              defaultMessage='Please attach your hardware device before confirming the transaction'
+            />
+          </div>
+        );
+      }
     }
 
     const passwordHint = this.getPasswordHint();
