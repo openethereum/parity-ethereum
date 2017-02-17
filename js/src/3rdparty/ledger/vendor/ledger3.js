@@ -19,8 +19,6 @@
 
 'use strict';
 
-var u2f = require('./u2f-api');
-
 var Ledger3 = function(scrambleKey, timeoutSeconds) {
 	this.scrambleKey = new Buffer(scrambleKey, 'ascii');
 	this.timeoutSeconds = timeoutSeconds;

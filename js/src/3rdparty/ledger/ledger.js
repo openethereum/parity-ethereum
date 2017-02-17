@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import 'u2f-api-polyfill';
+
 import BigNumber from 'bignumber.js';
 import Transaction from 'ethereumjs-tx';
 import u2fapi from 'u2f-api';
@@ -21,7 +23,7 @@ import u2fapi from 'u2f-api';
 import Ledger3 from './vendor/ledger3';
 import LedgerEth from './vendor/ledger-eth';
 
-const LEDGER_PATH_ETH = "44'/60'/0'/0";
+const LEDGER_PATH_ETH = "44'/60'/0'";
 const SCRAMBLE_KEY = 'w0w';
 
 function numberToHex (number) {
