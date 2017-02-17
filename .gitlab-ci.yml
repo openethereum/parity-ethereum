@@ -22,7 +22,9 @@ linux-stable:
     - triggers
   script:
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
-    - cargo build -j $(nproc) --release -p evmbin ethstore ethkey
+    - cargo build -j $(nproc) --release -p evmbin
+    - cargo build -j $(nproc) --release -p ethstore
+    - cargo build -j $(nproc) --release -p ethkey
     - strip target/release/parity
     - strip target/release/evmbin
     - strip target/release/ethstore
