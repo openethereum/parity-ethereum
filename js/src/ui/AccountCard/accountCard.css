@@ -16,18 +16,14 @@
 */
 
 .account {
-  padding: 1em;
-  margin: 0.5em 0;
-
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-
+  align-items: stretch;
   background-color: rgba(0, 0, 0, 0.8);
-
+  display: flex;
+  flex-direction: row;
+  margin: 0.5em 0;
+  overflow: hidden;
   transition: transform ease-out 0.1s;
   transform: scale(1);
-  overflow: hidden;
 
   &.copied {
     animation-duration: 0.25s;
@@ -50,6 +46,38 @@
   &:hover {
     cursor: pointer;
     background-color: rgba(0, 0, 0, 0.4);
+  }
+}
+
+.mainContainer {
+  flex: 1 1 auto;
+  overflow: hidden;
+  padding: 1em;
+}
+
+.tagsContainer {
+  flex: 0 0 auto;
+  position: relative;
+  width: 3em;
+}
+
+.tags {
+  background-color: rgba(0, 0, 0, 0.4);
+  box-sizing: content-box;
+  height: calc(100% - 0.5em);
+  overflow-x: hidden;
+  overflow-y: scroll;
+  padding: 0.25em;
+  padding-right: 2em;
+  position: absolute;
+  right: -2.5em;
+  transition: background-color 0.2s ease-out;
+  width: calc(100% + 0.25em);
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+    padding-left: 0.5em;
+    width: auto;
   }
 }
 

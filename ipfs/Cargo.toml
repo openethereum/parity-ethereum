@@ -1,0 +1,15 @@
+[package]
+description = "Parity IPFS-compatible API"
+name = "parity-ipfs-api"
+version = "1.6.0"
+license = "GPL-3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+ethcore = { path = "../ethcore" }
+ethcore-util = { path = "../util" }
+rlp = { path = "../util/rlp" }
+mime = "0.2"
+hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
+cid = "0.2"
+multihash = "0.5"

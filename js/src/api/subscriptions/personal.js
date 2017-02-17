@@ -126,6 +126,7 @@ export default class Personal {
         case 'parity_setDappsAddresses':
         case 'parity_setNewDappsWhitelist':
           this._defaultAccount(true);
+          this._listAccounts();
           return;
       }
     });
