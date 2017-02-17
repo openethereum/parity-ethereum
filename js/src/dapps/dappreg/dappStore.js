@@ -121,7 +121,7 @@ export default class DappStore {
       updates.manifest = this.wip.manifest.url;
     }
 
-    if (this.wip.owner.address !== this.owner.url) {
+    if (this.wip.owner.address !== this.owner.address) {
       updates.owner = this.wip.owner.address;
     }
 

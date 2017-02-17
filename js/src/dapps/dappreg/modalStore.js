@@ -16,7 +16,8 @@
 
 import { action, observable, transaction } from 'mobx';
 
-import { trackRequest } from './parity';
+import { api, trackRequest } from './parity';
+import { registerGHH, urlToHash } from './utils';
 
 let instance = null;
 
@@ -33,6 +34,7 @@ export default class ModalStore {
   @observable showingWarning = true;
 
   @observable dappId = null;
+  @observable dappOwner = null;
   @observable updates = {};
 
   _dappsStore = null;
@@ -144,13 +146,13 @@ export default class ModalStore {
   }
 
   doDelete () {
-    const { dappId, ownerAddress } = this;
+    const { dappId, dappOwner } = this;
 
     this.setDeleteStep(2);
 
     const values = [ dappId ];
     const options = {
-      from: ownerAddress
+      from: dappOwner
     };
 
     console.log('ModalStore:doDelete', `performing deletion for ${dappId} from ${options.from}`);
@@ -229,8 +231,42 @@ export default class ModalStore {
       });
   }
 
+  doUpdateOwner (nextOwnerAddress) {
+    const { dappId, dappOwner } = this;
+    const regInstance = this._dappsStore._instanceReg;
+
+    const statusCallback = (error, status) => {
+      if (error) {
+      } else if (status.signerRequestId) {
+      } else if (status.transactionHash) {
+        this.setUpdateStep(3);
+      } else if (status.transactionReceipt) {
+        this.setUpdateStep(4);
+      }
+    };
+
+    const options = {
+      from: dappOwner
+    };
+
+    const values = [ dappId, nextOwnerAddress ];
+
+    return regInstance.setDappOwner
+      .estimateGas(options, values)
+      .then((gas) => {
+        options.gas = gas.mul(1.2);
+
+        const request = regInstance.setDappOwner.postTransaction(options, values);
+
+        console.log('ModalStore:doUpdateOwner', `performing updates for ${dappId}`, options, values);
+        return trackRequest(request, statusCallback);
+      });
+  }
+
   doUpdate () {
-    const { dappId, ownerAddress, updates } = this;
+    const { dappId, dappOwner, updates } = this;
+    const ghhInstance = this._dappsStore._instanceGhh;
+    const regInstance = this._dappsStore._instanceReg;
 
     this.setUpdateStep(2);
 
@@ -245,38 +281,48 @@ export default class ModalStore {
     };
 
     const options = {
-      from: ownerAddress
+      from: dappOwner
     };
     const types = {
-      'content': 'CONTENT',
-      'image': 'IMG',
-      'manifest': 'MANIFEST'
+      content: 'CONTENT',
+      image: 'IMG',
+      manifest: 'MANIFEST'
     };
     const promises = Object
       .keys(types)
       .filter((type) => updates[type])
       .map((type) => {
-        const values = [ dappId, types[type], updates[type] ];
+        const key = types[type];
+        const url = updates[type];
 
-        return this._dappsStore._instanceReg.setMeta
-          .estimateGas(options, values)
+        let values;
+
+        return urlToHash(api, ghhInstance, url)
+          .then((ghhResult) => {
+            const { hash, registered } = ghhResult;
+
+            values = [ dappId, key, hash ];
+
+            if (!registered) {
+              return registerGHH(ghhInstance, url, hash, dappOwner);
+            }
+          })
+          .then(() => regInstance.setMeta.estimateGas(options, values))
           .then((gas) => {
-            const nextGas = gas.map((gas) => gas.mul(1.2));
+            const nextGas = gas.mul(1.2);
             const nextOptions = { ...options, gas: nextGas.toFixed(0) };
+            const request = regInstance.setMeta.postTransaction(nextOptions, values);
 
             console.log('ModalStore:doUpdate', `performing updates for ${dappId}`, nextOptions, values);
-
-            return this._dappsStore._instanceReg.setMeta.postTransaction(nextOptions, values);
-          })
-          .then((request) => {
             return trackRequest(request, statusCallback);
           });
       });
 
-    return Promise.all(promises)
-      .then((requests) => {
+    if (updates.owner) {
+      promises.push(this.doUpdateOwner(updates.owner));
+    }
 
-      })
+    return Promise.all(promises)
       .then(() => {
         this._dappsStore.refreshApp(dappId);
       })

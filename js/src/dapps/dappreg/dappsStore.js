@@ -35,6 +35,8 @@ export default class DappsStore {
   @observable isContractOwner = false;
   @observable isLoading = true;
 
+  _instanceGhh = null;
+  _instanceReg = null;
   _modalStore = null;
   _startTime = Date.now();
 
