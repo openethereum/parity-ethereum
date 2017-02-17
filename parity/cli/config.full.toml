@@ -70,6 +70,9 @@ pass = "test_pass"
 [ipfs]
 enable = false
 port = 5001
+interface = "local"
+cors = "null"
+hosts = ["none"]
 
 [mining]
 author = "0xdeadbeefcafe0000000000000000000000000001"

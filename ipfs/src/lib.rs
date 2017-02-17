@@ -24,19 +24,46 @@ extern crate rlp;
 extern crate ethcore;
 extern crate ethcore_util as util;
 
-mod error;
-mod handler;
+pub mod error;
+mod route;
 
 use std::io::Write;
 use std::sync::Arc;
-use std::net::{SocketAddr, IpAddr, Ipv4Addr};
+use std::net::{SocketAddr, IpAddr};
 use error::ServerError;
-use handler::{IpfsHandler, Out};
+use route::Out;
 use hyper::server::{Listening, Handler, Request, Response};
 use hyper::net::HttpStream;
 use hyper::header::{ContentLength, ContentType};
 use hyper::{Next, Encoder, Decoder, Method, RequestUri, StatusCode};
 use ethcore::client::BlockChainClient;
+
+
+/// Request/response handler
+pub struct IpfsHandler {
+	/// Reference to the Blockchain Client
+	client: Arc<BlockChainClient>,
+
+	/// Response to send out
+	out: Out,
+
+	/// How many bytes from the response have been written
+	out_progress: usize,
+}
+
+impl IpfsHandler {
+	pub fn client(&self) -> &BlockChainClient {
+		&*self.client
+	}
+
+	pub fn new(client: Arc<BlockChainClient>) -> Self {
+		IpfsHandler {
+			client: client,
+			out: Out::Bad("Invalid Request"),
+			out_progress: 0,
+		}
+	}
+}
 
 /// Implement Hyper's HTTP handler
 impl Handler<HttpStream> for IpfsHandler {
@@ -57,7 +84,9 @@ impl Handler<HttpStream> for IpfsHandler {
 			_ => return Next::write(),
 		};
 
-		self.route(path, query)
+		self.out = self.route(path, query);
+
+		Next::write()
 	}
 
 	fn on_request_readable(&mut self, _decoder: &mut Decoder<HttpStream>) -> Next {
@@ -136,10 +165,14 @@ fn write_chunk<W: Write>(transport: &mut W, progress: &mut usize, data: &[u8]) -
 	}
 }
 
-pub fn start_server(port: u16, client: Arc<BlockChainClient>) -> Result<Listening, ServerError> {
-	// let ip = Ipv4Addr::new(127, 0, 0, 1);
-	let ip = Ipv4Addr::new(0, 0, 0, 0);
-	let addr = SocketAddr::new(IpAddr::V4(ip), port);
+pub fn start_server(
+	port: u16,
+	interface: String,
+	client: Arc<BlockChainClient>
+) -> Result<Listening, ServerError> {
+
+	let ip: IpAddr = interface.parse().map_err(|_| ServerError::InvalidInterface)?;
+	let addr = SocketAddr::new(ip, port);
 
 	Ok(
 		hyper::Server::http(&addr)?

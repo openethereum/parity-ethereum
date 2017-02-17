@@ -423,10 +423,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let signer_server = signer::start(cmd.signer_conf.clone(), signer_deps)?;
 
 	// the ipfs server
-	let ipfs_server = match cmd.ipfs_conf.enabled {
-		true => Some(ipfs::start_server(cmd.ipfs_conf.port, client.clone())?),
-		false => None,
-	};
+	let ipfs_server = ipfs::start_server(cmd.ipfs_conf.clone(), client.clone())?;
 
 	// the informant
 	let informant = Arc::new(Informant::new(
