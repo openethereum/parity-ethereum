@@ -67,4 +67,4 @@ RUN file /build/parity/target/release/parity&&mkdir -p /parity&&cp /build/parity
 RUN rm -rf /root/.cargo&&rm -rf /root/.multirust&&rm -rf /root/.rustup&&rm -rf /build
 
 EXPOSE 8080 8545 8180
-ENTRYPOINT ["/parity"]
+ENTRYPOINT ["/parity/parity"]
