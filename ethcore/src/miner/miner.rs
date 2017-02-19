@@ -594,6 +594,7 @@ impl Miner {
 			.map(|accounts| accounts.into_iter().collect::<HashSet<_>>());
 
 		let insertion_time = client.chain_info().best_block_number;
+		let best_header = client.best_block_header().decode();
 
 		transactions.into_iter()
 			.map(|tx| {
@@ -611,6 +612,8 @@ impl Miner {
 
 				// try to install service transaction checker before appending transactions
 				self.service_transaction_action.update_from_chain_client(client);
+
+				self.engine.verify_transaction_basic(&tx, &best_header)?;
 
 				let details_provider = TransactionDetailsProvider::new(client, &self.service_transaction_action);
 				match origin {
