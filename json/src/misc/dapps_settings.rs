@@ -22,7 +22,9 @@ use hash;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DappsSettings {
 	/// A list of accounts this Dapp can see.
-	pub accounts: Vec<hash::Address>,
+	pub accounts: Option<Vec<hash::Address>>,
+	/// Default account
+	pub default: Option<hash::Address>,
 }
 
 impl_serialization!(String => DappsSettings);
@@ -40,7 +42,10 @@ impl_serialization!(String => DappsHistory);
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum NewDappsPolicy {
 	/// All accounts are exposed by default.
-	AllAccounts,
+	AllAccounts {
+		/// Default account, which should be returned as the first one.
+		default: hash::Address,
+	},
 	/// Only accounts listed here are exposed by default for new dapps.
 	Whitelist(Vec<hash::Address>),
 }

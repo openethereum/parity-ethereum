@@ -16,6 +16,8 @@
 
 //! A service to fetch any HTTP / HTTPS content.
 
+#![warn(missing_docs)]
+
 #[macro_use]
 extern crate log;
 

@@ -220,8 +220,8 @@ impl Engine for AuthorityRound {
 		});
 	}
 
-	fn is_sealer(&self, author: &Address) -> Option<bool> {
-		Some(self.validators.contains(author))
+	fn seals_internally(&self) -> Option<bool> {
+		Some(self.validators.contains(&self.signer.address()))
 	}
 
 	/// Attempt to seal the block internally.

@@ -189,6 +189,22 @@ usage! {
 			or |c: &Config| otry!(c.dapps).pass.clone().map(Some),
 		flag_dapps_apis_all: bool = false, or |_| None,
 
+		// Secret Store
+		flag_no_secretstore: bool = false,
+			or |c: &Config| otry!(c.secretstore).disable.clone(),
+		flag_secretstore_port: u16 = 8082u16,
+			or |c: &Config| otry!(c.secretstore).port.clone(),
+		flag_secretstore_interface: String = "local",
+			or |c: &Config| otry!(c.secretstore).interface.clone(),
+		flag_secretstore_path: String = "$BASE/secretstore",
+			or |c: &Config| otry!(c.secretstore).path.clone(),
+
+		// IPFS
+		flag_ipfs_api: bool = false,
+			or |c: &Config| otry!(c.ipfs).enable.clone(),
+		flag_ipfs_api_port: u16 = 5001u16,
+			or |c: &Config| otry!(c.ipfs).port.clone(),
+
 		// -- Sealing/Mining Options
 		flag_author: Option<String> = None,
 			or |c: &Config| otry!(c.mining).author.clone().map(Some),
@@ -321,6 +337,8 @@ struct Config {
 	rpc: Option<Rpc>,
 	ipc: Option<Ipc>,
 	dapps: Option<Dapps>,
+	secretstore: Option<SecretStore>,
+	ipfs: Option<Ipfs>,
 	mining: Option<Mining>,
 	footprint: Option<Footprint>,
 	snapshots: Option<Snapshots>,
@@ -410,6 +428,20 @@ struct Dapps {
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
+struct SecretStore {
+	disable: Option<bool>,
+	port: Option<u16>,
+	interface: Option<String>,
+	path: Option<String>,
+}
+
+#[derive(Default, Debug, PartialEq, RustcDecodable)]
+struct Ipfs {
+	enable: Option<bool>,
+	port: Option<u16>,
+}
+
+#[derive(Default, Debug, PartialEq, RustcDecodable)]
 struct Mining {
 	author: Option<String>,
 	engine_signer: Option<String>,
@@ -482,7 +514,8 @@ struct Misc {
 mod tests {
 	use super::{
 		Args, ArgsError,
-		Config, Operating, Account, Ui, Network, Rpc, Ipc, Dapps, Mining, Footprint, Snapshots, VM, Misc
+		Config, Operating, Account, Ui, Network, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
+		Snapshots, VM, Misc, SecretStore,
 	};
 	use toml;
 
@@ -636,6 +669,15 @@ mod tests {
 			flag_dapps_user: Some("test_user".into()),
 			flag_dapps_pass: Some("test_pass".into()),
 			flag_dapps_apis_all: false,
+
+			flag_no_secretstore: false,
+			flag_secretstore_port: 8082u16,
+			flag_secretstore_interface: "local".into(),
+			flag_secretstore_path: "$HOME/.parity/secretstore".into(),
+
+			// IPFS
+			flag_ipfs_api: false,
+			flag_ipfs_api_port: 5001u16,
 
 			// -- Sealing/Mining Options
 			flag_author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
@@ -821,6 +863,16 @@ mod tests {
 				hosts: None,
 				user: Some("username".into()),
 				pass: Some("password".into())
+			}),
+			secretstore: Some(SecretStore {
+				disable: None,
+				port: Some(8082),
+				interface: None,
+				path: None,
+			}),
+			ipfs: Some(Ipfs {
+				enable: Some(false),
+				port: Some(5001)
 			}),
 			mining: Some(Mining {
 				author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),

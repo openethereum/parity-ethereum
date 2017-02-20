@@ -56,7 +56,7 @@ impl Engine for InstantSeal {
 		Schedule::new_post_eip150(usize::max_value(), true, true, true)
 	}
 
-	fn is_sealer(&self, _author: &Address) -> Option<bool> { Some(true) }
+	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
 	fn generate_seal(&self, _block: &ExecutedBlock) -> Seal {
 		Seal::Regular(Vec::new())

@@ -37,7 +37,9 @@ use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
+use ipfs::Configuration as IpfsConfiguration;
 use signer::{Configuration as SignerConfiguration};
+use secretstore::Configuration as SecretStoreConfiguration;
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
@@ -118,7 +120,9 @@ impl Configuration {
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let dapps_conf = self.dapps_config();
+		let ipfs_conf = self.ipfs_config();
 		let signer_conf = self.signer_config();
+		let secretstore_conf = self.secretstore_config();
 		let format = self.format()?;
 
 		let cmd = if self.args.flag_version {
@@ -342,7 +346,9 @@ impl Configuration {
 				ui_address: ui_address,
 				net_settings: self.network_settings(),
 				dapps_conf: dapps_conf,
+				ipfs_conf: ipfs_conf,
 				signer_conf: signer_conf,
+				secretstore_conf: secretstore_conf,
 				dapp: self.dapp_to_open()?,
 				ui: self.args.cmd_ui,
 				name: self.args.flag_identity,
@@ -536,6 +542,22 @@ impl Configuration {
 				vec![]
 			},
 			all_apis: self.args.flag_dapps_apis_all,
+		}
+	}
+
+	fn secretstore_config(&self) -> SecretStoreConfiguration {
+		SecretStoreConfiguration {
+			enabled: self.secretstore_enabled(),
+			interface: self.secretstore_interface(),
+			port: self.args.flag_secretstore_port,
+			data_path: self.directories().secretstore,
+		}
+	}
+
+	fn ipfs_config(&self) -> IpfsConfiguration {
+		IpfsConfiguration {
+			enabled: self.args.flag_ipfs_api,
+			port: self.args.flag_ipfs_api_port,
 		}
 	}
 
@@ -777,6 +799,7 @@ impl Configuration {
 		let db_path = replace_home_for_db(&data_path, &local_path, &base_db_path);
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
+		let secretstore_path = replace_home(&data_path, &self.args.flag_secretstore_path);
 		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
 
 		if self.args.flag_geth  && !cfg!(windows) {
@@ -800,6 +823,7 @@ impl Configuration {
 			db: db_path,
 			dapps: dapps_path,
 			signer: ui_path,
+			secretstore: secretstore_path,
 		}
 	}
 
@@ -841,6 +865,13 @@ impl Configuration {
 		}.into()
 	}
 
+	fn secretstore_interface(&self) -> String {
+		match self.args.flag_secretstore_interface.as_str() {
+			"local" => "127.0.0.1",
+			x => x,
+		}.into()
+	}
+
 	fn stratum_interface(&self) -> String {
 		match self.args.flag_stratum_interface.as_str() {
 			"local" => "127.0.0.1",
@@ -851,6 +882,10 @@ impl Configuration {
 
 	fn dapps_enabled(&self) -> bool {
 		!self.args.flag_dapps_off && !self.args.flag_no_dapps && cfg!(feature = "dapps")
+	}
+
+	fn secretstore_enabled(&self) -> bool {
+		!self.args.flag_no_secretstore && cfg!(feature = "secretstore")
 	}
 
 	fn ui_enabled(&self) -> bool {
@@ -1073,7 +1108,7 @@ mod tests {
 	fn test_run_cmd() {
 		let args = vec!["parity"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(RunCmd {
+		let mut expected = RunCmd {
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			spec: Default::default(),
@@ -1101,7 +1136,9 @@ mod tests {
 			ui_address: Some(("127.0.0.1".into(), 8180)),
 			net_settings: Default::default(),
 			dapps_conf: Default::default(),
+			ipfs_conf: Default::default(),
 			signer_conf: Default::default(),
+			secretstore_conf: Default::default(),
 			ui: false,
 			dapp: None,
 			name: "".into(),
@@ -1112,7 +1149,9 @@ mod tests {
 			check_seal: true,
 			download_old_blocks: true,
 			verifier_settings: Default::default(),
-		}));
+		};
+		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));
 	}
 
 	#[test]

@@ -47,7 +47,9 @@ use dir::Directories;
 use cache::CacheConfig;
 use user_defaults::UserDefaults;
 use dapps;
+use ipfs;
 use signer;
+use secretstore;
 use modules;
 use rpc_apis;
 use rpc;
@@ -93,7 +95,9 @@ pub struct RunCmd {
 	pub ui_address: Option<(String, u16)>,
 	pub net_settings: NetworkSettings,
 	pub dapps_conf: dapps::Configuration,
+	pub ipfs_conf: ipfs::Configuration,
 	pub signer_conf: signer::Configuration,
+	pub secretstore_conf: secretstore::Configuration,
 	pub dapp: Option<String>,
 	pub ui: bool,
 	pub name: String,
@@ -132,6 +136,21 @@ pub fn open_dapp(dapps_conf: &dapps::Configuration, dapp: &str) -> Result<(), St
 	Ok(())
 }
 
+// node info fetcher for the local store.
+struct FullNodeInfo {
+	miner: Arc<Miner>, // TODO: only TXQ needed, just use that after decoupling.
+}
+
+impl ::local_store::NodeInfo for FullNodeInfo {
+	fn pending_transactions(&self) -> Vec<::ethcore::transaction::PendingTransaction> {
+		let local_txs = self.miner.local_transactions();
+		self.miner.pending_transactions()
+			.into_iter()
+			.chain(self.miner.future_transactions())
+			.filter(|tx| local_txs.contains_key(&tx.hash()))
+			.collect()
+	}
+}
 
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<bool, String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
@@ -188,7 +207,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path()))?;
 
 	// create dirs used by parity
-	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled)?;
+	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled, cmd.secretstore_conf.enabled)?;
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -314,6 +333,33 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let client = service.client();
 	let snapshot_service = service.snapshot_service();
 
+	// initialize the local node information store.
+	let store = {
+		let db = service.db();
+		let node_info = FullNodeInfo {
+			miner: miner.clone(),
+		};
+
+		let store = ::local_store::create(db, ::ethcore::db::COL_NODE_INFO, node_info);
+
+		// re-queue pending transactions.
+		match store.pending_transactions() {
+			Ok(pending) => {
+				for pending_tx in pending {
+					if let Err(e) = miner.import_own_transaction(&*client, pending_tx) {
+						warn!("Error importing saved transaction: {}", e)
+					}
+				}
+			}
+			Err(e) => warn!("Error loading cached pending transactions from disk: {}", e),
+		}
+
+		Arc::new(store)
+	};
+
+	// register it as an IO service to update periodically.
+	service.register_io_handler(store).map_err(|_| "Unable to register local store handler".to_owned())?;
+
 	// create external miner
 	let external_miner = Arc::new(ExternalMiner::default());
 
@@ -420,6 +466,16 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	};
 	let signer_server = signer::start(cmd.signer_conf.clone(), signer_deps)?;
 
+	// secret store key server
+	let secretstore_deps = secretstore::Dependencies { };
+	let secretstore_key_server = secretstore::start(cmd.secretstore_conf.clone(), secretstore_deps);
+
+	// the ipfs server
+	let ipfs_server = match cmd.ipfs_conf.enabled {
+		true => Some(ipfs::start_server(cmd.ipfs_conf.port, client.clone())?),
+		false => None,
+	};
+
 	// the informant
 	let informant = Arc::new(Informant::new(
 		service.client(),
@@ -476,7 +532,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let restart = wait_for_exit(panic_handler, Some(updater), can_restart);
 
 	// drop this stuff as soon as exit detected.
-	drop((http_server, ipc_server, dapps_server, signer_server, event_loop));
+	drop((http_server, ipc_server, dapps_server, signer_server, secretstore_key_server, ipfs_server, event_loop));
 
 	info!("Finishing work, please wait...");
 

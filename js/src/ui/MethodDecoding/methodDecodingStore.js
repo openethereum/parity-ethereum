@@ -54,9 +54,19 @@ export default class MethodDecodingStore {
   }
 
   loadFromAbi (_abi, contractAddress) {
-    const abi = new Abi(_abi);
+    let abi;
 
-    if (contractAddress && abi) {
+    try {
+      abi = new Abi(_abi);
+    } catch (error) {
+      console.warn('loadFromAbi', error, _abi);
+    }
+
+    if (!abi) {
+      return;
+    }
+
+    if (contractAddress) {
       this._contractsAbi[contractAddress] = abi;
     }
 

@@ -74,4 +74,8 @@ impl KeyDirectory for TransientDir {
 	fn remove(&self, account: &SafeAccount) -> Result<(), Error> {
 		self.dir.remove(account)
 	}
+
+	fn unique_repr(&self) -> Result<u64, Error> {
+		self.dir.unique_repr()
+	}
 }

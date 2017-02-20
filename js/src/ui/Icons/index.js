@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+export AccountsIcon from 'material-ui/svg-icons/action/account-balance-wallet';
 export AddIcon from 'material-ui/svg-icons/content/add';
 export AttachFileIcon from 'material-ui/svg-icons/editor/attach-file';
 export CancelIcon from 'material-ui/svg-icons/content/clear';
@@ -28,6 +29,7 @@ export DeleteIcon from 'material-ui/svg-icons/action/delete';
 export DoneIcon from 'material-ui/svg-icons/action/done-all';
 export EditIcon from 'material-ui/svg-icons/content/create';
 export FingerprintIcon from 'material-ui/svg-icons/action/fingerprint';
+export KeyIcon from 'material-ui/svg-icons/communication/vpn-key';
 export LinkIcon from 'material-ui/svg-icons/content/link';
 export LockedIcon from 'material-ui/svg-icons/action/lock';
 export MoveIcon from 'material-ui/svg-icons/action/open-with';
@@ -41,6 +43,7 @@ export SnoozeIcon from 'material-ui/svg-icons/av/snooze';
 export StarCircleIcon from 'material-ui/svg-icons/action/stars';
 export StarIcon from 'material-ui/svg-icons/toggle/star';
 export StarOutlineIcon from 'material-ui/svg-icons/toggle/star-border';
+export UnlockedIcon from 'material-ui/svg-icons/action/lock-open';
 export VerifyIcon from 'material-ui/svg-icons/action/verified-user';
 export VisibleIcon from 'material-ui/svg-icons/image/remove-red-eye';
 export VpnIcon from 'material-ui/svg-icons/notification/vpn-lock';

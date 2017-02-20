@@ -30,15 +30,18 @@ import styles from './title.css';
 export default class Title extends Component {
   static propTypes = {
     activeStep: PropTypes.number,
+    description: nodeOrStringProptype(),
     busy: PropTypes.bool,
     busySteps: PropTypes.array,
+    byline: nodeOrStringProptype(),
     className: PropTypes.string,
+    isSubTitle: PropTypes.bool,
     steps: PropTypes.array,
     title: nodeOrStringProptype()
   }
 
   render () {
-    const { activeStep, className, steps, title } = this.props;
+    const { activeStep, byline, className, description, isSubTitle, steps, title } = this.props;
 
     if (!title && !steps) {
       return null;
@@ -47,10 +50,17 @@ export default class Title extends Component {
     return (
       <div
         className={
-          [styles.title, className].join(' ')
+          [
+            isSubTitle
+              ? styles.subtitle
+              : styles.title,
+            className
+          ].join(' ')
         }
       >
         <ContainerTitle
+          byline={ byline }
+          description={ description }
           title={
             steps
               ? steps[activeStep || 0]

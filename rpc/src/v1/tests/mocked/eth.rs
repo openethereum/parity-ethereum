@@ -368,7 +368,7 @@ fn rpc_eth_gas_price() {
 fn rpc_eth_accounts() {
 	let tester = EthTester::default();
 	let address = tester.accounts_provider.new_account("").unwrap();
-	tester.accounts_provider.set_new_dapps_whitelist(None).unwrap();
+	tester.accounts_provider.set_new_dapps_addresses(None).unwrap();
 	tester.accounts_provider.set_address_name(1.into(), "1".into());
 	tester.accounts_provider.set_address_name(10.into(), "10".into());
 
@@ -377,14 +377,14 @@ fn rpc_eth_accounts() {
 	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned() + &format!("0x{:?}", address) + r#""],"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
-	tester.accounts_provider.set_new_dapps_whitelist(Some(vec![1.into()])).unwrap();
+	tester.accounts_provider.set_new_dapps_addresses(Some(vec![1.into()])).unwrap();
 	// even with some account it should return empty list (no dapp detected)
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x0000000000000000000000000000000000000001"],"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
 	// when we add visible address it should return that.
-	tester.accounts_provider.set_dapps_addresses("app1".into(), vec![10.into()]).unwrap();
+	tester.accounts_provider.set_dapp_addresses("app1".into(), Some(vec![10.into()])).unwrap();
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x000000000000000000000000000000000000000a"],"id":1}"#;
 	let mut meta = Metadata::default();

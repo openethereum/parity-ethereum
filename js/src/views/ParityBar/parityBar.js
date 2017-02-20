@@ -345,21 +345,16 @@ class ParityBar extends Component {
 
   renderAccount = (account) => {
     const makeDefaultAccount = () => {
+      this.toggleAccountsDisplay();
       return this.accountStore
         .makeDefaultAccount(account.address)
         .then(() => this.accountStore.loadAccounts());
-    };
-
-    const onDoubleClick = () => {
-      this.toggleAccountsDisplay();
-      makeDefaultAccount();
     };
 
     return (
       <div
         className={ styles.account }
         onClick={ makeDefaultAccount }
-        onDoubleClick={ onDoubleClick }
       >
         <AccountCard
           account={ account }
