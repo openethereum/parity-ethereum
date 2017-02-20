@@ -480,7 +480,7 @@ docker-build:
     - docker build --no-cache=true --tag ethcore/parity:$DOCKER_TAG .
     - docker push ethcore/parity:$DOCKER_TAG
   tags:
-- docker
+    - docker
 test-darwin:
   stage: test
   only:
