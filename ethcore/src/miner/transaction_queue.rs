@@ -1109,7 +1109,7 @@ impl TransactionQueue {
 		r
 	}
 
-	/// Return all ready transactions.
+	/// Return all future transactions.
 	pub fn future_transactions(&self) -> Vec<PendingTransaction> {
 		self.future.by_priority
 			.iter()

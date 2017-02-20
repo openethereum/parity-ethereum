@@ -1,0 +1,16 @@
+[package]
+name = "parity-local-store"
+description = "Manages persistent local node data."
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+ethcore-util = { path = "../util" }
+ethcore-io = { path = "../util/io" }
+ethcore = { path = "../ethcore" }
+rlp = {path = "../util/rlp" }
+serde = "0.9"
+serde_derive = "0.9"
+serde_json = "0.9"
+log = "0.3"
+ethkey = { path = "../ethkey" }

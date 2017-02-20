@@ -18,7 +18,7 @@
 
 use common::*;
 use hashdb::*;
-use kvdb::{Database, DBTransaction};
+use kvdb::{self, DBTransaction};
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.
@@ -66,7 +66,7 @@ pub trait JournalDB: HashDB {
 	fn is_pruned(&self) -> bool { true }
 
 	/// Get backing database.
-	fn backing(&self) -> &Arc<Database>;
+	fn backing(&self) -> &Arc<kvdb::KeyValueDB>;
 
 	/// Clear internal strucutres. This should called after changes have been written
 	/// to the backing strage

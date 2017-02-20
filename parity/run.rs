@@ -136,6 +136,21 @@ pub fn open_dapp(dapps_conf: &dapps::Configuration, dapp: &str) -> Result<(), St
 	Ok(())
 }
 
+// node info fetcher for the local store.
+struct FullNodeInfo {
+	miner: Arc<Miner>, // TODO: only TXQ needed, just use that after decoupling.
+}
+
+impl ::local_store::NodeInfo for FullNodeInfo {
+	fn pending_transactions(&self) -> Vec<::ethcore::transaction::PendingTransaction> {
+		let local_txs = self.miner.local_transactions();
+		self.miner.pending_transactions()
+			.into_iter()
+			.chain(self.miner.future_transactions())
+			.filter(|tx| local_txs.contains_key(&tx.hash()))
+			.collect()
+	}
+}
 
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<bool, String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
@@ -317,6 +332,33 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// take handle to client
 	let client = service.client();
 	let snapshot_service = service.snapshot_service();
+
+	// initialize the local node information store.
+	let store = {
+		let db = service.db();
+		let node_info = FullNodeInfo {
+			miner: miner.clone(),
+		};
+
+		let store = ::local_store::create(db, ::ethcore::db::COL_NODE_INFO, node_info);
+
+		// re-queue pending transactions.
+		match store.pending_transactions() {
+			Ok(pending) => {
+				for pending_tx in pending {
+					if let Err(e) = miner.import_own_transaction(&*client, pending_tx) {
+						warn!("Error importing saved transaction: {}", e)
+					}
+				}
+			}
+			Err(e) => warn!("Error loading cached pending transactions from disk: {}", e),
+		}
+
+		Arc::new(store)
+	};
+
+	// register it as an IO service to update periodically.
+	service.register_io_handler(store).map_err(|_| "Unable to register local store handler".to_owned())?;
 
 	// create external miner
 	let external_miner = Arc::new(ExternalMiner::default());

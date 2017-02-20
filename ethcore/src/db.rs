@@ -19,7 +19,7 @@
 use std::ops::Deref;
 use std::hash::Hash;
 use std::collections::HashMap;
-use util::{DBTransaction, Database, RwLock};
+use util::{DBTransaction, KeyValueDB, RwLock};
 
 use rlp;
 
@@ -34,10 +34,12 @@ pub const COL_BODIES: Option<u32> = Some(2);
 pub const COL_EXTRA: Option<u32> = Some(3);
 /// Column for Traces
 pub const COL_TRACE: Option<u32> = Some(4);
-/// Column for Traces
+/// Column for the empty accounts bloom filter.
 pub const COL_ACCOUNT_BLOOM: Option<u32> = Some(5);
+/// Column for general information from the local node which can persist.
+pub const COL_NODE_INFO: Option<u32> = Some(6);
 /// Number of columns in DB
-pub const NUM_COLUMNS: Option<u32> = Some(6);
+pub const NUM_COLUMNS: Option<u32> = Some(7);
 
 /// Modes for updating caches.
 #[derive(Clone, Copy)]
@@ -212,7 +214,7 @@ impl Writable for DBTransaction {
 	}
 }
 
-impl Readable for Database {
+impl<KVDB: KeyValueDB + ?Sized> Readable for KVDB {
 	fn read<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> Option<T> where T: rlp::Decodable, R: Deref<Target = [u8]> {
 		let result = self.get(col, &key.key());
 
