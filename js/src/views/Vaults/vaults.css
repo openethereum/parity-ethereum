@@ -15,6 +15,11 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.body {
-  text-align: center;
+.empty {
+  width: 100%;
+  display: block;
+
+  span {
+    color: #aaa;
+  }
 }

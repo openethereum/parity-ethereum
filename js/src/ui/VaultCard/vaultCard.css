@@ -15,6 +15,48 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.body {
-  text-align: center;
+.container {
+  text-align: left;
+
+  .accounts {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 1.5em;
+
+    .account {
+      margin: 0.5em;
+    }
+  }
+
+  .empty {
+    margin-top: 1.5em;
+    opacity: 0.5;
+    text-align: center;
+  }
+
+  .buttons {
+    margin: -1em -1em 0.75em -1em;
+    text-align: right;
+
+    button.status {
+      min-width: 2em !important;
+    }
+
+    button:not(.status) {
+      display: none !important;
+    }
+  }
+
+  &:hover {
+    .buttons {
+      button.status {
+        display: none !important;
+      }
+
+      button:not(.status) {
+        display: inline-block !important;
+      }
+    }
+  }
 }

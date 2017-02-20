@@ -20,7 +20,7 @@ import { FormattedMessage } from 'react-intl';
 import { nodeOrStringProptype } from '~/util/proptypes';
 
 import Button from '../Button';
-import Modal from '../Modal';
+import Portal from '../Portal';
 import { CancelIcon, CheckIcon } from '../Icons';
 
 import styles from './confirmDialog.css';
@@ -42,47 +42,58 @@ export default class ConfirmDialog extends Component {
   static propTypes = {
     children: PropTypes.node.isRequired,
     className: PropTypes.string,
+    disabledConfirm: PropTypes.bool,
+    disabledDeny: PropTypes.bool,
+    busy: PropTypes.bool,
     iconConfirm: PropTypes.node,
     iconDeny: PropTypes.node,
     labelConfirm: PropTypes.string,
     labelDeny: PropTypes.string,
     onConfirm: PropTypes.func.isRequired,
     onDeny: PropTypes.func.isRequired,
+    open: PropTypes.bool,
     title: nodeOrStringProptype().isRequired,
-    visible: PropTypes.bool.isRequired
+    visible: PropTypes.bool
   }
 
   render () {
-    const { children, className, title, visible } = this.props;
+    const { busy, children, className, disabledConfirm, disabledDeny, iconConfirm, iconDeny, labelConfirm, labelDeny, onConfirm, onDeny, open, title, visible } = this.props;
+
+    // TODO: visible is for compatibility with existing, open aligns with Portal.
+    // (Cleanup once all uses of ConfirmDialog has been migrated)
+    if (!visible && !open) {
+      return null;
+    }
 
     return (
-      <Modal
+      <Portal
+        buttons={ [
+          <Button
+            disabled={ disabledDeny }
+            icon={ iconDeny || <CancelIcon /> }
+            key='deny'
+            label={ labelDeny || DEFAULT_NO }
+            onClick={ onDeny }
+          />,
+          <Button
+            disabled={ disabledConfirm }
+            icon={ iconConfirm || <CheckIcon /> }
+            key='confirm'
+            label={ labelConfirm || DEFAULT_YES }
+            onClick={ onConfirm }
+          />
+        ] }
+        busy={ busy }
         className={ className }
-        actions={ this.renderActions() }
+        isSmallModal
+        onClose={ onDeny }
         title={ title }
-        visible={ visible }
+        open
       >
         <div className={ styles.body }>
           { children }
         </div>
-      </Modal>
+      </Portal>
     );
-  }
-
-  renderActions () {
-    const { iconConfirm, iconDeny, labelConfirm, labelDeny, onConfirm, onDeny } = this.props;
-
-    return [
-      <Button
-        icon={ iconDeny || <CancelIcon /> }
-        label={ labelDeny || DEFAULT_NO }
-        onClick={ onDeny }
-      />,
-      <Button
-        icon={ iconConfirm || <CheckIcon /> }
-        label={ labelConfirm || DEFAULT_YES }
-        onClick={ onConfirm }
-      />
-    ];
   }
 }

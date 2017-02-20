@@ -15,6 +15,34 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.body {
-  text-align: center;
+/* TODO: These overlap with DappPermissions now, make DRY */
+/* (selection component or just styles?) */
+.iconDisabled {
+  opacity: 0.15;
+}
+
+.item {
+  display: flex;
+  flex: 1;
+  position: relative;
+
+  .overlay {
+    position: absolute;
+    right: 0.5em;
+    top: 0.5em;
+  }
+}
+
+.selected,
+.unselected {
+  margin-bottom: 0.25em;
+  width: 100%;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.selected {
+  background: rgba(255, 255, 255, 0.15) !important;
 }

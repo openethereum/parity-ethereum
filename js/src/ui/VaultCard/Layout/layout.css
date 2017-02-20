@@ -15,6 +15,31 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.body {
-  text-align: center;
+$imageHeight: 56px;
+
+.layout {
+  display: flex;
+  min-height: $imageHeight;
+  overflow: hidden;
+  text-align: left;
+
+  &.border {
+    background: rgba(0, 0, 0, 0.25);
+    padding: 1.5em;
+  }
+
+  .identityIcon {
+    margin-right: 1em;
+    vertical-align: top;
+
+    &.locked {
+      filter: grayscale(100%);
+      opacity: 0.33;
+    }
+  }
+
+  .info {
+    flex: 1;
+    overflow: hidden;
+  }
 }
