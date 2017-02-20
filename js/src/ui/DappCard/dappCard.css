@@ -15,9 +15,15 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
+.container
+.containerLink {
   height: 100%;
   position: relative;
+}
+
+.containerLink {
+  cursor: pointer;
+  width: 100%;
 }
 
 .image {
@@ -31,7 +37,10 @@
 }
 
 .title {
-  mragin-bottom: 0.5em;
+}
+
+.titleLink {
+  color: rgb(0, 151, 167);
 }
 
 .author, .version {
