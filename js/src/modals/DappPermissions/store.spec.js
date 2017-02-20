@@ -32,7 +32,9 @@ function create () {
   api = {
     parity: {
       getNewDappsAddresses: sinon.stub().resolves(WHITELIST),
-      setNewDappsAddresses: sinon.stub().resolves(true)
+      getNewDappsDefaultAddress: sinon.stub().resolves(WHITELIST[0]),
+      setNewDappsAddresses: sinon.stub().resolves(true),
+      setNewDappsDefaultAddress: sinon.stub().resolves(true)
     }
   };
 
@@ -80,11 +82,11 @@ describe('modals/DappPermissions/store', () => {
       });
 
       it('calls setNewDappsAddresses', () => {
-        expect(api.parity.setNewDappsAddresses).to.have.been.calledOnce;
+        expect(api.parity.setNewDappsAddresses).to.have.been.calledWith(['456', '789']);
       });
 
-      it('has the default account in first position', () => {
-        expect(api.parity.setNewDappsAddresses).to.have.been.calledWith(['789', '456']);
+      it('calls into setNewDappsDefaultAddress', () => {
+        expect(api.parity.setNewDappsDefaultAddress).to.have.been.calledWith('789');
       });
     });
 
