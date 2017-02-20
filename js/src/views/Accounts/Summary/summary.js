@@ -111,8 +111,21 @@ export default class Summary extends Component {
     const description = this.getDescription(account.meta);
 
     const card = (
-      <Container>
-        <Tags tags={ tags } handleAddSearchToken={ handleAddSearchToken } />
+      <Container
+        className={ styles.account }
+        hover={
+          <div>
+            { this.renderOwners() }
+            { this.renderBalance(false) }
+            { this.renderCertifications() }
+          </div>
+        }
+      >
+        <Tags
+          className={ styles.tags }
+          tags={ tags }
+          handleAddSearchToken={ handleAddSearchToken }
+        />
         <div className={ styles.heading }>
           <IdentityIcon
             address={ address }
@@ -134,9 +147,7 @@ export default class Summary extends Component {
             }
           />
         </div>
-        { this.renderOwners() }
-        { this.renderBalance() }
-        { this.renderCertifications() }
+        { this.renderBalance(true) }
       </Container>
     );
 
@@ -214,7 +225,7 @@ export default class Summary extends Component {
     );
   }
 
-  renderBalance () {
+  renderBalance (onlyEth) {
     const { balance } = this.props;
 
     if (!balance) {
@@ -222,7 +233,15 @@ export default class Summary extends Component {
     }
 
     return (
-      <Balance balance={ balance } />
+      <Balance
+        balance={ balance }
+        className={
+          onlyEth
+            ? styles.ethBalances
+            : styles.allBalances
+        }
+        showOnlyEth={ onlyEth }
+      />
     );
   }
 
@@ -234,7 +253,10 @@ export default class Summary extends Component {
     }
 
     return (
-      <Certifications address={ account.address } />
+      <Certifications
+        address={ account.address }
+        className={ styles.Certifications }
+      />
     );
   }
 }
