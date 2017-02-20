@@ -31,8 +31,8 @@ let store;
 function create () {
   api = {
     parity: {
-      getNewDappsWhitelist: sinon.stub().resolves(WHITELIST),
-      setNewDappsWhitelist: sinon.stub().resolves(true)
+      getNewDappsAddresses: sinon.stub().resolves(WHITELIST),
+      setNewDappsAddresses: sinon.stub().resolves(true)
     }
   };
 
@@ -46,7 +46,7 @@ describe('modals/DappPermissions/store', () => {
 
   describe('constructor', () => {
     it('retrieves the whitelist via api', () => {
-      expect(api.parity.getNewDappsWhitelist).to.be.calledOnce;
+      expect(api.parity.getNewDappsAddresses).to.be.calledOnce;
     });
 
     it('sets the retrieved whitelist', () => {
@@ -79,12 +79,12 @@ describe('modals/DappPermissions/store', () => {
         store.closeModal();
       });
 
-      it('calls setNewDappsWhitelist', () => {
-        expect(api.parity.setNewDappsWhitelist).to.have.been.calledOnce;
+      it('calls setNewDappsAddresses', () => {
+        expect(api.parity.setNewDappsAddresses).to.have.been.calledOnce;
       });
 
       it('has the default account in first position', () => {
-        expect(api.parity.setNewDappsWhitelist).to.have.been.calledWith(['789', '456']);
+        expect(api.parity.setNewDappsAddresses).to.have.been.calledWith(['789', '456']);
       });
     });
 

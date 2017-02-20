@@ -76,8 +76,8 @@ describe('views/ParityBar/AccountStore', () => {
         store.setAccounts.restore();
       });
 
-      it('calls into parity_getNewDappsWhitelist', () => {
-        expect(api.parity.getNewDappsWhitelist).to.have.been.called;
+      it('calls into parity_getNewDappsAddresses', () => {
+        expect(api.parity.getNewDappsAddresses).to.have.been.called;
       });
 
       it('calls into parity_allAccountsInfo', () => {
@@ -104,8 +104,8 @@ describe('views/ParityBar/AccountStore', () => {
         return store.makeDefaultAccount(ACCOUNT_NEW);
       });
 
-      it('calls into parity_setNewDappsWhitelist (with ordering)', () => {
-        expect(api.parity.setNewDappsWhitelist).to.have.been.calledWith([
+      it('calls into parity_setNewDappsAddresses (with ordering)', () => {
+        expect(api.parity.setNewDappsAddresses).to.have.been.calledWith([
           ACCOUNT_NEW, ACCOUNT_FIRST, ACCOUNT_DEFAULT
         ]);
       });
