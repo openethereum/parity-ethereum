@@ -20,6 +20,7 @@ dependencies = [
  "ethcore-light 1.6.0",
  "ethcore-logger 1.6.0",
  "ethcore-rpc 1.6.0",
+ "ethcore-secretstore 1.0.0",
  "ethcore-signer 1.6.0",
  "ethcore-stratum 1.6.0",
  "ethcore-util 1.6.0",
@@ -633,6 +634,23 @@ dependencies = [
  "serde_json 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethcore-secretstore"
+version = "1.0.0"
+dependencies = [
+ "ethcore-devtools 1.6.0",
+ "ethcore-ipc 1.6.0",
+ "ethcore-ipc-codegen 1.6.0",
+ "ethcore-ipc-nano 1.6.0",
+ "ethcore-util 1.6.0",
+ "ethcrypto 0.1.0",
+ "ethkey 0.2.0",
+ "hyper 0.9.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "url 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
