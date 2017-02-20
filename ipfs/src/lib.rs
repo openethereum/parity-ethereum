@@ -84,6 +84,24 @@ impl IpfsHandler {
 			None => true,
 		}
 	}
+
+	fn is_origin_allowed(&self) -> bool {
+		let cors_domains = match self.cors_domains {
+			Some(ref domains) => domains,
+			None => return true,
+		};
+
+		let origin = match self.origin {
+			Some(ref origin) => origin,
+			None => return true,
+		};
+
+		cors_domains.iter().any(|domain| match *domain {
+			AccessControlAllowOrigin::Value(ref allowed) => origin == allowed,
+			AccessControlAllowOrigin::All => true,
+			_ => false
+		})
+	}
 }
 
 /// Implement Hyper's HTTP handler
@@ -96,7 +114,13 @@ impl Handler<HttpStream> for IpfsHandler {
 		self.origin = cors::read_origin(&req);
 
 		if !self.is_host_allowed(&req) {
-			self.out = Out::Bad("Illegal Origin");
+			self.out = Out::Bad("Disallowed Host header");
+
+			return Next::write();
+		}
+
+		if !self.is_origin_allowed() {
+			self.out = Out::Bad("Disallowed Origin header");
 
 			return Next::write();
 		}
@@ -188,6 +212,16 @@ fn write_chunk<W: Write>(transport: &mut W, progress: &mut usize, data: &[u8]) -
 	}
 }
 
+/// Add current interface (default: "127.0.0.1:5001") to list of allowed hosts
+fn include_current_interface(mut hosts: Vec<String>, interface: String, port: u16) -> Vec<String> {
+	hosts.push(match port {
+		80 => interface,
+		_ => format!("{}:{}", interface, port),
+	});
+
+	hosts
+}
+
 pub fn start_server(
 	port: u16,
 	interface: String,
@@ -198,6 +232,7 @@ pub fn start_server(
 
 	let ip: IpAddr = interface.parse().map_err(|_| ServerError::InvalidInterface)?;
 	let addr = SocketAddr::new(ip, port);
+	let hosts = hosts.map(move |hosts| include_current_interface(hosts, interface, port));
 
 	Ok(
 		hyper::Server::http(&addr)?
