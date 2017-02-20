@@ -1280,6 +1280,21 @@ mod tests {
 	}
 
 	#[test]
+	fn should_parse_ipfs_cors() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity"]);
+		let conf1 = parse(&["parity", "--ipfs-api-cors", "*"]);
+		let conf2 = parse(&["parity", "--ipfs-api-cors", "http://ethcore.io,http://something.io"]);
+
+		// then
+		assert_eq!(conf0.ipfs_cors(), None);
+		assert_eq!(conf1.ipfs_cors(), Some(vec!["*".into()]));
+		assert_eq!(conf2.ipfs_cors(), Some(vec!["http://ethcore.io".into(),"http://something.io".into()]));
+	}
+
+	#[test]
 	fn should_disable_signer_in_geth_compat() {
 		// given
 

@@ -68,11 +68,19 @@ impl IpfsHandler {
 	}
 
 	pub fn new(cors: Option<Vec<String>>, hosts: Option<Vec<String>>, client: Arc<BlockChainClient>) -> Self {
+		fn origin_to_header(origin: String) -> AccessControlAllowOrigin {
+			if origin == "*" {
+				return AccessControlAllowOrigin::Any;
+			}
+
+			AccessControlAllowOrigin::Value(origin)
+		}
+
 		IpfsHandler {
 			out: Out::Bad("Invalid Request"),
 			out_progress: 0,
 			origin: None,
-			cors_domains: cors.map(|vec| vec.into_iter().map(AccessControlAllowOrigin::Value).collect()),
+			cors_domains: cors.map(|vec| vec.into_iter().map(origin_to_header).collect()),
 			allowed_hosts: hosts,
 			client: client,
 		}
@@ -86,19 +94,20 @@ impl IpfsHandler {
 	}
 
 	fn is_origin_allowed(&self) -> bool {
-		let cors_domains = match self.cors_domains {
-			Some(ref domains) => domains,
-			None => return true,
-		};
-
+		// Check origin header first, no header passed is good news
 		let origin = match self.origin {
 			Some(ref origin) => origin,
 			None => return true,
 		};
 
+		let cors_domains = match self.cors_domains {
+			Some(ref domains) => domains,
+			None => return false,
+		};
+
 		cors_domains.iter().any(|domain| match *domain {
 			AccessControlAllowOrigin::Value(ref allowed) => origin == allowed,
-			AccessControlAllowOrigin::All => true,
+			AccessControlAllowOrigin::Any => true,
 			_ => false
 		})
 	}
@@ -192,11 +201,12 @@ impl Handler<HttpStream> for IpfsHandler {
 	}
 }
 
+/// Attempt to write entire `data` from current `progress`
 fn write_chunk<W: Write>(transport: &mut W, progress: &mut usize, data: &[u8]) -> Next {
 	// Skip any bytes that have already been written
 	let chunk = &data[*progress..];
 
-	// Write an get written count
+	// Write an get the amount of bytes written. End the connection in case of an error.
 	let written = match transport.write(chunk) {
 		Ok(written) => written,
 		Err(_) => return Next::end(),
@@ -204,7 +214,7 @@ fn write_chunk<W: Write>(transport: &mut W, progress: &mut usize, data: &[u8]) -
 
 	*progress += written;
 
-	// Close the connection if the entire chunk has been written, otherwise increment progress
+	// Close the connection if the entire remaining chunk has been written
 	if written < chunk.len() {
 		Next::write()
 	} else {
