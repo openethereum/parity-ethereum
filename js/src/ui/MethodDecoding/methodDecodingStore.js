@@ -59,7 +59,7 @@ export default class MethodDecodingStore {
     try {
       abi = new Abi(_abi);
     } catch (error) {
-      console.warn('loadFromAbi', error);
+      console.warn('loadFromAbi', error, _abi);
     }
 
     if (!abi) {
