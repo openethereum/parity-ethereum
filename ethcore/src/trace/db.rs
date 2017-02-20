@@ -20,7 +20,7 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use bloomchain::{Number, Config as BloomConfig};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
-use util::{H256, H264, Database, DBTransaction, RwLock, HeapSizeOf};
+use util::{H256, H264, KeyValueDB, DBTransaction, RwLock, HeapSizeOf};
 use header::BlockNumber;
 use trace::{LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras};
 use db::{self, Key, Writable, Readable, CacheUpdatePolicy};
@@ -106,7 +106,7 @@ pub struct TraceDB<T> where T: DatabaseExtras {
 	blooms: RwLock<HashMap<TraceGroupPosition, blooms::BloomGroup>>,
 	cache_manager: RwLock<CacheManager<CacheId>>,
 	// db
-	tracesdb: Arc<Database>,
+	tracesdb: Arc<KeyValueDB>,
 	// config,
 	bloom_config: BloomConfig,
 	// tracing enabled
@@ -126,8 +126,8 @@ impl<T> BloomGroupDatabase for TraceDB<T> where T: DatabaseExtras {
 
 impl<T> TraceDB<T> where T: DatabaseExtras {
 	/// Creates new instance of `TraceDB`.
-	pub fn new(config: Config, tracesdb: Arc<Database>, extras: Arc<T>) -> Self {
-		let mut batch = DBTransaction::new(&tracesdb);
+	pub fn new(config: Config, tracesdb: Arc<KeyValueDB>, extras: Arc<T>) -> Self {
+		let mut batch = DBTransaction::new();
 		let genesis = extras.block_hash(0)
 			.expect("Genesis block is always inserted upon extras db creation qed");
 		batch.write(db::COL_TRACE, &genesis, &FlatBlockTraces::default());
@@ -404,8 +404,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 mod tests {
 	use std::collections::HashMap;
 	use std::sync::Arc;
-	use util::{Address, U256, H256, Database, DatabaseConfig, DBTransaction};
-	use devtools::RandomTempPath;
+	use util::{Address, U256, H256, DBTransaction};
 	use header::BlockNumber;
 	use trace::{Config, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest};
 	use trace::{Filter, LocalizedTrace, AddressesFilter, TraceError};
@@ -455,14 +454,13 @@ mod tests {
 		}
 	}
 
-	fn new_db(path: &str) -> Arc<Database> {
-		Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), path).unwrap())
+	fn new_db() -> Arc<::util::kvdb::KeyValueDB> {
+		Arc::new(::util::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)))
 	}
 
 	#[test]
 	fn test_reopening_db_with_tracing_off() {
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let mut config = Config::default();
 
 		// set autotracing
@@ -476,8 +474,7 @@ mod tests {
 
 	#[test]
 	fn test_reopening_db_with_tracing_on() {
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let mut config = Config::default();
 
 		// set tracing on
@@ -555,8 +552,7 @@ mod tests {
 
 	#[test]
 	fn test_import_non_canon_traces() {
-		let temp = RandomTempPath::new();
-		let db = Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), temp.as_str()).unwrap());
+		let db = new_db();
 		let mut config = Config::default();
 		config.enabled = true;
 		let block_0 = H256::from(0xa1);
@@ -574,7 +570,7 @@ mod tests {
 
 		// import block 0
 		let request = create_noncanon_import_request(0, block_0.clone());
-		let mut batch = DBTransaction::new(&db);
+		let mut batch = DBTransaction::new();
 		tracedb.import(&mut batch, request);
 		db.write(batch).unwrap();
 
@@ -584,8 +580,7 @@ mod tests {
 
 	#[test]
 	fn test_import() {
-		let temp = RandomTempPath::new();
-		let db = Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), temp.as_str()).unwrap());
+		let db = new_db();
 		let mut config = Config::default();
 		config.enabled = true;
 		let block_1 = H256::from(0xa1);
@@ -605,7 +600,7 @@ mod tests {
 
 		// import block 1
 		let request = create_simple_import_request(1, block_1.clone());
-		let mut batch = DBTransaction::new(&db);
+		let mut batch = DBTransaction::new();
 		tracedb.import(&mut batch, request);
 		db.write(batch).unwrap();
 
@@ -621,7 +616,7 @@ mod tests {
 
 		// import block 2
 		let request = create_simple_import_request(2, block_2.clone());
-		let mut batch = DBTransaction::new(&db);
+		let mut batch = DBTransaction::new();
 		tracedb.import(&mut batch, request);
 		db.write(batch).unwrap();
 
@@ -664,8 +659,7 @@ mod tests {
 
 	#[test]
 	fn query_trace_after_reopen() {
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let mut config = Config::default();
 		let mut extras = Extras::default();
 		let block_0 = H256::from(0xa1);
@@ -684,7 +678,7 @@ mod tests {
 
 			// import block 1
 			let request = create_simple_import_request(1, block_0.clone());
-			let mut batch = DBTransaction::new(&db);
+			let mut batch = DBTransaction::new();
 			tracedb.import(&mut batch, request);
 			db.write(batch).unwrap();
 		}
@@ -698,8 +692,7 @@ mod tests {
 
 	#[test]
 	fn query_genesis() {
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let mut config = Config::default();
 		let mut extras = Extras::default();
 		let block_0 = H256::from(0xa1);

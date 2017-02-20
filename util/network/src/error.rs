@@ -106,6 +106,8 @@ pub enum NetworkError {
 	AddressResolve(Option<::std::io::Error>),
 	/// Error concerning the Rust standard library's IO subsystem.
 	StdIo(::std::io::Error),
+	/// Packet size is over the protocol limit.
+	OversizedPacket,
 }
 
 impl fmt::Display for NetworkError {
@@ -124,6 +126,7 @@ impl fmt::Display for NetworkError {
 			AddressResolve(_) => "Failed to resolve network address.".into(),
 			StdIo(ref err) => format!("{}", err),
 			Util(ref err) => format!("{}", err),
+			OversizedPacket => "Packet is too large".into(),
 		};
 
 		f.write_fmt(format_args!("Network error ({})", msg))

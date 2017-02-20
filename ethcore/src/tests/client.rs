@@ -36,14 +36,14 @@ fn imports_from_empty() {
 	let dir = RandomTempPath::new();
 	let spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&spec,
-		dir.as_path(),
+		client_db,
 		Arc::new(Miner::with_spec(&spec)),
 		IoChannel::disconnected(),
-		&db_config
 	).unwrap();
 	client.import_verified_blocks();
 	client.flush_queue();
@@ -54,14 +54,14 @@ fn should_return_registrar() {
 	let dir = RandomTempPath::new();
 	let spec = ethereum::new_morden();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&spec,
-		dir.as_path(),
+		client_db,
 		Arc::new(Miner::with_spec(&spec)),
 		IoChannel::disconnected(),
-		&db_config
 	).unwrap();
 	let params = client.additional_params();
 	let address = &params["registrar"];
@@ -85,14 +85,14 @@ fn imports_good_block() {
 	let dir = RandomTempPath::new();
 	let spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&spec,
-		dir.as_path(),
+		client_db,
 		Arc::new(Miner::with_spec(&spec)),
 		IoChannel::disconnected(),
-		&db_config
 	).unwrap();
 	let good_block = get_good_dummy_block();
 	if client.import_block(good_block).is_err() {
@@ -110,14 +110,14 @@ fn query_none_block() {
 	let dir = RandomTempPath::new();
 	let spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&spec,
-		dir.as_path(),
+		client_db,
 		Arc::new(Miner::with_spec(&spec)),
 		IoChannel::disconnected(),
-		&db_config
 	).unwrap();
     let non_existant = client.block_header(BlockId::Number(188));
 	assert!(non_existant.is_none());
@@ -276,10 +276,19 @@ fn change_history_size() {
 	let test_spec = Spec::new_null();
 	let mut config = ClientConfig::default();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
+
 	config.history = 2;
 	let address = Address::random();
 	{
-		let client = Client::new(ClientConfig::default(), &test_spec, dir.as_path(), Arc::new(Miner::with_spec(&test_spec)), IoChannel::disconnected(), &db_config).unwrap();
+		let client = Client::new(
+			ClientConfig::default(),
+			&test_spec,
+			client_db.clone(),
+			Arc::new(Miner::with_spec(&test_spec)),
+			IoChannel::disconnected()
+		).unwrap();
+
 		for _ in 0..20 {
 			let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
 			b.block_mut().fields_mut().state.add_balance(&address, &5.into(), CleanupMode::NoEmpty);
@@ -290,7 +299,13 @@ fn change_history_size() {
 	}
 	let mut config = ClientConfig::default();
 	config.history = 10;
-	let client = Client::new(config, &test_spec, dir.as_path(), Arc::new(Miner::with_spec(&test_spec)), IoChannel::disconnected(), &db_config).unwrap();
+	let client = Client::new(
+		config,
+		&test_spec,
+		client_db,
+		Arc::new(Miner::with_spec(&test_spec)),
+		IoChannel::disconnected(),
+	).unwrap();
 	assert_eq!(client.state().balance(&address), 100.into());
 }
 

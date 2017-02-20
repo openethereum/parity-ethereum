@@ -27,7 +27,7 @@ use tests::helpers::generate_dummy_client_with_spec_and_data;
 
 use devtools::RandomTempPath;
 use io::IoChannel;
-use util::kvdb::DatabaseConfig;
+use util::kvdb::{Database, DatabaseConfig};
 
 struct NoopDBRestore;
 
@@ -54,15 +54,15 @@ fn restored_is_equivalent() {
 	path.push("snapshot");
 
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Database::open(&db_config, client_db.to_str().unwrap()).unwrap();
 
 	let spec = Spec::new_null();
 	let client2 = Client::new(
 		Default::default(),
 		&spec,
-		&client_db,
+		Arc::new(client_db),
 		Arc::new(::miner::Miner::with_spec(&spec)),
 		IoChannel::disconnected(),
-		&db_config,
 	).unwrap();
 
 	let service_params = ServiceParams {

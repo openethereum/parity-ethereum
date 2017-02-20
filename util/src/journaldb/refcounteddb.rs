@@ -23,9 +23,7 @@ use overlaydb::OverlayDB;
 use memorydb::MemoryDB;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
-use kvdb::{Database, DBTransaction};
-#[cfg(test)]
-use std::env;
+use kvdb::{KeyValueDB, DBTransaction};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -49,7 +47,7 @@ use std::env;
 // TODO: store last_era, reclaim_period.
 pub struct RefCountedDB {
 	forward: OverlayDB,
-	backing: Arc<Database>,
+	backing: Arc<KeyValueDB>,
 	latest_era: Option<u64>,
 	inserts: Vec<H256>,
 	removes: Vec<H256>,
@@ -60,7 +58,7 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
-	pub fn new(backing: Arc<Database>, col: Option<u32>) -> RefCountedDB {
+	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> RefCountedDB {
 		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
 
 		RefCountedDB {
@@ -76,9 +74,7 @@ impl RefCountedDB {
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
 	fn new_temp() -> RefCountedDB {
-		let mut dir = env::temp_dir();
-		dir.push(H32::random().hex());
-		let backing = Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap());
+		let backing = Arc::new(::kvdb::in_memory(0));
 		Self::new(backing, None)
 	}
 }
@@ -112,7 +108,7 @@ impl JournalDB for RefCountedDB {
 		self.latest_era.is_none()
 	}
 
-	fn backing(&self) -> &Arc<Database> {
+	fn backing(&self) -> &Arc<KeyValueDB> {
 		&self.backing
 	}
 

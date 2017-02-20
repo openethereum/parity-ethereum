@@ -29,6 +29,7 @@ export ParityBar from './ParityBar';
 export Settings, { SettingsBackground, SettingsParity, SettingsProxy, SettingsViews } from './Settings';
 export Signer from './Signer';
 export Status from './Status';
+export Vaults from './Vaults';
 export Wallet from './Wallet';
 export Web from './Web';
 export WriteContract from './WriteContract';

@@ -16,8 +16,6 @@
 
 //! Eth rpc implementation.
 
-use std::io::{Write};
-use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
@@ -27,7 +25,7 @@ use rlp::{self, UntrustedRlp, View};
 use time::get_time;
 use util::{H160, H256, Address, FixedHash, U256, H64, Uint};
 use util::sha3::Hashable;
-use util::{FromHex, Mutex};
+use util::Mutex;
 
 use ethash::SeedHashCompute;
 use ethcore::account_provider::{AccountProvider, DappId};
@@ -223,7 +221,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 		let store = take_weak!(self.accounts);
 		store
 			.note_dapp_used(dapp.clone())
-			.and_then(|_| store.dapps_addresses(dapp))
+			.and_then(|_| store.dapp_addresses(dapp))
 			.map_err(|e| errors::internal("Could not fetch accounts.", e))
 	}
 }
@@ -257,12 +255,6 @@ fn check_known<C>(client: &C, number: BlockNumber) -> Result<(), Error> where C:
 }
 
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
-
-#[cfg(windows)]
-static SOLC: &'static str = "solc.exe";
-
-#[cfg(not(windows))]
-static SOLC: &'static str = "solc";
 
 impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
@@ -316,10 +308,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let author = move || {
 			let mut miner = take_weak!(self.miner).author();
 			if miner == 0.into() {
-				let accounts = self.dapp_accounts(dapp.into())?;
-				if let Some(address) = accounts.get(0) {
-					miner = *address;
-				}
+				miner = self.dapp_accounts(dapp.into())?.get(0).cloned().unwrap_or_default();
 			}
 
 			Ok(RpcH160::from(miner))
@@ -509,12 +498,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn compilers(&self) -> Result<Vec<String>, Error> {
-		let mut compilers = vec![];
-		if Command::new(SOLC).output().is_ok() {
-			compilers.push("solidity".to_owned())
-		}
-
-		Ok(compilers)
+		Err(errors::deprecated("Compilation functionality is deprecated.".to_string()))
 	}
 
 	fn logs(&self, filter: Filter) -> Result<Vec<Log>, Error> {
@@ -642,37 +626,14 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn compile_lll(&self, _: String) -> Result<Bytes, Error> {
-		rpc_unimplemented!()
+		Err(errors::deprecated("Compilation of LLL via RPC is deprecated".to_string()))
 	}
 
 	fn compile_serpent(&self, _: String) -> Result<Bytes, Error> {
-		rpc_unimplemented!()
+		Err(errors::deprecated("Compilation of Serpent via RPC is deprecated".to_string()))
 	}
 
-	fn compile_solidity(&self, code: String) -> Result<Bytes, Error> {
-		let maybe_child = Command::new(SOLC)
-			.arg("--bin")
-			.arg("--optimize")
-			.stdin(Stdio::piped())
-			.stdout(Stdio::piped())
-			.stderr(Stdio::null())
-			.spawn();
-
-		maybe_child
-			.map_err(errors::compilation)
-			.and_then(|mut child| {
-				child.stdin.as_mut()
-					.expect("we called child.stdin(Stdio::piped()) before spawn; qed")
-					.write_all(code.as_bytes())
-					.map_err(errors::compilation)?;
-				let output = child.wait_with_output().map_err(errors::compilation)?;
-
-				let s = String::from_utf8_lossy(&output.stdout);
-				if let Some(hex) = s.lines().skip_while(|ref l| !l.contains("Binary")).skip(1).next() {
-					Ok(Bytes::new(hex.from_hex().unwrap_or(vec![])))
-				} else {
-					Err(errors::compilation("Unexpected output."))
-				}
-			})
+	fn compile_solidity(&self, _: String) -> Result<Bytes, Error> {
+		Err(errors::deprecated("Compilation of Solidity via RPC is deprecated".to_string()))
 	}
 }

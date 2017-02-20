@@ -1,4 +1,5 @@
 FROM ubuntu:14.04
+MAINTAINER Parity Technologies <devops@parity.io>
 WORKDIR /build
 # install tools and dependencies
 RUN apt-get update && \
@@ -25,46 +26,54 @@ RUN apt-get update && \
         # evmjit dependencies
         zlib1g-dev \
         libedit-dev \
-	libudev-dev
-
-# cmake and llvm ppas. then update ppas
-RUN add-apt-repository -y "ppa:george-edison55/cmake-3.x" && \
+	libudev-dev &&\
+# cmake and llvm ppa's. then update ppa's
+ add-apt-repository -y "ppa:george-edison55/cmake-3.x" && \
         add-apt-repository "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.7 main" && \
         apt-get update && \
-        apt-get install -y --force-yes cmake llvm-3.7-dev
-
+        apt-get install -y --force-yes cmake llvm-3.7-dev && \
 # install evmjit
-RUN git clone https://github.com/debris/evmjit && \
+ git clone https://github.com/debris/evmjit && \
         cd evmjit && \
         mkdir build && cd build && \
-        cmake .. && make && make install && cd
-
+        cmake .. && make && make install && cd && \
 # install rustup
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
-
+ curl https://sh.rustup.rs -sSf | sh -s -- -y && \
 # rustup directory
-ENV PATH /root/.cargo/bin:$PATH
-
+ PATH=/root/.cargo/bin:$PATH && \
 # show backtraces
-ENV RUST_BACKTRACE 1
-
-# show tools
-RUN rustc -vV && \
-cargo -V && \
-gcc -v &&\
-g++ -v
-
+ RUST_BACKTRACE=1 && \
 # build parity
-RUN git clone https://github.com/ethcore/parity && \
+ cd /build&&git clone https://github.com/ethcore/parity && \
         cd parity && \
-        git pull && \
-        cargo build --release --features final && \
-        ls /build/parity/target/release/parity &&       \
-        strip /build/parity/target/release/parity
-
-RUN file /build/parity/target/release/parity&&cp /build/parity/target/release/parity /parity
+	git pull&& \
+	git checkout $CI_BUILD_REF_NAME && \
+        cargo build --verbose --release --features final && \
+        #ls /build/parity/target/release/parity && \
+        strip /build/parity/target/release/parity && \
+ file /build/parity/target/release/parity&&mkdir -p /parity&& cp /build/parity/target/release/parity /parity&&\
 #cleanup Docker image
-RUN rm -rf /root/.cargo&&rm -rf /root/.multirust&&rm -rf /root/.rustup&&rm -rf /build
-
+ rm -rf /root/.cargo&&rm -rf /root/.multirust&&rm -rf /root/.rustup&&rm -rf /build&&\
+ apt-get purge -y  \
+        # make
+        build-essential \
+        # add-apt-repository
+        software-properties-common \
+        make \
+        curl \
+        wget \
+        git \
+        g++ \
+        gcc \
+        binutils \
+        file \
+        pkg-config \
+        dpkg-dev \
+        # evmjit dependencies
+        zlib1g-dev \
+        libedit-dev \
+        cmake llvm-3.7-dev&&\
+ rm -rf /var/lib/apt/lists/*
+# setup ENTRYPOINT
 EXPOSE 8080 8545 8180
-ENTRYPOINT ["/parity"]
+ENTRYPOINT ["/parity/parity"]

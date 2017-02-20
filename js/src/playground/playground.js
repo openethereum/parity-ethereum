@@ -17,6 +17,7 @@
 import { observer } from 'mobx-react';
 import React, { Component } from 'react';
 
+import AccountCard from '~/ui/AccountCard/accountCard.example';
 import CurrencySymbol from '~/ui/CurrencySymbol/currencySymbol.example';
 import QrCode from '~/ui/QrCode/qrCode.example';
 import SectionList from '~/ui/SectionList/sectionList.example';
@@ -25,6 +26,7 @@ import Portal from '~/ui/Portal/portal.example';
 import PlaygroundStore from './store';
 import styles from './playground.css';
 
+PlaygroundStore.register(<AccountCard />);
 PlaygroundStore.register(<CurrencySymbol />);
 PlaygroundStore.register(<QrCode />);
 PlaygroundStore.register(<SectionList />);

@@ -74,7 +74,7 @@ $codeColor: #93a1a1;
     flex: 1;
     overflow: auto;
     padding: 0.5em;
-    background-color: #$codeBackground;
+    background-color: $codeBackground;
     color: $codeColor;
     font-size: 0.75em;
 
@@ -86,5 +86,6 @@ $codeColor: #93a1a1;
   .component {
     flex: 3;
     padding-left: 0.5em;
+    overflow: auto;
   }
 }

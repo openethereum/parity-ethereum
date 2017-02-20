@@ -17,7 +17,7 @@
 //! Parity-specific rpc implementation.
 use std::sync::Arc;
 use std::collections::{BTreeMap, HashSet};
-use futures::{self, Future, BoxFuture};
+use futures::{future, Future, BoxFuture};
 
 use util::RotatingLogger;
 use util::misc::version_data;
@@ -86,7 +86,7 @@ impl Parity for ParityClient {
 		let store = &self.accounts;
 		let dapp_accounts = store
 			.note_dapp_used(dapp.clone().into())
-			.and_then(|_| store.dapps_addresses(dapp.into()))
+			.and_then(|_| store.dapp_addresses(dapp.into()))
 			.map_err(|e| errors::internal("Could not fetch accounts.", e))?
 			.into_iter().collect::<HashSet<_>>();
 
@@ -114,16 +114,13 @@ impl Parity for ParityClient {
 
 	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
 		let dapp_id = meta.dapp_id();
-		let default_account = move || {
-			Ok(self.accounts
-				.dapps_addresses(dapp_id.into())
-				.ok()
-				.and_then(|accounts| accounts.get(0).cloned())
-				.map(|acc| acc.into())
-				.unwrap_or_default())
-		};
-
-		futures::done(default_account()).boxed()
+		future::ok(self.accounts
+			.dapp_addresses(dapp_id.into())
+			.ok()
+			.and_then(|accounts| accounts.get(0).cloned())
+			.map(|acc| acc.into())
+			.unwrap_or_default()
+		).boxed()
 	}
 
 	fn transactions_limit(&self) -> Result<usize, Error> {

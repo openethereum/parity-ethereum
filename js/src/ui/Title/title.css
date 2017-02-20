@@ -15,12 +15,17 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.title {
+.title,
+.subtitle {
   .steps {
     margin: -0.5em 0 -1em 0;
   }
 
   .waiting {
-    margin: 1em -1em -1em -1em;
+    margin: 1em -1.5em 0 -1.5em;
   }
+}
+
+.subtitle {
+  opacity: 0.75;
 }

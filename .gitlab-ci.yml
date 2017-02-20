@@ -22,18 +22,20 @@ linux-stable:
     - triggers
   script:
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
-    - cargo build -j $(nproc) --release -p evmbin ethstore ethkey
+    - cargo build -j $(nproc) --release -p evmbin
+    - cargo build -j $(nproc) --release -p ethstore
+    - cargo build -j $(nproc) --release -p ethkey
     - strip target/release/parity
-    - strip target/release/evmbin
+    - strip target/release/evm
     - strip target/release/ethstore
     - strip target/release/ethkey
     - export SHA3=$(target/release/parity tools hash target/release/parity)
     - md5sum target/release/parity > parity.md5
     - sh scripts/deb-build.sh amd64
     - cp target/release/parity deb/usr/bin/parity
-    - cp target/release/evmbin deb/usr/bin/evmbin
-    - cp target/release/ethstore deb/usr/bin/ethstore
-    - cp target/release/ethkey deb/usr/bin/ethkey
+    - cp target/release/parity/evm deb/usr/bin/evm
+    - cp target/release/parity/ethstore deb/usr/bin/ethstore
+    - cp target/release/parity/ethkey deb/usr/bin/ethkey
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_amd64.deb"
     - md5sum "parity_"$VER"_amd64.deb" > "parity_"$VER"_amd64.deb.md5"
@@ -53,6 +55,9 @@ linux-stable:
   artifacts:
     paths:
     - target/release/parity
+    - target/release/parity/evmbin
+    - target/release/parity/ethstore
+    - target/release/parity/ethkey
     name: "stable-x86_64-unknown-linux-gnu_parity"
 linux-stable-debian:
   stage: build
@@ -485,9 +490,10 @@ docker-build:
     - docker info
   script:
     - cd docker/hub
+    - if [ "$CI_BUILD_REF_NAME" == "nightly" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
     - docker login -u $Docker_Hub_User -p $Docker_Hub_Pass
-    - docker build --tag ethcore/parity:$CI_BUILD_REF_NAME .
-    - docker push ethcore/parity:$CI_BUILD_REF_NAME
+    - docker build --no-cache=true --tag ethcore/parity:$DOCKER_TAG .
+    - docker push ethcore/parity:$DOCKER_TAG
   tags:
     - docker
 test-darwin:

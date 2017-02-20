@@ -21,9 +21,7 @@ use rlp::*;
 use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
-use kvdb::{Database, DBTransaction};
-#[cfg(test)]
-use std::env;
+use kvdb::{KeyValueDB, DBTransaction};
 use super::JournalDB;
 
 /// Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
@@ -59,7 +57,7 @@ use super::JournalDB;
 
 pub struct OverlayRecentDB {
 	transaction_overlay: MemoryDB,
-	backing: Arc<Database>,
+	backing: Arc<KeyValueDB>,
 	journal_overlay: Arc<RwLock<JournalOverlay>>,
 	column: Option<u32>,
 }
@@ -102,8 +100,8 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl OverlayRecentDB {
 	/// Create a new instance.
-	pub fn new(backing: Arc<Database>, col: Option<u32>) -> OverlayRecentDB {
-		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&backing, col)));
+	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> OverlayRecentDB {
+		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&*backing, col)));
 		OverlayRecentDB {
 			transaction_overlay: MemoryDB::new(),
 			backing: backing,
@@ -115,15 +113,13 @@ impl OverlayRecentDB {
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
 	pub fn new_temp() -> OverlayRecentDB {
-		let mut dir = env::temp_dir();
-		dir.push(H32::random().hex());
-		let backing = Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap());
+		let backing = Arc::new(::kvdb::in_memory(0));
 		Self::new(backing, None)
 	}
 
 	#[cfg(test)]
 	fn can_reconstruct_refs(&self) -> bool {
-		let reconstructed = Self::read_overlay(&self.backing, self.column);
+		let reconstructed = Self::read_overlay(&*self.backing, self.column);
 		let journal_overlay = self.journal_overlay.read();
 		journal_overlay.backing_overlay == reconstructed.backing_overlay &&
 		journal_overlay.pending_overlay == reconstructed.pending_overlay &&
@@ -136,7 +132,7 @@ impl OverlayRecentDB {
 		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
 
-	fn read_overlay(db: &Database, col: Option<u32>) -> JournalOverlay {
+	fn read_overlay(db: &KeyValueDB, col: Option<u32>) -> JournalOverlay {
 		let mut journal = HashMap::new();
 		let mut overlay = MemoryDB::new();
 		let mut count = 0;
@@ -235,7 +231,7 @@ impl JournalDB for OverlayRecentDB {
 		self.backing.get(self.column, &LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
-	fn backing(&self) -> &Arc<Database> {
+	fn backing(&self) -> &Arc<KeyValueDB> {
 		&self.backing
 	}
 

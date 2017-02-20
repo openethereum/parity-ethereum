@@ -50,10 +50,29 @@ pub enum Error {
 		/// Computed hash
 		got: H256,
 	},
+	/// Server didn't respond with OK status.
+	InvalidStatus,
 	/// IO Error while validating hash.
 	IO(io::Error),
 	/// Error during fetch.
 	Fetch(FetchError),
+}
+
+#[cfg(test)]
+impl PartialEq for Error {
+	fn eq(&self, other: &Self) -> bool {
+		use Error::*;
+		match (self, other)  {
+			(&HashMismatch { expected, got }, &HashMismatch { expected: e, got: g }) => {
+				expected == e && got == g
+			},
+			(&NoResolution, &NoResolution) => true,
+			(&InvalidStatus, &InvalidStatus) => true,
+			(&IO(_), &IO(_)) => true,
+			(&Fetch(_), &Fetch(_)) => true,
+			_ => false,
+		}
+	}
 }
 
 impl From<FetchError> for Error {
@@ -115,6 +134,10 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 				let future = self.fetch.fetch(&url).then(move |result| {
 					fn validate_hash(path: PathBuf, hash: H256, result: Result<Response, FetchError>) -> Result<PathBuf, Error> {
 						let response = result?;
+						if !response.is_success() {
+							return Err(Error::InvalidStatus);
+						}
+
 						// Read the response
 						let mut reader = io::BufReader::new(response);
 						let mut writer = io::BufWriter::new(fs::File::create(&path)?);
@@ -159,4 +182,120 @@ fn random_temp_path() -> PathBuf {
 	let mut path = env::temp_dir();
 	path.push(file);
 	path
+}
+
+#[cfg(test)]
+mod tests {
+	use std::sync::{Arc, mpsc};
+	use util::{Mutex, FromHex};
+	use futures::future;
+	use fetch::{self, Fetch};
+	use parity_reactor::Remote;
+	use urlhint::tests::{FakeRegistrar, URLHINT};
+	use super::{Error, Client, HashFetch};
+
+
+	#[derive(Clone)]
+	struct FakeFetch {
+		return_success: bool
+	}
+
+	impl Fetch for FakeFetch {
+		type Result = future::Ok<fetch::Response, fetch::Error>;
+
+		fn new() -> Result<Self, fetch::Error> where Self: Sized {
+			Ok(FakeFetch { return_success: true })
+		}
+
+		fn fetch_with_abort(&self, url: &str, _abort: fetch::Abort) -> Self::Result {
+			assert_eq!(url, "https://ethcore.io/assets/images/ethcore-black-horizontal.png");
+			future::ok(if self.return_success {
+				let cursor = ::std::io::Cursor::new(b"result");
+				fetch::Response::from_reader(cursor)
+			} else {
+				fetch::Response::not_found()
+			})
+		}
+	}
+
+	fn registrar() -> FakeRegistrar {
+		let mut registrar = FakeRegistrar::new();
+		registrar.responses = Mutex::new(vec![
+			Ok(format!("000000000000000000000000{}", URLHINT).from_hex().unwrap()),
+			Ok("00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadcafebeefbeefcafedeaddeedfeedffffffff000000000000000000000000000000000000000000000000000000000000003d68747470733a2f2f657468636f72652e696f2f6173736574732f696d616765732f657468636f72652d626c61636b2d686f72697a6f6e74616c2e706e67000000".from_hex().unwrap()),
+		]);
+		registrar
+	}
+
+	#[test]
+	fn should_return_error_if_hash_not_found() {
+		// given
+		let contract = Arc::new(FakeRegistrar::new());
+		let fetch = FakeFetch { return_success: false };
+		let client = Client::with_fetch(contract.clone(), fetch, Remote::new_sync());
+
+		// when
+		let (tx, rx) = mpsc::channel();
+		client.fetch(2.into(), Box::new(move |result| {
+			tx.send(result).unwrap();
+		}));
+
+		// then
+		let result = rx.recv().unwrap();
+		assert_eq!(result.unwrap_err(), Error::NoResolution);
+	}
+
+	#[test]
+	fn should_return_error_if_response_is_not_successful() {
+		// given
+		let registrar = Arc::new(registrar());
+		let fetch = FakeFetch { return_success: false };
+		let client = Client::with_fetch(registrar.clone(), fetch, Remote::new_sync());
+
+		// when
+		let (tx, rx) = mpsc::channel();
+		client.fetch(2.into(), Box::new(move |result| {
+			tx.send(result).unwrap();
+		}));
+
+		// then
+		let result = rx.recv().unwrap();
+		assert_eq!(result.unwrap_err(), Error::InvalidStatus);
+	}
+	#[test]
+	fn should_return_hash_mismatch() {
+		// given
+		let registrar = Arc::new(registrar());
+		let fetch = FakeFetch { return_success: true };
+		let client = Client::with_fetch(registrar.clone(), fetch, Remote::new_sync());
+
+		// when
+		let (tx, rx) = mpsc::channel();
+		client.fetch(2.into(), Box::new(move |result| {
+			tx.send(result).unwrap();
+		}));
+
+		// then
+		let result = rx.recv().unwrap();
+		let hash = "0x06b0a4f426f6713234b2d4b2468640bc4e0bb72657a920ad24c5087153c593c8".into();
+		assert_eq!(result.unwrap_err(), Error::HashMismatch { expected: 2.into(), got: hash });
+	}
+
+	#[test]
+	fn should_return_path_if_hash_matches() {
+		// given
+		let registrar = Arc::new(registrar());
+		let fetch = FakeFetch { return_success: true };
+		let client = Client::with_fetch(registrar.clone(), fetch, Remote::new_sync());
+
+		// when
+		let (tx, rx) = mpsc::channel();
+		client.fetch("0x06b0a4f426f6713234b2d4b2468640bc4e0bb72657a920ad24c5087153c593c8".into(), Box::new(move |result| {
+			tx.send(result).unwrap();
+		}));
+
+		// then
+		let result = rx.recv().unwrap();
+		assert!(result.is_ok(), "Should return path, got: {:?}", result);
+	}
 }
