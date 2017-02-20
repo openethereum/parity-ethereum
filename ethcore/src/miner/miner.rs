@@ -215,8 +215,6 @@ pub struct Miner {
 	sealing_block_last_request: Mutex<u64>,
 	// for sealing...
 	options: MinerOptions,
-	/// Does the node perform internal (without work) sealing.
-	pub seals_internally: bool,
 
 	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
@@ -275,9 +273,8 @@ impl Miner {
 				queue: UsingQueue::new(options.work_queue_size),
 				enabled: options.force_sealing
 					|| !options.new_work_notify.is_empty()
-					|| spec.engine.is_default_sealer().unwrap_or(false)
+					|| spec.engine.seals_internally().is_some()
 			}),
-			seals_internally: spec.engine.is_default_sealer().is_some(),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
@@ -455,7 +452,7 @@ impl Miner {
 			let last_request = *self.sealing_block_last_request.lock();
 			let should_disable_sealing = !self.forced_sealing()
 				&& !has_local_transactions
-				&& !self.seals_internally
+				&& self.engine.seals_internally().is_none()
 				&& best_block > last_request
 				&& best_block - last_request > SEALING_TIMEOUT_IN_BLOCKS;
 
@@ -765,21 +762,21 @@ impl MinerService for Miner {
 	}
 
 	fn set_author(&self, author: Address) {
-		if self.seals_internally {
+		if self.engine.seals_internally().is_some() {
 			let mut sealing_work = self.sealing_work.lock();
-			sealing_work.enabled = self.engine.is_sealer(&author).unwrap_or(false);
+			sealing_work.enabled = true;
 		}
 		*self.author.write() = author;
 	}
 
 	fn set_engine_signer(&self, address: Address, password: String) -> Result<(), AccountError> {
-		if self.seals_internally {
+		if self.engine.seals_internally().is_some() {
 			if let Some(ref ap) = self.accounts {
 				ap.sign(address.clone(), Some(password.clone()), Default::default())?;
 				// Limit the scope of the locks.
 				{
 					let mut sealing_work = self.sealing_work.lock();
-					sealing_work.enabled = self.engine.is_sealer(&address).unwrap_or(false);
+					sealing_work.enabled = true;
 					*self.author.write() = address;
 				}
 				// --------------------------------------------------------------------------
@@ -914,7 +911,7 @@ impl MinerService for Miner {
 		if imported.is_ok() && self.options.reseal_on_own_tx && self.tx_reseal_allowed() {
 			// Make sure to do it after transaction is imported and lock is droped.
 			// We need to create pending block and enable sealing.
-			if self.seals_internally || !self.prepare_work_sealing(chain) {
+			if self.engine.seals_internally().unwrap_or(false) || !self.prepare_work_sealing(chain) {
 				// If new block has not been prepared (means we already had one)
 				// or Engine might be able to seal internally,
 				// we need to update sealing.
@@ -1071,14 +1068,18 @@ impl MinerService for Miner {
 			// --------------------------------------------------------------------------
 			trace!(target: "miner", "update_sealing: preparing a block");
 			let (block, original_work_hash) = self.prepare_block(chain);
-			if self.seals_internally {
-				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
-				if self.seal_and_import_block_internally(chain, block) {
-					trace!(target: "miner", "update_sealing: imported internally sealed block");
-				}
-			} else {
-				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
-				self.prepare_work(block, original_work_hash);
+			match self.engine.seals_internally() {
+				Some(true) => {
+					trace!(target: "miner", "update_sealing: engine indicates internal sealing");
+					if self.seal_and_import_block_internally(chain, block) {
+						trace!(target: "miner", "update_sealing: imported internally sealed block");
+					}
+				},
+				None => {
+					trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
+					self.prepare_work(block, original_work_hash)
+				},
+				_ => trace!(target: "miner", "update_sealing: engine is not keen to seal internally right now")
 			}
 		}
 	}
