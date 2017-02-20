@@ -57,11 +57,21 @@
   }
 }
 
+.link {
+  height: 100%;
+  width: 100%;
+}
+
 .heading {
   display: flex;
   flex-direction: row;
 
-  .main {
+  .main,
+  .mainLink {
     flex: 1;
+  }
+
+  .mainLink h3 {
+    color: rgb(0, 151, 167);
   }
 }

@@ -90,7 +90,7 @@ export default class Summary extends Component {
   }
 
   render () {
-    const { account, handleAddSearchToken } = this.props;
+    const { account, handleAddSearchToken, noLink } = this.props;
     const { tags } = account.meta;
 
     if (!account) {
@@ -110,7 +110,7 @@ export default class Summary extends Component {
 
     const description = this.getDescription(account.meta);
 
-    return (
+    const card = (
       <Container>
         <Tags tags={ tags } handleAddSearchToken={ handleAddSearchToken } />
         <div className={ styles.heading }>
@@ -119,17 +119,30 @@ export default class Summary extends Component {
           />
           <ContainerTitle
             byline={ addressComponent }
-            className={ styles.main }
+            className={
+              noLink
+                ? styles.main
+                : styles.mainLink
+            }
             description={ description }
-            title={ this.renderLink() }
+            title={
+              <IdentityName
+                address={ address }
+                name={ name }
+                unknown
+              />
+            }
           />
         </div>
-
         { this.renderOwners() }
         { this.renderBalance() }
         { this.renderCertifications() }
       </Container>
     );
+
+    return noLink
+      ? card
+      : this.renderLink(card);
   }
 
   getDescription (meta = {}) {
@@ -182,9 +195,8 @@ export default class Summary extends Component {
     );
   }
 
-  renderLink () {
-    const { link, noLink, account, name } = this.props;
-
+  renderLink (card) {
+    const { link, account } = this.props;
     const { address } = account;
     const baseLink = account.wallet
       ? 'wallet'
@@ -192,21 +204,12 @@ export default class Summary extends Component {
 
     const viewLink = `/${baseLink}/${address}`;
 
-    const content = (
-      <IdentityName
-        address={ address }
-        name={ name }
-        unknown
-      />
-    );
-
-    if (noLink) {
-      return content;
-    }
-
     return (
-      <Link to={ viewLink }>
-        { content }
+      <Link
+        className={ styles.link }
+        to={ viewLink }
+      >
+        { card }
       </Link>
     );
   }
