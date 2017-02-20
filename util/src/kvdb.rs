@@ -708,10 +708,8 @@ impl Database {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				let iter = col.map_or_else(
 					|| db.iterator_opt(IteratorMode::Start, &self.read_opts),
-					|c| {
-						db.iterator_cf_opt(cfs[c as usize], IteratorMode::Start, &self.read_opts)
-								.expect("iterator params are valid; qed")
-					}
+					|c| db.iterator_cf_opt(cfs[c as usize], IteratorMode::Start, &self.read_opts)
+						.expect("iterator params are valid; qed")
 				);
 
 				DatabaseIterator {
