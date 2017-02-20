@@ -38,6 +38,10 @@ port = 8080
 user = "username"
 pass = "password"
 
+[ipfs]
+enable = false
+port = 5001
+
 [mining]
 author = "0xdeadbeefcafe0000000000000000000000000001"
 engine_signer = "0xdeadbeefcafe0000000000000000000000000001"

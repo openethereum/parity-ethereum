@@ -37,6 +37,7 @@ use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
+use ipfs::Configuration as IpfsConfiguration;
 use signer::{Configuration as SignerConfiguration};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
@@ -118,6 +119,7 @@ impl Configuration {
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let dapps_conf = self.dapps_config();
+		let ipfs_conf = self.ipfs_config();
 		let signer_conf = self.signer_config();
 		let format = self.format()?;
 
@@ -342,6 +344,7 @@ impl Configuration {
 				ui_address: ui_address,
 				net_settings: self.network_settings(),
 				dapps_conf: dapps_conf,
+				ipfs_conf: ipfs_conf,
 				signer_conf: signer_conf,
 				dapp: self.dapp_to_open()?,
 				ui: self.args.cmd_ui,
@@ -536,6 +539,13 @@ impl Configuration {
 				vec![]
 			},
 			all_apis: self.args.flag_dapps_apis_all,
+		}
+	}
+
+	fn ipfs_config(&self) -> IpfsConfiguration {
+		IpfsConfiguration {
+			enabled: self.args.flag_ipfs_api,
+			port: self.args.flag_ipfs_api_port,
 		}
 	}
 
@@ -1101,6 +1111,7 @@ mod tests {
 			ui_address: Some(("127.0.0.1".into(), 8180)),
 			net_settings: Default::default(),
 			dapps_conf: Default::default(),
+			ipfs_conf: Default::default(),
 			signer_conf: Default::default(),
 			ui: false,
 			dapp: None,
