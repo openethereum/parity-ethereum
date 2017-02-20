@@ -504,7 +504,6 @@ pub type H256FastSet = HashSet<H256, BuildHasherDefault<PlainHasher>>;
 #[cfg(test)]
 mod tests {
 	use hash::*;
-	use bigint::*;
 	use std::str::FromStr;
 
 	#[test]

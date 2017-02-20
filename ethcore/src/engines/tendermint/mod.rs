@@ -410,8 +410,8 @@ impl Engine for Tendermint {
 	}
 
 	/// Should this node participate.
-	fn is_sealer(&self, address: &Address) -> Option<bool> {
-		Some(self.is_authority(address))
+	fn seals_internally(&self) -> Option<bool> {
+		Some(self.is_authority(&self.signer.address()))
 	}
 
 	/// Attempt to seal generate a proposal seal.

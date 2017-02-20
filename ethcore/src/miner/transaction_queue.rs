@@ -1137,8 +1137,8 @@ impl TransactionQueue {
 	}
 
 	/// Finds transaction in the queue by hash (if any)
-	pub fn find(&self, hash: &H256) -> Option<SignedTransaction> {
-		self.by_hash.get(hash).map(|tx| tx.transaction.clone())
+	pub fn find(&self, hash: &H256) -> Option<PendingTransaction> {
+		self.by_hash.get(hash).map(|tx| PendingTransaction { transaction: tx.transaction.clone(), condition: tx.condition.clone() })
 	}
 
 	/// Removes all elements (in any state) from the queue

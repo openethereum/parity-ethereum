@@ -148,7 +148,7 @@ pub trait MinerService : Send + Sync {
 		where F: FnOnce(&ClosedBlock) -> T, Self: Sized;
 
 	/// Query pending transactions for hash.
-	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<SignedTransaction>;
+	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction>;
 
 	/// Get a list of all pending transactions in the queue.
 	fn pending_transactions(&self) -> Vec<PendingTransaction>;

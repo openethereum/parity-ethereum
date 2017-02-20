@@ -26,9 +26,9 @@ linux-stable:
     - cargo build -j $(nproc) --release -p ethstore
     - cargo build -j $(nproc) --release -p ethkey
     - strip target/release/parity
-    - strip target/release/parity/evm
-    - strip target/release/parity/ethstore
-    - strip target/release/parity/ethkey
+    - strip target/release/evm
+    - strip target/release/ethstore
+    - strip target/release/ethkey
     - export SHA3=$(target/release/parity tools hash target/release/parity)
     - md5sum target/release/parity > parity.md5
     - sh scripts/deb-build.sh amd64

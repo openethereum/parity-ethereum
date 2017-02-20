@@ -119,7 +119,6 @@ export default class Personal {
         case 'parity_removeAddress':
         case 'parity_setAccountName':
         case 'parity_setAccountMeta':
-        case 'parity_changeVault':
           this._accountsInfo();
           return;
 

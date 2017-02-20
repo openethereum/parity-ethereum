@@ -26,10 +26,12 @@ use mime::{self, Mime};
 use parking_lot::RwLock;
 use reqwest;
 
+/// Fetch abort control
 #[derive(Default, Debug, Clone)]
 pub struct Abort(Arc<AtomicBool>);
 
 impl Abort {
+	/// Returns `true` if request is aborted.
 	pub fn is_aborted(&self) -> bool {
 		self.0.load(atomic::Ordering::SeqCst)
 	}
@@ -41,9 +43,12 @@ impl From<Arc<AtomicBool>> for Abort {
 	}
 }
 
+/// Fetch
 pub trait Fetch: Clone + Send + Sync + 'static {
+	/// Result type
 	type Result: Future<Item=Response, Error=Error> + Send + 'static;
 
+	/// Creates new Fetch object.
 	fn new() -> Result<Self, Error> where Self: Sized;
 
 	/// Spawn the future in context of this `Fetch` thread pool.
@@ -76,6 +81,7 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 
 const CLIENT_TIMEOUT_SECONDS: u64 = 5;
 
+/// Fetch client
 pub struct Client {
 	client: RwLock<(time::Instant, Arc<reqwest::Client>)>,
 	pool: CpuPool,
@@ -189,9 +195,12 @@ impl Future for FetchTask {
 	}
 }
 
+/// Fetch Error
 #[derive(Debug)]
 pub enum Error {
+	/// Internal fetch error
 	Fetch(reqwest::Error),
+	/// Request aborted
 	Aborted,
 }
 
@@ -204,17 +213,20 @@ impl From<reqwest::Error> for Error {
 enum ResponseInner {
 	Response(reqwest::Response),
 	Reader(Box<io::Read + Send>),
+	NotFound,
 }
 
 impl fmt::Debug for ResponseInner {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			ResponseInner::Response(ref response) => response.fmt(f),
+			ResponseInner::NotFound => write!(f, "Not found"),
 			ResponseInner::Reader(_) => write!(f, "io Reader"),
 		}
 	}
 }
 
+/// A fetch response type.
 #[derive(Debug)]
 pub struct Response {
 	inner: ResponseInner,
@@ -224,6 +236,7 @@ pub struct Response {
 }
 
 impl Response {
+	/// Creates new successfuly response reading from a file.
 	pub fn from_reader<R: io::Read + Send + 'static>(reader: R) -> Self {
 		Response {
 			inner: ResponseInner::Reader(Box::new(reader)),
@@ -233,13 +246,31 @@ impl Response {
 		}
 	}
 
+	/// Creates 404 response (useful for tests)
+	pub fn not_found() -> Self {
+		Response {
+			inner: ResponseInner::NotFound,
+			abort: Abort::default(),
+			limit: None,
+			read: 0,
+		}
+	}
+
+	/// Returns status code of this response.
 	pub fn status(&self) -> reqwest::StatusCode {
 		match self.inner {
 			ResponseInner::Response(ref r) => *r.status(),
+			ResponseInner::NotFound => reqwest::StatusCode::NotFound,
 			_ => reqwest::StatusCode::Ok,
 		}
 	}
 
+	/// Returns `true` if response status code is successful.
+	pub fn is_success(&self) -> bool {
+		self.status() == reqwest::StatusCode::Ok
+	}
+
+	/// Returns `true` if content type of this response is `text/html`
 	pub fn is_html(&self) -> bool {
 		match self.content_type() {
 			Some(Mime(mime::TopLevel::Text, mime::SubLevel::Html, _)) => true,
@@ -247,6 +278,7 @@ impl Response {
 		}
 	}
 
+	/// Returns content type of this response (if present)
 	pub fn content_type(&self) -> Option<Mime> {
 		match self.inner {
 			ResponseInner::Response(ref r) => {
@@ -266,6 +298,7 @@ impl io::Read for Response {
 
 		let res = match self.inner {
 			ResponseInner::Response(ref mut response) => response.read(buf),
+			ResponseInner::NotFound => return Ok(0),
 			ResponseInner::Reader(ref mut reader) => reader.read(buf),
 		};
 

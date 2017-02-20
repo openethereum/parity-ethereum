@@ -15,41 +15,24 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { shallow } from 'enzyme';
-import React, { PropTypes } from 'react';
+import React from 'react';
 import sinon from 'sinon';
-
-import muiTheme from '../Theme';
 
 import ConfirmDialog from './';
 
 let component;
-let instance;
 let onConfirm;
 let onDeny;
-
-function createRedux () {
-  return {
-    dispatch: sinon.stub(),
-    subscribe: sinon.stub(),
-    getState: () => {
-      return {
-        settings: {
-          backgroundSeed: 'xyz'
-        }
-      };
-    }
-  };
-}
 
 function render (props = {}) {
   onConfirm = sinon.stub();
   onDeny = sinon.stub();
 
-  if (props.visible === undefined) {
-    props.visible = true;
+  if (props.open === undefined) {
+    props.open = true;
   }
 
-  const baseComponent = shallow(
+  component = shallow(
     <ConfirmDialog
       { ...props }
       title='test title'
@@ -62,57 +45,54 @@ function render (props = {}) {
     </ConfirmDialog>
   );
 
-  instance = baseComponent.instance();
-  component = baseComponent.find('Connect(Modal)').shallow({
-    childContextTypes: {
-      muiTheme: PropTypes.object,
-      store: PropTypes.object
-    },
-    context: {
-      muiTheme,
-      store: createRedux()
-    }
-  });
-
   return component;
 }
 
 describe('ui/ConfirmDialog', () => {
+  beforeEach(() => {
+    render();
+  });
+
   it('renders defaults', () => {
-    expect(render()).to.be.ok;
+    expect(component).to.be.ok;
   });
 
   it('renders the body as provided', () => {
-    expect(render().find('div[id="testContent"]').text()).to.equal('some test content');
+    expect(component.find('div[id="testContent"]').text()).to.equal('some test content');
   });
 
-  describe('properties', () => {
+  describe('Portal properties', () => {
     let props;
 
     beforeEach(() => {
-      props = render().props();
-    });
-
-    it('passes the actions', () => {
-      expect(props.actions).to.deep.equal(instance.renderActions());
+      props = component.find('Portal').props();
     });
 
     it('passes title', () => {
       expect(props.title).to.equal('test title');
     });
 
-    it('passes visiblity flag', () => {
-      expect(props.visible).to.be.true;
+    it('passes open flag', () => {
+      expect(props.open).to.be.true;
     });
-  });
 
-  describe('renderActions', () => {
-    describe('defaults', () => {
+    it('passes the small flag', () => {
+      expect(props.isSmallModal).to.be.true;
+    });
+
+    it('maps onClose to onDeny', () => {
+      expect(props.onClose).to.equal(onDeny);
+    });
+
+    describe('buttons', () => {
       let buttons;
 
       beforeEach(() => {
-        render();
-        buttons = instance.renderActions();
+        buttons = component.props().buttons;
+      });
+
+      it('passes the buttons', () => {
+        expect(buttons.length).to.equal(2);
       });
 
       it('renders with supplied onConfim/onDeny callbacks', () => {
@@ -129,29 +109,27 @@ describe('ui/ConfirmDialog', () => {
         expect(buttons[0].props.icon.type.displayName).to.equal('ContentClear');
         expect(buttons[1].props.icon.type.displayName).to.equal('NavigationCheck');
       });
-    });
 
-    describe('overrides', () => {
-      let buttons;
-
-      beforeEach(() => {
-        render({
-          labelConfirm: 'labelConfirm',
-          labelDeny: 'labelDeny',
-          iconConfirm: 'iconConfirm',
-          iconDeny: 'iconDeny'
+      describe('overrides', () => {
+        beforeEach(() => {
+          render({
+            labelConfirm: 'labelConfirm',
+            labelDeny: 'labelDeny',
+            iconConfirm: 'iconConfirm',
+            iconDeny: 'iconDeny'
+          });
+          buttons = component.props().buttons;
         });
-        buttons = instance.renderActions();
-      });
 
-      it('renders supplied labels', () => {
-        expect(buttons[0].props.label).to.equal('labelDeny');
-        expect(buttons[1].props.label).to.equal('labelConfirm');
-      });
+        it('renders supplied labels', () => {
+          expect(buttons[0].props.label).to.equal('labelDeny');
+          expect(buttons[1].props.label).to.equal('labelConfirm');
+        });
 
-      it('renders supplied icons', () => {
-        expect(buttons[0].props.icon).to.equal('iconDeny');
-        expect(buttons[1].props.icon).to.equal('iconConfirm');
+        it('renders supplied icons', () => {
+          expect(buttons[0].props.icon).to.equal('iconDeny');
+          expect(buttons[1].props.icon).to.equal('iconConfirm');
+        });
       });
     });
   });

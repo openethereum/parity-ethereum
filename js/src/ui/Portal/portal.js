@@ -43,6 +43,7 @@ export default class Portal extends Component {
     className: PropTypes.string,
     hideClose: PropTypes.bool,
     isChildModal: PropTypes.bool,
+    isSmallModal: PropTypes.bool,
     onKeyDown: PropTypes.func,
     steps: PropTypes.array,
     title: nodeOrStringProptype()
@@ -63,7 +64,7 @@ export default class Portal extends Component {
   }
 
   render () {
-    const { activeStep, busy, busySteps, children, className, isChildModal, open, steps, title } = this.props;
+    const { activeStep, busy, busySteps, children, className, isChildModal, isSmallModal, open, steps, title } = this.props;
 
     if (!open) {
       return null;
@@ -85,6 +86,9 @@ export default class Portal extends Component {
                 isChildModal
                   ? styles.popover
                   : styles.modal,
+                isSmallModal
+                  ? styles.small
+                  : null,
                 className
               ].join(' ')
             }

@@ -179,6 +179,16 @@ API and Console Options:
   --ipfs-api-port PORT           Configure on which port the IPFS HTTP API should listen.
                                  (default: {flag_ipfs_api_port})
 
+Secret Store Options:
+  --no-secretstore               Disable Secret Store functionality. (default: {flag_no_secretstore})
+  --secretstore-port PORT        Specify the port portion for Secret Store Key Server
+                                 (default: {flag_secretstore_port}).
+  --secretstore-interface IP     Specify the hostname portion for Secret Store Key Server, IP
+                                 should be an interface's IP address, or local
+                                 (default: {flag_secretstore_interface}).
+  --secretstore-path PATH        Specify directory where Secret Store should save its data.
+                                 (default: {flag_secretstore_path})
+
 Sealing/Mining Options:
   --author ADDRESS               Specify the block author (aka "coinbase") address
                                  for sending block rewards from sealed blocks.
