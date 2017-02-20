@@ -26,14 +26,14 @@ linux-stable:
     - cargo build -j $(nproc) --release -p ethstore
     - cargo build -j $(nproc) --release -p ethkey
     - strip target/release/parity
-    - strip target/release/parity/evmbin
+    - strip target/release/parity/evm
     - strip target/release/parity/ethstore
     - strip target/release/parity/ethkey
     - export SHA3=$(target/release/parity tools hash target/release/parity)
     - md5sum target/release/parity > parity.md5
     - sh scripts/deb-build.sh amd64
     - cp target/release/parity deb/usr/bin/parity
-    - cp target/release/parity/evmbin deb/usr/bin/evmbin
+    - cp target/release/parity/evm deb/usr/bin/evm
     - cp target/release/parity/ethstore deb/usr/bin/ethstore
     - cp target/release/parity/ethkey deb/usr/bin/ethkey
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
