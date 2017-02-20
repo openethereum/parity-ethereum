@@ -25,16 +25,18 @@ use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 
 use light::client::Client as LightClient;
-use light::cht;
+use light::{cht, TransactionQueue};
 use light::on_demand::{request, OnDemand};
 
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::ids::BlockId;
+use ethcore::transaction::SignedTransaction;
 use ethsync::LightSync;
+use rlp::{UntrustedRlp, View};
 use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
-use util::U256;
+use util::{RwLock, U256};
 
 use futures::{future, Future, BoxFuture};
 use futures::sync::oneshot;
@@ -56,6 +58,7 @@ pub struct EthClient {
 	sync: Arc<LightSync>,
 	client: Arc<LightClient>,
 	on_demand: Arc<OnDemand>,
+	transaction_queue: Arc<RwLock<TransactionQueue>>,
 	accounts: Arc<AccountProvider>,
 }
 
@@ -76,12 +79,14 @@ impl EthClient {
 		sync: Arc<LightSync>,
 		client: Arc<LightClient>,
 		on_demand: Arc<OnDemand>,
+		transaction_queue: Arc<RwLock<TransactionQueue>>,
 		accounts: Arc<AccountProvider>,
 	) -> Self {
 		EthClient {
 			sync: sync,
 			client: client,
 			on_demand: on_demand,
+			transaction_queue: transaction_queue,
 			accounts: accounts,
 		}
 	}
@@ -300,11 +305,27 @@ impl Eth for EthClient {
 	}
 
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
-		Err(errors::unimplemented(None))
+		let best_header = self.client.best_block_header().decode();
+
+		UntrustedRlp::new(&raw.into_vec()).as_val()
+			.map_err(errors::from_rlp_error)
+			.and_then(|tx| {
+				self.client.engine().verify_transaction_basic(&tx, &best_header)
+					.map_err(errors::from_transaction_error)?;
+
+				let signed = SignedTransaction::new(tx).map_err(errors::from_transaction_error)?;
+				let hash = signed.hash();
+
+				self.transaction_queue.write().import(signed.into())
+					.map(|_| hash)
+					.map_err(Into::into)
+					.map_err(errors::from_transaction_error)
+			})
+			.map(Into::into)
 	}
 
 	fn submit_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
-		Err(errors::unimplemented(None))
+		self.send_raw_transaction(raw)
 	}
 
 	fn call(&self, req: CallRequest, num: Trailing<BlockNumber>) -> Result<Bytes, Error> {

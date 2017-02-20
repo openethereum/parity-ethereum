@@ -106,7 +106,7 @@ impl ExtendedSecret {
 	}
 
 	/// Private key component of the extended key.
-	pub fn secret(&self) -> &Secret {
+	pub fn as_raw(&self) -> &Secret {
 		&self.secret
 	}
 }
@@ -127,7 +127,7 @@ impl ExtendedPublic {
 	pub fn from_secret(secret: &ExtendedSecret) -> Result<Self, DerivationError> {
 		Ok(
 			ExtendedPublic::new(
-				derivation::point(**secret.secret())?,
+				derivation::point(**secret.as_raw())?,
 				secret.chain_code.clone(),
 			)
 		)
@@ -410,7 +410,7 @@ mod tests {
 		let (private_seed, chain_code) = master_chain_basic();
 		let extended_secret = ExtendedSecret::with_code(Secret::from_slice(&*private_seed).unwrap(), chain_code);
 		let derived = f(extended_secret);
-		assert_eq!(**derived.secret(), test_private);
+		assert_eq!(**derived.as_raw(), test_private);
 	}
 
 	#[test]
@@ -419,14 +419,14 @@ mod tests {
 		let extended_secret = ExtendedSecret::with_code(secret.clone(), 0u64.into());
 
 		// hardened
-		assert_eq!(&**extended_secret.secret(), &*secret);
-		assert_eq!(&**extended_secret.derive(2147483648.into()).secret(), &"0927453daed47839608e414a3738dfad10aed17c459bbd9ab53f89b026c834b6".into());
-		assert_eq!(&**extended_secret.derive(2147483649.into()).secret(), &"44238b6a29c6dcbe9b401364141ba11e2198c289a5fed243a1c11af35c19dc0f".into());
+		assert_eq!(&**extended_secret.as_raw(), &*secret);
+		assert_eq!(&**extended_secret.derive(2147483648.into()).as_raw(), &"0927453daed47839608e414a3738dfad10aed17c459bbd9ab53f89b026c834b6".into());
+		assert_eq!(&**extended_secret.derive(2147483649.into()).as_raw(), &"44238b6a29c6dcbe9b401364141ba11e2198c289a5fed243a1c11af35c19dc0f".into());
 
 		// normal
-		assert_eq!(&**extended_secret.derive(0.into()).secret(), &"bf6a74e3f7b36fc4c96a1e12f31abc817f9f5904f5a8fc27713163d1f0b713f6".into());
-		assert_eq!(&**extended_secret.derive(1.into()).secret(), &"bd4fca9eb1f9c201e9448c1eecd66e302d68d4d313ce895b8c134f512205c1bc".into());
-		assert_eq!(&**extended_secret.derive(2.into()).secret(), &"86932b542d6cab4d9c65490c7ef502d89ecc0e2a5f4852157649e3251e2a3268".into());
+		assert_eq!(&**extended_secret.derive(0.into()).as_raw(), &"bf6a74e3f7b36fc4c96a1e12f31abc817f9f5904f5a8fc27713163d1f0b713f6".into());
+		assert_eq!(&**extended_secret.derive(1.into()).as_raw(), &"bd4fca9eb1f9c201e9448c1eecd66e302d68d4d313ce895b8c134f512205c1bc".into());
+		assert_eq!(&**extended_secret.derive(2.into()).as_raw(), &"86932b542d6cab4d9c65490c7ef502d89ecc0e2a5f4852157649e3251e2a3268".into());
 
 		let extended_public = ExtendedPublic::from_secret(&extended_secret).expect("Extended public should be created");
 		let derived_public = extended_public.derive(0.into()).expect("First derivation of public should succeed");
@@ -436,7 +436,7 @@ mod tests {
 			Secret::from_str("a100df7a048e50ed308ea696dc600215098141cb391e9527329df289f9383f65").unwrap(),
 			064.into(),
 		);
-		assert_eq!(&**keypair.derive(2147483648u32.into()).expect("Derivation of keypair should succeed").secret().secret(), &"edef54414c03196557cf73774bc97a645c9a1df2164ed34f0c2a78d1375a930c".into());
+		assert_eq!(&**keypair.derive(2147483648u32.into()).expect("Derivation of keypair should succeed").secret().as_raw(), &"edef54414c03196557cf73774bc97a645c9a1df2164ed34f0c2a78d1375a930c".into());
 	}
 
 	#[test]
@@ -461,7 +461,7 @@ mod tests {
 		let derivation_secret = H256::from_str("51eaf04f9dbbc1417dc97e789edd0c37ecda88bac490434e367ea81b71b7b015").unwrap();
 		let extended_secret = ExtendedSecret::with_code(secret.clone(), 1u64.into());
 
-		assert_eq!(&**extended_secret.derive(Derivation::Hard(derivation_secret)).secret(), &"2bc2d696fb744d77ff813b4a1ef0ad64e1e5188b622c54ba917acc5ebc7c5486".into());
+		assert_eq!(&**extended_secret.derive(Derivation::Hard(derivation_secret)).as_raw(), &"2bc2d696fb744d77ff813b4a1ef0ad64e1e5188b622c54ba917acc5ebc7c5486".into());
 	}
 
 	#[test]

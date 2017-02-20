@@ -19,6 +19,7 @@ use std::path::PathBuf;
 use ethkey::{Address, Message, Signature, Secret, Public};
 use Error;
 use json::Uuid;
+use util::H256;
 
 /// Key directory reference
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -40,10 +41,12 @@ pub struct StoreAccountRef {
 
 pub trait SimpleSecretStore: Send + Sync {
 	fn insert_account(&self, vault: SecretVaultRef, secret: Secret, password: &str) -> Result<StoreAccountRef, Error>;
+	fn insert_derived(&self, vault: SecretVaultRef, account_ref: &StoreAccountRef, password: &str, derivation: Derivation) -> Result<StoreAccountRef, Error>;
 	fn change_password(&self, account: &StoreAccountRef, old_password: &str, new_password: &str) -> Result<(), Error>;
 	fn remove_account(&self, account: &StoreAccountRef, password: &str) -> Result<(), Error>;
-
+	fn generate_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation) -> Result<Address, Error>;
 	fn sign(&self, account: &StoreAccountRef, password: &str, message: &Message) -> Result<Signature, Error>;
+	fn sign_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation, message: &Message) -> Result<Signature, Error>;
 	fn decrypt(&self, account: &StoreAccountRef, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error>;
 
 	fn accounts(&self) -> Result<Vec<StoreAccountRef>, Error>;
@@ -115,4 +118,22 @@ impl Hash for StoreAccountRef {
 	fn hash<H: Hasher>(&self, state: &mut H) {
 		self.address.hash(state);
 	}
+}
+
+/// Node in hierarchical derivation.
+pub struct IndexDerivation {
+	/// Node is soft (allows proof of parent from parent node).
+	pub soft: bool,
+	/// Index sequence of the node.
+	pub index: u32,
+}
+
+/// Derivation scheme for keys
+pub enum Derivation {
+	/// Hierarchical derivation
+	Hierarchical(Vec<IndexDerivation>),
+	/// Hash derivation, soft.
+	SoftHash(H256),
+	/// Hash derivation, hard.
+	HardHash(H256),
 }

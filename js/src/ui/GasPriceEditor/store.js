@@ -81,11 +81,11 @@ export default class GasPriceEditor {
 
       switch (conditionType) {
         case CONDITIONS.BLOCK:
-          this.condition = Object.assign({}, this.condition, { block: this.blockNumber || 1 });
+          this.setConditionBlockNumber(this.blockNumber || 1);
           break;
 
         case CONDITIONS.TIME:
-          this.condition = Object.assign({}, this.condition, { time: new Date() });
+          this.setConditionDateTime(new Date());
           break;
 
         case CONDITIONS.NONE:
@@ -103,7 +103,12 @@ export default class GasPriceEditor {
     });
   }
 
-  @action setConditionDateTime = (time) => {
+  @action setConditionDateTime = (_time) => {
+    const time = new Date(_time);
+
+    time.setMilliseconds(0); // ignored by/not passed to Parity
+    time.setSeconds(0); // current time selector doesn't allow seconds
+
     this.condition = Object.assign({}, this.condition, { time });
   }
 
