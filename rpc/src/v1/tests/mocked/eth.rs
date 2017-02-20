@@ -1020,7 +1020,7 @@ fn rpc_eth_transaction_receipt_null() {
 #[test]
 fn rpc_eth_compilers() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getCompilers", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32070,"message":"Method deprecated","data":"Compilation functionality is deprecated."},"id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -1029,7 +1029,7 @@ fn rpc_eth_compilers() {
 #[test]
 fn rpc_eth_compile_lll() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileLLL", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32070,"message":"Method deprecated","data":"Compilation of LLL via RPC is deprecated"},"id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -1038,7 +1038,7 @@ fn rpc_eth_compile_lll() {
 #[test]
 fn rpc_eth_compile_solidity() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileSolidity", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32070,"message":"Method deprecated","data":"Compilation of Solidity via RPC is deprecated"},"id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -1047,7 +1047,7 @@ fn rpc_eth_compile_solidity() {
 #[test]
 fn rpc_eth_compile_serpent() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileSerpent", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32070,"message":"Method deprecated","data":"Compilation of Serpent via RPC is deprecated"},"id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }

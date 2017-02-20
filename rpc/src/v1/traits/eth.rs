@@ -142,18 +142,22 @@ build_rpc_trait! {
 		fn uncle_by_block_number_and_index(&self, BlockNumber, Index) -> Result<Option<RichBlock>, Error>;
 
 		/// Returns available compilers.
+		/// @deprecated
 		#[rpc(name = "eth_getCompilers")]
 		fn compilers(&self) -> Result<Vec<String>, Error>;
 
 		/// Compiles lll code.
+		/// @deprecated
 		#[rpc(name = "eth_compileLLL")]
 		fn compile_lll(&self, String) -> Result<Bytes, Error>;
 
 		/// Compiles solidity.
+		/// @deprecated
 		#[rpc(name = "eth_compileSolidity")]
 		fn compile_solidity(&self, String) -> Result<Bytes, Error>;
 
 		/// Compiles serpent.
+		/// @deprecated
 		#[rpc(name = "eth_compileSerpent")]
 		fn compile_serpent(&self, String) -> Result<Bytes, Error>;
 
