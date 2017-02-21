@@ -21,7 +21,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { Button, Form, Input, InputChip, Modal } from '~/ui';
+import { Button, Form, Input, InputChip, Portal } from '~/ui';
 import { CancelIcon, SaveIcon } from '~/ui/Icons';
 
 import Store from './store';
@@ -41,18 +41,19 @@ class EditMeta extends Component {
   store = new Store(this.context.api, this.props.account);
 
   render () {
-    const { description, name, nameError, tags } = this.store;
+    const { description, name, nameError, onClose, tags } = this.store;
 
     return (
-      <Modal
-        actions={ this.renderActions() }
+      <Portal
+        buttons={ this.renderActions() }
+        onClose={ onClose }
+        open
         title={
           <FormattedMessage
             id='editMeta.title'
             defaultMessage='edit metadata'
           />
         }
-        visible
       >
         <Form>
           <Input
@@ -101,7 +102,7 @@ class EditMeta extends Component {
             tokens={ tags.slice() }
           />
         </Form>
-      </Modal>
+      </Portal>
     );
   }
 
