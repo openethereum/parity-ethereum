@@ -41,7 +41,7 @@ function create () {
   store = new Store(api);
 }
 
-describe('modals/DappPermissions/store', () => {
+describe.only('modals/DappPermissions/store', () => {
   beforeEach(() => {
     create();
   });
@@ -108,6 +108,14 @@ describe('modals/DappPermissions/store', () => {
         store.selectAccount('456');
         expect(store.accounts.find((account) => account.address === '456').default).to.be.false;
         expect(store.accounts.find((account) => account.address === '123').default).to.be.true;
+      });
+
+      it('does not deselect the last account', () => {
+        store.selectAccount('123');
+        store.selectAccount('456');
+        console.log(store.accounts.map((account) => ({ address: account.address, checked: account.checked })));
+        expect(store.accounts.find((account) => account.address === '456').default).to.be.true;
+        expect(store.accounts.find((account) => account.address === '456').checked).to.be.true;
       });
     });
 

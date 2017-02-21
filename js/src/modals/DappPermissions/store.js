@@ -64,8 +64,10 @@ export default class Store {
 
   @action selectAccount = (address) => {
     transaction(() => {
+      const isSingleAccount = this.accounts.filter((account) => account.checked).length === 1;
+
       this.accounts = this.accounts.map((account) => {
-        if (account.address === address) {
+        if (account.address === address && (!isSingleAccount || !account.checked)) {
           account.checked = !account.checked;
           account.default = false;
         }
