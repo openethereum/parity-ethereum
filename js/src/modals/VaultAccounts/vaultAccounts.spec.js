@@ -75,6 +75,9 @@ function createReduxStore () {
     subscribe: sinon.stub(),
     getState: () => {
       return {
+        balances: {
+          balances: {}
+        },
         personal: {
           accounts: ACCOUNTS
         }
