@@ -15,23 +15,15 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container
-.containerLink {
+.container {
   height: 100%;
   position: relative;
-}
 
-.container {
   &:not(:hover) {
     .tags {
       display: none;
     }
   }
-}
-
-.containerLink {
-  cursor: pointer;
-  width: 100%;
 }
 
 .image {

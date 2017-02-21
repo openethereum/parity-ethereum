@@ -42,7 +42,6 @@ $widthExpanded: 42%;
     /* case where <> 3 columns are required should the need arrise from a UI pov. */
     .item {
       box-sizing: border-box;
-      cursor: pointer;
       display: flex;
       flex: 0 1 $widthNormal;
       max-width: $widthNormal;

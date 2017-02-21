@@ -77,3 +77,8 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
 .light .padded {
   background: rgba(0, 0, 0, 0.5) !important;
 }
+
+.link {
+  width: 100%;
+  height: 100%;
+}

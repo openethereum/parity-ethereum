@@ -92,11 +92,6 @@
   }
 }
 
-.link {
-  height: 100%;
-  width: 100%;
-}
-
 .heading {
   display: flex;
   flex-direction: row;

@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Link } from 'react-router';
 
 import Container, { Title as ContainerTitle } from '~/ui/Container';
 import DappIcon from '~/ui/DappIcon';
@@ -45,7 +44,7 @@ export default class DappCard extends Component {
       return null;
     }
 
-    const card = (
+    return (
       <Container
         className={
           [styles.container, className].join(' ')
@@ -55,6 +54,7 @@ export default class DappCard extends Component {
             { app.author }, v{ app.version }
           </div>
         }
+        link={ this.getLink(app) }
         onClick={ onClick }
       >
         <DappIcon
@@ -83,24 +83,17 @@ export default class DappCard extends Component {
         </div>
       </Container>
     );
-
-    return showLink
-      ? this.renderLink(app, card)
-      : card;
   }
 
-  renderLink (app, card) {
-    return (
-      <Link
-        className={ styles.containerLink }
-        to={
-          app.url === 'web'
-            ? '/web'
-            : `/app/${app.id}`
-        }
-      >
-        { card }
-      </Link>
-    );
+  getLink (app) {
+    const { showLink } = this.props;
+
+    if (!showLink) {
+      return null;
+    }
+
+    return app.url === 'web'
+      ? '/web'
+      : `/app/${app.id}`;
   }
 }

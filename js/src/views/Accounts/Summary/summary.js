@@ -110,7 +110,7 @@ class Summary extends Component {
       />
     );
 
-    const card = (
+    return (
       <Container
         className={ styles.account }
         hover={
@@ -121,6 +121,7 @@ class Summary extends Component {
             { this.renderCertifications() }
           </div>
         }
+        link={ this.getLink() }
       >
         <Tags
           className={ styles.tags }
@@ -150,10 +151,6 @@ class Summary extends Component {
         { this.renderBalance(true) }
       </Container>
     );
-
-    return noLink
-      ? card
-      : this.renderLink(card);
   }
 
   renderDescription (meta = {}) {
@@ -228,23 +225,14 @@ class Summary extends Component {
     );
   }
 
-  renderLink (card) {
+  getLink () {
     const { link, account } = this.props;
     const { address } = account;
     const baseLink = account.wallet
       ? 'wallet'
       : link || 'accounts';
 
-    const viewLink = `/${baseLink}/${address}`;
-
-    return (
-      <Link
-        className={ styles.link }
-        to={ viewLink }
-      >
-        { card }
-      </Link>
-    );
+    return `/${baseLink}/${address}`;
   }
 
   renderBalance (onlyEth) {
