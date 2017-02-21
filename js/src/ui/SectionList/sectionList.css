@@ -15,7 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
+$transition: all 0.25s;
 $widthNormal: 33.33%;
 $widthShrunk: 29%;
 $widthExpanded: 42%;
@@ -50,7 +50,7 @@ $widthExpanded: 42%;
       padding: 0.25em;
       /* https://www.binarymoon.co.uk/2014/02/fixing-css-transitions-in-google-chrome/ */
       transform: translateZ(0);
-      transition: $transitionAll;
+      transition: $transition;
 
       &:hover {
         opacity: 1;
