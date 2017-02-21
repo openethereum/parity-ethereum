@@ -90,7 +90,7 @@ class Address extends Component {
         { this.renderEditDialog(contact) }
         { this.renderActionbar(contact) }
         { this.renderDelete(contact) }
-        <Page>
+        <Page padded>
           <Header
             account={ contact || { address, meta: {} } }
             balance={ balance }

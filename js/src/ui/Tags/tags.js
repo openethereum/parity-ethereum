@@ -22,7 +22,7 @@ import styles from './tags.css';
 
 export default class Tags extends Component {
   static propTypes = {
-    className: PropTypes.stirng,
+    className: PropTypes.string,
     floating: PropTypes.bool,
     horizontal: PropTypes.bool,
     handleAddSearchToken: PropTypes.func,
