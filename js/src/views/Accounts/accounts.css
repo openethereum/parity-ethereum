@@ -24,9 +24,15 @@
   position: relative;
 
   .owners {
-    margin-top: 1em;
     display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
     margin-bottom: -0.5em;
+    margin-top: 1em;
+
+    .owner {
+      margin: 0.5em;
+    }
   }
 
   .overlay {

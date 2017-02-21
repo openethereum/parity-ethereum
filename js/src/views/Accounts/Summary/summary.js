@@ -187,20 +187,29 @@ export default class Summary extends Component {
     return (
       <div className={ styles.owners }>
         {
-          ownersValid.map((owner, index) => (
-            <div key={ `${index}_${owner.address}` }>
-              <div
-                data-tip
-                data-for={ `owner_${owner.address}` }
-                data-effect='solid'
+          ownersValid.map((owner, index) => {
+            return (
+              <Link
+                className={ styles.owner }
+                key={ `${index}_${owner.address}` }
+                to={ `/accounts/${owner.address}` }
               >
-                <IdentityIcon address={ owner.address } button />
-              </div>
-              <ReactTooltip id={ `owner_${owner.address}` }>
-                <strong>{ owner.name } </strong><small> (owner)</small>
-              </ReactTooltip>
-            </div>
-          ))
+                <div
+                  data-tip
+                  data-for={ `owner_${owner.address}` }
+                  data-effect='solid'
+                >
+                  <IdentityIcon
+                    address={ owner.address }
+                    center
+                  />
+                </div>
+                <ReactTooltip id={ `owner_${owner.address}` }>
+                  <strong>{ owner.name } </strong><small> (owner)</small>
+                </ReactTooltip>
+              </Link>
+            );
+          })
         }
       </div>
     );
