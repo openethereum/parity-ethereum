@@ -94,9 +94,9 @@ export default class Ledger {
           nonce: numberToHex(transaction.nonce),
           to: transaction.to ? transaction.to.toLowerCase() : undefined,
           value: numberToHex(transaction.value),
-          v: new Buffer([chainId]), // pass the chainId to the ledger
-          r: new Buffer([]),
-          s: new Buffer([])
+          v: Buffer.from([chainId]), // pass the chainId to the ledger
+          r: Buffer.from([]),
+          s: Buffer.from([])
         });
         const rawTransaction = tx.serialize().toString('hex');
 
@@ -106,9 +106,9 @@ export default class Ledger {
             return;
           }
 
-          tx.v = new Buffer(response.v, 'hex');
-          tx.r = new Buffer(response.r, 'hex');
-          tx.s = new Buffer(response.s, 'hex');
+          tx.v = Buffer.from(response.v, 'hex');
+          tx.r = Buffer.from(response.r, 'hex');
+          tx.s = Buffer.from(response.s, 'hex');
 
           if (chainId !== Math.floor((tx.v[0] - 35) / 2)) {
             reject(new Error('Invalid EIP155 signature received from Ledger.'));
