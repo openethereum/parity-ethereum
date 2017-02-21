@@ -85,7 +85,10 @@ export default class VaultCard extends Component {
         {
           accounts.map((address) => {
             return (
-              <Link to={ `/accounts/${address}` }>
+              <Link
+                key={ address }
+                to={ `/accounts/${address}` }
+              >
                 <IdentityIcon
                   address={ address }
                   center
