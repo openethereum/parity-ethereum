@@ -21,7 +21,7 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 
 import Button from '../../Button';
-import Modal from '../../Modal';
+import Portal from '../../Portal';
 
 import styles from './import.css';
 
@@ -75,18 +75,21 @@ export default class ActionbarImport extends Component {
 
     const hasSteps = typeof renderValidation === 'function';
 
-    const steps = hasSteps ? [ 'select a file', error ? 'error' : 'validate' ] : null;
-
     return (
-      <Modal
-        actions={ this.renderActions() }
+      <Portal
+        activeStep={ step }
+        buttons={ this.renderActions() }
+        onClose={ this.onCloseModal }
+        open
+        steps={
+          hasSteps
+            ? [ 'select a file', error ? 'error' : 'validate' ]
+            : null
+        }
         title={ title }
-        steps={ steps }
-        current={ step }
-        visible
       >
         { this.renderBody() }
-      </Modal>
+      </Portal>
     );
   }
 
