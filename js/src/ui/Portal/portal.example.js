@@ -19,7 +19,6 @@ import React, { Component } from 'react';
 import { Button } from '~/ui';
 import PlaygroundExample from '~/playground/playgroundExample';
 
-import Modal from '../Modal';
 import Portal from './portal';
 
 export default class PortalExample extends Component {
@@ -60,14 +59,6 @@ export default class PortalExample extends Component {
         <PlaygroundExample name='Portal in Modal'>
           <div>
             <button onClick={ this.handleOpen(2) }>Open</button>
-
-            <Modal
-              title='Modal'
-              visible={ open[2] || false }
-            >
-              <button onClick={ this.handleOpen(3) }>Open</button>
-              <button onClick={ this.handleClose }>Close</button>
-            </Modal>
 
             <Portal
               isChildModal
