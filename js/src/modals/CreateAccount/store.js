@@ -325,6 +325,8 @@ export default class Store {
         this._api.parity.generateSecretPhrase(),
         this._api.parity.generateSecretPhrase(),
         this._api.parity.generateSecretPhrase(),
+        this._api.parity.generateSecretPhrase(),
+        this._api.parity.generateSecretPhrase(),
         this._api.parity.generateSecretPhrase()
       ])
       .then((phrases) => {
