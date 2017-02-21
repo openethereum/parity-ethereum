@@ -114,9 +114,9 @@ export default class Summary extends Component {
       <Container
         className={ styles.account }
         hover={
-          <div>
-            { this.renderOwners() }
+          <div className={ styles.overlay }>
             { this.renderBalance(false) }
+            { this.renderOwners() }
             { this.renderCertifications() }
           </div>
         }

@@ -29,14 +29,12 @@
     margin-bottom: -0.5em;
   }
 
-  &:not(:hover) {
-    .tags {
-      display: none;
-    }
+  .overlay {
+    margin-top: -3.25em;
   }
 
-  &:hover {
-    .ethBalances {
+  &:not(:hover) {
+    .tags {
       display: none;
     }
   }
