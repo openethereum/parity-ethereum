@@ -21,7 +21,7 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
 import { toWei } from '~/api/util/wei';
-import { BusyStep, Button, CompletedStep, GasPriceEditor, IdentityIcon, Modal, TxHash, Warning } from '~/ui';
+import { BusyStep, Button, CompletedStep, GasPriceEditor, IdentityIcon, Portal, TxHash, Warning } from '~/ui';
 import { CancelIcon, DoneIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 import { MAX_GAS_ESTIMATION } from '~/util/constants';
 import { validateAddress, validateUint } from '~/util/validation';
@@ -131,21 +131,22 @@ class ExecuteContract extends Component {
     }
 
     return (
-      <Modal
-        actions={ this.renderDialogActions() }
-        busy={ sending }
-        current={ step }
-        steps={ steps }
-        visible
-        waiting={
+      <Portal
+        activeStep={ step }
+        buttons={ this.renderDialogActions() }
+        busySteps={
           advancedOptions
             ? [STEP_BUSY]
             : [STEP_BUSY_OR_ADVANCED]
         }
+        busy={ sending }
+        onClose={ this.onClose }
+        open
+        steps={ steps }
       >
         { this.renderExceptionWarning() }
         { this.renderStep() }
-      </Modal>
+      </Portal>
     );
   }
 
@@ -163,7 +164,7 @@ class ExecuteContract extends Component {
   }
 
   renderDialogActions () {
-    const { onClose, fromAddress } = this.props;
+    const { fromAddress } = this.props;
     const { advancedOptions, sending, step, fromAddressError, valuesError } = this.state;
     const hasError = fromAddressError || valuesError.find((error) => error);
 
@@ -177,7 +178,7 @@ class ExecuteContract extends Component {
           />
         }
         icon={ <CancelIcon /> }
-        onClick={ onClose }
+        onClick={ this.onClose }
       />
     );
     const postBtn = (
@@ -248,7 +249,7 @@ class ExecuteContract extends Component {
           />
         }
         icon={ <DoneIcon /> }
-        onClick={ onClose }
+        onClick={ this.onClose }
       />
     ];
   }
@@ -461,6 +462,10 @@ class ExecuteContract extends Component {
     this.setState({
       step: this.state.step - 1
     });
+  }
+
+  onClose = () => {
+    this.props.onClose();
   }
 }
 
