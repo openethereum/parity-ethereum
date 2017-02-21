@@ -76,7 +76,7 @@ export default class CreateWallet extends Component {
     return (
       <Portal
         activeStep={ stage }
-        busy={ waiting }
+        busySteps={ waiting }
         buttons={ this.renderDialogActions() }
         onClose={ this.onClose }
         open
