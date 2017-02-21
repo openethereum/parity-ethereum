@@ -35,6 +35,13 @@ export default {
   passwordStrength: {
     label: `password strength`
   },
+  tooltips: {
+    button: {
+      done: `Done`,
+      next: `Next`,
+      skip: `Skip`
+    }
+  },
   txHash: {
     confirmations: `{count} {value, plural, one {confirmation} other {confirmations}}`,
     oog: `The transaction might have gone out of gas. Try again with more gas.`,
