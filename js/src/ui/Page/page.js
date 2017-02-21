@@ -45,14 +45,16 @@ export default class Page extends Component {
             )
             : null
         }
-        <div className={
-          [
-            padded
-              ? styles.layoutPadded
-              : styles.layout,
-            className
-          ].join(' ')
-        }>
+        <div
+          className={
+            [
+              padded
+                ? styles.layoutPadded
+                : styles.layout,
+              className
+            ].join(' ')
+          }
+        >
           { children }
         </div>
       </div>
