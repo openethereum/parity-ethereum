@@ -23,7 +23,7 @@ use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
 use std::fmt;
 use std::collections::{HashMap, HashSet};
 use std::time::{Instant, Duration};
-use util::RwLock;
+use util::{FixedHash, RwLock};
 use ethstore::{SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
 	random_string, SecretVaultRef, StoreAccountRef};
 use ethstore::dir::MemoryDirectory;
@@ -31,6 +31,7 @@ use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
 use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath};
 pub use ethstore::ethkey::Signature;
+pub use ethstore::{Derivation, IndexDerivation};
 
 /// Type of unlock.
 #[derive(Clone)]
@@ -197,6 +198,20 @@ impl AccountProvider {
 		Ok(account.address)
 	}
 
+	/// Generates new derived account based on the existing one
+	/// If password is not provided, account must be unlocked
+	/// New account will be created with the same password (if save: true)
+	pub fn derive_account(&self, address: &Address, password: Option<String>, derivation: Derivation, save: bool)
+		-> Result<Address, SignError>
+	{
+		let account = self.sstore.account_ref(&address)?;
+		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
+		Ok(
+			if save { self.sstore.insert_derived(SecretVaultRef::Root, &account, &password, derivation)?.address }
+			else { self.sstore.generate_derived(&account, &password, derivation)? }
+		)
+	}
+
 	/// Import a new presale wallet.
 	pub fn import_presale(&self, presale_json: &[u8], password: &str) -> Result<Address, Error> {
 		let account = self.sstore.import_presale(SecretVaultRef::Root, presale_json, password)?;
@@ -226,23 +241,86 @@ impl AccountProvider {
 		Ok(accounts.into_iter().map(|a| a.address).collect())
 	}
 
-	/// Sets a whitelist of accounts exposed for unknown dapps.
+	/// Sets addresses of accounts exposed for unknown dapps.
 	/// `None` means that all accounts will be visible.
-	pub fn set_new_dapps_whitelist(&self, accounts: Option<Vec<Address>>) -> Result<(), Error> {
+	/// If not `None` or empty it will also override default account.
+	pub fn set_new_dapps_addresses(&self, accounts: Option<Vec<Address>>) -> Result<(), Error> {
+		let current_default = self.new_dapps_default_address()?;
+
 		self.dapps_settings.write().set_policy(match accounts {
-			None => NewDappsPolicy::AllAccounts,
+			None => NewDappsPolicy::AllAccounts {
+				default: current_default,
+			},
 			Some(accounts) => NewDappsPolicy::Whitelist(accounts),
 		});
 		Ok(())
 	}
 
-	/// Gets a whitelist of accounts exposed for unknown dapps.
+	/// Gets addresses of accounts exposed for unknown dapps.
 	/// `None` means that all accounts will be visible.
-	pub fn new_dapps_whitelist(&self) -> Result<Option<Vec<Address>>, Error> {
+	pub fn new_dapps_addresses(&self) -> Result<Option<Vec<Address>>, Error> {
 		Ok(match self.dapps_settings.read().policy() {
-			NewDappsPolicy::AllAccounts => None,
+			NewDappsPolicy::AllAccounts { .. } => None,
 			NewDappsPolicy::Whitelist(accounts) => Some(accounts),
 		})
+	}
+
+	/// Sets a default account for unknown dapps.
+	/// This account will always be returned as the first one.
+	pub fn set_new_dapps_default_address(&self, address: Address) -> Result<(), Error> {
+		if !self.valid_addresses()?.contains(&address) {
+			return Err(SSError::InvalidAccount.into());
+		}
+
+		let mut settings = self.dapps_settings.write();
+		let new_policy = match settings.policy() {
+			NewDappsPolicy::AllAccounts { .. } => NewDappsPolicy::AllAccounts { default: address },
+			NewDappsPolicy::Whitelist(list) => NewDappsPolicy::Whitelist(Self::insert_default(list, address)),
+		};
+		settings.set_policy(new_policy);
+
+		Ok(())
+	}
+
+	/// Inserts given address as first in the vector, preventing duplicates.
+	fn insert_default(mut addresses: Vec<Address>, default: Address) -> Vec<Address> {
+		if let Some(position) = addresses.iter().position(|address| address == &default) {
+			addresses.swap(0, position);
+		} else {
+			addresses.insert(0, default);
+		}
+
+		addresses
+	}
+
+	/// Returns a list of accounts that new dapp should see.
+	/// First account is always the default account.
+	fn new_dapps_addresses_list(&self) -> Result<Vec<Address>, Error> {
+		match self.dapps_settings.read().policy() {
+			NewDappsPolicy::AllAccounts { default } => if default.is_zero() {
+				self.accounts()
+			} else {
+				Ok(Self::insert_default(self.accounts()?, default))
+			},
+			NewDappsPolicy::Whitelist(accounts) => {
+				let addresses = self.filter_addresses(accounts)?;
+				if addresses.is_empty() {
+					Ok(vec![self.accounts()?.get(0).cloned().unwrap_or(0.into())])
+				} else {
+					Ok(addresses)
+				}
+			},
+		}
+	}
+
+	/// Gets a default account for new dapps
+	/// Will return zero address in case the default is not set and there are no accounts configured.
+	pub fn new_dapps_default_address(&self) -> Result<Address, Error> {
+		Ok(self.new_dapps_addresses_list()?
+			.get(0)
+			.cloned()
+			.unwrap_or(0.into())
+		)
 	}
 
 	/// Gets a list of dapps recently requesting accounts.
@@ -257,41 +335,74 @@ impl AccountProvider {
 		Ok(())
 	}
 
-	/// Gets addresses visile for dapp.
-	pub fn dapps_addresses(&self, dapp: DappId) -> Result<Vec<Address>, Error> {
-		let dapps = self.dapps_settings.read();
+	/// Gets addresses visible for given dapp.
+	pub fn dapp_addresses(&self, dapp: DappId) -> Result<Vec<Address>, Error> {
+		let accounts = self.dapps_settings.read().settings().get(&dapp).map(|settings| {
+			(settings.accounts.clone(), settings.default.clone())
+		});
 
-		let accounts = dapps.settings().get(&dapp).map(|settings| settings.accounts.clone());
 		match accounts {
-			Some(accounts) => Ok(accounts),
-			None => match dapps.policy() {
-				NewDappsPolicy::AllAccounts => self.accounts(),
-				NewDappsPolicy::Whitelist(accounts) => self.filter_addresses(accounts),
-			}
+			Some((Some(accounts), Some(default))) => self.filter_addresses(Self::insert_default(accounts, default)),
+			Some((Some(accounts), None)) => self.filter_addresses(accounts),
+			Some((None, Some(default))) => self.filter_addresses(Self::insert_default(self.new_dapps_addresses_list()?, default)),
+			_ => self.new_dapps_addresses_list(),
 		}
 	}
 
 	/// Returns default account for particular dapp falling back to other allowed accounts if necessary.
-	pub fn default_address(&self, dapp: DappId) -> Result<Address, Error> {
-		self.dapps_addresses(dapp)?
+	pub fn dapp_default_address(&self, dapp: DappId) -> Result<Address, Error> {
+		let dapp_default = self.dapp_addresses(dapp)?
 			.get(0)
-			.cloned()
-			.ok_or(SSError::InvalidAccount)
+			.cloned();
+
+		match dapp_default {
+			Some(default) => Ok(default),
+			None => self.new_dapps_default_address(),
+		}
 	}
 
-	/// Sets addresses visile for dapp.
-	pub fn set_dapps_addresses(&self, dapp: DappId, addresses: Vec<Address>) -> Result<(), Error> {
-		let addresses = self.filter_addresses(addresses)?;
-		self.dapps_settings.write().set_accounts(dapp, addresses);
+	/// Sets default address for given dapp.
+	/// Does not alter dapp addresses, but this account will always be returned as the first one.
+	pub fn set_dapp_default_address(&self, dapp: DappId, address: Address) -> Result<(), Error> {
+		if !self.valid_addresses()?.contains(&address) {
+			return Err(SSError::InvalidAccount.into());
+		}
+
+		self.dapps_settings.write().set_default(dapp, address);
 		Ok(())
+	}
+
+	/// Sets addresses visible for given dapp.
+	/// If `None` - falls back to dapps addresses
+	/// If not `None` and not empty it will also override default account.
+	pub fn set_dapp_addresses(&self, dapp: DappId, addresses: Option<Vec<Address>>) -> Result<(), Error> {
+		let (addresses, default) = match addresses {
+			Some(addresses) => {
+				let addresses = self.filter_addresses(addresses)?;
+				let default = addresses.get(0).cloned();
+				(Some(addresses), default)
+			},
+			None => (None, None),
+		};
+
+		let mut settings = self.dapps_settings.write();
+		if let Some(default) = default {
+			settings.set_default(dapp.clone(), default);
+		}
+		settings.set_accounts(dapp, addresses);
+		Ok(())
+	}
+
+	fn valid_addresses(&self) -> Result<HashSet<Address>, Error> {
+		Ok(self.addresses_info().into_iter()
+			.map(|(address, _)| address)
+			.chain(self.accounts()?)
+			.collect())
 	}
 
 	/// Removes addresses that are neither accounts nor in address book.
 	fn filter_addresses(&self, addresses: Vec<Address>) -> Result<Vec<Address>, Error> {
-		let valid = self.addresses_info().into_iter()
-			.map(|(address, _)| address)
-			.chain(self.accounts()?)
-			.collect::<HashSet<_>>();
+		let valid = self.valid_addresses()?;
 
 		Ok(addresses.into_iter()
 			.filter(|a| valid.contains(&a))
@@ -458,6 +569,15 @@ impl AccountProvider {
 		Ok(self.sstore.sign(&account, &password, &message)?)
 	}
 
+	/// Signs message using the derived secret. If password is not provided the account must be unlocked.
+	pub fn sign_derived(&self, address: &Address, password: Option<String>, derivation: Derivation, message: Message)
+		-> Result<Signature, SignError>
+	{
+		let account = self.sstore.account_ref(address)?;
+		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
+		Ok(self.sstore.sign_derived(&account, &password, derivation, &message)?)
+	}
+
 	/// Signs given message with supplied token. Returns a token to use in next signing within this session.
 	pub fn sign_with_token(&self, address: Address, token: AccountToken, message: Message) -> Result<(Signature, AccountToken), SignError> {
 		let account = self.sstore.account_ref(&address)?;
@@ -593,7 +713,8 @@ mod tests {
 	use super::{AccountProvider, Unlock, DappId};
 	use std::time::Instant;
 	use ethstore::ethkey::{Generator, Random};
-	use ethstore::StoreAccountRef;
+	use ethstore::{StoreAccountRef, Derivation};
+	use util::H256;
 
 	#[test]
 	fn unlock_account_temp() {
@@ -604,6 +725,75 @@ mod tests {
 		assert!(ap.unlock_account_temporarily(kp.address(), "test".into()).is_ok());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_err());
+	}
+
+	#[test]
+	fn derived_account_nosave() {
+		let kp = Random.generate().unwrap();
+		let ap = AccountProvider::transient_provider();
+		assert!(ap.insert_account(kp.secret().clone(), "base").is_ok());
+		assert!(ap.unlock_account_permanently(kp.address(), "base".into()).is_ok());
+
+		let derived_addr = ap.derive_account(
+			&kp.address(),
+			None,
+			Derivation::SoftHash(H256::from(999)),
+			false,
+		).expect("Derivation should not fail");
+
+		assert!(ap.unlock_account_permanently(derived_addr, "base".into()).is_err(),
+			"There should be an error because account is not supposed to be saved");
+	}
+
+	#[test]
+	fn derived_account_save() {
+		let kp = Random.generate().unwrap();
+		let ap = AccountProvider::transient_provider();
+		assert!(ap.insert_account(kp.secret().clone(), "base").is_ok());
+		assert!(ap.unlock_account_permanently(kp.address(), "base".into()).is_ok());
+
+		let derived_addr = ap.derive_account(
+			&kp.address(),
+			None,
+			Derivation::SoftHash(H256::from(999)),
+			true,
+		).expect("Derivation should not fail");
+
+		assert!(ap.unlock_account_permanently(derived_addr, "base_wrong".into()).is_err(),
+			"There should be an error because password is invalid");
+
+		assert!(ap.unlock_account_permanently(derived_addr, "base".into()).is_ok(),
+			"Should be ok because account is saved and password is valid");
+	}
+
+	#[test]
+	fn derived_account_sign() {
+		let kp = Random.generate().unwrap();
+		let ap = AccountProvider::transient_provider();
+		assert!(ap.insert_account(kp.secret().clone(), "base").is_ok());
+		assert!(ap.unlock_account_permanently(kp.address(), "base".into()).is_ok());
+
+		let derived_addr = ap.derive_account(
+			&kp.address(),
+			None,
+			Derivation::SoftHash(H256::from(1999)),
+			true,
+		).expect("Derivation should not fail");
+		ap.unlock_account_permanently(derived_addr, "base".into())
+			.expect("Should be ok because account is saved and password is valid");
+
+		let msg = Default::default();
+		let signed_msg1 = ap.sign(derived_addr, None, msg)
+			.expect("Signing with existing unlocked account should not fail");
+		let signed_msg2 = ap.sign_derived(
+			&kp.address(),
+			None,
+			Derivation::SoftHash(H256::from(1999)),
+			msg,
+		).expect("Derived signing with existing unlocked account should not fail");
+
+		assert_eq!(signed_msg1, signed_msg2,
+			"Signed messages should match");
 	}
 
 	#[test]
@@ -649,44 +839,92 @@ mod tests {
 	}
 
 	#[test]
-	fn should_set_dapps_addresses() {
+	fn should_reset_dapp_addresses_to_default() {
+		// given
+		let ap = AccountProvider::transient_provider();
+		let app = DappId("app1".into());
+		// add accounts to address book
+		ap.set_address_name(1.into(), "1".into());
+		ap.set_address_name(2.into(), "2".into());
+		// set `AllAccounts` policy
+		ap.set_new_dapps_addresses(Some(vec![1.into(), 2.into()])).unwrap();
+		assert_eq!(ap.dapp_addresses(app.clone()).unwrap(), vec![1.into(), 2.into()]);
+
+		// Alter and check
+		ap.set_dapp_addresses(app.clone(), Some(vec![1.into(), 3.into()])).unwrap();
+		assert_eq!(ap.dapp_addresses(app.clone()).unwrap(), vec![1.into()]);
+
+		// Reset back to default
+		ap.set_dapp_addresses(app.clone(), None).unwrap();
+		assert_eq!(ap.dapp_addresses(app.clone()).unwrap(), vec![1.into(), 2.into()]);
+	}
+
+	#[test]
+	fn should_set_dapps_default_address() {
 		// given
 		let ap = AccountProvider::transient_provider();
 		let app = DappId("app1".into());
 		// set `AllAccounts` policy
-		ap.set_new_dapps_whitelist(None).unwrap();
+		ap.set_new_dapps_addresses(None).unwrap();
 		// add accounts to address book
 		ap.set_address_name(1.into(), "1".into());
 		ap.set_address_name(2.into(), "2".into());
 
-		// when
-		ap.set_dapps_addresses(app.clone(), vec![1.into(), 2.into(), 3.into()]).unwrap();
+		ap.set_dapp_addresses(app.clone(), Some(vec![1.into(), 2.into(), 3.into()])).unwrap();
+		assert_eq!(ap.dapp_addresses(app.clone()).unwrap(), vec![1.into(), 2.into()]);
+		assert_eq!(ap.dapp_default_address("app1".into()).unwrap(), 1.into());
 
-		// then
-		assert_eq!(ap.dapps_addresses(app.clone()).unwrap(), vec![1.into(), 2.into()]);
+		// when setting empty list
+		ap.set_dapp_addresses(app.clone(), Some(vec![])).unwrap();
+
+		// then default account is intact
+		assert_eq!(ap.dapp_addresses(app.clone()).unwrap(), vec![1.into()]);
+		assert_eq!(ap.dapp_default_address("app1".into()).unwrap(), 1.into());
+
+		// alter default account
+		ap.set_dapp_default_address("app1".into(), 2.into()).unwrap();
+		assert_eq!(ap.dapp_addresses(app.clone()).unwrap(), vec![2.into()]);
+		assert_eq!(ap.dapp_default_address("app1".into()).unwrap(), 2.into());
 	}
 
 	#[test]
-	fn should_set_dapps_policy() {
+	fn should_set_dapps_policy_and_default_account() {
 		// given
 		let ap = AccountProvider::transient_provider();
+
+		// default_account should be always available
+		assert_eq!(ap.new_dapps_default_address().unwrap(), 0.into());
+
 		let address = ap.new_account("test").unwrap();
 		ap.set_address_name(1.into(), "1".into());
 
-		// When returning nothing
-		ap.set_new_dapps_whitelist(Some(vec![])).unwrap();
-		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![]);
+		// Default account set to first account by default
+		assert_eq!(ap.new_dapps_default_address().unwrap(), address);
+		assert_eq!(ap.dapp_default_address("app1".into()).unwrap(), address);
+
+		// Even when returning nothing
+		ap.set_new_dapps_addresses(Some(vec![])).unwrap();
+		// Default account is still returned
+		assert_eq!(ap.dapp_addresses("app1".into()).unwrap(), vec![address]);
 
 		// change to all
-		ap.set_new_dapps_whitelist(None).unwrap();
-		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![address]);
+		ap.set_new_dapps_addresses(None).unwrap();
+		assert_eq!(ap.dapp_addresses("app1".into()).unwrap(), vec![address]);
 
 		// change to non-existent account
-		ap.set_new_dapps_whitelist(Some(vec![2.into()])).unwrap();
-		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![]);
+		ap.set_new_dapps_addresses(Some(vec![2.into()])).unwrap();
+		assert_eq!(ap.dapp_addresses("app1".into()).unwrap(), vec![address]);
 
-		// change to a whitelist
-		ap.set_new_dapps_whitelist(Some(vec![1.into()])).unwrap();
-		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![1.into()]);
+		// change to a addresses
+		ap.set_new_dapps_addresses(Some(vec![1.into()])).unwrap();
+		assert_eq!(ap.dapp_addresses("app1".into()).unwrap(), vec![1.into()]);
+
+		// it overrides default account
+		assert_eq!(ap.new_dapps_default_address().unwrap(), 1.into());
+		assert_eq!(ap.dapp_default_address("app1".into()).unwrap(), 1.into());
+
+		ap.set_new_dapps_default_address(address).unwrap();
+		assert_eq!(ap.new_dapps_default_address().unwrap(), address);
+		assert_eq!(ap.dapp_default_address("app1".into()).unwrap(), address);
 	}
 }

@@ -39,14 +39,18 @@ ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
 ethcore-stratum = { path = "stratum" }
+evmbin = { path = "evmbin" }
 rlp = { path = "util/rlp" }
 rpc-cli = { path = "rpc_cli" }
 parity-rpc-client = { path = "rpc_client" }
 parity-hash-fetch = { path = "hash-fetch" }
+parity-ipfs-api = { path = "ipfs" }
 parity-updater = { path = "updater" }
 parity-reactor = { path = "util/reactor" }
+parity-local-store = { path = "local-store" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}
+ethcore-secretstore = { path = "secret_store", optional = true }
 
 [dev-dependencies]
 ethcore-ipc-tests = { path = "ipc/tests" }
@@ -81,6 +85,7 @@ evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
 final = ["ethcore-util/final"]
+secretstore = ["ethcore-secretstore"]
 
 [[bin]]
 path = "parity/main.rs"

@@ -90,11 +90,8 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 		}
 	}
 
-	/// all accounts found in keys directory
-	fn files(&self) -> Result<HashMap<PathBuf, SafeAccount>, Error> {
-		// it's not done using one iterator cause
-		// there is an issue with rustc and it takes tooo much time to compile
-		let paths = fs::read_dir(&self.path)?
+	fn files(&self) -> Result<Vec<PathBuf>, Error>  {
+		Ok(fs::read_dir(&self.path)?
 			.flat_map(Result::ok)
 			.filter(|entry| {
 				let metadata = entry.metadata().ok();
@@ -102,14 +99,34 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 				let name = file_name.to_string_lossy();
 				// filter directories
 				metadata.map_or(false, |m| !m.is_dir()) &&
-				// hidden files
-				!name.starts_with(".") &&
-				// other ignored files
-				!IGNORED_FILES.contains(&&*name)
+					// hidden files
+					!name.starts_with(".") &&
+					// other ignored files
+					!IGNORED_FILES.contains(&&*name)
 			})
 			.map(|entry| entry.path())
-			.collect::<Vec<PathBuf>>();
+			.collect::<Vec<PathBuf>>()
+		)
+	}
 
+	pub fn files_hash(&self) -> Result<u64, Error> {
+		use std::collections::hash_map::DefaultHasher;
+		use std::hash::Hasher;
+
+    	let mut hasher = DefaultHasher::new();
+		let files = self.files()?;
+		for file in files {
+			hasher.write(file.to_str().unwrap_or("").as_bytes())
+		}
+
+		Ok(hasher.finish())
+	}
+
+	/// all accounts found in keys directory
+	fn files_content(&self) -> Result<HashMap<PathBuf, SafeAccount>, Error> {
+		// it's not done using one iterator cause
+		// there is an issue with rustc and it takes tooo much time to compile
+		let paths = self.files()?;
 		Ok(paths
 			.into_iter()
 			.filter_map(|path| {
@@ -166,7 +183,7 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 
 impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 	fn load(&self) -> Result<Vec<SafeAccount>, Error> {
-		let accounts = self.files()?
+		let accounts = self.files_content()?
 			.into_iter()
 			.map(|(_, account)| account)
 			.collect();
@@ -191,7 +208,7 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 	fn remove(&self, account: &SafeAccount) -> Result<(), Error> {
 		// enumerate all entries in keystore
 		// and find entry with given address
-		let to_remove = self.files()?
+		let to_remove = self.files_content()?
 			.into_iter()
 			.find(|&(_, ref acc)| acc.id == account.id && acc.address == account.address);
 
@@ -206,6 +223,10 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 
 	fn as_vault_provider(&self) -> Option<&VaultKeyDirectoryProvider> {
 		Some(self)
+	}
+
+	fn unique_repr(&self) -> Result<u64, Error> { 
+		self.files_hash() 
 	}
 }
 
@@ -279,7 +300,6 @@ mod test {
 		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned());
 		let res = directory.insert(account);
 
-
 		// then
 		assert!(res.is_ok(), "Should save account succesfuly.");
 		assert!(res.unwrap().filename.is_some(), "Filename has been assigned.");
@@ -335,5 +355,26 @@ mod test {
 		assert_eq!(vaults.len(), 2);
 		assert!(vaults.iter().any(|v| &*v == "vault1"));
 		assert!(vaults.iter().any(|v| &*v == "vault2"));
+	}
+
+	#[test]
+	fn hash_of_files() {
+		let temp_path = RandomTempPath::new();
+		let directory = RootDiskDirectory::create(&temp_path).unwrap();
+
+		let hash = directory.files_hash().expect("Files hash should be calculated ok"); 
+		assert_eq!( 
+			hash,
+			15130871412783076140
+		);
+
+		let keypair = Random.generate().unwrap();
+		let password = "test pass";
+		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned());
+		directory.insert(account).expect("Account should be inserted ok");
+
+		let new_hash = directory.files_hash().expect("New files hash should be calculated ok"); 
+
+		assert!(new_hash != hash, "hash of the file list should change once directory content changed");
 	}
 }

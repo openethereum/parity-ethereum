@@ -19,7 +19,6 @@ use client::{BlockChainClient, Client, ClientConfig};
 use block::Block;
 use ethereum;
 use tests::helpers::*;
-use devtools::*;
 use spec::Genesis;
 use ethjson;
 use miner::Miner;
@@ -58,16 +57,14 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 				spec
 			};
 
-			let temp = RandomTempPath::new();
 			{
-				let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+				let db = Arc::new(::util::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)));
 				let client = Client::new(
 					ClientConfig::default(),
 					&spec,
-					temp.as_path(),
+					db,
 					Arc::new(Miner::with_spec(&spec)),
 					IoChannel::disconnected(),
-					&db_config,
 				).unwrap();
 				for b in &blockchain.blocks_rlp() {
 					if Block::is_good(&b) {

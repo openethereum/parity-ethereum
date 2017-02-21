@@ -61,7 +61,7 @@ export default class AccountStore {
     this.setDefaultAccount(address);
 
     return this._api.parity
-      .setNewDappsWhitelist(accounts)
+      .setNewDappsAddresses(accounts)
       .catch((error) => {
         console.warn('makeDefaultAccount', error);
       });
@@ -78,7 +78,7 @@ export default class AccountStore {
 
     return Promise
       .all([
-        this._api.parity.getNewDappsWhitelist(),
+        this._api.parity.getNewDappsAddresses(),
         this._api.parity.allAccountsInfo()
       ])
       .then(([whitelist, accounts]) => {
@@ -111,10 +111,18 @@ export default class AccountStore {
   }
 
   subscribeDefaultAccount () {
-    return this._api.subscribe('parity_defaultAccount', (error, defaultAccount) => {
+    const promiseDefaultAccount = this._api.subscribe('parity_defaultAccount', (error, defaultAccount) => {
       if (!error) {
         this.setDefaultAccount(defaultAccount);
       }
     });
+
+    const promiseEthAccounts = this._api.subscribe('eth_accounts', (error) => {
+      if (!error) {
+        this.loadAccounts();
+      }
+    });
+
+    return Promise.all([ promiseDefaultAccount, promiseEthAccounts ]);
   }
 }

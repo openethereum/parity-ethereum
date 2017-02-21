@@ -185,7 +185,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path()))?;
 
 	// create dirs used by parity
-	cmd.dirs.create_dirs(false, false)?;
+	cmd.dirs.create_dirs(false, false, false)?;
 
 	// prepare client config
 	let mut client_config = to_client_config(
@@ -356,7 +356,7 @@ fn start_client(
 	execute_upgrades(&dirs.base, &db_dirs, algorithm, compaction.compaction_profile(db_dirs.db_root_path().as_path()))?;
 
 	// create dirs used by parity
-	dirs.create_dirs(false, false)?;
+	dirs.create_dirs(false, false, false)?;
 
 	// prepare client config
 	let client_config = to_client_config(

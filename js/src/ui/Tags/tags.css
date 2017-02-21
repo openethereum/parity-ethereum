@@ -18,16 +18,39 @@
 .tags {
   display: flex;
   flex-wrap: wrap;
-  position: absolute;
-  right: 0.25rem;
-  top: 0;
+
+  &.floating {
+    position: absolute;
+    right: 0.25rem;
+    top: 0;
+  }
+
+  &.horizontal {
+    flex-direction: column;
+  }
+}
+
+.floating .tag {
+  margin-top: 0.75em;
+}
+
+.horizontal .tag {
+  margin: 0.25em 0;
+
+  .text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 150%;
+  }
 }
 
 .tag {
   font-size: 0.75rem;
   background: rgba(255, 255, 255, 0.07);
   border-radius: 16px;
-  margin: 0.75em 0.5em 0 0;
+  margin: 0 0.5em;
   padding: 0.25em 1em;
   opacity: 1;
   transition: opacity 0.2s ease-out;

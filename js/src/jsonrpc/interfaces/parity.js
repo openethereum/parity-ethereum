@@ -1186,9 +1186,9 @@ export default {
     }
   },
 
-  setDappsAddresses: {
+  setDappAddresses: {
     subdoc: SUBDOC_ACCOUNTS,
-    desc: 'Sets the available addresses for a dapp.',
+    desc: 'Sets the available addresses for a dapp. When provided with non-empty list changes the default account as well.',
     params: [
       {
         type: String,
@@ -1197,7 +1197,7 @@ export default {
       },
       {
         type: Array,
-        desc: 'Array of available accounts available to the dapp.',
+        desc: 'Array of available accounts available to the dapp or `null` for default list.',
         example: ['0x407d73d8a49eeb85d32cf465507dd71d507100c1']
       }
     ],
@@ -1208,7 +1208,7 @@ export default {
     }
   },
 
-  getDappsAddresses: {
+  getDappAddresses: {
     subdoc: SUBDOC_ACCOUNTS,
     desc: 'Returns the list of accounts available to a specific dapp.',
     params: [
@@ -1225,13 +1225,52 @@ export default {
     }
   },
 
-  setNewDappsWhitelist: {
+  setDappDefaultAddress: {
+    subdoc: SUBDOC_ACCOUNTS,
+    desc: 'Changes dapp default address. Does not affect other accounts exposed for this dapp, but default account will always be retured as the first one.',
+    params: [
+      {
+        type: String,
+        desc: 'Dapp Id.',
+        example: 'web'
+      },
+      {
+        type: Address,
+        desc: 'Default Address.',
+        example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: '`true` if the call was successful',
+      example: true
+    }
+  },
+
+  getDappDefaultAddress: {
+    subdoc: SUBDOC_ACCOUNTS,
+    desc: 'Returns a default account available to a specific dapp.',
+    params: [
+      {
+        type: String,
+        desc: 'Dapp Id.',
+        example: 'web'
+      }
+    ],
+    returns: {
+      type: Address,
+      desc: 'Default Address',
+      example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
+    }
+  },
+
+  setNewDappsAddresses: {
     subdoc: SUBDOC_ACCOUNTS,
     desc: 'Sets the list of accounts available to new dapps.',
     params: [
       {
         type: Array,
-        desc: 'List of accounts available by default.',
+        desc: 'List of accounts available by default or `null` for all accounts.',
         example: ['0x407d73d8a49eeb85d32cf465507dd71d507100c1']
       }
     ],
@@ -1242,7 +1281,7 @@ export default {
     }
   },
 
-  getNewDappsWhitelist: {
+  getNewDappsAddresses: {
     subdoc: SUBDOC_ACCOUNTS,
     desc: 'Returns the list of accounts available to a new dapps.',
     params: [],
@@ -1250,6 +1289,34 @@ export default {
       type: Array,
       desc: 'The list of available accounts, can be `null`.',
       example: ['0x407d73d8a49eeb85d32cf465507dd71d507100c1']
+    }
+  },
+
+  setNewDappsDefaultAddress: {
+    subdoc: SUBDOC_ACCOUNTS,
+    desc: 'Changes global default address. This setting may be overriden for a specific dapp.',
+    params: [
+      {
+        type: Address,
+        desc: 'Default Address.',
+        example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: '`true` if the call was successful',
+      example: true
+    }
+  },
+
+  getNewDappsDefaultAddress: {
+    subdoc: SUBDOC_ACCOUNTS,
+    desc: 'Returns a default account available to dapps.',
+    params: [],
+    returns: {
+      type: Address,
+      desc: 'Default Address',
+      example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
     }
   },
 

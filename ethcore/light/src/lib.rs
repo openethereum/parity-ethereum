@@ -36,6 +36,7 @@ pub mod client;
 pub mod cht;
 pub mod net;
 pub mod on_demand;
+pub mod transaction_queue;
 
 #[cfg(not(feature = "ipc"))]
 pub mod provider;
@@ -54,6 +55,7 @@ pub mod remote {
 mod types;
 
 pub use self::provider::Provider;
+pub use self::transaction_queue::TransactionQueue;
 pub use types::les_request as request;
 
 #[macro_use]

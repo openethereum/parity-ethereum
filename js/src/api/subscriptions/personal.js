@@ -119,13 +119,15 @@ export default class Personal {
         case 'parity_removeAddress':
         case 'parity_setAccountName':
         case 'parity_setAccountMeta':
-        case 'parity_changeVault':
           this._accountsInfo();
           return;
 
-        case 'parity_setDappsAddresses':
-        case 'parity_setNewDappsWhitelist':
+        case 'parity_setDappAddresses':
+        case 'parity_setDappDefaultAddress':
+        case 'parity_setNewDappsAddresses':
+        case 'parity_setNewDappsDefaultAddress':
           this._defaultAccount(true);
+          this._listAccounts();
           return;
       }
     });

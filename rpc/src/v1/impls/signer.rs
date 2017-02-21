@@ -52,7 +52,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 	}
 
 	fn confirm_internal<F, T>(&self, id: U256, modification: TransactionModification, f: F) -> BoxFuture<WithToken<ConfirmationResponse>, Error> where
-		F: FnOnce(D, &AccountProvider, ConfirmationPayload) -> T,
+		F: FnOnce(D, Arc<AccountProvider>, ConfirmationPayload) -> T,
 		T: IntoFuture<Item=WithToken<ConfirmationResponse>, Error=Error>,
 		T::Future: Send + 'static
 	{
@@ -87,7 +87,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 					request.condition = condition.clone().map(Into::into);
 				}
 			}
-			let fut = f(dispatcher, &*accounts, payload);
+			let fut = f(dispatcher, accounts, payload);
 			fut.into_future().then(move |result| {
 				// Execute
 				if let Ok(ref response) = result {

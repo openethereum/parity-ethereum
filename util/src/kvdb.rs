@@ -17,10 +17,11 @@
 //! Key-Value store abstraction with `RocksDB` backend.
 
 use std::io::ErrorKind;
+use std::marker::PhantomData;
+use std::path::PathBuf;
+
 use common::*;
 use elastic_array::*;
-use std::default::Default;
-use std::path::PathBuf;
 use hashdb::DBValue;
 use rlp::{UntrustedRlp, RlpType, View, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
@@ -36,10 +37,12 @@ const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
 
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
+#[derive(Default, Clone, PartialEq)]
 pub struct DBTransaction {
 	ops: Vec<DBOp>,
 }
 
+#[derive(Clone, PartialEq)]
 enum DBOp {
 	Insert {
 		col: Option<u32>,
@@ -59,9 +62,14 @@ enum DBOp {
 
 impl DBTransaction {
 	/// Create new transaction.
-	pub fn new(_db: &Database) -> DBTransaction {
+	pub fn new() -> DBTransaction {
+		DBTransaction::with_capacity(256)
+	}
+
+	/// Create new transaction with capacity.
+	pub fn with_capacity(cap: usize) -> DBTransaction {
 		DBTransaction {
-			ops: Vec::with_capacity(256),
+			ops: Vec::with_capacity(cap)
 		}
 	}
 
@@ -114,6 +122,138 @@ enum KeyState {
 	Insert(DBValue),
 	InsertCompressed(DBValue),
 	Delete,
+}
+
+/// Generic key-value database.
+///
+/// This makes a distinction between "buffered" and "flushed" values. Values which have been
+/// written can always be read, but may be present in an in-memory buffer. Values which have
+/// been flushed have been moved to backing storage, like a RocksDB instance. There are certain
+/// operations which are only guaranteed to operate on flushed data and not buffered,
+/// although implementations may differ in this regard.
+///
+/// The contents of an interior buffer may be explicitly flushed using the `flush` method.
+///
+/// The `KeyValueDB` also deals in "column families", which can be thought of as distinct
+/// stores within a database. Keys written in one column family will not be accessible from
+/// any other. The number of column families must be specified at initialization, with a
+/// differing interface for each database. The `None` argument in place of a column index
+/// is always supported.
+///
+/// The API laid out here, along with the `Sync` bound implies interior synchronization for
+/// implementation.
+pub trait KeyValueDB: Sync + Send {
+	/// Helper to create a new transaction.
+	fn transaction(&self) -> DBTransaction { DBTransaction::new() }
+
+	/// Get a value by key.
+	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String>;
+
+	/// Get a value by partial key. Only works for flushed data.
+	fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>>;
+
+	/// Write a transaction of changes to the buffer.
+	fn write_buffered(&self, transaction: DBTransaction);
+
+	/// Write a transaction of changes to the backing store.
+	fn write(&self, transaction: DBTransaction) -> Result<(), String> {
+		self.write_buffered(transaction);
+		self.flush()
+	}
+
+	/// Flush all buffered data.
+	fn flush(&self) -> Result<(), String>;
+
+	/// Iterate over flushed data for a given column.
+	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
+
+	/// Attempt to replace this database with a new one located at the given path.
+	fn restore(&self, new_db: &str) -> Result<(), UtilError>;
+}
+
+/// A key-value database fulfilling the `KeyValueDB` trait, living in memory.
+/// This is generally intended for tests and is not particularly optimized.
+pub struct InMemory {
+	columns: RwLock<HashMap<Option<u32>, BTreeMap<Vec<u8>, DBValue>>>,
+}
+
+/// Create an in-memory database with the given number of columns.
+/// Columns will be indexable by 0..`num_cols`
+pub fn in_memory(num_cols: u32) -> InMemory {
+	let mut cols = HashMap::new();
+	cols.insert(None, BTreeMap::new());
+
+	for idx in 0..num_cols {
+		cols.insert(Some(idx), BTreeMap::new());
+	}
+
+	InMemory {
+		columns: RwLock::new(cols)
+	}
+}
+
+impl KeyValueDB for InMemory {
+	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String> {
+		let columns = self.columns.read();
+		match columns.get(&col) {
+			None => Err(format!("No such column family: {:?}", col)),
+			Some(map) => Ok(map.get(key).cloned()),
+		}
+	}
+
+	fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>> {
+		let columns = self.columns.read();
+		match columns.get(&col) {
+			None => None,
+			Some(map) =>
+				map.iter()
+					.find(|&(ref k ,_)| k.starts_with(prefix))
+					.map(|(_, v)| (&**v).to_vec().into_boxed_slice())
+		}
+	}
+
+	fn write_buffered(&self, transaction: DBTransaction) {
+		let mut columns = self.columns.write();
+		let ops = transaction.ops;
+		for op in ops {
+			match op {
+				DBOp::Insert { col, key, value } => {
+					if let Some(mut col) = columns.get_mut(&col) {
+						col.insert(key.to_vec(), value);
+					}
+				},
+				DBOp::InsertCompressed { col, key, value } => {
+					if let Some(mut col) = columns.get_mut(&col) {
+						let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
+						let mut value = DBValue::new();
+						value.append_slice(&compressed);
+						col.insert(key.to_vec(), value);
+					}
+				},
+				DBOp::Delete { col, key } => {
+					if let Some(mut col) = columns.get_mut(&col) {
+						col.remove(&*key);
+					}
+				},
+			}
+		}
+	}
+
+	fn flush(&self) -> Result<(), String> { Ok(()) }
+	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a> {
+		match self.columns.read().get(&col) {
+			Some(map) => Box::new( // TODO: worth optimizing at all?
+				map.clone()
+					.into_iter()
+					.map(|(k, v)| (k.into_boxed_slice(), v.to_vec().into_boxed_slice()))
+			),
+			None => Box::new(None.into_iter())
+		}
+	}
+
+	fn restore(&self, _new_db: &str) -> Result<(), UtilError> {
+		Err(UtilError::SimpleString("Attempted to restore in-memory database".into()))
+	}
 }
 
 /// Compaction profile for the database settings
@@ -248,12 +388,16 @@ impl Default for DatabaseConfig {
 	}
 }
 
-/// Database iterator for flushed data only
-pub struct DatabaseIterator {
+/// Database iterator (for flushed data only)
+// The compromise of holding only a virtual borrow vs. holding a lock on the
+// inner DB (to prevent closing via restoration) may be re-evaluated in the future.
+//
+pub struct DatabaseIterator<'a> {
 	iter: DBIterator,
+	_marker: PhantomData<&'a Database>,
 }
 
-impl<'a> Iterator for DatabaseIterator {
+impl<'a> Iterator for DatabaseIterator<'a> {
 	type Item = (Box<[u8]>, Box<[u8]>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -393,9 +537,9 @@ impl Database {
 		})
 	}
 
-	/// Creates new transaction for this database.
+	/// Helper to create new transaction for this database.
 	pub fn transaction(&self) -> DBTransaction {
-		DBTransaction::new(self)
+		DBTransaction::new()
 	}
 
 
@@ -562,9 +706,16 @@ impl Database {
 		//TODO: iterate over overlay
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
-				col.map_or_else(|| DatabaseIterator { iter: db.iterator_opt(IteratorMode::Start, &self.read_opts) },
-					|c| DatabaseIterator { iter: db.iterator_cf_opt(cfs[c as usize], IteratorMode::Start, &self.read_opts)
-						.expect("iterator params are valid; qed") })
+				let iter = col.map_or_else(
+					|| db.iterator_opt(IteratorMode::Start, &self.read_opts),
+					|c| db.iterator_cf_opt(cfs[c as usize], IteratorMode::Start, &self.read_opts)
+						.expect("iterator params are valid; qed")
+				);
+
+				DatabaseIterator {
+					iter: iter,
+					_marker: PhantomData,
+				}
 			},
 			None => panic!("Not supported yet") //TODO: return an empty iterator or change return type
 		}
@@ -616,6 +767,39 @@ impl Database {
 		*self.overlay.write() = mem::replace(&mut *db.overlay.write(), Vec::new());
 		*self.flushing.write() = mem::replace(&mut *db.flushing.write(), Vec::new());
 		Ok(())
+	}
+}
+
+// duplicate declaration of methods here to avoid trait import in certain existing cases
+// at time of addition.
+impl KeyValueDB for Database {
+	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String> {
+		Database::get(self, col, key)
+	}
+
+	fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>> {
+		Database::get_by_prefix(self, col, prefix)
+	}
+
+	fn write_buffered(&self, transaction: DBTransaction) {
+		Database::write_buffered(self, transaction)
+	}
+
+	fn write(&self, transaction: DBTransaction) -> Result<(), String> {
+		Database::write(self, transaction)
+	}
+
+	fn flush(&self) -> Result<(), String> {
+		Database::flush(self)
+	}
+
+	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a> {
+		let unboxed = Database::iter(self, col);
+		Box::new(unboxed)
+	}
+
+	fn restore(&self, new_db: &str) -> Result<(), UtilError> {
+		Database::restore(self, new_db)
 	}
 }
 

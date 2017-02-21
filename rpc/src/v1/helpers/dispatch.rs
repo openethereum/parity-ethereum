@@ -18,14 +18,18 @@
 
 use std::fmt::Debug;
 use std::ops::Deref;
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 
 use futures::{future, Future, BoxFuture};
+use light::client::LightChainClient;
+use light::on_demand::{request, OnDemand};
+use light::TransactionQueue as LightTransactionQueue;
 use rlp::{self, Stream};
-use util::{Address, H520, H256, U256, Uint, Bytes};
+use util::{Address, H520, H256, U256, Uint, Bytes, RwLock};
 use util::sha3::Hashable;
 
 use ethkey::Signature;
+use ethsync::LightSync;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{Action, SignedTransaction, PendingTransaction, Transaction};
@@ -55,7 +59,7 @@ pub trait Dispatcher: Send + Sync + Clone {
 		-> BoxFuture<FilledTransactionRequest, Error>;
 
 	/// Sign the given transaction request without dispatching, fetching appropriate nonce.
-	fn sign(&self, accounts: &AccountProvider, filled: FilledTransactionRequest, password: SignWith)
+	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
 		-> BoxFuture<WithToken<SignedTransaction>, Error>;
 
 	/// "Dispatch" a local transaction.
@@ -108,13 +112,13 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 		}).boxed()
 	}
 
-	fn sign(&self, accounts: &AccountProvider, filled: FilledTransactionRequest, password: SignWith)
+	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
 		-> BoxFuture<WithToken<SignedTransaction>, Error>
 	{
 		let (client, miner) = (take_weakf!(self.client), take_weakf!(self.miner));
 		let network_id = client.signing_network_id();
 		let address = filled.from;
-		future::ok({
+		future::done({
 			let t = Transaction {
 				nonce: filled.nonce
 					.or_else(|| miner
@@ -129,31 +133,15 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 				data: filled.data,
 			};
 
-			let hash = t.hash(network_id);
 			if accounts.is_hardware_address(address) {
-				let mut stream = rlp::RlpStream::new();
-				t.rlp_append_unsigned_transaction(&mut stream, network_id);
-				let signature = try_bf!(
-					accounts.sign_with_hardware(address, &stream.as_raw())
-						.map_err(|e| {
-							debug!(target: "miner", "Error signing transaction with hardware wallet: {}", e);
-							errors::account("Error signing transaction with hardware wallet", e)
-						})
-				);
-				let signed = try_bf!(
-					SignedTransaction::new(t.with_signature(signature, network_id))
-						.map_err(|e| {
-						  debug!(target: "miner", "Hardware wallet has produced invalid signature: {}", e);
-						  errors::account("Invalid signature generated", e)
-						})
-				);
-				WithToken::No(signed)
+				hardware_signature(&*accounts, address, t, network_id).map(WithToken::No)
 			} else {
-				let signature = try_bf!(signature(accounts, address, hash, password));
-				signature.map(|sig| {
+				let hash = t.hash(network_id);
+				let signature = try_bf!(signature(&*accounts, address, hash, password));
+				Ok(signature.map(|sig| {
 					SignedTransaction::new(t.with_signature(sig, network_id))
 						.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
-				})
+				}))
 			}
 		}).boxed()
 	}
@@ -162,6 +150,117 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 		let hash = signed_transaction.transaction.hash();
 
 		take_weak!(self.miner).import_own_transaction(&*take_weak!(self.client), signed_transaction)
+			.map_err(errors::from_transaction_error)
+			.map(|_| hash)
+	}
+}
+
+/// Dispatcher for light clients -- fetches default gas price, next nonce, etc. from network.
+/// Light client `ETH` RPC.
+#[derive(Clone)]
+pub struct LightDispatcher {
+	sync: Arc<LightSync>,
+	client: Arc<LightChainClient>,
+	on_demand: Arc<OnDemand>,
+	transaction_queue: Arc<RwLock<LightTransactionQueue>>,
+}
+
+impl LightDispatcher {
+	/// Create a new `LightDispatcher` from its requisite parts.
+	///
+	/// For correct operation, the OnDemand service is assumed to be registered as a network handler,
+	pub fn new(
+		sync: Arc<LightSync>,
+		client: Arc<LightChainClient>,
+		on_demand: Arc<OnDemand>,
+		transaction_queue: Arc<RwLock<LightTransactionQueue>>,
+	) -> Self {
+		LightDispatcher {
+			sync: sync,
+			client: client,
+			on_demand: on_demand,
+			transaction_queue: transaction_queue,
+		}
+	}
+}
+
+impl Dispatcher for LightDispatcher {
+	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address)
+		-> BoxFuture<FilledTransactionRequest, Error>
+	{
+		let request = request;
+		let gas_limit = self.client.best_block_header().gas_limit();
+
+		future::ok(FilledTransactionRequest {
+			from: request.from.unwrap_or(default_sender),
+			used_default_from: request.from.is_none(),
+			to: request.to,
+			nonce: request.nonce,
+			gas_price: request.gas_price.unwrap_or_else(|| 21_000_000.into()), // TODO: fetch corpus from network.
+			gas: request.gas.unwrap_or_else(|| gas_limit / 3.into()),
+			value: request.value.unwrap_or_else(|| 0.into()),
+			data: request.data.unwrap_or_else(Vec::new),
+			condition: request.condition,
+		}).boxed()
+	}
+
+	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
+		-> BoxFuture<WithToken<SignedTransaction>, Error>
+	{
+		let network_id = None; // TODO: fetch from client.
+		let address = filled.from;
+		let best_header = self.client.best_block_header();
+
+		let with_nonce = move |filled: FilledTransactionRequest, nonce| {
+			let t = Transaction {
+				nonce: nonce,
+				action: filled.to.map_or(Action::Create, Action::Call),
+				gas: filled.gas,
+				gas_price: filled.gas_price,
+				value: filled.value,
+				data: filled.data,
+			};
+
+			if accounts.is_hardware_address(address) {
+				return hardware_signature(&*accounts, address, t, network_id).map(WithToken::No)
+			}
+
+			let hash = t.hash(network_id);
+			let signature = signature(&*accounts, address, hash, password)?;
+
+			Ok(signature.map(|sig| {
+				SignedTransaction::new(t.with_signature(sig, network_id))
+					.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
+			}))
+		};
+
+		// fast path where we don't go to network; nonce provided or can be gotten from queue.
+		let maybe_nonce = filled.nonce.or_else(|| self.transaction_queue.read().next_nonce(&address));
+		if let Some(nonce) = maybe_nonce {
+			return future::done(with_nonce(filled, nonce)).boxed()
+		}
+
+		let nonce_future = self.sync.with_context(|ctx| self.on_demand.account(ctx, request::Account {
+			header: best_header,
+			address: address,
+		}));
+
+		let nonce_future = match nonce_future {
+			Some(x) => x,
+			None => return future::err(errors::no_light_peers()).boxed()
+		};
+
+		nonce_future
+			.map_err(|_| errors::no_light_peers())
+			.and_then(move |acc| with_nonce(filled, acc.nonce))
+			.boxed()
+	}
+
+	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error> {
+		let hash = signed_transaction.transaction.hash();
+
+		self.transaction_queue.write().import(signed_transaction)
+			.map_err(Into::into)
 			.map_err(errors::from_transaction_error)
 			.map(|_| hash)
 	}
@@ -251,7 +350,7 @@ impl<T: Debug> From<(T, Option<AccountToken>)> for WithToken<T> {
 /// Execute a confirmation payload.
 pub fn execute<D: Dispatcher + 'static>(
 	dispatcher: D,
-	accounts: &AccountProvider,
+	accounts: Arc<AccountProvider>,
 	payload: ConfirmationPayload,
 	pass: SignWith
 ) -> BoxFuture<WithToken<ConfirmationResponse>, Error> {
@@ -281,7 +380,7 @@ pub fn execute<D: Dispatcher + 'static>(
 				format!("\x19Ethereum Signed Message:\n{}", data.len())
 				.into_bytes();
 			message_data.append(&mut data);
-			let res = signature(accounts, address, message_data.sha3(), pass)
+			let res = signature(&accounts, address, message_data.sha3(), pass)
 				.map(|result| result
 					.map(|rsv| {
 						let mut vrs = [0u8; 65];
@@ -297,7 +396,7 @@ pub fn execute<D: Dispatcher + 'static>(
 			future::done(res).boxed()
 		},
 		ConfirmationPayload::Decrypt(address, data) => {
-			let res = decrypt(accounts, address, data, pass)
+			let res = decrypt(&accounts, address, data, pass)
 				.map(|result| result
 					.map(RpcBytes)
 					.map(ConfirmationResponse::Decrypt)
@@ -316,6 +415,27 @@ fn signature(accounts: &AccountProvider, address: Address, hash: H256, password:
 		SignWith::Nothing => errors::from_signing_error(e),
 		_ => errors::from_password_error(e),
 	})
+}
+
+// obtain a hardware signature from the given account.
+fn hardware_signature(accounts: &AccountProvider, address: Address, t: Transaction, network_id: Option<u64>)
+	-> Result<SignedTransaction, Error>
+{
+	debug_assert!(accounts.is_hardware_address(address));
+
+	let mut stream = rlp::RlpStream::new();
+	t.rlp_append_unsigned_transaction(&mut stream, network_id);
+	let signature = accounts.sign_with_hardware(address, &stream.as_raw())
+		.map_err(|e| {
+			debug!(target: "miner", "Error signing transaction with hardware wallet: {}", e);
+			errors::account("Error signing transaction with hardware wallet", e)
+		})?;
+
+	SignedTransaction::new(t.with_signature(signature, network_id))
+		.map_err(|e| {
+		  debug!(target: "miner", "Hardware wallet has produced invalid signature: {}", e);
+		  errors::account("Invalid signature generated", e)
+		})
 }
 
 fn decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, password: SignWith) -> Result<WithToken<Bytes>, Error> {

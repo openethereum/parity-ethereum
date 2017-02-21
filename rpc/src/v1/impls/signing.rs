@@ -86,7 +86,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 		let accounts = take_weakf!(self.accounts);
 		let default_account = match default_account {
 			DefaultAccount::Provided(acc) => acc,
-			DefaultAccount::ForDapp(dapp) => accounts.default_address(dapp).ok().unwrap_or_default(),
+			DefaultAccount::ForDapp(dapp) => accounts.dapp_default_address(dapp).ok().unwrap_or_default(),
 		};
 
 		let dispatcher = self.dispatcher.clone();
@@ -95,7 +95,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 			.and_then(move |payload| {
 				let sender = payload.sender();
 				if accounts.is_unlocked(sender) {
-					dispatch::execute(dispatcher, &accounts, payload, dispatch::SignWith::Nothing)
+					dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Nothing)
 						.map(|v| v.into_value())
 						.map(DispatchResult::Value)
 						.boxed()

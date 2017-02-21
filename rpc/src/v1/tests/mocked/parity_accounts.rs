@@ -125,17 +125,36 @@ fn rpc_parity_set_and_get_dapps_accounts() {
 	// given
 	let tester = setup();
 	tester.accounts.set_address_name(10.into(), "10".into());
-	assert_eq!(tester.accounts.dapps_addresses("app1".into()).unwrap(), vec![]);
+	assert_eq!(tester.accounts.dapp_addresses("app1".into()).unwrap(), vec![]);
 
 	// when
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_setDappsAddresses","params":["app1",["0x000000000000000000000000000000000000000a","0x0000000000000000000000000000000000000001"]], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setDappAddresses","params":["app1",["0x000000000000000000000000000000000000000a","0x0000000000000000000000000000000000000001"]], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
 	// then
-	assert_eq!(tester.accounts.dapps_addresses("app1".into()).unwrap(), vec![10.into()]);
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_getDappsAddresses","params":["app1"], "id": 1}"#;
+	assert_eq!(tester.accounts.dapp_addresses("app1".into()).unwrap(), vec![10.into()]);
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_getDappAddresses","params":["app1"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x000000000000000000000000000000000000000a"],"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_set_and_get_dapp_default_address() {
+	// given
+	let tester = setup();
+	tester.accounts.set_address_name(10.into(), "10".into());
+	assert_eq!(tester.accounts.dapp_addresses("app1".into()).unwrap(), vec![]);
+
+	// when
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setDappDefaultAddress","params":["app1", "0x000000000000000000000000000000000000000a"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+
+	// then
+	assert_eq!(tester.accounts.dapp_addresses("app1".into()).unwrap(), vec![10.into()]);
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_getDappDefaultAddress","params":["app1"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x000000000000000000000000000000000000000a","id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
@@ -145,27 +164,47 @@ fn rpc_parity_set_and_get_new_dapps_whitelist() {
 	let tester = setup();
 
 	// when set to whitelist
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_setNewDappsWhitelist","params":[["0x000000000000000000000000000000000000000a"]], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setNewDappsAddresses","params":[["0x000000000000000000000000000000000000000a"]], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
 	// then
-	assert_eq!(tester.accounts.new_dapps_whitelist().unwrap(), Some(vec![10.into()]));
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_getNewDappsWhitelist","params":[], "id": 1}"#;
+	assert_eq!(tester.accounts.new_dapps_addresses().unwrap(), Some(vec![10.into()]));
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_getNewDappsAddresses","params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x000000000000000000000000000000000000000a"],"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
 	// when set to empty
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_setNewDappsWhitelist","params":[null], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setNewDappsAddresses","params":[null], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
 	// then
-	assert_eq!(tester.accounts.new_dapps_whitelist().unwrap(), None);
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_getNewDappsWhitelist","params":[], "id": 1}"#;
+	assert_eq!(tester.accounts.new_dapps_addresses().unwrap(), None);
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_getNewDappsAddresses","params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
+
+#[test]
+fn rpc_parity_set_and_get_new_dapps_default_address() {
+	// given
+	let tester = setup();
+	tester.accounts.set_address_name(10.into(), "10".into());
+	assert_eq!(tester.accounts.new_dapps_default_address().unwrap(), 0.into());
+
+	// when
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setNewDappsDefaultAddress","params":["0x000000000000000000000000000000000000000a"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+
+	// then
+	assert_eq!(tester.accounts.new_dapps_default_address().unwrap(), 10.into());
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_getNewDappsDefaultAddress","params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x000000000000000000000000000000000000000a","id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
 
 #[test]
 fn rpc_parity_recent_dapps() {
@@ -392,4 +431,44 @@ fn rpc_parity_get_set_vault_meta() {
 	let response = r#"{"jsonrpc":"2.0","result":"updated_vault1_meta","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+// name: parity_deriveAddressHash
+// example: {"jsonrpc": "2.0", "method": "parity_deriveAddressHash", "params": ["0xc171033d5cbff7175f29dfd3a63dda3d6f8f385e", "password1", { "type": "soft", "hash": "0x0c0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0c0c" }, true ], "id": 3}
+#[test]
+fn derive_key_hash() {
+	let tester = setup();
+	let hash = tester.accounts
+		.insert_account(
+			"0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a".parse().unwrap(),
+			"password1")
+		.expect("account should be inserted ok");
+
+	assert_eq!(hash, "c171033d5cbff7175f29dfd3a63dda3d6f8f385e".parse().unwrap());
+
+	// derive by hash
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_deriveAddressHash", "params": ["0xc171033d5cbff7175f29dfd3a63dda3d6f8f385e", "password1", { "type": "soft", "hash": "0x0c0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0c0c" }, true ], "id": 3}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0xf28c28fcddf4a9b8f474237278d3647f9c0d1b3c","id":3}"#;
+	let res = tester.io.handle_request_sync(&request);
+	assert_eq!(res, Some(response.into()));
+}
+
+// name: parity_deriveAddressIndex
+// example: {"jsonrpc": "2.0", "method": "parity_deriveAddressIndex", "params": ["0xc171033d5cbff7175f29dfd3a63dda3d6f8f385e", "password1", [{ "type": "soft", "index": 0 }, { "type": "soft", "index": 1 }], false ], "id": 3}
+#[test]
+fn derive_key_index() {
+	let tester = setup();
+	let hash = tester.accounts
+		.insert_account(
+			"0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a".parse().unwrap(),
+			"password1")
+		.expect("account should be inserted ok");
+
+	assert_eq!(hash, "c171033d5cbff7175f29dfd3a63dda3d6f8f385e".parse().unwrap());
+
+	// derive by hash
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_deriveAddressIndex", "params": ["0xc171033d5cbff7175f29dfd3a63dda3d6f8f385e", "password1", [{ "type": "soft", "index": 0 }, { "type": "soft", "index": 1 }], false ], "id": 3}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0xcc548e0bb2efe792a920ae0fbf583b13919f274f","id":3}"#;
+	let res = tester.io.handle_request_sync(&request);
+	assert_eq!(res, Some(response.into()));
 }
