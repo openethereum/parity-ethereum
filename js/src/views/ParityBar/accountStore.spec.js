@@ -104,8 +104,8 @@ describe('views/ParityBar/AccountStore', () => {
         return store.makeDefaultAccount(ACCOUNT_NEW);
       });
 
-      it('calls into parity_setNewDappsDefaultAccount', () => {
-        expect(api.parity.setNewDappsDefaultAccount).to.have.been.calledWith(ACCOUNT_NEW);
+      it('calls into parity_setNewDappsDefaultAddress', () => {
+        expect(api.parity.setNewDappsDefaultAddress).to.have.been.calledWith(ACCOUNT_NEW);
       });
     });
   });

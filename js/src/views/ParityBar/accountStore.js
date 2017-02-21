@@ -54,7 +54,7 @@ export default class AccountStore {
     this.setDefaultAccount(defaultAddress);
 
     return this._api.parity
-      .setNewDappsDefaultAccount(defaultAddress)
+      .setNewDappsDefaultAddress(defaultAddress)
       .catch((error) => {
         console.warn('makeDefaultAccount', error);
       });
