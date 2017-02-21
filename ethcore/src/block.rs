@@ -91,7 +91,7 @@ pub struct ExecutedBlock {
 	uncles: Vec<Header>,
 	receipts: Vec<Receipt>,
 	transactions_set: HashSet<H256>,
-	state: State,
+	state: State<StateDB>,
 	traces: Option<Vec<Vec<FlatTrace>>>,
 }
 
@@ -106,7 +106,7 @@ pub struct BlockRefMut<'a> {
 	/// Transaction receipts.
 	pub receipts: &'a [Receipt],
 	/// State.
-	pub state: &'a mut State,
+	pub state: &'a mut State<StateDB>,
 	/// Traces.
 	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
 }
@@ -122,14 +122,14 @@ pub struct BlockRef<'a> {
 	/// Transaction receipts.
 	pub receipts: &'a [Receipt],
 	/// State.
-	pub state: &'a State,
+	pub state: &'a State<StateDB>,
 	/// Traces.
 	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
 }
 
 impl ExecutedBlock {
 	/// Create a new block from the given `state`.
-	fn new(state: State, tracing: bool) -> ExecutedBlock {
+	fn new(state: State<StateDB>, tracing: bool) -> ExecutedBlock {
 		ExecutedBlock {
 			header: Default::default(),
 			transactions: Default::default(),
@@ -184,7 +184,7 @@ pub trait IsBlock {
 	fn header(&self) -> &Header { &self.block().header }
 
 	/// Get the final state associated with this object's block.
-	fn state(&self) -> &State { &self.block().state }
+	fn state(&self) -> &State<StateDB> { &self.block().state }
 
 	/// Get all information on transactions in this block.
 	fn transactions(&self) -> &[SignedTransaction] { &self.block().transactions }
@@ -228,7 +228,7 @@ pub struct ClosedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,
 	last_hashes: Arc<LastHashes>,
-	unclosed_state: State,
+	unclosed_state: State<StateDB>,
 }
 
 /// Just like `ClosedBlock` except that we can't reopen it and it's faster.

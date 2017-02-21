@@ -24,10 +24,10 @@
 use std::sync::Arc;
 
 use state::Account;
-use util::{Address, HashDB, H256};
+use util::{Address, AsHashDB, HashDB, H256};
 
 /// State backend. See module docs for more details.
-pub trait Backend {
+pub trait Backend: Send {
 	/// Treat the backend as a read-only hashdb.
 	fn as_hashdb(&self) -> &HashDB;
 
@@ -42,7 +42,7 @@ pub trait Backend {
 	/// hash collisions.
 	fn cache_code(&self, hash: H256, code: Arc<Vec<u8>>);
 
-	/// Get basic copy of the cached account. Does not include storage.
+	/// Get basic copy of the cached account. Not required to include storage.
 	/// Returns 'None' if cache is disabled or if the account is not cached.
 	fn get_cached_account(&self, addr: &Address) -> Option<Option<Account>>;
 
@@ -55,4 +55,39 @@ pub trait Backend {
 
 	/// Get cached code based on hash.
 	fn get_cached_code(&self, hash: &H256) -> Option<Arc<Vec<u8>>>;
+
+	/// Note that an account with the given address is non-null.
+	fn note_non_null_account(&self, address: &Address);
+
+	/// Check whether an account is known to be empty. Returns true if known to be
+	/// empty, false otherwise.
+	fn is_known_null(&self, address: &Address) -> bool;
+}
+
+/// A raw backend which simply wraps a hashdb and does no caching.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoCache<T>(T);
+
+impl<T> NoCache<T> {
+	/// Create a new `NoCache` backend.
+	pub fn new(inner: T) -> Self { NoCache(inner) }
+
+	/// Consume the backend, yielding the inner database.
+	pub fn into_inner(self) -> T { self.0 }
+}
+
+impl<T: AsHashDB + Send> Backend for NoCache<T> {
+	fn as_hashdb(&self) -> &HashDB { self.0.as_hashdb() }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB { self.0.as_hashdb_mut() }
+	fn add_to_account_cache(&mut self, _addr: Address, _data: Option<Account>, _modified: bool) {}
+	fn cache_code(&self, _hash: H256, _code: Arc<Vec<u8>>) {}
+	fn get_cached_account(&self, _addr: &Address) -> Option<Option<Account>> { None }
+	fn get_cached<F, U>(&self, _a: &Address, _f: F) -> Option<U>
+		where F: FnOnce(Option<&mut Account>) -> U
+	{
+		None
+	}
+	fn get_cached_code(&self, _hash: &H256) -> Option<Arc<Vec<u8>>> { None }
+	fn note_non_null_account(&self, _address: &Address) {}
+	fn is_known_null(&self, _address: &Address) -> bool { false }
 }
