@@ -11,4 +11,5 @@ docs
 
 npm/*/src
 npm/*/dist
+npm/*/LICENSE
 npm/jsonrpc/index.json

@@ -12,12 +12,9 @@ npm install --save @parity/etherscan
 
 ## usage
 
-You will need to include [`babel-polyfill`](https://github.com/babel/babel/tree/master/packages/babel-polyfill) as well as [a `Promise` polyfill](https://github.com/stefanpenner/es6-promise#readme) and [a `fetch` polyfill](https://github.com/matthew-andrews/isomorphic-fetch) if your target platform doesn't support them.
+You will need to include [a `fetch` polyfill](https://github.com/matthew-andrews/isomorphic-fetch) if your target platform doesn't support [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch) natively.
 
 ```js
-import 'babel-polyfill';
-import es6Promise from 'es6-promise';
-es6Promise.polyfill();
 import 'isomorphic-fetch';
 ```
 
