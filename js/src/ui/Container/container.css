@@ -32,6 +32,7 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
     background: $background;
     left: 0;
     margin-top: -1.5em;
+    margin-bottom: 3em;
     opacity: inherit;
     padding: 0 1.5em 1.5em 1.5em;
     position: absolute;

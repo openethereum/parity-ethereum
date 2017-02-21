@@ -108,14 +108,13 @@ export default class Summary extends Component {
       />
     );
 
-    const description = this.getDescription(account.meta);
-
     const card = (
       <Container
         className={ styles.account }
         hover={
           <div className={ styles.overlay }>
             { this.renderBalance(false) }
+            { this.renderDescription(account.meta) }
             { this.renderOwners() }
             { this.renderCertifications() }
           </div>
@@ -137,7 +136,6 @@ export default class Summary extends Component {
                 ? styles.main
                 : styles.mainLink
             }
-            description={ description }
             title={
               <IdentityName
                 address={ address }
@@ -156,23 +154,23 @@ export default class Summary extends Component {
       : this.renderLink(card);
   }
 
-  getDescription (meta = {}) {
+  renderDescription (meta = {}) {
     const { blockNumber } = meta;
 
     if (!blockNumber) {
       return null;
     }
 
-    const formattedBlockNumber = (new BigNumber(blockNumber)).toFormat();
-
     return (
-      <FormattedMessage
-        id='accounts.summary.minedBlock'
-        defaultMessage='Mined at block #{blockNumber}'
-        values={ {
-          blockNumber: formattedBlockNumber
-        } }
-      />
+      <div className={ styles.blockDescription }>
+        <FormattedMessage
+          id='accounts.summary.minedBlock'
+          defaultMessage='Mined at block #{blockNumber}'
+          values={ {
+            blockNumber: (new BigNumber(blockNumber)).toFormat()
+          } }
+        />
+      </div>
     );
   }
 

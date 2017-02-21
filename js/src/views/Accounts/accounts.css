@@ -23,6 +23,15 @@
 .account {
   position: relative;
 
+  .blockDescription {
+    color: rgba(255, 255, 255, 0.25);
+    margin-top: 1.5em;
+  }
+
+  .ethBalances {
+    opacity: 1;
+  }
+
   .owners {
     display: flex;
     justify-content: center;
@@ -42,6 +51,12 @@
   &:not(:hover) {
     .tags {
       display: none;
+    }
+  }
+
+  &:hover {
+    .ethBalances {
+      opacity: 0;
     }
   }
 }
