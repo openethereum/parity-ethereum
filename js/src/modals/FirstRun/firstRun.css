@@ -15,15 +15,33 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.body {
+.completed,
+.welcome {
+  p {
+    line-height: 1.5em;
+  }
+
+  ul {
+    background: rgba(0, 0, 0, 0.1);
+    margin-right: 12em;
+    padding: 1em 3em;
+
+    li {
+      line-height: 2em;
+    }
+  }
+}
+
+.tnc {
   overflow-y: auto;
-}
 
-.body p, .body li {
-  opacity: 0.8;
-  line-height: 1.5em;
-}
+  p,
+  li {
+    opacity: 0.8;
+    line-height: 1.5em;
+  }
 
-.accept {
-  margin: 1.5em 0;
+  .accept {
+    margin: 1.5em 0;
+  }
 }

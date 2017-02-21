@@ -23,7 +23,7 @@ import { bindActionCreators } from 'redux';
 import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
 import { createIdentityImg } from '~/api/util/identity';
 import { newError } from '~/redux/actions';
-import { Button, Modal } from '~/ui';
+import { Button, Portal } from '~/ui';
 import { CheckIcon, DoneIcon, NextIcon, PrintIcon } from '~/ui/Icons';
 
 import { NewAccount, AccountDetails } from '../CreateAccount';
@@ -93,14 +93,15 @@ class FirstRun extends Component {
     }
 
     return (
-      <Modal
-        actions={ this.renderDialogActions() }
-        current={ stage }
+      <Portal
+        buttons={ this.renderDialogActions() }
+        activeStep={ stage }
+        hideClose
         steps={ STAGE_NAMES }
-        visible
+        open
       >
         { this.renderStage() }
-      </Modal>
+      </Portal>
     );
   }
 
