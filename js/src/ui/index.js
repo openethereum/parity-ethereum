@@ -53,4 +53,5 @@ export Title from './Title';
 export Tooltips, { Tooltip } from './Tooltips';
 export TxHash from './TxHash';
 export TxList from './TxList';
+export VaultCard from './VaultCard';
 export Warning from './Warning';

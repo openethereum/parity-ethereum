@@ -102,7 +102,7 @@ export default class Store {
 
   loadWhitelist () {
     return this._api.parity
-      .getNewDappsWhitelist()
+      .getNewDappsAddresses()
       .then((whitelist) => {
         this.setWhitelist(whitelist);
       })
@@ -113,7 +113,7 @@ export default class Store {
 
   updateWhitelist (whitelist) {
     return this._api.parity
-      .setNewDappsWhitelist(whitelist)
+      .setNewDappsAddresses(whitelist)
       .then(() => {
         this.setWhitelist(whitelist);
       })
