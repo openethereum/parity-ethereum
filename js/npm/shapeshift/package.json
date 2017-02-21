@@ -23,11 +23,11 @@
     "Promise"
   ],
   "peerDependencies": {
-    "babel-runtime": "^6.23.0",
     "isomorphic-fetch": "^2.2.1"
   },
   "devDependencies": {
   },
   "dependencies": {
+    "babel-runtime": "^6.23.0"
   }
 }
