@@ -21,6 +21,14 @@
   position: relative;
 }
 
+.container {
+  &:not(:hover) {
+    .tags {
+      display: none;
+    }
+  }
+}
+
 .containerLink {
   cursor: pointer;
   width: 100%;
@@ -32,6 +40,7 @@
   top: 1.5em;
 }
 
+.author,
 .description {
   margin-left: 72px;
 }
@@ -43,8 +52,8 @@
   color: rgb(0, 151, 167);
 }
 
-.author, .version {
+.author {
   font-size: 0.75em;
   opacity: 0.5;
-  margin-top: 0.5em;
+  margin-top: 1em;
 }

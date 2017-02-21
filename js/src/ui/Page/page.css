@@ -16,5 +16,9 @@
 */
 
 .layout {
-  padding: 0.25em 0.25em 10em 0.25em;
+  padding: 0.25em 0.25em 3em 0.25em;
+
+  &>div {
+    margin-bottom: 0.5em;
+  }
 }
