@@ -41,12 +41,12 @@ class EditMeta extends Component {
   store = new Store(this.context.api, this.props.account);
 
   render () {
-    const { description, name, nameError, onClose, tags } = this.store;
+    const { description, name, nameError, tags } = this.store;
 
     return (
       <Portal
         buttons={ this.renderActions() }
-        onClose={ onClose }
+        onClose={ this.onClose }
         open
         title={
           <FormattedMessage
@@ -113,12 +113,14 @@ class EditMeta extends Component {
       <Button
         label='Cancel'
         icon={ <CancelIcon /> }
-        onClick={ this.props.onClose }
+        key='cancel'
+        onClick={ this.onClose }
       />,
       <Button
         disabled={ hasError }
         label='Save'
         icon={ <SaveIcon /> }
+        key='save'
         onClick={ this.onSave }
       />
     ];
@@ -151,6 +153,10 @@ class EditMeta extends Component {
     );
   }
 
+  onClose = () => {
+    this.props.onClose();
+  }
+
   onSave = () => {
     if (this.store.hasError) {
       return;
@@ -158,7 +164,7 @@ class EditMeta extends Component {
 
     return this.store
       .save()
-      .then(() => this.props.onClose())
+      .then(this.onClose)
       .catch((error) => {
         this.props.newError(error);
       });
