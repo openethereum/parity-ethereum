@@ -49,7 +49,6 @@ $widthExpanded: 42%;
       opacity: 0.85;
       padding: 0.25em;
       /* https://www.binarymoon.co.uk/2014/02/fixing-css-transitions-in-google-chrome/ */
-      -webkit-transform: translateZ(0);
       transform: translateZ(0);
       transition: $transitionAll;
 
