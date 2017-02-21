@@ -16,6 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import { isEqual } from 'lodash';
 import ReactTooltip from 'react-tooltip';
@@ -27,13 +28,14 @@ import { arrayOrObjectProptype, nullableProptype } from '~/util/proptypes';
 
 import styles from '../accounts.css';
 
-export default class Summary extends Component {
+class Summary extends Component {
   static contextTypes = {
     api: React.PropTypes.object
   };
 
   static propTypes = {
     account: PropTypes.object.isRequired,
+    accountsInfo: PropTypes.object.isRequired,
     balance: PropTypes.object,
     link: PropTypes.string,
     name: PropTypes.string,
@@ -175,7 +177,7 @@ export default class Summary extends Component {
   }
 
   renderOwners () {
-    const { owners } = this.props;
+    const { accountsInfo, owners } = this.props;
     const ownersValid = (owners || []).filter((owner) => owner.address && new BigNumber(owner.address).gt(0));
 
     if (!ownersValid || ownersValid.length === 0) {
@@ -186,11 +188,24 @@ export default class Summary extends Component {
       <div className={ styles.owners }>
         {
           ownersValid.map((owner, index) => {
+            const account = accountsInfo[owner.address];
+            let ownerLinkType = 'addresses';
+
+            if (account) {
+              if (account.uuid || account.hardware) {
+                ownerLinkType = 'accounts';
+              } else if (account.wallet) {
+                ownerLinkType = 'wallet';
+              } else if (account.meta.contract) {
+                ownerLinkType = 'contract';
+              }
+            }
+
             return (
               <Link
                 className={ styles.owner }
                 key={ `${index}_${owner.address}` }
-                to={ `/accounts/${owner.address}` }
+                to={ `/${ownerLinkType}/${owner.address}` }
               >
                 <div
                   data-tip
@@ -267,3 +282,16 @@ export default class Summary extends Component {
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { accountsInfo } = state.personal;
+
+  return {
+    accountsInfo
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(Summary);
