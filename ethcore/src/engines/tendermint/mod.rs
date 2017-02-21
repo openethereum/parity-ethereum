@@ -649,8 +649,7 @@ mod tests {
 	use account_provider::AccountProvider;
 	use spec::Spec;
 	use engines::{Engine, EngineError, Seal};
-	use super::{Step, View, Height, message_info_rlp, message_full_rlp};
-	use super::message::VoteStep;
+	use super::*;
 
 	/// Accounts inserted with "0" and "1" are validators. First proposer is "0".
 	fn setup() -> (Spec, Arc<AccountProvider>) {

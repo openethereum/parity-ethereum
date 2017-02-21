@@ -47,6 +47,7 @@ parity-hash-fetch = { path = "hash-fetch" }
 parity-ipfs-api = { path = "ipfs" }
 parity-updater = { path = "updater" }
 parity-reactor = { path = "util/reactor" }
+parity-local-store = { path = "local-store" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}
 ethcore-secretstore = { path = "secret_store", optional = true }
