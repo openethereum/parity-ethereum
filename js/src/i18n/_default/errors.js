@@ -15,17 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  button: {
-    newAccount: `new account`,
-    newWallet: `new wallet`,
-    vaults: `vaults`
-  },
-  summary: {
-    minedBlock: `Mined at block #{blockNumber}`
-  },
-  title: `Accounts Overview`,
-  tooltip: {
-    actions: `actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item`,
-    overview: `your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account`
-  }
+  duplicateName: `the name already exists`,
+  invalidKey: `the raw key needs to be hex, 64 characters in length and contain the prefix "0x"`,
+  noFile: `select a valid wallet file to import`,
+  noKey: `you need to provide the raw private key`,
+  noMatchPassword: `the supplied passwords does not match`,
+  noName: `you need to specify a valid name`
 };
