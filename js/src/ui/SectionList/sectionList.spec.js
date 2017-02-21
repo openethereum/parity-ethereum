@@ -74,10 +74,6 @@ describe('SectionList', () => {
       it('adds a key for the row', () => {
         expect(row.key).to.be.ok;
       });
-
-      it('calls renderItem for the items', () => {
-        expect(instance.renderItem).to.have.been.calledTwice;
-      });
     });
 
     describe('renderItem', () => {

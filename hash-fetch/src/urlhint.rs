@@ -264,7 +264,7 @@ fn as_string<T: fmt::Debug>(e: T) -> String {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
@@ -273,16 +273,16 @@ mod tests {
 	use super::guess_mime_type;
 	use util::{Bytes, Address, Mutex, ToPretty};
 
-	struct FakeRegistrar {
+	pub struct FakeRegistrar {
 		pub calls: Arc<Mutex<Vec<(String, String)>>>,
 		pub responses: Mutex<Vec<Result<Bytes, String>>>,
 	}
 
-	const REGISTRAR: &'static str = "8e4e9b13d4b45cb0befc93c3061b1408f67316b2";
-	const URLHINT: &'static str = "deadbeefcafe0000000000000000000000000000";
+	pub const REGISTRAR: &'static str = "8e4e9b13d4b45cb0befc93c3061b1408f67316b2";
+	pub const URLHINT: &'static str = "deadbeefcafe0000000000000000000000000000";
 
 	impl FakeRegistrar {
-		fn new() -> Self {
+		pub fn new() -> Self {
 			FakeRegistrar {
 				calls: Arc::new(Mutex::new(Vec::new())),
 				responses: Mutex::new(

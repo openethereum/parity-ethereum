@@ -191,7 +191,7 @@ pub struct BlockChain {
 	blocks_blooms: RwLock<HashMap<LogGroupPosition, BloomGroup>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
-	db: Arc<Database>,
+	db: Arc<KeyValueDB>,
 
 	cache_man: Mutex<CacheManager<CacheId>>,
 
@@ -421,7 +421,7 @@ impl<'a> Iterator for AncestryIter<'a> {
 
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis.
-	pub fn new(config: Config, genesis: &[u8], db: Arc<Database>) -> BlockChain {
+	pub fn new(config: Config, genesis: &[u8], db: Arc<KeyValueDB>) -> BlockChain {
 		// 400 is the avarage size of the key
 		let cache_man = CacheManager::new(config.pref_cache_size, config.max_cache_size, 400);
 
@@ -467,7 +467,7 @@ impl BlockChain {
 					children: vec![]
 				};
 
-				let mut batch = DBTransaction::new(&db);
+				let mut batch = DBTransaction::new();
 				batch.put(db::COL_HEADERS, &hash, block.header_rlp().as_raw());
 				batch.put(db::COL_BODIES, &hash, &Self::block_to_body(genesis));
 
@@ -1314,7 +1314,7 @@ impl BlockChain {
 	}
 
 	#[cfg(test)]
-	pub fn db(&self) -> &Arc<Database> {
+	pub fn db(&self) -> &Arc<KeyValueDB> {
 		&self.db
 	}
 }
@@ -1324,13 +1324,12 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(similar_names))]
 	use std::sync::Arc;
 	use rustc_serialize::hex::FromHex;
-	use util::{Database, DatabaseConfig};
+	use util::kvdb::KeyValueDB;
 	use util::hash::*;
 	use util::sha3::Hashable;
 	use receipt::Receipt;
 	use blockchain::{BlockProvider, BlockChain, Config, ImportRoute};
 	use tests::helpers::*;
-	use devtools::*;
 	use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
 	use blockchain::extras::TransactionAddress;
 	use views::BlockView;
@@ -1339,11 +1338,11 @@ mod tests {
 	use ethkey::Secret;
 	use header::BlockNumber;
 
-	fn new_db(path: &str) -> Arc<Database> {
-		Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), path).unwrap())
+	fn new_db() -> Arc<KeyValueDB> {
+		Arc::new(::util::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)))
 	}
 
-	fn new_chain(genesis: &[u8], db: Arc<Database>) -> BlockChain {
+	fn new_chain(genesis: &[u8], db: Arc<KeyValueDB>) -> BlockChain {
 		BlockChain::new(Config::default(), genesis, db)
 	}
 
@@ -1355,13 +1354,12 @@ mod tests {
 		let genesis = canon_chain.generate(&mut finalizer).unwrap();
 		let first = canon_chain.generate(&mut finalizer).unwrap();
 
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
 		assert_eq!(bc.best_block_number(), 0);
 
 		// when
-		let mut batch =db.transaction();
+		let mut batch = db.transaction();
 		bc.insert_block(&mut batch, &first, vec![]);
 		assert_eq!(bc.best_block_number(), 0);
 		bc.commit();
@@ -1381,8 +1379,7 @@ mod tests {
 		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
 		let first_hash = BlockView::new(&first).header_view().sha3();
 
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
 
 		assert_eq!(bc.genesis_hash(), genesis_hash.clone());
@@ -1391,7 +1388,7 @@ mod tests {
 		assert_eq!(bc.block_hash(1), None);
 		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![]);
 
-		let mut batch =db.transaction();
+		let mut batch = db.transaction();
 		bc.insert_block(&mut batch, &first, vec![]);
 		db.write(batch).unwrap();
 		bc.commit();
@@ -1412,8 +1409,7 @@ mod tests {
 		let genesis = canon_chain.generate(&mut finalizer).unwrap();
 		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
 
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
 
 		let mut block_hashes = vec![genesis_hash.clone()];
@@ -1448,8 +1444,7 @@ mod tests {
 		let b5b = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
 		let b5a = canon_chain.generate(&mut finalizer).unwrap();
 
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch =db.transaction();
@@ -1514,8 +1509,7 @@ mod tests {
 
 		let t1_hash = t1.hash();
 
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch = db.transaction();
@@ -1602,8 +1596,7 @@ mod tests {
 		let t2_hash = t2.hash();
 		let t3_hash = t3.hash();
 
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch = db.transaction();
@@ -1664,8 +1657,7 @@ mod tests {
 		// b3a is a part of canon chain, whereas b3b is part of sidechain
 		let best_block_hash = b3a_hash.clone();
 
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch = db.transaction();
@@ -1778,10 +1770,9 @@ mod tests {
 		let first = canon_chain.generate(&mut finalizer).unwrap();
 		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
 		let first_hash = BlockView::new(&first).header_view().sha3();
+		let db = new_db();
 
-		let temp = RandomTempPath::new();
 		{
-			let db = new_db(temp.as_str());
 			let bc = new_chain(&genesis, db.clone());
 			assert_eq!(bc.best_block_hash(), genesis_hash);
 			let mut batch =db.transaction();
@@ -1792,7 +1783,6 @@ mod tests {
 		}
 
 		{
-			let db = new_db(temp.as_str());
 			let bc = new_chain(&genesis, db.clone());
 
 			assert_eq!(bc.best_block_hash(), first_hash);
@@ -1846,8 +1836,7 @@ mod tests {
 		let b1 = "f904a8f901faa0ce1f26f798dd03c8782d63b3e42e79a64eaea5694ea686ac5d7ce3df5171d1aea01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0a65c2364cd0f1542d761823dc0109c6b072f14c20459598c5455c274601438f4a070616ebd7ad2ed6fb7860cf7e9df00163842351c38a87cac2c1cb193895035a2a05c5b4fc43c2d45787f54e1ae7d27afdb4ad16dfc567c5692070d5c4556e0b1d7b9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000830200000183023ec683021536845685109780a029f07836e4e59229b3a065913afc27702642c683bba689910b2b2fd45db310d3888957e6d004a31802f902a7f85f800a8255f094aaaf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ca0575da4e21b66fa764be5f74da9389e67693d066fb0d1312e19e17e501da00ecda06baf5a5327595f6619dfc2fcb3f2e6fb410b5810af3cb52d0e7508038e91a188f85f010a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ba04fa966bf34b93abc1bcd665554b7f316b50f928477b50be0f3285ead29d18c5ba017bba0eeec1625ab433746955e125d46d80b7fdc97386c51266f842d8e02192ef85f020a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ca004377418ae981cc32b1312b4a427a1d69a821b28db8584f5f2bd8c6d42458adaa053a1dba1af177fac92f3b6af0a9fa46a22adf56e686c93794b6a012bf254abf5f85f030a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ca04fe13febd28a05f4fcb2f451d7ddc2dda56486d9f8c79a62b0ba4da775122615a0651b2382dd402df9ebc27f8cb4b2e0f3cea68dda2dca0ee9603608f0b6f51668f85f040a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ba078e6a0ba086a08f8450e208a399bb2f2d2a0d984acd2517c7c7df66ccfab567da013254002cd45a97fac049ae00afbc43ed0d9961d0c56a3b2382c80ce41c198ddf85f050a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ba0a7174d8f43ea71c8e3ca9477691add8d80ac8e0ed89d8d8b572041eef81f4a54a0534ea2e28ec4da3b5b944b18c51ec84a5cf35f5b3343c5fb86521fd2d388f506f85f060a82520894bbbf5374fce5edbc8e2a8697c15331677e6ebf0b0a801ba034bd04065833536a10c77ee2a43a5371bc6d34837088b861dd9d4b7f44074b59a078807715786a13876d3455716a6b9cb2186b7a4887a5c31160fc877454958616c0".from_hex().unwrap();
 		let b1_hash: H256 = "f53f268d23a71e85c7d6d83a9504298712b84c1a2ba220441c86eeda0bf0b6e3".into();
 
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
 		let mut batch =db.transaction();
 		bc.insert_block(&mut batch, &b1, vec![]);
@@ -1861,7 +1850,7 @@ mod tests {
 		}
 	}
 
-	fn insert_block(db: &Arc<Database>, bc: &BlockChain, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
+	fn insert_block(db: &Arc<KeyValueDB>, bc: &BlockChain, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
 		let mut batch = db.transaction();
 		let res = bc.insert_block(&mut batch, bytes, receipts);
 		db.write(batch).unwrap();
@@ -1906,8 +1895,7 @@ mod tests {
 		let b1 = canon_chain.with_transaction(t1).with_transaction(t2).generate(&mut finalizer).unwrap();
 		let b2 = canon_chain.with_transaction(t3).generate(&mut finalizer).unwrap();
 
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
 		insert_block(&db, &bc, &b1, vec![Receipt {
 			state_root: Some(H256::default()),
@@ -2015,8 +2003,7 @@ mod tests {
 		let b1a = canon_chain.with_bloom(bloom_ba.clone()).generate(&mut finalizer).unwrap();
 		let b2a = canon_chain.with_bloom(bloom_ba.clone()).generate(&mut finalizer).unwrap();
 
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
 
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
@@ -2070,14 +2057,12 @@ mod tests {
 		let mut finalizer = BlockFinalizer::default();
 		let genesis = canon_chain.generate(&mut finalizer).unwrap();
 
-		let temp = RandomTempPath::new();
-
+		let db = new_db();
 		{
-			let db = new_db(temp.as_str());
 			let bc = new_chain(&genesis, db.clone());
 			let uncle = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
 
-			let mut batch =db.transaction();
+			let mut batch = db.transaction();
 			// create a longer fork
 			for _ in 0..5 {
 				let canon_block = canon_chain.generate(&mut finalizer).unwrap();
@@ -2092,8 +2077,7 @@ mod tests {
 		}
 
 		// re-loading the blockchain should load the correct best block.
-		let db = new_db(temp.as_str());
-		let bc = new_chain(&genesis, db.clone());
+		let bc = new_chain(&genesis, db);
 		assert_eq!(bc.best_block_number(), 5);
 	}
 
@@ -2108,8 +2092,7 @@ mod tests {
 		let first_hash = BlockView::new(&first).header_view().sha3();
 		let second_hash = BlockView::new(&second).header_view().sha3();
 
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
+		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch =db.transaction();

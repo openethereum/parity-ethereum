@@ -221,7 +221,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 		let store = take_weak!(self.accounts);
 		store
 			.note_dapp_used(dapp.clone())
-			.and_then(|_| store.dapps_addresses(dapp))
+			.and_then(|_| store.dapp_addresses(dapp))
 			.map_err(|e| errors::internal("Could not fetch accounts.", e))
 	}
 }
@@ -308,10 +308,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let author = move || {
 			let mut miner = take_weak!(self.miner).author();
 			if miner == 0.into() {
-				let accounts = self.dapp_accounts(dapp.into())?;
-				if let Some(address) = accounts.get(0) {
-					miner = *address;
-				}
+				miner = self.dapp_accounts(dapp.into())?.get(0).cloned().unwrap_or_default();
 			}
 
 			Ok(RpcH160::from(miner))

@@ -170,16 +170,28 @@ export default class Parity {
       .execute('parity_generateSecretPhrase');
   }
 
-  getDappsAddresses (dappId) {
+  getDappAddresses (dappId) {
     return this._transport
-      .execute('parity_getDappsAddresses', dappId)
+      .execute('parity_getDappAddresses', dappId)
       .then(outAddresses);
   }
 
-  getNewDappsWhitelist () {
+  getDappDefaultAddress (dappId) {
     return this._transport
-      .execute('parity_getNewDappsWhitelist')
+      .execute('parity_getDappDefaultAddress', dappId)
+      .then(outAddress);
+  }
+
+  getNewDappsAddresses () {
+    return this._transport
+      .execute('parity_getNewDappsAddresses')
       .then((addresses) => addresses ? addresses.map(outAddress) : null);
+  }
+
+  getNewDappsDefaultAddress () {
+    return this._transport
+      .execute('parity_getNewDappsDefaultAddress')
+      .then(outAddress);
   }
 
   getVaultMeta (vaultName) {
@@ -391,9 +403,14 @@ export default class Parity {
       .execute('parity_setAuthor', inAddress(address));
   }
 
-  setDappsAddresses (dappId, addresses) {
+  setDappAddresses (dappId, addresses) {
     return this._transport
-      .execute('parity_setDappsAddresses', dappId, inAddresses(addresses));
+      .execute('parity_setDappAddresses', dappId, inAddresses(addresses));
+  }
+
+  setDappDefaultAddress (dappId, address) {
+    return this._transport
+      .execute('parity_setDappDefaultAddress', dappId, address ? inAddress(address) : null);
   }
 
   setEngineSigner (address, password) {
@@ -431,9 +448,14 @@ export default class Parity {
       .execute('parity_setMode', mode);
   }
 
-  setNewDappsWhitelist (addresses) {
+  setNewDappsAddresses (addresses) {
     return this._transport
-      .execute('parity_setNewDappsWhitelist', addresses ? inAddresses(addresses) : null);
+      .execute('parity_setNewDappsAddresses', addresses ? inAddresses(addresses) : null);
+  }
+
+  setNewDappsDefaultAddress (address) {
+    return this._transport
+      .execute('parity_setNewDappsDefaultAddress', inAddress(address));
   }
 
   setTransactionsLimit (quantity) {

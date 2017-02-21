@@ -142,41 +142,69 @@ impl ParityAccounts for ParityAccountsClient {
 		Ok(true)
 	}
 
-	fn set_account_visibility(&self, _address: RpcH160, _dapp: RpcH256, _visible: bool) -> Result<bool, Error> {
-		Ok(false)
-	}
-
-	fn set_dapps_addresses(&self, dapp: DappId, addresses: Vec<RpcH160>) -> Result<bool, Error> {
+	fn set_dapp_addresses(&self, dapp: DappId, addresses: Option<Vec<RpcH160>>) -> Result<bool, Error> {
 		let store = take_weak!(self.accounts);
 
-		store.set_dapps_addresses(dapp.into(), into_vec(addresses))
+		store.set_dapp_addresses(dapp.into(), addresses.map(into_vec))
+			.map_err(|e| errors::account("Couldn't set dapp addresses.", e))
+			.map(|_| true)
+	}
+
+	fn dapp_addresses(&self, dapp: DappId) -> Result<Vec<RpcH160>, Error> {
+		let store = take_weak!(self.accounts);
+
+		store.dapp_addresses(dapp.into())
+			.map_err(|e| errors::account("Couldn't get dapp addresses.", e))
+			.map(into_vec)
+	}
+
+	fn set_dapp_default_address(&self, dapp: DappId, address: RpcH160) -> Result<bool, Error> {
+		let store = take_weak!(self.accounts);
+
+		store.set_dapp_default_address(dapp.into(), address.into())
+			.map_err(|e| errors::account("Couldn't set dapp default address.", e))
+			.map(|_| true)
+	}
+
+	fn dapp_default_address(&self, dapp: DappId) -> Result<RpcH160, Error> {
+		let store = take_weak!(self.accounts);
+
+		store.dapp_default_address(dapp.into())
+			.map_err(|e| errors::account("Couldn't get dapp default address.", e))
+			.map(Into::into)
+	}
+
+	fn set_new_dapps_addresses(&self, addresses: Option<Vec<RpcH160>>) -> Result<bool, Error> {
+		let store = take_weak!(self.accounts);
+
+		store
+			.set_new_dapps_addresses(addresses.map(into_vec))
 			.map_err(|e| errors::account("Couldn't set dapps addresses.", e))
 			.map(|_| true)
 	}
 
-	fn dapps_addresses(&self, dapp: DappId) -> Result<Vec<RpcH160>, Error> {
+	fn new_dapps_addresses(&self) -> Result<Option<Vec<RpcH160>>, Error> {
 		let store = take_weak!(self.accounts);
 
-		store.dapps_addresses(dapp.into())
+		store.new_dapps_addresses()
 			.map_err(|e| errors::account("Couldn't get dapps addresses.", e))
-			.map(into_vec)
+			.map(|accounts| accounts.map(into_vec))
 	}
 
-	fn set_new_dapps_whitelist(&self, whitelist: Option<Vec<RpcH160>>) -> Result<bool, Error> {
+	fn set_new_dapps_default_address(&self, address: RpcH160) -> Result<bool, Error> {
 		let store = take_weak!(self.accounts);
 
-		store
-			.set_new_dapps_whitelist(whitelist.map(into_vec))
-			.map_err(|e| errors::account("Couldn't set dapps whitelist.", e))
+		store.set_new_dapps_default_address(address.into())
+			.map_err(|e| errors::account("Couldn't set new dapps default address.", e))
 			.map(|_| true)
 	}
 
-	fn new_dapps_whitelist(&self) -> Result<Option<Vec<RpcH160>>, Error> {
+	fn new_dapps_default_address(&self) -> Result<RpcH160, Error> {
 		let store = take_weak!(self.accounts);
 
-		store.new_dapps_whitelist()
-			.map_err(|e| errors::account("Couldn't get dapps whitelist.", e))
-			.map(|accounts| accounts.map(into_vec))
+		store.new_dapps_default_address()
+			.map_err(|e| errors::account("Couldn't get new dapps default address.", e))
+			.map(Into::into)
 	}
 
 	fn recent_dapps(&self) -> Result<BTreeMap<DappId, u64>, Error> {

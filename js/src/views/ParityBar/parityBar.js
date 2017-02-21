@@ -348,21 +348,16 @@ class ParityBar extends Component {
     const { balances } = this.props;
     const balance = balances[account.address];
     const makeDefaultAccount = () => {
+      this.toggleAccountsDisplay();
       return this.accountStore
         .makeDefaultAccount(account.address)
         .then(() => this.accountStore.loadAccounts());
-    };
-
-    const onDoubleClick = () => {
-      this.toggleAccountsDisplay();
-      makeDefaultAccount();
     };
 
     return (
       <div
         className={ styles.account }
         onClick={ makeDefaultAccount }
-        onDoubleClick={ onDoubleClick }
       >
         <AccountCard
           account={ account }

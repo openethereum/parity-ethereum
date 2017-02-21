@@ -17,6 +17,7 @@
 
 $modalMargin: 1.5em;
 $modalPadding: 1.5em;
+$modalPaddingChild: 3em;
 $modalBackZ: 2500;
 
 /* This should be the default case, the Portal used as a stand-alone modal */
@@ -50,7 +51,7 @@ $popoverZ: 3600;
   left: 0;
   right: 0;
   opacity: 0.25;
-  z-index: -1;
+  z-index: 0;
 }
 
 .overlay {
@@ -67,11 +68,24 @@ $popoverZ: 3600;
   }
 
   &.modal {
-    bottom: $modalBottom;
-    left: $modalLeft;
-    right: $modalRight;
-    top: $modalTop;
-    z-index: $modalZ;
+    &:not(.small) {
+      bottom: $modalBottom;
+      left: $modalLeft;
+      right: $modalRight;
+      top: $modalTop;
+      z-index: $modalZ;
+    }
+
+    /* TODO: Small Portals don't adjust their overall height like we have with the
+    /* rest, so really tiny screens and large small Portals (it shouldn't be be done,
+    /* but may well be) will scretch to non-visible areas.
+    */
+    &.small {
+      margin: 1.5em auto;
+      max-width: 768px;
+      position: relative;
+      width: 75%;
+    }
   }
 
   &.popover {
@@ -100,8 +114,11 @@ $popoverZ: 3600;
 
   .childContainer {
     flex: 1;
+    margin: 0 -$modalPadding;
     overflow-x: hidden;
     overflow-y: auto;
+    padding: 0 $modalPaddingChild;
+    z-index: 1;
   }
 
   .closeIcon {
