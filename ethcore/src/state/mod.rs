@@ -37,6 +37,8 @@ use util::trie::recorder::Recorder;
 mod account;
 mod substate;
 
+pub mod backend;
+
 pub use self::account::Account;
 pub use self::substate::Substate;
 
