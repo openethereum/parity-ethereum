@@ -18,11 +18,12 @@ use std::collections::{VecDeque, HashSet};
 use lru_cache::LruCache;
 use util::cache::MemoryLruCache;
 use util::journaldb::JournalDB;
+use util::kvdb::KeyValueDB;
 use util::hash::{H256};
 use util::hashdb::HashDB;
 use state::Account;
 use header::BlockNumber;
-use util::{Arc, Address, Database, DBTransaction, UtilError, Mutex, Hashable};
+use util::{Arc, Address, DBTransaction, UtilError, Mutex, Hashable};
 use bloom_journal::{Bloom, BloomJournal};
 use db::COL_ACCOUNT_BLOOM;
 use byteorder::{LittleEndian, ByteOrder};
@@ -116,7 +117,7 @@ impl StateDB {
 	// TODO: make the cache size actually accurate by moving the account storage cache
 	// into the `AccountCache` structure as its own `LruCache<(Address, H256), H256>`.
 	pub fn new(db: Box<JournalDB>, cache_size: usize) -> StateDB {
-		let bloom = Self::load_bloom(db.backing());
+		let bloom = Self::load_bloom(&**db.backing());
 		let acc_cache_size = cache_size * ACCOUNT_CACHE_RATIO / 100;
 		let code_cache_size = cache_size - acc_cache_size;
 		let cache_items = acc_cache_size / ::std::mem::size_of::<Option<Account>>();
@@ -139,7 +140,7 @@ impl StateDB {
 
 	/// Loads accounts bloom from the database
 	/// This bloom is used to handle request for the non-existant account fast
-	pub fn load_bloom(db: &Database) -> Bloom {
+	pub fn load_bloom(db: &KeyValueDB) -> Bloom {
 		let hash_count_entry = db.get(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY)
 			.expect("Low-level database error");
 
@@ -477,7 +478,7 @@ mod tests {
 		let h2b = H256::random();
 		let h3a = H256::random();
 		let h3b = H256::random();
-		let mut batch = DBTransaction::new(state_db.journal_db().backing());
+		let mut batch = DBTransaction::new();
 
 		// blocks  [ 3a(c) 2a(c) 2b 1b 1a(c) 0 ]
 	    // balance [ 5     5     4  3  2     2 ]

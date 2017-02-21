@@ -31,22 +31,20 @@ export default class Page extends Component {
 
   render () {
     const { buttons, className, children, title } = this.props;
-    const classes = `${styles.layout} ${className}`;
-    let actionbar = null;
-
-    if (title || buttons) {
-      actionbar = (
-        <Actionbar
-          buttons={ buttons }
-          title={ title }
-        />
-      );
-    }
 
     return (
       <div>
-        { actionbar }
-        <div className={ classes }>
+        {
+          title || buttons
+            ? (
+              <Actionbar
+                buttons={ buttons }
+                title={ title }
+              />
+            )
+            : null
+        }
+        <div className={ [styles.layout, className].join(' ') }>
           { children }
         </div>
       </div>

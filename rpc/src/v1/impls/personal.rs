@@ -101,7 +101,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		let default = match request.from.as_ref() {
 			Some(account) => Ok(account.clone().into()),
 			None => accounts
-				.default_address(meta.dapp_id().into())
+				.dapp_default_address(meta.dapp_id().into())
 				.map_err(|e| errors::account("Cannot find default account.", e)),
 		};
 

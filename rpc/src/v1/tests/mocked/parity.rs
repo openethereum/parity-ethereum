@@ -110,17 +110,19 @@ fn rpc_parity_accounts_info() {
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
 
-	deps.accounts.set_account_name(address.clone(), "Test".to_owned()).unwrap();
-	deps.accounts.set_account_meta(address.clone(), "{foo: 69}".to_owned()).unwrap();
+	deps.accounts.set_address_name(1.into(), "XX".into());
+	deps.accounts.set_account_name(address.clone(), "Test".into()).unwrap();
+	deps.accounts.set_account_meta(address.clone(), "{foo: 69}".into()).unwrap();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 1}"#;
 	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"name\":\"Test\"}}}},\"id\":1}}", address.hex());
 	assert_eq!(io.handle_request_sync(request), Some(response));
 
 	// Change the whitelist
-	deps.accounts.set_new_dapps_whitelist(Some(vec![1.into()])).unwrap();
+	let address = Address::from(1);
+	deps.accounts.set_new_dapps_addresses(Some(vec![address.clone()])).unwrap();
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 1}"#;
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{}},\"id\":1}}");
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"name\":\"XX\"}}}},\"id\":1}}", address.hex());
 	assert_eq!(io.handle_request_sync(request), Some(response));
 }
 

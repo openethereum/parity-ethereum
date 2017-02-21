@@ -18,7 +18,7 @@
 use std::sync::{Arc, Weak};
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashSet};
-use futures::{self, Future, BoxFuture};
+use futures::{future, Future, BoxFuture};
 
 use util::{RotatingLogger, Address};
 use util::misc::version_data;
@@ -118,7 +118,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		let store = take_weak!(self.accounts);
 		let dapp_accounts = store
 			.note_dapp_used(dapp.clone().into())
-			.and_then(|_| store.dapps_addresses(dapp.into()))
+			.and_then(|_| store.dapp_addresses(dapp.into()))
 			.map_err(|e| errors::internal("Could not fetch accounts.", e))?
 			.into_iter().collect::<HashSet<_>>();
 
@@ -146,16 +146,13 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 
 	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
 		let dapp_id = meta.dapp_id();
-		let default_account = move || {
-			Ok(take_weak!(self.accounts)
-				.dapps_addresses(dapp_id.into())
+		future::ok(
+			take_weakf!(self.accounts)
+				.dapp_default_address(dapp_id.into())
+				.map(Into::into)
 				.ok()
-				.and_then(|accounts| accounts.get(0).cloned())
-				.map(|acc| acc.into())
-				.unwrap_or_default())
-		};
-
-		futures::done(default_account()).boxed()
+				.unwrap_or_default()
+		).boxed()
 	}
 
 	fn transactions_limit(&self) -> Result<usize, Error> {

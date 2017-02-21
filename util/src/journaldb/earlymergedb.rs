@@ -22,9 +22,7 @@ use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
-use kvdb::{Database, DBTransaction};
-#[cfg(test)]
-use std::env;
+use kvdb::{KeyValueDB, DBTransaction};
 
 #[derive(Clone, PartialEq, Eq)]
 struct RefInfo {
@@ -112,7 +110,7 @@ enum RemoveFrom {
 /// TODO: `store_reclaim_period`
 pub struct EarlyMergeDB {
 	overlay: MemoryDB,
-	backing: Arc<Database>,
+	backing: Arc<KeyValueDB>,
 	refs: Option<Arc<RwLock<HashMap<H256, RefInfo>>>>,
 	latest_era: Option<u64>,
 	column: Option<u32>,
@@ -122,8 +120,8 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl EarlyMergeDB {
 	/// Create a new instance from file
-	pub fn new(backing: Arc<Database>, col: Option<u32>) -> EarlyMergeDB {
-		let (latest_era, refs) = EarlyMergeDB::read_refs(&backing, col);
+	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> EarlyMergeDB {
+		let (latest_era, refs) = EarlyMergeDB::read_refs(&*backing, col);
 		let refs = Some(Arc::new(RwLock::new(refs)));
 		EarlyMergeDB {
 			overlay: MemoryDB::new(),
@@ -137,9 +135,7 @@ impl EarlyMergeDB {
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
 	fn new_temp() -> EarlyMergeDB {
-		let mut dir = env::temp_dir();
-		dir.push(H32::random().hex());
-		let backing = Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap());
+		let backing = Arc::new(::kvdb::in_memory(0));
 		Self::new(backing, None)
 	}
 
@@ -152,11 +148,11 @@ impl EarlyMergeDB {
 	// The next three are valid only as long as there is an insert operation of `key` in the journal.
 	fn set_already_in(batch: &mut DBTransaction, col: Option<u32>, key: &H256) { batch.put(col, &Self::morph_key(key, 0), &[1u8]); }
 	fn reset_already_in(batch: &mut DBTransaction, col: Option<u32>, key: &H256) { batch.delete(col, &Self::morph_key(key, 0)); }
-	fn is_already_in(backing: &Database, col: Option<u32>, key: &H256) -> bool {
+	fn is_already_in(backing: &KeyValueDB, col: Option<u32>, key: &H256) -> bool {
 		backing.get(col, &Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?").is_some()
 	}
 
-	fn insert_keys(inserts: &[(H256, DBValue)], backing: &Database, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, trace: bool) {
+	fn insert_keys(inserts: &[(H256, DBValue)], backing: &KeyValueDB, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, trace: bool) {
 		for &(ref h, ref d) in inserts {
 			if let Some(c) = refs.get_mut(h) {
 				// already counting. increment.
@@ -189,7 +185,7 @@ impl EarlyMergeDB {
 		}
 	}
 
-	fn replay_keys(inserts: &[H256], backing: &Database, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>) {
+	fn replay_keys(inserts: &[H256], backing: &KeyValueDB, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>) {
 		trace!(target: "jdb.fine", "replay_keys: inserts={:?}, refs={:?}", inserts, refs);
 		for h in inserts {
 			if let Some(c) = refs.get_mut(h) {
@@ -262,7 +258,7 @@ impl EarlyMergeDB {
 
 	#[cfg(test)]
 	fn can_reconstruct_refs(&self) -> bool {
-		let (latest_era, reconstructed) = Self::read_refs(&self.backing, self.column);
+		let (latest_era, reconstructed) = Self::read_refs(&*self.backing, self.column);
 		let refs = self.refs.as_ref().unwrap().write();
 		if *refs != reconstructed || latest_era != self.latest_era {
 			let clean_refs = refs.iter().filter_map(|(k, v)| if reconstructed.get(k) == Some(v) {None} else {Some((k.clone(), v.clone()))}).collect::<HashMap<_, _>>();
@@ -278,7 +274,7 @@ impl EarlyMergeDB {
 		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
 
-	fn read_refs(db: &Database, col: Option<u32>) -> (Option<u64>, HashMap<H256, RefInfo>) {
+	fn read_refs(db: &KeyValueDB, col: Option<u32>) -> (Option<u64>, HashMap<H256, RefInfo>) {
 		let mut refs = HashMap::new();
 		let mut latest_era = None;
 		if let Some(val) = db.get(col, &LATEST_ERA_KEY).expect("Low-level database error.") {
@@ -361,7 +357,7 @@ impl JournalDB for EarlyMergeDB {
 		self.backing.get(self.column, &LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
-	fn backing(&self) -> &Arc<Database> {
+	fn backing(&self) -> &Arc<KeyValueDB> {
 		&self.backing
 	}
 
@@ -432,7 +428,7 @@ impl JournalDB for EarlyMergeDB {
 			r.begin_list(inserts.len());
 			inserts.iter().foreach(|&(k, _)| {r.append(&k);});
 			r.append(&removes);
-			Self::insert_keys(&inserts, &self.backing, self.column, &mut refs, batch, trace);
+			Self::insert_keys(&inserts, &*self.backing, self.column, &mut refs, batch, trace);
 
 			let ins = inserts.iter().map(|&(k, _)| k).collect::<Vec<_>>();
 
@@ -558,7 +554,7 @@ mod tests {
 	use super::*;
 	use super::super::traits::JournalDB;
 	use log::init_log;
-	use kvdb::{Database, DatabaseConfig};
+	use kvdb::{DatabaseConfig};
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -817,7 +813,7 @@ mod tests {
 
 	fn new_db(path: &Path) -> EarlyMergeDB {
 		let config = DatabaseConfig::with_columns(Some(1));
-		let backing = Arc::new(Database::open(&config, path.to_str().unwrap()).unwrap());
+		let backing = Arc::new(::kvdb::Database::open(&config, path.to_str().unwrap()).unwrap());
 		EarlyMergeDB::new(backing, Some(0))
 	}
 

@@ -230,6 +230,7 @@ pub struct EthMultiStore {
 	// order lock: cache, then vaults
 	cache: RwLock<BTreeMap<StoreAccountRef, Vec<SafeAccount>>>,
 	vaults: Mutex<HashMap<String, Box<VaultKeyDirectory>>>,
+	dir_hash: Mutex<Option<u64>>,
 }
 
 impl EthMultiStore {
@@ -244,9 +245,21 @@ impl EthMultiStore {
 			vaults: Mutex::new(HashMap::new()),
 			iterations: iterations,
 			cache: Default::default(),
+			dir_hash: Default::default(),
 		};
 		store.reload_accounts()?;
 		Ok(store)
+	}
+
+	fn reload_if_changed(&self) -> Result<(), Error> {
+		let mut last_dir_hash = self.dir_hash.lock();
+		let dir_hash = Some(self.dir.unique_repr()?);
+		if *last_dir_hash == dir_hash {
+			return Ok(())
+		}
+		self.reload_accounts()?;
+		*last_dir_hash = dir_hash;
+		Ok(()) 
 	}
 
 	fn reload_accounts(&self) -> Result<(), Error> {
@@ -284,7 +297,7 @@ impl EthMultiStore {
 			}
 		}
 
-		self.reload_accounts()?;
+		self.reload_if_changed()?;
 		let cache = self.cache.read();
 		let accounts = cache.get(account).ok_or(Error::InvalidAccount)?;
 		if accounts.is_empty() {
@@ -431,7 +444,7 @@ impl SimpleSecretStore for EthMultiStore {
 	}
 
 	fn account_ref(&self, address: &Address) -> Result<StoreAccountRef, Error> {
-		self.reload_accounts()?;
+		self.reload_if_changed()?;
 		self.cache.read().keys()
 			.find(|r| &r.address == address)
 			.cloned()
@@ -439,7 +452,7 @@ impl SimpleSecretStore for EthMultiStore {
 	}
 
 	fn accounts(&self) -> Result<Vec<StoreAccountRef>, Error> {
-		self.reload_accounts()?;
+		self.reload_if_changed()?;
 		Ok(self.cache.read().keys().cloned().collect())
 	}
 

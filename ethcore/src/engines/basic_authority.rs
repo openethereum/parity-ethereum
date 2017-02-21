@@ -103,8 +103,8 @@ impl Engine for BasicAuthority {
 		});
 	}
 
-	fn is_sealer(&self, author: &Address) -> Option<bool> {
-		Some(self.validators.contains(author))
+	fn seals_internally(&self) -> Option<bool> {
+		Some(self.validators.contains(&self.signer.address()))
 	}
 
 	/// Attempt to seal the block internally.
@@ -268,7 +268,8 @@ mod tests {
 		let authority = tap.insert_account(Secret::from_slice(&"".sha3()).unwrap(), "").unwrap();
 
 		let engine = new_test_authority().engine;
-		assert!(!engine.is_sealer(&Address::default()).unwrap());
-		assert!(engine.is_sealer(&authority).unwrap());
+		assert!(!engine.seals_internally().unwrap());
+		engine.set_signer(Arc::new(tap), authority, "".into());
+		assert!(engine.seals_internally().unwrap());
 	}
 }

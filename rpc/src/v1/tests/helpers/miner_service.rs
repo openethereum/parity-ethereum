@@ -200,8 +200,8 @@ impl MinerService for TestMinerService {
 		Some(f(&open_block.close()))
 	}
 
-	fn transaction(&self, _best_block: BlockNumber, hash: &H256) -> Option<SignedTransaction> {
-		self.pending_transactions.lock().get(hash).cloned()
+	fn transaction(&self, _best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction> {
+		self.pending_transactions.lock().get(hash).cloned().map(Into::into)
 	}
 
 	fn pending_transactions(&self) -> Vec<PendingTransaction> {

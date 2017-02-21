@@ -36,8 +36,8 @@ function createApi () {
     parity: {
       defaultAccount: sinon.stub().resolves(ACCOUNT_DEFAULT),
       allAccountsInfo: sinon.stub().resolves(ACCOUNTS),
-      getNewDappsWhitelist: sinon.stub().resolves(null),
-      setNewDappsWhitelist: sinon.stub().resolves(true)
+      getNewDappsAddresses: sinon.stub().resolves(null),
+      setNewDappsAddresses: sinon.stub().resolves(true)
     }
   };
 
