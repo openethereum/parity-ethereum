@@ -15,11 +15,41 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.legend {
-  opacity: 0.75;
+.item {
+  display: flex;
+  flex: 1;
+  position: relative;
 
-  span {
-    line-height: 24px;
-    vertical-align: top;
+  .content {
+    height: 100%;
+    width: 100%;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
   }
+
+  .overlay {
+    position: absolute;
+    right: 0.5em;
+    top: 0.5em;
+  }
+}
+
+.selected,
+.unselected {
+  width: 100%;
+}
+
+.selected {
+  filter: none;
+}
+
+.unselected {
+  filter: grayscale(100%);
+  opacity: 0.5;
+}
+
+.iconDisabled {
+  opacity: 0.15;
 }
