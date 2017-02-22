@@ -25,7 +25,7 @@
 
   .icon {
     align-items: center;
-    background: #f80;
+    background: rgb(167, 151, 0);
     border-radius: 50%;
     display: flex;
     flex: 0 0 5em;
