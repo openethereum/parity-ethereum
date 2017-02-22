@@ -18,13 +18,19 @@
 .details {
   text-align: center;
 
-  .infoForm {
-    background: rgba(0, 0, 0, 0.1);
-    padding: 1.5em;
-  }
+  .info {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
 
-  .qr {
-    margin: 1.5em auto 0 auto;
+    .form {
+      flex: 1;
+    }
+
+    .qr {
+      flex: 0 0 136px;
+      margin: 1.5em 0 0 1.5em;
+    }
   }
 }
 

@@ -22,8 +22,8 @@ import { bindActionCreators } from 'redux';
 
 import { createIdentityImg } from '~/api/util/identity';
 import { newError } from '~/redux/actions';
-import { Button, Portal } from '~/ui';
-import { CancelIcon, CheckIcon, DoneIcon, NextIcon, PrevIcon, PrintIcon } from '~/ui/Icons';
+import { Button, IdentityIcon, ModalBox, Portal } from '~/ui';
+import { AccountsIcon, CancelIcon, CheckIcon, DoneIcon, FileIcon, FileUploadIcon, KeyboardIcon, KeyIcon, MembershipIcon, NextIcon, PrevIcon, PrintIcon } from '~/ui/Icons';
 import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
 
 import AccountDetails from './AccountDetails';
@@ -97,9 +97,45 @@ class CreateAccount extends Component {
             : STAGE_IMPORT
         }
       >
-        { this.renderPage() }
+        <ModalBox icon={ this.getIcon() }>
+          { this.renderPage() }
+        </ModalBox>
       </Portal>
     );
+  }
+
+  getIcon () {
+    const { address, createType, stage } = this.store;
+
+    if (stage === STAGE_INFO && createType !== 'fromGeth') {
+      return (
+        <IdentityIcon
+          address={ address }
+          center
+        />
+      );
+    }
+
+    switch (createType) {
+      case 'fromGeth':
+        return <FileUploadIcon />;
+
+      case 'fromPhrase':
+        return <KeyboardIcon />;
+
+      case 'fromRaw':
+        return <KeyIcon />;
+
+      case 'fromJSON':
+        return <FileIcon />;
+
+      case 'fromPresale':
+        return <MembershipIcon />;
+
+      case 'fromNew':
+      default:
+        return <AccountsIcon />;
+    }
   }
 
   renderPage () {
@@ -246,11 +282,11 @@ class CreateAccount extends Component {
             : null,
           <Button
             icon={ <DoneIcon /> }
-            key='close'
+            key='done'
             label={
               <FormattedMessage
-                id='createAccount.button.close'
-                defaultMessage='Close'
+                id='createAccount.button.done'
+                defaultMessage='Done'
               />
             }
             onClick={ this.onClose }
