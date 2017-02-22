@@ -36,6 +36,7 @@ export default class Title extends Component {
     byline: nodeOrStringProptype(),
     className: PropTypes.string,
     isSubTitle: PropTypes.bool,
+    modalCompatible: PropTypes.bool,
     steps: PropTypes.array,
     title: nodeOrStringProptype()
   }
@@ -104,15 +105,25 @@ export default class Title extends Component {
   }
 
   renderWaiting () {
-    const { activeStep, busy, busySteps } = this.props;
+    const { activeStep, busy, busySteps, modalCompatible } = this.props;
     const isWaiting = busy || (busySteps || []).includes(activeStep);
 
     if (!isWaiting) {
       return null;
     }
 
+    // TODO modalCompatible flag to be removed when all Portal conversions are done (only used by ui/Modal)
     return (
-      <div className={ styles.waiting }>
+      <div
+        className={
+          [
+            styles.waiting,
+            modalCompatible
+              ? styles.compatible
+              : null
+          ].join(' ')
+        }
+      >
         <LinearProgress />
       </div>
     );

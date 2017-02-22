@@ -67,6 +67,7 @@ class Modal extends Component {
         busy={ busy }
         busySteps={ waiting }
         className={ styles.title }
+        modalCompatible
         steps={ steps }
         title={ title }
       />
