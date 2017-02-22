@@ -346,6 +346,7 @@ class AddressSelect extends Component {
       <AccountCard
         account={ account }
         balance={ balance }
+        className={ styles.account }
         key={ `account_${index}` }
         onClick={ this.handleClick }
         onFocus={ this.focusItem }
