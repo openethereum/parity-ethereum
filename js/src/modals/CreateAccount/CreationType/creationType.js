@@ -17,9 +17,103 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
+
+import { RadioButtons } from '~/ui';
 
 import styles from '../createAccount.css';
+
+const TYPES = [
+  {
+    description: (
+      <FormattedMessage
+        id='createAccount.creationType.fromNew.description'
+        defaultMessage='Create an account by selecting your identity icon and specifying the password'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromNew.label'
+        defaultMessage='Create new account manually'
+      />
+    ),
+    key: 'fromNew'
+  },
+  {
+    description: (
+      <FormattedMessage
+        id='createAccount.creationType.fromPhrase.description'
+        defaultMessage='Recover an account by entering a previously stored recovery phrase and new password'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromPhrase.label'
+        defaultMessage='Recover account from recovery phrase'
+      />
+    ),
+    key: 'fromPhrase'
+  },
+  {
+    description: (
+      <FormattedMessage
+        id='createAccount.creationType.fromGeth.description'
+        defaultMessage='Import an accounts from the Geth keystore with the original password'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromGeth.label'
+        defaultMessage='Import accounts from Geth keystore'
+      />
+    ),
+    key: 'fromGeth'
+  },
+  {
+    description: (
+      <FormattedMessage
+        id='createAccount.creationType.fromJSON.description'
+        defaultMessage='Create an account by importing an industry-standard JSON keyfile'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromJSON.label'
+        defaultMessage='Import account from a backup JSON file'
+      />
+    ),
+    key: 'fromJSON'
+  },
+  {
+    description: (
+      <FormattedMessage
+        id='createAccount.creationType.fromPresale.description'
+        defaultMessage='Create an account by importing an Ethereum presale wallet file'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromPresale.label'
+        defaultMessage='Import account from an Ethereum pre-sale wallet'
+      />
+    ),
+    key: 'fromPresale'
+  },
+  {
+    description: (
+      <FormattedMessage
+        id='createAccount.creationType.fromRaw.description'
+        defaultMessage='Create an account by entering a previously backed-up raw private key'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromRaw.label'
+        defaultMessage='Import raw private key'
+      />
+    ),
+    key: 'fromRaw'
+  }
+];
 
 @observer
 export default class CreationType extends Component {
@@ -32,66 +126,12 @@ export default class CreationType extends Component {
 
     return (
       <div className={ styles.spaced }>
-        <RadioButtonGroup
-          defaultSelected={ createType }
+        <RadioButtons
           name='creationType'
           onChange={ this.onChange }
-        >
-          <RadioButton
-            label={
-              <FormattedMessage
-                id='createAccount.creationType.fromNew.label'
-                defaultMessage='Create new account manually'
-              />
-            }
-            value='fromNew'
-          />
-          <RadioButton
-            label={
-              <FormattedMessage
-                id='createAccount.creationType.fromPhrase.label'
-                defaultMessage='Recover account from recovery phrase'
-              />
-            }
-            value='fromPhrase'
-          />
-          <RadioButton
-            label={
-              <FormattedMessage
-                id='createAccount.creationType.fromGeth.label'
-                defaultMessage='Import accounts from Geth keystore'
-              />
-            }
-            value='fromGeth'
-          />
-          <RadioButton
-            label={
-              <FormattedMessage
-                id='createAccount.creationType.fromJSON.label'
-                defaultMessage='Import account from a backup JSON file'
-              />
-            }
-            value='fromJSON'
-          />
-          <RadioButton
-            label={
-              <FormattedMessage
-                id='createAccount.creationType.fromPresale.label'
-                defaultMessage='Import account from an Ethereum pre-sale wallet'
-              />
-            }
-            value='fromPresale'
-          />
-          <RadioButton
-            label={
-              <FormattedMessage
-                id='createAccount.creationType.fromRaw.label'
-                defaultMessage='Import raw private key'
-              />
-            }
-            value='fromRaw'
-          />
-        </RadioButtonGroup>
+          value={ createType }
+          values={ TYPES }
+        />
       </div>
     );
   }

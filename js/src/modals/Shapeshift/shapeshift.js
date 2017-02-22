@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import shapeshiftLogo from '~/../assets/images/shapeshift-logo.png';
-import { Button, IdentityIcon, Modal } from '~/ui';
+import { Button, IdentityIcon, Portal } from '~/ui';
 import { CancelIcon, DoneIcon } from '~/ui/Icons';
 
 import AwaitingDepositStep from './AwaitingDepositStep';
@@ -81,9 +81,15 @@ export default class Shapeshift extends Component {
     const { error, stage } = this.store;
 
     return (
-      <Modal
-        actions={ this.renderDialogActions() }
-        current={ stage }
+      <Portal
+        activeStep={ stage }
+        busySteps={ [
+          STAGE_WAIT_DEPOSIT,
+          STAGE_WAIT_EXCHANGE
+        ] }
+        buttons={ this.renderDialogActions() }
+        onClose={ this.onClose }
+        open
         steps={
           error
             ? null
@@ -94,14 +100,9 @@ export default class Shapeshift extends Component {
             ? ERROR_TITLE
             : null
         }
-        visible
-        waiting={ [
-          STAGE_WAIT_DEPOSIT,
-          STAGE_WAIT_EXCHANGE
-        ] }
       >
         { this.renderPage() }
-      </Modal>
+      </Portal>
     );
   }
 
@@ -110,13 +111,19 @@ export default class Shapeshift extends Component {
     const { coins, error, hasAcceptedTerms, stage } = this.store;
 
     const logo = (
-      <a href='http://shapeshift.io' target='_blank' className={ styles.shapeshift }>
+      <a
+        className={ styles.shapeshift }
+        href='http://shapeshift.io'
+        key='logo'
+        target='_blank'
+      >
         <img src={ shapeshiftLogo } />
       </a>
     );
     const cancelBtn = (
       <Button
         icon={ <CancelIcon /> }
+        key='cancel'
         label={
           <FormattedMessage
             id='shapeshift.button.cancel'
@@ -147,6 +154,7 @@ export default class Shapeshift extends Component {
                 button
               />
             }
+            key='shift'
             label={
               <FormattedMessage
                 id='shapeshift.button.shift'
@@ -169,6 +177,7 @@ export default class Shapeshift extends Component {
           logo,
           <Button
             icon={ <DoneIcon /> }
+            key='done'
             label={
               <FormattedMessage
                 id='shapeshift.button.done'

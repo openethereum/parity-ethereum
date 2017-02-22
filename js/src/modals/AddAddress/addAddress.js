@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import ContentAdd from 'material-ui/svg-icons/content/add';
-import ContentClear from 'material-ui/svg-icons/content/clear';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Form, Input, InputAddress, Modal } from '~/ui';
+import { Button, Form, Input, InputAddress, Portal } from '~/ui';
+import { AddIcon, CancelIcon } from '~/ui/Icons';
 
 import Store from './store';
 
@@ -46,8 +45,10 @@ export default class AddAddress extends Component {
 
   render () {
     return (
-      <Modal
-        actions={ this.renderDialogActions() }
+      <Portal
+        buttons={ this.renderDialogActions() }
+        onClose={ this.onClose }
+        open
         title={
           <FormattedMessage
             id='addAddress.label'
@@ -57,7 +58,7 @@ export default class AddAddress extends Component {
         visible
       >
         { this.renderFields() }
-      </Modal>
+      </Portal>
     );
   }
 
@@ -66,7 +67,7 @@ export default class AddAddress extends Component {
 
     return ([
       <Button
-        icon={ <ContentClear /> }
+        icon={ <CancelIcon /> }
         label={
           <FormattedMessage
             id='addAddress.button.close'
@@ -78,7 +79,7 @@ export default class AddAddress extends Component {
       />,
       <Button
         disabled={ hasError }
-        icon={ <ContentAdd /> }
+        icon={ <AddIcon /> }
         label={
           <FormattedMessage
             id='addAddress.button.add'
@@ -169,7 +170,7 @@ export default class AddAddress extends Component {
 
   onAdd = () => {
     this.store.add();
-    this.props.onClose();
+    this.onClose();
   }
 
   onClose = () => {
