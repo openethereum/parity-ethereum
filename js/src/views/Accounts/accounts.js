@@ -345,8 +345,8 @@ function mapStateToProps (state) {
   const { balances } = state.balances;
 
   return {
-    accounts: accounts,
-    hasAccounts: hasAccounts,
+    accounts,
+    hasAccounts,
     balances
   };
 }

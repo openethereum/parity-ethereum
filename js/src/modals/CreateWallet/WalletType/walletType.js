@@ -60,6 +60,21 @@ const TYPES = [
         defaultMessage='Add an existing wallet to your accounts'
       />
     )
+  },
+  {
+    label: (
+      <FormattedMessage
+        id='createWallet.type.hardware.ledger.label'
+        defaultMessage='Ledger hardware wallet'
+      />
+    ),
+    key: 'HARDWARE_LEDGER',
+    description: (
+      <FormattedMessage
+        id='createWallet.type.hardware.ledger.description'
+        defaultMessage='Connect your Ledger Wallet and verify that Browser Support is enabled in settings'
+      />
+    )
   }
 ];
 

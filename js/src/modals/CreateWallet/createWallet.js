@@ -148,19 +148,6 @@ export default class CreateWallet extends Component {
   renderDialogActions () {
     const { step, hasErrors, rejected, onCreate, onNext, onAdd } = this.store;
 
-    const cancelBtn = (
-      <Button
-        icon={ <CancelIcon /> }
-        label={
-          <FormattedMessage
-            id='createWallet.button.cancel'
-            defaultMessage='Cancel'
-          />
-        }
-        onClick={ this.onClose }
-      />
-    );
-
     const closeBtn = (
       <Button
         icon={ <CancelIcon /> }
@@ -168,6 +155,23 @@ export default class CreateWallet extends Component {
           <FormattedMessage
             id='createWallet.button.close'
             defaultMessage='Close'
+          />
+        }
+        onClick={ this.onClose }
+      />
+    );
+
+    if (rejected) {
+      return [ closeBtn ];
+    }
+
+    const cancelBtn = (
+      <Button
+        icon={ <CancelIcon /> }
+        label={
+          <FormattedMessage
+            id='createWallet.button.cancel'
+            defaultMessage='Cancel'
           />
         }
         onClick={ this.onClose }
@@ -212,10 +216,6 @@ export default class CreateWallet extends Component {
         onClick={ onNext }
       />
     );
-
-    if (rejected) {
-      return [ closeBtn ];
-    }
 
     switch (step) {
       case 'DEPLOYMENT':

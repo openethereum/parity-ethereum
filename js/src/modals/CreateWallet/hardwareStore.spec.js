@@ -14,4 +14,41 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './ledger';
+import HardwareStore from './hardwareStore';
+
+let api;
+let store;
+
+function createApi () {
+  api = {};
+
+  return api;
+}
+
+function create () {
+  store = new HardwareStore(createApi());
+
+  return store;
+}
+
+describe('CreateWallet/HardwareStore', () => {
+  beforeEach(() => {
+    create();
+  });
+
+  describe('@action', () => {
+    describe('setScanning', () => {
+      it('sets the flag', () => {
+        store.setScanning('testScanning');
+        expect(store.isScanning).to.equal('testScanning');
+      });
+    });
+
+    describe('setWallet', () => {
+      it('sets the wallet', () => {
+        store.setWallet('testWallet');
+        expect(store.wallet).to.equal('testWallet');
+      });
+    });
+  });
+});
