@@ -16,7 +16,7 @@
 
 use super::test_common::*;
 use action_params::ActionParams;
-use state::{State, Substate};
+use state::{Backend as StateBackend, State, Substate};
 use executive::*;
 use engines::Engine;
 use env_info::EnvInfo;
@@ -51,15 +51,19 @@ impl From<ethjson::vm::Call> for CallCreate {
 
 /// Tiny wrapper around executive externalities.
 /// Stores callcreates.
-struct TestExt<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
-	ext: Externalities<'a, T, V>,
+struct TestExt<'a, T: 'a, V: 'a, B: 'a>
+	where T: Tracer, V: VMTracer, B: StateBackend
+{
+	ext: Externalities<'a, T, V, B>,
 	callcreates: Vec<CallCreate>,
 	contract_address: Address
 }
 
-impl<'a, T, V> TestExt<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
+impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
+	where T: Tracer, V: VMTracer, B: StateBackend
+{
 	fn new(
-		state: &'a mut State,
+		state: &'a mut State<B>,
 		info: &'a EnvInfo,
 		engine: &'a Engine,
 		vm_factory: &'a Factory,
@@ -79,7 +83,9 @@ impl<'a, T, V> TestExt<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
 	}
 }
 
-impl<'a, T, V> Ext for TestExt<'a, T, V> where T: Tracer, V: VMTracer {
+impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
+	where T: Tracer, V: VMTracer, B: StateBackend
+{
 	fn storage_at(&self, key: &H256) -> H256 {
 		self.ext.storage_at(key)
 	}
