@@ -29,6 +29,7 @@ export DeleteIcon from 'material-ui/svg-icons/action/delete';
 export DoneIcon from 'material-ui/svg-icons/action/done-all';
 export EditIcon from 'material-ui/svg-icons/content/create';
 export ErrorIcon from 'material-ui/svg-icons/alert/error';
+export FileUploadIcon from 'material-ui/svg-icons/file/file-upload';
 export FingerprintIcon from 'material-ui/svg-icons/action/fingerprint';
 export KeyIcon from 'material-ui/svg-icons/communication/vpn-key';
 export LinkIcon from 'material-ui/svg-icons/content/link';
