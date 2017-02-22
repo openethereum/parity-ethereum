@@ -71,10 +71,7 @@ export default class Portal extends Component {
     }
 
     return (
-      <ReactPortal
-        isOpened
-        onClose={ this.handleClose }
-      >
+      <ReactPortal isOpened>
         <div
           className={ styles.backOverlay }
           onClick={ this.handleClose }
@@ -159,6 +156,8 @@ export default class Portal extends Component {
     if (!hideClose) {
       onClose();
     }
+
+    this.stopEvent(event);
   }
 
   handleKeyDown = (event) => {

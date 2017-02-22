@@ -18,7 +18,9 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Form, Input, InputAddress } from '~/ui';
+import { Form, Input, InputAddress, QrCode } from '~/ui';
+
+import styles from '../createAccount.css';
 
 @observer
 export default class AccountDetails extends Component {
@@ -30,42 +32,54 @@ export default class AccountDetails extends Component {
     const { address, name } = this.props.store;
 
     return (
-      <Form>
-        <Input
-          allowCopy
-          hint={
-            <FormattedMessage
-              id='createAccount.accountDetails.name.hint'
-              defaultMessage='a descriptive name for the account'
-            />
-          }
-          label={
-            <FormattedMessage
-              id='createAccount.accountDetails.name.label'
-              defaultMessage='account name'
-            />
-          }
-          readOnly
-          value={ name }
-        />
-        <InputAddress
-          disabled
-          hint={
-            <FormattedMessage
-              id='createAccount.accountDetails.address.hint'
-              defaultMessage='the network address for the account'
-            />
-          }
-          label={
-            <FormattedMessage
-              id='createAccount.accountDetails.address.label'
-              defaultMessage='address'
-            />
-          }
+      <div className={ styles.details }>
+        <p>
+          <FormattedMessage
+            id='createAccount.accountDetails.intro'
+            defaultMessage='Your account has been created with the following details:'
+          />
+        </p>
+        <Form className={ styles.infoForm }>
+          <Input
+            allowCopy
+            hint={
+              <FormattedMessage
+                id='createAccount.accountDetails.name.hint'
+                defaultMessage='a descriptive name for the account'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='createAccount.accountDetails.name.label'
+                defaultMessage='account name'
+              />
+            }
+            readOnly
+            value={ name }
+          />
+          <InputAddress
+            disabled
+            hint={
+              <FormattedMessage
+                id='createAccount.accountDetails.address.hint'
+                defaultMessage='the network address for the account'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='createAccount.accountDetails.address.label'
+                defaultMessage='address'
+              />
+            }
+            value={ address }
+          />
+          { this.renderPhrase() }
+        </Form>
+        <QrCode
+          className={ styles.qr }
           value={ address }
         />
-        { this.renderPhrase() }
-      </Form>
+      </div>
     );
   }
 

@@ -16,12 +16,13 @@
 
 import React, { Component, PropTypes } from 'react';
 import Dropzone from 'react-dropzone';
-import FileUploadIcon from 'material-ui/svg-icons/file/file-upload';
-import ContentClear from 'material-ui/svg-icons/content/clear';
-import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
+import { FormattedMessage } from 'react-intl';
+
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 import Button from '../../Button';
-import Modal from '../../Modal';
+import { CancelIcon, DoneIcon, FileUploadIcon } from '../../Icons';
+import Portal from '../../Portal';
 
 import styles from './import.css';
 
@@ -37,14 +38,19 @@ const initialState = {
 
 export default class ActionbarImport extends Component {
   static propTypes = {
+    className: PropTypes.string,
     onConfirm: PropTypes.func.isRequired,
     renderValidation: PropTypes.func,
-    className: PropTypes.string,
-    title: PropTypes.string
+    title: nodeOrStringProptype()
   };
 
   static defaultProps = {
-    title: 'Import from a file'
+    title: (
+      <FormattedMessage
+        id='ui.actionbar.import.title'
+        defaultMessage='Import from a file'
+      />
+    )
   };
 
   state = Object.assign({}, initialState);
@@ -57,7 +63,12 @@ export default class ActionbarImport extends Component {
         <Button
           className={ className }
           icon={ <FileUploadIcon /> }
-          label='import'
+          label={
+            <FormattedMessage
+              id='ui.actiobar.import.button.import'
+              defaultMessage='import'
+            />
+          }
           onClick={ this.onOpenModal }
         />
         { this.renderModal() }
@@ -73,20 +84,38 @@ export default class ActionbarImport extends Component {
       return null;
     }
 
-    const hasSteps = typeof renderValidation === 'function';
-
-    const steps = hasSteps ? [ 'select a file', error ? 'error' : 'validate' ] : null;
+    const steps = typeof renderValidation === 'function'
+      ? [
+        <FormattedMessage
+          id='ui.actiobar.import.step.select'
+          defaultMessage='select a file'
+        />,
+        error
+          ? (
+            <FormattedMessage
+              id='ui.actiobar.import.step.error'
+              defaultMessage='error'
+            />
+          )
+          : (
+            <FormattedMessage
+              id='ui.actiobar.import.step.validate'
+              defaultMessage='validate'
+            />)
+      ]
+      : null;
 
     return (
-      <Modal
-        actions={ this.renderActions() }
-        title={ title }
+      <Portal
+        activeStep={ step }
+        buttons={ this.renderActions() }
+        onClose={ this.onCloseModal }
+        open
         steps={ steps }
-        current={ step }
-        visible
+        title={ title }
       >
         { this.renderBody() }
-      </Modal>
+      </Portal>
     );
   }
 
@@ -95,9 +124,14 @@ export default class ActionbarImport extends Component {
 
     const cancelBtn = (
       <Button
+        icon={ <CancelIcon /> }
         key='cancel'
-        label='Cancel'
-        icon={ <ContentClear /> }
+        label={
+          <FormattedMessage
+            id='ui.actiobar.import.button.cancel'
+            defaultMessage='Cancel'
+          />
+        }
         onClick={ this.onCloseModal }
       />
     );
@@ -109,9 +143,14 @@ export default class ActionbarImport extends Component {
     if (validate) {
       const confirmBtn = (
         <Button
+          icon={ <DoneIcon /> }
           key='confirm'
-          label='Confirm'
-          icon={ <ActionDoneAll /> }
+          label={
+            <FormattedMessage
+              id='ui.actiobar.import.button.confirm'
+              defaultMessage='Confirm'
+            />
+          }
           onClick={ this.onConfirm }
         />
       );
@@ -128,7 +167,15 @@ export default class ActionbarImport extends Component {
     if (error) {
       return (
         <div>
-          <p>An error occured: { errorText }</p>
+          <p>
+            <FormattedMessage
+              id='ui.actiobar.import.error'
+              defaultMessage='An error occured: {errorText}'
+              values={ {
+                errorText
+              } }
+            />
+          </p>
         </div>
       );
     }
@@ -148,7 +195,12 @@ export default class ActionbarImport extends Component {
           multiple={ false }
           className={ styles.importZone }
         >
-          <div>Drop a file here, or click to select a file to upload.</div>
+          <div>
+            <FormattedMessage
+              id='ui.actiobar.import.dropzone'
+              defaultMessage='Drop a file here, or click to select a file to upload.'
+            />
+          </div>
         </Dropzone>
       </div>
     );
@@ -160,7 +212,10 @@ export default class ActionbarImport extends Component {
     return (
       <div>
         <p className={ styles.desc }>
-          Confirm that this is what was intended to import.
+          <FormattedMessage
+            id='ui.actiobar.import.confirm'
+            defaultMessage='Confirm that this is what was intended to import.'
+          />
         </p>
         <div>
           { validationBody }

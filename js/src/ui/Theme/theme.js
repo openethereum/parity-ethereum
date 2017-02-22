@@ -38,6 +38,8 @@ muiTheme.textField.hintColor = 'rgba(255, 255, 255, 0.5)';
 muiTheme.textField.disabledTextColor = muiTheme.textField.textColor;
 muiTheme.toolbar = lightTheme.toolbar;
 muiTheme.toolbar.backgroundColor = 'transparent';
+muiTheme.zIndex.layer = 4000;
+muiTheme.zIndex.popover = 4100;
 
 const imageCache = {};
 

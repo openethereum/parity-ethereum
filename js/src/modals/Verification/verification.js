@@ -22,7 +22,7 @@ import { observable } from 'mobx';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
 import CancelIcon from 'material-ui/svg-icons/content/clear';
 
-import { Button, IdentityIcon, Modal } from '~/ui';
+import { Button, IdentityIcon, Portal } from '~/ui';
 import RadioButtons from '~/ui/Form/RadioButtons';
 
 import SMSVerificationStore from './sms-store';
@@ -30,16 +30,71 @@ import EmailVerificationStore from './email-store';
 
 import styles from './verification.css';
 
-const methods = {
+const METHODS = {
   sms: {
-    label: 'SMS Verification', key: 0, value: 'sms',
-    description: (<p className={ styles.noSpacing }>It will be stored on the blockchain that you control a phone number (not <em>which</em>).</p>)
+    label: (
+      <FormattedMessage
+        id='verification.types.sms.label'
+        defaultMessage='SMS Verification'
+      />
+    ),
+    key: 0,
+    value: 'sms',
+    description: (
+      <p className={ styles.noSpacing }>
+        <FormattedMessage
+          id='verification.types.sms.description'
+          defaultMessage='It will be stored on the blockchain that you control a phone number (not <em>which</em>).'
+        />
+      </p>
+    )
   },
   email: {
-    label: 'E-mail Verification', key: 1, value: 'email',
-    description: (<p className={ styles.noSpacing }>The hash of the e-mail address you prove control over will be stored on the blockchain.</p>)
+    label: (
+      <FormattedMessage
+        id='verification.types.email.label'
+        defaultMessage='E-mail Verification'
+      />
+    ),
+    key: 1,
+    value: 'email',
+    description: (
+      <p className={ styles.noSpacing }>
+        <FormattedMessage
+          id='verification.types.email.description'
+          defaultMessage='The hash of the e-mail address you prove control over will be stored on the blockchain.'
+        />
+      </p>
+    )
   }
 };
+
+const STEPS = [
+  <FormattedMessage
+    id='verification.steps.method'
+    defaultMessage='Method'
+  />,
+  <FormattedMessage
+    id='verification.steps.data'
+    defaultMessage='Enter Data'
+  />,
+  <FormattedMessage
+    id='verification.steps.request'
+    defaultMessage='Request'
+  />,
+  <FormattedMessage
+    id='verification.steps.code'
+    defaultMessage='Enter Code'
+  />,
+  <FormattedMessage
+    id='verification.steps.confirm'
+    defaultMessage='Confirm'
+  />,
+  <FormattedMessage
+    id='verification.steps.completed'
+    defaultMessage='Completed'
+  />
+];
 
 import {
   LOADING,
@@ -83,6 +138,7 @@ class Verification extends Component {
   @observable store = null;
 
   render () {
+    const { onClose } = this.props;
     const store = this.store;
     let phase = 0;
     let error = false;
@@ -95,16 +151,26 @@ class Verification extends Component {
     }
 
     return (
-      <Modal
-        actions={ this.renderDialogActions(phase, error, isStepValid) }
-        current={ phase }
-        steps={ ['Method', 'Enter Data', 'Request', 'Enter Code', 'Confirm', 'Done!'] }
-        title='verify your account'
-        visible
-        waiting={ error ? [] : [ 2, 4 ] }
+      <Portal
+        activeStep={ phase }
+        busySteps={
+          error
+            ? []
+            : [ 2, 4 ]
+        }
+        buttons={ this.renderDialogActions(phase, error, isStepValid) }
+        onClose={ onClose }
+        open
+        steps={ STEPS }
+        title={
+          <FormattedMessage
+            id='verification.title'
+            defaultMessage='verify your account'
+          />
+        }
       >
         { this.renderStep(phase, error) }
-      </Modal>
+      </Portal>
     );
   }
 
@@ -112,32 +178,40 @@ class Verification extends Component {
     const { account, onClose } = this.props;
     const store = this.store;
 
-    const cancel = (
+    const cancelButton = (
       <Button
         icon={ <CancelIcon /> }
         key='cancel'
-        label='Cancel'
+        label={
+          <FormattedMessage
+            id='verification.button.cancel'
+            defaultMessage='Cancel'
+          />
+        }
         onClick={ onClose }
       />
     );
 
     if (error) {
-      return (<div>{ cancel }</div>);
+      return cancelButton;
     }
 
     if (phase === 5) {
-      return (
-        <div>
-          { cancel }
-          <Button
-            disabled={ !isStepValid }
-            icon={ <DoneIcon /> }
-            key='done'
-            label='Done'
-            onClick={ onClose }
-          />
-        </div>
-      );
+      return [
+        cancelButton,
+        <Button
+          disabled={ !isStepValid }
+          icon={ <DoneIcon /> }
+          key='done'
+          label={
+            <FormattedMessage
+              id='verification.button.done'
+              defaultMessage='Done'
+            />
+          }
+          onClick={ onClose }
+        />
+      ];
     }
 
     let action = () => {};
@@ -164,23 +238,26 @@ class Verification extends Component {
         break;
     }
 
-    return (
-      <div>
-        { cancel }
-        <Button
-          disabled={ !isStepValid }
-          icon={
-            <IdentityIcon
-              address={ account }
-              button
-            />
-          }
-          key='next'
-          label='Next'
-          onClick={ action }
-        />
-      </div>
-    );
+    return [
+      cancelButton,
+      <Button
+        disabled={ !isStepValid }
+        icon={
+          <IdentityIcon
+            address={ account }
+            button
+          />
+        }
+        key='next'
+        label={
+          <FormattedMessage
+            id='verification.button.next'
+            defaultMessage='Next'
+          />
+        }
+        onClick={ action }
+      />
+    ];
   }
 
   renderStep (phase, error) {
@@ -193,7 +270,7 @@ class Verification extends Component {
     const { method } = this.state;
 
     if (phase === 0) {
-      const values = Object.values(methods);
+      const values = Object.values(METHODS);
       const value = values.findIndex((v) => v.value === method);
 
       return (
@@ -215,7 +292,14 @@ class Verification extends Component {
     switch (phase) {
       case 1:
         if (step === LOADING) {
-          return (<p>Loading verification data.</p>);
+          return (
+            <p>
+              <FormattedMessage
+                id='verification.loading'
+                defaultMessage='Loading verification data.'
+              />
+            </p>
+          );
         }
 
         const { setConsentGiven } = this.store;
@@ -226,17 +310,24 @@ class Verification extends Component {
             key: 'number',
             label: (
               <FormattedMessage
-                id='ui.verification.gatherData.phoneNumber.label'
+                id='verification.gatherData.phoneNumber.label'
                 defaultMessage='phone number in international format'
               />
             ),
             hint: (
               <FormattedMessage
-                id='ui.verification.gatherData.phoneNumber.hint'
+                id='verification.gatherData.phoneNumber.hint'
                 defaultMessage='the SMS will be sent to this number'
               />
             ),
-            error: this.store.isNumberValid ? null : 'invalid number',
+            error: this.store.isNumberValid
+              ? null
+              : (
+                <FormattedMessage
+                  id='verification.gatherDate.phoneNumber.error'
+                  defaultMessage='invalid number'
+                />
+              ),
             onChange: this.store.setNumber
           });
         } else if (method === 'email') {
@@ -244,17 +335,24 @@ class Verification extends Component {
             key: 'email',
             label: (
               <FormattedMessage
-                id='ui.verification.gatherData.email.label'
+                id='verification.gatherData.email.label'
                 defaultMessage='e-mail address'
               />
             ),
             hint: (
               <FormattedMessage
-                id='ui.verification.gatherData.email.hint'
+                id='verification.gatherData.email.hint'
                 defaultMessage='the code will be sent to this address'
               />
             ),
-            error: this.store.isEmailValid ? null : 'invalid e-mail',
+            error: this.store.isEmailValid
+              ? null
+              : (
+                <FormattedMessage
+                  id='verification.gatherDate.email.error'
+                  defaultMessage='invalid e-mail'
+                />
+              ),
             onChange: this.store.setEmail
           });
         }
@@ -286,10 +384,20 @@ class Verification extends Component {
 
         if (method === 'sms') {
           receiver = this.store.number;
-          hint = 'Enter the code you received via SMS.';
+          hint = (
+            <FormattedMessage
+              id='verification.sms.enterCode'
+              defaultMessage='Enter the code you received via SMS.'
+            />
+          );
         } else if (method === 'email') {
           receiver = this.store.email;
-          hint = 'Enter the code you received via e-mail.';
+          hint = (
+            <FormattedMessage
+              id='verification.email.enterCode'
+              defaultMessage='Enter the code you received via e-mail.'
+            />
+          );
         }
         return (
           <QueryCode

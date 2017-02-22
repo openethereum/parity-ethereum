@@ -20,7 +20,7 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Modal } from '~/ui';
+import { Button, Portal } from '~/ui';
 import Editor from '~/ui/Editor';
 import { CancelIcon, CheckIcon, DeleteIcon } from '~/ui/Icons';
 
@@ -55,8 +55,10 @@ export default class LoadContract extends Component {
     const { deleteRequest } = this.state;
 
     return (
-      <Modal
-        actions={ this.renderDialogActions() }
+      <Portal
+        buttons={ this.renderDialogActions() }
+        onClose={ this.onClose }
+        open
         title={
           deleteRequest
             ? (
@@ -72,10 +74,9 @@ export default class LoadContract extends Component {
               />
             )
         }
-        visible
       >
         { this.renderBody() }
-      </Modal>
+      </Portal>
     );
   }
 
