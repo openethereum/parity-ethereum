@@ -178,7 +178,7 @@ class Verification extends Component {
     const { account, onClose } = this.props;
     const store = this.store;
 
-    const cancel = (
+    const cancelButton = (
       <Button
         icon={ <CancelIcon /> }
         key='cancel'
@@ -193,29 +193,25 @@ class Verification extends Component {
     );
 
     if (error) {
-      return (
-        <div>{ cancel }</div>
-      );
+      return cancelButton;
     }
 
     if (phase === 5) {
-      return (
-        <div>
-          { cancel }
-          <Button
-            disabled={ !isStepValid }
-            icon={ <DoneIcon /> }
-            key='done'
-            label={
-              <FormattedMessage
-                id='verification.button.done'
-                defaultMessage='Done'
-              />
-            }
-            onClick={ onClose }
-          />
-        </div>
-      );
+      return [
+        cancelButton,
+        <Button
+          disabled={ !isStepValid }
+          icon={ <DoneIcon /> }
+          key='done'
+          label={
+            <FormattedMessage
+              id='verification.button.done'
+              defaultMessage='Done'
+            />
+          }
+          onClick={ onClose }
+        />
+      ];
     }
 
     let action = () => {};
@@ -242,28 +238,26 @@ class Verification extends Component {
         break;
     }
 
-    return (
-      <div>
-        { cancel }
-        <Button
-          disabled={ !isStepValid }
-          icon={
-            <IdentityIcon
-              address={ account }
-              button
-            />
-          }
-          key='next'
-          label={
-            <FormattedMessage
-              id='verification.button.next'
-              defaultMessage='Next'
-            />
-          }
-          onClick={ action }
-        />
-      </div>
-    );
+    return [
+      cancelButton,
+      <Button
+        disabled={ !isStepValid }
+        icon={
+          <IdentityIcon
+            address={ account }
+            button
+          />
+        }
+        key='next'
+        label={
+          <FormattedMessage
+            id='verification.button.next'
+            defaultMessage='Next'
+          />
+        }
+        onClick={ action }
+      />
+    ];
   }
 
   renderStep (phase, error) {
