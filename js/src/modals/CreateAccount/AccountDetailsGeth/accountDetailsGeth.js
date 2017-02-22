@@ -30,7 +30,7 @@ export default class AccountDetailsGeth extends Component {
   }
 
   render () {
-    const { gethAddresses, gethAccountsAvailable } = this.props.store;
+    const { gethAccountsAvailable, gethImported } = this.props.store;
 
     return (
       <div>
@@ -39,12 +39,12 @@ export default class AccountDetailsGeth extends Component {
             id='createAccount.accountDetailsGeth.imported'
             defaultMessage='You have completed the import of {number} addresses from the Geth keystore. These will now be available in your accounts list as a normal account, along with their associated balances on the network.'
             values={ {
-              number: gethAddresses.length
+              number: gethImported.length
             } }
           />
         </div>
         <SectionList
-          items={ gethAccountsAvailable.filter((account) => gethAddresses.includes(account.address)) }
+          items={ gethAccountsAvailable.filter((account) => gethImported.includes(account.address)) }
           noStretch
           renderItem={ this.renderAccount }
         />
