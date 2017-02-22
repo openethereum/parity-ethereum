@@ -18,7 +18,9 @@
 .item {
   display: flex;
   flex: 1;
+  height: 100%;
   position: relative;
+  width: 100%;
 
   .content {
     height: 100%;
@@ -34,11 +36,6 @@
     right: 0.5em;
     top: 0.5em;
   }
-}
-
-.selected,
-.unselected {
-  width: 100%;
 }
 
 .selected {
