@@ -14,10 +14,17 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 .list {
   input+div>div {
     top: 13px;
   }
+}
+
+.summary {
+  line-height: 1.618em;
+  padding: 0 4em 1.5em 4em;
+  text-align: center;
 }
 
 .selection {

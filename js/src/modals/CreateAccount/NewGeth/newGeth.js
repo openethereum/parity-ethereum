@@ -37,9 +37,22 @@ export default class NewGeth extends Component {
     const { gethAccountsAvailable, gethAddresses } = this.props.store;
 
     return gethAccountsAvailable.length
-      ? this.renderList(gethAccountsAvailable, gethAddresses)
+      ? (
+        <div>
+          <div className={ styles.summary }>
+            <FormattedMessage
+              id='createAccount.newGeth.available'
+              defaultMessage='There are currently {count} importable keys available from the Geth keystore which are not already available on your Parity instance. Select the accounts you wish to import and move to the next step to complete the import.'
+              values={ {
+                count: gethAccountsAvailable.length
+              } }
+            />
+          </div>
+          { this.renderList(gethAccountsAvailable, gethAddresses) }
+        </div>
+      )
       : (
-        <div className={ styles.list }>
+        <div className={ styles.summary }>
           <FormattedMessage
             id='createAccount.newGeth.noKeys'
             defaultMessage='There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance'
