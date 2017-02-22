@@ -24,6 +24,7 @@ import styles from './selectionList.css';
 
 export default class SelectionList extends Component {
   static propTypes = {
+    isChecked: PropTypes.func,
     items: arrayOrObjectProptype().isRequired,
     noStretch: PropTypes.bool,
     onDefaultClick: PropTypes.func,
@@ -46,7 +47,10 @@ export default class SelectionList extends Component {
   }
 
   renderItem = (item, index) => {
-    const { onDefaultClick, onSelectClick, renderItem } = this.props;
+    const { isChecked, onDefaultClick, onSelectClick, renderItem } = this.props;
+    const isSelected = isChecked
+      ? isChecked(item)
+      : item.checked;
 
     const makeDefault = () => {
       onDefaultClick(item);
@@ -60,12 +64,12 @@ export default class SelectionList extends Component {
     let defaultIcon = null;
 
     if (onDefaultClick) {
-      defaultIcon = item.checked && item.default
+      defaultIcon = isSelected && item.default
         ? <StarIcon />
         : <StarOutlineIcon className={ styles.iconDisabled } onClick={ makeDefault } />;
     }
 
-    const classes = item.checked
+    const classes = isSelected
       ? [styles.item, styles.selected]
       : [styles.item, styles.unselected];
 
@@ -80,7 +84,7 @@ export default class SelectionList extends Component {
         <div className={ styles.overlay }>
           { defaultIcon }
           {
-            item.checked
+            isSelected
               ? <CheckIcon onClick={ selectItem } />
               : <CheckIcon className={ styles.iconDisabled } onClick={ selectItem } />
           }
