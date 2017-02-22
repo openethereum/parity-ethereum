@@ -35,6 +35,7 @@ class VaultAccounts extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
+    balances: PropTypes.object.isRequired,
     newError: PropTypes.func.isRequired,
     personalAccountsInfo: PropTypes.func.isRequired,
     vaultStore: PropTypes.object.isRequired
@@ -105,7 +106,9 @@ class VaultAccounts extends Component {
   // (although that has defaults) and this one. A genrerix multi-select component
   // would be applicable going forward. (Originals passed in, new selections back)
   renderAccount = (account) => {
+    const { balances } = this.props;
     const { vaultName, selectedAccounts } = this.props.vaultStore;
+    const balance = balances[account.address];
     const isInVault = account.meta.vault === vaultName;
     const isSelected = isInVault
       ? !selectedAccounts[account.address]
@@ -119,6 +122,7 @@ class VaultAccounts extends Component {
       <div className={ styles.item }>
         <AccountCard
           account={ account }
+          balance={ balance }
           className={
             isSelected
               ? styles.selected
@@ -177,9 +181,13 @@ class VaultAccounts extends Component {
 }
 
 function mapStateToProps (state) {
+  const { balances } = state.balances;
   const { accounts } = state.personal;
 
-  return { accounts };
+  return {
+    accounts,
+    balances
+  };
 }
 
 function mapDispatchToProps (dispatch) {

@@ -80,7 +80,7 @@ class Dapps extends Component {
 
     return (
       <div>
-        <DappPermissions store={ this.permissionStore } />
+        <DappPermissions permissionStore={ this.permissionStore } />
         <DappsVisible store={ this.store } />
         <Actionbar
           className={ styles.toolbar }
