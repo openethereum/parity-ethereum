@@ -65,7 +65,7 @@ describe('modals/CreateAccount/CreationType', () => {
   describe('events', () => {
     describe('onChange', () => {
       beforeEach(() => {
-        component.instance().onChange({ target: { value: 'testing' } });
+        component.instance().onChange(null, 'testing');
       });
 
       it('changes the store createType', () => {
