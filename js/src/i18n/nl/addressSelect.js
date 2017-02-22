@@ -19,8 +19,8 @@ export default {
   fromRegistry: `{name} (from registry)`,
   labels: {
     accounts: `accounts`,
-    contacts: `contacts`,
+    contacts: `contacten`,
     contracts: `contracts`
   },
-  noAccount: `Geen account gevonden voor deze query...`
+  noAccount: `Geen account gevonden voor deze zoekopdracht...`
 };

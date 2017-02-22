@@ -15,13 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  advanced: {
-    data: {
-      hint: `de data om door te geven met de transactie`,
-      label: `transactie data`
-    }
-  },
-  warning: {
-    wallet_spent_limit: `Deze transactie waarde is boven de toegestane dag limiet en zal moeten worden bevestigd door andere eigenaren.`
+  tooltip: {
+    overview: `navigeer tussen de verschillende onderdelen en weergaven in de applicatie, wissel tussen de account weergave, token weergave en gedistribueerde applicatie weergave`
   }
 };

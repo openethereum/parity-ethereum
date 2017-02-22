@@ -19,7 +19,7 @@ export default {
     close: `Sluiten`,
     create: `creëer`,
     next: `volgende`,
-    print: `Print Woorden`,
+    print: `Woorden Afdrukken`,
     skip: `Overslaan`
   },
   title: {

@@ -15,13 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  advanced: {
-    data: {
-      hint: `de data om door te geven met de transactie`,
-      label: `transactie data`
-    }
-  },
-  warning: {
-    wallet_spent_limit: `Deze transactie waarde is boven de toegestane dag limiet en zal moeten worden bevestigd door andere eigenaren.`
-  }
+  duplicateName: `deze naam bestaat al`,
+  invalidKey: `de prive sleutel (raw key) is hexadecimaal, 64 karakters lang en en begint met "0x"`,
+  noFile: `selecteer een geldig wallet bestand om te importeren`,
+  noKey: `je dient de prive sleutel (raw private key) in te voeren`,
+  noMatchPassword: `het ingevoerde wachtwoord is onjuist`,
+  noName: `je dient een geldige naam voor het account op te geven`
 };

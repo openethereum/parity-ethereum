@@ -16,38 +16,38 @@
 
 export default {
   button: {
-    cancel: `Cancel`,
-    change: `Change`,
+    cancel: `Annuleer`,
+    change: `Wijzig`,
     test: `Test`,
-    wait: `Wait...`
+    wait: `Wacht...`
   },
   currentPassword: {
-    hint: `your current password for this account`,
-    label: `current password`
+    hint: `je huidige wachtwoord voor dit account`,
+    label: `huidig wachtwoord`
   },
   newPassword: {
-    hint: `the new password for this account`,
-    label: `new password`
+    hint: `het nieuwe wachtwoord vor dit account`,
+    label: `nieuw wachtwoord`
   },
   passwordHint: {
-    hint: `hint for the new password`,
-    label: `(optional) new password hint`
+    hint: `hint voor het nieuwe wachtwoord`,
+    label: `(optioneel) nieuwe wachtwoord hint`
   },
   repeatPassword: {
-    error: `the supplied passwords do not match`,
-    hint: `repeat the new password for this account`,
-    label: `repeat new password`
+    error: `de ingevoerde wachtwoorden zijn niet gelijk`,
+    hint: `herhaal het nieuwe wachtwoord voor dit account`,
+    label: `herhaal nieuw wachtwoord`
   },
-  success: `Your password has been successfully changed`,
+  success: `Je wachtwoord is succesvol aangepast`,
   tabChange: {
-    label: `Change Password`
+    label: `Wijzig wachtwoord`
   },
   tabTest: {
-    label: `Test Password`
+    label: `Test wachtwoord`
   },
   testPassword: {
-    hint: `your account password`,
-    label: `password`
+    hint: `je account wachtwoord`,
+    label: `wachtwoord`
   },
-  title: `Password Manager`
+  title: `Wachtwoord Manager`
 };

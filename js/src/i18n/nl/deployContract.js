@@ -16,66 +16,66 @@
 
 export default {
   busy: {
-    title: `The deployment is currently in progress`
+    title: `Het contract wordt momenteel aangemaakt`
   },
   button: {
-    cancel: `Cancel`,
-    close: `Close`,
-    create: `Create`,
-    done: `Done`,
-    next: `Next`
+    cancel: `Annuleer`,
+    close: `Sluit`,
+    create: `Creëer`,
+    done: `Klaar`,
+    next: `Volgende`
   },
   completed: {
-    description: `Your contract has been deployed at`
+    description: `Je contract is aangemaakt en opgenomen in`
   },
   details: {
     abi: {
-      hint: `the abi of the contract to deploy or solc combined-output`,
+      hint: `de abi van het aan te maken contract of solc combined-output`,
       label: `abi / solc combined-output`
     },
     address: {
-      hint: `the owner account for this contract`,
-      label: `from account (contract owner)`
+      hint: `het account wat eigenaar is van dit contract`,
+      label: `van account (contract eigenaar)`
     },
     code: {
-      hint: `the compiled code of the contract to deploy`,
+      hint: `de gecompileerde code van het aan te maken contract`,
       label: `code`
     },
     contract: {
-      label: `select a contract`
+      label: `selecteer een contract`
     },
     description: {
-      hint: `a description for the contract`,
-      label: `contract description (optional)`
+      hint: `een beschrijving van het contract`,
+      label: `contract omschrijving (optioneel)`
     },
     name: {
-      hint: `a name for the deployed contract`,
-      label: `contract name`
+      hint: `een naam voor het aangemaakte contract`,
+      label: `contract naam`
     }
   },
   owner: {
-    noneSelected: `a valid account as the contract owner needs to be selected`
+    noneSelected: `er dient een geldig account als contract eigenaar geselecteerd te zijn`
   },
   parameters: {
-    choose: `Choose the contract parameters`
+    choose: `Kies de contract parameters`
   },
   rejected: {
-    description: `You can safely close this window, the contract deployment will not occur.`,
-    title: `The deployment has been rejected`
+    description: `Je kunt dit scherm veilig sluiten, het contract zal niet worden aangemaakt.`,
+    title: `Het aanmaken van het contract is afgewezen`
   },
   state: {
-    completed: `The contract deployment has been completed`,
-    preparing: `Preparing transaction for network transmission`,
-    validatingCode: `Validating the deployed contract code`,
-    waitReceipt: `Waiting for the contract deployment transaction receipt`,
-    waitSigner: `Waiting for confirmation of the transaction in the Parity Secure Signer`
+    completed: `Het contract is succesvol aangemaakt`,
+    preparing: `Transactie aan het voorbereiden om te verzenden op het netwerk`,
+    validatingCode: `De contract code van het aangemaakte contract valideren`,
+    waitReceipt: `Wachten tot het aanmaken van het contract bevestigd is`,
+    waitSigner: `Wachten tot de transactie bevestigd is in de Parity Secure Signer`
   },
   title: {
-    completed: `completed`,
-    deployment: `deployment`,
+    completed: `voltooid`,
+    deployment: `aangemaakt`,
     details: `contract details`,
-    failed: `deployment failed`,
+    failed: `aanmaken mislukt`,
     parameters: `contract parameters`,
-    rejected: `rejected`
+    rejected: `afgewezen`
   }
 };

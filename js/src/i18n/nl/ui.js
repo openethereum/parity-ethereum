@@ -16,62 +16,69 @@
 
 export default {
   balance: {
-    none: `There are no balances associated with this account`
+    none: `Er zijn geen tegoeden gekoppeld aan dit account`
   },
   blockStatus: {
-    bestBlock: `{blockNumber} best block`,
-    syncStatus: `{currentBlock}/{highestBlock} syncing`,
+    bestBlock: `{blockNumber} beste blok`,
+    syncStatus: `{currentBlock}/{highestBlock} synchroniseren`,
     warpRestore: `{percentage}% warp restore`,
     warpStatus: `, {percentage}% historic`
   },
   confirmDialog: {
-    no: `no`,
-    yes: `yes`
+    no: `nee`,
+    yes: `ja`
   },
   identityName: {
-    null: `NULL`,
-    unnamed: `UNNAMED`
+    null: `NUL`,
+    unnamed: `NAAMLOOS`
   },
   passwordStrength: {
-    label: `password strength`
+    label: `wachtwoord sterkte`
+  },
+  tooltips: {
+    button: {
+      done: `Klaar`,
+      next: `Volgende`,
+      skip: `Overslaan`
+    }
   },
   txHash: {
     confirmations: `{count} {value, plural, one {confirmation} other {confirmations}}`,
-    oog: `The transaction might have gone out of gas. Try again with more gas.`,
-    posted: `The transaction has been posted to the network with a hash of {hashLink}`,
-    waiting: `waiting for confirmations`
+    oog: `De transactie heeft misschien al zijn gas verbruikt. Probeer het opnieuw met meer gas.`,
+    posted: `De transactie is op het netwerk geplaatst met hash {hashLink}`,
+    waiting: `wachten op bevestigingen`
   },
   verification: {
     gatherData: {
       accountHasRequested: {
-        false: `You did not request verification from this account yet.`,
-        pending: `Checking if you requested verification…`,
-        true: `You already requested verification from this account.`
+        false: `Je hebt nog geen verificatie aangevraagd voor dit account.`,
+        pending: `Aan het controleren of je verificatie hebt aangevraagd…`,
+        true: `Je hebt al verificatie aangevraagd voor dit account.`
       },
       accountIsVerified: {
-        false: `Your account is not verified yet.`,
-        pending: `Checking if your account is verified…`,
-        true: `Your account is already verified.`
+        false: `Je account is nog niet geverifieerd`,
+        pending: `Aan het controleren of je account is geverifieerd…`,
+        true: `Je account is al geverifieerd.`
       },
       email: {
-        hint: `the code will be sent to this address`,
-        label: `e-mail address`
+        hint: `de code zal naar dit adres worden verzonden`,
+        label: `e-mail adres`
       },
-      fee: `The additional fee is {amount} ETH.`,
+      fee: `De extra vergoeding is {amount} ETH.`,
       isAbleToRequest: {
-        pending: `Validating your input…`
+        pending: `Valideren van je invoer…`
       },
       isServerRunning: {
-        false: `The verification server is not running.`,
-        pending: `Checking if the verification server is running…`,
-        true: `The verification server is running.`
+        false: `De verificatie server is niet actief.`,
+        pending: `Controleren of de verificatie server actief is…`,
+        true: `De verificatie server is actief.`
       },
-      nofee: `There is no additional fee.`,
+      nofee: `Er zijn geen extra kosten.`,
       phoneNumber: {
-        hint: `the SMS will be sent to this number`,
-        label: `phone number in international format`
+        hint: `De SMS zal naar dit nummer worden verstuurd`,
+        label: `telefoonnummer in internationaal formaat`
       },
-      termsOfService: `I agree to the terms and conditions below.`
+      termsOfService: `Ik ga akkoord met de voorwaarden en condities hieronder.`
     }
   }
 };

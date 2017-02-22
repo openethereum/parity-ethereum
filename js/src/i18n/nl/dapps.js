@@ -17,30 +17,30 @@
 export default {
   add: {
     builtin: {
-      desc: `Experimental applications developed by the Parity team to show off dapp capabilities, integration, experimental features and to control certain network-wide client behaviour.`,
-      label: `Applications bundled with Parity`
+      desc: `Experimentele applicaties, ontwikkeld door het Parity team om te demonstreren wat de dapp mogelijkheden, integratie en experimentele opties zijn; en om netwerkbreed client gedrag te controleren.`,
+      label: `Applicaties gebundeld met Parity`
     },
-    label: `visible applications`,
+    label: `zichtbare applicaties`,
     local: {
-      desc: `All applications installed locally on the machine by the user for access by the Parity client.`,
-      label: `Applications locally available`
+      desc: `Alle lokaal door de gebruiker geinstalleerde applicaties die toegang hebben tot de Parity client.`,
+      label: `Lokaal beschikbare applicaties`
     },
     network: {
-      desc: `These applications are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each application before interacting.`,
-      label: `Applications on the global network`
+      desc: `Deze applicaties zijn niet bij Parity aangesloten, noch worden ze gepubliceerd door Parity. Alle applicaties blijven in beheer van hun eigen auteur. Zorg ervoor dat je snapt wat het doel van een applicatie is, voordat je ermee aan de slag gaat.`,
+      label: `Applicaties op het wereldwijde netwerk`
     }
   },
   button: {
-    edit: `edit`,
-    permissions: `permissions`
+    edit: `bewerk`,
+    permissions: `toestemming`
   },
   external: {
-    accept: `I understand that these applications are not affiliated with Parity`,
-    warning: `Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.`
+    accept: `Ik begrijp dat deze toepassingen niet bij Parity zijn aangesloten`,
+    warning: `Deze applicaties gepuliceerd door derde partijen zijn niet bij Parity aangesloten, noch worden ze gepubliceerd door Parity. Alle applicaties blijven in beheer van hun eigen auteur. Zorg ervoor dat je snapt wat het doel van een applicatie is voordat je ermee aan de slag gaat.`
   },
-  label: `Decentralized Applications`,
+  label: `Gedecentraliseerde Applicaties`,
   permissions: {
-    description: `{activeIcon} account is available to application, {defaultIcon} account is the default account`,
-    label: `visible dapp accounts`
+    description: `{activeIcon} account is beschikbaar voor applicaties, {defaultIcon} account is het standaard account`,
+    label: `zichtbare dapp accounts`
   }
 };

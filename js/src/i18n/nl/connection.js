@@ -16,9 +16,9 @@
 
 export default {
   connectingAPI: `Verbinden met de Parity Secure API.`,
-  connectingNode: `Verbinden met de Parity Node. Conroleer of je Parity node actief en op het netwerk bereikbaar is, als dit bericht op je scherm blijft staan.`,
-  invalidToken: `ongeldig signer token`,
-  noConnection: `Kan geen verbinding maken met de Parity Secure API. Voer {newToken} uit en voer het token hieronder in om het secure token te updaten of een nieuwe te genereren.`,
+  connectingNode: `Verbinden met de Parity Node. Conroleer of je Parity node actief en op het netwerk bereikbaar is als dit bericht op je scherm blijft staan.`,
+  invalidToken: `ongeldige signer token`,
+  noConnection: `Kan geen verbinding maken met de Parity Secure API. Voer {newToken} uit en geef het token hieronder in om het secure token bij te werken of een nieuwe te genereren.`,
   token: {
     hint: `een Parity gegenereerd token`,
     label: `secure token`

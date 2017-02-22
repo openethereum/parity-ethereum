@@ -16,23 +16,23 @@
 
 export default {
   account: {
-    visited: `accessed {when}`
+    visited: `bekeken {when}`
   },
   accounts: {
-    none: `No recent accounts history available`,
-    title: `Recent Accounts`
+    none: `Geen recente account geschiedenis beschikbaar`,
+    title: `Recente Accounts`
   },
   dapp: {
-    visited: `accessed {when}`
+    visited: `bekeken {when}`
   },
   dapps: {
-    none: `No recent Applications history available`,
-    title: `Recent Dapps`
+    none: `Geen recente applicatie geschiedenis beschikbaar`,
+    title: `Recente Dapps`
   },
   title: `Parity Home`,
   url: {
-    none: `No recent URL history available`,
-    title: `Web Applications`,
-    visited: `visited {when}`
+    none: `Geen recente URL geschiedenis beschikbaar`,
+    title: `Web Applicaties`,
+    visited: `bezocht {when}`
   }
 };

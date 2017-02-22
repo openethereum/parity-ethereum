@@ -17,23 +17,23 @@
 export default {
   condition: {
     block: {
-      hint: `The minimum block to send from`,
-      label: `Transaction send block`
+      hint: `Het minimum blok voor het verzenden`,
+      label: `Transactie verzend blok`
     },
-    blocknumber: `Send after BlockNumber`,
+    blocknumber: `Verzend na bloknummer`,
     date: {
-      hint: `The minimum date to send from`,
-      label: `Transaction send date`
+      hint: `De minimale datum voor het verzenden`,
+      label: `Transactie verzend datum`
     },
-    datetime: `Send after Date & Time`,
-    label: `Condition where transaction activates`,
-    none: `No conditions`,
+    datetime: `Verzend na datum & tijdstip`,
+    label: `Conditie waarbij transactie activeert`,
+    none: `Geen condities`,
     time: {
-      hint: `The minimum time to send from`,
-      label: `Transaction send time`
+      hint: `Het minimale tijdstip voor het verzenden`,
+      label: `Transactie verzend tijdstip`
     }
   },
   gas: {
-    info: `You can choose the gas price based on the distribution of recent included transaction gas prices. The lower the gas price is, the cheaper the transaction will be. The higher the gas price is, the faster it should get mined by the network.`
+    info: `Je kunt de gas prijs kiezen op basis van de gas prijs van de transacties die recentelijk in de blokken werden opgenomen. Een lagere gas prijs betekend een goedkopere transactie. Een hogere gas prijs betekend dat je transactie sneller in een blok wordt opgenomen.`
   }
 };

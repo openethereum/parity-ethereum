@@ -16,43 +16,43 @@
 
 export default {
   busy: {
-    posted: `Your transaction has been posted to the network`,
-    title: `The function execution is in progress`,
-    waitAuth: `Waiting for authorization in the Parity Signer`
+    posted: `Je transactie is op het netwerk gepubliceerd`,
+    title: `De functie wordt uitgevoerd`,
+    waitAuth: `Wachten op autorisatie in de Parity Signer`
   },
   button: {
-    cancel: `cancel`,
-    done: `done`,
-    next: `next`,
-    post: `post transaction`,
-    prev: `prev`
+    cancel: `annuleer`,
+    done: `klaar`,
+    next: `volgende`,
+    post: `verzend transactie`,
+    prev: `vorige`
   },
   details: {
     address: {
-      hint: `from account`,
-      label: `the account to transact with`
+      hint: `van account`,
+      label: `het account waarmee je de transactie wilt uitvoeren`
     },
     advancedCheck: {
-      label: `advanced sending options`
+      label: `geavanceerde verzend opties`
     },
     amount: {
-      hint: `the amount to send to with the transaction`,
-      label: `transaction value (in ETH)`
+      hint: `de in deze transactie te verzenden hoeveelheid`,
+      label: `transactie waarde (in ETH)`
     },
     function: {
-      hint: `the function to call on the contract`,
-      label: `function to execute`
+      hint: `de uit het contract aan te roepen functie`,
+      label: `uit te voeren functie`
     }
   },
   rejected: {
-    state: `You can safely close this window, the function execution will not occur.`,
-    title: `The execution has been rejected`
+    state: `Je kunt dit venster veilig sluiten, de functie zal niet worden uitgevoerd.`,
+    title: `De uitvoering is afgewezen`
   },
   steps: {
-    advanced: `advanced options`,
-    complete: `complete`,
-    rejected: `rejected`,
-    sending: `sending`,
-    transfer: `function details`
+    advanced: `geavanceerde opties`,
+    complete: `voltooi`,
+    rejected: `afgewezen`,
+    sending: `verzenden`,
+    transfer: `functie details`
   }
 };

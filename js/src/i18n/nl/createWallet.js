@@ -16,90 +16,90 @@
 
 export default {
   button: {
-    add: `Add`,
-    cancel: `Cancel`,
-    close: `Close`,
-    create: `Create`,
-    done: `Done`,
-    next: `Next`,
-    sending: `Sending...`
+    add: `Voeg toe`,
+    cancel: `Annuleer`,
+    close: `Sluit`,
+    create: `Creëer`,
+    done: `Klaar`,
+    next: `Volgende`,
+    sending: `Verzenden...`
   },
   deployment: {
-    message: `The deployment is currently in progress`
+    message: `Het aanmaken wordt momenteel uitgevoerd`
   },
   details: {
     address: {
-      hint: `the wallet contract address`,
-      label: `wallet address`
+      hint: `het wallet contract adres`,
+      label: `wallet adres`
     },
     dayLimitMulti: {
-      hint: `amount of ETH spendable without confirmations`,
-      label: `wallet day limit`
+      hint: `hoeveelheid ETH die dagelijks kan worden uitgegeven zonder bevestigingen`,
+      label: `wallet dag limiet`
     },
     description: {
-      hint: `the local description for this wallet`,
-      label: `wallet description (optional)`
+      hint: `de lokale omschrijving voor dit wallet`,
+      label: `wallet omschrijving (optioneel)`
     },
     descriptionMulti: {
-      hint: `the local description for this wallet`,
-      label: `wallet description (optional)`
+      hint: `de lokale omschrijving voor dit wallet`,
+      label: `wallet omschrijving (optioneel)`
     },
     name: {
-      hint: `the local name for this wallet`,
-      label: `wallet name`
+      hint: `de lokale naam voor dit wallet`,
+      label: `wallet naam`
     },
     nameMulti: {
-      hint: `the local name for this wallet`,
-      label: `wallet name`
+      hint: `de lokale naam voor dit wallet`,
+      label: `wallet naam`
     },
     ownerMulti: {
-      hint: `the owner account for this contract`,
-      label: `from account (contract owner)`
+      hint: `het eigenaars account van dit contract`,
+      label: `van account (contract eigenaar)`
     },
     ownersMulti: {
-      label: `other wallet owners`
+      label: `andere wallet eigenaren`
     },
     ownersMultiReq: {
-      hint: `number of required owners to accept a transaction`,
-      label: `required owners`
+      hint: `vereiste aantal eigenaren om de transactie goed te keuren`,
+      label: `vereiste eigenaren`
     }
   },
   info: {
-    added: `added`,
-    copyAddress: `copy address to clipboard`,
-    created: `{name} has been {deployedOrAdded} at`,
-    dayLimit: `The daily limit is set to {dayLimit} ETH.`,
-    deployed: `deployed`,
-    numOwners: `{numOwners} owners are required to confirm a transaction.`,
-    owners: `The following are wallet owners`
+    added: `toegevoegd`,
+    copyAddress: `kopier adres naar klembord`,
+    created: `{name} is {deployedOrAdded} in`,
+    dayLimit: `De dag limiet is ingestel op {dayLimit} ETH.`,
+    deployed: `aangemaakt`,
+    numOwners: `{numOwners} eigenaren zijn vereist om de transactie goed te keuren.`,
+    owners: `De wallet eigenaren zijn:`
   },
   rejected: {
-    message: `The deployment has been rejected`,
-    state: `The wallet will not be created. You can safely close this window.`,
-    title: `rejected`
+    message: `Het aanmaken is mislukt`,
+    state: `Je wallet zal niet worden aangemaakt. Je kunt dit venster nu veilig sluiten.`,
+    title: `mislukt`
   },
   states: {
-    completed: `The contract deployment has been completed`,
-    preparing: `Preparing transaction for network transmission`,
-    validatingCode: `Validating the deployed contract code`,
-    waitingConfirm: `Waiting for confirmation of the transaction in the Parity Secure Signer`,
-    waitingReceipt: `Waiting for the contract deployment transaction receipt`
+    completed: `Het contract is succesvol aangemaakt`,
+    preparing: `Transactie aan het voorbereiden voor verzending op het netwerk`,
+    validatingCode: `De contract code van het aangemaakte contract wordt gevalideerd`,
+    waitingConfirm: `Wachten tot de transactie bevestigd is in de Parity Secure Signer`,
+    waitingReceipt: `Wachten tot het aanmaken van het contract bevestigd is`
   },
   steps: {
-    deployment: `wallet deployment`,
+    deployment: `wallet aanmaken`,
     details: `wallet details`,
-    info: `wallet informaton`,
+    info: `wallet informatie`,
     type: `wallet type`
   },
   type: {
     multisig: {
-      description: `Create/Deploy a {link} Wallet`,
+      description: `Creëer/Maak een {link} Wallet aan`,
       label: `Multi-Sig wallet`,
-      link: `standard multi-signature`
+      link: `standaard multi-signature`
     },
     watch: {
-      description: `Add an existing wallet to your accounts`,
-      label: `Watch a wallet`
+      description: `Voeg een bestaand wallet toe aan je accounts`,
+      label: `Monitor/volg een wallet`
     }
   }
 };

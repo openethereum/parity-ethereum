@@ -21,15 +21,15 @@ export default {
   },
   input: {
     address: {
-      hint: `het netwerk adress van het item`,
+      hint: `het netwerk adres van het item`,
       label: `Netwerk Adres`
     },
     description: {
-      hint: `een uitgebereide beschrijving van het item`,
+      hint: `een uitgebereide beschrijving voor het adres`,
       label: `(optioneel) adres beschrijving`
     },
     name: {
-      hint: `een beschrijvende naam van het item`,
+      hint: `een beschrijvende naam van het adres`,
       label: `Adres Naam`
     }
   },

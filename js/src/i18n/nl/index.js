@@ -29,6 +29,7 @@ import dapps from './dapps';
 import deleteAccount from './deleteAccount';
 import deployContract from './deployContract';
 import editMeta from './editMeta';
+import errors from './errors';
 import executeContract from './executeContract';
 import extension from './extension';
 import firstRun from './firstRun';
@@ -37,10 +38,13 @@ import parityBar from './parityBar';
 import passwordChange from './passwordChange';
 import settings from './settings';
 import shapeshift from './shapeshift';
+import tabBar from './tabBar';
 import transfer from './transfer';
 import txEditor from './txEditor';
 import ui from './ui';
 import upgradeParity from './upgradeParity';
+import vaults from './vaults';
+import walletSettings from './walletSettings';
 import web from './web';
 
 export default {

@@ -27,9 +27,9 @@ export default {
     outgoingTransactions: `{count} uitgaande transacties`,
     uuid: `uuid: {uuid}`
   },
-  title: `Account Management`,
+  title: `Account Beheer`,
   transactions: {
-    poweredBy: `Transactie lijst mede mogelijk gemaakt door {etherscan}`,
+    poweredBy: `Transactie lijst mede mogelijk door {etherscan}`,
     title: `transacties`
   }
 };

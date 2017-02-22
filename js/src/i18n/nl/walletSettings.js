@@ -16,43 +16,42 @@
 
 export default {
   changes: {
-    modificationString: `For your modifications to be taken into account,
-              other owners have to send the same modifications. They can paste
-              this string to make it easier:`,
-    none: `No modifications have been made to the Wallet settings.`,
-    overview: `You are about to make the following modifications`
+    modificationString: `Om je wijzigingen door te voeren zullen
+              andere eigenaren deze zelfde wijzigingen moeten verzenden. Om het
+              makkelijk te maken kunnen ze deze string kopieren-plakken:`,
+    none: `Er zijn van deze Wallet geen instellingen gewijzigd.`,
+    overview: `Je staat op het punt om de volgende wijzignen te maken`
   },
   edit: {
-    message: `In order to edit this contract's settings, at
-                  least {owners, number} {owners, plural, one {owner } other {owners }} have to
-                  send the very same modifications. You can paste a stringified version
-                  of the modifications here.`
+    message: `Om de instellingen van dit contract de wijzigen zullen
+                  minimaal {owners, number} {owners, plural, one {owner } other {owners }} precies dezelfde
+                  wijzigingen moeten verzenden. Je kunt hier de wijzigingen in string-vorm plakken.`
   },
   modifications: {
     daylimit: {
-      hint: `amount of ETH spendable without confirmations`,
-      label: `wallet day limit`
+      hint: `hoeveelheid uit te geven ETH zonder bevestiging met wachtwoord`,
+      label: `wallet dag limiet`
     },
     fromString: {
-      label: `modifications`
+      label: `wijzigingen`
     },
     owners: {
-      label: `other wallet owners`
+      label: `andere wallet eigenaren`
     },
     required: {
-      hint: `number of required owners to accept a transaction`,
-      label: `required owners`
+      hint: `vereiste aantal eigenaren om een transactie goed te keuren`,
+      label: `vereiste eigenaren`
     },
     sender: {
-      hint: `send modifications as this owner`,
-      label: `from account (wallet owner)`
+      hint: `verzend wijzigingen als deze eigenaar`,
+      label: `van account (wallet eigenaar)`
     }
   },
   rejected: {
     busyStep: {
-      state: `The wallet settings will not be modified. You can safely close this window.`,
-      title: `The modifications have been rejected`
+      state: `De wallet instellingen zullen niet worden gewijzigd. Je kunt dit venster veilig sluiten.`,
+      title: `De wijzigingen zijn afgewezen.`
     },
-    title: `rejected`
+    title: `afgewezen`
   }
 };

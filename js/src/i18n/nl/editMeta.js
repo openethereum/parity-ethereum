@@ -16,19 +16,19 @@
 
 export default {
   description: {
-    hint: `description for this address`,
-    label: `address description`
+    hint: `omschrijving van dit adres`,
+    label: `adres omschrijving`
   },
   name: {
-    label: `name`
+    label: `naam`
   },
   passwordHint: {
-    hint: `a hint to allow password recovery`,
-    label: `(optional) password hint`
+    hint: `een hint om je wachtwoord te herstellen`,
+    label: `(optioneel) wachtwoord hint`
   },
   tags: {
-    hint: `press <Enter> to add a tag`,
-    label: `(optional) tags`
+    hint: `druk op <Enter> om een label toe te voegen`,
+    label: `(optional) labels`
   },
-  title: `edit metadata`
+  title: `bewerk metadata`
 };

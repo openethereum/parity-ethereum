@@ -16,74 +16,74 @@
 
 export default {
   background: {
-    button_more: `generate more`,
-    overview_0: `The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.`,
-    overview_1: `Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.`,
-    label: `background`
+    button_more: `genereer meer`,
+    overview_0: `Het achtergrond patroon dat je nu kunt zien is uniek voor jouw Parity installatie. Het veranderd elke keer als je een nieuw Signer token genereerd. Op deze manier kunnen gedecentraliseerde applicaties niet doen alsof ze betrouwbaar zijn.`
+    overview_1: `Kies het patroon dat je wilt en onthoud het. Dit patroon wordt vanaf nu altijd getoond, tenzij je je browser cache wist of een nieuw Signer token genereerd.`,
+    label: `achtergrond`
   },
   parity: {
     languages: {
-      hint: `the language this interface is displayed with`,
-      label: `UI language`
+      hint: `de taal waarin deze interface wordt weergegeven`,
+      label: `Weergave taal`
     },
-    loglevels: `Choose the different logs level.`,
+    loglevels: `Kies hoeveel details er in het logboek worden bijgehouden.`,
     modes: {
-      hint: `the syning mode for the Parity node`,
-      label: `mode of operation`,
-      mode_active: `Parity continuously syncs the chain`,
-      mode_dark: `Parity syncs only when the RPC is active`,
-      mode_offline: `Parity doesn't sync`,
-      mode_passive: `Parity syncs initially, then sleeps and wakes regularly to resync`
+      hint: `de synchronisatie modus van de Parity node`,
+      label: `Synchronisatie modus`,
+      mode_active: `Parity synchroniseert de chain continu`,
+      mode_dark: `Parity synchroniseert alleen als de RPC actief is`,
+      mode_offline: `Parity synchroniseert niet`,
+      mode_passive: `Parity synchroniseert in het begin. Daarna slaapt Parity en wordt regelmatig wakker voor synchronisatie`
     },
-    overview_0: `Control the Parity node settings and mode of operation via this interface.`,
+    overview_0: `Pas de Parity node instellingen aan en kies de synchronisatie modus in dit menu.`,
     label: `parity`
   },
   proxy: {
-    details_0: `Instead of accessing Parity via the IP address and port, you will be able to access it via the .parity subdomain, by visiting {homeProxy}. To setup subdomain-based routing, you need to add the relevant proxy entries to your browser,`,
-    details_1: `To learn how to configure the proxy, instructions are provided for {windowsLink}, {macOSLink} or {ubuntuLink}.`,
+    details_0: `In plaats van Parity te openen via het IP adres en poort-nummer, kun je toegang verkrijgen tot het .parity sub-domein door {homeProxy} te bezoeken. Om sub-domein gebaseerde routing in te stellen, dien je de proxy vermelding aan je browser proxy instellingen toe te voegen,`,
+    details_1: `Om je te helpen met het configureren van je proxy, zijn er instructies beschikbaar voor {windowsLink}, {macOSLink} or {ubuntuLink}.`,
     details_macos: `macOS`,
     details_ubuntu: `Ubuntu`,
     details_windows: `Windows`,
-    overview_0: `The proxy setup allows you to access Parity and all associated decentralized applications via memorable addresses.`,
+    overview_0: `Met de proxy instellingen heb je de mogelijkheid om via een makkelijk te onthouden adres toegang te verkrijgen tot Parity en alle onderliggende decentrale applicaties.`,
     label: `proxy`
   },
   views: {
     accounts: {
-      description: `A list of all the accounts associated to and imported into this Parity instance. Send transactions, receive incoming values, manage your balances and fund your accounts.`,
+      description: `Een overzicht van alle aan deze Parity installatie verbonden accounts, inclusief geimporteerde accounts. Verzend transacties, ontvang inkomende transacties, berheer je saldo en financier je accounts.`,
       label: `Accounts`
     },
     addresses: {
-      description: `A list of all contacts and address book entries that is managed by this Parity instance. Watch accounts and have the details available at the click of a button when transacting.`,
-      label: `Addressbook`
+      description: `Een overzicht van alle contacten en adresboek items die door deze Parity installatie worden beheerd. Monitor en volg accounts waarbij je transactie details met slechts een muisklik kunt weergeven.`,
+      label: `Adresboek`
     },
     apps: {
-      description: `Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.`,
-      label: `Applications`
+      description: `Gedistibueerde applicaties die gebruik maken van het onderliggende Ethereum netwerk. Voeg applicaties toe, beheer je applicatie portfolio en maak gebruik van applicaties op het wereldwijde netwerk.`,
+      label: `Applicaties`
     },
     contracts: {
-      description: `Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focused environment, specifically for advanced users that understand the inner working of certain contracts.`,
-      label: `Contracts`
+      description: `Monitor, volg en maak gebruik van specifieke contracten die op het netwerk zijn gezet. Dit is een meer technisch gerichte omgeving, voornamelijk bedoeld voor geavanceerde gebruikers die de werking van bepaalde contracten goed begrijpen.`,
+      label: `Contracten`
     },
-    overview_0: `Manage the available application views, using only the parts of the application that is applicable to you.`,
-    overview_1: `Are you an end-user? The defaults are setups for both beginner and advanced users alike.`,
-    overview_2: `Are you a developer? Add some features to manage contracts are interact with application deployments.`,
-    overview_3: `Are you a miner or run a large-scale node? Add the features to give you all the information needed to watch the node operation.`,
+    overview_0: `Beheer de beschikbare weergaven van deze interface en selecteer enkel de delen van de applicatie die voor jou van belang zijn.`,
+    overview_1: `Ben je een eind gebruiker? De standaard instellingen zijn geschikt voor zowel beginners als gevorderde gebruikers.`,
+    overview_2: `Ben je een ontwikkelaar? Voeg enkele functies toe om je contracten te beheren en gebruik te maken van gedecentraliseerde applicaties.`,
+    overview_3: `Ben je een miner of run je een grootschalige node? Voeg enkele functies toe om je alle informatie te geven die je nodig hebt om je node te monitoren.`,
     settings: {
-      description: `This view. Allows you to customize the application in term of options, operation and look and feel.`,
-      label: `Settings`
+      description: `Deze weergave. Hiermee kun je Parity aan passen in termen van opties, bediening en look en feel.`,
+      label: `Instellingen`
     },
     signer: {
-      description: `The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.`,
+      description: `Het beveiligde transactie beheergebied van de applicatie waar je elke uitgaande transactie die je hebt gemaakt met Parity evenals de transacties die in de wachtrij zijn geplaatst door gedistribueerde applicaties kan goedkeuren.`,
       label: `Signer`
     },
     status: {
-      description: `See how the Parity node is performing in terms of connections to the network, logs from the actual running instance and details of mining (if enabled and configured).`,
+      description: `Volg hoe de Parity node zijn werk doet en je verbind met het netwerk en bekijk de logboeken van de momenteel draaiende node met mining details (indien geconfigureerd en ingeschakeld).`,
       label: `Status`
     },
-    label: `views`,
+    label: `weergaven`,
     home: {
-      label: `Home`
+      label: `Thuis`
     }
   },
-  label: `settings`
+  label: `instellingen`
 };

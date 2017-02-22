@@ -16,14 +16,14 @@
 
 export default {
   button: {
-    close: `Close`
+    close: `Sluit`
   },
   label: {
     parity: `Parity`,
     signer: `Signer`
   },
   title: {
-    accounts: `Default Account`,
-    signer: `Parity Signer: Pending`
+    accounts: `Standaard Account`,
+    signer: `Parity Signer: Wachten`
   }
 };

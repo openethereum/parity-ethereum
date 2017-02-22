@@ -16,28 +16,28 @@
 
 export default {
   button: {
-    cancel: `Cancel`,
-    load: `Load`,
-    no: `No`,
-    yes: `Yes`
+    cancel: `Annuleer`,
+    load: `Laad`,
+    no: `Nee`,
+    yes: `Ja`
   },
   contract: {
-    savedAt: `Saved {when}`
+    savedAt: `Opgeslagen {when}`
   },
   header: {
-    saved: `Saved Contracts`,
-    snippets: `Contract Snippets`
+    saved: `Opgeslagen Contracten`,
+      snippets: `Contract Snippets`
   },
   removal: {
-    confirm: `Are you sure you want to remove the following contract from your saved contracts?`,
-    savedAt: `Saved {when}`
+    confirm: `Weet je zeker dat je het volgende contract van je opgeslagen contracten wilt verwijderen?`,
+    savedAt: `Opgeslagen {when}`
   },
   tab: {
-    local: `Local`,
+    local: `Lokaal`,
     snippets: `Snippets`
   },
   title: {
-    remove: `confirm removal`,
-    view: `view contracts`
+    remove: `bevestig verwijderen`,
+    view: `bekijk contracten`
   }
 };

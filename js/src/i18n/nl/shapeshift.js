@@ -16,51 +16,51 @@
 
 export default {
   awaitingDepositStep: {
-    awaitingConfirmation: `Awaiting confirmation of the deposit address for your {typeSymbol} funds exchange`,
-    awaitingDeposit: `{shapeshiftLink} is awaiting a {typeSymbol} deposit. Send the funds from your {typeSymbol} network client to -`,
+    awaitingConfirmation: `Wachten tot bevestigd is dat je {typeSymbol} storting op het account van het wisselkantoor is aangekomen.`,
+    awaitingDeposit: `{shapeshiftLink} is aan het wachten op {typeSymbol} storting. Verzend de valuta vanuit je {typeSymbol} netwerk client naar -`,
     minimumMaximum: `{minimum} minimum, {maximum} maximum`
   },
   awaitingExchangeStep: {
-    awaitingCompletion: `Awaiting the completion of the funds exchange and transfer of funds to your Parity account.`,
-    receivedInfo: `{shapeshiftLink} has received a deposit of -`
+    awaitingCompletion: `Wachten op de voltooiing van het omwisselen van de valuta en op de overschrijving van de valuta naar je Parity account.`,
+    receivedInfo: `{shapeshiftLink} heeft een storting ontvangen van -`
   },
   button: {
-    cancel: `Cancel`,
-    done: `Close`,
-    shift: `Shift Funds`
+    cancel: `Annuleer`,
+    done: `Sluit`,
+    shift: `Wissel valuta om`
   },
   completedStep: {
-    completed: `{shapeshiftLink} has completed the funds exchange.`,
-    parityFunds: `The change in funds will be reflected in your Parity account shortly.`
+    completed: `{shapeshiftLink} heeft het omwisselen van de valuta voltooid.`,
+    parityFunds: `De saldo wijziging zal spoedig in je Parity client worden weergegeven.`
   },
   errorStep: {
-    info: `The funds shifting via {shapeshiftLink} failed with a fatal error on the exchange. The error message received from the exchange is as follow:`
+    info: `Het omwisselen van de valuta via {shapeshiftLink} is mislukt door een fout bij het wisselkantoor. De ontvangen foutmelding van het wisselkantoor is als volgt:`
   },
   optionsStep: {
-    noPairs: `There are currently no exchange pairs/coins available to fund with.`,
+    noPairs: `Er is momenteel geen wisselkoers voor het valuta-paar beschikbaar om de transactie mee uit te voeren.`,
     returnAddr: {
-      hint: `the return address for send failures`,
-      label: `(optional) {coinSymbol} return address`
+      hint: `het retouradres voor wanneer het verzenden mislukt`,
+      label: `(optioneel) {coinSymbol} retouradres`
     },
     terms: {
-      label: `I understand that ShapeShift.io is a 3rd-party service and by using the service any transfer of information and/or funds is completely out of the control of Parity`
+      label: `Ik begrijp dat ShapeShift.io een dienst is van een derde partij en dat bij gebruik van deze service de overdracht van informatie en/of financiele middelen volledig buiten het beheer van Parity vallen`
     },
     typeSelect: {
-      hint: `the type of crypto conversion to do`,
-      label: `fund account from`
+      hint: `het type crypto valuta om te wisselen`,
+      label: `verzend naar account vanuit`
     }
   },
   price: {
     minMax: `({minimum} minimum, {maximum} maximum)`
   },
   title: {
-    completed: `completed`,
-    deposit: `awaiting deposit`,
+    completed: `voltooid`,
+    deposit: `wachten op storting`,
     details: `details`,
-    error: `exchange failed`,
-    exchange: `awaiting exchange`
+    error: `omwisselen mislukt`,
+    exchange: `wachten op omwisselen`
   },
   warning: {
-    noPrice: `No price match was found for the selected type`
+    noPrice: `Geen prijs gevonden voor het gekozen type`
   }
 };

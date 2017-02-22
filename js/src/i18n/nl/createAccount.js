@@ -39,7 +39,7 @@ export default {
     create: `Aanmaken`,
     import: `Importeer`,
     next: `Volgende`,
-    print: `Print herstel zin`
+    print: `Herstel zin afdrukken`
   },
   creationType: {
     fromGeth: {
@@ -58,100 +58,93 @@ export default {
       label: `Importeer account van een Ethereum voor-verkoop (pre-sale) wallet`
     },
     fromRaw: {
-      label: `Importeer een kale prive sleutel (raw private key)`
+      label: `Importeer een prive sleutel (raw private key)`
     }
-  },
-  error: {
-    invalidKey: `the raw key needs to be hex, 64 characters in length and contain the prefix "0x"`,
-    noFile: `select a valid wallet file to import`,
-    noKey: `you need to provide the raw private key`,
-    noMatchPassword: `the supplied passwords does not match`,
-    noName: `you need to specify a valid name for the account`
   },
   newAccount: {
     hint: {
-      hint: `(optional) a hint to help with remembering the password`,
-      label: `password hint`
+      hint: `(optioneel) een hint om je te helpen het wachtwoord te herinneren`,
+      label: `wachtwoord hint`
     },
     name: {
-      hint: `a descriptive name for the account`,
-      label: `account name`
+      hint: `een beschrijvende naam van het account`,
+      label: `account naam`
     },
     password: {
-      hint: `a strong, unique password`,
-      label: `password`
+      hint: `een sterk en uniek wachtwoord`,
+      label: `wachtwoord`
     },
     password2: {
-      hint: `verify your password`,
-      label: `password (repeat)`
+      hint: `bevestig je wachtwoord`,
+      label: `wachtwoord (herhaal)`
     }
   },
   newGeth: {
-    noKeys: `There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance`
+    noKeys: `Er zijn momenteel geen importeerbare sleutels (keys) beschikbaar in de Geth keystore; of ze zijn al in je Parity installatie beschikbaar`
   },
   newImport: {
     file: {
-      hint: `the wallet file for import`,
-      label: `wallet file`
+      hint: `het te importeren wallet bestand`,
+      label: `wallet bestand`
     },
     hint: {
-      hint: `(optional) a hint to help with remembering the password`,
-      label: `password hint`
+      hint: `(optioneel) een hint om je te helpen het wachtwoord te herinneren`,
+      label: `wachtwoord hint`
     },
     name: {
-      hint: `a descriptive name for the account`,
-      label: `account name`
+      hint: `een beschrijvende naam van het account`,
+      label: `account naam`
     },
     password: {
-      hint: `the password to unlock the wallet`,
-      label: `password`
+      hint: `het wachtwoord om je wallet te openen`,
+      label: `wachtwoord`
     }
   },
   rawKey: {
     hint: {
-      hint: `(optional) a hint to help with remembering the password`,
-      label: `password hint`
+      hint: `(optioneel) een hint om je te helpen het wachtwoord te herinneren`,
+      label: `wachtwoord hint`
     },
     name: {
-      hint: `a descriptive name for the account`,
-      label: `account name`
+      hint: `een beschrijvende naam van het account`,
+      label: `account naam`
     },
     password: {
-      hint: `a strong, unique password`,
-      label: `password`
+      hint: `een sterk en uniek wachtwoord`,
+      label: `wachtwoord`
     },
     password2: {
-      hint: `verify your password`,
-      label: `password (repeat)`
+      hint: `herhaal je wachtwoord ter controle`,
+      label: `wachtwoord (herhaling)`
     },
     private: {
-      hint: `the raw hex encoded private key`,
-      label: `private key`
+      hint: `de hexadecimaal gecodeerde prive sleutel (raw private key)`,
+      label: `prive sleutel`
     }
   },
   recoveryPhrase: {
     hint: {
-      hint: `(optional) a hint to help with remembering the password`,
-      label: `password hint`
+      hint: `(optioneel) een hint om je te helpen het wachtwoord te herinneren`,
+      label: `wachtwoord hint`
     },
     name: {
-      hint: `a descriptive name for the account`,
-      label: `account name`
+      hint: `een beschrijvende naam van het account`,
+      label: `account naam`
     },
     password: {
-      hint: `a strong, unique password`,
-      label: `password`
+      hint: `een sterk en uniek wachtwoord`,
+      label: `wachtwoord`
     },
     password2: {
-      hint: `verify your password`,
-      label: `password (repeat)`
+      hint: `herhaal je wachtwoord ter controle`,
+      label: `wachtwoord (herhaling)`
     },
     phrase: {
-      hint: `the account recovery phrase`,
-      label: `account recovery phrase`
+      hint: `de account herstel zin opgebouwd uit een aantal willekeurige woorden`,
+      label: `account herstel zin`
     },
     windowsKey: {
-      label: `Key was created with Parity <1.4.5 on Windows`
+      label: `Sleutel (key) is aangemaakt met Parity <1.4.5 op Windows`
     }
   },
   title: {
