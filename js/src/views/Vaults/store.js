@@ -43,6 +43,7 @@ export default class Store {
   @observable vaultDescription = '';
   @observable vaultPassword = '';
   @observable vaultPasswordHint = '';
+  @observable vaultPasswordOld = '';
   @observable vaultPasswordRepeat = '';
   @observable vaultTags = [];
 
@@ -62,6 +63,7 @@ export default class Store {
       this.setVaultDescription('');
       this.setVaultPassword('');
       this.setVaultPasswordHint('');
+      this.setVaultPasswordOld('');
       this.setVaultPasswordRepeat('');
       this.setVaultTags([]);
     });
@@ -176,6 +178,10 @@ export default class Store {
     this.vaultPasswordHint = hint;
   }
 
+  @action setVaultPasswordOld = (password) => {
+    this.vaultPasswordOld = password;
+  }
+
   @action setVaultPasswordRepeat = (password) => {
     this.vaultPasswordRepeat = password;
   }
@@ -234,14 +240,12 @@ export default class Store {
 
   openMetaModal (name) {
     transaction(() => {
+      this.clearVaultFields();
       this.setVaultName(name);
 
       if (this.vault && this.vault.meta) {
         this.setVaultDescription(this.vault.meta.description);
         this.setVaultPasswordHint(this.vault.meta.passwordHint);
-      } else {
-        this.setVaultDescription('');
-        this.setVaultPasswordHint('');
       }
 
       this.setModalMetaOpen(true);
@@ -322,7 +326,7 @@ export default class Store {
       });
   }
 
-  editVault () {
+  editVaultMeta () {
     this.setBusyMeta(true);
 
     return this._api.parity
@@ -336,9 +340,31 @@ export default class Store {
         this.setBusyMeta(false);
       })
       .catch((error) => {
-        console.error('editVault', error);
+        console.error('editVaultMeta', error);
         this.setBusyMeta(false);
         throw error;
+      });
+  }
+
+  editVaultPassword () {
+    this.setBusyMeta(true);
+
+    return this._api.parity
+      .closeVault(this.vaultName)
+      .then(() => {
+        return this._api.parity.openVault(this.vaultName, this.vaultPasswordOld);
+      })
+      .then(() => {
+        return this._api.parity.changeVaultPassword(this.vaultName, this.vaultPassword);
+      })
+      .then(() => {
+        this.setBusyMeta(false);
+      })
+      .catch((error) => {
+        console.error('editVaultPassword', error);
+        this.loadVaults();
+        this.setBusyMeta(false);
+        throw new Error('Unable to change the vault password');
       });
   }
 

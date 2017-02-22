@@ -80,7 +80,7 @@ class VaultCreate extends Component {
           />
         }
       >
-        <div className={ styles.body }>
+        <div>
           <Input
             error={ vaultNameError }
             hint={

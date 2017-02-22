@@ -51,8 +51,13 @@ function createVaultStore () {
     vaultName: VAULT.name,
     vaults: [VAULT],
     closeMetaModal: sinon.stub(),
-    editVault: sinon.stub().resolves(true),
+    editVaultMeta: sinon.stub().resolves(true),
+    editVaultPassword: sinon.stub().resolves(true),
     setVaultDescription: sinon.stub(),
+    setVaultPassword: sinon.stub(),
+    setVaultPasswordRepeat: sinon.stub(),
+    setVaultPasswordHint: sinon.stub(),
+    setVaultPasswordOld: sinon.stub(),
     setVaultTags: sinon.stub()
   };
 
@@ -83,9 +88,9 @@ describe('modals/VaultMeta', () => {
   });
 
   describe('event methods', () => {
-    describe('onChangeDescription', () => {
+    describe('onEditDescription', () => {
       beforeEach(() => {
-        instance.onChangeDescription(null, 'testing');
+        instance.onEditDescription(null, 'testing');
       });
 
       it('calls into setVaultDescription', () => {
@@ -93,9 +98,49 @@ describe('modals/VaultMeta', () => {
       });
     });
 
-    describe('onChangeTags', () => {
+    describe('onEditPassword', () => {
       beforeEach(() => {
-        instance.onChangeTags('testing');
+        instance.onEditPassword(null, 'testPassword');
+      });
+
+      it('calls setVaultPassword', () => {
+        expect(vaultStore.setVaultPassword).to.have.been.calledWith('testPassword');
+      });
+    });
+
+    describe('onEditPasswordHint', () => {
+      beforeEach(() => {
+        instance.onEditPasswordHint(null, 'testPasswordHint');
+      });
+
+      it('calls setVaultPasswordHint', () => {
+        expect(vaultStore.setVaultPasswordHint).to.have.been.calledWith('testPasswordHint');
+      });
+    });
+
+    describe('onEditPasswordCurrent', () => {
+      beforeEach(() => {
+        instance.onEditPasswordCurrent(null, 'testPasswordOld');
+      });
+
+      it('calls setVaultPasswordHint', () => {
+        expect(vaultStore.setVaultPasswordOld).to.have.been.calledWith('testPasswordOld');
+      });
+    });
+
+    describe('onEditPasswordRepeat', () => {
+      beforeEach(() => {
+        instance.onEditPasswordRepeat(null, 'testPassword');
+      });
+
+      it('calls setVaultPasswordRepeat', () => {
+        expect(vaultStore.setVaultPasswordRepeat).to.have.been.calledWith('testPassword');
+      });
+    });
+
+    describe('onEditTags', () => {
+      beforeEach(() => {
+        instance.onEditTags('testing');
       });
 
       it('calls into setVaultTags', () => {
@@ -118,8 +163,8 @@ describe('modals/VaultMeta', () => {
         return instance.onExecute();
       });
 
-      it('calls into editVault', () => {
-        expect(vaultStore.editVault).to.have.been.called;
+      it('calls into editVaultMeta', () => {
+        expect(vaultStore.editVaultMeta).to.have.been.called;
       });
     });
   });

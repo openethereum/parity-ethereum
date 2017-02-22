@@ -44,6 +44,7 @@ describe('modals/Vaults/Store', () => {
         store.setVaultPassword('blah');
         store.setVaultPasswordRepeat('bleh');
         store.setVaultPasswordHint('hint');
+        store.setVaultPasswordOld('old');
         store.setVaultTags('tags');
 
         store.clearVaultFields();
@@ -56,6 +57,7 @@ describe('modals/Vaults/Store', () => {
         expect(store.vaultPassword).to.equal('');
         expect(store.vaultPasswordRepeat).to.equal('');
         expect(store.vaultPasswordHint).to.equal('');
+        expect(store.vaultPasswordOld).to.equal('');
         expect(store.vaultTags.length).to.equal(0);
       });
     });
@@ -521,7 +523,7 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
-    describe('editVault', () => {
+    describe('editVaultMeta', () => {
       beforeEach(() => {
         sinon.spy(store, 'setBusyMeta');
 
@@ -530,7 +532,7 @@ describe('modals/Vaults/Store', () => {
         store.setVaultPasswordHint('testCreateHint');
         store.setVaultTags('testTags');
 
-        return store.editVault();
+        return store.editVaultMeta();
       });
 
       afterEach(() => {
@@ -548,6 +550,35 @@ describe('modals/Vaults/Store', () => {
           passwordHint: 'testCreateHint',
           tags: 'testTags'
         });
+      });
+    });
+
+    describe('editVaultPassword', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setBusyMeta');
+
+        store.setVaultName('testName');
+        store.setVaultPasswordOld('oldPassword');
+        store.setVaultPassword('newPassword');
+
+        return store.editVaultPassword();
+      });
+
+      afterEach(() => {
+        store.setBusyMeta.restore();
+      });
+
+      it('sets and resets the busy flag', () => {
+        expect(store.setBusyMeta).to.have.been.calledWith(true);
+        expect(store.isBusyMeta).to.be.false;
+      });
+
+      it('calls into parity_openVault', () => {
+        expect(api.parity.openVault).to.have.been.calledWith('testName', 'oldPassword');
+      });
+
+      it('calls into parity_changeVaultPassword', () => {
+        expect(api.parity.changeVaultPassword).to.have.been.calledWith('testName', 'newPassword');
       });
     });
 
