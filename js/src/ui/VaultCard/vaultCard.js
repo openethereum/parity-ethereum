@@ -30,13 +30,14 @@ export default class VaultCard extends Component {
   static propTypes = {
     accounts: PropTypes.array,
     buttons: PropTypes.array,
+    children: PropTypes.node,
     vault: PropTypes.object.isRequired
   };
 
   static Layout = Layout;
 
   render () {
-    const { buttons, vault } = this.props;
+    const { buttons, children, vault } = this.props;
     const { isOpen } = vault;
 
     return (
@@ -61,7 +62,9 @@ export default class VaultCard extends Component {
           />
           { buttons }
         </div>
-        <Layout vault={ vault } />
+        <Layout vault={ vault }>
+          { children }
+        </Layout>
       </Container>
     );
   }
@@ -85,12 +88,14 @@ export default class VaultCard extends Component {
         {
           accounts.map((address) => {
             return (
-              <Link to={ `/accounts/${address}` }>
+              <Link
+                key={ address }
+                to={ `/accounts/${address}` }
+              >
                 <IdentityIcon
                   address={ address }
                   center
                   className={ styles.account }
-                  key={ address }
                 />
               </Link>
             );

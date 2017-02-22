@@ -235,6 +235,15 @@ export default class Store {
   openMetaModal (name) {
     transaction(() => {
       this.setVaultName(name);
+
+      if (this.vault && this.vault.meta) {
+        this.setVaultDescription(this.vault.meta.description);
+        this.setVaultPasswordHint(this.vault.meta.passwordHint);
+      } else {
+        this.setVaultDescription('');
+        this.setVaultPasswordHint('');
+      }
+
       this.setModalMetaOpen(true);
     });
   }

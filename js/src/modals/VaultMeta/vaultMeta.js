@@ -21,8 +21,10 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { Button, Input, InputChip, Form, Portal, VaultCard } from '~/ui';
+import { Button, Input, InputChip, Portal, VaultCard } from '~/ui';
 import { CheckIcon, CloseIcon } from '~/ui/Icons';
+
+import styles from './vaultMeta.css';
 
 @observer
 class VaultMeta extends Component {
@@ -76,45 +78,43 @@ class VaultMeta extends Component {
           />
         }
       >
-        <VaultCard.Layout
-          withBorder
-          vault={ vault }
-        />
-        <Form>
-          <Input
-            hint={
-              <FormattedMessage
-                id='vaults.editMeta.description.hint'
-                defaultMessage='the description for this vault'
-              />
-            }
-            label={
-              <FormattedMessage
-                id='vaults.editMeta.description.label'
-                defaultMessage='vault description'
-              />
-            }
-            onChange={ this.onChangeDescription }
-            value={ vaultDescription }
-          />
-          <InputChip
-            addOnBlur
-            hint={
-              <FormattedMessage
-                id='vaults.editMeta.tags.hint'
-                defaultMessage='press <Enter> to add a tag'
-              />
-            }
-            label={
-              <FormattedMessage
-                id='vaults.editMeta.tags.label'
-                defaultMessage='(optional) tags'
-              />
-            }
-            onTokensChange={ this.onChangeTags }
-            tokens={ vaultTags.slice() }
-          />
-        </Form>
+        <VaultCard.Layout vault={ vault }>
+          <div className={ styles.meta }>
+            <Input
+              hint={
+                <FormattedMessage
+                  id='vaults.editMeta.description.hint'
+                  defaultMessage='the description for this vault'
+                />
+              }
+              label={
+                <FormattedMessage
+                  id='vaults.editMeta.description.label'
+                  defaultMessage='vault description'
+                />
+              }
+              onChange={ this.onChangeDescription }
+              value={ vaultDescription }
+            />
+            <InputChip
+              addOnBlur
+              hint={
+                <FormattedMessage
+                  id='vaults.editMeta.tags.hint'
+                  defaultMessage='press <Enter> to add a tag'
+                />
+              }
+              label={
+                <FormattedMessage
+                  id='vaults.editMeta.tags.label'
+                  defaultMessage='(optional) tags'
+                />
+              }
+              onTokensChange={ this.onChangeTags }
+              tokens={ vaultTags.slice() }
+            />
+          </div>
+        </VaultCard.Layout>
       </Portal>
     );
   }
