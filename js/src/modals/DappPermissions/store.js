@@ -20,6 +20,7 @@ export default class Store {
   @observable accounts = [];
   @observable modalOpen = false;
   @observable whitelist = [];
+  @observable whitelistDefault = null;
 
   constructor (api) {
     this._api = api;
@@ -29,17 +30,14 @@ export default class Store {
 
   @action closeModal = () => {
     transaction(() => {
-      let addresses = null;
       const checkedAccounts = this.accounts.filter((account) => account.checked);
-
-      if (checkedAccounts.length) {
-        addresses = checkedAccounts.filter((account) => account.default)
-          .concat(checkedAccounts.filter((account) => !account.default))
-          .map((account) => account.address);
-      }
+      const defaultAddress = (this.accounts.find((account) => account.default) || {}).address;
+      const addresses = checkedAccounts.length === this.accounts.length
+        ? null
+        : checkedAccounts.map((account) => account.address);
 
       this.modalOpen = false;
-      this.updateWhitelist(addresses);
+      this.updateWhitelist(addresses, defaultAddress);
     });
   }
 
@@ -53,8 +51,8 @@ export default class Store {
             checked: this.whitelist
               ? this.whitelist.includes(account.address)
               : true,
-            default: this.whitelist
-              ? this.whitelist[0] === account.address
+            default: this.whitelistDefault
+              ? this.whitelistDefault === account.address
               : index === 0,
             description: account.meta.description,
             name: account.name
@@ -66,8 +64,10 @@ export default class Store {
 
   @action selectAccount = (address) => {
     transaction(() => {
+      const isSingleAccount = this.accounts.filter((account) => account.checked).length === 1;
+
       this.accounts = this.accounts.map((account) => {
-        if (account.address === address) {
+        if (account.address === address && (!isSingleAccount || !account.checked)) {
           account.checked = !account.checked;
           account.default = false;
         }
@@ -96,26 +96,35 @@ export default class Store {
     });
   }
 
-  @action setWhitelist = (whitelist) => {
-    this.whitelist = whitelist;
+  @action setWhitelist = (whitelist, whitelistDefault) => {
+    transaction(() => {
+      this.whitelist = whitelist;
+      this.whitelistDefault = whitelistDefault;
+    });
   }
 
   loadWhitelist () {
-    return this._api.parity
-      .getNewDappsAddresses()
-      .then((whitelist) => {
-        this.setWhitelist(whitelist);
+    return Promise
+      .all([
+        this._api.parity.getNewDappsAddresses(),
+        this._api.parity.getNewDappsDefaultAddress()
+      ])
+      .then(([whitelist, whitelistDefault]) => {
+        this.setWhitelist(whitelist, whitelistDefault);
       })
       .catch((error) => {
         console.warn('loadWhitelist', error);
       });
   }
 
-  updateWhitelist (whitelist) {
-    return this._api.parity
-      .setNewDappsAddresses(whitelist)
+  updateWhitelist (whitelist, whitelistDefault = null) {
+    return Promise
+      .all([
+        this._api.parity.setNewDappsAddresses(whitelist),
+        this._api.parity.setNewDappsDefaultAddress(whitelistDefault)
+      ])
       .then(() => {
-        this.setWhitelist(whitelist);
+        this.setWhitelist(whitelist, whitelistDefault);
       })
       .catch((error) => {
         console.warn('updateWhitelist', error);
