@@ -276,7 +276,7 @@ impl Decodable for Header {
 			number: try!(r.val_at(8)),
 			gas_limit: try!(r.val_at(9)),
 			gas_used: try!(r.val_at(10)),
-			timestamp: try!(r.val_at(11)),
+			timestamp: min(try!(r.val_at::<U256>(11)), u64::max_value().into()).as_u64(),
 			extra_data: try!(r.val_at(12)),
 			seal: vec![],
 			hash: RefCell::new(Some(r.as_raw().sha3())),
