@@ -84,7 +84,26 @@ export default class ActionbarImport extends Component {
       return null;
     }
 
-    const hasSteps = typeof renderValidation === 'function';
+    const steps = typeof renderValidation === 'function'
+      ? [
+        <FormattedMessage
+          id='ui.actiobar.import.step.select'
+          defaultMessage='select a file'
+        />,
+        error
+          ? (
+            <FormattedMessage
+              id='ui.actiobar.import.step.error'
+              defaultMessage='error'
+            />
+          )
+          : (
+            <FormattedMessage
+              id='ui.actiobar.import.step.validate'
+              defaultMessage='validate'
+            />)
+      ]
+      : null;
 
     return (
       <Portal
@@ -92,28 +111,7 @@ export default class ActionbarImport extends Component {
         buttons={ this.renderActions() }
         onClose={ this.onCloseModal }
         open
-        steps={
-          hasSteps
-            ? [
-              <FormattedMessage
-                id='ui.actiobar.import.step.select'
-                defaultMessage='select a file'
-              />,
-              error
-                ? (
-                  <FormattedMessage
-                    id='ui.actiobar.import.step.error'
-                    defaultMessage='error'
-                  />
-                )
-                : (
-                  <FormattedMessage
-                    id='ui.actiobar.import.step.validate'
-                    defaultMessage='validate'
-                  />)
-            ]
-            : null
-        }
+        steps={ steps }
         title={ title }
       >
         { this.renderBody() }
