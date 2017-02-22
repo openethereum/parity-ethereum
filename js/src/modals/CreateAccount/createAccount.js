@@ -107,13 +107,17 @@ class CreateAccount extends Component {
   getIcon () {
     const { address, createType, stage } = this.store;
 
-    if (stage === STAGE_INFO && createType !== 'fromGeth') {
-      return (
-        <IdentityIcon
-          address={ address }
-          center
-        />
-      );
+    if (stage === STAGE_INFO) {
+      return createType === 'fromGeth'
+        ? (
+          <DoneIcon />
+        )
+        : (
+          <IdentityIcon
+            address={ address }
+            center
+          />
+        );
     }
 
     switch (createType) {
