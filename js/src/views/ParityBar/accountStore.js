@@ -50,18 +50,11 @@ export default class AccountStore {
     this.isLoading = isLoading;
   }
 
-  makeDefaultAccount = (address) => {
-    const accounts = [address].concat(
-      this.accounts
-        .filter((account) => account.address !== address)
-        .map((account) => account.address)
-    );
-
-    // Have optimistic UI: https://www.smashingmagazine.com/2016/11/true-lies-of-optimistic-user-interfaces/?utm_source=codropscollective
-    this.setDefaultAccount(address);
+  makeDefaultAccount = (defaultAddress) => {
+    this.setDefaultAccount(defaultAddress);
 
     return this._api.parity
-      .setNewDappsWhitelist(accounts)
+      .setNewDappsDefaultAddress(defaultAddress)
       .catch((error) => {
         console.warn('makeDefaultAccount', error);
       });
@@ -78,7 +71,7 @@ export default class AccountStore {
 
     return Promise
       .all([
-        this._api.parity.getNewDappsWhitelist(),
+        this._api.parity.getNewDappsAddresses(),
         this._api.parity.allAccountsInfo()
       ])
       .then(([whitelist, accounts]) => {

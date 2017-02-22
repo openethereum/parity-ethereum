@@ -51,12 +51,12 @@ impl HeapSizeOf for PreverifiedBlock {
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Result<(), Error> {
-	verify_header_params(&header, engine)?;
+	verify_header_params(&header, engine, true)?;
 	verify_block_integrity(bytes, &header.transactions_root(), &header.uncles_hash())?;
 	engine.verify_block_basic(&header, Some(bytes))?;
 	for u in UntrustedRlp::new(bytes).at(2)?.iter().map(|rlp| rlp.as_val::<Header>()) {
 		let u = u?;
-		verify_header_params(&u, engine)?;
+		verify_header_params(&u, engine, false)?;
 		engine.verify_block_basic(&u, None)?;
 	}
 	// Verify transactions.
@@ -195,7 +195,7 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 }
 
 /// Check basic header parameters.
-pub fn verify_header_params(header: &Header, engine: &Engine) -> Result<(), Error> {
+pub fn verify_header_params(header: &Header, engine: &Engine, is_full: bool) -> Result<(), Error> {
 	if header.number() >= From::from(BlockNumber::max_value()) {
 		return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number() })))
 	}
@@ -210,9 +210,11 @@ pub fn verify_header_params(header: &Header, engine: &Engine) -> Result<(), Erro
 	if header.number() != 0 && header.extra_data().len() > maximum_extra_data_size {
 		return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: Some(maximum_extra_data_size), found: header.extra_data().len() })));
 	}
-	let max_time = get_time().sec as u64 + 30;
-	if header.timestamp() > max_time {
-		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: header.timestamp() })))
+	if is_full {
+		let max_time = get_time().sec as u64 + 30;
+		if header.timestamp() > max_time {
+			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: header.timestamp() })))
+		}
 	}
 	Ok(())
 }

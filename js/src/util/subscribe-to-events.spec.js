@@ -14,15 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { spy, stub } from 'sinon';
+import { spy, stub, useFakeTimers } from 'sinon';
 
 import subscribeToEvents from './subscribe-to-events';
 import {
   pastLogs, liveLogs, createApi, createContract
 } from './subscribe-to-events.test.js';
 
+// Note: We want to have a `setTimeout` that is independent from
+// `sinon.useFakeTimers`. Therefore we dereference `setTimeout` here.
+const _setTimeout = setTimeout;
 const delay = (t) => new Promise((resolve) => {
-  setTimeout(resolve, t);
+  _setTimeout(resolve, t);
 });
 
 describe('util/subscribe-to-events', () => {
@@ -97,7 +100,8 @@ describe('util/subscribe-to-events', () => {
     expect(api.eth.uninstallFilter.firstCall.args).to.eql([ 123 ]);
   });
 
-  it.skip('checks for new events regularly', async function () {
+  it('checks for new events regularly', async function () {
+    const clock = useFakeTimers();
     const { api, contract } = this;
 
     api.eth.getFilterLogs = stub().resolves([]);
@@ -108,12 +112,16 @@ describe('util/subscribe-to-events', () => {
     subscribeToEvents(contract, [ 'Bar' ], { interval: 5 })
       .on('log', onLog)
       .on('Bar', onBar);
-    await delay(10);
+    await delay(1); // let stubs resolve
+    clock.tick(5);
+    await delay(1); // let stubs resolve
 
     expect(onLog.callCount).to.be.at.least(1);
     expect(onLog.firstCall.args).to.eql([ liveLogs[0] ]);
     expect(onBar.callCount).to.be.at.least(1);
     expect(onBar.firstCall.args).to.eql([ liveLogs[0] ]);
+
+    clock.restore();
   });
 
   it('accepts a custom block range', async function () {

@@ -57,6 +57,7 @@ pub struct ClientService {
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
 	panic_handler: Arc<PanicHandler>,
+	database: Arc<Database>,
 	_stop_guard: ::devtools::StopGuard,
 }
 
@@ -88,8 +89,14 @@ impl ClientService {
 		db_config.compaction = config.db_compaction.compaction_profile(client_path);
 		db_config.wal = config.db_wal;
 
+		let db = Arc::new(Database::open(
+			&db_config,
+			&client_path.to_str().expect("DB path could not be converted to string.")
+		).map_err(::client::Error::Database)?);
+
+
 		let pruning = config.pruning;
-		let client = Client::new(config, &spec, client_path, miner, io_service.channel(), &db_config)?;
+		let client = Client::new(config, &spec, db.clone(), miner, io_service.channel())?;
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
@@ -119,13 +126,9 @@ impl ClientService {
 			client: client,
 			snapshot: snapshot,
 			panic_handler: panic_handler,
+			database: db,
 			_stop_guard: stop_guard,
 		})
-	}
-
-	/// Add a node to network
-	pub fn add_node(&mut self, _enode: &str) {
-		unimplemented!();
 	}
 
 	/// Get general IO interface
@@ -152,6 +155,9 @@ impl ClientService {
 	pub fn add_notify(&self, notify: Arc<ChainNotify>) {
 		self.client.add_notify(notify);
 	}
+
+	/// Get a handle to the database.
+	pub fn db(&self) -> Arc<KeyValueDB> { self.database.clone() }
 }
 
 impl MayPanic for ClientService {

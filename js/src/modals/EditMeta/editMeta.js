@@ -21,7 +21,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { Button, Form, Input, InputChip, Modal } from '~/ui';
+import { Button, Form, Input, InputChip, Portal } from '~/ui';
 import { CancelIcon, SaveIcon } from '~/ui/Icons';
 
 import Store from './store';
@@ -44,15 +44,16 @@ class EditMeta extends Component {
     const { description, name, nameError, tags } = this.store;
 
     return (
-      <Modal
-        actions={ this.renderActions() }
+      <Portal
+        buttons={ this.renderActions() }
+        onClose={ this.onClose }
+        open
         title={
           <FormattedMessage
             id='editMeta.title'
             defaultMessage='edit metadata'
           />
         }
-        visible
       >
         <Form>
           <Input
@@ -101,7 +102,7 @@ class EditMeta extends Component {
             tokens={ tags.slice() }
           />
         </Form>
-      </Modal>
+      </Portal>
     );
   }
 
@@ -112,12 +113,14 @@ class EditMeta extends Component {
       <Button
         label='Cancel'
         icon={ <CancelIcon /> }
-        onClick={ this.props.onClose }
+        key='cancel'
+        onClick={ this.onClose }
       />,
       <Button
         disabled={ hasError }
         label='Save'
         icon={ <SaveIcon /> }
+        key='save'
         onClick={ this.onSave }
       />
     ];
@@ -150,6 +153,10 @@ class EditMeta extends Component {
     );
   }
 
+  onClose = () => {
+    this.props.onClose();
+  }
+
   onSave = () => {
     if (this.store.hasError) {
       return;
@@ -157,7 +164,7 @@ class EditMeta extends Component {
 
     return this.store
       .save()
-      .then(() => this.props.onClose())
+      .then(this.onClose)
       .catch((error) => {
         this.props.newError(error);
       });

@@ -22,7 +22,7 @@ import { bindActionCreators } from 'redux';
 
 import { createIdentityImg } from '~/api/util/identity';
 import { newError } from '~/redux/actions';
-import { Button, Modal } from '~/ui';
+import { Button, Portal } from '~/ui';
 import { CancelIcon, CheckIcon, DoneIcon, NextIcon, PrevIcon, PrintIcon } from '~/ui/Icons';
 import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
 
@@ -86,10 +86,11 @@ class CreateAccount extends Component {
     const { createType, stage } = this.store;
 
     return (
-      <Modal
-        visible
-        actions={ this.renderDialogActions() }
-        current={ stage }
+      <Portal
+        buttons={ this.renderDialogActions() }
+        activeStep={ stage }
+        onClose={ this.onClose }
+        open
         steps={
           createType === 'fromNew'
             ? STAGE_NAMES
@@ -97,7 +98,7 @@ class CreateAccount extends Component {
         }
       >
         { this.renderPage() }
-      </Modal>
+      </Portal>
     );
   }
 

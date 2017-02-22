@@ -154,14 +154,14 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 	let dir = RandomTempPath::new();
 	let test_spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&test_spec,
-		dir.as_path(),
+		client_db,
 		Arc::new(Miner::with_spec_and_accounts(&test_spec, accounts)),
 		IoChannel::disconnected(),
-		&db_config
 	).unwrap();
 	let test_engine = &*test_spec.engine;
 
@@ -260,14 +260,14 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 	let dir = RandomTempPath::new();
 	let test_spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&test_spec,
-		dir.as_path(),
+		client_db,
 		Arc::new(Miner::with_spec(&test_spec)),
 		IoChannel::disconnected(),
-		&db_config
 	).unwrap();
 
 	for block in &blocks {

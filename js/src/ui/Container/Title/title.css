@@ -26,6 +26,7 @@ $smallFontSize: 0.75rem;
   color: $bylineColor;
   display: -webkit-box;
   line-height: $bylineLineHeight;
+  min-height: $bylineMaxHeight;
   max-height: $bylineMaxHeight;
   overflow: hidden;
   position: relative;
@@ -45,5 +46,8 @@ $smallFontSize: 0.75rem;
 .title {
   line-height: $titleLineHeight;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }

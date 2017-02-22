@@ -67,6 +67,12 @@ path = "$HOME/.parity/dapps"
 user = "test_user"
 pass = "test_pass"
 
+[secretstore]
+disable = false
+port = 8082
+interface = "local"
+path = "$HOME/.parity/secretstore"
+
 [ipfs]
 enable = false
 port = 5001

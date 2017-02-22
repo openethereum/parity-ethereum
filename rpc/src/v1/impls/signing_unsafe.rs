@@ -55,7 +55,7 @@ impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 		let accounts = take_weakf!(self.accounts);
 		let default = match account {
 			DefaultAccount::Provided(acc) => acc,
-			DefaultAccount::ForDapp(dapp) => accounts.default_address(dapp).ok().unwrap_or_default(),
+			DefaultAccount::ForDapp(dapp) => accounts.dapp_default_address(dapp).ok().unwrap_or_default(),
 		};
 
 		let dis = self.dispatcher.clone();

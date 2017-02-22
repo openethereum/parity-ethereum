@@ -17,7 +17,6 @@
 use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
-use std::path::{Path};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant};
@@ -135,7 +134,7 @@ pub struct Client {
 	engine: Arc<Engine>,
 	config: ClientConfig,
 	pruning: journaldb::Algorithm,
-	db: RwLock<Arc<Database>>,
+	db: RwLock<Arc<KeyValueDB>>,
 	state_db: Mutex<StateDB>,
 	block_queue: BlockQueue,
 	report: RwLock<ClientReport>,
@@ -157,18 +156,16 @@ pub struct Client {
 }
 
 impl Client {
-	/// Create a new client with given spec and DB path and custom verifier.
+	/// Create a new client with given parameters.
+	/// The database is assumed to have been initialized with the correct columns.
 	pub fn new(
 		config: ClientConfig,
 		spec: &Spec,
-		path: &Path,
+		db: Arc<KeyValueDB>,
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
-		db_config: &DatabaseConfig,
 	) -> Result<Arc<Client>, ClientError> {
 
-		let path = path.to_path_buf();
-		let db = Arc::new(Database::open(&db_config, &path.to_str().expect("DB path could not be converted to string.")).map_err(ClientError::Database)?);
 		let trie_spec = match config.fat_db {
 			true => TrieSpec::Fat,
 			false => TrieSpec::Secure,
@@ -186,7 +183,7 @@ impl Client {
 		if state_db.journal_db().is_empty() {
 			// Sets the correct state root.
 			state_db = spec.ensure_db_good(state_db, &factories)?;
-			let mut batch = DBTransaction::new(&db);
+			let mut batch = DBTransaction::new();
 			state_db.journal_under(&mut batch, 0, &spec.genesis_header().hash())?;
 			db.write(batch).map_err(ClientError::Database)?;
 		}
@@ -530,7 +527,7 @@ impl Client {
 
 			// Commit results
 			let receipts = ::rlp::decode(&receipts_bytes);
-			let mut batch = DBTransaction::new(&self.db.read());
+			let mut batch = DBTransaction::new();
 			chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, false, true);
 			// Final commit to the DB
 			self.db.read().write_buffered(batch);
@@ -554,7 +551,7 @@ impl Client {
 
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
-		let mut batch = DBTransaction::new(&self.db.read());
+		let mut batch = DBTransaction::new();
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
@@ -603,7 +600,7 @@ impl Client {
 					trace!(target: "client", "Pruning state for ancient era {}", era);
 					match chain.block_hash(era) {
 						Some(ancient_hash) => {
-							let mut batch = DBTransaction::new(&self.db.read());
+							let mut batch = DBTransaction::new();
 							state_db.mark_canonical(&mut batch, era, &ancient_hash)?;
 							self.db.read().write_buffered(batch);
 							state_db.journal_db().flush();
@@ -1691,7 +1688,7 @@ mod tests {
 			let go_thread = go.clone();
 			let another_client = client.reference().clone();
 			thread::spawn(move || {
-				let mut batch = DBTransaction::new(&*another_client.chain.read().db().clone());
+				let mut batch = DBTransaction::new();
 				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new());
 				go_thread.store(true, Ordering::SeqCst);
 			});

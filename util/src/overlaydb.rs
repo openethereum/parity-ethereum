@@ -23,7 +23,7 @@ use hashdb::*;
 use memorydb::*;
 use std::sync::*;
 use std::collections::HashMap;
-use kvdb::{Database, DBTransaction};
+use kvdb::{KeyValueDB, DBTransaction};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay.
 ///
@@ -36,22 +36,21 @@ use kvdb::{Database, DBTransaction};
 #[derive(Clone)]
 pub struct OverlayDB {
 	overlay: MemoryDB,
-	backing: Arc<Database>,
+	backing: Arc<KeyValueDB>,
 	column: Option<u32>,
 }
 
 impl OverlayDB {
 	/// Create a new instance of OverlayDB given a `backing` database.
-	pub fn new(backing: Arc<Database>, col: Option<u32>) -> OverlayDB {
+	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> OverlayDB {
 		OverlayDB{ overlay: MemoryDB::new(), backing: backing, column: col }
 	}
 
 	/// Create a new instance of OverlayDB with an anonymous temporary database.
 	#[cfg(test)]
 	pub fn new_temp() -> OverlayDB {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
-		Self::new(Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap()), None)
+		let backing = Arc::new(::kvdb::in_memory(0));
+		Self::new(backing, None)
 	}
 
 	/// Commit all operations in a single batch.
@@ -294,24 +293,4 @@ fn overlaydb_complex() {
 	assert_eq!(trie.get(&hfoo), None);
 	trie.commit().unwrap();	//
 	assert_eq!(trie.get(&hfoo), None);
-}
-
-#[test]
-fn playpen() {
-	use std::fs;
-	{
-		let db = Database::open_default("/tmp/test").unwrap();
-		let mut batch = db.transaction();
-		batch.put(None, b"test", b"test2");
-		db.write(batch).unwrap();
-		match db.get(None, b"test") {
-			Ok(Some(value)) => println!("Got value {:?}", &*value),
-			Ok(None) => println!("No value for that key"),
-			Err(..) => println!("Gah"),
-		}
-		let mut batch = db.transaction();
-		batch.delete(None, b"test");
-		db.write(batch).unwrap();
-	}
-	fs::remove_dir_all("/tmp/test").unwrap();
 }

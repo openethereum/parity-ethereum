@@ -30,7 +30,7 @@ import { newError } from '~/redux/actions';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import { EditMeta, ExecuteContract } from '~/modals';
-import { Actionbar, Button, Page, Modal } from '~/ui';
+import { Actionbar, Button, Page, Portal } from '~/ui';
 import Editor from '~/ui/Editor';
 
 import Header from '../Account/Header';
@@ -198,10 +198,11 @@ class Contract extends Component {
     );
 
     return (
-      <Modal
-        actions={ [ cancelBtn ] }
+      <Portal
+        buttons={ [ cancelBtn ] }
+        onClose={ this.closeDetailsDialog }
+        open
         title={ 'contract details' }
-        visible
       >
         <div className={ styles.details }>
           { this.renderSource(contract) }
@@ -216,7 +217,7 @@ class Contract extends Component {
             />
           </div>
         </div>
-      </Modal>
+      </Portal>
     );
   }
 

@@ -15,41 +15,34 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.actions {
-  background: rgba(0, 0, 0, 0.25) !important;
+/* TODO: These overlap with DappPermissions now, make DRY */
+/* (selection component or just styles?) */
+.iconDisabled {
+  opacity: 0.15;
+}
 
-  button:not([disabled]) {
-    color: white !important;
+.item {
+  display: flex;
+  flex: 1;
+  position: relative;
 
-    svg {
-      fill: white !important;
-    }
+  .overlay {
+    position: absolute;
+    right: 0.5em;
+    top: 0.5em;
   }
 }
 
-.body {
-  padding: 0 !important;
-}
+.selected,
+.unselected {
+  margin-bottom: 0.25em;
+  width: 100%;
 
-.dialog {
-}
-
-.content {
-  transform: translate(0px, 0px) !important;
-  transition: none !important;
-
-  &>div {
-    background: rgba(0, 0, 0, 0.5) !important;
-    transition: none !important;
+  &:focus {
+    outline: none;
   }
 }
 
-.title {
-  background: rgba(0, 0, 0, 0.25) !important;
-  padding: 1em;
-}
-
-.overlay {
-  background: rgba(255, 255, 255, 0.5) !important;
-  transition: none !important;
+.selected {
+  background: rgba(255, 255, 255, 0.15) !important;
 }

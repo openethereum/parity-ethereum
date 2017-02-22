@@ -12,5 +12,5 @@ jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git" }
 rlp = { path = "../util/rlp" }
 mime = "0.2"
 hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
-cid = "0.2"
+cid = "0.2.1"
 multihash = "0.5"

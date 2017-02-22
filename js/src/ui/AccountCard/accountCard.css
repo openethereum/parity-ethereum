@@ -120,6 +120,9 @@
 
   .accountName {
     font-weight: 700 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 

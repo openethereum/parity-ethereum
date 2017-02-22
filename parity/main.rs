@@ -59,6 +59,7 @@ extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_ipfs_api;
 extern crate parity_reactor;
 extern crate parity_updater as updater;
+extern crate parity_local_store as local_store;
 extern crate rpc_cli;
 
 #[macro_use]
@@ -66,6 +67,10 @@ extern crate log as rlog;
 
 #[cfg(feature="stratum")]
 extern crate ethcore_stratum;
+
+#[cfg(feature="secretstore")]
+extern crate ethcore_secretstore;
+
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
 
@@ -101,6 +106,7 @@ mod rpc_apis;
 mod run;
 mod signer;
 mod snapshot;
+mod secretstore;
 mod upgrade;
 mod url;
 mod user_defaults;

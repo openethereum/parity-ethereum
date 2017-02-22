@@ -15,15 +15,13 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.body {
-  overflow-y: auto;
+.passwordHint {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75em;
+  text-align: left;
 }
 
-.body p, .body li {
-  opacity: 0.8;
+.textbox {
   line-height: 1.5em;
-}
-
-.accept {
-  margin: 1.5em 0;
+  margin-bottom: 1.5em;
 }

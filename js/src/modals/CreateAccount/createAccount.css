@@ -15,30 +15,45 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+.details {
+  text-align: center;
+
+  .infoForm {
+    background: rgba(0, 0, 0, 0.1);
+    padding: 1.5em;
+  }
+
+  .qr {
+    margin: 1.5em auto 0 auto;
+  }
+}
+
 .spaced {
   line-height: 1.618em;
 }
 
-.password {
-  flex: 0 1 50%;
-  width: 50%;
-  box-sizing: border-box;
-
-  &:nth-child(odd) {
-    padding-right: 0.25rem;
-  }
-
-  &:nth-child(even) {
-    padding-left: 0.25rem;
-  }
-}
-
+/* TODO: 2 column layout can be made generic, now duplicated in Vaults */
 .passwords {
   display: flex;
   flex-wrap: wrap;
+
+  .password {
+    box-sizing: border-box;
+    flex: 0 1 50%;
+    width: 50%;
+
+    &:nth-child(odd) {
+      padding-right: 0.25rem;
+    }
+
+    &:nth-child(even) {
+      padding-left: 0.25rem;
+    }
+  }
 }
 
-.identities, .selector {
+.identities,
+.selector {
   display: flex;
 }
 
@@ -46,9 +61,10 @@
   margin-top: 1.5em;
 }
 
-.identities .identity, .selector .button {
-  flex: 0 1 18%;
-  width: 18% !important;
+.identities .identity,
+.selector .button {
+  flex: 0 1 12.5%;
+  width: 12.5% !important;
   text-align: center;
   cursor: pointer;
 }

@@ -37,25 +37,23 @@
 }
 
 .shapeshift {
-  position: absolute;
-  bottom: 0.5em;
-  left: 1em;
   cursor: pointer;
+  left: 1.5em;
   outline: none;
-}
+  position: absolute;
 
-.shapeshift img {
-  height: 28px;
+  img {
+    height: 28px;
+  }
 }
 
 .info, .busy {
 }
 
 .center {
-}
-
-.center div {
-  text-align: center;
+  div {
+    text-align: center;
+  }
 }
 
 .error {
@@ -74,9 +72,11 @@
   color: #aaa;
 }
 
-.price div {
-  text-align: center;
-  font-size: small;
+.price {
+  div {
+    text-align: center;
+    font-size: small;
+  }
 }
 
 .empty {
