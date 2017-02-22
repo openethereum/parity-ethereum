@@ -94,3 +94,31 @@
 .checkbox {
   margin-top: 2em;
 }
+
+.selectItem {
+  display: flex;
+
+  .icon {
+    flex: 0 0 56px;
+    margin-right: 0.75em;
+
+    img {
+      margin: 0 !important;
+    }
+
+    svg {
+      height: 56px !important;
+      width: 56px !important;
+    }
+  }
+
+  .info {
+    flex: 1 1;
+  }
+}
+
+.summary {
+  line-height: 1.618em;
+  padding: 0 4em 1.5em 4em;
+  text-align: center;
+}

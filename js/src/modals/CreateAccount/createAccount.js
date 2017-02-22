@@ -22,8 +22,8 @@ import { bindActionCreators } from 'redux';
 
 import { createIdentityImg } from '~/api/util/identity';
 import { newError } from '~/redux/actions';
-import { Button, IdentityIcon, ModalBox, Portal } from '~/ui';
-import { AccountsIcon, CancelIcon, CheckIcon, DoneIcon, FileIcon, FileUploadIcon, KeyboardIcon, KeyIcon, MembershipIcon, NextIcon, PrevIcon, PrintIcon } from '~/ui/Icons';
+import { Button, ModalBox, Portal } from '~/ui';
+import { CancelIcon, CheckIcon, DoneIcon, NextIcon, PrevIcon, PrintIcon } from '~/ui/Icons';
 import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
 
 import AccountDetails from './AccountDetails';
@@ -35,6 +35,7 @@ import NewImport from './NewImport';
 import RawKey from './RawKey';
 import RecoveryPhrase from './RecoveryPhrase';
 import Store, { STAGE_CREATE, STAGE_INFO, STAGE_SELECT_TYPE } from './store';
+import TypeIcon from './TypeIcon';
 import print from './print';
 import recoveryPage from './recoveryPage.ejs';
 
@@ -97,49 +98,11 @@ class CreateAccount extends Component {
             : STAGE_IMPORT
         }
       >
-        <ModalBox icon={ this.getIcon() }>
+        <ModalBox icon={ <TypeIcon store={ this.store } /> }>
           { this.renderPage() }
         </ModalBox>
       </Portal>
     );
-  }
-
-  getIcon () {
-    const { address, createType, stage } = this.store;
-
-    if (stage === STAGE_INFO) {
-      return createType === 'fromGeth'
-        ? (
-          <DoneIcon />
-        )
-        : (
-          <IdentityIcon
-            address={ address }
-            center
-          />
-        );
-    }
-
-    switch (createType) {
-      case 'fromGeth':
-        return <FileUploadIcon />;
-
-      case 'fromPhrase':
-        return <KeyboardIcon />;
-
-      case 'fromRaw':
-        return <KeyIcon />;
-
-      case 'fromJSON':
-        return <FileIcon />;
-
-      case 'fromPresale':
-        return <MembershipIcon />;
-
-      case 'fromNew':
-      default:
-        return <AccountsIcon />;
-    }
   }
 
   renderPage () {

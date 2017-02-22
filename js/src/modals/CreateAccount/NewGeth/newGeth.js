@@ -21,7 +21,7 @@ import { FormattedMessage } from 'react-intl';
 import { SelectionList } from '~/ui';
 
 import GethCard from '../GethCard';
-import styles from './newGeth.css';
+import styles from '../createAccount.css';
 
 @observer
 export default class NewGeth extends Component {
