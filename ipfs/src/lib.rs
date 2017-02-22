@@ -36,7 +36,7 @@ use route::Out;
 use jsonrpc_http_server::cors;
 use hyper::server::{Listening, Handler, Request, Response};
 use hyper::net::HttpStream;
-use hyper::header::{ContentLength, ContentType, AccessControlAllowOrigin};
+use hyper::header::{Vary, ContentLength, ContentType, AccessControlAllowOrigin};
 use hyper::{Next, Encoder, Decoder, Method, RequestUri, StatusCode};
 use ethcore::client::BlockChainClient;
 
@@ -45,19 +45,14 @@ use ethcore::client::BlockChainClient;
 pub struct IpfsHandler {
 	/// Response to send out
 	out: Out,
-
 	/// How many bytes from the response have been written
 	out_progress: usize,
-
 	/// Origin request header
 	origin: Option<String>,
-
 	/// Allowed CORS domains
 	cors_domains: Option<Vec<AccessControlAllowOrigin>>,
-
 	/// Hostnames allowed in the `Host` request header
 	allowed_hosts: Option<Vec<String>>,
-
 	/// Reference to the Blockchain Client
 	client: Arc<BlockChainClient>,
 }
@@ -69,11 +64,11 @@ impl IpfsHandler {
 
 	pub fn new(cors: Option<Vec<String>>, hosts: Option<Vec<String>>, client: Arc<BlockChainClient>) -> Self {
 		fn origin_to_header(origin: String) -> AccessControlAllowOrigin {
-			if origin == "*" {
-				return AccessControlAllowOrigin::Any;
+			match origin.as_str() {
+				"*" => AccessControlAllowOrigin::Any,
+				"null" | "" => AccessControlAllowOrigin::Null,
+				_ => AccessControlAllowOrigin::Value(origin),
 			}
-
-			AccessControlAllowOrigin::Value(origin)
 		}
 
 		IpfsHandler {
@@ -108,7 +103,7 @@ impl IpfsHandler {
 		cors_domains.iter().any(|domain| match *domain {
 			AccessControlAllowOrigin::Value(ref allowed) => origin == allowed,
 			AccessControlAllowOrigin::Any => true,
-			_ => false
+			AccessControlAllowOrigin::Null => origin == "",
 		})
 	}
 }
@@ -183,6 +178,7 @@ impl Handler<HttpStream> for IpfsHandler {
 
 		if let Some(cors_header) = cors::get_cors_header(&self.cors_domains, &self.origin) {
 			res.headers_mut().set(cors_header);
+			res.headers_mut().set(Vary::Items(vec!["Origin".into()]));
 		}
 
 		Next::write()
@@ -236,8 +232,8 @@ pub fn start_server(
 	port: u16,
 	interface: String,
 	cors: Option<Vec<String>>,
-    hosts: Option<Vec<String>>,
-    client: Arc<BlockChainClient>
+	hosts: Option<Vec<String>>,
+	client: Arc<BlockChainClient>
 ) -> Result<Listening, ServerError> {
 
 	let ip: IpAddr = interface.parse().map_err(|_| ServerError::InvalidInterface)?;
