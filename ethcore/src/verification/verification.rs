@@ -29,6 +29,7 @@ use header::{BlockNumber, Header};
 use rlp::{UntrustedRlp, View};
 use transaction::SignedTransaction;
 use views::BlockView;
+use time::get_time;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
@@ -50,12 +51,12 @@ impl HeapSizeOf for PreverifiedBlock {
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Result<(), Error> {
-	try!(verify_header_params(&header, engine));
+	try!(verify_header_params(&header, engine, true));
 	try!(verify_block_integrity(bytes, &header.transactions_root(), &header.uncles_hash()));
 	try!(engine.verify_block_basic(&header, Some(bytes)));
 	for u in try!(UntrustedRlp::new(bytes).at(2)).iter().map(|rlp| rlp.as_val::<Header>()) {
 		let u = try!(u);
-		try!(verify_header_params(&u, engine));
+		try!(verify_header_params(&u, engine, false));
 		try!(engine.verify_block_basic(&u, None));
 	}
 	// Verify transactions.
@@ -194,7 +195,7 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 }
 
 /// Check basic header parameters.
-pub fn verify_header_params(header: &Header, engine: &Engine) -> Result<(), Error> {
+pub fn verify_header_params(header: &Header, engine: &Engine, is_full: bool) -> Result<(), Error> {
 	if header.number() >= From::from(BlockNumber::max_value()) {
 		return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number() })))
 	}
@@ -208,6 +209,12 @@ pub fn verify_header_params(header: &Header, engine: &Engine) -> Result<(), Erro
 	let maximum_extra_data_size = engine.maximum_extra_data_size();
 	if header.number() != 0 && header.extra_data().len() > maximum_extra_data_size {
 		return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: Some(maximum_extra_data_size), found: header.extra_data().len() })));
+	}
+	if is_full {
+		let max_time = get_time().sec as u64 + 30;
+		if header.timestamp() > max_time {
+			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: header.timestamp() })))
+		}
 	}
 	Ok(())
 }
