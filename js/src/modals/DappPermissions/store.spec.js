@@ -41,7 +41,7 @@ function create () {
   store = new Store(api);
 }
 
-describe.only('modals/DappPermissions/store', () => {
+describe('modals/DappPermissions/store', () => {
   beforeEach(() => {
     create();
   });
