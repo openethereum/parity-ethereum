@@ -27,10 +27,12 @@ export default class Store {
   @observable isBusyCreate = false;
   @observable isBusyLoad = false;
   @observable isBusyLock = false;
+  @observable isBusyMeta = false;
   @observable isBusyUnlock = false;
   @observable isModalAccountsOpen = false;
   @observable isModalCreateOpen = false;
   @observable isModalLockOpen = false;
+  @observable isModalMetaOpen = false;
   @observable isModalUnlockOpen = false;
   @observable selectedAccounts = {};
   @observable vault = null;
@@ -42,6 +44,7 @@ export default class Store {
   @observable vaultPassword = '';
   @observable vaultPasswordHint = '';
   @observable vaultPasswordRepeat = '';
+  @observable vaultTags = [];
 
   constructor (api) {
     this._api = api;
@@ -60,6 +63,7 @@ export default class Store {
       this.setVaultPassword('');
       this.setVaultPasswordHint('');
       this.setVaultPasswordRepeat('');
+      this.setVaultTags([]);
     });
   }
 
@@ -77,6 +81,10 @@ export default class Store {
 
   @action setBusyLock = (isBusy) => {
     this.isBusyLock = isBusy;
+  }
+
+  @action setBusyMeta = (isBusy) => {
+    this.isBusyMeta = isBusy;
   }
 
   @action setBusyUnlock = (isBusy) => {
@@ -101,6 +109,13 @@ export default class Store {
     transaction(() => {
       this.setBusyLock(false);
       this.isModalLockOpen = isOpen;
+    });
+  }
+
+  @action setModalMetaOpen = (isOpen) => {
+    transaction(() => {
+      this.setBusyMeta(false);
+      this.isModalMetaOpen = isOpen;
     });
   }
 
@@ -165,6 +180,10 @@ export default class Store {
     this.vaultPasswordRepeat = password;
   }
 
+  @action setVaultTags = (tags) => {
+    this.vaultTags = tags;
+  }
+
   @action toggleSelectedAccount = (address) => {
     this.setSelectedAccounts(Object.assign({}, this.selectedAccounts, {
       [address]: !this.selectedAccounts[address] })
@@ -181,6 +200,10 @@ export default class Store {
 
   closeLockModal () {
     this.setModalLockOpen(false);
+  }
+
+  closeMetaModal () {
+    this.setModalMetaOpen(false);
   }
 
   closeUnlockModal () {
@@ -206,6 +229,13 @@ export default class Store {
     transaction(() => {
       this.setVaultName(name);
       this.setModalLockOpen(true);
+    });
+  }
+
+  openMetaModal (name) {
+    transaction(() => {
+      this.setVaultName(name);
+      this.setModalMetaOpen(true);
     });
   }
 
@@ -268,7 +298,8 @@ export default class Store {
       .then(() => {
         return this._api.parity.setVaultMeta(this.vaultName, {
           description: this.vaultDescription,
-          passwordHint: this.vaultPasswordHint
+          passwordHint: this.vaultPasswordHint,
+          tags: this.vaultTags
         });
       })
       .then(this.loadVaults)
@@ -278,6 +309,26 @@ export default class Store {
       .catch((error) => {
         console.error('createVault', error);
         this.setBusyCreate(false);
+        throw error;
+      });
+  }
+
+  editVault () {
+    this.setBusyMeta(true);
+
+    return this._api.parity
+      .setVaultMeta(this.vaultName, {
+        description: this.vaultDescription,
+        passwordHint: this.vaultPasswordHint,
+        tags: this.vaultTags
+      })
+      .then(this.loadVaults)
+      .then(() => {
+        this.setBusyMeta(false);
+      })
+      .catch((error) => {
+        console.error('editVault', error);
+        this.setBusyMeta(false);
         throw error;
       });
   }

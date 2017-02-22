@@ -44,6 +44,7 @@ describe('modals/Vaults/Store', () => {
         store.setVaultPassword('blah');
         store.setVaultPasswordRepeat('bleh');
         store.setVaultPasswordHint('hint');
+        store.setVaultTags('tags');
 
         store.clearVaultFields();
       });
@@ -55,6 +56,7 @@ describe('modals/Vaults/Store', () => {
         expect(store.vaultPassword).to.equal('');
         expect(store.vaultPasswordRepeat).to.equal('');
         expect(store.vaultPasswordHint).to.equal('');
+        expect(store.vaultTags.length).to.equal(0);
       });
     });
 
@@ -90,6 +92,14 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
+    describe('setBusyMeta', () => {
+      it('sets the flag', () => {
+        store.setBusyMeta('busy');
+
+        expect(store.isBusyMeta).to.equal('busy');
+      });
+    });
+
     describe('setBusyUnlock', () => {
       it('sets the flag', () => {
         store.setBusyUnlock('busy');
@@ -119,6 +129,14 @@ describe('modals/Vaults/Store', () => {
         store.setModalLockOpen('opened');
 
         expect(store.isModalLockOpen).to.equal('opened');
+      });
+    });
+
+    describe('setModalMetaOpen', () => {
+      it('sets the flag', () => {
+        store.setModalMetaOpen('opened');
+
+        expect(store.isModalMetaOpen).to.equal('opened');
       });
     });
 
@@ -233,6 +251,14 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
+    describe('setVaultTags', () => {
+      it('sets the tags', () => {
+        store.setVaultTags('test');
+
+        expect(store.vaultTags).to.equal('test');
+      });
+    });
+
     describe('toggleSelectedAccount', () => {
       beforeEach(() => {
         store.toggleSelectedAccount('123');
@@ -301,6 +327,17 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
+    describe('closeMetaModal', () => {
+      beforeEach(() => {
+        store.setModalMetaOpen(true);
+        store.closeMetaModal();
+      });
+
+      it('sets the opened state to false', () => {
+        expect(store.isModalMetaOpen).to.be.false;
+      });
+    });
+
     describe('closeUnlockModal', () => {
       beforeEach(() => {
         store.setModalUnlockOpen(true);
@@ -357,6 +394,20 @@ describe('modals/Vaults/Store', () => {
 
       it('sets the opened state to true', () => {
         expect(store.isModalLockOpen).to.be.true;
+      });
+
+      it('stores the name', () => {
+        expect(store.vaultName).to.equal('testing');
+      });
+    });
+
+    describe('openMetaModal', () => {
+      beforeEach(() => {
+        store.openMetaModal('testing');
+      });
+
+      it('sets the opened state to true', () => {
+        expect(store.isModalMetaOpen).to.be.true;
       });
 
       it('stores the name', () => {
@@ -443,6 +494,7 @@ describe('modals/Vaults/Store', () => {
         store.setVaultPassword('testCreatePassword');
         store.setVaultPasswordRepeat('testCreatePassword');
         store.setVaultPasswordHint('testCreateHint');
+        store.setVaultTags('testTags');
 
         return store.createVault();
       });
@@ -463,7 +515,38 @@ describe('modals/Vaults/Store', () => {
       it('calls into parity_setVaultMeta', () => {
         expect(api.parity.setVaultMeta).to.have.been.calledWith('testCreateName', {
           description: 'testDescription',
-          passwordHint: 'testCreateHint'
+          passwordHint: 'testCreateHint',
+          tags: 'testTags'
+        });
+      });
+    });
+
+    describe('editVault', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setBusyMeta');
+
+        store.setVaultDescription('testDescription');
+        store.setVaultName('testCreateName');
+        store.setVaultPasswordHint('testCreateHint');
+        store.setVaultTags('testTags');
+
+        return store.editVault();
+      });
+
+      afterEach(() => {
+        store.setBusyMeta.restore();
+      });
+
+      it('sets and resets the busy flag', () => {
+        expect(store.setBusyMeta).to.have.been.calledWith(true);
+        expect(store.isBusyMeta).to.be.false;
+      });
+
+      it('calls into parity_setVaultMeta', () => {
+        expect(api.parity.setVaultMeta).to.have.been.calledWith('testCreateName', {
+          description: 'testDescription',
+          passwordHint: 'testCreateHint',
+          tags: 'testTags'
         });
       });
     });

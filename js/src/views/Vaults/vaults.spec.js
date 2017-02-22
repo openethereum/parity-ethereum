@@ -150,6 +150,22 @@ describe('modals/Vaults', () => {
       });
     });
 
+    describe('onOpenEdit', () => {
+      beforeEach(() => {
+        sinon.spy(instance.vaultStore, 'openMetaModal');
+
+        instance.onOpenEdit('testing');
+      });
+
+      afterEach(() => {
+        instance.vaultStore.openMetaModal.restore();
+      });
+
+      it('calls into vaultStore.openMetaModal', () => {
+        expect(instance.vaultStore.openMetaModal).to.have.been.calledWith('testing');
+      });
+    });
+
     describe('onOpenLockVault', () => {
       beforeEach(() => {
         sinon.spy(instance.vaultStore, 'openLockModal');
