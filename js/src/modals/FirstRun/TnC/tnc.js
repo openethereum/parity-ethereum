@@ -15,9 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Checkbox } from 'material-ui';
 
-import styles from './tnc.css';
+import styles from '../firstRun.css';
 
 export default class TnC extends Component {
   static propTypes = {
@@ -29,7 +30,7 @@ export default class TnC extends Component {
     const { hasAccepted, onAccept } = this.props;
 
     return (
-      <div className={ styles.body }>
+      <div className={ styles.tnc }>
         <h1>SECURITY WARNINGS</h1>
         <ul>
           <li>You are responsible for your own computer security. If your machine is compromised you will lose your ether, access to any contracts and maybe more.</li>
@@ -165,7 +166,12 @@ export default class TnC extends Component {
 
         <Checkbox
           className={ styles.accept }
-          label='I accept these terms and conditions'
+          label={
+            <FormattedMessage
+              id='firstRun.tnc.accept'
+              defaultMessage='I accept these terms and conditions'
+            />
+          }
           checked={ hasAccepted }
           onCheck={ onAccept }
         />

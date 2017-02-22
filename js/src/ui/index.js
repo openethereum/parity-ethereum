@@ -39,7 +39,7 @@ export IdentityName from './IdentityName';
 export LanguageSelector from './LanguageSelector';
 export Loading from './Loading';
 export MethodDecoding from './MethodDecoding';
-export Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
+export { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 export muiTheme from './Theme';
 export Page from './Page';
 export ParityBackground from './ParityBackground';

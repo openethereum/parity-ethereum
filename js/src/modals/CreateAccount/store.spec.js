@@ -580,9 +580,9 @@ describe('modals/CreateAccount/Store', () => {
         });
       });
 
-      it('returns a map of 5 accounts', () => {
+      it('returns a map of 7 accounts', () => {
         return store.createIdentities().then((accounts) => {
-          expect(Object.keys(accounts).length).to.equal(5);
+          expect(Object.keys(accounts).length).to.equal(7);
         });
       });
 

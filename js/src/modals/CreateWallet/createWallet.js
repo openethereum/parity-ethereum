@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Modal, TxHash, BusyStep } from '~/ui';
+import { BusyStep, Button, Portal, TxHash } from '~/ui';
 import { CancelIcon, DoneIcon, NextIcon } from '~/ui/Icons';
 
 import WalletType from './WalletType';
@@ -44,15 +44,16 @@ export default class CreateWallet extends Component {
 
     if (rejected) {
       return (
-        <Modal
-          visible
+        <Portal
+          buttons={ this.renderDialogActions() }
+          onClose={ this.onClose }
+          open
           title={
             <FormattedMessage
               id='createWallet.rejected.title'
               defaultMessage='rejected'
             />
           }
-          actions={ this.renderDialogActions() }
         >
           <BusyStep
             title={
@@ -68,20 +69,21 @@ export default class CreateWallet extends Component {
               />
             }
           />
-        </Modal>
+        </Portal>
       );
     }
 
     return (
-      <Modal
-        visible
-        actions={ this.renderDialogActions() }
-        current={ stage }
+      <Portal
+        activeStep={ stage }
+        busySteps={ waiting }
+        buttons={ this.renderDialogActions() }
+        onClose={ this.onClose }
+        open
         steps={ steps.map((step) => step.title) }
-        waiting={ waiting }
       >
         { this.renderPage() }
-      </Modal>
+      </Portal>
     );
   }
 
@@ -151,6 +153,7 @@ export default class CreateWallet extends Component {
     const cancelBtn = (
       <Button
         icon={ <CancelIcon /> }
+        key='cancel'
         label={
           <FormattedMessage
             id='createWallet.button.cancel'
@@ -164,6 +167,7 @@ export default class CreateWallet extends Component {
     const closeBtn = (
       <Button
         icon={ <CancelIcon /> }
+        key='close'
         label={
           <FormattedMessage
             id='createWallet.button.close'
@@ -177,6 +181,7 @@ export default class CreateWallet extends Component {
     const doneBtn = (
       <Button
         icon={ <DoneIcon /> }
+        key='done'
         label={
           <FormattedMessage
             id='createWallet.button.done'
@@ -190,6 +195,7 @@ export default class CreateWallet extends Component {
     const sendingBtn = (
       <Button
         icon={ <DoneIcon /> }
+        key='sending'
         label={
           <FormattedMessage
             id='createWallet.button.sending'
@@ -203,6 +209,7 @@ export default class CreateWallet extends Component {
     const nextBtn = (
       <Button
         icon={ <NextIcon /> }
+        key='next'
         label={
           <FormattedMessage
             id='createWallet.button.next'
@@ -230,6 +237,7 @@ export default class CreateWallet extends Component {
             <Button
               disabled={ hasErrors }
               icon={ <NextIcon /> }
+              key='add'
               label={
                 <FormattedMessage
                   id='createWallet.button.add'
@@ -245,6 +253,7 @@ export default class CreateWallet extends Component {
           <Button
             disabled={ hasErrors }
             icon={ <NextIcon /> }
+            key='create'
             label={
               <FormattedMessage
                 id='createWallet.button.create'

@@ -93,7 +93,6 @@ export default class VaultCard extends Component {
                   address={ address }
                   center
                   className={ styles.account }
-                  key={ address }
                 />
               </Link>
             );
