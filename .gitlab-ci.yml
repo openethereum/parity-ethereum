@@ -43,6 +43,41 @@ linux-stable:
     paths:
     - target/release/parity
     name: "stable-x86_64-unknown-linux-gnu_parity"
+linux-stable-debian:
+  stage: build
+  image: ethcore/rust-debian:latest
+  only:
+    - beta
+    - tags
+    - stable
+    - triggers
+  script:
+    - cargo build -j $(nproc) --release $CARGOFLAGS
+    - strip target/release/parity
+    - export SHA3=$(target/release/parity tools hash target/release/parity)
+    - md5sum target/release/parity > parity.md5
+    - sh scripts/deb-build.sh amd64
+    - cp target/release/parity deb/usr/bin/parity
+    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
+    - dpkg-deb -b deb "parity_"$VER"_amd64.deb"
+    - md5sum "parity_"$VER"_amd64.deb" > "parity_"$VER"_amd64.deb.md5"
+    - aws configure set aws_access_key_id $s3_key
+    - aws configure set aws_secret_access_key $s3_secret
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
+    - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/x86_64-unknown-debian-gnu
+    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-debian-gnu/parity --body target/release/parity
+    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-debian-gnu/parity.md5 --body parity.md5
+    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-debian-gnu/"parity_"$VER"_amd64.deb" --body "parity_"$VER"_amd64.deb"
+    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-debian-gnu/"parity_"$VER"_amd64.deb.md5" --body "parity_"$VER"_amd64.deb.md5"
+    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1337/push-build/$CI_BUILD_REF_NAME/x86_64-unknown-debian-gnu
+    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/x86_64-unknown-debian-gnu
+  tags:
+    - rust
+    - rust-debian
+  artifacts:
+    paths:
+    - target/release/parity
+    name: "stable-x86_64-unknown-debian-gnu_parity"
 linux-beta:
   stage: build
   image: ethcore/rust:beta
@@ -393,6 +428,20 @@ windows:
     - target/release/parity.exe
     - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
+docker-build:
+  stage: build
+  only:
+    - tags
+  before_script:
+    - docker info
+  script:
+    - cd docker/hub
+    - if [ "$CI_BUILD_REF_NAME" == "nightly" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
+    - docker login -u $Docker_Hub_User -p $Docker_Hub_Pass
+    - docker build --no-cache=true --tag ethcore/parity:$DOCKER_TAG .
+    - docker push ethcore/parity:$DOCKER_TAG
+  tags:
+    - docker
 test-darwin:
   stage: test
   only:
