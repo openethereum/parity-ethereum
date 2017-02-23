@@ -17,11 +17,11 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Checkbox } from 'material-ui';
 
-import { IdentityIcon } from '~/ui';
+import { SelectionList } from '~/ui';
 
-import styles from './newGeth.css';
+import GethCard from '../GethCard';
+import styles from '../createAccount.css';
 
 @observer
 export default class NewGeth extends Component {
@@ -36,60 +36,62 @@ export default class NewGeth extends Component {
   render () {
     const { gethAccountsAvailable, gethAddresses } = this.props.store;
 
-    if (!gethAccountsAvailable.length) {
-      return (
-        <div className={ styles.list }>
+    return gethAccountsAvailable.length
+      ? (
+        <div>
+          <div className={ styles.summary }>
+            <FormattedMessage
+              id='createAccount.newGeth.available'
+              defaultMessage='There are currently {count} importable keys available from the Geth keystore which are not already available on your Parity instance. Select the accounts you wish to import and move to the next step to complete the import.'
+              values={ {
+                count: gethAccountsAvailable.length
+              } }
+            />
+          </div>
+          { this.renderList(gethAccountsAvailable, gethAddresses) }
+        </div>
+      )
+      : (
+        <div className={ styles.summary }>
           <FormattedMessage
             id='createAccount.newGeth.noKeys'
             defaultMessage='There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance'
           />
         </div>
       );
-    }
+  }
 
-    const checkboxes = gethAccountsAvailable.map((account) => {
-      const onSelect = (event) => this.onSelectAddress(event, account.address);
-
-      const label = (
-        <div className={ styles.selection }>
-          <div className={ styles.icon }>
-            <IdentityIcon
-              address={ account.address }
-              center
-              inline
-            />
-          </div>
-          <div className={ styles.detail }>
-            <div className={ styles.address }>
-              { account.address }
-            </div>
-            <div className={ styles.balance }>
-              { account.balance } ETH
-            </div>
-          </div>
-        </div>
-      );
-
-      return (
-        <Checkbox
-          checked={ gethAddresses.includes(account.address) }
-          key={ account.address }
-          label={ label }
-          onCheck={ onSelect }
-        />
-      );
-    });
-
+  renderList (gethAccountsAvailable) {
     return (
-      <div className={ styles.list }>
-        { checkboxes }
-      </div>
+      <SelectionList
+        isChecked={ this.isSelected }
+        items={ gethAccountsAvailable }
+        noStretch
+        onSelectClick={ this.onSelect }
+        renderItem={ this.renderAccount }
+      />
     );
   }
 
-  onSelectAddress = (event, address) => {
+  renderAccount = (account, index) => {
+    return (
+      <GethCard
+        address={ account.address }
+        balance={ account.balance }
+        name={ `Geth Account ${index + 1}` }
+      />
+    );
+  }
+
+  isSelected = (account) => {
+    const { gethAddresses } = this.props.store;
+
+    return gethAddresses.includes(account.address);
+  }
+
+  onSelect = (account) => {
     const { store } = this.props;
 
-    store.selectGethAccount(address);
+    store.selectGethAccount(account.address);
   }
 }
