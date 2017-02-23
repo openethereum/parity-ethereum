@@ -18,7 +18,9 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Portal, SelectionList, VaultCard } from '~/ui';
+import Portal from '~/ui/Portal';
+import SelectionList from '~/ui/SelectionList';
+import VaultCard from '~/ui/VaultCard';
 
 @observer
 export default class VaultSelector extends Component {
