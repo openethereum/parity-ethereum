@@ -17,7 +17,7 @@
 export default {
   background: {
     button_more: `genereer meer`,
-    overview_0: `Het achtergrond patroon dat je nu kunt zien is uniek voor jouw Parity installatie. Het veranderd elke keer als je een nieuw Signer token genereerd. Op deze manier kunnen gedecentraliseerde applicaties niet doen alsof ze betrouwbaar zijn.`
+    overview_0: `Het achtergrond patroon dat je nu kunt zien is uniek voor jouw Parity installatie. Het veranderd elke keer als je een nieuw Signer token genereerd. Op deze manier kunnen gedecentraliseerde applicaties niet doen alsof ze betrouwbaar zijn.`,
     overview_1: `Kies het patroon dat je wilt en onthoud het. Dit patroon wordt vanaf nu altijd getoond, tenzij je je browser cache wist of een nieuw Signer token genereerd.`,
     label: `achtergrond`
   },
