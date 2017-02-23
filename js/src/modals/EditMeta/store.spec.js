@@ -149,13 +149,6 @@ describe('modals/EditMeta/Store', () => {
         expect(store.vaultName).to.equal('testing');
       });
     });
-
-    describe('setVaultSelectorOpen', () => {
-      it('sets the state', () => {
-        store.setVaultSelectorOpen('testing');
-        expect(store.isVaultSelectorOpen).to.equal('testing');
-      });
-    });
   });
 
   describe('operations', () => {
@@ -183,13 +176,6 @@ describe('modals/EditMeta/Store', () => {
           tags: ['taga']
         }));
       });
-    });
-  });
-
-  describe('toggleVaultSelector', () => {
-    it('inverts the selector state', () => {
-      store.toggleVaultSelector();
-      expect(store.isVaultSelectorOpen).to.be.true;
     });
   });
 });

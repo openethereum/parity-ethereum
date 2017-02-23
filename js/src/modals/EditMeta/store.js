@@ -21,7 +21,6 @@ import { validateName } from '~/util/validation';
 export default class Store {
   @observable address = null;
   @observable isAccount = false;
-  @observable isVaultSelectorOpen = false;
   @observable description = null;
   @observable meta = null;
   @observable name = null;
@@ -81,10 +80,6 @@ export default class Store {
     this.vaultName = vaultName;
   }
 
-  @action setVaultSelectorOpen = (isOpen) => {
-    this.isVaultSelectorOpen = isOpen;
-  }
-
   save () {
     const meta = {
       description: this.description,
@@ -104,9 +99,5 @@ export default class Store {
         console.error('onSave', error);
         throw error;
       });
-  }
-
-  toggleVaultSelector () {
-    this.setVaultSelectorOpen(!this.isVaultSelectorOpen);
   }
 }

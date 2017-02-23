@@ -98,5 +98,6 @@ export default class VaultSelect extends Component {
 
   onSelect = (vaultName) => {
     this.props.onSelect(vaultName);
+    this.toggleSelector();
   }
 }
