@@ -711,7 +711,7 @@ impl MinerService for Miner {
 				let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
 				let sender = t.sender();
-				let balance = state.balance(&sender);
+				let balance = state.balance(&sender).map_err(ExecutionError::from)?;
 				let needed_balance = t.value + t.gas * t.gas_price;
 				if balance < needed_balance {
 					// give the sender a sufficient balance
@@ -721,7 +721,9 @@ impl MinerService for Miner {
 				let mut ret = Executive::new(&mut state, &env_info, &*self.engine, client.vm_factory()).transact(t, options)?;
 
 				// TODO gav move this into Executive.
-				ret.state_diff = original_state.map(|original| state.diff_from(original));
+				if let Some(original) = original_state {
+					ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
+				}
 
 				Ok(ret)
 			},
@@ -729,35 +731,37 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn balance(&self, chain: &MiningBlockChainClient, address: &Address) -> U256 {
+	// TODO: The `chain.latest_x` actually aren't infallible, they just panic on corruption.
+	// TODO: return trie::Result<T> here, or other.
+	fn balance(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<U256> {
 		self.from_pending_block(
 			chain.chain_info().best_block_number,
-			|| chain.latest_balance(address),
-			|b| b.block().fields().state.balance(address)
+			|| Some(chain.latest_balance(address)),
+			|b| b.block().fields().state.balance(address).ok(),
 		)
 	}
 
-	fn storage_at(&self, chain: &MiningBlockChainClient, address: &Address, position: &H256) -> H256 {
+	fn storage_at(&self, chain: &MiningBlockChainClient, address: &Address, position: &H256) -> Option<H256> {
 		self.from_pending_block(
 			chain.chain_info().best_block_number,
-			|| chain.latest_storage_at(address, position),
-			|b| b.block().fields().state.storage_at(address, position)
+			|| Some(chain.latest_storage_at(address, position)),
+			|b| b.block().fields().state.storage_at(address, position).ok(),
 		)
 	}
 
-	fn nonce(&self, chain: &MiningBlockChainClient, address: &Address) -> U256 {
+	fn nonce(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<U256> {
 		self.from_pending_block(
 			chain.chain_info().best_block_number,
-			|| chain.latest_nonce(address),
-			|b| b.block().fields().state.nonce(address)
+			|| Some(chain.latest_nonce(address)),
+			|b| b.block().fields().state.nonce(address).ok(),
 		)
 	}
 
-	fn code(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<Bytes> {
+	fn code(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<Option<Bytes>> {
 		self.from_pending_block(
 			chain.chain_info().best_block_number,
-			|| chain.latest_code(address),
-			|b| b.block().fields().state.code(address).map(|c| (*c).clone())
+			|| Some(chain.latest_code(address)),
+			|b| b.block().fields().state.code(address).ok().map(|c| c.map(|c| (&*c).clone()))
 		)
 	}
 

@@ -108,25 +108,25 @@ impl<'a, T: 'a, V: 'a, B: 'a> Externalities<'a, T, V, B>
 impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 	where T: Tracer, V: VMTracer, B: StateBackend
 {
-	fn storage_at(&self, key: &H256) -> H256 {
+	fn storage_at(&self, key: &H256) -> trie::Result<H256> {
 		self.state.storage_at(&self.origin_info.address, key)
 	}
 
-	fn set_storage(&mut self, key: H256, value: H256) {
+	fn set_storage(&mut self, key: H256, value: H256) -> trie::Result<()> {
 		self.state.set_storage(&self.origin_info.address, key, value)
 	}
 
-	fn exists(&self, address: &Address) -> bool {
+	fn exists(&self, address: &Address) -> trie::Result<bool> {
 		self.state.exists(address)
 	}
 
-	fn exists_and_not_null(&self, address: &Address) -> bool {
+	fn exists_and_not_null(&self, address: &Address) -> trie::Result<bool> {
 		self.state.exists_and_not_null(address)
 	}
 
-	fn origin_balance(&self) -> U256 { self.balance(&self.origin_info.address) }
+	fn origin_balance(&self) -> trie::Result<U256> { self.balance(&self.origin_info.address) }
 
-	fn balance(&self, address: &Address) -> U256 {
+	fn balance(&self, address: &Address) -> trie::Result<U256> {
 		self.state.balance(address)
 	}
 
@@ -149,7 +149,13 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 
 	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
 		// create new contract address
-		let address = contract_address(&self.origin_info.address, &self.state.nonce(&self.origin_info.address));
+		let address = match self.state.nonce(&self.origin_info.address) {
+			Ok(nonce) => contract_address(&self.origin_info.address, &nonce),
+			Err(e) => {
+				debug!(target: "ext", "Database corruption encountered: {:?}", e);
+				return ContractCreateResult::Failed
+			}
+		};
 
 		// prepare the params
 		let params = ActionParams {
@@ -166,7 +172,10 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			call_type: CallType::None,
 		};
 
-		self.state.inc_nonce(&self.origin_info.address);
+		if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
+			debug!(target: "ext", "Database corruption encountered: {:?}", e);
+			return ContractCreateResult::Failed
+		}
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.vm_factory, self.depth);
 
 		// TODO: handle internal error separately
@@ -191,6 +200,14 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 	) -> MessageCallResult {
 		trace!(target: "externalities", "call");
 
+		let code_res = self.state.code(code_address)
+			.and_then(|code| self.state.code_hash(code_address).map(|hash| (code, hash)));
+
+		let (code, code_hash) = match code_res {
+			Ok((code, hash)) => (code, hash),
+			Err(_) => return MessageCallResult::Failed,
+		};
+
 		let mut params = ActionParams {
 			sender: sender_address.clone(),
 			address: receive_address.clone(),
@@ -199,8 +216,8 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			origin: self.origin_info.origin.clone(),
 			gas: *gas,
 			gas_price: self.origin_info.gas_price,
-			code: self.state.code(code_address),
-			code_hash: self.state.code_hash(code_address),
+			code: code,
+			code_hash: code_hash,
 			data: Some(data.to_vec()),
 			call_type: call_type,
 		};
@@ -217,12 +234,12 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		}
 	}
 
-	fn extcode(&self, address: &Address) -> Arc<Bytes> {
-		self.state.code(address).unwrap_or_else(|| Arc::new(vec![]))
+	fn extcode(&self, address: &Address) -> trie::Result<Arc<Bytes>> {
+		Ok(self.state.code(address)?.unwrap_or_else(|| Arc::new(vec![])))
 	}
 
-	fn extcodesize(&self, address: &Address) -> usize {
-		self.state.code_size(address).unwrap_or(0)
+	fn extcodesize(&self, address: &Address) -> trie::Result<usize> {
+		Ok(self.state.code_size(address)?.unwrap_or(0))
 	}
 
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
@@ -257,10 +274,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 
 				handle_copy(copy);
 
-				let mut code = vec![];
-				code.extend_from_slice(data);
-
-				self.state.init_code(&self.origin_info.address, code);
+				self.state.init_code(&self.origin_info.address, data.to_vec())?;
 				Ok(*gas - return_cost)
 			}
 		}
@@ -277,19 +291,26 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		});
 	}
 
-	fn suicide(&mut self, refund_address: &Address) {
+	fn suicide(&mut self, refund_address: &Address) -> trie::Result<()> {
 		let address = self.origin_info.address.clone();
-		let balance = self.balance(&address);
+		let balance = self.balance(&address)?;
 		if &address == refund_address {
 			// TODO [todr] To be consistent with CPP client we set balance to 0 in that case.
-			self.state.sub_balance(&address, &balance);
+			self.state.sub_balance(&address, &balance)?;
 		} else {
 			trace!(target: "ext", "Suiciding {} -> {} (xfer: {})", address, refund_address, balance);
-			self.state.transfer_balance(&address, refund_address, &balance, self.substate.to_cleanup_mode(&self.schedule));
+			self.state.transfer_balance(
+				&address,
+				refund_address,
+				&balance,
+				self.substate.to_cleanup_mode(&self.schedule)
+			)?;
 		}
 
 		self.tracer.trace_suicide(address, balance, refund_address.clone());
 		self.substate.suicides.insert(address);
+
+		Ok(())
 	}
 
 	fn schedule(&self) -> &Schedule {

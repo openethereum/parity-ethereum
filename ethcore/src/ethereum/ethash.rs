@@ -215,8 +215,14 @@ impl Engine for Ethash {
 //			if block.fields().header.gas_limit() <= 4_000_000.into() {
 				let mut state = block.fields_mut().state;
 				for child in &self.ethash_params.dao_hardfork_accounts {
-					let b = state.balance(child);
-					state.transfer_balance(child, &self.ethash_params.dao_hardfork_beneficiary, &b, CleanupMode::NoEmpty);
+					let beneficiary = &self.ethash_params.dao_hardfork_beneficiary;
+					let res = state.balance(child)
+						.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty));
+
+					if let Err(e) = res {
+						warn!("Unable to apply DAO hardfork due to database corruption.");
+						warn!("Your node is now likely out of consensus.");
+					}
 				}
 //			}
 		}

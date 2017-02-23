@@ -169,22 +169,16 @@ impl Account {
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	/// Takes modifed storage into account.
-	pub fn storage_at(&self, db: &HashDB, key: &H256) -> H256 {
+	pub fn storage_at(&self, db: &HashDB, key: &H256) -> trie::Result<H256> {
 		if let Some(value) = self.cached_storage_at(key) {
-			return value;
+			return Ok(value);
 		}
-		let db = SecTrieDB::new(db, &self.storage_root)
-			.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
-			SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
-			using it will not fail.");
+		let db = SecTrieDB::new(db, &self.storage_root)?;
 
-		let item: U256 = match db.get_with(key, ::rlp::decode) {
-			Ok(x) => x.unwrap_or_else(U256::zero),
-			Err(e) => panic!("Encountered potential DB corruption: {}", e),
-		};
+		let item: U256 = db.get_with(key, ::rlp::decode)?.unwrap_or_else(U256::zero);
 		let value: H256 = item.into();
 		self.storage_cache.borrow_mut().insert(key.clone(), value.clone());
-		value
+		Ok(value)
 	}
 
 	/// Get cached storage value if any. Returns `None` if the
@@ -345,24 +339,19 @@ impl Account {
 	}
 
 	/// Commit the `storage_changes` to the backing DB and update `storage_root`.
-	pub fn commit_storage(&mut self, trie_factory: &TrieFactory, db: &mut HashDB) {
-		let mut t = trie_factory.from_existing(db, &mut self.storage_root)
-			.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
-				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
-				using it will not fail.");
+	pub fn commit_storage(&mut self, trie_factory: &TrieFactory, db: &mut HashDB) -> trie::Result<()> {
+		let mut t = trie_factory.from_existing(db, &mut self.storage_root)?;
 		for (k, v) in self.storage_changes.drain() {
 			// cast key and value to trait type,
 			// so we can call overloaded `to_bytes` method
-			let res = match v.is_zero() {
-				true => t.remove(&k),
-				false => t.insert(&k, &encode(&U256::from(&*v))),
+			match v.is_zero() {
+				true => t.remove(&k)?,
+				false => t.insert(&k, &encode(&U256::from(&*v)))?,
 			};
 
-			if let Err(e) = res {
-				warn!("Encountered potential DB corruption: {}", e);
-			}
 			self.storage_cache.borrow_mut().insert(k, v);
 		}
+		Ok(())
 	}
 
 	/// Commit any unsaved code. `code_hash` will always return the hash of the `code_cache` after this.
