@@ -32,6 +32,8 @@ export default class AccountDetailsGeth extends Component {
   render () {
     const { gethAccountsAvailable, gethImported } = this.props.store;
 
+    const accounts = gethAccountsAvailable.filter((account) => gethImported.includes(account.address));
+
     return (
       <div>
         <div className={ styles.summary }>
@@ -44,7 +46,7 @@ export default class AccountDetailsGeth extends Component {
           />
         </div>
         <SectionList
-          items={ gethAccountsAvailable.filter((account) => gethImported.includes(account.address)) }
+          items={ accounts }
           noStretch
           renderItem={ this.renderAccount }
         />
