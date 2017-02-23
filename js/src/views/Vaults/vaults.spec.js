@@ -42,7 +42,7 @@ function render (props = {}) {
   return component;
 }
 
-describe('modals/Vaults', () => {
+describe('views/Vaults', () => {
   beforeEach(() => {
     render();
   });

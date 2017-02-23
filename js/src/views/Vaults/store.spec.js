@@ -626,5 +626,25 @@ describe('modals/Vaults/Store', () => {
         expect(api.parity.changeVault).to.have.been.calledWith('C', '');
       });
     });
+
+    describe('moveAccount', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setBusyAccounts');
+
+        return store.moveAccount('testVault', 'A');
+      });
+
+      afterEach(() => {
+        store.setBusyAccounts.restore();
+      });
+
+      it('sets the busy flag', () => {
+        expect(store.setBusyAccounts).to.have.been.calledWith(true);
+      });
+
+      it('calls into parity_changeVault', () => {
+        expect(api.parity.changeVault).to.have.been.calledWith('A', 'testVault');
+      });
+    });
   });
 });

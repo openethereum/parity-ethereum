@@ -23,7 +23,9 @@ import { bindActionCreators } from 'redux';
 import { newError } from '~/redux/actions';
 import { Button, Form, Input, InputAddress, InputChip, Portal } from '~/ui';
 import { CancelIcon, SaveIcon } from '~/ui/Icons';
+import VaultStore from '~/views/Vaults/store';
 
+import VaultSelector from '../VaultSelector';
 import Store from './store';
 
 @observer
@@ -39,6 +41,11 @@ class EditMeta extends Component {
   }
 
   store = new Store(this.context.api, this.props.account);
+  vaultStore = VaultStore.get(this.context.api);
+
+  componentWillMount () {
+    this.vaultStore.loadVaults();
+  }
 
   render () {
     const { description, name, nameError, tags } = this.store;
@@ -55,6 +62,7 @@ class EditMeta extends Component {
           />
         }
       >
+        { this.renderVaultSelector() }
         <Form>
           <Input
             error={ nameError }
@@ -155,7 +163,7 @@ class EditMeta extends Component {
   }
 
   renderVault () {
-    const { isAccount, meta } = this.store;
+    const { isAccount, vaultName } = this.store;
 
     if (!isAccount) {
       return null;
@@ -178,7 +186,25 @@ class EditMeta extends Component {
             defaultMessage='associated vault'
           />
         }
-        value={ meta.vault }
+        onClick={ this.toggleVaultSelector }
+        value={ vaultName }
+      />
+    );
+  }
+
+  renderVaultSelector () {
+    const { isAccount, isVaultSelectorOpen, vaultName } = this.store;
+
+    if (!isAccount || !isVaultSelectorOpen) {
+      return null;
+    }
+
+    return (
+      <VaultSelector
+        onClose={ this.toggleVaultSelector }
+        onSelect={ this.setVaultName }
+        selected={ vaultName }
+        vaultStore={ this.vaultStore }
       />
     );
   }
@@ -188,16 +214,34 @@ class EditMeta extends Component {
   }
 
   onSave = () => {
+    const { address, isAccount, meta, vaultName } = this.store;
+
     if (this.store.hasError) {
       return;
     }
 
     return this.store
       .save()
+      .then(() => {
+        if (isAccount && (meta.vault !== vaultName)) {
+          return this.vaultStore.moveAccount(vaultName, address);
+        }
+
+        return true;
+      })
       .then(this.onClose)
       .catch((error) => {
         this.props.newError(error);
       });
+  }
+
+  setVaultName = (vaultName) => {
+    this.store.setVaultName(vaultName);
+    this.toggleVaultSelector();
+  }
+
+  toggleVaultSelector = () => {
+    this.store.toggleVaultSelector();
   }
 }
 

@@ -393,8 +393,28 @@ export default class Store {
         outAccounts.map((address) => this._api.parity.changeVault(address, ''))
       ])
       .then(this.loadVaults)
+      .then(() => {
+        this.setBusyAccounts(false);
+      })
       .catch((error) => {
         console.error('moveAccounts', error);
+        this.setBusyAccounts(false);
+        throw error;
+      });
+  }
+
+  moveAccount (vaultName, address) {
+    this.setBusyAccounts(true);
+
+    return this._api.parity
+      .changeVault(address, vaultName)
+      .then(this.loadVaults)
+      .then(() => {
+        this.setBusyAccounts(false);
+      })
+      .catch((error) => {
+        console.error('moveAccount', error);
+        this.setBusyAccounts(false);
         throw error;
       });
   }
