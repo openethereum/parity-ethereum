@@ -65,7 +65,7 @@ export default class AddAddress extends Component {
   renderDialogActions () {
     const { hasError } = this.store;
 
-    return ([
+    return [
       <Button
         icon={ <CancelIcon /> }
         label={
@@ -89,7 +89,7 @@ export default class AddAddress extends Component {
         onClick={ this.onAdd }
         ref='addButton'
       />
-    ]);
+    ];
   }
 
   renderFields () {
@@ -99,6 +99,7 @@ export default class AddAddress extends Component {
       <Form>
         <InputAddress
           allowCopy={ false }
+          sutoFocus
           disabled={ !!this.props.address }
           error={ addressError }
           hint={
