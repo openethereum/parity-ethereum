@@ -160,6 +160,7 @@ class AddContract extends Component {
     return (
       <Form>
         <InputAddress
+          autoFocus
           error={ addressError }
           hint={
             <FormattedMessage
