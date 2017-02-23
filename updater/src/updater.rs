@@ -266,9 +266,10 @@ impl Updater {
 				}
 			);
 			let mut s = self.state.lock();
+			let running_later = latest.track.version.version < self.version_info().version;
 			let running_latest = latest.track.version.hash == self.version_info().hash;
 			let already_have_latest = s.installed.as_ref().or(s.ready.as_ref()).map_or(false, |t| *t == latest.track);
-			if self.update_policy.enable_downloading && !running_latest && !already_have_latest {
+			if self.update_policy.enable_downloading && !running_later && !running_latest && !already_have_latest {
 				if let Some(b) = latest.track.binary {
 					if s.fetching.is_none() {
 						info!(target: "updater", "Attempting to get parity binary {}", b);
