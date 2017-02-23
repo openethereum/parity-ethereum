@@ -64,12 +64,21 @@ describe('modals/CreateAccount/Store', () => {
 
   describe('@action', () => {
     describe('clearErrors', () => {
+      beforeEach(() => {
+        store.setName('testing');
+        store.setPassword('testing');
+        store.setVaultName('testing');
+      });
+
       it('clears all errors', () => {
         store.clearErrors();
 
+        expect(store.name).to.equal('');
         expect(store.nameError).to.be.null;
+        expect(store.password).to.equal('');
         expect(store.passwordRepeatError).to.be.null;
         expect(store.rawKeyError).to.be.null;
+        expect(store.vaultName).to.equal('');
         expect(store.walletFileError).to.be.null;
       });
     });
@@ -184,6 +193,13 @@ describe('modals/CreateAccount/Store', () => {
       it('changes to the provided stage', () => {
         store.setStage(2);
         expect(store.stage).to.equal(2);
+      });
+    });
+
+    describe('setVaultName', () => {
+      it('sets the vault name', () => {
+        store.setVaultName('testVault');
+        expect(store.vaultName).to.equal('testVault');
       });
     });
 

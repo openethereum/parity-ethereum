@@ -44,6 +44,7 @@ export default class Store {
   @observable rawKey = '';
   @observable rawKeyError = ERRORS.nokey;
   @observable stage = STAGE_SELECT_TYPE;
+  @observable vaultName = '';
   @observable walletFile = '';
   @observable walletFileError = ERRORS.noFile;
   @observable walletJson = '';
@@ -90,8 +91,10 @@ export default class Store {
     transaction(() => {
       this.password = '';
       this.passwordRepeat = '';
+      this.name = '';
       this.nameError = null;
       this.rawKeyError = null;
+      this.vaultName = '';
       this.walletFileError = null;
     });
   }
@@ -127,6 +130,10 @@ export default class Store {
 
   @action setGethImported = (gethImported) => {
     this.gethImported = gethImported;
+  }
+
+  @action setVaultName = (vaultName) => {
+    this.vaultName = vaultName;
   }
 
   @action setWindowsPhrase = (isWindowsPhrase = false) => {
