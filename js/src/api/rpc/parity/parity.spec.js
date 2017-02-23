@@ -73,6 +73,21 @@ describe('api/rpc/parity', () => {
     });
   });
 
+  describe('importGethAccounts', () => {
+    const ACCOUNTS = ['0x63cf90d3f0410092fc0fca41846f596223979195'];
+    let scope;
+
+    beforeEach(() => {
+      scope = mockHttp([{ method: 'parity_importGethAccounts', reply: { result: ACCOUNTS } }]);
+    });
+
+    it('passes the addresses through', () => {
+      return instance.importGethAccounts(ACCOUNTS).then((result) => {
+        expect(scope.body['parity_importGethAccounts'].params).to.deep.equal([ACCOUNTS]);
+      });
+    });
+  });
+
   describe('minGasPrice', () => {
     it('returns the min gasprice, formatted', () => {
       mockHttp([{ method: 'parity_minGasPrice', reply: { result: '0x123456' } }]);
