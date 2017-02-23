@@ -37,7 +37,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use provider::Provider;
 use request::{self, HashOrNumber, Request};
 
-use self::buffer_flow::{Buffer, FlowParams};
+use self::request_credits::{Credits, FlowParams};
 use self::context::{Ctx, TickCtx};
 use self::error::Punishment;
 use self::request_set::RequestSet;
@@ -51,7 +51,7 @@ mod request_set;
 #[cfg(test)]
 mod tests;
 
-pub mod buffer_flow;
+pub mod request_credits;
 
 pub use self::error::Error;
 pub use self::context::{BasicContext, EventContext, IoContext};
@@ -143,10 +143,10 @@ struct PendingPeer {
 /// Relevant data to each peer. Not accessible publicly, only `pub` due to
 /// limitations of the privacy system.
 pub struct Peer {
-	local_buffer: Buffer, // their buffer relative to us
+	local_credits: Credits, // their credits relative to us
 	status: Status,
 	capabilities: Capabilities,
-	remote_flow: Option<(Buffer, FlowParams)>,
+	remote_flow: Option<(Credits, FlowParams)>,
 	sent_head: H256, // last chain head we've given them.
 	last_update: SteadyTime,
 	pending_requests: RequestSet,
@@ -155,21 +155,21 @@ pub struct Peer {
 
 impl Peer {
 	// check the maximum cost of a request, returning an error if there's
-	// not enough buffer left.
+	// not enough credits left.
 	// returns the calculated maximum cost.
 	fn deduct_max(&mut self, flow_params: &FlowParams, kind: request::Kind, max: usize) -> Result<U256, Error> {
-		flow_params.recharge(&mut self.local_buffer);
+		flow_params.recharge(&mut self.local_credits);
 
 		let max_cost = flow_params.compute_cost(kind, max);
-		self.local_buffer.deduct_cost(max_cost)?;
+		self.local_credits.deduct_cost(max_cost)?;
 		Ok(max_cost)
 	}
 
-	// refund buffer for a request. returns new buffer amount.
+	// refund credits for a request. returns new amount of credits.
 	fn refund(&mut self, flow_params: &FlowParams, amount: U256) -> U256 {
-		flow_params.refund(&mut self.local_buffer, amount);
+		flow_params.refund(&mut self.local_credits, amount);
 
-		self.local_buffer.current()
+		self.local_credits.current()
 	}
 }
 
@@ -218,7 +218,7 @@ pub trait Handler: Send + Sync {
 pub struct Params {
 	/// Network id.
 	pub network_id: u64,
-	/// Buffer flow parameters.
+	/// Request credits parameters.
 	pub flow_params: FlowParams,
 	/// Initial capabilities.
 	pub capabilities: Capabilities,
@@ -324,14 +324,14 @@ impl LightProtocol {
 
 	/// Check the maximum amount of requests of a specific type
 	/// which a peer would be able to serve. Returns zero if the
-	/// peer is unknown or has no buffer flow parameters.
+	/// peer is unknown or has no credit parameters.
 	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
 		self.peers.read().get(&peer).and_then(|peer| {
 			let mut peer = peer.lock();
 			match peer.remote_flow {
-				Some((ref mut buf, ref flow)) => {
-					flow.recharge(buf);
-					Some(flow.max_amount(&*buf, kind))
+				Some((ref mut c, ref flow)) => {
+					flow.recharge(c);
+					Some(flow.max_amount(&*c, kind))
 				}
 				None => None,
 			}
@@ -341,7 +341,7 @@ impl LightProtocol {
 	/// Make a request to a peer.
 	///
 	/// Fails on: nonexistent peer, network error, peer not server,
-	/// insufficient buffer. Does not check capabilities before sending.
+	/// insufficient credits. Does not check capabilities before sending.
 	/// On success, returns a request id which can later be coordinated
 	/// with an event.
 	pub fn request_from(&self, io: &IoContext, peer_id: &PeerId, request: Request) -> Result<ReqId, Error> {
@@ -350,10 +350,10 @@ impl LightProtocol {
 		let mut peer = peer.lock();
 
 		match peer.remote_flow {
-			Some((ref mut buf, ref flow)) => {
-				flow.recharge(buf);
+			Some((ref mut c, ref flow)) => {
+				flow.recharge(c);
 				let max = flow.compute_cost(request.kind(), request.amount());
-				buf.deduct_cost(max)?;
+				c.deduct_cost(max)?;
 			}
 			None => return Err(Error::NotServer),
 		}
@@ -454,7 +454,7 @@ impl LightProtocol {
 	//   - check whether request kinds match
 	fn pre_verify_response(&self, peer: &PeerId, kind: request::Kind, raw: &UntrustedRlp) -> Result<IdGuard, Error> {
 		let req_id = ReqId(raw.val_at(0)?);
-		let cur_buffer: U256 = raw.val_at(1)?;
+		let cur_credits: U256 = raw.val_at(1)?;
 
 		trace!(target: "les", "pre-verifying response from peer {}, kind={:?}", peer, kind);
 
@@ -470,9 +470,9 @@ impl LightProtocol {
 					(Some(request), Some(flow_info)) => {
 						had_req = true;
 
-						let &mut (ref mut buf, ref mut flow) = flow_info;
-						let actual_buffer = ::std::cmp::min(cur_buffer, *flow.limit());
-						buf.update_to(actual_buffer);
+						let &mut (ref mut c, ref mut flow) = flow_info;
+						let actual_credits = ::std::cmp::min(cur_credits, *flow.limit());
+						c.update_to(actual_credits);
 
 						if request.kind() != kind {
 							Some(Error::UnsolicitedResponse)
@@ -675,10 +675,10 @@ impl LightProtocol {
 			return Err(Error::BadProtocolVersion);
 		}
 
-		let remote_flow = flow_params.map(|params| (params.create_buffer(), params));
+		let remote_flow = flow_params.map(|params| (params.create_credits(), params));
 
 		self.peers.write().insert(*peer, Mutex::new(Peer {
-			local_buffer: self.flow_params.create_buffer(),
+			local_credits: self.flow_params.create_credits(),
 			status: status.clone(),
 			capabilities: capabilities.clone(),
 			remote_flow: remote_flow,
@@ -783,10 +783,10 @@ impl LightProtocol {
 		let actual_cost = self.flow_params.compute_cost(request::Kind::Headers, response.len());
 		assert!(max_cost >= actual_cost, "Actual cost exceeded maximum computed cost.");
 
-		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
+		let cur_credits = peer.refund(&self.flow_params, max_cost - actual_cost);
 		io.respond(packet::BLOCK_HEADERS, {
 			let mut stream = RlpStream::new_list(3);
-			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
+			stream.append(&req_id).append(&cur_credits).begin_list(response.len());
 
 			for header in response {
 				stream.append_raw(&header.into_inner(), 1);
@@ -845,11 +845,11 @@ impl LightProtocol {
 		let actual_cost = self.flow_params.compute_cost(request::Kind::Bodies, response_len);
 		assert!(max_cost >= actual_cost, "Actual cost exceeded maximum computed cost.");
 
-		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
+		let cur_credits = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::BLOCK_BODIES, {
 			let mut stream = RlpStream::new_list(3);
-			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
+			stream.append(&req_id).append(&cur_credits).begin_list(response.len());
 
 			for body in response {
 				match body {
@@ -911,11 +911,11 @@ impl LightProtocol {
 		let actual_cost = self.flow_params.compute_cost(request::Kind::Receipts, response_len);
 		assert!(max_cost >= actual_cost, "Actual cost exceeded maximum computed cost.");
 
-		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
+		let cur_credits = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::RECEIPTS, {
 			let mut stream = RlpStream::new_list(3);
-			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
+			stream.append(&req_id).append(&cur_credits).begin_list(response.len());
 
 			for receipts in response {
 				stream.append_raw(&receipts, 1);
@@ -985,11 +985,11 @@ impl LightProtocol {
 		let actual_cost = self.flow_params.compute_cost(request::Kind::StateProofs, response_len);
 		assert!(max_cost >= actual_cost, "Actual cost exceeded maximum computed cost.");
 
-		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
+		let cur_credits = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::PROOFS, {
 			let mut stream = RlpStream::new_list(3);
-			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
+			stream.append(&req_id).append(&cur_credits).begin_list(response.len());
 
 			for proof in response {
 				stream.append_raw(&proof, 1);
@@ -1057,11 +1057,11 @@ impl LightProtocol {
 		let actual_cost = self.flow_params.compute_cost(request::Kind::Codes, response_len);
 		assert!(max_cost >= actual_cost, "Actual cost exceeded maximum computed cost.");
 
-		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
+		let cur_credits = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::CONTRACT_CODES, {
 			let mut stream = RlpStream::new_list(3);
-			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
+			stream.append(&req_id).append(&cur_credits).begin_list(response.len());
 
 			for code in response {
 				stream.append(&code);
@@ -1130,11 +1130,11 @@ impl LightProtocol {
 		let actual_cost = self.flow_params.compute_cost(request::Kind::HeaderProofs, response_len);
 		assert!(max_cost >= actual_cost, "Actual cost exceeded maximum computed cost.");
 
-		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
+		let cur_credits = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::HEADER_PROOFS, {
 			let mut stream = RlpStream::new_list(3);
-			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
+			stream.append(&req_id).append(&cur_credits).begin_list(response.len());
 
 			for proof in response {
 				stream.append_raw(&proof, 1);

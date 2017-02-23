@@ -27,7 +27,7 @@ use ethcore::spec::Spec;
 use io::IoChannel;
 use light::client::Client as LightClient;
 use light::net::{LightProtocol, IoContext, Capabilities, Params as LightParams};
-use light::net::buffer_flow::FlowParams;
+use light::net::request_credits::FlowParams;
 use network::{NodeId, PeerId};
 use util::RwLock;
 

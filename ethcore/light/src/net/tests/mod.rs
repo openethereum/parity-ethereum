@@ -24,7 +24,7 @@ use ethcore::transaction::PendingTransaction;
 use ethcore::encoded;
 use network::{PeerId, NodeId};
 
-use net::buffer_flow::FlowParams;
+use net::request_credits::FlowParams;
 use net::context::IoContext;
 use net::status::{Capabilities, Status, write_handshake};
 use net::{encode_request, LightProtocol, Params, packet, Peer};
@@ -203,7 +203,7 @@ fn genesis_mismatch() {
 }
 
 #[test]
-fn buffer_overflow() {
+fn credit_overflow() {
 	let flow_params = make_flow_params();
 	let capabilities = capabilities();
 
@@ -268,11 +268,11 @@ fn get_block_headers() {
 		let headers: Vec<_> = (0..10).map(|i| provider.client.block_header(BlockId::Number(i + 1)).unwrap()).collect();
 		assert_eq!(headers.len(), 10);
 
-		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Headers, 10);
+		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::Headers, 10);
 
 		let mut response_stream = RlpStream::new_list(3);
 
-		response_stream.append(&req_id).append(&new_buf).begin_list(10);
+		response_stream.append(&req_id).append(&new_creds).begin_list(10);
 		for header in headers {
 			response_stream.append_raw(&header.into_inner(), 1);
 		}
@@ -317,11 +317,11 @@ fn get_block_bodies() {
 		let bodies: Vec<_> = (0..10).map(|i| provider.client.block_body(BlockId::Number(i + 1)).unwrap()).collect();
 		assert_eq!(bodies.len(), 10);
 
-		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Bodies, 10);
+		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::Bodies, 10);
 
 		let mut response_stream = RlpStream::new_list(3);
 
-		response_stream.append(&req_id).append(&new_buf).begin_list(10);
+		response_stream.append(&req_id).append(&new_creds).begin_list(10);
 		for body in bodies {
 			response_stream.append_raw(&body.into_inner(), 1);
 		}
@@ -371,11 +371,11 @@ fn get_block_receipts() {
 			.map(|hash| provider.client.block_receipts(hash).unwrap())
 			.collect();
 
-		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Receipts, receipts.len());
+		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::Receipts, receipts.len());
 
 		let mut response_stream = RlpStream::new_list(3);
 
-		response_stream.append(&req_id).append(&new_buf).begin_list(receipts.len());
+		response_stream.append(&req_id).append(&new_creds).begin_list(receipts.len());
 		for block_receipts in receipts {
 			response_stream.append_raw(&block_receipts, 1);
 		}
@@ -420,11 +420,11 @@ fn get_state_proofs() {
 			vec![::util::sha3::SHA3_NULL_RLP.to_vec()],
 		];
 
-		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::StateProofs, 2);
+		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::StateProofs, 2);
 
 		let mut response_stream = RlpStream::new_list(3);
 
-		response_stream.append(&req_id).append(&new_buf).begin_list(2);
+		response_stream.append(&req_id).append(&new_creds).begin_list(2);
 		for proof in proofs {
 			response_stream.begin_list(proof.len());
 			for node in proof {
@@ -472,11 +472,11 @@ fn get_contract_code() {
             key2.iter().chain(key2.iter()).cloned().collect(),
 		];
 
-		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Codes, 2);
+		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::Codes, 2);
 
 		let mut response_stream = RlpStream::new_list(3);
 
-		response_stream.append(&req_id).append(&new_buf).begin_list(2);
+		response_stream.append(&req_id).append(&new_creds).begin_list(2);
 		for code in codes {
 			response_stream.append(&code);
 		}
@@ -515,10 +515,10 @@ fn id_guard() {
 	pending_requests.insert(req_id_2, req, ::time::SteadyTime::now());
 
 	proto.peers.write().insert(peer_id, ::util::Mutex::new(Peer {
-		local_buffer: flow_params.create_buffer(),
+		local_credits: flow_params.create_credits(),
 		status: status(provider.client.chain_info()),
 		capabilities: capabilities.clone(),
-		remote_flow: Some((flow_params.create_buffer(), flow_params)),
+		remote_flow: Some((flow_params.create_credits(), flow_params)),
 		sent_head: provider.client.chain_info().best_block_hash,
 		last_update: ::time::SteadyTime::now(),
 		pending_requests: pending_requests,
