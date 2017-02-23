@@ -62,7 +62,7 @@ describe('ui/Form/VaultSelect', () => {
       let input;
 
       beforeEach(() => {
-        input = component.find('InputAddress');
+        input = component.find('Connect(InputAddress)');
       });
 
       it('renders', () => {
