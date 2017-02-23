@@ -480,6 +480,7 @@ docker-build:
     - scripts/docker-build.sh $DOCKER_TAG
   tags:
     - docker
+allow_failure: true
 test-darwin:
   stage: test
   only:
