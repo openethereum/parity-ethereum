@@ -48,6 +48,8 @@ export default class Header extends Component {
     const { address } = account;
     const meta = account.meta || {};
 
+    console.log('meta', meta);
+
     return (
       <div className={ className }>
         <Container>
@@ -65,6 +67,7 @@ export default class Header extends Component {
               <CopyToClipboard data={ address } />
               <div className={ styles.address }>{ address }</div>
             </div>
+            { this.renderVault() }
             { this.renderUuid() }
             <div className={ styles.infoline }>
               { meta.description }
@@ -151,6 +154,27 @@ export default class Header extends Component {
             uuid
           } }
         />
+      </div>
+    );
+  }
+
+  renderVault () {
+    const { account } = this.props;
+    const { meta } = account;
+
+    if (!meta || !meta.vault) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.vault }>
+        <IdentityIcon
+          address={ meta.vault }
+          inline
+        />
+        <div className={ styles.text }>
+          { meta.vault }
+        </div>
       </div>
     );
   }

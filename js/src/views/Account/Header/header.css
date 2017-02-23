@@ -36,6 +36,7 @@
 .addressline,
 .infoline,
 .uuidline,
+.vault,
 .title {
   margin-left: 72px;
 }
@@ -57,6 +58,15 @@
 
 .uuidline {
   display: inline-block;
+}
+
+.vault {
+  line-height: 32px;
+
+  .text {
+    display: inline-block;
+    opacity: 0.25;
+  }
 }
 
 .addressline {
