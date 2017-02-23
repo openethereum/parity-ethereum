@@ -48,10 +48,9 @@ export default class VaultSelector extends Component {
   }
 
   renderList () {
-    const { vaults } = this.props.vaultStore;
-    const openVaults = vaults.filter((vault) => vault.isOpen);
+    const { vaultsOpened } = this.props.vaultStore;
 
-    if (openVaults.length === 0) {
+    if (vaultsOpened.length === 0) {
       return (
         <FormattedMessage
           id='vaults.selector.noneAvailable'
@@ -62,7 +61,7 @@ export default class VaultSelector extends Component {
 
     return (
       <SelectionList
-        items={ openVaults }
+        items={ vaultsOpened }
         isChecked={ this.isSelected }
         noStretch
         onSelectClick={ this.onSelect }

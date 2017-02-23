@@ -180,6 +180,12 @@ describe('modals/Vaults/Store', () => {
           { name: 'some', meta: 'metaSome', isOpen: false }
         ]);
       });
+
+      it('sets the opened vaults', () => {
+        expect(store.vaultsOpened.peek()).to.deep.equal([
+          { name: 'TEST', meta: 'metaTest', isOpen: true }
+        ]);
+      });
     });
 
     describe('setVaultDescription', () => {
