@@ -21,7 +21,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { Button, Form, Input, InputChip, Portal } from '~/ui';
+import { Button, Form, Input, InputAddress, InputChip, Portal } from '~/ui';
 import { CancelIcon, SaveIcon } from '~/ui/Icons';
 
 import Store from './store';
@@ -101,6 +101,7 @@ class EditMeta extends Component {
             onTokensChange={ this.store.setTags }
             tokens={ tags.slice() }
           />
+          { this.renderVault() }
         </Form>
       </Portal>
     );
@@ -149,6 +150,35 @@ class EditMeta extends Component {
         }
         value={ passwordHint }
         onSubmit={ this.store.setPasswordHint }
+      />
+    );
+  }
+
+  renderVault () {
+    const { isAccount, meta } = this.store;
+
+    if (!isAccount) {
+      return null;
+    }
+
+    return (
+      <InputAddress
+        allowCopy={ false }
+        allowInvalid
+        disabled
+        hint={
+          <FormattedMessage
+            id='editMeta.vault.hint'
+            defaultMessage='the vault this account is attached to'
+          />
+        }
+        label={
+          <FormattedMessage
+            id='editMeta.vault.label'
+            defaultMessage='associated vault'
+          />
+        }
+        value={ meta.vault }
       />
     );
   }

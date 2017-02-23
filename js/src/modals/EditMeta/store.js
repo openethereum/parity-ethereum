@@ -34,10 +34,10 @@ export default class Store {
     this._api = api;
 
     transaction(() => {
-      this.isAccount = !!uuid;
       this.address = address;
       this.meta = meta || {};
       this.name = name || '';
+      this.isAccount = !!uuid || meta.hardware;
 
       this.description = this.meta.description || '';
       this.passwordHint = this.meta.passwordHint || '';
