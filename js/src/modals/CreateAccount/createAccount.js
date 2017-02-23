@@ -139,7 +139,7 @@ export default class CreateAccount extends Component {
       case 2:
         if (createType === 'fromGeth') {
           return (
-            <AccountDetailsGeth addresses={ this.state.gethAddresses } />
+            <AccountDetailsGeth addresses={ this.state.gethImported } />
           );
         }
 
@@ -310,10 +310,14 @@ export default class CreateAccount extends Component {
     if (createType === 'fromGeth') {
       return api.parity
         .importGethAccounts(this.state.gethAddresses)
-        .then((result) => {
-          console.log('result', result);
+        .then((gethImported) => {
+          console.log('importGethAccounts', gethImported);
 
-          return Promise.all(this.state.gethAddresses.map((address) => {
+          this.setState({
+            gethImported
+          });
+
+          return Promise.all(gethImported.map((address) => {
             return api.parity.setAccountName(address, 'Geth Import');
           }));
         })

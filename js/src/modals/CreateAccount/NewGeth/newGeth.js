@@ -106,7 +106,7 @@ export default class NewGeth extends Component {
     api.parity
       .listGethAccounts()
       .then((_addresses) => {
-        const addresses = (addresses || []).filter((address) => !accounts[address]);
+        const addresses = (_addresses || []).filter((address) => !accounts[address]);
 
         return Promise
           .all(addresses.map((address) => api.eth.getBalance(address)))
