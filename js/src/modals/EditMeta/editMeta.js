@@ -47,11 +47,12 @@ class EditMeta extends Component {
   }
 
   render () {
-    const { description, name, nameError, tags } = this.store;
+    const { description, isBusy, name, nameError, tags } = this.store;
 
     return (
       <Portal
         buttons={ this.renderActions() }
+        busy={ isBusy }
         onClose={ this.onClose }
         open
         title={

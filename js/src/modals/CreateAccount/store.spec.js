@@ -401,12 +401,14 @@ describe('modals/CreateAccount/Store', () => {
       let createAccountFromWalletSpy;
       let createAccountFromPhraseSpy;
       let createAccountFromRawSpy;
+      let busySpy;
 
       beforeEach(() => {
         createAccountFromGethSpy = sinon.spy(store, 'createAccountFromGeth');
         createAccountFromWalletSpy = sinon.spy(store, 'createAccountFromWallet');
         createAccountFromPhraseSpy = sinon.spy(store, 'createAccountFromPhrase');
         createAccountFromRawSpy = sinon.spy(store, 'createAccountFromRaw');
+        busySpy = sinon.spy(store, 'setBusy');
       });
 
       afterEach(() => {
@@ -414,6 +416,7 @@ describe('modals/CreateAccount/Store', () => {
         store.createAccountFromWallet.restore();
         store.createAccountFromPhrase.restore();
         store.createAccountFromRaw.restore();
+        store.setBusy.restore();
       });
 
       it('throws error on invalid createType', () => {
@@ -475,6 +478,15 @@ describe('modals/CreateAccount/Store', () => {
 
         return store.createAccount(vaultStore).then(() => {
           expect(vaultStore.moveAccount).to.have.been.calledWith('testing', ADDRESS);
+        });
+      });
+
+      it('sets and rests the busy flag', () => {
+        store.setCreateType('fromNew');
+
+        return store.createAccount().then(() => {
+          expect(busySpy).to.have.been.calledWith(true);
+          expect(busySpy).to.have.been.calledWith(false);
         });
       });
 

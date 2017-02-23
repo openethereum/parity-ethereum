@@ -91,11 +91,12 @@ class CreateAccount extends Component {
   }
 
   render () {
-    const { createType, stage } = this.store;
+    const { isBusy, createType, stage } = this.store;
 
     return (
       <Portal
         buttons={ this.renderDialogActions() }
+        busy={ isBusy }
         activeStep={ stage }
         onClose={ this.onClose }
         open

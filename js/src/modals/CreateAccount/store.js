@@ -223,6 +223,8 @@ export default class Store {
   }
 
   createAccount = (vaultStore) => {
+    this.setBusy(true);
+
     return this
       ._createAccount()
       .then(() => {
@@ -231,6 +233,13 @@ export default class Store {
         }
 
         return true;
+      })
+      .then(() => {
+        this.setBusy(false);
+      })
+      .catch((error) => {
+        this.setBusy(false);
+        throw error;
       });
   }
 
