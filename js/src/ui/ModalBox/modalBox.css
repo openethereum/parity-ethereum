@@ -23,6 +23,7 @@
     flex: 1;
 
     .body {
+      width: 100%;
     }
 
     .summary {

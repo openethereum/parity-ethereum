@@ -15,13 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export AccountsIcon from 'material-ui/svg-icons/action/account-balance-wallet';
+export AddressesIcon from 'material-ui/svg-icons/communication/contacts';
 export AddIcon from 'material-ui/svg-icons/content/add';
+export AppsIcon from 'material-ui/svg-icons/navigation/apps';
 export AttachFileIcon from 'material-ui/svg-icons/editor/attach-file';
 export CancelIcon from 'material-ui/svg-icons/content/clear';
 export CheckIcon from 'material-ui/svg-icons/navigation/check';
 export CloseIcon from 'material-ui/svg-icons/navigation/close';
 export CompareIcon from 'material-ui/svg-icons/action/compare-arrows';
 export ComputerIcon from 'material-ui/svg-icons/hardware/desktop-mac';
+export ContactsIcon from 'material-ui/svg-icons/image/grid-on';
 export ContractIcon from 'material-ui/svg-icons/action/code';
 export CopyIcon from 'material-ui/svg-icons/content/content-copy';
 export DashboardIcon from 'material-ui/svg-icons/action/dashboard';
@@ -44,10 +47,12 @@ export PrintIcon from 'material-ui/svg-icons/action/print';
 export RefreshIcon from 'material-ui/svg-icons/action/autorenew';
 export SaveIcon from 'material-ui/svg-icons/content/save';
 export SendIcon from 'material-ui/svg-icons/content/send';
+export SettingsIcon from 'material-ui/svg-icons/action/settings';
 export SnoozeIcon from 'material-ui/svg-icons/av/snooze';
 export StarCircleIcon from 'material-ui/svg-icons/action/stars';
 export StarIcon from 'material-ui/svg-icons/toggle/star';
 export StarOutlineIcon from 'material-ui/svg-icons/toggle/star-border';
+export StatusIcon from 'material-ui/svg-icons/action/track-changes';
 export UnlockedIcon from 'material-ui/svg-icons/action/lock-open';
 export UpdateIcon from 'material-ui/svg-icons/action/system-update-alt';
 export UpdateWaitIcon from 'material-ui/svg-icons/action/update';
