@@ -143,7 +143,7 @@ class Addresses extends Component {
       <Button
         key='newAddress'
         icon={ <ContentAdd /> }
-        label='new address'
+        label='address'
         onClick={ this.onOpenAdd }
       />,
       <ActionbarExport
