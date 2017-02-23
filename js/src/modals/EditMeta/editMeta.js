@@ -181,21 +181,12 @@ class EditMeta extends Component {
   }
 
   onSave = () => {
-    const { address, isAccount, meta, vaultName } = this.store;
-
     if (this.store.hasError) {
       return;
     }
 
     return this.store
-      .save()
-      .then(() => {
-        if (isAccount && (meta.vault !== vaultName)) {
-          return this.vaultStore.moveAccount(vaultName, address);
-        }
-
-        return true;
-      })
+      .save(this.vaultStore)
       .then(this.onClose)
       .catch((error) => {
         this.props.newError(error);

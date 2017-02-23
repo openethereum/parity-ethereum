@@ -16,6 +16,7 @@
 */
 
 .item {
+  cursor: pointer;
   display: flex;
   flex: 1;
   height: 100%;
