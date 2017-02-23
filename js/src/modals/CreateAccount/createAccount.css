@@ -16,15 +16,34 @@
 */
 
 .details {
-  text-align: center;
-
   .info {
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
 
-    .form {
+    .account {
+      display: flex;
+      flex-direction: column;
       flex: 1;
+
+      .name {
+        display: flex;
+        flex-direction: row;
+        flex: 1;
+
+        .icon {
+          flex: 0 0 56px;
+          margin: 0 1em 0 0;
+        }
+
+        .title {
+          flex: 1;
+        }
+      }
+
+      .description {
+        flex: 1;
+      }
     }
 
     .qr {
@@ -100,16 +119,9 @@
 
   .icon {
     flex: 0 0 56px;
+    height: 56px !important;
     margin-right: 0.75em;
-
-    img {
-      margin: 0 !important;
-    }
-
-    svg {
-      height: 56px !important;
-      width: 56px !important;
-    }
+    width: 56px !important;
   }
 
   .info {

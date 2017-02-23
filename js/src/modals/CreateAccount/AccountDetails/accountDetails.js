@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Input, InputAddress, QrCode } from '~/ui';
+import { IdentityIcon, Input, QrCode, Title } from '~/ui';
 
 import styles from '../createAccount.css';
 
@@ -29,46 +29,45 @@ export default class AccountDetails extends Component {
   }
 
   render () {
-    const { address, name } = this.props.store;
+    const { address, description, name } = this.props.store;
 
     return (
       <div className={ styles.details }>
         <div className={ styles.info }>
-          <div className={ styles.form }>
-            <Input
-              allowCopy
-              hint={
-                <FormattedMessage
-                  id='createAccount.accountDetails.name.hint'
-                  defaultMessage='a descriptive name for the account'
-                />
-              }
-              label={
-                <FormattedMessage
-                  id='createAccount.accountDetails.name.label'
-                  defaultMessage='account name'
-                />
-              }
-              readOnly
-              value={ name }
-            />
-            <InputAddress
-              disabled
-              hint={
-                <FormattedMessage
-                  id='createAccount.accountDetails.address.hint'
-                  defaultMessage='the network address for the account'
-                />
-              }
-              label={
-                <FormattedMessage
-                  id='createAccount.accountDetails.address.label'
-                  defaultMessage='address'
-                />
-              }
-              value={ address }
-            />
-            { this.renderPhrase() }
+          <div className={ styles.account }>
+            <div className={ styles.name }>
+              <IdentityIcon
+                address={ address }
+                className={ styles.icon }
+                center
+              />
+              <Title
+                byline={ description }
+                className={ styles.title }
+                title={ name }
+              />
+            </div>
+            <div className={ styles.description }>
+              <Input
+                readOnly
+                hideUnderline
+                hint={
+                  <FormattedMessage
+                    id='createAccount.accountDetails.address.hint'
+                    defaultMessage='the network address for the account'
+                  />
+                }
+                label={
+                  <FormattedMessage
+                    id='createAccount.accountDetails.address.label'
+                    defaultMessage='address'
+                  />
+                }
+                value={ address }
+                allowCopy={ address }
+              />
+              { this.renderPhrase() }
+            </div>
           </div>
           <QrCode
             className={ styles.qr }

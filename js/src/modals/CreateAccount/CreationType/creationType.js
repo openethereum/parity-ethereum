@@ -28,7 +28,7 @@ const TYPES = [
     description: (
       <FormattedMessage
         id='createAccount.creationType.fromNew.description'
-        defaultMessage='Create an account by selecting your identity icon and specifying the password'
+        defaultMessage='Selecting your identity icon and specifying the password'
       />
     ),
     label: (
@@ -43,7 +43,7 @@ const TYPES = [
     description: (
       <FormattedMessage
         id='createAccount.creationType.fromPhrase.description'
-        defaultMessage='Recover an account by entering a previously stored recovery phrase and new password'
+        defaultMessage='Recover using a previously stored recovery phrase and new password'
       />
     ),
     label: (
@@ -58,7 +58,7 @@ const TYPES = [
     description: (
       <FormattedMessage
         id='createAccount.creationType.fromGeth.description'
-        defaultMessage='Import an accounts from the Geth keystore with the original password'
+        defaultMessage='Import accounts from the Geth keystore with the original password'
       />
     ),
     label: (
@@ -73,7 +73,7 @@ const TYPES = [
     description: (
       <FormattedMessage
         id='createAccount.creationType.fromJSON.description'
-        defaultMessage='Create an account by importing an industry-standard JSON keyfile'
+        defaultMessage='Import an industry-standard JSON keyfile with the original password'
       />
     ),
     label: (
@@ -88,7 +88,7 @@ const TYPES = [
     description: (
       <FormattedMessage
         id='createAccount.creationType.fromPresale.description'
-        defaultMessage='Create an account by importing an Ethereum presale wallet file'
+        defaultMessage='Import an Ethereum presale wallet file with the original password'
       />
     ),
     label: (
@@ -103,7 +103,7 @@ const TYPES = [
     description: (
       <FormattedMessage
         id='createAccount.creationType.fromRaw.description'
-        defaultMessage='Create an account by entering a previously backed-up raw private key'
+        defaultMessage='Enter a previously created raw private key with a new password'
       />
     ),
     label: (
@@ -143,6 +143,7 @@ export default class CreationType extends Component {
       <SelectionList
         isChecked={ this.isSelected }
         items={ TYPES }
+        noStretch
         onSelectClick={ this.onChange }
         renderItem={ this.renderItem }
       />
@@ -153,18 +154,16 @@ export default class CreationType extends Component {
     return (
       <Container>
         <div className={ styles.selectItem }>
-          <div className={ styles.icon }>
-            <TypeIcon
-              store={ this.props.store }
-              type={ item.key }
-            />
-          </div>
-          <div className={ styles.info }>
-            <Title
-              title={ item.label }
-              byline={ item.description }
-            />
-          </div>
+          <TypeIcon
+            className={ styles.icon }
+            store={ this.props.store }
+            type={ item.key }
+          />
+          <Title
+            byline={ item.description }
+            className={ styles.info }
+            title={ item.label }
+          />
         </div>
       </Container>
     );

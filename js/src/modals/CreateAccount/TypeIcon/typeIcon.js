@@ -16,53 +16,44 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { IdentityIcon } from '~/ui';
 import { AccountsIcon, DoneIcon, FileIcon, FileUploadIcon, KeyboardIcon, KeyIcon, MembershipIcon } from '~/ui/Icons';
 
 import { STAGE_INFO } from '../store';
 
 export default class TypeIcon extends Component {
   static propTypes = {
+    className: PropTypes.string,
     store: PropTypes.object.isRequired,
     type: PropTypes.string
   }
 
   render () {
-    const { store, type } = this.props;
-    const { address, createType, stage } = store;
+    const { className, store, type } = this.props;
+    const { createType, stage } = store;
 
     if (stage === STAGE_INFO) {
-      return (type || createType) === 'fromGeth'
-        ? (
-          <DoneIcon />
-        )
-        : (
-          <IdentityIcon
-            address={ address }
-            center
-          />
-        );
+      return <DoneIcon className={ className } />;
     }
 
     switch (type || createType) {
       case 'fromGeth':
-        return <FileUploadIcon />;
+        return <FileUploadIcon className={ className } />;
 
       case 'fromPhrase':
-        return <KeyboardIcon />;
+        return <KeyboardIcon className={ className } />;
 
       case 'fromRaw':
-        return <KeyIcon />;
+        return <KeyIcon className={ className } />;
 
       case 'fromJSON':
-        return <FileIcon />;
+        return <FileIcon className={ className } />;
 
       case 'fromPresale':
-        return <MembershipIcon />;
+        return <MembershipIcon className={ className } />;
 
       case 'fromNew':
       default:
-        return <AccountsIcon />;
+        return <AccountsIcon className={ className } />;
     }
   }
 }
