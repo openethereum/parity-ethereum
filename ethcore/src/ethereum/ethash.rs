@@ -213,13 +213,13 @@ impl Engine for Ethash {
 		if block.fields().header.number() == self.ethash_params.dao_hardfork_transition {
 			// TODO: enable trigger function maybe?
 //			if block.fields().header.gas_limit() <= 4_000_000.into() {
-				let mut state = block.fields_mut().state;
+				let state = block.fields_mut().state;
 				for child in &self.ethash_params.dao_hardfork_accounts {
 					let beneficiary = &self.ethash_params.dao_hardfork_beneficiary;
 					let res = state.balance(child)
 						.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty));
 
-					if let Err(e) = res {
+					if let Err(_) = res {
 						warn!("Unable to apply DAO hardfork due to database corruption.");
 						warn!("Your node is now likely out of consensus.");
 					}
@@ -235,12 +235,28 @@ impl Engine for Ethash {
 		let fields = block.fields_mut();
 
 		// Bestow block reward
-		fields.state.add_balance(fields.header.author(), &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())), CleanupMode::NoEmpty);
+		let res = fields.state.add_balance(
+			fields.header.author(),
+			&(reward + reward / U256::from(32) * U256::from(fields.uncles.len())),
+			CleanupMode::NoEmpty
+		);
+
+		if let Err(e) = res {
+			warn!("Failed to give block reward: {}", e);
+		}
 
 		// Bestow uncle rewards
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
-			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)), CleanupMode::NoEmpty);
+			let res = fields.state.add_balance(
+				u.author(),
+				&(reward * U256::from(8 + u.number() - current_number) / U256::from(8)),
+				CleanupMode::NoEmpty
+			);
+
+			if let Err(e) = res {
+				warn!("Failed to give uncle reward: {}", e);
+			}
 		}
 
 		// Commit state so that we can actually figure out the state root.
@@ -473,7 +489,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close();
-		assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
+		assert_eq!(b.state().balance(&Address::zero()).unwrap(), U256::from_str("4563918244f40000").unwrap());
 	}
 
 	#[test]
@@ -491,8 +507,8 @@ mod tests {
 		b.push_uncle(uncle).unwrap();
 
 		let b = b.close();
-		assert_eq!(b.state().balance(&Address::zero()), "478eae0e571ba000".into());
-		assert_eq!(b.state().balance(&uncle_author), "3cb71f51fc558000".into());
+		assert_eq!(b.state().balance(&Address::zero()).unwrap(), "478eae0e571ba000".into());
+		assert_eq!(b.state().balance(&uncle_author).unwrap(), "3cb71f51fc558000".into());
 	}
 
 	#[test]

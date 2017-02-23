@@ -62,7 +62,7 @@ pub use self::work_notify::NotifyWork;
 pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOptions};
 
 use std::collections::BTreeMap;
-use util::{H256, U256, Address, Bytes, trie};
+use util::{H256, U256, Address, Bytes};
 use client::{MiningBlockChainClient, Executed, CallAnalytics};
 use block::ClosedBlock;
 use header::BlockNumber;

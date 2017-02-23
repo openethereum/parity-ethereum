@@ -483,7 +483,7 @@ mod tests {
 		let rlp = {
 			let mut a = Account::new_contract(69.into(), 0.into());
 			a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
-			a.commit_storage(&Default::default(), &mut db);
+			a.commit_storage(&Default::default(), &mut db).unwrap();
 			a.init_code(vec![]);
 			a.commit_code(&mut db);
 			a.rlp()
@@ -491,8 +491,8 @@ mod tests {
 
 		let a = Account::from_rlp(&rlp);
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
-		assert_eq!(a.storage_at(&db.immutable(), &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
-		assert_eq!(a.storage_at(&db.immutable(), &H256::from(&U256::from(0x01u64))), H256::new());
+		assert_eq!(a.storage_at(&db.immutable(), &H256::from(&U256::from(0x00u64))).unwrap(), H256::from(&U256::from(0x1234u64)));
+		assert_eq!(a.storage_at(&db.immutable(), &H256::from(&U256::from(0x01u64))).unwrap(), H256::new());
 	}
 
 	#[test]
@@ -521,7 +521,7 @@ mod tests {
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(0.into(), 0x1234.into());
 		assert_eq!(a.storage_root(), None);
-		a.commit_storage(&Default::default(), &mut db);
+		a.commit_storage(&Default::default(), &mut db).unwrap();
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
 	}
 
@@ -531,11 +531,11 @@ mod tests {
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(0.into(), 0x1234.into());
-		a.commit_storage(&Default::default(), &mut db);
+		a.commit_storage(&Default::default(), &mut db).unwrap();
 		a.set_storage(1.into(), 0x1234.into());
-		a.commit_storage(&Default::default(), &mut db);
+		a.commit_storage(&Default::default(), &mut db).unwrap();
 		a.set_storage(1.into(), 0.into());
-		a.commit_storage(&Default::default(), &mut db);
+		a.commit_storage(&Default::default(), &mut db).unwrap();
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
 	}
 

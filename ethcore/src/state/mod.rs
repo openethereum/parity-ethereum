@@ -573,7 +573,7 @@ impl<B: Backend> State<B> {
 				let addr_hash = account.address_hash(address);
 				{
 					let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
-					account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
+					account.commit_storage(&factories.trie, account_db.as_hashdb_mut())?;
 					account.commit_code(account_db.as_hashdb_mut());
 				}
 				if !account.is_empty() {
@@ -911,7 +911,7 @@ mod tests {
 			data: FromHex::from_hex("601080600c6000396000f3006000355415600957005b60203560003555").unwrap(),
 		}.sign(&secret(), None);
 
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -941,13 +941,13 @@ mod tests {
 		let temp = RandomTempPath::new();
 		let mut state = {
 			let mut state = get_temp_state_in(temp.as_path());
-			assert_eq!(state.exists(&a), false);
-			state.inc_nonce(&a);
+			assert_eq!(state.exists(&a).unwrap(), false);
+			state.inc_nonce(&a).unwrap();
 			state.commit().unwrap();
 			state.clone()
 		};
 
-		state.inc_nonce(&a);
+		state.inc_nonce(&a).unwrap();
 		state.commit().unwrap();
 	}
 
@@ -971,7 +971,7 @@ mod tests {
 			data: FromHex::from_hex("5b600056").unwrap(),
 		}.sign(&secret(), None);
 
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1008,8 +1008,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("6000").unwrap());
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1051,7 +1051,7 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1135,7 +1135,7 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060006001610be0f1").unwrap());
+		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060006001610be0f1").unwrap()).unwrap();
 		let result = state.apply(&info, engine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1178,8 +1178,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b611000f2").unwrap());
-		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b611000f2").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap()).unwrap();
 		let result = state.apply(&info, engine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1240,8 +1240,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap());
-		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
+		state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap()).unwrap();
 		let result = state.apply(&info, engine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1299,8 +1299,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("5b600056").unwrap());
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("5b600056").unwrap()).unwrap();
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1339,9 +1339,9 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
-		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1399,8 +1399,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006045600b6000f1").unwrap());
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006045600b6000f1").unwrap()).unwrap();
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1454,8 +1454,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap());	// not enough funds.
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap()).unwrap();	// not enough funds.
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1497,9 +1497,9 @@ mod tests {
 			data: vec![],//600480600b6000396000f35b600056
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
-		state.init_code(&0xb.into(), FromHex::from_hex("5b600056").unwrap());
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("5b600056").unwrap()).unwrap();
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1553,10 +1553,10 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
-		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap());
-		state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap()).unwrap();
+		state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1628,10 +1628,10 @@ mod tests {
 			data: vec![],//600480600b6000396000f35b600056
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
-		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap());
-		state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap()).unwrap();
+		state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1701,9 +1701,9 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("73000000000000000000000000000000000000000bff").unwrap());
-		state.add_balance(&0xa.into(), &50.into(), CleanupMode::NoEmpty);
-		state.add_balance(&t.sender(), &100.into(), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("73000000000000000000000000000000000000000bff").unwrap()).unwrap();
+		state.add_balance(&0xa.into(), &50.into(), CleanupMode::NoEmpty).unwrap();
+		state.add_balance(&t.sender(), &100.into(), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1740,16 +1740,16 @@ mod tests {
 		let temp = RandomTempPath::new();
 		let (root, db) = {
 			let mut state = get_temp_state_in(temp.as_path());
-			state.require_or_from(&a, false, ||Account::new_contract(42.into(), 0.into()), |_|{});
-			state.init_code(&a, vec![1, 2, 3]);
-			assert_eq!(state.code(&a), Some(Arc::new([1u8, 2, 3].to_vec())));
+			state.require_or_from(&a, false, ||Account::new_contract(42.into(), 0.into()), |_|{}).unwrap();
+			state.init_code(&a, vec![1, 2, 3]).unwrap();
+			assert_eq!(state.code(&a).unwrap(), Some(Arc::new([1u8, 2, 3].to_vec())));
 			state.commit().unwrap();
-			assert_eq!(state.code(&a), Some(Arc::new([1u8, 2, 3].to_vec())));
+			assert_eq!(state.code(&a).unwrap(), Some(Arc::new([1u8, 2, 3].to_vec())));
 			state.drop()
 		};
 
 		let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-		assert_eq!(state.code(&a), Some(Arc::new([1u8, 2, 3].to_vec())));
+		assert_eq!(state.code(&a).unwrap(), Some(Arc::new([1u8, 2, 3].to_vec())));
 	}
 
 	#[test]
@@ -1758,13 +1758,13 @@ mod tests {
 		let temp = RandomTempPath::new();
 		let (root, db) = {
 			let mut state = get_temp_state_in(temp.as_path());
-			state.set_storage(&a, H256::from(&U256::from(1u64)), H256::from(&U256::from(69u64)));
+			state.set_storage(&a, H256::from(&U256::from(1u64)), H256::from(&U256::from(69u64))).unwrap();
 			state.commit().unwrap();
 			state.drop()
 		};
 
 		let s = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-		assert_eq!(s.storage_at(&a, &H256::from(&U256::from(1u64))), H256::from(&U256::from(69u64)));
+		assert_eq!(s.storage_at(&a, &H256::from(&U256::from(1u64))).unwrap(), H256::from(&U256::from(69u64)));
 	}
 
 	#[test]
@@ -1773,16 +1773,16 @@ mod tests {
 		let temp = RandomTempPath::new();
 		let (root, db) = {
 			let mut state = get_temp_state_in(temp.as_path());
-			state.inc_nonce(&a);
-			state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty);
+			state.inc_nonce(&a).unwrap();
+			state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty).unwrap();
 			state.commit().unwrap();
-			assert_eq!(state.balance(&a), U256::from(69u64));
+			assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 			state.drop()
 		};
 
 		let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-		assert_eq!(state.balance(&a), U256::from(69u64));
-		assert_eq!(state.nonce(&a), U256::from(1u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(1u64));
 	}
 
 	#[test]
@@ -1790,16 +1790,16 @@ mod tests {
 		let a = Address::zero();
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		assert_eq!(state.exists(&a), false);
-		assert_eq!(state.exists_and_not_null(&a), false);
-		state.inc_nonce(&a);
-		assert_eq!(state.exists(&a), true);
-		assert_eq!(state.exists_and_not_null(&a), true);
-		assert_eq!(state.nonce(&a), U256::from(1u64));
+		assert_eq!(state.exists(&a).unwrap(), false);
+		assert_eq!(state.exists_and_not_null(&a).unwrap(), false);
+		state.inc_nonce(&a).unwrap();
+		assert_eq!(state.exists(&a).unwrap(), true);
+		assert_eq!(state.exists_and_not_null(&a).unwrap(), true);
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(1u64));
 		state.kill_account(&a);
-		assert_eq!(state.exists(&a), false);
-		assert_eq!(state.exists_and_not_null(&a), false);
-		assert_eq!(state.nonce(&a), U256::from(0u64));
+		assert_eq!(state.exists(&a).unwrap(), false);
+		assert_eq!(state.exists_and_not_null(&a).unwrap(), false);
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(0u64));
 	}
 
 	#[test]
@@ -1809,13 +1809,13 @@ mod tests {
 		let db = get_temp_state_db_in(path.as_path());
 		let (root, db) = {
 			let mut state = State::new(db, U256::from(0), Default::default());
-			state.add_balance(&a, &U256::default(), CleanupMode::NoEmpty); // create an empty account
+			state.add_balance(&a, &U256::default(), CleanupMode::NoEmpty).unwrap(); // create an empty account
 			state.commit().unwrap();
 			state.drop()
 		};
 		let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-		assert!(!state.exists(&a));
-		assert!(!state.exists_and_not_null(&a));
+		assert!(!state.exists(&a).unwrap());
+		assert!(!state.exists_and_not_null(&a).unwrap());
 	}
 
 	#[test]
@@ -1825,13 +1825,13 @@ mod tests {
 		let db = get_temp_state_db_in(path.as_path());
 		let (root, db) = {
 			let mut state = State::new(db, U256::from(0), Default::default());
-			state.add_balance(&a, &U256::default(), CleanupMode::ForceCreate); // create an empty account
+			state.add_balance(&a, &U256::default(), CleanupMode::ForceCreate).unwrap(); // create an empty account
 			state.commit().unwrap();
 			state.drop()
 		};
 		let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-		assert!(state.exists(&a));
-		assert!(!state.exists_and_not_null(&a));
+		assert!(state.exists(&a).unwrap());
+		assert!(!state.exists_and_not_null(&a).unwrap());
 	}
 
 	#[test]
@@ -1840,27 +1840,27 @@ mod tests {
 		let temp = RandomTempPath::new();
 		let (root, db) = {
 			let mut state = get_temp_state_in(temp.as_path());
-			state.inc_nonce(&a);
+			state.inc_nonce(&a).unwrap();
 			state.commit().unwrap();
-			assert_eq!(state.exists(&a), true);
-			assert_eq!(state.nonce(&a), U256::from(1u64));
+			assert_eq!(state.exists(&a).unwrap(), true);
+			assert_eq!(state.nonce(&a).unwrap(), U256::from(1u64));
 			state.drop()
 		};
 
 		let (root, db) = {
 			let mut state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-			assert_eq!(state.exists(&a), true);
-			assert_eq!(state.nonce(&a), U256::from(1u64));
+			assert_eq!(state.exists(&a).unwrap(), true);
+			assert_eq!(state.nonce(&a).unwrap(), U256::from(1u64));
 			state.kill_account(&a);
 			state.commit().unwrap();
-			assert_eq!(state.exists(&a), false);
-			assert_eq!(state.nonce(&a), U256::from(0u64));
+			assert_eq!(state.exists(&a).unwrap(), false);
+			assert_eq!(state.nonce(&a).unwrap(), U256::from(0u64));
 			state.drop()
 		};
 
 		let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-		assert_eq!(state.exists(&a), false);
-		assert_eq!(state.nonce(&a), U256::from(0u64));
+		assert_eq!(state.exists(&a).unwrap(), false);
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(0u64));
 	}
 
 	#[test]
@@ -1869,20 +1869,20 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		let a = Address::zero();
 		let b = 1u64.into();
-		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty);
-		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty).unwrap();
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 		state.commit().unwrap();
-		assert_eq!(state.balance(&a), U256::from(69u64));
-		state.sub_balance(&a, &U256::from(42u64));
-		assert_eq!(state.balance(&a), U256::from(27u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
+		state.sub_balance(&a, &U256::from(42u64)).unwrap();
+		assert_eq!(state.balance(&a).unwrap(), U256::from(27u64));
 		state.commit().unwrap();
-		assert_eq!(state.balance(&a), U256::from(27u64));
-		state.transfer_balance(&a, &b, &U256::from(18u64), CleanupMode::NoEmpty);
-		assert_eq!(state.balance(&a), U256::from(9u64));
-		assert_eq!(state.balance(&b), U256::from(18u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(27u64));
+		state.transfer_balance(&a, &b, &U256::from(18u64), CleanupMode::NoEmpty).unwrap();
+		assert_eq!(state.balance(&a).unwrap(), U256::from(9u64));
+		assert_eq!(state.balance(&b).unwrap(), U256::from(18u64));
 		state.commit().unwrap();
-		assert_eq!(state.balance(&a), U256::from(9u64));
-		assert_eq!(state.balance(&b), U256::from(18u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(9u64));
+		assert_eq!(state.balance(&b).unwrap(), U256::from(18u64));
 	}
 
 	#[test]
@@ -1890,16 +1890,16 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		let a = Address::zero();
-		state.inc_nonce(&a);
-		assert_eq!(state.nonce(&a), U256::from(1u64));
-		state.inc_nonce(&a);
-		assert_eq!(state.nonce(&a), U256::from(2u64));
+		state.inc_nonce(&a).unwrap();
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(1u64));
+		state.inc_nonce(&a).unwrap();
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(2u64));
 		state.commit().unwrap();
-		assert_eq!(state.nonce(&a), U256::from(2u64));
-		state.inc_nonce(&a);
-		assert_eq!(state.nonce(&a), U256::from(3u64));
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(2u64));
+		state.inc_nonce(&a).unwrap();
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(3u64));
 		state.commit().unwrap();
-		assert_eq!(state.nonce(&a), U256::from(3u64));
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(3u64));
 	}
 
 	#[test]
@@ -1907,11 +1907,11 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		let a = Address::zero();
-		assert_eq!(state.balance(&a), U256::from(0u64));
-		assert_eq!(state.nonce(&a), U256::from(0u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(0u64));
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(0u64));
 		state.commit().unwrap();
-		assert_eq!(state.balance(&a), U256::from(0u64));
-		assert_eq!(state.nonce(&a), U256::from(0u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(0u64));
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(0u64));
 	}
 
 	#[test]
@@ -1919,7 +1919,7 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		let a = Address::zero();
-		state.require(&a, false);
+		state.require(&a, false).unwrap();
 		state.commit().unwrap();
 		assert_eq!(state.root().hex(), "0ce23f3c809de377b008a4a3ee94a0834aac8bec1f86e28ffe4fdb5a15b0c785");
 	}
@@ -1930,15 +1930,15 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		let a = Address::zero();
 		state.checkpoint();
-		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty);
-		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty).unwrap();
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 		state.discard_checkpoint();
-		assert_eq!(state.balance(&a), U256::from(69u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 		state.checkpoint();
-		state.add_balance(&a, &U256::from(1u64), CleanupMode::NoEmpty);
-		assert_eq!(state.balance(&a), U256::from(70u64));
+		state.add_balance(&a, &U256::from(1u64), CleanupMode::NoEmpty).unwrap();
+		assert_eq!(state.balance(&a).unwrap(), U256::from(70u64));
 		state.revert_to_checkpoint();
-		assert_eq!(state.balance(&a), U256::from(69u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 	}
 
 	#[test]
@@ -1948,12 +1948,12 @@ mod tests {
 		let a = Address::zero();
 		state.checkpoint();
 		state.checkpoint();
-		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty);
-		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty).unwrap();
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 		state.discard_checkpoint();
-		assert_eq!(state.balance(&a), U256::from(69u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 		state.revert_to_checkpoint();
-		assert_eq!(state.balance(&a), U256::from(0));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(0));
 	}
 
 	#[test]
@@ -1970,14 +1970,14 @@ mod tests {
 		let mut state = state.reference().clone();
 
 		let a: Address = 0xa.into();
-		state.init_code(&a, b"abcdefg".to_vec());
-		state.add_balance(&a, &256.into(), CleanupMode::NoEmpty);
-		state.set_storage(&a, 0xb.into(), 0xc.into());
+		state.init_code(&a, b"abcdefg".to_vec()).unwrap();;
+		state.add_balance(&a, &256.into(), CleanupMode::NoEmpty).unwrap();
+		state.set_storage(&a, 0xb.into(), 0xc.into()).unwrap();
 
 		let mut new_state = state.clone();
-		new_state.set_storage(&a, 0xb.into(), 0xd.into());
+		new_state.set_storage(&a, 0xb.into(), 0xd.into()).unwrap();
 
-		new_state.diff_from(state);
+		new_state.diff_from(state).unwrap();
 	}
 
 }

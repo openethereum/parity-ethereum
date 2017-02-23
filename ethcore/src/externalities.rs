@@ -506,7 +506,7 @@ mod tests {
 		{
 			let vm_factory = Default::default();
 			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
-			ext.suicide(refund_account);
+			ext.suicide(refund_account).unwrap();
 		}
 
 		assert_eq!(setup.sub_state.suicides.len(), 1);

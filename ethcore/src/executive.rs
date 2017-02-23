@@ -544,7 +544,7 @@ mod tests {
 		params.value = ActionValue::Transfer(U256::from(0x7));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(0x100u64), CleanupMode::NoEmpty);
+		state.add_balance(&sender, &U256::from(0x100u64), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
@@ -555,9 +555,9 @@ mod tests {
 		};
 
 		assert_eq!(gas_left, U256::from(79_975));
-		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(&U256::from(0xf9u64)));
-		assert_eq!(state.balance(&sender), U256::from(0xf9));
-		assert_eq!(state.balance(&address), U256::from(0x7));
+		assert_eq!(state.storage_at(&address, &H256::new()).unwrap(), H256::from(&U256::from(0xf9u64)));
+		assert_eq!(state.balance(&sender).unwrap(), U256::from(0xf9));
+		assert_eq!(state.balance(&address).unwrap(), U256::from(0x7));
 		// 0 cause contract hasn't returned
 		assert_eq!(substate.contracts_created.len(), 0);
 
@@ -603,7 +603,7 @@ mod tests {
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty);
+		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
@@ -662,7 +662,7 @@ mod tests {
 		params.call_type = CallType::Call;
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty);
+		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(5);
 		let mut substate = Substate::new();
@@ -773,7 +773,7 @@ mod tests {
 		params.value = ActionValue::Transfer(100.into());
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty);
+		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(5);
 		let mut substate = Substate::new();
@@ -861,7 +861,7 @@ mod tests {
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty);
+		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
@@ -913,7 +913,7 @@ mod tests {
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty);
+		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(1024);
 		let mut substate = Substate::new();
@@ -971,9 +971,9 @@ mod tests {
 
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.init_code(&address_a, code_a.clone());
-		state.init_code(&address_b, code_b.clone());
-		state.add_balance(&sender, &U256::from(100_000), CleanupMode::NoEmpty);
+		state.init_code(&address_a, code_a.clone()).unwrap();
+		state.init_code(&address_b, code_b.clone()).unwrap();
+		state.add_balance(&sender, &U256::from(100_000), CleanupMode::NoEmpty).unwrap();
 
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
@@ -985,7 +985,7 @@ mod tests {
 		};
 
 		assert_eq!(gas_left, U256::from(73_237));
-		assert_eq!(state.storage_at(&address_a, &H256::from(&U256::from(0x23))), H256::from(&U256::from(1)));
+		assert_eq!(state.storage_at(&address_a, &H256::from(&U256::from(0x23))).unwrap(), H256::from(&U256::from(1)));
 	}
 
 	// test is incorrect, mk
@@ -1019,7 +1019,7 @@ mod tests {
 		params.code = Some(Arc::new(code.clone()));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.init_code(&address, code);
+		state.init_code(&address, code).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
@@ -1030,8 +1030,8 @@ mod tests {
 		};
 
 		assert_eq!(gas_left, U256::from(59_870));
-		assert_eq!(state.storage_at(&address, &H256::from(&U256::zero())), H256::from(&U256::from(1)));
-		assert_eq!(state.storage_at(&address, &H256::from(&U256::one())), H256::from(&U256::from(1)));
+		assert_eq!(state.storage_at(&address, &H256::from(&U256::zero())).unwrap(), H256::from(&U256::from(1)));
+		assert_eq!(state.storage_at(&address, &H256::from(&U256::one())).unwrap(), H256::from(&U256::from(1)));
 	}
 
 	// test is incorrect, mk
@@ -1052,7 +1052,7 @@ mod tests {
 
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(18), CleanupMode::NoEmpty);
+		state.add_balance(&sender, &U256::from(18), CleanupMode::NoEmpty).unwrap();
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0);
@@ -1069,10 +1069,10 @@ mod tests {
 		assert_eq!(executed.cumulative_gas_used, U256::from(41_301));
 		assert_eq!(executed.logs.len(), 0);
 		assert_eq!(executed.contracts_created.len(), 0);
-		assert_eq!(state.balance(&sender), U256::from(1));
-		assert_eq!(state.balance(&contract), U256::from(17));
-		assert_eq!(state.nonce(&sender), U256::from(1));
-		assert_eq!(state.storage_at(&contract, &H256::new()), H256::from(&U256::from(1)));
+		assert_eq!(state.balance(&sender).unwrap(), U256::from(1));
+		assert_eq!(state.balance(&contract).unwrap(), U256::from(17));
+		assert_eq!(state.nonce(&sender).unwrap(), U256::from(1));
+		assert_eq!(state.storage_at(&contract, &H256::new()).unwrap(), H256::from(&U256::from(1)));
 	}
 
 	evm_test!{test_transact_invalid_nonce: test_transact_invalid_nonce_jit, test_transact_invalid_nonce_int}
@@ -1090,7 +1090,7 @@ mod tests {
 
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(17), CleanupMode::NoEmpty);
+		state.add_balance(&sender, &U256::from(17), CleanupMode::NoEmpty).unwrap();
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0);
@@ -1123,7 +1123,7 @@ mod tests {
 
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(17), CleanupMode::NoEmpty);
+		state.add_balance(&sender, &U256::from(17), CleanupMode::NoEmpty).unwrap();
 		let mut info = EnvInfo::default();
 		info.gas_used = U256::from(20_000);
 		info.gas_limit = U256::from(100_000);
@@ -1158,7 +1158,7 @@ mod tests {
 
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(100_017), CleanupMode::NoEmpty);
+		state.add_balance(&sender, &U256::from(100_017), CleanupMode::NoEmpty).unwrap();
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0);
@@ -1193,7 +1193,7 @@ mod tests {
 		params.value = ActionValue::Transfer(U256::from_str("0de0b6b3a7640000").unwrap());
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap(), CleanupMode::NoEmpty);
+		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap(), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();

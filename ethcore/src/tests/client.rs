@@ -292,7 +292,7 @@ fn change_history_size() {
 
 		for _ in 0..20 {
 			let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
-			b.block_mut().fields_mut().state.add_balance(&address, &5.into(), CleanupMode::NoEmpty);
+			b.block_mut().fields_mut().state.add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
 			b.block_mut().fields_mut().state.commit().unwrap();
 			let b = b.close_and_lock().seal(&*test_spec.engine, vec![]).unwrap();
 			client.import_sealed_block(b).unwrap(); // account change is in the journal overlay
@@ -307,7 +307,7 @@ fn change_history_size() {
 		Arc::new(Miner::with_spec(&test_spec)),
 		IoChannel::disconnected(),
 	).unwrap();
-	assert_eq!(client.state().balance(&address), 100.into());
+	assert_eq!(client.state().balance(&address).unwrap(), 100.into());
 }
 
 #[test]

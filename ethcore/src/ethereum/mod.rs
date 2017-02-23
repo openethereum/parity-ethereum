@@ -91,12 +91,12 @@ mod tests {
 		let mut db_result = get_temp_state_db();
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let s = State::from_existing(db, genesis_header.state_root().clone(), engine.account_start_nonce(), Default::default()).unwrap();
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000001".into()), 1u64.into());
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000002".into()), 1u64.into());
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000003".into()), 1u64.into());
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000004".into()), 1u64.into());
-		assert_eq!(s.balance(&"102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c".into()), U256::from(1u64) << 200);
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000000".into()), 0u64.into());
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000001".into()).unwrap(), 1u64.into());
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000002".into()).unwrap(), 1u64.into());
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000003".into()).unwrap(), 1u64.into());
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000004".into()).unwrap(), 1u64.into());
+		assert_eq!(s.balance(&"102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c".into()).unwrap(), U256::from(1u64) << 200);
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000000".into()).unwrap(), 0u64.into());
 	}
 
 	#[test]
