@@ -33,6 +33,7 @@ import errors from './errors';
 import executeContract from './executeContract';
 import extension from './extension';
 import firstRun from './firstRun';
+import home from './home';
 import loadContract from './loadContract';
 import parityBar from './parityBar';
 import passwordChange from './passwordChange';
@@ -63,17 +64,22 @@ export default {
   deleteAccount,
   deployContract,
   editMeta,
+  errors,
   executeContract,
   extension,
   firstRun,
+  home,
   loadContract,
   parityBar,
   passwordChange,
   settings,
   shapeshift,
+  tabBar,
   transfer,
   txEditor,
   ui,
   upgradeParity,
+  vaults,
+  walletSettings,
   web
 };
