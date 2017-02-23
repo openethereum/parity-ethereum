@@ -142,31 +142,54 @@ describe('modals/EditMeta/Store', () => {
         expect(store.tags.peek()).to.deep.equal(['taga', 'tagb']);
       });
     });
+
+    describe('setVaultName', () => {
+      it('sets the name', () => {
+        store.setVaultName('testing');
+        expect(store.vaultName).to.equal('testing');
+      });
+    });
+
+    describe('setVaultSelectorOpen', () => {
+      it('sets the state', () => {
+        store.setVaultSelectorOpen('testing');
+        expect(store.isVaultSelectorOpen).to.equal('testing');
+      });
+    });
   });
 
-  describe('save', () => {
-    beforeEach(() => {
-      createStore(ACCOUNT);
+  describe('operations', () => {
+    describe('save', () => {
+      beforeEach(() => {
+        createStore(ACCOUNT);
+      });
+
+      it('calls parity.setAccountName with the set value', () => {
+        store.setName('test name');
+        store.save();
+
+        expect(api.parity.setAccountName).to.be.calledWith(ACCOUNT.address, 'test name');
+      });
+
+      it('calls parity.setAccountMeta with the adjusted values', () => {
+        store.setDescription('some new description');
+        store.setPasswordHint('some new passwordhint');
+        store.setTags(['taga']);
+        store.save();
+
+        expect(api.parity.setAccountMeta).to.have.been.calledWith(ACCOUNT.address, Object.assign({}, ACCOUNT.meta, {
+          description: 'some new description',
+          passwordHint: 'some new passwordhint',
+          tags: ['taga']
+        }));
+      });
     });
+  });
 
-    it('calls parity.setAccountName with the set value', () => {
-      store.setName('test name');
-      store.save();
-
-      expect(api.parity.setAccountName).to.be.calledWith(ACCOUNT.address, 'test name');
-    });
-
-    it('calls parity.setAccountMeta with the adjusted values', () => {
-      store.setDescription('some new description');
-      store.setPasswordHint('some new passwordhint');
-      store.setTags(['taga']);
-      store.save();
-
-      expect(api.parity.setAccountMeta).to.have.been.calledWith(ACCOUNT.address, Object.assign({}, ACCOUNT.meta, {
-        description: 'some new description',
-        passwordHint: 'some new passwordhint',
-        tags: ['taga']
-      }));
+  describe('toggleVaultSelector', () => {
+    it('inverts the selector state', () => {
+      store.toggleVaultSelector();
+      expect(store.isVaultSelectorOpen).to.be.true;
     });
   });
 });
