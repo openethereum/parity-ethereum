@@ -30,7 +30,7 @@ export DappCard from './DappCard';
 export DappIcon from './DappIcon';
 export Errors from './Errors';
 export Features, { FEATURES, FeaturesStore } from './Features';
-export Form, { AddressSelect, DappUrlInput, FormWrap, Input, InputAddress, InputAddressSelect, InputChip, InputDate, InputInline, InputTime, Label, RadioButtons, Select, TypedInput } from './Form';
+export Form, { AddressSelect, DappUrlInput, FormWrap, Input, InputAddress, InputAddressSelect, InputChip, InputDate, InputInline, InputTime, Label, RadioButtons, Select, TypedInput, VaultSelect } from './Form';
 export GasPriceEditor from './GasPriceEditor';
 export GasPriceSelector from './GasPriceSelector';
 export Icons from './Icons';
