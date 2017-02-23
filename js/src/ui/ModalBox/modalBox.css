@@ -21,6 +21,15 @@
 
   .content {
     flex: 1;
+
+    .body {
+    }
+
+    .summary {
+      line-height: 1.618em;
+      padding: 0 4em 1.5em 4em;
+      text-align: center;
+    }
   }
 
   .icon {

@@ -16,12 +16,15 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import styles from './modalBox.css';
 
 export default class ModalBox extends Component {
   static propTypes = {
     children: PropTypes.node.isRequired,
-    icon: PropTypes.node.isRequired
+    icon: PropTypes.node.isRequired,
+    summary: nodeOrStringProptype()
   }
 
   render () {
@@ -33,8 +36,25 @@ export default class ModalBox extends Component {
           { icon }
         </div>
         <div className={ styles.content }>
-          { children }
+          { this.renderSummary() }
+          <div className={ styles.body }>
+            { children }
+          </div>
         </div>
+      </div>
+    );
+  }
+
+  renderSummary () {
+    const { summary } = this.props;
+
+    if (!summary) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.summary }>
+        { summary }
       </div>
     );
   }
