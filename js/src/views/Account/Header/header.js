@@ -48,8 +48,6 @@ export default class Header extends Component {
     const { address } = account;
     const meta = account.meta || {};
 
-    console.log('meta', meta);
-
     return (
       <div className={ className }>
         <Container>
