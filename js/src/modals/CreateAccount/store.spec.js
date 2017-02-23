@@ -22,8 +22,20 @@ import { ACCOUNTS, ADDRESS, GETH_ADDRESSES, createApi } from './createAccount.te
 
 let api;
 let store;
+let vaultStore;
+
+function createVaultStore () {
+  vaultStore = {
+    moveAccount: sinon.stub().resolves(),
+    listVaults: sinon.stub().resolves()
+  };
+
+  return vaultStore;
+}
 
 function createStore (loadGeth) {
+  createVaultStore();
+
   api = createApi();
   store = new Store(api, ACCOUNTS, loadGeth);
 
@@ -397,6 +409,13 @@ describe('modals/CreateAccount/Store', () => {
         createAccountFromRawSpy = sinon.spy(store, 'createAccountFromRaw');
       });
 
+      afterEach(() => {
+        store.createAccountFromGeth.restore();
+        store.createAccountFromWallet.restore();
+        store.createAccountFromPhrase.restore();
+        store.createAccountFromRaw.restore();
+      });
+
       it('throws error on invalid createType', () => {
         store.setCreateType('testing');
         expect(() => store.createAccount()).to.throw;
@@ -404,38 +423,59 @@ describe('modals/CreateAccount/Store', () => {
 
       it('calls createAccountFromGeth on createType === fromGeth', () => {
         store.setCreateType('fromGeth');
-        store.createAccount();
-        expect(createAccountFromGethSpy).to.have.been.called;
+
+        return store.createAccount().then(() => {
+          expect(createAccountFromGethSpy).to.have.been.called;
+        });
       });
 
       it('calls createAccountFromWallet on createType === fromJSON', () => {
         store.setCreateType('fromJSON');
-        store.createAccount();
-        expect(createAccountFromWalletSpy).to.have.been.called;
+
+        return store.createAccount().then(() => {
+          expect(createAccountFromWalletSpy).to.have.been.called;
+        });
       });
 
       it('calls createAccountFromPhrase on createType === fromNew', () => {
         store.setCreateType('fromNew');
-        store.createAccount();
-        expect(createAccountFromPhraseSpy).to.have.been.called;
+
+        return store.createAccount().then(() => {
+          expect(createAccountFromPhraseSpy).to.have.been.called;
+        });
       });
 
       it('calls createAccountFromPhrase on createType === fromPhrase', () => {
         store.setCreateType('fromPhrase');
-        store.createAccount();
-        expect(createAccountFromPhraseSpy).to.have.been.called;
+
+        return store.createAccount().then(() => {
+          expect(createAccountFromPhraseSpy).to.have.been.called;
+        });
       });
 
       it('calls createAccountFromWallet on createType === fromPresale', () => {
         store.setCreateType('fromPresale');
-        store.createAccount();
-        expect(createAccountFromWalletSpy).to.have.been.called;
+
+        return store.createAccount().then(() => {
+          expect(createAccountFromWalletSpy).to.have.been.called;
+        });
       });
 
       it('calls createAccountFromRaw on createType === fromRaw', () => {
         store.setCreateType('fromRaw');
-        store.createAccount();
-        expect(createAccountFromRawSpy).to.have.been.called;
+
+        return store.createAccount().then(() => {
+          expect(createAccountFromRawSpy).to.have.been.called;
+        });
+      });
+
+      it('moves account to vault when vaultName set', () => {
+        store.setCreateType('fromNew');
+        store.setVaultName('testing');
+
+        return store.createAccount(vaultStore).then(() => {
+          expect(vaultStore.moveAccount).to.have.been.calledWith('testing', ADDRESS);
+        });
       });
 
       describe('createAccountFromGeth', () => {

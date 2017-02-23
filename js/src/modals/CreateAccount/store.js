@@ -222,7 +222,19 @@ export default class Store {
     this.stage--;
   }
 
-  createAccount = () => {
+  createAccount = (vaultStore) => {
+    return this
+      ._createAccount()
+      .then(() => {
+        if (vaultStore && this.vaultName && this.vaultName.length) {
+          return vaultStore.moveAccount(this.vaultName, this.address);
+        }
+
+        return true;
+      });
+  }
+
+  _createAccount = () => {
     switch (this.createType) {
       case 'fromGeth':
         return this.createAccountFromGeth();

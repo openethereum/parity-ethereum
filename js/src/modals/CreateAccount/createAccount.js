@@ -274,7 +274,7 @@ class CreateAccount extends Component {
     this.store.setBusy(true);
 
     return this.store
-      .createAccount()
+      .createAccount(this.vaultStore)
       .then(() => {
         this.store.setBusy(false);
         this.store.nextStage();
