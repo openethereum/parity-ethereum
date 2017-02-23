@@ -119,6 +119,7 @@ class Summary extends Component {
             { this.renderDescription(account.meta) }
             { this.renderOwners() }
             { this.renderCertifications() }
+            { this.renderVault(account.meta) }
           </div>
         }
         link={ this.getLink() }
@@ -267,6 +268,24 @@ class Summary extends Component {
         address={ account.address }
         className={ styles.Certifications }
       />
+    );
+  }
+
+  renderVault (meta) {
+    if (!meta || !meta.vault) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.vault }>
+        <IdentityIcon
+          address={ meta.vault }
+          inline
+        />
+        <div className={ styles.text }>
+          { meta.vault }
+        </div>
+      </div>
     );
   }
 }

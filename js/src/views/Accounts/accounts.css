@@ -44,6 +44,16 @@
     }
   }
 
+  .vault {
+    line-height: 32px;
+    margin-top: 0.5em;
+
+    .text {
+      display: inline-block;
+      opacity: 0.25;
+    }
+  }
+
   .overlay {
     margin-top: -3.25em;
   }
