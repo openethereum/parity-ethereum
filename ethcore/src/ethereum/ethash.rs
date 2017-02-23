@@ -835,4 +835,22 @@ mod tests {
 		ethash.populate_from_parent(&mut header, &parent, U256::from(150_000), U256::from(150_002));
 		assert_eq!(*header.gas_limit(), U256::from(150_002));
 	}
+
+	#[test]
+	fn difficulty_max_timestamp() {
+		let spec = new_homestead_test();
+		let ethparams = get_default_ethash_params();
+		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+
+		let mut parent_header = Header::default();
+		parent_header.set_number(1000000);
+		parent_header.set_difficulty(U256::from_str("b69de81a22b").unwrap());
+		parent_header.set_timestamp(1455404053);
+		let mut header = Header::default();
+		header.set_number(parent_header.number() + 1);
+		header.set_timestamp(u64::max_value());
+
+		let difficulty = ethash.calculate_difficulty(&header, &parent_header);
+		assert_eq!(U256::from(12543204905719u64), difficulty);
+	}
 }
