@@ -18,8 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { DappCard, Portal, SectionList } from '~/ui';
-import { CheckIcon } from '~/ui/Icons';
+import { DappCard, Portal, SelectionList } from '~/ui';
 
 import styles from './addDapps.css';
 
@@ -102,9 +101,11 @@ export default class AddDapps extends Component {
           <div className={ styles.header }>{ header }</div>
           <div className={ styles.byline }>{ byline }</div>
         </div>
-        <SectionList
+        <SelectionList
+          isChecked={ this.isVisible }
           items={ items }
           noStretch
+          onSelectClick={ this.onSelect }
           renderItem={ this.renderApp }
         />
       </div>
@@ -112,30 +113,27 @@ export default class AddDapps extends Component {
   }
 
   renderApp = (app) => {
-    const { store } = this.props;
-    const isVisible = store.displayApps[app.id].visible;
-
-    const onClick = () => {
-      if (isVisible) {
-        store.hideApp(app.id);
-      } else {
-        store.showApp(app.id);
-      }
-    };
-
     return (
       <DappCard
         app={ app }
-        className={
-          isVisible
-            ? styles.selected
-            : styles.unselected
-        }
         key={ app.id }
-        onClick={ onClick }
-      >
-        <CheckIcon className={ styles.selectIcon } />
-      </DappCard>
+      />
     );
+  }
+
+  isVisible = (app) => {
+    const { store } = this.props;
+
+    return store.displayApps[app.id].visible;
+  }
+
+  onSelect = (app) => {
+    const { store } = this.props;
+
+    if (this.isVisible(app)) {
+      store.hideApp(app.id);
+    } else {
+      store.showApp(app.id);
+    }
   }
 }
