@@ -241,6 +241,14 @@ impl HeaderChain {
 		self.block_header(BlockId::Latest).expect("Header for best block always stored; qed")
 	}
 
+	/// Get an iterator over a block and its ancestry.
+	pub fn ancestry_iter(&self, start: BlockId) -> AncestryIter {
+		AncestryIter {
+			next: self.block_header(start),
+			chain: self,
+		}
+	}
+
 	/// Get the nth CHT root, if it's been computed.
 	///
 	/// CHT root 0 is from block `1..2048`.
@@ -292,6 +300,25 @@ impl HeapSizeOf for HeaderChain {
 		self.candidates.read().heap_size_of_children() +
 			self.headers.read().heap_size_of_children() +
 			self.cht_roots.lock().heap_size_of_children()
+	}
+}
+
+/// Iterator over a block's ancestry.
+pub struct AncestryIter<'a> {
+	next: Option<encoded::Header>,
+	chain: &'a HeaderChain,
+}
+
+impl<'a> Iterator for AncestryIter<'a> {
+	type Item = encoded::Header;
+
+	fn next(&mut self) -> Option<encoded::Header> {
+		let next = self.next.take();
+		if let Some(p_hash) = next.as_ref().map(|hdr| hdr.parent_hash()) {
+			self.next = self.chain.block_header(BlockId::Hash(p_hash));
+		}
+
+		next
 	}
 }
 

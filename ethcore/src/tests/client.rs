@@ -27,7 +27,6 @@ use miner::Miner;
 use rlp::View;
 use spec::Spec;
 use views::BlockView;
-use util::stats::Histogram;
 use ethkey::{KeyPair, Secret};
 use transaction::{PendingTransaction, Transaction, Action, Condition};
 use miner::MinerService;
@@ -208,11 +207,11 @@ fn can_collect_garbage() {
 fn can_generate_gas_price_median() {
 	let client_result = generate_dummy_client_with_data(3, 1, slice_into![1, 2, 3]);
 	let client = client_result.reference();
-	assert_eq!(Some(U256::from(2)), client.gas_price_median(3));
+	assert_eq!(Some(&U256::from(2)), client.gas_price_corpus(3).median());
 
 	let client_result = generate_dummy_client_with_data(4, 1, slice_into![1, 4, 3, 2]);
 	let client = client_result.reference();
-	assert_eq!(Some(U256::from(3)), client.gas_price_median(4));
+	assert_eq!(Some(&U256::from(3)), client.gas_price_corpus(3).median());
 }
 
 #[test]
@@ -220,8 +219,8 @@ fn can_generate_gas_price_histogram() {
 	let client_result = generate_dummy_client_with_data(20, 1, slice_into![6354,8593,6065,4842,7845,7002,689,4958,4250,6098,5804,4320,643,8895,2296,8589,7145,2000,2512,1408]);
 	let client = client_result.reference();
 
-	let hist = client.gas_price_histogram(20, 5).unwrap();
-	let correct_hist = Histogram { bucket_bounds: vec_into![643, 2294, 3945, 5596, 7247, 8898], counts: vec![4,2,4,6,4] };
+	let hist = client.gas_price_corpus(20).histogram(5).unwrap();
+	let correct_hist = ::stats::Histogram { bucket_bounds: vec_into![643, 2294, 3945, 5596, 7247, 8898], counts: vec![4,2,4,6,4] };
 	assert_eq!(hist, correct_hist);
 }
 
@@ -230,7 +229,7 @@ fn empty_gas_price_histogram() {
 	let client_result = generate_dummy_client_with_data(20, 0, slice_into![]);
 	let client = client_result.reference();
 
-	assert!(client.gas_price_histogram(20, 5).is_none());
+	assert!(client.gas_price_corpus(20).histogram(5).is_none());
 }
 
 #[test]
