@@ -311,7 +311,7 @@ export default class CreateAccount extends Component {
       return api.parity
         .importGethAccounts(this.state.gethAddresses)
         .then((gethImported) => {
-          console.log('result', gethImported);
+          console.log('importGethAccounts', gethImported);
 
           this.setState({
             gethImported
