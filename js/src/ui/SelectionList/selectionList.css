@@ -22,6 +22,10 @@
   position: relative;
   width: 100%;
 
+  &:hover {
+    box-shadow: inset 0 0 0 2px rgb(255, 255, 255);
+  }
+
   .content {
     height: 100%;
     width: 100%;
@@ -39,6 +43,7 @@
 }
 
 .selected {
+  box-shadow: inset 0 0 0 2px rgb(255, 255, 255);
   filter: none;
 }
 
