@@ -82,7 +82,6 @@ class Contracts extends Component {
       <div>
         { this.renderActionbar() }
         { this.renderAddContract() }
-        { this.renderAddContract() }
         { this.renderDeployContract() }
         <Page>
           <List
