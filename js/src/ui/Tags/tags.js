@@ -76,7 +76,12 @@ export default class Tags extends Component {
       .sort()
       .map((tag, index) => {
         const onClick = handleAddSearchToken
-          ? () => handleAddSearchToken(tag)
+          ? (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+
+            handleAddSearchToken(tag);
+          }
           : null;
 
         return (
