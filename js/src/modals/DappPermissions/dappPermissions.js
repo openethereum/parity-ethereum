@@ -73,12 +73,10 @@ class DappPermissions extends Component {
   }
 
   onMakeDefault = (account) => {
-    console.log('onMakeDefault', account);
     this.props.permissionStore.setDefaultAccount(account.address);
   }
 
   onSelect = (account) => {
-    console.log('onSelect', account);
     this.props.permissionStore.selectAccount(account.address);
   }
 
