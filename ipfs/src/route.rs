@@ -14,15 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use {rlp, multihash};
+use {rlp, multihash, IpfsHandler};
 use error::{Error, Result};
 use cid::{ToCid, Codec};
 
-use std::sync::Arc;
 use multihash::Hash;
-use hyper::Next;
 use util::{Bytes, H256};
-use ethcore::client::{BlockId, TransactionId, BlockChainClient};
+use ethcore::client::{BlockId, TransactionId};
 
 type Reason = &'static str;
 
@@ -34,30 +32,10 @@ pub enum Out {
 	Bad(Reason),
 }
 
-/// Request/response handler
-pub struct IpfsHandler {
-	/// Reference to the Blockchain Client
-	client: Arc<BlockChainClient>,
-
-	/// Response to send out
-	pub out: Out,
-
-	/// How many bytes from the response have been written
-	pub out_progress: usize,
-}
-
 impl IpfsHandler {
-	pub fn new(client: Arc<BlockChainClient>) -> Self {
-		IpfsHandler {
-			client: client,
-			out: Out::Bad("Invalid Request"),
-			out_progress: 0,
-		}
-	}
-
 	/// Route path + query string to a specialized method
-	pub fn route(&mut self, path: &str, query: Option<&str>) -> Next {
-		self.out = match path {
+	pub fn route(&self, path: &str, query: Option<&str>) -> Out {
+		match path {
 			"/api/v0/block/get" => {
 				let arg = query.and_then(|q| get_param(q, "arg")).unwrap_or("");
 
@@ -65,9 +43,7 @@ impl IpfsHandler {
 			},
 
 			_ => Out::NotFound("Route not found")
-		};
-
-		Next::write()
+		}
 	}
 
 	/// Attempt to read Content ID from `arg` query parameter, get a hash and
@@ -94,14 +70,14 @@ impl IpfsHandler {
 	/// Get block header by hash as raw binary.
 	fn block(&self, hash: H256) -> Result<Out> {
 		let block_id = BlockId::Hash(hash);
-		let block = self.client.block_header(block_id).ok_or(Error::BlockNotFound)?;
+		let block = self.client().block_header(block_id).ok_or(Error::BlockNotFound)?;
 
 		Ok(Out::OctetStream(block.into_inner()))
 	}
 
 	/// Get list of block ommers by hash as raw binary.
 	fn block_list(&self, hash: H256) -> Result<Out> {
-		let uncles = self.client.find_uncles(&hash).ok_or(Error::BlockNotFound)?;
+		let uncles = self.client().find_uncles(&hash).ok_or(Error::BlockNotFound)?;
 
 		Ok(Out::OctetStream(rlp::encode(&uncles).to_vec()))
 	}
@@ -109,21 +85,21 @@ impl IpfsHandler {
 	/// Get transaction by hash and return as raw binary.
 	fn transaction(&self, hash: H256) -> Result<Out> {
 		let tx_id = TransactionId::Hash(hash);
-		let tx = self.client.transaction(tx_id).ok_or(Error::TransactionNotFound)?;
+		let tx = self.client().transaction(tx_id).ok_or(Error::TransactionNotFound)?;
 
 		Ok(Out::OctetStream(rlp::encode(&*tx).to_vec()))
 	}
 
 	/// Get state trie node by hash and return as raw binary.
 	fn state_trie(&self, hash: H256) -> Result<Out> {
-		let data = self.client.state_data(&hash).ok_or(Error::StateRootNotFound)?;
+		let data = self.client().state_data(&hash).ok_or(Error::StateRootNotFound)?;
 
 		Ok(Out::OctetStream(data))
 	}
 
 	/// Get state trie node by hash and return as raw binary.
 	fn contract_code(&self, hash: H256) -> Result<Out> {
-		let data = self.client.state_data(&hash).ok_or(Error::ContractNotFound)?;
+		let data = self.client().state_data(&hash).ok_or(Error::ContractNotFound)?;
 
 		Ok(Out::OctetStream(data))
 	}
@@ -138,11 +114,12 @@ fn get_param<'a>(query: &'a str, name: &str) -> Option<&'a str> {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use super::*;
 	use ethcore::client::TestBlockChainClient;
 
 	fn get_mocked_handler() -> IpfsHandler {
-		IpfsHandler::new(Arc::new(TestBlockChainClient::new()))
+		IpfsHandler::new(None, None, Arc::new(TestBlockChainClient::new()))
 	}
 
 	#[test]
@@ -232,37 +209,37 @@ mod tests {
 
 	#[test]
 	fn route_block() {
-		let mut handler = get_mocked_handler();
+		let handler = get_mocked_handler();
 
-		let _ = handler.route("/api/v0/block/get", Some("arg=z43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
+		let out = handler.route("/api/v0/block/get", Some("arg=z43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
 
-		assert_eq!(handler.out, Out::NotFound("Block not found"));
+		assert_eq!(out, Out::NotFound("Block not found"));
 	}
 
 	#[test]
 	fn route_block_missing_query() {
-		let mut handler = get_mocked_handler();
+		let handler = get_mocked_handler();
 
-		let _ = handler.route("/api/v0/block/get", None);
+		let out = handler.route("/api/v0/block/get", None);
 
-		assert_eq!(handler.out, Out::Bad("CID parsing failed"));
+		assert_eq!(out, Out::Bad("CID parsing failed"));
 	}
 
 	#[test]
 	fn route_block_invalid_query() {
-		let mut handler = get_mocked_handler();
+		let handler = get_mocked_handler();
 
-		let _ = handler.route("/api/v0/block/get", Some("arg=foobarz43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
+		let out = handler.route("/api/v0/block/get", Some("arg=foobarz43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
 
-		assert_eq!(handler.out, Out::Bad("CID parsing failed"));
+		assert_eq!(out, Out::Bad("CID parsing failed"));
 	}
 
 	#[test]
 	fn route_invalid_route() {
-		let mut handler = get_mocked_handler();
+		let handler = get_mocked_handler();
 
-		let _ = handler.route("/foo/bar/baz", Some("arg=z43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
+		let out = handler.route("/foo/bar/baz", Some("arg=z43AaGF5tmkT9SEX6urrhwpEW5ZSaACY73Vw357ZXTsur2fR8BM"));
 
-		assert_eq!(handler.out, Out::NotFound("Route not found"));
+		assert_eq!(out, Out::NotFound("Route not found"));
 	}
 }

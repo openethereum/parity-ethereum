@@ -153,7 +153,7 @@ class Address extends Component {
       <Button
         key='delete'
         icon={ <ActionDelete /> }
-        label='forget address'
+        label='forget'
         onClick={ this.showDeleteDialog }
       />
     ];
@@ -162,7 +162,7 @@ class Address extends Component {
       <Button
         key='newAddress'
         icon={ <ContentAdd /> }
-        label='save address'
+        label='save'
         onClick={ this.onOpenAdd }
       />
     );

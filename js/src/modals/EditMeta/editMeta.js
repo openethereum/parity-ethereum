@@ -64,6 +64,7 @@ class EditMeta extends Component {
       >
         <Form>
           <Input
+            autoFocus
             error={ nameError }
             label={
               <FormattedMessage

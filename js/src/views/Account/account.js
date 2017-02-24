@@ -177,7 +177,7 @@ class Account extends Component {
         label={
           <FormattedMessage
             id='account.button.delete'
-            defaultMessage='delete account'
+            defaultMessage='delete'
           />
         }
         onClick={ this.store.toggleDeleteDialog }

@@ -138,13 +138,13 @@ class Contracts extends Component {
       <Button
         key='addContract'
         icon={ <ContentAdd /> }
-        label='watch contract'
+        label='watch'
         onClick={ this.onAddContract }
       />,
       <Button
         key='deployContract'
         icon={ <ContentAdd /> }
-        label='deploy contract'
+        label='deploy'
         onClick={ this.onDeployContract }
       />,
       <Link
@@ -153,7 +153,7 @@ class Contracts extends Component {
       >
         <Button
           icon={ <FileIcon /> }
-          label='develop contract'
+          label='develop'
         />
       </Link>,
 

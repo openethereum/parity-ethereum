@@ -166,6 +166,7 @@ class WalletSettings extends Component {
             </p>
 
             <Input
+              autoFocus
               hint='[ ... ]'
               label={
                 <FormattedMessage

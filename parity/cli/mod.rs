@@ -96,7 +96,7 @@ usage! {
 
 		// -- Account Options
 		flag_unlock: Option<String> = None,
-			or |c: &Config| otry!(c.account).unlock.clone().map(|vec| Some(vec.join(","))),
+			or |c: &Config| otry!(c.account).unlock.as_ref().map(|vec| Some(vec.join(","))),
 		flag_password: Vec<String> = Vec::new(),
 			or |c: &Config| otry!(c.account).password.clone(),
 		flag_keys_iterations: u32 = 10240u32,
@@ -138,7 +138,7 @@ usage! {
 		flag_network_id: Option<u64> = None,
 			or |c: &Config| otry!(c.network).id.clone().map(Some),
 		flag_bootnodes: Option<String> = None,
-			or |c: &Config| otry!(c.network).bootnodes.clone().map(|vec| Some(vec.join(","))),
+			or |c: &Config| otry!(c.network).bootnodes.as_ref().map(|vec| Some(vec.join(","))),
 		flag_no_discovery: bool = false,
 			or |c: &Config| otry!(c.network).discovery.map(|d| !d).clone(),
 		flag_node_key: Option<String> = None,
@@ -160,9 +160,9 @@ usage! {
 		flag_jsonrpc_cors: Option<String> = None,
 			or |c: &Config| otry!(c.rpc).cors.clone().map(Some),
 		flag_jsonrpc_apis: String = "web3,eth,net,parity,traces,rpc",
-			or |c: &Config| otry!(c.rpc).apis.clone().map(|vec| vec.join(",")),
+			or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
-			or |c: &Config| otry!(c.rpc).hosts.clone().map(|vec| vec.join(",")),
+			or |c: &Config| otry!(c.rpc).hosts.as_ref().map(|vec| vec.join(",")),
 
 		// IPC
 		flag_no_ipc: bool = false,
@@ -170,7 +170,7 @@ usage! {
 		flag_ipc_path: String = "$BASE/jsonrpc.ipc",
 			or |c: &Config| otry!(c.ipc).path.clone(),
 		flag_ipc_apis: String = "web3,eth,net,parity,parity_accounts,traces,rpc",
-			or |c: &Config| otry!(c.ipc).apis.clone().map(|vec| vec.join(",")),
+			or |c: &Config| otry!(c.ipc).apis.as_ref().map(|vec| vec.join(",")),
 
 		// DAPPS
 		flag_no_dapps: bool = false,
@@ -180,7 +180,7 @@ usage! {
 		flag_dapps_interface: String = "local",
 			or |c: &Config| otry!(c.dapps).interface.clone(),
 		flag_dapps_hosts: String = "none",
-			or |c: &Config| otry!(c.dapps).hosts.clone().map(|vec| vec.join(",")),
+			or |c: &Config| otry!(c.dapps).hosts.as_ref().map(|vec| vec.join(",")),
 		flag_dapps_path: String = "$BASE/dapps",
 			or |c: &Config| otry!(c.dapps).path.clone(),
 		flag_dapps_user: Option<String> = None,
@@ -204,6 +204,12 @@ usage! {
 			or |c: &Config| otry!(c.ipfs).enable.clone(),
 		flag_ipfs_api_port: u16 = 5001u16,
 			or |c: &Config| otry!(c.ipfs).port.clone(),
+		flag_ipfs_api_interface: String = "local",
+			or |c: &Config| otry!(c.ipfs).interface.clone(),
+		flag_ipfs_api_cors: Option<String> = None,
+			or |c: &Config| otry!(c.ipfs).cors.clone().map(Some),
+		flag_ipfs_api_hosts: String = "none",
+			or |c: &Config| otry!(c.ipfs).hosts.as_ref().map(|vec| vec.join(",")),
 
 		// -- Sealing/Mining Options
 		flag_author: Option<String> = None,
@@ -249,7 +255,7 @@ usage! {
 		flag_remove_solved: bool = false,
 			or |c: &Config| otry!(c.mining).remove_solved.clone(),
 		flag_notify_work: Option<String> = None,
-			or |c: &Config| otry!(c.mining).notify_work.clone().map(|vec| Some(vec.join(","))),
+			or |c: &Config| otry!(c.mining).notify_work.as_ref().map(|vec| Some(vec.join(","))),
 		flag_refuse_service_transactions: bool = false,
 			or |c: &Config| otry!(c.mining).refuse_service_transactions.clone(),
 
@@ -439,6 +445,9 @@ struct SecretStore {
 struct Ipfs {
 	enable: Option<bool>,
 	port: Option<u16>,
+	interface: Option<String>,
+	cors: Option<String>,
+	hosts: Option<Vec<String>>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -678,6 +687,9 @@ mod tests {
 			// IPFS
 			flag_ipfs_api: false,
 			flag_ipfs_api_port: 5001u16,
+			flag_ipfs_api_interface: "local".into(),
+			flag_ipfs_api_cors: Some("null".into()),
+			flag_ipfs_api_hosts: "none".into(),
 
 			// -- Sealing/Mining Options
 			flag_author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
@@ -872,7 +884,10 @@ mod tests {
 			}),
 			ipfs: Some(Ipfs {
 				enable: Some(false),
-				port: Some(5001)
+				port: Some(5001),
+				interface: None,
+				cors: None,
+				hosts: None,
 			}),
 			mining: Some(Mining {
 				author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),

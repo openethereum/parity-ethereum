@@ -91,6 +91,7 @@ export default class Store {
     transaction(() => {
       this.password = '';
       this.passwordRepeat = '';
+      this.phrase = '';
       this.name = '';
       this.nameError = null;
       this.rawKeyError = null;
