@@ -174,7 +174,7 @@ class EditMeta extends Component {
       <InputAddress
         allowCopy={ false }
         allowInvalid
-        disabled
+        readOnly
         hint={
           <FormattedMessage
             id='editMeta.vault.hint'
