@@ -37,6 +37,7 @@ pub mod cht;
 pub mod net;
 pub mod on_demand;
 pub mod transaction_queue;
+pub mod cache;
 
 #[cfg(not(feature = "ipc"))]
 pub mod provider;
@@ -71,6 +72,7 @@ extern crate time;
 extern crate futures;
 extern crate rand;
 extern crate itertools;
+extern crate stats;
 
 #[cfg(feature = "ipc")]
 extern crate ethcore_ipc as ipc;
