@@ -1640,6 +1640,7 @@ dependencies = [
  "ethcore 1.6.0",
  "ethcore-util 1.6.0",
  "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
+ "jsonrpc-http-server 6.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "multihash 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
@@ -1705,7 +1706,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#e45e4bd823184f47f00d14a8992fc8467a69b11d"
+source = "git+https://github.com/ethcore/js-precompiled.git#e62f236550c1b06e6e9e3fb1fbd9dcc0518673ff"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

@@ -256,13 +256,13 @@ class Contract extends Component {
       <Button
         key='delete'
         icon={ <ActionDelete /> }
-        label='forget contract'
+        label='forget'
         onClick={ this.showDeleteDialog }
       />,
       <Button
         key='viewDetails'
         icon={ <EyeIcon /> }
-        label='view details'
+        label='details'
         onClick={ this.showDetailsDialog }
       />
     ];

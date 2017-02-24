@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use {multihash, cid, hyper};
-use handler::Out;
+use route::Out;
 
 pub type Result<T> = ::std::result::Result<T, Error>;
 
@@ -26,6 +26,8 @@ pub enum ServerError {
 	IoError(::std::io::Error),
 	/// Other `hyper` error
 	Other(hyper::error::Error),
+	/// Invalid --ipfs-api-interface
+	InvalidInterface
 }
 
 #[derive(Debug, PartialEq)]
@@ -89,6 +91,7 @@ impl From<ServerError> for String {
 		match err {
 			ServerError::IoError(err) => err.to_string(),
 			ServerError::Other(err) => err.to_string(),
+			ServerError::InvalidInterface => "Invalid --ipfs-api-interface parameter".into(),
 		}
 	}
 }

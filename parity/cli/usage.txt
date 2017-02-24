@@ -178,6 +178,17 @@ API and Console Options:
   --ipfs-api                     Enable IPFS-compatible HTTP API. (default: {flag_ipfs_api})
   --ipfs-api-port PORT           Configure on which port the IPFS HTTP API should listen.
                                  (default: {flag_ipfs_api_port})
+  --ipfs-api-interface IP        Specify the hostname portion of the IPFS API server,
+                                 IP should be an interface's IP address or local.
+                                 (default: {flag_ipfs_api_interface})
+  --ipfs-api-cors URL            Specify CORS header for IPFS API responses.
+                                 (default: {flag_ipfs_api_cors:?})
+  --ipfs-api-hosts HOSTS         List of allowed Host header values. This option will
+                                 validate the Host header sent by the browser, it
+                                 is additional security against some attack
+                                 vectors. Special options: "all", "none"
+                                 (default: {flag_ipfs_api_hosts}).
+
 
 Secret Store Options:
   --no-secretstore               Disable Secret Store functionality. (default: {flag_no_secretstore})
