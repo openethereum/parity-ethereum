@@ -20,7 +20,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { BusyStep, Button, CompletedStep, CopyToClipboard, GasPriceEditor, IdentityIcon, Modal, TxHash, Warning } from '~/ui';
+import { BusyStep, Button, CompletedStep, CopyToClipboard, GasPriceEditor, IdentityIcon, Portal, TxHash, Warning } from '~/ui';
 import { CancelIcon, DoneIcon } from '~/ui/Icons';
 import { ERRORS, validateAbi, validateCode, validateName } from '~/util/validation';
 
@@ -166,21 +166,22 @@ class DeployContract extends Component {
       : null;
 
     return (
-      <Modal
-        actions={ this.renderDialogActions() }
-        current={ realStep }
+      <Portal
+        buttons={ this.renderDialogActions() }
+        activeStep={ realStep }
+        busySteps={ waiting }
+        onClose={ this.onClose }
+        open
         steps={
           realSteps
             ? realSteps.map((s) => s.title)
             : null
         }
         title={ title }
-        visible
-        waiting={ waiting }
       >
         { this.renderExceptionWarning() }
         { this.renderStep() }
-      </Modal>
+      </Portal>
     );
   }
 
@@ -207,6 +208,7 @@ class DeployContract extends Component {
     const cancelBtn = (
       <Button
         icon={ <CancelIcon /> }
+        key='cancel'
         label={
           <FormattedMessage
             id='deployContract.button.cancel'
@@ -220,6 +222,7 @@ class DeployContract extends Component {
     const closeBtn = (
       <Button
         icon={ <CancelIcon /> }
+        key='close'
         label={
           <FormattedMessage
             id='deployContract.button.close'
@@ -233,6 +236,7 @@ class DeployContract extends Component {
     const closeBtnOk = (
       <Button
         icon={ <DoneIcon /> }
+        key='done'
         label={
           <FormattedMessage
             id='deployContract.button.done'
@@ -253,6 +257,7 @@ class DeployContract extends Component {
           cancelBtn,
           <Button
             disabled={ !isValid }
+            key='next'
             icon={
               <IdentityIcon
                 address={ fromAddress }
@@ -279,6 +284,7 @@ class DeployContract extends Component {
                 button
               />
             }
+            key='create'
             label={
               <FormattedMessage
                 id='deployContract.button.create'

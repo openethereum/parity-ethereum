@@ -16,13 +16,40 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import DappPermissions from './';
 
-function renderShallow (store = {}) {
-  return shallow(
-    <DappPermissions store={ store } />
-  );
+let component;
+let store;
+
+function createRedux () {
+  store = {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {
+        balances: {
+          balances: {}
+        }
+      };
+    }
+  };
+
+  return store;
+}
+
+function renderShallow (permissionStore = {}) {
+  component = shallow(
+    <DappPermissions permissionStore={ permissionStore } />,
+    {
+      context: {
+        store: createRedux()
+      }
+    }
+  ).find('DappPermissions').shallow();
+
+  return component;
 }
 
 describe('modals/DappPermissions', () => {

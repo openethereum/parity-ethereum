@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { Container } from '~/ui';
+import { Container, SectionList } from '~/ui';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 
 import Summary from '../Summary';
@@ -41,14 +41,6 @@ class List extends Component {
     handleAddSearchToken: PropTypes.func
   };
 
-  render () {
-    return (
-      <div className={ styles.list }>
-        { this.renderAccounts() }
-      </div>
-    );
-  }
-
   componentWillMount () {
     const { accounts, fetchCertifiers, fetchCertifications } = this.props;
 
@@ -58,7 +50,7 @@ class List extends Component {
     }
   }
 
-  renderAccounts () {
+  render () {
     const { accounts, balances, disabled, empty } = this.props;
 
     if (empty) {
@@ -71,26 +63,32 @@ class List extends Component {
       );
     }
 
-    const addresses = this.getAddresses();
+    const addresses = this
+      .getAddresses()
+      .map((address) => {
+        const account = accounts[address] || {};
+        const balance = balances[address] || {};
+        const isDisabled = disabled ? disabled[address] : false;
+        const owners = account.owners || null;
 
-    return addresses.map((address, idx) => {
-      const account = accounts[address] || {};
-      const balance = balances[address] || {};
-      const isDisabled = disabled ? disabled[address] : false;
-      const owners = account.owners || null;
+        return {
+          account,
+          balance,
+          isDisabled,
+          owners
+        };
+      });
 
-      return (
-        <div
-          className={ styles.item }
-          key={ address }
-        >
-          { this.renderSummary(account, balance, isDisabled, owners) }
-        </div>
-      );
-    });
+    return (
+      <SectionList
+        items={ addresses }
+        renderItem={ this.renderSummary }
+      />
+    );
   }
 
-  renderSummary (account, balance, isDisabled, owners) {
+  renderSummary = (item) => {
+    const { account, balance, isDisabled, owners } = item;
     const { handleAddSearchToken, link } = this.props;
 
     return (

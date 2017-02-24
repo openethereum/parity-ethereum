@@ -20,7 +20,7 @@
   background-color: rgba(0, 0, 0, 0.8);
   display: flex;
   flex-direction: row;
-  margin: 0.5em 0;
+  height: 100%;
   overflow: hidden;
   transition: transform ease-out 0.1s;
   transform: scale(1);
@@ -120,6 +120,9 @@
 
   .accountName {
     font-weight: 700 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 

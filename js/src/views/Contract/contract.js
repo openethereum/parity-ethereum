@@ -30,7 +30,7 @@ import { newError } from '~/redux/actions';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import { EditMeta, ExecuteContract } from '~/modals';
-import { Actionbar, Button, Page, Modal } from '~/ui';
+import { Actionbar, Button, Page, Portal } from '~/ui';
 import Editor from '~/ui/Editor';
 
 import Header from '../Account/Header';
@@ -136,7 +136,7 @@ class Contract extends Component {
         { this.renderDeleteDialog(account) }
         { this.renderEditDialog(account) }
         { this.renderExecuteDialog() }
-        <Page>
+        <Page padded>
           <Header
             account={ account }
             balance={ balance }
@@ -198,10 +198,11 @@ class Contract extends Component {
     );
 
     return (
-      <Modal
-        actions={ [ cancelBtn ] }
+      <Portal
+        buttons={ [ cancelBtn ] }
+        onClose={ this.closeDetailsDialog }
+        open
         title={ 'contract details' }
-        visible
       >
         <div className={ styles.details }>
           { this.renderSource(contract) }
@@ -216,7 +217,7 @@ class Contract extends Component {
             />
           </div>
         </div>
-      </Modal>
+      </Portal>
     );
   }
 
@@ -255,13 +256,13 @@ class Contract extends Component {
       <Button
         key='delete'
         icon={ <ActionDelete /> }
-        label='forget contract'
+        label='forget'
         onClick={ this.showDeleteDialog }
       />,
       <Button
         key='viewDetails'
         icon={ <EyeIcon /> }
-        label='view details'
+        label='details'
         onClick={ this.showDetailsDialog }
       />
     ];

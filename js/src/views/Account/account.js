@@ -102,7 +102,7 @@ class Account extends Component {
         { this.renderTransferDialog(account, balance) }
         { this.renderVerificationDialog() }
         { this.renderActionbar(account, balance) }
-        <Page>
+        <Page padded>
           <Header
             account={ account }
             balance={ balance }
@@ -190,7 +190,7 @@ class Account extends Component {
         label={
           <FormattedMessage
             id='account.button.delete'
-            defaultMessage='delete account'
+            defaultMessage='delete'
           />
         }
         onClick={ this.store.toggleDeleteDialog }

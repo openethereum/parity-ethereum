@@ -1015,4 +1015,21 @@ mod tests {
 		// and we can sign with the derived contract
 		assert!(store.sign(&derived, "test", &Default::default()).is_ok(), "Second password should work for second store.");
 	}
+
+	#[test]
+	fn should_save_meta_when_setting_before_password() {
+		// given
+		let mut dir = RootDiskDirectoryGuard::new();
+		let store = EthStore::open(dir.key_dir.take().unwrap()).unwrap();
+		let name = "vault"; let password = "password1";
+		let new_password = "password2";
+
+		// when
+		store.create_vault(name, password).unwrap();
+		store.set_vault_meta(name, "OldMeta").unwrap();
+		store.change_vault_password(name, new_password).unwrap();
+
+		// then
+		assert_eq!(store.get_vault_meta(name).unwrap(), "OldMeta".to_owned());
+	}
 }

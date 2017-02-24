@@ -60,6 +60,14 @@ pub fn unimplemented(details: Option<String>) -> Error {
 	}
 }
 
+pub fn light_unimplemented(details: Option<String>) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: "This request is unsupported for light clients.".into(),
+		data: details.map(Value::String),
+	}
+}
+
 pub fn request_not_found() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::REQUEST_NOT_FOUND),

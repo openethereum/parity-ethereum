@@ -14,6 +14,7 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 .balances {
   display: flex;
   flex-wrap: wrap;
@@ -21,16 +22,22 @@
   vertical-align: top;
 }
 
+.balance,
+.empty {
+  margin: 0.75em 0.5em 0 0;
+}
+
 .empty {
   line-height: 24px;
-  margin: 0 0.5em 0 0;
   opacity: 0.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .balance {
   background: rgba(255, 255, 255, 0.07);
   border-radius: 16px;
-  margin: 0.75em 0.5em 0 0;
   max-height: 24px;
   max-width: 100%;
   display: flex;

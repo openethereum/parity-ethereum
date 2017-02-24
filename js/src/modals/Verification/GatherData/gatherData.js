@@ -232,7 +232,7 @@ export default class GatherData extends Component {
   renderFields () {
     const { accountIsVerified, fields } = this.props;
 
-    const rendered = fields.map((field) => {
+    const rendered = fields.map((field, index) => {
       const onChange = (_, v) => {
         field.onChange(v);
       };
@@ -240,6 +240,7 @@ export default class GatherData extends Component {
 
       return (
         <Input
+          autoFocus={ index === 0 }
           className={ styles.field }
           key={ field.key }
           label={ field.label }

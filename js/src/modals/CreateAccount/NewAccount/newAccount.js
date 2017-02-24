@@ -48,6 +48,7 @@ export default class CreateAccount extends Component {
     return (
       <Form>
         <Input
+          autoFocus
           error={ nameError }
           hint={
             <FormattedMessage
