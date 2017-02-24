@@ -64,7 +64,7 @@ class VaultMeta extends Component {
             onClick={ this.onClose }
           />,
           <Button
-            disabled={ isBusyMeta }
+            disabled={ isBusyMeta || vaultPasswordRepeatError }
             icon={ <CheckIcon /> }
             key='vault'
             label={
@@ -257,7 +257,12 @@ class VaultMeta extends Component {
   }
 
   onExecute = () => {
+    const { vaultPasswordRepeatError } = this.props.vaultStore;
     const { passwordEdit } = this.state;
+
+    if (vaultPasswordRepeatError) {
+      return;
+    }
 
     return Promise
       .all([
