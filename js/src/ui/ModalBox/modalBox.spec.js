@@ -16,51 +16,41 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
-import sinon from 'sinon';
 
-import { createStore } from '../createAccount.test.js';
-
-import NewGeth from './';
+import ModalBox from './';
 
 let component;
-let instance;
-let store;
 
 function render () {
-  store = createStore();
   component = shallow(
-    <NewGeth
-      store={ store }
+    <ModalBox
+      children={ <div id='testChild'>testChild</div> }
+      icon={ <div id='testIcon'>testIcon</div> }
+      summary={ <div id='testSummary'>testSummary</div> }
     />
   );
-  instance = component.instance();
 
   return component;
 }
 
-describe('modals/CreateAccount/NewGeth', () => {
+describe('ui/ModalBox', () => {
   beforeEach(() => {
     render();
   });
 
-  it('renders with defaults', () => {
-    expect(render()).to.be.ok;
+  it('renders defaults', () => {
+    expect(component).to.be.ok;
   });
 
-  describe('events', () => {
-    describe('onSelect', () => {
-      beforeEach(() => {
-        sinon.spy(store, 'selectGethAccount');
-        instance.onSelect({ address: 'testAddress' });
-      });
+  it('adds the children as supplied', () => {
+    expect(component.find('#testChild').text()).to.equal('testChild');
+  });
 
-      afterEach(() => {
-        store.selectGethAccount.restore();
-      });
+  it('adds the icon as supplied', () => {
+    expect(component.find('#testIcon').text()).to.equal('testIcon');
+  });
 
-      it('calls into the store', () => {
-        expect(store.selectGethAccount).to.have.been.calledWith('testAddress');
-      });
-    });
+  it('adds the summary as supplied', () => {
+    expect(component.find('#testSummary').text()).to.equal('testSummary');
   });
 });
