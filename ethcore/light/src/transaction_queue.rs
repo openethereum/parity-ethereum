@@ -245,6 +245,31 @@ impl TransactionQueue {
 			.collect()
 	}
 
+	/// Get all transactions not ready to be propagated.
+	/// `best_block_number` and `best_block_timestamp` are used to filter out conditionally
+	/// propagated transactions.
+	///
+	/// Returned transactions are batched by sender, in order of ascending nonce.
+	pub fn future_transactions(&self, best_block_number: u64, best_block_timestamp: u64) -> Vec<PendingTransaction> {
+		self.by_account.values()
+			.flat_map(|acct_txs| {
+				acct_txs.current.iter().skip_while(|tx| match tx.condition {
+					None => true,
+					Some(Condition::Number(blk_num)) => blk_num <= best_block_number,
+					Some(Condition::Timestamp(time)) => time <= best_block_timestamp,
+				}).chain(acct_txs.future.values()).map(|info| info.hash)
+			})
+			.filter_map(|hash| match self.by_hash.get(&hash) {
+				Some(tx) => Some(tx.clone()),
+				None => {
+					warn!(target: "txqueue", "Inconsistency detected between `by_hash` and `by_account`: {} not stored.",
+						hash);
+					None
+				}
+			})
+			.collect()
+	}
+
 	/// Addresses for which we store transactions.
 	pub fn queued_senders(&self) -> Vec<Address> {
 		self.by_account.keys().cloned().collect()
@@ -470,5 +495,23 @@ mod tests {
 		txq.import(tx_b).unwrap();
 
 		assert!(txq.transaction(&hash).is_none());
+	}
+
+	#[test]
+	fn future_transactions() {
+		let sender = Address::default();
+		let mut txq = TransactionQueue::default();
+
+		for i in (0..1).chain(3..10) {
+			let mut tx = Transaction::default();
+			tx.nonce = i.into();
+
+			let tx = tx.fake_sign(sender);
+
+			txq.import(tx.into()).unwrap();
+		}
+
+		assert_eq!(txq.future_transactions(0, 0).len(), 7);
+		assert_eq!(txq.next_nonce(&sender).unwrap(), 1.into());
 	}
 }

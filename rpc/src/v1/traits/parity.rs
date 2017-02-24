@@ -101,8 +101,8 @@ build_rpc_trait! {
 		fn default_extra_data(&self) -> Result<Bytes, Error>;
 
 		/// Returns distribution of gas price in latest blocks.
-		#[rpc(name = "parity_gasPriceHistogram")]
-		fn gas_price_histogram(&self) -> Result<Histogram, Error>;
+		#[rpc(async, name = "parity_gasPriceHistogram")]
+		fn gas_price_histogram(&self) -> BoxFuture<Histogram, Error>;
 
 		/// Returns number of unsigned transactions waiting in the signer queue (if signer enabled)
 		/// Returns error when signer is disabled
@@ -164,8 +164,8 @@ build_rpc_trait! {
 		fn dapps_interface(&self) -> Result<String, Error>;
 
 		/// Returns next nonce for particular sender. Should include all transactions in the queue.
-		#[rpc(name = "parity_nextNonce")]
-		fn next_nonce(&self, H160) -> Result<U256, Error>;
+		#[rpc(async, name = "parity_nextNonce")]
+		fn next_nonce(&self, H160) -> BoxFuture<U256, Error>;
 
 		/// Get the mode. Results one of: "active", "passive", "dark", "offline".
 		#[rpc(name = "parity_mode")]

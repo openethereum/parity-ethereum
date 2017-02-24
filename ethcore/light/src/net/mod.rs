@@ -322,6 +322,16 @@ impl LightProtocol {
 			.map(|peer| peer.lock().status.clone())
 	}
 
+	/// Get number of (connected, active) peers.
+	pub fn peer_count(&self) -> (usize, usize) {
+		let num_pending = self.pending_peers.read().len();
+		let peers = self.peers.read();
+		(
+			num_pending + peers.len(),
+			peers.values().filter(|p| !p.lock().pending_requests.is_empty()).count(),
+		)
+	}
+
 	/// Check the maximum amount of requests of a specific type
 	/// which a peer would be able to serve. Returns zero if the
 	/// peer is unknown or has no buffer flow parameters.

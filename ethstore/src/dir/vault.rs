@@ -135,6 +135,10 @@ impl VaultKeyDirectory for VaultDiskDirectory {
 		let temp_vault = VaultDiskDirectory::create_temp_vault(self, new_key.clone()).map_err(|err| SetKeyError::NonFatalOld(err))?;
 		let mut source_path = temp_vault.path().expect("temp_vault is instance of DiskDirectory; DiskDirectory always returns path; qed").clone();
 		let mut target_path = self.path().expect("self is instance of DiskDirectory; DiskDirectory always returns path; qed").clone();
+
+		// preserve meta
+		temp_vault.set_meta(&self.meta()).map_err(SetKeyError::NonFatalOld)?;
+
 		// jump to next fs level
 		source_path.push("next");
 		target_path.push("next");

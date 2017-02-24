@@ -19,10 +19,6 @@
   flex-direction: column;
 }
 
-.container {
-  overflow-y: auto;
-}
-
 .description {
   margin-top: .5em !important;
 }
