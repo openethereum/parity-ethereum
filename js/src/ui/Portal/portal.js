@@ -146,7 +146,6 @@ export default class Portal extends Component {
   }
 
   stopEvent = (event) => {
-    event.preventDefault();
     event.stopPropagation();
   }
 
