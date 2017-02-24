@@ -14,35 +14,62 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable, transaction } from 'mobx';
-import store from 'store';
 import { debounce } from 'lodash';
+import { action, observable, transaction } from 'mobx';
+import React from 'react';
+import { FormattedMessage } from 'react-intl';
+import store from 'store';
 
 import { sha3 } from '~/api/util/sha3';
 import SolidityUtils from '~/util/solidity';
 
+const SOLIDITY_LIST_URL = 'https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/list.json';
 const WRITE_CONTRACT_STORE_KEY = '_parity::writeContractStore';
 
 const SNIPPETS = {
   snippet0: {
     name: 'Token.sol',
-    description: 'Standard ERP20 Token Contract',
-    id: 'snippet0', sourcecode: require('raw-loader!../../contracts/snippets/token.sol')
+    description: (
+      <FormattedMessage
+        id='writeContract.type.standardErc20'
+        defaultMessage='Standard ERC20 Token Contract'
+      />
+    ),
+    id: 'snippet0',
+    sourcecode: require('raw-loader!../../contracts/snippets/token.sol')
   },
   snippet1: {
     name: 'StandardToken.sol',
-    description: 'Implementation of ERP20 Token Contract',
-    id: 'snippet1', sourcecode: require('raw-loader!../../contracts/snippets/standard-token.sol')
+    description: (
+      <FormattedMessage
+        id='writeContract.type.implementErc20'
+        defaultMessage='Implementation of ERC20 Token Contract'
+      />
+    ),
+    id: 'snippet1',
+    sourcecode: require('raw-loader!../../contracts/snippets/standard-token.sol')
   },
   snippet2: {
     name: 'HumanStandardToken.sol',
-    description: 'Implementation of the Human Token Contract',
-    id: 'snippet2', sourcecode: require('raw-loader!../../contracts/snippets/human-standard-token.sol')
+    description: (
+      <FormattedMessage
+        id='writeContract.type.humanErc20'
+        defaultMessage='Implementation of the Human Token Contract'
+      />
+    ),
+    id: 'snippet2',
+    sourcecode: require('raw-loader!../../contracts/snippets/human-standard-token.sol')
   },
   snippet3: {
     name: 'Wallet.sol',
-    description: 'Implementation of a multisig Wallet',
-    id: 'snippet3', sourcecode: require('raw-loader!../../contracts/snippets/wallet.sol')
+    description: (
+      <FormattedMessage
+        id='writeContract.type.multisig'
+        defaultMessage='Implementation of a multisig Wallet'
+      />
+    ),
+    id: 'snippet3',
+    sourcecode: require('raw-loader!../../contracts/snippets/wallet.sol')
   }
 };
 
@@ -118,8 +145,8 @@ export default class WriteContractStore {
   }
 
   fetchSolidityVersions () {
-    return fetch('https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/list.json')
-      .then((r) => r.json())
+    return fetch(SOLIDITY_LIST_URL)
+      .then((response) => response.json())
       .then((data) => {
         const { builds, releases, latestRelease } = data;
         let latestIndex = -1;
