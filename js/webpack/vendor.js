@@ -44,7 +44,8 @@ let modules = [
   'recharts',
   'redux',
   'redux-thunk',
-  'scryptsy'
+  'scryptsy',
+  'zxcvbn'
 ];
 
 module.exports = {
