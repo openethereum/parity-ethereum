@@ -21,7 +21,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { ConfirmDialog, Input, VaultCard } from '~/ui';
+import { ConfirmDialog, Form, Input, VaultCard } from '~/ui';
 
 import styles from './vaultUnlock.css';
 
@@ -64,28 +64,31 @@ class VaultUnlock extends Component {
           withBorder
           vault={ vault }
         />
-        <Input
-          hint={
-            <FormattedMessage
-              id='vaults.confirmOpen.password.hint'
-              defaultMessage='the password specified when creating the vault'
-            />
-          }
-          label={
-            <FormattedMessage
-              id='vaults.confirmOpen.password.label'
-              defaultMessage='vault password'
-            />
-          }
-          onChange={ this.onEditPassword }
-          onSubmit={ this.onExecute }
-          type='password'
-          value={ vaultPassword }
-        />
-        <div className={ styles.passwordHint }>
-          { vault.meta.passwordHint }
-        </div>
-        <br />
+        <Form className={ styles.form }>
+          <Input
+            autoFocus
+            hint={
+              <FormattedMessage
+                id='vaults.confirmOpen.password.hint'
+                defaultMessage='the password specified when creating the vault'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='vaults.confirmOpen.password.label'
+                defaultMessage='vault password'
+              />
+            }
+            onChange={ this.onEditPassword }
+            onDefaultAction={ this.onExecute }
+            type='password'
+            value={ vaultPassword }
+          />
+          <div className={ styles.passwordHint }>
+            { vault.meta.passwordHint }
+          </div>
+          <br />
+        </Form>
       </ConfirmDialog>
     );
   }

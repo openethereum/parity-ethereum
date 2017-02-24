@@ -39,6 +39,7 @@ export default class NewImport extends Component {
     return (
       <Form>
         <Input
+          autoFocus
           error={ nameError }
           hint={
             <FormattedMessage

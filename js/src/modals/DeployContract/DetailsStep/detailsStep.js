@@ -92,27 +92,8 @@ export default class DetailsStep extends Component {
 
     return (
       <Form>
-        <AddressSelect
-          accounts={ accounts }
-          balances={ balances }
-          error={ fromAddressError }
-          hint={
-            <FormattedMessage
-              id='deployContract.details.address.hint'
-              defaultMessage='the owner account for this contract'
-            />
-          }
-          label={
-            <FormattedMessage
-              id='deployContract.details.address.label'
-              defaultMessage='from account (contract owner)'
-            />
-          }
-          onChange={ this.onFromAddressChange }
-          value={ fromAddress }
-        />
-
         <Input
+          autoFocus
           error={ nameError }
           hint={
             <FormattedMessage
@@ -146,6 +127,26 @@ export default class DetailsStep extends Component {
           }
           onChange={ this.onDescriptionChange }
           value={ description }
+        />
+
+        <AddressSelect
+          accounts={ accounts }
+          balances={ balances }
+          error={ fromAddressError }
+          hint={
+            <FormattedMessage
+              id='deployContract.details.address.hint'
+              defaultMessage='the owner account for this contract'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='deployContract.details.address.label'
+              defaultMessage='from account (contract owner)'
+            />
+          }
+          onChange={ this.onFromAddressChange }
+          value={ fromAddress }
         />
 
         { this.renderContractSelect() }

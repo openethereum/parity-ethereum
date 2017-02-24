@@ -65,6 +65,7 @@ class EditMeta extends Component {
         { this.renderVaultSelector() }
         <Form>
           <Input
+            autoFocus
             error={ nameError }
             label={
               <FormattedMessage

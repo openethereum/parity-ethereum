@@ -226,7 +226,7 @@ class Accounts extends Component {
         label={
           <FormattedMessage
             id='accounts.button.newAccount'
-            defaultMessage='new account'
+            defaultMessage='account'
           />
         }
         onClick={ this.onNewAccountClick }
@@ -237,7 +237,7 @@ class Accounts extends Component {
         label={
           <FormattedMessage
             id='accounts.button.newWallet'
-            defaultMessage='new wallet'
+            defaultMessage='wallet'
           />
         }
         onClick={ this.onNewWalletClick }

@@ -65,9 +65,10 @@ export default class AddAddress extends Component {
   renderDialogActions () {
     const { hasError } = this.store;
 
-    return ([
+    return [
       <Button
         icon={ <CancelIcon /> }
+        key='cancel'
         label={
           <FormattedMessage
             id='addAddress.button.close'
@@ -80,6 +81,7 @@ export default class AddAddress extends Component {
       <Button
         disabled={ hasError }
         icon={ <AddIcon /> }
+        key='save'
         label={
           <FormattedMessage
             id='addAddress.button.add'
@@ -89,7 +91,7 @@ export default class AddAddress extends Component {
         onClick={ this.onAdd }
         ref='addButton'
       />
-    ]);
+    ];
   }
 
   renderFields () {
@@ -99,6 +101,7 @@ export default class AddAddress extends Component {
       <Form>
         <InputAddress
           allowCopy={ false }
+          autoFocus
           disabled={ !!this.props.address }
           error={ addressError }
           hint={
