@@ -21,12 +21,14 @@ import { validateName } from '~/util/validation';
 export default class Store {
   @observable address = null;
   @observable isAccount = false;
+  @observable isVaultSelectorOpen = false;
   @observable description = null;
   @observable meta = null;
   @observable name = null;
   @observable nameError = null;
   @observable passwordHint = null;
   @observable tags = null;
+  @observable vaultName = null;
 
   constructor (api, account) {
     const { address, name, meta, uuid } = account;
@@ -34,14 +36,15 @@ export default class Store {
     this._api = api;
 
     transaction(() => {
-      this.isAccount = !!uuid;
       this.address = address;
       this.meta = meta || {};
       this.name = name || '';
+      this.isAccount = !!uuid;
 
       this.description = this.meta.description || '';
       this.passwordHint = this.meta.passwordHint || '';
       this.tags = this.meta.tags && this.meta.tags.peek() || [];
+      this.vaultName = this.meta.vault;
     });
   }
 
@@ -74,6 +77,14 @@ export default class Store {
     this.tags = tags.slice();
   }
 
+  @action setVaultName = (vaultName) => {
+    this.vaultName = vaultName;
+  }
+
+  @action setVaultSelectorOpen = (isOpen) => {
+    this.isVaultSelectorOpen = isOpen;
+  }
+
   save () {
     const meta = {
       description: this.description,
@@ -93,5 +104,9 @@ export default class Store {
         console.error('onSave', error);
         throw error;
       });
+  }
+
+  toggleVaultSelector () {
+    this.setVaultSelectorOpen(!this.isVaultSelectorOpen);
   }
 }

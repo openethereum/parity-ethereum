@@ -16,15 +16,42 @@
 */
 
 .details {
-  text-align: center;
+  width: 100%;
 
-  .infoForm {
-    background: rgba(0, 0, 0, 0.1);
-    padding: 1.5em;
-  }
+  .info {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
 
-  .qr {
-    margin: 1.5em auto 0 auto;
+    .account {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+
+      .name {
+        display: flex;
+        flex-direction: row;
+        flex: 1;
+
+        .icon {
+          flex: 0 0 56px;
+          margin: 0 1em 0 0;
+        }
+
+        .title {
+          flex: 1;
+        }
+      }
+
+      .description {
+        flex: 1;
+      }
+    }
+
+    .qr {
+      flex: 0 0 136px;
+      margin: 1.5em 0 0 1.5em;
+    }
   }
 }
 
@@ -87,4 +114,25 @@
 
 .checkbox {
   margin-top: 2em;
+}
+
+.selectItem {
+  display: flex;
+
+  .icon {
+    flex: 0 0 56px;
+    height: 56px !important;
+    margin-right: 0.75em;
+    width: 56px !important;
+  }
+
+  .info {
+    flex: 1 1;
+  }
+}
+
+.summary {
+  line-height: 1.618em;
+  padding: 0 4em 1.5em 4em;
+  text-align: center;
 }

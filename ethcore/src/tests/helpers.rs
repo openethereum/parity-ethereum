@@ -456,5 +456,9 @@ pub fn get_default_ethash_params() -> EthashParams{
 		ecip1010_pause_transition: u64::max_value(),
 		ecip1010_continue_transition: u64::max_value(),
 		max_code_size: u64::max_value(),
+		max_gas_limit_transition: u64::max_value(),
+		max_gas_limit: U256::max_value(),
+		min_gas_price_transition: u64::max_value(),
+		min_gas_price: U256::zero(),
 	}
 }

@@ -15,6 +15,11 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+$transition: all 0.25s;
+$widthNormal: 33.33%;
+$widthShrunk: 29%;
+$widthExpanded: 42%;
+
 .section {
   position: relative;
   width: 100%;
@@ -38,13 +43,14 @@
     /* case where <> 3 columns are required should the need arrise from a UI pov. */
     .item {
       box-sizing: border-box;
-      cursor: pointer;
       display: flex;
-      flex: 0 1 33.33%;
-      max-width: 33.33%;
+      flex: 0 1 $widthNormal;
+      max-width: $widthNormal;
       opacity: 0.85;
       padding: 0.25em;
-      transition: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
+      /* https://www.binarymoon.co.uk/2014/02/fixing-css-transitions-in-google-chrome/ */
+      transform: translateZ(0);
+      transition: $transition;
 
       &:hover {
         opacity: 1;
@@ -55,12 +61,12 @@
     &:hover {
       .item {
         &.stretchOn {
-          flex: 0 1 29%;
-          max-width: 29%;
+          flex: 0 1 $widthShrunk;
+          max-width: $widthShrunk;
 
           &:hover {
-            flex: 0 0 42%;
-            max-width: 42%;
+            flex: 0 0 $widthExpanded;
+            max-width: $widthExpanded;
           }
         }
       }

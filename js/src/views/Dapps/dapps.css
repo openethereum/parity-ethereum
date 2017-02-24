@@ -14,43 +14,14 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.list {
-  display: flex;
-  flex-wrap: wrap;
-  margin: -0.125em;
-  position: relative;
-
-  .item {
-    box-sizing: border-box;
-    flex: 0 1 50%;
-    opacity: 0.85;
-    padding: 0.125em;
-  }
-
-}
-
-.list+.list {
-  margin-top: -0.25em;
-}
 
 .overlay {
-  background: rgba(0, 0, 0, 0.85);
-  bottom: 0.5em;
-  left: -0.125em;
-  position: absolute;
-  right: -0.125em;
-  top: -0.25em;
-  z-index: 100;
-  padding: 1em;
+  line-height: 1.5em;
+  margin: 0 auto;
+  text-align: left;
+  max-width: 980px;
 
-  .body {
-    line-height: 1.5em;
-    margin: 0 auto;
-    text-align: left;
-    max-width: 980px;
-
-    &>div:first-child {
-      padding-bottom: 1em;
-    }
+  &>div:first-child {
+    padding-bottom: 1em;
   }
 }

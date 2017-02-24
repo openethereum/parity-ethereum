@@ -22,6 +22,7 @@ import styles from './tags.css';
 
 export default class Tags extends Component {
   static propTypes = {
+    className: PropTypes.string,
     floating: PropTypes.bool,
     horizontal: PropTypes.bool,
     handleAddSearchToken: PropTypes.func,
@@ -35,7 +36,7 @@ export default class Tags extends Component {
   };
 
   render () {
-    const { floating, horizontal, tags } = this.props;
+    const { className, floating, horizontal, tags } = this.props;
 
     if (!tags || tags.length === 0) {
       return null;
@@ -50,6 +51,8 @@ export default class Tags extends Component {
     if (horizontal) {
       classes.push(styles.horizontal);
     }
+
+    classes.push(className);
 
     return (
       <div className={ classes.join(' ') }>
@@ -73,7 +76,12 @@ export default class Tags extends Component {
       .sort()
       .map((tag, index) => {
         const onClick = handleAddSearchToken
-          ? () => handleAddSearchToken(tag)
+          ? (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+
+            handleAddSearchToken(tag);
+          }
           : null;
 
         return (

@@ -34,6 +34,8 @@ export UpgradeParity from './UpgradeParity';
 export VaultAccounts from './VaultAccounts';
 export VaultCreate from './VaultCreate';
 export VaultLock from './VaultLock';
+export VaultMeta from './VaultMeta';
+export VaultSelector from './VaultSelector';
 export VaultUnlock from './VaultUnlock';
 export Verification from './Verification';
 export WalletSettings from './WalletSettings';
