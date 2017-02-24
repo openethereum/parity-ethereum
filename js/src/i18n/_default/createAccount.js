@@ -61,13 +61,6 @@ export default {
       label: `Import raw private key`
     }
   },
-  error: {
-    invalidKey: `the raw key needs to be hex, 64 characters in length and contain the prefix "0x"`,
-    noFile: `select a valid wallet file to import`,
-    noKey: `you need to provide the raw private key`,
-    noMatchPassword: `the supplied passwords does not match`,
-    noName: `you need to specify a valid name for the account`
-  },
   newAccount: {
     hint: {
       hint: `(optional) a hint to help with remembering the password`,

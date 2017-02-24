@@ -185,7 +185,7 @@ pub mod headers {
 		type Verified = Header;
 
 		fn create(input: Self::Input, engine: &Engine) -> Result<Self::Unverified, Error> {
-			verify_header_params(&input, engine).map(|_| input)
+			verify_header_params(&input, engine, true).map(|_| input)
 		}
 
 		fn verify(unverified: Self::Unverified, engine: &Engine, check_seal: bool) -> Result<Self::Verified, Error> {

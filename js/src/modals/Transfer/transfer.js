@@ -21,7 +21,7 @@ import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
 import { pick } from 'lodash';
 
-import { BusyStep, CompletedStep, Button, IdentityIcon, Input, Modal, TxHash, Warning } from '~/ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Input, Portal, TxHash, Warning } from '~/ui';
 import { newError } from '~/ui/Errors/actions';
 import { CancelIcon, DoneIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 import { nullableProptype } from '~/util/proptypes';
@@ -60,21 +60,22 @@ class Transfer extends Component {
     const { stage, extras, steps } = this.store;
 
     return (
-      <Modal
-        actions={ this.renderDialogActions() }
-        current={ stage }
-        steps={ steps }
-        waiting={
+      <Portal
+        activeStep={ stage }
+        busySteps={
           extras
             ? [STEP_BUSY]
             : [STEP_ADVANCED_OR_BUSY]
         }
-        visible
+        buttons={ this.renderDialogActions() }
+        onClose={ this.handleClose }
+        open
+        steps={ steps }
       >
         { this.renderExceptionWarning() }
         { this.renderWalletWarning() }
         { this.renderPage() }
-      </Modal>
+      </Portal>
     );
   }
 
@@ -252,6 +253,7 @@ class Transfer extends Component {
     const cancelBtn = (
       <Button
         icon={ <CancelIcon /> }
+        key='cancel'
         label='Cancel'
         onClick={ this.handleClose }
       />
@@ -260,6 +262,7 @@ class Transfer extends Component {
       <Button
         disabled={ !this.store.isValid }
         icon={ <NextIcon /> }
+        key='next'
         label='Next'
         onClick={ this.store.onNext }
       />
@@ -267,6 +270,7 @@ class Transfer extends Component {
     const prevBtn = (
       <Button
         icon={ <PrevIcon /> }
+        key='back'
         label='Back'
         onClick={ this.store.onPrev }
       />
@@ -275,6 +279,7 @@ class Transfer extends Component {
       <Button
         disabled={ !this.store.isValid || sending }
         icon={ <IdentityIcon address={ account.address } button /> }
+        key='send'
         label='Send'
         onClick={ this.store.onSend }
       />
@@ -282,6 +287,7 @@ class Transfer extends Component {
     const doneBtn = (
       <Button
         icon={ <DoneIcon /> }
+        key='close'
         label='Close'
         onClick={ this.handleClose }
       />

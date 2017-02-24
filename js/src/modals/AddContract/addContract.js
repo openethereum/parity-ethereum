@@ -21,7 +21,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { Button, Modal, Form, Input, InputAddress, RadioButtons } from '~/ui';
+import { Button, Form, Input, InputAddress, Portal, RadioButtons } from '~/ui';
 import { AddIcon, CancelIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 
 import Store from './store';
@@ -44,9 +44,11 @@ class AddContract extends Component {
     const { step } = this.store;
 
     return (
-      <Modal
-        actions={ this.renderDialogActions() }
-        current={ step }
+      <Portal
+        activeStep={ step }
+        buttons={ this.renderDialogActions() }
+        onClose={ this.onClose }
+        open
         steps={ [
           <FormattedMessage
             id='addContract.title.type'
@@ -59,10 +61,9 @@ class AddContract extends Component {
             key='details'
           />
         ] }
-        visible
       >
         { this.renderStep() }
-      </Modal>
+      </Portal>
     );
   }
 

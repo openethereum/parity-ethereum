@@ -232,8 +232,13 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		Ok(Bytes::new(version_data()))
 	}
 
-	fn gas_price_histogram(&self) -> Result<Histogram, Error> {
-		take_weak!(self.client).gas_price_histogram(100, 10).ok_or_else(errors::not_enough_data).map(Into::into)
+	fn gas_price_histogram(&self) -> BoxFuture<Histogram, Error> {
+		future::done(take_weakf!(self.client)
+			.gas_price_corpus(100)
+			.histogram(10)
+			.ok_or_else(errors::not_enough_data)
+			.map(Into::into)
+		).boxed()
 	}
 
 	fn unsigned_transactions_count(&self) -> Result<usize, Error> {
@@ -312,16 +317,16 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			.ok_or_else(|| errors::dapps_disabled())
 	}
 
-	fn next_nonce(&self, address: H160) -> Result<U256, Error> {
+	fn next_nonce(&self, address: H160) -> BoxFuture<U256, Error> {
 		let address: Address = address.into();
-		let miner = take_weak!(self.miner);
-		let client = take_weak!(self.client);
+		let miner = take_weakf!(self.miner);
+		let client = take_weakf!(self.client);
 
-		Ok(miner.last_nonce(&address)
+		future::ok(miner.last_nonce(&address)
 			.map(|n| n + 1.into())
 			.unwrap_or_else(|| client.latest_nonce(&address))
 			.into()
-		)
+		).boxed()
 	}
 
 	fn mode(&self) -> Result<String, Error> {

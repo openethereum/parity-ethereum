@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Button, Modal, Form, Input } from '~/ui';
+import { Button, Form, Input, Portal } from '~/ui';
 import Editor from '~/ui/Editor';
 import { ERRORS, validateName } from '~/util/validation';
 
@@ -42,10 +42,11 @@ export default class SaveContract extends Component {
     const { name, nameError } = this.state;
 
     return (
-      <Modal
+      <Portal
+        buttons={ this.renderDialogActions() }
+        onClose={ this.onClose }
+        open
         title='save contract'
-        actions={ this.renderDialogActions() }
-        visible
       >
         <div>
           <Form>
@@ -60,11 +61,11 @@ export default class SaveContract extends Component {
           <Editor
             className={ styles.source }
             value={ sourcecode }
-            maxLines={ 20 }
+            maxLines={ 25 }
             readOnly
           />
         </div>
-      </Modal>
+      </Portal>
     );
   }
 
@@ -72,6 +73,7 @@ export default class SaveContract extends Component {
     const cancelBtn = (
       <Button
         icon={ <ContentClear /> }
+        key='cancel'
         label='Cancel'
         onClick={ this.onClose }
       />
@@ -80,6 +82,7 @@ export default class SaveContract extends Component {
     const confirmBtn = (
       <Button
         icon={ <SaveIcon /> }
+        key='save'
         label='Save'
         disabled={ !!this.state.nameError }
         onClick={ this.onSave }

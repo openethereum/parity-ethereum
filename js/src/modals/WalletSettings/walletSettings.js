@@ -20,11 +20,8 @@ import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
 import { pick } from 'lodash';
 
-import ActionDone from 'material-ui/svg-icons/action/done';
-import ContentClear from 'material-ui/svg-icons/content/clear';
-import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
-
-import { Button, Modal, TxHash, BusyStep, Form, TypedInput, Input, InputAddress, AddressSelect } from '~/ui';
+import { BusyStep, AddressSelect, Button, Form, TypedInput, Input, InputAddress, Portal, TxHash } from '~/ui';
+import { CancelIcon, DoneIcon, NextIcon } from '~/ui/Icons';
 import { fromWei } from '~/api/util/wei';
 
 import WalletSettingsStore from './walletSettingsStore.js';
@@ -50,8 +47,9 @@ class WalletSettings extends Component {
 
     if (rejected) {
       return (
-        <Modal
-          visible
+        <Portal
+          onClose={ this.onClose }
+          open
           title={
             <FormattedMessage
               id='walletSettings.rejected.title'
@@ -74,20 +72,21 @@ class WalletSettings extends Component {
               />
             }
           />
-        </Modal>
+        </Portal>
       );
     }
 
     return (
-      <Modal
-        visible
-        actions={ this.renderDialogActions() }
-        current={ stage }
-        steps={ steps.map((s) => s.title) }
-        waiting={ waiting }
+      <Portal
+        activeStep={ stage }
+        busySteps={ waiting }
+        buttons={ this.renderDialogActions() }
+        onClose={ this.onClose }
+        open
+        steps={ steps.map((step) => step.title) }
       >
         { this.renderPage() }
-      </Modal>
+      </Portal>
     );
   }
 
@@ -106,11 +105,26 @@ class WalletSettings extends Component {
                 const key = req.id;
 
                 if (req.txhash) {
-                  return (<TxHash key={ key } hash={ req.txhash } />);
+                  return (
+                    <TxHash
+                      key={ key }
+                      hash={ req.txhash }
+                    />
+                  );
                 }
 
                 if (req.rejected) {
-                  return (<p key={ key }>The transaction #{parseInt(key, 16)} has been rejected</p>);
+                  return (
+                    <p key={ key }>
+                      <FormattedMessage
+                        id='walletSettings.rejected'
+                        defaultMessage='The transaction #{txid} has been rejected'
+                        values={ {
+                          txid: parseInt(key, 16)
+                        } }
+                      />
+                    </p>
+                  );
                 }
               })
             }
@@ -291,9 +305,7 @@ class WalletSettings extends Component {
         <p>
           <FormattedMessage
             id='walletSettings.changes.overview'
-            defaultMessage={
-              `You are about to make the following modifications`
-            }
+            defaultMessage='You are about to make the following modifications'
           />
         </p>
         { modifications }
@@ -323,12 +335,21 @@ class WalletSettings extends Component {
       case 'require':
         return (
           <div className={ styles.change }>
-            <div className={ styles.label }>Change Required Owners</div>
+            <div className={ styles.label }>
+              <FormattedMessage
+                id='walletSettings.ownersChange.title'
+                defaultMessage='Change Required Owners'
+              />
+            </div>
             <div>
-              <span> from </span>
-              <code> { change.initial.toNumber() }</code>
-              <span> to </span>
-              <code> { change.value.toNumber() }</code>
+              <FormattedMessage
+                id='walletSettings.ownersChange.details'
+                defaultMessage=' from {from} to {to} '
+                values={ {
+                  from: <code>change.initial.toNumber()</code>,
+                  to: <code>change.value.toNumber()</code>
+                } }
+              />
             </div>
           </div>
         );
@@ -336,7 +357,12 @@ class WalletSettings extends Component {
       case 'add_owner':
         return (
           <div className={ [ styles.change, styles.add ].join(' ') }>
-            <div className={ styles.label }>Add Owner</div>
+            <div className={ styles.label }>
+              <FormattedMessage
+                id='walletSettings.addOwner.title'
+                defaultMessage='Add Owner'
+              />
+            </div>
             <div>
               <InputAddress
                 disabled
@@ -350,7 +376,12 @@ class WalletSettings extends Component {
       case 'remove_owner':
         return (
           <div className={ [ styles.change, styles.remove ].join(' ') }>
-            <div className={ styles.label }>Remove Owner</div>
+            <div className={ styles.label }>
+              <FormattedMessage
+                id='walletSettings.removeOwner.title'
+                defaultMessage='Remove Owner'
+              />
+            </div>
             <div>
               <InputAddress
                 disabled
@@ -364,37 +395,56 @@ class WalletSettings extends Component {
   }
 
   renderDialogActions () {
-    const { onClose } = this.props;
     const { step, hasErrors, rejected, onNext, send, done } = this.store;
 
     const cancelBtn = (
       <Button
-        icon={ <ContentClear /> }
-        label='Cancel'
-        onClick={ onClose }
+        icon={ <CancelIcon /> }
+        label={
+          <FormattedMessage
+            id='walletSettings.buttons.cancel'
+            defaultMessage='Cancel'
+          />
+        }
+        onClick={ this.onClose }
       />
     );
 
     const closeBtn = (
       <Button
-        icon={ <ContentClear /> }
-        label='Close'
-        onClick={ onClose }
+        icon={ <CancelIcon /> }
+        label={
+          <FormattedMessage
+            id='walletSettings.buttons.close'
+            defaultMessage='Close'
+          />
+        }
+        onClick={ this.onClose }
       />
     );
 
     const sendingBtn = (
       <Button
-        icon={ <ActionDone /> }
-        label='Sending...'
+        icon={ <DoneIcon /> }
+        label={
+          <FormattedMessage
+            id='walletSettings.buttons.sending'
+            defaultMessage='Sending...'
+          />
+        }
         disabled
       />
     );
 
     const nextBtn = (
       <Button
-        icon={ <NavigationArrowForward /> }
-        label='Next'
+        icon={ <NextIcon /> }
+        label={
+          <FormattedMessage
+            id='walletSettings.buttons.next'
+            defaultMessage='Next'
+          />
+        }
         onClick={ onNext }
         disabled={ hasErrors }
       />
@@ -402,8 +452,13 @@ class WalletSettings extends Component {
 
     const sendBtn = (
       <Button
-        icon={ <NavigationArrowForward /> }
-        label='Send'
+        icon={ <NextIcon /> }
+        label={
+          <FormattedMessage
+            id='walletSettings.buttons.send'
+            defaultMessage='Send'
+          />
+        }
         onClick={ send }
         disabled={ hasErrors }
       />
@@ -415,7 +470,9 @@ class WalletSettings extends Component {
 
     switch (step) {
       case 'SENDING':
-        return done ? [ closeBtn ] : [ closeBtn, sendingBtn ];
+        return done
+          ? [ closeBtn ]
+          : [ closeBtn, sendingBtn ];
 
       case 'CONFIRMATION':
         const { changes } = this.store;
@@ -430,6 +487,10 @@ class WalletSettings extends Component {
       case 'TYPE':
         return [ cancelBtn, nextBtn ];
     }
+  }
+
+  onClose = () => {
+    this.props.onClose();
   }
 }
 

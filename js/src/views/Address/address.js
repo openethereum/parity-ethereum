@@ -153,7 +153,7 @@ class Address extends Component {
       <Button
         key='delete'
         icon={ <ActionDelete /> }
-        label='delete address'
+        label='forget address'
         onClick={ this.showDeleteDialog }
       />
     ];

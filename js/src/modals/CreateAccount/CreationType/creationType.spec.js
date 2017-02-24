@@ -50,7 +50,7 @@ describe('modals/CreateAccount/CreationType', () => {
 
     beforeEach(() => {
       store.setCreateType(SELECT_TYPE);
-      selector = component.find('RadioButtonGroup');
+      selector = component.find('RadioButtons');
     });
 
     it('renders the selector', () => {
@@ -58,14 +58,14 @@ describe('modals/CreateAccount/CreationType', () => {
     });
 
     it('passes the store type to defaultSelected', () => {
-      expect(selector.props().defaultSelected).to.equal(SELECT_TYPE);
+      expect(selector.props().value).to.equal(SELECT_TYPE);
     });
   });
 
   describe('events', () => {
     describe('onChange', () => {
       beforeEach(() => {
-        component.instance().onChange({ target: { value: 'testing' } });
+        component.instance().onChange(null, 'testing');
       });
 
       it('changes the store createType', () => {

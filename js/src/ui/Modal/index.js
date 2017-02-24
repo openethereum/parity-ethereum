@@ -17,8 +17,6 @@
 import Busy from './Busy';
 import Completed from './Completed';
 
-export default from './modal';
-
 export {
   Busy,
   Completed
