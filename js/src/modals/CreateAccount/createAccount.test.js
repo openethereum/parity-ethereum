@@ -35,7 +35,7 @@ function createApi () {
     },
     parity: {
       generateSecretPhrase: sinon.stub().resolves('some account phrase'),
-      importGethAccounts: sinon.stub().resolves(),
+      importGethAccounts: sinon.stub().resolves(GETH_ADDRESSES),
       listGethAccounts: sinon.stub().resolves(GETH_ADDRESSES),
       newAccountFromPhrase: sinon.stub().resolves(ADDRESS),
       newAccountFromSecret: sinon.stub().resolves(ADDRESS),

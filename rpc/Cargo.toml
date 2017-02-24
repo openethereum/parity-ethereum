@@ -39,6 +39,7 @@ rlp = { path = "../util/rlp" }
 fetch = { path = "../util/fetch" }
 parity-reactor = { path = "../util/reactor" }
 clippy = { version = "0.0.103", optional = true}
+stats = { path = "../util/stats" }
 
 [features]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]

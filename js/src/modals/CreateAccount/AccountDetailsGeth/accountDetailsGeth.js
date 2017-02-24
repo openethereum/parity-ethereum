@@ -27,7 +27,7 @@ export default class AccountDetailsGeth extends Component {
   }
 
   render () {
-    const { gethAddresses } = this.props.store;
+    const { gethImported } = this.props.store;
 
     return (
       <div>
@@ -36,12 +36,12 @@ export default class AccountDetailsGeth extends Component {
             id='createAccount.accountDetailsGeth.imported'
             defaultMessage='You have imported {number} addresses from the Geth keystore:'
             values={ {
-              number: gethAddresses.length
+              number: gethImported.length
             } }
           />
         </div>
         <div className={ styles.address }>
-          { this.formatAddresses(gethAddresses) }
+          { this.formatAddresses(gethImported) }
         </div>
       </div>
     );

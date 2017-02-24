@@ -110,6 +110,14 @@ impl RequestSet {
 	pub fn collect_ids<F>(&self) -> F where F: FromIterator<ReqId> {
 		self.ids.keys().cloned().collect()
 	}
+
+	/// Number of requests in the set.
+	pub fn len(&self) -> usize {
+		self.ids.len()
+	}
+
+	/// Whether the set is empty.
+	pub fn is_empty(&self) -> bool { self.len() == 0 }
 }
 
 #[cfg(test)]
