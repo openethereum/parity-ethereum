@@ -99,7 +99,7 @@ export default class AddAddress extends Component {
       <Form>
         <InputAddress
           allowCopy={ false }
-          sutoFocus
+          autoFocus
           disabled={ !!this.props.address }
           error={ addressError }
           hint={
