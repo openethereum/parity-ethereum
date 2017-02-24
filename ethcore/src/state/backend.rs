@@ -98,7 +98,6 @@ impl<T: AsHashDB + Send> Backend for NoCache<T> {
 /// See module docs for more details.
 ///
 /// This doesn't cache anything or rely on the canonical state caches.
-#[derive(Debug, Clone, PartialEq)]
 pub struct Proving<H: AsHashDB> {
 	base: H, // state we're proving values from.
 	changed: MemoryDB, // changed state via insertions.
@@ -107,8 +106,9 @@ pub struct Proving<H: AsHashDB> {
 
 impl<H: AsHashDB + Send + Sync> HashDB for Proving<H> {
 	fn keys(&self) -> HashMap<H256, i32> {
-		self.base.as_hashdb().keys()
-			.extend(self.changed.keys())
+		let mut keys = self.base.as_hashdb().keys();
+		keys.extend(self.changed.keys());
+		keys
 	}
 
 	fn get(&self, key: &H256) -> Option<DBValue> {
@@ -141,7 +141,7 @@ impl<H: AsHashDB + Send + Sync> HashDB for Proving<H> {
 	}
 }
 
-impl<H: AsHashDB + Send> Backend for Proving<H> {
+impl<H: AsHashDB + Send + Sync> Backend for Proving<H> {
 	fn as_hashdb(&self) -> &HashDB {
 		self
 	}
@@ -181,5 +181,15 @@ impl<H: AsHashDB> Proving<H> {
 	/// Consume the backend, extracting the gathered proof.
 	pub fn extract_proof(self) -> Vec<DBValue> {
 		self.proof.into_inner().into_iter().collect()
+	}
+}
+
+impl<H: AsHashDB + Clone> Clone for Proving<H> {
+	fn clone(&self) -> Self {
+		Proving {
+			base: self.base.clone(),
+			changed: self.changed.clone(),
+			proof: Mutex::new(self.proof.lock().clone()),
+		}
 	}
 }

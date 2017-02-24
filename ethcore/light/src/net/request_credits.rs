@@ -81,12 +81,13 @@ impl Credits {
 /// A cost table, mapping requests to base and per-request costs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CostTable {
-	headers: Cost,
+	headers: Cost, // cost per header
 	bodies: Cost,
 	receipts: Cost,
 	state_proofs: Cost,
 	contract_codes: Cost,
 	header_proofs: Cost,
+	transaction_proof: Cost, // cost per gas.
 }
 
 impl Default for CostTable {
@@ -99,6 +100,7 @@ impl Default for CostTable {
 			state_proofs: Cost(250000.into(), 25000.into()),
 			contract_codes: Cost(200000.into(), 20000.into()),
 			header_proofs: Cost(150000.into(), 15000.into()),
+			transaction_proof: Cost(100000.into(), 2.into()),
 		}
 	}
 }
@@ -133,6 +135,7 @@ impl RlpDecodable for CostTable {
 		let mut state_proofs = None;
 		let mut contract_codes = None;
 		let mut header_proofs = None;
+		let mut transaction_proof = None;
 
 		for row in rlp.iter() {
 			let msg_id: u8 = row.val_at(0)?;
@@ -150,6 +153,7 @@ impl RlpDecodable for CostTable {
 				packet::GET_PROOFS => state_proofs = Some(cost),
 				packet::GET_CONTRACT_CODES => contract_codes = Some(cost),
 				packet::GET_HEADER_PROOFS => header_proofs = Some(cost),
+				packet::GET_TRANSACTION_PROOF => transaction_proof = Some(cost),
 				_ => return Err(DecoderError::Custom("Unrecognized message in cost table")),
 			}
 		}
@@ -161,6 +165,7 @@ impl RlpDecodable for CostTable {
 			state_proofs: state_proofs.ok_or(DecoderError::Custom("No proofs cost specified"))?,
 			contract_codes: contract_codes.ok_or(DecoderError::Custom("No contract codes specified"))?,
 			header_proofs: header_proofs.ok_or(DecoderError::Custom("No header proofs cost specified"))?,
+			transaction_proof: transaction_proof.ok_or(DecoderError::Custom("No transaction proof gas cost specified"))?,
 		})
 	}
 }
@@ -197,6 +202,7 @@ impl FlowParams {
 				state_proofs: free_cost.clone(),
 				contract_codes: free_cost.clone(),
 				header_proofs: free_cost.clone(),
+				transaction_proof: free_cost,
 			}
 		}
 	}
@@ -220,6 +226,7 @@ impl FlowParams {
 			request::Kind::StateProofs => &self.costs.state_proofs,
 			request::Kind::Codes => &self.costs.contract_codes,
 			request::Kind::HeaderProofs => &self.costs.header_proofs,
+			request::Kind::TransactionProof => &self.costs.transaction_proof,
 		};
 
 		let amount: U256 = amount.into();
@@ -241,6 +248,7 @@ impl FlowParams {
 			request::Kind::StateProofs => &self.costs.state_proofs,
 			request::Kind::Codes => &self.costs.contract_codes,
 			request::Kind::HeaderProofs => &self.costs.header_proofs,
+			request::Kind::TransactionProof => &self.costs.transaction_proof,
 		};
 
 		let start = credits.current();

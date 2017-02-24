@@ -19,7 +19,7 @@
 //! This uses a "Provider" to answer requests.
 //! See https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
 
-use ethcore::transaction::UnverifiedTransaction;
+use ethcore::transaction::{Action, UnverifiedTransaction};
 use ethcore::receipt::Receipt;
 
 use io::TimerToken;
@@ -73,7 +73,7 @@ pub const PROTOCOL_VERSIONS: &'static [u8] = &[1];
 pub const MAX_PROTOCOL_VERSION: u8 = 1;
 
 /// Packet count for LES.
-pub const PACKET_COUNT: u8 = 15;
+pub const PACKET_COUNT: u8 = 17;
 
 // packet ID definitions.
 mod packet {
@@ -109,6 +109,10 @@ mod packet {
 	// request and response for header proofs in a CHT.
 	pub const GET_HEADER_PROOFS: u8 = 0x0d;
 	pub const HEADER_PROOFS: u8 = 0x0e;
+
+	// request and response for transaction proof.
+	pub const GET_TRANSACTION_PROOF: u8 = 0x0f;
+	pub const TRANSACTION_PROOF: u8 = 0x10;
 }
 
 // timeouts for different kinds of requests. all values are in milliseconds.
@@ -121,6 +125,7 @@ mod timeout {
 	pub const PROOFS: i64 = 4000;
 	pub const CONTRACT_CODES: i64 = 5000;
 	pub const HEADER_PROOFS: i64 = 3500;
+	pub const TRANSACTION_PROOF: i64 = 5000;
 }
 
 /// A request id.
@@ -370,6 +375,7 @@ impl LightProtocol {
 			request::Kind::StateProofs => packet::GET_PROOFS,
 			request::Kind::Codes => packet::GET_CONTRACT_CODES,
 			request::Kind::HeaderProofs => packet::GET_HEADER_PROOFS,
+			request::Kind::TransactionProof => packet::GET_TRANSACTION_PROOF,
 		};
 
 		io.send(*peer_id, packet_id, packet_data);
@@ -1319,6 +1325,25 @@ fn encode_request(req: &Request, req_id: usize) -> Vec<u8> {
 					.append(&proof_req.block_number)
 					.append(&proof_req.from_level);
 			}
+
+			stream.out()
+		}
+		Request::TransactionProof(ref request) => {
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&req_id).begin_list(7)
+				.append(&request.at)
+				.append(&request.from);
+
+			match request.action {
+				Action::Create => stream.append_empty_data(),
+				Action::Call(ref to) => stream.append(to),
+			};
+
+			stream
+				.append(&request.gas)
+				.append(&request.gas_price)
+				.append(&request.value)
+				.append(&request.data);
 
 			stream.out()
 		}

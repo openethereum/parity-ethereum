@@ -31,7 +31,7 @@ use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
 
-use util::{Bytes, H256, Mutex, RwLock};
+use util::{Bytes, DBValue, H256, Mutex, RwLock};
 
 use self::header_chain::HeaderChain;
 
@@ -290,6 +290,10 @@ impl ::provider::Provider for Client {
 	}
 
 	fn header_proof(&self, _req: ::request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
+		None
+	}
+
+	fn transaction_proof(&self, _req: ::request::TransactionProof) -> Option<Vec<DBValue>> {
 		None
 	}
 
