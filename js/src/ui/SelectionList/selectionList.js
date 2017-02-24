@@ -36,13 +36,11 @@ export default class SelectionList extends Component {
     const { items, noStretch } = this.props;
 
     return (
-      <div className={ styles.container }>
-        <SectionList
-          items={ items }
-          noStretch={ noStretch }
-          renderItem={ this.renderItem }
-        />
-      </div>
+      <SectionList
+        items={ items }
+        noStretch={ noStretch }
+        renderItem={ this.renderItem }
+      />
     );
   }
 
