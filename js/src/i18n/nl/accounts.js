@@ -27,5 +27,5 @@ export default {
   tooltip: {
     actions: `voor de huidige weergave zijn koppelingen beschikbaar op de werkbalk voor snelle toegang: het uitvoeren van acties of het creëren van een nieuw item`,
     overview: `hier vind je een overzichtelijke weergave van je accounts, waarin je meta informatie kunt bewerken en transacties kunt uitvoeren en bekijken`
-   }
+  }
 };
