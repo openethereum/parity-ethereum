@@ -16,6 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import { isEqual } from 'lodash';
 import ReactTooltip from 'react-tooltip';
@@ -27,13 +28,14 @@ import { arrayOrObjectProptype, nullableProptype } from '~/util/proptypes';
 
 import styles from '../accounts.css';
 
-export default class Summary extends Component {
+class Summary extends Component {
   static contextTypes = {
     api: React.PropTypes.object
   };
 
   static propTypes = {
     account: PropTypes.object.isRequired,
+    accountsInfo: PropTypes.object.isRequired,
     balance: PropTypes.object,
     link: PropTypes.string,
     name: PropTypes.string,
@@ -90,7 +92,7 @@ export default class Summary extends Component {
   }
 
   render () {
-    const { account, handleAddSearchToken } = this.props;
+    const { account, handleAddSearchToken, noLink } = this.props;
     const { tags } = account.meta;
 
     if (!account) {
@@ -108,52 +110,71 @@ export default class Summary extends Component {
       />
     );
 
-    const description = this.getDescription(account.meta);
-
     return (
-      <Container>
-        <Tags tags={ tags } handleAddSearchToken={ handleAddSearchToken } />
+      <Container
+        className={ styles.account }
+        hover={
+          <div className={ styles.overlay }>
+            { this.renderBalance(false) }
+            { this.renderDescription(account.meta) }
+            { this.renderOwners() }
+            { this.renderCertifications() }
+          </div>
+        }
+        link={ this.getLink() }
+      >
+        <Tags
+          className={ styles.tags }
+          tags={ tags }
+          handleAddSearchToken={ handleAddSearchToken }
+        />
         <div className={ styles.heading }>
           <IdentityIcon
             address={ address }
           />
           <ContainerTitle
             byline={ addressComponent }
-            className={ styles.main }
-            description={ description }
-            title={ this.renderLink() }
+            className={
+              noLink
+                ? styles.main
+                : styles.mainLink
+            }
+            title={
+              <IdentityName
+                address={ address }
+                name={ name }
+                unknown
+              />
+            }
           />
         </div>
-
-        { this.renderOwners() }
-        { this.renderBalance() }
-        { this.renderCertifications() }
+        { this.renderBalance(true) }
       </Container>
     );
   }
 
-  getDescription (meta = {}) {
+  renderDescription (meta = {}) {
     const { blockNumber } = meta;
 
     if (!blockNumber) {
       return null;
     }
 
-    const formattedBlockNumber = (new BigNumber(blockNumber)).toFormat();
-
     return (
-      <FormattedMessage
-        id='accounts.summary.minedBlock'
-        defaultMessage='Mined at block #{blockNumber}'
-        values={ {
-          blockNumber: formattedBlockNumber
-        } }
-      />
+      <div className={ styles.blockDescription }>
+        <FormattedMessage
+          id='accounts.summary.minedBlock'
+          defaultMessage='Mined at block #{blockNumber}'
+          values={ {
+            blockNumber: (new BigNumber(blockNumber)).toFormat()
+          } }
+        />
+      </div>
     );
   }
 
   renderOwners () {
-    const { owners } = this.props;
+    const { accountsInfo, owners } = this.props;
     const ownersValid = (owners || []).filter((owner) => owner.address && new BigNumber(owner.address).gt(0));
 
     if (!ownersValid || ownersValid.length === 0) {
@@ -163,55 +184,58 @@ export default class Summary extends Component {
     return (
       <div className={ styles.owners }>
         {
-          ownersValid.map((owner, index) => (
-            <div key={ `${index}_${owner.address}` }>
-              <div
-                data-tip
-                data-for={ `owner_${owner.address}` }
-                data-effect='solid'
+          ownersValid.map((owner, index) => {
+            const account = accountsInfo[owner.address];
+            let ownerLinkType = 'addresses';
+
+            if (account) {
+              if (account.uuid || account.hardware) {
+                ownerLinkType = 'accounts';
+              } else if (account.wallet) {
+                ownerLinkType = 'wallet';
+              } else if (account.meta.contract) {
+                ownerLinkType = 'contract';
+              }
+            }
+
+            return (
+              <Link
+                className={ styles.owner }
+                key={ `${index}_${owner.address}` }
+                to={ `/${ownerLinkType}/${owner.address}` }
               >
-                <IdentityIcon address={ owner.address } button />
-              </div>
-              <ReactTooltip id={ `owner_${owner.address}` }>
-                <strong>{ owner.name } </strong><small> (owner)</small>
-              </ReactTooltip>
-            </div>
-          ))
+                <div
+                  data-tip
+                  data-for={ `owner_${owner.address}` }
+                  data-effect='solid'
+                >
+                  <IdentityIcon
+                    address={ owner.address }
+                    center
+                  />
+                </div>
+                <ReactTooltip id={ `owner_${owner.address}` }>
+                  <strong>{ owner.name } </strong><small> (owner)</small>
+                </ReactTooltip>
+              </Link>
+            );
+          })
         }
       </div>
     );
   }
 
-  renderLink () {
-    const { link, noLink, account, name } = this.props;
-
+  getLink () {
+    const { link, account } = this.props;
     const { address } = account;
     const baseLink = account.wallet
       ? 'wallet'
       : link || 'accounts';
 
-    const viewLink = `/${baseLink}/${address}`;
-
-    const content = (
-      <IdentityName
-        address={ address }
-        name={ name }
-        unknown
-      />
-    );
-
-    if (noLink) {
-      return content;
-    }
-
-    return (
-      <Link to={ viewLink }>
-        { content }
-      </Link>
-    );
+    return `/${baseLink}/${address}`;
   }
 
-  renderBalance () {
+  renderBalance (onlyEth) {
     const { balance } = this.props;
 
     if (!balance) {
@@ -219,7 +243,15 @@ export default class Summary extends Component {
     }
 
     return (
-      <Balance balance={ balance } />
+      <Balance
+        balance={ balance }
+        className={
+          onlyEth
+            ? styles.ethBalances
+            : styles.allBalances
+        }
+        showOnlyEth={ onlyEth }
+      />
     );
   }
 
@@ -231,7 +263,23 @@ export default class Summary extends Component {
     }
 
     return (
-      <Certifications address={ account.address } />
+      <Certifications
+        address={ account.address }
+        className={ styles.Certifications }
+      />
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { accountsInfo } = state.personal;
+
+  return {
+    accountsInfo
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(Summary);

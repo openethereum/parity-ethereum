@@ -20,10 +20,45 @@
   left: 7em;
 }
 
-.owners {
-  margin-top: 1em;
-  display: flex;
-  margin-bottom: -0.5em;
+.account {
+  position: relative;
+
+  .blockDescription {
+    color: rgba(255, 255, 255, 0.25);
+    margin-top: 1.5em;
+  }
+
+  .ethBalances {
+    opacity: 1;
+  }
+
+  .owners {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: -0.5em;
+    margin-top: 1em;
+
+    .owner {
+      margin: 0.5em;
+    }
+  }
+
+  .overlay {
+    margin-top: -3.25em;
+  }
+
+  &:not(:hover) {
+    .tags {
+      display: none;
+    }
+  }
+
+  &:hover {
+    .ethBalances {
+      opacity: 0;
+    }
+  }
 }
 
 .toolbar {
@@ -61,7 +96,12 @@
   display: flex;
   flex-direction: row;
 
-  .main {
+  .main,
+  .mainLink {
     flex: 1;
+  }
+
+  .mainLink h3 {
+    color: rgb(0, 151, 167);
   }
 }

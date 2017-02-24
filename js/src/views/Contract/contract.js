@@ -136,7 +136,7 @@ class Contract extends Component {
         { this.renderDeleteDialog(account) }
         { this.renderEditDialog(account) }
         { this.renderExecuteDialog() }
-        <Page>
+        <Page padded>
           <Header
             account={ account }
             balance={ balance }
