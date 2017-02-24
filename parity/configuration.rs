@@ -558,6 +558,9 @@ impl Configuration {
 		IpfsConfiguration {
 			enabled: self.args.flag_ipfs_api,
 			port: self.args.flag_ipfs_api_port,
+			interface: self.ipfs_interface(),
+			cors: self.ipfs_cors(),
+			hosts: self.ipfs_hosts(),
 		}
 	}
 
@@ -693,29 +696,39 @@ impl Configuration {
 		apis
 	}
 
+	fn cors(cors: Option<&String>) -> Option<Vec<String>> {
+		cors.map(|ref c| c.split(',').map(Into::into).collect())
+	}
+
 	fn rpc_cors(&self) -> Option<Vec<String>> {
-		let cors = self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone());
-		cors.map(|c| c.split(',').map(|s| s.to_owned()).collect())
+		let cors = self.args.flag_jsonrpc_cors.as_ref().or(self.args.flag_rpccorsdomain.as_ref());
+		Self::cors(cors)
+	}
+
+	fn ipfs_cors(&self) -> Option<Vec<String>> {
+		Self::cors(self.args.flag_ipfs_api_cors.as_ref())
+	}
+
+	fn hosts(hosts: &str) -> Option<Vec<String>> {
+		match hosts {
+			"none" => return Some(Vec::new()),
+			"all" => return None,
+			_ => {}
+		}
+		let hosts = hosts.split(',').map(Into::into).collect();
+		Some(hosts)
 	}
 
 	fn rpc_hosts(&self) -> Option<Vec<String>> {
-		match self.args.flag_jsonrpc_hosts.as_ref() {
-			"none" => return Some(Vec::new()),
-			"all" => return None,
-			_ => {}
-		}
-		let hosts = self.args.flag_jsonrpc_hosts.split(',').map(|h| h.into()).collect();
-		Some(hosts)
+		Self::hosts(&self.args.flag_jsonrpc_hosts)
 	}
 
 	fn dapps_hosts(&self) -> Option<Vec<String>> {
-		match self.args.flag_dapps_hosts.as_ref() {
-			"none" => return Some(Vec::new()),
-			"all" => return None,
-			_ => {}
-		}
-		let hosts = self.args.flag_dapps_hosts.split(',').map(|h| h.into()).collect();
-		Some(hosts)
+		Self::hosts(&self.args.flag_dapps_hosts)
+	}
+
+	fn ipfs_hosts(&self) -> Option<Vec<String>> {
+		Self::hosts(&self.args.flag_ipfs_api_hosts)
 	}
 
 	fn ipc_config(&self) -> Result<IpcConfiguration, String> {
@@ -850,12 +863,16 @@ impl Configuration {
 		}.into()
 	}
 
-	fn rpc_interface(&self) -> String {
-		match self.network_settings().rpc_interface.as_str() {
+	fn interface(interface: &str) -> String {
+		match interface {
 			"all" => "0.0.0.0",
 			"local" => "127.0.0.1",
 			x => x,
 		}.into()
+	}
+
+	fn rpc_interface(&self) -> String {
+		Self::interface(&self.network_settings().rpc_interface)
 	}
 
 	fn dapps_interface(&self) -> String {
@@ -863,6 +880,10 @@ impl Configuration {
 			"local" => "127.0.0.1",
 			x => x,
 		}.into()
+	}
+
+	fn ipfs_interface(&self) -> String {
+		Self::interface(&self.args.flag_ipfs_api_interface)
 	}
 
 	fn secretstore_interface(&self) -> String {
@@ -873,11 +894,7 @@ impl Configuration {
 	}
 
 	fn stratum_interface(&self) -> String {
-		match self.args.flag_stratum_interface.as_str() {
-			"local" => "127.0.0.1",
-			"all" => "0.0.0.0",
-			x => x,
-		}.into()
+		Self::interface(&self.args.flag_stratum_interface)
 	}
 
 	fn dapps_enabled(&self) -> bool {
@@ -1271,6 +1288,38 @@ mod tests {
 		assert_eq!(conf1.dapps_hosts(), Some(Vec::new()));
 		assert_eq!(conf2.dapps_hosts(), None);
 		assert_eq!(conf3.dapps_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
+	}
+
+	#[test]
+	fn should_parse_ipfs_hosts() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity"]);
+		let conf1 = parse(&["parity", "--ipfs-api-hosts", "none"]);
+		let conf2 = parse(&["parity", "--ipfs-api-hosts", "all"]);
+		let conf3 = parse(&["parity", "--ipfs-api-hosts", "ethcore.io,something.io"]);
+
+		// then
+		assert_eq!(conf0.ipfs_hosts(), Some(Vec::new()));
+		assert_eq!(conf1.ipfs_hosts(), Some(Vec::new()));
+		assert_eq!(conf2.ipfs_hosts(), None);
+		assert_eq!(conf3.ipfs_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
+	}
+
+	#[test]
+	fn should_parse_ipfs_cors() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity"]);
+		let conf1 = parse(&["parity", "--ipfs-api-cors", "*"]);
+		let conf2 = parse(&["parity", "--ipfs-api-cors", "http://ethcore.io,http://something.io"]);
+
+		// then
+		assert_eq!(conf0.ipfs_cors(), None);
+		assert_eq!(conf1.ipfs_cors(), Some(vec!["*".into()]));
+		assert_eq!(conf2.ipfs_cors(), Some(vec!["http://ethcore.io".into(),"http://something.io".into()]));
 	}
 
 	#[test]

@@ -85,6 +85,7 @@ class DeleteAccount extends Component {
         </div>
         <div className={ styles.password }>
           <Input
+            autoFocus
             hint={
               <FormattedMessage
                 id='deleteAccount.password.hint'
@@ -98,6 +99,7 @@ class DeleteAccount extends Component {
               />
             }
             onChange={ this.onChangePassword }
+            onDefaultAction={ this.onDeleteConfirmed }
             type='password'
             value={ password }
           />

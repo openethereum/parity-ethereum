@@ -100,10 +100,10 @@ const transactionDetails = {
     type: Quantity,
     desc: 'The S field of the signature.'
   },
-  minBlock: {
-    type: BlockNumber,
+  condition: {
+    type: Object,
     optional: true,
-    desc: 'Block number, tag or `null`.'
+    desc: 'Conditional submission, Block number in `block` or timestamp in `time` or `null`.'
   }
 };
 

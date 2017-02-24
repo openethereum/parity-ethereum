@@ -36,6 +36,7 @@ export default class RecoveryPhrase extends Component {
     return (
       <Form>
         <Input
+          autoFocus
           hint={
             <FormattedMessage
               id='createAccount.recoveryPhrase.phrase.hint'
