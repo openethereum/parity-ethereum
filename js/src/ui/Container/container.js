@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { Link } from 'react-router';
 import { Card } from 'material-ui/Card';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
@@ -30,6 +31,7 @@ export default class Container extends Component {
     compact: PropTypes.bool,
     hover: PropTypes.node,
     light: PropTypes.bool,
+    link: PropTypes.string,
     onClick: PropTypes.func,
     style: PropTypes.object,
     tabIndex: PropTypes.number,
@@ -37,12 +39,26 @@ export default class Container extends Component {
   }
 
   render () {
-    const { children, className, compact, light, onClick, style, tabIndex } = this.props;
+    const { children, className, compact, light, link, onClick, style, tabIndex } = this.props;
     const props = {};
 
     if (Number.isInteger(tabIndex)) {
       props.tabIndex = tabIndex;
     }
+
+    const card = (
+      <Card
+        className={
+          compact
+            ? styles.compact
+            : styles.padded
+        }
+        onClick={ onClick }
+      >
+        { this.renderTitle() }
+        { children }
+      </Card>
+    );
 
     return (
       <div
@@ -58,17 +74,18 @@ export default class Container extends Component {
         style={ style }
         { ...props }
       >
-        <Card
-          className={
-            compact
-              ? styles.compact
-              : styles.padded
-          }
-          onClick={ onClick }
-        >
-          { this.renderTitle() }
-          { children }
-        </Card>
+        {
+          link
+            ? (
+              <Link
+                className={ styles.link }
+                to={ link }
+              >
+                { card }
+              </Link>
+            )
+            : card
+        }
         { this.renderHover() }
       </div>
     );

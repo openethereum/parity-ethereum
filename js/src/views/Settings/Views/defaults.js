@@ -15,15 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React from 'react';
-import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
-import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
-import ActionTrackChanges from 'material-ui/svg-icons/action/track-changes';
-import ActionSettings from 'material-ui/svg-icons/action/settings';
-import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
-import ImageGridOn from 'material-ui/svg-icons/image/grid-on';
-import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
 import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
+import { AccountsIcon, AddressesIcon, AppsIcon, ContactsIcon, FingerprintIcon, SettingsIcon, StatusIcon } from '~/ui/Icons';
 
 import styles from './views.css';
 
@@ -44,35 +38,35 @@ const defaultViews = {
   accounts: {
     active: true,
     fixed: true,
-    icon: <ActionAccountBalanceWallet />,
+    icon: <AccountsIcon />,
     route: '/accounts',
     value: 'account'
   },
 
   addresses: {
     active: true,
-    icon: <CommunicationContacts />,
+    icon: <AddressesIcon />,
     route: '/addresses',
     value: 'address'
   },
 
   apps: {
     active: true,
-    icon: <NavigationApps />,
+    icon: <AppsIcon />,
     route: '/apps',
     value: 'app'
   },
 
   contracts: {
     active: false,
-    icon: <ImageGridOn />,
+    icon: <ContactsIcon />,
     route: '/contracts',
     value: 'contract'
   },
 
   status: {
     active: false,
-    icon: <ActionTrackChanges />,
+    icon: <StatusIcon />,
     route: '/status',
     value: 'status'
   },
@@ -80,7 +74,7 @@ const defaultViews = {
   signer: {
     active: true,
     fixed: true,
-    icon: <ActionFingerprint />,
+    icon: <FingerprintIcon />,
     route: '/signer',
     value: 'signer'
   },
@@ -88,7 +82,7 @@ const defaultViews = {
   settings: {
     active: true,
     fixed: true,
-    icon: <ActionSettings />,
+    icon: <SettingsIcon />,
     route: '/settings',
     value: 'settings'
   }

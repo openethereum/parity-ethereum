@@ -40,6 +40,7 @@ export LanguageSelector from './LanguageSelector';
 export Loading from './Loading';
 export MethodDecoding from './MethodDecoding';
 export { Busy as BusyStep, Completed as CompletedStep } from './Modal';
+export ModalBox from './ModalBox';
 export muiTheme from './Theme';
 export Page from './Page';
 export ParityBackground from './ParityBackground';

@@ -23,12 +23,13 @@ import styles from './layout.css';
 
 export default class Layout extends Component {
   static propTypes = {
+    children: PropTypes.node,
     vault: PropTypes.object.isRequired,
     withBorder: PropTypes.bool
   };
 
   render () {
-    const { vault, withBorder } = this.props;
+    const { children, vault, withBorder } = this.props;
     const { isOpen, meta, name } = vault;
 
     return (
@@ -59,6 +60,7 @@ export default class Layout extends Component {
             byline={ meta.description }
             title={ name }
           />
+          { children }
         </div>
       </div>
     );
