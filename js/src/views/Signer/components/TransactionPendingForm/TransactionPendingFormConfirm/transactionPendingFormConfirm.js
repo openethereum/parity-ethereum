@@ -18,6 +18,7 @@ import keycode from 'keycode';
 import RaisedButton from 'material-ui/RaisedButton';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import ReactTooltip from 'react-tooltip';
 
@@ -98,7 +99,17 @@ class TransactionPendingFormConfirm extends Component {
 
     const passwordHintText = this.getPasswordHint();
     const passwordHint = passwordHintText
-      ? (<div><span>(hint) </span>{ passwordHintText }</div>)
+      ? (
+        <div>
+          <FormattedMessage
+            id='signer.txPendingConfirm.passwordHint'
+            defaultMessage='(hint) {hint}'
+            values={ {
+              hint: passwordHintText
+            } }
+          />
+        </div>
+      )
       : null;
 
     const isWalletOk = !isExternal || (walletError === null && wallet !== null);
@@ -113,13 +124,33 @@ class TransactionPendingFormConfirm extends Component {
           <Input
             hint={
               isExternal
-                ? 'decrypt the key'
-                : 'unlock the account'
+                ? (
+                  <FormattedMessage
+                    id='signer.txPendingConfirm.decryptKey.hint'
+                    defaultMessage='decrypt the key'
+                  />
+                )
+                : (
+                  <FormattedMessage
+                    id='signer.txPendingConfirm.unlockAccount.hint'
+                    defaultMessage='unlock the account'
+                  />
+                )
             }
             label={
               isExternal
-                ? 'Key Password'
-                : 'Account Password'
+                ? (
+                  <FormattedMessage
+                    id='signer.txPendingConfirm.decryptKey.label'
+                    defaultMessage='Key Password'
+                  />
+                )
+                : (
+                  <FormattedMessage
+                    id='signer.txPendingConfirm.unlockAccount.label'
+                    defaultMessage='Account Password'
+                  />
+                )
             }
             onChange={ this.onModifyPassword }
             onKeyDown={ this.onKeyDown }
@@ -149,8 +180,18 @@ class TransactionPendingFormConfirm extends Component {
               }
               label={
                 isSending
-                  ? 'Confirming...'
-                  : 'Confirm Request'
+                  ? (
+                    <FormattedMessage
+                      id='signer.txPendingConfirm.buttons.confirmBusy'
+                      defaultMessage='Confirming...'
+                    />
+                  )
+                  : (
+                    <FormattedMessage
+                      id='signer.txPendingConfirm.buttons.confirmRequest'
+                      defaultMessage='Confirm Request'
+                    />
+                  )
               }
               onTouchTap={ this.onConfirm }
               primary
@@ -169,7 +210,12 @@ class TransactionPendingFormConfirm extends Component {
       <Input
         className={ styles.fileInput }
         error={ walletError }
-        label='Select Local Key'
+        label={
+          <FormattedMessage
+            id='signer.txPendingConfirm.keySelect.label'
+            defaultMessage='Select Local Key'
+          />
+        }
         onChange={ this.onKeySelect }
         type='file'
       />
@@ -183,7 +229,10 @@ class TransactionPendingFormConfirm extends Component {
 
     return (
       <ReactTooltip id={ `transactionConfirmForm${this.id}` }>
-        Please provide a password for this account
+        <FormattedMessage
+          id='signer.txPendingConfirm.tooltips.password'
+          defaultMessage='Please provide a password for this account'
+        />
       </ReactTooltip>
     );
   }
@@ -216,7 +265,12 @@ class TransactionPendingFormConfirm extends Component {
       } catch (error) {
         this.setState({
           wallet: null,
-          walletError: 'Given wallet file is invalid.'
+          walletError: (
+            <FormattedMessage
+              id='signer.txPendingConfirm.errors.invalidWallet'
+              defaultMessage='Given wallet file is invalid.'
+            />
+          )
         });
       }
     };
