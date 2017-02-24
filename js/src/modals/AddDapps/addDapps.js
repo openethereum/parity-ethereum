@@ -47,45 +47,43 @@ export default class AddDapps extends Component {
           />
         }
       >
-        <div className={ styles.container }>
-          <div className={ styles.warning } />
-          {
-            this.renderList(store.sortedLocal, store.displayApps,
-              <FormattedMessage
-                id='dapps.add.local.label'
-                defaultMessage='Applications locally available'
-              />,
-              <FormattedMessage
-                id='dapps.add.local.desc'
-                defaultMessage='All applications installed locally on the machine by the user for access by the Parity client.'
-              />
-            )
-          }
-          {
-            this.renderList(store.sortedBuiltin, store.displayApps,
-              <FormattedMessage
-                id='dapps.add.builtin.label'
-                defaultMessage='Applications bundled with Parity'
-              />,
-              <FormattedMessage
-                id='dapps.add.builtin.desc'
-                defaultMessage='Experimental applications developed by the Parity team to show off dapp capabilities, integration, experimental features and to control certain network-wide client behaviour.'
-              />
-            )
-          }
-          {
-            this.renderList(store.sortedNetwork, store.displayApps,
-              <FormattedMessage
-                id='dapps.add.network.label'
-                defaultMessage='Applications on the global network'
-              />,
-              <FormattedMessage
-                id='dapps.add.network.desc'
-                defaultMessage='These applications are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each application before interacting.'
-              />
-            )
-          }
-        </div>
+        <div className={ styles.warning } />
+        {
+          this.renderList(store.sortedLocal, store.displayApps,
+            <FormattedMessage
+              id='dapps.add.local.label'
+              defaultMessage='Applications locally available'
+            />,
+            <FormattedMessage
+              id='dapps.add.local.desc'
+              defaultMessage='All applications installed locally on the machine by the user for access by the Parity client.'
+            />
+          )
+        }
+        {
+          this.renderList(store.sortedBuiltin, store.displayApps,
+            <FormattedMessage
+              id='dapps.add.builtin.label'
+              defaultMessage='Applications bundled with Parity'
+            />,
+            <FormattedMessage
+              id='dapps.add.builtin.desc'
+              defaultMessage='Experimental applications developed by the Parity team to show off dapp capabilities, integration, experimental features and to control certain network-wide client behaviour.'
+            />
+          )
+        }
+        {
+          this.renderList(store.sortedNetwork, store.displayApps,
+            <FormattedMessage
+              id='dapps.add.network.label'
+              defaultMessage='Applications on the global network'
+            />,
+            <FormattedMessage
+              id='dapps.add.network.desc'
+              defaultMessage='These applications are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each application before interacting.'
+            />
+          )
+        }
       </Portal>
     );
   }
