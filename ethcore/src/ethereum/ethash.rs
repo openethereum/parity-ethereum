@@ -79,7 +79,7 @@ pub struct EthashParams {
 	pub ecip1010_continue_transition: u64,
 	/// Maximum amount of code that can be deploying into a contract.
 	pub max_code_size: u64,
-	/// Number of first block where the max gas limit becomes
+	/// Number of first block where the max gas limit becomes effective.
 	pub max_gas_limit_transition: u64,
 	/// Maximum valid block gas limit,
 	pub max_gas_limit: U256,
@@ -289,6 +289,7 @@ impl Engine for Ethash {
 		if header.gas_limit() > &0x7fffffffffffffffu64.into() {
 			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(0x7fffffffffffffffu64.into()), found: header.gas_limit().clone() })));
 		}
+
 		Ok(())
 	}
 
@@ -871,5 +872,83 @@ mod tests {
 
 		let difficulty = ethash.calculate_difficulty(&header, &parent_header);
 		assert_eq!(U256::from(12543204905719u64), difficulty);
+	}
+
+	#[test]
+	fn rejects_blocks_over_max_gas_limit() {
+		let spec = new_homestead_test();
+		let mut ethparams = get_default_ethash_params();
+		ethparams.max_gas_limit_transition = 10;
+		ethparams.max_gas_limit = 100_000.into();
+
+		let mut parent_header = Header::default();
+		parent_header.set_number(1);
+		parent_header.set_gas_limit(100_000.into());
+		let mut header = Header::default();
+		header.set_number(parent_header.number() + 1);
+		header.set_gas_limit(100_001.into());
+		header.set_difficulty(ethparams.minimum_difficulty);
+		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+		assert!(ethash.verify_block_family(&header, &parent_header, None).is_ok());
+
+		parent_header.set_number(9);
+		header.set_number(parent_header.number() + 1);
+
+		parent_header.set_gas_limit(99_999.into());
+		header.set_gas_limit(100_000.into());
+		assert!(ethash.verify_block_family(&header, &parent_header, None).is_ok());
+
+		parent_header.set_gas_limit(200_000.into());
+		header.set_gas_limit(200_000.into());
+		assert!(ethash.verify_block_family(&header, &parent_header, None).is_ok());
+
+		parent_header.set_gas_limit(100_000.into());
+		header.set_gas_limit(100_001.into());
+		assert!(ethash.verify_block_family(&header, &parent_header, None).is_err());
+
+		parent_header.set_gas_limit(200_000.into());
+		header.set_gas_limit(200_001.into());
+		assert!(ethash.verify_block_family(&header, &parent_header, None).is_err());
+	}
+
+	#[test]
+	fn rejects_transactions_below_min_gas_price() {
+		use ethkey::{Generator, Random};
+		use types::transaction::{Transaction, Action};
+
+		let spec = new_homestead_test();
+		let mut ethparams = get_default_ethash_params();
+		ethparams.min_gas_price_transition = 10;
+		ethparams.min_gas_price = 100000.into();
+
+		let mut header = Header::default();
+		header.set_number(1);
+
+		let keypair = Random.generate().unwrap();
+		let tx1 = Transaction {
+			action: Action::Create,
+			value: U256::zero(),
+			data: Vec::new(),
+			gas: 100_000.into(),
+			gas_price: 100_000.into(),
+			nonce: U256::zero(),
+		}.sign(keypair.secret(), None).into();
+
+		let tx2 = Transaction {
+			action: Action::Create,
+			value: U256::zero(),
+			data: Vec::new(),
+			gas: 100_000.into(),
+			gas_price: 99_999.into(),
+			nonce: U256::zero(),
+		}.sign(keypair.secret(), None).into();
+
+		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+		assert!(ethash.verify_transaction_basic(&tx1, &header).is_ok());
+		assert!(ethash.verify_transaction_basic(&tx2, &header).is_ok());
+
+		header.set_number(10);
+		assert!(ethash.verify_transaction_basic(&tx1, &header).is_ok());
+		assert!(ethash.verify_transaction_basic(&tx2, &header).is_err());
 	}
 }
