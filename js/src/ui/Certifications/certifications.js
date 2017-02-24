@@ -27,18 +27,19 @@ class Certifications extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
     certifications: PropTypes.array.isRequired,
+    className: PropTypes.string,
     dappsUrl: PropTypes.string.isRequired
   }
 
   render () {
-    const { certifications } = this.props;
+    const { certifications, className } = this.props;
 
     if (certifications.length === 0) {
       return null;
     }
 
     return (
-      <div className={ styles.certifications }>
+      <div className={ [styles.certifications, className].join(' ') }>
         { certifications.map(this.renderCertification) }
       </div>
     );

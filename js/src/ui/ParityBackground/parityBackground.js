@@ -23,6 +23,7 @@ class ParityBackground extends Component {
   };
 
   static propTypes = {
+    attachDocument: PropTypes.bool,
     backgroundSeed: PropTypes.string,
     children: PropTypes.node,
     className: PropTypes.string,
@@ -70,17 +71,25 @@ class ParityBackground extends Component {
   }
 
   render () {
-    const { children, className, onClick } = this.props;
+    const { attachDocument, children, className, onClick } = this.props;
 
     const style = {
       ...this.state.style,
       ...this.props.style
     };
 
+    if (attachDocument) {
+      document.documentElement.style.background = style.background;
+    }
+
     return (
       <div
         className={ className }
-        style={ style }
+        style={
+          attachDocument
+            ? {}
+            : style
+        }
         onTouchTap={ onClick }
       >
         { children }
