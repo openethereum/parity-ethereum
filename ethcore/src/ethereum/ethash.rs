@@ -79,6 +79,14 @@ pub struct EthashParams {
 	pub ecip1010_continue_transition: u64,
 	/// Maximum amount of code that can be deploying into a contract.
 	pub max_code_size: u64,
+	/// Number of first block where the max gas limit becomes
+	pub max_gas_limit_transition: u64,
+	/// Maximum valid block gas limit,
+	pub max_gas_limit: U256,
+	/// Number of first block where the minimum gas price becomes effective.
+	pub min_gas_price_transition: u64,
+	/// Do not alow transactions with lower gas price.
+	pub min_gas_price: U256,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -106,6 +114,10 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			ecip1010_pause_transition: p.ecip1010_pause_transition.map_or(u64::max_value(), Into::into),
 			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(u64::max_value(), Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
+			max_gas_limit_transition: p.max_gas_limit_transition.map_or(u64::max_value(), Into::into),
+			max_gas_limit: p.max_gas_limit.map_or(U256::max_value(), Into::into),
+			min_gas_price_transition: p.min_gas_price_transition.map_or(u64::max_value(), Into::into),
+			min_gas_price: p.min_gas_price.map_or(U256::zero(), Into::into),
 		}
 	}
 }
@@ -277,7 +289,6 @@ impl Engine for Ethash {
 		if header.gas_limit() > &0x7fffffffffffffffu64.into() {
 			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: None, max: Some(0x7fffffffffffffffu64.into()), found: header.gas_limit().clone() })));
 		}
-
 		Ok(())
 	}
 
@@ -312,10 +323,14 @@ impl Engine for Ethash {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })))
 		}
 		let gas_limit_divisor = self.ethash_params.gas_limit_bound_divisor;
-		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
-		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
+		let parent_gas_limit = *parent.gas_limit();
+		let min_gas = parent_gas_limit - parent_gas_limit / gas_limit_divisor;
+		let max_gas = parent_gas_limit + parent_gas_limit / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
 			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
+		}
+		if header.number() >= self.ethash_params.max_gas_limit_transition && header.gas_limit() > &self.ethash_params.max_gas_limit && header.gas_limit() > &parent_gas_limit {
+			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(self.ethash_params.max_gas_limit), found: header.gas_limit().clone() })));
 		}
 		Ok(())
 	}
@@ -329,6 +344,10 @@ impl Engine for Ethash {
 			if header.number() < self.ethash_params.eip155_transition || n != self.params().chain_id {
 				return Err(TransactionError::InvalidNetworkId.into())
 			}
+		}
+
+		if header.number() >= self.ethash_params.min_gas_price_transition && t.gas_price < self.ethash_params.min_gas_price {
+			return Err(TransactionError::InsufficientGasPrice { minimal: self.ethash_params.min_gas_price, got: t.gas_price }.into());
 		}
 
 		Ok(())
