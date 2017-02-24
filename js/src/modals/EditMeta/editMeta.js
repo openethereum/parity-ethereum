@@ -62,6 +62,7 @@ class EditMeta extends Component {
           />
         }
       >
+        { this.renderVaultSelector() }
         <Form>
           <Input
             autoFocus
@@ -197,6 +198,11 @@ class EditMeta extends Component {
 
   setVaultName = (vaultName) => {
     this.store.setVaultName(vaultName);
+    this.toggleVaultSelector();
+  }
+
+  toggleVaultSelector = () => {
+    this.store.toggleVaultSelector();
   }
 }
 

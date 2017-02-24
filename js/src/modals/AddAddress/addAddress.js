@@ -76,7 +76,6 @@ export default class AddAddress extends Component {
           />
         }
         onClick={ this.onClose }
-        ref='closeButton'
       />,
       <Button
         disabled={ hasError }
@@ -89,7 +88,6 @@ export default class AddAddress extends Component {
           />
         }
         onClick={ this.onAdd }
-        ref='addButton'
       />
     ];
   }
@@ -126,7 +124,6 @@ export default class AddAddress extends Component {
               />
             }
             onChange={ this.onEditAddress }
-            ref='inputAddress'
             value={ address }
           />
           <Input
@@ -144,7 +141,6 @@ export default class AddAddress extends Component {
               />
             }
             onChange={ this.onEditName }
-            ref='inputName'
             value={ name }
           />
           <Input
@@ -161,7 +157,6 @@ export default class AddAddress extends Component {
               />
             }
             onChange={ this.onEditDescription }
-            ref='inputDescription'
             value={ description }
           />
         </Form>

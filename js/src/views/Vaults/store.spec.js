@@ -559,6 +559,36 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
+    describe('editVaultMeta', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setBusyMeta');
+
+        store.setVaultDescription('testDescription');
+        store.setVaultName('testCreateName');
+        store.setVaultPasswordHint('testCreateHint');
+        store.setVaultTags('testTags');
+
+        return store.editVaultMeta();
+      });
+
+      afterEach(() => {
+        store.setBusyMeta.restore();
+      });
+
+      it('sets and resets the busy flag', () => {
+        expect(store.setBusyMeta).to.have.been.calledWith(true);
+        expect(store.isBusyMeta).to.be.false;
+      });
+
+      it('calls into parity_setVaultMeta', () => {
+        expect(api.parity.setVaultMeta).to.have.been.calledWith('testCreateName', {
+          description: 'testDescription',
+          passwordHint: 'testCreateHint',
+          tags: 'testTags'
+        });
+      });
+    });
+
     describe('editVaultPassword', () => {
       beforeEach(() => {
         sinon.spy(store, 'setBusyMeta');
