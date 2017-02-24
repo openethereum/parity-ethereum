@@ -26,7 +26,7 @@ export default {
   },
   header: {
     saved: `Opgeslagen Contracten`,
-      snippets: `Contract Snippets`
+    snippets: `Contract Snippets`
   },
   removal: {
     confirm: `Weet je zeker dat je het volgende contract van je opgeslagen contracten wilt verwijderen?`,
