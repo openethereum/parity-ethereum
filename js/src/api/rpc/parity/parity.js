@@ -207,7 +207,7 @@ export default class Parity {
 
   importGethAccounts (accounts) {
     return this._transport
-      .execute('parity_importGethAccounts', inAddresses)
+      .execute('parity_importGethAccounts', inAddresses(accounts))
       .then(outAddresses);
   }
 
