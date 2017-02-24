@@ -47,6 +47,14 @@
   filter: none;
 }
 
+.default {
+  background: rgba(255, 255, 255, 0.75);
+
+  &:hover {
+    background: initial;
+  }
+}
+
 .unselected {
   filter: grayscale(100%);
   opacity: 0.5;
