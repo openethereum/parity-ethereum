@@ -1640,6 +1640,7 @@ dependencies = [
  "ethcore 1.6.0",
  "ethcore-util 1.6.0",
  "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
+ "jsonrpc-http-server 6.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "multihash 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
