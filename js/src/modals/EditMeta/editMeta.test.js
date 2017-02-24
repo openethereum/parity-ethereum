@@ -45,7 +45,9 @@ function createApi () {
   return {
     parity: {
       setAccountName: sinon.stub().resolves(),
-      setAccountMeta: sinon.stub().resolves()
+      setAccountMeta: sinon.stub().resolves(),
+      listVaults: sinon.stub().resolves([]),
+      listOpenedVaults: sinon.stub().resolves([])
     }
   };
 }
