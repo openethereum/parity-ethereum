@@ -22,7 +22,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { Button, Input, Portal, VaultCard } from '~/ui';
+import { Button, Form, Input, Portal, VaultCard } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 import { CheckIcon, CloseIcon } from '~/ui/Icons';
 
@@ -86,120 +86,123 @@ class VaultMeta extends Component {
         }
       >
         <VaultCard.Layout vault={ vault }>
-          <div className={ styles.group }>
-            <Input
-              hint={
-                <FormattedMessage
-                  id='vaults.editMeta.description.hint'
-                  defaultMessage='the description for this vault'
-                />
-              }
-              label={
-                <FormattedMessage
-                  id='vaults.editMeta.description.label'
-                  defaultMessage='vault description'
-                />
-              }
-              onChange={ this.onEditDescription }
-              value={ vaultDescription }
-            />
-            <Input
-              hint={
-                <FormattedMessage
-                  id='vaults.editMeta.passwordHint.hint'
-                  defaultMessage='your password hint for this vault'
-                />
-              }
-              label={
-                <FormattedMessage
-                  id='vaults.editMeta.passwordHint.label'
-                  defaultMessage='password hint'
-                />
-              }
-              onChange={ this.onEditPasswordHint }
-              value={ vaultPasswordHint }
-            />
-          </div>
-          <div className={ styles.group }>
-            <Checkbox
-              label={
-                <FormattedMessage
-                  id='vaults.editMeta.allowPassword'
-                  defaultMessage='Change vault password'
-                />
-              }
-              checked={ passwordEdit }
-              onCheck={ this.onTogglePassword }
-            />
-            <div className={ [styles.passwords, passwordEdit ? null : styles.disabled].join(' ') }>
-              <div className={ styles.password }>
-                <Input
-                  disabled={ !passwordEdit }
-                  hint={
-                    <FormattedMessage
-                      id='vaults.editMeta.currentPassword.hint'
-                      defaultMessage='your current vault password'
-                    />
-                  }
-                  label={
-                    <FormattedMessage
-                      id='vaults.editMeta.currentPassword.label'
-                      defaultMessage='current password'
-                    />
-                  }
-                  onChange={ this.onEditPasswordCurrent }
-                  type='password'
-                  value={ vaultPasswordOld }
-                />
+          <Form>
+            <div className={ styles.group }>
+              <Input
+                autoFocus
+                hint={
+                  <FormattedMessage
+                    id='vaults.editMeta.description.hint'
+                    defaultMessage='the description for this vault'
+                  />
+                }
+                label={
+                  <FormattedMessage
+                    id='vaults.editMeta.description.label'
+                    defaultMessage='vault description'
+                  />
+                }
+                onChange={ this.onEditDescription }
+                value={ vaultDescription }
+              />
+              <Input
+                hint={
+                  <FormattedMessage
+                    id='vaults.editMeta.passwordHint.hint'
+                    defaultMessage='your password hint for this vault'
+                  />
+                }
+                label={
+                  <FormattedMessage
+                    id='vaults.editMeta.passwordHint.label'
+                    defaultMessage='password hint'
+                  />
+                }
+                onChange={ this.onEditPasswordHint }
+                value={ vaultPasswordHint }
+              />
+            </div>
+            <div className={ styles.group }>
+              <Checkbox
+                label={
+                  <FormattedMessage
+                    id='vaults.editMeta.allowPassword'
+                    defaultMessage='Change vault password'
+                  />
+                }
+                checked={ passwordEdit }
+                onCheck={ this.onTogglePassword }
+              />
+              <div className={ [styles.passwords, passwordEdit ? null : styles.disabled].join(' ') }>
+                <div className={ styles.password }>
+                  <Input
+                    disabled={ !passwordEdit }
+                    hint={
+                      <FormattedMessage
+                        id='vaults.editMeta.currentPassword.hint'
+                        defaultMessage='your current vault password'
+                      />
+                    }
+                    label={
+                      <FormattedMessage
+                        id='vaults.editMeta.currentPassword.label'
+                        defaultMessage='current password'
+                      />
+                    }
+                    onChange={ this.onEditPasswordCurrent }
+                    type='password'
+                    value={ vaultPasswordOld }
+                  />
+                </div>
+              </div>
+              <div className={ [styles.passwords, passwordEdit ? null : styles.disabled].join(' ') }>
+                <div className={ styles.password }>
+                  <Input
+                    disabled={ !passwordEdit }
+                    hint={
+                      <FormattedMessage
+                        id='vaults.editMeta.password.hint'
+                        defaultMessage='a strong, unique password'
+                      />
+                    }
+                    label={
+                      <FormattedMessage
+                        id='vaults.editMeta.password.label'
+                        defaultMessage='new password'
+                      />
+                    }
+                    onChange={ this.onEditPassword }
+                    type='password'
+                    value={ vaultPassword }
+                  />
+                </div>
+                <div className={ styles.password }>
+                  <Input
+                    disabled={ !passwordEdit }
+                    error={ vaultPasswordRepeatError }
+                    hint={
+                      <FormattedMessage
+                        id='vaults.editMeta.password2.hint'
+                        defaultMessage='verify your new password'
+                      />
+                    }
+                    label={
+                      <FormattedMessage
+                        id='vaults.editMeta.password2.label'
+                        defaultMessage='new password (repeat)'
+                      />
+                    }
+                    onChange={ this.onEditPasswordRepeat }
+                    type='password'
+                    value={ vaultPasswordRepeat }
+                  />
+                </div>
+              </div>
+              <div className={ passwordEdit ? null : styles.disabled }>
+                <PasswordStrength input={ vaultPassword } />
               </div>
             </div>
-            <div className={ [styles.passwords, passwordEdit ? null : styles.disabled].join(' ') }>
-              <div className={ styles.password }>
-                <Input
-                  disabled={ !passwordEdit }
-                  hint={
-                    <FormattedMessage
-                      id='vaults.editMeta.password.hint'
-                      defaultMessage='a strong, unique password'
-                    />
-                  }
-                  label={
-                    <FormattedMessage
-                      id='vaults.editMeta.password.label'
-                      defaultMessage='new password'
-                    />
-                  }
-                  onChange={ this.onEditPassword }
-                  type='password'
-                  value={ vaultPassword }
-                />
-              </div>
-              <div className={ styles.password }>
-                <Input
-                  disabled={ !passwordEdit }
-                  error={ vaultPasswordRepeatError }
-                  hint={
-                    <FormattedMessage
-                      id='vaults.editMeta.password2.hint'
-                      defaultMessage='verify your new password'
-                    />
-                  }
-                  label={
-                    <FormattedMessage
-                      id='vaults.editMeta.password2.label'
-                      defaultMessage='new password (repeat)'
-                    />
-                  }
-                  onChange={ this.onEditPasswordRepeat }
-                  type='password'
-                  value={ vaultPasswordRepeat }
-                />
-              </div>
-            </div>
-            <div className={ passwordEdit ? null : styles.disabled }>
-              <PasswordStrength input={ vaultPassword } />
-            </div>
-          </div>
+          </Form>
         </VaultCard.Layout>
       </Portal>
     );
