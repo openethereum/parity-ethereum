@@ -15,16 +15,25 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* TODO: These overlap with DappPermissions now, make DRY */
-/* (selection component or just styles?) */
-.iconDisabled {
-  opacity: 0.15;
-}
-
 .item {
   display: flex;
   flex: 1;
+  height: 100%;
   position: relative;
+  width: 100%;
+
+  &:hover {
+    box-shadow: inset 0 0 0 2px rgb(255, 255, 255);
+  }
+
+  .content {
+    height: 100%;
+    width: 100%;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+  }
 
   .overlay {
     position: absolute;
@@ -33,16 +42,16 @@
   }
 }
 
-.selected,
-.unselected {
-  margin-bottom: 0.25em;
-  width: 100%;
-
-  &:focus {
-    outline: none;
-  }
+.selected {
+  box-shadow: inset 0 0 0 2px rgb(255, 255, 255);
+  filter: none;
 }
 
-.selected {
-  background: rgba(255, 255, 255, 0.15) !important;
+.unselected {
+  filter: grayscale(100%);
+  opacity: 0.5;
+}
+
+.iconDisabled {
+  opacity: 0.15;
 }

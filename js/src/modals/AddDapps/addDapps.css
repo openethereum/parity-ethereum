@@ -19,10 +19,6 @@
   flex-direction: column;
 }
 
-.container {
-  overflow-y: auto;
-}
-
 .description {
   margin-top: .5em !important;
 }
@@ -48,27 +44,4 @@
     line-height: 1.5em;
     opacity: 0.75;
   }
-}
-
-.selectIcon {
-  position: absolute;
-  right: 0.5em;
-  top: 0.5em;
-}
-
-.selected,
-.unselected {
-  position: relative;
-}
-
-.unselected {
-  background: rgba(0, 0, 0, 0.4) !important;
-
-  .selectIcon {
-    opacity: 0.15;
-  }
-}
-
-.selected {
-  background: rgba(255, 255, 255, 0.15) !important;
 }
