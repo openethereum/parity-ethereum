@@ -186,8 +186,12 @@ impl Engine for Ethash {
 		}
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, gas_ceil_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, mut gas_ceil_target: U256) {
 		let difficulty = self.calculate_difficulty(header, parent);
+		if header.number() >= self.ethash_params.max_gas_limit_transition && gas_ceil_target > self.ethash_params.max_gas_limit {
+			warn!("Gas limit target is limited to {}", self.ethash_params.max_gas_limit);
+			gas_ceil_target = self.ethash_params.max_gas_limit;
+		}
 		let gas_limit = {
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.ethash_params.gas_limit_bound_divisor;
