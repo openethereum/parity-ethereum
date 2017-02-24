@@ -15,10 +15,17 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.layout {
-  padding: 0.25em;
-
+.layout,
+.layoutPadded {
   &>div {
-    margin-bottom: 0.75em;
+    margin-bottom: 0.5em;
   }
+}
+
+.layout {
+  padding: 0.25em 0.25em 3em 0.25em;
+}
+
+.layoutPadded {
+  padding: 0.5em 0.5em 3em 0.5em;
 }

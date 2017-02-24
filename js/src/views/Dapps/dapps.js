@@ -23,7 +23,7 @@ import { connect } from 'react-redux';
 
 import { DappPermissions, DappsVisible } from '~/modals';
 import PermissionStore from '~/modals/DappPermissions/store';
-import { Actionbar, Button, DappCard, Page } from '~/ui';
+import { Actionbar, Button, DappCard, Page, SectionList } from '~/ui';
 import { LockedIcon, VisibleIcon } from '~/ui/Icons';
 
 import DappsStore from './dappsStore';
@@ -53,26 +53,24 @@ class Dapps extends Component {
     if (this.store.externalOverlayVisible) {
       externalOverlay = (
         <div className={ styles.overlay }>
-          <div className={ styles.body }>
-            <div>
-              <FormattedMessage
-                id='dapps.external.warning'
-                defaultMessage='Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.'
-              />
-            </div>
-            <div>
-              <Checkbox
-                className={ styles.accept }
-                label={
-                  <FormattedMessage
-                    id='dapps.external.accept'
-                    defaultMessage='I understand that these applications are not affiliated with Parity'
-                  />
-                }
-                checked={ false }
-                onCheck={ this.onClickAcceptExternal }
-              />
-            </div>
+          <div>
+            <FormattedMessage
+              id='dapps.external.warning'
+              defaultMessage='Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.'
+            />
+          </div>
+          <div>
+            <Checkbox
+              className={ styles.accept }
+              label={
+                <FormattedMessage
+                  id='dapps.external.accept'
+                  defaultMessage='I understand that these applications are not affiliated with Parity'
+                />
+              }
+              checked={ false }
+              onCheck={ this.onClickAcceptExternal }
+            />
           </div>
         </div>
       );
@@ -125,30 +123,23 @@ class Dapps extends Component {
   }
 
   renderList (items, overlay) {
-    if (!items || !items.length) {
-      return null;
-    }
-
     return (
-      <div className={ styles.list }>
-        { overlay }
-        { items.map(this.renderApp) }
-      </div>
+      <SectionList
+        items={ items }
+        overlay={ overlay }
+        renderItem={ this.renderApp }
+      />
     );
   }
 
   renderApp = (app) => {
     return (
-      <div
-        className={ styles.item }
+      <DappCard
+        app={ app }
         key={ app.id }
-      >
-        <DappCard
-          app={ app }
-          showLink
-          showTags
-        />
-      </div>
+        showLink
+        showTags
+      />
     );
   }
 

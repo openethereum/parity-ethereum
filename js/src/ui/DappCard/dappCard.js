@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Link } from 'react-router';
 
 import Container, { Title as ContainerTitle } from '~/ui/Container';
 import DappIcon from '~/ui/DappIcon';
@@ -50,6 +49,12 @@ export default class DappCard extends Component {
         className={
           [styles.container, className].join(' ')
         }
+        hover={
+          <div className={ styles.author }>
+            { app.author }, v{ app.version }
+          </div>
+        }
+        link={ this.getLink(app) }
         onClick={ onClick }
       >
         <DappIcon
@@ -57,6 +62,7 @@ export default class DappCard extends Component {
           className={ styles.image }
         />
         <Tags
+          className={ styles.tags }
           tags={
             showTags
               ? [app.type]
@@ -65,34 +71,29 @@ export default class DappCard extends Component {
         />
         <div className={ styles.description }>
           <ContainerTitle
-            className={ styles.title }
-            title={
+            className={
               showLink
-                ? this.renderLink(app)
-                : app.name
+                ? styles.titleLink
+                : styles.title
             }
+            title={ app.name }
             byline={ app.description }
           />
-          <div className={ styles.author }>
-            { app.author }, v{ app.version }
-          </div>
           { children }
         </div>
       </Container>
     );
   }
 
-  renderLink (app) {
-    return (
-      <Link
-        to={
-          app.url === 'web'
-            ? '/web'
-            : `/app/${app.id}`
-        }
-      >
-        { app.name }
-      </Link>
-    );
+  getLink (app) {
+    const { showLink } = this.props;
+
+    if (!showLink) {
+      return null;
+    }
+
+    return app.url === 'web'
+      ? '/web'
+      : `/app/${app.id}`;
   }
 }
