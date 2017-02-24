@@ -64,7 +64,7 @@ class VaultMeta extends Component {
             onClick={ this.onClose }
           />,
           <Button
-            disabled={ isBusyMeta || vaultPasswordRepeatError }
+            disabled={ isBusyMeta || !!vaultPasswordRepeatError }
             icon={ <CheckIcon /> }
             key='vault'
             label={
