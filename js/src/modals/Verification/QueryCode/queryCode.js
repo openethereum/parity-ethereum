@@ -44,6 +44,7 @@ export default class QueryCode extends Component {
       <Form>
         <p>The verification code has been sent to { receiver }.</p>
         <Input
+          autoFocus
           label={
             <FormattedMessage
               id='verification.code.label'
