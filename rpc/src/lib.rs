@@ -44,6 +44,7 @@ extern crate futures;
 extern crate order_stat;
 extern crate parity_updater as updater;
 extern crate parity_reactor;
+extern crate stats;
 
 #[macro_use]
 extern crate log;
