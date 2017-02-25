@@ -20,7 +20,7 @@
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{EachBlockWith, TestBlockChainClient};
 use ethcore::ids::BlockId;
-use ethcore::transaction::PendingTransaction;
+use ethcore::transaction::{Action, PendingTransaction};
 use ethcore::encoded;
 use network::{PeerId, NodeId};
 
@@ -32,7 +32,7 @@ use provider::Provider;
 use request::{self, Request, Headers};
 
 use rlp::*;
-use util::{Bytes, DBValue, H256, U256};
+use util::{Address, Bytes, DBValue, H256, U256};
 
 use std::sync::Arc;
 
@@ -490,6 +490,56 @@ fn get_contract_code() {
 
 	let expected = Expect::Respond(packet::CONTRACT_CODES, response);
 	proto.handle_packet(&expected, &1, packet::GET_CONTRACT_CODES, &request_body);
+}
+
+#[test]
+fn proof_of_execution() {
+	let flow_params = FlowParams::new(5_000_000.into(), Default::default(), 0.into());
+	let capabilities = capabilities();
+
+	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());
+
+	let cur_status = status(provider.client.chain_info());
+
+	{
+		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));
+		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
+		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
+	}
+
+	let req_id = 112;
+	let mut request = Request::TransactionProof (request::TransactionProof {
+		at: H256::default(),
+		from: Address::default(),
+		action: Action::Call(Address::default()),
+		gas: 100.into(),
+		gas_price: 0.into(),
+		value: 0.into(),
+		data: Vec::new(),
+	});
+
+	// first: a valid amount to request execution of.
+	let request_body = encode_request(&request, req_id);
+	let response = {
+		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::TransactionProof, 100);
+
+		let mut response_stream = RlpStream::new_list(3);
+		response_stream.append(&req_id).append(&new_creds).begin_list(0);
+
+		response_stream.out()
+	};
+
+	let expected = Expect::Respond(packet::TRANSACTION_PROOF, response);
+	proto.handle_packet(&expected, &1, packet::GET_TRANSACTION_PROOF, &request_body);
+
+	// next: way too much requested gas.
+	if let Request::TransactionProof(ref mut req) = request {
+		req.gas = 100_000_000.into();
+	}
+	let req_id = 113;
+	let request_body = encode_request(&request, req_id);
+	let expected = Expect::Punish(1);
+	proto.handle_packet(&expected, &1, packet::GET_TRANSACTION_PROOF, &request_body);
 }
 
 #[test]
