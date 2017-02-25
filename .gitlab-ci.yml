@@ -495,6 +495,7 @@ docker-build:
   stage: build
   only:
     - tags
+    - triggers
   before_script:
     - docker info
   script:
