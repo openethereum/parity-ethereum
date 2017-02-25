@@ -1616,7 +1616,6 @@ impl ::client::ProvingBlockChainClient for Client {
 		let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
 		let res = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&transaction, options);
 
-
 		match res {
 			Err(ExecutionError::Internal(_)) => return None,
 			_ => return Some(state.drop().1.extract_proof()),

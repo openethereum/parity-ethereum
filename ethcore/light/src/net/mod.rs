@@ -1185,7 +1185,10 @@ impl LightProtocol {
 
 	// Receive a request for proof-of-execution.
 	fn get_transaction_proof(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
-		const MAX_GAS: usize = 10_000_000; // refuse to execute more than this amount of gas at once.
+		// refuse to execute more than this amount of gas at once.
+		// this is appx. the point at which the proof of execution would no longer fit in
+		// a single Devp2p packet.
+		const MAX_GAS: usize = 50_000_000;
 		use util::Uint;
 
 		let peers = self.peers.read();

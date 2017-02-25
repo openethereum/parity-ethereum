@@ -31,6 +31,7 @@ use factory::Factories;
 use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
+use types::executed::{Executed, ExecutionError};
 use types::state_diff::StateDiff;
 use transaction::SignedTransaction;
 use state_db::StateDB;
@@ -59,6 +60,17 @@ pub struct ApplyOutcome {
 
 /// Result type for the execution ("application") of a transaction.
 pub type ApplyResult = Result<ApplyOutcome, Error>;
+
+/// Return type of proof validity check.
+#[derive(Debug, Clone)]
+pub enum ProvedExecution {
+	/// Proof wasn't enough to complete execution.
+	BadProof,
+	/// The transaction failed, but not due to a bad proof.
+	Failed(ExecutionError),
+	/// The transaction successfully completd with the given proof.
+	Complete(Executed),
+}
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 /// Account modification state. Used to check if the account was
@@ -147,6 +159,39 @@ impl AccountEntry {
 			},
 			None => self.account = None,
 		}
+	}
+}
+
+/// Check the given proof of execution.
+/// `Err(ExecutionError::Internal)` indicates failure, everything else indicates
+/// a successful proof (as the transaction itself may be poorly chosen).
+pub fn check_proof(
+	proof: &[::util::DBValue],
+	root: H256,
+	transaction: &SignedTransaction,
+	engine: &Engine,
+	env_info: &EnvInfo,
+) -> ProvedExecution {
+	let backend = self::backend::ProofCheck::new(proof);
+	let mut factories = Factories::default();
+	factories.accountdb = ::account_db::Factory::Plain;
+
+	let res = State::from_existing(
+		backend,
+		root,
+		engine.account_start_nonce(),
+		factories
+	);
+
+	let mut state = match res {
+		Ok(state) => state,
+		Err(_) => return ProvedExecution::BadProof,
+	};
+
+	match state.execute(env_info, engine, transaction, false) {
+		Ok(executed) => ProvedExecution::Complete(executed),
+		Err(ExecutionError::Internal(_)) => ProvedExecution::BadProof,
+		Err(e) => ProvedExecution::Failed(e),
 	}
 }
 
@@ -548,16 +593,12 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
-	/// Execute a given transaction.
+	/// Execute a given transaction, producing a receipt and an optional trace.
 	/// This will change the state accordingly.
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> ApplyResult {
 //		let old = self.to_pod();
 
-		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
-		let vm_factory = self.factories.vm.clone();
-		let e = Executive::new(self, env_info, engine, &vm_factory).transact(t, options)?;
-
-		// TODO uncomment once to_pod() works correctly.
+		let e = self.execute(env_info, engine, t, tracing)?;
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
 		let state_root = if env_info.number < engine.params().eip98_transition {
 			self.commit()?;
@@ -569,6 +610,15 @@ impl<B: Backend> State<B> {
 		trace!(target: "state", "Transaction receipt: {:?}", receipt);
 		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
 	}
+
+	// Execute a given transaction.
+	fn execute(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> Result<Executed, ExecutionError> {
+		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
+		let vm_factory = self.factories.vm.clone();
+
+		Executive::new(self, env_info, engine, &vm_factory).transact(t, options)
+	}
+
 
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
