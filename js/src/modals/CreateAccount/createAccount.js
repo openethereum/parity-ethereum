@@ -141,18 +141,27 @@ class CreateAccount extends Component {
 
         if (createType === 'fromPhrase') {
           return (
-            <RecoveryPhrase store={ this.store } />
+            <RecoveryPhrase
+              store={ this.store }
+              vaultStore={ this.vaultStore }
+            />
           );
         }
 
         if (createType === 'fromRaw') {
           return (
-            <RawKey store={ this.store } />
+            <RawKey
+              store={ this.store }
+              vaultStore={ this.vaultStore }
+            />
           );
         }
 
         return (
-          <NewImport store={ this.store } />
+          <NewImport
+            store={ this.store }
+            vaultStore={ this.vaultStore }
+          />
         );
 
       case STAGE_INFO:

@@ -14,10 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 
 import { VaultSelect } from '~/ui';
 
+@observer
 export default class ChangeVault extends Component {
   static propTypes = {
     store: PropTypes.object.isRequired,
