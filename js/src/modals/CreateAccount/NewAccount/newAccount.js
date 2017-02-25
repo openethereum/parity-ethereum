@@ -20,10 +20,11 @@ import { FormattedMessage } from 'react-intl';
 import { IconButton } from 'material-ui';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
-import { Form, Input, IdentityIcon, VaultSelect } from '~/ui';
+import { Form, Input, IdentityIcon } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 import { RefreshIcon } from '~/ui/Icons';
 
+import ChangeVault from '../ChangeVault';
 import styles from '../createAccount.css';
 
 @observer
@@ -124,27 +125,13 @@ export default class CreateAccount extends Component {
           </div>
         </div>
         <PasswordStrength input={ password } />
-        { this.renderVaultSelector() }
+        <ChangeVault
+          store={ this.props.store }
+          vaultStore={ this.props.vaultStore }
+        />
         { this.renderIdentitySelector() }
         { this.renderIdentities() }
       </Form>
-    );
-  }
-
-  renderVaultSelector () {
-    const { store, vaultStore } = this.props;
-    const { vaultName } = store;
-
-    if (!vaultStore || vaultStore.vaultsOpened.length === 0) {
-      return null;
-    }
-
-    return (
-      <VaultSelect
-        onSelect={ this.onChangeVaultName }
-        value={ vaultName }
-        vaultStore={ vaultStore }
-      />
     );
   }
 
@@ -275,11 +262,5 @@ export default class CreateAccount extends Component {
     const { store } = this.props;
 
     store.setPasswordRepeat(password);
-  }
-
-  onChangeVaultName = (vaultName) => {
-    const { store } = this.props;
-
-    store.setVaultName(vaultName);
   }
 }

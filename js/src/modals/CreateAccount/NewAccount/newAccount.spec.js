@@ -157,20 +157,5 @@ describe('modals/CreateAccount/NewAccount', () => {
         expect(store.setName).to.have.been.calledWith('test');
       });
     });
-
-    describe('onChangeVaultName', () => {
-      beforeEach(() => {
-        sinon.spy(store, 'setVaultName');
-        instance.onChangeVaultName('test');
-      });
-
-      afterEach(() => {
-        store.setVaultName.restore();
-      });
-
-      it('calls into the store', () => {
-        expect(store.setVaultName).to.have.been.calledWith('test');
-      });
-    });
   });
 });

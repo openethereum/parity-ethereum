@@ -23,6 +23,7 @@ import { FormattedMessage } from 'react-intl';
 import { Form, Input } from '~/ui';
 import { AttachFileIcon } from '~/ui/Icons';
 
+import ChangeVault from '../ChangeVault';
 import styles from '../createAccount.css';
 
 const STYLE_HIDDEN = { display: 'none' };
@@ -30,7 +31,8 @@ const STYLE_HIDDEN = { display: 'none' };
 @observer
 export default class NewImport extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired
+    store: PropTypes.object.isRequired,
+    vaultStore: PropTypes.object
   }
 
   render () {
@@ -93,6 +95,10 @@ export default class NewImport extends Component {
             />
           </div>
         </div>
+        <ChangeVault
+          store={ this.props.store }
+          vaultStore={ this.props.vaultStore }
+        />
         <div>
           <Input
             disabled
