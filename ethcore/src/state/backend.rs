@@ -66,21 +66,48 @@ pub trait Backend: Send {
 	fn is_known_null(&self, address: &Address) -> bool;
 }
 
-/// A raw backend which simply wraps a hashdb and does no caching.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NoCache<T>(T);
+/// A raw backend used to check proofs of execution.
+///
+/// This doesn't delete anything since execution proofs won't have mangled keys
+/// and we want to avoid collisions.
+// TODO: when account lookup moved into backends, this won't rely as tenuously on intended
+// usage.
+#[derive(Clone, PartialEq)]
+pub struct ProofCheck(MemoryDB);
 
-impl<T> NoCache<T> {
-	/// Create a new `NoCache` backend.
-	pub fn new(inner: T) -> Self { NoCache(inner) }
-
-	/// Consume the backend, yielding the inner database.
-	pub fn into_inner(self) -> T { self.0 }
+impl ProofCheck {
+	/// Create a new `ProofCheck` backend from the given state items.
+	pub fn new(proof: &[DBValue]) -> Self {
+		let mut db = MemoryDB::new();
+		for item in proof { db.insert(item); }
+		ProofCheck(db)
+	}
 }
 
-impl<T: AsHashDB + Send> Backend for NoCache<T> {
-	fn as_hashdb(&self) -> &HashDB { self.0.as_hashdb() }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB { self.0.as_hashdb_mut() }
+impl HashDB for ProofCheck {
+	fn keys(&self) -> HashMap<H256, i32> { self.0.keys() }
+	fn get(&self, key: &H256) -> Option<DBValue> {
+		self.0.get(key)
+	}
+
+	fn contains(&self, key: &H256) -> bool {
+		self.0.contains(key)
+	}
+
+	fn insert(&mut self, value: &[u8]) -> H256 {
+		self.0.insert(value)
+	}
+
+	fn emplace(&mut self, key: H256, value: DBValue) {
+		self.0.emplace(key, value)
+	}
+
+	fn remove(&mut self, _key: &H256) { }
+}
+
+impl Backend for ProofCheck {
+	fn as_hashdb(&self) -> &HashDB { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB { self }
 	fn add_to_account_cache(&mut self, _addr: Address, _data: Option<Account>, _modified: bool) {}
 	fn cache_code(&self, _hash: H256, _code: Arc<Vec<u8>>) {}
 	fn get_cached_account(&self, _addr: &Address) -> Option<Option<Account>> { None }
@@ -95,7 +122,8 @@ impl<T: AsHashDB + Send> Backend for NoCache<T> {
 }
 
 /// Proving state backend.
-/// See module docs for more details.
+/// This keeps track of all state values loaded during usage of this backend.
+/// The proof-of-execution can be extracted with `extract_proof`.
 ///
 /// This doesn't cache anything or rely on the canonical state caches.
 pub struct Proving<H: AsHashDB> {

@@ -308,13 +308,13 @@ impl Client {
 	}
 
 	/// The env info as of the best block.
-	fn latest_env_info(&self) -> EnvInfo {
+	pub fn latest_env_info(&self) -> EnvInfo {
 		self.env_info(BlockId::Latest).expect("Best block header always stored; qed")
 	}
 
 	/// The env info as of a given block.
 	/// returns `None` if the block unknown.
-	fn env_info(&self, id: BlockId) -> Option<EnvInfo> {
+	pub fn env_info(&self, id: BlockId) -> Option<EnvInfo> {
 		self.block_header(id).map(|header| {
 			EnvInfo {
 				number: header.number(),
