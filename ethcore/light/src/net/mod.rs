@@ -26,7 +26,7 @@ use io::TimerToken;
 use network::{NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, Stream, UntrustedRlp, View};
 use util::hash::H256;
-use util::{Bytes, Mutex, RwLock, U256};
+use util::{Bytes, DBValue, Mutex, RwLock, U256};
 use time::{Duration, SteadyTime};
 
 use std::collections::HashMap;
@@ -211,6 +211,8 @@ pub trait Handler: Send + Sync {
 	/// Called when a peer responds with header proofs. Each proof should be a block header coupled
 	/// with a series of trie nodes is ascending order by distance from the root.
 	fn on_header_proofs(&self, _ctx: &EventContext, _req_id: ReqId, _proofs: &[(Bytes, Vec<Bytes>)]) { }
+	/// Called when a peer responds with a transaction proof. Each proof is a vector of state items.
+	fn on_transaction_proof(&self, _ctx: &EventContext, _req_id: ReqId, _state_items: &[DBValue]) { }
 	/// Called to "tick" the handler periodically.
 	fn tick(&self, _ctx: &BasicContext) { }
 	/// Called on abort. This signals to handlers that they should clean up
@@ -534,6 +536,9 @@ impl LightProtocol {
 
 			packet::GET_HEADER_PROOFS => self.get_header_proofs(peer, io, rlp),
 			packet::HEADER_PROOFS => self.header_proofs(peer, io, rlp),
+
+			packet::GET_TRANSACTION_PROOF => self.get_transaction_proof(peer, io, rlp),
+			packet::TRANSACTION_PROOF => self.transaction_proof(peer, io, rlp),
 
 			packet::SEND_TRANSACTIONS => self.relay_transactions(peer, io, rlp),
 
@@ -1173,6 +1178,87 @@ impl LightProtocol {
 				io: io,
 				proto: self,
 			}, req_id, &raw_proofs);
+		}
+
+		Ok(())
+	}
+
+	// Receive a request for proof-of-execution.
+	fn get_transaction_proof(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+		const MAX_GAS: usize = 10_000_000; // refuse to execute more than this amount of gas at once.
+		use util::Uint;
+
+		let peers = self.peers.read();
+		let peer = match peers.get(peer) {
+			Some(peer) => peer,
+			None => {
+				debug!(target: "les", "Ignoring request from unknown peer");
+				return Ok(())
+			}
+		};
+		let mut peer = peer.lock();
+
+		let req_id: u64 = raw.val_at(0)?;
+
+		let req = {
+			let req_rlp = raw.at(1)?;
+			request::TransactionProof {
+				at: req_rlp.val_at(0)?,
+				from: req_rlp.val_at(1)?,
+				action: if req_rlp.at(2)?.is_empty() {
+					Action::Create
+				} else {
+					Action::Call(req_rlp.val_at(2)?)
+				},
+				gas: ::std::cmp::min(req_rlp.val_at(3)?, MAX_GAS.into()),
+				gas_price: req_rlp.val_at(4)?,
+				value: req_rlp.val_at(5)?,
+				data: req_rlp.val_at(6)?,
+			}
+		};
+
+		// always charge the peer for all the gas.
+		peer.deduct_max(&self.flow_params, request::Kind::TransactionProof, req.gas.low_u64() as usize)?;
+
+		let response = match self.provider.transaction_proof(req) {
+			Some(res) => res,
+			None => vec![],
+		};
+
+		let cur_credits = peer.local_credits.current();
+
+		io.respond(packet::TRANSACTION_PROOF, {
+			let mut stream = RlpStream::new_list(3);
+			stream.append(&req_id).append(&cur_credits).begin_list(response.len());
+
+			for state_item in response {
+				stream.append(&&state_item[..]);
+			}
+
+			stream.out()
+		});
+
+		Ok(())
+	}
+
+	// Receive a response for proof-of-execution.
+	fn transaction_proof(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+		let id_guard = self.pre_verify_response(peer, request::Kind::HeaderProofs, &raw)?;
+		let raw_proof: Vec<DBValue> = raw.at(2)?.iter()
+			.map(|rlp| {
+				let mut db_val = DBValue::new();
+				db_val.append_slice(rlp.data()?);
+				Ok(db_val)
+			})
+			.collect::<Result<Vec<_>, ::rlp::DecoderError>>()?;
+
+		let req_id = id_guard.defuse();
+		for handler in &self.handlers {
+			handler.on_transaction_proof(&Ctx {
+				peer: *peer,
+				io: io,
+				proto: self,
+			}, req_id, &raw_proof);
 		}
 
 		Ok(())

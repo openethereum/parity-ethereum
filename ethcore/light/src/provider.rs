@@ -367,7 +367,7 @@ impl<L: AsLightClient + Send + Sync> Provider for LightProvider<L> {
 		None
 	}
 
-	fn transaction_proof(&self, req: request::TransactionProof) -> Option<Vec<DBValue>> {
+	fn transaction_proof(&self, _req: request::TransactionProof) -> Option<Vec<DBValue>> {
 		None
 	}
 

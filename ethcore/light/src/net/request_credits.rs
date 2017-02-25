@@ -114,7 +114,7 @@ impl RlpEncodable for CostTable {
 				.append(&cost.1);
 		}
 
-		s.begin_list(6);
+		s.begin_list(7);
 
 		append_cost(s, packet::GET_BLOCK_HEADERS, &self.headers);
 		append_cost(s, packet::GET_BLOCK_BODIES, &self.bodies);
@@ -122,6 +122,7 @@ impl RlpEncodable for CostTable {
 		append_cost(s, packet::GET_PROOFS, &self.state_proofs);
 		append_cost(s, packet::GET_CONTRACT_CODES, &self.contract_codes);
 		append_cost(s, packet::GET_HEADER_PROOFS, &self.header_proofs);
+		append_cost(s, packet::GET_TRANSACTION_PROOF, &self.transaction_proof);
 	}
 }
 

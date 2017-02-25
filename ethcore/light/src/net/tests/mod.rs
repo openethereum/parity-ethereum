@@ -32,7 +32,7 @@ use provider::Provider;
 use request::{self, Request, Headers};
 
 use rlp::*;
-use util::{Bytes, H256, U256};
+use util::{Bytes, DBValue, H256, U256};
 
 use std::sync::Arc;
 
@@ -124,6 +124,10 @@ impl Provider for TestProvider {
 	}
 
 	fn header_proof(&self, _req: request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
+		None
+	}
+
+	fn transaction_proof(&self, _req: request::TransactionProof) -> Option<Vec<DBValue>> {
 		None
 	}
 
