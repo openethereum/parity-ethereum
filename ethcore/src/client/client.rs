@@ -880,7 +880,8 @@ impl snapshot::DatabaseRestore for Client {
 
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
-		let env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+		env_info.gas_limit = U256::max_value();
 
 		// that's just a copy of the state.
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
@@ -963,13 +964,13 @@ impl BlockChainClient for Client {
 		{
 			while upper - lower > 1.into() {
 				let mid = (lower + upper) / 2.into();
-				trace!(target: "estimate_gas", "{} .. {} .. {}", lower, mid, upper);
+				trace!(target: "binary_chop", "{} .. {} .. {}", lower, mid, upper);
 				let c = cond(mid)?;
 				match c {
 					true => upper = mid,
 					false => lower = mid,
 				};
-				trace!(target: "estimate_gas", "{} => {} .. {}", c, lower, upper);
+				trace!(target: "binary_chop", "{} => {} .. {}", c, lower, upper);
 			}
 			Ok(upper)
 		}
