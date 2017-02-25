@@ -195,7 +195,7 @@ impl AccountEntry {
 /// checkpoint can be discateded with `discard_checkpoint`. All of the orignal
 /// backed-up values are moved into a parent checkpoint (if any).
 ///
-pub struct State<B> {
+pub struct State<B: Backend> {
 	db: B,
 	root: H256,
 	cache: RefCell<HashMap<Address, AccountEntry>>,
@@ -851,7 +851,7 @@ impl<B: Backend> State<B> {
 	}
 }
 
-impl<B> fmt::Debug for State<B> {
+impl<B: Backend> fmt::Debug for State<B> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{:?}", self.cache.borrow())
 	}
