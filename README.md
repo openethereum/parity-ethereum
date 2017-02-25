@@ -37,7 +37,7 @@ includes various functionality allowing you to:
 - create and manage your Ethereum accounts;
 - manage your Ether and any Ethereum tokens;
 - create and register your own tokens;
-- and much more.    
+- and much more.
 
 By default, Parity will also run a JSONRPC server on `127.0.0.1:8545`. This is fully configurable and supports a number
 of RPC APIs.
@@ -60,7 +60,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 	```bash
 	$ curl https://sh.rustup.rs -sSf | sh
 	```
-	
+
 	Parity also requires `gcc`, `g++`, `libssl-dev`/`openssl`, `libudev-dev` and `pkg-config` packages to be installed.
 - OSX:
 	```bash
@@ -94,6 +94,7 @@ cargo install --git https://github.com/ethcore/parity.git parity
 # download Parity code
 $ git clone https://github.com/ethcore/parity
 $ cd parity
+$ git submodule update --init
 
 # build in release mode
 $ cargo build --release
