@@ -656,7 +656,7 @@ impl Client {
 	/// This will not fail if given BlockId::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state or the block
 	/// is unknown.
-	pub fn state_at(&self, id: BlockId) -> Option<State> {
+	pub fn state_at(&self, id: BlockId) -> Option<State<StateDB>> {
 		// fast path for latest state.
 		match id.clone() {
 			BlockId::Pending => return self.miner.pending_state().or_else(|| Some(self.state())),
@@ -686,7 +686,7 @@ impl Client {
 	///
 	/// This will not fail if given BlockId::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
-	pub fn state_at_beginning(&self, id: BlockId) -> Option<State> {
+	pub fn state_at_beginning(&self, id: BlockId) -> Option<State<StateDB>> {
 		// fast path for latest state.
 		match id {
 			BlockId::Pending => self.state_at(BlockId::Latest),
@@ -698,7 +698,7 @@ impl Client {
 	}
 
 	/// Get a copy of the best block's state.
-	pub fn state(&self) -> State {
+	pub fn state(&self) -> State<StateDB> {
 		let header = self.best_block_header();
 		State::from_existing(
 			self.state_db.lock().boxed_clone_canon(&header.hash()),

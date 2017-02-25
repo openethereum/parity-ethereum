@@ -24,7 +24,7 @@ use executive::Executive;
 use trace::{NoopTracer, NoopVMTracer};
 use action_params::{ActionValue, ActionParams};
 use types::executed::CallType;
-use state::{State, Substate};
+use state::{Backend, State, Substate};
 use env_info::EnvInfo;
 use pod_state::*;
 use account_db::*;

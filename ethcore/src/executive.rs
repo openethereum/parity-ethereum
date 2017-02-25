@@ -17,7 +17,7 @@
 //! Transaction Execution environment.
 use util::*;
 use action_params::{ActionParams, ActionValue};
-use state::{State, Substate, CleanupMode};
+use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;
 use types::executed::CallType;
 use env_info::EnvInfo;
@@ -56,17 +56,17 @@ pub struct TransactOptions {
 }
 
 /// Transaction executor.
-pub struct Executive<'a> {
-	state: &'a mut State,
+pub struct Executive<'a, B: 'a + StateBackend> {
+	state: &'a mut State<B>,
 	info: &'a EnvInfo,
 	engine: &'a Engine,
 	vm_factory: &'a Factory,
 	depth: usize,
 }
 
-impl<'a> Executive<'a> {
+impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 	/// Basic constructor.
-	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, vm_factory: &'a Factory) -> Self {
+	pub fn new(state: &'a mut State<B>, info: &'a EnvInfo, engine: &'a Engine, vm_factory: &'a Factory) -> Self {
 		Executive {
 			state: state,
 			info: info,
@@ -77,7 +77,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Populates executive from parent properties. Increments executive depth.
-	pub fn from_parent(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, vm_factory: &'a Factory, parent_depth: usize) -> Self {
+	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, engine: &'a Engine, vm_factory: &'a Factory, parent_depth: usize) -> Self {
 		Executive {
 			state: state,
 			info: info,
@@ -95,7 +95,7 @@ impl<'a> Executive<'a> {
 		output: OutputPolicy<'any, 'any>,
 		tracer: &'any mut T,
 		vm_tracer: &'any mut V
-	) -> Externalities<'any, T, V> where T: Tracer, V: VMTracer {
+	) -> Externalities<'any, T, V, B> where T: Tracer, V: VMTracer {
 		Externalities::new(self.state, self.info, self.engine, self.vm_factory, self.depth, origin_info, substate, output, tracer, vm_tracer)
 	}
 

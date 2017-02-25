@@ -14,6 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! A mutable state representation suitable to execute transactions.
+//! Generic over a `Backend`. Deals with `Account`s.
+//! Unconfirmed sub-states are managed with `checkpoint`s which may be canonicalized
+//! or rolled back.
+
 use std::cell::{RefCell, RefMut};
 use std::collections::hash_map::Entry;
 
@@ -37,7 +42,10 @@ use util::trie::recorder::Recorder;
 mod account;
 mod substate;
 
+pub mod backend;
+
 pub use self::account::Account;
+pub use self::backend::Backend;
 pub use self::substate::Substate;
 
 /// Used to return information about an `State::apply` operation.
@@ -186,8 +194,8 @@ impl AccountEntry {
 /// checkpoint can be discateded with `discard_checkpoint`. All of the orignal
 /// backed-up values are moved into a parent checkpoint (if any).
 ///
-pub struct State {
-	db: StateDB,
+pub struct State<B: Backend> {
+	db: B,
 	root: H256,
 	cache: RefCell<HashMap<Address, AccountEntry>>,
 	// The original account is preserved in
@@ -203,20 +211,24 @@ enum RequireCache {
 	Code,
 }
 
+/// Mode of dealing with null accounts.
 #[derive(PartialEq)]
 pub enum CleanupMode<'a> {
+	/// Create accounts which would be null.
 	ForceCreate,
+	/// Don't delete null accounts upon touching, but also don't create them.
 	NoEmpty,
+	/// Add encountered null accounts to the provided kill-set, to be deleted later.
 	KillEmpty(&'a mut HashSet<Address>),
 }
 
 const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
 			 Therefore creating a SecTrieDB with this state's root will not fail.";
 
-impl State {
+impl<B: Backend> State<B> {
 	/// Creates new state with empty state root
 	#[cfg(test)]
-	pub fn new(mut db: StateDB, account_start_nonce: U256, factories: Factories) -> State {
+	pub fn new(mut db: B, account_start_nonce: U256, factories: Factories) -> State<B> {
 		let mut root = H256::new();
 		{
 			// init trie and reset root too null
@@ -234,7 +246,7 @@ impl State {
 	}
 
 	/// Creates new state with existing state root
-	pub fn from_existing(db: StateDB, root: H256, account_start_nonce: U256, factories: Factories) -> Result<State, TrieError> {
+	pub fn from_existing(db: B, root: H256, account_start_nonce: U256, factories: Factories) -> Result<State<B>, TrieError> {
 		if !db.as_hashdb().contains(&root) {
 			return Err(TrieError::InvalidStateRoot(root));
 		}
@@ -328,7 +340,7 @@ impl State {
 	}
 
 	/// Destroy the current object and return root and database.
-	pub fn drop(mut self) -> (H256, StateDB) {
+	pub fn drop(mut self) -> (H256, B) {
 		self.propagate_to_global_cache();
 		(self.root, self.db)
 	}
@@ -420,8 +432,8 @@ impl State {
 			}
 		}
 
-		// check bloom before any requests to trie
-		if !self.db.check_non_null_bloom(address) { return H256::zero() }
+		// check if the account could exist before any requests to trie
+		if self.db.is_known_null(address) { return H256::zero() }
 
 		// account is not found in the global cache, get from the DB and insert into local
 		let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
@@ -443,6 +455,7 @@ impl State {
 			|a| a.as_ref().map_or(None, |a| a.code().clone()))
 	}
 
+	/// Get an account's code hash.
 	pub fn code_hash(&self, a: &Address) -> H256 {
 		self.ensure_cached(a, RequireCache::None, true,
 			|a| a.as_ref().map_or(SHA3_EMPTY, |a| a.code_hash()))
@@ -536,7 +549,7 @@ impl State {
 	#[cfg_attr(feature="dev", allow(needless_borrow))]
 	fn commit_into(
 		factories: &Factories,
-		db: &mut StateDB,
+		db: &mut B,
 		root: &mut H256,
 		accounts: &mut HashMap<Address, AccountEntry>
 	) -> Result<(), Error> {
@@ -630,7 +643,7 @@ impl State {
 
 	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
 	/// Consumes self.
-	pub fn diff_from(&self, orig: State) -> StateDiff {
+	pub fn diff_from<X: Backend>(&self, orig: State<X>) -> StateDiff {
 		let pod_state_post = self.to_pod();
 		let mut state_pre = orig;
 		state_pre.query_pod(&pod_state_post);
@@ -638,7 +651,7 @@ impl State {
 	}
 
 	// load required account data from the databases.
-	fn update_account_cache(require: RequireCache, account: &mut Account, state_db: &StateDB, db: &HashDB) {
+	fn update_account_cache(require: RequireCache, account: &mut Account, state_db: &B, db: &HashDB) {
 		match (account.is_cached(), require) {
 			(true, _) | (false, RequireCache::None) => {}
 			(false, require) => {
@@ -668,7 +681,7 @@ impl State {
 	/// Check caches for required data
 	/// First searches for account in the local, then the shared cache.
 	/// Populates local cache if nothing found.
-	fn ensure_cached<F, U>(&self, a: &Address, require: RequireCache, check_bloom: bool, f: F) -> U
+	fn ensure_cached<F, U>(&self, a: &Address, require: RequireCache, check_null: bool, f: F) -> U
 		where F: Fn(Option<&Account>) -> U {
 		// check local cache first
 		if let Some(ref mut maybe_acc) = self.cache.borrow_mut().get_mut(a) {
@@ -690,8 +703,8 @@ impl State {
 		match result {
 			Some(r) => r,
 			None => {
-				// first check bloom if it is not in database for sure
-				if check_bloom && !self.db.check_non_null_bloom(a) { return f(None); }
+				// first check if it is not in database for sure
+				if check_null && self.db.is_known_null(a) { return f(None); }
 
 				// not found in the global cache, get from the DB and insert into local
 				let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
@@ -725,7 +738,7 @@ impl State {
 			match self.db.get_cached_account(a) {
 				Some(acc) => self.insert_cache(a, AccountEntry::new_clean_cached(acc)),
 				None => {
-					let maybe_acc = if self.db.check_non_null_bloom(a) {
+					let maybe_acc = if !self.db.is_known_null(a) {
 						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 						match db.get_with(a, Account::from_rlp) {
 							Ok(acc) => AccountEntry::new_clean(acc),
@@ -767,7 +780,7 @@ impl State {
 }
 
 // LES state proof implementations.
-impl State {
+impl<B: Backend> State<B> {
 	/// Prove an account's existence or nonexistence in the state trie.
 	/// Returns a merkle proof of the account's trie node with all nodes before `from_level`
 	/// omitted or an encountered trie error.
@@ -813,14 +826,16 @@ impl State {
 	}
 }
 
-impl fmt::Debug for State {
+impl<B: Backend> fmt::Debug for State<B> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{:?}", self.cache.borrow())
 	}
 }
 
-impl Clone for State {
-	fn clone(&self) -> State {
+// TODO: cloning for `State` shouldn't be possible in general; Remove this and use
+// checkpoints where possible.
+impl Clone for State<StateDB> {
+	fn clone(&self) -> State<StateDB> {
 		let cache = {
 			let mut cache: HashMap<Address, AccountEntry> = HashMap::new();
 			for (key, val) in self.cache.borrow().iter() {
