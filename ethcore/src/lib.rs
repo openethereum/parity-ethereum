@@ -105,6 +105,7 @@ extern crate lru_cache;
 extern crate ethcore_stratum;
 extern crate ethabi;
 extern crate hardware_wallet;
+extern crate stats;
 
 #[macro_use]
 extern crate log;

@@ -32,6 +32,7 @@ export default class Store {
   @observable description = '';
   @observable gethAccountsAvailable = [];
   @observable gethAddresses = [];
+  @observable gethImported = [];
   @observable isBusy = false;
   @observable isWindowsPhrase = false;
   @observable name = '';
@@ -89,6 +90,8 @@ export default class Store {
     transaction(() => {
       this.password = '';
       this.passwordRepeat = '';
+      this.phrase = '';
+      this.name = '';
       this.nameError = null;
       this.rawKeyError = null;
       this.walletFileError = null;
@@ -122,6 +125,10 @@ export default class Store {
 
   @action setGethAccountsAvailable = (gethAccountsAvailable) => {
     this.gethAccountsAvailable = [].concat(gethAccountsAvailable);
+  }
+
+  @action setGethImported = (gethImported) => {
+    this.gethImported = gethImported;
   }
 
   @action setWindowsPhrase = (isWindowsPhrase = false) => {
@@ -234,20 +241,23 @@ export default class Store {
   createAccountFromGeth = (timestamp = Date.now()) => {
     return this._api.parity
       .importGethAccounts(this.gethAddresses.peek())
-      .then(() => {
-        return Promise.all(this.gethAddresses.map((address) => {
-          return this._api.parity.setAccountName(address, 'Geth Import');
-        }));
-      })
-      .then(() => {
-        return Promise.all(this.gethAddresses.map((address) => {
-          return this._api.parity.setAccountMeta(address, {
-            timestamp
+      .then((gethImported) => {
+        console.log('createAccountFromGeth', gethImported);
+
+        this.setGethImported(gethImported);
+
+        return Promise
+          .all(gethImported.map((address) => {
+            return this._api.parity.setAccountName(address, 'Geth Import');
+          }))
+          .then(() => {
+            return Promise.all(gethImported.map((address) => {
+              return this._api.parity.setAccountMeta(address, { timestamp });
+            }));
           });
-        }));
       })
       .catch((error) => {
-        console.error('createAccount', error);
+        console.error('createAccountFromGeth', error);
         throw error;
       });
   }
@@ -321,6 +331,8 @@ export default class Store {
   createIdentities = () => {
     return Promise
       .all([
+        this._api.parity.generateSecretPhrase(),
+        this._api.parity.generateSecretPhrase(),
         this._api.parity.generateSecretPhrase(),
         this._api.parity.generateSecretPhrase(),
         this._api.parity.generateSecretPhrase(),

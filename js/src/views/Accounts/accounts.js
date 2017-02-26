@@ -226,7 +226,7 @@ class Accounts extends Component {
         label={
           <FormattedMessage
             id='accounts.button.newAccount'
-            defaultMessage='new account'
+            defaultMessage='account'
           />
         }
         onClick={ this.onNewAccountClick }
@@ -237,7 +237,7 @@ class Accounts extends Component {
         label={
           <FormattedMessage
             id='accounts.button.newWallet'
-            defaultMessage='new wallet'
+            defaultMessage='wallet'
           />
         }
         onClick={ this.onNewWalletClick }
@@ -318,22 +318,26 @@ class Accounts extends Component {
 
   onNewAccountClick = () => {
     this.setState({
-      newDialog: !this.state.newDialog
+      newDialog: true
     });
   }
 
   onNewWalletClick = () => {
     this.setState({
-      newWalletDialog: !this.state.newWalletDialog
+      newWalletDialog: true
     });
   }
 
   onNewAccountClose = () => {
-    this.onNewAccountClick();
+    this.setState({
+      newDialog: false
+    });
   }
 
   onNewWalletClose = () => {
-    this.onNewWalletClick();
+    this.setState({
+      newWalletDialog: false
+    });
   }
 
   onNewAccountUpdate = () => {

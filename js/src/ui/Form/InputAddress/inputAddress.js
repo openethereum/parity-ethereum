@@ -30,6 +30,8 @@ class InputAddress extends Component {
   static propTypes = {
     accountsInfo: PropTypes.object,
     allowCopy: PropTypes.bool,
+    autoFocus: PropTypes.bool,
+    allowInvalid: PropTypes.bool,
     className: PropTypes.string,
     disabled: PropTypes.bool,
     error: PropTypes.string,
@@ -56,7 +58,7 @@ class InputAddress extends Component {
   };
 
   render () {
-    const { accountsInfo, allowCopy, className, disabled, error, focused, hint } = this.props;
+    const { accountsInfo, allowCopy, autoFocus, className, disabled, error, focused, hint } = this.props;
     const { hideUnderline, label, onClick, onFocus, readOnly, small } = this.props;
     const { tabIndex, text, tokens, value } = this.props;
     const account = value && (accountsInfo[value] || tokens[value]);
@@ -85,6 +87,7 @@ class InputAddress extends Component {
       <div className={ containerClasses.join(' ') }>
         <Input
           allowCopy={ allowCopy && ((disabled || readOnly) ? value : false) }
+          autoFocus={ autoFocus }
           className={ classes.join(' ') }
           disabled={ disabled }
           error={ error }
@@ -110,9 +113,9 @@ class InputAddress extends Component {
   }
 
   renderIcon () {
-    const { value, disabled, label, allowCopy, hideUnderline, readOnly } = this.props;
+    const { allowInvalid, value, disabled, label, allowCopy, hideUnderline, readOnly } = this.props;
 
-    if (!value || !value.length || !util.isAddressValid(value)) {
+    if (!value || !value.length || (!util.isAddressValid(value) && !allowInvalid)) {
       return null;
     }
 

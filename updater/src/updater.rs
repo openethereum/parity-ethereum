@@ -79,6 +79,8 @@ struct UpdaterState {
 	installed: Option<ReleaseInfo>,
 
 	capability: CapState,
+
+	disabled: bool,
 }
 
 /// Service for checking for updates and determining whether we can achieve consensus.
@@ -204,16 +206,16 @@ impl Updater {
 	}
 
 	fn fetch_done(&self, result: Result<PathBuf, fetch::Error>) {
-		(|| -> Result<(), String> {
+		(|| -> Result<(), (String, bool)> {
 			let auto = {
 				let mut s = self.state.lock();
 				let fetched = s.fetching.take().unwrap();
-				let b = result.map_err(|e| format!("Unable to fetch update ({}): {:?}", fetched.version, e))?;
+				let b = result.map_err(|e| (format!("Unable to fetch update ({}): {:?}", fetched.version, e), false))?;
 				info!(target: "updater", "Fetched latest version ({}) OK to {}", fetched.version, b.display());
 				let dest = self.updates_path(&Self::update_file_name(&fetched.version));
-				fs::create_dir_all(dest.parent().expect("at least one thing pushed; qed")).map_err(|e| format!("Unable to create updates path: {:?}", e))?;
-				fs::copy(&b, &dest).map_err(|e| format!("Unable to copy update: {:?}", e))?;
-				restrict_permissions_owner(&dest, false, true).map_err(|e| format!("Unable to update permissions: {}", e))?;
+				fs::create_dir_all(dest.parent().expect("at least one thing pushed; qed")).map_err(|e| (format!("Unable to create updates path: {:?}", e), true))?;
+				fs::copy(&b, &dest).map_err(|e| (format!("Unable to copy update: {:?}", e), true))?;
+				restrict_permissions_owner(&dest, false, true).map_err(|e| (format!("Unable to update permissions: {}", e), true))?;
 				info!(target: "updater", "Installed updated binary to {}", dest.display());
 				let auto = match self.update_policy.filter {
 					UpdateFilter::All => true,
@@ -228,7 +230,7 @@ impl Updater {
 				self.execute_upgrade();
 			}
 			Ok(())
-		})().unwrap_or_else(|e| warn!("{}", e));
+		})().unwrap_or_else(|(e, fatal)| { self.state.lock().disabled = fatal; warn!("{}", e); });
 	}
 
 	fn poll(&self) {
@@ -266,9 +268,10 @@ impl Updater {
 				}
 			);
 			let mut s = self.state.lock();
+			let running_later = latest.track.version.version < self.version_info().version;
 			let running_latest = latest.track.version.hash == self.version_info().hash;
 			let already_have_latest = s.installed.as_ref().or(s.ready.as_ref()).map_or(false, |t| *t == latest.track);
-			if self.update_policy.enable_downloading && !running_latest && !already_have_latest {
+			if self.update_policy.enable_downloading && !running_later && !running_latest && !already_have_latest {
 				if let Some(b) = latest.track.binary {
 					if s.fetching.is_none() {
 						info!(target: "updater", "Attempting to get parity binary {}", b);

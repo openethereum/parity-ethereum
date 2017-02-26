@@ -39,6 +39,7 @@ export default class RawKey extends Component {
     return (
       <Form>
         <Input
+          autoFocus
           error={ rawKeyError }
           hint={
             <FormattedMessage

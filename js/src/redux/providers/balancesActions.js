@@ -24,7 +24,7 @@ import { setAddressImage } from './imagesActions';
 import * as ABIS from '~/contracts/abi';
 import { notifyTransaction } from '~/util/notifications';
 import { LOG_KEYS, getLogger } from '~/config';
-import imagesEthereum from '../../../assets/images/contracts/ethereum-black-64x64.png';
+import imagesEthereum from '~/../assets/images/contracts/ethereum-black-64x64.png';
 
 const log = getLogger(LOG_KEYS.Balances);
 

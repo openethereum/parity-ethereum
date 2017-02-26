@@ -90,7 +90,7 @@ class Address extends Component {
         { this.renderEditDialog(contact) }
         { this.renderActionbar(contact) }
         { this.renderDelete(contact) }
-        <Page>
+        <Page padded>
           <Header
             account={ contact || { address, meta: {} } }
             balance={ balance }
@@ -153,7 +153,7 @@ class Address extends Component {
       <Button
         key='delete'
         icon={ <ActionDelete /> }
-        label='delete address'
+        label='forget'
         onClick={ this.showDeleteDialog }
       />
     ];
@@ -162,7 +162,7 @@ class Address extends Component {
       <Button
         key='newAddress'
         icon={ <ContentAdd /> }
-        label='save address'
+        label='save'
         onClick={ this.onOpenAdd }
       />
     );

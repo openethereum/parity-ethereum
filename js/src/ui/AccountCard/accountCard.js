@@ -39,7 +39,7 @@ export default class AccountCard extends Component {
   };
 
   render () {
-    const { account, balance, className } = this.props;
+    const { account, balance, className, onFocus } = this.props;
     const { copied } = this.state;
     const { address, description, meta = {}, name } = account;
     const { tags = [] } = meta;
@@ -49,14 +49,18 @@ export default class AccountCard extends Component {
       classes.push(styles.copied);
     }
 
+    const props = onFocus
+      ? { tabIndex: 0 }
+      : {};
+
     return (
       <div
         key={ address }
-        tabIndex={ 0 }
         className={ classes.join(' ') }
         onClick={ this.onClick }
         onFocus={ this.onFocus }
         onKeyDown={ this.handleKeyDown }
+        { ...props }
       >
         <div className={ styles.mainContainer }>
           <div className={ styles.infoContainer }>

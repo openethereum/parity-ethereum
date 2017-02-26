@@ -17,9 +17,104 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
+import { Container, SelectionList, Title } from '~/ui';
+
+import TypeIcon from '../TypeIcon';
 import styles from '../createAccount.css';
+
+const TYPES = [
+  {
+    description: (
+      <FormattedMessage
+        id='createAccount.creationType.fromNew.description'
+        defaultMessage='Selecting your identity icon and specifying the password'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromNew.label'
+        defaultMessage='New Account'
+      />
+    ),
+    key: 'fromNew'
+  },
+  {
+    description: (
+      <FormattedMessage
+        id='createAccount.creationType.fromPhrase.description'
+        defaultMessage='Recover using a previously stored recovery phrase and new password'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromPhrase.label'
+        defaultMessage='Recovery phrase'
+      />
+    ),
+    key: 'fromPhrase'
+  },
+  {
+    description: (
+      <FormattedMessage
+        id='createAccount.creationType.fromGeth.description'
+        defaultMessage='Import accounts from the Geth keystore with the original password'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromGeth.label'
+        defaultMessage='Geth keystore'
+      />
+    ),
+    key: 'fromGeth'
+  },
+  {
+    description: (
+      <FormattedMessage
+        id='createAccount.creationType.fromJSON.description'
+        defaultMessage='Import an industry-standard JSON keyfile with the original password'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromJSON.label'
+        defaultMessage='JSON file'
+      />
+    ),
+    key: 'fromJSON'
+  },
+  {
+    description: (
+      <FormattedMessage
+        id='createAccount.creationType.fromPresale.description'
+        defaultMessage='Import an Ethereum presale wallet file with the original password'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromPresale.label'
+        defaultMessage='Presale wallet'
+      />
+    ),
+    key: 'fromPresale'
+  },
+  {
+    description: (
+      <FormattedMessage
+        id='createAccount.creationType.fromRaw.description'
+        defaultMessage='Enter a previously created raw private key with a new password'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromRaw.label'
+        defaultMessage='Private key'
+      />
+    ),
+    key: 'fromRaw'
+  }
+];
 
 @observer
 export default class CreationType extends Component {
@@ -31,74 +126,58 @@ export default class CreationType extends Component {
     const { createType } = this.props.store;
 
     return (
-      <div className={ styles.spaced }>
-        <RadioButtonGroup
-          defaultSelected={ createType }
-          name='creationType'
-          onChange={ this.onChange }
-        >
-          <RadioButton
-            label={
-              <FormattedMessage
-                id='createAccount.creationType.fromNew.label'
-                defaultMessage='Create new account manually'
-              />
-            }
-            value='fromNew'
+      <div>
+        <div className={ styles.summary }>
+          <FormattedMessage
+            id='createAccount.creationType.info'
+            defaultMessage='Please select the type of account you want to create. Either create an account via name & password, or import it from a variety of existing sources. From here the wizard will guid you through the process of completing your account creation.'
           />
-          <RadioButton
-            label={
-              <FormattedMessage
-                id='createAccount.creationType.fromPhrase.label'
-                defaultMessage='Recover account from recovery phrase'
-              />
-            }
-            value='fromPhrase'
-          />
-          <RadioButton
-            label={
-              <FormattedMessage
-                id='createAccount.creationType.fromGeth.label'
-                defaultMessage='Import accounts from Geth keystore'
-              />
-            }
-            value='fromGeth'
-          />
-          <RadioButton
-            label={
-              <FormattedMessage
-                id='createAccount.creationType.fromJSON.label'
-                defaultMessage='Import account from a backup JSON file'
-              />
-            }
-            value='fromJSON'
-          />
-          <RadioButton
-            label={
-              <FormattedMessage
-                id='createAccount.creationType.fromPresale.label'
-                defaultMessage='Import account from an Ethereum pre-sale wallet'
-              />
-            }
-            value='fromPresale'
-          />
-          <RadioButton
-            label={
-              <FormattedMessage
-                id='createAccount.creationType.fromRaw.label'
-                defaultMessage='Import raw private key'
-              />
-            }
-            value='fromRaw'
-          />
-        </RadioButtonGroup>
+        </div>
+        { this.renderList(createType) }
       </div>
     );
   }
 
-  onChange = (event) => {
+  renderList () {
+    return (
+      <SelectionList
+        isChecked={ this.isSelected }
+        items={ TYPES }
+        noStretch
+        onSelectClick={ this.onChange }
+        renderItem={ this.renderItem }
+      />
+    );
+  }
+
+  renderItem = (item) => {
+    return (
+      <Container>
+        <div className={ styles.selectItem }>
+          <TypeIcon
+            className={ styles.icon }
+            store={ this.props.store }
+            type={ item.key }
+          />
+          <Title
+            byline={ item.description }
+            className={ styles.info }
+            title={ item.label }
+          />
+        </div>
+      </Container>
+    );
+  }
+
+  isSelected = (item) => {
+    const { createType } = this.props.store;
+
+    return item.key === createType;
+  }
+
+  onChange = (item) => {
     const { store } = this.props;
 
-    store.setCreateType(event.target.value);
+    store.setCreateType(item.key);
   }
 }

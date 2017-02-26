@@ -14,29 +14,44 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.list {
-  input+div>div {
-    top: 13px;
+
+.item {
+  display: flex;
+  flex: 1;
+  height: 100%;
+  position: relative;
+  width: 100%;
+
+  &:hover {
+    box-shadow: inset 0 0 0 2px rgb(255, 255, 255);
+  }
+
+  .content {
+    height: 100%;
+    width: 100%;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+  }
+
+  .overlay {
+    position: absolute;
+    right: 0.5em;
+    top: 0.5em;
   }
 }
 
-.selection {
-  display: inline-block;
-  margin-bottom: 0.5em;
+.selected {
+  box-shadow: inset 0 0 0 2px rgb(255, 255, 255);
+  filter: none;
+}
 
-  .icon {
-    display: inline-block;
-  }
+.unselected {
+  filter: grayscale(100%);
+  opacity: 0.5;
+}
 
-  .detail {
-    display: inline-block;
-
-    .address {
-      color: #aaa;
-    }
-
-    .balance {
-      font-family: 'Roboto Mono', monospace;
-    }
-  }
+.iconDisabled {
+  opacity: 0.15;
 }

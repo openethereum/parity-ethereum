@@ -120,7 +120,7 @@ class Wallet extends Component {
         { this.renderTransferDialog() }
         { this.renderDeleteDialog(walletAccount) }
         { this.renderActionbar() }
-        <Page>
+        <Page padded>
           <div className={ styles.info }>
             <Header
               className={ styles.header }

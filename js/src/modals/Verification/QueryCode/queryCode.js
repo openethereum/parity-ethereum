@@ -15,19 +15,26 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { Form, Input } from '~/ui';
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 export default class QueryCode extends Component {
   static propTypes = {
     receiver: PropTypes.string.isRequired,
-    hint: PropTypes.string,
+    hint: nodeOrStringProptype(),
     isCodeValid: PropTypes.bool.isRequired,
     setCode: PropTypes.func.isRequired
   }
 
   static defaultProps = {
-    hint: 'Enter the code you received.'
+    hint: (
+      <FormattedMessage
+        id='verification.code.hint'
+        defaultMessage='Enter the code you received.'
+      />
+    )
   }
 
   render () {
@@ -37,9 +44,24 @@ export default class QueryCode extends Component {
       <Form>
         <p>The verification code has been sent to { receiver }.</p>
         <Input
-          label={ 'verification code' }
+          autoFocus
+          label={
+            <FormattedMessage
+              id='verification.code.label'
+              defaultMessage='verification code'
+            />
+          }
           hint={ hint }
-          error={ isCodeValid ? null : 'invalid code' }
+          error={
+            isCodeValid
+              ? null
+              : (
+                <FormattedMessage
+                  id='verification.code.error'
+                  defaultMessage='invalid code'
+                />
+              )
+          }
           onChange={ this.onChange }
           onSubmit={ this.onSubmit }
         />

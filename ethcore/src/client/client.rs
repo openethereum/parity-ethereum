@@ -964,13 +964,13 @@ impl BlockChainClient for Client {
 		{
 			while upper - lower > 1.into() {
 				let mid = (lower + upper) / 2.into();
-				trace!(target: "binary_chop", "{} .. {} .. {}", lower, mid, upper);
+				trace!(target: "estimate_gas", "{} .. {} .. {}", lower, mid, upper);
 				let c = cond(mid)?;
 				match c {
 					true => upper = mid,
 					false => lower = mid,
 				};
-				trace!(target: "binary_chop", "{} => {} .. {}", c, lower, upper);
+				trace!(target: "estimate_gas", "{} => {} .. {}", c, lower, upper);
 			}
 			Ok(upper)
 		}

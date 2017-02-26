@@ -15,41 +15,33 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.actions {
-  background: rgba(0, 0, 0, 0.25) !important;
+.completed,
+.welcome {
+  p {
+    line-height: 1.5em;
+  }
 
-  button:not([disabled]) {
-    color: white !important;
+  ul {
+    background: rgba(0, 0, 0, 0.1);
+    margin-right: 12em;
+    padding: 1em 3em;
 
-    svg {
-      fill: white !important;
+    li {
+      line-height: 2em;
     }
   }
 }
 
-.body {
-  padding: 0 !important;
-}
+.tnc {
+  overflow-y: auto;
 
-.dialog {
-}
-
-.content {
-  transform: translate(0px, 0px) !important;
-  transition: none !important;
-
-  &>div {
-    background: rgba(0, 0, 0, 0.5) !important;
-    transition: none !important;
+  p,
+  li {
+    opacity: 0.8;
+    line-height: 1.5em;
   }
-}
 
-.title {
-  background: rgba(0, 0, 0, 0.25) !important;
-  padding: 1em;
-}
-
-.overlay {
-  background: rgba(255, 255, 255, 0.5) !important;
-  transition: none !important;
+  .accept {
+    margin: 1.5em 0;
+  }
 }

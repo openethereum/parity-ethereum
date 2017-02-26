@@ -68,6 +68,7 @@ export default class Input extends Component {
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
     onClick: PropTypes.func,
+    onDefaultAction: PropTypes.func,
     onFocus: PropTypes.func,
     onKeyDown: PropTypes.func,
     onSubmit: PropTypes.func,
@@ -230,7 +231,7 @@ export default class Input extends Component {
     const { value } = event.target;
 
     if (event.which === 13) {
-      this.onSubmit(value);
+      this.onSubmit(value, true);
     } else if (event.which === 27) {
       // TODO ESC, revert to original
     }
@@ -238,9 +239,17 @@ export default class Input extends Component {
     this.props.onKeyDown && this.props.onKeyDown(event);
   }
 
-  onSubmit = (value) => {
+  onSubmit = (value, performDefault) => {
+    const { onDefaultAction, onSubmit } = this.props;
+
     this.setValue(value, () => {
-      this.props.onSubmit && this.props.onSubmit(value);
+      if (onSubmit) {
+        onSubmit(value);
+      }
+
+      if (performDefault && onDefaultAction) {
+        onDefaultAction();
+      }
     });
   }
 
