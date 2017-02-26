@@ -94,6 +94,8 @@ pub struct Tendermint {
 	last_lock: AtomicUsize,
 	/// Bare hash of the proposed block, used for seal submission.
 	proposal: RwLock<Option<H256>>,
+	/// Hash of the proposal parent block.
+	proposal_parent: RwLock<H256>,
 	/// Set used to determine the current validators.
 	validators: Box<ValidatorSet + Send + Sync>,
 }
@@ -112,11 +114,12 @@ impl Tendermint {
 				height: AtomicUsize::new(1),
 				view: AtomicUsize::new(0),
 				step: RwLock::new(Step::Propose),
-				votes: VoteCollector::default(),
+				votes: Default::default(),
 				signer: Default::default(),
 				lock_change: RwLock::new(None),
 				last_lock: AtomicUsize::new(0),
 				proposal: RwLock::new(None),
+				proposal_parent: Default::default(),
 				validators: new_validator_set(our_params.validators),
 			});
 		let handler = TransitionHandler::new(Arc::downgrade(&engine) as Weak<Engine>, Box::new(our_params.timeouts));
@@ -230,7 +233,7 @@ impl Tendermint {
 				let height = self.height.load(AtomicOrdering::SeqCst);
 				if let Some(block_hash) = *self.proposal.read() {
 					// Generate seal and remove old votes.
-					if self.is_signer_proposer() {
+					if self.is_signer_proposer(&*self.proposal_parent.read()) {
 						let proposal_step = VoteStep::new(height, view, Step::Propose);
 						let precommit_step = VoteStep::new(proposal_step.height, proposal_step.view, Step::Precommit);
 						if let Some(seal) = self.votes.seal_signatures(proposal_step, precommit_step, &block_hash) {
@@ -252,23 +255,23 @@ impl Tendermint {
 	}
 
 	fn is_authority(&self, address: &Address) -> bool {
-		self.validators.contains(address)
+		self.validators.contains(&*self.proposal_parent.read(), address)
 	}
 
 	fn is_above_threshold(&self, n: usize) -> bool {
-		n > self.validators.count() * 2/3
+		n > self.validators.count(&*self.proposal_parent.read()) * 2/3
 	}
 
 	/// Find the designated for the given view.
-	fn view_proposer(&self, height: Height, view: View) -> Address {
+	fn view_proposer(&self, bh: &H256, height: Height, view: View) -> Address {
 		let proposer_nonce = height + view;
 		trace!(target: "engine", "Proposer nonce: {}", proposer_nonce);
-		self.validators.get(proposer_nonce)
+		self.validators.get(bh, proposer_nonce)
 	}
 
 	/// Check if address is a proposer for given view.
-	fn is_view_proposer(&self, height: Height, view: View, address: &Address) -> Result<(), EngineError> {
-		let proposer = self.view_proposer(height, view);
+	fn is_view_proposer(&self, bh: &H256, height: Height, view: View, address: &Address) -> Result<(), EngineError> {
+		let proposer = self.view_proposer(bh, height, view);
 		if proposer == *address {
 			Ok(())
 		} else {
@@ -277,8 +280,8 @@ impl Tendermint {
 	}
 
 	/// Check if current signer is the current proposer.
-	fn is_signer_proposer(&self) -> bool {
-		let proposer = self.view_proposer(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst));
+	fn is_signer_proposer(&self, bh: &H256) -> bool {
+		let proposer = self.view_proposer(bh, self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst));
 		self.signer.is_address(&proposer)
 	}
 
@@ -411,7 +414,7 @@ impl Engine for Tendermint {
 
 	/// Should this node participate.
 	fn seals_internally(&self) -> Option<bool> {
-		Some(self.is_authority(&self.signer.address()))
+		Some(self.signer.address() != Address::default())
 	}
 
 	/// Attempt to seal generate a proposal seal.
@@ -419,7 +422,7 @@ impl Engine for Tendermint {
 		let header = block.header();
 		let author = header.author();
 		// Only proposer can generate seal if None was generated.
-		if !self.is_signer_proposer() || self.proposal.read().is_some() {
+		if !self.is_signer_proposer(header.parent_hash()) || self.proposal.read().is_some() {
 			return Seal::None;
 		}
 
@@ -433,6 +436,7 @@ impl Engine for Tendermint {
 			self.votes.vote(ConsensusMessage::new(signature, height, view, Step::Propose, bh), author);
 			// Remember proposal for later seal submission.
 			*self.proposal.write() = bh;
+			*self.proposal_parent.write() = header.parent_hash().clone();
 			Seal::Proposal(vec![
 				::rlp::encode(&view).to_vec(),
 				::rlp::encode(&signature).to_vec(),
@@ -512,7 +516,7 @@ impl Engine for Tendermint {
 				Some(a) => a,
 				None => public_to_address(&recover(&precommit.signature.into(), &precommit_hash)?),
 			};
-			if !self.validators.contains(&address) {
+			if !self.validators.contains(header.parent_hash(), &address) {
 				Err(EngineError::NotAuthorized(address.to_owned()))?
 			}
 
@@ -535,7 +539,7 @@ impl Engine for Tendermint {
 					found: signatures_len
 				}))?;
 			}
-			self.is_view_proposer(proposal.vote_step.height, proposal.vote_step.view, &proposer)?;
+			self.is_view_proposer(header.parent_hash(), proposal.vote_step.height, proposal.vote_step.view, &proposer)?;
 		}
 		Ok(())
 	}
@@ -585,6 +589,7 @@ impl Engine for Tendermint {
 		debug!(target: "engine", "Received a new proposal {:?} from {}.", proposal.vote_step, proposer);
 		if self.is_view(&proposal) {
 			*self.proposal.write() = proposal.block_hash.clone();
+			*self.proposal_parent.write() = header.parent_hash().clone();
 		}
 		self.votes.vote(proposal, &proposer);
 		true
@@ -597,7 +602,7 @@ impl Engine for Tendermint {
 				trace!(target: "engine", "Propose timeout.");
 				if self.proposal.read().is_none() {
 					// Report the proposer if no proposal was received.
-					let current_proposer = self.view_proposer(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst));
+					let current_proposer = self.view_proposer(&*self.proposal_parent.read(), self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst));
 					self.validators.report_benign(&current_proposer);
 				}
 				Step::Prevote

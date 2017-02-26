@@ -104,14 +104,14 @@ impl Engine for BasicAuthority {
 	}
 
 	fn seals_internally(&self) -> Option<bool> {
-		Some(self.validators.contains(&self.signer.address()))
+		Some(self.signer.address() != Address::default())
 	}
 
 	/// Attempt to seal the block internally.
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
 		let header = block.header();
 		let author = header.author();
-		if self.validators.contains(author) {
+		if self.validators.contains(header.parent_hash(), author) {
 			// account should be pernamently unlocked, otherwise sealing will fail
 			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
 				return Seal::Regular(vec![::rlp::encode(&(&H520::from(signature) as &[u8])).to_vec()]);
@@ -139,7 +139,7 @@ impl Engine for BasicAuthority {
 		// check the signature is legit.
 		let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
 		let signer = public_to_address(&recover(&sig.into(), &header.bare_hash())?);
-		if !self.validators.contains(&signer) {
+		if !self.validators.contains(header.parent_hash(), &signer) {
 			return Err(BlockError::InvalidSeal)?;
 		}
 		Ok(())

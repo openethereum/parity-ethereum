@@ -136,12 +136,12 @@ impl AuthorityRound {
 		}
 	}
 
-	fn step_proposer(&self, step: usize) -> Address {
-		self.validators.get(step)
+	fn step_proposer(&self, bh: &H256, step: usize) -> Address {
+		self.validators.get(bh, step)
 	}
 
-	fn is_step_proposer(&self, step: usize, address: &Address) -> bool {
-		self.step_proposer(step) == *address
+	fn is_step_proposer(&self, bh: &H256, step: usize, address: &Address) -> bool {
+		self.step_proposer(bh, step) == *address
 	}
 }
 
@@ -221,7 +221,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn seals_internally(&self) -> Option<bool> {
-		Some(self.validators.contains(&self.signer.address()))
+		Some(self.signer.address() != Address::default())
 	}
 
 	/// Attempt to seal the block internally.
@@ -232,7 +232,7 @@ impl Engine for AuthorityRound {
 		if self.proposed.load(AtomicOrdering::SeqCst) { return Seal::None; }
 		let header = block.header();
 		let step = self.step.load(AtomicOrdering::SeqCst);
-		if self.is_step_proposer(step, header.author()) {
+		if self.is_step_proposer(header.parent_hash(), step, header.author()) {
 			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 				self.proposed.store(true, AtomicOrdering::SeqCst);
@@ -275,7 +275,7 @@ impl Engine for AuthorityRound {
 		// Give one step slack if step is lagging, double vote is still not possible.
 		if header_step <= self.step.load(AtomicOrdering::SeqCst) + 1 {
 			let proposer_signature = header_signature(header)?;
-			let correct_proposer = self.step_proposer(header_step);
+			let correct_proposer = self.step_proposer(header.parent_hash(), header_step);
 			if verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())? {
 				Ok(())
 			} else {
