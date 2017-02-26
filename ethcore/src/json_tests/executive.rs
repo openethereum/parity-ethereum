@@ -74,39 +74,39 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 		address: Address,
 		tracer: &'a mut T,
 		vm_tracer: &'a mut V,
-	) -> Self {
-		TestExt {
-			contract_address: contract_address(&address, &state.nonce(&address)),
+	) -> trie::Result<Self> {
+		Ok(TestExt {
+			contract_address: contract_address(&address, &state.nonce(&address)?),
 			ext: Externalities::new(state, info, engine, vm_factory, depth, origin_info, substate, output, tracer, vm_tracer),
 			callcreates: vec![]
-		}
+		})
 	}
 }
 
 impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 	where T: Tracer, V: VMTracer, B: StateBackend
 {
-	fn storage_at(&self, key: &H256) -> H256 {
+	fn storage_at(&self, key: &H256) -> trie::Result<H256> {
 		self.ext.storage_at(key)
 	}
 
-	fn set_storage(&mut self, key: H256, value: H256) {
+	fn set_storage(&mut self, key: H256, value: H256) -> trie::Result<()> {
 		self.ext.set_storage(key, value)
 	}
 
-	fn exists(&self, address: &Address) -> bool {
+	fn exists(&self, address: &Address) -> trie::Result<bool> {
 		self.ext.exists(address)
 	}
 
-	fn exists_and_not_null(&self, address: &Address) -> bool {
+	fn exists_and_not_null(&self, address: &Address) -> trie::Result<bool> {
 		self.ext.exists_and_not_null(address)
 	}
 
-	fn balance(&self, address: &Address) -> U256 {
+	fn balance(&self, address: &Address) -> trie::Result<U256> {
 		self.ext.balance(address)
 	}
 
-	fn origin_balance(&self) -> U256 {
+	fn origin_balance(&self) -> trie::Result<U256> {
 		self.ext.origin_balance()
 	}
 
@@ -143,11 +143,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		MessageCallResult::Success(*gas)
 	}
 
-	fn extcode(&self, address: &Address) -> Arc<Bytes>  {
+	fn extcode(&self, address: &Address) -> trie::Result<Arc<Bytes>>  {
 		self.ext.extcode(address)
 	}
 
-	fn extcodesize(&self, address: &Address) -> usize {
+	fn extcodesize(&self, address: &Address) -> trie::Result<usize> {
 		self.ext.extcodesize(address)
 	}
 
@@ -159,7 +159,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		self.ext.ret(gas, data)
 	}
 
-	fn suicide(&mut self, refund_address: &Address) {
+	fn suicide(&mut self, refund_address: &Address) -> trie::Result<()> {
 		self.ext.suicide(refund_address)
 	}
 
@@ -201,6 +201,19 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 			fail = true
 		};
 
+		macro_rules! try_fail {
+			($e: expr) => {
+				match $e {
+					Ok(x) => x,
+					Err(e) => {
+						let msg = format!("Internal error: {}", e);
+						fail_unless(false, &msg);
+						continue
+					}
+				}
+			}
+		}
+
 		let out_of_gas = vm.out_of_gas();
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -217,7 +230,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 
 		// execute
 		let (res, callcreates) = {
-			let mut ex = TestExt::new(
+			let mut ex = try_fail!(TestExt::new(
 				&mut state,
 				&info,
 				&engine,
@@ -229,7 +242,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				params.address.clone(),
 				&mut tracer,
 				&mut vm_tracer,
-			);
+			));
 			let mut evm = vm_factory.create(params.gas);
 			let res = evm.exec(params, &mut ex);
 			// a return in finalize will not alter callcreates
@@ -248,14 +261,19 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				for (address, account) in vm.post_state.unwrap().into_iter() {
 					let address = address.into();
 					let code: Vec<u8> = account.code.into();
-					fail_unless(state.code(&address).as_ref().map_or_else(|| code.is_empty(), |c| &**c == &code), "code is incorrect");
-					fail_unless(state.balance(&address) == account.balance.into(), "balance is incorrect");
-					fail_unless(state.nonce(&address) == account.nonce.into(), "nonce is incorrect");
-					account.storage.into_iter().foreach(|(k, v)| {
+					let found_code = try_fail!(state.code(&address));
+					let found_balance = try_fail!(state.balance(&address));
+					let found_nonce = try_fail!(state.nonce(&address));
+
+					fail_unless(found_code.as_ref().map_or_else(|| code.is_empty(), |c| &**c == &code), "code is incorrect");
+					fail_unless(found_balance == account.balance.into(), "balance is incorrect");
+					fail_unless(found_nonce == account.nonce.into(), "nonce is incorrect");
+					for (k, v) in account.storage {
 						let key: U256 = k.into();
 						let value: U256 = v.into();
-						fail_unless(state.storage_at(&address, &From::from(key)) == From::from(value), "storage is incorrect");
-					});
+						let found_storage = try_fail!(state.storage_at(&address, &From::from(key)));
+						fail_unless(found_storage == From::from(value), "storage is incorrect");
+					}
 				}
 
 				let calls: Option<Vec<CallCreate>> = vm.calls.map(|c| c.into_iter().map(From::from).collect());

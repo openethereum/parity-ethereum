@@ -123,7 +123,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 			instructions::SSTORE => {
 				let address = H256::from(stack.peek(0));
 				let newval = stack.peek(1);
-				let val = U256::from(&*ext.storage_at(&address));
+				let val = U256::from(&*ext.storage_at(&address)?);
 
 				let gas = if val.is_zero() && !newval.is_zero() {
 					schedule.sstore_set_gas
@@ -146,12 +146,12 @@ impl<Gas: CostType> Gasometer<Gas> {
 			instructions::SUICIDE => {
 				let mut gas = Gas::from(schedule.suicide_gas);
 
-				let is_value_transfer = !ext.origin_balance().is_zero();
+				let is_value_transfer = !ext.origin_balance()?.is_zero();
 				let address = u256_to_address(stack.peek(0));
 				if (
-					!schedule.no_empty && !ext.exists(&address)
+					!schedule.no_empty && !ext.exists(&address)?
 				) || (
-					schedule.no_empty && is_value_transfer && !ext.exists_and_not_null(&address)
+					schedule.no_empty && is_value_transfer && !ext.exists_and_not_null(&address)?
 				) {
 					gas = overflowing!(gas.overflow_add(schedule.suicide_to_new_account_cost.into()));
 				}
@@ -198,9 +198,9 @@ impl<Gas: CostType> Gasometer<Gas> {
 				let is_value_transfer = !stack.peek(2).is_zero();
 
 				if instruction == instructions::CALL && (
-					(!schedule.no_empty && !ext.exists(&address))
+					(!schedule.no_empty && !ext.exists(&address)?)
 					||
-					(schedule.no_empty && is_value_transfer && !ext.exists_and_not_null(&address))
+					(schedule.no_empty && is_value_transfer && !ext.exists_and_not_null(&address)?)
 				) {
 					gas = overflowing!(gas.overflow_add(schedule.call_new_account_gas.into()));
 				}

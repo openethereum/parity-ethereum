@@ -132,6 +132,10 @@ pub fn state_pruned() -> Error {
 	}
 }
 
+pub fn state_corrupt() -> Error {
+	internal("State corrupt", "")
+}
+
 pub fn exceptional() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::EXCEPTION_ERROR),
@@ -296,6 +300,7 @@ pub fn from_rlp_error(error: DecoderError) -> Error {
 pub fn from_call_error(error: CallError) -> Error {
 	match error {
 		CallError::StatePruned => state_pruned(),
+		CallError::StateCorrupt => state_corrupt(),
 		CallError::Exceptional => exceptional(),
 		CallError::Execution(e) => execution(e),
 		CallError::TransactionNotFound => internal("{}, this should not be the case with eth_call, most likely a bug.", CallError::TransactionNotFound),

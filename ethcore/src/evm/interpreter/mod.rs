@@ -273,7 +273,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let create_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
 
 				let contract_code = self.mem.read_slice(init_off, init_size);
-				let can_create = ext.balance(&params.address) >= endowment && ext.depth() < ext.schedule().max_depth;
+				let can_create = ext.balance(&params.address)? >= endowment && ext.depth() < ext.schedule().max_depth;
 
 				if !can_create {
 					stack.push(U256::zero());
@@ -319,11 +319,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 				// Get sender & receive addresses, check if we have balance
 				let (sender_address, receive_address, has_balance, call_type) = match instruction {
 					instructions::CALL => {
-						let has_balance = ext.balance(&params.address) >= value.expect("value set for all but delegate call; qed");
+						let has_balance = ext.balance(&params.address)? >= value.expect("value set for all but delegate call; qed");
 						(&params.address, &code_address, has_balance, CallType::Call)
 					},
 					instructions::CALLCODE => {
-						let has_balance = ext.balance(&params.address) >= value.expect("value set for all but delegate call; qed");
+						let has_balance = ext.balance(&params.address)? >= value.expect("value set for all but delegate call; qed");
 						(&params.address, &params.address, has_balance, CallType::CallCode)
 					},
 					instructions::DELEGATECALL => (&params.sender, &params.address, true, CallType::DelegateCall),
@@ -366,7 +366,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::SUICIDE => {
 				let address = stack.pop_back();
-				ext.suicide(&u256_to_address(&address));
+				ext.suicide(&u256_to_address(&address))?;
 				return Ok(InstructionResult::StopExecution);
 			},
 			instructions::LOG0...instructions::LOG4 => {
@@ -410,19 +410,19 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::SLOAD => {
 				let key = H256::from(&stack.pop_back());
-				let word = U256::from(&*ext.storage_at(&key));
+				let word = U256::from(&*ext.storage_at(&key)?);
 				stack.push(word);
 			},
 			instructions::SSTORE => {
 				let address = H256::from(&stack.pop_back());
 				let val = stack.pop_back();
 
-				let current_val = U256::from(&*ext.storage_at(&address));
+				let current_val = U256::from(&*ext.storage_at(&address)?);
 				// Increase refund for clear
 				if !self.is_zero(&current_val) && self.is_zero(&val) {
 					ext.inc_sstore_clears();
 				}
-				ext.set_storage(address, H256::from(&val));
+				ext.set_storage(address, H256::from(&val))?;
 			},
 			instructions::PC => {
 				stack.push(U256::from(code.position - 1));
@@ -438,7 +438,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::BALANCE => {
 				let address = u256_to_address(&stack.pop_back());
-				let balance = ext.balance(&address);
+				let balance = ext.balance(&address)?;
 				stack.push(balance);
 			},
 			instructions::CALLER => {
@@ -474,7 +474,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::EXTCODESIZE => {
 				let address = u256_to_address(&stack.pop_back());
-				let len = ext.extcodesize(&address);
+				let len = ext.extcodesize(&address)?;
 				stack.push(U256::from(len));
 			},
 			instructions::CALLDATACOPY => {
@@ -485,7 +485,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::EXTCODECOPY => {
 				let address = u256_to_address(&stack.pop_back());
-				let code = ext.extcode(&address);
+				let code = ext.extcode(&address)?;
 				self.copy_data_to_memory(stack, &code);
 			},
 			instructions::GASPRICE => {
