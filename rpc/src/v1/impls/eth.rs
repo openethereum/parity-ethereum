@@ -627,26 +627,28 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		self.send_raw_transaction(raw)
 	}
 
-	fn call(&self, request: CallRequest, num: Trailing<BlockNumber>) -> Result<Bytes, Error> {
+	fn call(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
 		let request = CallRequest::into(request);
 		let signed = self.sign_call(request)?;
 
 		let result = match num.0 {
-			BlockNumber::Pending => take_weak!(self.miner).call(&*take_weak!(self.client), &signed, Default::default()),
-			num => take_weak!(self.client).call(&signed, num.into(), Default::default()),
+			BlockNumber::Pending => take_weakf!(self.miner).call(&*take_weak!(self.client), &signed, Default::default()),
+			num => take_weakf!(self.client).call(&signed, num.into(), Default::default()),
 		};
 
-		result
+		future::done(result
 			.map(|b| b.output.into())
 			.map_err(errors::from_call_error)
+		).boxed()
 	}
 
-	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> Result<RpcU256, Error> {
+	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let request = CallRequest::into(request);
 		let signed = self.sign_call(request)?;
-		take_weak!(self.client).estimate_gas(&signed, num.0.into())
+		future::done(take_weakf!(self.client).estimate_gas(&signed, num.0.into())
 			.map(Into::into)
 			.map_err(errors::from_call_error)
+		).boxed()
 	}
 
 	fn compile_lll(&self, _: String) -> Result<Bytes, Error> {

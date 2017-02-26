@@ -38,7 +38,7 @@ use rlp::{UntrustedRlp, View};
 use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
 use util::{RwLock, U256};
 
-use futures::{future, Future, BoxFuture};
+use futures::{future, Future, BoxFuture, IntoFuture};
 use futures::sync::oneshot;
 
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
@@ -152,6 +152,27 @@ impl EthClient {
 				.map(|x| x.map_err(err_premature_cancel).boxed())
 				.unwrap_or_else(|| future::err(err_no_context()).boxed())
 		}).boxed()
+	}
+
+	// helper for getting proved execution.
+	fn proved_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> Result<Option<ProvedExecution>, Error> {
+		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
+		let req: CRequest = req.into();
+		let id = num.0.into();
+
+		let from = request.from.unwrap_or(Address::zero());
+		let action = request.to.map_or(Action::Create, Action::Call);
+		let gas: request.gas.unwrap_or(U256::from(10_000_000));
+		let value = request.value.unwrap_or_else(U256::zero);
+		let data = request.data.map_or_else(Vec::new, |d| d.to_vec());
+
+		sync.with_context(|ctx| {
+			let nonce_fut = req.nonce.map(Some).ok_or(err_no_context())
+				.or_else(|_| self.account(from, id).map(|acc| acc.map(|a| a.nonce)));
+
+			let gas_price_fut = req.gas_price.map(Some).ok_or(err_no_context())
+				.or_else(|_| unimplemented!())
+		})
 	}
 }
 
@@ -328,12 +349,25 @@ impl Eth for EthClient {
 		self.send_raw_transaction(raw)
 	}
 
-	fn call(&self, req: CallRequest, num: Trailing<BlockNumber>) -> Result<Bytes, Error> {
-		Err(errors::unimplemented(None))
+	fn call(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
+		self.proved_execution().and_then(|res| {
+			match res {
+				Ok(Some(exec)) => Ok(exec.output.into()),
+				Ok(None) => Err(errors::unknown_block()),
+				Err(e) => Err(errors::execution(e)),
+			}
+		}).boxed()
 	}
 
-	fn estimate_gas(&self, req: CallRequest, num: Trailing<BlockNumber>) -> Result<RpcU256, Error> {
-		Err(errors::unimplemented(None))
+	fn estimate_gas(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
+		// TODO: binary chop for more accurate estimates.
+		self.proved_execution().and_then(|res| {
+			match res {
+				Ok(Some(exec)) => Ok((exec.refunded + exec.gas_used).into()),
+				Ok(None) => Err(errors::unknown_block()),
+				Err(e) => Err(errors::execution(e)),
+			}
+		}).boxed()
 	}
 
 	fn transaction_by_hash(&self, hash: RpcH256) -> Result<Option<Transaction>, Error> {
@@ -361,19 +395,20 @@ impl Eth for EthClient {
 	}
 
 	fn compilers(&self) -> Result<Vec<String>, Error> {
-		Err(errors::unimplemented(None))
+		Err(errors::deprecated("Compilation functionality is deprecated.".to_string()))
+
 	}
 
-	fn compile_lll(&self, _code: String) -> Result<Bytes, Error> {
-		Err(errors::unimplemented(None))
+	fn compile_lll(&self, _: String) -> Result<Bytes, Error> {
+		Err(errors::deprecated("Compilation of LLL via RPC is deprecated".to_string()))
 	}
 
-	fn compile_solidity(&self, _code: String) -> Result<Bytes, Error> {
-		Err(errors::unimplemented(None))
+	fn compile_serpent(&self, _: String) -> Result<Bytes, Error> {
+		Err(errors::deprecated("Compilation of Serpent via RPC is deprecated".to_string()))
 	}
 
-	fn compile_serpent(&self, _code: String) -> Result<Bytes, Error> {
-		Err(errors::unimplemented(None))
+	fn compile_solidity(&self, _: String) -> Result<Bytes, Error> {
+		Err(errors::deprecated("Compilation of Solidity via RPC is deprecated".to_string()))
 	}
 
 	fn logs(&self, _filter: Filter) -> Result<Vec<Log>, Error> {
