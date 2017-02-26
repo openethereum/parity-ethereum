@@ -169,8 +169,11 @@ impl<T: SimpleMigration> Migration for T {
 
 /// An even simpler migration which just changes the number of columns.
 pub struct ChangeColumns {
+	/// The amount of columns before this migration.
 	pub pre_columns: Option<u32>,
+	/// The amount of columns after this migration.
 	pub post_columns: Option<u32>,
+	/// The version after this migration.
 	pub version: u32,
 }
 
@@ -277,11 +280,11 @@ impl Manager {
 			// Change number of columns in new db
 			let current_columns = db_config.columns;
 			db_config.columns = migration.columns();
+			temp_path = temp_idx.path(&db_root);
 
 			// slow migrations: alter existing data.
 			if migration.alters_existing() {
 				// open the target temporary database.
-				temp_path = temp_idx.path(&db_root);
 				let temp_path_str = temp_path.to_str().ok_or(Error::MigrationImpossible)?;
 				let mut new_db = Database::open(&db_config, temp_path_str).map_err(Error::Custom)?;
 
