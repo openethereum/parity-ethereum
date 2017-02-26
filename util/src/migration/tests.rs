@@ -243,6 +243,8 @@ fn change_columns() {
 
 	let new_path = manager.execute(&db_path, 0).unwrap();
 
+	assert_eq!(db_path, new_path, "Changing columns is an in-place migration.");
+
 	let config = DatabaseConfig::with_columns(Some(4));
 	let db = Database::open(&config, new_path.to_str().unwrap()).unwrap();
 	assert_eq!(db.num_columns(), 4);

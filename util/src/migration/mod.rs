@@ -269,7 +269,7 @@ impl Manager {
 
 		let db_root = database_path(old_path);
 		let mut temp_idx = TempIndex::One;
-		let mut temp_path = temp_idx.path(&db_root);
+		let mut temp_path = old_path.to_path_buf();
 
 		// start with the old db.
 		let old_path_str = old_path.to_str().ok_or(Error::MigrationImpossible)?;
@@ -280,10 +280,11 @@ impl Manager {
 			// Change number of columns in new db
 			let current_columns = db_config.columns;
 			db_config.columns = migration.columns();
-			temp_path = temp_idx.path(&db_root);
 
 			// slow migrations: alter existing data.
 			if migration.alters_existing() {
+				temp_path = temp_idx.path(&db_root);
+
 				// open the target temporary database.
 				let temp_path_str = temp_path.to_str().ok_or(Error::MigrationImpossible)?;
 				let mut new_db = Database::open(&db_config, temp_path_str).map_err(Error::Custom)?;
