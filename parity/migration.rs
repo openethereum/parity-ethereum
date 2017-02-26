@@ -201,18 +201,22 @@ fn migrate_database(version: u32, db_path: PathBuf, mut migrations: MigrationMan
 	// migrate old database to the new one
 	let temp_path = migrations.execute(&db_path, version)?;
 
-	// create backup
-	fs::rename(&db_path, &backup_path)?;
+	// completely in-place migration leads to the paths being equal.
+	// in that case, no need to shuffle directories.
+	if temp_path != db_path {
+		// create backup
+		fs::rename(&db_path, &backup_path)?;
 
-	// replace the old database with the new one
-	if let Err(err) = fs::rename(&temp_path, &db_path) {
-		// if something went wrong, bring back backup
-		fs::rename(&backup_path, &db_path)?;
-		return Err(err.into());
+		// replace the old database with the new one
+		if let Err(err) = fs::rename(&temp_path, &db_path) {
+			// if something went wrong, bring back backup
+			fs::rename(&backup_path, &db_path)?;
+			return Err(err.into());
+		}
+
+		// remove backup
+		fs::remove_dir_all(&backup_path)?;
 	}
-
-	// remove backup
-	fs::remove_dir_all(&backup_path)?;
 
 	Ok(())
 }
