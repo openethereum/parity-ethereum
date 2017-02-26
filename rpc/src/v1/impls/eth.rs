@@ -629,10 +629,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn call(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
 		let request = CallRequest::into(request);
-		let signed = self.sign_call(request)?;
+		let signed = match self.sign_call(request) {
+			Ok(signed) => signed,
+			Err(e) => return future::err(e).boxed(),
+		};
 
 		let result = match num.0 {
-			BlockNumber::Pending => take_weakf!(self.miner).call(&*take_weak!(self.client), &signed, Default::default()),
+			BlockNumber::Pending => take_weakf!(self.miner).call(&*take_weakf!(self.client), &signed, Default::default()),
 			num => take_weakf!(self.client).call(&signed, num.into(), Default::default()),
 		};
 
@@ -644,7 +647,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let request = CallRequest::into(request);
-		let signed = self.sign_call(request)?;
+		let signed = match self.sign_call(request) {
+			Ok(signed) => signed,
+			Err(e) => return future::err(e).boxed(),
+		};
 		future::done(take_weakf!(self.client).estimate_gas(&signed, num.0.into())
 			.map(Into::into)
 			.map_err(errors::from_call_error)
