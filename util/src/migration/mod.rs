@@ -167,6 +167,23 @@ impl<T: SimpleMigration> Migration for T {
 	}
 }
 
+/// An even simpler migration which just changes the number of columns.
+pub struct ChangeColumns {
+	pub pre_columns: Option<u32>,
+	pub post_columns: Option<u32>,
+	pub version: u32,
+}
+
+impl Migration for ChangeColumns {
+	fn pre_columns(&self) -> Option<u32> { self.pre_columns }
+	fn columns(&self) -> Option<u32> { self.post_columns }
+	fn version(&self) -> u32 { self.version }
+	fn alters_existing(&self) -> bool { false }
+	fn migrate(&mut self, _: Arc<Database>, _: &Config, _: &mut Database, _: Option<u32>) -> Result<(), Error> {
+		Ok(())
+	}
+}
+
 /// Get the path where all databases reside.
 fn database_path(path: &Path) -> PathBuf {
 	let mut temp_path = path.to_owned();
