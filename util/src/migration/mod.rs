@@ -127,6 +127,9 @@ pub trait Migration: 'static {
 	fn pre_columns(&self) -> Option<u32> { self.columns() }
 	/// Number of columns in database after the migration.
 	fn columns(&self) -> Option<u32>;
+	/// Whether this migration alters any existing columns.
+	/// if not, then column families will simply be added and `migrate` will never be called.
+	fn alters_existing(&self) -> bool { true }
 	/// Version of the database after the migration.
 	fn version(&self) -> u32;
 	/// Migrate a source to a destination.
@@ -148,6 +151,8 @@ impl<T: SimpleMigration> Migration for T {
 	fn columns(&self) -> Option<u32> { SimpleMigration::columns(self) }
 
 	fn version(&self) -> u32 { SimpleMigration::version(self) }
+
+	fn alters_existing(&self) -> bool { true }
 
 	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
 		let mut batch = Batch::new(config, col);
@@ -256,28 +261,41 @@ impl Manager {
 			let current_columns = db_config.columns;
 			db_config.columns = migration.columns();
 
-			// open the target temporary database.
-			temp_path = temp_idx.path(&db_root);
-			let temp_path_str = temp_path.to_str().ok_or(Error::MigrationImpossible)?;
-			let mut new_db = Database::open(&db_config, temp_path_str).map_err(Error::Custom)?;
+			// slow migrations: alter existing data.
+			if migration.alters_existing() {
+				// open the target temporary database.
+				temp_path = temp_idx.path(&db_root);
+				let temp_path_str = temp_path.to_str().ok_or(Error::MigrationImpossible)?;
+				let mut new_db = Database::open(&db_config, temp_path_str).map_err(Error::Custom)?;
 
-			// perform the migration from cur_db to new_db.
-			match current_columns {
-				// migrate only default column
-				None => migration.migrate(cur_db.clone(), &config, &mut new_db, None)?,
-				Some(v) => {
-					// Migrate all columns in previous DB
-					for col in 0..v {
-						migration.migrate(cur_db.clone(), &config, &mut new_db, Some(col))?
+				match current_columns {
+					// migrate only default column
+					None => migration.migrate(cur_db.clone(), &config, &mut new_db, None)?,
+					Some(v) => {
+						// Migrate all columns in previous DB
+						for col in 0..v {
+							migration.migrate(cur_db.clone(), &config, &mut new_db, Some(col))?
+						}
 					}
 				}
-			}
-			// next iteration, we will migrate from this db into the other temp.
-			cur_db = Arc::new(new_db);
-			temp_idx.swap();
+				// next iteration, we will migrate from this db into the other temp.
+				cur_db = Arc::new(new_db);
+				temp_idx.swap();
 
-			// remove the other temporary migration database.
-			let _ = fs::remove_dir_all(temp_idx.path(&db_root));
+				// remove the other temporary migration database.
+				let _ = fs::remove_dir_all(temp_idx.path(&db_root));
+			} else {
+				// migrations which simply add or remove column families.
+				// we can do this in-place.
+				let goal_columns = migration.columns().unwrap_or(0);
+				while cur_db.num_columns() < goal_columns {
+					cur_db.add_column().map_err(Error::Custom)?;
+				}
+
+				while cur_db.num_columns() > goal_columns {
+					cur_db.drop_column().map_err(Error::Custom)?;
+				}
+			}
 		}
 		Ok(temp_path)
 	}
