@@ -18,8 +18,9 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { RadioButtons } from '~/ui';
+import { Container, SelectionList, Title } from '~/ui';
 
+import TypeIcon from '../TypeIcon';
 import styles from '../createAccount.css';
 
 const TYPES = [
@@ -27,13 +28,13 @@ const TYPES = [
     description: (
       <FormattedMessage
         id='createAccount.creationType.fromNew.description'
-        defaultMessage='Create an account by selecting your identity icon and specifying the password'
+        defaultMessage='Selecting your identity icon and specifying the password'
       />
     ),
     label: (
       <FormattedMessage
         id='createAccount.creationType.fromNew.label'
-        defaultMessage='Create new account manually'
+        defaultMessage='New Account'
       />
     ),
     key: 'fromNew'
@@ -42,13 +43,13 @@ const TYPES = [
     description: (
       <FormattedMessage
         id='createAccount.creationType.fromPhrase.description'
-        defaultMessage='Recover an account by entering a previously stored recovery phrase and new password'
+        defaultMessage='Recover using a previously stored recovery phrase and new password'
       />
     ),
     label: (
       <FormattedMessage
         id='createAccount.creationType.fromPhrase.label'
-        defaultMessage='Recover account from recovery phrase'
+        defaultMessage='Recovery phrase'
       />
     ),
     key: 'fromPhrase'
@@ -57,13 +58,13 @@ const TYPES = [
     description: (
       <FormattedMessage
         id='createAccount.creationType.fromGeth.description'
-        defaultMessage='Import an accounts from the Geth keystore with the original password'
+        defaultMessage='Import accounts from the Geth keystore with the original password'
       />
     ),
     label: (
       <FormattedMessage
         id='createAccount.creationType.fromGeth.label'
-        defaultMessage='Import accounts from Geth keystore'
+        defaultMessage='Geth keystore'
       />
     ),
     key: 'fromGeth'
@@ -72,13 +73,13 @@ const TYPES = [
     description: (
       <FormattedMessage
         id='createAccount.creationType.fromJSON.description'
-        defaultMessage='Create an account by importing an industry-standard JSON keyfile'
+        defaultMessage='Import an industry-standard JSON keyfile with the original password'
       />
     ),
     label: (
       <FormattedMessage
         id='createAccount.creationType.fromJSON.label'
-        defaultMessage='Import account from a backup JSON file'
+        defaultMessage='JSON file'
       />
     ),
     key: 'fromJSON'
@@ -87,13 +88,13 @@ const TYPES = [
     description: (
       <FormattedMessage
         id='createAccount.creationType.fromPresale.description'
-        defaultMessage='Create an account by importing an Ethereum presale wallet file'
+        defaultMessage='Import an Ethereum presale wallet file with the original password'
       />
     ),
     label: (
       <FormattedMessage
         id='createAccount.creationType.fromPresale.label'
-        defaultMessage='Import account from an Ethereum pre-sale wallet'
+        defaultMessage='Presale wallet'
       />
     ),
     key: 'fromPresale'
@@ -102,13 +103,13 @@ const TYPES = [
     description: (
       <FormattedMessage
         id='createAccount.creationType.fromRaw.description'
-        defaultMessage='Create an account by entering a previously backed-up raw private key'
+        defaultMessage='Enter a previously created raw private key with a new password'
       />
     ),
     label: (
       <FormattedMessage
         id='createAccount.creationType.fromRaw.label'
-        defaultMessage='Import raw private key'
+        defaultMessage='Private key'
       />
     ),
     key: 'fromRaw'
@@ -125,20 +126,58 @@ export default class CreationType extends Component {
     const { createType } = this.props.store;
 
     return (
-      <div className={ styles.spaced }>
-        <RadioButtons
-          name='creationType'
-          onChange={ this.onChange }
-          value={ createType }
-          values={ TYPES }
-        />
+      <div>
+        <div className={ styles.summary }>
+          <FormattedMessage
+            id='createAccount.creationType.info'
+            defaultMessage='Please select the type of account you want to create. Either create an account via name & password, or import it from a variety of existing sources. From here the wizard will guid you through the process of completing your account creation.'
+          />
+        </div>
+        { this.renderList(createType) }
       </div>
     );
   }
 
-  onChange = (item, type) => {
+  renderList () {
+    return (
+      <SelectionList
+        isChecked={ this.isSelected }
+        items={ TYPES }
+        noStretch
+        onSelectClick={ this.onChange }
+        renderItem={ this.renderItem }
+      />
+    );
+  }
+
+  renderItem = (item) => {
+    return (
+      <Container>
+        <div className={ styles.selectItem }>
+          <TypeIcon
+            className={ styles.icon }
+            store={ this.props.store }
+            type={ item.key }
+          />
+          <Title
+            byline={ item.description }
+            className={ styles.info }
+            title={ item.label }
+          />
+        </div>
+      </Container>
+    );
+  }
+
+  isSelected = (item) => {
+    const { createType } = this.props.store;
+
+    return item.key === createType;
+  }
+
+  onChange = (item) => {
     const { store } = this.props;
 
-    store.setCreateType(type);
+    store.setCreateType(item.key);
   }
 }

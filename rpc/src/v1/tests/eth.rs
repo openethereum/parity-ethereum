@@ -18,7 +18,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use devtools::RandomTempPath;
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use ethcore::ids::BlockId;
 use ethcore::spec::{Genesis, Spec};

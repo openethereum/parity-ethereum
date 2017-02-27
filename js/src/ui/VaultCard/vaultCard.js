@@ -30,13 +30,16 @@ export default class VaultCard extends Component {
   static propTypes = {
     accounts: PropTypes.array,
     buttons: PropTypes.array,
+    children: PropTypes.node,
+    hideAccounts: PropTypes.bool,
+    hideButtons: PropTypes.bool,
     vault: PropTypes.object.isRequired
   };
 
   static Layout = Layout;
 
   render () {
-    const { buttons, vault } = this.props;
+    const { children, vault } = this.props;
     const { isOpen } = vault;
 
     return (
@@ -48,26 +51,20 @@ export default class VaultCard extends Component {
             : null
         }
       >
-        <div className={ styles.buttons }>
-          <Button
-            className={ styles.status }
-            disabled
-            icon={
-              isOpen
-                ? <UnlockedIcon />
-                : <LockedIcon />
-            }
-            key='status'
-          />
-          { buttons }
-        </div>
-        <Layout vault={ vault } />
+        { this.renderButtons() }
+        <Layout vault={ vault }>
+          { children }
+        </Layout>
       </Container>
     );
   }
 
   renderAccounts () {
-    const { accounts } = this.props;
+    const { accounts, hideAccounts } = this.props;
+
+    if (hideAccounts) {
+      return null;
+    }
 
     if (!accounts || !accounts.length) {
       return (
@@ -98,6 +95,31 @@ export default class VaultCard extends Component {
             );
           })
         }
+      </div>
+    );
+  }
+
+  renderButtons () {
+    const { buttons, hideButtons, vault } = this.props;
+    const { isOpen } = vault;
+
+    if (hideButtons) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.buttons }>
+        <Button
+          className={ styles.status }
+          disabled
+          icon={
+            isOpen
+              ? <UnlockedIcon />
+              : <LockedIcon />
+          }
+          key='status'
+        />
+        { buttons }
       </div>
     );
   }

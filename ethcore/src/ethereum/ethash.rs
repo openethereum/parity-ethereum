@@ -79,6 +79,14 @@ pub struct EthashParams {
 	pub ecip1010_continue_transition: u64,
 	/// Maximum amount of code that can be deploying into a contract.
 	pub max_code_size: u64,
+	/// Number of first block where the max gas limit becomes effective.
+	pub max_gas_limit_transition: u64,
+	/// Maximum valid block gas limit,
+	pub max_gas_limit: U256,
+	/// Number of first block where the minimum gas price becomes effective.
+	pub min_gas_price_transition: u64,
+	/// Do not alow transactions with lower gas price.
+	pub min_gas_price: U256,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -106,6 +114,10 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			ecip1010_pause_transition: p.ecip1010_pause_transition.map_or(u64::max_value(), Into::into),
 			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(u64::max_value(), Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
+			max_gas_limit_transition: p.max_gas_limit_transition.map_or(u64::max_value(), Into::into),
+			max_gas_limit: p.max_gas_limit.map_or(U256::max_value(), Into::into),
+			min_gas_price_transition: p.min_gas_price_transition.map_or(u64::max_value(), Into::into),
+			min_gas_price: p.min_gas_price.map_or(U256::zero(), Into::into),
 		}
 	}
 }
@@ -174,8 +186,12 @@ impl Engine for Ethash {
 		}
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, gas_ceil_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, mut gas_ceil_target: U256) {
 		let difficulty = self.calculate_difficulty(header, parent);
+		if header.number() >= self.ethash_params.max_gas_limit_transition && gas_ceil_target > self.ethash_params.max_gas_limit {
+			warn!("Gas limit target is limited to {}", self.ethash_params.max_gas_limit);
+			gas_ceil_target = self.ethash_params.max_gas_limit;
+		}
 		let gas_limit = {
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.ethash_params.gas_limit_bound_divisor;
@@ -213,10 +229,16 @@ impl Engine for Ethash {
 		if block.fields().header.number() == self.ethash_params.dao_hardfork_transition {
 			// TODO: enable trigger function maybe?
 //			if block.fields().header.gas_limit() <= 4_000_000.into() {
-				let mut state = block.fields_mut().state;
+				let state = block.fields_mut().state;
 				for child in &self.ethash_params.dao_hardfork_accounts {
-					let b = state.balance(child);
-					state.transfer_balance(child, &self.ethash_params.dao_hardfork_beneficiary, &b, CleanupMode::NoEmpty);
+					let beneficiary = &self.ethash_params.dao_hardfork_beneficiary;
+					let res = state.balance(child)
+						.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty));
+
+					if let Err(_) = res {
+						warn!("Unable to apply DAO hardfork due to database corruption.");
+						warn!("Your node is now likely out of consensus.");
+					}
 				}
 //			}
 		}
@@ -229,12 +251,28 @@ impl Engine for Ethash {
 		let fields = block.fields_mut();
 
 		// Bestow block reward
-		fields.state.add_balance(fields.header.author(), &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())), CleanupMode::NoEmpty);
+		let res = fields.state.add_balance(
+			fields.header.author(),
+			&(reward + reward / U256::from(32) * U256::from(fields.uncles.len())),
+			CleanupMode::NoEmpty
+		);
+
+		if let Err(e) = res {
+			warn!("Failed to give block reward: {}", e);
+		}
 
 		// Bestow uncle rewards
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
-			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)), CleanupMode::NoEmpty);
+			let res = fields.state.add_balance(
+				u.author(),
+				&(reward * U256::from(8 + u.number() - current_number) / U256::from(8)),
+				CleanupMode::NoEmpty
+			);
+
+			if let Err(e) = res {
+				warn!("Failed to give uncle reward: {}", e);
+			}
 		}
 
 		// Commit state so that we can actually figure out the state root.
@@ -312,10 +350,14 @@ impl Engine for Ethash {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })))
 		}
 		let gas_limit_divisor = self.ethash_params.gas_limit_bound_divisor;
-		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
-		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
+		let parent_gas_limit = *parent.gas_limit();
+		let min_gas = parent_gas_limit - parent_gas_limit / gas_limit_divisor;
+		let max_gas = parent_gas_limit + parent_gas_limit / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
 			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
+		}
+		if header.number() >= self.ethash_params.max_gas_limit_transition && header.gas_limit() > &self.ethash_params.max_gas_limit && header.gas_limit() > &parent_gas_limit {
+			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(self.ethash_params.max_gas_limit), found: header.gas_limit().clone() })));
 		}
 		Ok(())
 	}
@@ -329,6 +371,10 @@ impl Engine for Ethash {
 			if header.number() < self.ethash_params.eip155_transition || n != self.params().chain_id {
 				return Err(TransactionError::InvalidNetworkId.into())
 			}
+		}
+
+		if header.number() >= self.ethash_params.min_gas_price_transition && t.gas_price < self.ethash_params.min_gas_price {
+			return Err(TransactionError::InsufficientGasPrice { minimal: self.ethash_params.min_gas_price, got: t.gas_price }.into());
 		}
 
 		Ok(())
@@ -467,7 +513,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close();
-		assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
+		assert_eq!(b.state().balance(&Address::zero()).unwrap(), U256::from_str("4563918244f40000").unwrap());
 	}
 
 	#[test]
@@ -485,8 +531,8 @@ mod tests {
 		b.push_uncle(uncle).unwrap();
 
 		let b = b.close();
-		assert_eq!(b.state().balance(&Address::zero()), "478eae0e571ba000".into());
-		assert_eq!(b.state().balance(&uncle_author), "3cb71f51fc558000".into());
+		assert_eq!(b.state().balance(&Address::zero()).unwrap(), "478eae0e571ba000".into());
+		assert_eq!(b.state().balance(&uncle_author).unwrap(), "3cb71f51fc558000".into());
 	}
 
 	#[test]
@@ -852,5 +898,83 @@ mod tests {
 
 		let difficulty = ethash.calculate_difficulty(&header, &parent_header);
 		assert_eq!(U256::from(12543204905719u64), difficulty);
+	}
+
+	#[test]
+	fn rejects_blocks_over_max_gas_limit() {
+		let spec = new_homestead_test();
+		let mut ethparams = get_default_ethash_params();
+		ethparams.max_gas_limit_transition = 10;
+		ethparams.max_gas_limit = 100_000.into();
+
+		let mut parent_header = Header::default();
+		parent_header.set_number(1);
+		parent_header.set_gas_limit(100_000.into());
+		let mut header = Header::default();
+		header.set_number(parent_header.number() + 1);
+		header.set_gas_limit(100_001.into());
+		header.set_difficulty(ethparams.minimum_difficulty);
+		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+		assert!(ethash.verify_block_family(&header, &parent_header, None).is_ok());
+
+		parent_header.set_number(9);
+		header.set_number(parent_header.number() + 1);
+
+		parent_header.set_gas_limit(99_999.into());
+		header.set_gas_limit(100_000.into());
+		assert!(ethash.verify_block_family(&header, &parent_header, None).is_ok());
+
+		parent_header.set_gas_limit(200_000.into());
+		header.set_gas_limit(200_000.into());
+		assert!(ethash.verify_block_family(&header, &parent_header, None).is_ok());
+
+		parent_header.set_gas_limit(100_000.into());
+		header.set_gas_limit(100_001.into());
+		assert!(ethash.verify_block_family(&header, &parent_header, None).is_err());
+
+		parent_header.set_gas_limit(200_000.into());
+		header.set_gas_limit(200_001.into());
+		assert!(ethash.verify_block_family(&header, &parent_header, None).is_err());
+	}
+
+	#[test]
+	fn rejects_transactions_below_min_gas_price() {
+		use ethkey::{Generator, Random};
+		use types::transaction::{Transaction, Action};
+
+		let spec = new_homestead_test();
+		let mut ethparams = get_default_ethash_params();
+		ethparams.min_gas_price_transition = 10;
+		ethparams.min_gas_price = 100000.into();
+
+		let mut header = Header::default();
+		header.set_number(1);
+
+		let keypair = Random.generate().unwrap();
+		let tx1 = Transaction {
+			action: Action::Create,
+			value: U256::zero(),
+			data: Vec::new(),
+			gas: 100_000.into(),
+			gas_price: 100_000.into(),
+			nonce: U256::zero(),
+		}.sign(keypair.secret(), None).into();
+
+		let tx2 = Transaction {
+			action: Action::Create,
+			value: U256::zero(),
+			data: Vec::new(),
+			gas: 100_000.into(),
+			gas_price: 99_999.into(),
+			nonce: U256::zero(),
+		}.sign(keypair.secret(), None).into();
+
+		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+		assert!(ethash.verify_transaction_basic(&tx1, &header).is_ok());
+		assert!(ethash.verify_transaction_basic(&tx2, &header).is_ok());
+
+		header.set_number(10);
+		assert!(ethash.verify_transaction_basic(&tx1, &header).is_ok());
+		assert!(ethash.verify_transaction_basic(&tx2, &header).is_err());
 	}
 }

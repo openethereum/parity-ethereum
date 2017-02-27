@@ -39,22 +39,4 @@ describe('modals/CreateAccount/AccountDetailsGeth', () => {
   it('renders with defaults', () => {
     expect(render()).to.be.ok;
   });
-
-  describe('utility', () => {
-    describe('formatAddresses', () => {
-      let instance;
-
-      beforeEach(() => {
-        instance = component.instance();
-      });
-
-      it('renders a single item', () => {
-        expect(instance.formatAddresses(['one'])).to.equal('one');
-      });
-
-      it('renders multiple items', () => {
-        expect(instance.formatAddresses(['one', 'two', 'three'])).to.equal('one, two & three');
-      });
-    });
-  });
 });

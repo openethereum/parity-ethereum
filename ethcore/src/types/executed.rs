@@ -16,7 +16,7 @@
 
 //! Transaction execution format module.
 
-use util::{Bytes, U256, Address, U512};
+use util::{Bytes, U256, Address, U512, trie};
 use rlp::*;
 use evm;
 use trace::{VMTrace, FlatTrace};
@@ -146,9 +146,15 @@ pub enum ExecutionError {
 		got: U512
 	},
 	/// Returned when internal evm error occurs.
-	Internal,
+	Internal(String),
 	/// Returned when generic transaction occurs
 	TransactionMalformed(String),
+}
+
+impl From<Box<trie::TrieError>> for ExecutionError {
+	fn from(err: Box<trie::TrieError>) -> Self {
+		ExecutionError::Internal(format!("{}", err))
+	}
 }
 
 impl fmt::Display for ExecutionError {
@@ -156,17 +162,17 @@ impl fmt::Display for ExecutionError {
 		use self::ExecutionError::*;
 
 		let msg = match *self {
-			NotEnoughBaseGas { required, got } =>
+			NotEnoughBaseGas { ref required, ref got } =>
 				format!("Not enough base gas. {} is required, but only {} paid", required, got),
-			BlockGasLimitReached { gas_limit, gas_used, gas } =>
+			BlockGasLimitReached { ref gas_limit, ref gas_used, ref gas } =>
 				format!("Block gas limit reached. The limit is {}, {} has \
 					already been used, and {} more is required", gas_limit, gas_used, gas),
-			InvalidNonce { expected, got } =>
+			InvalidNonce { ref expected, ref got } =>
 				format!("Invalid transaction nonce: expected {}, found {}", expected, got),
-			NotEnoughCash { required, got } =>
+			NotEnoughCash { ref required, ref got } =>
 				format!("Cost of transaction exceeds sender balance. {} is required \
 					but the sender only has {}", required, got),
-			Internal => "Internal evm error".into(),
+			Internal(ref msg) => msg.clone(),
 			TransactionMalformed(ref err) => format!("Malformed transaction: {}", err),
 		};
 
@@ -184,6 +190,8 @@ pub enum CallError {
 	StatePruned,
 	/// Couldn't find an amount of gas that didn't result in an exception.
 	Exceptional,
+	/// Corrupt state.
+	StateCorrupt,
 	/// Error executing.
 	Execution(ExecutionError),
 }
@@ -202,6 +210,7 @@ impl fmt::Display for CallError {
 			TransactionNotFound => "Transaction couldn't be found in the chain".into(),
 			StatePruned => "Couldn't find the transaction block's state in the chain".into(),
 			Exceptional => "An exception happened in the execution".into(),
+			StateCorrupt => "Stored state found to be corrupted.".into(),
 			Execution(ref e) => format!("{}", e),
 		};
 
