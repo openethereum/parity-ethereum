@@ -14,6 +14,9 @@ log = "0.3"
 parking_lot = "0.3"
 hyper = { version = "0.10", default-features = false }
 url = "1.0"
+serde = "0.9"
+serde_json = "0.9"
+serde_derive = "0.9"
 ethcore-devtools = { path = "../devtools" }
 ethcore-util = { path = "../util" }
 ethcore-ipc = { path = "../ipc/rpc" }
