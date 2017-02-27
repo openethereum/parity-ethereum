@@ -44,7 +44,7 @@ export LockedIcon from 'material-ui/svg-icons/action/lock';
 export MembershipIcon from 'material-ui/svg-icons/action/card-membership';
 export MoveIcon from 'material-ui/svg-icons/action/open-with';
 export NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
-export Pauseicon from 'material-ui/svg-icons/av/pause';
+export PauseIcon from 'material-ui/svg-icons/av/pause';
 export PlayIcon from 'material-ui/svg-icons/av/play-arrow';
 export PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
 export PrintIcon from 'material-ui/svg-icons/action/print';
