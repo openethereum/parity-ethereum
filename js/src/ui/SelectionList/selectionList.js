@@ -71,6 +71,10 @@ export default class SelectionList extends Component {
       ? [styles.item, styles.selected]
       : [styles.item, styles.unselected];
 
+    if (item.default) {
+      classes.push(styles.default);
+    }
+
     return (
       <div className={ classes.join(' ') }>
         <div
