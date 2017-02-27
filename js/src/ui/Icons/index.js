@@ -29,6 +29,7 @@ export ContractIcon from 'material-ui/svg-icons/action/code';
 export CopyIcon from 'material-ui/svg-icons/content/content-copy';
 export DashboardIcon from 'material-ui/svg-icons/action/dashboard';
 export DeleteIcon from 'material-ui/svg-icons/action/delete';
+export DevelopIcon from 'material-ui/svg-icons/action/description';
 export DoneIcon from 'material-ui/svg-icons/action/done-all';
 export EditIcon from 'material-ui/svg-icons/content/create';
 export ErrorIcon from 'material-ui/svg-icons/alert/error';
