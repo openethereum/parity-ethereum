@@ -19,29 +19,40 @@
   margin-top: 1em;
 }
 
-.certification {
+.certification,
+.certificationIcon {
+  border-radius: 1em;
   display: inline-block;
-  position: relative;
-  margin-top: 1em;
-  margin-right: .5em;
-  padding: .3em .6em .2em 2.6em;
-  border-radius: 1em;
   line-height: 1em;
-  text-transform: uppercase;
+  position: relative;
+
+  .icon {
+    width: 2em;
+    height: 2em;
+    margin: 0;
+    padding: 0;
+    border-radius: 1em;
+  }
+}
+
+.certificationIcon {
+  margin-left: 0.5em;
+}
+
+.certification {
   background-color: rgba(255, 255, 255, 0.07);
-}
+  margin-right: 0.5em;
+  margin-top: 1em;
+  padding: 0.3em 0.6em 0.2em 2.6em;
+  text-transform: uppercase;
 
-.certification:last-child {
-  margin-right: 0;
-}
+  &:last-child {
+    margin-right: 0;
+  }
 
-.icon {
-  position: absolute;
-  top: -.25em;
-  left: 0;
-  width: 2em;
-  height: 2em;
-  margin: 0;
-  padding: 0;
-  border-radius: 1em;
+  .icon {
+    position: absolute;
+    top: -.25em;
+    left: 0;
+  }
 }
