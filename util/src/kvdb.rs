@@ -929,7 +929,7 @@ mod tests {
 	}
 
 	#[test]
-	fn dynamic_add_drop_columns() {
+	fn add_columns() {
 		let config = DatabaseConfig::default();
 		let config_5 = DatabaseConfig::with_columns(Some(5));
 
@@ -945,6 +945,20 @@ mod tests {
 				assert_eq!(db.num_columns(), i + 1);
 			}
 		}
+
+		// reopen as 5.
+		{
+			let db = Database::open(&config_5, path.as_path().to_str().unwrap()).unwrap();
+			assert_eq!(db.num_columns(), 5);
+		}
+	}
+
+	#[test]
+	fn drop_columns() {
+		let config = DatabaseConfig::default();
+		let config_5 = DatabaseConfig::with_columns(Some(5));
+
+		let path = RandomTempPath::create_dir();
 
 		// open 5, remove all.
 		{
