@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
@@ -49,13 +50,21 @@ class Delete extends Component {
     return (
       <ConfirmDialog
         className={ styles.delete }
-        title='confirm removal'
+        title={
+          <FormattedMessage
+            id='address.delete.title'
+            defaultMessage='confirm removal'
+          />
+        }
         visible
         onDeny={ this.closeDeleteDialog }
         onConfirm={ this.onDeleteConfirmed }
       >
         <div className={ styles.hero }>
-          Are you sure you want to remove the following address from your addressbook?
+          <FormattedMessage
+            id='address.delete.confirmInfo'
+            defaultMessage='Are you sure you want to remove the following address from your addressbook?'
+          />
         </div>
         <div className={ styles.info }>
           <IdentityIcon
@@ -64,7 +73,10 @@ class Delete extends Component {
           />
           <div className={ styles.nameinfo }>
             <div className={ styles.header }>
-              <IdentityName address={ account.address } unknown />
+              <IdentityName
+                address={ account.address }
+                unknown
+              />
             </div>
             <div className={ styles.address }>
               { account.address }
