@@ -337,7 +337,7 @@ class WriteContract extends Component {
             icon={ <SettingsIcon /> }
             label={
               <FormattedMessage
-                id='writeContract.buttons.import'
+                id='writeContract.buttons.compile'
                 defaultMessage='Compile'
               />
             }

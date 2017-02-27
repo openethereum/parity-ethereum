@@ -96,13 +96,13 @@ export default class WalletDetails extends Component {
       <div>
         <p>
           <FormattedMessage
-            id='wallet.details.required'
+            id='wallet.details.requiredOwners'
             defaultMessage='This wallet requires at least {owners} to validate any action (transactions, modifications).'
             values={ {
               owners: (
                 <span className={ styles.detail }>
                   <FormattedMessage
-                    id='wallet.details.required'
+                    id='wallet.details.requiredOwnersNumber'
                     defaultMessage='{number} owners'
                     values={ {
                       number: require.toFormat()
