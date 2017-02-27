@@ -23,6 +23,19 @@
 .account {
   position: relative;
 
+  .addressline {
+    display: flex;
+    white-space: nowrap;
+
+    .address {
+      display: inline-block;
+      flex: 1;
+      margin-left: 0.5em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
   .blockDescription {
     color: rgba(255, 255, 255, 0.25);
     margin-top: 1.5em;
@@ -95,10 +108,12 @@
 .heading {
   display: flex;
   flex-direction: row;
+  overflow: hidden;
 
   .main,
   .mainLink {
     flex: 1;
+    overflow: hidden;
   }
 
   .mainLink h3 {
