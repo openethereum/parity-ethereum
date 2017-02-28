@@ -15,11 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import FileSaver from 'file-saver';
-import FileDownloadIcon from 'material-ui/svg-icons/file/file-download';
 
 import Button from '../../Button';
+import { FileDownloadIcon } from '../../Icons';
 
 class ActionbarExport extends Component {
   static propTypes = {
@@ -38,7 +39,12 @@ class ActionbarExport extends Component {
       <Button
         className={ className }
         icon={ <FileDownloadIcon /> }
-        label='export'
+        label={
+          <FormattedMessage
+            id='ui.actionbar.export.button.export'
+            defaultMessage='export'
+          />
+        }
         onClick={ this.handleExport }
       />
     );
@@ -46,9 +52,7 @@ class ActionbarExport extends Component {
 
   handleExport = () => {
     const { filename, content } = this.props;
-
     const text = JSON.stringify(content, null, 4);
-
     const blob = new Blob([ text ], { type: 'application/json' });
 
     FileSaver.saveAs(blob, `${filename}.json`);
