@@ -17,6 +17,7 @@
 import { CircularProgress } from 'material-ui';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
 import { TypedInput, InputAddress } from '../Form';
