@@ -93,8 +93,11 @@ export default class Store {
       this.phrase = '';
       this.name = '';
       this.nameError = null;
+      this.rawKey = '';
       this.rawKeyError = null;
+      this.walletFile = '';
       this.walletFileError = null;
+      this.walletJson = '';
     });
   }
 
