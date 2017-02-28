@@ -28,7 +28,6 @@ mod brain;
 mod error;
 mod keypair;
 mod keccak;
-pub mod math;
 mod prefix;
 mod random;
 mod signature;
@@ -44,6 +43,8 @@ pub trait Generator {
 	/// Should be called to generate new keypair.
 	fn generate(self) -> Result<KeyPair, Error>;
 }
+
+pub mod math;
 
 pub use self::brain::Brain;
 pub use self::error::Error;
