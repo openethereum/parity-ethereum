@@ -238,7 +238,7 @@ usage! {
 			or |c: &Config| otry!(c.footprint).tracing.clone(),
 		flag_pruning: String = "auto",
 			or |c: &Config| otry!(c.footprint).pruning.clone(),
-		flag_pruning_history: u64 = 1200u64,
+		flag_pruning_history: u64 = 64u64,
 			or |c: &Config| otry!(c.footprint).pruning_history.clone(),
 		flag_cache_size_db: u32 = 64u32,
 			or |c: &Config| otry!(c.footprint).cache_size_db.clone(),
