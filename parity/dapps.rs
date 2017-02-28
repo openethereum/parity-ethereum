@@ -32,6 +32,7 @@ pub struct Configuration {
 	pub interface: String,
 	pub port: u16,
 	pub hosts: Option<Vec<String>>,
+	pub cors: Option<Vec<String>>,
 	pub user: Option<String>,
 	pub pass: Option<String>,
 	pub dapps_path: PathBuf,
@@ -46,6 +47,7 @@ impl Default for Configuration {
 			interface: "127.0.0.1".into(),
 			port: 8080,
 			hosts: Some(Vec::new()),
+			cors: None,
 			user: None,
 			pass: None,
 			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
@@ -89,7 +91,8 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		configuration.extra_dapps,
 		&addr,
 		configuration.hosts,
-		auth
+		configuration.cors,
+		auth,
 	)?))
 }
 
@@ -109,6 +112,7 @@ mod server {
 		_extra_dapps: Vec<PathBuf>,
 		_url: &SocketAddr,
 		_allowed_hosts: Option<Vec<String>>,
+		_cors: Option<Vec<String>>,
 		_auth: Option<(String, String)>,
 	) -> Result<WebappServer, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
@@ -139,6 +143,7 @@ mod server {
 		extra_dapps: Vec<PathBuf>,
 		url: &SocketAddr,
 		allowed_hosts: Option<Vec<String>>,
+		cors: Option<Vec<String>>,
 		auth: Option<(String, String)>,
 	) -> Result<WebappServer, String> {
 		use ethcore_dapps as dapps;
@@ -156,7 +161,8 @@ mod server {
 			.sync_status(Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())))
 			.web_proxy_tokens(Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token)))
 			.extra_dapps(&extra_dapps)
-			.signer_address(deps.signer.address());
+			.signer_address(deps.signer.address())
+			.extra_cors_headers(cors);
 
 		let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
 		let start_result = match auth {

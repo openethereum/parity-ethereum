@@ -43,7 +43,7 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Option
 	if let Some(embeddable_on) = embeddable_on {
 		headers.set_raw(
 			"X-Frame-Options",
-			vec![format!("ALLOW-FROM http://{}", address(embeddable_on)).into_bytes()]
+			vec![format!("ALLOW-FROM http://{}", address(&embeddable_on)).into_bytes()]
 			);
 	} else {
 		// TODO [ToDr] Should we be more strict here (DENY?)?

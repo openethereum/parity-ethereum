@@ -513,6 +513,7 @@ impl Configuration {
 			interface: self.dapps_interface(),
 			port: self.args.flag_dapps_port,
 			hosts: self.dapps_hosts(),
+			cors: self.dapps_cors(),
 			user: self.args.flag_dapps_user.clone(),
 			pass: self.args.flag_dapps_pass.clone(),
 			dapps_path: PathBuf::from(self.directories().dapps),
@@ -658,6 +659,11 @@ impl Configuration {
 
 	fn rpc_cors(&self) -> Option<Vec<String>> {
 		let cors = self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone());
+		cors.map(|c| c.split(',').map(|s| s.to_owned()).collect())
+	}
+
+	fn dapps_cors(&self) -> Option<Vec<String>> {
+		let cors = self.args.flag_dapps_cors.as_ref();
 		cors.map(|c| c.split(',').map(|s| s.to_owned()).collect())
 	}
 

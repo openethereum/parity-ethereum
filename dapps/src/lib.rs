@@ -131,6 +131,7 @@ pub struct ServerBuilder<T: Fetch = FetchClient> {
 	sync_status: Arc<SyncStatus>,
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	signer_address: Option<(String, u16)>,
+	extra_cors: Option<Vec<String>>,
 	remote: Remote,
 	fetch: Option<T>,
 }
@@ -152,6 +153,7 @@ impl ServerBuilder {
 			sync_status: Arc::new(|| false),
 			web_proxy_tokens: Arc::new(|_| false),
 			signer_address: None,
+			extra_cors: None,
 			remote: remote,
 			fetch: None,
 		}
@@ -169,6 +171,7 @@ impl<T: Fetch> ServerBuilder<T> {
 			sync_status: self.sync_status,
 			web_proxy_tokens: self.web_proxy_tokens,
 			signer_address: self.signer_address,
+			extra_cors: self.extra_cors,
 			remote: self.remote,
 			fetch: Some(fetch),
 		}
@@ -192,6 +195,13 @@ impl<T: Fetch> ServerBuilder<T> {
 		self
 	}
 
+	/// Extra cors headers.
+	/// `None` - no additional CORS URLs
+	pub fn extra_cors_headers(mut self, cors: Option<Vec<String>>) -> Self {
+		self.extra_cors = cors;
+		self
+	}
+
 	/// Change extra dapps paths (apart from `dapps_path`)
 	pub fn extra_dapps<P: AsRef<Path>>(mut self, extra_dapps: &[P]) -> Self {
 		self.extra_dapps = extra_dapps.iter().map(|p| p.as_ref().to_owned()).collect();
@@ -204,6 +214,7 @@ impl<T: Fetch> ServerBuilder<T> {
 		Server::start_http(
 			addr,
 			hosts,
+			self.extra_cors.clone(),
 			NoAuth,
 			self.handler.clone(),
 			self.dapps_path.clone(),
@@ -223,6 +234,7 @@ impl<T: Fetch> ServerBuilder<T> {
 		Server::start_http(
 			addr,
 			hosts,
+			self.extra_cors.clone(),
 			HttpBasicAuth::single_user(username, password),
 			self.handler.clone(),
 			self.dapps_path.clone(),
@@ -267,19 +279,29 @@ impl Server {
 	}
 
 	/// Returns a list of CORS domains for API endpoint.
-	fn cors_domains(signer_address: Option<(String, u16)>) -> Vec<String> {
-		match signer_address {
+	fn cors_domains(signer_address: Option<(String, u16)>, extra_cors: Option<Vec<String>>) -> Vec<String> {
+		let basic_cors = match signer_address {
 			Some(signer_address) => vec![
 				format!("http://{}{}", HOME_PAGE, DAPPS_DOMAIN),
-				format!("http://{}", address(signer_address)),
+				format!("http://{}{}:{}", HOME_PAGE, DAPPS_DOMAIN, signer_address.1),
+				format!("http://{}", address(&signer_address)),
+				format!("https://{}{}", HOME_PAGE, DAPPS_DOMAIN),
+				format!("https://{}{}:{}", HOME_PAGE, DAPPS_DOMAIN, signer_address.1),
+				format!("https://{}", address(&signer_address)),
 			],
 			None => vec![],
+		};
+
+		match extra_cors {
+			None => basic_cors,
+			Some(extra_cors) => basic_cors.into_iter().chain(extra_cors).collect(),
 		}
 	}
 
 	fn start_http<A: Authorization + 'static, F: Fetch>(
 		addr: &SocketAddr,
 		hosts: Option<Vec<String>>,
+		extra_cors: Option<Vec<String>>,
 		authorization: A,
 		handler: Arc<IoHandler>,
 		dapps_path: PathBuf,
@@ -308,7 +330,7 @@ impl Server {
 			remote.clone(),
 			fetch.clone(),
 		));
-		let cors_domains = Self::cors_domains(signer_address.clone());
+		let cors_domains = Self::cors_domains(signer_address.clone(), extra_cors);
 
 		let special = Arc::new({
 			let mut special = HashMap::new();
@@ -395,7 +417,7 @@ fn random_filename() -> String {
 	rng.gen_ascii_chars().take(12).collect()
 }
 
-fn address(address: (String, u16)) -> String {
+fn address(address: &(String, u16)) -> String {
 	format!("{}:{}", address.0, address.1)
 }
 
@@ -424,11 +446,20 @@ mod util_tests {
 		// given
 
 		// when
-		let none = Server::cors_domains(None);
-		let some = Server::cors_domains(Some(("127.0.0.1".into(), 18180)));
+		let none = Server::cors_domains(None, None);
+		let some = Server::cors_domains(Some(("127.0.0.1".into(), 18180)), None);
+		let extra = Server::cors_domains(None, Some(vec!["all".to_owned()]));
 
 		// then
 		assert_eq!(none, Vec::<String>::new());
-		assert_eq!(some, vec!["http://home.parity".to_owned(), "http://127.0.0.1:18180".into()]);
+		assert_eq!(some, vec![
+			"http://home.parity".to_owned(),
+			"http://home.parity:18180".into(),
+			"http://127.0.0.1:18180".into(),
+			"https://home.parity".into(),
+			"https://home.parity:18180".into(),
+			"https://127.0.0.1:18180".into()
+		]);
+		assert_eq!(extra, vec!["all".to_owned()]);
 	}
 }

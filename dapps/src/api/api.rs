@@ -39,7 +39,11 @@ pub struct RestApi {
 impl RestApi {
 	pub fn new(cors_domains: Vec<String>, endpoints: Arc<Endpoints>, fetcher: Arc<Fetcher>) -> Box<Endpoint> {
 		Box::new(RestApi {
-			cors_domains: Some(cors_domains.into_iter().map(AccessControlAllowOrigin::Value).collect()),
+			cors_domains: Some(cors_domains.into_iter().map(|domain| match domain.as_ref() {
+				"all" | "*" | "any" => AccessControlAllowOrigin::Any,
+				"null" => AccessControlAllowOrigin::Null,
+				other => AccessControlAllowOrigin::Value(other.into()),
+			}).collect()),
 			endpoints: endpoints,
 			fetcher: fetcher,
 		})

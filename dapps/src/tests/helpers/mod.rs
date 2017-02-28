@@ -85,6 +85,10 @@ pub fn serve_with_registrar_and_sync() -> (Server, Arc<FakeRegistrar>) {
 	}, Remote::new_sync())
 }
 
+pub fn serve_extra_cors(extra_cors: Option<Vec<String>>) -> Server {
+	init_server(None, |builder| builder.extra_cors_headers(extra_cors), Remote::new_sync()).0
+}
+
 pub fn serve_with_registrar_and_fetch() -> (Server, FakeFetch, Arc<FakeRegistrar>) {
 	serve_with_registrar_and_fetch_and_threads(false)
 }
