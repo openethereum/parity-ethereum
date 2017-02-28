@@ -101,17 +101,6 @@
   width: 10% !important;
 }
 
-.upload {
-  text-align: right;
-  float: right;
-  margin-left: -100%;
-  margin-top: 28px;
-}
-
-.upload>div {
-  margin-right: 0.5em;
-}
-
 .checkbox {
   margin-top: 2em;
 }
@@ -129,6 +118,11 @@
   .info {
     flex: 1 1;
   }
+}
+
+.fileImport {
+  height: 9em;
+  margin-top: 1em;
 }
 
 .summary {

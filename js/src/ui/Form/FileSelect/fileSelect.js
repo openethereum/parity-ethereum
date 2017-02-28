@@ -25,7 +25,7 @@ import styles from './fileSelect.css';
 export default class FileSelect extends Component {
   static propTypes = {
     className: PropTypes.string,
-    hasError: PropTypes.bool,
+    error: nodeOrStringProptype(),
     label: nodeOrStringProptype(),
     onSelect: PropTypes.func.isRequired
   }
@@ -40,7 +40,7 @@ export default class FileSelect extends Component {
   }
 
   render () {
-    const { className, hasError, label } = this.props;
+    const { className, error, label } = this.props;
 
     return (
       <Dropzone
@@ -49,14 +49,14 @@ export default class FileSelect extends Component {
         className={
           [
             styles.dropzone,
-            hasError
-              ? styles.Error
+            error
+              ? styles.error
               : '',
             className
           ].join(' ') }
       >
         <div className={ styles.label }>
-          { label }
+          { error || label }
         </div>
       </Dropzone>
     );

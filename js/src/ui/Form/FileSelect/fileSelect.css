@@ -15,10 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$backgroundNormal: rgba(50, 50, 50, 0.2);
-$backgroundNormalHover: rgba(50, 50, 50, 0.5);
-$backgroundError: rgba(250, 50, 50, 0.2);
-$backgroundErrorHover: rgba(250, 50, 50, 0.5);
+$backgroundNormal: rgba(0, 0, 0, 0.2);
+$backgroundNormalHover: rgba(0, 0, 0, 0.5);
+$backgroundError: rgba(255, 0, 0, 0.1);
+$backgroundErrorHover: rgba(255, 0, 0, 0.2);
 
 .dropzone {
   align-items: center;
