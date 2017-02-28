@@ -109,7 +109,7 @@ export default class Details extends Component {
               disabled
               label={
                 <FormattedMessage
-                  id='transfer.details.total/label'
+                  id='transfer.details.total.label'
                   defaultMessage='total transaction amount'
                 />
               }
