@@ -113,16 +113,33 @@ class MethodDecoding extends Component {
       return null;
     }
 
-    const gasValue = gas.mul(gasPrice);
-
     return (
       <div className={ styles.gasDetails }>
-        <span>{ historic ? 'Provided' : 'Provides' } </span>
-        <span className={ styles.highlight }>
-          { gas.toFormat(0) } gas ({ gasPrice.div(1000000).toFormat(0) }M/<small>ETH</small>)
-        </span>
-        <span> for a total transaction value of </span>
-        <span className={ styles.highlight }>{ this.renderEtherValue(gasValue) }</span>
+        <FormattedMessage
+          id='ui.methodDecoding.txValues'
+          defaultMessage='{historic, plural, one {Provided} other {Provides}} {gas} for a total transaction value of {gasEth}'
+          values={ {
+            historic: historic ? 1 : 0,
+            gas: (
+              <span className={ styles.highlight }>
+                <FormattedMessage
+                  id='ui.methodDecoding.gasValues'
+                  defaultMessage='{gas} gas ({gasPrice}M/{tag})'
+                  values={ {
+                    gas: gas.toFormat(0),
+                    gasPrice: gasPrice.div(1000000).toFormat(0),
+                    tag: <small>ETH</small>
+                  } }
+                />
+              </span>
+            ),
+            gasEth: (
+              <span className={ styles.highlight }>
+                { this.renderEtherValue(gas.mul(gasPrice)) }
+              </span>
+            )
+          } }
+        />
         { this.renderMinBlock() }
       </div>
     );
@@ -138,13 +155,35 @@ class MethodDecoding extends Component {
 
     if (condition.block && condition.block.gt(0)) {
       return (
-        <span>, { historic ? 'Submitted' : 'Submission' } at block <span className={ styles.highlight }>#{ condition.block.toFormat(0) }</span></span>
+        <FormattedMessage
+          id='ui.methodDecoding.condition.block'
+          defaultMessage=', {historic, plural, one {Submitted} other {Submission}} at block {blockNumber}'
+          values={ {
+            historic: historic ? 1 : 0,
+            blockNumber: (
+              <span className={ styles.highlight }>
+                #{ condition.block.toFormat(0) }
+              </span>
+            )
+          } }
+        />
       );
     }
 
     if (condition.time) {
       return (
-        <span>, { historic ? 'Submitted' : 'Submission' } at <span className={ styles.highlight }>{ moment(condition.time).format('LLLL') }</span></span>
+        <FormattedMessage
+          id='ui.methodDecoding.condition.time'
+          defaultMessage=', {historic, plural, one {Submitted} other {Submission}} at {timestamp}'
+          values={ {
+            historic: historic ? 1 : 0,
+            timestamp: (
+              <span className={ styles.highlight }>
+                { moment(condition.time).format('LLLL') }
+              </span>
+            )
+          } }
+        />
       );
     }
 
@@ -214,7 +253,11 @@ class MethodDecoding extends Component {
           onClick={ this.toggleInputType }
           className={ [ styles.clickable, styles.noSelect ].join(' ') }
         >
-          { type === 'ascii' ? 'input' : 'data' }
+          {
+            type === 'ascii'
+              ? 'input'
+              : 'data'
+          }
         </span>
         <span> &nbsp; </span>
         <span
@@ -247,7 +290,6 @@ class MethodDecoding extends Component {
               </span>
               <span> to </span>
             </div>
-
             { this.renderAddressName(address) }
           </div>
         );
