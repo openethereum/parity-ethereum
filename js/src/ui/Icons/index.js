@@ -35,6 +35,7 @@ export ErrorIcon from 'material-ui/svg-icons/alert/error';
 export FileUploadIcon from 'material-ui/svg-icons/file/file-upload';
 export FileIcon from 'material-ui/svg-icons/editor/insert-drive-file';
 export FingerprintIcon from 'material-ui/svg-icons/action/fingerprint';
+export InfoIcon from 'material-ui/svg-icons/action/info-outline';
 export KeyIcon from 'material-ui/svg-icons/communication/vpn-key';
 export KeyboardIcon from 'material-ui/svg-icons/hardware/keyboard';
 export LinkIcon from 'material-ui/svg-icons/content/link';
