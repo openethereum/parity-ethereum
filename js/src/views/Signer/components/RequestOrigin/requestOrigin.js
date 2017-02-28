@@ -110,21 +110,17 @@ export default class RequestOrigin extends Component {
         <span>
           <FormattedMessage
             id='signer.requestOrigin.ipc'
-            defaultMessage='via IPC session {icon}'
-            values={ {
-              icon: (
-                <span
-                  className={ styles.hash }
-                  title={ origin.details }
-                >
-                  <IdentityIcon
-                    address={ origin.details }
-                    tiny
-                  />
-                </span>
-              )
-            } }
+            defaultMessage='via IPC session'
           />
+          <span
+            className={ styles.hash }
+            title={ origin.details }
+          >
+            <IdentityIcon
+              address={ origin.details }
+              tiny
+            />
+          </span>
         </span>
       );
     }
@@ -150,21 +146,17 @@ export default class RequestOrigin extends Component {
       <span>
         <FormattedMessage
           id='signer.requestOrigin.signerUI'
-          defaultMessage='via UI session {icon}'
-          values={ {
-            icon: (
-              <span
-                className={ styles.hash }
-                title={ `UI Session id: ${session}` }
-              >
-                <IdentityIcon
-                  address={ session }
-                  tiny
-                />
-              </span>
-            )
-          } }
+          defaultMessage='via UI session'
         />
+        <span
+          className={ styles.hash }
+          title={ `UI Session id: ${session}` }
+        >
+          <IdentityIcon
+            address={ session }
+            tiny
+          />
+        </span>
       </span>
     );
   }
