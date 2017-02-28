@@ -33,6 +33,7 @@ pub struct Configuration {
 	pub interface: String,
 	pub port: u16,
 	pub hosts: Option<Vec<String>>,
+	pub cors: Option<Vec<String>>,
 	pub user: Option<String>,
 	pub pass: Option<String>,
 	pub dapps_path: PathBuf,
@@ -48,6 +49,7 @@ impl Default for Configuration {
 			interface: "127.0.0.1".into(),
 			port: 8080,
 			hosts: Some(Vec::new()),
+			cors: None,
 			user: None,
 			pass: None,
 			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
@@ -93,6 +95,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		configuration.extra_dapps,
 		&addr,
 		configuration.hosts,
+		configuration.cors,
 		auth,
 		configuration.all_apis,
 	)?))
@@ -114,6 +117,7 @@ mod server {
 		_extra_dapps: Vec<PathBuf>,
 		_url: &SocketAddr,
 		_allowed_hosts: Option<Vec<String>>,
+		_cors: Option<Vec<String>>,
 		_auth: Option<(String, String)>,
 		_all_apis: bool,
 	) -> Result<WebappServer, String> {
@@ -147,6 +151,7 @@ mod server {
 		extra_dapps: Vec<PathBuf>,
 		url: &SocketAddr,
 		allowed_hosts: Option<Vec<String>>,
+		cors: Option<Vec<String>>,
 		auth: Option<(String, String)>,
 		all_apis: bool,
 	) -> Result<WebappServer, String> {
@@ -167,7 +172,8 @@ mod server {
 			.web_proxy_tokens(Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token)))
 			.extra_dapps(&extra_dapps)
 			.signer_address(deps.signer.address())
-			.allowed_hosts(allowed_hosts);
+			.allowed_hosts(allowed_hosts)
+			.extra_cors_headers(cors);
 
 		let api_set = if all_apis {
 			warn!("{}", Colour::Red.bold().paint("*** INSECURE *** Running Dapps with all APIs exposed."));

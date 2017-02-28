@@ -111,6 +111,7 @@ pub struct ServerBuilder<T: Fetch = FetchClient> {
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	signer_address: Option<(String, u16)>,
 	allowed_hosts: Option<Vec<String>>,
+	extra_cors: Option<Vec<String>>,
 	remote: Remote,
 	fetch: Option<T>,
 }
@@ -126,6 +127,7 @@ impl ServerBuilder {
 			web_proxy_tokens: Arc::new(|_| false),
 			signer_address: None,
 			allowed_hosts: Some(vec![]),
+			extra_cors: None,
 			remote: remote,
 			fetch: None,
 		}
@@ -143,6 +145,7 @@ impl<T: Fetch> ServerBuilder<T> {
 			web_proxy_tokens: self.web_proxy_tokens,
 			signer_address: self.signer_address,
 			allowed_hosts: self.allowed_hosts,
+			extra_cors: self.extra_cors,
 			remote: self.remote,
 			fetch: Some(fetch),
 		}
@@ -174,6 +177,13 @@ impl<T: Fetch> ServerBuilder<T> {
 		self
 	}
 
+	/// Extra cors headers.
+	/// `None` - no additional CORS URLs
+	pub fn extra_cors_headers(mut self, cors: Option<Vec<String>>) -> Self {
+		self.extra_cors = cors;
+		self
+	}
+
 	/// Change extra dapps paths (apart from `dapps_path`)
 	pub fn extra_dapps<P: AsRef<Path>>(mut self, extra_dapps: &[P]) -> Self {
 		self.extra_dapps = extra_dapps.iter().map(|p| p.as_ref().to_owned()).collect();
@@ -187,6 +197,7 @@ impl<T: Fetch> ServerBuilder<T> {
 		Server::start_http(
 			addr,
 			self.allowed_hosts,
+			self.extra_cors,
 			NoAuth,
 			handler,
 			self.dapps_path,
@@ -207,6 +218,7 @@ impl<T: Fetch> ServerBuilder<T> {
 		Server::start_http(
 			addr,
 			self.allowed_hosts,
+			self.extra_cors,
 			HttpBasicAuth::single_user(username, password),
 			handler,
 			self.dapps_path,
@@ -251,8 +263,8 @@ impl Server {
 	}
 
 	/// Returns a list of CORS domains for API endpoint.
-	fn cors_domains(signer_address: Option<(String, u16)>) -> Vec<String> {
-		match signer_address {
+	fn cors_domains(signer_address: Option<(String, u16)>, extra_cors: Option<Vec<String>>) -> Vec<String> {
+		let basic_cors = match signer_address {
 			Some(signer_address) => vec![
 				format!("http://{}{}", HOME_PAGE, DAPPS_DOMAIN),
 				format!("http://{}{}:{}", HOME_PAGE, DAPPS_DOMAIN, signer_address.1),
@@ -260,15 +272,20 @@ impl Server {
 				format!("https://{}{}", HOME_PAGE, DAPPS_DOMAIN),
 				format!("https://{}{}:{}", HOME_PAGE, DAPPS_DOMAIN, signer_address.1),
 				format!("https://{}", address(&signer_address)),
-
 			],
 			None => vec![],
+		};
+
+		match extra_cors {
+			None => basic_cors,
+			Some(extra_cors) => basic_cors.into_iter().chain(extra_cors).collect(),
 		}
 	}
 
 	fn start_http<A: Authorization + 'static, F: Fetch, T: Middleware<Metadata>>(
 		addr: &SocketAddr,
 		hosts: Option<Vec<String>>,
+		extra_cors: Option<Vec<String>>,
 		authorization: A,
 		handler: RpcHandler<Metadata, T>,
 		dapps_path: PathBuf,
@@ -297,7 +314,7 @@ impl Server {
 			remote.clone(),
 			fetch.clone(),
 		));
-		let cors_domains = Self::cors_domains(signer_address.clone());
+		let cors_domains = Self::cors_domains(signer_address.clone(), extra_cors);
 
 		let special = Arc::new({
 			let mut special = HashMap::new();
@@ -413,8 +430,9 @@ mod util_tests {
 		// given
 
 		// when
-		let none = Server::cors_domains(None);
-		let some = Server::cors_domains(Some(("127.0.0.1".into(), 18180)));
+		let none = Server::cors_domains(None, None);
+		let some = Server::cors_domains(Some(("127.0.0.1".into(), 18180)), None);
+		let extra = Server::cors_domains(None, Some(vec!["all".to_owned()]));
 
 		// then
 		assert_eq!(none, Vec::<String>::new());
@@ -425,7 +443,7 @@ mod util_tests {
 			"https://parity.web3.site".into(),
 			"https://parity.web3.site:18180".into(),
 			"https://127.0.0.1:18180".into()
-
 		]);
+		assert_eq!(extra, vec!["all".to_owned()]);
 	}
 }
