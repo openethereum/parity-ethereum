@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { Chip } from 'material-ui';
 
-import IdentityIcon from '../IdentityIcon' ;
+import IdentityIcon from '../IdentityIcon';
 
 import styles from './chip.css';
 
