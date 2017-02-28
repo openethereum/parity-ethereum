@@ -103,9 +103,10 @@ export default class WalletDetails extends Component {
                 <span className={ styles.detail }>
                   <FormattedMessage
                     id='wallet.details.requiredOwnersNumber'
-                    defaultMessage='{number} owners'
+                    defaultMessage='{number} {numberValue, plural, one {owner} other {owners}}'
                     values={ {
-                      number: require.toFormat()
+                      number: require.toFormat(),
+                      numberValue: require.toNumber()
                     } }
                   />
                 </span>
