@@ -14,42 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { shallow } from 'enzyme';
-import React from 'react';
-
-import { DEFAULT_URL } from './store';
-import Web from './';
-
-let api;
-let component;
-
-function createApi () {
-  api = {};
-
-  return api;
-}
-
-function render (url = DEFAULT_URL) {
-  component = shallow(
-    <Web params={ { url } } />,
-    {
-      context: { api: createApi() }
-    }
-  );
-
-  return component;
-}
-
-describe('views/Web', () => {
-  beforeEach(() => {
-    render();
-  });
-
-  it('renders defaults', () => {
-    expect(component).to.be.ok;
-  });
-
-  it('renders loading with no token', () => {
-    expect(component.find('FormattedMessage').props().id).to.equal('web.requestToken');
-  });
-});
+export default from './fileSelect';
