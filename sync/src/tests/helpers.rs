@@ -23,13 +23,11 @@ use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::Miner;
-use ethcore::db::NUM_COLUMNS;
 use sync_io::SyncIo;
 use io::IoChannel;
 use api::WARP_SYNC_PROTOCOL_ID;
 use chain::ChainSync;
 use ::SyncConfig;
-use devtools::{self, GuardedTempResult};
 
 pub trait FlushingBlockChainClient: BlockChainClient {
 	fn flush(&self) {}
@@ -271,7 +269,7 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 }
 
 impl TestNet<EthPeer<EthcoreClient>> {
-	pub fn with_spec_and_accounts<F>(n: usize, config: SyncConfig, spec_factory: F, accounts: Option<Arc<AccountProvider>>) -> GuardedTempResult<Self>
+	pub fn with_spec_and_accounts<F>(n: usize, config: SyncConfig, spec_factory: F, accounts: Option<Arc<AccountProvider>>) -> Self
 		where F: Fn() -> Spec
 	{
 		let mut net = TestNet {
@@ -279,21 +277,15 @@ impl TestNet<EthPeer<EthcoreClient>> {
 			started: false,
 			disconnect_events: Vec::new(),
 		};
-		let dir = devtools::RandomTempPath::new();
+
 		for _ in 0..n {
-			let mut client_dir = dir.as_path().clone();
-			client_dir.push(devtools::random_filename());
-
-			let db_config = DatabaseConfig::with_columns(NUM_COLUMNS);
-
 			let spec = spec_factory();
 			let client = EthcoreClient::new(
 				ClientConfig::default(),
 				&spec,
-				client_dir.as_path(),
+				Arc::new(::util::kvdb::in_memory(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
 				Arc::new(Miner::with_spec_and_accounts(&spec, accounts.clone())),
 				IoChannel::disconnected(),
-				&db_config
 			).unwrap();
 
 			let ss = Arc::new(TestSnapshotService::new());
@@ -307,10 +299,8 @@ impl TestNet<EthPeer<EthcoreClient>> {
 			peer.chain.add_notify(peer.clone());
 			net.peers.push(peer);
 		}
-		GuardedTempResult {
-			_temp: dir,
-			result: Some(net)
-		}
+
+		net
 	}
 }
 

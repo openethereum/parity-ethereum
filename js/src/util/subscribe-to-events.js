@@ -76,7 +76,8 @@ const subscribeToEvents = (contract, events, opt = {}) => {
 
   filter = api.eth
     .newFilter({
-      fromBlock: opt.from, toBlock: opt.to,
+      fromBlock: opt.from,
+      toBlock: opt.to,
       address: contract.address,
       topics: [signatures]
     })

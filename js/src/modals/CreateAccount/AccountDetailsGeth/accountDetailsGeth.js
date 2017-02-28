@@ -18,7 +18,10 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import styles from './accountDetailsGeth.css';
+import { SectionList } from '~/ui';
+import GethCard from '../GethCard';
+
+import styles from '../createAccount.css';
 
 @observer
 export default class AccountDetailsGeth extends Component {
@@ -27,33 +30,37 @@ export default class AccountDetailsGeth extends Component {
   }
 
   render () {
-    const { gethAddresses } = this.props.store;
+    const { gethAccountsAvailable, gethImported } = this.props.store;
+
+    const accounts = gethAccountsAvailable.filter((account) => gethImported.includes(account.address));
 
     return (
       <div>
-        <div>
+        <div className={ styles.summary }>
           <FormattedMessage
             id='createAccount.accountDetailsGeth.imported'
-            defaultMessage='You have imported {number} addresses from the Geth keystore:'
+            defaultMessage='You have completed the import of {number} addresses from the Geth keystore. These will now be available in your accounts list as a normal account, along with their associated balances on the network.'
             values={ {
-              number: gethAddresses.length
+              number: gethImported.length
             } }
           />
         </div>
-        <div className={ styles.address }>
-          { this.formatAddresses(gethAddresses) }
-        </div>
+        <SectionList
+          items={ accounts }
+          noStretch
+          renderItem={ this.renderAccount }
+        />
       </div>
     );
   }
 
-  formatAddresses (addresses) {
-    return addresses.map((address, index) => {
-      const comma = !index
-        ? ''
-        : ((index === addresses.length - 1) ? ' & ' : ', ');
-
-      return `${comma}${address}`;
-    }).join('');
+  renderAccount = (account, index) => {
+    return (
+      <GethCard
+        address={ account.address }
+        balance={ account.balance }
+        name={ `Geth Import ${index + 1}` }
+      />
+    );
   }
 }

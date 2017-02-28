@@ -43,6 +43,7 @@ export default class Portal extends Component {
     className: PropTypes.string,
     hideClose: PropTypes.bool,
     isChildModal: PropTypes.bool,
+    isSmallModal: PropTypes.bool,
     onKeyDown: PropTypes.func,
     steps: PropTypes.array,
     title: nodeOrStringProptype()
@@ -63,17 +64,14 @@ export default class Portal extends Component {
   }
 
   render () {
-    const { activeStep, busy, busySteps, children, className, isChildModal, open, steps, title } = this.props;
+    const { activeStep, busy, busySteps, children, className, isChildModal, isSmallModal, open, steps, title } = this.props;
 
     if (!open) {
       return null;
     }
 
     return (
-      <ReactPortal
-        isOpened
-        onClose={ this.handleClose }
-      >
+      <ReactPortal isOpened>
         <div
           className={ styles.backOverlay }
           onClick={ this.handleClose }
@@ -85,6 +83,9 @@ export default class Portal extends Component {
                 isChildModal
                   ? styles.popover
                   : styles.modal,
+                isSmallModal
+                  ? styles.small
+                  : null,
                 className
               ].join(' ')
             }
@@ -145,7 +146,6 @@ export default class Portal extends Component {
   }
 
   stopEvent = (event) => {
-    event.preventDefault();
     event.stopPropagation();
   }
 
@@ -155,6 +155,8 @@ export default class Portal extends Component {
     if (!hideClose) {
       onClose();
     }
+
+    this.stopEvent(event);
   }
 
   handleKeyDown = (event) => {

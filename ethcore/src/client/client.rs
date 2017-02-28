@@ -17,7 +17,6 @@
 use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
-use std::path::{Path};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant};
@@ -135,7 +134,7 @@ pub struct Client {
 	engine: Arc<Engine>,
 	config: ClientConfig,
 	pruning: journaldb::Algorithm,
-	db: RwLock<Arc<Database>>,
+	db: RwLock<Arc<KeyValueDB>>,
 	state_db: Mutex<StateDB>,
 	block_queue: BlockQueue,
 	report: RwLock<ClientReport>,
@@ -157,18 +156,16 @@ pub struct Client {
 }
 
 impl Client {
-	/// Create a new client with given spec and DB path and custom verifier.
+	/// Create a new client with given parameters.
+	/// The database is assumed to have been initialized with the correct columns.
 	pub fn new(
 		config: ClientConfig,
 		spec: &Spec,
-		path: &Path,
+		db: Arc<KeyValueDB>,
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
-		db_config: &DatabaseConfig,
 	) -> Result<Arc<Client>, ClientError> {
 
-		let path = path.to_path_buf();
-		let db = Arc::new(Database::open(&db_config, &path.to_str().expect("DB path could not be converted to string.")).map_err(ClientError::Database)?);
 		let trie_spec = match config.fat_db {
 			true => TrieSpec::Fat,
 			false => TrieSpec::Secure,
@@ -186,7 +183,7 @@ impl Client {
 		if state_db.journal_db().is_empty() {
 			// Sets the correct state root.
 			state_db = spec.ensure_db_good(state_db, &factories)?;
-			let mut batch = DBTransaction::new(&db);
+			let mut batch = DBTransaction::new();
 			state_db.journal_under(&mut batch, 0, &spec.genesis_header().hash())?;
 			db.write(batch).map_err(ClientError::Database)?;
 		}
@@ -530,7 +527,7 @@ impl Client {
 
 			// Commit results
 			let receipts = ::rlp::decode(&receipts_bytes);
-			let mut batch = DBTransaction::new(&self.db.read());
+			let mut batch = DBTransaction::new();
 			chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, false, true);
 			// Final commit to the DB
 			self.db.read().write_buffered(batch);
@@ -554,7 +551,7 @@ impl Client {
 
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
-		let mut batch = DBTransaction::new(&self.db.read());
+		let mut batch = DBTransaction::new();
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
@@ -603,7 +600,7 @@ impl Client {
 					trace!(target: "client", "Pruning state for ancient era {}", era);
 					match chain.block_hash(era) {
 						Some(ancient_hash) => {
-							let mut batch = DBTransaction::new(&self.db.read());
+							let mut batch = DBTransaction::new();
 							state_db.mark_canonical(&mut batch, era, &ancient_hash)?;
 							self.db.read().write_buffered(batch);
 							state_db.journal_db().flush();
@@ -659,7 +656,7 @@ impl Client {
 	/// This will not fail if given BlockId::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state or the block
 	/// is unknown.
-	pub fn state_at(&self, id: BlockId) -> Option<State> {
+	pub fn state_at(&self, id: BlockId) -> Option<State<StateDB>> {
 		// fast path for latest state.
 		match id.clone() {
 			BlockId::Pending => return self.miner.pending_state().or_else(|| Some(self.state())),
@@ -689,7 +686,7 @@ impl Client {
 	///
 	/// This will not fail if given BlockId::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
-	pub fn state_at_beginning(&self, id: BlockId) -> Option<State> {
+	pub fn state_at_beginning(&self, id: BlockId) -> Option<State<StateDB>> {
 		// fast path for latest state.
 		match id {
 			BlockId::Pending => self.state_at(BlockId::Latest),
@@ -701,7 +698,7 @@ impl Client {
 	}
 
 	/// Get a copy of the best block's state.
-	pub fn state(&self) -> State {
+	pub fn state(&self) -> State<StateDB> {
 		let header = self.best_block_header();
 		State::from_existing(
 			self.state_db.lock().boxed_clone_canon(&header.hash()),
@@ -893,17 +890,20 @@ impl BlockChainClient for Client {
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
 		let sender = t.sender();
-		let balance = state.balance(&sender);
+		let balance = state.balance(&sender).map_err(|_| CallError::StateCorrupt)?;
 		let needed_balance = t.value + t.gas * t.gas_price;
 		if balance < needed_balance {
 			// give the sender a sufficient balance
-			state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
+			state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)
+				.map_err(|_| CallError::StateCorrupt)?;
 		}
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
 		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, options)?;
 
 		// TODO gav move this into Executive.
-		ret.state_diff = original_state.map(|original| state.diff_from(original));
+		if let Some(original) = original_state {
+			ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
+		}
 
 		Ok(ret)
 	}
@@ -924,7 +924,7 @@ impl BlockChainClient for Client {
 		// that's just a copy of the state.
 		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender();
-		let balance = original_state.balance(&sender);
+		let balance = original_state.balance(&sender).map_err(ExecutionError::from)?;
 		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
 
 		let cond = |gas| {
@@ -936,27 +936,29 @@ impl BlockChainClient for Client {
 			let needed_balance = tx.value + tx.gas * tx.gas_price;
 			if balance < needed_balance {
 				// give the sender a sufficient balance
-				state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
+				state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)
+					.map_err(ExecutionError::from)?;
 			}
 
-			Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
+			Ok(Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
 				.transact(&tx, options.clone())
 				.map(|r| r.exception.is_none())
-				.unwrap_or(false)
+				.unwrap_or(false))
 		};
 
 		let mut upper = header.gas_limit();
-		if !cond(upper) {
+		if !cond(upper)? {
 			// impossible at block gas limit - try `UPPER_CEILING` instead.
 			// TODO: consider raising limit by powers of two.
 			upper = UPPER_CEILING.into();
-			if !cond(upper) {
+			if !cond(upper)? {
 				trace!(target: "estimate_gas", "estimate_gas failed with {}", upper);
-				return Err(CallError::Execution(ExecutionError::Internal))
+				let err = ExecutionError::Internal(format!("Requires higher than upper limit of {}", upper));
+				return Err(err.into())
 			}
 		}
 		let lower = t.gas_required(&self.engine.schedule(&env_info)).into();
-		if cond(lower) {
+		if cond(lower)? {
 			trace!(target: "estimate_gas", "estimate_gas succeeded with {}", lower);
 			return Ok(lower)
 		}
@@ -964,23 +966,25 @@ impl BlockChainClient for Client {
 		/// Find transition point between `lower` and `upper` where `cond` changes from `false` to `true`.
 		/// Returns the lowest value between `lower` and `upper` for which `cond` returns true.
 		/// We assert: `cond(lower) = false`, `cond(upper) = true`
-		fn binary_chop<F>(mut lower: U256, mut upper: U256, mut cond: F) -> U256 where F: FnMut(U256) -> bool {
+		fn binary_chop<F, E>(mut lower: U256, mut upper: U256, mut cond: F) -> Result<U256, E>
+			where F: FnMut(U256) -> Result<bool, E>
+		{
 			while upper - lower > 1.into() {
 				let mid = (lower + upper) / 2.into();
 				trace!(target: "estimate_gas", "{} .. {} .. {}", lower, mid, upper);
-				let c = cond(mid);
+				let c = cond(mid)?;
 				match c {
 					true => upper = mid,
 					false => lower = mid,
 				};
 				trace!(target: "estimate_gas", "{} => {} .. {}", c, lower, upper);
 			}
-			upper
+			Ok(upper)
 		}
 
 		// binary chop to non-excepting call with gas somewhere between 21000 and block gas limit
 		trace!(target: "estimate_gas", "estimate_gas chopping {} .. {}", lower, upper);
-		Ok(binary_chop(lower, upper, cond))
+		binary_chop(lower, upper, cond)
 	}
 
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
@@ -1009,17 +1013,16 @@ impl BlockChainClient for Client {
 		let rest = txs.split_off(address.index);
 		for t in txs {
 			let t = SignedTransaction::new(t).expect(PROOF);
-			match Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, Default::default()) {
-				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
-				Err(ee) => { return Err(CallError::Execution(ee)) }
-			}
+			let x = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, Default::default())?;
+			env_info.gas_used = env_info.gas_used + x.gas_used;
 		}
 		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
 		let t = SignedTransaction::new(first).expect(PROOF);
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, options)?;
-		ret.state_diff = original_state.map(|original| state.diff_from(original));
-
+		if let Some(original) = original_state {
+			ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?)
+		}
 		Ok(ret)
 	}
 
@@ -1111,11 +1114,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
-		self.state_at(id).map(|s| s.nonce(address))
+		self.state_at(id).and_then(|s| s.nonce(address).ok())
 	}
 
 	fn storage_root(&self, address: &Address, id: BlockId) -> Option<H256> {
-		self.state_at(id).and_then(|s| s.storage_root(address))
+		self.state_at(id).and_then(|s| s.storage_root(address).ok()).and_then(|x| x)
 	}
 
 	fn block_hash(&self, id: BlockId) -> Option<H256> {
@@ -1124,15 +1127,15 @@ impl BlockChainClient for Client {
 	}
 
 	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
-		self.state_at(id).map(|s| s.code(address).map(|c| (*c).clone()))
+		self.state_at(id).and_then(|s| s.code(address).ok()).map(|c| c.map(|c| (&*c).clone()))
 	}
 
 	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
-		self.state_at(id).map(|s| s.balance(address))
+		self.state_at(id).and_then(|s| s.balance(address).ok())
 	}
 
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockId) -> Option<H256> {
-		self.state_at(id).map(|s| s.storage_at(address, position))
+		self.state_at(id).and_then(|s| s.storage_at(address, position).ok())
 	}
 
 	fn list_accounts(&self, id: BlockId, after: Option<&Address>, count: u64) -> Option<Vec<Address>> {
@@ -1185,7 +1188,7 @@ impl BlockChainClient for Client {
 		};
 
 		let root = match state.storage_root(account) {
-			Some(root) => root,
+			Ok(Some(root)) => root,
 			_ => return None,
 		};
 
@@ -1691,7 +1694,7 @@ mod tests {
 			let go_thread = go.clone();
 			let another_client = client.reference().clone();
 			thread::spawn(move || {
-				let mut batch = DBTransaction::new(&*another_client.chain.read().db().clone());
+				let mut batch = DBTransaction::new();
 				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new());
 				go_thread.store(true, Ordering::SeqCst);
 			});

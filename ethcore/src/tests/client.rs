@@ -27,7 +27,6 @@ use miner::Miner;
 use rlp::View;
 use spec::Spec;
 use views::BlockView;
-use util::stats::Histogram;
 use ethkey::{KeyPair, Secret};
 use transaction::{PendingTransaction, Transaction, Action, Condition};
 use miner::MinerService;
@@ -37,14 +36,14 @@ fn imports_from_empty() {
 	let dir = RandomTempPath::new();
 	let spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&spec,
-		dir.as_path(),
+		client_db,
 		Arc::new(Miner::with_spec(&spec)),
 		IoChannel::disconnected(),
-		&db_config
 	).unwrap();
 	client.import_verified_blocks();
 	client.flush_queue();
@@ -55,14 +54,14 @@ fn should_return_registrar() {
 	let dir = RandomTempPath::new();
 	let spec = ethereum::new_morden();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&spec,
-		dir.as_path(),
+		client_db,
 		Arc::new(Miner::with_spec(&spec)),
 		IoChannel::disconnected(),
-		&db_config
 	).unwrap();
 	let params = client.additional_params();
 	let address = &params["registrar"];
@@ -86,14 +85,14 @@ fn imports_good_block() {
 	let dir = RandomTempPath::new();
 	let spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&spec,
-		dir.as_path(),
+		client_db,
 		Arc::new(Miner::with_spec(&spec)),
 		IoChannel::disconnected(),
-		&db_config
 	).unwrap();
 	let good_block = get_good_dummy_block();
 	if client.import_block(good_block).is_err() {
@@ -111,14 +110,14 @@ fn query_none_block() {
 	let dir = RandomTempPath::new();
 	let spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&spec,
-		dir.as_path(),
+		client_db,
 		Arc::new(Miner::with_spec(&spec)),
 		IoChannel::disconnected(),
-		&db_config
 	).unwrap();
     let non_existant = client.block_header(BlockId::Number(188));
 	assert!(non_existant.is_none());
@@ -208,11 +207,11 @@ fn can_collect_garbage() {
 fn can_generate_gas_price_median() {
 	let client_result = generate_dummy_client_with_data(3, 1, slice_into![1, 2, 3]);
 	let client = client_result.reference();
-	assert_eq!(Some(U256::from(2)), client.gas_price_median(3));
+	assert_eq!(Some(&U256::from(2)), client.gas_price_corpus(3).median());
 
 	let client_result = generate_dummy_client_with_data(4, 1, slice_into![1, 4, 3, 2]);
 	let client = client_result.reference();
-	assert_eq!(Some(U256::from(3)), client.gas_price_median(4));
+	assert_eq!(Some(&U256::from(3)), client.gas_price_corpus(3).median());
 }
 
 #[test]
@@ -220,8 +219,8 @@ fn can_generate_gas_price_histogram() {
 	let client_result = generate_dummy_client_with_data(20, 1, slice_into![6354,8593,6065,4842,7845,7002,689,4958,4250,6098,5804,4320,643,8895,2296,8589,7145,2000,2512,1408]);
 	let client = client_result.reference();
 
-	let hist = client.gas_price_histogram(20, 5).unwrap();
-	let correct_hist = Histogram { bucket_bounds: vec_into![643, 2294, 3945, 5596, 7247, 8898], counts: vec![4,2,4,6,4] };
+	let hist = client.gas_price_corpus(20).histogram(5).unwrap();
+	let correct_hist = ::stats::Histogram { bucket_bounds: vec_into![643, 2294, 3945, 5596, 7247, 8898], counts: vec![4,2,4,6,4] };
 	assert_eq!(hist, correct_hist);
 }
 
@@ -230,7 +229,7 @@ fn empty_gas_price_histogram() {
 	let client_result = generate_dummy_client_with_data(20, 0, slice_into![]);
 	let client = client_result.reference();
 
-	assert!(client.gas_price_histogram(20, 5).is_none());
+	assert!(client.gas_price_corpus(20).histogram(5).is_none());
 }
 
 #[test]
@@ -277,13 +276,22 @@ fn change_history_size() {
 	let test_spec = Spec::new_null();
 	let mut config = ClientConfig::default();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
+
 	config.history = 2;
 	let address = Address::random();
 	{
-		let client = Client::new(ClientConfig::default(), &test_spec, dir.as_path(), Arc::new(Miner::with_spec(&test_spec)), IoChannel::disconnected(), &db_config).unwrap();
+		let client = Client::new(
+			ClientConfig::default(),
+			&test_spec,
+			client_db.clone(),
+			Arc::new(Miner::with_spec(&test_spec)),
+			IoChannel::disconnected()
+		).unwrap();
+
 		for _ in 0..20 {
 			let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
-			b.block_mut().fields_mut().state.add_balance(&address, &5.into(), CleanupMode::NoEmpty);
+			b.block_mut().fields_mut().state.add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
 			b.block_mut().fields_mut().state.commit().unwrap();
 			let b = b.close_and_lock().seal(&*test_spec.engine, vec![]).unwrap();
 			client.import_sealed_block(b).unwrap(); // account change is in the journal overlay
@@ -291,8 +299,14 @@ fn change_history_size() {
 	}
 	let mut config = ClientConfig::default();
 	config.history = 10;
-	let client = Client::new(config, &test_spec, dir.as_path(), Arc::new(Miner::with_spec(&test_spec)), IoChannel::disconnected(), &db_config).unwrap();
-	assert_eq!(client.state().balance(&address), 100.into());
+	let client = Client::new(
+		config,
+		&test_spec,
+		client_db,
+		Arc::new(Miner::with_spec(&test_spec)),
+		IoChannel::disconnected(),
+	).unwrap();
+	assert_eq!(client.state().balance(&address).unwrap(), 100.into());
 }
 
 #[test]

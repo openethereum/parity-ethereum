@@ -47,6 +47,7 @@ export default class WalletDetails extends Component {
     return (
       <Form>
         <InputAddress
+          autoFocus
           hint={
             <FormattedMessage
               id='createWallet.details.address.hint'
@@ -110,26 +111,8 @@ export default class WalletDetails extends Component {
 
     return (
       <Form>
-        <AddressSelect
-          accounts={ _accounts }
-          error={ errors.account }
-          hint={
-            <FormattedMessage
-              id='createWallet.details.ownerMulti.hint'
-              defaultMessage='the owner account for this contract'
-            />
-          }
-          label={
-            <FormattedMessage
-              id='createWallet.details.ownerMulti.label'
-              defaultMessage='from account (contract owner)'
-            />
-          }
-          value={ wallet.account }
-          onChange={ this.onAccoutChange }
-        />
-
         <Input
+          autoFocus
           error={ errors.name }
           hint={
             <FormattedMessage
@@ -162,6 +145,25 @@ export default class WalletDetails extends Component {
           }
           value={ wallet.description }
           onChange={ this.onDescriptionChange }
+        />
+
+        <AddressSelect
+          accounts={ _accounts }
+          error={ errors.account }
+          hint={
+            <FormattedMessage
+              id='createWallet.details.ownerMulti.hint'
+              defaultMessage='the owner account for this contract'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createWallet.details.ownerMulti.label'
+              defaultMessage='from account (contract owner)'
+            />
+          }
+          value={ wallet.account }
+          onChange={ this.onAccoutChange }
         />
 
         <TypedInput

@@ -28,7 +28,7 @@ use ethcore::client::{BlockChainClient, ChainNotify};
 use ethcore::snapshot::SnapshotService;
 use ethcore::header::BlockNumber;
 use sync_io::NetSyncIo;
-use chain::{ChainSync, SyncStatus};
+use chain::{ChainSync, SyncStatus as EthSyncStatus};
 use std::net::{SocketAddr, AddrParseError};
 use ipc::{BinaryConvertable, BinaryConvertError, IpcConfig};
 use std::str::FromStr;
@@ -82,12 +82,12 @@ impl Default for SyncConfig {
 }
 
 binary_fixed_size!(SyncConfig);
-binary_fixed_size!(SyncStatus);
+binary_fixed_size!(EthSyncStatus);
 
 /// Current sync status
 pub trait SyncProvider: Send + Sync {
 	/// Get sync status
-	fn status(&self) -> SyncStatus;
+	fn status(&self) -> EthSyncStatus;
 
 	/// Get peers information
 	fn peers(&self) -> Vec<PeerInfo>;
@@ -240,7 +240,7 @@ impl EthSync {
 #[cfg_attr(feature = "ipc", ipc(client_ident="SyncClient"))]
 impl SyncProvider for EthSync {
 	/// Get sync status
-	fn status(&self) -> SyncStatus {
+	fn status(&self) -> EthSyncStatus {
 		self.eth_handler.sync.write().status()
 	}
 
@@ -620,6 +620,35 @@ pub struct ServiceConfiguration {
 	pub io_path: String,
 }
 
+/// Numbers of peers (max, min, active).
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
+pub struct PeerNumbers {
+	/// Number of connected peers.
+	pub connected: usize,
+	/// Number of active peers.
+	pub active: usize,
+	/// Max peers.
+	pub max: usize,
+	/// Min peers.
+	pub min: usize,
+}
+
+/// Light synchronization.
+pub trait LightSyncProvider {
+	/// Get peer numbers.
+	fn peer_numbers(&self) -> PeerNumbers;
+
+	/// Get peers information
+	fn peers(&self) -> Vec<PeerInfo>;
+
+	/// Get the enode if available.
+	fn enode(&self) -> Option<String>;
+
+	/// Returns propagation count for pending transactions.
+	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats>;
+}
+
 /// Configuration for the light sync.
 pub struct LightSyncParams<L> {
 	/// Network configuration.
@@ -728,3 +757,46 @@ impl ManageNetwork for LightSync {
 	}
 }
 
+impl LightSyncProvider for LightSync {
+	fn peer_numbers(&self) -> PeerNumbers {
+		let (connected, active) = self.proto.peer_count();
+		let config = self.network_config();
+		PeerNumbers {
+			connected: connected,
+			active: active,
+			max: config.max_peers as usize,
+			min: config.min_peers as usize,
+		}
+	}
+
+	fn peers(&self) -> Vec<PeerInfo> {
+		self.network.with_context_eval(self.subprotocol_name, |ctx| {
+			let peer_ids = self.network.connected_peers();
+
+			peer_ids.into_iter().filter_map(|peer_id| {
+				let session_info = match ctx.session_info(peer_id) {
+					None => return None,
+					Some(info) => info,
+				};
+
+				Some(PeerInfo {
+					id: session_info.id.map(|id| id.hex()),
+					client_version: session_info.client_version,
+					capabilities: session_info.peer_capabilities.into_iter().map(|c| c.to_string()).collect(),
+					remote_address: session_info.remote_address,
+					local_address: session_info.local_address,
+					eth_info: None,
+					les_info: self.proto.peer_status(&peer_id).map(Into::into),
+				})
+			}).collect()
+		}).unwrap_or_else(Vec::new)
+	}
+
+	fn enode(&self) -> Option<String> {
+		self.network.external_url()
+	}
+
+	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats> {
+		Default::default() // TODO
+	}
+}

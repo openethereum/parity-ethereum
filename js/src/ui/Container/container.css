@@ -16,33 +16,43 @@
 */
 
 $background: rgba(18, 18, 18, 0.85);
-$backgroundOverlay: rgba(18, 18, 18, 1);
+$backgroundHover: rgba(18, 18, 18, 1);
+$transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
 
 .container {
   background: $background;
   flex: 1;
   height: 100%;
   padding: 0em;
-  transition: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
+  position: relative;
+  /*transform: translateZ(0);
+  transition: $transitionAll;*/
   width: 100%;
 
   .hoverOverlay {
-    background: $backgroundOverlay;
-    display: none;
+    background: $background;
     left: 0;
     margin-top: -1.5em;
+    margin-bottom: 3em;
+    opacity: inherit;
     padding: 0 1.5em 1.5em 1.5em;
     position: absolute;
     right: 0;
     top: 100%;
+    /*transition: $transitionAll;*/
+    opacity: 0;
+    /*transform: scale(0.5, 0);
+    transform-origin: top center;*/
     z-index: 100;
   }
 
   &:hover {
-    background: $backgroundOverlay;
+    background: $backgroundHover;
 
     .hoverOverlay {
-      display: block;
+      background: $backgroundHover;
+      /*transform: scale(1, 1);*/
+      opacity: 1;
     }
   }
 }
@@ -67,4 +77,9 @@ $backgroundOverlay: rgba(18, 18, 18, 1);
 .light .compact,
 .light .padded {
   background: rgba(0, 0, 0, 0.5) !important;
+}
+
+.link {
+  width: 100%;
+  height: 100%;
 }

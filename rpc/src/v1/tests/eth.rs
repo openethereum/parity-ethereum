@@ -18,7 +18,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use devtools::RandomTempPath;
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use ethcore::ids::BlockId;
 use ethcore::spec::{Genesis, Spec};
@@ -116,19 +115,16 @@ impl EthTester {
 	}
 
 	fn from_spec(spec: Spec) -> Self {
-		let dir = RandomTempPath::new();
 		let account_provider = account_provider();
 		let miner_service = miner_service(&spec, account_provider.clone());
 		let snapshot_service = snapshot_service();
 
-		let db_config = ::util::kvdb::DatabaseConfig::with_columns(::ethcore::db::NUM_COLUMNS);
 		let client = Client::new(
 			ClientConfig::default(),
 			&spec,
-			dir.as_path(),
+			Arc::new(::util::kvdb::in_memory(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
 			miner_service.clone(),
 			IoChannel::disconnected(),
-			&db_config
 		).unwrap();
 		let sync_provider = sync_provider();
 		let external_miner = Arc::new(ExternalMiner::default());

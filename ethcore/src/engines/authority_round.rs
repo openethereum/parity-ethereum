@@ -220,8 +220,8 @@ impl Engine for AuthorityRound {
 		});
 	}
 
-	fn is_sealer(&self, author: &Address) -> Option<bool> {
-		Some(self.validators.contains(author))
+	fn seals_internally(&self) -> Option<bool> {
+		Some(self.validators.contains(&self.signer.address()))
 	}
 
 	/// Attempt to seal the block internally.
@@ -250,10 +250,12 @@ impl Engine for AuthorityRound {
 	fn on_close_block(&self, block: &mut ExecutedBlock) {
 		let fields = block.fields_mut();
 		// Bestow block reward
-		fields.state.add_balance(fields.header.author(), &self.block_reward, CleanupMode::NoEmpty);
+		let res = fields.state.add_balance(fields.header.author(), &self.block_reward, CleanupMode::NoEmpty)
+			.map_err(::error::Error::from)
+			.and_then(|_| fields.state.commit());
 		// Commit state so that we can actually figure out the state root.
-		if let Err(e) = fields.state.commit() {
-			warn!("Encountered error on state commit: {}", e);
+		if let Err(e) = res {
+			warn!("Encountered error on closing block: {}", e);
 		}
 	}
 

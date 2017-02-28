@@ -33,11 +33,13 @@ use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
-use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
+use ipfs::Configuration as IpfsConfiguration;
 use signer::{Configuration as SignerConfiguration};
+use secretstore::Configuration as SecretStoreConfiguration;
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
@@ -102,7 +104,6 @@ impl Configuration {
 		let vm_type = self.vm_type()?;
 		let mode = match self.args.flag_mode.as_ref() { "last" => None, mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?), };
 		let update_policy = self.update_policy()?;
-		let miner_options = self.miner_options()?;
 		let logger_config = self.logger_config();
 		let http_conf = self.http_config()?;
 		let ipc_conf = self.ipc_config()?;
@@ -118,7 +119,9 @@ impl Configuration {
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let dapps_conf = self.dapps_config();
+		let ipfs_conf = self.ipfs_config();
 		let signer_conf = self.signer_config();
+		let secretstore_conf = self.secretstore_config();
 		let format = self.format()?;
 
 		let cmd = if self.args.flag_version {
@@ -312,6 +315,12 @@ impl Configuration {
 
 			let verifier_settings = self.verifier_settings();
 
+			// Special presets are present for the dev chain.
+			let (gas_pricer, miner_options) = match spec {
+				SpecType::Dev => (GasPricerConfig::Fixed(0.into()), self.miner_options(0)?),
+				_ => (self.gas_pricer_config()?, self.miner_options(self.args.flag_reseal_min_period)?),
+			};
+
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
 				dirs: dirs,
@@ -327,7 +336,7 @@ impl Configuration {
 				net_conf: net_conf,
 				network_id: network_id,
 				acc_conf: self.accounts_config()?,
-				gas_pricer: self.gas_pricer_config()?,
+				gas_pricer: gas_pricer,
 				miner_extras: self.miner_extras()?,
 				stratum: self.stratum_options()?,
 				update_policy: update_policy,
@@ -342,7 +351,9 @@ impl Configuration {
 				ui_address: ui_address,
 				net_settings: self.network_settings(),
 				dapps_conf: dapps_conf,
+				ipfs_conf: ipfs_conf,
 				signer_conf: signer_conf,
+				secretstore_conf: secretstore_conf,
 				dapp: self.dapp_to_open()?,
 				ui: self.args.cmd_ui,
 				name: self.args.flag_identity,
@@ -478,7 +489,7 @@ impl Configuration {
 		} else { Ok(None) }
 	}
 
-	fn miner_options(&self) -> Result<MinerOptions, String> {
+	fn miner_options(&self, reseal_min_period: u64) -> Result<MinerOptions, String> {
 		let reseal = self.args.flag_reseal_on_txs.parse::<ResealPolicy>()?;
 
 		let options = MinerOptions {
@@ -494,7 +505,7 @@ impl Configuration {
 			tx_queue_gas_limit: to_gas_limit(&self.args.flag_tx_queue_gas)?,
 			tx_queue_strategy: to_queue_strategy(&self.args.flag_tx_queue_strategy)?,
 			pending_set: to_pending_set(&self.args.flag_relay_set)?,
-			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
+			reseal_min_period: Duration::from_millis(reseal_min_period),
 			work_queue_size: self.args.flag_work_queue_size,
 			enable_resubmission: !self.args.flag_remove_solved,
 			tx_queue_banning: match self.args.flag_tx_time_limit {
@@ -536,6 +547,25 @@ impl Configuration {
 				vec![]
 			},
 			all_apis: self.args.flag_dapps_apis_all,
+		}
+	}
+
+	fn secretstore_config(&self) -> SecretStoreConfiguration {
+		SecretStoreConfiguration {
+			enabled: self.secretstore_enabled(),
+			interface: self.secretstore_interface(),
+			port: self.args.flag_secretstore_port,
+			data_path: self.directories().secretstore,
+		}
+	}
+
+	fn ipfs_config(&self) -> IpfsConfiguration {
+		IpfsConfiguration {
+			enabled: self.args.flag_ipfs_api,
+			port: self.args.flag_ipfs_api_port,
+			interface: self.ipfs_interface(),
+			cors: self.ipfs_cors(),
+			hosts: self.ipfs_hosts(),
 		}
 	}
 
@@ -671,29 +701,39 @@ impl Configuration {
 		apis
 	}
 
+	fn cors(cors: Option<&String>) -> Option<Vec<String>> {
+		cors.map(|ref c| c.split(',').map(Into::into).collect())
+	}
+
 	fn rpc_cors(&self) -> Option<Vec<String>> {
-		let cors = self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone());
-		cors.map(|c| c.split(',').map(|s| s.to_owned()).collect())
+		let cors = self.args.flag_jsonrpc_cors.as_ref().or(self.args.flag_rpccorsdomain.as_ref());
+		Self::cors(cors)
+	}
+
+	fn ipfs_cors(&self) -> Option<Vec<String>> {
+		Self::cors(self.args.flag_ipfs_api_cors.as_ref())
+	}
+
+	fn hosts(hosts: &str) -> Option<Vec<String>> {
+		match hosts {
+			"none" => return Some(Vec::new()),
+			"all" => return None,
+			_ => {}
+		}
+		let hosts = hosts.split(',').map(Into::into).collect();
+		Some(hosts)
 	}
 
 	fn rpc_hosts(&self) -> Option<Vec<String>> {
-		match self.args.flag_jsonrpc_hosts.as_ref() {
-			"none" => return Some(Vec::new()),
-			"all" => return None,
-			_ => {}
-		}
-		let hosts = self.args.flag_jsonrpc_hosts.split(',').map(|h| h.into()).collect();
-		Some(hosts)
+		Self::hosts(&self.args.flag_jsonrpc_hosts)
 	}
 
 	fn dapps_hosts(&self) -> Option<Vec<String>> {
-		match self.args.flag_dapps_hosts.as_ref() {
-			"none" => return Some(Vec::new()),
-			"all" => return None,
-			_ => {}
-		}
-		let hosts = self.args.flag_dapps_hosts.split(',').map(|h| h.into()).collect();
-		Some(hosts)
+		Self::hosts(&self.args.flag_dapps_hosts)
+	}
+
+	fn ipfs_hosts(&self) -> Option<Vec<String>> {
+		Self::hosts(&self.args.flag_ipfs_api_hosts)
 	}
 
 	fn ipc_config(&self) -> Result<IpcConfiguration, String> {
@@ -777,6 +817,7 @@ impl Configuration {
 		let db_path = replace_home_for_db(&data_path, &local_path, &base_db_path);
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
+		let secretstore_path = replace_home(&data_path, &self.args.flag_secretstore_path);
 		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
 
 		if self.args.flag_geth  && !cfg!(windows) {
@@ -800,6 +841,7 @@ impl Configuration {
 			db: db_path,
 			dapps: dapps_path,
 			signer: ui_path,
+			secretstore: secretstore_path,
 		}
 	}
 
@@ -826,12 +868,16 @@ impl Configuration {
 		}.into()
 	}
 
-	fn rpc_interface(&self) -> String {
-		match self.network_settings().rpc_interface.as_str() {
+	fn interface(interface: &str) -> String {
+		match interface {
 			"all" => "0.0.0.0",
 			"local" => "127.0.0.1",
 			x => x,
 		}.into()
+	}
+
+	fn rpc_interface(&self) -> String {
+		Self::interface(&self.network_settings().rpc_interface)
 	}
 
 	fn dapps_interface(&self) -> String {
@@ -841,16 +887,27 @@ impl Configuration {
 		}.into()
 	}
 
-	fn stratum_interface(&self) -> String {
-		match self.args.flag_stratum_interface.as_str() {
+	fn ipfs_interface(&self) -> String {
+		Self::interface(&self.args.flag_ipfs_api_interface)
+	}
+
+	fn secretstore_interface(&self) -> String {
+		match self.args.flag_secretstore_interface.as_str() {
 			"local" => "127.0.0.1",
-			"all" => "0.0.0.0",
 			x => x,
 		}.into()
 	}
 
+	fn stratum_interface(&self) -> String {
+		Self::interface(&self.args.flag_stratum_interface)
+	}
+
 	fn dapps_enabled(&self) -> bool {
 		!self.args.flag_dapps_off && !self.args.flag_no_dapps && cfg!(feature = "dapps")
+	}
+
+	fn secretstore_enabled(&self) -> bool {
+		!self.args.flag_no_secretstore && cfg!(feature = "secretstore")
 	}
 
 	fn ui_enabled(&self) -> bool {
@@ -1073,7 +1130,7 @@ mod tests {
 	fn test_run_cmd() {
 		let args = vec!["parity"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(RunCmd {
+		let mut expected = RunCmd {
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			spec: Default::default(),
@@ -1101,7 +1158,9 @@ mod tests {
 			ui_address: Some(("127.0.0.1".into(), 8180)),
 			net_settings: Default::default(),
 			dapps_conf: Default::default(),
+			ipfs_conf: Default::default(),
 			signer_conf: Default::default(),
+			secretstore_conf: Default::default(),
 			ui: false,
 			dapp: None,
 			name: "".into(),
@@ -1112,7 +1171,9 @@ mod tests {
 			check_seal: true,
 			download_old_blocks: true,
 			verifier_settings: Default::default(),
-		}));
+		};
+		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));
 	}
 
 	#[test]
@@ -1127,13 +1188,14 @@ mod tests {
 		let conf3 = parse(&["parity", "--tx-queue-strategy", "gas"]);
 
 		// then
-		assert_eq!(conf0.miner_options().unwrap(), mining_options);
+		let min_period = conf0.args.flag_reseal_min_period;
+		assert_eq!(conf0.miner_options(min_period).unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasFactorAndGasPrice;
-		assert_eq!(conf1.miner_options().unwrap(), mining_options);
+		assert_eq!(conf1.miner_options(min_period).unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasPriceOnly;
-		assert_eq!(conf2.miner_options().unwrap(), mining_options);
+		assert_eq!(conf2.miner_options(min_period).unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasAndGasPrice;
-		assert_eq!(conf3.miner_options().unwrap(), mining_options);
+		assert_eq!(conf3.miner_options(min_period).unwrap(), mining_options);
 	}
 
 	#[test]
@@ -1235,6 +1297,38 @@ mod tests {
 	}
 
 	#[test]
+	fn should_parse_ipfs_hosts() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity"]);
+		let conf1 = parse(&["parity", "--ipfs-api-hosts", "none"]);
+		let conf2 = parse(&["parity", "--ipfs-api-hosts", "all"]);
+		let conf3 = parse(&["parity", "--ipfs-api-hosts", "ethcore.io,something.io"]);
+
+		// then
+		assert_eq!(conf0.ipfs_hosts(), Some(Vec::new()));
+		assert_eq!(conf1.ipfs_hosts(), Some(Vec::new()));
+		assert_eq!(conf2.ipfs_hosts(), None);
+		assert_eq!(conf3.ipfs_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
+	}
+
+	#[test]
+	fn should_parse_ipfs_cors() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity"]);
+		let conf1 = parse(&["parity", "--ipfs-api-cors", "*"]);
+		let conf2 = parse(&["parity", "--ipfs-api-cors", "http://ethcore.io,http://something.io"]);
+
+		// then
+		assert_eq!(conf0.ipfs_cors(), None);
+		assert_eq!(conf1.ipfs_cors(), Some(vec!["*".into()]));
+		assert_eq!(conf2.ipfs_cors(), Some(vec!["http://ethcore.io".into(),"http://something.io".into()]));
+	}
+
+	#[test]
 	fn should_disable_signer_in_geth_compat() {
 		// given
 
@@ -1324,5 +1418,18 @@ mod tests {
 		let args = vec!["parity", "--reserved-peers", &filename];
 		let conf = Configuration::parse(&args).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
+	}
+
+	#[test]
+	fn test_dev_chain() {
+		let args = vec!["parity", "--chain", "dev"];
+		let conf = parse(&args);
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.gas_pricer, GasPricerConfig::Fixed(0.into()));
+				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
 	}
 }

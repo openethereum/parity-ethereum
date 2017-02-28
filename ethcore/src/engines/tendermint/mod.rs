@@ -151,12 +151,12 @@ impl Tendermint {
 	fn generate_message(&self, block_hash: Option<BlockHash>) -> Option<Bytes> {
 		let h = self.height.load(AtomicOrdering::SeqCst);
 		let r = self.view.load(AtomicOrdering::SeqCst);
-		let s = self.step.read();
-		let vote_info = message_info_rlp(&VoteStep::new(h, r, *s), block_hash);
+		let s = *self.step.read();
+		let vote_info = message_info_rlp(&VoteStep::new(h, r, s), block_hash);
 		match self.signer.sign(vote_info.sha3()).map(Into::into) {
 			Ok(signature) => {
 				let message_rlp = message_full_rlp(&signature, &vote_info);
-				let message = ConsensusMessage::new(signature, h, r, *s, block_hash);
+				let message = ConsensusMessage::new(signature, h, r, s, block_hash);
 				let validator = self.signer.address();
 				self.votes.vote(message.clone(), &validator);
 				debug!(target: "engine", "Generated {:?} as {}.", message, validator);
@@ -410,8 +410,8 @@ impl Engine for Tendermint {
 	}
 
 	/// Should this node participate.
-	fn is_sealer(&self, address: &Address) -> Option<bool> {
-		Some(self.is_authority(address))
+	fn seals_internally(&self) -> Option<bool> {
+		Some(self.is_authority(&self.signer.address()))
 	}
 
 	/// Attempt to seal generate a proposal seal.
@@ -467,10 +467,12 @@ impl Engine for Tendermint {
 	fn on_close_block(&self, block: &mut ExecutedBlock) {
 		let fields = block.fields_mut();
 		// Bestow block reward
-		fields.state.add_balance(fields.header.author(), &self.block_reward, CleanupMode::NoEmpty);
+		let res = fields.state.add_balance(fields.header.author(), &self.block_reward, CleanupMode::NoEmpty)
+			.map_err(::error::Error::from)
+			.and_then(|_| fields.state.commit());
 		// Commit state so that we can actually figure out the state root.
-		if let Err(e) = fields.state.commit() {
-			warn!("Encountered error on state commit: {}", e);
+		if let Err(e) = res {
+			warn!("Encountered error on closing block: {}", e);
 		}
 	}
 
@@ -649,8 +651,7 @@ mod tests {
 	use account_provider::AccountProvider;
 	use spec::Spec;
 	use engines::{Engine, EngineError, Seal};
-	use super::{Step, View, Height, message_info_rlp, message_full_rlp};
-	use super::message::VoteStep;
+	use super::*;
 
 	/// Accounts inserted with "0" and "1" are validators. First proposer is "0".
 	fn setup() -> (Spec, Arc<AccountProvider>) {

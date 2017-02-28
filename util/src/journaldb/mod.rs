@@ -17,7 +17,6 @@
 //! `JournalDB` interface and implementation.
 
 use common::*;
-use kvdb::Database;
 
 /// Export the journaldb module.
 pub mod traits;
@@ -115,8 +114,8 @@ impl fmt::Display for Algorithm {
 	}
 }
 
-/// Create a new `JournalDB` trait object.
-pub fn new(backing: Arc<Database>, algorithm: Algorithm, col: Option<u32>) -> Box<JournalDB> {
+/// Create a new `JournalDB` trait object over a generic key-value database.
+pub fn new(backing: Arc<::kvdb::KeyValueDB>, algorithm: Algorithm, col: Option<u32>) -> Box<JournalDB> {
 	match algorithm {
 		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(backing, col)),
 		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(backing, col)),

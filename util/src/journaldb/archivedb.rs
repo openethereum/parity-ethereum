@@ -22,9 +22,7 @@ use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
-use kvdb::{Database, DBTransaction};
-#[cfg(test)]
-use std::env;
+use kvdb::{KeyValueDB, DBTransaction};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -35,14 +33,14 @@ use std::env;
 /// that the states of any block the node has ever processed will be accessible.
 pub struct ArchiveDB {
 	overlay: MemoryDB,
-	backing: Arc<Database>,
+	backing: Arc<KeyValueDB>,
 	latest_era: Option<u64>,
 	column: Option<u32>,
 }
 
 impl ArchiveDB {
-	/// Create a new instance from file
-	pub fn new(backing: Arc<Database>, col: Option<u32>) -> ArchiveDB {
+	/// Create a new instance from a key-value db.
+	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> ArchiveDB {
 		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
 		ArchiveDB {
 			overlay: MemoryDB::new(),
@@ -55,9 +53,7 @@ impl ArchiveDB {
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
 	fn new_temp() -> ArchiveDB {
-		let mut dir = env::temp_dir();
-		dir.push(H32::random().hex());
-		let backing = Arc::new(Database::open_default(dir.to_str().unwrap()).unwrap());
+		let backing = Arc::new(::kvdb::in_memory(0));
 		Self::new(backing, None)
 	}
 
@@ -186,7 +182,7 @@ impl JournalDB for ArchiveDB {
 
 	fn is_pruned(&self) -> bool { false }
 
-	fn backing(&self) -> &Arc<Database> {
+	fn backing(&self) -> &Arc<KeyValueDB> {
 		&self.backing
 	}
 

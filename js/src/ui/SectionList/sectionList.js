@@ -46,10 +46,18 @@ export default class SectionList extends Component {
       return null;
     }
 
+    const rendered = items
+      .map(this.renderItem)
+      .filter((item) => item);
+
+    if (!rendered.length) {
+      return null;
+    }
+
     return (
       <section className={ [styles.section, className].join(' ') }>
         { this.renderOverlay() }
-        { chunkArray(items, ITEMS_PER_ROW).map(this.renderRow) }
+        { chunkArray(rendered, ITEMS_PER_ROW).map(this.renderRow) }
       </section>
     );
   }
@@ -74,11 +82,7 @@ export default class SectionList extends Component {
         className={ styles.row }
         key={ `row_${index}` }
       >
-        {
-          row
-            .map(this.renderItem)
-            .filter((item) => item)
-        }
+        { row }
       </div>
     );
   }

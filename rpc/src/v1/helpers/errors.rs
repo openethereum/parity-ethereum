@@ -46,16 +46,24 @@ mod codes {
 	pub const REQUEST_REJECTED: i64 = -32040;
 	pub const REQUEST_REJECTED_LIMIT: i64 = -32041;
 	pub const REQUEST_NOT_FOUND: i64 = -32042;
-	pub const COMPILATION_ERROR: i64 = -32050;
 	pub const ENCRYPTION_ERROR: i64 = -32055;
 	pub const FETCH_ERROR: i64 = -32060;
 	pub const NO_LIGHT_PEERS: i64 = -32065;
+	pub const DEPRECATED: i64 = -32070;
 }
 
 pub fn unimplemented(details: Option<String>) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "This request is not implemented yet. Please create an issue on Github repo.".into(),
+		data: details.map(Value::String),
+	}
+}
+
+pub fn light_unimplemented(details: Option<String>) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: "This request is unsupported for light clients.".into(),
 		data: details.map(Value::String),
 	}
 }
@@ -92,14 +100,6 @@ pub fn account<T: fmt::Debug>(error: &str, details: T) -> Error {
 	}
 }
 
-pub fn compilation<T: fmt::Debug>(error: T) -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::COMPILATION_ERROR),
-		message: "Error while compiling code.".into(),
-		data: Some(Value::String(format!("{:?}", error))),
-	}
-}
-
 pub fn internal<T: fmt::Debug>(error: &str, data: T) -> Error {
 	Error {
 		code: ErrorCode::InternalError,
@@ -130,6 +130,10 @@ pub fn state_pruned() -> Error {
 		message: "This request is not supported because your node is running with state pruning. Run with --pruning=archive.".into(),
 		data: None
 	}
+}
+
+pub fn state_corrupt() -> Error {
+	internal("State corrupt", "")
 }
 
 pub fn exceptional() -> Error {
@@ -296,6 +300,7 @@ pub fn from_rlp_error(error: DecoderError) -> Error {
 pub fn from_call_error(error: CallError) -> Error {
 	match error {
 		CallError::StatePruned => state_pruned(),
+		CallError::StateCorrupt => state_corrupt(),
 		CallError::Exceptional => exceptional(),
 		CallError::Execution(e) => execution(e),
 		CallError::TransactionNotFound => internal("{}, this should not be the case with eth_call, most likely a bug.", CallError::TransactionNotFound),
@@ -315,5 +320,13 @@ pub fn no_light_peers() -> Error {
 		code: ErrorCode::ServerError(codes::NO_LIGHT_PEERS),
 		message: "No light peers who can serve data".into(),
 		data: None,
+	}
+}
+
+pub fn deprecated<T: Into<Option<String>>>(message: T) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::DEPRECATED),
+		message: "Method deprecated".into(),
+		data: message.into().map(Value::String),
 	}
 }

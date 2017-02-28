@@ -15,41 +15,30 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.actions {
-  background: rgba(0, 0, 0, 0.25) !important;
+/* TODO: These styles are shared with CreateAccount - DRY up */
+.passwords {
+  display: flex;
+  flex-wrap: wrap;
 
-  button:not([disabled]) {
-    color: white !important;
+  .password {
+    box-sizing: border-box;
+    flex: 0 1 50%;
+    width: 50%;
 
-    svg {
-      fill: white !important;
+    &:nth-child(odd) {
+      padding-right: 0.25rem;
+    }
+
+    &:nth-child(even) {
+      padding-left: 0.25rem;
     }
   }
 }
 
-.body {
-  padding: 0 !important;
+.disabled {
+  opacity: 0.25;
 }
 
-.dialog {
-}
-
-.content {
-  transform: translate(0px, 0px) !important;
-  transition: none !important;
-
-  &>div {
-    background: rgba(0, 0, 0, 0.5) !important;
-    transition: none !important;
-  }
-}
-
-.title {
-  background: rgba(0, 0, 0, 0.25) !important;
-  padding: 1em;
-}
-
-.overlay {
-  background: rgba(255, 255, 255, 0.5) !important;
-  transition: none !important;
+.group+.group {
+  margin-top: 1em;
 }

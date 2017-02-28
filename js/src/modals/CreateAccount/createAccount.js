@@ -22,7 +22,7 @@ import { bindActionCreators } from 'redux';
 
 import { createIdentityImg } from '~/api/util/identity';
 import { newError } from '~/redux/actions';
-import { Button, Modal } from '~/ui';
+import { Button, ModalBox, Portal } from '~/ui';
 import { CancelIcon, CheckIcon, DoneIcon, NextIcon, PrevIcon, PrintIcon } from '~/ui/Icons';
 import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
 
@@ -35,6 +35,7 @@ import NewImport from './NewImport';
 import RawKey from './RawKey';
 import RecoveryPhrase from './RecoveryPhrase';
 import Store, { STAGE_CREATE, STAGE_INFO, STAGE_SELECT_TYPE } from './store';
+import TypeIcon from './TypeIcon';
 import print from './print';
 import recoveryPage from './recoveryPage.ejs';
 
@@ -86,18 +87,21 @@ class CreateAccount extends Component {
     const { createType, stage } = this.store;
 
     return (
-      <Modal
-        visible
-        actions={ this.renderDialogActions() }
-        current={ stage }
+      <Portal
+        buttons={ this.renderDialogActions() }
+        activeStep={ stage }
+        onClose={ this.onClose }
+        open
         steps={
           createType === 'fromNew'
             ? STAGE_NAMES
             : STAGE_IMPORT
         }
       >
-        { this.renderPage() }
-      </Modal>
+        <ModalBox icon={ <TypeIcon store={ this.store } /> }>
+          { this.renderPage() }
+        </ModalBox>
+      </Portal>
     );
   }
 
@@ -245,11 +249,11 @@ class CreateAccount extends Component {
             : null,
           <Button
             icon={ <DoneIcon /> }
-            key='close'
+            key='done'
             label={
               <FormattedMessage
-                id='createAccount.button.close'
-                defaultMessage='Close'
+                id='createAccount.button.done'
+                defaultMessage='Done'
               />
             }
             onClick={ this.onClose }

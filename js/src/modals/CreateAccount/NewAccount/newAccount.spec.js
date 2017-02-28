@@ -59,7 +59,7 @@ describe('modals/CreateAccount/NewAccount', () => {
       });
 
       it('creates initial accounts', () => {
-        expect(Object.keys(instance.state.accounts).length).to.equal(5);
+        expect(Object.keys(instance.state.accounts).length).to.equal(7);
       });
 
       it('sets the initial selected value', () => {
