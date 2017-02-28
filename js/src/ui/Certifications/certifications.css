@@ -16,7 +16,7 @@
 */
 
 .certifications {
-  margin-top: 1em;
+  margin-top: 0.75em;
 }
 
 .certification {
@@ -24,7 +24,7 @@
   position: relative;
   margin-top: 1em;
   margin-right: .5em;
-  padding: .3em .6em .2em 2.6em;
+  padding: .3em .6em .2em 3em;
   border-radius: 1em;
   line-height: 1em;
   text-transform: uppercase;

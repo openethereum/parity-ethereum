@@ -274,12 +274,14 @@ class Summary extends Component {
 
     return (
       <div className={ styles.vault }>
-        <IdentityIcon
-          address={ meta.vault }
-          inline
-        />
-        <div className={ styles.text }>
-          { meta.vault }
+        <div className={ styles.vaultBody }>
+          <IdentityIcon
+            address={ meta.vault }
+            inline
+          />
+          <div className={ styles.text }>
+            { meta.vault }
+          </div>
         </div>
       </div>
     );
