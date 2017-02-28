@@ -140,6 +140,7 @@ pub mod snapshot;
 pub mod action_params;
 pub mod db;
 pub mod verification;
+pub mod state;
 #[macro_use] pub mod evm;
 
 mod cache_manager;
@@ -147,7 +148,6 @@ mod blooms;
 mod basic_types;
 mod env_info;
 mod pod_account;
-mod state;
 mod state_db;
 mod account_db;
 mod builtin;

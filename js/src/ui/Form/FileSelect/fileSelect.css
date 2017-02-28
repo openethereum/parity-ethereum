@@ -15,51 +15,38 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.item {
-  border: 2px solid transparent;
-  cursor: pointer;
+$backgroundNormal: rgba(0, 0, 0, 0.2);
+$backgroundNormalHover: rgba(0, 0, 0, 0.5);
+$backgroundError: rgba(255, 0, 0, 0.1);
+$backgroundErrorHover: rgba(255, 0, 0, 0.2);
+
+.dropzone {
+  align-items: center;
+  background: $backgroundNormal;
+  border: 2px dashed #666;
+  border-radius: 0.5em;
   display: flex;
-  flex: 1;
-  height: 100%;
-  position: relative;
+  justify-content: center;
+  font-size: 1.2em;
+  height: 12em;
+  transition: all 0.5s ease;
   width: 100%;
 
   &:hover {
-    border-color: transparent;
-    filter: none;
-    opacity: 1;
+    background: $backgroundNormalHover;
+    border-radius: 0;
+    cursor: pointer;
   }
 
-  .content {
-    height: 100%;
-    width: 100%;
+  &.error {
+    background: $backgroundError;
 
     &:hover {
-      background-color: rgba(255, 255, 255, 0.5);
+      background: $backgroundErrorHover;
     }
   }
 
-  .overlay {
-    position: absolute;
-    right: 0.5em;
-    top: 0.5em;
+  .label {
+    color: #aaa;
   }
-}
-
-.selected {
-  border-color: rgba(255, 255, 255, 0.25);
-  filter: none;
-
-  &.default {
-    border-color: rgba(255, 255, 255, 0.75);
-  }
-}
-
-.unselected {
-  filter: grayscale(10%);
-  opacity: 0.75;
-}
-
-.iconDisabled {
-  opacity: 0.15;
 }

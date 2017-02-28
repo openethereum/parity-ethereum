@@ -15,12 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import Dropzone from 'react-dropzone';
 import { FormattedMessage } from 'react-intl';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
 import Button from '../../Button';
+import FileSelect from '../../Form/FileSelect';
 import { CancelIcon, DoneIcon, FileUploadIcon } from '../../Icons';
 import Portal from '../../Portal';
 
@@ -184,25 +184,8 @@ export default class ActionbarImport extends Component {
       return this.renderValidation();
     }
 
-    return this.renderFileSelect();
-  }
-
-  renderFileSelect () {
     return (
-      <div>
-        <Dropzone
-          onDrop={ this.onDrop }
-          multiple={ false }
-          className={ styles.importZone }
-        >
-          <div>
-            <FormattedMessage
-              id='ui.actiobar.import.dropzone'
-              defaultMessage='Drop a file here, or click to select a file to upload.'
-            />
-          </div>
-        </Dropzone>
-      </div>
+      <FileSelect onSelect={ this.onFileSelect } />
     );
   }
 
@@ -224,39 +207,30 @@ export default class ActionbarImport extends Component {
     );
   }
 
-  onDrop = (files) => {
+  onFileSelect = (file, content) => {
     const { renderValidation } = this.props;
 
-    const file = files[0];
-    const reader = new FileReader();
+    if (typeof renderValidation !== 'function') {
+      this.props.onConfirm(content);
+      return this.onCloseModal();
+    }
 
-    reader.onload = (e) => {
-      const content = e.target.result;
+    const validationBody = renderValidation(content);
 
-      if (typeof renderValidation !== 'function') {
-        this.props.onConfirm(content);
-        return this.onCloseModal();
-      }
-
-      const validationBody = renderValidation(content);
-
-      if (validationBody && validationBody.error) {
-        return this.setState({
-          step: 1,
-          error: true,
-          errorText: validationBody.error
-        });
-      }
-
-      this.setState({
+    if (validationBody && validationBody.error) {
+      return this.setState({
         step: 1,
-        validate: true,
-        validationBody,
-        content
+        error: true,
+        errorText: validationBody.error
       });
-    };
+    }
 
-    reader.readAsText(file);
+    this.setState({
+      step: 1,
+      validate: true,
+      validationBody,
+      content
+    });
   }
 
   onConfirm = () => {

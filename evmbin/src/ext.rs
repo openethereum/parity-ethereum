@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 use std::collections::HashMap;
-use util::{U256, H256, Address, Bytes, FixedHash};
+use util::{U256, H256, Address, Bytes, FixedHash, trie};
 use ethcore::client::EnvInfo;
 use ethcore::evm::{self, Ext, ContractCreateResult, MessageCallResult, Schedule, CallType};
 
@@ -39,27 +39,28 @@ impl Default for FakeExt {
 }
 
 impl Ext for FakeExt {
-	fn storage_at(&self, key: &H256) -> H256 {
-		self.store.get(key).unwrap_or(&H256::new()).clone()
+	fn storage_at(&self, key: &H256) -> trie::Result<H256> {
+		Ok(self.store.get(key).unwrap_or(&H256::new()).clone())
 	}
 
-	fn set_storage(&mut self, key: H256, value: H256) {
+	fn set_storage(&mut self, key: H256, value: H256) -> trie::Result<()> {
 		self.store.insert(key, value);
+		Ok(())
 	}
 
-	fn exists(&self, _address: &Address) -> bool {
+	fn exists(&self, _address: &Address) -> trie::Result<bool> {
 		unimplemented!();
 	}
 
-	fn exists_and_not_null(&self, _address: &Address) -> bool {
+	fn exists_and_not_null(&self, _address: &Address) -> trie::Result<bool> {
 		unimplemented!();
 	}
 
-	fn origin_balance(&self) -> U256 {
+	fn origin_balance(&self) -> trie::Result<U256> {
 		unimplemented!();
 	}
 
-	fn balance(&self, _address: &Address) -> U256 {
+	fn balance(&self, _address: &Address) -> trie::Result<U256> {
 		unimplemented!();
 	}
 
@@ -83,11 +84,11 @@ impl Ext for FakeExt {
 		unimplemented!();
 	}
 
-	fn extcode(&self, _address: &Address) -> Arc<Bytes> {
+	fn extcode(&self, _address: &Address) -> trie::Result<Arc<Bytes>> {
 		unimplemented!();
 	}
 
-	fn extcodesize(&self, _address: &Address) -> usize {
+	fn extcodesize(&self, _address: &Address) -> trie::Result<usize> {
 		unimplemented!();
 	}
 
@@ -99,7 +100,7 @@ impl Ext for FakeExt {
 		Ok(*gas)
 	}
 
-	fn suicide(&mut self, _refund_address: &Address) {
+	fn suicide(&mut self, _refund_address: &Address) -> trie::Result<()> {
 		unimplemented!();
 	}
 

@@ -499,7 +499,6 @@ docker-build:
   before_script:
     - docker info
   script:
-    - cd docker/hub
     - if [ "$CI_BUILD_REF_NAME" == "nightly" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
     - docker login -u $Docker_Hub_User -p $Docker_Hub_Pass
     - sh scripts/docker-build.sh $DOCKER_TAG
