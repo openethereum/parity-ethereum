@@ -96,7 +96,7 @@ export default class Balance extends Component {
         <div className={ styles.empty }>
           <FormattedMessage
             id='ui.balance.none'
-            defaultMessage='There are no balances associated with this account'
+            defaultMessage='No balances associated with this account'
           />
         </div>
       );

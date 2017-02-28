@@ -144,7 +144,10 @@ class Summary extends Component {
             }
           />
         </div>
-        { this.renderBalance(true) }
+        <div className={ styles.summary }>
+          { this.renderBalance(true) }
+          { this.renderCertifications(true) }
+        </div>
       </Container>
     );
   }
@@ -251,7 +254,7 @@ class Summary extends Component {
     );
   }
 
-  renderCertifications () {
+  renderCertifications (onlyIcon) {
     const { showCertifications, account } = this.props;
 
     if (!showCertifications) {
@@ -261,7 +264,12 @@ class Summary extends Component {
     return (
       <Certifications
         address={ account.address }
-        className={ styles.Certifications }
+        className={
+          onlyIcon
+            ? styles.iconCertifications
+            : styles.fullCertifications
+        }
+        showOnlyIcon={ onlyIcon }
       />
     );
   }
