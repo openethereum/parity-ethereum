@@ -64,13 +64,24 @@ describe('modals/CreateAccount/Store', () => {
 
   describe('@action', () => {
     describe('clearErrors', () => {
+      beforeEach(() => {
+        store.setName('');
+        store.setPassword('123');
+        store.setRawKey('test');
+        store.setWalletFile('test');
+        store.setWalletJson('test');
+      });
+
       it('clears all errors', () => {
         store.clearErrors();
 
         expect(store.nameError).to.be.null;
         expect(store.passwordRepeatError).to.be.null;
+        expect(store.rawKey).to.equal('');
         expect(store.rawKeyError).to.be.null;
+        expect(store.walletFile).to.equal('');
         expect(store.walletFileError).to.be.null;
+        expect(store.walletJson).to.equal('');
       });
     });
 
