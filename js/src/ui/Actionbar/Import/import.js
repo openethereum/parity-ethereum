@@ -65,7 +65,7 @@ export default class ActionbarImport extends Component {
           icon={ <FileUploadIcon /> }
           label={
             <FormattedMessage
-              id='ui.actiobar.import.button.import'
+              id='ui.actionbar.import.button.import'
               defaultMessage='import'
             />
           }
@@ -87,19 +87,19 @@ export default class ActionbarImport extends Component {
     const steps = typeof renderValidation === 'function'
       ? [
         <FormattedMessage
-          id='ui.actiobar.import.step.select'
+          id='ui.actionbar.import.step.select'
           defaultMessage='select a file'
         />,
         error
           ? (
             <FormattedMessage
-              id='ui.actiobar.import.step.error'
+              id='ui.actionbar.import.step.error'
               defaultMessage='error'
             />
           )
           : (
             <FormattedMessage
-              id='ui.actiobar.import.step.validate'
+              id='ui.actionbar.import.step.validate'
               defaultMessage='validate'
             />)
       ]
@@ -128,7 +128,7 @@ export default class ActionbarImport extends Component {
         key='cancel'
         label={
           <FormattedMessage
-            id='ui.actiobar.import.button.cancel'
+            id='ui.actionbar.import.button.cancel'
             defaultMessage='Cancel'
           />
         }
@@ -147,7 +147,7 @@ export default class ActionbarImport extends Component {
           key='confirm'
           label={
             <FormattedMessage
-              id='ui.actiobar.import.button.confirm'
+              id='ui.actionbar.import.button.confirm'
               defaultMessage='Confirm'
             />
           }
@@ -169,7 +169,7 @@ export default class ActionbarImport extends Component {
         <div>
           <p>
             <FormattedMessage
-              id='ui.actiobar.import.error'
+              id='ui.actionbar.import.error'
               defaultMessage='An error occured: {errorText}'
               values={ {
                 errorText
@@ -196,7 +196,7 @@ export default class ActionbarImport extends Component {
       <div>
         <p className={ styles.desc }>
           <FormattedMessage
-            id='ui.actiobar.import.confirm'
+            id='ui.actionbar.import.confirm'
             defaultMessage='Confirm that this is what was intended to import.'
           />
         </p>
