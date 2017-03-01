@@ -14,17 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import abi from '~/contracts/abi/signaturereg';
 
-import styles from './application.css';
+const id = 'signaturereg';
+const sourceUrl = '';
+const deployParams = [];
+const byteCode = '';
 
-export default class Application extends Component {
-  state = {
-  }
-
-  render () {
-    return (
-      <div className={ styles.body }>hello</div>
-    );
-  }
-}
+export {
+  abi,
+  byteCode,
+  deployParams,
+  id,
+  sourceUrl
+};

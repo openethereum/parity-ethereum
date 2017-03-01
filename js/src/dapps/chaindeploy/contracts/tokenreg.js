@@ -14,8 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { code as tokenreg } from './tokenreg';
+import abi from '~/contracts/abi/tokenreg';
+
+const id = 'tokenreg';
+const sourceUrl = '';
+const deployParams = [];
+const byteCode = '';
 
 export {
-  tokenreg
+  abi,
+  byteCode,
+  deployParams,
+  id,
+  sourceUrl
 };

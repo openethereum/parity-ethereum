@@ -14,12 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { observable } from 'mobx';
+import * as badgereg from './badgereg';
+import * as dappreg from './dappreg';
+import * as githubhint from './githubhint';
+import * as registry from './registry';
+import * as signaturereg from './signaturereg';
+import * as tokenreg from './tokenreg';
 
-import builtinJson from '~/views/Dapps/builtin.json';
+const contracts = [
+  githubhint,
+  badgereg,
+  dappreg,
+  signaturereg,
+  tokenreg
+];
 
-const builtins = builtinJson.filter((app) => app.id);
-
-export default class DappsStore {
-  @observable builtins = builtins;
-}
+export {
+  contracts,
+  registry
+};

@@ -15,5 +15,34 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.body {
+.listItem {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  margin: 1em;
+
+  .header,
+  .details {
+    white-space: nowrap;
+
+    .icon {
+      margin-right: 0.5em;
+    }
+
+    .title {
+      display: inline-block;
+      line-height: 24px;
+      overflow: hidden;
+      vertical-align: top;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .details {
+    margin-left: 2em;
+  }
+
+  .muted {
+    opacity: 0.25;
+  }
 }

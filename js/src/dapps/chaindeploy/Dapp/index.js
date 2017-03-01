@@ -14,16 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import ReactDOM from 'react-dom';
-import React from 'react';
-
-import Application from './githubhint/Application';
-
-import '../../assets/fonts/Roboto/font.css';
-import '../../assets/fonts/RobotoMono/font.css';
-import './style.css';
-
-ReactDOM.render(
-  <Application />,
-  document.querySelector('#container')
-);
+export default from './dapp';
