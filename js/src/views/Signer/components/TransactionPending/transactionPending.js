@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { observer } from 'mobx-react';
 
 import { Button, GasPriceEditor } from '~/ui';
@@ -132,7 +133,12 @@ export default class TransactionPending extends Component {
       <div className={ `${styles.container} ${className}` }>
         <GasPriceEditor store={ this.gasStore }>
           <Button
-            label='view transaction'
+            label={
+              <FormattedMessage
+                id='signer.txPending.buttons.viewToggle'
+                defaultMessage='view transaction'
+              />
+            }
             onClick={ this.toggleGasEditor }
           />
         </GasPriceEditor>
