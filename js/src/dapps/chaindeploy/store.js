@@ -213,26 +213,34 @@ export default class ContractsStore {
     const options = { from: fromAddress };
     const values = [api.util.sha3(contract.id)];
 
-    return this.registry.instance.reserve
-      .estimateGas(options, values)
-      .then((gasEst) => {
-        options.gas = gasEst.mul(1.2);
+    return this.registry.instance
+      .fee.call({}, [])
+      .then((value) => {
+        options.value = value;
 
-        return trackRequest(
-          this.registry.instance.reserve.postTransaction(options, values),
-          (error, data) => {
-            if (error) {
-              console.error(contract.id, error);
-            } else {
-              console.log(contract.id, data);
-            }
-          }
-        );
+        return this.registry.instance
+          .reserve.estimateGas(options, values)
+          .then((gasEst) => {
+            options.gas = gasEst.mul(1.2);
+
+            return trackRequest(
+              this.registry.instance.reserve.postTransaction(options, values),
+              (error, data) => {
+                if (error) {
+                  console.error(contract.id, error);
+                } else {
+                  console.log(contract.id, data);
+                }
+              }
+            );
+          });
       })
       .then(() => {
         values.push('A');
         values.push(contract.address);
+
         delete options.gas;
+        delete options.value;
 
         return this.registry.instance.setAddress.estimateGas(options, values);
       })
@@ -332,12 +340,13 @@ export default class ContractsStore {
     return Promise
       .all(
         this.contracts.map((contract) => {
-          return contract.instance
+          return contract.isOnChain
             ? Promise.resolve(0)
             : this.registry.instance.getAddress.call({}, [api.util.sha3(contract.id), 'A']);
         })
       )
       .then((addresses) => {
+        console.log(addresses);
         addresses.forEach((address, index) => {
           if (isValidNumber(address)) {
             this.setContractAddress(this.contracts[index], address, true);
