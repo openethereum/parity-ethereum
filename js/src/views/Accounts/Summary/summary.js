@@ -22,7 +22,7 @@ import { isEqual } from 'lodash';
 import ReactTooltip from 'react-tooltip';
 import { FormattedMessage } from 'react-intl';
 
-import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from '~/ui';
+import { Balance, Container, ContainerTitle, CopyToClipboard, IdentityIcon, IdentityName, Tags } from '~/ui';
 import Certifications from '~/ui/Certifications';
 import { arrayOrObjectProptype, nullableProptype } from '~/util/proptypes';
 
@@ -101,15 +101,6 @@ class Summary extends Component {
 
     const { address } = account;
 
-    const addressComponent = (
-      <Input
-        readOnly
-        hideUnderline
-        value={ address }
-        allowCopy={ address }
-      />
-    );
-
     return (
       <Container
         className={ styles.account }
@@ -133,7 +124,12 @@ class Summary extends Component {
             address={ address }
           />
           <ContainerTitle
-            byline={ addressComponent }
+            byline={
+              <div className={ styles.addressline }>
+                <CopyToClipboard data={ address } />
+                <div className={ styles.address }>{ address }</div>
+              </div>
+            }
             className={
               noLink
                 ? styles.main
@@ -148,7 +144,10 @@ class Summary extends Component {
             }
           />
         </div>
-        { this.renderBalance(true) }
+        <div className={ styles.summary }>
+          { this.renderBalance(true) }
+          { this.renderCertifications(true) }
+        </div>
       </Container>
     );
   }
@@ -255,7 +254,7 @@ class Summary extends Component {
     );
   }
 
-  renderCertifications () {
+  renderCertifications (onlyIcon) {
     const { showCertifications, account } = this.props;
 
     if (!showCertifications) {
@@ -265,7 +264,12 @@ class Summary extends Component {
     return (
       <Certifications
         address={ account.address }
-        className={ styles.Certifications }
+        className={
+          onlyIcon
+            ? styles.iconCertifications
+            : styles.fullCertifications
+        }
+        showOnlyIcon={ onlyIcon }
       />
     );
   }

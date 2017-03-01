@@ -14,33 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-
 //! Adds a seventh column for node information.
 
-use util::kvdb::Database;
-use util::migration::{Batch, Config, Error, Migration, Progress};
-use std::sync::Arc;
+use util::migration::ChangeColumns;
 
-/// Copies over data for all existing columns.
-#[derive(Default)]
-pub struct ToV11(Progress);
-
-
-impl Migration for ToV11 {
-	fn pre_columns(&self) -> Option<u32> { Some(6) }
-	fn columns(&self) -> Option<u32> { Some(7) }
-
-	fn version(&self) -> u32 { 11 }
-
-	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
-		// just copy everything over.
-		let mut batch = Batch::new(config, col);
-
-		for (key, value) in source.iter(col) {
-			self.0.tick();
-			batch.insert(key.to_vec(), value.to_vec(), dest)?
-		}
-
-		batch.commit(dest)
-	}
-}
+/// The migration from v10 to v11.
+pub const TO_V11: ChangeColumns = ChangeColumns {
+	pre_columns: Some(6),
+	post_columns: Some(7),
+	version: 11,
+};

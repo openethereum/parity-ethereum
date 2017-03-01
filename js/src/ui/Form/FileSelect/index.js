@@ -14,18 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Database migrations.
-
-pub mod state;
-pub mod blocks;
-pub mod extras;
-
-mod v9;
-pub use self::v9::ToV9;
-pub use self::v9::Extract;
-
-mod v10;
-pub use self::v10::ToV10;
-
-mod v11;
-pub use self::v11::TO_V11;
+export default from './fileSelect';

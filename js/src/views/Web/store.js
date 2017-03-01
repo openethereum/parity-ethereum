@@ -20,7 +20,7 @@ import { parse as parseUrl } from 'url';
 
 import { encodePath, encodeUrl } from '~/util/dapplink';
 
-const DEFAULT_URL = 'https://mkr.market';
+const DEFAULT_URL = 'https://oasisdex.com';
 const LS_LAST_ADDRESS = '_parity::webLastAddress';
 
 const hasProtocol = /^https?:\/\//;

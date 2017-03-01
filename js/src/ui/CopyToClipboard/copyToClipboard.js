@@ -16,6 +16,7 @@
 
 import { IconButton } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import Clipboard from 'react-copy-to-clipboard';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
@@ -64,14 +65,33 @@ class CopyToClipboard extends Component {
     const { copied } = this.state;
 
     return (
-      <Clipboard onCopy={ this.onCopy } text={ data }>
-        <div className={ styles.wrapper }>
+      <Clipboard
+        onCopy={ this.onCopy }
+        text={ data }
+      >
+        <div
+          className={ styles.wrapper }
+          onClick={ this.onClick }
+        >
           <IconButton
             disableTouchRipple
-            style={ { width: size, height: size, padding: '0' } }
-            iconStyle={ { width: size, height: size } }
+            iconStyle={ {
+              height: size,
+              width: size
+            } }
+            style={ {
+              height: size,
+              padding: '0',
+              width: size
+            } }
           >
-            <CopyIcon color={ copied ? disabledTextColor : textColor } />
+            <CopyIcon
+              color={
+                copied
+                  ? disabledTextColor
+                  : textColor
+              }
+            />
           </IconButton>
         </div>
       </Clipboard>
@@ -82,9 +102,13 @@ class CopyToClipboard extends Component {
     const { data, onCopy, cooldown, showSnackbar } = this.props;
     const message = (
       <div className={ styles.container }>
-        <span>copied </span>
-        <code className={ styles.data }> { data } </code>
-        <span> to clipboard</span>
+        <FormattedMessage
+          id='ui.copyToClipboard.copied'
+          defaultMessage='copied {data} to clipboard'
+          values={ {
+            data: <code className={ styles.data }> { data } </code>
+          } }
+        />
       </div>
     );
 
@@ -97,6 +121,11 @@ class CopyToClipboard extends Component {
 
     showSnackbar(message, cooldown);
     onCopy();
+  }
+
+  onClick = (event) => {
+    event.stopPropagation();
+    event.preventDefault();
   }
 }
 
