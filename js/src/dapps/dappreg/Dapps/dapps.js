@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import CreateDappCard from '../CreateDappCard';
 import DappCard from '../DappCard';
 
 import styles from './dapps.css';
@@ -23,7 +24,12 @@ import styles from './dapps.css';
 export default class Dapps extends Component {
   static propTypes = {
     dapps: PropTypes.array.isRequired,
-    title: PropTypes.string.isRequired
+    title: PropTypes.string.isRequired,
+    own: PropTypes.bool
+  };
+
+  static defaultProps = {
+    own: false
   };
 
   render () {
@@ -33,9 +39,22 @@ export default class Dapps extends Component {
       <div className={ styles.dapps }>
         <h2 className={ styles.title }>{ title }</h2>
         <div className={ styles.container }>
+          { this.renderAddDapp() }
           { this.renderDapps(dapps) }
         </div>
       </div>
+    );
+  }
+
+  renderAddDapp () {
+    const { own } = this.props;
+
+    if (!own) {
+      return null;
+    }
+
+    return (
+      <CreateDappCard />
     );
   }
 

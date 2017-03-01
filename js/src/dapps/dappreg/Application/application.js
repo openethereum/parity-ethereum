@@ -20,9 +20,6 @@ import { observer } from 'mobx-react';
 import DappsStore from '../dappsStore';
 
 import Dapps from '../Dapps';
-import ModalDelete from '../ModalDelete';
-import ModalRegister from '../ModalRegister';
-import ModalUpdate from '../ModalUpdate';
 import Warning from '../Warning';
 import styles from './application.css';
 
@@ -50,6 +47,7 @@ export default class Application extends Component {
         <div>
           <Dapps
             dapps={ ownDapps }
+            own
             title='My Dapps'
           />
           <Dapps
@@ -63,9 +61,6 @@ export default class Application extends Component {
         </div>
 
         <Warning />
-        <ModalDelete />
-        <ModalRegister />
-        <ModalUpdate />
       </div>
     );
   }
