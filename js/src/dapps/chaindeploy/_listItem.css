@@ -20,21 +20,29 @@
   flex-direction: column;
   flex-wrap: nowrap;
   margin: 1em;
+  position: relative;
 
   .header,
   .details {
+    line-height: 1.5em;
+    position: relative;
     white-space: nowrap;
 
     .icon {
+      border-radius: 0.75em;
+      display: inline-block;
+      height: 1,5em;
       margin-right: 0.5em;
+      text-align: center;
+      vertical-align: middle;
+      width: 1.5em;
     }
 
     .title {
       display: inline-block;
-      line-height: 24px;
       overflow: hidden;
-      vertical-align: top;
       text-overflow: ellipsis;
+      vertical-align: top;
     }
   }
 
@@ -44,5 +52,17 @@
 
   .muted {
     opacity: 0.25;
+  }
+
+  .status {
+    background: #f80;
+    border-radius: 0.25em;
+    color: white;
+    line-height: 1em;
+    opacity: 0.9;
+    padding: 0.5em;
+    position: absolute;
+    left: 2em;
+    top: 0;
   }
 }

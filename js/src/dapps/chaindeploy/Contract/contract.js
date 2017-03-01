@@ -15,9 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import BusyIcon from 'material-ui/svg-icons/action/schedule';
-import DoneIcon from 'material-ui/svg-icons/action/done';
-import UnknownIcon from 'material-ui/svg-icons/action/help-outline';
 
 import styles from './contract.css';
 
@@ -42,15 +39,17 @@ export default class Contract extends Component {
         }
       >
         <div className={ styles.header }>
-          {
-            contract.address
-              ? <DoneIcon className={ styles.icon } />
-              : (
-                contract.isDeploying
-                  ? <BusyIcon className={ styles.icon } />
-                  : <UnknownIcon className={ styles.icon } />
-                )
-          }
+          <div className={ styles.icon }>
+            {
+              contract.address
+                ? '\u2714'
+                : (
+                  contract.isDeploying
+                    ? '\u29d6'
+                    : '\u2716'
+                  )
+            }
+          </div>
           <div className={ styles.title }>
             { contract.id } was {
               contract.address
@@ -68,11 +67,17 @@ export default class Contract extends Component {
                 : styles.muted
             ].join(' ') }
         >
-          {
-            contract.isOnChain
-              ? <DoneIcon className={ styles.icon } />
-              : <UnknownIcon className={ styles.icon } />
-          }
+          <div className={ styles.icon }>
+            {
+              contract.isOnChain
+                ? '\u2714'
+                : (
+                  contract.isDeploying
+                    ? '\u29d6'
+                    : '\u2716'
+                  )
+            }
+          </div>
           <div className={ styles.title }>
             {
               contract.isOnChain
@@ -81,6 +86,21 @@ export default class Contract extends Component {
             }
           </div>
         </div>
+        { this.renderStatus() }
+      </div>
+    );
+  }
+
+  renderStatus () {
+    const { contract } = this.props;
+
+    if (!contract.status) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.status }>
+        { contract.status }
       </div>
     );
   }

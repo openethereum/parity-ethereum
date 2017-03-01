@@ -96,14 +96,18 @@ export default class ContractsStore {
       this.registry = Object.assign({}, this.registry, {
         address,
         instance: api.newContract(registry.abi, address).instance,
-        isDeploying: false,
         isOnChain
       });
     }
   }
 
   @action setRegistryDeploying = (isDeploying = false) => {
-    this.registry = Object.assign({}, this.registry, { isDeploying });
+    this.registry = Object.assign({}, this.registry, {
+      isDeploying,
+      status: isDeploying
+        ? 'Deploying contract'
+        : null
+    });
   }
 
   @action setContractAddress = (contract, address, isOnChain = false) => {
@@ -112,15 +116,30 @@ export default class ContractsStore {
 
       contract.address = address;
       contract.instance = api.newContract(contract.abi, address).instance;
-      contract.isDeploying = false;
       contract.isOnChain = isOnChain;
+
+      this.refreshContracts();
     }
   }
 
   @action setContractDeploying = (contract, isDeploying = false) => {
     contract.isDeploying = isDeploying;
+    contract.status = isDeploying
+      ? 'Deploying contract'
+      : null;
 
     this.refreshContracts();
+  }
+
+  @action setContractStatus = (contract, status) => {
+    contract.status = status;
+
+    this.refreshContracts();
+  }
+
+  @action setBuiltinDeploying = (builtin, isDeploying = false) => {
+    builtin.isDeploying = isDeploying;
+    builtin.status = null;
   }
 
   @action setBuiltinFound = (builtin, isOnChain = false) => {
@@ -128,6 +147,8 @@ export default class ContractsStore {
       console.log(`${builtin.name} found on dappreg`);
 
       builtin.isOnChain = isOnChain;
+
+      this.refreshBuiltins();
     }
   }
 
@@ -136,6 +157,8 @@ export default class ContractsStore {
       console.log(`${builtin.name} has imageHash ${imageHash}`);
 
       builtin.imageHash = imageHash;
+
+      this.refreshBuiltins();
     }
   }
 
@@ -144,7 +167,15 @@ export default class ContractsStore {
       console.log(`${builtin.name} has imageUrl ${imageUrl}`);
 
       builtin.imageUrl = imageUrl;
+
+      this.refreshBuiltins();
     }
+  }
+
+  @action setBuiltinStatus = (builtin, status) => {
+    builtin.status = status;
+
+    this.refreshBuiltins();
   }
 
   deployApp = (app) => {
@@ -189,7 +220,7 @@ export default class ContractsStore {
         return this.registerAddress(contract, defaultAccount);
       })
       .then(() => {
-        this.refreshContracts();
+        this.setContractDeploying(contract, false);
       });
   }
 
@@ -205,6 +236,7 @@ export default class ContractsStore {
     return this
       ._deployContract(this.registry)
       .then(([address]) => {
+        this.setRegistryDeploying(false);
         this.setRegistryAddress(address);
       });
   }
@@ -212,6 +244,8 @@ export default class ContractsStore {
   registerAddress = (contract, fromAddress) => {
     const options = { from: fromAddress };
     const values = [api.util.sha3(contract.id)];
+
+    this.setContractStatus(contract, 'Reserving name');
 
     return this.registry.instance
       .fee.call({}, [])
@@ -241,6 +275,8 @@ export default class ContractsStore {
 
         delete options.gas;
         delete options.value;
+
+        this.setContractStatus(contract, 'Setting lookup address');
 
         return this.registry.instance.setAddress.estimateGas(options, values);
       })
@@ -327,8 +363,6 @@ export default class ContractsStore {
             this.setBuiltinImageUrl(this.builtins[index], imageUrl);
           }
         });
-
-        this.refreshBuiltins();
       });
   }
 
@@ -346,14 +380,11 @@ export default class ContractsStore {
         })
       )
       .then((addresses) => {
-        console.log(addresses);
         addresses.forEach((address, index) => {
           if (isValidNumber(address)) {
             this.setContractAddress(this.contracts[index], address, true);
           }
         });
-
-        this.refreshContracts();
       });
   }
 

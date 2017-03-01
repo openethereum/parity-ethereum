@@ -15,8 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import DoneIcon from 'material-ui/svg-icons/action/done';
-import UnknownIcon from 'material-ui/svg-icons/action/help-outline';
 
 import styles from './dapp.css';
 
@@ -41,11 +39,17 @@ export default class Dapp extends Component {
         }
       >
         <div className={ styles.header }>
-          {
-            dapp.isOnChain
-              ? <DoneIcon className={ styles.icon } />
-              : <UnknownIcon className={ styles.icon } />
-          }
+          <div className={ styles.icon }>
+            {
+              dapp.isOnChain
+                ? '\u2714'
+                : (
+                  dapp.isDeploying
+                    ? '\u29d6'
+                    : '\u2716'
+                  )
+            }
+          </div>
           <div className={ styles.title }>
             { dapp.name } was {
               dapp.isOnChain
@@ -63,11 +67,17 @@ export default class Dapp extends Component {
                 : styles.muted
             ].join(' ') }
         >
-          {
-            dapp.imageHash
-              ? <DoneIcon className={ styles.icon } />
-              : <UnknownIcon className={ styles.icon } />
-          }
+          <div className={ styles.icon }>
+            {
+              dapp.imageHash
+                ? '\u2714'
+                : (
+                  dapp.isDeploying
+                    ? '\u29d6'
+                    : '\u2716'
+                  )
+            }
+          </div>
           <div className={ styles.title }>
             {
               dapp.imageHash
@@ -85,11 +95,17 @@ export default class Dapp extends Component {
                 : styles.muted
             ].join(' ') }
         >
-          {
-            dapp.imageUrl
-              ? <DoneIcon className={ styles.icon } />
-              : <UnknownIcon className={ styles.icon } />
-          }
+          <div className={ styles.icon }>
+            {
+              dapp.imageUrl
+                ? '\u2714'
+                : (
+                  dapp.isDeploying
+                    ? '\u29d6'
+                    : '\u2716'
+                  )
+            }
+          </div>
           <div className={ styles.title }>
             {
               dapp.imageUrl
