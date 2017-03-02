@@ -115,7 +115,7 @@ impl Configuration {
 		let fat_db = self.args.flag_fat_db.parse()?;
 		let compaction = self.args.flag_db_compaction.parse()?;
 		let wal = !self.args.flag_fast_and_loose;
-		let warp_sync = self.args.flag_warp;
+		let warp_sync = !self.args.flag_no_warp;
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let dapps_conf = self.dapps_config();
@@ -1144,7 +1144,7 @@ mod tests {
 			ipc_conf: Default::default(),
 			net_conf: default_network_config(),
 			network_id: None,
-			warp_sync: false,
+			warp_sync: true,
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),

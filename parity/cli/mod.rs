@@ -119,8 +119,10 @@ usage! {
 		flag_ui_no_validation: bool = false, or |_| None,
 
 		// -- Networking Options
-		flag_warp: bool = false,
+		flag_warp: bool = true,
 			or |c: &Config| otry!(c.network).warp.clone(),
+		flag_no_warp: bool = false,
+			or |c: &Config| otry!(c.network).warp.clone().map(|w| !w),
 		flag_port: u16 = 30303u16,
 			or |c: &Config| otry!(c.network).port.clone(),
 		flag_min_peers: u16 = 25u16,
@@ -639,7 +641,7 @@ mod tests {
 			flag_ui_no_validation: false,
 
 			// -- Networking Options
-			flag_warp: true,
+			flag_no_warp: false,
 			flag_port: 30303u16,
 			flag_min_peers: 25u16,
 			flag_max_peers: 50u16,
@@ -780,6 +782,7 @@ mod tests {
 			flag_etherbase: None,
 			flag_extradata: None,
 			flag_cache: None,
+			flag_warp: true,
 
 			// -- Miscellaneous Options
 			flag_version: false,
