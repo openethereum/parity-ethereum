@@ -38,52 +38,82 @@ export default class Contract extends Component {
           ].join(' ')
         }
       >
-        <div className={ styles.header }>
-          <div className={ styles.icon }>
-            {
-              contract.address
-                ? '\u2714'
-                : (
-                  contract.isDeploying
-                    ? '\u29d6'
-                    : '\u2716'
-                  )
-            }
+        <div className={ styles.body }>
+          <div className={ styles.header }>
+            <div className={ styles.icon }>
+              {
+                contract.instance
+                  ? '\u2714'
+                  : (
+                    contract.isDeploying
+                      ? '\u29d6'
+                      : '\u2716'
+                    )
+              }
+            </div>
+            <div className={ styles.title }>
+              { contract.id } was {
+                contract.address
+                  ? 'deployed'
+                  : 'not found'
+              }
+            </div>
           </div>
-          <div className={ styles.title }>
-            { contract.id } was {
-              contract.address
-                ? `deployed at ${contract.address}`
-                : 'not found'
-            }
+          <div
+            className={
+              [
+                styles.details,
+                contract.address
+                  ? ''
+                  : styles.muted
+              ].join(' ') }
+          >
+            <div className={ styles.icon }>
+              {
+                contract.address
+                  ? '\u2714'
+                  : (
+                    contract.isDeploying
+                      ? '\u29d6'
+                      : '\u2716'
+                    )
+              }
+            </div>
+            <div className={ styles.title }>
+              {
+                contract.address
+                  ? contract.address
+                  : 'no address'
+              }
+            </div>
           </div>
-        </div>
-        <div
-          className={
-            [
-              styles.details,
-              contract.address
-                ? ''
-                : styles.muted
-            ].join(' ') }
-        >
-          <div className={ styles.icon }>
-            {
-              contract.isOnChain
-                ? '\u2714'
-                : (
-                  contract.isDeploying
-                    ? '\u29d6'
-                    : '\u2716'
-                  )
-            }
-          </div>
-          <div className={ styles.title }>
-            {
-              contract.isOnChain
-                ? 'registered on chain'
-                : 'not registered on chain'
-            }
+          <div
+            className={
+              [
+                styles.details,
+                contract.address
+                  ? ''
+                  : styles.muted
+              ].join(' ') }
+          >
+            <div className={ styles.icon }>
+              {
+                contract.isOnChain
+                  ? '\u2714'
+                  : (
+                    contract.isDeploying
+                      ? '\u29d6'
+                      : '\u2716'
+                    )
+              }
+            </div>
+            <div className={ styles.title }>
+              {
+                contract.isOnChain
+                  ? 'registered on chain'
+                  : 'not registered on chain'
+              }
+            </div>
           </div>
         </div>
         { this.renderStatus() }

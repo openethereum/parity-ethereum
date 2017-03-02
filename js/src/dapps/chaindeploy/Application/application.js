@@ -77,21 +77,23 @@ export default class Application extends Component {
     return (
       <div className={ styles.section }>
         <h3>Contracts</h3>
-        <Contract
-          contract={ registry }
-          key='registry'
-        />
-        {
-          contracts.map((contract) => {
-            return (
-              <Contract
-                contract={ contract }
-                disabled={ !registry.address }
-                key={ contract.id }
-              />
-            );
-          })
-        }
+        <div className={ styles.list }>
+          <Contract
+            contract={ registry }
+            key='registry'
+          />
+          {
+            contracts.map((contract) => {
+              return (
+                <Contract
+                  contract={ contract }
+                  disabled={ !registry.address }
+                  key={ contract.id }
+                />
+              );
+            })
+          }
+        </div>
       </div>
     );
   }
@@ -103,17 +105,19 @@ export default class Application extends Component {
     return (
       <div className={ styles.section }>
         <h3>Applications</h3>
-        {
-          builtins.map((dapp) => {
-            return (
-              <Dapp
-                dapp={ dapp }
-                disabled={ isDisabled }
-                key={ dapp.id }
-              />
-            );
-          })
-        }
+        <div className={ styles.list }>
+          {
+            builtins.map((dapp) => {
+              return (
+                <Dapp
+                  dapp={ dapp }
+                  disabled={ isDisabled }
+                  key={ dapp.id }
+                />
+              );
+            })
+          }
+        </div>
       </div>
     );
   }

@@ -16,53 +16,66 @@
 */
 
 .listItem {
-  display: flex;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  margin: 1em;
+  box-sizing: border-box;
+  flex: 0 1 33.33%;
+  max-width: 33.33%;
+  padding: 0.5em;
   position: relative;
 
-  .header,
-  .details {
-    line-height: 1.5em;
-    position: relative;
-    white-space: nowrap;
+  .body {
+    background: rgba(0, 0, 0, 0.025);
+    border-radius: 0.25em;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    padding: 0.75em;
 
-    .icon {
-      border-radius: 0.75em;
-      display: inline-block;
-      height: 1,5em;
-      margin-right: 0.5em;
-      text-align: center;
-      vertical-align: middle;
-      width: 1.5em;
+    .header,
+    .details {
+      display: flex;
+      line-height: 1.5em;
+      position: relative;
+      white-space: nowrap;
+
+      .icon {
+        border-radius: 0.75em;
+        display: inline-block;
+        height: 1,5em;
+        margin-right: 0.5em;
+        text-align: center;
+        vertical-align: middle;
+        width: 1.5em;
+      }
+
+      .title {
+        display: inline-block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: top;
+      }
     }
 
-    .title {
-      display: inline-block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      vertical-align: top;
+    .details {
+      margin-left: 2em;
     }
-  }
 
-  .details {
-    margin-left: 2em;
-  }
-
-  .muted {
-    opacity: 0.25;
+    .muted {
+      opacity: 0.25;
+    }
   }
 
   .status {
     background: #f80;
     border-radius: 0.25em;
     color: white;
+    font-size: 0.75em;
     line-height: 1em;
     opacity: 0.9;
     padding: 0.5em;
     position: absolute;
-    left: 2em;
-    top: 0;
+    right: 1em;
+    top: 1em;
   }
 }

@@ -53,16 +53,19 @@
   }
 
   .section {
-    margin: 3em 1em;
+    margin: 0 1em 3em 1em;
 
     h3 {
       background: rgba(0, 0, 0, 0.025);
       border-radius: 0.25em;
       padding: 0.75em 1em;
+      margin-bottom: 0.5em;
     }
 
-    .muted {
-      opacity: 0.25;
+    .list {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
     }
   }
 }

@@ -38,80 +38,82 @@ export default class Dapp extends Component {
           ].join(' ')
         }
       >
-        <div className={ styles.header }>
-          <div className={ styles.icon }>
-            {
-              dapp.isOnChain
-                ? '\u2714'
-                : (
-                  dapp.isDeploying
-                    ? '\u29d6'
-                    : '\u2716'
-                  )
-            }
+        <div className={ styles.body }>
+          <div className={ styles.header }>
+            <div className={ styles.icon }>
+              {
+                dapp.isOnChain
+                  ? '\u2714'
+                  : (
+                    dapp.isDeploying
+                      ? '\u29d6'
+                      : '\u2716'
+                    )
+              }
+            </div>
+            <div className={ styles.title }>
+              { dapp.name } was {
+                dapp.isOnChain
+                  ? 'found in dappreg'
+                  : 'not found'
+              }
+            </div>
           </div>
-          <div className={ styles.title }>
-            { dapp.name } was {
-              dapp.isOnChain
-                ? 'found in dappreg'
-                : 'not found'
-            }
+          <div
+            className={
+              [
+                styles.details,
+                dapp.isOnChain
+                  ? ''
+                  : styles.muted
+              ].join(' ') }
+          >
+            <div className={ styles.icon }>
+              {
+                dapp.imageHash
+                  ? '\u2714'
+                  : (
+                    dapp.isDeploying
+                      ? '\u29d6'
+                      : '\u2716'
+                    )
+              }
+            </div>
+            <div className={ styles.title }>
+              {
+                dapp.imageHash
+                  ? `registered imageHash ${dapp.imageHash}`
+                  : 'has not registered an imageHash'
+              }
+            </div>
           </div>
-        </div>
-        <div
-          className={
-            [
-              styles.details,
-              dapp.isOnChain
-                ? ''
-                : styles.muted
-            ].join(' ') }
-        >
-          <div className={ styles.icon }>
-            {
-              dapp.imageHash
-                ? '\u2714'
-                : (
-                  dapp.isDeploying
-                    ? '\u29d6'
-                    : '\u2716'
-                  )
-            }
-          </div>
-          <div className={ styles.title }>
-            {
-              dapp.imageHash
-                ? `registered imageHash ${dapp.imageHash}`
-                : 'has not registered an imageHash'
-            }
-          </div>
-        </div>
-        <div
-          className={
-            [
-              styles.details,
-              dapp.imageHash
-                ? ''
-                : styles.muted
-            ].join(' ') }
-        >
-          <div className={ styles.icon }>
-            {
-              dapp.imageUrl
-                ? '\u2714'
-                : (
-                  dapp.isDeploying
-                    ? '\u29d6'
-                    : '\u2716'
-                  )
-            }
-          </div>
-          <div className={ styles.title }>
-            {
-              dapp.imageUrl
-                ? `resolving imageUrl ${dapp.imageUrl}`
-                : 'does not resolve imageUrl'
-            }
+          <div
+            className={
+              [
+                styles.details,
+                dapp.imageHash
+                  ? ''
+                  : styles.muted
+              ].join(' ') }
+          >
+            <div className={ styles.icon }>
+              {
+                dapp.imageUrl
+                  ? '\u2714'
+                  : (
+                    dapp.isDeploying
+                      ? '\u29d6'
+                      : '\u2716'
+                    )
+              }
+            </div>
+            <div className={ styles.title }>
+              {
+                dapp.imageUrl
+                  ? `resolving imageUrl ${dapp.imageUrl}`
+                  : 'does not resolve imageUrl'
+              }
+            </div>
           </div>
         </div>
       </div>
