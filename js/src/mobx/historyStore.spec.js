@@ -29,7 +29,7 @@ function create () {
   return store;
 }
 
-describe('views/HistoryStore', () => {
+describe('mobx/HistoryStore', () => {
   beforeEach(() => {
     create();
   });

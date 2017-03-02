@@ -18,11 +18,11 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
+import HistoryStore from '~/mobx/historyStore';
 import { Page } from '~/ui';
 
 import DappsStore from '../Dapps/dappsStore';
 import ExtensionStore from '../Application/Extension/store';
-import HistoryStore from '../historyStore';
 import WebStore from '../Web/store';
 
 import Accounts from './Accounts';

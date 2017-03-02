@@ -14,34 +14,42 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { uniq, isEqual, pickBy, omitBy } from 'lodash';
+import { observe } from 'mobx';
+import { observer } from 'mobx-react';
+import { uniq, isEqual, pickBy } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import { bindActionCreators } from 'redux';
 
-import List from './List';
+import HardwareStore from '~/mobx/hardwareStore';
 import { CreateAccount, CreateWallet } from '~/modals';
 import { Actionbar, ActionbarExport, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
 import { AddIcon, KeyIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
+import List from './List';
 import styles from './accounts.css';
 
+@observer
 class Accounts extends Component {
   static contextTypes = {
     api: PropTypes.object
   }
 
   static propTypes = {
-    setVisibleAccounts: PropTypes.func.isRequired,
     accounts: PropTypes.object.isRequired,
+    accountsInfo: PropTypes.object.isRequired,
+    balances: PropTypes.object,
     hasAccounts: PropTypes.bool.isRequired,
-    balances: PropTypes.object
+    setVisibleAccounts: PropTypes.func.isRequired
   }
 
+  hwstore = HardwareStore.get(this.context.api);
+
   state = {
+    _observeCancel: null,
     addressBook: false,
     newDialog: false,
     newWalletDialog: false,
@@ -58,6 +66,10 @@ class Accounts extends Component {
     }, 100);
 
     this.setVisibleAccounts();
+
+    this.setState({
+      _observeCancel: observe(this.hwstore, 'wallets', this.onHardwareChange, true)
+    });
   }
 
   componentWillReceiveProps (nextProps) {
@@ -71,13 +83,13 @@ class Accounts extends Component {
 
   componentWillUnmount () {
     this.props.setVisibleAccounts([]);
+    this.state._observeCancel();
   }
 
   setVisibleAccounts (props = this.props) {
     const { accounts, setVisibleAccounts } = props;
-    const addresses = Object.keys(accounts);
 
-    setVisibleAccounts(addresses);
+    setVisibleAccounts(Object.keys(accounts));
   }
 
   render () {
@@ -98,6 +110,7 @@ class Accounts extends Component {
             }
           />
 
+          { this.renderHwWallets() }
           { this.renderWallets() }
           { this.renderAccounts() }
         </Page>
@@ -121,8 +134,7 @@ class Accounts extends Component {
 
   renderAccounts () {
     const { accounts, balances } = this.props;
-
-    const _accounts = omitBy(accounts, (a) => a.wallet);
+    const _accounts = pickBy(accounts, (account) => account.uuid);
     const _hasAccounts = Object.keys(_accounts).length > 0;
 
     if (!this.state.show) {
@@ -145,9 +157,12 @@ class Accounts extends Component {
 
   renderWallets () {
     const { accounts, balances } = this.props;
-
-    const wallets = pickBy(accounts, (a) => a.wallet);
+    const wallets = pickBy(accounts, (account) => account.wallet);
     const hasWallets = Object.keys(wallets).length > 0;
+
+    if (!hasWallets) {
+      return null;
+    }
 
     if (!this.state.show) {
       return this.renderLoading(wallets);
@@ -155,17 +170,47 @@ class Accounts extends Component {
 
     const { searchValues, sortOrder } = this.state;
 
-    if (!wallets || Object.keys(wallets).length === 0) {
-      return null;
-    }
-
     return (
       <List
         link='wallet'
         search={ searchValues }
         accounts={ wallets }
         balances={ balances }
-        empty={ !hasWallets }
+        order={ sortOrder }
+        handleAddSearchToken={ this.onAddSearchToken }
+      />
+    );
+  }
+
+  renderHwWallets () {
+    const { accounts, balances } = this.props;
+    const { wallets } = this.hwstore;
+    const hardware = pickBy(accounts, (account) => account.hardware);
+    const hasHardware = Object.keys(hardware).length > 0;
+
+    if (!hasHardware) {
+      return null;
+    }
+
+    if (!this.state.show) {
+      return this.renderLoading(hardware);
+    }
+
+    const { searchValues, sortOrder } = this.state;
+    const disabled = Object
+      .keys(hardware)
+      .filter((address) => !wallets[address])
+      .reduce((result, address) => {
+        result[address] = true;
+        return result;
+      }, {});
+
+    return (
+      <List
+        search={ searchValues }
+        accounts={ hardware }
+        balances={ balances }
+        disabled={ disabled }
         order={ sortOrder }
         handleAddSearchToken={ this.onAddSearchToken }
       />
@@ -342,16 +387,29 @@ class Accounts extends Component {
 
   onNewAccountUpdate = () => {
   }
+
+  onHardwareChange = () => {
+    const { accountsInfo } = this.props;
+    const { wallets } = this.hwstore;
+
+    Object
+      .keys(wallets)
+      .filter((address) => !accountsInfo[address])
+      .forEach((address) => this.hwstore.createAccountInfo(wallets[address]));
+
+    this.setVisibleAccounts();
+  }
 }
 
 function mapStateToProps (state) {
-  const { accounts, hasAccounts } = state.personal;
+  const { accounts, accountsInfo, hasAccounts } = state.personal;
   const { balances } = state.balances;
 
   return {
-    accounts: accounts,
-    hasAccounts: hasAccounts,
-    balances
+    accounts,
+    accountsInfo,
+    balances,
+    hasAccounts
   };
 }
 
