@@ -150,15 +150,20 @@ class DeployContract extends Component {
 
     const title = realSteps
       ? null
-      : (deployError
-          ? <FormattedMessage
-            id='deployContract.title.failed'
-            defaultMessage='deployment failed'
+      : (
+        deployError
+          ? (
+            <FormattedMessage
+              id='deployContract.title.failed'
+              defaultMessage='deployment failed'
             />
-          : <FormattedMessage
-            id='deployContract.title.rejected'
-            defaultMessage='rejected'
+          )
+          : (
+            <FormattedMessage
+              id='deployContract.title.rejected'
+              defaultMessage='rejected'
             />
+          )
       );
 
     const waiting = realSteps
@@ -195,9 +200,7 @@ class DeployContract extends Component {
     }
 
     return (
-      <Warning
-        warning={ errorEstimated }
-      />
+      <Warning warning={ errorEstimated } />
     );
   }
 
