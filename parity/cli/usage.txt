@@ -97,7 +97,7 @@ UI Options:
                                  development. (default: {flag_ui_no_validation})
 
 Networking Options:
-  --warp                         Enable syncing from the snapshot over the network. (default: {flag_warp})
+  --no-warp                      Disable syncing from the snapshot over the network. (default: {flag_no_warp})
   --port PORT                    Override the port on which the node should listen
                                  (default: {flag_port}).
   --min-peers NUM                Try to maintain at least NUM peers (default: {flag_min_peers}).
@@ -386,6 +386,7 @@ Legacy Options:
   -w --webapp                    Does nothing; dapps server is on by default now.
   --dapps-off                    Equivalent to --no-dapps.
   --rpc                          Does nothing; JSON-RPC is on by default now.
+  --warp                         Does nothing; Warp sync is on by default. (default: {flag_warp})
   --rpcaddr IP                   Equivalent to --jsonrpc-interface IP.
   --rpcport PORT                 Equivalent to --jsonrpc-port PORT.
   --rpcapi APIS                  Equivalent to --jsonrpc-apis APIS.
