@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { FormattedMessage } from 'react-intl';
 import { sortBy, find, extend } from 'lodash';
 
 import IconButton from 'material-ui/IconButton';
@@ -58,7 +59,12 @@ export default class CallsToolbar extends Component {
           <IconButton
             className={ styles.callAction }
             onTouchTap={ this.setCall }
-            tooltip='Set'
+            tooltip={
+              <FormattedMessage
+                id='status.callsToolbar.tooltip.set'
+                defaultMessage='Set'
+              />
+            }
             tooltipPosition='top-left'
             { ...this._test('button-setCall') }
           >
@@ -67,7 +73,12 @@ export default class CallsToolbar extends Component {
           <IconButton
             className={ styles.callAction }
             onTouchTap={ this.makeCall }
-            tooltip='Fire again'
+            tooltip={
+              <FormattedMessage
+                id='status.callsToolbar.tooltip.fireAgain'
+                defaultMessage='Fire again'
+              />
+            }
             tooltipPosition='top-left'
             { ...this._test('button-makeCall') }
           >
@@ -79,7 +90,12 @@ export default class CallsToolbar extends Component {
           >
             <IconButton
               className={ styles.callAction }
-              tooltip='Copy to clipboard'
+              tooltip={
+                <FormattedMessage
+                  id='status.callsToolbar.tooltip.copy'
+                  defaultMessage='Copy to clipboard'
+                />
+              }
               tooltipPosition='top-left'
               { ...this._test('copyCallToClipboard') }
             >
@@ -112,7 +128,12 @@ export default class CallsToolbar extends Component {
   }
 
   copyToClipboard = () => {
-    this.props.actions.copyToClipboard('method copied to clipboard');
+    this.props.actions.copyToClipboard(
+      <FormattedMessage
+        id='status.callsToolbar.copied'
+        defaultMessage='method copied to clipboard'
+      />
+    );
   }
 
   hasScrollbar (el) {

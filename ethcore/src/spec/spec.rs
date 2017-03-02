@@ -24,7 +24,7 @@ use executive::Executive;
 use trace::{NoopTracer, NoopVMTracer};
 use action_params::{ActionValue, ActionParams};
 use types::executed::CallType;
-use state::{State, Substate};
+use state::{Backend, State, Substate};
 use env_info::EnvInfo;
 use pod_state::*;
 use account_db::*;
@@ -160,7 +160,7 @@ impl Spec {
 	fn engine(engine_spec: ethjson::spec::Engine, params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Engine> {
 		match engine_spec {
 			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
-			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
+			ethjson::spec::Engine::InstantSeal(instant) => Arc::new(InstantSeal::new(params, instant.params.registrar.map_or_else(Address::new, Into::into), builtins)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),
@@ -389,6 +389,6 @@ mod tests {
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let state = State::from_existing(db.boxed_clone(), spec.state_root(), spec.engine.account_start_nonce(), Default::default()).unwrap();
 		let expected = H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
-		assert_eq!(state.storage_at(&Address::from_str("0000000000000000000000000000000000000005").unwrap(), &H256::zero()), expected);
+		assert_eq!(state.storage_at(&Address::from_str("0000000000000000000000000000000000000005").unwrap(), &H256::zero()).unwrap(), expected);
 	}
 }

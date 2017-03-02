@@ -16,6 +16,7 @@
 
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
 import HardwareStore from '~/mobx/hardwareStore';
@@ -141,7 +142,12 @@ class TransactionPending extends Component {
       <div className={ `${styles.container} ${className}` }>
         <GasPriceEditor store={ this.gasStore }>
           <Button
-            label='view transaction'
+            label={
+              <FormattedMessage
+                id='signer.txPending.buttons.viewToggle'
+                defaultMessage='view transaction'
+              />
+            }
             onClick={ this.toggleGasEditor }
           />
         </GasPriceEditor>

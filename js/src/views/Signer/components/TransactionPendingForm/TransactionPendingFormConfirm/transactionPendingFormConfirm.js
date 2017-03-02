@@ -124,13 +124,13 @@ export default class TransactionPendingFormConfirm extends Component {
                 isSending
                   ? (
                     <FormattedMessage
-                      id='signer.pending.button.confirmBusy'
+                      id='signer.txPendingConfirm.buttons.confirmBusy'
                       defaultMessage='Confirming...'
                     />
                   )
                   : (
                     <FormattedMessage
-                      id='signer.pending.button.confirm'
+                      id='signer.txPendingConfirm.buttons.confirmRequest'
                       defaultMessage='Confirm Request'
                     />
                   )
@@ -159,13 +159,13 @@ export default class TransactionPendingFormConfirm extends Component {
           account.uuid
             ? (
               <FormattedMessage
-                id='signer.pending.password.unlock.hint'
+                id='signer.txPendingConfirm.password.unlock.hint'
                 defaultMessage='unlock the account'
               />
             )
             : (
               <FormattedMessage
-                id='signer.pending.password.decrypt.hint'
+                id='signer.txPendingConfirm.password.decrypt.hint'
                 defaultMessage='decrypt the key'
               />
             )
@@ -174,13 +174,13 @@ export default class TransactionPendingFormConfirm extends Component {
           account.uuid
             ? (
               <FormattedMessage
-                id='signer.pending.password.unlock.label'
+                id='signer.txPendingConfirm.password.unlock.label'
                 defaultMessage='Account Password'
               />
             )
             : (
               <FormattedMessage
-                id='signer.pending.password.decrypt.label'
+                id='signer.txPendingConfirm.password.decrypt.label'
                 defaultMessage='Key Password'
               />
             )
@@ -228,7 +228,7 @@ export default class TransactionPendingFormConfirm extends Component {
     return (
       <div className={ styles.passwordHint }>
         <FormattedMessage
-          id='signer.pending.passwordHint'
+          id='signer.txPendingConfirm.passwordHint'
           defaultMessage='(hint) {passwordHint}'
           values={ {
             passwordHint
@@ -252,13 +252,13 @@ export default class TransactionPendingFormConfirm extends Component {
         error={ walletError }
         hint={
           <FormattedMessage
-            id='signer.pending.selectKey.hint'
+            id='signer.txPendingConfirm.selectKey.hint'
             defaultMessage='The keyfile to use for this account'
           />
         }
         label={
           <FormattedMessage
-            id='signer.pending.selectKey.label'
+            id='signer.txPendingConfirm.selectKey.label'
             defaultMessage='Select Local Key'
           />
         }
@@ -278,7 +278,7 @@ export default class TransactionPendingFormConfirm extends Component {
     return (
       <ReactTooltip id={ `transactionConfirmForm${this.id}` }>
         <FormattedMessage
-          id='signer.pending.password.tooltip'
+          id='signer.txPendingConfirm.tooltips.password'
           defaultMessage='Please provide a password for this account'
         />
       </ReactTooltip>
@@ -315,7 +315,7 @@ export default class TransactionPendingFormConfirm extends Component {
           wallet: null,
           walletError: (
             <FormattedMessage
-              id='signer.pending.error.walletInvalid'
+              id='signer.txPendingConfirm.errors.invalidWallet'
               defaultMessage='Given wallet file is invalid.'
             />
           )

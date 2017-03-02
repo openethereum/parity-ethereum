@@ -176,10 +176,15 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 			None => { return Ok(None); }
 		};
 
+		let size = client.block(BlockId::Hash(uncle.hash()))
+			.map(|block| block.into_inner().len())
+			.map(U256::from)
+			.map(Into::into);
+
 		let block = RichBlock {
 			block: Block {
 				hash: Some(uncle.hash().into()),
-				size: None,
+				size: size,
 				parent_hash: uncle.parent_hash().clone().into(),
 				uncles_hash: uncle.uncles_hash().clone().into(),
 				author: uncle.author().clone().into(),
@@ -349,7 +354,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let address = address.into();
 
 		let res = match num.0.clone() {
-			BlockNumber::Pending => Ok(take_weakf!(self.miner).balance(&*take_weakf!(self.client), &address).into()),
+			BlockNumber::Pending => {
+				let client = take_weakf!(self.client);
+				match take_weakf!(self.miner).balance(&*client, &address) {
+					Some(balance) => Ok(balance.into()),
+					None => Err(errors::internal("Unable to load balance from database", ""))
+				}
+			}
 			id => {
 				let client = take_weakf!(self.client);
 
@@ -369,7 +380,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let position: U256 = RpcU256::into(pos);
 
 		let res = match num.0.clone() {
-			BlockNumber::Pending => Ok(take_weakf!(self.miner).storage_at(&*take_weakf!(self.client), &address, &H256::from(position)).into()),
+			BlockNumber::Pending => {
+				let client = take_weakf!(self.client);
+				match take_weakf!(self.miner).storage_at(&*client, &address, &H256::from(position)) {
+					Some(s) => Ok(s.into()),
+					None => Err(errors::internal("Unable to load storage from database", ""))
+				}
+			}
 			id => {
 				let client = take_weakf!(self.client);
 
@@ -387,7 +404,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let address: Address = RpcH160::into(address);
 		let res = match num.0.clone() {
-			BlockNumber::Pending => Ok(take_weakf!(self.miner).nonce(&*take_weakf!(self.client), &address).into()),
+			BlockNumber::Pending => {
+				let client = take_weakf!(self.client);
+				match take_weakf!(self.miner).nonce(&*client, &address) {
+					Some(nonce) => Ok(nonce.into()),
+					None => Err(errors::internal("Unable to load nonce from database", ""))
+				}
+			}
 			id => {
 				let client = take_weakf!(self.client);
 
@@ -437,7 +460,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let address: Address = RpcH160::into(address);
 
 		let res = match num.0.clone() {
-			BlockNumber::Pending => Ok(take_weakf!(self.miner).code(&*take_weakf!(self.client), &address).map_or_else(Bytes::default, Bytes::new)),
+			BlockNumber::Pending => {
+				let client = take_weakf!(self.client);
+				match take_weakf!(self.miner).code(&*client, &address) {
+					Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
+					None => Err(errors::internal("Unable to load code from database", ""))
+				}
+			}
 			id => {
 				let client = take_weakf!(self.client);
 

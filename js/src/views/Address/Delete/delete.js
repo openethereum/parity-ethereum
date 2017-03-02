@@ -53,7 +53,7 @@ class Delete extends Component {
         className={ styles.delete }
         title={
           <FormattedMessage
-            id='deleteAddress.title'
+            id='address.delete.title'
             defaultMessage='confirm removal'
           />
         }
@@ -65,7 +65,7 @@ class Delete extends Component {
           {
             confirmMessage || (
               <FormattedMessage
-                id='deleteAddress.confirm'
+                id='address.delete.confirmInfo'
                 defaultMessage='Are you sure you want to remove the following address from your addressbook?'
               />
             )

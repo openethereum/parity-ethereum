@@ -23,13 +23,37 @@
 .account {
   position: relative;
 
+  .addressline {
+    display: flex;
+    white-space: nowrap;
+
+    .address {
+      display: inline-block;
+      flex: 1;
+      margin-left: 0.5em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
   .blockDescription {
     color: rgba(255, 255, 255, 0.25);
     margin-top: 1.5em;
   }
 
-  .ethBalances {
-    opacity: 1;
+  .summary {
+    position: relative;
+
+    .ethBalances {
+      opacity: 1;
+    }
+
+    .iconCertifications {
+      bottom: -0.25em;
+      opacity: 1;
+      position: absolute;
+      right: 0;
+    }
   }
 
   .owners {
@@ -56,6 +80,10 @@
 
   &:hover {
     .ethBalances {
+      opacity: 0;
+    }
+
+    .iconCertifications {
       opacity: 0;
     }
   }
@@ -95,10 +123,12 @@
 .heading {
   display: flex;
   flex-direction: row;
+  overflow: hidden;
 
   .main,
   .mainLink {
     flex: 1;
+    overflow: hidden;
   }
 
   .mainLink h3 {

@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import AutoComplete from 'material-ui/AutoComplete';
 
 import styles from './EditableValue.css';
@@ -133,10 +134,18 @@ export default class EditableValue extends Component {
 
     return (
       <a
-        key={ 'reset' }
+        key='reset'
         className={ `${styles.icon} ${styles.firstIcon}` }
         onClick={ this.onResetToDefault }
-        title={ `Reset to ${this.props.defaultValue}` }
+        title={
+          <FormattedMessage
+            id='status.editableValue.reset'
+            defaultMessage='Reset to {defaultVaule}'
+            values={ {
+              defaultVaule: this.props.defaultValue
+            } }
+          />
+        }
         { ...this._testInherit('reset') }
       >
         <i className='icon-anchor' />
@@ -148,7 +157,7 @@ export default class EditableValue extends Component {
     if (this.state.inEditMode) {
       return [
         <a
-          key={ 'submit' }
+          key='submit'
           className={ styles.iconSuccess }
           onClick={ this.onSubmit }
           { ...this._testInherit('submit') }
@@ -156,7 +165,7 @@ export default class EditableValue extends Component {
           <i className='icon-check' />
         </a>,
         <a
-          key={ 'cancel' }
+          key='cancel'
           className={ styles.icon }
           onClick={ this.onCancel }
           { ...this._testInherit('cancel') }
@@ -168,10 +177,15 @@ export default class EditableValue extends Component {
 
     return (
       <a
-        key={ 'edit' }
+        key='edit'
         className={ styles.icon }
         onClick={ this.onOpenEdit }
-        title='Edit'
+        title={
+          <FormattedMessage
+            id='status.editableValue.edit'
+            defaultMessage='Edit'
+          />
+        }
         { ...this._testInherit('edit') }
       >
         <i className='icon-pencil' />

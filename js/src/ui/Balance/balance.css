@@ -28,6 +28,7 @@
 }
 
 .empty {
+  min-height: 24px;
   line-height: 24px;
   opacity: 0.25;
   overflow: hidden;

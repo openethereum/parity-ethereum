@@ -16,6 +16,7 @@
 
 export AddressSelect from './AddressSelect';
 export DappUrlInput from './DappUrlInput';
+export FileSelect from './FileSelect';
 export FormWrap from './FormWrap';
 export Input from './Input';
 export InputAddress from './InputAddress';

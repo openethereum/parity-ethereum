@@ -69,6 +69,7 @@ export default class Header extends Component {
                 { address }
               </div>
             </div>
+            { this.renderVault() }
             { this.renderUuid() }
             <div className={ styles.infoline }>
               { meta.description }
@@ -155,6 +156,27 @@ export default class Header extends Component {
             uuid
           } }
         />
+      </div>
+    );
+  }
+
+  renderVault () {
+    const { account } = this.props;
+    const { meta } = account;
+
+    if (!meta || !meta.vault) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.vault }>
+        <IdentityIcon
+          address={ meta.vault }
+          inline
+        />
+        <div className={ styles.text }>
+          { meta.vault }
+        </div>
       </div>
     );
   }

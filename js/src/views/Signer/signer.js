@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { Actionbar } from '~/ui';
 import RequestsPage from './containers/RequestsPage';
@@ -23,7 +24,14 @@ export default class Signer extends Component {
   render () {
     return (
       <div>
-        <Actionbar title='Trusted Signer' />
+        <Actionbar
+          title={
+            <FormattedMessage
+              id='signer.title'
+              defaultMessage='Trusted Signer'
+            />
+          }
+        />
         <RequestsPage />
       </div>
     );

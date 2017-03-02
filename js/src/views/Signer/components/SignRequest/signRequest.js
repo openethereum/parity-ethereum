@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { observer } from 'mobx-react';
 
 import Account from '../Account';
@@ -91,9 +92,16 @@ export default class SignRequest extends Component {
   }
 
   renderBinaryDetails (data) {
-    return (<div className={ styles.signData }>
-      <p>(Unknown binary data)</p>
-    </div>);
+    return (
+      <div className={ styles.signData }>
+        <p>
+          <FormattedMessage
+            id='signer.signRequest.unknownBinary'
+            defaultMessage='(Unknown binary data)'
+          />
+        </p>
+      </div>
+    );
   }
 
   renderDetails () {
@@ -119,13 +127,25 @@ export default class SignRequest extends Component {
           <RequestOrigin origin={ origin } />
         </div>
         <div className={ styles.info } title={ api.util.sha3(data) }>
-          <p>A request to sign data using your account:</p>
+          <p>
+            <FormattedMessage
+              id='signer.signRequest.request'
+              defaultMessage='A request to sign data using your account:'
+            />
+          </p>
           {
             isAscii(data)
               ? this.renderAsciiDetails(api.util.hexToAscii(data))
               : this.renderBinaryDetails(data)
           }
-          <p><strong>WARNING: This consequences of doing this may be grave. Confirm the request only if you are sure.</strong></p>
+          <p>
+            <strong>
+              <FormattedMessage
+                id='signer.signRequest.warning'
+                defaultMessage='WARNING: This consequences of doing this may be grave. Confirm the request only if you are sure.'
+              />
+            </strong>
+          </p>
         </div>
       </div>
     );
@@ -138,14 +158,24 @@ export default class SignRequest extends Component {
       if (status === 'confirmed') {
         return (
           <div className={ styles.actions }>
-            <span className={ styles.isConfirmed }>Confirmed</span>
+            <span className={ styles.isConfirmed }>
+              <FormattedMessage
+                id='signer.signRequest.state.confirmed'
+                defaultMessage='Confirmed'
+              />
+            </span>
           </div>
         );
       }
 
       return (
         <div className={ styles.actions }>
-          <span className={ styles.isRejected }>Rejected</span>
+          <span className={ styles.isRejected }>
+            <FormattedMessage
+              id='signer.signRequest.state.rejected'
+              defaultMessage='Rejected'
+            />
+          </span>
         </div>
       );
     }

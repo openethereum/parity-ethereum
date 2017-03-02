@@ -15,12 +15,20 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { uniq } from 'lodash';
 
 import { Container, Loading } from '~/ui';
 
 import Event from './Event';
 import styles from '../contract.css';
+
+const TITLE = (
+  <FormattedMessage
+    id='contract.events.title'
+    defaultMessage='events'
+  />
+);
 
 export default class Events extends Component {
   static contextTypes = {
@@ -43,7 +51,7 @@ export default class Events extends Component {
 
     if (isLoading) {
       return (
-        <Container title='events'>
+        <Container title={ TITLE }>
           <div>
             <Loading size={ 2 } />
           </div>
@@ -53,8 +61,13 @@ export default class Events extends Component {
 
     if (!events || !events.length) {
       return (
-        <Container title='events'>
-          <p>No events has been sent from this contract.</p>
+        <Container title={ TITLE }>
+          <p>
+            <FormattedMessage
+              id='contract.events.noEvents'
+              defaultMessage='No events has been sent from this contract.'
+            />
+          </p>
         </Container>
       );
     }
@@ -73,7 +86,7 @@ export default class Events extends Component {
     });
 
     return (
-      <Container title='events'>
+      <Container title={ TITLE }>
         <table className={ styles.events }>
           <thead>
             <tr>

@@ -91,9 +91,13 @@ export default class Store {
       this.password = '';
       this.passwordRepeat = '';
       this.phrase = '';
+      this.name = '';
       this.nameError = null;
+      this.rawKey = '';
       this.rawKeyError = null;
+      this.walletFile = '';
       this.walletFileError = null;
+      this.walletJson = '';
     });
   }
 

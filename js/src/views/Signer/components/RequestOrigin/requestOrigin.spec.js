@@ -34,39 +34,39 @@ describe('views/Signer/components/RequestOrigin', () => {
     expect(shallow(
       <RequestOrigin origin={ { type: 'unknown', details: '' } } />,
       context
-    ).text()).to.equal('Requested via unknown interface');
+    ).find('FormattedMessage').props().id).to.equal('signer.requestOrigin.unknownInterface');
   });
 
   it('renders dapps', () => {
     expect(shallow(
       <RequestOrigin origin={ { type: 'dapp', details: 'http://parity.io' } } />,
       context
-    ).text()).to.equal('Requested by a dapp at http://parity.io');
+    ).find('FormattedMessage').props().id).to.equal('signer.requestOrigin.dapp');
   });
 
   it('renders rpc', () => {
     expect(shallow(
       <RequestOrigin origin={ { type: 'rpc', details: '' } } />,
       context
-    ).text()).to.equal('Requested via RPC (unidentified)');
+    ).find('FormattedMessage').props().id).to.equal('signer.requestOrigin.rpc');
   });
 
   it('renders ipc', () => {
     expect(shallow(
       <RequestOrigin origin={ { type: 'ipc', details: '0x1234' } } />,
       context
-    ).text()).to.equal('Requested via IPC session<Connect(IdentityIcon) />');
+    ).find('FormattedMessage').props().id).to.equal('signer.requestOrigin.ipc');
   });
 
   it('renders signer', () => {
     expect(shallow(
       <RequestOrigin origin={ { type: 'signer', details: '0x12345' } } />,
       context
-    ).text()).to.equal('Requested via UI session<Connect(IdentityIcon) />');
+    ).find('FormattedMessage').props().id).to.equal('signer.requestOrigin.signerUI');
 
     expect(shallow(
       <RequestOrigin origin={ { type: 'signer', details: '0x1234' } } />,
       context
-    ).text()).to.equal('Requested via current tab');
+    ).find('FormattedMessage').props().id).to.equal('signer.requestOrigin.signerCurrent');
   });
 });
