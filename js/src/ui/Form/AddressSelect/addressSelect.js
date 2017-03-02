@@ -23,6 +23,7 @@ import { observer } from 'mobx-react';
 
 import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
+import apiutil from '~/api/util';
 import AccountCard from '~/ui/AccountCard';
 import InputAddress from '~/ui/Form/InputAddress';
 import Loading from '~/ui/Loading';
@@ -616,6 +617,10 @@ class AddressSelect extends Component {
       focusedItem: null,
       inputValue: value
     });
+
+    if (apiutil.isAddressValid(value)) {
+      this.handleClick(value);
+    }
   }
 }
 
