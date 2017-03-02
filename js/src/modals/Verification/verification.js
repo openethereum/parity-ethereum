@@ -19,11 +19,10 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
 import { observable } from 'mobx';
-import DoneIcon from 'material-ui/svg-icons/action/done-all';
-import CancelIcon from 'material-ui/svg-icons/content/clear';
 
 import { Button, IdentityIcon, Portal } from '~/ui';
 import RadioButtons from '~/ui/Form/RadioButtons';
+import { CancelIcon, DoneIcon } from '~/ui/Icons';
 
 import SMSVerificationStore from './sms-store';
 import EmailVerificationStore from './email-store';

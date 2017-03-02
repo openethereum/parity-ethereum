@@ -15,12 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-
-import SaveIcon from 'material-ui/svg-icons/content/save';
-import ContentClear from 'material-ui/svg-icons/content/clear';
+import { FormattedMessage } from 'react-intl';
 
 import { Button, Form, Input, Portal } from '~/ui';
 import Editor from '~/ui/Editor';
+import { CancelIcon, SaveIcon } from '~/ui/Icons';
 import { ERRORS, validateName } from '~/util/validation';
 
 import styles from './saveContract.css';
@@ -46,13 +45,28 @@ export default class SaveContract extends Component {
         buttons={ this.renderDialogActions() }
         onClose={ this.onClose }
         open
-        title='save contract'
+        title={
+          <FormattedMessage
+            id='saveContract.title'
+            defaultMessage='save contract'
+          />
+        }
       >
         <div>
           <Form>
             <Input
-              label='contract name'
-              hint='choose a name for this contract'
+              label={
+                <FormattedMessage
+                  id='saveContract.name.label'
+                  defaultMessage='contract name'
+                />
+              }
+              hint={
+                <FormattedMessage
+                  id='saveContract.name.hint'
+                  defaultMessage='choose a name for this contract'
+                />
+              }
               value={ name }
               error={ nameError }
               onChange={ this.onChangeName }
@@ -72,9 +86,14 @@ export default class SaveContract extends Component {
   renderDialogActions () {
     const cancelBtn = (
       <Button
-        icon={ <ContentClear /> }
+        icon={ <CancelIcon /> }
         key='cancel'
-        label='Cancel'
+        label={
+          <FormattedMessage
+            id='saveContract.buttons.cancel'
+            defaultMessage='Cancel'
+          />
+        }
         onClick={ this.onClose }
       />
     );
@@ -83,7 +102,12 @@ export default class SaveContract extends Component {
       <Button
         icon={ <SaveIcon /> }
         key='save'
-        label='Save'
+        label={
+          <FormattedMessage
+            id='saveContract.buttons.save'
+            defaultMessage='Save'
+          />
+        }
         disabled={ !!this.state.nameError }
         onClick={ this.onSave }
       />
