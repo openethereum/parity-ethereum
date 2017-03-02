@@ -41,6 +41,7 @@ pub enum Error {
 	/// Some data in passed message was recognized as invalid.
 	/// This means that node is misbehaving/cheating.
 	InvalidMessage,
+	/// Cryptographic error.
 	EthKey(String),
 }
 
