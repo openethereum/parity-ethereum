@@ -17,24 +17,18 @@
 import { action, computed, observable } from 'mobx';
 
 import { contracts, registry } from './contracts';
-import { builtins } from './dapps';
+import { apps } from './dapps';
 import { api } from './parity';
 import { isValidNumber, trackRequest } from './utils';
 
 export default class ContractsStore {
-  @observable builtins = null;
+  @observable apps = null;
   @observable contracts = null;
   @observable error = null;
   @observable registry = null;
 
   constructor () {
-    this.builtins = builtins
-      .map((app) => {
-        app.deploy = () => this.deployApp(app);
-
-        return app;
-      });
-
+    this.apps = apps;
     this.contracts = contracts;
     this.registry = registry;
 
@@ -62,7 +56,7 @@ export default class ContractsStore {
   }
 
   @computed get isDappDeploying () {
-    return this.builtins.filter((app) => app.isDeploying).length !== 0;
+    return this.apps.filter((app) => app.isDeploying).length !== 0;
   }
 
   @computed get haveAllContracts () {
@@ -70,11 +64,11 @@ export default class ContractsStore {
   }
 
   @computed get haveAllDapps () {
-    return this.builtins.filter((app) => !app.imageHash).length === 0;
+    return this.apps.filter((app) => !app.imageHash).length === 0;
   }
 
-  @action refreshBuiltins = () => {
-    this.builtins = [].concat(this.builtins.peek());
+  @action refreshApps = () => {
+    this.apps = [].concat(this.apps.peek());
   }
 
   @action refreshContracts = () => {
@@ -137,49 +131,131 @@ export default class ContractsStore {
     this.refreshContracts();
   }
 
-  @action setBuiltinDeploying = (builtin, isDeploying = false) => {
-    builtin.isDeploying = isDeploying;
-    builtin.status = null;
+  @action setAppDeploying = (app, isDeploying = false) => {
+    app.isDeploying = isDeploying;
+    app.status = isDeploying
+      ? 'Registering app'
+      : null;
+
+    this.refreshApps();
   }
 
-  @action setBuiltinFound = (builtin, isOnChain = false) => {
-    if (builtin.isOnChain !== isOnChain) {
-      console.log(`${builtin.name} found on dappreg`);
+  @action setAppFound = (app, isOnChain = false) => {
+    if (app.isOnChain !== isOnChain) {
+      console.log(`${app.name} found on dappreg`);
 
-      builtin.isOnChain = isOnChain;
+      app.isOnChain = isOnChain;
 
-      this.refreshBuiltins();
+      this.refreshApps();
     }
   }
 
-  @action setBuiltinImageHash = (builtin, imageHash) => {
-    if (builtin.imageHash !== imageHash) {
-      console.log(`${builtin.name} has imageHash ${imageHash}`);
+  @action setAppImageHash = (app, imageHash) => {
+    if (app.imageHash !== imageHash) {
+      console.log(`${app.name} has imageHash ${imageHash}`);
 
-      builtin.imageHash = imageHash;
+      app.imageHash = imageHash;
 
-      this.refreshBuiltins();
+      this.refreshApps();
     }
   }
 
-  @action setBuiltinImageUrl = (builtin, imageUrl) => {
-    if (builtin.imageUrl !== imageUrl) {
-      console.log(`${builtin.name} has imageUrl ${imageUrl}`);
+  @action setAppImageUrl = (app, imageUrl) => {
+    if (app.imageUrl !== imageUrl) {
+      console.log(`${app.name} has imageUrl ${imageUrl}`);
 
-      builtin.imageUrl = imageUrl;
+      app.imageUrl = imageUrl;
 
-      this.refreshBuiltins();
+      this.refreshApps();
     }
   }
 
-  @action setBuiltinStatus = (builtin, status) => {
-    builtin.status = status;
+  @action setAppStatus = (app, status) => {
+    app.status = status;
 
-    this.refreshBuiltins();
+    this.refreshApps();
   }
 
   deployApp = (app) => {
+    console.log(`Registering application ${app.id}`);
 
+    this.setAppDeploying(app, true);
+
+    const options = {};
+    const values = [app.hashId];
+
+    return api.parity
+      .defaultAccount()
+      .then((defaultAccount) => {
+        options.from = defaultAccount;
+
+        if (app.isOnChain) {
+          return true;
+        }
+
+        return this.contractDappreg.instance
+          .fee.call({}, [])
+          .then((fee) => {
+            options.value = fee;
+
+            return this.contractDappreg.instance
+              .register.estimateGas(options, values)
+              .then((gasEst) => {
+                options.gas = gasEst.mul(1.2);
+
+                return trackRequest(
+                  this.contractDappreg.instance.register.postTransaction(options, values),
+                  (error, data) => {
+                    if (error) {
+                      console.error(app.id, error);
+                    } else {
+                      console.log(app.id, data);
+                    }
+                  }
+                );
+              });
+          });
+      })
+      .then(() => {
+        this.setAppStatus(app, 'Registering image url');
+
+        return this.registerHash(app.source.imageHash, app.source.imageUrl, options.from);
+      })
+      .then(() => {
+        values.push('IMG');
+        values.push(app.source.imageHash);
+
+        delete options.gas;
+        delete options.value;
+
+        this.setAppStatus(app, 'Setting Image meta');
+
+        return this.contractDappreg.instance
+          .setMeta.estimateGas(options, values)
+          .then((gasEst) => {
+            options.gas = gasEst.mul(1.2);
+
+            return trackRequest(
+              this.contractDappreg.instance.setMeta.postTransaction(options, values),
+              (error, data) => {
+                if (error) {
+                  console.error(app.id, error);
+                } else {
+                  console.log(app.id, data);
+                }
+              }
+            );
+          });
+      })
+      .then(() => {
+        this.setAppDeploying(app, false);
+      });
+  }
+
+  deployApps = () => {
+    this.apps
+      .filter((app) => !app.isDeploying && !app.imageHash)
+      .forEach(this.deployApp);
   }
 
   _deployContract = (contract) => {
@@ -296,6 +372,38 @@ export default class ContractsStore {
       });
   }
 
+  registerHash = (hash, url, fromAddress) => {
+    const options = {
+      from: fromAddress
+    };
+    const values = [hash, url];
+
+    return this.contractGithubhint.instance
+      .entries.call({}, [hash])
+      .then(([imageUrl, commit, owner]) => {
+        if (isValidNumber(owner)) {
+          return true;
+        }
+
+        return this.contractGithubhint.instance
+          .hintURL.estimateGas(options, values)
+          .then((gasEst) => {
+            options.gas = gasEst.mul(1.2);
+
+            return trackRequest(
+              this.contractGithubhint.instance.hintURL.postTransaction(options, values),
+              (error, data) => {
+                if (error) {
+                  console.error(hash, error);
+                } else {
+                  console.log(hash, data);
+                }
+              }
+            );
+          });
+      });
+  }
+
   findRegistry = () => {
     if (this.registry.address) {
       return Promise.resolve(this.registry);
@@ -310,17 +418,17 @@ export default class ContractsStore {
       });
   }
 
-  findBuiltins = () => {
+  findApps = () => {
     if (!this.contractDappreg.instance) {
       return Promise.resolve(false);
     }
 
     return Promise
       .all(
-        this.builtins.map((builtin) => {
-          return builtin.isOnChain
-            ? Promise.resolve(0)
-            : this.contractDappreg.instance.get.call({}, [builtin.id]);
+        this.apps.map((app) => {
+          return app.isOnChain
+            ? Promise.resolve([[0]])
+            : this.contractDappreg.instance.get.call({}, [app.hashId]);
         })
       )
       .then((apps) => {
@@ -328,15 +436,15 @@ export default class ContractsStore {
           const id = api.util.bytesToHex(_id);
 
           if (isValidNumber(id)) {
-            this.setBuiltinFound(this.builtins[index], true);
+            this.setAppFound(this.apps[index], true);
           }
         });
 
         return Promise.all(
-          this.builtins.map((builtin) => {
-            return builtin.imageHash
+          this.apps.map((app) => {
+            return app.imageHash
               ? Promise.resolve([0])
-              : this.contractDappreg.instance.meta.call({}, [builtin.id, 'IMG']);
+              : this.contractDappreg.instance.meta.call({}, [app.hashId, 'IMG']);
           })
         );
       })
@@ -345,22 +453,22 @@ export default class ContractsStore {
           const imageHash = api.util.bytesToHex(image);
 
           if (isValidNumber(imageHash)) {
-            this.setBuiltinImageHash(this.builtins[index], imageHash);
+            this.setAppImageHash(this.apps[index], imageHash);
           }
         });
 
         return Promise.all(
-          this.builtins.map((builtin) => {
-            return builtin.imageUrl || !builtin.imageHash
+          this.apps.map((app) => {
+            return app.imageUrl || !app.imageHash
               ? Promise.resolve([null, null, null])
-              : this.contractGithubhint.instance.entries.call({}, [builtin.imageHash]);
+              : this.contractGithubhint.instance.entries.call({}, [app.imageHash]);
           })
         );
       })
       .then((imageUrls) => {
         imageUrls.forEach(([imageUrl, commit, owner], index) => {
           if (isValidNumber(owner)) {
-            this.setBuiltinImageUrl(this.builtins[index], imageUrl);
+            this.setAppImageUrl(this.apps[index], imageUrl);
           }
         });
       });
@@ -396,7 +504,7 @@ export default class ContractsStore {
     return this
       .findRegistry()
       .then(this.findContracts)
-      .then(this.findBuiltins)
+      .then(this.findApps)
       .catch(this.setError);
   }
 }

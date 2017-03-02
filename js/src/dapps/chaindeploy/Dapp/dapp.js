@@ -82,7 +82,7 @@ export default class Dapp extends Component {
             <div className={ styles.title }>
               {
                 dapp.imageHash
-                  ? `registered imageHash ${dapp.imageHash}`
+                  ? `imageHash ${dapp.imageHash}`
                   : 'has not registered an imageHash'
               }
             </div>
@@ -110,12 +110,27 @@ export default class Dapp extends Component {
             <div className={ styles.title }>
               {
                 dapp.imageUrl
-                  ? `resolving imageUrl ${dapp.imageUrl}`
+                  ? `imageUrl ${dapp.imageUrl}`
                   : 'does not resolve imageUrl'
               }
             </div>
           </div>
         </div>
+        { this.renderStatus() }
+      </div>
+    );
+  }
+
+  renderStatus () {
+    const { dapp } = this.props;
+
+    if (!dapp.status) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.status }>
+        { dapp.status }
       </div>
     );
   }

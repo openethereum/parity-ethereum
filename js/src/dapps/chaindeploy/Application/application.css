@@ -20,6 +20,7 @@
     position: fixed;
     right: 0.5em;
     top: 0.5em;
+    z-index: 100;
 
     button {
       background: rgb(0, 200, 255);
@@ -60,6 +61,10 @@
       border-radius: 0.25em;
       padding: 0.75em 1em;
       margin-bottom: 0.5em;
+
+      small {
+        vertical-align: middle;
+      }
     }
 
     .list {

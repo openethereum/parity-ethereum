@@ -30,9 +30,9 @@ export default class Application extends Component {
   render () {
     return (
       <div className={ styles.body }>
-        { this.renderButtons() }
         { this.renderContracts() }
-        { this.renderBuiltins() }
+        { this.renderApps() }
+        { this.renderButtons() }
       </div>
     );
   }
@@ -66,7 +66,7 @@ export default class Application extends Component {
       <div className={ styles.buttons }>
         { this.renderButton('registry', this.deployRegistry, disableRegistry) }
         { this.renderButton('contracts', this.deployContracts, disableContracts) }
-        { this.renderButton('dapps', this.deployDapps, disableDapps) }
+        { this.renderButton('apps', this.deployApps, disableDapps) }
       </div>
     );
   }
@@ -76,7 +76,13 @@ export default class Application extends Component {
 
     return (
       <div className={ styles.section }>
-        <h3>Contracts</h3>
+        <h3>
+          Contracts <small>(registry {
+            registry.address
+              ? registry.address
+              : 'unknown'
+          })</small>
+        </h3>
         <div className={ styles.list }>
           <Contract
             contract={ registry }
@@ -98,21 +104,27 @@ export default class Application extends Component {
     );
   }
 
-  renderBuiltins () {
-    const { builtins, contractDappreg, contractGithubhint } = this.store;
+  renderApps () {
+    const { apps, contractDappreg, contractGithubhint } = this.store;
     const isDisabled = !contractDappreg.isOnChain || !contractGithubhint.isOnChain;
 
     return (
       <div className={ styles.section }>
-        <h3>Applications</h3>
+        <h3>
+          Applications <small>(registry {
+            contractDappreg.address
+              ? contractDappreg.address
+              : 'unknown'
+          })</small>
+        </h3>
         <div className={ styles.list }>
           {
-            builtins.map((dapp) => {
+            apps.map((app) => {
               return (
                 <Dapp
-                  dapp={ dapp }
+                  dapp={ app }
                   disabled={ isDisabled }
-                  key={ dapp.id }
+                  key={ app.id }
                 />
               );
             })
@@ -126,8 +138,8 @@ export default class Application extends Component {
     return this.store.deployContracts();
   }
 
-  deployDapps = () => {
-
+  deployApps = () => {
+    return this.store.deployApps();
   }
 
   deployRegistry = () => {
