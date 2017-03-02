@@ -59,7 +59,7 @@ Operating Options:
   --chain CHAIN                  Specify the blockchain type. CHAIN may be either a
                                  JSON chain specification file or olympic, frontier,
                                  homestead, mainnet, morden, ropsten, classic, expanse,
-                                 testnet or dev (default: {flag_chain}).
+                                 testnet, kovan or dev (default: {flag_chain}).
   -d --base-path PATH            Specify the base data storage path.
                                  (default: {flag_base_path}).
   --db-path PATH                 Specify the database directory path
@@ -372,8 +372,7 @@ Legacy Options:
                                  to be the same as Geth's. Overrides the --ipc-path
                                  and --ipcpath options. Alters RPCs to reflect Geth
                                  bugs. Includes the personal_ RPC by default.
-  --testnet                      Geth-compatible testnet mode. Equivalent to --chain
-                                 testnet --keys-path $HOME/parity/testnet-keys.
+  --testnet                      Testnet mode. Equivalent to --chain testnet.
                                  Overrides the --keys-path option.
   --import-geth-keys             Attempt to import keys from Geth client.
   --datadir PATH                 Equivalent to --base-path PATH.
