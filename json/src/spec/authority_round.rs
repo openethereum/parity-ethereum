@@ -17,6 +17,7 @@
 //! Authority params deserialization.
 
 use uint::Uint;
+use hash::Address;
 use super::ValidatorSet;
 
 /// Authority params deserialization.
@@ -33,6 +34,8 @@ pub struct AuthorityRoundParams {
 	/// Block reward.
 	#[serde(rename="blockReward")]
 	pub block_reward: Option<Uint>,
+	/// Address of the registrar contract.
+	pub registrar: Option<Address>,
 	/// Starting step. Determined automatically if not specified.
 	/// To be used for testing only.
 	#[serde(rename="startStep")]

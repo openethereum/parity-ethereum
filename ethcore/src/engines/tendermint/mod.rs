@@ -86,6 +86,7 @@ pub struct Tendermint {
 	authority: RwLock<Address>,
 	/// Password used for signing messages.
 	password: RwLock<Option<String>>,
+	registrar: Address,
 	/// Blockchain height.
 	height: AtomicUsize,
 	/// Consensus round.
@@ -119,6 +120,7 @@ impl Tendermint {
 				block_reward: our_params.block_reward,
 				authority: RwLock::new(Address::default()),
 				password: RwLock::new(None),
+				registrar: our_params.registrar,
 				height: AtomicUsize::new(1),
 				round: AtomicUsize::new(0),
 				step: RwLock::new(Step::Propose),
@@ -376,14 +378,20 @@ impl Tendermint {
 
 impl Engine for Tendermint {
 	fn name(&self) -> &str { "Tendermint" }
+
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
+
 	/// (consensus round, proposal signature, authority signatures)
 	fn seal_fields(&self) -> usize { 3 }
 
 	fn params(&self) -> &CommonParams { &self.params }
+
+	fn additional_params(&self) -> HashMap<String, String> { hash_map!["registrar".to_owned() => self.registrar.hex()] }
+
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
 
 	fn maximum_uncle_count(&self) -> usize { 0 }
+
 	fn maximum_uncle_age(&self) -> usize { 0 }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
