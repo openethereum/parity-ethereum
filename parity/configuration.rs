@@ -821,7 +821,7 @@ impl Configuration {
 		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
 
 		if self.args.flag_geth && !cfg!(windows) {
-			let geth_root  = if self.chain() == 'testnet'.to_owned() { path::ethereum::test() } else {  path::ethereum::default() };
+			let geth_root  = if self.chain() == "testnet".to_owned() { path::ethereum::test() } else {  path::ethereum::default() };
 			::std::fs::create_dir_all(geth_root.as_path()).unwrap_or_else(
 				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_root.to_str().unwrap(), e));
 		}
