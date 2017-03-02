@@ -35,7 +35,6 @@ impl From<ethkey::Error> for Error {
 }
 
 mod cluster;
-mod decryption_session;
 mod encryption_session;
 mod math;
 mod message;
