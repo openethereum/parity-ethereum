@@ -512,7 +512,7 @@ impl Session {
 		// update node data with received public share
 		{
 			let node_data = &mut data.nodes.get_mut(&sender).ok_or(Error::InvalidMessage)?;
-			if node_data.public_share.is_some() {
+				if node_data.public_share.is_some() {
 				return Err(Error::InvalidMessage);
 			}
 
@@ -674,7 +674,7 @@ mod tests {
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::encryption_session::{Session, SessionState};
 	use key_server_cluster::math;
-	use key_server_cluster::decryption_session::{DecryptionData, NodeData, do_decryption_dummy};
+	use key_server_cluster::math::tests::do_encryption_and_decryption;
 
 	#[derive(Debug)]
 	struct Node {
@@ -1126,11 +1126,14 @@ mod tests {
 
 	#[test]
 	fn complete_enc_dec_session() {
-		//let test_cases = [(0, 2), (1, 2), (1, 5), /*(2, 5),*/ (3, 5)/*, (4, 5)*/];
-		let test_cases = [(2, 5)];
+		// TODO: when number of nodes, needed to decrypt message is odd, algorithm won't work
+		// let test_cases = [/*(0, 2), */(1, 2), (1, 3), (2, 3), (1, 4), (2, 4), (3, 4), (1, 5), (2, 5), (3, 5), (4, 5),
+		//	(1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10)];
+		let test_cases = [(3, 5)];
 		for &(threshold, num_nodes) in &test_cases {
 			let mut l = MessageLoop::new(num_nodes);
 			l.master().initialize(threshold, l.nodes.keys().cloned().collect()).unwrap();
+			assert_eq!(l.nodes.len(), num_nodes);
 
 			// let nodes do initialization + keys dissemination
 			while let Some((from, to, message)) = l.take_message() {
@@ -1161,27 +1164,13 @@ mod tests {
 
 			// now let's encrypt some secret (which is a point on EC)
 			let document_secret_plain = Random.generate().unwrap().public().clone();
-			let encrypted_secret = math::encrypt_secret(document_secret_plain.clone(), &joint_public_key).unwrap();
-
-			// now let's try to decrypt our secret
-			let nodes_for_decryption: BTreeMap<_, _> = l.nodes.iter()
-				.take(threshold + 1)
-				.map(|(node_id, node)| {
-					let data = node.session.data.lock();
-					let id_number = data.nodes[node_id].id_number.clone();
-					let secret_share = data.secret_share.clone().unwrap();
-					(node_id.clone(), NodeData {
-						id_number: id_number,
-						secret_share: secret_share,
-					})
-				})
-				.collect();
-			let decryption_data = DecryptionData {
-				nodes: nodes_for_decryption,
-			};
-			let access_key = math::generate_random_scalar().unwrap();
-			let document_secret_decrypted = do_decryption_dummy(&access_key, &encrypted_secret.common_point, &encrypted_secret.encrypted_point, &decryption_data).unwrap();
-
+			let all_nodes_id_numbers: Vec<_> = l.master().data.lock().nodes.values().map(|n| n.id_number.clone()).collect();
+			let all_nodes_secret_shares: Vec<_> = l.nodes.values().map(|n| n.session.data.lock().secret_share.as_ref().unwrap().clone()).collect();
+			let document_secret_decrypted = do_encryption_and_decryption(threshold, &joint_public_key,
+				&all_nodes_id_numbers,
+				&all_nodes_secret_shares,
+				document_secret_plain.clone()
+			);
 			assert_eq!(document_secret_plain, document_secret_decrypted);
 		}
 	}

@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use ethkey::{Public, Secret, math};
 use key_server_cluster::{Error, NodeId};
 
+#[derive(Debug, Clone)]
 /// Data, collected during encryption session.
 pub struct DecryptionData {
 	/// Public knowledge of nodes, participated in encryption session.
@@ -25,6 +26,7 @@ pub fn do_decryption_dummy(access_key: &Secret, common_point: &Public, encrypted
 			.filter(|&(other_node_id, _)| &node_id != other_node_id)
 			.map(|(_, other_node_data)| other_node_data.id_number.clone())
 			.collect();
+
 		let node_shadow = calculate_shadow(&node_data.id_number, &node_data.secret_share, &other_nodes)?;
 		let node_shadow_point = calculate_shadow_point(&access_key, &common_point, &node_shadow)?;
 		node_shadows.push(node_shadow);
@@ -33,6 +35,8 @@ pub fn do_decryption_dummy(access_key: &Secret, common_point: &Public, encrypted
 
 	// all calculations below are done on 'master' KS
 	let joint_shadow_point1 = calculate_joint_shadow_point(&shadow_points)?;
+	let joint_shadow_point2 = calculate_joint_shadow_point2(access_key, &node_shadows, common_point)?;
+	assert_eq!(joint_shadow_point1, joint_shadow_point2); // just to check that we have computed it correctly
 	decrypt(&access_key, &encrypted_point, &joint_shadow_point1)
 }
 
@@ -68,6 +72,18 @@ fn calculate_joint_shadow_point(shadow_points: &[Public]) -> Result<Public, Erro
 	for shadow_point in shadow_points.iter().skip(1) {
 		math::public_add(&mut joint_shadow_point, &shadow_point)?;
 	}
+	Ok(joint_shadow_point)
+}
+
+fn calculate_joint_shadow_point2(access_key: &Secret, nodes_shadows: &[Secret], common_point: &Public) -> Result<Public, Error> {
+	let mut nodes_shadows_iter = nodes_shadows.iter();
+	let mut common_node_shadow = nodes_shadows_iter.next().unwrap().clone();
+	while let Some(node_shadow) = nodes_shadows_iter.next() {
+		math::secret_add(&mut common_node_shadow, node_shadow).unwrap();
+	}
+	math::secret_mul(&mut common_node_shadow, access_key).unwrap();
+	let mut joint_shadow_point = common_point.clone();
+	math::public_mul_secret(&mut joint_shadow_point, &common_node_shadow).unwrap();
 	Ok(joint_shadow_point)
 }
 
