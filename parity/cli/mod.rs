@@ -119,8 +119,8 @@ usage! {
 		flag_ui_no_validation: bool = false, or |_| None,
 
 		// -- Networking Options
-		flag_warp: bool = false,
-			or |c: &Config| otry!(c.network).warp.clone(),
+		flag_no_warp: bool = false,
+			or |c: &Config| otry!(c.network).warp.clone().map(|w| !w),
 		flag_port: u16 = 30303u16,
 			or |c: &Config| otry!(c.network).port.clone(),
 		flag_min_peers: u16 = 25u16,
@@ -330,6 +330,7 @@ usage! {
 		// Values with optional default value.
 		flag_base_path: Option<String>, display dir::default_data_path(), or |c: &Config| otry!(c.parity).base_path.clone().map(Some),
 		flag_db_path: Option<String>, display dir::CHAINS_PATH, or |c: &Config| otry!(c.parity).db_path.clone().map(Some),
+		flag_warp: Option<bool>, display true, or |c: &Config| Some(otry!(c.network).warp.clone()),
 	}
 }
 
@@ -638,7 +639,7 @@ mod tests {
 			flag_ui_no_validation: false,
 
 			// -- Networking Options
-			flag_warp: true,
+			flag_no_warp: false,
 			flag_port: 30303u16,
 			flag_min_peers: 25u16,
 			flag_max_peers: 50u16,
@@ -779,6 +780,7 @@ mod tests {
 			flag_etherbase: None,
 			flag_extradata: None,
 			flag_cache: None,
+			flag_warp: Some(true),
 
 			// -- Miscellaneous Options
 			flag_version: false,
