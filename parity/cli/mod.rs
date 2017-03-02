@@ -781,7 +781,7 @@ mod tests {
 			flag_etherbase: None,
 			flag_extradata: None,
 			flag_cache: None,
-			flag_warp: true,
+			flag_warp: Some(true),
 
 			// -- Miscellaneous Options
 			flag_version: false,
