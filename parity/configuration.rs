@@ -1223,7 +1223,7 @@ mod tests {
 		// then
 		assert_eq!(conf.network_settings(), NetworkSettings {
 			name: "testname".to_owned(),
-			chain: "kovan".to_owned(),
+			chain: "testnet".to_owned(),
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "local".to_owned(),
