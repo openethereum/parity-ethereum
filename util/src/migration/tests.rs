@@ -226,3 +226,26 @@ fn pre_columns() {
 	// short of the one before it.
 	manager.execute(&db_path, 0).unwrap();
 }
+
+#[test]
+fn change_columns() {
+	use kvdb::DatabaseConfig;
+
+	let mut manager = Manager::new(Config::default());
+	manager.add_migration(::migration::ChangeColumns {
+		pre_columns: None,
+		post_columns: Some(4),
+		version: 1,
+	}).unwrap();
+
+	let dir = RandomTempPath::create_dir();
+	let db_path = db_path(dir.as_path());
+
+	let new_path = manager.execute(&db_path, 0).unwrap();
+
+	assert_eq!(db_path, new_path, "Changing columns is an in-place migration.");
+
+	let config = DatabaseConfig::with_columns(Some(4));
+	let db = Database::open(&config, new_path.to_str().unwrap()).unwrap();
+	assert_eq!(db.num_columns(), 4);
+}

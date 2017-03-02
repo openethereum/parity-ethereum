@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
-import BackIcon from 'material-ui/svg-icons/navigation/arrow-back';
+import { PrevIcon } from '~/ui/Icons';
 
 import TransactionPendingFormConfirm from './TransactionPendingFormConfirm';
 import TransactionPendingFormReject from './TransactionPendingFormReject';
@@ -75,9 +76,24 @@ export default class TransactionPendingForm extends Component {
     let html;
 
     if (!isRejectOpen) {
-      html = <span>reject request</span>;
+      html = (
+        <span>
+          <FormattedMessage
+            id='signer.txPendingForm.reject'
+            defaultMessage='reject request'
+          />
+        </span>
+      );
     } else {
-      html = <span><BackIcon />{ "I've changed my mind" }</span>;
+      html = (
+        <span>
+          <PrevIcon />
+          <FormattedMessage
+            id='signer.txPendingForm.changedMind'
+            defaultMessage="I've changed my mind"
+          />
+        </span>
+      );
     }
 
     return (

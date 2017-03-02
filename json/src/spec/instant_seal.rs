@@ -14,26 +14,37 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
-import { FormattedMessage } from 'react-intl';
+//! Instant params deserialization.
 
-import { Actionbar } from '~/ui';
-import RequestsPage from './containers/RequestsPage';
+use hash::Address;
 
-export default class Signer extends Component {
-  render () {
-    return (
-      <div>
-        <Actionbar
-          title={
-            <FormattedMessage
-              id='signer.title'
-              defaultMessage='Trusted Signer'
-            />
-          }
-        />
-        <RequestsPage />
-      </div>
-    );
-  }
+/// Instant params deserialization.
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct InstantSealParams {
+	/// Address of the registrar contract.
+	pub registrar: Option<Address>,
+}
+
+/// Instant engine deserialization.
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct InstantSeal {
+	/// Instant Seal params.
+	pub params: InstantSealParams,
+}
+
+#[cfg(test)]
+mod tests {
+	use serde_json;
+	use spec::instant_seal::InstantSeal;
+
+	#[test]
+	fn instant_seal_deserialization() {
+		let s = r#"{
+			"params": {
+				"registrar": "0xc6d9d2cd449a754c494264e1809c50e34d64562b"
+			}
+		}"#;
+
+		let _deserialized: InstantSeal = serde_json::from_str(s).unwrap();
+	}
 }

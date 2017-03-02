@@ -41,8 +41,19 @@
     margin-top: 1.5em;
   }
 
-  .ethBalances {
-    opacity: 1;
+  .summary {
+    position: relative;
+
+    .ethBalances {
+      opacity: 1;
+    }
+
+    .iconCertifications {
+      bottom: -0.25em;
+      opacity: 1;
+      position: absolute;
+      right: 0;
+    }
   }
 
   .owners {
@@ -69,6 +80,10 @@
 
   &:hover {
     .ethBalances {
+      opacity: 0;
+    }
+
+    .iconCertifications {
       opacity: 0;
     }
   }
