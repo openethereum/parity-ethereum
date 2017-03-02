@@ -14,20 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import builtins from '~/views/Dapps/builtin.json';
+import React, { Component, PropTypes } from 'react';
 
-const id = 'signaturereg';
-const app = builtins.find((app) => app.url === id);
-const hashId = app.id;
-const source = {
-  imageUrl: 'https://raw.githubusercontent.com/ethcore/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/hex-64x64.jpg',
-  imageHash: '0x26f7f2415cd5cbbffa58e8119fdbdd7181cac79119dd7f6ba6ee99d7f4445640'
-};
-const name = app.name;
+import Icon from '../Icon';
 
-export {
-  hashId,
-  id,
-  name,
-  source
-};
+import styles from '../listItem.css';
+
+export default class Header extends Component {
+  static propTypes = {
+    children: PropTypes.node.isRequired,
+    isBusy: PropTypes.bool,
+    isOk: PropTypes.bool
+  }
+
+  render () {
+    const { children, isBusy, isOk } = this.props;
+
+    return (
+      <div className={ styles.header }>
+        <Icon
+          isBusy={ isBusy }
+          isOk={ isOk }
+        />
+        <div className={ styles.title }>
+          { children }
+        </div>
+      </div>
+    );
+  }
+}

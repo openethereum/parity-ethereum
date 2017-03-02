@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import styles from './dapp.css';
+import ListItem, { Header, Row } from '../ListItem';
 
 export default class Dapp extends Component {
   static propTypes = {
@@ -28,110 +28,60 @@ export default class Dapp extends Component {
     const { dapp, disabled } = this.props;
 
     return (
-      <div
-        className={
-          [
-            styles.listItem,
-            disabled
-              ? styles.muted
-              : ''
-          ].join(' ')
-        }
+      <ListItem
+        disabled={ disabled }
+        status={ dapp.status }
       >
-        <div className={ styles.body }>
-          <div className={ styles.header }>
-            <div className={ styles.icon }>
-              {
-                dapp.isOnChain
-                  ? '\u2714'
-                  : (
-                    dapp.isDeploying
-                      ? '\u29d6'
-                      : '\u2716'
-                    )
-              }
-            </div>
-            <div className={ styles.title }>
-              { dapp.name } was {
-                dapp.isOnChain
-                  ? 'found in dappreg'
-                  : 'not found'
-              }
-            </div>
-          </div>
-          <div
-            className={
-              [
-                styles.details,
-                dapp.isOnChain
-                  ? ''
-                  : styles.muted
-              ].join(' ') }
-          >
-            <div className={ styles.icon }>
-              {
-                dapp.imageHash
-                  ? '\u2714'
-                  : (
-                    dapp.isDeploying
-                      ? '\u29d6'
-                      : '\u2716'
-                    )
-              }
-            </div>
-            <div className={ styles.title }>
-              {
-                dapp.imageHash
-                  ? `imageHash ${dapp.imageHash}`
-                  : 'has not registered an imageHash'
-              }
-            </div>
-          </div>
-          <div
-            className={
-              [
-                styles.details,
-                dapp.imageHash
-                  ? ''
-                  : styles.muted
-              ].join(' ') }
-          >
-            <div className={ styles.icon }>
-              {
-                dapp.imageUrl
-                  ? '\u2714'
-                  : (
-                    dapp.isDeploying
-                      ? '\u29d6'
-                      : '\u2716'
-                    )
-              }
-            </div>
-            <div className={ styles.title }>
-              {
-                dapp.imageUrl
-                  ? `imageUrl ${dapp.imageUrl}`
-                  : 'does not resolve imageUrl'
-              }
-            </div>
-          </div>
-        </div>
-        { this.renderStatus() }
-      </div>
-    );
-  }
-
-  renderStatus () {
-    const { dapp } = this.props;
-
-    if (!dapp.status) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.status }>
-        { dapp.status }
-      </div>
+        <Header
+          isBusy={ dapp.isDeploying }
+          isOk={ dapp.isOnChain && !!dapp.imageHash && !!dapp.imageUrl && !!dapp.imageMatch }
+        >
+          { dapp.name }
+        </Header>
+        <Row
+          isBusy={ dapp.isDeploying }
+          isOk={ dapp.isOnChain }
+        >
+          {
+            dapp.isOnChain
+              ? 'found in dappreg'
+              : 'not found in dappreg'
+          }
+        </Row>
+        <Row
+          disabled={ !dapp.isOnChain }
+          isBusy={ dapp.isDeploying }
+          isOk={ !!dapp.imageHash }
+        >
+          {
+            dapp.imageHash
+              ? `imageHash ${dapp.imageHash}`
+              : 'has not registered an imageHash'
+          }
+        </Row>
+        <Row
+          disabled={ !dapp.isOnChain }
+          isBusy={ dapp.isDeploying }
+          isOk={ !!dapp.imageUrl }
+        >
+          {
+            dapp.imageUrl
+              ? `imageUrl ${dapp.imageUrl}`
+              : 'does not resolve imageUrl'
+          }
+        </Row>
+        <Row
+          disabled={ !dapp.isOnChain }
+          isBusy={ dapp.isDeploying }
+          isOk={ dapp.imageMatch }
+        >
+          {
+            dapp.imageMatch
+              ? 'has latest imageHash'
+              : 'does not have latest imageHash'
+          }
+        </Row>
+      </ListItem>
     );
   }
 }

@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import styles from './contract.css';
+import ListItem, { Header, Row } from '../ListItem';
 
 export default class Contract extends Component {
   static propTypes = {
@@ -28,96 +28,43 @@ export default class Contract extends Component {
     const { contract, disabled } = this.props;
 
     return (
-      <div
-        className={
-          [
-            styles.listItem,
-            disabled
-              ? styles.muted
-              : ''
-          ].join(' ')
-        }
+      <ListItem
+        disabled={ disabled }
+        status={ contract.status }
       >
-        <div className={ styles.body }>
-          <div className={ styles.header }>
-            <div className={ styles.icon }>
-              {
-                contract.instance
-                  ? '\u2714'
-                  : (
-                    contract.isDeploying
-                      ? '\u29d6'
-                      : '\u2716'
-                    )
-              }
-            </div>
-            <div className={ styles.title }>
-              { contract.id } was {
-                contract.address
-                  ? 'deployed'
-                  : 'not found'
-              }
-            </div>
-          </div>
-          <div
-            className={
-              [
-                styles.details,
-                contract.address
-                  ? ''
-                  : styles.muted
-              ].join(' ') }
-          >
-            <div className={ styles.icon }>
-              {
-                contract.address
-                  ? '\u2714'
-                  : (
-                    contract.isDeploying
-                      ? '\u29d6'
-                      : '\u2716'
-                    )
-              }
-            </div>
-            <div className={ styles.title }>
-              {
-                contract.address
-                  ? contract.address
-                  : 'no address'
-              }
-            </div>
-          </div>
-          <div
-            className={
-              [
-                styles.details,
-                contract.address
-                  ? ''
-                  : styles.muted
-              ].join(' ') }
-          >
-            <div className={ styles.icon }>
-              {
-                contract.isOnChain
-                  ? '\u2714'
-                  : (
-                    contract.isDeploying
-                      ? '\u29d6'
-                      : '\u2716'
-                    )
-              }
-            </div>
-            <div className={ styles.title }>
-              {
-                contract.isOnChain
-                  ? 'registered on chain'
-                  : 'not registered on chain'
-              }
-            </div>
-          </div>
-        </div>
-        { this.renderStatus() }
-      </div>
+        <Header
+          isBusy={ contract.isDeploying }
+          isOk={ !!contract.instance && contract.isOnChain }
+        >
+          { contract.id } was {
+            contract.address
+              ? 'deployed'
+              : 'not found'
+          }
+        </Header>
+        <Row
+          disabled={ !contract.instance }
+          isBusy={ contract.isDeploying }
+          isOk={ !!contract.address }
+        >
+          {
+            contract.address
+              ? contract.address
+              : 'no address'
+          }
+        </Row>
+        <Row
+          disabled={ !contract.instance }
+          isBusy={ contract.isDeploying }
+          isOk={ !!contract.isOnChain }
+        >
+          {
+            contract.isOnChain
+              ? `registered on ${contract.id === 'registry' ? 'chain' : 'registry'}`
+              : `not registered on ${contract.id === 'registry' ? 'chain' : 'registry'}`
+          }
+        </Row>
+      </ListItem>
     );
   }
 

@@ -64,7 +64,7 @@ export default class ContractsStore {
   }
 
   @computed get haveAllDapps () {
-    return this.apps.filter((app) => !app.imageHash).length === 0;
+    return this.apps.filter((app) => !app.imageHash || !app.imageMatch).length === 0;
   }
 
   @action refreshApps = () => {
@@ -155,6 +155,7 @@ export default class ContractsStore {
       console.log(`${app.name} has imageHash ${imageHash}`);
 
       app.imageHash = imageHash;
+      app.imageMatch = imageHash === app.source.imageHash;
 
       this.refreshApps();
     }
@@ -247,6 +248,9 @@ export default class ContractsStore {
             );
           });
       })
+      .catch(() => {
+        return null;
+      })
       .then(() => {
         this.setAppDeploying(app, false);
       });
@@ -254,7 +258,7 @@ export default class ContractsStore {
 
   deployApps = () => {
     this.apps
-      .filter((app) => !app.isDeploying && !app.imageHash)
+      .filter((app) => !app.isDeploying && (!app.imageHash || !app.imageMatch))
       .forEach(this.deployApp);
   }
 
@@ -294,6 +298,9 @@ export default class ContractsStore {
         this.setContractAddress(contract, address);
 
         return this.registerAddress(contract, defaultAccount);
+      })
+      .catch(() => {
+        return null;
       })
       .then(() => {
         this.setContractDeploying(contract, false);
@@ -442,7 +449,7 @@ export default class ContractsStore {
 
         return Promise.all(
           this.apps.map((app) => {
-            return app.imageHash
+            return app.imageHash && app.imageMatch
               ? Promise.resolve([0])
               : this.contractDappreg.instance.meta.call({}, [app.hashId, 'IMG']);
           })
