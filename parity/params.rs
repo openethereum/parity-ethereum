@@ -29,6 +29,7 @@ pub enum SpecType {
 	Mainnet,
 	Morden,
 	Ropsten,
+	Kovan,
 	Olympic,
 	Classic,
 	Expanse,
@@ -50,7 +51,8 @@ impl str::FromStr for SpecType {
 			"frontier" | "homestead" | "mainnet" => SpecType::Mainnet,
 			"frontier-dogmatic" | "homestead-dogmatic" | "classic" => SpecType::Classic,
 			"morden" | "classic-testnet" => SpecType::Morden,
-			"ropsten" | "testnet" => SpecType::Ropsten,
+			"ropsten" => SpecType::Ropsten,
+			"kovan" | "testnet" => SpecType::Kovan,
 			"olympic" => SpecType::Olympic,
 			"expanse" => SpecType::Expanse,
 			"dev" => SpecType::Dev,
@@ -69,6 +71,7 @@ impl fmt::Display for SpecType {
 			SpecType::Olympic => "olympic",
 			SpecType::Classic => "classic",
 			SpecType::Expanse => "expanse",
+			SpecType::Kovan => "kovan",
 			SpecType::Dev => "dev",
 			SpecType::Custom(ref custom) => custom,
 		})
@@ -84,6 +87,7 @@ impl SpecType {
 			SpecType::Olympic => Ok(ethereum::new_olympic()),
 			SpecType::Classic => Ok(ethereum::new_classic()),
 			SpecType::Expanse => Ok(ethereum::new_expanse()),
+			SpecType::Kovan => Ok(ethereum::new_kovan()),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
 				let file = fs::File::open(filename).map_err(|_| "Could not load specification file.")?;
@@ -320,7 +324,8 @@ mod tests {
 		assert_eq!(SpecType::Mainnet, "frontier".parse().unwrap());
 		assert_eq!(SpecType::Mainnet, "homestead".parse().unwrap());
 		assert_eq!(SpecType::Mainnet, "mainnet".parse().unwrap());
-		assert_eq!(SpecType::Ropsten, "testnet".parse().unwrap());
+		assert_eq!(SpecType::Kovan, "testnet".parse().unwrap());
+		assert_eq!(SpecType::Kovan, "kovan".parse().unwrap());
 		assert_eq!(SpecType::Morden, "morden".parse().unwrap());
 		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
 		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
@@ -341,6 +346,7 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Olympic), "olympic");
 		assert_eq!(format!("{}", SpecType::Classic), "classic");
 		assert_eq!(format!("{}", SpecType::Expanse), "expanse");
+		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
 		assert_eq!(format!("{}", SpecType::Dev), "dev");
 		assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");
 	}
