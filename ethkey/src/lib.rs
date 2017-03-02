@@ -28,7 +28,6 @@ mod brain;
 mod error;
 mod keypair;
 mod keccak;
-pub mod math;
 mod prefix;
 mod random;
 mod signature;

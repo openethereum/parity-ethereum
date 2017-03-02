@@ -44,8 +44,7 @@ pub fn update_random_point(point: &mut Public) -> Result<(), Error> {
 pub fn generate_random_polynom(threshold: usize) -> Result<Vec<Secret>, Error> {
 	let mut polynom: Vec<_> = Vec::with_capacity(threshold + 1);
 	for _ in 0..threshold + 1 {
-		let generate_random_scalar = Random.generate()?.secret().clone();
-		polynom.push(generate_random_scalar);
+		polynom.push(generate_random_scalar()?);
 	}
 	debug_assert_eq!(polynom.len(), threshold + 1);
 	Ok(polynom)
@@ -59,14 +58,13 @@ pub fn compute_polynom(polynom: &[Secret], node_number: &Secret) -> Result<Secre
 	for i in 1..polynom.len() {
 		// calculate pow(node_number, i)
 		let mut appendum = node_number.clone();
-		math::secret_pow(&mut appendum, i).unwrap();
+		appendum.pow(i)?;
 
 		// calculate coeff * pow(point, i)
-		let coeff = &polynom[i];
-		math::secret_mul(&mut appendum, coeff).unwrap();
+		appendum.mul(&polynom[i])?;
 
 		// calculate result + coeff * pow(point, i)
-		math::secret_add(&mut result, &appendum).unwrap();
+		result.add(&appendum)?;
 	}
 
 	Ok(result)
@@ -114,7 +112,7 @@ pub fn keys_verification(threshold: usize, derived_point: &Public, number_id: &S
 	let mut right = publics[0].clone();
 	for i in 1..threshold + 1 {
 		let mut secret_pow = number_id.clone();
-		math::secret_pow(&mut secret_pow, i)?;
+		secret_pow.pow(i)?;
 
 		let mut public_k = publics[i].clone();
 		math::public_mul_secret(&mut public_k, &secret_pow)?;
@@ -129,7 +127,7 @@ pub fn keys_verification(threshold: usize, derived_point: &Public, number_id: &S
 pub fn compute_secret_share<'a, I>(mut secret_values: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	let mut secret_share = secret_values.next().expect("compute_secret_share is called when cluster has at least one node; qed").clone();
 	while let Some(secret_value) = secret_values.next() {
-		math::secret_add(&mut secret_share, &secret_value)?;
+		secret_share.add(secret_value)?;
 	}
 	Ok(secret_share)
 }
@@ -155,7 +153,7 @@ pub fn compute_joint_public<'a, I>(mut public_shares: I) -> Result<Public, Error
 pub fn compute_joint_secret<'a, I>(mut secret_coeffs: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	let mut joint_secret = secret_coeffs.next().expect("compute_joint_private is called when cluster has at least one node; qed").clone();
 	while let Some(secret_coeff) = secret_coeffs.next() {
-		math::secret_add(&mut joint_secret, &secret_coeff)?;
+		joint_secret.add(secret_coeff)?;
 	}
 	Ok(joint_secret)
 }
@@ -184,25 +182,25 @@ pub fn encrypt_secret(secret: Public, joint_public: &Public) -> Result<Encrypted
 pub fn compute_node_shadow<'a, I>(node_number: &Secret, node_secret_share: &Secret, mut other_nodes_numbers: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	let other_node_number = other_nodes_numbers.next().expect("compute_node_shadow is called when at least two nodes are required to decrypt secret; qed");
 	let mut shadow = node_number.clone();
-	math::secret_sub(&mut shadow, other_node_number).unwrap();
-	math::secret_inv(&mut shadow).unwrap();
-	math::secret_mul(&mut shadow, other_node_number).unwrap();
+	shadow.sub(other_node_number)?;
+	shadow.inv()?;
+	shadow.mul(other_node_number)?;
 	while let Some(other_node_number) = other_nodes_numbers.next() {
 		let mut shadow_element = node_number.clone();
-		math::secret_sub(&mut shadow_element, other_node_number).unwrap();
-		math::secret_inv(&mut shadow_element).unwrap();
-		math::secret_mul(&mut shadow_element, other_node_number).unwrap();
-		math::secret_mul(&mut shadow, &shadow_element).unwrap();
+		shadow_element.sub(other_node_number)?;
+		shadow_element.inv()?;
+		shadow_element.mul(other_node_number)?;
+		shadow.mul(&shadow_element)?;
 	}
 
-	math::secret_mul(&mut shadow, &node_secret_share).unwrap();
+	shadow.mul(&node_secret_share)?;
 	Ok(shadow)
 }
 
 /// Compute shadow point for the node.
 pub fn compute_node_shadow_point(access_key: &Secret, common_point: &Public, node_shadow: &Secret) -> Result<Public, Error> {
 	let mut shadow_key = access_key.clone();
-	math::secret_mul(&mut shadow_key, node_shadow)?;
+	shadow_key.mul(node_shadow)?;
 	let mut node_shadow_point = common_point.clone();
 	math::public_mul_secret(&mut node_shadow_point, &shadow_key)?;
 	Ok(node_shadow_point)
@@ -222,9 +220,9 @@ pub fn compute_joint_shadow_point<'a, I>(mut nodes_shadow_points: I) -> Result<P
 pub fn compute_joint_shadow_point_test<'a, I>(access_key: &Secret, common_point: &Public, mut nodes_shadows: I) -> Result<Public, Error> where I: Iterator<Item=&'a Secret> {
 	let mut joint_shadow = nodes_shadows.next().expect("compute_joint_shadow_point_test is called when at least two nodes are required to decrypt secret; qed").clone();
 	while let Some(node_shadow) = nodes_shadows.next() {
-		math::secret_add(&mut joint_shadow, node_shadow)?;
+		joint_shadow.add(node_shadow)?;
 	}
-	math::secret_mul(&mut joint_shadow, access_key)?;
+	joint_shadow.mul(access_key)?;
 
 	let mut joint_shadow_point = common_point.clone();
 	math::public_mul_secret(&mut joint_shadow_point, &joint_shadow)?;
@@ -234,7 +232,7 @@ pub fn compute_joint_shadow_point_test<'a, I>(access_key: &Secret, common_point:
 /// Decrypt data using joint shadow point.
 pub fn decrypt_with_joint_shadow(access_key: &Secret, encrypted_point: &Public, joint_shadow_point: &Public) -> Result<Public, Error> {
 	let mut inv_access_key = access_key.clone();
-	math::secret_inv(&mut inv_access_key)?;
+	inv_access_key.inv()?;
 	
 	let mut decrypted_point = joint_shadow_point.clone();
 	math::public_mul_secret(&mut decrypted_point, &inv_access_key)?;
