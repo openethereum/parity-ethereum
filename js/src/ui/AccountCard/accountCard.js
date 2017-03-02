@@ -28,9 +28,9 @@ import styles from './accountCard.css';
 export default class AccountCard extends Component {
   static propTypes = {
     account: PropTypes.object.isRequired,
+    allowAddressClick: PropTypes.bool,
     balance: PropTypes.object,
     className: PropTypes.string,
-    noCopy: PropTypes.bool,
     onClick: PropTypes.func,
     onFocus: PropTypes.func
   };
@@ -119,14 +119,14 @@ export default class AccountCard extends Component {
   }
 
   renderAddress (address) {
-    const { noCopy } = this.props;
+    const { allowAddressClick } = this.props;
 
     return (
       <div className={ styles.addressContainer }>
         <span
           className={ styles.address }
           onClick={
-            noCopy
+            allowAddressClick
               ? null
               : this.preventEvent
           }
