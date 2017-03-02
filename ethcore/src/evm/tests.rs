@@ -82,28 +82,29 @@ impl Default for Schedule {
 }
 
 impl Ext for FakeExt {
-	fn storage_at(&self, key: &H256) -> H256 {
-		self.store.get(key).unwrap_or(&H256::new()).clone()
+	fn storage_at(&self, key: &H256) -> trie::Result<H256> {
+		Ok(self.store.get(key).unwrap_or(&H256::new()).clone())
 	}
 
-	fn set_storage(&mut self, key: H256, value: H256) {
+	fn set_storage(&mut self, key: H256, value: H256) -> trie::Result<()> {
 		self.store.insert(key, value);
+		Ok(())
 	}
 
-	fn exists(&self, address: &Address) -> bool {
-		self.balances.contains_key(address)
+	fn exists(&self, address: &Address) -> trie::Result<bool> {
+		Ok(self.balances.contains_key(address))
 	}
 
-	fn exists_and_not_null(&self, address: &Address) -> bool {
-		self.balances.get(address).map_or(false, |b| !b.is_zero())
+	fn exists_and_not_null(&self, address: &Address) -> trie::Result<bool> {
+		Ok(self.balances.get(address).map_or(false, |b| !b.is_zero()))
 	}
 
-	fn origin_balance(&self) -> U256 {
+	fn origin_balance(&self) -> trie::Result<U256> {
 		unimplemented!()
 	}
 
-	fn balance(&self, address: &Address) -> U256 {
-		self.balances[address]
+	fn balance(&self, address: &Address) -> trie::Result<U256> {
+		Ok(self.balances[address])
 	}
 
 	fn blockhash(&self, number: &U256) -> H256 {
@@ -146,12 +147,12 @@ impl Ext for FakeExt {
 		MessageCallResult::Success(*gas)
 	}
 
-	fn extcode(&self, address: &Address) -> Arc<Bytes> {
-		self.codes.get(address).unwrap_or(&Arc::new(Bytes::new())).clone()
+	fn extcode(&self, address: &Address) -> trie::Result<Arc<Bytes>> {
+		Ok(self.codes.get(address).unwrap_or(&Arc::new(Bytes::new())).clone())
 	}
 
-	fn extcodesize(&self, address: &Address) -> usize {
-		self.codes.get(address).map_or(0, |c| c.len())
+	fn extcodesize(&self, address: &Address) -> trie::Result<usize> {
+		Ok(self.codes.get(address).map_or(0, |c| c.len()))
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
@@ -165,7 +166,7 @@ impl Ext for FakeExt {
 		unimplemented!();
 	}
 
-	fn suicide(&mut self, _refund_address: &Address) {
+	fn suicide(&mut self, _refund_address: &Address) -> trie::Result<()> {
 		unimplemented!();
 	}
 

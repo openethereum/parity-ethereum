@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Card, CardTitle, CardText } from 'material-ui/Card';
 
 import InputQuery from './inputQuery';
@@ -59,7 +60,14 @@ export default class Queries extends Component {
     }
 
     return (
-      <Container title='queries'>
+      <Container
+        title={
+          <FormattedMessage
+            id='contract.queries.title'
+            defaultMessage='queries'
+          />
+        }
+      >
         <div className={ styles.methods }>
           {
             noInputQueries.length > 0

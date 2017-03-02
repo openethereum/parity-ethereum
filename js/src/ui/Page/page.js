@@ -26,11 +26,12 @@ export default class Page extends Component {
     buttons: PropTypes.array,
     className: PropTypes.string,
     children: PropTypes.node,
+    padded: PropTypes.bool,
     title: nodeOrStringProptype()
   };
 
   render () {
-    const { buttons, className, children, title } = this.props;
+    const { buttons, className, children, padded, title } = this.props;
 
     return (
       <div>
@@ -44,7 +45,16 @@ export default class Page extends Component {
             )
             : null
         }
-        <div className={ [styles.layout, className].join(' ') }>
+        <div
+          className={
+            [
+              padded
+                ? styles.layoutPadded
+                : styles.layout,
+              className
+            ].join(' ')
+          }
+        >
           { children }
         </div>
       </div>

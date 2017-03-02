@@ -42,24 +42,25 @@ pub enum MessageCallResult {
 }
 
 /// Externalities interface for EVMs
+// TODO: [rob] associated error type instead of `trie::Result`. Not all EVMs are trie powered.
 pub trait Ext {
 	/// Returns a value for given key.
-	fn storage_at(&self, key: &H256) -> H256;
+	fn storage_at(&self, key: &H256) -> trie::Result<H256>;
 
 	/// Stores a value for given key.
-	fn set_storage(&mut self, key: H256, value: H256);
+	fn set_storage(&mut self, key: H256, value: H256) -> trie::Result<()>;
 
 	/// Determine whether an account exists.
-	fn exists(&self, address: &Address) -> bool;
+	fn exists(&self, address: &Address) -> trie::Result<bool>;
 
 	/// Determine whether an account exists and is not null (zero balance/nonce, no code).
-	fn exists_and_not_null(&self, address: &Address) -> bool;
+	fn exists_and_not_null(&self, address: &Address) -> trie::Result<bool>;
 
 	/// Balance of the origin account.
-	fn origin_balance(&self) -> U256;
+	fn origin_balance(&self) -> trie::Result<U256>;
 
 	/// Returns address balance.
-	fn balance(&self, address: &Address) -> U256;
+	fn balance(&self, address: &Address) -> trie::Result<U256>;
 
 	/// Returns the hash of one of the 256 most recent complete blocks.
 	fn blockhash(&self, number: &U256) -> H256;
@@ -87,10 +88,10 @@ pub trait Ext {
 	) -> MessageCallResult;
 
 	/// Returns code at given address
-	fn extcode(&self, address: &Address) -> Arc<Bytes>;
+	fn extcode(&self, address: &Address) -> trie::Result<Arc<Bytes>>;
 
 	/// Returns code size at given address
-	fn extcodesize(&self, address: &Address) -> usize;
+	fn extcodesize(&self, address: &Address) -> trie::Result<usize>;
 
 	/// Creates log entry with given topics and data
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]);
@@ -101,7 +102,7 @@ pub trait Ext {
 
 	/// Should be called when contract commits suicide.
 	/// Address to which funds should be refunded.
-	fn suicide(&mut self, refund_address: &Address);
+	fn suicide(&mut self, refund_address: &Address) -> trie::Result<()> ;
 
 	/// Returns schedule.
 	fn schedule(&self) -> &Schedule;

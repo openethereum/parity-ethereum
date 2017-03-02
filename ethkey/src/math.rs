@@ -16,15 +16,18 @@
 
 use super::{SECP256K1, Public, Secret, Error};
 use secp256k1::key;
+use secp256k1::constants::{GENERATOR_X, GENERATOR_Y};
 
+/// Inplace multiply public key by secret key (EC point * scalar)
 pub fn public_mul_secret(public: &mut Public, secret: &Secret) -> Result<(), Error> {
-	let key_secret = key::SecretKey::from_slice(&SECP256K1, &secret[..])?;
+	let key_secret = secret.to_secp256k1_secret()?;
 	let mut key_public = to_secp256k1_public(public)?;
 	key_public.mul_assign(&SECP256K1, &key_secret)?;
 	set_public(public, &key_public);
 	Ok(())
 }
 
+/// Inplace add one public key to another (EC point + EC point)
 pub fn public_add(public: &mut Public, other: &Public) -> Result<(), Error> {
 	let mut key_public = to_secp256k1_public(public)?;
 	let other_public = to_secp256k1_public(other)?;
@@ -33,64 +36,18 @@ pub fn public_add(public: &mut Public, other: &Public) -> Result<(), Error> {
 	Ok(())
 }
 
+/// Return base point of secp256k1
 pub fn generation_point() -> Public {
-	let key_public = key::PublicKey::from_secret_key(&SECP256K1, &key::ONE_KEY).expect("why would this happen?");
+	let mut public_sec_raw = [0u8; 65];
+	public_sec_raw[0] = 4;
+	public_sec_raw[1..33].copy_from_slice(&GENERATOR_X);
+	public_sec_raw[33..65].copy_from_slice(&GENERATOR_Y);
+
+	let public_key = key::PublicKey::from_slice(&SECP256K1, &public_sec_raw)
+		.expect("constructing using predefined constants; qed");
 	let mut public = Public::default();
-	set_public(&mut public, &key_public);
+	set_public(&mut public, &public_key);
 	public
-}
-
-pub fn secret_add(secret: &mut Secret, other: &Secret) -> Result<(), Error> {
-	let mut key_secret = to_secp256k1_secret(secret)?;
-	let other_secret = to_secp256k1_secret(other)?;
-	key_secret.add_assign(&SECP256K1, &other_secret)?;
-
-	*secret = key_secret.into();
-	Ok(())
-}
-
-pub fn secret_sub(secret: &mut Secret, other: &Secret) -> Result<(), Error> {
-	let mut key_secret = to_secp256k1_secret(secret)?;
-	let mut other_secret = to_secp256k1_secret(other)?;
-	other_secret.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
-	key_secret.add_assign(&SECP256K1, &other_secret)?;
-
-	*secret = key_secret.into();
-	Ok(())
-}
-
-pub fn secret_mul(secret: &mut Secret, other: &Secret) -> Result<(), Error> {
-	let mut key_secret = to_secp256k1_secret(secret)?;
-	let other_secret = to_secp256k1_secret(other)?;
-	key_secret.mul_assign(&SECP256K1, &other_secret)?;
-
-	*secret = key_secret.into();
-	Ok(())
-}
-
-pub fn secret_inv(secret: &mut Secret) -> Result<(), Error> {
-	let mut key_secret = to_secp256k1_secret(secret)?;
-	key_secret.inv_assign(&SECP256K1)?;
-
-	*secret = key_secret.into();
-	Ok(())
-}
-
-pub fn secret_pow(secret: &mut Secret, pow: usize) -> Result<(), Error> {
-	if pow == 0 {
-		*secret = key::ONE_KEY.into();
-		return Ok(());
-	}
-	if pow == 1 {
-		return Ok(());
-	}
-
-	let secret_copy = secret.clone();
-	for _ in 1..pow {
-		secret_mul(secret, &secret_copy)?;
-	}
-
-	Ok(())
 }
 
 fn to_secp256k1_public(public: &Public) -> Result<key::PublicKey, Error> {
@@ -101,10 +58,6 @@ fn to_secp256k1_public(public: &Public) -> Result<key::PublicKey, Error> {
 	};
 
 	Ok(key::PublicKey::from_slice(&SECP256K1, &public_data)?)
-}
-
-fn to_secp256k1_secret(secret: &Secret) -> Result<key::SecretKey, Error> {
-	Ok(key::SecretKey::from_slice(&SECP256K1, &secret[..])?)
 }
 
 fn set_public(public: &mut Public, key_public: &key::PublicKey) {

@@ -15,9 +15,50 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.address {
-  color: #999;
-  line-height: 1.618em;
-  padding-left: 2em;
-  padding-top: 1em;
+.item {
+  border: 2px solid transparent;
+  display: flex;
+  flex: 1;
+  height: 100%;
+  position: relative;
+  width: 100%;
+
+  &:hover {
+    border-color: transparent;
+    filter: none;
+    opacity: 1;
+  }
+
+  .content {
+    height: 100%;
+    width: 100%;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.5);
+    }
+  }
+
+  .overlay {
+    position: absolute;
+    right: 0.5em;
+    top: 0.5em;
+  }
+}
+
+.selected {
+  border-color: rgba(255, 255, 255, 0.25);
+  filter: none;
+
+  &.default {
+    border-color: rgba(255, 255, 255, 0.75);
+  }
+}
+
+.unselected {
+  filter: grayscale(10%);
+  opacity: 0.75;
+}
+
+.iconDisabled {
+  opacity: 0.15;
 }

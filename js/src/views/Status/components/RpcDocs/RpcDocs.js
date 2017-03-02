@@ -16,6 +16,7 @@
 
 import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
+import { FormattedMessage } from 'react-intl';
 import { sortBy } from 'lodash';
 import List from 'material-ui/List/List';
 import ListItem from 'material-ui/List/ListItem';
@@ -38,7 +39,12 @@ class RpcDocs extends Component {
           <div className='dapp-container'>
             <div className='row'>
               <div className='col col-6'>
-                <h1><span>RPC</span> Docs</h1>
+                <h1>
+                  <FormattedMessage
+                    id='status.rpcDocs.title'
+                    defaultMessage='RPC Docs'
+                  />
+                </h1>
               </div>
               <div className='col col-6'>
                 <RpcNav />
@@ -50,7 +56,12 @@ class RpcDocs extends Component {
             <div className='row'>
               <div className='col col-12'>
                 <AutoComplete
-                  floatingLabelText='Method name'
+                  floatingLabelText={
+                    <FormattedMessage
+                      id='status.rpcDocs.methodName'
+                      defaultMessage='Method name'
+                    />
+                  }
                   className={ styles.autocomplete }
                   dataSource={ rpcMethods.map(m => m.name) }
                   onNewRequest={ this.handleMethodChange }
@@ -78,9 +89,38 @@ class RpcDocs extends Component {
         >
           <h3 className={ styles.headline }>{ m.name }</h3>
           <Markdown val={ m.desc } />
-          <p><strong>Params</strong>{ !m.params.length ? ' - none' : '' }</p>
-          { m.params.map((p, idx) => <Markdown key={ `${m.name}-${idx}` } val={ formatRpcMd(p) } />) }
-          <p className={ styles.returnsTitle }><strong>Returns</strong> - </p>
+          <p>
+            <FormattedMessage
+              id='status.rpcDocs.params'
+              defaultMessage='Params {params}'
+              vaules={ {
+                params: !m.params.length
+                  ? (
+                    <FormattedMessage
+                      id='status.rpcDocs.paramsNone'
+                      defaultMessage=' - none'
+                    />
+                  )
+                  : ''
+              } }
+            />
+          </p>
+          {
+            m.params.map((p, idx) => {
+              return (
+                <Markdown
+                  key={ `${m.name}-${idx}` }
+                  val={ formatRpcMd(p) }
+                />
+              );
+            })
+          }
+          <p className={ styles.returnsTitle }>
+            <FormattedMessage
+              id='status.rpcDocs.returns'
+              defaultMessage='Returns - '
+            />
+          </p>
           <Markdown className={ styles.returnsDesc } val={ formatRpcMd(m.returns) } />
           { idx !== rpcMethods.length - 1 ? <hr /> : '' }
         </ListItem>

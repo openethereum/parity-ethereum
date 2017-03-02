@@ -18,6 +18,12 @@
 .container {
   height: 100%;
   position: relative;
+
+  &:not(:hover) {
+    .tags {
+      display: none;
+    }
+  }
 }
 
 .image {
@@ -26,16 +32,20 @@
   top: 1.5em;
 }
 
+.author,
 .description {
   margin-left: 72px;
 }
 
 .title {
-  mragin-bottom: 0.5em;
 }
 
-.author, .version {
+.titleLink {
+  color: rgb(0, 151, 167);
+}
+
+.author {
   font-size: 0.75em;
   opacity: 0.5;
-  margin-top: 0.5em;
+  margin-top: 1em;
 }

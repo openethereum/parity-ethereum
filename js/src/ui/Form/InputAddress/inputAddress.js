@@ -31,6 +31,7 @@ class InputAddress extends Component {
     accountsInfo: PropTypes.object,
     allowCopy: PropTypes.bool,
     autoFocus: PropTypes.bool,
+    allowInvalid: PropTypes.bool,
     className: PropTypes.string,
     disabled: PropTypes.bool,
     error: PropTypes.string,
@@ -112,9 +113,9 @@ class InputAddress extends Component {
   }
 
   renderIcon () {
-    const { value, disabled, label, allowCopy, hideUnderline, readOnly } = this.props;
+    const { allowInvalid, value, disabled, label, allowCopy, hideUnderline, readOnly } = this.props;
 
-    if (!value || !value.length || !util.isAddressValid(value)) {
+    if (!value || !value.length || (!util.isAddressValid(value) && !allowInvalid)) {
       return null;
     }
 

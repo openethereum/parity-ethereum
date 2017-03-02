@@ -19,8 +19,8 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { AccountCard, Portal, SectionList } from '~/ui';
-import { CheckIcon, StarIcon, StarOutlineIcon } from '~/ui/Icons';
+import { AccountCard, Portal, SelectionList } from '~/ui';
+import { CheckIcon, StarIcon } from '~/ui/Icons';
 
 import styles from './dappPermissions.css';
 
@@ -61,60 +61,34 @@ class DappPermissions extends Component {
           />
         }
       >
-        <div className={ styles.container }>
-          <SectionList
-            items={ permissionStore.accounts }
-            noStretch
-            renderItem={ this.renderAccount }
-          />
-        </div>
+        <SelectionList
+          items={ permissionStore.accounts }
+          noStretch
+          onDefaultClick={ this.onMakeDefault }
+          onSelectClick={ this.onSelect }
+          renderItem={ this.renderAccount }
+        />
       </Portal>
     );
   }
 
+  onMakeDefault = (account) => {
+    this.props.permissionStore.setDefaultAccount(account.address);
+  }
+
+  onSelect = (account) => {
+    this.props.permissionStore.selectAccount(account.address);
+  }
+
   renderAccount = (account) => {
-    const { balances, permissionStore } = this.props;
+    const { balances } = this.props;
     const balance = balances[account.address];
 
-    const onMakeDefault = () => {
-      permissionStore.setDefaultAccount(account.address);
-    };
-
-    const onSelect = () => {
-      permissionStore.selectAccount(account.address);
-    };
-
-    let className;
-
-    if (account.checked) {
-      className = account.default
-        ? `${styles.selected} ${styles.default}`
-        : styles.selected;
-    } else {
-      className = styles.unselected;
-    }
-
     return (
-      <div className={ styles.item }>
-        <AccountCard
-          account={ account }
-          balance={ balance }
-          className={ className }
-          onClick={ onSelect }
-        />
-        <div className={ styles.overlay }>
-          {
-            account.checked && account.default
-              ? <StarIcon />
-              : <StarOutlineIcon className={ styles.iconDisabled } onClick={ onMakeDefault } />
-          }
-          {
-            account.checked
-              ? <CheckIcon onClick={ onSelect } />
-              : <CheckIcon className={ styles.iconDisabled } onClick={ onSelect } />
-          }
-        </div>
-      </div>
+      <AccountCard
+        account={ account }
+        balance={ balance }
+      />
     );
   }
 }

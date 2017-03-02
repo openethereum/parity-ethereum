@@ -92,7 +92,7 @@ class Account extends Component {
         { this.renderTransferDialog(account, balance) }
         { this.renderVerificationDialog() }
         { this.renderActionbar(balance) }
-        <Page>
+        <Page padded>
           <Header
             account={ account }
             balance={ balance }

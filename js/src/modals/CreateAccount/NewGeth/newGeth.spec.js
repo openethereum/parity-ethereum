@@ -48,10 +48,10 @@ describe('modals/CreateAccount/NewGeth', () => {
   });
 
   describe('events', () => {
-    describe('onSelectAddress', () => {
+    describe('onSelect', () => {
       beforeEach(() => {
         sinon.spy(store, 'selectGethAccount');
-        instance.onSelectAddress(null, 'testAddress');
+        instance.onSelect({ address: 'testAddress' });
       });
 
       afterEach(() => {
