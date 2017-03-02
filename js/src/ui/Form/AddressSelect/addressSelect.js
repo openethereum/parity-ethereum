@@ -209,9 +209,11 @@ class AddressSelect extends Component {
           </div>
         }
       >
-        { this.renderCurrentInput() }
-        { this.renderRegistryValues() }
-        { this.renderAccounts() }
+        <div onClick={ this.handleClose }>
+          { this.renderCurrentInput() }
+          { this.renderRegistryValues() }
+          { this.renderAccounts() }
+        </div>
       </Portal>
     );
   }
