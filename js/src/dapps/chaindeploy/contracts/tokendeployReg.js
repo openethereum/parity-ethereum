@@ -14,26 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import * as badgereg from './badgereg';
-import * as dappreg from './dappreg';
-import * as githubhint from './githubhint';
-import * as registry from './registry';
-import * as signaturereg from './signaturereg';
-import * as tokendeployMgr from './tokendeployMgr';
-import * as tokendeployReg from './tokendeployReg';
-import * as tokenreg from './tokenreg';
+import { abi, sourceUrl, deployParams, compiler, byteCode } from './tokenreg';
 
-const contracts = [
-  githubhint,
-  badgereg,
-  dappreg,
-  signaturereg,
-  tokenreg,
-  tokendeployReg,
-  tokendeployMgr
-];
+const id = 'basiccoinreg';
 
 export {
-  contracts,
-  registry
+  abi,
+  byteCode,
+  compiler,
+  deployParams,
+  id,
+  sourceUrl
 };
