@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 use std::cmp::max;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
+use util::journaldb::Algorithm;
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::ethstore::ethkey::Secret;
@@ -33,7 +34,7 @@ use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
-use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
@@ -115,7 +116,7 @@ impl Configuration {
 		let fat_db = self.args.flag_fat_db.parse()?;
 		let compaction = self.args.flag_db_compaction.parse()?;
 		let wal = !self.args.flag_fast_and_loose;
-		let warp_sync = !self.args.flag_no_warp;
+		let warp_sync = !self.args.flag_no_warp && fat_db != Switch::On && tracing != Switch::On && pruning != Pruning::Specific(Algorithm::Archive);
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let dapps_conf = self.dapps_config();
