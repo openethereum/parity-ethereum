@@ -12,7 +12,6 @@ password = ["passwdfile path"]
 disable = true
 
 [network]
-disable = false
 warp = false
 discovery = true
 nat = "any"

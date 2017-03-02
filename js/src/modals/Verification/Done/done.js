@@ -15,7 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component } from 'react';
-import SuccessIcon from 'material-ui/svg-icons/navigation/check';
+import { FormattedMessage } from 'react-intl';
+
+import { DoneIcon } from '~/ui/Icons';
 
 import styles from './done.css';
 
@@ -23,8 +25,13 @@ export default class Done extends Component {
   render () {
     return (
       <div className={ styles.container }>
-        <SuccessIcon />
-        <p className={ styles.message }>Congratulations, your account is verified!</p>
+        <DoneIcon />
+        <p className={ styles.message }>
+          <FormattedMessage
+            id='verification.done.message'
+            defaultMessage='Congratulations, your account is verified!'
+          />
+        </p>
       </div>
     );
   }

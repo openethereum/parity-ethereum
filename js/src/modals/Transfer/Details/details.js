@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
 import { Checkbox } from 'material-ui';
+import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import Form, { Input, InputAddressSelect, AddressSelect } from '~/ui/Form';
 import { nullableProptype } from '~/util/proptypes';
@@ -57,7 +58,15 @@ export default class Details extends Component {
 
   render () {
     const { all, extras, tag, total, totalError, value, valueError } = this.props;
-    const label = `amount to transfer (in ${tag})`;
+    const label = (
+      <FormattedMessage
+        id='transfer.details.amount.label'
+        defaultMessage='amount to transfer (in {tag})'
+        values={ {
+          tag
+        } }
+      />
+    );
 
     return (
       <Form>
@@ -69,7 +78,12 @@ export default class Details extends Component {
             <Input
               disabled={ all }
               label={ label }
-              hint='the amount to transfer to the recipient'
+              hint={
+                <FormattedMessage
+                  id='transfer.details.amount.hint'
+                  defaultMessage='the amount to transfer to the recipient'
+                />
+              }
               value={ value }
               error={ valueError }
               onChange={ this.onEditValue }
@@ -78,7 +92,12 @@ export default class Details extends Component {
           <div>
             <Checkbox
               checked={ all }
-              label='full account balance'
+              label={
+                <FormattedMessage
+                  id='transfer.details.fullBalance.label'
+                  defaultMessage='full account balance'
+                />
+              }
               onCheck={ this.onCheckAll }
               style={ CHECK_STYLE }
             />
@@ -88,7 +107,12 @@ export default class Details extends Component {
           <div>
             <Input
               disabled
-              label='total transaction amount'
+              label={
+                <FormattedMessage
+                  id='transfer.details.total.label'
+                  defaultMessage='total transaction amount'
+                />
+              }
               error={ totalError }
             >
               <div className={ styles.inputoverride }>
@@ -100,7 +124,12 @@ export default class Details extends Component {
           <div>
             <Checkbox
               checked={ extras }
-              label='advanced sending options'
+              label={
+                <FormattedMessage
+                  id='transfer.details.advanced.label'
+                  defaultMessage='advanced sending options'
+                />
+              }
               onCheck={ this.onCheckExtras }
               style={ CHECK_STYLE }
             />
@@ -122,8 +151,18 @@ export default class Details extends Component {
         <AddressSelect
           accounts={ senders }
           error={ senderError }
-          label='sender address'
-          hint='the sender address'
+          label={
+            <FormattedMessage
+              id='transfer.details.sender.label'
+              defaultMessage='sender address'
+            />
+          }
+          hint={
+            <FormattedMessage
+              id='transfer.details.sender.hint'
+              defaultMessage='the sender address'
+            />
+          }
           value={ sender }
           onChange={ this.onEditSender }
           balances={ sendersBalances }
@@ -138,8 +177,18 @@ export default class Details extends Component {
     return (
       <div className={ styles.address }>
         <InputAddressSelect
-          label='recipient address'
-          hint='the recipient address'
+          label={
+            <FormattedMessage
+              id='transfer.details.recipient.label'
+              defaultMessage='recipient address'
+            />
+          }
+          hint={
+            <FormattedMessage
+              id='transfer.details.recipient.hint'
+              defaultMessage='the recipient address'
+            />
+          }
           error={ recipientError }
           value={ recipient }
           onChange={ this.onEditRecipient }

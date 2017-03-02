@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { Container, InputAddress } from '~/ui';
 
@@ -40,7 +41,14 @@ export default class WalletDetails extends Component {
 
     return (
       <div className={ [ styles.details, className ].join(' ') }>
-        <Container title='Details'>
+        <Container
+          title={
+            <FormattedMessage
+              id='wallet.details.title'
+              defaultMessage='Details'
+            />
+          }
+        >
           { this.renderDetails() }
           { this.renderOwners() }
         </Container>
@@ -62,10 +70,10 @@ export default class WalletDetails extends Component {
 
       return (
         <InputAddress
-          key={ `${idx}_${address}` }
-          value={ address }
           disabled
+          key={ `${idx}_${address}` }
           text
+          value={ address }
         />
       );
     });
@@ -87,9 +95,24 @@ export default class WalletDetails extends Component {
     return (
       <div>
         <p>
-          <span>This wallet requires at least</span>
-          <span className={ styles.detail }>{ require.toFormat() } owners</span>
-          <span>to validate any action (transactions, modifications).</span>
+          <FormattedMessage
+            id='wallet.details.requiredOwners'
+            defaultMessage='This wallet requires at least {owners} to validate any action (transactions, modifications).'
+            values={ {
+              owners: (
+                <span className={ styles.detail }>
+                  <FormattedMessage
+                    id='wallet.details.requiredOwnersNumber'
+                    defaultMessage='{number} {numberValue, plural, one {owner} other {owners}}'
+                    values={ {
+                      number: require.toFormat(),
+                      numberValue: require.toNumber()
+                    } }
+                  />
+                </span>
+              )
+            } }
+          />
         </p>
       </div>
     );
