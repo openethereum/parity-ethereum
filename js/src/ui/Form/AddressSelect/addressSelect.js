@@ -350,6 +350,7 @@ class AddressSelect extends Component {
         balance={ balance }
         className={ styles.account }
         key={ `account_${index}` }
+        noCopy
         onClick={ this.handleClick }
         onFocus={ this.focusItem }
         ref={ `account_${index}` }

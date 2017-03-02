@@ -30,6 +30,7 @@ export default class AccountCard extends Component {
     account: PropTypes.object.isRequired,
     balance: PropTypes.object,
     className: PropTypes.string,
+    noCopy: PropTypes.bool,
     onClick: PropTypes.func,
     onFocus: PropTypes.func
   };
@@ -118,11 +119,17 @@ export default class AccountCard extends Component {
   }
 
   renderAddress (address) {
+    const { noCopy } = this.props;
+
     return (
       <div className={ styles.addressContainer }>
         <span
           className={ styles.address }
-          onClick={ this.preventEvent }
+          onClick={
+            noCopy
+              ? null
+              : this.preventEvent
+          }
           ref={ `address` }
           title={ address }
         >
