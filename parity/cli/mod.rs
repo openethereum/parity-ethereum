@@ -388,7 +388,6 @@ struct Ui {
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
 struct Network {
-	disable: Option<bool>,
 	warp: Option<bool>,
 	port: Option<u16>,
 	min_peers: Option<u16>,
@@ -838,7 +837,6 @@ mod tests {
 				path: None,
 			}),
 			network: Some(Network {
-				disable: Some(false),
 				warp: Some(false),
 				port: None,
 				min_peers: Some(10),
