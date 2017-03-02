@@ -67,18 +67,4 @@ export default class Contract extends Component {
       </ListItem>
     );
   }
-
-  renderStatus () {
-    const { contract } = this.props;
-
-    if (!contract.status) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.status }>
-        { contract.status }
-      </div>
-    );
-  }
 }
