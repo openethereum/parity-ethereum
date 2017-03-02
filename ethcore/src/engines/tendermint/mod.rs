@@ -78,6 +78,7 @@ pub struct Tendermint {
 	step_service: IoService<Step>,
 	client: RwLock<Option<Weak<EngineClient>>>,
 	block_reward: U256,
+	registrar: Address,
 	/// Blockchain height.
 	height: AtomicUsize,
 	/// Consensus view.
@@ -109,6 +110,7 @@ impl Tendermint {
 				client: RwLock::new(None),
 				step_service: IoService::<Step>::start()?,
 				block_reward: our_params.block_reward,
+				registrar: our_params.registrar,
 				height: AtomicUsize::new(1),
 				view: AtomicUsize::new(0),
 				step: RwLock::new(Step::Propose),
@@ -369,14 +371,20 @@ impl Tendermint {
 
 impl Engine for Tendermint {
 	fn name(&self) -> &str { "Tendermint" }
+
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
+
 	/// (consensus view, proposal signature, authority signatures)
 	fn seal_fields(&self) -> usize { 3 }
 
 	fn params(&self) -> &CommonParams { &self.params }
+
+	fn additional_params(&self) -> HashMap<String, String> { hash_map!["registrar".to_owned() => self.registrar.hex()] }
+
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
 
 	fn maximum_uncle_count(&self) -> usize { 0 }
+
 	fn maximum_uncle_age(&self) -> usize { 0 }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.

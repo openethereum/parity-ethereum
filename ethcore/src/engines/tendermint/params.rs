@@ -17,7 +17,7 @@
 //! Tendermint specific parameters.
 
 use ethjson;
-use util::{U256, Uint};
+use util::{U256, Uint, Address, FixedHash};
 use time::Duration;
 use super::super::transition::Timeouts;
 use super::Step;
@@ -33,6 +33,8 @@ pub struct TendermintParams {
 	pub timeouts: TendermintTimeouts,
 	/// Block reward.
 	pub block_reward: U256,
+	/// Namereg contract address.
+	pub registrar: Address,
 }
 
 /// Base timeout of each step in ms.
@@ -88,6 +90,7 @@ impl From<ethjson::spec::TendermintParams> for TendermintParams {
 				commit: p.timeout_commit.map_or(dt.commit, to_duration),
 			},
 			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
+			registrar: p.registrar.map_or_else(Address::new, Into::into),
 		}
 	}
 }
