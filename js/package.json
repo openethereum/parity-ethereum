@@ -6,10 +6,11 @@
   "author": "Parity Team <admin@parity.io>",
   "maintainers": [
     "Jaco Greeff",
-    "Nicolas Gotchac",
+    "Nicolas Gotchac"
+  ],
+  "contributors": [
     "Jannis Redmann"
   ],
-  "contributors": [],
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
