@@ -214,7 +214,13 @@ class Summary extends Component {
                   />
                 </div>
                 <ReactTooltip id={ `owner_${owner.address}` }>
-                  <strong>{ owner.name } </strong><small> (owner)</small>
+                  <FormattedMessage
+                    id='accounts.tooltips.owner'
+                    defaultMessage='{name} (owner)'
+                    values={ {
+                      name: owner.name
+                    } }
+                  />
                 </ReactTooltip>
               </Link>
             );

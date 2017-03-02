@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import RaisedButton from 'material-ui/RaisedButton';
 
@@ -32,14 +33,28 @@ export default class TransactionPendingFormReject extends Component {
     return (
       <div>
         <div className={ styles.rejectText }>
-          Are you sure you want to reject request? <br />
-          <strong>This cannot be undone</strong>
+          <FormattedMessage
+            id='signer.txPendingReject.info'
+            defaultMessage='Are you sure you want to reject request?'
+          />
+          <br />
+          <strong>
+            <FormattedMessage
+              id='signer.txPendingReject.undone'
+              defaultMessage='This cannot be undone'
+            />
+          </strong>
         </div>
         <RaisedButton
           onTouchTap={ onReject }
           className={ styles.rejectButton }
           fullWidth
-          label={ 'Reject Request' }
+          label={
+            <FormattedMessage
+              id='signer.txPendingReject.buttons.reject'
+              defaultMessage='Reject Request'
+            />
+          }
         />
       </div>
     );

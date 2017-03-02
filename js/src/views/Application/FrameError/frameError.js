@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import styles from './frameError.css';
 
@@ -22,7 +23,10 @@ export default class FrameError extends Component {
   render () {
     return (
       <div className={ styles.error }>
-        ERROR: This application cannot and should not be loaded in an embedded iFrame
+        <FormattedMessage
+          id='application.frame.error'
+          defaultMessage='ERROR: This application cannot and should not be loaded in an embedded iFrame'
+        />
       </div>
     );
   }
