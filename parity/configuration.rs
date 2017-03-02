@@ -430,7 +430,7 @@ impl Configuration {
 
 	fn chain(&self) -> String {
 		if self.args.flag_testnet {
-			"ropsten".to_owned()
+			"testnet".to_owned()
 		} else {
 			self.args.flag_chain.clone()
 		}
