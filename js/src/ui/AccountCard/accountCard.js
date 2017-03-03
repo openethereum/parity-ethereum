@@ -35,6 +35,10 @@ export default class AccountCard extends Component {
     onFocus: PropTypes.func
   };
 
+  static defaultPropTypes = {
+    allowAddressClick: false
+  };
+
   state = {
     copied: false
   };
