@@ -65,7 +65,7 @@ impl str::FromStr for SpecType {
 impl fmt::Display for SpecType {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.write_str(match *self {
-			SpecType::Foundation => "homestead",
+			SpecType::Foundation => "foundation",
 			SpecType::Morden => "morden",
 			SpecType::Ropsten => "ropsten",
 			SpecType::Olympic => "olympic",
