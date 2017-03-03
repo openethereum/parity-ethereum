@@ -197,11 +197,6 @@ class EditMeta extends Component {
 
   setVaultName = (vaultName) => {
     this.store.setVaultName(vaultName);
-    this.toggleVaultSelector();
-  }
-
-  toggleVaultSelector = () => {
-    this.store.toggleVaultSelector();
   }
 }
 

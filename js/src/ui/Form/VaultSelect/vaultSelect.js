@@ -66,7 +66,7 @@ export default class VaultSelect extends Component {
             />
           }
           onClick={ this.openSelector }
-          value={ value }
+          value={ (value || '').toUpperCase() }
         />
       </div>
     );
