@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { inAddress, inAddresses, inData, inHex, inNumber16, inOptions, inBlockNumber } from '../../format/input';
-import { outAccountInfo, outAddress, outAddresses, outChainStatus, outHistogram, outNumber, outPeers, outRecentDapps, outTransaction, outVaultMeta } from '../../format/output';
+import { outAccountInfo, outAddress, outAddresses, outChainStatus, outHistogram, outHwAccountInfo, outNumber, outPeers, outRecentDapps, outTransaction, outVaultMeta } from '../../format/output';
 
 export default class Parity {
   constructor (transport) {
@@ -198,6 +198,12 @@ export default class Parity {
     return this._transport
       .execute('parity_getVaultMeta', vaultName)
       .then(outVaultMeta);
+  }
+
+  hardwareAccountsInfo () {
+    return this._transport
+      .execute('parity_hardwareAccountsInfo')
+      .then(outHwAccountInfo);
   }
 
   hashContent (url) {

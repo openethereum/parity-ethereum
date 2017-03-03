@@ -53,7 +53,13 @@ const renderEvent = (classNames, verb) => (e) => {
   return (
     <tr key={ e.key } className={ classes }>
       <td>
-        <Address address={ e.parameters.owner.value } />
+        <Address
+          address={
+            e.parameters.owner
+              ? e.parameters.owner.value
+              : e.from
+          }
+        />
       </td>
       <td>
         <abbr title={ e.transaction }>{ verb }</abbr>
@@ -80,17 +86,23 @@ const renderDataChanged = (e) => {
   return (
     <tr key={ e.key } className={ classNames }>
       <td>
-        <Address address={ e.parameters.owner.value } />
+        <Address
+          address={
+            e.parameters.owner
+              ? e.parameters.owner.value
+              : e.from
+          }
+        />
       </td>
       <td>
         <abbr title={ e.transaction }>updated</abbr>
       </td>
       <td>
-        { 'key ' }
+        key&nbsp;
         <code>
           { new Buffer(e.parameters.plainKey.value).toString('utf8') }
         </code>
-        { 'of ' }
+        &nbsp;of&nbsp;
         <code>
           <Hash hash={ bytesToHex(e.parameters.name.value) } />
         </code>

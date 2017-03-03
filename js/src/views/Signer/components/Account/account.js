@@ -23,8 +23,9 @@ import styles from './account.css';
 
 export default class Account extends Component {
   static propTypes = {
-    className: PropTypes.string,
     address: PropTypes.string.isRequired,
+    className: PropTypes.string,
+    disabled: PropTypes.bool,
     externalLink: PropTypes.string.isRequired,
     isTest: PropTypes.bool.isRequired,
     balance: PropTypes.object // eth BigNumber, not required since it mght take time to fetch
@@ -52,7 +53,7 @@ export default class Account extends Component {
   }
 
   render () {
-    const { address, externalLink, isTest, className } = this.props;
+    const { address, disabled, externalLink, isTest, className } = this.props;
 
     return (
       <div className={ `${styles.acc} ${className}` }>
@@ -63,6 +64,7 @@ export default class Account extends Component {
         >
           <IdentityIcon
             center
+            disabled={ disabled }
             address={ address }
           />
         </AccountLink>
