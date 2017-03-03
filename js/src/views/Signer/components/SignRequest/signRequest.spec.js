@@ -28,7 +28,7 @@ const store = {
 describe('views/Signer/components/SignRequest', () => {
   it('renders', () => {
     expect(shallow(
-      <SignRequest store={ store } />,
+      <SignRequest signerstore={ store } />,
     )).to.be.ok;
   });
 });

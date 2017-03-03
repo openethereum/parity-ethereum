@@ -19,17 +19,17 @@ import RaisedButton from 'material-ui/RaisedButton';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
-import { connect } from 'react-redux';
 import ReactTooltip from 'react-tooltip';
 
 import { Form, Input, IdentityIcon } from '~/ui';
 
 import styles from './transactionPendingFormConfirm.css';
 
-class TransactionPendingFormConfirm extends Component {
+export default class TransactionPendingFormConfirm extends Component {
   static propTypes = {
     account: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
+    disabled: PropTypes.bool,
     isSending: PropTypes.bool.isRequired,
     onConfirm: PropTypes.func.isRequired,
     focus: PropTypes.bool
@@ -93,74 +93,16 @@ class TransactionPendingFormConfirm extends Component {
   }
 
   render () {
-    const { account, address, isSending } = this.props;
-    const { password, wallet, walletError } = this.state;
-    const isExternal = !account.uuid;
-
-    const passwordHintText = this.getPasswordHint();
-    const passwordHint = passwordHintText
-      ? (
-        <div>
-          <FormattedMessage
-            id='signer.txPendingConfirm.passwordHint'
-            defaultMessage='(hint) {hint}'
-            values={ {
-              hint: passwordHintText
-            } }
-          />
-        </div>
-      )
-      : null;
-
-    const isWalletOk = !isExternal || (walletError === null && wallet !== null);
-    const keyInput = isExternal
-      ? this.renderKeyInput()
-      : null;
+    const { account, address, disabled, isSending } = this.props;
+    const { wallet, walletError } = this.state;
+    const isWalletOk = account.hardware || account.uuid || (walletError === null && wallet !== null);
 
     return (
       <div className={ styles.confirmForm }>
         <Form>
-          { keyInput }
-          <Input
-            hint={
-              isExternal
-                ? (
-                  <FormattedMessage
-                    id='signer.txPendingConfirm.decryptKey.hint'
-                    defaultMessage='decrypt the key'
-                  />
-                )
-                : (
-                  <FormattedMessage
-                    id='signer.txPendingConfirm.unlockAccount.hint'
-                    defaultMessage='unlock the account'
-                  />
-                )
-            }
-            label={
-              isExternal
-                ? (
-                  <FormattedMessage
-                    id='signer.txPendingConfirm.decryptKey.label'
-                    defaultMessage='Key Password'
-                  />
-                )
-                : (
-                  <FormattedMessage
-                    id='signer.txPendingConfirm.unlockAccount.label'
-                    defaultMessage='Account Password'
-                  />
-                )
-            }
-            onChange={ this.onModifyPassword }
-            onKeyDown={ this.onKeyDown }
-            ref='input'
-            type='password'
-            value={ password }
-          />
-          <div className={ styles.passwordHint }>
-            { passwordHint }
-          </div>
+          { this.renderKeyInput() }
+          { this.renderPassword() }
+          { this.renderHint() }
           <div
             data-effect='solid'
             data-for={ `transactionConfirmForm${this.id}` }
@@ -169,7 +111,7 @@ class TransactionPendingFormConfirm extends Component {
           >
             <RaisedButton
               className={ styles.confirmButton }
-              disabled={ isSending || !isWalletOk }
+              disabled={ disabled || isSending || !isWalletOk }
               fullWidth
               icon={
                 <IdentityIcon
@@ -203,16 +145,120 @@ class TransactionPendingFormConfirm extends Component {
     );
   }
 
+  renderPassword () {
+    const { account } = this.props;
+    const { password } = this.state;
+
+    if (account && account.hardware) {
+      return null;
+    }
+
+    return (
+      <Input
+        hint={
+          account.uuid
+            ? (
+              <FormattedMessage
+                id='signer.txPendingConfirm.password.unlock.hint'
+                defaultMessage='unlock the account'
+              />
+            )
+            : (
+              <FormattedMessage
+                id='signer.txPendingConfirm.password.decrypt.hint'
+                defaultMessage='decrypt the key'
+              />
+            )
+        }
+        label={
+          account.uuid
+            ? (
+              <FormattedMessage
+                id='signer.txPendingConfirm.password.unlock.label'
+                defaultMessage='Account Password'
+              />
+            )
+            : (
+              <FormattedMessage
+                id='signer.txPendingConfirm.password.decrypt.label'
+                defaultMessage='Key Password'
+              />
+            )
+        }
+        onChange={ this.onModifyPassword }
+        onKeyDown={ this.onKeyDown }
+        ref='input'
+        type='password'
+        value={ password }
+      />
+    );
+  }
+
+  renderHint () {
+    const { account, disabled, isSending } = this.props;
+
+    if (account.hardware) {
+      if (isSending) {
+        return (
+          <div className={ styles.passwordHint }>
+            <FormattedMessage
+              id='signer.sending.hardware.confirm'
+              defaultMessage='Please confirm the transaction on your attached hardware device'
+            />
+          </div>
+        );
+      } else if (disabled) {
+        return (
+          <div className={ styles.passwordHint }>
+            <FormattedMessage
+              id='signer.sending.hardware.connect'
+              defaultMessage='Please attach your hardware device before confirming the transaction'
+            />
+          </div>
+        );
+      }
+    }
+
+    const passwordHint = this.getPasswordHint();
+
+    if (!passwordHint) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.passwordHint }>
+        <FormattedMessage
+          id='signer.txPendingConfirm.passwordHint'
+          defaultMessage='(hint) {passwordHint}'
+          values={ {
+            passwordHint
+          } }
+        />
+      </div>
+    );
+  }
+
   renderKeyInput () {
+    const { account } = this.props;
     const { walletError } = this.state;
+
+    if (account.uuid || account.wallet || account.hardware) {
+      return null;
+    }
 
     return (
       <Input
         className={ styles.fileInput }
         error={ walletError }
+        hint={
+          <FormattedMessage
+            id='signer.txPendingConfirm.selectKey.hint'
+            defaultMessage='The keyfile to use for this account'
+          />
+        }
         label={
           <FormattedMessage
-            id='signer.txPendingConfirm.keySelect.label'
+            id='signer.txPendingConfirm.selectKey.label'
             defaultMessage='Select Local Key'
           />
         }
@@ -223,7 +269,9 @@ class TransactionPendingFormConfirm extends Component {
   }
 
   renderTooltip () {
-    if (this.state.password.length) {
+    const { account } = this.props;
+
+    if (this.state.password.length || account.hardware) {
       return;
     }
 
@@ -290,7 +338,8 @@ class TransactionPendingFormConfirm extends Component {
     const { password, wallet } = this.state;
 
     this.props.onConfirm({
-      password, wallet
+      password,
+      wallet
     });
   }
 
@@ -304,20 +353,3 @@ class TransactionPendingFormConfirm extends Component {
     this.onConfirm();
   }
 }
-
-function mapStateToProps (_, initProps) {
-  const { address } = initProps;
-
-  return (state) => {
-    const { accounts } = state.personal;
-    let gotAddress = Object.keys(accounts).find(a => a.toLowerCase() === address.toLowerCase());
-    const account = gotAddress ? accounts[gotAddress] : {};
-
-    return { account };
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(TransactionPendingFormConfirm);

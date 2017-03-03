@@ -27,6 +27,7 @@ export default class Header extends Component {
     balance: PropTypes.object,
     children: PropTypes.node,
     className: PropTypes.string,
+    disabled: PropTypes.bool,
     hideName: PropTypes.bool,
     isContract: PropTypes.bool
   };
@@ -39,7 +40,7 @@ export default class Header extends Component {
   };
 
   render () {
-    const { account, balance, children, className, hideName } = this.props;
+    const { account, balance, children, className, disabled, hideName } = this.props;
 
     if (!account) {
       return null;
@@ -58,12 +59,15 @@ export default class Header extends Component {
           <IdentityIcon
             address={ address }
             className={ styles.identityIcon }
+            disabled={ disabled }
           />
           <div className={ styles.info }>
             { this.renderName() }
             <div className={ [ hideName ? styles.bigaddress : '', styles.addressline ].join(' ') }>
               <CopyToClipboard data={ address } />
-              <div className={ styles.address }>{ address }</div>
+              <div className={ styles.address }>
+                { address }
+              </div>
             </div>
             { this.renderVault() }
             { this.renderUuid() }
