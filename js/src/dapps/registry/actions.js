@@ -37,10 +37,11 @@ export const setIsTestnet = (isTestnet) => ({ type: 'set isTestnet', isTestnet }
 export const fetchIsTestnet = () => (dispatch) =>
   api.net.version()
     .then((netVersion) => {
-      dispatch(setIsTestnet(
-        netVersion === '2' || // morden
-        netVersion === '3' // ropsten
-      ));
+      dispatch(setIsTestnet([
+        '2', // morden
+        '3', // ropsten
+        '42' // kovan
+      ].includes(netVersion)));
     })
     .catch((err) => {
       console.error('could not check if testnet');
