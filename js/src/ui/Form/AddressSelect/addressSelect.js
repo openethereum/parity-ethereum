@@ -592,6 +592,7 @@ class AddressSelect extends Component {
     }
 
     this.store.resetRegistryValues();
+    this.store.handleChange('');
 
     this.setState({
       expanded: false,
