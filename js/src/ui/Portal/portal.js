@@ -44,6 +44,7 @@ export default class Portal extends Component {
     hideClose: PropTypes.bool,
     isChildModal: PropTypes.bool,
     isSmallModal: PropTypes.bool,
+    onClick: PropTypes.func,
     onKeyDown: PropTypes.func,
     steps: PropTypes.array,
     title: nodeOrStringProptype()
@@ -89,7 +90,7 @@ export default class Portal extends Component {
                 className
               ].join(' ')
             }
-            onClick={ this.stopEvent }
+            onClick={ this.handleContainerClick }
             onKeyDown={ this.handleKeyDown }
           >
             <EventListener
@@ -147,6 +148,16 @@ export default class Portal extends Component {
 
   stopEvent = (event) => {
     event.stopPropagation();
+  }
+
+  handleContainerClick = (event) => {
+    const { onClick } = this.props;
+
+    if (!onClick) {
+      return this.stopEvent(event);
+    }
+
+    return onClick(event);
   }
 
   handleClose = () => {

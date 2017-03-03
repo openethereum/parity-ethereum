@@ -178,6 +178,7 @@ class AddressSelect extends Component {
       <Portal
         className={ styles.inputContainer }
         isChildModal
+        onClick={ this.handleClose }
         onClose={ this.handleClose }
         onKeyDown={ this.handleKeyDown }
         open={ expanded }
@@ -192,6 +193,7 @@ class AddressSelect extends Component {
                 className={ styles.input }
                 placeholder={ ilHint }
                 onBlur={ this.handleInputBlur }
+                onClick={ this.stopEvent }
                 onFocus={ this.handleInputFocus }
                 onChange={ this.handleChange }
                 ref={ this.setInputRef }
@@ -210,11 +212,9 @@ class AddressSelect extends Component {
           </div>
         }
       >
-        <div onClick={ this.handleClose }>
-          { this.renderCurrentInput() }
-          { this.renderRegistryValues() }
-          { this.renderAccounts() }
-        </div>
+        { this.renderCurrentInput() }
+        { this.renderRegistryValues() }
+        { this.renderAccounts() }
       </Portal>
     );
   }
@@ -379,6 +379,10 @@ class AddressSelect extends Component {
 
       return this.handleClick(value.address);
     }
+  }
+
+  stopEvent = (event) => {
+    event.stopPropagation();
   }
 
   handleInputAddresKeydown = (event) => {
