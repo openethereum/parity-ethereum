@@ -46,7 +46,7 @@ fn load(b: &[u8]) -> Spec {
 pub fn new_olympic() -> Spec { load(include_bytes!("../../res/ethereum/olympic.json")) }
 
 /// Create a new Frontier mainnet chain spec.
-pub fn new_frontier() -> Spec { load(include_bytes!("../../res/ethereum/frontier.json")) }
+pub fn new_foundation() -> Spec { load(include_bytes!("../../res/ethereum/foundation.json")) }
 
 /// Create a new Frontier mainnet chain spec without the DAO hardfork.
 pub fn new_classic() -> Spec { load(include_bytes!("../../res/ethereum/classic.json")) }
