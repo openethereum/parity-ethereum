@@ -23,6 +23,7 @@ import { connect } from 'react-redux';
 import { BusyStep, Button, CompletedStep, CopyToClipboard, GasPriceEditor, IdentityIcon, Portal, TxHash, Warning } from '~/ui';
 import { CancelIcon, DoneIcon } from '~/ui/Icons';
 import { ERRORS, validateAbi, validateCode, validateName } from '~/util/validation';
+import { deploy, deployEstimateGas } from '~/util/tx';
 
 import DetailsStep from './DetailsStep';
 import ParametersStep from './ParametersStep';
@@ -73,7 +74,7 @@ class DeployContract extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
     store: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
@@ -422,9 +423,9 @@ class DeployContract extends Component {
       from: fromAddress
     };
 
-    api
-      .newContract(abiParsed)
-      .deployEstimateGas(options, params)
+    const contract = api.newContract(abiParsed);
+
+    deployEstimateGas(contract, options, params)
       .then(([gasEst, gas]) => {
         this.gasStore.setEstimated(gasEst.toFixed(0));
         this.gasStore.setGas(gas.toFixed(0));
@@ -499,8 +500,7 @@ class DeployContract extends Component {
 
     const contract = api.newContract(abiParsed);
 
-    contract
-      .deploy(options, params, this.onDeploymentState)
+    deploy(contract, options, params, this.onDeploymentState)
       .then((address) => {
         const blockNumber = contract._receipt
           ? contract.receipt.blockNumber.toNumber()
@@ -614,17 +614,14 @@ class DeployContract extends Component {
 function mapStateToProps (initState, initProps) {
   const { accounts } = initProps;
 
-  // Skip Wallet accounts : they can't create Contracts
-  const _accounts = omitBy(accounts, (a) => a.wallet);
-
-  const fromAddresses = Object.keys(_accounts);
+  const fromAddresses = Object.keys(accounts);
 
   return (state) => {
     const balances = pick(state.balances.balances, fromAddresses);
     const { gasLimit } = state.nodeStatus;
 
     return {
-      accounts: _accounts,
+      accounts,
       balances,
       gasLimit
     };

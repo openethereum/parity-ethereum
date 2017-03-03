@@ -353,13 +353,8 @@ contract Wallet is multisig, multiowned, daylimit {
     } else {
       // determine our operation hash.
       o_hash = sha3(msg.data, block.number);
-      // do a confirmation if it's pre-existing
-      if (m_txs[o_hash].to != 0 || m_txs[o_hash].value != 0 || m_txs[o_hash].data.length != 0) {
-        confirm(o_hash);
-      } else {
-        // confirm the operation
-        confirmAndCheck(o_hash);
 
+      if (!confirm(o_hash)) {
         m_txs[o_hash].to = _to;
         m_txs[o_hash].value = _value;
         m_txs[o_hash].data = _data;
@@ -391,6 +386,8 @@ contract Wallet is multisig, multiowned, daylimit {
       delete m_txs[_h];
       return true;
     }
+
+    return false;
   }
 
   // INTERNAL METHODS

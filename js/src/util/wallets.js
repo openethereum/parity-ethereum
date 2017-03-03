@@ -69,6 +69,30 @@ export default class WalletsUtils {
       });
   }
 
+  static getDeployArgs (contract, options, values) {
+    const { api } = contract;
+    const func = contract.constructors[0];
+
+    options.data = contract.getCallData(func, options, values);
+    options.to = '0x';
+
+    return WalletsUtils
+      .getCallArgs(api, options, values)
+      .then((callArgs) => {
+        if (!callArgs) {
+          throw new Error('you do not own this wallet');
+        }
+
+        return callArgs;
+      });
+  }
+
+  static parseLogs (api, logs = []) {
+    const walletContract = new Contract(api, WalletAbi);
+
+    return walletContract.parseEventLogs(logs);
+  }
+
   /**
    * Check whether the given address could be
    * a Wallet. The result is cached in order not
@@ -239,6 +263,11 @@ export default class WalletsUtils {
             blockNumber: log.blockNumber,
             from, to, value
           };
+
+          if (log.params.created && log.params.created.value && !/^(0x)?0*$/.test(log.params.created.value)) {
+            transaction.to = log.params.created.value;
+            transaction.creates = log.params.created.value;
+          }
 
           if (log.params.operation) {
             transaction.operation = bytesToHex(log.params.operation.value);

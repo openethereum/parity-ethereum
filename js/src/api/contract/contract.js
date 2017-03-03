@@ -119,44 +119,38 @@ export default class Contract {
 
         const encodedOptions = this._encodeOptions(this.constructors[0], options, values);
 
-        return this._sendDeploy(encodedOptions, values, statecb);
-      });
-  }
+        return this._api.parity
+          .postTransaction(encodedOptions)
+          .then((requestId) => {
+            statecb(null, { state: 'checkRequest', requestId });
+            return this._pollCheckRequest(requestId);
+          })
+          .then((txhash) => {
+            statecb(null, { state: 'getTransactionReceipt', txhash });
+            return this._pollTransactionReceipt(txhash, gas);
+          })
+          .then((receipt) => {
+            if (receipt.gasUsed.eq(gas)) {
+              throw new Error(`Contract not deployed, gasUsed == ${gas.toFixed(0)}`);
+            }
 
-  _sendDeploy (encodedOptions, values, statecb = () => {}) {
-    const { gas } = encodedOptions;
+            statecb(null, { state: 'hasReceipt', receipt });
+            this._receipt = receipt;
+            this._address = receipt.contractAddress;
+            return this._address;
+          })
+          .then((address) => {
+            statecb(null, { state: 'getCode' });
+            return this._api.eth.getCode(this._address);
+          })
+          .then((code) => {
+            if (code === '0x') {
+              throw new Error('Contract not deployed, getCode returned 0x');
+            }
 
-    return this._api.parity
-      .postTransaction(encodedOptions)
-      .then((requestId) => {
-        statecb(null, { state: 'checkRequest', requestId });
-        return this._pollCheckRequest(requestId);
-      })
-      .then((txhash) => {
-        statecb(null, { state: 'getTransactionReceipt', txhash });
-        return this._pollTransactionReceipt(txhash, gas);
-      })
-      .then((receipt) => {
-        if (receipt.gasUsed.eq(gas)) {
-          throw new Error(`Contract not deployed, gasUsed == ${gas.toFixed(0)}`);
-        }
-
-        statecb(null, { state: 'hasReceipt', receipt });
-        this._receipt = receipt;
-        this._address = receipt.contractAddress;
-        return this._address;
-      })
-      .then((address) => {
-        statecb(null, { state: 'getCode' });
-        return this._api.eth.getCode(this._address);
-      })
-      .then((code) => {
-        if (code === '0x') {
-          throw new Error('Contract not deployed, getCode returned 0x');
-        }
-
-        statecb(null, { state: 'completed' });
-        return this._address;
+            statecb(null, { state: 'completed' });
+            return this._address;
+          });
       });
   }
 
