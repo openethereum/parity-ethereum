@@ -36,7 +36,7 @@ export default class RequestPending extends Component {
       PropTypes.shape({ sign: PropTypes.object.isRequired }),
       PropTypes.shape({ signTransaction: PropTypes.object.isRequired })
     ]).isRequired,
-    store: PropTypes.object.isRequired
+    signerstore: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -44,15 +44,8 @@ export default class RequestPending extends Component {
     isSending: false
   };
 
-  onConfirm = data => {
-    const { onConfirm, payload } = this.props;
-
-    data.payload = payload;
-    onConfirm(data);
-  };
-
   render () {
-    const { className, date, focus, gasLimit, id, isSending, isTest, onReject, payload, store, origin } = this.props;
+    const { className, date, focus, gasLimit, id, isSending, isTest, onReject, payload, signerstore, origin } = this.props;
 
     if (payload.sign) {
       const { sign } = payload;
@@ -70,7 +63,7 @@ export default class RequestPending extends Component {
           onConfirm={ this.onConfirm }
           onReject={ onReject }
           origin={ origin }
-          store={ store }
+          signerstore={ signerstore }
         />
       );
     }
@@ -90,7 +83,7 @@ export default class RequestPending extends Component {
           onConfirm={ this.onConfirm }
           onReject={ onReject }
           origin={ origin }
-          store={ store }
+          signerstore={ signerstore }
           transaction={ transaction }
         />
       );
@@ -99,4 +92,11 @@ export default class RequestPending extends Component {
     console.error('RequestPending: Unknown payload', payload);
     return null;
   }
+
+  onConfirm = (data) => {
+    const { onConfirm, payload } = this.props;
+
+    data.payload = payload;
+    onConfirm(data);
+  };
 }

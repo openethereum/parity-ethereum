@@ -14,12 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Ledger3 from './vendor/ledger3';
-import LedgerEth from './vendor/ledger-eth';
-
-export function create () {
-  const ledger = new Ledger3('w0w');
-  const app = new LedgerEth(ledger);
-
-  return app;
-}
+export default from './ledger';

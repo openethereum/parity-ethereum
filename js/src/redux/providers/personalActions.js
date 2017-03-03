@@ -30,6 +30,7 @@ export function personalAccountsInfo (accountsInfo) {
   const accounts = {};
   const contacts = {};
   const contracts = {};
+  const hardware = {};
   const wallets = {};
 
   Object.keys(accountsInfo || {})
@@ -43,7 +44,12 @@ export function personalAccountsInfo (accountsInfo) {
         account.wallet = true;
         wallets[account.address] = account;
       } else if (account.meta.contract) {
+        account.contract = true;
         contracts[account.address] = account;
+      } else if (account.meta.hardware) {
+        account.hardware = true;
+        hardware[account.address] = account;
+        accounts[account.address] = account;
       } else {
         contacts[account.address] = account;
       }
@@ -93,12 +99,13 @@ export function personalAccountsInfo (accountsInfo) {
           }
         });
 
-        const data = {
+        dispatch(_personalAccountsInfo({
           accountsInfo,
-          accounts, contacts, contracts
-        };
-
-        dispatch(_personalAccountsInfo(data));
+          accounts,
+          contacts,
+          contracts,
+          hardware
+        }));
         dispatch(attachWallets(wallets));
 
         BalancesProvider.get().fetchAllBalances({

@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import LinearProgress from 'material-ui/LinearProgress';
 import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
 import { connect } from 'react-redux';
@@ -80,7 +81,12 @@ class InputQuery extends Component {
         </CardText>
         <CardActions>
           <Button
-            label='Query'
+            label={
+              <FormattedMessage
+                id='contract.queries.buttons.query'
+                defaultMessage='Query'
+              />
+            }
             disabled={ !isValid }
             onClick={ this.onClick }
           />
@@ -94,7 +100,9 @@ class InputQuery extends Component {
     const { accountsInfo, outputs } = this.props;
 
     if (isLoading) {
-      return (<LinearProgress mode='indeterminate' />);
+      return (
+        <LinearProgress mode='indeterminate' />
+      );
     }
 
     if (!results || results.length < 1) {

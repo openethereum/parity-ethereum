@@ -19,7 +19,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 use secp256k1::key;
 use bigint::hash::H256;
-use {Error};
+use {Error, SECP256K1};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Secret {
@@ -44,6 +44,68 @@ impl Secret {
 	pub fn from_slice(key: &[u8]) -> Result<Self, Error> {
 		let secret = key::SecretKey::from_slice(&super::SECP256K1, key)?;
 		Ok(secret.into())
+	}
+
+	/// Inplace add one secret key to another (scalar + scalar)
+	pub fn add(&mut self, other: &Secret) -> Result<(), Error> {
+		let mut key_secret = self.to_secp256k1_secret()?;
+		let other_secret = other.to_secp256k1_secret()?;
+		key_secret.add_assign(&SECP256K1, &other_secret)?;
+
+		*self = key_secret.into();
+		Ok(())
+	}
+
+	/// Inplace subtract one secret key from another (scalar - scalar)
+	pub fn sub(&mut self, other: &Secret) -> Result<(), Error> {
+		let mut key_secret = self.to_secp256k1_secret()?;
+		let mut other_secret = other.to_secp256k1_secret()?;
+		other_secret.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
+		key_secret.add_assign(&SECP256K1, &other_secret)?;
+
+		*self = key_secret.into();
+		Ok(())
+	}
+
+	/// Inplace multiply one secret key to another (scalar * scalar)
+	pub fn mul(&mut self, other: &Secret) -> Result<(), Error> {
+		let mut key_secret = self.to_secp256k1_secret()?;
+		let other_secret = other.to_secp256k1_secret()?;
+		key_secret.mul_assign(&SECP256K1, &other_secret)?;
+
+		*self = key_secret.into();
+		Ok(())
+	}
+
+	/// Inplace inverse secret key (1 / scalar)
+	pub fn inv(&mut self) -> Result<(), Error> {
+		let mut key_secret = self.to_secp256k1_secret()?;
+		key_secret.inv_assign(&SECP256K1)?;
+
+		*self = key_secret.into();
+		Ok(())
+	}
+
+	/// Compute power of secret key inplace (secret ^ pow).
+	/// This function is not intended to be used with large powers.
+	pub fn pow(&mut self, pow: usize) -> Result<(), Error> {
+		match pow {
+			0 => *self = key::ONE_KEY.into(),
+			1 => (),
+			_ => {
+				let c = self.clone();
+				for _ in 1..pow {
+					self.mul(&c)?;
+				}
+			},
+		}
+
+		Ok(())
+	}
+
+	/// Create `secp256k1::key::SecretKey` based on this secret
+	pub fn to_secp256k1_secret(&self) -> Result<key::SecretKey, Error> {
+		Ok(key::SecretKey::from_slice(&SECP256K1, &self[..])?)
 	}
 }
 

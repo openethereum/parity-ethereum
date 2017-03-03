@@ -18,12 +18,10 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import BigNumber from 'bignumber.js';
 import { Checkbox } from 'material-ui';
-import InfoIcon from 'material-ui/svg-icons/action/info-outline';
-import SuccessIcon from 'material-ui/svg-icons/navigation/check';
-import ErrorIcon from 'material-ui/svg-icons/navigation/close';
 
 import { fromWei } from '~/api/util/wei';
 import { Form, Input } from '~/ui';
+import { DoneIcon, ErrorIcon, InfoIcon } from '~/ui/Icons';
 import { nullableProptype } from '~/util/proptypes';
 
 import smsTermsOfService from '~/3rdparty/sms-verification/terms-of-service';
@@ -81,7 +79,7 @@ export default class GatherData extends Component {
     if (isServerRunning) {
       return (
         <div className={ styles.container }>
-          <SuccessIcon />
+          <DoneIcon />
           <p className={ styles.message }>
             <FormattedMessage
               id='ui.verification.gatherData.isServerRunning.true'
@@ -166,7 +164,7 @@ export default class GatherData extends Component {
     } else if (accountIsVerified === false) {
       return (
         <div className={ styles.container }>
-          <SuccessIcon />
+          <DoneIcon />
           <p className={ styles.message }>
             <FormattedMessage
               id='ui.verification.gatherData.accountIsVerified.false'
@@ -209,7 +207,7 @@ export default class GatherData extends Component {
     } else if (accountHasRequested === false) {
       return (
         <div className={ styles.container }>
-          <SuccessIcon />
+          <DoneIcon />
           <p className={ styles.message }>
             <FormattedMessage
               id='ui.verification.gatherData.accountHasRequested.false'

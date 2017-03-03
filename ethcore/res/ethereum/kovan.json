@@ -1,0 +1,59 @@
+{
+  "name": "Kovan",
+  "dataDir": "kovan",
+  "engine": {
+    "authorityRound": {
+      "params": {
+        "gasLimitBoundDivisor": "0x400",
+        "registrar" : "0xfAb104398BBefbd47752E7702D9fE23047E1Bca3",
+        "stepDuration": "4",
+        "blockReward": "0x4563918244F40000",
+        "validators" : {
+          "list": [
+            "0x00D6Cc1BA9cf89BD2e58009741f4F7325BAdc0ED",
+            "0x00427feae2419c15b89d1c21af10d1b6650a4d3d",
+            "0x4Ed9B08e6354C70fE6F8CB0411b0d3246b424d6c",
+            "0x0020ee4Be0e2027d76603cB751eE069519bA81A1",
+
+            "0x0010f94b296a852aaac52ea6c5ac72e03afd032d",
+
+            "0x007733a1FE69CF3f2CF989F81C7b4cAc1693387A",
+            "0x00E6d2b931F55a3f1701c7389d592a7778897879",
+            "0x00e4a10650e5a6D6001C38ff8E64F97016a1645c",
+
+            "0x00a0a24b9f0e5ec7aa4c7389b8302fd0123194de"
+          ]
+        }
+      }
+    }
+  },
+  "params": {
+    "maximumExtraDataSize": "0x20",
+    "minGasLimit": "0x1388",
+    "networkID" : "0x2A"
+  },
+  "genesis": {
+    "seal": {
+      "authorityRound": {
+        "step": "0x0",
+        "signature": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "difficulty": "0x20000",
+    "gasLimit": "0x5B8D80"
+  },
+  "accounts": {
+    "0x0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+    "0x0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+    "0x0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+    "0x0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+    "0x00521965e7bd230323c423d96c657db5b79d099f": { "balance": "1606938044258990275541962092341162602522202993782792835301376" }
+  },
+  "nodes": [
+    "enode://c005dd308256c60fab247813d8bf6d6e81f9cd354287837eb1c2fcf294adaa913a3208e88900ef5c55a8cba7042c301d80503edec2ad3f92a72e241ee6743854@192.241.230.87:30303",
+    "enode://48caeceb2724f2f71406990aa81efe87f8c53f26441d891473da2ae50cc138f238addc0e46b5aee240db55de8c711daac53d7b32a3f13e30edb86a3ca7c2700b@138.68.143.220:30303",
+    "enode://85705212fd28ebdd56669fb55e958feb9d81f74fe76c82f867564b6c2995e69f596df0f588eba16f1a43b69ce06485d68231a0c83fed8469b41eba0e390c126f@139.59.146.42:30303",
+    "enode://2aa81bd0a761cd4f02c934dcf3f81c5b65953e51ab5ba03ceb1f125eb06418a1cdffb1c9d01871aa7bd456f3fce35e745608189ad1164f72b2161634b0c3f6ea@188.166.240.190:30303",
+    "enode://c5900cdd6d20795d58372f42dfbab9d664c27bb97e9c27972741942736e919122f9bac28e74cbc58e4ff195475ea90d9880b71a37af5b5a8cb41d843f765cff8@174.138.79.48:30303"
+  ]
+}
