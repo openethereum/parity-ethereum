@@ -467,12 +467,16 @@ function fetchTokenInfo (tokenreg, tokenId, api, dispatch) {
       const [ address, tag, format, name ] = tokenData;
       const contract = api.newContract(ABIS.eip20, address);
 
+      const safeTag = tag && tag.toLowerCase() === 'eth'
+        ? 'ETHR'
+        : tag;
+
       const token = {
         format: format.toString(),
         id: tokenId,
         image: hashToImageUrl(image),
+        tag: safeTag,
         address,
-        tag,
         name,
         contract
       };
