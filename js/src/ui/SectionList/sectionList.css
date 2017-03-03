@@ -17,7 +17,6 @@
 
 $transition: all 0.25s;
 $widthNormal: 33.33%;
-$widthShrunk: 29%;
 $widthExpanded: 42%;
 
 .section {
@@ -45,13 +44,13 @@ $widthExpanded: 42%;
       box-sizing: border-box;
       display: flex;
       flex: 0 1 $widthNormal;
-      max-width: $widthNormal;
       opacity: 0.85;
       padding: 0.25em;
 
       /* https://www.binarymoon.co.uk/2014/02/fixing-css-transitions-in-google-chrome/ */
       transform: translateZ(0);
       transition: $transition;
+      width: 0;
 
       &:hover {
         opacity: 1;
@@ -62,11 +61,6 @@ $widthExpanded: 42%;
     .item.stretchOn:hover {
       flex: 0 0 $widthExpanded;
       max-width: $widthExpanded;
-
-      & + .item.stretchOn {
-        flex: 0 1 $widthShrunk;
-        max-width: $widthShrunk;
-      }
     }
   }
 }
