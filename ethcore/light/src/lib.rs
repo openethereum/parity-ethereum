@@ -57,7 +57,7 @@ mod types;
 
 pub use self::provider::Provider;
 pub use self::transaction_queue::TransactionQueue;
-pub use types::les_request as request;
+pub use types::request as request;
 
 #[macro_use]
 extern crate log;
