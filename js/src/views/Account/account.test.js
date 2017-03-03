@@ -17,6 +17,11 @@
 import sinon from 'sinon';
 
 const ADDRESS = '0x0123456789012345678901234567890123456789';
+const ACCOUNTS = {
+  [ADDRESS]: {
+    address: ADDRESS
+  }
+};
 
 function createRedux () {
   return {
@@ -47,6 +52,7 @@ function createRedux () {
 }
 
 export {
+  ACCOUNTS,
   ADDRESS,
   createRedux
 };

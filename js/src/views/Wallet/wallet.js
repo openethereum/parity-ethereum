@@ -240,8 +240,8 @@ class Wallet extends Component {
         key='delete'
         label={
           <FormattedMessage
-            id='wallet.buttons.delete'
-            defaultMessage='delete'
+            id='wallet.buttons.forget'
+            defaultMessage='forget'
           />
         }
         onClick={ this.showDeleteDialog }

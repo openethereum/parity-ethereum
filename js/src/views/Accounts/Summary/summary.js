@@ -37,6 +37,7 @@ class Summary extends Component {
     account: PropTypes.object.isRequired,
     accountsInfo: PropTypes.object.isRequired,
     balance: PropTypes.object,
+    disabled: PropTypes.bool,
     link: PropTypes.string,
     name: PropTypes.string,
     noLink: PropTypes.bool,
@@ -52,15 +53,21 @@ class Summary extends Component {
 
   shouldComponentUpdate (nextProps) {
     const prev = {
-      link: this.props.link, name: this.props.name,
+      link: this.props.link,
+      disabled: this.props.disabled,
+      name: this.props.name,
       noLink: this.props.noLink,
-      meta: this.props.account.meta, address: this.props.account.address
+      meta: this.props.account.meta,
+      address: this.props.account.address
     };
 
     const next = {
-      link: nextProps.link, name: nextProps.name,
+      link: nextProps.link,
+      disabled: nextProps.disabled,
+      name: nextProps.name,
       noLink: nextProps.noLink,
-      meta: nextProps.account.meta, address: nextProps.account.address
+      meta: nextProps.account.meta,
+      address: nextProps.account.address
     };
 
     if (!isEqual(next, prev)) {
@@ -92,7 +99,7 @@ class Summary extends Component {
   }
 
   render () {
-    const { account, handleAddSearchToken, noLink } = this.props;
+    const { account, disabled, handleAddSearchToken, noLink } = this.props;
     const { tags } = account.meta;
 
     if (!account) {
@@ -122,6 +129,7 @@ class Summary extends Component {
         <div className={ styles.heading }>
           <IdentityIcon
             address={ address }
+            disabled={ disabled }
           />
           <ContainerTitle
             byline={
