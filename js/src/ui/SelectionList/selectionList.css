@@ -40,8 +40,29 @@
 
   .overlay {
     position: absolute;
-    right: 0.5em;
-    top: 0.5em;
+    left: 0.75em;
+    top: 0.75em;
+    z-index: 1;
+
+    .icon,
+    .iconDisabled {
+      border-radius: 0.25em;
+      color: #333 !important;
+      cursor: pointer;
+      margin-right: 0.25em;
+    }
+
+    .icon {
+      background: white;
+    }
+
+    .iconDisabled {
+      background: #666;
+
+      &:hover {
+        background: white;
+      }
+    }
   }
 }
 
@@ -57,8 +78,4 @@
 .unselected {
   filter: grayscale(10%);
   opacity: 0.75;
-}
-
-.iconDisabled {
-  opacity: 0.15;
 }
