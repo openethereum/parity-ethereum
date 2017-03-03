@@ -95,6 +95,7 @@ pub struct Complaint {
 }
 
 #[derive(Clone, Debug)]
+/// Node is responding to complaint.
 pub struct ComplaintResponse {
 	/// Session Id.
 	pub session: SessionId,
@@ -105,6 +106,7 @@ pub struct ComplaintResponse {
 }
 
 #[derive(Clone, Debug)]
+/// Node is sharing its public key share.
 pub struct PublicKeyShare {
 	/// Session Id.
 	pub session: SessionId,
