@@ -17,6 +17,7 @@
 
 .item {
   border: 2px solid transparent;
+  cursor: pointer;
   display: flex;
   flex: 1;
   height: 100%;

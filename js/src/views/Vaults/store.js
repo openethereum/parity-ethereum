@@ -37,6 +37,7 @@ export default class Store {
   @observable selectedAccounts = {};
   @observable vault = null;
   @observable vaults = [];
+  @observable vaultsOpened = [];
   @observable vaultNames = [];
   @observable vaultName = '';
   @observable vaultNameError = ERRORS.noName;
@@ -143,6 +144,7 @@ export default class Store {
           isOpen: openedVaults.includes(name)
         };
       });
+      this.vaultsOpened = this.vaults.filter((vault) => vault.isOpen);
     });
   }
 
