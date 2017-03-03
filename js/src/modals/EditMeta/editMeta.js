@@ -62,7 +62,6 @@ class EditMeta extends Component {
           />
         }
       >
-        { this.renderVaultSelector() }
         <Form>
           <Input
             autoFocus
