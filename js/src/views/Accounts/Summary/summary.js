@@ -22,7 +22,7 @@ import { isEqual } from 'lodash';
 import ReactTooltip from 'react-tooltip';
 import { FormattedMessage } from 'react-intl';
 
-import { Balance, Container, ContainerTitle, CopyToClipboard, IdentityIcon, IdentityName, Tags } from '~/ui';
+import { Balance, Container, ContainerTitle, CopyToClipboard, IdentityIcon, IdentityName, Tags, VaultTag } from '~/ui';
 import Certifications from '~/ui/Certifications';
 import { arrayOrObjectProptype, nullableProptype } from '~/util/proptypes';
 
@@ -295,17 +295,7 @@ class Summary extends Component {
     }
 
     return (
-      <div className={ styles.vault }>
-        <div className={ styles.vaultBody }>
-          <IdentityIcon
-            address={ meta.vault }
-            inline
-          />
-          <div className={ styles.text }>
-            { meta.vault }
-          </div>
-        </div>
-      </div>
+      <VaultTag vault={ meta.vault } />
     );
   }
 }
