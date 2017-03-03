@@ -29,7 +29,7 @@ export default class VaultSelect extends Component {
 
   static propTypes = {
     onSelect: PropTypes.func.isRequired,
-    value: PropTypes.string.isRequired,
+    value: PropTypes.string,
     vaultStore: PropTypes.object
   };
 
