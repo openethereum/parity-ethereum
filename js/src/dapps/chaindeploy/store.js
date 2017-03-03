@@ -19,7 +19,7 @@ import { action, computed, observable } from 'mobx';
 import { contracts, registry } from './contracts';
 import { apps } from './dapps';
 import { api } from './parity';
-import { isValidNumber, trackRequest } from './utils';
+import { isValidNumber, trackRequest, validateCode } from './utils';
 
 export default class ContractsStore {
   @observable apps = null;
@@ -52,19 +52,27 @@ export default class ContractsStore {
   }
 
   @computed get isContractDeploying () {
-    return this.contracts.filter((contract) => contract.isDeploying).length !== 0;
+    return this.contracts
+      .filter((contract) => contract.isDeploying)
+      .length !== 0;
   }
 
   @computed get isDappDeploying () {
-    return this.apps.filter((app) => app.isDeploying).length !== 0;
+    return this.apps
+      .filter((app) => app.isDeploying)
+      .length !== 0;
   }
 
   @computed get haveAllContracts () {
-    return this.contracts.filter((contract) => !contract.instance).length === 0;
+    return this.contracts
+      .filter((contract) => !contract.instance || !contract.hasLatestCode)
+      .length === 0;
   }
 
   @computed get haveAllDapps () {
-    return this.apps.filter((app) => !app.imageHash || !app.imageMatch).length === 0;
+    return this.apps
+      .filter((app) => !app.imageHash || !app.imageMatch)
+      .length === 0;
   }
 
   @action refreshApps = () => {
@@ -95,6 +103,10 @@ export default class ContractsStore {
     }
   }
 
+  @action setRegistryCode (byteCode) {
+    this.registry.hasLatestCode = validateCode(this.registry.byteCode, byteCode);
+  }
+
   @action setRegistryDeploying = (isDeploying = false) => {
     this.registry = Object.assign({}, this.registry, {
       isDeploying,
@@ -114,6 +126,12 @@ export default class ContractsStore {
 
       this.refreshContracts();
     }
+  }
+
+  @action setContractCode (contract, byteCode) {
+    contract.hasLatestCode = validateCode(contract.byteCode, byteCode);
+
+    this.refreshContracts();
   }
 
   @action setContractDeploying = (contract, isDeploying = false) => {
@@ -290,13 +308,24 @@ export default class ContractsStore {
   }
 
   deployContract = (contract) => {
+    let defaultAccount = '0x0';
+
     this.setContractDeploying(contract, true);
 
     return this
       ._deployContract(contract)
-      .then(([address, defaultAccount]) => {
+      .then(([address, _defaultAccount]) => {
+        const isOnChain = contract.isOnChain;
+
+        defaultAccount = _defaultAccount;
+
         this.setContractAddress(contract, address);
 
+        return isOnChain
+          ? true
+          : this.reserveAddress(contract, defaultAccount);
+      })
+      .then(() => {
         return this.registerAddress(contract, defaultAccount);
       })
       .catch(() => {
@@ -309,7 +338,7 @@ export default class ContractsStore {
 
   deployContracts = () => {
     this.contracts
-      .filter((contract) => !contract.isDeploying && !contract.instance && contract.byteCode)
+      .filter((contract) => !contract.isDeploying && (!contract.instance || !contract.hasLatestCode))
       .forEach(this.deployContract);
   }
 
@@ -324,7 +353,7 @@ export default class ContractsStore {
       });
   }
 
-  registerAddress = (contract, fromAddress) => {
+  reserveAddress = (contract, fromAddress) => {
     const options = { from: fromAddress };
     const values = [api.util.sha3(contract.id)];
 
@@ -341,7 +370,7 @@ export default class ContractsStore {
             options.gas = gasEst.mul(1.2);
 
             return trackRequest(
-              this.registry.instance.reserve.postTransaction(options, values),
+              this.registry.instance.reserve.postTransaction(options, values).catch(() => true),
               (error, data) => {
                 if (error) {
                   console.error(contract.id, error);
@@ -351,18 +380,17 @@ export default class ContractsStore {
               }
             );
           });
-      })
-      .then(() => {
-        values.push('A');
-        values.push(contract.address);
+      });
+  }
 
-        delete options.gas;
-        delete options.value;
+  registerAddress = (contract, fromAddress) => {
+    const options = { from: fromAddress };
+    const values = [api.util.sha3(contract.id), 'A', contract.address];
 
-        this.setContractStatus(contract, 'Setting lookup address');
+    this.setContractStatus(contract, 'Setting lookup address');
 
-        return this.registry.instance.setAddress.estimateGas(options, values);
-      })
+    return this.registry.instance
+      .setAddress.estimateGas(options, values)
       .then((gasEst) => {
         options.gas = gasEst.mul(1.2);
 
@@ -412,7 +440,7 @@ export default class ContractsStore {
   }
 
   findRegistry = () => {
-    if (this.registry.address) {
+    if (this.registry.address && this.registry.hasLatestCode) {
       return Promise.resolve(this.registry);
     }
 
@@ -422,6 +450,11 @@ export default class ContractsStore {
         if (isValidNumber(address)) {
           this.setRegistryAddress(address, true);
         }
+
+        return api.eth.getCode(address);
+      })
+      .then((byteCode) => {
+        this.setRegistryCode(byteCode);
       });
   }
 
@@ -439,6 +472,8 @@ export default class ContractsStore {
         })
       )
       .then((apps) => {
+        console.log(apps);
+
         apps.forEach(([_id], index) => {
           const id = api.util.bytesToHex(_id);
 
@@ -498,6 +533,21 @@ export default class ContractsStore {
         addresses.forEach((address, index) => {
           if (isValidNumber(address)) {
             this.setContractAddress(this.contracts[index], address, true);
+          }
+        });
+
+        return Promise.all(
+          this.contracts.map((contract) => {
+            return !contract.address || contract.hasLatestCode
+              ? Promise.resolve(null)
+              : api.eth.getCode(contract.address);
+          })
+        );
+      })
+      .then((codes) => {
+        codes.forEach((byteCode, index) => {
+          if (byteCode) {
+            this.setContractCode(this.contracts[index], byteCode);
           }
         });
       });

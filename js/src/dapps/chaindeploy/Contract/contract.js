@@ -37,7 +37,7 @@ export default class Contract extends Component {
       >
         <Header
           isBusy={ contract.isDeploying }
-          isOk={ !!contract.instance && contract.isOnChain }
+          isOk={ !!contract.instance && contract.isOnChain && contract.hasLatestCode }
         >
           { contract.id } was {
             contract.address
@@ -54,6 +54,17 @@ export default class Contract extends Component {
             contract.address
               ? contract.address
               : 'no address'
+          }
+        </Row>
+        <Row
+          disabled={ !contract.instance }
+          isBusy={ contract.isDeploying }
+          isOk={ contract.hasLatestCode }
+        >
+          {
+            contract.hasLatestCode
+              ? 'has latest available code'
+              : 'does not have latest code'
           }
         </Row>
         <Row

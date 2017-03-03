@@ -18,6 +18,20 @@ import BigNumber from 'bignumber.js';
 
 import { api } from './parity';
 
+export function validateCode (source, retrieved) {
+  const original = source.substr(12);
+  const bytecode = retrieved.substr(12);
+
+  const knownHash = api.util.sha3(original.slice(-1 * bytecode.length));
+  const codeHash = api.util.sha3(bytecode);
+
+  // console.log(original, bytecode);
+  // console.log(original.length, bytecode.length, original.length - bytecode.length);
+  console.log(knownHash, codeHash, knownHash === codeHash);
+
+  return knownHash === codeHash;
+}
+
 export function isValidNumber (number) {
   return number && !(new BigNumber(number)).isZero();
 }
