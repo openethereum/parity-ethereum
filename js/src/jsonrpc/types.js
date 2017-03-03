@@ -109,3 +109,92 @@ export class TransactionRequest {
     }
   }
 }
+
+export class TransactionResponse {
+  static print = '`Object`';
+
+  static details = {
+    hash: {
+      type: Hash,
+      desc: '32 Bytes - hash of the transaction.'
+    },
+    nonce: {
+      type: Quantity,
+      desc: 'The number of transactions made by the sender prior to this one.'
+    },
+    blockHash: {
+      type: Hash,
+      desc: '32 Bytes - hash of the block where this transaction was in. `null` when its pending.'
+    },
+    blockNumber: {
+      type: BlockNumber,
+      desc: 'Block number where this transaction was in. `null` when its pending.'
+    },
+    transactionIndex: {
+      type: Quantity,
+      desc: 'Integer of the transactions index position in the block. `null` when its pending.'
+    },
+    from: {
+      type: Address,
+      desc: '20 Bytes - address of the sender.'
+    },
+    to: {
+      type: Address,
+      desc: '20 Bytes - address of the receiver. `null` when its a contract creation transaction.'
+    },
+    value: {
+      type: Quantity,
+      desc: 'Value transferred in Wei.'
+    },
+    gasPrice: {
+      type: Quantity,
+      desc: 'Gas price provided by the sender in Wei.'
+    },
+    gas: {
+      type: Quantity,
+      desc: 'Gas provided by the sender.'
+    },
+    input: {
+      type: Data,
+      desc: 'The data send along with the transaction.'
+    },
+    creates: {
+      type: Address,
+      optional: true,
+      desc: 'Address of a created contract or `null`.'
+    },
+    raw: {
+      type: Data,
+      desc: 'Raw transaction data.'
+    },
+    publicKey: {
+      type: Data,
+      desc: 'Public key of the signer.'
+    },
+    networkId: {
+      type: Quantity,
+      desc: 'The network id of the transaction, if any.'
+    },
+    standardV: {
+      type: Quantity,
+      desc: 'The standardized V field of the signature (0 or 1).'
+    },
+    v: {
+      type: Quantity,
+      desc: 'The V field of the signature.'
+    },
+    r: {
+      type: Quantity,
+      desc: 'The R field of the signature.'
+    },
+    s: {
+      type: Quantity,
+      desc: 'The S field of the signature.'
+    },
+    condition: {
+      type: Object,
+      optional: true,
+      desc: 'Conditional submission, Block number in `block` or timestamp in `time` or `null`.'
+    }
+  }
+}
