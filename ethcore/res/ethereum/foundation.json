@@ -1,5 +1,5 @@
 {
-	"name": "Frontier/Homestead",
+	"name": "Foundation",
 	"dataDir": "ethereum",
 	"engine": {
 		"Ethash": {
@@ -9,7 +9,7 @@
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
-				"registrar" : "0x3bb2bb5c6c9c9b7f4ef430b47dc7e026310042ea",
+				"registrar" : "0xe3389675d0338462dC76C6f9A3e432550c36A142",
 				"homesteadTransition": "0x118c30",
 				"daoHardforkTransition": "0x1d4c00",
 				"daoHardforkBeneficiary": "0xbf4ed7b27f1d666546e30d74d50d173d20bca754",
