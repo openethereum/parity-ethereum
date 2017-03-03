@@ -65,7 +65,7 @@ export default class VaultSelect extends Component {
               defaultMessage='associated vault'
             />
           }
-          onClick={ this.toggleSelector }
+          onClick={ this.openSelector }
           value={ value }
         />
       </div>
@@ -82,7 +82,7 @@ export default class VaultSelect extends Component {
 
     return (
       <VaultSelector
-        onClose={ this.toggleSelector }
+        onClose={ this.closeSelector }
         onSelect={ this.onSelect }
         selected={ value }
         vaultStore={ this.vaultStore }
@@ -90,14 +90,20 @@ export default class VaultSelect extends Component {
     );
   }
 
-  toggleSelector = () => {
+  openSelector = () => {
     this.setState({
-      isOpen: !this.state.isOpen
+      isOpen: true
+    });
+  }
+
+  closeSelector = () => {
+    this.setState({
+      isOpen: false
     });
   }
 
   onSelect = (vaultName) => {
     this.props.onSelect(vaultName);
-    this.toggleSelector();
+    this.closeSelector();
   }
 }
