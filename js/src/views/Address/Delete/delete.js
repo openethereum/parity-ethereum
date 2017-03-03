@@ -35,13 +35,14 @@ class Delete extends Component {
 
     address: PropTypes.string,
     account: PropTypes.object,
+    confirmMessage: PropTypes.node,
     visible: PropTypes.bool,
     onClose: PropTypes.func,
     newError: PropTypes.func
   };
 
   render () {
-    const { account, visible } = this.props;
+    const { account, confirmMessage, visible } = this.props;
 
     if (!visible) {
       return null;
@@ -61,10 +62,14 @@ class Delete extends Component {
         onConfirm={ this.onDeleteConfirmed }
       >
         <div className={ styles.hero }>
-          <FormattedMessage
-            id='address.delete.confirmInfo'
-            defaultMessage='Are you sure you want to remove the following address from your addressbook?'
-          />
+          {
+            confirmMessage || (
+              <FormattedMessage
+                id='address.delete.confirmInfo'
+                defaultMessage='Are you sure you want to remove the following address from your addressbook?'
+              />
+            )
+          }
         </div>
         <div className={ styles.info }>
           <IdentityIcon
@@ -112,15 +117,11 @@ class Delete extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  return {};
-}
-
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({ newError }, dispatch);
 }
 
 export default connect(
-  mapStateToProps,
+  null,
   mapDispatchToProps
 )(Delete);

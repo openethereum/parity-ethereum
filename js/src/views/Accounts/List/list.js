@@ -29,6 +29,7 @@ class List extends Component {
     accounts: PropTypes.object,
     balances: PropTypes.object,
     certifications: PropTypes.object.isRequired,
+    disabled: PropTypes.object,
     empty: PropTypes.bool,
     link: PropTypes.string,
     order: PropTypes.string,
@@ -50,7 +51,7 @@ class List extends Component {
   }
 
   render () {
-    const { accounts, balances, empty } = this.props;
+    const { accounts, balances, disabled, empty } = this.props;
 
     if (empty) {
       return (
@@ -64,14 +65,16 @@ class List extends Component {
 
     const addresses = this
       .getAddresses()
-      .map((address, idx) => {
+      .map((address) => {
         const account = accounts[address] || {};
         const balance = balances[address] || {};
+        const isDisabled = disabled ? disabled[address] : false;
         const owners = account.owners || null;
 
         return {
           account,
           balance,
+          isDisabled,
           owners
         };
       });
@@ -85,13 +88,14 @@ class List extends Component {
   }
 
   renderSummary = (item) => {
-    const { account, balance, owners } = item;
+    const { account, balance, isDisabled, owners } = item;
     const { handleAddSearchToken, link } = this.props;
 
     return (
       <Summary
         account={ account }
         balance={ balance }
+        disabled={ isDisabled }
         handleAddSearchToken={ handleAddSearchToken }
         link={ link }
         owners={ owners }

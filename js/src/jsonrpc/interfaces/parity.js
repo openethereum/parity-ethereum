@@ -393,6 +393,32 @@ export default {
     }
   },
 
+  hardwareAccountsInfo: {
+    section: SECTION_ACCOUNTS,
+    desc: 'Provides metadata for attached hardware wallets',
+    params: [],
+    returns: {
+      type: Object,
+      desc: 'Maps account address to metadata.',
+      details: {
+        manufacturer: {
+          type: String,
+          desc: 'Manufacturer'
+        },
+        name: {
+          type: String,
+          desc: 'Account name'
+        }
+      },
+      example: {
+        '0x0024d0c7ab4c52f723f3aaf0872b9ea4406846a4': {
+          manufacturer: 'Ledger',
+          name: 'Nano S'
+        }
+      }
+    }
+  },
+
   listOpenedVaults: {
     desc: 'Returns a list of all opened vaults',
     params: [],
