@@ -81,7 +81,8 @@ export default class AccountStore {
             Object
               .keys(accounts)
               .filter((address) => {
-                const isAccount = accounts[address].uuid;
+                const account = accounts[address];
+                const isAccount = account.uuid || (account.meta && account.meta.hardware);
                 const isWhitelisted = !whitelist || whitelist.includes(address);
 
                 return isAccount && isWhitelisted;

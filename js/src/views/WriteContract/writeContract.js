@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes, Component } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { observer } from 'mobx-react';
 import { MenuItem, Toggle } from 'material-ui';
 import { connect } from 'react-redux';
@@ -22,13 +23,8 @@ import CircularProgress from 'material-ui/CircularProgress';
 import moment from 'moment';
 import { throttle } from 'lodash';
 
-import ContentClear from 'material-ui/svg-icons/content/clear';
-import SaveIcon from 'material-ui/svg-icons/content/save';
-import ListIcon from 'material-ui/svg-icons/action/view-list';
-import SettingsIcon from 'material-ui/svg-icons/action/settings';
-import SendIcon from 'material-ui/svg-icons/content/send';
-
 import { Actionbar, ActionbarExport, ActionbarImport, Button, Page, Select, Input } from '~/ui';
+import { CancelIcon, ListIcon, SaveIcon, SendIcon, SettingsIcon } from '~/ui/Icons';
 import Editor from '~/ui/Editor';
 import { DeployContract, SaveContract, LoadContract } from '~/modals';
 
@@ -97,7 +93,6 @@ class WriteContract extends Component {
         { this.renderDeployModal() }
         { this.renderSaveModal() }
         { this.renderLoadModal() }
-
         { this.renderActionBar() }
         <Page className={ styles.page }>
           <div
@@ -133,7 +128,12 @@ class WriteContract extends Component {
               className={ styles.parameters }
               style={ { flex: `${100 - size}%` } }
             >
-              <h2>Parameters</h2>
+              <h2>
+                <FormattedMessage
+                  id='writeContract.title.parameters'
+                  defaultMessage='Parameters'
+                />
+              </h2>
               { this.renderParameters() }
             </div>
           </div>
@@ -146,7 +146,12 @@ class WriteContract extends Component {
     const { selectedContract } = this.store;
 
     if (!selectedContract || !selectedContract.name) {
-      return 'New Solidity Contract';
+      return (
+        <FormattedMessage
+          id='writeContract.title.new'
+          defaultMessage='New Solidity Contract'
+        />
+      );
     }
 
     return (
@@ -154,9 +159,23 @@ class WriteContract extends Component {
         { selectedContract.name }
         <span
           className={ styles.timestamp }
-          title={ `saved @ ${(new Date(selectedContract.timestamp)).toISOString()}` }
+          title={
+            <FormattedMessage
+              id='writeContract.title.saved'
+              defaultMessage='saved @ {timestamp}'
+              vaules={ {
+                timestamp: (new Date(selectedContract.timestamp)).toISOString()
+              } }
+            />
+          }
         >
-          (saved { moment(selectedContract.timestamp).fromNow() })
+          <FormattedMessage
+            id='writeContract.details.saved'
+            defaultMessage='(saved {timestamp})'
+            values={ {
+              timestamp: moment(selectedContract.timestamp).fromNow()
+            } }
+          />
         </span>
       </span>
     );
@@ -176,20 +195,35 @@ class WriteContract extends Component {
 
     const buttons = [
       <Button
-        icon={ <ContentClear /> }
-        label='New'
+        icon={ <CancelIcon /> }
+        label={
+          <FormattedMessage
+            id='writeContract.buttons.new'
+            defaultMessage='New'
+          />
+        }
         key='newContract'
         onClick={ this.store.handleNewContract }
       />,
       <Button
         icon={ <ListIcon /> }
-        label='Load'
+        label={
+          <FormattedMessage
+            id='writeContract.buttons.load'
+            defaultMessage='Load'
+          />
+        }
         key='loadContract'
         onClick={ this.store.handleOpenLoadModal }
       />,
       <Button
         icon={ <SaveIcon /> }
-        label='Save'
+        label={
+          <FormattedMessage
+            id='writeContract.buttons.save'
+            defaultMessage='Save'
+          />
+        }
         key='saveContract'
         onClick={ this.store.handleSaveContract }
       />,
@@ -200,7 +234,12 @@ class WriteContract extends Component {
       />,
       <ActionbarImport
         key='importSourcecode'
-        title='Import Solidity code'
+        title={
+          <FormattedMessage
+            id='writeContract.buttons.import'
+            defaultMessage='Import Solidity'
+          />
+        }
         onConfirm={ this.store.handleImport }
         renderValidation={ this.renderImportValidation }
       />
@@ -208,7 +247,12 @@ class WriteContract extends Component {
 
     return (
       <Actionbar
-        title='Write a Contract'
+        title={
+          <FormattedMessage
+            id='writeContract.title.main'
+            defaultMessage='Write a Contract'
+          />
+        }
         buttons={ buttons }
       />
     );
@@ -231,8 +275,15 @@ class WriteContract extends Component {
       return (
         <div className={ styles.panel }>
           <div className={ styles.centeredMessage }>
-            <p>Unfortuantely, an error occurred...</p>
-            <div className={ styles.error }>{ workerError.toString() }</div>
+            <p>
+              <FormattedMessage
+                id='writeContract.error.params'
+                defaultMessage='An error occurred with the following description'
+              />
+            </p>
+            <div className={ styles.error }>
+              { workerError.toString() }
+            </div>
           </div>
         </div>
       );
@@ -245,7 +296,12 @@ class WriteContract extends Component {
             size={ 80 }
             thickness={ 5 }
           />
-          <p>Loading...</p>
+          <p>
+            <FormattedMessage
+              id='writeContract.title.loading'
+              defaultMessage='Loading...'
+            />
+          </p>
         </div>
       );
     }
@@ -260,7 +316,15 @@ class WriteContract extends Component {
               size={ 80 }
               thickness={ 5 }
             />
-            <p>Loading Solidity { longVersion }</p>
+            <p>
+              <FormattedMessage
+                id='writeContract.title.solidity'
+                defaultMessage='Loading Solidity {version}'
+                values={ {
+                  version: longVersion
+                } }
+              />
+            </p>
           </div>
         </div>
       );
@@ -271,7 +335,12 @@ class WriteContract extends Component {
         <div>
           <Button
             icon={ <SettingsIcon /> }
-            label='Compile'
+            label={
+              <FormattedMessage
+                id='writeContract.buttons.compile'
+                defaultMessage='Compile'
+              />
+            }
             onClick={ this.store.handleCompile }
             primary={ false }
             disabled={ compiling }
@@ -281,7 +350,12 @@ class WriteContract extends Component {
               ? (
                 <Button
                   icon={ <SendIcon /> }
-                  label='Deploy'
+                  label={
+                    <FormattedMessage
+                      id='writeContract.buttons.deploy'
+                      defaultMessage='Deploy'
+                    />
+                  }
                   onClick={ this.store.handleOpenDeployModal }
                   primary={ false }
                 />
@@ -292,7 +366,12 @@ class WriteContract extends Component {
         <div className={ styles.toggles }>
           <div>
             <Toggle
-              label='Optimize'
+              label={
+                <FormattedMessage
+                  id='writeContract.buttons.optimise'
+                  defaultMessage='Optimise'
+                />
+              }
               labelPosition='right'
               onToggle={ this.store.handleOptimizeToggle }
               toggled={ this.store.optimize }
@@ -300,7 +379,12 @@ class WriteContract extends Component {
           </div>
           <div>
             <Toggle
-              label='Auto-Compile'
+              label={
+                <FormattedMessage
+                  id='writeContract.buttons.autoCompile'
+                  defaultMessage='Auto-Compile'
+                />
+              }
               labelPosition='right'
               onToggle={ this.store.handleAutocompileToggle }
               toggled={ this.store.autocompile }
@@ -324,7 +408,11 @@ class WriteContract extends Component {
       >
         {
           build.release
-            ? (<span className={ styles.big }>{ build.version }</span>)
+            ? (
+              <span className={ styles.big }>
+                { build.version }
+              </span>
+            )
             : build.longVersion
         }
       </MenuItem>
@@ -333,7 +421,12 @@ class WriteContract extends Component {
     return (
       <div>
         <Select
-          label='Select a Solidity version'
+          label={
+            <FormattedMessage
+              id='writeContract.title.selectSolidity'
+              defaultMessage='Select a Solidity version'
+            />
+          }
           value={ selectedBuild }
           onChange={ this.store.handleSelectBuild }
         >
@@ -406,7 +499,12 @@ class WriteContract extends Component {
             size={ 80 }
             thickness={ 5 }
           />
-          <p>Compiling...</p>
+          <p>
+            <FormattedMessage
+              id='writeContract.compiling.busy'
+              defaultMessage='Compiling...'
+            />
+          </p>
         </div>
       );
     }
@@ -414,7 +512,12 @@ class WriteContract extends Component {
     if (!compiled) {
       return (
         <div className={ styles.centeredMessage }>
-          <p>Please compile the source code.</p>
+          <p>
+            <FormattedMessage
+              id='writeContract.compiling.action'
+              defaultMessage='Please compile the source code.'
+            />
+          </p>
         </div>
       );
     }
@@ -428,7 +531,12 @@ class WriteContract extends Component {
     if (contractKeys.length === 0) {
       return (
         <div className={ styles.centeredMessage }>
-          <p>No contract has been found.</p>
+          <p>
+            <FormattedMessage
+              id='writeContract.error.noContract'
+              defaultMessage='No contract has been found.'
+            />
+          </p>
         </div>
       );
     }
@@ -446,15 +554,24 @@ class WriteContract extends Component {
     return (
       <div className={ styles.compilation }>
         <Select
-          label='Select a contract'
+          label={
+            <FormattedMessage
+              id='writeContract.title.contract'
+              defaultMessage='Select a contract'
+            />
+          }
           value={ contractIndex }
           onChange={ this.store.handleSelectContract }
         >
           { contractsList }
         </Select>
         { this.renderContract(contract) }
-
-        <h4 className={ styles.messagesHeader }>Compiler messages</h4>
+        <h4 className={ styles.messagesHeader }>
+          <FormattedMessage
+            id='writeContract.title.messages'
+            defaultMessage='Compiler messages'
+          />
+        </h4>
         { this.renderErrors() }
       </div>
     );
@@ -468,7 +585,12 @@ class WriteContract extends Component {
       ? (
         <Input
           allowCopy
-          label='Metadata'
+          label={
+            <FormattedMessage
+              id='writeContract.input.metadata'
+              defaultMessage='Metadata'
+            />
+          }
           readOnly
           value={ contract.metadata }
         />
@@ -479,14 +601,24 @@ class WriteContract extends Component {
       <div>
         <Input
           allowCopy
-          label='ABI Interface'
+          label={
+            <FormattedMessage
+              id='writeContract.input.abi'
+              defaultMessage='ABI Interface'
+            />
+          }
           readOnly
           value={ abi }
         />
 
         <Input
           allowCopy
-          label='Bytecode'
+          label={
+            <FormattedMessage
+              id='writeContract.input.code'
+              defaultMessage='Bytecode'
+            />
+          }
           readOnly
           value={ `0x${bytecode}` }
         />
@@ -516,7 +648,12 @@ class WriteContract extends Component {
     return (
       <Input
         allowCopy
-        label='Swarm Metadata Hash'
+        label={
+          <FormattedMessage
+            id='writeContract.input.swarm'
+            defaultMessage='Swarm Metadata Hash'
+          />
+        }
         readOnly
         value={ `${hash}` }
       />

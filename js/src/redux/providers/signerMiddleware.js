@@ -17,11 +17,13 @@
 import * as actions from './signerActions';
 
 import { inHex } from '~/api/format/input';
-import { Signer } from '../../util/signer';
+import HardwareStore from '~/mobx/hardwareStore';
+import { Signer } from '~/util/signer';
 
 export default class SignerMiddleware {
   constructor (api) {
     this._api = api;
+    this._hwstore = HardwareStore.get(api);
   }
 
   toMiddleware () {
@@ -51,11 +53,9 @@ export default class SignerMiddleware {
     };
   }
 
-  onConfirmStart = (store, action) => {
-    const { condition, gas = 0, gasPrice = 0, id, password, payload, wallet } = action.payload;
-
-    const handlePromise = (promise) => {
-      promise
+  _createConfirmPromiseHandler (store, id) {
+    return (promise) => {
+      return promise
         .then((txHash) => {
           if (!txHash) {
             store.dispatch(actions.errorConfirmRequest({ id, err: 'Unable to confirm.' }));
@@ -69,62 +69,100 @@ export default class SignerMiddleware {
           store.dispatch(actions.errorConfirmRequest({ id, err: error.message }));
         });
     };
+  }
 
-    // Sign request in-browser
+  createNoncePromise (transaction) {
+    return !transaction.nonce || transaction.nonce.isZero()
+      ? this._api.parity.nextNonce(transaction.from)
+      : Promise.resolve(transaction.nonce);
+  }
+
+  confirmLedgerTransaction (store, id, transaction) {
+    return this
+      .createNoncePromise(transaction)
+      .then((nonce) => {
+        transaction.nonce = nonce;
+
+        return this._hwstore.signLedger(transaction);
+      })
+      .then((rawTx) => {
+        const handlePromise = this._createConfirmPromiseHandler(store, id);
+
+        return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
+      });
+  }
+
+  confirmWalletTransaction (store, id, transaction, wallet, password) {
+    const handlePromise = this._createConfirmPromiseHandler(store, id);
+    const { worker } = store.getState().worker;
+
+    const signerPromise = worker && worker._worker.state === 'activated'
+      ? worker
+        .postMessage({
+          action: 'getSignerSeed',
+          data: { wallet, password }
+        })
+        .then((result) => {
+          const seed = Buffer.from(result.data);
+
+          return new Signer(seed);
+        })
+      : Signer.fromJson(wallet, password);
+
+    // NOTE: Derving the key takes significant amount of time,
+    // make sure to display some kind of "in-progress" state.
+    return Promise
+      .all([ signerPromise, this.createNoncePromise(transaction) ])
+      .then(([ signer, nonce ]) => {
+        const txData = {
+          to: inHex(transaction.to),
+          nonce: inHex(transaction.nonce.isZero() ? nonce : transaction.nonce),
+          gasPrice: inHex(transaction.gasPrice),
+          gasLimit: inHex(transaction.gas),
+          value: inHex(transaction.value),
+          data: inHex(transaction.data)
+        };
+
+        return signer.signTransaction(txData);
+      })
+      .then((rawTx) => {
+        return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
+      })
+      .catch((error) => {
+        console.error(error.message);
+        store.dispatch(actions.errorConfirmRequest({ id, err: error.message }));
+      });
+  }
+
+  onConfirmStart = (store, action) => {
+    const { condition, gas = 0, gasPrice = 0, id, password, payload, wallet } = action.payload;
+    const handlePromise = this._createConfirmPromiseHandler(store, id);
     const transaction = payload.sendTransaction || payload.signTransaction;
 
-    if (wallet && transaction) {
-      const noncePromise = transaction.nonce.isZero()
-        ? this._api.parity.nextNonce(transaction.from)
-        : Promise.resolve(transaction.nonce);
+    if (transaction) {
+      const hardwareAccount = this._hwstore.wallets[transaction.from];
 
-      const { worker } = store.getState().worker;
+      if (wallet) {
+        return this.confirmWalletTransaction(store, id, transaction, wallet, password);
+      } else if (hardwareAccount) {
+        switch (hardwareAccount.via) {
+          case 'ledger':
+            return this.confirmLedgerTransaction(store, id, transaction);
 
-      const signerPromise = worker && worker._worker.state === 'activated'
-        ? worker
-          .postMessage({
-            action: 'getSignerSeed',
-            data: { wallet, password }
-          })
-          .then((result) => {
-            const seed = Buffer.from(result.data);
-
-            return new Signer(seed);
-          })
-        : Signer.fromJson(wallet, password);
-
-      // NOTE: Derving the key takes significant amount of time,
-      // make sure to display some kind of "in-progress" state.
-      return Promise
-        .all([ signerPromise, noncePromise ])
-        .then(([ signer, nonce ]) => {
-          const txData = {
-            to: inHex(transaction.to),
-            nonce: inHex(transaction.nonce.isZero() ? nonce : transaction.nonce),
-            gasPrice: inHex(transaction.gasPrice),
-            gasLimit: inHex(transaction.gas),
-            value: inHex(transaction.value),
-            data: inHex(transaction.data)
-          };
-
-          return signer.signTransaction(txData);
-        })
-        .then((rawTx) => {
-          return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
-        })
-        .catch((error) => {
-          console.error(error.message);
-          store.dispatch(actions.errorConfirmRequest({ id, err: error.message }));
-        });
+          case 'parity':
+          default:
+            break;
+        }
+      }
     }
 
-    handlePromise(this._api.signer.confirmRequest(id, { gas, gasPrice, condition }, password));
+    return handlePromise(this._api.signer.confirmRequest(id, { gas, gasPrice, condition }, password));
   }
 
   onRejectStart = (store, action) => {
     const id = action.payload;
 
-    this._api.signer
+    return this._api.signer
       .rejectRequest(id)
       .then(() => {
         store.dispatch(actions.successRejectRequest({ id }));

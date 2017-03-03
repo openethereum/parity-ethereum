@@ -35,6 +35,9 @@ pub const FORK_SUPPORTED_FRONTIER: u64 = 2675000;
 /// Most recent fork block that we support on Ropsten.
 pub const FORK_SUPPORTED_ROPSTEN: u64 = 10;
 
+/// Most recent fork block that we support on Kovan.
+pub const FORK_SUPPORTED_KOVAN: u64 = 0;
+
 fn load(b: &[u8]) -> Spec {
 	Spec::load(b).expect("chain spec is invalid")
 }
@@ -48,8 +51,11 @@ pub fn new_frontier() -> Spec { load(include_bytes!("../../res/ethereum/frontier
 /// Create a new Frontier mainnet chain spec without the DAO hardfork.
 pub fn new_classic() -> Spec { load(include_bytes!("../../res/ethereum/classic.json")) }
 
-/// Create a new Frontier mainnet chain spec without the DAO hardfork.
+/// Create a new Expanse mainnet chain spec.
 pub fn new_expanse() -> Spec { load(include_bytes!("../../res/ethereum/expanse.json")) }
+
+/// Create a new Kovan testnet chain spec.
+pub fn new_kovan() -> Spec { load(include_bytes!("../../res/ethereum/kovan.json")) }
 
 /// Create a new Frontier chain spec as though it never changes to Homestead.
 pub fn new_frontier_test() -> Spec { load(include_bytes!("../../res/ethereum/frontier_test.json")) }

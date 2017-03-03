@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { bytesToHex } from '~/api/util/format';
 import { Container } from '~/ui';
@@ -36,7 +37,14 @@ export default class WalletTransactions extends Component {
   render () {
     return (
       <div>
-        <Container title='Transactions'>
+        <Container
+          title={
+            <FormattedMessage
+              id='wallet.transactions.title'
+              defaultMessage='Transactions'
+            />
+          }
+        >
           { this.renderTransactions() }
         </Container>
       </div>
@@ -52,7 +60,12 @@ export default class WalletTransactions extends Component {
     if (transactions.length === 0) {
       return (
         <div>
-          <p>No transactions has been sent.</p>
+          <p>
+            <FormattedMessage
+              id='wallet.transactions.none'
+              defaultMessage='No transactions has been sent.'
+            />
+          </p>
         </div>
       );
     }
@@ -62,14 +75,17 @@ export default class WalletTransactions extends Component {
 
       return (
         <TxRow
-          key={ `${transactionHash}_${index}` }
-          tx={ {
-            hash: transactionHash,
-            input: data && bytesToHex(data) || '',
-            blockNumber, from, to, value
-          } }
           address={ address }
           isTest={ isTest }
+          key={ `${transactionHash}_${index}` }
+          tx={ {
+            blockNumber,
+            from,
+            hash: transactionHash,
+            input: data && bytesToHex(data) || '',
+            to,
+            value
+          } }
         />
       );
     });

@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
-import BackIcon from 'material-ui/svg-icons/navigation/arrow-back';
+import { PrevIcon } from '~/ui/Icons';
 
 import TransactionPendingFormConfirm from './TransactionPendingFormConfirm';
 import TransactionPendingFormReject from './TransactionPendingFormReject';
@@ -24,7 +25,9 @@ import styles from './transactionPendingForm.css';
 
 export default class TransactionPendingForm extends Component {
   static propTypes = {
+    account: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
+    disabled: PropTypes.bool,
     isSending: PropTypes.bool.isRequired,
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
@@ -52,7 +55,7 @@ export default class TransactionPendingForm extends Component {
   }
 
   renderForm () {
-    const { address, focus, isSending, onConfirm, onReject } = this.props;
+    const { account, address, disabled, focus, isSending, onConfirm, onReject } = this.props;
 
     if (this.state.isRejectOpen) {
       return (
@@ -63,6 +66,8 @@ export default class TransactionPendingForm extends Component {
     return (
       <TransactionPendingFormConfirm
         address={ address }
+        account={ account }
+        disabled={ disabled }
         focus={ focus }
         isSending={ isSending }
         onConfirm={ onConfirm }
@@ -75,9 +80,24 @@ export default class TransactionPendingForm extends Component {
     let html;
 
     if (!isRejectOpen) {
-      html = <span>reject request</span>;
+      html = (
+        <span>
+          <FormattedMessage
+            id='signer.txPendingForm.reject'
+            defaultMessage='reject request'
+          />
+        </span>
+      );
     } else {
-      html = <span><BackIcon />{ "I've changed my mind" }</span>;
+      html = (
+        <span>
+          <PrevIcon />
+          <FormattedMessage
+            id='signer.txPendingForm.changedMind'
+            defaultMessage="I've changed my mind"
+          />
+        </span>
+      );
     }
 
     return (

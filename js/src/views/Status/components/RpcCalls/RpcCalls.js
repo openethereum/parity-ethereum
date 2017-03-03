@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import _ from 'lodash';
 
 import Toggle from 'material-ui/Toggle/Toggle';
@@ -38,11 +39,11 @@ export default class RpcCalls extends Component {
     const { paramsValues, params } = nextProps.rpc.selectedMethod;
 
     if (paramsValues) {
-      params.map((p, idx) => {
+      params.map((p, index) => {
         // todo [adgo] 01.05.2016 - make sure this works
         // not sure idx is the same for paramsValues and params
         this.setState({
-          [this.paramKey(p)]: paramsValues[idx]
+          [this.paramKey(p)]: paramsValues[index]
         });
       });
 
@@ -59,7 +60,12 @@ export default class RpcCalls extends Component {
           <div className='dapp-container'>
             <div className='row'>
               <div className='col col-6'>
-                <h1><span>RPC</span> Requests</h1>
+                <h1>
+                  <FormattedMessage
+                    id='status.rpcCalls.requests'
+                    defaultMessage='RPC Requests'
+                  />
+                </h1>
               </div>
               <div className='col col-6'>
                 <RpcNav />
@@ -92,11 +98,19 @@ export default class RpcCalls extends Component {
         <Toggle
           className={ styles.jsonToggle }
           onToggle={ this.onJsonToggle }
-          label='JSON'
+          label={
+            <FormattedMessage
+              id='status.rpcCalls.json'
+              defaultMessage='JSON'
+            />
+          }
         />
         <h2 className={ styles.header }>
           <label htmlFor='selectedMethod'>
-            Call Method
+            <FormattedMessage
+              id='status.rpcCalls.callMethod'
+              defaultMessage='Call Method'
+            />
           </label>
         </h2>
         <AnimateChildren absolute>
@@ -117,9 +131,19 @@ export default class RpcCalls extends Component {
     return (
       <div className='row'>
         { this.renderMethodList() }
-        <h3>Parameters</h3>
+        <h3>
+          <FormattedMessage
+            id='status.rpcCalls.parameters'
+            defaultMessage='Parameters'
+          />
+        </h3>
         { this.renderInputs() }
-        <h3>Returns</h3>
+        <h3>
+          <FormattedMessage
+            id='status.rpcCalls.returns'
+            defaultMessage='Returns'
+          />
+        </h3>
         <Markdown val={ formatRpcMd(returns) } />
         { this.renderFormButton() }
       </div>
@@ -177,7 +201,10 @@ export default class RpcCalls extends Component {
 
     if (!params || !params.length) {
       return (
-        <span>none</span>
+        <FormattedMessage
+          id='status.rpcCalls.none'
+          defaultMessage='none'
+        />
       );
     }
 
@@ -284,7 +311,10 @@ export default class RpcCalls extends Component {
         disabled={ this.state.jsonEditorError }
         onClick={ this.onRpcFire }
       >
-        Fire!
+        <FormattedMessage
+          id='status.rpcCalls.fireButton'
+          defaultMessage='Fire'
+        />
       </button>
     );
   }
