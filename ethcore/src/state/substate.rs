@@ -28,9 +28,6 @@ pub struct Substate {
 	/// Any accounts that have suicided.
 	pub suicides: HashSet<Address>,
 
-	/// Any accounts that are tagged for garbage collection.
-	pub garbage: HashSet<Address>,
-
 	/// Any logs.
 	pub logs: Vec<LogEntry>,
 
@@ -50,7 +47,6 @@ impl Substate {
 	/// Merge secondary substate `s` into self, accruing each element correspondingly.
 	pub fn accrue(&mut self, s: Substate) {
 		self.suicides.extend(s.suicides.into_iter());
-		self.garbage.extend(s.garbage.into_iter());
 		self.logs.extend(s.logs.into_iter());
 		self.sstore_clears_count = self.sstore_clears_count + s.sstore_clears_count;
 		self.contracts_created.extend(s.contracts_created.into_iter());
@@ -62,7 +58,7 @@ impl Substate {
 		match (schedule.no_empty, schedule.kill_empty) {
 			(false, _) => CleanupMode::ForceCreate,
 			(true, false) => CleanupMode::NoEmpty,
-			(true, true) => CleanupMode::KillEmpty(&mut self.garbage),
+			(true, true) => CleanupMode::KillEmpty,
 		}
 	}
 }

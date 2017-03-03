@@ -80,10 +80,18 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine, che
 	}
 	// Verify transactions.
 	let mut transactions = Vec::new();
+	let nonce_cap = if header.number() >= engine.params().dust_protection_transition {
+		Some((engine.params().nonce_cap_increment * header.number()).into())
+	} else { None };
 	{
 		let v = BlockView::new(&bytes);
 		for t in v.transactions() {
 			let t = engine.verify_transaction(t, &header)?;
+			if let Some(max_nonce) = nonce_cap {
+				if t.nonce >= max_nonce {
+					return Err(BlockError::TooManyTransactions(t.sender()).into());
+				}
+			}
 			transactions.push(t);
 		}
 	}
@@ -391,6 +399,12 @@ mod tests {
 		verify_block_family(&header, bytes, engine, bc)
 	}
 
+	fn unordered_test(bytes: &[u8], engine: &Engine) -> Result<(), Error> {
+		let header = BlockView::new(bytes).header();
+		verify_block_unordered(header, bytes.to_vec(), engine, false)?;
+		Ok(())
+	}
+
 	#[test]
 	#[cfg_attr(feature="dev", allow(similar_names))]
 	fn test_verify_block() {
@@ -555,5 +569,35 @@ mod tests {
 			TooManyUncles(OutOfBounds { max: Some(engine.maximum_uncle_count()), min: None, found: bad_uncles.len() }));
 
 		// TODO: some additional uncle checks
+	}
+
+	#[test]
+	fn dust_protection() {
+		use ethkey::{Generator, Random};
+		use types::transaction::{Transaction, Action};
+		use engines::NullEngine;
+
+		let mut params = CommonParams::default();
+		params.dust_protection_transition = 0;
+		params.nonce_cap_increment = 2;
+
+		let mut header = Header::default();
+		header.set_number(1);
+
+		let keypair = Random.generate().unwrap();
+		let bad_transactions: Vec<_> = (0..3).map(|i| Transaction {
+			action: Action::Create,
+			value: U256::zero(),
+			data: Vec::new(),
+			gas: 0.into(),
+			gas_price: U256::zero(),
+			nonce: i.into(),
+		}.sign(keypair.secret(), None)).collect();
+
+		let good_transactions = [bad_transactions[0].clone(), bad_transactions[1].clone()];
+
+		let engine = NullEngine::new(params, BTreeMap::new());
+		check_fail(unordered_test(&create_test_block_with_data(&header, &bad_transactions, &[]), &engine), TooManyTransactions(keypair.address()));
+		unordered_test(&create_test_block_with_data(&header, &good_transactions, &[]), &engine).unwrap();
 	}
 }

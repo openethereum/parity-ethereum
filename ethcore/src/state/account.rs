@@ -315,6 +315,11 @@ impl Account {
 		self.code_hash == SHA3_EMPTY
 	}
 
+	/// Check if account is basic (Has no code).
+	pub fn is_basic(&self) -> bool {
+		self.code_hash == SHA3_EMPTY
+	}
+
 	/// Return the storage root associated with this account or None if it has been altered via the overlay.
 	pub fn storage_root(&self) -> Option<&H256> { if self.storage_is_clean() {Some(&self.storage_root)} else {None} }
 

@@ -74,6 +74,8 @@ pub enum ProvedExecution {
 	Complete(Executed),
 }
 
+const RIPEMD_BUILTIN: Address = H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]);
+
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 /// Account modification state. Used to check if the account was
 /// Modified in between commits and overall.
@@ -96,7 +98,11 @@ enum AccountState {
 /// Account entry can contain existing (`Some`) or non-existing
 /// account (`None`)
 struct AccountEntry {
+	/// Account entry. `None` if account known to be non-existant.
 	account: Option<Account>,
+	/// Unmodified account balance.
+	old_balance: Option<U256>,
+	/// Entry state.
 	state: AccountState,
 }
 
@@ -105,6 +111,10 @@ struct AccountEntry {
 impl AccountEntry {
 	fn is_dirty(&self) -> bool {
 		self.state == AccountState::Dirty
+	}
+
+	fn is_null(&self) -> bool {
+		self.account.as_ref().map_or(false, |a| a.is_null())
 	}
 
 	/// Clone dirty data into new `AccountEntry`. This includes
@@ -121,6 +131,7 @@ impl AccountEntry {
 	/// basic account data and modified storage keys.
 	fn clone_dirty(&self) -> AccountEntry {
 		AccountEntry {
+			old_balance: self.old_balance,
 			account: self.account.as_ref().map(Account::clone_dirty),
 			state: self.state,
 		}
@@ -129,6 +140,7 @@ impl AccountEntry {
 	// Create a new account entry and mark it as dirty.
 	fn new_dirty(account: Option<Account>) -> AccountEntry {
 		AccountEntry {
+			old_balance: account.as_ref().map(|a| a.balance().clone()),
 			account: account,
 			state: AccountState::Dirty,
 		}
@@ -137,6 +149,7 @@ impl AccountEntry {
 	// Create a new account entry and mark it as clean.
 	fn new_clean(account: Option<Account>) -> AccountEntry {
 		AccountEntry {
+			old_balance: account.as_ref().map(|a| a.balance().clone()),
 			account: account,
 			state: AccountState::CleanFresh,
 		}
@@ -145,6 +158,7 @@ impl AccountEntry {
 	// Create a new account entry and mark it as clean and cached.
 	fn new_clean_cached(account: Option<Account>) -> AccountEntry {
 		AccountEntry {
+			old_balance: account.as_ref().map(|a| a.balance().clone()),
 			account: account,
 			state: AccountState::CleanCached,
 		}
@@ -181,7 +195,7 @@ pub fn check_proof(
 	let res = State::from_existing(
 		backend,
 		root,
-		engine.account_start_nonce(),
+		engine.account_start_nonce(env_info.number),
 		factories
 	);
 
@@ -261,13 +275,13 @@ enum RequireCache {
 
 /// Mode of dealing with null accounts.
 #[derive(PartialEq)]
-pub enum CleanupMode<'a> {
+pub enum CleanupMode {
 	/// Create accounts which would be null.
 	ForceCreate,
 	/// Don't delete null accounts upon touching, but also don't create them.
 	NoEmpty,
-	/// Add encountered null accounts to the provided kill-set, to be deleted later.
-	KillEmpty(&'a mut HashSet<Address>),
+	/// Add encountered null accounts to the dirty-set, to be deleted later.
+	KillEmpty,
 }
 
 const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
@@ -549,13 +563,8 @@ impl<B: Backend> State<B> {
 		let is_value_transfer = !incr.is_zero();
 		if is_value_transfer || (cleanup_mode == CleanupMode::ForceCreate && !self.exists(a)?) {
 			self.require(a, false)?.add_balance(incr);
-		} else {
-			match cleanup_mode {
-				CleanupMode::KillEmpty(set) => if !is_value_transfer && self.exists(a)? && !self.exists_and_not_null(a)? {
-					set.insert(a.clone());
-				},
-				_ => {}
-			}
+		} else if cleanup_mode == CleanupMode::KillEmpty && self.exists(a)? {
+			self.touch(a)?;
 		}
 
 		Ok(())
@@ -640,33 +649,33 @@ impl<B: Backend> State<B> {
 		}
 	}
 
-	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
-	/// `accounts` is mutable because we may need to commit the code or storage and record that.
+	fn touch(&mut self, a: &Address) -> trie::Result<()> {
+		self.require(a, false)?;
+		Ok(())
+	}
+
+	/// Commits our cached account changes into the trie.
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
 	#[cfg_attr(feature="dev", allow(needless_borrow))]
-	fn commit_into(
-		factories: &Factories,
-		db: &mut B,
-		root: &mut H256,
-		accounts: &mut HashMap<Address, AccountEntry>
-	) -> Result<(), Error> {
+	pub fn commit(&mut self) -> Result<(), Error> {
 		// first, commit the sub trees.
+		let mut accounts = self.cache.borrow_mut();
 		for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
 			if let Some(ref mut account) = a.account {
 				let addr_hash = account.address_hash(address);
 				{
-					let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
-					account.commit_storage(&factories.trie, account_db.as_hashdb_mut())?;
+					let mut account_db = self.factories.accountdb.create(self.db.as_hashdb_mut(), addr_hash);
+					account.commit_storage(&self.factories.trie, account_db.as_hashdb_mut())?;
 					account.commit_code(account_db.as_hashdb_mut());
 				}
 				if !account.is_empty() {
-					db.note_non_null_account(address);
+					self.db.note_non_null_account(address);
 				}
 			}
 		}
 
 		{
-			let mut trie = factories.trie.from_existing(db.as_hashdb_mut(), root)?;
+			let mut trie = self.factories.trie.from_existing(self.db.as_hashdb_mut(), &mut self.root)?;
 			for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
 				a.state = AccountState::Committed;
 				match a.account {
@@ -676,7 +685,7 @@ impl<B: Backend> State<B> {
 					None => {
 						trie.remove(address)?;
 					},
-				}
+				};
 			}
 		}
 
@@ -692,15 +701,28 @@ impl<B: Backend> State<B> {
 		}
 	}
 
-	/// Commits our cached account changes into the trie.
-	pub fn commit(&mut self) -> Result<(), Error> {
-		assert!(self.checkpoints.borrow().is_empty());
-		Self::commit_into(&self.factories, &mut self.db, &mut self.root, &mut *self.cache.borrow_mut())
-	}
-
 	/// Clear state cache
 	pub fn clear(&mut self) {
 		self.cache.borrow_mut().clear();
+	}
+
+	/// Remove any touched empty or dust accounts.
+	pub fn kill_garbage(&mut self, remove_empty_touched: bool, min_balance: &Option<U256>, kill_contracts: bool) -> trie::Result<()> {
+		let to_kill: HashSet<_> = {
+			self.cache.borrow().iter().filter_map(|(address, ref entry)|
+			if (entry.is_dirty() || address == &RIPEMD_BUILTIN) && // Check any modified accounts and 0x3 additionally.
+				((remove_empty_touched && entry.is_null()) // Remove all empty touched accounts.
+				|| min_balance.map_or(false, |ref balance| entry.account.as_ref().map_or(false, |account|
+					(account.is_basic() || kill_contracts) // Remove all basic and optionally contract accounts where balance has been decreased.
+					&& account.balance() < balance && entry.old_balance.as_ref().map_or(false, |b| account.balance() < b)))) {
+
+				Some(address.clone())
+			} else { None }).collect()
+		};
+		for address in to_kill {
+			self.kill_account(&address);
+		}
+		Ok(())
 	}
 
 	#[cfg(test)]
@@ -2026,4 +2048,43 @@ mod tests {
 		new_state.diff_from(state).unwrap();
 	}
 
+	#[test]
+	fn should_kill_garbage() {
+		let a = 10.into();
+		let b = 20.into();
+		let c = 30.into();
+		let d = 40.into();
+		let e = 50.into();
+		let path = RandomTempPath::new();
+		let db = get_temp_state_db_in(path.as_path());
+		let (root, db) = {
+			let mut state = State::new(db, U256::from(0), Default::default());
+			state.add_balance(&a, &U256::default(), CleanupMode::ForceCreate).unwrap(); // create an empty account
+			state.add_balance(&b, &100.into(), CleanupMode::ForceCreate).unwrap(); // create a dust account
+			state.add_balance(&c, &101.into(), CleanupMode::ForceCreate).unwrap(); // create a normal account
+			state.add_balance(&d, &99.into(), CleanupMode::ForceCreate).unwrap(); // create another dust account
+			state.new_contract(&e, 100.into(), 1.into()); // create a contract account
+			state.init_code(&e, vec![0x00]).unwrap();
+			state.commit().unwrap();
+			state.drop()
+		};
+
+		let mut state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
+		state.add_balance(&a, &U256::default(), CleanupMode::KillEmpty).unwrap(); // touch an account
+		state.sub_balance(&b, &1.into()).unwrap(); // touch an account decreasing its balance
+		state.sub_balance(&c, &1.into()).unwrap(); // touch an account decreasing its balance
+		state.sub_balance(&e, &1.into()).unwrap(); // touch an account decreasing its balance
+		state.kill_garbage(true, &None, false).unwrap();
+		assert!(!state.exists(&a).unwrap());
+		assert!(state.exists(&b).unwrap());
+		state.kill_garbage(true, &Some(100.into()), false).unwrap();
+		assert!(!state.exists(&b).unwrap());
+		assert!(state.exists(&c).unwrap());
+		assert!(state.exists(&d).unwrap());
+		assert!(state.exists(&e).unwrap());
+		state.kill_garbage(true, &Some(100.into()), true).unwrap();
+		assert!(state.exists(&c).unwrap());
+		assert!(state.exists(&d).unwrap());
+		assert!(!state.exists(&e).unwrap());
+	}
 }

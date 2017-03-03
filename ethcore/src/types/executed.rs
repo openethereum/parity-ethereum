@@ -151,6 +151,8 @@ pub enum ExecutionError {
 	},
 	/// When execution tries to modify the state in static context
 	MutableCallInStaticContext,
+	/// Returned when transacting from a non-existing account with dust protection enabled.
+	SenderMustExist,
 	/// Returned when internal evm error occurs.
 	Internal(String),
 	/// Returned when generic transaction occurs
@@ -179,6 +181,7 @@ impl fmt::Display for ExecutionError {
 				format!("Cost of transaction exceeds sender balance. {} is required \
 					but the sender only has {}", required, got),
 			MutableCallInStaticContext => "Mutable Call in static context".to_owned(),
+			SenderMustExist => "Transacting from an empty account".to_owned(),
 			Internal(ref msg) => msg.clone(),
 			TransactionMalformed(ref err) => format!("Malformed transaction: {}", err),
 		};
