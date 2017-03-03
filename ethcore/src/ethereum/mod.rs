@@ -30,7 +30,7 @@ pub use self::denominations::*;
 use super::spec::*;
 
 /// Most recent fork block that we support on Mainnet.
-pub const FORK_SUPPORTED_FRONTIER: u64 = 2675000;
+pub const FORK_SUPPORTED_FOUNDATION: u64 = 2675000;
 
 /// Most recent fork block that we support on Ropsten.
 pub const FORK_SUPPORTED_ROPSTEN: u64 = 10;
@@ -46,7 +46,7 @@ fn load(b: &[u8]) -> Spec {
 pub fn new_olympic() -> Spec { load(include_bytes!("../../res/ethereum/olympic.json")) }
 
 /// Create a new Frontier mainnet chain spec.
-pub fn new_frontier() -> Spec { load(include_bytes!("../../res/ethereum/frontier.json")) }
+pub fn new_foundation() -> Spec { load(include_bytes!("../../res/ethereum/foundation.json")) }
 
 /// Create a new Frontier mainnet chain spec without the DAO hardfork.
 pub fn new_classic() -> Spec { load(include_bytes!("../../res/ethereum/classic.json")) }
@@ -118,7 +118,7 @@ mod tests {
 
 	#[test]
 	fn frontier() {
-		let frontier = new_frontier();
+		let frontier = new_foundation();
 
 		assert_eq!(frontier.state_root(), "d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544".into());
 		let genesis = frontier.genesis_block();
