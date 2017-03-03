@@ -118,7 +118,7 @@ mod tests {
 
 	#[test]
 	fn frontier() {
-		let frontier = new_frontier();
+		let frontier = new_foundation();
 
 		assert_eq!(frontier.state_root(), "d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544".into());
 		let genesis = frontier.genesis_block();
