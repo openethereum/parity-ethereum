@@ -70,11 +70,11 @@ describe('ui/Form/VaultSelect', () => {
       });
 
       it('passes value from props', () => {
-        expect(input.props().value).to.equal('initialValue');
+        expect(input.props().value).to.equal('INITIALVALUE');
       });
 
-      it('passes instance toggleSelector to onClick', () => {
-        expect(input.props().onClick).to.equal(instance.toggleSelector);
+      it('passes instance openSelector to onClick', () => {
+        expect(input.props().onClick).to.equal(instance.openSelector);
       });
     });
   });
