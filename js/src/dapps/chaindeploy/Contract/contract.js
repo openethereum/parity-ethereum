@@ -26,6 +26,9 @@ export default class Contract extends Component {
 
   render () {
     const { contract, disabled } = this.props;
+    const location = contract.id === 'registry'
+      ? 'chain'
+      : 'registry';
 
     return (
       <ListItem
@@ -60,8 +63,8 @@ export default class Contract extends Component {
         >
           {
             contract.isOnChain
-              ? `registered on ${contract.id === 'registry' ? 'chain' : 'registry'}`
-              : `not registered on ${contract.id === 'registry' ? 'chain' : 'registry'}`
+              ? `registered on ${location}`
+              : `not registered on ${location}`
           }
         </Row>
       </ListItem>
