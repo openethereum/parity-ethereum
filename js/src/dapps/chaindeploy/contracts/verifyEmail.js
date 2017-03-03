@@ -14,32 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import * as badgereg from './badgereg';
-import * as dappreg from './dappreg';
-import * as gavcoin from './gavcoin';
-import * as githubhint from './githubhint';
-import * as registry from './registry';
-import * as signaturereg from './signaturereg';
-import * as tokendeployMgr from './tokendeployMgr';
-import * as tokendeployReg from './tokendeployReg';
-import * as tokenreg from './tokenreg';
-import * as verifyEmail from './verifyEmail';
-import * as verifySms from './verifySms';
+import abi from '~/contracts/abi/email-verification';
+import { compiler, source as sourceUrl, output as byteCode } from './code/verifyEmail';
 
-const contracts = [
-  githubhint,
-  badgereg,
-  dappreg,
-  signaturereg,
-  tokenreg,
-  tokendeployReg,
-  tokendeployMgr,
-  verifyEmail,
-  verifySms,
-  gavcoin
-];
+const id = 'emailverification';
+const deployParams = [];
 
 export {
-  contracts,
-  registry
+  abi,
+  byteCode,
+  compiler,
+  deployParams,
+  id,
+  sourceUrl
 };
