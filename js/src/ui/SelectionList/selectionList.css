@@ -46,15 +46,22 @@
 
     .icon,
     .iconDisabled {
-      background: white;
       border-radius: 0.25em;
       color: #333 !important;
       cursor: pointer;
       margin-right: 0.25em;
     }
 
+    .icon {
+      background: white;
+    }
+
     .iconDisabled {
       background: #666;
+
+      &:hover {
+        background: white;
+      }
     }
   }
 }
