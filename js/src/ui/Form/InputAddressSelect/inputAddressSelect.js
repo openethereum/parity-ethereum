@@ -17,6 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import AddressSelect from '../AddressSelect';
 
 class InputAddressSelect extends Component {
@@ -27,9 +29,9 @@ class InputAddressSelect extends Component {
 
     allowCopy: PropTypes.bool,
     className: PropTypes.string,
-    error: PropTypes.string,
-    hint: PropTypes.string,
-    label: PropTypes.string,
+    error: nodeOrStringProptype(),
+    hint: nodeOrStringProptype(),
+    label: nodeOrStringProptype(),
     onChange: PropTypes.func,
     readOnly: PropTypes.bool,
     value: PropTypes.string

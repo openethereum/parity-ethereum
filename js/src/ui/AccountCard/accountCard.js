@@ -28,10 +28,15 @@ import styles from './accountCard.css';
 export default class AccountCard extends Component {
   static propTypes = {
     account: PropTypes.object.isRequired,
+    allowAddressClick: PropTypes.bool,
     balance: PropTypes.object,
     className: PropTypes.string,
     onClick: PropTypes.func,
     onFocus: PropTypes.func
+  };
+
+  static defaultProps = {
+    allowAddressClick: false
   };
 
   state = {
@@ -122,7 +127,7 @@ export default class AccountCard extends Component {
       <div className={ styles.addressContainer }>
         <span
           className={ styles.address }
-          onClick={ this.preventEvent }
+          onClick={ this.handleAddressClick }
           ref={ `address` }
           title={ address }
         >
@@ -130,6 +135,17 @@ export default class AccountCard extends Component {
         </span>
       </div>
     );
+  }
+
+  handleAddressClick = (event) => {
+    const { allowAddressClick } = this.props;
+
+    // Don't stop the event if address click is allowed
+    if (allowAddressClick) {
+      return this.onClick(event);
+    }
+
+    return this.preventEvent(event);
   }
 
   handleKeyDown = (event) => {
@@ -172,8 +188,13 @@ export default class AccountCard extends Component {
     }
   }
 
-  onClick = () => {
+  onClick = (event) => {
     const { account, onClick } = this.props;
+
+    // Stop the default event if text is selected
+    if (window.getSelection && window.getSelection().type === 'Range') {
+      return this.preventEvent(event);
+    }
 
     onClick && onClick(account.address);
   }
@@ -184,9 +205,9 @@ export default class AccountCard extends Component {
     onFocus && onFocus(account.index);
   }
 
-  preventEvent = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  preventEvent = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   setTagRef = (tagRef) => {
