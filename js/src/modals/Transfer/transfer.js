@@ -181,11 +181,21 @@ class Transfer extends Component {
             <div>
               <br />
               <div>
-                <p>This transaction needs confirmation from other owners.</p>
+                <p>
+                  <FormattedMessage
+                    id='transfer.wallet.confirmation'
+                    defaultMessage='This transaction needs confirmation from other owners.'
+                  />
+                </p>
                 <Input
                   style={ { width: '50%', margin: '0 auto' } }
                   value={ this.store.operation }
-                  label='operation hash'
+                  label={
+                    <FormattedMessage
+                      id='transfer.wallet.operationHash'
+                      defaultMessage='operation hash'
+                    />
+                  }
                   readOnly
                   allowCopy
                 />
@@ -254,7 +264,12 @@ class Transfer extends Component {
       <Button
         icon={ <CancelIcon /> }
         key='cancel'
-        label='Cancel'
+        label={
+          <FormattedMessage
+            id='transfer.buttons.cancel'
+            defaultMessage='Cancel'
+          />
+        }
         onClick={ this.handleClose }
       />
     );
@@ -263,7 +278,12 @@ class Transfer extends Component {
         disabled={ !this.store.isValid }
         icon={ <NextIcon /> }
         key='next'
-        label='Next'
+        label={
+          <FormattedMessage
+            id='transfer.buttons.next'
+            defaultMessage='Next'
+          />
+        }
         onClick={ this.store.onNext }
       />
     );
@@ -271,16 +291,31 @@ class Transfer extends Component {
       <Button
         icon={ <PrevIcon /> }
         key='back'
-        label='Back'
+        label={
+          <FormattedMessage
+            id='transfer.buttons.back'
+            defaultMessage='Back'
+          />
+        }
         onClick={ this.store.onPrev }
       />
     );
     const sendBtn = (
       <Button
         disabled={ !this.store.isValid || sending }
-        icon={ <IdentityIcon address={ account.address } button /> }
+        icon={
+          <IdentityIcon
+            address={ account.address }
+            button
+          />
+        }
         key='send'
-        label='Send'
+        label={
+          <FormattedMessage
+            id='transfer.buttons.send'
+            defaultMessage='Send'
+          />
+        }
         onClick={ this.store.onSend }
       />
     );
@@ -288,7 +323,12 @@ class Transfer extends Component {
       <Button
         icon={ <DoneIcon /> }
         key='close'
-        label='Close'
+        label={
+          <FormattedMessage
+            id='transfer.buttons.close'
+            defaultMessage='Close'
+          />
+        }
         onClick={ this.handleClose }
       />
     );

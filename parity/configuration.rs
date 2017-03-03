@@ -15,12 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time::Duration;
-use std::io::Read;
+use std::io::{Read, Write, stderr};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::cmp::max;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
+use util::journaldb::Algorithm;
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::ethstore::ethkey::Secret;
@@ -33,7 +34,7 @@ use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
-use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
@@ -104,7 +105,6 @@ impl Configuration {
 		let vm_type = self.vm_type()?;
 		let mode = match self.args.flag_mode.as_ref() { "last" => None, mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?), };
 		let update_policy = self.update_policy()?;
-		let miner_options = self.miner_options()?;
 		let logger_config = self.logger_config();
 		let http_conf = self.http_config()?;
 		let ipc_conf = self.ipc_config()?;
@@ -116,7 +116,14 @@ impl Configuration {
 		let fat_db = self.args.flag_fat_db.parse()?;
 		let compaction = self.args.flag_db_compaction.parse()?;
 		let wal = !self.args.flag_fast_and_loose;
-		let warp_sync = self.args.flag_warp;
+		match self.args.flag_warp {
+			// Logging is not initialized yet, so we print directly to stderr
+			Some(true) if fat_db == Switch::On => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because Fat DB is turned on").expect("Error writing to stderr"),
+			Some(true) if tracing == Switch::On => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because tracing is turned on").expect("Error writing to stderr"),
+			Some(true) if pruning == Pruning::Specific(Algorithm::Archive) => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because pruning mode is set to archive").expect("Error writing to stderr"),
+			_ => {},
+		};
+		let warp_sync = !self.args.flag_no_warp && fat_db != Switch::On && tracing != Switch::On && pruning != Pruning::Specific(Algorithm::Archive);
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let dapps_conf = self.dapps_config();
@@ -316,6 +323,12 @@ impl Configuration {
 
 			let verifier_settings = self.verifier_settings();
 
+			// Special presets are present for the dev chain.
+			let (gas_pricer, miner_options) = match spec {
+				SpecType::Dev => (GasPricerConfig::Fixed(0.into()), self.miner_options(0)?),
+				_ => (self.gas_pricer_config()?, self.miner_options(self.args.flag_reseal_min_period)?),
+			};
+
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
 				dirs: dirs,
@@ -331,7 +344,7 @@ impl Configuration {
 				net_conf: net_conf,
 				network_id: network_id,
 				acc_conf: self.accounts_config()?,
-				gas_pricer: self.gas_pricer_config()?,
+				gas_pricer: gas_pricer,
 				miner_extras: self.miner_extras()?,
 				stratum: self.stratum_options()?,
 				update_policy: update_policy,
@@ -484,7 +497,7 @@ impl Configuration {
 		} else { Ok(None) }
 	}
 
-	fn miner_options(&self) -> Result<MinerOptions, String> {
+	fn miner_options(&self, reseal_min_period: u64) -> Result<MinerOptions, String> {
 		let reseal = self.args.flag_reseal_on_txs.parse::<ResealPolicy>()?;
 
 		let options = MinerOptions {
@@ -500,7 +513,7 @@ impl Configuration {
 			tx_queue_gas_limit: to_gas_limit(&self.args.flag_tx_queue_gas)?,
 			tx_queue_strategy: to_queue_strategy(&self.args.flag_tx_queue_strategy)?,
 			pending_set: to_pending_set(&self.args.flag_relay_set)?,
-			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
+			reseal_min_period: Duration::from_millis(reseal_min_period),
 			work_queue_size: self.args.flag_work_queue_size,
 			enable_resubmission: !self.args.flag_remove_solved,
 			tx_queue_banning: match self.args.flag_tx_time_limit {
@@ -1139,7 +1152,7 @@ mod tests {
 			ipc_conf: Default::default(),
 			net_conf: default_network_config(),
 			network_id: None,
-			warp_sync: false,
+			warp_sync: true,
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),
@@ -1183,13 +1196,14 @@ mod tests {
 		let conf3 = parse(&["parity", "--tx-queue-strategy", "gas"]);
 
 		// then
-		assert_eq!(conf0.miner_options().unwrap(), mining_options);
+		let min_period = conf0.args.flag_reseal_min_period;
+		assert_eq!(conf0.miner_options(min_period).unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasFactorAndGasPrice;
-		assert_eq!(conf1.miner_options().unwrap(), mining_options);
+		assert_eq!(conf1.miner_options(min_period).unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasPriceOnly;
-		assert_eq!(conf2.miner_options().unwrap(), mining_options);
+		assert_eq!(conf2.miner_options(min_period).unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasAndGasPrice;
-		assert_eq!(conf3.miner_options().unwrap(), mining_options);
+		assert_eq!(conf3.miner_options(min_period).unwrap(), mining_options);
 	}
 
 	#[test]
@@ -1412,5 +1426,18 @@ mod tests {
 		let args = vec!["parity", "--reserved-peers", &filename];
 		let conf = Configuration::parse(&args).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
+	}
+
+	#[test]
+	fn test_dev_chain() {
+		let args = vec!["parity", "--chain", "dev"];
+		let conf = parse(&args);
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.gas_pricer, GasPricerConfig::Fixed(0.into()));
+				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
 	}
 }

@@ -15,18 +15,39 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import ContentAdd from 'material-ui/svg-icons/content/add';
-import FileIcon from 'material-ui/svg-icons/action/description';
 import { uniq, isEqual } from 'lodash';
 
-import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
 import { AddContract, DeployContract } from '~/modals';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
+import { AddIcon, DevelopIcon } from '~/ui/Icons';
 
 import List from '../Accounts/List';
+
+const META_SORT = [
+  {
+    key: 'timestamp',
+    label: (
+      <FormattedMessage
+        id='contracts.sortOrder.date'
+        defaultMessage='date'
+      />
+    )
+  },
+  {
+    key: 'blockNumber:-1',
+    label: (
+      <FormattedMessage
+        id='contracts.sortOrder.minedBlock'
+        defaultMessage='mined block'
+      />
+    )
+  }
+];
 
 class Contracts extends Component {
   static contextTypes = {
@@ -109,10 +130,7 @@ class Contracts extends Component {
         key='sortAccounts'
         id='sortContracts'
         order={ this.state.sortOrder }
-        metas={ [
-          { key: 'timestamp', label: 'date' },
-          { key: 'blockNumber:-1', label: 'mined block' }
-        ] }
+        metas={ META_SORT }
         showDefault={ false }
         onChange={ onChange }
       />
@@ -137,14 +155,24 @@ class Contracts extends Component {
     const buttons = [
       <Button
         key='addContract'
-        icon={ <ContentAdd /> }
-        label='watch'
+        icon={ <AddIcon /> }
+        label={
+          <FormattedMessage
+            id='contracts.buttons.watch'
+            defaultMessage='watch'
+          />
+        }
         onClick={ this.onAddContract }
       />,
       <Button
         key='deployContract'
-        icon={ <ContentAdd /> }
-        label='deploy'
+        icon={ <AddIcon /> }
+        label={
+          <FormattedMessage
+            id='contracts.buttons.deploy'
+            defaultMessage='deploy'
+          />
+        }
         onClick={ this.onDeployContract }
       />,
       <Link
@@ -152,8 +180,13 @@ class Contracts extends Component {
         key='writeContract'
       >
         <Button
-          icon={ <FileIcon /> }
-          label='develop'
+          icon={ <DevelopIcon /> }
+          label={
+            <FormattedMessage
+              id='contracts.buttons.develop'
+              defaultMessage='develop'
+            />
+          }
         />
       </Link>,
 
@@ -163,7 +196,12 @@ class Contracts extends Component {
 
     return (
       <Actionbar
-        title='Contracts'
+        title={
+          <FormattedMessage
+            id='contracts.title'
+            defaultMessage='Contracts'
+          />
+        }
         buttons={ buttons }
       />
     );

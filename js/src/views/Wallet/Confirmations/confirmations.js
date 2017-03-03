@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
 import { LinearProgress, MenuItem, IconMenu } from 'material-ui';
+import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
@@ -70,7 +71,12 @@ class WalletConfirmations extends Component {
     if (realConfirmations.length === 0) {
       return (
         <div>
-          <p>No transactions needs confirmation right now.</p>
+          <p>
+            <FormattedMessage
+              id='wallet.confirmations.none'
+              defaultMessage='No transactions needs confirmation right now.'
+            />
+          </p>
         </div>
       );
     }
@@ -217,7 +223,12 @@ class WalletConfirmation extends Component {
     const confirmButton = (
       <Button
         onClick={ this.handleOpenConfirm }
-        label='Confirm As...'
+        label={
+          <FormattedMessage
+            id='wallet.confirmations.buttons.confirmAs'
+            defaultMessage='Confirm As...'
+          />
+        }
         disabled={ pending || possibleConfirm.length === 0 }
       />
     );
@@ -225,13 +236,21 @@ class WalletConfirmation extends Component {
     const revokeButton = (
       <Button
         onClick={ this.handleOpenRevoke }
-        label='Revoke As...'
+        label={
+          <FormattedMessage
+            id='wallet.confirmations.buttons.revokeAs'
+            defaultMessage='Revoke As...'
+          />
+        }
         disabled={ pending || possibleRevoke.length === 0 }
       />
     );
 
     return (
-      <tr key={ `actions_${operation}` } className={ className }>
+      <tr
+        className={ className }
+        key={ `actions_${operation}` }
+      >
         <td />
         <td colSpan={ 3 }>
           <div className={ styles.actions }>
@@ -263,11 +282,15 @@ class WalletConfirmation extends Component {
     const account = this.props.accounts[address];
 
     return (
-      <MenuItem value={ address } key={ address }>
+      <MenuItem
+        key={ address }
+        value={ address }
+      >
         <div className={ styles.accountItem }>
           <IdentityIcon
-            inline center
             address={ address }
+            center
+            inline
           />
           <span>{ account.name.toUpperCase() || account.address }</span>
         </div>
@@ -283,7 +306,10 @@ class WalletConfirmation extends Component {
 
     return (
       <tr key={ `prog_${operation}` }>
-        <td colSpan={ 5 } style={ { padding: 0, paddingTop: '1em' } }>
+        <td
+          colSpan={ 5 }
+          style={ { padding: 0, paddingTop: '1em' } }
+        >
           <div
             data-tip
             data-for={ `tooltip_${operation}` }
@@ -312,7 +338,14 @@ class WalletConfirmation extends Component {
           </div>
 
           <ReactTooltip id={ `tooltip_${operation}` }>
-            Confirmed by { confirmedBy.length }/{ require.toNumber() } owners
+            <FormattedMessage
+              id='wallet.confirmations.tooltip.confirmed'
+              defaultMessage='Confirmed by {number}/{required} owners'
+              values={ {
+                required: require.toNumber(),
+                number: confirmedBy.length
+              } }
+            />
           </ReactTooltip>
         </td>
       </tr>
@@ -326,27 +359,27 @@ class WalletConfirmation extends Component {
     if (value && to && data) {
       return (
         <TxRow
+          address={ address }
           className={ className }
+          historic={ false }
+          isTest={ isTest }
           key={ operation }
           tx={ {
             hash: transactionHash,
-            blockNumber: blockNumber,
+            blockNumber,
             from: address,
-            to: to,
-            value: value,
+            to,
+            value,
             input: bytesToHex(data)
           } }
-          address={ address }
-          isTest={ isTest }
-          historic={ false }
         />
       );
     }
 
     return (
       <tr
-        key={ operation }
         className={ className }
+        key={ operation }
       >
         <td colSpan={ 5 }>
           <code>{ operation }</code>

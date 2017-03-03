@@ -28,4 +28,4 @@ mod v10;
 pub use self::v10::ToV10;
 
 mod v11;
-pub use self::v11::ToV11;
+pub use self::v11::TO_V11;

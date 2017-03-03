@@ -17,6 +17,7 @@
 //! Tendermint params deserialization.
 
 use uint::Uint;
+use hash::Address;
 use super::ValidatorSet;
 
 /// Tendermint params deserialization.
@@ -42,6 +43,8 @@ pub struct TendermintParams {
 	/// Block reward.
 	#[serde(rename="blockReward")]
 	pub block_reward: Option<Uint>,
+	/// Address of the registrar contract.
+	pub registrar: Option<Address>,
 }
 
 /// Tendermint engine deserialization.

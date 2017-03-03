@@ -47,6 +47,8 @@ pub struct AuthorityRoundParams {
 	pub step_duration: Duration,
 	/// Block reward.
 	pub block_reward: U256,
+	/// Namereg contract address.
+	pub registrar: Address,
 	/// Starting step,
 	pub start_step: Option<u64>,
 	/// Valid validators.
@@ -60,6 +62,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			step_duration: Duration::from_secs(p.step_duration.into()),
 			validators: p.validators,
 			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
+			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			start_step: p.start_step.map(Into::into),
 		}
 	}
@@ -71,6 +74,7 @@ pub struct AuthorityRound {
 	params: CommonParams,
 	gas_limit_bound_divisor: U256,
 	block_reward: U256,
+	registrar: Address,
 	step_duration: Duration,
 	builtins: BTreeMap<Address, Builtin>,
 	transition_service: IoService<()>,
@@ -109,6 +113,7 @@ impl AuthorityRound {
 				params: params,
 				gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
 				block_reward: our_params.block_reward,
+				registrar: our_params.registrar,
 				step_duration: our_params.step_duration,
 				builtins: builtins,
 				transition_service: IoService::<()>::start()?,
@@ -176,11 +181,16 @@ impl IoHandler<()> for TransitionHandler {
 
 impl Engine for AuthorityRound {
 	fn name(&self) -> &str { "AuthorityRound" }
+
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
+
 	/// Two fields - consensus step and the corresponding proposer signature.
 	fn seal_fields(&self) -> usize { 2 }
 
 	fn params(&self) -> &CommonParams { &self.params }
+
+	fn additional_params(&self) -> HashMap<String, String> { hash_map!["registrar".to_owned() => self.registrar.hex()] }
+
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
 
 	fn step(&self) {
@@ -250,10 +260,12 @@ impl Engine for AuthorityRound {
 	fn on_close_block(&self, block: &mut ExecutedBlock) {
 		let fields = block.fields_mut();
 		// Bestow block reward
-		fields.state.add_balance(fields.header.author(), &self.block_reward, CleanupMode::NoEmpty);
+		let res = fields.state.add_balance(fields.header.author(), &self.block_reward, CleanupMode::NoEmpty)
+			.map_err(::error::Error::from)
+			.and_then(|_| fields.state.commit());
 		// Commit state so that we can actually figure out the state root.
-		if let Err(e) = fields.state.commit() {
-			warn!("Encountered error on state commit: {}", e);
+		if let Err(e) = res {
+			warn!("Encountered error on closing block: {}", e);
 		}
 	}
 

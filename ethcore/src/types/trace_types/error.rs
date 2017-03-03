@@ -40,16 +40,22 @@ pub enum Error {
 	Internal,
 }
 
-impl From<EvmError> for Error {
-	fn from(e: EvmError) -> Self {
-		match e {
+impl<'a> From<&'a EvmError> for Error {
+	fn from(e: &'a EvmError) -> Self {
+		match *e {
 			EvmError::OutOfGas => Error::OutOfGas,
 			EvmError::BadJumpDestination { .. } => Error::BadJumpDestination,
 			EvmError::BadInstruction { .. } => Error::BadInstruction,
 			EvmError::StackUnderflow { .. } => Error::StackUnderflow,
 			EvmError::OutOfStack { .. } => Error::OutOfStack,
-			EvmError::Internal => Error::Internal,
+			EvmError::Internal(_) => Error::Internal,
 		}
+	}
+}
+
+impl From<EvmError> for Error {
+	fn from(e: EvmError) -> Self {
+		Error::from(&e)
 	}
 }
 

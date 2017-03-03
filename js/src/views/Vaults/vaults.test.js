@@ -63,7 +63,8 @@ export function createApi () {
       getVaultMeta: sinon.stub().resolves(TEST_VAULTS_META),
       newVault: sinon.stub().resolves(true),
       openVault: sinon.stub().resolves(true),
-      setVaultMeta: sinon.stub().resolves(true)
+      setVaultMeta: sinon.stub().resolves(true),
+      changeVaultPassword: sinon.stub().resolves(true)
     }
   };
 }
