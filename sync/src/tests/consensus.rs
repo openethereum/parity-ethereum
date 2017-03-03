@@ -83,17 +83,19 @@ fn authority_round() {
 
 	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 1.into())).unwrap();
 	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 1.into())).unwrap();
-	// Move to next proposer step
+	// Move to next proposer step.
 	net.peer(0).chain.engine().step();
 	net.peer(1).chain.engine().step();
 	net.sync();
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 2);
 	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 2);
 
-	// Fork the network
+	// Fork the network with equal height.
 	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 2.into())).unwrap();
 	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 2.into())).unwrap();
+	// Let both nodes build one block.
 	net.peer(0).chain.engine().step();
+	let early_hash = net.peer(0).chain.chain_info().best_block_hash;
 	net.peer(1).chain.engine().step();
 	net.peer(0).chain.engine().step();
 	net.peer(1).chain.engine().step();
@@ -102,12 +104,38 @@ fn authority_round() {
 	assert_eq!(ci0.best_block_number, 3);
 	assert_eq!(ci1.best_block_number, 3);
 	assert!(ci0.best_block_hash != ci1.best_block_hash);
-	// Reorg to the correct one.
+	// Reorg to the chain with earlier view.
 	net.sync();
 	let ci0 = net.peer(0).chain.chain_info();
 	let ci1 = net.peer(1).chain.chain_info();
 	assert_eq!(ci0.best_block_number, 3);
 	assert_eq!(ci1.best_block_number, 3);
+	assert_eq!(ci0.best_block_hash, ci1.best_block_hash);
+	assert_eq!(ci1.best_block_hash, early_hash);
+
+	// Selfish miner
+	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 3.into())).unwrap();
+	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 3.into())).unwrap();
+	// Node 0 is an earlier primary.
+	net.peer(0).chain.engine().step();
+	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 4);
+	net.peer(0).chain.engine().step();
+	net.peer(0).chain.engine().step();
+	net.peer(0).chain.engine().step();
+	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 4);
+	// Node 1 makes 2 blocks, but is a later primary on the first one.
+	net.peer(1).chain.engine().step();
+	net.peer(1).chain.engine().step();
+	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 4.into())).unwrap();
+	net.peer(1).chain.engine().step();
+	net.peer(1).chain.engine().step();
+	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 5);
+	// Reorg to the longest chain one not ealier view one.
+	net.sync();
+	let ci0 = net.peer(0).chain.chain_info();
+	let ci1 = net.peer(1).chain.chain_info();
+	assert_eq!(ci0.best_block_number, 5);
+	assert_eq!(ci1.best_block_number, 5);
 	assert_eq!(ci0.best_block_hash, ci1.best_block_hash);
 }
 
