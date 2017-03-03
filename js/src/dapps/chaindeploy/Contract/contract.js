@@ -78,7 +78,55 @@ export default class Contract extends Component {
               : `not registered on ${location}`
           }
         </Row>
+        { this.renderBadgeInfo() }
       </ListItem>
     );
+  }
+
+  renderBadgeInfo () {
+    const { contract } = this.props;
+
+    if (!contract.isBadge) {
+      return null;
+    }
+
+    return [
+      <Row
+        disabled={ !contract.instance }
+        isBusy={ contract.isDeploying }
+        isOk={ contract.isBadgeRegistered }
+        key='isBadgeRegistered'
+      >
+        {
+          contract.isBadgeRegistered
+            ? 'found in badgereg'
+            : 'not found in badgereg'
+        }
+      </Row>,
+      <Row
+        disabled={ !contract.instance }
+        isBusy={ contract.isDeploying }
+        isOk={ !!contract.badgeImageHash }
+        key='imageHash'
+      >
+        {
+          contract.badgeImageHash
+            ? `badge imageHash ${contract.badgeImageHash}`
+            : 'has not registered a badge imageHash'
+        }
+      </Row>,
+      <Row
+        disabled={ !contract.instance }
+        isBusy={ contract.isDeploying }
+        isOk={ contract.badgeImageMatch }
+        key='imageMatch'
+      >
+        {
+          contract.badgeImageMatch
+            ? 'has latest badge imageHash'
+            : 'does not have latest badge imageHash'
+        }
+      </Row>
+    ];
   }
 }

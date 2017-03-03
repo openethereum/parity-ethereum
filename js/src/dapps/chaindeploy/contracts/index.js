@@ -27,6 +27,7 @@ import * as verifyEmail from './verifyEmail';
 import * as verifySms from './verifySms';
 
 const contracts = [
+  // builtin
   githubhint,
   badgereg,
   dappreg,
@@ -36,6 +37,8 @@ const contracts = [
   tokendeployMgr,
   verifyEmail,
   verifySms,
+
+  // external
   gavcoin
 ];
 

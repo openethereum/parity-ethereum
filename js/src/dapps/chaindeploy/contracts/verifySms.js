@@ -17,14 +17,21 @@
 import abi from '~/contracts/abi/sms-verification';
 import { compiler, source as sourceUrl, output as byteCode } from './code/verifySms';
 
+const isBadge = true;
 const id = 'smsverification';
 const deployParams = [];
+const badgeSource = {
+  imageUrl: 'https://raw.githubusercontent.com/ethcore/dapp-assets/1b1beb57ab1f4d3a93a12711b233b5cded791a2f/certifications/sms-verification.svg',
+  imageHash: '0x49fa653c35c0a9ce128579883babd673ad4cfc94bf9f1cfe96a2bbc30a7552c6'
+};
 
 export {
   abi,
+  badgeSource,
   byteCode,
   compiler,
   deployParams,
   id,
+  isBadge,
   sourceUrl
 };

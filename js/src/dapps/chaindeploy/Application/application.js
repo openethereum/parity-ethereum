@@ -30,8 +30,11 @@ export default class Application extends Component {
   render () {
     return (
       <div className={ styles.body }>
-        { this.renderContracts() }
+        { this.renderContracts(false) }
+        { this.renderContracts(true) }
         { this.renderApps() }
+        { this.renderContracts(false, true) }
+        { this.renderApps(true) }
         { this.renderButtons() }
       </div>
     );
@@ -57,61 +60,82 @@ export default class Application extends Component {
   }
 
   renderButtons () {
-    const { contractDappreg, isContractDeploying, isDappDeploying, haveAllContracts, haveAllDapps, registry } = this.store;
+    const { contractBadgereg, contractDappreg, isBadgeDeploying, isContractDeploying, isDappDeploying, haveAllBadges, haveAllContracts, haveAllDapps, registry } = this.store;
     const disableRegistry = registry.address || registry.isDeploying;
     const disableContracts = !registry.address || isContractDeploying || haveAllContracts;
     const disableDapps = !contractDappreg.address || isDappDeploying || haveAllDapps;
+    const disableBadges = !registry.address || !contractBadgereg.address || isBadgeDeploying || haveAllBadges;
 
     return (
       <div className={ styles.buttons }>
         { this.renderButton('registry', this.deployRegistry, disableRegistry) }
         { this.renderButton('contracts', this.deployContracts, disableContracts) }
+        { this.renderButton('badges', this.deployBadges, disableBadges) }
         { this.renderButton('apps', this.deployApps, disableDapps) }
       </div>
     );
   }
 
-  renderContracts () {
-    const { contracts, registry } = this.store;
+  renderContracts (isBadges, isExternal) {
+    const { badges, contracts, contractBadgereg, registry } = this.store;
+    const regaddress = isBadges
+      ? contractBadgereg.address
+      : registry.address;
 
     return (
       <div className={ styles.section }>
         <h3>
-          Contracts <small>(registry {
-            registry.address
-              ? registry.address
-              : 'unknown'
-          })</small>
+          {
+            isExternal
+              ? 'External '
+              : ''
+          }{
+            isBadges
+              ? 'Badges '
+              : 'Contracts '
+          }<small>(registry { regaddress || 'unknown' })</small>
         </h3>
         <div className={ styles.list }>
-          <Contract
-            contract={ registry }
-            key='registry'
-          />
           {
-            contracts.map((contract) => {
-              return (
+            isExternal || isBadges
+              ? null
+              : (
                 <Contract
-                  contract={ contract }
-                  disabled={ !registry.address }
-                  key={ contract.id }
+                  contract={ registry }
+                  key='registry'
                 />
-              );
-            })
+              )
+          }
+          {
+            (isBadges ? badges : contracts)
+              .filter((contract) => contract.isExternal === isExternal)
+              .map((contract) => {
+                return (
+                  <Contract
+                    contract={ contract }
+                    disabled={ !registry.address }
+                    key={ contract.id }
+                  />
+                );
+              })
           }
         </div>
       </div>
     );
   }
 
-  renderApps () {
+  renderApps (isExternal) {
     const { apps, contractDappreg, contractGithubhint } = this.store;
     const isDisabled = !contractDappreg.isOnChain || !contractGithubhint.isOnChain;
 
     return (
       <div className={ styles.section }>
         <h3>
-          Applications <small>(registry {
+          {
+            isExternal
+              ? 'External '
+              : ''
+          }Applications <small>(registry {
             contractDappreg.address
               ? contractDappreg.address
               : 'unknown'
@@ -119,27 +143,33 @@ export default class Application extends Component {
         </h3>
         <div className={ styles.list }>
           {
-            apps.map((app) => {
-              return (
-                <Dapp
-                  dapp={ app }
-                  disabled={ isDisabled }
-                  key={ app.id }
-                />
-              );
-            })
+            apps
+              .filter((app) => app.isExternal === isExternal)
+              .map((app) => {
+                return (
+                  <Dapp
+                    dapp={ app }
+                    disabled={ isDisabled }
+                    key={ app.id }
+                  />
+                );
+              })
           }
         </div>
       </div>
     );
   }
 
-  deployContracts = () => {
-    return this.store.deployContracts();
-  }
-
   deployApps = () => {
     return this.store.deployApps();
+  }
+
+  deployBadges = () => {
+    return this.store.deployBadges();
+  }
+
+  deployContracts = () => {
+    return this.store.deployContracts();
   }
 
   deployRegistry = () => {

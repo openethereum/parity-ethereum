@@ -25,10 +25,6 @@ export function validateCode (source, retrieved) {
   const knownHash = api.util.sha3(original.slice(-1 * bytecode.length));
   const codeHash = api.util.sha3(bytecode);
 
-  // console.log(original, bytecode);
-  // console.log(original.length, bytecode.length, original.length - bytecode.length);
-  console.log(knownHash, codeHash, knownHash === codeHash);
-
   return knownHash === codeHash;
 }
 

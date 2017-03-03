@@ -23,13 +23,15 @@ import { isValidNumber, trackRequest, validateCode } from './utils';
 
 export default class ContractsStore {
   @observable apps = null;
+  @observable badges = null;
   @observable contracts = null;
   @observable error = null;
   @observable registry = null;
 
   constructor () {
     this.apps = apps;
-    this.contracts = contracts;
+    this.badges = contracts.filter((contract) => contract.isBadge);
+    this.contracts = contracts.filter((contract) => !contract.isBadge);
     this.registry = registry;
 
     api.subscribe('eth_blockNumber', this.onNewBlockNumber);
@@ -51,6 +53,12 @@ export default class ContractsStore {
     return this.contracts.find((contract) => contract.id === 'tokenreg');
   }
 
+  @computed get isBadgeDeploying () {
+    return this.badges
+      .filter((contract) => contract.isDeploying)
+      .length !== 0;
+  }
+
   @computed get isContractDeploying () {
     return this.contracts
       .filter((contract) => contract.isDeploying)
@@ -63,6 +71,12 @@ export default class ContractsStore {
       .length !== 0;
   }
 
+  @computed get haveAllBadges () {
+    return this.badges
+      .filter((contract) => !contract.instance || !contract.hasLatestCode || !contract.badgeImageHash || !contract.badgeImageMatch || !contract.isBadgeRegistered)
+      .length === 0;
+  }
+
   @computed get haveAllContracts () {
     return this.contracts
       .filter((contract) => !contract.instance || !contract.hasLatestCode)
@@ -71,7 +85,12 @@ export default class ContractsStore {
 
   @computed get haveAllDapps () {
     return this.apps
-      .filter((app) => !app.imageHash || !app.imageMatch)
+      .filter((app) => {
+        return !app.isOnChain ||
+          !app.imageHash || !app.imageMatch ||
+          (app.source.contentHash && !app.contentMatch) ||
+          (app.source.manifestHash && !app.manifestMatch);
+      })
       .length === 0;
   }
 
@@ -80,6 +99,7 @@ export default class ContractsStore {
   }
 
   @action refreshContracts = () => {
+    this.badges = [].concat(this.badges.peek());
     this.contracts = [].concat(this.contracts.peek());
   }
 
@@ -114,6 +134,20 @@ export default class ContractsStore {
         ? 'Deploying contract'
         : null
     });
+  }
+
+  @action setBadgeId = (badge, badgeId) => {
+    badge.badgeId = badgeId;
+    badge.isBadgeRegistered = true;
+
+    this.refreshContracts();
+  }
+
+  @action setBadgeImageHash = (badge, imageHash) => {
+    badge.badgeImageHash = imageHash;
+    badge.badgeImageMatch = badge.badgeSource.imageHash === imageHash;
+
+    this.refreshContracts();
   }
 
   @action setContractAddress = (contract, address, isOnChain = false) => {
@@ -168,6 +202,17 @@ export default class ContractsStore {
     }
   }
 
+  @action setAppContentHash = (app, contentHash) => {
+    if (app.contentHash !== contentHash) {
+      console.log(`${app.name} has contentHash ${contentHash}`);
+
+      app.contentHash = contentHash;
+      app.contentMatch = contentHash === app.source.contentHash;
+
+      this.refreshApps();
+    }
+  }
+
   @action setAppImageHash = (app, imageHash) => {
     if (app.imageHash !== imageHash) {
       console.log(`${app.name} has imageHash ${imageHash}`);
@@ -179,17 +224,20 @@ export default class ContractsStore {
     }
   }
 
-  @action setAppImageUrl = (app, imageUrl) => {
-    if (app.imageUrl !== imageUrl) {
-      console.log(`${app.name} has imageUrl ${imageUrl}`);
+  @action setAppManifestHash = (app, manifestHash) => {
+    if (app.manifestHash !== manifestHash) {
+      console.log(`${app.name} has manifestHash ${manifestHash}`);
 
-      app.imageUrl = imageUrl;
+      app.manifestHash = manifestHash;
+      app.manifestMatch = manifestHash === app.source.manifestHash;
 
       this.refreshApps();
     }
   }
 
   @action setAppStatus = (app, status) => {
+    console.log(app.id, status);
+
     app.status = status;
 
     this.refreshApps();
@@ -236,35 +284,37 @@ export default class ContractsStore {
           });
       })
       .then(() => {
+        if (app.imageHash && app.imageMatch) {
+          return true;
+        }
+
         this.setAppStatus(app, 'Registering image url');
 
-        return this.registerHash(app.source.imageHash, app.source.imageUrl, options.from);
+        return this
+          .registerHash(app.source.imageHash, app.source.imageUrl, options.from)
+          .then(() => this.setAppMeta(app, 'IMG', app.source.imageHash, options.from));
       })
       .then(() => {
-        values.push('IMG');
-        values.push(app.source.imageHash);
+        if (!app.source.manifestHash || app.manifestMatch) {
+          return true;
+        }
 
-        delete options.gas;
-        delete options.value;
+        this.setAppStatus(app, 'Registering manifest url');
 
-        this.setAppStatus(app, 'Setting Image meta');
+        return this
+          .registerHash(app.source.manifestHash, app.source.manifestUrl, options.from)
+          .then(() => this.setAppMeta(app, 'MANIFEST', app.source.manifestHash, options.from));
+      })
+      .then(() => {
+        if (!app.source.contentHash || app.contentMatch) {
+          return true;
+        }
 
-        return this.contractDappreg.instance
-          .setMeta.estimateGas(options, values)
-          .then((gasEst) => {
-            options.gas = gasEst.mul(1.2);
+        this.setAppStatus(app, 'Registering content url');
 
-            return trackRequest(
-              this.contractDappreg.instance.setMeta.postTransaction(options, values),
-              (error, data) => {
-                if (error) {
-                  console.error(app.id, error);
-                } else {
-                  console.log(app.id, data);
-                }
-              }
-            );
-          });
+        return this
+          .registerRepo(app.source.contentHash, app.source.contentUrl, options.from)
+          .then(() => this.setAppMeta(app, 'CONTENT', app.source.contentHash, options.from));
       })
       .catch(() => {
         return null;
@@ -276,7 +326,15 @@ export default class ContractsStore {
 
   deployApps = () => {
     this.apps
-      .filter((app) => !app.isDeploying && (!app.imageHash || !app.imageMatch))
+      .filter((app) => {
+        return !app.isDeploying &&
+          (
+            !app.isOnChain ||
+            (!app.imageHash || !app.imageMatch) ||
+            (app.source.contentHash && !app.contentMatch) ||
+            (app.source.manifestHash && !app.manifestMatch)
+          );
+      })
       .forEach(this.deployApp);
   }
 
@@ -308,6 +366,10 @@ export default class ContractsStore {
   }
 
   deployContract = (contract) => {
+    if (contract.hasLatestCode) {
+      return Promise.resolve(false);
+    }
+
     let defaultAccount = '0x0';
 
     this.setContractDeploying(contract, true);
@@ -336,10 +398,53 @@ export default class ContractsStore {
       });
   }
 
+  deployBadge = (badge) => {
+    let defaultAccount;
+
+    return this
+      .deployContract(badge)
+      .then(() => {
+        this.setContractDeploying(badge, true);
+
+        return api.parity.defaultAccount();
+      })
+      .then((_defaultAccount) => {
+        defaultAccount = _defaultAccount;
+
+        if (badge.isBadgeRegistered) {
+          return true;
+        }
+
+        this.setContractStatus(badge, 'Registering with badgereg');
+
+        return this.registerBadge(badge, defaultAccount);
+      })
+      .then(() => {
+        if (badge.badgeImageMatch) {
+          return true;
+        }
+
+        this.setContractStatus(badge, 'Registering image url');
+
+        return this
+          .registerHash(badge.badgeSource.imageHash, badge.badgeSource.imageUrl, defaultAccount)
+          .then(() => this.registerBadgeImage(badge, badge.badgeSource.imageHash, defaultAccount));
+      })
+      .then(() => {
+        this.setContractDeploying(badge, false);
+      });
+  }
+
   deployContracts = () => {
     this.contracts
       .filter((contract) => !contract.isDeploying && (!contract.instance || !contract.hasLatestCode))
       .forEach(this.deployContract);
+  }
+
+  deployBadges = () => {
+    this.badges
+      .filter((contract) => !contract.isDeploying && (!contract.instance || !contract.hasLatestCode || !contract.badgeImageHash || !contract.badgeImageMatch || !contract.isBadgeRegistered))
+      .forEach(this.deployBadge);
   }
 
   deployRegistry = () => {
@@ -350,6 +455,88 @@ export default class ContractsStore {
       .then(([address]) => {
         this.setRegistryDeploying(false);
         this.setRegistryAddress(address);
+      });
+  }
+
+  registerBadge = (badge, fromAddress) => {
+    const options = {
+      from: fromAddress
+    };
+    const values = [badge.address, api.util.sha3(badge.id)];
+
+    return this.contractBadgereg.instance
+      .fee.call({}, [])
+      .then((fee) => {
+        options.value = fee;
+
+        return this.contractBadgereg.instance
+          .register.estimateGas(options, values)
+          .then((gasEst) => {
+            options.gas = gasEst.mul(1.2);
+
+            return trackRequest(
+              this.contractBadgereg.instance.register.postTransaction(options, values),
+              (error, data) => {
+                if (error) {
+                  console.error(badge.id, error);
+                } else {
+                  console.log(badge.id, data);
+                }
+              }
+            );
+          });
+      });
+  }
+
+  registerBadgeImage = (badge, hash, fromAddress) => {
+    const options = {
+      from: fromAddress
+    };
+    const values = [badge.badgeId, 'IMG', hash];
+
+    this.setContractStatus(badge, 'Setting meta IMG');
+
+    return this.contractBadgereg.instance
+      .setMeta.estimateGas(options, values)
+      .then((gasEst) => {
+        options.gas = gasEst.mul(1.2);
+
+        return trackRequest(
+          this.contractBadgereg.instance.setMeta.postTransaction(options, values),
+          (error, data) => {
+            if (error) {
+              console.error(badge.id, error);
+            } else {
+              console.log(badge.id, data);
+            }
+          }
+        );
+      });
+  }
+
+  setAppMeta = (app, key, meta, fromAddress) => {
+    const options = {
+      from: fromAddress
+    };
+    const values = [app.hashId, key, meta];
+
+    this.setAppStatus(app, `Setting meta ${key}`);
+
+    return this.contractDappreg.instance
+      .setMeta.estimateGas(options, values)
+      .then((gasEst) => {
+        options.gas = gasEst.mul(1.2);
+
+        return trackRequest(
+          this.contractDappreg.instance.setMeta.postTransaction(options, values),
+          (error, data) => {
+            if (error) {
+              console.error(app.id, error);
+            } else {
+              console.log(app.id, data);
+            }
+          }
+        );
       });
   }
 
@@ -404,6 +591,38 @@ export default class ContractsStore {
             }
           }
         );
+      });
+  }
+
+  registerRepo = (hash, content, fromAddress) => {
+    const options = {
+      from: fromAddress
+    };
+    const values = [hash, content.repo || content, content.commit || 0];
+
+    return this.contractGithubhint.instance
+      .entries.call({}, [hash])
+      .then(([imageUrl, commit, owner]) => {
+        if (isValidNumber(owner)) {
+          return true;
+        }
+
+        return this.contractGithubhint.instance
+          .hint.estimateGas(options, values)
+          .then((gasEst) => {
+            options.gas = gasEst.mul(1.2);
+
+            return trackRequest(
+              this.contractGithubhint.instance.hint.postTransaction(options, values),
+              (error, data) => {
+                if (error) {
+                  console.error(hash, error);
+                } else {
+                  console.log(hash, data);
+                }
+              }
+            );
+          });
       });
   }
 
@@ -472,9 +691,7 @@ export default class ContractsStore {
         })
       )
       .then((apps) => {
-        console.log(apps);
-
-        apps.forEach(([_id], index) => {
+        apps.forEach(([_id, owner], index) => {
           const id = api.util.bytesToHex(_id);
 
           if (isValidNumber(id)) {
@@ -484,46 +701,88 @@ export default class ContractsStore {
 
         return Promise.all(
           this.apps.map((app) => {
-            return app.imageHash && app.imageMatch
-              ? Promise.resolve([0])
-              : this.contractDappreg.instance.meta.call({}, [app.hashId, 'IMG']);
+            return !app.isOnChain || (app.imageHash && app.imageMatch)
+              ? Promise.resolve([[0], [0], [0]])
+              : Promise.all([
+                this.contractDappreg.instance.meta.call({}, [app.hashId, 'CONTENT']),
+                this.contractDappreg.instance.meta.call({}, [app.hashId, 'IMG']),
+                this.contractDappreg.instance.meta.call({}, [app.hashId, 'MANIFEST'])
+              ]);
           })
         );
       })
-      .then((imageHashes) => {
-        imageHashes.forEach((image, index) => {
+      .then((hashes) => {
+        hashes.forEach(([content, image, manifest], index) => {
+          const contentHash = api.util.bytesToHex(content);
           const imageHash = api.util.bytesToHex(image);
+          const manifestHash = api.util.bytesToHex(manifest);
+
+          if (isValidNumber(contentHash)) {
+            this.setAppContentHash(this.apps[index], contentHash);
+          }
 
           if (isValidNumber(imageHash)) {
             this.setAppImageHash(this.apps[index], imageHash);
           }
-        });
 
-        return Promise.all(
-          this.apps.map((app) => {
-            return app.imageUrl || !app.imageHash
-              ? Promise.resolve([null, null, null])
-              : this.contractGithubhint.instance.entries.call({}, [app.imageHash]);
-          })
-        );
-      })
-      .then((imageUrls) => {
-        imageUrls.forEach(([imageUrl, commit, owner], index) => {
-          if (isValidNumber(owner)) {
-            this.setAppImageUrl(this.apps[index], imageUrl);
+          if (isValidNumber(manifestHash)) {
+            this.setAppManifestHash(this.apps[index], manifestHash);
           }
         });
       });
   }
 
-  findContracts = () => {
+  findBadges = () => {
+    if (!this.contractBadgereg.instance) {
+      return Promise.resolve(false);
+    }
+
+    return this
+      .findContracts(this.badges)
+      .then(() => {
+        return Promise.all(
+          this.badges.map((badge) => {
+            return badge.isBadgeRegistered
+              ? Promise.resolve([0, 0, 0])
+              : this.contractBadgereg.instance.fromAddress.call({}, [badge.address]);
+          })
+        );
+      })
+      .then((badgeInfos) => {
+        badgeInfos.forEach(([id, name, owner], index) => {
+          if (isValidNumber(owner)) {
+            this.setBadgeId(this.badges[index], id);
+          }
+        });
+
+        return Promise
+          .all(
+            this.badges.map((badge) => {
+              return !badge.isBadgeRegistered
+                ? Promise.resolve([0])
+                : this.contractBadgereg.instance.meta.call({}, [badge.badgeId, 'IMG']);
+            })
+          );
+      })
+      .then((images) => {
+        images.forEach((imageBytes, index) => {
+          const imageHash = api.util.bytesToHex(imageBytes);
+
+          if (isValidNumber(imageHash)) {
+            this.setBadgeImageHash(this.badges[index], imageHash);
+          }
+        });
+      });
+  }
+
+  findContracts = (contracts = this.contracts) => {
     if (!this.registry.instance) {
       return Promise.resolve(false);
     }
 
     return Promise
       .all(
-        this.contracts.map((contract) => {
+        contracts.map((contract) => {
           return contract.isOnChain
             ? Promise.resolve(0)
             : this.registry.instance.getAddress.call({}, [api.util.sha3(contract.id), 'A']);
@@ -532,12 +791,12 @@ export default class ContractsStore {
       .then((addresses) => {
         addresses.forEach((address, index) => {
           if (isValidNumber(address)) {
-            this.setContractAddress(this.contracts[index], address, true);
+            this.setContractAddress(contracts[index], address, true);
           }
         });
 
         return Promise.all(
-          this.contracts.map((contract) => {
+          contracts.map((contract) => {
             return !contract.address || contract.hasLatestCode
               ? Promise.resolve(null)
               : api.eth.getCode(contract.address);
@@ -547,7 +806,7 @@ export default class ContractsStore {
       .then((codes) => {
         codes.forEach((byteCode, index) => {
           if (byteCode) {
-            this.setContractCode(this.contracts[index], byteCode);
+            this.setContractCode(contracts[index], byteCode);
           }
         });
       });
@@ -562,6 +821,7 @@ export default class ContractsStore {
       .findRegistry()
       .then(this.findContracts)
       .then(this.findApps)
+      .then(this.findBadges)
       .catch(this.setError);
   }
 }

@@ -16,6 +16,8 @@
 */
 
 .body {
+  font-size: 0.8em;
+
   .buttons {
     position: fixed;
     right: 0.5em;

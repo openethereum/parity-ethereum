@@ -16,6 +16,7 @@
 
 import * as consolejs from './console';
 import * as dappreg from './dappreg';
+import * as gavcoin from './gavcoin';
 import * as githubhint from './githubhint';
 import * as localtx from './localtx';
 import * as registry from './registry';
@@ -25,6 +26,7 @@ import * as tokenreg from './tokenreg';
 import * as web from './web';
 
 const apps = [
+  // builtin
   consolejs,
   dappreg,
   githubhint,
@@ -33,7 +35,10 @@ const apps = [
   signaturereg,
   tokendeploy,
   tokenreg,
-  web
+  web,
+
+  // external
+  gavcoin
 ];
 
 export {

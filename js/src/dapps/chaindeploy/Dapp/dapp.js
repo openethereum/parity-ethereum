@@ -34,7 +34,12 @@ export default class Dapp extends Component {
       >
         <Header
           isBusy={ dapp.isDeploying }
-          isOk={ dapp.isOnChain && !!dapp.imageHash && !!dapp.imageUrl && !!dapp.imageMatch }
+          isOk={
+            dapp.isOnChain &&
+            !!dapp.imageHash && !!dapp.imageMatch &&
+            (!dapp.source.contentHash || !!dapp.contentMatch) &&
+            (!dapp.source.manifestHash || !!dapp.manifestMatch)
+          }
         >
           { dapp.name }
         </Header>
@@ -48,40 +53,46 @@ export default class Dapp extends Component {
               : 'not found in dappreg'
           }
         </Row>
-        <Row
-          disabled={ !dapp.isOnChain }
-          isBusy={ dapp.isDeploying }
-          isOk={ !!dapp.imageHash }
-        >
-          {
-            dapp.imageHash
-              ? `imageHash ${dapp.imageHash}`
-              : 'has not registered an imageHash'
-          }
-        </Row>
-        <Row
-          disabled={ !dapp.isOnChain }
-          isBusy={ dapp.isDeploying }
-          isOk={ !!dapp.imageUrl }
-        >
-          {
-            dapp.imageUrl
-              ? `imageUrl ${dapp.imageUrl}`
-              : 'does not resolve imageUrl'
-          }
-        </Row>
-        <Row
-          disabled={ !dapp.isOnChain }
-          isBusy={ dapp.isDeploying }
-          isOk={ dapp.imageMatch }
-        >
-          {
-            dapp.imageMatch
-              ? 'has latest imageHash'
-              : 'does not have latest imageHash'
-          }
-        </Row>
+        { this.renderHash(dapp, 'image') }
+        { this.renderHash(dapp, 'manifest') }
+        { this.renderHash(dapp, 'content') }
       </ListItem>
     );
+  }
+
+  renderHash (dapp, type) {
+    if (!dapp.source[`${type}Hash`]) {
+      return null;
+    }
+
+    const isMatch = dapp[`${type}Match`];
+    const hash = dapp[`${type}Hash`];
+
+    return [
+      <Row
+        disabled={ !dapp.isOnChain }
+        isBusy={ dapp.isDeploying }
+        isOk={ !!hash }
+        key={ `${type}Hash` }
+      >
+        {
+          hash
+            ? `${type}Hash ${hash}`
+            : `has not registered an ${type}Hash`
+        }
+      </Row>,
+      <Row
+        disabled={ !dapp.isOnChain }
+        isBusy={ dapp.isDeploying }
+        isOk={ isMatch }
+        key={ `${type}Match` }
+      >
+        {
+          isMatch
+            ? `has latest ${type}Hash`
+            : `does not have latest ${type}Hash`
+        }
+      </Row>
+    ];
   }
 }
