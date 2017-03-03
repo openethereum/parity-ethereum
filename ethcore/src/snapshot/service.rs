@@ -289,6 +289,13 @@ impl Service {
 		dir
 	}
 
+	// get the pending snapshot dir.
+	fn pending_snapshot_dir(&self) -> PathBuf {
+		let mut dir = self.snapshot_root.clone();
+		dir.push("pending");
+		dir
+	}
+
 	// get the restoration directory.
 	fn restoration_dir(&self) -> PathBuf {
 		let mut dir = self.snapshot_root.clone();
@@ -332,10 +339,8 @@ impl Service {
 		info!("Snapshot: {} accounts {} blocks {} bytes", p.accounts(), p.blocks(), p.size());
 	}
 
-	/// Take a snapshot at the block with the given number.
-	/// calling this while a restoration is in progress or vice versa
-	/// will lead to a race condition where the first one to finish will
-	/// have their produced snapshot overwritten.
+	/// Take a snapshot at the block with the given number,
+	/// writing it into the "pending" directory.
 	pub fn take_snapshot(&self, client: &Client, num: u64) -> Result<(), Error> {
 		if self.taking_snapshot.compare_and_swap(false, true, Ordering::SeqCst) {
 			info!("Skipping snapshot at #{} as another one is currently in-progress.", num);
@@ -346,10 +351,9 @@ impl Service {
 		self.progress.reset();
 
 		let temp_dir = self.temp_snapshot_dir();
-		let snapshot_dir = self.snapshot_dir();
+		let snapshot_dir = self.pending_snapshot_dir();
 
 		let _ = fs::remove_dir_all(&temp_dir);
-
 		let writer = LooseWriter::new(temp_dir.clone())?;
 
 		let guard = Guard::new(temp_dir.clone());
@@ -357,12 +361,10 @@ impl Service {
 
 		self.taking_snapshot.store(false, Ordering::SeqCst);
 		if let Err(e) = res {
-			if client.chain_info().best_block_number >= num + client.pruning_history() {
-				// "Cancelled" is mincing words a bit -- what really happened
-				// is that the state we were snapshotting got pruned out
-				// before we could finish.
-				info!("Periodic snapshot failed: block state pruned.\
-					Run with a longer `--pruning-history` or with `--no-periodic-snapshot`");
+			if num <= client.pruning_info().earliest_state {
+				info!("Periodic snapshot failed: block state pruned. \
+					Run with a longer `--pruning-history` or higher `--pruning-memory` \
+					for more likely success.");
 				return Ok(())
 			} else {
 				return Err(e);
@@ -371,20 +373,71 @@ impl Service {
 
 		info!("Finished taking snapshot at #{}", num);
 
-		let mut reader = self.reader.write();
-
-		// destroy the old snapshot reader.
-		*reader = None;
-
 		if snapshot_dir.exists() {
 			fs::remove_dir_all(&snapshot_dir)?;
 		}
 
 		fs::rename(temp_dir, &snapshot_dir)?;
 
-		*reader = Some(LooseReader::new(snapshot_dir)?);
-
 		guard.disarm();
+		Ok(())
+	}
+
+	/// Attempt to solidify the pending snapshot.
+	/// This involves moving it from the "pending" directory to the "current"
+	/// directory.
+	///
+	/// The snapshot's block hash and number are compared against the canonical
+	/// results from the `client`.
+	///
+	/// Calling this while a restoration is in progress or vice versa
+	/// will lead to a race condition where the first one to finish will
+	/// have their produced snapshot overwritten.
+	pub fn solidify(&self, num: u64, hash: H256) -> Result<(), Error> {
+		if self.taking_snapshot.compare_and_swap(false, true, Ordering::SeqCst) {
+			info!("Skipping snapshot solidification as creation is currently in-progress.");
+			return Ok(());
+		}
+
+		let pending_dir = self.pending_snapshot_dir();
+		let snapshot_dir = self.snapshot_dir();
+
+		if !pending_dir.exists() { return Ok(()) } // nothing to do here.
+
+		let guard = Guard::new(pending_dir.clone());
+		let mut reader = self.reader.write();
+
+		{
+			match LooseReader::new(pending_dir.clone()) {
+				Ok(reader) => {
+					let manifest = reader.manifest();
+					if (manifest.block_number, manifest.block_hash) != (num, hash) {
+						debug!(target: "snapshot", "Discarding non-canonical snapshot.");
+						// the guard deletes the folder here.
+						return Ok(())
+					}
+				}
+				Err(e) => {
+					debug!(target: "snapshot", "Malformed pending snapshot: {}", e);
+					return Ok(())
+				}
+			}
+		}
+
+		// destroy the old snapshot reader.
+		*reader = None;
+
+		if snapshot_dir.exists() {
+			let _ = fs::remove_dir_all(&snapshot_dir);
+		}
+
+		fs::rename(pending_dir, &snapshot_dir)?;
+		guard.disarm();
+
+		let guard = Guard::new(snapshot_dir.clone());
+		*reader = Some(LooseReader::new(snapshot_dir)?);
+		guard.disarm();
+
 		Ok(())
 	}
 
