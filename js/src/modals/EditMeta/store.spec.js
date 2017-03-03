@@ -14,14 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import sinon from 'sinon';
+
 import Store from './store';
 import { ACCOUNT, ADDRESS, createApi } from './editMeta.test.js';
 
 let api;
 let store;
+let vaultStore;
+
+function createVaultStore () {
+  return {
+    moveAccount: sinon.stub().resolves(true)
+  };
+}
 
 function createStore (account) {
   api = createApi();
+  vaultStore = createVaultStore();
 
   store = new Store(api, account);
 
@@ -108,6 +118,13 @@ describe('modals/EditMeta/Store', () => {
       createStore(ADDRESS);
     });
 
+    describe('setBusy', () => {
+      it('sets the isBusy flag', () => {
+        store.setBusy('testing');
+        expect(store.isBusy).to.equal('testing');
+      });
+    });
+
     describe('setDescription', () => {
       it('sets the description', () => {
         store.setDescription('description');
@@ -149,26 +166,56 @@ describe('modals/EditMeta/Store', () => {
         expect(store.vaultName).to.equal('testing');
       });
     });
-
-    describe('setVaultSelectorOpen', () => {
-      it('sets the state', () => {
-        store.setVaultSelectorOpen('testing');
-        expect(store.isVaultSelectorOpen).to.equal('testing');
-      });
-    });
   });
 
   describe('operations', () => {
     describe('save', () => {
       beforeEach(() => {
         createStore(ACCOUNT);
+        sinon.spy(store, 'setBusy');
+      });
+
+      afterEach(() => {
+        store.setBusy.restore();
+      });
+
+      it('sets the busy flag, clearing it when done', () => {
+        return store.save().then(() => {
+          expect(store.setBusy).to.have.been.calledWith(true);
+          expect(store.setBusy).to.have.been.calledWith(false);
+        });
       });
 
       it('calls parity.setAccountName with the set value', () => {
         store.setName('test name');
-        store.save();
 
-        expect(api.parity.setAccountName).to.be.calledWith(ACCOUNT.address, 'test name');
+        return store.save().then(() => {
+          expect(api.parity.setAccountName).to.be.calledWith(ACCOUNT.address, 'test name');
+        });
+      });
+
+      it('calls parity.setAccountMeta with the adjusted values', () => {
+        store.setDescription('some new description');
+        store.setPasswordHint('some new passwordhint');
+        store.setTags(['taga']);
+
+        return store.save().then(() => {
+          expect(api.parity.setAccountMeta).to.have.been.calledWith(
+            ACCOUNT.address, Object.assign({}, ACCOUNT.meta, {
+              description: 'some new description',
+              passwordHint: 'some new passwordhint',
+              tags: ['taga']
+            })
+          );
+        });
+      });
+
+      it('moves vault account when applicable', () => {
+        store.setVaultName('testing');
+
+        return store.save(vaultStore).then(() => {
+          expect(vaultStore.moveAccount).to.have.been.calledWith('testing', ACCOUNT.address);
+        });
       });
 
       it('calls parity.setAccountMeta with the adjusted values', () => {
@@ -183,13 +230,6 @@ describe('modals/EditMeta/Store', () => {
           tags: ['taga']
         }));
       });
-    });
-  });
-
-  describe('toggleVaultSelector', () => {
-    it('inverts the selector state', () => {
-      store.toggleVaultSelector();
-      expect(store.isVaultSelectorOpen).to.be.true;
     });
   });
 });

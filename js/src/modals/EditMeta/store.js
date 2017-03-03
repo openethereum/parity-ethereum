@@ -21,7 +21,7 @@ import { validateName } from '~/util/validation';
 export default class Store {
   @observable address = null;
   @observable isAccount = false;
-  @observable isVaultSelectorOpen = false;
+  @observable isBusy = false;
   @observable description = null;
   @observable meta = null;
   @observable name = null;
@@ -73,6 +73,10 @@ export default class Store {
     this.passwordHint = passwordHint;
   }
 
+  @action setBusy = (isBusy) => {
+    this.isBusy = isBusy;
+  }
+
   @action setTags = (tags) => {
     this.tags = tags.slice();
   }
@@ -81,11 +85,9 @@ export default class Store {
     this.vaultName = vaultName;
   }
 
-  @action setVaultSelectorOpen = (isOpen) => {
-    this.isVaultSelectorOpen = isOpen;
-  }
+  save (vaultStore) {
+    this.setBusy(true);
 
-  save () {
     const meta = {
       description: this.description,
       tags: this.tags.peek()
@@ -100,13 +102,20 @@ export default class Store {
         this._api.parity.setAccountName(this.address, this.name),
         this._api.parity.setAccountMeta(this.address, Object.assign({}, this.meta, meta))
       ])
+      .then(() => {
+        if (vaultStore && this.isAccount && (this.meta.vault !== this.vaultName)) {
+          return vaultStore.moveAccount(this.vaultName, this.address);
+        }
+
+        return true;
+      })
+      .then(() => {
+        this.setBusy(false);
+      })
       .catch((error) => {
         console.error('onSave', error);
+        this.setBusy(false);
         throw error;
       });
-  }
-
-  toggleVaultSelector () {
-    this.setVaultSelectorOpen(!this.isVaultSelectorOpen);
   }
 }

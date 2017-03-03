@@ -28,6 +28,7 @@ const VAULTS_CLOSED = [
   { name: 'C' },
   { name: 'D' }
 ];
+const VAULTS_ALL = VAULTS_OPENED.concat(VAULTS_CLOSED);
 
 let component;
 let instance;
@@ -37,7 +38,8 @@ let vaultStore;
 
 function createVaultStore () {
   vaultStore = {
-    vaults: VAULTS_OPENED.concat(VAULTS_CLOSED)
+    vaults: VAULTS_ALL,
+    vaultsOpened: VAULTS_OPENED
   };
 
   return vaultStore;

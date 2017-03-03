@@ -24,13 +24,15 @@ import { Form, Input, IdentityIcon } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 import { RefreshIcon } from '~/ui/Icons';
 
+import ChangeVault from '../ChangeVault';
 import styles from '../createAccount.css';
 
 @observer
 export default class CreateAccount extends Component {
   static propTypes = {
     newError: PropTypes.func.isRequired,
-    store: PropTypes.object.isRequired
+    store: PropTypes.object.isRequired,
+    vaultStore: PropTypes.object
   }
 
   state = {
@@ -123,6 +125,10 @@ export default class CreateAccount extends Component {
           </div>
         </div>
         <PasswordStrength input={ password } />
+        <ChangeVault
+          store={ this.props.store }
+          vaultStore={ this.props.vaultStore }
+        />
         { this.renderIdentitySelector() }
         { this.renderIdentities() }
       </Form>
