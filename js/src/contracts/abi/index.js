@@ -14,34 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import badgereg from './badgereg.json';
-import basiccoin from './basiccoin.json';
-import basiccoinmanager from './basiccoinmanager.json';
-import dappreg from './dappreg.json';
-import eip20 from './eip20.json';
-import emailverification from './email-verification.json';
-import gavcoin from './gavcoin.json';
-import githubhint from './githubhint.json';
-import owned from './owned.json';
-import registry from './registry.json';
-import signaturereg from './signaturereg.json';
-import smsverification from './sms-verification.json';
-import tokenreg from './tokenreg.json';
-import wallet from './wallet.json';
-
-export {
-  badgereg,
-  basiccoin,
-  basiccoinmanager,
-  dappreg,
-  eip20,
-  emailverification,
-  gavcoin,
-  githubhint,
-  owned,
-  registry,
-  signaturereg,
-  smsverification,
-  tokenreg,
-  wallet
-};
+export badgereg from './badgereg.json';
+export basiccoin from './basiccoin.json';
+export basiccoinmanager from './basiccoinmanager.json';
+export dappreg from './dappreg.json';
+export eip20 from './eip20.json';
+export emailverification from './email-verification.json';
+export gavcoin from './gavcoin.json';
+export githubhint from './githubhint.json';
+export owned from './owned.json';
+export registry from './registry.json';
+export registry2 from './registry2.json';
+export signaturereg from './signaturereg.json';
+export smsverification from './sms-verification.json';
+export tokenreg from './tokenreg.json';
+export wallet from './wallet.json';

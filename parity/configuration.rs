@@ -412,7 +412,7 @@ impl Configuration {
 
 	fn chain(&self) -> String {
 		if self.args.flag_testnet {
-			"ropsten".to_owned()
+			"testnet".to_owned()
 		} else {
 			self.args.flag_chain.clone()
 		}
@@ -759,8 +759,8 @@ impl Configuration {
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
 		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
 
-		if self.args.flag_geth  && !cfg!(windows) {
-			let geth_root  = if self.args.flag_testnet { path::ethereum::test() } else {  path::ethereum::default() };
+		if self.args.flag_geth && !cfg!(windows) {
+			let geth_root  = if self.chain() == "testnet".to_owned() { path::ethereum::test() } else {  path::ethereum::default() };
 			::std::fs::create_dir_all(geth_root.as_path()).unwrap_or_else(
 				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_root.to_str().unwrap(), e));
 		}
@@ -943,7 +943,7 @@ mod tests {
 			file_path: Some("blockchain.json".into()),
 			format: Default::default(),
 			pruning: Default::default(),
-			pruning_history: 1200,
+			pruning_history: 64,
 			compaction: Default::default(),
 			wal: true,
 			tracing: Default::default(),
@@ -965,7 +965,7 @@ mod tests {
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
 			pruning: Default::default(),
-			pruning_history: 1200,
+			pruning_history: 64,
 			format: Default::default(),
 			compaction: Default::default(),
 			wal: true,
@@ -987,7 +987,7 @@ mod tests {
 			dirs: Default::default(),
 			file_path: Some("state.json".into()),
 			pruning: Default::default(),
-			pruning_history: 1200,
+			pruning_history: 64,
 			format: Default::default(),
 			compaction: Default::default(),
 			wal: true,
@@ -1011,7 +1011,7 @@ mod tests {
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
 			pruning: Default::default(),
-			pruning_history: 1200,
+			pruning_history: 64,
 			format: Some(DataFormat::Hex),
 			compaction: Default::default(),
 			wal: true,
@@ -1046,7 +1046,7 @@ mod tests {
 			dirs: Default::default(),
 			spec: Default::default(),
 			pruning: Default::default(),
-			pruning_history: 1200,
+			pruning_history: 64,
 			daemon: None,
 			logger_config: Default::default(),
 			miner_options: Default::default(),
@@ -1127,7 +1127,7 @@ mod tests {
 		// then
 		assert_eq!(conf.network_settings(), NetworkSettings {
 			name: "testname".to_owned(),
-			chain: "ropsten".to_owned(),
+			chain: "testnet".to_owned(),
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "local".to_owned(),
