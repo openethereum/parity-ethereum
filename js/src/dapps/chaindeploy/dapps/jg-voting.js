@@ -17,20 +17,20 @@
 import { api } from '../parity';
 
 const isExternal = true;
-const id = 'gavcoin';
+const id = 'jg-voting';
 const hashId = api.util.sha3(id);
 const source = {
-  imageUrl: 'https://raw.githubusercontent.com/ethcore/dapp-assets/9e135f76fe9ba61e2d8ccbd72ed144c26c450780/tokens/gavcoin-64x64.png',
-  imageHash: '0xd40679a3a234d8421c678d64f4df3308859e8ad07ac95ce4a228aceb96955287',
-  manifestUrl: 'https://raw.githubusercontent.com/gavofyork/gavcoin/eb2f8dc4d3ad4dd5f4562690525b7cfedc9681ba/manifest.json',
-  manifestHash: '0xd582c572fbef8015837f2c1a8798f2c3149a1d9d655b4020edb1bbece725371d',
+  imageUrl: 'https://raw.githubusercontent.com/jacogr/dapp-voting/038ff4074544f2babc7aed9c4ac3dc070b85b804/assets/images/vote.jpg',
+  imageHash: '0x3620828e1a745d2714e9f37dc2d47cdab5ef9982190a845b5e7665b7a7767661',
+  manifestUrl: 'https://raw.githubusercontent.com/jacogr/dapp-voting/682f0fe4b86508a1a2487de6c7c61f7b100ba5b2/manifest.json',
+  manifestHash: '0x9b83e01f87d225e7bfdd305c51319504ff9b4cf8d517ca4b64f606762e72f59e',
   contentUrl: {
-    repo: 'gavofyork/gavcoin',
-    commit: '0xeb2f8dc4d3ad4dd5f4562690525b7cfedc9681ba'
+    repo: 'jacogr/dapp-voting',
+    commit: '0x7d941597e862a600a60b9d6ecd3a6f606d96cd7b'
   },
-  contentHash: '0x0b6c7b3fc8dad3edb39fd1465904ce9a11938ef18f08f8115f275047ba249530'
+  contentHash: '0x9fcc0910f6a8c4e45715d41aea2d287da31bf1d7321003fc66df6a012ce2d753'
 };
-const name = 'GavCoin';
+const name = 'Yes, No, Maybe';
 
 export {
   hashId,

@@ -14,37 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import * as consolejs from './console';
-import * as dappreg from './dappreg';
-import * as gavcoin from './gavcoin';
-import * as githubhint from './githubhint';
-import * as jgvoting from './jg-voting';
-import * as jgwhenblock from './jg-whenblock';
-import * as localtx from './localtx';
-import * as registry from './registry';
-import * as signaturereg from './signaturereg';
-import * as tokendeploy from './tokendeploy';
-import * as tokenreg from './tokenreg';
-import * as web from './web';
+import abi from './abi/jg-voting';
+import { compiler, source as sourceUrl, output as byteCode } from './code/jg-voting';
 
-const apps = [
-  // builtin
-  consolejs,
-  dappreg,
-  githubhint,
-  localtx,
-  registry,
-  signaturereg,
-  tokendeploy,
-  tokenreg,
-  web,
-
-  // external
-  gavcoin,
-  jgvoting,
-  jgwhenblock
-];
+const isExternal = true;
+const id = 'jg-voting';
+const deployParams = [];
 
 export {
-  apps
+  abi,
+  byteCode,
+  compiler,
+  deployParams,
+  id,
+  isExternal,
+  sourceUrl
 };

@@ -18,6 +18,7 @@ import * as badgereg from './badgereg';
 import * as dappreg from './dappreg';
 import * as gavcoin from './gavcoin';
 import * as githubhint from './githubhint';
+import * as jgvoting from './jg-voting';
 import * as registry from './registry';
 import * as signaturereg from './signaturereg';
 import * as tokendeployMgr from './tokendeployMgr';
@@ -39,7 +40,8 @@ const contracts = [
   verifySms,
 
   // external
-  gavcoin
+  gavcoin,
+  jgvoting
 ];
 
 export {

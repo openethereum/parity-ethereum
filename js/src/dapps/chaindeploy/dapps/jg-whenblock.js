@@ -14,23 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { api } from '../parity';
-
 const isExternal = true;
-const id = 'gavcoin';
-const hashId = api.util.sha3(id);
+const id = 'whenarewethere';
+const hashId = '0xfef3bfded03695e38a9ff476a0999e1fa421e72d1fb3b55a87d6c2bdb6fc18ef';
 const source = {
-  imageUrl: 'https://raw.githubusercontent.com/ethcore/dapp-assets/9e135f76fe9ba61e2d8ccbd72ed144c26c450780/tokens/gavcoin-64x64.png',
-  imageHash: '0xd40679a3a234d8421c678d64f4df3308859e8ad07ac95ce4a228aceb96955287',
-  manifestUrl: 'https://raw.githubusercontent.com/gavofyork/gavcoin/eb2f8dc4d3ad4dd5f4562690525b7cfedc9681ba/manifest.json',
-  manifestHash: '0xd582c572fbef8015837f2c1a8798f2c3149a1d9d655b4020edb1bbece725371d',
+  imageUrl: 'https://raw.githubusercontent.com/jacogr/dapp-when-are-we-there/167aa4d904c5aa6246d0d6d6f41c4ed8a56889cd/assets/images/clock.jpg',
+  imageHash: '0x2534b44f685b6399bf63f86679128216c43e9a58be1dfb58533923f0bcffeba7',
+  manifestUrl: 'https://raw.githubusercontent.com/jacogr/dapp-when-are-we-there/bf72dc3033711a3ab41bec3c1249638f70bae768/manifest.json',
+  manifestHash: '0xfe26f6a19ea9393d69bc5d8c73c5072ccf126f51c10c135b42d6bf162d774fd9',
   contentUrl: {
-    repo: 'gavofyork/gavcoin',
-    commit: '0xeb2f8dc4d3ad4dd5f4562690525b7cfedc9681ba'
+    repo: 'jacogr/dapp-when-are-we-there',
+    commit: '0xbf72dc3033711a3ab41bec3c1249638f70bae768'
   },
-  contentHash: '0x0b6c7b3fc8dad3edb39fd1465904ce9a11938ef18f08f8115f275047ba249530'
+  contentHash: '0x3505cbbef5c2243eedba07d340d4abccfaa3cfb799f51827e33c9721a5254d13'
 };
-const name = 'GavCoin';
+const name = 'When are we there';
 
 export {
   hashId,
