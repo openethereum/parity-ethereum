@@ -623,7 +623,8 @@ export default class ContractsStore {
               }
             );
           });
-      });
+      })
+      .catch(() => false);
   }
 
   registerHash = (hash, url, fromAddress) => {
@@ -655,7 +656,8 @@ export default class ContractsStore {
               }
             );
           });
-      });
+      })
+      .catch(() => false);
   }
 
   findRegistry = () => {
@@ -783,14 +785,19 @@ export default class ContractsStore {
     return Promise
       .all(
         contracts.map((contract) => {
+          const hashId = api.util.sha3(contract.id);
+
           return contract.isOnChain
-            ? Promise.resolve(0)
-            : this.registry.instance.getAddress.call({}, [api.util.sha3(contract.id), 'A']);
+            ? Promise.resolve([0, 0])
+            : Promise.all([
+              this.registry.instance.getAddress.call({}, [hashId, 'A']),
+              this.registry.instance.getOwner.call({}, [hashId])
+            ]);
         })
       )
       .then((addresses) => {
-        addresses.forEach((address, index) => {
-          if (isValidNumber(address)) {
+        addresses.forEach(([address, owner], index) => {
+          if (isValidNumber(owner) && isValidNumber(address)) {
             this.setContractAddress(contracts[index], address, true);
           }
         });

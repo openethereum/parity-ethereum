@@ -17,7 +17,7 @@
 import abi from '~/contracts/abi/dappreg';
 import { compiler, source as sourceUrl, output as byteCode } from './code/dappreg';
 
-const id = 'dappreg';
+const id = 'dappreg'; // 7bbc4f1a27628781b96213e781a1b8eec6982c1db8fac739af6e4c5a55862c03
 const deployParams = [];
 
 export {
