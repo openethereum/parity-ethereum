@@ -20,9 +20,6 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
 import { AccountCard, Portal, SelectionList } from '~/ui';
-import { CheckIcon, StarIcon } from '~/ui/Icons';
-
-import styles from './dappPermissions.css';
 
 @observer
 class DappPermissions extends Component {
@@ -40,18 +37,6 @@ class DappPermissions extends Component {
 
     return (
       <Portal
-        buttons={
-          <div className={ styles.legend }>
-            <FormattedMessage
-              id='dapps.permissions.description'
-              defaultMessage='{activeIcon} account is available to application, {defaultIcon} account is the default account'
-              values={ {
-                activeIcon: <CheckIcon />,
-                defaultIcon: <StarIcon />
-              } }
-            />
-          </div>
-        }
         onClose={ permissionStore.closeModal }
         open
         title={

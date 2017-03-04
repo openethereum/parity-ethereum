@@ -14,21 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export AddressSelect from './AddressSelect';
-export DappUrlInput from './DappUrlInput';
-export FileSelect from './FileSelect';
-export FormWrap from './FormWrap';
-export Input from './Input';
-export InputAddress from './InputAddress';
-export InputAddressSelect from './InputAddressSelect';
-export InputChip from './InputChip';
-export InputDate from './InputDate';
-export InputInline from './InputInline';
-export InputTime from './InputTime';
-export Label from './Label';
-export RadioButtons from './RadioButtons';
-export Select from './Select';
-export TypedInput from './TypedInput';
-export VaultSelect from './VaultSelect';
+import React, { Component, PropTypes } from 'react';
 
-export default from './form';
+import IdentityIcon from '~/ui/IdentityIcon';
+
+import styles from './vaultTag.css';
+
+export default class VaultTag extends Component {
+  static propTypes = {
+    vault: PropTypes.string.isRequired
+  };
+
+  render () {
+    const { vault } = this.props;
+
+    return (
+      <div className={ styles.vault }>
+        <div className={ styles.vaultBody }>
+          <IdentityIcon
+            address={ vault }
+            inline
+          />
+          <div className={ styles.text }>
+            { vault }
+          </div>
+        </div>
+      </div>
+    );
+  }
+}

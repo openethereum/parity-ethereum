@@ -37,25 +37,27 @@ class DeleteAccount extends Component {
   }
 
   state = {
+    isBusy: false,
     password: ''
   }
 
   render () {
     const { account } = this.props;
-    const { password } = this.state;
+    const { isBusy, password } = this.state;
 
     return (
       <ConfirmDialog
+        busy={ isBusy }
         className={ styles.body }
         onConfirm={ this.onDeleteConfirmed }
         onDeny={ this.closeDeleteDialog }
+        open
         title={
           <FormattedMessage
             id='deleteAccount.title'
             defaultMessage='confirm removal'
           />
         }
-        visible
       >
         <div className={ styles.hero }>
           <FormattedMessage
@@ -117,9 +119,13 @@ class DeleteAccount extends Component {
     const { account, newError } = this.props;
     const { password } = this.state;
 
+    this.setState({ isBusy: true });
+
     return api.parity
       .killAccount(account.address, password)
       .then((result) => {
+        this.setState({ isBusy: true });
+
         if (result === true) {
           router.push('/accounts');
           this.closeDeleteDialog();
@@ -128,6 +134,7 @@ class DeleteAccount extends Component {
         }
       })
       .catch((error) => {
+        this.setState({ isBusy: false });
         console.error('onDeleteConfirmed', error);
         newError(new Error(`Deletion failed: ${error.message}`));
       });

@@ -22,8 +22,20 @@ import { ACCOUNTS, ADDRESS, GETH_ADDRESSES, createApi } from './createAccount.te
 
 let api;
 let store;
+let vaultStore;
+
+function createVaultStore () {
+  vaultStore = {
+    moveAccount: sinon.stub().resolves(),
+    listVaults: sinon.stub().resolves()
+  };
+
+  return vaultStore;
+}
 
 function createStore (loadGeth) {
+  createVaultStore();
+
   api = createApi();
   store = new Store(api, ACCOUNTS, loadGeth);
 
@@ -65,8 +77,9 @@ describe('modals/CreateAccount/Store', () => {
   describe('@action', () => {
     describe('clearErrors', () => {
       beforeEach(() => {
-        store.setName('');
-        store.setPassword('123');
+        store.setName('testing');
+        store.setPassword('testing');
+        store.setVaultName('testing');
         store.setRawKey('test');
         store.setWalletFile('test');
         store.setWalletJson('test');
@@ -75,10 +88,13 @@ describe('modals/CreateAccount/Store', () => {
       it('clears all errors', () => {
         store.clearErrors();
 
+        expect(store.name).to.equal('');
         expect(store.nameError).to.be.null;
+        expect(store.password).to.equal('');
         expect(store.passwordRepeatError).to.be.null;
         expect(store.rawKey).to.equal('');
         expect(store.rawKeyError).to.be.null;
+        expect(store.vaultName).to.equal('');
         expect(store.walletFile).to.equal('');
         expect(store.walletFileError).to.be.null;
         expect(store.walletJson).to.equal('');
@@ -195,6 +211,13 @@ describe('modals/CreateAccount/Store', () => {
       it('changes to the provided stage', () => {
         store.setStage(2);
         expect(store.stage).to.equal(2);
+      });
+    });
+
+    describe('setVaultName', () => {
+      it('sets the vault name', () => {
+        store.setVaultName('testVault');
+        expect(store.vaultName).to.equal('testVault');
       });
     });
 
@@ -384,12 +407,22 @@ describe('modals/CreateAccount/Store', () => {
       let createAccountFromWalletSpy;
       let createAccountFromPhraseSpy;
       let createAccountFromRawSpy;
+      let busySpy;
 
       beforeEach(() => {
         createAccountFromGethSpy = sinon.spy(store, 'createAccountFromGeth');
         createAccountFromWalletSpy = sinon.spy(store, 'createAccountFromWallet');
         createAccountFromPhraseSpy = sinon.spy(store, 'createAccountFromPhrase');
         createAccountFromRawSpy = sinon.spy(store, 'createAccountFromRaw');
+        busySpy = sinon.spy(store, 'setBusy');
+      });
+
+      afterEach(() => {
+        store.createAccountFromGeth.restore();
+        store.createAccountFromWallet.restore();
+        store.createAccountFromPhrase.restore();
+        store.createAccountFromRaw.restore();
+        store.setBusy.restore();
       });
 
       it('throws error on invalid createType', () => {
@@ -399,38 +432,68 @@ describe('modals/CreateAccount/Store', () => {
 
       it('calls createAccountFromGeth on createType === fromGeth', () => {
         store.setCreateType('fromGeth');
-        store.createAccount();
-        expect(createAccountFromGethSpy).to.have.been.called;
+
+        return store.createAccount().then(() => {
+          expect(createAccountFromGethSpy).to.have.been.called;
+        });
       });
 
       it('calls createAccountFromWallet on createType === fromJSON', () => {
         store.setCreateType('fromJSON');
-        store.createAccount();
-        expect(createAccountFromWalletSpy).to.have.been.called;
+
+        return store.createAccount().then(() => {
+          expect(createAccountFromWalletSpy).to.have.been.called;
+        });
       });
 
       it('calls createAccountFromPhrase on createType === fromNew', () => {
         store.setCreateType('fromNew');
-        store.createAccount();
-        expect(createAccountFromPhraseSpy).to.have.been.called;
+
+        return store.createAccount().then(() => {
+          expect(createAccountFromPhraseSpy).to.have.been.called;
+        });
       });
 
       it('calls createAccountFromPhrase on createType === fromPhrase', () => {
         store.setCreateType('fromPhrase');
-        store.createAccount();
-        expect(createAccountFromPhraseSpy).to.have.been.called;
+
+        return store.createAccount().then(() => {
+          expect(createAccountFromPhraseSpy).to.have.been.called;
+        });
       });
 
       it('calls createAccountFromWallet on createType === fromPresale', () => {
         store.setCreateType('fromPresale');
-        store.createAccount();
-        expect(createAccountFromWalletSpy).to.have.been.called;
+
+        return store.createAccount().then(() => {
+          expect(createAccountFromWalletSpy).to.have.been.called;
+        });
       });
 
       it('calls createAccountFromRaw on createType === fromRaw', () => {
         store.setCreateType('fromRaw');
-        store.createAccount();
-        expect(createAccountFromRawSpy).to.have.been.called;
+
+        return store.createAccount().then(() => {
+          expect(createAccountFromRawSpy).to.have.been.called;
+        });
+      });
+
+      it('moves account to vault when vaultName set', () => {
+        store.setCreateType('fromNew');
+        store.setVaultName('testing');
+
+        return store.createAccount(vaultStore).then(() => {
+          expect(vaultStore.moveAccount).to.have.been.calledWith('testing', ADDRESS);
+        });
+      });
+
+      it('sets and rests the busy flag', () => {
+        store.setCreateType('fromNew');
+
+        return store.createAccount().then(() => {
+          expect(busySpy).to.have.been.calledWith(true);
+          expect(busySpy).to.have.been.calledWith(false);
+        });
       });
 
       describe('createAccountFromGeth', () => {
