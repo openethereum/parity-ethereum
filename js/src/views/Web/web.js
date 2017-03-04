@@ -62,7 +62,7 @@ export default class Web extends Component {
   }
 
   setUrl = (url) => {
-    url = url || store.get(LS_LAST_ADDRESS) || 'https://mkr.market';
+    url = url || store.get(LS_LAST_ADDRESS) || 'https://oasisdex.com';
     if (!hasProtocol.test(url)) {
       url = `https://${url}`;
     }
@@ -150,4 +150,3 @@ export default class Web extends Component {
     });
   };
 }
-
