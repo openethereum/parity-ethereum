@@ -228,7 +228,7 @@ class Wallet extends Component {
       <Button
         key='delete'
         icon={ <ActionDelete /> }
-        label='delete'
+        label='forget'
         onClick={ this.showDeleteDialog } />
     );
 
