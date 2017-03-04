@@ -44,7 +44,7 @@ export default class VerificationStore {
   @observable consentGiven = false;
   @observable requestTx = null;
   @observable code = '';
-  @observable isCodeValid = null;
+  @observable isCodeValid = false;
   @observable confirmationTx = null;
 
   constructor (api, abi, certifierName, account, isTestnet) {
@@ -132,7 +132,7 @@ export default class VerificationStore {
     const values = [ sha3.text(code) ];
 
     this.code = code;
-    this.isCodeValid = null;
+    this.isCodeValid = false;
     confirm.estimateGas(options, values)
       .then((gas) => {
         options.gas = gas.mul(1.2).toFixed(0);
