@@ -32,6 +32,27 @@ export function isValidNumber (number) {
   return number && !(new BigNumber(number)).isZero();
 }
 
+export function executeContract (logId, contract, funcName, options, values) {
+  const func = contract.instance[funcName];
+
+  return func
+    .estimateGas(options, values)
+    .then((gasEst) => {
+      options.gas = gasEst.mul(1.2);
+
+      return trackRequest(
+        func.postTransaction(options, values),
+        (error, data) => {
+          if (error) {
+            console.error(logId, error);
+          } else {
+            console.log(logId, data);
+          }
+        }
+      );
+    });
+}
+
 export function trackRequest (promise, callback) {
   return promise
     .then((requestId) => {

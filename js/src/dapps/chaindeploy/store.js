@@ -19,7 +19,7 @@ import { action, computed, observable } from 'mobx';
 import { contracts, registry } from './contracts';
 import { apps } from './dapps';
 import { api } from './parity';
-import { isValidNumber, trackRequest, validateCode } from './utils';
+import { executeContract, isValidNumber, validateCode } from './utils';
 
 export default class ContractsStore {
   @observable apps = null;
@@ -265,22 +265,7 @@ export default class ContractsStore {
           .then((fee) => {
             options.value = fee;
 
-            return this.contractDappreg.instance
-              .register.estimateGas(options, values)
-              .then((gasEst) => {
-                options.gas = gasEst.mul(1.2);
-
-                return trackRequest(
-                  this.contractDappreg.instance.register.postTransaction(options, values),
-                  (error, data) => {
-                    if (error) {
-                      console.error(app.id, error);
-                    } else {
-                      console.log(app.id, data);
-                    }
-                  }
-                );
-              });
+            return executeContract(app.id, this.contractDappreg, 'register', options, values);
           });
       })
       .then(() => {
@@ -469,22 +454,7 @@ export default class ContractsStore {
       .then((fee) => {
         options.value = fee;
 
-        return this.contractBadgereg.instance
-          .register.estimateGas(options, values)
-          .then((gasEst) => {
-            options.gas = gasEst.mul(1.2);
-
-            return trackRequest(
-              this.contractBadgereg.instance.register.postTransaction(options, values),
-              (error, data) => {
-                if (error) {
-                  console.error(badge.id, error);
-                } else {
-                  console.log(badge.id, data);
-                }
-              }
-            );
-          });
+        return executeContract(badge.id, this.contractBadgereg, 'register', options, values);
       });
   }
 
@@ -496,22 +466,7 @@ export default class ContractsStore {
 
     this.setContractStatus(badge, 'Setting meta IMG');
 
-    return this.contractBadgereg.instance
-      .setMeta.estimateGas(options, values)
-      .then((gasEst) => {
-        options.gas = gasEst.mul(1.2);
-
-        return trackRequest(
-          this.contractBadgereg.instance.setMeta.postTransaction(options, values),
-          (error, data) => {
-            if (error) {
-              console.error(badge.id, error);
-            } else {
-              console.log(badge.id, data);
-            }
-          }
-        );
-      });
+    return executeContract(badge.id, this.contractBadgereg, 'setMeta', options, values);
   }
 
   setAppMeta = (app, key, meta, fromAddress) => {
@@ -522,22 +477,7 @@ export default class ContractsStore {
 
     this.setAppStatus(app, `Setting meta ${key}`);
 
-    return this.contractDappreg.instance
-      .setMeta.estimateGas(options, values)
-      .then((gasEst) => {
-        options.gas = gasEst.mul(1.2);
-
-        return trackRequest(
-          this.contractDappreg.instance.setMeta.postTransaction(options, values),
-          (error, data) => {
-            if (error) {
-              console.error(app.id, error);
-            } else {
-              console.log(app.id, data);
-            }
-          }
-        );
-      });
+    return executeContract(app.id, this.contractDappreg, 'setMeta', options, values);
   }
 
   reserveAddress = (contract, fromAddress) => {
@@ -551,22 +491,7 @@ export default class ContractsStore {
       .then((value) => {
         options.value = value;
 
-        return this.registry.instance
-          .reserve.estimateGas(options, values)
-          .then((gasEst) => {
-            options.gas = gasEst.mul(1.2);
-
-            return trackRequest(
-              this.registry.instance.reserve.postTransaction(options, values).catch(() => true),
-              (error, data) => {
-                if (error) {
-                  console.error(contract.id, error);
-                } else {
-                  console.log(contract.id, data);
-                }
-              }
-            );
-          });
+        return executeContract(contract.id, this.registry, 'reserve', options, values);
       });
   }
 
@@ -576,22 +501,7 @@ export default class ContractsStore {
 
     this.setContractStatus(contract, 'Setting lookup address');
 
-    return this.registry.instance
-      .setAddress.estimateGas(options, values)
-      .then((gasEst) => {
-        options.gas = gasEst.mul(1.2);
-
-        return trackRequest(
-          this.registry.instance.setAddress.postTransaction(options, values),
-          (error, data) => {
-            if (error) {
-              console.error(contract.id, error);
-            } else {
-              console.log(contract.id, data);
-            }
-          }
-        );
-      });
+    return executeContract(contract.id, this.registry, 'setAddress', options, values);
   }
 
   registerRepo = (hash, content, fromAddress) => {
@@ -607,22 +517,7 @@ export default class ContractsStore {
           return true;
         }
 
-        return this.contractGithubhint.instance
-          .hint.estimateGas(options, values)
-          .then((gasEst) => {
-            options.gas = gasEst.mul(1.2);
-
-            return trackRequest(
-              this.contractGithubhint.instance.hint.postTransaction(options, values),
-              (error, data) => {
-                if (error) {
-                  console.error(hash, error);
-                } else {
-                  console.log(hash, data);
-                }
-              }
-            );
-          });
+        return executeContract(hash, this.contractGithubhint, 'hint', options, values);
       })
       .catch(() => false);
   }
@@ -640,22 +535,7 @@ export default class ContractsStore {
           return true;
         }
 
-        return this.contractGithubhint.instance
-          .hintURL.estimateGas(options, values)
-          .then((gasEst) => {
-            options.gas = gasEst.mul(1.2);
-
-            return trackRequest(
-              this.contractGithubhint.instance.hintURL.postTransaction(options, values),
-              (error, data) => {
-                if (error) {
-                  console.error(hash, error);
-                } else {
-                  console.log(hash, data);
-                }
-              }
-            );
-          });
+        return executeContract(hash, this.contractGithubhint, 'hintURL', options, values);
       })
       .catch(() => false);
   }
