@@ -46,7 +46,7 @@ export default class SignRequest extends Component {
     data: PropTypes.string.isRequired,
     id: PropTypes.object.isRequired,
     isFinished: PropTypes.bool.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     signerstore: PropTypes.object.isRequired,
 
     className: PropTypes.string,
@@ -106,7 +106,7 @@ export default class SignRequest extends Component {
 
   renderDetails () {
     const { api } = this.context;
-    const { address, isTest, signerstore, data, origin } = this.props;
+    const { address, data, netVersion, origin, signerstore } = this.props;
     const { balances, externalLink } = signerstore;
 
     const balance = balances[address];
@@ -122,7 +122,7 @@ export default class SignRequest extends Component {
             address={ address }
             balance={ balance }
             externalLink={ externalLink }
-            isTest={ isTest }
+            netVersion={ netVersion }
           />
           <RequestOrigin origin={ origin } />
         </div>

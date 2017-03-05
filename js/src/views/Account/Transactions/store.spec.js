@@ -95,7 +95,7 @@ describe('views/Account/Transactions/store', () => {
     });
 
     describe('setNetVersion', () => {
-      it('sets the isTest flag', () => {
+      it('sets the netVersion', () => {
         store.setNetVersion('testing');
         expect(store.netVersion).to.equal('testing');
       });
