@@ -100,6 +100,10 @@ $ cargo build --release
 ```
 
 This will produce an executable in the `./target/release` subdirectory.
+Note: if cargo fail to parse manifest try:
+```bash
+$ ~/.cargo/bin/cargo build --release
+```
 
 ----
 
