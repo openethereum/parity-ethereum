@@ -302,6 +302,7 @@ export default class Status {
           defaultExtraData,
           netChain,
           netPort,
+          netVersion,
           rpcSettings,
           isTest,
           enode

@@ -22,11 +22,11 @@ import { bindActionCreators } from 'redux';
 
 import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
 import HardwareStore from '~/mobx/hardwareStore';
-import { EditMeta, DeleteAccount, Shapeshift, Verification, Transfer, PasswordManager } from '~/modals';
+import { DeleteAccount, EditMeta, Faucet, PasswordManager, Shapeshift, Transfer, Verification } from '~/modals';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 import { Actionbar, Button, Page } from '~/ui';
-import { DeleteIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon } from '~/ui/Icons';
+import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon } from '~/ui/Icons';
 
 import DeleteAddress from '../Address/Delete';
 
@@ -48,6 +48,7 @@ class Account extends Component {
 
     accounts: PropTypes.object,
     balances: PropTypes.object,
+    netVersion: PropTypes.string.isRequired,
     params: PropTypes.object
   }
 
@@ -97,6 +98,7 @@ class Account extends Component {
       <div>
         { this.renderDeleteDialog(account) }
         { this.renderEditDialog(account) }
+        { this.renderFaucetDialog() }
         { this.renderFundDialog() }
         { this.renderPasswordDialog(account) }
         { this.renderTransferDialog(account, balance) }
@@ -117,8 +119,18 @@ class Account extends Component {
     );
   }
 
+  hasFaucet = (netVersion) => {
+    // TODO: Check should also include whether the account has been verified on the mainnet
+    return [
+      '1', // Foundation
+      '42' // Kovan
+    ].includes(netVersion);
+  }
+
   renderActionbar (account, balance) {
+    const { netVersion } = this.props;
     const showTransferButton = !!(balance && balance.tokens);
+    const isVerifiable = netVersion === '1'; // Foundation
 
     const buttons = [
       <Button
@@ -149,17 +161,36 @@ class Account extends Component {
         }
         onClick={ this.store.toggleFundDialog }
       />,
-      <Button
-        icon={ <VerifyIcon /> }
-        key='sms-verification'
-        label={
-          <FormattedMessage
-            id='account.button.verify'
-            defaultMessage='verify'
+      isVerifiable
+        ? (
+          <Button
+            icon={ <VerifyIcon /> }
+            key='verification'
+            label={
+              <FormattedMessage
+                id='account.button.verify'
+                defaultMessage='verify'
+              />
+            }
+            onClick={ this.store.toggleVerificationDialog }
           />
-        }
-        onClick={ this.store.toggleVerificationDialog }
-      />,
+        )
+        : null,
+      this.hasFaucet(netVersion)
+        ? (
+          <Button
+            icon={ <DialIcon /> }
+            key='faucet'
+            label={
+              <FormattedMessage
+                id='account.button.faucet'
+                defaultMessage='Kovan ETH'
+              />
+            }
+            onClick={ this.store.toggleFaucetDialog }
+          />
+        )
+        : null,
       <Button
         icon={ <EditIcon /> }
         key='editmeta'
@@ -253,6 +284,24 @@ class Account extends Component {
     );
   }
 
+  renderFaucetDialog () {
+    const { netVersion } = this.props;
+
+    if (!this.store.isFaucetVisible || !this.hasFaucet(netVersion)) {
+      return null;
+    }
+
+    const { address } = this.props.params;
+
+    return (
+      <Faucet
+        address={ address }
+        netVersion={ netVersion }
+        onClose={ this.store.toggleFaucetDialog }
+      />
+    );
+  }
+
   renderFundDialog () {
     if (!this.store.isFundVisible) {
       return null;
@@ -317,10 +366,12 @@ class Account extends Component {
 function mapStateToProps (state) {
   const { accounts } = state.personal;
   const { balances } = state.balances;
+  const { netVersion } = state.nodeStatus;
 
   return {
     accounts,
-    balances
+    balances,
+    netVersion
   };
 }
 
