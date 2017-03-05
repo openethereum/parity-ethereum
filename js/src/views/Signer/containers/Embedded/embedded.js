@@ -39,7 +39,7 @@ class Embedded extends Component {
     }).isRequired,
     externalLink: PropTypes.string,
     gasLimit: PropTypes.object.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     signer: PropTypes.shape({
       finished: PropTypes.array.isRequired,
       pending: PropTypes.array.isRequired
@@ -80,7 +80,7 @@ class Embedded extends Component {
   }
 
   renderPending = (data, index) => {
-    const { actions, gasLimit, isTest } = this.props;
+    const { actions, gasLimit, netVersion } = this.props;
     const { date, id, isSending, payload, origin } = data;
 
     return (
@@ -91,7 +91,7 @@ class Embedded extends Component {
         gasLimit={ gasLimit }
         id={ id }
         isSending={ isSending }
-        isTest={ isTest }
+        netVersion={ netVersion }
         key={ id }
         onConfirm={ actions.startConfirmRequest }
         onReject={ actions.startRejectRequest }
@@ -108,13 +108,13 @@ class Embedded extends Component {
 }
 
 function mapStateToProps (state) {
-  const { gasLimit, isTest } = state.nodeStatus;
+  const { gasLimit, netVersion } = state.nodeStatus;
   const { actions, signer } = state;
 
   return {
     actions,
     gasLimit,
-    isTest,
+    netVersion,
     signer
   };
 }
