@@ -51,9 +51,9 @@ export default class Proxy extends Component {
               <div>
                 <FormattedMessage
                   id='settings.proxy.details_0'
-                  defaultMessage='Instead of accessing Parity via the IP address and port, you will be able to access it via the .parity subdomain, by visiting {homeProxy}. To setup subdomain-based routing, you need to add the relevant proxy entries to your browser,'
+                  defaultMessage='Instead of accessing Parity via the IP address and port, you will be able to access it via the .web3.site subdomain, by visiting {homeProxy}. To setup subdomain-based routing, you need to add the relevant proxy entries to your browser,'
                   values={ {
-                    homeProxy: <span className={ layout.console }>http://home.parity/</span>
+                    homeProxy: <span className={ layout.console }>http://parity.web3.site/</span>
                   } }
                 />
               </div>
