@@ -34,7 +34,6 @@ class TxRow extends Component {
   static propTypes = {
     tx: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
-    isTest: PropTypes.bool.isRequired,
     netVersion: PropTypes.string.isRequired,
 
     block: PropTypes.object,
@@ -78,13 +77,13 @@ class TxRow extends Component {
   }
 
   renderAddress (address) {
-    const { isTest } = this.props;
+    const { netVersion } = this.props;
 
     let esLink = null;
     if (address) {
       esLink = (
         <a
-          href={ addressLink(address, isTest) }
+          href={ addressLink(address, false, netVersion) }
           target='_blank'
           className={ styles.link }>
           <IdentityName address={ address } shorten />
