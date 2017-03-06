@@ -113,6 +113,7 @@ impl ValidatorSet for ValidatorSafeContract {
 	}
 
 	fn register_contract(&self, client: Weak<Client>) {
+		trace!(target: "engine", "Setting up contract caller.");
 		let contract = ethabi::Contract::new(ethabi::Interface::load(CONTRACT_INTERFACE).expect("JSON interface is valid; qed"));
 		let call = contract.function(GET_VALIDATORS.into()).expect("Method name is valid; qed");
 		let data = call.encode_call(vec![]).expect("get_validators does not take any arguments; qed");
@@ -168,13 +169,14 @@ mod provider {
 #[cfg(test)]
 mod tests {
 	use util::*;
+	use types::ids::BlockId;
 	use spec::Spec;
 	use account_provider::AccountProvider;
 	use transaction::{Transaction, Action};
 	use client::{BlockChainClient, EngineClient};
 	use ethkey::Secret;
 	use miner::MinerService;
-	use tests::helpers::generate_dummy_client_with_spec_and_accounts;
+	use tests::helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
 	use super::super::ValidatorSet;
 	use super::ValidatorSafeContract;
 
@@ -243,5 +245,14 @@ mod tests {
 		client.update_sealing();
 		// Able to seal again.
 		assert_eq!(client.chain_info().best_block_number, 3);
+
+		// Check syncing.
+		let sync_client = generate_dummy_client_with_spec_and_data(Spec::new_validator_safe_contract, 0, 0, &[]);
+		sync_client.engine().register_client(Arc::downgrade(&sync_client));
+		for i in 1..4 {
+			sync_client.import_block(client.block(BlockId::Number(i)).unwrap().into_inner()).unwrap();
+		}
+		sync_client.flush_queue();
+		assert_eq!(sync_client.chain_info().best_block_number, 3);
 	}
 }
