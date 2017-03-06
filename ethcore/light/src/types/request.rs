@@ -19,6 +19,7 @@
 use std::collections::HashMap;
 
 use ethcore::transaction::Action;
+use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
 use util::{Address, H256, U256, Uint};
 
 // re-exports of request types.
@@ -77,6 +78,32 @@ impl From<T> for Field<T> {
 	}
 }
 
+impl<T: Decodable> Decodable for Field<T> {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let rlp = decoder.as_rlp();
+
+		match rlp.val_at::<u8>(0)? {
+			0 => Ok(Field::Scalar(rlp.val_at::<T>(1)?)),
+			1 => Ok({
+				let inner_rlp = rlp.at(1)?;
+				Field::BackReference(inner_rlp.val_at(0)?, inner_rlp.val_at(1)?)
+			})
+			_ => Err(DecoderError::Custom("Unknown discriminant for PIP field.")),
+		}
+	}
+}
+
+impl<T: Encodable> Encodable for Field<T> {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2);
+		match *self {
+			Field::Scalar(ref data) => s.append(&0u8).append(data),
+			Field::BackReference(ref req, ref idx) =>
+				s.append(&1u8).begin_list(2).append(req).append(idx),
+		};
+	}
+}
+
 /// Request outputs which can be reused as inputs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Output {
@@ -117,6 +144,114 @@ impl From<u64> for HashOrNumber {
 	}
 }
 
+/// All request types, as they're sent over the network.
+pub enum Request {
+	/// A request for block headers.
+	Headers(IncompleteHeadersRequest),
+	/// A request for a header proof (from a CHT)
+	HeaderProof(IncompleteHeaderProofRequest),
+	// TransactionIndex,
+	/// A request for a block's receipts.
+	Receipts(IncompleteReceiptsRequest),
+	/// A request for a block body.
+	Body(IncompleteBodyRequest),
+	/// A request for a merkle proof of an account.
+	Account(IncompleteAccountRequest),
+	/// A request for a merkle proof of contract storage.
+	Storage(IncompleteStorageRequest),
+	/// A request for contract code.
+	Code(IncompleteCodeRequest),
+	// Transaction proof.
+}
+
+impl Request {
+	fn kind(&self) -> RequestKind {
+		match *self {
+			Request::Headers(_) => RequestKind::Headers,
+			Request::HeaderProof(_) => RequestKind::HeaderProof,
+			Request::Receipts(_) => RequestKind::Receipts,
+			Request::Body(_) => RequestKind::Body,
+			Request::Account(_) => RequestKind::Account,
+			Request::Storage(_) => RequestKind::Storage,
+			Request::Code(_) => RequestKind::Code,
+		}
+	}
+}
+
+impl Decodable for Request {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let rlp = decoder.as_rlp();
+
+		match rlp.val_at::<RequestKind>(0)? {
+			RequestKind::Headers => Ok(Request::Headers(rlp.val_at(1)?)),
+			RequestKind::HeaderProof => Ok(Request::HeaderProof(rlp.val_at(1)?)),
+			RequestKind::Receipts => Ok(Request::Receipts(rlp.val_at(1)?)),
+			RequestKind::Body => Ok(Request::Body(rlp.val_at(1)?)),
+			RequestKind::Account => Ok(Request::Account(rlp.val_at(1)?)),
+			RequestKind::Storage => Ok(Request::Storage(rlp.val_at(1)?)),
+			RequestKind::Code => Ok(Request::Code(rlp.val_at(1)?)),
+		}
+	}
+}
+
+impl Encodable for Request {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2).append(&self.kind());
+
+		match *self {
+			Request::Headers(ref req) => s.append(req),
+			Request::HeaderProof(ref req) => s.append(req),
+			Request::Receipts(ref req) => s.append(req),
+			Request::Body(ref req) => s.append(req),
+			Request::Account(ref req) => s.append(req),
+			Request::Storage(ref req) => s.append(req),
+			Request::Code(ref req) => s.append(req),
+		};
+	}
+}
+
+
+/// Kinds of requests.
+/// Doubles as the "ID" field of the request.
+#[repr(u8)]
+pub enum RequestKind {
+	/// A request for headers.
+	Headers = 0,
+	HeaderProof = 1,
+	// TransactionIndex = 2,
+	Receipts = 3,
+	Body = 4,
+	Account = 5,
+	Storage = 6,
+	Code = 7,
+	// TransactionProof = 8,
+}
+
+impl Decodable for RequestKind {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let rlp = decoder.as_rlp();
+
+		match rlp.as_val::<u8>()? {
+			0 => Ok(RequestKind::Headers),
+			1 => Ok(RequestKind::HeaderProof),
+			// 2 => Ok(RequestKind::TransactionIndex,
+			3 => Ok(RequestKind::Receipts),
+			4 => Ok(RequestKind::Body),
+			5 => Ok(RequestKind::Account),
+			6 => Ok(RequestKind::Storage),
+			7 => Ok(RequestKind::Code),
+			// 8 => Ok(RequestKind::TransactionProof),
+			_ => Err(DecoderError::Custom("Unknown PIP request ID.")),
+		}
+	}
+}
+
+impl Encodable for RequestKind {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append(self as &u8);
+	}
+}
+
 /// A potentially incomplete request.
 pub trait IncompleteRequest: Sized {
 	type Complete;
@@ -144,6 +279,7 @@ pub trait IncompleteRequest: Sized {
 pub mod header {
 	use super::{Field, HashOrNumber, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
 	use util::U256;
 
 	/// Potentially incomplete headers request.
@@ -157,6 +293,28 @@ pub mod header {
 		pub max: U256,
 		/// Whether to reverse from start.
 		pub reverse: bool,
+	}
+
+	impl Decodable for Incomplete {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			let rlp = decoder.as_rlp();
+			Ok(Incomplete {
+				start: rlp.val_at(0)?,
+				skip: rlp.val_at(1)?,
+				max: rlp.val_at(2)?,
+				reverse: rlp.val_at(3)?
+			})
+		}
+	}
+
+	impl Encodable for Incomplete {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(4)
+				.append(&self.start)
+				.append(&self.skip)
+				.append(&self.max)
+				.append(&self.reverse);
+		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
@@ -223,6 +381,7 @@ pub mod header {
 /// Request and response for header proofs.
 pub mod header_proof {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete header proof request.
@@ -230,6 +389,21 @@ pub mod header_proof {
 	pub struct Incomplete {
 		/// Block number.
 		pub num: Field<u64>,
+	}
+
+	impl Decodable for Incomplete {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			let rlp = decoder.as_rlp();
+			Ok(Incomplete {
+				num: rlp.val_at(0)?,
+			})
+		}
+	}
+
+	impl Encodable for Incomplete {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(1).append(&self.num);
+		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
@@ -295,6 +469,7 @@ pub mod header_proof {
 /// Request and response for block receipts
 pub mod block_receipts {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete block receipts request.
@@ -302,6 +477,21 @@ pub mod block_receipts {
 	pub struct Incomplete {
 		/// Block hash to get receipts for.
 		pub hash: Field<H256>,
+	}
+
+	impl Decodable for Incomplete {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			let rlp = decoder.as_rlp();
+			Ok(Incomplete {
+				hash: rlp.val_at(0)?,
+			})
+		}
+	}
+
+	impl Encodable for Incomplete {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(1).append(&self.hash);
+		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
@@ -360,6 +550,7 @@ pub mod block_receipts {
 pub mod block_body {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete block body request.
@@ -367,6 +558,21 @@ pub mod block_body {
 	pub struct Incomplete {
 		/// Block hash to get receipts for.
 		pub hash: Field<H256>,
+	}
+
+	impl Decodable for Incomplete {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			let rlp = decoder.as_rlp();
+			Ok(Incomplete {
+				hash: rlp.val_at(0)?,
+			})
+		}
+	}
+
+	impl Encodable for Incomplete {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(1).append(&self.hash);
+		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
@@ -425,6 +631,7 @@ pub mod block_body {
 pub mod account {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete request for an account proof.
@@ -434,6 +641,24 @@ pub mod account {
 		pub block_hash: Field<H256>,
 		/// Hash of the account's address.
 		pub address_hash: Field<H256>,
+	}
+
+	impl Decodable for Incomplete {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			let rlp = decoder.as_rlp();
+			Ok(Incomplete {
+				block_hash: rlp.val_at(0)?,
+				address_hash: rlp.val_at(1)?,
+			})
+		}
+	}
+
+	impl Encodable for Incomplete {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(2)
+				.append(&self.block_hash)
+				.append(&self.address_hash);
+		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
@@ -522,6 +747,7 @@ pub mod account {
 pub mod storage {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete request for an storage proof.
@@ -533,6 +759,26 @@ pub mod storage {
 		pub address_hash: Field<H256>,
 		/// Hash of the storage key.
 		pub key_hash: Field<H256>,
+	}
+
+	impl Decodable for Incomplete {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			let rlp = decoder.as_rlp();
+			Ok(Incomplete {
+				block_hash: rlp.val_at(0)?,
+				address_hash: rlp.val_at(1)?,
+				key_hash: rlp.val_at(2)?,
+			})
+		}
+	}
+
+	impl Encodable for Incomplete {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(3)
+				.append(&self.block_hash)
+				.append(&self.address_hash)
+				.append(&self.key_hash);
+		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
@@ -628,6 +874,7 @@ pub mod storage {
 pub mod contract_code {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete _ request.
@@ -637,6 +884,24 @@ pub mod contract_code {
 		pub block_hash: Field<H256>,
 		/// The code hash.
 		pub code_hash: Field<H256>,
+	}
+
+	impl Decodable for Incomplete {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			let rlp = decoder.as_rlp();
+			Ok(Incomplete {
+				block_hash: rlp.val_at(0)?,
+				code_hash: rlp.val_at(1)?,
+			})
+		}
+	}
+
+	impl Encodable for Incomplete {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(2)
+				.append(&self.block_hash)
+				.append(&self.code_hash);
+		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
