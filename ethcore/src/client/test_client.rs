@@ -38,6 +38,7 @@ use error::{ImportResult, Error as EthcoreError};
 use evm::{Factory as EvmFactory, VMType, Schedule};
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
+use types::basic_account::BasicAccount;
 use types::mode::Mode;
 use types::pruning_info::PruningInfo;
 
@@ -754,16 +755,12 @@ impl BlockChainClient for TestBlockChainClient {
 }
 
 impl ProvingBlockChainClient for TestBlockChainClient {
-	fn prove_storage(&self, _: H256, _: H256, _: u32, _: BlockId) -> Vec<Bytes> {
-		Vec::new()
+	fn prove_storage(&self, _: H256, _: H256, _: BlockId) -> Option<(Vec<Bytes>, H256)> {
+		None
 	}
 
-	fn prove_account(&self, _: H256, _: u32, _: BlockId) -> Vec<Bytes> {
-		Vec::new()
-	}
-
-	fn code_by_hash(&self, _: H256, _: BlockId) -> Bytes {
-		Vec::new()
+	fn prove_account(&self, _: H256, _: BlockId) -> Option<(Vec<Bytes>, BasicAccount)> {
+		None
 	}
 
 	fn prove_transaction(&self, _: SignedTransaction, _: BlockId) -> Option<Vec<DBValue>> {

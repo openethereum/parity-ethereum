@@ -1585,23 +1585,14 @@ impl MayPanic for Client {
 }
 
 impl ::client::ProvingBlockChainClient for Client {
-	fn prove_storage(&self, key1: H256, key2: H256, from_level: u32, id: BlockId) -> Vec<Bytes> {
+	fn prove_storage(&self, key1: H256, key2: H256, id: BlockId) -> Option<(Vec<Bytes>, H256)> {
 		self.state_at(id)
-			.and_then(move |state| state.prove_storage(key1, key2, from_level).ok())
-			.unwrap_or_else(Vec::new)
+			.and_then(move |state| state.prove_storage(key1, key2).ok())
 	}
 
-	fn prove_account(&self, key1: H256, from_level: u32, id: BlockId) -> Vec<Bytes> {
+	fn prove_account(&self, key1: H256, id: BlockId) -> Option<(Vec<Bytes>, ::types::basic_account::BasicAccount)> {
 		self.state_at(id)
-			.and_then(move |state| state.prove_account(key1, from_level).ok())
-			.unwrap_or_else(Vec::new)
-	}
-
-	fn code_by_hash(&self, account_key: H256, id: BlockId) -> Bytes {
-		self.state_at(id)
-			.and_then(move |state| state.code_by_address_hash(account_key).ok())
-			.and_then(|x| x)
-			.unwrap_or_else(Vec::new)
+			.and_then(move |state| state.prove_account(key1).ok())
 	}
 
 	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<Vec<DBValue>> {
