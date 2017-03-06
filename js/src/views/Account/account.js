@@ -48,6 +48,7 @@ class Account extends Component {
 
     accounts: PropTypes.object,
     balances: PropTypes.object,
+    certifications: PropTypes.object,
     netVersion: PropTypes.string.isRequired,
     params: PropTypes.object
   }
@@ -127,8 +128,17 @@ class Account extends Component {
     ].includes(netVersion);
   }
 
+  isSmsCertified = (_certifications, netVersion, address) => {
+    const certifications = _certifications && _certifications[address]
+      ? _certifications[address].filter((cert) => cert.name.indexOf('smsverification') === 0)
+      : [];
+
+    return netVersion === '42' || certifications.length !== 0;
+  }
+
   renderActionbar (account, balance) {
-    const { netVersion } = this.props;
+    const { certifications, netVersion } = this.props;
+    const { address } = this.props.params;
     const showTransferButton = !!(balance && balance.tokens);
     const isVerifiable = netVersion === '1'; // Foundation
 
@@ -176,7 +186,7 @@ class Account extends Component {
           />
         )
         : null,
-      this.hasFaucet(netVersion)
+      this.hasFaucet(netVersion) && this.isSmsCertified(certifications, netVersion, address)
         ? (
           <Button
             icon={ <DialIcon /> }
@@ -285,13 +295,12 @@ class Account extends Component {
   }
 
   renderFaucetDialog () {
-    const { netVersion } = this.props;
+    const { certifications, netVersion } = this.props;
+    const { address } = this.props.params;
 
-    if (!this.store.isFaucetVisible || !this.hasFaucet(netVersion)) {
+    if (!this.store.isFaucetVisible || !this.hasFaucet(netVersion) || !this.isSmsCertified(certifications, netVersion, address)) {
       return null;
     }
-
-    const { address } = this.props.params;
 
     return (
       <Faucet
@@ -366,11 +375,13 @@ class Account extends Component {
 function mapStateToProps (state) {
   const { accounts } = state.personal;
   const { balances } = state.balances;
+  const certifications = state.certifications;
   const { netVersion } = state.nodeStatus;
 
   return {
     accounts,
     balances,
+    certifications,
     netVersion
   };
 }
