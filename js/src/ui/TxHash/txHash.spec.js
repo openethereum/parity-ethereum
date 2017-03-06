@@ -63,7 +63,9 @@ function createRedux () {
     subscribe: sinon.stub(),
     getState: () => {
       return {
-        nodeStatus: { isTest: true }
+        nodeStatus: {
+          netVersion: '42'
+        }
       };
     }
   };

@@ -28,7 +28,7 @@ class Address extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
     account: nullableProptype(PropTypes.object.isRequired),
-    isTestnet: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     key: PropTypes.string,
     shortenHash: PropTypes.bool
   };
@@ -56,7 +56,7 @@ class Address extends Component {
   }
 
   renderCaption () {
-    const { address, account, isTestnet, shortenHash } = this.props;
+    const { address, account, netVersion, shortenHash } = this.props;
 
     if (account) {
       const { name } = account;
@@ -64,7 +64,7 @@ class Address extends Component {
       return (
         <a
           className={ styles.link }
-          href={ etherscanUrl(address, isTestnet) }
+          href={ etherscanUrl(address, false, netVersion) }
           target='_blank'
         >
           <abbr
@@ -103,14 +103,14 @@ function mapStateToProps (initState, initProps) {
     });
 
   return (state, props) => {
-    const { isTestnet } = state;
+    const { netVersion } = state;
     const { address = '' } = props;
 
     const account = allAccounts[address] || null;
 
     return {
       account,
-      isTestnet
+      netVersion
     };
   };
 }

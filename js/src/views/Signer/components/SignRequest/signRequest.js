@@ -44,8 +44,8 @@ export default class SignRequest extends Component {
     address: PropTypes.string.isRequired,
     data: PropTypes.string.isRequired,
     isFinished: PropTypes.bool.isRequired,
-    isTest: PropTypes.bool.isRequired,
     store: PropTypes.object.isRequired,
+    netVersion: PropTypes.string.isRequired,
 
     className: PropTypes.string,
     focus: PropTypes.bool,
@@ -92,7 +92,7 @@ export default class SignRequest extends Component {
 
   renderDetails () {
     const { api } = this.context;
-    const { address, isTest, store, data } = this.props;
+    const { address, netVersion, store, data } = this.props;
     const balance = store.balances[address];
 
     if (!balance) {
@@ -105,7 +105,8 @@ export default class SignRequest extends Component {
           <Account
             address={ address }
             balance={ balance }
-            isTest={ isTest } />
+            netVersion={ netVersion }
+          />
         </div>
         <div className={ styles.info } title={ api.util.sha3(data) }>
           <p>A request to sign data using your account:</p>

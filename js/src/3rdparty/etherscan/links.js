@@ -14,14 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export const url = (isTestnet = false) => {
-  return `https://${isTestnet ? 'testnet.' : ''}etherscan.io`;
+// NOTE: Keep 'isTestnet' for backwards library compatibility
+export const url = (isTestnet = false, netVersion = '0') => {
+  let prefix = '';
+
+  switch (netVersion) {
+    case '2':
+    case '3':
+      prefix = 'testnet.';
+      break;
+
+    case '42':
+      prefix = 'kovan.';
+      break;
+
+    case '0':
+    default:
+      if (isTestnet) {
+        prefix = 'testnet.';
+      }
+      break;
+  }
+
+  return `https://${prefix}etherscan.io`;
 };
 
-export const txLink = (hash, isTestnet = false) => {
-  return `${url(isTestnet)}/tx/${hash}`;
+export const txLink = (hash, isTestnet = false, netVersion = '0') => {
+  return `${url(isTestnet, netVersion)}/tx/${hash}`;
 };
 
-export const addressLink = (address, isTestnet = false) => {
-  return `${url(isTestnet)}/address/${address}`;
+export const addressLink = (address, isTestnet = false, netVersion = '0') => {
+  return `${url(isTestnet, netVersion)}/address/${address}`;
 };

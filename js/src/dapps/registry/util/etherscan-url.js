@@ -14,13 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { url as externalUrl } from '~/3rdparty/etherscan/links';
+
 const leading0x = /^0x/;
 
-const etherscanUrl = (hash, isTestnet) => {
+const etherscanUrl = (hash, isTestnet, netVersion) => {
   hash = hash.toLowerCase().replace(leading0x, '');
   const type = hash.length === 40 ? 'address' : 'tx';
 
-  return `https://${isTestnet ? 'testnet.' : ''}etherscan.io/${type}/0x${hash}`;
+  return `https://${externalUrl(isTestnet, netVersion)}/${type}/0x${hash}`;
 };
 
 export default etherscanUrl;

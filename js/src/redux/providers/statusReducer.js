@@ -40,6 +40,7 @@ const initialState = {
     max: new BigNumber(0)
   },
   netPort: new BigNumber(0),
+  netVersion: '0',
   rpcSettings: {},
   syncing: true,
   isConnected: false,

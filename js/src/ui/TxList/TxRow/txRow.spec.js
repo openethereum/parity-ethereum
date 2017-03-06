@@ -25,9 +25,27 @@ import TxRow from './txRow';
 
 const api = new Api({ execute: sinon.stub() });
 
+const STORE = {
+  dispatch: sinon.stub(),
+  subscribe: sinon.stub(),
+  getState: () => {
+    return {
+      nodeStatus: {
+        netVersion: '42'
+      },
+      personal: {
+        accounts: {
+          '0x123': {}
+        }
+      }
+    };
+  }
+};
+
 function render (props) {
   return shallow(
     <TxRow
+      store={ STORE }
       { ...props } />,
     { context: { api } }
   );
@@ -45,7 +63,7 @@ describe('ui/TxList/TxRow', () => {
         value: new BigNumber(1)
       };
 
-      expect(render({ address: '0x123', block, isTest: true, tx })).to.be.ok;
+      expect(render({ address: '0x123', block, netVersion: '42', tx })).to.be.ok;
     });
   });
 });
