@@ -39,17 +39,15 @@ contract multiowned {
 
   // simple single-sig function modifier.
   modifier onlyowner {
-    if (!isOwner(msg.sender))
-      throw;
-    _;
+    if (isOwner(msg.sender))
+      _;
   }
   // multi-sig function modifier: the operation must have an intrinsic hash in order
   // that later attempts can be realised as the same underlying operation and
   // thus count as confirmations.
   modifier onlymanyowners(bytes32 _operation) {
-    if (!confirmAndCheck(_operation))
-      throw;
-    _;
+    if (confirmAndCheck(_operation))
+      _;
   }
 
   // METHODS
@@ -319,7 +317,7 @@ contract Wallet is multisig, multiowned, daylimit {
   // constructor - just pass on the owner array to the multiowned and
   // the limit to daylimit
   function Wallet(address[] _owners, uint _required, uint _daylimit)
-    multiowned(_owners, _required) daylimit(_daylimit) {
+      multiowned(_owners, _required) daylimit(_daylimit) {
   }
 
   // kills the contract sending everything to `_to`.
@@ -340,7 +338,7 @@ contract Wallet is multisig, multiowned, daylimit {
   // and _data arguments). They still get the option of using them if they want, anyways.
   function execute(address _to, uint _value, bytes _data) external onlyowner returns (bytes32 o_hash) {
     // first, take the opportunity to check that we're under the daily limit.
-    if (_data.length == 0 && underLimit(_value)) {
+    if ((_data.length == 0 && underLimit(_value)) || m_required == 1) {
       // yes - just execute the call.
       address created;
       if (_to == 0) {
@@ -353,11 +351,13 @@ contract Wallet is multisig, multiowned, daylimit {
     } else {
       // determine our operation hash.
       o_hash = sha3(msg.data, block.number);
-
-      if (!confirm(o_hash)) {
+      // store if it's new
+      if (m_txs[o_hash].to == 0 && m_txs[o_hash].value == 0 && m_txs[o_hash].data.length == 0) {
         m_txs[o_hash].to = _to;
         m_txs[o_hash].value = _value;
         m_txs[o_hash].data = _data;
+      }
+      if (!confirm(o_hash)) {
         ConfirmationNeeded(o_hash, msg.sender, _value, _to, _data);
       }
     }
@@ -386,8 +386,6 @@ contract Wallet is multisig, multiowned, daylimit {
       delete m_txs[_h];
       return true;
     }
-
-    return false;
   }
 
   // INTERNAL METHODS
@@ -395,7 +393,7 @@ contract Wallet is multisig, multiowned, daylimit {
   function clearPending() internal {
     uint length = m_pendingIndex.length;
     for (uint i = 0; i < length; ++i)
-    delete m_txs[m_pendingIndex[i]];
+      delete m_txs[m_pendingIndex[i]];
     super.clearPending();
   }
 
