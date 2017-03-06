@@ -23,14 +23,32 @@ const options = {
   }
 };
 
-export function call (module, action, _params, test) {
-  const host = test ? 'testnet.etherscan.io' : 'api.etherscan.io';
+export function call (module, action, _params, test, netVersion) {
+  let prefix = 'api.';
+
+  switch (netVersion) {
+    case '2':
+    case '3':
+      prefix = 'testnet.';
+      break;
+
+    case '42':
+      prefix = 'kovan.';
+      break;
+
+    case '0':
+    default:
+      if (test) {
+        prefix = 'testnet.';
+      }
+      break;
+  }
 
   const query = stringify(Object.assign({
     module, action
   }, _params || {}));
 
-  return fetch(`https://${host}/api?${query}`, options)
+  return fetch(`https://${prefix}etherscan.io/api?${query}`, options)
     .then((response) => {
       if (!response.ok) {
         throw { code: response.status, message: response.statusText }; // eslint-disable-line

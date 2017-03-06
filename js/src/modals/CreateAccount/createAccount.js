@@ -20,11 +20,13 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
 import { createIdentityImg } from '~/api/util/identity';
 import { newError } from '~/redux/actions';
 import { Button, ModalBox, Portal } from '~/ui';
 import { CancelIcon, CheckIcon, DoneIcon, NextIcon, PrevIcon, PrintIcon } from '~/ui/Icons';
-import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
+
+import VaultStore from '~/views/Vaults/store';
 
 import AccountDetails from './AccountDetails';
 import AccountDetailsGeth from './AccountDetailsGeth';
@@ -82,13 +84,19 @@ class CreateAccount extends Component {
   }
 
   store = new Store(this.context.api, this.props.accounts);
+  vaultStore = VaultStore.get(this.context.api);
+
+  componentWillMount () {
+    return this.vaultStore.loadVaults();
+  }
 
   render () {
-    const { createType, stage } = this.store;
+    const { isBusy, createType, stage } = this.store;
 
     return (
       <Portal
         buttons={ this.renderDialogActions() }
+        busy={ isBusy }
         activeStep={ stage }
         onClose={ this.onClose }
         open
@@ -120,6 +128,7 @@ class CreateAccount extends Component {
             <NewAccount
               newError={ this.props.newError }
               store={ this.store }
+              vaultStore={ this.vaultStore }
             />
           );
         }
@@ -132,18 +141,27 @@ class CreateAccount extends Component {
 
         if (createType === 'fromPhrase') {
           return (
-            <RecoveryPhrase store={ this.store } />
+            <RecoveryPhrase
+              store={ this.store }
+              vaultStore={ this.vaultStore }
+            />
           );
         }
 
         if (createType === 'fromRaw') {
           return (
-            <RawKey store={ this.store } />
+            <RawKey
+              store={ this.store }
+              vaultStore={ this.vaultStore }
+            />
           );
         }
 
         return (
-          <NewImport store={ this.store } />
+          <NewImport
+            store={ this.store }
+            vaultStore={ this.vaultStore }
+          />
         );
 
       case STAGE_INFO:
@@ -266,7 +284,7 @@ class CreateAccount extends Component {
     this.store.setBusy(true);
 
     return this.store
-      .createAccount()
+      .createAccount(this.vaultStore)
       .then(() => {
         this.store.setBusy(false);
         this.store.nextStage();

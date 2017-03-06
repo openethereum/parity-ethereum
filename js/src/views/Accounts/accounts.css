@@ -56,6 +56,10 @@
     }
   }
 
+  .overlay {
+    margin-top: -3.25em;
+  }
+
   .owners {
     display: flex;
     justify-content: center;
@@ -66,10 +70,6 @@
     .owner {
       margin: 0.5em;
     }
-  }
-
-  .overlay {
-    margin-top: -3.25em;
   }
 
   &:not(:hover) {

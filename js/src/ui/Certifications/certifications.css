@@ -16,7 +16,7 @@
 */
 
 .certifications {
-  margin-top: 1em;
+  margin-top: 0.75em;
 }
 
 .certification,
@@ -43,7 +43,7 @@
   background-color: rgba(255, 255, 255, 0.07);
   margin-right: 0.5em;
   margin-top: 1em;
-  padding: 0.3em 0.6em 0.2em 2.6em;
+  padding: 0.3em 0.6em 0.2em 3em;
   text-transform: uppercase;
 
   &:last-child {
@@ -52,7 +52,7 @@
 
   .icon {
     position: absolute;
-    top: -.25em;
+    top: -0.25em;
     left: 0;
   }
 }
