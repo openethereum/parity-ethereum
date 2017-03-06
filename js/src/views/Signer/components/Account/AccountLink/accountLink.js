@@ -21,7 +21,7 @@ import styles from './accountLink.css';
 
 export default class AccountLink extends Component {
   static propTypes = {
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     address: PropTypes.string.isRequired,
     className: PropTypes.string,
     children: PropTypes.node
@@ -32,15 +32,15 @@ export default class AccountLink extends Component {
   };
 
   componentWillMount () {
-    const { address, isTest } = this.props;
+    const { address, netVersion } = this.props;
 
-    this.updateLink(address, isTest);
+    this.updateLink(address, netVersion);
   }
 
   componentWillReceiveProps (nextProps) {
-    const { address, isTest } = nextProps;
+    const { address, netVersion } = nextProps;
 
-    this.updateLink(address, isTest);
+    this.updateLink(address, netVersion);
   }
 
   render () {
@@ -56,8 +56,8 @@ export default class AccountLink extends Component {
     );
   }
 
-  updateLink (address, isTest) {
-    const link = addressLink(address, isTest);
+  updateLink (address, netVersion) {
+    const link = addressLink(address, netVersion);
 
     this.setState({
       link

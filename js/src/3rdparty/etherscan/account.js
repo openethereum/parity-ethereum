@@ -21,15 +21,15 @@ const PAGE_SIZE = 25;
 import util from '../../api/util';
 import { call } from './call';
 
-function _call (method, params, test) {
-  return call('account', method, params, test);
+function _call (method, params, test, netVersion) {
+  return call('account', method, params, test, netVersion);
 }
 
-function balance (address, test = false) {
+function balance (address, test, netVersion) {
   return _call('balance', {
     address: address,
     tag: 'latest'
-  }, test).then((balance) => {
+  }, test, netVersion).then((balance) => {
     // same format as balancemulti below
     return {
       account: address,
@@ -38,21 +38,21 @@ function balance (address, test = false) {
   });
 }
 
-function balances (addresses, test = false) {
+function balances (addresses, test, netVersion) {
   return _call('balancemulti', {
     address: addresses.join(','),
     tag: 'latest'
-  }, test);
+  }, test, netVersion);
 }
 
-function transactions (address, page, test = false) {
+function transactions (address, page, test, netVersion) {
   // page offset from 0
   return _call('txlist', {
     address: address,
     offset: PAGE_SIZE,
     page: (page || 0) + 1,
     sort: 'desc'
-  }, test).then((transactions) => {
+  }, test, netVersion).then((transactions) => {
     return transactions.map((tx) => {
       return {
         blockNumber: new BigNumber(tx.blockNumber || 0),
@@ -67,9 +67,9 @@ function transactions (address, page, test = false) {
 }
 
 const account = {
-  balance: balance,
-  balances: balances,
-  transactions: transactions
+  balance,
+  balances,
+  transactions
 };
 
 export { account };

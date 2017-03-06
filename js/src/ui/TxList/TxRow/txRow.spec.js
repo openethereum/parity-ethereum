@@ -45,7 +45,7 @@ describe('ui/TxList/TxRow', () => {
         value: new BigNumber(1)
       };
 
-      expect(render({ address: '0x123', block, isTest: true, tx })).to.be.ok;
+      expect(render({ address: '0x123', block, netVersion: '42', tx })).to.be.ok;
     });
   });
 });

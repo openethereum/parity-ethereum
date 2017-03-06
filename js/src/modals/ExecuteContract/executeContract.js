@@ -84,7 +84,6 @@ class ExecuteContract extends Component {
     contract: PropTypes.object.isRequired,
     fromAddress: PropTypes.string,
     gasLimit: PropTypes.object.isRequired,
-    isTest: PropTypes.bool,
     onClose: PropTypes.func.isRequired,
     onFromAddressChange: PropTypes.func.isRequired
   }

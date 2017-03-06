@@ -16,6 +16,7 @@
 
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
 
 import { txLink, addressLink } from '~/3rdparty/etherscan/links';
 
@@ -25,7 +26,7 @@ import MethodDecoding from '../../MethodDecoding';
 
 import styles from '../txList.css';
 
-export default class TxRow extends Component {
+class TxRow extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
@@ -34,6 +35,7 @@ export default class TxRow extends Component {
     tx: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
     isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
 
     block: PropTypes.object,
     historic: PropTypes.bool,
@@ -45,7 +47,7 @@ export default class TxRow extends Component {
   };
 
   render () {
-    const { tx, address, isTest, historic, className } = this.props;
+    const { address, className, historic, netVersion, tx } = this.props;
 
     return (
       <tr className={ className || '' }>
@@ -57,8 +59,9 @@ export default class TxRow extends Component {
           <div>
             <a
               className={ styles.link }
-              href={ txLink(tx.hash, isTest) }
-              target='_blank'>
+              href={ txLink(tx.hash, false, netVersion) }
+              target='_blank'
+            >
               { `${tx.hash.substr(2, 6)}...${tx.hash.slice(-6)}` }
             </a>
           </div>
@@ -131,3 +134,16 @@ export default class TxRow extends Component {
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { netVersion } = state.nodeStatus;
+
+  return {
+    netVersion
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(TxRow);

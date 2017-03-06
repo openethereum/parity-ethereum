@@ -27,7 +27,7 @@ export default class RequestPending extends Component {
     gasLimit: PropTypes.object.isRequired,
     id: PropTypes.object.isRequired,
     isSending: PropTypes.bool.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
     payload: PropTypes.oneOfType([
@@ -51,7 +51,7 @@ export default class RequestPending extends Component {
   };
 
   render () {
-    const { className, date, focus, gasLimit, id, isSending, isTest, onReject, payload, store } = this.props;
+    const { className, date, focus, gasLimit, id, isSending, netVersion, onReject, payload, store } = this.props;
 
     if (payload.sign) {
       const { sign } = payload;
@@ -65,7 +65,7 @@ export default class RequestPending extends Component {
           id={ id }
           isFinished={ false }
           isSending={ isSending }
-          isTest={ isTest }
+          netVersion={ netVersion }
           onConfirm={ this.onConfirm }
           onReject={ onReject }
           store={ store } />
@@ -82,7 +82,7 @@ export default class RequestPending extends Component {
           gasLimit={ gasLimit }
           id={ id }
           isSending={ isSending }
-          isTest={ isTest }
+          netVersion={ netVersion }
           onConfirm={ this.onConfirm }
           onReject={ onReject }
           store={ store }

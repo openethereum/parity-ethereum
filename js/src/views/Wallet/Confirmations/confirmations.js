@@ -36,7 +36,7 @@ class WalletConfirmations extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     owners: PropTypes.array.isRequired,
     require: PropTypes.object.isRequired,
     confirmOperation: PropTypes.func.isRequired,
@@ -109,7 +109,7 @@ class WalletConfirmation extends Component {
     accounts: PropTypes.object.isRequired,
     confirmation: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     owners: PropTypes.array.isRequired,
     require: PropTypes.object.isRequired,
     confirmOperation: PropTypes.func.isRequired,
@@ -320,13 +320,14 @@ class WalletConfirmation extends Component {
   }
 
   renderTransactionRow (confirmation, className) {
-    const { address, isTest } = this.props;
+    const { address, netVersion } = this.props;
     const { operation, transactionHash, blockNumber, value, to, data } = confirmation;
 
     if (value && to && data) {
       return (
         <TxRow
           className={ className }
+          netVersion={ netVersion }
           key={ operation }
           tx={ {
             hash: transactionHash,
@@ -337,7 +338,6 @@ class WalletConfirmation extends Component {
             input: bytesToHex(data)
           } }
           address={ address }
-          isTest={ isTest }
           historic={ false }
         />
       );

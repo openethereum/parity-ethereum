@@ -34,8 +34,8 @@ class TxHash extends Component {
 
   static propTypes = {
     hash: PropTypes.string.isRequired,
-    isTest: PropTypes.bool,
     maxConfirmations: PropTypes.number,
+    netVersion: PropTypes.string.isRequired,
     summary: PropTypes.bool
   }
 
@@ -116,10 +116,10 @@ class TxHash extends Component {
   }
 
   render () {
-    const { hash, isTest, summary } = this.props;
+    const { hash, netVersion, summary } = this.props;
 
     const hashLink = (
-      <a href={ txLink(hash, isTest) } target='_blank'>
+      <a href={ txLink(hash, false, netVersion) } target='_blank'>
         <ShortenedHash data={ hash } />
       </a>
     );
@@ -255,9 +255,11 @@ class TxHash extends Component {
 }
 
 function mapStateToProps (state) {
-  const { isTest } = state.nodeStatus;
+  const { netVersion } = state.nodeStatus;
 
-  return { isTest };
+  return {
+    netVersion
+  };
 }
 
 export default connect(
