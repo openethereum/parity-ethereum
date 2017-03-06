@@ -57,7 +57,7 @@ export default class AccountLink extends Component {
   }
 
   updateLink (address, netVersion) {
-    const link = addressLink(address, netVersion);
+    const link = addressLink(address, false, netVersion);
 
     this.setState({
       link
