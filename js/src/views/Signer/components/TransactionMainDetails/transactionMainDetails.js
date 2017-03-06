@@ -36,7 +36,7 @@ export default class TransactionMainDetails extends Component {
     fromBalance: PropTypes.object,
     gasStore: PropTypes.object,
     id: PropTypes.object.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     origin: PropTypes.any,
     totalValue: PropTypes.object.isRequired,
     transaction: PropTypes.object.isRequired,
@@ -63,7 +63,7 @@ export default class TransactionMainDetails extends Component {
   }
 
   render () {
-    const { children, disabled, externalLink, from, fromBalance, gasStore, isTest, transaction, origin } = this.props;
+    const { children, disabled, externalLink, from, fromBalance, gasStore, netVersion, transaction, origin } = this.props;
 
     return (
       <div className={ styles.transaction }>
@@ -74,7 +74,7 @@ export default class TransactionMainDetails extends Component {
               balance={ fromBalance }
               disabled={ disabled }
               externalLink={ externalLink }
-              isTest={ isTest }
+              netVersion={ netVersion }
             />
           </div>
           <RequestOrigin origin={ origin } />

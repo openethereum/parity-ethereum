@@ -32,8 +32,6 @@ class TabBar extends Component {
   };
 
   static propTypes = {
-    isTest: PropTypes.bool,
-    netChain: PropTypes.string,
     pending: PropTypes.array,
     views: PropTypes.array.isRequired
   };

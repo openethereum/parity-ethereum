@@ -16,6 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
+import { url as etherscanUrl } from '~/3rdparty/etherscan/links';
 import * as abis from '~/contracts/abi';
 import { api } from './parity';
 
@@ -28,7 +29,7 @@ const subscriptions = {};
 
 let defaultSubscriptionId;
 let nextSubscriptionId = 1000;
-let isTest = false;
+let netVersion = '0';
 
 export function subscribeEvents (addresses, callback) {
   const subscriptionId = nextSubscriptionId++;
@@ -117,15 +118,16 @@ export function attachInstances () {
   return Promise
     .all([
       api.parity.registryAddress(),
-      api.parity.netChain()
+      api.parity.netChain(),
+      api.partiy.netVersion()
     ])
-    .then(([registryAddress, netChain]) => {
+    .then(([registryAddress, netChain, _netVersion]) => {
       const registry = api.newContract(abis.registry, registryAddress).instance;
 
-      isTest = ['kovan', 'morden', 'ropsten', 'testnet'].includes(netChain);
+      netVersion = _netVersion;
 
       console.log(`contract was found at registry=${registryAddress}`);
-      console.log(`running on ${netChain}, isTest=${isTest}`);
+      console.log(`running on ${netChain}, network ${netVersion}`);
 
       return Promise
         .all([
@@ -287,5 +289,5 @@ export function loadTokenBalance (tokenAddress, address) {
 }
 
 export function txLink (txHash) {
-  return `https://${isTest ? 'testnet.' : ''}etherscan.io/tx/${txHash}`;
+  return `https://${etherscanUrl(false, netVersion)}/tx/${txHash}`;
 }

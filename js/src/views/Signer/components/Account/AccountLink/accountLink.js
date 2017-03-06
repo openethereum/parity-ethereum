@@ -26,8 +26,7 @@ class AccountLink extends Component {
     address: PropTypes.string.isRequired,
     className: PropTypes.string,
     children: PropTypes.node,
-    externalLink: PropTypes.string.isRequired,
-    isTest: PropTypes.bool.isRequired
+    externalLink: PropTypes.string.isRequired
   }
 
   state = {
@@ -35,15 +34,15 @@ class AccountLink extends Component {
   };
 
   componentWillMount () {
-    const { address, externalLink, isTest } = this.props;
+    const { address, externalLink } = this.props;
 
-    this.updateLink(address, externalLink, isTest);
+    this.updateLink(address, externalLink);
   }
 
   componentWillReceiveProps (nextProps) {
-    const { address, externalLink, isTest } = nextProps;
+    const { address, externalLink } = nextProps;
 
-    this.updateLink(address, externalLink, isTest);
+    this.updateLink(address, externalLink);
   }
 
   render () {
@@ -71,7 +70,7 @@ class AccountLink extends Component {
     );
   }
 
-  updateLink (address, externalLink, isTest) {
+  updateLink (address, externalLink) {
     const { accountAddresses } = this.props;
     const isAccount = accountAddresses.includes(address);
 

@@ -26,7 +26,7 @@ import txListStyles from '~/ui/TxList/txList.css';
 export default class WalletTransactions extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     transactions: PropTypes.array
   };
 
@@ -51,7 +51,7 @@ export default class WalletTransactions extends Component {
     );
   }
   renderTransactions () {
-    const { address, isTest, transactions } = this.props;
+    const { address, netVersion, transactions } = this.props;
 
     if (!transactions) {
       return null;
@@ -76,7 +76,7 @@ export default class WalletTransactions extends Component {
       return (
         <TxRow
           address={ address }
-          isTest={ isTest }
+          netVersion={ netVersion }
           key={ `${transactionHash}_${index}` }
           tx={ {
             blockNumber,

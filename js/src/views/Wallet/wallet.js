@@ -37,13 +37,13 @@ import styles from './wallet.css';
 
 class WalletContainer extends Component {
   static propTypes = {
-    isTest: PropTypes.any
+    netVersion: PropTypes.string.isRequired
   };
 
   render () {
-    const { isTest, ...others } = this.props;
+    const { netVersion, ...others } = this.props;
 
-    if (isTest !== false && isTest !== true) {
+    if (netVersion === '0') {
       return (
         <Loading size={ 4 } />
       );
@@ -51,7 +51,7 @@ class WalletContainer extends Component {
 
     return (
       <Wallet
-        isTest={ isTest }
+        netVersion={ netVersion }
         { ...others }
       />
     );
@@ -66,7 +66,7 @@ class Wallet extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
     balance: nullableProptype(PropTypes.object.isRequired),
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     owned: PropTypes.bool.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired,
     wallet: PropTypes.object.isRequired,
@@ -181,7 +181,7 @@ class Wallet extends Component {
   }
 
   renderDetails () {
-    const { address, isTest, wallet } = this.props;
+    const { address, netVersion, wallet } = this.props;
     const { owners, require, confirmations, transactions } = wallet;
 
     if (!owners || !require) {
@@ -196,7 +196,7 @@ class Wallet extends Component {
       <WalletConfirmations
         address={ address }
         confirmations={ confirmations }
-        isTest={ isTest }
+        netVersion={ netVersion }
         key='confirmations'
         owners={ owners }
         require={ require }
@@ -204,7 +204,7 @@ class Wallet extends Component {
 
       <WalletTransactions
         address={ address }
-        isTest={ isTest }
+        netVersion={ netVersion }
         key='transactions'
         transactions={ transactions }
       />
@@ -389,7 +389,7 @@ function mapStateToProps (_, initProps) {
   const { address } = initProps.params;
 
   return (state) => {
-    const { isTest } = state.nodeStatus;
+    const { netVersion } = state.nodeStatus;
     const { accountsInfo = {}, accounts = {} } = state.personal;
     const { balances } = state.balances;
     const walletAccount = accounts[address] || accountsInfo[address] || null;
@@ -405,7 +405,7 @@ function mapStateToProps (_, initProps) {
     return {
       address,
       balance,
-      isTest,
+      netVersion,
       owned,
       wallet,
       walletAccount
