@@ -32,16 +32,12 @@ const REGISTRY_V1_HASHES = [
   '0x64c3ee34851517a9faecd995c102b339f03e564ad6772dc43a26f993238b20ec' // homestead
 ];
 
-export const setIsTestnet = (isTestnet) => ({ type: 'set isTestnet', isTestnet });
+export const setNetVersion = (netVersion) => ({ type: 'set netVersion', netVersion });
 
 export const fetchIsTestnet = () => (dispatch) =>
   api.net.version()
     .then((netVersion) => {
-      dispatch(setIsTestnet([
-        '2', // morden
-        '3', // ropsten
-        '42' // kovan
-      ].includes(netVersion)));
+      dispatch(setNetVersion(netVersion));
     })
     .catch((err) => {
       console.error('could not check if testnet');
