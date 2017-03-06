@@ -303,7 +303,7 @@ export default class WalletsUtils {
           }
 
           if (log.params.operation) {
-            const operation = api.util.bytesToHex(log.params.operation.value);
+            const operation = bytesToHex(log.params.operation.value);
             const pendingContract = pendingContracts[operation];
 
             // Add the pending contract to the contracts
