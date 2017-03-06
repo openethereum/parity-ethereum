@@ -113,6 +113,15 @@ pub enum Output {
 	Number(u64),
 }
 
+impl Output {
+	fn kind(&self) -> OutputKind {
+		match *self {
+			Output::Hash(_) => OutputKind::Hash,
+			Output::Number(_) => OutputKind::Number,
+		}
+	}
+}
+
 /// Response output kinds which can be used as back-references.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OutputKind {
@@ -145,6 +154,7 @@ impl From<u64> for HashOrNumber {
 }
 
 /// All request types, as they're sent over the network.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
 	/// A request for block headers.
 	Headers(IncompleteHeadersRequest),
@@ -161,6 +171,27 @@ pub enum Request {
 	Storage(IncompleteStorageRequest),
 	/// A request for contract code.
 	Code(IncompleteCodeRequest),
+	// Transaction proof.
+}
+
+/// All request types, as they're sent over the network.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompleteRequest {
+	/// A request for block headers.
+	Headers(CompleteHeadersRequest),
+	/// A request for a header proof (from a CHT)
+	HeaderProof(CompleteHeaderProofRequest),
+	// TransactionIndex,
+	/// A request for a block's receipts.
+	Receipts(CompleteReceiptsRequest),
+	/// A request for a block body.
+	Body(CompleteBodyRequest),
+	/// A request for a merkle proof of an account.
+	Account(CompleteAccountRequest),
+	/// A request for a merkle proof of contract storage.
+	Storage(CompleteStorageRequest),
+	/// A request for contract code.
+	Code(CompleteCodeRequest),
 	// Transaction proof.
 }
 
@@ -210,10 +241,54 @@ impl Encodable for Request {
 	}
 }
 
+impl IncompleteRequest for Request {
+	type Complete = CompleteRequest;
+
+	fn check_outputs<F>(&self, f: F) -> Result<(), NoSuchOutput>
+		where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
+	{
+		match *self {
+			Request::Headers(ref req) => req.check_outputs(f),
+			Request::HeaderProof(ref req) => req.check_outputs(f),
+			Request::Receipts(ref req) => req.check_outputs(f),
+			Request::Body(ref req) => req.check_outputs(f),
+			Request::Account(ref req) => req.check_outputs(f),
+			Request::Storage(ref req) => req.check_outputs(f),
+			Request::Code(ref req) => req.check_outputs(f),
+		}
+	}
+
+	fn note_outputs<F>(&self, f: F) where F: FnMut(usize, OutputKind) {
+		match *self {
+			Request::Headers(ref req) => req.note_outputs(f),
+			Request::HeaderProof(ref req) => req.note_outputs(f),
+			Request::Receipts(ref req) => req.note_outputs(f),
+			Request::Body(ref req) => req.note_outputs(f),
+			Request::Account(ref req) => req.note_outputs(f),
+			Request::Storage(ref req) => req.note_outputs(f),
+			Request::Code(ref req) => req.note_outputs(f),
+		}
+	}
+
+	fn fill<F>(self, oracle: F) -> Result<Self::Complete, NoSuchOutput>
+		where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>
+	{
+		match self {
+			Request::Headers(req) => CompleteRequest::Headers(req.fill(oracle)),
+			Request::HeaderProof(req) => CompleteRequest::HeaderProof(req.fill(oracle)),
+			Request::Receipts(req) => CompleteRequest::Receipts(req.fill(oracle)),
+			Request::Body(req) => CompleteRequest::Body(req.fill(oracle)),
+			Request::Account(req) => CompleteRequest::Account(req.fill(oracle)),
+			Request::Storage(req) => CompleteRequest::Storage(req.fill(oracle)),
+			Request::Code(req) => CompleteRequest::Code(req.fill(oracle)),
+		}
+	}
+}
 
 /// Kinds of requests.
 /// Doubles as the "ID" field of the request.
 #[repr(u8)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RequestKind {
 	/// A request for headers.
 	Headers = 0,
@@ -249,6 +324,42 @@ impl Decodable for RequestKind {
 impl Encodable for RequestKind {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.append(self as &u8);
+	}
+}
+
+/// All response types.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Response {
+	/// A response for block headers.
+	Headers(HeadersResponse),
+	/// A response for a header proof (from a CHT)
+	HeaderProof(HeaderProofResponse),
+	// TransactionIndex,
+	/// A response for a block's receipts.
+	Receipts(ReceiptsResponse),
+	/// A response for a block body.
+	Body(BodyResponse),
+	/// A response for a merkle proof of an account.
+	Account(AccountResponse),
+	/// A response for a merkle proof of contract storage.
+	Storage(StorageResponse),
+	/// A response for contract code.
+	Code(CodeResponse),
+	// Transaction proof.
+}
+
+impl Response {
+	/// Fill reusable outputs by writing them into the function.
+	pub fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
+		match *self {
+			Response::Headers(res) => res.fill_outputs(f)
+			Response::HeaderProof(res) => res.fill_outputs(f)
+			Response::Receipts(res) => res.fill_outputs(f)
+			Response::Body(res) => res.fill_outputs(f)
+			Response::Account(res) => res.fill_outputs(f)
+			Response::Storage(res) => res.fill_outputs(f)
+			Response::Code(res) => res.fill_outputs(f)
+		}
 	}
 }
 
@@ -369,7 +480,8 @@ pub mod header {
 	/// The output of a request for headers.
 	#[derive(Debug, Clone, PartialEq, Eq)]
 	pub struct Response {
-		header: Vec<encoded::Header>,
+		/// The headers requested.
+		pub headers: Vec<encoded::Header>,
 	}
 
 	impl Response {
@@ -523,7 +635,6 @@ pub mod block_receipts {
 				hash: hash,
 			})
 		}
-
 	}
 
 	/// A complete block receipts request.
