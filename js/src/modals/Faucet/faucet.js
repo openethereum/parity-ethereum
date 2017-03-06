@@ -24,13 +24,6 @@ import { CloseIcon, DialIcon, DoneIcon, SendIcon } from '~/ui/Icons';
 
 import Store from './store';
 
-const ERROR_ADDRESS = (
-  <FormattedMessage
-    id='faucet.error.address'
-    defaultMessage='not a valid network address'
-  />
-);
-
 @observer
 class Faucet extends Component {
   static propTypes = {
@@ -111,10 +104,6 @@ class Faucet extends Component {
   renderBody () {
     const { isBusy, isCompleted, isDestination } = this.store;
 
-    if (isBusy) {
-      return this.renderBodyBusy();
-    }
-
     if (isCompleted) {
       return this.renderBodyDone();
     }
@@ -124,20 +113,6 @@ class Faucet extends Component {
       : this.renderBodyFoundation();
   }
 
-  renderBodyBusy () {
-    return (
-      <ModalBox
-        icon={ <SendIcon /> }
-        summary={
-          <FormattedMessage
-            id='faucet.summary.busy'
-            defaultMessage='Requesting Kovan ETH from the Faucet. Please be patient while the process completes.'
-          />
-        }
-      />
-    );
-  }
-
   renderBodyDone () {
     return (
       <ModalBox
@@ -145,7 +120,7 @@ class Faucet extends Component {
         summary={
           <FormattedMessage
             id='faucet.summary.done'
-            defaultMessage='Your ETH has been requested from the faucet. It should reflect in your account shortly.'
+            defaultMessage='Your Kovan ETH has been requested from the faucet. It should reflect in your account shortly.'
           />
         }
       />
