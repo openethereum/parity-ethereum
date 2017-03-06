@@ -21,8 +21,9 @@ export function eventSignature (eventName, params) {
   const { strName, name } = parseName(eventName);
   const types = (params || []).map(fromParamType).join(',');
   const id = `${strName}(${types})`;
+  const signature = strName ? keccak_256(id) : '';
 
-  return { id, name, signature: keccak_256(id) };
+  return { id, name, signature };
 }
 
 export function methodSignature (methodName, params) {
