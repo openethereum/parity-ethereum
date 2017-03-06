@@ -502,6 +502,12 @@ class DeployContract extends Component {
 
     deploy(contract, options, params, this.onDeploymentState)
       .then((address) => {
+        // No contract address given, might need some confirmations
+        // from the wallet owners...
+        if (!address || /^(0x)?0*$/.test(address)) {
+          return false;
+        }
+
         const blockNumber = contract._receipt
           ? contract.receipt.blockNumber.toNumber()
           : null;
@@ -520,7 +526,7 @@ class DeployContract extends Component {
         ])
         .then(() => {
           console.log(`contract deployed at ${address}`);
-          this.setState({ step: 'DEPLOYMENT', address });
+          this.setState({ step: 'COMPLETED', address });
         });
       })
       .catch((error) => {
@@ -590,9 +596,6 @@ class DeployContract extends Component {
         return;
 
       case 'confirmationNeeded':
-        const { operationHash } = data;
-      console.log('operationHash', operationHash);
-
         this.setState({
           deployState: (
             <FormattedMessage

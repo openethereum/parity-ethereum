@@ -134,7 +134,7 @@ export function deploy (contract, _options, values, statecb = () => {}) {
 
               // Confirmations are needed from the other owners
               if (confirmationLog) {
-                const operationHash = confirmationLog.params.operation.value;
+                const operationHash = api.util.bytesToHex(confirmationLog.params.operation.value);
 
                 statecb(null, { state: 'confirmationNeeded', operationHash });
                 return;

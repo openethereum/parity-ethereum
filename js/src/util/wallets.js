@@ -265,8 +265,8 @@ export default class WalletsUtils {
           };
 
           if (log.params.created && log.params.created.value && !/^(0x)?0*$/.test(log.params.created.value)) {
-            transaction.to = log.params.created.value;
             transaction.creates = log.params.created.value;
+            delete transaction.to;
           }
 
           if (log.params.operation) {
