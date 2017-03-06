@@ -173,18 +173,21 @@ mod tests {
 
 		client.miner().set_engine_signer(v1, "".into()).unwrap();
 		let mut header = Header::default();
-		let seal = encode(&vec!(5u8)).to_vec();	
-		header.set_seal(vec!(seal));
+		let seal = vec![encode(&5u8).to_vec(), encode(&(&H520::default() as &[u8])).to_vec()];	
+		header.set_seal(seal);
 		header.set_author(v1);
-		header.set_number(1);
+		header.set_number(2);
+		header.set_parent_hash(client.chain_info().best_block_hash);
+		
 		// `reportBenign` when the designated proposer releases block from the future (bad clock).
-		assert!(client.engine().verify_block_unordered(&header, None).is_err());
+		assert!(client.engine().verify_block_family(&header, &header, None).is_err());
 		// Seal a block.
 		client.engine().step();
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// Check if the unresponsive validator is `disliked`.
 		assert_eq!(client.call_contract(BlockId::Latest, validator_contract, "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(), "0000000000000000000000007d577a597b2742b498cb5cf0c26cdcd726d39e6e");
 		// Simulate a misbehaving validator by handling a double proposal.
+		let header = client.best_block_header().decode();
 		assert!(client.engine().verify_block_family(&header, &header, None).is_err());
 		// Seal a block.
 		client.engine().step();

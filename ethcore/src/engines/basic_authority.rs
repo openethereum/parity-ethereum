@@ -133,20 +133,20 @@ impl Engine for BasicAuthority {
 		Ok(())
 	}
 
-	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
-		use rlp::{UntrustedRlp, View};
+	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+		Ok(())
+	}
 
-		// check the signature is legit.
+	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+		use rlp::{UntrustedRlp, View};
+		// Check if the signature belongs to a validator, can depend on parent state.
 		let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
 		let signer = public_to_address(&recover(&sig.into(), &header.bare_hash())?);
 		if !self.validators.contains(header.parent_hash(), &signer) {
 			return Err(BlockError::InvalidSeal)?;
 		}
-		Ok(())
-	}
 
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
-		// we should not calculate difficulty for genesis blocks
+		// Do not calculate difficulty for genesis blocks.
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
@@ -239,7 +239,7 @@ mod tests {
 		let mut header: Header = Header::default();
 		header.set_seal(vec![::rlp::encode(&H520::default()).to_vec()]);
 
-		let verify_result = engine.verify_block_unordered(&header, None);
+		let verify_result = engine.verify_block_family(&header, &Default::default(), None);
 		assert!(verify_result.is_err());
 	}
 

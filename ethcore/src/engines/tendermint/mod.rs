@@ -509,7 +509,12 @@ impl Engine for Tendermint {
 
 	}
 
-	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+		Ok(())
+	}
+
+	/// Verify validators and gas limit.
+	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let proposal = ConsensusMessage::new_proposal(header)?;
 		let proposer = proposal.verify()?;
 		if !self.is_authority(&proposer) {
@@ -551,10 +556,7 @@ impl Engine for Tendermint {
 			}
 			self.is_view_proposer(header.parent_hash(), proposal.vote_step.height, proposal.vote_step.view, &proposer)?;
 		}
-		Ok(())
-	}
 
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		if header.number() == 0 {
 			Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() }))?;
 		}
@@ -770,20 +772,25 @@ mod tests {
 		let (spec, tap) = setup();
 		let engine = spec.engine;
 
-		let mut header = Header::default();
-		let validator = insert_and_unlock(&tap, "0");
-		header.set_author(validator);
-		let seal = proposal_seal(&tap, &header, 0);
-		header.set_seal(seal);
-		// Good proposer.
-		assert!(engine.verify_block_unordered(&header.clone(), None).is_ok());
+		let mut parent_header: Header = Header::default();
+		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
 
+		let mut header = Header::default();
+		header.set_number(1);
+		header.set_gas_limit(U256::from_str("222222").unwrap());
 		let validator = insert_and_unlock(&tap, "1");
 		header.set_author(validator);
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
+		// Good proposer.
+		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
+
+		let validator = insert_and_unlock(&tap, "0");
+		header.set_author(validator);
+		let seal = proposal_seal(&tap, &header, 0);
+		header.set_seal(seal);
 		// Bad proposer.
-		match engine.verify_block_unordered(&header, None) {
+		match engine.verify_block_family(&header, &parent_header, None) {
 			Err(Error::Engine(EngineError::NotProposer(_))) => {},
 			_ => panic!(),
 		}
@@ -793,7 +800,7 @@ mod tests {
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Not authority.
-		match engine.verify_block_unordered(&header, None) {
+		match engine.verify_block_family(&header, &parent_header, None) {
 			Err(Error::Engine(EngineError::NotAuthorized(_))) => {},
 			_ => panic!(),
 		};
@@ -805,19 +812,24 @@ mod tests {
 		let (spec, tap) = setup();
 		let engine = spec.engine;
 
+		let mut parent_header: Header = Header::default();
+		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+
 		let mut header = Header::default();
+		header.set_number(2);
+		header.set_gas_limit(U256::from_str("222222").unwrap());
 		let proposer = insert_and_unlock(&tap, "1");
 		header.set_author(proposer);
 		let mut seal = proposal_seal(&tap, &header, 0);
 
-		let vote_info = message_info_rlp(&VoteStep::new(0, 0, Step::Precommit), Some(header.bare_hash()));
+		let vote_info = message_info_rlp(&VoteStep::new(2, 0, Step::Precommit), Some(header.bare_hash()));
 		let signature1 = tap.sign(proposer, None, vote_info.sha3()).unwrap();
 
 		seal[2] = ::rlp::encode(&vec![H520::from(signature1.clone())]).to_vec();
 		header.set_seal(seal.clone());
 
 		// One good signature is not enough.
-		match engine.verify_block_unordered(&header, None) {
+		match engine.verify_block_family(&header, &parent_header, None) {
 			Err(Error::Engine(EngineError::BadSealFieldSize(_))) => {},
 			_ => panic!(),
 		}
@@ -828,7 +840,7 @@ mod tests {
 		seal[2] = ::rlp::encode(&vec![H520::from(signature1.clone()), H520::from(signature0.clone())]).to_vec();
 		header.set_seal(seal.clone());
 
-		assert!(engine.verify_block_unordered(&header, None).is_ok());
+		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
 
 		let bad_voter = insert_and_unlock(&tap, "101");
 		let bad_signature = tap.sign(bad_voter, None, vote_info.sha3()).unwrap();
@@ -837,7 +849,7 @@ mod tests {
 		header.set_seal(seal);
 
 		// One good and one bad signature.
-		match engine.verify_block_unordered(&header, None) {
+		match engine.verify_block_family(&header, &parent_header, None) {
 			Err(Error::Engine(EngineError::NotAuthorized(_))) => {},
 			_ => panic!(),
 		};
