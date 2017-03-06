@@ -589,6 +589,20 @@ class DeployContract extends Component {
         });
         return;
 
+      case 'confirmationNeeded':
+        const { operationHash } = data;
+      console.log('operationHash', operationHash);
+
+        this.setState({
+          deployState: (
+            <FormattedMessage
+              id='deployContract.state.confirmationNeeded'
+              defaultMessage='The operation needs confirmations from the other owners of the contract'
+            />
+          )
+        });
+        return;
+
       case 'completed':
         this.setState({
           deployState: (

@@ -125,7 +125,23 @@ export function deploy (contract, _options, values, statecb = () => {}) {
 
               const logs = WalletsUtils.parseLogs(api, receipt.logs || []);
 
-            console.warn('GOT LOGS', logs);
+              const confirmationLog = logs.find((log) => log.event === 'ConfirmationNeeded');
+              const transactionLog = logs.find((log) => log.event === 'SingleTransact');
+
+              if (!confirmationLog && !transactionLog) {
+                throw new Error('Something went wrong in the Wallet Contract (no logs have been emitted)...');
+              }
+
+              // Confirmations are needed from the other owners
+              if (confirmationLog) {
+                const operationHash = confirmationLog.params.operation.value;
+
+                statecb(null, { state: 'confirmationNeeded', operationHash });
+                return;
+              }
+
+              // Set the contract address in the receip
+              receipt.contractAddress = transactionLog.params.created.value;
 
               const address = receipt.contractAddress;
 
@@ -133,19 +149,17 @@ export function deploy (contract, _options, values, statecb = () => {}) {
               contract._receipt = receipt;
               contract._address = address;
 
-              return address;
-            })
-            .then((address) => {
               statecb(null, { state: 'getCode' });
-              return api.eth.getCode(address);
-            })
-            .then((code) => {
-              if (code === '0x') {
-                throw new Error('Contract not deployed, getCode returned 0x');
-              }
 
-              statecb(null, { state: 'completed' });
-              return contract._address;
+              return api.eth.getCode(address)
+                .then((code) => {
+                  if (code === '0x') {
+                    throw new Error('Contract not deployed, getCode returned 0x');
+                  }
+
+                  statecb(null, { state: 'completed' });
+                  return contract._address;
+                });
             });
         });
     });
