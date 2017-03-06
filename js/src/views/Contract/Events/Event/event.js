@@ -32,7 +32,7 @@ export default class Event extends Component {
 
   static propTypes = {
     event: PropTypes.object.isRequired,
-    isTest: PropTypes.bool
+    netVersion: PropTypes.string.isRequired
   }
 
   state = {
@@ -44,11 +44,11 @@ export default class Event extends Component {
   }
 
   render () {
-    const { event, isTest } = this.props;
+    const { event, netVersion } = this.props;
     const { block, transaction } = this.state;
 
     const classes = `${styles.event} ${styles[event.state]}`;
-    const url = txLink(event.transactionHash, isTest);
+    const url = txLink(event.transactionHash, false, netVersion);
     const keys = Object.keys(event.params).join(', ');
     const values = Object.keys(event.params).map((name, index) => {
       const param = event.params[name];

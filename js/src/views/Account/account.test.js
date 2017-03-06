@@ -36,7 +36,6 @@ function createRedux () {
         },
         images: {},
         nodeStatus: {
-          isTest: false,
           netVersion: '1',
           traceMode: false
         },
