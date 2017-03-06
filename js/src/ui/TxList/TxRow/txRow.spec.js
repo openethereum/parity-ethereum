@@ -25,9 +25,27 @@ import TxRow from './txRow';
 
 const api = new Api({ execute: sinon.stub() });
 
+const STORE = {
+  dispatch: sinon.stub(),
+  subscribe: sinon.stub(),
+  getState: () => {
+    return {
+      nodeStatus: {
+        netVersion: '42'
+      },
+      personal: {
+        accounts: {
+          '0x123': {}
+        }
+      }
+    };
+  }
+};
+
 function render (props) {
   return shallow(
     <TxRow
+      store={ STORE }
       { ...props } />,
     { context: { api } }
   );
