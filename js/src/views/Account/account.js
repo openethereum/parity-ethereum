@@ -120,27 +120,35 @@ class Account extends Component {
     );
   }
 
-  hasFaucet = (netVersion) => {
-    // TODO: Check should also include whether the account has been verified on the mainnet
-    return [
-      '1', // Foundation
-      '42' // Kovan
-    ].includes(netVersion);
+  isKovan = (netVersion) => {
+    return netVersion === '42';
   }
 
-  isSmsCertified = (_certifications, netVersion, address) => {
+  isMainnet = (netVersion) => {
+    return netVersion === '1';
+  }
+
+  isFaucettable = (netVersion, certifications, address) => {
+    return this.isKovan(netVersion) || (
+      this.isMainnet(netVersion) &&
+      this.isSmsCertified(certifications, address)
+    );
+  }
+
+  isSmsCertified = (_certifications, address) => {
     const certifications = _certifications && _certifications[address]
       ? _certifications[address].filter((cert) => cert.name.indexOf('smsverification') === 0)
       : [];
 
-    return netVersion === '42' || certifications.length !== 0;
+    return certifications.length !== 0;
   }
 
   renderActionbar (account, balance) {
     const { certifications, netVersion } = this.props;
     const { address } = this.props.params;
     const showTransferButton = !!(balance && balance.tokens);
-    const isVerifiable = netVersion === '1'; // Foundation
+    const isVerifiable = this.isMainnet(netVersion);
+    const isFaucettable = this.isFaucettable(netVersion, certifications, address);
 
     const buttons = [
       <Button
@@ -186,7 +194,7 @@ class Account extends Component {
           />
         )
         : null,
-      this.hasFaucet(netVersion) && this.isSmsCertified(certifications, netVersion, address)
+      isFaucettable
         ? (
           <Button
             icon={ <DialIcon /> }
@@ -295,12 +303,13 @@ class Account extends Component {
   }
 
   renderFaucetDialog () {
-    const { certifications, netVersion } = this.props;
-    const { address } = this.props.params;
+    const { netVersion } = this.props;
 
-    if (!this.store.isFaucetVisible || !this.hasFaucet(netVersion) || !this.isSmsCertified(certifications, netVersion, address)) {
+    if (!this.store.isFaucetVisible) {
       return null;
     }
+
+    const { address } = this.props.params;
 
     return (
       <Faucet
