@@ -84,7 +84,7 @@ export function postTransaction (_func, _options, _values = []) {
     });
 }
 
-export function deploy (contract, _options, values, statecb = () => {}) {
+export function deploy (contract, _options, values, metadata = {}, statecb = () => {}) {
   const options = { ..._options };
   const { api } = contract;
   const address = options.from;
@@ -136,29 +136,31 @@ export function deploy (contract, _options, values, statecb = () => {}) {
               if (confirmationLog) {
                 const operationHash = api.util.bytesToHex(confirmationLog.params.operation.value);
 
-                statecb(null, { state: 'confirmationNeeded', operationHash });
+                // Add the contract to pending contracts
+                WalletsUtils.addPendingContract(address, operationHash, metadata);
+                statecb(null, { state: 'confirmationNeeded' });
                 return;
               }
 
               // Set the contract address in the receip
               receipt.contractAddress = transactionLog.params.created.value;
 
-              const address = receipt.contractAddress;
+              const contractAddress = receipt.contractAddress;
 
               statecb(null, { state: 'hasReceipt', receipt });
               contract._receipt = receipt;
-              contract._address = address;
+              contract._address = contractAddress;
 
               statecb(null, { state: 'getCode' });
 
-              return api.eth.getCode(address)
+              return api.eth.getCode(contractAddress)
                 .then((code) => {
                   if (code === '0x') {
                     throw new Error('Contract not deployed, getCode returned 0x');
                   }
 
                   statecb(null, { state: 'completed' });
-                  return contract._address;
+                  return contractAddress;
                 });
             });
         });

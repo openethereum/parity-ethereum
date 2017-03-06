@@ -491,6 +491,17 @@ class DeployContract extends Component {
     const { api, store } = this.context;
     const { source } = this.props;
     const { abiParsed, code, description, name, params, fromAddress } = this.state;
+
+    const metadata = {
+      abi: abiParsed,
+      contract: true,
+      deleted: false,
+      timestamp: Date.now(),
+      name,
+      description,
+      source
+    };
+
     const options = {
       data: code,
       from: fromAddress
@@ -500,7 +511,7 @@ class DeployContract extends Component {
 
     const contract = api.newContract(abiParsed);
 
-    deploy(contract, options, params, this.onDeploymentState)
+    deploy(contract, options, params, metadata, this.onDeploymentState)
       .then((address) => {
         // No contract address given, might need some confirmations
         // from the wallet owners...
@@ -508,21 +519,13 @@ class DeployContract extends Component {
           return false;
         }
 
-        const blockNumber = contract._receipt
+        metadata.blockNumber = contract._receipt
           ? contract.receipt.blockNumber.toNumber()
           : null;
 
         return Promise.all([
           api.parity.setAccountName(address, name),
-          api.parity.setAccountMeta(address, {
-            abi: abiParsed,
-            contract: true,
-            timestamp: Date.now(),
-            deleted: false,
-            blockNumber,
-            description,
-            source
-          })
+          api.parity.setAccountMeta(address, metadata)
         ])
         .then(() => {
           console.log(`contract deployed at ${address}`);

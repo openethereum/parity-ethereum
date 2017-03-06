@@ -16,15 +16,46 @@
 
 import BigNumber from 'bignumber.js';
 import { intersection, range, uniq } from 'lodash';
+import store from 'store';
 
 import Contract from '~/api/contract';
 import { bytesToHex, toHex } from '~/api/util/format';
 import { validateAddress } from '~/util/validation';
 import WalletAbi from '~/contracts/abi/wallet.json';
 
+const LS_PENDING_CONTRACTS_KEY = '_parity::wallets::pendingContracts';
+
 const _cachedWalletLookup = {};
 
 export default class WalletsUtils {
+  static getPendingContracts () {
+    return store.get(LS_PENDING_CONTRACTS_KEY) || {};
+  }
+
+  static setPendingContracts (contracts = {}) {
+    return store.set(LS_PENDING_CONTRACTS_KEY, contracts);
+  }
+
+  static removePendingContract (operationHash) {
+    const nextContracts = WalletsUtils.getPendingContracts();
+
+    delete nextContracts[operationHash];
+    WalletsUtils.setPendingContracts(nextContracts);
+  }
+
+  static addPendingContract (address, operationHash, metadata) {
+    const nextContracts = {
+      ...WalletsUtils.getPendingContracts(),
+      [ operationHash ]: {
+        address,
+        metadata,
+        operationHash
+      }
+    };
+
+    WalletsUtils.setPendingContracts(nextContracts);
+  }
+
   static getCallArgs (api, options, values = []) {
     const walletContract = new Contract(api, WalletAbi);
 
@@ -223,6 +254,8 @@ export default class WalletsUtils {
   }
 
   static fetchTransactions (walletContract) {
+    const { api } = walletContract;
+    const pendingContracts = WalletsUtils.getPendingContracts();
     const walletInstance = walletContract.instance;
     const signatures = {
       single: toHex(walletInstance.SingleTransact.signature),
@@ -270,7 +303,31 @@ export default class WalletsUtils {
           }
 
           if (log.params.operation) {
-            transaction.operation = bytesToHex(log.params.operation.value);
+            const operation = api.util.bytesToHex(log.params.operation.value);
+            const pendingContract = pendingContracts[operation];
+
+            // Add the pending contract to the contracts
+            if (pendingContract && pendingContract.address === walletContract.address) {
+              const { metadata } = pendingContract;
+              const contractAddress = log.params.created && log.params.created.value;
+              const contractName = metadata.name;
+
+              metadata.blockNumber = log.blockNumber;
+
+              Promise
+                .all([
+                  api.parity.setAccountName(contractAddress, contractName),
+                  api.parity.setAccountMeta(contractAddress, metadata)
+                ])
+                .then(() => {
+                  WalletsUtils.removePendingContract(operation);
+                })
+                .catch((error) => {
+                  console.error('adding wallet contract', error);
+                });
+            }
+
+            transaction.operation = operation;
           }
 
           if (log.params.data) {

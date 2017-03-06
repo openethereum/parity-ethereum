@@ -26,6 +26,7 @@ import { wallet as walletCode, walletLibraryRegKey, fullWalletCode } from '~/con
 
 import { validateUint, validateAddress, validateName } from '~/util/validation';
 import { toWei } from '~/api/util/wei';
+import { deploy } from '~/util/tx';
 import WalletsUtils from '~/util/wallets';
 
 const STEPS = {
@@ -202,6 +203,7 @@ export default class CreateWalletStore {
         return null; // exception when registry is not available
       })
       .then((address) => {
+        const { name, description } = this.wallet;
         const walletLibraryAddress = (address || '').replace(/^0x/, '').toLowerCase();
         const code = walletLibraryAddress.length && !/^0+$/.test(walletLibraryAddress)
           ? walletCode.replace(/(_)+WalletLibrary(_)+/g, walletLibraryAddress)
@@ -212,11 +214,27 @@ export default class CreateWalletStore {
           from: account
         };
 
-        return this.api
-          .newContract(walletAbi)
-          .deploy(options, [ owners, required, daylimit ], this.onDeploymentState);
+        const metadata = {
+          abi: walletAbi,
+          wallet: true,
+          timestamp: Date.now(),
+          deleted: false,
+          tags: ['wallet'],
+          description,
+          name
+        };
+
+        const contract = this.api.newContract(walletAbi);
+
+        this.wallet.metadata = metadata;
+        return deploy(contract, options, [ owners, required, daylimit ], metadata, this.onDeploymentState);
       })
       .then((address) => {
+        if (!address || !/^(0x)?0*$/.test(address)) {
+          this.step = 'INFO';
+          return false;
+        }
+
         this.deployed = true;
         this.wallet.address = address;
         return this.addWallet(this.wallet);
@@ -233,20 +251,12 @@ export default class CreateWalletStore {
   }
 
   @action addWallet = (wallet) => {
-    const { address, name, description } = wallet;
+    const { address, name, metadata } = wallet;
 
     return Promise
       .all([
         this.api.parity.setAccountName(address, name),
-        this.api.parity.setAccountMeta(address, {
-          abi: walletAbi,
-          wallet: true,
-          timestamp: Date.now(),
-          deleted: false,
-          description,
-          name,
-          tags: ['wallet']
-        })
+        this.api.parity.setAccountMeta(address, metadata)
       ])
       .then(() => {
         this.step = 'INFO';
@@ -294,6 +304,15 @@ export default class CreateWalletStore {
           <FormattedMessage
             id='createWallet.states.validatingCode'
             defaultMessage='Validating the deployed contract code'
+          />
+        );
+        return;
+
+      case 'confirmationNeeded':
+        this.deployState = (
+          <FormattedMessage
+            id='createWallet.states.confirmationNeeded'
+            defaultMessage='The contract deployment needs confirmations from other owners of the Wallet'
           />
         );
         return;

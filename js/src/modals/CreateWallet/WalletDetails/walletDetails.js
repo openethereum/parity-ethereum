@@ -106,9 +106,6 @@ export default class WalletDetails extends Component {
   renderMultisigDetails () {
     const { accounts, wallet, errors } = this.props;
 
-    // Wallets cannot create contracts
-    const _accounts = omitBy(accounts, (a) => a.wallet);
-
     return (
       <Form>
         <Input
@@ -148,7 +145,7 @@ export default class WalletDetails extends Component {
         />
 
         <AddressSelect
-          accounts={ _accounts }
+          accounts={ accounts }
           error={ errors.account }
           hint={
             <FormattedMessage
