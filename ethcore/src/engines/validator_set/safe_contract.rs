@@ -74,12 +74,12 @@ impl ValidatorSet for ValidatorSafeContract {
 			.map(|list| list.contains(block_hash, address));
 		maybe_existing
 			.unwrap_or_else(|| self
-											.get_list(block_hash.clone())
-									 		.map_or(false, |list| {
-												let contains = list.contains(block_hash, address);
-												guard.insert(block_hash.clone(), list);
-												contains
-											 }))
+				.get_list(block_hash.clone())
+				.map_or(false, |list| {
+					let contains = list.contains(block_hash, address);
+					guard.insert(block_hash.clone(), list);
+					contains
+				 }))
 	}
 
 	fn get(&self, block_hash: &H256, nonce: usize) -> Address {
@@ -89,12 +89,12 @@ impl ValidatorSet for ValidatorSafeContract {
 			.map(|list| list.get(block_hash, nonce));
 		maybe_existing
 			.unwrap_or_else(|| self
-											.get_list(block_hash.clone())
-									 		.map_or_else(Default::default, |list| {
-												let address = list.get(block_hash, nonce);
-												guard.insert(block_hash.clone(), list);
-												address
-											 }))
+				.get_list(block_hash.clone())
+				.map_or_else(Default::default, |list| {
+					let address = list.get(block_hash, nonce);
+					guard.insert(block_hash.clone(), list);
+					address
+				 }))
 	}
 
 	fn count(&self, block_hash: &H256) -> usize {
@@ -104,12 +104,12 @@ impl ValidatorSet for ValidatorSafeContract {
 			.map(|list| list.count(block_hash));
 		maybe_existing
 			.unwrap_or_else(|| self
-											.get_list(block_hash.clone())
-									 		.map_or_else(usize::max_value, |list| {
-												let address = list.count(block_hash);
-												guard.insert(block_hash.clone(), list);
-												address
-											 }))
+				.get_list(block_hash.clone())
+				.map_or_else(usize::max_value, |list| {
+					let address = list.count(block_hash);
+					guard.insert(block_hash.clone(), list);
+					address
+				 }))
 	}
 
 	fn register_contract(&self, client: Weak<Client>) {
@@ -154,9 +154,9 @@ mod provider {
 				 .expect("get_validators returns one argument; qed")
 				 .to_array()
 				 .and_then(|v| v
-									 .into_iter()
-									 .map(|a| a.to_address())
-									 .collect::<Option<Vec<[u8; 20]>>>())
+					 .into_iter()
+					 .map(|a| a.to_address())
+					 .collect::<Option<Vec<[u8; 20]>>>())
 				 .expect("get_validators returns a list of addresses; qed")
 				 .into_iter()
 				 .map(util::Address::from)
