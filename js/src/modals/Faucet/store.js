@@ -30,11 +30,8 @@ export default class Store {
     transaction(() => {
       this.setDestination(netVersion === '42');
 
-      if (this.isDestination) {
-        this.setAddressReceive(address);
-      } else {
-        this.setAddressVerified(address);
-      }
+      this.setAddressReceive(address);
+      this.setAddressVerified(address);
     });
   }
 
@@ -85,7 +82,7 @@ export default class Store {
       method: 'GET',
       mode: 'no-cors'
     };
-    const url = `http://icarus.parity.io/${this.addressVerified}/${this.addressReceive}`;
+    const url = `http://icarus.parity.io/${this.addressVerified}`;
 
     return fetch(url, options)
       .then((response) => {

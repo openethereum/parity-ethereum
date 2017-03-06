@@ -16,18 +16,16 @@
 
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Form, InputAddress, ModalBox, Portal } from '~/ui';
+import { Button, ModalBox, Portal } from '~/ui';
 import { CloseIcon, DialIcon, DoneIcon, SendIcon } from '~/ui/Icons';
 
 import Store from './store';
 
 @observer
-class Faucet extends Component {
+export default class Faucet extends Component {
   static propTypes = {
-    accounts: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
     netVersion: PropTypes.string.isRequired,
     onClose: PropTypes.func.isRequired
@@ -36,12 +34,13 @@ class Faucet extends Component {
   store = new Store(this.props.netVersion, this.props.address);
 
   render () {
-    const { isBusy } = this.store;
+    const { isBusy, isCompleted } = this.store;
 
     return (
       <Portal
         buttons={ this.renderActions() }
         busy={ isBusy }
+        isSmallModal
         onClose={ this.onClose }
         open
         title={
@@ -51,7 +50,18 @@ class Faucet extends Component {
           />
         }
       >
-        { this.renderBody() }
+        <ModalBox
+          icon={
+            isCompleted
+              ? <DoneIcon />
+              : <DialIcon />
+          }
+          summary={
+            isCompleted
+              ? this.renderSummaryDone()
+              : this.renderSummaryRequest()
+          }
+        />
       </Portal>
     );
   }
@@ -101,124 +111,22 @@ class Faucet extends Component {
       ];
   }
 
-  renderBody () {
-    const { isBusy, isCompleted, isDestination } = this.store;
-
-    if (isCompleted) {
-      return this.renderBodyDone();
-    }
-
-    return isDestination
-      ? this.renderBodyKovan()
-      : this.renderBodyFoundation();
-  }
-
-  renderBodyDone () {
+  renderSummaryDone () {
     return (
-      <ModalBox
-        icon={ <DoneIcon /> }
-        summary={
-          <FormattedMessage
-            id='faucet.summary.done'
-            defaultMessage='Your Kovan ETH has been requested from the faucet. It should reflect in your account shortly.'
-          />
-        }
+      <FormattedMessage
+        id='faucet.summary.done'
+        defaultMessage='Your Kovan ETH has been requested from the faucet. It should reflect in your Kovan account shortly.'
       />
     );
   }
 
-  renderBodyFoundation () {
-    const { accounts } = this.props;
-    const { addressReceive, addressReceiveValid } = this.store;
-
+  renderSummaryRequest () {
     return (
-      <ModalBox
-        icon={ <DialIcon /> }
-        summary={
-          <FormattedMessage
-            id='faucet.summary.foundation'
-            defaultMessage='Request Kovan ETH from the faucet by executing the transfer for am sms-verified Foumdation address. By selecting a Kovan address below and executing, the faucet will deposit ETH into the address on Kovan.'
-          />
-        }
-      >
-        <Form>
-          <InputAddress
-            accounts={ accounts }
-            autoFocus
-            error={
-              addressReceiveValid
-                ? null
-                : ERROR_ADDRESS
-            }
-            hint={
-              <FormattedMessage
-                id='faucet.input.kovan.hint'
-                defaultMessage='Destination address on the Kovan network'
-              />
-            }
-            label={
-              <FormattedMessage
-                id='faucet.input.kovan.label'
-                defaultMessage='Kovan address'
-              />
-            }
-            onChange={ this.onChangeAddressReceive }
-            value={ addressReceive || '' }
-          />
-        </Form>
-      </ModalBox>
+      <FormattedMessage
+        id='faucet.summary.info'
+        defaultMessage='To request a deposit of Kovan ETH to this address, you need to ensure that the address is sms-verified on the Foundation mainnet. Once the request is executed and the Foundation address verified, the faucet will deposit ETH into the current account on the Kovan network.'
+      />
     );
-  }
-
-  renderBodyKovan () {
-    const { accounts } = this.props;
-    const { addressVerified, addressVerifiedValid } = this.store;
-
-    return (
-      <ModalBox
-        icon={ <DialIcon /> }
-        summary={
-          <FormattedMessage
-            id='faucet.summary.kovan'
-            defaultMessage='To request a deposit of Kovan ETH to this address, you need to select a sms-verified Foundation mainnet address. Once the request is executed and the Foundation address verified, the faucet will deposit ETH into the current account.'
-          />
-        }
-      >
-        <Form>
-          <InputAddress
-            accounts={ accounts }
-            autoFocus
-            error={
-              addressVerifiedValid
-                ? null
-                : ERROR_ADDRESS
-            }
-            hint={
-              <FormattedMessage
-                id='faucet.input.foundation.hint'
-                defaultMessage='An sms-verified address on the Foundation network'
-              />
-            }
-            label={
-              <FormattedMessage
-                id='faucet.input.foundation.label'
-                defaultMessage='Mainnet sms-verified address'
-              />
-            }
-            onChange={ this.onChangeAddressVerified }
-            value={ addressVerified || '' }
-          />
-        </Form>
-      </ModalBox>
-    );
-  }
-
-  onChangeAddressReceive = (event, address) => {
-    this.store.setAddressReceive(address);
-  }
-
-  onChangeAddressVerified = (event, address) => {
-    this.store.setAddressVerified(address);
   }
 
   onClose = () => {
@@ -229,16 +137,3 @@ class Faucet extends Component {
     return this.store.makeItRain();
   }
 }
-
-function mapStateToProps (state) {
-  const { accounts } = state.personal;
-
-  return {
-    accounts
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(Faucet);
