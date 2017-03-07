@@ -18,7 +18,8 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, ModalBox, Portal } from '~/ui';
+import { txLink } from '~/3rdparty/etherscan/links';
+import { Button, ModalBox, Portal, ShortenedHash } from '~/ui';
 import { CloseIcon, DialIcon, DoneIcon, ErrorIcon, SendIcon } from '~/ui/Icons';
 
 import Store from './store';
@@ -116,7 +117,7 @@ export default class Faucet extends Component {
   }
 
   renderSummaryDone () {
-    const { error, response } = this.store;
+    const { error, responseText, responseTxHash } = this.store;
 
     return (
       <div>
@@ -124,9 +125,20 @@ export default class Faucet extends Component {
           id='faucet.summary.done'
           defaultMessage='Your Kovan ETH has been requested from the faucet which responded with -'
         />
-        <p>
-          { response || error }
-        </p>
+        {
+          error
+            ? (
+              <p>{ error }</p>
+            )
+            : (
+              <p>
+                <span>{ responseText }&nbsp;</span>
+                <a href={ txLink(responseTxHash, false, '42') } target='_blank'>
+                  <ShortenedHash hash={ responseTxHash } />
+                </a>
+              </p>
+            )
+        }
       </div>
     );
   }
@@ -135,7 +147,7 @@ export default class Faucet extends Component {
     return (
       <FormattedMessage
         id='faucet.summary.info'
-        defaultMessage='To request a deposit of Kovan ETH to this address, you need to ensure that the address is sms-verified on the Foundation mainnet. Once executed and verified, the faucet will deposit Kovan ETH into the current account.'
+        defaultMessage='To request a deposit of Kovan ETH to this address, you need to ensure that the address is sms-verified on the mainnet. Once executed the faucet will deposit Kovan ETH into the current account.'
       />
     );
   }

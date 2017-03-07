@@ -15,21 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { action, computed, observable, transaction } from 'mobx';
-import React from 'react';
-import { FormattedMessage } from 'react-intl';
 import apiutil from '~/api/util';
 
-import { txLink } from '~/3rdparty/etherscan/links';
-import ShortenedHash from '~/ui/ShortenedHash';
-
-const ENDPOINT = 'http://faucet.kovan.network/';
-const KOVANTX = 'https://kovan.etherscan.io/tx/';
+const ENDPOINT = 'http://faucet.kovan.network/api/';
 
 export default class Store {
   @observable addressReceive = null;
   @observable addressVerified = null;
   @observable error = null;
-  @observable response = null;
+  @observable responseText = null;
+  @observable responseTxHash = null;
   @observable isBusy = false;
   @observable isCompleted = false;
   @observable isDestination = false;
@@ -84,39 +79,13 @@ export default class Store {
   }
 
   @action setResponse = (response) => {
-    // TODO: One the sms-faucet has an JSON API endpoint, can clean this up without parsing
-    if (response.indexOf(KOVANTX) !== -1) {
-      this.response = response.split(' ').map((part, index) => {
-        if (part.indexOf(KOVANTX) === 0) {
-          const hash = part.substr(KOVANTX.length);
-
-          return (
-            <a key='hash' href={ txLink(hash, false, '42') } target='_blank'>
-              <ShortenedHash data={ hash } />
-            </a>
-          );
-        }
-
-        return (
-          <FormattedMessage
-            key={ `response_${index}` }
-            id='faucet.response.part'
-            defaultMessage='{part} '
-            values={ {
-              part
-            } }
-          />
-        );
-      });
-    } else {
-      this.response = response;
-    }
+    this.responseText = response.result;
+    this.responseTxHash = response.tx;
   }
 
   makeItRain = () => {
     this.setBusy(true);
 
-    // TODO: Cors not enabled atm, only opacque response
     const options = {
       method: 'GET',
       mode: 'cors'
@@ -129,23 +98,21 @@ export default class Store {
           return null;
         }
 
-        // TODO: Would prefer JSON responses from the server (endpoint to be added)
-        return response.text();
+        return response.json();
       })
       .catch(() => {
         return null;
       })
       .then((response) => {
         transaction(() => {
-          if (response) {
-            this.setResponse(response);
-          } else {
+          if (!response || response.error) {
             this.setError(
-              <FormattedMessage
-                id='faucet.error.server'
-                defaultMessage='Unable to complete request to the faucet, the server may be unavailable. Please try again later.'
-              />
+              response
+                ? response.error
+                : 'Unable to complete request to the faucet, the server may be unavailable. Please try again later.'
             );
+          } else {
+            this.setResponse(response);
           }
 
           this.setCompleted(true);
