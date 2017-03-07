@@ -38,9 +38,9 @@ pub use self::block_body::{
 	Incomplete as IncompleteBodyRequest,
 	Response as BodyResponse
 };
-pub use self::receipts::{
+pub use self::block_receipts::{
 	Complete as CompleteReceiptsRequest,
-	Incomplete as IncompleteReceiptsRequest
+	Incomplete as IncompleteReceiptsRequest,
 	Response as ReceiptsResponse
 };
 pub use self::account::{
@@ -57,6 +57,11 @@ pub use self::contract_code::{
 	Complete as CompleteCodeRequest,
 	Incomplete as IncompleteCodeRequest,
 	Response as CodeResponse,
+};
+pub use self::execution::{
+	Complete as CompleteExecutionRequest,
+	Incomplete as IncompleteExecutionRequest,
+	Response as ExecutionResponse,
 };
 
 /// Error indicating a reference to a non-existent or wrongly-typed output.
@@ -87,7 +92,7 @@ impl<T: Decodable> Decodable for Field<T> {
 			1 => Ok({
 				let inner_rlp = rlp.at(1)?;
 				Field::BackReference(inner_rlp.val_at(0)?, inner_rlp.val_at(1)?)
-			})
+			}),
 			_ => Err(DecoderError::Custom("Unknown discriminant for PIP field.")),
 		}
 	}
@@ -171,7 +176,8 @@ pub enum Request {
 	Storage(IncompleteStorageRequest),
 	/// A request for contract code.
 	Code(IncompleteCodeRequest),
-	// Transaction proof.
+	/// A request for proof of execution,
+	Execution(IncompleteExecutionRequest),
 }
 
 /// All request types, as they're sent over the network.
@@ -192,19 +198,21 @@ pub enum CompleteRequest {
 	Storage(CompleteStorageRequest),
 	/// A request for contract code.
 	Code(CompleteCodeRequest),
-	// Transaction proof.
+	/// A request for proof of execution,
+	Execution(CompleteExecutionRequest),
 }
 
 impl Request {
-	fn kind(&self) -> RequestKind {
+	fn kind(&self) -> Kind {
 		match *self {
-			Request::Headers(_) => RequestKind::Headers,
-			Request::HeaderProof(_) => RequestKind::HeaderProof,
-			Request::Receipts(_) => RequestKind::Receipts,
-			Request::Body(_) => RequestKind::Body,
-			Request::Account(_) => RequestKind::Account,
-			Request::Storage(_) => RequestKind::Storage,
-			Request::Code(_) => RequestKind::Code,
+			Request::Headers(_) => Kind::Headers,
+			Request::HeaderProof(_) => Kind::HeaderProof,
+			Request::Receipts(_) => Kind::Receipts,
+			Request::Body(_) => Kind::Body,
+			Request::Account(_) => Kind::Account,
+			Request::Storage(_) => Kind::Storage,
+			Request::Code(_) => Kind::Code,
+			Request::Execution(_) => Kind::Execution,
 		}
 	}
 }
@@ -213,14 +221,15 @@ impl Decodable for Request {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let rlp = decoder.as_rlp();
 
-		match rlp.val_at::<RequestKind>(0)? {
-			RequestKind::Headers => Ok(Request::Headers(rlp.val_at(1)?)),
-			RequestKind::HeaderProof => Ok(Request::HeaderProof(rlp.val_at(1)?)),
-			RequestKind::Receipts => Ok(Request::Receipts(rlp.val_at(1)?)),
-			RequestKind::Body => Ok(Request::Body(rlp.val_at(1)?)),
-			RequestKind::Account => Ok(Request::Account(rlp.val_at(1)?)),
-			RequestKind::Storage => Ok(Request::Storage(rlp.val_at(1)?)),
-			RequestKind::Code => Ok(Request::Code(rlp.val_at(1)?)),
+		match rlp.val_at::<Kind>(0)? {
+			Kind::Headers => Ok(Request::Headers(rlp.val_at(1)?)),
+			Kind::HeaderProof => Ok(Request::HeaderProof(rlp.val_at(1)?)),
+			Kind::Receipts => Ok(Request::Receipts(rlp.val_at(1)?)),
+			Kind::Body => Ok(Request::Body(rlp.val_at(1)?)),
+			Kind::Account => Ok(Request::Account(rlp.val_at(1)?)),
+			Kind::Storage => Ok(Request::Storage(rlp.val_at(1)?)),
+			Kind::Code => Ok(Request::Code(rlp.val_at(1)?)),
+			Kind::Execution => Ok(Request::Execution(rlp.val_at(1)?)),
 		}
 	}
 }
@@ -237,6 +246,7 @@ impl Encodable for Request {
 			Request::Account(ref req) => s.append(req),
 			Request::Storage(ref req) => s.append(req),
 			Request::Code(ref req) => s.append(req),
+			Request::Execution(ref req) => s.append(req),
 		};
 	}
 }
@@ -255,6 +265,7 @@ impl IncompleteRequest for Request {
 			Request::Account(ref req) => req.check_outputs(f),
 			Request::Storage(ref req) => req.check_outputs(f),
 			Request::Code(ref req) => req.check_outputs(f),
+			Request::Execution(ref req) => req.check_outputs(f),
 		}
 	}
 
@@ -267,29 +278,31 @@ impl IncompleteRequest for Request {
 			Request::Account(ref req) => req.note_outputs(f),
 			Request::Storage(ref req) => req.note_outputs(f),
 			Request::Code(ref req) => req.note_outputs(f),
+			Request::Execution(ref req) => req.note_outputs(f),
 		}
 	}
 
 	fn fill<F>(self, oracle: F) -> Result<Self::Complete, NoSuchOutput>
 		where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>
 	{
-		match self {
-			Request::Headers(req) => CompleteRequest::Headers(req.fill(oracle)),
-			Request::HeaderProof(req) => CompleteRequest::HeaderProof(req.fill(oracle)),
-			Request::Receipts(req) => CompleteRequest::Receipts(req.fill(oracle)),
-			Request::Body(req) => CompleteRequest::Body(req.fill(oracle)),
-			Request::Account(req) => CompleteRequest::Account(req.fill(oracle)),
-			Request::Storage(req) => CompleteRequest::Storage(req.fill(oracle)),
-			Request::Code(req) => CompleteRequest::Code(req.fill(oracle)),
-		}
+		Ok(match self {
+			Request::Headers(req) => CompleteRequest::Headers(req.fill(oracle)?),
+			Request::HeaderProof(req) => CompleteRequest::HeaderProof(req.fill(oracle)?),
+			Request::Receipts(req) => CompleteRequest::Receipts(req.fill(oracle)?),
+			Request::Body(req) => CompleteRequest::Body(req.fill(oracle)?),
+			Request::Account(req) => CompleteRequest::Account(req.fill(oracle)?),
+			Request::Storage(req) => CompleteRequest::Storage(req.fill(oracle)?),
+			Request::Code(req) => CompleteRequest::Code(req.fill(oracle)?),
+			Request::Execution(req) => CompleteRequest::Execution(req.fill(oracle)?),
+		})
 	}
 }
 
 /// Kinds of requests.
 /// Doubles as the "ID" field of the request.
 #[repr(u8)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RequestKind {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
 	/// A request for headers.
 	Headers = 0,
 	HeaderProof = 1,
@@ -299,29 +312,29 @@ pub enum RequestKind {
 	Account = 5,
 	Storage = 6,
 	Code = 7,
-	// TransactionProof = 8,
+	Execution = 8,
 }
 
-impl Decodable for RequestKind {
+impl Decodable for Kind {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let rlp = decoder.as_rlp();
 
 		match rlp.as_val::<u8>()? {
-			0 => Ok(RequestKind::Headers),
-			1 => Ok(RequestKind::HeaderProof),
-			// 2 => Ok(RequestKind::TransactionIndex,
-			3 => Ok(RequestKind::Receipts),
-			4 => Ok(RequestKind::Body),
-			5 => Ok(RequestKind::Account),
-			6 => Ok(RequestKind::Storage),
-			7 => Ok(RequestKind::Code),
-			// 8 => Ok(RequestKind::TransactionProof),
+			0 => Ok(Kind::Headers),
+			1 => Ok(Kind::HeaderProof),
+			// 2 => Ok(Kind::TransactionIndex,
+			3 => Ok(Kind::Receipts),
+			4 => Ok(Kind::Body),
+			5 => Ok(Kind::Account),
+			6 => Ok(Kind::Storage),
+			7 => Ok(Kind::Code),
+			8 => Ok(Kind::Execution),
 			_ => Err(DecoderError::Custom("Unknown PIP request ID.")),
 		}
 	}
 }
 
-impl Encodable for RequestKind {
+impl Encodable for Kind {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.append(self as &u8);
 	}
@@ -345,21 +358,70 @@ pub enum Response {
 	Storage(StorageResponse),
 	/// A response for contract code.
 	Code(CodeResponse),
-	// Transaction proof.
+	/// A response for proof of execution,
+	Execution(ExecutionResponse),
 }
 
 impl Response {
 	/// Fill reusable outputs by writing them into the function.
 	pub fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
 		match *self {
-			Response::Headers(res) => res.fill_outputs(f)
-			Response::HeaderProof(res) => res.fill_outputs(f)
-			Response::Receipts(res) => res.fill_outputs(f)
-			Response::Body(res) => res.fill_outputs(f)
-			Response::Account(res) => res.fill_outputs(f)
-			Response::Storage(res) => res.fill_outputs(f)
-			Response::Code(res) => res.fill_outputs(f)
+			Response::Headers(res) => res.fill_outputs(f),
+			Response::HeaderProof(res) => res.fill_outputs(f),
+			Response::Receipts(res) => res.fill_outputs(f),
+			Response::Body(res) => res.fill_outputs(f),
+			Response::Account(res) => res.fill_outputs(f),
+			Response::Storage(res) => res.fill_outputs(f),
+			Response::Code(res) => res.fill_outputs(f),
+			Response::Execution(res) => res.fill_outputs(f),
 		}
+	}
+
+	fn kind(&self) -> Kind {
+		match *self {
+			Response::Headers(_) => Kind::Headers,
+			Response::HeaderProof(_) => Kind::HeaderProof,
+			Response::Receipts(_) => Kind::Receipts,
+			Response::Body(_) => Kind::Body,
+			Response::Account(_) => Kind::Account,
+			Response::Storage(_) => Kind::Storage,
+			Response::Code(_) => Kind::Code,
+			Respnse::Execution(_) => Kind::Execution,
+		}
+	}
+}
+
+impl Decodable for Response {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let rlp = decoder.as_rlp();
+
+		match rlp.val_at::<Kind>(0)? {
+			Kind::Headers => Ok(Response::Headers(rlp.val_at(1)?)),
+			Kind::HeaderProof => Ok(Response::HeaderProof(rlp.val_at(1)?)),
+			Kind::Receipts => Ok(Response::Receipts(rlp.val_at(1)?)),
+			Kind::Body => Ok(Response::Body(rlp.val_at(1)?)),
+			Kind::Account => Ok(Response::Account(rlp.val_at(1)?)),
+			Kind::Storage => Ok(Response::Storage(rlp.val_at(1)?)),
+			Kind::Code => Ok(Response::Code(rlp.val_at(1)?)),
+			Kind::Execution=> Ok(Response::Execution(rlp.val_at(1)?)),
+		}
+	}
+}
+
+impl Encodable for Response {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2).append(&self.kind());
+
+		match *self {
+			Response::Headers(ref res) => s.append(res),
+			Response::HeaderProof(ref res) => s.append(res),
+			Response::Receipts(ref res) => s.append(res),
+			Response::Body(ref res) => s.append(res),
+			Response::Account(ref res) => s.append(res),
+			Response::Storage(ref res) => s.append(res),
+			Response::Code(ref res) => s.append(res),
+			Response::Execution(ref res) => s.append(res),
+		};
 	}
 }
 
@@ -390,7 +452,7 @@ pub trait IncompleteRequest: Sized {
 pub mod header {
 	use super::{Field, HashOrNumber, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
 	use util::U256;
 
 	/// Potentially incomplete headers request.
@@ -488,12 +550,41 @@ pub mod header {
 		/// Fill reusable outputs by writing them into the function.
 		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) { }
 	}
+
+	impl Decodable for Response {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			use ethcore::header::Header as FullHeader;
+			let rlp = decoder.as_rlp();
+
+			let mut headers = Vec::new();
+
+			for item in rlp.at(0)?.iter() {
+				// check that it's a valid encoding.
+				// TODO: just return full headers here?
+				let _: FullHeader = item.as_val()?;
+				headers.push(encoded::Header::new(item.as_raw().to_owned()));
+			}
+
+			Ok(Response {
+				headers: headers,
+			})
+		}
+	}
+
+	impl Encodable for Response {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(self.headers.len());
+			for header in &self.headers {
+				s.append_raw(header.rlp().as_raw(), 1);
+			}
+		}
+	}
 }
 
 /// Request and response for header proofs.
 pub mod header_proof {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete header proof request.
@@ -576,12 +667,34 @@ pub mod header_proof {
 			f(1, Output::Hash(self.hash));
 		}
 	}
+
+	impl Decodable for Response {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			let rlp = decoder.as_rlp();
+
+			Ok(Response {
+				proof: rlp.val_at(0)?,
+				hash: rlp.val_at(1)?,
+				td: rlp.val_at(2)?,
+			})
+		}
+	}
+
+	impl Encodable for Response {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(3)
+				.append(&self.proof)
+				.append(&self.hash)
+				.append(&self.td);
+		}
+	}
 }
 
 /// Request and response for block receipts
 pub mod block_receipts {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
+	use ethcore::receipt::Receipt;
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete block receipts request.
@@ -655,13 +768,29 @@ pub mod block_receipts {
 		/// Fill reusable outputs by providing them to the function.
 		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
 	}
+
+	impl Decodable for Response {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			let rlp = decoder.as_rlp();
+
+			Ok(Response {
+				receipts: rlp.val_at(0)?,
+			})
+		}
+	}
+
+	impl Encodable for Response {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.append(&self.receipts);
+		}
+	}
 }
 
 /// Request and response for a block body
 pub mod block_body {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete block body request.
@@ -736,13 +865,38 @@ pub mod block_body {
 		/// Fill reusable outputs by providing them to the function.
 		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
 	}
+
+	impl Decodable for Response {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			use ethcore::header::Header as FullHeader;
+			use ethcore::transaction::SignedTransaction;
+
+			let rlp = decoder.as_rlp();
+			let body_rlp = rlp.at(0)?;
+
+			// check body validity.
+			let _: Vec<FullHeader> = rlp.val_at(0)?;
+			let _: Vec<SignedTransaction> = rlp.val_at(1)?;
+
+			Ok(Response {
+				body: encoded::Body::new(body_rlp.as_raw().to_owned()),
+			})
+		}
+	}
+
+	impl Encodable for Response {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(2)
+				.append_raw(&self.body.rlp().as_raw(), 2);
+		}
+	}
 }
 
 /// A request for an account proof.
 pub mod account {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete request for an account proof.
@@ -852,13 +1006,38 @@ pub mod account {
 			f(1, Output::Hash(self.storage_root));
 		}
 	}
+
+	impl Decodable for Response {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			let rlp = decoder.as_rlp();
+
+			Ok(Response {
+				proof: rlp.val_at(0)?,
+				nonce: rlp.val_at(1)?,
+				balance: rlp.val_at(2)?,
+				code_hash: rlp.val_at(3)?,
+				storage_root: rlp.val_at(4)?
+			})
+		}
+	}
+
+	impl Encodable for Response {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(5)
+				.append(&self.proof)
+				.append(&self.nonce)
+				.append(&self.balance)
+				.append(&self.code_hash)
+				.append(&self.storage_root)
+		}
+	}
 }
 
 /// A request for a storage proof.
 pub mod storage {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete request for an storage proof.
@@ -979,16 +1158,35 @@ pub mod storage {
 			f(0, Output::Hash(self.value));
 		}
 	}
+
+	impl Decodable for Response {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			let rlp = decoder.as_rlp();
+
+			Ok(Response {
+				proof: rlp.val_at(0)?,
+				value: rlp.val_at(1)?,
+			})
+		}
+	}
+
+	impl Encodable for Response {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(2)
+				.append(&self.proof)
+				.append(&self.value);
+		}
+	}
 }
 
 /// A request for contract code.
 pub mod contract_code {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
 	use util::{Bytes, U256, H256};
 
-	/// Potentially incomplete _ request.
+	/// Potentially incomplete contract code request.
 	#[derive(Debug, Clone, PartialEq, Eq)]
 	pub struct Incomplete {
 		/// The block hash to request the state for.
@@ -1079,5 +1277,178 @@ pub mod contract_code {
 	impl Response {
 		/// Fill reusable outputs by providing them to the function.
 		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
+	}
+
+	impl Decodable for Response {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			let rlp = decoder.as_rlp();
+
+			Ok(Response {
+				code: rlp.val_at(0)?,
+			})
+		}
+	}
+
+	impl Encodable for Response {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.append(&self.code);
+		}
+	}
+}
+
+/// A request for proof of execution.
+pub mod execution {
+	use super::{Field, NoSuchOutput, OutputKind, Output};
+	use ethcore::encoded;
+	use ethcore::transaction::Action;
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
+	use util::{Bytes, Address, U256, H256, DBValue};
+
+	/// Potentially incomplete execution proof request.
+	#[derive(Debug, Clone, PartialEq, Eq)]
+	pub struct Incomplete {
+		/// The block hash to request the state for.
+		pub block_hash: Field<H256>,
+		/// The address the transaction should be from.
+		pub from: Address,
+		/// The action of the transaction.
+		pub action: Action,
+		/// The amount of gas to prove.
+		pub gas: U256,
+		/// The gas price.
+		pub gas_price: U256,
+		/// The value to transfer.
+		pub value: U256,
+		/// Call data.
+		pub data: Bytes,
+	}
+
+	impl Decodable for Incomplete {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			let rlp = decoder.as_rlp();
+			Ok(Incomplete {
+				block_hash: rlp.val_at(0)?,
+				address: rlp.val_at(1)?,
+				action: rlp.val_at(2)?,
+				gas: rlp.val_at(3)?,
+				gas_price: rlp.val_at(4)?,
+				value: rlp.val_at(5)?,
+				data: rlp.val_at(6)?,
+			})
+		}
+	}
+
+	impl Encodable for Incomplete {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(7)
+				.append(&self.block_hash)
+				.append(&self.from);
+
+			match *self.action {
+				Action::Create => s.append_empty_data(),
+				Action::Call(ref addr) => s.append(addr),
+			};
+
+			s.append(&self.gas)
+				.append(&self.gas_price)
+				.append(&self.value)
+				.append(&self.data);
+		}
+	}
+
+	impl super::IncompleteRequest for Incomplete {
+		type Complete = Complete;
+
+		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
+			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
+		{
+			if let Field::BackReference(req, idx) = self.block_hash {
+				f(req, idx, OutputKind::Hash)?;
+			}
+
+			Ok(())
+		}
+
+		fn note_outputs<F>(&self, _: F) where F: FnMut(usize, OutputKind) {}
+
+		fn fill<F>(self, oracle: F) -> Result<Self::Complete, NoSuchOutput>
+			where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>
+		{
+			let block_hash = match self.block_hash {
+				Field::Scalar(hash) => hash,
+				Field::BackReference(req, idx) => match oracle(req, idx)? {
+					Output::Hash(hash) => hash,
+					_ => return Err(NoSuchOutput)?,
+				}
+			};
+
+			Ok(Complete {
+				block_hash: block_hash,
+				from: self.from,
+				action: self.action,
+				gas: self.gas,
+				gas_price: self.gas_price,
+				value: self.value,
+				data: self.data,
+			})
+		}
+
+	}
+
+	/// A complete request.
+	#[derive(Debug, Clone, PartialEq, Eq)]
+	pub struct Complete {
+		/// The block hash to request the state for.
+		pub block_hash: H256,
+		/// The address the transaction should be from.
+		pub from: Address,
+		/// The action of the transaction.
+		pub action: Action,
+		/// The amount of gas to prove.
+		pub gas: U256,
+		/// The gas price.
+		pub gas_price: U256,
+		/// The value to transfer.
+		pub value: U256,
+		/// Call data.
+		pub data: Bytes,
+	}
+
+	/// The output of a request for proof of execution
+	#[derive(Debug, Clone, PartialEq, Eq)]
+	pub struct Response {
+		/// All state items (trie nodes, code) necessary to re-prove the transaction.
+		pub items: Vec<DBValue>,
+	}
+
+	impl Response {
+		/// Fill reusable outputs by providing them to the function.
+		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
+	}
+
+	impl Decodable for Response {
+		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+			let rlp = decoder.as_rlp();
+			let mut items = Vec::new();
+			for raw_item in rlp.at(0)?.iter() {
+				let mut item = DBValue::new();
+				item.append_slice(raw_item.data());
+				items.push(item);
+			}
+
+			Ok(Response {
+				items: items,
+			})
+		}
+	}
+
+	impl Encodable for Response {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(&self.items.len());
+
+			for item in &self.items {
+				s.append(&&**item);
+			}
+		}
 	}
 }

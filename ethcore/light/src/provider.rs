@@ -30,16 +30,9 @@ use cht::{self, BlockInfo};
 use client::{LightChainClient, AsLightClient};
 use transaction_queue::TransactionQueue;
 
-
 use request;
 
-/// Defines the operations that a provider for `LES` must fulfill.
-///
-/// These are defined at [1], but may be subject to change.
-/// Requests which can't be fulfilled should return either an empty RLP list
-/// or empty vector where appropriate.
-///
-/// [1]: https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
+/// Defines the operations that a provider for the light subprotocol must fulfill.
 #[cfg_attr(feature = "ipc", ipc(client_ident="LightProviderClient"))]
 pub trait Provider: Send + Sync {
 	/// Provide current blockchain info.
@@ -149,12 +142,12 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		BlockChainClient::block_header(self, id)
 	}
 
-	fn block_body(&self, req: request::CompleteBodyRequest) -> Option<request::BodyResponse>;
+	fn block_body(&self, req: request::CompleteBodyRequest) -> Option<request::BodyResponse> {
 		BlockChainClient::block_body(self, id)
 			.map(|body| ::request::BodyResponse { body: body })
 	}
 
-	fn block_receipts(&self, req: request::CompleteReceiptsRequest) -> Option<request::ReceiptsResponse>;
+	fn block_receipts(&self, req: request::CompleteReceiptsRequest) -> Option<request::ReceiptsResponse> {
 		BlockChainClient::block_receipts(self, hash)
 			.map(|x| ::request::ReceiptsResponse { receipts: ::rlp::decode(&x) })
 	}
@@ -168,7 +161,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 				code_hash: acc.code_hash,
 				storage_root: acc.storage_root,
 			}
-		}))
+		})
 	}
 
 	fn storage_proof(&self, req: request::CompleteStorageRequest) -> Option<request::StorageResponse> {
@@ -177,7 +170,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 				proof: proof,
 				value: item,
 			}
-		}))
+		})
 	}
 
 	fn contract_code(&self, req: request::ContractCode) -> Option<request::CodeResponse> {
@@ -185,7 +178,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 			.map(|code| ::request::CodeResponse { code: code })
 	}
 
-	fn header_proof(&self, req: request::CompleteHeaderProofRequest) -> Option<request::HeaderProofResponse>;
+	fn header_proof(&self, req: request::CompleteHeaderProofRequest) -> Option<request::HeaderProofResponse> {
 		let cht_number = match cht::block_to_cht_number(req.num) {
 			Some(cht_num) => cht_num,
 			None => {
@@ -243,7 +236,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		}
 	}
 
-	fn transaction_proof(&self, req: request::TransactionProof) -> Option<Vec<DBValue>> {
+	fn transaction_proof(&self, req: request::CompleteExecutionRequest) -> Option<request::ExecutionResponse> {
 		use ethcore::transaction::Transaction;
 
 		let id = BlockId::Hash(req.at);
@@ -261,6 +254,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		}.fake_sign(req.from);
 
 		self.prove_transaction(transaction, id)
+			.map(|proof| ::request::ExecutionResponse { items: proof })
 	}
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
