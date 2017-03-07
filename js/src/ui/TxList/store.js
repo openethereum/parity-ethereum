@@ -51,6 +51,7 @@ export default class Store {
 
           return bnB.comparedTo(bnA);
         });
+
       this._pendingHashes = this.sortedHashes.filter((hash) => this.transactions[hash].blockNumber.eq(0));
     });
   }
@@ -85,26 +86,53 @@ export default class Store {
     this._subscriptionId = 0;
   }
 
-  loadTransactions (_txhashes) {
-    const txhashes = _txhashes.filter((hash) => !this.transactions[hash] || this._pendingHashes.includes(hash));
+  loadTransactions (_txhashes = []) {
+    const promises = _txhashes
+      .filter((txhash) => !this.transactions[txhash] || this._pendingHashes.includes(txhash))
+      .map((txhash) => {
+        return Promise
+          .all([
+            this._api.eth.getTransactionByHash(txhash),
+            this._api.eth.getTransactionReceipt(txhash)
+          ])
+          .then(([
+            transaction = {},
+            transactionReceipt = {}
+          ]) => {
+            return {
+              ...transactionReceipt,
+              ...transaction
+            };
+          });
+      });
 
-    if (!txhashes || !txhashes.length) {
+    if (!promises.length) {
       return;
     }
 
     Promise
-      .all(txhashes.map((txhash) => this._api.eth.getTransactionByHash(txhash)))
+      .all(promises)
       .then((_transactions) => {
-        const transactions = _transactions.filter((tx) => tx);
+        const blockNumbers = [];
+        const transactions = _transactions
+          .filter((tx) => tx && tx.hash)
+          .reduce((txs, tx) => {
+            txs[tx.hash] = tx;
 
-        this.addTransactions(
-          transactions.reduce((transactions, tx, index) => {
-            transactions[txhashes[index]] = tx;
-            return transactions;
-          }, {})
-        );
+            if (tx.blockNumber && tx.blockNumber.gt(0)) {
+              blockNumbers.push(tx.blockNumber.toNumber());
+            }
 
-        this.loadBlocks(transactions.map((tx) => tx.blockNumber ? tx.blockNumber.toNumber() : 0));
+            return txs;
+          }, {});
+
+        // No need to add transactions if there are none
+        if (Object.keys(transactions).length === 0) {
+          return false;
+        }
+
+        this.addTransactions(transactions);
+        this.loadBlocks(blockNumbers);
       })
       .catch((error) => {
         console.warn('loadTransactions', error);

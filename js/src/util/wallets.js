@@ -60,7 +60,7 @@ export default class WalletsUtils {
     const walletContract = new Contract(api, WalletAbi);
 
     const promises = [
-      api.parity.accountsInfo(),
+      api.parity.allAccountsInfo(),
       WalletsUtils.fetchOwners(walletContract.at(options.from))
     ];
 
@@ -69,19 +69,13 @@ export default class WalletsUtils {
       .then(([ accounts, owners ]) => {
         const addresses = Object.keys(accounts);
         const owner = intersection(addresses, owners).pop();
+      console.warn('no owner found', accounts, addresses, owners);
 
         if (!owner) {
           return false;
         }
 
-        return owner;
-      })
-      .then((owner) => {
-        if (!owner) {
-          return false;
-        }
-
-        const _options = Object.assign({}, options);
+        const _options = { ...options };
         const { from, to, value = new BigNumber(0), data } = options;
 
         delete _options.data;
@@ -111,6 +105,7 @@ export default class WalletsUtils {
       .getCallArgs(api, options, values)
       .then((callArgs) => {
         if (!callArgs) {
+          console.error('no call args', callArgs);
           throw new Error('you do not own this wallet');
         }
 

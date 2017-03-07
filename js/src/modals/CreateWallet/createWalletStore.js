@@ -180,6 +180,8 @@ export default class CreateWalletStore {
           this.wallet.owners = owners;
           this.wallet.required = require.toNumber();
           this.wallet.dailylimit = dailylimit.limit;
+
+          this.wallet = this.getWalletWithMeta(this.wallet);
         });
 
         return this.addWallet(this.wallet);
@@ -203,7 +205,6 @@ export default class CreateWalletStore {
         return null; // exception when registry is not available
       })
       .then((address) => {
-        const { name, description } = this.wallet;
         const walletLibraryAddress = (address || '').replace(/^0x/, '').toLowerCase();
         const code = walletLibraryAddress.length && !/^0+$/.test(walletLibraryAddress)
           ? walletCode.replace(/(_)+WalletLibrary(_)+/g, walletLibraryAddress)
@@ -214,20 +215,10 @@ export default class CreateWalletStore {
           from: account
         };
 
-        const metadata = {
-          abi: walletAbi,
-          wallet: true,
-          timestamp: Date.now(),
-          deleted: false,
-          tags: ['wallet'],
-          description,
-          name
-        };
-
         const contract = this.api.newContract(walletAbi);
 
-        this.wallet.metadata = metadata;
-        return deploy(contract, options, [ owners, required, daylimit ], metadata, this.onDeploymentState);
+        this.wallet = this.getWalletWithMeta(this.wallet);
+        return deploy(contract, options, [ owners, required, daylimit ], this.wallet.metadata, this.onDeploymentState);
       })
       .then((address) => {
         if (!address || !/^(0x)?0*$/.test(address)) {
@@ -261,6 +252,25 @@ export default class CreateWalletStore {
       .then(() => {
         this.step = 'INFO';
       });
+  }
+
+  getWalletWithMeta = (wallet) => {
+    const { name, description } = wallet;
+
+    const metadata = {
+      abi: walletAbi,
+      wallet: true,
+      timestamp: Date.now(),
+      deleted: false,
+      tags: [ 'wallet' ],
+      description,
+      name
+    };
+
+    return {
+      ...wallet,
+      metadata
+    };
   }
 
   onDeploymentState = (error, data) => {

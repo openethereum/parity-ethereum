@@ -61,17 +61,6 @@ export function estimateGas (_func, _options, _values = []) {
       const { func, options, values } = callArgs;
 
       return func._estimateGas(options, values);
-    })
-    .then((gas) => {
-      return WalletsUtils
-        .isWallet(_func.contract.api, _options.from)
-        .then((isWallet) => {
-          if (isWallet) {
-            return gas.mul(1.5);
-          }
-
-          return gas;
-        });
     });
 }
 
