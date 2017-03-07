@@ -16,7 +16,7 @@
 */
 
 .item {
-  border: 2px solid transparent;
+  border-top: 4px solid transparent;
   cursor: pointer;
   display: flex;
   flex: 1;
@@ -67,11 +67,11 @@
 }
 
 .selected {
-  border-color: rgb(0, 151, 167);
+  border-top-color: rgb(0, 151, 167);
   filter: none;
 
   &.default {
-    border-color: rgb(167, 151, 0);
+    border-top-color: rgb(167, 151, 0);
   }
 }
 
