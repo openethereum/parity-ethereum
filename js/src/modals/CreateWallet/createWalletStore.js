@@ -22,7 +22,7 @@ import Contract from '~/api/contract';
 import { ERROR_CODES } from '~/api/transport/error';
 import Contracts from '~/contracts';
 import { wallet as walletAbi } from '~/contracts/abi';
-import { wallet as walletCode, walletLibraryRegKey, fullWalletCode } from '~/contracts/code/wallet';
+import { wallet as walletCode, walletLibrary as walletLibraryCode, walletLibraryRegKey, fullWalletCode } from '~/contracts/code/wallet';
 
 import { validateUint, validateAddress, validateName } from '~/util/validation';
 import { toWei } from '~/api/util/wei';
@@ -205,10 +205,35 @@ export default class CreateWalletStore {
         return null; // exception when registry is not available
       })
       .then((address) => {
-        const walletLibraryAddress = (address || '').replace(/^0x/, '').toLowerCase();
-        const code = walletLibraryAddress.length && !/^0+$/.test(walletLibraryAddress)
-          ? walletCode.replace(/(_)+WalletLibrary(_)+/g, walletLibraryAddress)
-          : fullWalletCode;
+        if (!address || /^(0x)?0*$/.test(address)) {
+          return null;
+        }
+
+        // Check that it's actually the expected code
+        return this.api.eth
+          .getCode(address)
+          .then((code) => {
+            const strippedCode = code.replace(/^0x/, '');
+
+            // The actual deployed code is included in the wallet
+            // library code (which might have some more data)
+            if (walletLibraryCode.indexOf(strippedCode) >= 0) {
+              return address;
+            }
+
+            return null;
+          });
+      })
+      .then((address) => {
+        let code = fullWalletCode;
+
+        if (address) {
+          const walletLibraryAddress = address.replace(/^0x/, '').toLowerCase();
+
+          code = walletCode.replace(/(_)+WalletLibrary(_)+/g, walletLibraryAddress);
+        } else {
+          console.warn('wallet library has not been found in the registry');
+        }
 
         const options = {
           data: code,
@@ -221,7 +246,7 @@ export default class CreateWalletStore {
         return deploy(contract, options, [ owners, required, daylimit ], this.wallet.metadata, this.onDeploymentState);
       })
       .then((address) => {
-        if (!address || !/^(0x)?0*$/.test(address)) {
+        if (!address || /^(0x)?0*$/.test(address)) {
           return false;
         }
 

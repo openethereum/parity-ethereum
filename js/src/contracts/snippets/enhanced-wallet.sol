@@ -445,7 +445,7 @@ contract Wallet is WalletEvents {
   }
 
   // FIELDS
-  address constant _walletLibrary = 0xb28B7aFA58C75F55E4dEd3E83a4496FA9a8a7382;
+  address constant _walletLibrary = 0xcafecafecafecafecafecafecafecafecafecafe;
 
   // the number of owners that must confirm the same operation before it is run.
   uint public m_required;
