@@ -238,6 +238,10 @@ impl Engine for AuthorityRound {
 		Schedule::new_post_eip150(usize::max_value(), true, true, true)
 	}
 
+	fn signing_network_id(&self, _env_info: &EnvInfo) -> Option<u64> {
+		Some(self.params.chain_id)
+	}
+
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
 		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit({

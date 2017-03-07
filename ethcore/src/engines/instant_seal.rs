@@ -62,6 +62,10 @@ impl Engine for InstantSeal {
 		Schedule::new_post_eip150(usize::max_value(), true, true, true)
 	}
 
+	fn signing_network_id(&self, _env_info: &EnvInfo) -> Option<u64> {
+		Some(self.params.chain_id)
+	}
+
 	fn is_sealer(&self, _author: &Address) -> Option<bool> { Some(true) }
 
 	fn generate_seal(&self, _block: &ExecutedBlock) -> Seal {
