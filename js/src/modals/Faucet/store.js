@@ -94,17 +94,21 @@ export default class Store {
     return fetch(url, options)
       .then((response) => {
         if (!response.ok) {
-          this.setError('Unable to complete request to the faucet. Please try again later.');
           return null;
         }
 
         // TODO: Would prefer JSON responses from the server
         return response.text();
       })
+      .catch(() => {
+        return null;
+      })
       .then((response) => {
         transaction(() => {
           if (response) {
             this.setResponse(response);
+          } else {
+            this.setError('Unable to complete request to the faucet, the server may be unavailable. Please try again later.');
           }
 
           this.setCompleted(true);

@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { Button, ModalBox, Portal } from '~/ui';
-import { CloseIcon, DialIcon, DoneIcon, SendIcon } from '~/ui/Icons';
+import { CloseIcon, DialIcon, DoneIcon, ErrorIcon, SendIcon } from '~/ui/Icons';
 
 import Store from './store';
 
@@ -34,7 +34,15 @@ export default class Faucet extends Component {
   store = new Store(this.props.netVersion, this.props.address);
 
   render () {
-    const { isBusy, isCompleted } = this.store;
+    const { error, isBusy, isCompleted } = this.store;
+
+    let icon = <DialIcon />;
+
+    if (isCompleted) {
+      icon = error
+        ? <ErrorIcon />
+        : <DoneIcon />;
+    }
 
     return (
       <Portal
@@ -51,11 +59,7 @@ export default class Faucet extends Component {
         }
       >
         <ModalBox
-          icon={
-            isCompleted
-              ? <DoneIcon />
-              : <DialIcon />
-          }
+          icon={ icon }
           summary={
             isCompleted
               ? this.renderSummaryDone()
@@ -118,7 +122,7 @@ export default class Faucet extends Component {
       <div>
         <FormattedMessage
           id='faucet.summary.done'
-          defaultMessage='Your Kovan ETH has been requested from the faucet. The server responded with -'
+          defaultMessage='Your Kovan ETH has been requested from the faucet which responded with -'
         />
         <p>
           { response || error }
