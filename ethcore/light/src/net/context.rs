@@ -12,7 +12,7 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
 //! I/O and event context generalizations.
 
@@ -89,10 +89,6 @@ pub trait BasicContext {
 	// TODO: maybe just put this on a timer in LightProtocol?
 	fn make_announcement(&self, announcement: Announcement);
 
-	/// Find the maximum number of requests of a specific type which can be made from
-	/// supplied peer.
-	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize;
-
 	/// Disconnect a peer.
 	fn disconnect_peer(&self, peer: PeerId);
 
@@ -131,10 +127,6 @@ impl<'a> BasicContext for TickCtx<'a> {
 		self.proto.make_announcement(self.io, announcement);
 	}
 
-	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
-		self.proto.max_requests(peer, kind)
-	}
-
 	fn disconnect_peer(&self, peer: PeerId) {
 		self.io.disconnect_peer(peer);
 	}
@@ -166,10 +158,6 @@ impl<'a> BasicContext for Ctx<'a> {
 
 	fn make_announcement(&self, announcement: Announcement) {
 		self.proto.make_announcement(self.io, announcement);
-	}
-
-	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
-		self.proto.max_requests(peer, kind)
 	}
 
 	fn disconnect_peer(&self, peer: PeerId) {

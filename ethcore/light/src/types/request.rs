@@ -19,7 +19,7 @@
 use std::collections::HashMap;
 
 use ethcore::transaction::Action;
-use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream};
+use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
 use util::{Address, H256, U256, Uint};
 
 // re-exports of request types.
@@ -65,6 +65,7 @@ pub use self::execution::{
 };
 
 /// Error indicating a reference to a non-existent or wrongly-typed output.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NoSuchOutput;
 
 /// An input to a request.
@@ -77,7 +78,7 @@ pub enum Field<T> {
 	BackReference(usize, usize),
 }
 
-impl From<T> for Field<T> {
+impl<T> From<T> for Field<T> {
 	fn from(val: T) -> Self {
 		Field::Scalar(val)
 	}
@@ -119,7 +120,8 @@ pub enum Output {
 }
 
 impl Output {
-	fn kind(&self) -> OutputKind {
+	/// Get the output kind.
+	pub fn kind(&self) -> OutputKind {
 		match *self {
 			Output::Hash(_) => OutputKind::Hash,
 			Output::Number(_) => OutputKind::Number,
@@ -155,6 +157,24 @@ impl From<H256> for HashOrNumber {
 impl From<u64> for HashOrNumber {
 	fn from(num: u64) -> Self {
 		HashOrNumber::Number(num)
+	}
+}
+
+impl Decodable for HashOrNumber {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let rlp = decoder.as_rlp();
+
+		rlp.val_at::<H256>(0).map(HashOrNumber::Hash)
+			.or_else(|_| rlp.val_at(0).map(HashOrNumber::Number))
+	}
+}
+
+impl Encodable for HashOrNumber {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		match *self {
+			HashOrNumber::Hash(ref hash) => s.append(hash),
+			HashOrNumber::Number(ref num) => s.append(num),
+		};
 	}
 }
 
@@ -305,13 +325,20 @@ impl IncompleteRequest for Request {
 pub enum Kind {
 	/// A request for headers.
 	Headers = 0,
+	/// A request for a header proof.
 	HeaderProof = 1,
 	// TransactionIndex = 2,
+	/// A request for block receipts.
 	Receipts = 3,
+	/// A request for a block body.
 	Body = 4,
+	/// A request for an account + merkle proof.
 	Account = 5,
+	/// A request for contract storage + merkle proof
 	Storage = 6,
+	/// A request for contract.
 	Code = 7,
+	/// A request for transaction execution + state proof.
 	Execution = 8,
 }
 
@@ -336,7 +363,7 @@ impl Decodable for Kind {
 
 impl Encodable for Kind {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append(self as &u8);
+		s.append(&(*self as u8));
 	}
 }
 
@@ -366,14 +393,14 @@ impl Response {
 	/// Fill reusable outputs by writing them into the function.
 	pub fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
 		match *self {
-			Response::Headers(res) => res.fill_outputs(f),
-			Response::HeaderProof(res) => res.fill_outputs(f),
-			Response::Receipts(res) => res.fill_outputs(f),
-			Response::Body(res) => res.fill_outputs(f),
-			Response::Account(res) => res.fill_outputs(f),
-			Response::Storage(res) => res.fill_outputs(f),
-			Response::Code(res) => res.fill_outputs(f),
-			Response::Execution(res) => res.fill_outputs(f),
+			Response::Headers(ref res) => res.fill_outputs(f),
+			Response::HeaderProof(ref res) => res.fill_outputs(f),
+			Response::Receipts(ref res) => res.fill_outputs(f),
+			Response::Body(ref res) => res.fill_outputs(f),
+			Response::Account(ref res) => res.fill_outputs(f),
+			Response::Storage(ref res) => res.fill_outputs(f),
+			Response::Code(ref res) => res.fill_outputs(f),
+			Response::Execution(ref res) => res.fill_outputs(f),
 		}
 	}
 
@@ -386,7 +413,7 @@ impl Response {
 			Response::Account(_) => Kind::Account,
 			Response::Storage(_) => Kind::Storage,
 			Response::Code(_) => Kind::Code,
-			Respnse::Execution(_) => Kind::Execution,
+			Response::Execution(_) => Kind::Execution,
 		}
 	}
 }
@@ -403,7 +430,7 @@ impl Decodable for Response {
 			Kind::Account => Ok(Response::Account(rlp.val_at(1)?)),
 			Kind::Storage => Ok(Response::Storage(rlp.val_at(1)?)),
 			Kind::Code => Ok(Response::Code(rlp.val_at(1)?)),
-			Kind::Execution=> Ok(Response::Execution(rlp.val_at(1)?)),
+			Kind::Execution => Ok(Response::Execution(rlp.val_at(1)?)),
 		}
 	}
 }
@@ -427,6 +454,7 @@ impl Encodable for Response {
 
 /// A potentially incomplete request.
 pub trait IncompleteRequest: Sized {
+	/// The complete variant of this request.
 	type Complete;
 
 	/// Check prior outputs against the needed inputs.
@@ -453,7 +481,6 @@ pub mod header {
 	use super::{Field, HashOrNumber, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
 	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
-	use util::U256;
 
 	/// Potentially incomplete headers request.
 	#[derive(Debug, Clone, PartialEq, Eq)]
@@ -461,9 +488,9 @@ pub mod header {
 		/// Start block.
 		pub start: Field<HashOrNumber>,
 		/// Skip between.
-		pub skip: U256,
+		pub skip: u64,
 		/// Maximum to return.
-		pub max: U256,
+		pub max: u64,
 		/// Whether to reverse from start.
 		pub reverse: bool,
 	}
@@ -499,7 +526,7 @@ pub mod header {
 			match self.start {
 				Field::Scalar(_) => Ok(()),
 				Field::BackReference(req, idx) =>
-					f(req, idx, OutputKind::Hash).or_else(|| f(req, idx, OutputKind::Number))
+					f(req, idx, OutputKind::Hash).or_else(|_| f(req, idx, OutputKind::Number))
 			}
 		}
 
@@ -532,9 +559,9 @@ pub mod header {
 		/// Start block.
 		pub start: HashOrNumber,
 		/// Skip between.
-		pub skip: U256,
+		pub skip: u64,
 		/// Maximum to return.
-		pub max: U256,
+		pub max: u64,
 		/// Whether to reverse from start.
 		pub reverse: bool,
 	}
@@ -695,7 +722,7 @@ pub mod block_receipts {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::receipt::Receipt;
 	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
-	use util::{Bytes, U256, H256};
+	use util::H256;
 
 	/// Potentially incomplete block receipts request.
 	#[derive(Debug, Clone, PartialEq, Eq)]
@@ -725,7 +752,7 @@ pub mod block_receipts {
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
 		{
-			match self.num {
+			match self.hash {
 				Field::Scalar(_) => Ok(()),
 				Field::BackReference(req, idx) => f(req, idx, OutputKind::Hash),
 			}
@@ -791,7 +818,7 @@ pub mod block_body {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
 	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
-	use util::{Bytes, U256, H256};
+	use util::H256;
 
 	/// Potentially incomplete block body request.
 	#[derive(Debug, Clone, PartialEq, Eq)]
@@ -821,7 +848,7 @@ pub mod block_body {
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
 		{
-			match self.num {
+			match self.hash {
 				Field::Scalar(_) => Ok(()),
 				Field::BackReference(req, idx) => f(req, idx, OutputKind::Hash),
 			}
@@ -869,14 +896,14 @@ pub mod block_body {
 	impl Decodable for Response {
 		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 			use ethcore::header::Header as FullHeader;
-			use ethcore::transaction::SignedTransaction;
+			use ethcore::transaction::UnverifiedTransaction;
 
 			let rlp = decoder.as_rlp();
 			let body_rlp = rlp.at(0)?;
 
 			// check body validity.
 			let _: Vec<FullHeader> = rlp.val_at(0)?;
-			let _: Vec<SignedTransaction> = rlp.val_at(1)?;
+			let _: Vec<UnverifiedTransaction> = rlp.val_at(1)?;
 
 			Ok(Response {
 				body: encoded::Body::new(body_rlp.as_raw().to_owned()),
@@ -895,7 +922,6 @@ pub mod block_body {
 /// A request for an account proof.
 pub mod account {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use ethcore::encoded;
 	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
 	use util::{Bytes, U256, H256};
 
@@ -1028,7 +1054,7 @@ pub mod account {
 				.append(&self.nonce)
 				.append(&self.balance)
 				.append(&self.code_hash)
-				.append(&self.storage_root)
+				.append(&self.storage_root);
 		}
 	}
 }
@@ -1036,9 +1062,8 @@ pub mod account {
 /// A request for a storage proof.
 pub mod storage {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use ethcore::encoded;
 	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
-	use util::{Bytes, U256, H256};
+	use util::{Bytes, H256};
 
 	/// Potentially incomplete request for an storage proof.
 	#[derive(Debug, Clone, PartialEq, Eq)]
@@ -1182,9 +1207,8 @@ pub mod storage {
 /// A request for contract code.
 pub mod contract_code {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use ethcore::encoded;
 	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
-	use util::{Bytes, U256, H256};
+	use util::{Bytes, H256};
 
 	/// Potentially incomplete contract code request.
 	#[derive(Debug, Clone, PartialEq, Eq)]
@@ -1299,7 +1323,6 @@ pub mod contract_code {
 /// A request for proof of execution.
 pub mod execution {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use ethcore::encoded;
 	use ethcore::transaction::Action;
 	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
 	use util::{Bytes, Address, U256, H256, DBValue};
@@ -1328,7 +1351,7 @@ pub mod execution {
 			let rlp = decoder.as_rlp();
 			Ok(Incomplete {
 				block_hash: rlp.val_at(0)?,
-				address: rlp.val_at(1)?,
+				from: rlp.val_at(1)?,
 				action: rlp.val_at(2)?,
 				gas: rlp.val_at(3)?,
 				gas_price: rlp.val_at(4)?,
@@ -1344,7 +1367,7 @@ pub mod execution {
 				.append(&self.block_hash)
 				.append(&self.from);
 
-			match *self.action {
+			match self.action {
 				Action::Create => s.append_empty_data(),
 				Action::Call(ref addr) => s.append(addr),
 			};
@@ -1432,7 +1455,7 @@ pub mod execution {
 			let mut items = Vec::new();
 			for raw_item in rlp.at(0)?.iter() {
 				let mut item = DBValue::new();
-				item.append_slice(raw_item.data());
+				item.append_slice(raw_item.data()?);
 				items.push(item);
 			}
 
@@ -1444,7 +1467,7 @@ pub mod execution {
 
 	impl Encodable for Response {
 		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(&self.items.len());
+			s.begin_list(self.items.len());
 
 			for item in &self.items {
 				s.append(&&**item);

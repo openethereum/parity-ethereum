@@ -89,22 +89,7 @@ impl RequestSet {
 			None => return false,
 		};
 
-		let kind = self.reqs.values()
-			.next()
-			.map(|r| r.kind())
-			.expect("base time implies `reqs` non-empty; qed");
-
-		let kind_timeout = match kind {
-			request::Kind::Headers => timeout::HEADERS,
-			request::Kind::Bodies => timeout::BODIES,
-			request::Kind::Receipts => timeout::RECEIPTS,
-			request::Kind::StateProofs => timeout::PROOFS,
-			request::Kind::Codes => timeout::CONTRACT_CODES,
-			request::Kind::HeaderProofs => timeout::HEADER_PROOFS,
-			request::Kind::TransactionProof => timeout::TRANSACTION_PROOF,
-		};
-
-		base + Duration::milliseconds(kind_timeout) <= now
+		unimplemented!()
 	}
 
 	/// Collect all pending request ids.

@@ -121,7 +121,7 @@ pub trait Provider: Send + Sync {
 
 	/// Provide a proof-of-execution for the given transaction proof request.
 	/// Returns a vector of all state items necessary to execute the transaction.
-	fn transaction_proof(&self, req: request::TransactionProof) -> Option<Vec<DBValue>>;
+	fn transaction_proof(&self, req: request::CompleteExecutionRequest) -> Option<request::ExecutionResponse>;
 }
 
 // Implementation of a light client data provider for a client.
@@ -143,12 +143,12 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn block_body(&self, req: request::CompleteBodyRequest) -> Option<request::BodyResponse> {
-		BlockChainClient::block_body(self, id)
+		BlockChainClient::block_body(self, BlockId::Hash(req.hash))
 			.map(|body| ::request::BodyResponse { body: body })
 	}
 
 	fn block_receipts(&self, req: request::CompleteReceiptsRequest) -> Option<request::ReceiptsResponse> {
-		BlockChainClient::block_receipts(self, hash)
+		BlockChainClient::block_receipts(self, &req.hash)
 			.map(|x| ::request::ReceiptsResponse { receipts: ::rlp::decode(&x) })
 	}
 
@@ -165,7 +165,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn storage_proof(&self, req: request::CompleteStorageRequest) -> Option<request::StorageResponse> {
-		self.prove_account(req.address_hash, req.key_hash, BlockId::Hash(req.block_hash)).map(|(proof, item) | {
+		self.prove_storage(req.address_hash, req.key_hash, BlockId::Hash(req.block_hash)).map(|(proof, item) | {
 			::request::StorageResponse {
 				proof: proof,
 				value: item,
@@ -173,7 +173,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		})
 	}
 
-	fn contract_code(&self, req: request::ContractCode) -> Option<request::CodeResponse> {
+	fn contract_code(&self, req: request::CompleteCodeRequest) -> Option<request::CodeResponse> {
 		self.state_data(&req.code_hash)
 			.map(|code| ::request::CodeResponse { code: code })
 	}
@@ -239,7 +239,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	fn transaction_proof(&self, req: request::CompleteExecutionRequest) -> Option<request::ExecutionResponse> {
 		use ethcore::transaction::Transaction;
 
-		let id = BlockId::Hash(req.at);
+		let id = BlockId::Hash(req.block_hash);
 		let nonce = match self.nonce(&req.from, id.clone()) {
 			Some(nonce) => nonce,
 			None => return None,
@@ -321,7 +321,7 @@ impl<L: AsLightClient + Send + Sync> Provider for LightProvider<L> {
 		None
 	}
 
-	fn transaction_proof(&self, _req: request::TransactionProof) -> Option<Vec<DBValue>> {
+	fn transaction_proof(&self, _req: request::CompleteExecutionRequest) -> Option<request::ExecutionResponse> {
 		None
 	}
 
