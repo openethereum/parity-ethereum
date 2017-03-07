@@ -50,9 +50,6 @@ contract WalletAbi {
 
   function changeRequirement(uint _newRequired) external;
 
-  // Gets an owner by 0-indexed position (using numOwners as the count)
-  function getOwner(uint ownerIndex) external constant returns (address);
-
   function isOwner(address _addr) constant returns (bool);
 
   function hasConfirmed(bytes32 _operation, address _owner) external constant returns (bool);
@@ -60,14 +57,11 @@ contract WalletAbi {
   // (re)sets the daily limit. needs many of the owners to confirm. doesn't alter the amount already spent today.
   function setDailyLimit(uint _newLimit) external;
 
-  // resets the amount already spent today. needs many of the owners to confirm.
-  function resetSpentToday() external;
-
   function execute(address _to, uint _value, bytes _data) external returns (bytes32 o_hash);
   function confirm(bytes32 _h) returns (bool o_success);
 }
 
-contract WalletLibrary is WalletEvents, WalletAbi {
+contract WalletLibrary is WalletEvents {
   // TYPES
 
   // struct for the status of a pending operation.
@@ -451,7 +445,7 @@ contract Wallet is WalletEvents {
   }
 
   // FIELDS
-  address constant _walletLibrary = 0xcafecafecafecafecafecafecafecafecafecafe;
+  address constant _walletLibrary = 0xb28B7aFA58C75F55E4dEd3E83a4496FA9a8a7382;
 
   // the number of owners that must confirm the same operation before it is run.
   uint public m_required;
