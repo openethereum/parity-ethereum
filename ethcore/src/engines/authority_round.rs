@@ -311,7 +311,6 @@ impl Engine for AuthorityRound {
 		// Give one step slack if step is lagging, double vote is still not possible.
 		if self.is_future_step(header_step) {
 			trace!(target: "engine", "verify_block_unordered: block from the future");
-			self.validators.report_benign(header.author());
 			Err(BlockError::InvalidSeal)?
 		} else {
 			let proposer_signature = header_signature(header)?;
