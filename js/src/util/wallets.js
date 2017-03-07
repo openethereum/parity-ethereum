@@ -26,6 +26,7 @@ import WalletAbi from '~/contracts/abi/wallet.json';
 const LS_PENDING_CONTRACTS_KEY = '_parity::wallets::pendingContracts';
 
 const _cachedWalletLookup = {};
+let _cachedAccounts = {};
 
 export default class WalletsUtils {
   static getPendingContracts () {
@@ -56,40 +57,48 @@ export default class WalletsUtils {
     WalletsUtils.setPendingContracts(nextContracts);
   }
 
+  static cacheAccounts (accounts) {
+    _cachedAccounts = accounts;
+  }
+
   static getCallArgs (api, options, values = []) {
     const walletContract = new Contract(api, WalletAbi);
+    const walletAddress = options.from;
 
-    const promises = [
-      api.parity.allAccountsInfo(),
-      WalletsUtils.fetchOwners(walletContract.at(options.from))
-    ];
+    return WalletsUtils
+      .fetchOwners(walletContract.at(walletAddress))
+      .then((owners) => {
+        const addresses = Object.keys(_cachedAccounts);
+        const ownerAddress = intersection(addresses, owners).pop();
 
-    return Promise
-      .all(promises)
-      .then(([ accounts, owners ]) => {
-        const addresses = Object.keys(accounts);
-        const owner = intersection(addresses, owners).pop();
-
-        if (!owner) {
+        if (!ownerAddress) {
           return false;
         }
 
+        const account = _cachedAccounts[ownerAddress];
         const _options = { ...options };
-        const { from, to, value = new BigNumber(0), data } = options;
+        const { to, value = new BigNumber(0), data } = _options;
 
         delete _options.data;
 
         const nextValues = [ to, value, data ];
         const nextOptions = {
           ..._options,
-          from: owner,
-          to: from,
+          from: ownerAddress,
+          to: walletAddress,
           value: new BigNumber(0)
         };
 
         const execFunc = walletContract.instance.execute;
+        const callArgs = { func: execFunc, options: nextOptions, values: nextValues };
 
-        return { func: execFunc, options: nextOptions, values: nextValues };
+        if (!account.wallet) {
+          return callArgs;
+        }
+
+        const nextData = walletContract.getCallData(execFunc, nextOptions, nextValues);
+
+        return WalletsUtils.getCallArgs(api, { ...nextOptions, data: nextData }, nextValues);
       });
   }
 
@@ -298,23 +307,39 @@ export default class WalletsUtils {
 
           if (log.params.operation) {
             const operation = bytesToHex(log.params.operation.value);
-            const pendingContract = pendingContracts[operation];
 
             // Add the pending contract to the contracts
-            if (pendingContract && pendingContract.address === walletContract.address) {
-              const { metadata } = pendingContract;
-              const contractAddress = log.params.created && log.params.created.value;
+            if (pendingContracts[operation]) {
+              const { metadata } = pendingContracts[operation];
               const contractName = metadata.name;
 
               metadata.blockNumber = log.blockNumber;
 
-              Promise
-                .all([
-                  api.parity.setAccountName(contractAddress, contractName),
-                  api.parity.setAccountMeta(contractAddress, metadata)
-                ])
-                .then(() => {
-                  WalletsUtils.removePendingContract(operation);
+              // The contract creation might not be in the same log,
+              // but must be in the same transaction (eg. Contract creation
+              // from Wallet within a Wallet)
+              api.eth
+                .getTransactionReceipt(log.transactionHash)
+                .then((transactionReceipt) => {
+                  const transactionLogs = WalletsUtils.parseLogs(api, transactionReceipt.logs);
+                  const creationLog = transactionLogs.find((log) => {
+                    return log.params.created && !/^(0x)?0*$/.test(log.params.created.value);
+                  });
+
+                  if (!creationLog) {
+                    return false;
+                  }
+
+                  const contractAddress = creationLog.params.created.value;
+
+                  return Promise
+                    .all([
+                      api.parity.setAccountName(contractAddress, contractName),
+                      api.parity.setAccountMeta(contractAddress, metadata)
+                    ])
+                    .then(() => {
+                      WalletsUtils.removePendingContract(operation);
+                    });
                 })
                 .catch((error) => {
                   console.error('adding wallet contract', error);

@@ -120,6 +120,10 @@ export function personalAccountsInfo (accountsInfo) {
           contacts[wallet.address] = wallet;
         });
 
+        // Cache the _real_ accounts for
+        // WalletsUtils (used for sending transactions)
+        WalletsUtils.cacheAccounts(accounts);
+
         dispatch(_personalAccountsInfo({
           accountsInfo,
           accounts,
