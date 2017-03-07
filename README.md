@@ -100,7 +100,11 @@ $ cargo build --release
 ```
 
 This will produce an executable in the `./target/release` subdirectory.
+Note: if cargo fails to parse manifest try:
 
+```bash
+$ ~/.cargo/bin/cargo build --release
+```
 ----
 
 ## Simple one-line installer for Mac and Ubuntu

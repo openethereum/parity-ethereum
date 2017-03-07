@@ -15,22 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { FormattedMessage } from 'react-intl';
 import BigNumber from 'bignumber.js';
 
-import ActionDelete from 'material-ui/svg-icons/action/delete';
-import AvPlayArrow from 'material-ui/svg-icons/av/play-arrow';
-import ContentCreate from 'material-ui/svg-icons/content/create';
-import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
-import ContentClear from 'material-ui/svg-icons/content/clear';
-
+import { EditMeta, ExecuteContract } from '~/modals';
 import { newError } from '~/redux/actions';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
-
-import { EditMeta, ExecuteContract } from '~/modals';
 import { Actionbar, Button, Page, Portal } from '~/ui';
+import { CancelIcon, DeleteIcon, EditIcon, PlayIcon, VisibleIcon } from '~/ui/Icons';
 import Editor from '~/ui/Editor';
 
 import Header from '../Account/Header';
@@ -53,7 +47,7 @@ class Contract extends Component {
     accountsInfo: PropTypes.object,
     balances: PropTypes.object,
     contracts: PropTypes.object,
-    isTest: PropTypes.bool,
+    netVersion: PropTypes.string.isRequired,
     params: PropTypes.object
   };
 
@@ -121,7 +115,7 @@ class Contract extends Component {
   }
 
   render () {
-    const { accountsInfo, balances, contracts, params, isTest } = this.props;
+    const { accountsInfo, balances, contracts, netVersion, params } = this.props;
     const { allEvents, contract, queryValues, loadingEvents } = this.state;
     const account = contracts[params.address];
     const balance = balances[params.address];
@@ -150,9 +144,9 @@ class Contract extends Component {
             values={ queryValues }
           />
           <Events
-            isTest={ isTest }
             isLoading={ loadingEvents }
             events={ allEvents }
+            netVersion={ netVersion }
           />
           { this.renderDetails(account) }
         </Page>
@@ -191,8 +185,13 @@ class Contract extends Component {
 
     const cancelBtn = (
       <Button
-        icon={ <ContentClear /> }
-        label='Close'
+        icon={ <CancelIcon /> }
+        label={
+          <FormattedMessage
+            id='contract.buttons.close'
+            defaultMessage='Close'
+          />
+        }
         onClick={ this.closeDetailsDialog }
       />
     );
@@ -202,7 +201,12 @@ class Contract extends Component {
         buttons={ [ cancelBtn ] }
         onClose={ this.closeDetailsDialog }
         open
-        title={ 'contract details' }
+        title={
+          <FormattedMessage
+            id='contract.details.title'
+            defaultMessage='contract details'
+          />
+        }
       >
         <div className={ styles.details }>
           { this.renderSource(contract) }
@@ -243,33 +247,58 @@ class Contract extends Component {
     const buttons = [
       <Button
         key='execute'
-        icon={ <AvPlayArrow /> }
-        label='execute'
+        icon={ <PlayIcon /> }
+        label={
+          <FormattedMessage
+            id='contract.buttons.execute'
+            defaultMessage='execute'
+          />
+        }
         onClick={ this.showExecuteDialog }
       />,
       <Button
         key='editmeta'
-        icon={ <ContentCreate /> }
-        label='edit'
+        icon={ <EditIcon /> }
+        label={
+          <FormattedMessage
+            id='contract.buttons.edit'
+            defaultMessage='edit'
+          />
+        }
         onClick={ this.showEditDialog }
       />,
       <Button
         key='delete'
-        icon={ <ActionDelete /> }
-        label='forget'
+        icon={ <DeleteIcon /> }
+        label={
+          <FormattedMessage
+            id='contract.buttons.forget'
+            defaultMessage='forget'
+          />
+        }
         onClick={ this.showDeleteDialog }
       />,
       <Button
         key='viewDetails'
-        icon={ <EyeIcon /> }
-        label='details'
+        icon={ <VisibleIcon /> }
+        label={
+          <FormattedMessage
+            id='contract.buttons.details'
+            defaultMessage='details'
+          />
+        }
         onClick={ this.showDetailsDialog }
       />
     ];
 
     return (
       <Actionbar
-        title='Contract Information'
+        title={
+          <FormattedMessage
+            id='contract.title'
+            defaultMessage='Contract Information'
+          />
+        }
         buttons={ !account ? [] : buttons }
       />
     );
@@ -489,14 +518,14 @@ class Contract extends Component {
 function mapStateToProps (state) {
   const { accounts, accountsInfo, contracts } = state.personal;
   const { balances } = state.balances;
-  const { isTest } = state.nodeStatus;
+  const { netVersion } = state.nodeStatus;
 
   return {
-    isTest,
     accounts,
     accountsInfo,
+    balances,
     contracts,
-    balances
+    netVersion
   };
 }
 

@@ -44,6 +44,8 @@ pub trait Generator {
 	fn generate(self) -> Result<KeyPair, Error>;
 }
 
+pub mod math;
+
 pub use self::brain::Brain;
 pub use self::error::Error;
 pub use self::keypair::{KeyPair, public_to_address};

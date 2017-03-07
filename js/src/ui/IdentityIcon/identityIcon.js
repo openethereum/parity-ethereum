@@ -33,6 +33,7 @@ class IdentityIcon extends Component {
     button: PropTypes.bool,
     center: PropTypes.bool,
     className: PropTypes.string,
+    disabled: PropTypes.bool,
     images: PropTypes.object.isRequired,
     inline: PropTypes.bool,
     padded: PropTypes.bool,
@@ -83,10 +84,11 @@ class IdentityIcon extends Component {
   }
 
   render () {
-    const { address, button, className, center, inline, padded, tiny } = this.props;
+    const { address, button, className, center, disabled, inline, padded, tiny } = this.props;
     const { iconsrc } = this.state;
     const classes = [
       styles.icon,
+      disabled ? styles.disabled : '',
       tiny ? styles.tiny : '',
       button ? styles.button : '',
       center ? styles.center : styles.left,

@@ -14,9 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
 import { observer } from 'mobx-react';
+import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
 
+import HardwareStore from '~/mobx/hardwareStore';
 import { Button, GasPriceEditor } from '~/ui';
 
 import TransactionMainDetails from '../TransactionMainDetails';
@@ -27,24 +30,25 @@ import styles from './transactionPending.css';
 import * as tUtil from '../util/transaction';
 
 @observer
-export default class TransactionPending extends Component {
+class TransactionPending extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
 
   static propTypes = {
+    accounts: PropTypes.object.isRequired,
     className: PropTypes.string,
     date: PropTypes.instanceOf(Date).isRequired,
     focus: PropTypes.bool,
     gasLimit: PropTypes.object,
     id: PropTypes.object.isRequired,
     isSending: PropTypes.bool.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     nonce: PropTypes.number,
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
     origin: PropTypes.any,
-    store: PropTypes.object.isRequired,
+    signerstore: PropTypes.object.isRequired,
     transaction: PropTypes.shape({
       condition: PropTypes.object,
       data: PropTypes.string,
@@ -71,8 +75,10 @@ export default class TransactionPending extends Component {
     gasPrice: this.props.transaction.gasPrice.toFixed()
   });
 
+  hwstore = HardwareStore.get(this.context.api);
+
   componentWillMount () {
-    const { store, transaction } = this.props;
+    const { signerstore, transaction } = this.props;
     const { from, gas, gasPrice, to, value } = transaction;
 
     const fee = tUtil.getFee(gas, gasPrice); // BigNumber object
@@ -82,7 +88,7 @@ export default class TransactionPending extends Component {
 
     this.setState({ gasPriceEthmDisplay, totalValue, gasToDisplay });
     this.gasStore.setEthValue(value);
-    store.fetchBalances([from, to]);
+    signerstore.fetchBalances([from, to]);
   }
 
   render () {
@@ -92,30 +98,34 @@ export default class TransactionPending extends Component {
   }
 
   renderTransaction () {
-    const { className, focus, id, isSending, isTest, store, transaction, origin } = this.props;
+    const { accounts, className, focus, id, isSending, netVersion, origin, signerstore, transaction } = this.props;
     const { totalValue } = this.state;
-    const { balances, externalLink } = store;
+    const { balances, externalLink } = signerstore;
     const { from, value } = transaction;
-
     const fromBalance = balances[from];
+    const account = accounts[from] || {};
+    const disabled = account.hardware && !this.hwstore.isConnected(from);
 
     return (
       <div className={ `${styles.container} ${className}` }>
         <TransactionMainDetails
           className={ styles.transactionDetails }
+          disabled={ disabled }
           externalLink={ externalLink }
           from={ from }
           fromBalance={ fromBalance }
           gasStore={ this.gasStore }
           id={ id }
-          isTest={ isTest }
+          netVersion={ netVersion }
           origin={ origin }
           totalValue={ totalValue }
           transaction={ transaction }
           value={ value }
         />
         <TransactionPendingForm
+          account={ account }
           address={ from }
+          disabled={ disabled }
           focus={ focus }
           isSending={ isSending }
           onConfirm={ this.onConfirm }
@@ -132,7 +142,12 @@ export default class TransactionPending extends Component {
       <div className={ `${styles.container} ${className}` }>
         <GasPriceEditor store={ this.gasStore }>
           <Button
-            label='view transaction'
+            label={
+              <FormattedMessage
+                id='signer.txPending.buttons.viewToggle'
+                defaultMessage='view transaction'
+              />
+            }
             onClick={ this.toggleGasEditor }
           />
         </GasPriceEditor>
@@ -168,3 +183,16 @@ export default class TransactionPending extends Component {
     this.gasStore.setEditing(false);
   }
 }
+
+function mapStateToProps (state) {
+  const { accounts } = state.personal;
+
+  return {
+    accounts
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(TransactionPending);

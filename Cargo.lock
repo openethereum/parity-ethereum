@@ -344,7 +344,7 @@ dependencies = [
 [[package]]
 name = "eth-secp256k1"
 version = "0.5.6"
-source = "git+https://github.com/ethcore/rust-secp256k1#edab95f5569e4fb97579dc8947be96e7ac789c16"
+source = "git+https://github.com/ethcore/rust-secp256k1#98ad9b9ecae44a563efdd64273bcebc6b4ed81c6"
 dependencies = [
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "gcc 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -976,7 +976,7 @@ dependencies = [
 [[package]]
 name = "hyper"
 version = "0.10.0-a.0"
-source = "git+https://github.com/ethcore/hyper#2e6702984f4f9e99fe251537a755aff0badc0b3a"
+source = "git+https://github.com/ethcore/hyper#453c683b52208fefc32d29e4ac7c863439b2321f"
 dependencies = [
  "cookie 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1706,7 +1706,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#d3afc8594280284e0cc75b8db123ec543085ddc0"
+source = "git+https://github.com/ethcore/js-precompiled.git#94da980fb81d6145e38ca87d37a9137e8440086a"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

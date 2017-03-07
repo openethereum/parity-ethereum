@@ -410,6 +410,29 @@ struct DBAndColumns {
 	cfs: Vec<Column>,
 }
 
+// get column family configuration from database config.
+fn col_config(col: u32, config: &DatabaseConfig) -> Options {
+	// default cache size for columns not specified.
+	const DEFAULT_CACHE: usize = 2;
+
+	let mut opts = Options::new();
+	opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
+	opts.set_target_file_size_base(config.compaction.initial_file_size);
+	opts.set_target_file_size_multiplier(config.compaction.file_size_multiplier);
+
+	let col_opt = config.columns.map(|_| col);
+
+	{
+		let cache_size = config.cache_sizes.get(&col_opt).cloned().unwrap_or(DEFAULT_CACHE);
+		let mut block_opts = BlockBasedOptions::new();
+		// all goes to read cache.
+		block_opts.set_cache(Cache::new(cache_size * 1024 * 1024));
+		opts.set_block_based_table_factory(&block_opts);
+	}
+
+	opts
+}
+
 /// Key-Value database.
 pub struct Database {
 	db: RwLock<Option<DBAndColumns>>,
@@ -434,9 +457,6 @@ impl Database {
 
 	/// Open database file. Creates if it does not exist.
 	pub fn open(config: &DatabaseConfig, path: &str) -> Result<Database, String> {
-		// default cache size for columns not specified.
-		const DEFAULT_CACHE: usize = 2;
-
 		let mut opts = Options::new();
 		if let Some(rate_limit) = config.compaction.write_rate_limit {
 			opts.set_parsed_options(&format!("rate_limiter_bytes_per_sec={}", rate_limit))?;
@@ -460,22 +480,7 @@ impl Database {
 		let cfnames: Vec<&str> = cfnames.iter().map(|n| n as &str).collect();
 
 		for col in 0 .. config.columns.unwrap_or(0) {
-			let mut opts = Options::new();
-			opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
-			opts.set_target_file_size_base(config.compaction.initial_file_size);
-			opts.set_target_file_size_multiplier(config.compaction.file_size_multiplier);
-
-			let col_opt = config.columns.map(|_| col);
-
-			{
-				let cache_size = config.cache_sizes.get(&col_opt).cloned().unwrap_or(DEFAULT_CACHE);
-				let mut block_opts = BlockBasedOptions::new();
-				// all goes to read cache.
-				block_opts.set_cache(Cache::new(cache_size * 1024 * 1024));
-				opts.set_block_based_table_factory(&block_opts);
-			}
-
-			cf_options.push(opts);
+			cf_options.push(col_config(col, &config));
 		}
 
 		let mut write_opts = WriteOptions::new();
@@ -768,6 +773,42 @@ impl Database {
 		*self.flushing.write() = mem::replace(&mut *db.flushing.write(), Vec::new());
 		Ok(())
 	}
+
+	/// The number of non-default column families.
+	pub fn num_columns(&self) -> u32 {
+		self.db.read().as_ref()
+			.and_then(|db| if db.cfs.is_empty() { None } else { Some(db.cfs.len()) } )
+			.map(|n| n as u32)
+			.unwrap_or(0)
+	}
+
+	/// Drop a column family.
+	pub fn drop_column(&self) -> Result<(), String> {
+		match *self.db.write() {
+			Some(DBAndColumns { ref mut db, ref mut cfs }) => {
+				if let Some(col) = cfs.pop() {
+					let name = format!("col{}", cfs.len());
+					drop(col);
+					db.drop_cf(&name)?;
+				}
+				Ok(())
+			},
+			None => Ok(()),
+		}
+	}
+
+	/// Add a column family.
+	pub fn add_column(&self) -> Result<(), String> {
+		match *self.db.write() {
+			Some(DBAndColumns { ref mut db, ref mut cfs }) => {
+				let col = cfs.len() as u32;
+				let name = format!("col{}", col);
+				cfs.push(db.create_cf(&name, &col_config(col, &self.config))?);
+				Ok(())
+			},
+			None => Ok(()),
+		}
+	}
 }
 
 // duplicate declaration of methods here to avoid trait import in certain existing cases
@@ -885,5 +926,55 @@ mod tests {
 		let example_df = vec![70, 105, 108, 101, 115, 121, 115, 116, 101, 109, 32, 32, 32, 32, 32, 49, 75, 45, 98, 108, 111, 99, 107, 115, 32, 32, 32, 32, 32, 85, 115, 101, 100, 32, 65, 118, 97, 105, 108, 97, 98, 108, 101, 32, 85, 115, 101, 37, 32, 77, 111, 117, 110, 116, 101, 100, 32, 111, 110, 10, 47, 100, 101, 118, 47, 115, 100, 97, 49, 32, 32, 32, 32, 32, 32, 32, 54, 49, 52, 48, 57, 51, 48, 48, 32, 51, 56, 56, 50, 50, 50, 51, 54, 32, 32, 49, 57, 52, 52, 52, 54, 49, 54, 32, 32, 54, 55, 37, 32, 47, 10];
 		let expected_output = Some(PathBuf::from("/sys/block/sda/queue/rotational"));
 		assert_eq!(rotational_from_df_output(example_df), expected_output);
+	}
+
+	#[test]
+	fn add_columns() {
+		let config = DatabaseConfig::default();
+		let config_5 = DatabaseConfig::with_columns(Some(5));
+
+		let path = RandomTempPath::create_dir();
+
+		// open empty, add 5.
+		{
+			let db = Database::open(&config, path.as_path().to_str().unwrap()).unwrap();
+			assert_eq!(db.num_columns(), 0);
+
+			for i in 0..5 {
+				db.add_column().unwrap();
+				assert_eq!(db.num_columns(), i + 1);
+			}
+		}
+
+		// reopen as 5.
+		{
+			let db = Database::open(&config_5, path.as_path().to_str().unwrap()).unwrap();
+			assert_eq!(db.num_columns(), 5);
+		}
+	}
+
+	#[test]
+	fn drop_columns() {
+		let config = DatabaseConfig::default();
+		let config_5 = DatabaseConfig::with_columns(Some(5));
+
+		let path = RandomTempPath::create_dir();
+
+		// open 5, remove all.
+		{
+			let db = Database::open(&config_5, path.as_path().to_str().unwrap()).unwrap();
+			assert_eq!(db.num_columns(), 5);
+
+			for i in (0..5).rev() {
+				db.drop_column().unwrap();
+				assert_eq!(db.num_columns(), i);
+			}
+		}
+
+		// reopen as 0.
+		{
+			let db = Database::open(&config, path.as_path().to_str().unwrap()).unwrap();
+			assert_eq!(db.num_columns(), 0);
+		}
 	}
 }

@@ -109,6 +109,7 @@
   display: flex;
 
   .icon {
+    color: rgb(167, 151, 0) !important;
     flex: 0 0 56px;
     height: 56px !important;
     margin-right: 0.75em;

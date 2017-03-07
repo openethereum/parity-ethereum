@@ -35,7 +35,7 @@ class TxRow extends Component {
   static propTypes = {
     accountAddresses: PropTypes.array.isRequired,
     address: PropTypes.string.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     tx: PropTypes.object.isRequired,
 
     block: PropTypes.object,
@@ -48,7 +48,7 @@ class TxRow extends Component {
   };
 
   render () {
-    const { tx, address, isTest, historic, className } = this.props;
+    const { address, className, historic, netVersion, tx } = this.props;
 
     return (
       <tr className={ className || '' }>
@@ -60,7 +60,7 @@ class TxRow extends Component {
           <div>
             <a
               className={ styles.link }
-              href={ txLink(tx.hash, isTest) }
+              href={ txLink(tx.hash, false, netVersion) }
               target='_blank'
             >
               { `${tx.hash.substr(2, 6)}...${tx.hash.slice(-6)}` }
@@ -156,8 +156,13 @@ function mapStateToProps (initState) {
   const { accounts } = initState.personal;
   const accountAddresses = Object.keys(accounts);
 
-  return () => {
-    return { accountAddresses };
+  return (state) => {
+    const { netVersion } = state.nodeStatus;
+
+    return {
+      accountAddresses,
+      netVersion
+    };
   };
 }
 
@@ -165,4 +170,3 @@ export default connect(
   mapStateToProps,
   null
 )(TxRow);
-

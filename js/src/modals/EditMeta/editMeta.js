@@ -21,11 +21,10 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { Button, Form, Input, InputAddress, InputChip, Portal } from '~/ui';
+import { Button, Form, Input, InputChip, Portal, VaultSelect } from '~/ui';
 import { CancelIcon, SaveIcon } from '~/ui/Icons';
 import VaultStore from '~/views/Vaults/store';
 
-import VaultSelector from '../VaultSelector';
 import Store from './store';
 
 @observer
@@ -48,11 +47,12 @@ class EditMeta extends Component {
   }
 
   render () {
-    const { description, name, nameError, tags } = this.store;
+    const { description, isBusy, name, nameError, tags } = this.store;
 
     return (
       <Portal
         buttons={ this.renderActions() }
+        busy={ isBusy }
         onClose={ this.onClose }
         open
         title={
@@ -62,7 +62,6 @@ class EditMeta extends Component {
           />
         }
       >
-        { this.renderVaultSelector() }
         <Form>
           <Input
             autoFocus
@@ -110,7 +109,7 @@ class EditMeta extends Component {
             onTokensChange={ this.store.setTags }
             tokens={ tags.slice() }
           />
-          { this.renderVault() }
+          { this.renderVaultSelector() }
         </Form>
       </Portal>
     );
@@ -163,7 +162,7 @@ class EditMeta extends Component {
     );
   }
 
-  renderVault () {
+  renderVaultSelector () {
     const { isAccount, vaultName } = this.store;
 
     if (!isAccount) {
@@ -171,40 +170,9 @@ class EditMeta extends Component {
     }
 
     return (
-      <InputAddress
-        allowCopy={ false }
-        allowInvalid
-        readOnly
-        hint={
-          <FormattedMessage
-            id='editMeta.vault.hint'
-            defaultMessage='the vault this account is attached to'
-          />
-        }
-        label={
-          <FormattedMessage
-            id='editMeta.vault.label'
-            defaultMessage='associated vault'
-          />
-        }
-        onClick={ this.toggleVaultSelector }
-        value={ vaultName }
-      />
-    );
-  }
-
-  renderVaultSelector () {
-    const { isAccount, isVaultSelectorOpen, vaultName } = this.store;
-
-    if (!isAccount || !isVaultSelectorOpen) {
-      return null;
-    }
-
-    return (
-      <VaultSelector
-        onClose={ this.toggleVaultSelector }
+      <VaultSelect
         onSelect={ this.setVaultName }
-        selected={ vaultName }
+        value={ vaultName }
         vaultStore={ this.vaultStore }
       />
     );
@@ -215,21 +183,12 @@ class EditMeta extends Component {
   }
 
   onSave = () => {
-    const { address, isAccount, meta, vaultName } = this.store;
-
     if (this.store.hasError) {
       return;
     }
 
     return this.store
-      .save()
-      .then(() => {
-        if (isAccount && (meta.vault !== vaultName)) {
-          return this.vaultStore.moveAccount(vaultName, address);
-        }
-
-        return true;
-      })
+      .save(this.vaultStore)
       .then(this.onClose)
       .catch((error) => {
         this.props.newError(error);
@@ -238,11 +197,6 @@ class EditMeta extends Component {
 
   setVaultName = (vaultName) => {
     this.store.setVaultName(vaultName);
-    this.toggleVaultSelector();
-  }
-
-  toggleVaultSelector = () => {
-    this.store.toggleVaultSelector();
   }
 }
 

@@ -17,7 +17,7 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import { ADDRESS, createRedux } from './account.test.js';
+import { ACCOUNTS, ADDRESS, createRedux } from './account.test.js';
 
 import Account from './';
 
@@ -28,10 +28,15 @@ let store;
 function render (props) {
   component = shallow(
     <Account
+      accounts={ ACCOUNTS }
       params={ { address: ADDRESS } }
       { ...props }
     />,
-    { context: { store: createRedux() } }
+    {
+      context: {
+        store: createRedux()
+      }
+    }
   ).find('Account').shallow();
   instance = component.instance();
   store = instance.store;
@@ -133,14 +138,14 @@ describe('views/Account', () => {
         render();
 
         expect(store.isDeleteVisible).to.be.false;
-        expect(instance.renderDeleteDialog()).to.be.null;
+        expect(instance.renderDeleteDialog(ACCOUNTS[ADDRESS])).to.be.null;
       });
 
       it('renders the modal when visible', () => {
         render();
 
         store.toggleDeleteDialog();
-        expect(instance.renderDeleteDialog().type).to.match(/Connect/);
+        expect(instance.renderDeleteDialog(ACCOUNTS[ADDRESS]).type).to.match(/Connect/);
       });
     });
 
@@ -149,14 +154,14 @@ describe('views/Account', () => {
         render();
 
         expect(store.isEditVisible).to.be.false;
-        expect(instance.renderEditDialog()).to.be.null;
+        expect(instance.renderEditDialog(ACCOUNTS[ADDRESS])).to.be.null;
       });
 
       it('renders the modal when visible', () => {
         render();
 
         store.toggleEditDialog();
-        expect(instance.renderEditDialog({ address: ADDRESS }).type).to.match(/Connect/);
+        expect(instance.renderEditDialog(ACCOUNTS[ADDRESS]).type).to.match(/Connect/);
       });
     });
 

@@ -15,18 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import moment from 'moment';
 
-import ContentCreate from 'material-ui/svg-icons/content/create';
-import ActionDelete from 'material-ui/svg-icons/action/delete';
-import ContentSend from 'material-ui/svg-icons/content/send';
-import SettingsIcon from 'material-ui/svg-icons/action/settings';
-
-import { nullableProptype } from '~/util/proptypes';
 import { EditMeta, Transfer, WalletSettings } from '~/modals';
 import { Actionbar, Button, Page, Loading } from '~/ui';
+import { DeleteIcon, EditIcon, SendIcon, SettingsIcon } from '~/ui/Icons';
+import { nullableProptype } from '~/util/proptypes';
 
 import Delete from '../Address/Delete';
 import Header from '../Account/Header';
@@ -40,20 +37,23 @@ import styles from './wallet.css';
 
 class WalletContainer extends Component {
   static propTypes = {
-    isTest: PropTypes.any
+    netVersion: PropTypes.string.isRequired
   };
 
   render () {
-    const { isTest, ...others } = this.props;
+    const { netVersion, ...others } = this.props;
 
-    if (isTest !== false && isTest !== true) {
+    if (netVersion === '0') {
       return (
         <Loading size={ 4 } />
       );
     }
 
     return (
-      <Wallet isTest={ isTest } { ...others } />
+      <Wallet
+        netVersion={ netVersion }
+        { ...others }
+      />
     );
   }
 }
@@ -66,7 +66,7 @@ class Wallet extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
     balance: nullableProptype(PropTypes.object.isRequired),
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     owned: PropTypes.bool.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired,
     wallet: PropTypes.object.isRequired,
@@ -166,18 +166,22 @@ class Wallet extends Component {
       <div>
         <br />
         <p>
-          <span className={ styles.detail }>{ spent }<span className={ styles.eth } /></span>
-          <span>has been spent today, out of</span>
-          <span className={ styles.detail }>{ limit }<span className={ styles.eth } /></span>
-          <span>set as the daily limit, which has been reset on</span>
-          <span className={ styles.detail }>{ date.format('LL') }</span>
+          <FormattedMessage
+            id='wallet.details.spent'
+            defaultMessage='{spent} has been spent today, out of {limit} set as the daily limit, which has been reset on {date}'
+            values={ {
+              date: <span className={ styles.detail }>{ date.format('LL') }</span>,
+              limit: <span className={ styles.detail }>{ limit }<span className={ styles.eth } /></span>,
+              spent: <span className={ styles.detail }>{ spent }<span className={ styles.eth } /></span>
+            } }
+          />
         </p>
       </div>
     );
   }
 
   renderDetails () {
-    const { address, isTest, wallet } = this.props;
+    const { address, netVersion, wallet } = this.props;
     const { owners, require, confirmations, transactions } = wallet;
 
     if (!owners || !require) {
@@ -190,19 +194,19 @@ class Wallet extends Component {
 
     return [
       <WalletConfirmations
+        address={ address }
+        confirmations={ confirmations }
+        netVersion={ netVersion }
         key='confirmations'
         owners={ owners }
         require={ require }
-        confirmations={ confirmations }
-        isTest={ isTest }
-        address={ address }
       />,
 
       <WalletTransactions
+        address={ address }
+        netVersion={ netVersion }
         key='transactions'
         transactions={ transactions }
-        address={ address }
-        isTest={ isTest }
       />
     ];
   }
@@ -216,10 +220,15 @@ class Wallet extends Component {
     if (owned) {
       buttons.push(
         <Button
-          key='transferFunds'
-          icon={ <ContentSend /> }
-          label='transfer'
           disabled={ !showTransferButton }
+          icon={ <SendIcon /> }
+          key='transferFunds'
+          label={
+            <FormattedMessage
+              id='wallet.buttons.transfer'
+              defaultMessage='transfer'
+            />
+          }
           onClick={ this.onTransferClick }
         />
       );
@@ -227,18 +236,28 @@ class Wallet extends Component {
 
     buttons.push(
       <Button
+        icon={ <DeleteIcon /> }
         key='delete'
-        icon={ <ActionDelete /> }
-        label='delete'
+        label={
+          <FormattedMessage
+            id='wallet.buttons.forget'
+            defaultMessage='forget'
+          />
+        }
         onClick={ this.showDeleteDialog }
       />
     );
 
     buttons.push(
       <Button
+        icon={ <EditIcon /> }
         key='editmeta'
-        icon={ <ContentCreate /> }
-        label='edit'
+        label={
+          <FormattedMessage
+            id='wallet.buttons.edit'
+            defaultMessage='edit'
+          />
+        }
         onClick={ this.onEditClick }
       />
     );
@@ -246,9 +265,14 @@ class Wallet extends Component {
     if (owned) {
       buttons.push(
         <Button
-          key='settings'
           icon={ <SettingsIcon /> }
-          label='settings'
+          key='settings'
+          label={
+            <FormattedMessage
+              id='wallet.buttons.settings'
+              defaultMessage='settings'
+            />
+          }
           onClick={ this.onSettingsClick }
         />
       );
@@ -256,8 +280,13 @@ class Wallet extends Component {
 
     return (
       <Actionbar
-        title='Wallet Management'
         buttons={ buttons }
+        title={
+          <FormattedMessage
+            id='wallet.title'
+            defaultMessage='Wallet Management'
+          />
+        }
       />
     );
   }
@@ -360,7 +389,7 @@ function mapStateToProps (_, initProps) {
   const { address } = initProps.params;
 
   return (state) => {
-    const { isTest } = state.nodeStatus;
+    const { netVersion } = state.nodeStatus;
     const { accountsInfo = {}, accounts = {} } = state.personal;
     const { balances } = state.balances;
     const walletAccount = accounts[address] || accountsInfo[address] || null;
@@ -376,7 +405,7 @@ function mapStateToProps (_, initProps) {
     return {
       address,
       balance,
-      isTest,
+      netVersion,
       owned,
       wallet,
       walletAccount
