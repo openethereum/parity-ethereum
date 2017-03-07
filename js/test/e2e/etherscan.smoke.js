@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import JsonRpc from './jsonrpc';
-
-export default JsonRpc;
+describe('@parity/etherscan smoke test', () => {
+  it('can be required', () => {
+    expect(() => require('../../npm/etherscan')).to.not.throw();
+  });
+});

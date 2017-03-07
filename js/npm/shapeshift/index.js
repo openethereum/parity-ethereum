@@ -14,13 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const parity = require('../');
-
-describe('load the Parity library', function () {
-  it('should no throw any error', () => {
-    expect(parity).to.be.ok;
-
-    expect(parity.Api).to.be.ok;
-    expect(parity.Abi).to.be.ok;
-  });
-});
+module.exports = require('./dist').default;

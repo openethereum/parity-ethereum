@@ -2,7 +2,8 @@
   "name": "@parity/jsonrpc",
   "description": "JSON and JS interface defintions for RPC",
   "version": "0.0.0",
-  "main": "library.js",
+  "main": "index.js",
+  "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
   "maintainers": [
     "Jaco Greeff"
@@ -20,10 +21,11 @@
     "RPC",
     "Parity"
   ],
-  "scripts": {
+  "peerDependencies": {
   },
   "devDependencies": {
   },
   "dependencies": {
+    "babel-runtime": "^6.23.0"
   }
 }

@@ -6,9 +6,17 @@ Parity.js is a thin, fast, Promise-based wrapper around the Ethereum APIs.
 
 ## installation
 
-Install the package with `npm install --save @parity/parity.js`
+```
+npm install --save @parity/etherscan
+```
 
 ## usage
+
+You will need to include [a `fetch` polyfill](https://github.com/matthew-andrews/isomorphic-fetch) if your target platform doesn't support [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch) natively.
+
+```js
+import 'isomorphic-fetch';
+```
 
 ### initialisation
 
@@ -80,4 +88,4 @@ contract.instance
 
 ## apis
 
-APIs implement the calls as exposed in the [Ethcore JSON Ethereum RPC](https://github.com/ethcore/ethereum-rpc-json/) definitions. Mapping follows the naming conventions of the originals, i.e. `eth_call` becomes `eth.call`, `personal_accounts` becomes `personal.accounts`, etc.
+APIs implement the calls as exposed in the [`@parity/jsonrpc`](https://www.npmjs.com/package/@parity/jsonrpc) definitions. Mapping follows the naming conventions of the originals, i.e. `eth_call` becomes `eth.call`, `personal_accounts` becomes `personal.accounts`, etc.

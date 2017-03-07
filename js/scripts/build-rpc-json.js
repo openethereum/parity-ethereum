@@ -16,13 +16,10 @@
 
 import fs from 'fs';
 import path from 'path';
-import yargs from 'yargs';
-
 import interfaces from '../src/jsonrpc';
 
-const argv = yargs.default('output', 'release').argv;
+const dest = process.argv[2];
 
-const INDEX_JSON = path.join(__dirname, `../${argv.output}/index.json`);
 const methods = [];
 
 function formatDescription (obj) {
@@ -67,4 +64,5 @@ Object.keys(interfaces).sort().forEach((group) => {
   });
 });
 
-fs.writeFileSync(INDEX_JSON, JSON.stringify({ methods: methods }, null, 2), 'utf8');
+const data = JSON.stringify({ methods: methods }, null, 2);
+fs.writeFileSync(path.join(__dirname, '..', dest), data);

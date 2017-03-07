@@ -14,16 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-try {
-  const JsonRpc = require('../npm/jsonrpc').default;
-
-  if (typeof JsonRpc !== 'object') {
-    throw new Error('JsonRpc');
-  }
-
-  console.log('JSON RPC Endpoints:', Object.keys(JsonRpc));
-  process.exit(0);
-} catch (e) {
-  console.error('An error occured:', e.toString().split('\n')[0]);
-  process.exit(1);
-}
+describe('@parity/shapeshift smoke test', () => {
+  it('can be required', () => {
+    expect(() => require('../../npm/shapeshift')).to.not.throw();
+  });
+});

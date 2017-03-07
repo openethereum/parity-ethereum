@@ -38,12 +38,12 @@
     "ci:build:app": "NODE_ENV=production webpack --config webpack/app",
     "ci:build:lib": "NODE_ENV=production webpack --config webpack/libraries",
     "ci:build:dll": "NODE_ENV=production webpack --config webpack/vendor",
-    "ci:build:npm": "NODE_ENV=production webpack --config webpack/npm",
-    "ci:build:jsonrpc": "babel-node ./scripts/build-rpc-json.js --output .npmjs/jsonrpc",
+    "ci:build:npm": "NODE_ENV=production babel npm/$LIBRARY/src --out-dir npm/$LIBRARY/dist --ignore spec.js --source-maps",
+    "ci:build:jsonrpc": "babel-node ./scripts/build-rpc-json.js npm/jsonrpc/index.json",
     "ci:build:embed": "NODE_ENV=production EMBED=1 node webpack/embed",
     "start": "npm install && npm run build:lib && npm run build:dll && npm run start:app",
     "start:app": "node webpack/dev.server",
-    "clean": "rm -rf ./.build ./.coverage ./.happypack ./.npmjs ./build ./node_modules/.cache",
+    "clean": "rm -rf ./.build ./.coverage ./.happypack ./npm/*/src/** ./npm/*/dist/** ./build ./node_modules/.cache",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "npm run lint:css && npm run lint:js",
     "lint:cached": "npm run lint:css && npm run lint:js:cached",
@@ -53,7 +53,7 @@
     "test": "NODE_ENV=test mocha --compilers ejs:ejsify 'src/**/*.spec.js'",
     "test:coverage": "NODE_ENV=test istanbul cover _mocha -- --compilers ejs:ejsify 'src/**/*.spec.js'",
     "test:e2e": "NODE_ENV=test mocha 'src/**/*.e2e.js'",
-    "test:npm": "(cd .npmjs && npm i) && node test/npmParity && node test/npmJsonRpc && (rm -rf .npmjs/node_modules)",
+    "test:npm": "node test/npmParity && node test/npmJsonRpc",
     "prepush": "npm run lint:cached"
   },
   "devDependencies": {
@@ -142,8 +142,7 @@
     "webpack-dev-middleware": "1.9.0",
     "webpack-error-notification": "0.1.6",
     "webpack-hot-middleware": "2.14.0",
-    "websocket": "1.0.24",
-    "yargs": "6.6.0"
+    "websocket": "1.0.24"
   },
   "dependencies": {
     "base32.js": "0.1.0",

@@ -2,7 +2,8 @@
   "name": "@parity/shapeshift",
   "description": "The Parity Promise-based library for interfacing with ShapeShift over HTTP",
   "version": "0.0.0",
-  "main": "library.js",
+  "main": "index.js",
+  "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
   "maintainers": [
     "Jaco Greeff"
@@ -21,11 +22,12 @@
     "Parity",
     "Promise"
   ],
-  "scripts": {
+  "peerDependencies": {
+    "isomorphic-fetch": "^2.2.1"
   },
   "devDependencies": {
   },
   "dependencies": {
-    "node-fetch": "~1.6.3"
+    "babel-runtime": "^6.23.0"
   }
 }

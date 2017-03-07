@@ -2,7 +2,8 @@
   "name": "@parity/parity.js",
   "description": "The Parity Promise-based API & ABI library for interfacing with Ethereum over RPC",
   "version": "0.0.0",
-  "main": "library.js",
+  "main": "dist/index.js",
+  "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
   "maintainers": [
     "Jaco Greeff"
@@ -21,13 +22,19 @@
     "Parity",
     "Promise"
   ],
-  "scripts": {
+  "peerDependencies": {
+    "isomorphic-fetch": "^2.2.1"
   },
   "devDependencies": {
   },
   "dependencies": {
-    "bignumber.js": "~2.3.0",
-    "js-sha3": "~0.5.2",
-    "node-fetch": "~1.6.3"
+    "babel-runtime": "^6.23.0",
+    "bignumber.js": "^3.1.2",
+    "blockies": "^0.0.2",
+    "es6-error": "^4.0.2",
+    "eventemitter3": "^2.0.2",
+    "js-sha3": "^0.5.7",
+    "lodash": "^4.17.4",
+    "utf8": "^2.1.2"
   }
 }

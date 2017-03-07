@@ -8,3 +8,8 @@ docs
 .happypack
 .npmjs
 .eslintcache
+
+npm/*/src
+npm/*/dist
+npm/*/LICENSE
+npm/jsonrpc/index.json
