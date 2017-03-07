@@ -16,57 +16,152 @@
 
 import BigNumber from 'bignumber.js';
 import { intersection, range, uniq } from 'lodash';
+import store from 'store';
 
+import Abi from '~/abi';
 import Contract from '~/api/contract';
 import { bytesToHex, toHex } from '~/api/util/format';
 import { validateAddress } from '~/util/validation';
 import WalletAbi from '~/contracts/abi/wallet.json';
+import OldWalletAbi from '~/contracts/abi/old-wallet.json';
+
+const LS_PENDING_CONTRACTS_KEY = '_parity::wallets::pendingContracts';
 
 const _cachedWalletLookup = {};
+let _cachedAccounts = {};
+
+const walletAbi = new Abi(WalletAbi);
+const oldWalletAbi = new Abi(OldWalletAbi);
+
+const walletEvents = walletAbi.events.reduce((events, event) => {
+  events[event.name] = event;
+  return events;
+}, {});
+
+const oldWalletEvents = oldWalletAbi.events.reduce((events, event) => {
+  events[event.name] = event;
+  return events;
+}, {});
+
+const WalletSignatures = {
+  OwnerChanged: toHex(walletEvents.OwnerChanged.signature),
+  OwnerAdded: toHex(walletEvents.OwnerAdded.signature),
+  OwnerRemoved: toHex(walletEvents.OwnerRemoved.signature),
+  RequirementChanged: toHex(walletEvents.RequirementChanged.signature),
+  Confirmation: toHex(walletEvents.Confirmation.signature),
+  Revoke: toHex(walletEvents.Revoke.signature),
+  Deposit: toHex(walletEvents.Deposit.signature),
+  SingleTransact: toHex(walletEvents.SingleTransact.signature),
+  MultiTransact: toHex(walletEvents.MultiTransact.signature),
+  ConfirmationNeeded: toHex(walletEvents.ConfirmationNeeded.signature),
+
+  Old: {
+    SingleTransact: toHex(oldWalletEvents.SingleTransact.signature),
+    MultiTransact: toHex(oldWalletEvents.MultiTransact.signature)
+  }
+};
 
 export default class WalletsUtils {
+  static getWalletSignatures () {
+    return WalletSignatures;
+  }
+
+  static getPendingContracts () {
+    return store.get(LS_PENDING_CONTRACTS_KEY) || {};
+  }
+
+  static setPendingContracts (contracts = {}) {
+    return store.set(LS_PENDING_CONTRACTS_KEY, contracts);
+  }
+
+  static removePendingContract (operationHash) {
+    const nextContracts = WalletsUtils.getPendingContracts();
+
+    delete nextContracts[operationHash];
+    WalletsUtils.setPendingContracts(nextContracts);
+  }
+
+  static addPendingContract (address, operationHash, metadata) {
+    const nextContracts = {
+      ...WalletsUtils.getPendingContracts(),
+      [ operationHash ]: {
+        address,
+        metadata,
+        operationHash
+      }
+    };
+
+    WalletsUtils.setPendingContracts(nextContracts);
+  }
+
+  static cacheAccounts (accounts) {
+    _cachedAccounts = accounts;
+  }
+
   static getCallArgs (api, options, values = []) {
     const walletContract = new Contract(api, WalletAbi);
+    const walletAddress = options.from;
 
-    const promises = [
-      api.parity.accountsInfo(),
-      WalletsUtils.fetchOwners(walletContract.at(options.from))
-    ];
+    return WalletsUtils
+      .fetchOwners(walletContract.at(walletAddress))
+      .then((owners) => {
+        const addresses = Object.keys(_cachedAccounts);
+        const ownerAddress = intersection(addresses, owners).pop();
 
-    return Promise
-      .all(promises)
-      .then(([ accounts, owners ]) => {
-        const addresses = Object.keys(accounts);
-        const owner = intersection(addresses, owners).pop();
-
-        if (!owner) {
+        if (!ownerAddress) {
           return false;
         }
 
-        return owner;
-      })
-      .then((owner) => {
-        if (!owner) {
-          return false;
-        }
-
-        const _options = Object.assign({}, options);
-        const { from, to, value = new BigNumber(0), data } = options;
+        const account = _cachedAccounts[ownerAddress];
+        const _options = { ...options };
+        const { to, value = new BigNumber(0), data } = _options;
 
         delete _options.data;
 
         const nextValues = [ to, value, data ];
         const nextOptions = {
           ..._options,
-          from: owner,
-          to: from,
+          from: ownerAddress,
+          to: walletAddress,
           value: new BigNumber(0)
         };
 
         const execFunc = walletContract.instance.execute;
+        const callArgs = { func: execFunc, options: nextOptions, values: nextValues };
 
-        return { func: execFunc, options: nextOptions, values: nextValues };
+        if (!account.wallet) {
+          return callArgs;
+        }
+
+        const nextData = walletContract.getCallData(execFunc, nextOptions, nextValues);
+
+        return WalletsUtils.getCallArgs(api, { ...nextOptions, data: nextData }, nextValues);
       });
+  }
+
+  static getDeployArgs (contract, options, values) {
+    const { api } = contract;
+    const func = contract.constructors[0];
+
+    options.data = contract.getCallData(func, options, values);
+    options.to = '0x';
+
+    return WalletsUtils
+      .getCallArgs(api, options, values)
+      .then((callArgs) => {
+        if (!callArgs) {
+          console.error('no call args', callArgs);
+          throw new Error('you do not own this wallet');
+        }
+
+        return callArgs;
+      });
+  }
+
+  static parseLogs (api, logs = []) {
+    const walletContract = new Contract(api, WalletAbi);
+
+    return walletContract.parseEventLogs(logs);
   }
 
   /**
@@ -199,16 +294,18 @@ export default class WalletsUtils {
   }
 
   static fetchTransactions (walletContract) {
-    const walletInstance = walletContract.instance;
-    const signatures = {
-      single: toHex(walletInstance.SingleTransact.signature),
-      multi: toHex(walletInstance.MultiTransact.signature),
-      deposit: toHex(walletInstance.Deposit.signature)
-    };
+    const { api } = walletContract;
+    const pendingContracts = WalletsUtils.getPendingContracts();
 
     return walletContract
       .getAllLogs({
-        topics: [ [ signatures.single, signatures.multi, signatures.deposit ] ]
+        topics: [ [
+          WalletSignatures.SingleTransact,
+          WalletSignatures.MultiTransact,
+          WalletSignatures.Deposit,
+          WalletSignatures.Old.SingleTransact,
+          WalletSignatures.Old.MultiTransact
+        ] ]
       })
       .then((logs) => {
         return logs.sort((logA, logB) => {
@@ -226,11 +323,11 @@ export default class WalletsUtils {
           const signature = toHex(log.topics[0]);
 
           const value = log.params.value.value;
-          const from = signature === signatures.deposit
+          const from = signature === WalletSignatures.Deposit
             ? log.params['_from'].value
             : walletContract.address;
 
-          const to = signature === signatures.deposit
+          const to = signature === WalletSignatures.Deposit
             ? walletContract.address
             : log.params.to.value;
 
@@ -240,8 +337,53 @@ export default class WalletsUtils {
             from, to, value
           };
 
+          if (log.params.created && log.params.created.value && !/^(0x)?0*$/.test(log.params.created.value)) {
+            transaction.creates = log.params.created.value;
+            delete transaction.to;
+          }
+
           if (log.params.operation) {
-            transaction.operation = bytesToHex(log.params.operation.value);
+            const operation = bytesToHex(log.params.operation.value);
+
+            // Add the pending contract to the contracts
+            if (pendingContracts[operation]) {
+              const { metadata } = pendingContracts[operation];
+              const contractName = metadata.name;
+
+              metadata.blockNumber = log.blockNumber;
+
+              // The contract creation might not be in the same log,
+              // but must be in the same transaction (eg. Contract creation
+              // from Wallet within a Wallet)
+              api.eth
+                .getTransactionReceipt(log.transactionHash)
+                .then((transactionReceipt) => {
+                  const transactionLogs = WalletsUtils.parseLogs(api, transactionReceipt.logs);
+                  const creationLog = transactionLogs.find((log) => {
+                    return log.params.created && !/^(0x)?0*$/.test(log.params.created.value);
+                  });
+
+                  if (!creationLog) {
+                    return false;
+                  }
+
+                  const contractAddress = creationLog.params.created.value;
+
+                  return Promise
+                    .all([
+                      api.parity.setAccountName(contractAddress, contractName),
+                      api.parity.setAccountMeta(contractAddress, metadata)
+                    ])
+                    .then(() => {
+                      WalletsUtils.removePendingContract(operation);
+                    });
+                })
+                .catch((error) => {
+                  console.error('adding wallet contract', error);
+                });
+            }
+
+            transaction.operation = operation;
           }
 
           if (log.params.data) {

@@ -61,17 +61,6 @@ export function estimateGas (_func, _options, _values = []) {
       const { func, options, values } = callArgs;
 
       return func._estimateGas(options, values);
-    })
-    .then((gas) => {
-      return WalletsUtils
-        .isWallet(_func.contract.api, _options.from)
-        .then((isWallet) => {
-          if (isWallet) {
-            return gas.mul(1.5);
-          }
-
-          return gas;
-        });
     });
 }
 
@@ -81,6 +70,114 @@ export function postTransaction (_func, _options, _values = []) {
       const { func, options, values } = callArgs;
 
       return func._postTransaction(options, values);
+    });
+}
+
+export function deploy (contract, _options, values, metadata = {}, statecb = () => {}) {
+  const options = { ..._options };
+  const { api } = contract;
+  const address = options.from;
+
+  return WalletsUtils
+    .isWallet(api, address)
+    .then((isWallet) => {
+      if (!isWallet) {
+        return contract.deploy(options, values, statecb);
+      }
+
+      statecb(null, { state: 'estimateGas' });
+
+      return deployEstimateGas(contract, options, values)
+        .then(([gasEst, gas]) => {
+          options.gas = gas.toFixed(0);
+
+          statecb(null, { state: 'postTransaction', gas });
+
+          return WalletsUtils.getDeployArgs(contract, options, values);
+        })
+        .then((callArgs) => {
+          const { func, options, values } = callArgs;
+
+          return func._postTransaction(options, values)
+            .then((requestId) => {
+              statecb(null, { state: 'checkRequest', requestId });
+              return contract._pollCheckRequest(requestId);
+            })
+            .then((txhash) => {
+              statecb(null, { state: 'getTransactionReceipt', txhash });
+              return contract._pollTransactionReceipt(txhash, options.gas);
+            })
+            .then((receipt) => {
+              if (receipt.gasUsed.eq(options.gas)) {
+                throw new Error(`Contract not deployed, gasUsed == ${options.gas.toFixed(0)}`);
+              }
+
+              const logs = WalletsUtils.parseLogs(api, receipt.logs || []);
+
+              const confirmationLog = logs.find((log) => log.event === 'ConfirmationNeeded');
+              const transactionLog = logs.find((log) => log.event === 'SingleTransact');
+
+              if (!confirmationLog && !transactionLog) {
+                throw new Error('Something went wrong in the Wallet Contract (no logs have been emitted)...');
+              }
+
+              // Confirmations are needed from the other owners
+              if (confirmationLog) {
+                const operationHash = api.util.bytesToHex(confirmationLog.params.operation.value);
+
+                // Add the contract to pending contracts
+                WalletsUtils.addPendingContract(address, operationHash, metadata);
+                statecb(null, { state: 'confirmationNeeded' });
+                return;
+              }
+
+              // Set the contract address in the receip
+              receipt.contractAddress = transactionLog.params.created.value;
+
+              const contractAddress = receipt.contractAddress;
+
+              statecb(null, { state: 'hasReceipt', receipt });
+              contract._receipt = receipt;
+              contract._address = contractAddress;
+
+              statecb(null, { state: 'getCode' });
+
+              return api.eth.getCode(contractAddress)
+                .then((code) => {
+                  if (code === '0x') {
+                    throw new Error('Contract not deployed, getCode returned 0x');
+                  }
+
+                  statecb(null, { state: 'completed' });
+                  return contractAddress;
+                });
+            });
+        });
+    });
+}
+
+export function deployEstimateGas (contract, _options, values) {
+  const options = { ..._options };
+  const { api } = contract;
+  const address = options.from;
+
+  return WalletsUtils
+    .isWallet(api, address)
+    .then((isWallet) => {
+      if (!isWallet) {
+        return contract.deployEstimateGas(options, values);
+      }
+
+      return WalletsUtils
+        .getDeployArgs(contract, options, values)
+        .then((callArgs) => {
+          const { func, options, values } = callArgs;
+
+          return func.estimateGas(options, values);
+        })
+        .then((gasEst) => {
+          return [gasEst, gasEst.mul(1.05)];
+        });
     });
 }
 

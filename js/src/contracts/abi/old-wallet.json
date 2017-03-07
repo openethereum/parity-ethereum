@@ -394,11 +394,6 @@
         "indexed": false,
         "name": "data",
         "type": "bytes"
-      },
-      {
-        "indexed": false,
-        "name": "created",
-        "type": "address"
       }
     ],
     "name": "SingleTransact",
@@ -431,11 +426,6 @@
         "indexed": false,
         "name": "data",
         "type": "bytes"
-      },
-      {
-        "indexed": false,
-        "name": "created",
-        "type": "address"
       }
     ],
     "name": "MultiTransact",
