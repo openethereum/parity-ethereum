@@ -84,7 +84,7 @@ pub struct AuthorityRound {
 	signer: EngineSigner,
 	validators: Box<ValidatorSet + Send + Sync>,
 	/// Is this Engine just for testing (prevents step calibration).
-	test: bool,
+	calibrate_step: bool,
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
@@ -124,7 +124,7 @@ impl AuthorityRound {
 				client: RwLock::new(None),
 				signer: Default::default(),
 				validators: new_validator_set(our_params.validators),
-				test: our_params.start_step.is_some(),
+				calibrate_step: our_params.start_step.is_none(),
 			});
 		// Do not initialize timeouts for tests.
 		if should_timeout {
@@ -135,7 +135,7 @@ impl AuthorityRound {
 	}
 
 	fn calibrate_step(&self) {
-		if !self.test {
+		if self.calibrate_step {
 			self.step.store((unix_now().as_secs() / self.step_duration.as_secs()) as usize, AtomicOrdering::SeqCst);
 		}
 	}
