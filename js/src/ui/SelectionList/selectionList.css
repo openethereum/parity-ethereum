@@ -25,7 +25,6 @@
   width: 100%;
 
   &:hover {
-    border-color: transparent;
     filter: none;
     opacity: 1;
   }
@@ -35,7 +34,7 @@
     width: 100%;
 
     &:hover {
-      background-color: rgba(255, 255, 255, 0.5);
+      background-color: rgba(255, 255, 255, 0.15);
     }
   }
 
@@ -68,11 +67,11 @@
 }
 
 .selected {
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: rgb(0, 151, 167);
   filter: none;
 
   &.default {
-    border-color: rgba(255, 255, 255, 0.75);
+    border-color: rgb(167, 151, 0);
   }
 }
 
