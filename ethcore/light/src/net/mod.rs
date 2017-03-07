@@ -642,13 +642,13 @@ impl LightProtocol {
 		Ok(())
 	}
 
+	// Receive requests from a peer.
 	fn request(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
 		// the maximum amount of requests we'll fill in a single packet.
-		const MAX_REQUESTS: usize = 512;
-		// the maximum amount of gas we'll prove execution of in a single packet.
-		const MAX_GAS: usize = 50_000_000;
+		const MAX_REQUESTS: usize = 256;
 
 		use ::request_builder::RequestBuilder;
+		use ::request::CompleteRequest;
 
 		let peers = self.peers.read();
 		let peer = match peers.get(peer) {
@@ -661,8 +661,37 @@ impl LightProtocol {
 		let mut peer = peer.lock();
 
 		let req_id: u64 = raw.val_at(0)?;
+		let mut cumulative_cost = U256::from(0);
+		let cur_buffer = peer.local_credits.current();
 
-		unimplemented!()
+		let mut request_builder = RequestBuilder::default();
+
+		// deserialize requests, check costs and back-references.
+		for request_rlp in raw.at(1)?.iter().take(MAX_REQUESTS) {
+			let request: Request = request_rlp.as_val()?;
+			cumulative_cost = cumulative_cost + self.flow_params.compute_cost(&request);
+			if cumulative_cost > cur_buffer { return Err(Error::NoCredits) }
+			request_builder.push(request).map_err(|_| Error::BadBackReference)?;
+		}
+
+		let requests = request_builder.build();
+
+		// respond to all requests until one fails.
+		let responses = requests.respond_to_all(|complete_req| {
+			match complete_req {
+				CompleteRequest::Headers(req) => self.provider.block_headers(req).map(Response::Headers),
+				CompleteRequest::HeaderProof(req) => self.provider.header_proof(req).map(Response::HeaderProof),
+				CompleteRequest::Body(req) => self.provider.block_body(req).map(Response::Body),
+				CompleteRequest::Receipts(req) => self.provider.block_receipts(req).map(Response::Receipts),
+				CompleteRequest::Account(req) => self.provider.account_proof(req).map(Response::Account),
+				CompleteRequest::Storage(req) => self.provider.storage_proof(req).map(Response::Storage),
+				CompleteRequest::Code(req) => self.provider.contract_code(req).map(Response::Code),
+				CompleteRequest::Execution(req) => self.provider.transaction_proof(req).map(Response::Execution),
+			}
+		});
+
+		io.respond(packet::RESPONSE, ::rlp::encode(&responses).to_vec());
+		Ok(())
 	}
 
 	fn response(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {

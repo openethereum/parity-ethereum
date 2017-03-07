@@ -50,13 +50,13 @@ pub trait IoContext {
 impl<'a> IoContext for NetworkContext<'a> {
 	fn send(&self, peer: PeerId, packet_id: u8, packet_body: Vec<u8>) {
 		if let Err(e) = self.send(peer, packet_id, packet_body) {
-			debug!(target: "les", "Error sending packet to peer {}: {}", peer, e);
+			debug!(target: "pip", "Error sending packet to peer {}: {}", peer, e);
 		}
 	}
 
 	fn respond(&self, packet_id: u8, packet_body: Vec<u8>) {
 		if let Err(e) = self.respond(packet_id, packet_body) {
-			debug!(target: "les", "Error responding to peer message: {}", e);
+			debug!(target: "pip", "Error responding to peer message: {}", e);
 		}
 	}
 
