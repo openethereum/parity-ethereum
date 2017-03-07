@@ -86,6 +86,8 @@ pub struct AuthorityRound {
 	account_provider: Mutex<Arc<AccountProvider>>,
 	password: RwLock<Option<String>>,
 	validators: Box<ValidatorSet + Send + Sync>,
+	/// Is this Engine just for testing (prevents step calibration).
+	test: bool,
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
@@ -126,6 +128,7 @@ impl AuthorityRound {
 				account_provider: Mutex::new(Arc::new(AccountProvider::transient_provider())),
 				password: RwLock::new(None),
 				validators: new_validator_set(our_params.validators),
+				test: our_params.start_step.is_some(),
 			});
 		// Do not initialize timeouts for tests.
 		if should_timeout {
@@ -133,6 +136,12 @@ impl AuthorityRound {
 			engine.transition_service.register_handler(Arc::new(handler))?;
 		}
 		Ok(engine)
+	}
+
+	fn calibrate_step(&self) {
+		if !self.test {
+			self.step.store((unix_now().as_secs() / self.step_duration.as_secs()) as usize, AtomicOrdering::SeqCst);
+		}
 	}
 
 	fn remaining_step_duration(&self) -> Duration {
@@ -151,6 +160,16 @@ impl AuthorityRound {
 
 	fn is_step_proposer(&self, step: usize, address: &Address) -> bool {
 		self.step_proposer(step) == *address
+	}
+
+	fn is_future_step(&self, step: usize) -> bool {
+		if step > self.step.load(AtomicOrdering::SeqCst) + 1 {
+			// Make absolutely sure that the step is correct.
+			self.calibrate_step();
+			step > self.step.load(AtomicOrdering::SeqCst) + 1
+		} else {
+			false
+		}
 	}
 }
 
@@ -286,7 +305,11 @@ impl Engine for AuthorityRound {
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let header_step = header_step(header)?;
 		// Give one step slack if step is lagging, double vote is still not possible.
-		if header_step <= self.step.load(AtomicOrdering::SeqCst) + 1 {
+		if self.is_future_step(header_step) {
+			trace!(target: "engine", "verify_block_unordered: block from the future");
+			self.validators.report_benign(header.author());
+			Err(BlockError::InvalidSeal)?
+		} else {
 			let proposer_signature = header_signature(header)?;
 			let ok_sig = verify_address(&self.step_proposer(header_step), &proposer_signature, &header.bare_hash())?;
 			if ok_sig {
@@ -295,9 +318,6 @@ impl Engine for AuthorityRound {
 				trace!(target: "poa", "verify_block_unordered: invalid seal signature");
 				Err(BlockError::InvalidSeal)?
 			}
-		} else {
-			trace!(target: "poa", "verify_block_unordered: block from the future");
-			Err(BlockError::InvalidSeal)?
 		}
 	}
 
