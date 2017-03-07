@@ -18,17 +18,54 @@ import BigNumber from 'bignumber.js';
 import { intersection, range, uniq } from 'lodash';
 import store from 'store';
 
+import Abi from '~/abi';
 import Contract from '~/api/contract';
 import { bytesToHex, toHex } from '~/api/util/format';
 import { validateAddress } from '~/util/validation';
 import WalletAbi from '~/contracts/abi/wallet.json';
+import OldWalletAbi from '~/contracts/abi/old-wallet.json';
 
 const LS_PENDING_CONTRACTS_KEY = '_parity::wallets::pendingContracts';
 
 const _cachedWalletLookup = {};
 let _cachedAccounts = {};
 
+const walletAbi = new Abi(WalletAbi);
+const oldWalletAbi = new Abi(OldWalletAbi);
+
+const walletEvents = walletAbi.events.reduce((events, event) => {
+  events[event.name] = event;
+  return events;
+}, {});
+
+const oldWalletEvents = oldWalletAbi.events.reduce((events, event) => {
+  events[event.name] = event;
+  return events;
+}, {});
+
+const WalletSignatures = {
+  OwnerChanged: toHex(walletEvents.OwnerChanged.signature),
+  OwnerAdded: toHex(walletEvents.OwnerAdded.signature),
+  OwnerRemoved: toHex(walletEvents.OwnerRemoved.signature),
+  RequirementChanged: toHex(walletEvents.RequirementChanged.signature),
+  Confirmation: toHex(walletEvents.Confirmation.signature),
+  Revoke: toHex(walletEvents.Revoke.signature),
+  Deposit: toHex(walletEvents.Deposit.signature),
+  SingleTransact: toHex(walletEvents.SingleTransact.signature),
+  MultiTransact: toHex(walletEvents.MultiTransact.signature),
+  ConfirmationNeeded: toHex(walletEvents.ConfirmationNeeded.signature),
+
+  Old: {
+    SingleTransact: toHex(oldWalletEvents.SingleTransact.signature),
+    MultiTransact: toHex(oldWalletEvents.MultiTransact.signature)
+  }
+};
+
 export default class WalletsUtils {
+  static getWalletSignatures () {
+    return WalletSignatures;
+  }
+
   static getPendingContracts () {
     return store.get(LS_PENDING_CONTRACTS_KEY) || {};
   }
@@ -260,15 +297,16 @@ export default class WalletsUtils {
     const { api } = walletContract;
     const pendingContracts = WalletsUtils.getPendingContracts();
     const walletInstance = walletContract.instance;
-    const signatures = {
-      single: toHex(walletInstance.SingleTransact.signature),
-      multi: toHex(walletInstance.MultiTransact.signature),
-      deposit: toHex(walletInstance.Deposit.signature)
-    };
 
     return walletContract
       .getAllLogs({
-        topics: [ [ signatures.single, signatures.multi, signatures.deposit ] ]
+        topics: [ [
+          WalletSignatures.SingleTransact,
+          WalletSignatures.MultiTransact,
+          WalletSignatures.Deposit,
+          WalletSignatures.Old.SingleTransact,
+          WalletSignatures.Old.MultiTransact
+        ] ]
       })
       .then((logs) => {
         return logs.sort((logA, logB) => {
@@ -286,11 +324,11 @@ export default class WalletsUtils {
           const signature = toHex(log.topics[0]);
 
           const value = log.params.value.value;
-          const from = signature === signatures.deposit
+          const from = signature === WalletSignatures.Deposit
             ? log.params['_from'].value
             : walletContract.address;
 
-          const to = signature === signatures.deposit
+          const to = signature === WalletSignatures.Deposit
             ? walletContract.address
             : log.params.to.value;
 
