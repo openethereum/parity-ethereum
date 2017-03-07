@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import EventListener from 'react-event-listener';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import ReactPortal from 'react-portal';
@@ -23,6 +22,7 @@ import keycode from 'keycode';
 import { nodeOrStringProptype } from '~/util/proptypes';
 import { CloseIcon } from '~/ui/Icons';
 import ParityBackground from '~/ui/ParityBackground';
+import StackEventListener from '~/ui/StackEventListener';
 import Title from '~/ui/Title';
 
 import styles from './portal.css';
@@ -44,6 +44,7 @@ export default class Portal extends Component {
     hideClose: PropTypes.bool,
     isChildModal: PropTypes.bool,
     isSmallModal: PropTypes.bool,
+    onClick: PropTypes.func,
     onKeyDown: PropTypes.func,
     steps: PropTypes.array,
     title: nodeOrStringProptype()
@@ -89,13 +90,10 @@ export default class Portal extends Component {
                 className
               ].join(' ')
             }
-            onClick={ this.stopEvent }
+            onClick={ this.handleContainerClick }
             onKeyDown={ this.handleKeyDown }
           >
-            <EventListener
-              target='window'
-              onKeyUp={ this.handleKeyUp }
-            />
+            <StackEventListener onKeyUp={ this.handleKeyUp } />
             <ParityBackground className={ styles.parityBackground } />
             { this.renderClose() }
             <Title
@@ -149,6 +147,16 @@ export default class Portal extends Component {
     event.stopPropagation();
   }
 
+  handleContainerClick = (event) => {
+    const { onClick } = this.props;
+
+    if (!onClick) {
+      return this.stopEvent(event);
+    }
+
+    return onClick(event);
+  }
+
   handleClose = () => {
     const { hideClose, onClose } = this.props;
 
@@ -175,7 +183,7 @@ export default class Portal extends Component {
     switch (codeName) {
       case 'esc':
         event.preventDefault();
-        return this.handleClose();
+        return this.props.onClose();
     }
   }
 

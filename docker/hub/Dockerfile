@@ -1,6 +1,10 @@
 FROM ubuntu:14.04
 MAINTAINER Parity Technologies <devops@parity.io>
 WORKDIR /build
+#ENV for build TAG
+ARG BUILD_TAG
+ENV BUILD_TAG ${BUILD_TAG:-master}
+RUN echo $BUILD_TAG
 # install tools and dependencies
 RUN apt-get update && \
         apt-get install -y --force-yes --no-install-recommends \
@@ -47,7 +51,7 @@ RUN apt-get update && \
  cd /build&&git clone https://github.com/ethcore/parity && \
         cd parity && \
 	git pull&& \
-	git checkout $CI_BUILD_REF_NAME && \
+	git checkout $BUILD_TAG && \
         cargo build --verbose --release --features final && \
         #ls /build/parity/target/release/parity && \
         strip /build/parity/target/release/parity && \

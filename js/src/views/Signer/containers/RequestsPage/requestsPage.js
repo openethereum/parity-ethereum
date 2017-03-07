@@ -40,7 +40,7 @@ class RequestsPage extends Component {
       startRejectRequest: PropTypes.func.isRequired
     }).isRequired,
     gasLimit: PropTypes.object.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     signer: PropTypes.shape({
       pending: PropTypes.array.isRequired,
       finished: PropTypes.array.isRequired
@@ -106,7 +106,7 @@ class RequestsPage extends Component {
   }
 
   renderPending = (data, index) => {
-    const { actions, gasLimit, isTest } = this.props;
+    const { actions, gasLimit, netVersion } = this.props;
     const { date, id, isSending, payload, origin } = data;
 
     return (
@@ -117,26 +117,26 @@ class RequestsPage extends Component {
         gasLimit={ gasLimit }
         id={ id }
         isSending={ isSending }
-        isTest={ isTest }
+        netVersion={ netVersion }
         key={ id }
         onConfirm={ actions.startConfirmRequest }
         onReject={ actions.startRejectRequest }
         origin={ origin }
         payload={ payload }
-        store={ this.store }
+        signerstore={ this.store }
       />
     );
   }
 }
 
 function mapStateToProps (state) {
-  const { gasLimit, isTest } = state.nodeStatus;
+  const { gasLimit, netVersion } = state.nodeStatus;
   const { actions, signer } = state;
 
   return {
     actions,
     gasLimit,
-    isTest,
+    netVersion,
     signer
   };
 }

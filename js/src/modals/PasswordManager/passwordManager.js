@@ -117,8 +117,15 @@ class PasswordManager extends Component {
             { address }
           </span>
           <span className={ styles.passwordHint }>
-            <span className={ styles.hintLabel }>Hint </span>
-            { passwordHint || '-' }
+            <span className={ styles.hintLabel }>
+              <FormattedMessage
+                id='passwordChange.passwordHint'
+                defaultMessage='Hint {hint}'
+                values={ {
+                  hint: passwordHint || '-'
+                } }
+              />
+            </span>
           </span>
         </div>
       </div>

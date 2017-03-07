@@ -21,11 +21,14 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
+import HardwareStore from '~/mobx/hardwareStore';
 import { EditMeta, DeleteAccount, Shapeshift, Verification, Transfer, PasswordManager } from '~/modals';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 import { Actionbar, Button, Page } from '~/ui';
 import { DeleteIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon } from '~/ui/Icons';
+
+import DeleteAddress from '../Address/Delete';
 
 import Header from './Header';
 import Store from './store';
@@ -34,6 +37,10 @@ import styles from './account.css';
 
 @observer
 class Account extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     fetchCertifiers: PropTypes.func.isRequired,
     fetchCertifications: PropTypes.func.isRequired,
@@ -45,6 +52,7 @@ class Account extends Component {
   }
 
   store = new Store();
+  hwstore = HardwareStore.get(this.context.api);
 
   componentDidMount () {
     this.props.fetchCertifiers();
@@ -83,6 +91,8 @@ class Account extends Component {
       return null;
     }
 
+    const isAvailable = !account.hardware || this.hwstore.isConnected(address);
+
     return (
       <div>
         { this.renderDeleteDialog(account) }
@@ -91,11 +101,12 @@ class Account extends Component {
         { this.renderPasswordDialog(account) }
         { this.renderTransferDialog(account, balance) }
         { this.renderVerificationDialog() }
-        { this.renderActionbar(balance) }
+        { this.renderActionbar(account, balance) }
         <Page padded>
           <Header
             account={ account }
             balance={ balance }
+            disabled={ !isAvailable }
           />
           <Transactions
             accounts={ accounts }
@@ -106,7 +117,7 @@ class Account extends Component {
     );
   }
 
-  renderActionbar (balance) {
+  renderActionbar (account, balance) {
     const showTransferButton = !!(balance && balance.tokens);
 
     const buttons = [
@@ -160,17 +171,19 @@ class Account extends Component {
         }
         onClick={ this.store.toggleEditDialog }
       />,
-      <Button
-        icon={ <LockedIcon /> }
-        key='passwordManager'
-        label={
-          <FormattedMessage
-            id='account.button.password'
-            defaultMessage='password'
-          />
-        }
-        onClick={ this.store.togglePasswordDialog }
-      />,
+      !account.hardware && (
+        <Button
+          icon={ <LockedIcon /> }
+          key='passwordManager'
+          label={
+            <FormattedMessage
+              id='account.button.password'
+              defaultMessage='password'
+            />
+          }
+          onClick={ this.store.togglePasswordDialog }
+        />
+      ),
       <Button
         icon={ <DeleteIcon /> }
         key='delete'
@@ -200,6 +213,23 @@ class Account extends Component {
   renderDeleteDialog (account) {
     if (!this.store.isDeleteVisible) {
       return null;
+    }
+
+    if (account.hardware) {
+      return (
+        <DeleteAddress
+          account={ account }
+          confirmMessage={
+            <FormattedMessage
+              id='account.hardware.confirmDelete'
+              defaultMessage='Are you sure you want to remove the following hardware address from your account list?'
+            />
+          }
+          visible
+          route='/accounts'
+          onClose={ this.store.toggleDeleteDialog }
+        />
+      );
     }
 
     return (

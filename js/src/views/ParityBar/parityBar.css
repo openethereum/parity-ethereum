@@ -42,6 +42,7 @@ $modalZ: 10001;
 .container {
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
 
 .overlay {
@@ -106,6 +107,7 @@ $modalZ: 10001;
   min-height: 30vh;
   max-height: 80vh;
   max-width: calc(100vw - 2em);
+  width: 960px;
 
   .content {
     flex: 1;

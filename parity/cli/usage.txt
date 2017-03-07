@@ -59,7 +59,7 @@ Operating Options:
   --chain CHAIN                  Specify the blockchain type. CHAIN may be either a
                                  JSON chain specification file or olympic, frontier,
                                  homestead, mainnet, morden, ropsten, classic, expanse,
-                                 testnet or dev (default: {flag_chain}).
+                                 testnet, kovan or dev (default: {flag_chain}).
   -d --base-path PATH            Specify the base data storage path.
                                  (default: {flag_base_path}).
   --db-path PATH                 Specify the database directory path
@@ -97,7 +97,7 @@ UI Options:
                                  development. (default: {flag_ui_no_validation})
 
 Networking Options:
-  --warp                         Enable syncing from the snapshot over the network. (default: {flag_warp})
+  --no-warp                      Disable syncing from the snapshot over the network. (default: {flag_no_warp})
   --port PORT                    Override the port on which the node should listen
                                  (default: {flag_port}).
   --min-peers NUM                Try to maintain at least NUM peers (default: {flag_min_peers}).
@@ -164,6 +164,8 @@ API and Console Options:
                                  is additional security against some attack
                                  vectors. Special options: "all", "none",
                                  (default: {flag_dapps_hosts}).
+  --dapps-cors URL               Specify CORS headers for Dapps server APIs.
+                                 (default: {flag_dapps_cors:?})
   --dapps-user USERNAME          Specify username for Dapps server. It will be
                                  used in HTTP Basic Authentication Scheme.
                                  If --dapps-pass is not specified you will be
@@ -372,8 +374,7 @@ Legacy Options:
                                  to be the same as Geth's. Overrides the --ipc-path
                                  and --ipcpath options. Alters RPCs to reflect Geth
                                  bugs. Includes the personal_ RPC by default.
-  --testnet                      Geth-compatible testnet mode. Equivalent to --chain
-                                 testnet --keys-path $HOME/parity/testnet-keys.
+  --testnet                      Testnet mode. Equivalent to --chain testnet.
                                  Overrides the --keys-path option.
   --import-geth-keys             Attempt to import keys from Geth client.
   --datadir PATH                 Equivalent to --base-path PATH.
@@ -386,6 +387,7 @@ Legacy Options:
   -w --webapp                    Does nothing; dapps server is on by default now.
   --dapps-off                    Equivalent to --no-dapps.
   --rpc                          Does nothing; JSON-RPC is on by default now.
+  --warp                         Does nothing; Warp sync is on by default. (default: {flag_warp})
   --rpcaddr IP                   Equivalent to --jsonrpc-interface IP.
   --rpcport PORT                 Equivalent to --jsonrpc-port PORT.
   --rpcapi APIS                  Equivalent to --jsonrpc-apis APIS.

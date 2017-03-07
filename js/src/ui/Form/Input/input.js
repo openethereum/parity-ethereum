@@ -46,6 +46,10 @@ const UNDERLINE_FOCUSED = {
 const NAME_ID = ' ';
 
 export default class Input extends Component {
+  static contextTypes = {
+    intl: React.PropTypes.object.isRequired
+  };
+
   static propTypes = {
     allowCopy: PropTypes.oneOfType([
       PropTypes.string,
@@ -79,7 +83,8 @@ export default class Input extends Component {
     style: PropTypes.object,
     value: PropTypes.oneOfType([
       PropTypes.number,
-      PropTypes.string
+      PropTypes.string,
+      PropTypes.node
     ])
   };
 
@@ -135,6 +140,13 @@ export default class Input extends Component {
       ? UNDERLINE_FOCUSED
       : readOnly && typeof focused !== 'boolean' ? { display: 'none' } : null;
 
+    const textValue = typeof value !== 'string' && (value && value.props)
+      ? this.context.intl.formatMessage(
+          value.props,
+          value.props.values || {}
+        )
+      : value;
+
     return (
       <div className={ styles.container } style={ style }>
         { this.renderCopyButton() }
@@ -169,7 +181,7 @@ export default class Input extends Component {
           underlineStyle={ underlineStyle }
           underlineFocusStyle={ underlineFocusStyle }
           underlineShow={ !hideUnderline }
-          value={ value }
+          value={ textValue }
         >
           { children }
         </TextField>

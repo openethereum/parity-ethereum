@@ -50,6 +50,6 @@ do
 	$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET $FILE
 done
 
-$KCOV --coveralls-id=${TRAVIS_JOB_ID} --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-*
+$KCOV --coveralls-id=${CI_BUILD_ID} --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-*
 
 exit 0

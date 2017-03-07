@@ -30,6 +30,9 @@ const STORE = {
   subscribe: sinon.stub(),
   getState: () => {
     return {
+      nodeStatus: {
+        netVersion: '42'
+      },
       personal: {
         accounts: {
           '0x123': {}
@@ -61,7 +64,7 @@ describe('ui/TxList/TxRow', () => {
         value: new BigNumber(1)
       };
 
-      expect(render({ address: '0x123', block, isTest: true, tx })).to.be.ok;
+      expect(render({ address: '0x123', block, netVersion: '42', tx })).to.be.ok;
     });
 
     it('renders an account link', () => {
@@ -75,7 +78,7 @@ describe('ui/TxList/TxRow', () => {
         value: new BigNumber(1)
       };
 
-      const element = render({ address: '0x123', block, isTest: true, tx });
+      const element = render({ address: '0x123', block, netVersion: '42', tx });
 
       expect(element.find('Link').prop('to')).to.equal('/accounts/0x123');
     });
@@ -91,7 +94,7 @@ describe('ui/TxList/TxRow', () => {
         value: new BigNumber(1)
       };
 
-      const element = render({ address: '0x123', block, isTest: true, tx });
+      const element = render({ address: '0x123', block, netVersion: '42', tx });
 
       expect(element.find('Link').prop('to')).to.equal('/addresses/0x456');
     });
