@@ -112,11 +112,18 @@ export default class Faucet extends Component {
   }
 
   renderSummaryDone () {
+    const { error, response } = this.store;
+
     return (
-      <FormattedMessage
-        id='faucet.summary.done'
-        defaultMessage='Your Kovan ETH has been requested from the faucet. It should reflect in your Kovan account shortly.'
-      />
+      <div>
+        <FormattedMessage
+          id='faucet.summary.done'
+          defaultMessage='Your Kovan ETH has been requested from the faucet. The server responded with -'
+        />
+        <p>
+          { response || error }
+        </p>
+      </div>
     );
   }
 
@@ -124,7 +131,7 @@ export default class Faucet extends Component {
     return (
       <FormattedMessage
         id='faucet.summary.info'
-        defaultMessage='To request a deposit of Kovan ETH to this address, you need to ensure that the address is sms-verified on the Foundation mainnet. Once the request is executed and the Foundation address verified, the faucet will deposit ETH into the current account on the Kovan network.'
+        defaultMessage='To request a deposit of Kovan ETH to this address, you need to ensure that the address is sms-verified on the Foundation mainnet. Once executed and verified, the faucet will deposit Kovan ETH into the current account.'
       />
     );
   }

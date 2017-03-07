@@ -17,10 +17,13 @@
 import { action, computed, observable, transaction } from 'mobx';
 import apiutil from '~/api/util';
 
+const ENDPOINT = 'http://faucet.kovan.network/';
+
 export default class Store {
   @observable addressReceive = null;
   @observable addressVerified = null;
   @observable error = null;
+  @observable response = null;
   @observable isBusy = false;
   @observable isCompleted = false;
   @observable isDestination = false;
@@ -74,27 +77,38 @@ export default class Store {
     this.error = error;
   }
 
+  @action setResponse = (response) => {
+    this.response = response;
+  }
+
   makeItRain = () => {
     this.setBusy(true);
 
     // TODO: Cors not enabled atm, only opacque response
     const options = {
       method: 'GET',
-      mode: 'no-cors'
+      mode: 'cors'
     };
-    const url = `http://icarus.parity.io/${this.addressVerified}`;
+    const url = `${ENDPOINT}${this.addressVerified}`;
 
     return fetch(url, options)
       .then((response) => {
         if (!response.ok) {
-          return this.setError('Unable to complete request to the faucet');
+          this.setError('Unable to complete request to the faucet. Please try again later.');
+          return null;
         }
 
         // TODO: Would prefer JSON responses from the server
-        return null;
+        return response.text();
       })
-      .then(() => {
-        this.setCompleted(true);
+      .then((response) => {
+        transaction(() => {
+          if (response) {
+            this.setResponse(response);
+          }
+
+          this.setCompleted(true);
+        });
       });
   }
 }
