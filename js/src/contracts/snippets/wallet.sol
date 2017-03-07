@@ -9,7 +9,7 @@
 // some number (specified in constructor) of the set of owners (specified in the constructor, modifiable) before the
 // interior is executed.
 
-pragma solidity ^0.4.7;
+pragma solidity ^0.4.9;
 
 contract multiowned {
 
@@ -131,7 +131,7 @@ contract multiowned {
     return address(m_owners[ownerIndex + 1]);
   }
 
-  function isOwner(address _addr) returns (bool) {
+  function isOwner(address _addr) constant returns (bool) {
     return m_ownerIndex[uint(_addr)] > 0;
   }
 
@@ -293,9 +293,8 @@ contract multisig {
   // FUNCTIONS
 
   // TODO: document
-  function changeOwner(address _from, address _to) external;
   function execute(address _to, uint _value, bytes _data) external returns (bytes32 o_hash);
-  function confirm(bytes32 _h) returns (bool o_success);
+  function confirm(bytes32 _h) external returns (bool o_success);
 }
 
 // usage:
