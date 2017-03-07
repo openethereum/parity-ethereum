@@ -176,7 +176,7 @@ export function deployEstimateGas (contract, _options, values) {
           return func.estimateGas(options, values);
         })
         .then((gasEst) => {
-          return [gasEst, gasEst.mul(1.2)];
+          return [gasEst, gasEst.mul(1.05)];
         });
     });
 }
