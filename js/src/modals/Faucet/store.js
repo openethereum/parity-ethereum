@@ -75,7 +75,11 @@ export default class Store {
   }
 
   @action setError = (error) => {
-    this.error = error;
+    if (error.indexOf('not certified') !== -1) {
+      this.error = `${error}. Please ensure that this account is sms certified on the mainnet.`;
+    } else {
+      this.error = error;
+    }
   }
 
   @action setResponse = (response) => {
