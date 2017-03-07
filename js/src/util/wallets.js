@@ -296,7 +296,6 @@ export default class WalletsUtils {
   static fetchTransactions (walletContract) {
     const { api } = walletContract;
     const pendingContracts = WalletsUtils.getPendingContracts();
-    const walletInstance = walletContract.instance;
 
     return walletContract
       .getAllLogs({
