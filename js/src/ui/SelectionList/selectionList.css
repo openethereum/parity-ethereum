@@ -16,7 +16,6 @@
 */
 
 .item {
-  border-top: 4px solid transparent;
   cursor: pointer;
   display: flex;
   flex: 1;
@@ -67,11 +66,20 @@
 }
 
 .selected {
-  border-top-color: rgb(0, 151, 167);
   filter: none;
 
-  &.default {
-    border-top-color: rgb(167, 151, 0);
+  &::after {
+    background: rgb(0, 151, 167);
+    content: '';
+    height: 4px;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
+
+  &.default::after {
+    background: rgb(167, 151, 0);
   }
 }
 
