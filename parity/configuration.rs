@@ -546,6 +546,7 @@ impl Configuration {
 			interface: self.dapps_interface(),
 			port: self.args.flag_dapps_port,
 			hosts: self.dapps_hosts(),
+			cors: self.dapps_cors(),
 			user: self.args.flag_dapps_user.clone(),
 			pass: self.args.flag_dapps_pass.clone(),
 			dapps_path: PathBuf::from(self.directories().dapps),
@@ -720,6 +721,10 @@ impl Configuration {
 
 	fn ipfs_cors(&self) -> Option<Vec<String>> {
 		Self::cors(self.args.flag_ipfs_api_cors.as_ref())
+	}
+
+	fn dapps_cors(&self) -> Option<Vec<String>> {
+		Self::cors(self.args.flag_dapps_cors.as_ref())
 	}
 
 	fn hosts(hosts: &str) -> Option<Vec<String>> {
