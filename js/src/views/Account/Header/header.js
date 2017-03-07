@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Balance, Certifications, Container, CopyToClipboard, ContainerTitle, IdentityIcon, IdentityName, QrCode, Tags } from '~/ui';
+import { Balance, Certifications, Container, CopyToClipboard, ContainerTitle, IdentityIcon, IdentityName, QrCode, Tags, VaultTag } from '~/ui';
 
 import styles from './header.css';
 
@@ -69,7 +69,6 @@ export default class Header extends Component {
                 { address }
               </div>
             </div>
-            { this.renderVault() }
             { this.renderUuid() }
             <div className={ styles.infoline }>
               { meta.description }
@@ -81,6 +80,7 @@ export default class Header extends Component {
                 balance={ balance }
               />
               <Certifications address={ address } />
+              { this.renderVault() }
             </div>
           </div>
           <div className={ styles.tags }>
@@ -169,15 +169,7 @@ export default class Header extends Component {
     }
 
     return (
-      <div className={ styles.vault }>
-        <IdentityIcon
-          address={ meta.vault }
-          inline
-        />
-        <div className={ styles.text }>
-          { meta.vault }
-        </div>
-      </div>
+      <VaultTag vault={ meta.vault } />
     );
   }
 }

@@ -36,9 +36,9 @@ export default class Events extends Component {
   };
 
   static propTypes = {
-    isTest: PropTypes.bool.isRequired,
     isLoading: PropTypes.bool,
-    events: PropTypes.array
+    events: PropTypes.array,
+    netVersion: PropTypes.string.isRequired
   };
 
   static defaultProps = {
@@ -47,7 +47,7 @@ export default class Events extends Component {
   };
 
   render () {
-    const { events, isTest, isLoading } = this.props;
+    const { events, isLoading, netVersion } = this.props;
 
     if (isLoading) {
       return (
@@ -80,7 +80,7 @@ export default class Events extends Component {
         <Event
           key={ event.key }
           event={ event }
-          isTest={ isTest }
+          netVersion={ netVersion }
         />
       );
     });
@@ -96,7 +96,9 @@ export default class Events extends Component {
               </th>
             </tr>
           </thead>
-          <tbody>{ list }</tbody>
+          <tbody>
+            { list }
+          </tbody>
         </table>
       </Container>
     );

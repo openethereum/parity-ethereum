@@ -29,5 +29,6 @@ export Label from './Label';
 export RadioButtons from './RadioButtons';
 export Select from './Select';
 export TypedInput from './TypedInput';
+export VaultSelect from './VaultSelect';
 
 export default from './form';

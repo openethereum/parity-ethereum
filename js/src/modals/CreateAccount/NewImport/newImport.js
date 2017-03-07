@@ -20,12 +20,15 @@ import { FormattedMessage } from 'react-intl';
 
 import { Form, FileSelect, Input } from '~/ui';
 
+import ChangeVault from '../ChangeVault';
 import styles from '../createAccount.css';
 
 @observer
 export default class NewImport extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired
+    store: PropTypes.object.isRequired,
+    vaultStore: PropTypes.object
+
   }
 
   render () {
@@ -88,6 +91,10 @@ export default class NewImport extends Component {
             />
           </div>
         </div>
+        <ChangeVault
+          store={ this.props.store }
+          vaultStore={ this.props.vaultStore }
+        />
         { this.renderFileSelector() }
       </Form>
     );

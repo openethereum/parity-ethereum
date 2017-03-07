@@ -43,7 +43,7 @@ class TransactionPending extends Component {
     gasLimit: PropTypes.object,
     id: PropTypes.object.isRequired,
     isSending: PropTypes.bool.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     nonce: PropTypes.number,
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
@@ -98,7 +98,7 @@ class TransactionPending extends Component {
   }
 
   renderTransaction () {
-    const { accounts, className, focus, id, isSending, isTest, signerstore, transaction, origin } = this.props;
+    const { accounts, className, focus, id, isSending, netVersion, origin, signerstore, transaction } = this.props;
     const { totalValue } = this.state;
     const { balances, externalLink } = signerstore;
     const { from, value } = transaction;
@@ -116,7 +116,7 @@ class TransactionPending extends Component {
           fromBalance={ fromBalance }
           gasStore={ this.gasStore }
           id={ id }
-          isTest={ isTest }
+          netVersion={ netVersion }
           origin={ origin }
           totalValue={ totalValue }
           transaction={ transaction }

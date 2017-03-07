@@ -34,7 +34,5 @@ export function abiEncode (methodName, inputTypes, data) {
     })
   }, data);
 
-  return methodName === null
-    ? `0x${result.substr(10)}`
-    : result;
+  return result;
 }

@@ -22,7 +22,7 @@ import { isEqual } from 'lodash';
 import ReactTooltip from 'react-tooltip';
 import { FormattedMessage } from 'react-intl';
 
-import { Balance, Container, ContainerTitle, CopyToClipboard, IdentityIcon, IdentityName, Tags } from '~/ui';
+import { Balance, Container, ContainerTitle, CopyToClipboard, IdentityIcon, IdentityName, Tags, VaultTag } from '~/ui';
 import Certifications from '~/ui/Certifications';
 import { arrayOrObjectProptype, nullableProptype } from '~/util/proptypes';
 
@@ -117,6 +117,7 @@ class Summary extends Component {
             { this.renderDescription(account.meta) }
             { this.renderOwners() }
             { this.renderCertifications() }
+            { this.renderVault(account.meta) }
           </div>
         }
         link={ this.getLink() }
@@ -285,6 +286,16 @@ class Summary extends Component {
         }
         showOnlyIcon={ onlyIcon }
       />
+    );
+  }
+
+  renderVault (meta) {
+    if (!meta || !meta.vault) {
+      return null;
+    }
+
+    return (
+      <VaultTag vault={ meta.vault } />
     );
   }
 }
