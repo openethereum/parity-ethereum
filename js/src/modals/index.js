@@ -24,6 +24,7 @@ export DeleteAccount from './DeleteAccount';
 export DeployContract from './DeployContract';
 export EditMeta from './EditMeta';
 export ExecuteContract from './ExecuteContract';
+export Faucet from './Faucet';
 export FirstRun from './FirstRun';
 export LoadContract from './LoadContract';
 export PasswordManager from './PasswordManager';
