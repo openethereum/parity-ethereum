@@ -24,7 +24,7 @@ include!(concat!(env!("OUT_DIR"), "/version.rs"));
 include!(concat!(env!("OUT_DIR"), "/rustc_version.rs"));
 
 #[cfg(feature = "final")]
-const THIS_TRACK: &'static str = "beta";
+const THIS_TRACK: &'static str = "stable";
 // ^^^ should be reset to "stable" or "beta" according to the release branch.
 
 #[cfg(not(feature = "final"))]
