@@ -215,6 +215,10 @@ impl Engine for AuthorityRound {
 		Schedule::new_post_eip150(usize::max_value(), true, true, true)
 	}
 
+	fn signing_network_id(&self, _env_info: &EnvInfo) -> Option<u64> {
+		Some(self.params.chain_id)
+	}
+
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - step
 		let new_difficulty = U256::from(U128::max_value()) + header_step(parent).expect("Header has been verified; qed").into() - self.step.load(AtomicOrdering::SeqCst).into();
