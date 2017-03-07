@@ -26,7 +26,6 @@ import WalletsUtils from '~/util/wallets';
 import { wallet as WalletAbi } from '~/contracts/abi';
 
 export function personalAccountsInfo (accountsInfo) {
-  const addresses = [];
   const accounts = {};
   const contacts = {};
   const contracts = {};
@@ -35,10 +34,9 @@ export function personalAccountsInfo (accountsInfo) {
 
   Object.keys(accountsInfo || {})
     .map((address) => Object.assign({}, accountsInfo[address], { address }))
-    .filter((account) => account.uuid || !account.meta.deleted)
+    .filter((account) => account.meta && (account.uuid || !account.meta.deleted))
     .forEach((account) => {
       if (account.uuid) {
-        addresses.push(account.address);
         accounts[account.address] = account;
       } else if (account.meta.wallet) {
         account.wallet = true;
@@ -87,17 +85,44 @@ export function personalAccountsInfo (accountsInfo) {
         return [];
       })
       .then((_wallets) => {
-        _wallets.forEach((wallet) => {
-          const owners = wallet.owners.map((o) => o.address);
+        // We want to separate owned wallets and other wallets
+        // However, wallets can be owned by wallets, that can
+        // be owned by an account...
+        let otherWallets = [].concat(_wallets);
+        let prevLength;
+        let nextLength;
 
-          // Owners ∩ Addresses not null : Wallet is owned
-          // by one of the accounts
-          if (intersection(owners, addresses).length > 0) {
-            accounts[wallet.address] = wallet;
-          } else {
-            contacts[wallet.address] = wallet;
-          }
+        // If no more other wallets, or if the size decreased, continue...
+        do {
+          prevLength = otherWallets.length;
+
+          otherWallets = otherWallets
+            .map((wallet) => {
+              const addresses = Object.keys(accounts);
+              const owners = wallet.owners.map((o) => o.address);
+
+              // Owners ∩ Addresses not null : Wallet is owned
+              // by one of the accounts
+              if (intersection(owners, addresses).length > 0) {
+                accounts[wallet.address] = wallet;
+                return false;
+              }
+
+              return wallet;
+            })
+            .filter((wallet) => wallet);
+
+          nextLength = otherWallets.length;
+        } while (nextLength < prevLength);
+
+        // And other wallets to contacts...
+        otherWallets.forEach((wallet) => {
+          contacts[wallet.address] = wallet;
         });
+
+        // Cache the _real_ accounts for
+        // WalletsUtils (used for sending transactions)
+        WalletsUtils.cacheAccounts(accounts);
 
         dispatch(_personalAccountsInfo({
           accountsInfo,
