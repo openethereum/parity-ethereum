@@ -21,6 +21,7 @@ import * as abis from '~/contracts/abi';
 import builtins from '~/views/Dapps/builtin.json';
 import Dapp from './dappStore.js';
 import ModalStore from './modalStore';
+import { registerDapp } from './utils';
 
 import { api } from './parity';
 
@@ -51,6 +52,10 @@ export default class DappsStore {
     }
 
     return instance;
+  }
+
+  createDappId () {
+    return api.util.sha3(`${this._startTime}_${Date.now()}`);
   }
 
   @computed get ownedCount () {
@@ -150,6 +155,16 @@ export default class DappsStore {
   @action setLoading = (loading) => {
     this.isLoading = loading;
     return loading;
+  }
+
+  register (dappId) {
+    const dappRegInstance = this._instanceReg;
+    const dappRegFee = this.fee;
+
+    return registerDapp(dappId, dappRegInstance, dappRegFee)
+      .then((request) => {
+        console.warn('got request', request);
+      });
   }
 
   lookupHash (hash) {

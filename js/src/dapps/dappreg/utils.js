@@ -48,6 +48,10 @@ export const urlToHash = (api, instance, url) => {
     });
 };
 
+/**
+ * Register the given URL to GithubHint
+ * registry contract
+ */
 export const registerGHH = (instance, url, hash, owner) => {
   const options = {
     from: owner
@@ -62,5 +66,21 @@ export const registerGHH = (instance, url, hash, owner) => {
 
       options.gas = nextGas.toFixed(0);
       return instance.hintURL.postTransaction(options, values);
+    });
+};
+
+export const registerDapp = (dappId, dappRegInstance, dappRegFee) => {
+  const values = [ dappId ];
+  const options = {
+    value: dappRegFee
+  };
+
+  console.log('registerDapp', dappId);
+
+  return dappRegInstance
+    .register.estimateGas(options, values)
+    .then((gas) => {
+      options.gas = gas.mul(1.2).toFixed(0);
+      return dappRegInstance.register.postTransaction(options, values);
     });
 };

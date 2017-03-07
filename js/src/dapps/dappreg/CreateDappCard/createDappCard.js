@@ -16,6 +16,7 @@
 
 import React, { Component } from 'react';
 
+import DappsStore from '../dappsStore';
 import ModalRegister from '../ModalRegister';
 
 import PlusImage from '~/../assets/images/dapps/plus.svg';
@@ -26,6 +27,8 @@ export default class CreateDappCard extends Component {
     dappId: null,
     open: false
   };
+
+  dappsStore = DappsStore.instance();
 
   render () {
     return (
@@ -60,17 +63,25 @@ export default class CreateDappCard extends Component {
       <ModalRegister
         dappId={ dappId }
         onClose={ this.handleClose }
+        onRegister={ this.handleRegister }
       />
     );
   }
 
   handleOpen = () => {
-    const dappId = Math.random().toString();
+    const dappId = this.dappsStore.createDappId();
 
     this.setState({ open: true, dappId });
   }
 
   handleClose = () => {
     this.setState({ open: false, dappId: null });
+  }
+
+  handleRegister = () => {
+    const { dappId } = this.state;
+
+    this.dappsStore.register(dappId);
+    this.handleClose();
   }
 }

@@ -19,37 +19,27 @@ import { observer } from 'mobx-react';
 
 import { api } from '../parity';
 import DappsStore from '../dappsStore';
-import ModalStore from '../modalStore';
 
 import Button from '../Button';
 import Modal from '../Modal';
 
 import styles from '../Modal/modal.css';
 
-const HEADERS = [
-  'Error During Registration',
-  'Confirm Application Registration',
-  'Waiting for Signer Confirmation',
-  'Waiting for Transaction Receipt',
-  'Registration Completed'
-];
-
 @observer
 export default class ModalRegister extends Component {
   static propTypes = {
     dappId: PropTypes.string.isRequired,
-    onClose: PropTypes.func.isRequired
+    onClose: PropTypes.func.isRequired,
+    onRegister: PropTypes.func.isRequired
   };
 
   dappsStore = DappsStore.instance();
-  modalStore = ModalStore.instance();
 
   render () {
     return (
       <Modal
         buttons={ this.renderButtons() }
-        error={ this.modalStore.errorRegister }
-        header={ HEADERS[this.modalStore.stepRegister] }
+        header='Confirm Application Registration'
       >
         { this.renderConfirm() }
       </Modal>
@@ -61,13 +51,13 @@ export default class ModalRegister extends Component {
       <Button
         key='cancel'
         label='No, Cancel'
-        onClick={ this.onClickClose }
+        onClick={ this.handleCancel }
       />,
       <Button
         key='register'
         label='Yes, Register'
         warning
-        onClick={ this.onClickConfirmYes }
+        onClick={ this.handleRegister }
       />
     ];
   }
@@ -76,7 +66,9 @@ export default class ModalRegister extends Component {
     return (
       <div>
         <div className={ styles.section }>
-          You are about to register a new distributed application on the network, the details of this application is given below. This will require a non-refundable fee of { api.util.fromWei(this.dappsStore.fee).toFormat(3) }<small>ETH</small>.
+          You are about to register a new distributed application on the network, the details of
+          this application is given below. This will require a non-refundable fee of
+          { api.util.fromWei(this.dappsStore.fee).toFormat(3) }<small>ETH</small>.
         </div>
         <div className={ styles.section }>
           <div className={ styles.heading }>
@@ -89,11 +81,12 @@ export default class ModalRegister extends Component {
       </div>
     );
   }
-  onClickClose = () => {
+
+  handleCancel = () => {
     this.props.onClose();
   }
 
-  onClickConfirmYes = () => {
-    this.modalStore.doRegister();
+  handleRegister = () => {
+    this.props.onRegister();
   }
 }
