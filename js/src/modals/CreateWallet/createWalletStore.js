@@ -222,7 +222,6 @@ export default class CreateWalletStore {
       })
       .then((address) => {
         if (!address || !/^(0x)?0*$/.test(address)) {
-          this.step = 'INFO';
           return false;
         }
 

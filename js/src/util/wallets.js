@@ -69,7 +69,6 @@ export default class WalletsUtils {
       .then(([ accounts, owners ]) => {
         const addresses = Object.keys(accounts);
         const owner = intersection(addresses, owners).pop();
-      console.warn('no owner found', accounts, addresses, owners);
 
         if (!owner) {
           return false;
