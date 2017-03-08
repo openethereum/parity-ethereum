@@ -27,7 +27,6 @@
 //! on any empirical timings or mathematical models.
 
 use request::{self, Request};
-use super::packet;
 use super::error::Error;
 
 use rlp::*;
@@ -107,13 +106,63 @@ impl Default for CostTable {
 
 impl RlpEncodable for CostTable {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		unimplemented!()
+		fn append_cost(s: &mut RlpStream, cost: &U256, kind: request::Kind) {
+			s.begin_list(2).append(&kind).append(cost);
+		}
+
+		s.begin_list(9).append(&self.base);
+		append_cost(s, &self.headers, request::Kind::Headers);
+		append_cost(s, &self.body, request::Kind::Body);
+		append_cost(s, &self.receipts, request::Kind::Receipts);
+		append_cost(s, &self.account, request::Kind::Account);
+		append_cost(s, &self.storage, request::Kind::Storage);
+		append_cost(s, &self.code, request::Kind::Code);
+		append_cost(s, &self.header_proof, request::Kind::HeaderProof);
+		append_cost(s, &self.transaction_proof, request::Kind::Execution);
 	}
 }
 
 impl RlpDecodable for CostTable {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		unimplemented!()
+		let rlp = decoder.as_rlp();
+		let base = rlp.val_at(0)?;
+
+		let mut headers = None;
+		let mut body = None;
+		let mut receipts = None;
+		let mut account = None;
+		let mut storage = None;
+		let mut code = None;
+		let mut header_proof = None;
+		let mut transaction_proof = None;
+
+		for cost_list in rlp.iter().skip(1) {
+			let cost = cost_list.val_at(1)?;
+			match cost_list.val_at(0)? {
+				request::Kind::Headers => headers = Some(cost),
+				request::Kind::Body => body = Some(cost),
+				request::Kind::Receipts => receipts = Some(cost),
+				request::Kind::Account => account = Some(cost),
+				request::Kind::Storage => storage = Some(cost),
+				request::Kind::Code => code = Some(cost),
+				request::Kind::HeaderProof => header_proof = Some(cost),
+				request::Kind::Execution => transaction_proof = Some(cost),
+			}
+		}
+
+		let unwrap_cost = |cost: Option<U256>| cost.ok_or(DecoderError::Custom("Not all costs specified in cost table."));
+
+		Ok(CostTable {
+			base: base,
+			headers: unwrap_cost(headers)?,
+			body: unwrap_cost(body)?,
+			receipts: unwrap_cost(receipts)?,
+			account: unwrap_cost(account)?,
+			storage: unwrap_cost(storage)?,
+			code: unwrap_cost(code)?,
+			header_proof: unwrap_cost(header_proof)?,
+			transaction_proof: unwrap_cost(transaction_proof)?,
+		})
 	}
 }
 

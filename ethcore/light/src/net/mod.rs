@@ -18,14 +18,13 @@
 //!
 //! This uses a "Provider" to answer requests.
 
-use ethcore::transaction::{Action, UnverifiedTransaction};
-use ethcore::receipt::Receipt;
+use ethcore::transaction::UnverifiedTransaction;
 
 use io::TimerToken;
 use network::{NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, Stream, UntrustedRlp, View};
 use util::hash::H256;
-use util::{Bytes, DBValue, Mutex, RwLock, U256};
+use util::{DBValue, Mutex, RwLock, U256};
 use time::{Duration, SteadyTime};
 
 use std::collections::HashMap;
@@ -34,7 +33,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use provider::Provider;
-use request::{self, HashOrNumber, Request, Response};
+use request::{Request, Response};
 use request_builder::Requests;
 
 use self::request_credits::{Credits, FlowParams};
@@ -48,8 +47,8 @@ mod error;
 mod status;
 mod request_set;
 
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
 pub mod request_credits;
 

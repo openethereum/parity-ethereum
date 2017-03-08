@@ -31,7 +31,7 @@ use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
 
-use util::{Bytes, DBValue, H256, Mutex, RwLock};
+use util::{H256, Mutex, RwLock};
 
 use self::header_chain::{AncestryIter, HeaderChain};
 

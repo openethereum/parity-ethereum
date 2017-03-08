@@ -20,7 +20,6 @@ use network::{NetworkContext, PeerId, NodeId};
 
 use super::{Announcement, LightProtocol, ReqId};
 use super::error::Error;
-use request::{self, Request};
 use request_builder::Requests;
 
 /// An I/O context which allows sending and receiving packets as well as

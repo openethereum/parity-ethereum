@@ -24,7 +24,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::iter::FromIterator;
 
-use request::{self, Request};
+use request::Request;
 use request_builder::Requests;
 use net::{timeout, ReqId};
 
