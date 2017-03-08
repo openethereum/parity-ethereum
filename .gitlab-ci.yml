@@ -1,8 +1,8 @@
 stages:
   - test
   - js-build
-  - build
   - push-release
+  - build
 variables:
   GIT_DEPTH: "3"
   SIMPLECOV: "true"
@@ -460,9 +460,8 @@ windows:
     - zip win-installer.zip InstallParity.exe InstallParity.exe.md5
     - md5sums win-installer.zip > win-installer.zip.md5
     - cd ..\target\release\
-    - md5sums parity.exe parity.pdb > parity.md5
     - md5sums parity.exe > parity.exe.md5
-    - zip parity.zip parity.exe parity.pdb parity.md5
+    - zip parity.zip parity.exe parity.md5
     - md5sums parity.zip > parity.zip.md5
     - cd ..\..
     - aws configure set aws_access_key_id %s3_key%
@@ -488,7 +487,6 @@ windows:
   artifacts:
     paths:
     - target/release/parity.exe
-    - target/release/parity.pdb
     - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
 docker-build:
