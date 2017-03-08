@@ -125,3 +125,13 @@ impl<T: HashDB> AsHashDB for T {
 		self
 	}
 }
+
+impl<'a> AsHashDB for &'a mut HashDB {
+	fn as_hashdb(&self) -> &HashDB {
+		&**self
+	}
+
+	fn as_hashdb_mut(&mut self) -> &mut HashDB {
+		&mut **self
+	}
+}

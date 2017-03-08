@@ -16,6 +16,7 @@
 
 use std::collections::BTreeMap;
 use util::{U256, Address, H256, H2048, Bytes, Itertools};
+use util::hashdb::DBValue;
 use blockchain::TreeRoute;
 use verification::queue::QueueInfo as BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
@@ -321,4 +322,7 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 
 	/// Get code by address hash.
 	fn code_by_hash(&self, account_key: H256, id: BlockId) -> Bytes;
+
+	/// Prove execution of a transaction at the given block.
+	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<Vec<DBValue>>;
 }

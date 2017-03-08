@@ -21,10 +21,12 @@
 //! should become general over time to the point where not even a
 //! merkle trie is strictly necessary.
 
+use std::collections::{HashSet, HashMap};
 use std::sync::Arc;
 
 use state::Account;
-use util::{Address, AsHashDB, HashDB, H256};
+use util::{Address, MemoryDB, Mutex, H256};
+use util::hashdb::{AsHashDB, HashDB, DBValue};
 
 /// State backend. See module docs for more details.
 pub trait Backend: Send {
@@ -64,21 +66,48 @@ pub trait Backend: Send {
 	fn is_known_null(&self, address: &Address) -> bool;
 }
 
-/// A raw backend which simply wraps a hashdb and does no caching.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NoCache<T>(T);
+/// A raw backend used to check proofs of execution.
+///
+/// This doesn't delete anything since execution proofs won't have mangled keys
+/// and we want to avoid collisions.
+// TODO: when account lookup moved into backends, this won't rely as tenuously on intended
+// usage.
+#[derive(Clone, PartialEq)]
+pub struct ProofCheck(MemoryDB);
 
-impl<T> NoCache<T> {
-	/// Create a new `NoCache` backend.
-	pub fn new(inner: T) -> Self { NoCache(inner) }
-
-	/// Consume the backend, yielding the inner database.
-	pub fn into_inner(self) -> T { self.0 }
+impl ProofCheck {
+	/// Create a new `ProofCheck` backend from the given state items.
+	pub fn new(proof: &[DBValue]) -> Self {
+		let mut db = MemoryDB::new();
+		for item in proof { db.insert(item); }
+		ProofCheck(db)
+	}
 }
 
-impl<T: AsHashDB + Send> Backend for NoCache<T> {
-	fn as_hashdb(&self) -> &HashDB { self.0.as_hashdb() }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB { self.0.as_hashdb_mut() }
+impl HashDB for ProofCheck {
+	fn keys(&self) -> HashMap<H256, i32> { self.0.keys() }
+	fn get(&self, key: &H256) -> Option<DBValue> {
+		self.0.get(key)
+	}
+
+	fn contains(&self, key: &H256) -> bool {
+		self.0.contains(key)
+	}
+
+	fn insert(&mut self, value: &[u8]) -> H256 {
+		self.0.insert(value)
+	}
+
+	fn emplace(&mut self, key: H256, value: DBValue) {
+		self.0.emplace(key, value)
+	}
+
+	fn remove(&mut self, _key: &H256) { }
+}
+
+impl Backend for ProofCheck {
+	fn as_hashdb(&self) -> &HashDB { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB { self }
 	fn add_to_account_cache(&mut self, _addr: Address, _data: Option<Account>, _modified: bool) {}
 	fn cache_code(&self, _hash: H256, _code: Arc<Vec<u8>>) {}
 	fn get_cached_account(&self, _addr: &Address) -> Option<Option<Account>> { None }
@@ -90,4 +119,105 @@ impl<T: AsHashDB + Send> Backend for NoCache<T> {
 	fn get_cached_code(&self, _hash: &H256) -> Option<Arc<Vec<u8>>> { None }
 	fn note_non_null_account(&self, _address: &Address) {}
 	fn is_known_null(&self, _address: &Address) -> bool { false }
+}
+
+/// Proving state backend.
+/// This keeps track of all state values loaded during usage of this backend.
+/// The proof-of-execution can be extracted with `extract_proof`.
+///
+/// This doesn't cache anything or rely on the canonical state caches.
+pub struct Proving<H: AsHashDB> {
+	base: H, // state we're proving values from.
+	changed: MemoryDB, // changed state via insertions.
+	proof: Mutex<HashSet<DBValue>>,
+}
+
+impl<H: AsHashDB + Send + Sync> HashDB for Proving<H> {
+	fn keys(&self) -> HashMap<H256, i32> {
+		let mut keys = self.base.as_hashdb().keys();
+		keys.extend(self.changed.keys());
+		keys
+	}
+
+	fn get(&self, key: &H256) -> Option<DBValue> {
+		match self.base.as_hashdb().get(key) {
+			Some(val) => {
+				self.proof.lock().insert(val.clone());
+				Some(val)
+			}
+			None => self.changed.get(key)
+		}
+	}
+
+	fn contains(&self, key: &H256) -> bool {
+		self.get(key).is_some()
+	}
+
+	fn insert(&mut self, value: &[u8]) -> H256 {
+		self.changed.insert(value)
+	}
+
+	fn emplace(&mut self, key: H256, value: DBValue) {
+		self.changed.emplace(key, value)
+	}
+
+	fn remove(&mut self, key: &H256) {
+		// only remove from `changed`
+		if self.changed.contains(key) {
+			self.changed.remove(key)
+		}
+	}
+}
+
+impl<H: AsHashDB + Send + Sync> Backend for Proving<H> {
+	fn as_hashdb(&self) -> &HashDB {
+		self
+	}
+
+	fn as_hashdb_mut(&mut self) -> &mut HashDB {
+		self
+	}
+
+	fn add_to_account_cache(&mut self, _: Address, _: Option<Account>, _: bool) { }
+
+	fn cache_code(&self, _: H256, _: Arc<Vec<u8>>) { }
+
+	fn get_cached_account(&self, _: &Address) -> Option<Option<Account>> { None }
+
+	fn get_cached<F, U>(&self, _: &Address, _: F) -> Option<U>
+		where F: FnOnce(Option<&mut Account>) -> U
+	{
+		None
+	}
+
+	fn get_cached_code(&self, _: &H256) -> Option<Arc<Vec<u8>>> { None }
+	fn note_non_null_account(&self, _: &Address) { }
+	fn is_known_null(&self, _: &Address) -> bool { false }
+}
+
+impl<H: AsHashDB> Proving<H> {
+	/// Create a new `Proving` over a base database.
+	/// This will store all values ever fetched from that base.
+	pub fn new(base: H) -> Self {
+		Proving {
+			base: base,
+			changed: MemoryDB::new(),
+			proof: Mutex::new(HashSet::new()),
+		}
+	}
+
+	/// Consume the backend, extracting the gathered proof.
+	pub fn extract_proof(self) -> Vec<DBValue> {
+		self.proof.into_inner().into_iter().collect()
+	}
+}
+
+impl<H: AsHashDB + Clone> Clone for Proving<H> {
+	fn clone(&self) -> Self {
+		Proving {
+			base: self.base.clone(),
+			changed: self.changed.clone(),
+			proof: Mutex::new(self.proof.lock().clone()),
+		}
+	}
 }

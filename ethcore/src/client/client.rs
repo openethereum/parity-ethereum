@@ -24,7 +24,7 @@ use time::precise_time_ns;
 
 // util
 use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, MutexGuard, Hashable};
-use util::{journaldb, TrieFactory, Trie};
+use util::{journaldb, DBValue, TrieFactory, Trie};
 use util::{U256, H256, Address, H2048, Uint, FixedHash};
 use util::trie::TrieSpec;
 use util::kvdb::*;
@@ -34,7 +34,7 @@ use io::*;
 use views::BlockView;
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use header::BlockNumber;
-use state::{State, CleanupMode};
+use state::{self, State, CleanupMode};
 use spec::Spec;
 use basic_types::Seal;
 use engines::Engine;
@@ -308,18 +308,24 @@ impl Client {
 	}
 
 	/// The env info as of the best block.
-	fn latest_env_info(&self) -> EnvInfo {
-		let header = self.best_block_header();
+	pub fn latest_env_info(&self) -> EnvInfo {
+		self.env_info(BlockId::Latest).expect("Best block header always stored; qed")
+	}
 
-		EnvInfo {
-			number: header.number(),
-			author: header.author(),
-			timestamp: header.timestamp(),
-			difficulty: header.difficulty(),
-			last_hashes: self.build_last_hashes(header.hash()),
-			gas_used: U256::default(),
-			gas_limit: header.gas_limit(),
-		}
+	/// The env info as of a given block.
+	/// returns `None` if the block unknown.
+	pub fn env_info(&self, id: BlockId) -> Option<EnvInfo> {
+		self.block_header(id).map(|header| {
+			EnvInfo {
+				number: header.number(),
+				author: header.author(),
+				timestamp: header.timestamp(),
+				difficulty: header.difficulty(),
+				last_hashes: self.build_last_hashes(header.parent_hash()),
+				gas_used: U256::default(),
+				gas_limit: header.gas_limit(),
+			}
+		})
 	}
 
 	fn build_last_hashes(&self, parent_hash: H256) -> Arc<LastHashes> {
@@ -874,17 +880,9 @@ impl snapshot::DatabaseRestore for Client {
 
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
-		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
-		let last_hashes = self.build_last_hashes(header.parent_hash());
-		let env_info = EnvInfo {
-			number: header.number(),
-			author: header.author(),
-			timestamp: header.timestamp(),
-			difficulty: header.difficulty(),
-			last_hashes: last_hashes,
-			gas_used: U256::zero(),
-			gas_limit: U256::max_value(),
-		};
+		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+		env_info.gas_limit = U256::max_value();
+
 		// that's just a copy of the state.
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
@@ -910,17 +908,13 @@ impl BlockChainClient for Client {
 
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
 		const UPPER_CEILING: u64 = 1_000_000_000_000u64;
-		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
-		let last_hashes = self.build_last_hashes(header.parent_hash());
-		let env_info = EnvInfo {
-			number: header.number(),
-			author: header.author(),
-			timestamp: header.timestamp(),
-			difficulty: header.difficulty(),
-			last_hashes: last_hashes,
-			gas_used: U256::zero(),
-			gas_limit: UPPER_CEILING.into(),
+		let (mut upper, env_info)  = {
+			let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+			let initial_upper = env_info.gas_limit;
+			env_info.gas_limit = UPPER_CEILING.into();
+			(initial_upper, env_info)
 		};
+
 		// that's just a copy of the state.
 		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender();
@@ -946,7 +940,6 @@ impl BlockChainClient for Client {
 				.unwrap_or(false))
 		};
 
-		let mut upper = header.gas_limit();
 		if !cond(upper)? {
 			// impossible at block gas limit - try `UPPER_CEILING` instead.
 			// TODO: consider raising limit by powers of two.
@@ -989,7 +982,7 @@ impl BlockChainClient for Client {
 
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
-		let header = self.block_header(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
+		let mut env_info = self.env_info(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let body = self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let mut state = self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let mut txs = body.transactions();
@@ -999,16 +992,6 @@ impl BlockChainClient for Client {
 		}
 
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let last_hashes = self.build_last_hashes(header.hash());
-		let mut env_info = EnvInfo {
-			number: header.number(),
-			author: header.author(),
-			timestamp: header.timestamp(),
-			difficulty: header.difficulty(),
-			last_hashes: last_hashes,
-			gas_used: U256::default(),
-			gas_limit: header.gas_limit(),
-		};
 		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
 		let rest = txs.split_off(address.index);
 		for t in txs {
@@ -1620,6 +1603,25 @@ impl ::client::ProvingBlockChainClient for Client {
 			.and_then(|x| x)
 			.unwrap_or_else(Vec::new)
 	}
+
+	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<Vec<DBValue>> {
+		let (state, env_info) = match (self.state_at(id), self.env_info(id)) {
+			(Some(s), Some(e)) => (s, e),
+			_ => return None,
+		};
+		let mut jdb = self.state_db.lock().journal_db().boxed_clone();
+		let backend = state::backend::Proving::new(jdb.as_hashdb_mut());
+
+		let mut state = state.replace_backend(backend);
+		let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
+		let res = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&transaction, options);
+
+		match res {
+			Err(ExecutionError::Internal(_)) => return None,
+			_ => return Some(state.drop().1.extract_proof()),
+		}
+	}
+
 }
 
 impl Drop for Client {

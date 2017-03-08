@@ -44,8 +44,8 @@ pub enum Error {
 	Rlp(DecoderError),
 	/// A network error.
 	Network(NetworkError),
-	/// Out of buffer.
-	BufferEmpty,
+	/// Out of credits.
+	NoCredits,
 	/// Unrecognized packet code.
 	UnrecognizedPacket(u8),
 	/// Unexpected handshake.
@@ -72,7 +72,7 @@ impl Error {
 		match *self {
 			Error::Rlp(_) => Punishment::Disable,
 			Error::Network(_) => Punishment::None,
-			Error::BufferEmpty => Punishment::Disable,
+			Error::NoCredits => Punishment::Disable,
 			Error::UnrecognizedPacket(_) => Punishment::Disconnect,
 			Error::UnexpectedHandshake => Punishment::Disconnect,
 			Error::WrongNetwork => Punishment::Disable,
@@ -103,7 +103,7 @@ impl fmt::Display for Error {
 		match *self {
 			Error::Rlp(ref err) => err.fmt(f),
 			Error::Network(ref err) => err.fmt(f),
-			Error::BufferEmpty => write!(f, "Out of buffer"),
+			Error::NoCredits => write!(f, "Out of request credits"),
 			Error::UnrecognizedPacket(code) => write!(f, "Unrecognized packet: 0x{:x}", code),
 			Error::UnexpectedHandshake => write!(f, "Unexpected handshake"),
 			Error::WrongNetwork => write!(f, "Wrong network"),

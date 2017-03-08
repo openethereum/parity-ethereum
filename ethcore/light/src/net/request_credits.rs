@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! LES buffer flow management.
+//! Request credit management.
 //!
-//! Every request in the LES protocol leads to a reduction
-//! of the requester's buffer value as a rate-limiting mechanism.
-//! This buffer value will recharge at a set rate.
+//! Every request in the light protocol leads to a reduction
+//! of the requester's amount of credits as a rate-limiting mechanism.
+//! The amount of credits will recharge at a set rate.
 //!
-//! This module provides an interface for configuration of buffer
-//! flow costs and recharge rates.
+//! This module provides an interface for configuration of
+//! costs and recharge rates of request credits.
 //!
 //! Current default costs are picked completely arbitrarily, not based
 //! on any empirical timings or mathematical models.
@@ -38,19 +38,19 @@ use time::{Duration, SteadyTime};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cost(pub U256, pub U256);
 
-/// Buffer value.
+/// Credits value.
 ///
 /// Produced and recharged using `FlowParams`.
 /// Definitive updates can be made as well -- these will reset the recharge
 /// point to the time of the update.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Buffer {
+pub struct Credits {
 	estimate: U256,
 	recharge_point: SteadyTime,
 }
 
-impl Buffer {
-	/// Get the current buffer value.
+impl Credits {
+	/// Get the current amount of credits..
 	pub fn current(&self) -> U256 { self.estimate.clone() }
 
 	/// Make a definitive update.
@@ -61,7 +61,7 @@ impl Buffer {
 		self.recharge_point = SteadyTime::now();
 	}
 
-	/// Attempt to apply the given cost to the buffer.
+	/// Attempt to apply the given cost to the amount of credits.
 	///
 	/// If successful, the cost will be deducted successfully.
 	///
@@ -69,7 +69,7 @@ impl Buffer {
 	/// error will be produced.
 	pub fn deduct_cost(&mut self, cost: U256) -> Result<(), Error> {
 		match cost > self.estimate {
-			true => Err(Error::BufferEmpty),
+			true => Err(Error::NoCredits),
 			false => {
 				self.estimate = self.estimate - cost;
 				Ok(())
@@ -81,12 +81,13 @@ impl Buffer {
 /// A cost table, mapping requests to base and per-request costs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CostTable {
-	headers: Cost,
+	headers: Cost, // cost per header
 	bodies: Cost,
 	receipts: Cost,
 	state_proofs: Cost,
 	contract_codes: Cost,
 	header_proofs: Cost,
+	transaction_proof: Cost, // cost per gas.
 }
 
 impl Default for CostTable {
@@ -99,6 +100,7 @@ impl Default for CostTable {
 			state_proofs: Cost(250000.into(), 25000.into()),
 			contract_codes: Cost(200000.into(), 20000.into()),
 			header_proofs: Cost(150000.into(), 15000.into()),
+			transaction_proof: Cost(100000.into(), 2.into()),
 		}
 	}
 }
@@ -112,7 +114,7 @@ impl RlpEncodable for CostTable {
 				.append(&cost.1);
 		}
 
-		s.begin_list(6);
+		s.begin_list(7);
 
 		append_cost(s, packet::GET_BLOCK_HEADERS, &self.headers);
 		append_cost(s, packet::GET_BLOCK_BODIES, &self.bodies);
@@ -120,6 +122,7 @@ impl RlpEncodable for CostTable {
 		append_cost(s, packet::GET_PROOFS, &self.state_proofs);
 		append_cost(s, packet::GET_CONTRACT_CODES, &self.contract_codes);
 		append_cost(s, packet::GET_HEADER_PROOFS, &self.header_proofs);
+		append_cost(s, packet::GET_TRANSACTION_PROOF, &self.transaction_proof);
 	}
 }
 
@@ -133,6 +136,7 @@ impl RlpDecodable for CostTable {
 		let mut state_proofs = None;
 		let mut contract_codes = None;
 		let mut header_proofs = None;
+		let mut transaction_proof = None;
 
 		for row in rlp.iter() {
 			let msg_id: u8 = row.val_at(0)?;
@@ -150,6 +154,7 @@ impl RlpDecodable for CostTable {
 				packet::GET_PROOFS => state_proofs = Some(cost),
 				packet::GET_CONTRACT_CODES => contract_codes = Some(cost),
 				packet::GET_HEADER_PROOFS => header_proofs = Some(cost),
+				packet::GET_TRANSACTION_PROOF => transaction_proof = Some(cost),
 				_ => return Err(DecoderError::Custom("Unrecognized message in cost table")),
 			}
 		}
@@ -161,11 +166,12 @@ impl RlpDecodable for CostTable {
 			state_proofs: state_proofs.ok_or(DecoderError::Custom("No proofs cost specified"))?,
 			contract_codes: contract_codes.ok_or(DecoderError::Custom("No contract codes specified"))?,
 			header_proofs: header_proofs.ok_or(DecoderError::Custom("No header proofs cost specified"))?,
+			transaction_proof: transaction_proof.ok_or(DecoderError::Custom("No transaction proof gas cost specified"))?,
 		})
 	}
 }
 
-/// A buffer-flow manager handles costs, recharge, limits
+/// Handles costs, recharge, limits of request credits.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FlowParams {
 	costs: CostTable,
@@ -175,7 +181,7 @@ pub struct FlowParams {
 
 impl FlowParams {
 	/// Create new flow parameters from a request cost table,
-	/// buffer limit, and (minimum) rate of recharge.
+	/// credit limit, and (minimum) rate of recharge.
 	pub fn new(limit: U256, costs: CostTable, recharge: U256) -> Self {
 		FlowParams {
 			costs: costs,
@@ -197,11 +203,12 @@ impl FlowParams {
 				state_proofs: free_cost.clone(),
 				contract_codes: free_cost.clone(),
 				header_proofs: free_cost.clone(),
+				transaction_proof: free_cost,
 			}
 		}
 	}
 
-	/// Get a reference to the buffer limit.
+	/// Get a reference to the credit limit.
 	pub fn limit(&self) -> &U256 { &self.limit }
 
 	/// Get a reference to the cost table.
@@ -220,6 +227,7 @@ impl FlowParams {
 			request::Kind::StateProofs => &self.costs.state_proofs,
 			request::Kind::Codes => &self.costs.contract_codes,
 			request::Kind::HeaderProofs => &self.costs.header_proofs,
+			request::Kind::TransactionProof => &self.costs.transaction_proof,
 		};
 
 		let amount: U256 = amount.into();
@@ -227,10 +235,10 @@ impl FlowParams {
 	}
 
 	/// Compute the maximum number of costs of a specific kind which can be made
-	/// with the given buffer.
+	/// with the given amount of credits
 	/// Saturates at `usize::max()`. This is not a problem in practice because
 	/// this amount of requests is already prohibitively large.
-	pub fn max_amount(&self, buffer: &Buffer, kind: request::Kind) -> usize {
+	pub fn max_amount(&self, credits: &Credits, kind: request::Kind) -> usize {
 		use util::Uint;
 		use std::usize;
 
@@ -241,9 +249,10 @@ impl FlowParams {
 			request::Kind::StateProofs => &self.costs.state_proofs,
 			request::Kind::Codes => &self.costs.contract_codes,
 			request::Kind::HeaderProofs => &self.costs.header_proofs,
+			request::Kind::TransactionProof => &self.costs.transaction_proof,
 		};
 
-		let start = buffer.current();
+		let start = credits.current();
 
 		if start <= cost.0 {
 			return 0;
@@ -259,36 +268,36 @@ impl FlowParams {
 		}
 	}
 
-	/// Create initial buffer parameter.
-	pub fn create_buffer(&self) -> Buffer {
-		Buffer {
+	/// Create initial credits..
+	pub fn create_credits(&self) -> Credits {
+		Credits {
 			estimate: self.limit,
 			recharge_point: SteadyTime::now(),
 		}
 	}
 
-	/// Recharge the buffer based on time passed since last
+	/// Recharge the given credits based on time passed since last
 	/// update.
-	pub fn recharge(&self, buf: &mut Buffer) {
+	pub fn recharge(&self, credits: &mut Credits) {
 		let now = SteadyTime::now();
 
 		// recompute and update only in terms of full seconds elapsed
 		// in order to keep the estimate as an underestimate.
-		let elapsed = (now - buf.recharge_point).num_seconds();
-		buf.recharge_point = buf.recharge_point + Duration::seconds(elapsed);
+		let elapsed = (now - credits.recharge_point).num_seconds();
+		credits.recharge_point = credits.recharge_point + Duration::seconds(elapsed);
 
 		let elapsed: U256 = elapsed.into();
 
-		buf.estimate = ::std::cmp::min(self.limit, buf.estimate + (elapsed * self.recharge));
+		credits.estimate = ::std::cmp::min(self.limit, credits.estimate + (elapsed * self.recharge));
 	}
 
-	/// Refund some buffer which was previously deducted.
+	/// Refund some credits which were previously deducted.
 	/// Does not update the recharge timestamp.
-	pub fn refund(&self, buf: &mut Buffer, refund_amount: U256) {
-		buf.estimate = buf.estimate + refund_amount;
+	pub fn refund(&self, credits: &mut Credits, refund_amount: U256) {
+		credits.estimate = credits.estimate + refund_amount;
 
-		if buf.estimate > self.limit {
-			buf.estimate = self.limit
+		if credits.estimate > self.limit {
+			credits.estimate = self.limit
 		}
 	}
 }
@@ -318,20 +327,20 @@ mod tests {
 	}
 
 	#[test]
-	fn buffer_mechanism() {
+	fn credits_mechanism() {
 		use std::thread;
 		use std::time::Duration;
 
 		let flow_params = FlowParams::new(100.into(), Default::default(), 20.into());
-		let mut buffer =  flow_params.create_buffer();
+		let mut credits =  flow_params.create_credits();
 
-		assert!(buffer.deduct_cost(101.into()).is_err());
-		assert!(buffer.deduct_cost(10.into()).is_ok());
+		assert!(credits.deduct_cost(101.into()).is_err());
+		assert!(credits.deduct_cost(10.into()).is_ok());
 
 		thread::sleep(Duration::from_secs(1));
 
-		flow_params.recharge(&mut buffer);
+		flow_params.recharge(&mut credits);
 
-		assert_eq!(buffer.estimate, 100.into());
+		assert_eq!(credits.estimate, 100.into());
 	}
 }

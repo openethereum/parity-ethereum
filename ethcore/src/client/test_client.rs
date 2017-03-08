@@ -765,6 +765,10 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 	fn code_by_hash(&self, _: H256, _: BlockId) -> Bytes {
 		Vec::new()
 	}
+
+	fn prove_transaction(&self, _: SignedTransaction, _: BlockId) -> Option<Vec<DBValue>> {
+		None
+	}
 }
 
 impl EngineClient for TestBlockChainClient {

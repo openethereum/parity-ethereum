@@ -158,6 +158,54 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 	}
 }
 
+/// Get a recent gas price corpus.
+// TODO: this could be `impl Trait`.
+pub fn fetch_gas_price_corpus(
+	sync: Arc<LightSync>,
+	client: Arc<LightChainClient>,
+	on_demand: Arc<OnDemand>,
+	cache: Arc<Mutex<LightDataCache>>,
+) -> BoxFuture<Corpus<U256>, Error> {
+	const GAS_PRICE_SAMPLE_SIZE: usize = 100;
+
+	if let Some(cached) = cache.lock().gas_price_corpus() {
+		return future::ok(cached).boxed()
+	}
+
+	let cache = cache.clone();
+	let eventual_corpus = sync.with_context(|ctx| {
+		// get some recent headers with gas used,
+		// and request each of the blocks from the network.
+		let block_futures = client.ancestry_iter(BlockId::Latest)
+			.filter(|hdr| hdr.gas_used() != U256::default())
+			.take(GAS_PRICE_SAMPLE_SIZE)
+			.map(request::Body::new)
+			.map(|req| on_demand.block(ctx, req));
+
+		// as the blocks come in, collect gas prices into a vector
+		stream::futures_unordered(block_futures)
+			.fold(Vec::new(), |mut v, block| {
+				for t in block.transaction_views().iter() {
+					v.push(t.gas_price())
+				}
+
+				future::ok(v)
+			})
+			.map(move |v| {
+				// produce a corpus from the vector, cache it, and return
+				// the median as the intended gas price.
+				let corpus: ::stats::Corpus<_> = v.into();
+				cache.lock().set_gas_price_corpus(corpus.clone());
+				corpus
+			})
+	});
+
+	match eventual_corpus {
+		Some(corp) => corp.map_err(|_| errors::no_light_peers()).boxed(),
+		None => future::err(errors::network_disabled()).boxed(),
+	}
+}
+
 /// Dispatcher for light clients -- fetches default gas price, next nonce, etc. from network.
 /// Light client `ETH` RPC.
 #[derive(Clone)]
@@ -197,44 +245,12 @@ impl LightDispatcher {
 	/// Get a recent gas price corpus.
 	// TODO: this could be `impl Trait`.
 	pub fn gas_price_corpus(&self) -> BoxFuture<Corpus<U256>, Error> {
-		const GAS_PRICE_SAMPLE_SIZE: usize = 100;
-
-		if let Some(cached) = self.cache.lock().gas_price_corpus() {
-			return future::ok(cached).boxed()
-		}
-
-		let cache = self.cache.clone();
-		let eventual_corpus = self.sync.with_context(|ctx| {
-			// get some recent headers with gas used,
-			// and request each of the blocks from the network.
-			let block_futures = self.client.ancestry_iter(BlockId::Latest)
-				.filter(|hdr| hdr.gas_used() != U256::default())
-				.take(GAS_PRICE_SAMPLE_SIZE)
-				.map(request::Body::new)
-				.map(|req| self.on_demand.block(ctx, req));
-
-			// as the blocks come in, collect gas prices into a vector
-			stream::futures_unordered(block_futures)
-				.fold(Vec::new(), |mut v, block| {
-					for t in block.transaction_views().iter() {
-						v.push(t.gas_price())
-					}
-
-					future::ok(v)
-				})
-				.map(move |v| {
-					// produce a corpus from the vector, cache it, and return
-					// the median as the intended gas price.
-					let corpus: ::stats::Corpus<_> = v.into();
-					cache.lock().set_gas_price_corpus(corpus.clone());
-					corpus
-				})
-		});
-
-		match eventual_corpus {
-			Some(corp) => corp.map_err(|_| errors::no_light_peers()).boxed(),
-			None => future::err(errors::network_disabled()).boxed(),
-		}
+		fetch_gas_price_corpus(
+			self.sync.clone(),
+			self.client.clone(),
+			self.on_demand.clone(),
+			self.cache.clone(),
+		)
 	}
 
 	/// Get an account's next nonce.
@@ -285,7 +301,12 @@ impl Dispatcher for LightDispatcher {
 		// fast path for known gas price.
 		match request_gas_price {
 			Some(gas_price) => future::ok(with_gas_price(gas_price)).boxed(),
-			None => self.gas_price_corpus().and_then(|corp| match corp.median() {
+			None => fetch_gas_price_corpus(
+				self.sync.clone(),
+				self.client.clone(),
+				self.on_demand.clone(),
+				self.cache.clone()
+			).and_then(|corp| match corp.median() {
 				Some(median) => future::ok(*median),
 				None => future::ok(DEFAULT_GAS_PRICE), // fall back to default on error.
 			}).map(with_gas_price).boxed()
