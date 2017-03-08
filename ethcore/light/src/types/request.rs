@@ -100,10 +100,13 @@ impl<T: Encodable> Encodable for Field<T> {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(2);
 		match *self {
-			Field::Scalar(ref data) => s.append(&0u8).append(data),
-			Field::BackReference(ref req, ref idx) =>
-				s.append(&1u8).begin_list(2).append(req).append(idx),
-		};
+			Field::Scalar(ref data) => {
+				s.append(&0u8).append(data);
+			}
+			Field::BackReference(ref req, ref idx) => {
+				s.append(&1u8).begin_list(2).append(req).append(idx);
+			}
+		}
 	}
 }
 
@@ -161,8 +164,8 @@ impl Decodable for HashOrNumber {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let rlp = decoder.as_rlp();
 
-		rlp.val_at::<H256>(0).map(HashOrNumber::Hash)
-			.or_else(|_| rlp.val_at(0).map(HashOrNumber::Number))
+		rlp.as_val::<H256>().map(HashOrNumber::Hash)
+			.or_else(|_| rlp.as_val().map(HashOrNumber::Number))
 	}
 }
 
@@ -582,7 +585,7 @@ pub mod header {
 
 			let mut headers = Vec::new();
 
-			for item in rlp.at(0)?.iter() {
+			for item in rlp.iter() {
 				// check that it's a valid encoding.
 				// TODO: just return full headers here?
 				let _: FullHeader = item.as_val()?;
@@ -798,7 +801,7 @@ pub mod block_receipts {
 			let rlp = decoder.as_rlp();
 
 			Ok(Response {
-				receipts: rlp.val_at(0)?,
+				receipts: rlp.as_val()?,
 			})
 		}
 	}
@@ -896,22 +899,20 @@ pub mod block_body {
 			use ethcore::transaction::UnverifiedTransaction;
 
 			let rlp = decoder.as_rlp();
-			let body_rlp = rlp.at(0)?;
 
 			// check body validity.
 			let _: Vec<FullHeader> = rlp.val_at(0)?;
 			let _: Vec<UnverifiedTransaction> = rlp.val_at(1)?;
 
 			Ok(Response {
-				body: encoded::Body::new(body_rlp.as_raw().to_owned()),
+				body: encoded::Body::new(rlp.as_raw().to_owned()),
 			})
 		}
 	}
 
 	impl Encodable for Response {
 		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(2)
-				.append_raw(&self.body.rlp().as_raw(), 2);
+			s.append_raw(&self.body.rlp().as_raw(), 2);
 		}
 	}
 }
@@ -1305,7 +1306,7 @@ pub mod contract_code {
 			let rlp = decoder.as_rlp();
 
 			Ok(Response {
-				code: rlp.val_at(0)?,
+				code: rlp.as_val()?,
 			})
 		}
 	}
@@ -1450,7 +1451,7 @@ pub mod execution {
 		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 			let rlp = decoder.as_rlp();
 			let mut items = Vec::new();
-			for raw_item in rlp.at(0)?.iter() {
+			for raw_item in rlp.iter() {
 				let mut item = DBValue::new();
 				item.append_slice(raw_item.data()?);
 				items.push(item);
@@ -1470,5 +1471,213 @@ pub mod execution {
 				s.append(&&**item);
 			}
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use ethcore::header::Header;
+
+	fn check_roundtrip<T>(val: T)
+		where T: ::rlp::Encodable + ::rlp::Decodable + PartialEq + ::std::fmt::Debug
+	{
+		let bytes = ::rlp::encode(&val);
+		let new_val: T = ::rlp::decode(&bytes);
+		assert_eq!(val, new_val);
+	}
+
+	#[test]
+	fn hash_or_number_roundtrip() {
+		let hash = HashOrNumber::Hash(H256::default());
+		let number = HashOrNumber::Number(5);
+
+		check_roundtrip(hash);
+		check_roundtrip(number);
+	}
+
+	#[test]
+	fn field_roundtrip() {
+		let field_scalar = Field::Scalar(5usize);
+		let field_back: Field<usize> = Field::BackReference(1, 2);
+
+		check_roundtrip(field_scalar);
+		check_roundtrip(field_back);
+	}
+
+	#[test]
+	fn headers_roundtrip() {
+		let req = IncompleteHeadersRequest {
+			start: Field::Scalar(5u64.into()),
+			skip: 0,
+			max: 100,
+			reverse: false,
+		};
+
+		let full_req = Request::Headers(req.clone());
+		let res = HeadersResponse {
+			headers: vec![
+				::ethcore::encoded::Header::new(::rlp::encode(&Header::default()).to_vec())
+			]
+		};
+		let full_res = Response::Headers(res.clone());
+
+		check_roundtrip(req);
+		check_roundtrip(full_req);
+		check_roundtrip(res);
+		check_roundtrip(full_res);
+	}
+
+	#[test]
+	fn header_proof_roundtrip() {
+		let req = IncompleteHeaderProofRequest {
+			num: Field::BackReference(1, 234),
+		};
+
+		let full_req = Request::HeaderProof(req.clone());
+		let res = HeaderProofResponse {
+			proof: Vec::new(),
+			hash: Default::default(),
+			td: 100.into(),
+		};
+		let full_res = Response::HeaderProof(res.clone());
+
+		check_roundtrip(req);
+		check_roundtrip(full_req);
+		check_roundtrip(res);
+		check_roundtrip(full_res);
+	}
+
+	#[test]
+	fn receipts_roundtrip() {
+		let req = IncompleteReceiptsRequest {
+			hash: Field::Scalar(Default::default()),
+		};
+
+		let full_req = Request::Receipts(req.clone());
+		let res = ReceiptsResponse {
+			receipts: vec![Default::default(), Default::default()],
+		};
+		let full_res = Response::Receipts(res.clone());
+
+		check_roundtrip(req);
+		check_roundtrip(full_req);
+		check_roundtrip(res);
+		check_roundtrip(full_res);
+	}
+
+	#[test]
+	fn body_roundtrip() {
+		let req = IncompleteBodyRequest {
+			hash: Field::Scalar(Default::default()),
+		};
+
+		let full_req = Request::Body(req.clone());
+		let res = BodyResponse {
+			body: {
+				let mut stream = RlpStream::new_list(2);
+				stream.begin_list(0).begin_list(0);
+				::ethcore::encoded::Body::new(stream.out())
+			},
+		};
+		let full_res = Response::Body(res.clone());
+
+		check_roundtrip(req);
+		check_roundtrip(full_req);
+		check_roundtrip(res);
+		check_roundtrip(full_res);
+	}
+
+	#[test]
+	fn account_roundtrip() {
+		let req = IncompleteAccountRequest {
+			block_hash: Field::Scalar(Default::default()),
+			address_hash: Field::BackReference(1, 2),
+		};
+
+		let full_req = Request::Account(req.clone());
+		let res = AccountResponse {
+			proof: Vec::new(),
+			nonce: 100.into(),
+			balance: 123456.into(),
+			code_hash: Default::default(),
+			storage_root: Default::default(),
+		};
+		let full_res = Response::Account(res.clone());
+
+		check_roundtrip(req);
+		check_roundtrip(full_req);
+		check_roundtrip(res);
+		check_roundtrip(full_res);
+	}
+
+	#[test]
+	fn storage_roundtrip() {
+		let req = IncompleteStorageRequest {
+			block_hash: Field::Scalar(Default::default()),
+			address_hash: Field::BackReference(1, 2),
+			key_hash: Field::BackReference(3, 2),
+		};
+
+		let full_req = Request::Storage(req.clone());
+		let res = StorageResponse {
+			proof: Vec::new(),
+			value: H256::default(),
+		};
+		let full_res = Response::Storage(res.clone());
+
+		check_roundtrip(req);
+		check_roundtrip(full_req);
+		check_roundtrip(res);
+		check_roundtrip(full_res);
+	}
+
+	#[test]
+	fn code_roundtrip() {
+		let req = IncompleteCodeRequest {
+			block_hash: Field::Scalar(Default::default()),
+			code_hash: Field::BackReference(3, 2),
+		};
+
+		let full_req = Request::Code(req.clone());
+		let res = CodeResponse {
+			code: vec![1, 2, 3, 4, 5, 6, 7, 6, 5, 4],
+		};
+		let full_res = Response::Code(res.clone());
+
+		check_roundtrip(req);
+		check_roundtrip(full_req);
+		check_roundtrip(res);
+		check_roundtrip(full_res);
+	}
+
+	#[test]
+	fn execution_roundtrip() {
+		use util::DBValue;
+
+		let req = IncompleteExecutionRequest {
+			block_hash: Field::Scalar(Default::default()),
+			from: Default::default(),
+			action: ::ethcore::transaction::Action::Create,
+			gas: 100_000.into(),
+			gas_price: 0.into(),
+			value: 100_000_001.into(),
+			data: vec![1, 2, 3, 2, 1],
+		};
+
+		let full_req = Request::Execution(req.clone());
+		let res = ExecutionResponse {
+			items: vec![DBValue::new(), {
+				let mut value = DBValue::new();
+				value.append_slice(&[1, 1, 1, 2, 3]);
+				value
+			}],
+		};
+		let full_res = Response::Execution(res.clone());
+
+		check_roundtrip(req);
+		check_roundtrip(full_req);
+		check_roundtrip(res);
+		check_roundtrip(full_res);
 	}
 }
