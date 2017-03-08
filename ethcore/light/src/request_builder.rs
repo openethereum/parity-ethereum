@@ -114,3 +114,53 @@ impl Requests {
 	/// Get access to the underlying slice of requests.
 	pub fn requests(&self) -> &[Request] { &self.requests }
 }
+
+#[cfg(test)]
+mod tests {
+	use request::*;
+	use super::RequestBuilder;
+	use util::H256;
+
+	#[test]
+	fn all_scalar() {
+		let mut builder = RequestBuilder::default();
+		builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
+			num: 100.into(),
+		})).unwrap();
+		builder.push(Request::Receipts(IncompleteReceiptsRequest {
+			hash: H256::default().into(),
+		})).unwrap();
+	}
+
+	#[test]
+	#[should_panic]
+	fn missing_backref() {
+		let mut builder = RequestBuilder::default();
+		builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
+			num: Field::BackReference(100, 3),
+		})).unwrap();
+	}
+
+	#[test]
+	#[should_panic]
+	fn wrong_kind() {
+		let mut builder = RequestBuilder::default();
+		assert!(builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
+			num: 100.into(),
+		})).is_ok());
+		builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
+			num: Field::BackReference(0, 0),
+		})).unwrap();
+	}
+
+	#[test]
+	fn good_backreference() {
+		let mut builder = RequestBuilder::default();
+		builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
+			num: 100.into(), // header proof puts hash at output 0.
+		})).unwrap();
+		builder.push(Request::Receipts(IncompleteReceiptsRequest {
+			hash: Field::BackReference(0, 0),
+		})).unwrap();
+	}
+}

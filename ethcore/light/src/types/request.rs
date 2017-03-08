@@ -649,7 +649,7 @@ pub mod header_proof {
 		}
 
 		fn note_outputs<F>(&self, mut note: F) where F: FnMut(usize, OutputKind) {
-			note(1, OutputKind::Hash);
+			note(0, OutputKind::Hash);
 		}
 
 		fn fill<F>(self, oracle: F) -> Result<Self::Complete, NoSuchOutput>
@@ -691,7 +691,7 @@ pub mod header_proof {
 	impl Response {
 		/// Fill reusable outputs by providing them to the function.
 		pub fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
-			f(1, Output::Hash(self.hash));
+			f(0, Output::Hash(self.hash));
 		}
 	}
 
