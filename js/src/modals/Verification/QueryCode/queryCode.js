@@ -42,7 +42,15 @@ export default class QueryCode extends Component {
 
     return (
       <Form>
-        <p>The verification code has been sent to { receiver }.</p>
+        <p>
+          <FormattedMessage
+            id='verification.code.sent'
+            defaultMessage='The verification code has been sent to {receiver}.'
+            values={ {
+              receiver
+            } }
+          />
+        </p>
         <Input
           autoFocus
           label={

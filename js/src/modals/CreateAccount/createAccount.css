@@ -101,17 +101,6 @@
   width: 10% !important;
 }
 
-.upload {
-  text-align: right;
-  float: right;
-  margin-left: -100%;
-  margin-top: 28px;
-}
-
-.upload>div {
-  margin-right: 0.5em;
-}
-
 .checkbox {
   margin-top: 2em;
 }
@@ -120,6 +109,7 @@
   display: flex;
 
   .icon {
+    color: rgb(167, 151, 0) !important;
     flex: 0 0 56px;
     height: 56px !important;
     margin-right: 0.75em;
@@ -129,6 +119,11 @@
   .info {
     flex: 1 1;
   }
+}
+
+.fileImport {
+  height: 9em;
+  margin-top: 1em;
 }
 
 .summary {

@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { CheckIcon, StarIcon, StarOutlineIcon } from '~/ui/Icons';
+import { StarIcon } from '~/ui/Icons';
 import SectionList from '~/ui/SectionList';
 import { arrayOrObjectProptype } from '~/util/proptypes';
 
@@ -62,14 +62,24 @@ export default class SelectionList extends Component {
     let defaultIcon = null;
 
     if (onDefaultClick) {
-      defaultIcon = isSelected && item.default
-        ? <StarIcon />
-        : <StarOutlineIcon className={ styles.iconDisabled } onClick={ makeDefault } />;
+      defaultIcon = (
+        <div className={ styles.overlay }>
+          {
+            isSelected && item.default
+              ? <StarIcon className={ styles.icon } />
+              : <StarIcon className={ styles.iconDisabled } onClick={ makeDefault } />
+          }
+        </div>
+      );
     }
 
     const classes = isSelected
       ? [styles.item, styles.selected]
       : [styles.item, styles.unselected];
+
+    if (item.default) {
+      classes.push(styles.default);
+    }
 
     return (
       <div className={ classes.join(' ') }>
@@ -79,14 +89,7 @@ export default class SelectionList extends Component {
         >
           { renderItem(item, index) }
         </div>
-        <div className={ styles.overlay }>
-          { defaultIcon }
-          {
-            isSelected
-              ? <CheckIcon onClick={ selectItem } />
-              : <CheckIcon className={ styles.iconDisabled } onClick={ selectItem } />
-          }
-        </div>
+        { defaultIcon }
       </div>
     );
   }

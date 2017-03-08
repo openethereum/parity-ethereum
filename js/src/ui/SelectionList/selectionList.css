@@ -16,6 +16,7 @@
 */
 
 .item {
+  cursor: pointer;
   display: flex;
   flex: 1;
   height: 100%;
@@ -23,7 +24,8 @@
   width: 100%;
 
   &:hover {
-    box-shadow: inset 0 0 0 2px rgb(255, 255, 255);
+    filter: none;
+    opacity: 1;
   }
 
   .content {
@@ -31,27 +33,57 @@
     width: 100%;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.25);
+      background-color: rgba(255, 255, 255, 0.15);
     }
   }
 
   .overlay {
     position: absolute;
-    right: 0.5em;
-    top: 0.5em;
+    left: 0.75em;
+    top: 0.75em;
+    z-index: 1;
+
+    .icon,
+    .iconDisabled {
+      border-radius: 0.25em;
+      color: #333 !important;
+      cursor: pointer;
+      margin-right: 0.25em;
+    }
+
+    .icon {
+      background: white;
+    }
+
+    .iconDisabled {
+      background: #666;
+
+      &:hover {
+        background: white;
+      }
+    }
   }
 }
 
 .selected {
-  box-shadow: inset 0 0 0 2px rgb(255, 255, 255);
   filter: none;
+
+  &::after {
+    background: rgb(0, 151, 167);
+    content: '';
+    height: 4px;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
+
+  &.default::after {
+    background: rgb(167, 151, 0);
+  }
 }
 
 .unselected {
-  filter: grayscale(100%);
-  opacity: 0.5;
-}
-
-.iconDisabled {
-  opacity: 0.15;
+  filter: grayscale(50%);
+  opacity: 0.75;
 }

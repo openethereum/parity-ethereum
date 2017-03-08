@@ -23,13 +23,46 @@
 .account {
   position: relative;
 
+  .addressline {
+    display: flex;
+    white-space: nowrap;
+
+    .address {
+      display: inline-block;
+      flex: 1;
+      margin-left: 0.5em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
   .blockDescription {
     color: rgba(255, 255, 255, 0.25);
     margin-top: 1.5em;
   }
 
-  .ethBalances {
+  .iconCertifications {
+    top: 72px;
     opacity: 1;
+    position: absolute;
+    left: 88px;
+
+    img {
+      height: 1em !important;
+      width: 1em !important;
+    }
+  }
+
+  .summary {
+    position: relative;
+
+    .ethBalances {
+      opacity: 1;
+    }
+  }
+
+  .overlay {
+    margin-top: -3.25em;
   }
 
   .owners {
@@ -42,10 +75,6 @@
     .owner {
       margin: 0.5em;
     }
-  }
-
-  .overlay {
-    margin-top: -3.25em;
   }
 
   &:not(:hover) {
@@ -95,10 +124,12 @@
 .heading {
   display: flex;
   flex-direction: row;
+  overflow: hidden;
 
   .main,
   .mainLink {
     flex: 1;
+    overflow: hidden;
   }
 
   .mainLink h3 {

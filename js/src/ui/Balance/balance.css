@@ -18,16 +18,22 @@
 .balances {
   display: flex;
   flex-wrap: wrap;
-  margin: 1em 0 0 0;
+  margin: 0.75em 0 0 0;
   vertical-align: top;
+
+  &:not(.full) {
+    height: 2.5em;
+    overflow: hidden;
+  }
 }
 
 .balance,
 .empty {
-  margin: 0.75em 0.5em 0 0;
+  margin: 0.75em 0.5em 4px 0;
 }
 
 .empty {
+  min-height: 24px;
   line-height: 24px;
   opacity: 0.25;
   overflow: hidden;
@@ -36,28 +42,35 @@
 }
 
 .balance {
-  background: rgba(255, 255, 255, 0.07);
+  align-items: center;
   border-radius: 16px;
+  display: flex;
   max-height: 24px;
   max-width: 100%;
-  display: flex;
-  align-items: center;
-}
 
-.balance img {
-  height: 32px;
-  margin: -4px 1em 0 0;
-  width: 32px;
-}
+  &.full {
+    background: rgba(255, 255, 255, 0.07);
 
-.balanceValue {
-  margin: 0 0.5em 0 0;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
-}
+    img {
+      margin-right: 1em;
+    }
+  }
 
-.balanceTag {
-  font-size: 0.85em;
-  padding-right: 0.75rem;
+  img {
+    height: 32px;
+    margin-top: -4px;
+    width: 32px;
+  }
+
+  .tag {
+    padding-right: 0.75rem;
+    font-size: 0.85em;
+  }
+
+  .value {
+    margin: 0 0.5em 0 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }

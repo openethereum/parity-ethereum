@@ -21,8 +21,8 @@ import etherscan from '~/3rdparty/etherscan';
 export default class Store {
   @observable address = null;
   @observable isLoading = false;
-  @observable isTest = undefined;
   @observable isTracing = false;
+  @observable netVersion = '0';
   @observable txHashes = [];
 
   constructor (api) {
@@ -44,8 +44,8 @@ export default class Store {
     this.isLoading = isLoading;
   }
 
-  @action setTest = (isTest) => {
-    this.isTest = isTest;
+  @action setNetVersion = (netVersion) => {
+    this.netVersion = netVersion;
   }
 
   @action setTracing = (isTracing) => {
@@ -55,7 +55,7 @@ export default class Store {
   @action updateProps = (props) => {
     transaction(() => {
       this.setAddress(props.address);
-      this.setTest(props.isTest);
+      this.setNetVersion(props.netVersion);
 
       // TODO: When tracing is enabled again, adjust to actually set
       this.setTracing(false && props.traceMode);
@@ -65,7 +65,7 @@ export default class Store {
   }
 
   getTransactions () {
-    if (this.isTest === undefined) {
+    if (this.netVersion === '0') {
       return Promise.resolve();
     }
 
@@ -87,7 +87,7 @@ export default class Store {
   }
 
   fetchEtherscanTransactions () {
-    return etherscan.account.transactions(this.address, 0, this.isTest);
+    return etherscan.account.transactions(this.address, 0, false, this.netVersion);
   }
 
   fetchTraceTransactions () {

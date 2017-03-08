@@ -21,11 +21,14 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
-import { EditMeta, DeleteAccount, Shapeshift, Verification, Transfer, PasswordManager } from '~/modals';
+import HardwareStore from '~/mobx/hardwareStore';
+import { DeleteAccount, EditMeta, Faucet, PasswordManager, Shapeshift, Transfer, Verification } from '~/modals';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 import { Actionbar, Button, Page } from '~/ui';
-import { DeleteIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon } from '~/ui/Icons';
+import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon } from '~/ui/Icons';
+
+import DeleteAddress from '../Address/Delete';
 
 import Header from './Header';
 import Store from './store';
@@ -34,6 +37,10 @@ import styles from './account.css';
 
 @observer
 class Account extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     fetchCertifiers: PropTypes.func.isRequired,
     fetchCertifications: PropTypes.func.isRequired,
@@ -41,10 +48,13 @@ class Account extends Component {
 
     accounts: PropTypes.object,
     balances: PropTypes.object,
+    certifications: PropTypes.object,
+    netVersion: PropTypes.string.isRequired,
     params: PropTypes.object
   }
 
   store = new Store();
+  hwstore = HardwareStore.get(this.context.api);
 
   componentDidMount () {
     this.props.fetchCertifiers();
@@ -83,19 +93,23 @@ class Account extends Component {
       return null;
     }
 
+    const isAvailable = !account.hardware || this.hwstore.isConnected(address);
+
     return (
       <div>
         { this.renderDeleteDialog(account) }
         { this.renderEditDialog(account) }
+        { this.renderFaucetDialog() }
         { this.renderFundDialog() }
         { this.renderPasswordDialog(account) }
         { this.renderTransferDialog(account, balance) }
         { this.renderVerificationDialog() }
-        { this.renderActionbar(balance) }
+        { this.renderActionbar(account, balance) }
         <Page padded>
           <Header
             account={ account }
             balance={ balance }
+            disabled={ !isAvailable }
           />
           <Transactions
             accounts={ accounts }
@@ -106,8 +120,35 @@ class Account extends Component {
     );
   }
 
-  renderActionbar (balance) {
+  isKovan = (netVersion) => {
+    return netVersion === '42';
+  }
+
+  isMainnet = (netVersion) => {
+    return netVersion === '1';
+  }
+
+  isFaucettable = (netVersion, certifications, address) => {
+    return this.isKovan(netVersion) || (
+      this.isMainnet(netVersion) &&
+      this.isSmsCertified(certifications, address)
+    );
+  }
+
+  isSmsCertified = (_certifications, address) => {
+    const certifications = _certifications && _certifications[address]
+      ? _certifications[address].filter((cert) => cert.name.indexOf('smsverification') === 0)
+      : [];
+
+    return certifications.length !== 0;
+  }
+
+  renderActionbar (account, balance) {
+    const { certifications, netVersion } = this.props;
+    const { address } = this.props.params;
     const showTransferButton = !!(balance && balance.tokens);
+    const isVerifiable = this.isMainnet(netVersion);
+    const isFaucettable = this.isFaucettable(netVersion, certifications, address);
 
     const buttons = [
       <Button
@@ -138,17 +179,36 @@ class Account extends Component {
         }
         onClick={ this.store.toggleFundDialog }
       />,
-      <Button
-        icon={ <VerifyIcon /> }
-        key='sms-verification'
-        label={
-          <FormattedMessage
-            id='account.button.verify'
-            defaultMessage='verify'
+      isVerifiable
+        ? (
+          <Button
+            icon={ <VerifyIcon /> }
+            key='verification'
+            label={
+              <FormattedMessage
+                id='account.button.verify'
+                defaultMessage='verify'
+              />
+            }
+            onClick={ this.store.toggleVerificationDialog }
           />
-        }
-        onClick={ this.store.toggleVerificationDialog }
-      />,
+        )
+        : null,
+      isFaucettable
+        ? (
+          <Button
+            icon={ <DialIcon /> }
+            key='faucet'
+            label={
+              <FormattedMessage
+                id='account.button.faucet'
+                defaultMessage='Kovan ETH'
+              />
+            }
+            onClick={ this.store.toggleFaucetDialog }
+          />
+        )
+        : null,
       <Button
         icon={ <EditIcon /> }
         key='editmeta'
@@ -160,17 +220,19 @@ class Account extends Component {
         }
         onClick={ this.store.toggleEditDialog }
       />,
-      <Button
-        icon={ <LockedIcon /> }
-        key='passwordManager'
-        label={
-          <FormattedMessage
-            id='account.button.password'
-            defaultMessage='password'
-          />
-        }
-        onClick={ this.store.togglePasswordDialog }
-      />,
+      !account.hardware && (
+        <Button
+          icon={ <LockedIcon /> }
+          key='passwordManager'
+          label={
+            <FormattedMessage
+              id='account.button.password'
+              defaultMessage='password'
+            />
+          }
+          onClick={ this.store.togglePasswordDialog }
+        />
+      ),
       <Button
         icon={ <DeleteIcon /> }
         key='delete'
@@ -202,6 +264,23 @@ class Account extends Component {
       return null;
     }
 
+    if (account.hardware) {
+      return (
+        <DeleteAddress
+          account={ account }
+          confirmMessage={
+            <FormattedMessage
+              id='account.hardware.confirmDelete'
+              defaultMessage='Are you sure you want to remove the following hardware address from your account list?'
+            />
+          }
+          visible
+          route='/accounts'
+          onClose={ this.store.toggleDeleteDialog }
+        />
+      );
+    }
+
     return (
       <DeleteAccount
         account={ account }
@@ -219,6 +298,24 @@ class Account extends Component {
       <EditMeta
         account={ account }
         onClose={ this.store.toggleEditDialog }
+      />
+    );
+  }
+
+  renderFaucetDialog () {
+    const { netVersion } = this.props;
+
+    if (!this.store.isFaucetVisible) {
+      return null;
+    }
+
+    const { address } = this.props.params;
+
+    return (
+      <Faucet
+        address={ address }
+        netVersion={ netVersion }
+        onClose={ this.store.toggleFaucetDialog }
       />
     );
   }
@@ -287,10 +384,14 @@ class Account extends Component {
 function mapStateToProps (state) {
   const { accounts } = state.personal;
   const { balances } = state.balances;
+  const certifications = state.certifications;
+  const { netVersion } = state.nodeStatus;
 
   return {
     accounts,
-    balances
+    balances,
+    certifications,
+    netVersion
   };
 }
 

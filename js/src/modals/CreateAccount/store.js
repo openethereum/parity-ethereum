@@ -44,6 +44,7 @@ export default class Store {
   @observable rawKey = '';
   @observable rawKeyError = ERRORS.nokey;
   @observable stage = STAGE_SELECT_TYPE;
+  @observable vaultName = '';
   @observable walletFile = '';
   @observable walletFileError = ERRORS.noFile;
   @observable walletJson = '';
@@ -93,8 +94,12 @@ export default class Store {
       this.phrase = '';
       this.name = '';
       this.nameError = null;
+      this.rawKey = '';
       this.rawKeyError = null;
+      this.vaultName = '';
+      this.walletFile = '';
       this.walletFileError = null;
+      this.walletJson = '';
     });
   }
 
@@ -129,6 +134,10 @@ export default class Store {
 
   @action setGethImported = (gethImported) => {
     this.gethImported = gethImported;
+  }
+
+  @action setVaultName = (vaultName) => {
+    this.vaultName = vaultName;
   }
 
   @action setWindowsPhrase = (isWindowsPhrase = false) => {
@@ -217,7 +226,28 @@ export default class Store {
     this.stage--;
   }
 
-  createAccount = () => {
+  createAccount = (vaultStore) => {
+    this.setBusy(true);
+
+    return this
+      ._createAccount()
+      .then(() => {
+        if (vaultStore && this.vaultName && this.vaultName.length) {
+          return vaultStore.moveAccount(this.vaultName, this.address);
+        }
+
+        return true;
+      })
+      .then(() => {
+        this.setBusy(false);
+      })
+      .catch((error) => {
+        this.setBusy(false);
+        throw error;
+      });
+  }
+
+  _createAccount = () => {
     switch (this.createType) {
       case 'fromGeth':
         return this.createAccountFromGeth();

@@ -176,10 +176,15 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 			None => { return Ok(None); }
 		};
 
+		let size = client.block(BlockId::Hash(uncle.hash()))
+			.map(|block| block.into_inner().len())
+			.map(U256::from)
+			.map(Into::into);
+
 		let block = RichBlock {
 			block: Block {
 				hash: Some(uncle.hash().into()),
-				size: None,
+				size: size,
 				parent_hash: uncle.parent_hash().clone().into(),
 				uncles_hash: uncle.uncles_hash().clone().into(),
 				author: uncle.author().clone().into(),

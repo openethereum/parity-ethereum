@@ -32,7 +32,7 @@ class Transactions extends Component {
 
   static propTypes = {
     address: PropTypes.string.isRequired,
-    isTest: PropTypes.bool,
+    netVersion: PropTypes.string.isRequired,
     traceMode: PropTypes.bool
   }
 
@@ -48,7 +48,7 @@ class Transactions extends Component {
       return;
     }
 
-    const hasChanged = ['isTest', 'address']
+    const hasChanged = ['address', 'netVersion']
       .map(key => newProps[key] !== this.props[key])
       .reduce((truth, keyTruth) => truth || keyTruth, false);
 
@@ -112,10 +112,10 @@ class Transactions extends Component {
 }
 
 function mapStateToProps (state) {
-  const { isTest, traceMode } = state.nodeStatus;
+  const { netVersion, traceMode } = state.nodeStatus;
 
   return {
-    isTest,
+    netVersion,
     traceMode
   };
 }

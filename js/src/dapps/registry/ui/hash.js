@@ -26,7 +26,7 @@ const leading0x = /^0x/;
 class Hash extends Component {
   static propTypes = {
     hash: PropTypes.string.isRequired,
-    isTestnet: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     linked: PropTypes.bool
   }
 
@@ -35,7 +35,7 @@ class Hash extends Component {
   }
 
   render () {
-    const { hash, isTestnet, linked } = this.props;
+    const { hash, netVersion, linked } = this.props;
 
     let shortened = hash.toLowerCase().replace(leading0x, '');
 
@@ -47,7 +47,7 @@ class Hash extends Component {
       return (
         <a
           className={ styles.link }
-          href={ etherscanUrl(hash, isTestnet) }
+          href={ etherscanUrl(hash, false, netVersion) }
           target='_blank'
         >
           <abbr title={ hash }>{ shortened }</abbr>
@@ -61,7 +61,7 @@ class Hash extends Component {
 
 export default connect(
   (state) => ({ // mapStateToProps
-    isTestnet: state.isTestnet
+    netVersion: state.netVersion
   }),
   null // mapDispatchToProps
 )(Hash);

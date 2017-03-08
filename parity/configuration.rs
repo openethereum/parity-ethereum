@@ -15,12 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time::Duration;
-use std::io::Read;
+use std::io::{Read, Write, stderr};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::cmp::max;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
+use util::journaldb::Algorithm;
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::ethstore::ethkey::Secret;
@@ -33,7 +34,7 @@ use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
-use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
@@ -115,7 +116,14 @@ impl Configuration {
 		let fat_db = self.args.flag_fat_db.parse()?;
 		let compaction = self.args.flag_db_compaction.parse()?;
 		let wal = !self.args.flag_fast_and_loose;
-		let warp_sync = self.args.flag_warp;
+		match self.args.flag_warp {
+			// Logging is not initialized yet, so we print directly to stderr
+			Some(true) if fat_db == Switch::On => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because Fat DB is turned on").expect("Error writing to stderr"),
+			Some(true) if tracing == Switch::On => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because tracing is turned on").expect("Error writing to stderr"),
+			Some(true) if pruning == Pruning::Specific(Algorithm::Archive) => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because pruning mode is set to archive").expect("Error writing to stderr"),
+			_ => {},
+		};
+		let warp_sync = !self.args.flag_no_warp && fat_db != Switch::On && tracing != Switch::On && pruning != Pruning::Specific(Algorithm::Archive);
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let dapps_conf = self.dapps_config();
@@ -430,7 +438,7 @@ impl Configuration {
 
 	fn chain(&self) -> String {
 		if self.args.flag_testnet {
-			"ropsten".to_owned()
+			"testnet".to_owned()
 		} else {
 			self.args.flag_chain.clone()
 		}
@@ -538,6 +546,7 @@ impl Configuration {
 			interface: self.dapps_interface(),
 			port: self.args.flag_dapps_port,
 			hosts: self.dapps_hosts(),
+			cors: self.dapps_cors(),
 			user: self.args.flag_dapps_user.clone(),
 			pass: self.args.flag_dapps_pass.clone(),
 			dapps_path: PathBuf::from(self.directories().dapps),
@@ -714,6 +723,10 @@ impl Configuration {
 		Self::cors(self.args.flag_ipfs_api_cors.as_ref())
 	}
 
+	fn dapps_cors(&self) -> Option<Vec<String>> {
+		Self::cors(self.args.flag_dapps_cors.as_ref())
+	}
+
 	fn hosts(hosts: &str) -> Option<Vec<String>> {
 		match hosts {
 			"none" => return Some(Vec::new()),
@@ -820,8 +833,8 @@ impl Configuration {
 		let secretstore_path = replace_home(&data_path, &self.args.flag_secretstore_path);
 		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
 
-		if self.args.flag_geth  && !cfg!(windows) {
-			let geth_root  = if self.args.flag_testnet { path::ethereum::test() } else {  path::ethereum::default() };
+		if self.args.flag_geth && !cfg!(windows) {
+			let geth_root  = if self.chain() == "testnet".to_owned() { path::ethereum::test() } else {  path::ethereum::default() };
 			::std::fs::create_dir_all(geth_root.as_path()).unwrap_or_else(
 				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_root.to_str().unwrap(), e));
 		}
@@ -1144,7 +1157,7 @@ mod tests {
 			ipc_conf: Default::default(),
 			net_conf: default_network_config(),
 			network_id: None,
-			warp_sync: false,
+			warp_sync: true,
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),
@@ -1223,7 +1236,7 @@ mod tests {
 		// then
 		assert_eq!(conf.network_settings(), NetworkSettings {
 			name: "testname".to_owned(),
-			chain: "ropsten".to_owned(),
+			chain: "testnet".to_owned(),
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "local".to_owned(),

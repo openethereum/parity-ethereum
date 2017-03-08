@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Address, Data, Hash, Quantity, BlockNumber, TransactionRequest } from '../types';
+import { Address, Data, Hash, Quantity, BlockNumber, TransactionRequest, TransactionResponse } from '../types';
 import { fromDecimal, withComment, Dummy } from '../helpers';
 
 const SECTION_ACCOUNTS = 'Accounts (read-only) and Signatures';
@@ -26,86 +26,6 @@ const SECTION_VAULT = 'Account Vaults';
 
 const SUBDOC_SET = 'set';
 const SUBDOC_ACCOUNTS = 'accounts';
-
-const transactionDetails = {
-  hash: {
-    type: Hash,
-    desc: '32 Bytes - hash of the transaction.'
-  },
-  nonce: {
-    type: Quantity,
-    desc: 'The number of transactions made by the sender prior to this one.'
-  },
-  blockHash: {
-    type: Hash,
-    desc: '32 Bytes - hash of the block where this transaction was in. `null` when its pending.'
-  },
-  blockNumber: {
-    type: BlockNumber,
-    desc: 'Block number where this transaction was in. `null` when its pending.'
-  },
-  transactionIndex: {
-    type: Quantity,
-    desc: 'Integer of the transactions index position in the block. `null` when its pending.'
-  },
-  from: {
-    type: Address,
-    desc: '20 Bytes - address of the sender.'
-  },
-  to: {
-    type: Address,
-    desc: '20 Bytes - address of the receiver. `null` when its a contract creation transaction.'
-  },
-  value: {
-    type: Quantity,
-    desc: 'Value transferred in Wei.'
-  },
-  gasPrice: {
-    type: Quantity,
-    desc: 'Gas price provided by the sender in Wei.'
-  },
-  gas: {
-    type: Quantity,
-    desc: 'Gas provided by the sender.'
-  },
-  input: {
-    type: Data,
-    desc: 'The data send along with the transaction.'
-  },
-  raw: {
-    type: Data,
-    desc: 'Raw transaction data.'
-  },
-  publicKey: {
-    type: Data,
-    desc: 'Public key of the signer.'
-  },
-  networkId: {
-    type: Quantity,
-    desc: 'The network id of the transaction, if any.'
-  },
-  standardV: {
-    type: Quantity,
-    desc: 'The standardized V field of the signature (0 or 1).'
-  },
-  v: {
-    type: Quantity,
-    desc: 'The V field of the signature.'
-  },
-  r: {
-    type: Quantity,
-    desc: 'The R field of the signature.'
-  },
-  s: {
-    type: Quantity,
-    desc: 'The S field of the signature.'
-  },
-  condition: {
-    type: Object,
-    optional: true,
-    desc: 'Conditional submission, Block number in `block` or timestamp in `time` or `null`.'
-  }
-};
 
 export default {
   accountsInfo: {
@@ -393,6 +313,32 @@ export default {
     }
   },
 
+  hardwareAccountsInfo: {
+    section: SECTION_ACCOUNTS,
+    desc: 'Provides metadata for attached hardware wallets',
+    params: [],
+    returns: {
+      type: Object,
+      desc: 'Maps account address to metadata.',
+      details: {
+        manufacturer: {
+          type: String,
+          desc: 'Manufacturer'
+        },
+        name: {
+          type: String,
+          desc: 'Account name'
+        }
+      },
+      example: {
+        '0x0024d0c7ab4c52f723f3aaf0872b9ea4406846a4': {
+          manufacturer: 'Ledger',
+          name: 'Nano S'
+        }
+      }
+    }
+  },
+
   listOpenedVaults: {
     desc: 'Returns a list of all opened vaults',
     params: [],
@@ -608,7 +554,7 @@ export default {
     returns: {
       type: Array,
       desc: 'Transactions ordered by priority',
-      details: transactionDetails,
+      details: TransactionResponse.details,
       example: [
         {
           blockHash: null,
@@ -924,7 +870,7 @@ export default {
     returns: {
       type: Array,
       desc: 'Transaction list.',
-      details: transactionDetails,
+      details: TransactionResponse.details,
       example: [
         {
           hash: '0x80de421cd2e7e46824a91c343ca42b2ff339409eef09e2d9d73882462f8fce31',

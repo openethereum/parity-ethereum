@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Balance, Certifications, Container, CopyToClipboard, ContainerTitle, IdentityIcon, IdentityName, QrCode, Tags } from '~/ui';
+import { Balance, Certifications, Container, CopyToClipboard, ContainerTitle, IdentityIcon, IdentityName, QrCode, Tags, VaultTag } from '~/ui';
 
 import styles from './header.css';
 
@@ -27,6 +27,7 @@ export default class Header extends Component {
     balance: PropTypes.object,
     children: PropTypes.node,
     className: PropTypes.string,
+    disabled: PropTypes.bool,
     hideName: PropTypes.bool,
     isContract: PropTypes.bool
   };
@@ -39,7 +40,7 @@ export default class Header extends Component {
   };
 
   render () {
-    const { account, balance, children, className, hideName } = this.props;
+    const { account, balance, children, className, disabled, hideName } = this.props;
 
     if (!account) {
       return null;
@@ -58,14 +59,16 @@ export default class Header extends Component {
           <IdentityIcon
             address={ address }
             className={ styles.identityIcon }
+            disabled={ disabled }
           />
           <div className={ styles.info }>
             { this.renderName() }
             <div className={ [ hideName ? styles.bigaddress : '', styles.addressline ].join(' ') }>
               <CopyToClipboard data={ address } />
-              <div className={ styles.address }>{ address }</div>
+              <div className={ styles.address }>
+                { address }
+              </div>
             </div>
-            { this.renderVault() }
             { this.renderUuid() }
             <div className={ styles.infoline }>
               { meta.description }
@@ -77,6 +80,7 @@ export default class Header extends Component {
                 balance={ balance }
               />
               <Certifications address={ address } />
+              { this.renderVault() }
             </div>
           </div>
           <div className={ styles.tags }>
@@ -165,15 +169,7 @@ export default class Header extends Component {
     }
 
     return (
-      <div className={ styles.vault }>
-        <IdentityIcon
-          address={ meta.vault }
-          inline
-        />
-        <div className={ styles.text }>
-          { meta.vault }
-        </div>
-      </div>
+      <VaultTag vault={ meta.vault } />
     );
   }
 }

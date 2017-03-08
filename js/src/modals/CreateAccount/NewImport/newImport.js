@@ -14,27 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { FloatingActionButton } from 'material-ui';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
-import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
 
-import { Form, Input } from '~/ui';
-import { AttachFileIcon } from '~/ui/Icons';
+import { Form, FileSelect, Input } from '~/ui';
 
+import ChangeVault from '../ChangeVault';
 import styles from '../createAccount.css';
-
-const STYLE_HIDDEN = { display: 'none' };
 
 @observer
 export default class NewImport extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired
+    store: PropTypes.object.isRequired,
+    vaultStore: PropTypes.object
+
   }
 
   render () {
-    const { name, nameError, password, passwordHint, walletFile, walletFileError } = this.props.store;
+    const { name, nameError, password, passwordHint } = this.props.store;
 
     return (
       <Form>
@@ -93,58 +91,52 @@ export default class NewImport extends Component {
             />
           </div>
         </div>
-        <div>
-          <Input
-            disabled
-            error={ walletFileError }
-            hint={
-              <FormattedMessage
-                id='createAccount.newImport.file.hint'
-                defaultMessage='the wallet file for import'
-              />
-            }
-            label={
-              <FormattedMessage
-                id='createAccount.newImport.file.label'
-                defaultMessage='wallet file'
-              />
-            }
-            value={ walletFile }
-          />
-          <div className={ styles.upload }>
-            <FloatingActionButton
-              mini
-              onTouchTap={ this.openFileDialog }
-            >
-              <AttachFileIcon />
-            </FloatingActionButton>
-            <input
-              onChange={ this.onFileChange }
-              ref='fileUpload'
-              style={ STYLE_HIDDEN }
-              type='file'
-            />
-          </div>
-        </div>
+        <ChangeVault
+          store={ this.props.store }
+          vaultStore={ this.props.vaultStore }
+        />
+        { this.renderFileSelector() }
       </Form>
     );
   }
 
-  onFileChange = (event) => {
-    const { store } = this.props;
+  renderFileSelector () {
+    const { walletFile, walletFileError } = this.props.store;
 
-    if (event.target.files.length) {
-      const reader = new FileReader();
-
-      reader.onload = (event) => store.setWalletJson(event.target.result);
-      reader.readAsText(event.target.files[0]);
-    }
-
-    store.setWalletFile(event.target.value);
+    return walletFile
+      ? (
+        <Input
+          disabled
+          error={ walletFileError }
+          hint={
+            <FormattedMessage
+              id='createAccount.newImport.file.hint'
+              defaultMessage='the wallet file for import'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.newImport.file.label'
+              defaultMessage='wallet file'
+            />
+          }
+          value={ walletFile }
+        />
+      )
+      : (
+        <FileSelect
+          className={ styles.fileImport }
+          error={ walletFileError }
+          onSelect={ this.onFileSelect }
+        />
+      );
   }
 
-  openFileDialog = () => {
-    ReactDOM.findDOMNode(this.refs.fileUpload).click();
+  onFileSelect = (fileName, fileContent) => {
+    const { store } = this.props;
+
+    store.setWalletFile(fileName);
+    store.setWalletJson(fileContent);
   }
 
   onEditName = (event, name) => {

@@ -14,33 +14,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { handleActions } from 'redux-actions';
 import { isEqual } from 'lodash';
+import { handleActions } from 'redux-actions';
 
 const initialState = {
   accountsInfo: {},
   accounts: {},
-  hasAccounts: false,
   contacts: {},
-  hasContacts: false,
   contracts: {},
+  hardware: {},
+  hasAccounts: false,
+  hasContacts: false,
   hasContracts: false,
+  hasHardware: false,
   visibleAccounts: []
 };
 
 export default handleActions({
   personalAccountsInfo (state, action) {
     const accountsInfo = action.accountsInfo || state.accountsInfo;
-    const { accounts, contacts, contracts } = action;
+    const { accounts, contacts, contracts, hardware } = action;
 
     return Object.assign({}, state, {
       accountsInfo,
       accounts,
-      hasAccounts: Object.keys(accounts).length !== 0,
       contacts,
-      hasContacts: Object.keys(contacts).length !== 0,
       contracts,
-      hasContracts: Object.keys(contracts).length !== 0
+      hasAccounts: Object.keys(accounts).length !== 0,
+      hasContacts: Object.keys(contacts).length !== 0,
+      hasContracts: Object.keys(contracts).length !== 0,
+      hasHardware: Object.keys(hardware).length !== 0
     });
   },
 

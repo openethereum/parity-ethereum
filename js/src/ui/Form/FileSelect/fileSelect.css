@@ -15,11 +15,38 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.legend {
-  opacity: 0.75;
+$backgroundNormal: rgba(0, 0, 0, 0.2);
+$backgroundNormalHover: rgba(0, 0, 0, 0.5);
+$backgroundError: rgba(255, 0, 0, 0.1);
+$backgroundErrorHover: rgba(255, 0, 0, 0.2);
 
-  span {
-    line-height: 24px;
-    vertical-align: top;
+.dropzone {
+  align-items: center;
+  background: $backgroundNormal;
+  border: 2px dashed #666;
+  border-radius: 0.5em;
+  display: flex;
+  justify-content: center;
+  font-size: 1.2em;
+  height: 12em;
+  transition: all 0.5s ease;
+  width: 100%;
+
+  &:hover {
+    background: $backgroundNormalHover;
+    border-radius: 0;
+    cursor: pointer;
+  }
+
+  &.error {
+    background: $backgroundError;
+
+    &:hover {
+      background: $backgroundErrorHover;
+    }
+  }
+
+  .label {
+    color: #aaa;
   }
 }

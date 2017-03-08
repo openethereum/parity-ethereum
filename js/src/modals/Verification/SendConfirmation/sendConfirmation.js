@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { nullableProptype } from '~/util/proptypes';
 import TxHash from '~/ui/TxHash';
@@ -34,14 +35,28 @@ export default class SendConfirmation extends Component {
     const { step, tx } = this.props;
 
     if (step === POSTING_CONFIRMATION) {
-      return (<p>The verification code will be sent to the contract. Please authorize this using the Parity Signer.</p>);
+      return (
+        <p>
+          <FormattedMessage
+            id='verification.confirmation.authorise'
+            defaultMessage='The verification code will be sent to the contract. Please authorize this using the Parity Signer.'
+          />
+        </p>);
     }
 
     if (step === POSTED_CONFIRMATION) {
       return (
         <div className={ styles.centered }>
-          <TxHash hash={ tx } maxConfirmations={ 2 } />
-          <p>Please keep this window open.</p>
+          <TxHash
+            hash={ tx }
+            maxConfirmations={ 2 }
+          />
+          <p>
+            <FormattedMessage
+              id='verification.confirmation.windowOpen'
+              defaultMessage='Please keep this window open.'
+            />
+          </p>
         </div>
       );
     }

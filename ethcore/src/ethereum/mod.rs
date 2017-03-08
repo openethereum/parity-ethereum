@@ -30,46 +30,52 @@ pub use self::denominations::*;
 use super::spec::*;
 
 /// Most recent fork block that we support on Mainnet.
-pub const FORK_SUPPORTED_FRONTIER: u64 = 2675000;
+pub const FORK_SUPPORTED_FOUNDATION: u64 = 2675000;
 
 /// Most recent fork block that we support on Ropsten.
 pub const FORK_SUPPORTED_ROPSTEN: u64 = 10;
+
+/// Most recent fork block that we support on Kovan.
+pub const FORK_SUPPORTED_KOVAN: u64 = 0;
 
 fn load(b: &[u8]) -> Spec {
 	Spec::load(b).expect("chain spec is invalid")
 }
 
-/// Create a new Olympic chain spec.
+/// Create a new Foundation Olympic chain spec.
 pub fn new_olympic() -> Spec { load(include_bytes!("../../res/ethereum/olympic.json")) }
 
-/// Create a new Frontier mainnet chain spec.
-pub fn new_frontier() -> Spec { load(include_bytes!("../../res/ethereum/frontier.json")) }
+/// Create a new Foundation Mainnet chain spec.
+pub fn new_foundation() -> Spec { load(include_bytes!("../../res/ethereum/foundation.json")) }
 
-/// Create a new Frontier mainnet chain spec without the DAO hardfork.
+/// Create a new Classic Mainnet chain spec without the DAO hardfork.
 pub fn new_classic() -> Spec { load(include_bytes!("../../res/ethereum/classic.json")) }
 
-/// Create a new Frontier mainnet chain spec without the DAO hardfork.
+/// Create a new Expanse mainnet chain spec.
 pub fn new_expanse() -> Spec { load(include_bytes!("../../res/ethereum/expanse.json")) }
 
-/// Create a new Frontier chain spec as though it never changes to Homestead.
+/// Create a new Kovan testnet chain spec.
+pub fn new_kovan() -> Spec { load(include_bytes!("../../res/ethereum/kovan.json")) }
+
+/// Create a new Foundation Frontier-era chain spec as though it never changes to Homestead.
 pub fn new_frontier_test() -> Spec { load(include_bytes!("../../res/ethereum/frontier_test.json")) }
 
-/// Create a new Homestead chain spec as though it never changed from Frontier.
+/// Create a new Foundation Homestead-era chain spec as though it never changed from Frontier.
 pub fn new_homestead_test() -> Spec { load(include_bytes!("../../res/ethereum/homestead_test.json")) }
 
-/// Create a new Homestead-EIP150 chain spec as though it never changed from Homestead/Frontier.
+/// Create a new Foundation Homestead-EIP150-era chain spec as though it never changed from Homestead/Frontier.
 pub fn new_eip150_test() -> Spec { load(include_bytes!("../../res/ethereum/eip150_test.json")) }
 
-/// Create a new Homestead-EIP150 chain spec as though it never changed from Homestead/Frontier.
+/// Create a new Foundation Homestead-EIP161-era chain spec as though it never changed from Homestead/Frontier.
 pub fn new_eip161_test() -> Spec { load(include_bytes!("../../res/ethereum/eip161_test.json")) }
 
-/// Create a new Frontier/Homestead/DAO chain spec with transition points at #5 and #8.
+/// Create a new Foundation Frontier/Homestead/DAO chain spec with transition points at #5 and #8.
 pub fn new_transition_test() -> Spec { load(include_bytes!("../../res/ethereum/transition_test.json")) }
 
-/// Create a new Frontier main net chain spec without genesis accounts.
+/// Create a new Foundation Mainnet chain spec without genesis accounts.
 pub fn new_mainnet_like() -> Spec { load(include_bytes!("../../res/ethereum/frontier_like_test.json")) }
 
-/// Create a new Ropsten chain spec.
+/// Create a new Foundation Ropsten chain spec.
 pub fn new_ropsten() -> Spec { load(include_bytes!("../../res/ethereum/ropsten.json")) }
 
 /// Create a new Morden chain spec.
@@ -112,7 +118,7 @@ mod tests {
 
 	#[test]
 	fn frontier() {
-		let frontier = new_frontier();
+		let frontier = new_foundation();
 
 		assert_eq!(frontier.state_root(), "d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544".into());
 		let genesis = frontier.genesis_block();
