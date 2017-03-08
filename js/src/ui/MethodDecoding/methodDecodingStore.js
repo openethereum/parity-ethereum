@@ -148,7 +148,19 @@ export default class MethodDecodingStore {
 
     // Contract deployment
     if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
-      return this.decodeContractCreation(result, contractAddress || transaction.creates);
+      const address = contractAddress || transaction.creates;
+
+      return this.isContractCreation(input, address)
+        .then((isContractCreation) => {
+          if (!isContractCreation) {
+            result.contract = false;
+            result.deploy = false;
+
+            return result;
+          }
+
+          return this.decodeContractCreation(result, address);
+        });
     }
 
     return this
@@ -204,7 +216,7 @@ export default class MethodDecodingStore {
     const { input } = data;
     const abi = this._contractsAbi[contractAddress];
 
-    if (!input || !abi || !abi.constructors || abi.constructors.length === 0) {
+    if (!abi || !abi.constructors || abi.constructors.length === 0) {
       return Promise.resolve(result);
     }
 
@@ -304,6 +316,30 @@ export default class MethodDecodingStore {
       });
 
     return Promise.resolve(this._isContract[contractAddress]);
+  }
+
+  /**
+   * Check if the input resulted in a contract creation
+   * by checking that the contract address code contains
+   * a part of the input, or vice-versa
+   */
+  isContractCreation (input, contractAddress) {
+    return this.api.eth
+      .getCode(contractAddress)
+      .then((code) => {
+        if (/^(0x)?0*$/.test(code)) {
+          return false;
+        }
+
+        const strippedCode = code.replace(/^0x/, '');
+        const strippedInput = input.replace(/^0x/, '');
+
+        return strippedInput.indexOf(strippedInput) >= 0 || strippedCode.indexOf(strippedInput) >= 0;
+      })
+      .catch((error) => {
+        console.error(error);
+        return false;
+      });
   }
 
   getCode (contractAddress) {
