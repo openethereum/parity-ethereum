@@ -22,43 +22,27 @@ export default class Modal extends Component {
   static propTypes = {
     buttons: PropTypes.node,
     children: PropTypes.node,
-    error: PropTypes.object,
     header: PropTypes.string
   }
 
   render () {
-    const { children, buttons, error, header } = this.props;
+    const { children, buttons, header } = this.props;
 
     return (
       <div className={ styles.modal }>
         <div className={ styles.overlay } />
         <div className={ styles.body }>
           <div className={ styles.dialog }>
-            <div className={ `${styles.header} ${error ? styles.error : ''}` }>
+            <div className={ styles.header }>
               { header }
             </div>
             <div className={ styles.content }>
-              { error ? this.renderError() : children }
+              { children }
             </div>
             <div className={ styles.footer }>
               { buttons }
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  renderError () {
-    const { error } = this.props;
-
-    return (
-      <div>
-        <div className={ styles.section }>
-          Your operation failed to complete sucessfully. The following error was returned:
-        </div>
-        <div className={ `${styles.section} ${styles.error}` }>
-          { error.toString() }
         </div>
       </div>
     );

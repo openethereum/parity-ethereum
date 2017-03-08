@@ -68,10 +68,6 @@
         color: #fff;
         opacity: 0.85;
         padding: 1em;
-
-        &.error {
-          background: #e44;
-        }
       }
     }
   }
