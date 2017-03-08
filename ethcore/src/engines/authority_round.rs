@@ -308,7 +308,7 @@ impl Engine for AuthorityRound {
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let step = header_step(header)?;
 		// Give one step slack if step is lagging, double vote is still not possible.
-		if self.is_future_step(header_step) {
+		if self.is_future_step(step) {
 			trace!(target: "engine", "verify_block_unordered: block from the future");
 			self.validators.report_benign(header.author());
 			Err(BlockError::InvalidSeal)?
