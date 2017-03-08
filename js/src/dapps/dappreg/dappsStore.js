@@ -16,6 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 import { action, computed, observable, transaction } from 'mobx';
+import { flatten } from 'lodash';
 
 import * as abis from '~/contracts/abi';
 import builtins from '~/views/Dapps/builtin.json';
@@ -190,13 +191,23 @@ export default class DappsStore {
     const dappRegInstance = this._instanceReg;
     const ghhRegInstance = this._instanceGhh;
 
-    return updateDapp(dappId, dappOwner, updates, dappRegInstance, ghhRegInstance)
-      .then((requests) => this.trackRequests(requests, `Updating ${dappId}`))
-      .then(() => this._loadDapps());
-  }
+    const promises = updateDapp(dappId, dappOwner, updates, dappRegInstance, ghhRegInstance);
+    const handledPromises = promises.map((promise) => {
+      return promise
+        .then((requests) => {
+          const requestPromises = flatten([].concat(requests))
+            .filter((request) => request)
+            .map((request) => this.trackRequest(request.id, request.name));
 
-  trackRequests (requests, name) {
-    return Promise.all(requests.map((request) => this.trackRequest(request, name)));
+          return Promise.all(requestPromises);
+        })
+        .catch((error) => {
+          console.error('got error', error);
+        });
+    });
+
+    return Promise.all(handledPromises)
+      .then(() => this._loadDapps());
   }
 
   trackRequest (requestId, name) {

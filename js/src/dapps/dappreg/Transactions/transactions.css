@@ -19,6 +19,7 @@
   bottom: 4rem;
   position: fixed;
   right: 0;
+  z-index: 150;
 }
 
 .transaction {
@@ -63,7 +64,7 @@
 
   .content {
     align-items: center;
-    background-color: rgba(80, 80, 80, 0.85);
+    background-color: rgba(80, 80, 80, 0.95);
     color: white;
     display: flex;
     flex: 1 1 auto;
@@ -82,11 +83,11 @@
     }
 
     &.error {
-      background-color: rgba(255, 68, 68, 0.85);
+      background-color: rgba(255, 68, 68, 0.95);
     }
 
     &.pending {
-      background-color: rgba(243, 156, 18, 0.85);
+      background-color: rgba(243, 156, 18, 0.95);
     }
 
     &.confirmed {

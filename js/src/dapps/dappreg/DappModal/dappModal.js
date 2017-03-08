@@ -439,5 +439,6 @@ export default class DappModal extends Component {
 
     this.dappsStore.update(id, owner.address, updates);
     this.handleUpdateClose();
+    this.handleCancel();
   }
 }
