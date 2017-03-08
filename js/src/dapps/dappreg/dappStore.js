@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { merge } from 'lodash';
 import { action, computed, observable, transaction } from 'mobx';
 
 export default class DappStore {
@@ -92,9 +91,11 @@ export default class DappStore {
       return false;
     }
 
-    const nextWip = merge({}, this.wip, details);
+    this.wip = {
+      ...this.wip,
+      ...details
+    };
 
-    this.wip = nextWip;
     return this.wip;
   }
 

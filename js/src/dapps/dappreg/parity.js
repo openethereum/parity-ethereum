@@ -36,7 +36,6 @@ function trackRequest (signerRequestId, statusCallback) {
     })
     .catch((error) => {
       statusCallback(error);
-      throw error;
     });
 }
 

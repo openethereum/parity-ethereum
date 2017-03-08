@@ -30,6 +30,11 @@ export const urlToHash = (api, instance, url) => {
 
   return api.parity
     .hashContent(url)
+    .catch((error) => {
+      const message = error.text || error.message || error.toString();
+
+      throw new Error(`${message} (${url})`);
+    })
     .then((contentHash) => {
       console.log('lookupHash', url, contentHash);
 
@@ -129,23 +134,29 @@ export const updateDapp = (dappId, dappOwner, updates, dappRegInstance, ghhRegIn
   };
 
   const promises = Object
-    .keys(types)
-    .filter((type) => updates[type])
+    .keys(updates)
     .map((type) => {
       const key = types[type];
       const url = updates[type];
+      let promise;
 
-      return urlToHash(api, ghhRegInstance, url)
-        .then((ghhResult) => {
-          const { hash, registered } = ghhResult;
+      if (!url) {
+        promise = Promise.resolve([ null, '' ]);
+      } else {
+        promise = urlToHash(api, ghhRegInstance, url)
+          .then((ghhResult) => {
+            const { hash, registered } = ghhResult;
 
-          if (!registered) {
-            return registerGHH(ghhRegInstance, url, hash, dappOwner)
-              .then((requestId) => [ { id: requestId, name: `Registering ${url}` }, hash ]);
-          }
+            if (!registered) {
+              return registerGHH(ghhRegInstance, url, hash, dappOwner)
+                .then((requestId) => [ { id: requestId, name: `Registering ${url}` }, hash ]);
+            }
 
-          return [ null, hash ];
-        })
+            return [ null, hash ];
+          });
+      }
+
+      return promise
         .then(([ ghhRequest, hash ]) => {
           const values = [ dappId, key, hash ];
 

@@ -202,7 +202,9 @@ export default class DappsStore {
           return Promise.all(requestPromises);
         })
         .catch((error) => {
-          console.error('got error', error);
+          const randomRequestId = api.util.sha3(Date.now()).slice(0, 5);
+
+          this.updateTransaction(randomRequestId, { start: Date.now(), error });
         });
     });
 

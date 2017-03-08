@@ -24,7 +24,7 @@ export default class Button extends Component {
     disabled: PropTypes.bool,
     label: PropTypes.string.isRequired,
     warning: PropTypes.bool,
-    onClick: PropTypes.func.isRequired
+    onClick: PropTypes.func
   }
 
   render () {

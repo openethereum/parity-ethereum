@@ -25,23 +25,22 @@
 .transaction {
   display: flex;
   flex-direction: column;
-  height: 5rem;
   margin-top: 0.5rem;
-  max-width: 30rem;
+  width: 30rem;
 
   .header {
-    display: flex;
     flex: 0 0 auto;
-    flex-direction: row;
-    justify-content: space-between;
+    height: 1.5rem;
+    position: relative;
+    width: 100%;
 
     > * {
+      display: inline-block;
       font-family: 'Roboto Mono', monospace;
       font-size: 0.8rem;
       overflow: hidden;
       padding: 0.25rem 0.5rem;
-      position: relative;
-      text-align: left;
+      position: absolute;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -68,14 +67,12 @@
     color: white;
     display: flex;
     flex: 1 1 auto;
-    padding: 0.5rem 0.75rem;
+    padding: 1rem 0.75rem;
 
     > * {
       max-width: 100%;
-      overflow-x: hidden;
-      overflow-y: auto;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
 
     &:hover {

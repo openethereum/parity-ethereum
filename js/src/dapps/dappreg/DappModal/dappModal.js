@@ -40,7 +40,8 @@ export default class DappModal extends Component {
   state = {
     showDelete: false,
     showUpdate: false,
-    updates: null
+    updates: null,
+    updating: false
   };
 
   dappsStore = DappsStore.instance();
@@ -140,6 +141,19 @@ export default class DappModal extends Component {
     }
 
     const { isEditing } = dapp;
+    const { updating } = this.state;
+
+    if (updating) {
+      return (
+        <div className={ styles.actions }>
+          <Button
+            className={ styles.button }
+            disabled
+            label='Updating...'
+          />
+        </div>
+      );
+    }
 
     if (isEditing) {
       return (
@@ -302,7 +316,9 @@ export default class DappModal extends Component {
     const wipUrl = isEditing && wip && wip[type].url;
 
     const hint = error || (!changed && hash) || '...';
-    const value = wipUrl || url || '';
+    const value = typeof wipUrl !== 'string'
+      ? url || ''
+      : wipUrl;
 
     return (
       <Input
@@ -387,8 +403,7 @@ export default class DappModal extends Component {
     }
 
     const url = event.target.value;
-
-    let changed = (this.props.dapp[type].url !== url);
+    const changed = (this.props.dapp[type].url !== url);
 
     this.props.dapp.handleChange({
       [ type ]: {
@@ -437,8 +452,17 @@ export default class DappModal extends Component {
     const { id, owner } = this.props.dapp;
     const { updates } = this.state;
 
-    this.dappsStore.update(id, owner.address, updates);
     this.handleUpdateClose();
     this.handleCancel();
+    this.setState({ updating: true });
+
+    return this.dappsStore.update(id, owner.address, updates)
+      .then(() => {
+        this.setState({ updating: false });
+      })
+      .catch((error) => {
+        this.setState({ updating: false });
+        throw error;
+      });
   }
 }

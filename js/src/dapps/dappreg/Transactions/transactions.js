@@ -67,12 +67,18 @@ export default class Transactions extends Component {
         key={ requestId }
       >
         <div className={ styles.header }>
-          <div
-            className={ styles.name }
-            title={ name }
-          >
-            { name }
-          </div>
+          {
+            name
+            ? (
+              <div
+                className={ styles.name }
+                title={ name }
+              >
+                { name }
+              </div>
+            )
+            : null
+          }
           <div
             className={ styles.date }
             title={ date.toISOString() }
