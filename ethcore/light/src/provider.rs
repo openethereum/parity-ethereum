@@ -349,10 +349,8 @@ mod tests {
 		let client = TestBlockChainClient::new();
 		client.add_blocks(2000, EachBlockWith::Nothing);
 
-		let req = ::request::HeaderProof {
-			cht_number: 0,
-			block_number: 1500,
-			from_level: 0,
+		let req = ::request::CompleteHeaderProofRequest {
+			num: 1500,
 		};
 
 		assert!(client.header_proof(req.clone()).is_none());

@@ -346,7 +346,7 @@ impl Decodable for Kind {
 		match rlp.as_val::<u8>()? {
 			0 => Ok(Kind::Headers),
 			1 => Ok(Kind::HeaderProof),
-			// 2 => Ok(Kind::TransactionIndex,
+			// 2 => Ok(Kind::TransactionIndex),
 			3 => Ok(Kind::Receipts),
 			4 => Ok(Kind::Body),
 			5 => Ok(Kind::Account),
