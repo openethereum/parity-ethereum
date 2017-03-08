@@ -128,23 +128,25 @@ export const updateDapp = (dappId, dappOwner, updates, dappRegInstance, ghhRegIn
     manifest: 'MANIFEST'
   };
 
-  const promises = Object
+  const promises = [];
+
+  Object
     .keys(types)
     .filter((type) => updates[type])
-    .map((type) => {
+    .forEach((type) => {
       const key = types[type];
       const url = updates[type];
 
       let values;
 
-      return urlToHash(api, ghhRegInstance, url)
+      const promise = urlToHash(api, ghhRegInstance, url)
         .then((ghhResult) => {
           const { hash, registered } = ghhResult;
 
           values = [ dappId, key, hash ];
 
           if (!registered) {
-            return registerGHH(ghhRegInstance, url, hash, dappOwner);
+            promises.push(registerGHH(ghhRegInstance, url, hash, dappOwner));
           }
         })
         .then(() => dappRegInstance.setMeta.estimateGas(options, values))
@@ -154,6 +156,8 @@ export const updateDapp = (dappId, dappOwner, updates, dappRegInstance, ghhRegIn
 
           return dappRegInstance.setMeta.postTransaction(nextOptions, values);
         });
+
+      promises.push(promise);
     });
 
   if (updates.owner) {
