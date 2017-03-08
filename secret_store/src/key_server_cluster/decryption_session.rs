@@ -370,8 +370,7 @@ mod tests {
 	use key_server_cluster::decryption_session::{Session, SessionState};
 	use key_server_cluster::message::Message;
 
-	#[test]
-	fn complete_dec_session() {
+	fn prepare_decryption_sessions() -> (BTreeMap<NodeId, Secret>, Vec<Arc<DummyCluster>>, Vec<Arc<DummyAclStorage>>, Vec<Session>) {
 		// prepare encrypted data + cluster configuration for scheme 4-of-5
 		let session_id = SessionId::default();
 		let access_key = Random.generate().unwrap().secret().clone();
@@ -402,21 +401,19 @@ mod tests {
 			common_point: common_point.clone(),
 			encrypted_point: encrypted_point.clone(),
 		}).collect();
-		let acl_storage = Arc::new(DummyAclStorage::default());
+		let acl_storages: Vec<_> = (0..5).map(|_| Arc::new(DummyAclStorage::default())).collect();
 		let clusters: Vec<_> = (0..5).map(|i| Arc::new(DummyCluster::new(id_numbers.keys().nth(i).cloned().unwrap()))).collect();
 		let sessions: Vec<_> = (0..5).map(|i| Session::new(session_id.clone(),
 			access_key.clone(),
 			id_numbers.keys().nth(i).cloned().unwrap(),
 			encrypted_datas[i].clone(),
-			acl_storage.clone(),
+			acl_storages[i].clone(),
 			clusters[i].clone())).collect();
 
-		// now let's try to do a decryption
-		let key_pair = Random.generate().unwrap();
-		let signature = ethkey::sign(key_pair.secret(), &session_id).unwrap();
-		sessions[0].initialize(signature).unwrap();
+		(id_numbers, clusters, acl_storages, sessions)
+	}
 
-		// do messages exchange
+	fn do_messages_exchange(id_numbers: &BTreeMap<NodeId, Secret>, clusters: &[Arc<DummyCluster>], sessions: &[Session]) {
 		while let Some((from, to, message)) = clusters.iter().filter_map(|c| c.take_message().map(|(to, msg)| (c.node(), to, msg))).next() {
 			let session = &sessions[id_numbers.keys().position(|k| k == &to).unwrap()];
 			match message {
@@ -427,6 +424,18 @@ mod tests {
 				_ => panic!("unexpected"),
 			}
 		}
+	}
+
+	#[test]
+	fn complete_dec_session() {
+		let (id_numbers, clusters, _, sessions) = prepare_decryption_sessions();
+
+		// now let's try to do a decryption
+		let key_pair = Random.generate().unwrap();
+		let signature = ethkey::sign(key_pair.secret(), &SessionId::default()).unwrap();
+		sessions[0].initialize(signature).unwrap();
+
+		do_messages_exchange(&id_numbers, &clusters, &sessions);
 
 		// now check that:
 		// 1) 4 of 5 sessions are in Finished state
@@ -436,5 +445,30 @@ mod tests {
 		// 3) 1 session has decrypted key value
 		assert!(sessions[0].decrypted_secret().is_some());
 		assert!(sessions.iter().skip(1).all(|s| s.decrypted_secret().is_none()));
+	}
+
+	#[test]
+	fn failed_dec_session() {
+		let (id_numbers, clusters, acl_storages, sessions) = prepare_decryption_sessions();
+
+		// now let's try to do a decryption
+		let key_pair = Random.generate().unwrap();
+		let signature = ethkey::sign(key_pair.secret(), &SessionId::default()).unwrap();
+		sessions[0].initialize(signature).unwrap();
+
+		// we need 4 out of 5 nodes to agree to do a decryption
+		// let's say that 2 of these nodes are disagree
+		acl_storages[1].prohibit(key_pair.public().clone(), SessionId::default());
+		acl_storages[2].prohibit(key_pair.public().clone(), SessionId::default());
+
+		do_messages_exchange(&id_numbers, &clusters, &sessions);
+
+		// now check that:
+		// 1) 3 of 5 sessions are in Failed state
+		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::Failed).count(), 3);
+		// 2) 2 of 5 sessions are in WaitingForPartialDecryptionRequest state
+		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::WaitingForPartialDecryptionRequest).count(), 2);
+		// 3) 0 sessions have decrypted key value
+		assert!(sessions.iter().all(|s| s.decrypted_secret().is_none()));
 	}
 }
