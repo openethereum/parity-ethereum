@@ -104,10 +104,14 @@ impl Default for CostTable {
 	}
 }
 
-impl RlpEncodable for CostTable {
+impl Encodable for CostTable {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		fn append_cost(s: &mut RlpStream, cost: &U256, kind: request::Kind) {
-			s.begin_list(2).append(&kind).append(cost);
+			s.begin_list(2);
+
+			// hack around https://github.com/ethcore/parity/issues/4356
+			Encodable::rlp_append(&kind, s);
+			s.append(cost);
 		}
 
 		s.begin_list(9).append(&self.base);
@@ -122,7 +126,7 @@ impl RlpEncodable for CostTable {
 	}
 }
 
-impl RlpDecodable for CostTable {
+impl Decodable for CostTable {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let rlp = decoder.as_rlp();
 		let base = rlp.val_at(0)?;
