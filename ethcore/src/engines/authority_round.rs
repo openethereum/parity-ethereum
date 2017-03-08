@@ -141,12 +141,12 @@ impl AuthorityRound {
 		}
 	}
 
-	fn step_proposer(&self, step: usize) -> Address {
-		self.validators.get(step)
+	fn step_proposer(&self, bh: &H256, step: usize) -> Address {
+		self.validators.get(bh, step)
 	}
 
-	fn is_step_proposer(&self, step: usize, address: &Address) -> bool {
-		self.step_proposer(step) == *address
+	fn is_step_proposer(&self, bh: &H256, step: usize, address: &Address) -> bool {
+		self.step_proposer(bh, step) == *address
 	}
 }
 
@@ -231,7 +231,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn seals_internally(&self) -> Option<bool> {
-		Some(self.validators.contains(&self.signer.address()))
+		Some(self.signer.address() != Address::default())
 	}
 
 	/// Attempt to seal the block internally.
@@ -242,7 +242,7 @@ impl Engine for AuthorityRound {
 		if self.proposed.load(AtomicOrdering::SeqCst) { return Seal::None; }
 		let header = block.header();
 		let step = self.step.load(AtomicOrdering::SeqCst);
-		if self.is_step_proposer(step, header.author()) {
+		if self.is_step_proposer(header.parent_hash(), step, header.author()) {
 			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 				self.proposed.store(true, AtomicOrdering::SeqCst);
@@ -281,17 +281,20 @@ impl Engine for AuthorityRound {
 		}
 	}
 
-	/// Check if the signature belongs to the correct proposer.
-	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		let header_step = header_step(header)?;
-		// Give one step slack if step is lagging, double vote is still not possible.
-		if header_step <= self.step.load(AtomicOrdering::SeqCst) + 1 {
-			let proposer_signature = header_signature(header)?;
-			let correct_proposer = self.step_proposer(header_step);
-			if verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())? {
+	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 				Ok(())
-			} else {
-				trace!(target: "engine", "verify_block_unordered: bad proposer for step: {}", header_step);
+	}
+
+	/// Do the validator and gas limit validation.
+	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+		let step = header_step(header)?;
+		// Give one step slack if step is lagging, double vote is still not possible.
+		if step <= self.step.load(AtomicOrdering::SeqCst) + 1 {
+			// Check if the signature belongs to a validator, can depend on parent state.
+			let proposer_signature = header_signature(header)?;
+			let correct_proposer = self.step_proposer(header.parent_hash(), step);
+			if !verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())? {
+				trace!(target: "engine", "verify_block_unordered: bad proposer for step: {}", step);
 				Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 			}
 		} else {
@@ -299,14 +302,12 @@ impl Engine for AuthorityRound {
 			self.validators.report_benign(header.author());
 			Err(BlockError::InvalidSeal)?
 		}
-	}
 
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+		// Do not calculate difficulty for genesis blocks.
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
 
-		let step = header_step(header)?;
 		// Check if parent is from a previous step.
 		if step == header_step(parent)? {
 			trace!(target: "engine", "Multiple blocks proposed for step {}.", step);
@@ -394,7 +395,7 @@ mod tests {
 		let mut header: Header = Header::default();
 		header.set_seal(vec![encode(&H520::default()).to_vec()]);
 
-		let verify_result = engine.verify_block_unordered(&header, None);
+		let verify_result = engine.verify_block_family(&header, &Default::default(), None);
 		assert!(verify_result.is_err());
 	}
 
@@ -432,10 +433,14 @@ mod tests {
 
 	#[test]
 	fn proposer_switching() {
-		let mut header: Header = Header::default();
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
-
+		let mut parent_header: Header = Header::default();
+		parent_header.set_seal(vec![encode(&0usize).to_vec()]);
+		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+		let mut header: Header = Header::default();
+		header.set_number(1);
+		header.set_gas_limit(U256::from_str("222222").unwrap());
 		header.set_author(addr);
 
 		let engine = Spec::new_test_round().engine;
@@ -444,17 +449,22 @@ mod tests {
 		// Two validators.
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&2usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		assert!(engine.verify_block_seal(&header).is_err());
+		assert!(engine.verify_block_family(&header, &parent_header, None).is_err());
 		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		assert!(engine.verify_block_seal(&header).is_ok());
+		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
 	}
 
 	#[test]
 	fn rejects_future_block() {
-		let mut header: Header = Header::default();
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
 
+		let mut parent_header: Header = Header::default();
+		parent_header.set_seal(vec![encode(&0usize).to_vec()]);
+		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+		let mut header: Header = Header::default();
+		header.set_number(1);
+		header.set_gas_limit(U256::from_str("222222").unwrap());
 		header.set_author(addr);
 
 		let engine = Spec::new_test_round().engine;
@@ -463,8 +473,8 @@ mod tests {
 		// Two validators.
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		assert!(engine.verify_block_seal(&header).is_ok());
+		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
 		header.set_seal(vec![encode(&5usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		assert!(engine.verify_block_seal(&header).is_err());
+		assert!(engine.verify_block_family(&header, &parent_header, None).is_err());
 	}
 }

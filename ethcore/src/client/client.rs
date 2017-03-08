@@ -253,7 +253,7 @@ impl Client {
 		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
 			trace!(target: "client", "Found registrar at {}", reg_addr);
 			let weak = Arc::downgrade(&client);
-			let registrar = Registry::new(reg_addr, move |a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d)));
+			let registrar = Registry::new(reg_addr, move |a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(BlockId::Latest, a, d)));
 			*client.registrar.lock() = Some(registrar);
 		}
 		Ok(client)
@@ -1428,7 +1428,7 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
+	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
 		let from = Address::default();
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&from),
@@ -1439,7 +1439,7 @@ impl BlockChainClient for Client {
 			data: data,
 		}.fake_sign(from);
 
-		self.call(&transaction, BlockId::Latest, Default::default())
+		self.call(&transaction, block_id, Default::default())
 			.map_err(|e| format!("{:?}", e))
 			.map(|executed| {
 				executed.output

@@ -255,7 +255,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn pruning_info(&self) -> PruningInfo;
 
 	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
-	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String>;
+	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
 
 	/// Import a transaction: used for misbehaviour reporting.
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError>;

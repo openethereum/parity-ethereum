@@ -731,7 +731,7 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn call_contract(&self, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+	fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
 		let transaction = Transaction {

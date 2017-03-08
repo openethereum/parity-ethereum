@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
+use types::ids::BlockId;
 use client::MiningBlockChainClient;
 use transaction::SignedTransaction;
 use util::{U256, Uint, Mutex};
@@ -45,7 +46,7 @@ impl ServiceTransactionChecker {
 		debug_assert_eq!(tx.gas_price, U256::zero());
 
 		if let Some(ref contract) = *self.contract.lock() {
-			let do_call = |a, d| client.call_contract(a, d);
+			let do_call = |a, d| client.call_contract(BlockId::Latest, a, d);
 			contract.certified(&do_call, &tx.sender())
 		} else {
 			Err("contract is not configured".to_owned())
