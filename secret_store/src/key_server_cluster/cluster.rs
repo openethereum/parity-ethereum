@@ -55,6 +55,10 @@ pub mod tests {
 			}
 		}
 
+		pub fn node(&self) -> NodeId {
+			self.id.clone()
+		}
+
 		pub fn add_node(&self, node: NodeId) {
 			self.data.lock().nodes.push(node);
 		}

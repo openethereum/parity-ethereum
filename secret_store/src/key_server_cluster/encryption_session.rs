@@ -38,7 +38,7 @@ pub struct Session {
 	/// Unique session id.
 	id: SessionId,
 	/// Public identifier of this node.
-	self_node_id: Public,
+	self_node_id: NodeId,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
 	cluster: Arc<Cluster>,
 	/// Mutable session data.
@@ -760,6 +760,7 @@ mod tests {
 				Message::Complaint(message) => self.nodes[&msg.1].session.on_complaint(msg.0, message),
 				Message::ComplaintResponse(message) => self.nodes[&msg.1].session.on_complaint_response(msg.0, message),
 				Message::PublicKeyShare(message) => self.nodes[&msg.1].session.on_public_key_share(msg.0, message),
+				_ => panic!("unexpected"),
 			}
 		}
 

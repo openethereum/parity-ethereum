@@ -17,6 +17,7 @@
 use ethkey::{Public, Secret, Random, Generator, math};
 use key_server_cluster::Error;
 
+#[derive(Debug)]
 /// Encryption result.
 pub struct EncryptedSecret {
 	/// Common encryption point.
@@ -252,7 +253,7 @@ pub mod tests {
 		// the next line is executed on KeyServer-client
 		// so that secret is never seen by any KeyServer
 		let encrypted_secret = encrypt_secret(document_secret_plain.clone(), &joint_public).unwrap();
-
+println!("encrypted_secret = {:?}", encrypted_secret);
 		// === PART3: decryption ===
 
 		// next line is executed on KeyServer client
@@ -303,7 +304,14 @@ pub mod tests {
 			let joint_secret = compute_joint_secret(polynoms1.iter().map(|p| &p[0])).unwrap();
 			let joint_key_pair = KeyPair::from_secret(joint_secret.clone()).unwrap();
 			assert_eq!(&joint_public, joint_key_pair.public());
-
+println!("=== id_numbers:");
+for id_number in &id_numbers {
+	println!("=== {:?}", **id_number);
+}
+println!("=== secret_shares:");
+for secret_share in &secret_shares {
+	println!("=== {:?}", **secret_share);
+}
 			// now encrypt and decrypt data
 			let document_secret_plain = generate_random_point().unwrap();
 			let document_secret_decrypted = do_encryption_and_decryption(t, &joint_public, &id_numbers, &secret_shares, document_secret_plain.clone());

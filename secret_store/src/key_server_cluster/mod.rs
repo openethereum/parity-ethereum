@@ -16,8 +16,11 @@
 
 #![allow(dead_code)] // TODO: remove me
 
-use ethkey::{self, Public, Signature};
+use std::collections::BTreeMap;
+use ethkey::{self, Public, Secret, Signature};
 use super::types::all::DocumentAddress;
+
+pub use super::acl_storage::AclStorage;
 
 pub type NodeId = Public;
 pub type SessionId = DocumentAddress;
@@ -45,6 +48,21 @@ pub enum Error {
 	EthKey(String),
 }
 
+#[derive(Debug, Clone)]
+/// Data, which is stored on every node after DKG && encryption is completed.
+pub struct EncryptedData {
+	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
+	threshold: usize,
+	/// Nodes ids numbers.
+	id_numbers: BTreeMap<NodeId, Secret>,
+	/// Node secret share.
+	secret_share: Secret,
+	/// Common (shared) encryption point.
+	common_point: Public,
+	/// Encrypted point.
+	encrypted_point: Public,
+}
+
 impl From<ethkey::Error> for Error {
 	fn from(err: ethkey::Error) -> Self {
 		Error::EthKey(err.into())
@@ -52,6 +70,7 @@ impl From<ethkey::Error> for Error {
 }
 
 mod cluster;
+mod decryption_session;
 mod encryption_session;
 mod math;
 mod message;

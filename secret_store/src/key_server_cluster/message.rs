@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::BTreeMap;
-use ethkey::{Public, Secret};
+use std::collections::{BTreeSet, BTreeMap};
+use ethkey::{Public, Secret, Signature};
 use key_server_cluster::{NodeId, SessionId};
 
 #[derive(Clone, Debug)]
@@ -35,6 +35,15 @@ pub enum Message {
 	ComplaintResponse(ComplaintResponse),
 	/// Broadcast self public key portion.
 	PublicKeyShare(PublicKeyShare),
+
+	/// Initialize decryption session.
+	InitializeDecryptionSession(InitializeDecryptionSession),
+	/// Confirm/reject decryption session initialization.
+	ConfirmDecryptionInitialization(ConfirmDecryptionInitialization),
+	/// Request partial decryption from node.
+	RequestPartialDecryption(RequestPartialDecryption),
+	/// Partial decryption is completed
+	PartialDecryption(PartialDecryption),
 }
 
 #[derive(Clone, Debug)]
@@ -112,4 +121,48 @@ pub struct PublicKeyShare {
 	pub session: SessionId,
 	/// Public key share.
 	pub public_share: Public,
+}
+
+#[derive(Clone, Debug)]
+/// Node is requested to decrypt data, encrypted in given session.
+pub struct InitializeDecryptionSession {
+	/// Encryption session Id.
+	pub session: SessionId,
+	/// Decryption session Id.
+	pub sub_session: Secret,
+	/// Requestor signature.
+	pub requestor_signature: Signature,
+}
+
+#[derive(Clone, Debug)]
+/// Node is responding to decryption request.
+pub struct ConfirmDecryptionInitialization {
+	/// Encryption session Id.
+	pub session: SessionId,
+	/// Decryption session Id.
+	pub sub_session: Secret,
+	/// Is node confirmed to make a decryption?.
+	pub is_confirmed: bool,
+}
+
+#[derive(Clone, Debug)]
+/// Node is requested to do a partial decryption.
+pub struct RequestPartialDecryption {
+	/// Encryption session Id.
+	pub session: SessionId,
+	/// Decryption session Id.
+	pub sub_session: Secret,
+	/// Nodes that are agreed to do a decryption.
+	pub nodes: BTreeSet<NodeId>,
+}
+
+#[derive(Clone, Debug)]
+/// Node has partially decrypted the secret.
+pub struct PartialDecryption {
+	/// Encryption session Id.
+	pub session: SessionId,
+	/// Decryption session Id.
+	pub sub_session: Secret,
+	/// Partially decrypted secret.
+	pub shadow_point: Public,
 }
