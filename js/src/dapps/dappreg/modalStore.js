@@ -145,51 +145,6 @@ export default class ModalStore {
     return this.showUpdate();
   }
 
-  doDelete () {
-    const { dappId, dappOwner } = this;
-
-    this.setDeleteStep(2);
-
-    const values = [ dappId ];
-    const options = {
-      from: dappOwner
-    };
-
-    console.log('ModalStore:doDelete', `performing deletion for ${dappId} from ${options.from}`);
-
-    this._dappsStore._instanceReg
-      .unregister.estimateGas(options, values)
-      .then((gas) => {
-        const newGas = gas.mul(1.2);
-
-        console.log('ModalStore:doDelete', `gas estimated as ${gas.toFormat(0)}, setting to ${newGas.toFormat(0)}`);
-
-        options.gas = newGas.toFixed(0);
-
-        const request = this._dappsStore._instanceReg.unregister.postTransaction(options, values);
-        const statusCallback = (error, status) => {
-          if (error) {
-            return console.error('ModalStore::doDelete::statusCallback', error);
-          }
-
-          if (status.transactionHash) {
-            return this.setDeleteStep(3);
-          }
-
-          if (status.transactionReceipt) {
-            this.setDeleteStep(4);
-            return this._dappsStore.removeApp(dappId);
-          }
-        };
-
-        return trackRequest(request, statusCallback);
-      })
-      .catch((error) => {
-        console.error('ModalStore::doDelete', error);
-        this.setDeleteError(error);
-      });
-  }
-
   doUpdateOwner (nextOwnerAddress) {
     const { dappId, dappOwner } = this;
     const regInstance = this._dappsStore._instanceReg;

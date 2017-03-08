@@ -84,3 +84,20 @@ export const registerDapp = (dappId, dappRegInstance, dappRegFee) => {
       return dappRegInstance.register.postTransaction(options, values);
     });
 };
+
+export const deleteDapp = (dappId, dappOwner, dappRegInstance) => {
+  const values = [ dappId ];
+  const options = {
+    from: dappOwner
+  };
+
+  console.log('deleteDapp', dappId, dappOwner);
+
+  dappRegInstance
+    .unregister.estimateGas(options, values)
+    .then((gas) => {
+      options.gas = gas.mul(1.2).toFixed(0);
+
+      return dappRegInstance.unregister.postTransaction(options, values);
+    });
+};
