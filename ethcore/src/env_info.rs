@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Environment information for transaction execution.
+
 use std::cmp;
 use std::sync::Arc;
 use util::{U256, Address, H256, Hashable};
@@ -25,7 +27,7 @@ use ethjson;
 pub type LastHashes = Vec<H256>;
 
 /// Information concerning the execution environment for a message-call/contract-creation.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EnvInfo {
 	/// The block number.
 	pub number: BlockNumber,

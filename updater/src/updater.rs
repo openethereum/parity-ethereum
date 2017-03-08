@@ -245,7 +245,7 @@ impl Updater {
 			if let Some(ops_addr) = self.client.upgrade().and_then(|c| c.registry_address("operations".into())) {
 				trace!(target: "updater", "Found operations at {}", ops_addr);
 				let client = self.client.clone();
-				*self.operations.lock() = Some(Operations::new(ops_addr, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))));
+				*self.operations.lock() = Some(Operations::new(ops_addr, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(BlockId::Latest, a, d))));
 			} else {
 				// No Operations contract - bail.
 				return;
@@ -330,7 +330,7 @@ impl fetch::urlhint::ContractClient for Updater {
 
 	fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
 		self.client.upgrade().ok_or_else(|| "Client not available".to_owned())?
-			.call_contract(address, data)
+			.call_contract(BlockId::Latest, address, data)
 	}
 }
 

@@ -120,6 +120,18 @@ class MethodDecoding extends Component {
         <span className={ styles.highlight }>
           { gas.toFormat(0) } gas ({ gasPrice.div(1000000).toFormat(0) }M/<small>ETH</small>)
         </span>
+        {
+          transaction.gasUsed
+            ? (
+              <span>
+                <span>used</span>
+                <span className={ styles.highlight }>
+                  { transaction.gasUsed.toFormat(0) } gas
+                </span>
+              </span>
+            )
+            : null
+        }
         <span> for a total transaction value of </span>
         <span className={ styles.highlight }>{ this.renderEtherValue(gasValue) }</span>
         { this.renderMinBlock() }
