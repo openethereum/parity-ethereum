@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import keycode from 'keycode';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 
+import Card from '../Card';
 import DappsStore from '../dappsStore';
 import DappModal from '../DappModal';
 
@@ -31,39 +31,29 @@ export default class DappCard extends Component {
   };
 
   state = {
+    focus: false,
     open: false
   };
 
   render () {
     const { dapp } = this.props;
+    const { focus } = this.state;
     const { id, image } = dapp;
     const manifest = dapp.manifest.content;
 
     return (
-      <div className={ styles.container }>
+      <div>
         { this.renderModal() }
 
-        <div
-          className={ styles.card }
+        <Card
+          focus={ focus }
+          icon={ this.renderImage(image.url) }
+          name={ { title: id, value: manifest && manifest.name || id } }
           onClick={ this.handleOpen }
-          onKeyPress={ this.handleKeyPress }
-          ref='card'
-          tabIndex={ 0 }
         >
-          <div className={ styles.icon }>
-            { this.renderImage(image.url) }
-          </div>
-
-          <span
-            className={ styles.name }
-            title={ id }
-          >
-            { manifest && manifest.name || id }
-          </span>
-
           { this.renderVersion(manifest) }
           { this.renderAuthor(manifest) }
-        </div>
+        </Card>
       </div>
     );
   }
@@ -111,31 +101,11 @@ export default class DappCard extends Component {
     );
   }
 
-  handleKeyPress = (event) => {
-    const codeName = keycode(event);
-
-    if (codeName === 'enter') {
-      return this.handleOpen();
-    }
-
-    return event;
-  }
-
   handleClose = () => {
-    this.setState({ open: false }, () => {
-      if (!this.refs.card) {
-        return false;
-      }
-
-      setTimeout(() => {
-        const element = ReactDOM.findDOMNode(this.refs.card);
-
-        element && element.focus();
-      }, 50);
-    });
+    this.setState({ focus: true, open: false });
   }
 
   handleOpen = () => {
-    this.setState({ open: true });
+    this.setState({ focus: false, open: true });
   }
 }

@@ -17,37 +17,33 @@
 import React, { Component } from 'react';
 
 import DappsStore from '../dappsStore';
+import Card from '../Card';
 import ModalRegister from '../ModalRegister';
 
 import PlusImage from '~/../assets/images/dapps/plus.svg';
-import dappCardStyles from '../DappCard/dappCard.css';
 
 export default class CreateDappCard extends Component {
   state = {
     dappId: null,
+    focus: false,
     open: false
   };
 
   dappsStore = DappsStore.instance();
 
   render () {
+    const { focus } = this.state;
+
     return (
-      <div className={ dappCardStyles.container }>
+      <div>
         { this.renderModal() }
 
-        <div
-          className={ [ dappCardStyles.card, dappCardStyles.register ].join(' ') }
+        <Card
+          focus={ focus }
+          icon={ (<img src={ PlusImage } />) }
+          name={ { value: 'Register a dapp' } }
           onClick={ this.handleOpen }
-          tabIndex={ 0 }
-        >
-          <div className={ dappCardStyles.icon }>
-            <img src={ PlusImage } />
-          </div>
-
-          <span className={ dappCardStyles.name }>
-            Register a dapp
-          </span>
-        </div>
+        />
       </div>
     );
   }
@@ -71,11 +67,11 @@ export default class CreateDappCard extends Component {
   handleOpen = () => {
     const dappId = this.dappsStore.createDappId();
 
-    this.setState({ open: true, dappId });
+    this.setState({ focus: false, open: true, dappId });
   }
 
   handleClose = () => {
-    this.setState({ open: false, dappId: null });
+    this.setState({ focus: true, open: false, dappId: null });
   }
 
   handleRegister = () => {

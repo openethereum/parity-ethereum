@@ -15,24 +15,48 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.dapps {
-  background-color: rgba(255, 255, 255, 0.9);
-  margin: 1rem;
-  padding: 1rem;
-  text-align: left;
-}
+@import '../_utils.css';
+
+$imgSize: 6rem;
 
 .container {
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
+}
 
-  > * {
-    flex: 0 0 auto;
-    display: flex;
+.card {
+  composes: bezier-transform;
+
+  align-items: center;
+  background-color: rgba(240, 240, 240, 0.75);
+  display: flex;
+  flex-direction: column;
+  margin: 1rem;
+  padding: 1rem;
+  width: 10rem;
+
+  &:hover,
+  &:focus {
+    cursor: pointer;
+    transform: scale(1.05);
   }
 }
 
-.title {
-  margin: 0 0 0.5rem;
+.icon {
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+
+  img {
+    border-radius: 50%;
+    height: $imgSize;
+    width: $imgSize;
+  }
+}
+
+.name {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  width: 100%;
 }
