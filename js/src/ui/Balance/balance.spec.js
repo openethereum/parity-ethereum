@@ -79,28 +79,9 @@ describe('ui/Balance', () => {
   });
 
   describe('render specifiers', () => {
-    it('renders only the single token with showOnlyEth', () => {
-      render({ showOnlyEth: true });
-      expect(component.find('Connect(TokenImage)')).to.have.length(1);
-    });
-
     it('renders all the tokens with showZeroValues', () => {
       render({ showZeroValues: true });
-      expect(component.find('Connect(TokenImage)')).to.have.length(3);
-    });
-
-    it('shows ETH with zero value with showOnlyEth & showZeroValues', () => {
-      render({
-        showOnlyEth: true,
-        showZeroValues: true,
-        balance: {
-          tokens: [
-            { value: '0', token: { tag: 'ETH' } },
-            { value: '345', token: { tag: 'GAV', format: 1 } }
-          ]
-        }
-      });
-      expect(component.find('Connect(TokenImage)')).to.have.length(1);
+      expect(component.find('Connect(TokenImage)')).to.have.length(2);
     });
   });
 });
