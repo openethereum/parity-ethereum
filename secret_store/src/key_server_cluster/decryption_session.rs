@@ -58,6 +58,8 @@ struct SessionData {
 	// === Values, filled when session initialization just starts ===
 	/// Reference to the node, which has started this session.
 	master: Option<NodeId>,
+	/// Public key of requestor.
+	requestor: Option<Public>,
 
 	// === Values, filled during session initialization ===
 	/// Nodes, which have been requested for decryption initialization.
@@ -111,6 +113,7 @@ impl Session {
 			data: Mutex::new(SessionData {
 				state: SessionState::WaitingForInitialization,
 				master: None,
+				requestor: None,
 				requested_nodes: BTreeSet::new(),
 				rejected_nodes: BTreeSet::new(),
 				confirmed_nodes: BTreeSet::new(),
@@ -150,13 +153,12 @@ impl Session {
 		// update state
 		data.master = Some(self.node().clone());
 		data.state = SessionState::WaitingForInitializationConfirm;
+		data.requestor = Some(requestor_public.clone());
 		data.requested_nodes.extend(self.encrypted_data.id_numbers.keys().cloned());
 
 		// ..and finally check access on our's own
 		let is_requestor_allowed_to_read = self.acl_storage.check(&requestor_public, &self.id).unwrap_or(false);
 		process_initialization_response(&self.encrypted_data, &mut *data, self.node(), is_requestor_allowed_to_read)?;
-
-		// if we have checked that
 
 		// check if we have enough nodes to decrypt data
 		match data.state {
@@ -201,6 +203,7 @@ impl Session {
 		let is_requestor_allowed_to_read = self.acl_storage.check(&requestor_public, &self.id).unwrap_or(false);
 		data.state = if is_requestor_allowed_to_read { SessionState::WaitingForPartialDecryptionRequest }
 			else { SessionState::Failed };
+		data.requestor = Some(requestor_public);
 
 		// respond to master node
 		data.master = Some(sender.clone());
@@ -246,7 +249,10 @@ impl Session {
 
 				assert!(data.confirmed_nodes.remove(self.node()));
 
-				let shadow_point = do_partial_decryption(self.node(), &data.confirmed_nodes, &self.access_key, &self.encrypted_data)?;
+				let shadow_point = {
+					let requestor = data.requestor.as_ref().expect("requestor public is filled during initialization; WaitingForPartialDecryption follows initialization; qed");
+					do_partial_decryption(self.node(), &requestor, &data.confirmed_nodes, &self.access_key, &self.encrypted_data)?
+				};
 				data.shadow_points.insert(self.node().clone(), shadow_point);
 
 				Ok(())
@@ -275,7 +281,10 @@ impl Session {
 		}
 
 		// calculate shadow point
-		let shadow_point = do_partial_decryption(self.node(), &message.nodes, &self.access_key, &self.encrypted_data)?;
+		let shadow_point = {
+			let requestor = data.requestor.as_ref().expect("requestor public is filled during initialization; WaitingForPartialDecryptionRequest follows initialization; qed");
+			do_partial_decryption(self.node(), &requestor, &message.nodes, &self.access_key, &self.encrypted_data)?
+		};
 		self.cluster.send(&sender, Message::PartialDecryption(PartialDecryption {
 			session: self.id.clone(),
 			sub_session: self.access_key.clone(),
@@ -348,12 +357,13 @@ fn process_initialization_response(encrypted_data: &EncryptedData, data: &mut Se
 	Ok(())
 }
 
-fn do_partial_decryption(node: &NodeId, participants: &BTreeSet<NodeId>, access_key: &Secret, encrypted_data: &EncryptedData) -> Result<Public, Error> {
+fn do_partial_decryption(node: &NodeId, requestor_public: &Public, participants: &BTreeSet<NodeId>, access_key: &Secret, encrypted_data: &EncryptedData) -> Result<Public, Error> {
 	let node_id_number = &encrypted_data.id_numbers[node];
 	let node_secret_share = &encrypted_data.secret_share;
 	let other_id_numbers = participants.iter()
 		.filter(|id| *id != node)
 		.map(|id| &encrypted_data.id_numbers[id]);
+
 	let node_shadow = math::compute_node_shadow(node_id_number, node_secret_share, other_id_numbers)?;
 	math::compute_node_shadow_point(access_key, &encrypted_data.common_point, &node_shadow)
 }
@@ -362,7 +372,6 @@ fn do_partial_decryption(node: &NodeId, participants: &BTreeSet<NodeId>, access_
 mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
-	use std::collections::BTreeMap;
 	use super::super::super::acl_storage::DummyAclStorage;
 	use ethkey::{self, Random, Generator, Public, Secret};
 	use key_server_cluster::{NodeId, EncryptedData, SessionId};
@@ -370,52 +379,55 @@ mod tests {
 	use key_server_cluster::decryption_session::{Session, SessionState};
 	use key_server_cluster::message::Message;
 
-	fn prepare_decryption_sessions() -> (BTreeMap<NodeId, Secret>, Vec<Arc<DummyCluster>>, Vec<Arc<DummyAclStorage>>, Vec<Session>) {
+	const SECRET_PLAIN: &'static str = "d2b57ae7619e070af0af6bc8c703c0cd27814c54d5d6a999cacac0da34ede279ca0d9216e85991029e54e2f0c92ee0bd30237725fa765cbdbfc4529489864c5f";
+
+	fn prepare_decryption_sessions() -> (Vec<Arc<DummyCluster>>, Vec<Arc<DummyAclStorage>>, Vec<Session>) {
 		// prepare encrypted data + cluster configuration for scheme 4-of-5
 		let session_id = SessionId::default();
 		let access_key = Random.generate().unwrap().secret().clone();
 		let secret_shares = vec![
-			Secret::from_str("d286f976206b5a8f9e8edaa4b6fb2ba9b0991e3b0abc594d760a31a7c1d12377").unwrap(),
-			Secret::from_str("6799f4d07694034822e2f1c9252b51c1481267ffc4a099945821b6b62b7f552a").unwrap(),
-			Secret::from_str("cdb9e94cac754f6b35cf74da55286bd68a51ab818780e2acf7c6c4d38f29ee52").unwrap(),
-			Secret::from_str("432c77dec10cfb73a2f3616af33eb776d56b0305413721bb6dd664418cc4a15f").unwrap(),
-			Secret::from_str("cb12c2739ae40976583c633b2cc67efff6228ea3b39b3285cc748156944a97e2").unwrap(),
+			Secret::from_str("834cb736f02d9c968dfaf0c37658a1d86ff140554fc8b59c9fdad5a8cf810eec").unwrap(),
+			Secret::from_str("5a3c1d90fafafa66bb808bcc464354a98b05e6b2c95b5f609d4511cdd1b17a0b").unwrap(),
+			Secret::from_str("71bf61e7848e08e3a8486c308ce521bdacfebcf9116a0151447eb301f3a2d0e9").unwrap(),
+			Secret::from_str("80c0e5e2bea66fa9b2e07f7ce09630a9563e8242446d5ee63221feb09c4338f4").unwrap(),
+			Secret::from_str("c06546b5669877ba579ca437a5602e89425c53808c708d44ccd6afcaa4610fad").unwrap(),
 		];
-		let mut id_numbers: BTreeMap<NodeId, Secret> = BTreeMap::new();
-		id_numbers.insert("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into(),
-			Secret::from_str("906d4a7c4995c2aad0bf09465c412cf7c5876341091f341fee290a59dee66bd9").unwrap());
-		id_numbers.insert("1395568277679f7f583ab7c0992da35f26cde57149ee70e524e49bdae62db3e18eb96122501e7cbb798b784395d7bb5a499edead0706638ad056d886e56cf8fb".into(),
-			Secret::from_str("5903b3263804b5be6accaec93ae9dd0d3010c929d138a775d6edc1c069f52710").unwrap());
-		id_numbers.insert("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".into(),
-			Secret::from_str("f6cb9f0dab4cc8582d0a67252cdff78220de54ef74afa97bb446333728f45633").unwrap());
-		id_numbers.insert("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".into(),
-			Secret::from_str("64c5b7b2d8aa305f430392e808ffab209c5832fe1f69ed5cc536d1e1d7b29bd1").unwrap());
-		id_numbers.insert("321977760d1d8e15b047a309e4c7fe6f355c10bb5a06c68472b676926427f69f229024fa2692c10da167d14cdc77eb95d0fce68af0a0f704f0d3db36baa83bb2".into(),
-			Secret::from_str("dce41867d9d7fa6f21e5998c08c129ea4837023d0e51e22904309a43107c8831").unwrap());
-		let common_point: Public = "633f7c443e4bd0ec55fe55e787ae5c7da6064c18de3220375711684a1a1571c2af81fd43da74c86890bc76ff1386dbaeaaa306333cb1d16bb269bf15c2b30af9".into();
-		let encrypted_point: Public = "3262349e215ca29834587997b5932afddefcb85928aa2e3a302f6f7a27ecf3375c51acff5e3b13bb949ef3eecca71abc6b82d26687393eabca55019fd2d5758f".into();
+		let id_numbers: Vec<(NodeId, Secret)> = vec![
+			("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into(),
+				Secret::from_str("281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c").unwrap()),
+			("1395568277679f7f583ab7c0992da35f26cde57149ee70e524e49bdae62db3e18eb96122501e7cbb798b784395d7bb5a499edead0706638ad056d886e56cf8fb".into(),
+				Secret::from_str("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b").unwrap()),
+			("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".into(),
+				Secret::from_str("f43ac0fba42a5b6ed95707d2244659e89ba877b1c9b82c0d0a9dcf834e80fc62").unwrap()),
+			("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".into(),
+				Secret::from_str("5a324938dfb2516800487d25ab7289ba8ec38811f77c3df602e4e65e3c9acd9f").unwrap()),
+			("321977760d1d8e15b047a309e4c7fe6f355c10bb5a06c68472b676926427f69f229024fa2692c10da167d14cdc77eb95d0fce68af0a0f704f0d3db36baa83bb2".into(),
+				Secret::from_str("12cf422d50002d04e52bd4906fd7f5f235f051ca36abfe37e061f8da248008d8").unwrap()),
+		];
+		let common_point: Public = "6962be696e1bcbba8e64cc7fddf140f854835354b5804f3bb95ae5a2799130371b589a131bd39699ac7174ccb35fc4342dab05331202209582fc8f3a40916ab0".into();
+		let encrypted_point: Public = "b07031982bde9890e12eff154765f03c56c3ab646ad47431db5dd2d742a9297679c4c65b998557f8008469afd0c43d40b6c5f6c6a1c7354875da4115237ed87a".into();
 		let encrypted_datas: Vec<_> = (0..5).map(|i| EncryptedData {
 			threshold: 3,
-			id_numbers: id_numbers.clone(),
+			id_numbers: id_numbers.clone().into_iter().collect(),
 			secret_share: secret_shares[i].clone(),
 			common_point: common_point.clone(),
 			encrypted_point: encrypted_point.clone(),
 		}).collect();
 		let acl_storages: Vec<_> = (0..5).map(|_| Arc::new(DummyAclStorage::default())).collect();
-		let clusters: Vec<_> = (0..5).map(|i| Arc::new(DummyCluster::new(id_numbers.keys().nth(i).cloned().unwrap()))).collect();
+		let clusters: Vec<_> = (0..5).map(|i| Arc::new(DummyCluster::new(id_numbers.iter().nth(i).clone().unwrap().0))).collect();
 		let sessions: Vec<_> = (0..5).map(|i| Session::new(session_id.clone(),
 			access_key.clone(),
-			id_numbers.keys().nth(i).cloned().unwrap(),
+			id_numbers.iter().nth(i).clone().unwrap().0,
 			encrypted_datas[i].clone(),
 			acl_storages[i].clone(),
 			clusters[i].clone())).collect();
 
-		(id_numbers, clusters, acl_storages, sessions)
+		(clusters, acl_storages, sessions)
 	}
 
-	fn do_messages_exchange(id_numbers: &BTreeMap<NodeId, Secret>, clusters: &[Arc<DummyCluster>], sessions: &[Session]) {
+	fn do_messages_exchange(clusters: &[Arc<DummyCluster>], sessions: &[Session]) {
 		while let Some((from, to, message)) = clusters.iter().filter_map(|c| c.take_message().map(|(to, msg)| (c.node(), to, msg))).next() {
-			let session = &sessions[id_numbers.keys().position(|k| k == &to).unwrap()];
+			let session = &sessions[sessions.iter().position(|s| s.node() == &to).unwrap()];
 			match message {
 				Message::InitializeDecryptionSession(message) => session.on_initialize_session(from, message).unwrap(),
 				Message::ConfirmDecryptionInitialization(message) => session.on_confirm_initialization(from, message).unwrap(),
@@ -428,14 +440,14 @@ mod tests {
 
 	#[test]
 	fn complete_dec_session() {
-		let (id_numbers, clusters, _, sessions) = prepare_decryption_sessions();
+		let (clusters, _, sessions) = prepare_decryption_sessions();
 
 		// now let's try to do a decryption
 		let key_pair = Random.generate().unwrap();
 		let signature = ethkey::sign(key_pair.secret(), &SessionId::default()).unwrap();
 		sessions[0].initialize(signature).unwrap();
 
-		do_messages_exchange(&id_numbers, &clusters, &sessions);
+		do_messages_exchange(&clusters, &sessions);
 
 		// now check that:
 		// 1) 4 of 5 sessions are in Finished state
@@ -443,13 +455,13 @@ mod tests {
 		// 2) 1 session is in WaitingForPartialDecryptionRequest state
 		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::WaitingForPartialDecryptionRequest).count(), 1);
 		// 3) 1 session has decrypted key value
-		assert!(sessions[0].decrypted_secret().is_some());
 		assert!(sessions.iter().skip(1).all(|s| s.decrypted_secret().is_none()));
+		assert_eq!(sessions[0].decrypted_secret(), Some(SECRET_PLAIN.into()));
 	}
 
 	#[test]
 	fn failed_dec_session() {
-		let (id_numbers, clusters, acl_storages, sessions) = prepare_decryption_sessions();
+		let (clusters, acl_storages, sessions) = prepare_decryption_sessions();
 
 		// now let's try to do a decryption
 		let key_pair = Random.generate().unwrap();
@@ -461,7 +473,7 @@ mod tests {
 		acl_storages[1].prohibit(key_pair.public().clone(), SessionId::default());
 		acl_storages[2].prohibit(key_pair.public().clone(), SessionId::default());
 
-		do_messages_exchange(&id_numbers, &clusters, &sessions);
+		do_messages_exchange(&clusters, &sessions);
 
 		// now check that:
 		// 1) 3 of 5 sessions are in Failed state
