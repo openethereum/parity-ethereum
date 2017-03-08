@@ -84,6 +84,6 @@
 }
 
 .unselected {
-  filter: grayscale(10%);
+  filter: grayscale(50%);
   opacity: 0.75;
 }
