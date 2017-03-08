@@ -28,15 +28,15 @@ import styles from './accountCard.css';
 export default class AccountCard extends Component {
   static propTypes = {
     account: PropTypes.object.isRequired,
-    allowAddressClick: PropTypes.bool,
     balance: PropTypes.object,
     className: PropTypes.string,
+    disableAddressClick: PropTypes.bool,
     onClick: PropTypes.func,
     onFocus: PropTypes.func
   };
 
   static defaultProps = {
-    allowAddressClick: false
+    disableAddressClick: false
   };
 
   state = {
@@ -138,14 +138,14 @@ export default class AccountCard extends Component {
   }
 
   handleAddressClick = (event) => {
-    const { allowAddressClick } = this.props;
+    const { disableAddressClick } = this.props;
 
-    // Don't stop the event if address click is allowed
-    if (allowAddressClick) {
-      return this.onClick(event);
+    // Stop the event if address click is disallowed
+    if (disableAddressClick) {
+      return this.preventEvent(event);
     }
 
-    return this.preventEvent(event);
+    return this.onClick(event);
   }
 
   handleKeyDown = (event) => {
