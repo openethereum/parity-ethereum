@@ -29,10 +29,6 @@ export default class ModalDelete extends Component {
   };
 
   render () {
-    if (!this.modalStore.showingDelete) {
-      return null;
-    }
-
     return (
       <Modal
         buttons={ this.renderButtons() }

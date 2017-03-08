@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { api } from './parity';
+
 export const INVALID_URL_HASH = '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470';
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
@@ -53,35 +55,34 @@ export const urlToHash = (api, instance, url) => {
  * registry contract
  */
 export const registerGHH = (instance, url, hash, owner) => {
+  const values = [ hash, url ];
   const options = {
     from: owner
   };
 
-  const values = [ hash, url ];
-
   return instance
     .hintURL.estimateGas(options, values)
     .then((gas) => {
-      const nextGas = gas.mul(1.2);
-
-      options.gas = nextGas.toFixed(0);
+      options.gas = gas.mul(1.2).toFixed(0);
       return instance.hintURL.postTransaction(options, values);
     });
 };
 
-export const registerDapp = (dappId, dappRegInstance, dappRegFee) => {
+export const registerDapp = (dappId, dappRegInstance) => {
   const values = [ dappId ];
-  const options = {
-    value: dappRegFee
-  };
-
-  console.log('registerDapp', dappId);
+  const options = {};
 
   return dappRegInstance
-    .register.estimateGas(options, values)
-    .then((gas) => {
-      options.gas = gas.mul(1.2).toFixed(0);
-      return dappRegInstance.register.postTransaction(options, values);
+    .fee.call({}, [])
+    .then((fee) => {
+      options.value = fee;
+
+      return dappRegInstance
+        .register.estimateGas(options, values)
+        .then((gas) => {
+          options.gas = gas.mul(1.2).toFixed(0);
+          return dappRegInstance.register.postTransaction(options, values);
+        });
     });
 };
 
@@ -91,9 +92,7 @@ export const deleteDapp = (dappId, dappOwner, dappRegInstance) => {
     from: dappOwner
   };
 
-  console.log('deleteDapp', dappId, dappOwner);
-
-  dappRegInstance
+  return dappRegInstance
     .unregister.estimateGas(options, values)
     .then((gas) => {
       options.gas = gas.mul(1.2).toFixed(0);
@@ -101,3 +100,66 @@ export const deleteDapp = (dappId, dappOwner, dappRegInstance) => {
       return dappRegInstance.unregister.postTransaction(options, values);
     });
 };
+
+export const updateDappOwner = (dappId, dappOwner, nextOwnerAddress, dappRegInstance) => {
+  const options = {
+    from: dappOwner
+  };
+
+  const values = [ dappId, nextOwnerAddress ];
+
+  return dappRegInstance.setDappOwner
+    .estimateGas(options, values)
+    .then((gas) => {
+      options.gas = gas.mul(1.2);
+
+      return dappRegInstance.setDappOwner.postTransaction(options, values);
+    });
+};
+
+export const updateDapp = (dappId, dappOwner, updates, dappRegInstance, ghhRegInstance) => {
+  const options = {
+    from: dappOwner
+  };
+
+  const types = {
+    content: 'CONTENT',
+    image: 'IMG',
+    manifest: 'MANIFEST'
+  };
+
+  const promises = Object
+    .keys(types)
+    .filter((type) => updates[type])
+    .map((type) => {
+      const key = types[type];
+      const url = updates[type];
+
+      let values;
+
+      return urlToHash(api, ghhRegInstance, url)
+        .then((ghhResult) => {
+          const { hash, registered } = ghhResult;
+
+          values = [ dappId, key, hash ];
+
+          if (!registered) {
+            return registerGHH(ghhRegInstance, url, hash, dappOwner);
+          }
+        })
+        .then(() => dappRegInstance.setMeta.estimateGas(options, values))
+        .then((gas) => {
+          const nextGas = gas.mul(1.2);
+          const nextOptions = { ...options, gas: nextGas.toFixed(0) };
+
+          return dappRegInstance.setMeta.postTransaction(nextOptions, values);
+        });
+    });
+
+  if (updates.owner) {
+    promises.push(updateDappOwner(updates.owner));
+  }
+
+  return Promise.all(promises);
+};
+

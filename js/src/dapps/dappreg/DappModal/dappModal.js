@@ -20,8 +20,11 @@ import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 
 import { api } from '../parity';
+import DappsStore from '../dappsStore';
 import Button from '../Button';
 import Input from '../Input';
+import ModalDelete from '../ModalDelete';
+import ModalUpdate from '../ModalUpdate';
 import SelectAccount from '../SelectAccount';
 
 import styles from './dappModal.css';
@@ -34,6 +37,14 @@ export default class DappModal extends Component {
     onClose: PropTypes.func.isRequired
   };
 
+  state = {
+    showDelete: false,
+    showUpdate: false,
+    updates: null
+  };
+
+  dappsStore = DappsStore.instance();
+
   componentWillReceiveProps (nextProps) {
     if (nextProps.open && !this.props.open) {
       this.handleOpen();
@@ -42,6 +53,7 @@ export default class DappModal extends Component {
 
   render () {
     const { dapp, open } = this.props;
+    const { showDelete, showUpdate, updates } = this.state;
 
     const classes = [ styles.modal ];
 
@@ -52,9 +64,32 @@ export default class DappModal extends Component {
     return (
       <div
         className={ classes.join(' ') }
-        onClick={ open ? this.handleClose : null }
+        onClick={ open && !(showDelete || showUpdate) ? this.handleClose : null }
         onKeyUp={ this.handleKeyPress }
       >
+        {
+          showDelete
+          ? (
+            <ModalDelete
+              dappId={ dapp.id }
+              onClose={ this.handleDeleteClose }
+              onDelete={ this.handleDeleteConfirm }
+            />
+          )
+          : null
+        }
+        {
+          showUpdate
+          ? (
+            <ModalUpdate
+              dappId={ dapp.id }
+              onClose={ this.handleUpdateClose }
+              onConfirm={ this.handleUpdateConfirm }
+              updates={ updates }
+            />
+          )
+          : null
+        }
         <div
           className={ styles.container }
           onClick={ open ? this.stopEvent : null }
@@ -373,10 +408,36 @@ export default class DappModal extends Component {
   }
 
   handleDelete = () => {
-    this.props.dapp.handleDelete();
+    this.setState({ showDelete: true });
+  }
+
+  handleDeleteClose = () => {
+    this.setState({ showDelete: false });
+  }
+
+  handleDeleteConfirm = () => {
+    const { id, owner } = this.props.dapp;
+
+    this.dappsStore.delete(id, owner.address);
+    this.handleDeleteClose();
+    this.handleClose();
   }
 
   handleSave = () => {
-    this.props.dapp.handleSave();
+    const updates = this.props.dapp.handleSave();
+
+    this.setState({ showUpdate: true, updates });
+  }
+
+  handleUpdateClose = () => {
+    this.setState({ showUpdate: false, updates: null });
+  }
+
+  handleUpdateConfirm = () => {
+    const { id, owner } = this.props.dapp;
+    const { updates } = this.state;
+
+    this.dappsStore.update(id, owner.address, updates);
+    this.handleUpdateClose();
   }
 }

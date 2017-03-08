@@ -20,10 +20,9 @@ import { action, computed, observable, transaction } from 'mobx';
 import * as abis from '~/contracts/abi';
 import builtins from '~/views/Dapps/builtin.json';
 import Dapp from './dappStore.js';
-import ModalStore from './modalStore';
-import { registerDapp } from './utils';
+import { deleteDapp, registerDapp, updateDapp } from './utils';
 
-import { api } from './parity';
+import { api, trackRequest } from './parity';
 
 let instance = null;
 
@@ -35,15 +34,14 @@ export default class DappsStore {
   @observable fee = new BigNumber(0);
   @observable isContractOwner = false;
   @observable isLoading = true;
+  @observable transactions = {};
 
   _instanceGhh = null;
   _instanceReg = null;
-  _modalStore = null;
   _startTime = Date.now();
 
   constructor () {
     this._loadDapps();
-    this._modalStore = ModalStore.instance(this);
   }
 
   static instance () {
@@ -157,14 +155,61 @@ export default class DappsStore {
     return loading;
   }
 
+  @action updateTransaction = (requestId, nextData) => {
+    const prevTransaction = this.transactions[requestId] || { requestId };
+    const nextTransaction = {
+      ...prevTransaction,
+      hide: false,
+      ...nextData
+    };
+
+    this.transactions = {
+      ...this.transactions,
+      [ requestId ]: nextTransaction
+    };
+  }
+
   register (dappId) {
     const dappRegInstance = this._instanceReg;
     const dappRegFee = this.fee;
 
     return registerDapp(dappId, dappRegInstance, dappRegFee)
-      .then((request) => {
-        console.warn('got request', request);
-      });
+      .then((request) => this.trackRequest(request, `Registering ${dappId}`))
+      .then(() => this._loadDapps());
+  }
+
+  delete (dappId, dappOwner) {
+    const dappRegInstance = this._instanceReg;
+
+    return deleteDapp(dappId, dappOwner, dappRegInstance)
+      .then((request) => this.trackRequest(request, `Deleting ${dappId}`))
+      .then(() => this._loadDapps());
+  }
+
+  update (dappId, dappOwner, updates) {
+    const dappRegInstance = this._instanceReg;
+    const ghhRegInstance = this._instanceGhh;
+
+    return updateDapp(dappId, dappOwner, updates, dappRegInstance, ghhRegInstance)
+      .then((requests) => this.trackRequests(requests, `Updating ${dappId}`))
+      .then(() => this._loadDapps());
+  }
+
+  trackRequests (requests, name) {
+    return Promise.all(requests.map((request) => this.trackRequest(request, name)));
+  }
+
+  trackRequest (requestId, name) {
+    const statusCallback = (error, data) => {
+      if (error) {
+        return this.updateTransaction(requestId, { error });
+      }
+
+      return this.updateTransaction(requestId, data);
+    };
+
+    this.updateTransaction(requestId, { name, start: Date.now() });
+    return trackRequest(requestId, statusCallback);
   }
 
   lookupHash (hash) {
@@ -301,7 +346,7 @@ export default class DappsStore {
           manifest,
           owner,
           isOwner
-        }, this._modalStore);
+        });
 
         return dapp;
       });

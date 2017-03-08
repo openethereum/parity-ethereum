@@ -42,7 +42,6 @@
 
 .header {
   background: $blue;
-  border-radius: 0 0 0.25em 0.25em;
   color: #fff;
   left: 0;
   padding: 1em;

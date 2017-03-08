@@ -16,14 +16,8 @@
 
 const api = window.parent.secureApi;
 
-function trackRequest (requestPromise, statusCallback) {
-  return requestPromise
-    .then((signerRequestId) => {
-      console.log('trackRequest', `posted to signer with requestId ${signerRequestId.toString()}`);
-      statusCallback(null, { signerRequestId });
-
-      return api.pollMethod('parity_checkRequest', signerRequestId);
-    })
+function trackRequest (signerRequestId, statusCallback) {
+  return api.pollMethod('parity_checkRequest', signerRequestId)
     .then((transactionHash) => {
       console.log('trackRequest', `received transaction hash ${transactionHash}`);
       statusCallback(null, { transactionHash });
@@ -41,7 +35,6 @@ function trackRequest (requestPromise, statusCallback) {
       statusCallback(null, { transactionReceipt });
     })
     .catch((error) => {
-      console.error('trackRequest', error);
       statusCallback(error);
       throw error;
     });

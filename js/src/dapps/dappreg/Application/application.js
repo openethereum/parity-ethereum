@@ -20,6 +20,7 @@ import { observer } from 'mobx-react';
 import DappsStore from '../dappsStore';
 
 import Dapps from '../Dapps';
+import Transactions from '../Transactions';
 import Warning from '../Warning';
 import styles from './application.css';
 
@@ -60,6 +61,7 @@ export default class Application extends Component {
           { this.dappsStore.count } applications registered, { this.dappsStore.ownedCount } owned by user
         </div>
 
+        <Transactions />
         <Warning />
       </div>
     );

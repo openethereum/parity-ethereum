@@ -46,6 +46,11 @@
           &.error {
             color: #f44;
           }
+
+          * {
+            overflow-x: hidden;
+            text-overflow: ellipsis;
+          }
         }
 
         .section+.section {
