@@ -81,7 +81,7 @@ describe('ui/Balance', () => {
   describe('render specifiers', () => {
     it('renders all the tokens with showZeroValues', () => {
       render({ showZeroValues: true });
-      expect(component.find('Connect(TokenImage)')).to.have.length(3);
+      expect(component.find('Connect(TokenImage)')).to.have.length(2);
     });
   });
 });
