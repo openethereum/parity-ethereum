@@ -357,13 +357,13 @@ fn process_initialization_response(encrypted_data: &EncryptedData, data: &mut Se
 	Ok(())
 }
 
-fn do_partial_decryption(node: &NodeId, requestor_public: &Public, participants: &BTreeSet<NodeId>, access_key: &Secret, encrypted_data: &EncryptedData) -> Result<Public, Error> {
+fn do_partial_decryption(node: &NodeId, _requestor_public: &Public, participants: &BTreeSet<NodeId>, access_key: &Secret, encrypted_data: &EncryptedData) -> Result<Public, Error> {
 	let node_id_number = &encrypted_data.id_numbers[node];
 	let node_secret_share = &encrypted_data.secret_share;
 	let other_id_numbers = participants.iter()
 		.filter(|id| *id != node)
 		.map(|id| &encrypted_data.id_numbers[id]);
-
+	// TODO: commutative encryption using _requestor_public
 	let node_shadow = math::compute_node_shadow(node_id_number, node_secret_share, other_id_numbers)?;
 	math::compute_node_shadow_point(access_key, &encrypted_data.common_point, &node_shadow)
 }
