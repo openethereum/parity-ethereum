@@ -16,7 +16,8 @@
 
 use io::IoChannel;
 use client::{BlockChainClient, MiningBlockChainClient, Client, ClientConfig, BlockId};
-use state::CleanupMode;
+use state::{self, State, CleanupMode};
+use executive::Executive;
 use ethereum;
 use block::IsBlock;
 use tests::helpers::*;
@@ -340,4 +341,44 @@ fn does_not_propagate_delayed_transactions() {
 	client.flush_queue();
 	assert_eq!(2, client.ready_transactions().len());
 	assert_eq!(2, client.miner().pending_transactions().len());
+}
+
+#[test]
+fn transaction_proof() {
+	use ::client::ProvingBlockChainClient;
+
+	let client_result = generate_dummy_client(0);
+	let client = client_result.reference();
+	let address = Address::random();
+	let test_spec = Spec::new_test();
+	for _ in 0..20 {
+		let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
+		b.block_mut().fields_mut().state.add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
+		b.block_mut().fields_mut().state.commit().unwrap();
+		let b = b.close_and_lock().seal(&*test_spec.engine, vec![]).unwrap();
+		client.import_sealed_block(b).unwrap(); // account change is in the journal overlay
+	}
+
+	let transaction = Transaction {
+		nonce: 0.into(),
+		gas_price: 0.into(),
+		gas: 21000.into(),
+		action: Action::Call(Address::default()),
+		value: 5.into(),
+		data: Vec::new(),
+	}.fake_sign(address);
+
+	let proof = client.prove_transaction(transaction.clone(), BlockId::Latest).unwrap();
+	let backend = state::backend::ProofCheck::new(&proof);
+
+	let mut factories = ::factory::Factories::default();
+	factories.accountdb = ::account_db::Factory::Plain; // raw state values, no mangled keys.
+	let root = client.best_block_header().state_root();
+
+	let mut state = State::from_existing(backend, root, 0.into(), factories.clone()).unwrap();
+	Executive::new(&mut state, &client.latest_env_info(), &*test_spec.engine, &factories.vm)
+		.transact(&transaction, Default::default()).unwrap();
+
+	assert_eq!(state.balance(&Address::default()).unwrap(), 5.into());
+	assert_eq!(state.balance(&address).unwrap(), 95.into());
 }

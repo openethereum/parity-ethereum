@@ -26,30 +26,30 @@ use super::safe_contract::ValidatorSafeContract;
 /// The validator contract should have the following interface:
 /// [{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}]
 pub struct ValidatorContract {
-	validators: Arc<ValidatorSafeContract>,
+	validators: ValidatorSafeContract,
 	provider: RwLock<Option<provider::Contract>>,
 }
 
 impl ValidatorContract {
 	pub fn new(contract_address: Address) -> Self {
 		ValidatorContract {
-			validators: Arc::new(ValidatorSafeContract::new(contract_address)),
+			validators: ValidatorSafeContract::new(contract_address),
 			provider: RwLock::new(None),
 		}
 	}
 }
 
-impl ValidatorSet for Arc<ValidatorContract> {
-	fn contains(&self, address: &Address) -> bool {
-		self.validators.contains(address)
+impl ValidatorSet for ValidatorContract {
+	fn contains(&self, bh: &H256, address: &Address) -> bool {
+		self.validators.contains(bh, address)
 	}
 
-	fn get(&self, nonce: usize) -> Address {
-		self.validators.get(nonce)
+	fn get(&self, bh: &H256, nonce: usize) -> Address {
+		self.validators.get(bh, nonce)
 	}
 
-	fn count(&self) -> usize {
-		self.validators.count()
+	fn count(&self, bh: &H256) -> usize {
+		self.validators.count(bh)
 	}
 
 	fn report_malicious(&self, address: &Address) {
@@ -144,6 +144,7 @@ mod tests {
 	use header::Header;
 	use account_provider::AccountProvider;
 	use miner::MinerService;
+	use types::ids::BlockId;
 	use client::BlockChainClient;
 	use tests::helpers::generate_dummy_client_with_spec_and_accounts;
 	use super::super::ValidatorSet;
@@ -154,8 +155,9 @@ mod tests {
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, None);
 		let vc = Arc::new(ValidatorContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
 		vc.register_contract(Arc::downgrade(&client));
-		assert!(vc.contains(&Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()));
-		assert!(vc.contains(&Address::from_str("82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap()));
+		let last_hash = client.best_block_header().hash();
+		assert!(vc.contains(&last_hash, &Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()));
+		assert!(vc.contains(&last_hash, &Address::from_str("82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap()));
 	}
 	
 	#[test]
@@ -171,18 +173,21 @@ mod tests {
 
 		client.miner().set_engine_signer(v1, "".into()).unwrap();
 		let mut header = Header::default();
-		let seal = encode(&vec!(5u8)).to_vec();	
-		header.set_seal(vec!(seal));
+		let seal = vec![encode(&5u8).to_vec(), encode(&(&H520::default() as &[u8])).to_vec()];	
+		header.set_seal(seal);
 		header.set_author(v1);
-		header.set_number(1);
+		header.set_number(2);
+		header.set_parent_hash(client.chain_info().best_block_hash);
+		
 		// `reportBenign` when the designated proposer releases block from the future (bad clock).
-		assert!(client.engine().verify_block_unordered(&header, None).is_err());
+		assert!(client.engine().verify_block_family(&header, &header, None).is_err());
 		// Seal a block.
 		client.engine().step();
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// Check if the unresponsive validator is `disliked`.
-		assert_eq!(client.call_contract(validator_contract, "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(), "0000000000000000000000007d577a597b2742b498cb5cf0c26cdcd726d39e6e");
+		assert_eq!(client.call_contract(BlockId::Latest, validator_contract, "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(), "0000000000000000000000007d577a597b2742b498cb5cf0c26cdcd726d39e6e");
 		// Simulate a misbehaving validator by handling a double proposal.
+		let header = client.best_block_header().decode();
 		assert!(client.engine().verify_block_family(&header, &header, None).is_err());
 		// Seal a block.
 		client.engine().step();

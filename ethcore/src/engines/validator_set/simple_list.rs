@@ -16,7 +16,7 @@
 
 /// Preconfigured validator list.
 
-use util::Address;
+use util::{H256, Address, HeapSizeOf};
 use super::ValidatorSet;
 
 #[derive(Debug, PartialEq, Eq, Default)]
@@ -34,16 +34,22 @@ impl SimpleList {
 	}
 }
 
+impl HeapSizeOf for SimpleList {
+	fn heap_size_of_children(&self) -> usize {
+		self.validators.heap_size_of_children() + self.validator_n.heap_size_of_children()
+	}
+}
+
 impl ValidatorSet for SimpleList {
-	fn contains(&self, address: &Address) -> bool {
+	fn contains(&self, _bh: &H256, address: &Address) -> bool {
 		self.validators.contains(address)
 	}
 
-	fn get(&self, nonce: usize) -> Address {
+	fn get(&self, _bh: &H256, nonce: usize) -> Address {
 		self.validators.get(nonce % self.validator_n).expect("There are validator_n authorities; taking number modulo validator_n gives number in validator_n range; qed").clone()
 	}
 
-	fn count(&self) -> usize {
+	fn count(&self, _bh: &H256) -> usize {
 		self.validator_n
 	}
 }
@@ -60,9 +66,9 @@ mod tests {
 		let a1 = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let a2 = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let list = SimpleList::new(vec![a1.clone(), a2.clone()]);
-		assert!(list.contains(&a1));
-		assert_eq!(list.get(0), a1);
-		assert_eq!(list.get(1), a2);
-		assert_eq!(list.get(2), a1);
+		assert!(list.contains(&Default::default(), &a1));
+		assert_eq!(list.get(&Default::default(), 0), a1);
+		assert_eq!(list.get(&Default::default(), 1), a2);
+		assert_eq!(list.get(&Default::default(), 2), a1);
 	}
 }

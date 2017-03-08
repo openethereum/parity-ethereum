@@ -24,6 +24,7 @@ use std::sync::Arc;
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 
+use light::cache::Cache as LightDataCache;
 use light::client::Client as LightClient;
 use light::{cht, TransactionQueue};
 use light::on_demand::{request, OnDemand};
@@ -31,17 +32,18 @@ use light::on_demand::{request, OnDemand};
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
+use ethcore::executed::{Executed, ExecutionError};
 use ethcore::ids::BlockId;
-use ethcore::transaction::SignedTransaction;
+use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransaction};
 use ethsync::LightSync;
 use rlp::{UntrustedRlp, View};
 use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
-use util::{RwLock, U256};
+use util::{RwLock, Mutex, FixedHash, Uint, U256};
 
-use futures::{future, Future, BoxFuture};
+use futures::{future, Future, BoxFuture, IntoFuture};
 use futures::sync::oneshot;
 
-use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
+use v1::helpers::{CallRequest as CRequest, errors, limit_logs, dispatch};
 use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
 use v1::types::{
@@ -60,12 +62,15 @@ pub struct EthClient {
 	on_demand: Arc<OnDemand>,
 	transaction_queue: Arc<RwLock<TransactionQueue>>,
 	accounts: Arc<AccountProvider>,
+	cache: Arc<Mutex<LightDataCache>>,
 }
 
 // helper for internal error: on demand sender cancelled.
 fn err_premature_cancel(_cancel: oneshot::Canceled) -> Error {
 	errors::internal("on-demand sender prematurely cancelled", "")
 }
+
+type ExecutionResult = Result<Executed, ExecutionError>;
 
 impl EthClient {
 	/// Create a new `EthClient` with a handle to the light sync instance, client,
@@ -76,6 +81,7 @@ impl EthClient {
 		on_demand: Arc<OnDemand>,
 		transaction_queue: Arc<RwLock<TransactionQueue>>,
 		accounts: Arc<AccountProvider>,
+		cache: Arc<Mutex<LightDataCache>>,
 	) -> Self {
 		EthClient {
 			sync: sync,
@@ -83,6 +89,7 @@ impl EthClient {
 			on_demand: on_demand,
 			transaction_queue: transaction_queue,
 			accounts: accounts,
+			cache: cache,
 		}
 	}
 
@@ -145,6 +152,80 @@ impl EthClient {
 			}).map(Some))
 				.map(|x| x.map_err(err_premature_cancel).boxed())
 				.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
+		}).boxed()
+	}
+
+	// helper for getting proved execution.
+	fn proved_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<ExecutionResult, Error> {
+		const DEFAULT_GAS_PRICE: U256 = U256([0, 0, 0, 21_000_000]);
+
+
+		let (sync, on_demand, client) = (self.sync.clone(), self.on_demand.clone(), self.client.clone());
+		let req: CRequest = req.into();
+		let id = num.0.into();
+
+		let from = req.from.unwrap_or(Address::zero());
+		let nonce_fut = match req.nonce {
+			Some(nonce) => future::ok(Some(nonce)).boxed(),
+			None => self.account(from, id).map(|acc| acc.map(|a| a.nonce)).boxed(),
+		};
+
+		let gas_price_fut = match req.gas_price {
+			Some(price) => future::ok(price).boxed(),
+			None => dispatch::fetch_gas_price_corpus(
+				self.sync.clone(),
+				self.client.clone(),
+				self.on_demand.clone(),
+				self.cache.clone(),
+			).map(|corp| match corp.median() {
+				Some(median) => *median,
+				None => DEFAULT_GAS_PRICE,
+			}).boxed()
+		};
+
+		// if nonce resolves, this should too since it'll be in the LRU-cache.
+		let header_fut = self.header(id);
+
+		// fetch missing transaction fields from the network.
+		nonce_fut.join(gas_price_fut).and_then(move |(nonce, gas_price)| {
+			let action = req.to.map_or(Action::Create, Action::Call);
+			let gas = req.gas.unwrap_or(U256::from(10_000_000)); // better gas amount?
+			let value = req.value.unwrap_or_else(U256::zero);
+			let data = req.data.map_or_else(Vec::new, |d| d.to_vec());
+
+			future::done(match nonce {
+				Some(n) => Ok(EthTransaction {
+					nonce: n,
+					action: action,
+					gas: gas,
+					gas_price: gas_price,
+					value: value,
+					data: data,
+				}.fake_sign(from)),
+				None => Err(errors::unknown_block()),
+			})
+		}).join(header_fut).and_then(move |(tx, hdr)| {
+			// then request proved execution.
+			// TODO: get last-hashes from network.
+			let (env_info, hdr) = match (client.env_info(id), hdr) {
+				(Some(env_info), Some(hdr)) => (env_info, hdr),
+				_ => return future::err(errors::unknown_block()).boxed(),
+			};
+			let request = request::TransactionProof {
+				tx: tx,
+				header: hdr,
+				env_info: env_info,
+				engine: client.engine().clone(),
+			};
+
+			let proved_future = sync.with_context(move |ctx| {
+				on_demand.transaction_proof(ctx, request).map_err(err_premature_cancel).boxed()
+			});
+
+			match proved_future {
+				Some(fut) => fut.boxed(),
+				None => future::err(errors::network_disabled()).boxed(),
+			}
 		}).boxed()
 	}
 }
@@ -322,12 +403,23 @@ impl Eth for EthClient {
 		self.send_raw_transaction(raw)
 	}
 
-	fn call(&self, req: CallRequest, num: Trailing<BlockNumber>) -> Result<Bytes, Error> {
-		Err(errors::unimplemented(None))
+	fn call(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
+		self.proved_execution(req, num).and_then(|res| {
+			match res {
+				Ok(exec) => Ok(exec.output.into()),
+				Err(e) => Err(errors::execution(e)),
+			}
+		}).boxed()
 	}
 
-	fn estimate_gas(&self, req: CallRequest, num: Trailing<BlockNumber>) -> Result<RpcU256, Error> {
-		Err(errors::unimplemented(None))
+	fn estimate_gas(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
+		// TODO: binary chop for more accurate estimates.
+		self.proved_execution(req, num).and_then(|res| {
+			match res {
+				Ok(exec) => Ok((exec.refunded + exec.gas_used).into()),
+				Err(e) => Err(errors::execution(e)),
+			}
+		}).boxed()
 	}
 
 	fn transaction_by_hash(&self, hash: RpcH256) -> Result<Option<Transaction>, Error> {
@@ -355,19 +447,20 @@ impl Eth for EthClient {
 	}
 
 	fn compilers(&self) -> Result<Vec<String>, Error> {
-		Err(errors::unimplemented(None))
+		Err(errors::deprecated("Compilation functionality is deprecated.".to_string()))
+
 	}
 
-	fn compile_lll(&self, _code: String) -> Result<Bytes, Error> {
-		Err(errors::unimplemented(None))
+	fn compile_lll(&self, _: String) -> Result<Bytes, Error> {
+		Err(errors::deprecated("Compilation of LLL via RPC is deprecated".to_string()))
 	}
 
-	fn compile_solidity(&self, _code: String) -> Result<Bytes, Error> {
-		Err(errors::unimplemented(None))
+	fn compile_serpent(&self, _: String) -> Result<Bytes, Error> {
+		Err(errors::deprecated("Compilation of Serpent via RPC is deprecated".to_string()))
 	}
 
-	fn compile_serpent(&self, _code: String) -> Result<Bytes, Error> {
-		Err(errors::unimplemented(None))
+	fn compile_solidity(&self, _: String) -> Result<Bytes, Error> {
+		Err(errors::deprecated("Compilation of Solidity via RPC is deprecated".to_string()))
 	}
 
 	fn logs(&self, _filter: Filter) -> Result<Vec<Log>, Error> {

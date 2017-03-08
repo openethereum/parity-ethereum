@@ -87,7 +87,6 @@ export default class AccountCard extends Component {
             balance={ balance }
             className={ styles.balance }
             showOnlyEth
-            showZeroValues
           />
         </div>
 

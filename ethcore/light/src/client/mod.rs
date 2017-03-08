@@ -31,7 +31,7 @@ use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
 
-use util::{Bytes, H256, Mutex, RwLock};
+use util::{Bytes, DBValue, H256, Mutex, RwLock};
 
 use self::header_chain::{AncestryIter, HeaderChain};
 
@@ -230,22 +230,32 @@ impl Client {
 	}
 
 	/// Get a handle to the verification engine.
-	pub fn engine(&self) -> &Engine {
-		&*self.engine
+	pub fn engine(&self) -> &Arc<Engine> {
+		&self.engine
 	}
 
-	fn latest_env_info(&self) -> EnvInfo {
-		let header = self.best_block_header();
+	/// Get the latest environment info.
+	pub fn latest_env_info(&self) -> EnvInfo {
+		self.env_info(BlockId::Latest)
+			.expect("Best block header and recent hashes always stored; qed")
+	}
 
-		EnvInfo {
+	/// Get environment info for a given block.
+	pub fn env_info(&self, id: BlockId) -> Option<EnvInfo> {
+		let header = match self.block_header(id) {
+			Some(hdr) => hdr,
+			None => return None,
+		};
+
+		Some(EnvInfo {
 			number: header.number(),
 			author: header.author(),
 			timestamp: header.timestamp(),
 			difficulty: header.difficulty(),
-			last_hashes: self.build_last_hashes(header.hash()),
+			last_hashes: self.build_last_hashes(header.parent_hash()),
 			gas_used: Default::default(),
 			gas_limit: header.gas_limit(),
-		}
+		})
 	}
 
 	fn build_last_hashes(&self, mut parent_hash: H256) -> Arc<Vec<H256>> {
@@ -341,6 +351,10 @@ impl ::provider::Provider for Client {
 	}
 
 	fn header_proof(&self, _req: ::request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
+		None
+	}
+
+	fn transaction_proof(&self, _req: ::request::TransactionProof) -> Option<Vec<DBValue>> {
 		None
 	}
 

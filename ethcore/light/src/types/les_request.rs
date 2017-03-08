@@ -16,7 +16,8 @@
 
 //! LES request types.
 
-use util::H256;
+use ethcore::transaction::Action;
+use util::{Address, H256, U256, Uint};
 
 /// Either a hash or a number.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -134,6 +135,26 @@ pub struct HeaderProofs {
 	pub requests: Vec<HeaderProof>,
 }
 
+/// A request for proof of (simulated) transaction execution.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", binary)]
+pub struct TransactionProof {
+	/// Block hash to request for.
+	pub at: H256,
+	/// Address to treat as the caller.
+	pub from: Address,
+	/// Action to take: either a call or a create.
+	pub action: Action,
+	/// Amount of gas to request proof-of-execution for.
+	pub gas: U256,
+	/// Price for each gas.
+	pub gas_price: U256,
+	/// Value to simulate sending.
+	pub value: U256,
+	/// Transaction data.
+	pub data: Vec<u8>,
+}
+
 /// Kinds of requests.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "ipc", binary)]
@@ -150,6 +171,8 @@ pub enum Kind {
 	Codes,
 	/// Requesting header proofs (from the CHT).
 	HeaderProofs,
+	/// Requesting proof of transaction execution.
+	TransactionProof,
 }
 
 /// Encompasses all possible types of requests in a single structure.
@@ -168,6 +191,8 @@ pub enum Request {
 	Codes(ContractCodes),
 	/// Requesting header proofs.
 	HeaderProofs(HeaderProofs),
+	/// Requesting proof of transaction execution.
+	TransactionProof(TransactionProof),
 }
 
 impl Request {
@@ -180,10 +205,12 @@ impl Request {
 			Request::StateProofs(_) => Kind::StateProofs,
 			Request::Codes(_) => Kind::Codes,
 			Request::HeaderProofs(_) => Kind::HeaderProofs,
+			Request::TransactionProof(_) => Kind::TransactionProof,
 		}
 	}
 
 	/// Get the amount of requests being made.
+	/// In the case of `TransactionProof`, this is the amount of gas being requested.
 	pub fn amount(&self) -> usize {
 		match *self {
 			Request::Headers(ref req) => req.max,
@@ -192,6 +219,10 @@ impl Request {
 			Request::StateProofs(ref req) => req.requests.len(),
 			Request::Codes(ref req) => req.code_requests.len(),
 			Request::HeaderProofs(ref req) => req.requests.len(),
+			Request::TransactionProof(ref req) => match req.gas > usize::max_value().into() {
+				true => usize::max_value(),
+				false => req.gas.low_u64() as usize,
+			}
 		}
 	}
 }
