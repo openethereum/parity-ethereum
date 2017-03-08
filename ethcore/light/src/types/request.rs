@@ -16,11 +16,8 @@
 
 //! Light protocol request types.
 
-use std::collections::HashMap;
-
-use ethcore::transaction::Action;
 use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
-use util::{Address, H256, U256, Uint};
+use util::H256;
 
 // re-exports of request types.
 pub use self::header::{
@@ -391,7 +388,7 @@ pub enum Response {
 
 impl Response {
 	/// Fill reusable outputs by writing them into the function.
-	pub fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
+	pub fn fill_outputs<F>(&self, f: F) where F: FnMut(usize, Output) {
 		match *self {
 			Response::Headers(ref res) => res.fill_outputs(f),
 			Response::HeaderProof(ref res) => res.fill_outputs(f),

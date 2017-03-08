@@ -35,6 +35,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use provider::Provider;
 use request::{self, HashOrNumber, Request, Response};
+use request_builder::Requests;
 
 use self::request_credits::{Credits, FlowParams};
 use self::context::{Ctx, TickCtx};
@@ -71,8 +72,8 @@ pub const PROTOCOL_VERSIONS: &'static [u8] = &[1];
 /// Max protocol version.
 pub const MAX_PROTOCOL_VERSION: u8 = 1;
 
-/// Packet count for LES.
-pub const PACKET_COUNT: u8 = 17;
+/// Packet count for PIP.
+pub const PACKET_COUNT: u8 = 5;
 
 // packet ID definitions.
 mod packet {
@@ -88,24 +89,21 @@ mod packet {
 
 	// relay transactions to peers.
 	pub const SEND_TRANSACTIONS: u8 = 0x04;
-
-	// request and response for transaction proof.
-	// TODO: merge with request/response.
-	pub const GET_TRANSACTION_PROOF: u8 = 0x05;
-	pub const TRANSACTION_PROOF: u8 = 0x06;
 }
 
 // timeouts for different kinds of requests. all values are in milliseconds.
-// TODO: variable timeouts based on request count.
 mod timeout {
 	pub const HANDSHAKE: i64 = 2500;
-	pub const HEADERS: i64 = 2500;
-	pub const BODIES: i64 = 5000;
-	pub const RECEIPTS: i64 = 3500;
-	pub const PROOFS: i64 = 4000;
-	pub const CONTRACT_CODES: i64 = 5000;
-	pub const HEADER_PROOFS: i64 = 3500;
-	pub const TRANSACTION_PROOF: i64 = 5000;
+	pub const BASE: i64 = 1500; // base timeout for packet.
+
+	// timeouts per request within packet.
+	pub const HEADERS: i64 = 250; // per header?
+	pub const BODY: i64 = 50;
+	pub const RECEIPT: i64 = 50;
+	pub const PROOF: i64 = 100; // state proof
+	pub const CONTRACT_CODE: i64 = 100;
+	pub const HEADER_PROOF: i64 = 100;
+	pub const TRANSACTION_PROOF: i64 = 1000; // per gas?
 }
 
 /// A request id.
@@ -138,16 +136,7 @@ pub struct Peer {
 	failed_requests: Vec<ReqId>,
 }
 
-impl Peer {
-	// refund credits for a request. returns new amount of credits.
-	fn refund(&mut self, flow_params: &FlowParams, amount: U256) -> U256 {
-		flow_params.refund(&mut self.local_credits, amount);
-
-		self.local_credits.current()
-	}
-}
-
-/// An LES event handler.
+/// A light protocol event handler.
 ///
 /// Each handler function takes a context which describes the relevant peer
 /// and gives references to the IO layer and protocol structure so new messages
@@ -304,9 +293,37 @@ impl LightProtocol {
 	/// insufficient credits. Does not check capabilities before sending.
 	/// On success, returns a request id which can later be coordinated
 	/// with an event.
-	// TODO: pass `Requests`.
-	pub fn request_from(&self, io: &IoContext, peer_id: &PeerId, request: Request) -> Result<ReqId, Error> {
-		unimplemented!()
+	pub fn request_from(&self, io: &IoContext, peer_id: &PeerId, requests: Requests) -> Result<ReqId, Error> {
+		let peers = self.peers.read();
+		let peer = match peers.get(peer_id) {
+			Some(peer) => peer,
+			None => return Err(Error::UnknownPeer),
+		};
+
+		let mut peer = peer.lock();
+		let peer = &mut *peer;
+		match peer.remote_flow {
+			None => Err(Error::NotServer),
+			Some((ref mut creds, ref params)) => {
+				// check that enough credits are available.
+				let mut temp_creds: Credits = creds.clone();
+				for request in requests.requests() {
+					temp_creds.deduct_cost(params.compute_cost(request))?;
+				}
+				*creds = temp_creds;
+
+				let req_id = ReqId(self.req_id.fetch_add(1, Ordering::SeqCst));
+				io.send(*peer_id, packet::REQUEST, {
+					let mut stream = RlpStream::new_list(2);
+					stream.append(&req_id.0).append(&requests.requests());
+					stream.out()
+				});
+
+				// begin timeout.
+				peer.pending_requests.insert(req_id, requests, SteadyTime::now());
+				Ok(req_id)
+			}
+		}
 	}
 
 	/// Make an announcement of new chain head and capabilities to all peers.
@@ -663,8 +680,6 @@ impl LightProtocol {
 		let mut peer = peer.lock();
 
 		let req_id: u64 = raw.val_at(0)?;
-		let mut cumulative_cost = U256::from(0);
-
 		let mut request_builder = RequestBuilder::default();
 
 		// deserialize requests, check costs and request validity.

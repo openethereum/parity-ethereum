@@ -18,10 +18,10 @@
 //! Push requests with `push`. Back-references and data required to verify responses must be
 //! supplied as well.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use request::{
 	IncompleteRequest, CompleteRequest, Request,
-	Field, OutputKind, Output, NoSuchOutput, Response,
+	OutputKind, Output, NoSuchOutput, Response,
 };
 
 /// Build chained requests. Push them onto the series with `push`,
@@ -72,7 +72,7 @@ impl Requests {
 	/// For each request, produce responses for each.
 	/// The responses vector produced goes up to the point where the responder
 	/// first returns `None`, an invalid response, or until all requests have been responded to.
-	pub fn respond_to_all<F>(mut self, responder: F) -> Vec<Response>
+	pub fn respond_to_all<F>(self, responder: F) -> Vec<Response>
 		where F: Fn(CompleteRequest) -> Option<Response>
 	{
 		let mut responses = Vec::new();

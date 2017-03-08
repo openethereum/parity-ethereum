@@ -25,6 +25,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::iter::FromIterator;
 
 use request::{self, Request};
+use request_builder::Requests;
 use net::{timeout, ReqId};
 
 use time::{Duration, SteadyTime};
@@ -35,7 +36,7 @@ pub struct RequestSet {
 	counter: u64,
 	base: Option<SteadyTime>,
 	ids: HashMap<ReqId, u64>,
-	reqs: BTreeMap<u64, Request>,
+	reqs: BTreeMap<u64, Requests>,
 }
 
 impl Default for RequestSet {
@@ -50,8 +51,8 @@ impl Default for RequestSet {
 }
 
 impl RequestSet {
-	/// Push a request onto the stack.
-	pub fn insert(&mut self, req_id: ReqId, req: Request, now: SteadyTime) {
+	/// Push requests onto the stack.
+	pub fn insert(&mut self, req_id: ReqId, req: Requests, now: SteadyTime) {
 		let counter = self.counter;
 		self.ids.insert(req_id, counter);
 		self.reqs.insert(counter, req);
@@ -63,8 +64,8 @@ impl RequestSet {
 		self.counter += 1;
 	}
 
-	/// Remove a request from the stack.
-	pub fn remove(&mut self, req_id: &ReqId, now: SteadyTime) -> Option<Request> {
+	/// Remove a set of requests from the stack.
+	pub fn remove(&mut self, req_id: &ReqId, now: SteadyTime) -> Option<Requests> {
 		let id = match self.ids.remove(&req_id) {
 			Some(id) => id,
 			None => return None,
@@ -89,7 +90,24 @@ impl RequestSet {
 			None => return false,
 		};
 
-		unimplemented!()
+		let first_req = self.reqs.values().next()
+			.expect("base existing implies `reqs` non-empty; qed");
+
+		// timeout is a base + value per request contained within.
+		let timeout = first_req.requests().iter().fold(timeout::BASE, |tm, req| {
+			tm + match *req {
+				Request::Headers(_) => timeout::HEADERS,
+				Request::HeaderProof(_) => timeout::HEADER_PROOF,
+				Request::Receipts(_) => timeout::RECEIPT,
+				Request::Body(_) => timeout::BODY,
+				Request::Account(_) => timeout::PROOF,
+				Request::Storage(_) => timeout::PROOF,
+				Request::Code(_) => timeout::CONTRACT_CODE,
+				Request::Execution(_) => timeout::TRANSACTION_PROOF,
+			}
+		});
+
+		base + Duration::milliseconds(timeout) <= now
 	}
 
 	/// Collect all pending request ids.

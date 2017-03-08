@@ -24,7 +24,7 @@ use ethcore::client::{BlockChainClient, ProvingBlockChainClient};
 use ethcore::transaction::PendingTransaction;
 use ethcore::ids::BlockId;
 use ethcore::encoded;
-use util::{Bytes, DBValue, RwLock, H256};
+use util::{RwLock, H256};
 
 use cht::{self, BlockInfo};
 use client::{LightChainClient, AsLightClient};
@@ -297,27 +297,27 @@ impl<L: AsLightClient + Send + Sync> Provider for LightProvider<L> {
 		self.client.as_light_client().block_header(id)
 	}
 
-	fn block_body(&self, req: request::CompleteBodyRequest) -> Option<request::BodyResponse> {
+	fn block_body(&self, _req: request::CompleteBodyRequest) -> Option<request::BodyResponse> {
 		None
 	}
 
-	fn block_receipts(&self, req: request::CompleteReceiptsRequest) -> Option<request::ReceiptsResponse> {
+	fn block_receipts(&self, _req: request::CompleteReceiptsRequest) -> Option<request::ReceiptsResponse> {
 		None
 	}
 
-	fn account_proof(&self, req: request::CompleteAccountRequest) -> Option<request::AccountResponse> {
+	fn account_proof(&self, _req: request::CompleteAccountRequest) -> Option<request::AccountResponse> {
 		None
 	}
 
-	fn storage_proof(&self, req: request::CompleteStorageRequest) -> Option<request::StorageResponse> {
+	fn storage_proof(&self, _req: request::CompleteStorageRequest) -> Option<request::StorageResponse> {
 		None
 	}
 
-	fn contract_code(&self, req: request::CompleteCodeRequest) -> Option<request::CodeResponse> {
+	fn contract_code(&self, _req: request::CompleteCodeRequest) -> Option<request::CodeResponse> {
 		None
 	}
 
-	fn header_proof(&self, req: request::CompleteHeaderProofRequest) -> Option<request::HeaderProofResponse> {
+	fn header_proof(&self, _req: request::CompleteHeaderProofRequest) -> Option<request::HeaderProofResponse> {
 		None
 	}
 

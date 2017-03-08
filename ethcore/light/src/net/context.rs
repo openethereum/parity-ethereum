@@ -21,6 +21,7 @@ use network::{NetworkContext, PeerId, NodeId};
 use super::{Announcement, LightProtocol, ReqId};
 use super::error::Error;
 use request::{self, Request};
+use request_builder::Requests;
 
 /// An I/O context which allows sending and receiving packets as well as
 /// disconnecting peers. This is used as a generalization of the portions
@@ -83,7 +84,12 @@ pub trait BasicContext {
 	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId>;
 
 	/// Make a request from a peer.
-	fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error>;
+	///
+	/// Fails on: nonexistent peer, network error, peer not server,
+	/// insufficient credits. Does not check capabilities before sending.
+	/// On success, returns a request id which can later be coordinated
+	/// with an event.
+	fn request_from(&self, peer: PeerId, request: Requests) -> Result<ReqId, Error>;
 
 	/// Make an announcement of new capabilities to the rest of the peers.
 	// TODO: maybe just put this on a timer in LightProtocol?
@@ -119,8 +125,8 @@ impl<'a> BasicContext for TickCtx<'a> {
 		self.io.persistent_peer_id(id)
 	}
 
-	fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error> {
-		self.proto.request_from(self.io, &peer, request)
+	fn request_from(&self, peer: PeerId, requests: Requests) -> Result<ReqId, Error> {
+		self.proto.request_from(self.io, &peer, requests)
 	}
 
 	fn make_announcement(&self, announcement: Announcement) {
@@ -152,8 +158,8 @@ impl<'a> BasicContext for Ctx<'a> {
 		self.io.persistent_peer_id(id)
 	}
 
-	fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error> {
-		self.proto.request_from(self.io, &peer, request)
+	fn request_from(&self, peer: PeerId, requests: Requests) -> Result<ReqId, Error> {
+		self.proto.request_from(self.io, &peer, requests)
 	}
 
 	fn make_announcement(&self, announcement: Announcement) {
