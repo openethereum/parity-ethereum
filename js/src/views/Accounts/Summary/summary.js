@@ -116,7 +116,6 @@ class Summary extends Component {
             { this.renderBalance(false) }
             { this.renderDescription(account.meta) }
             { this.renderOwners() }
-            { this.renderCertifications() }
             { this.renderVault(account.meta) }
           </div>
         }
@@ -155,8 +154,8 @@ class Summary extends Component {
         </div>
         <div className={ styles.summary }>
           { this.renderBalance(true) }
-          { this.renderCertifications(true) }
         </div>
+        { this.renderCertifications(true) }
       </Container>
     );
   }

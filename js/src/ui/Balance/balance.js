@@ -49,12 +49,10 @@ export default class Balance extends Component {
 
     let body = balance.tokens
       .filter((balance) => {
-        const hasBalance = showZeroValues || new BigNumber(balance.value).gt(0);
-        const isValidToken = !showOnlyEth || (balance.token.tag || '').toLowerCase() === 'eth';
-
-        return hasBalance && isValidToken;
+        return showZeroValues || new BigNumber(balance.value).gt(0);
       })
       .map((balance, index) => {
+        const isFullToken = !showOnlyEth || (balance.token.tag || '').toLowerCase() === 'eth';
         const token = balance.token;
 
         let value;
@@ -77,16 +75,36 @@ export default class Balance extends Component {
           value = api.util.fromWei(balance.value).toFormat(3);
         }
 
+        const classNames = [styles.balance];
+        let details = null;
+
+        if (isFullToken) {
+          classNames.push(styles.full);
+          details = [
+            <div
+              className={ styles.value }
+              key='value'
+            >
+              <span title={ value }>
+                { value }
+              </span>
+            </div>,
+            <div
+              className={ styles.tag }
+              key='tag'
+            >
+              { token.tag }
+            </div>
+          ];
+        }
+
         return (
           <div
-            className={ styles.balance }
+            className={ classNames.join(' ') }
             key={ `${index}_${token.tag}` }
           >
             <TokenImage token={ token } />
-            <div className={ styles.balanceValue }>
-              <span title={ value }> { value } </span>
-            </div>
-            <div className={ styles.balanceTag }> { token.tag } </div>
+            { details }
           </div>
         );
       });
@@ -103,7 +121,17 @@ export default class Balance extends Component {
     }
 
     return (
-      <div className={ [styles.balances, className].join(' ') }>
+      <div
+        className={
+          [
+            styles.balances,
+            showOnlyEth
+              ? ''
+              : styles.full,
+            className
+          ].join(' ')
+        }
+      >
         { body }
       </div>
     );
