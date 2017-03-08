@@ -1,8 +1,8 @@
 stages:
   - test
   - js-build
-  - build
   - push-release
+  - build
 variables:
   GIT_DEPTH: "3"
   SIMPLECOV: "true"
