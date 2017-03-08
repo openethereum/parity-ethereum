@@ -83,6 +83,8 @@ pub struct AuthorityRound {
 	client: RwLock<Option<Weak<EngineClient>>>,
 	signer: EngineSigner,
 	validators: Box<ValidatorSet + Send + Sync>,
+	/// Is this Engine just for testing (prevents step calibration).
+	calibrate_step: bool,
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
@@ -122,6 +124,7 @@ impl AuthorityRound {
 				client: RwLock::new(None),
 				signer: Default::default(),
 				validators: new_validator_set(our_params.validators),
+				calibrate_step: our_params.start_step.is_none(),
 			});
 		// Do not initialize timeouts for tests.
 		if should_timeout {
@@ -129,6 +132,12 @@ impl AuthorityRound {
 			engine.transition_service.register_handler(Arc::new(handler))?;
 		}
 		Ok(engine)
+	}
+
+	fn calibrate_step(&self) {
+		if self.calibrate_step {
+			self.step.store((unix_now().as_secs() / self.step_duration.as_secs()) as usize, AtomicOrdering::SeqCst);
+		}
 	}
 
 	fn remaining_step_duration(&self) -> Duration {
@@ -147,6 +156,16 @@ impl AuthorityRound {
 
 	fn is_step_proposer(&self, bh: &H256, step: usize, address: &Address) -> bool {
 		self.step_proposer(bh, step) == *address
+	}
+
+	fn is_future_step(&self, step: usize) -> bool {
+		if step > self.step.load(AtomicOrdering::SeqCst) + 1 {
+			// Make absolutely sure that the step is correct.
+			self.calibrate_step();
+			step > self.step.load(AtomicOrdering::SeqCst) + 1
+		} else {
+			false
+		}
 	}
 }
 
@@ -289,18 +308,17 @@ impl Engine for AuthorityRound {
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let step = header_step(header)?;
 		// Give one step slack if step is lagging, double vote is still not possible.
-		if step <= self.step.load(AtomicOrdering::SeqCst) + 1 {
-			// Check if the signature belongs to a validator, can depend on parent state.
+		if self.is_future_step(step) {
+			trace!(target: "engine", "verify_block_unordered: block from the future");
+			self.validators.report_benign(header.author());
+			Err(BlockError::InvalidSeal)?
+		} else {
 			let proposer_signature = header_signature(header)?;
 			let correct_proposer = self.step_proposer(header.parent_hash(), step);
 			if !verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())? {
 				trace!(target: "engine", "verify_block_unordered: bad proposer for step: {}", step);
 				Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 			}
-		} else {
-			trace!(target: "engine", "verify_block_unordered: block from the future");
-			self.validators.report_benign(header.author());
-			Err(BlockError::InvalidSeal)?
 		}
 
 		// Do not calculate difficulty for genesis blocks.
