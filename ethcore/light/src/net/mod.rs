@@ -167,7 +167,9 @@ pub trait Handler: Send + Sync {
 	/// Called when a peer requests relay of some transactions.
 	fn on_transactions(&self, _ctx: &EventContext, _relay: &[UnverifiedTransaction]) { }
 	/// Called when a peer responds to requests.
-	fn on_responses(&self, _ctx: &EventContext, _req_id: ReqId, _relay: &[Response]) { }
+	/// Responses not guaranteed to contain valid data and are not yet checked against
+	/// the requests they correspond to.
+	fn on_responses(&self, _ctx: &EventContext, _req_id: ReqId, _responses: &[Response]) { }
 	/// Called when a peer responds with a transaction proof. Each proof is a vector of state items.
 	fn on_transaction_proof(&self, _ctx: &EventContext, _req_id: ReqId, _state_items: &[DBValue]) { }
 	/// Called to "tick" the handler periodically.
@@ -380,11 +382,11 @@ impl LightProtocol {
 	//   - check whether peer exists
 	//   - check whether request was made
 	//   - check whether request kinds match
-	fn pre_verify_response(&self, peer: &PeerId, kind: request::Kind, raw: &UntrustedRlp) -> Result<IdGuard, Error> {
+	fn pre_verify_response(&self, peer: &PeerId, raw: &UntrustedRlp) -> Result<IdGuard, Error> {
 		let req_id = ReqId(raw.val_at(0)?);
 		let cur_credits: U256 = raw.val_at(1)?;
 
-		trace!(target: "pip", "pre-verifying response from peer {}, kind={:?}", peer, kind);
+		trace!(target: "pip", "pre-verifying response from peer {}", peer);
 
 		let peers = self.peers.read();
 		let res = match peers.get(peer) {
@@ -394,7 +396,7 @@ impl LightProtocol {
 				let flow_info = peer_info.remote_flow.as_mut();
 
 				match (req_info, flow_info) {
-					(Some(request), Some(flow_info)) => {
+					(Some(_), Some(flow_info)) => {
 						let &mut (ref mut c, ref mut flow) = flow_info;
 						let actual_credits = ::std::cmp::min(cur_credits, *flow.limit());
 						c.update_to(actual_credits);
@@ -662,15 +664,13 @@ impl LightProtocol {
 
 		let req_id: u64 = raw.val_at(0)?;
 		let mut cumulative_cost = U256::from(0);
-		let cur_buffer = peer.local_credits.current();
 
 		let mut request_builder = RequestBuilder::default();
 
-		// deserialize requests, check costs and back-references.
+		// deserialize requests, check costs and request validity.
 		for request_rlp in raw.at(1)?.iter().take(MAX_REQUESTS) {
 			let request: Request = request_rlp.as_val()?;
-			cumulative_cost = cumulative_cost + self.flow_params.compute_cost(&request);
-			if cumulative_cost > cur_buffer { return Err(Error::NoCredits) }
+			peer.local_credits.deduct_cost(self.flow_params.compute_cost(&request))?;
 			request_builder.push(request).map_err(|_| Error::BadBackReference)?;
 		}
 
@@ -690,12 +690,32 @@ impl LightProtocol {
 			}
 		});
 
-		io.respond(packet::RESPONSE, ::rlp::encode(&responses).to_vec());
+		io.respond(packet::RESPONSE, {
+			let mut stream = RlpStream::new_list(3);
+			let cur_credits = peer.local_credits.current();
+			stream.append(&req_id).append(&cur_credits).append(&responses);
+			stream.out()
+		});
 		Ok(())
 	}
 
+	// handle a packet with responses.
 	fn response(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
-		unimplemented!()
+		let (req_id, responses) = {
+			let id_guard = self.pre_verify_response(peer, &raw)?;
+			let responses: Vec<Response> = raw.val_at(2)?;
+			(id_guard.defuse(), responses)
+		};
+
+		for handler in &self.handlers {
+			handler.on_responses(&Ctx {
+				io: io,
+				proto: self,
+				peer: *peer,
+			}, req_id, &responses);
+		}
+
+		Ok(())
 	}
 
 	// Receive a set of transactions to relay.
