@@ -41,7 +41,7 @@ export default class Balance extends Component {
 
   render () {
     const { api } = this.context;
-    const { balance, className, showZeroValues, showOnlyEth } = this.props;
+    const { balance, className, showOnlyEth } = this.props;
 
     if (!balance || !balance.tokens) {
       return null;
@@ -49,7 +49,10 @@ export default class Balance extends Component {
 
     let body = balance.tokens
       .filter((balance) => {
-        return showZeroValues || new BigNumber(balance.value).gt(0);
+        const isEthToken = (balance.token.tag || '').toLowerCase() === 'eth';
+        const hasBalance = new BigNumber(balance.value).gt(0);
+
+        return hasBalance || isEthToken;
       })
       .map((balance, index) => {
         const isFullToken = !showOnlyEth || (balance.token.tag || '').toLowerCase() === 'eth';

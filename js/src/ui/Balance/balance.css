@@ -17,15 +17,12 @@
 
 .balances {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   margin: 0.75em 0 0 0;
   vertical-align: top;
 
-  &.full {
-    flex-wrap: wrap;
-  }
-
   &:not(.full) {
+    height: 2.5em;
     overflow: hidden;
   }
 }
