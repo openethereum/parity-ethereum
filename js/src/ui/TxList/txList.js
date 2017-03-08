@@ -27,7 +27,7 @@ import styles from './txList.css';
 class TxList extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     address: PropTypes.string.isRequired,
@@ -36,7 +36,7 @@ class TxList extends Component {
       PropTypes.object
     ]).isRequired,
     netVersion: PropTypes.string.isRequired
-  }
+  };
 
   store = new Store(this.context.api);
 

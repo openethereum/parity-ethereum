@@ -107,34 +107,26 @@ export default class Contract {
       });
   }
 
-  deploy (options, values, statecb) {
-    const setState = (state) => {
-      if (!statecb) {
-        return;
-      }
-
-      return statecb(null, state);
-    };
-
-    setState({ state: 'estimateGas' });
+  deploy (options, values, statecb = () => {}) {
+    statecb(null, { state: 'estimateGas' });
 
     return this
       .deployEstimateGas(options, values)
       .then(([gasEst, gas]) => {
         options.gas = gas.toFixed(0);
 
-        setState({ state: 'postTransaction', gas });
+        statecb(null, { state: 'postTransaction', gas });
 
-        const _options = this._encodeOptions(this.constructors[0], options, values);
+        const encodedOptions = this._encodeOptions(this.constructors[0], options, values);
 
         return this._api.parity
-          .postTransaction(_options)
+          .postTransaction(encodedOptions)
           .then((requestId) => {
-            setState({ state: 'checkRequest', requestId });
+            statecb(null, { state: 'checkRequest', requestId });
             return this._pollCheckRequest(requestId);
           })
           .then((txhash) => {
-            setState({ state: 'getTransactionReceipt', txhash });
+            statecb(null, { state: 'getTransactionReceipt', txhash });
             return this._pollTransactionReceipt(txhash, gas);
           })
           .then((receipt) => {
@@ -142,23 +134,23 @@ export default class Contract {
               throw new Error(`Contract not deployed, gasUsed == ${gas.toFixed(0)}`);
             }
 
-            setState({ state: 'hasReceipt', receipt });
+            statecb(null, { state: 'hasReceipt', receipt });
             this._receipt = receipt;
             this._address = receipt.contractAddress;
             return this._address;
-          });
-      })
-      .then((address) => {
-        setState({ state: 'getCode' });
-        return this._api.eth.getCode(this._address);
-      })
-      .then((code) => {
-        if (code === '0x') {
-          throw new Error('Contract not deployed, getCode returned 0x');
-        }
+          })
+          .then((address) => {
+            statecb(null, { state: 'getCode' });
+            return this._api.eth.getCode(this._address);
+          })
+          .then((code) => {
+            if (code === '0x') {
+              throw new Error('Contract not deployed, getCode returned 0x');
+            }
 
-        setState({ state: 'completed' });
-        return this._address;
+            statecb(null, { state: 'completed' });
+            return this._address;
+          });
       });
   }
 
