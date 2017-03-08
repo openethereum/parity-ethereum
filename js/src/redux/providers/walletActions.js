@@ -431,22 +431,7 @@ function parseLogs (logs) {
       return;
     }
 
-    const { wallet } = getState();
-    const { contract } = wallet;
-    const walletInstance = contract.instance;
-
-    const signatures = {
-      OwnerChanged: toHex(walletInstance.OwnerChanged.signature),
-      OwnerAdded: toHex(walletInstance.OwnerAdded.signature),
-      OwnerRemoved: toHex(walletInstance.OwnerRemoved.signature),
-      RequirementChanged: toHex(walletInstance.RequirementChanged.signature),
-      Confirmation: toHex(walletInstance.Confirmation.signature),
-      Revoke: toHex(walletInstance.Revoke.signature),
-      Deposit: toHex(walletInstance.Deposit.signature),
-      SingleTransact: toHex(walletInstance.SingleTransact.signature),
-      MultiTransact: toHex(walletInstance.MultiTransact.signature),
-      ConfirmationNeeded: toHex(walletInstance.ConfirmationNeeded.signature)
-    };
+    const WalletSignatures = WalletsUtils.getWalletSignatures();
 
     const updates = {};
 
@@ -459,25 +444,25 @@ function parseLogs (logs) {
       };
 
       switch (eventSignature) {
-        case signatures.OwnerChanged:
-        case signatures.OwnerAdded:
-        case signatures.OwnerRemoved:
+        case WalletSignatures.OwnerChanged:
+        case WalletSignatures.OwnerAdded:
+        case WalletSignatures.OwnerRemoved:
           updates[address] = {
             ...prev,
             [ UPDATE_OWNERS ]: true
           };
           return;
 
-        case signatures.RequirementChanged:
+        case WalletSignatures.RequirementChanged:
           updates[address] = {
             ...prev,
             [ UPDATE_REQUIRE ]: true
           };
           return;
 
-        case signatures.ConfirmationNeeded:
-        case signatures.Confirmation:
-        case signatures.Revoke:
+        case WalletSignatures.ConfirmationNeeded:
+        case WalletSignatures.Confirmation:
+        case WalletSignatures.Revoke:
           const operation = bytesToHex(log.params.operation.value);
 
           updates[address] = {
@@ -489,9 +474,11 @@ function parseLogs (logs) {
 
           return;
 
-        case signatures.Deposit:
-        case signatures.SingleTransact:
-        case signatures.MultiTransact:
+        case WalletSignatures.Deposit:
+        case WalletSignatures.SingleTransact:
+        case WalletSignatures.MultiTransact:
+        case WalletSignatures.Old.SingleTransact:
+        case WalletSignatures.Old.MultiTransact:
           updates[address] = {
             ...prev,
             [ UPDATE_TRANSACTIONS ]: true

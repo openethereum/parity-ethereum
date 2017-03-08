@@ -401,6 +401,7 @@ class WalletSettings extends Component {
     const cancelBtn = (
       <Button
         icon={ <CancelIcon /> }
+        key='cancelBtn'
         label={
           <FormattedMessage
             id='walletSettings.buttons.cancel'
@@ -414,6 +415,7 @@ class WalletSettings extends Component {
     const closeBtn = (
       <Button
         icon={ <CancelIcon /> }
+        key='closeBtn'
         label={
           <FormattedMessage
             id='walletSettings.buttons.close'
@@ -427,6 +429,7 @@ class WalletSettings extends Component {
     const sendingBtn = (
       <Button
         icon={ <DoneIcon /> }
+        key='sendingBtn'
         label={
           <FormattedMessage
             id='walletSettings.buttons.sending'
@@ -440,6 +443,7 @@ class WalletSettings extends Component {
     const nextBtn = (
       <Button
         icon={ <NextIcon /> }
+        key='nextBtn'
         label={
           <FormattedMessage
             id='walletSettings.buttons.next'
@@ -454,6 +458,7 @@ class WalletSettings extends Component {
     const sendBtn = (
       <Button
         icon={ <NextIcon /> }
+        key='sendBtn'
         label={
           <FormattedMessage
             id='walletSettings.buttons.send'

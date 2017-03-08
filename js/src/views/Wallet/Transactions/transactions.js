@@ -71,7 +71,7 @@ export default class WalletTransactions extends Component {
     }
 
     const txRows = transactions.slice(0, 15).map((transaction, index) => {
-      const { transactionHash, blockNumber, from, to, value, data } = transaction;
+      const { transactionHash, data } = transaction;
 
       return (
         <TxRow
@@ -79,12 +79,9 @@ export default class WalletTransactions extends Component {
           netVersion={ netVersion }
           key={ `${transactionHash}_${index}` }
           tx={ {
-            blockNumber,
-            from,
             hash: transactionHash,
             input: data && bytesToHex(data) || '',
-            to,
-            value
+            ...transaction
           } }
         />
       );
