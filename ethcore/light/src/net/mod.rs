@@ -33,8 +33,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use provider::Provider;
-use request::{Request, Response};
-use request_builder::Requests;
+use request::{Request, Requests, Response};
 
 use self::request_credits::{Credits, FlowParams};
 use self::context::{Ctx, TickCtx};
@@ -665,7 +664,7 @@ impl LightProtocol {
 		// the maximum amount of requests we'll fill in a single packet.
 		const MAX_REQUESTS: usize = 256;
 
-		use ::request_builder::RequestBuilder;
+		use ::request::RequestBuilder;
 		use ::request::CompleteRequest;
 
 		let peers = self.peers.read();

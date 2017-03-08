@@ -19,6 +19,8 @@
 use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
 use util::H256;
 
+mod builder;
+
 // re-exports of request types.
 pub use self::header::{
 	Complete as CompleteHeadersRequest,
@@ -60,6 +62,8 @@ pub use self::execution::{
 	Incomplete as IncompleteExecutionRequest,
 	Response as ExecutionResponse,
 };
+
+pub use self::builder::{RequestBuilder, Requests};
 
 /// Error indicating a reference to a non-existent or wrongly-typed output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

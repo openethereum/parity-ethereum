@@ -25,7 +25,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::iter::FromIterator;
 
 use request::Request;
-use request_builder::Requests;
+use request::Requests;
 use net::{timeout, ReqId};
 
 use time::{Duration, SteadyTime};
@@ -130,7 +130,7 @@ fn compute_timeout(reqs: &Requests) -> Duration {
 #[cfg(test)]
 mod tests {
 	use net::ReqId;
-	use request_builder::RequestBuilder;
+	use request::RequestBuilder;
 	use time::{SteadyTime, Duration};
 	use super::{RequestSet, compute_timeout};
 
