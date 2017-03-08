@@ -15,10 +15,6 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.register {
-  border: 1px dashed black;
-}
-
 .author,
 .version {
   font-size: 0.75rem;

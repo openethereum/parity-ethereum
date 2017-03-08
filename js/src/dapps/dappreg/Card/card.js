@@ -23,6 +23,7 @@ import styles from './card.css';
 export default class Card extends Component {
   static propTypes = {
     children: PropTypes.any,
+    dashed: PropTypes.bool,
     focus: PropTypes.bool,
     icon: PropTypes.object,
     name: PropTypes.object,
@@ -30,6 +31,7 @@ export default class Card extends Component {
   };
 
   static defaultProps = {
+    dashed: false,
     focus: false,
     name: { value: '' }
   };
@@ -41,12 +43,18 @@ export default class Card extends Component {
   }
 
   render () {
-    const { children, icon, name } = this.props;
+    const { children, dashed, icon, name } = this.props;
+
+    const cardClasses = [ styles.card ];
+
+    if (dashed) {
+      cardClasses.push(styles.dashed);
+    }
 
     return (
       <div className={ styles.container }>
         <div
-          className={ styles.card }
+          className={ cardClasses.join(' ') }
           onClick={ this.handleClick }
           onKeyPress={ this.handleKeyPress }
           ref='card'

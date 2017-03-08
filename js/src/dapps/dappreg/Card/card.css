@@ -41,6 +41,10 @@ $imgSize: 6rem;
   }
 }
 
+.dashed {
+  border: 1px dashed black;
+}
+
 .icon {
   margin-bottom: 0.75rem;
   overflow: hidden;

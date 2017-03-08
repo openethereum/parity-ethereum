@@ -39,6 +39,7 @@ export default class CreateDappCard extends Component {
         { this.renderModal() }
 
         <Card
+          dashed
           focus={ focus }
           icon={ (<img src={ PlusImage } />) }
           name={ { value: 'Register a dapp' } }

@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import ReactDOM from 'react-dom';
 
 import Card from '../Card';
 import DappsStore from '../dappsStore';
