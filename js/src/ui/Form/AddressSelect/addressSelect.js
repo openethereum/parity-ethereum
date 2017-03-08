@@ -348,7 +348,6 @@ class AddressSelect extends Component {
     return (
       <AccountCard
         account={ account }
-        allowAddressClick
         balance={ balance }
         className={ styles.account }
         key={ `account_${index}` }
