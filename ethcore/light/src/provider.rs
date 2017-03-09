@@ -62,7 +62,7 @@ pub trait Provider: Send + Sync {
 			HashOrNumber::Number(start_num) => start_num,
 			HashOrNumber::Hash(hash) => match self.block_header(BlockId::Hash(hash)) {
 				None => {
-					trace!(target: "les_provider", "Unknown block hash {} requested", hash);
+					trace!(target: "pip_provider", "Unknown block hash {} requested", hash);
 					return None;
 				}
 				Some(header) => {
@@ -91,7 +91,11 @@ pub trait Provider: Send + Sync {
 			.flat_map(|x| x)
 			.collect();
 
-		Some(::request::HeadersResponse { headers: headers })
+		if headers.is_empty() {
+			None
+		} else {
+			Some(::request::HeadersResponse { headers: headers })
+		}
 	}
 
 	/// Get a block header by id.
@@ -182,7 +186,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		let cht_number = match cht::block_to_cht_number(req.num) {
 			Some(cht_num) => cht_num,
 			None => {
-				debug!(target: "les_provider", "Requested CHT proof with invalid block number");
+				debug!(target: "pip_provider", "Requested CHT proof with invalid block number");
 				return None;
 			}
 		};
@@ -230,7 +234,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 			}),
 			Ok(None) => None,
 			Err(e) => {
-				debug!(target: "les_provider", "Error looking up number in freshly-created CHT: {}", e);
+				debug!(target: "pip_provider", "Error looking up number in freshly-created CHT: {}", e);
 				None
 			}
 		}
