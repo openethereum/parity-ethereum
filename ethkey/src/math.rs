@@ -75,3 +75,35 @@ fn set_public(public: &mut Public, key_public: &key::PublicKey) {
 	let key_public_serialized = key_public.serialize_vec(&SECP256K1, false);
 	public.copy_from_slice(&key_public_serialized[1..65]);
 }
+
+#[cfg(test)]
+mod tests {
+	use super::super::{Random, Generator};
+	use super::{public_add, public_sub};
+
+	#[test]
+	fn public_addition_is_commutative() {
+		let public1 = Random.generate().unwrap().public().clone();
+		let public2 = Random.generate().unwrap().public().clone();
+
+		let mut left = public1.clone();
+		public_add(&mut left, &public2).unwrap();
+
+		let mut right = public2.clone();
+		public_add(&mut right, &public1).unwrap();
+
+		assert_eq!(left, right);
+	}
+
+	#[test]
+	fn public_addition_is_reversible_with_subtraction() {
+		let public1 = Random.generate().unwrap().public().clone();
+		let public2 = Random.generate().unwrap().public().clone();
+
+		let mut sum = public1.clone();
+		public_add(&mut sum, &public2).unwrap();
+		public_sub(&mut sum, &public2).unwrap();
+
+		assert_eq!(sum, public1);
+	}
+}
