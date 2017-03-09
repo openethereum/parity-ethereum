@@ -134,12 +134,12 @@ export default class DappStore {
     const { image, content } = updates;
     const changes = {};
 
-    if (image) {
-      changes.image = { url: image };
+    if (image && image !== this.wip.image.url) {
+      changes.image = { url: image, changed: true };
     }
 
-    if (content) {
-      changes.content = { url: content };
+    if (content && content !== this.wip.content.url) {
+      changes.content = { url: content, changed: true };
     }
 
     return this.handleChange(changes);
