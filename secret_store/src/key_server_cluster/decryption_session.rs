@@ -49,6 +49,22 @@ pub struct Session {
 	data: Mutex<SessionData>,
 }
 
+/// Session creation parameters
+pub struct SessionParams {
+	/// Session identifier.
+	pub id: SessionId,
+	/// Session access key.
+	pub access_key: Secret,
+	/// Id of node, on which this session is running.
+	pub self_node_id: Public,
+	/// Encrypted data (result of running encryption_session::Session).
+	pub encrypted_data: EncryptedData,
+	/// ACL storage.
+	pub acl_storage: Arc<AclStorage>,
+	/// Cluster
+	pub cluster: Arc<Cluster>,
+}
+
 #[derive(Debug)]
 /// Mutable data of encryption (distributed key generation) session.
 struct SessionData {
@@ -102,16 +118,16 @@ pub enum SessionState {
 
 impl Session {
 	/// Create new decryption session.
-	pub fn new(id: SessionId, access_key: Secret, self_node_id: Public, encrypted_data: EncryptedData, acl_storage: Arc<AclStorage>, cluster: Arc<Cluster>) -> Result<Self, Error> {
-		check_encrypted_data(&self_node_id, &encrypted_data)?;
+	pub fn new(params: SessionParams) -> Result<Self, Error> {
+		check_encrypted_data(&params.self_node_id, &params.encrypted_data)?;
 
 		Ok(Session {
-			id: id,
-			access_key: access_key,
-			self_node_id: self_node_id,
-			encrypted_data: encrypted_data,
-			acl_storage: acl_storage,
-			cluster: cluster,
+			id: params.id,
+			access_key: params.access_key,
+			self_node_id: params.self_node_id,
+			encrypted_data: params.encrypted_data,
+			acl_storage: params.acl_storage,
+			cluster: params.cluster,
 			data: Mutex::new(SessionData {
 				state: SessionState::WaitingForInitialization,
 				master: None,
@@ -399,7 +415,7 @@ mod tests {
 	use ethkey::{self, Random, Generator, Public, Secret};
 	use key_server_cluster::{NodeId, EncryptedData, SessionId, Error};
 	use key_server_cluster::cluster::tests::DummyCluster;
-	use key_server_cluster::decryption_session::{Session, SessionState};
+	use key_server_cluster::decryption_session::{Session, SessionParams, 	SessionState};
 	use key_server_cluster::message::{self, Message};
 
 	const SECRET_PLAIN: &'static str = "d2b57ae7619e070af0af6bc8c703c0cd27814c54d5d6a999cacac0da34ede279ca0d9216e85991029e54e2f0c92ee0bd30237725fa765cbdbfc4529489864c5f";
@@ -438,12 +454,14 @@ mod tests {
 		}).collect();
 		let acl_storages: Vec<_> = (0..5).map(|_| Arc::new(DummyAclStorage::default())).collect();
 		let clusters: Vec<_> = (0..5).map(|i| Arc::new(DummyCluster::new(id_numbers.iter().nth(i).clone().unwrap().0))).collect();
-		let sessions: Vec<_> = (0..5).map(|i| Session::new(session_id.clone(),
-			access_key.clone(),
-			id_numbers.iter().nth(i).clone().unwrap().0,
-			encrypted_datas[i].clone(),
-			acl_storages[i].clone(),
-			clusters[i].clone()).unwrap()).collect();
+		let sessions: Vec<_> = (0..5).map(|i| Session::new(SessionParams {
+			id: session_id.clone(),
+			access_key: access_key.clone(),
+			self_node_id: id_numbers.iter().nth(i).clone().unwrap().0,
+			encrypted_data: encrypted_datas[i].clone(),
+			acl_storage: acl_storages[i].clone(),
+			cluster: clusters[i].clone()
+		}).unwrap()).collect();
 
 		(clusters, acl_storages, sessions)
 	}
@@ -474,13 +492,20 @@ mod tests {
 		let mut nodes = BTreeMap::new();
 		let self_node_id = Random.generate().unwrap().public().clone();
 		nodes.insert(self_node_id, Random.generate().unwrap().secret().clone());
-		match Session::new(SessionId::default(), Random.generate().unwrap().secret().clone(), self_node_id.clone(), EncryptedData {
-			threshold: 0,
-			id_numbers: nodes,
-			secret_share: Random.generate().unwrap().secret().clone(),
-			common_point: Random.generate().unwrap().public().clone(),
-			encrypted_point: Random.generate().unwrap().public().clone(),
-		}, Arc::new(DummyAclStorage::default()), Arc::new(DummyCluster::new(self_node_id.clone()))) {
+		match Session::new(SessionParams {
+			id: SessionId::default(),
+			access_key: Random.generate().unwrap().secret().clone(),
+			self_node_id: self_node_id.clone(),
+			encrypted_data: EncryptedData {
+				threshold: 0,
+				id_numbers: nodes,
+				secret_share: Random.generate().unwrap().secret().clone(),
+				common_point: Random.generate().unwrap().public().clone(),
+				encrypted_point: Random.generate().unwrap().public().clone(),
+			},
+			acl_storage: Arc::new(DummyAclStorage::default()),
+			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
+		}) {
 			Err(Error::InvalidNodesCount) => (),
 			_ => panic!("unexpected"),
 		}
@@ -492,13 +517,20 @@ mod tests {
 		let self_node_id = Random.generate().unwrap().public().clone();
 		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
 		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
-		match Session::new(SessionId::default(), Random.generate().unwrap().secret().clone(), self_node_id.clone(), EncryptedData {
-			threshold: 0,
-			id_numbers: nodes,
-			secret_share: Random.generate().unwrap().secret().clone(),
-			common_point: Random.generate().unwrap().public().clone(),
-			encrypted_point: Random.generate().unwrap().public().clone(),
-		}, Arc::new(DummyAclStorage::default()), Arc::new(DummyCluster::new(self_node_id.clone()))) {
+		match Session::new(SessionParams {
+			id: SessionId::default(),
+			access_key: Random.generate().unwrap().secret().clone(),
+			self_node_id: self_node_id.clone(),
+			encrypted_data: EncryptedData {
+				threshold: 0,
+				id_numbers: nodes,
+				secret_share: Random.generate().unwrap().secret().clone(),
+				common_point: Random.generate().unwrap().public().clone(),
+				encrypted_point: Random.generate().unwrap().public().clone(),
+			},
+			acl_storage: Arc::new(DummyAclStorage::default()),
+			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
+		}) {
 			Err(Error::InvalidNodesConfiguration) => (),
 			_ => panic!("unexpected"),
 		}
@@ -510,13 +542,20 @@ mod tests {
 		let self_node_id = Random.generate().unwrap().public().clone();
 		nodes.insert(self_node_id.clone(), Random.generate().unwrap().secret().clone());
 		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
-		match Session::new(SessionId::default(), Random.generate().unwrap().secret().clone(), self_node_id.clone(), EncryptedData {
-			threshold: 2,
-			id_numbers: nodes,
-			secret_share: Random.generate().unwrap().secret().clone(),
-			common_point: Random.generate().unwrap().public().clone(),
-			encrypted_point: Random.generate().unwrap().public().clone(),
-		}, Arc::new(DummyAclStorage::default()), Arc::new(DummyCluster::new(self_node_id.clone()))) {
+		match Session::new(SessionParams {
+			id: SessionId::default(),
+			access_key: Random.generate().unwrap().secret().clone(),
+			self_node_id: self_node_id.clone(),
+			encrypted_data: EncryptedData {
+				threshold: 2,
+				id_numbers: nodes,
+				secret_share: Random.generate().unwrap().secret().clone(),
+				common_point: Random.generate().unwrap().public().clone(),
+				encrypted_point: Random.generate().unwrap().public().clone(),
+			},
+			acl_storage: Arc::new(DummyAclStorage::default()),
+			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
+		}) {
 			Err(Error::InvalidThreshold) => (),
 			_ => panic!("unexpected"),
 		}
