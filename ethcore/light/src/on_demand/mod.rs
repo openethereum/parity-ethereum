@@ -24,12 +24,14 @@ use std::sync::Arc;
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::receipt::Receipt;
+use ethcore::state::ProvedExecution;
+use ethcore::executed::{Executed, ExecutionError};
 
 use futures::{Async, Poll, Future};
 use futures::sync::oneshot::{self, Sender, Receiver};
 use network::PeerId;
 use rlp::{RlpStream, Stream};
-use util::{Bytes, RwLock, Mutex, U256};
+use util::{Bytes, DBValue, RwLock, Mutex, U256};
 use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
 
 use net::{Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
@@ -59,6 +61,7 @@ enum Pending {
 	BlockReceipts(request::BlockReceipts, Sender<Vec<Receipt>>),
 	Account(request::Account, Sender<BasicAccount>),
 	Code(request::Code, Sender<Bytes>),
+	TxProof(request::TransactionProof, Sender<Result<Executed, ExecutionError>>),
 }
 
 /// On demand request service. See module docs for more details.
@@ -418,6 +421,50 @@ impl OnDemand {
 		self.orphaned_requests.write().push(pending)
 	}
 
+	/// Request proof-of-execution for a transaction.
+	pub fn transaction_proof(&self, ctx: &BasicContext, req: request::TransactionProof) -> Receiver<Result<Executed, ExecutionError>> {
+		let (sender, receiver) = oneshot::channel();
+
+		self.dispatch_transaction_proof(ctx, req, sender);
+
+		receiver
+	}
+
+	fn dispatch_transaction_proof(&self, ctx: &BasicContext, req: request::TransactionProof, sender: Sender<Result<Executed, ExecutionError>>) {
+		let num = req.header.number();
+		let les_req = LesRequest::TransactionProof(les_request::TransactionProof {
+			at: req.header.hash(),
+			from: req.tx.sender(),
+			gas: req.tx.gas,
+			gas_price: req.tx.gas_price,
+			action: req.tx.action.clone(),
+			value: req.tx.value,
+			data: req.tx.data.clone(),
+		});
+		let pending = Pending::TxProof(req, sender);
+
+		// we're looking for a peer with serveStateSince(num)
+		for (id, peer) in self.peers.read().iter() {
+			if peer.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= num) {
+				match ctx.request_from(*id, les_req.clone()) {
+					Ok(req_id) => {
+						trace!(target: "on_demand", "Assigning request to peer {}", id);
+						self.pending_requests.write().insert(
+							req_id,
+							pending
+						);
+						return
+					}
+					Err(e) =>
+						trace!(target: "on_demand", "Failed to make request of peer {}: {:?}", id, e),
+				}
+			}
+		}
+
+		trace!(target: "on_demand", "No suitable peer for request");
+		self.orphaned_requests.write().push(pending)
+	}
+
 	// dispatch orphaned requests, and discard those for which the corresponding
 	// receiver has been dropped.
 	fn dispatch_orphaned(&self, ctx: &BasicContext) {
@@ -468,6 +515,8 @@ impl OnDemand {
 					if !check_hangup(&mut sender) { self.dispatch_account(ctx, req, sender) },
 				Pending::Code(req, mut sender) =>
 					if !check_hangup(&mut sender) { self.dispatch_code(ctx, req, sender) },
+				Pending::TxProof(req, mut sender) =>
+					if !check_hangup(&mut sender) { self.dispatch_transaction_proof(ctx, req, sender) }
 			}
 		}
 	}
@@ -687,6 +736,36 @@ impl Handler for OnDemand {
 				}
 			}
 			_ => panic!("Only code request fetches code; qed"),
+		}
+	}
+
+	fn on_transaction_proof(&self, ctx: &EventContext, req_id: ReqId, items: &[DBValue]) {
+		let peer = ctx.peer();
+		let req = match self.pending_requests.write().remove(&req_id) {
+			Some(req) => req,
+			None => return,
+		};
+
+		match req {
+			Pending::TxProof(req, sender) => {
+				match req.check_response(items) {
+					ProvedExecution::Complete(executed) => {
+						sender.complete(Ok(executed));
+						return
+					}
+					ProvedExecution::Failed(err) => {
+						sender.complete(Err(err));
+						return
+					}
+					ProvedExecution::BadProof => {
+						warn!("Error handling response for transaction proof request");
+						ctx.disable_peer(peer);
+					}
+				}
+
+				self.dispatch_transaction_proof(ctx.as_basic(), req, sender);
+			}
+			_ => panic!("Only transaction proof request dispatches transaction proof requests; qed"),
 		}
 	}
 

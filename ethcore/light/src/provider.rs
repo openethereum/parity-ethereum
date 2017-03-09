@@ -24,7 +24,7 @@ use ethcore::client::{BlockChainClient, ProvingBlockChainClient};
 use ethcore::transaction::PendingTransaction;
 use ethcore::ids::BlockId;
 use ethcore::encoded;
-use util::{Bytes, RwLock, H256};
+use util::{Bytes, DBValue, RwLock, H256};
 
 use cht::{self, BlockInfo};
 use client::{LightChainClient, AsLightClient};
@@ -193,6 +193,10 @@ pub trait Provider: Send + Sync {
 
 	/// Provide pending transactions.
 	fn ready_transactions(&self) -> Vec<PendingTransaction>;
+
+	/// Provide a proof-of-execution for the given transaction proof request.
+	/// Returns a vector of all state items necessary to execute the transaction.
+	fn transaction_proof(&self, req: request::TransactionProof) -> Option<Vec<DBValue>>;
 }
 
 // Implementation of a light client data provider for a client.
@@ -283,6 +287,26 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		}
 	}
 
+	fn transaction_proof(&self, req: request::TransactionProof) -> Option<Vec<DBValue>> {
+		use ethcore::transaction::Transaction;
+
+		let id = BlockId::Hash(req.at);
+		let nonce = match self.nonce(&req.from, id.clone()) {
+			Some(nonce) => nonce,
+			None => return None,
+		};
+		let transaction = Transaction {
+			nonce: nonce,
+			gas: req.gas,
+			gas_price: req.gas_price,
+			action: req.action,
+			value: req.value,
+			data: req.data,
+		}.fake_sign(req.from);
+
+		self.prove_transaction(transaction, id)
+	}
+
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
 		BlockChainClient::ready_transactions(self)
 	}
@@ -340,6 +364,10 @@ impl<L: AsLightClient + Send + Sync> Provider for LightProvider<L> {
 	}
 
 	fn header_proof(&self, _req: request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
+		None
+	}
+
+	fn transaction_proof(&self, _req: request::TransactionProof) -> Option<Vec<DBValue>> {
 		None
 	}
 

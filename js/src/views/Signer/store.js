@@ -41,8 +41,9 @@ export default class SignerStore {
     this.balances = Object.assign({}, this.balances, balances);
   }
 
-  @action setLocalHashes = (localHashes) => {
-    if (!isEqual(localHashes, this.localHashes)) {
+  @action setLocalHashes = (localHashes = []) => {
+    // Use slice to make sure they are both Arrays (MobX uses Objects for Observable Arrays)
+    if (!isEqual(localHashes.slice(), this.localHashes.slice())) {
       this.localHashes = localHashes;
     }
   }

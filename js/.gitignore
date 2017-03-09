@@ -8,3 +8,4 @@ docs
 .happypack
 .npmjs
 .eslintcache
+yarn.lock

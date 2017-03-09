@@ -164,6 +164,8 @@ API and Console Options:
                                  is additional security against some attack
                                  vectors. Special options: "all", "none",
                                  (default: {flag_dapps_hosts}).
+  --dapps-cors URL               Specify CORS headers for Dapps server APIs.
+                                 (default: {flag_dapps_cors:?})
   --dapps-user USERNAME          Specify username for Dapps server. It will be
                                  used in HTTP Basic Authentication Scheme.
                                  If --dapps-pass is not specified you will be
