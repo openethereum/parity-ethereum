@@ -16,7 +16,7 @@
 
 import { action, computed, observable } from 'mobx';
 
-import { contracts, registry } from './contracts';
+import { contracts as contractsInfo, registry as registryInfo } from './contracts';
 import { apps } from './dapps';
 import { api } from './parity';
 import { executeContract, isValidNumber, validateCode } from './utils';
@@ -30,9 +30,9 @@ export default class ContractsStore {
 
   constructor () {
     this.apps = apps;
-    this.badges = contracts.filter((contract) => contract.isBadge);
-    this.contracts = contracts.filter((contract) => !contract.isBadge);
-    this.registry = registry;
+    this.badges = contractsInfo.filter((contract) => contract.isBadge);
+    this.contracts = contractsInfo.filter((contract) => !contract.isBadge);
+    this.registry = registryInfo;
 
     api.subscribe('eth_blockNumber', this.onNewBlockNumber);
   }
@@ -117,7 +117,7 @@ export default class ContractsStore {
 
       this.registry = Object.assign({}, this.registry, {
         address,
-        instance: api.newContract(registry.abi, address).instance,
+        instance: api.newContract(this.registry.abi, address).instance,
         isOnChain
       });
     }
@@ -447,7 +447,7 @@ export default class ContractsStore {
     const options = {
       from: fromAddress
     };
-    const values = [badge.address, api.util.sha3(badge.id)];
+    const values = [badge.address, api.util.sha3.text(badge.id.toLowerCase())];
 
     return this.contractBadgereg.instance
       .fee.call({}, [])
@@ -482,7 +482,7 @@ export default class ContractsStore {
 
   reserveAddress = (contract, fromAddress) => {
     const options = { from: fromAddress };
-    const values = [api.util.sha3(contract.id)];
+    const values = [api.util.sha3.text(contract.id.toLowerCase())];
 
     this.setContractStatus(contract, 'Reserving name');
 
@@ -497,7 +497,7 @@ export default class ContractsStore {
 
   registerAddress = (contract, fromAddress) => {
     const options = { from: fromAddress };
-    const values = [api.util.sha3(contract.id), 'A', contract.address];
+    const values = [api.util.sha3.text(contract.id.toLowerCase()), 'A', contract.address];
 
     this.setContractStatus(contract, 'Setting lookup address');
 
@@ -665,7 +665,7 @@ export default class ContractsStore {
     return Promise
       .all(
         contracts.map((contract) => {
-          const hashId = api.util.sha3(contract.id);
+          const hashId = api.util.sha3.text(contract.id.toLowerCase());
 
           return contract.isOnChain
             ? Promise.resolve([0, 0])

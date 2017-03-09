@@ -26,6 +26,7 @@ import * as tokendeployReg from './tokendeployReg';
 import * as tokenreg from './tokenreg';
 import * as verifyEmail from './verifyEmail';
 import * as verifySms from './verifySms';
+import * as wallet from './wallet';
 
 const contracts = [
   // builtin
@@ -38,6 +39,7 @@ const contracts = [
   tokendeployMgr,
   verifyEmail,
   verifySms,
+  wallet,
 
   // external
   gavcoin,
