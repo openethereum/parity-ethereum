@@ -1186,8 +1186,9 @@ mod tests {
 			let document_secret_decrypted = do_encryption_and_decryption(threshold, &joint_public_key,
 				&all_nodes_id_numbers,
 				&all_nodes_secret_shares,
+				None,
 				document_secret_plain.clone()
-			);
+			).0;
 			assert_eq!(document_secret_plain, document_secret_decrypted);
 		}
 	}

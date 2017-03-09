@@ -242,12 +242,23 @@ pub fn decrypt_with_joint_shadow(access_key: &Secret, encrypted_point: &Public, 
 	Ok(decrypted_point)
 }
 
+/// Decrypt data using joint secret (version for tests).
+pub fn decrypt_with_joint_secret(encrypted_point: &Public, common_point: &Public, joint_secret: &Secret) -> Result<Public, Error> {
+	let mut common_point_mul = common_point.clone();
+	math::public_mul_secret(&mut common_point_mul, joint_secret)?;
+
+	let mut decrypted_point = encrypted_point.clone();
+	math::public_sub(&mut decrypted_point, &common_point_mul)?;
+
+	Ok(decrypted_point)
+}
+
 #[cfg(test)]
 pub mod tests {
 	use ethkey::KeyPair;
 	use super::*;
 
-	pub fn do_encryption_and_decryption(t: usize, joint_public: &Public, id_numbers: &[Secret], secret_shares: &[Secret], document_secret_plain: Public) -> Public {
+	pub fn do_encryption_and_decryption(t: usize, joint_public: &Public, id_numbers: &[Secret], secret_shares: &[Secret], joint_secret: Option<&Secret>, document_secret_plain: Public) -> (Public, Public) {
 		// === PART2: encryption using joint public key ===
 
 		// the next line is executed on KeyServer-client
@@ -276,12 +287,18 @@ pub mod tests {
 		// decrypt encrypted secret using joint shadow point
 		let document_secret_decrypted = decrypt_with_joint_shadow(&access_key, &encrypted_secret.encrypted_point, &joint_shadow_point).unwrap();
 
-		document_secret_decrypted
+		// decrypt encrypted secret using joint secret [just for test]
+		let document_secret_decrypted_test = match joint_secret {
+			Some(joint_secret) => decrypt_with_joint_secret(&encrypted_secret.encrypted_point, &encrypted_secret.common_point, joint_secret).unwrap(),
+			None => document_secret_decrypted.clone(),
+		};
+
+		(document_secret_decrypted, document_secret_decrypted_test)
 	}
 
 	#[test]
 	fn full_encryption_math_session() {
-		let test_cases = [(3, 5)];
+		let test_cases = [(1, 3)];
 		for &(t, n) in &test_cases {
 			// === PART1: DKG ===
 			
@@ -306,7 +323,10 @@ pub mod tests {
 
 			// now encrypt and decrypt data
 			let document_secret_plain = generate_random_point().unwrap();
-			let document_secret_decrypted = do_encryption_and_decryption(t, &joint_public, &id_numbers, &secret_shares, document_secret_plain.clone());
+			let (document_secret_decrypted, document_secret_decrypted_test) =
+				do_encryption_and_decryption(t, &joint_public, &id_numbers, &secret_shares, Some(&joint_secret), document_secret_plain.clone());
+
+			assert_eq!(document_secret_plain, document_secret_decrypted_test);
 			assert_eq!(document_secret_plain, document_secret_decrypted);
 		}
 	}

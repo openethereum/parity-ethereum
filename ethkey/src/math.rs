@@ -36,6 +36,17 @@ pub fn public_add(public: &mut Public, other: &Public) -> Result<(), Error> {
 	Ok(())
 }
 
+/// Inplace sub one public key from another (EC point - EC point)
+pub fn public_sub(public: &mut Public, other: &Public) -> Result<(), Error> {
+	let mut key_neg_other = to_secp256k1_public(other)?;
+	key_neg_other.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
+
+	let mut key_public = to_secp256k1_public(public)?;
+	key_public.add_assign(&SECP256K1, &key_neg_other)?;
+	set_public(public, &key_public);
+	Ok(())
+}
+
 /// Return base point of secp256k1
 pub fn generation_point() -> Public {
 	let mut public_sec_raw = [0u8; 65];
