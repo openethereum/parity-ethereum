@@ -46,8 +46,8 @@ mod error;
 mod status;
 mod request_set;
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 pub mod request_credits;
 
@@ -660,7 +660,7 @@ impl LightProtocol {
 	}
 
 	// Receive requests from a peer.
-	fn request(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+	fn request(&self, peer_id: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
 		// the maximum amount of requests we'll fill in a single packet.
 		const MAX_REQUESTS: usize = 256;
 
@@ -668,7 +668,7 @@ impl LightProtocol {
 		use ::request::CompleteRequest;
 
 		let peers = self.peers.read();
-		let peer = match peers.get(peer) {
+		let peer = match peers.get(peer_id) {
 			Some(peer) => peer,
 			None => {
 				debug!(target: "pip", "Ignoring request from unknown peer");
@@ -680,7 +680,10 @@ impl LightProtocol {
 		let req_id: u64 = raw.val_at(0)?;
 		let mut request_builder = RequestBuilder::default();
 
+		trace!(target: "pip", "Received requests (id: {}) from peer {}", req_id, peer_id);
+
 		// deserialize requests, check costs and request validity.
+		peer.local_credits.deduct_cost(self.flow_params.base_cost())?;
 		for request_rlp in raw.at(1)?.iter().take(MAX_REQUESTS) {
 			let request: Request = request_rlp.as_val()?;
 			peer.local_credits.deduct_cost(self.flow_params.compute_cost(&request))?;
@@ -688,6 +691,8 @@ impl LightProtocol {
 		}
 
 		let requests = request_builder.build();
+		let num_requests = requests.requests().len();
+		trace!(target: "pip", "Beginning to respond to requests (id: {}) from peer {}", req_id, peer_id);
 
 		// respond to all requests until one fails.
 		let responses = requests.respond_to_all(|complete_req| {
@@ -702,6 +707,8 @@ impl LightProtocol {
 				CompleteRequest::Execution(req) => self.provider.transaction_proof(req).map(Response::Execution),
 			}
 		});
+
+		trace!(target: "pip", "Responded to {}/{} requests in packet {}", responses.len(), num_requests, req_id);
 
 		io.respond(packet::RESPONSE, {
 			let mut stream = RlpStream::new_list(3);

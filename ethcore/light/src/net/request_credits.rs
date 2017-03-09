@@ -215,6 +215,9 @@ impl FlowParams {
 	/// Get a reference to the cost table.
 	pub fn cost_table(&self) -> &CostTable { &self.costs }
 
+	/// Get the base cost of a request.
+	pub fn base_cost(&self) -> U256 { self.costs.base }
+
 	/// Get a reference to the recharge rate.
 	pub fn recharge_rate(&self) -> &U256 { &self.recharge }
 
@@ -231,6 +234,12 @@ impl FlowParams {
 			Request::Code(_) => self.costs.code,
 			Request::Execution(ref req) => self.costs.transaction_proof * req.gas,
 		}
+	}
+
+	/// Compute the cost of a set of requests.
+	/// This is the base cost plus the cost of each individual request.
+	pub fn compute_cost_multi(&self, requests: &[Request]) -> U256 {
+		requests.iter().fold(self.costs.base, |cost, req| cost + self.compute_cost(req))
 	}
 
 	/// Create initial credits.

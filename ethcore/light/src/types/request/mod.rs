@@ -260,7 +260,10 @@ impl Decodable for Request {
 
 impl Encodable for Request {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(2).append(&self.kind());
+		s.begin_list(2);
+
+		// hack around https://github.com/ethcore/parity/issues/4356
+		Encodable::rlp_append(&self.kind(), s);
 
 		match *self {
 			Request::Headers(ref req) => s.append(req),
@@ -441,7 +444,10 @@ impl Decodable for Response {
 
 impl Encodable for Response {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(2).append(&self.kind());
+		s.begin_list(2);
+
+		// hack around https://github.com/ethcore/parity/issues/4356
+		Encodable::rlp_append(&self.kind(), s);
 
 		match *self {
 			Response::Headers(ref res) => s.append(res),
@@ -916,7 +922,7 @@ pub mod block_body {
 
 	impl Encodable for Response {
 		fn rlp_append(&self, s: &mut RlpStream) {
-			s.append_raw(&self.body.rlp().as_raw(), 2);
+			s.append_raw(&self.body.rlp().as_raw(), 1);
 		}
 	}
 }
@@ -1683,5 +1689,28 @@ mod tests {
 		check_roundtrip(full_req);
 		check_roundtrip(res);
 		check_roundtrip(full_res);
+	}
+
+	#[test]
+	fn vec_test() {
+		use rlp::*;
+
+		let reqs: Vec<_> = (0..10).map(|_| IncompleteExecutionRequest {
+			block_hash: Field::Scalar(Default::default()),
+			from: Default::default(),
+			action: ::ethcore::transaction::Action::Create,
+			gas: 100_000.into(),
+			gas_price: 0.into(),
+			value: 100_000_001.into(),
+			data: vec![1, 2, 3, 2, 1],
+		}).map(Request::Execution).collect();
+
+		let mut stream = RlpStream::new_list(2);
+		stream.append(&100usize).append(&reqs);
+		let out = stream.out();
+
+		let rlp = UntrustedRlp::new(&out);
+		assert_eq!(rlp.val_at::<usize>(0).unwrap(), 100usize);
+		assert_eq!(rlp.val_at::<Vec<Request>>(1).unwrap(), reqs);
 	}
 }

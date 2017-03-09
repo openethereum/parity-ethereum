@@ -27,14 +27,30 @@ use network::{PeerId, NodeId};
 use net::request_credits::FlowParams;
 use net::context::IoContext;
 use net::status::{Capabilities, Status, write_handshake};
-use net::{encode_request, LightProtocol, Params, packet, Peer};
+use net::{LightProtocol, Params, packet, Peer};
 use provider::Provider;
-use request::{self, Request, Headers};
+use request;
+use request::*;
 
 use rlp::*;
-use util::{Address, Bytes, DBValue, H256, U256};
+use util::{Address, H256, U256};
 
 use std::sync::Arc;
+
+// helper for encoding a single request into a packet.
+// panics on bad backreference.
+fn encode_single(request: Request) -> Requests {
+	let mut builder = RequestBuilder::default();
+	builder.push(request).unwrap();
+	builder.build()
+}
+
+// helper for making a packet out of `Requests`.
+fn make_packet(req_id: usize, requests: &Requests) -> Vec<u8> {
+	let mut stream = RlpStream::new_list(2);
+	stream.append(&req_id).append(&requests.requests());
+	stream.out()
+}
 
 // expected result from a call.
 #[derive(Debug, PartialEq, Eq)]
@@ -99,35 +115,45 @@ impl Provider for TestProvider {
 		self.0.client.block_header(id)
 	}
 
-	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
-		self.0.client.block_body(id)
+	fn block_body(&self, req: request::CompleteBodyRequest) -> Option<request::BodyResponse> {
+		self.0.client.block_body(req)
 	}
 
-	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
-		self.0.client.block_receipts(&hash)
+	fn block_receipts(&self, req: request::CompleteReceiptsRequest) -> Option<request::ReceiptsResponse> {
+		self.0.client.block_receipts(req)
 	}
 
-	fn state_proof(&self, req: request::StateProof) -> Vec<Bytes> {
-		match req.key2 {
-			Some(_) => vec![::util::sha3::SHA3_NULL_RLP.to_vec()],
-			None => {
-				// sort of a leaf node
-				let mut stream = RlpStream::new_list(2);
-				stream.append(&req.key1).append_empty_data();
-				vec![stream.out()]
-			}
-		}
+	fn account_proof(&self, req: request::CompleteAccountRequest) -> Option<request::AccountResponse> {
+		// sort of a leaf node
+		let mut stream = RlpStream::new_list(2);
+		stream.append(&req.address_hash).append_empty_data();
+		Some(AccountResponse {
+			proof: vec![stream.out()],
+			balance: 10.into(),
+			nonce: 100.into(),
+			code_hash: Default::default(),
+			storage_root: Default::default(),
+		})
 	}
 
-	fn contract_code(&self, req: request::ContractCode) -> Bytes {
-		req.account_key.iter().chain(req.account_key.iter()).cloned().collect()
+	fn storage_proof(&self, req: request::CompleteStorageRequest) -> Option<request::StorageResponse> {
+		Some(StorageResponse {
+			proof: vec![::rlp::encode(&req.key_hash).to_vec()],
+			value: req.key_hash | req.address_hash,
+		})
 	}
 
-	fn header_proof(&self, _req: request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
+	fn contract_code(&self, req: request::CompleteCodeRequest) -> Option<request::CodeResponse> {
+		Some(CodeResponse {
+			code: req.block_hash.iter().chain(req.code_hash.iter()).cloned().collect(),
+		})
+	}
+
+	fn header_proof(&self, _req: request::CompleteHeaderProofRequest) -> Option<request::HeaderProofResponse> {
 		None
 	}
 
-	fn transaction_proof(&self, _req: request::TransactionProof) -> Option<Vec<DBValue>> {
+	fn transaction_proof(&self, _req: request::CompleteExecutionRequest) -> Option<request::ExecutionResponse> {
 		None
 	}
 
@@ -226,14 +252,15 @@ fn credit_overflow() {
 	}
 
 	// 1000 requests is far too many for the default flow params.
-	let request = encode_request(&Request::Headers(Headers {
-		start: 1.into(),
+	let requests = encode_single(Request::Headers(IncompleteHeadersRequest {
+		start: HashOrNumber::Number(1).into(),
 		max: 1000,
 		skip: 0,
 		reverse: false,
-	}), 111);
+	}));
+	let request = make_packet(111, &requests);
 
-	proto.handle_packet(&Expect::Punish(1), &1, packet::GET_BLOCK_HEADERS, &request);
+	proto.handle_packet(&Expect::Punish(1), &1, packet::REQUEST, &request);
 }
 
 // test the basic request types -- these just make sure that requests are parsed
@@ -259,33 +286,36 @@ fn get_block_headers() {
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
 	}
 
-	let request = Headers {
-		start: 1.into(),
+	let request = Request::Headers(IncompleteHeadersRequest {
+		start: HashOrNumber::Number(1).into(),
 		max: 10,
 		skip: 0,
 		reverse: false,
-	};
+	});
+
 	let req_id = 111;
 
-	let request_body = encode_request(&Request::Headers(request.clone()), req_id);
+	let requests = encode_single(request.clone());
+	let request_body = make_packet(req_id, &requests);
+
 	let response = {
 		let headers: Vec<_> = (0..10).map(|i| provider.client.block_header(BlockId::Number(i + 1)).unwrap()).collect();
 		assert_eq!(headers.len(), 10);
 
-		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::Headers, 10);
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
 
-		let mut response_stream = RlpStream::new_list(3);
+		let response = vec![Response::Headers(HeadersResponse {
+			headers: headers,
+		})];
 
-		response_stream.append(&req_id).append(&new_creds).begin_list(10);
-		for header in headers {
-			response_stream.append_raw(&header.into_inner(), 1);
-		}
+		let mut stream = RlpStream::new_list(3);
+		stream.append(&req_id).append(&new_creds).append(&response);
 
-		response_stream.out()
+		stream.out()
 	};
 
-	let expected = Expect::Respond(packet::BLOCK_HEADERS, response);
-	proto.handle_packet(&expected, &1, packet::GET_BLOCK_HEADERS, &request_body);
+	let expected = Expect::Respond(packet::RESPONSE, response);
+	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
 }
 
 #[test]
@@ -308,33 +338,32 @@ fn get_block_bodies() {
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
 	}
 
-	let request = request::Bodies {
-		block_hashes: (0..10).map(|i|
-			provider.client.block_header(BlockId::Number(i)).unwrap().hash()
-		).collect()
-	};
+	let mut builder = RequestBuilder::default();
+	let mut bodies = Vec::new();
 
+	for i in 0..10 {
+		let hash = provider.client.block_header(BlockId::Number(i)).unwrap().hash();
+		builder.push(Request::Body(IncompleteBodyRequest {
+			hash: hash.into(),
+		})).unwrap();
+		bodies.push(Response::Body(provider.client.block_body(CompleteBodyRequest {
+			hash: hash,
+		}).unwrap()));
+	}
 	let req_id = 111;
+	let requests = builder.build();
+	let request_body = make_packet(req_id, &requests);
 
-	let request_body = encode_request(&Request::Bodies(request.clone()), req_id);
 	let response = {
-		let bodies: Vec<_> = (0..10).map(|i| provider.client.block_body(BlockId::Number(i + 1)).unwrap()).collect();
-		assert_eq!(bodies.len(), 10);
-
-		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::Bodies, 10);
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
 
 		let mut response_stream = RlpStream::new_list(3);
-
-		response_stream.append(&req_id).append(&new_creds).begin_list(10);
-		for body in bodies {
-			response_stream.append_raw(&body.into_inner(), 1);
-		}
-
+		response_stream.append(&req_id).append(&new_creds).append(&bodies);
 		response_stream.out()
 	};
 
-	let expected = Expect::Respond(packet::BLOCK_BODIES, response);
-	proto.handle_packet(&expected, &1, packet::GET_BLOCK_BODIES, &request_body);
+	let expected = Expect::Respond(packet::RESPONSE, response);
+	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
 }
 
 #[test]
@@ -359,36 +388,37 @@ fn get_block_receipts() {
 
 	// find the first 10 block hashes starting with `f` because receipts are only provided
 	// by the test client in that case.
-	let block_hashes: Vec<_> = (0..1000).map(|i|
-		provider.client.block_header(BlockId::Number(i)).unwrap().hash()
-	).filter(|hash| format!("{}", hash).starts_with("f")).take(10).collect();
+	let block_hashes: Vec<H256> = (0..1000)
+		.map(|i| provider.client.block_header(BlockId::Number(i)).unwrap().hash())
+		.filter(|hash| format!("{}", hash).starts_with("f"))
+		.take(10)
+		.collect();
 
-	let request = request::Receipts {
-		block_hashes: block_hashes.clone(),
-	};
+	let mut builder = RequestBuilder::default();
+	let mut receipts = Vec::new();
+	for hash in block_hashes.iter().cloned() {
+		builder.push(Request::Receipts(IncompleteReceiptsRequest { hash: hash.into() })).unwrap();
+		receipts.push(Response::Receipts(provider.client.block_receipts(CompleteReceiptsRequest {
+			hash: hash
+		}).unwrap()));
+	}
 
 	let req_id = 111;
+	let requests = builder.build();
+	let request_body = make_packet(req_id, &requests);
 
-	let request_body = encode_request(&Request::Receipts(request.clone()), req_id);
 	let response = {
-		let receipts: Vec<_> = block_hashes.iter()
-			.map(|hash| provider.client.block_receipts(hash).unwrap())
-			.collect();
+		assert_eq!(receipts.len(), 10);
 
-		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::Receipts, receipts.len());
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
 
 		let mut response_stream = RlpStream::new_list(3);
-
-		response_stream.append(&req_id).append(&new_creds).begin_list(receipts.len());
-		for block_receipts in receipts {
-			response_stream.append_raw(&block_receipts, 1);
-		}
-
+		response_stream.append(&req_id).append(&new_creds).append(&receipts);
 		response_stream.out()
 	};
 
-	let expected = Expect::Respond(packet::RECEIPTS, response);
-	proto.handle_packet(&expected, &1, packet::GET_RECEIPTS, &request_body);
+	let expected = Expect::Respond(packet::RESPONSE, response);
+	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
 }
 
 #[test]
@@ -397,8 +427,9 @@ fn get_state_proofs() {
 	let capabilities = capabilities();
 
 	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());
+	let provider = TestProvider(provider);
 
-	let cur_status = status(provider.client.chain_info());
+	let cur_status = status(provider.0.client.chain_info());
 
 	{
 		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));
@@ -407,40 +438,45 @@ fn get_state_proofs() {
 	}
 
 	let req_id = 112;
-	let key1 = U256::from(11223344).into();
-	let key2 = U256::from(99988887).into();
+	let key1: H256 = U256::from(11223344).into();
+	let key2: H256 = U256::from(99988887).into();
 
-	let request = Request::StateProofs (request::StateProofs {
-		requests: vec![
-			request::StateProof { block: H256::default(), key1: key1, key2: None, from_level: 0 },
-			request::StateProof { block: H256::default(), key1: key1, key2: Some(key2), from_level: 0},
-		]
-	});
+	let mut builder = RequestBuilder::default();
+	builder.push(Request::Account(IncompleteAccountRequest {
+		block_hash: H256::default().into(),
+		address_hash: key1.into(),
+	})).unwrap();
+	builder.push(Request::Storage(IncompleteStorageRequest {
+		block_hash: H256::default().into(),
+		address_hash: key1.into(),
+		key_hash: key2.into(),
+	})).unwrap();
 
-	let request_body = encode_request(&request, req_id);
+	let requests = builder.build();
+
+	let request_body = make_packet(req_id, &requests);
 	let response = {
-		let proofs = vec![
-			{ let mut stream = RlpStream::new_list(2); stream.append(&key1).append_empty_data(); vec![stream.out()] },
-			vec![::util::sha3::SHA3_NULL_RLP.to_vec()],
+		let responses = vec![
+			Response::Account(provider.account_proof(CompleteAccountRequest {
+				block_hash: H256::default(),
+				address_hash: key1,
+			}).unwrap()),
+			Response::Storage(provider.storage_proof(CompleteStorageRequest {
+				block_hash: H256::default(),
+				address_hash: key1,
+				key_hash: key2,
+			}).unwrap()),
 		];
 
-		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::StateProofs, 2);
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
 
 		let mut response_stream = RlpStream::new_list(3);
-
-		response_stream.append(&req_id).append(&new_creds).begin_list(2);
-		for proof in proofs {
-			response_stream.begin_list(proof.len());
-			for node in proof {
-				response_stream.append_raw(&node, 1);
-			}
-		}
-
+		response_stream.append(&req_id).append(&new_creds).append(&responses);
 		response_stream.out()
 	};
 
-	let expected = Expect::Respond(packet::PROOFS, response);
-	proto.handle_packet(&expected, &1, packet::GET_PROOFS, &request_body);
+	let expected = Expect::Respond(packet::RESPONSE, response);
+	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
 }
 
 #[test]
@@ -459,37 +495,31 @@ fn get_contract_code() {
 	}
 
 	let req_id = 112;
-	let key1 = U256::from(11223344).into();
-	let key2 = U256::from(99988887).into();
+	let key1: H256 = U256::from(11223344).into();
+	let key2: H256 = U256::from(99988887).into();
 
-	let request = Request::Codes (request::ContractCodes {
-		code_requests: vec![
-			request::ContractCode { block_hash: H256::default(), account_key: key1 },
-			request::ContractCode { block_hash: H256::default(), account_key: key2 },
-		],
+	let request = Request::Code(IncompleteCodeRequest {
+		block_hash: key1.into(),
+		code_hash: key2.into(),
 	});
 
-	let request_body = encode_request(&request, req_id);
+	let requests = encode_single(request.clone());
+	let request_body = make_packet(req_id, &requests);
 	let response = {
-		let codes: Vec<Vec<_>> = vec![
-			key1.iter().chain(key1.iter()).cloned().collect(),
-            key2.iter().chain(key2.iter()).cloned().collect(),
-		];
+		let response = vec![Response::Code(CodeResponse {
+			code: key1.iter().chain(key2.iter()).cloned().collect(),
+		})];
 
-		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::Codes, 2);
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
 
 		let mut response_stream = RlpStream::new_list(3);
 
-		response_stream.append(&req_id).append(&new_creds).begin_list(2);
-		for code in codes {
-			response_stream.append(&code);
-		}
-
+		response_stream.append(&req_id).append(&new_creds).append(&response);
 		response_stream.out()
 	};
 
-	let expected = Expect::Respond(packet::CONTRACT_CODES, response);
-	proto.handle_packet(&expected, &1, packet::GET_CONTRACT_CODES, &request_body);
+	let expected = Expect::Respond(packet::RESPONSE, response);
+	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
 }
 
 #[test]
@@ -508,8 +538,8 @@ fn proof_of_execution() {
 	}
 
 	let req_id = 112;
-	let mut request = Request::TransactionProof (request::TransactionProof {
-		at: H256::default(),
+	let mut request = Request::Execution(request::IncompleteExecutionRequest {
+		block_hash: H256::default().into(),
 		from: Address::default(),
 		action: Action::Call(Address::default()),
 		gas: 100.into(),
@@ -519,9 +549,11 @@ fn proof_of_execution() {
 	});
 
 	// first: a valid amount to request execution of.
-	let request_body = encode_request(&request, req_id);
+	let requests = encode_single(request.clone());
+	let request_body = make_packet(req_id, &requests);
+
 	let response = {
-		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::TransactionProof, 100);
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
 
 		let mut response_stream = RlpStream::new_list(3);
 		response_stream.append(&req_id).append(&new_creds).begin_list(0);
@@ -529,17 +561,19 @@ fn proof_of_execution() {
 		response_stream.out()
 	};
 
-	let expected = Expect::Respond(packet::TRANSACTION_PROOF, response);
-	proto.handle_packet(&expected, &1, packet::GET_TRANSACTION_PROOF, &request_body);
+	let expected = Expect::Respond(packet::RESPONSE, response);
+	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
 
 	// next: way too much requested gas.
-	if let Request::TransactionProof(ref mut req) = request {
+	if let Request::Execution(ref mut req) = request {
 		req.gas = 100_000_000.into();
 	}
 	let req_id = 113;
-	let request_body = encode_request(&request, req_id);
+	let requests = encode_single(request.clone());
+	let request_body = make_packet(req_id, &requests);
+
 	let expected = Expect::Punish(1);
-	proto.handle_packet(&expected, &1, packet::GET_TRANSACTION_PROOF, &request_body);
+	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
 }
 
 #[test]
@@ -554,12 +588,13 @@ fn id_guard() {
 
 	let req_id_1 = ReqId(5143);
 	let req_id_2 = ReqId(1111);
-	let req = Request::Headers(request::Headers {
-		start: 5u64.into(),
+
+	let req = encode_single(Request::Headers(IncompleteHeadersRequest {
+		start: HashOrNumber::Number(5u64).into(),
 		max: 100,
 		skip: 0,
 		reverse: false,
-	});
+	}));
 
 	let peer_id = 9876;
 
@@ -579,15 +614,15 @@ fn id_guard() {
 		failed_requests: Vec::new(),
 	}));
 
-	// first, supply wrong request type.
+	// first, malformed responses.
 	{
 		let mut stream = RlpStream::new_list(3);
 		stream.append(&req_id_1.0);
 		stream.append(&4_000_000usize);
-		stream.begin_list(0);
+		stream.begin_list(2).append(&125usize).append(&3usize);
 
 		let packet = stream.out();
-		assert!(proto.block_bodies(&peer_id, &Expect::Nothing, UntrustedRlp::new(&packet)).is_err());
+		assert!(proto.response(&peer_id, &Expect::Nothing, UntrustedRlp::new(&packet)).is_err());
 	}
 
 	// next, do an unexpected response.
@@ -598,7 +633,7 @@ fn id_guard() {
 		stream.begin_list(0);
 
 		let packet = stream.out();
-		assert!(proto.receipts(&peer_id, &Expect::Nothing, UntrustedRlp::new(&packet)).is_err());
+		assert!(proto.response(&peer_id, &Expect::Nothing, UntrustedRlp::new(&packet)).is_err());
 	}
 
 	// lastly, do a valid (but empty) response.
@@ -609,7 +644,7 @@ fn id_guard() {
 		stream.begin_list(0);
 
 		let packet = stream.out();
-		assert!(proto.block_headers(&peer_id, &Expect::Nothing, UntrustedRlp::new(&packet)).is_ok());
+		assert!(proto.response(&peer_id, &Expect::Nothing, UntrustedRlp::new(&packet)).is_ok());
 	}
 
 	let peers = proto.peers.read();
