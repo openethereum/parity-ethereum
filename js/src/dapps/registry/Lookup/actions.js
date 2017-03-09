@@ -43,7 +43,7 @@ export const lookup = (name, key) => (dispatch, getState) => {
 
   method.call({}, [ sha3.text(name), key ])
     .then((result) => {
-      if (key === 'A') {
+      if (key !== 'A') {
         result = api.util.bytesToHex(result);
       }
 
