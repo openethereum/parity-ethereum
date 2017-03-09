@@ -19,6 +19,7 @@ import { action, observable } from 'mobx';
 export default class Store {
   @observable isDeleteVisible = false;
   @observable isEditVisible = false;
+  @observable isFaucetVisible = false;
   @observable isFundVisible = false;
   @observable isPasswordVisible = false;
   @observable isTransferVisible = false;
@@ -30,6 +31,10 @@ export default class Store {
 
   @action toggleEditDialog = () => {
     this.isEditVisible = !this.isEditVisible;
+  }
+
+  @action toggleFaucetDialog = () => {
+    this.isFaucetVisible = !this.isFaucetVisible;
   }
 
   @action toggleFundDialog = () => {

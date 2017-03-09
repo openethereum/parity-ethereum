@@ -47,7 +47,7 @@ class Contract extends Component {
     accountsInfo: PropTypes.object,
     balances: PropTypes.object,
     contracts: PropTypes.object,
-    isTest: PropTypes.bool,
+    netVersion: PropTypes.string.isRequired,
     params: PropTypes.object
   };
 
@@ -115,7 +115,7 @@ class Contract extends Component {
   }
 
   render () {
-    const { accountsInfo, balances, contracts, params, isTest } = this.props;
+    const { accountsInfo, balances, contracts, netVersion, params } = this.props;
     const { allEvents, contract, queryValues, loadingEvents } = this.state;
     const account = contracts[params.address];
     const balance = balances[params.address];
@@ -144,9 +144,9 @@ class Contract extends Component {
             values={ queryValues }
           />
           <Events
-            isTest={ isTest }
             isLoading={ loadingEvents }
             events={ allEvents }
+            netVersion={ netVersion }
           />
           { this.renderDetails(account) }
         </Page>
@@ -518,14 +518,14 @@ class Contract extends Component {
 function mapStateToProps (state) {
   const { accounts, accountsInfo, contracts } = state.personal;
   const { balances } = state.balances;
-  const { isTest } = state.nodeStatus;
+  const { netVersion } = state.nodeStatus;
 
   return {
-    isTest,
     accounts,
     accountsInfo,
+    balances,
     contracts,
-    balances
+    netVersion
   };
 }
 

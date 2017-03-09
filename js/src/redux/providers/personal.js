@@ -49,7 +49,7 @@ export default class Personal {
             .filter((address) => {
               const account = accountsInfo[address];
 
-              return !account.uuid && account.meta.deleted;
+              return !account.uuid && account.meta && account.meta.deleted;
             })
             .map((address) => this._api.parity.removeAddress(address))
         );

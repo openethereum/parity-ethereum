@@ -109,6 +109,10 @@ pub fn serve_hosts(hosts: Option<Vec<String>>) -> ServerLoop {
 	init_server(|builder| builder.allowed_hosts(hosts), Default::default(), Remote::new_sync()).0
 }
 
+pub fn serve_extra_cors(extra_cors: Option<Vec<String>>) -> ServerLoop {
+	init_server(|builder| builder.allowed_hosts(None).extra_cors_headers(extra_cors), Default::default(), Remote::new_sync()).0
+}
+
 pub fn serve_with_registrar() -> (ServerLoop, Arc<FakeRegistrar>) {
 	init_server(|builder| builder.allowed_hosts(None), Default::default(), Remote::new_sync())
 }

@@ -54,8 +54,8 @@ function render (payload) {
       date={ new Date() }
       gasLimit={ new BigNumber(100000) }
       id={ new BigNumber(123) }
-      isTest={ false }
       isSending={ false }
+      netVersion='42'
       onConfirm={ onConfirm }
       onReject={ onReject }
       origin={ {} }

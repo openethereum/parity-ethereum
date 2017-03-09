@@ -110,12 +110,12 @@ build_rpc_trait! {
 		fn submit_transaction(&self, Bytes) -> Result<H256, Error>;
 
 		/// Call contract, returning the output data.
-		#[rpc(name = "eth_call")]
-		fn call(&self, CallRequest, Trailing<BlockNumber>) -> Result<Bytes, Error>;
+		#[rpc(async, name = "eth_call")]
+		fn call(&self, CallRequest, Trailing<BlockNumber>) -> BoxFuture<Bytes, Error>;
 
 		/// Estimate gas needed for execution of given contract.
-		#[rpc(name = "eth_estimateGas")]
-		fn estimate_gas(&self, CallRequest, Trailing<BlockNumber>) -> Result<U256, Error>;
+		#[rpc(async, name = "eth_estimateGas")]
+		fn estimate_gas(&self, CallRequest, Trailing<BlockNumber>) -> BoxFuture<U256, Error>;
 
 		/// Get transaction by its hash.
 		#[rpc(name = "eth_getTransactionByHash")]

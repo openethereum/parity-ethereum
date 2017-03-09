@@ -20,11 +20,11 @@
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{EachBlockWith, TestBlockChainClient};
 use ethcore::ids::BlockId;
-use ethcore::transaction::PendingTransaction;
+use ethcore::transaction::{Action, PendingTransaction};
 use ethcore::encoded;
 use network::{PeerId, NodeId};
 
-use net::buffer_flow::FlowParams;
+use net::request_credits::FlowParams;
 use net::context::IoContext;
 use net::status::{Capabilities, Status, write_handshake};
 use net::{encode_request, LightProtocol, Params, packet, Peer};
@@ -32,7 +32,7 @@ use provider::Provider;
 use request::{self, Request, Headers};
 
 use rlp::*;
-use util::{Bytes, H256, U256};
+use util::{Address, Bytes, DBValue, H256, U256};
 
 use std::sync::Arc;
 
@@ -127,6 +127,10 @@ impl Provider for TestProvider {
 		None
 	}
 
+	fn transaction_proof(&self, _req: request::TransactionProof) -> Option<Vec<DBValue>> {
+		None
+	}
+
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
 		self.0.client.ready_transactions()
 	}
@@ -203,7 +207,7 @@ fn genesis_mismatch() {
 }
 
 #[test]
-fn buffer_overflow() {
+fn credit_overflow() {
 	let flow_params = make_flow_params();
 	let capabilities = capabilities();
 
@@ -268,11 +272,11 @@ fn get_block_headers() {
 		let headers: Vec<_> = (0..10).map(|i| provider.client.block_header(BlockId::Number(i + 1)).unwrap()).collect();
 		assert_eq!(headers.len(), 10);
 
-		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Headers, 10);
+		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::Headers, 10);
 
 		let mut response_stream = RlpStream::new_list(3);
 
-		response_stream.append(&req_id).append(&new_buf).begin_list(10);
+		response_stream.append(&req_id).append(&new_creds).begin_list(10);
 		for header in headers {
 			response_stream.append_raw(&header.into_inner(), 1);
 		}
@@ -317,11 +321,11 @@ fn get_block_bodies() {
 		let bodies: Vec<_> = (0..10).map(|i| provider.client.block_body(BlockId::Number(i + 1)).unwrap()).collect();
 		assert_eq!(bodies.len(), 10);
 
-		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Bodies, 10);
+		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::Bodies, 10);
 
 		let mut response_stream = RlpStream::new_list(3);
 
-		response_stream.append(&req_id).append(&new_buf).begin_list(10);
+		response_stream.append(&req_id).append(&new_creds).begin_list(10);
 		for body in bodies {
 			response_stream.append_raw(&body.into_inner(), 1);
 		}
@@ -371,11 +375,11 @@ fn get_block_receipts() {
 			.map(|hash| provider.client.block_receipts(hash).unwrap())
 			.collect();
 
-		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Receipts, receipts.len());
+		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::Receipts, receipts.len());
 
 		let mut response_stream = RlpStream::new_list(3);
 
-		response_stream.append(&req_id).append(&new_buf).begin_list(receipts.len());
+		response_stream.append(&req_id).append(&new_creds).begin_list(receipts.len());
 		for block_receipts in receipts {
 			response_stream.append_raw(&block_receipts, 1);
 		}
@@ -420,11 +424,11 @@ fn get_state_proofs() {
 			vec![::util::sha3::SHA3_NULL_RLP.to_vec()],
 		];
 
-		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::StateProofs, 2);
+		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::StateProofs, 2);
 
 		let mut response_stream = RlpStream::new_list(3);
 
-		response_stream.append(&req_id).append(&new_buf).begin_list(2);
+		response_stream.append(&req_id).append(&new_creds).begin_list(2);
 		for proof in proofs {
 			response_stream.begin_list(proof.len());
 			for node in proof {
@@ -472,11 +476,11 @@ fn get_contract_code() {
             key2.iter().chain(key2.iter()).cloned().collect(),
 		];
 
-		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Codes, 2);
+		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::Codes, 2);
 
 		let mut response_stream = RlpStream::new_list(3);
 
-		response_stream.append(&req_id).append(&new_buf).begin_list(2);
+		response_stream.append(&req_id).append(&new_creds).begin_list(2);
 		for code in codes {
 			response_stream.append(&code);
 		}
@@ -486,6 +490,56 @@ fn get_contract_code() {
 
 	let expected = Expect::Respond(packet::CONTRACT_CODES, response);
 	proto.handle_packet(&expected, &1, packet::GET_CONTRACT_CODES, &request_body);
+}
+
+#[test]
+fn proof_of_execution() {
+	let flow_params = FlowParams::new(5_000_000.into(), Default::default(), 0.into());
+	let capabilities = capabilities();
+
+	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());
+
+	let cur_status = status(provider.client.chain_info());
+
+	{
+		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));
+		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
+		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
+	}
+
+	let req_id = 112;
+	let mut request = Request::TransactionProof (request::TransactionProof {
+		at: H256::default(),
+		from: Address::default(),
+		action: Action::Call(Address::default()),
+		gas: 100.into(),
+		gas_price: 0.into(),
+		value: 0.into(),
+		data: Vec::new(),
+	});
+
+	// first: a valid amount to request execution of.
+	let request_body = encode_request(&request, req_id);
+	let response = {
+		let new_creds = *flow_params.limit() - flow_params.compute_cost(request::Kind::TransactionProof, 100);
+
+		let mut response_stream = RlpStream::new_list(3);
+		response_stream.append(&req_id).append(&new_creds).begin_list(0);
+
+		response_stream.out()
+	};
+
+	let expected = Expect::Respond(packet::TRANSACTION_PROOF, response);
+	proto.handle_packet(&expected, &1, packet::GET_TRANSACTION_PROOF, &request_body);
+
+	// next: way too much requested gas.
+	if let Request::TransactionProof(ref mut req) = request {
+		req.gas = 100_000_000.into();
+	}
+	let req_id = 113;
+	let request_body = encode_request(&request, req_id);
+	let expected = Expect::Punish(1);
+	proto.handle_packet(&expected, &1, packet::GET_TRANSACTION_PROOF, &request_body);
 }
 
 #[test]
@@ -515,10 +569,10 @@ fn id_guard() {
 	pending_requests.insert(req_id_2, req, ::time::SteadyTime::now());
 
 	proto.peers.write().insert(peer_id, ::util::Mutex::new(Peer {
-		local_buffer: flow_params.create_buffer(),
+		local_credits: flow_params.create_credits(),
 		status: status(provider.client.chain_info()),
 		capabilities: capabilities.clone(),
-		remote_flow: Some((flow_params.create_buffer(), flow_params)),
+		remote_flow: Some((flow_params.create_credits(), flow_params)),
 		sent_head: provider.client.chain_info().best_block_hash,
 		last_update: ::time::SteadyTime::now(),
 		pending_requests: pending_requests,

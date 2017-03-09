@@ -17,7 +17,7 @@
 const webpack = require('webpack');
 const path = require('path');
 const fs = require('fs');
-// const HappyPack = require('happypack');
+const HappyPack = require('happypack');
 
 const postcssImport = require('postcss-import');
 const postcssNested = require('postcss-nested');
@@ -85,32 +85,21 @@ function getPlugins (_isProd = isProd) {
       format: '[:msg] [:bar] ' + ':percent' + ' (:elapsed seconds)'
     }),
 
-    // NB: HappyPack is not yet working with Webpack 2... (as of Nov. 26)
+    new HappyPack({
+      id: 'css',
+      threads: 4,
+      loaders: [
+        'style-loader',
+        'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+        'postcss-loader'
+      ]
+    }),
 
-    // new HappyPack({
-    //   id: 'css',
-    //   threads: 4,
-    //   loaders: [
-    //     'style-loader',
-    //     'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-    //     'postcss-loader'
-    //   ]
-    // }),
-
-    // new HappyPack({
-    //   id: 'js',
-    //   threads: 4,
-    //   loaders: _isProd ? ['babel'] : [
-    //     'react-hot-loader',
-    //     'babel-loader?cacheDirectory=true'
-    //   ]
-    // }),
-
-    // new HappyPack({
-    //   id: 'babel',
-    //   threads: 4,
-    //   loaders: ['babel-loader']
-    // }),
+    new HappyPack({
+      id: 'babel-js',
+      threads: 4,
+      loaders: [ isProd ? 'babel-loader' : 'babel-loader?cacheDirectory=true' ]
+    }),
 
     new webpack.DefinePlugin({
       'process.env': {

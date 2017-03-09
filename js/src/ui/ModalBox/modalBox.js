@@ -22,13 +22,13 @@ import styles from './modalBox.css';
 
 export default class ModalBox extends Component {
   static propTypes = {
-    children: PropTypes.node.isRequired,
+    children: PropTypes.node,
     icon: PropTypes.node.isRequired,
     summary: nodeOrStringProptype()
   }
 
   render () {
-    const { children, icon } = this.props;
+    const { icon } = this.props;
 
     return (
       <div className={ styles.body }>
@@ -37,10 +37,22 @@ export default class ModalBox extends Component {
         </div>
         <div className={ styles.content }>
           { this.renderSummary() }
-          <div className={ styles.body }>
-            { children }
-          </div>
+          { this.renderBody() }
         </div>
+      </div>
+    );
+  }
+
+  renderBody () {
+    const { children } = this.props;
+
+    if (!children) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.body }>
+        { children }
       </div>
     );
   }

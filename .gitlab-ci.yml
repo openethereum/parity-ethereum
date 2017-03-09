@@ -460,9 +460,8 @@ windows:
     - zip win-installer.zip InstallParity.exe InstallParity.exe.md5
     - md5sums win-installer.zip > win-installer.zip.md5
     - cd ..\target\release\
-    - md5sums parity.exe parity.pdb > parity.md5
     - md5sums parity.exe > parity.exe.md5
-    - zip parity.zip parity.exe parity.pdb parity.md5
+    - zip parity.zip parity.exe parity.md5
     - md5sums parity.zip > parity.zip.md5
     - cd ..\..
     - aws configure set aws_access_key_id %s3_key%

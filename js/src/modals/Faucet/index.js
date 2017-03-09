@@ -14,29 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-
-import { parityNode } from '../../../environment';
-
-const styles = {
-  padding: '.5em',
-  border: '1px solid #777'
-};
-
-export default (address) => {
-  if (!address || /^(0x)?0*$/.test(address)) {
-    return (
-      <code>
-        No image
-      </code>
-    );
-  }
-
-  return (
-    <img
-      src={ `${parityNode}/api/content/${address.replace(/^0x/, '')}` }
-      alt={ address }
-      style={ styles }
-    />
-  );
-};
+export default from './faucet';

@@ -31,6 +31,7 @@ export DashboardIcon from 'material-ui/svg-icons/action/dashboard';
 export DeleteIcon from 'material-ui/svg-icons/action/delete';
 export DevelopIcon from 'material-ui/svg-icons/action/description';
 export DoneIcon from 'material-ui/svg-icons/action/done-all';
+export DialIcon from 'material-ui/svg-icons/communication/dialpad';
 export EditIcon from 'material-ui/svg-icons/content/create';
 export ErrorIcon from 'material-ui/svg-icons/alert/error';
 export FileUploadIcon from 'material-ui/svg-icons/file/file-upload';
