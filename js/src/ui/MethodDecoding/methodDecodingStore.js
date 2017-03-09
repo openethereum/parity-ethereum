@@ -152,7 +152,6 @@ export default class MethodDecodingStore {
 
     // Contract deployment
     if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
-
       const address = contractAddress || transaction.creates;
 
       return this.isContractCreation(input, address)
