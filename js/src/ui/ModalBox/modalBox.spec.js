@@ -21,12 +21,16 @@ import ModalBox from './';
 
 let component;
 
+const CHILDREN = <div id='testChild'>testChild</div>;
+const ICON = <div id='testIcon'>testIcon</div>;
+const SUMMARY = <div id='testSummary'>testSummary</div>;
+
 function render () {
   component = shallow(
     <ModalBox
-      children={ <div id='testChild'>testChild</div> }
-      icon={ <div id='testIcon'>testIcon</div> }
-      summary={ <div id='testSummary'>testSummary</div> }
+      children={ CHILDREN }
+      icon={ ICON }
+      summary={ SUMMARY }
     />
   );
 
@@ -42,15 +46,17 @@ describe('ui/ModalBox', () => {
     expect(component).to.be.ok;
   });
 
-  it('adds the children as supplied', () => {
-    expect(component.find('#testChild').text()).to.equal('testChild');
-  });
-
   it('adds the icon as supplied', () => {
     expect(component.find('#testIcon').text()).to.equal('testIcon');
   });
 
-  it('adds the summary as supplied', () => {
-    expect(component.find('#testSummary').text()).to.equal('testSummary');
+  describe('components', () => {
+    it('adds the Body as supplied', () => {
+      expect(component.find('Body').props().children).to.deep.equal(CHILDREN);
+    });
+
+    it('adds the Summary as supplied', () => {
+      expect(component.find('Summary').props().summary).to.deep.equal(SUMMARY);
+    });
   });
 });
