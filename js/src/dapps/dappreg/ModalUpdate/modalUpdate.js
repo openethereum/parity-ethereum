@@ -29,6 +29,7 @@ export default class ModalUpdate extends Component {
   };
 
   render () {
+    const { dappId, onClose, onConfirm } = this.props;
     const actions = [
       { type: 'close', label: 'No, Cancel' },
       { type: 'confirm', label: 'Yes, Update', warning: true }
@@ -38,20 +39,10 @@ export default class ModalUpdate extends Component {
       <Modal
         actions={ actions }
         header='Confirm Application Update'
-        onClose={ this.handleClose }
-        onConfirm={ this.handleConfirm }
+        onClose={ onClose }
+        onConfirm={ onConfirm }
         secondary
       >
-        { this.renderConfirm() }
-      </Modal>
-    );
-  }
-
-  renderConfirm () {
-    const { dappId } = this.props;
-
-    return (
-      <div>
         <div className={ styles.section }>
           You are about to update the application details in the registry,
           the details of these updates are given below. Please note that each
@@ -66,7 +57,7 @@ export default class ModalUpdate extends Component {
           </div>
         </div>
         { this.renderChanges() }
-      </div>
+      </Modal>
     );
   }
 
@@ -89,13 +80,5 @@ export default class ModalUpdate extends Component {
           </div>
         );
       });
-  }
-
-  handleClose = () => {
-    this.props.onClose();
-  }
-
-  handleConfirm = () => {
-    this.props.onConfirm();
   }
 }

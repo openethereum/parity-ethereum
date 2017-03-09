@@ -35,6 +35,7 @@ export default class ModalRegister extends Component {
   dappsStore = DappsStore.instance();
 
   render () {
+    const { onClose, onRegister } = this.props;
     const actions = [
       { type: 'close', label: 'No, Cancel' },
       { type: 'confirm', label: 'Yes, Register', warning: true }
@@ -44,18 +45,10 @@ export default class ModalRegister extends Component {
       <Modal
         actions={ actions }
         header='Confirm Application Registration'
-        onClose={ this.handleCancel }
-        onConfirm={ this.handleRegister }
+        onClose={ onClose }
+        onConfirm={ onRegister }
         secondary
       >
-        { this.renderConfirm() }
-      </Modal>
-    );
-  }
-
-  renderConfirm () {
-    return (
-      <div>
         <div className={ styles.section }>
           You are about to register a new distributed application on the network, the details of
           this application is given below. This will require a non-refundable fee
@@ -69,15 +62,7 @@ export default class ModalRegister extends Component {
             { this.props.dappId }
           </div>
         </div>
-      </div>
+      </Modal>
     );
-  }
-
-  handleCancel = () => {
-    this.props.onClose();
-  }
-
-  handleRegister = () => {
-    this.props.onRegister();
   }
 }

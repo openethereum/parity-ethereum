@@ -28,6 +28,7 @@ export default class ModalDelete extends Component {
   };
 
   render () {
+    const { dappId, onClose, onDelete } = this.props;
     const actions = [
       { type: 'close', label: 'No, Cancel' },
       { type: 'confirm', label: 'Yes, Delete', warning: true }
@@ -37,20 +38,10 @@ export default class ModalDelete extends Component {
       <Modal
         actions={ actions }
         header='Confirm Application Deletion'
-        onClose={ this.handleClose }
-        onConfirm={ this.handleDelete }
+        onClose={ onClose }
+        onConfirm={ onDelete }
         secondary
       >
-        { this.renderConfirm() }
-      </Modal>
-    );
-  }
-
-  renderConfirm () {
-    const { dappId } = this.props;
-
-    return (
-      <div>
         <div className={ styles.section }>
           You are about to remove a distributed application from the registry,
           the details of this application is given below. Removal does not return any fees,
@@ -64,17 +55,7 @@ export default class ModalDelete extends Component {
             { dappId }
           </div>
         </div>
-      </div>
+      </Modal>
     );
-  }
-
-  handleClose = () => {
-    this.props.onClose();
-  }
-
-  handleDelete = () => {
-    const { dappId } = this.props;
-
-    this.props.onDelete(dappId);
   }
 }
