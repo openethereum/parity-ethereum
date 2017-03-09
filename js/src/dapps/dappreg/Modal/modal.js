@@ -21,6 +21,7 @@ import ReactDOM from 'react-dom';
 import Button from '../Button';
 
 import styles from './modal.css';
+import CloseImage from '~/../assets/images/dapps/close.svg';
 
 export default class Modal extends Component {
   static propTypes = {
@@ -66,7 +67,12 @@ export default class Modal extends Component {
               onKeyPress={ this.handleCloseKeyPress }
               tabIndex={ open ? 0 : null }
               title='close'
-            />
+            >
+              <img
+                className={ styles.closeIcon }
+                src={ CloseImage }
+              />
+            </div>
           </div>
 
           <div className={ styles.content }>

@@ -50,24 +50,32 @@
 .close {
   composes: bezier-transform;
 
-  color: #ddd;
+  color: #fff;
   display: inline-block;
   font-family: 'Roboto Mono', monospace;
-  font-size: 2rem;
+  font-size: 4rem;
   opacity: 0.75;
   padding: 0;
-  position: absolute;
+  position: fixed;
   right: 1rem;
   top: 0.25rem;
 
   &:hover {
     cursor: pointer;
     opacity: 1;
-  }
 
-  &::before {
-    content: '❌';
+    .closeIcon {
+      transform: rotate(135deg);
+    }
   }
+}
+
+.closeIcon {
+  composes: bezier-transform;
+
+  height: 3rem;
+  width: 3rem;
+  transform: rotate(45deg);
 }
 
 .dialog {
