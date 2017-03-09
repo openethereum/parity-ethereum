@@ -321,6 +321,11 @@ pub mod tests {
 			let joint_key_pair = KeyPair::from_secret(joint_secret.clone()).unwrap();
 			assert_eq!(&joint_public, joint_key_pair.public());
 
+			// check secret shares computation [just for test]
+			let secret_shares_polynom: Vec<_> = (0..t + 1).map(|k| compute_secret_share(polynoms1.iter().map(|p| &p[k])).unwrap()).collect();
+			let secret_shares_calculated_from_polynom: Vec<_> = id_numbers.iter().map(|id_number| compute_polynom(&*secret_shares_polynom, id_number).unwrap()).collect();
+			assert_eq!(secret_shares, secret_shares_calculated_from_polynom);
+
 			// now encrypt and decrypt data
 			let document_secret_plain = generate_random_point().unwrap();
 			let (document_secret_decrypted, document_secret_decrypted_test) =
