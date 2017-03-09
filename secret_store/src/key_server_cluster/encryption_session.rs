@@ -658,7 +658,7 @@ impl Debug for Session {
 	}
 }
 
-fn check_cluster_nodes(self_node_id: &NodeId, nodes: &BTreeSet<NodeId>) -> Result<(), Error> {
+pub fn check_cluster_nodes(self_node_id: &NodeId, nodes: &BTreeSet<NodeId>) -> Result<(), Error> {
 	// at least two nodes must be in cluster
 	if nodes.len() < 2 {
 		return Err(Error::InvalidNodesCount);
@@ -671,7 +671,7 @@ fn check_cluster_nodes(self_node_id: &NodeId, nodes: &BTreeSet<NodeId>) -> Resul
 	Ok(())
 }
 
-fn check_threshold(threshold: usize, nodes: &BTreeSet<NodeId>) -> Result<(), Error> {
+pub fn check_threshold(threshold: usize, nodes: &BTreeSet<NodeId>) -> Result<(), Error> {
 	// at least threshold + 1 nodes are required to collectively decrypt message
 	if threshold >= nodes.len() {
 		return Err(Error::InvalidThreshold);

@@ -102,8 +102,10 @@ pub enum SessionState {
 
 impl Session {
 	/// Create new decryption session.
-	pub fn new(id: SessionId, access_key: Secret, self_node_id: Public, encrypted_data: EncryptedData, acl_storage: Arc<AclStorage>, cluster: Arc<Cluster>) -> Self {
-		Session {
+	pub fn new(id: SessionId, access_key: Secret, self_node_id: Public, encrypted_data: EncryptedData, acl_storage: Arc<AclStorage>, cluster: Arc<Cluster>) -> Result<Self, Error> {
+		check_encrypted_data(&self_node_id, &encrypted_data)?;
+
+		Ok(Session {
 			id: id,
 			access_key: access_key,
 			self_node_id: self_node_id,
@@ -120,12 +122,17 @@ impl Session {
 				shadow_points: BTreeMap::new(),
 				decrypted_secret: None,
 			})
-		}
+		})
 	}
 
 	/// Get this node Id.
 	pub fn node(&self) -> &NodeId {
 		&self.self_node_id
+	}
+
+	/// Get this session access key.
+	pub fn access_key(&self) -> &Secret {
+		&self.access_key
 	}
 
 	/// Get current session state.
@@ -175,7 +182,7 @@ impl Session {
 			// we can decrypt data on our own
 			SessionState::WaitingForPartialDecryption => unimplemented!(),
 			// we can not decrypt data
-			SessionState::Failed => unimplemented!(),
+			SessionState::Failed => (),
 			// cannot reach other states
 			_ => unreachable!("process_initialization_response can change state to WaitingForPartialDecryption or Failed; checked that we are in WaitingForInitializationConfirm state above; qed"),
 		}
@@ -270,6 +277,11 @@ impl Session {
 		debug_assert!(self.access_key == message.sub_session);
 		debug_assert!(&sender != self.node());
 
+		// check message
+		if message.nodes.len() != self.encrypted_data.threshold + 1 {
+			return Err(Error::InvalidMessage);
+		}
+
 		let mut data = self.data.lock();
 
 		// check state
@@ -330,6 +342,16 @@ impl Session {
 	}
 }
 
+fn check_encrypted_data(self_node_id: &Public, encrypted_data: &EncryptedData) -> Result<(), Error> {
+	use key_server_cluster::encryption_session::{check_cluster_nodes, check_threshold};
+
+	let nodes = encrypted_data.id_numbers.keys().cloned().collect();
+	check_cluster_nodes(self_node_id, &nodes)?;
+	check_threshold(encrypted_data.threshold, &nodes)?;
+
+	Ok(())
+}
+
 fn process_initialization_response(encrypted_data: &EncryptedData, data: &mut SessionData, node: &NodeId, check_result: bool) -> Result<(), Error> {
 	if !data.requested_nodes.remove(node) {
 		return Err(Error::InvalidMessage);
@@ -372,12 +394,13 @@ fn do_partial_decryption(node: &NodeId, _requestor_public: &Public, participants
 mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
+	use std::collections::BTreeMap;
 	use super::super::super::acl_storage::DummyAclStorage;
 	use ethkey::{self, Random, Generator, Public, Secret};
-	use key_server_cluster::{NodeId, EncryptedData, SessionId};
+	use key_server_cluster::{NodeId, EncryptedData, SessionId, Error};
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::decryption_session::{Session, SessionState};
-	use key_server_cluster::message::Message;
+	use key_server_cluster::message::{self, Message};
 
 	const SECRET_PLAIN: &'static str = "d2b57ae7619e070af0af6bc8c703c0cd27814c54d5d6a999cacac0da34ede279ca0d9216e85991029e54e2f0c92ee0bd30237725fa765cbdbfc4529489864c5f";
 
@@ -420,14 +443,22 @@ mod tests {
 			id_numbers.iter().nth(i).clone().unwrap().0,
 			encrypted_datas[i].clone(),
 			acl_storages[i].clone(),
-			clusters[i].clone())).collect();
+			clusters[i].clone()).unwrap()).collect();
 
 		(clusters, acl_storages, sessions)
 	}
 
 	fn do_messages_exchange(clusters: &[Arc<DummyCluster>], sessions: &[Session]) {
+		do_messages_exchange_until(clusters, sessions, |_, _, _| false);
+	}
+
+	fn do_messages_exchange_until<F>(clusters: &[Arc<DummyCluster>], sessions: &[Session], mut cond: F) where F: FnMut(&NodeId, &NodeId, &Message) -> bool {
 		while let Some((from, to, message)) = clusters.iter().filter_map(|c| c.take_message().map(|(to, msg)| (c.node(), to, msg))).next() {
 			let session = &sessions[sessions.iter().position(|s| s.node() == &to).unwrap()];
+			if cond(&from, &to, &message) {
+				break;
+			}
+
 			match message {
 				Message::InitializeDecryptionSession(message) => session.on_initialize_session(from, message).unwrap(),
 				Message::ConfirmDecryptionInitialization(message) => session.on_confirm_initialization(from, message).unwrap(),
@@ -436,6 +467,157 @@ mod tests {
 				_ => panic!("unexpected"),
 			}
 		}
+	}
+
+	#[test]
+	fn fails_to_construct_in_cluster_of_single_node() {
+		let mut nodes = BTreeMap::new();
+		let self_node_id = Random.generate().unwrap().public().clone();
+		nodes.insert(self_node_id, Random.generate().unwrap().secret().clone());
+		match Session::new(SessionId::default(), Random.generate().unwrap().secret().clone(), self_node_id.clone(), EncryptedData {
+			threshold: 0,
+			id_numbers: nodes,
+			secret_share: Random.generate().unwrap().secret().clone(),
+			common_point: Random.generate().unwrap().public().clone(),
+			encrypted_point: Random.generate().unwrap().public().clone(),
+		}, Arc::new(DummyAclStorage::default()), Arc::new(DummyCluster::new(self_node_id.clone()))) {
+			Err(Error::InvalidNodesCount) => (),
+			_ => panic!("unexpected"),
+		}
+	}
+
+	#[test]
+	fn fails_to_construct_if_not_a_part_of_cluster() {
+		let mut nodes = BTreeMap::new();
+		let self_node_id = Random.generate().unwrap().public().clone();
+		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
+		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
+		match Session::new(SessionId::default(), Random.generate().unwrap().secret().clone(), self_node_id.clone(), EncryptedData {
+			threshold: 0,
+			id_numbers: nodes,
+			secret_share: Random.generate().unwrap().secret().clone(),
+			common_point: Random.generate().unwrap().public().clone(),
+			encrypted_point: Random.generate().unwrap().public().clone(),
+		}, Arc::new(DummyAclStorage::default()), Arc::new(DummyCluster::new(self_node_id.clone()))) {
+			Err(Error::InvalidNodesConfiguration) => (),
+			_ => panic!("unexpected"),
+		}
+	}
+
+	#[test]
+	fn fails_to_construct_if_threshold_is_wrong() {
+		let mut nodes = BTreeMap::new();
+		let self_node_id = Random.generate().unwrap().public().clone();
+		nodes.insert(self_node_id.clone(), Random.generate().unwrap().secret().clone());
+		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
+		match Session::new(SessionId::default(), Random.generate().unwrap().secret().clone(), self_node_id.clone(), EncryptedData {
+			threshold: 2,
+			id_numbers: nodes,
+			secret_share: Random.generate().unwrap().secret().clone(),
+			common_point: Random.generate().unwrap().public().clone(),
+			encrypted_point: Random.generate().unwrap().public().clone(),
+		}, Arc::new(DummyAclStorage::default()), Arc::new(DummyCluster::new(self_node_id.clone()))) {
+			Err(Error::InvalidThreshold) => (),
+			_ => panic!("unexpected"),
+		}
+	}
+
+	#[test]
+	fn fails_to_initialize_when_already_initialized() {
+		let (_, _, sessions) = prepare_decryption_sessions();
+		assert_eq!(sessions[0].initialize(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()).unwrap(), ());
+		assert_eq!(sessions[0].initialize(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()).unwrap_err(), Error::InvalidStateForRequest);
+	}
+
+	#[test]
+	fn fails_to_accept_initialization_when_already_initialized() {
+		let (_, _, sessions) = prepare_decryption_sessions();
+		assert_eq!(sessions[0].initialize(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()).unwrap(), ());
+		assert_eq!(sessions[0].on_initialize_session(sessions[1].node().clone(), message::InitializeDecryptionSession {
+			session: SessionId::default(),
+			sub_session: sessions[0].access_key().clone(),
+			requestor_signature: ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap(),
+		}).unwrap_err(), Error::InvalidStateForRequest);
+	}
+
+	#[test]
+	fn fails_to_partial_decrypt_if_not_waiting() {
+		let (_, _, sessions) = prepare_decryption_sessions();
+		assert_eq!(sessions[1].on_initialize_session(sessions[0].node().clone(), message::InitializeDecryptionSession {
+			session: SessionId::default(),
+			sub_session: sessions[0].access_key().clone(),
+			requestor_signature: ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap(),
+		}).unwrap(), ());
+		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[0].node().clone(), message::RequestPartialDecryption {
+			session: SessionId::default(),
+			sub_session: sessions[0].access_key().clone(),
+			nodes: sessions.iter().map(|s| s.node().clone()).take(4).collect(),
+		}).unwrap(), ());
+		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[0].node().clone(), message::RequestPartialDecryption {
+			session: SessionId::default(),
+			sub_session: sessions[0].access_key().clone(),
+			nodes: sessions.iter().map(|s| s.node().clone()).take(4).collect(),
+		}).unwrap_err(), Error::InvalidStateForRequest);
+	}
+
+	#[test]
+	fn fails_to_partial_decrypt_if_requested_by_slave() {
+		let (_, _, sessions) = prepare_decryption_sessions();
+		assert_eq!(sessions[1].on_initialize_session(sessions[0].node().clone(), message::InitializeDecryptionSession {
+			session: SessionId::default(),
+			sub_session: sessions[0].access_key().clone(),
+			requestor_signature: ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap(),
+		}).unwrap(), ());
+		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[2].node().clone(), message::RequestPartialDecryption {
+			session: SessionId::default(),
+			sub_session: sessions[0].access_key().clone(),
+			nodes: sessions.iter().map(|s| s.node().clone()).take(4).collect(),
+		}).unwrap_err(), Error::InvalidMessage);
+	}
+
+	#[test]
+	fn fails_to_partial_decrypt_if_wrong_number_of_nodes_participating() {
+		let (_, _, sessions) = prepare_decryption_sessions();
+		assert_eq!(sessions[1].on_initialize_session(sessions[0].node().clone(), message::InitializeDecryptionSession {
+			session: SessionId::default(),
+			sub_session: sessions[0].access_key().clone(),
+			requestor_signature: ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap(),
+		}).unwrap(), ());
+		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[0].node().clone(), message::RequestPartialDecryption {
+			session: SessionId::default(),
+			sub_session: sessions[0].access_key().clone(),
+			nodes: sessions.iter().map(|s| s.node().clone()).take(2).collect(),
+		}).unwrap_err(), Error::InvalidMessage);
+	}
+
+	#[test]
+	fn fails_to_accept_partial_decrypt_if_not_waiting() {
+		let (_, _, sessions) = prepare_decryption_sessions();
+		assert_eq!(sessions[0].on_partial_decryption(sessions[1].node().clone(), message::PartialDecryption {
+			session: SessionId::default(),
+			sub_session: sessions[0].access_key().clone(),
+			shadow_point: Random.generate().unwrap().public().clone(),
+		}).unwrap_err(), Error::InvalidStateForRequest);
+	}
+
+	#[test]
+	fn fails_to_accept_partial_decrypt_twice() {
+		let (clusters, _, sessions) = prepare_decryption_sessions();
+		sessions[0].initialize(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()).unwrap();
+
+		let mut pd_from = None;
+		let mut pd_msg = None;
+		do_messages_exchange_until(&clusters, &sessions, |from, _, msg| match msg {
+			&Message::PartialDecryption(ref msg) => {
+				pd_from = Some(from.clone());
+				pd_msg = Some(msg.clone());
+				true
+			},
+			_ => false,
+		});
+
+		assert_eq!(sessions[0].on_partial_decryption(pd_from.clone().unwrap(), pd_msg.clone().unwrap()).unwrap(), ());
+		assert_eq!(sessions[0].on_partial_decryption(pd_from.unwrap(), pd_msg.unwrap()).unwrap_err(), Error::InvalidStateForRequest);
 	}
 
 	#[test]

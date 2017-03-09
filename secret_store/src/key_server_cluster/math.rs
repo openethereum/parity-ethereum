@@ -251,30 +251,29 @@ pub mod tests {
 		// === PART2: encryption using joint public key ===
 
 		// the next line is executed on KeyServer-client
-		// so that secret is never seen by any KeyServer
 		let encrypted_secret = encrypt_secret(document_secret_plain.clone(), &joint_public).unwrap();
+
 		// === PART3: decryption ===
 
 		// next line is executed on KeyServer client
-		// so that secret is never seen by any KeyServer
 		let access_key = generate_random_scalar().unwrap();
 
 		// use t + 1 nodes to compute joint shadow point
-		let nodes_shadows: Vec<_> = (0..t + 1).map(|i| {
+		let nodes_shadows: Vec<_> = (0..t + 1).map(|i|
 			compute_node_shadow(&id_numbers[i], &secret_shares[i], id_numbers.iter()
 				.enumerate()
 				.filter(|&(j, _)| j != i)
 				.take(t)
-				.map(|(_, id_number)| id_number)).unwrap() }).collect();
+				.map(|(_, id_number)| id_number)).unwrap()).collect();
 		let nodes_shadow_points: Vec<_> = nodes_shadows.iter().map(|s| compute_node_shadow_point(&access_key, &encrypted_secret.common_point, s).unwrap()).collect();
+		assert_eq!(nodes_shadows.len(), t + 1);
+		assert_eq!(nodes_shadow_points.len(), t + 1);
 
 		let joint_shadow_point = compute_joint_shadow_point(nodes_shadow_points.iter()).unwrap();
 		let joint_shadow_point_test = compute_joint_shadow_point_test(&access_key, &encrypted_secret.common_point, nodes_shadows.iter()).unwrap();
 		assert_eq!(joint_shadow_point, joint_shadow_point_test);
 
 		// decrypt encrypted secret using joint shadow point
-		// this is executed on KeyServer client
-		// so that secret is never seen by any KeyServer
 		let document_secret_decrypted = decrypt_with_joint_shadow(&access_key, &encrypted_secret.encrypted_point, &joint_shadow_point).unwrap();
 
 		document_secret_decrypted
