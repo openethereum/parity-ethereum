@@ -34,7 +34,7 @@ export default (address) => {
 
   return (
     <img
-      src={ `${parityNode}/${address}/` }
+      src={ `${parityNode}/api/content/${address.replace(/^0x/, '')}` }
       alt={ address }
       style={ styles }
     />
