@@ -138,6 +138,10 @@ export default class MethodDecodingStore {
       return Promise.resolve(result);
     }
 
+    if (!transaction.to) {
+      return this.decodeContractCreation(result);
+    }
+
     let signature;
 
     try {
@@ -206,7 +210,7 @@ export default class MethodDecodingStore {
       });
   }
 
-  decodeContractCreation (data, contractAddress) {
+  decodeContractCreation (data, contractAddress = '') {
     const result = {
       ...data,
       contract: true,
