@@ -31,8 +31,8 @@ class BaseTransaction extends Component {
 
   renderHash (hash) {
     return (
-      <code title={ hash }>
-        { this.shortHash(hash) }
+      <code title={ hash } className={ styles.txhash }>
+        { hash }
       </code>
     );
   }
@@ -206,7 +206,10 @@ export class LocalTransaction extends BaseTransaction {
           From
         </th>
         <th>
-          Gas Price / Gas
+          Gas Price
+        </th>
+        <th>
+          Gas
         </th>
         <th>
           Status
@@ -232,8 +235,8 @@ export class LocalTransaction extends BaseTransaction {
 
     if (gasPrice === null) {
       this.setState({
-        gasPrice: `0x${transaction.gasPrice.toString(16)}`,
-        gas: `0x${transaction.gas.toString(16)}`
+        gasPrice: api.util.fromWei(transaction.gasPrice, 'shannon').toNumber(),
+        gas: transaction.gas.div(1000000).toNumber()
       });
     }
   };
@@ -256,11 +259,11 @@ export class LocalTransaction extends BaseTransaction {
 
     const newTransaction = {
       from: transaction.from,
-      to: transaction.to,
       nonce: transaction.nonce,
       value: transaction.value,
       data: transaction.input,
-      gasPrice, gas
+      gasPrice: api.util.toWei(gasPrice, 'shannon'),
+      gas: new BigNumber(gas).mul(1000000)
     };
 
     this.setState({
@@ -268,11 +271,17 @@ export class LocalTransaction extends BaseTransaction {
       isSending: true
     });
 
-    const closeSending = () => this.setState({
-      isSending: false,
-      gasPrice: null,
-      gas: null
-    });
+    const closeSending = () => {
+      this.setState({
+        isSending: false,
+        gasPrice: null,
+        gas: null
+      });
+    };
+
+    if (transaction.to) {
+      newTransaction.to = transaction.to;
+    }
 
     api.eth.sendTransaction(newTransaction)
       .then(closeSending)
@@ -290,9 +299,9 @@ export class LocalTransaction extends BaseTransaction {
     const resubmit = isSending ? (
       'sending...'
     ) : (
-      <a href='javascript:void' onClick={ this.toggleResubmit }>
+      <button onClick={ this.toggleResubmit }>
         resubmit
-      </a>
+      </button>
     );
 
     return (
@@ -308,7 +317,8 @@ export class LocalTransaction extends BaseTransaction {
         </td>
         <td>
           { this.renderGasPrice(transaction) }
-          <br />
+        </td>
+        <td>
           { this.renderGas(transaction) }
         </td>
         <td>
@@ -345,9 +355,9 @@ export class LocalTransaction extends BaseTransaction {
     return (
       <tr className={ styles.transaction }>
         <td>
-          <a href='javascript:void' onClick={ this.toggleResubmit }>
+          <button onClick={ this.toggleResubmit }>
             cancel
-          </a>
+          </button>
         </td>
         <td>
           { this.renderHash(transaction.hash) }
@@ -357,20 +367,24 @@ export class LocalTransaction extends BaseTransaction {
         </td>
         <td className={ styles.edit }>
           <input
-            type='text'
+            type='number'
             value={ gasPrice }
             onChange={ this.setGasPrice }
           />
+          <span>shannon</span>
+        </td>
+        <td className={ styles.edit }>
           <input
-            type='text'
+            type='number'
             value={ gas }
             onChange={ this.setGas }
           />
+          <span>MGas</span>
         </td>
         <td colSpan='2'>
-          <a href='javascript:void' onClick={ this.sendTransaction }>
+          <button onClick={ this.sendTransaction }>
             Send
-          </a>
+          </button>
         </td>
       </tr>
     );
