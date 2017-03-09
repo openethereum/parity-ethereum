@@ -16,28 +16,20 @@
 
 import React, { PropTypes } from 'react';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
-
-import Body from './body';
-import Summary from './summary';
 import styles from './modalBox.css';
 
-export default function ModalBox ({ children, icon, summary }) {
+export default function Body ({ children }) {
+  if (!children) {
+    return null;
+  }
+
   return (
     <div className={ styles.body }>
-      <div className={ styles.icon }>
-        { icon }
-      </div>
-      <div className={ styles.content }>
-        <Summary summary={ summary } />
-        <Body children={ children } />
-      </div>
+      { children }
     </div>
   );
 }
 
-ModalBox.propTypes = {
-  children: PropTypes.node,
-  icon: PropTypes.node.isRequired,
-  summary: nodeOrStringProptype()
+Body.propTypes = {
+  children: PropTypes.node
 };
