@@ -25,7 +25,7 @@ build_rpc_trait! {
 	pub trait Traces {
 		/// Returns traces matching given filter.
 		#[rpc(name = "trace_filter")]
-		fn filter(&self, TraceFilter) -> Result<Vec<LocalizedTrace>, Error>;
+		fn filter(&self, TraceFilter) -> Result<Option<Vec<LocalizedTrace>>, Error>;
 
 		/// Returns transaction trace at given index.
 		#[rpc(name = "trace_get")]
@@ -33,22 +33,22 @@ build_rpc_trait! {
 
 		/// Returns all traces of given transaction.
 		#[rpc(name = "trace_transaction")]
-		fn transaction_traces(&self, H256) -> Result<Vec<LocalizedTrace>, Error>;
+		fn transaction_traces(&self, H256) -> Result<Option<Vec<LocalizedTrace>>, Error>;
 
 		/// Returns all traces produced at given block.
 		#[rpc(name = "trace_block")]
-		fn block_traces(&self, BlockNumber) -> Result<Vec<LocalizedTrace>, Error>;
+		fn block_traces(&self, BlockNumber) -> Result<Option<Vec<LocalizedTrace>>, Error>;
 
 		/// Executes the given call and returns a number of possible traces for it.
 		#[rpc(name = "trace_call")]
-		fn call(&self, CallRequest, Vec<String>, Trailing<BlockNumber>) -> Result<Option<TraceResults>, Error>;
+		fn call(&self, CallRequest, Vec<String>, Trailing<BlockNumber>) -> Result<TraceResults, Error>;
 
 		/// Executes the given raw transaction and returns a number of possible traces for it.
 		#[rpc(name = "trace_rawTransaction")]
-		fn raw_transaction(&self, Bytes, Vec<String>, Trailing<BlockNumber>) -> Result<Option<TraceResults>, Error>;
+		fn raw_transaction(&self, Bytes, Vec<String>, Trailing<BlockNumber>) -> Result<TraceResults, Error>;
 
 		/// Executes the transaction with the given hash and returns a number of possible traces for it.
 		#[rpc(name = "trace_replayTransaction")]
-		fn replay_transaction(&self, H256, Vec<String>) -> Result<Option<TraceResults>, Error>;
+		fn replay_transaction(&self, H256, Vec<String>) -> Result<TraceResults, Error>;
 	}
 }
