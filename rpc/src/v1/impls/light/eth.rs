@@ -263,7 +263,7 @@ impl Eth for EthClient {
 		let accounts = self.accounts
 			.note_dapp_used(dapp.clone())
 			.and_then(|_| self.accounts.dapp_addresses(dapp))
-			.map_err(|e| errors::internal("Could not fetch accounts.", e))
+			.map_err(|e| errors::account("Could not fetch accounts.", e))
 			.map(|accs| accs.into_iter().map(Into::<RpcH160>::into).collect());
 
 		future::done(accounts).boxed()
