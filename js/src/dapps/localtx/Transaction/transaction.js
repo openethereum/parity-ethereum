@@ -227,18 +227,18 @@ export class LocalTransaction extends BaseTransaction {
 
   toggleResubmit = () => {
     const { transaction } = this.props;
-    const { isResubmitting, gasPrice } = this.state;
+    const { isResubmitting } = this.state;
 
-    this.setState({
+    const nextState = {
       isResubmitting: !isResubmitting
-    });
+    };
 
-    if (gasPrice === null) {
-      this.setState({
-        gasPrice: api.util.fromWei(transaction.gasPrice, 'shannon').toNumber(),
-        gas: transaction.gas.div(1000000).toNumber()
-      });
+    if (!isResubmitting) {
+      nextState.gasPrice = api.util.fromWei(transaction.gasPrice, 'shannon').toNumber();
+      nextState.gas = transaction.gas.div(1000000).toNumber();
     }
+
+    this.setState(nextState);
   };
 
   setGasPrice = el => {
@@ -254,12 +254,11 @@ export class LocalTransaction extends BaseTransaction {
   };
 
   sendTransaction = () => {
-    const { transaction } = this.props;
+    const { transaction, status } = this.props;
     const { gasPrice, gas } = this.state;
 
     const newTransaction = {
       from: transaction.from,
-      nonce: transaction.nonce,
       value: transaction.value,
       data: transaction.input,
       gasPrice: api.util.toWei(gasPrice, 'shannon'),
@@ -281,6 +280,10 @@ export class LocalTransaction extends BaseTransaction {
 
     if (transaction.to) {
       newTransaction.to = transaction.to;
+    }
+
+    if (!['mined', 'replaced'].includes(status)) {
+      newTransaction.nonce = transaction.nonce;
     }
 
     api.eth.sendTransaction(newTransaction)
