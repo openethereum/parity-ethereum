@@ -16,7 +16,6 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import Button from '../Button';
 import Modal from '../Modal';
 
 import styles from '../Modal/modal.css';
@@ -30,32 +29,22 @@ export default class ModalUpdate extends Component {
   };
 
   render () {
+    const actions = [
+      { type: 'close', label: 'No, Cancel' },
+      { type: 'confirm', label: 'Yes, Update', warning: true }
+    ];
+
     return (
       <Modal
-        buttons={ this.renderButtons() }
+        actions={ actions }
         header='Confirm Application Update'
         onClose={ this.handleClose }
+        onConfirm={ this.handleConfirm }
         secondary
       >
         { this.renderConfirm() }
       </Modal>
     );
-  }
-
-  renderButtons () {
-    return [
-      <Button
-        key='cancel'
-        label='No, Cancel'
-        onClick={ this.handleClose }
-      />,
-      <Button
-        key='delete'
-        label='Yes, Update'
-        warning
-        onClick={ this.handleConfirm }
-      />
-    ];
   }
 
   renderConfirm () {

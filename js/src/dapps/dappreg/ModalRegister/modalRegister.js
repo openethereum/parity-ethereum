@@ -20,7 +20,6 @@ import { observer } from 'mobx-react';
 import { api } from '../parity';
 import DappsStore from '../dappsStore';
 
-import Button from '../Button';
 import Modal from '../Modal';
 
 import styles from '../Modal/modal.css';
@@ -36,32 +35,22 @@ export default class ModalRegister extends Component {
   dappsStore = DappsStore.instance();
 
   render () {
+    const actions = [
+      { type: 'close', label: 'No, Cancel' },
+      { type: 'confirm', label: 'Yes, Register', warning: true }
+    ];
+
     return (
       <Modal
-        buttons={ this.renderButtons() }
+        actions={ actions }
         header='Confirm Application Registration'
         onClose={ this.handleCancel }
+        onConfirm={ this.handleRegister }
         secondary
       >
         { this.renderConfirm() }
       </Modal>
     );
-  }
-
-  renderButtons () {
-    return [
-      <Button
-        key='cancel'
-        label='No, Cancel'
-        onClick={ this.handleCancel }
-      />,
-      <Button
-        key='register'
-        label='Yes, Register'
-        warning
-        onClick={ this.handleRegister }
-      />
-    ];
   }
 
   renderConfirm () {

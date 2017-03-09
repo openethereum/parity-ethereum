@@ -18,23 +18,27 @@ import keycode from 'keycode';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 
+import Button from '../Button';
+
 import styles from './modal.css';
 
 export default class Modal extends Component {
   static propTypes = {
-    buttons: PropTypes.node,
+    actions: PropTypes.array,
     children: PropTypes.node,
     header: PropTypes.node,
     secondary: PropTypes.bool,
-    onClose: PropTypes.func.isRequired
+    onClose: PropTypes.func.isRequired,
+    onConfirm: PropTypes.func
   };
 
   static defaultProps = {
+    actions: null,
     secondary: false
   };
 
   render () {
-    const { children, buttons, header, secondary } = this.props;
+    const { children, actions, header, secondary } = this.props;
 
     const modalClasses = [ styles.modal ];
 
@@ -69,16 +73,37 @@ export default class Modal extends Component {
             { children }
           </div>
 
-          {
-            buttons
-            ? (
-              <div className={ styles.footer }>
-                { buttons }
-              </div>
-            )
-            : null
-          }
+          { actions ? this.renderActions(actions) : null }
         </div>
+      </div>
+    );
+  }
+
+  renderActions (actions) {
+    return (
+      <div className={ styles.footer }>
+        { actions.map((action) => {
+          let onClick = () => {};
+
+          switch (action.type) {
+            case 'confirm':
+              onClick = this.handleConfirm;
+              break;
+
+            case 'close':
+              onClick = this.handleClose;
+              break;
+          }
+
+          return (
+            <Button
+              key={ action.type }
+              label={ action.label }
+              warning={ action.warning }
+              onClick={ onClick }
+            />
+          );
+        }) }
       </div>
     );
   }
@@ -117,6 +142,10 @@ export default class Modal extends Component {
 
       element && element.focus();
     }, 100);
+  }
+
+  handleConfirm = () => {
+    this.props.onConfirm && this.props.onConfirm();
   }
 
   handleClose = () => {
