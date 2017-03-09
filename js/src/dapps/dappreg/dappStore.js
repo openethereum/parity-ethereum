@@ -129,4 +129,19 @@ export default class DappStore {
 
     return mode;
   }
+
+  update = (updates) => {
+    const { image, content } = updates;
+    const changes = {};
+
+    if (image) {
+      changes.image = { url: image };
+    }
+
+    if (content) {
+      changes.content = { url: content };
+    }
+
+    return this.handleChange(changes);
+  }
 }

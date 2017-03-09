@@ -19,6 +19,7 @@ import { action, computed, observable, transaction } from 'mobx';
 import { flatten } from 'lodash';
 
 import * as abis from '~/contracts/abi';
+import Contracts from '~/contracts';
 import builtins from '~/views/Dapps/builtin.json';
 import Dapp from './dappStore.js';
 import { deleteDapp, registerDapp, updateDapp } from './utils';
@@ -39,6 +40,7 @@ export default class DappsStore {
 
   _instanceGhh = null;
   _instanceReg = null;
+  _registry = null;
   _startTime = Date.now();
 
   constructor () {
@@ -168,6 +170,39 @@ export default class DappsStore {
       ...this.transactions,
       [ requestId ]: nextTransaction
     };
+  }
+
+  fetchRegistryData (dapp) {
+    const ownerAddress = (dapp.wip && dapp.wip.owner.address) || dapp.owner.address;
+
+    this._registry.reverse
+      .call({}, [ ownerAddress ])
+      .then((name) => {
+        if (!name) {
+          return;
+        }
+
+        const key = api.util.sha3.text(name);
+
+        return Promise
+          .all([
+            this._registry.get.call({}, [ key, 'IMG' ])
+              .then((bytes) => api.util.bytesToHex(bytes))
+              .then((hash) => this._instanceGhh.entries.call({}, [ hash ])),
+            this._registry.get.call({}, [ key, 'CONTENT' ])
+              .then((bytes) => api.util.bytesToHex(bytes))
+              .then((hash) => this._instanceGhh.entries.call({}, [ hash ]))
+          ])
+          .then(([ imageGHH, contentGHH ]) => {
+            const imageUrl = imageGHH[0];
+            const contentUrl = contentGHH[0];
+
+            return dapp.update({
+              image: imageUrl,
+              content: contentUrl
+            });
+          });
+      });
   }
 
   register (dappId) {
@@ -444,11 +479,10 @@ export default class DappsStore {
   }
 
   _loadRegistry () {
-    return api.parity
-      .registryAddress()
-      .then((registryAddress) => {
-        console.log(`the registry was found at ${registryAddress}`);
-        this._registry = api.newContract(abis.registry, registryAddress).instance;
+    return Contracts.create(api).registry
+      .fetchContract()
+      .then((contract) => {
+        this._registry = contract.instance;
       })
       .catch((error) => {
         console.error('Store:loadRegistry', error);

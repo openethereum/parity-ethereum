@@ -141,6 +141,11 @@ export default class DappModal extends Component {
           />
           <Button
             className={ styles.button }
+            label='Fetch Registry'
+            onClick={ this.handleFetchRegistry }
+          />
+          <Button
+            className={ styles.button }
             label='Cancel'
             onClick={ this.handleCancel }
             warning
@@ -347,6 +352,10 @@ export default class DappModal extends Component {
         url
       }
     });
+  }
+
+  handleFetchRegistry = () => {
+    this.dappsStore.fetchRegistryData(this.props.dapp);
   }
 
   handleCancel = () => {
