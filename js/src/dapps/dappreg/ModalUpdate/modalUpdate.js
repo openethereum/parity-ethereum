@@ -34,6 +34,8 @@ export default class ModalUpdate extends Component {
       <Modal
         buttons={ this.renderButtons() }
         header='Confirm Application Update'
+        onClose={ this.handleClose }
+        secondary
       >
         { this.renderConfirm() }
       </Modal>

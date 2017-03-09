@@ -14,7 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import keycode from 'keycode';
 import React, { Component, PropTypes } from 'react';
+import ReactDOM from 'react-dom';
 
 import styles from './modal.css';
 
@@ -22,29 +24,102 @@ export default class Modal extends Component {
   static propTypes = {
     buttons: PropTypes.node,
     children: PropTypes.node,
-    header: PropTypes.string
-  }
+    header: PropTypes.node,
+    secondary: PropTypes.bool,
+    onClose: PropTypes.func.isRequired
+  };
+
+  static defaultProps = {
+    secondary: false
+  };
 
   render () {
-    const { children, buttons, header } = this.props;
+    const { children, buttons, header, secondary } = this.props;
+
+    const modalClasses = [ styles.modal ];
+
+    if (secondary) {
+      modalClasses.push(styles.secondary);
+    }
 
     return (
-      <div className={ styles.modal }>
-        <div className={ styles.overlay } />
-        <div className={ styles.body }>
-          <div className={ styles.dialog }>
-            <div className={ styles.header }>
-              { header }
-            </div>
-            <div className={ styles.content }>
-              { children }
-            </div>
-            <div className={ styles.footer }>
-              { buttons }
-            </div>
+      <div
+        className={ modalClasses.join(' ') }
+        onClick={ this.handleClose }
+        onKeyUp={ this.handleKeyPress }
+      >
+        <div
+          className={ styles.dialog }
+          onClick={ this.stopEvent }
+          ref={ this.handleSetRef }
+          tabIndex={ open ? 0 : null }
+        >
+          <div className={ styles.header }>
+            { header }
+            <div
+              className={ styles.close }
+              onClick={ this.handleClose }
+              onKeyPress={ this.handleCloseKeyPress }
+              tabIndex={ open ? 0 : null }
+              title='close'
+            />
           </div>
+
+          <div className={ styles.content }>
+            { children }
+          </div>
+
+          {
+            buttons
+            ? (
+              <div className={ styles.footer }>
+                { buttons }
+              </div>
+            )
+            : null
+          }
         </div>
       </div>
     );
+  }
+
+  stopEvent = (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+
+    return false;
+  }
+
+  handleKeyPress = (event) => {
+    const codeName = keycode(event);
+
+    if (codeName === 'esc') {
+      return this.handleClose();
+    }
+
+    return event;
+  }
+
+  handleCloseKeyPress = (event) => {
+    const codeName = keycode(event);
+
+    if (codeName === 'enter') {
+      return this.handleClose();
+    }
+
+    return event;
+  }
+
+  handleSetRef = (containerRef) => {
+    // Focus after the modal is open
+    setTimeout(() => {
+      const element = ReactDOM.findDOMNode(containerRef);
+
+      element && element.focus();
+    }, 100);
+  }
+
+  handleClose = () => {
+    this.props.onClose();
   }
 }

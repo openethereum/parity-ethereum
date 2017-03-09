@@ -33,6 +33,8 @@ export default class ModalDelete extends Component {
       <Modal
         buttons={ this.renderButtons() }
         header='Confirm Application Deletion'
+        onClose={ this.handleClose }
+        secondary
       >
         { this.renderConfirm() }
       </Modal>

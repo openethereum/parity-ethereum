@@ -40,6 +40,8 @@ export default class ModalRegister extends Component {
       <Modal
         buttons={ this.renderButtons() }
         header='Confirm Application Registration'
+        onClose={ this.handleCancel }
+        secondary
       >
         { this.renderConfirm() }
       </Modal>

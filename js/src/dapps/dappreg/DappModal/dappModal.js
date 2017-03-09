@@ -14,15 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import keycode from 'keycode';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
-import ReactDOM from 'react-dom';
 
 import { api } from '../parity';
 import DappsStore from '../dappsStore';
 import Button from '../Button';
 import Input from '../Input';
+import Modal from '../Modal';
 import ModalDelete from '../ModalDelete';
 import ModalUpdate from '../ModalUpdate';
 import SelectAccount from '../SelectAccount';
@@ -46,28 +45,16 @@ export default class DappModal extends Component {
 
   dappsStore = DappsStore.instance();
 
-  componentWillReceiveProps (nextProps) {
-    if (nextProps.open && !this.props.open) {
-      this.handleOpen();
-    }
-  }
-
   render () {
     const { dapp, open } = this.props;
     const { showDelete, showUpdate, updates } = this.state;
 
-    const classes = [ styles.modal ];
-
-    if (open) {
-      classes.push(styles.open);
+    if (!open) {
+      return null;
     }
 
     return (
-      <div
-        className={ classes.join(' ') }
-        onClick={ open && !(showDelete || showUpdate) ? this.handleClose : null }
-        onKeyUp={ this.handleKeyPress }
-      >
+      <div>
         {
           showDelete
           ? (
@@ -91,25 +78,13 @@ export default class DappModal extends Component {
           )
           : null
         }
-        <div
-          className={ styles.container }
-          onClick={ open ? this.stopEvent : null }
-          ref='container'
-          tabIndex={ open ? 0 : null }
-        >
-          <div
-            className={ styles.close }
-            onClick={ this.handleClose }
-            onKeyPress={ this.handleCloseKeyPress }
-            tabIndex={ open ? 0 : null }
-            title='close'
-          >
-            ❌
-          </div>
 
-          { this.renderHeader(dapp) }
+        <Modal
+          header={ this.renderHeader(dapp) }
+          onClose={ this.handleClose }
+        >
           { this.renderContent(dapp) }
-        </div>
+        </Modal>
       </div>
     );
   }
@@ -118,7 +93,7 @@ export default class DappModal extends Component {
     const manifest = dapp.manifest.content || {};
 
     return (
-      <div className={ styles.content }>
+      <div>
         <div>
           { this.renderInputs(dapp) }
         </div>
@@ -206,7 +181,7 @@ export default class DappModal extends Component {
     }
 
     return (
-      <div className={ styles.header }>
+      <div>
         <div className={ styles.icon }>
           <img src={ image.url } />
         </div>
@@ -337,46 +312,6 @@ export default class DappModal extends Component {
         />
       </Input>
     );
-  }
-
-  stopEvent = (event) => {
-    event.stopPropagation();
-    event.preventDefault();
-
-    return false;
-  }
-
-  handleKeyPress = (event) => {
-    const codeName = keycode(event);
-
-    if (codeName === 'esc') {
-      return this.handleClose();
-    }
-
-    return event;
-  }
-
-  handleCloseKeyPress = (event) => {
-    const codeName = keycode(event);
-
-    if (codeName === 'enter') {
-      return this.handleClose();
-    }
-
-    return event;
-  }
-
-  handleOpen = () => {
-    if (!this.refs.container) {
-      return false;
-    }
-
-    // Focus after the modal is open
-    setTimeout(() => {
-      const element = ReactDOM.findDOMNode(this.refs.container);
-
-      element && element.focus();
-    }, 50);
   }
 
   handleClose = () => {
