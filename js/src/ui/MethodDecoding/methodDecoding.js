@@ -149,9 +149,9 @@ class MethodDecoding extends Component {
       <div className={ styles.gasDetails }>
         <FormattedMessage
           id='ui.methodDecoding.txValues'
-          defaultMessage='{historic, plural, one {Provided} other {Provides}} {gasProvided}{gasUsed} for a total transaction value of {gasEth}'
+          defaultMessage='{historic, select, true {Provided} false {Provides}} {gasProvided}{gasUsed} for a total transaction value of {gasEth}'
           values={ {
-            historic: historic ? 1 : 0,
+            historic,
             gasProvided,
             gasProvidedEth,
             gasUsed
@@ -180,9 +180,9 @@ class MethodDecoding extends Component {
       return (
         <FormattedMessage
           id='ui.methodDecoding.condition.block'
-          defaultMessage=', {historic, plural, one {Submitted} other {Submission}} at block {blockNumber}'
+          defaultMessage=', {historic, select, true {Submitted} false {Submission}} at block {blockNumber}'
           values={ {
-            historic: historic ? 1 : 0,
+            historic,
             blockNumber
           } }
         />
@@ -199,9 +199,9 @@ class MethodDecoding extends Component {
       return (
         <FormattedMessage
           id='ui.methodDecoding.condition.time'
-          defaultMessage=', {historic, plural, one {Submitted} other {Submission}} at {timestamp}'
+          defaultMessage=', {historic, select, true {Submitted} false {Submission}} at {timestamp}'
           values={ {
-            historic: historic ? 1 : 0,
+            historic,
             timestamp
           } }
         />
@@ -330,9 +330,9 @@ class MethodDecoding extends Component {
           <div className={ styles.details }>
             <FormattedMessage
               id='ui.methodDecoding.token.transfer'
-              defaultMessage='{historic, plural, one {Transferred} other {Will transfer}} {value} to {address}'
+              defaultMessage='{historic, select, true {Transferred} false {Will transfer}} {value} to {address}'
               values={ {
-                historic: historic ? 1 : 0,
+                historic,
                 value: (
                   <span className={ styles.highlight }>
                     { this.renderTokenValue(value.value) }
@@ -411,14 +411,14 @@ class MethodDecoding extends Component {
       <div className={ styles.details }>
         <FormattedMessage
           id='ui.methodDecoding.receive.info'
-          defaultMessage='{historic, plural, one {Received} other {Will receive}} {valueEth} from {aContract}'
+          defaultMessage='{historic, select, true {Received} false {Will receive}} {valueEth} from {aContract}{address}'
           values={ {
-            historic: historic ? 1 : 0,
+            historic,
             valueEth,
-            aContract
+            aContract,
+            address: this.renderAddressName(transaction.from)
           } }
         />
-        { this.renderAddressName(transaction.from) }
         { this.renderInputValue() }
       </div>
     );
@@ -446,14 +446,14 @@ class MethodDecoding extends Component {
       <div className={ styles.details }>
         <FormattedMessage
           id='ui.methodDecoding.transfer.info'
-          defaultMessage='{historic, plural, one {Transferred} other {Will transfer}} {valueEth} to {aContract}'
+          defaultMessage='{historic, select, true {Transferred} false {Will transfer}} {valueEth} to {aContract}{address}'
           values={ {
-            historic: historic ? 1 : 0,
+            historic,
             valueEth,
-            aContract
+            aContract,
+            address: this.renderAddressName(transaction.to)
           } }
         />
-        { this.renderAddressName(transaction.to) }
         { this.renderInputValue() }
       </div>
     );
@@ -463,26 +463,31 @@ class MethodDecoding extends Component {
     const { historic, transaction } = this.props;
     const { methodName, methodInputs } = this.state;
 
+    const method = (
+      <span className={ styles.name }>
+        { methodName }
+      </span>
+    );
+    const ethValue = (
+      <span className={ styles.highlight }>
+        { this.renderEtherValue(transaction.value) }
+      </span>
+    );
+
     return (
       <div className={ styles.details }>
         <div className={ styles.description }>
-          <div>
-            <span>{ historic ? 'Executed' : 'Will execute' } the </span>
-            <span className={ styles.name }>{ methodName }</span>
-            <span> function on the contract </span>
-          </div>
-
-          { this.renderAddressName(transaction.to) }
-
-          <div>
-            <span>transferring </span>
-            <span className={ styles.highlight }>
-              { this.renderEtherValue(transaction.value) }
-            </span>
-            <span>
-              { methodInputs.length ? ', passing the following parameters:' : '.' }
-            </span>
-          </div>
+          <FormattedMessage
+            id='ui.methodDecoding.signature.info'
+            defaultMessage='{historic, select, true {Executed} false {Will execute}} the {method} function on the contract {address} trsansferring {ethValue}{inputLength, plural, zero {,} other {passing the following {inputLength, plural, one {parameter} other {parameters}}}}'
+            values={ {
+              historic,
+              method,
+              ethValue,
+              address: this.renderAddressName(transaction.to),
+              inputLength: methodInputs.length
+            } }
+          />
         </div>
         <div className={ styles.inputs }>
           { this.renderInputs() }
@@ -494,23 +499,29 @@ class MethodDecoding extends Component {
   renderUnknownMethod () {
     const { historic, transaction } = this.props;
 
+    const method = (
+      <span className={ styles.name }>
+        an unknown/unregistered
+      </span>
+    );
+    const ethValue = (
+      <span className={ styles.highlight }>
+        { this.renderEtherValue(transaction.value) }
+      </span>
+    );
+
     return (
       <div className={ styles.details }>
-        <div>
-          <span>{ historic ? 'Executed' : 'Will execute' } </span>
-          <span className={ styles.name }>an unknown/unregistered</span>
-          <span> method on the contract </span>
-        </div>
-
-        { this.renderAddressName(transaction.to) }
-
-        <div>
-          <span>transferring </span>
-          <span className={ styles.highlight }>
-            { this.renderEtherValue(transaction.value) }
-          </span>
-          <span>.</span>
-        </div>
+        <FormattedMessage
+          id='ui.methodDecoding.unknown.info'
+          defaultMessage='{historic, select, true {Executed} false {Will execute}} the {method} on the contract {address} transferring {ethValue}.'
+          values={ {
+            historic,
+            method,
+            ethValue,
+            address: this.renderAddressName(transaction.to)
+          } }
+        />
       </div>
     );
   }
