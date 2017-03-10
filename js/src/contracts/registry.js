@@ -16,6 +16,11 @@
 
 import * as abis from './abi';
 
+const REGISTRY_V1_HASHES = [
+  '0x34f7c51bbb1b1902fbdabfdf04811100f5c9f998f26dd535d2f6f977492c748e', // ropsten
+  '0x64c3ee34851517a9faecd995c102b339f03e564ad6772dc43a26f993238b20ec' // homestead
+];
+
 export default class Registry {
   constructor (api) {
     this._api = api;
@@ -46,16 +51,28 @@ export default class Registry {
     return this._api.parity
       .registryAddress()
       .then((address) => {
-        this._fetching = false;
-        this._instance = this._api.newContract(abis.registry, address).instance;
+        return this._api.eth
+          .getCode(address)
+          .then((code) => {
+            const codeHash = this._api.util.sha3(code);
+            const isVersion1 = REGISTRY_V1_HASHES.includes(codeHash);
+            const abi = isVersion1
+              ? abis.registry
+              : abis.registry2;
 
-        this._queue.forEach((queued) => {
-          queued.resolve(this._instance);
-        });
+            console.log(`registry at ${address}, version ${isVersion1 ? 1 : 2}`);
 
-        this._queue = [];
+            this._fetching = false;
+            this._instance = this._api.newContract(abi, address).instance;
 
-        return this._instance;
+            this._queue.forEach((queued) => {
+              queued.resolve(this._instance);
+            });
+
+            this._queue = [];
+
+            return this._instance;
+          });
       });
   }
 
@@ -112,7 +129,9 @@ export default class Registry {
     return this
       .getInstance()
       .then((instance) => {
-        return instance.get.call({}, this._createGetParams(name, key));
+        return instance.getData
+          ? instance.getData.call({}, this._createGetParams(name, key))
+          : instance.get.call({}, this._createGetParams(name, key));
       });
   }
 }
