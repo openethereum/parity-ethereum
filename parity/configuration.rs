@@ -103,7 +103,11 @@ impl Configuration {
 		let pruning = self.args.flag_pruning.parse()?;
 		let pruning_history = self.args.flag_pruning_history;
 		let vm_type = self.vm_type()?;
-		let mode = match self.args.flag_mode.as_ref() { "last" => None, mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?), };
+		let spec = match self.chain().parse()?;
+		let mode = match self.args.flag_mode.as_ref() {
+			"last" => None,
+			mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?),
+		};
 		let update_policy = self.update_policy()?;
 		let logger_config = self.logger_config();
 		let http_conf = self.http_config()?;
@@ -111,7 +115,6 @@ impl Configuration {
 		let net_conf = self.net_config()?;
 		let network_id = self.network_id();
 		let cache_config = self.cache_config();
-		let spec = self.chain().parse()?;
 		let tracing = self.args.flag_tracing.parse()?;
 		let fat_db = self.args.flag_fat_db.parse()?;
 		let compaction = self.args.flag_db_compaction.parse()?;

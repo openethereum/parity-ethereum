@@ -153,7 +153,7 @@ pub struct Client {
 	rng: Mutex<OsRng>,
 	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>, Option<String>) + 'static + Send>>>,
 	registrar: Mutex<Option<Registry>>,
-	exit_handler: Mutex<Option<Box<Fn(bool) + 'static + Send>>>,
+	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
 }
 
 impl Client {
@@ -279,21 +279,21 @@ impl Client {
 	}
 
 	/// Set a closure to call when we want to restart the client
-	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(bool) + 'static + Send {
+	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(bool, Option<String>) + 'static + Send {
 		*self.exit_handler.lock() = Some(Box::new(f));
 	}
 
 	/// Hypervisor should restart this client.
 	pub fn restart(&self) {
 		if let Some(ref h) = *self.exit_handler.lock() {
-			(*h)(true);
+			(*h)(true, None);
 		}
 	}
 
 	/// Hypervisor should kill this client.
 	pub fn exit(&self) {
 		if let Some(ref h) = *self.exit_handler.lock() {
-			(*h)(false);
+			(*h)(false, None);
 		}
 	}
 
@@ -1068,11 +1068,8 @@ impl BlockChainClient for Client {
 			return;
 		}
 		{
-			if let Some(ref mut f) = *self.on_user_defaults_change.lock() {
-				trace!(target: "mode", "Making callback...");
-				f(None, Some(new_spec_name));
-				trace!(target: "mode", "Restarting client...");
-				self.restart();
+			if let Some(ref h) = *self.exit_handler.lock() {
+				(*h)(true, Some(new_spec_name));
 			}
 		}
 	}

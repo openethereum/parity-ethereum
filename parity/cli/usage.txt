@@ -59,7 +59,7 @@ Operating Options:
   --chain CHAIN                  Specify the blockchain type. CHAIN may be either a
                                  JSON chain specification file or olympic, frontier,
                                  homestead, mainnet, morden, ropsten, classic, expanse,
-                                 testnet, kovan or dev (default: {flag_chain}).
+                                 testnet, kovan, dev or last (default: {flag_chain}).
   -d --base-path PATH            Specify the base data storage path.
                                  (default: {flag_base_path}).
   --db-path PATH                 Specify the database directory path

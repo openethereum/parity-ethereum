@@ -152,7 +152,7 @@ impl ::local_store::NodeInfo for FullNodeInfo {
 	}
 }
 
-pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<bool, String> {
+pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
 		// Check if Parity is already running
 		let addr = format!("{}:{}", cmd.dapps_conf.interface, cmd.dapps_conf.port);
@@ -171,7 +171,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let spec = cmd.spec.spec()?;
 
 	// get spec name
-	let spec_name = spec.name.clone();
+	let spec_name = spec.name.to_lowercase();
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
@@ -493,16 +493,12 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	user_defaults.tracing = tracing;
 	user_defaults.fat_db = fat_db;
 	user_defaults.mode = mode;
-	user_defaults.spec_name = spec_name;
 	user_defaults.save(&user_defaults_path)?;
 
 	// tell client how to save the default mode if it gets changed.
-	client.on_user_defaults_change(move |mode: Option<Mode>, spec_name: Option<String>| {
+	client.on_user_defaults_change(move |mode: Option<Mode>| {
 		if let Some(mode) = mode {
 			user_defaults.mode = mode;
-		}
-		if let Some(spec_name) = spec_name {
-			user_defaults.spec_name = spec_name;
 		}
 		let _ = user_defaults.save(&user_defaults_path);	// discard failures - there's nothing we can do
 	});
@@ -616,8 +612,8 @@ fn wait_for_exit(
 	updater: Option<Arc<Updater>>,
 	client: Option<Arc<Client>>,
 	can_restart: bool
-) -> bool {
-	let exit = Arc::new((Mutex::new(false), Condvar::new()));
+) -> (bool, Option<String>) {
+	let exit = Arc::new((Mutex::new((false, None)), Condvar::new()));
 
 	// Handle possible exits
 	let e = exit.clone();
@@ -631,18 +627,18 @@ fn wait_for_exit(
 		if let Some(updater) = updater {
 			// Handle updater wanting to restart us
 			let e = exit.clone();
-			updater.set_exit_handler(move || { *e.0.lock() = true; e.1.notify_all(); });
+			updater.set_exit_handler(move || { *e.0.lock() = (true, None); e.1.notify_all(); });
 		}
 
 		if let Some(client) = client {
 			// Handle updater wanting to restart us
 			let e = exit.clone();
-			client.set_exit_handler(move |restart| { *e.0.lock() = restart; e.1.notify_all(); });
+			client.set_exit_handler(move |restart, new_chain: Option<String>| { *e.0.lock() = (restart, new_chain); e.1.notify_all(); });
 		}
 	}
 
 	// Wait for signal
 	let mut l = exit.0.lock();
 	let _ = exit.1.wait(&mut l);
-	*l
+	l
 }

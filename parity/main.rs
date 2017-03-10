@@ -122,7 +122,7 @@ mod stratum;
 use std::{process, env};
 use std::collections::HashMap;
 use std::io::{self as stdio, BufReader, Read, Write};
-use std::fs::File;
+use std::fs::{remove_file, File};
 use std::path::PathBuf;
 use util::sha3::sha3;
 use cli::Args;
@@ -152,8 +152,8 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 
 	match command.cmd {
 		Cmd::Run(run_cmd) => {
-			let restart = run::execute(run_cmd, can_restart, logger)?;
-			Ok(if restart { PostExecutionAction::Restart } else { PostExecutionAction::Quit })
+			let (restart, spec_name) = run::execute(run_cmd, can_restart, logger)?;
+			Ok(if restart { PostExecutionAction::Restart(spec_name) } else { PostExecutionAction::Quit })
 		},
 		Cmd::Version => Ok(PostExecutionAction::Print(Args::print_version())),
 		Cmd::Hash(maybe_file) => print_hash_of(maybe_file).map(|s| PostExecutionAction::Print(s)),
@@ -208,6 +208,19 @@ fn latest_exe_path() -> Option<PathBuf> {
 		.and_then(|mut f| { let mut exe = String::new(); f.read_to_string(&mut exe).ok().map(|_| updates_path(&exe)) })
 }
 
+fn set_spec_name_override(spec_name: String) {
+	match File::create(updates_path("spec_name_overide"))
+		.and_then(|mut f| f.write_all(spec_name.as_bytes()));
+}
+
+fn take_spec_name_override() -> Option<String> {
+	let p = updates_path("spec_name_overide");
+	let r = File::open(p.clone()).ok()
+		.and_then(|mut f| { let mut spec_name = String::new(); f.read_to_string(&mut spec_name).ok() });
+	remove_file(p);
+	r
+}
+
 #[cfg(windows)]
 fn global_cleanup() {
 	extern "system" { pub fn WSACleanup() -> i32; }
@@ -250,7 +263,12 @@ fn main_direct(can_restart: bool) -> i32 {
 		match start(can_restart) {
 			Ok(result) => match result {
 				PostExecutionAction::Print(s) => { println!("{}", s); 0 },
-				PostExecutionAction::Restart => PLEASE_RESTART_EXIT_CODE,
+				PostExecutionAction::Restart(spec_name_overide) => {
+					if let Some(spec_name) = spec_name_override {
+						set_spec_name_override(spec_name);
+					}
+					PLEASE_RESTART_EXIT_CODE
+				},
 				PostExecutionAction::Quit => 0,
 			},
 			Err(err) => {
@@ -300,6 +318,7 @@ fn main() {
 				trace_main!("No latest update. Attempting to direct...");
 				main_direct(true)
 			};
+			let args_override = take_args_override();
 			trace_main!("Latest exited with {}", exit_code);
 			if exit_code != PLEASE_RESTART_EXIT_CODE {
 				trace_main!("Quitting...");
