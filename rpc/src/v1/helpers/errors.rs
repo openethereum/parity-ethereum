@@ -37,6 +37,7 @@ mod codes {
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const EXECUTION_ERROR: i64 = -32015;
 	pub const EXCEPTION_ERROR: i64 = -32016;
+	pub const DATABASE_ERROR: i64 = -32017;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const ACCOUNT_ERROR: i64 = -32023;
@@ -100,6 +101,9 @@ pub fn account<T: fmt::Debug>(error: &str, details: T) -> Error {
 	}
 }
 
+/// Internal error signifying a logic error in code.
+/// Should not be used when function can just fail
+/// because of invalid parameters or incomplete node state.
 pub fn internal<T: fmt::Debug>(error: &str, data: T) -> Error {
 	Error {
 		code: ErrorCode::InternalError,
@@ -212,6 +216,14 @@ pub fn encryption_error<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ENCRYPTION_ERROR),
 		message: "Encryption error.".into(),
+		data: Some(Value::String(format!("{:?}", error))),
+	}
+}
+
+pub fn database_error<T: fmt::Debug>(error: T) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::DATABASE_ERROR),
+		message: "Database error.".into(),
 		data: Some(Value::String(format!("{:?}", error))),
 	}
 }

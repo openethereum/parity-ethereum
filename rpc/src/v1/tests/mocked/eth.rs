@@ -469,6 +469,32 @@ fn rpc_eth_transaction_count() {
 }
 
 #[test]
+fn rpc_eth_transaction_count_next_nonce() {
+	let tester = EthTester::new_with_options(EthClientOptions::with(|mut options| {
+		options.pending_nonce_from_queue = true;
+	}));
+	tester.miner.increment_last_nonce(1.into());
+
+	let request1 = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getTransactionCount",
+		"params": ["0x0000000000000000000000000000000000000001", "pending"],
+		"id": 1
+	}"#;
+	let response1 = r#"{"jsonrpc":"2.0","result":"0x1","id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request1), Some(response1.to_owned()));
+
+	let request2 = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getTransactionCount",
+		"params": ["0x0000000000000000000000000000000000000002", "pending"],
+		"id": 1
+	}"#;
+	let response2 = r#"{"jsonrpc":"2.0","result":"0x0","id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request2), Some(response2.to_owned()));
+}
+
+#[test]
 fn rpc_eth_block_transaction_count_by_hash() {
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -1076,10 +1102,9 @@ fn rpc_get_work_returns_correct_work_package() {
 
 #[test]
 fn rpc_get_work_should_not_return_block_number() {
-	let eth_tester = EthTester::new_with_options(EthClientOptions {
-		allow_pending_receipt_query: true,
-		send_block_number_in_get_work: false,
-	});
+	let eth_tester = EthTester::new_with_options(EthClientOptions::with(|mut options| {
+		options.send_block_number_in_get_work = false;
+	}));
 	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
