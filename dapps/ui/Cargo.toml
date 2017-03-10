@@ -11,7 +11,7 @@ rustc_version = "0.1"
 
 [dependencies]
 parity-ui-dev = { path = "../../js", optional = true }
-parity-ui-precompiled = { git = "https://github.com/ethcore/js-precompiled.git", optional = true }
+parity-ui-precompiled = { git = "https://github.com/ethcore/js-precompiled.git", optional = true, branch = "master" }
 
 [features]
 no-precompiled-js = ["parity-ui-dev"]
