@@ -142,12 +142,13 @@ class DeployContract extends Component {
   render () {
     const { step, deployError, rejected, inputs } = this.state;
 
-    const realStep = Object.keys(STEPS).findIndex((k) => k === step);
-    const realSteps = deployError || rejected
-      ? null
-      : Object.keys(STEPS)
-        .filter((k) => k !== 'CONTRACT_PARAMETERS' || inputs.length > 0)
-        .map((k) => STEPS[k]);
+    const realStepKeys = deployError || rejected
+      ? []
+      : Object.keys(STEPS).filter((k) => k !== 'CONTRACT_PARAMETERS' || inputs.length > 0);
+    const realStep = realStepKeys.findIndex((k) => k === step);
+    const realSteps = realStepKeys.length
+      ? realStepKeys.map((k) => STEPS[k])
+      : null;
 
     const title = realSteps
       ? null
