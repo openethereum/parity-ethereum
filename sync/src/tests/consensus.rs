@@ -91,6 +91,7 @@ fn authority_round() {
 	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 2);
 
 	// Fork the network with equal height.
+	/* Relies on view scoring, removed for now so that Kovan can be upgraded.
 	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 2.into())).unwrap();
 	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 2.into())).unwrap();
 	// Let both nodes build one block.
@@ -137,6 +138,7 @@ fn authority_round() {
 	assert_eq!(ci0.best_block_number, 5);
 	assert_eq!(ci1.best_block_number, 5);
 	assert_eq!(ci0.best_block_hash, ci1.best_block_hash);
+	*/
 }
 
 #[test]
