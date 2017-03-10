@@ -119,7 +119,7 @@ export function attachInstances () {
     .all([
       api.parity.registryAddress(),
       api.parity.netChain(),
-      api.partiy.netVersion()
+      api.net.version()
     ])
     .then(([registryAddress, netChain, _netVersion]) => {
       const registry = api.newContract(abis.registry, registryAddress).instance;
