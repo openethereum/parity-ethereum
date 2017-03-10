@@ -235,9 +235,8 @@ impl Engine for AuthorityRound {
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
-		// Chain scoring: total weight is sqrt(U256::max_value())*height - step
-		let new_difficulty = U256::from(U128::max_value()) + header_step(parent).expect("Header has been verified; qed").into() - self.step.load(AtomicOrdering::SeqCst).into();
-		header.set_difficulty(new_difficulty);
+		// Chain scoring: weak height scoring, backported for compatibility.
+		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.gas_limit_bound_divisor;
