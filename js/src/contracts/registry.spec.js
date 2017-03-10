@@ -35,6 +35,9 @@ function create () {
     }
   };
   api = {
+    eth: {
+      getCode: sinon.stub().resolves(0)
+    },
     parity: {
       registryAddress: sinon.stub().resolves('testRegistryAddress')
     },
