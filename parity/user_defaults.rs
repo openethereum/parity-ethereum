@@ -35,6 +35,7 @@ pub struct UserDefaults {
 	pub tracing: bool,
 	pub fat_db: bool,
 	pub mode: Mode,
+	pub spec_name: String,
 }
 
 impl Serialize for UserDefaults {
@@ -58,6 +59,7 @@ impl Serialize for UserDefaults {
 			Mode::Active => "active",
 		};
 		map.insert("mode".into(), Value::String(mode_str.into()));
+		map.insert("spec_name".into(), Value::String(self.spec_name.clone()));
 
 		map.serialize(serializer)
 	}
@@ -104,6 +106,8 @@ impl Visitor for UserDefaultsVisitor {
 			"active" => Mode::Active,
 			_ => { return Err(Error::custom("invalid mode value")); },
 		};
+		let spec_name: Value = map.remove("spec_name").unwrap_or_else(|| Value::String("Foundation".into()));
+		let spec_name = spec_name.as_str().ok_or_else(|| Error::custom("invalid spec_name value"))?.into();
 
 		let user_defaults = UserDefaults {
 			is_first_launch: false,
@@ -111,6 +115,7 @@ impl Visitor for UserDefaultsVisitor {
 			tracing: tracing,
 			fat_db: fat_db,
 			mode: mode,
+			spec_name: spec_name,
 		};
 
 		Ok(user_defaults)
@@ -125,6 +130,7 @@ impl Default for UserDefaults {
 			tracing: false,
 			fat_db: false,
 			mode: Mode::Active,
+			spec_name: "Foundation".into(),
 		}
 	}
 }

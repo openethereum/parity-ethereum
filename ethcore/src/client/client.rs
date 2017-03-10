@@ -151,8 +151,7 @@ pub struct Client {
 	factories: Factories,
 	history: u64,
 	rng: Mutex<OsRng>,
-	on_mode_change: Mutex<Option<Box<FnMut(&Mode) + 'static + Send>>>,
-	on_network_change: Mutex<Option<Box<FnMut(&String) + 'static + Send>>>,
+	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>, Option<String>) + 'static + Send>>>,
 	registrar: Mutex<Option<Registry>>,
 	exit_handler: Mutex<Option<Box<Fn(bool) + 'static + Send>>>,
 }
@@ -242,8 +241,7 @@ impl Client {
 			factories: factories,
 			history: history,
 			rng: Mutex::new(OsRng::new().map_err(::util::UtilError::StdIo)?),
-			on_mode_change: Mutex::new(None),
-			on_network_change: Mutex::new(None),
+			on_user_defaults_change: Mutex::new(None),
 			registrar: Mutex::new(None),
 			exit_handler: Mutex::new(None),
 		});
@@ -317,14 +315,9 @@ impl Client {
 		self.registrar.lock()
 	}
 
-	/// Register an action to be done if a mode change happens.
-	pub fn on_mode_change<F>(&self, f: F) where F: 'static + FnMut(&Mode) + Send {
-		*self.on_mode_change.lock() = Some(Box::new(f));
-	}
-
-	/// Register an action to be done if a mode change happens.
-	pub fn on_network_change<F>(&self, f: F) where F: 'static + FnMut(&String) + Send {
-		*self.on_network_change.lock() = Some(Box::new(f));
+	/// Register an action to be done if a mode/spec_name change happens.
+	pub fn on_user_defaults_change<F>(&self, f: F) where F: 'static + FnMut(Option<Mode>, Option<String>) + Send {
+		*self.on_user_defaults_change.lock() = Some(Box::new(f));
 	}
 
 	/// Flush the block import queue.
@@ -1057,15 +1050,30 @@ impl BlockChainClient for Client {
 			let mut mode = self.mode.lock();
 			*mode = new_mode.clone().into();
 			trace!(target: "mode", "Mode now {:?}", &*mode);
-			if let Some(ref mut f) = *self.on_mode_change.lock() {
+			if let Some(ref mut f) = *self.on_user_defaults_change.lock() {
 				trace!(target: "mode", "Making callback...");
-				f(&*mode)
+				f(Some((&*mode).clone()), None)
 			}
 		}
 		match new_mode {
 			IpcMode::Active => self.wake_up(),
 			IpcMode::Off => self.sleep(),
 			_ => {(*self.sleep_state.lock()).last_activity = Some(Instant::now()); }
+		}
+	}
+
+	fn set_spec_name(&self, new_spec_name: String) {
+		trace!(target: "mode", "Client::set_spec_name({:?})", new_spec_name);
+		if !self.enabled.load(AtomicOrdering::Relaxed) {
+			return;
+		}
+		{
+			if let Some(ref mut f) = *self.on_user_defaults_change.lock() {
+				trace!(target: "mode", "Making callback...");
+				f(None, Some(new_spec_name));
+				trace!(target: "mode", "Restarting client...");
+				self.restart();
+			}
 		}
 	}
 

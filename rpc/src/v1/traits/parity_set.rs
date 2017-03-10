@@ -88,6 +88,10 @@ build_rpc_trait! {
 		#[rpc(name = "parity_setMode")]
 		fn set_mode(&self, String) -> Result<bool, Error>;
 
+		/// Set the network spec. Argument must be one of: "Foundation", "Ropsten", "Morden", "Kovan", "Olympic", "Classic", "Dev", "Expanse" or a filename.
+		#[rpc(name = "parity_setSpecName")]
+		fn set_spec_name(&self, String) -> Result<bool, Error>;
+
 		/// Hash a file content under given URL.
 		#[rpc(async, name = "parity_hashContent")]
 		fn hash_content(&self, String) -> BoxFuture<H256, Error>;

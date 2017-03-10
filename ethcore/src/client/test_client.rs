@@ -721,6 +721,8 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn set_mode(&self, _: Mode) { unimplemented!(); }
 
+	fn set_spec_name(&self, _: String) { unimplemented!(); }
+
 	fn disable(&self) { unimplemented!(); }
 
 	fn pruning_info(&self) -> PruningInfo {

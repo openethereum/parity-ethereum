@@ -170,6 +170,9 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// load spec
 	let spec = cmd.spec.spec()?;
 
+	// get spec name
+	let spec_name = spec.name.clone();
+
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
 
@@ -490,11 +493,17 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	user_defaults.tracing = tracing;
 	user_defaults.fat_db = fat_db;
 	user_defaults.mode = mode;
+	user_defaults.spec_name = spec_name;
 	user_defaults.save(&user_defaults_path)?;
 
 	// tell client how to save the default mode if it gets changed.
-	client.on_mode_change(move |mode: &Mode| {
-		user_defaults.mode = mode.clone();
+	client.on_user_defaults_change(move |mode: Option<Mode>, spec_name: Option<String>| {
+		if let Some(mode) = mode {
+			user_defaults.mode = mode;
+		}
+		if let Some(spec_name) = spec_name {
+			user_defaults.spec_name = spec_name;
+		}
 		let _ = user_defaults.save(&user_defaults_path);	// discard failures - there's nothing we can do
 	});
 
