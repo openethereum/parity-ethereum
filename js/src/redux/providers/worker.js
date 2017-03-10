@@ -24,7 +24,9 @@ function getWorker () {
   if ('serviceWorker' in navigator) {
     return runtime
       .register()
-      .then(() => navigator.serviceWorker.ready)
+      .then(() => {
+        return navigator.serviceWorker.ready;
+      })
       .then((registration) => {
         const worker = registration.active;
 
