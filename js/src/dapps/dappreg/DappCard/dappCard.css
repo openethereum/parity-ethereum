@@ -15,24 +15,8 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../_colors.css';
-
-.warning {
-  background: $warning-bg;
-  border-top-right-radius: 0.25em;
-  bottom: 0;
-  color: white;
-  cursor: pointer;
-  font-size: 0.75em;
-  left: 0;
-  line-height: 1.5em;
-  opacity: 1;
-  padding: 1.5em;
-  position: fixed;
-  max-width: 540px;
-  z-index: 100;
-
-  div+div {
-    margin-top: 1.5em;
-  }
+.author,
+.version {
+  font-size: 0.75rem;
+  text-align: center;
 }

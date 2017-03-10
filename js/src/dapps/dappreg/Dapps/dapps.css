@@ -15,24 +15,24 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../_colors.css';
+.dapps {
+  background-color: rgba(255, 255, 255, 0.9);
+  margin: 1rem;
+  padding: 1rem;
+  text-align: left;
+}
 
-.warning {
-  background: $warning-bg;
-  border-top-right-radius: 0.25em;
-  bottom: 0;
-  color: white;
-  cursor: pointer;
-  font-size: 0.75em;
-  left: 0;
-  line-height: 1.5em;
-  opacity: 1;
-  padding: 1.5em;
-  position: fixed;
-  max-width: 540px;
-  z-index: 100;
+.container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
 
-  div+div {
-    margin-top: 1.5em;
+  > * {
+    flex: 0 0 auto;
+    display: flex;
   }
+}
+
+.title {
+  margin: 0 0 0.5rem;
 }

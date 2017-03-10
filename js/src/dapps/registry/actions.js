@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { registry as registryAbi, registry2 as registryAbi2 } from '~/contracts/abi';
+import Contracts from '~/contracts';
 
 import { api } from './parity.js';
 import * as addresses from './addresses/actions.js';
@@ -26,11 +26,6 @@ import * as records from './Records/actions.js';
 import * as reverse from './Reverse/actions.js';
 
 export { addresses, accounts, lookup, events, names, records, reverse };
-
-const REGISTRY_V1_HASHES = [
-  '0x34f7c51bbb1b1902fbdabfdf04811100f5c9f998f26dd535d2f6f977492c748e', // ropsten
-  '0x64c3ee34851517a9faecd995c102b339f03e564ad6772dc43a26f993238b20ec' // homestead
-];
 
 export const setNetVersion = (netVersion) => ({ type: 'set netVersion', netVersion });
 
@@ -48,36 +43,18 @@ export const fetchIsTestnet = () => (dispatch) =>
 
 export const setContract = (contract) => ({ type: 'set contract', contract });
 
-export const fetchContract = () => (dispatch) =>
-  api.parity
-    .registryAddress()
-    .then((address) => {
-      return api.eth
-        .getCode(address)
-        .then((code) => {
-          const codeHash = api.util.sha3(code);
-          const isVersion1 = REGISTRY_V1_HASHES.includes(codeHash);
-
-          console.log(`registry at ${address}, code ${codeHash}, version ${isVersion1 ? 1 : 2}`);
-
-          const contract = api.newContract(
-            isVersion1
-              ? registryAbi
-              : registryAbi2,
-            address
-          );
-
-          dispatch(setContract(contract));
-          dispatch(fetchFee());
-          dispatch(fetchOwner());
-        });
+export const fetchContract = () => (dispatch) => {
+  return Contracts.create(api).registry
+    .fetchContract()
+    .then((contract) => {
+      dispatch(setContract(contract));
+      dispatch(fetchFee());
+      dispatch(fetchOwner());
     })
-    .catch((err) => {
-      console.error('could not fetch contract');
-      if (err) {
-        console.error(err.stack);
-      }
+    .catch((error) => {
+      console.error('could not fetch contract', error);
     });
+};
 
 export const setFee = (fee) => ({ type: 'set fee', fee });
 

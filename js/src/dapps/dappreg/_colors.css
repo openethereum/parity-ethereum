@@ -15,24 +15,16 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../_colors.css';
+$blue: rgb(41, 128, 185);
+$disabled-bg: #aaa;
+$warning-bg: #e44;
+$modal-bg: rgba(40, 40, 40, 0.75);
 
-.warning {
-  background: $warning-bg;
-  border-top-right-radius: 0.25em;
-  bottom: 0;
-  color: white;
-  cursor: pointer;
-  font-size: 0.75em;
-  left: 0;
-  line-height: 1.5em;
-  opacity: 1;
-  padding: 1.5em;
-  position: fixed;
-  max-width: 540px;
-  z-index: 100;
+$background-color: #eee;
+$text-color: #333;
+$loading-color: #999;
 
-  div+div {
-    margin-top: 1.5em;
-  }
-}
+$code-bg: #002b36;
+$code-color: #b58900;
+$code-title-bg: #073642;
+$code-title-color: #859900;
