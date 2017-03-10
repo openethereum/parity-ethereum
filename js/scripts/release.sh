@@ -89,7 +89,7 @@ fi
 
 echo "*** Updating cargo parity-ui-precompiled#$PRECOMPILED_HASH"
 git submodule update
-sed -i "s/^parity-ui-precompiled = { git =.*/parity-ui-precompiled = { git = \"https:\/\/github.com\/ethcore\/js-precompiled.git\", optional = true, branch = \"$BRANCH\" }/" dapps/ui/Cargo.toml
+sed -i "/^parity-ui-precompiled/ { s/branch = \".*\"/branch = \"$BRANCH\"/g; }" dapps/ui/Cargo.toml
 cargo update -p parity-ui-precompiled
 # --precise "$PRECOMPILED_HASH"
 
