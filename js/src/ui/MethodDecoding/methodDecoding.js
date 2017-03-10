@@ -149,7 +149,7 @@ class MethodDecoding extends Component {
       <div className={ styles.gasDetails }>
         <FormattedMessage
           id='ui.methodDecoding.txValues'
-          defaultMessage='{historic, select, true {Provided} false {Provides}} {gasProvided}{gasUsed} for a total transaction value of {gasEth}'
+          defaultMessage='{historic, select, true {Provided} false {Provides}} {gasProvided}{gasUsed} for a total transaction value of {gasProvidedEth}'
           values={ {
             historic,
             gasProvided,
