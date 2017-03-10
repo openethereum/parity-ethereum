@@ -140,7 +140,7 @@ export function fetchRegistryAppIds () {
           return (new BigNumber(appId)).gt(0) && !builtinApps.find((app) => app.id === appId);
         });
 
-      return appIds;
+      return uniq(appIds);
     })
     .catch((error) => {
       console.warn('DappsStore:fetchRegistryAppIds', error);

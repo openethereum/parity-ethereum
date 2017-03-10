@@ -46,8 +46,9 @@ export const update = (name, key, value) => (dispatch, getState) => {
         throw new Error(`you are not the owner of "${name}"`);
       }
 
-      const fnName = key === 'A' ? 'setAddress' : 'set';
-      const method = contract.instance[fnName];
+      const method = key === 'A'
+        ? contract.instance.setAddress
+        : contract.instance.setData || contract.instance.set;
 
       const options = {
         from: account.address
