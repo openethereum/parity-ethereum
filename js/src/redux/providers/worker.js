@@ -20,13 +20,12 @@ import runtime from 'serviceworker-webpack-plugin/lib/runtime';
 import { setWorker } from './workerActions';
 
 function getWorker () {
-  // Setup the Service Worker
-  if ('serviceWorker' in navigator) {
-    return runtime
-      .register()
-      .then(() => {
-        return navigator.serviceWorker.ready;
-      })
+  if (!('serviceWorker' in navigator)) {
+    return Promise.reject('Service Worker is not available in your browser.');
+  }
+
+  const getServiceWorker = () => {
+    return navigator.serviceWorker.ready
       .then((registration) => {
         const worker = registration.active;
 
@@ -34,9 +33,24 @@ function getWorker () {
 
         return new PromiseWorker(worker);
       });
-  }
+  };
 
-  return Promise.reject('Service Worker is not available in your browser.');
+  return new Promise((resolve, reject) => {
+    // Safe guard for registration bugs (happens in Chrome sometimes)
+    const timeoutId = window.setTimeout(() => {
+      console.warn('could not register SW after 2.5s');
+      getServiceWorker().then(resolve).catch(reject);
+    }, 2500);
+
+    // Setup the Service Worker
+    runtime
+      .register()
+      .then(() => {
+        window.clearTimeout(timeoutId);
+        return getServiceWorker();
+      })
+      .then(resolve).catch(reject);
+  });
 }
 
 export const setupWorker = (store) => {
@@ -53,7 +67,7 @@ export const setupWorker = (store) => {
     .then((worker) => {
       if (worker) {
         worker._worker.addEventListener('statechange', (event) => {
-          console.warn('worker state changed to', worker._worker.state);
+          console.warn('SW state changed to', worker._worker.state);
 
           // Re-install the new Worker
           if (worker._worker.state === 'redundant') {

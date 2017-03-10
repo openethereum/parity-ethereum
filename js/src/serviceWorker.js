@@ -25,7 +25,6 @@ registerPromiseWorker((msg) => {
 });
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
   event.waitUntil(self.skipWaiting());
 });
 
