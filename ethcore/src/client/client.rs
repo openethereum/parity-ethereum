@@ -152,7 +152,9 @@ pub struct Client {
 	history: u64,
 	rng: Mutex<OsRng>,
 	on_mode_change: Mutex<Option<Box<FnMut(&Mode) + 'static + Send>>>,
+	on_network_change: Mutex<Option<Box<FnMut(&String) + 'static + Send>>>,
 	registrar: Mutex<Option<Registry>>,
+	exit_handler: Mutex<Option<Box<Fn(bool) + 'static + Send>>>,
 }
 
 impl Client {
@@ -241,7 +243,9 @@ impl Client {
 			history: history,
 			rng: Mutex::new(OsRng::new().map_err(::util::UtilError::StdIo)?),
 			on_mode_change: Mutex::new(None),
+			on_network_change: Mutex::new(None),
 			registrar: Mutex::new(None),
+			exit_handler: Mutex::new(None),
 		});
 
 		{
@@ -276,6 +280,25 @@ impl Client {
 		self.notify.write().push(Arc::downgrade(&target));
 	}
 
+	/// Set a closure to call when we want to restart the client
+	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(bool) + 'static + Send {
+		*self.exit_handler.lock() = Some(Box::new(f));
+	}
+
+	/// Hypervisor should restart this client.
+	pub fn restart(&self) {
+		if let Some(ref h) = *self.exit_handler.lock() {
+			(*h)(true);
+		}
+	}
+
+	/// Hypervisor should kill this client.
+	pub fn exit(&self) {
+		if let Some(ref h) = *self.exit_handler.lock() {
+			(*h)(false);
+		}
+	}
+
 	/// Returns engine reference.
 	pub fn engine(&self) -> &Engine {
 		&*self.engine
@@ -297,6 +320,11 @@ impl Client {
 	/// Register an action to be done if a mode change happens.
 	pub fn on_mode_change<F>(&self, f: F) where F: 'static + FnMut(&Mode) + Send {
 		*self.on_mode_change.lock() = Some(Box::new(f));
+	}
+
+	/// Register an action to be done if a mode change happens.
+	pub fn on_network_change<F>(&self, f: F) where F: 'static + FnMut(&String) + Send {
+		*self.on_network_change.lock() = Some(Box::new(f));
 	}
 
 	/// Flush the block import queue.
@@ -650,7 +678,6 @@ impl Client {
 	pub fn miner(&self) -> Arc<Miner> {
 		self.miner.clone()
 	}
-
 
 	/// Replace io channel. Useful for testing.
 	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {

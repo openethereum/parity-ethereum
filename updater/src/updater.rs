@@ -356,6 +356,8 @@ impl Service for Updater {
 						s.installed = Some(r);
 						if let Some(ref h) = *self.exit_handler.lock() {
 							(*h)();
+						} else {
+							info!("Update installed; ready for restart.");
 						}
 						Ok(true)
 					}

@@ -24,7 +24,7 @@ use util::{Colour, version, RotatingLogger, Mutex, Condvar};
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore_logger::{Config as LogConfig};
 use ethcore::miner::{StratumOptions, Stratum};
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
+use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
 use ethcore::service::ClientService;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -503,6 +503,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		true => None,
 		false => {
 			let sync = sync_provider.clone();
+			let client = client.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
 				move || is_major_importing(Some(sync.status().state), client.queue_info()),
@@ -526,7 +527,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	// Handle exit
-	let restart = wait_for_exit(panic_handler, Some(updater), can_restart);
+	let restart = wait_for_exit(panic_handler, Some(updater), Some(client), can_restart);
 
 	// drop this stuff as soon as exit detected.
 	drop((http_server, ipc_server, dapps_server, signer_server, secretstore_key_server, ipfs_server, event_loop));
@@ -604,6 +605,7 @@ fn build_create_account_hint(spec: &SpecType, keys: &str) -> String {
 fn wait_for_exit(
 	panic_handler: Arc<PanicHandler>,
 	updater: Option<Arc<Updater>>,
+	client: Option<Arc<Client>>,
 	can_restart: bool
 ) -> bool {
 	let exit = Arc::new((Mutex::new(false), Condvar::new()));
@@ -616,13 +618,17 @@ fn wait_for_exit(
 	let e = exit.clone();
 	panic_handler.on_panic(move |_reason| { e.1.notify_all(); });
 
-	if let Some(updater) = updater {
-		// Handle updater wanting to restart us
-		if can_restart {
+	if can_restart {
+		if let Some(updater) = updater {
+			// Handle updater wanting to restart us
 			let e = exit.clone();
 			updater.set_exit_handler(move || { *e.0.lock() = true; e.1.notify_all(); });
-		} else {
-			updater.set_exit_handler(|| info!("Update installed; ready for restart."));
+		}
+
+		if let Some(client) = client {
+			// Handle updater wanting to restart us
+			let e = exit.clone();
+			client.set_exit_handler(move |restart| { *e.0.lock() = restart; e.1.notify_all(); });
 		}
 	}
 
