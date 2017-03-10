@@ -70,7 +70,6 @@ export default class Application extends Component {
           local[tx.hash].transaction = tx;
           local[tx.hash].stats = data.stats;
         });
-
       // Convert local transactions to array
       const localTransactions = Object.keys(local).map(hash => {
         const data = local[hash];
