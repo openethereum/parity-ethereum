@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 import { action, computed, observable, transaction } from 'mobx';
-import { flatten, uniq } from 'lodash';
+import { flatten } from 'lodash';
 
 import * as abis from '~/contracts/abi';
 import Contracts from '~/contracts';

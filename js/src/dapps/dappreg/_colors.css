@@ -18,6 +18,7 @@
 $blue: rgb(41, 128, 185);
 $disabled-bg: #aaa;
 $warning-bg: #e44;
+$modal-bg: rgba(40, 40, 40, 0.75);
 
 $background-color: #eee;
 $text-color: #333;
