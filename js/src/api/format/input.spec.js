@@ -208,6 +208,13 @@ describe('api/format/input', () => {
       });
     });
 
+    it('does not encode an empty `to` value', () => {
+      const options = { to: '' };
+      const formatted = inOptions(options);
+
+      expect(formatted.to).to.equal('');
+    });
+
     ['gas', 'gasPrice', 'value', 'minBlock', 'nonce'].forEach((input) => {
       it(`formats ${input} number as hexnumber`, () => {
         const block = {};

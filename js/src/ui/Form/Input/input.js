@@ -214,6 +214,7 @@ export default class Input extends Component {
 
   onChange = (event, value) => {
     event.persist();
+
     this.setValue(value, () => {
       this.props.onChange && this.props.onChange(event, value);
     });
@@ -231,12 +232,10 @@ export default class Input extends Component {
   }
 
   onPaste = (event) => {
-    const { value } = event.target;
-    const pasted = event.clipboardData.getData('Text');
-
+    // Wait for the onChange handler to be called
     window.setTimeout(() => {
-      this.onSubmit(value + pasted);
-    }, 0);
+      this.onSubmit(this.state.value);
+    }, 200);
   }
 
   onKeyDown = (event) => {

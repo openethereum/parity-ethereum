@@ -143,8 +143,15 @@ export function inOptions (options) {
   if (options) {
     Object.keys(options).forEach((key) => {
       switch (key) {
-        case 'from':
         case 'to':
+          // Don't encode the `to` option if it's empty
+          // (eg. contract deployments)
+          if (options[key]) {
+            options[key] = inAddress(options[key]);
+          }
+          break;
+
+        case 'from':
           options[key] = inAddress(options[key]);
           break;
 
