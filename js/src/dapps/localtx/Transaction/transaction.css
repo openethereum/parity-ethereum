@@ -6,6 +6,14 @@
   }
 }
 
+.txhash {
+  display: inline-block;
+  overflow: hidden;
+  padding-right: 3ch;
+  text-overflow: ellipsis;
+  width: 10ch;
+}
+
 .transaction {
   td {
     padding: 7px 15px;
