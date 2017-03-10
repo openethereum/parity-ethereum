@@ -74,28 +74,27 @@ export default class AccountStore {
         this._api.parity.getNewDappsAddresses(),
         this._api.parity.allAccountsInfo()
       ])
-      .then(([whitelist, accounts]) => {
+      .then(([whitelist, allAccounts]) => {
         transaction(() => {
+          const accounts = Object
+            .keys(allAccounts)
+            .filter((address) => {
+              const account = allAccounts[address];
+              const isAccount = account.uuid || (account.meta && account.meta.hardware);
+              const isWhitelisted = !whitelist || whitelist.includes(address);
+
+              return isAccount && isWhitelisted;
+            })
+            .map((address) => {
+              return {
+                ...allAccounts[address],
+                checked: address === this.defaultAccount,
+                address
+              };
+            });
+
           this.setLoading(false);
-          this.setAccounts(
-            Object
-              .keys(accounts)
-              .filter((address) => {
-                const account = accounts[address];
-                const isAccount = account.uuid || (account.meta && account.meta.hardware);
-                const isWhitelisted = !whitelist || whitelist.includes(address);
-
-                return isAccount && isWhitelisted;
-              })
-              .map((address) => {
-                const account = accounts[address];
-
-                account.address = address;
-                account.checked = address === this.defaultAccount;
-
-                return account;
-              })
-          );
+          this.setAccounts(accounts);
         });
       })
       .catch((error) => {
@@ -117,6 +116,13 @@ export default class AccountStore {
       }
     });
 
-    return Promise.all([ promiseDefaultAccount, promiseEthAccounts ]);
+    const promiseAccountsInfo = this._api
+      .subscribe('parity_allAccountsInfo', (error, accountsInfo) => {
+        if (!error) {
+          this.loadAccounts();
+        }
+      });
+
+    return Promise.all([ promiseDefaultAccount, promiseEthAccounts, promiseAccountsInfo ]);
   }
 }
