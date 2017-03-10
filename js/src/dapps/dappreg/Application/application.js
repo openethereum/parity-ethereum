@@ -26,7 +26,7 @@ import styles from './application.css';
 
 @observer
 export default class Application extends Component {
-  dappsStore = DappsStore.instance();
+  dappsStore = DappsStore.get();
 
   render () {
     if (this.dappsStore.isLoading) {

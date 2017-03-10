@@ -32,7 +32,7 @@ export default class ModalRegister extends Component {
     onRegister: PropTypes.func.isRequired
   };
 
-  dappsStore = DappsStore.instance();
+  dappsStore = DappsStore.get();
 
   render () {
     const { onClose, onRegister } = this.props;

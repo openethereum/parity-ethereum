@@ -29,7 +29,7 @@ export default class CreateDappCard extends Component {
     open: false
   };
 
-  dappsStore = DappsStore.instance();
+  dappsStore = DappsStore.get();
 
   render () {
     const { focus } = this.state;

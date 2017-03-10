@@ -43,7 +43,7 @@ export default class DappModal extends Component {
     updating: false
   };
 
-  dappsStore = DappsStore.instance();
+  dappsStore = DappsStore.get();
 
   render () {
     const { dapp, open } = this.props;

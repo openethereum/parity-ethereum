@@ -23,7 +23,7 @@ import DappModal from '../DappModal';
 import styles from './dappCard.css';
 
 export default class DappCard extends Component {
-  dappsStore = DappsStore.instance();
+  dappsStore = DappsStore.get();
 
   static propTypes = {
     dapp: PropTypes.object.isRequired

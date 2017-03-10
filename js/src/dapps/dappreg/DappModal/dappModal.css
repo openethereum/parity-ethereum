@@ -21,21 +21,21 @@
 $imgSize: 5rem;
 
 .code {
-  color: #b58900;
+  color: $code-color;
   font-family: 'Roboto Mono', monospace;
   margin-top: 1rem;
 
   .codeTitle {
     align-items: center;
-    background-color: #073642;
-    color: #859900;
+    background-color: $code-title-bg;
+    color: $code-title-color;
     display: inline-flex;
     height: 2rem;
     padding: 0 0.5rem;
   }
 
   .codeContainer {
-    background-color: #002b36;
+    background-color: $code-bg;
     padding: 0.5rem 1rem;
   }
 

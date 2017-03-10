@@ -22,7 +22,7 @@ import DappsStore from '../dappsStore';
 import styles from './warning.css';
 
 export default class Warning extends Component {
-  dappsStore = DappsStore.instance();
+  dappsStore = DappsStore.get();
 
   state = {
     show: true

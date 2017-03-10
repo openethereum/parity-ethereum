@@ -23,7 +23,7 @@ import styles from './transactions.css';
 
 @observer
 export default class Transactions extends Component {
-  dappsStore = DappsStore.instance();
+  dappsStore = DappsStore.get();
 
   render () {
     const { transactions } = this.dappsStore;

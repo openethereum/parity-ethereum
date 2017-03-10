@@ -16,3 +16,14 @@
 */
 
 $blue: rgb(41, 128, 185);
+$disabled-bg: #aaa;
+$warning-bg: #e44;
+
+$background-color: #eee;
+$text-color: #333;
+$loading-color: #999;
+
+$code-bg: #002b36;
+$code-color: #b58900;
+$code-title-bg: #073642;
+$code-title-color: #859900;

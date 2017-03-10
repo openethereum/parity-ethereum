@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 import { action, computed, observable, transaction } from 'mobx';
-import { flatten } from 'lodash';
+import { flatten, uniq } from 'lodash';
 
 import * as abis from '~/contracts/abi';
 import Contracts from '~/contracts';
@@ -47,7 +47,7 @@ export default class DappsStore {
     this._loadDapps();
   }
 
-  static instance () {
+  static get () {
     if (!instance) {
       instance = new DappsStore();
     }
@@ -314,19 +314,24 @@ export default class DappsStore {
         return Promise.all(promises);
       })
       .then((dappsInfo) => {
-        const dapps = dappsInfo.map(([dappId, ownerAddress]) => {
+        const dapps = dappsInfo.reduce((dapps, [dappId, ownerAddress]) => {
           const id = api.util.bytesToHex(dappId);
           const owner = this.accounts.find((account) => account.address === ownerAddress);
           const isOwner = !!owner;
-
-          return {
+          const dapp = {
             id,
             owner: owner || { address: ownerAddress },
             isOwner
           };
-        });
 
-        const promises = dapps.map((dapp) => this._loadDapp(dapp));
+          dapps[id] = dapp;
+          return dapps;
+        }, {});
+
+        const promises = Object.values(dapps)
+          // Only show dapps with id and owners
+          .filter((dapp) => dapp.id && dapp.owner && !/^(0x)?0*$/.test(dapp.owner.address))
+          .map((dapp) => this._loadDapp(dapp));
 
         return Promise.all(promises);
       })

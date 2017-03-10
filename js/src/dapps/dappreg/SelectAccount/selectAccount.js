@@ -21,7 +21,7 @@ import DappsStore from '../dappsStore';
 
 @observer
 export default class SelectAccount extends Component {
-  dappsStore = DappsStore.instance();
+  dappsStore = DappsStore.get();
 
   static propTypes = {
     value: PropTypes.string.isRequired,
