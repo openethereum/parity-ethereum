@@ -34,6 +34,7 @@ import CreationType from './CreationType';
 import NewAccount from './NewAccount';
 import NewGeth from './NewGeth';
 import NewImport from './NewImport';
+import NewQr from './NewQr';
 import RawKey from './RawKey';
 import RecoveryPhrase from './RecoveryPhrase';
 import Store, { STAGE_CREATE, STAGE_INFO, STAGE_SELECT_TYPE } from './store';
@@ -65,10 +66,17 @@ const TITLES = {
       id='createAccount.title.importWallet'
       defaultMessage='import wallet'
     />
+  ),
+  qr: (
+    <FormattedMessage
+      id='createAccount.title.qr'
+      defaultMessage='external account'
+    />
   )
 };
 const STAGE_NAMES = [TITLES.type, TITLES.create, TITLES.info];
 const STAGE_IMPORT = [TITLES.type, TITLES.import, TITLES.info];
+const STAGE_QR = [TITLES.type, TITLES.qr, TITLES.info];
 
 @observer
 class CreateAccount extends Component {
@@ -93,6 +101,14 @@ class CreateAccount extends Component {
   render () {
     const { isBusy, createType, stage } = this.store;
 
+    let steps = STAGE_IMPORT;
+
+    if (createType === 'fromNew') {
+      steps = STAGE_NAMES;
+    } else if (createType === 'fromQr') {
+      steps = STAGE_QR;
+    }
+
     return (
       <Portal
         buttons={ this.renderDialogActions() }
@@ -100,11 +116,7 @@ class CreateAccount extends Component {
         activeStep={ stage }
         onClose={ this.onClose }
         open
-        steps={
-          createType === 'fromNew'
-            ? STAGE_NAMES
-            : STAGE_IMPORT
-        }
+        steps={ steps }
       >
         <ModalBox icon={ <TypeIcon store={ this.store } /> }>
           { this.renderPage() }
@@ -143,6 +155,15 @@ class CreateAccount extends Component {
           return (
             <RecoveryPhrase
               store={ this.store }
+              vaultStore={ this.vaultStore }
+            />
+          );
+        }
+
+        if (createType === 'fromQr') {
+          return (
+            <NewQr
+              createStore={ this.store }
               vaultStore={ this.vaultStore }
             />
           );

@@ -79,8 +79,9 @@ describe('modals/CreateAccount/Store', () => {
       beforeEach(() => {
         store.setName('testing');
         store.setPassword('testing');
-        store.setVaultName('testing');
+        store.setQrAddress('testing');
         store.setRawKey('test');
+        store.setVaultName('testing');
         store.setWalletFile('test');
         store.setWalletJson('test');
       });
@@ -92,6 +93,7 @@ describe('modals/CreateAccount/Store', () => {
         expect(store.nameError).to.be.null;
         expect(store.password).to.equal('');
         expect(store.passwordRepeatError).to.be.null;
+        expect(store.qrAddress).to.be.null;
         expect(store.rawKey).to.equal('');
         expect(store.rawKeyError).to.be.null;
         expect(store.vaultName).to.equal('');
@@ -179,6 +181,15 @@ describe('modals/CreateAccount/Store', () => {
       it('allows setting the phrase', () => {
         store.setPhrase('testing');
         expect(store.phrase).to.equal('testing');
+      });
+    });
+
+    describe('setQrAddress', () => {
+      const ADDR = '0x1234567890123456789012345678901234567890';
+
+      it('sets the address', () => {
+        store.setQrAddress(ADDR);
+        expect(store.qrAddress).to.equal(ADDR);
       });
     });
 

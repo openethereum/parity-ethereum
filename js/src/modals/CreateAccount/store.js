@@ -41,6 +41,7 @@ export default class Store {
   @observable passwordHint = '';
   @observable passwordRepeat = '';
   @observable phrase = '';
+  @observable qrAddress = null;
   @observable rawKey = '';
   @observable rawKeyError = ERRORS.nokey;
   @observable stage = STAGE_SELECT_TYPE;
@@ -73,6 +74,9 @@ export default class Store {
       case 'fromPhrase':
         return !(this.nameError || this.passwordRepeatError);
 
+      case 'fromQr':
+        return this.qrAddressValid && !this.nameError;
+
       case 'fromRaw':
         return !(this.nameError || this.passwordRepeatError || this.rawKeyError);
 
@@ -87,13 +91,19 @@ export default class Store {
       : ERRORS.noMatchPassword;
   }
 
+  @computed get qrAddressValid () {
+    return this._api.util.isAddressValid(this.qrAddress);
+  }
+
   @action clearErrors = () => {
     transaction(() => {
+      this.description = '';
       this.password = '';
       this.passwordRepeat = '';
       this.phrase = '';
       this.name = '';
       this.nameError = null;
+      this.qrAddress = null;
       this.rawKey = '';
       this.rawKeyError = null;
       this.vaultName = '';
@@ -134,6 +144,10 @@ export default class Store {
 
   @action setGethImported = (gethImported) => {
     this.gethImported = gethImported;
+  }
+
+  @action setQrAddress = (qrAddress) => {
+    this.qrAddress = qrAddress;
   }
 
   @action setVaultName = (vaultName) => {

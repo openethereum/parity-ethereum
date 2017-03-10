@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { AccountsIcon, DoneIcon, FileIcon, FileUploadIcon, KeyboardIcon, KeyIcon, MembershipIcon } from '~/ui/Icons';
+import { AccountsIcon, DoneIcon, FileIcon, FileUploadIcon, KeyboardIcon, KeyIcon, MembershipIcon, PhoneLock } from '~/ui/Icons';
 
 import { STAGE_INFO } from '../store';
 
@@ -39,17 +39,20 @@ export default class TypeIcon extends Component {
       case 'fromGeth':
         return <FileUploadIcon className={ className } />;
 
-      case 'fromPhrase':
-        return <KeyboardIcon className={ className } />;
-
-      case 'fromRaw':
-        return <KeyIcon className={ className } />;
-
       case 'fromJSON':
         return <FileIcon className={ className } />;
 
+      case 'fromPhrase':
+        return <KeyboardIcon className={ className } />;
+
       case 'fromPresale':
         return <MembershipIcon className={ className } />;
+
+      case 'fromQr':
+        return <PhoneLock className={ className } />;
+
+      case 'fromRaw':
+        return <KeyIcon className={ className } />;
 
       case 'fromNew':
       default:

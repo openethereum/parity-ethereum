@@ -57,6 +57,21 @@ const TYPES = [
   {
     description: (
       <FormattedMessage
+        id='createAccount.creationType.fromQr.description'
+        defaultMessage='Attach an externally managed account via QR code'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromQr.label'
+        defaultMessage='External Account'
+      />
+    ),
+    key: 'fromQr'
+  },
+  {
+    description: (
+      <FormattedMessage
         id='createAccount.creationType.fromGeth.description'
         defaultMessage='Import accounts from the Geth keystore with the original password'
       />
@@ -87,21 +102,6 @@ const TYPES = [
   {
     description: (
       <FormattedMessage
-        id='createAccount.creationType.fromPresale.description'
-        defaultMessage='Import an Ethereum presale wallet file with the original password'
-      />
-    ),
-    label: (
-      <FormattedMessage
-        id='createAccount.creationType.fromPresale.label'
-        defaultMessage='Presale wallet'
-      />
-    ),
-    key: 'fromPresale'
-  },
-  {
-    description: (
-      <FormattedMessage
         id='createAccount.creationType.fromRaw.description'
         defaultMessage='Enter a previously created raw private key with a new password'
       />
@@ -113,6 +113,21 @@ const TYPES = [
       />
     ),
     key: 'fromRaw'
+  },
+  {
+    description: (
+      <FormattedMessage
+        id='createAccount.creationType.fromPresale.description'
+        defaultMessage='Import an Ethereum presale wallet file with the original password'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromPresale.label'
+        defaultMessage='Presale wallet'
+      />
+    ),
+    key: 'fromPresale'
   }
 ];
 
