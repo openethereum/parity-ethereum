@@ -91,10 +91,16 @@ export const registerDapp = (dappId, dappRegInstance) => {
     });
 };
 
-export const deleteDapp = (dappId, dappOwner, dappRegInstance) => {
-  const values = [ dappId ];
+export const deleteDapp = (dapp, dappRegInstance) => {
+  const { id, owner } = dapp;
+
+  const fromAddress = dapp.isOwner
+    ? owner.address
+    : dapp.contractOwner;
+
+  const values = [ id ];
   const options = {
-    from: dappOwner
+    from: fromAddress
   };
 
   return dappRegInstance

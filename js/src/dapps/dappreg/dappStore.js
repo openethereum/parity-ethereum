@@ -27,8 +27,11 @@ export default class DappStore {
   @observable isEditing = false;
   @observable wip = null;
 
+  contractOwner = '';
+  isContractOwner = false;
+
   constructor (data) {
-    const { id, content = {}, image = {}, manifest = {}, owner = {}, isOwner } = data;
+    const { id, content = {}, image = {}, manifest = {}, owner = {}, isOwner = false, contractOwner = '', isContractOwner = false } = data;
 
     transaction(() => {
       this.id = id;
@@ -40,6 +43,9 @@ export default class DappStore {
 
       this.copyToWip();
     });
+
+    this.contractOwner = contractOwner;
+    this.isContractOwner = isContractOwner;
   }
 
   @computed get canSave () {

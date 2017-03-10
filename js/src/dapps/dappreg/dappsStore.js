@@ -214,11 +214,11 @@ export default class DappsStore {
       .then(() => this._loadDapps());
   }
 
-  delete (dappId, dappOwner) {
+  delete (dapp) {
     const dappRegInstance = this._instanceReg;
 
-    return deleteDapp(dappId, dappOwner, dappRegInstance)
-      .then((request) => this.trackRequest(request, `Deleting ${dappId}`))
+    return deleteDapp(dapp, dappRegInstance)
+      .then((request) => this.trackRequest(request, `Deleting ${dapp.id}`))
       .then(() => this._loadDapps());
   }
 
@@ -393,6 +393,8 @@ export default class DappsStore {
         const { content, image, manifest } = data;
 
         const dapp = new Dapp({
+          contractOwner: this.contractOwner,
+          isContractOwner: this.isContractOwner,
           id,
           content,
           image,

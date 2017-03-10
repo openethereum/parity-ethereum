@@ -111,8 +111,21 @@ export default class DappModal extends Component {
   }
 
   renderActions (dapp) {
-    if (!dapp.isOwner) {
+    if (!dapp.isOwner && !dapp.isContractOwner) {
       return null;
+    }
+
+    if (!dapp.isOwner && dapp.isContractOwner) {
+      return (
+        <div className={ styles.actions }>
+          <Button
+            className={ styles.button }
+            label='Delete'
+            onClick={ this.handleDelete }
+            warning
+          />
+        </div>
+      );
     }
 
     const { isEditing } = dapp;
@@ -375,9 +388,7 @@ export default class DappModal extends Component {
   }
 
   handleDeleteConfirm = () => {
-    const { id, owner } = this.props.dapp;
-
-    this.dappsStore.delete(id, owner.address);
+    this.dappsStore.delete(this.props.dapp);
     this.handleDeleteClose();
     this.handleClose();
   }
