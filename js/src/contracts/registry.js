@@ -129,9 +129,11 @@ export default class Registry {
     return this
       .getInstance()
       .then((instance) => {
+        const values = this._createGetParams(name, key);
+
         return instance.getData
-          ? instance.getData.call({}, this._createGetParams(name, key))
-          : instance.get.call({}, this._createGetParams(name, key));
+          ? instance.getData.call({}, values)
+          : instance.get.call({}, values);
       });
   }
 }
