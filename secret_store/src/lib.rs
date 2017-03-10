@@ -14,10 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate byteorder;
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate futures;
+extern crate futures_cpupool;
 extern crate hyper;
 extern crate parking_lot;
+extern crate rustc_serialize;
+extern crate serde;
+extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
+extern crate tokio_core;
+extern crate tokio_service;
+extern crate tokio_proto;
 extern crate url;
 
 extern crate ethcore_devtools as devtools;
