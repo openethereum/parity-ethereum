@@ -273,7 +273,7 @@ export default class Parity extends Component {
     );
   }
 
-  onChangeMode  = (event, index, mode) => {
+  onChangeMode = (event, index, mode) => {
     this.store.changeMode(mode || event.target.value);
   }
 

@@ -289,7 +289,7 @@ export default class Parity {
     return this._transport
       .execute('parity_chain');
   }
-  
+
   chain () {
     return this._transport
       .execute('parity_chain');

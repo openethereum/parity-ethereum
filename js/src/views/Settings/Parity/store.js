@@ -54,7 +54,7 @@ export default class Store {
   }
 
   @action setChain = (chain) => {
-      this.chain = chain;
+    this.chain = chain;
   }
 
   changeMode (mode) {
@@ -71,11 +71,9 @@ export default class Store {
   }
 
   changeChain (chain) {
-    console.log(`CHANGING CHAIN TO ${chain}`);
     return this._api.parity
       .setChain(chain)
       .then((result) => {
-        console.log("All good");
         if (result) {
           this.setChain(chain);
         }
