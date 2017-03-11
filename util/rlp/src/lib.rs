@@ -46,24 +46,24 @@
 //! * You want to get view onto rlp-slice.
 //! * You don't want to decode whole rlp at once.
 
-pub mod rlptraits;
-mod rlperrors;
+mod traits;
+mod error;
 mod rlpin;
 mod untrusted_rlp;
-mod rlpstream;
-mod rlpcompression;
-mod commonrlps;
+mod stream;
+mod compression;
+mod common;
 mod bytes;
 
 #[cfg(test)]
 mod tests;
 
-pub use self::rlperrors::DecoderError;
-pub use self::rlptraits::{Decoder, Decodable, View, Stream, Encodable, Encoder, RlpEncodable, RlpDecodable, Compressible};
+pub use self::error::DecoderError;
+pub use self::traits::{Decoder, Decodable, View, Stream, Encodable, Encoder, RlpEncodable, RlpDecodable, Compressible};
 pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
 pub use self::rlpin::{Rlp, RlpIterator};
-pub use self::rlpstream::RlpStream;
-pub use self::rlpcompression::RlpType;
+pub use self::stream::RlpStream;
+pub use self::compression::RlpType;
 
 extern crate ethcore_bigint as bigint;
 extern crate elastic_array;

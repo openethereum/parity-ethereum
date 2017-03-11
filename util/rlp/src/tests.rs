@@ -15,9 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{fmt, cmp};
-use std::str::FromStr;
-use ::{Encodable, RlpDecodable, UntrustedRlp, RlpStream, View, Stream, DecoderError};
 use bigint::prelude::U256;
+use {Encodable, RlpDecodable, UntrustedRlp, RlpStream, View, Stream, DecoderError};
 
 #[test]
 fn rlp_at() {
@@ -131,9 +130,8 @@ fn encode_u256() {
 					 ETestPair(U256::from(0x1000000u64), vec![0x84, 0x01, 0x00, 0x00, 0x00]),
 					 ETestPair(U256::from(0xffffffffu64),
 							   vec![0x84, 0xff, 0xff, 0xff, 0xff]),
-					 ETestPair(U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000\
-											   000100000000000012f0")
-								   .unwrap(),
+					 ETestPair(("8090a0b0c0d0e0f00910203040506077000000000000\
+											   000100000000000012f0").into(),
 							   vec![0xa0, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
 									0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0x00,
 									0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
@@ -265,9 +263,8 @@ fn decode_untrusted_u256() {
 					 DTestPair(U256::from(0x1000000u64), vec![0x84, 0x01, 0x00, 0x00, 0x00]),
 					 DTestPair(U256::from(0xffffffffu64),
 							   vec![0x84, 0xff, 0xff, 0xff, 0xff]),
-					 DTestPair(U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000\
-											   000100000000000012f0")
-								   .unwrap(),
+					 DTestPair(("8090a0b0c0d0e0f00910203040506077000000000000\
+											   000100000000000012f0").into(),
 							   vec![0xa0, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
 									0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0x00,
 									0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,

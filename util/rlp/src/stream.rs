@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use elastic_array::*;
-
-use ::{Stream, Encoder, Encodable};
+use elastic_array::{ElasticArray16, ElasticArray1024};
 use bytes::{ToBytes, VecLike};
-use rlptraits::{ByteEncodable, RlpEncodable};
+use traits::{ByteEncodable, RlpEncodable};
+use {Stream, Encoder, Encodable};
 
 #[derive(Debug, Copy, Clone)]
 struct ListInfo {

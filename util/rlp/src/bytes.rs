@@ -17,12 +17,10 @@
 //! Unified interfaces for RLP bytes operations on basic types
 //!
 
-use std::mem;
-use std::fmt;
-use std::cmp::Ordering;
+use std::{mem, fmt, cmp};
 use std::error::Error as StdError;
 use bigint::prelude::{Uint, U128, U256, H64, H128, H160, H256, H512, H520, H2048};
-use elastic_array::*;
+use elastic_array::{ElasticArray16, ElasticArray32, ElasticArray1024};
 
 /// Vector like object
 pub trait VecLike<T> {
@@ -268,9 +266,9 @@ macro_rules! impl_hash_from_bytes {
 		impl FromBytes for $name {
 			fn from_bytes(bytes: &[u8]) -> FromBytesResult<$name> {
 				match bytes.len().cmp(&$size) {
-					Ordering::Less => Err(FromBytesError::DataIsTooShort),
-					Ordering::Greater => Err(FromBytesError::DataIsTooLong),
-					Ordering::Equal => {
+					cmp::Ordering::Less => Err(FromBytesError::DataIsTooShort),
+					cmp::Ordering::Greater => Err(FromBytesError::DataIsTooLong),
+					cmp::Ordering::Equal => {
 						let mut t = [0u8; $size];
 						t.copy_from_slice(bytes);
 						Ok($name(t))

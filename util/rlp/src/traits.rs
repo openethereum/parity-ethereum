@@ -15,11 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Common RLP traits
-use ::{DecoderError, UntrustedRlp};
-use bytes::VecLike;
-use rlpstream::RlpStream;
-
 use elastic_array::ElasticArray1024;
+use bytes::VecLike;
+use stream::RlpStream;
+use {DecoderError, UntrustedRlp};
 
 /// Type is able to decode RLP.
 pub trait Decoder: Sized {
