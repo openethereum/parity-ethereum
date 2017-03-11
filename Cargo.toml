@@ -25,7 +25,7 @@ app_dirs = "1.1.1"
 fdlimit = "0.1"
 hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
 ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
