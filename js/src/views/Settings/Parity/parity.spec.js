@@ -38,7 +38,7 @@ describe('views/Settings/Parity', () => {
   beforeEach(() => {
     render();
     sinon.spy(instance.store, 'loadMode');
-    sinon.spy(instance.store, 'loadStore');
+    sinon.spy(instance.store, 'loadChain');
   });
 
   afterEach(() => {
