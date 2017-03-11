@@ -189,7 +189,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn chain(&self) -> Result<String, Error> {
-		Ok(self.settings.chain.clone())
+		Ok(take_weak!(self.client).spec_name())
 	}
 
 	fn net_peers(&self) -> Result<Peers, Error> {

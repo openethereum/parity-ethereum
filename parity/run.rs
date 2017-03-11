@@ -286,6 +286,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// create client config
 	let mut client_config = to_client_config(
 		&cmd.cache_config,
+		spec.name.to_lowercase(),
 		mode.clone(),
 		tracing,
 		fat_db,

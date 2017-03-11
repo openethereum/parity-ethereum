@@ -1062,6 +1062,10 @@ impl BlockChainClient for Client {
 		}
 	}
 
+	fn spec_name(&self) -> String {
+		self.config.spec_name.clone()
+	}
+
 	fn set_spec_name(&self, new_spec_name: String) {
 		trace!(target: "mode", "Client::set_spec_name({:?})", new_spec_name);
 		if !self.enabled.load(AtomicOrdering::Relaxed) {
