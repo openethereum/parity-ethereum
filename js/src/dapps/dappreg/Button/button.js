@@ -24,27 +24,29 @@ export default class Button extends Component {
     disabled: PropTypes.bool,
     label: PropTypes.string.isRequired,
     warning: PropTypes.bool,
-    onClick: PropTypes.func.isRequired
+    onClick: PropTypes.func
   }
 
   render () {
     const { className, disabled, label, warning } = this.props;
-    const classes = `${styles.button} ${className}`;
+    const classes = [ styles.button, className ];
 
     return (
       <button
-        className={ classes }
+        className={ classes.join(' ') }
         data-warning={ warning }
         disabled={ disabled }
-        onClick={ this.onClick }
+        onClick={ this.handleClick }
       >
         { label }
       </button>
     );
   }
 
-  onClick = (event) => {
+  handleClick = (event) => {
     if (this.props.disabled) {
+      event.preventDefault();
+      event.stopPropagation();
       return;
     }
 

@@ -14,53 +14,147 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import keycode from 'keycode';
 import React, { Component, PropTypes } from 'react';
+import ReactDOM from 'react-dom';
+
+import Button from '../Button';
 
 import styles from './modal.css';
+import CloseImage from '~/../assets/images/dapps/close.svg';
 
 export default class Modal extends Component {
   static propTypes = {
-    buttons: PropTypes.node,
+    actions: PropTypes.array,
     children: PropTypes.node,
-    error: PropTypes.object,
-    header: PropTypes.string
-  }
+    header: PropTypes.node,
+    secondary: PropTypes.bool,
+    onClose: PropTypes.func.isRequired,
+    onConfirm: PropTypes.func
+  };
+
+  static defaultProps = {
+    actions: null,
+    secondary: false
+  };
 
   render () {
-    const { children, buttons, error, header } = this.props;
+    const { children, actions, header, secondary } = this.props;
+
+    const modalClasses = [ styles.modal ];
+
+    if (secondary) {
+      modalClasses.push(styles.secondary);
+    }
 
     return (
-      <div className={ styles.modal }>
-        <div className={ styles.overlay } />
-        <div className={ styles.body }>
-          <div className={ styles.dialog }>
-            <div className={ `${styles.header} ${error ? styles.error : ''}` }>
-              { header }
-            </div>
-            <div className={ styles.content }>
-              { error ? this.renderError() : children }
-            </div>
-            <div className={ styles.footer }>
-              { buttons }
+      <div
+        className={ modalClasses.join(' ') }
+        onClick={ this.handleClose }
+        onKeyUp={ this.handleKeyPress }
+      >
+        <div
+          className={ styles.dialog }
+          onClick={ this.stopEvent }
+          ref={ this.handleSetRef }
+          tabIndex={ open ? 0 : null }
+        >
+          <div className={ styles.header }>
+            { header }
+            <div
+              className={ styles.close }
+              onClick={ this.handleClose }
+              onKeyPress={ this.handleCloseKeyPress }
+              tabIndex={ open ? 0 : null }
+              title='close'
+            >
+              <img
+                className={ styles.closeIcon }
+                src={ CloseImage }
+              />
             </div>
           </div>
+
+          <div className={ styles.content }>
+            { children }
+          </div>
+
+          { actions ? this.renderActions(actions) : null }
         </div>
       </div>
     );
   }
 
-  renderError () {
-    const { error } = this.props;
-
+  renderActions (actions) {
     return (
-      <div>
-        <div className={ styles.section }>
-          Your operation failed to complete sucessfully. The following error was returned:
-        </div>
-        <div className={ `${styles.section} ${styles.error}` }>
-          { error.toString() }
-        </div>
+      <div className={ styles.footer }>
+        { actions.map((action) => {
+          let onClick = () => {};
+
+          switch (action.type) {
+            case 'confirm':
+              onClick = this.handleConfirm;
+              break;
+
+            case 'close':
+              onClick = this.handleClose;
+              break;
+          }
+
+          return (
+            <Button
+              key={ action.type }
+              label={ action.label }
+              warning={ action.warning }
+              onClick={ onClick }
+            />
+          );
+        }) }
       </div>
     );
+  }
+
+  stopEvent = (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+
+    return false;
+  }
+
+  handleKeyPress = (event) => {
+    const codeName = keycode(event);
+
+    if (codeName === 'esc') {
+      return this.handleClose();
+    }
+
+    return event;
+  }
+
+  handleCloseKeyPress = (event) => {
+    const codeName = keycode(event);
+
+    if (codeName === 'enter') {
+      return this.handleClose();
+    }
+
+    return event;
+  }
+
+  handleSetRef = (containerRef) => {
+    // Focus after the modal is open
+    setTimeout(() => {
+      const element = ReactDOM.findDOMNode(containerRef);
+
+      element && element.focus();
+    }, 100);
+  }
+
+  handleConfirm = () => {
+    this.props.onConfirm && this.props.onConfirm();
+  }
+
+  handleClose = () => {
+    this.props.onClose();
   }
 }

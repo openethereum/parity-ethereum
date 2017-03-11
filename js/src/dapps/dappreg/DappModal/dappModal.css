@@ -1,0 +1,82 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+@import '../_colors.css';
+@import '../_utils.css';
+
+$imgSize: 5rem;
+
+.code {
+  color: $code-color;
+  font-family: 'Roboto Mono', monospace;
+  margin-top: 1rem;
+
+  .codeTitle {
+    align-items: center;
+    background-color: $code-title-bg;
+    color: $code-title-color;
+    display: inline-flex;
+    height: 2rem;
+    padding: 0 0.5rem;
+  }
+
+  .codeContainer {
+    background-color: $code-bg;
+    padding: 0.5rem 1rem;
+  }
+
+  code {
+    font-size: 0.75rem;
+    white-space: pre-wrap;
+  }
+}
+
+.actions {
+  height: 0.5rem;
+  position: relative;
+  text-align: right;
+  top: 0.5rem;
+
+  .button {
+    margin-bottom: 0;
+    margin-top: 0;
+    padding: 0.5rem 1.5rem;
+  }
+}
+
+.icon {
+  margin-right: 1.5rem;
+  overflow: hidden;
+
+  img {
+    border: 2px solid #ddd;
+    border-radius: 50%;
+    height: $imgSize;
+    width: $imgSize;
+  }
+}
+
+.name {
+  font-size: 1.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.info {
+  color: #ddd;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}

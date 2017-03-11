@@ -15,5 +15,8 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.app {
+.bezier-transform {
+  transition-duration: 0.1s;
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.7, 0, 0.3, 1);
 }

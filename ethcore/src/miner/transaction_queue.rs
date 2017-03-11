@@ -485,7 +485,7 @@ pub struct AccountDetails {
 }
 
 /// Transactions with `gas > (gas_limit + gas_limit * Factor(in percents))` are not imported to the queue.
-const GAS_LIMIT_HYSTERESIS: usize = 10; // (100/GAS_LIMIT_HYSTERESIS) %
+const GAS_LIMIT_HYSTERESIS: usize = 200; // (100/GAS_LIMIT_HYSTERESIS) %
 
 /// Describes the strategy used to prioritize transactions in the queue.
 #[cfg_attr(feature="dev", allow(enum_variant_names))]
@@ -1867,7 +1867,7 @@ pub mod test {
 
 		// then
 		assert_eq!(unwrap_tx_err(res), TransactionError::GasLimitExceeded {
-			limit: U256::from(55_000), // Should be 110% of set_gas_limit
+			limit: U256::from(50_250), // Should be 100.5% of set_gas_limit
 			got: gas,
 		});
 		let stats = txq.status();
