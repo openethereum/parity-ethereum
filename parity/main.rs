@@ -324,7 +324,7 @@ fn main() {
 				(Some(latest_exe_time), Some(this_exe_time)) if latest_exe_time > this_exe_time => true,
 				_ => false,
 			};
-			trace_main!("Starting... (have-update: {}, non-updated-current: {})", have_update, is_non_updated_current);
+			trace_main!("Starting... (have-update: {}, non-updated-current: {}, update-is-newer: {})", have_update, is_non_updated_current, update_is_newer);
 			let exit_code = if have_update && is_non_updated_current && update_is_newer {
 				trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
 				run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct(true) })

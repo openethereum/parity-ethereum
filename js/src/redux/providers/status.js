@@ -284,7 +284,7 @@ export default class Status {
         this._api.parity.netChain(),
         this._api.parity.netPort(),
         this._api.parity.rpcSettings(),
-        this._api.parity.enode(),
+        this._api.parity.enode().then((enode) => enode).catch(() => '-'),
         this._upgradeStore.checkUpgrade()
       ])
       .then(([
