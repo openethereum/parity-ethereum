@@ -20,7 +20,9 @@ function createApi () {
   return {
     parity: {
       mode: sinon.stub().resolves('passive'),
-      setMode: sinon.stub().resolves(true)
+      setMode: sinon.stub().resolves(true),
+      chain: sinon.stub().resolves('foundation'),
+      setChain: sinon.stub().resolves(true)
     }
   };
 }

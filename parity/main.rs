@@ -143,7 +143,7 @@ fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 
 enum PostExecutionAction {
 	Print(String),
-	Restart,
+	Restart(Option<String>),
 	Quit,
 }
 
@@ -170,7 +170,7 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 
 fn start(can_restart: bool) -> Result<PostExecutionAction, String> {
 	let args: Vec<String> = env::args().collect();
-	let conf = Configuration::parse(&args).unwrap_or_else(|e| e.exit());
+	let conf = Configuration::parse(&args, take_spec_name_override()).unwrap_or_else(|e| e.exit());
 
 	let deprecated = find_deprecated(&conf.args);
 	for d in deprecated {
@@ -209,15 +209,18 @@ fn latest_exe_path() -> Option<PathBuf> {
 }
 
 fn set_spec_name_override(spec_name: String) {
-	match File::create(updates_path("spec_name_overide"))
-		.and_then(|mut f| f.write_all(spec_name.as_bytes()));
+	if let Err(e) = File::create(updates_path("spec_name_overide"))
+		.and_then(|mut f| f.write_all(spec_name.as_bytes()))
+	{
+		warn!("Couldn't override chain spec: {}", e);
+	}
 }
 
 fn take_spec_name_override() -> Option<String> {
 	let p = updates_path("spec_name_overide");
 	let r = File::open(p.clone()).ok()
-		.and_then(|mut f| { let mut spec_name = String::new(); f.read_to_string(&mut spec_name).ok() });
-	remove_file(p);
+		.and_then(|mut f| { let mut spec_name = String::new(); f.read_to_string(&mut spec_name).ok().map(|_| spec_name) });
+	let _ = remove_file(p);
 	r
 }
 
@@ -263,7 +266,7 @@ fn main_direct(can_restart: bool) -> i32 {
 		match start(can_restart) {
 			Ok(result) => match result {
 				PostExecutionAction::Print(s) => { println!("{}", s); 0 },
-				PostExecutionAction::Restart(spec_name_overide) => {
+				PostExecutionAction::Restart(spec_name_override) => {
 					if let Some(spec_name) = spec_name_override {
 						set_spec_name_override(spec_name);
 					}
@@ -318,7 +321,6 @@ fn main() {
 				trace_main!("No latest update. Attempting to direct...");
 				main_direct(true)
 			};
-			let args_override = take_args_override();
 			trace_main!("Latest exited with {}", exit_code);
 			if exit_code != PLEASE_RESTART_EXIT_CODE {
 				trace_main!("Quitting...");

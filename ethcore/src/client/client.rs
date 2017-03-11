@@ -151,7 +151,7 @@ pub struct Client {
 	factories: Factories,
 	history: u64,
 	rng: Mutex<OsRng>,
-	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>, Option<String>) + 'static + Send>>>,
+	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
 	registrar: Mutex<Option<Registry>>,
 	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
 }
@@ -316,7 +316,7 @@ impl Client {
 	}
 
 	/// Register an action to be done if a mode/spec_name change happens.
-	pub fn on_user_defaults_change<F>(&self, f: F) where F: 'static + FnMut(Option<Mode>, Option<String>) + Send {
+	pub fn on_user_defaults_change<F>(&self, f: F) where F: 'static + FnMut(Option<Mode>) + Send {
 		*self.on_user_defaults_change.lock() = Some(Box::new(f));
 	}
 
@@ -1052,7 +1052,7 @@ impl BlockChainClient for Client {
 			trace!(target: "mode", "Mode now {:?}", &*mode);
 			if let Some(ref mut f) = *self.on_user_defaults_change.lock() {
 				trace!(target: "mode", "Making callback...");
-				f(Some((&*mode).clone()), None)
+				f(Some((&*mode).clone()))
 			}
 		}
 		match new_mode {
@@ -1067,10 +1067,10 @@ impl BlockChainClient for Client {
 		if !self.enabled.load(AtomicOrdering::Relaxed) {
 			return;
 		}
-		{
-			if let Some(ref h) = *self.exit_handler.lock() {
-				(*h)(true, Some(new_spec_name));
-			}
+		if let Some(ref h) = *self.exit_handler.lock() {
+			(*h)(true, Some(new_spec_name));
+		} else {
+			warn!("Not hypervised; cannot change chain.");
 		}
 	}
 

@@ -89,7 +89,7 @@ build_rpc_trait! {
 		fn set_mode(&self, String) -> Result<bool, Error>;
 
 		/// Set the network spec. Argument must be one of: "foundation", "ropsten", "morden", "kovan", "olympic", "classic", "dev", "expanse" or a filename.
-		#[rpc(name = "parity_setSpecName")]
+		#[rpc(name = "parity_setChain")]
 		fn set_spec_name(&self, String) -> Result<bool, Error>;
 
 		/// Hash a file content under given URL.

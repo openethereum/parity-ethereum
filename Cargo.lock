@@ -1,6 +1,6 @@
 [root]
 name = "parity"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "ansi_term 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "app_dirs 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",

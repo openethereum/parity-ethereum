@@ -313,10 +313,6 @@ pub fn mode_switch_to_bool(switch: Option<Mode>, user_defaults: &UserDefaults) -
 	Ok(switch.unwrap_or(user_defaults.mode.clone()))
 }
 
-pub fn spec_name_switch_to_bool(switch: Option<SpecType>, user_defaults: &UserDefaults) -> Result<SpecType, String> {
-	Ok(switch.unwrap_or(user_defaults.mode.clone()))
-}
-
 #[cfg(test)]
 mod tests {
 	use util::journaldb::Algorithm;

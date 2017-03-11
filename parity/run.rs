@@ -157,7 +157,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		// Check if Parity is already running
 		let addr = format!("{}:{}", cmd.dapps_conf.interface, cmd.dapps_conf.port);
 		if !TcpListener::bind(&addr as &str).is_ok() {
-			return open_ui(&cmd.dapps_conf, &cmd.signer_conf).map(|_| false);
+			return open_ui(&cmd.dapps_conf, &cmd.signer_conf).map(|_| (false, None));
 		}
 	}
 
@@ -169,9 +169,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// load spec
 	let spec = cmd.spec.spec()?;
-
-	// get spec name
-	let spec_name = spec.name.to_lowercase();
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
@@ -635,10 +632,12 @@ fn wait_for_exit(
 			let e = exit.clone();
 			client.set_exit_handler(move |restart, new_chain: Option<String>| { *e.0.lock() = (restart, new_chain); e.1.notify_all(); });
 		}
+	} else {
+		trace!(target: "mode", "Not hypervised: not setting exit handlers.");
 	}
 
 	// Wait for signal
 	let mut l = exit.0.lock();
 	let _ = exit.1.wait(&mut l);
-	l
+	l.clone()
 }

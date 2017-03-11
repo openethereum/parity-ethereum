@@ -211,7 +211,7 @@ impl Updater {
 				let mut s = self.state.lock();
 				let fetched = s.fetching.take().unwrap();
 				let dest = self.updates_path(&Self::update_file_name(&fetched.version));
-				if !fs::exists(&dest) {
+				if !dest.exists() {
 					let b = result.map_err(|e| (format!("Unable to fetch update ({}): {:?}", fetched.version, e), false))?;
 					info!(target: "updater", "Fetched latest version ({}) OK to {}", fetched.version, b.display());
 					fs::create_dir_all(dest.parent().expect("at least one thing pushed; qed")).map_err(|e| (format!("Unable to create updates path: {:?}", e), true))?;
@@ -277,7 +277,7 @@ impl Updater {
 			if self.update_policy.enable_downloading && !running_later && !running_latest && !already_have_latest {
 				if let Some(b) = latest.track.binary {
 					if s.fetching.is_none() {
-						if fs::exists(&self.updates_path(&Self::update_file_name(&latest.track.version))) {
+						if self.updates_path(&Self::update_file_name(&latest.track.version)).exists() {
 							info!(target: "updater", "Already fetched binary.");
 							s.fetching = Some(latest.track.clone());
 							drop(s);
