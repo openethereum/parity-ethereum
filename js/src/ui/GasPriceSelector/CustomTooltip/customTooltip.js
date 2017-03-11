@@ -19,12 +19,17 @@ import { FormattedMessage } from 'react-intl';
 
 export default class CustomTooltip extends Component {
   static propTypes = {
-    active: PropTypes.bool,
     histogram: PropTypes.object.isRequired,
+    intl: PropTypes.object.isRequired,
+    active: PropTypes.bool,
     label: PropTypes.number,
     payload: PropTypes.array,
     type: PropTypes.string
-  }
+  };
+
+  static childContextTypes = {
+    intl: PropTypes.object.isRequired
+  };
 
   render () {
     const { active, label, histogram } = this.props;
@@ -54,5 +59,9 @@ export default class CustomTooltip extends Component {
         </p>
       </div>
     );
+  }
+
+  getChildContext () {
+    return { intl: this.props.intl };
   }
 }
