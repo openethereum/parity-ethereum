@@ -28,7 +28,7 @@ use v1::types::ConfirmationResponse;
 use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
-use util::{Address, FixedHash, Uint, U256, ToPretty};
+use util::{Address, Uint, U256, ToPretty};
 use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;

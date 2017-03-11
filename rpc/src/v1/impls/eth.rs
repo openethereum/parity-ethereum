@@ -23,7 +23,7 @@ use std::sync::{Arc, Weak};
 use futures::{self, future, BoxFuture, Future};
 use rlp::{self, UntrustedRlp, View};
 use time::get_time;
-use util::{H160, H256, Address, FixedHash, U256, H64, Uint};
+use util::{H160, H256, Address, U256, H64, Uint};
 use util::sha3::Hashable;
 use util::Mutex;
 

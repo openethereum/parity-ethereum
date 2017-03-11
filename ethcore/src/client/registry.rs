@@ -5,7 +5,7 @@ use std::string::String;
 use std::result::Result;
 use std::fmt;
 use {util, ethabi};
-use util::{FixedHash, Uint};
+use util::{Uint};
 
 pub struct Registry {
 	contract: ethabi::Contract,
@@ -22,7 +22,7 @@ impl Registry {
 		}
 	}
 	fn as_string<T: fmt::Debug>(e: T) -> String { format!("{:?}", e) }
-	
+
 	/// Auto-generated from: `{"constant":true,"inputs":[{"name":"_data","type":"address"}],"name":"canReverse","outputs":[{"name":"","type":"bool"}],"payable":false,"type":"function"}`
 	#[allow(dead_code)]
 	pub fn can_reverse(&self, _data: &util::Address) -> Result<bool, String>
@@ -45,7 +45,7 @@ impl Registry {
 			vec![ethabi::Token::Address(_new.clone().0)]
 		).map_err(Self::as_string)?;
 		call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
-		
+
 		Ok(())
 	}
 
@@ -318,7 +318,7 @@ impl Registry {
 			vec![]
 		).map_err(Self::as_string)?;
 		call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
-		
+
 		Ok(())
 	}
 

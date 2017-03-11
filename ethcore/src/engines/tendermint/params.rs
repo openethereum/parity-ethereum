@@ -17,7 +17,7 @@
 //! Tendermint specific parameters.
 
 use ethjson;
-use util::{U256, Uint, Address, FixedHash};
+use util::{U256, Uint, Address};
 use time::Duration;
 use super::super::transition::Timeouts;
 use super::Step;

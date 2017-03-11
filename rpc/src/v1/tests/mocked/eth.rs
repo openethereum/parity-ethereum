@@ -22,7 +22,7 @@ use rustc_serialize::hex::{FromHex, ToHex};
 use time::get_time;
 use rlp;
 
-use util::{Uint, U256, Address, H256, FixedHash, Mutex};
+use util::{Uint, U256, Address, H256, Mutex};
 use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
