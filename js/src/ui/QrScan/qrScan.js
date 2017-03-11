@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
-import QrReader from 'react-qr-reader';
+import Reader from 'react-qr-reader';
 
 import styles from './qrScan.css';
 
@@ -28,7 +28,7 @@ const SCAN_STYLE = {
 export default function QrScan ({ onError, onScan }) {
   return (
     <div className={ styles.qr }>
-      <QrReader
+      <Reader
         delay={ SCAN_DELAY }
         onError={ onError }
         onScan={ onScan }
