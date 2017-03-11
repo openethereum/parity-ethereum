@@ -1438,7 +1438,7 @@ mod tests {
 		let filename = temp.as_str().to_owned() + "/peers";
 		File::create(filename.clone()).unwrap().write_all(b"  \n\t\n").unwrap();
 		let args = vec!["parity", "--reserved-peers", &filename];
-		let conf = Configuration::parse(&args).unwrap();
+		let conf = Configuration::parse(&args, None).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
 	}
 
