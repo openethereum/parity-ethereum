@@ -16,19 +16,10 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import QrReader from 'react-qr-reader';
 
-import { Form, Input, InputAddress } from '~/ui';
+import { Form, Input, InputAddress, QrScan } from '~/ui';
 
 import ChangeVault from '../ChangeVault';
-import styles from '../createAccount.css';
-
-const SCAN_DELAY = 100;
-const SCAN_STYLE = {
-  display: 'inline-block',
-  height: '22.5em',
-  width: '30em'
-};
 
 export default class NewQr extends Component {
   static propTypes = {
@@ -116,14 +107,7 @@ export default class NewQr extends Component {
           id='createAccount.newQr.summary'
           defaultMessage='Use the built-in machine camera to scan to QR code of the account you wish to attach as an external account. External accounts are signed on the external device.'
         />
-        <div className={ styles.qr }>
-          <QrReader
-            delay={ SCAN_DELAY }
-            style={ SCAN_STYLE }
-            onError={ this.onError }
-            onScan={ this.onScan }
-          />
-        </div>
+        <QrScan onScan={ this.onScan } />
       </div>
     );
   }
@@ -138,10 +122,6 @@ export default class NewQr extends Component {
     const { createStore } = this.props;
 
     createStore.setName(name);
-  }
-
-  onError = (error) => {
-    console.error('QR scan', error);
   }
 
   onScan = (address) => {

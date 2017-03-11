@@ -101,14 +101,6 @@
   width: 10% !important;
 }
 
-.qr {
-  text-align: center;
-
-  video {
-    margin: 0 auto;
-  }
-}
-
 .checkbox {
   margin-top: 2em;
 }
