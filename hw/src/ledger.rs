@@ -24,7 +24,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use super::WalletInfo;
 use ethkey::{Address, Signature};
-use ethcore_bigint::hash::{H256, FixedHash};
+use ethcore_bigint::hash::H256;
 
 const LEDGER_VID: u16 = 0x2c97;
 const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001]; // Nano S and Blue
@@ -260,12 +260,12 @@ impl Manager {
 				{
 					let mut chunk = &mut hid_chunk[HID_PREFIX_ZERO..];
 					&mut chunk[0..5].copy_from_slice(&[0x01, 0x01, APDU_TAG, (chunk_index >> 8) as u8, (chunk_index & 0xff) as u8 ]);
-				
+
 					if chunk_index == 0 {
 						let data_len = data.len() + 5;
 						&mut chunk[5..12].copy_from_slice(&[ (data_len >> 8) as u8, (data_len & 0xff) as u8, APDU_CLA, command, p1, p2, data.len() as u8 ]);
 					}
-				
+
 					&mut chunk[chunk_size..chunk_size + size].copy_from_slice(&data[offset..offset + size]);
 					offset += size;
 					chunk_size += size;

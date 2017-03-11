@@ -134,7 +134,7 @@ mod tests {
 	use super::AbridgedBlock;
 	use types::transaction::{Action, Transaction};
 
-	use util::{Address, H256, FixedHash, U256, Bytes};
+	use util::{Address, H256, U256, Bytes};
 
 	fn encode_block(b: &Block) -> Bytes {
 		b.rlp_bytes(::basic_types::Seal::With)

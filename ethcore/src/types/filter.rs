@@ -113,7 +113,6 @@ impl Filter {
 
 #[cfg(test)]
 mod tests {
-	use util::FixedHash;
 	use filter::Filter;
 	use client::BlockId;
 	use log_entry::LogEntry;
