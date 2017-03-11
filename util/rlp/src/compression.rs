@@ -148,8 +148,6 @@ fn deep_decompress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> Option<El
   	}
 }
 
-
-
 impl<'a> Compressible for UntrustedRlp<'a> {
 	type DataType = RlpType;
 

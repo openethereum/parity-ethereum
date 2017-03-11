@@ -16,7 +16,7 @@
 
 use std::{fmt, cmp};
 use bigint::prelude::U256;
-use {Encodable, RlpDecodable, UntrustedRlp, RlpStream, View, Stream, DecoderError};
+use {RlpEncodable, Encodable, RlpDecodable, UntrustedRlp, RlpStream, View, Stream, DecoderError};
 
 #[test]
 fn rlp_at() {
@@ -83,13 +83,24 @@ fn rlp_iter() {
 	}
 }
 
-struct ETestPair<T>(T, Vec<u8>) where T: Encodable;
+struct ETestPair<T>(T, Vec<u8>) where T: RlpEncodable;
 
 fn run_encode_tests<T>(tests: Vec<ETestPair<T>>)
-	where T: Encodable
+	where T: RlpEncodable
 {
 	for t in &tests {
 		let res = super::encode(&t.0);
+		assert_eq!(&res[..], &t.1[..]);
+	}
+}
+
+struct VETestPair<T>(Vec<T>, Vec<u8>) where T: RlpEncodable;
+
+fn run_encode_tests_list<T>(tests: Vec<VETestPair<T>>)
+	where T: RlpEncodable
+{
+	for t in &tests {
+		let res = super::encode_list(&t.0);
 		assert_eq!(&res[..], &t.1[..]);
 	}
 }
@@ -184,19 +195,19 @@ fn encode_vector_u8() {
 #[test]
 fn encode_vector_u64() {
 	let tests = vec![
-		ETestPair(vec![], vec![0xc0]),
-		ETestPair(vec![15u64], vec![0xc1, 0x0f]),
-		ETestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
-		ETestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
+		VETestPair(vec![], vec![0xc0]),
+		VETestPair(vec![15u64], vec![0xc1, 0x0f]),
+		VETestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
+		VETestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
 	];
-	run_encode_tests(tests);
+	run_encode_tests_list(tests);
 }
 
 #[test]
 fn encode_vector_str() {
-	let tests = vec![ETestPair(vec!["cat", "dog"],
+	let tests = vec![VETestPair(vec!["cat", "dog"],
 							   vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])];
-	run_encode_tests(tests);
+	run_encode_tests_list(tests);
 }
 
 struct DTestPair<T>(T, Vec<u8>) where T: RlpDecodable + fmt::Debug + cmp::Eq;
@@ -332,7 +343,7 @@ fn decode_untrusted_vector_of_vectors_str() {
 #[test]
 fn test_decoding_array() {
 	let v = vec![5u16, 2u16];
-	let res = super::encode(&v);
+	let res = super::encode_list(&v);
 	let arr: [u16; 2] = super::decode(&res);
 	assert_eq!(arr[0], 5);
 	assert_eq!(arr[1], 2);
@@ -393,7 +404,7 @@ fn test_rlp_2bytes_data_length_check()
 #[test]
 fn test_rlp_nested_empty_list_encode() {
 	let mut stream = RlpStream::new_list(2);
-	stream.append(&(Vec::new() as Vec<u32>));
+	stream.append_list(&(Vec::new() as Vec<u32>));
 	stream.append(&40u32);
 	assert_eq!(stream.drain()[..], [0xc2u8, 0xc0u8, 40u8][..]);
 }

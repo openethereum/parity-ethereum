@@ -225,22 +225,6 @@ pub trait View<'a, 'view>: Sized {
 	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: RlpDecodable;
 }
 
-/// Raw RLP encoder
-pub trait Encoder {
-	/// Write a value represented as bytes
-	fn emit_value<E: ByteEncodable>(&mut self, value: &E);
-	/// Write raw preencoded data to the output
-	fn emit_raw(&mut self, bytes: &[u8]) -> ();
-}
-
-/// Primitive data type encodable to RLP
-pub trait ByteEncodable {
-	/// Serialize this object to given byte container
-	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V);
-	/// Get size of serialised data in bytes
-	fn bytes_len(&self) -> usize;
-}
-
 /// Structure encodable to RLP. Implement this trait for
 pub trait Encodable {
 	/// Append a value to the stream
