@@ -980,6 +980,7 @@ mod tests {
 	fn parse(args: &[&str]) -> Configuration {
 		Configuration {
 			args: Args::parse_without_config(args).unwrap(),
+			spec_name_override: None,
 		}
 	}
 
