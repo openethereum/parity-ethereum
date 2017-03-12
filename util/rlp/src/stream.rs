@@ -92,6 +92,10 @@ impl RlpStream {
 				self.finished_list = true;
 			},
 			_ => {
+				// payload is longer than 1 byte only for lists > 55 bytes
+				// by pushing always this 1 byte we may avoid unnecessary shift of data
+				self.buffer.push(0);
+
 				let position = self.buffer.len();
 				self.unfinished_lists.push(ListInfo::new(position, len));
 			},
@@ -200,18 +204,19 @@ impl<'a> BasicEncoder<'a> {
 	}
 
 	/// inserts list prefix at given position
-	/// TODO: optimise it further?
 	fn insert_list_payload(&mut self, len: usize, pos: usize) -> () {
-		let mut res = ElasticArray16::new();
+		// 1 byte was already reserved for payload earlier
 		match len {
-			0...55 => res.push(0xc0u8 + len as u8),
+			0...55 => {
+				self.buffer[pos - 1] = 0xc0u8 + len as u8;
+			},
 			_ => {
-				res.push(0xf7u8 + len.to_bytes_len() as u8);
+				self.buffer[pos - 1] = 0xf7u8 + len.to_bytes_len() as u8;
+				let mut res = ElasticArray16::new();
 				ToBytes::to_bytes(&len, &mut res);
+				self.buffer.insert_slice(pos, &res);
 			}
 		};
-
-		self.buffer.insert_slice(pos, &res);
 	}
 
 	pub fn encode_value(&mut self, value: &[u8]) {
