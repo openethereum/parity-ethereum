@@ -224,8 +224,8 @@ pub trait View<'a, 'view>: Sized {
 	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: RlpDecodable;
 }
 
-/// Encodable wrapper trait required to handle special case of encoding a &[u8] as string and not as list
-pub trait RlpEncodable {
+/// Structure encodable to RLP
+pub trait Encodable {
 	/// Append a value to the stream
 	fn rlp_append(&self, s: &mut RlpStream);
 

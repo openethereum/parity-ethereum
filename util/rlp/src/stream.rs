@@ -17,7 +17,7 @@
 use std::borrow::Borrow;
 use byteorder::{WriteBytesExt, BigEndian};
 use elastic_array::{ElasticArray16, ElasticArray1024};
-use traits::RlpEncodable;
+use traits::Encodable;
 
 #[derive(Debug, Copy, Clone)]
 struct ListInfo {
@@ -79,7 +79,7 @@ impl RlpStream {
 	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	pub fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: RlpEncodable {
+	pub fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: Encodable {
 		self.finished_list = false;
 		value.rlp_append(self);
 		if !self.finished_list {
@@ -89,11 +89,18 @@ impl RlpStream {
 	}
 
 	/// Appends list of values to the end of stream, chainable.
-	pub fn append_list<'a, E, K>(&'a mut self, values: &[K]) -> &'a mut Self where E: RlpEncodable, K: Borrow<E> {
+	pub fn append_list<'a, E, K>(&'a mut self, values: &[K]) -> &'a mut Self where E: Encodable, K: Borrow<E> {
 		self.begin_list(values.len());
 		for value in values {
 			self.append(value.borrow());
 		}
+		self
+	}
+
+	/// Appends value to the end of stream, but do not count it as an appended item.
+	/// It's useful for wrapper types
+	pub fn append_internal<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: Encodable {
+		value.rlp_append(self);
 		self
 	}
 

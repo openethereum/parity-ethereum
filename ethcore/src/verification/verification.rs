@@ -395,7 +395,7 @@ mod tests {
 	#[test]
 	#[cfg_attr(feature="dev", allow(similar_names))]
 	fn test_verify_block() {
-		use rlp::{RlpStream, Stream};
+		use rlp::RlpStream;
 
 		// Test against morden
 		let mut good = Header::new();
@@ -460,7 +460,7 @@ mod tests {
 
 		let good_uncles = vec![ good_uncle1.clone(), good_uncle2.clone() ];
 		let mut uncles_rlp = RlpStream::new();
-		uncles_rlp.append(&good_uncles);
+		uncles_rlp.append_list(&good_uncles);
 		let good_uncles_hash = uncles_rlp.as_raw().sha3();
 		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<UnverifiedTransaction>(t).to_vec()));
 

@@ -20,7 +20,7 @@ use block::Block;
 use header::Header;
 
 use views::BlockView;
-use rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
+use rlp::{DecoderError, RlpStream, UntrustedRlp, View};
 use util::{Bytes, Hashable, H256};
 use util::triehash::ordered_trie_root;
 
@@ -69,7 +69,9 @@ impl AbridgedBlock {
 			.append(&header.extra_data());
 
 		// write block values.
-		stream.append(&block_view.transactions()).append(&block_view.uncles());
+		stream
+			.append_list(&block_view.transactions())
+			.append_list(&block_view.uncles());
 
 		// write seal fields.
 		for field in seal_fields {
@@ -108,7 +110,7 @@ impl AbridgedBlock {
 		header.set_receipts_root(receipts_root);
 
 		let mut uncles_rlp = RlpStream::new();
-		uncles_rlp.append(&uncles);
+		uncles_rlp.append_list(&uncles);
 		header.set_uncles_hash(uncles_rlp.as_raw().sha3());
 
 		let mut seal_fields = Vec::new();

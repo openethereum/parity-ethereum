@@ -71,7 +71,7 @@ use std::borrow::Borrow;
 use elastic_array::ElasticArray1024;
 
 pub use error::DecoderError;
-pub use traits::{Decoder, Decodable, View, RlpEncodable, RlpDecodable, Compressible};
+pub use traits::{Decoder, Decodable, View, Encodable, RlpDecodable, Compressible};
 pub use untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
 pub use rlpin::{Rlp, RlpIterator};
 pub use stream::RlpStream;
@@ -109,13 +109,13 @@ pub fn decode<T>(bytes: &[u8]) -> T where T: RlpDecodable {
 /// 	assert_eq!(out, vec![0x83, b'c', b'a', b't']);
 /// }
 /// ```
-pub fn encode<E>(object: &E) -> ElasticArray1024<u8> where E: RlpEncodable {
+pub fn encode<E>(object: &E) -> ElasticArray1024<u8> where E: Encodable {
 	let mut stream = RlpStream::new();
 	stream.append(object);
 	stream.drain()
 }
 
-pub fn encode_list<E, K>(object: &[K]) -> ElasticArray1024<u8> where E: RlpEncodable, K: Borrow<E> {
+pub fn encode_list<E, K>(object: &[K]) -> ElasticArray1024<u8> where E: Encodable, K: Borrow<E> {
 	let mut stream = RlpStream::new();
 	stream.append_list(object);
 	stream.drain()

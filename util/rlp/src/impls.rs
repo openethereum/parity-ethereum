@@ -1,9 +1,9 @@
 use byteorder::{WriteBytesExt, BigEndian};
 use bigint::prelude::{Uint, U128, U256, H64, H128, H160, H256, H512, H520, H2048};
-use traits::RlpEncodable;
+use traits::Encodable;
 use stream::RlpStream;
 
-impl RlpEncodable for bool {
+impl Encodable for bool {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		if *self {
 			s.encoder().encode_value(&[1]);
@@ -13,29 +13,45 @@ impl RlpEncodable for bool {
 	}
 }
 
-impl<'a> RlpEncodable for &'a [u8] {
+impl<'a> Encodable for &'a [u8] {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.encoder().encode_value(self);
 	}
 }
 
-impl RlpEncodable for Vec<u8> {
+impl Encodable for Vec<u8> {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.encoder().encode_value(self);
 	}
 }
 
-impl RlpEncodable for u8 {
+impl<T> Encodable for Option<T> where T: Encodable {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		match *self {
+			None => {
+				s.begin_list(0);
+			},
+			Some(ref value) => {
+				s.begin_list(1);
+				s.append(value);
+			}
+		}
+	}
+}
+
+impl Encodable for u8 {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		if *self != 0 {
 			s.encoder().encode_value(&[*self]);
+		} else {
+			s.encoder().encode_value(&[]);
 		}
 	}
 }
 
 macro_rules! impl_encodable_for_u {
 	($name: ident, $func: ident, $size: expr) => {
-		impl RlpEncodable for $name {
+		impl Encodable for $name {
 			fn rlp_append(&self, s: &mut RlpStream) {
 				let leading_empty_bytes = self.leading_zeros() as usize / 8;
 				let mut buffer = [0u8; $size];
@@ -50,7 +66,7 @@ impl_encodable_for_u!(u16, write_u16, 2);
 impl_encodable_for_u!(u32, write_u32, 4);
 impl_encodable_for_u!(u64, write_u64, 8);
 
-impl RlpEncodable for usize {
+impl Encodable for usize {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		(*self as u64).rlp_append(s);
 	}
@@ -58,7 +74,7 @@ impl RlpEncodable for usize {
 
 macro_rules! impl_encodable_for_hash {
 	($name: ident) => {
-		impl RlpEncodable for $name {
+		impl Encodable for $name {
 			fn rlp_append(&self, s: &mut RlpStream) {
 				s.encoder().encode_value(self);
 			}
@@ -76,7 +92,7 @@ impl_encodable_for_hash!(H2048);
 
 macro_rules! impl_encodable_for_uint {
 	($name: ident, $size: expr) => {
-		impl RlpEncodable for $name {
+		impl Encodable for $name {
 			fn rlp_append(&self, s: &mut RlpStream) {
 				let leading_empty_bytes = $size - (self.bits() + 7) / 8;
 				let mut buffer = [0u8; $size];
@@ -90,13 +106,13 @@ macro_rules! impl_encodable_for_uint {
 impl_encodable_for_uint!(U256, 32);
 impl_encodable_for_uint!(U128, 16);
 
-impl<'a> RlpEncodable for &'a str {
+impl<'a> Encodable for &'a str {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.encoder().encode_value(self.as_bytes());
 	}
 }
 
-impl RlpEncodable for String {
+impl Encodable for String {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.encoder().encode_value(self.as_bytes());
 	}

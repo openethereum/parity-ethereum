@@ -20,7 +20,7 @@ use util::*;
 use super::{Height, View, BlockHash, Step};
 use error::Error;
 use header::Header;
-use rlp::{Rlp, UntrustedRlp, RlpStream, Stream, RlpEncodable, Encodable, Decodable, Decoder, DecoderError, View as RlpView};
+use rlp::{Rlp, UntrustedRlp, RlpStream, Encodable, Decodable, Decoder, DecoderError, View as RlpView};
 use ethkey::{recover, public_to_address};
 use super::super::vote_collector::Message;
 
@@ -162,7 +162,8 @@ impl Decodable for Step {
 
 impl Encodable for Step {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		RlpEncodable::rlp_append(&self.number(), s);
+		//s.append(&self.number());
+		s.append_internal(&self.number());
 	}
 }
 
@@ -278,6 +279,8 @@ mod tests {
 			::rlp::encode(&H520::default()).to_vec(),
 			Vec::new()
 		];
+
+		println!("seal: {:?}", seal);
 		header.set_seal(seal);
 		let message = ConsensusMessage::new_proposal(&header).unwrap();
 		assert_eq!(

@@ -16,7 +16,7 @@
 
 use std::{fmt, cmp};
 use bigint::prelude::U256;
-use {RlpEncodable, RlpDecodable, UntrustedRlp, RlpStream, View, DecoderError};
+use {Encodable, RlpDecodable, UntrustedRlp, RlpStream, View, DecoderError};
 
 #[test]
 fn rlp_at() {
@@ -83,10 +83,10 @@ fn rlp_iter() {
 	}
 }
 
-struct ETestPair<T>(T, Vec<u8>) where T: RlpEncodable;
+struct ETestPair<T>(T, Vec<u8>) where T: Encodable;
 
 fn run_encode_tests<T>(tests: Vec<ETestPair<T>>)
-	where T: RlpEncodable
+	where T: Encodable
 {
 	for t in &tests {
 		let res = super::encode(&t.0);
@@ -94,10 +94,10 @@ fn run_encode_tests<T>(tests: Vec<ETestPair<T>>)
 	}
 }
 
-struct VETestPair<T>(Vec<T>, Vec<u8>) where T: RlpEncodable;
+struct VETestPair<T>(Vec<T>, Vec<u8>) where T: Encodable;
 
 fn run_encode_tests_list<T>(tests: Vec<VETestPair<T>>)
-	where T: RlpEncodable
+	where T: Encodable
 {
 	for t in &tests {
 		let res = super::encode_list(&t.0);
