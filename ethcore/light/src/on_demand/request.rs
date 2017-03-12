@@ -323,7 +323,7 @@ mod tests {
 
 	#[test]
 	fn check_body() {
-		use rlp::{RlpStream, Stream};
+		use rlp::RlpStream;
 
 		let header = Header::new();
 		let mut body_stream = RlpStream::new_list(2);
@@ -360,7 +360,7 @@ mod tests {
 
 	#[test]
 	fn check_state_proof() {
-		use rlp::{RlpStream, Stream};
+		use rlp::RlpStream;
 
 		let mut root = H256::default();
 		let mut db = MemoryDB::new();
