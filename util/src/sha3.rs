@@ -19,7 +19,7 @@ extern crate sha3 as sha3_ext;
 
 use std::io;
 use tiny_keccak::Keccak;
-use hash::{H256, FixedHash};
+use hash::H256;
 use self::sha3_ext::*;
 
 /// Get the SHA3 (i.e. Keccak) hash of the empty bytes string.

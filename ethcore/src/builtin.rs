@@ -18,7 +18,7 @@ use crypto::sha2::Sha256 as Sha256Digest;
 use crypto::ripemd160::Ripemd160 as Ripemd160Digest;
 use crypto::digest::Digest;
 use std::cmp::min;
-use util::{U256, H256, Hashable, FixedHash, BytesRef};
+use util::{U256, H256, Hashable, BytesRef};
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 

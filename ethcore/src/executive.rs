@@ -509,7 +509,7 @@ mod tests {
 	use std::sync::Arc;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use util::{H256, U256, U512, Address, Uint, FixedHash, FromHex, FromStr};
+	use util::{H256, U256, U512, Address, Uint, FromHex, FromStr};
 	use util::bytes::BytesRef;
 	use action_params::{ActionParams, ActionValue};
 	use env_info::EnvInfo;

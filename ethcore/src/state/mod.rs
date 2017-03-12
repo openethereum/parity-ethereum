@@ -940,7 +940,7 @@ mod tests {
 	use rustc_serialize::hex::FromHex;
 	use super::*;
 	use ethkey::Secret;
-	use util::{U256, H256, FixedHash, Address, Hashable};
+	use util::{U256, H256, Address, Hashable};
 	use tests::helpers::*;
 	use devtools::*;
 	use env_info::EnvInfo;
