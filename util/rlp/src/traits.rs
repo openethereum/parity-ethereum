@@ -16,7 +16,6 @@
 
 //! Common RLP traits
 use elastic_array::ElasticArray1024;
-use bytes::VecLike;
 use stream::RlpStream;
 use {DecoderError, UntrustedRlp};
 
