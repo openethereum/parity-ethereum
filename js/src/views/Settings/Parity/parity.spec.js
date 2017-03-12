@@ -100,6 +100,7 @@ describe('views/Settings/Parity', () => {
         expect(instance.store.changeMode).to.have.been.calledWith('dark');
       });
     });
+
     describe('chain selector', () => {
       let select;
 
