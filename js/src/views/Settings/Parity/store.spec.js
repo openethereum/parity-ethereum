@@ -56,6 +56,7 @@ describe('views/Settings/Parity/Store', () => {
         expect(store.mode).to.equal('offline');
       });
     });
+
     describe('setChain', () => {
       it('sets the chain', () => {
         store.setChain('dev');
