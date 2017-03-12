@@ -17,7 +17,7 @@
 use std::collections::HashMap;
 use elastic_array::ElasticArray1024;
 use common::{BLOCKS_RLP_SWAPPER, SNAPSHOT_RLP_SWAPPER};
-use {UntrustedRlp, View, Compressible, encode, Stream, RlpStream};
+use {UntrustedRlp, View, Compressible, encode, RlpStream};
 
 /// Stores RLPs used for compression
 pub struct InvalidRlpSwapper<'a> {

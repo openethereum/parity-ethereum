@@ -16,7 +16,7 @@
 
 use std::{fmt, cmp};
 use bigint::prelude::U256;
-use {RlpEncodable, Encodable, RlpDecodable, UntrustedRlp, RlpStream, View, Stream, DecoderError};
+use {RlpEncodable, RlpDecodable, UntrustedRlp, RlpStream, View, DecoderError};
 
 #[test]
 fn rlp_at() {

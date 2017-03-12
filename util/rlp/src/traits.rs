@@ -225,8 +225,8 @@ pub trait View<'a, 'view>: Sized {
 	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: RlpDecodable;
 }
 
-/// Structure encodable to RLP. Implement this trait for
-pub trait Encodable {
+/// Encodable wrapper trait required to handle special case of encoding a &[u8] as string and not as list
+pub trait RlpEncodable {
 	/// Append a value to the stream
 	fn rlp_append(&self, s: &mut RlpStream);
 
@@ -236,112 +236,6 @@ pub trait Encodable {
 		self.rlp_append(&mut s);
 		s.drain()
 	}
-}
-
-/// Encodable wrapper trait required to handle special case of encoding a &[u8] as string and not as list
-pub trait RlpEncodable {
-	/// Append a value to the stream
-	fn rlp_append(&self, s: &mut RlpStream);
-}
-
-/// RLP encoding stream
-pub trait Stream: Sized {
-
-	/// Initializes instance of empty `Stream`.
-	fn new() -> Self;
-
-	/// Initializes the `Stream` as a list.
-	fn new_list(len: usize) -> Self;
-
-	/// Apends value to the end of stream, chainable.
-	///
-	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
-	///
-	/// fn main () {
-	/// 	let mut stream = RlpStream::new_list(2);
-	/// 	stream.append(&"cat").append(&"dog");
-	/// 	let out = stream.out();
-	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
-	/// }
-	/// ```
-	fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: RlpEncodable;
-
-	/// Declare appending the list of given size, chainable.
-	///
-	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
-	///
-	/// fn main () {
-	/// 	let mut stream = RlpStream::new_list(2);
-	/// 	stream.begin_list(2).append(&"cat").append(&"dog");
-	/// 	stream.append(&"");
-	/// 	let out = stream.out();
-	/// 	assert_eq!(out, vec![0xca, 0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g', 0x80]);
-	/// }
-	/// ```
-	fn begin_list(&mut self, len: usize) -> &mut Self;
-
-	/// Apends null to the end of stream, chainable.
-	///
-	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
-	///
-	/// fn main () {
-	/// 	let mut stream = RlpStream::new_list(2);
-	/// 	stream.append_empty_data().append_empty_data();
-	/// 	let out = stream.out();
-	/// 	assert_eq!(out, vec![0xc2, 0x80, 0x80]);
-	/// }
-	/// ```
-	fn append_empty_data(&mut self) -> &mut Self;
-
-	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
-	fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut Self;
-
-	/// Clear the output stream so far.
-	///
-	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
-	///
-	/// fn main () {
-	/// 	let mut stream = RlpStream::new_list(3);
-	/// 	stream.append(&"cat");
-	/// 	stream.clear();
-	/// 	stream.append(&"dog");
-	/// 	let out = stream.out();
-	/// 	assert_eq!(out, vec![0x83, b'd', b'o', b'g']);
-	/// }
-	fn clear(&mut self);
-
-	/// Returns true if stream doesnt expect any more items.
-	///
-	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
-	///
-	/// fn main () {
-	/// 	let mut stream = RlpStream::new_list(2);
-	/// 	stream.append(&"cat");
-	/// 	assert_eq!(stream.is_finished(), false);
-	/// 	stream.append(&"dog");
-	/// 	assert_eq!(stream.is_finished(), true);
-	/// 	let out = stream.out();
-	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
-	/// }
-	fn is_finished(&self) -> bool;
-
-	/// Get raw encoded bytes
-	fn as_raw(&self) -> &[u8];
-
-	/// Streams out encoded bytes.
-	///
-	/// panic! if stream is not finished.
-	fn out(self) -> Vec<u8>;
 }
 
 /// Trait for compressing and decompressing RLP by replacement of common terms.

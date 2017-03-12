@@ -15,10 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::borrow::Borrow;
+use byteorder::{WriteBytesExt, BigEndian};
 use elastic_array::{ElasticArray16, ElasticArray1024};
-use bytes::{ToBytes, VecLike};
 use traits::RlpEncodable;
-use Stream;
 
 #[derive(Debug, Copy, Clone)]
 struct ListInfo {
@@ -51,6 +50,7 @@ impl Default  for RlpStream {
 }
 
 impl RlpStream {
+	/// Initializes instance of empty `Stream`.
 	pub fn new() -> Self {
 		RlpStream {
 			unfinished_lists: ElasticArray16::new(),
@@ -59,12 +59,26 @@ impl RlpStream {
 		}
 	}
 
+	/// Initializes the `Stream` as a list.
 	pub fn new_list(len: usize) -> Self {
 		let mut stream = RlpStream::new();
 		stream.begin_list(len);
 		stream
 	}
 
+	/// Appends value to the end of stream, chainable.
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(2);
+	/// 	stream.append(&"cat").append(&"dog");
+	/// 	let out = stream.out();
+	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
+	/// }
+	/// ```
 	pub fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: RlpEncodable {
 		self.finished_list = false;
 		value.rlp_append(self);
@@ -74,6 +88,7 @@ impl RlpStream {
 		self
 	}
 
+	/// Appends list of values to the end of stream, chainable.
 	pub fn append_list<'a, E, K>(&'a mut self, values: &[K]) -> &'a mut Self where E: RlpEncodable, K: Borrow<E> {
 		self.begin_list(values.len());
 		for value in values {
@@ -82,6 +97,20 @@ impl RlpStream {
 		self
 	}
 
+	/// Declare appending the list of given size, chainable.
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(2);
+	/// 	stream.begin_list(2).append(&"cat").append(&"dog");
+	/// 	stream.append(&"");
+	/// 	let out = stream.out();
+	/// 	assert_eq!(out, vec![0xca, 0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g', 0x80]);
+	/// }
+	/// ```
 	pub fn begin_list(&mut self, len: usize) -> &mut RlpStream {
 		self.finished_list = false;
 		match len {
@@ -105,6 +134,19 @@ impl RlpStream {
 		self
 	}
 
+	/// Apends null to the end of stream, chainable.
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(2);
+	/// 	stream.append_empty_data().append_empty_data();
+	/// 	let out = stream.out();
+	/// 	assert_eq!(out, vec![0xc2, 0x80, 0x80]);
+	/// }
+	/// ```
 	pub fn append_empty_data(&mut self) -> &mut RlpStream {
 		// self push raw item
 		self.buffer.push(0x80);
@@ -116,6 +158,7 @@ impl RlpStream {
 		self
 	}
 
+	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
 	pub fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut RlpStream {
 		// push raw items
 		self.buffer.append_slice(bytes);
@@ -127,6 +170,20 @@ impl RlpStream {
 		self
 	}
 
+	/// Clear the output stream so far.
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(3);
+	/// 	stream.append(&"cat");
+	/// 	stream.clear();
+	/// 	stream.append(&"dog");
+	/// 	let out = stream.out();
+	/// 	assert_eq!(out, vec![0x83, b'd', b'o', b'g']);
+	/// }
 	pub fn clear(&mut self) {
 		// clear bytes
 		self.buffer.clear();
@@ -135,15 +192,34 @@ impl RlpStream {
 		self.unfinished_lists.clear();
 	}
 
+	/// Returns true if stream doesnt expect any more items.
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(2);
+	/// 	stream.append(&"cat");
+	/// 	assert_eq!(stream.is_finished(), false);
+	/// 	stream.append(&"dog");
+	/// 	assert_eq!(stream.is_finished(), true);
+	/// 	let out = stream.out();
+	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
+	/// }
 	pub fn is_finished(&self) -> bool {
 		self.unfinished_lists.len() == 0
 	}
 
+	/// Get raw encoded bytes
 	pub fn as_raw(&self) -> &[u8] {
 		//&self.encoder.bytes
 		&self.buffer
 	}
 
+	/// Streams out encoded bytes.
+	///
+	/// panic! if stream is not finished.
 	pub fn out(self) -> Vec<u8> {
 		match self.is_finished() {
 			//true => self.encoder.out().to_vec(),
@@ -203,46 +279,48 @@ impl<'a> BasicEncoder<'a> {
 		}
 	}
 
-	/// inserts list prefix at given position
-	fn insert_list_payload(&mut self, len: usize, pos: usize) -> () {
+	fn insert_size(&mut self, size: usize, position: usize) -> u8 {
+		let size = size as u32;
+		let leading_empty_bytes = size.leading_zeros() as usize / 8;
+		let size_bytes = 4 - leading_empty_bytes as u8;
+		let mut buffer = [0u8; 4];
+		(&mut buffer as &mut [u8]).write_u32::<BigEndian>(size).expect("buffer.len() == sizeof(value); qed");
+		self.buffer.insert_slice(position, &buffer[leading_empty_bytes..]);
+		size_bytes as u8
+	}
+
+	/// Inserts list prefix at given position
+	fn insert_list_payload(&mut self, len: usize, pos: usize) {
 		// 1 byte was already reserved for payload earlier
 		match len {
 			0...55 => {
 				self.buffer[pos - 1] = 0xc0u8 + len as u8;
 			},
 			_ => {
-				self.buffer[pos - 1] = 0xf7u8 + len.to_bytes_len() as u8;
-				let mut res = ElasticArray16::new();
-				ToBytes::to_bytes(&len, &mut res);
-				self.buffer.insert_slice(pos, &res);
+				let inserted_bytes = self.insert_size(len, pos);
+				self.buffer[pos - 1] = 0xf7u8 + inserted_bytes;
 			}
 		};
 	}
 
+	/// Pushes encoded value to the end of buffer
 	pub fn encode_value(&mut self, value: &[u8]) {
 		match value.len() {
 			// just 0
 			0 => self.buffer.push(0x80u8),
 			// byte is its own encoding if < 0x80
-			1 => {
-				self.buffer.append_slice(value);
-				let len = self.buffer.len();
-				let last_byte = self.buffer[len - 1];
-				if last_byte >= 0x80 {
-					self.buffer.push(last_byte);
-					self.buffer[len - 1] = 0x81;
-				}
-			}
+			1 if value[0] < 0x80 => self.buffer.push(value[0]),
 			// (prefix + length), followed by the string
-			len @ 2 ... 55 => {
+			len @ 1 ... 55 => {
 				self.buffer.push(0x80u8 + len as u8);
-				//value.to_bytes(self.buffer);
 				self.buffer.append_slice(value);
 			}
 			// (prefix + length of length), followed by the length, followd by the string
 			len => {
-				self.buffer.push(0xb7 + len.to_bytes_len() as u8);
-				ToBytes::to_bytes(&len, self.buffer);
+				self.buffer.push(0);
+				let position = self.buffer.len();
+				let inserted_bytes = self.insert_size(len, position);
+				self.buffer[position - 1] = 0xb7 + inserted_bytes;
 				self.buffer.append_slice(value);
 			}
 		}
