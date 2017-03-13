@@ -42,6 +42,7 @@ export default class NewQr extends Component {
     return (
       <Form>
         <InputAddress
+          allowCopy
           readOnly
           hint={
             <FormattedMessage
@@ -56,7 +57,6 @@ export default class NewQr extends Component {
             />
           }
           value={ qrAddress }
-          allowCopy={ qrAddress }
         />
         <Input
           autoFocus

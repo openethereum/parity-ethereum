@@ -187,11 +187,9 @@ class Accounts extends Component {
     const { wallets } = this.hwstore;
     const hardware = pickBy(accounts, (account) => account.hardware);
     const external = pickBy(accounts, (account) => account.external);
-    const all = hardware.concat(external);
-    const hasHardware = Object.keys(hardware).length > 0;
-    const hasExternal = Object.keys(external.length) > 0;
+    const all = Object.assign({}, hardware, external);
 
-    if (!hasExternal && !hasHardware) {
+    if (Object.keys(all).length === 0) {
       return null;
     }
 

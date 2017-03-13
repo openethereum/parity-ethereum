@@ -329,6 +329,8 @@ export default class Store {
   }
 
   createAccountFromQr = (timestamp = Date.now()) => {
+    this.setAddress(this.qrAddress);
+
     return this.setupMeta(this.qrAddress, timestamp, { external: true });
   }
 
