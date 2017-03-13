@@ -25,6 +25,9 @@ import { Form, Input, IdentityIcon, QrCode } from '~/ui';
 
 import styles from './transactionPendingFormConfirm.css';
 
+const QR_INVISIBLE = 0;
+const QR_VISIBLE = 1;
+
 export default class TransactionPendingFormConfirm extends Component {
   static propTypes = {
     account: PropTypes.object.isRequired,
@@ -43,6 +46,7 @@ export default class TransactionPendingFormConfirm extends Component {
 
   state = {
     password: '',
+    qrState: QR_INVISIBLE,
     wallet: null,
     walletError: null
   }
@@ -95,7 +99,8 @@ export default class TransactionPendingFormConfirm extends Component {
   render () {
     const { account, address, disabled, isSending } = this.props;
     const { wallet, walletError } = this.state;
-    const isWalletOk = account.hardware || account.uuid || (walletError === null && wallet !== null);
+    const isAccount = account.external || account.hardware || account.uuid;
+    const isWalletOk = isAccount || (walletError === null && wallet !== null);
 
     return (
       <div className={ styles.confirmForm }>
@@ -121,21 +126,7 @@ export default class TransactionPendingFormConfirm extends Component {
                   className={ styles.signerIcon }
                 />
               }
-              label={
-                isSending
-                  ? (
-                    <FormattedMessage
-                      id='signer.txPendingConfirm.buttons.confirmBusy'
-                      defaultMessage='Confirming...'
-                    />
-                  )
-                  : (
-                    <FormattedMessage
-                      id='signer.txPendingConfirm.buttons.confirmRequest'
-                      defaultMessage='Confirm Request'
-                    />
-                  )
-              }
+              label={ this.renderConfirmButton() }
               onTouchTap={ this.onConfirm }
               primary
             />
@@ -144,6 +135,36 @@ export default class TransactionPendingFormConfirm extends Component {
         </Form>
       </div>
     );
+  }
+
+  renderConfirmButton () {
+    const { account, isSending } = this.props;
+    const { qrState } = this.state;
+
+    if (account.external) {
+      if (qrState === QR_VISIBLE) {
+        return (
+          <FormattedMessage
+            id='signer.txPendingConfirm.buttons.confirmScan'
+            defaultMessage='Scan Signed QR'
+          />
+        );
+      }
+    }
+
+    return isSending
+      ? (
+        <FormattedMessage
+          id='signer.txPendingConfirm.buttons.confirmBusy'
+          defaultMessage='Confirming...'
+        />
+      )
+      : (
+        <FormattedMessage
+          id='signer.txPendingConfirm.buttons.confirmRequest'
+          defaultMessage='Confirm Request'
+        />
+      );
   }
 
   renderPassword () {
@@ -241,13 +262,17 @@ export default class TransactionPendingFormConfirm extends Component {
 
   renderQr () {
     const { account } = this.props;
+    const { qrState } = this.state;
 
-    if (!account.external) {
+    if (!account.external || qrState === QR_INVISIBLE) {
       return null;
     }
 
     return (
-      <QrCode value={ '' } />
+      <QrCode
+        className={ styles.qr }
+        value={ '' }
+      />
     );
   }
 
@@ -284,8 +309,8 @@ export default class TransactionPendingFormConfirm extends Component {
   renderTooltip () {
     const { account } = this.props;
 
-    if (this.state.password.length || account.hardware) {
-      return;
+    if (this.state.password.length || account.hardware || account.external) {
+      return null;
     }
 
     return (
@@ -348,7 +373,14 @@ export default class TransactionPendingFormConfirm extends Component {
   }
 
   onConfirm = () => {
-    const { password, wallet } = this.state;
+    const { account } = this.props;
+    const { password, qrState, wallet } = this.state;
+
+    if (account.external) {
+      if (qrState === QR_INVISIBLE) {
+        return this.setState({ qrState: QR_VISIBLE });
+      }
+    }
 
     this.props.onConfirm({
       password,
