@@ -215,6 +215,7 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 #[cfg_attr(feature = "dev", allow(too_many_arguments))]
 pub fn to_client_config(
 		cache_config: &CacheConfig,
+		spec_name: String,
 		mode: Mode,
 		tracing: bool,
 		fat_db: bool,
@@ -261,6 +262,7 @@ pub fn to_client_config(
 	client_config.vm_type = vm_type;
 	client_config.name = name;
 	client_config.verifier_type = if check_seal { VerifierType::Canon } else { VerifierType::CanonNoSeal };
+	client_config.spec_name = spec_name;
 	client_config
 }
 
@@ -479,4 +481,3 @@ but the first password is trimmed
 		assert_eq!(to_bootnodes(&Some(two_bootnodes.into())), Ok(vec![one_bootnode.into(), one_bootnode.into()]));
 	}
 }
-

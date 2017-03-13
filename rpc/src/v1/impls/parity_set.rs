@@ -156,6 +156,11 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 		Ok(true)
 	}
 
+	fn set_spec_name(&self, spec_name: String) -> Result<bool, Error> {
+		take_weak!(self.client).set_spec_name(spec_name);
+		Ok(true)
+	}
+
 	fn hash_content(&self, url: String) -> BoxFuture<H256, Error> {
 		self.fetch.process(self.fetch.fetch(&url).then(move |result| {
 			result
