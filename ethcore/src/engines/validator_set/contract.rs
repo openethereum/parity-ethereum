@@ -92,7 +92,7 @@ mod provider {
 	use std::result::Result;
 	use std::fmt;
 	use {util, ethabi};
-	use util::{FixedHash, Uint};
+	use util::{Uint};
 
 	pub struct Contract {
 		contract: ethabi::Contract,
@@ -108,7 +108,7 @@ mod provider {
 			}
 		}
 		fn as_string<T: fmt::Debug>(e: T) -> String { format!("{:?}", e) }
-		
+
 		/// Auto-generated from: `{"constant":false,"inputs":[{"name":"validator","type":"address"}],"name":"reportMalicious","outputs":[],"payable":false,"type":"function"}`
 		#[allow(dead_code)]
 		pub fn report_malicious(&self, validator: &util::Address) -> Result<(), String> {
@@ -117,7 +117,7 @@ mod provider {
 				vec![ethabi::Token::Address(validator.clone().0)]
 			).map_err(Self::as_string)?;
 			call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
-			
+
 			Ok(())
 		}
 
@@ -129,7 +129,7 @@ mod provider {
 				vec![ethabi::Token::Address(validator.clone().0)]
 			).map_err(Self::as_string)?;
 			call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
-			
+
 			Ok(())
 		}
 	}
@@ -159,7 +159,7 @@ mod tests {
 		assert!(vc.contains(&last_hash, &Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()));
 		assert!(vc.contains(&last_hash, &Address::from_str("82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap()));
 	}
-	
+
 	#[test]
 	fn reports_validators() {
 		let tap = Arc::new(AccountProvider::transient_provider());
@@ -173,12 +173,12 @@ mod tests {
 
 		client.miner().set_engine_signer(v1, "".into()).unwrap();
 		let mut header = Header::default();
-		let seal = vec![encode(&5u8).to_vec(), encode(&(&H520::default() as &[u8])).to_vec()];	
+		let seal = vec![encode(&5u8).to_vec(), encode(&(&H520::default() as &[u8])).to_vec()];
 		header.set_seal(seal);
 		header.set_author(v1);
 		header.set_number(2);
 		header.set_parent_hash(client.chain_info().best_block_hash);
-		
+
 		// `reportBenign` when the designated proposer releases block from the future (bad clock).
 		assert!(client.engine().verify_block_family(&header, &header, None).is_err());
 		// Seal a block.

@@ -25,7 +25,7 @@ use time::precise_time_ns;
 // util
 use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, MutexGuard, Hashable};
 use util::{journaldb, DBValue, TrieFactory, Trie};
-use util::{U256, H256, Address, H2048, Uint, FixedHash};
+use util::{U256, H256, Address, H2048, Uint};
 use util::trie::TrieSpec;
 use util::kvdb::*;
 
