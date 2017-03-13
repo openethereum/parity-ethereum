@@ -82,7 +82,7 @@ pub trait Provider: Send + Sync {
 			}
 		};
 
-		let headers = (0u64..req.max as u64)
+		let headers: Vec<_> = (0u64..req.max as u64)
 			.map(|x: u64| x.saturating_mul(req.skip + 1))
 			.take_while(|x| if req.reverse { x < &start_num } else { best_num.saturating_sub(start_num) >= *x })
 			.map(|x| if req.reverse { start_num - x } else { start_num + x })

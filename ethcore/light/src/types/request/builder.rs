@@ -21,7 +21,7 @@
 use std::collections::HashMap;
 use request::{
 	IncompleteRequest, CompleteRequest, Request,
-	OutputKind, Output, NoSuchOutput, Response,
+	OutputKind, Output, NoSuchOutput, Response, ResponseError,
 };
 
 /// Build chained requests. Push them onto the series with `push`,
@@ -34,7 +34,7 @@ pub struct RequestBuilder {
 
 impl RequestBuilder {
 	/// Attempt to push a request onto the request chain. Fails if the request
-	/// references a non-existant output of a prior request.
+	/// references a non-existent output of a prior request.
 	pub fn push(&mut self, request: Request) -> Result<(), NoSuchOutput> {
 		request.check_outputs(|req, idx, kind| {
 			match self.output_kinds.get(&(req, idx)) {
@@ -48,13 +48,17 @@ impl RequestBuilder {
 		Ok(())
 	}
 
+	/// Get a reference to the output kinds map.
+	pub fn output_kinds(&self) -> &HashMap<(usize, usize), OutputKind> {
+		&self.output_kinds
+	}
+
 	/// Convert this into a "requests" object.
 	pub fn build(self) -> Requests {
 		Requests {
-			output_kinds: self.output_kinds,
 			outputs: HashMap::new(),
 			requests: self.requests,
-			offset: 0,
+			answered: 0,
 		}
 	}
 }
@@ -62,49 +66,27 @@ impl RequestBuilder {
 /// Requests pending responses.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Requests {
-	output_kinds: HashMap<(usize, usize), OutputKind>,
 	outputs: HashMap<(usize, usize), Output>,
 	requests: Vec<Request>,
-	offset: usize, // offset for splitting.
+	answered: usize,
 }
 
 impl Requests {
 	/// For each request, produce responses for each.
 	/// The responses vector produced goes up to the point where the responder
 	/// first returns `None`, an invalid response, or until all requests have been responded to.
-	pub fn respond_to_all<F>(self, responder: F) -> Vec<Response>
+	pub fn respond_to_all<F>(mut self, responder: F) -> Vec<Response>
 		where F: Fn(CompleteRequest) -> Option<Response>
 	{
 		let mut responses = Vec::new();
-		let mut found_bad = false;
-		let offset = self.offset;
-		let output_kinds = self.output_kinds;
-		let mut outputs = self.outputs;
-		for (idx, req) in self.requests.into_iter().enumerate().map(|(idx, req)| (idx + offset, req)) {
-			let complete = req.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
-				.expect("All outputs checked as invariant of `Requests` object; qed");
 
-			match responder(complete) {
-				Some(response) => {
-					response.fill_outputs(|out_idx, output| {
-						match output_kinds.get(&(idx, out_idx)) {
-							None => {},
-							Some(out) => if out == &output.kind() {
-								outputs.insert((idx, out_idx), output);
-							} else {
-								// output kind doesn't match expected.
-								found_bad = true;
-							}
-						}
-					});
-
-					if found_bad {
-						return responses;
-					}
-
-					responses.push(response);
+		while let Some(response) = self.next_complete().and_then(&responder) {
+			match self.supply_response(&response) {
+				Ok(()) => responses.push(response),
+				Err(e) => {
+					debug!(target: "pip", "produced bad response to request: {:?}", e);
+					return responses;
 				}
-				None => return responses,
 			}
 		}
 
@@ -112,7 +94,44 @@ impl Requests {
 	}
 
 	/// Get access to the underlying slice of requests.
+	// TODO: unimplemented -> Vec<Request>, // do we _have to_ allocate?
 	pub fn requests(&self) -> &[Request] { &self.requests }
+
+	/// Get the number of answered requests.
+	pub fn num_answered(&self) -> usize { self.answered }
+
+	/// Get the next request as a filled request. Returns `None` when all requests answered.
+	pub fn next_complete(&self) -> Option<CompleteRequest> {
+		if self.answered == self.requests.len() {
+			None
+		} else {
+			let outputs = &self.outputs;
+			Some(self.requests[self.answered].clone()
+				.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
+				.expect("All outputs checked as invariant of `Requests` object; qed"))
+		}
+	}
+
+	/// Supply a response for the next request.
+	/// Fails on: wrong request kind, all requests answered already.
+	pub fn supply_response(&mut self, response: &Response) -> Result<(), ResponseError> {
+		let idx = self.answered;
+
+		// check validity.
+		if idx == self.requests.len() { return Err(ResponseError::Unexpected) }
+		if self.requests[idx].kind() != response.kind() { return Err(ResponseError::WrongKind) }
+
+		let outputs = &mut self.outputs;
+		response.fill_outputs(|out_idx, output| {
+			// we don't need to check output kinds here because all back-references
+			// are validated in the builder.
+			// TODO: optimization for only storing outputs we "care about"?
+			outputs.insert((idx, out_idx), output);
+		});
+
+		self.answered += 1;
+		Ok(())
+	}
 }
 
 #[cfg(test)]

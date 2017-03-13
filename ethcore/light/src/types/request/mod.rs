@@ -69,6 +69,15 @@ pub use self::builder::{RequestBuilder, Requests};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NoSuchOutput;
 
+/// Error on processing a response.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResponseError {
+	/// Wrong kind of response.
+	WrongKind,
+	/// No responses expected.
+	Unexpected,
+}
+
 /// An input to a request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Field<T> {
