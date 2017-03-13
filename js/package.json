@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "1.7.5",
+  "version": "1.7.12",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -201,6 +201,7 @@
     "scryptsy": "2.0.0",
     "solc": "ngotchac/solc-js",
     "store": "1.3.20",
+    "sw-toolbox": "^3.6.0",
     "u2f-api": "0.0.9",
     "u2f-api-polyfill": "0.4.3",
     "uglify-js": "2.8.2",
@@ -210,6 +211,7 @@
     "validator": "6.2.0",
     "web3": "0.17.0-beta",
     "whatwg-fetch": "2.0.1",
+    "worker-loader": "^0.8.0",
     "zxcvbn": "4.4.1"
   }
 }

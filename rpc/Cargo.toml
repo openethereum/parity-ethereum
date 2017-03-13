@@ -19,10 +19,10 @@ serde_json = "0.9"
 time = "0.1"
 transient-hashmap = "0.1"
 
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-ipc-server = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "master" }
+jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git", branch = "master" }
+jsonrpc-ipc-server = { git = "https://github.com/ethcore/jsonrpc.git", branch = "master" }
+jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git", branch = "master" }
 
 ethcore-io = { path = "../util/io" }
 ethcore-ipc = { path = "../ipc/rpc" }

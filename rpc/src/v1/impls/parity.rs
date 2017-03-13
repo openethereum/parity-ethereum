@@ -119,7 +119,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		let dapp_accounts = store
 			.note_dapp_used(dapp.clone().into())
 			.and_then(|_| store.dapp_addresses(dapp.into()))
-			.map_err(|e| errors::internal("Could not fetch accounts.", e))?
+			.map_err(|e| errors::account("Could not fetch accounts.", e))?
 			.into_iter().collect::<HashSet<_>>();
 
 		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
@@ -186,6 +186,10 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 
 	fn net_chain(&self) -> Result<String, Error> {
 		Ok(self.settings.chain.clone())
+	}
+
+	fn chain(&self) -> Result<String, Error> {
+		Ok(take_weak!(self.client).spec_name())
 	}
 
 	fn net_peers(&self) -> Result<Peers, Error> {

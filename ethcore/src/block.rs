@@ -21,7 +21,7 @@ use std::sync::Arc;
 use std::collections::HashSet;
 
 use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, Decoder, DecoderError, View, Stream};
-use util::{Bytes, Address, Uint, FixedHash, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP};
+use util::{Bytes, Address, Uint, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP};
 use util::error::{Mismatch, OutOfBounds};
 
 use basic_types::{LogBloom, Seal};
@@ -618,7 +618,6 @@ mod tests {
 	use state_db::StateDB;
 	use views::BlockView;
 	use util::Address;
-	use util::hash::FixedHash;
 	use std::sync::Arc;
 	use transaction::SignedTransaction;
 

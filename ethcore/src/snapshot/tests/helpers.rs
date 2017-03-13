@@ -22,7 +22,7 @@ use account_db::AccountDBMut;
 use rand::Rng;
 
 use util::DBValue;
-use util::hash::{FixedHash, H256};
+use util::hash::H256;
 use util::hashdb::HashDB;
 use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
 use util::trie::{TrieDB, TrieDBMut, Trie};

@@ -2175,7 +2175,7 @@ mod tests {
 	use tests::snapshot::TestSnapshotService;
 	use util::{Uint, U256, Address, RwLock};
 	use util::sha3::Hashable;
-	use util::hash::{H256, FixedHash};
+	use util::hash::H256;
 	use util::bytes::Bytes;
 	use rlp::{Rlp, RlpStream, UntrustedRlp, View, Stream};
 	use super::*;

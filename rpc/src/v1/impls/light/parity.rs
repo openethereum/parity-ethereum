@@ -87,7 +87,7 @@ impl Parity for ParityClient {
 		let dapp_accounts = store
 			.note_dapp_used(dapp.clone().into())
 			.and_then(|_| store.dapp_addresses(dapp.into()))
-			.map_err(|e| errors::internal("Could not fetch accounts.", e))?
+			.map_err(|e| errors::account("Could not fetch accounts.", e))?
 			.into_iter().collect::<HashSet<_>>();
 
 		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
@@ -301,6 +301,10 @@ impl Parity for ParityClient {
 
 	fn mode(&self) -> Result<String, Error> {
 		Err(errors::light_unimplemented(None))
+	}
+
+	fn chain(&self) -> Result<String, Error> {
+		Ok(self.settings.chain.clone())
 	}
 
 	fn enode(&self) -> Result<String, Error> {

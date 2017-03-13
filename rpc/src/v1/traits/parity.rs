@@ -76,7 +76,7 @@ build_rpc_trait! {
 		#[rpc(name = "parity_devLogsLevels")]
 		fn dev_logs_levels(&self) -> Result<String, Error>;
 
-		/// Returns chain name
+		/// Returns chain name - DEPRECATED. Use `parity_chainName` instead.
 		#[rpc(name = "parity_netChain")]
 		fn net_chain(&self) -> Result<String, Error>;
 
@@ -167,9 +167,13 @@ build_rpc_trait! {
 		#[rpc(async, name = "parity_nextNonce")]
 		fn next_nonce(&self, H160) -> BoxFuture<U256, Error>;
 
-		/// Get the mode. Results one of: "active", "passive", "dark", "offline".
+		/// Get the mode. Returns one of: "active", "passive", "dark", "offline".
 		#[rpc(name = "parity_mode")]
 		fn mode(&self) -> Result<String, Error>;
+
+		/// Get the chain name. Returns one of: "foundation", "kovan", &c. of a filename.
+		#[rpc(name = "parity_chain")]
+		fn chain(&self) -> Result<String, Error>;
 
 		/// Get the enode of this node.
 		#[rpc(name = "parity_enode")]

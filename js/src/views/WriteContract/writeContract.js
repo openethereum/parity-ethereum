@@ -105,7 +105,7 @@ class WriteContract extends Component {
               className={ styles.editor }
               style={ { flex: `${size}%` } }
             >
-              <h2>{ this.renderTitle() }</h2>
+              <h2>asd{ this.renderTitle() }</h2>
 
               <Editor
                 ref='editor'

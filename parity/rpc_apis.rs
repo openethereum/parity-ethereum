@@ -215,6 +215,7 @@ pub fn setup_rpc(stats: Arc<RpcStats>, deps: Arc<Dependencies>, apis: ApiSet) ->
 					&deps.miner,
 					&deps.external_miner,
 					EthClientOptions {
+						pending_nonce_from_queue: deps.geth_compatibility,
 						allow_pending_receipt_query: !deps.geth_compatibility,
 						send_block_number_in_get_work: !deps.geth_compatibility,
 					}

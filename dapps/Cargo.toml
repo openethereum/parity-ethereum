@@ -26,10 +26,10 @@ url = "1.0"
 zip = { version = "0.1", default-features = false }
 
 hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "master" }
+jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git", branch = "master" }
 # TODO [ToDr] Temporary solution, server should be merged with RPC.
-jsonrpc-server-utils = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-server-utils = { git = "https://github.com/ethcore/jsonrpc.git", branch = "master" }
 
 ethcore-devtools = { path = "../devtools" }
 ethcore-rpc = { path = "../rpc" }

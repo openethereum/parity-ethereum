@@ -23,7 +23,7 @@ use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
 use std::fmt;
 use std::collections::{HashMap, HashSet};
 use std::time::{Instant, Duration};
-use util::{FixedHash, RwLock};
+use util::{RwLock};
 use ethstore::{SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
 	random_string, SecretVaultRef, StoreAccountRef};
 use ethstore::dir::MemoryDirectory;
@@ -152,7 +152,7 @@ impl AccountProvider {
 					manager.set_key_path(if settings.hardware_wallet_classic_key { KeyPath::EthereumClassic } else { KeyPath::Ethereum });
 					hardware_store = Some(manager)
 				},
-				Err(e) => warn!("Error initializing hardware wallets: {}", e),
+				Err(e) => debug!("Error initializing hardware wallets: {}", e),
 			}
 		}
 		AccountProvider {

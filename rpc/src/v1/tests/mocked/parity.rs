@@ -286,6 +286,17 @@ fn rpc_parity_net_chain() {
 }
 
 #[test]
+fn rpc_parity_chain() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_chain", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"foundation","id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
 fn rpc_parity_net_peers() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
