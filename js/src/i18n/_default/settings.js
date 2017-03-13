@@ -57,17 +57,17 @@ export default {
       label: `Addressbook`
     },
     apps: {
-      description: `Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.`,
+      description: `Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with applications from around the network.`,
       label: `Applications`
     },
     contracts: {
       description: `Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focused environment, specifically for advanced users that understand the inner working of certain contracts.`,
       label: `Contracts`
     },
-    overview_0: `Manage the available application views, using only the parts of the application that is applicable to you.`,
-    overview_1: `Are you an end-user? The defaults are setups for both beginner and advanced users alike.`,
-    overview_2: `Are you a developer? Add some features to manage contracts are interact with application deployments.`,
-    overview_3: `Are you a miner or run a large-scale node? Add the features to give you all the information needed to watch the node operation.`,
+    overview_0: `Manage the available application views, using only the parts of the application applicable to you.`,
+    overview_1: `Are you an end-user? The defaults are setup for both beginner and advanced users alike.`,
+    overview_2: `Are you a developer? Add some features to manage contracts and interact with application deployments.`,
+    overview_3: `Are you a miner or do you run a large-scale node? Add the features to give you all the information needed to watch the node operation.`,
     settings: {
       description: `This view. Allows you to customize the application in term of options, operation and look and feel.`,
       label: `Settings`

@@ -45,19 +45,19 @@ class Views extends Component {
             <div>
               <FormattedMessage
                 id='settings.views.overview_0'
-                defaultMessage='Manage the available application views, using only the parts of the application that is applicable to you.'
+                defaultMessage='Manage the available application views using only the parts of the application applicable to you.'
               />
             </div>
             <div>
               <FormattedMessage
                 id='settings.views.overview_1'
-                defaultMessage='Are you an end-user? The defaults are setups for both beginner and advanced users alike.'
+                defaultMessage='Are you an end-user? The defaults are setup for both beginner and advanced users alike.'
               />
             </div>
             <div>
               <FormattedMessage
                 id='settings.views.overview_2'
-                defaultMessage='Are you a developer? Add some features to manage contracts are interact with application deployments.'
+                defaultMessage='Are you a developer? Add some features to manage contracts and interact with application deployments.'
               />
             </div>
             <div>
@@ -75,7 +75,7 @@ class Views extends Component {
                 />,
                 <FormattedMessage
                   id='settings.views.accounts.description'
-                  defaultMessage='A list of all the accounts associated to and imported into this Parity instance. Send transactions, receive incoming values, manage your balances and fund your accounts.'
+                  defaultMessage='A list of all the accounts associated with and imported into this Parity instance. Send transactions, receive incoming values, manage your balances and fund your accounts.'
                 />
               )
             }
@@ -86,7 +86,7 @@ class Views extends Component {
                 />,
                 <FormattedMessage
                   id='settings.views.addresses.description'
-                  defaultMessage='A list of all contacts and address book entries that is managed by this Parity instance. Watch accounts and have the details available at the click of a button when transacting.'
+                  defaultMessage='A list of all contacts and address book entries managed by this Parity instance. Watch accounts and have the details available at the click of a button when transacting.'
                 />
               )
             }
