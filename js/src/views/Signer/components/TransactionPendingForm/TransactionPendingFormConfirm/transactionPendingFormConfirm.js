@@ -142,13 +142,22 @@ export default class TransactionPendingFormConfirm extends Component {
     const { qrState } = this.state;
 
     if (account.external) {
-      if (qrState === QR_VISIBLE) {
-        return (
-          <FormattedMessage
-            id='signer.txPendingConfirm.buttons.confirmScan'
-            defaultMessage='Scan Signed QR'
-          />
-        );
+      switch (qrState) {
+        case QR_INVISIBLE:
+          return (
+            <FormattedMessage
+              id='signer.txPendingConfirm.buttons.confirmScan'
+              defaultMessage='External Confirm'
+            />
+          );
+
+        case QR_VISIBLE:
+          return (
+            <FormattedMessage
+              id='signer.txPendingConfirm.buttons.scanSigned'
+              defaultMessage='Scan Signed QR'
+            />
+          );
       }
     }
 
@@ -218,6 +227,31 @@ export default class TransactionPendingFormConfirm extends Component {
 
   renderHint () {
     const { account, disabled, isSending } = this.props;
+    const { qrState } = this.state;
+
+    if (account.external) {
+      switch (qrState) {
+        case QR_VISIBLE:
+          return (
+            <div className={ styles.passwordHint }>
+              <FormattedMessage
+                id='signer.sending.external.scanTx'
+                defaultMessage='Please scan the transaction QR on your external device'
+              />
+            </div>
+          );
+
+        case QR_INVISIBLE:
+          return (
+            <div className={ styles.passwordHint }>
+              <FormattedMessage
+                id='signer.sending.external.confirm'
+                defaultMessage='Create a transaction QR code for scanning on your external device'
+              />
+            </div>
+          );
+      }
+    }
 
     if (account.hardware) {
       if (isSending) {
@@ -271,6 +305,7 @@ export default class TransactionPendingFormConfirm extends Component {
     return (
       <QrCode
         className={ styles.qr }
+        size={ 5 }
         value={ '' }
       />
     );
