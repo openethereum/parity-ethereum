@@ -23,13 +23,12 @@
 #![feature(test)]
 
 extern crate test;
+extern crate ethcore_bigint as bigint;
 extern crate rlp;
-extern crate ethcore_util as util;
 
 use test::Bencher;
-use std::str::FromStr;
-use rlp::*;
-use util::U256;
+use bigint::prelude::U256;
+use rlp::{RlpStream, Rlp, View};
 
 #[bench]
 fn bench_stream_u64_value(b: &mut Bencher) {
@@ -56,9 +55,8 @@ fn bench_stream_u256_value(b: &mut Bencher) {
 	b.iter(|| {
 		// u256
 		let mut stream = RlpStream::new();
-		stream.append(&U256::from_str("8090a0b0c0d0e0f009102030405060770000000000000001000000000\
-		                               00012f0")
-			               .unwrap());
+		let uint: U256 = "8090a0b0c0d0e0f00910203040506077000000000000000100000000000012f0".into();
+		stream.append(&uint);
 		let _ = stream.out();
 	});
 }

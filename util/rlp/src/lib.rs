@@ -64,9 +64,6 @@ mod common;
 mod bytes;
 mod impls;
 
-#[cfg(test)]
-mod tests;
-
 use std::borrow::Borrow;
 use elastic_array::ElasticArray1024;
 
@@ -120,3 +117,4 @@ pub fn encode_list<E, K>(object: &[K]) -> ElasticArray1024<u8> where E: Encodabl
 	stream.append_list(object);
 	stream.drain()
 }
+

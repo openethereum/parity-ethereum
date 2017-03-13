@@ -14,9 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate ethcore_bigint as bigint;
+extern crate rlp;
+
 use std::{fmt, cmp};
 use bigint::prelude::U256;
-use {Encodable, RlpDecodable, UntrustedRlp, RlpStream, View, DecoderError};
+use rlp::{Encodable, RlpDecodable, UntrustedRlp, RlpStream, View, DecoderError};
 
 #[test]
 fn rlp_at() {
@@ -89,7 +92,7 @@ fn run_encode_tests<T>(tests: Vec<ETestPair<T>>)
 	where T: Encodable
 {
 	for t in &tests {
-		let res = super::encode(&t.0);
+		let res = rlp::encode(&t.0);
 		assert_eq!(&res[..], &t.1[..]);
 	}
 }
@@ -100,7 +103,7 @@ fn run_encode_tests_list<T>(tests: Vec<VETestPair<T>>)
 	where T: Encodable
 {
 	for t in &tests {
-		let res = super::encode_list(&t.0);
+		let res = rlp::encode_list(&t.0);
 		assert_eq!(&res[..], &t.1[..]);
 	}
 }
@@ -214,7 +217,7 @@ struct DTestPair<T>(T, Vec<u8>) where T: RlpDecodable + fmt::Debug + cmp::Eq;
 
 fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: RlpDecodable + fmt::Debug + cmp::Eq {
 	for t in &tests {
-		let res: T = super::decode(&t.1);
+		let res: T = rlp::decode(&t.1);
 		assert_eq!(res, t.0);
 	}
 }
@@ -343,8 +346,8 @@ fn decode_untrusted_vector_of_vectors_str() {
 #[test]
 fn test_decoding_array() {
 	let v = vec![5u16, 2u16];
-	let res = super::encode_list(&v);
-	let arr: [u16; 2] = super::decode(&res);
+	let res = rlp::encode_list(&v);
+	let arr: [u16; 2] = rlp::decode(&res);
 	assert_eq!(arr[0], 5);
 	assert_eq!(arr[1], 2);
 }
