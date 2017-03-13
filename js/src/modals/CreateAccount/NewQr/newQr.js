@@ -80,7 +80,7 @@ export default class NewQr extends Component {
           hint={
             <FormattedMessage
               id='createAccount.newQr.description.hint'
-              defaultMessage='a descriptive name for the account'
+              defaultMessage='a description for the account'
             />
           }
           label={

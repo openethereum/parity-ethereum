@@ -413,10 +413,34 @@ describe('modals/CreateAccount/Store', () => {
   });
 
   describe('operations', () => {
+    describe('setupMeta', () => {
+      beforeEach(() => {
+        store.setDescription('test description');
+        store.setName('test name');
+        store.setPasswordHint('some hint');
+
+        return store.setupMeta('testaddr', 'timestamp', { something: 'else' });
+      });
+
+      it('sets the name for the acocunt', () => {
+        expect(api.parity.setAccountName).to.have.been.calledWith('testaddr', 'test name');
+      });
+
+      it('sets the meta for the account', () => {
+        expect(api.parity.setAccountMeta).to.have.been.calledWith('testaddr', {
+          description: 'test description',
+          passwordHint: 'some hint',
+          something: 'else',
+          timestamp: 'timestamp'
+        });
+      });
+    });
+
     describe('createAccount', () => {
       let createAccountFromGethSpy;
       let createAccountFromWalletSpy;
       let createAccountFromPhraseSpy;
+      let createAccountFromQrSpy;
       let createAccountFromRawSpy;
       let busySpy;
 
@@ -424,6 +448,7 @@ describe('modals/CreateAccount/Store', () => {
         createAccountFromGethSpy = sinon.spy(store, 'createAccountFromGeth');
         createAccountFromWalletSpy = sinon.spy(store, 'createAccountFromWallet');
         createAccountFromPhraseSpy = sinon.spy(store, 'createAccountFromPhrase');
+        createAccountFromQrSpy = sinon.spy(store, 'createAccountFromQr');
         createAccountFromRawSpy = sinon.spy(store, 'createAccountFromRaw');
         busySpy = sinon.spy(store, 'setBusy');
       });
@@ -433,6 +458,7 @@ describe('modals/CreateAccount/Store', () => {
         store.createAccountFromWallet.restore();
         store.createAccountFromPhrase.restore();
         store.createAccountFromRaw.restore();
+        store.createAccountFromQr.restore();
         store.setBusy.restore();
       });
 
@@ -478,6 +504,14 @@ describe('modals/CreateAccount/Store', () => {
 
         return store.createAccount().then(() => {
           expect(createAccountFromWalletSpy).to.have.been.called;
+        });
+      });
+
+      it('calls createAccountFromQr on createType === fromQr', () => {
+        store.setCreateType('fromQr');
+
+        return store.createAccount().then(() => {
+          expect(createAccountFromQrSpy).to.have.been.called;
         });
       });
 
@@ -527,6 +561,8 @@ describe('modals/CreateAccount/Store', () => {
         it('sets the account meta', () => {
           return store.createAccountFromGeth(-1).then(() => {
             expect(store._api.parity.setAccountMeta).to.have.been.calledWith(GETH_ADDRESSES[0], {
+              description: 'Imported from Geth keystore',
+              passwordHint: '',
               timestamp: -1
             });
           });
@@ -563,6 +599,7 @@ describe('modals/CreateAccount/Store', () => {
         it('sets the account meta', () => {
           return store.createAccountFromPhrase(-1).then(() => {
             expect(store._api.parity.setAccountMeta).to.have.been.calledWith(ADDRESS, {
+              description: '',
               passwordHint: 'some hint',
               timestamp: -1
             });
@@ -581,6 +618,29 @@ describe('modals/CreateAccount/Store', () => {
           store.setPhrase('misjudged phrase');
           return store.createAccountFromPhrase().then(() => {
             expect(store._api.parity.newAccountFromPhrase).to.have.been.calledWith('misjudged phrase\r', 'P@55worD');
+          });
+        });
+      });
+
+      describe('createAccountFromQr', () => {
+        beforeEach(() => {
+          store.setName('some name');
+          store.setDescription('some desc');
+          store.setQrAddress('qrAddr');
+
+          return store.createAccountFromQr(-1);
+        });
+
+        it('sets the accountInfo name', () => {
+          expect(api.parity.setAccountName).to.have.been.calledWith('qrAddr', 'some name');
+        });
+
+        it('sets the meta (with extrenal flag)', () => {
+          expect(api.parity.setAccountMeta).to.have.been.calledWith('qrAddr', {
+            description: 'some desc',
+            passwordHint: '',
+            timestamp: -1,
+            external: true
           });
         });
       });
@@ -614,6 +674,7 @@ describe('modals/CreateAccount/Store', () => {
         it('sets the account meta', () => {
           return store.createAccountFromRaw(-1).then(() => {
             expect(store._api.parity.setAccountMeta).to.have.been.calledWith(ADDRESS, {
+              description: '',
               passwordHint: 'some hint',
               timestamp: -1
             });
@@ -650,6 +711,7 @@ describe('modals/CreateAccount/Store', () => {
         it('sets the account meta', () => {
           return store.createAccountFromWallet(-1).then(() => {
             expect(store._api.parity.setAccountMeta).to.have.been.calledWith(ADDRESS, {
+              description: '',
               passwordHint: 'some hint',
               timestamp: -1
             });

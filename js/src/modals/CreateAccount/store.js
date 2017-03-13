@@ -274,6 +274,9 @@ export default class Store {
       case 'fromPhrase':
         return this.createAccountFromPhrase();
 
+      case 'fromQr':
+        return this.createAccountFromQr();
+
       case 'fromRaw':
         return this.createAccountFromRaw();
 
@@ -288,17 +291,13 @@ export default class Store {
       .then((gethImported) => {
         console.log('createAccountFromGeth', gethImported);
 
+        this.setName('Geth Import');
+        this.setDescription('Imported from Geth keystore');
         this.setGethImported(gethImported);
 
-        return Promise
-          .all(gethImported.map((address) => {
-            return this._api.parity.setAccountName(address, 'Geth Import');
-          }))
-          .then(() => {
-            return Promise.all(gethImported.map((address) => {
-              return this._api.parity.setAccountMeta(address, { timestamp });
-            }));
-          });
+        return Promise.all(gethImported.map((address) => {
+          return this.setupMeta(address, timestamp);
+        }));
       })
       .catch((error) => {
         console.error('createAccountFromGeth', error);
@@ -321,17 +320,16 @@ export default class Store {
       .then((address) => {
         this.setAddress(address);
 
-        return this._api.parity
-          .setAccountName(address, this.name)
-          .then(() => this._api.parity.setAccountMeta(address, {
-            passwordHint: this.passwordHint,
-            timestamp
-          }));
+        return this.setupMeta(address, timestamp);
       })
       .catch((error) => {
         console.error('createAccount', error);
         throw error;
       });
+  }
+
+  createAccountFromQr = (timestamp = Date.now()) => {
+    return this.setupMeta(this.qrAddress, timestamp, { external: true });
   }
 
   createAccountFromRaw = (timestamp = Date.now()) => {
@@ -340,12 +338,7 @@ export default class Store {
       .then((address) => {
         this.setAddress(address);
 
-        return this._api.parity
-          .setAccountName(address, this.name)
-          .then(() => this._api.parity.setAccountMeta(address, {
-            passwordHint: this.passwordHint,
-            timestamp
-          }));
+        return this.setupMeta(address, timestamp);
       })
       .catch((error) => {
         console.error('createAccount', error);
@@ -359,17 +352,24 @@ export default class Store {
       .then((address) => {
         this.setAddress(address);
 
-        return this._api.parity
-          .setAccountName(address, this.name)
-          .then(() => this._api.parity.setAccountMeta(address, {
-            passwordHint: this.passwordHint,
-            timestamp
-          }));
+        return this.setupMeta(address, timestamp);
       })
       .catch((error) => {
         console.error('createAccount', error);
         throw error;
       });
+  }
+
+  setupMeta = (address, timestamp = Date.now(), extra = {}) => {
+    const meta = Object.assign({}, extra, {
+      description: this.description,
+      passwordHint: this.passwordHint,
+      timestamp
+    });
+
+    return this._api.parity
+      .setAccountName(address, this.name)
+      .then(() => this._api.parity.setAccountMeta(address, meta));
   }
 
   createIdentities = () => {
