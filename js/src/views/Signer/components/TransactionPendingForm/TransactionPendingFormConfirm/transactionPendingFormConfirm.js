@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import Transaction from 'ethereumjs-tx';
 import keycode from 'keycode';
 import RaisedButton from 'material-ui/RaisedButton';
 import React, { Component, PropTypes } from 'react';
@@ -21,6 +22,7 @@ import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
 
+import { inHex } from '~/api/format/input';
 import { Form, Input, IdentityIcon, QrCode } from '~/ui';
 
 import styles from './transactionPendingFormConfirm.css';
@@ -29,13 +31,19 @@ const QR_INVISIBLE = 0;
 const QR_VISIBLE = 1;
 
 export default class TransactionPendingFormConfirm extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     account: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
     disabled: PropTypes.bool,
+    focus: PropTypes.bool,
+    gasStore: PropTypes.object.isRequired,
     isSending: PropTypes.bool.isRequired,
     onConfirm: PropTypes.func.isRequired,
-    focus: PropTypes.bool
+    transaction: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -47,6 +55,7 @@ export default class TransactionPendingFormConfirm extends Component {
   state = {
     password: '',
     qrState: QR_INVISIBLE,
+    qrValue: null,
     wallet: null,
     walletError: null
   }
@@ -296,17 +305,18 @@ export default class TransactionPendingFormConfirm extends Component {
 
   renderQr () {
     const { account } = this.props;
-    const { qrState } = this.state;
+    const { qrState, qrValue } = this.state;
 
-    if (!account.external || qrState === QR_INVISIBLE) {
+    if (!account.external || qrState === QR_INVISIBLE || !qrValue) {
       return null;
     }
+
+    console.log('qrValue', qrValue);
 
     return (
       <QrCode
         className={ styles.qr }
-        size={ 5 }
-        value={ '' }
+        value={ qrValue }
       />
     );
   }
@@ -413,6 +423,7 @@ export default class TransactionPendingFormConfirm extends Component {
 
     if (account.external) {
       if (qrState === QR_INVISIBLE) {
+        this.generateTxQr();
         return this.setState({ qrState: QR_VISIBLE });
       }
     }
@@ -421,6 +432,27 @@ export default class TransactionPendingFormConfirm extends Component {
       password,
       wallet
     });
+  }
+
+  generateTxQr = () => {
+    const { api } = this.context;
+    const { transaction } = this.props;
+
+    // TODO: Move this to a store/utility?
+    return api.parity
+      .nextNonce(transaction.from)
+      .then((nonce) => {
+        const tx = new Transaction({
+          to: inHex(transaction.to),
+          nonce: inHex(transaction.nonce.isZero() ? nonce : transaction.nonce),
+          gasPrice: inHex(transaction.gasPrice),
+          gasLimit: inHex(transaction.gas),
+          value: inHex(transaction.value),
+          data: inHex(transaction.data)
+        });
+
+        this.setState({ qrValue: inHex(tx.serialize().toString('hex')) });
+      });
   }
 
   onKeyDown = (event) => {

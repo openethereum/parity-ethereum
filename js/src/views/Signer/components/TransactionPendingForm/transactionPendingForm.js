@@ -27,12 +27,14 @@ export default class TransactionPendingForm extends Component {
   static propTypes = {
     account: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
+    className: PropTypes.string,
     disabled: PropTypes.bool,
+    focus: PropTypes.bool,
+    gasStore: PropTypes.object.isRequired,
     isSending: PropTypes.bool.isRequired,
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
-    className: PropTypes.string,
-    focus: PropTypes.bool
+    transaction: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -55,7 +57,7 @@ export default class TransactionPendingForm extends Component {
   }
 
   renderForm () {
-    const { account, address, disabled, focus, isSending, onConfirm, onReject } = this.props;
+    const { account, address, disabled, focus, gasStore, isSending, onConfirm, onReject, transaction } = this.props;
 
     if (this.state.isRejectOpen) {
       return (
@@ -69,8 +71,10 @@ export default class TransactionPendingForm extends Component {
         account={ account }
         disabled={ disabled }
         focus={ focus }
+        gasStore={ gasStore }
         isSending={ isSending }
         onConfirm={ onConfirm }
+        transaction={ transaction }
       />
     );
   }

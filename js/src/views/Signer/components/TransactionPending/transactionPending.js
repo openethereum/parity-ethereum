@@ -127,9 +127,11 @@ class TransactionPending extends Component {
           address={ from }
           disabled={ disabled }
           focus={ focus }
+          gasStore={ this.gasStore }
           isSending={ isSending }
           onConfirm={ this.onConfirm }
           onReject={ this.onReject }
+          transaction={ transaction }
         />
       </div>
     );
