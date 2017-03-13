@@ -26,6 +26,7 @@ extern crate ethcore_ipc as ipc;
 extern crate ethcrypto;
 extern crate ethkey;
 
+mod key_server_cluster;
 mod types;
 
 mod traits {

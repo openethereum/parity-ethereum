@@ -130,3 +130,54 @@ impl Deref for Secret {
 		&self.inner
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use std::str::FromStr;
+	use super::super::{Random, Generator};
+	use super::Secret;
+
+	#[test]
+	fn multiplicating_secret_inversion_with_secret_gives_one() {
+		let secret = Random.generate().unwrap().secret().clone();
+		let mut inversion = secret.clone();
+		inversion.inv().unwrap();
+		inversion.mul(&secret).unwrap();
+		assert_eq!(inversion, Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap());
+	}
+
+	#[test]
+	fn secret_inversion_is_reversible_with_inversion() {
+		let secret = Random.generate().unwrap().secret().clone();
+		let mut inversion = secret.clone();
+		inversion.inv().unwrap();
+		inversion.inv().unwrap();
+		assert_eq!(inversion, secret);
+	}
+
+	#[test]
+	fn secret_pow() {
+		let secret = Random.generate().unwrap().secret().clone();
+
+		let mut pow0 = secret.clone();
+		pow0.pow(0).unwrap();
+		assert_eq!(pow0, Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap());
+
+		let mut pow1 = secret.clone();
+		pow1.pow(1).unwrap();
+		assert_eq!(pow1, secret);
+
+		let mut pow2 = secret.clone();
+		pow2.pow(2).unwrap();
+		let mut pow2_expected = secret.clone();
+		pow2_expected.mul(&secret).unwrap();
+		assert_eq!(pow2, pow2_expected);
+
+		let mut pow3 = secret.clone();
+		pow3.pow(3).unwrap();
+		let mut pow3_expected = secret.clone();
+		pow3_expected.mul(&secret).unwrap();
+		pow3_expected.mul(&secret).unwrap();
+		assert_eq!(pow3, pow3_expected);
+	}
+}
