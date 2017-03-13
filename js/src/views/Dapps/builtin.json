@@ -1,5 +1,13 @@
 [
   {
+    "url": "chaindeploy",
+    "name": "Chain Deployment",
+    "description": "Deploy all basic contracts, names & applications to the network",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "1.0.0",
+    "visible": false
+  },
+  {
     "id": "0xf9f2d620c2e08f83e45555247146c62185e4ab7cf82a4b9002a265a0d020348f",
     "url": "tokendeploy",
     "name": "Token Deployment",
