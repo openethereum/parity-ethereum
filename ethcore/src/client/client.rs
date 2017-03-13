@@ -151,8 +151,9 @@ pub struct Client {
 	factories: Factories,
 	history: u64,
 	rng: Mutex<OsRng>,
-	on_mode_change: Mutex<Option<Box<FnMut(&Mode) + 'static + Send>>>,
+	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
 	registrar: Mutex<Option<Registry>>,
+	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
 }
 
 impl Client {
@@ -240,8 +241,9 @@ impl Client {
 			factories: factories,
 			history: history,
 			rng: Mutex::new(OsRng::new().map_err(::util::UtilError::StdIo)?),
-			on_mode_change: Mutex::new(None),
+			on_user_defaults_change: Mutex::new(None),
 			registrar: Mutex::new(None),
+			exit_handler: Mutex::new(None),
 		});
 
 		{
@@ -276,6 +278,11 @@ impl Client {
 		self.notify.write().push(Arc::downgrade(&target));
 	}
 
+	/// Set a closure to call when we want to restart the client
+	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(bool, Option<String>) + 'static + Send {
+		*self.exit_handler.lock() = Some(Box::new(f));
+	}
+
 	/// Returns engine reference.
 	pub fn engine(&self) -> &Engine {
 		&*self.engine
@@ -294,9 +301,9 @@ impl Client {
 		self.registrar.lock()
 	}
 
-	/// Register an action to be done if a mode change happens.
-	pub fn on_mode_change<F>(&self, f: F) where F: 'static + FnMut(&Mode) + Send {
-		*self.on_mode_change.lock() = Some(Box::new(f));
+	/// Register an action to be done if a mode/spec_name change happens.
+	pub fn on_user_defaults_change<F>(&self, f: F) where F: 'static + FnMut(Option<Mode>) + Send {
+		*self.on_user_defaults_change.lock() = Some(Box::new(f));
 	}
 
 	/// Flush the block import queue.
@@ -650,7 +657,6 @@ impl Client {
 	pub fn miner(&self) -> Arc<Miner> {
 		self.miner.clone()
 	}
-
 
 	/// Replace io channel. Useful for testing.
 	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
@@ -1030,15 +1036,31 @@ impl BlockChainClient for Client {
 			let mut mode = self.mode.lock();
 			*mode = new_mode.clone().into();
 			trace!(target: "mode", "Mode now {:?}", &*mode);
-			if let Some(ref mut f) = *self.on_mode_change.lock() {
+			if let Some(ref mut f) = *self.on_user_defaults_change.lock() {
 				trace!(target: "mode", "Making callback...");
-				f(&*mode)
+				f(Some((&*mode).clone()))
 			}
 		}
 		match new_mode {
 			IpcMode::Active => self.wake_up(),
 			IpcMode::Off => self.sleep(),
 			_ => {(*self.sleep_state.lock()).last_activity = Some(Instant::now()); }
+		}
+	}
+
+	fn spec_name(&self) -> String {
+		self.config.spec_name.clone()
+	}
+
+	fn set_spec_name(&self, new_spec_name: String) {
+		trace!(target: "mode", "Client::set_spec_name({:?})", new_spec_name);
+		if !self.enabled.load(AtomicOrdering::Relaxed) {
+			return;
+		}
+		if let Some(ref h) = *self.exit_handler.lock() {
+			(*h)(true, Some(new_spec_name));
+		} else {
+			warn!("Not hypervised; cannot change chain.");
 		}
 	}
 
