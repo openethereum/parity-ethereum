@@ -20,11 +20,14 @@ import { flatten } from 'lodash';
 
 import * as abis from '~/contracts/abi';
 import Contracts from '~/contracts';
-import builtins from '~/views/Dapps/builtin.json';
+import builtinJson from '~/views/Dapps/builtin.json';
+
 import Dapp from './dappStore.js';
 import { deleteDapp, registerDapp, updateDapp } from './utils';
 
 import { api, trackRequest } from './parity';
+
+const builtins = builtinJson.filter((app) => app.id);
 
 let instance = null;
 

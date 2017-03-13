@@ -162,7 +162,6 @@ impl Decodable for Step {
 
 impl Encodable for Step {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		//s.append(&self.number());
 		s.append_internal(&self.number());
 	}
 }
@@ -280,7 +279,6 @@ mod tests {
 			Vec::new()
 		];
 
-		println!("seal: {:?}", seal);
 		header.set_seal(seal);
 		let message = ConsensusMessage::new_proposal(&header).unwrap();
 		assert_eq!(

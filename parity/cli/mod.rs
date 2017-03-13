@@ -90,7 +90,7 @@ usage! {
 		flag_release_track: String = "current", or |c: &Config| otry!(c.parity).release_track.clone(),
 		flag_no_download: bool = false, or |c: &Config| otry!(c.parity).no_download.clone(),
 		flag_no_consensus: bool = false, or |c: &Config| otry!(c.parity).no_consensus.clone(),
-		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
+		flag_chain: String = "foundation", or |c: &Config| otry!(c.parity).chain.clone(),
 		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
 

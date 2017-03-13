@@ -199,7 +199,7 @@ export default {
         '2017-01-20 18:14:19  Configured for DevelopmentChain using InstantSeal engine',
         '2017-01-20 18:14:19  Operating mode: active',
         '2017-01-20 18:14:19  State DB configuration: fast',
-        '2017-01-20 18:14:19  Starting Parity/v1.6.0-unstable-2ae8b4c-20170120/x86_64-linux-gnu/rustc1.14.0'
+        '2017-01-20 18:14:19  Starting Parity/v1.7.0-unstable-2ae8b4c-20170120/x86_64-linux-gnu/rustc1.14.0'
       ]
     }
   },

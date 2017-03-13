@@ -188,6 +188,10 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		Ok(self.settings.chain.clone())
 	}
 
+	fn chain(&self) -> Result<String, Error> {
+		Ok(take_weak!(self.client).spec_name())
+	}
+
 	fn net_peers(&self) -> Result<Peers, Error> {
 		let sync = take_weak!(self.sync);
 		let sync_status = sync.status();

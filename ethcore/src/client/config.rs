@@ -123,6 +123,8 @@ pub struct ClientConfig {
 	pub db_wal: bool,
 	/// Operating mode
 	pub mode: Mode,
+	/// The chain spec name
+	pub spec_name: String,
 	/// Type of block verifier used by client.
 	pub verifier_type: VerifierType,
 	/// State db cache-size.

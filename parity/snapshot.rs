@@ -173,6 +173,7 @@ impl SnapshotCommand {
 		// prepare client config
 		let client_config = to_client_config(
 			&self.cache_config,
+			spec.name.to_lowercase(),
 			Mode::Active,
 			tracing,
 			fat_db,
