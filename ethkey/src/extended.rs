@@ -18,7 +18,7 @@
 
 use secret::Secret;
 use Public;
-use bigint::hash::{H256, FixedHash};
+use bigint::hash::H256;
 pub use self::derivation::Error as DerivationError;
 
 /// Represents label that can be stored as a part of key derivation
@@ -212,7 +212,7 @@ mod derivation {
 	use rcrypto::hmac::Hmac;
 	use rcrypto::mac::Mac;
 	use rcrypto::sha2::Sha512;
-	use bigint::hash::{H512, H256, FixedHash};
+	use bigint::hash::{H512, H256};
 	use bigint::prelude::{U256, U512, Uint};
 	use secp256k1;
 	use secp256k1::key::{SecretKey, PublicKey};

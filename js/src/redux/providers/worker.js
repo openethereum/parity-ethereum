@@ -16,15 +16,22 @@
 
 import PromiseWorker from 'promise-worker';
 import runtime from 'serviceworker-webpack-plugin/lib/runtime';
+import WebWorker from 'worker-loader!~/webWorker.js';
 
 import { setWorker } from './workerActions';
 
-function getWorker () {
-  // Setup the Service Worker
-  if ('serviceWorker' in navigator) {
-    return runtime
-      .register()
-      .then(() => navigator.serviceWorker.ready)
+// Setup the Service Worker
+setupServiceWorker()
+  .then(() => console.log('SW is setup'))
+  .catch((error) => console.error('SW error', error));
+
+function setupServiceWorker () {
+  if (!('serviceWorker' in navigator)) {
+    return Promise.reject('Service Worker is not available in your browser.');
+  }
+
+  const getServiceWorker = () => {
+    return navigator.serviceWorker.ready
       .then((registration) => {
         const worker = registration.active;
 
@@ -32,9 +39,34 @@ function getWorker () {
 
         return new PromiseWorker(worker);
       });
-  }
+  };
 
-  return Promise.reject('Service Worker is not available in your browser.');
+  return new Promise((resolve, reject) => {
+    // Safe guard for registration bugs (happens in Chrome sometimes)
+    const timeoutId = window.setTimeout(() => {
+      console.warn('could not register SW after 2.5s');
+      getServiceWorker().then(resolve).catch(reject);
+    }, 2500);
+
+    // Setup the Service Worker
+    runtime
+      .register()
+      .then(() => {
+        window.clearTimeout(timeoutId);
+        return getServiceWorker();
+      })
+      .then(resolve).catch(reject);
+  });
+}
+
+function getWorker () {
+  try {
+    const worker = new PromiseWorker(new WebWorker());
+
+    return Promise.resolve(worker);
+  } catch (error) {
+    return Promise.reject(error);
+  }
 }
 
 export const setupWorker = (store) => {
@@ -43,27 +75,16 @@ export const setupWorker = (store) => {
   const state = getState();
   const stateWorker = state.worker.worker;
 
-  if (stateWorker !== undefined && !(stateWorker && stateWorker._worker.state === 'redundant')) {
+  if (stateWorker !== undefined) {
     return;
   }
 
   getWorker()
     .then((worker) => {
-      if (worker) {
-        worker._worker.addEventListener('statechange', (event) => {
-          console.warn('worker state changed to', worker._worker.state);
-
-          // Re-install the new Worker
-          if (worker._worker.state === 'redundant') {
-            setupWorker(store);
-          }
-        });
-      }
-
       dispatch(setWorker(worker));
     })
     .catch((error) => {
-      console.error('sw', error);
+      console.error('setupWorker', error);
       dispatch(setWorker(null));
     });
 };

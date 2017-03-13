@@ -122,7 +122,7 @@ mod stratum;
 use std::{process, env};
 use std::collections::HashMap;
 use std::io::{self as stdio, BufReader, Read, Write};
-use std::fs::File;
+use std::fs::{metadata, File};
 use std::path::PathBuf;
 use util::sha3::sha3;
 use cli::Args;
@@ -292,8 +292,19 @@ fn main() {
 			let latest_exe = latest_exe_path();
 			let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
 			let is_non_updated_current = exe.as_ref().map_or(false, |exe| latest_exe.as_ref().map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
-			trace_main!("Starting... (have-update: {}, non-updated-current: {})", have_update, is_non_updated_current);
-			let exit_code = if have_update && is_non_updated_current {
+			let update_is_newer = match (
+				latest_exe.as_ref()
+					.and_then(|p| metadata(p.as_path()).ok())
+					.and_then(|m| m.modified().ok()),
+				exe.as_ref()
+					.and_then(|p| metadata(p.as_path()).ok())
+					.and_then(|m| m.modified().ok())
+			) {
+				(Some(latest_exe_time), Some(this_exe_time)) if latest_exe_time > this_exe_time => true,
+				_ => false,
+			};
+ 			trace_main!("Starting... (have-update: {}, non-updated-current: {})", have_update, is_non_updated_current);		  			trace_main!("Starting... (have-update: {}, non-updated-current: {})", have_update, is_non_updated_current);
+			let exit_code = if have_update && is_non_updated_current && update_is_newer {
 				trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
 				run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct(true) })
 			} else {
