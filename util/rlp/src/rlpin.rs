@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
-use rustc_serialize::hex::ToHex;
-use {View, DecoderError, UntrustedRlp, PayloadInfo, Prototype, RlpDecodable};
+use {UntrustedRlp, PayloadInfo, Prototype, Decodable};
 
 impl<'a> From<UntrustedRlp<'a>> for Rlp<'a> {
 	fn from(rlp: UntrustedRlp<'a>) -> Rlp<'a> {
@@ -39,95 +38,76 @@ impl<'a> fmt::Display for Rlp<'a> {
 	}
 }
 
-impl<'a, 'view> View<'a, 'view> for Rlp<'a> where 'a: 'view {
-	type Prototype = Prototype;
-	type PayloadInfo = PayloadInfo;
-	type Data = &'a [u8];
-	type Item = Rlp<'a>;
-	type Iter = RlpIterator<'a, 'view>;
-
+impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// Create a new instance of `Rlp`
-	fn new(bytes: &'a [u8]) -> Rlp<'a> {
+	pub fn new(bytes: &'a [u8]) -> Rlp<'a> {
 		Rlp {
 			rlp: UntrustedRlp::new(bytes)
 		}
 	}
 
-	fn as_raw(&'view self) -> &'a [u8] {
+	pub fn as_raw(&'view self) -> &'a [u8] {
 		self.rlp.as_raw()
 	}
 
-	fn prototype(&self) -> Self::Prototype {
+	pub fn prototype(&self) -> Prototype {
 		self.rlp.prototype().unwrap()
 	}
 
-	fn payload_info(&self) -> Self::PayloadInfo {
+	pub fn payload_info(&self) -> PayloadInfo {
 		self.rlp.payload_info().unwrap()
 	}
 
-	fn data(&'view self) -> Self::Data {
+	pub fn data(&'view self) -> &'a [u8] {
 		self.rlp.data().unwrap()
 	}
 
-	fn item_count(&self) -> usize {
-		self.rlp.item_count()
+	pub fn item_count(&self) -> usize {
+		self.rlp.item_count().unwrap_or(0)
 	}
 
-	fn size(&self) -> usize {
+	pub fn size(&self) -> usize {
 		self.rlp.size()
 	}
 
-	fn at(&'view self, index: usize) -> Self::Item {
+	pub fn at(&'view self, index: usize) -> Rlp<'a> {
 		From::from(self.rlp.at(index).unwrap())
 	}
 
-	fn is_null(&self) -> bool {
+	pub fn is_null(&self) -> bool {
 		self.rlp.is_null()
 	}
 
-	fn is_empty(&self) -> bool {
+	pub fn is_empty(&self) -> bool {
 		self.rlp.is_empty()
 	}
 
-	fn is_list(&self) -> bool {
+	pub fn is_list(&self) -> bool {
 		self.rlp.is_list()
 	}
 
-	fn is_data(&self) -> bool {
+	pub fn is_data(&self) -> bool {
 		self.rlp.is_data()
 	}
 
-	fn is_int(&self) -> bool {
+	pub fn is_int(&self) -> bool {
 		self.rlp.is_int()
 	}
 
-	fn iter(&'view self) -> Self::Iter {
+	pub fn iter(&'view self) -> RlpIterator<'a, 'view> {
 		self.into_iter()
 	}
 
-	fn as_val<T>(&self) -> Result<T, DecoderError> where T: RlpDecodable {
-		self.rlp.as_val()
+	pub fn as_val<T>(&self) -> T where T: Decodable {
+		self.rlp.as_val().expect("Unexpected rlp error")
 	}
 
-	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: RlpDecodable {
-		self.at(index).rlp.as_val()
-	}
-}
-
-impl <'a, 'view> Rlp<'a> where 'a: 'view {
-	fn view_as_val<T, R>(r: &'view R) -> T where R: View<'a, 'view>, T: RlpDecodable {
-		let res: Result<T, DecoderError> = r.as_val();
-		res.unwrap_or_else(|e| panic!("DecodeError: {}, {}", e, r.as_raw().to_hex()))
+	pub fn as_list<T>(&self) -> Vec<T> where T: Decodable {
+		self.iter().map(|rlp| rlp.as_val()).collect()
 	}
 
-	/// Decode into an object
-	pub fn as_val<T>(&self) -> T where T: RlpDecodable {
-		Self::view_as_val(self)
-	}
-
-	/// Decode list item at given index into an object
-	pub fn val_at<T>(&self, index: usize) -> T where T: RlpDecodable {
-		Self::view_as_val(&self.at(index))
+	pub fn val_at<T>(&self, index: usize) -> T where T: Decodable {
+		self.at(index).as_val()
 	}
 }
 

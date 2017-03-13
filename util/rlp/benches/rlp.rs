@@ -91,11 +91,11 @@ fn bench_decode_nested_empty_lists(b: &mut Bencher) {
 		// [ [], [[]], [ [], [[]] ] ]
 		let data = vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0];
 		let rlp = Rlp::new(&data);
-		let _v0: Vec<u16> = rlp.val_at(0);
-		let _v1: Vec<Vec<u16>> = rlp.val_at(1);
+		let _v0: Vec<u16> = rlp.at(0).as_list();
+		let _v1: Vec<u16> = rlp.at(1).at(0).as_list();
 		let nested_rlp = rlp.at(2);
-		let _v2a: Vec<u16> = nested_rlp.val_at(0);
-		let _v2b: Vec<Vec<u16>> = nested_rlp.val_at(1);
+		let _v2a: Vec<u16> = nested_rlp.at(0).as_list();
+		let _v2b: Vec<u16> = nested_rlp.at(1).at(0).as_list();
 	});
 }
 

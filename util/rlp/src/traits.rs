@@ -19,28 +19,22 @@ use elastic_array::ElasticArray1024;
 use stream::RlpStream;
 use {DecoderError, UntrustedRlp};
 
-/// Type is able to decode RLP.
-pub trait Decoder: Sized {
-	/// Read a value from the RLP into a given type.
-	fn read_value<T, F>(&self, f: &F) -> Result<T, DecoderError>
-		where F: Fn(&[u8]) -> Result<T, DecoderError>;
+///// Type is able to decode RLP.
+//pub trait Decoder: Sized {
+	///// Read a value from the RLP into a given type.
+	//fn read_value<T, F>(&self, f: &F) -> Result<T, DecoderError>
+		//where F: Fn(&[u8]) -> Result<T, DecoderError>;
 
-	/// Get underlying `UntrustedRLP` object.
-	fn as_rlp(&self) -> &UntrustedRlp;
-	/// Get underlying raw bytes slice.
-	fn as_raw(&self) -> &[u8];
-}
+	///// Get underlying `UntrustedRLP` object.
+	//fn as_rlp(&self) -> &UntrustedRlp;
+	///// Get underlying raw bytes slice.
+	//fn as_raw(&self) -> &[u8];
+//}
 
 /// RLP decodable trait
 pub trait Decodable: Sized {
 	/// Decode a value from RLP bytes
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder;
-}
-
-/// Internal helper trait. Implement `Decodable` for custom types.
-pub trait RlpDecodable: Sized {
-	/// Decode a value from RLP bytes
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder;
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError>;
 }
 
 /// A view into RLP encoded data
@@ -218,10 +212,10 @@ pub trait View<'a, 'view>: Sized {
 	fn iter(&'view self) -> Self::Iter;
 
 	/// Decode data into an object
-	fn as_val<T>(&self) -> Result<T, DecoderError> where T: RlpDecodable;
+	fn as_val<T>(&self) -> Result<T, DecoderError> where T: Decodable;
 
 	/// Decode data at given list index into an object
-	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: RlpDecodable;
+	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: Decodable;
 }
 
 /// Structure encodable to RLP
