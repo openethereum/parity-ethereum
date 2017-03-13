@@ -18,10 +18,6 @@ import BalancesProvider from './balances';
 import { showSnackbar } from './snackbarActions';
 import { DEFAULT_NETCHAIN } from './statusReducer';
 
-// Reload the page on network switch after
-// 5 seconds
-const RELOAD_TIMEOUT = 5000;
-
 export default class ChainMiddleware {
   toMiddleware () {
     return (store) => (next) => (action) => {
@@ -33,12 +29,10 @@ export default class ChainMiddleware {
           const { nodeStatus } = store.getState();
 
           if (newChain !== nodeStatus.netChain && nodeStatus.netChain !== DEFAULT_NETCHAIN) {
-            const timeoutStr = Math.round(RELOAD_TIMEOUT / 1000);
-
-            store.dispatch(showSnackbar(`Switched to ${newChain}. The UI will reload in ${timeoutStr} seconds...`, RELOAD_TIMEOUT));
+            store.dispatch(showSnackbar(`Switched to ${newChain}. The UI will reload now...`));
             setTimeout(() => {
               window.location.reload();
-            }, RELOAD_TIMEOUT - 250);
+            }, 0);
 
             // Fetch the new balances without notifying the user of any change
             BalancesProvider.get(store).fetchAllBalances({
