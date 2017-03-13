@@ -93,7 +93,7 @@ export default class NewQr extends Component {
           value={ description }
         />
         <ChangeVault
-          store={ createStore }
+          createStore={ createStore }
           vaultStore={ vaultStore }
         />
       </Form>

@@ -134,11 +134,11 @@ const TYPES = [
 @observer
 export default class CreationType extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired
+    createStore: PropTypes.object.isRequired
   }
 
   render () {
-    const { createType } = this.props.store;
+    const { createType } = this.props.createStore;
 
     return (
       <div>
@@ -171,7 +171,7 @@ export default class CreationType extends Component {
         <div className={ styles.selectItem }>
           <TypeIcon
             className={ styles.icon }
-            store={ this.props.store }
+            createStore={ this.props.createStore }
             type={ item.key }
           />
           <Title
@@ -185,14 +185,14 @@ export default class CreationType extends Component {
   }
 
   isSelected = (item) => {
-    const { createType } = this.props.store;
+    const { createType } = this.props.createStore;
 
     return item.key === createType;
   }
 
   onChange = (item) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setCreateType(item.key);
+    createStore.setCreateType(item.key);
   }
 }

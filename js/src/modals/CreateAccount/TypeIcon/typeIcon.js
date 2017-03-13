@@ -23,13 +23,13 @@ import { STAGE_INFO } from '../store';
 export default class TypeIcon extends Component {
   static propTypes = {
     className: PropTypes.string,
-    store: PropTypes.object.isRequired,
+    createStore: PropTypes.object.isRequired,
     type: PropTypes.string
   }
 
   render () {
-    const { className, store, type } = this.props;
-    const { createType, stage } = store;
+    const { className, createStore, type } = this.props;
+    const { createType, stage } = createStore;
 
     if (stage === STAGE_INFO) {
       return <DoneIcon className={ className } />;

@@ -91,7 +91,7 @@ class CreateAccount extends Component {
     onUpdate: PropTypes.func
   }
 
-  store = new Store(this.context.api, this.props.accounts);
+  createStore = new Store(this.context.api, this.props.accounts);
   vaultStore = VaultStore.get(this.context.api);
 
   componentWillMount () {
@@ -99,7 +99,7 @@ class CreateAccount extends Component {
   }
 
   render () {
-    const { isBusy, createType, stage } = this.store;
+    const { isBusy, createType, stage } = this.createStore;
 
     let steps = STAGE_IMPORT;
 
@@ -118,7 +118,7 @@ class CreateAccount extends Component {
         open
         steps={ steps }
       >
-        <ModalBox icon={ <TypeIcon store={ this.store } /> }>
+        <ModalBox icon={ <TypeIcon createStore={ this.createStore } /> }>
           { this.renderPage() }
         </ModalBox>
       </Portal>
@@ -126,12 +126,12 @@ class CreateAccount extends Component {
   }
 
   renderPage () {
-    const { createType, stage } = this.store;
+    const { createType, stage } = this.createStore;
 
     switch (stage) {
       case STAGE_SELECT_TYPE:
         return (
-          <CreationType store={ this.store } />
+          <CreationType createStore={ this.createStore } />
         );
 
       case STAGE_CREATE:
@@ -139,7 +139,7 @@ class CreateAccount extends Component {
           return (
             <NewAccount
               newError={ this.props.newError }
-              store={ this.store }
+              createStore={ this.createStore }
               vaultStore={ this.vaultStore }
             />
           );
@@ -147,14 +147,14 @@ class CreateAccount extends Component {
 
         if (createType === 'fromGeth') {
           return (
-            <NewGeth store={ this.store } />
+            <NewGeth createStore={ this.createStore } />
           );
         }
 
         if (createType === 'fromPhrase') {
           return (
             <RecoveryPhrase
-              store={ this.store }
+              createStore={ this.createStore }
               vaultStore={ this.vaultStore }
             />
           );
@@ -163,7 +163,7 @@ class CreateAccount extends Component {
         if (createType === 'fromQr') {
           return (
             <NewQr
-              createStore={ this.store }
+              createStore={ this.createStore }
               vaultStore={ this.vaultStore }
             />
           );
@@ -172,7 +172,7 @@ class CreateAccount extends Component {
         if (createType === 'fromRaw') {
           return (
             <RawKey
-              store={ this.store }
+              createStore={ this.createStore }
               vaultStore={ this.vaultStore }
             />
           );
@@ -180,7 +180,7 @@ class CreateAccount extends Component {
 
         return (
           <NewImport
-            store={ this.store }
+            createStore={ this.createStore }
             vaultStore={ this.vaultStore }
           />
         );
@@ -188,18 +188,18 @@ class CreateAccount extends Component {
       case STAGE_INFO:
         if (createType === 'fromGeth') {
           return (
-            <AccountDetailsGeth store={ this.store } />
+            <AccountDetailsGeth createStore={ this.createStore } />
           );
         }
 
         return (
-          <AccountDetails store={ this.store } />
+          <AccountDetails createStore={ this.createStore } />
         );
     }
   }
 
   renderDialogActions () {
-    const { createType, canCreate, isBusy, stage } = this.store;
+    const { createType, canCreate, isBusy, stage } = this.createStore;
 
     const cancelBtn = (
       <Button
@@ -228,7 +228,7 @@ class CreateAccount extends Component {
                 defaultMessage='Next'
               />
             }
-            onClick={ this.store.nextStage }
+            onClick={ this.createStore.nextStage }
           />
         ];
 
@@ -244,7 +244,7 @@ class CreateAccount extends Component {
                 defaultMessage='Back'
               />
             }
-            onClick={ this.store.prevStage }
+            onClick={ this.createStore.prevStage }
           />,
           <Button
             disabled={ !canCreate || isBusy }
@@ -302,17 +302,17 @@ class CreateAccount extends Component {
   }
 
   onCreate = () => {
-    this.store.setBusy(true);
+    this.createStore.setBusy(true);
 
-    return this.store
+    return this.createStore
       .createAccount(this.vaultStore)
       .then(() => {
-        this.store.setBusy(false);
-        this.store.nextStage();
+        this.createStore.setBusy(false);
+        this.createStore.nextStage();
         this.props.onUpdate && this.props.onUpdate();
       })
       .catch((error) => {
-        this.store.setBusy(false);
+        this.createStore.setBusy(false);
         this.props.newError(error);
       });
   }
@@ -322,7 +322,7 @@ class CreateAccount extends Component {
   }
 
   printPhrase = () => {
-    const { address, name, phrase } = this.store;
+    const { address, name, phrase } = this.createStore;
     const identity = createIdentityImg(address);
 
     print(recoveryPage({
