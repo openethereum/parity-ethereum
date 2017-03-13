@@ -21,7 +21,7 @@ import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
 
-import { Form, Input, IdentityIcon } from '~/ui';
+import { Form, Input, IdentityIcon, QrCode } from '~/ui';
 
 import styles from './transactionPendingFormConfirm.css';
 
@@ -101,6 +101,7 @@ export default class TransactionPendingFormConfirm extends Component {
       <div className={ styles.confirmForm }>
         <Form>
           { this.renderKeyInput() }
+          { this.renderQr() }
           { this.renderPassword() }
           { this.renderHint() }
           <div
@@ -149,7 +150,7 @@ export default class TransactionPendingFormConfirm extends Component {
     const { account } = this.props;
     const { password } = this.state;
 
-    if (account && account.hardware) {
+    if (account && (account.hardware || account.external)) {
       return null;
     }
 
@@ -238,11 +239,23 @@ export default class TransactionPendingFormConfirm extends Component {
     );
   }
 
+  renderQr () {
+    const { account } = this.props;
+
+    if (!account.external) {
+      return null;
+    }
+
+    return (
+      <QrCode value={ '' } />
+    );
+  }
+
   renderKeyInput () {
     const { account } = this.props;
     const { walletError } = this.state;
 
-    if (account.uuid || account.wallet || account.hardware) {
+    if (account.uuid || account.wallet || account.hardware || account.external) {
       return null;
     }
 
