@@ -346,7 +346,7 @@ fn rpc_parity_unsigned_transactions_count_when_signer_disabled() {
 	let io = deps.default_client();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_unsignedTransactionsCount", "params":[], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32030,"message":"Trusted Signer is disabled. This API is not available.","data":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32030,"message":"Trusted Signer is disabled. This API is not available."},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -382,7 +382,7 @@ fn rpc_parity_signer_port() {
 	// when
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_signerPort", "params": [], "id": 1}"#;
 	let response1 = r#"{"jsonrpc":"2.0","result":18180,"id":1}"#;
-	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32030,"message":"Trusted Signer is disabled. This API is not available.","data":null},"id":1}"#;
+	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32030,"message":"Trusted Signer is disabled. This API is not available."},"id":1}"#;
 
 	// then
 	assert_eq!(io1.handle_request_sync(request), Some(response1.to_owned()));
@@ -400,7 +400,7 @@ fn rpc_parity_dapps_port() {
 	// when
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_dappsPort", "params": [], "id": 1}"#;
 	let response1 = r#"{"jsonrpc":"2.0","result":18080,"id":1}"#;
-	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32031,"message":"Dapps Server is disabled. This API is not available.","data":null},"id":1}"#;
+	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32031,"message":"Dapps Server is disabled. This API is not available."},"id":1}"#;
 
 	// then
 	assert_eq!(io1.handle_request_sync(request), Some(response1.to_owned()));
@@ -418,7 +418,7 @@ fn rpc_parity_dapps_interface() {
 	// when
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_dappsInterface", "params": [], "id": 1}"#;
 	let response1 = r#"{"jsonrpc":"2.0","result":"127.0.0.1","id":1}"#;
-	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32031,"message":"Dapps Server is disabled. This API is not available.","data":null},"id":1}"#;
+	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32031,"message":"Dapps Server is disabled. This API is not available."},"id":1}"#;
 
 	// then
 	assert_eq!(io1.handle_request_sync(request), Some(response1.to_owned()));

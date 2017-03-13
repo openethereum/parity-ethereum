@@ -18,19 +18,18 @@ use std::fmt;
 use std::sync::Arc;
 use std::net::SocketAddr;
 use std::io;
-use io::PanicHandler;
 
 use dir::default_data_path;
-use ethcore_rpc::{self as rpc, RpcServerError, IpcServerError, Metadata, Origin};
+use ethcore_rpc::{self as rpc, HttpServerError, IpcServerError, Metadata, Origin, AccessControlAllowOrigin, Host};
 use ethcore_rpc::informant::{RpcStats, Middleware};
 use helpers::parity_ipc_path;
 use hyper;
 use jsonrpc_core::MetaIoHandler;
-use jsonrpc_core::reactor::{RpcHandler, Remote};
 use rpc_apis;
 use rpc_apis::ApiSet;
+use parity_reactor::TokioRemote;
 
-pub use ethcore_rpc::{IpcServer, Server as HttpServer};
+pub use ethcore_rpc::{IpcServer, HttpServer};
 
 #[derive(Debug, PartialEq)]
 pub struct HttpConfiguration {
@@ -84,9 +83,8 @@ impl fmt::Display for IpcConfiguration {
 }
 
 pub struct Dependencies {
-	pub panic_handler: Arc<PanicHandler>,
 	pub apis: Arc<rpc_apis::Dependencies>,
-	pub remote: Remote,
+	pub remote: TokioRemote,
 	pub stats: Arc<RpcStats>,
 }
 
@@ -123,12 +121,13 @@ pub fn setup_http_rpc_server(
 	allowed_hosts: Option<Vec<String>>,
 	apis: ApiSet
 ) -> Result<HttpServer, String> {
-	let apis = setup_apis(apis, dependencies);
-	let handler = RpcHandler::new(Arc::new(apis), dependencies.remote.clone());
-	let ph = dependencies.panic_handler.clone();
-	let start_result = rpc::start_http(url, cors_domains, allowed_hosts, ph, handler, RpcExtractor);
+	let handler = setup_apis(apis, dependencies);
+	let remote = dependencies.remote.clone();
+	let cors_domains: Option<Vec<_>> = cors_domains.map(|domains| domains.into_iter().map(AccessControlAllowOrigin::from).collect());
+	let allowed_hosts: Option<Vec<_>> = allowed_hosts.map(|hosts| hosts.into_iter().map(Host::from).collect());
+	let start_result = rpc::start_http(url, cors_domains.into(), allowed_hosts.into(), handler, remote, RpcExtractor);
 	match start_result {
-		Err(RpcServerError::IoError(err)) => match err.kind() {
+		Err(HttpServerError::IoError(err)) => match err.kind() {
 			io::ErrorKind::AddrInUse => Err(format!("RPC address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)),
 			_ => Err(format!("RPC io error: {}", err)),
 		},
@@ -143,9 +142,9 @@ pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<Ipc
 }
 
 pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer<Metadata, Middleware>, String> {
-	let apis = setup_apis(apis, dependencies);
-	let handler = RpcHandler::new(Arc::new(apis), dependencies.remote.clone());
-	match rpc::start_ipc(addr, handler) {
+	let handler = setup_apis(apis, dependencies);
+	let remote = dependencies.remote.clone();
+	match rpc::start_ipc(addr, handler, remote) {
 		Err(IpcServerError::Io(io_error)) => Err(format!("RPC io error: {}", io_error)),
 		Err(any_error) => Err(format!("Rpc error: {:?}", any_error)),
 		Ok(server) => Ok(server)

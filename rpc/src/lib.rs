@@ -19,31 +19,32 @@
 #![cfg_attr(feature="nightly", feature(plugin))]
 #![cfg_attr(feature="nightly", plugin(clippy))]
 
-extern crate semver;
-extern crate rustc_serialize;
-extern crate serde;
-extern crate serde_json;
-extern crate jsonrpc_core;
-extern crate jsonrpc_http_server;
-
-extern crate ethcore_io as io;
-extern crate ethcore;
-extern crate ethkey;
-extern crate ethcrypto as crypto;
-extern crate ethstore;
-extern crate ethsync;
-extern crate ethash;
-extern crate ethcore_light as light;
-extern crate transient_hashmap;
-extern crate jsonrpc_ipc_server as ipc;
-extern crate ethcore_ipc;
-extern crate time;
-extern crate rlp;
-extern crate fetch;
 extern crate futures;
 extern crate order_stat;
-extern crate parity_updater as updater;
+extern crate rustc_serialize;
+extern crate semver;
+extern crate serde;
+extern crate serde_json;
+extern crate time;
+extern crate transient_hashmap;
+
+extern crate jsonrpc_core;
+pub extern crate jsonrpc_http_server as http;
+pub extern crate jsonrpc_ipc_server as ipc;
+
+extern crate ethash;
+extern crate ethcore;
+extern crate ethcore_io as io;
+extern crate ethcore_ipc;
+extern crate ethcore_light as light;
+extern crate ethcrypto as crypto;
+extern crate ethkey;
+extern crate ethstore;
+extern crate ethsync;
+extern crate fetch;
 extern crate parity_reactor;
+extern crate parity_updater as updater;
+extern crate rlp;
 extern crate stats;
 
 #[macro_use]
@@ -60,57 +61,50 @@ extern crate ethjson;
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
 
-use std::sync::Arc;
-use std::net::SocketAddr;
-use io::PanicHandler;
-use jsonrpc_core::reactor::RpcHandler;
+pub mod v1;
 
 pub use ipc::{Server as IpcServer, Error as IpcServerError};
-pub use jsonrpc_http_server::{ServerBuilder, Server, RpcServerError, HttpMetaExtractor};
-pub mod v1;
+pub use http::{HttpMetaExtractor, Server as HttpServer, Error as HttpServerError, AccessControlAllowOrigin, Host};
+
 pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings, Metadata, Origin, informant, dispatch};
 pub use v1::block_import::is_major_importing;
 
+use std::net::SocketAddr;
+use http::tokio_core;
+
 /// Start http server asynchronously and returns result with `Server` handle on success or an error.
-pub fn start_http<M, T, S>(
+pub fn start_http<M, S, H, T>(
 	addr: &SocketAddr,
-	cors_domains: Option<Vec<String>>,
-	allowed_hosts: Option<Vec<String>>,
-	panic_handler: Arc<PanicHandler>,
-	handler: RpcHandler<M, S>,
+	cors_domains: http::DomainsValidation<http::AccessControlAllowOrigin>,
+	allowed_hosts: http::DomainsValidation<http::Host>,
+	handler: H,
+	remote: tokio_core::reactor::Remote,
 	extractor: T,
-) -> Result<Server, RpcServerError> where
+) -> Result<HttpServer, HttpServerError> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
+	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
 	T: HttpMetaExtractor<M>,
 {
-
-	let cors_domains = cors_domains.map(|domains| {
-		domains.into_iter()
-			.map(|v| match v.as_str() {
-				"*" => jsonrpc_http_server::AccessControlAllowOrigin::Any,
-				"null" => jsonrpc_http_server::AccessControlAllowOrigin::Null,
-				v => jsonrpc_http_server::AccessControlAllowOrigin::Value(v.into()),
-			})
-			.collect()
-	});
-
-	ServerBuilder::with_rpc_handler(handler)
-		.meta_extractor(Arc::new(extractor))
+	http::ServerBuilder::new(handler)
+		.event_loop_remote(remote)
+		.meta_extractor(extractor)
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into())
-		.panic_handler(move || {
-			panic_handler.notify_all("Panic in RPC thread.".to_owned());
-		})
 		.start_http(addr)
 }
 
 /// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
-pub fn start_ipc<M: jsonrpc_core::Metadata, S: jsonrpc_core::Middleware<M>>(
+pub fn start_ipc<M, S, H>(
 	addr: &str,
-	handler: RpcHandler<M, S>,
-) -> Result<ipc::Server<M, S>, ipc::Error> {
-	let server = ipc::Server::with_rpc_handler(addr, handler)?;
+	handler: H,
+	remote: tokio_core::reactor::Remote,
+) -> Result<ipc::Server<M, S>, ipc::Error> where
+	M: jsonrpc_core::Metadata,
+	S: jsonrpc_core::Middleware<M>,
+	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
+{
+	let server = ipc::Server::with_remote(addr, handler, ipc::UninitializedRemote::Shared(remote))?;
 	server.run_async()?;
 	Ok(server)
 }

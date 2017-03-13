@@ -19,7 +19,6 @@ use unicase::UniCase;
 use hyper::{server, net, Decoder, Encoder, Next, Control};
 use hyper::header;
 use hyper::method::Method;
-use hyper::header::AccessControlAllowOrigin;
 
 use api::types::{App, ApiError};
 use api::response;
@@ -27,23 +26,20 @@ use apps::fetcher::Fetcher;
 
 use handlers::extract_url;
 use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
-use jsonrpc_http_server::cors;
+use jsonrpc_http_server;
+use jsonrpc_server_utils::cors;
 
 #[derive(Clone)]
 pub struct RestApi {
-	cors_domains: Option<Vec<AccessControlAllowOrigin>>,
+	cors_domains: Option<Vec<cors::AccessControlAllowOrigin>>,
 	endpoints: Arc<Endpoints>,
 	fetcher: Arc<Fetcher>,
 }
 
 impl RestApi {
-	pub fn new(cors_domains: Vec<String>, endpoints: Arc<Endpoints>, fetcher: Arc<Fetcher>) -> Box<Endpoint> {
+	pub fn new(cors_domains: Vec<cors::AccessControlAllowOrigin>, endpoints: Arc<Endpoints>, fetcher: Arc<Fetcher>) -> Box<Endpoint> {
 		Box::new(RestApi {
-			cors_domains: Some(cors_domains.into_iter().map(|domain| match domain.as_ref() {
-				"all" | "*" | "any" => AccessControlAllowOrigin::Any,
-				"null" => AccessControlAllowOrigin::Null,
-				other => AccessControlAllowOrigin::Value(other.into()),
-			}).collect()),
+			cors_domains: Some(cors_domains),
 			endpoints: endpoints,
 			fetcher: fetcher,
 		})
@@ -64,7 +60,7 @@ impl Endpoint for RestApi {
 
 struct RestApiRouter {
 	api: RestApi,
-	origin: Option<String>,
+	cors_header: Option<header::AccessControlAllowOrigin>,
 	path: Option<EndpointPath>,
 	control: Option<Control>,
 	handler: Box<Handler>,
@@ -74,7 +70,7 @@ impl RestApiRouter {
 	fn new(api: RestApi, path: EndpointPath, control: Control) -> Self {
 		RestApiRouter {
 			path: Some(path),
-			origin: None,
+			cors_header: None,
 			control: Some(control),
 			api: api,
 			handler: response::as_json_error(&ApiError {
@@ -95,21 +91,22 @@ impl RestApiRouter {
 	}
 
 	/// Returns basic headers for a response (it may be overwritten by the handler)
-	fn response_headers(&self) -> header::Headers {
+	fn response_headers(cors_header: Option<header::AccessControlAllowOrigin>) -> header::Headers {
 		let mut headers = header::Headers::new();
-		headers.set(header::AccessControlAllowCredentials);
-		headers.set(header::AccessControlAllowMethods(vec![
-			Method::Options,
-			Method::Post,
-			Method::Get,
-		]));
-		headers.set(header::AccessControlAllowHeaders(vec![
-			UniCase("origin".to_owned()),
-			UniCase("content-type".to_owned()),
-			UniCase("accept".to_owned()),
-		]));
 
-		if let Some(cors_header) = cors::get_cors_header(&self.api.cors_domains, &self.origin) {
+		if let Some(cors_header) = cors_header {
+			headers.set(header::AccessControlAllowCredentials);
+			headers.set(header::AccessControlAllowMethods(vec![
+				Method::Options,
+				Method::Post,
+				Method::Get,
+			]));
+			headers.set(header::AccessControlAllowHeaders(vec![
+				UniCase("origin".to_owned()),
+				UniCase("content-type".to_owned()),
+				UniCase("accept".to_owned()),
+			]));
+
 			headers.set(cors_header);
 		}
 
@@ -120,7 +117,7 @@ impl RestApiRouter {
 impl server::Handler<net::HttpStream> for RestApiRouter {
 
 	fn on_request(&mut self, request: server::Request<net::HttpStream>) -> Next {
-		self.origin = cors::read_origin(&request);
+		self.cors_header = jsonrpc_http_server::cors_header(&request, &self.api.cors_domains);
 
 		if let Method::Options = *request.method() {
 			self.handler = response::empty();
@@ -164,7 +161,7 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 	}
 
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		*res.headers_mut() = self.response_headers();
+		*res.headers_mut() = Self::response_headers(self.cors_header.take());
 		self.handler.on_response(res)
 	}
 

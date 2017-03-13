@@ -33,13 +33,13 @@ use std::sync::Arc;
 use std::net::{SocketAddr, IpAddr};
 use error::ServerError;
 use route::Out;
-use jsonrpc_http_server::cors;
 use hyper::server::{Listening, Handler, Request, Response};
 use hyper::net::HttpStream;
-use hyper::header::{Vary, ContentLength, ContentType, AccessControlAllowOrigin};
+use hyper::header::{self, Vary, ContentLength, ContentType};
 use hyper::{Next, Encoder, Decoder, Method, RequestUri, StatusCode};
 use ethcore::client::BlockChainClient;
 
+pub use jsonrpc_http_server::{AccessControlAllowOrigin, Host, DomainsValidation};
 
 /// Request/response handler
 pub struct IpfsHandler {
@@ -47,12 +47,12 @@ pub struct IpfsHandler {
 	out: Out,
 	/// How many bytes from the response have been written
 	out_progress: usize,
-	/// Origin request header
-	origin: Option<String>,
+	/// CORS response header
+	cors_header: Option<header::AccessControlAllowOrigin>,
 	/// Allowed CORS domains
 	cors_domains: Option<Vec<AccessControlAllowOrigin>>,
 	/// Hostnames allowed in the `Host` request header
-	allowed_hosts: Option<Vec<String>>,
+	allowed_hosts: Option<Vec<Host>>,
 	/// Reference to the Blockchain Client
 	client: Arc<BlockChainClient>,
 }
@@ -62,49 +62,26 @@ impl IpfsHandler {
 		&*self.client
 	}
 
-	pub fn new(cors: Option<Vec<String>>, hosts: Option<Vec<String>>, client: Arc<BlockChainClient>) -> Self {
-		fn origin_to_header(origin: String) -> AccessControlAllowOrigin {
-			match origin.as_str() {
-				"*" => AccessControlAllowOrigin::Any,
-				"null" | "" => AccessControlAllowOrigin::Null,
-				_ => AccessControlAllowOrigin::Value(origin),
-			}
-		}
-
+	pub fn new(cors: DomainsValidation<AccessControlAllowOrigin>, hosts: DomainsValidation<Host>, client: Arc<BlockChainClient>) -> Self {
 		IpfsHandler {
 			out: Out::Bad("Invalid Request"),
 			out_progress: 0,
-			origin: None,
-			cors_domains: cors.map(|vec| vec.into_iter().map(origin_to_header).collect()),
-			allowed_hosts: hosts,
+			cors_header: None,
+			cors_domains: cors.into(),
+			allowed_hosts: hosts.into(),
 			client: client,
 		}
 	}
 
-	fn is_host_allowed(&self, req: &Request<HttpStream>) -> bool {
-		match self.allowed_hosts {
-			Some(ref hosts) => jsonrpc_http_server::is_host_header_valid(&req, hosts),
-			None => true,
+	fn is_origin_allowed(&self, origin_provided: bool) -> bool {
+		match (origin_provided, self.cors_header.as_ref()) {
+			// Request without Origin are always OK.
+			(false, _) => true,
+			// If there is a cors header to be returned it's ok.
+			(true, Some(_)) => true,
+			// If origin is provided and we won't return cors header it's bad.
+			(true, None) => false,
 		}
-	}
-
-	fn is_origin_allowed(&self) -> bool {
-		// Check origin header first, no header passed is good news
-		let origin = match self.origin {
-			Some(ref origin) => origin,
-			None => return true,
-		};
-
-		let cors_domains = match self.cors_domains {
-			Some(ref domains) => domains,
-			None => return false,
-		};
-
-		cors_domains.iter().any(|domain| match *domain {
-			AccessControlAllowOrigin::Value(ref allowed) => origin == allowed,
-			AccessControlAllowOrigin::Any => true,
-			AccessControlAllowOrigin::Null => origin == "",
-		})
 	}
 }
 
@@ -115,15 +92,15 @@ impl Handler<HttpStream> for IpfsHandler {
 			return Next::write();
 		}
 
-		self.origin = cors::read_origin(&req);
+		self.cors_header = jsonrpc_http_server::cors_header(&req, &self.cors_domains);
 
-		if !self.is_host_allowed(&req) {
+		if !jsonrpc_http_server::is_host_allowed(&req, &self.allowed_hosts) {
 			self.out = Out::Bad("Disallowed Host header");
 
 			return Next::write();
 		}
 
-		if !self.is_origin_allowed() {
+		if !self.is_origin_allowed(req.headers().get::<header::Origin>().is_some()) {
 			self.out = Out::Bad("Disallowed Origin header");
 
 			return Next::write();
@@ -176,7 +153,7 @@ impl Handler<HttpStream> for IpfsHandler {
 			}
 		}
 
-		if let Some(cors_header) = cors::get_cors_header(&self.cors_domains, &self.origin) {
+		if let Some(cors_header) = self.cors_header.take() {
 			res.headers_mut().set(cors_header);
 			res.headers_mut().set(Vary::Items(vec!["Origin".into()]));
 		}
@@ -219,11 +196,11 @@ fn write_chunk<W: Write>(transport: &mut W, progress: &mut usize, data: &[u8]) -
 }
 
 /// Add current interface (default: "127.0.0.1:5001") to list of allowed hosts
-fn include_current_interface(mut hosts: Vec<String>, interface: String, port: u16) -> Vec<String> {
+fn include_current_interface(mut hosts: Vec<Host>, interface: String, port: u16) -> Vec<Host> {
 	hosts.push(match port {
 		80 => interface,
 		_ => format!("{}:{}", interface, port),
-	});
+	}.into());
 
 	hosts
 }
@@ -231,14 +208,15 @@ fn include_current_interface(mut hosts: Vec<String>, interface: String, port: u1
 pub fn start_server(
 	port: u16,
 	interface: String,
-	cors: Option<Vec<String>>,
-	hosts: Option<Vec<String>>,
+	cors: DomainsValidation<AccessControlAllowOrigin>,
+	hosts: DomainsValidation<Host>,
 	client: Arc<BlockChainClient>
 ) -> Result<Listening, ServerError> {
 
 	let ip: IpAddr = interface.parse().map_err(|_| ServerError::InvalidInterface)?;
 	let addr = SocketAddr::new(ip, port);
-	let hosts = hosts.map(move |hosts| include_current_interface(hosts, interface, port));
+	let hosts: Option<Vec<_>> = hosts.into();
+	let hosts: DomainsValidation<_> = hosts.map(move |hosts| include_current_interface(hosts, interface, port)).into();
 
 	Ok(
 		hyper::Server::http(&addr)?

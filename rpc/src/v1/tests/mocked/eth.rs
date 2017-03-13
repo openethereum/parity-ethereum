@@ -875,7 +875,7 @@ fn rpc_eth_send_transaction_with_bad_to() {
 		"id": 1
 	}"#;
 
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid length.","data":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid length."},"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
 }
@@ -1058,7 +1058,7 @@ fn rpc_get_work_returns_no_work_if_cant_mine() {
 	eth_tester.client.set_queue_size(10);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32001,"message":"Still syncing.","data":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32001,"message":"Still syncing."},"id":1}"#;
 
 	assert_eq!(eth_tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -1117,6 +1117,6 @@ fn rpc_get_work_should_timeout() {
 
 	// Request with timeout of 10 seconds. This should fail.
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": ["10"], "id": 1}"#;
-	let err_response = r#"{"jsonrpc":"2.0","error":{"code":-32003,"message":"Work has not changed.","data":null},"id":1}"#;
+	let err_response = r#"{"jsonrpc":"2.0","error":{"code":-32003,"message":"Work has not changed."},"id":1}"#;
 	assert_eq!(eth_tester.io.handle_request_sync(request), Some(err_response.to_owned()));
 }

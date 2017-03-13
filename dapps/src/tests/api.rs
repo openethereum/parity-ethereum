@@ -33,8 +33,8 @@ fn should_return_error() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
-	assert_eq!(response.headers.get(3).unwrap(), "Content-Type: application/json");
+	response.assert_status("HTTP/1.1 404 Not Found");
+	response.assert_header("Content-Type", "application/json");
 	assert_eq!(response.body, format!("58\n{}\n0\n\n", r#"{"code":"404","title":"Not Found","detail":"Resource you requested has not been found."}"#));
 	assert_security_headers(&response.headers);
 }
@@ -56,8 +56,8 @@ fn should_serve_apps() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	assert_eq!(response.headers.get(3).unwrap(), "Content-Type: application/json");
+	response.assert_status("HTTP/1.1 200 OK");
+	response.assert_header("Content-Type", "application/json");
 	assert!(response.body.contains("Parity UI"), response.body);
 	assert_security_headers(&response.headers);
 }
@@ -79,8 +79,8 @@ fn should_handle_ping() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	assert_eq!(response.headers.get(3).unwrap(), "Content-Type: application/json");
+	response.assert_status("HTTP/1.1 200 OK");
+	response.assert_header("Content-Type", "application/json");
 	assert_eq!(response.body, "0\n\n".to_owned());
 	assert_security_headers(&response.headers);
 }
@@ -102,7 +102,7 @@ fn should_try_to_resolve_dapp() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
+	response.assert_status("HTTP/1.1 404 Not Found");
 	assert_eq!(registrar.calls.lock().len(), 2);
 	assert_security_headers(&response.headers);
 }
@@ -125,12 +125,8 @@ fn should_return_signer_port_cors_headers() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	assert!(
-		response.headers_raw.contains("Access-Control-Allow-Origin: http://127.0.0.1:18180"),
-		"CORS header for signer missing: {:?}",
-		response.headers
-	);
+	response.assert_status("HTTP/1.1 200 OK");
+	response.assert_header("Access-Control-Allow-Origin", "http://127.0.0.1:18180");
 }
 
 #[test]
@@ -151,12 +147,8 @@ fn should_return_signer_port_cors_headers_for_home_parity() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	assert!(
-		response.headers_raw.contains("Access-Control-Allow-Origin: http://parity.web3.site"),
-		"CORS header for parity.web3.site missing: {:?}",
-		response.headers
-	);
+	response.assert_status("HTTP/1.1 200 OK");
+	response.assert_header("Access-Control-Allow-Origin", "http://parity.web3.site");
 }
 
 
@@ -178,12 +170,8 @@ fn should_return_signer_port_cors_headers_for_home_parity_with_https() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	assert!(
-		response.headers_raw.contains("Access-Control-Allow-Origin: https://parity.web3.site"),
-		"CORS header for parity.web3.site missing: {:?}",
-		response.headers
-	);
+	response.assert_status("HTTP/1.1 200 OK");
+	response.assert_header("Access-Control-Allow-Origin", "https://parity.web3.site");
 }
 
 #[test]
@@ -204,12 +192,8 @@ fn should_return_signer_port_cors_headers_for_home_parity_with_port() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	assert!(
-		response.headers_raw.contains("Access-Control-Allow-Origin: http://parity.web3.site:18180"),
-		"CORS header for parity.web3.site missing: {:?}",
-		response.headers
-	);
+	response.assert_status("HTTP/1.1 200 OK");
+	response.assert_header("Access-Control-Allow-Origin", "http://parity.web3.site:18180");
 }
 
 #[test]

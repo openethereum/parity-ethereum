@@ -13,6 +13,7 @@ rustc_version = "0.1"
 [dependencies]
 rand = "0.3.14"
 jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-server-utils = { git = "https://github.com/ethcore/jsonrpc.git" }
 log = "0.3"
 env_logger = "0.3"
 parity-dapps-glue = { version = "1.4", optional = true }
