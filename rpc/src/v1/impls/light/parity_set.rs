@@ -117,6 +117,10 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 		Err(errors::light_unimplemented(None))
 	}
 
+	fn set_spec_name(&self, _spec_name: String) -> Result<bool, Error> {
+		Err(errors::light_unimplemented(None))
+	}
+
 	fn hash_content(&self, url: String) -> BoxFuture<H256, Error> {
 		self.fetch.process(self.fetch.fetch(&url).then(move |result| {
 			result
