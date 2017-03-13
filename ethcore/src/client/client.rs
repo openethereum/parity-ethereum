@@ -283,20 +283,6 @@ impl Client {
 		*self.exit_handler.lock() = Some(Box::new(f));
 	}
 
-	/// Hypervisor should restart this client.
-	pub fn restart(&self) {
-		if let Some(ref h) = *self.exit_handler.lock() {
-			(*h)(true, None);
-		}
-	}
-
-	/// Hypervisor should kill this client.
-	pub fn exit(&self) {
-		if let Some(ref h) = *self.exit_handler.lock() {
-			(*h)(false, None);
-		}
-	}
-
 	/// Returns engine reference.
 	pub fn engine(&self) -> &Engine {
 		&*self.engine
