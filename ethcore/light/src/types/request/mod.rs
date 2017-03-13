@@ -88,6 +88,16 @@ pub enum Field<T> {
 	BackReference(usize, usize),
 }
 
+impl<T> Field<T> {
+	// attempt conversion into scalar value.
+	fn into_scalar(self) -> Result<T, NoSuchOutput> {
+		match self {
+			Field::Scalar(val) => Ok(val),
+			_ => Err(NoSuchOutput),
+		}
+	}
+}
+
 impl<T> From<T> for Field<T> {
 	fn from(val: T) -> Self {
 		Field::Scalar(val)
@@ -318,19 +328,30 @@ impl IncompleteRequest for Request {
 		}
 	}
 
-	fn fill<F>(self, oracle: F) -> Result<Self::Complete, NoSuchOutput>
-		where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>
-	{
-		Ok(match self {
-			Request::Headers(req) => CompleteRequest::Headers(req.fill(oracle)?),
-			Request::HeaderProof(req) => CompleteRequest::HeaderProof(req.fill(oracle)?),
-			Request::Receipts(req) => CompleteRequest::Receipts(req.fill(oracle)?),
-			Request::Body(req) => CompleteRequest::Body(req.fill(oracle)?),
-			Request::Account(req) => CompleteRequest::Account(req.fill(oracle)?),
-			Request::Storage(req) => CompleteRequest::Storage(req.fill(oracle)?),
-			Request::Code(req) => CompleteRequest::Code(req.fill(oracle)?),
-			Request::Execution(req) => CompleteRequest::Execution(req.fill(oracle)?),
-		})
+	fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
+		match *self {
+			Request::Headers(ref mut req) => req.fill(oracle),
+			Request::HeaderProof(ref mut req) => req.fill(oracle),
+			Request::Receipts(ref mut req) => req.fill(oracle),
+			Request::Body(ref mut req) => req.fill(oracle),
+			Request::Account(ref mut req) => req.fill(oracle),
+			Request::Storage(ref mut req) => req.fill(oracle),
+			Request::Code(ref mut req) => req.fill(oracle),
+			Request::Execution(ref mut req) => req.fill(oracle),
+		}
+	}
+
+	fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
+		match self {
+			Request::Headers(req) => req.complete().map(CompleteRequest::Headers),
+			Request::HeaderProof(req) => req.complete().map(CompleteRequest::HeaderProof),
+			Request::Receipts(req) => req.complete().map(CompleteRequest::Receipts),
+			Request::Body(req) => req.complete().map(CompleteRequest::Body),
+			Request::Account(req) => req.complete().map(CompleteRequest::Account),
+			Request::Storage(req) => req.complete().map(CompleteRequest::Storage),
+			Request::Code(req) => req.complete().map(CompleteRequest::Code),
+			Request::Execution(req) => req.complete().map(CompleteRequest::Execution),
+		}
 	}
 }
 
@@ -486,13 +507,16 @@ pub trait IncompleteRequest: Sized {
 	/// Note that this request will produce the following outputs.
 	fn note_outputs<F>(&self, f: F) where F: FnMut(usize, OutputKind);
 
-	/// Fill the request.
+	/// Fill fields of the request.
 	///
 	/// This function is provided an "output oracle" which allows fetching of
 	/// prior request outputs.
-	/// Only outputs previously checked with `check_outputs` will be available.
-	fn fill<F>(self, oracle: F) -> Result<Self::Complete, NoSuchOutput>
-		where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>;
+	/// Only outputs previously checked with `check_outputs` may be available.
+	fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>;
+
+	/// Attempt to convert this request into its complete variant.
+	/// Will succeed if all fields have been filled, will fail otherwise.
+	fn complete(self) -> Result<Self::Complete, NoSuchOutput>;
 }
 
 /// Header request.
@@ -551,25 +575,24 @@ pub mod header {
 
 		fn note_outputs<F>(&self, _: F) where F: FnMut(usize, OutputKind) { }
 
-		fn fill<F>(self, oracle: F) -> Result<Self::Complete, NoSuchOutput>
-			where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>
-		{
-			let start = match self.start {
-				Field::Scalar(start) => start,
-				Field::BackReference(req, idx) => match oracle(req, idx)? {
-					Output::Hash(hash) => hash.into(),
-					Output::Number(num) => num.into(),
+		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
+			if let Field::BackReference(req, idx) = self.start {
+				self.start = match oracle(req, idx) {
+					Ok(Output::Hash(hash)) => Field::Scalar(hash.into()),
+					Ok(Output::Number(num)) => Field::Scalar(num.into()),
+					Err(_) => Field::BackReference(req, idx),
 				}
-			};
+			}
+		}
 
+		fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
 			Ok(Complete {
-				start: start,
+				start: self.start.into_scalar()?,
 				skip: self.skip,
 				max: self.max,
 				reverse: self.reverse,
 			})
 		}
-
 	}
 
 	/// A complete header request.
@@ -671,22 +694,20 @@ pub mod header_proof {
 			note(0, OutputKind::Hash);
 		}
 
-		fn fill<F>(self, oracle: F) -> Result<Self::Complete, NoSuchOutput>
-			where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>
-		{
-			let num = match self.num {
-				Field::Scalar(num) => num,
-				Field::BackReference(req, idx) => match oracle(req, idx)? {
-					Output::Number(num) => num,
-					_ => return Err(NoSuchOutput),
+		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
+			if let Field::BackReference(req, idx) = self.num {
+				self.num = match oracle(req, idx) {
+					Ok(Output::Number(num)) => Field::Scalar(num.into()),
+					_ => Field::BackReference(req, idx),
 				}
-			};
-
-			Ok(Complete {
-				num: num,
-			})
+			}
 		}
 
+		fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
+			Ok(Complete {
+				num: self.num.into_scalar()?,
+			})
+		}
 	}
 
 	/// A complete header proof request.
@@ -779,19 +800,18 @@ pub mod block_receipts {
 
 		fn note_outputs<F>(&self, _: F) where F: FnMut(usize, OutputKind) {}
 
-		fn fill<F>(self, oracle: F) -> Result<Self::Complete, NoSuchOutput>
-			where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>
-		{
-			let hash = match self.hash {
-				Field::Scalar(hash) => hash,
-				Field::BackReference(req, idx) => match oracle(req, idx)? {
-					Output::Hash(hash) => hash,
-					_ => return Err(NoSuchOutput),
+		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
+			if let Field::BackReference(req, idx) = self.hash {
+				self.hash = match oracle(req, idx) {
+					Ok(Output::Number(hash)) => Field::Scalar(hash.into()),
+					_ => Field::BackReference(req, idx),
 				}
-			};
+			}
+		}
 
+		fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
 			Ok(Complete {
-				hash: hash,
+				hash: self.hash.into_scalar()?,
 			})
 		}
 	}
@@ -875,22 +895,20 @@ pub mod block_body {
 
 		fn note_outputs<F>(&self, _: F) where F: FnMut(usize, OutputKind) {}
 
-		fn fill<F>(self, oracle: F) -> Result<Self::Complete, NoSuchOutput>
-			where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>
-		{
-			let hash = match self.hash {
-				Field::Scalar(hash) => hash,
-				Field::BackReference(req, idx) => match oracle(req, idx)? {
-					Output::Hash(hash) => hash,
-					_ => return Err(NoSuchOutput),
+		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
+			if let Field::BackReference(req, idx) = self.hash {
+				self.hash = match oracle(req, idx) {
+					Ok(Output::Hash(hash)) => Field::Scalar(hash.into()),
+					_ => Field::BackReference(req, idx),
 				}
-			};
-
-			Ok(Complete {
-				hash: hash,
-			})
+			}
 		}
 
+		fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
+			Ok(Complete {
+				hash: self.hash.into_scalar()?,
+			})
+		}
 	}
 
 	/// A complete block body request.
@@ -991,31 +1009,28 @@ pub mod account {
 			f(1, OutputKind::Hash);
 		}
 
-		fn fill<F>(self, oracle: F) -> Result<Self::Complete, NoSuchOutput>
-			where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>
-		{
-			let block_hash = match self.block_hash {
-				Field::Scalar(hash) => hash,
-				Field::BackReference(req, idx) => match oracle(req, idx)? {
-					Output::Hash(hash) => hash,
-					_ => return Err(NoSuchOutput)?,
+		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
+			if let Field::BackReference(req, idx) = self.block_hash {
+				self.block_hash = match oracle(req, idx) {
+					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash.into()),
+					_ => Field::BackReference(req, idx),
 				}
-			};
+			}
 
-			let address_hash = match self.address_hash {
-				Field::Scalar(hash) => hash,
-				Field::BackReference(req, idx) => match oracle(req, idx)? {
-					Output::Hash(hash) => hash,
-					_ => return Err(NoSuchOutput)?,
+			if let Field::BackReference(req, idx) = self.address_hash {
+				self.address_hash = match oracle(req, idx) {
+					Ok(Output::Hash(address_hash)) => Field::Scalar(address_hash.into()),
+					_ => Field::BackReference(req, idx),
 				}
-			};
-
-			Ok(Complete {
-				block_hash: block_hash,
-				address_hash: address_hash,
-			})
+			}
 		}
 
+		fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
+			Ok(Complete {
+				block_hash: self.block_hash.into_scalar()?,
+				address_hash: self.address_hash.into_scalar()?,
+			})
+		}
 	}
 
 	/// A complete request for an account.
@@ -1138,40 +1153,36 @@ pub mod storage {
 			f(0, OutputKind::Hash);
 		}
 
-		fn fill<F>(self, oracle: F) -> Result<Self::Complete, NoSuchOutput>
-			where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>
-		{
-			let block_hash = match self.block_hash {
-				Field::Scalar(hash) => hash,
-				Field::BackReference(req, idx) => match oracle(req, idx)? {
-					Output::Hash(hash) => hash,
-					_ => return Err(NoSuchOutput)?,
+		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
+			if let Field::BackReference(req, idx) = self.block_hash {
+				self.block_hash = match oracle(req, idx) {
+					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash.into()),
+					_ => Field::BackReference(req, idx),
 				}
-			};
+			}
 
-			let address_hash = match self.address_hash {
-				Field::Scalar(hash) => hash,
-				Field::BackReference(req, idx) => match oracle(req, idx)? {
-					Output::Hash(hash) => hash,
-					_ => return Err(NoSuchOutput)?,
+			if let Field::BackReference(req, idx) = self.address_hash {
+				self.address_hash = match oracle(req, idx) {
+					Ok(Output::Hash(address_hash)) => Field::Scalar(address_hash.into()),
+					_ => Field::BackReference(req, idx),
 				}
-			};
+			}
 
-			let key_hash = match self.key_hash {
-				Field::Scalar(hash) => hash,
-				Field::BackReference(req, idx) => match oracle(req, idx)? {
-					Output::Hash(hash) => hash,
-					_ => return Err(NoSuchOutput)?,
+			if let Field::BackReference(req, idx) = self.key_hash {
+				self.key_hash = match oracle(req, idx) {
+					Ok(Output::Hash(key_hash)) => Field::Scalar(key_hash.into()),
+					_ => Field::BackReference(req, idx),
 				}
-			};
-
-			Ok(Complete {
-				block_hash: block_hash,
-				address_hash: address_hash,
-				key_hash: key_hash
-			})
+			}
 		}
 
+		fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
+			Ok(Complete {
+				block_hash: self.block_hash.into_scalar()?,
+				address_hash: self.address_hash.into_scalar()?,
+				key_hash: self.key_hash.into_scalar()?,
+			})
+		}
 	}
 
 	/// A complete request for a storage proof.
@@ -1272,31 +1283,28 @@ pub mod contract_code {
 
 		fn note_outputs<F>(&self, _: F) where F: FnMut(usize, OutputKind) {}
 
-		fn fill<F>(self, oracle: F) -> Result<Self::Complete, NoSuchOutput>
-			where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>
-		{
-			let block_hash = match self.block_hash {
-				Field::Scalar(hash) => hash,
-				Field::BackReference(req, idx) => match oracle(req, idx)? {
-					Output::Hash(hash) => hash,
-					_ => return Err(NoSuchOutput)?,
+		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
+			if let Field::BackReference(req, idx) = self.block_hash {
+				self.block_hash = match oracle(req, idx) {
+					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash.into()),
+					_ => Field::BackReference(req, idx),
 				}
-			};
+			}
 
-			let code_hash = match self.code_hash {
-				Field::Scalar(hash) => hash,
-				Field::BackReference(req, idx) => match oracle(req, idx)? {
-					Output::Hash(hash) => hash,
-					_ => return Err(NoSuchOutput)?,
+			if let Field::BackReference(req, idx) = self.code_hash {
+				self.code_hash = match oracle(req, idx) {
+					Ok(Output::Hash(code_hash)) => Field::Scalar(code_hash.into()),
+					_ => Field::BackReference(req, idx),
 				}
-			};
-
-			Ok(Complete {
-				block_hash: block_hash,
-				code_hash: code_hash,
-			})
+			}
 		}
 
+		fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
+			Ok(Complete {
+				block_hash: self.block_hash.into_scalar()?,
+				code_hash: self.code_hash.into_scalar()?,
+			})
+		}
 	}
 
 	/// A complete request.
@@ -1411,19 +1419,17 @@ pub mod execution {
 
 		fn note_outputs<F>(&self, _: F) where F: FnMut(usize, OutputKind) {}
 
-		fn fill<F>(self, oracle: F) -> Result<Self::Complete, NoSuchOutput>
-			where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>
-		{
-			let block_hash = match self.block_hash {
-				Field::Scalar(hash) => hash,
-				Field::BackReference(req, idx) => match oracle(req, idx)? {
-					Output::Hash(hash) => hash,
-					_ => return Err(NoSuchOutput)?,
+		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
+			if let Field::BackReference(req, idx) = self.block_hash {
+				self.block_hash = match oracle(req, idx) {
+					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash.into()),
+					_ => Field::BackReference(req, idx),
 				}
-			};
-
+			}
+		}
+		fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
 			Ok(Complete {
-				block_hash: block_hash,
+				block_hash: self.block_hash.into_scalar()?,
 				from: self.from,
 				action: self.action,
 				gas: self.gas,
@@ -1432,7 +1438,6 @@ pub mod execution {
 				data: self.data,
 			})
 		}
-
 	}
 
 	/// A complete request.

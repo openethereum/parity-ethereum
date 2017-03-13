@@ -105,9 +105,8 @@ impl Requests {
 		if self.answered == self.requests.len() {
 			None
 		} else {
-			let outputs = &self.outputs;
 			Some(self.requests[self.answered].clone()
-				.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
+				.complete()
 				.expect("All outputs checked as invariant of `Requests` object; qed"))
 		}
 	}
@@ -130,6 +129,12 @@ impl Requests {
 		});
 
 		self.answered += 1;
+
+		// fill as much of the next request as we can.
+		if let Some(ref mut req) = self.requests.get_mut(self.answered) {
+			req.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
+		}
+
 		Ok(())
 	}
 }
