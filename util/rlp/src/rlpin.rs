@@ -46,58 +46,192 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 		}
 	}
 
+	/// The raw data of the RLP as slice.
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	let dog = rlp.at(1).as_raw();
+	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
+	/// }
+	/// ```
 	pub fn as_raw(&'view self) -> &'a [u8] {
 		self.rlp.as_raw()
 	}
 
+	/// Get the prototype of the RLP.
 	pub fn prototype(&self) -> Prototype {
 		self.rlp.prototype().unwrap()
 	}
 
+	/// Get payload info.
 	pub fn payload_info(&self) -> PayloadInfo {
 		self.rlp.payload_info().unwrap()
 	}
 
+	/// Get underlieing data.
 	pub fn data(&'view self) -> &'a [u8] {
 		self.rlp.data().unwrap()
 	}
 
+	/// Returns number of RLP items.
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert_eq!(rlp.item_count(), 2);
+	/// 	let view = rlp.at(1);
+	/// 	assert_eq!(view.item_count(), 0);
+	/// }
+	/// ```
 	pub fn item_count(&self) -> usize {
 		self.rlp.item_count().unwrap_or(0)
 	}
 
+	/// Returns the number of bytes in the data, or zero if it isn't data.
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert_eq!(rlp.size(), 0);
+	/// 	let view = rlp.at(1);
+	/// 	assert_eq!(view.size(), 3);
+	/// }
+	/// ```
 	pub fn size(&self) -> usize {
 		self.rlp.size()
 	}
 
+	/// Get view onto RLP-slice at index.
+	///
+	/// Caches offset to given index, so access to successive
+	/// slices is faster.
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	let dog: String = rlp.at(1).as_val();
+	/// 	assert_eq!(dog, "dog".to_string());
+	/// }
+	/// ```
 	pub fn at(&'view self, index: usize) -> Rlp<'a> {
 		From::from(self.rlp.at(index).unwrap())
 	}
 
+	/// No value
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let data = vec![];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert!(rlp.is_null());
+	/// }
+	/// ```
 	pub fn is_null(&self) -> bool {
 		self.rlp.is_null()
 	}
 
+	/// Contains a zero-length string or zero-length list.
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let data = vec![0xc0];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert!(rlp.is_empty());
+	/// }
+	/// ```
 	pub fn is_empty(&self) -> bool {
 		self.rlp.is_empty()
 	}
 
+	/// List value
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert!(rlp.is_list());
+	/// }
+	/// ```
 	pub fn is_list(&self) -> bool {
 		self.rlp.is_list()
 	}
 
+	/// String value
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert!(rlp.at(1).is_data());
+	/// }
+	/// ```
 	pub fn is_data(&self) -> bool {
 		self.rlp.is_data()
 	}
 
+	/// Int value
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let data = vec![0xc1, 0x10];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert_eq!(rlp.is_int(), false);
+	/// 	assert_eq!(rlp.at(0).is_int(), true);
+	/// }
+	/// ```
 	pub fn is_int(&self) -> bool {
 		self.rlp.is_int()
 	}
 
+	/// Get iterator over rlp-slices
+	///
+	/// ```rust
+	/// extern crate rlp;
+	/// use rlp::*;
+	///
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	let strings: Vec<String> = rlp.iter().map(| i | i.as_val()).collect();
+	/// }
+	/// ```
 	pub fn iter(&'view self) -> RlpIterator<'a, 'view> {
 		self.into_iter()
 	}
 
+	/// Decode data into an object
 	pub fn as_val<T>(&self) -> T where T: Decodable {
 		self.rlp.as_val().expect("Unexpected rlp error")
 	}
@@ -106,6 +240,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 		self.iter().map(|rlp| rlp.as_val()).collect()
 	}
 
+	/// Decode data at given list index into an object
 	pub fn val_at<T>(&self, index: usize) -> T where T: Decodable {
 		self.at(index).as_val()
 	}
