@@ -11,7 +11,8 @@ rustc_version = "0.1"
 
 [dependencies]
 parity-ui-dev = { path = "../../js", optional = true }
-parity-ui-precompiled = { git = "https://github.com/ethcore/js-precompiled.git", optional = true }
+# This is managed by the js/scripts/release.sh script on CI - keep it in a single line
+parity-ui-precompiled = { git = "https://github.com/ethcore/js-precompiled.git", optional = true, branch = "master" }
 
 [features]
 no-precompiled-js = ["parity-ui-dev"]

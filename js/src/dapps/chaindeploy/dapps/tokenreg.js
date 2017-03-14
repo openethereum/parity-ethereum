@@ -14,28 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! `TraceDB` errors.
+import builtins from '~/views/Dapps/builtin.json';
 
-use std::fmt::{Display, Formatter, Error as FmtError};
+const id = 'tokenreg';
+const app = builtins.find((app) => app.url === id);
+const hashId = app.id;
+const source = {
+  imageUrl: 'https://raw.githubusercontent.com/ethcore/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/coins-64x64.jpg',
+  imageHash: '0xe23d429d15de98c7878d92bc90b79c7afabe1b04c2ad5e3e2c89adc8f439edc9'
+};
+const name = app.name;
 
-const RESYNC_ERR: &'static str =
-"Your current parity installation has synced without transaction tracing.
-To use Parity with transaction tracing, you'll need to resync with tracing.
-To do this, remove or move away your current database and restart parity. e.g.:
-
-> mv ~/.parity/906a34e69aec8c0d /tmp
-> parity";
-
-/// `TraceDB` errors.
-#[derive(Debug)]
-pub enum Error {
-	/// Returned when tracing is enabled,
-	/// but database does not contain traces of old transactions.
-	ResyncRequired,
-}
-
-impl Display for Error {
-	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
-		write!(f, "{}", RESYNC_ERR)
-	}
-}
+export {
+  hashId,
+  id,
+  name,
+  source
+};
