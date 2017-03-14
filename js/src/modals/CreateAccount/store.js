@@ -147,6 +147,10 @@ export default class Store {
   }
 
   @action setQrAddress = (qrAddress) => {
+    if (qrAddress && qrAddress.substr(0, 2) !== '0x') {
+      qrAddress = `0x${qrAddress}`;
+    }
+
     this.qrAddress = qrAddress;
   }
 
