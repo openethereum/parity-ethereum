@@ -20,7 +20,7 @@ import { qrcode } from 'qrcode-npm';
 import React, { Component, PropTypes } from 'react';
 
 const QROPTS = {
-  CODE_TYPE: 8,
+  CODE_TYPE: 9,
   ERROR_LEVEL: 'M'
 };
 

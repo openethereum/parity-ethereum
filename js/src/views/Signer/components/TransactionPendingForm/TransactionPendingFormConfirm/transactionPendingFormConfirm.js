@@ -311,8 +311,6 @@ export default class TransactionPendingFormConfirm extends Component {
       return null;
     }
 
-    console.log('qrValue', qrValue);
-
     return (
       <QrCode
         className={ styles.qr }
@@ -438,7 +436,7 @@ export default class TransactionPendingFormConfirm extends Component {
     const { api } = this.context;
     const { transaction } = this.props;
 
-    // TODO: Move this to a store/utility?
+    // TODO: Move this to a store/utility/etc.?
     return api.parity
       .nextNonce(transaction.from)
       .then((nonce) => {
@@ -450,8 +448,15 @@ export default class TransactionPendingFormConfirm extends Component {
           value: inHex(transaction.value),
           data: inHex(transaction.data)
         });
+        const rlp = inHex(tx.serialize().toString('hex'));
 
-        this.setState({ qrValue: inHex(tx.serialize().toString('hex')) });
+        this.setState({
+          // FIXME: drop leading 0x for Native Signer compatibility
+          qrValue: JSON.stringify({
+            from: transaction.from.substr(2),
+            rlp: rlp.substr(2)
+          })
+        });
       });
   }
 
