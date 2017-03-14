@@ -197,7 +197,7 @@ fn tendermint() {
 	net.peer(0).chain.engine().step();
 	net.peer(1).chain.engine().step();
 net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 2.into())).unwrap();
-		net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 2.into())).unwrap();
+	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 2.into())).unwrap();
 	// Send different prevotes
 	net.sync();
 	// Prevote timeout

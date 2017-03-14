@@ -595,6 +595,7 @@ impl Engine for Tendermint {
 			// New Commit received, skip to next height.
 			trace!(target: "engine", "Received a commit: {:?}.", proposal.vote_step);
 			self.to_next_height(proposal.vote_step.height);
+			self.to_step(Step::Propose);
 			return false;
 		}
 		let proposer = proposal.verify().expect("block went through full verification; this Engine tries verify; qed");
@@ -647,6 +648,10 @@ impl Engine for Tendermint {
 	}
 
 	fn register_client(&self, client: Weak<Client>) {
+		use client::BlockChainClient;
+		if let Some(c) = client.upgrade() {
+			self.height.store(c.chain_info().best_block_number as usize + 1, AtomicOrdering::SeqCst);
+		}
 		*self.client.write() = Some(client.clone());
 		self.validators.register_contract(client);
 	}
