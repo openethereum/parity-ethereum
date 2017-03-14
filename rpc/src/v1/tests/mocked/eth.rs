@@ -940,7 +940,7 @@ fn rpc_eth_send_raw_transaction_error() {
 		],
 		"id": 1
 	}"#;
-	let res = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid RLP.","data":"RlpIncorrectListLen"},"id":1}"#.into();
+	let res = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid RLP.","data":"RlpExpectedToBeList"},"id":1}"#.into();
 
 	assert_eq!(tester.io.handle_request_sync(&req), Some(res));
 }
