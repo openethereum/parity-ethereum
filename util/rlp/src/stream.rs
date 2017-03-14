@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::borrow::Borrow;
-use byteorder::{WriteBytesExt, BigEndian};
+use byteorder::{ByteOrder, BigEndian};
 use elastic_array::{ElasticArray16, ElasticArray1024};
 use traits::Encodable;
 
@@ -291,7 +291,7 @@ impl<'a> BasicEncoder<'a> {
 		let leading_empty_bytes = size.leading_zeros() as usize / 8;
 		let size_bytes = 4 - leading_empty_bytes as u8;
 		let mut buffer = [0u8; 4];
-		(&mut buffer as &mut [u8]).write_u32::<BigEndian>(size).expect("buffer.len() == sizeof(value); qed");
+		BigEndian::write_u32(&mut buffer, size);
 		self.buffer.insert_slice(position, &buffer[leading_empty_bytes..]);
 		size_bytes as u8
 	}
