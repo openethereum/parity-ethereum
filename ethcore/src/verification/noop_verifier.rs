@@ -31,7 +31,7 @@ impl Verifier for NoopVerifier {
 		Ok(())
 	}
 
-	fn verify_block_final(&self, _expected: &Header, _got: &Header) -> Result<(), Error> {
+	fn verify_block_final(&self, _expected: &Header, _got: &Header, _receipts: bool) -> Result<(), Error> {
 		Ok(())
 	}
 }

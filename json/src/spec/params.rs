@@ -49,6 +49,9 @@ pub struct Params {
 	/// Expected fork block hash.
 	#[serde(rename="forkCanonHash")]
 	pub fork_hash: Option<H256>,
+	/// See `CommonParams` docs.
+	#[serde(rename="validateReceipts")]
+	pub validate_receipts: Option<bool>,
 }
 
 #[cfg(test)]
