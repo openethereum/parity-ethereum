@@ -284,9 +284,15 @@ export default class Parity {
       .execute('parity_mode');
   }
 
+  // DEPRECATED - use chain instead.
   netChain () {
     return this._transport
-      .execute('parity_netChain');
+      .execute('parity_chain');
+  }
+
+  chain () {
+    return this._transport
+      .execute('parity_chain');
   }
 
   netPeers () {
@@ -452,6 +458,11 @@ export default class Parity {
   setMode (mode) {
     return this._transport
       .execute('parity_setMode', mode);
+  }
+
+  setChain (specName) {
+    return this._transport
+      .execute('parity_setChain', specName);
   }
 
   setNewDappsAddresses (addresses) {

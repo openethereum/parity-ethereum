@@ -122,7 +122,7 @@ mod stratum;
 use std::{process, env};
 use std::collections::HashMap;
 use std::io::{self as stdio, BufReader, Read, Write};
-use std::fs::File;
+use std::fs::{remove_file, metadata, File};
 use std::path::PathBuf;
 use util::sha3::sha3;
 use cli::Args;
@@ -143,7 +143,7 @@ fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 
 enum PostExecutionAction {
 	Print(String),
-	Restart,
+	Restart(Option<String>),
 	Quit,
 }
 
@@ -152,8 +152,8 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 
 	match command.cmd {
 		Cmd::Run(run_cmd) => {
-			let restart = run::execute(run_cmd, can_restart, logger)?;
-			Ok(if restart { PostExecutionAction::Restart } else { PostExecutionAction::Quit })
+			let (restart, spec_name) = run::execute(run_cmd, can_restart, logger)?;
+			Ok(if restart { PostExecutionAction::Restart(spec_name) } else { PostExecutionAction::Quit })
 		},
 		Cmd::Version => Ok(PostExecutionAction::Print(Args::print_version())),
 		Cmd::Hash(maybe_file) => print_hash_of(maybe_file).map(|s| PostExecutionAction::Print(s)),
@@ -170,7 +170,7 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 
 fn start(can_restart: bool) -> Result<PostExecutionAction, String> {
 	let args: Vec<String> = env::args().collect();
-	let conf = Configuration::parse(&args).unwrap_or_else(|e| e.exit());
+	let conf = Configuration::parse(&args, take_spec_name_override()).unwrap_or_else(|e| e.exit());
 
 	let deprecated = find_deprecated(&conf.args);
 	for d in deprecated {
@@ -206,6 +206,22 @@ fn updates_path(name: &str) -> PathBuf {
 fn latest_exe_path() -> Option<PathBuf> {
 	File::open(updates_path("latest")).ok()
 		.and_then(|mut f| { let mut exe = String::new(); f.read_to_string(&mut exe).ok().map(|_| updates_path(&exe)) })
+}
+
+fn set_spec_name_override(spec_name: String) {
+	if let Err(e) = File::create(updates_path("spec_name_overide"))
+		.and_then(|mut f| f.write_all(spec_name.as_bytes()))
+	{
+		warn!("Couldn't override chain spec: {}", e);
+	}
+}
+
+fn take_spec_name_override() -> Option<String> {
+	let p = updates_path("spec_name_overide");
+	let r = File::open(p.clone()).ok()
+		.and_then(|mut f| { let mut spec_name = String::new(); f.read_to_string(&mut spec_name).ok().map(|_| spec_name) });
+	let _ = remove_file(p);
+	r
 }
 
 #[cfg(windows)]
@@ -250,7 +266,12 @@ fn main_direct(can_restart: bool) -> i32 {
 		match start(can_restart) {
 			Ok(result) => match result {
 				PostExecutionAction::Print(s) => { println!("{}", s); 0 },
-				PostExecutionAction::Restart => PLEASE_RESTART_EXIT_CODE,
+				PostExecutionAction::Restart(spec_name_override) => {
+					if let Some(spec_name) = spec_name_override {
+						set_spec_name_override(spec_name);
+					}
+					PLEASE_RESTART_EXIT_CODE
+				},
 				PostExecutionAction::Quit => 0,
 			},
 			Err(err) => {
@@ -292,8 +313,19 @@ fn main() {
 			let latest_exe = latest_exe_path();
 			let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
 			let is_non_updated_current = exe.as_ref().map_or(false, |exe| latest_exe.as_ref().map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
-			trace_main!("Starting... (have-update: {}, non-updated-current: {})", have_update, is_non_updated_current);
-			let exit_code = if have_update && is_non_updated_current {
+			let update_is_newer = match (
+				latest_exe.as_ref()
+					.and_then(|p| metadata(p.as_path()).ok())
+					.and_then(|m| m.modified().ok()),
+				exe.as_ref()
+					.and_then(|p| metadata(p.as_path()).ok())
+					.and_then(|m| m.modified().ok())
+			) {
+				(Some(latest_exe_time), Some(this_exe_time)) if latest_exe_time > this_exe_time => true,
+				_ => false,
+			};
+			trace_main!("Starting... (have-update: {}, non-updated-current: {}, update-is-newer: {})", have_update, is_non_updated_current, update_is_newer);
+			let exit_code = if have_update && is_non_updated_current && update_is_newer {
 				trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
 				run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct(true) })
 			} else {

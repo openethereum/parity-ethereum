@@ -21,7 +21,7 @@ use std::sync::Arc;
 use std::collections::HashSet;
 
 use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, Decoder, DecoderError, View, Stream};
-use util::{Bytes, Address, Uint, FixedHash, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP};
+use util::{Bytes, Address, Uint, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP};
 use util::error::{Mismatch, OutOfBounds};
 
 use basic_types::{LogBloom, Seal};
@@ -553,7 +553,6 @@ pub fn enact(
 	b.set_extra_data(header.extra_data().clone()).unwrap_or_else(|e| warn!("Couldn't set extradata: {}. Ignoring.", e));
 	b.set_uncles_hash(header.uncles_hash().clone());
 	b.set_transactions_root(header.transactions_root().clone());
-	b.set_receipts_root(header.receipts_root().clone());
 
 	push_transactions(&mut b, transactions)?;
 	for u in uncles {
@@ -618,7 +617,6 @@ mod tests {
 	use state_db::StateDB;
 	use views::BlockView;
 	use util::Address;
-	use util::hash::FixedHash;
 	use std::sync::Arc;
 	use transaction::SignedTransaction;
 

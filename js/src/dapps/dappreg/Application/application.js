@@ -19,18 +19,14 @@ import { observer } from 'mobx-react';
 
 import DappsStore from '../dappsStore';
 
-import ButtonBar from '../ButtonBar';
-import Dapp from '../Dapp';
-import ModalDelete from '../ModalDelete';
-import ModalRegister from '../ModalRegister';
-import ModalUpdate from '../ModalUpdate';
-import SelectDapp from '../SelectDapp';
+import Dapps from '../Dapps';
+import Transactions from '../Transactions';
 import Warning from '../Warning';
 import styles from './application.css';
 
 @observer
 export default class Application extends Component {
-  dappsStore = DappsStore.instance();
+  dappsStore = DappsStore.get();
 
   render () {
     if (this.dappsStore.isLoading) {
@@ -41,23 +37,32 @@ export default class Application extends Component {
       );
     }
 
+    const { ownDapps, otherDapps } = this.dappsStore;
+
     return (
       <div className={ styles.body }>
         <div className={ styles.header }>
           DAPP REGISTRY, a global view of distributed applications available on the network. Putting the puzzle together.
         </div>
-        <div className={ styles.apps }>
-          <SelectDapp />
-          <ButtonBar />
-          <Dapp />
+
+        <div>
+          <Dapps
+            dapps={ ownDapps }
+            own
+            title='My Dapps'
+          />
+          <Dapps
+            dapps={ otherDapps }
+            title='Other Dapps'
+          />
         </div>
+
         <div className={ styles.footer }>
           { this.dappsStore.count } applications registered, { this.dappsStore.ownedCount } owned by user
         </div>
+
+        <Transactions />
         <Warning />
-        <ModalDelete />
-        <ModalRegister />
-        <ModalUpdate />
       </div>
     );
   }

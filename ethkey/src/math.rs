@@ -36,6 +36,17 @@ pub fn public_add(public: &mut Public, other: &Public) -> Result<(), Error> {
 	Ok(())
 }
 
+/// Inplace sub one public key from another (EC point - EC point)
+pub fn public_sub(public: &mut Public, other: &Public) -> Result<(), Error> {
+	let mut key_neg_other = to_secp256k1_public(other)?;
+	key_neg_other.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
+
+	let mut key_public = to_secp256k1_public(public)?;
+	key_public.add_assign(&SECP256K1, &key_neg_other)?;
+	set_public(public, &key_public);
+	Ok(())
+}
+
 /// Return base point of secp256k1
 pub fn generation_point() -> Public {
 	let mut public_sec_raw = [0u8; 65];
@@ -63,4 +74,36 @@ fn to_secp256k1_public(public: &Public) -> Result<key::PublicKey, Error> {
 fn set_public(public: &mut Public, key_public: &key::PublicKey) {
 	let key_public_serialized = key_public.serialize_vec(&SECP256K1, false);
 	public.copy_from_slice(&key_public_serialized[1..65]);
+}
+
+#[cfg(test)]
+mod tests {
+	use super::super::{Random, Generator};
+	use super::{public_add, public_sub};
+
+	#[test]
+	fn public_addition_is_commutative() {
+		let public1 = Random.generate().unwrap().public().clone();
+		let public2 = Random.generate().unwrap().public().clone();
+
+		let mut left = public1.clone();
+		public_add(&mut left, &public2).unwrap();
+
+		let mut right = public2.clone();
+		public_add(&mut right, &public1).unwrap();
+
+		assert_eq!(left, right);
+	}
+
+	#[test]
+	fn public_addition_is_reversible_with_subtraction() {
+		let public1 = Random.generate().unwrap().public().clone();
+		let public2 = Random.generate().unwrap().public().clone();
+
+		let mut sum = public1.clone();
+		public_add(&mut sum, &public2).unwrap();
+		public_sub(&mut sum, &public2).unwrap();
+
+		assert_eq!(sum, public1);
+	}
 }
