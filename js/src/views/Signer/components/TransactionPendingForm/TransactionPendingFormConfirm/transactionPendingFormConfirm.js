@@ -23,12 +23,14 @@ import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
 
 import { inHex } from '~/api/format/input';
-import { Form, Input, IdentityIcon, QrCode } from '~/ui';
+import { Form, Input, IdentityIcon, QrCode, QrScan } from '~/ui';
 
 import styles from './transactionPendingFormConfirm.css';
 
 const QR_INVISIBLE = 0;
 const QR_VISIBLE = 1;
+const QR_SCAN = 2;
+const QR_COMPLETED = 3;
 
 export default class TransactionPendingFormConfirm extends Component {
   static contextTypes = {
@@ -105,41 +107,50 @@ export default class TransactionPendingFormConfirm extends Component {
     return walletHint || null;
   }
 
+  // TODO: Now that we have 3 types, it would make sense splitting each into their own
+  // sub-module and having the consistent bits combined (e.g. i18n, layouts)
   render () {
     const { account, address, disabled, isSending } = this.props;
     const { wallet, walletError } = this.state;
     const isAccount = account.external || account.hardware || account.uuid;
     const isWalletOk = isAccount || (walletError === null && wallet !== null);
+    const confirmText = this.renderConfirmButton();
+    const confirmButton = confirmText
+      ? (
+        <div
+          data-effect='solid'
+          data-for={ `transactionConfirmForm${this.id}` }
+          data-place='bottom'
+          data-tip
+        >
+          <RaisedButton
+            className={ styles.confirmButton }
+            disabled={ disabled || isSending || !isWalletOk }
+            fullWidth
+            icon={
+              <IdentityIcon
+                address={ address }
+                button
+                className={ styles.signerIcon }
+              />
+            }
+            label={ confirmText }
+            onTouchTap={ this.onConfirm }
+            primary
+          />
+        </div>
+      )
+      : null;
 
     return (
       <div className={ styles.confirmForm }>
         <Form>
           { this.renderKeyInput() }
-          { this.renderQr() }
+          { this.renderQrCode() }
+          { this.renderQrScanner() }
           { this.renderPassword() }
           { this.renderHint() }
-          <div
-            data-effect='solid'
-            data-for={ `transactionConfirmForm${this.id}` }
-            data-place='bottom'
-            data-tip
-          >
-            <RaisedButton
-              className={ styles.confirmButton }
-              disabled={ disabled || isSending || !isWalletOk }
-              fullWidth
-              icon={
-                <IdentityIcon
-                  address={ address }
-                  button
-                  className={ styles.signerIcon }
-                />
-              }
-              label={ this.renderConfirmButton() }
-              onTouchTap={ this.onConfirm }
-              primary
-            />
-          </div>
+          { confirmButton }
           { this.renderTooltip() }
         </Form>
       </div>
@@ -167,6 +178,10 @@ export default class TransactionPendingFormConfirm extends Component {
               defaultMessage='Scan Signed QR'
             />
           );
+
+        case QR_SCAN:
+        case QR_COMPLETED:
+          return null;
       }
     }
 
@@ -259,6 +274,19 @@ export default class TransactionPendingFormConfirm extends Component {
               />
             </div>
           );
+
+        case QR_SCAN:
+          return (
+            <div className={ styles.passwordHint }>
+              <FormattedMessage
+                id='signer.sending.external.scanSigned'
+                defaultMessage='Scan the QR code of the signed transaction from your external device'
+              />
+            </div>
+          );
+
+        case QR_COMPLETED:
+          return null;
       }
     }
 
@@ -303,11 +331,11 @@ export default class TransactionPendingFormConfirm extends Component {
     );
   }
 
-  renderQr () {
+  renderQrCode () {
     const { account } = this.props;
     const { qrState, qrValue } = this.state;
 
-    if (!account.external || qrState === QR_INVISIBLE || !qrValue) {
+    if (!account.external || qrState !== QR_VISIBLE || !qrValue) {
       return null;
     }
 
@@ -315,6 +343,22 @@ export default class TransactionPendingFormConfirm extends Component {
       <QrCode
         className={ styles.qr }
         value={ qrValue }
+      />
+    );
+  }
+
+  renderQrScanner () {
+    const { account } = this.props;
+    const { qrState } = this.state;
+
+    if (!account.external || qrState !== QR_SCAN) {
+      return null;
+    }
+
+    return (
+      <QrScan
+        className={ styles.camera }
+        onScan={ this.onScanTx }
       />
     );
   }
@@ -364,6 +408,19 @@ export default class TransactionPendingFormConfirm extends Component {
         />
       </ReactTooltip>
     );
+  }
+
+  onScanTx = (signedTx) => {
+    // FIXME: Would prefer 0x back from the actual QR
+    if (signedTx && signedTx.substr(0, 2) !== '0x') {
+      signedTx = `0x${signedTx}`;
+    }
+
+    this.setState({ qrState: QR_COMPLETED });
+
+    this.props.onConfirm({
+      signedTx
+    });
   }
 
   onKeySelect = (event) => {
@@ -423,6 +480,8 @@ export default class TransactionPendingFormConfirm extends Component {
       if (qrState === QR_INVISIBLE) {
         this.generateTxQr();
         return this.setState({ qrState: QR_VISIBLE });
+      } else if (qrState === QR_VISIBLE) {
+        return this.setState({ qrState: QR_SCAN });
       }
     }
 
@@ -436,7 +495,6 @@ export default class TransactionPendingFormConfirm extends Component {
     const { api } = this.context;
     const { transaction } = this.props;
 
-    // TODO: Move this to a store/utility/etc.?
     return api.parity
       .nextNonce(transaction.from)
       .then((nonce) => {
@@ -451,7 +509,7 @@ export default class TransactionPendingFormConfirm extends Component {
         const rlp = inHex(tx.serialize().toString('hex'));
 
         this.setState({
-          // FIXME: drop leading 0x for Native Signer compatibility
+          // FIXME: leading 0x is dropped for Native Signer compatibility
           qrValue: JSON.stringify({
             from: transaction.from.substr(2),
             rlp: rlp.substr(2)

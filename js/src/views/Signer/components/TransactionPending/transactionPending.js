@@ -159,7 +159,7 @@ class TransactionPending extends Component {
 
   onConfirm = (data) => {
     const { id, transaction } = this.props;
-    const { password, wallet } = data;
+    const { password, signedTx, wallet } = data;
     const { condition, gas, gasPrice } = this.gasStore.overrideTransaction(transaction);
 
     const options = {
@@ -167,6 +167,7 @@ class TransactionPending extends Component {
       gasPrice,
       id,
       password,
+      signedTx,
       wallet
     };
 

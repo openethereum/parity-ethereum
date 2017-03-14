@@ -86,14 +86,17 @@ export default class SignerMiddleware {
         return this._hwstore.signLedger(transaction);
       })
       .then((rawTx) => {
-        const handlePromise = this._createConfirmPromiseHandler(store, id);
-
-        return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
+        return this.confirmRawTransaction(store, id, rawTx);
       });
   }
 
-  confirmWalletTransaction (store, id, transaction, wallet, password) {
+  confirmRawTransaction (store, id, rawTx) {
     const handlePromise = this._createConfirmPromiseHandler(store, id);
+
+    return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
+  }
+
+  confirmWalletTransaction (store, id, transaction, wallet, password) {
     const { worker } = store.getState().worker;
 
     const signerPromise = worker && worker._worker.state === 'activated'
@@ -126,7 +129,7 @@ export default class SignerMiddleware {
         return signer.signTransaction(txData);
       })
       .then((rawTx) => {
-        return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
+        return this.confirmRawTransaction(store, id, rawTx);
       })
       .catch((error) => {
         console.error(error.message);
@@ -135,7 +138,7 @@ export default class SignerMiddleware {
   }
 
   onConfirmStart = (store, action) => {
-    const { condition, gas = 0, gasPrice = 0, id, password, payload, wallet } = action.payload;
+    const { condition, gas = 0, gasPrice = 0, id, password, payload, signedTx, wallet } = action.payload;
     const handlePromise = this._createConfirmPromiseHandler(store, id);
     const transaction = payload.sendTransaction || payload.signTransaction;
 
@@ -144,6 +147,8 @@ export default class SignerMiddleware {
 
       if (wallet) {
         return this.confirmWalletTransaction(store, id, transaction, wallet, password);
+      } else if (signedTx) {
+        return this.confirmRawTransaction(store, id, signedTx);
       } else if (hardwareAccount) {
         switch (hardwareAccount.via) {
           case 'ledger':
