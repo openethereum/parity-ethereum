@@ -43,7 +43,7 @@ pub struct RlpStream {
 	finished_list: bool,
 }
 
-impl Default  for RlpStream {
+impl Default for RlpStream {
 	fn default() -> Self {
 		RlpStream::new()
 	}
