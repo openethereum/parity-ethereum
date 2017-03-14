@@ -191,6 +191,11 @@ describe('modals/CreateAccount/Store', () => {
         store.setQrAddress(ADDR);
         expect(store.qrAddress).to.equal(ADDR);
       });
+
+      it('adds leading 0x if not found', () => {
+        store.setQrAddress(ADDR.substr(2));
+        expect(store.qrAddress).to.equal(ADDR);
+      });
     });
 
     describe('setRawKey', () => {
@@ -626,17 +631,17 @@ describe('modals/CreateAccount/Store', () => {
         beforeEach(() => {
           store.setName('some name');
           store.setDescription('some desc');
-          store.setQrAddress('qrAddr');
+          store.setQrAddress('0x123');
 
           return store.createAccountFromQr(-1);
         });
 
         it('sets the accountInfo name', () => {
-          expect(api.parity.setAccountName).to.have.been.calledWith('qrAddr', 'some name');
+          expect(api.parity.setAccountName).to.have.been.calledWith('0x123', 'some name');
         });
 
         it('sets the meta (with extrenal flag)', () => {
-          expect(api.parity.setAccountMeta).to.have.been.calledWith('qrAddr', {
+          expect(api.parity.setAccountMeta).to.have.been.calledWith('0x123', {
             description: 'some desc',
             passwordHint: '',
             timestamp: -1,
