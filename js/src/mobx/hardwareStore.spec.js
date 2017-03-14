@@ -169,8 +169,8 @@ describe('mobx/HardwareStore', () => {
           });
         });
 
-        it('calls into parity_setAccountName', () => {
-          expect(api.parity.setAccountName).to.have.been.calledWith('testAddr', 'originalName');
+        it('does not call into parity_setAccountName', () => {
+          expect(api.parity.setAccountName).not.to.have.been.called;
         });
 
         it('calls into parity_setAccountMeta', () => {

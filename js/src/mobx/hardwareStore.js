@@ -123,19 +123,19 @@ export default class HardwareStore {
   createAccountInfo (entry, original = {}) {
     const { address, manufacturer, name } = entry;
 
-    original.meta = original.meta || {};
-
     return Promise
       .all([
-        this._api.parity.setAccountName(address, original.name || name),
-        this._api.parity.setAccountMeta(address, {
-          description: original.meta.description || `${manufacturer} ${name}`,
+        original.name
+          ? Promise.resolve(true)
+          : this._api.parity.setAccountName(address, name),
+        this._api.parity.setAccountMeta(address, Object.assign({
+          description: `${manufacturer} ${name}`,
           hardware: {
             manufacturer
           },
-          tags: original.meta.tags || ['hardware'],
+          tags: ['hardware'],
           timestamp: Date.now()
-        })
+        }, original.meta || {}))
       ])
       .catch((error) => {
         console.warn('HardwareStore::createEntry', error);
