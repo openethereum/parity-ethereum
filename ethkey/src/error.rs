@@ -51,6 +51,12 @@ impl fmt::Display for Error {
 	}
 }
 
+impl Into<String> for Error {
+	fn into(self) -> String {
+		format!("{}", self)
+	}
+}
+
 impl From<::secp256k1::Error> for Error {
 	fn from(e: ::secp256k1::Error) -> Error {
 		match e {

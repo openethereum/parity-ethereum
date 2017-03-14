@@ -303,6 +303,10 @@ impl Parity for ParityClient {
 		Err(errors::light_unimplemented(None))
 	}
 
+	fn chain(&self) -> Result<String, Error> {
+		Ok(self.settings.chain.clone())
+	}
+
 	fn enode(&self) -> Result<String, Error> {
 		self.light_dispatch.sync.enode().ok_or_else(errors::network_disabled)
 	}

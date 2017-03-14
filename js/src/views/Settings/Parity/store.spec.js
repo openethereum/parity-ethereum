@@ -33,14 +33,20 @@ describe('views/Settings/Parity/Store', () => {
   beforeEach(() => {
     createStore();
     sinon.spy(store, 'setMode');
+    sinon.spy(store, 'setChain');
   });
 
   afterEach(() => {
     store.setMode.restore();
+    store.setChain.restore();
   });
 
   it('defaults to mode === active', () => {
     expect(store.mode).to.equal('active');
+  });
+
+  it('defaults to chain === foundation', () => {
+    expect(store.chain).to.equal('foundation');
   });
 
   describe('@action', () => {
@@ -48,6 +54,13 @@ describe('views/Settings/Parity/Store', () => {
       it('sets the mode', () => {
         store.setMode('offline');
         expect(store.mode).to.equal('offline');
+      });
+    });
+
+    describe('setChain', () => {
+      it('sets the chain', () => {
+        store.setChain('dev');
+        expect(store.chain).to.equal('dev');
       });
     });
   });
@@ -78,6 +91,34 @@ describe('views/Settings/Parity/Store', () => {
 
       it('sets the mode as retrieved', () => {
         expect(store.setMode).to.have.been.calledWith('passive');
+      });
+    });
+
+    describe('changeChain', () => {
+      beforeEach(() => {
+        return store.changeChain('dev');
+      });
+
+      it('calls parity.setChain', () => {
+        expect(api.parity.setChain).to.have.been.calledWith('dev');
+      });
+
+      it('sets the chain as provided', () => {
+        expect(store.setChain).to.have.been.calledWith('dev');
+      });
+    });
+
+    describe('loadChain', () => {
+      beforeEach(() => {
+        return store.loadChain();
+      });
+
+      it('calls parity.chain', () => {
+        expect(api.parity.chain).to.have.been.called;
+      });
+
+      it('sets the chain as retrieved', () => {
+        expect(store.setChain).to.have.been.calledWith('foundation');
       });
     });
   });

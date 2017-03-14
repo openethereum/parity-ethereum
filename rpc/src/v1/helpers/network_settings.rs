@@ -36,7 +36,7 @@ impl Default for NetworkSettings {
 	fn default() -> Self {
 		NetworkSettings {
 			name: "".into(),
-			chain: "homestead".into(),
+			chain: "foundation".into(),
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "local".into(),

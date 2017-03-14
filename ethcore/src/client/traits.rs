@@ -241,6 +241,12 @@ pub trait BlockChainClient : Sync + Send {
 	/// Set the mode.
 	fn set_mode(&self, mode: Mode);
 
+	/// Get the chain spec name.
+	fn spec_name(&self) -> String;
+
+	/// Set the chain via a spec name.
+	fn set_spec_name(&self, spec_name: String);
+
 	/// Disable the client from importing blocks. This cannot be undone in this session and indicates
 	/// that a subsystem has reason to believe this executable incapable of syncing the chain.
 	fn disable(&self);
