@@ -20,7 +20,7 @@ import { qrcode } from 'qrcode-npm';
 import React, { Component, PropTypes } from 'react';
 
 const QROPTS = {
-  CODE_TYPE: 9,
+  CODE_TYPE: 5,
   ERROR_LEVEL: 'M'
 };
 
@@ -71,7 +71,8 @@ export default class QrCode extends Component {
 
   generateCode (props) {
     const { margin, size, value } = props;
-    const qr = qrcode(QROPTS.CODE_TYPE, QROPTS.ERROR_LEVEL);
+    const minSize = Math.ceil((value.length * 8) / 128);
+    const qr = qrcode(Math.max(minSize, QROPTS.CODE_TYPE), QROPTS.ERROR_LEVEL);
 
     qr.addData(value);
     qr.make();
