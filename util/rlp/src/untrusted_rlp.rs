@@ -264,6 +264,10 @@ impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
 		self.at(index)?.as_val()
 	}
 
+	pub fn list_at<T>(&self, index: usize) -> Result<Vec<T>, DecoderError> where T: Decodable {
+		self.at(index)?.as_list()
+	}
+
 	pub fn decoder(&self) -> BasicDecoder {
 		BasicDecoder::new(self.clone())
 	}

@@ -26,7 +26,7 @@ use util::migration::{Batch, Config, Error, Migration, SimpleMigration, Progress
 use util::sha3::Hashable;
 use std::sync::Arc;
 
-use rlp::{decode, Rlp, RlpStream, View};
+use rlp::{decode, Rlp, RlpStream};
 
 
 // attempt to migrate a key, value pair. None if migration not possible.
@@ -184,7 +184,7 @@ impl OverlayRecentV7 {
 						}
 
 						// migrate all deleted keys.
-						let mut deleted_keys: Vec<H256> = rlp.val_at(2);
+						let mut deleted_keys: Vec<H256> = rlp.list_at(2);
 						for old_key in &mut deleted_keys {
 							if let Some(new) = self.migrated_keys.get(&*old_key) {
 								*old_key = new.clone();

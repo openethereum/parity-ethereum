@@ -26,7 +26,7 @@ use engines::Engine;
 use error::{BlockError, Error};
 use blockchain::*;
 use header::{BlockNumber, Header};
-use rlp::{UntrustedRlp, View};
+use rlp::UntrustedRlp;
 use transaction::SignedTransaction;
 use views::BlockView;
 use time::get_time;
@@ -101,7 +101,7 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 	verify_parent(&header, &parent)?;
 	engine.verify_block_family(&header, &parent, Some(bytes))?;
 
-	let num_uncles = UntrustedRlp::new(bytes).at(2)?.item_count();
+	let num_uncles = UntrustedRlp::new(bytes).at(2)?.item_count()?;
 	if num_uncles != 0 {
 		if num_uncles > engine.maximum_uncle_count() {
 			return Err(From::from(BlockError::TooManyUncles(OutOfBounds { min: None, max: Some(engine.maximum_uncle_count()), found: num_uncles })));
@@ -264,7 +264,6 @@ mod tests {
 	use transaction::*;
 	use tests::helpers::*;
 	use types::log_entry::{LogEntry, LocalizedLogEntry};
-	use rlp::View;
 	use time::get_time;
 	use encoded;
 

@@ -33,7 +33,7 @@ use error::{Error, BlockError};
 use header::Header;
 use builtin::Builtin;
 use env_info::EnvInfo;
-use rlp::{UntrustedRlp, View as RlpView};
+use rlp::UntrustedRlp;
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;

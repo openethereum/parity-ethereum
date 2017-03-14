@@ -24,7 +24,7 @@ use super::node::NodeKey;
 use ::{HashDB, H256};
 use ::bytes::ToPretty;
 use ::nibbleslice::NibbleSlice;
-use ::rlp::{Rlp, RlpStream, View};
+use ::rlp::{Rlp, RlpStream};
 use ::sha3::SHA3_NULL_RLP;
 use hashdb::DBValue;
 

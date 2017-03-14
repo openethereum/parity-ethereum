@@ -24,7 +24,7 @@ use ethcore::receipt::Receipt;
 
 use io::TimerToken;
 use network::{NetworkProtocolHandler, NetworkContext, PeerId};
-use rlp::{RlpStream, UntrustedRlp, View};
+use rlp::{RlpStream, UntrustedRlp};
 use util::hash::H256;
 use util::{Bytes, DBValue, Mutex, RwLock, U256};
 use time::{Duration, SteadyTime};
@@ -953,7 +953,7 @@ impl LightProtocol {
 		let id_guard = self.pre_verify_response(peer, request::Kind::Receipts, &raw)?;
 		let raw_receipts: Vec<Vec<Receipt>> = raw.at(2)?
 			.iter()
-			.map(|x| x.as_val())
+			.map(|x| x.as_list())
 			.collect::<Result<_,_>>()?;
 
 		let req_id = id_guard.defuse();

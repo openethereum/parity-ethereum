@@ -67,7 +67,7 @@ use std::borrow::Borrow;
 use elastic_array::ElasticArray1024;
 
 pub use error::DecoderError;
-pub use traits::{Decodable, View, Encodable, Compressible};
+pub use traits::{Decodable, Encodable, Compressible};
 pub use untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
 pub use rlpin::{Rlp, RlpIterator};
 pub use stream::RlpStream;

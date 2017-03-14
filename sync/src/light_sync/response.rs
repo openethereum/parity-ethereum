@@ -20,7 +20,7 @@ use std::fmt;
 
 use ethcore::header::Header;
 use light::request::{HashOrNumber, Headers as HeadersRequest};
-use rlp::{DecoderError, UntrustedRlp, View};
+use rlp::{DecoderError, UntrustedRlp};
 use util::{Bytes, H256};
 
 /// Errors found when decoding headers and verifying with basic constraints.

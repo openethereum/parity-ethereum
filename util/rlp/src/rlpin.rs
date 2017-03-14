@@ -109,6 +109,10 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	pub fn val_at<T>(&self, index: usize) -> T where T: Decodable {
 		self.at(index).as_val()
 	}
+
+	pub fn list_at<T>(&self, index: usize) -> Vec<T> where T: Decodable {
+		self.at(index).as_list()
+	}
 }
 
 /// Iterator over trusted rlp-slice list elements.
