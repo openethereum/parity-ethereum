@@ -28,7 +28,7 @@ extern crate rlp;
 
 use test::Bencher;
 use bigint::prelude::U256;
-use rlp::{RlpStream, Rlp, View};
+use rlp::{RlpStream, Rlp};
 
 #[bench]
 fn bench_stream_u64_value(b: &mut Bencher) {
