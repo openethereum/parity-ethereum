@@ -120,18 +120,20 @@ export default class HardwareStore {
       });
   }
 
-  createAccountInfo (entry) {
+  createAccountInfo (entry, original = {}) {
     const { address, manufacturer, name } = entry;
+
+    original.meta = original.meta || {};
 
     return Promise
       .all([
-        this._api.parity.setAccountName(address, name),
+        this._api.parity.setAccountName(address, original.name || name),
         this._api.parity.setAccountMeta(address, {
-          description: `${manufacturer} ${name}`,
+          description: original.meta.description || `${manufacturer} ${name}`,
           hardware: {
             manufacturer
           },
-          tags: ['hardware'],
+          tags: original.meta.tags || ['hardware'],
           timestamp: Date.now()
         })
       ])
