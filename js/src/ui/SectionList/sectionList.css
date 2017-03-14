@@ -44,6 +44,7 @@ $widthExpanded: 42%;
       box-sizing: border-box;
       display: flex;
       flex: 0 1 $widthNormal;
+      max-width: $widthNormal;
       opacity: 0.85;
       padding: 0.25em;
 
