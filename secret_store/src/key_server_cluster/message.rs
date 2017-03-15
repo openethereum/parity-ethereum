@@ -198,6 +198,26 @@ pub struct PartialDecryption {
 	pub shadow_point: MessagePublic,
 }
 
+impl fmt::Display for Message {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			Message::NodePublicKey(_) => write!(f, "NodePublicKey"),
+			Message::NodePrivateKeySignature(_) => write!(f, "NodePrivateKeySignature"),
+			Message::InitializeSession(_) => write!(f, "InitializeSession"),
+			Message::ConfirmInitialization(_) => write!(f, "ConfirmInitialization"),
+			Message::CompleteInitialization(_) => write!(f, "CompleteInitialization"),
+			Message::KeysDissemination(_) => write!(f, "KeysDissemination"),
+			Message::Complaint(_) => write!(f, "Complaint"),
+			Message::ComplaintResponse(_) => write!(f, "ComplaintResponse"),
+			Message::PublicKeyShare(_) => write!(f, "PublicKeyShare"),
+			Message::InitializeDecryptionSession(_) => write!(f, "InitializeDecryptionSession"),
+			Message::ConfirmDecryptionInitialization(_) => write!(f, "ConfirmDecryptionInitialization"),
+			Message::RequestPartialDecryption(_) => write!(f, "RequestPartialDecryption"),
+			Message::PartialDecryption(_) => write!(f, "PartialDecryption"),
+		}
+	}
+}
+
 #[derive(Clone, Debug)]
 /// Serializable Signature.
 pub struct MessageSignature(Signature);

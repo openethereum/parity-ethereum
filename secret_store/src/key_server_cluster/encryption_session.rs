@@ -342,12 +342,12 @@ impl Session {
 		debug_assert!(&sender != self.node());
 
 		let mut data = self.data.lock();
-		debug_assert!(data.nodes.contains_key(&sender));
 
 		// check state
 		if data.state != SessionState::WaitingForKeysDissemination {
 			return Err(Error::InvalidStateForRequest);
 		}
+		debug_assert!(data.nodes.contains_key(&sender));
 
 		// check message
 		let threshold = data.threshold.expect("threshold is filled in initialization phase; KD phase follows initialization phase; qed");
@@ -684,12 +684,16 @@ pub fn check_threshold(threshold: usize, nodes: &BTreeSet<NodeId>) -> Result<(),
 
 #[cfg(test)]
 mod tests {
+	use std::time;
+	use std::thread;
 	use std::sync::Arc;
 	use std::collections::{BTreeSet, BTreeMap};
+	use tokio_core::reactor::Core;
 	use ethkey::{Random, Generator};
 	use key_server_cluster::{NodeId, SessionId, Error};
 	use key_server_cluster::message::{self, Message};
-	use key_server_cluster::cluster::tests::DummyCluster;
+	use key_server_cluster::cluster::{Cluster, ClusterImpl, ClusterConfiguration, ClusterView};
+	use key_server_cluster::cluster::tests::{DummyCluster, make_clusters, loop_until, loop_for, all_connections_established};
 	use key_server_cluster::encryption_session::{Session, SessionState};
 	use key_server_cluster::math;
 	use key_server_cluster::math::tests::do_encryption_and_decryption;
@@ -1196,4 +1200,45 @@ mod tests {
 	}
 
 	// TODO: add test where some nodes are disqualified from session
+
+	#[test]
+	fn encryption_session_works_over_network() {
+		let test_cases = [(1, 3)];
+		for &(threshold, num_nodes) in &test_cases {
+			let mut core = Core::new().unwrap();
+
+			// prepare cluster objects for each node
+			let clusters = make_clusters(&core, num_nodes);
+			let key_pairs: Vec<_> = clusters.iter().map(|c| c.config().self_key_pair.clone()).collect();
+			loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
+
+loop_for(&mut core, time::Duration::from_millis(1000));
+println!("===================================================================");
+println!("===================================================================");
+println!("===================================================================");
+
+			let session_id = SessionId::default();
+			let session = clusters[0].new_encryption_session(session_id, threshold).unwrap();
+			loop_until(&mut core, time::Duration::from_millis(300000), || session.joint_public_key().is_some());
+
+			// prepare encryption sessions for each node
+			/*let session_id = SessionId::default();
+			let cluster_views: Vec<_> = clusters.into_iter()
+				.map(|cluster| cluster.default_view())
+				.collect();
+			let sessions: Vec<_> = cluster_views.into_iter().enumerate()
+				.map(|(i, cluster)| Session::new(session_id.clone(), key_pairs[i].public().clone(), Arc::new(cluster)))
+				.collect();
+loop_for(&mut core, time::Duration::from_millis(1000));
+println!("===================================================================");
+println!("===================================================================");
+println!("===================================================================");
+
+			// initiate session on first node
+			sessions[0].initialize(threshold, key_pairs.iter().map(|kp| kp.public().clone()).collect()).unwrap();
+
+			// loop until timeout or until first node has distributely-generated public key
+			loop_until(&mut core, time::Duration::from_millis(3000), || sessions[0].joint_public_key().is_some());*/
+		}
+	}
 }

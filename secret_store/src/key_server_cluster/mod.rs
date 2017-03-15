@@ -34,8 +34,14 @@ pub type SessionIdSignature = Signature;
 #[derive(Debug, PartialEq)]
 /// Errors which can occur during encryption/decryption session
 pub enum Error {
+	/// Invalid node address has been passed.
+	InvalidNodeAddress,
 	/// Invalid node id has been passed.
 	InvalidNodeId,
+	/// Session with the given id already exists.
+	DuplicateSessionId,
+	/// Session with the given id is unknown.
+	InvalidSessionId,
 	/// Invalid number of nodes.
 	/// There must be at least two nodes participating in encryption.
 	/// There must be at least one node participating in decryption.
@@ -51,6 +57,8 @@ pub enum Error {
 	/// Message or some data in the message was recognized as invalid.
 	/// This means that node is misbehaving/cheating.
 	InvalidMessage,
+	/// Connection to node, required for this session is not established.
+	NodeDisconnected,
 	/// Cryptographic error.
 	EthKey(String),
 	/// I/O error has occured.

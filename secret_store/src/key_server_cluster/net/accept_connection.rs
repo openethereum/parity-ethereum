@@ -9,7 +9,6 @@ use ethkey::KeyPair;
 use key_server_cluster::{Error, NodeId};
 use key_server_cluster::io::{accept_handshake, Handshake, Deadline, deadline};
 use key_server_cluster::net::Connection;
-use key_server_cluster::cluster::ClusterConfig;
 
 pub fn accept_connection(address: SocketAddr, stream: TcpStream, handle: &Handle, self_key_pair: KeyPair, trusted_nodes: BTreeSet<NodeId>) -> Deadline<AcceptConnection> {
 	let accept = AcceptConnection {
