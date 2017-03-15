@@ -500,25 +500,25 @@ export default class TransactionPendingFormConfirm extends Component {
 
   generateTxQr = () => {
     const { api } = this.context;
-    const { transaction } = this.props;
+    const { netVersion, transaction } = this.props;
 
     return api.parity
       .nextNonce(transaction.from)
       .then((_nonce) => {
-        // const chainId = parseInt(netVersion, 10);
+        const chainId = parseInt(netVersion, 10);
         const qrNonce = transaction.nonce.isZero() ? _nonce : transaction.nonce;
 
         const qrTx = new Transaction({
-          // chainId,
-          to: inHex(transaction.to).toLowerCase(),
+          chainId,
+          to: inHex(transaction.to),
           nonce: inHex(qrNonce),
           gasPrice: inHex(transaction.gasPrice),
           gasLimit: inHex(transaction.gas),
           value: inHex(transaction.value),
-          data: inHex(transaction.data) /* ,
+          data: inHex(transaction.data),
           r: 0,
           s: 0,
-          v: Buffer.from([netVersion]) */
+          v: Buffer.from([chainId])
         });
 
         console.log('qrTx', qrTx);
