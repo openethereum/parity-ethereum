@@ -45,12 +45,12 @@ target/release/build\
 rm -rf $KCOV_TARGET
 mkdir -p $KCOV_TARGET
 
-for FILE in `find target/target/deps ! -name "*.*"`
+for FILE in `find target/release/deps ! -name "*.*"`
 do
 	$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET $FILE
 done
 
-$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/target/parity-* executable
+$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/release/parity-* executable
 bash <(curl -s https://codecov.io/bash)&&
 echo "Uploaded code coverage for RUST"
 cd js
