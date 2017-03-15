@@ -51,7 +51,7 @@ export default class SecureApi extends Api {
     transport.on('close', this.connect, this);
 
     // Buble Up the transport request event
-    transport.on('request', (data) => { this.emit('request', data) });
+    transport.on('request', (data) => { this.emit('request', data); });
 
     this.connect();
   }
