@@ -32,7 +32,8 @@
     "description": "A registry of transactable tokens on the network",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "1.0.0",
-    "visible": true
+    "visible": true,
+    "secure": true
   },
   {
     "id": "0xf49089046f53f5d2e5f3513c1c32f5ff57d986e46309a42d2b249070e4e72c46",

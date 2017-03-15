@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { getTokenTotalSupply } from '../utils';
+import { URL_TYPE } from '../Inputs/validation';
+import { getTokenTotalSupply, urlToHash } from '../utils';
 
 const { bytesToHex } = window.parity.api.util;
 
@@ -178,40 +179,63 @@ export const queryTokenMeta = (index, query) => (dispatch, getState) => {
     });
 };
 
-export const addTokenMeta = (index, key, value) => (dispatch, getState) => {
+export const addTokenMeta = (index, key, value, validationType) => (dispatch, getState) => {
   const state = getState();
+
   const contractInstance = state.status.contract.instance;
+  const ghhInstance = state.status.githubhint.instance;
+
   const token = state.tokens.tokens.find(t => t.index === index);
   const options = { from: token.owner };
-  const values = [ index, key, value ];
+  let valuesPromise;
 
-  contractInstance
-    .setMeta
-    .estimateGas(options, values)
-    .then((gasEstimate) => {
-      options.gas = gasEstimate.mul(1.2).toFixed(0);
-      return contractInstance.setMeta.postTransaction(options, values);
+  // Get the right values (could be a hashed URL from GHH)
+  if (validationType === URL_TYPE) {
+    valuesPromise = addGithubhintURL(ghhInstance, options, value)
+      .then((hash) => [ index, key, hash ]);
+  } else {
+    valuesPromise = Promise.resolve([ index, key, value ]);
+  }
+
+  return valuesPromise
+    .then((values) => {
+      return contractInstance
+        .setMeta
+        .estimateGas(options, values)
+        .then((gasEstimate) => {
+          options.gas = gasEstimate.mul(1.2).toFixed(0);
+          return contractInstance.setMeta.postTransaction(options, values);
+        });
     })
     .catch((e) => {
       console.error(`addTokenMeta: #${index} error`, e);
     });
 };
 
-export const addGithubhintURL = (from, key, url) => (dispatch, getState) => {
-  const state = getState();
-  const contractInstance = state.status.githubhint.instance;
-  const options = { from };
-  const values = [ key, url ];
+export const addGithubhintURL = (ghhInstance, _options, url) => {
+  return urlToHash(ghhInstance, url)
+    .then((result) => {
+      const { hash, registered } = result;
 
-  contractInstance
-    .hintURL
-    .estimateGas(options, values)
-    .then((gasEstimate) => {
-      options.gas = gasEstimate.mul(1.2).toFixed(0);
-      return contractInstance.hintURL.postTransaction(options, values);
-    })
-    .catch((e) => {
-      console.error('addGithubhintURL error', e);
+      if (registered) {
+        return hash;
+      }
+
+      const options = { from: _options.from };
+      const values = [ hash, url ];
+
+      ghhInstance
+        .hintURL
+        .estimateGas(options, values)
+        .then((gasEstimate) => {
+          options.gas = gasEstimate.mul(1.2).toFixed(0);
+          return ghhInstance.hintURL.postTransaction(options, values);
+        })
+        .catch((error) => {
+          console.error(`registering "${url}" to GHH`, error);
+        });
+
+      return hash;
     });
 };
 
