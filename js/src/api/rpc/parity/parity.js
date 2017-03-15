@@ -375,8 +375,18 @@ export default class Parity {
   }
 
   postTransaction (options) {
+    const parsedOptions = inOptions(options);
+
     return this._transport
-      .execute('parity_postTransaction', inOptions(options));
+      .execute('parity_postTransaction', parsedOptions)
+      .then((requestId) => {
+        this._transport.emit('request', {
+          ...options,
+          requestId
+        });
+
+        return requestId;
+      });
   }
 
   registryAddress () {

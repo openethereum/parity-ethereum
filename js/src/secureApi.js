@@ -49,6 +49,10 @@ export default class SecureApi extends Api {
 
     // When the transport is closed, try to reconnect
     transport.on('close', this.connect, this);
+
+    // Buble Up the transport request event
+    transport.on('request', (data) => { this.emit('request', data) });
+
     this.connect();
   }
 
