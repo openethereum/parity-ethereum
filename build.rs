@@ -24,7 +24,7 @@ fn main() {
 	assert!(is >= required, format!("
 
 It looks like you are compiling Parity with an old rustc compiler {}.
-Parity requires newer version {}. Please update you compiler.
+Parity requires version {}. Please update your compiler.
 If you use rustup, try this:
 
     rustup update stable
