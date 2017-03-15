@@ -224,6 +224,9 @@ Sealing/Mining Options:
   --reseal-min-period MS         Specify the minimum time between reseals from
                                  incoming transactions. MS is time measured in
                                  milliseconds (default: {flag_reseal_min_period}).
+  --reseal-max-period MS         Specify the maximum time since last block to enable
+                                 force-sealing. MS is time measured in
+                                 milliseconds (default: {flag_reseal_max_period}).
   --work-queue-size ITEMS        Specify the number of historical work packages
                                  which are kept cached lest a solution is found for
                                  them later. High values take more memory but result
