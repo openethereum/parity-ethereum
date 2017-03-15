@@ -29,6 +29,7 @@ import { deploy, deployEstimateGas } from '~/util/tx';
 import DetailsStep from './DetailsStep';
 import ParametersStep from './ParametersStep';
 import ErrorStep from './ErrorStep';
+import Extras from '../Transfer/Extras';
 
 import styles from './deployContract.css';
 
@@ -48,6 +49,14 @@ const STEPS = {
       <FormattedMessage
         id='deployContract.title.parameters'
         defaultMessage='contract parameters'
+      />
+    )
+  },
+  EXTRAS: {
+    title: (
+      <FormattedMessage
+        id='deployContract.title.extras'
+        defaultMessage='extra information'
       />
     )
   },
@@ -107,6 +116,7 @@ class DeployContract extends Component {
     deployError: null,
     description: '',
     descriptionError: null,
+    extras: false,
     fromAddress: Object.keys(this.props.accounts)[0],
     fromAddressError: null,
     name: '',
@@ -148,7 +158,19 @@ class DeployContract extends Component {
 
     const realStepKeys = deployError || rejected
       ? []
-      : Object.keys(STEPS).filter((k) => k !== 'CONTRACT_PARAMETERS' || inputs.length > 0);
+      : Object.keys(STEPS)
+        .filter((k) => {
+          if (k === 'CONTRACT_PARAMETERS') {
+            return inputs.length > 0;
+          }
+
+          if (k === 'EXTRAS') {
+            return this.state.extras;
+          }
+
+          return true;
+        });
+
     const realStep = realStepKeys.findIndex((k) => k === step);
     const realSteps = realStepKeys.length
       ? realStepKeys.map((k) => STEPS[k])
@@ -260,48 +282,69 @@ class DeployContract extends Component {
       return closeBtn;
     }
 
+    const createButton = (
+      <Button
+        icon={
+          <IdentityIcon
+            address={ fromAddress }
+            button
+          />
+        }
+        key='create'
+        label={
+          <FormattedMessage
+            id='deployContract.button.create'
+            defaultMessage='Create'
+          />
+        }
+        onClick={ this.onDeployStart }
+      />
+    );
+
+    const nextButton = (
+      <Button
+        disabled={ !isValid }
+        key='next'
+        icon={
+          <IdentityIcon
+            address={ fromAddress }
+            button
+          />
+        }
+        label={
+          <FormattedMessage
+            id='deployContract.button.next'
+            defaultMessage='Next'
+          />
+        }
+        onClick={ this.onNextStep }
+      />
+    );
+
+    const hasParameters = this.state.inputs.length > 0;
+    const showExtras = this.state.extras;
+
     switch (step) {
       case 'CONTRACT_DETAILS':
         return [
           cancelBtn,
-          <Button
-            disabled={ !isValid }
-            key='next'
-            icon={
-              <IdentityIcon
-                address={ fromAddress }
-                button
-              />
-            }
-            label={
-              <FormattedMessage
-                id='deployContract.button.next'
-                defaultMessage='Next'
-              />
-            }
-            onClick={ this.onParametersStep }
-          />
+          hasParameters || showExtras
+            ? nextButton
+            : createButton
         ];
 
       case 'CONTRACT_PARAMETERS':
         return [
           cancelBtn,
-          <Button
-            icon={
-              <IdentityIcon
-                address={ fromAddress }
-                button
-              />
-            }
-            key='create'
-            label={
-              <FormattedMessage
-                id='deployContract.button.create'
-                defaultMessage='Create'
-              />
-            }
-            onClick={ this.onDeployStart }
-          />
+          showExtras
+            ? nextButton
+            : createButton
+        ];
+
+      case 'EXTRAS':
+        return [
+          cancelBtn,
+          createButton
         ];
 
       case 'DEPLOYMENT':
@@ -349,6 +392,7 @@ class DeployContract extends Component {
             accounts={ accounts }
             balances={ balances }
             onAmountChange={ this.onAmountChange }
+            onExtrasChange={ this.onExtrasChange }
             onFromAddressChange={ this.onFromAddressChange }
             onDescriptionChange={ this.onDescriptionChange }
             onNameChange={ this.onNameChange }
@@ -369,6 +413,9 @@ class DeployContract extends Component {
             readOnly={ readOnly }
           />
         );
+
+      case 'EXTRAS':
+        return this.renderExtrasPage();
 
       case 'DEPLOYMENT':
         const body = txhash
@@ -416,6 +463,20 @@ class DeployContract extends Component {
     }
   }
 
+  renderExtrasPage () {
+    if (!this.gasStore.histogram) {
+      return null;
+    }
+
+    return (
+      <Extras
+        gasStore={ this.gasStore }
+        hideData
+        isEth
+      />
+    );
+  }
+
   estimateGas = () => {
     const { api } = this.context;
     const { abiError, abiParsed, amountValue, amountError, code, codeError, fromAddress, fromAddressError, params } = this.state;
@@ -443,11 +504,32 @@ class DeployContract extends Component {
       });
   }
 
+  onNextStep = () => {
+    switch (this.state.step) {
+      case 'CONTRACT_DETAILS':
+        return this.onParametersStep();
+
+      case 'CONTRACT_PARAMETERS':
+        return this.onExtrasStep();
+
+      default:
+        console.warn('wrong call of "onNextStep" from', this.state.step);
+    }
+  }
+
   onParametersStep = () => {
     const { inputs } = this.state;
 
     if (inputs.length) {
       return this.setState({ step: 'CONTRACT_PARAMETERS' });
+    }
+
+    return this.onExtrasStep();
+  }
+
+  onExtrasStep = () => {
+    if (this.state.extras) {
+      return this.setState({ step: 'EXTRAS' });
     }
 
     return this.onDeployStart();
@@ -500,7 +582,12 @@ class DeployContract extends Component {
       ? new BigNumber(0)
       : this.context.api.util.toWei(amount);
 
+    this.gasStore.setEthValue(nextAmountValue);
     this.setState({ amount, amountValue: nextAmountValue, amountError: numberError }, this.estimateGas);
+  }
+
+  onExtrasChange = (extras) => {
+    this.setState({ extras });
   }
 
   onDeployStart = () => {
@@ -518,17 +605,17 @@ class DeployContract extends Component {
       source
     };
 
-    const options = {
+    const options = this.gasStore.overrideTransaction({
       data: code,
       from: fromAddress,
       value: amountValue
-    };
+    });
 
     this.setState({ step: 'DEPLOYMENT' });
 
     const contract = api.newContract(abiParsed);
 
-    deploy(contract, options, params, metadata, this.onDeploymentState)
+    deploy(contract, options, params, metadata, this.onDeploymentState, true)
       .then((address) => {
         // No contract address given, might need some confirmations
         // from the wallet owners...

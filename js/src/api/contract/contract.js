@@ -107,15 +107,25 @@ export default class Contract {
       });
   }
 
-  deploy (options, values, statecb = () => {}) {
-    statecb(null, { state: 'estimateGas' });
+  deploy (options, values, statecb = () => {}, skipGasEstimate = false) {
+    let gasEstPromise;
 
-    return this
-      .deployEstimateGas(options, values)
-      .then(([gasEst, gas]) => {
-        options.gas = gas.toFixed(0);
+    if (skipGasEstimate) {
+      gasEstPromise = Promise.resolve(null);
+    } else {
+      statecb(null, { state: 'estimateGas' });
 
-        statecb(null, { state: 'postTransaction', gas });
+      gasEstPromise = this.deployEstimateGas(options, values)
+        .then(([gasEst, gas]) => gas);
+    }
+
+    return gasEstPromise
+      .then((gas) => {
+        if (gas) {
+          options.gas = gas.toFixed(0);
+        }
+
+        statecb(null, { state: 'postTransaction', gas: options.gas });
 
         const encodedOptions = this._encodeOptions(this.constructors[0], options, values);
 
