@@ -54,7 +54,8 @@ $KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-* 
 bash <(curl -s https://codecov.io/bash)&&
 echo "Uploaded code coverage for RUST"
 cd js
-istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && codecov
+#istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec 
+npm run test:coverage&& codecov
 bash <(curl -s https://codecov.io/bash)&&
 echo "Uploaded code coverage for JS"
 cd ..
