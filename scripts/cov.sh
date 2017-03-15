@@ -50,6 +50,6 @@ do
 	$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET $FILE
 done
 
-$KCOV --coveralls-id=$COVERALLS_TOKEN --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-*
+$KCOV --coveralls-id=$COVERALLS_TOKEN --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-* executable
 
 exit 0
