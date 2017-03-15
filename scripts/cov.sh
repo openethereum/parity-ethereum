@@ -51,7 +51,7 @@ do
 	$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET $FILE
 done
 
-$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/release/parity-*
+$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-*
 #bash <(curl -s https://codecov.io/bash)&&
 #echo "Uploaded code coverage for RUST"
 cd js
