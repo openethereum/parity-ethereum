@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Installing KCOV under ubuntu
 # https://users.rust-lang.org/t/tutorial-how-to-collect-test-coverages-for-rust-project/650#
 ### Install deps
@@ -52,5 +52,10 @@ done
 
 $KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-* executable
 bash <(curl -s https://codecov.io/bash)&&
-echo "Uploaded code coverage"
+echo "Uploaded code coverage for RUST"
+cd js
+istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && codecov
+bash <(curl -s https://codecov.io/bash)&&
+echo "Uploaded code coverage for JS"
+cd ..
 exit 0
