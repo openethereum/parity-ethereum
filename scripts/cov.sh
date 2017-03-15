@@ -51,12 +51,14 @@ do
 done
 
 $KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/release/parity-* executable
-bash <(curl -s https://codecov.io/bash)&&
-echo "Uploaded code coverage for RUST"
+#bash <(curl -s https://codecov.io/bash)&&
+#echo "Uploaded code coverage for RUST"
 cd js
 #istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec 
-npm run test:coverage&& codecov
+npm run test:coverage
+cd ..
+codecov
 bash <(curl -s https://codecov.io/bash)&&
 echo "Uploaded code coverage for JS"
-cd ..
+
 exit 0
