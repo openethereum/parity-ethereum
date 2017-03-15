@@ -99,15 +99,13 @@ export default class SignerMiddleware {
   }
 
   confirmSignedTransaction (store, id, txSigned) {
-    const TEST = '{"id":"c2834685-bcce-1086-8cfc-46689463a41c","version":3,"crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"fde79c1985186d17945ff65e9589e154"},"ciphertext":"d87f3251a1eeb8bfcb2d6c143d1bcf5d381872e45e1361075cb035192d2de33d","kdf":"pbkdf2","kdfparams":{"c":10240,"dklen":32,"prf":"hmac-sha256","salt":"cec82a9ed60793c7b1ee478884848bb2a11a796ce4daf6fa31d2e79dfa67ea49"},"mac":"253f1d24358342851191b1e1873cd95a8c5d001fecf54ab5ff09f9e789c6df33"},"address":"00d1efd527f8c41ce2910556433f4dc2672ce2a5","name":"test","meta":""}';
     const { rlp, signature, tx } = txSigned;
 
     const r = Buffer.from(signature.substr(2, 64), 'hex');
     const s = Buffer.from(signature.substr(66, 64), 'hex');
 
-    // other payday pacific curtsy sulfur caramel suffix unvisited puppet monologue crusher
     // FIXME: First line is for replay protection, second without
-    const v = Buffer.from([(parseInt(signature.substr(130, 2), 16) * 2) + 35]);
+    const v = Buffer.from([parseInt(signature.substr(130, 2), 16) + (tx._chainId * 2) + 35]);
     // const v = Buffer.from([parseInt(signature.substr(130, 2), 16) + 27]);
 
     console.log('rlp', rlp);
@@ -129,17 +127,6 @@ export default class SignerMiddleware {
 
     console.log('signedTx', signedTx);
     signedTx.verifySignature();
-
-    Signer
-      .fromJson(JSON.parse(TEST), '')
-      .then((signer) => {
-        signer.signTransactionObject(tx);
-
-        console.log('Signer: r, s, v', tx.r.toString('hex'), tx.s.toString('hex'), tx.v.toString('hex'));
-
-        tx.verifySignature();
-      })
-      .catch((error) => console.error('Signer', error));
 
     return this.confirmRawTransaction(store, id, signedTx.serialize().toString('hex'));
   }
