@@ -105,7 +105,7 @@ impl Stream for RlpStream {
 
 	fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut RlpStream {
 		// push raw items
-		self.encoder.bytes.extend(bytes.iter().cloned());
+		self.encoder.bytes.extend_from_slice(bytes);
 
 		// try to finish and prepend the length
 		self.note_appended(item_count);
@@ -259,7 +259,7 @@ impl Encoder for BasicEncoder {
 	}
 
 	fn emit_raw(&mut self, bytes: &[u8]) -> () {
-		self.bytes.extend(bytes.iter().cloned());
+		self.bytes.extend_from_slice(bytes);
 	}
 }
 

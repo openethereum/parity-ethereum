@@ -63,7 +63,7 @@ pub enum RlpType {
 
 fn to_small_vec(slice: &[u8]) -> SmallVec<[u8; 1024]> {
 	let mut out = SmallVec::new();
-	out.extend(slice.iter().cloned());
+	out.extend_from_slice(slice);
 	out
 }
 

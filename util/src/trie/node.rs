@@ -22,7 +22,7 @@ use hashdb::{DBValue, FromSlice};
 use smallvec::SmallVec;
 
 /// Partial node key type.
-pub type NodeKey = SmallVec<[u8; 64]>;
+pub type NodeKey = SmallVec<[u8; 32]>;
 
 /// Type of node in the trie and essential information thereof.
 #[derive(Eq, PartialEq, Debug, Clone)]

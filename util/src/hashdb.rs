@@ -41,7 +41,7 @@ macro_rules! impl_from_slice(
         )+
     }
 );
-impl_from_slice!(4, 64, 128);
+impl_from_slice!(4, 32, 64, 128);
 
 /// Trait modelling datastore keyed by a 32-byte Keccak hash.
 pub trait HashDB: AsHashDB + Send + Sync {
