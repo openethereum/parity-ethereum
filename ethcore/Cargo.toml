@@ -44,6 +44,7 @@ ethcore-stratum = { path = "../stratum" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 hardware-wallet = { path = "../hw" }
 stats = { path = "../util/stats" }
+num = "0.1"
 
 [dependencies.hyper]
 git = "https://github.com/ethcore/hyper"
