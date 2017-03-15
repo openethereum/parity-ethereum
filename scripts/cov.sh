@@ -25,7 +25,7 @@ cargo test $TARGETS --no-run || exit $?
 
 
 
-KCOV_TARGET="target/kcov"
+KCOV_TARGET="target/cov"
 KCOV_FLAGS="--verify"
 EXCLUDE="/usr/lib,\
 /usr/include,\
@@ -50,6 +50,7 @@ do
 	$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET $FILE
 done
 
-$KCOV --coveralls-id=$COVERALLS_TOKEN --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-* executable
-
+$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-* executable
+bash <(curl -s https://codecov.io/bash)&&
+echo "Uploaded code coverage"
 exit 0
