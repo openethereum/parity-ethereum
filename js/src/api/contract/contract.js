@@ -120,12 +120,14 @@ export default class Contract {
     }
 
     return gasEstPromise
-      .then((gas) => {
-        if (gas) {
-          options.gas = gas.toFixed(0);
+      .then((_gas) => {
+        if (_gas) {
+          options.gas = _gas.toFixed(0);
         }
 
-        statecb(null, { state: 'postTransaction', gas: options.gas });
+        const gas = _gas || options.gas;
+
+        statecb(null, { state: 'postTransaction', gas });
 
         const encodedOptions = this._encodeOptions(this.constructors[0], options, values);
 
