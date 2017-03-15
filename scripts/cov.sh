@@ -21,8 +21,8 @@ if ! type $KCOV > /dev/null; then
 fi
 
 . ./scripts/targets.sh
-#cargo test $TARGETS --no-run || exit $?
-cargo build --release
+cargo test $TARGETS --no-run || exit $?
+#cargo build --release
 
 
 KCOV_TARGET="target/cov"
@@ -51,7 +51,7 @@ do
 	$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET $FILE
 done
 
-$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/release/parity-* executable
+$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/release/parity-*
 #bash <(curl -s https://codecov.io/bash)&&
 #echo "Uploaded code coverage for RUST"
 cd js
