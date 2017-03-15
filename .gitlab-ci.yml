@@ -507,8 +507,11 @@ test-coverage:
   stage: test
   only:
     - coverage
+    - master
   script:
     - git submodule update --init --recursive
+    - rm -rf target/*
+    - rm -rf js/.coverage
     - scripts/cov.sh
     - COVERAGE=$(grep -Po 'covered":.*?[^\\]"' target/kcov/index.json | grep "[0-9]*\.[0-9]" -o)
     - echo "Coverage:" $COVERAGE   
