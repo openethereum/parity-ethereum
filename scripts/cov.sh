@@ -39,7 +39,8 @@ util/src/network/tests,\
 ethcore/src/evm/tests,\
 ethstore/tests,\
 target/debug/build,\
-target/release/build\
+target/release/build,\
+*.db
 "
 
 rm -rf $KCOV_TARGET
