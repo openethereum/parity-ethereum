@@ -303,9 +303,7 @@ impl Miner {
 	}
 
 	fn forced_sealing(&self) -> bool {
-		self.options.force_sealing
-			|| !self.options.new_work_notify.is_empty()
-			|| Instant::now() > *self.next_mandatory_reseal.read()
+		self.options.force_sealing || !self.options.new_work_notify.is_empty()
 	}
 
 	/// Clear all pending block states
@@ -483,7 +481,7 @@ impl Miner {
 
 	/// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the type of Seal.
 	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient, block: ClosedBlock) -> bool {
-		if !block.transactions().is_empty() || self.forced_sealing() {
+		if !block.transactions().is_empty() || Instant::now() > *self.next_mandatory_reseal.read() {
 			trace!(target: "miner", "seal_block_internally: attempting internal seal.");
 			match self.engine.generate_seal(block.block()) {
 				// Save proposal for later seal submission and broadcast it.
