@@ -46,7 +46,7 @@ target/release/build,\
 rm -rf $KCOV_TARGET
 mkdir -p $KCOV_TARGET
 
-for FILE in `find target/release/deps ! -name "*.*"`
+for FILE in `find target/debug/deps ! -name "*.*"`
 do
 	$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET $FILE
 done
