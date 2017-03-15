@@ -14,6 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
+import Transaction from 'ethereumjs-tx';
+
 import * as actions from './signerActions';
 
 import { inHex } from '~/api/format/input';
@@ -96,6 +99,33 @@ export default class SignerMiddleware {
     return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
   }
 
+  confirmSignedTransaction (store, id, txSigned) {
+    const { signature, tx } = txSigned;
+
+    const r = Buffer.from(signature.substr(2, 64), 'hex');
+    const s = Buffer.from(signature.substr(66, 64), 'hex');
+    // const v = Buffer.from([(parseInt(signature.substr(130, 2), 16) * 2) + 35]);
+    const v = Buffer.from([parseInt(signature.substr(130, 2), 16) + 27]);
+
+    const signedTx = new Transaction({
+      to: tx.to,
+      nonce: tx.nonce,
+      gasPrice: tx.gasPrice,
+      gasLimit: tx.gasLimit,
+      value: tx.value,
+      data: tx.data,
+      chainId: tx._chainId,
+      r,
+      s,
+      v
+    });
+
+    console.log('signedTx', signedTx);
+    signedTx.verifySignature();
+
+    return this.confirmRawTransaction(store, id, signedTx.serialize().toString('hex'));
+  }
+
   confirmWalletTransaction (store, id, transaction, wallet, password) {
     const { worker } = store.getState().worker;
 
@@ -138,7 +168,7 @@ export default class SignerMiddleware {
   }
 
   onConfirmStart = (store, action) => {
-    const { condition, gas = 0, gasPrice = 0, id, password, payload, signedTx, wallet } = action.payload;
+    const { condition, gas = 0, gasPrice = 0, id, password, payload, txSigned, wallet } = action.payload;
     const handlePromise = this._createConfirmPromiseHandler(store, id);
     const transaction = payload.sendTransaction || payload.signTransaction;
 
@@ -147,8 +177,8 @@ export default class SignerMiddleware {
 
       if (wallet) {
         return this.confirmWalletTransaction(store, id, transaction, wallet, password);
-      } else if (signedTx) {
-        return this.confirmRawTransaction(store, id, signedTx);
+      } else if (txSigned) {
+        return this.confirmSignedTransaction(store, id, txSigned);
       } else if (hardwareAccount) {
         switch (hardwareAccount.via) {
           case 'ledger':

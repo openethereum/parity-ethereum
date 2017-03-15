@@ -129,6 +129,7 @@ class TransactionPending extends Component {
           focus={ focus }
           gasStore={ this.gasStore }
           isSending={ isSending }
+          netVersion={ netVersion }
           onConfirm={ this.onConfirm }
           onReject={ this.onReject }
           transaction={ transaction }
@@ -159,7 +160,7 @@ class TransactionPending extends Component {
 
   onConfirm = (data) => {
     const { id, transaction } = this.props;
-    const { password, signedTx, wallet } = data;
+    const { password, txSigned, wallet } = data;
     const { condition, gas, gasPrice } = this.gasStore.overrideTransaction(transaction);
 
     const options = {
@@ -167,7 +168,7 @@ class TransactionPending extends Component {
       gasPrice,
       id,
       password,
-      signedTx,
+      txSigned,
       wallet
     };
 

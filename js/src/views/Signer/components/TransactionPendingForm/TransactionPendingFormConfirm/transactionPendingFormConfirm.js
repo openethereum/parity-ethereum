@@ -43,6 +43,7 @@ export default class TransactionPendingFormConfirm extends Component {
     disabled: PropTypes.bool,
     focus: PropTypes.bool,
     gasStore: PropTypes.object.isRequired,
+    netVersion: PropTypes.string.isRequired,
     isSending: PropTypes.bool.isRequired,
     onConfirm: PropTypes.func.isRequired,
     transaction: PropTypes.object.isRequired
@@ -410,16 +411,22 @@ export default class TransactionPendingFormConfirm extends Component {
     );
   }
 
-  onScanTx = (signedTx) => {
+  onScanTx = (signature) => {
+    const { qrRlp, qrTx } = this.state;
+
     // FIXME: Would prefer 0x back from the actual QR
-    if (signedTx && signedTx.substr(0, 2) !== '0x') {
-      signedTx = `0x${signedTx}`;
+    if (signature && signature.substr(0, 2) !== '0x') {
+      signature = `0x${signature}`;
     }
 
     this.setState({ qrState: QR_COMPLETED });
 
     this.props.onConfirm({
-      signedTx
+      txSigned: {
+        rlp: qrRlp,
+        signature,
+        tx: qrTx
+      }
     });
   }
 
@@ -497,22 +504,35 @@ export default class TransactionPendingFormConfirm extends Component {
 
     return api.parity
       .nextNonce(transaction.from)
-      .then((nonce) => {
-        const tx = new Transaction({
-          to: inHex(transaction.to),
-          nonce: inHex(transaction.nonce.isZero() ? nonce : transaction.nonce),
+      .then((_nonce) => {
+        // const chainId = parseInt(netVersion, 10);
+        const qrNonce = transaction.nonce.isZero() ? _nonce : transaction.nonce;
+
+        const qrTx = new Transaction({
+          // chainId,
+          to: inHex(transaction.to).toLowerCase(),
+          nonce: inHex(qrNonce),
           gasPrice: inHex(transaction.gasPrice),
           gasLimit: inHex(transaction.gas),
           value: inHex(transaction.value),
-          data: inHex(transaction.data)
+          data: inHex(transaction.data) /* ,
+          r: 0,
+          s: 0,
+          v: Buffer.from([netVersion]) */
         });
-        const rlp = inHex(tx.serialize().toString('hex'));
+
+        console.log('qrTx', qrTx);
+
+        const qrRlp = inHex(qrTx.serialize().toString('hex'));
 
         this.setState({
           // FIXME: leading 0x is dropped for Native Signer compatibility
+          qrNonce,
+          qrRlp,
+          qrTx,
           qrValue: JSON.stringify({
             from: transaction.from.substr(2),
-            rlp: rlp.substr(2)
+            rlp: qrRlp.substr(2)
           })
         });
       });
