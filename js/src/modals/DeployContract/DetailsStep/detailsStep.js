@@ -36,9 +36,12 @@ export default class DetailsStep extends Component {
     onInputsChange: PropTypes.func.isRequired,
     onNameChange: PropTypes.func.isRequired,
     onParamsChange: PropTypes.func.isRequired,
+    onValueChange: PropTypes.func.isRequired,
 
     abi: PropTypes.string,
     abiError: PropTypes.string,
+    amount: PropTypes.string,
+    amountError: PropTypes.string,
     balances: PropTypes.object,
     code: PropTypes.string,
     codeError: PropTypes.string,
@@ -189,7 +192,53 @@ export default class DetailsStep extends Component {
           value={ code }
         />
 
+        { this.renderValueInput() }
+
       </Form>
+    );
+  }
+
+  renderValueInput () {
+    const { abi, amount, amountError } = this.props;
+
+    let payable = false;
+
+    try {
+      const parsedAbi = JSON.parse(abi);
+
+      payable = parsedAbi.find((method) => method.type === 'constructor' && method.payable);
+    } catch (error) {
+      return null;
+    }
+
+    if (!payable) {
+      return null;
+    }
+
+    return (
+      <Input
+        error={ amountError }
+        hint={
+          <FormattedMessage
+            id='deployContract.details.amount.hint'
+            defaultMessage='the amount to transfer to the contract'
+          />
+        }
+        label={
+          <FormattedMessage
+            id='deployContract.details.amount.label'
+            defaultMessage='amount to transfer (in {tag})'
+            values={ {
+              tag: 'ETH'
+            } }
+          />
+        }
+        min={ 0 }
+        step={ 0.1 }
+        type='number'
+        onChange={ this.onAmountChange }
+        value={ amount }
+      />
     );
   }
 
@@ -293,6 +342,12 @@ export default class DetailsStep extends Component {
     const { onDescriptionChange } = this.props;
 
     onDescriptionChange(description);
+  }
+
+  onAmountChange = (event, value) => {
+    const { onAmountChange } = this.props;
+
+    onAmountChange(value);
   }
 
   onAbiChange = (abi) => {
