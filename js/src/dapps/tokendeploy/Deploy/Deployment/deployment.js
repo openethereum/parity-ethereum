@@ -253,23 +253,28 @@ export default class Deployment extends Component {
 
   onDeploy = () => {
     const { managerInstance, registryInstance, tokenregInstance } = this.context;
-    const { base, deployBusy, globalReg, globalFee, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
+    const { base, deployBusy, globalReg, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
 
     if (hasError || deployBusy) {
       return;
     }
 
-    const tokenreg = (globalReg ? tokenregInstance : registryInstance).address;
+    const registry = globalReg ? tokenregInstance : registryInstance;
+    const tokenreg = registry.address;
+
     const values = [base.mul(totalSupply), tla, name, tokenreg];
-    const options = {
-      value: globalReg ? globalFee : 0
-    };
+    const options = {};
 
     this.setState({ deployBusy: true, deployState: 'Estimating gas for the transaction' });
 
-    return api.parity
-      .defaultAccount()
+    return registry.fee.call({}, [])
+      .then((fee) => {
+        console.log('deploying with fee of', fee.toFixed());
+        options.value = fee;
+
+        return api.parity.defaultAccount();
+      })
       .then((defaultAddress) => {
         options.from = defaultAddress;
 
