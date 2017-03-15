@@ -90,6 +90,8 @@ pub struct MinerOptions {
 	pub reseal_on_own_tx: bool,
 	/// Minimum period between transaction-inspired reseals.
 	pub reseal_min_period: Duration,
+	/// Maximum period between blocks (enables force sealing after that).
+	pub reseal_max_period: Duration,
 	/// Maximum amount of gas to bother considering for block insertion.
 	pub tx_gas_limit: U256,
 	/// Maximum size of the transaction queue.
@@ -123,6 +125,7 @@ impl Default for MinerOptions {
 			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 			pending_set: PendingSet::AlwaysQueue,
 			reseal_min_period: Duration::from_secs(2),
+			reseal_max_period: Duration::from_secs(120),
 			work_queue_size: 20,
 			enable_resubmission: true,
 			tx_queue_banning: Banning::Disabled,
@@ -212,6 +215,7 @@ pub struct Miner {
 	transaction_queue: Arc<Mutex<BanningTransactionQueue>>,
 	sealing_work: Mutex<SealingWork>,
 	next_allowed_reseal: Mutex<Instant>,
+	next_mandatory_reseal: RwLock<Instant>,
 	sealing_block_last_request: Mutex<u64>,
 	// for sealing...
 	options: MinerOptions,
@@ -268,6 +272,7 @@ impl Miner {
 		Miner {
 			transaction_queue: Arc::new(Mutex::new(txq)),
 			next_allowed_reseal: Mutex::new(Instant::now()),
+			next_mandatory_reseal: RwLock::new(Instant::now() + options.reseal_max_period),
 			sealing_block_last_request: Mutex::new(0),
 			sealing_work: Mutex::new(SealingWork{
 				queue: UsingQueue::new(options.work_queue_size),
@@ -298,7 +303,9 @@ impl Miner {
 	}
 
 	fn forced_sealing(&self) -> bool {
-		self.options.force_sealing || !self.options.new_work_notify.is_empty()
+		self.options.force_sealing
+			|| !self.options.new_work_notify.is_empty()
+			|| Instant::now() > *self.next_mandatory_reseal.read()
 	}
 
 	/// Clear all pending block states
@@ -482,6 +489,7 @@ impl Miner {
 				// Save proposal for later seal submission and broadcast it.
 				Seal::Proposal(seal) => {
 					trace!(target: "miner", "Received a Proposal seal.");
+					*self.next_mandatory_reseal.write() = Instant::now() + self.options.reseal_max_period;
 					{
 						let mut sealing_work = self.sealing_work.lock();
 						sealing_work.queue.push(block.clone());
@@ -497,7 +505,8 @@ impl Miner {
 						})
 				},
 				// Directly import a regular sealed block.
-				Seal::Regular(seal) =>
+				Seal::Regular(seal) => {
+					*self.next_mandatory_reseal.write() = Instant::now() + self.options.reseal_max_period;
 					block
 						.lock()
 						.seal(&*self.engine, seal)
@@ -505,7 +514,8 @@ impl Miner {
 						.unwrap_or_else(|e| {
 							warn!("ERROR: seal failed when given internally generated seal: {}", e);
 							false
-						}),
+						})
+				},
 				Seal::None => false,
 			}
 		} else {
@@ -1290,6 +1300,7 @@ mod tests {
 				reseal_on_external_tx: false,
 				reseal_on_own_tx: true,
 				reseal_min_period: Duration::from_secs(5),
+				reseal_max_period: Duration::from_secs(120),
 				tx_gas_limit: !U256::zero(),
 				tx_queue_size: 1024,
 				tx_queue_gas_limit: GasLimit::None,
