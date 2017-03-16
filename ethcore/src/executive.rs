@@ -266,8 +266,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			// Engines aren't supposed to return builtins until activation, but
 			// prefer to fail rather than silently break consensus.
 			if !builtin.is_active(self.info.number) {
-				let msg = format!("Engine returned unactivated built-in at {}", params.code_address);
-				return Err(evm::Error::Internal(msg));
+				panic!("Consensus failure: engine implementation prematurely enabled built-in at {}", params.code_address);
 			}
 
 			let default = [];

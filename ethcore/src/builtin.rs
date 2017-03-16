@@ -71,7 +71,7 @@ impl Pricer for Modexp {
 		let mod_len = read_len();
 
 		// floor(max(length_of_MODULUS, length_of_BASE) ** 2 * max(length_of_EXPONENT, 1) / GQUADDIVISOR)
-		// TODO: is saturating the best bahavior here?
+		// TODO: is saturating the best behavior here?
 		let m = max(mod_len, base_len);
 		match m.overflowing_mul(m) {
 			(_, true) => U256::max_value(),
@@ -260,10 +260,18 @@ impl Impl for ModexpImpl {
 
 		// calculate modexp: exponentiation by squaring.
 		fn modexp(mut base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
-			if base == BigUint::zero() || modulus <= BigUint::one() { return BigUint::zero() }
+			match (base == BigUint::zero(), exp == BigUint::zero()) {
+				(_, true) => return BigUint::one(), // n^0 % m
+				(true, false) => return BigUint::zero(), // 0^n % m, n>0
+				(false, false) if modulus <= BigUint::one() => return BigUint::zero(), // a^b % 1 = 0.
+				_ => {}
+			}
 
 			let mut result = BigUint::one();
 			base = base % &modulus;
+
+			// fast path for base divisible by modulus.
+			if base == BigUint::zero() { return result }
 			while exp != BigUint::zero() {
 				// exp has to be on the right here to avoid move.
 				if BigUint::one() & &exp == BigUint::one() {
@@ -277,10 +285,15 @@ impl Impl for ModexpImpl {
 			result
 		}
 
-		// write output to given memory, left padded to same length as the modulus.
+		// write output to given memory, left padded and same length as the modulus.
 		let bytes = modexp(base, exp, modulus).to_bytes_be();
-		let res_start = mod_len - bytes.len();
-		output.write(res_start, &bytes);
+
+		// always true except in the case of zero-length modulus, which leads to
+		// output of length and value 1.
+		if bytes.len() <= mod_len {
+			let res_start = mod_len - bytes.len();
+			output.write(res_start, &bytes);
+		}
 	}
 }
 
@@ -478,6 +491,24 @@ mod tests {
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
 			assert_eq!(output, expected);
+			assert_eq!(f.cost(&input[..]), expected_cost.into());
+		}
+
+		// zero-length modulus.
+		{
+			let input = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000001\
+				0000000000000000000000000000000000000000000000000000000000000002\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				03\
+				ffff"
+			).unwrap();
+
+			let mut output = vec![];
+			let expected_cost = 0;
+
+			f.execute(&input[..], &mut BytesRef::Flexible(&mut output));
+			assert_eq!(output.len(), 0); // shouldn't have written any output.
 			assert_eq!(f.cost(&input[..]), expected_cost.into());
 		}
 	}
