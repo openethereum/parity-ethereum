@@ -230,7 +230,8 @@ pub struct Miner {
 impl Miner {
 	/// Push notifier that will handle new jobs
 	pub fn push_notifier(&self, notifier: Box<NotifyWork>) {
-		self.notifiers.write().push(notifier)
+		self.notifiers.write().push(notifier);
+		self.sealing_work.lock().enabled = true;
 	}
 
 	/// Creates new instance of miner Arc.
