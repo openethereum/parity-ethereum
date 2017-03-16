@@ -31,12 +31,12 @@ use futures::{Async, Poll, Future};
 use futures::sync::oneshot::{self, Sender, Receiver};
 use network::PeerId;
 use rlp::{RlpStream, Stream};
-use util::{Bytes, DBValue, RwLock, Mutex, U256};
+use util::{Bytes, DBValue, RwLock, Mutex, U256, H256};
 use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
 
 use net::{Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
 use cache::Cache;
-use types::les_request::{self as les_request, Request as LesRequest};
+use request::{self as basic_request, Request as NetworkRequest, Response as NetworkResponse};
 
 pub mod request;
 
@@ -46,22 +46,83 @@ struct Peer {
 	capabilities: Capabilities,
 }
 
+impl Peer {
+	// Whether a given peer can handle a specific request.
+	fn can_handle(&self, pending: &Pending) -> bool {
+		match *pending {
+			Pending::HeaderProof(ref req, _) =>
+				self.capabilities.serve_headers && self.status.head_num > req.num(),
+			Pending::HeaderByHash(ref req, _) => self.capabilities.serve_headers,
+			Pending::Block(ref req, _) =>
+				self.capabilities.serve_chain_since.as_ref().map_or(false, |x| *x >= req.header.number()),
+			Pending::BlockReceipts(ref req, _) =>
+				self.capabilities.serve_chain_since.as_ref().map_or(false, |x| *x >= req.0.number()),
+			Pending::Account(ref req, _) =>
+				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= req.header.number()),
+			Pending::Code(ref req, _) =>
+				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= req.block_id.1),
+			Pending::TxProof(ref req, _) =>
+				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= req.header.number()),
+		}
+	}
+}
+
 // Which portions of a CHT proof should be sent.
 enum ChtProofSender {
-	Both(Sender<(encoded::Header, U256)>),
-	Header(Sender<encoded::Header>),
+	Both(Sender<(H256, U256)>),
+	Hash(Sender<H256>),
 	ChainScore(Sender<U256>),
 }
 
 // Attempted request info and sender to put received value.
 enum Pending {
-	HeaderByNumber(request::HeaderByNumber, ChtProofSender),
+	HeaderProof(request::HeaderProof, ChtProofSender),
 	HeaderByHash(request::HeaderByHash, Sender<encoded::Header>),
 	Block(request::Body, Sender<encoded::Block>),
 	BlockReceipts(request::BlockReceipts, Sender<Vec<Receipt>>),
-	Account(request::Account, Sender<BasicAccount>),
+	Account(request::Account, Sender<Option<BasicAccount>>),
 	Code(request::Code, Sender<Bytes>),
 	TxProof(request::TransactionProof, Sender<Result<Executed, ExecutionError>>),
+}
+
+impl Pending {
+	// Create a network request.
+	fn make_request(&self) -> NetworkRequest {
+		match *self {
+			Pending::HeaderByHash(ref req, _) => NetworkRequest::Headers(basic_request::IncompleteHeadersRequest {
+				start: basic_request::HashOrNumber::Hash(req.0).into(),
+				skip: 0,
+				max: 1,
+				reverse: false,
+			}),
+			Pending::HeaderProof(ref req, _) => NetworkRequest::HeaderProof(basic_request::IncompleteHeaderProofRequest {
+				num: req.num().into(),
+			}),
+			Pending::Block(ref req, _) => NetworkRequest::Body(basic_request::IncompleteBodyRequest {
+				hash: req.hash.into(),
+			}),
+			Pending::BlockReceipts(ref req, _) => NetworkRequest::Receipts(basic_request::IncompleteReceiptsRequest {
+				hash: req.0.hash().into(),
+			}),
+			Pending::Account(ref req, _) => NetworkRequest::Account(basic_request::IncompleteAccountRequest {
+				block_hash: req.header.hash().into(),
+				address_hash: ::util::Hashable::sha3(&req.address).into(),
+			}),
+			Pending::Code(ref req, _) => NetworkRequest::Code(basic_request::IncompleteCodeRequest {
+				block_hash: req.block_id.0.into(),
+				code_hash: req.code_hash.into(),
+			}),
+			Pending::TxProof(ref req, _) => NetworkRequest::Execution(basic_request::IncompleteExecutionRequest {
+				block_hash: req.header.hash().into(),
+				from: req.tx.sender(),
+				gas: req.tx.gas,
+				gas_price: req.tx.gas_price,
+				action: req.tx.action.clone(),
+				value: req.tx.value,
+				data: req.tx.data.clone(),
+			}),
+		}
+	}
 }
 
 /// On demand request service. See module docs for more details.
@@ -85,25 +146,25 @@ impl OnDemand {
 		}
 	}
 
-	/// Request a header by block number and CHT root hash.
-	/// Returns the header.
-	pub fn header_by_number(&self, ctx: &BasicContext, req: request::HeaderByNumber) -> Receiver<encoded::Header> {
+	/// Request a header's hash by block number and CHT root hash.
+	/// Returns the hash.
+	pub fn hash_by_number(&self, ctx: &BasicContext, req: request::HeaderProof) -> Receiver<H256> {
 		let (sender, receiver) = oneshot::channel();
 		let cached = {
 			let mut cache = self.cache.lock();
-			cache.block_hash(&req.num()).and_then(|hash| cache.block_header(&hash))
+			cache.block_hash(&req.num())
 		};
 
 		match cached {
-			Some(hdr) => sender.complete(hdr),
-			None => self.dispatch_header_by_number(ctx, req, ChtProofSender::Header(sender)),
+			Some(hash) => sender.complete(hash),
+			None => self.dispatch(ctx, Pending::HeaderProof(req, ChtProofSender::Hash(sender))),
 		}
 		receiver
 	}
 
 	/// Request a canonical block's chain score.
 	/// Returns the chain score.
-	pub fn chain_score_by_number(&self, ctx: &BasicContext, req: request::HeaderByNumber) -> Receiver<U256> {
+	pub fn chain_score_by_number(&self, ctx: &BasicContext, req: request::HeaderProof) -> Receiver<U256> {
 		let (sender, receiver) = oneshot::channel();
 		let cached = {
 			let mut cache = self.cache.lock();
@@ -112,69 +173,31 @@ impl OnDemand {
 
 		match cached {
 			Some(score) => sender.complete(score),
-			None => self.dispatch_header_by_number(ctx, req, ChtProofSender::ChainScore(sender)),
+			None => self.dispatch(ctx, Pending::HeaderProof(req, ChtProofSender::ChainScore(sender))),
 		}
 
 		receiver
 	}
 
-	/// Request a canonical block's chain score.
-	/// Returns the header and chain score.
-	pub fn header_and_score_by_number(&self, ctx: &BasicContext, req: request::HeaderByNumber) -> Receiver<(encoded::Header, U256)> {
+	/// Request a canonical block's hash and chain score by number.
+	/// Returns the hash and chain score.
+	pub fn hash_and_score_by_number(&self, ctx: &BasicContext, req: request::HeaderProof) -> Receiver<(H256, U256)> {
 		let (sender, receiver) = oneshot::channel();
 		let cached = {
 			let mut cache = self.cache.lock();
 			let hash = cache.block_hash(&req.num());
 			(
-				hash.clone().and_then(|hash| cache.block_header(&hash)),
+				hash.clone(),
 				hash.and_then(|hash| cache.chain_score(&hash)),
 			)
 		};
 
 		match cached {
-			(Some(hdr), Some(score)) => sender.complete((hdr, score)),
-			_ => self.dispatch_header_by_number(ctx, req, ChtProofSender::Both(sender)),
+			(Some(hash), Some(score)) => sender.complete((hash, score)),
+			_ => self.dispatch(ctx, Pending::HeaderProof(req, ChtProofSender::Both(sender))),
 		}
 
 		receiver
-	}
-
-	// dispatch the request, completing the request if no peers available.
-	fn dispatch_header_by_number(&self, ctx: &BasicContext, req: request::HeaderByNumber, sender: ChtProofSender) {
-		let num = req.num();
-		let cht_num = req.cht_num();
-
-		let les_req = LesRequest::HeaderProofs(les_request::HeaderProofs {
-			requests: vec![les_request::HeaderProof {
-				cht_number: cht_num,
-				block_number: num,
-				from_level: 0,
-			}],
-		});
-
-		let pending = Pending::HeaderByNumber(req, sender);
-
-		// we're looking for a peer with serveHeaders who's far enough along in the
-		// chain.
-		for (id, peer) in self.peers.read().iter() {
-			if peer.capabilities.serve_headers && peer.status.head_num >= num {
-				match ctx.request_from(*id, les_req.clone()) {
-					Ok(req_id) => {
-						trace!(target: "on_demand", "Assigning request to peer {}", id);
-						self.pending_requests.write().insert(
-							req_id,
-							pending,
-						);
-						return
-					},
-					Err(e) =>
-						trace!(target: "on_demand", "Failed to make request of peer {}: {:?}", id, e),
-				}
-			}
-		}
-
-		trace!(target: "on_demand", "No suitable peer for request");
-		self.orphaned_requests.write().push(pending)
 	}
 
 	/// Request a header by hash. This is less accurate than by-number because we don't know
@@ -184,48 +207,9 @@ impl OnDemand {
 		let (sender, receiver) = oneshot::channel();
 		match self.cache.lock().block_header(&req.0) {
 			Some(hdr) => sender.complete(hdr),
-			None => self.dispatch_header_by_hash(ctx, req, sender),
+			None => self.dispatch(ctx, Pending::HeaderByHash(req, sender)),
 		}
 		receiver
-	}
-
-	fn dispatch_header_by_hash(&self, ctx: &BasicContext, req: request::HeaderByHash, sender: Sender<encoded::Header>) {
-		let les_req = LesRequest::Headers(les_request::Headers {
-			start: req.0.into(),
-			max: 1,
-			skip: 0,
-			reverse: false,
-		});
-
-		// all we've got is a hash, so we'll just guess at peers who might have
-		// it randomly.
-		let mut potential_peers = self.peers.read().iter()
-			.filter(|&(_, peer)| peer.capabilities.serve_headers)
-			.map(|(id, _)| *id)
-			.collect::<Vec<_>>();
-
-		let mut rng = ::rand::thread_rng();
-		::rand::Rng::shuffle(&mut rng, &mut potential_peers);
-
-		let pending = Pending::HeaderByHash(req, sender);
-
-		for id in potential_peers {
-			match ctx.request_from(id, les_req.clone()) {
-				Ok(req_id) => {
-					trace!(target: "on_demand", "Assigning request to peer {}", id);
-					self.pending_requests.write().insert(
-						req_id,
-						pending,
-					);
-					return
-				}
-				Err(e) =>
-					trace!(target: "on_demand", "Failed to make request of peer {}: {:?}", id, e),
-			}
-		}
-
-		trace!(target: "on_demand", "No suitable peer for request");
-		self.orphaned_requests.write().push(pending)
 	}
 
 	/// Request a block, given its header. Block bodies are requestable by hash only,
@@ -251,39 +235,10 @@ impl OnDemand {
 
 					sender.complete(encoded::Block::new(stream.out()));
 				}
-				None => self.dispatch_block(ctx, req, sender),
+				None => self.dispatch(ctx, Pending::Block(req, sender)),
 			}
 		}
 		receiver
-	}
-
-	fn dispatch_block(&self, ctx: &BasicContext, req: request::Body, sender: Sender<encoded::Block>) {
-		let num = req.header.number();
-		let les_req = LesRequest::Bodies(les_request::Bodies {
-			block_hashes: vec![req.hash],
-		});
-		let pending = Pending::Block(req, sender);
-
-		// we're looking for a peer with serveChainSince(num)
-		for (id, peer) in self.peers.read().iter() {
-			if peer.capabilities.serve_chain_since.as_ref().map_or(false, |x| *x >= num) {
-				match ctx.request_from(*id, les_req.clone()) {
-					Ok(req_id) => {
-						trace!(target: "on_demand", "Assigning request to peer {}", id);
-						self.pending_requests.write().insert(
-							req_id,
-							pending,
-						);
-						return
-					}
-					Err(e) =>
-						trace!(target: "on_demand", "Failed to make request of peer {}: {:?}", id, e),
-				}
-			}
-		}
-
-		trace!(target: "on_demand", "No suitable peer for request");
-		self.orphaned_requests.write().push(pending)
 	}
 
 	/// Request the receipts for a block. The header serves two purposes:
@@ -297,82 +252,19 @@ impl OnDemand {
 		} else {
 			match self.cache.lock().block_receipts(&req.0.hash()) {
 				Some(receipts) => sender.complete(receipts),
-				None => self.dispatch_block_receipts(ctx, req, sender),
+				None => self.dispatch(ctx, Pending::BlockReceipts(req, sender)),
 			}
 		}
 
 		receiver
-	}
-
-	fn dispatch_block_receipts(&self, ctx: &BasicContext, req: request::BlockReceipts, sender: Sender<Vec<Receipt>>) {
-		let num = req.0.number();
-		let les_req = LesRequest::Receipts(les_request::Receipts {
-			block_hashes: vec![req.0.hash()],
-		});
-		let pending = Pending::BlockReceipts(req, sender);
-
-		// we're looking for a peer with serveChainSince(num)
-		for (id, peer) in self.peers.read().iter() {
-			if peer.capabilities.serve_chain_since.as_ref().map_or(false, |x| *x >= num) {
-				match ctx.request_from(*id, les_req.clone()) {
-					Ok(req_id) => {
-						trace!(target: "on_demand", "Assigning request to peer {}", id);
-						self.pending_requests.write().insert(
-							req_id,
-							pending,
-						);
-						return
-					}
-					Err(e) =>
-						trace!(target: "on_demand", "Failed to make request of peer {}: {:?}", id, e),
-				}
-			}
-		}
-
-		trace!(target: "on_demand", "No suitable peer for request");
-		self.orphaned_requests.write().push(pending)
 	}
 
 	/// Request an account by address and block header -- which gives a hash to query and a state root
 	/// to verify against.
-	pub fn account(&self, ctx: &BasicContext, req: request::Account) -> Receiver<BasicAccount> {
+	pub fn account(&self, ctx: &BasicContext, req: request::Account) -> Receiver<Option<BasicAccount>> {
 		let (sender, receiver) = oneshot::channel();
-		self.dispatch_account(ctx, req, sender);
+		self.dispatch(ctx, Pending::Account(req, sender));
 		receiver
-	}
-
-	fn dispatch_account(&self, ctx: &BasicContext, req: request::Account, sender: Sender<BasicAccount>) {
-		let num = req.header.number();
-		let les_req = LesRequest::StateProofs(les_request::StateProofs {
-			requests: vec![les_request::StateProof {
-				block: req.header.hash(),
-				key1: ::util::Hashable::sha3(&req.address),
-				key2: None,
-				from_level: 0,
-			}],
-		});
-		let pending = Pending::Account(req, sender);
-
-		// we're looking for a peer with serveStateSince(num)
-		for (id, peer) in self.peers.read().iter() {
-			if peer.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= num) {
-				match ctx.request_from(*id, les_req.clone()) {
-					Ok(req_id) => {
-						trace!(target: "on_demand", "Assigning request to peer {}", id);
-						self.pending_requests.write().insert(
-							req_id,
-							pending,
-						);
-						return
-					}
-					Err(e) =>
-						trace!(target: "on_demand", "Failed to make request of peer {}: {:?}", id, e),
-				}
-			}
-		}
-
-		trace!(target: "on_demand", "No suitable peer for request");
-		self.orphaned_requests.write().push(pending)
 	}
 
 	/// Request code by address, known code hash, and block header.
@@ -383,87 +275,49 @@ impl OnDemand {
 		if req.code_hash == ::util::sha3::SHA3_EMPTY {
 			sender.complete(Vec::new())
 		} else {
-			self.dispatch_code(ctx, req, sender);
+			self.dispatch(ctx, Pending::Code(req, sender));
 		}
 
 		receiver
-	}
-
-	fn dispatch_code(&self, ctx: &BasicContext, req: request::Code, sender: Sender<Bytes>) {
-		let num = req.block_id.1;
-		let les_req = LesRequest::Codes(les_request::ContractCodes {
-			code_requests: vec![les_request::ContractCode {
-				block_hash: req.block_id.0,
-				account_key: ::util::Hashable::sha3(&req.address),
-			}]
-		});
-		let pending = Pending::Code(req, sender);
-
-		// we're looking for a peer with serveStateSince(num)
-		for (id, peer) in self.peers.read().iter() {
-			if peer.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= num) {
-				match ctx.request_from(*id, les_req.clone()) {
-					Ok(req_id) => {
-						trace!(target: "on_demand", "Assigning request to peer {}", id);
-						self.pending_requests.write().insert(
-							req_id,
-							pending
-						);
-						return
-					}
-					Err(e) =>
-						trace!(target: "on_demand", "Failed to make request of peer {}: {:?}", id, e),
-				}
-			}
-		}
-
-		trace!(target: "on_demand", "No suitable peer for request");
-		self.orphaned_requests.write().push(pending)
 	}
 
 	/// Request proof-of-execution for a transaction.
 	pub fn transaction_proof(&self, ctx: &BasicContext, req: request::TransactionProof) -> Receiver<Result<Executed, ExecutionError>> {
 		let (sender, receiver) = oneshot::channel();
 
-		self.dispatch_transaction_proof(ctx, req, sender);
+		self.dispatch(ctx, Pending::TxProof(req, sender));
 
 		receiver
 	}
 
-	fn dispatch_transaction_proof(&self, ctx: &BasicContext, req: request::TransactionProof, sender: Sender<Result<Executed, ExecutionError>>) {
-		let num = req.header.number();
-		let les_req = LesRequest::TransactionProof(les_request::TransactionProof {
-			at: req.header.hash(),
-			from: req.tx.sender(),
-			gas: req.tx.gas,
-			gas_price: req.tx.gas_price,
-			action: req.tx.action.clone(),
-			value: req.tx.value,
-			data: req.tx.data.clone(),
-		});
-		let pending = Pending::TxProof(req, sender);
+	// dispatch the request, with a "suitability" function to filter acceptable peers.
+	fn dispatch(&self, ctx: &BasicContext, pending: Pending) {
+		let mut builder = basic_request::RequestBuilder::default();
+		builder.push(pending.make_request())
+			.expect("make_request always returns fully complete request; qed");
 
-		// we're looking for a peer with serveStateSince(num)
+		let complete = builder.build();
+
 		for (id, peer) in self.peers.read().iter() {
-			if peer.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= num) {
-				match ctx.request_from(*id, les_req.clone()) {
-					Ok(req_id) => {
-						trace!(target: "on_demand", "Assigning request to peer {}", id);
-						self.pending_requests.write().insert(
-							req_id,
-							pending
-						);
-						return
-					}
-					Err(e) =>
-						trace!(target: "on_demand", "Failed to make request of peer {}: {:?}", id, e),
+			if !peer.can_handle(&pending) { continue }
+			match ctx.request_from(*id, complete.clone()) {
+				Ok(req_id) => {
+					trace!(target: "on_demand", "Assigning request to peer {}", id);
+					self.pending_requests.write().insert(
+						req_id,
+						pending,
+					);
+					return
 				}
+				Err(e) =>
+					trace!(target: "on_demand", "Failed to make request of peer {}: {:?}", id, e),
 			}
 		}
 
 		trace!(target: "on_demand", "No suitable peer for request");
-		self.orphaned_requests.write().push(pending)
+		self.orphaned_requests.write().push(pending);
 	}
+
 
 	// dispatch orphaned requests, and discard those for which the corresponding
 	// receiver has been dropped.
@@ -494,30 +348,22 @@ impl OnDemand {
 
 		let to_dispatch = ::std::mem::replace(&mut *self.orphaned_requests.write(), Vec::new());
 
-		for orphaned in to_dispatch {
-			match orphaned {
-				Pending::HeaderByNumber(req, mut sender) => {
-					let hangup = match sender {
+		for mut orphaned in to_dispatch {
+			let hung_up = match orphaned {
+				Pending::HeaderProof(_, ref mut sender) => match *sender {
 						ChtProofSender::Both(ref mut s) => check_hangup(s),
-						ChtProofSender::Header(ref mut s) => check_hangup(s),
+						ChtProofSender::Hash(ref mut s) => check_hangup(s),
 						ChtProofSender::ChainScore(ref mut s) => check_hangup(s),
-					};
+				},
+				Pending::HeaderByHash(_, ref mut sender) => check_hangup(sender),
+				Pending::Block(_, ref mut sender) => check_hangup(sender),
+				Pending::BlockReceipts(_, ref mut sender) => check_hangup(sender),
+				Pending::Account(_, ref mut sender) => check_hangup(sender),
+				Pending::Code(_, ref mut sender) => check_hangup(sender),
+				Pending::TxProof(_, ref mut sender) => check_hangup(sender),
+			};
 
-					if !hangup { self.dispatch_header_by_number(ctx, req, sender) }
-				}
-				Pending::HeaderByHash(req, mut sender) =>
-					if !check_hangup(&mut sender) {	self.dispatch_header_by_hash(ctx, req, sender) },
-				Pending::Block(req, mut sender) =>
-					if !check_hangup(&mut sender) { self.dispatch_block(ctx, req, sender) },
-				Pending::BlockReceipts(req, mut sender) =>
-					if !check_hangup(&mut sender) { self.dispatch_block_receipts(ctx, req, sender) },
-				Pending::Account(req, mut sender) =>
-					if !check_hangup(&mut sender) { self.dispatch_account(ctx, req, sender) },
-				Pending::Code(req, mut sender) =>
-					if !check_hangup(&mut sender) { self.dispatch_code(ctx, req, sender) },
-				Pending::TxProof(req, mut sender) =>
-					if !check_hangup(&mut sender) { self.dispatch_transaction_proof(ctx, req, sender) }
-			}
+			if !hung_up { self.dispatch(ctx, orphaned) }
 		}
 	}
 }
@@ -555,218 +401,126 @@ impl Handler for OnDemand {
 		self.dispatch_orphaned(ctx.as_basic());
 	}
 
-	fn on_header_proofs(&self, ctx: &EventContext, req_id: ReqId, proofs: &[(Bytes, Vec<Bytes>)]) {
+	fn on_responses(&self, ctx: &EventContext, req_id: ReqId, responses: &[basic_request::Response]) {
 		let peer = ctx.peer();
 		let req = match self.pending_requests.write().remove(&req_id) {
 			Some(req) => req,
 			None => return,
 		};
 
+		let response = match responses.get(0) {
+			Some(response) => response,
+			None => {
+				trace!(target: "on_demand", "Ignoring empty response for request {}", req_id);
+				self.dispatch(ctx.as_basic(), req);
+				return;
+			}
+		};
+
+		// handle the response appropriately for the request.
+		// all branches which do not return early lead to disabling of the peer
+		// due to misbehavior.
 		match req {
-			Pending::HeaderByNumber(req, sender) => {
-				if let Some(&(ref header, ref proof)) = proofs.get(0) {
-					match req.check_response(header, proof) {
-						Ok((header, score)) => {
+			Pending::HeaderProof(req, sender) => {
+				if let NetworkResponse::HeaderProof(ref response) = *response {
+					match req.check_response(&response.proof) {
+						Ok((hash, score)) => {
 							let mut cache = self.cache.lock();
-							let hash = header.hash();
-							cache.insert_block_header(hash, header.clone());
-							cache.insert_block_hash(header.number(), hash);
+							cache.insert_block_hash(req.num(), hash);
 							cache.insert_chain_score(hash, score);
 
 							match sender {
-								ChtProofSender::Both(sender) => sender.complete((header, score)),
-								ChtProofSender::Header(sender) => sender.complete(header),
+								ChtProofSender::Both(sender) => sender.complete((hash, score)),
+								ChtProofSender::Hash(sender) => sender.complete(hash),
 								ChtProofSender::ChainScore(sender) => sender.complete(score),
 							}
-
 							return
 						}
-						Err(e) => {
-							warn!("Error handling response for header request: {:?}", e);
-							ctx.disable_peer(peer);
-						}
+						Err(e) => warn!("Error handling response for header request: {:?}", e),
 					}
 				}
-
-				self.dispatch_header_by_number(ctx.as_basic(), req, sender);
 			}
-			_ => panic!("Only header by number request fetches header proofs; qed"),
-		}
-	}
-
-	fn on_block_headers(&self, ctx: &EventContext, req_id: ReqId, headers: &[Bytes]) {
-		let peer = ctx.peer();
-		let req = match self.pending_requests.write().remove(&req_id) {
-			Some(req) => req,
-			None => return,
-		};
-
-		match req {
 			Pending::HeaderByHash(req, sender) => {
-				if let Some(ref header) = headers.get(0) {
-					match req.check_response(header) {
-						Ok(header) => {
-							self.cache.lock().insert_block_header(req.0, header.clone());
-							sender.complete(header);
-							return
-						}
-						Err(e) => {
-							warn!("Error handling response for header request: {:?}", e);
-							ctx.disable_peer(peer);
+				if let NetworkResponse::Headers(ref response) = *response {
+					if let Some(header) = response.headers.get(0) {
+						match req.check_response(header) {
+							Ok(header) => {
+								self.cache.lock().insert_block_header(req.0, header.clone());
+								sender.complete(header);
+								return
+							}
+							Err(e) => warn!("Error handling response for header request: {:?}", e),
 						}
 					}
 				}
-
-				self.dispatch_header_by_hash(ctx.as_basic(), req, sender);
 			}
-			_ => panic!("Only header by hash request fetches headers; qed"),
-		}
-	}
-
-	fn on_block_bodies(&self, ctx: &EventContext, req_id: ReqId, bodies: &[Bytes]) {
-		let peer = ctx.peer();
-		let req = match self.pending_requests.write().remove(&req_id) {
-			Some(req) => req,
-			None => return,
-		};
-
-		match req {
 			Pending::Block(req, sender) => {
-				if let Some(ref body) = bodies.get(0) {
-					match req.check_response(body) {
+				if let NetworkResponse::Body(ref response) = *response {
+					match req.check_response(&response.body) {
 						Ok(block) => {
-							let body = encoded::Body::new(body.to_vec());
-							self.cache.lock().insert_block_body(req.hash, body);
+							self.cache.lock().insert_block_body(req.hash, response.body.clone());
 							sender.complete(block);
 							return
 						}
-						Err(e) => {
-							warn!("Error handling response for block request: {:?}", e);
-							ctx.disable_peer(peer);
-						}
+						Err(e) => warn!("Error handling response for block request: {:?}", e),
 					}
 				}
-
-				self.dispatch_block(ctx.as_basic(), req, sender);
 			}
-			_ => panic!("Only block request fetches bodies; qed"),
-		}
-	}
-
-	fn on_receipts(&self, ctx: &EventContext, req_id: ReqId, receipts: &[Vec<Receipt>]) {
-		let peer = ctx.peer();
-		let req = match self.pending_requests.write().remove(&req_id) {
-			Some(req) => req,
-			None => return,
-		};
-
-		match req {
 			Pending::BlockReceipts(req, sender) => {
-				if let Some(ref receipts) = receipts.get(0) {
-					match req.check_response(receipts) {
+				if let NetworkResponse::Receipts(ref response) = *response {
+					match req.check_response(&response.receipts) {
 						Ok(receipts) => {
 							let hash = req.0.hash();
 							self.cache.lock().insert_block_receipts(hash, receipts.clone());
 							sender.complete(receipts);
 							return
 						}
-						Err(e) => {
-							warn!("Error handling response for receipts request: {:?}", e);
-							ctx.disable_peer(peer);
-						}
+						Err(e) => warn!("Error handling response for receipts request: {:?}", e),
 					}
 				}
-
-				self.dispatch_block_receipts(ctx.as_basic(), req, sender);
 			}
-			_ => panic!("Only receipts request fetches receipts; qed"),
-		}
-	}
-
-	fn on_state_proofs(&self, ctx: &EventContext, req_id: ReqId, proofs: &[Vec<Bytes>]) {
-		let peer = ctx.peer();
-		let req = match self.pending_requests.write().remove(&req_id) {
-			Some(req) => req,
-			None => return,
-		};
-
-		match req {
 			Pending::Account(req, sender) => {
-				if let Some(ref proof) = proofs.get(0) {
-					match req.check_response(proof) {
-						Ok(proof) => {
-							sender.complete(proof);
+				if let NetworkResponse::Account(ref response) = *response {
+					match req.check_response(&response.proof) {
+						Ok(maybe_account) => {
+							// TODO: validate against request outputs.
+							// needs engine + env info as part of request.
+							sender.complete(maybe_account);
 							return
 						}
-						Err(e) => {
-							warn!("Error handling response for state request: {:?}", e);
-							ctx.disable_peer(peer);
-						}
+						Err(e) => warn!("Error handling response for state request: {:?}", e),
 					}
 				}
-
-				self.dispatch_account(ctx.as_basic(), req, sender);
 			}
-			_ => panic!("Only account request fetches state proof; qed"),
-		}
-	}
-
-	fn on_code(&self, ctx: &EventContext, req_id: ReqId, codes: &[Bytes]) {
-		let peer = ctx.peer();
-		let req = match self.pending_requests.write().remove(&req_id) {
-			Some(req) => req,
-			None => return,
-		};
-
-		match req {
 			Pending::Code(req, sender) => {
-				if let Some(code) = codes.get(0) {
-					match req.check_response(code.as_slice()) {
+				if let NetworkResponse::Code(ref response) = *response {
+					match req.check_response(response.code.as_slice()) {
 						Ok(()) => {
-							sender.complete(code.clone());
+							sender.complete(response.code.clone());
 							return
 						}
-						Err(e) => {
-							warn!("Error handling response for code request: {:?}", e);
-							ctx.disable_peer(peer);
-						}
+						Err(e) => warn!("Error handling response for code request: {:?}", e),
 					}
-
-					self.dispatch_code(ctx.as_basic(), req, sender);
 				}
 			}
-			_ => panic!("Only code request fetches code; qed"),
-		}
-	}
-
-	fn on_transaction_proof(&self, ctx: &EventContext, req_id: ReqId, items: &[DBValue]) {
-		let peer = ctx.peer();
-		let req = match self.pending_requests.write().remove(&req_id) {
-			Some(req) => req,
-			None => return,
-		};
-
-		match req {
 			Pending::TxProof(req, sender) => {
-				match req.check_response(items) {
-					ProvedExecution::Complete(executed) => {
-						sender.complete(Ok(executed));
-						return
-					}
-					ProvedExecution::Failed(err) => {
-						sender.complete(Err(err));
-						return
-					}
-					ProvedExecution::BadProof => {
-						warn!("Error handling response for transaction proof request");
-						ctx.disable_peer(peer);
+				if let NetworkResponse::Execution(ref response) = *response {
+					match req.check_response(&response.items) {
+						ProvedExecution::Complete(executed) => {
+							sender.complete(Ok(executed));
+							return
+						}
+						ProvedExecution::Failed(err) => {
+							sender.complete(Err(err));
+							return
+						}
+						ProvedExecution::BadProof => warn!("Error handling response for transaction proof request"),
 					}
 				}
-
-				self.dispatch_transaction_proof(ctx.as_basic(), req, sender);
 			}
-			_ => panic!("Only transaction proof request dispatches transaction proof requests; qed"),
 		}
+
+		ctx.disable_peer(peer);
 	}
 
 	fn tick(&self, ctx: &BasicContext) {

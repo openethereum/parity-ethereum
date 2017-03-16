@@ -202,6 +202,8 @@ impl Encodable for HashOrNumber {
 }
 
 /// All request types, as they're sent over the network.
+/// They may be incomplete, with back-references to outputs
+/// of prior requests.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
 	/// A request for block headers.
@@ -223,7 +225,7 @@ pub enum Request {
 	Execution(IncompleteExecutionRequest),
 }
 
-/// All request types, as they're sent over the network.
+/// All request types, in an answerable state.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompleteRequest {
 	/// A request for block headers.
