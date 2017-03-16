@@ -20,6 +20,7 @@ pub mod errors;
 pub mod block_import;
 pub mod dispatch;
 pub mod informant;
+pub mod oneshot;
 
 mod network_settings;
 mod poll_manager;

@@ -21,7 +21,6 @@
 
 extern crate base32;
 extern crate futures;
-extern crate hyper;
 extern crate linked_hash_map;
 extern crate mime_guess;
 extern crate rand;
@@ -78,6 +77,7 @@ use std::collections::HashMap;
 use jsonrpc_core::{Middleware, MetaIoHandler};
 use jsonrpc_http_server::tokio_core::reactor::Remote as TokioRemote;
 pub use jsonrpc_http_server::{DomainsValidation, Host, AccessControlAllowOrigin};
+pub use jsonrpc_http_server::hyper;
 
 use ethcore_rpc::Metadata;
 use fetch::{Fetch, Client as FetchClient};

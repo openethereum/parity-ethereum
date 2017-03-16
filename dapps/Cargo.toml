@@ -25,7 +25,6 @@ unicase = "1.3"
 url = "1.0"
 zip = { version = "0.1", default-features = false }
 
-hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
 jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "master" }
 jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git", branch = "master" }
 # TODO [ToDr] Temporary solution, server should be merged with RPC.
