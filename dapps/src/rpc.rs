@@ -49,8 +49,10 @@ struct RpcEndpoint<T: Middleware<Metadata>> {
 #[derive(Default)]
 struct NoopMiddleware;
 impl http::RequestMiddleware for NoopMiddleware {
-	fn on_request(&self, _request: &hyper::server::Request<hyper::net::HttpStream>) -> http::RequestMiddlewareAction {
-		http::RequestMiddlewareAction::Proceed
+	fn on_request(&self, request: &hyper::server::Request<hyper::net::HttpStream>) -> http::RequestMiddlewareAction {
+		http::RequestMiddlewareAction::Proceed {
+			should_continue_on_invalid_cors: request.headers().get::<hyper::header::Origin>().is_none(),
+		}
 	}
 }
 

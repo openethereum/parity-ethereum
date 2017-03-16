@@ -14,7 +14,7 @@ serde = "0.9"
 serde_json = "0.9"
 tempdir = "0.3.5"
 url = "1.2.0"
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "master" }
 ws = { git = "https://github.com/ethcore/ws-rs.git", branch = "mio-upstream-stable" }
 ethcore-rpc = { path = "../rpc" }
 ethcore-signer = { path = "../signer" }

@@ -63,7 +63,7 @@ extern crate ethcore_devtools as devtools;
 
 pub mod v1;
 
-pub use ipc::{Server as IpcServer, Error as IpcServerError};
+pub use ipc::{Server as IpcServer, MetaExtractor as IpcMetaExtractor, RequestContext as IpcRequestContext};
 pub use http::{HttpMetaExtractor, Server as HttpServer, Error as HttpServerError, AccessControlAllowOrigin, Host};
 
 pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings, Metadata, Origin, informant, dispatch};
@@ -95,16 +95,19 @@ pub fn start_http<M, S, H, T>(
 }
 
 /// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
-pub fn start_ipc<M, S, H>(
+pub fn start_ipc<M, S, H, T>(
 	addr: &str,
 	handler: H,
 	remote: tokio_core::reactor::Remote,
-) -> Result<ipc::Server<M, S>, ipc::Error> where
+	extractor: T,
+) -> ::std::io::Result<ipc::Server> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
 	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
+	T: IpcMetaExtractor<M>,
 {
-	let server = ipc::Server::with_remote(addr, handler, ipc::UninitializedRemote::Shared(remote))?;
-	server.run_async()?;
-	Ok(server)
+	ipc::ServerBuilder::new(handler)
+		.event_loop_remote(remote)
+		.session_metadata_extractor(extractor)
+		.start(addr)
 }

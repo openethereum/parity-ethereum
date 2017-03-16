@@ -200,11 +200,11 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 
 		res.then(move |res| {
 			handle_dispatch(res, move |response| {
-				match response {
+				ignore_error(match response {
 					Ok(RpcConfirmationResponse::Signature(sig)) => ready.complete(Ok(sig)),
 					Err(e) => ready.complete(Err(e)),
 					e => ready.complete(Err(errors::internal("Unexpected result.", e))),
-				}
+				})
 			});
 
 			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))
@@ -222,11 +222,11 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 
 		res.then(move |res| {
 			handle_dispatch(res, move |response| {
-				match response {
+				ignore_error(match response {
 					Ok(RpcConfirmationResponse::SendTransaction(hash)) => ready.complete(Ok(hash)),
 					Err(e) => ready.complete(Err(e)),
 					e => ready.complete(Err(errors::internal("Unexpected result.", e))),
-				}
+				})
 			});
 
 			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))
@@ -244,11 +244,11 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 
 		res.then(move |res| {
 			handle_dispatch(res, move |response| {
-				match response {
+				ignore_error(match response {
 					Ok(RpcConfirmationResponse::SignTransaction(tx)) => ready.complete(Ok(tx)),
 					Err(e) => ready.complete(Err(e)),
 					e => ready.complete(Err(errors::internal("Unexpected result.", e))),
-				}
+				})
 			});
 
 			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))

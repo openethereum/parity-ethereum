@@ -20,7 +20,7 @@ use std::net::SocketAddr;
 use std::io;
 
 use dir::default_data_path;
-use ethcore_rpc::{self as rpc, HttpServerError, IpcServerError, Metadata, Origin, AccessControlAllowOrigin, Host};
+use ethcore_rpc::{self as rpc, HttpServerError, Metadata, Origin, AccessControlAllowOrigin, Host};
 use ethcore_rpc::informant::{RpcStats, Middleware};
 use helpers::parity_ipc_path;
 use hyper;
@@ -100,6 +100,15 @@ impl rpc::HttpMetaExtractor<Metadata> for RpcExtractor {
 	}
 }
 
+impl rpc::IpcMetaExtractor<Metadata> for RpcExtractor {
+	fn extract(&self, _req: &rpc::IpcRequestContext) -> Metadata {
+		let mut metadata = Metadata::default();
+		// TODO [ToDr] Extract proper session id when it's available in context.
+		metadata.origin = Origin::Ipc(1.into());
+		metadata
+	}
+}
+
 pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<HttpServer>, String> {
 	if !conf.enabled {
 		return Ok(None);
@@ -136,17 +145,16 @@ pub fn setup_http_rpc_server(
 	}
 }
 
-pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<IpcServer<Metadata, Middleware>>, String> {
+pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<IpcServer>, String> {
 	if !conf.enabled { return Ok(None); }
 	Ok(Some(setup_ipc_rpc_server(deps, &conf.socket_addr, conf.apis)?))
 }
 
-pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer<Metadata, Middleware>, String> {
+pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer, String> {
 	let handler = setup_apis(apis, dependencies);
 	let remote = dependencies.remote.clone();
-	match rpc::start_ipc(addr, handler, remote) {
-		Err(IpcServerError::Io(io_error)) => Err(format!("RPC io error: {}", io_error)),
-		Err(any_error) => Err(format!("Rpc error: {:?}", any_error)),
+	match rpc::start_ipc(addr, handler, remote, RpcExtractor) {
+		Err(io_error) => Err(format!("RPC io error: {}", io_error)),
 		Ok(server) => Ok(server)
 	}
 }

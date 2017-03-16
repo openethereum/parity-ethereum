@@ -117,7 +117,7 @@ impl RestApiRouter {
 impl server::Handler<net::HttpStream> for RestApiRouter {
 
 	fn on_request(&mut self, request: server::Request<net::HttpStream>) -> Next {
-		self.cors_header = jsonrpc_http_server::cors_header(&request, &self.api.cors_domains);
+		self.cors_header = jsonrpc_http_server::cors_header(&request, &self.api.cors_domains).into();
 
 		if let Method::Options = *request.method() {
 			self.handler = response::empty();

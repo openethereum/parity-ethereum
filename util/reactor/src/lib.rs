@@ -190,7 +190,7 @@ impl From<EventLoop> for EventLoopHandle {
 
 impl Drop for EventLoopHandle {
 	fn drop(&mut self) {
-		self.close.take().map(|v| v.complete(()));
+		self.close.take().map(|v| v.send(()));
 	}
 }
 
@@ -203,7 +203,8 @@ impl EventLoopHandle {
 
 	/// Finishes this event loop.
 	pub fn close(mut self) {
-		self.close.take()
-			.expect("Close is taken only in `close` and `drop`. `close` is consuming; qed").complete(())
+		let _ = self.close.take()
+			.expect("Close is taken only in `close` and `drop`. `close` is consuming; qed")
+			.send(());
 	}
 }

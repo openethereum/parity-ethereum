@@ -72,17 +72,6 @@ impl IpfsHandler {
 			client: client,
 		}
 	}
-
-	fn is_origin_allowed(&self, origin_provided: bool) -> bool {
-		match (origin_provided, self.cors_header.as_ref()) {
-			// Request without Origin are always OK.
-			(false, _) => true,
-			// If there is a cors header to be returned it's ok.
-			(true, Some(_)) => true,
-			// If origin is provided and we won't return cors header it's bad.
-			(true, None) => false,
-		}
-	}
 }
 
 /// Implement Hyper's HTTP handler
@@ -92,7 +81,6 @@ impl Handler<HttpStream> for IpfsHandler {
 			return Next::write();
 		}
 
-		self.cors_header = jsonrpc_http_server::cors_header(&req, &self.cors_domains);
 
 		if !jsonrpc_http_server::is_host_allowed(&req, &self.allowed_hosts) {
 			self.out = Out::Bad("Disallowed Host header");
@@ -100,11 +88,13 @@ impl Handler<HttpStream> for IpfsHandler {
 			return Next::write();
 		}
 
-		if !self.is_origin_allowed(req.headers().get::<header::Origin>().is_some()) {
+		let cors_header = jsonrpc_http_server::cors_header(&req, &self.cors_domains);
+		if cors_header == jsonrpc_http_server::CorsHeader::Invalid {
 			self.out = Out::Bad("Disallowed Origin header");
 
 			return Next::write();
 		}
+		self.cors_header = cors_header.into();
 
 		let (path, query) = match *req.uri() {
 			RequestUri::AbsolutePath { ref path, ref query } => (path, query.as_ref().map(AsRef::as_ref)),
