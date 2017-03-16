@@ -16,68 +16,43 @@
 
 // https://github.com/cmanzana/qrcode-npm packaging the standard
 // https://github.com/kazuhikoarase/qrcode-generator
-import { qrcode } from 'qrcode-npm';
+import QRcodeReact from 'qr-code-react';
 import React, { Component, PropTypes } from 'react';
 
 const QROPTS = {
-  CODE_TYPE: 4,
-  ERROR_LEVEL: 'M'
+  CODE_TYPE:   4,
+  ERROR_LEVEL: 'M',
+  COLOR:       "#000000",
+  BG_COLOR:    "#FFFFFF",
 };
 
 export default class QrCode extends Component {
   static propTypes = {
     className: PropTypes.string,
-    margin: PropTypes.number,
-    size: PropTypes.number,
-    value: PropTypes.string.isRequired
+    margin:    PropTypes.number,
+    size:      PropTypes.number,
+    value:     PropTypes.string.isRequired
   };
 
   static defaultProps = {
     margin: 2,
-    size: 4
+    size:   4
   };
-
-  state = {
-    image: null
-  };
-
-  componentWillMount () {
-    this.generateCode(this.props);
-  }
-
-  componentWillReceiveProps (nextProps) {
-    const hasChanged = nextProps.value !== this.props.value ||
-      nextProps.size !== this.props.size ||
-      nextProps.margin !== this.props.margin;
-
-    if (hasChanged) {
-      this.generateCode(nextProps);
-    }
-  }
 
   render () {
-    const { className } = this.props;
-    const { image } = this.state;
+    const { className, margin, size, value } = this.props;
 
     return (
-      <div
+      <QRcodeReact
         className={ className }
-        dangerouslySetInnerHTML={ {
-          __html: image
-        } }
+        value={ value }
+        margin={ margin }
+        size={ size }
+        codeType={ QROPTS.CODE_TYPE }
+        errorLevel={ QROPTS.ERROR_LEVEL }
+        color={ QROPTS.COLOR }
+        bgColor={ QROPTS.BG_COLOR }
       />
     );
-  }
-
-  generateCode (props) {
-    const { margin, size, value } = props;
-    const qr = qrcode(QROPTS.CODE_TYPE, QROPTS.ERROR_LEVEL);
-
-    qr.addData(value);
-    qr.make();
-
-    this.setState({
-      image: qr.createImgTag(size, margin)
-    });
   }
 }
