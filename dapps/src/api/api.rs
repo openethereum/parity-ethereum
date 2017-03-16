@@ -54,6 +54,11 @@ impl RestApi {
 			e.info().map(|ref info| App::from_info(k, info))
 		}).collect()
 	}
+
+  fn list_number_of_peers(&self) -> Vec<i32> {
+      // return the count from EthSync::peers()
+      vec![1]
+  }
 }
 
 impl Endpoint for RestApi {
@@ -148,6 +153,10 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 			"apps" => Some(response::as_json(&self.api.list_apps())),
 			"ping" => Some(response::ping()),
 			"content" => self.resolve_content(hash, path, control),
+      "status" => {
+          println!("test");
+          Some(response::as_json(&self.api.list_number_of_peers()))
+      },
 			_ => None
 		});
 
