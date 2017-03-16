@@ -10,4 +10,5 @@ ethcore-bigint = { path = "../bigint" }
 lazy_static = "0.2"
 rustc-serialize = "0.3"
 # smallvec = "0.3"
-smallvec = { git = "https://github.com/servo/rust-smallvec" }
+# smallvec = { git = "https://github.com/servo/rust-smallvec" }
+smallvec = { path = "/Users/nipunn/src/rust-smallvec", features = ["heapsizeof"] }

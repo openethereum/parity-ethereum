@@ -16,7 +16,7 @@
 
 use hash::H256;
 use sha3::Hashable;
-use hashdb::{FromSlice, HashDB, DBValue};
+use hashdb::{HashDB, DBValue};
 use super::{TrieDBMut, TrieMut};
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.

@@ -23,7 +23,7 @@ use smallvec::SmallVec;
 /// Owning, nibble-oriented byte vector. Counterpart to `NibbleSlice`.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct NibbleVec {
-	inner: SmallVec<[u8; 32]>,
+	inner: SmallVec<[u8; 36]>,
 	len: usize,
 }
 

@@ -18,11 +18,11 @@ use nibbleslice::*;
 use nibblevec::NibbleVec;
 use bytes::*;
 use rlp::*;
-use hashdb::{DBValue, FromSlice};
+use hashdb::DBValue;
 use smallvec::SmallVec;
 
 /// Partial node key type.
-pub type NodeKey = SmallVec<[u8; 32]>;
+pub type NodeKey = SmallVec<[u8; 36]>;
 
 /// Type of node in the trie and essential information thereof.
 #[derive(Eq, PartialEq, Debug, Clone)]

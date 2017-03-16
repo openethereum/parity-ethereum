@@ -21,7 +21,7 @@ use std::marker::PhantomData;
 use std::path::PathBuf;
 
 use common::*;
-use hashdb::{DBValue, FromSlice};
+use hashdb::DBValue;
 use rlp::{UntrustedRlp, RlpType, View, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions};

@@ -218,9 +218,7 @@ impl BasicEncoder {
 			}
 		};
 
-		for (idx, &item) in res.iter().enumerate() {
-			self.bytes.insert(pos + idx, item);
-		}
+        self.bytes.insert_from_slice(pos, &res);
 	}
 
 	/// get encoded value

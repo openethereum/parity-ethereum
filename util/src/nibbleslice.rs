@@ -149,7 +149,7 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 	}
 
 	/// Encode while nibble slice in prefixed hex notation, noting whether it `is_leaf`.
-	pub fn encoded(&self, is_leaf: bool) -> SmallVec<[u8; 32]> {
+	pub fn encoded(&self, is_leaf: bool) -> SmallVec<[u8; 36]> {
 		let l = self.len();
 		let mut r = SmallVec::new();
 		let mut i = l % 2;
@@ -163,7 +163,7 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 
 	/// Encode only the leftmost `n` bytes of the nibble slice in prefixed hex notation,
 	/// noting whether it `is_leaf`.
-	pub fn encoded_leftmost(&self, n: usize, is_leaf: bool) -> SmallVec<[u8; 32]> {
+	pub fn encoded_leftmost(&self, n: usize, is_leaf: bool) -> SmallVec<[u8; 36]> {
 		let l = min(self.len(), n);
 		let mut r = SmallVec::new();
 		let mut i = l % 2;
@@ -213,7 +213,6 @@ impl<'a> fmt::Debug for NibbleSlice<'a> {
 mod tests {
 	use super::NibbleSlice;
     use smallvec::SmallVec;
-    use hashdb::FromSlice;
 	static D: &'static [u8;3] = &[0x01u8, 0x23, 0x45];
 
 	#[test]
@@ -256,10 +255,10 @@ mod tests {
 	#[test]
 	fn encoded() {
 		let n = NibbleSlice::new(D);
-		assert_eq!(n.encoded(false), SmallVec::<[u8; 32]>::from_slice(&[0x00u8, 0x01u8, 0x23u8, 0x45u8]));
-		assert_eq!(n.encoded(true), SmallVec::<[u8; 32]>::from_slice(&[0x20u8, 0x01u8, 0x23u8, 0x45u8]));
-		assert_eq!(n.mid(1).encoded(false), SmallVec::<[u8; 32]>::from_slice(&[0x11u8, 0x23u8, 0x45u8]));
-		assert_eq!(n.mid(1).encoded(true), SmallVec::<[u8; 32]>::from_slice(&[0x31u8, 0x23u8, 0x45u8]));
+		assert_eq!(n.encoded(false), SmallVec::<[u8; 36]>::from_slice(&[0x00u8, 0x01u8, 0x23u8, 0x45u8]));
+		assert_eq!(n.encoded(true), SmallVec::<[u8; 36]>::from_slice(&[0x20u8, 0x01u8, 0x23u8, 0x45u8]));
+		assert_eq!(n.mid(1).encoded(false), SmallVec::<[u8; 36]>::from_slice(&[0x11u8, 0x23u8, 0x45u8]));
+		assert_eq!(n.mid(1).encoded(true), SmallVec::<[u8; 36]>::from_slice(&[0x31u8, 0x23u8, 0x45u8]));
 	}
 
 	#[test]

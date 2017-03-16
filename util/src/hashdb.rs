@@ -22,27 +22,6 @@ use std::collections::HashMap;
 /// `HashDB` value type.
 pub type DBValue = SmallVec<[u8; 128]>;
 
-/// Hack until SmallVec supports from_slice (or equivalent)
-pub trait FromSlice<T> {
-    /// Convert from a slice to Self
-    fn from_slice(slice: &[T]) -> Self;
-}
-
-macro_rules! impl_from_slice(
-    ($($size:expr),+) => {
-        $(
-            impl FromSlice<u8> for SmallVec<[u8; $size]> {
-				fn from_slice(slice: &[u8]) -> Self {
-					let mut val = SmallVec::new();
-					val.extend_from_slice(slice);
-					val
-				}
-            }
-        )+
-    }
-);
-impl_from_slice!(4, 32, 64, 128);
-
 /// Trait modelling datastore keyed by a 32-byte Keccak hash.
 pub trait HashDB: AsHashDB + Send + Sync {
 	/// Get the keys in the database together with number of underlying references.

@@ -69,7 +69,7 @@ impl<'db> Trie for SecTrieDB<'db> {
 #[test]
 fn trie_to_sectrie() {
 	use memorydb::MemoryDB;
-	use hashdb::{DBValue, FromSlice};
+	use hashdb::DBValue;
 	use super::triedbmut::TrieDBMut;
 	use super::super::TrieMut;
 

@@ -26,7 +26,7 @@ use ::bytes::ToPretty;
 use ::nibbleslice::NibbleSlice;
 use ::rlp::{Rlp, RlpStream, View, Stream};
 use ::sha3::SHA3_NULL_RLP;
-use hashdb::{DBValue, FromSlice};
+use hashdb::DBValue;
 
 use smallvec::SmallVec;
 

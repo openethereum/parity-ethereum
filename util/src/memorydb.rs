@@ -20,7 +20,7 @@ use hash::*;
 use rlp::*;
 use sha3::*;
 use hashdb::*;
-//use heapsize::*;
+use heapsize::*;
 use std::mem;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -129,8 +129,7 @@ impl MemoryDB {
 
 	/// Returns the size of allocated heap memory
 	pub fn mem_used(&self) -> usize {
-        33
-        //self.data.heap_size_of_children()
+        self.data.heap_size_of_children()
 	}
 
 	/// Remove an element and delete it from storage if reference count reaches zero.
