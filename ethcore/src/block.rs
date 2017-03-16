@@ -553,7 +553,6 @@ pub fn enact(
 	b.set_extra_data(header.extra_data().clone()).unwrap_or_else(|e| warn!("Couldn't set extradata: {}. Ignoring.", e));
 	b.set_uncles_hash(header.uncles_hash().clone());
 	b.set_transactions_root(header.transactions_root().clone());
-	b.set_receipts_root(header.receipts_root().clone());
 
 	push_transactions(&mut b, transactions)?;
 	for u in uncles {

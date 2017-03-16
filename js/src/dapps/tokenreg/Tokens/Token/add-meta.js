@@ -19,7 +19,7 @@ import { Dialog, RaisedButton, FlatButton, SelectField, MenuItem } from 'materia
 import AddIcon from 'material-ui/svg-icons/content/add';
 
 import InputText from '../../Inputs/Text';
-import { ADDRESS_TYPE } from '../../Inputs/validation';
+import { ADDRESS_TYPE, URL_TYPE } from '../../Inputs/validation';
 
 import styles from './token.css';
 
@@ -128,6 +128,22 @@ export default class AddMeta extends Component {
 
   renderForm () {
     const selectedMeta = metaDataKeys[this.state.metaKeyIndex];
+    const metaLabel = selectedMeta.label.toLowerCase();
+    let metaType;
+
+    switch (selectedMeta.validation) {
+      case ADDRESS_TYPE:
+        metaType = 'Address';
+        break;
+
+      case URL_TYPE:
+        metaType = 'URL';
+        break;
+
+      default:
+        metaType = 'URL Hint';
+        break;
+    }
 
     return (
       <div>
@@ -145,7 +161,7 @@ export default class AddMeta extends Component {
         <InputText
           key={ selectedMeta.value }
           floatingLabelText={ `${selectedMeta.label} value` }
-          hintText={ `The value of the ${selectedMeta.label.toLowerCase()} (${selectedMeta.validation === ADDRESS_TYPE ? 'Address' : 'Url Hint'})` }
+          hintText={ `The value of the ${metaLabel} (${metaType})` }
 
           validationType={ selectedMeta.validation }
           onChange={ this.onChange }
@@ -174,14 +190,20 @@ export default class AddMeta extends Component {
 
   onAdd = () => {
     const { index } = this.props;
+    const { form, metaKeyIndex } = this.state;
+
+    const selectedMeta = metaDataKeys[metaKeyIndex];
 
     const keyIndex = this.state.metaKeyIndex;
     const key = metaDataKeys[keyIndex].value;
+    const value = form.value;
+    const validationType = selectedMeta.validation;
 
     this.props.handleAddMeta(
       index,
       key,
-      this.state.form.value
+      value,
+      validationType
     );
 
     this.setState({ complete: true });

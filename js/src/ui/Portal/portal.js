@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import ReactPortal from 'react-portal';
 import keycode from 'keycode';
+import { noop } from 'lodash';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 import { CloseIcon } from '~/ui/Icons';
@@ -29,7 +30,6 @@ import styles from './portal.css';
 
 export default class Portal extends Component {
   static propTypes = {
-    onClose: PropTypes.func.isRequired,
     open: PropTypes.bool.isRequired,
     activeStep: PropTypes.number,
     busy: PropTypes.bool,
@@ -45,9 +45,14 @@ export default class Portal extends Component {
     isChildModal: PropTypes.bool,
     isSmallModal: PropTypes.bool,
     onClick: PropTypes.func,
+    onClose: PropTypes.func,
     onKeyDown: PropTypes.func,
     steps: PropTypes.array,
     title: nodeOrStringProptype()
+  };
+
+  static defaultProps = {
+    onClose: noop
   };
 
   componentDidMount () {

@@ -79,7 +79,7 @@ macro_rules! impl_uint {
 
 					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: serde::de::Error {
 						if value.len() < 2  || &value[0..2] != "0x" {
-							return Err(E::custom("Use hex-encoded numbers with 0x prefix."))
+							return Err(E::custom("expected a hex-encoded numbers with 0x prefix"))
 						}
 
 						// 0x + len
@@ -87,7 +87,7 @@ macro_rules! impl_uint {
 							return Err(E::invalid_length(value.len() - 2, &self));
 						}
 
-						$other::from_str(&value[2..]).map($name).map_err(|e| E::custom(&format!("Invalid hex value: {:?}", e)))
+						$other::from_str(&value[2..]).map($name).map_err(|e| E::custom(&format!("invalid hex value: {:?}", e)))
 					}
 
 					fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: serde::de::Error {

@@ -230,7 +230,7 @@ fn should_be_able_to_kill_account() {
 	let address = accounts[0];
 
 	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_killAccount", "params": ["0xf00baba2f00baba2f00baba2f00baba2f00baba2"], "id": 1}}"#);
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"invalid length 1, expected a tuple of size 2"},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params: invalid length 1, expected a tuple of size 2."},"id":1}"#;
 	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
 

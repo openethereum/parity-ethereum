@@ -18,6 +18,45 @@ import { api } from './parity';
 
 import { eip20 as eip20Abi } from '~/contracts/abi';
 
+export const INVALID_URL_HASH = '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470';
+export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+/**
+ * Convert the given URL to a content hash,
+ * and checks if it is already registered in GHH
+ */
+export const urlToHash = (ghhInstance, url) => {
+  if (!url || !url.length) {
+    return Promise.resolve(null);
+  }
+
+  return api.parity
+    .hashContent(url)
+    .catch((error) => {
+      const message = error.text || error.message || error.toString();
+
+      throw new Error(`${message} (${url})`);
+    })
+    .then((contentHash) => {
+      console.log('lookupHash', url, contentHash);
+
+      if (contentHash === INVALID_URL_HASH) {
+        throw new Error(`"${url}" is not a valid URL`);
+      }
+
+      return ghhInstance.entries
+        .call({}, [contentHash])
+        .then(([accountSlashRepo, commit, contentHashOwner]) => {
+          const registered = (contentHashOwner !== ZERO_ADDRESS);
+
+          return {
+            hash: contentHash,
+            registered
+          };
+        });
+    });
+};
+
 export const getTokenTotalSupply = (tokenAddress) => {
   return api
     .eth

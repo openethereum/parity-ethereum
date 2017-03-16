@@ -61,8 +61,8 @@ const mapDispatchToProps = (dispatch) => {
       dispatch(unregisterToken(index));
     },
 
-    handleAddMeta: (index, key, value) => {
-      dispatch(addTokenMeta(index, key, value));
+    handleAddMeta: (index, key, value, validationType) => {
+      dispatch(addTokenMeta(index, key, value, validationType));
     }
   };
 };

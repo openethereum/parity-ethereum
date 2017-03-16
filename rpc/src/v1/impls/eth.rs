@@ -23,7 +23,7 @@ use std::sync::{Arc, Weak};
 use futures::{self, future, BoxFuture, Future};
 use rlp::{self, UntrustedRlp, View};
 use time::get_time;
-use util::{H160, H256, Address, U256, H64, Uint};
+use util::{H160, H256, Address, U256, H64};
 use util::sha3::Hashable;
 use util::Mutex;
 
@@ -36,14 +36,14 @@ use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
 use ethcore::log_entry::LogEntry;
 use ethcore::miner::{MinerService, ExternalMinerService};
-use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
+use ethcore::transaction::SignedTransaction;
 use ethcore::snapshot::SnapshotService;
 use ethsync::{SyncProvider};
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 
-use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
+use v1::helpers::{errors, limit_logs, fake_sign};
 use v1::helpers::dispatch::{Dispatcher, FullDispatcher, default_gas_price};
 use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
@@ -220,19 +220,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 			extra_info: client.uncle_extra_info(id).expect(EXTRA_INFO_PROOF),
 		};
 		Ok(Some(block))
-	}
-
-	fn sign_call(&self, request: CRequest) -> Result<SignedTransaction, Error> {
-		let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
-		let from = request.from.unwrap_or(Address::zero());
-		Ok(EthTransaction {
-			nonce: request.nonce.unwrap_or_else(|| client.latest_nonce(&from)),
-			action: request.to.map_or(Action::Create, Action::Call),
-			gas: request.gas.unwrap_or(U256::from(50_000_000)),
-			gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(&*client, &*miner)),
-			value: request.value.unwrap_or_else(U256::zero),
-			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
-		}.fake_sign(from))
 	}
 
 	fn dapp_accounts(&self, dapp: DappId) -> Result<Vec<H160>, Error> {
@@ -654,7 +641,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn call(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
 		let request = CallRequest::into(request);
-		let signed = match self.sign_call(request) {
+		let signed = match fake_sign::sign_call(&self.client, &self.miner, request) {
 			Ok(signed) => signed,
 			Err(e) => return future::err(e).boxed(),
 		};
@@ -672,7 +659,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let request = CallRequest::into(request);
-		let signed = match self.sign_call(request) {
+		let signed = match fake_sign::sign_call(&self.client, &self.miner, request) {
 			Ok(signed) => signed,
 			Err(e) => return future::err(e).boxed(),
 		};

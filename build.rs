@@ -14,28 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! `TraceDB` errors.
+extern crate rustc_version;
 
-use std::fmt::{Display, Formatter, Error as FmtError};
+const MIN_RUSTC_VERSION: &'static str = "1.15.1";
 
-const RESYNC_ERR: &'static str =
-"Your current parity installation has synced without transaction tracing.
-To use Parity with transaction tracing, you'll need to resync with tracing.
-To do this, remove or move away your current database and restart parity. e.g.:
+fn main() {
+	let is = rustc_version::version().unwrap();
+	let required = MIN_RUSTC_VERSION.parse().unwrap();
+	assert!(is >= required, format!("
 
-> mv ~/.parity/906a34e69aec8c0d /tmp
-> parity";
+It looks like you are compiling Parity with an old rustc compiler {}.
+Parity requires version {}. Please update your compiler.
+If you use rustup, try this:
 
-/// `TraceDB` errors.
-#[derive(Debug)]
-pub enum Error {
-	/// Returned when tracing is enabled,
-	/// but database does not contain traces of old transactions.
-	ResyncRequired,
-}
+    rustup update stable
 
-impl Display for Error {
-	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
-		write!(f, "{}", RESYNC_ERR)
-	}
+and try building Parity again.
+
+", is, required));
 }
