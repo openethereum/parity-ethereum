@@ -20,23 +20,23 @@ import QRcodeReact from 'qr-code-react';
 import React, { Component, PropTypes } from 'react';
 
 const QROPTS = {
-  CODE_TYPE:   4,
+  CODE_TYPE: 4,
   ERROR_LEVEL: 'M',
-  COLOR:       "#000000",
-  BG_COLOR:    "#FFFFFF",
+  COLOR: "#000000",
+  BG_COLOR: "#FFFFFF",
 };
 
 export default class QrCode extends Component {
   static propTypes = {
     className: PropTypes.string,
-    margin:    PropTypes.number,
-    size:      PropTypes.number,
-    value:     PropTypes.string.isRequired
+    margin: PropTypes.number,
+    size: PropTypes.number,
+    value: PropTypes.string.isRequired
   };
 
   static defaultProps = {
     margin: 2,
-    size:   4
+    size: 4
   };
 
   render () {
