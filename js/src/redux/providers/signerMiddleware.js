@@ -98,23 +98,16 @@ export default class SignerMiddleware {
     return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
   }
 
-  confirmSignedTransaction (store, id, txSigned) {
-    const { rlp, signature, tx } = txSigned;
-    const { _chainId, data, gasPrice, gasLimit, nonce, to, value } = tx;
+  confirmSignedTransaction (store, id, transaction, txSigned) {
+    const { chainId, signature, tx } = txSigned;
+    const { data, gasPrice, gasLimit, nonce, to, value } = tx;
 
     const r = Buffer.from(signature.substr(2, 64), 'hex');
     const s = Buffer.from(signature.substr(66, 64), 'hex');
-
-    // NOTE: First line is for replay protection, second without
-    const v = Buffer.from([parseInt(signature.substr(130, 2), 16) + (_chainId * 2) + 35]);
-    // const v = Buffer.from([parseInt(signature.substr(130, 2), 16) + 27]);
-
-    console.log('rlp', rlp);
-    console.log('signature', signature);
-    console.log('r, s, v', r.toString('hex'), s.toString('hex'), v.toString('hex'));
+    const v = Buffer.from([parseInt(signature.substr(130, 2), 16) + (chainId * 2) + 35]);
 
     const signedTx = new Transaction({
-      chainId: _chainId,
+      chainId,
       data,
       gasPrice,
       gasLimit,
@@ -125,11 +118,6 @@ export default class SignerMiddleware {
       s,
       v
     });
-
-    console.log('signedTx', signedTx);
-
-    // TODO: Remove, only added since I added some debug checks for address to this library
-    signedTx.verifySignature();
 
     return this.confirmRawTransaction(store, id, signedTx.serialize().toString('hex'));
   }
@@ -186,7 +174,7 @@ export default class SignerMiddleware {
       if (wallet) {
         return this.confirmWalletTransaction(store, id, transaction, wallet, password);
       } else if (txSigned) {
-        return this.confirmSignedTransaction(store, id, txSigned);
+        return this.confirmSignedTransaction(store, id, transaction, txSigned);
       } else if (hardwareAccount) {
         switch (hardwareAccount.via) {
           case 'ledger':

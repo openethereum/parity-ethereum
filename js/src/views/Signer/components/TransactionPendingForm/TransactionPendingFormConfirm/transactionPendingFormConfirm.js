@@ -412,7 +412,7 @@ export default class TransactionPendingFormConfirm extends Component {
   }
 
   onScanTx = (signature) => {
-    const { qrRlp, qrTx } = this.state;
+    const { qrChainId, qrRlp, qrTx } = this.state;
 
     // FIXME: Would prefer 0x back from the actual QR
     if (signature && signature.substr(0, 2) !== '0x') {
@@ -423,6 +423,7 @@ export default class TransactionPendingFormConfirm extends Component {
 
     this.props.onConfirm({
       txSigned: {
+        chainId: qrChainId,
         rlp: qrRlp,
         signature,
         tx: qrTx
@@ -524,10 +525,8 @@ export default class TransactionPendingFormConfirm extends Component {
 
         const qrRlp = inHex(qrTx.serialize().toString('hex'));
 
-        console.log('qrTx', qrTx);
-        console.log('qrRlp', qrRlp);
-
         this.setState({
+          qrChainId: chainId,
           qrNonce,
           qrRlp,
           qrTx,
