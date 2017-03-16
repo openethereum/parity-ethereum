@@ -38,5 +38,6 @@ pub use self::requests::{
 };
 pub use self::signing_queue::{
 	ConfirmationsQueue, ConfirmationPromise, ConfirmationResult, SigningQueue, QueueEvent, DefaultAccount,
+	QUEUE_LIMIT as SIGNING_QUEUE_LIMIT,
 };
 pub use self::signer::SignerService;
