@@ -14,16 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { noop } from 'lodash';
 import { observable, computed, action, transaction } from 'mobx';
 import BigNumber from 'bignumber.js';
-import { uniq } from 'lodash';
 
 import { wallet as walletAbi } from '~/contracts/abi';
-import { bytesToHex } from '~/api/util/format';
 import { fromWei } from '~/api/util/wei';
 import Contract from '~/api/contract';
 import ERRORS from './errors';
-import { ERROR_CODES } from '~/api/transport/error';
 import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
 import GasPriceStore from '~/ui/GasPriceEditor/store';
 import { getLogger, LOG_KEYS } from '~/config';
@@ -32,13 +30,10 @@ const log = getLogger(LOG_KEYS.TransferModalStore);
 
 const TITLES = {
   transfer: 'transfer details',
-  sending: 'sending',
-  complete: 'complete',
-  extras: 'extra information',
-  rejected: 'rejected'
+  extras: 'extra information'
 };
-const STAGES_BASIC = [TITLES.transfer, TITLES.sending, TITLES.complete];
-const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.sending, TITLES.complete];
+const STAGES_BASIC = [TITLES.transfer];
+const STAGES_EXTRA = [TITLES.transfer, TITLES.extras];
 
 export const WALLET_WARNING_SPENT_TODAY_LIMIT = 'WALLET_WARNING_SPENT_TODAY_LIMIT';
 
@@ -49,8 +44,6 @@ export default class TransferStore {
   @observable sending = false;
   @observable tag = 'ETH';
   @observable isEth = true;
-  @observable busyState = null;
-  @observable rejected = false;
 
   @observable data = '';
   @observable dataError = null;
@@ -72,8 +65,8 @@ export default class TransferStore {
 
   account = null;
   balance = null;
-  onClose = null;
 
+  onClose = noop;
   senders = null;
   isWallet = false;
   wallet = null;
@@ -83,7 +76,7 @@ export default class TransferStore {
   constructor (api, props) {
     this.api = api;
 
-    const { account, balance, gasLimit, senders, newError, sendersBalances } = props;
+    const { account, balance, gasLimit, onClose, senders, newError, sendersBalances } = props;
 
     this.account = account;
     this.balance = balance;
@@ -102,14 +95,14 @@ export default class TransferStore {
       this.sendersBalances = sendersBalances;
       this.senderError = ERRORS.requireSender;
     }
+
+    if (onClose) {
+      this.onClose = onClose;
+    }
   }
 
   @computed get steps () {
     const steps = [].concat(this.extras ? STAGES_EXTRA : STAGES_BASIC);
-
-    if (this.rejected) {
-      steps[steps.length - 1] = TITLES.rejected;
-    }
 
     return steps;
   }
@@ -147,6 +140,7 @@ export default class TransferStore {
 
   @action handleClose = () => {
     this.stage = 0;
+    this.onClose();
   }
 
   @action onUpdateDetails = (type, value) => {
@@ -186,83 +180,12 @@ export default class TransferStore {
 
     this
       .send()
-      .then((requestId) => {
-        this.busyState = 'Waiting for authorization in the Parity Signer';
-
-        return this.api
-          .pollMethod('parity_checkRequest', requestId)
-          .catch((e) => {
-            if (e.code === ERROR_CODES.REQUEST_REJECTED) {
-              this.rejected = true;
-              return false;
-            }
-
-            throw e;
-          });
-      })
-      .then((txhash) => {
-        transaction(() => {
-          this.onNext();
-
-          this.sending = false;
-          this.txhash = txhash;
-          this.busyState = 'Your transaction has been posted to the network';
-        });
-
-        if (this.isWallet) {
-          return this._attachWalletOperation(txhash);
-        }
-      })
       .catch((error) => {
-        this.sending = false;
         this.newError(error);
+      })
+      .then(() => {
+        this.handleClose();
       });
-  }
-
-  @action _attachWalletOperation = (txhash) => {
-    if (!txhash || /^(0x)?0*$/.test(txhash)) {
-      return;
-    }
-
-    let ethSubscriptionId = null;
-
-    // Number of blocks left to look-up (unsub after 15 blocks if nothing)
-    let nBlocksLeft = 15;
-
-    return this.api.subscribe('eth_blockNumber', () => {
-      this.api.eth
-        .getTransactionReceipt(txhash)
-        .then((tx) => {
-          if (nBlocksLeft <= 0) {
-            this.api.unsubscribe(ethSubscriptionId);
-            ethSubscriptionId = null;
-            return;
-          }
-
-          if (!tx) {
-            nBlocksLeft--;
-            return;
-          }
-
-          const logs = this.walletContract.parseEventLogs(tx.logs);
-          const operations = uniq(logs
-            .filter((log) => log && log.params && log.params.operation)
-            .map((log) => bytesToHex(log.params.operation.value)));
-
-          if (operations.length > 0) {
-            this.operation = operations[0];
-          }
-
-          this.api.unsubscribe(ethSubscriptionId);
-          ethSubscriptionId = null;
-        })
-        .catch(() => {
-          this.api.unsubscribe(ethSubscriptionId);
-          ethSubscriptionId = null;
-        });
-    }).then((subId) => {
-      ethSubscriptionId = subId;
-    });
   }
 
   @action _onUpdateAll = (valueAll) => {
