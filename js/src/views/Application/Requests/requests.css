@@ -27,8 +27,18 @@
 }
 
 .request {
-  background-color: rgba(40, 40, 40, 0.95);
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(0.7, 0, 0.3, 1);
+  background-color: rgba(40, 40, 40, 0.85);
+  box-shadow: 0 0 5px 0 white;
+  cursor: pointer;
   margin-top: 0.5em;
+  opacity: 1;
+
+  &.hide {
+    animation-duration: 1s;
+    animation-name: fadeout;
+  }
 
   .status {
     padding: 0.5em;
@@ -39,15 +49,45 @@
   }
 
   .container {
-    align-items: center;
+    align-items: flex-start;
     display: flex;
     flex-direction: row;
     justify-content: center;
     padding: 1em;
   }
 
+  &:hover .container {
+    background-color: rgba(40, 40, 40, 1);
+  }
+
   p {
     margin: 0;
+  }
+}
+
+@keyframes fadeout {
+  from {
+    display: block;
+    height: inherit;
+    opacity: 1;
+  }
+
+  75% {
+    display: block;
+    height: inherit;
+    opacity: 0;
+  }
+
+  99% {
+    display: block;
+    height: 0;
+    opacity: 0;
+  }
+
+  to {
+    display: none;
+    height: 0;
+    opacity: 0;
   }
 }
 
@@ -67,6 +107,10 @@
   align-items: center;
   display: flex;
   flex-direction: row;
+
+  .fill {
+    flex: 1 0 auto;
+  }
 }
 
 .hash {

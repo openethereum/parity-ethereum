@@ -22,10 +22,10 @@
   color: inherit;
   cursor: text;
   display: inline-block;
-  height: 1em;
   font-family: inherit;
   font-size: inherit;
   margin-left: 0.25em;
+  padding: 0;
   width: 100%;
 
   &.small {

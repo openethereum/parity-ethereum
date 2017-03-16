@@ -31,5 +31,13 @@ export default handleActions({
     };
 
     return nextState;
+  },
+
+  deleteRequest (state, action) {
+    const { requestId } = action;
+    const nextState = { ...state };
+
+    delete nextState[requestId];
+    return nextState;
   }
 }, initialState);

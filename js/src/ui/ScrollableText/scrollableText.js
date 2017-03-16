@@ -37,5 +37,5 @@ export default function ScrollableText (props) {
 
 ScrollableText.propTypes = {
   text: PropTypes.string.isRequired,
-  small: PropTypes.boolean
+  small: PropTypes.bool
 };

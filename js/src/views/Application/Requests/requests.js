@@ -16,8 +16,11 @@
 
 import { LinearProgress } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
+import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
+import { hideRequest } from '~/redux/providers/requestsActions';
 import { MethodDecoding, IdentityIcon, ScrollableText } from '~/ui';
 
 import styles from './requests.css';
@@ -28,34 +31,57 @@ const WAITING_STATE = 'WAITING_STATE';
 
 class Requests extends Component {
   static propTypes = {
-    blockNumber: PropTypes.object.isRequired,
-    requests: PropTypes.object.isRequired
+    requests: PropTypes.object.isRequired,
+    onHideRequest: PropTypes.func.isRequired
+  };
+
+  state = {
+    extras: {}
   };
 
   render () {
     const { requests } = this.props;
+    const { extras } = this.state;
 
     return (
       <div className={ styles.requests }>
-        { Object.values(requests).map((request) => this.renderRequest(request)) }
+        { Object.values(requests).map((request) => this.renderRequest(request, extras[request.id])) }
       </div>
     );
   }
 
-  renderRequest (request) {
-    const { transaction } = request;
+  renderRequest (request, extras = {}) {
+    const { show, transaction } = request;
     const state = this.getTransactionState(request);
 
+    const requestClasses = [ styles.request ];
     const statusClasses = [ styles.status ];
+    const requestStyle = {};
+
+    const handleHideRequest = () => {
+      this.handleHideRequest(request.id);
+    };
 
     if (state.type === ERROR_STATE) {
       statusClasses.push(styles.error);
     }
 
+    if (!show) {
+      requestClasses.push(styles.hide);
+    }
+
+    // Set the Request height (for animation) if found
+    if (extras.height) {
+      requestStyle.height = extras.height;
+    }
+
     return (
       <div
-        className={ styles.request }
+        className={ requestClasses.join(' ') }
         key={ request.id }
+        ref={ `request_${request.id}` }
+        onClick={ handleHideRequest }
+        style={ requestStyle }
       >
         <div className={ statusClasses.join(' ') }>
           { this.renderStatus(request) }
@@ -67,7 +93,7 @@ class Requests extends Component {
             <LinearProgress
               max={ 6 }
               mode={ state.type === WAITING_STATE ? 'indeterminate' : 'determinate' }
-              value={ state.type === DONE_STATE ? state.blockHeight.toNumber() : 6 }
+              value={ state.type === DONE_STATE ? request.blockHeight.toNumber() : 6 }
             />
           )
         }
@@ -99,10 +125,11 @@ class Requests extends Component {
           title={ error.message }
         >
           <span>An error occured: </span>
-          <ScrollableText
-            small
-            text={ error.text || error.message }
-          />
+          <div className={ styles.fill }>
+            <ScrollableText
+              text={ error.text || error.message }
+            />
+          </div>
         </div>
       );
     }
@@ -117,10 +144,11 @@ class Requests extends Component {
       return (
         <div className={ styles.inline }>
           <span>Transaction sent to network with hash </span>
-          <ScrollableText
-            small
-            text={ transactionHash }
-          />
+          <div className={ styles.fill }>
+            <ScrollableText
+              text={ transactionHash }
+            />
+          </div>
         </div>
       );
     }
@@ -138,17 +166,46 @@ class Requests extends Component {
     }
 
     if (transactionReceipt) {
-      const blockHeight = this.props.blockNumber.minus(transactionReceipt.blockNumber);
-
-      return { type: DONE_STATE, blockHeight };
+      return { type: DONE_STATE };
     }
 
     return { type: WAITING_STATE };
   }
+
+  handleHideRequest = (requestId) => {
+    const requestElement = ReactDOM.findDOMNode(this.refs[`request_${requestId}`]);
+
+    // Try to get the request element height, to have a nice transition effect
+    if (requestElement) {
+      const { height } = requestElement.getBoundingClientRect();
+      const prevExtras = this.state.extras;
+      const nextExtras = {
+        ...prevExtras,
+        [ requestId ]: {
+          ...prevExtras[requestId],
+          height
+        }
+      };
+
+      return this.setState({ extras: nextExtras }, () => {
+        return this.props.onHideRequest(requestId);
+      });
+    }
+
+    return this.props.onHideRequest(requestId);
+  }
 }
 
 const mapStateToProps = (state) => {
-  return { blockNumber: state.nodeStatus.blockNumber, requests: state.requests };
+  const { requests } = state;
+
+  return { requests };
 };
 
-export default connect(mapStateToProps, null)(Requests);
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    onHideRequest: hideRequest
+  }, dispatch);
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(Requests);
