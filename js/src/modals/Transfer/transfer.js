@@ -163,7 +163,7 @@ class Transfer extends Component {
       );
     }
 
-    if (sending) {
+    if (sending || !txhash) {
       return (
         <BusyStep
           title='The transaction is in progress'

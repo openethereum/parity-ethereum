@@ -16,6 +16,28 @@
 
 import WalletsUtils from '~/util/wallets';
 
+export function trackRequest (api, requestId, statusCallback) {
+  return api.pollMethod('parity_checkRequest', requestId)
+    .then((transactionHash) => {
+      const isValidReceipt = (receipt) => {
+        if (!receipt || !receipt.blockNumber || receipt.blockNumber.eq(0)) {
+          return false;
+        }
+
+        return true;
+      };
+
+      statusCallback(null, { transactionHash });
+      return api.pollMethod('eth_getTransactionReceipt', transactionHash, isValidReceipt);
+    })
+    .then((transactionReceipt) => {
+      statusCallback(null, { transactionReceipt });
+    })
+    .catch((error) => {
+      statusCallback(error);
+    });
+}
+
 const isValidReceipt = (receipt) => {
   return receipt && receipt.blockNumber && receipt.blockNumber.gt(0);
 };

@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
+
+import { trackRequest } from '~/util/tx';
+
 export const init = (api) => (dispatch) => {
   api.on('request', (request) => {
     dispatch(watchRequest(request));
@@ -21,10 +25,30 @@ export const init = (api) => (dispatch) => {
 };
 
 export const watchRequest = (request) => (dispatch, getState) => {
-  const { requestId, ...requestData } = request;
+  const { api } = getState();
+  const { requestId, ...others } = request;
+  const { from, to, value, data } = others;
+  const transaction = {
+    from,
+    to,
+    data,
+    value: new BigNumber(value || 0)
+  };
 
-  console.warn('watching request', requestId, requestData);
+  const requestData = {
+    id: requestId,
+    transaction
+  };
+
   dispatch(setRequest(requestId, requestData));
+
+  trackRequest(api, requestId, (error, data) => {
+    if (error) {
+      return dispatch(setRequest(requestId, { error }));
+    }
+
+    return dispatch(setRequest(requestId, data));
+  });
 };
 
 export const setRequest = (requestId, requestData) => ({

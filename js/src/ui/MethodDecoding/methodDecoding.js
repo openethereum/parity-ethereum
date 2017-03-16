@@ -33,14 +33,18 @@ const TOKEN_METHODS = {
 class MethodDecoding extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     address: PropTypes.string.isRequired,
     token: PropTypes.object,
     transaction: PropTypes.object,
     historic: PropTypes.bool
-  }
+  };
+
+  static defaultProps = {
+    historic: false
+  };
 
   state = {
     contractAddress: null,
@@ -54,7 +58,7 @@ class MethodDecoding extends Component {
     isLoading: true,
     expandInput: false,
     inputType: 'auto'
-  }
+  };
 
   methodDecodingStore = MethodDecodingStore.get(this.context.api);
 
