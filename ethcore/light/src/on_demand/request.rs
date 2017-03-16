@@ -294,8 +294,6 @@ mod tests {
 		let proof = cht.prove(10_000, 0).unwrap().unwrap();
 		let req = HeaderProof::new(10_000, cht.root()).unwrap();
 
-		let raw_header = test_client.block_header(::ethcore::ids::BlockId::Number(10_000)).unwrap();
-
 		assert!(req.check_response(&proof[..]).is_ok());
 	}
 
@@ -305,9 +303,9 @@ mod tests {
 		header.set_number(10_000);
 		header.set_extra_data(b"test_header".to_vec());
 		let hash = header.hash();
-		let raw_header = ::rlp::encode(&header);
+		let raw_header = encoded::Header::new(::rlp::encode(&header).to_vec());
 
-		assert!(HeaderByHash(hash).check_response(&*raw_header).is_ok())
+		assert!(HeaderByHash(hash).check_response(&raw_header).is_ok())
 	}
 
 	#[test]
@@ -323,7 +321,7 @@ mod tests {
 			hash: header.hash(),
 		};
 
-		let response = encoded::Body::new(body_stream.drain());
+		let response = encoded::Body::new(body_stream.drain().to_vec());
 		assert!(req.check_response(&response).is_ok())
 	}
 
