@@ -100,12 +100,13 @@ export default class SignerMiddleware {
 
   confirmSignedTransaction (store, id, txSigned) {
     const { rlp, signature, tx } = txSigned;
+    const { _chainId, data, gasPrice, gasLimit, nonce, to, value } = tx;
 
     const r = Buffer.from(signature.substr(2, 64), 'hex');
     const s = Buffer.from(signature.substr(66, 64), 'hex');
 
-    // FIXME: First line is for replay protection, second without
-    const v = Buffer.from([parseInt(signature.substr(130, 2), 16) + (tx._chainId * 2) + 35]);
+    // NOTE: First line is for replay protection, second without
+    const v = Buffer.from([parseInt(signature.substr(130, 2), 16) + (_chainId * 2) + 35]);
     // const v = Buffer.from([parseInt(signature.substr(130, 2), 16) + 27]);
 
     console.log('rlp', rlp);
@@ -113,19 +114,21 @@ export default class SignerMiddleware {
     console.log('r, s, v', r.toString('hex'), s.toString('hex'), v.toString('hex'));
 
     const signedTx = new Transaction({
-      to: tx.to,
-      nonce: tx.nonce,
-      gasPrice: tx.gasPrice,
-      gasLimit: tx.gasLimit,
-      value: tx.value,
-      data: tx.data,
-      chainId: tx._chainId,
+      chainId: _chainId,
+      data,
+      gasPrice,
+      gasLimit,
+      nonce,
+      to,
+      value,
       r,
       s,
       v
     });
 
     console.log('signedTx', signedTx);
+
+    // TODO: Remove, only added since I added some debug checks for address to this library
     signedTx.verifySignature();
 
     return this.confirmRawTransaction(store, id, signedTx.serialize().toString('hex'));

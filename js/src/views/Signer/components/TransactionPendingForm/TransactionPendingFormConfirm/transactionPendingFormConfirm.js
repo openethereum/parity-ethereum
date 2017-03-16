@@ -501,35 +501,35 @@ export default class TransactionPendingFormConfirm extends Component {
   generateTxQr = () => {
     const { api } = this.context;
     const { netVersion, transaction } = this.props;
+    const { data, from, gas, gasPrice, nonce, to, value } = transaction;
 
     return api.parity
-      .nextNonce(transaction.from)
+      .nextNonce(from)
       .then((_nonce) => {
         const chainId = parseInt(netVersion, 10);
-        const qrNonce = transaction.nonce.isZero() ? _nonce : transaction.nonce;
+        const qrNonce = nonce.isZero() ? _nonce : nonce;
 
         const qrTx = new Transaction({
           chainId,
-          to: inHex(transaction.to),
+          data: inHex(data),
+          gasPrice: inHex(gasPrice),
+          gasLimit: inHex(gas),
           nonce: inHex(qrNonce),
-          gasPrice: inHex(transaction.gasPrice),
-          gasLimit: inHex(transaction.gas),
-          value: inHex(transaction.value),
-          data: inHex(transaction.data),
-          r: 0,
-          s: 0,
-          v: Buffer.from([chainId])
+          to: inHex(to),
+          value: inHex(value)
         });
-
-        console.log('qrTx', qrTx);
 
         const qrRlp = inHex(qrTx.serialize().toString('hex'));
 
+        console.log('qrTx', qrTx);
+        console.log('qrRlp', qrRlp);
+
         this.setState({
-          // FIXME: leading 0x is dropped for Native Signer compatibility
           qrNonce,
           qrRlp,
           qrTx,
+
+          // NOTE: leading 0x is dropped for Native Signer compatibility
           qrValue: JSON.stringify({
             from: transaction.from.substr(2),
             rlp: qrRlp.substr(2)
