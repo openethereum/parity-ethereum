@@ -288,9 +288,9 @@ export default class Eth {
       .execute('eth_sign', inAddress(address), inHash(hash));
   }
 
-  signTransaction () {
+  signTransaction (options) {
     return this._transport
-      .execute('eth_signTransaction');
+      .execute('eth_signTransaction', inOptions(options));
   }
 
   submitHashrate (hashrate, clientId) {
