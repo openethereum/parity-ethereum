@@ -107,7 +107,7 @@ class MethodDecoding extends Component {
 
   renderGas () {
     const { historic, transaction } = this.props;
-    const { gas, gasPrice } = transaction;
+    const { gas, gasPrice, value } = transaction;
 
     if (!gas || !gasPrice) {
       return null;
@@ -126,9 +126,9 @@ class MethodDecoding extends Component {
         />
       </span>
     );
-    const gasProvidedEth = (
+    const totalEthValue = (
       <span className={ styles.highlight }>
-        { this.renderEtherValue(gas.mul(gasPrice)) }
+        { this.renderEtherValue(gas.mul(gasPrice).plus(value || 0)) }
       </span>
     );
     const gasUsed = transaction.gasUsed
@@ -149,12 +149,12 @@ class MethodDecoding extends Component {
       <div className={ styles.gasDetails }>
         <FormattedMessage
           id='ui.methodDecoding.txValues'
-          defaultMessage='{historic, select, true {Provided} false {Provides}} {gasProvided}{gasUsed} for a total transaction value of {gasProvidedEth}'
+          defaultMessage='{historic, select, true {Provided} false {Provides}} {gasProvided}{gasUsed} for a total transaction value of {totalEthValue}'
           values={ {
             historic,
             gasProvided,
-            gasProvidedEth,
-            gasUsed
+            gasUsed,
+            totalEthValue
           } }
         />
         { this.renderMinBlock() }
@@ -349,6 +349,7 @@ class MethodDecoding extends Component {
   renderDeploy () {
     const { historic, transaction } = this.props;
     const { methodInputs } = this.state;
+    const { value } = transaction;
 
     if (!historic) {
       return (
@@ -357,6 +358,19 @@ class MethodDecoding extends Component {
             id='ui.methodDecoding.deploy.willDeploy'
             defaultMessage='Will deploy a contract'
           />
+          {
+            value && value.gt(0)
+            ? (
+              <FormattedMessage
+                id='ui.methodDecoding.deploy.withValue'
+                defaultMessage=', sending {value}'
+                values={ {
+                  value: this.renderEtherValue(value)
+                } }
+              />
+            )
+            : null
+          }
         </div>
       );
     }
