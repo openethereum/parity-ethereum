@@ -16,6 +16,7 @@
 
 import { LinearProgress } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
@@ -124,7 +125,10 @@ class Requests extends Component {
           className={ styles.inline }
           title={ error.message }
         >
-          <span>An error occured: </span>
+          <FormattedMessage
+            id='requests.status.error'
+            defaultMessage='An error occured:'
+          />
           <div className={ styles.fill }>
             <ScrollableText
               text={ error.text || error.message }
@@ -136,14 +140,23 @@ class Requests extends Component {
 
     if (transactionReceipt) {
       return (
-        <p>Transaction mined at block #{ transactionReceipt.blockNumber.toFormat() }</p>
+        <FormattedMessage
+          id='requests.status.transactionMined'
+          defaultMessage='Transaction mined at block #{blockNumber}'
+          values={ {
+            blockNumber: transactionReceipt.blockNumber.toFormat()
+          } }
+        />
       );
     }
 
     if (transactionHash) {
       return (
         <div className={ styles.inline }>
-          <span>Transaction sent to network with hash </span>
+          <FormattedMessage
+            id='requests.status.transactionSent'
+            defaultMessage='Transaction sent to network with hash'
+          />
           <div className={ styles.fill }>
             <ScrollableText
               text={ transactionHash }
@@ -154,7 +167,10 @@ class Requests extends Component {
     }
 
     return (
-      <p>Transaction pending in Signer</p>
+      <FormattedMessage
+        id='requests.status.waitingForSigner'
+        defaultMessage='Waiting for authorization in the Parity Signer'
+      />
     );
   }
 
