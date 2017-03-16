@@ -517,7 +517,9 @@ export default class TransactionPendingFormConfirm extends Component {
           nonce: inHex(qrNonce),
           to: inHex(to),
           value: inHex(value),
-          r: chainId
+          r: 0,
+          s: 0,
+          v: chainId
         });
 
         const qrRlp = inHex(qrTx.serialize().toString('hex'));
