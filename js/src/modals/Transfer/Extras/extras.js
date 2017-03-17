@@ -25,12 +25,17 @@ export default class Extras extends Component {
   static propTypes = {
     data: PropTypes.string,
     dataError: PropTypes.string,
+    hideData: PropTypes.bool,
     gasStore: PropTypes.object.isRequired,
     isEth: PropTypes.bool,
-    onChange: PropTypes.func.isRequired,
+    onChange: PropTypes.func,
     total: PropTypes.string,
     totalError: PropTypes.string
-  }
+  };
+
+  static defaultProps = {
+    hideData: false
+  };
 
   render () {
     const { gasStore, onChange } = this.props;
@@ -49,9 +54,9 @@ export default class Extras extends Component {
   }
 
   renderData () {
-    const { isEth, data, dataError } = this.props;
+    const { isEth, data, dataError, hideData } = this.props;
 
-    if (!isEth) {
+    if (!isEth || hideData) {
       return null;
     }
 
