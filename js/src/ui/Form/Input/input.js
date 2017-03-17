@@ -81,6 +81,7 @@ export default class Input extends Component {
     tabIndex: PropTypes.number,
     type: PropTypes.string,
     submitOnBlur: PropTypes.bool,
+    step: PropTypes.number,
     style: PropTypes.object,
     value: PropTypes.oneOfType([
       PropTypes.number,
@@ -124,7 +125,7 @@ export default class Input extends Component {
   render () {
     const { value } = this.state;
     const { autoFocus, children, className, hideUnderline, disabled, error, focused, label } = this.props;
-    const { hint, onClick, multiLine, rows, type, min, max, style, tabIndex } = this.props;
+    const { hint, onClick, multiLine, rows, type, min, max, step, style, tabIndex } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 
@@ -179,6 +180,7 @@ export default class Input extends Component {
           readOnly={ readOnly }
           ref='input'
           rows={ rows }
+          step={ step }
           style={ textFieldStyle }
           tabIndex={ tabIndex }
           type={ type || 'text' }
