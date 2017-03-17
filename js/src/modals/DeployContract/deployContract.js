@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import { pick } from 'lodash';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
@@ -22,12 +23,13 @@ import { connect } from 'react-redux';
 
 import { BusyStep, Button, CompletedStep, CopyToClipboard, GasPriceEditor, IdentityIcon, Portal, TxHash, Warning } from '~/ui';
 import { CancelIcon, DoneIcon } from '~/ui/Icons';
-import { ERRORS, validateAbi, validateCode, validateName } from '~/util/validation';
+import { ERRORS, validateAbi, validateCode, validateName, validatePositiveNumber } from '~/util/validation';
 import { deploy, deployEstimateGas } from '~/util/tx';
 
 import DetailsStep from './DetailsStep';
 import ParametersStep from './ParametersStep';
 import ErrorStep from './ErrorStep';
+import Extras from '../Transfer/Extras';
 
 import styles from './deployContract.css';
 
@@ -47,6 +49,14 @@ const STEPS = {
       <FormattedMessage
         id='deployContract.title.parameters'
         defaultMessage='contract parameters'
+      />
+    )
+  },
+  EXTRAS: {
+    title: (
+      <FormattedMessage
+        id='deployContract.title.extras'
+        defaultMessage='extra information'
       />
     )
   },
@@ -97,12 +107,16 @@ class DeployContract extends Component {
   state = {
     abi: '',
     abiError: ERRORS.invalidAbi,
+    amount: '0',
+    amountValue: new BigNumber(0),
+    amountError: '',
     code: '',
     codeError: ERRORS.invalidCode,
     deployState: '',
     deployError: null,
     description: '',
     descriptionError: null,
+    extras: false,
     fromAddress: Object.keys(this.props.accounts)[0],
     fromAddressError: null,
     name: '',
@@ -144,7 +158,19 @@ class DeployContract extends Component {
 
     const realStepKeys = deployError || rejected
       ? []
-      : Object.keys(STEPS).filter((k) => k !== 'CONTRACT_PARAMETERS' || inputs.length > 0);
+      : Object.keys(STEPS)
+        .filter((k) => {
+          if (k === 'CONTRACT_PARAMETERS') {
+            return inputs.length > 0;
+          }
+
+          if (k === 'EXTRAS') {
+            return this.state.extras;
+          }
+
+          return true;
+        });
+
     const realStep = realStepKeys.findIndex((k) => k === step);
     const realSteps = realStepKeys.length
       ? realStepKeys.map((k) => STEPS[k])
@@ -207,8 +233,8 @@ class DeployContract extends Component {
   }
 
   renderDialogActions () {
-    const { deployError, abiError, codeError, nameError, descriptionError, fromAddressError, fromAddress, step } = this.state;
-    const isValid = !nameError && !fromAddressError && !descriptionError && !abiError && !codeError;
+    const { deployError, abiError, amountError, codeError, nameError, descriptionError, fromAddressError, fromAddress, step } = this.state;
+    const isValid = !nameError && !fromAddressError && !descriptionError && !abiError && !codeError && !amountError;
 
     const cancelBtn = (
       <Button
@@ -256,48 +282,69 @@ class DeployContract extends Component {
       return closeBtn;
     }
 
+    const createButton = (
+      <Button
+        icon={
+          <IdentityIcon
+            address={ fromAddress }
+            button
+          />
+        }
+        key='create'
+        label={
+          <FormattedMessage
+            id='deployContract.button.create'
+            defaultMessage='Create'
+          />
+        }
+        onClick={ this.onDeployStart }
+      />
+    );
+
+    const nextButton = (
+      <Button
+        disabled={ !isValid }
+        key='next'
+        icon={
+          <IdentityIcon
+            address={ fromAddress }
+            button
+          />
+        }
+        label={
+          <FormattedMessage
+            id='deployContract.button.next'
+            defaultMessage='Next'
+          />
+        }
+        onClick={ this.onNextStep }
+      />
+    );
+
+    const hasParameters = this.state.inputs.length > 0;
+    const showExtras = this.state.extras;
+
     switch (step) {
       case 'CONTRACT_DETAILS':
         return [
           cancelBtn,
-          <Button
-            disabled={ !isValid }
-            key='next'
-            icon={
-              <IdentityIcon
-                address={ fromAddress }
-                button
-              />
-            }
-            label={
-              <FormattedMessage
-                id='deployContract.button.next'
-                defaultMessage='Next'
-              />
-            }
-            onClick={ this.onParametersStep }
-          />
+          hasParameters || showExtras
+            ? nextButton
+            : createButton
         ];
 
       case 'CONTRACT_PARAMETERS':
         return [
           cancelBtn,
-          <Button
-            icon={
-              <IdentityIcon
-                address={ fromAddress }
-                button
-              />
-            }
-            key='create'
-            label={
-              <FormattedMessage
-                id='deployContract.button.create'
-                defaultMessage='Create'
-              />
-            }
-            onClick={ this.onDeployStart }
-          />
+          showExtras
+            ? nextButton
+            : createButton
+        ];
+
+      case 'EXTRAS':
+        return [
+          cancelBtn,
+          createButton
         ];
 
       case 'DEPLOYMENT':
@@ -344,6 +391,8 @@ class DeployContract extends Component {
             { ...this.state }
             accounts={ accounts }
             balances={ balances }
+            onAmountChange={ this.onAmountChange }
+            onExtrasChange={ this.onExtrasChange }
             onFromAddressChange={ this.onFromAddressChange }
             onDescriptionChange={ this.onDescriptionChange }
             onNameChange={ this.onNameChange }
@@ -364,6 +413,9 @@ class DeployContract extends Component {
             readOnly={ readOnly }
           />
         );
+
+      case 'EXTRAS':
+        return this.renderExtrasPage();
 
       case 'DEPLOYMENT':
         const body = txhash
@@ -411,17 +463,32 @@ class DeployContract extends Component {
     }
   }
 
+  renderExtrasPage () {
+    if (!this.gasStore.histogram) {
+      return null;
+    }
+
+    return (
+      <Extras
+        gasStore={ this.gasStore }
+        hideData
+        isEth
+      />
+    );
+  }
+
   estimateGas = () => {
     const { api } = this.context;
-    const { abiError, abiParsed, code, codeError, fromAddress, fromAddressError, params } = this.state;
+    const { abiError, abiParsed, amountValue, amountError, code, codeError, fromAddress, fromAddressError, params } = this.state;
 
-    if (abiError || codeError || fromAddressError) {
+    if (abiError || codeError || fromAddressError || amountError) {
       return;
     }
 
     const options = {
       data: code,
-      from: fromAddress
+      from: fromAddress,
+      value: amountValue
     };
 
     const contract = api.newContract(abiParsed);
@@ -437,11 +504,32 @@ class DeployContract extends Component {
       });
   }
 
+  onNextStep = () => {
+    switch (this.state.step) {
+      case 'CONTRACT_DETAILS':
+        return this.onParametersStep();
+
+      case 'CONTRACT_PARAMETERS':
+        return this.onExtrasStep();
+
+      default:
+        console.warn('wrong call of "onNextStep" from', this.state.step);
+    }
+  }
+
   onParametersStep = () => {
     const { inputs } = this.state;
 
     if (inputs.length) {
       return this.setState({ step: 'CONTRACT_PARAMETERS' });
+    }
+
+    return this.onExtrasStep();
+  }
+
+  onExtrasStep = () => {
+    if (this.state.extras) {
+      return this.setState({ step: 'EXTRAS' });
     }
 
     return this.onDeployStart();
@@ -488,10 +576,24 @@ class DeployContract extends Component {
     this.setState(validateCode(code), this.estimateGas);
   }
 
+  onAmountChange = (amount) => {
+    const { numberError } = validatePositiveNumber(amount);
+    const nextAmountValue = numberError
+      ? new BigNumber(0)
+      : this.context.api.util.toWei(amount);
+
+    this.gasStore.setEthValue(nextAmountValue);
+    this.setState({ amount, amountValue: nextAmountValue, amountError: numberError }, this.estimateGas);
+  }
+
+  onExtrasChange = (extras) => {
+    this.setState({ extras });
+  }
+
   onDeployStart = () => {
     const { api, store } = this.context;
     const { source } = this.props;
-    const { abiParsed, code, description, name, params, fromAddress } = this.state;
+    const { abiParsed, amountValue, code, description, name, params, fromAddress } = this.state;
 
     const metadata = {
       abi: abiParsed,
@@ -503,16 +605,17 @@ class DeployContract extends Component {
       source
     };
 
-    const options = {
+    const options = this.gasStore.overrideTransaction({
       data: code,
-      from: fromAddress
-    };
+      from: fromAddress,
+      value: amountValue
+    });
 
     this.setState({ step: 'DEPLOYMENT' });
 
     const contract = api.newContract(abiParsed);
 
-    deploy(contract, options, params, metadata, this.onDeploymentState)
+    deploy(contract, options, params, metadata, this.onDeploymentState, true)
       .then((address) => {
         // No contract address given, might need some confirmations
         // from the wallet owners...
