@@ -85,14 +85,16 @@ pub struct Execute {
 #[derive(Debug, PartialEq)]
 pub struct Configuration {
 	pub args: Args,
+	pub spec_name_override: Option<String>,
 }
 
 impl Configuration {
-	pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
+	pub fn parse<S: AsRef<str>>(command: &[S], spec_name_override: Option<String>) -> Result<Self, ArgsError> {
 		let args = Args::parse(command)?;
 
 		let config = Configuration {
 			args: args,
+			spec_name_override: spec_name_override,
 		};
 
 		Ok(config)
@@ -103,7 +105,11 @@ impl Configuration {
 		let pruning = self.args.flag_pruning.parse()?;
 		let pruning_history = self.args.flag_pruning_history;
 		let vm_type = self.vm_type()?;
-		let mode = match self.args.flag_mode.as_ref() { "last" => None, mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?), };
+		let spec = self.chain().parse()?;
+		let mode = match self.args.flag_mode.as_ref() {
+			"last" => None,
+			mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?),
+		};
 		let update_policy = self.update_policy()?;
 		let logger_config = self.logger_config();
 		let http_conf = self.http_config()?;
@@ -111,7 +117,6 @@ impl Configuration {
 		let net_conf = self.net_config()?;
 		let network_id = self.network_id();
 		let cache_config = self.cache_config();
-		let spec = self.chain().parse()?;
 		let tracing = self.args.flag_tracing.parse()?;
 		let fat_db = self.args.flag_fat_db.parse()?;
 		let compaction = self.args.flag_db_compaction.parse()?;
@@ -437,7 +442,10 @@ impl Configuration {
 	}
 
 	fn chain(&self) -> String {
-		if self.args.flag_testnet {
+		if let Some(ref s) = self.spec_name_override {
+			s.clone()
+		}
+		else if self.args.flag_testnet {
 			"testnet".to_owned()
 		} else {
 			self.args.flag_chain.clone()
@@ -514,6 +522,7 @@ impl Configuration {
 			tx_queue_strategy: to_queue_strategy(&self.args.flag_tx_queue_strategy)?,
 			pending_set: to_pending_set(&self.args.flag_relay_set)?,
 			reseal_min_period: Duration::from_millis(reseal_min_period),
+			reseal_max_period: Duration::from_millis(self.args.flag_reseal_max_period),
 			work_queue_size: self.args.flag_work_queue_size,
 			enable_resubmission: !self.args.flag_remove_solved,
 			tx_queue_banning: match self.args.flag_tx_time_limit {
@@ -972,6 +981,7 @@ mod tests {
 	fn parse(args: &[&str]) -> Configuration {
 		Configuration {
 			args: Args::parse_without_config(args).unwrap(),
+			spec_name_override: None,
 		}
 	}
 
@@ -1429,7 +1439,7 @@ mod tests {
 		let filename = temp.as_str().to_owned() + "/peers";
 		File::create(filename.clone()).unwrap().write_all(b"  \n\t\n").unwrap();
 		let args = vec!["parity", "--reserved-peers", &filename];
-		let conf = Configuration::parse(&args).unwrap();
+		let conf = Configuration::parse(&args, None).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
 	}
 

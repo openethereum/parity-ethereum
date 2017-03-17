@@ -35,6 +35,7 @@ export default class Parity extends Component {
   features = FeaturesStore.get();
 
   componentWillMount () {
+    this.store.loadChain();
     return this.store.loadMode();
   }
 
@@ -50,11 +51,12 @@ export default class Parity extends Component {
             <div>
               <FormattedMessage
                 id='settings.parity.overview_0'
-                defaultMessage='Control the Parity node settings and mode of operation via this interface.'
+                defaultMessage='Control the Parity node settings and nature of syncing via this interface.'
               />
             </div>
           </div>
           <div className={ layout.details }>
+            { this.renderChains() }
             { this.renderModes() }
             <Features />
             <LanguageSelector />
@@ -65,12 +67,12 @@ export default class Parity extends Component {
     );
   }
 
-  renderItem (mode, label) {
+  renderItem (name, label) {
     return (
       <MenuItem
-        key={ mode }
+        key={ name }
         label={ label }
-        value={ mode }
+        value={ name }
       >
         { label }
       </MenuItem>
@@ -134,7 +136,7 @@ export default class Parity extends Component {
         hint={
           <FormattedMessage
             id='settings.parity.modes.hint'
-            defaultMessage='the syning mode for the Parity node'
+            defaultMessage='the syncing mode for the Parity node'
           />
         }
         label={
@@ -182,7 +184,100 @@ export default class Parity extends Component {
     );
   }
 
+  renderChains () {
+    const { chain } = this.store;
+
+    return (
+      <Select
+        id='parityChainSelect'
+        hint={
+          <FormattedMessage
+            id='settings.parity.chains.hint'
+            defaultMessage='the chain for the Parity node to sync to'
+          />
+        }
+        label={
+          <FormattedMessage
+            id='settings.parity.chains.label'
+            defaultMessage='chain/network to sync'
+          />
+        }
+        onChange={ this.onChangeChain }
+        value={ chain }
+      >
+        {
+          this.renderItem('foundation', (
+            <FormattedMessage
+              id='settings.parity.chains.chain_foundation'
+              defaultMessage='Parity syncs to the Ethereum network launched by the Ethereum Foundation'
+            />
+          ))
+        }
+        {
+          this.renderItem('kovan', (
+            <FormattedMessage
+              id='settings.parity.chains.chain_kovan'
+              defaultMessage='Parity syncs to the Kovan test network'
+            />
+          ))
+        }
+        {
+          this.renderItem('olympic', (
+            <FormattedMessage
+              id='settings.parity.chains.chain_olympic'
+              defaultMessage='Parity syncs to the Olympic test network'
+            />
+          ))
+        }
+        {
+          this.renderItem('morden', (
+            <FormattedMessage
+              id='settings.parity.chains.cmorden_kovan'
+              defaultMessage='Parity syncs to Morden (Classic) test network'
+            />
+          ))
+        }
+        {
+          this.renderItem('ropsten', (
+            <FormattedMessage
+              id='settings.parity.chains.chain_ropsten'
+              defaultMessage='Parity syncs to the Ropsten test network'
+            />
+          ))
+        }
+        {
+          this.renderItem('classic', (
+            <FormattedMessage
+              id='settings.parity.chains.chain_classic'
+              defaultMessage='Parity syncs to the Ethereum Classic network'
+            />
+          ))
+        }
+        {
+          this.renderItem('expanse', (
+            <FormattedMessage
+              id='settings.parity.chains.chain_expanse'
+              defaultMessage='Parity syncs to the Expanse network'
+            />
+          ))
+        }
+        {
+          this.renderItem('dev', (
+            <FormattedMessage
+              id='settings.parity.chains.chain_dev'
+              defaultMessage='Parity uses a local development chain'
+            />
+          ))
+        }
+      </Select>
+    );
+  }
+
   onChangeMode = (event, index, mode) => {
     this.store.changeMode(mode || event.target.value);
+  }
+
+  onChangeChain = (event, index, chain) => {
+    this.store.changeChain(chain || event.target.value);
   }
 }

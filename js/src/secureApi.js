@@ -92,6 +92,26 @@ export default class SecureApi extends Api {
     return this._transport.token;
   }
 
+  /**
+   * Configure the current API with the given values
+   * (`signerPort`, `dappsInterface`, `dappsPort`, ...)
+   */
+  configure (configuration) {
+    const { dappsInterface, dappsPort, signerPort } = configuration;
+
+    if (dappsInterface) {
+      this._dappsInterface = dappsInterface;
+    }
+
+    if (dappsPort) {
+      this._dappsPort = dappsPort;
+    }
+
+    if (signerPort) {
+      this._signerPort = signerPort;
+    }
+  }
+
   connect () {
     if (this._isConnecting) {
       return;
@@ -326,7 +346,7 @@ export default class SecureApi extends Api {
    * the node is actually ready even when the client
    * is connected).
    *
-   * We check that the `parity_enode` RPC calls
+   * We check that the `parity_netChain` RPC calls
    * returns successfully
    */
   _waitUntilNodeReady (_timeleft) {
@@ -344,7 +364,7 @@ export default class SecureApi extends Api {
     const start = Date.now();
 
     return this
-      .parity.enode()
+      .parity.netChain()
       .then(() => true)
       .catch((error) => {
         if (!error) {

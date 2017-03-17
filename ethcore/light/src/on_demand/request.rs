@@ -256,7 +256,7 @@ impl TransactionProof {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use util::{MemoryDB, Address, H256, FixedHash};
+	use util::{MemoryDB, Address, H256};
 	use util::trie::{Trie, TrieMut, SecTrieDB, SecTrieDBMut};
 	use util::trie::recorder::Recorder;
 

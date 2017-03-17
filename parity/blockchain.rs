@@ -190,6 +190,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	// prepare client config
 	let mut client_config = to_client_config(
 		&cmd.cache_config,
+		spec.name.to_lowercase(),
 		Mode::Active,
 		tracing,
 		fat_db,
@@ -361,6 +362,7 @@ fn start_client(
 	// prepare client config
 	let client_config = to_client_config(
 		&cache_config,
+		spec.name.to_lowercase(),
 		Mode::Active,
 		tracing,
 		fat_db,

@@ -17,6 +17,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import injectTapEventPlugin from 'react-tap-event-plugin';
+import { AppContainer } from 'react-hot-loader';
 
 injectTapEventPlugin();
 
@@ -27,6 +28,21 @@ import '../../assets/fonts/RobotoMono/font.css';
 import './style.css';
 
 ReactDOM.render(
-  <Application />,
+  <AppContainer>
+    <Application />
+  </AppContainer>,
   document.querySelector('#container')
 );
+
+if (module.hot) {
+  module.hot.accept('./dappreg/Application/index.js', () => {
+    require('./dappreg/Application/index.js');
+
+    ReactDOM.render(
+      <AppContainer>
+        <Application />
+      </AppContainer>,
+      document.querySelector('#container')
+    );
+  });
+}

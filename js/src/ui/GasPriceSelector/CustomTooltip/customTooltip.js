@@ -15,15 +15,21 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 export default class CustomTooltip extends Component {
   static propTypes = {
-    active: PropTypes.bool,
     histogram: PropTypes.object.isRequired,
+    intl: PropTypes.object.isRequired,
+    active: PropTypes.bool,
     label: PropTypes.number,
     payload: PropTypes.array,
     type: PropTypes.string
-  }
+  };
+
+  static childContextTypes = {
+    intl: PropTypes.object.isRequired
+  };
 
   render () {
     const { active, label, histogram } = this.props;
@@ -41,13 +47,21 @@ export default class CustomTooltip extends Component {
     return (
       <div>
         <p className='label'>
-          { count.toNumber() } transactions
-          with gas price set from
-          <span> { minprice.toFormat(0) } </span>
-          to
-          <span> { maxprice.toFormat(0) } </span>
+          <FormattedMessage
+            id='ui.gasPriceSelector.customTooltip.transactions'
+            defaultMessage='{number} {number, plural, one {transaction} other {transactions}} with gas price set from {minPrice} to {maxPrice}'
+            values={ {
+              number: count.toNumber(),
+              minPrice: <span>{ minprice.toFormat(0) }</span>,
+              maxPrice: <span>{ maxprice.toFormat(0) }</span>
+            } }
+          />
         </p>
       </div>
     );
+  }
+
+  getChildContext () {
+    return { intl: this.props.intl };
   }
 }

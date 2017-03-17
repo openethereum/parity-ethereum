@@ -170,6 +170,10 @@ export default class WalletsUtils {
    * to make unnecessary calls on non-wallet accounts
    */
   static isWallet (api, address) {
+    if (!address) {
+      return Promise.resolve(false);
+    }
+
     if (!_cachedWalletLookup[address]) {
       const walletContract = new Contract(api, WalletAbi);
 

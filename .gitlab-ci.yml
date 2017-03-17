@@ -1,8 +1,8 @@
 stages:
   - test
   - js-build
-  - build
   - push-release
+  - build
 variables:
   GIT_DEPTH: "3"
   SIMPLECOV: "true"
@@ -26,14 +26,14 @@ linux-stable:
     - cargo build -j $(nproc) --release -p ethstore
     - cargo build -j $(nproc) --release -p ethkey
     - strip target/release/parity
-    - strip target/release/evm
+    - strip target/release/parity-evm
     - strip target/release/ethstore
     - strip target/release/ethkey
     - export SHA3=$(target/release/parity tools hash target/release/parity)
     - md5sum target/release/parity > parity.md5
     - sh scripts/deb-build.sh amd64
     - cp target/release/parity deb/usr/bin/parity
-    - cp target/release/evm deb/usr/bin/evm
+    - cp target/release/parity-evm deb/usr/bin/parity-evm
     - cp target/release/ethstore deb/usr/bin/ethstore
     - cp target/release/ethkey deb/usr/bin/ethkey
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
@@ -55,9 +55,9 @@ linux-stable:
   artifacts:
     paths:
     - target/release/parity
-    - target/release/parity/evmbin
-    - target/release/parity/ethstore
-    - target/release/parity/ethkey
+    - target/release/parity-evm
+    - target/release/ethstore
+    - target/release/ethkey
     name: "stable-x86_64-unknown-linux-gnu_parity"
 linux-stable-debian:
   stage: build
@@ -73,14 +73,14 @@ linux-stable-debian:
     - cargo build -j $(nproc) --release -p ethstore
     - cargo build -j $(nproc) --release -p ethkey
     - strip target/release/parity
-    - strip target/release/evm
+    - strip target/release/parity-evm
     - strip target/release/ethstore
     - strip target/release/ethkey
     - export SHA3=$(target/release/parity tools hash target/release/parity)
     - md5sum target/release/parity > parity.md5
     - sh scripts/deb-build.sh amd64
     - cp target/release/parity deb/usr/bin/parity
-    - cp target/release/evm deb/usr/bin/evm
+    - cp target/release/parity-evm deb/usr/bin/parity-evm
     - cp target/release/ethstore deb/usr/bin/ethstore
     - cp target/release/ethkey deb/usr/bin/ethkey
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
@@ -409,16 +409,16 @@ darwin:
       packagesbuild -v mac/Parity.pkgproj
       productsign --sign 'Developer ID Installer: PARITY TECHNOLOGIES LIMITED (P2PX3JU8FT)' target/release/Parity\ Ethereum.pkg target/release/Parity\ Ethereum-signed.pkg
       export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
-      mv target/release/Parity\ Ethereum-signed.pkg "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg"
-      md5sum "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg" >> "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg.md5"
+      mv target/release/Parity\ Ethereum-signed.pkg "parity-"$VER"-macos-installer.pkg"
+      md5sum "parity-"$VER"-macos-installer.pkg" >> "parity-"$VER"-macos-installer.pkg.md5"
       aws configure set aws_access_key_id $s3_key
       aws configure set aws_secret_access_key $s3_secret
       if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
       aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/$PLATFORM
       aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity --body target/release/parity
       aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity.md5 --body parity.md5
-      aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/"parity-"$VER"-osx-installer-EXPERIMENTAL.pkg" --body "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg"
-      aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/"parity-"$VER"-osx-installer-EXPERIMENTAL.pkg.md5" --body "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg.md5"
+      aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/"parity-"$VER"-macos-installer.pkg" --body "parity-"$VER"-macos-installer.pkg"
+      aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/"parity-"$VER"-macos-installer.pkg.md5" --body "parity-"$VER"-macos-installer.pkg.md5"
       curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1337/push-build/$CI_BUILD_REF_NAME/$PLATFORM
       curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$PLATFORM
   tags:
@@ -460,9 +460,8 @@ windows:
     - zip win-installer.zip InstallParity.exe InstallParity.exe.md5
     - md5sums win-installer.zip > win-installer.zip.md5
     - cd ..\target\release\
-    - md5sums parity.exe parity.pdb > parity.md5
     - md5sums parity.exe > parity.exe.md5
-    - zip parity.zip parity.exe parity.pdb parity.md5
+    - zip parity.zip parity.exe parity.md5
     - md5sums parity.zip > parity.zip.md5
     - cd ..\..
     - aws configure set aws_access_key_id %s3_key%
@@ -504,6 +503,19 @@ docker-build:
     - sh scripts/docker-build.sh $DOCKER_TAG
   tags:
     - docker
+test-coverage:   
+  stage: test
+  only:
+    - master
+  script:
+    - git submodule update --init --recursive
+    - rm -rf target/*
+    - rm -rf js/.coverage
+    - scripts/cov.sh
+ #   - COVERAGE=$(grep -Po 'covered":.*?[^\\]"' target/cov/index.json | grep "[0-9]*\.[0-9]" -o)
+ #   - echo "Coverage:" $COVERAGE   
+  tags:
+    - kcov
 test-darwin:
   stage: test
   only:

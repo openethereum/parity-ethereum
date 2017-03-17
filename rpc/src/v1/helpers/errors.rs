@@ -32,17 +32,14 @@ mod codes {
 	pub const NO_WORK: i64 = -32001;
 	pub const NO_AUTHOR: i64 = -32002;
 	pub const NO_NEW_WORK: i64 = -32003;
-	pub const NOT_ENOUGH_DATA: i64 = -32006;
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const EXECUTION_ERROR: i64 = -32015;
 	pub const EXCEPTION_ERROR: i64 = -32016;
+	pub const DATABASE_ERROR: i64 = -32017;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const ACCOUNT_ERROR: i64 = -32023;
-	pub const SIGNER_DISABLED: i64 = -32030;
-	pub const DAPPS_DISABLED: i64 = -32031;
-	pub const NETWORK_DISABLED: i64 = -32035;
 	pub const REQUEST_REJECTED: i64 = -32040;
 	pub const REQUEST_REJECTED_LIMIT: i64 = -32041;
 	pub const REQUEST_NOT_FOUND: i64 = -32042;
@@ -100,6 +97,9 @@ pub fn account<T: fmt::Debug>(error: &str, details: T) -> Error {
 	}
 }
 
+/// Internal error signifying a logic error in code.
+/// Should not be used when function can just fail
+/// because of invalid parameters or incomplete node state.
 pub fn internal<T: fmt::Debug>(error: &str, data: T) -> Error {
 	Error {
 		code: ErrorCode::InternalError,
@@ -170,9 +170,9 @@ pub fn no_author() -> Error {
 
 pub fn not_enough_data() -> Error {
 	Error {
-		code: ErrorCode::ServerError(codes::NOT_ENOUGH_DATA),
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "The node does not have enough data to compute the given statistic.".into(),
-		data: None
+		data: None,
 	}
 }
 
@@ -186,25 +186,25 @@ pub fn token(e: String) -> Error {
 
 pub fn signer_disabled() -> Error {
 	Error {
-		code: ErrorCode::ServerError(codes::SIGNER_DISABLED),
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "Trusted Signer is disabled. This API is not available.".into(),
-		data: None
+		data: None,
 	}
 }
 
 pub fn dapps_disabled() -> Error {
 	Error {
-		code: ErrorCode::ServerError(codes::DAPPS_DISABLED),
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "Dapps Server is disabled. This API is not available.".into(),
-		data: None
+		data: None,
 	}
 }
 
 pub fn network_disabled() -> Error {
 	Error {
-		code: ErrorCode::ServerError(codes::NETWORK_DISABLED),
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "Network is disabled or not yet up.".into(),
-		data: None
+		data: None,
 	}
 }
 
@@ -212,6 +212,14 @@ pub fn encryption_error<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ENCRYPTION_ERROR),
 		message: "Encryption error.".into(),
+		data: Some(Value::String(format!("{:?}", error))),
+	}
+}
+
+pub fn database_error<T: fmt::Debug>(error: T) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::DATABASE_ERROR),
+		message: "Database error.".into(),
 		data: Some(Value::String(format!("{:?}", error))),
 	}
 }
@@ -309,7 +317,7 @@ pub fn from_call_error(error: CallError) -> Error {
 
 pub fn unknown_block() -> Error {
 	Error {
-		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		code: ErrorCode::InvalidParams,
 		message: "Unknown block number".into(),
 		data: None,
 	}

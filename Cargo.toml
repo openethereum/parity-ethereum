@@ -1,9 +1,10 @@
 [package]
 description = "Parity Ethereum client"
 name = "parity"
-version = "1.6.0"
+version = "1.7.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+build = "build.rs"
 
 [dependencies]
 log = "0.3"
@@ -11,7 +12,7 @@ env_logger = "0.3"
 rustc-serialize = "0.3"
 docopt = "0.6"
 time = "0.1"
-num_cpus = "0.2"
+num_cpus = "1.2"
 number_prefix = "0.2"
 rpassword = "0.2.1"
 semver = "0.5"
@@ -25,7 +26,7 @@ app_dirs = "1.1.1"
 fdlimit = "0.1"
 hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
 ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
@@ -51,6 +52,9 @@ parity-local-store = { path = "local-store" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}
 ethcore-secretstore = { path = "secret_store", optional = true }
+
+[build-dependencies]
+rustc_version = "0.2"
 
 [dev-dependencies]
 ethcore-ipc-tests = { path = "ipc/tests" }

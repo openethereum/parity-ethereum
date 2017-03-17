@@ -17,6 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { TextField } from 'material-ui';
 import { noop } from 'lodash';
+import keycode from 'keycode';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
@@ -80,6 +81,7 @@ export default class Input extends Component {
     tabIndex: PropTypes.number,
     type: PropTypes.string,
     submitOnBlur: PropTypes.bool,
+    step: PropTypes.number,
     style: PropTypes.object,
     value: PropTypes.oneOfType([
       PropTypes.number,
@@ -92,6 +94,9 @@ export default class Input extends Component {
     allowCopy: false,
     hideUnderline: false,
     floatCopy: false,
+    onBlur: noop,
+    onFocus: noop,
+    onChange: noop,
     readOnly: false,
     submitOnBlur: true,
     style: {}
@@ -120,7 +125,7 @@ export default class Input extends Component {
   render () {
     const { value } = this.state;
     const { autoFocus, children, className, hideUnderline, disabled, error, focused, label } = this.props;
-    const { hint, onClick, onFocus, multiLine, rows, type, min, max, style, tabIndex } = this.props;
+    const { hint, onClick, multiLine, rows, type, min, max, step, style, tabIndex } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 
@@ -169,11 +174,13 @@ export default class Input extends Component {
           onChange={ this.onChange }
           onClick={ onClick }
           onKeyDown={ this.onKeyDown }
-          onFocus={ onFocus }
+          onKeyUp={ this.onKeyUp }
+          onFocus={ this.onFocus }
           onPaste={ this.onPaste }
           readOnly={ readOnly }
           ref='input'
           rows={ rows }
+          step={ step }
           style={ textFieldStyle }
           tabIndex={ tabIndex }
           type={ type || 'text' }
@@ -214,8 +221,14 @@ export default class Input extends Component {
 
   onChange = (event, value) => {
     event.persist();
+
     this.setValue(value, () => {
-      this.props.onChange && this.props.onChange(event, value);
+      this.props.onChange(event, value);
+
+      if (this.pasted) {
+        this.pasted = false;
+        return this.onSubmit(value);
+      }
     });
   }
 
@@ -227,28 +240,52 @@ export default class Input extends Component {
       this.onSubmit(value);
     }
 
-    this.props.onBlur && this.props.onBlur(event);
+    this.props.onBlur(event);
+  }
+
+  onFocus = (event) => {
+    const { onFocus } = this.props;
+
+    this.intialValue = event.target.value;
+    return onFocus(event);
   }
 
   onPaste = (event) => {
-    const { value } = event.target;
-    const pasted = event.clipboardData.getData('Text');
-
-    window.setTimeout(() => {
-      this.onSubmit(value + pasted);
-    }, 0);
+    this.pasted = true;
   }
 
   onKeyDown = (event) => {
+    const codeName = keycode(event);
     const { value } = event.target;
 
-    if (event.which === 13) {
+    if (codeName === 'enter') {
       this.onSubmit(value, true);
-    } else if (event.which === 27) {
-      // TODO ESC, revert to original
     }
 
     this.props.onKeyDown && this.props.onKeyDown(event);
+  }
+
+  /**
+   * Revert to initial value if pressed ESC key
+   * once. Don't do anything (propagate the event) if
+   * ESC has been pressed twice in a row (eg. input in a Portal modal).
+   *
+   * NB: it has to be `onKeyUp` since the Portal is using
+   * the `onKeyUp` event to close the modal ; it mustn't be propagated
+   * if we only want to revert to initial value
+   */
+  onKeyUp = (event) => {
+    const codeName = keycode(event);
+
+    if (codeName === 'esc' && !this.pressedEsc && this.intialValue !== undefined) {
+      event.stopPropagation();
+      event.preventDefault();
+
+      this.pressedEsc = true;
+      this.onChange(event, this.intialValue);
+    } else if (this.pressedEsc) {
+      this.pressedEsc = false;
+    }
   }
 
   onSubmit = (value, performDefault) => {

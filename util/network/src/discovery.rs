@@ -556,7 +556,6 @@ impl Discovery {
 mod tests {
 	use super::*;
 	use std::net::{SocketAddr};
-	use util::FixedHash;
 	use node_table::{Node, NodeId, NodeEndpoint};
 
 	use std::str::FromStr;

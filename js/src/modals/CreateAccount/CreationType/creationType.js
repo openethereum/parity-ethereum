@@ -130,7 +130,7 @@ export default class CreationType extends Component {
         <div className={ styles.summary }>
           <FormattedMessage
             id='createAccount.creationType.info'
-            defaultMessage='Please select the type of account you want to create. Either create an account via name & password, or import it from a variety of existing sources. From here the wizard will guid you through the process of completing your account creation.'
+            defaultMessage='Please select the type of account you want to create. Either create an account via name & password, or import it from a variety of existing sources. From here the wizard will guide you through the process of completing your account creation.'
           />
         </div>
         { this.renderList(createType) }
