@@ -21,10 +21,19 @@ use ::NibbleSlice;
 use smallvec::SmallVec;
 
 /// Owning, nibble-oriented byte vector. Counterpart to `NibbleSlice`.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct NibbleVec {
 	inner: SmallVec<[u8; 36]>,
 	len: usize,
+}
+
+impl Clone for NibbleVec {
+    fn clone(&self) -> Self {
+        NibbleVec {
+            inner: SmallVec::from_slice(&self.inner),
+            len: self.len,
+        }
+    }
 }
 
 impl Default for NibbleVec {

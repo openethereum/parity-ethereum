@@ -17,7 +17,7 @@
 use ::{Stream, Encoder, Encodable};
 use bytes::ToBytes;
 use rlptraits::{ByteEncodable, RlpEncodable};
-use smallvec::{SmallVec, VecLike};
+use smallvec::{Array, SmallVec};
 
 #[derive(Debug, Copy, Clone)]
 struct ListInfo {
@@ -262,7 +262,7 @@ impl Encoder for BasicEncoder {
 }
 
 impl<T> ByteEncodable for T where T: ToBytes {
-	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
+	fn to_bytes<A: Array<Item=u8>>(&self, out: &mut SmallVec<A>) {
 		ToBytes::to_bytes(self, out)
 	}
 
@@ -274,8 +274,8 @@ impl<T> ByteEncodable for T where T: ToBytes {
 struct U8Slice<'a>(&'a [u8]);
 
 impl<'a> ByteEncodable for U8Slice<'a> {
-	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.extend(self.0.iter().cloned());
+	fn to_bytes<A: Array<Item=u8>>(&self, out: &mut SmallVec<A>) {
+		out.extend_from_slice(&self.0);
 	}
 
 	fn bytes_len(&self) -> usize {
@@ -304,7 +304,7 @@ impl<T> Encodable for T where T: ByteEncodable {
 struct EncodableU8 (u8);
 
 impl ByteEncodable for EncodableU8 {
-	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
+	fn to_bytes<A: Array<Item=u8>>(&self, out: &mut SmallVec<A>) {
 		if self.0 != 0 {
 			out.push(self.0)
 		}

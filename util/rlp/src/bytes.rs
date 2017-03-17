@@ -22,21 +22,21 @@ use std::fmt;
 use std::cmp::Ordering;
 use std::error::Error as StdError;
 use bigint::prelude::{Uint, U128, U256, H64, H128, H160, H256, H512, H520, H2048};
-use smallvec::VecLike;
+use smallvec::{Array, SmallVec};
 
 /// Converts given type to its shortest representation in bytes
 ///
 /// TODO: optimise some conversations
 pub trait ToBytes {
 	/// Serialize self to byte array
-	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V);
+	fn to_bytes<A: Array<Item=u8>>(&self, out: &mut SmallVec<A>);
 	/// Get length of serialized data in bytes
 	fn to_bytes_len(&self) -> usize;
 }
 
 impl <'a> ToBytes for &'a str {
-	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.extend(self.as_bytes().iter().cloned());
+	fn to_bytes<A: Array<Item=u8>>(&self, out: &mut SmallVec<A>) {
+		out.extend_from_slice(&self.as_bytes());
 	}
 
 	fn to_bytes_len(&self) -> usize {
@@ -45,8 +45,8 @@ impl <'a> ToBytes for &'a str {
 }
 
 impl ToBytes for String {
-	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.extend(self.as_bytes().iter().cloned());
+	fn to_bytes<A: Array<Item=u8>>(&self, out: &mut SmallVec<A>) {
+		out.extend_from_slice(&self.as_bytes());
 	}
 
 	fn to_bytes_len(&self) -> usize {
@@ -55,7 +55,7 @@ impl ToBytes for String {
 }
 
 impl ToBytes for u64 {
-	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
+	fn to_bytes<A: Array<Item=u8>>(&self, out: &mut SmallVec<A>) {
 		let count = self.to_bytes_len();
 		for i in 0..count {
 			let j = count - 1 - i;
@@ -67,7 +67,7 @@ impl ToBytes for u64 {
 }
 
 impl ToBytes for bool {
-	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
+	fn to_bytes<A: Array<Item=u8>>(&self, out: &mut SmallVec<A>) {
 		out.push(if *self { 1u8 } else { 0u8 })
 	}
 
@@ -77,7 +77,7 @@ impl ToBytes for bool {
 macro_rules! impl_map_to_bytes {
 	($from: ident, $to: ty) => {
 		impl ToBytes for $from {
-			fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
+			fn to_bytes<A: Array<Item=u8>>(&self, out: &mut SmallVec<A>) {
 				(*self as $to).to_bytes(out)
 			}
 
@@ -93,7 +93,7 @@ impl_map_to_bytes!(u32, u64);
 macro_rules! impl_uint_to_bytes {
 	($name: ident) => {
 		impl ToBytes for $name {
-			fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
+			fn to_bytes<A: Array<Item=u8>>(&self, out: &mut SmallVec<A>) {
 				let count = self.to_bytes_len();
 				for i in 0..count {
 					let j = count - 1 - i;
@@ -111,8 +111,8 @@ impl_uint_to_bytes!(U128);
 macro_rules! impl_hash_to_bytes {
 	($name: ident) => {
 		impl ToBytes for $name {
-			fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-				out.extend(self.iter().cloned());
+			fn to_bytes<A: Array<Item=u8>>(&self, out: &mut SmallVec<A>) {
+				out.extend_from_slice(&self);
 			}
 			fn to_bytes_len(&self) -> usize { self.len() }
 		}

@@ -17,7 +17,7 @@
 //! Common RLP traits
 use ::{DecoderError, UntrustedRlp};
 use rlpstream::RlpStream;
-use smallvec::{SmallVec, VecLike};
+use smallvec::{Array, SmallVec};
 
 /// Type is able to decode RLP.
 pub trait Decoder: Sized {
@@ -235,7 +235,7 @@ pub trait Encoder {
 /// Primitive data type encodable to RLP
 pub trait ByteEncodable {
 	/// Serialize this object to given byte container
-	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V);
+	fn to_bytes<A: Array<Item=u8>>(&self, out: &mut SmallVec<A>);
 	/// Get size of serialised data in bytes
 	fn bytes_len(&self) -> usize;
 }
