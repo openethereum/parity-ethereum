@@ -42,7 +42,7 @@ use v1::types::{
 	Origin,
 };
 
-const MAX_PENDING_DURATION: u64 = 60 * 60;
+const MAX_PENDING_DURATION: u32 = 60 * 60;
 
 enum DispatchResult {
 	Promise(ConfirmationPromise),
