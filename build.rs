@@ -14,8 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const api = window.parent.secureApi;
+extern crate rustc_version;
 
-export {
-  api
-};
+const MIN_RUSTC_VERSION: &'static str = "1.15.1";
+
+fn main() {
+	let is = rustc_version::version().unwrap();
+	let required = MIN_RUSTC_VERSION.parse().unwrap();
+	assert!(is >= required, format!("
+
+It looks like you are compiling Parity with an old rustc compiler {}.
+Parity requires version {}. Please update your compiler.
+If you use rustup, try this:
+
+    rustup update stable
+
+and try building Parity again.
+
+", is, required));
+}

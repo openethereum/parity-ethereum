@@ -503,18 +503,19 @@ docker-build:
     - sh scripts/docker-build.sh $DOCKER_TAG
   tags:
     - docker
-test-coverage:
+test-coverage:   
   stage: test
   only:
-    - coverage
+    - master
   script:
     - git submodule update --init --recursive
+    - rm -rf target/*
+    - rm -rf js/.coverage
     - scripts/cov.sh
-    - COVERAGE=$(grep -Po 'covered":.*?[^\\]"' target/kcov/index.json | grep "[0-9]*\.[0-9]" -o)
-    - echo "Coverage:" $COVERAGE
+ #   - COVERAGE=$(grep -Po 'covered":.*?[^\\]"' target/cov/index.json | grep "[0-9]*\.[0-9]" -o)
+ #   - echo "Coverage:" $COVERAGE   
   tags:
     - kcov
-  allow_failure: true
 test-darwin:
   stage: test
   only:

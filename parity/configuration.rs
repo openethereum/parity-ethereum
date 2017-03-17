@@ -522,6 +522,7 @@ impl Configuration {
 			tx_queue_strategy: to_queue_strategy(&self.args.flag_tx_queue_strategy)?,
 			pending_set: to_pending_set(&self.args.flag_relay_set)?,
 			reseal_min_period: Duration::from_millis(reseal_min_period),
+			reseal_max_period: Duration::from_millis(self.args.flag_reseal_max_period),
 			work_queue_size: self.args.flag_work_queue_size,
 			enable_resubmission: !self.args.flag_remove_solved,
 			tx_queue_banning: match self.args.flag_tx_time_limit {
