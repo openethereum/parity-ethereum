@@ -92,6 +92,26 @@ export default class SecureApi extends Api {
     return this._transport.token;
   }
 
+  /**
+   * Configure the current API with the given values
+   * (`signerPort`, `dappsInterface`, `dappsPort`, ...)
+   */
+  configure (configuration) {
+    const { dappsInterface, dappsPort, signerPort } = configuration;
+
+    if (dappsInterface) {
+      this._dappsInterface = dappsInterface;
+    }
+
+    if (dappsPort) {
+      this._dappsPort = dappsPort;
+    }
+
+    if (signerPort) {
+      this._signerPort = signerPort;
+    }
+  }
+
   connect () {
     if (this._isConnecting) {
       return;

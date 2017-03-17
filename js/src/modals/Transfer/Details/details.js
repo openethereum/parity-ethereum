@@ -24,7 +24,7 @@ import { nullableProptype } from '~/util/proptypes';
 import TokenSelect from './tokenSelect';
 import styles from '../transfer.css';
 
-const CHECK_STYLE = {
+export const CHECK_STYLE = {
   position: 'absolute',
   top: '38px',
   left: '1em'
