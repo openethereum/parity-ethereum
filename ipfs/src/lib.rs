@@ -16,14 +16,13 @@
 
 #[macro_use]
 extern crate mime;
-extern crate hyper;
 extern crate multihash;
 extern crate cid;
 
 extern crate rlp;
 extern crate ethcore;
 extern crate ethcore_util as util;
-extern crate jsonrpc_http_server;
+extern crate jsonrpc_http_server as http;
 
 pub mod error;
 mod route;
@@ -33,13 +32,13 @@ use std::sync::Arc;
 use std::net::{SocketAddr, IpAddr};
 use error::ServerError;
 use route::Out;
-use hyper::server::{Listening, Handler, Request, Response};
-use hyper::net::HttpStream;
-use hyper::header::{self, Vary, ContentLength, ContentType};
-use hyper::{Next, Encoder, Decoder, Method, RequestUri, StatusCode};
+use http::hyper::server::{Listening, Handler, Request, Response};
+use http::hyper::net::HttpStream;
+use http::hyper::header::{self, Vary, ContentLength, ContentType};
+use http::hyper::{Next, Encoder, Decoder, Method, RequestUri, StatusCode};
 use ethcore::client::BlockChainClient;
 
-pub use jsonrpc_http_server::{AccessControlAllowOrigin, Host, DomainsValidation};
+pub use http::{AccessControlAllowOrigin, Host, DomainsValidation};
 
 /// Request/response handler
 pub struct IpfsHandler {
@@ -82,14 +81,14 @@ impl Handler<HttpStream> for IpfsHandler {
 		}
 
 
-		if !jsonrpc_http_server::is_host_allowed(&req, &self.allowed_hosts) {
+		if !http::is_host_allowed(&req, &self.allowed_hosts) {
 			self.out = Out::Bad("Disallowed Host header");
 
 			return Next::write();
 		}
 
-		let cors_header = jsonrpc_http_server::cors_header(&req, &self.cors_domains);
-		if cors_header == jsonrpc_http_server::CorsHeader::Invalid {
+		let cors_header = http::cors_header(&req, &self.cors_domains);
+		if cors_header == http::CorsHeader::Invalid {
 			self.out = Out::Bad("Disallowed Origin header");
 
 			return Next::write();
@@ -209,7 +208,7 @@ pub fn start_server(
 	let hosts: DomainsValidation<_> = hosts.map(move |hosts| include_current_interface(hosts, interface, port)).into();
 
 	Ok(
-		hyper::Server::http(&addr)?
+		http::hyper::Server::http(&addr)?
 			.handle(move |_| IpfsHandler::new(cors.clone(), hosts.clone(), client.clone()))
 			.map(|(listening, srv)| {
 

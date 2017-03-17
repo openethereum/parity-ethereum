@@ -25,10 +25,10 @@ unicase = "1.3"
 url = "1.0"
 zip = { version = "0.1", default-features = false }
 
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "master" }
-jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git", branch = "master" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 # TODO [ToDr] Temporary solution, server should be merged with RPC.
-jsonrpc-server-utils = { git = "https://github.com/ethcore/jsonrpc.git", branch = "master" }
+jsonrpc-server-utils = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 
 ethcore-devtools = { path = "../devtools" }
 ethcore-rpc = { path = "../rpc" }

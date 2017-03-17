@@ -5,7 +5,7 @@ dependencies = [
  "ansi_term 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "app_dirs 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
- "ctrlc 1.1.1 (git+https://github.com/ethcore/rust-ctrlc.git)",
+ "ctrlc 1.1.1 (git+https://github.com/paritytech/rust-ctrlc.git)",
  "daemonize 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -27,9 +27,9 @@ dependencies = [
  "ethsync 1.7.0",
  "evmbin 0.1.0",
  "fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
+ "hyper 0.10.0-a.0 (git+https://github.com/paritytech/hyper)",
  "isatty 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "number_prefix 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -291,7 +291,7 @@ dependencies = [
 [[package]]
 name = "ctrlc"
 version = "1.1.1"
-source = "git+https://github.com/ethcore/rust-ctrlc.git#f4927770f89eca80ec250911eea3adcbf579ac48"
+source = "git+https://github.com/paritytech/rust-ctrlc.git#b523017108bb2d571a7a69bd97bc406e63bc7a9d"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -456,9 +456,9 @@ dependencies = [
  "ethcore-util 1.7.0",
  "fetch 0.1.0",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-http-server 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-server-utils 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -631,10 +631,10 @@ dependencies = [
  "ethsync 1.7.0",
  "fetch 0.1.0",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-http-server 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-ipc-server 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-macros 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-ipc-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-macros 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "order-stat 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-reactor 0.1.0",
@@ -677,14 +677,14 @@ dependencies = [
  "ethcore-io 1.7.0",
  "ethcore-rpc 1.7.0",
  "ethcore-util 1.7.0",
- "jsonrpc-core 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-server-utils 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-ui 1.7.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "ws 0.5.3 (git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable)",
+ "ws 0.5.3 (git+https://github.com/paritytech/ws-rs.git?branch=mio-upstream-stable)",
 ]
 
 [[package]]
@@ -698,9 +698,9 @@ dependencies = [
  "ethcore-ipc-nano 1.7.0",
  "ethcore-util 1.7.0",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-macros 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-tcp-server 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-macros 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-tcp-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -983,25 +983,6 @@ dependencies = [
 [[package]]
 name = "hyper"
 version = "0.10.0-a.0"
-source = "git+https://github.com/ethcore/hyper#453c683b52208fefc32d29e4ac7c863439b2321f"
-dependencies = [
- "cookie 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "language-tags 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rotor 0.6.3 (git+https://github.com/ethcore/rotor)",
- "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
- "spmc 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
- "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "url 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "vecio 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "hyper"
-version = "0.10.0-a.0"
 source = "git+https://github.com/paritytech/hyper#453c683b52208fefc32d29e4ac7c863439b2321f"
 dependencies = [
  "cookie 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1119,7 +1100,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "jsonrpc-core"
 version = "7.0.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#50f69e145f59305df6c22917e8dbb9b27a73a285"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#1c6bdb2c254f64ef313bbba342f50360a4b02807"
 dependencies = [
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1131,11 +1112,11 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "7.0.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#50f69e145f59305df6c22917e8dbb9b27a73a285"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#1c6bdb2c254f64ef313bbba342f50360a4b02807"
 dependencies = [
  "hyper 0.10.0-a.0 (git+https://github.com/paritytech/hyper)",
- "jsonrpc-core 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-server-utils 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1144,10 +1125,10 @@ dependencies = [
 [[package]]
 name = "jsonrpc-ipc-server"
 version = "7.0.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#50f69e145f59305df6c22917e8dbb9b27a73a285"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#1c6bdb2c254f64ef313bbba342f50360a4b02807"
 dependencies = [
- "jsonrpc-core 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-server-utils 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-tokio-ipc 0.1.0 (git+https://github.com/nikvolf/parity-tokio-ipc)",
  "tokio-service 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1156,19 +1137,19 @@ dependencies = [
 [[package]]
 name = "jsonrpc-macros"
 version = "7.0.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#50f69e145f59305df6c22917e8dbb9b27a73a285"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#1c6bdb2c254f64ef313bbba342f50360a4b02807"
 dependencies = [
- "jsonrpc-core 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-pubsub 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-pubsub 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "serde 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "jsonrpc-pubsub"
 version = "7.0.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#50f69e145f59305df6c22917e8dbb9b27a73a285"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#1c6bdb2c254f64ef313bbba342f50360a4b02807"
 dependencies = [
- "jsonrpc-core 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1176,9 +1157,9 @@ dependencies = [
 [[package]]
 name = "jsonrpc-server-utils"
 version = "7.0.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#50f69e145f59305df6c22917e8dbb9b27a73a285"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#1c6bdb2c254f64ef313bbba342f50360a4b02807"
 dependencies = [
- "jsonrpc-core 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-core 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-io 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1187,10 +1168,10 @@ dependencies = [
 [[package]]
 name = "jsonrpc-tcp-server"
 version = "7.0.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#50f69e145f59305df6c22917e8dbb9b27a73a285"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#1c6bdb2c254f64ef313bbba342f50360a4b02807"
 dependencies = [
- "jsonrpc-core 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-server-utils 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1678,8 +1659,7 @@ dependencies = [
  "cid 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.7.0",
  "ethcore-util 1.7.0",
- "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
- "jsonrpc-http-server 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "multihash 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
@@ -1716,14 +1696,14 @@ dependencies = [
  "ethcore-signer 1.7.0",
  "ethcore-util 1.7.0",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ws 0.5.3 (git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable)",
+ "ws 0.5.3 (git+https://github.com/paritytech/ws-rs.git?branch=mio-upstream-stable)",
 ]
 
 [[package]]
@@ -2629,7 +2609,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "ws"
 version = "0.5.3"
-source = "git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable#f5c0b35d660244d1b7500693c8cc28277ce1d418"
+source = "git+https://github.com/paritytech/ws-rs.git?branch=mio-upstream-stable#f5c0b35d660244d1b7500693c8cc28277ce1d418"
 dependencies = [
  "bytes 0.4.0-dev (git+https://github.com/carllerche/bytes)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2715,7 +2695,7 @@ dependencies = [
 "checksum core-foundation-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "05eed248dc504a5391c63794fe4fb64f46f071280afaa1b73308f3c0ce4574c5"
 "checksum crossbeam 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)" = "0c5ea215664ca264da8a9d9c3be80d2eaf30923c259d03e870388eb927508f97"
 "checksum crypt32-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e34988f7e069e0b2f3bfc064295161e489b2d4e04a2e4248fb94360cdf00b4ec"
-"checksum ctrlc 1.1.1 (git+https://github.com/ethcore/rust-ctrlc.git)" = "<none>"
+"checksum ctrlc 1.1.1 (git+https://github.com/paritytech/rust-ctrlc.git)" = "<none>"
 "checksum daemonize 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "271ec51b7e0bee92f0d04601422c73eb76ececf197026711c97ad25038a010cf"
 "checksum deque 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1614659040e711785ed8ea24219140654da1729f3ec8a47a9719d041112fe7bf"
 "checksum docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)" = "4cc0acb4ce0828c6a5a11d47baa432fe885881c27428c3a4e473e454ffe57a76"
@@ -2737,7 +2717,6 @@ dependencies = [
 "checksum hidapi 0.3.1 (git+https://github.com/ethcore/hidapi-rs)" = "<none>"
 "checksum hpack 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3d2da7d3a34cf6406d9d700111b8eafafe9a251de41ae71d8052748259343b58"
 "checksum httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "46534074dbb80b070d60a5cb8ecadd8963a00a438ae1a95268850a7ef73b67ae"
-"checksum hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)" = "<none>"
 "checksum hyper 0.10.0-a.0 (git+https://github.com/paritytech/hyper)" = "<none>"
 "checksum hyper 0.10.5 (registry+https://github.com/rust-lang/crates.io-index)" = "43a15e3273b2133aaac0150478ab443fb89f15c3de41d8d93d8f3bb14bf560f6"
 "checksum hyper 0.9.18 (registry+https://github.com/rust-lang/crates.io-index)" = "1b9bf64f730d6ee4b0528a5f0a316363da9d8104318731509d4ccc86248f82b3"
@@ -2749,13 +2728,13 @@ dependencies = [
 "checksum isatty 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7408a548dc0e406b7912d9f84c261cc533c1866e047644a811c133c56041ac0c"
 "checksum itertools 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)" = "d95557e7ba6b71377b0f2c3b3ae96c53f1b75a926a6901a500f557a370af730a"
 "checksum itoa 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "91fd9dc2c587067de817fec4ad355e3818c3d893a78cab32a0a474c7a15bb8d5"
-"checksum jsonrpc-core 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
-"checksum jsonrpc-http-server 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
-"checksum jsonrpc-ipc-server 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
-"checksum jsonrpc-macros 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
-"checksum jsonrpc-pubsub 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
-"checksum jsonrpc-server-utils 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
-"checksum jsonrpc-tcp-server 7.0.0 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
+"checksum jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
+"checksum jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
+"checksum jsonrpc-ipc-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
+"checksum jsonrpc-macros 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
+"checksum jsonrpc-pubsub 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
+"checksum jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
+"checksum jsonrpc-tcp-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 "checksum language-tags 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a91d884b6667cd606bb5a69aa0c99ba811a115fc68915e7056ec08a46e93199a"
 "checksum lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "49247ec2a285bb3dcb23cbd9c35193c025e7251bfce77c1d5da97e6362dffe7f"
@@ -2910,7 +2889,7 @@ dependencies = [
 "checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 "checksum winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
 "checksum winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
-"checksum ws 0.5.3 (git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable)" = "<none>"
+"checksum ws 0.5.3 (git+https://github.com/paritytech/ws-rs.git?branch=mio-upstream-stable)" = "<none>"
 "checksum ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
 "checksum xdg 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "77b831a5ba77110f438f0ac5583aafeb087f70432998ba6b7dcb1d32185db453"
 "checksum xml-rs 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "65e74b96bd3179209dc70a980da6df843dff09e46eee103a0376c0949257e3ef"
