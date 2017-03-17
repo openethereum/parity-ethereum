@@ -22,8 +22,8 @@ use ethkey::{self, Secret, Public, Signature};
 use key_server_cluster::{Error, AclStorage, EncryptedData, NodeId, SessionId};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::math;
-use key_server_cluster::message::{Message, InitializeDecryptionSession, ConfirmDecryptionInitialization,
-	RequestPartialDecryption, PartialDecryption};
+use key_server_cluster::message::{Message, DecryptionMessage, InitializeDecryptionSession, ConfirmDecryptionInitialization,
+	RequestPartialDecryption, PartialDecryption, DecryptionSessionError};
 
 /// Distributed decryption session.
 /// Based on "ECDKG: A Distributed Key Generation Protocol Based on Elliptic Curve Discrete Logarithm" paper:
@@ -198,11 +198,11 @@ impl Session {
 			// not enough nodes => pass initialization message to all other nodes
 			SessionState::WaitingForInitializationConfirm => {
 				for node in self.encrypted_data.id_numbers.keys().filter(|n| *n != self.node()) {
-					self.cluster.send(node, Message::InitializeDecryptionSession(InitializeDecryptionSession {
+					self.cluster.send(node, Message::Decryption(DecryptionMessage::InitializeDecryptionSession(InitializeDecryptionSession {
 							session: self.id.clone().into(),
 							sub_session: self.access_key.clone().into(),
 							requestor_signature: requestor_signature.clone().into(),
-						}))?;
+						})))?;
 				}
 			},
 			// we can decrypt data on our own
@@ -240,11 +240,11 @@ impl Session {
 
 		// respond to master node
 		data.master = Some(sender.clone());
-		self.cluster.send(&sender, Message::ConfirmDecryptionInitialization(ConfirmDecryptionInitialization {
+		self.cluster.send(&sender, Message::Decryption(DecryptionMessage::ConfirmDecryptionInitialization(ConfirmDecryptionInitialization {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
 			is_confirmed: is_requestor_allowed_to_read,
-		}))
+		})))
 	}
 
 	/// When session initialization confirmation message is reeived.
@@ -273,11 +273,11 @@ impl Session {
 			SessionState::WaitingForPartialDecryption => {
 				let confirmed_nodes: BTreeSet<_> = data.confirmed_nodes.clone();
 				for node in data.confirmed_nodes.iter().filter(|n| n != &self.node()) {
-					self.cluster.send(node, Message::RequestPartialDecryption(RequestPartialDecryption {
+					self.cluster.send(node, Message::Decryption(DecryptionMessage::RequestPartialDecryption(RequestPartialDecryption {
 						session: self.id.clone().into(),
 						sub_session: self.access_key.clone().into(),
 						nodes: confirmed_nodes.iter().cloned().map(Into::into).collect(),
-					}))?;
+					})))?;
 				}
 
 				assert!(data.confirmed_nodes.remove(self.node()));
@@ -323,11 +323,11 @@ impl Session {
 			let requestor = data.requestor.as_ref().expect("requestor public is filled during initialization; WaitingForPartialDecryptionRequest follows initialization; qed");
 			do_partial_decryption(self.node(), &requestor, &message.nodes.into_iter().map(Into::into).collect(), &self.access_key, &self.encrypted_data)?
 		};
-		self.cluster.send(&sender, Message::PartialDecryption(PartialDecryption {
+		self.cluster.send(&sender, Message::Decryption(DecryptionMessage::PartialDecryption(PartialDecryption {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
 			shadow_point: shadow_point.into(),
-		}))?;
+		})))?;
 
 		// update sate
 		data.state = SessionState::Finished;
@@ -365,6 +365,16 @@ impl Session {
 		data.state = SessionState::Finished;
 
 		Ok(())
+	}
+
+	/// When error has occured on another node.
+	pub fn on_session_error(&self, sender: NodeId, message: DecryptionSessionError) -> Result<(), Error> {
+		unimplemented!()
+	}
+
+	/// When session timeout has occured.
+	pub fn on_session_timeout(&self, node: &NodeId) -> Result<(), Error> {
+		unimplemented!()
 	}
 }
 
@@ -442,8 +452,8 @@ mod tests {
 	use ethkey::{self, Random, Generator, Public, Secret};
 	use key_server_cluster::{NodeId, EncryptedData, SessionId, Error};
 	use key_server_cluster::cluster::tests::DummyCluster;
-	use key_server_cluster::decryption_session::{Session, SessionParams, 	SessionState};
-	use key_server_cluster::message::{self, Message};
+	use key_server_cluster::decryption_session::{Session, SessionParams, SessionState};
+	use key_server_cluster::message::{self, Message, DecryptionMessage};
 
 	const SECRET_PLAIN: &'static str = "d2b57ae7619e070af0af6bc8c703c0cd27814c54d5d6a999cacac0da34ede279ca0d9216e85991029e54e2f0c92ee0bd30237725fa765cbdbfc4529489864c5f";
 
@@ -505,10 +515,10 @@ mod tests {
 			}
 
 			match message {
-				Message::InitializeDecryptionSession(message) => session.on_initialize_session(from, message).unwrap(),
-				Message::ConfirmDecryptionInitialization(message) => session.on_confirm_initialization(from, message).unwrap(),
-				Message::RequestPartialDecryption(message) => session.on_partial_decryption_requested(from, message).unwrap(),
-				Message::PartialDecryption(message) => session.on_partial_decryption(from, message).unwrap(),
+				Message::Decryption(DecryptionMessage::InitializeDecryptionSession(message)) => session.on_initialize_session(from, message).unwrap(),
+				Message::Decryption(DecryptionMessage::ConfirmDecryptionInitialization(message)) => session.on_confirm_initialization(from, message).unwrap(),
+				Message::Decryption(DecryptionMessage::RequestPartialDecryption(message)) => session.on_partial_decryption_requested(from, message).unwrap(),
+				Message::Decryption(DecryptionMessage::PartialDecryption(message)) => session.on_partial_decryption(from, message).unwrap(),
 				_ => panic!("unexpected"),
 			}
 		}
@@ -674,7 +684,7 @@ mod tests {
 		let mut pd_from = None;
 		let mut pd_msg = None;
 		do_messages_exchange_until(&clusters, &sessions, |from, _, msg| match msg {
-			&Message::PartialDecryption(ref msg) => {
+			&Message::Decryption(DecryptionMessage::PartialDecryption(ref msg)) => {
 				pd_from = Some(from.clone());
 				pd_msg = Some(msg.clone());
 				true

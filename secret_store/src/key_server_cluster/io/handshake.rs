@@ -6,7 +6,7 @@ use futures::{Future, Poll, Async};
 use ethkey::{Random, Generator, KeyPair, Secret, sign, verify_public};
 use util::H256;
 use key_server_cluster::{NodeId, Error};
-use key_server_cluster::message::{Message, NodePublicKey, NodePrivateKeySignature};
+use key_server_cluster::message::{Message, ClusterMessage, NodePublicKey, NodePrivateKeySignature};
 use key_server_cluster::io::{write_message, WriteMessage, ReadMessage, read_message, serialize_message, SerializedMessage};
 
 /// Start handshake procedure with another node from the cluster.
@@ -77,16 +77,16 @@ impl<A> Handshake<A> where A: io::Read + io::Write {
 	}
 
 	pub fn make_public_key_message(self_node_id: NodeId, confirmation_plain: H256) -> Result<Message, Error> {
-		Ok(Message::NodePublicKey(NodePublicKey {
+		Ok(Message::Cluster(ClusterMessage::NodePublicKey(NodePublicKey {
 			node_id: self_node_id.into(),
 			confirmation_plain: confirmation_plain.into(),
-		}))
+		})))
 	}
 
 	fn make_private_key_signature_message(secret: &Secret, confirmation_plain: &H256) -> Result<Message, Error> {
-		Ok(Message::NodePrivateKeySignature(NodePrivateKeySignature {
+		Ok(Message::Cluster(ClusterMessage::NodePrivateKeySignature(NodePrivateKeySignature {
 			confirmation_signed: sign(secret, confirmation_plain)?.into(),
-		}))
+		})))
 	}
 }
 
@@ -116,7 +116,7 @@ impl<A> Future for Handshake<A> where A: io::Read + io::Write {
 
 				let message = match message {
 					Ok(message) => match message {
-						Message::NodePublicKey(message) => message,
+						Message::Cluster(ClusterMessage::NodePublicKey(message)) => message,
 						_ => return Ok((stream, Err(Error::InvalidMessage)).into()),
 					},
 					Err(err) => return Ok((stream, Err(err.into())).into()),
@@ -152,7 +152,7 @@ impl<A> Future for Handshake<A> where A: io::Read + io::Write {
 
 				let message = match message {
 					Ok(message) => match message {
-						Message::NodePrivateKeySignature(message) => message,
+						Message::Cluster(ClusterMessage::NodePrivateKeySignature(message)) => message,
 						_ => return Ok((stream, Err(Error::InvalidMessage)).into()),
 					},
 					Err(err) => return Ok((stream, Err(err.into())).into()),
@@ -187,7 +187,7 @@ mod tests {
 	use ethkey::{Random, Generator, sign};
 	use util::H256;
 	use key_server_cluster::io::message::tests::TestIo;
-	use key_server_cluster::message::{Message, NodePublicKey, NodePrivateKeySignature};
+	use key_server_cluster::message::{Message, ClusterMessage, NodePublicKey, NodePrivateKeySignature};
 	use super::{handshake_with_plain_confirmation, accept_handshake, HandshakeResult};
 
 	fn prepare_test_io() -> (H256, TestIo) {
@@ -201,21 +201,21 @@ mod tests {
 		let self_confirmation_signed = sign(peer_key_pair.secret(), &self_confirmation_plain).unwrap();
 		let peer_confirmation_signed = sign(self_key_pair.secret(), &peer_confirmation_plain).unwrap();
 
-		io.add_input_message(Message::NodePublicKey(NodePublicKey {
+		io.add_input_message(Message::Cluster(ClusterMessage::NodePublicKey(NodePublicKey {
 			node_id: peer_key_pair.public().clone().into(),
 			confirmation_plain: peer_confirmation_plain.into(),
-		}));
-		io.add_input_message(Message::NodePrivateKeySignature(NodePrivateKeySignature {
+		})));
+		io.add_input_message(Message::Cluster(ClusterMessage::NodePrivateKeySignature(NodePrivateKeySignature {
 			confirmation_signed: self_confirmation_signed.into(),
-		}));
+		})));
 
-		io.add_output_message(Message::NodePublicKey(NodePublicKey {
+		io.add_output_message(Message::Cluster(ClusterMessage::NodePublicKey(NodePublicKey {
 			node_id: self_key_pair.public().clone().into(),
 			confirmation_plain: self_confirmation_plain.clone().into(),
-		}));
-		io.add_output_message(Message::NodePrivateKeySignature(NodePrivateKeySignature {
+		})));
+		io.add_output_message(Message::Cluster(ClusterMessage::NodePrivateKeySignature(NodePrivateKeySignature {
 			confirmation_signed: peer_confirmation_signed.into(),
-		}));
+		})));
 
 		(self_confirmation_plain, io)
 	}

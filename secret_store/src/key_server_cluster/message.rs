@@ -31,11 +31,28 @@ pub type MessageNodeId = MessagePublic;
 #[derive(Clone, Debug)]
 /// All possible messages that can be sent during encryption/decryption sessions.
 pub enum Message {
+	/// Cluster message.
+	Cluster(ClusterMessage),
+	/// Encryption message.
+	Encryption(EncryptionMessage),
+	/// Decryption message.
+	Decryption(DecryptionMessage),
+}
+
+#[derive(Clone, Debug)]
+/// All possible cluster-level messages.
+pub enum ClusterMessage {
 	/// Introduce node public key.
 	NodePublicKey(NodePublicKey),
 	/// Confirm that node owns its private key.
 	NodePrivateKeySignature(NodePrivateKeySignature),
+	/// Keep alive message.
+	KeepAlive(KeepAlive),
+}
 
+#[derive(Clone, Debug)]
+/// All possible messages that can be sent during encryption session.
+pub enum EncryptionMessage {
 	/// Initialize new DKG session.
 	InitializeSession(InitializeSession),
 	/// Confirm DKG session initialization.
@@ -50,7 +67,13 @@ pub enum Message {
 	ComplaintResponse(ComplaintResponse),
 	/// Broadcast self public key portion.
 	PublicKeyShare(PublicKeyShare),
+	/// When session error has occured.
+	SessionError(SessionError),
+}
 
+#[derive(Clone, Debug)]
+/// All possible messages that can be sent during decryption session.
+pub enum DecryptionMessage {
 	/// Initialize decryption session.
 	InitializeDecryptionSession(InitializeDecryptionSession),
 	/// Confirm/reject decryption session initialization.
@@ -59,6 +82,8 @@ pub enum Message {
 	RequestPartialDecryption(RequestPartialDecryption),
 	/// Partial decryption is completed
 	PartialDecryption(PartialDecryption),
+	/// When decryption session error has occured.
+	DecryptionSessionError(DecryptionSessionError),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -75,6 +100,12 @@ pub struct NodePublicKey {
 pub struct NodePrivateKeySignature {
 	/// Previously passed `confirmation_plain`, signed with node private key.
 	pub confirmation_signed: MessageSignature,
+}
+
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Confirm that node owns the private key of previously passed public key (aka node id).
+pub struct KeepAlive {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -155,6 +186,15 @@ pub struct PublicKeyShare {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+/// When session error has occured.
+pub struct SessionError {
+	/// Session Id.
+	pub session: MessageSessionId,
+	/// Public key share.
+	pub error: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Node is requested to decrypt data, encrypted in given session.
 pub struct InitializeDecryptionSession {
 	/// Encryption session Id.
@@ -198,22 +238,60 @@ pub struct PartialDecryption {
 	pub shadow_point: MessagePublic,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// When decryption session error has occured.
+pub struct DecryptionSessionError {
+	/// Encryption session Id.
+	pub session: MessageSessionId,
+	/// Decryption session Id.
+	pub sub_session: MessageSecret,
+	/// Public key share.
+	pub error: String,
+}
+
 impl fmt::Display for Message {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			Message::NodePublicKey(_) => write!(f, "NodePublicKey"),
-			Message::NodePrivateKeySignature(_) => write!(f, "NodePrivateKeySignature"),
-			Message::InitializeSession(_) => write!(f, "InitializeSession"),
-			Message::ConfirmInitialization(_) => write!(f, "ConfirmInitialization"),
-			Message::CompleteInitialization(_) => write!(f, "CompleteInitialization"),
-			Message::KeysDissemination(_) => write!(f, "KeysDissemination"),
-			Message::Complaint(_) => write!(f, "Complaint"),
-			Message::ComplaintResponse(_) => write!(f, "ComplaintResponse"),
-			Message::PublicKeyShare(_) => write!(f, "PublicKeyShare"),
-			Message::InitializeDecryptionSession(_) => write!(f, "InitializeDecryptionSession"),
-			Message::ConfirmDecryptionInitialization(_) => write!(f, "ConfirmDecryptionInitialization"),
-			Message::RequestPartialDecryption(_) => write!(f, "RequestPartialDecryption"),
-			Message::PartialDecryption(_) => write!(f, "PartialDecryption"),
+			Message::Cluster(ref message) => write!(f, "Cluster.{}", message),
+			Message::Encryption(ref message) => write!(f, "Encryption.{}", message),
+			Message::Decryption(ref message) => write!(f, "Decryption.{}", message),
+		}
+	}
+}
+
+impl fmt::Display for ClusterMessage {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			ClusterMessage::NodePublicKey(_) => write!(f, "NodePublicKey"),
+			ClusterMessage::NodePrivateKeySignature(_) => write!(f, "NodePrivateKeySignature"),
+			ClusterMessage::KeepAlive(_) => write!(f, "KeepAlive"),
+		}
+	}
+}
+
+impl fmt::Display for EncryptionMessage {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			EncryptionMessage::InitializeSession(_) => write!(f, "InitializeSession"),
+			EncryptionMessage::ConfirmInitialization(_) => write!(f, "ConfirmInitialization"),
+			EncryptionMessage::CompleteInitialization(_) => write!(f, "CompleteInitialization"),
+			EncryptionMessage::KeysDissemination(_) => write!(f, "KeysDissemination"),
+			EncryptionMessage::Complaint(_) => write!(f, "Complaint"),
+			EncryptionMessage::ComplaintResponse(_) => write!(f, "ComplaintResponse"),
+			EncryptionMessage::PublicKeyShare(_) => write!(f, "PublicKeyShare"),
+			EncryptionMessage::SessionError(_) => write!(f, "SessionError"),
+		}
+	}
+}
+
+impl fmt::Display for DecryptionMessage {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			DecryptionMessage::InitializeDecryptionSession(_) => write!(f, "InitializeDecryptionSession"),
+			DecryptionMessage::ConfirmDecryptionInitialization(_) => write!(f, "ConfirmDecryptionInitialization"),
+			DecryptionMessage::RequestPartialDecryption(_) => write!(f, "RequestPartialDecryption"),
+			DecryptionMessage::PartialDecryption(_) => write!(f, "PartialDecryption"),
+			DecryptionMessage::DecryptionSessionError(_) => write!(f, "DecryptionSessionError"),
 		}
 	}
 }

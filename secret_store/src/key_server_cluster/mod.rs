@@ -19,6 +19,7 @@
 #![allow(unused_variables)]
 #![allow(unused_mut)]
 
+use std::fmt;
 use std::io::Error as IoError;
 use std::collections::BTreeMap;
 use ethkey::{self, Public, Secret, Signature};
@@ -97,6 +98,26 @@ impl From<ethcrypto::Error> for Error {
 impl From<IoError> for Error {
 	fn from(err: IoError) -> Self {
 		Error::Io(format!("{}", err))
+	}
+}
+
+impl fmt::Display for Error {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			Error::InvalidNodeAddress => write!(f, "invalid node address has been passed"),
+			Error::InvalidNodeId => write!(f, "invalid node id has been passed"),
+			Error::DuplicateSessionId => write!(f, "session with the same id is already registered"),
+			Error::InvalidSessionId => write!(f, "invalid session id has been passed"),
+			Error::InvalidNodesCount => write!(f, "invalid nodes count"),
+			Error::InvalidNodesConfiguration => write!(f, "invalid nodes configuration"),
+			Error::InvalidThreshold => write!(f, "invalid threshold value has been passed"),
+			Error::InvalidStateForRequest => write!(f, "session is in invalid state for processing this request"),
+			Error::InvalidMessage => write!(f, "invalid message is received"),
+			Error::NodeDisconnected => write!(f, "node required for this operation is currently disconnected"),
+			Error::EthKey(ref e) => write!(f, "cryptographic error {}", e),
+			Error::Io(ref e) => write!(f, "i/o error {}", e),
+			Error::Serde(ref e) => write!(f, "serde error {}", e),
+		}
 	}
 }
 
