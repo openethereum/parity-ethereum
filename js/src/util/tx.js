@@ -96,7 +96,7 @@ export function postTransaction (_func, _options, _values = []) {
 }
 
 export function deploy (contract, _options, values, metadata = {}, statecb = () => {}) {
-  const options = { ..._options };
+  const options = { ..._options, metadata, deployment: true };
   const { api } = contract;
   const address = options.from;
 

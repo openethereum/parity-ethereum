@@ -28,8 +28,6 @@ import { deploy, deployEstimateGas } from '~/util/tx';
 import DetailsStep from './DetailsStep';
 import ParametersStep from './ParametersStep';
 
-// import styles from './deployContract.css';
-
 const STEPS = {
   CONTRACT_DETAILS: {
     title: (
@@ -89,7 +87,7 @@ class DeployContract extends Component {
     paramsError: [],
     inputs: [],
     step: 'CONTRACT_DETAILS'
-  }
+  };
 
   componentWillMount () {
     const { abi, code } = this.props;

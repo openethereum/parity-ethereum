@@ -15,17 +15,55 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
+import store from 'store';
 
-import { trackRequest } from '~/util/tx';
+import { trackRequest as trackRequestUtil } from '~/util/tx';
+
+const LS_REQUESTS_KEY = '_parity::requests';
+
+const getRequests = () => {
+  return store.get(LS_REQUESTS_KEY) || {};
+};
+
+const setRequests = (requests = {}) => {
+  return store.set(LS_REQUESTS_KEY, requests);
+};
+
+const loadRequests = () => (dispatch) => {
+  const requests = getRequests();
+
+  Object.values(requests).forEach((request) => {
+    return dispatch(watchRequest(request));
+  });
+};
+
+const saveRequest = (request) => {
+  const requests = getRequests();
+
+  requests[request.requestId] = {
+    ...(requests[request.requestId] || {}),
+    ...request
+  };
+
+  setRequests(requests);
+};
+
+const removeRequest = (requestId) => {
+  const requests = getRequests();
+
+  delete requests[requestId];
+  setRequests(requests);
+};
 
 export const init = (api) => (dispatch) => {
   api.on('request', (request) => {
     dispatch(watchRequest(request));
   });
+
+  // dispatch(loadRequests());
 };
 
 export const watchRequest = (request) => (dispatch, getState) => {
-  const { api } = getState();
   const { requestId, ...others } = request;
   const { from, to, value, data } = others;
   const transaction = {
@@ -41,14 +79,24 @@ export const watchRequest = (request) => (dispatch, getState) => {
   };
 
   dispatch(setRequest(requestId, requestData));
+  dispatch(trackRequest(requestId));
 
-  trackRequest(api, requestId, (error, data) => {
+  saveRequest(request);
+};
+
+export const trackRequest = (requestId) => (dispatch, getState) => {
+  const { api } = getState();
+
+  trackRequestUtil(api, requestId, (error, data) => {
     if (error) {
       return dispatch(setRequest(requestId, { error }));
     }
 
     // Hide the request after 6 mined blocks
     if (data.transactionReceipt) {
+      // Remove request from the localstorage
+      removeRequest(requestId);
+
       const { transactionReceipt } = data;
       let blockSubscriptionId = -1;
 
