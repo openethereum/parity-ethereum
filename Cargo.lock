@@ -205,7 +205,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "integer-encoding 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "multibase 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "multihash 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "multihash 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -254,7 +254,7 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "core-foundation-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -262,7 +262,7 @@ name = "core-foundation-sys"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -285,7 +285,7 @@ version = "1.1.1"
 source = "git+https://github.com/ethcore/rust-ctrlc.git#f4927770f89eca80ec250911eea3adcbf579ac48"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -294,7 +294,7 @@ name = "daemonize"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -349,7 +349,7 @@ source = "git+https://github.com/ethcore/rust-secp256k1#98ad9b9ecae44a563efdd642
 dependencies = [
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "gcc 0.3.43 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -423,7 +423,7 @@ version = "0.1.2"
 dependencies = [
  "bigint 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -493,7 +493,7 @@ version = "1.7.0"
 dependencies = [
  "ethcore-devtools 1.7.0",
  "ethcore-util 1.7.0",
- "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7)",
  "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -516,7 +516,7 @@ dependencies = [
  "ethcore-ipc-codegen 1.7.0",
  "ethcore-ipc-nano 1.7.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7)",
  "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -528,7 +528,7 @@ dependencies = [
  "ethcore-ipc 1.7.0",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7)",
 ]
 
 [[package]]
@@ -541,7 +541,7 @@ dependencies = [
  "ethcore-ipc-nano 1.7.0",
  "ethcore-util 1.7.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7)",
  "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -590,7 +590,7 @@ dependencies = [
  "ethcrypto 0.1.0",
  "ethkey 0.2.0",
  "igd 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.6.1 (git+https://github.com/ethcore/mio)",
  "parking_lot 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -714,7 +714,7 @@ dependencies = [
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -782,7 +782,7 @@ dependencies = [
  "ethkey 0.2.0",
  "itertools 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -843,7 +843,7 @@ name = "fdlimit"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -863,7 +863,7 @@ name = "flate2"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "miniz-sys 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -935,7 +935,7 @@ version = "0.3.1"
 source = "git+https://github.com/ethcore/hidapi-rs#9a127c1dca7e327e4fdd428406a76c9f5ef48563"
 dependencies = [
  "gcc 0.3.43 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1062,7 +1062,7 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1171,7 +1171,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "libc"
-version = "0.2.16"
+version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -1180,7 +1180,7 @@ version = "0.3.0"
 source = "git+https://github.com/ethcore/libusb-rs#32bacf61abd981d5cbd4a8fecca5a2dc0b762a96"
 dependencies = [
  "bit-set 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "libusb-sys 0.2.3 (git+https://github.com/ethcore/libusb-sys)",
 ]
 
@@ -1190,7 +1190,7 @@ version = "0.2.3"
 source = "git+https://github.com/ethcore/libusb-sys#c10b1180646c9dc3f23a9b6bb825abcd3b7487ce"
 dependencies = [
  "gcc 0.3.43 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1226,7 +1226,7 @@ name = "memchr"
 version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1254,7 +1254,7 @@ version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "gcc 0.3.43 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1263,7 +1263,7 @@ version = "0.5.1"
 source = "git+https://github.com/ethcore/mio?branch=v0.5.x#3842d3b250ffd7bd9b16f9586b875ddcbac2b0dd"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1279,7 +1279,7 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1295,7 +1295,7 @@ version = "0.6.0-dev"
 source = "git+https://github.com/ethcore/mio?branch=timer-fix#31eccc40ece3d47abaefaf23bb2114033175b972"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1311,7 +1311,7 @@ source = "git+https://github.com/ethcore/mio#ef182bae193a9c7457cd2cf661fcaffb226
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazycell 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1327,7 +1327,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazycell 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1367,29 +1367,29 @@ dependencies = [
 
 [[package]]
 name = "multihash"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "ring 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ring 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "nanomsg"
 version = "0.5.1"
-source = "git+https://github.com/ethcore/nanomsg.rs.git#c40fe442c9afaea5b38009a3d992ca044dcceb00"
+source = "git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7#26ec71ecbdb284d7a5d596bdb3d0fde02c55d0bc"
 dependencies = [
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "nanomsg-sys 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nanomsg-sys 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7)",
 ]
 
 [[package]]
 name = "nanomsg-sys"
 version = "0.5.0"
-source = "git+https://github.com/ethcore/nanomsg.rs.git#c40fe442c9afaea5b38009a3d992ca044dcceb00"
+source = "git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7#26ec71ecbdb284d7a5d596bdb3d0fde02c55d0bc"
 dependencies = [
  "gcc 0.3.43 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1411,7 +1411,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cfg-if 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1422,7 +1422,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1432,7 +1432,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cfg-if 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1445,7 +1445,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cfg-if 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1535,7 +1535,7 @@ name = "num_cpus"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1567,7 +1567,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "openssl-sys 0.9.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1577,7 +1577,7 @@ version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "gdi32-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "pkg-config 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "user32-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1632,7 +1632,7 @@ dependencies = [
  "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
  "jsonrpc-http-server 6.0.0 (git+https://github.com/ethcore/jsonrpc.git?branch=parity-1.6)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "multihash 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "multihash 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
 ]
 
@@ -1733,7 +1733,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1862,7 +1862,7 @@ name = "rand"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1871,7 +1871,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "deque 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1909,10 +1909,11 @@ dependencies = [
 
 [[package]]
 name = "ring"
-version = "0.6.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "untrusted 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1931,7 +1932,7 @@ name = "rocksdb"
 version = "0.4.5"
 source = "git+https://github.com/ethcore/rust-rocksdb#64c63ccbe1f62c2e2b39262486f9ba813793af58"
 dependencies = [
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "rocksdb-sys 0.3.0 (git+https://github.com/ethcore/rust-rocksdb)",
 ]
 
@@ -1941,7 +1942,7 @@ version = "0.3.0"
 source = "git+https://github.com/ethcore/rust-rocksdb#64c63ccbe1f62c2e2b39262486f9ba813793af58"
 dependencies = [
  "gcc 0.3.43 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1962,7 +1963,7 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "termios 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1973,7 +1974,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "termios 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1996,7 +1997,7 @@ version = "0.2.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "gcc 0.3.43 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2058,7 +2059,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "core-foundation 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "core-foundation-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "security-framework-sys 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2068,7 +2069,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "core-foundation-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2274,7 +2275,7 @@ version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "term 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2317,7 +2318,7 @@ name = "termios"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2326,7 +2327,7 @@ version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2343,7 +2344,7 @@ version = "0.1.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2647,7 +2648,7 @@ dependencies = [
 "checksum language-tags 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a91d884b6667cd606bb5a69aa0c99ba811a115fc68915e7056ec08a46e93199a"
 "checksum lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "49247ec2a285bb3dcb23cbd9c35193c025e7251bfce77c1d5da97e6362dffe7f"
 "checksum lazycell 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ce12306c4739d86ee97c23139f3a34ddf0387bbf181bc7929d287025a8c3ef6b"
-"checksum libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)" = "408014cace30ee0f767b1c4517980646a573ec61a57957aeeabcac8ac0a02e8d"
+"checksum libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)" = "88ee81885f9f04bff991e306fea7c1c60a5f0f9e409e99f6b40e3311a3363135"
 "checksum libusb 0.3.0 (git+https://github.com/ethcore/libusb-rs)" = "<none>"
 "checksum libusb-sys 0.2.3 (git+https://github.com/ethcore/libusb-sys)" = "<none>"
 "checksum linked-hash-map 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "bda158e0dabeb97ee8a401f4d17e479d6b891a14de0bba79d5cc2d4d325b5e48"
@@ -2667,9 +2668,9 @@ dependencies = [
 "checksum miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d5bfc6782530ac8ace97af10a540054a37126b63b0702ddaaa243b73b5745b9a"
 "checksum msdos_time 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "c04b68cc63a8480fb2550343695f7be72effdec953a9d4508161c3e69041c7d8"
 "checksum multibase 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b9c35dac080fd6e16a99924c8dfdef0af89d797dd851adab25feaffacf7850d6"
-"checksum multihash 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "755d5a39bee3faaf649437e873beab334990221b2faf1f2e56ca10a9e4600235"
-"checksum nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)" = "<none>"
-"checksum nanomsg-sys 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)" = "<none>"
+"checksum multihash 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c9f70f2402fa07c16c40be8fd0a748a39257c5dc3ff5c857cbbde2f39135c505"
+"checksum nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7)" = "<none>"
+"checksum nanomsg-sys 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7)" = "<none>"
 "checksum native-tls 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "aa4e52995154bb6f0b41e4379a279482c9387c1632e3798ba4e511ef8c54ee09"
 "checksum net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)" = "6a816012ca11cb47009693c1e0c6130e26d39e4d97ee2a13c50e868ec83e3204"
 "checksum nix 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f05c2fc965fc1cd6b73fa57fa7b89f288178737f2f3ce9e63e4a6a141189000e"
@@ -2717,7 +2718,7 @@ dependencies = [
 "checksum regex 0.1.68 (registry+https://github.com/rust-lang/crates.io-index)" = "b4329b8928a284580a1c63ec9d846b12f6d3472317243ff7077aff11f23f2b29"
 "checksum regex-syntax 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "841591b1e05609a643e3b4d0045fce04f701daba7151ddcd3ad47b080693d5a9"
 "checksum reqwest 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3bef9ed8fdfcc30947d6b774938dc0c3f369a474efe440df2c7f278180b2d2e6"
-"checksum ring 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "87ac4fce2ee4bb10dd106788e90fdfa4c5a7f3f9f6aae29824db77dc57e2767d"
+"checksum ring 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)" = "595afba2db7545b940ec900dc59b5281f719d327fc0674eeadc9953617e55357"
 "checksum rocksdb 0.4.5 (git+https://github.com/ethcore/rust-rocksdb)" = "<none>"
 "checksum rocksdb-sys 0.3.0 (git+https://github.com/ethcore/rust-rocksdb)" = "<none>"
 "checksum rotor 0.6.3 (git+https://github.com/ethcore/rotor)" = "<none>"
