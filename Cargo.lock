@@ -493,7 +493,7 @@ version = "1.7.0"
 dependencies = [
  "ethcore-devtools 1.7.0",
  "ethcore-util 1.7.0",
- "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7)",
  "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -516,7 +516,7 @@ dependencies = [
  "ethcore-ipc-codegen 1.7.0",
  "ethcore-ipc-nano 1.7.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7)",
  "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -528,7 +528,7 @@ dependencies = [
  "ethcore-ipc 1.7.0",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7)",
 ]
 
 [[package]]
@@ -541,7 +541,7 @@ dependencies = [
  "ethcore-ipc-nano 1.7.0",
  "ethcore-util 1.7.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7)",
  "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1380,16 +1380,16 @@ dependencies = [
 [[package]]
 name = "nanomsg"
 version = "0.5.1"
-source = "git+https://github.com/ethcore/nanomsg.rs.git#c40fe442c9afaea5b38009a3d992ca044dcceb00"
+source = "git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7#981f791f9b2673bd38a939c5104f7099319f1f9e"
 dependencies = [
  "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
- "nanomsg-sys 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "nanomsg-sys 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7)",
 ]
 
 [[package]]
 name = "nanomsg-sys"
 version = "0.5.0"
-source = "git+https://github.com/ethcore/nanomsg.rs.git#c40fe442c9afaea5b38009a3d992ca044dcceb00"
+source = "git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7#981f791f9b2673bd38a939c5104f7099319f1f9e"
 dependencies = [
  "gcc 0.3.43 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2672,8 +2672,8 @@ dependencies = [
 "checksum msdos_time 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "c04b68cc63a8480fb2550343695f7be72effdec953a9d4508161c3e69041c7d8"
 "checksum multibase 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b9c35dac080fd6e16a99924c8dfdef0af89d797dd851adab25feaffacf7850d6"
 "checksum multihash 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c9f70f2402fa07c16c40be8fd0a748a39257c5dc3ff5c857cbbde2f39135c505"
-"checksum nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)" = "<none>"
-"checksum nanomsg-sys 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)" = "<none>"
+"checksum nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7)" = "<none>"
+"checksum nanomsg-sys 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.7)" = "<none>"
 "checksum native-tls 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "aa4e52995154bb6f0b41e4379a279482c9387c1632e3798ba4e511ef8c54ee09"
 "checksum net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)" = "6a816012ca11cb47009693c1e0c6130e26d39e4d97ee2a13c50e868ec83e3204"
 "checksum nix 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f05c2fc965fc1cd6b73fa57fa7b89f288178737f2f3ce9e63e4a6a141189000e"
