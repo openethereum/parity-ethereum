@@ -62,21 +62,16 @@ export const watchRequest = (request) => (dispatch, getState) => {
           const blockHeight = blockNumber.minus(transactionReceipt.blockNumber).plus(1);
           const nextData = { blockHeight };
 
-          // Hide the transaction
-          if (blockHeight.gte(6)) {
-            nextData.show = false;
-            api.unsubscribe(blockSubscriptionId);
-
-            // Wait for the animation to be done to delete the request
-            setTimeout(() => {
-              dispatch(deleteRequest(requestId));
-            }, 1000);
+          // Hide the transaction after 6 blocks
+          if (blockHeight.gt(6)) {
+            return dispatch(hideRequest(requestId));
           }
 
           return dispatch(setRequest(requestId, nextData, false));
         })
         .then((subId) => {
           blockSubscriptionId = subId;
+          return dispatch(setRequest(requestId, { blockSubscriptionId }, false));
         });
     }
 
@@ -84,8 +79,24 @@ export const watchRequest = (request) => (dispatch, getState) => {
   });
 };
 
-export const hideRequest = (requestId) => (dispatch) => {
+export const hideRequest = (requestId) => (dispatch, getState) => {
+  const { api, requests } = getState();
+  const request = requests[requestId];
+
   dispatch(setRequest(requestId, { show: false }));
+
+  // Delete it if an error occured or if completed
+  if (request.error || request.transactionReceipt) {
+    // Wait for the animation to be done to delete the request
+    setTimeout(() => {
+      dispatch(deleteRequest(requestId));
+    }, 1000);
+  }
+
+  // Unsubscribe to eth-blockNumber if subscribed
+  if (request.blockSubscriptionId) {
+    api.unsubscribe(request.blockSubscriptionId);
+  }
 };
 
 export const setRequest = (requestId, requestData, autoSetShow = true) => {
