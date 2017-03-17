@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Transaction from 'ethereumjs-tx';
 import keycode from 'keycode';
 import RaisedButton from 'material-ui/RaisedButton';
 import React, { Component, PropTypes } from 'react';
@@ -22,8 +21,8 @@ import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
 
-import { inHex } from '~/api/format/input';
 import { Form, Input, IdentityIcon, QrCode, QrScan } from '~/ui';
+import { createUnsignedTx } from '~/util/qrscan';
 
 import styles from './transactionPendingFormConfirm.css';
 
@@ -502,42 +501,21 @@ export default class TransactionPendingFormConfirm extends Component {
   generateTxQr = () => {
     const { api } = this.context;
     const { netVersion, transaction } = this.props;
-    const { data, from, gas, gasPrice, nonce, to, value } = transaction;
 
-    return api.parity
-      .nextNonce(from)
-      .then((_nonce) => {
-        const chainId = parseInt(netVersion, 10);
-        const qrNonce = nonce.isZero() ? _nonce : nonce;
+    createUnsignedTx(api, netVersion, transaction).then(({ chainId, nonce, rlp, tx }) => {
+      this.setState({
+        qrChainId: chainId,
+        qrNonce: nonce,
+        qrRlp: rlp,
+        qrTx: tx,
 
-        const qrTx = new Transaction({
-          chainId,
-          data: inHex(data),
-          gasPrice: inHex(gasPrice),
-          gasLimit: inHex(gas),
-          nonce: inHex(qrNonce),
-          to: inHex(to),
-          value: inHex(value),
-          r: 0,
-          s: 0,
-          v: chainId
-        });
-
-        const qrRlp = inHex(qrTx.serialize().toString('hex'));
-
-        this.setState({
-          qrChainId: chainId,
-          qrNonce,
-          qrRlp,
-          qrTx,
-
-          // NOTE: leading 0x is dropped for Native Signer compatibility
-          qrValue: JSON.stringify({
-            from: transaction.from.substr(2),
-            rlp: qrRlp.substr(2)
-          })
-        });
+        // NOTE: leading 0x is dropped for Native Signer compatibility
+        qrValue: JSON.stringify({
+          from: transaction.from.substr(2),
+          rlp: rlp.substr(2)
+        })
       });
+    });
   }
 
   onKeyDown = (event) => {

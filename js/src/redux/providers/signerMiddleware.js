@@ -14,12 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Transaction from 'ethereumjs-tx';
-
 import * as actions from './signerActions';
 
 import { inHex } from '~/api/format/input';
 import HardwareStore from '~/mobx/hardwareStore';
+import { createSignedTx } from '~/util/qrscan';
 import { Signer } from '~/util/signer';
 
 export default class SignerMiddleware {
@@ -98,28 +97,12 @@ export default class SignerMiddleware {
     return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
   }
 
-  confirmSignedTransaction (store, id, transaction, txSigned) {
-    const { chainId, signature, tx } = txSigned;
-    const { data, gasPrice, gasLimit, nonce, to, value } = tx;
+  confirmSignedTransaction (store, id, txSigned) {
+    const { netVersion } = store.getState().nodeStatus;
+    const { signature, tx } = txSigned;
+    const { rlp } = createSignedTx(netVersion, signature, tx);
 
-    const r = Buffer.from(signature.substr(2, 64), 'hex');
-    const s = Buffer.from(signature.substr(66, 64), 'hex');
-    const v = Buffer.from([parseInt(signature.substr(130, 2), 16) + (chainId * 2) + 35]);
-
-    const signedTx = new Transaction({
-      chainId,
-      data,
-      gasPrice,
-      gasLimit,
-      nonce,
-      to,
-      value,
-      r,
-      s,
-      v
-    });
-
-    return this.confirmRawTransaction(store, id, signedTx.serialize().toString('hex'));
+    return this.confirmRawTransaction(store, id, rlp);
   }
 
   confirmWalletTransaction (store, id, transaction, wallet, password) {
@@ -174,7 +157,7 @@ export default class SignerMiddleware {
       if (wallet) {
         return this.confirmWalletTransaction(store, id, transaction, wallet, password);
       } else if (txSigned) {
-        return this.confirmSignedTransaction(store, id, transaction, txSigned);
+        return this.confirmSignedTransaction(store, id, txSigned);
       } else if (hardwareAccount) {
         switch (hardwareAccount.via) {
           case 'ledger':
