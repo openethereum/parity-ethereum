@@ -180,7 +180,7 @@ mod tests {
 		header.set_parent_hash(client.chain_info().best_block_hash);
 
 		// `reportBenign` when the designated proposer releases block from the future (bad clock).
-		assert!(client.engine().verify_block_family(&header, &header, None).is_err());
+		assert!(client.engine().verify_block_family(&header, &header, 0, None).is_err());
 		// Seal a block.
 		client.engine().step();
 		assert_eq!(client.chain_info().best_block_number, 1);
@@ -188,7 +188,7 @@ mod tests {
 		assert_eq!(client.call_contract(BlockId::Latest, validator_contract, "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(), "0000000000000000000000007d577a597b2742b498cb5cf0c26cdcd726d39e6e");
 		// Simulate a misbehaving validator by handling a double proposal.
 		let header = client.best_block_header().decode();
-		assert!(client.engine().verify_block_family(&header, &header, None).is_err());
+		assert!(client.engine().verify_block_family(&header, &header, 0, None).is_err());
 		// Seal a block.
 		client.engine().step();
 		client.engine().step();

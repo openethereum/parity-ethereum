@@ -239,7 +239,7 @@ mod tests {
 		let mut header: Header = Header::default();
 		header.set_seal(vec![::rlp::encode(&H520::default()).to_vec()]);
 
-		let verify_result = engine.verify_block_family(&header, &Default::default(), None);
+		let verify_result = engine.verify_block_family(&header, &Default::default(), 0, None);
 		assert!(verify_result.is_err());
 	}
 
@@ -255,7 +255,8 @@ mod tests {
 		let mut db_result = get_temp_state_db();
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let parent_uncles = 0;
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, parent_uncles, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
 		if let Seal::Regular(seal) = engine.generate_seal(b.block()) {
 			assert!(b.try_seal(engine, seal).is_ok());

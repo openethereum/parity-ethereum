@@ -522,7 +522,8 @@ mod tests {
 		let mut db_result = get_temp_state_db();
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let parent_uncles = 0;
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, parent_uncles, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close();
 		assert_eq!(b.state().balance(&Address::zero()).unwrap(), U256::from_str("4563918244f40000").unwrap());
 	}
@@ -535,7 +536,8 @@ mod tests {
 		let mut db_result = get_temp_state_db();
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let mut b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let parent_uncles = 0;
+		let mut b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, parent_uncles, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle = Header::new();
 		let uncle_author: Address = "ef2d6d194084c2de36e0dabfce45d046b37d1106".into();
 		uncle.set_author(uncle_author);
@@ -677,7 +679,7 @@ mod tests {
 		let header: Header = Header::default();
 		let parent_header: Header = Header::default();
 
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
+		let verify_result = engine.verify_block_family(&header, &parent_header, 0, None);
 
 		match verify_result {
 			Err(Error::Block(BlockError::RidiculousNumber(_))) => {},
@@ -694,7 +696,7 @@ mod tests {
 		let mut parent_header: Header = Header::default();
 		parent_header.set_number(1);
 
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
+		let verify_result = engine.verify_block_family(&header, &parent_header, 0, None);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidDifficulty(_))) => {},
@@ -712,7 +714,7 @@ mod tests {
 		let mut parent_header: Header = Header::default();
 		parent_header.set_number(1);
 
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
+		let verify_result = engine.verify_block_family(&header, &parent_header, 0, None);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidGasLimit(_))) => {},
@@ -744,8 +746,9 @@ mod tests {
 		let mut header = Header::default();
 		header.set_number(parent_header.number() + 1);
 		header.set_timestamp(1455404058);
+		let parent_uncles = 0;
 
-		let difficulty = ethash.calculate_difficulty(&header, &parent_header);
+		let difficulty = ethash.calculate_difficulty(&header, &parent_header, parent_uncles);
 		assert_eq!(U256::from_str("b6b4bbd735f").unwrap(), difficulty);
 	}
 
@@ -762,8 +765,9 @@ mod tests {
 		let mut header = Header::default();
 		header.set_number(parent_header.number() + 1);
 		header.set_timestamp(1463003177);
+		let parent_uncles = 0;
 
-		let difficulty = ethash.calculate_difficulty(&header, &parent_header);
+		let difficulty = ethash.calculate_difficulty(&header, &parent_header, parent_uncles);
 		assert_eq!(U256::from_str("1fc50f118efe").unwrap(), difficulty);
 	}
 
@@ -786,17 +790,17 @@ mod tests {
 		header.set_timestamp(parent_header.timestamp() + 20);
 		assert_eq!(
 			U256::from_str("6F55FE9B74B").unwrap(),
-			ethash.calculate_difficulty(&header, &parent_header)
+			ethash.calculate_difficulty(&header, &parent_header, 0)
 		);
 		header.set_timestamp(parent_header.timestamp() + 5);
 		assert_eq!(
 			U256::from_str("6F71D75632D").unwrap(),
-			ethash.calculate_difficulty(&header, &parent_header)
+			ethash.calculate_difficulty(&header, &parent_header, 0)
 		);
 		header.set_timestamp(parent_header.timestamp() + 80);
 		assert_eq!(
 			U256::from_str("6F02746B3A5").unwrap(),
-			ethash.calculate_difficulty(&header, &parent_header)
+			ethash.calculate_difficulty(&header, &parent_header, 0)
 		);
 	}
 
@@ -819,7 +823,7 @@ mod tests {
 		header.set_timestamp(parent_header.timestamp() + 6);
 		assert_eq!(
 			U256::from_str("1496E6206188").unwrap(),
-			ethash.calculate_difficulty(&header, &parent_header)
+			ethash.calculate_difficulty(&header, &parent_header, 0)
 		);
 		parent_header.set_number(5100123);
 		parent_header.set_difficulty(U256::from_str("14D24B39C7CF").unwrap());
@@ -828,7 +832,7 @@ mod tests {
 		header.set_timestamp(parent_header.timestamp() + 41);
 		assert_eq!(
 			U256::from_str("14CA9C5D9227").unwrap(),
-			ethash.calculate_difficulty(&header, &parent_header)
+			ethash.calculate_difficulty(&header, &parent_header, 0)
 		);
 		parent_header.set_number(6150001);
 		parent_header.set_difficulty(U256::from_str("305367B57227").unwrap());
@@ -837,7 +841,7 @@ mod tests {
 		header.set_timestamp(parent_header.timestamp() + 105);
 		assert_eq!(
 			U256::from_str("309D09E0C609").unwrap(),
-			ethash.calculate_difficulty(&header, &parent_header)
+			ethash.calculate_difficulty(&header, &parent_header, 0)
 		);
 		parent_header.set_number(8000000);
 		parent_header.set_difficulty(U256::from_str("1180B36D4CE5B6A").unwrap());
@@ -846,7 +850,7 @@ mod tests {
 		header.set_timestamp(parent_header.timestamp() + 420);
 		assert_eq!(
 			U256::from_str("5126FFD5BCBB9E7").unwrap(),
-			ethash.calculate_difficulty(&header, &parent_header)
+			ethash.calculate_difficulty(&header, &parent_header, 0)
 		);
 	}
 
@@ -857,31 +861,32 @@ mod tests {
 		let mut parent = Header::new();
 		let mut header = Header::new();
 		header.set_number(1);
+		let parent_uncles = 0;
 
 		// this test will work for this constant only
 		assert_eq!(PARITY_GAS_LIMIT_DETERMINANT, U256::from(37));
 
 		// when parent.gas_limit < gas_floor_target:
 		parent.set_gas_limit(U256::from(50_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
+		ethash.populate_from_parent(&mut header, &parent, parent_uncles, U256::from(100_000), U256::from(200_000));
 		assert_eq!(*header.gas_limit(), U256::from(50_024));
 
 		// when parent.gas_limit > gas_ceil_target:
 		parent.set_gas_limit(U256::from(250_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
+		ethash.populate_from_parent(&mut header, &parent, parent_uncles, U256::from(100_000), U256::from(200_000));
 		assert_eq!(*header.gas_limit(), U256::from(249_787));
 
 		// when parent.gas_limit is in miner's range
 		header.set_gas_used(U256::from(150_000));
 		parent.set_gas_limit(U256::from(150_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
+		ethash.populate_from_parent(&mut header, &parent, parent_uncles, U256::from(100_000), U256::from(200_000));
 		assert_eq!(*header.gas_limit(), U256::from(150_035));
 
 		// when parent.gas_limit is in miner's range
 		// && we can NOT increase it to be multiple of constant
 		header.set_gas_used(U256::from(150_000));
 		parent.set_gas_limit(U256::from(150_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(150_002));
+		ethash.populate_from_parent(&mut header, &parent, parent_uncles, U256::from(100_000), U256::from(150_002));
 		assert_eq!(*header.gas_limit(), U256::from(149_998));
 
 		// when parent.gas_limit is in miner's range
@@ -889,7 +894,7 @@ mod tests {
 		// && we can NOT decrease it to be multiple of constant
 		header.set_gas_used(U256::from(150_000));
 		parent.set_gas_limit(U256::from(150_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(150_000), U256::from(150_002));
+		ethash.populate_from_parent(&mut header, &parent, parent_uncles, U256::from(150_000), U256::from(150_002));
 		assert_eq!(*header.gas_limit(), U256::from(150_002));
 	}
 
@@ -906,8 +911,9 @@ mod tests {
 		let mut header = Header::default();
 		header.set_number(parent_header.number() + 1);
 		header.set_timestamp(u64::max_value());
+		let parent_uncles = 0;
 
-		let difficulty = ethash.calculate_difficulty(&header, &parent_header);
+		let difficulty = ethash.calculate_difficulty(&header, &parent_header, parent_uncles);
 		assert_eq!(U256::from(12543204905719u64), difficulty);
 	}
 
@@ -926,26 +932,26 @@ mod tests {
 		header.set_gas_limit(100_001.into());
 		header.set_difficulty(ethparams.minimum_difficulty);
 		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
-		assert!(ethash.verify_block_family(&header, &parent_header, None).is_ok());
+		assert!(ethash.verify_block_family(&header, &parent_header, 0, None).is_ok());
 
 		parent_header.set_number(9);
 		header.set_number(parent_header.number() + 1);
 
 		parent_header.set_gas_limit(99_999.into());
 		header.set_gas_limit(100_000.into());
-		assert!(ethash.verify_block_family(&header, &parent_header, None).is_ok());
+		assert!(ethash.verify_block_family(&header, &parent_header, 0, None).is_ok());
 
 		parent_header.set_gas_limit(200_000.into());
 		header.set_gas_limit(200_000.into());
-		assert!(ethash.verify_block_family(&header, &parent_header, None).is_ok());
+		assert!(ethash.verify_block_family(&header, &parent_header, 0, None).is_ok());
 
 		parent_header.set_gas_limit(100_000.into());
 		header.set_gas_limit(100_001.into());
-		assert!(ethash.verify_block_family(&header, &parent_header, None).is_err());
+		assert!(ethash.verify_block_family(&header, &parent_header, 0, None).is_err());
 
 		parent_header.set_gas_limit(200_000.into());
 		header.set_gas_limit(200_001.into());
-		assert!(ethash.verify_block_family(&header, &parent_header, None).is_err());
+		assert!(ethash.verify_block_family(&header, &parent_header, 0, None).is_err());
 	}
 
 	#[test]

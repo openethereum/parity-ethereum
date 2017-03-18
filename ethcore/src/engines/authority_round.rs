@@ -413,7 +413,7 @@ mod tests {
 		let mut header: Header = Header::default();
 		header.set_seal(vec![encode(&H520::default()).to_vec()]);
 
-		let verify_result = engine.verify_block_family(&header, &Default::default(), None);
+		let verify_result = engine.verify_block_family(&header, &Default::default(), 0, None);
 		assert!(verify_result.is_err());
 	}
 
@@ -429,9 +429,10 @@ mod tests {
 		let db1 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
 		let db2 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let parent_uncles = 0;
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, parent_uncles, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b1 = b1.close_and_lock();
-		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, parent_uncles, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b2 = b2.close_and_lock();
 
 		engine.set_signer(tap.clone(), addr1, "1".into());
@@ -467,9 +468,9 @@ mod tests {
 		// Two validators.
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&2usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		assert!(engine.verify_block_family(&header, &parent_header, None).is_err());
+		assert!(engine.verify_block_family(&header, &parent_header, 0, None).is_err());
 		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
+		assert!(engine.verify_block_family(&header, &parent_header, 0, None).is_ok());
 	}
 
 	#[test]
@@ -491,8 +492,8 @@ mod tests {
 		// Two validators.
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
+		assert!(engine.verify_block_family(&header, &parent_header, 0, None).is_ok());
 		header.set_seal(vec![encode(&5usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		assert!(engine.verify_block_family(&header, &parent_header, None).is_err());
+		assert!(engine.verify_block_family(&header, &parent_header, 0, None).is_err());
 	}
 }

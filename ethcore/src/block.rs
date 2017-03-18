@@ -631,6 +631,7 @@ mod tests {
 		tracing: bool,
 		db: StateDB,
 		parent: &Header,
+		parent_uncles: usize,
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<LockedBlock, Error> {
@@ -638,7 +639,7 @@ mod tests {
 		let header = block.header();
 		let transactions: Result<Vec<_>, Error> = block.transactions().into_iter().map(SignedTransaction::new).collect();
 		let transactions = transactions?;
-		enact(&header, &transactions, &block.uncles(), engine, tracing, db, parent, last_hashes, factories)
+		enact(&header, &transactions, &block.uncles(), engine, tracing, db, parent, parent_uncles, last_hashes, factories)
 	}
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
@@ -649,11 +650,12 @@ mod tests {
 		tracing: bool,
 		db: StateDB,
 		parent: &Header,
+		parent_uncles: usize,
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<SealedBlock, Error> {
 		let header = BlockView::new(block_bytes).header_view();
-		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?.seal(engine, header.seal())?)
+		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, parent_uncles, last_hashes, factories)?.seal(engine, header.seal())?)
 	}
 
 	#[test]
@@ -664,7 +666,8 @@ mod tests {
 		let mut db_result = get_temp_state_db();
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let parent_uncles = 0;
+		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, parent_uncles, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
 		let _ = b.seal(&*spec.engine, vec![]);
 	}
@@ -679,14 +682,16 @@ mod tests {
 		let mut db_result = get_temp_state_db();
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap()
+		let parent_uncles = 0;
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, parent_uncles, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap()
 			.close_and_lock().seal(engine, vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain();
 
 		let mut db_result = get_temp_state_db();
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
-		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
+		let parent_uncles = 0;
+		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, parent_uncles, last_hashes, Default::default()).unwrap();
 
 		assert_eq!(e.rlp_bytes(), orig_bytes);
 
@@ -705,7 +710,8 @@ mod tests {
 		let mut db_result = get_temp_state_db();
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let parent_uncles = 0;
+		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, parent_uncles, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle1_header = Header::new();
 		uncle1_header.set_extra_data(b"uncle1".to_vec());
 		let mut uncle2_header = Header::new();
@@ -719,7 +725,8 @@ mod tests {
 
 		let mut db_result = get_temp_state_db();
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
-		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
+		let parent_uncles = 0;
+		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, parent_uncles, last_hashes, Default::default()).unwrap();
 
 		let bytes = e.rlp_bytes();
 		assert_eq!(bytes, orig_bytes);
