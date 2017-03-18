@@ -29,7 +29,7 @@ use helpers::replace_home;
 use io::{ForwardPanic, PanicHandler};
 use jsonrpc_core::reactor::{RpcHandler, Remote};
 use rpc_apis;
-use util::path::restrict_permissions_owner;
+use path::restrict_permissions_owner;
 use util::H256;
 
 const CODES_FILENAME: &'static str = "authcodes";

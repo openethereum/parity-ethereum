@@ -71,6 +71,7 @@ extern crate ethkey;
 extern crate ethcrypto as crypto;
 extern crate rlp;
 extern crate bytes;
+extern crate path;
 
 #[macro_use]
 extern crate log;

@@ -824,7 +824,7 @@ impl Configuration {
 	}
 
 	fn directories(&self) -> Directories {
-		use util::path;
+		use path;
 
 		let local_path = default_local_path();
 		let base_path = self.args.flag_base_path.as_ref().map_or_else(|| default_data_path(), |s| s.clone());

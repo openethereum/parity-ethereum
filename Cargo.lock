@@ -39,6 +39,7 @@ dependencies = [
  "parity-reactor 0.1.0",
  "parity-rpc-client 1.4.0",
  "parity-updater 1.7.0",
+ "path 0.1.0",
  "regex 0.1.68 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
  "rpassword 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -594,6 +595,7 @@ dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.6.1 (git+https://github.com/ethcore/mio)",
  "parking_lot 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "path 0.1.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1718,6 +1720,7 @@ dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-hash-fetch 1.7.0",
  "parity-reactor 0.1.0",
+ "path 0.1.0",
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1741,6 +1744,10 @@ dependencies = [
  "smallvec 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "path"
+version = "0.1.0"
 
 [[package]]
 name = "phf"
