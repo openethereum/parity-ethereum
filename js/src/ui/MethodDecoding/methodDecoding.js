@@ -202,7 +202,7 @@ class MethodDecoding extends Component {
         <div>
           <FormattedMessage
             id='ui.methodDecoding.condition.time'
-            defaultMessage='{historic, select, true {Submission date:} false {Was submitted}} {timestamp}'
+            defaultMessage='{historic, select, true {Will be submitted} false {Was submitted}} {timestamp}'
             values={ {
               historic,
               timestamp
@@ -497,7 +497,7 @@ class MethodDecoding extends Component {
         <div className={ styles.description }>
           <FormattedMessage
             id='ui.methodDecoding.signature.info'
-            defaultMessage='{historic, select, true {Executed} false {Will execute}} the {method} function on the contract {address} trsansferring {ethValue}{inputLength, plural, zero {,} other {passing the following {inputLength, plural, one {parameter} other {parameters}}}}'
+            defaultMessage='{historic, select, true {Executed} false {Will execute}} the {method} function on the contract {address} transferring {ethValue}{inputLength, plural, zero {,} other {passing the following {inputLength, plural, one {parameter} other {parameters}}}}'
             values={ {
               historic,
               method,
