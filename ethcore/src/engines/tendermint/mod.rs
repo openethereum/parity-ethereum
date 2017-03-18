@@ -405,7 +405,7 @@ impl Engine for Tendermint {
 		Schedule::new_post_eip150(usize::max_value(), true, true, true)
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _parent_uncles: usize, gas_floor_target: U256, _gas_ceil_target: U256) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - view
 		let new_difficulty = U256::from(U128::max_value()) + consensus_view(parent).expect("Header has been verified; qed").into() - self.view.load(AtomicOrdering::SeqCst).into();
 		header.set_difficulty(new_difficulty);
@@ -514,7 +514,7 @@ impl Engine for Tendermint {
 	}
 
 	/// Verify validators and gas limit.
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+	fn verify_block_family(&self, header: &Header, parent: &Header, _parent_uncles: usize, _block: Option<&[u8]>) -> Result<(), Error> {
 		let proposal = ConsensusMessage::new_proposal(header)?;
 		let proposer = proposal.verify()?;
 		if !self.is_authority(&proposer) {

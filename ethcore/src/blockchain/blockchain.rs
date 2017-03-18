@@ -101,6 +101,11 @@ pub trait BlockProvider {
 		self.block_body(hash).map(|body| body.uncle_hashes())
 	}
 
+	/// Get number of uncles for a given block.
+	fn uncles_count(&self, hash: &H256) -> Option<usize> {
+		self.block_body(hash).map(|body| body.uncles_count())
+	}
+
 	/// Get the number of given block's hash.
 	fn block_number(&self, hash: &H256) -> Option<BlockNumber> {
 		self.block_details(hash).map(|details| details.number)

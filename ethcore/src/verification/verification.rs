@@ -97,9 +97,10 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine, che
 /// Phase 3 verification. Check block information against parent and uncles.
 pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &BlockProvider) -> Result<(), Error> {
 	// TODO: verify timestamp
-	let parent = bc.block_header(&header.parent_hash()).ok_or_else(|| Error::from(BlockError::UnknownParent(header.parent_hash().clone())))?;
+	let parent = bc.block_header(header.parent_hash()).ok_or_else(|| Error::from(BlockError::UnknownParent(header.parent_hash().clone())))?;
+	let parent_uncles = bc.uncles_count(header.parent_hash()).expect("parent header exists; qed");
 	verify_parent(&header, &parent)?;
-	engine.verify_block_family(&header, &parent, Some(bytes))?;
+	engine.verify_block_family(&header, &parent, parent_uncles, Some(bytes))?;
 
 	let num_uncles = UntrustedRlp::new(bytes).at(2)?.item_count();
 	if num_uncles != 0 {
@@ -171,7 +172,8 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 			}
 
 			verify_parent(&uncle, &uncle_parent)?;
-			engine.verify_block_family(&uncle, &uncle_parent, Some(bytes))?;
+			let parent_uncles = bc.uncles_count(uncle_parent.parent_hash()).expect("parent header exists; qed");
+			engine.verify_block_family(&uncle, &uncle_parent, parent_uncles, Some(bytes))?;
 		}
 	}
 	Ok(())

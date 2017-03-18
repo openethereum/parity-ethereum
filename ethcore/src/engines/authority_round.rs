@@ -234,7 +234,7 @@ impl Engine for AuthorityRound {
 		Schedule::new_post_eip150(usize::max_value(), true, true, true)
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _parent_uncles: usize, gas_floor_target: U256, _gas_ceil_target: U256) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - step
 		let new_difficulty = U256::from(U128::max_value()) + header_step(parent).expect("Header has been verified; qed").into() - self.step.load(AtomicOrdering::SeqCst).into();
 		header.set_difficulty(new_difficulty);
@@ -305,7 +305,7 @@ impl Engine for AuthorityRound {
 	}
 
 	/// Do the validator and gas limit validation.
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+	fn verify_block_family(&self, header: &Header, parent: &Header, _parent_uncles: usize, _block: Option<&[u8]>) -> Result<(), Error> {
 		let step = header_step(header)?;
 		// Give one step slack if step is lagging, double vote is still not possible.
 		if self.is_future_step(step) {

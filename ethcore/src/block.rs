@@ -257,6 +257,7 @@ impl<'x> OpenBlock<'x> {
 		tracing: bool,
 		db: StateDB,
 		parent: &Header,
+		parent_uncles: usize,
 		last_hashes: Arc<LastHashes>,
 		author: Address,
 		gas_range_target: (U256, U256),
@@ -278,7 +279,7 @@ impl<'x> OpenBlock<'x> {
 
 		let gas_floor_target = cmp::max(gas_range_target.0, engine.params().min_gas_limit);
 		let gas_ceil_target = cmp::max(gas_range_target.1, gas_floor_target);
-		engine.populate_from_parent(&mut r.block.header, parent, gas_floor_target, gas_ceil_target);
+		engine.populate_from_parent(&mut r.block.header, parent, parent_uncles, gas_floor_target, gas_ceil_target);
 		engine.on_new_block(&mut r.block);
 		Ok(r)
 	}
@@ -534,6 +535,7 @@ pub fn enact(
 	tracing: bool,
 	db: StateDB,
 	parent: &Header,
+	parent_uncles: usize,
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
 ) -> Result<LockedBlock, Error> {
@@ -545,7 +547,7 @@ pub fn enact(
 		}
 	}
 
-	let mut b = OpenBlock::new(engine, factories, tracing, db, parent, last_hashes, Address::new(), (3141562.into(), 31415620.into()), vec![])?;
+	let mut b = OpenBlock::new(engine, factories, tracing, db, parent, parent_uncles, last_hashes, Address::new(), (3141562.into(), 31415620.into()), vec![])?;
 	b.set_difficulty(*header.difficulty());
 	b.set_gas_limit(*header.gas_limit());
 	b.set_timestamp(header.timestamp());
@@ -598,11 +600,12 @@ pub fn enact_verified(
 	tracing: bool,
 	db: StateDB,
 	parent: &Header,
+	parent_uncles: usize,
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
 ) -> Result<LockedBlock, Error> {
 	let view = BlockView::new(&block.bytes);
-	enact(&block.header, &block.transactions, &view.uncles(), engine, tracing, db, parent, last_hashes, factories)
+	enact(&block.header, &block.transactions, &view.uncles(), engine, tracing, db, parent, parent_uncles, last_hashes, factories)
 }
 
 #[cfg(test)]

@@ -358,6 +358,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
+		let parent_uncles = 0;
 		let mut db_result = get_temp_state_db();
 		let db = self.spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 
@@ -368,6 +369,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 			false,
 			db,
 			&genesis_header,
+			parent_uncles,
 			Arc::new(last_hashes),
 			author,
 			gas_range_target,

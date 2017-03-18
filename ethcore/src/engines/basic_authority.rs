@@ -90,7 +90,7 @@ impl Engine for BasicAuthority {
 		Schedule::new_homestead()
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _parent_uncles: usize, gas_floor_target: U256, _gas_ceil_target: U256) {
 		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
@@ -137,7 +137,7 @@ impl Engine for BasicAuthority {
 		Ok(())
 	}
 
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_family(&self, header: &Header, parent: &Header, _parent_uncles: usize, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		use rlp::{UntrustedRlp, View};
 		// Check if the signature belongs to a validator, can depend on parent state.
 		let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
