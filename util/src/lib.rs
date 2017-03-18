@@ -93,7 +93,6 @@ extern crate rocksdb;
 extern crate env_logger;
 extern crate crypto as rcrypto;
 extern crate secp256k1;
-extern crate arrayvec;
 extern crate elastic_array;
 extern crate time;
 extern crate ethcore_devtools as devtools;
@@ -109,8 +108,6 @@ extern crate lru_cache;
 extern crate heapsize;
 extern crate itertools;
 
-#[macro_use]
-extern crate lazy_static;
 #[macro_use]
 extern crate log as rlog;
 
@@ -137,7 +134,6 @@ pub mod trie;
 pub mod nibbleslice;
 pub mod nibblevec;
 pub mod semantic_version;
-pub mod log;
 pub mod snappy;
 pub mod cache;
 mod timer;
@@ -152,9 +148,9 @@ pub use triehash::*;
 pub use trie::{Trie, TrieMut, TrieDB, TrieDBMut, TrieFactory, TrieError, SecTrieDB, SecTrieDBMut};
 pub use nibbleslice::*;
 pub use semantic_version::*;
-pub use log::*;
 pub use kvdb::*;
 pub use timer::*;
+pub use ansi_term::{Colour, Style};
 
 /// 160-bit integer representing account address
 pub type Address = H160;

@@ -22,7 +22,7 @@ use std::cmp::max;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
-use util::log::Colour;
+use util::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::ethstore::ethkey::Secret;
 use ethcore::client::{VMType};
