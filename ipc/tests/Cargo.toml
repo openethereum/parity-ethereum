@@ -11,7 +11,7 @@ path = "run.rs"
 ethcore-ipc = { path = "../rpc" }
 ethcore-devtools = { path = "../../devtools" }
 semver = "0.5"
-nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
+nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git", branch = "parity-1.7" }
 ethcore-ipc-nano = { path = "../nano" }
 ethcore-util = { path = "../../util" }
 log = "0.3"
