@@ -98,7 +98,7 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine, che
 pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &BlockProvider) -> Result<(), Error> {
 	// TODO: verify timestamp
 	let parent = bc.block_header(header.parent_hash()).ok_or_else(|| Error::from(BlockError::UnknownParent(header.parent_hash().clone())))?;
-	let parent_uncles = bc.uncles_count(header.parent_hash()).expect("parent header exists; qed");
+	let parent_uncles = bc.uncles_count(header.parent_hash()).unwrap_or(0);
 	verify_parent(&header, &parent)?;
 	engine.verify_block_family(&header, &parent, parent_uncles, Some(bytes))?;
 
@@ -172,7 +172,7 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 			}
 
 			verify_parent(&uncle, &uncle_parent)?;
-			let parent_uncles = bc.uncles_count(uncle_parent.parent_hash()).expect("parent header exists; qed");
+			let parent_uncles = bc.uncles_count(uncle_parent.parent_hash()).unwrap_or(0);
 			engine.verify_block_family(&uncle, &uncle_parent, parent_uncles, Some(bytes))?;
 		}
 	}
