@@ -149,6 +149,8 @@ class TxRow extends Component {
 
   renderCancelToggle () {
     const { isCancelOpen, canceled } = this.state;
+    const { parity } = this.context.api;
+    const { hash } = this.props.tx;
 
     if (canceled) {
       return (
@@ -173,7 +175,7 @@ class TxRow extends Component {
     return (
       <div className={ styles.pending }>
         <div>ARE YOU SURE?</div>
-        <a onClick={ this.cancelTransaction.bind(this) }>Cancel</a>
+        <a onClick={() => this.cancelTransaction(parity, hash) }>Cancel</a>
         <span> | </span>
         <a onClick={ () => this.setState({ isCancelOpen: false }) }>Nevermind</a>
       </div>
@@ -204,9 +206,7 @@ class TxRow extends Component {
     return `/addresses/${address}`;
   }
 
-  cancelTransaction () {
-    const { parity } = this.context.api;
-    const { hash } = this.props.tx;
+  cancelTransaction (parity, hash) {
 
     parity.removeTransaction(hash);
     this.setState({ canceled: true });
