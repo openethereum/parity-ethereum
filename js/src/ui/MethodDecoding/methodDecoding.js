@@ -25,7 +25,7 @@ import MethodDecodingStore from './methodDecodingStore';
 
 import styles from './methodDecoding.css';
 
-// const ASCII_INPUT = /^[a-z0-9\s,?;.:/!()-_@'"#]+$/i;
+const ASCII_INPUT = /^[a-z0-9\s,?;.:/!()-_@'"#]+$/i;
 const TOKEN_METHODS = {
   '0xa9059cbb': 'transfer(to,value)'
 };
