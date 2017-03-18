@@ -202,7 +202,7 @@ class MethodDecoding extends Component {
         <div>
           <FormattedMessage
             id='ui.methodDecoding.condition.time'
-            defaultMessage='{historic, select, true {Will be submitted} false {To be submitted for}} {timestamp}'
+            defaultMessage='{historic, select, true {Will be submitted} false {To be submitted}} {timestamp}'
             values={ {
               historic,
               timestamp
