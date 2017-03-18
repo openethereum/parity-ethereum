@@ -395,6 +395,11 @@ export default class Parity {
       .execute('parity_removeReservedPeer', encode);
   }
 
+  removeTransaction (transactionId) {
+    return this._transport
+      .execute('parity_removeTransaction', inHex(transactionId));
+  }
+
   rpcSettings () {
     return this._transport
       .execute('parity_rpcSettings');

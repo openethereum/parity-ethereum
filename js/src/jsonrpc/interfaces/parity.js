@@ -643,6 +643,23 @@ export default {
     }
   },
 
+  removeTransaction: {
+    section: SECTION_ACCOUNTS,
+    desc: 'Cancel a pending transaction',
+    params: [
+      {
+        type: Data,
+        desc: 'transactionId, 32-byte hex',
+        example: '0x1db2c0cf57505d0f4a3d589414f0a0025ca97421d2cd596a9486bc7e2cd2bf8b'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'returns `true` if the upgrade to the new release was successfully executed, `false` if not.',
+      example: true
+    }
+  },
+
   registryAddress: {
     section: SECTION_NET,
     desc: 'The address for the global registry.',

@@ -48,6 +48,11 @@ class TxRow extends Component {
     historic: true
   };
 
+  state = {
+    isCancelOpen: false,
+    canceled: false
+  };
+
   render () {
     const { address, className, historic, netVersion, tx } = this.props;
 
@@ -137,8 +142,36 @@ class TxRow extends Component {
     return (
       <td className={ styles.timestamp }>
         <div>{ blockNumber && block ? moment(block.timestamp).fromNow() : null }</div>
-        <div>{ blockNumber ? _blockNumber.toFormat() : 'Pending' }</div>
+        <div>{ blockNumber ? _blockNumber.toFormat() : this.renderCancelToggle() }</div>
       </td>
+    );
+  }
+
+  renderCancelToggle () {
+    const { isCancelOpen, canceled } = this.state;
+
+    if (canceled) {
+      return (
+        <div className={ styles.pending }>CANCELED</div>
+      );
+    }
+
+    if (!isCancelOpen) {
+      return (
+        <div className={ styles.pending }>
+          <div>SCHEDULED</div>
+          <a className={ styles.cancel } onClick={() => this.setState({ isCancelOpen: true })}>CANCEL</a>
+        </div>
+      );
+    }
+
+    return (
+      <div className={ styles.pending }>
+        <div>ARE YOU SURE?</div>
+        <a onClick={this.cancelTransaction.bind(this)}>Cancel</a>
+        <span> | </span>
+        <a onClick={() => this.setState({ isCancelOpen: false })}>Nevermind</a>
+      </div>
     );
   }
 
@@ -164,6 +197,13 @@ class TxRow extends Component {
     }
 
     return `/addresses/${address}`;
+  }
+
+  cancelTransaction (e) {
+    const { parity } = this.context.api;
+    const { hash } = this.props.tx;
+    parity.removeTransaction(hash);
+    this.setState({ canceled: true });
   }
 }
 

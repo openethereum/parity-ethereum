@@ -42,10 +42,11 @@
     }
 
     &.timestamp {
-      padding-top: 1.5em;
-      text-align: right;
+      max-width: 5em;
+      padding-top: 2.25em;
+      text-align: center;
       line-height: 1.5em;
-      opacity: 0.5;
+      color: grey;
     }
 
     &.transaction {
@@ -82,5 +83,13 @@
 
   .left {
     text-align: left;
+  }
+
+  .pending {
+    padding: 0em;
+  }
+
+  .pending div {
+    padding-bottom: 1.5em;
   }
 }

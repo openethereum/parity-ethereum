@@ -100,7 +100,7 @@ class RequestsPage extends Component {
           <div className={ styles.noRequestsMsg }>
             <FormattedMessage
               id='signer.requestsPage.noPending'
-              defaultMessage='There are no requests requiring your confirmation.'
+              defaultMessage='There are no transactions or requests requiring your confirmation.'
             />
           </div>
         </Container>
@@ -114,7 +114,7 @@ class RequestsPage extends Component {
         title={
           <FormattedMessage
             id='signer.requestsPage.pendingTitle'
-            defaultMessage='Pending Requests'
+            defaultMessage='Pending Transactions'
           />
         }
       >

@@ -25,7 +25,7 @@ import MethodDecodingStore from './methodDecodingStore';
 
 import styles from './methodDecoding.css';
 
-const ASCII_INPUT = /^[a-z0-9\s,?;.:/!()-_@'"#]+$/i;
+// const ASCII_INPUT = /^[a-z0-9\s,?;.:/!()-_@'"#]+$/i;
 const TOKEN_METHODS = {
   '0xa9059cbb': 'transfer(to,value)'
 };
@@ -178,14 +178,16 @@ class MethodDecoding extends Component {
       );
 
       return (
-        <FormattedMessage
-          id='ui.methodDecoding.condition.block'
-          defaultMessage=', {historic, select, true {Submitted} false {Submission}} at block {blockNumber}'
-          values={ {
-            historic,
-            blockNumber
-          } }
-        />
+        <div>
+          <FormattedMessage
+            id='ui.methodDecoding.condition.block'
+            defaultMessage=', {historic, select, true {Submitted} false {Submission}} at block {blockNumber}'
+            values={ {
+              historic,
+              blockNumber
+            } }
+          />
+        </div>
       );
     }
 
@@ -197,14 +199,16 @@ class MethodDecoding extends Component {
       );
 
       return (
-        <FormattedMessage
-          id='ui.methodDecoding.condition.time'
-          defaultMessage=', {historic, select, true {Submitted} false {Submission}} at {timestamp}'
-          values={ {
-            historic,
-            timestamp
-          } }
-        />
+        <div>
+          <FormattedMessage
+            id='ui.methodDecoding.condition.time'
+            defaultMessage='{historic, select, true {Submission date:} false {Was submitted}} {timestamp}'
+            values={ {
+              historic,
+              timestamp
+            } }
+          />
+        </div>
       );
     }
 
