@@ -175,7 +175,7 @@ class TxRow extends Component {
     return (
       <div className={ styles.pending }>
         <div>ARE YOU SURE?</div>
-        <a onClick={() => this.cancelTransaction(parity, hash) }>Cancel</a>
+        <a onClick={ () => this.cancelTransaction(parity, hash) }>Cancel</a>
         <span> | </span>
         <a onClick={ () => this.setState({ isCancelOpen: false }) }>Nevermind</a>
       </div>
@@ -207,7 +207,6 @@ class TxRow extends Component {
   }
 
   cancelTransaction (parity, hash) {
-
     parity.removeTransaction(hash);
     this.setState({ canceled: true });
   }
