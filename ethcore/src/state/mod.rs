@@ -946,7 +946,7 @@ mod tests {
 	use env_info::EnvInfo;
 	use spec::*;
 	use transaction::*;
-	use util::log::init_log;
+	use ethcore_logger::init_log;
 	use trace::{FlatTrace, TraceError, trace};
 	use types::executed::CallType;
 

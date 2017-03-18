@@ -107,6 +107,7 @@ extern crate regex;
 extern crate lru_cache;
 extern crate heapsize;
 extern crate itertools;
+extern crate ethcore_logger;
 
 #[macro_use]
 extern crate log as rlog;

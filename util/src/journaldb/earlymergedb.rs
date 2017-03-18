@@ -553,7 +553,7 @@ mod tests {
 	use hashdb::{HashDB, DBValue};
 	use super::*;
 	use super::super::traits::JournalDB;
-	use log::init_log;
+	use ethcore_logger::init_log;
 	use kvdb::{DatabaseConfig};
 
 	#[test]

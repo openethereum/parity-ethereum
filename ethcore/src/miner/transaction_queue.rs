@@ -2454,6 +2454,7 @@ pub mod test {
 
 	#[test]
 	fn should_replace_same_transaction_when_has_higher_fee() {
+		use ethcore_logger::init_log;
 		init_log();
 		// given
 		let mut txq = TransactionQueue::default();
