@@ -271,7 +271,7 @@ impl Manager {
 					chunk_size += size;
 				}
 				trace!("writing {:?}", &hid_chunk[..]);
-				let n = handle.write(&hid_chunk[0..chunk_size])?;
+				let n = handle.write(&hid_chunk[..])?;
 				if n < chunk_size {
 					return Err(Error::Protocol("Write data size mismatch"));
 				}
