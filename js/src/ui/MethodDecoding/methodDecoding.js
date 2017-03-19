@@ -181,7 +181,7 @@ class MethodDecoding extends Component {
         <div>
           <FormattedMessage
             id='ui.methodDecoding.condition.block'
-            defaultMessage=', {historic, select, true {Submitted} false {Submission}} at block {blockNumber}'
+            defaultMessage='{historic, select, true {Will be submitted} false {To be submitted}} at block {blockNumber}'
             values={ {
               historic,
               blockNumber
