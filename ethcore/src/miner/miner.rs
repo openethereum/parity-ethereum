@@ -1018,6 +1018,16 @@ impl MinerService for Miner {
 		}
 	}
 
+	fn remove_pending_transaction(&self, chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction> {
+		let mut queue = self.transaction_queue.lock();
+		let tx = queue.find(hash);
+		if tx.is_some() {
+			let fetch_nonce = |a: &Address| chain.latest_nonce(a);
+			queue.remove_invalid(hash, &fetch_nonce);
+		}
+		tx
+	}
+
 	fn pending_receipt(&self, best_block: BlockNumber, hash: &H256) -> Option<RichReceipt> {
 		self.from_pending_block(
 			best_block,
