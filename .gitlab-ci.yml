@@ -516,6 +516,7 @@ test-coverage:
  #   - echo "Coverage:" $COVERAGE   
   tags:
     - kcov
+  allow_failure: true
 test-darwin:
   stage: test
   only:
