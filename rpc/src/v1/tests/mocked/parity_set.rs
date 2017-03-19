@@ -204,3 +204,31 @@ fn rpc_parity_set_hash_content() {
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
+#[test]
+fn rpc_parity_remove_transaction() {
+	use ethcore::transaction::{Transaction, Action};
+
+	let miner = miner_service();
+	let client = client_service();
+	let network = network_service();
+	let updater = updater_service();
+	let mut io = IoHandler::new();
+	io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
+
+	let tx = Transaction {
+		nonce: 1.into(),
+		gas_price: 0x9184e72a000u64.into(),
+		gas: 0x76c0.into(),
+		action: Action::Call(5.into()),
+		value: 0x9184e72au64.into(),
+		data: vec![]
+	};
+	let signed = tx.fake_sign(2.into());
+	let hash = signed.hash();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_removeTransaction", "params":[""#.to_owned() + &format!("0x{:?}", hash) + r#""], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"condition":null,"creates":null,"from":"0x0000000000000000000000000000000000000002","gas":"0x76c0","gasPrice":"0x9184e72a000","hash":"0x0072c69d780cdfbfc02fed5c7d184151f9a166971d045e55e27695aaa5bcb55e","input":"0x","networkId":null,"nonce":"0x1","publicKey":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","r":"0x0","raw":"0xe9018609184e72a0008276c0940000000000000000000000000000000000000005849184e72a80808080","s":"0x0","standardV":"0x4","to":"0x0000000000000000000000000000000000000005","transactionIndex":null,"v":"0x0","value":"0x9184e72a"},"id":1}"#;
+
+	miner.pending_transactions.lock().insert(hash, signed);
+	assert_eq!(io.handle_request_sync(&request), Some(response.to_owned()));
+}
