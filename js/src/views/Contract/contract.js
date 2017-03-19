@@ -363,12 +363,15 @@ class Contract extends Component {
       .filter((fn) => !fn.inputs.length);
 
     Promise
-      .all(queries.map((query) => query.call()))
+      .all(queries.map((query) => query.call({ rawTokens: true })))
       .then(results => {
         const values = queries.reduce((object, fn, idx) => {
           const key = fn.name;
 
-          object[key] = results[idx];
+          object[key] = fn.outputs.length === 1
+            ? [ results[idx] ]
+            : results[idx];
+
           return object;
         }, {});
 
