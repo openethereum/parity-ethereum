@@ -224,15 +224,6 @@ export default class CreateWalletStore {
         this.wallet = this.getWalletWithMeta(this.wallet);
         this.onClose();
         return deploy(contract, options, [ owners, required, daylimit ], this.wallet.metadata);
-      })
-      .then((address) => {
-        if (!address || /^(0x)?0*$/.test(address)) {
-          return false;
-        }
-
-        this.deployed = true;
-        this.wallet.address = address;
-        return this.addWallet(this.wallet);
       });
   }
 

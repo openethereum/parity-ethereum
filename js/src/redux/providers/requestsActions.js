@@ -17,88 +17,168 @@
 import BigNumber from 'bignumber.js';
 import store from 'store';
 
-import { trackRequest as trackRequestUtil } from '~/util/tx';
+import { ERROR_CODES } from '~/api/transport/error';
+import { trackRequest as trackRequestUtil, parseTransactionReceipt } from '~/util/tx';
 
 const LS_REQUESTS_KEY = '_parity::requests';
 
-const getRequests = () => {
-  return store.get(LS_REQUESTS_KEY) || {};
-};
+class CachedRequests {
+  load (api) {
+    const requests = this._get();
 
-const setRequests = (requests = {}) => {
-  return store.set(LS_REQUESTS_KEY, requests);
-};
+    const promises = Object.values(requests).map((request) => {
+      const { requestId, transactionHash } = request;
 
-const loadRequests = () => (dispatch) => {
-  const requests = getRequests();
+      // The request hasn't been signed yet
+      if (transactionHash) {
+        return request;
+      }
 
-  Object.values(requests).forEach((request) => {
-    return dispatch(watchRequest(request));
-  });
-};
+      return this._requestExists(api, requestId)
+        .then((exists) => {
+          if (!exists) {
+            return null;
+          }
 
-const saveRequest = (request) => {
-  const requests = getRequests();
+          return request;
+        })
+        .catch(() => {
+          this.remove(requestId);
+        });
+    });
 
-  requests[request.requestId] = {
-    ...(requests[request.requestId] || {}),
-    ...request
-  };
+    return Promise.all(promises).then((requests) => requests.filter((request) => request));
+  }
 
-  setRequests(requests);
-};
+  save (requestId, requestData) {
+    const requests = this._get();
 
-const removeRequest = (requestId) => {
-  const requests = getRequests();
+    requests[requestId] = {
+      ...(requests[requestId] || {}),
+      ...requestData
+    };
 
-  delete requests[requestId];
-  setRequests(requests);
-};
+    this._set(requests);
+  }
+
+  remove (requestId) {
+    const requests = this._get();
+
+    delete requests[requestId];
+    this._set(requests);
+  }
+
+  _get () {
+    return store.get(LS_REQUESTS_KEY) || {};
+  }
+
+  _set (requests = {}) {
+    return store.set(LS_REQUESTS_KEY, requests);
+  }
+
+  _requestExists (api, requestId) {
+    return api.parity
+      .checkRequest(requestId)
+      .then(() => true)
+      .catch((error) => {
+        if (error.code === ERROR_CODES.REQUEST_NOT_FOUND) {
+          return false;
+        }
+
+        throw error;
+      });
+  }
+}
+
+const cachedRequests = new CachedRequests();
 
 export const init = (api) => (dispatch) => {
-  api.on('request', (request) => {
+  api.on('request', (rawRequest) => {
+    const { requestId, ...others } = rawRequest;
+    const { from, to, value, data, gas, ...extras } = others;
+    const transaction = {
+      from,
+      to,
+      data,
+      value,
+      gas
+    };
+    const request = {
+      requestId,
+      transaction,
+      ...extras
+    };
+
     dispatch(watchRequest(request));
   });
 
-  // dispatch(loadRequests());
+  api.on('connected', () => {
+    console.log('loading previous requests...');
+    cachedRequests.load(api).then((requests) => {
+      requests.forEach((request) => dispatch(watchRequest(request)));
+    });
+  });
 };
 
 export const watchRequest = (request) => (dispatch, getState) => {
-  const { requestId, ...others } = request;
-  const { from, to, value, data } = others;
-  const transaction = {
-    from,
-    to,
-    data,
-    value: new BigNumber(value || 0)
-  };
-
+  const { requestId, transaction, ...extras } = request;
   const requestData = {
-    id: requestId,
-    transaction
+    requestId,
+    transaction,
+    ...extras
   };
 
+  requestData.transaction.value = new BigNumber(requestData.transaction.value || 0);
   dispatch(setRequest(requestId, requestData));
-  dispatch(trackRequest(requestId));
-
-  saveRequest(request);
+  dispatch(trackRequest(requestId, requestData));
 };
 
-export const trackRequest = (requestId) => (dispatch, getState) => {
+export const trackRequest = (requestId, requestData) => (dispatch, getState) => {
   const { api } = getState();
+  const { transactionHash = null } = requestData;
 
-  trackRequestUtil(api, requestId, (error, data) => {
+  trackRequestUtil(api, { requestId, transactionHash }, (error, data) => {
     if (error) {
+      console.error(error);
       return dispatch(setRequest(requestId, { error }));
     }
 
     // Hide the request after 6 mined blocks
     if (data.transactionReceipt) {
-      // Remove request from the localstorage
-      removeRequest(requestId);
-
       const { transactionReceipt } = data;
       let blockSubscriptionId = -1;
+
+      // If the request was a contract deployment,
+      // then add the contract with the saved metadata to the account
+      if (requestData.deployment && requestData.metadata) {
+        const { metadata } = requestData;
+
+        const options = {
+          ...requestData.transaction,
+          metadata
+        };
+
+        parseTransactionReceipt(api, options, data.transactionReceipt)
+          .then((contractAddress) => {
+            // No contract address given, might need some confirmations
+            // from the wallet owners...
+            if (!contractAddress || /^(0x)?0*$/.test(contractAddress)) {
+              return false;
+            }
+
+            metadata.blockNumber = data.transactionReceipt
+              ? data.transactionReceipt.blockNumber.toNumber()
+              : null;
+
+            return Promise.all([
+              api.parity.setAccountName(contractAddress, metadata.name),
+              api.parity.setAccountMeta(contractAddress, metadata)
+            ]);
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      }
 
       api
         .subscribe('eth_blockNumber', (error, blockNumber) => {
@@ -152,6 +232,8 @@ export const setRequest = (requestId, requestData, autoSetShow = true) => {
     requestData.show = true;
   }
 
+  cachedRequests.save(requestId, requestData);
+
   return {
     type: 'setRequest',
     requestId, requestData
@@ -159,6 +241,8 @@ export const setRequest = (requestId, requestData, autoSetShow = true) => {
 };
 
 export const deleteRequest = (requestId) => {
+  cachedRequests.remove(requestId);
+
   return {
     type: 'deleteRequest',
     requestId

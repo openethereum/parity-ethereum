@@ -467,24 +467,7 @@ class DeployContract extends Component {
 
     const contract = api.newContract(abiParsed);
 
-    deploy(contract, options, params, metadata, () => {}, true)
-      .then((address) => {
-        // No contract address given, might need some confirmations
-        // from the wallet owners...
-        if (!address || /^(0x)?0*$/.test(address)) {
-          return false;
-        }
-
-        metadata.blockNumber = contract._receipt
-          ? contract.receipt.blockNumber.toNumber()
-          : null;
-
-        return Promise.all([
-          api.parity.setAccountName(address, name),
-          api.parity.setAccountMeta(address, metadata)
-        ]);
-      });
-
+    deploy(contract, options, params, metadata, true);
     this.onClose();
   }
 

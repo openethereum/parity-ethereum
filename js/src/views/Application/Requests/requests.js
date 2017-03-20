@@ -46,7 +46,7 @@ class Requests extends Component {
 
     return (
       <div className={ styles.requests }>
-        { Object.values(requests).map((request) => this.renderRequest(request, extras[request.id])) }
+        { Object.values(requests).map((request) => this.renderRequest(request, extras[request.requestId])) }
       </div>
     );
   }
@@ -60,7 +60,7 @@ class Requests extends Component {
     const requestStyle = {};
 
     const handleHideRequest = () => {
-      this.handleHideRequest(request.id);
+      this.handleHideRequest(request.requestId);
     };
 
     if (state.type === ERROR_STATE) {
@@ -79,8 +79,8 @@ class Requests extends Component {
     return (
       <div
         className={ requestClasses.join(' ') }
-        key={ request.id }
-        ref={ `request_${request.id}` }
+        key={ request.requestId }
+        ref={ `request_${request.requestId}` }
         onClick={ handleHideRequest }
         style={ requestStyle }
       >
