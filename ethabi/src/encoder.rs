@@ -1,6 +1,5 @@
 //! ABI encoder.
 
-use std::ptr;
 use token::Token;
 use util::pad_u32;
 
@@ -24,12 +23,8 @@ fn pad_fixed_bytes(bytes: Vec<u8>) -> Vec<[u8; 32]> {
 			},
 		};
 
-		let offset = 32 * i as isize;
-
-		unsafe {
-			ptr::copy(bytes.as_ptr().offset(offset), padded.as_mut_ptr(), to_copy);
-		}
-
+		let offset = 32 * i;
+		padded[..to_copy].copy_from_slice(&bytes[offset..offset + to_copy]);
 		result.push(padded);
 	}
 
@@ -142,9 +137,7 @@ impl Encoder {
 		match token {
 			Token::Address(address) => {
 				let mut padded = [0u8; 32];
-				unsafe {
-					ptr::copy(address.as_ptr(), padded.as_mut_ptr().offset(12), 20);
-				}
+				padded[12..].copy_from_slice(&address);
 				Mediate::Raw(vec![padded])
 			},
 			Token::Bytes(bytes) => Mediate::Prefixed(pad_bytes(bytes)),

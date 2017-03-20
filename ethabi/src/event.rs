@@ -1,7 +1,6 @@
 //! Contract event.
 
 use std::collections::HashMap;
-use std::ptr;
 use spec::{Event as EventInterface, ParamType};
 use decoder::Decoder;
 use token::Token;
@@ -40,14 +39,12 @@ impl Event {
 			false => {
 				let address_slice = try!(topics.get(0).ok_or(Error::InvalidData));
 				let mut address = [0u8; 20];
-				unsafe {
-					ptr::copy(address_slice.as_ptr().offset(12), address.as_mut_ptr(), 20);
-				}
+				address.copy_from_slice(&address_slice[12..]);
 				(Some(address), 1)
 			},
 			true => (None, 0)
 		};
-		
+
 
 		let topic_types = topic_params.iter()
 			.map(|p| p.kind.clone())

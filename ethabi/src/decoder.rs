@@ -1,6 +1,5 @@
 //! ABI decoder.
 
-use std::ptr;
 use spec::ParamType;
 use error::Error;
 use token::Token;
@@ -85,9 +84,7 @@ impl Decoder {
 			ParamType::Address => {
 				let slice = try!(Self::peek(slices, offset));
 				let mut address = [0u8; 20];
-				unsafe {
-					ptr::copy(slice.as_ptr().offset(12), address.as_mut_ptr(), 20);
-				}
+				address.copy_from_slice(&slice[12..]);
 
 				let result = DecodeResult {
 					token: Token::Address(address),
@@ -118,7 +115,7 @@ impl Decoder {
 			},
 			ParamType::Bool => {
 				let slice = try!(Self::peek(slices, offset));
-		
+
 				let b = try!(as_bool(slice));
 
 				let result = DecodeResult {
@@ -173,7 +170,7 @@ impl Decoder {
 			ParamType::Array(ref t) => {
 				let offset_slice = try!(Self::peek(slices, offset));
 				let len_offset = (try!(as_u32(offset_slice)) / 32) as usize;
-				
+
 				let len_slice = try!(Self::peek(slices, len_offset));
 				let len = try!(as_u32(len_slice)) as usize;
 
@@ -185,7 +182,7 @@ impl Decoder {
 					new_offset = res.new_offset;
 					tokens.push(res.token);
 				}
-				
+
 				let result = DecodeResult {
 					token: Token::Array(tokens),
 					new_offset: offset + 1,
@@ -226,31 +223,31 @@ mod tests {
 		let address = Token::Address([0x11u8; 20]);
 		let expected = vec![address];
 		let decoded = Decoder::decode(&[ParamType::Address], encoded).unwrap();
-		assert_eq!(decoded, expected);	
+		assert_eq!(decoded, expected);
 	}
 
 	#[test]
 	fn decode_two_address() {
-		let encoded = ("".to_owned() + 
+		let encoded = ("".to_owned() +
 					   "0000000000000000000000001111111111111111111111111111111111111111" +
 					   "0000000000000000000000002222222222222222222222222222222222222222").from_hex().unwrap();
 		let address1 = Token::Address([0x11u8; 20]);
 		let address2 = Token::Address([0x22u8; 20]);
 		let expected = vec![address1, address2];
 		let decoded = Decoder::decode(&[ParamType::Address, ParamType::Address], encoded).unwrap();
-		assert_eq!(decoded, expected);	
+		assert_eq!(decoded, expected);
 	}
 
 	#[test]
 	fn decode_fixed_array_of_addresses() {
-		let encoded = ("".to_owned() + 
+		let encoded = ("".to_owned() +
 					   "0000000000000000000000001111111111111111111111111111111111111111" +
 					   "0000000000000000000000002222222222222222222222222222222222222222").from_hex().unwrap();
 		let address1 = Token::Address([0x11u8; 20]);
 		let address2 = Token::Address([0x22u8; 20]);
 		let expected = vec![Token::FixedArray(vec![address1, address2])];
 		let decoded = Decoder::decode(&[ParamType::FixedArray(Box::new(ParamType::Address), 2)], encoded).unwrap();
-		assert_eq!(decoded, expected);	
+		assert_eq!(decoded, expected);
 	}
 
 	#[test]
@@ -259,7 +256,7 @@ mod tests {
 		let uint = Token::Uint([0x11u8; 32]);
 		let expected = vec![uint];
 		let decoded = Decoder::decode(&[ParamType::Uint(32)], encoded).unwrap();
-		assert_eq!(decoded, expected);	
+		assert_eq!(decoded, expected);
 	}
 
 	#[test]
@@ -268,13 +265,13 @@ mod tests {
 		let int = Token::Int([0x11u8; 32]);
 		let expected = vec![int];
 		let decoded = Decoder::decode(&[ParamType::Int(32)], encoded).unwrap();
-		assert_eq!(decoded, expected);	
+		assert_eq!(decoded, expected);
 	}
 
 	#[test]
 	fn decode_dynamic_array_of_addresses() {
-		let encoded = ("".to_owned() + 
-			"0000000000000000000000000000000000000000000000000000000000000020" + 
+		let encoded = ("".to_owned() +
+			"0000000000000000000000000000000000000000000000000000000000000020" +
 			"0000000000000000000000000000000000000000000000000000000000000002" +
 			"0000000000000000000000001111111111111111111111111111111111111111" +
 			"0000000000000000000000002222222222222222222222222222222222222222").from_hex().unwrap();
@@ -288,7 +285,7 @@ mod tests {
 
 	#[test]
 	fn decode_dynamic_array_of_fixed_arrays() {
-		let encoded = ("".to_owned() + 
+		let encoded = ("".to_owned() +
 			"0000000000000000000000000000000000000000000000000000000000000020" +
 			"0000000000000000000000000000000000000000000000000000000000000002" +
 			"0000000000000000000000001111111111111111111111111111111111111111" +
@@ -313,8 +310,8 @@ mod tests {
 
 	#[test]
 	fn decode_dynamic_array_of_dynamic_arrays() {
-		let encoded  = ("".to_owned() + 
-			"0000000000000000000000000000000000000000000000000000000000000020" + 
+		let encoded  = ("".to_owned() +
+			"0000000000000000000000000000000000000000000000000000000000000020" +
 			"0000000000000000000000000000000000000000000000000000000000000002" +
 			"0000000000000000000000000000000000000000000000000000000000000080" +
 			"00000000000000000000000000000000000000000000000000000000000000c0" +
@@ -339,8 +336,8 @@ mod tests {
 
 	#[test]
 	fn decode_dynamic_array_of_dynamic_arrays2() {
-		let encoded = ("".to_owned() + 
-			"0000000000000000000000000000000000000000000000000000000000000020" + 
+		let encoded = ("".to_owned() +
+			"0000000000000000000000000000000000000000000000000000000000000020" +
 			"0000000000000000000000000000000000000000000000000000000000000002" +
 			"0000000000000000000000000000000000000000000000000000000000000080" +
 			"00000000000000000000000000000000000000000000000000000000000000e0" +
@@ -369,7 +366,7 @@ mod tests {
 
 	#[test]
 	fn decode_fixed_array_fixed_arrays() {
-		let encoded  = ("".to_owned() + 
+		let encoded  = ("".to_owned() +
 			"0000000000000000000000001111111111111111111111111111111111111111" +
 			"0000000000000000000000002222222222222222222222222222222222222222" +
 			"0000000000000000000000003333333333333333333333333333333333333333" +
@@ -385,7 +382,7 @@ mod tests {
 
 		let decoded = Decoder::decode(&[
 			ParamType::FixedArray(
-				Box::new(ParamType::FixedArray(Box::new(ParamType::Address), 2)), 
+				Box::new(ParamType::FixedArray(Box::new(ParamType::Address), 2)),
 				2
 			)
 		], encoded).unwrap();
@@ -395,9 +392,9 @@ mod tests {
 
 	#[test]
 	fn decode_fixed_array_of_dynamic_array_of_addresses() {
-		let encoded  = ("".to_owned() + 
-			"0000000000000000000000000000000000000000000000000000000000000040" + 
-			"00000000000000000000000000000000000000000000000000000000000000a0" + 
+		let encoded  = ("".to_owned() +
+			"0000000000000000000000000000000000000000000000000000000000000040" +
+			"00000000000000000000000000000000000000000000000000000000000000a0" +
 			"0000000000000000000000000000000000000000000000000000000000000002" +
 			"0000000000000000000000001111111111111111111111111111111111111111" +
 			"0000000000000000000000002222222222222222222222222222222222222222" +
@@ -425,7 +422,7 @@ mod tests {
 
 	#[test]
 	fn decode_fixed_bytes() {
-		let encoded  = ("".to_owned() + 
+		let encoded  = ("".to_owned() +
 			"1234000000000000000000000000000000000000000000000000000000000000").from_hex().unwrap();
 		let bytes = Token::FixedBytes(vec![0x12, 0x34]);
 		let expected = vec![bytes];
@@ -435,7 +432,7 @@ mod tests {
 
 	#[test]
 	fn decode_bytes() {
-		let encoded = ("".to_owned() + 
+		let encoded = ("".to_owned() +
 			"0000000000000000000000000000000000000000000000000000000000000020" +
 			"0000000000000000000000000000000000000000000000000000000000000002" +
 			"1234000000000000000000000000000000000000000000000000000000000000").from_hex().unwrap();
@@ -447,12 +444,12 @@ mod tests {
 
 	#[test]
 	fn decode_bytes2() {
-		let encoded = ("".to_owned() + 
+		let encoded = ("".to_owned() +
 			"0000000000000000000000000000000000000000000000000000000000000020" +
 			"0000000000000000000000000000000000000000000000000000000000000040" +
 			"1000000000000000000000000000000000000000000000000000000000000000" +
 			"1000000000000000000000000000000000000000000000000000000000000000").from_hex().unwrap();
-		let bytes = Token::Bytes(("".to_owned() + 
+		let bytes = Token::Bytes(("".to_owned() +
 			"1000000000000000000000000000000000000000000000000000000000000000" +
 			"1000000000000000000000000000000000000000000000000000000000000000").from_hex().unwrap());
 		let expected = vec![bytes];
@@ -462,7 +459,7 @@ mod tests {
 
 	#[test]
 	fn decode_two_bytes() {
-		let encoded = ("".to_owned() + 
+		let encoded = ("".to_owned() +
 			"0000000000000000000000000000000000000000000000000000000000000040" +
 			"0000000000000000000000000000000000000000000000000000000000000080" +
 			"000000000000000000000000000000000000000000000000000000000000001f" +
@@ -478,7 +475,7 @@ mod tests {
 
 	#[test]
 	fn decode_string() {
-		let encoded = ("".to_owned() + 
+		let encoded = ("".to_owned() +
 			"0000000000000000000000000000000000000000000000000000000000000020" +
 			"0000000000000000000000000000000000000000000000000000000000000009" +
 			"6761766f66796f726b0000000000000000000000000000000000000000000000").from_hex().unwrap();

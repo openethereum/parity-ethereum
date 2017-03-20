@@ -1,4 +1,3 @@
-use std::ptr;
 use rustc_serialize::hex::FromHex;
 use token::{Tokenizer, Error};
 
@@ -12,9 +11,7 @@ impl Tokenizer for StrictTokenizer {
 			false => Err(Error::InvalidValue),
 			true => {
 				let mut address = [0u8; 20];
-				unsafe {
-					ptr::copy(hex.as_ptr(), address.as_mut_ptr(), 20);
-				}
+				address.copy_from_slice(&hex);
 				Ok(address)
 			}
 		}
@@ -50,9 +47,7 @@ impl Tokenizer for StrictTokenizer {
 		match hex.len() == 32 {
 			true => {
 				let mut uint = [0u8; 32];
-				unsafe {
-					ptr::copy(hex.as_ptr(), uint.as_mut_ptr(), 32);
-				}
+				uint.copy_from_slice(&hex);
 				Ok(uint)
 			},
 			false => Err(Error::InvalidValue)
@@ -64,9 +59,7 @@ impl Tokenizer for StrictTokenizer {
 		match hex.len() == 32 {
 			true => {
 				let mut int = [0u8; 32];
-				unsafe {
-					ptr::copy(hex.as_ptr(), int.as_mut_ptr(), 32);
-				}
+				int.copy_from_slice(&hex);
 				Ok(int)
 			},
 			false => Err(Error::InvalidValue)
