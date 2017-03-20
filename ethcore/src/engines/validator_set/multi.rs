@@ -78,12 +78,26 @@ impl ValidatorSet for Multi {
 		self.correct_set(bh).map_or_else(usize::max_value, |set| set.count(bh))
 	}
 
+	fn report_malicious(&self, validator: &Address) {
+		for set in self.sets.values() {
+			set.report_malicious(validator);
+		}
+	}
+
+	fn report_benign(&self, validator: &Address) {
+		for set in self.sets.values() {
+			set.report_benign(validator);
+		}
+	}
 
 	fn register_contract(&self, client: Weak<Client>) {
+		for set in self.sets.values() {
+			set.register_contract(client.clone());
+		}
 		*self.block_number.write() = Box::new(move |hash| client
 			.upgrade()
 			.ok_or("No client!".into())
-			.and_then(|c| c.block_number(BlockId::Hash(*hash)).ok_or("Unknown block".into())))
+			.and_then(|c| c.block_number(BlockId::Hash(*hash)).ok_or("Unknown block".into())));
 	}
 }
 
