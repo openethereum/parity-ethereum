@@ -170,6 +170,13 @@ export const trackRequest = (requestId, requestData) => (dispatch, getState) => 
               ? data.transactionReceipt.blockNumber.toNumber()
               : null;
 
+            const prevRequest = getState().requests[requestId];
+            const nextTransaction = {
+              ...prevRequest.transaction,
+              creates: contractAddress
+            };
+
+            dispatch(setRequest(requestId, { transaction: nextTransaction }));
             return Promise.all([
               api.parity.setAccountName(contractAddress, metadata.name),
               api.parity.setAccountMeta(contractAddress, metadata)
