@@ -287,7 +287,7 @@ export default class SecureApi extends Api {
         // The token is invalid
         log.debug('tried with a wrong token', token);
         return false;
-      })
+      });
   }
 
   /**
