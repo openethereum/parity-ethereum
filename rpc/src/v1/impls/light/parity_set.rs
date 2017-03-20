@@ -28,7 +28,7 @@ use util::sha3;
 use jsonrpc_core::Error;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
-use v1::types::{Bytes, H160, H256, U256, ReleaseInfo};
+use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
 
 /// Parity-specific rpc interface for operations altering the settings.
 pub struct ParitySetClient<F> {
@@ -137,6 +137,10 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 	}
 
 	fn execute_upgrade(&self) -> Result<bool, Error> {
+		Err(errors::light_unimplemented(None))
+	}
+
+	fn remove_transaction(&self, _hash: H256) -> Result<Option<Transaction>, Error> {
 		Err(errors::light_unimplemented(None))
 	}
 }

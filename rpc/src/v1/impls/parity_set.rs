@@ -30,15 +30,10 @@ use updater::{Service as UpdateService};
 use jsonrpc_core::Error;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
-use v1::types::{Bytes, H160, H256, U256, ReleaseInfo};
+use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
 
 /// Parity-specific rpc interface for operations altering the settings.
-pub struct ParitySetClient<C, M, U, F=fetch::Client> where
-	C: MiningBlockChainClient,
-	M: MinerService,
-	U: UpdateService,
-	F: Fetch,
-{
+pub struct ParitySetClient<C, M, U, F = fetch::Client> {
 	client: Weak<C>,
 	miner: Weak<M>,
 	updater: Weak<U>,
@@ -46,12 +41,7 @@ pub struct ParitySetClient<C, M, U, F=fetch::Client> where
 	fetch: F,
 }
 
-impl<C, M, U, F> ParitySetClient<C, M, U, F> where
-	C: MiningBlockChainClient,
-	M: MinerService,
-	U: UpdateService,
-	F: Fetch,
-{
+impl<C, M, U, F> ParitySetClient<C, M, U, F> {
 	/// Creates new `ParitySetClient` with given `Fetch`.
 	pub fn new(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>, fetch: F) -> Self {
 		ParitySetClient {
@@ -180,5 +170,13 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	fn execute_upgrade(&self) -> Result<bool, Error> {
 		let updater = take_weak!(self.updater);
 		Ok(updater.execute_upgrade())
+	}
+
+	fn remove_transaction(&self, hash: H256) -> Result<Option<Transaction>, Error> {
+		let miner = take_weak!(self.miner);
+		let client = take_weak!(self.client);
+		let hash = hash.into();
+
+		Ok(miner.remove_pending_transaction(&*client, &hash).map(Into::into))
 	}
 }
