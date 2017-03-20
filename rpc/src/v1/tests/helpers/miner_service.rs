@@ -221,6 +221,10 @@ impl MinerService for TestMinerService {
 		self.pending_transactions.lock().get(hash).cloned().map(Into::into)
 	}
 
+	fn remove_pending_transaction(&self, _chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction> {
+		self.pending_transactions.lock().remove(hash).map(Into::into)
+	}
+
 	fn pending_transactions(&self) -> Vec<PendingTransaction> {
 		self.pending_transactions.lock().values().cloned().map(Into::into).collect()
 	}
