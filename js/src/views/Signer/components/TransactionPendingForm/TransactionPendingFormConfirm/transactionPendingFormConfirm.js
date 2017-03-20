@@ -95,7 +95,7 @@ export default class TransactionPendingFormConfirm extends Component {
   render () {
     const { account, address, disabled, isSending } = this.props;
     const { wallet, walletError } = this.state;
-    const isWalletOk = account.hardware || account.uuid || (walletError === null && wallet !== null);
+    const isWalletOk = (account && (account.hardware || account.uuid)) || (walletError === null && wallet !== null);
 
     return (
       <div className={ styles.confirmForm }>
@@ -153,10 +153,12 @@ export default class TransactionPendingFormConfirm extends Component {
       return null;
     }
 
+    const isAccount = account && account.uuid;
+
     return (
       <Input
         hint={
-          account.uuid
+          isAccount
             ? (
               <FormattedMessage
                 id='signer.txPendingConfirm.password.unlock.hint'
@@ -171,7 +173,7 @@ export default class TransactionPendingFormConfirm extends Component {
             )
         }
         label={
-          account.uuid
+          isAccount
             ? (
               <FormattedMessage
                 id='signer.txPendingConfirm.password.unlock.label'
@@ -197,7 +199,7 @@ export default class TransactionPendingFormConfirm extends Component {
   renderHint () {
     const { account, disabled, isSending } = this.props;
 
-    if (account.hardware) {
+    if (account && account.hardware) {
       if (isSending) {
         return (
           <div className={ styles.passwordHint }>
@@ -242,7 +244,7 @@ export default class TransactionPendingFormConfirm extends Component {
     const { account } = this.props;
     const { walletError } = this.state;
 
-    if (account.uuid || account.wallet || account.hardware) {
+    if (account && (account.uuid || account.wallet || account.hardware)) {
       return null;
     }
 
@@ -271,7 +273,7 @@ export default class TransactionPendingFormConfirm extends Component {
   renderTooltip () {
     const { account } = this.props;
 
-    if (this.state.password.length || account.hardware) {
+    if (this.state.password.length || (account && account.hardware)) {
       return;
     }
 
