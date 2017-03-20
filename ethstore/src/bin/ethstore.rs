@@ -22,7 +22,7 @@ use std::{env, process, fs};
 use std::io::Read;
 use docopt::Docopt;
 use ethstore::ethkey::Address;
-use ethstore::dir::{KeyDirectory, ParityDirectory, RootDiskDirectory, GethDirectory, DirectoryType};
+use ethstore::dir::{paths, KeyDirectory, RootDiskDirectory};
 use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, Error, PresaleWallet,
 	SecretVaultRef, StoreAccountRef};
 
@@ -116,10 +116,13 @@ fn main() {
 
 fn key_dir(location: &str) -> Result<Box<KeyDirectory>, Error> {
 	let dir: Box<KeyDirectory> = match location {
-		"parity" => Box::new(ParityDirectory::create(DirectoryType::Main)?),
-		"parity-test" => Box::new(ParityDirectory::create(DirectoryType::Testnet)?),
-		"geth" => Box::new(GethDirectory::create(DirectoryType::Main)?),
-		"geth-test" => Box::new(GethDirectory::create(DirectoryType::Testnet)?),
+		"geth" => Box::new(RootDiskDirectory::create(paths::geth(false))?),
+		"geth-test" => Box::new(RootDiskDirectory::create(paths::geth(true))?),
+		path if path.starts_with("parity") => {
+			let chain = path.split('-').nth(1).unwrap_or("ethereum");
+			let path = paths::parity(chain);
+			Box::new(RootDiskDirectory::create(path)?)
+		},
 		path => Box::new(RootDiskDirectory::create(path)?),
 	};
 
@@ -254,4 +257,3 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		Ok(format!("{}", USAGE))
 	}
 }
-

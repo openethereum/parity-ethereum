@@ -20,18 +20,9 @@ use std::path::{PathBuf};
 use {SafeAccount, Error};
 
 mod disk;
-mod geth;
 mod memory;
-mod parity;
 mod vault;
-
-/// Directory
-pub enum DirectoryType {
-	/// For testnet
-	Testnet,
-	/// For mainnet
-	Main,
-}
+pub mod paths;
 
 /// `VaultKeyDirectory::set_key` error
 #[derive(Debug)]
@@ -100,9 +91,7 @@ pub trait VaultKeyDirectory: KeyDirectory {
 }
 
 pub use self::disk::RootDiskDirectory;
-pub use self::geth::GethDirectory;
 pub use self::memory::MemoryDirectory;
-pub use self::parity::ParityDirectory;
 pub use self::vault::VaultDiskDirectory;
 
 impl VaultKey {
