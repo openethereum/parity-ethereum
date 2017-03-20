@@ -43,7 +43,7 @@ use v1::types::{
 };
 
 /// After 60s entries that are not queried with `check_request` will get garbage collected.
-const MAX_PENDING_DURATION_SEC: u64 = 60;
+const MAX_PENDING_DURATION_SEC: u32 = 60;
 /// Max number of total requests pending and completed, before we start garbage collecting them.
 const MAX_TOTAL_REQUESTS: usize = SIGNING_QUEUE_LIMIT;
 
