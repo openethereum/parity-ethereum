@@ -87,7 +87,7 @@ class RequestsPage extends Component {
       >
         <TxList
           address=''
-          blockNumber= { blockNumber }
+          blockNumber={ blockNumber }
           hashes={ localHashes }
         />
       </Container>

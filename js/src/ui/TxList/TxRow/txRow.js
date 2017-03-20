@@ -178,7 +178,6 @@ class TxRow extends Component {
     }
 
     if (!isCancelOpen && !isEditOpen) {
-
       return (
         <div className={ styles.pending }>
           <span>
@@ -224,7 +223,7 @@ class TxRow extends Component {
           <FormattedMessage
             id='ui.txList.txRow.verify.cancelEdit'
             defaultMessage='{ which }'
-            values= { {
+            values={ {
               which: `${(isCancelOpen) ? 'Cancel' : 'Edit'}`
             } }
           />
@@ -269,8 +268,8 @@ class TxRow extends Component {
     const { time, block } = tx.condition;
 
     return (time)
-      ? dateDifference(new Date(), time, {compact: true})
-      : `${(blockNumber) ? blockNumber.minus(block).abs().toFormat(0) : null} blocks`
+      ? dateDifference(new Date(), time, { compact: true })
+      : `${(blockNumber) ? blockNumber.minus(block).abs().toFormat(0) : null} blocks`;
   }
 
   cancelTransaction = () => {
