@@ -27,7 +27,7 @@ import styles from './transactionPendingFormConfirm.css';
 
 export default class TransactionPendingFormConfirm extends Component {
   static propTypes = {
-    account: PropTypes.object.isRequired,
+    account: PropTypes.object,
     address: PropTypes.string.isRequired,
     disabled: PropTypes.bool,
     isSending: PropTypes.bool.isRequired,
