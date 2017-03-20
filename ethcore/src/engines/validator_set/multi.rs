@@ -24,13 +24,16 @@ use header::BlockNumber;
 use client::{Client, BlockChainClient};
 use super::ValidatorSet;
 
+type BlockNumberLookup = Box<Fn(&H256) -> Result<BlockNumber, String> + Send + Sync + 'static>;
+
 pub struct Multi {
 	sets: BTreeMap<BlockNumber, Box<ValidatorSet>>,
-	block_number: RwLock<Box<Fn(&H256) -> Result<BlockNumber, String> + Send + Sync + 'static>>,
+	block_number: RwLock<BlockNumberLookup>,
 }
 
 impl Multi {
 	pub fn new(set_map: BTreeMap<BlockNumber, Box<ValidatorSet>>) -> Self {
+		assert!(set_map.get(&0u64).is_some(), "ValidatorSet has to be specified from block 0.");
 		Multi {
 			sets: set_map,
 			block_number: RwLock::new(Box::new(move |_| Err("No client!".into()))),
@@ -46,7 +49,9 @@ impl Multi {
 					 .iter()
 					 .rev()
 					 .find(|&(block, _)| *block <= parent_block + 1)
-					 .expect("First ValidatorSet has to start at block 0!")
+					 .expect("constructor validation ensures that there is at least one validator set for block 0;
+									 block 0 is less than any uint;
+									 qed")
 				) {
 			Ok((block, set)) => {
 				trace!(target: "engine", "Multi ValidatorSet retrieved for block {}.", block);
