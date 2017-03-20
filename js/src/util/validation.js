@@ -49,6 +49,7 @@ export function validateAbi (abi) {
       abiError = ERRORS.invalidAbi;
 
       return {
+        error: abiError,
         abi,
         abiError,
         abiParsed
@@ -67,6 +68,7 @@ export function validateAbi (abi) {
       abiError = `${ERRORS.invalidAbi} (#${invalidIndex}: ${invalid.name || invalid.type})`;
 
       return {
+        error: abiError,
         abi,
         abiError,
         abiParsed

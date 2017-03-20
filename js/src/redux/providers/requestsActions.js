@@ -113,7 +113,6 @@ export const init = (api) => (dispatch) => {
   });
 
   api.on('connected', () => {
-    console.log('loading previous requests...');
     cachedRequests.load(api).then((requests) => {
       requests.forEach((request) => dispatch(watchRequest(request)));
     });
@@ -128,6 +127,7 @@ export const watchRequest = (request) => (dispatch, getState) => {
     ...extras
   };
 
+  // Convert value to BigNumber
   requestData.transaction.value = new BigNumber(requestData.transaction.value || 0);
   dispatch(setRequest(requestId, requestData));
   dispatch(trackRequest(requestId, requestData));
@@ -150,7 +150,7 @@ export const trackRequest = (requestId, requestData) => (dispatch, getState) => 
 
       // If the request was a contract deployment,
       // then add the contract with the saved metadata to the account
-      if (requestData.deployment && requestData.metadata) {
+      if (requestData.metadata && requestData.metadata.deployment) {
         const { metadata } = requestData;
 
         const options = {

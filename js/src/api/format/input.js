@@ -139,8 +139,8 @@ export function inOptionsCondition (condition) {
   return condition;
 }
 
-export function inOptions (options = {}) {
-  const result = {};
+export function inOptions (_options = {}) {
+  const options = { ..._options };
 
   Object.keys(options).forEach((key) => {
     switch (key) {
@@ -148,39 +148,41 @@ export function inOptions (options = {}) {
         // Don't encode the `to` option if it's empty
         // (eg. contract deployments)
         if (options[key]) {
-          result[key] = inAddress(options[key]);
+          options.to = inAddress(options[key]);
+        } else {
+          options.to = '';
         }
         break;
 
       case 'from':
-        result[key] = inAddress(options[key]);
+        options[key] = inAddress(options[key]);
         break;
 
       case 'condition':
-        result[key] = inOptionsCondition(options[key]);
+        options[key] = inOptionsCondition(options[key]);
         break;
 
       case 'gas':
       case 'gasPrice':
-        result[key] = inNumber16((new BigNumber(options[key])).round());
+        options[key] = inNumber16((new BigNumber(options[key])).round());
         break;
 
       case 'minBlock':
-        result[key] = options[key] ? inNumber16(options[key]) : null;
+        options[key] = options[key] ? inNumber16(options[key]) : null;
         break;
 
       case 'value':
       case 'nonce':
-        result[key] = inNumber16(options[key]);
+        options[key] = inNumber16(options[key]);
         break;
 
       case 'data':
-        result[key] = inData(options[key]);
+        options[key] = inData(options[key]);
         break;
     }
   });
 
-  return result;
+  return options;
 }
 
 export function inTraceFilter (filterObject) {

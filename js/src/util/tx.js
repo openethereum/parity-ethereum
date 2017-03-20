@@ -117,8 +117,9 @@ export function deployEstimateGas (contract, _options, values) {
     });
 }
 
-export function deploy (contract, _options, values, metadata = {}, skipGasEstimate = false) {
-  const options = { ..._options, metadata, deployment: true };
+export function deploy (contract, _options, values, _metadata = {}, skipGasEstimate = false) {
+  const metadata = { ..._metadata, deployment: true };
+  const options = { ..._options, metadata };
   const { api } = contract;
   const address = options.from;
 

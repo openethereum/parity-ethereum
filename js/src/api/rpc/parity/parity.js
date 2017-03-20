@@ -374,7 +374,8 @@ export default class Parity {
       .execute('parity_postSign', inAddress(address), inHex(hash));
   }
 
-  postTransaction (options) {
+  postTransaction (_options = {}) {
+    const { metadata = {}, ...options } = _options;
     const parsedOptions = inOptions(options);
 
     return this._transport
@@ -382,6 +383,7 @@ export default class Parity {
       .then((requestId) => {
         this._transport.emit('request', {
           ...options,
+          metadata,
           requestId
         });
 
