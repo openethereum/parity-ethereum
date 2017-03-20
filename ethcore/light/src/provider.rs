@@ -128,7 +128,7 @@ pub trait Provider: Send + Sync {
 	///
 	/// Returns a vector of RLP-encoded lists satisfying the requests.
 	fn proofs(&self, req: request::StateProofs) -> Vec<Bytes> {
-		use rlp::{RlpStream, Stream};
+		use rlp::RlpStream;
 
 		let mut results = Vec::with_capacity(req.requests.len());
 
@@ -166,7 +166,7 @@ pub trait Provider: Send + Sync {
 	/// The first element is a block header and the second a merkle proof of
 	/// the header in a requested CHT.
 	fn header_proofs(&self, req: request::HeaderProofs) -> Vec<Bytes> {
-		use rlp::{self, RlpStream, Stream};
+		use rlp::{self, RlpStream};
 
 		req.requests.into_iter()
 			.map(|req| self.header_proof(req))

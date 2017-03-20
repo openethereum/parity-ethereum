@@ -105,7 +105,7 @@ impl Default for CostTable {
 	}
 }
 
-impl RlpEncodable for CostTable {
+impl Encodable for CostTable {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		fn append_cost(s: &mut RlpStream, msg_id: u8, cost: &Cost) {
 			s.begin_list(3)

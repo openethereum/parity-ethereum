@@ -10,3 +10,4 @@ elastic-array = { git = "https://github.com/ethcore/elastic-array" }
 ethcore-bigint = { path = "../bigint" }
 lazy_static = "0.2"
 rustc-serialize = "0.3"
+byteorder = "1.0"

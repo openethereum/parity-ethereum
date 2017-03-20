@@ -1924,6 +1924,7 @@ dependencies = [
 name = "rlp"
 version = "0.1.0"
 dependencies = [
+ "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.6.0 (git+https://github.com/ethcore/elastic-array)",
  "ethcore-bigint 0.1.2",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
