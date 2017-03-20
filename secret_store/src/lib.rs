@@ -52,14 +52,14 @@ mod key_server;
 mod key_storage;
 
 pub use types::all::{DocumentAddress, DocumentKey, DocumentEncryptedKey, RequestSignature, Public,
-	Error, ServiceConfiguration};
+	Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, EncryptionConfiguration};
 pub use traits::{KeyServer};
 
 /// Start new key server instance
 pub fn start(config: ServiceConfiguration) -> Result<Box<KeyServer>, Error> {
 	let acl_storage = acl_storage::DummyAclStorage::default();
 	let key_storage = key_storage::PersistentKeyStorage::new(&config)?;
-	let key_server = key_server::KeyServerImpl::new(acl_storage, key_storage);
+	let key_server = key_server::KeyServerImpl::new(&config.cluster_config, acl_storage, key_storage)?;
 	let listener = http_listener::KeyServerHttpListener::start(config, key_server)?;
 	Ok(Box::new(listener))
 }

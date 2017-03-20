@@ -26,13 +26,15 @@ use ethkey::{self, Public, Secret, Signature};
 use ethcrypto;
 use super::types::all::DocumentAddress;
 
+pub use super::types::all::EncryptionConfiguration;
 pub use super::acl_storage::AclStorage;
+pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
 
 pub type NodeId = Public;
 pub type SessionId = DocumentAddress;
 pub type SessionIdSignature = Signature;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 /// Errors which can occur during encryption/decryption session
 pub enum Error {
 	/// Invalid node address has been passed.
@@ -52,6 +54,9 @@ pub enum Error {
 	/// Invalid threshold value has been passed.
 	/// Threshold value must be in [0; n - 1], where n is a number of nodes participating in the encryption.
 	InvalidThreshold,
+	/// Current state of encryption/decryption session does not allow to proceed request.
+	/// Reschedule this request for later processing.
+	TooEarlyForRequest,
 	/// Current state of encryption/decryption session does not allow to proceed request.
 	/// This means that either there is some comm-failure or node is misbehaving/cheating.
 	InvalidStateForRequest,
@@ -111,6 +116,7 @@ impl fmt::Display for Error {
 			Error::InvalidNodesCount => write!(f, "invalid nodes count"),
 			Error::InvalidNodesConfiguration => write!(f, "invalid nodes configuration"),
 			Error::InvalidThreshold => write!(f, "invalid threshold value has been passed"),
+			Error::TooEarlyForRequest => write!(f, "session is not yet ready to process this request"),
 			Error::InvalidStateForRequest => write!(f, "session is in invalid state for processing this request"),
 			Error::InvalidMessage => write!(f, "invalid message is received"),
 			Error::NodeDisconnected => write!(f, "node required for this operation is currently disconnected"),
@@ -118,6 +124,12 @@ impl fmt::Display for Error {
 			Error::Io(ref e) => write!(f, "i/o error {}", e),
 			Error::Serde(ref e) => write!(f, "serde error {}", e),
 		}
+	}
+}
+
+impl Into<String> for Error {
+	fn into(self) -> String {
+		format!("{}", self)
 	}
 }
 

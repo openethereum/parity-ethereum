@@ -61,10 +61,12 @@ impl KeyStorage for PersistentKeyStorage {
 
 #[cfg(test)]
 pub mod tests {
-	use std::collections::HashMap;
+	use std::collections::{BTreeMap, HashMap};
 	use parking_lot::RwLock;
 	use devtools::RandomTempPath;
-	use super::super::types::all::{Error, ServiceConfiguration, DocumentAddress, DocumentKey};
+	use ethkey::{Random, Generator};
+	use super::super::types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration,
+		DocumentAddress, DocumentKey, EncryptionConfiguration};
 	use super::{KeyStorage, PersistentKeyStorage};
 
 	#[derive(Default)]
@@ -88,9 +90,24 @@ pub mod tests {
 	fn persistent_key_storage() {
 		let path = RandomTempPath::create_dir();
 		let config = ServiceConfiguration {
-			listener_addr: "0.0.0.0".to_owned(),
-			listener_port: 8082,
+			listener_address: NodeAddress {
+				address: "0.0.0.0".to_owned(),
+				port: 8082,
+			},
 			data_path: path.as_str().to_owned(),
+			cluster_config: ClusterConfiguration {
+				threads: 1,
+				self_private: (**Random.generate().unwrap().secret().clone()).into(),
+				listener_address: NodeAddress {
+					address: "0.0.0.0".to_owned(),
+					port: 8083,
+				},
+				nodes: BTreeMap::new(),
+				allow_connecting_to_higher_nodes: false,
+				encryption_config: EncryptionConfiguration {
+					key_check_timeout_ms: 10,
+				},
+			},
 		};
 		
 		let key1 = DocumentAddress::from(1);

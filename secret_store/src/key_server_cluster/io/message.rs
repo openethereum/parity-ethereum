@@ -45,6 +45,7 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::Cluster(ClusterMessage::NodePublicKey(payload))							=> (1, serde_json::to_vec(&payload)),
 		Message::Cluster(ClusterMessage::NodePrivateKeySignature(payload))					=> (2, serde_json::to_vec(&payload)),
 		Message::Cluster(ClusterMessage::KeepAlive(payload))								=> (3, serde_json::to_vec(&payload)),
+		Message::Cluster(ClusterMessage::KeepAliveResponse(payload))						=> (4, serde_json::to_vec(&payload)),
 
 		Message::Encryption(EncryptionMessage::InitializeSession(payload))					=> (50, serde_json::to_vec(&payload)),
 		Message::Encryption(EncryptionMessage::ConfirmInitialization(payload))				=> (51, serde_json::to_vec(&payload)),
@@ -84,6 +85,7 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		1	=> Message::Cluster(ClusterMessage::NodePublicKey(serde_json::from_slice(&payload).map_err(|err| Error::Serde(format!("{}", err)))?)),
 		2	=> Message::Cluster(ClusterMessage::NodePrivateKeySignature(serde_json::from_slice(&payload).map_err(|err| Error::Serde(format!("{}", err)))?)),
 		3	=> Message::Cluster(ClusterMessage::KeepAlive(serde_json::from_slice(&payload).map_err(|err| Error::Serde(format!("{}", err)))?)),
+		4	=> Message::Cluster(ClusterMessage::KeepAliveResponse(serde_json::from_slice(&payload).map_err(|err| Error::Serde(format!("{}", err)))?)),
 
 		50	=> Message::Encryption(EncryptionMessage::InitializeSession(serde_json::from_slice(&payload).map_err(|err| Error::Serde(format!("{}", err)))?)),
 		51	=> Message::Encryption(EncryptionMessage::ConfirmInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(format!("{}", err)))?)),

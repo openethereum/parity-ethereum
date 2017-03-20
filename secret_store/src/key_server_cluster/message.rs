@@ -48,6 +48,8 @@ pub enum ClusterMessage {
 	NodePrivateKeySignature(NodePrivateKeySignature),
 	/// Keep alive message.
 	KeepAlive(KeepAlive),
+	/// Keep alive message response.
+	KeepAliveResponse(KeepAliveResponse),
 }
 
 #[derive(Clone, Debug)]
@@ -104,8 +106,13 @@ pub struct NodePrivateKeySignature {
 
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-/// Confirm that node owns the private key of previously passed public key (aka node id).
+/// Ask if the node is still alive.
 pub struct KeepAlive {
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Confirm that the node is still alive.
+pub struct KeepAliveResponse {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -249,6 +256,21 @@ pub struct DecryptionSessionError {
 	pub error: String,
 }
 
+impl EncryptionMessage {
+	pub fn session_id(&self) -> &SessionId {
+		match *self {
+			EncryptionMessage::InitializeSession(ref msg) => &msg.session,
+			EncryptionMessage::ConfirmInitialization(ref msg) => &msg.session,
+			EncryptionMessage::CompleteInitialization(ref msg) => &msg.session,
+			EncryptionMessage::KeysDissemination(ref msg) => &msg.session,
+			EncryptionMessage::Complaint(ref msg) => &msg.session,
+			EncryptionMessage::ComplaintResponse(ref msg) => &msg.session,
+			EncryptionMessage::PublicKeyShare(ref msg) => &msg.session,
+			EncryptionMessage::SessionError(ref msg) => &msg.session,
+		}
+	}
+}
+
 impl fmt::Display for Message {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
@@ -265,6 +287,7 @@ impl fmt::Display for ClusterMessage {
 			ClusterMessage::NodePublicKey(_) => write!(f, "NodePublicKey"),
 			ClusterMessage::NodePrivateKeySignature(_) => write!(f, "NodePrivateKeySignature"),
 			ClusterMessage::KeepAlive(_) => write!(f, "KeepAlive"),
+			ClusterMessage::KeepAliveResponse(_) => write!(f, "KeepAliveResponse"),
 		}
 	}
 }

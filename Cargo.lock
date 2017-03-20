@@ -24,6 +24,7 @@ dependencies = [
  "ethcore-signer 1.6.0",
  "ethcore-stratum 1.6.0",
  "ethcore-util 1.6.0",
+ "ethkey 0.2.0",
  "ethsync 1.6.0",
  "evmbin 0.1.0",
  "fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
