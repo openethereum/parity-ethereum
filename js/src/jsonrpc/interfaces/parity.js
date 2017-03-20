@@ -655,7 +655,7 @@ export default {
     ],
     returns: {
       type: Boolean,
-      desc: 'returns `true` if the upgrade to the new release was successfully executed, `false` if not.',
+      desc: 'returns `true` if the transaction was successfully canceled, `false` if not.',
       example: true
     }
   },

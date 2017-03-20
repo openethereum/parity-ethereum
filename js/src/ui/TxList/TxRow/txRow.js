@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import moment from 'moment';
+import dateDifference from 'date-difference';
+import { FormattedMessage } from 'react-intl';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
@@ -35,6 +37,7 @@ class TxRow extends Component {
   static propTypes = {
     accountAddresses: PropTypes.array.isRequired,
     address: PropTypes.string.isRequired,
+    blockNumber: PropTypes.object,
     contractAddresses: PropTypes.array.isRequired,
     netVersion: PropTypes.string.isRequired,
     tx: PropTypes.object.isRequired,
@@ -50,7 +53,9 @@ class TxRow extends Component {
 
   state = {
     isCancelOpen: false,
-    canceled: false
+    isEditOpen: false,
+    canceled: false,
+    editing: false
   };
 
   render () {
@@ -148,25 +153,59 @@ class TxRow extends Component {
   }
 
   renderCancelToggle () {
-    const { isCancelOpen, canceled } = this.state;
-    const { parity } = this.context.api;
-    const { hash } = this.props.tx;
+    const { canceled, editing, isCancelOpen, isEditOpen } = this.state;
 
     if (canceled) {
       return (
-        <div className={ styles.pending }>CANCELED</div>
+        <div className={ styles.pending }>
+          <FormattedMessage
+            id='ui.txList.txRow.canceled'
+            defaultMessage='CANCELED'
+          />
+        </div>
       );
     }
 
-    if (!isCancelOpen) {
+    if (editing) {
       return (
         <div className={ styles.pending }>
-          <div>SCHEDULED</div>
-          <a
-            className={ styles.cancel }
-            onClick={ () => this.setState({ isCancelOpen: true }) }
-          >
-            CANCEL
+          <FormattedMessage
+            id='ui.txList.txRow.editing'
+            defaultMessage='EDITING'
+          />
+        </div>
+      );
+    }
+
+    if (!isCancelOpen && !isEditOpen) {
+
+      return (
+        <div className={ styles.pending }>
+          <span>
+            <FormattedMessage
+              id='ui.txList.txRow.time'
+              defaultMessage='{when} to go'
+              values={ { when: this.getCondition() } }
+            />
+          </span>
+          <div>
+            <FormattedMessage
+              id='ui.txList.txRow.scheduled'
+              defaultMessage='SCHEDULED'
+            />
+          </div>
+          <a onClick={ this.setEdit }>
+            <FormattedMessage
+              id='ui.txList.txRow.edit'
+              defaultMessage='EDIT'
+            />
+          </a>
+          <span>{' | '}</span>
+          <a onClick={ this.setCancel }>
+            <FormattedMessage
+              id='ui.txList.txRow.cancel'
+              defaultMessage='CANCEL'
+            />
           </a>
         </div>
       );
@@ -174,10 +213,29 @@ class TxRow extends Component {
 
     return (
       <div className={ styles.pending }>
-        <div>ARE YOU SURE?</div>
-        <a onClick={ () => this.cancelTransaction(parity, hash) }>Cancel</a>
-        <span> | </span>
-        <a onClick={ () => this.setState({ isCancelOpen: false }) }>Nevermind</a>
+        <div />
+        <div>
+          <FormattedMessage
+            id='ui.txList.txRow.verify'
+            defaultMessage='ARE YOU SURE?'
+          />
+        </div>
+        <a onClick={ (isCancelOpen) ? this.cancelTransaction : this.editTransaction }>
+          <FormattedMessage
+            id='ui.txList.txRow.verify.cancelEdit'
+            defaultMessage='{ which }'
+            values= { {
+              which: `${(isCancelOpen) ? 'Cancel' : 'Edit'}`
+            } }
+          />
+        </a>
+        <span>{' | '}</span>
+        <a onClick={ this.nevermind }>
+          <FormattedMessage
+            id='ui.txList.txRow.verify.nevermind'
+            defaultMessage='Nevermind'
+          />
+        </a>
       </div>
     );
   }
@@ -206,9 +264,49 @@ class TxRow extends Component {
     return `/addresses/${address}`;
   }
 
-  cancelTransaction (parity, hash) {
+  getCondition = () => {
+    const { blockNumber, tx } = this.props;
+    const { time, block } = tx.condition;
+
+    return (time)
+      ? dateDifference(new Date(), time, {compact: true})
+      : `${(blockNumber) ? blockNumber.minus(block).abs().toFormat(0) : null} blocks`
+  }
+
+  cancelTransaction = () => {
+    const { parity } = this.context.api;
+    const { hash } = this.props.tx;
+
     parity.removeTransaction(hash);
     this.setState({ canceled: true });
+  }
+
+  editTransaction = () => {
+    const { eth, parity } = this.context.api;
+    const { hash, gas, gasPrice, to, from, value, input } = this.props.tx;
+
+    parity.removeTransaction(hash);
+    eth.sendTransaction({
+      from,
+      to,
+      gas,
+      gasPrice,
+      value,
+      data: input
+    });
+    this.setState({ editing: true });
+  }
+
+  setCancel = () => {
+    this.setState({ isCancelOpen: true });
+  }
+
+  setEdit = () => {
+    this.setState({ isEditOpen: true });
+  }
+
+  nevermind = () => {
+    this.setState({ isCancelOpen: false, isEditOpen: false });
   }
 }
 

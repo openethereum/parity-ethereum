@@ -35,6 +35,7 @@ class TxList extends Component {
       PropTypes.array,
       PropTypes.object
     ]).isRequired,
+    blockNumber: PropTypes.object,
     netVersion: PropTypes.string.isRequired
   };
 
@@ -63,18 +64,19 @@ class TxList extends Component {
   }
 
   renderRows () {
-    const { address, netVersion } = this.props;
+    const { address, netVersion, blockNumber } = this.props;
 
     return this.store.sortedHashes.map((txhash) => {
       const tx = this.store.transactions[txhash];
-      const blockNumber = tx.blockNumber.toNumber();
-      const block = this.store.blocks[blockNumber];
+      const txBlockNumber = tx.blockNumber.toNumber();
+      const block = this.store.blocks[txBlockNumber];
 
       return (
         <TxRow
           key={ tx.hash }
           tx={ tx }
           block={ block }
+          blockNumber={ blockNumber }
           address={ address }
           netVersion={ netVersion }
         />

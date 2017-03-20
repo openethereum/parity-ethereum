@@ -41,6 +41,7 @@ class RequestsPage extends Component {
       startRejectRequest: PropTypes.func.isRequired
     }).isRequired,
     gasLimit: PropTypes.object.isRequired,
+    blockNumber: PropTypes.object,
     netVersion: PropTypes.string.isRequired,
     signer: PropTypes.shape({
       pending: PropTypes.array.isRequired,
@@ -69,6 +70,7 @@ class RequestsPage extends Component {
 
   renderLocalQueue () {
     const { localHashes } = this.store;
+    const { blockNumber } = this.props;
 
     if (!localHashes.length) {
       return null;
@@ -85,6 +87,7 @@ class RequestsPage extends Component {
       >
         <TxList
           address=''
+          blockNumber= { blockNumber }
           hashes={ localHashes }
         />
       </Container>
@@ -148,11 +151,12 @@ class RequestsPage extends Component {
 }
 
 function mapStateToProps (state) {
-  const { gasLimit, netVersion } = state.nodeStatus;
+  const { gasLimit, netVersion, blockNumber } = state.nodeStatus;
   const { actions, signer } = state;
 
   return {
     actions,
+    blockNumber,
     gasLimit,
     netVersion,
     signer

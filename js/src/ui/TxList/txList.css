@@ -43,7 +43,7 @@
 
     &.timestamp {
       max-width: 5em;
-      padding-top: 2.25em;
+      padding-top: 0.75em;
       text-align: center;
       line-height: 1.5em;
       color: grey;
@@ -90,6 +90,6 @@
   }
 
   .pending div {
-    padding-bottom: 1.5em;
+    padding-bottom: 1.25em;
   }
 }
