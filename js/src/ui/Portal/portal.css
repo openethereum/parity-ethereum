@@ -68,12 +68,13 @@ $popoverZ: 3600;
   }
 
   &.modal {
+    z-index: $modalZ;
+
     &:not(.small) {
       bottom: $modalBottom;
       left: $modalLeft;
       right: $modalRight;
       top: $modalTop;
-      z-index: $modalZ;
     }
 
     /* TODO: Small Portals don't adjust their overall height like we have with the
