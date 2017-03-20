@@ -268,10 +268,11 @@ class TxRow extends Component {
     let { time, block } = tx.condition;
 
     if (time) {
-      if ((time.getTime() - Date.now()) >= 0)
+      if ((time.getTime() - Date.now()) >= 0) {
         return `${dateDifference(new Date(), time, { compact: true })} left`;
-      else
+      } else {
         return 'submitting...';
+      }
     } else if (blockNumber) {
       block = blockNumber.minus(block);
       return (block.toNumber() < 0)
