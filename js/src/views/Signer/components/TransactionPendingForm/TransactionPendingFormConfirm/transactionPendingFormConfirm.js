@@ -26,7 +26,6 @@ import { createUnsignedTx } from '~/util/qrscan';
 
 import styles from './transactionPendingFormConfirm.css';
 
-const QR_INVISIBLE = 0;
 const QR_VISIBLE = 1;
 const QR_SCAN = 2;
 const QR_COMPLETED = 3;
@@ -56,7 +55,7 @@ export default class TransactionPendingFormConfirm extends Component {
 
   state = {
     password: '',
-    qrState: QR_INVISIBLE,
+    qrState: QR_VISIBLE,
     qrValue: null,
     wallet: null,
     walletError: null
@@ -64,6 +63,15 @@ export default class TransactionPendingFormConfirm extends Component {
 
   componentDidMount () {
     this.focus();
+  }
+
+  componentWillMount () {
+    this.readNonce();
+    this.subscribeNonce();
+  }
+
+  componentWillUnmount () {
+    this.unsubscribeNonce();
   }
 
   componentWillReceiveProps (nextProps) {
@@ -163,14 +171,6 @@ export default class TransactionPendingFormConfirm extends Component {
 
     if (account.external) {
       switch (qrState) {
-        case QR_INVISIBLE:
-          return (
-            <FormattedMessage
-              id='signer.txPendingConfirm.buttons.confirmScan'
-              defaultMessage='External Confirm'
-            />
-          );
-
         case QR_VISIBLE:
           return (
             <FormattedMessage
@@ -261,16 +261,6 @@ export default class TransactionPendingFormConfirm extends Component {
               <FormattedMessage
                 id='signer.sending.external.scanTx'
                 defaultMessage='Please scan the transaction QR on your external device'
-              />
-            </div>
-          );
-
-        case QR_INVISIBLE:
-          return (
-            <div className={ styles.passwordHint }>
-              <FormattedMessage
-                id='signer.sending.external.confirm'
-                defaultMessage='Create a transaction QR code for scanning on your external device'
               />
             </div>
           );
@@ -483,13 +473,8 @@ export default class TransactionPendingFormConfirm extends Component {
     const { account } = this.props;
     const { password, qrState, wallet } = this.state;
 
-    if (account.external) {
-      if (qrState === QR_INVISIBLE) {
-        this.generateTxQr();
-        return this.setState({ qrState: QR_VISIBLE });
-      } else if (qrState === QR_VISIBLE) {
-        return this.setState({ qrState: QR_SCAN });
-      }
+    if (account.external && qrState === QR_VISIBLE) {
+      return this.setState({ qrState: QR_SCAN });
     }
 
     this.props.onConfirm({
@@ -526,5 +511,44 @@ export default class TransactionPendingFormConfirm extends Component {
     }
 
     this.onConfirm();
+  }
+
+  // FIXME: Sadly the API subscription channels currently does not allow for specific values,
+  // rather it can only do general queries where parameters are not specified. Hence we are
+  // polling for the nonce here. Since we are moving to node-based subscriptions on the API layer,
+  // this can be optimised when the subscription mechanism is reworked to conform.
+  subscribeNonce () {
+    const nonceTimerId = setInterval(this.readNonce, 1000);
+
+    this.setState({ nonceTimerId });
+  }
+
+  unsubscribeNonce () {
+    const { nonceTimerId } = this.state;
+
+    if (!nonceTimerId) {
+      return;
+    }
+
+    clearInterval(nonceTimerId);
+  }
+
+  readNonce = () => {
+    const { api } = this.context;
+    const { account } = this.props;
+
+    if (!account || !account.external || !api.transport.isConnected) {
+      return;
+    }
+
+    return api.parity
+      .nextNonce(account.address)
+      .then((nonce) => {
+        const { qrNonce } = this.state;
+
+        if (!qrNonce || !nonce.eq(qrNonce)) {
+          this.generateTxQr();
+        }
+      });
   }
 }
