@@ -36,6 +36,7 @@ export default class TransactionPendingFormConfirm extends Component {
   };
 
   static defaultProps = {
+    account: {},
     focus: false
   };
 
@@ -80,7 +81,7 @@ export default class TransactionPendingFormConfirm extends Component {
 
   getPasswordHint () {
     const { account } = this.props;
-    const accountHint = account && account.meta && account.meta.passwordHint;
+    const accountHint = account.meta && account.meta.passwordHint;
 
     if (accountHint) {
       return accountHint;
@@ -95,7 +96,7 @@ export default class TransactionPendingFormConfirm extends Component {
   render () {
     const { account, address, disabled, isSending } = this.props;
     const { wallet, walletError } = this.state;
-    const isWalletOk = (account && (account.hardware || account.uuid)) || (walletError === null && wallet !== null);
+    const isWalletOk = account.hardware || account.uuid || (walletError === null && wallet !== null);
 
     return (
       <div className={ styles.confirmForm }>
@@ -149,11 +150,11 @@ export default class TransactionPendingFormConfirm extends Component {
     const { account } = this.props;
     const { password } = this.state;
 
-    if (account && account.hardware) {
+    if (account.hardware) {
       return null;
     }
 
-    const isAccount = account && account.uuid;
+    const isAccount = account.uuid;
 
     return (
       <Input
@@ -199,7 +200,7 @@ export default class TransactionPendingFormConfirm extends Component {
   renderHint () {
     const { account, disabled, isSending } = this.props;
 
-    if (account && account.hardware) {
+    if (account.hardware) {
       if (isSending) {
         return (
           <div className={ styles.passwordHint }>
@@ -244,7 +245,7 @@ export default class TransactionPendingFormConfirm extends Component {
     const { account } = this.props;
     const { walletError } = this.state;
 
-    if (account && (account.uuid || account.wallet || account.hardware)) {
+    if (account.uuid || account.wallet || account.hardware) {
       return null;
     }
 
@@ -273,7 +274,7 @@ export default class TransactionPendingFormConfirm extends Component {
   renderTooltip () {
     const { account } = this.props;
 
-    if (this.state.password.length || (account && account.hardware)) {
+    if (this.state.password.length || account.hardware) {
       return;
     }
 
