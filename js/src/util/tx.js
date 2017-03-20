@@ -73,7 +73,7 @@ export function postTransaction (_func, _options, _values = []) {
     });
 }
 
-export function deploy (contract, _options, values, metadata = {}, statecb = () => {}) {
+export function deploy (contract, _options, values, metadata = {}, statecb = () => {}, skipGasEstimate = false) {
   const options = { ..._options };
   const { api } = contract;
   const address = options.from;
@@ -82,16 +82,27 @@ export function deploy (contract, _options, values, metadata = {}, statecb = () 
     .isWallet(api, address)
     .then((isWallet) => {
       if (!isWallet) {
-        return contract.deploy(options, values, statecb);
+        return contract.deploy(options, values, statecb, skipGasEstimate);
       }
 
-      statecb(null, { state: 'estimateGas' });
+      let gasEstPromise;
 
-      return deployEstimateGas(contract, options, values)
-        .then(([gasEst, gas]) => {
-          options.gas = gas.toFixed(0);
+      if (skipGasEstimate) {
+        gasEstPromise = Promise.resolve(null);
+      } else {
+        statecb(null, { state: 'estimateGas' });
 
-          statecb(null, { state: 'postTransaction', gas });
+        gasEstPromise = deployEstimateGas(contract, options, values)
+          .then(([gasEst, gas]) => gas);
+      }
+
+      return gasEstPromise
+        .then((gas) => {
+          if (gas) {
+            options.gas = gas.toFixed(0);
+          }
+
+          statecb(null, { state: 'postTransaction', gas: options.gas });
 
           return WalletsUtils.getDeployArgs(contract, options, values);
         })
