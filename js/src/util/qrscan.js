@@ -18,8 +18,8 @@ import Transaction from 'ethereumjs-tx';
 
 import { inHex } from '~/api/format/input';
 
-export function createUnsignedTx (api, netVersion, transaction) {
-  const { data, from, gas, gasPrice, to, value } = transaction;
+export function createUnsignedTx (api, netVersion, gasStore, transaction) {
+  const { data, from, gas, gasPrice, to, value } = gasStore.overrideTransaction(transaction);
 
   return api.parity
     .nextNonce(from)

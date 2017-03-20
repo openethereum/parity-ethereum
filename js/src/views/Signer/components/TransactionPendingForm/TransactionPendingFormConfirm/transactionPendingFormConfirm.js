@@ -485,9 +485,9 @@ export default class TransactionPendingFormConfirm extends Component {
 
   generateTxQr = () => {
     const { api } = this.context;
-    const { netVersion, transaction } = this.props;
+    const { netVersion, gasStore, transaction } = this.props;
 
-    createUnsignedTx(api, netVersion, transaction).then(({ chainId, nonce, rlp, tx }) => {
+    createUnsignedTx(api, netVersion, gasStore, transaction).then(({ chainId, nonce, rlp, tx }) => {
       this.setState({
         qrChainId: chainId,
         qrNonce: nonce,
