@@ -72,6 +72,7 @@ extern crate ethcrypto as crypto;
 extern crate rlp;
 extern crate bytes;
 extern crate path;
+extern crate ethcore_logger;
 
 #[macro_use]
 extern crate log;

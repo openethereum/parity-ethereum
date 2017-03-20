@@ -466,7 +466,7 @@ but the first password is trimmed
 	#[test]
 	#[cfg(not(windows))]
 	fn test_geth_ipc_path() {
-		use util::path;
+		use path;
 		assert_eq!(geth_ipc_path(true), path::ethereum::with_testnet("geth.ipc").to_str().unwrap().to_owned());
 		assert_eq!(geth_ipc_path(false), path::ethereum::with_default("geth.ipc").to_str().unwrap().to_owned());
 	}

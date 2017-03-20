@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use util::log::RotatingLogger;
+use ethcore_logger::RotatingLogger;
 use util::Address;
 use ethsync::ManageNetwork;
 use ethcore::account_provider::AccountProvider;

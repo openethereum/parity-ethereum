@@ -28,6 +28,7 @@ ethkey = { path = "../../ethkey" }
 ethcrypto = { path = "../../ethcrypto" }
 rlp = { path = "../rlp" }
 path = { path = "../path" }
+ethcore-logger = { path ="../../logger" }
 
 [features]
 default = []

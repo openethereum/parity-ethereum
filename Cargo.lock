@@ -595,6 +595,7 @@ dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.7.0",
  "ethcore-io 1.7.0",
+ "ethcore-logger 1.7.0",
  "ethcore-util 1.7.0",
  "ethcrypto 0.1.0",
  "ethkey 0.2.0",
