@@ -234,7 +234,8 @@ pub struct Miner {
 impl Miner {
 	/// Push notifier that will handle new jobs
 	pub fn push_notifier(&self, notifier: Box<NotifyWork>) {
-		self.notifiers.write().push(notifier)
+		self.notifiers.write().push(notifier);
+		self.sealing_work.lock().enabled = true;
 	}
 
 	/// Creates new instance of miner Arc.
@@ -304,7 +305,7 @@ impl Miner {
 
 	fn forced_sealing(&self) -> bool {
 		self.options.force_sealing
-			|| !self.options.new_work_notify.is_empty()
+			|| !self.notifiers.read().is_empty()
 			|| Instant::now() > *self.next_mandatory_reseal.read()
 	}
 
@@ -1015,6 +1016,16 @@ impl MinerService for Miner {
 				)
 			},
 		}
+	}
+
+	fn remove_pending_transaction(&self, chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction> {
+		let mut queue = self.transaction_queue.lock();
+		let tx = queue.find(hash);
+		if tx.is_some() {
+			let fetch_nonce = |a: &Address| chain.latest_nonce(a);
+			queue.remove_invalid(hash, &fetch_nonce);
+		}
+		tx
 	}
 
 	fn pending_receipt(&self, best_block: BlockNumber, hash: &H256) -> Option<RichReceipt> {
