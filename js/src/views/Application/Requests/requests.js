@@ -109,6 +109,7 @@ class Requests extends Component {
           </div>
           <MethodDecoding
             address={ transaction.from }
+            historic={ state.type === DONE_STATE }
             transaction={ transaction }
           />
         </div>
