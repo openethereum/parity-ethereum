@@ -183,7 +183,7 @@ class TxRow extends Component {
           <span>
             <FormattedMessage
               id='ui.txList.txRow.time'
-              defaultMessage='{when} to go'
+              defaultMessage='{when}'
               values={ { when: this.getCondition() } }
             />
           </span>
@@ -265,11 +265,19 @@ class TxRow extends Component {
 
   getCondition = () => {
     const { blockNumber, tx } = this.props;
-    const { time, block } = tx.condition;
+    let { time, block } = tx.condition;
 
-    return (time)
-      ? dateDifference(new Date(), time, { compact: true })
-      : `${(blockNumber) ? blockNumber.minus(block).abs().toFormat(0) : null} blocks`;
+    if (time) {
+      if ((time.getTime() - Date.now()) >= 0)
+        return `${dateDifference(new Date(), time, { compact: true })} left`;
+      else
+        return 'submitting...';
+    } else if (blockNumber) {
+      block = blockNumber.minus(block);
+      return (block.toNumber() < 0)
+        ? block.abs().toFormat(0) + ' blocks left'
+        : 'submitting...';
+    }
   }
 
   cancelTransaction = () => {
@@ -281,16 +289,17 @@ class TxRow extends Component {
   }
 
   editTransaction = () => {
-    const { eth, parity } = this.context.api;
-    const { hash, gas, gasPrice, to, from, value, input } = this.props.tx;
+    const { parity } = this.context.api;
+    const { hash, gas, gasPrice, to, from, value, input, condition } = this.props.tx;
 
     parity.removeTransaction(hash);
-    eth.sendTransaction({
+    parity.postTransaction({
       from,
       to,
       gas,
       gasPrice,
       value,
+      condition,
       data: input
     });
     this.setState({ editing: true });
