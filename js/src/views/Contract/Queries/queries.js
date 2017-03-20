@@ -40,7 +40,6 @@ export default class Queries extends Component {
     if (!contract) {
       return null;
     }
-
     const queries = contract.functions
       .filter((fn) => fn.constant)
       .sort(this._sortEntries);
@@ -113,7 +112,12 @@ export default class Queries extends Component {
   }
 
   renderQuery (fn) {
-    const { values } = this.props;
+    const { abi } = fn;
+    let values = this.props.values[fn.name] || [];
+
+    if (values && typeof values.slice === 'function') {
+      values = values.slice();
+    }
 
     return (
       <div className={ styles.container } key={ fn.signature }>
@@ -125,38 +129,57 @@ export default class Queries extends Component {
           <CardText
             className={ styles.methodContent }
           >
-            { this.renderValue(values[fn.name], fn.outputs[0].kind.type) }
+            {
+              abi.outputs
+                .map((output, index) => this.renderValue(values[index], output, index))
+            }
           </CardText>
         </Card>
       </div>
     );
   }
 
-  renderValue (value, type) {
-    if (typeof value === 'undefined') {
+  renderValue (tokenValue, output, key) {
+    if (typeof tokenValue === 'undefined') {
       return null;
     }
 
-    const { api } = this.context;
     const { accountsInfo } = this.props;
+    const { name, type } = output;
+    const label = `${name ? `${name}: ` : ''}${type}`;
+    const value = this.getTokenValue(tokenValue);
 
-    let valueToDisplay = value;
-
-    if (api.util.isArray(value)) {
-      valueToDisplay = api.util.bytesToHex(value);
-    } else if (typeof value === 'boolean') {
-      valueToDisplay = value ? 'true' : 'false';
-    }
     return (
       <TypedInput
         accounts={ accountsInfo }
         allowCopy
+        key={ key }
         isEth={ false }
-        param={ type }
+        label={ label }
+        param={ output.type }
         readOnly
-        value={ valueToDisplay }
+        value={ value }
       />
     );
+  }
+
+  getTokenValue (token) {
+    const { api } = this.context;
+    const { type, value } = token;
+
+    if (value === null || value === undefined) {
+      return 'no data';
+    }
+
+    if (type === 'array' || type === 'fixedArray') {
+      return value.map((tok) => this.getTokenValue(tok));
+    }
+
+    if (Array.isArray(value)) {
+      return api.util.bytesToHex(value);
+    }
+
+    return value;
   }
 
   _sortEntries (a, b) {
