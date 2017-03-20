@@ -472,3 +472,30 @@ fn derive_key_index() {
 	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
 }
+
+
+#[test]
+fn should_export_account() {
+	// given
+	let tester = setup();
+	let wallet = r#"{"id":"6a186c80-7797-cff2-bc2e-7c1d6a6cc76e","version":3,"crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"a1c6ff99070f8032ca1c4e8add006373"},"ciphertext":"df27e3db64aa18d984b6439443f73660643c2d119a6f0fa2fa9a6456fc802d75","kdf":"pbkdf2","kdfparams":{"c":10240,"dklen":32,"prf":"hmac-sha256","salt":"ddc325335cda5567a1719313e73b4842511f3e4a837c9658eeb78e51ebe8c815"},"mac":"3dc888ae79cbb226ff9c455669f6cf2d79be72120f2298f6cb0d444fddc0aa3d"},"address":"0042e5d2a662eeaca8a7e828c174f98f35d8925b","name":"parity-export-test","meta":"{\"passwordHint\":\"parity-export-test\",\"timestamp\":1490017814987}"}"#;
+	tester.accounts.import_wallet(wallet.as_bytes(), "parity-export-test").unwrap();
+	let accounts = tester.accounts.accounts().unwrap();
+	assert_eq!(accounts.len(), 1);
+
+	// invalid password
+	let request = r#"{"jsonrpc":"2.0","method":"parity_exportAccount","params":["0x0042e5d2a662eeaca8a7e828c174f98f35d8925b","123"],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32023,"message":"Could not export account.","data":"InvalidPassword"},"id":1}"#;
+	let res = tester.io.handle_request_sync(&request);
+	assert_eq!(res, Some(response.into()));
+
+	// correct password
+	let request = r#"{"jsonrpc":"2.0","method":"parity_exportAccount","params":["0x0042e5d2a662eeaca8a7e828c174f98f35d8925b","parity-export-test"],"id":1}"#;
+
+	let response = r#"{"jsonrpc":"2.0","result":{"address":"0042e5d2a662eeaca8a7e828c174f98f35d8925b","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"a1c6ff99070f8032ca1c4e8add006373"},"ciphertext":"df27e3db64aa18d984b6439443f73660643c2d119a6f0fa2fa9a6456fc802d75","kdf":"pbkdf2","kdfparams":{"c":10240,"dklen":32,"prf":"hmac-sha256","salt":"ddc325335cda5567a1719313e73b4842511f3e4a837c9658eeb78e51ebe8c815"},"mac":"3dc888ae79cbb226ff9c455669f6cf2d79be72120f2298f6cb0d444fddc0aa3d"},"id":"6a186c80-7797-cff2-bc2e-7c1d6a6cc76e","meta":"{\"passwordHint\":\"parity-export-test\",\"timestamp\":1490017814987}","name":"parity-export-test","version":3},"id":1}"#;
+	let result = tester.io.handle_request_sync(&request);
+
+	println!("Result: {:?}", result);
+	println!("Response: {:?}", response);
+	assert_eq!(result, Some(response.into()));
+}

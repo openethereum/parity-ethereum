@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+// TODO [ToDr] Very outdated! Remove!
+
 use std::env;
 use std::path::PathBuf;
 use {SafeAccount, Error};
@@ -38,11 +40,13 @@ fn parity_keystore(t: DirectoryType) -> PathBuf {
 	dir
 }
 
+/// Accounts on-disk storage for Parity directories.
 pub struct ParityDirectory {
 	dir: RootDiskDirectory,
 }
 
 impl ParityDirectory {
+	/// Create new directory.
 	pub fn create(t: DirectoryType) -> Result<Self, Error> {
 		let result = ParityDirectory {
 			dir: RootDiskDirectory::create(parity_keystore(t))?,
@@ -51,6 +55,7 @@ impl ParityDirectory {
 		Ok(result)
 	}
 
+	/// Open existing directory.
 	pub fn open(t: DirectoryType) -> Self {
 		ParityDirectory {
 			dir: RootDiskDirectory::at(parity_keystore(t)),

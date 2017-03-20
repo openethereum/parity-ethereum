@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Accounts Directory
+
 use std::path::{PathBuf};
 use {SafeAccount, Error};
 
@@ -23,8 +25,11 @@ mod memory;
 mod parity;
 mod vault;
 
+/// Directory
 pub enum DirectoryType {
+	/// For testnet
 	Testnet,
+	/// For mainnet
 	Main,
 }
 
@@ -54,7 +59,7 @@ pub trait KeyDirectory: Send + Sync {
 	fn load(&self) -> Result<Vec<SafeAccount>, Error>;
 	/// Insert new key to directory
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error>;
-	//// Update key in directory
+	/// Update key in the directory
 	fn update(&self, account: SafeAccount) -> Result<SafeAccount, Error>;
 	/// Remove key from directory
 	fn remove(&self, account: &SafeAccount) -> Result<(), Error>;

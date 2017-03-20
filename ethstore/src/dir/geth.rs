@@ -59,11 +59,13 @@ fn geth_keystore(t: DirectoryType) -> PathBuf {
 	dir
 }
 
+/// Accounts storage for Geth-keys.
 pub struct GethDirectory {
 	dir: RootDiskDirectory,
 }
 
 impl GethDirectory {
+	/// Create new Geth directory
 	pub fn create(t: DirectoryType) -> Result<Self, Error> {
 		let result = GethDirectory {
 			dir: RootDiskDirectory::create(geth_keystore(t))?,
@@ -72,6 +74,7 @@ impl GethDirectory {
 		Ok(result)
 	}
 
+	/// Open existing Geth directory.
 	pub fn open(t: DirectoryType) -> Self {
 		GethDirectory {
 			dir: RootDiskDirectory::at(geth_keystore(t)),
