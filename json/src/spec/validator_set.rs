@@ -32,7 +32,7 @@ pub enum ValidatorSet {
 	/// Address of a contract that indicates the list of authorities and enables reporting of theor misbehaviour using transactions.
 	#[serde(rename="contract")]
 	Contract(Address),
-	/// A map of validator sets along with blocks from which they are active from.
+	/// A map of starting blocks for each validator set.
 	#[serde(rename="multi")]
 	Multi(BTreeMap<Uint, ValidatorSet>),
 }
