@@ -138,10 +138,8 @@ class InputQuery extends Component {
       .map((out, index) => ({
         name: out.name,
         type: out.type,
-        value: results[index],
-        display: this.renderValue(results[index])
+        value: results[index]
       }))
-      .sort((outA, outB) => outA.display.length - outB.display.length)
       .map((out, index) => {
         const input = (
           <TypedInput
@@ -150,7 +148,7 @@ class InputQuery extends Component {
             isEth={ false }
             param={ out.type }
             readOnly
-            value={ out.display }
+            value={ out.value }
           />
         );
 
@@ -193,25 +191,6 @@ class InputQuery extends Component {
         />
       </div>
     );
-  }
-
-  renderValue (token) {
-    const { api } = this.context;
-    const { type, value } = token;
-
-    if (value === null || value === undefined) {
-      return 'no data';
-    }
-
-    if (type === 'array' || type === 'fixedArray') {
-      return value.map((tok) => this.renderValue(tok));
-    }
-
-    if (Array.isArray(value)) {
-      return api.util.bytesToHex(value);
-    }
-
-    return value;
   }
 
   onClick = () => {

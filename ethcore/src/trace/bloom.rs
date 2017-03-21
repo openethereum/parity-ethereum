@@ -83,7 +83,7 @@ impl Decodable for BlockTracesBloomGroup {
 
 impl Encodable for BlockTracesBloomGroup {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		Encodable::rlp_append(&self.blooms, s)
+		s.append_list(&self.blooms);
 	}
 }
 

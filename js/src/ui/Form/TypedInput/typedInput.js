@@ -24,6 +24,7 @@ import AddIcon from 'material-ui/svg-icons/content/add';
 import RemoveIcon from 'material-ui/svg-icons/content/remove';
 
 import { fromWei, toWei } from '~/api/util/wei';
+import { bytesToHex } from '~/api/util/format';
 import Input from '~/ui/Form/Input';
 import InputAddressSelect from '~/ui/Form/InputAddressSelect';
 import Select from '~/ui/Form/Select';
@@ -68,7 +69,8 @@ export default class TypedInput extends Component {
   };
 
   componentWillMount () {
-    const { isEth, value } = this.props;
+    const { isEth } = this.props;
+    const value = this.getValue();
 
     if (typeof isEth === 'boolean' && value) {
       // Remove formatting commas
@@ -95,14 +97,15 @@ export default class TypedInput extends Component {
     const { type } = param;
 
     if (type === ABI_TYPES.ARRAY) {
-      const { accounts, className, label, value = param.default } = this.props;
+      const { accounts, className, label } = this.props;
       const { subtype, length } = param;
+      const value = this.getValue() || param.default;
 
       const fixedLength = !!length;
 
       const inputs = range(length || value.length).map((_, index) => {
         const onChange = (inputValue) => {
-          const newValues = [].concat(this.props.value);
+          const newValues = [].concat(value);
 
           newValues[index] = inputValue;
           this.props.onChange(newValues);
@@ -191,7 +194,14 @@ export default class TypedInput extends Component {
     }
 
     if (type === ABI_TYPES.BYTES) {
-      return this.renderDefault();
+      let value = this.getValue();
+
+      // Convert to hex if it's an array
+      if (Array.isArray(value)) {
+        value = bytesToHex(value);
+      }
+
+      return this.renderDefault(value);
     }
 
     // If the `isEth` prop is present (true or false)
@@ -260,7 +270,7 @@ export default class TypedInput extends Component {
       : bnValue.toFixed(); // we need a string representation, could be >15 digits
   }
 
-  renderInteger (value = this.props.value, onChange = this.onChange) {
+  renderInteger (value = this.getValue(), onChange = this.onChange) {
     const { allowCopy, className, label, error, hint, min, max, readOnly } = this.props;
     const param = this.getParam();
 
@@ -268,7 +278,7 @@ export default class TypedInput extends Component {
 
     return (
       <Input
-        allowCopy={ allowCopy }
+        allowCopy={ allowCopy ? value : undefined }
         className={ className }
         label={ label }
         hint={ hint }
@@ -291,7 +301,7 @@ export default class TypedInput extends Component {
    *
    * @see https://github.com/facebook/react/issues/1549
    */
-  renderFloat (value = this.props.value, onChange = this.onChange) {
+  renderFloat (value = this.getValue(), onChange = this.onChange) {
     const { allowCopy, className, label, error, hint, min, max, readOnly } = this.props;
     const param = this.getParam();
 
@@ -299,7 +309,7 @@ export default class TypedInput extends Component {
 
     return (
       <Input
-        allowCopy={ allowCopy }
+        allowCopy={ allowCopy ? value : undefined }
         className={ className }
         label={ label }
         hint={ hint }
@@ -314,8 +324,8 @@ export default class TypedInput extends Component {
     );
   }
 
-  renderDefault () {
-    const { allowCopy, className, label, value, error, hint, readOnly } = this.props;
+  renderDefault (value = this.getValue()) {
+    const { allowCopy, className, label, error, hint, readOnly } = this.props;
 
     return (
       <Input
@@ -332,7 +342,8 @@ export default class TypedInput extends Component {
   }
 
   renderAddress () {
-    const { accounts, allowCopy, className, label, value, error, hint, readOnly } = this.props;
+    const { accounts, allowCopy, className, label, error, hint, readOnly } = this.props;
+    const value = this.getValue();
 
     return (
       <InputAddressSelect
@@ -350,7 +361,8 @@ export default class TypedInput extends Component {
   }
 
   renderBoolean () {
-    const { allowCopy, className, label, value, error, hint, readOnly } = this.props;
+    const { allowCopy, className, label, error, hint, readOnly } = this.props;
+    const value = this.getValue();
 
     if (readOnly) {
       return this.renderDefault();
@@ -441,7 +453,7 @@ export default class TypedInput extends Component {
     onChange(newValues);
   }
 
-  getParam = () => {
+  getParam () {
     const { param } = this.props;
 
     if (typeof param === 'string') {
@@ -449,5 +461,16 @@ export default class TypedInput extends Component {
     }
 
     return param;
+  }
+
+  /**
+   * If the value comes from `decodeMethodInput`,
+   * it can be an object of the shape:
+   *   { value: Object, type: String }
+   */
+  getValue (value = this.props.value) {
+    return value && value.value
+      ? value.value
+      : value;
   }
 }

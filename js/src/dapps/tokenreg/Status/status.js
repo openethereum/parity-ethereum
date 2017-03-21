@@ -16,11 +16,10 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { api } from '../parity';
 import Chip from '../Chip';
 
 import styles from './status.css';
-
-const { api } = window.parity;
 
 export default class Status extends Component {
   static propTypes = {

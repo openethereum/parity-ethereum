@@ -34,7 +34,7 @@ use devtools::*;
 use miner::Miner;
 use header::Header;
 use transaction::{Action, Transaction, SignedTransaction};
-use rlp::{self, RlpStream, Stream};
+use rlp::{self, RlpStream};
 use views::BlockView;
 
 #[cfg(feature = "json-tests")]
@@ -129,7 +129,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 	for t in transactions {
 		rlp.append_raw(&rlp::encode(t).to_vec(), 1);
 	}
-	rlp.append(&uncles);
+	rlp.append_list(&uncles);
 	rlp.out()
 }
 

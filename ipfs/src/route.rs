@@ -79,7 +79,7 @@ impl IpfsHandler {
 	fn block_list(&self, hash: H256) -> Result<Out> {
 		let uncles = self.client().find_uncles(&hash).ok_or(Error::BlockNotFound)?;
 
-		Ok(Out::OctetStream(rlp::encode(&uncles).to_vec()))
+		Ok(Out::OctetStream(rlp::encode_list(&uncles).to_vec()))
 	}
 
 	/// Get transaction by hash and return as raw binary.

@@ -77,7 +77,7 @@ pub enum QueueAddError {
 }
 
 // TODO [todr] to consider: timeout instead of limit?
-const QUEUE_LIMIT: usize = 50;
+pub const QUEUE_LIMIT: usize = 50;
 
 /// A queue of transactions awaiting to be confirmed and signed.
 pub trait SigningQueue: Send + Sync {

@@ -40,8 +40,8 @@ impl ManifestData {
 	/// Encode the manifest data to rlp.
 	pub fn into_rlp(self) -> Bytes {
 		let mut stream = RlpStream::new_list(5);
-		stream.append(&self.state_hashes);
-		stream.append(&self.block_hashes);
+		stream.append_list(&self.state_hashes);
+		stream.append_list(&self.block_hashes);
 		stream.append(&self.state_root);
 		stream.append(&self.block_number);
 		stream.append(&self.block_hash);

@@ -213,7 +213,7 @@ impl Discovery {
 			let nearest = Discovery::nearest_node_entries(&self.discovery_id, &self.node_buckets).into_iter();
 			let nearest = nearest.filter(|x| !self.discovery_nodes.contains(&x.id)).take(ALPHA).collect::<Vec<_>>();
 			for r in nearest {
-				let rlp = encode(&(&[self.discovery_id.clone()][..]));
+				let rlp = encode_list(&(&[self.discovery_id.clone()][..]));
 				self.send_packet(PACKET_FIND_NODE, &r.endpoint.udp_address(), &rlp);
 				self.discovery_nodes.insert(r.id.clone());
 				tried_count += 1;

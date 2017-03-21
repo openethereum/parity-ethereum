@@ -27,7 +27,7 @@ import styles from './transactionPendingFormConfirm.css';
 
 export default class TransactionPendingFormConfirm extends Component {
   static propTypes = {
-    account: PropTypes.object.isRequired,
+    account: PropTypes.object,
     address: PropTypes.string.isRequired,
     disabled: PropTypes.bool,
     isSending: PropTypes.bool.isRequired,
@@ -36,6 +36,7 @@ export default class TransactionPendingFormConfirm extends Component {
   };
 
   static defaultProps = {
+    account: {},
     focus: false
   };
 
@@ -80,7 +81,7 @@ export default class TransactionPendingFormConfirm extends Component {
 
   getPasswordHint () {
     const { account } = this.props;
-    const accountHint = account && account.meta && account.meta.passwordHint;
+    const accountHint = account.meta && account.meta.passwordHint;
 
     if (accountHint) {
       return accountHint;
@@ -149,14 +150,16 @@ export default class TransactionPendingFormConfirm extends Component {
     const { account } = this.props;
     const { password } = this.state;
 
-    if (account && account.hardware) {
+    if (account.hardware) {
       return null;
     }
+
+    const isAccount = account.uuid;
 
     return (
       <Input
         hint={
-          account.uuid
+          isAccount
             ? (
               <FormattedMessage
                 id='signer.txPendingConfirm.password.unlock.hint'
@@ -171,7 +174,7 @@ export default class TransactionPendingFormConfirm extends Component {
             )
         }
         label={
-          account.uuid
+          isAccount
             ? (
               <FormattedMessage
                 id='signer.txPendingConfirm.password.unlock.label'

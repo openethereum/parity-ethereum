@@ -427,7 +427,7 @@ impl JournalDB for EarlyMergeDB {
 
 			r.begin_list(inserts.len());
 			inserts.iter().foreach(|&(k, _)| {r.append(&k);});
-			r.append(&removes);
+			r.append_list(&removes);
 			Self::insert_keys(&inserts, &*self.backing, self.column, &mut refs, batch, trace);
 
 			let ins = inserts.iter().map(|&(k, _)| k).collect::<Vec<_>>();
