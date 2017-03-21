@@ -17,7 +17,7 @@ serde = "0.9"
 serde_derive = "0.9"
 serde_json = "0.9"
 time = "0.1"
-transient-hashmap = "0.1"
+transient-hashmap = "0.4"
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }

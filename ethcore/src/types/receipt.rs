@@ -60,7 +60,7 @@ impl Encodable for Receipt {
 		}
 		s.append(&self.gas_used);
 		s.append(&self.log_bloom);
-		s.append(&self.logs);
+		s.append_list(&self.logs);
 	}
 }
 

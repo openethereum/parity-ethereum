@@ -22,7 +22,7 @@ use snapshot::Error;
 
 use util::{U256, H256, Bytes, HashDB, SHA3_EMPTY, SHA3_NULL_RLP};
 use util::trie::{TrieDB, Trie};
-use rlp::{RlpStream, Stream, UntrustedRlp, View};
+use rlp::{RlpStream, UntrustedRlp, View};
 
 use std::collections::HashSet;
 

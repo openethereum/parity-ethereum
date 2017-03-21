@@ -33,7 +33,7 @@ use ethcore::executed::{Executed, ExecutionError};
 use futures::{Async, Poll, Future};
 use futures::sync::oneshot::{self, Sender, Receiver};
 use network::PeerId;
-use rlp::{RlpStream, Stream};
+use rlp::RlpStream;
 use util::{Bytes, DBValue, RwLock, Mutex, U256};
 use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
 

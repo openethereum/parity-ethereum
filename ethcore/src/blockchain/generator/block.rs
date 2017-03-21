@@ -37,8 +37,8 @@ impl Encodable for Block {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(3);
 		s.append(&self.header);
-		s.append(&self.transactions);
-		s.append(&self.uncles);
+		s.append_list(&self.transactions);
+		s.append_list(&self.uncles);
 	}
 }
 

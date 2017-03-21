@@ -24,7 +24,7 @@ use super::node::NodeKey;
 use ::{HashDB, H256};
 use ::bytes::ToPretty;
 use ::nibbleslice::NibbleSlice;
-use ::rlp::{Rlp, RlpStream, View, Stream};
+use ::rlp::{Rlp, RlpStream, View};
 use ::sha3::SHA3_NULL_RLP;
 use hashdb::DBValue;
 
@@ -931,7 +931,6 @@ impl<'a> Drop for TrieDBMut<'a> {
 #[cfg(test)]
 mod tests {
 	use triehash::trie_root;
-	use hash::*;
 	use hashdb::*;
 	use memorydb::*;
 	use super::*;
