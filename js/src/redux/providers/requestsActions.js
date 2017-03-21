@@ -14,83 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import store from 'store';
-
 import { outTransaction } from '~/api/format/output';
-import { ERROR_CODES } from '~/api/transport/error';
 import { trackRequest as trackRequestUtil, parseTransactionReceipt } from '~/util/tx';
+import SavedRequests from '~/views/Application/Requests/savedRequests';
 
-const LS_REQUESTS_KEY = '_parity::requests';
-
-class CachedRequests {
-  load (api) {
-    const requests = this._get();
-
-    const promises = Object.values(requests).map((request) => {
-      const { requestId, transactionHash } = request;
-
-      // The request hasn't been signed yet
-      if (transactionHash) {
-        return request;
-      }
-
-      return this._requestExists(api, requestId)
-        .then((exists) => {
-          if (!exists) {
-            return null;
-          }
-
-          return request;
-        })
-        .catch(() => {
-          this.remove(requestId);
-        });
-    });
-
-    return Promise.all(promises).then((requests) => requests.filter((request) => request));
-  }
-
-  save (requestId, requestData) {
-    const requests = this._get();
-
-    requests[requestId] = {
-      ...(requests[requestId] || {}),
-      ...requestData
-    };
-
-    this._set(requests);
-  }
-
-  remove (requestId) {
-    const requests = this._get();
-
-    delete requests[requestId];
-    this._set(requests);
-  }
-
-  _get () {
-    return store.get(LS_REQUESTS_KEY) || {};
-  }
-
-  _set (requests = {}) {
-    return store.set(LS_REQUESTS_KEY, requests);
-  }
-
-  _requestExists (api, requestId) {
-    return api.parity
-      .checkRequest(requestId)
-      .then(() => true)
-      .catch((error) => {
-        if (error.code === ERROR_CODES.REQUEST_NOT_FOUND) {
-          return false;
-        }
-
-        throw error;
-      });
-  }
-}
-
-const cachedRequests = new CachedRequests();
+const savedRequests = new SavedRequests();
 
 export const init = (api) => (dispatch) => {
   api.subscribe('parity_postTransaction', (error, request) => {
@@ -102,7 +30,7 @@ export const init = (api) => (dispatch) => {
   });
 
   api.on('connected', () => {
-    cachedRequests.load(api).then((requests) => {
+    savedRequests.load(api).then((requests) => {
       requests.forEach((request) => dispatch(watchRequest(request)));
     });
   });
@@ -225,7 +153,7 @@ export const setRequest = (requestId, requestData, autoSetShow = true) => {
     requestData.show = true;
   }
 
-  cachedRequests.save(requestId, requestData);
+  savedRequests.save(requestId, requestData);
 
   return {
     type: 'setRequest',
@@ -234,7 +162,7 @@ export const setRequest = (requestId, requestData, autoSetShow = true) => {
 };
 
 export const deleteRequest = (requestId) => {
-  cachedRequests.remove(requestId);
+  savedRequests.remove(requestId);
 
   return {
     type: 'deleteRequest',
