@@ -389,13 +389,6 @@ impl<'a> BasicDecoder<'a> {
 			_ => Err(DecoderError::RlpExpectedToBeData)
 		}
 	}
-	//fn as_raw(&self) -> &[u8] {
-		//self.rlp.as_raw()
-	//}
-
-	//fn as_rlp(&self) -> &UntrustedRlp {
-		//&self.rlp
-	//}
 }
 
 #[cfg(test)]

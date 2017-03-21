@@ -345,15 +345,6 @@ fn decode_untrusted_vector_str() {
 	run_decode_tests_list(tests);
 }
 
-//#[test]
-//fn test_decoding_array() {
-	//let v = vec![5u16, 2u16];
-	//let res = rlp::encode_list(&v);
-	//let arr: [u16; 2] = rlp::decode(&res);
-	//assert_eq!(arr[0], 5);
-	//assert_eq!(arr[1], 2);
-//}
-
 #[test]
 fn test_rlp_data_length_check()
 {
