@@ -40,7 +40,8 @@ export default class AccountCard extends Component {
   };
 
   static defaultProps = {
-    disableAddressClick: false
+    disableAddressClick: false,
+    password: false
   };
 
   state = {
