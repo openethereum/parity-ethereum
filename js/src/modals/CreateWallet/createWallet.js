@@ -30,7 +30,7 @@ import WalletInfo from './WalletInfo';
 import CreateWalletStore from './createWalletStore';
 
 @observer
-class CreateWallet extends Component {
+export class CreateWallet extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
