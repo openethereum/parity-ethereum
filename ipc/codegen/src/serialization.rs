@@ -151,7 +151,7 @@ fn binary_expr(
 		_ => {
 			cx.span_bug(item.span,
 						"expected ItemStruct or ItemEnum in #[derive(Binary)]");
-			Err(Error)
+			Err(Error) as Result<BinaryExpressions, Error>
 		},
 	}
 }
@@ -380,7 +380,7 @@ fn binary_expr_item_struct(
 			cx.span_bug(span,
 				&format!("#[derive(Binary)] Unsupported struct content, expected tuple/struct, found: {:?}",
 					variant_data));
-			Err(Error)
+			Err(Error) as Result<BinaryExpressions, Error>
 		},
 	}
 }
