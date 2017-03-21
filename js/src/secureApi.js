@@ -241,7 +241,7 @@ export default class SecureApi extends Api {
     this.transport.updateToken(token, false);
     log.debug('connecting with token', token);
 
-    return this.transport.connect()
+    const connectPromise = this.transport.connect()
       .then(() => {
         log.debug('connected with', token);
 
@@ -258,26 +258,35 @@ export default class SecureApi extends Api {
           log.debug('did not connect ; error', error);
         }
 
-        // Check if the Node is up
-        return this.isNodeUp()
-          .then((isNodeUp) => {
-            // If it's not up, try again in a few...
-            if (!isNodeUp) {
-              const timeout = this.transport.retryTimeout;
+        return false;
+      });
 
-              log.debug('node is not up ; will try again in', timeout, 'ms');
+    return Promise
+      .all([
+        connectPromise,
+        this.isNodeUp()
+      ])
+      .then(([ connected, isNodeUp ]) => {
+        if (connected) {
+          return true;
+        }
 
-              return new Promise((resolve, reject) => {
-                window.setTimeout(() => {
-                  this._connectWithToken(token).then(resolve).catch(reject);
-                }, timeout);
-              });
-            }
+        // If it's not up, try again in a few...
+        if (!isNodeUp) {
+          const timeout = this.transport.retryTimeout;
 
-            // The token is invalid
-            log.debug('tried with a wrong token', token);
-            return false;
+          log.debug('node is not up ; will try again in', timeout, 'ms');
+
+          return new Promise((resolve, reject) => {
+            window.setTimeout(() => {
+              this._connectWithToken(token).then(resolve).catch(reject);
+            }, timeout);
           });
+        }
+
+        // The token is invalid
+        log.debug('tried with a wrong token', token);
+        return false;
       });
   }
 

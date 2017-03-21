@@ -560,22 +560,12 @@ class MethodDecoding extends Component {
           key={ index }
           param={ input.type }
           readOnly
-          value={ this.renderValue(input.value) }
+          value={ input.value }
         />
       );
     });
 
     return inputs;
-  }
-
-  renderValue (value) {
-    const { api } = this.context;
-
-    if (api.util.isArray(value)) {
-      return api.util.bytesToHex(value);
-    }
-
-    return value.toString();
   }
 
   renderTokenValue (value) {
