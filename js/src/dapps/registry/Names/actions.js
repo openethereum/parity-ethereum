@@ -33,11 +33,11 @@ export const reserveFail = (name, error) => ({ type: 'names reserve fail', name,
 
 export const reserve = (name) => (dispatch, getState) => {
   const state = getState();
-  const account = state.accounts.selected;
+  const accountAddress = state.accounts.selected;
   const contract = state.contract;
   const fee = state.fee;
 
-  if (!contract || !account) {
+  if (!contract || !accountAddress) {
     return;
   }
 
@@ -58,7 +58,7 @@ export const reserve = (name) => (dispatch, getState) => {
       const { reserve } = contract.instance;
 
       const options = {
-        from: account.address,
+        from: accountAddress,
         value: fee
       };
       const values = [
@@ -88,10 +88,10 @@ export const dropFail = (name, error) => ({ type: 'names drop fail', name, error
 
 export const drop = (name) => (dispatch, getState) => {
   const state = getState();
-  const account = state.accounts.selected;
+  const accountAddress = state.accounts.selected;
   const contract = state.contract;
 
-  if (!contract || !account) {
+  if (!contract || !accountAddress) {
     return;
   }
 
@@ -105,14 +105,14 @@ export const drop = (name) => (dispatch, getState) => {
 
   return getOwner(contract, name)
     .then((owner) => {
-      if (owner.toLowerCase() !== account.address.toLowerCase()) {
+      if (owner.toLowerCase() !== accountAddress.toLowerCase()) {
         throw new Error(`you are not the owner of "${name}"`);
       }
 
       const { drop } = contract.instance;
 
       const options = {
-        from: account.address
+        from: accountAddress
       };
 
       const values = [

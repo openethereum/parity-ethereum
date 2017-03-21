@@ -16,9 +16,11 @@
 */
 
 .header {
+  align-items: center;
   display: flex;
   justify-content: space-between;
-  margin: 0; padding: .3em 1em;
+  margin: 0;
+  padding: 0.3em 1em;
   color: #fff;
   background-color: #333;
 }
