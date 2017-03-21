@@ -16,12 +16,14 @@
 
 use std::path::PathBuf;
 use std::collections::BTreeMap;
+use serde_json;
 use ethkey::{Secret, Public};
 use util::Database;
 use types::all::{Error, ServiceConfiguration, DocumentAddress, DocumentKey, NodeId};
+use serialization::{SerializablePublic, SerializableSecret};
 
-#[derive(Debug, Clone)]
-/// Encrypted key share, stored by key storage on the single key serve.
+#[derive(Debug, Clone, PartialEq)]
+/// Encrypted key share, stored by key storage on the single key server.
 pub struct DocumentKeyShare {
 	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
 	pub threshold: usize,
@@ -48,6 +50,21 @@ pub struct PersistentKeyStorage {
 	db: Database,
 }
 
+#[derive(Serialize, Deserialize)]
+/// Encrypted key share, as it is stored by key storage on the single key server.
+struct SerializableDocumentKeyShare {
+	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
+	pub threshold: usize,
+	/// Nodes ids numbers.
+	pub id_numbers: BTreeMap<SerializablePublic, SerializableSecret>,
+	/// Node secret share.
+	pub secret_share: SerializableSecret,
+	/// Common (shared) encryption point.
+	pub common_point: SerializablePublic,
+	/// Encrypted point.
+	pub encrypted_point: SerializablePublic,
+}
+
 impl PersistentKeyStorage {
 	/// Create new persistent document encryption keys storage
 	pub fn new(config: &ServiceConfiguration) -> Result<Self, Error> {
@@ -63,18 +80,44 @@ impl PersistentKeyStorage {
 
 impl KeyStorage for PersistentKeyStorage {
 	fn insert(&self, document: DocumentAddress, key: DocumentKeyShare) -> Result<(), Error> {
-		/*let mut batch = self.db.transaction();
+		let key: SerializableDocumentKeyShare = key.into();
+		let key = serde_json::to_vec(&key).map_err(|e| Error::Database(format!("{}", e)))?;
+		let mut batch = self.db.transaction();
 		batch.put(None, &document, &key);
-		self.db.write(batch).map_err(Error::Database)*/
-		unimplemented!()
+		self.db.write(batch).map_err(Error::Database)
 	}
 
 	fn get(&self, document: &DocumentAddress) -> Result<DocumentKeyShare, Error> {
-		/*self.db.get(None, document)
+		self.db.get(None, document)
 			.map_err(Error::Database)?
 			.ok_or(Error::DocumentNotFound)
-			.map(|key| key.to_vec())*/
-		unimplemented!()
+			.map(|key| key.to_vec())
+			.and_then(|key| serde_json::from_slice::<SerializableDocumentKeyShare>(&key).map_err(|e| Error::Database(format!("{}", e))))
+			.map(Into::into)
+	}
+}
+
+impl From<DocumentKeyShare> for SerializableDocumentKeyShare {
+	fn from(key: DocumentKeyShare) -> Self {
+		SerializableDocumentKeyShare {
+			threshold: key.threshold,
+			id_numbers: key.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+			secret_share: key.secret_share.into(),
+			common_point: key.common_point.into(),
+			encrypted_point: key.encrypted_point.into(),
+		}
+	}
+}
+
+impl From<SerializableDocumentKeyShare> for DocumentKeyShare {
+	fn from(key: SerializableDocumentKeyShare) -> Self {
+		DocumentKeyShare {
+			threshold: key.threshold,
+			id_numbers: key.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+			secret_share: key.secret_share.into(),
+			common_point: key.common_point.into(),
+			encrypted_point: key.encrypted_point.into(),
+		}
 	}
 }
 
@@ -105,7 +148,7 @@ pub mod tests {
 		}
 	}
 
-	/*#[test]
+	#[test]
 	fn persistent_key_storage() {
 		let path = RandomTempPath::create_dir();
 		let config = ServiceConfiguration {
@@ -130,9 +173,25 @@ pub mod tests {
 		};
 		
 		let key1 = DocumentAddress::from(1);
-		let value1: DocumentKey = vec![0x77, 0x88];
+		let value1 = DocumentKeyShare {
+			threshold: 100,
+			id_numbers: vec![
+				(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
+			].into_iter().collect(),
+			secret_share: Random.generate().unwrap().secret().clone(),
+			common_point: Random.generate().unwrap().public().clone(),
+			encrypted_point: Random.generate().unwrap().public().clone(),
+		};
 		let key2 = DocumentAddress::from(2);
-		let value2: DocumentKey = vec![0x11, 0x22];
+		let value2 = DocumentKeyShare {
+			threshold: 200,
+			id_numbers: vec![
+				(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
+			].into_iter().collect(),
+			secret_share: Random.generate().unwrap().secret().clone(),
+			common_point: Random.generate().unwrap().public().clone(),
+			encrypted_point: Random.generate().unwrap().public().clone(),
+		};
 		let key3 = DocumentAddress::from(3);
 
 		let key_storage = PersistentKeyStorage::new(&config).unwrap();
@@ -147,5 +206,5 @@ pub mod tests {
 		assert_eq!(key_storage.get(&key1), Ok(value1));
 		assert_eq!(key_storage.get(&key2), Ok(value2));
 		assert_eq!(key_storage.get(&key3), Err(Error::DocumentNotFound));
-	}*/
+	}
 }

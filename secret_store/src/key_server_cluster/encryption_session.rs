@@ -232,12 +232,12 @@ impl Session {
 	/// Wait until session is completed.
 	pub fn wait(&self) -> Result<Public, Error> {
 		let mut data = self.data.lock();
-		if !data.joint_public.is_some() {
+		if !data.secret_point.is_some() {
 			self.completed.wait(&mut data);
 		}
 
-		data.joint_public.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when joint_public.is_some(); qed")
+		data.secret_point.as_ref()
+			.expect("checked above or waited for completed; completed is only signaled when secret_point.is_some(); qed")
 			.clone()
 	}
 

@@ -50,6 +50,7 @@ mod acl_storage;
 mod http_listener;
 mod key_server;
 mod key_storage;
+mod serialization;
 
 pub use types::all::{DocumentAddress, DocumentKey, DocumentEncryptedKey, RequestSignature, Public,
 	Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, EncryptionConfiguration};

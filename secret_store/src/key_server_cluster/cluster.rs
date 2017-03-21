@@ -27,10 +27,11 @@ use parking_lot::{RwLock, Mutex};
 use tokio_core::io::IoFuture;
 use tokio_core::reactor::{Handle, Remote, Timeout, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
-use ethkey::KeyPair;
+use ethkey::{Secret, KeyPair, Signature, Random, Generator};
 use key_server_cluster::{Error, NodeId, SessionId, EncryptionConfiguration, AclStorage, KeyStorage};
 use key_server_cluster::message::{self, Message, ClusterMessage, EncryptionMessage, DecryptionMessage};
-use key_server_cluster::decryption_session::{Session as DecryptionSession, DecryptionSessionId};
+use key_server_cluster::decryption_session::{Session as DecryptionSession, DecryptionSessionId,
+	SessionParams as DecryptionSessionParams};
 use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionState as EncryptionSessionState,
 	SessionParams as EncryptionSessionParams};
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_message, WriteMessage, write_message};
@@ -44,6 +45,8 @@ pub trait ClusterClient: Send + Sync {
 	fn cluster_state(&self) -> ClusterState;
 	/// Start new encryption session.
 	fn new_encryption_session(&self, session_id: SessionId, threshold: usize) -> Result<Arc<EncryptionSession>, Error>;
+	/// Start new decryption session.
+	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature) -> Result<Arc<DecryptionSession>, Error>;
 }
 
 /// Cluster access for single encryption/decryption participant.
@@ -144,15 +147,23 @@ pub struct ClusterSessions {
 	/// Active encryption sessions.
 	pub encryption_sessions: RwLock<BTreeMap<SessionId, QueuedEncryptionSession>>,
 	/// Active decryption sessions.
-	pub decryption_sessions: RwLock<BTreeMap<DecryptionSessionId, Arc<DecryptionSession>>>,
+	pub decryption_sessions: RwLock<BTreeMap<DecryptionSessionId, QueuedDecryptionSession>>,
 }
 
-/// Encryption session and messages queue.
+/// Encryption session and its message queue.
 pub struct QueuedEncryptionSession {
 	/// Encryption session.
 	pub session: Arc<EncryptionSession>,
 	/// Messages queue.
 	pub queue: VecDeque<(NodeId, EncryptionMessage)>,
+}
+
+/// Decryption session and its message queue.
+pub struct QueuedDecryptionSession {
+	/// Decryption session.
+	pub session: Arc<DecryptionSession>,
+	/// Messages queue.
+	pub queue: VecDeque<(NodeId, DecryptionMessage)>,
 }
 
 /// Cluster view core.
@@ -319,9 +330,8 @@ impl ClusterCore {
 
 	/// Send keepalive messages to every othe node.
 	fn keep_alive(data: Arc<ClusterData>) {
-		let now = time::Instant::now();
 		for connection in data.connections.active_connections() {
-			let last_message_diff = now - connection.last_message_time();
+			let last_message_diff = time::Instant::now() - connection.last_message_time();
 			if last_message_diff > time::Duration::from_secs(60) {
 				data.connections.remove(connection.node_id(), connection.is_inbound());
 				data.sessions.on_connection_timeout(connection.node_id());
@@ -445,8 +455,12 @@ impl ClusterCore {
 				EncryptionMessage::SessionCompleted(ref message) => data.sessions.encryption_session(&*message.session)
 					.ok_or(Error::InvalidSessionId)
 					.and_then(|s| {
-						data.sessions.remove_encryption_session(s.id());
-						s.on_session_completed(sender.clone(), message)
+						let result = s.on_session_completed(sender.clone(), message);
+						if result.is_ok() && s.state() == EncryptionSessionState::Finished {
+							data.sessions.remove_encryption_session(s.id());
+						}
+
+						result
 					}),
 			};
 
@@ -456,6 +470,7 @@ impl ClusterCore {
 					break;
 				},
 				Err(err) => {
+					warn!(target: "secretstore_net", "{}: error {} when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
 					if let Some(connection) = data.connections.get(&sender) {
 						data.spawn(connection.send_message(Message::Encryption(EncryptionMessage::SessionError(message::SessionError {
 							session: session_id.clone().into(),
@@ -483,8 +498,70 @@ impl ClusterCore {
 	}
 
 	/// Process single decryption message from the connection.
-	fn process_decryption_message(data: Arc<ClusterData>, connection: Arc<Connection>, message: DecryptionMessage) {
-		unimplemented!()
+	fn process_decryption_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: DecryptionMessage) {
+		let mut sender = connection.node_id().clone();
+		let mut is_queued_message = false;
+		let session_id = message.session_id().clone();
+		let sub_session_id = message.sub_session_id().clone();
+		loop {
+			let result = match message {
+				DecryptionMessage::InitializeDecryptionSession(ref message) => {
+					let mut connected_nodes = data.connections.connected_nodes();
+					connected_nodes.insert(data.self_key_pair.public().clone());
+
+					let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes));
+					data.sessions.new_decryption_session(sender.clone(), session_id.clone(), sub_session_id.clone(), cluster)
+						.and_then(|s| s.on_initialize_session(sender.clone(), message))
+				},
+				DecryptionMessage::ConfirmDecryptionInitialization(ref message) => data.sessions.decryption_session(&*message.session, &*message.sub_session)
+					.ok_or(Error::InvalidSessionId)
+					.and_then(|s| s.on_confirm_initialization(sender.clone(), message)),
+				DecryptionMessage::RequestPartialDecryption(ref message) => data.sessions.decryption_session(&*message.session, &*message.sub_session)
+					.ok_or(Error::InvalidSessionId)
+					.and_then(|s| s.on_partial_decryption_requested(sender.clone(), message)),
+				DecryptionMessage::PartialDecryption(ref message) => data.sessions.decryption_session(&*message.session, &*message.sub_session)
+					.ok_or(Error::InvalidSessionId)
+					.and_then(|s| s.on_partial_decryption(sender.clone(), message)),
+				DecryptionMessage::DecryptionSessionError(ref message) => {
+						if let Some(s) = data.sessions.decryption_session(&*message.session, &*message.sub_session) {
+							data.sessions.remove_decryption_session(&session_id, &sub_session_id);
+							s.on_session_error(sender.clone(), message);
+						}
+						Ok(())
+					},
+			};
+
+			match result {
+				Err(Error::TooEarlyForRequest) => {
+					data.sessions.enqueue_decryption_message(&session_id, &sub_session_id, sender, message, is_queued_message);
+					break;
+				},
+				Err(err) => {
+					if let Some(connection) = data.connections.get(&sender) {
+						data.spawn(connection.send_message(Message::Decryption(DecryptionMessage::DecryptionSessionError(message::DecryptionSessionError {
+							session: session_id.clone().into(),
+							sub_session: sub_session_id.clone().into(),
+							error: format!("{:?}", err),
+						}))));
+					}
+
+					if err != Error::InvalidSessionId {
+						data.sessions.remove_decryption_session(&session_id, &sub_session_id);
+					}
+					break;
+				},
+				_ => {
+					match data.sessions.dequeue_decryption_message(&session_id, &sub_session_id) {
+						Some((msg_sender, msg)) => {
+							is_queued_message = true;
+							sender = msg_sender;
+							message = msg;
+						},
+						None => break,
+					}
+				},
+			}
+		}
 	}
 
 	/// Process single cluster message from the connection.
@@ -617,9 +694,58 @@ impl ClusterSessions {
 			.and_then(|session| session.queue.pop_front())
 	}
 
+	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, cluster: Arc<Cluster>) -> Result<Arc<DecryptionSession>, Error> {
+		let mut decryption_sessions = self.decryption_sessions.write();
+		let session_id = DecryptionSessionId::new(session_id, sub_session_id);
+		if decryption_sessions.contains_key(&session_id) {
+			return Err(Error::DuplicateSessionId);
+		}
+
+		let session = Arc::new(DecryptionSession::new(DecryptionSessionParams {
+			id: session_id.id.clone(),
+			access_key: session_id.access_key.clone(),
+			self_node_id: self.self_node_id.clone(),
+			encrypted_data: self.key_storage.get(&session_id.id).map_err(|e| Error::KeyStorage(e.into()))?,
+			acl_storage: self.acl_storage.clone(),
+			cluster: cluster,
+		})?);
+		let decryption_session = QueuedDecryptionSession {
+			session: session.clone(),
+			queue: VecDeque::new()
+		};
+		decryption_sessions.insert(session_id, decryption_session);
+		Ok(session)
+	}
+
+	pub fn remove_decryption_session(&self, session_id: &SessionId, sub_session_id: &Secret) {
+		let session_id = DecryptionSessionId::new(session_id.clone(), sub_session_id.clone());
+		self.decryption_sessions.write().remove(&session_id);
+	}
+
+	pub fn decryption_session(&self, session_id: &SessionId, sub_session_id: &Secret) -> Option<Arc<DecryptionSession>> {
+		let session_id = DecryptionSessionId::new(session_id.clone(), sub_session_id.clone());
+		self.decryption_sessions.read().get(&session_id).map(|s| s.session.clone())
+	}
+
+	pub fn enqueue_decryption_message(&self, session_id: &SessionId, sub_session_id: &Secret, sender: NodeId, message: DecryptionMessage, is_queued_message: bool) {
+		let session_id = DecryptionSessionId::new(session_id.clone(), sub_session_id.clone());
+		self.decryption_sessions.write().get_mut(&session_id)
+			.map(|session| if is_queued_message { session.queue.push_front((sender, message)) }
+				else { session.queue.push_back((sender, message)) });
+	}
+
+	pub fn dequeue_decryption_message(&self, session_id: &SessionId, sub_session_id: &Secret) -> Option<(NodeId, DecryptionMessage)> {
+		let session_id = DecryptionSessionId::new(session_id.clone(), sub_session_id.clone());
+		self.decryption_sessions.write().get_mut(&session_id)
+			.and_then(|session| session.queue.pop_front())
+	}
+
 	pub fn on_connection_timeout(&self, node_id: &NodeId) {
 		for encryption_session in self.encryption_sessions.read().values() {
 			encryption_session.session.on_session_timeout(node_id);
+		}
+		for decryption_session in self.decryption_sessions.read().values() {
+			decryption_session.session.on_session_timeout(node_id);
 		}
 	}
 }
@@ -743,6 +869,17 @@ impl ClusterClient for ClusterClientImpl {
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.new_encryption_session(self.data.self_key_pair.public().clone(), session_id, cluster)?;
 		session.initialize(threshold, connected_nodes)?;
+		Ok(session)
+	}
+
+	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature) -> Result<Arc<DecryptionSession>, Error> {
+		let mut connected_nodes = self.data.connections.connected_nodes();
+		connected_nodes.insert(self.data.self_key_pair.public().clone());
+
+		let access_key = Random.generate()?.secret().clone();
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
+		let session = self.data.sessions.new_decryption_session(self.data.self_key_pair.public().clone(), session_id, access_key, cluster)?;
+		session.initialize(requestor_signature)?;
 		Ok(session)
 	}
 }

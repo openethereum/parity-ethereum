@@ -58,17 +58,6 @@ impl KeyServerImpl {
 	}
 
 	#[cfg(test)]
-	/// Create new key server instance without network communications
-	pub fn new_no_cluster(acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>) -> Result<Self, Error> {
-		Ok(KeyServerImpl {
-			acl_storage: acl_storage,
-			key_storage: key_storage,
-			data: Arc::new(Mutex::new(KeyServerCore::new_no_cluster()?)),
-		})
-	}
-
-
-	#[cfg(test)]
 	/// Get cluster client reference.
 	pub fn cluster(&self) -> Arc<ClusterClient> {
 		self.data.lock().cluster.clone()
@@ -95,22 +84,20 @@ impl KeyServer for KeyServerImpl {
 	}
 
 	fn document_key(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKey, Error> {
-		/*// recover requestor' public key from signature
+		// recover requestor' public key from signature
 		let public = ethkey::recover(signature, document)
 			.map_err(|_| Error::BadSignature)?;
 
-		// check that requestor has access to the document
-		if !self.acl_storage.check(&public, document)? {
-			return Err(Error::AccessDenied);
-		}
+		// decrypt document key
+		let data = self.data.lock();
+		let decryption_session = data.cluster.as_ref().expect("cluster can be None in test cfg only; test cfg is for correct tests; qed")
+			.new_decryption_session(document.clone(), signature.clone())?;
+		let document_key = decryption_session.wait()?;
 
-		// read unencrypted document key
-		let document_key = self.key_storage.get(document)?;
 		// encrypt document key with requestor public key
 		let document_key = ethcrypto::ecies::encrypt_single_message(&public, &document_key)
 			.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err)))?;
-		Ok(document_key)*/
-		unimplemented!()
+		Ok(document_key)
 	}
 }
 
@@ -146,15 +133,6 @@ impl KeyServerCore {
 			cluster: Some(cluster),
 		})
 	}
-
-	#[cfg(test)]
-	pub fn new_no_cluster() -> Result<Self, Error> {
-		Ok(KeyServerCore {
-			close: None,
-			_handle: None,
-			cluster: None,
-		})
-	}
 }
 
 impl Drop for KeyServerCore {
@@ -169,11 +147,11 @@ mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
 	use ethcrypto;
-	use ethkey::{self, Secret};
+	use ethkey::{self, Secret, Random, Generator};
 	use acl_storage::DummyAclStorage;
 	use key_storage::KeyStorage;
 	use key_storage::tests::DummyKeyStorage;
-	use types::all::{ClusterConfiguration, NodeAddress, EncryptionConfiguration};
+	use types::all::{ClusterConfiguration, NodeAddress, EncryptionConfiguration, DocumentEncryptedKey, DocumentKey};
 	use super::super::{Error, RequestSignature, DocumentAddress};
 	use super::{KeyServer, KeyServerImpl};
 
@@ -184,22 +162,40 @@ mod tests {
 	const PUBLIC2: &'static str = "dfe62f56bb05fbd85b485bac749f3410309e24b352bac082468ce151e9ddb94fa7b5b730027fe1c7c5f3d5927621d269f91aceb5caa3c7fe944677a22f88a318";
 	const PRIVATE2: &'static str = "0eb3816f4f705fa0fd952fb27b71b8c0606f09f4743b5b65cbc375bd569632f2";
 
-	/*fn create_key_server() -> KeyServerImpl {
-		let acl_storage = Arc::new(DummyAclStorage::default());
-		let key_storage = Arc::new(DummyKeyStorage::default());
-		key_storage.insert(DOCUMENT1.into(), KEY1.into()).unwrap();
-		acl_storage.prohibit(PUBLIC2.into(), DOCUMENT1.into());
-		KeyServerImpl::new_no_cluster(acl_storage, key_storage).unwrap()
-	}
-
 	fn make_signature(secret: &str, document: &'static str) -> RequestSignature {
 		let secret = Secret::from_str(secret).unwrap();
 		let document: DocumentAddress = document.into();
 		ethkey::sign(&secret, &document).unwrap()
 	}
 
+	fn decrypt_document_key(secret: &str, document_key: DocumentEncryptedKey) -> DocumentKey {
+		let secret = Secret::from_str(secret).unwrap();
+		ethcrypto::ecies::decrypt_single_message(&secret, &document_key).unwrap()
+	}
+
+	/*fn create_single_key_server() -> KeyServerImpl {
+		let acl_storage = Arc::new(DummyAclStorage::default());
+		let key_storage = Arc::new(DummyKeyStorage::default());
+		let self_key_pair = KeyPair::from_secret(Secret::from_str(PRIVATE1).unwrap()).unwrap();
+		key_storage.insert(DOCUMENT1.into(), KEY1.into()).unwrap();
+		acl_storage.prohibit(PUBLIC2.into(), DOCUMENT1.into());
+		KeyServerImpl::new(ClusterConfiguration {
+			threads: 1,
+			allow_connecting_to_higher_nodes: false,
+			self_key_pair: self_key_pair.clone(),
+			listen_address: ("0.0.0.0".into(), 6050),
+			nodes: vec![],BTreeMap<NodeId, (String, u16)>,
+			/// Encryption session configuration.
+			pub encryption_config: EncryptionConfiguration,
+			/// Reference to key storage
+			pub key_storage: Arc<KeyStorage>,
+			/// Reference to ACL storage
+			pub acl_storage: Arc<AclStorage>,
+		}, acl_storage, key_storage).unwrap()
+	}
+
 	#[test]
-	fn document_key_succeeds() {
+	fn document_key_succeeds_on_single_node() {
 		let key_server = create_key_server();
 		let signature = make_signature(PRIVATE1, DOCUMENT1);
 		let document_key = key_server.document_key(&signature, &DOCUMENT1.into()).unwrap();
@@ -208,7 +204,7 @@ mod tests {
 	}
 
 	#[test]
-	fn document_key_fails_when_bad_signature() {
+	fn document_key_fails_when_bad_signature_on_single_node() {
 		let key_server = create_key_server();
 		let signature = RequestSignature::default();
 		let document_key = key_server.document_key(&signature, &DOCUMENT1.into());
@@ -216,7 +212,7 @@ mod tests {
 	}
 
 	#[test]
-	fn document_key_fails_when_acl_check_fails() {
+	fn document_key_fails_when_acl_check_fails_on_single_node() {
 		let key_server = create_key_server();
 		let signature = make_signature(PRIVATE2, DOCUMENT1);
 		let document_key = key_server.document_key(&signature, &DOCUMENT1.into());
@@ -224,60 +220,63 @@ mod tests {
 	}
 
 	#[test]
-	fn document_key_fails_when_document_not_found() {
+	fn document_key_fails_when_document_not_found_on_single_node() {
 		let key_server = create_key_server();
 		let signature = make_signature(PRIVATE1, DOCUMENT2);
 		let document_key = key_server.document_key(&signature, &DOCUMENT2.into());
 		assert_eq!(document_key, Err(Error::DocumentNotFound));
-	}
+	}*/
 
 	#[test]
-	fn document_key_generation_works_over_network() {
-		let key_pairs = vec![
-			ethkey::KeyPair::from_secret(ethkey::Secret::from_str("6c26a76e9b31048d170873a791401c7e799a11f0cefc0171cc31a49800967509").unwrap()).unwrap(),
-			ethkey::KeyPair::from_secret(ethkey::Secret::from_str("7e94018b3731afdb3b4e6f4c3e179475640166da12e1d1b0c7d80729b1a5b452").unwrap()).unwrap(),
-			ethkey::KeyPair::from_secret(ethkey::Secret::from_str("5ab6ed2a52c33142380032c39a03a86b12eacb3fa4b53bc16d84f51318156f8c").unwrap()).unwrap(),
-		];
-		let mut config = ClusterConfiguration {
-				threads: 4,
-				self_private: (***key_pairs[0].secret()).into(),
-				listener_address: NodeAddress {
-					address: "127.0.0.1".into(),
-					port: 6000,
-				},
-				nodes: key_pairs.iter().enumerate().map(|(i, kp)| (kp.public().clone(),
-					NodeAddress {
+	fn document_key_generation_and_retrievement_works_over_network() {
+		//::util::log::init_log();
+
+		let test_cases = [(1, 3)];
+		for &(threshold, num_nodes) in &test_cases {
+			let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
+			let configs: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
+					threads: 1,
+					self_private: (***key_pairs[i].secret()).into(),
+					listener_address: NodeAddress {
 						address: "127.0.0.1".into(),
-						port: 6000 + (i as u16),
-					})).collect(),
-				allow_connecting_to_higher_nodes: false,
-				encryption_config: EncryptionConfiguration {
-					key_check_timeout_ms: 10,
-				},
-			};
+						port: 6060 + (i as u16),
+					},
+					nodes: key_pairs.iter().enumerate().map(|(j, kp)| (kp.public().clone(),
+						NodeAddress {
+							address: "127.0.0.1".into(),
+							port: 6060 + (j as u16),
+						})).collect(),
+					allow_connecting_to_higher_nodes: false,
+					encryption_config: EncryptionConfiguration {
+						key_check_timeout_ms: 10,
+					},
+				}).collect();
+			let key_servers: Vec<_> = configs.into_iter().map(|cfg|
+				KeyServerImpl::new(&cfg, Arc::new(DummyAclStorage::default()), Arc::new(DummyKeyStorage::default())).unwrap()
+			).collect();
 
-		let key_server1 = KeyServerImpl::new(&config, DummyAclStorage::default(), DummyKeyStorage::default()).unwrap();
-
-		config.self_private = (***key_pairs[1].secret()).into();
-		config.listener_address.port = 6001;
-		let _key_server2 = KeyServerImpl::new(&config, DummyAclStorage::default(), DummyKeyStorage::default()).unwrap();
-
-		config.self_private = (***key_pairs[2].secret()).into();
-		config.listener_address.port = 6002;
-		let _key_server3 = KeyServerImpl::new(&config, DummyAclStorage::default(), DummyKeyStorage::default()).unwrap();
-
-		// wait until connections areestablished (TODO: get rid of timeout)
-		let start = time::Instant::now();
-		loop {
-			if key_server1.cluster().cluster_state().connected.len() == 2 {
-				break;
+			// wait until connections are established
+			let start = time::Instant::now();
+			loop {
+				if key_servers.iter().all(|ks| ks.cluster().cluster_state().connected.len() == num_nodes - 1) {
+					break;
+				}
+				if time::Instant::now() - start > time::Duration::from_millis(30000) {
+					panic!("connections are not established in 30000ms");
+				}
 			}
-			if time::Instant::now() - start > time::Duration::from_millis(300) {
-				panic!("connections are not established in 300ms");
+
+			// generate document key
+			let signature = make_signature(PRIVATE1, DOCUMENT1);
+			let generated_key = key_servers[0].generate_document_key(&signature, &DOCUMENT1.into(), threshold).unwrap();
+			let generated_key = decrypt_document_key(PRIVATE1, generated_key);
+
+			// now let's try to retrieve key back
+			for key_server in key_servers.iter() {
+				let retrieved_key = key_server.document_key(&signature, &DOCUMENT1.into()).unwrap();
+				let retrieved_key = decrypt_document_key(PRIVATE1, retrieved_key);
+				assert_eq!(retrieved_key, generated_key);
 			}
 		}
-
-		let signature = make_signature(PRIVATE1, DOCUMENT1);
-		key_server1.generate_document_key(&signature, &DOCUMENT1.into(), 1).unwrap();
-	}*/
+	}
 }

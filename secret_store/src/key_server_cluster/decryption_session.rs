@@ -17,7 +17,7 @@
 use std::cmp::{Ord, PartialOrd, Ordering};
 use std::collections::{BTreeSet, BTreeMap};
 use std::sync::Arc;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, Condvar};
 use ethkey::{self, Secret, Public, Signature};
 use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId};
 use key_server_cluster::cluster::Cluster;
@@ -46,6 +46,8 @@ pub struct Session {
 	acl_storage: Arc<AclStorage>,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
 	cluster: Arc<Cluster>,
+	/// Session completion condvar.
+	completed: Condvar,
 	/// Mutable session data.
 	data: Mutex<SessionData>,
 }
@@ -54,9 +56,9 @@ pub struct Session {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecryptionSessionId {
 	/// Encryption session id.
-	id: SessionId,
+	pub id: SessionId,
 	/// Decryption session access key.
-	access_key: Secret,
+	pub access_key: Secret,
 }
 
 /// Session creation parameters
@@ -101,7 +103,7 @@ struct SessionData {
 
 	/// === Values, filled during final decryption ===
 	/// Decrypted secret
-	decrypted_secret: Option<Public>,
+	decrypted_secret: Option<Result<Public, Error>>,
 }
 
 #[derive(Debug)]
@@ -138,6 +140,7 @@ impl Session {
 			encrypted_data: params.encrypted_data,
 			acl_storage: params.acl_storage,
 			cluster: params.cluster,
+			completed: Condvar::new(),
 			data: Mutex::new(SessionData {
 				state: SessionState::WaitingForInitialization,
 				master: None,
@@ -168,7 +171,19 @@ impl Session {
 
 	/// Get decrypted secret
 	pub fn decrypted_secret(&self) -> Option<Public> {
-		self.data.lock().decrypted_secret.clone()
+		self.data.lock().decrypted_secret.clone().and_then(|r| r.ok())
+	}
+
+	/// Wait until session is completed.
+	pub fn wait(&self) -> Result<Public, Error> {
+		let mut data = self.data.lock();
+		if !data.decrypted_secret.is_some() {
+			self.completed.wait(&mut data);
+		}
+
+		data.decrypted_secret.as_ref()
+			.expect("checked above or waited for completed; completed is only signaled when decrypted_secret.is_some(); qed")
+			.clone()
 	}
 
 	/// Initialize decryption session.
@@ -217,7 +232,7 @@ impl Session {
 	}
 
 	/// When session initialization message is received.
-	pub fn on_initialize_session(&self, sender: NodeId, message: InitializeDecryptionSession) -> Result<(), Error> {
+	pub fn on_initialize_session(&self, sender: NodeId, message: &InitializeDecryptionSession) -> Result<(), Error> {
 		debug_assert!(self.id == *message.session);
 		debug_assert!(self.access_key == *message.sub_session);
 		debug_assert!(&sender != self.node());
@@ -248,7 +263,7 @@ impl Session {
 	}
 
 	/// When session initialization confirmation message is reeived.
-	pub fn on_confirm_initialization(&self, sender: NodeId, message: ConfirmDecryptionInitialization) -> Result<(), Error> {
+	pub fn on_confirm_initialization(&self, sender: NodeId, message: &ConfirmDecryptionInitialization) -> Result<(), Error> {
 		debug_assert!(self.id == *message.session);
 		debug_assert!(self.access_key == *message.sub_session);
 		debug_assert!(&sender != self.node());
@@ -298,7 +313,7 @@ impl Session {
 	}
 
 	/// When partial decryption is requested.
-	pub fn on_partial_decryption_requested(&self, sender: NodeId, message: RequestPartialDecryption) -> Result<(), Error> {
+	pub fn on_partial_decryption_requested(&self, sender: NodeId, message: &RequestPartialDecryption) -> Result<(), Error> {
 		debug_assert!(self.id == *message.session);
 		debug_assert!(self.access_key == *message.sub_session);
 		debug_assert!(&sender != self.node());
@@ -321,7 +336,7 @@ impl Session {
 		// calculate shadow point
 		let shadow_point = {
 			let requestor = data.requestor.as_ref().expect("requestor public is filled during initialization; WaitingForPartialDecryptionRequest follows initialization; qed");
-			do_partial_decryption(self.node(), &requestor, &message.nodes.into_iter().map(Into::into).collect(), &self.access_key, &self.encrypted_data)?
+			do_partial_decryption(self.node(), &requestor, &message.nodes.iter().cloned().map(Into::into).collect(), &self.access_key, &self.encrypted_data)?
 		};
 		self.cluster.send(&sender, Message::Decryption(DecryptionMessage::PartialDecryption(PartialDecryption {
 			session: self.id.clone().into(),
@@ -336,7 +351,7 @@ impl Session {
 	}
 
 	/// When partial decryption is received.
-	pub fn on_partial_decryption(&self, sender: NodeId, message: PartialDecryption) -> Result<(), Error> {
+	pub fn on_partial_decryption(&self, sender: NodeId, message: &PartialDecryption) -> Result<(), Error> {
 		debug_assert!(self.id == *message.session);
 		debug_assert!(self.access_key == *message.sub_session);
 		debug_assert!(&sender != self.node());
@@ -351,7 +366,7 @@ impl Session {
 		if !data.confirmed_nodes.remove(&sender) {
 			return Err(Error::InvalidStateForRequest);
 		}
-		data.shadow_points.insert(sender, message.shadow_point.into());
+		data.shadow_points.insert(sender, message.shadow_point.clone().into());
 
 		// check if we have enough shadow points to decrypt the secret
 		if data.shadow_points.len() != self.encrypted_data.threshold + 1 {
@@ -361,20 +376,33 @@ impl Session {
 		// decrypt the secret using shadow points
 		let joint_shadow_point = math::compute_joint_shadow_point(data.shadow_points.values())?;
 		let decrypted_secret = math::decrypt_with_joint_shadow(&self.access_key, &self.encrypted_data.encrypted_point, &joint_shadow_point)?;
-		data.decrypted_secret = Some(decrypted_secret);
+		data.decrypted_secret = Some(Ok(decrypted_secret));
+
+		// switch to completed state
 		data.state = SessionState::Finished;
+		self.completed.notify_all();
 
 		Ok(())
 	}
 
 	/// When error has occured on another node.
-	pub fn on_session_error(&self, sender: NodeId, message: DecryptionSessionError) -> Result<(), Error> {
+	pub fn on_session_error(&self, sender: NodeId, message: &DecryptionSessionError) -> Result<(), Error> {
 		unimplemented!()
 	}
 
 	/// When session timeout has occured.
 	pub fn on_session_timeout(&self, node: &NodeId) -> Result<(), Error> {
 		unimplemented!()
+	}
+}
+
+impl DecryptionSessionId {
+	/// Create new decryption session Id.
+	pub fn new(session_id: SessionId, sub_session_id: Secret) -> Self {
+		DecryptionSessionId {
+			id: session_id,
+			access_key: sub_session_id,
+		}
 	}
 }
 
@@ -515,10 +543,10 @@ mod tests {
 			}
 
 			match message {
-				Message::Decryption(DecryptionMessage::InitializeDecryptionSession(message)) => session.on_initialize_session(from, message).unwrap(),
-				Message::Decryption(DecryptionMessage::ConfirmDecryptionInitialization(message)) => session.on_confirm_initialization(from, message).unwrap(),
-				Message::Decryption(DecryptionMessage::RequestPartialDecryption(message)) => session.on_partial_decryption_requested(from, message).unwrap(),
-				Message::Decryption(DecryptionMessage::PartialDecryption(message)) => session.on_partial_decryption(from, message).unwrap(),
+				Message::Decryption(DecryptionMessage::InitializeDecryptionSession(message)) => session.on_initialize_session(from, &message).unwrap(),
+				Message::Decryption(DecryptionMessage::ConfirmDecryptionInitialization(message)) => session.on_confirm_initialization(from, &message).unwrap(),
+				Message::Decryption(DecryptionMessage::RequestPartialDecryption(message)) => session.on_partial_decryption_requested(from, &message).unwrap(),
+				Message::Decryption(DecryptionMessage::PartialDecryption(message)) => session.on_partial_decryption(from, &message).unwrap(),
 				_ => panic!("unexpected"),
 			}
 		}
@@ -609,7 +637,7 @@ mod tests {
 	fn fails_to_accept_initialization_when_already_initialized() {
 		let (_, _, sessions) = prepare_decryption_sessions();
 		assert_eq!(sessions[0].initialize(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()).unwrap(), ());
-		assert_eq!(sessions[0].on_initialize_session(sessions[1].node().clone(), message::InitializeDecryptionSession {
+		assert_eq!(sessions[0].on_initialize_session(sessions[1].node().clone(), &message::InitializeDecryptionSession {
 			session: SessionId::default().into(),
 			sub_session: sessions[0].access_key().clone().into(),
 			requestor_signature: ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
@@ -619,17 +647,17 @@ mod tests {
 	#[test]
 	fn fails_to_partial_decrypt_if_not_waiting() {
 		let (_, _, sessions) = prepare_decryption_sessions();
-		assert_eq!(sessions[1].on_initialize_session(sessions[0].node().clone(), message::InitializeDecryptionSession {
+		assert_eq!(sessions[1].on_initialize_session(sessions[0].node().clone(), &message::InitializeDecryptionSession {
 			session: SessionId::default().into(),
 			sub_session: sessions[0].access_key().clone().into(),
 			requestor_signature: ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
 		}).unwrap(), ());
-		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[0].node().clone(), message::RequestPartialDecryption {
+		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[0].node().clone(), &message::RequestPartialDecryption {
 			session: SessionId::default().into(),
 			sub_session: sessions[0].access_key().clone().into(),
 			nodes: sessions.iter().map(|s| s.node().clone().into()).take(4).collect(),
 		}).unwrap(), ());
-		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[0].node().clone(), message::RequestPartialDecryption {
+		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[0].node().clone(), &message::RequestPartialDecryption {
 			session: SessionId::default().into(),
 			sub_session: sessions[0].access_key().clone().into(),
 			nodes: sessions.iter().map(|s| s.node().clone().into()).take(4).collect(),
@@ -639,12 +667,12 @@ mod tests {
 	#[test]
 	fn fails_to_partial_decrypt_if_requested_by_slave() {
 		let (_, _, sessions) = prepare_decryption_sessions();
-		assert_eq!(sessions[1].on_initialize_session(sessions[0].node().clone(), message::InitializeDecryptionSession {
+		assert_eq!(sessions[1].on_initialize_session(sessions[0].node().clone(), &message::InitializeDecryptionSession {
 			session: SessionId::default().into(),
 			sub_session: sessions[0].access_key().clone().into(),
 			requestor_signature: ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
 		}).unwrap(), ());
-		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[2].node().clone(), message::RequestPartialDecryption {
+		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[2].node().clone(), &message::RequestPartialDecryption {
 			session: SessionId::default().into(),
 			sub_session: sessions[0].access_key().clone().into(),
 			nodes: sessions.iter().map(|s| s.node().clone().into()).take(4).collect(),
@@ -654,12 +682,12 @@ mod tests {
 	#[test]
 	fn fails_to_partial_decrypt_if_wrong_number_of_nodes_participating() {
 		let (_, _, sessions) = prepare_decryption_sessions();
-		assert_eq!(sessions[1].on_initialize_session(sessions[0].node().clone(), message::InitializeDecryptionSession {
+		assert_eq!(sessions[1].on_initialize_session(sessions[0].node().clone(), &message::InitializeDecryptionSession {
 			session: SessionId::default().into(),
 			sub_session: sessions[0].access_key().clone().into(),
 			requestor_signature: ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
 		}).unwrap(), ());
-		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[0].node().clone(), message::RequestPartialDecryption {
+		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[0].node().clone(), &message::RequestPartialDecryption {
 			session: SessionId::default().into(),
 			sub_session: sessions[0].access_key().clone().into(),
 			nodes: sessions.iter().map(|s| s.node().clone().into()).take(2).collect(),
@@ -669,7 +697,7 @@ mod tests {
 	#[test]
 	fn fails_to_accept_partial_decrypt_if_not_waiting() {
 		let (_, _, sessions) = prepare_decryption_sessions();
-		assert_eq!(sessions[0].on_partial_decryption(sessions[1].node().clone(), message::PartialDecryption {
+		assert_eq!(sessions[0].on_partial_decryption(sessions[1].node().clone(), &message::PartialDecryption {
 			session: SessionId::default().into(),
 			sub_session: sessions[0].access_key().clone().into(),
 			shadow_point: Random.generate().unwrap().public().clone().into(),
@@ -692,8 +720,8 @@ mod tests {
 			_ => false,
 		});
 
-		assert_eq!(sessions[0].on_partial_decryption(pd_from.clone().unwrap(), pd_msg.clone().unwrap()).unwrap(), ());
-		assert_eq!(sessions[0].on_partial_decryption(pd_from.unwrap(), pd_msg.unwrap()).unwrap_err(), Error::InvalidStateForRequest);
+		assert_eq!(sessions[0].on_partial_decryption(pd_from.clone().unwrap(), &pd_msg.clone().unwrap()).unwrap(), ());
+		assert_eq!(sessions[0].on_partial_decryption(pd_from.unwrap(), &pd_msg.unwrap()).unwrap_err(), Error::InvalidStateForRequest);
 	}
 
 	#[test]
@@ -740,5 +768,10 @@ mod tests {
 		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::WaitingForPartialDecryptionRequest).count(), 2);
 		// 3) 0 sessions have decrypted key value
 		assert!(sessions.iter().all(|s| s.decrypted_secret().is_none()));
+	}
+
+	#[test]
+	fn decryption_session_works_over_network() {
+		// TODO
 	}
 }

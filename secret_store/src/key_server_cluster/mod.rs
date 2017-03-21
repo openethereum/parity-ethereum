@@ -29,6 +29,7 @@ use super::types::all::DocumentAddress;
 pub use super::types::all::{NodeId, EncryptionConfiguration};
 pub use super::acl_storage::{AclStorage, DummyAclStorage};
 pub use super::key_storage::{KeyStorage, DocumentKeyShare};
+pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic};
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
 
 #[cfg(test)]
