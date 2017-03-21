@@ -23,7 +23,8 @@
 
             "0x00a0a24b9f0e5ec7aa4c7389b8302fd0123194de"
           ]
-        }
+        },
+        "validateScoreTransition": 1000000
       }
     }
   },
@@ -31,7 +32,7 @@
     "maximumExtraDataSize": "0x20",
     "minGasLimit": "0x1388",
     "networkID" : "0x2A",
-    "validateReceipts" : false
+    "validateReceiptsTransition" : 1000000
   },
   "genesis": {
     "seal": {

@@ -53,6 +53,8 @@ pub struct AuthorityRoundParams {
 	pub start_step: Option<u64>,
 	/// Valid validators.
 	pub validators: ethjson::spec::ValidatorSet,
+	/// Chain score validation transition block.
+	pub validate_score_transition: u64,
 }
 
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
@@ -64,6 +66,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			start_step: p.start_step.map(Into::into),
+			validate_score_transition: p.validate_score_transition.map_or(0, Into::into),
 		}
 	}
 }
@@ -83,8 +86,9 @@ pub struct AuthorityRound {
 	client: RwLock<Option<Weak<EngineClient>>>,
 	signer: EngineSigner,
 	validators: Box<ValidatorSet + Send + Sync>,
-	/// Is this Engine just for testing (prevents step calibration).
+	/// Is this Engine not used for testing and should be calibrated.
 	calibrate_step: bool,
+	validate_score_transition: u64,
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
@@ -125,6 +129,7 @@ impl AuthorityRound {
 				signer: Default::default(),
 				validators: new_validator_set(our_params.validators),
 				calibrate_step: our_params.start_step.is_none(),
+				validate_score_transition: our_params.validate_score_transition,
 			});
 		// Do not initialize timeouts for tests.
 		if should_timeout {
@@ -327,10 +332,19 @@ impl Engine for AuthorityRound {
 		}
 
 		// Check if parent is from a previous step.
-		if step == header_step(parent)? {
+		let parent_step = header_step(parent)?;
+		if step == parent_step {
 			trace!(target: "engine", "Multiple blocks proposed for step {}.", step);
 			self.validators.report_malicious(header.author());
 			Err(EngineError::DoubleVote(header.author().clone()))?;
+		}
+
+
+		let expected_score = U256::from(U128::max_value()) + parent_step.into() - step.into();
+		if header.number() >= self.validate_score_transition && *header.difficulty() == expected_score {
+			return Err(From::from(BlockError::DifficultyOutOfBounds(
+				OutOfBounds { min: Some(expected_score), max: Some(expected_score), found: *header.difficulty() }
+			)));
 		}
 
 		let gas_limit_divisor = self.gas_limit_bound_divisor;
