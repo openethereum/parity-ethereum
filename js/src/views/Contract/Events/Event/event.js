@@ -19,7 +19,7 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { IdentityIcon, IdentityName, Input, InputAddress, TypedInput } from '~/ui';
+import { IdentityIcon, IdentityName, TypedInput } from '~/ui';
 import ShortenedHash from '~/ui/ShortenedHash';
 import { txLink } from '~/3rdparty/etherscan/links';
 
