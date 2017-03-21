@@ -16,7 +16,7 @@ serde_json = "0.9"
 serde_derive = "0.9"
 rustc-serialize = "0.3"
 time = "0.1"
-transient-hashmap = "0.1"
+transient-hashmap = "0.4"
 order-stat = "0.1"
 jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
 jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }

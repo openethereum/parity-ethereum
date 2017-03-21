@@ -22,7 +22,7 @@ use ethcore::transaction::UnverifiedTransaction;
 
 use io::TimerToken;
 use network::{NetworkProtocolHandler, NetworkContext, PeerId};
-use rlp::{RlpStream, Stream, UntrustedRlp, View};
+use rlp::{RlpStream, UntrustedRlp, View};
 use util::hash::H256;
 use util::{DBValue, Mutex, RwLock, U256};
 use time::{Duration, SteadyTime};
@@ -313,7 +313,7 @@ impl LightProtocol {
 				let req_id = ReqId(self.req_id.fetch_add(1, Ordering::SeqCst));
 				io.send(*peer_id, packet::REQUEST, {
 					let mut stream = RlpStream::new_list(2);
-					stream.append(&req_id.0).append(&requests.requests());
+					stream.append(&req_id.0).append_list(&requests.requests());
 					stream.out()
 				});
 
@@ -713,7 +713,7 @@ impl LightProtocol {
 		io.respond(packet::RESPONSE, {
 			let mut stream = RlpStream::new_list(3);
 			let cur_credits = peer.local_credits.current();
-			stream.append(&req_id).append(&cur_credits).append(&responses);
+			stream.append(&req_id).append(&cur_credits).append_list(&responses);
 			stream.out()
 		});
 		Ok(())

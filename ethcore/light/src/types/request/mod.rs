@@ -16,7 +16,7 @@
 
 //! Light protocol request types.
 
-use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
+use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
 use util::H256;
 
 mod builder;
@@ -525,7 +525,7 @@ pub trait IncompleteRequest: Sized {
 pub mod header {
 	use super::{Field, HashOrNumber, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
 
 	/// Potentially incomplete headers request.
 	#[derive(Debug, Clone, PartialEq, Eq)]
@@ -655,7 +655,7 @@ pub mod header {
 /// Request and response for header proofs.
 pub mod header_proof {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete header proof request.
@@ -751,10 +751,12 @@ pub mod header_proof {
 
 	impl Encodable for Response {
 		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(3)
-				.append(&self.proof)
-				.append(&self.hash)
-				.append(&self.td);
+			s.begin_list(3).begin_list(self.proof.len());
+			for item in &self.proof {
+				s.append_list(&item);
+			}
+
+			s.append(&self.hash).append(&self.td);
 		}
 	}
 }
@@ -763,7 +765,7 @@ pub mod header_proof {
 pub mod block_receipts {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::receipt::Receipt;
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
 	use util::H256;
 
 	/// Potentially incomplete block receipts request.
@@ -849,7 +851,7 @@ pub mod block_receipts {
 
 	impl Encodable for Response {
 		fn rlp_append(&self, s: &mut RlpStream) {
-			s.append(&self.receipts);
+			s.append_list(&self.receipts);
 		}
 	}
 }
@@ -858,7 +860,7 @@ pub mod block_receipts {
 pub mod block_body {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
 	use util::H256;
 
 	/// Potentially incomplete block body request.
@@ -959,7 +961,7 @@ pub mod block_body {
 /// A request for an account proof.
 pub mod account {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete request for an account proof.
@@ -1083,9 +1085,12 @@ pub mod account {
 
 	impl Encodable for Response {
 		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(5)
-				.append(&self.proof)
-				.append(&self.nonce)
+			s.begin_list(5).begin_list(self.proof.len());
+			for item in &self.proof {
+				s.append_list(&item);
+			}
+
+			s.append(&self.nonce)
 				.append(&self.balance)
 				.append(&self.code_hash)
 				.append(&self.storage_root);
@@ -1096,7 +1101,7 @@ pub mod account {
 /// A request for a storage proof.
 pub mod storage {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
 	use util::{Bytes, H256};
 
 	/// Potentially incomplete request for an storage proof.
@@ -1227,9 +1232,11 @@ pub mod storage {
 
 	impl Encodable for Response {
 		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(2)
-				.append(&self.proof)
-				.append(&self.value);
+			s.begin_list(2).begin_list(self.proof.len());
+			for item in &self.proof {
+				s.append_list(&item);
+			}
+			s.append(&self.value);
 		}
 	}
 }
@@ -1237,7 +1244,7 @@ pub mod storage {
 /// A request for contract code.
 pub mod contract_code {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
 	use util::{Bytes, H256};
 
 	/// Potentially incomplete contract code request.
@@ -1351,7 +1358,7 @@ pub mod contract_code {
 pub mod execution {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::transaction::Action;
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Stream, View};
+	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
 	use util::{Bytes, Address, U256, H256, DBValue};
 
 	/// Potentially incomplete execution proof request.
@@ -1722,7 +1729,7 @@ mod tests {
 		}).map(Request::Execution).collect();
 
 		let mut stream = RlpStream::new_list(2);
-		stream.append(&100usize).append(&reqs);
+		stream.append(&100usize).append_list(&reqs);
 		let out = stream.out();
 
 		let rlp = UntrustedRlp::new(&out);

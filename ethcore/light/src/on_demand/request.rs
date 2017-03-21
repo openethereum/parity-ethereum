@@ -26,7 +26,7 @@ use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
 use ethcore::transaction::SignedTransaction;
 
-use rlp::{RlpStream, Stream, UntrustedRlp, View};
+use rlp::{RlpStream, UntrustedRlp, View};
 use util::{Address, Bytes, DBValue, HashDB, H256, U256};
 use util::memorydb::MemoryDB;
 use util::sha3::Hashable;
@@ -310,7 +310,7 @@ mod tests {
 
 	#[test]
 	fn check_body() {
-		use rlp::{RlpStream, Stream};
+		use rlp::RlpStream;
 
 		let header = Header::new();
 		let mut body_stream = RlpStream::new_list(2);
@@ -348,7 +348,7 @@ mod tests {
 
 	#[test]
 	fn check_state_proof() {
-		use rlp::{RlpStream, Stream};
+		use rlp::RlpStream;
 
 		let mut root = H256::default();
 		let mut db = MemoryDB::new();

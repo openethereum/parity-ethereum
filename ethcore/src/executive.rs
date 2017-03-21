@@ -36,7 +36,7 @@ const STACK_SIZE_PER_DEPTH: usize = 24*1024;
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
-	use rlp::{RlpStream, Stream};
+	use rlp::RlpStream;
 
 	let mut stream = RlpStream::new_list(2);
 	stream.append(address);

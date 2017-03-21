@@ -16,7 +16,7 @@
 
 //! Peer status and capabilities.
 
-use rlp::{DecoderError, RlpDecodable, RlpEncodable, RlpStream, Stream, UntrustedRlp, View};
+use rlp::{DecoderError, RlpDecodable, Encodable, RlpStream, UntrustedRlp, View};
 use util::{H256, U256};
 
 use super::request_credits::FlowParams;
@@ -126,7 +126,7 @@ impl<'a> Parser<'a> {
 }
 
 // Helper for encoding a key-value pair
-fn encode_pair<T: RlpEncodable>(key: Key, val: &T) -> Vec<u8> {
+fn encode_pair<T: Encodable>(key: Key, val: &T) -> Vec<u8> {
 	let mut s = RlpStream::new_list(2);
 	s.append(&key.as_str()).append(val);
 	s.out()
@@ -374,7 +374,7 @@ mod tests {
 	use super::*;
 	use super::super::request_credits::FlowParams;
 	use util::{U256, H256};
-	use rlp::{RlpStream, Stream ,UntrustedRlp, View};
+	use rlp::{RlpStream, UntrustedRlp, View};
 
 	#[test]
 	fn full_handshake() {

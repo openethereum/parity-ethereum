@@ -16,7 +16,7 @@
 
 use std::fmt;
 use rustc_serialize::hex::ToHex;
-use ::{View, DecoderError, UntrustedRlp, PayloadInfo, Prototype, RlpDecodable};
+use {View, DecoderError, UntrustedRlp, PayloadInfo, Prototype, RlpDecodable};
 
 impl<'a> From<UntrustedRlp<'a>> for Rlp<'a> {
 	fn from(rlp: UntrustedRlp<'a>) -> Rlp<'a> {

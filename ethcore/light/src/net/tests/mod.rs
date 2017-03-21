@@ -48,7 +48,7 @@ fn encode_single(request: Request) -> Requests {
 // helper for making a packet out of `Requests`.
 fn make_packet(req_id: usize, requests: &Requests) -> Vec<u8> {
 	let mut stream = RlpStream::new_list(2);
-	stream.append(&req_id).append(&requests.requests());
+	stream.append(&req_id).append_list(&requests.requests());
 	stream.out()
 }
 
@@ -309,7 +309,7 @@ fn get_block_headers() {
 		})];
 
 		let mut stream = RlpStream::new_list(3);
-		stream.append(&req_id).append(&new_creds).append(&response);
+		stream.append(&req_id).append(&new_creds).append_list(&response);
 
 		stream.out()
 	};
@@ -358,7 +358,7 @@ fn get_block_bodies() {
 		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
 
 		let mut response_stream = RlpStream::new_list(3);
-		response_stream.append(&req_id).append(&new_creds).append(&bodies);
+		response_stream.append(&req_id).append(&new_creds).append_list(&bodies);
 		response_stream.out()
 	};
 
@@ -413,7 +413,7 @@ fn get_block_receipts() {
 		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
 
 		let mut response_stream = RlpStream::new_list(3);
-		response_stream.append(&req_id).append(&new_creds).append(&receipts);
+		response_stream.append(&req_id).append(&new_creds).append_list(&receipts);
 		response_stream.out()
 	};
 
@@ -471,7 +471,7 @@ fn get_state_proofs() {
 		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
 
 		let mut response_stream = RlpStream::new_list(3);
-		response_stream.append(&req_id).append(&new_creds).append(&responses);
+		response_stream.append(&req_id).append(&new_creds).append_list(&responses);
 		response_stream.out()
 	};
 
@@ -514,7 +514,7 @@ fn get_contract_code() {
 
 		let mut response_stream = RlpStream::new_list(3);
 
-		response_stream.append(&req_id).append(&new_creds).append(&response);
+		response_stream.append(&req_id).append(&new_creds).append_list(&response);
 		response_stream.out()
 	};
 
