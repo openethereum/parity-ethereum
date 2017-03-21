@@ -55,8 +55,8 @@ fn should_extract_metadata() {
 	// given
 	let mut io = MetaIoHandler::default();
 	io.add_method_with_meta("rpc_test", |_params, meta: Metadata| {
-		assert_eq!(meta.origin, Origin::Dapps("https://parity.io/".into()));
-		assert_eq!(meta.dapp_id(), "https://parity.io/".into());
+		assert_eq!(meta.origin, Origin::Dapps("".into()));
+		assert_eq!(meta.dapp_id(), "".into());
 		future::ok(Value::String("Hello World!".into())).boxed()
 	});
 	let server = serve_with_rpc(io);
@@ -68,7 +68,6 @@ fn should_extract_metadata() {
 			POST /rpc/ HTTP/1.1\r\n\
 			Host: 127.0.0.1:8080\r\n\
 			Connection: close\r\n\
-			Origin: https://parity.io/\r\n\
 			X-Parity-Origin: https://this.should.be.ignored\r\n\
 			Content-Type: application/json\r\n\
 			Content-Length: {}\r\n\

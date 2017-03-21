@@ -35,7 +35,7 @@ impl Fetch for TestFetch {
 		let (tx, rx) = futures::oneshot();
 		thread::spawn(move || {
 			let cursor = io::Cursor::new(b"Some content");
-			tx.complete(fetch::Response::from_reader(cursor));
+			tx.send(fetch::Response::from_reader(cursor)).unwrap();
 		});
 
 		rx.map_err(|_| fetch::Error::Aborted).boxed()
