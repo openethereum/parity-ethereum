@@ -48,7 +48,7 @@ function render (address) {
 
   component = shallow(
     <TransactionPendingFormConfirm
-      account={ ACCOUNTS[address] || {} }
+      account={ ACCOUNTS[address] }
       address={ address }
       onConfirm={ onConfirm }
       isSending={ false }
@@ -129,6 +129,10 @@ describe('views/Signer/TransactionPendingFormConfirm', () => {
 
     it('renders the password', () => {
       expect(instance.renderPassword()).not.to.be.null;
+    });
+
+    it('renders the hint', () => {
+      expect(instance.renderHint()).to.be.null;
     });
   });
 });
