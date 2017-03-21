@@ -66,7 +66,20 @@ export default class Application extends Component {
             { this.renderActions() }
             <Events />
             <div className={ styles.warning }>
-              WARNING: The name registry is experimental. Please ensure that you understand the risks, benefits & consequences of registering a name before doing so. A non-refundable fee of { api.util.fromWei(fee).toFormat(3) }<small>ETH</small> is required for all registrations.
+              <span>
+                WARNING: The name registry is experimental. Please ensure that you understand the risks,
+                benefits & consequences of registering a name before doing so.
+              </span>
+              {
+                api.util.fromWei(fee).gt(0)
+                ? (
+                  <span>
+                    &nbsp;A non-refundable fee of { api.util.fromWei(fee).toFormat(3) } <small>ETH</small>
+                    &nbsp;is required for all registrations.
+                  </span>
+                )
+                : null
+              }
             </div>
           </div>
         ) : (
