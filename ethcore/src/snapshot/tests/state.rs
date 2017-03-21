@@ -95,7 +95,7 @@ fn snap_and_restore() {
 #[test]
 fn get_code_from_prev_chunk() {
 	use std::collections::HashSet;
-	use rlp::{RlpStream, Stream};
+	use rlp::RlpStream;
 	use util::{HashDB, H256, U256, Hashable};
 
 	use account_db::{AccountDBMut, AccountDB};

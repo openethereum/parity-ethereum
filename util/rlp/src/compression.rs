@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ::{UntrustedRlp, View, Compressible, encode, Stream, RlpStream};
-use commonrlps::{BLOCKS_RLP_SWAPPER, SNAPSHOT_RLP_SWAPPER};
-
 use std::collections::HashMap;
 use elastic_array::ElasticArray1024;
+use common::{BLOCKS_RLP_SWAPPER, SNAPSHOT_RLP_SWAPPER};
+use {UntrustedRlp, View, Compressible, encode, RlpStream};
 
 /// Stores RLPs used for compression
 pub struct InvalidRlpSwapper<'a> {
@@ -149,8 +148,6 @@ fn deep_decompress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> Option<El
   	}
 }
 
-
-
 impl<'a> Compressible for UntrustedRlp<'a> {
 	type DataType = RlpType;
 
@@ -171,8 +168,8 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 
 #[cfg(test)]
 mod tests {
-	use ::{UntrustedRlp, Compressible, View, RlpType};
-	use rlpcompression::InvalidRlpSwapper;
+	use compression::InvalidRlpSwapper;
+	use {UntrustedRlp, Compressible, View, RlpType};
 
 	#[test]
 	fn invalid_rlp_swapper() {
