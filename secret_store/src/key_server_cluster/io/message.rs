@@ -1,3 +1,19 @@
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use std::io::Cursor;
 use std::u16;
 use std::ops::Deref;
@@ -40,6 +56,7 @@ impl Into<Vec<u8>> for SerializedMessage {
 	}
 }
 
+/// Serialize message.
 pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 	let (message_kind, payload) = match message {
 		Message::Cluster(ClusterMessage::NodePublicKey(payload))							=> (1, serde_json::to_vec(&payload)),
@@ -80,6 +97,7 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 	Ok(SerializedMessage(serialized_message))
 }
 
+/// Deserialize message.
 pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<Message, Error> {
 	Ok(match header.kind {
 		1	=> Message::Cluster(ClusterMessage::NodePublicKey(serde_json::from_slice(&payload).map_err(|err| Error::Serde(format!("{}", err)))?)),
@@ -106,21 +124,17 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 	})
 }
 
+/// Encrypt serialized message.
 pub fn encrypt_message(key: &Public, message: SerializedMessage) -> Result<SerializedMessage, Error> {
-// TODO
-//	let mut encrypted_message = Vec::with_capacity(message.0.len());
-//	encrypted_message.extend_from_slice(&message.0[0..MESSAGE_HEADER_SIZE]);
-//	encrypted_message.extend(ecies::encrypt_single_message(key, &message.0[MESSAGE_HEADER_SIZE..])?);
-//	Ok(SerializedMessage(encrypted_message))
-	Ok(message)
+	Ok(message) // TODO: implement me
 }
 
+/// Decrypt serialized message.
 pub fn decrypt_message(key: &Secret, payload: Vec<u8>) -> Result<Vec<u8>, Error> {
-// TODO
-//	Ok(ecies::decrypt_single_message(key, &payload)?)
-	Ok(payload)
+	Ok(payload) // TODO: implement me
 }
 
+/// Serialize message header.
 fn serialize_header(header: &MessageHeader) -> Result<Vec<u8>, Error> {
 	let mut buffer = Vec::with_capacity(MESSAGE_HEADER_SIZE);
 	buffer.write_u8(header.version)?;
@@ -129,6 +143,7 @@ fn serialize_header(header: &MessageHeader) -> Result<Vec<u8>, Error> {
 	Ok(buffer)
 }
 
+/// Deserialize message header.
 pub fn deserialize_header(data: Vec<u8>) -> Result<MessageHeader, Error> {
 	let mut reader = Cursor::new(data);
 	Ok(MessageHeader {

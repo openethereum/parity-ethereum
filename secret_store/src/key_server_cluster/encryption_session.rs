@@ -557,7 +557,9 @@ println!("=== invalid7");
 		if data.state != SessionState::WaitingForPublicKeyShare {
 println!("=== invalid8");
 			match data.state {
-				SessionState::KeyCheck => return Err(Error::TooEarlyForRequest),
+				SessionState::WaitingForInitializationComplete |
+					SessionState::WaitingForKeysDissemination |
+					SessionState::KeyCheck => return Err(Error::TooEarlyForRequest),
 				_ => return Err(Error::InvalidStateForRequest),
 			}
 		}
@@ -1273,7 +1275,7 @@ mod tests {
 			// run session to completion
 			let session_id = SessionId::default();
 			let session = clusters[0].client().new_encryption_session(session_id, threshold).unwrap();
-			loop_until(&mut core, time::Duration::from_millis(5000), || session.joint_public_key().is_some());
+			loop_until(&mut core, time::Duration::from_millis(1000), || session.joint_public_key().is_some());
 		}
 	}
 }

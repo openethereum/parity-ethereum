@@ -400,10 +400,19 @@ println!("=== {}: processing message {} from {}", data.self_key_pair.public(), m
 						let result = s.on_keys_dissemination(sender.clone(), message);
 						if !is_in_key_check_state && s.state() == EncryptionSessionState::KeyCheck {
 							let session = s.clone();
+							let d = data.clone();
 							data.handle.spawn(move |handle|
 								Timeout::new(time::Duration::new(key_check_timeout_ms / 1000, 0), handle)
 									.expect("failed to create timeout")
-									.and_then(move |_| { session.start_key_generation_phase().unwrap(); Ok(()) })
+									.and_then(move |_| {
+										if let Err(error) = session.start_key_generation_phase() {
+											session.on_session_error(d.self_key_pair.public().clone(), &message::SessionError {
+												session: session.id().clone().into(),
+												error: error.into(),
+											});
+										}
+										Ok(())
+									})
 									.then(|_| finished(()))
 							);
 						}
