@@ -550,6 +550,7 @@ name = "ethcore-light"
 version = "1.7.0"
 dependencies = [
  "ethcore 1.7.0",
+ "ethcore-devtools 1.7.0",
  "ethcore-io 1.7.0",
  "ethcore-ipc 1.7.0",
  "ethcore-ipc-codegen 1.7.0",

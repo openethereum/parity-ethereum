@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
-use ethcore::client::{ClientReport, EnvInfo};
+use ethcore::client::{ClientReport, EnvInfo, DatabaseCompactionProfile};
 use ethcore::engines::Engine;
 use ethcore::ids::BlockId;
 use ethcore::header::Header;
@@ -31,7 +31,7 @@ use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
 
-use util::{H256, Mutex, RwLock};
+use util::{H256, Mutex, RwLock, KeyValueDB};
 
 use self::header_chain::{AncestryIter, HeaderChain};
 
@@ -45,6 +45,14 @@ mod service;
 pub struct Config {
 	/// Verification queue config.
 	pub queue: queue::Config,
+	/// Chain column in database.
+	pub chain_column: Option<u32>,
+	/// Database cache size. `None` => rocksdb default.
+	pub db_cache_size: Option<usize>,
+	/// State db compaction profile
+	pub db_compaction: DatabaseCompactionProfile,
+	/// Should db have WAL enabled?
+	pub db_wal: bool,
 }
 
 /// Trait for interacting with the header chain abstractly.
@@ -106,22 +114,30 @@ pub struct Client {
 	chain: HeaderChain,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
+	db: Arc<KeyValueDB>,
 }
 
 impl Client {
 	/// Create a new `Client`.
-	pub fn new(config: Config, spec: &Spec, io_channel: IoChannel<ClientIoMessage>) -> Self {
-		// TODO: use real DB.
-		let db = ::util::kvdb::in_memory(0);
+	pub fn new(config: Config, db: Arc<KeyValueDB>, chain_col: Option<u32>, spec: &Spec, io_channel: IoChannel<ClientIoMessage>) -> Result<Self, String> {
 		let gh = ::rlp::encode(&spec.genesis_header());
 
-		Client {
+		Ok(Client {
 			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, true),
 			engine: spec.engine.clone(),
-			chain: HeaderChain::new(Arc::new(db), None, &gh).expect("new db every time"),
+			chain: HeaderChain::new(db.clone(), chain_col, &gh)?,
 			report: RwLock::new(ClientReport::default()),
 			import_lock: Mutex::new(()),
-		}
+			db: db,
+		})
+	}
+
+	/// Create a new `Client` backed purely in-memory.
+	/// This will ignore all database options in the configuration.
+	pub fn in_memory(config: Config, spec: &Spec, io_channel: IoChannel<ClientIoMessage>) -> Self {
+		let db = ::util::kvdb::in_memory(0);
+
+		Client::new(config, Arc::new(db), None, spec, io_channel).expect("New DB creation infallible; qed")
 	}
 
 	/// Import a header to the queue for additional verification.
@@ -205,7 +221,7 @@ impl Client {
 		for verified_header in self.queue.drain(MAX) {
 			let (num, hash) = (verified_header.number(), verified_header.hash());
 
-			let mut tx = unimplemented!();
+			let mut tx = self.db.transaction();
 			match self.chain.insert(&mut tx, verified_header) {
 				Ok(()) => {
 					good.push(hash);
@@ -215,6 +231,11 @@ impl Client {
 					debug!(target: "client", "Error importing header {:?}: {}", (num, hash), e);
 					bad.push(hash);
 				}
+			}
+			self.db.write_buffered(tx);
+
+			if let Err(e) = self.db.flush() {
+				panic!("Database flush failed: {}. Check disk health and space.", e);
 			}
 		}
 

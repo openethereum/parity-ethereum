@@ -76,3 +76,6 @@ extern crate stats;
 
 #[cfg(feature = "ipc")]
 extern crate ethcore_ipc as ipc;
+
+#[cfg(test)]
+extern crate ethcore_devtools as devtools;

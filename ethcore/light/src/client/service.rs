@@ -17,13 +17,35 @@
 //! Minimal IO service for light client.
 //! Just handles block import messages and passes them to the client.
 
+use std::fmt;
+use std::path::Path;
 use std::sync::Arc;
 
+use ethcore::db;
 use ethcore::service::ClientIoMessage;
 use ethcore::spec::Spec;
 use io::{IoContext, IoError, IoHandler, IoService};
+use util::kvdb::{Database, DatabaseConfig};
 
 use super::{Client, Config as ClientConfig};
+
+/// Errors on service initialization.
+#[derive(Debug)]
+pub enum Error {
+	/// Database error.
+	Database(String),
+	/// I/O service error.
+	Io(IoError),
+}
+
+impl fmt::Display for Error {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			Error::Database(ref msg) => write!(f, "Database error: {}", msg),
+			Error::Io(ref err) => write!(f, "I/O service error: {}", err),
+		}
+	}
+}
 
 /// Light client service.
 pub struct Service {
@@ -33,11 +55,31 @@ pub struct Service {
 
 impl Service {
 	/// Start the service: initialize I/O workers and client itself.
-	pub fn start(config: ClientConfig, spec: &Spec) -> Result<Self, IoError> {
-		let io_service = try!(IoService::<ClientIoMessage>::start());
-		let client = Arc::new(Client::new(config, spec, io_service.channel()));
-		try!(io_service.register_handler(Arc::new(ImportBlocks(client.clone()))));
+	pub fn start(config: ClientConfig, spec: &Spec, path: &Path) -> Result<Self, Error> {
+		// initialize database.
+		let mut db_config = DatabaseConfig::with_columns(db::NUM_COLUMNS);
 
+		// give all rocksdb cache to the header chain column.
+		if let Some(size) = config.db_cache_size {
+			db_config.set_cache(db::COL_LIGHT_CHAIN, size);
+		}
+
+		db_config.compaction = config.db_compaction.compaction_profile(path);
+		db_config.wal = config.db_wal;
+
+		let db = Arc::new(Database::open(
+			&db_config,
+			&path.to_str().expect("DB path could not be converted to string.")
+		).map_err(Error::Database)?);
+
+		let io_service = IoService::<ClientIoMessage>::start().map_err(Error::Io)?;
+		let client = Arc::new(Client::new(config,
+			db,
+			db::COL_LIGHT_CHAIN,
+			spec,
+			io_service.channel(),
+		).map_err(Error::Database)?);
+		io_service.register_handler(Arc::new(ImportBlocks(client.clone()))).map_err(Error::Io)?;
 		Ok(Service {
 			client: client,
 			_io_service: io_service,
@@ -63,11 +105,13 @@ impl IoHandler<ClientIoMessage> for ImportBlocks {
 #[cfg(test)]
 mod tests {
 	use super::Service;
+	use devtools::RandomTempPath;
 	use ethcore::spec::Spec;
 
 	#[test]
 	fn it_works() {
 		let spec = Spec::new_test();
-		Service::start(Default::default(), &spec).unwrap();
+		let temp_path = RandomTempPath::new();
+		Service::start(Default::default(), &spec, temp_path.as_path()).unwrap();
 	}
 }
