@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 
 use util::Bytes;
 use util::hash::H256;
-use rlp::{self, Encodable, RlpStream, UntrustedRlp, Stream, View};
+use rlp::{self, Encodable, RlpStream, UntrustedRlp, View};
 
 use super::ManifestData;
 
@@ -122,8 +122,8 @@ impl SnapshotWriter for PackedWriter {
 		// they are consistent with ours.
 		let mut stream = RlpStream::new_list(5);
 		stream
-			.append(&self.state_hashes)
-			.append(&self.block_hashes)
+			.append_list(&self.state_hashes)
+			.append_list(&self.block_hashes)
 			.append(&manifest.state_root)
 			.append(&manifest.block_number)
 			.append(&manifest.block_hash);

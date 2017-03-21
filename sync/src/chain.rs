@@ -2177,7 +2177,7 @@ mod tests {
 	use util::sha3::Hashable;
 	use util::hash::H256;
 	use util::bytes::Bytes;
-	use rlp::{Rlp, RlpStream, UntrustedRlp, View, Stream};
+	use rlp::{Rlp, RlpStream, UntrustedRlp, View};
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};

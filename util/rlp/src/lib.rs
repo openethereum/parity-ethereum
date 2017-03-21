@@ -46,25 +46,7 @@
 //! * You want to get view onto rlp-slice.
 //! * You don't want to decode whole rlp at once.
 
-pub mod rlptraits;
-mod rlperrors;
-mod rlpin;
-mod untrusted_rlp;
-mod rlpstream;
-mod rlpcompression;
-mod commonrlps;
-mod bytes;
-
-#[cfg(test)]
-mod tests;
-
-pub use self::rlperrors::DecoderError;
-pub use self::rlptraits::{Decoder, Decodable, View, Stream, Encodable, Encoder, RlpEncodable, RlpDecodable, Compressible};
-pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
-pub use self::rlpin::{Rlp, RlpIterator};
-pub use self::rlpstream::RlpStream;
-pub use self::rlpcompression::RlpType;
-
+extern crate byteorder;
 extern crate ethcore_bigint as bigint;
 extern crate elastic_array;
 extern crate rustc_serialize;
@@ -72,7 +54,28 @@ extern crate rustc_serialize;
 #[macro_use]
 extern crate lazy_static;
 
+mod traits;
+mod error;
+mod rlpin;
+mod untrusted_rlp;
+mod stream;
+mod compression;
+mod common;
+mod bytes;
+mod impls;
+
+#[cfg(test)]
+mod tests;
+
+use std::borrow::Borrow;
 use elastic_array::ElasticArray1024;
+
+pub use error::DecoderError;
+pub use traits::{Decoder, Decodable, View, Encodable, RlpDecodable, Compressible};
+pub use untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
+pub use rlpin::{Rlp, RlpIterator};
+pub use stream::RlpStream;
+pub use compression::RlpType;
 
 /// The RLP encoded empty data (used to mean "null value").
 pub const NULL_RLP: [u8; 1] = [0x80; 1];
@@ -106,8 +109,14 @@ pub fn decode<T>(bytes: &[u8]) -> T where T: RlpDecodable {
 /// 	assert_eq!(out, vec![0x83, b'c', b'a', b't']);
 /// }
 /// ```
-pub fn encode<E>(object: &E) -> ElasticArray1024<u8> where E: RlpEncodable {
+pub fn encode<E>(object: &E) -> ElasticArray1024<u8> where E: Encodable {
 	let mut stream = RlpStream::new();
 	stream.append(object);
+	stream.drain()
+}
+
+pub fn encode_list<E, K>(object: &[K]) -> ElasticArray1024<u8> where E: Encodable, K: Borrow<E> {
+	let mut stream = RlpStream::new();
+	stream.append_list(object);
 	stream.drain()
 }
