@@ -374,11 +374,7 @@ mod tests {
 	use super::*;
 	use super::super::request_credits::FlowParams;
 	use util::{U256, H256};
-<<<<<<< HEAD
 	use rlp::{RlpStream, UntrustedRlp};
-=======
-	use rlp::{RlpStream, UntrustedRlp, View};
->>>>>>> master
 
 	#[test]
 	fn full_handshake() {
