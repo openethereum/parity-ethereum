@@ -49,7 +49,7 @@ export default class AccountCard extends Component {
   };
 
   render () {
-    const { account, balance, className, onFocus } = this.props;
+    const { account, balance, className, onFocus, password } = this.props;
     const { copied } = this.state;
     const { address, description, meta = {}, name } = account;
     const { tags = [] } = meta;
@@ -93,7 +93,7 @@ export default class AccountCard extends Component {
             className={ styles.balance }
             showOnlyEth
           />
-          { this.renderPassword() }
+          { (password) ? this.renderPassword() : null }
         </div>
 
         {
@@ -143,36 +143,32 @@ export default class AccountCard extends Component {
   }
 
   renderPassword () {
-    const { account, password, store } = this.props;
+    const { account, store } = this.props;
     const { getPassword } = store;
     const inputValue = getPassword(account);
 
-    if (password) {
-      return (
-        <div>
-          <Input
-            type='password'
-            name='passwordHere'
-            label={
-              <FormattedMessage
-                id='accountCard.setPassword.label'
-                defaultMessage='Password'
-              />
-            }
-            hint={
-              <FormattedMessage
-                id='accountCard.setPassword.hint'
-                defaultMessage='Enter Password Here'
-              />
-            }
-            value={ inputValue }
-            onChange={ this.changePassword }
-          />
-        </div>
-      );
-    }
-
-    return null;
+    return (
+      <div>
+        <Input
+          type='password'
+          name='passwordHere'
+          label={
+            <FormattedMessage
+              id='accountCard.setPassword.label'
+              defaultMessage='Password'
+            />
+          }
+          hint={
+            <FormattedMessage
+              id='accountCard.setPassword.hint'
+              defaultMessage='Enter Password Here'
+            />
+          }
+          value={ inputValue }
+          onChange={ this.changePassword }
+        />
+      </div>
+    );
   }
 
   changePassword = (event, password) => {
