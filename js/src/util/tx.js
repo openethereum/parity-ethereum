@@ -117,9 +117,7 @@ export function deployEstimateGas (contract, _options, values) {
     });
 }
 
-export function deploy (contract, _options, values, _metadata = {}, skipGasEstimate = false) {
-  const metadata = { ..._metadata, deployment: true };
-  const options = { ..._options, metadata };
+export function deploy (contract, options, values, skipGasEstimate = false) {
   const { api } = contract;
   const address = options.from;
 
@@ -127,7 +125,7 @@ export function deploy (contract, _options, values, _metadata = {}, skipGasEstim
     ? Promise.resolve(null)
     : deployEstimateGas(contract, options, values).then(([gasEst, gas]) => gas);
 
-  gasEstPromise
+  return gasEstPromise
     .then((gas) => {
       if (gas) {
         options.gas = gas.toFixed(0);

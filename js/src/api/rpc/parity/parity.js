@@ -374,21 +374,9 @@ export default class Parity {
       .execute('parity_postSign', inAddress(address), inHex(hash));
   }
 
-  postTransaction (_options = {}) {
-    const { metadata = {}, ...options } = _options;
-    const parsedOptions = inOptions(options);
-
+  postTransaction (options = {}) {
     return this._transport
-      .execute('parity_postTransaction', parsedOptions)
-      .then((requestId) => {
-        this._transport.emit('request', {
-          ...options,
-          metadata,
-          requestId
-        });
-
-        return requestId;
-      });
+      .execute('parity_postTransaction', inOptions(options));
   }
 
   registryAddress () {

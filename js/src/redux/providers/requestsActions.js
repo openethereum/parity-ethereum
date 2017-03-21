@@ -17,6 +17,7 @@
 import BigNumber from 'bignumber.js';
 import store from 'store';
 
+import { outTransaction } from '~/api/format/output';
 import { ERROR_CODES } from '~/api/transport/error';
 import { trackRequest as trackRequestUtil, parseTransactionReceipt } from '~/util/tx';
 
@@ -93,21 +94,10 @@ class CachedRequests {
 const cachedRequests = new CachedRequests();
 
 export const init = (api) => (dispatch) => {
-  api.on('request', (rawRequest) => {
-    const { requestId, ...others } = rawRequest;
-    const { from, to, value, data, gas, ...extras } = others;
-    const transaction = {
-      from,
-      to,
-      data,
-      value,
-      gas
-    };
-    const request = {
-      requestId,
-      transaction,
-      ...extras
-    };
+  api.subscribe('parity_postTransaction', (error, request) => {
+    if (error) {
+      return console.error(error);
+    }
 
     dispatch(watchRequest(request));
   });
@@ -120,22 +110,16 @@ export const init = (api) => (dispatch) => {
 };
 
 export const watchRequest = (request) => (dispatch, getState) => {
-  const { requestId, transaction, ...extras } = request;
-  const requestData = {
-    requestId,
-    transaction,
-    ...extras
-  };
+  const { requestId } = request;
 
   // Convert value to BigNumber
-  requestData.transaction.value = new BigNumber(requestData.transaction.value || 0);
-  dispatch(setRequest(requestId, requestData));
-  dispatch(trackRequest(requestId, requestData));
+  request.transaction = outTransaction(request.transaction);
+  dispatch(setRequest(requestId, request));
+  dispatch(trackRequest(requestId, request));
 };
 
-export const trackRequest = (requestId, requestData) => (dispatch, getState) => {
+export const trackRequest = (requestId, { transactionHash = null }) => (dispatch, getState) => {
   const { api } = getState();
-  const { transactionHash = null } = requestData;
 
   trackRequestUtil(api, { requestId, transactionHash }, (error, data) => {
     if (error) {
@@ -146,6 +130,8 @@ export const trackRequest = (requestId, requestData) => (dispatch, getState) => 
     // Hide the request after 6 mined blocks
     if (data.transactionReceipt) {
       const { transactionReceipt } = data;
+      const { requests } = getState();
+      const requestData = requests[requestId];
       let blockSubscriptionId = -1;
 
       // If the request was a contract deployment,
@@ -231,6 +217,7 @@ export const hideRequest = (requestId) => (dispatch, getState) => {
   // Unsubscribe to eth-blockNumber if subscribed
   if (request.blockSubscriptionId) {
     api.unsubscribe(request.blockSubscriptionId);
+    dispatch(setRequest(requestId, { blockSubscriptionId: null }, false));
   }
 };
 

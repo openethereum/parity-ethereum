@@ -20,11 +20,13 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import { Button, GasPriceEditor, IdentityIcon, Portal, Warning } from '~/ui';
 import { CancelIcon } from '~/ui/Icons';
 import { ERRORS, validateAbi, validateCode, validateName, validatePositiveNumber } from '~/util/validation';
 import { deploy, deployEstimateGas } from '~/util/tx';
+import { setRequest } from '~/redux/providers/requestsActions';
 
 import DetailsStep from './DetailsStep';
 import ParametersStep from './ParametersStep';
@@ -71,6 +73,7 @@ class DeployContract extends Component {
     code: PropTypes.string,
     gasLimit: PropTypes.object.isRequired,
     onClose: PropTypes.func.isRequired,
+    onSetRequest: PropTypes.func.isRequired,
     readOnly: PropTypes.bool,
     source: PropTypes.string
   };
@@ -467,8 +470,13 @@ class DeployContract extends Component {
 
     const contract = api.newContract(abiParsed);
 
-    deploy(contract, options, params, metadata, true);
     this.onClose();
+    deploy(contract, options, params, true)
+      .then((requestId) => {
+        const requestMetadata = { ...metadata, deployment: true };
+
+        this.props.onSetRequest(requestId, { metadata: requestMetadata }, false);
+      });
   }
 
   onClose = () => {
@@ -493,6 +501,13 @@ function mapStateToProps (initState, initProps) {
   };
 }
 
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    onSetRequest: setRequest
+  }, dispatch);
+}
+
 export default connect(
-  mapStateToProps
+  mapStateToProps,
+  mapDispatchToProps
 )(DeployContract);

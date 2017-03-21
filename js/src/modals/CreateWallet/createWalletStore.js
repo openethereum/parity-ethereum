@@ -82,6 +82,7 @@ export default class CreateWalletStore {
   };
 
   onClose = noop;
+  onSetRequest = noop;
 
   @computed get stage () {
     return this.stepsKeys.findIndex((k) => k === this.step);
@@ -115,13 +116,14 @@ export default class CreateWalletStore {
       .filter((step) => this.walletType === 'WATCH' || step.key !== 'INFO');
   }
 
-  constructor (api, { accounts, onClose }) {
+  constructor (api, { accounts, onClose, onSetRequest }) {
     this.api = api;
 
     this.step = this.stepsKeys[0];
     this.wallet.account = Object.values(accounts)[0].address;
     this.validateWallet(this.wallet);
     this.onClose = onClose;
+    this.onSetRequest = onSetRequest;
   }
 
   @action onTypeChange = (type) => {
@@ -221,7 +223,12 @@ export default class CreateWalletStore {
 
         this.wallet = this.getWalletWithMeta(this.wallet);
         this.onClose();
-        return deploy(contract, options, [ owners, required, daylimit ], this.wallet.metadata);
+        return deploy(contract, options, [ owners, required, daylimit ])
+          .then((requestId) => {
+            const metadata = { ...this.wallet.metadata, deployment: true };
+
+            this.onSetRequest(requestId, { metadata }, false);
+          });
       });
   }
 

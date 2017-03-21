@@ -54,6 +54,11 @@ class Requests extends Component {
   renderRequest (request, extras = {}) {
     const { show, transaction } = request;
     const state = this.getTransactionState(request);
+    const displayedTransaction = { ...transaction };
+
+    // Don't show gas and gasPrice
+    delete displayedTransaction.gas;
+    delete displayedTransaction.gasPrice;
 
     const requestClasses = [ styles.request ];
     const statusClasses = [ styles.status ];
@@ -110,7 +115,7 @@ class Requests extends Component {
           <MethodDecoding
             address={ transaction.from }
             historic={ state.type === DONE_STATE }
-            transaction={ transaction }
+            transaction={ displayedTransaction }
           />
         </div>
       </div>
