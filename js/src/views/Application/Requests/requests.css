@@ -15,6 +15,9 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+$baseColor: 255;
+$baseOpacity: 0.95;
+
 .requests {
   bottom: 2.5em;
   position: fixed;
@@ -29,8 +32,8 @@
 .request {
   animation-fill-mode: forwards;
   animation-timing-function: cubic-bezier(0.7, 0, 0.3, 1);
-  background-color: rgba(40, 40, 40, 0.85);
-  box-shadow: 0 0 5px 0 white;
+  background-color: rgba($baseColor, $baseColor, $baseColor, $baseOpacity);
+  color: black;
   cursor: pointer;
   margin-top: 0.5em;
   opacity: 1;
@@ -45,6 +48,7 @@
 
     &.error {
       background-color: rgba(200, 40, 40, 0.95);
+      color: white;
     }
   }
 
@@ -52,10 +56,14 @@
     display: flex;
     flex-direction: row;
     padding: 1em;
+
+    * {
+      color: black !important;
+    }
   }
 
   &:hover .container {
-    background-color: rgba(40, 40, 40, 1);
+    background-color: rgba($baseColor, $baseColor, $baseColor, 1);
   }
 
   p {
