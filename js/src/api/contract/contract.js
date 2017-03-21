@@ -107,34 +107,38 @@ export default class Contract {
       });
   }
 
-  deploy (options, values, statecb) {
-    const setState = (state) => {
-      if (!statecb) {
-        return;
-      }
+  deploy (options, values, statecb = () => {}, skipGasEstimate = false) {
+    let gasEstPromise;
 
-      return statecb(null, state);
-    };
+    if (skipGasEstimate) {
+      gasEstPromise = Promise.resolve(null);
+    } else {
+      statecb(null, { state: 'estimateGas' });
 
-    setState({ state: 'estimateGas' });
+      gasEstPromise = this.deployEstimateGas(options, values)
+        .then(([gasEst, gas]) => gas);
+    }
 
-    return this
-      .deployEstimateGas(options, values)
-      .then(([gasEst, gas]) => {
-        options.gas = gas.toFixed(0);
+    return gasEstPromise
+      .then((_gas) => {
+        if (_gas) {
+          options.gas = _gas.toFixed(0);
+        }
 
-        setState({ state: 'postTransaction', gas });
+        const gas = _gas || options.gas;
 
-        const _options = this._encodeOptions(this.constructors[0], options, values);
+        statecb(null, { state: 'postTransaction', gas });
+
+        const encodedOptions = this._encodeOptions(this.constructors[0], options, values);
 
         return this._api.parity
-          .postTransaction(_options)
+          .postTransaction(encodedOptions)
           .then((requestId) => {
-            setState({ state: 'checkRequest', requestId });
+            statecb(null, { state: 'checkRequest', requestId });
             return this._pollCheckRequest(requestId);
           })
           .then((txhash) => {
-            setState({ state: 'getTransactionReceipt', txhash });
+            statecb(null, { state: 'getTransactionReceipt', txhash });
             return this._pollTransactionReceipt(txhash, gas);
           })
           .then((receipt) => {
@@ -142,23 +146,23 @@ export default class Contract {
               throw new Error(`Contract not deployed, gasUsed == ${gas.toFixed(0)}`);
             }
 
-            setState({ state: 'hasReceipt', receipt });
+            statecb(null, { state: 'hasReceipt', receipt });
             this._receipt = receipt;
             this._address = receipt.contractAddress;
             return this._address;
-          });
-      })
-      .then((address) => {
-        setState({ state: 'getCode' });
-        return this._api.eth.getCode(this._address);
-      })
-      .then((code) => {
-        if (code === '0x') {
-          throw new Error('Contract not deployed, getCode returned 0x');
-        }
+          })
+          .then((address) => {
+            statecb(null, { state: 'getCode' });
+            return this._api.eth.getCode(this._address);
+          })
+          .then((code) => {
+            if (code === '0x') {
+              throw new Error('Contract not deployed, getCode returned 0x');
+            }
 
-        setState({ state: 'completed' });
-        return this._address;
+            statecb(null, { state: 'completed' });
+            return this._address;
+          });
       });
   }
 
@@ -241,13 +245,32 @@ export default class Contract {
   _bindFunction = (func) => {
     func.contract = this;
 
-    func.call = (options, values = []) => {
-      const callParams = this._encodeOptions(func, this._addOptionsTo(options), values);
+    func.call = (_options = {}, values = []) => {
+      const rawTokens = !!_options.rawTokens;
+      const options = {
+        ..._options
+      };
+
+      delete options.rawTokens;
+
+      let callParams;
+
+      try {
+        callParams = this._encodeOptions(func, this._addOptionsTo(options), values);
+      } catch (error) {
+        return Promise.reject(error);
+      }
 
       return this._api.eth
         .call(callParams)
         .then((encoded) => func.decodeOutput(encoded))
-        .then((tokens) => tokens.map((token) => token.value))
+        .then((tokens) => {
+          if (rawTokens) {
+            return tokens;
+          }
+
+          return tokens.map((token) => token.value);
+        })
         .then((returns) => returns.length === 1 ? returns[0] : returns)
         .catch((error) => {
           console.warn(`${func.name}.call`, values, error);
@@ -257,7 +280,13 @@ export default class Contract {
 
     if (!func.constant) {
       func.postTransaction = (options, values = []) => {
-        const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
+        let _options;
+
+        try {
+          _options = this._encodeOptions(func, this._addOptionsTo(options), values);
+        } catch (error) {
+          return Promise.reject(error);
+        }
 
         return this._api.parity
           .postTransaction(_options)

@@ -33,7 +33,10 @@ export default class Container extends Component {
     const { children, onCloseFirstRun, showFirstRun, upgradeStore } = this.props;
 
     return (
-      <ParityBackground className={ styles.container }>
+      <ParityBackground
+        attachDocument
+        className={ styles.container }
+      >
         <FirstRun
           onClose={ onCloseFirstRun }
           visible={ showFirstRun }

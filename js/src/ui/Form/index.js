@@ -16,6 +16,7 @@
 
 export AddressSelect from './AddressSelect';
 export DappUrlInput from './DappUrlInput';
+export FileSelect from './FileSelect';
 export FormWrap from './FormWrap';
 export Input from './Input';
 export InputAddress from './InputAddress';
@@ -28,5 +29,6 @@ export Label from './Label';
 export RadioButtons from './RadioButtons';
 export Select from './Select';
 export TypedInput from './TypedInput';
+export VaultSelect from './VaultSelect';
 
 export default from './form';

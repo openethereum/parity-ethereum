@@ -21,8 +21,9 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { Button, Form, Input, InputChip, Modal } from '~/ui';
+import { Button, Form, Input, InputChip, Portal, VaultSelect } from '~/ui';
 import { CancelIcon, SaveIcon } from '~/ui/Icons';
+import VaultStore from '~/views/Vaults/store';
 
 import Store from './store';
 
@@ -39,23 +40,31 @@ class EditMeta extends Component {
   }
 
   store = new Store(this.context.api, this.props.account);
+  vaultStore = VaultStore.get(this.context.api);
+
+  componentWillMount () {
+    this.vaultStore.loadVaults();
+  }
 
   render () {
-    const { description, name, nameError, tags } = this.store;
+    const { description, isBusy, name, nameError, tags } = this.store;
 
     return (
-      <Modal
-        actions={ this.renderActions() }
+      <Portal
+        buttons={ this.renderActions() }
+        busy={ isBusy }
+        onClose={ this.onClose }
+        open
         title={
           <FormattedMessage
             id='editMeta.title'
             defaultMessage='edit metadata'
           />
         }
-        visible
       >
         <Form>
           <Input
+            autoFocus
             error={ nameError }
             label={
               <FormattedMessage
@@ -100,8 +109,9 @@ class EditMeta extends Component {
             onTokensChange={ this.store.setTags }
             tokens={ tags.slice() }
           />
+          { this.renderVaultSelector() }
         </Form>
-      </Modal>
+      </Portal>
     );
   }
 
@@ -112,12 +122,14 @@ class EditMeta extends Component {
       <Button
         label='Cancel'
         icon={ <CancelIcon /> }
-        onClick={ this.props.onClose }
+        key='cancel'
+        onClick={ this.onClose }
       />,
       <Button
         disabled={ hasError }
         label='Save'
         icon={ <SaveIcon /> }
+        key='save'
         onClick={ this.onSave }
       />
     ];
@@ -150,17 +162,41 @@ class EditMeta extends Component {
     );
   }
 
+  renderVaultSelector () {
+    const { isAccount, vaultName } = this.store;
+
+    if (!isAccount) {
+      return null;
+    }
+
+    return (
+      <VaultSelect
+        onSelect={ this.setVaultName }
+        value={ vaultName }
+        vaultStore={ this.vaultStore }
+      />
+    );
+  }
+
+  onClose = () => {
+    this.props.onClose();
+  }
+
   onSave = () => {
     if (this.store.hasError) {
       return;
     }
 
     return this.store
-      .save()
-      .then(() => this.props.onClose())
+      .save(this.vaultStore)
+      .then(this.onClose)
       .catch((error) => {
         this.props.newError(error);
       });
+  }
+
+  setVaultName = (vaultName) => {
+    this.store.setVaultName(vaultName);
   }
 }
 

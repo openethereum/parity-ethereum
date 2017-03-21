@@ -17,7 +17,7 @@
 //! Transaction Execution environment.
 use util::*;
 use action_params::{ActionParams, ActionValue};
-use state::{State, Substate};
+use state::{Backend as StateBackend, State, Substate};
 use engines::Engine;
 use env_info::EnvInfo;
 use executive::*;
@@ -57,8 +57,10 @@ impl OriginInfo {
 }
 
 /// Implementation of evm Externalities.
-pub struct Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
-	state: &'a mut State,
+pub struct Externalities<'a, T: 'a, V: 'a, B: 'a>
+	where T: Tracer, V:  VMTracer, B: StateBackend
+{
+	state: &'a mut State<B>,
 	env_info: &'a EnvInfo,
 	engine: &'a Engine,
 	vm_factory: &'a Factory,
@@ -71,10 +73,12 @@ pub struct Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
 	vm_tracer: &'a mut V,
 }
 
-impl<'a, T, V> Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
+impl<'a, T: 'a, V: 'a, B: 'a> Externalities<'a, T, V, B>
+	where T: Tracer, V: VMTracer, B: StateBackend
+{
 	/// Basic `Externalities` constructor.
-	pub fn new(state: &'a mut State,
+	#[cfg_attr(feature="dev", allow(too_many_arguments))]
+	pub fn new(state: &'a mut State<B>,
 		env_info: &'a EnvInfo,
 		engine: &'a Engine,
 		vm_factory: &'a Factory,
@@ -101,26 +105,28 @@ impl<'a, T, V> Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
 	}
 }
 
-impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
-	fn storage_at(&self, key: &H256) -> H256 {
+impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
+	where T: Tracer, V: VMTracer, B: StateBackend
+{
+	fn storage_at(&self, key: &H256) -> trie::Result<H256> {
 		self.state.storage_at(&self.origin_info.address, key)
 	}
 
-	fn set_storage(&mut self, key: H256, value: H256) {
+	fn set_storage(&mut self, key: H256, value: H256) -> trie::Result<()> {
 		self.state.set_storage(&self.origin_info.address, key, value)
 	}
 
-	fn exists(&self, address: &Address) -> bool {
+	fn exists(&self, address: &Address) -> trie::Result<bool> {
 		self.state.exists(address)
 	}
 
-	fn exists_and_not_null(&self, address: &Address) -> bool {
+	fn exists_and_not_null(&self, address: &Address) -> trie::Result<bool> {
 		self.state.exists_and_not_null(address)
 	}
 
-	fn origin_balance(&self) -> U256 { self.balance(&self.origin_info.address) }
+	fn origin_balance(&self) -> trie::Result<U256> { self.balance(&self.origin_info.address) }
 
-	fn balance(&self, address: &Address) -> U256 {
+	fn balance(&self, address: &Address) -> trie::Result<U256> {
 		self.state.balance(address)
 	}
 
@@ -143,7 +149,13 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 
 	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
 		// create new contract address
-		let address = contract_address(&self.origin_info.address, &self.state.nonce(&self.origin_info.address));
+		let address = match self.state.nonce(&self.origin_info.address) {
+			Ok(nonce) => contract_address(&self.origin_info.address, &nonce),
+			Err(e) => {
+				debug!(target: "ext", "Database corruption encountered: {:?}", e);
+				return ContractCreateResult::Failed
+			}
+		};
 
 		// prepare the params
 		let params = ActionParams {
@@ -160,7 +172,10 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 			call_type: CallType::None,
 		};
 
-		self.state.inc_nonce(&self.origin_info.address);
+		if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
+			debug!(target: "ext", "Database corruption encountered: {:?}", e);
+			return ContractCreateResult::Failed
+		}
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.vm_factory, self.depth);
 
 		// TODO: handle internal error separately
@@ -185,6 +200,14 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 	) -> MessageCallResult {
 		trace!(target: "externalities", "call");
 
+		let code_res = self.state.code(code_address)
+			.and_then(|code| self.state.code_hash(code_address).map(|hash| (code, hash)));
+
+		let (code, code_hash) = match code_res {
+			Ok((code, hash)) => (code, hash),
+			Err(_) => return MessageCallResult::Failed,
+		};
+
 		let mut params = ActionParams {
 			sender: sender_address.clone(),
 			address: receive_address.clone(),
@@ -193,8 +216,8 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 			origin: self.origin_info.origin.clone(),
 			gas: *gas,
 			gas_price: self.origin_info.gas_price,
-			code: self.state.code(code_address),
-			code_hash: self.state.code_hash(code_address),
+			code: code,
+			code_hash: code_hash,
 			data: Some(data.to_vec()),
 			call_type: call_type,
 		};
@@ -211,12 +234,12 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 		}
 	}
 
-	fn extcode(&self, address: &Address) -> Arc<Bytes> {
-		self.state.code(address).unwrap_or_else(|| Arc::new(vec![]))
+	fn extcode(&self, address: &Address) -> trie::Result<Arc<Bytes>> {
+		Ok(self.state.code(address)?.unwrap_or_else(|| Arc::new(vec![])))
 	}
 
-	fn extcodesize(&self, address: &Address) -> usize {
-		self.state.code_size(address).unwrap_or(0)
+	fn extcodesize(&self, address: &Address) -> trie::Result<usize> {
+		Ok(self.state.code_size(address)?.unwrap_or(0))
 	}
 
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
@@ -251,10 +274,7 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 
 				handle_copy(copy);
 
-				let mut code = vec![];
-				code.extend_from_slice(data);
-
-				self.state.init_code(&self.origin_info.address, code);
+				self.state.init_code(&self.origin_info.address, data.to_vec())?;
 				Ok(*gas - return_cost)
 			}
 		}
@@ -271,19 +291,26 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 		});
 	}
 
-	fn suicide(&mut self, refund_address: &Address) {
+	fn suicide(&mut self, refund_address: &Address) -> trie::Result<()> {
 		let address = self.origin_info.address.clone();
-		let balance = self.balance(&address);
+		let balance = self.balance(&address)?;
 		if &address == refund_address {
 			// TODO [todr] To be consistent with CPP client we set balance to 0 in that case.
-			self.state.sub_balance(&address, &balance);
+			self.state.sub_balance(&address, &balance)?;
 		} else {
 			trace!(target: "ext", "Suiciding {} -> {} (xfer: {})", address, refund_address, balance);
-			self.state.transfer_balance(&address, refund_address, &balance, self.substate.to_cleanup_mode(&self.schedule));
+			self.state.transfer_balance(
+				&address,
+				refund_address,
+				&balance,
+				self.substate.to_cleanup_mode(&self.schedule)
+			)?;
 		}
 
 		self.tracer.trace_suicide(address, balance, refund_address.clone());
 		self.substate.suicides.insert(address);
+
+		Ok(())
 	}
 
 	fn schedule(&self) -> &Schedule {
@@ -346,7 +373,7 @@ mod tests {
 	}
 
 	struct TestSetup {
-		state: GuardedTempResult<State>,
+		state: GuardedTempResult<State<::state_db::StateDB>>,
 		engine: Arc<Engine>,
 		sub_state: Substate,
 		env_info: EnvInfo
@@ -479,7 +506,7 @@ mod tests {
 		{
 			let vm_factory = Default::default();
 			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, &vm_factory, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
-			ext.suicide(refund_account);
+			ext.suicide(refund_account).unwrap();
 		}
 
 		assert_eq!(setup.sub_state.suicides.len(), 1);

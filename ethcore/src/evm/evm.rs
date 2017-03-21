@@ -17,12 +17,12 @@
 //! Evm interface.
 
 use std::{ops, cmp, fmt};
-use util::{U128, U256, U512, Uint};
+use util::{U128, U256, U512, Uint, trie};
 use action_params::ActionParams;
 use evm::Ext;
 
 /// Evm errors.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Error {
 	/// `OutOfGas` is returned when transaction execution runs out of gas.
 	/// The state should be reverted to the state from before the
@@ -61,8 +61,13 @@ pub enum Error {
 	},
 	/// Returned on evm internal error. Should never be ignored during development.
 	/// Likely to cause consensus issues.
-	#[allow(dead_code)] // created only by jit
-	Internal,
+	Internal(String),
+}
+
+impl From<Box<trie::TrieError>> for Error {
+	fn from(err: Box<trie::TrieError>) -> Self {
+		Error::Internal(format!("Internal error: {}", err))
+	}
 }
 
 impl fmt::Display for Error {
@@ -74,7 +79,7 @@ impl fmt::Display for Error {
 			BadInstruction { .. } => "Bad instruction",
 			StackUnderflow { .. } => "Stack underflow",
 			OutOfStack { .. } => "Out of stack",
-			Internal => "Internal error",
+			Internal(ref msg) => msg,
 		};
 		message.fmt(f)
 	}

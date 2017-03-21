@@ -34,7 +34,7 @@ use devtools::*;
 use miner::Miner;
 use header::Header;
 use transaction::{Action, Transaction, SignedTransaction};
-use rlp::{self, RlpStream, Stream};
+use rlp::{self, RlpStream};
 use views::BlockView;
 
 #[cfg(feature = "json-tests")]
@@ -129,7 +129,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 	for t in transactions {
 		rlp.append_raw(&rlp::encode(t).to_vec(), 1);
 	}
-	rlp.append(&uncles);
+	rlp.append_list(&uncles);
 	rlp.out()
 }
 
@@ -154,14 +154,14 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 	let dir = RandomTempPath::new();
 	let test_spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&test_spec,
-		dir.as_path(),
+		client_db,
 		Arc::new(Miner::with_spec_and_accounts(&test_spec, accounts)),
 		IoChannel::disconnected(),
-		&db_config
 	).unwrap();
 	let test_engine = &*test_spec.engine;
 
@@ -260,14 +260,14 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 	let dir = RandomTempPath::new();
 	let test_spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&test_spec,
-		dir.as_path(),
+		client_db,
 		Arc::new(Miner::with_spec(&test_spec)),
 		IoChannel::disconnected(),
-		&db_config
 	).unwrap();
 
 	for block in &blocks {
@@ -349,7 +349,7 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 	}
 }
 
-pub fn get_temp_state() -> GuardedTempResult<State> {
+pub fn get_temp_state() -> GuardedTempResult<State<::state_db::StateDB>> {
 	let temp = RandomTempPath::new();
 	let journal_db = get_temp_state_db_in(temp.as_path());
 
@@ -365,7 +365,7 @@ pub fn get_temp_state_db_in(path: &Path) -> StateDB {
 	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 
-pub fn get_temp_state_in(path: &Path) -> State {
+pub fn get_temp_state_in(path: &Path) -> State<::state_db::StateDB> {
 	let journal_db = get_temp_state_db_in(path);
 	State::new(journal_db, U256::from(0), Default::default())
 }
@@ -456,5 +456,9 @@ pub fn get_default_ethash_params() -> EthashParams{
 		ecip1010_pause_transition: u64::max_value(),
 		ecip1010_continue_transition: u64::max_value(),
 		max_code_size: u64::max_value(),
+		max_gas_limit_transition: u64::max_value(),
+		max_gas_limit: U256::max_value(),
+		min_gas_price_transition: u64::max_value(),
+		min_gas_price: U256::zero(),
 	}
 }

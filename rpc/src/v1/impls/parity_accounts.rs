@@ -25,7 +25,7 @@ use ethcore::account_provider::AccountProvider;
 use jsonrpc_core::Error;
 use v1::helpers::errors;
 use v1::traits::ParityAccounts;
-use v1::types::{H160 as RpcH160, H256 as RpcH256, DappId};
+use v1::types::{H160 as RpcH160, H256 as RpcH256, DappId, Derive, DeriveHierarchical, DeriveHash};
 
 /// Account management (personal) rpc implementation.
 pub struct ParityAccountsClient {
@@ -142,41 +142,69 @@ impl ParityAccounts for ParityAccountsClient {
 		Ok(true)
 	}
 
-	fn set_account_visibility(&self, _address: RpcH160, _dapp: RpcH256, _visible: bool) -> Result<bool, Error> {
-		Ok(false)
-	}
-
-	fn set_dapps_addresses(&self, dapp: DappId, addresses: Vec<RpcH160>) -> Result<bool, Error> {
+	fn set_dapp_addresses(&self, dapp: DappId, addresses: Option<Vec<RpcH160>>) -> Result<bool, Error> {
 		let store = take_weak!(self.accounts);
 
-		store.set_dapps_addresses(dapp.into(), into_vec(addresses))
+		store.set_dapp_addresses(dapp.into(), addresses.map(into_vec))
+			.map_err(|e| errors::account("Couldn't set dapp addresses.", e))
+			.map(|_| true)
+	}
+
+	fn dapp_addresses(&self, dapp: DappId) -> Result<Vec<RpcH160>, Error> {
+		let store = take_weak!(self.accounts);
+
+		store.dapp_addresses(dapp.into())
+			.map_err(|e| errors::account("Couldn't get dapp addresses.", e))
+			.map(into_vec)
+	}
+
+	fn set_dapp_default_address(&self, dapp: DappId, address: RpcH160) -> Result<bool, Error> {
+		let store = take_weak!(self.accounts);
+
+		store.set_dapp_default_address(dapp.into(), address.into())
+			.map_err(|e| errors::account("Couldn't set dapp default address.", e))
+			.map(|_| true)
+	}
+
+	fn dapp_default_address(&self, dapp: DappId) -> Result<RpcH160, Error> {
+		let store = take_weak!(self.accounts);
+
+		store.dapp_default_address(dapp.into())
+			.map_err(|e| errors::account("Couldn't get dapp default address.", e))
+			.map(Into::into)
+	}
+
+	fn set_new_dapps_addresses(&self, addresses: Option<Vec<RpcH160>>) -> Result<bool, Error> {
+		let store = take_weak!(self.accounts);
+
+		store
+			.set_new_dapps_addresses(addresses.map(into_vec))
 			.map_err(|e| errors::account("Couldn't set dapps addresses.", e))
 			.map(|_| true)
 	}
 
-	fn dapps_addresses(&self, dapp: DappId) -> Result<Vec<RpcH160>, Error> {
+	fn new_dapps_addresses(&self) -> Result<Option<Vec<RpcH160>>, Error> {
 		let store = take_weak!(self.accounts);
 
-		store.dapps_addresses(dapp.into())
+		store.new_dapps_addresses()
 			.map_err(|e| errors::account("Couldn't get dapps addresses.", e))
-			.map(into_vec)
+			.map(|accounts| accounts.map(into_vec))
 	}
 
-	fn set_new_dapps_whitelist(&self, whitelist: Option<Vec<RpcH160>>) -> Result<bool, Error> {
+	fn set_new_dapps_default_address(&self, address: RpcH160) -> Result<bool, Error> {
 		let store = take_weak!(self.accounts);
 
-		store
-			.set_new_dapps_whitelist(whitelist.map(into_vec))
-			.map_err(|e| errors::account("Couldn't set dapps whitelist.", e))
+		store.set_new_dapps_default_address(address.into())
+			.map_err(|e| errors::account("Couldn't set new dapps default address.", e))
 			.map(|_| true)
 	}
 
-	fn new_dapps_whitelist(&self) -> Result<Option<Vec<RpcH160>>, Error> {
+	fn new_dapps_default_address(&self) -> Result<RpcH160, Error> {
 		let store = take_weak!(self.accounts);
 
-		store.new_dapps_whitelist()
-			.map_err(|e| errors::account("Couldn't get dapps whitelist.", e))
-			.map(|accounts| accounts.map(into_vec))
+		store.new_dapps_default_address()
+			.map_err(|e| errors::account("Couldn't get new dapps default address.", e))
+			.map(Into::into)
 	}
 
 	fn recent_dapps(&self) -> Result<BTreeMap<DappId, u64>, Error> {
@@ -260,6 +288,32 @@ impl ParityAccounts for ParityAccountsClient {
 			.set_vault_meta(&name, &meta)
 			.map_err(|e| errors::account("Could not update vault metadata.", e))
 			.map(|_| true)
+	}
+
+	fn derive_key_index(&self, addr: RpcH160, password: String, derivation: DeriveHierarchical, save_as_account: bool) -> Result<RpcH160, Error> {
+		let addr: Address = addr.into();
+		take_weak!(self.accounts)
+			.derive_account(
+				&addr,
+				Some(password),
+				Derive::from(derivation).to_derivation()
+					.map_err(|c| errors::account("Could not parse derivation request: {:?}", c))?,
+				save_as_account)
+			.map(Into::into)
+			.map_err(|e| errors::account("Could not derive account.", e))
+	}
+
+	fn derive_key_hash(&self, addr: RpcH160, password: String, derivation: DeriveHash, save_as_account: bool) -> Result<RpcH160, Error> {
+		let addr: Address = addr.into();
+		take_weak!(self.accounts)
+			.derive_account(
+				&addr,
+				Some(password),
+				Derive::from(derivation).to_derivation()
+					.map_err(|c| errors::account("Could not parse derivation request: {:?}", c))?,
+				save_as_account)
+			.map(Into::into)
+			.map_err(|e| errors::account("Could not derive account.", e))
 	}
 }
 

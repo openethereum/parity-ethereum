@@ -14,6 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import React from 'react';
+import { FormattedMessage } from 'react-intl';
+
 const MODES = {
   DEVELOPMENT: 1000, // only in dev mode, disabled by default, can be toggled
   TESTING: 1011, // feature is available in dev mode
@@ -28,13 +31,33 @@ const FEATURES = {
 const DEFAULTS = {
   [FEATURES.LANGUAGE]: {
     mode: MODES.TESTING,
-    name: 'Language Selection',
-    description: 'Allows changing the default interface language'
+    name: (
+      <FormattedMessage
+        id='ui.features.defaults.i18n.name'
+        defaultMssage='Language Selection'
+      />
+    ),
+    description: (
+      <FormattedMessage
+        id='ui.features.defaults.i18n.desc'
+        defaultMssage='Allows changing the default interface language'
+      />
+    )
   },
   [FEATURES.LOGLEVELS]: {
     mode: MODES.TESTING,
-    name: 'Logging Level Selection',
-    description: 'Allows changing of the log levels for various components'
+    name: (
+      <FormattedMessage
+        id='ui.features.defaults.logging.name'
+        defaultMssage='Logging Level Selection'
+      />
+    ),
+    description: (
+      <FormattedMessage
+        id='ui.features.defaults.logging.desc'
+        defaultMssage='Allows changing of the log levels for various components'
+      />
+    )
   }
 };
 

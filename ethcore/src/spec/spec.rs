@@ -24,7 +24,7 @@ use executive::Executive;
 use trace::{NoopTracer, NoopVMTracer};
 use action_params::{ActionValue, ActionParams};
 use types::executed::CallType;
-use state::{State, Substate};
+use state::{Backend, State, Substate};
 use env_info::EnvInfo;
 use pod_state::*;
 use account_db::*;
@@ -34,7 +34,7 @@ use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 use ethereum;
 use ethjson;
-use rlp::{Rlp, RlpStream, View, Stream};
+use rlp::{Rlp, RlpStream, View};
 
 /// Parameters common to all engines.
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -55,6 +55,8 @@ pub struct CommonParams {
 	pub fork_block: Option<(BlockNumber, H256)>,
 	/// Number of first block where EIP-98 rules begin.
 	pub eip98_transition: BlockNumber,
+	/// Validate block receipts root.
+	pub validate_receipts: bool,
 }
 
 impl From<ethjson::spec::Params> for CommonParams {
@@ -68,6 +70,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			min_gas_limit: p.min_gas_limit.into(),
 			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) { Some((n.into(), h.into())) } else { None },
 			eip98_transition: p.eip98_transition.map_or(0, Into::into),
+			validate_receipts: p.validate_receipts.unwrap_or(true),
 		}
 	}
 }
@@ -160,7 +163,7 @@ impl Spec {
 	fn engine(engine_spec: ethjson::spec::Engine, params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Engine> {
 		match engine_spec {
 			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
-			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
+			ethjson::spec::Engine::InstantSeal(instant) => Arc::new(InstantSeal::new(params, instant.params.registrar.map_or_else(Address::new, Into::into), builtins)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),
@@ -389,6 +392,6 @@ mod tests {
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let state = State::from_existing(db.boxed_clone(), spec.state_root(), spec.engine.account_start_nonce(), Default::default()).unwrap();
 		let expected = H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
-		assert_eq!(state.storage_at(&Address::from_str("0000000000000000000000000000000000000005").unwrap(), &H256::zero()), expected);
+		assert_eq!(state.storage_at(&Address::from_str("0000000000000000000000000000000000000005").unwrap(), &H256::zero()).unwrap(), expected);
 	}
 }

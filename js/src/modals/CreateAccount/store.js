@@ -32,6 +32,7 @@ export default class Store {
   @observable description = '';
   @observable gethAccountsAvailable = [];
   @observable gethAddresses = [];
+  @observable gethImported = [];
   @observable isBusy = false;
   @observable isWindowsPhrase = false;
   @observable name = '';
@@ -43,6 +44,7 @@ export default class Store {
   @observable rawKey = '';
   @observable rawKeyError = ERRORS.nokey;
   @observable stage = STAGE_SELECT_TYPE;
+  @observable vaultName = '';
   @observable walletFile = '';
   @observable walletFileError = ERRORS.noFile;
   @observable walletJson = '';
@@ -89,9 +91,15 @@ export default class Store {
     transaction(() => {
       this.password = '';
       this.passwordRepeat = '';
+      this.phrase = '';
+      this.name = '';
       this.nameError = null;
+      this.rawKey = '';
       this.rawKeyError = null;
+      this.vaultName = '';
+      this.walletFile = '';
       this.walletFileError = null;
+      this.walletJson = '';
     });
   }
 
@@ -122,6 +130,14 @@ export default class Store {
 
   @action setGethAccountsAvailable = (gethAccountsAvailable) => {
     this.gethAccountsAvailable = [].concat(gethAccountsAvailable);
+  }
+
+  @action setGethImported = (gethImported) => {
+    this.gethImported = gethImported;
+  }
+
+  @action setVaultName = (vaultName) => {
+    this.vaultName = vaultName;
   }
 
   @action setWindowsPhrase = (isWindowsPhrase = false) => {
@@ -210,7 +226,28 @@ export default class Store {
     this.stage--;
   }
 
-  createAccount = () => {
+  createAccount = (vaultStore) => {
+    this.setBusy(true);
+
+    return this
+      ._createAccount()
+      .then(() => {
+        if (vaultStore && this.vaultName && this.vaultName.length) {
+          return vaultStore.moveAccount(this.vaultName, this.address);
+        }
+
+        return true;
+      })
+      .then(() => {
+        this.setBusy(false);
+      })
+      .catch((error) => {
+        this.setBusy(false);
+        throw error;
+      });
+  }
+
+  _createAccount = () => {
     switch (this.createType) {
       case 'fromGeth':
         return this.createAccountFromGeth();
@@ -234,20 +271,23 @@ export default class Store {
   createAccountFromGeth = (timestamp = Date.now()) => {
     return this._api.parity
       .importGethAccounts(this.gethAddresses.peek())
-      .then(() => {
-        return Promise.all(this.gethAddresses.map((address) => {
-          return this._api.parity.setAccountName(address, 'Geth Import');
-        }));
-      })
-      .then(() => {
-        return Promise.all(this.gethAddresses.map((address) => {
-          return this._api.parity.setAccountMeta(address, {
-            timestamp
+      .then((gethImported) => {
+        console.log('createAccountFromGeth', gethImported);
+
+        this.setGethImported(gethImported);
+
+        return Promise
+          .all(gethImported.map((address) => {
+            return this._api.parity.setAccountName(address, 'Geth Import');
+          }))
+          .then(() => {
+            return Promise.all(gethImported.map((address) => {
+              return this._api.parity.setAccountMeta(address, { timestamp });
+            }));
           });
-        }));
       })
       .catch((error) => {
-        console.error('createAccount', error);
+        console.error('createAccountFromGeth', error);
         throw error;
       });
   }
@@ -321,6 +361,8 @@ export default class Store {
   createIdentities = () => {
     return Promise
       .all([
+        this._api.parity.generateSecretPhrase(),
+        this._api.parity.generateSecretPhrase(),
         this._api.parity.generateSecretPhrase(),
         this._api.parity.generateSecretPhrase(),
         this._api.parity.generateSecretPhrase(),

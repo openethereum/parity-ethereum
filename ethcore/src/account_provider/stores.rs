@@ -92,13 +92,16 @@ impl AddressBook {
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct DappsSettings {
 	/// A list of visible accounts
-	pub accounts: Vec<Address>,
+	pub accounts: Option<Vec<Address>>,
+	/// Default account
+	pub default: Option<Address>,
 }
 
 impl From<JsonSettings> for DappsSettings {
 	fn from(s: JsonSettings) -> Self {
 		DappsSettings {
-			accounts: s.accounts.into_iter().map(Into::into).collect(),
+			accounts: s.accounts.map(|accounts| accounts.into_iter().map(Into::into).collect()),
+			default: s.default.map(Into::into),
 		}
 	}
 }
@@ -106,7 +109,8 @@ impl From<JsonSettings> for DappsSettings {
 impl From<DappsSettings> for JsonSettings {
 	fn from(s: DappsSettings) -> Self {
 		JsonSettings {
-			accounts: s.accounts.into_iter().map(Into::into).collect(),
+			accounts: s.accounts.map(|accounts| accounts.into_iter().map(Into::into).collect()),
+			default: s.default.map(Into::into),
 		}
 	}
 }
@@ -114,14 +118,18 @@ impl From<DappsSettings> for JsonSettings {
 /// Dapps user settings
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum NewDappsPolicy {
-	AllAccounts,
+	AllAccounts {
+		default: Address,
+	},
 	Whitelist(Vec<Address>),
 }
 
 impl From<JsonNewDappsPolicy> for NewDappsPolicy {
 	fn from(s: JsonNewDappsPolicy) -> Self {
 		match s {
-			JsonNewDappsPolicy::AllAccounts => NewDappsPolicy::AllAccounts,
+			JsonNewDappsPolicy::AllAccounts { default } => NewDappsPolicy::AllAccounts {
+				default: default.into(),
+			},
 			JsonNewDappsPolicy::Whitelist(accounts) => NewDappsPolicy::Whitelist(
 				accounts.into_iter().map(Into::into).collect()
 			),
@@ -132,7 +140,9 @@ impl From<JsonNewDappsPolicy> for NewDappsPolicy {
 impl From<NewDappsPolicy> for JsonNewDappsPolicy {
 	fn from(s: NewDappsPolicy) -> Self {
 		match s {
-			NewDappsPolicy::AllAccounts => JsonNewDappsPolicy::AllAccounts,
+			NewDappsPolicy::AllAccounts { default } => JsonNewDappsPolicy::AllAccounts {
+				default: default.into(),
+			},
 			NewDappsPolicy::Whitelist(accounts) => JsonNewDappsPolicy::Whitelist(
 				accounts.into_iter().map(Into::into).collect()
 			),
@@ -230,7 +240,9 @@ impl DappsSettingsStore {
 
 	/// Returns current new dapps policy
 	pub fn policy(&self) -> NewDappsPolicy {
-		self.policy.get("default").cloned().unwrap_or(NewDappsPolicy::AllAccounts)
+		self.policy.get("default").cloned().unwrap_or(NewDappsPolicy::AllAccounts {
+			default: 0.into(),
+		})
 	}
 
 	/// Returns recent dapps with last accessed timestamp
@@ -266,10 +278,19 @@ impl DappsSettingsStore {
 	}
 
 	/// Sets accounts for specific dapp.
-	pub fn set_accounts(&mut self, id: DappId, accounts: Vec<Address>) {
+	pub fn set_accounts(&mut self, id: DappId, accounts: Option<Vec<Address>>) {
 		{
 			let mut settings = self.settings.entry(id).or_insert_with(DappsSettings::default);
 			settings.accounts = accounts;
+		}
+		self.settings.save(JsonSettings::write);
+	}
+
+	/// Sets a default account for specific dapp.
+	pub fn set_default(&mut self, id: DappId, default: Address) {
+		{
+			let mut settings = self.settings.entry(id).or_insert_with(DappsSettings::default);
+			settings.default = Some(default);
 		}
 		self.settings.save(JsonSettings::write);
 	}
@@ -385,13 +406,14 @@ mod tests {
 		let mut b = DappsSettingsStore::new(&path);
 
 		// when
-		b.set_accounts("dappOne".into(), vec![1.into(), 2.into()]);
+		b.set_accounts("dappOne".into(), Some(vec![1.into(), 2.into()]));
 
 		// then
 		let b = DappsSettingsStore::new(&path);
 		assert_eq!(b.settings(), hash_map![
 			"dappOne".into() => DappsSettings {
-				accounts: vec![1.into(), 2.into()],
+				accounts: Some(vec![1.into(), 2.into()]),
+				default: None,
 			}
 		]);
 	}
@@ -422,7 +444,9 @@ mod tests {
 		let mut store = DappsSettingsStore::new(&path);
 
 		// Test default policy
-		assert_eq!(store.policy(), NewDappsPolicy::AllAccounts);
+		assert_eq!(store.policy(), NewDappsPolicy::AllAccounts {
+			default: 0.into(),
+		});
 
 		// when
 		store.set_policy(NewDappsPolicy::Whitelist(vec![1.into(), 2.into()]));

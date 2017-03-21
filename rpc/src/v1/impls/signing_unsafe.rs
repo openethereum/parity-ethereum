@@ -55,13 +55,13 @@ impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 		let accounts = take_weakf!(self.accounts);
 		let default = match account {
 			DefaultAccount::Provided(acc) => acc,
-			DefaultAccount::ForDapp(dapp) => accounts.default_address(dapp).ok().unwrap_or_default(),
+			DefaultAccount::ForDapp(dapp) => accounts.dapp_default_address(dapp).ok().unwrap_or_default(),
 		};
 
 		let dis = self.dispatcher.clone();
 		dispatch::from_rpc(payload, default, &dis)
 			.and_then(move |payload| {
-				dispatch::execute(dis, &accounts, payload, dispatch::SignWith::Nothing)
+				dispatch::execute(dis, accounts, payload, dispatch::SignWith::Nothing)
 			})
 			.map(|v| v.into_value())
 			.boxed()
@@ -72,7 +72,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 {
 	type Metadata = Metadata;
 
-	fn sign(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
+	fn sign(&self, _: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
 		self.handle(RpcConfirmationPayload::Signature((address.clone(), data).into()), address.into())
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
@@ -83,7 +83,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 	}
 
 	fn send_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcH256, Error> {
-		self.handle(RpcConfirmationPayload::SendTransaction(request), meta.into())
+		self.handle(RpcConfirmationPayload::SendTransaction(request), meta.dapp_id().into())
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::SendTransaction(hash)) => Ok(hash),
 				Err(e) => Err(e),
@@ -93,7 +93,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 	}
 
 	fn sign_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcRichRawTransaction, Error> {
-		self.handle(RpcConfirmationPayload::SignTransaction(request), meta.into())
+		self.handle(RpcConfirmationPayload::SignTransaction(request), meta.dapp_id().into())
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::SignTransaction(tx)) => Ok(tx),
 				Err(e) => Err(e),
@@ -106,7 +106,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 impl<D: Dispatcher + 'static> ParitySigning for SigningUnsafeClient<D> {
 	type Metadata = Metadata;
 
-	fn decrypt_message(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes, Error> {
+	fn decrypt_message(&self, _: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes, Error> {
 		self.handle(RpcConfirmationPayload::Decrypt((address.clone(), data).into()), address.into())
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::Decrypt(data)) => Ok(data),
@@ -116,7 +116,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningUnsafeClient<D> {
 			.boxed()
 	}
 
-	fn post_sign(&self, _: RpcH160, _: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
+	fn post_sign(&self, _: Metadata,  _: RpcH160, _: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		// We don't support this in non-signer mode.
 		future::err(errors::signer_disabled()).boxed()
 	}

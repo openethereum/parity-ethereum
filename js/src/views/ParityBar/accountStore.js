@@ -24,7 +24,9 @@ export default class AccountStore {
   constructor (api) {
     this._api = api;
 
-    this.loadAccounts();
+    this.loadDefaultAccount()
+      .then(() => this.loadAccounts());
+
     this.subscribeDefaultAccount();
   }
 
@@ -33,25 +35,35 @@ export default class AccountStore {
   }
 
   @action setDefaultAccount = (defaultAccount) => {
-    this.defaultAccount = defaultAccount;
+    transaction(() => {
+      this.accounts = this.accounts.map((account) => {
+        account.checked = account.address === defaultAccount;
+
+        return account;
+      });
+
+      this.defaultAccount = defaultAccount;
+    });
   }
 
   @action setLoading = (isLoading) => {
     this.isLoading = isLoading;
   }
 
-  makeDefaultAccount = (address) => {
-    const accounts = [address].concat(
-      this.accounts
-        .filter((account) => account.address !== address)
-        .map((account) => account.address)
-    );
+  makeDefaultAccount = (defaultAddress) => {
+    this.setDefaultAccount(defaultAddress);
 
     return this._api.parity
-      .setNewDappsWhitelist(accounts)
+      .setNewDappsDefaultAddress(defaultAddress)
       .catch((error) => {
         console.warn('makeDefaultAccount', error);
       });
+  }
+
+  loadDefaultAccount () {
+    return this._api.parity
+      .defaultAccount()
+      .then((address) => this.setDefaultAccount(address));
   }
 
   loadAccounts () {
@@ -59,30 +71,30 @@ export default class AccountStore {
 
     return Promise
       .all([
-        this._api.parity.getNewDappsWhitelist(),
+        this._api.parity.getNewDappsAddresses(),
         this._api.parity.allAccountsInfo()
       ])
-      .then(([whitelist, accounts]) => {
+      .then(([whitelist, allAccounts]) => {
         transaction(() => {
+          const accounts = Object
+            .keys(allAccounts)
+            .filter((address) => {
+              const account = allAccounts[address];
+              const isAccount = account.uuid || (account.meta && account.meta.hardware);
+              const isWhitelisted = !whitelist || whitelist.includes(address);
+
+              return isAccount && isWhitelisted;
+            })
+            .map((address) => {
+              return {
+                ...allAccounts[address],
+                checked: address === this.defaultAccount,
+                address
+              };
+            });
+
           this.setLoading(false);
-          this.setAccounts(
-            Object
-              .keys(accounts)
-              .filter((address) => {
-                const isAccount = accounts[address].uuid;
-                const isWhitelisted = !whitelist || whitelist.includes(address);
-
-                return isAccount && isWhitelisted;
-              })
-              .map((address) => {
-                const account = accounts[address];
-
-                account.address = address;
-                account.default = address === this.defaultAccount;
-
-                return account;
-              })
-          );
+          this.setAccounts(accounts);
         });
       })
       .catch((error) => {
@@ -92,10 +104,25 @@ export default class AccountStore {
   }
 
   subscribeDefaultAccount () {
-    return this._api.subscribe('parity_defaultAccount', (error, defaultAccount) => {
+    const promiseDefaultAccount = this._api.subscribe('parity_defaultAccount', (error, defaultAccount) => {
       if (!error) {
         this.setDefaultAccount(defaultAccount);
       }
     });
+
+    const promiseEthAccounts = this._api.subscribe('eth_accounts', (error) => {
+      if (!error) {
+        this.loadAccounts();
+      }
+    });
+
+    const promiseAccountsInfo = this._api
+      .subscribe('parity_allAccountsInfo', (error, accountsInfo) => {
+        if (!error) {
+          this.loadAccounts();
+        }
+      });
+
+    return Promise.all([ promiseDefaultAccount, promiseEthAccounts, promiseAccountsInfo ]);
   }
 }

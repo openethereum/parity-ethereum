@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
+
 import Call from '../Call';
 import CallsToolbar from '../CallsToolbar';
 import styles from './Calls.css';
@@ -33,7 +35,12 @@ export default class Calls extends Component {
         { ...this._test('container') }
       >
         { this.renderClear() }
-        <h2 className={ styles.header }>History</h2>
+        <h2 className={ styles.header }>
+          <FormattedMessage
+            id='status.calls.title'
+            defaultMessage='History'
+          />
+        </h2>
         <div className={ `${styles.history} row` } ref={ this.setCallsHistory }>
           { this.renderNoCallsMsg() }
           { this.renderCalls() }
@@ -56,7 +63,12 @@ export default class Calls extends Component {
     return (
       <a
         { ...this._test('remove') }
-        title='Clear RPC calls history'
+        title={
+          <FormattedMessage
+            id='status.calls.clearHistory'
+            defaultMessage='Clear RPC calls history'
+          />
+        }
         onClick={ this.clearHistory }
         className={ styles.removeIcon }
       >
@@ -73,7 +85,10 @@ export default class Calls extends Component {
     return (
       <div { ...this._test('empty-wrapper') }>
         <h3 className={ styles.historyInfo } { ...this._test('empty') }>
-          Fire up some calls and the results will be here.
+          <FormattedMessage
+            id='status.calls.rpcResults'
+            defaultMessage='Fire up some calls and the results will be here.'
+          />
         </h3>
       </div>
     );

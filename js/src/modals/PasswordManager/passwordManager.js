@@ -23,7 +23,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError, openSnackbar } from '~/redux/actions';
-import { Button, Modal, IdentityName, IdentityIcon } from '~/ui';
+import { Button, IdentityName, IdentityIcon, Portal } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 import Form, { Input } from '~/ui/Form';
 import { CancelIcon, CheckIcon, SendIcon } from '~/ui/Icons';
@@ -38,7 +38,7 @@ const MSG_FAILURE_STYLE = {
   backgroundColor: 'rgba(229, 115, 115, 0.75)'
 };
 const TABS_INKBAR_STYLE = {
-  backgroundColor: 'rgba(255, 255, 255, 0.55)'
+  backgroundColor: 'rgb(0, 151, 167)' // 'rgba(255, 255, 255, 0.55)'
 };
 const TABS_ITEM_STYLE = {
   backgroundColor: 'rgba(255, 255, 255, 0.05)'
@@ -61,20 +61,21 @@ class PasswordManager extends Component {
 
   render () {
     return (
-      <Modal
-        actions={ this.renderDialogActions() }
+      <Portal
+        buttons={ this.renderDialogActions() }
+        onClose={ this.onClose }
+        open
         title={
           <FormattedMessage
             id='passwordChange.title'
             defaultMessage='Password Manager'
           />
         }
-        visible
       >
         { this.renderAccount() }
         { this.renderPage() }
         { this.renderMessage() }
-      </Modal>
+      </Portal>
     );
   }
 
@@ -116,8 +117,15 @@ class PasswordManager extends Component {
             { address }
           </span>
           <span className={ styles.passwordHint }>
-            <span className={ styles.hintLabel }>Hint </span>
-            { passwordHint || '-' }
+            <span className={ styles.hintLabel }>
+              <FormattedMessage
+                id='passwordChange.passwordHint'
+                defaultMessage='Hint {hint}'
+                values={ {
+                  hint: passwordHint || '-'
+                } }
+              />
+            </span>
           </span>
         </div>
       </div>
@@ -273,7 +281,6 @@ class PasswordManager extends Component {
 
   renderDialogActions () {
     const { actionTab, busy, isRepeatValid } = this.store;
-    const { onClose } = this.props;
 
     const cancelBtn = (
       <Button
@@ -285,7 +292,7 @@ class PasswordManager extends Component {
             defaultMessage='Cancel'
           />
         }
-        onClick={ onClose }
+        onClick={ this.onClose }
       />
     );
 
@@ -367,6 +374,10 @@ class PasswordManager extends Component {
     this.store.setValidatePassword(password);
   }
 
+  onClose = () => {
+    this.props.onClose();
+  }
+
   changePassword = () => {
     return this.store
       .changePassword()
@@ -380,7 +391,7 @@ class PasswordManager extends Component {
               />
             </div>
           );
-          this.props.onClose();
+          this.onClose();
         }
       })
       .catch((error) => {

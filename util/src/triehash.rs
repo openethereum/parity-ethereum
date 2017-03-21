@@ -23,7 +23,7 @@ use std::cmp;
 use hash::*;
 use sha3::*;
 use rlp;
-use rlp::{RlpStream, Stream};
+use rlp::RlpStream;
 use vector::SharedPrefix;
 
 /// Generates a trie root hash for a vector of values

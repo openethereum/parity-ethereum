@@ -32,7 +32,7 @@ Be sure to check out [our wiki][wiki-url] for more information.
 Parity's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity using the sophisticated and
 cutting-edge Rust programming language. Parity is licensed under the GPLv3, and can be used for all your Ethereum needs.
 
-Parity comes with a built-in wallet. To access [Parity Wallet](http://127.0.0.1:8080/) this simply go to http://127.0.0.1:8080/. It
+Parity comes with a built-in wallet. To access [Parity Wallet](http://127.0.0.1:8080/) simply go to http://127.0.0.1:8080/. It
 includes various functionality allowing you to:
 - create and manage your Ethereum accounts;
 - manage your Ether and any Ethereum tokens;
@@ -45,7 +45,7 @@ of RPC APIs.
 If you run into an issue while using parity, feel free to file one in this repository
 or hop on our [gitter chat room][gitter-url] to ask a question. We are glad to help!
 
-Parity's current release is 1.5. You can download it at https://ethcore.io/parity.html or follow the instructions
+Parity's current release is 1.5. You can download it at https://parity.io or follow the instructions
 below to build from source.
 
 ----
@@ -100,7 +100,11 @@ $ cargo build --release
 ```
 
 This will produce an executable in the `./target/release` subdirectory.
+Note: if cargo fails to parse manifest try:
 
+```bash
+$ ~/.cargo/bin/cargo build --release
+```
 ----
 
 ## Simple one-line installer for Mac and Ubuntu

@@ -27,34 +27,67 @@ class Certifications extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
     certifications: PropTypes.array.isRequired,
-    dappsUrl: PropTypes.string.isRequired
+    className: PropTypes.string,
+    dappsUrl: PropTypes.string.isRequired,
+    showOnlyIcon: PropTypes.bool
   }
 
   render () {
-    const { certifications } = this.props;
+    const { certifications, className } = this.props;
 
     if (certifications.length === 0) {
       return null;
     }
 
     return (
-      <div className={ styles.certifications }>
+      <div className={ [styles.certifications, className].join(' ') }>
         { certifications.map(this.renderCertification) }
       </div>
     );
   }
 
   renderCertification = (certification) => {
-    const { name, title, icon } = certification;
-    const { dappsUrl } = this.props;
+    const { name, icon } = certification;
+    const { dappsUrl, showOnlyIcon } = this.props;
 
-    const classNames = `${styles.certification} ${!icon ? styles.noIcon : ''}`;
-    const img = icon ? dappsUrl + hashToImageUrl(icon) : defaultIcon;
+    const classNames = [
+      showOnlyIcon
+        ? styles.certificationIcon
+        : styles.certification,
+      !icon
+        ? styles.noIcon
+        : ''
+    ];
 
     return (
-      <div className={ classNames } key={ name }>
-        <img className={ styles.icon } src={ img } />
-        <div className={ styles.text }>{ title || name }</div>
+      <div
+        className={ classNames.join(' ') }
+        key={ name }
+      >
+        <img
+          className={ styles.icon }
+          src={
+            icon
+              ? `${dappsUrl}${hashToImageUrl(icon)}`
+              : defaultIcon
+          }
+        />
+        { this.renderCertificationName(certification) }
+      </div>
+    );
+  }
+
+  renderCertificationName = (certification) => {
+    const { showOnlyIcon } = this.props;
+    const { name, title } = certification;
+
+    if (showOnlyIcon) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.text }>
+        { title || name }
       </div>
     );
   }

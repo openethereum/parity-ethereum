@@ -128,6 +128,18 @@ export function outLog (log) {
   return log;
 }
 
+export function outHwAccountInfo (infos) {
+  return Object
+    .keys(infos)
+    .reduce((ret, _address) => {
+      const address = outAddress(_address);
+
+      ret[address] = infos[_address];
+
+      return ret;
+    }, {});
+}
+
 export function outNumber (number) {
   return new BigNumber(number || 0);
 }
@@ -202,6 +214,13 @@ export function outSignerRequest (request) {
         case 'payload':
           request[key].signTransaction = outTransaction(request[key].signTransaction);
           request[key].sendTransaction = outTransaction(request[key].sendTransaction);
+          break;
+
+        case 'origin':
+          const type = Object.keys(request[key])[0];
+          const details = request[key][type];
+
+          request[key] = { type, details };
           break;
       }
     });

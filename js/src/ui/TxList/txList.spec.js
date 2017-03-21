@@ -30,7 +30,7 @@ const STORE = {
   getState: () => {
     return {
       nodeStatus: {
-        isTest: true
+        netVersion: '42'
       }
     };
   }

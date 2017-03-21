@@ -15,10 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import ActionSearch from 'material-ui/svg-icons/action/search';
+import { FormattedMessage } from 'react-intl';
 
 import Button from '../../Button';
 import InputChip from '../../Form/InputChip';
+import { SearchIcon } from '../../Icons';
 
 import styles from './search.css';
 
@@ -74,7 +75,12 @@ export default class ActionbarSearch extends Component {
           <InputChip
             addOnBlur
             className={ styles.input }
-            hint='Enter search input...'
+            hint={
+              <FormattedMessage
+                id='ui.actionbar.search.hint'
+                defaultMessage='Enter search input...'
+              />
+            }
             ref='inputChip'
             tokens={ tokens }
 
@@ -86,7 +92,7 @@ export default class ActionbarSearch extends Component {
 
         <Button
           className={ styles.searchButton }
-          icon={ <ActionSearch /> }
+          icon={ <SearchIcon /> }
           label=''
           onClick={ this.handleSearchClick }
         />

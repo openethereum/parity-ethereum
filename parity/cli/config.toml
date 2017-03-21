@@ -12,7 +12,6 @@ password = ["passwdfile path"]
 disable = true
 
 [network]
-disable = false
 warp = false
 discovery = true
 nat = "any"
@@ -38,12 +37,20 @@ port = 8080
 user = "username"
 pass = "password"
 
+[secretstore]
+port = 8082
+
+[ipfs]
+enable = false
+port = 5001
+
 [mining]
 author = "0xdeadbeefcafe0000000000000000000000000001"
 engine_signer = "0xdeadbeefcafe0000000000000000000000000001"
 force_sealing = true
 reseal_on_txs = "all"
 reseal_min_period = 4000
+reseal_max_period = 60000
 price_update_period = "hourly"
 tx_queue_size = 1024
 tx_queue_gas = "auto"

@@ -20,11 +20,13 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
 import { createIdentityImg } from '~/api/util/identity';
 import { newError } from '~/redux/actions';
-import { Button, Modal } from '~/ui';
+import { Button, ModalBox, Portal } from '~/ui';
 import { CancelIcon, CheckIcon, DoneIcon, NextIcon, PrevIcon, PrintIcon } from '~/ui/Icons';
-import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
+
+import VaultStore from '~/views/Vaults/store';
 
 import AccountDetails from './AccountDetails';
 import AccountDetailsGeth from './AccountDetailsGeth';
@@ -35,6 +37,7 @@ import NewImport from './NewImport';
 import RawKey from './RawKey';
 import RecoveryPhrase from './RecoveryPhrase';
 import Store, { STAGE_CREATE, STAGE_INFO, STAGE_SELECT_TYPE } from './store';
+import TypeIcon from './TypeIcon';
 import print from './print';
 import recoveryPage from './recoveryPage.ejs';
 
@@ -81,23 +84,32 @@ class CreateAccount extends Component {
   }
 
   store = new Store(this.context.api, this.props.accounts);
+  vaultStore = VaultStore.get(this.context.api);
+
+  componentWillMount () {
+    return this.vaultStore.loadVaults();
+  }
 
   render () {
-    const { createType, stage } = this.store;
+    const { isBusy, createType, stage } = this.store;
 
     return (
-      <Modal
-        visible
-        actions={ this.renderDialogActions() }
-        current={ stage }
+      <Portal
+        buttons={ this.renderDialogActions() }
+        busy={ isBusy }
+        activeStep={ stage }
+        onClose={ this.onClose }
+        open
         steps={
           createType === 'fromNew'
             ? STAGE_NAMES
             : STAGE_IMPORT
         }
       >
-        { this.renderPage() }
-      </Modal>
+        <ModalBox icon={ <TypeIcon store={ this.store } /> }>
+          { this.renderPage() }
+        </ModalBox>
+      </Portal>
     );
   }
 
@@ -116,6 +128,7 @@ class CreateAccount extends Component {
             <NewAccount
               newError={ this.props.newError }
               store={ this.store }
+              vaultStore={ this.vaultStore }
             />
           );
         }
@@ -128,18 +141,27 @@ class CreateAccount extends Component {
 
         if (createType === 'fromPhrase') {
           return (
-            <RecoveryPhrase store={ this.store } />
+            <RecoveryPhrase
+              store={ this.store }
+              vaultStore={ this.vaultStore }
+            />
           );
         }
 
         if (createType === 'fromRaw') {
           return (
-            <RawKey store={ this.store } />
+            <RawKey
+              store={ this.store }
+              vaultStore={ this.vaultStore }
+            />
           );
         }
 
         return (
-          <NewImport store={ this.store } />
+          <NewImport
+            store={ this.store }
+            vaultStore={ this.vaultStore }
+          />
         );
 
       case STAGE_INFO:
@@ -245,11 +267,11 @@ class CreateAccount extends Component {
             : null,
           <Button
             icon={ <DoneIcon /> }
-            key='close'
+            key='done'
             label={
               <FormattedMessage
-                id='createAccount.button.close'
-                defaultMessage='Close'
+                id='createAccount.button.done'
+                defaultMessage='Done'
               />
             }
             onClick={ this.onClose }
@@ -262,7 +284,7 @@ class CreateAccount extends Component {
     this.store.setBusy(true);
 
     return this.store
-      .createAccount()
+      .createAccount(this.vaultStore)
       .then(() => {
         this.store.setBusy(false);
         this.store.nextStage();

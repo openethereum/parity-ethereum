@@ -24,7 +24,7 @@ import { connect } from 'react-redux';
 import store from 'store';
 
 import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
-import { AccountCard, Badge, Button, ContainerTitle, IdentityIcon, ParityBackground, SectionList } from '~/ui';
+import { AccountCard, Badge, Button, ContainerTitle, IdentityIcon, ParityBackground, SelectionList } from '~/ui';
 import { CancelIcon, FingerprintIcon } from '~/ui/Icons';
 import DappsStore from '~/views/Dapps/dappsStore';
 import { Embedded as Signer } from '~/views/Signer';
@@ -48,6 +48,7 @@ class ParityBar extends Component {
   };
 
   static propTypes = {
+    balances: PropTypes.object,
     dapp: PropTypes.bool,
     externalLink: PropTypes.string,
     pending: PropTypes.array
@@ -327,9 +328,11 @@ class ParityBar extends Component {
           {
             displayType === DISPLAY_ACCOUNTS
               ? (
-                <SectionList
+                <SelectionList
+                  className={ styles.accountsSection }
                   items={ this.accountStore.accounts }
                   noStretch
+                  onSelectClick={ this.onMakeDefault }
                   renderItem={ this.renderAccount }
                 />
               )
@@ -342,26 +345,23 @@ class ParityBar extends Component {
     );
   }
 
+  onMakeDefault = (account) => {
+    this.toggleAccountsDisplay();
+
+    return this.accountStore
+      .makeDefaultAccount(account.address)
+      .then(() => this.accountStore.loadAccounts());
+  }
+
   renderAccount = (account) => {
-    const onMakeDefault = () => {
-      this.toggleAccountsDisplay();
-      this.accountStore.makeDefaultAccount(account.address);
-    };
+    const { balances } = this.props;
+    const balance = balances[account.address];
 
     return (
-      <div
-        className={ styles.account }
-        onClick={ onMakeDefault }
-      >
-        <AccountCard
-          account={ account }
-          className={
-            account.default
-              ? styles.selected
-              : styles.unselected
-          }
-        />
-      </div>
+      <AccountCard
+        account={ account }
+        balance={ balance }
+      />
     );
   }
 
@@ -578,10 +578,6 @@ class ParityBar extends Component {
     const { opened } = this.state;
 
     this.setOpened(!opened, DISPLAY_ACCOUNTS);
-
-    if (!opened) {
-      this.accountStore.loadAccounts();
-    }
   }
 
   toggleSignerDisplay = () => {
@@ -654,9 +650,11 @@ class ParityBar extends Component {
 }
 
 function mapStateToProps (state) {
+  const { balances } = state.balances;
   const { pending } = state.signer;
 
   return {
+    balances,
     pending
   };
 }

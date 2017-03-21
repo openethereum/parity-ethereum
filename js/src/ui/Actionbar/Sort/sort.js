@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { observer } from 'mobx-react';
 
 import IconMenu from 'material-ui/IconMenu';
@@ -71,12 +72,38 @@ export default class ActionbarSort extends Component {
       >
         {
           showDefault
-          ? this.renderMenuItem('', 'Default')
-          : null
+            ? this.renderMenuItem('', (
+              <FormattedMessage
+                id='ui.actionbar.sort.typeDefault'
+                defaultMessage='Default'
+              />
+            ))
+            : null
         }
-        { this.renderMenuItem('tags', 'Sort by tags') }
-        { this.renderMenuItem('name', 'Sort by name') }
-        { this.renderMenuItem('eth', 'Sort by ETH') }
+        {
+          this.renderMenuItem('tags', (
+            <FormattedMessage
+              id='ui.actionbar.sort.typeTags'
+              defaultMessage='Sort by tags'
+            />
+          ))
+        }
+        {
+          this.renderMenuItem('name', (
+            <FormattedMessage
+              id='ui.actionbar.sort.typeName'
+              defaultMessage='Sort by name'
+            />
+          ))
+        }
+        {
+          this.renderMenuItem('eth', (
+            <FormattedMessage
+              id='ui.actionbar.sort.typeEth'
+              defaultMessage='Sort by ETH'
+            />
+          ))
+        }
 
         { this.renderSortByMetas() }
       </IconMenu>
@@ -88,8 +115,17 @@ export default class ActionbarSort extends Component {
 
     return metas
       .map((meta, index) => {
-        return this
-          .renderMenuItem(meta.key, `Sort by ${meta.label}`, index);
+        const label = (
+          <FormattedMessage
+            id='ui.actionbar.sort.sortBy'
+            defaultMessage='Sort by {label}'
+            values={ {
+              label: meta.label
+            } }
+          />
+        );
+
+        return this.renderMenuItem(meta.key, label, index);
       });
   }
 

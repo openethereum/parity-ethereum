@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { sha3 } from '../parity.js';
+import { api, sha3 } from '../parity.js';
 import { getOwner } from '../util/registry';
 
 export const clear = () => ({ type: 'lookup clear' });
@@ -34,14 +34,21 @@ export const lookup = (name, key) => (dispatch, getState) => {
     return;
   }
 
-  const getAddress = contract.functions
-    .find((f) => f.name === 'getAddress');
+  const method = key === 'A'
+    ? contract.instance.getAddress
+    : contract.instance.getData;
 
   name = name.toLowerCase();
   dispatch(lookupStart(name, key));
 
-  getAddress.call({}, [ sha3.text(name), key ])
-    .then((address) => dispatch(success('lookup', address)))
+  method.call({}, [ sha3.text(name), key ])
+    .then((result) => {
+      if (key !== 'A') {
+        result = api.util.bytesToHex(result);
+      }
+
+      dispatch(success('lookup', result));
+    })
     .catch((err) => {
       console.error(`could not lookup ${key} for ${name}`);
       if (err) {

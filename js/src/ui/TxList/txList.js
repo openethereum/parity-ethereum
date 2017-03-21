@@ -27,7 +27,7 @@ import styles from './txList.css';
 class TxList extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     address: PropTypes.string.isRequired,
@@ -35,8 +35,8 @@ class TxList extends Component {
       PropTypes.array,
       PropTypes.object
     ]).isRequired,
-    isTest: PropTypes.bool.isRequired
-  }
+    netVersion: PropTypes.string.isRequired
+  };
 
   store = new Store(this.context.api);
 
@@ -63,7 +63,7 @@ class TxList extends Component {
   }
 
   renderRows () {
-    const { address, isTest } = this.props;
+    const { address, netVersion } = this.props;
 
     return this.store.sortedHashes.map((txhash) => {
       const tx = this.store.transactions[txhash];
@@ -76,7 +76,7 @@ class TxList extends Component {
           tx={ tx }
           block={ block }
           address={ address }
-          isTest={ isTest }
+          netVersion={ netVersion }
         />
       );
     });
@@ -84,10 +84,10 @@ class TxList extends Component {
 }
 
 function mapStateToProps (state) {
-  const { isTest } = state.nodeStatus;
+  const { netVersion } = state.nodeStatus;
 
   return {
-    isTest
+    netVersion
   };
 }
 

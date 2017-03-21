@@ -30,8 +30,13 @@ export default class AccountCard extends Component {
     account: PropTypes.object.isRequired,
     balance: PropTypes.object,
     className: PropTypes.string,
+    disableAddressClick: PropTypes.bool,
     onClick: PropTypes.func,
     onFocus: PropTypes.func
+  };
+
+  static defaultProps = {
+    disableAddressClick: false
   };
 
   state = {
@@ -39,7 +44,7 @@ export default class AccountCard extends Component {
   };
 
   render () {
-    const { account, balance, className } = this.props;
+    const { account, balance, className, onFocus } = this.props;
     const { copied } = this.state;
     const { address, description, meta = {}, name } = account;
     const { tags = [] } = meta;
@@ -49,37 +54,57 @@ export default class AccountCard extends Component {
       classes.push(styles.copied);
     }
 
+    const props = onFocus
+      ? { tabIndex: 0 }
+      : {};
+
     return (
       <div
         key={ address }
-        tabIndex={ 0 }
         className={ classes.join(' ') }
         onClick={ this.onClick }
         onFocus={ this.onFocus }
         onKeyDown={ this.handleKeyDown }
+        { ...props }
       >
-        <div className={ styles.infoContainer }>
-          <IdentityIcon address={ address } />
-          <div className={ styles.accountInfo }>
-            <div className={ styles.accountName }>
-              <IdentityName
-                address={ address }
-                name={ name }
-                unknown
-              />
+        <div className={ styles.mainContainer }>
+          <div className={ styles.infoContainer }>
+            <IdentityIcon address={ address } />
+            <div className={ styles.accountInfo }>
+              <div className={ styles.accountName }>
+                <IdentityName
+                  address={ address }
+                  name={ name }
+                  unknown
+                />
+              </div>
+              { this.renderDescription(description) }
+              { this.renderAddress(address) }
             </div>
-            { this.renderDescription(description) }
-            { this.renderAddress(address) }
           </div>
+
+          <Balance
+            balance={ balance }
+            className={ styles.balance }
+            showOnlyEth
+          />
         </div>
 
-        <Tags tags={ tags } />
-        <Balance
-          balance={ balance }
-          className={ styles.balance }
-          showOnlyEth
-          showZeroValues
-        />
+        {
+          tags && tags.length > 0
+          ? (
+            <div className={ styles.tagsContainer }>
+              <div className={ styles.tags }>
+                <Tags
+                  floating={ false }
+                  horizontal
+                  tags={ tags }
+                />
+              </div>
+            </div>
+          ) : null
+        }
+
       </div>
     );
   }
@@ -101,7 +126,7 @@ export default class AccountCard extends Component {
       <div className={ styles.addressContainer }>
         <span
           className={ styles.address }
-          onClick={ this.preventEvent }
+          onClick={ this.handleAddressClick }
           ref={ `address` }
           title={ address }
         >
@@ -109,6 +134,17 @@ export default class AccountCard extends Component {
         </span>
       </div>
     );
+  }
+
+  handleAddressClick = (event) => {
+    const { disableAddressClick } = this.props;
+
+    // Stop the event if address click is disallowed
+    if (disableAddressClick) {
+      return this.preventEvent(event);
+    }
+
+    return this.onClick(event);
   }
 
   handleKeyDown = (event) => {
@@ -151,8 +187,13 @@ export default class AccountCard extends Component {
     }
   }
 
-  onClick = () => {
+  onClick = (event) => {
     const { account, onClick } = this.props;
+
+    // Stop the default event if text is selected
+    if (window.getSelection && window.getSelection().type === 'Range') {
+      return this.preventEvent(event);
+    }
 
     onClick && onClick(account.address);
   }
@@ -163,9 +204,9 @@ export default class AccountCard extends Component {
     onFocus && onFocus(account.index);
   }
 
-  preventEvent = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  preventEvent = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   setTagRef = (tagRef) => {

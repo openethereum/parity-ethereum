@@ -22,20 +22,40 @@ import styles from './tags.css';
 
 export default class Tags extends Component {
   static propTypes = {
+    className: PropTypes.string,
+    floating: PropTypes.bool,
+    horizontal: PropTypes.bool,
     handleAddSearchToken: PropTypes.func,
     setRefs: PropTypes.func,
     tags: arrayOrObjectProptype()
-  }
+  };
+
+  static defaultProps = {
+    horizontal: false,
+    floating: true
+  };
 
   render () {
-    const { tags } = this.props;
+    const { className, floating, horizontal, tags } = this.props;
 
     if (!tags || tags.length === 0) {
       return null;
     }
 
+    const classes = [ styles.tags ];
+
+    if (floating) {
+      classes.push(styles.floating);
+    }
+
+    if (horizontal) {
+      classes.push(styles.horizontal);
+    }
+
+    classes.push(className);
+
     return (
-      <div className={ styles.tags }>
+      <div className={ classes.join(' ') }>
         { this.renderTags() }
       </div>
     );
@@ -56,7 +76,12 @@ export default class Tags extends Component {
       .sort()
       .map((tag, index) => {
         const onClick = handleAddSearchToken
-          ? () => handleAddSearchToken(tag)
+          ? (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+
+            handleAddSearchToken(tag);
+          }
           : null;
 
         return (
@@ -66,7 +91,7 @@ export default class Tags extends Component {
             onClick={ onClick }
             ref={ setRef }
           >
-            { tag }
+            <span className={ styles.text }>{ tag }</span>
           </div>
         );
       });

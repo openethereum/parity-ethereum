@@ -16,7 +16,14 @@
 
 import * as abis from './abi';
 
+const REGISTRY_V1_HASHES = [
+  '0x34f7c51bbb1b1902fbdabfdf04811100f5c9f998f26dd535d2f6f977492c748e', // ropsten
+  '0x64c3ee34851517a9faecd995c102b339f03e564ad6772dc43a26f993238b20ec' // homestead
+];
+
 export default class Registry {
+  _registryContract = null;
+
   constructor (api) {
     this._api = api;
 
@@ -43,11 +50,10 @@ export default class Registry {
 
     this._fetching = true;
 
-    return this._api.parity
-      .registryAddress()
-      .then((address) => {
+    return this.fetchContract()
+      .then((contract) => {
         this._fetching = false;
-        this._instance = this._api.newContract(abis.registry, address).instance;
+        this._instance = contract.instance;
 
         this._queue.forEach((queued) => {
           queued.resolve(this._instance);
@@ -87,6 +93,47 @@ export default class Registry {
     return this
       .getContract(_name)
       .then((contract) => contract.instance);
+  }
+
+  fetchContract () {
+    if (this._registryContract) {
+      return Promise.resolve(this._registryContract);
+    }
+
+    return this._api.parity
+      .registryAddress()
+      .then((address) => Promise.all([ address, this._api.eth.getCode(address) ]))
+      .then(([ address, code ]) => {
+        const codeHash = this._api.util.sha3(code);
+        const version = REGISTRY_V1_HASHES.includes(codeHash)
+          ? 1
+          : 2;
+        const abi = version === 1
+            ? abis.registry
+            : abis.registry2;
+        const contract = this._api.newContract(abi, address);
+
+        // Add support for previous `set` and `get` methods
+        if (!contract.instance.get && contract.instance.getData) {
+          contract.instance.get = contract.instance.getData;
+        }
+
+        if (contract.instance.get && !contract.instance.getData) {
+          contract.instance.getData = contract.instance.get;
+        }
+
+        if (!contract.instance.set && contract.instance.setData) {
+          contract.instance.set = contract.instance.setData;
+        }
+
+        if (contract.instance.set && !contract.instance.setData) {
+          contract.instance.setData = contract.instance.set;
+        }
+
+        console.log(`registry at ${address}, code ${codeHash}, version ${version}`);
+        this._registryContract = contract;
+        return this._registryContract;
+      });
   }
 
   _createGetParams (_name, key) {

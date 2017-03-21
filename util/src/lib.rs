@@ -120,8 +120,6 @@ pub extern crate table;
 pub mod bloom;
 pub mod standard;
 #[macro_use]
-pub mod from_json;
-#[macro_use]
 pub mod common;
 pub mod error;
 pub mod bytes;
@@ -142,7 +140,6 @@ pub mod semantic_version;
 pub mod log;
 pub mod path;
 pub mod snappy;
-pub mod stats;
 pub mod cache;
 mod timer;
 

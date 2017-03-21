@@ -26,27 +26,35 @@ export default class Page extends Component {
     buttons: PropTypes.array,
     className: PropTypes.string,
     children: PropTypes.node,
+    padded: PropTypes.bool,
     title: nodeOrStringProptype()
   };
 
   render () {
-    const { buttons, className, children, title } = this.props;
-    const classes = `${styles.layout} ${className}`;
-    let actionbar = null;
-
-    if (title || buttons) {
-      actionbar = (
-        <Actionbar
-          buttons={ buttons }
-          title={ title }
-        />
-      );
-    }
+    const { buttons, className, children, padded, title } = this.props;
 
     return (
       <div>
-        { actionbar }
-        <div className={ classes }>
+        {
+          title || buttons
+            ? (
+              <Actionbar
+                buttons={ buttons }
+                title={ title }
+              />
+            )
+            : null
+        }
+        <div
+          className={
+            [
+              padded
+                ? styles.layoutPadded
+                : styles.layout,
+              className
+            ].join(' ')
+          }
+        >
           { children }
         </div>
       </div>

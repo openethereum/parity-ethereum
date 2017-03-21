@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Address, Data, Hash, Quantity, BlockNumber, TransactionRequest } from '../types';
+import { Address, Data, Hash, Quantity, BlockNumber, TransactionRequest, TransactionResponse } from '../types';
 import { fromDecimal, withComment, Dummy } from '../helpers';
 
 const SECTION_ACCOUNTS = 'Accounts (read-only) and Signatures';
@@ -26,86 +26,6 @@ const SECTION_VAULT = 'Account Vaults';
 
 const SUBDOC_SET = 'set';
 const SUBDOC_ACCOUNTS = 'accounts';
-
-const transactionDetails = {
-  hash: {
-    type: Hash,
-    desc: '32 Bytes - hash of the transaction.'
-  },
-  nonce: {
-    type: Quantity,
-    desc: 'The number of transactions made by the sender prior to this one.'
-  },
-  blockHash: {
-    type: Hash,
-    desc: '32 Bytes - hash of the block where this transaction was in. `null` when its pending.'
-  },
-  blockNumber: {
-    type: BlockNumber,
-    desc: 'Block number where this transaction was in. `null` when its pending.'
-  },
-  transactionIndex: {
-    type: Quantity,
-    desc: 'Integer of the transactions index position in the block. `null` when its pending.'
-  },
-  from: {
-    type: Address,
-    desc: '20 Bytes - address of the sender.'
-  },
-  to: {
-    type: Address,
-    desc: '20 Bytes - address of the receiver. `null` when its a contract creation transaction.'
-  },
-  value: {
-    type: Quantity,
-    desc: 'Value transferred in Wei.'
-  },
-  gasPrice: {
-    type: Quantity,
-    desc: 'Gas price provided by the sender in Wei.'
-  },
-  gas: {
-    type: Quantity,
-    desc: 'Gas provided by the sender.'
-  },
-  input: {
-    type: Data,
-    desc: 'The data send along with the transaction.'
-  },
-  raw: {
-    type: Data,
-    desc: 'Raw transaction data.'
-  },
-  publicKey: {
-    type: Data,
-    desc: 'Public key of the signer.'
-  },
-  networkId: {
-    type: Quantity,
-    desc: 'The network id of the transaction, if any.'
-  },
-  standardV: {
-    type: Quantity,
-    desc: 'The standardized V field of the signature (0 or 1).'
-  },
-  v: {
-    type: Quantity,
-    desc: 'The V field of the signature.'
-  },
-  r: {
-    type: Quantity,
-    desc: 'The R field of the signature.'
-  },
-  s: {
-    type: Quantity,
-    desc: 'The S field of the signature.'
-  },
-  minBlock: {
-    type: BlockNumber,
-    optional: true,
-    desc: 'Block number, tag or `null`.'
-  }
-};
 
 export default {
   accountsInfo: {
@@ -279,7 +199,7 @@ export default {
         '2017-01-20 18:14:19  Configured for DevelopmentChain using InstantSeal engine',
         '2017-01-20 18:14:19  Operating mode: active',
         '2017-01-20 18:14:19  State DB configuration: fast',
-        '2017-01-20 18:14:19  Starting Parity/v1.6.0-unstable-2ae8b4c-20170120/x86_64-linux-gnu/rustc1.14.0'
+        '2017-01-20 18:14:19  Starting Parity/v1.7.0-unstable-2ae8b4c-20170120/x86_64-linux-gnu/rustc1.14.0'
       ]
     }
   },
@@ -390,6 +310,32 @@ export default {
       type: String,
       desc: 'The associated JSON metadata for this vault',
       example: '{"passwordHint":"something"}'
+    }
+  },
+
+  hardwareAccountsInfo: {
+    section: SECTION_ACCOUNTS,
+    desc: 'Provides metadata for attached hardware wallets',
+    params: [],
+    returns: {
+      type: Object,
+      desc: 'Maps account address to metadata.',
+      details: {
+        manufacturer: {
+          type: String,
+          desc: 'Manufacturer'
+        },
+        name: {
+          type: String,
+          desc: 'Account name'
+        }
+      },
+      example: {
+        '0x0024d0c7ab4c52f723f3aaf0872b9ea4406846a4': {
+          manufacturer: 'Ledger',
+          name: 'Nano S'
+        }
+      }
     }
   },
 
@@ -608,7 +554,7 @@ export default {
     returns: {
       type: Array,
       desc: 'Transactions ordered by priority',
-      details: transactionDetails,
+      details: TransactionResponse.details,
       example: [
         {
           blockHash: null,
@@ -924,7 +870,7 @@ export default {
     returns: {
       type: Array,
       desc: 'Transaction list.',
-      details: transactionDetails,
+      details: TransactionResponse.details,
       example: [
         {
           hash: '0x80de421cd2e7e46824a91c343ca42b2ff339409eef09e2d9d73882462f8fce31',
@@ -1186,9 +1132,9 @@ export default {
     }
   },
 
-  setDappsAddresses: {
+  setDappAddresses: {
     subdoc: SUBDOC_ACCOUNTS,
-    desc: 'Sets the available addresses for a dapp.',
+    desc: 'Sets the available addresses for a dapp. When provided with non-empty list changes the default account as well.',
     params: [
       {
         type: String,
@@ -1197,7 +1143,7 @@ export default {
       },
       {
         type: Array,
-        desc: 'Array of available accounts available to the dapp.',
+        desc: 'Array of available accounts available to the dapp or `null` for default list.',
         example: ['0x407d73d8a49eeb85d32cf465507dd71d507100c1']
       }
     ],
@@ -1208,7 +1154,7 @@ export default {
     }
   },
 
-  getDappsAddresses: {
+  getDappAddresses: {
     subdoc: SUBDOC_ACCOUNTS,
     desc: 'Returns the list of accounts available to a specific dapp.',
     params: [
@@ -1225,13 +1171,52 @@ export default {
     }
   },
 
-  setNewDappsWhitelist: {
+  setDappDefaultAddress: {
+    subdoc: SUBDOC_ACCOUNTS,
+    desc: 'Changes dapp default address. Does not affect other accounts exposed for this dapp, but default account will always be retured as the first one.',
+    params: [
+      {
+        type: String,
+        desc: 'Dapp Id.',
+        example: 'web'
+      },
+      {
+        type: Address,
+        desc: 'Default Address.',
+        example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: '`true` if the call was successful',
+      example: true
+    }
+  },
+
+  getDappDefaultAddress: {
+    subdoc: SUBDOC_ACCOUNTS,
+    desc: 'Returns a default account available to a specific dapp.',
+    params: [
+      {
+        type: String,
+        desc: 'Dapp Id.',
+        example: 'web'
+      }
+    ],
+    returns: {
+      type: Address,
+      desc: 'Default Address',
+      example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
+    }
+  },
+
+  setNewDappsAddresses: {
     subdoc: SUBDOC_ACCOUNTS,
     desc: 'Sets the list of accounts available to new dapps.',
     params: [
       {
         type: Array,
-        desc: 'List of accounts available by default.',
+        desc: 'List of accounts available by default or `null` for all accounts.',
         example: ['0x407d73d8a49eeb85d32cf465507dd71d507100c1']
       }
     ],
@@ -1242,7 +1227,7 @@ export default {
     }
   },
 
-  getNewDappsWhitelist: {
+  getNewDappsAddresses: {
     subdoc: SUBDOC_ACCOUNTS,
     desc: 'Returns the list of accounts available to a new dapps.',
     params: [],
@@ -1250,6 +1235,34 @@ export default {
       type: Array,
       desc: 'The list of available accounts, can be `null`.',
       example: ['0x407d73d8a49eeb85d32cf465507dd71d507100c1']
+    }
+  },
+
+  setNewDappsDefaultAddress: {
+    subdoc: SUBDOC_ACCOUNTS,
+    desc: 'Changes global default address. This setting may be overriden for a specific dapp.',
+    params: [
+      {
+        type: Address,
+        desc: 'Default Address.',
+        example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: '`true` if the call was successful',
+      example: true
+    }
+  },
+
+  getNewDappsDefaultAddress: {
+    subdoc: SUBDOC_ACCOUNTS,
+    desc: 'Returns a default account available to dapps.',
+    params: [],
+    returns: {
+      type: Address,
+      desc: 'Default Address',
+      example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
     }
   },
 

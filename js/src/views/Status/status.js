@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { Page } from '~/ui';
 
@@ -23,7 +24,14 @@ import StatusPage from './containers/StatusPage';
 export default class Status extends Component {
   render () {
     return (
-      <Page title='status'>
+      <Page
+        title={
+          <FormattedMessage
+            id='status.title'
+            defaultMessage='Status'
+          />
+        }
+      >
         <StatusPage />
       </Page>
     );

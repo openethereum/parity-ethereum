@@ -24,7 +24,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use super::WalletInfo;
 use ethkey::{Address, Signature};
-use ethcore_bigint::hash::{H256, FixedHash};
+use ethcore_bigint::hash::H256;
 
 const LEDGER_VID: u16 = 0x2c97;
 const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001]; // Nano S and Blue
@@ -230,7 +230,7 @@ impl Manager {
 		if result.len() != 65 {
 			return Err(Error::Protocol("Signature packet size mismatch"));
 		}
-		let v = result[0];
+		let v = (result[0] + 1) % 2;
 		let r = H256::from_slice(&result[1..33]);
 		let s = H256::from_slice(&result[33..65]);
 		Ok(Signature::from_rsv(&r, &s, v))
@@ -260,18 +260,18 @@ impl Manager {
 				{
 					let mut chunk = &mut hid_chunk[HID_PREFIX_ZERO..];
 					&mut chunk[0..5].copy_from_slice(&[0x01, 0x01, APDU_TAG, (chunk_index >> 8) as u8, (chunk_index & 0xff) as u8 ]);
-				
+
 					if chunk_index == 0 {
 						let data_len = data.len() + 5;
 						&mut chunk[5..12].copy_from_slice(&[ (data_len >> 8) as u8, (data_len & 0xff) as u8, APDU_CLA, command, p1, p2, data.len() as u8 ]);
 					}
-				
+
 					&mut chunk[chunk_size..chunk_size + size].copy_from_slice(&data[offset..offset + size]);
 					offset += size;
 					chunk_size += size;
 				}
 				trace!("writing {:?}", &hid_chunk[..]);
-				let n = handle.write(&hid_chunk[0..chunk_size])?;
+				let n = handle.write(&hid_chunk[..])?;
 				if n < chunk_size {
 					return Err(Error::Protocol("Write data size mismatch"));
 				}
@@ -289,7 +289,7 @@ impl Manager {
 			let mut chunk: [u8; HID_PACKET_SIZE] = [0; HID_PACKET_SIZE];
 			let chunk_size = handle.read(&mut chunk)?;
 			trace!("read {:?}", &chunk[..]);
-			if chunk_size < 5 || chunk[1] != 0x01 || chunk[1] != 0x01 || chunk[2] != APDU_TAG {
+			if chunk_size < 5 || chunk[0] != 0x01 || chunk[1] != 0x01 || chunk[2] != APDU_TAG {
 				return Err(Error::Protocol("Unexpected chunk header"));
 			}
 			let seq = (chunk[3] as usize) << 8 | (chunk[4] as usize);

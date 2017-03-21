@@ -1,9 +1,10 @@
 [package]
 description = "Parity Ethereum client"
 name = "parity"
-version = "1.6.0"
+version = "1.7.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+build = "build.rs"
 
 [dependencies]
 log = "0.3"
@@ -11,12 +12,11 @@ env_logger = "0.3"
 rustc-serialize = "0.3"
 docopt = "0.6"
 time = "0.1"
-num_cpus = "0.2"
+num_cpus = "1.2"
 number_prefix = "0.2"
 rpassword = "0.2.1"
 semver = "0.5"
 ansi_term = "0.7"
-lazy_static = "0.2"
 regex = "0.1"
 isatty = "0.1"
 toml = "0.2"
@@ -24,9 +24,9 @@ serde = "0.9"
 serde_json = "0.9"
 app_dirs = "1.1.1"
 fdlimit = "0.1"
-hyper = { version = "0.9", default-features = false }
+hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
 ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
@@ -40,14 +40,21 @@ ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
 ethcore-stratum = { path = "stratum" }
+evmbin = { path = "evmbin" }
 rlp = { path = "util/rlp" }
 rpc-cli = { path = "rpc_cli" }
 parity-rpc-client = { path = "rpc_client" }
 parity-hash-fetch = { path = "hash-fetch" }
+parity-ipfs-api = { path = "ipfs" }
 parity-updater = { path = "updater" }
 parity-reactor = { path = "util/reactor" }
+parity-local-store = { path = "local-store" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}
+ethcore-secretstore = { path = "secret_store", optional = true }
+
+[build-dependencies]
+rustc_version = "0.2"
 
 [dev-dependencies]
 ethcore-ipc-tests = { path = "ipc/tests" }
@@ -82,6 +89,7 @@ evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
 final = ["ethcore-util/final"]
+secretstore = ["ethcore-secretstore"]
 
 [[bin]]
 path = "parity/main.rs"

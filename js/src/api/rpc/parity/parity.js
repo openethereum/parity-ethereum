@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { inAddress, inAddresses, inData, inHex, inNumber16, inOptions, inBlockNumber } from '../../format/input';
-import { outAccountInfo, outAddress, outAddresses, outChainStatus, outHistogram, outNumber, outPeers, outRecentDapps, outTransaction, outVaultMeta } from '../../format/output';
+import { outAccountInfo, outAddress, outAddresses, outChainStatus, outHistogram, outHwAccountInfo, outNumber, outPeers, outRecentDapps, outTransaction, outVaultMeta } from '../../format/output';
 
 export default class Parity {
   constructor (transport) {
@@ -170,22 +170,40 @@ export default class Parity {
       .execute('parity_generateSecretPhrase');
   }
 
-  getDappsAddresses (dappId) {
+  getDappAddresses (dappId) {
     return this._transport
-      .execute('parity_getDappsAddresses', dappId)
+      .execute('parity_getDappAddresses', dappId)
       .then(outAddresses);
   }
 
-  getNewDappsWhitelist () {
+  getDappDefaultAddress (dappId) {
     return this._transport
-      .execute('parity_getNewDappsWhitelist')
+      .execute('parity_getDappDefaultAddress', dappId)
+      .then(outAddress);
+  }
+
+  getNewDappsAddresses () {
+    return this._transport
+      .execute('parity_getNewDappsAddresses')
       .then((addresses) => addresses ? addresses.map(outAddress) : null);
+  }
+
+  getNewDappsDefaultAddress () {
+    return this._transport
+      .execute('parity_getNewDappsDefaultAddress')
+      .then(outAddress);
   }
 
   getVaultMeta (vaultName) {
     return this._transport
       .execute('parity_getVaultMeta', vaultName)
       .then(outVaultMeta);
+  }
+
+  hardwareAccountsInfo () {
+    return this._transport
+      .execute('parity_hardwareAccountsInfo')
+      .then(outHwAccountInfo);
   }
 
   hashContent (url) {
@@ -195,7 +213,7 @@ export default class Parity {
 
   importGethAccounts (accounts) {
     return this._transport
-      .execute('parity_importGethAccounts', inAddresses)
+      .execute('parity_importGethAccounts', inAddresses(accounts))
       .then(outAddresses);
   }
 
@@ -266,9 +284,15 @@ export default class Parity {
       .execute('parity_mode');
   }
 
+  // DEPRECATED - use chain instead.
   netChain () {
     return this._transport
-      .execute('parity_netChain');
+      .execute('parity_chain');
+  }
+
+  chain () {
+    return this._transport
+      .execute('parity_chain');
   }
 
   netPeers () {
@@ -391,9 +415,14 @@ export default class Parity {
       .execute('parity_setAuthor', inAddress(address));
   }
 
-  setDappsAddresses (dappId, addresses) {
+  setDappAddresses (dappId, addresses) {
     return this._transport
-      .execute('parity_setDappsAddresses', dappId, inAddresses(addresses));
+      .execute('parity_setDappAddresses', dappId, inAddresses(addresses));
+  }
+
+  setDappDefaultAddress (dappId, address) {
+    return this._transport
+      .execute('parity_setDappDefaultAddress', dappId, address ? inAddress(address) : null);
   }
 
   setEngineSigner (address, password) {
@@ -431,9 +460,19 @@ export default class Parity {
       .execute('parity_setMode', mode);
   }
 
-  setNewDappsWhitelist (addresses) {
+  setChain (specName) {
     return this._transport
-      .execute('parity_setNewDappsWhitelist', addresses ? inAddresses(addresses) : null);
+      .execute('parity_setChain', specName);
+  }
+
+  setNewDappsAddresses (addresses) {
+    return this._transport
+      .execute('parity_setNewDappsAddresses', addresses ? inAddresses(addresses) : null);
+  }
+
+  setNewDappsDefaultAddress (address) {
+    return this._transport
+      .execute('parity_setNewDappsDefaultAddress', inAddress(address));
   }
 
   setTransactionsLimit (quantity) {

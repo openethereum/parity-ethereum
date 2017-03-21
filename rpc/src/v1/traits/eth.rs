@@ -110,12 +110,12 @@ build_rpc_trait! {
 		fn submit_transaction(&self, Bytes) -> Result<H256, Error>;
 
 		/// Call contract, returning the output data.
-		#[rpc(name = "eth_call")]
-		fn call(&self, CallRequest, Trailing<BlockNumber>) -> Result<Bytes, Error>;
+		#[rpc(async, name = "eth_call")]
+		fn call(&self, CallRequest, Trailing<BlockNumber>) -> BoxFuture<Bytes, Error>;
 
 		/// Estimate gas needed for execution of given contract.
-		#[rpc(name = "eth_estimateGas")]
-		fn estimate_gas(&self, CallRequest, Trailing<BlockNumber>) -> Result<U256, Error>;
+		#[rpc(async, name = "eth_estimateGas")]
+		fn estimate_gas(&self, CallRequest, Trailing<BlockNumber>) -> BoxFuture<U256, Error>;
 
 		/// Get transaction by its hash.
 		#[rpc(name = "eth_getTransactionByHash")]
@@ -142,18 +142,22 @@ build_rpc_trait! {
 		fn uncle_by_block_number_and_index(&self, BlockNumber, Index) -> Result<Option<RichBlock>, Error>;
 
 		/// Returns available compilers.
+		/// @deprecated
 		#[rpc(name = "eth_getCompilers")]
 		fn compilers(&self) -> Result<Vec<String>, Error>;
 
 		/// Compiles lll code.
+		/// @deprecated
 		#[rpc(name = "eth_compileLLL")]
 		fn compile_lll(&self, String) -> Result<Bytes, Error>;
 
 		/// Compiles solidity.
+		/// @deprecated
 		#[rpc(name = "eth_compileSolidity")]
 		fn compile_solidity(&self, String) -> Result<Bytes, Error>;
 
 		/// Compiles serpent.
+		/// @deprecated
 		#[rpc(name = "eth_compileSerpent")]
 		fn compile_serpent(&self, String) -> Result<Bytes, Error>;
 

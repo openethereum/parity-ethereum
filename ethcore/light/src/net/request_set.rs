@@ -101,6 +101,7 @@ impl RequestSet {
 			request::Kind::StateProofs => timeout::PROOFS,
 			request::Kind::Codes => timeout::CONTRACT_CODES,
 			request::Kind::HeaderProofs => timeout::HEADER_PROOFS,
+			request::Kind::TransactionProof => timeout::TRANSACTION_PROOF,
 		};
 
 		base + Duration::milliseconds(kind_timeout) <= now
@@ -110,6 +111,14 @@ impl RequestSet {
 	pub fn collect_ids<F>(&self) -> F where F: FromIterator<ReqId> {
 		self.ids.keys().cloned().collect()
 	}
+
+	/// Number of requests in the set.
+	pub fn len(&self) -> usize {
+		self.ids.len()
+	}
+
+	/// Whether the set is empty.
+	pub fn is_empty(&self) -> bool { self.len() == 0 }
 }
 
 #[cfg(test)]

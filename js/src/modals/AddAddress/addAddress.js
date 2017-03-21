@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import ContentAdd from 'material-ui/svg-icons/content/add';
-import ContentClear from 'material-ui/svg-icons/content/clear';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Form, Input, InputAddress, Modal } from '~/ui';
+import { Button, Form, Input, InputAddress, ModalBox, Portal } from '~/ui';
+import { AddIcon, AddressesIcon, CancelIcon } from '~/ui/Icons';
 
 import Store from './store';
 
@@ -46,8 +45,10 @@ export default class AddAddress extends Component {
 
   render () {
     return (
-      <Modal
-        actions={ this.renderDialogActions() }
+      <Portal
+        buttons={ this.renderDialogActions() }
+        onClose={ this.onClose }
+        open
         title={
           <FormattedMessage
             id='addAddress.label'
@@ -57,16 +58,17 @@ export default class AddAddress extends Component {
         visible
       >
         { this.renderFields() }
-      </Modal>
+      </Portal>
     );
   }
 
   renderDialogActions () {
     const { hasError } = this.store;
 
-    return ([
+    return [
       <Button
-        icon={ <ContentClear /> }
+        icon={ <CancelIcon /> }
+        key='cancel'
         label={
           <FormattedMessage
             id='addAddress.button.close'
@@ -74,11 +76,11 @@ export default class AddAddress extends Component {
           />
         }
         onClick={ this.onClose }
-        ref='closeButton'
       />,
       <Button
         disabled={ hasError }
-        icon={ <ContentAdd /> }
+        icon={ <AddIcon /> }
+        key='save'
         label={
           <FormattedMessage
             id='addAddress.button.add'
@@ -86,72 +88,79 @@ export default class AddAddress extends Component {
           />
         }
         onClick={ this.onAdd }
-        ref='addButton'
       />
-    ]);
+    ];
   }
 
   renderFields () {
     const { address, addressError, description, name, nameError } = this.store;
 
     return (
-      <Form>
-        <InputAddress
-          allowCopy={ false }
-          disabled={ !!this.props.address }
-          error={ addressError }
-          hint={
-            <FormattedMessage
-              id='addAddress.input.address.hint'
-              defaultMessage='the network address for the entry'
-            />
-          }
-          label={
-            <FormattedMessage
-              id='addAddress.input.address.label'
-              defaultMessage='network address'
-            />
-          }
-          onChange={ this.onEditAddress }
-          ref='inputAddress'
-          value={ address }
-        />
-        <Input
-          error={ nameError }
-          hint={
-            <FormattedMessage
-              id='addAddress.input.name.hint'
-              defaultMessage='a descriptive name for the entry'
-            />
-          }
-          label={
-            <FormattedMessage
-              id='addAddress.input.name.label'
-              defaultMessage='address name'
-            />
-          }
-          onChange={ this.onEditName }
-          ref='inputName'
-          value={ name }
-        />
-        <Input
-          hint={
-            <FormattedMessage
-              id='addAddress.input.description.hint'
-              defaultMessage='an expanded description for the entry'
-            />
-          }
-          label={
-            <FormattedMessage
-              id='addAddress.input.description.label'
-              defaultMessage='(optional) address description'
-            />
-          }
-          onChange={ this.onEditDescription }
-          ref='inputDescription'
-          value={ description }
-        />
-      </Form>
+      <ModalBox
+        icon={ <AddressesIcon /> }
+        summary={
+          <FormattedMessage
+            id='addAddress.header'
+            defaultMessage='To add a new entry to your addressbook, you need the network address of the account and can supply an optional description. Once added it will reflect in your address book.'
+          />
+        }
+      >
+        <Form>
+          <InputAddress
+            allowCopy={ false }
+            autoFocus
+            disabled={ !!this.props.address }
+            error={ addressError }
+            hint={
+              <FormattedMessage
+                id='addAddress.input.address.hint'
+                defaultMessage='the network address for the entry'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='addAddress.input.address.label'
+                defaultMessage='network address'
+              />
+            }
+            onChange={ this.onEditAddress }
+            value={ address }
+          />
+          <Input
+            error={ nameError }
+            hint={
+              <FormattedMessage
+                id='addAddress.input.name.hint'
+                defaultMessage='a descriptive name for the entry'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='addAddress.input.name.label'
+                defaultMessage='address name'
+              />
+            }
+            onChange={ this.onEditName }
+            value={ name }
+          />
+          <Input
+            hint={
+              <FormattedMessage
+                id='addAddress.input.description.hint'
+                defaultMessage='an expanded description for the entry'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='addAddress.input.description.label'
+                defaultMessage='(optional) address description'
+              />
+            }
+            onChange={ this.onEditDescription }
+            value={ description }
+          />
+        </Form>
+      </ModalBox>
     );
   }
 
@@ -169,7 +178,7 @@ export default class AddAddress extends Component {
 
   onAdd = () => {
     this.store.add();
-    this.props.onClose();
+    this.onClose();
   }
 
   onClose = () => {

@@ -21,12 +21,12 @@ use parking_lot::{Mutex, RwLock};
 
 use crypto::KEY_ITERATIONS;
 use random::Random;
-use ethkey::{Signature, Address, Message, Secret, Public, KeyPair};
+use ethkey::{self, Signature, Address, Message, Secret, Public, KeyPair, ExtendedKeyPair};
 use dir::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
 use account::SafeAccount;
 use presale::PresaleWallet;
 use json::{self, Uuid};
-use {import, Error, SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef};
+use {import, Error, SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation};
 
 pub struct EthStore {
 	store: EthMultiStore,
@@ -54,6 +54,16 @@ impl SimpleSecretStore for EthStore {
 		self.store.insert_account(vault, secret, password)
 	}
 
+	fn insert_derived(&self, vault: SecretVaultRef, account_ref: &StoreAccountRef, password: &str, derivation: Derivation)
+		-> Result<StoreAccountRef, Error>
+	{
+		self.store.insert_derived(vault, account_ref, password, derivation)
+	}
+
+	fn generate_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation) -> Result<Address, Error> {
+		self.store.generate_derived(account_ref, password, derivation)
+	}
+
 	fn account_ref(&self, address: &Address) -> Result<StoreAccountRef, Error> {
 		self.store.account_ref(address)
 	}
@@ -71,8 +81,13 @@ impl SimpleSecretStore for EthStore {
 	}
 
 	fn sign(&self, account: &StoreAccountRef, password: &str, message: &Message) -> Result<Signature, Error> {
-		let account = self.get(account)?;
-		account.sign(password, message)
+		self.get(account)?.sign(password, message)
+	}
+
+	fn sign_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation, message: &Message)
+		-> Result<Signature, Error>
+	{
+		self.store.sign_derived(account_ref, password, derivation, message)
 	}
 
 	fn decrypt(&self, account: &StoreAccountRef, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
@@ -215,6 +230,7 @@ pub struct EthMultiStore {
 	// order lock: cache, then vaults
 	cache: RwLock<BTreeMap<StoreAccountRef, Vec<SafeAccount>>>,
 	vaults: Mutex<HashMap<String, Box<VaultKeyDirectory>>>,
+	dir_hash: Mutex<Option<u64>>,
 }
 
 impl EthMultiStore {
@@ -229,9 +245,21 @@ impl EthMultiStore {
 			vaults: Mutex::new(HashMap::new()),
 			iterations: iterations,
 			cache: Default::default(),
+			dir_hash: Default::default(),
 		};
 		store.reload_accounts()?;
 		Ok(store)
+	}
+
+	fn reload_if_changed(&self) -> Result<(), Error> {
+		let mut last_dir_hash = self.dir_hash.lock();
+		let dir_hash = Some(self.dir.unique_repr()?);
+		if *last_dir_hash == dir_hash {
+			return Ok(())
+		}
+		self.reload_accounts()?;
+		*last_dir_hash = dir_hash;
+		Ok(()) 
 	}
 
 	fn reload_accounts(&self) -> Result<(), Error> {
@@ -269,7 +297,7 @@ impl EthMultiStore {
 			}
 		}
 
-		self.reload_accounts()?;
+		self.reload_if_changed()?;
 		let cache = self.cache.read();
 		let accounts = cache.get(account).ok_or(Error::InvalidAccount)?;
 		if accounts.is_empty() {
@@ -340,6 +368,23 @@ impl EthMultiStore {
 
 		return Ok(());
 	}
+
+	fn generate(&self, secret: Secret, derivation: Derivation) -> Result<ExtendedKeyPair, Error> {
+		let mut extended = ExtendedKeyPair::new(secret);
+		match derivation {
+			Derivation::Hierarchical(path) => {
+				for path_item in path {
+					extended = extended.derive(
+						if path_item.soft { ethkey::Derivation::Soft(path_item.index) }
+						else { ethkey::Derivation::Hard(path_item.index) }
+					)?;
+				}
+			},
+			Derivation::SoftHash(h256) => { extended = extended.derive(ethkey::Derivation::Soft(h256))?; }
+			Derivation::HardHash(h256) => { extended = extended.derive(ethkey::Derivation::Hard(h256))?; }
+		}
+		Ok(extended)
+	}
 }
 
 impl SimpleSecretStore for EthMultiStore {
@@ -350,8 +395,56 @@ impl SimpleSecretStore for EthMultiStore {
 		self.import(vault, account)
 	}
 
+	fn insert_derived(&self, vault: SecretVaultRef, account_ref: &StoreAccountRef, password: &str, derivation: Derivation)
+		-> Result<StoreAccountRef, Error>
+	{
+		let accounts = self.get(account_ref)?;
+		for account in accounts {
+			// Skip if password is invalid
+			if !account.check_password(password) {
+				continue;
+			}
+			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
+			return self.insert_account(vault, extended.secret().as_raw().clone(), password);
+		}
+		Err(Error::InvalidPassword)
+	}
+
+	fn generate_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation)
+	    -> Result<Address, Error>
+	{
+		let accounts = self.get(&account_ref)?;
+		for account in accounts {
+			// Skip if password is invalid
+			if !account.check_password(password) {
+				continue;
+			}
+			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
+
+			return Ok(ethkey::public_to_address(extended.public().public()));
+		}
+		Err(Error::InvalidPassword)
+	}
+
+	fn sign_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation, message: &Message)
+		-> Result<Signature, Error>
+	{
+		let accounts = self.get(&account_ref)?;
+		for account in accounts {
+			// Skip if password is invalid
+			if !account.check_password(password) {
+				continue;
+			}
+			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
+			let secret = extended.secret().as_raw();
+			return Ok(ethkey::sign(&secret, message)?)
+		}
+		Err(Error::InvalidPassword)
+
+	}
+
 	fn account_ref(&self, address: &Address) -> Result<StoreAccountRef, Error> {
-		self.reload_accounts()?;
+		self.reload_if_changed()?;
 		self.cache.read().keys()
 			.find(|r| &r.address == address)
 			.cloned()
@@ -359,7 +452,7 @@ impl SimpleSecretStore for EthMultiStore {
 	}
 
 	fn accounts(&self) -> Result<Vec<StoreAccountRef>, Error> {
-		self.reload_accounts()?;
+		self.reload_if_changed()?;
 		Ok(self.cache.read().keys().cloned().collect())
 	}
 
@@ -511,7 +604,7 @@ impl SimpleSecretStore for EthMultiStore {
 				let vault_provider = self.dir.as_vault_provider().ok_or(Error::VaultsAreNotSupported)?;
 				vault_provider.vault_meta(name)
 			})
-			
+
 	}
 
 	fn set_vault_meta(&self, name: &str, meta: &str) -> Result<(), Error> {
@@ -527,9 +620,10 @@ mod tests {
 
 	use dir::{KeyDirectory, MemoryDirectory, RootDiskDirectory};
 	use ethkey::{Random, Generator, KeyPair};
-	use secret_store::{SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef};
+	use secret_store::{SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation};
 	use super::{EthStore, EthMultiStore};
 	use devtools::RandomTempPath;
+	use util::H256;
 
 	fn keypair() -> KeyPair {
 		Random.generate().unwrap()
@@ -897,5 +991,45 @@ mod tests {
 		// then
 		assert_eq!(store.get_vault_meta(name1).unwrap(), "Hello, world!!!".to_owned());
 		assert!(store.get_vault_meta("vault2").is_err());
+	}
+
+	#[test]
+	fn should_store_derived_keys() {
+		// given we have one account in the store
+		let store = store();
+		let keypair = keypair();
+		let address = store.insert_account(SecretVaultRef::Root, keypair.secret().clone(), "test").unwrap();
+
+		// when we deriving from that account
+		let derived = store.insert_derived(
+			SecretVaultRef::Root,
+			&address,
+			"test",
+			Derivation::HardHash(H256::from(0)),
+		).unwrap();
+
+		// there should be 2 accounts in the store
+		let accounts = store.accounts().unwrap();
+		assert_eq!(accounts.len(), 2);
+
+		// and we can sign with the derived contract
+		assert!(store.sign(&derived, "test", &Default::default()).is_ok(), "Second password should work for second store.");
+	}
+
+	#[test]
+	fn should_save_meta_when_setting_before_password() {
+		// given
+		let mut dir = RootDiskDirectoryGuard::new();
+		let store = EthStore::open(dir.key_dir.take().unwrap()).unwrap();
+		let name = "vault"; let password = "password1";
+		let new_password = "password2";
+
+		// when
+		store.create_vault(name, password).unwrap();
+		store.set_vault_meta(name, "OldMeta").unwrap();
+		store.change_vault_password(name, new_password).unwrap();
+
+		// then
+		assert_eq!(store.get_vault_meta(name).unwrap(), "OldMeta".to_owned());
 	}
 }

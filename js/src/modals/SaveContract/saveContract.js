@@ -15,12 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
-import SaveIcon from 'material-ui/svg-icons/content/save';
-import ContentClear from 'material-ui/svg-icons/content/clear';
-
-import { Button, Modal, Form, Input } from '~/ui';
+import { Button, Form, Input, Portal } from '~/ui';
 import Editor from '~/ui/Editor';
+import { CancelIcon, SaveIcon } from '~/ui/Icons';
 import { ERRORS, validateName } from '~/util/validation';
 
 import styles from './saveContract.css';
@@ -42,16 +41,32 @@ export default class SaveContract extends Component {
     const { name, nameError } = this.state;
 
     return (
-      <Modal
-        title='save contract'
-        actions={ this.renderDialogActions() }
-        visible
+      <Portal
+        buttons={ this.renderDialogActions() }
+        onClose={ this.onClose }
+        open
+        title={
+          <FormattedMessage
+            id='saveContract.title'
+            defaultMessage='save contract'
+          />
+        }
       >
         <div>
           <Form>
             <Input
-              label='contract name'
-              hint='choose a name for this contract'
+              label={
+                <FormattedMessage
+                  id='saveContract.name.label'
+                  defaultMessage='contract name'
+                />
+              }
+              hint={
+                <FormattedMessage
+                  id='saveContract.name.hint'
+                  defaultMessage='choose a name for this contract'
+                />
+              }
               value={ name }
               error={ nameError }
               onChange={ this.onChangeName }
@@ -60,19 +75,25 @@ export default class SaveContract extends Component {
           <Editor
             className={ styles.source }
             value={ sourcecode }
-            maxLines={ 20 }
+            maxLines={ 25 }
             readOnly
           />
         </div>
-      </Modal>
+      </Portal>
     );
   }
 
   renderDialogActions () {
     const cancelBtn = (
       <Button
-        icon={ <ContentClear /> }
-        label='Cancel'
+        icon={ <CancelIcon /> }
+        key='cancel'
+        label={
+          <FormattedMessage
+            id='saveContract.buttons.cancel'
+            defaultMessage='Cancel'
+          />
+        }
         onClick={ this.onClose }
       />
     );
@@ -80,7 +101,13 @@ export default class SaveContract extends Component {
     const confirmBtn = (
       <Button
         icon={ <SaveIcon /> }
-        label='Save'
+        key='save'
+        label={
+          <FormattedMessage
+            id='saveContract.buttons.save'
+            defaultMessage='Save'
+          />
+        }
         disabled={ !!this.state.nameError }
         onClick={ this.onSave }
       />

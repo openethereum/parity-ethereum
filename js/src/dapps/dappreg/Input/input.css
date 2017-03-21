@@ -30,6 +30,10 @@
     width: 100%;
   }
 
+  &.withOverlay input {
+    padding-right: 3em;
+  }
+
   input {
     padding-bottom: 1.5em;
 

@@ -30,7 +30,7 @@ use ethcore::migrations::Extract;
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 10;
+const CURRENT_VERSION: u32 = 11;
 /// First version of the consolidated database.
 const CONSOLIDATION_VERSION: u32 = 9;
 /// Defines how many items are migrated to the new version of database at once.
@@ -146,6 +146,7 @@ pub fn default_migration_settings(compaction_profile: &CompactionProfile) -> Mig
 fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
 	let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
 	manager.add_migration(migrations::ToV10::new()).map_err(|_| Error::MigrationImpossible)?;
+	manager.add_migration(migrations::TO_V11).map_err(|_| Error::MigrationImpossible)?;
 	Ok(manager)
 }
 
@@ -200,6 +201,10 @@ fn migrate_database(version: u32, db_path: PathBuf, mut migrations: MigrationMan
 	// migrate old database to the new one
 	let temp_path = migrations.execute(&db_path, version)?;
 
+	// completely in-place migration leads to the paths being equal.
+	// in that case, no need to shuffle directories.
+	if temp_path == db_path { return Ok(()) }
+
 	// create backup
 	fs::rename(&db_path, &backup_path)?;
 
@@ -211,9 +216,7 @@ fn migrate_database(version: u32, db_path: PathBuf, mut migrations: MigrationMan
 	}
 
 	// remove backup
-	fs::remove_dir_all(&backup_path)?;
-
-	Ok(())
+	fs::remove_dir_all(&backup_path).map_err(Into::into)
 }
 
 fn exists(path: &Path) -> bool {

@@ -15,12 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import AvPause from 'material-ui/svg-icons/av/pause';
-import AvPlay from 'material-ui/svg-icons/av/play-arrow';
-import AvReplay from 'material-ui/svg-icons/av/replay';
-import ReorderIcon from 'material-ui/svg-icons/action/reorder';
+import { FormattedMessage } from 'react-intl';
 
 import { Container } from '~/ui';
+import { PauseIcon, PlayIcon, ReorderIcon, ReplayIcon } from '~/ui/Icons';
 
 import styles from './debug.css';
 
@@ -42,7 +40,14 @@ export default class Debug extends Component {
     const { devLogsLevels } = nodeStatus;
 
     return (
-      <Container title='Node Logs'>
+      <Container
+        title={
+          <FormattedMessage
+            id='status.debug.title'
+            defaultMessage='Node Logs'
+          />
+        }
+      >
         { this.renderActions() }
         <h2 className={ styles.subheader }>
           { devLogsLevels || '-' }
@@ -62,7 +67,10 @@ export default class Debug extends Component {
 
     return (
       <div className={ styles.stopped }>
-        Refresh and display of logs from Parity is currently stopped via the UI, start it to see the latest updates.
+        <FormattedMessage
+          id='status.debug.stopped'
+          defaultMessage='Refresh and display of logs from Parity is currently stopped via the UI, start it to see the latest updates.'
+        />
       </div>
     );
   }
@@ -112,14 +120,24 @@ export default class Debug extends Component {
   renderActions () {
     const { devLogsEnabled } = this.props.nodeStatus;
     const toggleButton = devLogsEnabled
-      ? <AvPause />
-      : <AvPlay />;
+      ? <PauseIcon />
+      : <PlayIcon />;
 
     return (
       <div className={ styles.actions }>
         <a onClick={ this.toggle }>{ toggleButton }</a>
-        <a onClick={ this.clear }><AvReplay /></a>
-        <a onClick={ this.reverse } title='Reverse Order'><ReorderIcon /></a>
+        <a onClick={ this.clear }><ReplayIcon /></a>
+        <a
+          onClick={ this.reverse }
+          title={
+            <FormattedMessage
+              id='status.debug.reverse'
+              defaultMessage='Reverse Order'
+            />
+          }
+        >
+          <ReorderIcon />
+        </a>
       </div>
     );
   }

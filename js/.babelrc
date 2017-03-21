@@ -19,8 +19,8 @@
     },
     "development": {
       "plugins": [
-        "react-hot-loader/babel",
-        ["react-intl", { "messagesDir": "./.build/i18n/" }]
+        [ "react-intl", { "messagesDir": "./.build/i18n/" } ],
+        "react-hot-loader/babel"
       ]
     },
     "test": {

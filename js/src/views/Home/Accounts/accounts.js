@@ -80,7 +80,12 @@ class Accounts extends Component {
       return null;
     }
 
-    const account = accountsInfo[history.entry] || { meta: {} };
+    const account = accountsInfo[history.entry];
+
+    if (!account) {
+      return null;
+    }
+
     let linkType = 'addresses';
 
     if (account.uuid) {

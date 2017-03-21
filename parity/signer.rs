@@ -23,12 +23,14 @@ pub use ethcore_signer::Server as SignerServer;
 use ansi_term::Colour;
 use dir::default_data_path;
 use ethcore_rpc::informant::RpcStats;
+use ethcore_rpc;
 use ethcore_signer as signer;
 use helpers::replace_home;
 use io::{ForwardPanic, PanicHandler};
 use jsonrpc_core::reactor::{RpcHandler, Remote};
 use rpc_apis;
 use util::path::restrict_permissions_owner;
+use util::H256;
 
 const CODES_FILENAME: &'static str = "authcodes";
 
@@ -65,6 +67,16 @@ pub struct NewToken {
 	pub token: String,
 	pub url: String,
 	pub message: String,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct StandardExtractor;
+impl signer::MetaExtractor<ethcore_rpc::Metadata> for StandardExtractor {
+	fn extract_metadata(&self, session: &H256) -> ethcore_rpc::Metadata {
+		let mut metadata = ethcore_rpc::Metadata::default();
+		metadata.origin = ethcore_rpc::Origin::Signer((*session).into());
+		metadata
+	}
 }
 
 pub fn start(conf: Configuration, deps: Dependencies) -> Result<Option<SignerServer>, String> {
@@ -133,7 +145,7 @@ fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, Str
 		let server = server.stats(deps.rpc_stats.clone());
 		let apis = rpc_apis::setup_rpc(deps.rpc_stats, deps.apis, rpc_apis::ApiSet::SafeContext);
 		let handler = RpcHandler::new(Arc::new(apis), deps.remote);
-		server.start(addr, handler)
+		server.start_with_extractor(addr, handler, StandardExtractor)
 	};
 
 	match start_result {

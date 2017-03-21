@@ -16,12 +16,18 @@
 
 //! Request types, verification, and verification errors.
 
+use std::sync::Arc;
+
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
+use ethcore::engines::Engine;
+use ethcore::env_info::EnvInfo;
 use ethcore::receipt::Receipt;
+use ethcore::state::{self, ProvedExecution};
+use ethcore::transaction::SignedTransaction;
 
-use rlp::{RlpStream, Stream, UntrustedRlp, View};
-use util::{Address, Bytes, HashDB, H256, U256};
+use rlp::{RlpStream, UntrustedRlp, View};
+use util::{Address, Bytes, DBValue, HashDB, H256, U256};
 use util::memorydb::MemoryDB;
 use util::sha3::Hashable;
 use util::trie::{Trie, TrieDB, TrieError};
@@ -231,10 +237,37 @@ impl Code {
 	}
 }
 
+/// Request for transaction execution, along with the parts necessary to verify the proof.
+pub struct TransactionProof {
+	/// The transaction to request proof of.
+	pub tx: SignedTransaction,
+	/// Block header.
+	pub header: encoded::Header,
+	/// Transaction environment info.
+	pub env_info: EnvInfo,
+	/// Consensus engine.
+	pub engine: Arc<Engine>,
+}
+
+impl TransactionProof {
+	/// Check the proof, returning the proved execution or indicate that the proof was bad.
+	pub fn check_response(&self, state_items: &[DBValue]) -> ProvedExecution {
+		let root = self.header.state_root();
+
+		state::check_proof(
+			state_items,
+			root,
+			&self.tx,
+			&*self.engine,
+			&self.env_info,
+		)
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use util::{MemoryDB, Address, H256, FixedHash};
+	use util::{MemoryDB, Address, H256};
 	use util::trie::{Trie, TrieMut, SecTrieDB, SecTrieDBMut};
 	use util::trie::recorder::Recorder;
 
@@ -290,7 +323,7 @@ mod tests {
 
 	#[test]
 	fn check_body() {
-		use rlp::{RlpStream, Stream};
+		use rlp::RlpStream;
 
 		let header = Header::new();
 		let mut body_stream = RlpStream::new_list(2);
@@ -327,7 +360,7 @@ mod tests {
 
 	#[test]
 	fn check_state_proof() {
-		use rlp::{RlpStream, Stream};
+		use rlp::RlpStream;
 
 		let mut root = H256::default();
 		let mut db = MemoryDB::new();

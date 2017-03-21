@@ -101,7 +101,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		let default = match request.from.as_ref() {
 			Some(account) => Ok(account.clone().into()),
 			None => accounts
-				.default_address(meta.dapp_id.unwrap_or_default().into())
+				.dapp_default_address(meta.dapp_id().into())
 				.map_err(|e| errors::account("Cannot find default account.", e)),
 		};
 
@@ -113,7 +113,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		dispatcher.fill_optional_fields(request.into(), default)
 			.and_then(move |filled| {
 				let condition = filled.condition.clone().map(Into::into);
-				dispatcher.sign(&accounts, filled, SignWith::Password(password))
+				dispatcher.sign(accounts, filled, SignWith::Password(password))
 					.map(|tx| tx.into_value())
 					.map(move |tx| PendingTransaction::new(tx, condition))
 					.map(move |tx| (tx, dispatcher))
@@ -126,5 +126,10 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 				dispatcher.dispatch_transaction(pending_tx).map(Into::into)
 			})
 			.boxed()
+	}
+
+	fn sign_and_send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256, Error> {
+		warn!("Using deprecated personal_signAndSendTransaction, use personal_sendTransaction instead.");
+		self.send_transaction(meta, request, password)
 	}
 }

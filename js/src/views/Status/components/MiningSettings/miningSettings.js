@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import formatNumber from 'format-number';
 
 import { ContainerTitle, Input } from '~/ui';
@@ -47,10 +48,27 @@ export default class MiningSettings extends Component {
 
     return (
       <div { ...this._testInherit() }>
-        <ContainerTitle title='mining settings' />
+        <ContainerTitle
+          title={
+            <FormattedMessage
+              id='status.miningSettings.title'
+              defaultMessage='mining settings'
+            />
+          }
+        />
         <Input
-          label='author'
-          hint='the mining author'
+          label={
+            <FormattedMessage
+              id='status.miningSettings.input.author.label'
+              defaultMessage='author'
+            />
+          }
+          hint={
+            <FormattedMessage
+              id='status.miningSettings.input.author.hint'
+              defaultMessage='the mining author'
+            />
+          }
           value={ coinbase }
           onSubmit={ this.onAuthorChange }
           allowCopy
@@ -59,8 +77,18 @@ export default class MiningSettings extends Component {
         />
 
         <Input
-          label='extradata'
-          hint='extra data for mined blocks'
+          label={
+            <FormattedMessage
+              id='status.miningSettings.input.extradata.label'
+              defaultMessage='extradata'
+            />
+          }
+          hint={
+            <FormattedMessage
+              id='status.miningSettings.input.extradata.hint'
+              defaultMessage='extra data for mined blocks'
+            />
+          }
           value={ extradata }
           onSubmit={ this.onExtraDataChange }
           defaultValue={ defaultExtradata }
@@ -70,8 +98,18 @@ export default class MiningSettings extends Component {
         />
 
         <Input
-          label='minimal gas price'
-          hint='the minimum gas price for mining'
+          label={
+            <FormattedMessage
+              id='status.miningSettings.input.gasPrice.label'
+              defaultMessage='minimal gas price'
+            />
+          }
+          hint={
+            <FormattedMessage
+              id='status.miningSettings.input.gasPrice.hint'
+              defaultMessage='the minimum gas price for mining'
+            />
+          }
           value={ toNiceNumber(minGasPrice) }
           onSubmit={ this.onMinGasPriceChange }
           allowCopy={ minGasPrice.toString() }
@@ -80,8 +118,18 @@ export default class MiningSettings extends Component {
         />
 
         <Input
-          label='gas floor target'
-          hint='the gas floor target for mining'
+          label={
+            <FormattedMessage
+              id='status.miningSettings.input.gasFloor.label'
+              defaultMessage='gas floor target'
+            />
+          }
+          hint={
+            <FormattedMessage
+              id='status.miningSettings.input.gasFloor.hint'
+              defaultMessage='the gas floor target for mining'
+            />
+          }
           value={ toNiceNumber(gasFloorTarget) }
           onSubmit={ this.onGasFloorTargetChange }
           allowCopy={ gasFloorTarget.toString() }

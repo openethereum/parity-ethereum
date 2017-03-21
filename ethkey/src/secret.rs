@@ -19,7 +19,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 use secp256k1::key;
 use bigint::hash::H256;
-use {Error};
+use {Error, SECP256K1};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Secret {
@@ -45,6 +45,68 @@ impl Secret {
 		let secret = key::SecretKey::from_slice(&super::SECP256K1, key)?;
 		Ok(secret.into())
 	}
+
+	/// Inplace add one secret key to another (scalar + scalar)
+	pub fn add(&mut self, other: &Secret) -> Result<(), Error> {
+		let mut key_secret = self.to_secp256k1_secret()?;
+		let other_secret = other.to_secp256k1_secret()?;
+		key_secret.add_assign(&SECP256K1, &other_secret)?;
+
+		*self = key_secret.into();
+		Ok(())
+	}
+
+	/// Inplace subtract one secret key from another (scalar - scalar)
+	pub fn sub(&mut self, other: &Secret) -> Result<(), Error> {
+		let mut key_secret = self.to_secp256k1_secret()?;
+		let mut other_secret = other.to_secp256k1_secret()?;
+		other_secret.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
+		key_secret.add_assign(&SECP256K1, &other_secret)?;
+
+		*self = key_secret.into();
+		Ok(())
+	}
+
+	/// Inplace multiply one secret key to another (scalar * scalar)
+	pub fn mul(&mut self, other: &Secret) -> Result<(), Error> {
+		let mut key_secret = self.to_secp256k1_secret()?;
+		let other_secret = other.to_secp256k1_secret()?;
+		key_secret.mul_assign(&SECP256K1, &other_secret)?;
+
+		*self = key_secret.into();
+		Ok(())
+	}
+
+	/// Inplace inverse secret key (1 / scalar)
+	pub fn inv(&mut self) -> Result<(), Error> {
+		let mut key_secret = self.to_secp256k1_secret()?;
+		key_secret.inv_assign(&SECP256K1)?;
+
+		*self = key_secret.into();
+		Ok(())
+	}
+
+	/// Compute power of secret key inplace (secret ^ pow).
+	/// This function is not intended to be used with large powers.
+	pub fn pow(&mut self, pow: usize) -> Result<(), Error> {
+		match pow {
+			0 => *self = key::ONE_KEY.into(),
+			1 => (),
+			_ => {
+				let c = self.clone();
+				for _ in 1..pow {
+					self.mul(&c)?;
+				}
+			},
+		}
+
+		Ok(())
+	}
+
+	/// Create `secp256k1::key::SecretKey` based on this secret
+	pub fn to_secp256k1_secret(&self) -> Result<key::SecretKey, Error> {
+		Ok(key::SecretKey::from_slice(&SECP256K1, &self[..])?)
+	}
 }
 
 impl FromStr for Secret {
@@ -66,5 +128,56 @@ impl Deref for Secret {
 
 	fn deref(&self) -> &Self::Target {
 		&self.inner
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::str::FromStr;
+	use super::super::{Random, Generator};
+	use super::Secret;
+
+	#[test]
+	fn multiplicating_secret_inversion_with_secret_gives_one() {
+		let secret = Random.generate().unwrap().secret().clone();
+		let mut inversion = secret.clone();
+		inversion.inv().unwrap();
+		inversion.mul(&secret).unwrap();
+		assert_eq!(inversion, Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap());
+	}
+
+	#[test]
+	fn secret_inversion_is_reversible_with_inversion() {
+		let secret = Random.generate().unwrap().secret().clone();
+		let mut inversion = secret.clone();
+		inversion.inv().unwrap();
+		inversion.inv().unwrap();
+		assert_eq!(inversion, secret);
+	}
+
+	#[test]
+	fn secret_pow() {
+		let secret = Random.generate().unwrap().secret().clone();
+
+		let mut pow0 = secret.clone();
+		pow0.pow(0).unwrap();
+		assert_eq!(pow0, Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap());
+
+		let mut pow1 = secret.clone();
+		pow1.pow(1).unwrap();
+		assert_eq!(pow1, secret);
+
+		let mut pow2 = secret.clone();
+		pow2.pow(2).unwrap();
+		let mut pow2_expected = secret.clone();
+		pow2_expected.mul(&secret).unwrap();
+		assert_eq!(pow2, pow2_expected);
+
+		let mut pow3 = secret.clone();
+		pow3.pow(3).unwrap();
+		let mut pow3_expected = secret.clone();
+		pow3_expected.mul(&secret).unwrap();
+		pow3_expected.mul(&secret).unwrap();
+		assert_eq!(pow3, pow3_expected);
 	}
 }

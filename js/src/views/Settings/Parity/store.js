@@ -20,6 +20,7 @@ import { action, observable } from 'mobx';
 import { LOG_KEYS } from '~/config';
 
 const DEFAULT_MODE = 'active';
+const DEFAULT_CHAIN = 'foundation';
 const LOGLEVEL_OPTIONS = Object
   .keys(LogLevel.levels)
   .map((name) => {
@@ -32,6 +33,7 @@ const LOGLEVEL_OPTIONS = Object
 export default class Store {
   @observable logLevels = {};
   @observable mode = DEFAULT_MODE;
+  @observable chain = DEFAULT_CHAIN;
 
   constructor (api) {
     this._api = api;
@@ -40,7 +42,7 @@ export default class Store {
   }
 
   @action setLogLevels = (logLevels) => {
-    this.logLevels = logLevels;
+    this.logLevels = { ...logLevels };
   }
 
   @action setLogLevelsSelect = (logLevelsSelect) => {
@@ -49,6 +51,10 @@ export default class Store {
 
   @action setMode = (mode) => {
     this.mode = mode;
+  }
+
+  @action setChain = (chain) => {
+    this.chain = chain;
   }
 
   changeMode (mode) {
@@ -61,6 +67,19 @@ export default class Store {
       })
       .catch((error) => {
         console.warn('changeMode', error);
+      });
+  }
+
+  changeChain (chain) {
+    return this._api.parity
+      .setChain(chain)
+      .then((result) => {
+        if (result) {
+          this.setChain(chain);
+        }
+      })
+      .catch((error) => {
+        console.warn('changeChain', error);
       });
   }
 
@@ -83,8 +102,8 @@ export default class Store {
     );
   }
 
-  updateLoggerLevel (path, level) {
-    LogLevel.getLogger(path).setLevel(level);
+  updateLoggerLevel (key, level) {
+    LogLevel.getLogger(key).setLevel(level);
     this.loadLogLevels();
   }
 
@@ -96,6 +115,17 @@ export default class Store {
       })
       .catch((error) => {
         console.warn('loadMode', error);
+      });
+  }
+
+  loadChain () {
+    return this._api.parity
+      .chain()
+      .then((chain) => {
+        this.setChain(chain);
+      })
+      .catch((error) => {
+        console.warn('loadChain', error);
       });
   }
 }

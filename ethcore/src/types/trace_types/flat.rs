@@ -59,7 +59,7 @@ impl Encodable for FlatTrace {
 		s.append(&self.action);
 		s.append(&self.result);
 		s.append(&self.subtraces);
-		s.append(&self.trace_address.clone().into_iter().collect::<Vec<_>>());
+		s.append_list::<usize, &usize>(&self.trace_address.iter().collect::<Vec<_>>());
 	}
 }
 
@@ -103,7 +103,7 @@ impl FlatTransactionTraces {
 
 impl Encodable for FlatTransactionTraces {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		Encodable::rlp_append(&self.0, s);
+		s.append_list(&self.0);
 	}
 }
 
@@ -144,7 +144,7 @@ impl FlatBlockTraces {
 
 impl Encodable for FlatBlockTraces {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		Encodable::rlp_append(&self.0, s);
+		s.append_list(&self.0);
 	}
 }
 

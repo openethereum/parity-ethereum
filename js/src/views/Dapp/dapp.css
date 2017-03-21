@@ -15,6 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .frame {
+  background: white;
   border: 0;
   position: absolute;
   height: 100%;

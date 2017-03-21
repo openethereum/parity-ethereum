@@ -27,8 +27,8 @@ build_rpc_trait! {
 		type Metadata;
 
 		/// Signs the hash of data with given address signature.
-		#[rpc(async, name = "eth_sign")]
-		fn sign(&self, H160, Bytes) -> BoxFuture<H520, Error>;
+		#[rpc(meta, name = "eth_sign")]
+		fn sign(&self, Self::Metadata, H160, Bytes) -> BoxFuture<H520, Error>;
 
 		/// Sends transaction; will block waiting for signer to return the
 		/// transaction hash.

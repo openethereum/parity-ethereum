@@ -18,7 +18,7 @@
 use std::sync::{Arc, Weak};
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashSet};
-use futures::{self, Future, BoxFuture};
+use futures::{future, Future, BoxFuture};
 
 use util::{RotatingLogger, Address};
 use util::misc::version_data;
@@ -118,8 +118,8 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		let store = take_weak!(self.accounts);
 		let dapp_accounts = store
 			.note_dapp_used(dapp.clone().into())
-			.and_then(|_| store.dapps_addresses(dapp.into()))
-			.map_err(|e| errors::internal("Could not fetch accounts.", e))?
+			.and_then(|_| store.dapp_addresses(dapp.into()))
+			.map_err(|e| errors::account("Could not fetch accounts.", e))?
 			.into_iter().collect::<HashSet<_>>();
 
 		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
@@ -145,17 +145,14 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
-		let dapp_id = meta.dapp_id.unwrap_or_default();
-		let default_account = move || {
-			Ok(take_weak!(self.accounts)
-				.dapps_addresses(dapp_id.into())
+		let dapp_id = meta.dapp_id();
+		future::ok(
+			take_weakf!(self.accounts)
+				.dapp_default_address(dapp_id.into())
+				.map(Into::into)
 				.ok()
-				.and_then(|accounts| accounts.get(0).cloned())
-				.map(|acc| acc.into())
-				.unwrap_or_default())
-		};
-
-		futures::done(default_account()).boxed()
+				.unwrap_or_default()
+		).boxed()
 	}
 
 	fn transactions_limit(&self) -> Result<usize, Error> {
@@ -189,6 +186,10 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 
 	fn net_chain(&self) -> Result<String, Error> {
 		Ok(self.settings.chain.clone())
+	}
+
+	fn chain(&self) -> Result<String, Error> {
+		Ok(take_weak!(self.client).spec_name())
 	}
 
 	fn net_peers(&self) -> Result<Peers, Error> {
@@ -235,8 +236,13 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		Ok(Bytes::new(version_data()))
 	}
 
-	fn gas_price_histogram(&self) -> Result<Histogram, Error> {
-		take_weak!(self.client).gas_price_histogram(100, 10).ok_or_else(errors::not_enough_data).map(Into::into)
+	fn gas_price_histogram(&self) -> BoxFuture<Histogram, Error> {
+		future::done(take_weakf!(self.client)
+			.gas_price_corpus(100)
+			.histogram(10)
+			.ok_or_else(errors::not_enough_data)
+			.map(Into::into)
+		).boxed()
 	}
 
 	fn unsigned_transactions_count(&self) -> Result<usize, Error> {
@@ -315,16 +321,16 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			.ok_or_else(|| errors::dapps_disabled())
 	}
 
-	fn next_nonce(&self, address: H160) -> Result<U256, Error> {
+	fn next_nonce(&self, address: H160) -> BoxFuture<U256, Error> {
 		let address: Address = address.into();
-		let miner = take_weak!(self.miner);
-		let client = take_weak!(self.client);
+		let miner = take_weakf!(self.miner);
+		let client = take_weakf!(self.client);
 
-		Ok(miner.last_nonce(&address)
+		future::ok(miner.last_nonce(&address)
 			.map(|n| n + 1.into())
 			.unwrap_or_else(|| client.latest_nonce(&address))
 			.into()
-		)
+		).boxed()
 	}
 
 	fn mode(&self) -> Result<String, Error> {

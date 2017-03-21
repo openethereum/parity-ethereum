@@ -27,7 +27,7 @@ use jsonrpc_core::Error;
 use v1::helpers::{
 	errors,
 	DefaultAccount,
-	SigningQueue, ConfirmationPromise, ConfirmationResult, SignerService
+	SIGNING_QUEUE_LIMIT, SigningQueue, ConfirmationPromise, ConfirmationResult, SignerService
 };
 use v1::helpers::dispatch::{self, Dispatcher};
 use v1::metadata::Metadata;
@@ -38,10 +38,14 @@ use v1::types::{
 	RichRawTransaction as RpcRichRawTransaction,
 	TransactionRequest as RpcTransactionRequest,
 	ConfirmationPayload as RpcConfirmationPayload,
-	ConfirmationResponse as RpcConfirmationResponse
+	ConfirmationResponse as RpcConfirmationResponse,
+	Origin,
 };
 
-const MAX_PENDING_DURATION: u64 = 60 * 60;
+/// After 60s entries that are not queried with `check_request` will get garbage collected.
+const MAX_PENDING_DURATION_SEC: u32 = 60;
+/// Max number of total requests pending and completed, before we start garbage collecting them.
+const MAX_TOTAL_REQUESTS: usize = SIGNING_QUEUE_LIMIT;
 
 enum DispatchResult {
 	Promise(ConfirmationPromise),
@@ -70,6 +74,21 @@ fn handle_dispatch<OnResponse>(res: Result<DispatchResult, Error>, on_response: 
 	}
 }
 
+fn collect_garbage(map: &mut TransientHashMap<U256, ConfirmationPromise>) {
+	map.prune();
+	if map.len() > MAX_TOTAL_REQUESTS {
+		// Remove all non-waiting entries.
+		let non_waiting: Vec<_> = map
+			.iter()
+			.filter(|&(_, val)| val.result() != ConfirmationResult::Waiting)
+			.map(|(key, _)| *key)
+			.collect();
+		for k in non_waiting {
+			map.remove(&k);
+		}
+	}
+}
+
 impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 	/// Creates a new signing queue client given shared signing queue.
 	pub fn new(signer: &Arc<SignerService>, dispatcher: D, accounts: &Arc<AccountProvider>) -> Self {
@@ -77,15 +96,15 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 			signer: Arc::downgrade(signer),
 			accounts: Arc::downgrade(accounts),
 			dispatcher: dispatcher,
-			pending: Arc::new(Mutex::new(TransientHashMap::new(MAX_PENDING_DURATION))),
+			pending: Arc::new(Mutex::new(TransientHashMap::new(MAX_PENDING_DURATION_SEC))),
 		}
 	}
 
-	fn dispatch(&self, payload: RpcConfirmationPayload, default_account: DefaultAccount) -> BoxFuture<DispatchResult, Error> {
+	fn dispatch(&self, payload: RpcConfirmationPayload, default_account: DefaultAccount, origin: Origin) -> BoxFuture<DispatchResult, Error> {
 		let accounts = take_weakf!(self.accounts);
 		let default_account = match default_account {
 			DefaultAccount::Provided(acc) => acc,
-			DefaultAccount::ForDapp(dapp) => accounts.default_address(dapp).ok().unwrap_or_default(),
+			DefaultAccount::ForDapp(dapp) => accounts.dapp_default_address(dapp).ok().unwrap_or_default(),
 		};
 
 		let dispatcher = self.dispatcher.clone();
@@ -94,13 +113,13 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 			.and_then(move |payload| {
 				let sender = payload.sender();
 				if accounts.is_unlocked(sender) {
-					dispatch::execute(dispatcher, &accounts, payload, dispatch::SignWith::Nothing)
+					dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Nothing)
 						.map(|v| v.into_value())
 						.map(DispatchResult::Value)
 						.boxed()
 				} else {
 					future::done(
-						signer.add_request(payload)
+						signer.add_request(payload, origin)
 							.map(DispatchResult::Promise)
 							.map_err(|_| errors::request_rejected_limit())
 					).boxed()
@@ -113,28 +132,37 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 	type Metadata = Metadata;
 
-	fn post_sign(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
+	fn post_sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		let pending = self.pending.clone();
-		self.dispatch(RpcConfirmationPayload::Signature((address.clone(), data).into()), DefaultAccount::Provided(address.into()))
-			.map(move |result| match result {
-				DispatchResult::Value(v) => RpcEither::Or(v),
-				DispatchResult::Promise(promise) => {
-					let id = promise.id();
-					pending.lock().insert(id, promise);
-					RpcEither::Either(id.into())
-				},
-			})
-			.boxed()
+		self.dispatch(
+			RpcConfirmationPayload::Signature((address.clone(), data).into()),
+			DefaultAccount::Provided(address.into()),
+			meta.origin
+		).map(move |result| match result {
+			DispatchResult::Value(v) => RpcEither::Or(v),
+			DispatchResult::Promise(promise) => {
+				let id = promise.id();
+				let mut pending = pending.lock();
+				collect_garbage(&mut pending);
+				pending.insert(id, promise);
+
+				RpcEither::Either(id.into())
+			},
+		})
+		.boxed()
 	}
 
 	fn post_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		let pending = self.pending.clone();
-		self.dispatch(RpcConfirmationPayload::SendTransaction(request), meta.into())
+		self.dispatch(RpcConfirmationPayload::SendTransaction(request), meta.dapp_id().into(), meta.origin)
 			.map(move |result| match result {
 				DispatchResult::Value(v) => RpcEither::Or(v),
 				DispatchResult::Promise(promise) => {
 					let id = promise.id();
-					pending.lock().insert(id, promise);
+					let mut pending = pending.lock();
+					collect_garbage(&mut pending);
+					pending.insert(id, promise);
+
 					RpcEither::Either(id.into())
 				},
 			})
@@ -142,22 +170,23 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 	}
 
 	fn check_request(&self, id: RpcU256) -> Result<Option<RpcConfirmationResponse>, Error> {
-		let mut pending = self.pending.lock();
 		let id: U256 = id.into();
-		let res = match pending.get(&id) {
+		match self.pending.lock().get(&id) {
 			Some(ref promise) => match promise.result() {
-				ConfirmationResult::Waiting => { return Ok(None); }
+				ConfirmationResult::Waiting => Ok(None),
 				ConfirmationResult::Rejected => Err(errors::request_rejected()),
 				ConfirmationResult::Confirmed(rpc_response) => rpc_response.map(Some),
 			},
-			_ => { return Err(errors::request_not_found()); }
-		};
-		pending.remove(&id);
-		res
+			_ => Err(errors::request_not_found()),
+		}
 	}
 
-	fn decrypt_message(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes, Error> {
-		let res = self.dispatch(RpcConfirmationPayload::Decrypt((address.clone(), data).into()), address.into());
+	fn decrypt_message(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes, Error> {
+		let res = self.dispatch(
+			RpcConfirmationPayload::Decrypt((address.clone(), data).into()),
+			address.into(),
+			meta.origin,
+		);
 
 		let (ready, p) = futures::oneshot();
 
@@ -181,8 +210,12 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 	type Metadata = Metadata;
 
-	fn sign(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
-		let res = self.dispatch(RpcConfirmationPayload::Signature((address.clone(), data).into()), address.into());
+	fn sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
+		let res = self.dispatch(
+			RpcConfirmationPayload::Signature((address.clone(), data).into()),
+			address.into(),
+			meta.origin,
+		);
 
 		let (ready, p) = futures::oneshot();
 
@@ -200,7 +233,11 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 	}
 
 	fn send_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcH256, Error> {
-		let res = self.dispatch(RpcConfirmationPayload::SendTransaction(request), meta.into());
+		let res = self.dispatch(
+			RpcConfirmationPayload::SendTransaction(request),
+			meta.dapp_id().into(),
+			meta.origin,
+		);
 
 		let (ready, p) = futures::oneshot();
 
@@ -218,7 +255,11 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 	}
 
 	fn sign_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcRichRawTransaction, Error> {
-		let res = self.dispatch(RpcConfirmationPayload::SignTransaction(request), meta.into());
+		let res = self.dispatch(
+			RpcConfirmationPayload::SignTransaction(request),
+			meta.dapp_id().into(),
+			meta.origin,
+		);
 
 		let (ready, p) = futures::oneshot();
 

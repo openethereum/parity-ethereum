@@ -16,33 +16,22 @@
 
 use jsonrpc_core;
 
+use v1::types::{DappId, Origin};
+
 /// RPC methods metadata.
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct Metadata {
-	/// Current dapplication identifier
-	pub dapp_id: Option<String>,
 	/// Request origin
 	pub origin: Origin,
 }
 
-/// RPC request origin
-#[derive(Clone, Debug, PartialEq)]
-pub enum Origin {
-	/// RPC server
-	Rpc,
-	/// Dapps server
-	Dapps,
-	/// IPC server
-	Ipc,
-	/// Signer
-	Signer,
-	/// Unknown
-	Unknown,
-}
-
-impl Default for Origin {
-	fn default() -> Self {
-		Origin::Unknown
+impl Metadata {
+	/// Get
+	pub fn dapp_id(&self) -> DappId {
+		match self.origin {
+			Origin::Dapps(ref dapp_id) => dapp_id.clone(),
+			_ => DappId::default(),
+		}
 	}
 }
 

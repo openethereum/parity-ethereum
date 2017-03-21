@@ -1,0 +1,52 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+$backgroundNormal: rgba(0, 0, 0, 0.2);
+$backgroundNormalHover: rgba(0, 0, 0, 0.5);
+$backgroundError: rgba(255, 0, 0, 0.1);
+$backgroundErrorHover: rgba(255, 0, 0, 0.2);
+
+.dropzone {
+  align-items: center;
+  background: $backgroundNormal;
+  border: 2px dashed #666;
+  border-radius: 0.5em;
+  display: flex;
+  justify-content: center;
+  font-size: 1.2em;
+  height: 12em;
+  transition: all 0.5s ease;
+  width: 100%;
+
+  &:hover {
+    background: $backgroundNormalHover;
+    border-radius: 0;
+    cursor: pointer;
+  }
+
+  &.error {
+    background: $backgroundError;
+
+    &:hover {
+      background: $backgroundErrorHover;
+    }
+  }
+
+  .label {
+    color: #aaa;
+  }
+}

@@ -63,5 +63,12 @@ impl KeyDirectory for MemoryDirectory {
 		}
 		Ok(())
 	}
+
+	fn unique_repr(&self) -> Result<u64, Error> {
+		let mut val = 0u64;
+		let accounts = self.accounts.read();
+		for acc in accounts.keys() { val = val ^ acc.low_u64() }
+		Ok(val)
+	}
 }
 

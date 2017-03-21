@@ -1,7 +1,7 @@
 [package]
 description = "Ethcore jsonrpc"
 name = "ethcore-rpc"
-version = "1.6.0"
+version = "1.7.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -16,12 +16,12 @@ serde_json = "0.9"
 serde_derive = "0.9"
 rustc-serialize = "0.3"
 time = "0.1"
-transient-hashmap = "0.1"
+transient-hashmap = "0.4"
 order-stat = "0.1"
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-ipc-server = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
+jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
+jsonrpc-ipc-server = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
+jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
 ethcore-io = { path = "../util/io" }
 ethcore-ipc = { path = "../ipc/rpc" }
 ethcore-util = { path = "../util" }
@@ -39,6 +39,7 @@ rlp = { path = "../util/rlp" }
 fetch = { path = "../util/fetch" }
 parity-reactor = { path = "../util/reactor" }
 clippy = { version = "0.0.103", optional = true}
+stats = { path = "../util/stats" }
 
 [features]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]

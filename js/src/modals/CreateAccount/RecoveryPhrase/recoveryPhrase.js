@@ -22,12 +22,14 @@ import { Checkbox } from 'material-ui';
 import { Form, Input } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 
+import ChangeVault from '../ChangeVault';
 import styles from '../createAccount.css';
 
 @observer
 export default class RecoveryPhrase extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired
+    store: PropTypes.object.isRequired,
+    vaultStore: PropTypes.object
   }
 
   render () {
@@ -36,6 +38,7 @@ export default class RecoveryPhrase extends Component {
     return (
       <Form>
         <Input
+          autoFocus
           hint={
             <FormattedMessage
               id='createAccount.recoveryPhrase.phrase.hint'
@@ -126,6 +129,10 @@ export default class RecoveryPhrase extends Component {
           </div>
         </div>
         <PasswordStrength input={ password } />
+        <ChangeVault
+          store={ this.props.store }
+          vaultStore={ this.props.vaultStore }
+        />
         <Checkbox
           checked={ isWindowsPhrase }
           className={ styles.checkbox }

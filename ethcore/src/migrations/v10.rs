@@ -24,7 +24,7 @@ use views::HeaderView;
 use bloom_journal::Bloom;
 use util::migration::{Error, Migration, Progress, Batch, Config};
 use util::journaldb;
-use util::{H256, FixedHash, Trie};
+use util::{H256, Trie};
 use util::{Database, DBTransaction};
 
 /// Account bloom upgrade routine. If bloom already present, does nothing.
@@ -70,7 +70,7 @@ pub fn generate_bloom(source: Arc<Database>, dest: &mut Database) -> Result<(), 
 
 	trace!(target: "migration", "Generated {} bloom updates", bloom_journal.entries.len());
 
-	let mut batch = DBTransaction::new(dest);
+	let mut batch = DBTransaction::new();
 	StateDB::commit_bloom(&mut batch, bloom_journal).map_err(|_| Error::Custom("Failed to commit bloom".to_owned()))?;
 	dest.write(batch)?;
 

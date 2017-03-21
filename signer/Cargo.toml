@@ -3,7 +3,7 @@ description = "Ethcore Trusted Signer"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-signer"
-version = "1.6.0"
+version = "1.7.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
@@ -12,7 +12,7 @@ rustc_version = "0.1"
 
 [dependencies]
 rand = "0.3.14"
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
 log = "0.3"
 env_logger = "0.3"
 # parity-dapps-glue = { version = "1.4", optional = true }

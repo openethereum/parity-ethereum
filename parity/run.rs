@@ -24,7 +24,7 @@ use util::{Colour, version, RotatingLogger, Mutex, Condvar};
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore_logger::{Config as LogConfig};
 use ethcore::miner::{StratumOptions, Stratum};
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
+use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
 use ethcore::service::ClientService;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -47,7 +47,9 @@ use dir::Directories;
 use cache::CacheConfig;
 use user_defaults::UserDefaults;
 use dapps;
+use ipfs;
 use signer;
+use secretstore;
 use modules;
 use rpc_apis;
 use rpc;
@@ -93,7 +95,9 @@ pub struct RunCmd {
 	pub ui_address: Option<(String, u16)>,
 	pub net_settings: NetworkSettings,
 	pub dapps_conf: dapps::Configuration,
+	pub ipfs_conf: ipfs::Configuration,
 	pub signer_conf: signer::Configuration,
+	pub secretstore_conf: secretstore::Configuration,
 	pub dapp: Option<String>,
 	pub ui: bool,
 	pub name: String,
@@ -132,13 +136,28 @@ pub fn open_dapp(dapps_conf: &dapps::Configuration, dapp: &str) -> Result<(), St
 	Ok(())
 }
 
+// node info fetcher for the local store.
+struct FullNodeInfo {
+	miner: Arc<Miner>, // TODO: only TXQ needed, just use that after decoupling.
+}
 
-pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<bool, String> {
+impl ::local_store::NodeInfo for FullNodeInfo {
+	fn pending_transactions(&self) -> Vec<::ethcore::transaction::PendingTransaction> {
+		let local_txs = self.miner.local_transactions();
+		self.miner.pending_transactions()
+			.into_iter()
+			.chain(self.miner.future_transactions())
+			.filter(|tx| local_txs.contains_key(&tx.hash()))
+			.collect()
+	}
+}
+
+pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
 		// Check if Parity is already running
 		let addr = format!("{}:{}", cmd.dapps_conf.interface, cmd.dapps_conf.port);
 		if !TcpListener::bind(&addr as &str).is_ok() {
-			return open_ui(&cmd.dapps_conf, &cmd.signer_conf).map(|_| false);
+			return open_ui(&cmd.dapps_conf, &cmd.signer_conf).map(|_| (false, None));
 		}
 	}
 
@@ -188,7 +207,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path()))?;
 
 	// create dirs used by parity
-	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled)?;
+	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled, cmd.secretstore_conf.enabled)?;
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -267,6 +286,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// create client config
 	let mut client_config = to_client_config(
 		&cmd.cache_config,
+		spec.name.to_lowercase(),
 		mode.clone(),
 		tracing,
 		fat_db,
@@ -313,6 +333,33 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// take handle to client
 	let client = service.client();
 	let snapshot_service = service.snapshot_service();
+
+	// initialize the local node information store.
+	let store = {
+		let db = service.db();
+		let node_info = FullNodeInfo {
+			miner: miner.clone(),
+		};
+
+		let store = ::local_store::create(db, ::ethcore::db::COL_NODE_INFO, node_info);
+
+		// re-queue pending transactions.
+		match store.pending_transactions() {
+			Ok(pending) => {
+				for pending_tx in pending {
+					if let Err(e) = miner.import_own_transaction(&*client, pending_tx) {
+						warn!("Error importing saved transaction: {}", e)
+					}
+				}
+			}
+			Err(e) => warn!("Error loading cached pending transactions from disk: {}", e),
+		}
+
+		Arc::new(store)
+	};
+
+	// register it as an IO service to update periodically.
+	service.register_io_handler(store).map_err(|_| "Unable to register local store handler".to_owned())?;
 
 	// create external miner
 	let external_miner = Arc::new(ExternalMiner::default());
@@ -420,6 +467,13 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	};
 	let signer_server = signer::start(cmd.signer_conf.clone(), signer_deps)?;
 
+	// secret store key server
+	let secretstore_deps = secretstore::Dependencies { };
+	let secretstore_key_server = secretstore::start(cmd.secretstore_conf.clone(), secretstore_deps);
+
+	// the ipfs server
+	let ipfs_server = ipfs::start_server(cmd.ipfs_conf.clone(), client.clone())?;
+
 	// the informant
 	let informant = Arc::new(Informant::new(
 		service.client(),
@@ -440,8 +494,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	user_defaults.save(&user_defaults_path)?;
 
 	// tell client how to save the default mode if it gets changed.
-	client.on_mode_change(move |mode: &Mode| {
-		user_defaults.mode = mode.clone();
+	client.on_user_defaults_change(move |mode: Option<Mode>| {
+		if let Some(mode) = mode {
+			user_defaults.mode = mode;
+		}
 		let _ = user_defaults.save(&user_defaults_path);	// discard failures - there's nothing we can do
 	});
 
@@ -450,6 +506,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		true => None,
 		false => {
 			let sync = sync_provider.clone();
+			let client = client.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
 				move || is_major_importing(Some(sync.status().state), client.queue_info()),
@@ -473,10 +530,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	// Handle exit
-	let restart = wait_for_exit(panic_handler, Some(updater), can_restart);
+	let restart = wait_for_exit(panic_handler, Some(updater), Some(client), can_restart);
 
 	// drop this stuff as soon as exit detected.
-	drop((http_server, ipc_server, dapps_server, signer_server, event_loop));
+	drop((http_server, ipc_server, dapps_server, signer_server, secretstore_key_server, ipfs_server, event_loop));
 
 	info!("Finishing work, please wait...");
 
@@ -551,9 +608,10 @@ fn build_create_account_hint(spec: &SpecType, keys: &str) -> String {
 fn wait_for_exit(
 	panic_handler: Arc<PanicHandler>,
 	updater: Option<Arc<Updater>>,
+	client: Option<Arc<Client>>,
 	can_restart: bool
-) -> bool {
-	let exit = Arc::new((Mutex::new(false), Condvar::new()));
+) -> (bool, Option<String>) {
+	let exit = Arc::new((Mutex::new((false, None)), Condvar::new()));
 
 	// Handle possible exits
 	let e = exit.clone();
@@ -563,18 +621,24 @@ fn wait_for_exit(
 	let e = exit.clone();
 	panic_handler.on_panic(move |_reason| { e.1.notify_all(); });
 
-	if let Some(updater) = updater {
-		// Handle updater wanting to restart us
-		if can_restart {
+	if can_restart {
+		if let Some(updater) = updater {
+			// Handle updater wanting to restart us
 			let e = exit.clone();
-			updater.set_exit_handler(move || { *e.0.lock() = true; e.1.notify_all(); });
-		} else {
-			updater.set_exit_handler(|| info!("Update installed; ready for restart."));
+			updater.set_exit_handler(move || { *e.0.lock() = (true, None); e.1.notify_all(); });
 		}
+
+		if let Some(client) = client {
+			// Handle updater wanting to restart us
+			let e = exit.clone();
+			client.set_exit_handler(move |restart, new_chain: Option<String>| { *e.0.lock() = (restart, new_chain); e.1.notify_all(); });
+		}
+	} else {
+		trace!(target: "mode", "Not hypervised: not setting exit handlers.");
 	}
 
 	// Wait for signal
 	let mut l = exit.0.lock();
 	let _ = exit.1.wait(&mut l);
-	*l
+	l.clone()
 }

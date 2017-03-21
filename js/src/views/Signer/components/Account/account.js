@@ -23,10 +23,11 @@ import styles from './account.css';
 
 export default class Account extends Component {
   static propTypes = {
-    className: PropTypes.string,
     address: PropTypes.string.isRequired,
+    className: PropTypes.string,
+    disabled: PropTypes.bool,
     externalLink: PropTypes.string.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     balance: PropTypes.object // eth BigNumber, not required since it mght take time to fetch
   };
 
@@ -52,17 +53,18 @@ export default class Account extends Component {
   }
 
   render () {
-    const { address, externalLink, isTest, className } = this.props;
+    const { address, className, disabled, externalLink, netVersion } = this.props;
 
     return (
       <div className={ `${styles.acc} ${className}` }>
         <AccountLink
           address={ address }
           externalLink={ externalLink }
-          isTest={ isTest }
+          netVersion={ netVersion }
         >
           <IdentityIcon
             center
+            disabled={ disabled }
             address={ address }
           />
         </AccountLink>
@@ -81,7 +83,7 @@ export default class Account extends Component {
   }
 
   renderName () {
-    const { address, externalLink, isTest } = this.props;
+    const { address, externalLink, netVersion } = this.props;
     const name = <IdentityName address={ address } empty />;
 
     if (!name) {
@@ -89,7 +91,7 @@ export default class Account extends Component {
         <AccountLink
           address={ address }
           externalLink={ externalLink }
-          isTest={ isTest }
+          netVersion={ netVersion }
         >
           [{ this.shortAddress(address) }]
         </AccountLink>
@@ -100,7 +102,7 @@ export default class Account extends Component {
       <AccountLink
         address={ address }
         externalLink={ externalLink }
-        isTest={ isTest }
+        netVersion={ netVersion }
       >
         <span>
           <span className={ styles.name }>{ name }</span>

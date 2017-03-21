@@ -23,7 +23,7 @@ use ethstore::random_string;
 
 use v1::helpers::signing_queue::{ConfirmationsQueue};
 
-const TOKEN_LIFETIME_SECS: u64 = 3600;
+const TOKEN_LIFETIME_SECS: u32 = 3600;
 
 /// Manages communication with Signer crate
 pub struct SignerService {
