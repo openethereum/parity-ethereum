@@ -36,11 +36,11 @@ class ExportStore {
       });
   }
 
-  @actions getPassword = (account) => {
+  @action getPassword = (account) => {
     return this.inputValue[account];
   }
 
-  @actions setPassword = (account, password) => {
+  @action setPassword = (account, password) => {
     this.inputValue[account.address] = password;
   }
 }

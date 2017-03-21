@@ -1111,7 +1111,7 @@ export default {
     returns: {
       type: Object,
       desc: 'returns an account as a JSON object. Otherwise, returns an error object with details.',
-      example: { address: '00718f933c0209330c0ce2bf68ac6f0982c69097', crypto: { }, id: '2689f0c9-bc0e-d75f-fe85-cfff2d8c81c4', meta: "stringify'd JSON", name: "JOHN DOE", version: 3 }
+      example: { address: '00718f933c0209330c0ce2bf68ac6f0982c69097', crypto: { }, id: '2689f0c9-bc0e-d75f-fe85-cfff2d8c81c4', meta: 'stringify\'d JSON', name: 'JOHN DOE', version: 3 }
     }
   },
 

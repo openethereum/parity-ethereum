@@ -22,7 +22,7 @@ import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
 import { personalAccountsInfo } from '~/redux/providers/personalActions';
-import { AccountCard, Button, Errors, Portal, SelectionList } from '~/ui';
+import { AccountCard, Button, Portal, SelectionList } from '~/ui';
 import { CancelIcon, CheckIcon } from '~/ui/Icons';
 import ExportStore from './ExportStore';
 
@@ -144,8 +144,9 @@ class ExportAccount extends Component {
     Object
       .keys(selectedAccounts)
       .forEach((account) => {
-        if (selectedAccounts[account])
+        if (selectedAccounts[account]) {
           this.exportAddress(account, inputValue[account]);
+        }
       });
   }
 
@@ -163,10 +164,9 @@ class ExportAccount extends Component {
       })
       .catch((err) => {
         const { passwordHint } = accounts[account].meta;
-        const { code, type } = err;
 
         newError({
-          message:`[${code}] - Incorrect password. Password Hint: (${passwordHint})`
+          message: `[${err.code}] - Incorrect password. Password Hint: (${passwordHint})`
         });
       });
   }
