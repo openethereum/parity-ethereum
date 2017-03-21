@@ -111,10 +111,14 @@ pub struct Client {
 impl Client {
 	/// Create a new `Client`.
 	pub fn new(config: Config, spec: &Spec, io_channel: IoChannel<ClientIoMessage>) -> Self {
+		// TODO: use real DB.
+		let db = ::util::kvdb::in_memory(0);
+		let gh = ::rlp::encode(&spec.genesis_header());
+
 		Client {
 			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, true),
 			engine: spec.engine.clone(),
-			chain: HeaderChain::new(&::rlp::encode(&spec.genesis_header())),
+			chain: HeaderChain::new(Arc::new(db), None, &gh).expect("new db every time"),
 			report: RwLock::new(ClientReport::default()),
 			import_lock: Mutex::new(()),
 		}
@@ -201,7 +205,8 @@ impl Client {
 		for verified_header in self.queue.drain(MAX) {
 			let (num, hash) = (verified_header.number(), verified_header.hash());
 
-			match self.chain.insert(verified_header) {
+			let mut tx = unimplemented!();
+			match self.chain.insert(&mut tx, verified_header) {
 				Ok(()) => {
 					good.push(hash);
 					self.report.write().blocks_imported += 1;
