@@ -28,7 +28,6 @@ use std::sync::Arc;
 
 use rlp::{decode, Rlp, RlpStream};
 
-
 // attempt to migrate a key, value pair. None if migration not possible.
 fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {
 	let val_hash = val.sha3();

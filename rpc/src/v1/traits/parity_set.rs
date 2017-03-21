@@ -19,7 +19,7 @@
 use jsonrpc_core::Error;
 use futures::BoxFuture;
 
-use v1::types::{Bytes, H160, H256, U256, ReleaseInfo};
+use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
 
 build_rpc_trait! {
 	/// Parity-specific rpc interface for operations altering the settings.
@@ -103,5 +103,14 @@ build_rpc_trait! {
 		/// Execute a release which is ready according to upgrade_ready().
 		#[rpc(name = "parity_executeUpgrade")]
 		fn execute_upgrade(&self) -> Result<bool, Error>;
+
+		/// Removes transaction from transaction queue.
+		/// Makes sense only for transactions that were not propagated to other peers yet
+		/// like scheduled transactions or transactions in future.
+		/// It might also work for some local transactions with to low gas price
+		/// or excessive gas limit that are not accepted by other peers whp.
+		/// Returns `true` when transaction was removed, `false` if it was not found.
+		#[rpc(name = "parity_removeTransaction")]
+		fn remove_transaction(&self, H256) -> Result<Option<Transaction>, Error>;
 	}
 }
