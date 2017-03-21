@@ -30,14 +30,14 @@ use types::all::{Error, RequestSignature, DocumentAddress, DocumentEncryptedKey,
 use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration};
 
 /// Secret store key server implementation
-pub struct KeyServerImpl<T: AclStorage, U: KeyStorage> {
-	acl_storage: T,
-	key_storage: U,
+pub struct KeyServerImpl {
+	acl_storage: Arc<AclStorage>,
+	key_storage: Arc<KeyStorage>,
 	data: Arc<Mutex<KeyServerCore>>,
 }
 
-unsafe impl<T, U> Send for KeyServerImpl<T, U> where T: AclStorage, U: KeyStorage {}
-unsafe impl<T, U> Sync for KeyServerImpl<T, U> where T: AclStorage, U: KeyStorage {}
+unsafe impl Send for KeyServerImpl {}
+unsafe impl Sync for KeyServerImpl {}
 
 
 /// Secret store key server data.
@@ -47,19 +47,19 @@ pub struct KeyServerCore {
 	cluster: Option<Arc<ClusterClient>>,
 }
 
-impl<T, U> KeyServerImpl<T, U> where T: AclStorage, U: KeyStorage {
+impl KeyServerImpl {
 	/// Create new key server instance
-	pub fn new(config: &ClusterConfiguration, acl_storage: T, key_storage: U) -> Result<Self, Error> {
+	pub fn new(config: &ClusterConfiguration, acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>) -> Result<Self, Error> {
 		Ok(KeyServerImpl {
-			acl_storage: acl_storage,
-			key_storage: key_storage,
-			data: Arc::new(Mutex::new(KeyServerCore::new(config)?)),
+			acl_storage: acl_storage.clone(),
+			key_storage: key_storage.clone(),
+			data: Arc::new(Mutex::new(KeyServerCore::new(config, acl_storage, key_storage)?)),
 		})
 	}
 
 	#[cfg(test)]
 	/// Create new key server instance without network communications
-	pub fn new_no_cluster(acl_storage: T, key_storage: U) -> Result<Self, Error> {
+	pub fn new_no_cluster(acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>) -> Result<Self, Error> {
 		Ok(KeyServerImpl {
 			acl_storage: acl_storage,
 			key_storage: key_storage,
@@ -76,7 +76,7 @@ impl<T, U> KeyServerImpl<T, U> where T: AclStorage, U: KeyStorage {
 	}
 }
 
-impl<T, U> KeyServer for KeyServerImpl<T, U> where T: AclStorage, U: KeyStorage {
+impl KeyServer for KeyServerImpl {
 	fn generate_document_key(&self, signature: &RequestSignature, document: &DocumentAddress, threshold: usize) -> Result<DocumentEncryptedKey, Error> {
 		// recover requestor' public key from signature
 		let public = ethkey::recover(signature, document)
@@ -95,7 +95,7 @@ impl<T, U> KeyServer for KeyServerImpl<T, U> where T: AclStorage, U: KeyStorage 
 	}
 
 	fn document_key(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKey, Error> {
-		// recover requestor' public key from signature
+		/*// recover requestor' public key from signature
 		let public = ethkey::recover(signature, document)
 			.map_err(|_| Error::BadSignature)?;
 
@@ -109,12 +109,13 @@ impl<T, U> KeyServer for KeyServerImpl<T, U> where T: AclStorage, U: KeyStorage 
 		// encrypt document key with requestor public key
 		let document_key = ethcrypto::ecies::encrypt_single_message(&public, &document_key)
 			.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err)))?;
-		Ok(document_key)
+		Ok(document_key)*/
+		unimplemented!()
 	}
 }
 
 impl KeyServerCore {
-	pub fn new(config: &ClusterConfiguration) -> Result<Self, Error> {
+	pub fn new(config: &ClusterConfiguration, acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>) -> Result<Self, Error> {
 		let config = NetClusterConfiguration {
 			threads: config.threads,
 			self_key_pair: ethkey::KeyPair::from_secret_slice(&config.self_private)?,
@@ -124,6 +125,8 @@ impl KeyServerCore {
 				.collect(),
 			allow_connecting_to_higher_nodes: config.allow_connecting_to_higher_nodes,
 			encryption_config: config.encryption_config.clone(),
+			acl_storage: acl_storage,
+			key_storage: key_storage,
 		};
 
 		let (stop, stopped) = futures::oneshot();
@@ -163,6 +166,7 @@ impl Drop for KeyServerCore {
 #[cfg(test)]
 mod tests {
 	use std::time;
+	use std::sync::Arc;
 	use std::str::FromStr;
 	use ethcrypto;
 	use ethkey::{self, Secret};
@@ -180,9 +184,9 @@ mod tests {
 	const PUBLIC2: &'static str = "dfe62f56bb05fbd85b485bac749f3410309e24b352bac082468ce151e9ddb94fa7b5b730027fe1c7c5f3d5927621d269f91aceb5caa3c7fe944677a22f88a318";
 	const PRIVATE2: &'static str = "0eb3816f4f705fa0fd952fb27b71b8c0606f09f4743b5b65cbc375bd569632f2";
 
-	fn create_key_server() -> KeyServerImpl<DummyAclStorage, DummyKeyStorage> {
-		let acl_storage = DummyAclStorage::default();
-		let key_storage = DummyKeyStorage::default();
+	/*fn create_key_server() -> KeyServerImpl {
+		let acl_storage = Arc::new(DummyAclStorage::default());
+		let key_storage = Arc::new(DummyKeyStorage::default());
 		key_storage.insert(DOCUMENT1.into(), KEY1.into()).unwrap();
 		acl_storage.prohibit(PUBLIC2.into(), DOCUMENT1.into());
 		KeyServerImpl::new_no_cluster(acl_storage, key_storage).unwrap()
@@ -275,5 +279,5 @@ mod tests {
 
 		let signature = make_signature(PRIVATE1, DOCUMENT1);
 		key_server1.generate_document_key(&signature, &DOCUMENT1.into(), 1).unwrap();
-	}
+	}*/
 }

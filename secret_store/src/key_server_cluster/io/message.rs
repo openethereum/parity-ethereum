@@ -72,6 +72,7 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::Encryption(EncryptionMessage::ComplaintResponse(payload))					=> (55, serde_json::to_vec(&payload)),
 		Message::Encryption(EncryptionMessage::PublicKeyShare(payload))						=> (56, serde_json::to_vec(&payload)),
 		Message::Encryption(EncryptionMessage::SessionError(payload))						=> (57, serde_json::to_vec(&payload)),
+		Message::Encryption(EncryptionMessage::SessionCompleted(payload))					=> (58, serde_json::to_vec(&payload)),
 
 		Message::Decryption(DecryptionMessage::InitializeDecryptionSession(payload))		=> (100, serde_json::to_vec(&payload)),
 		Message::Decryption(DecryptionMessage::ConfirmDecryptionInitialization(payload))	=> (101, serde_json::to_vec(&payload)),
@@ -113,6 +114,7 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		55	=> Message::Encryption(EncryptionMessage::ComplaintResponse(serde_json::from_slice(&payload).map_err(|err| Error::Serde(format!("{}", err)))?)),
 		56	=> Message::Encryption(EncryptionMessage::PublicKeyShare(serde_json::from_slice(&payload).map_err(|err| Error::Serde(format!("{}", err)))?)),
 		57	=> Message::Encryption(EncryptionMessage::SessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(format!("{}", err)))?)),
+		58	=> Message::Encryption(EncryptionMessage::SessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(format!("{}", err)))?)),
 
 		100	=> Message::Decryption(DecryptionMessage::InitializeDecryptionSession(serde_json::from_slice(&payload).map_err(|err| Error::Serde(format!("{}", err)))?)),
 		101	=> Message::Decryption(DecryptionMessage::ConfirmDecryptionInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(format!("{}", err)))?)),

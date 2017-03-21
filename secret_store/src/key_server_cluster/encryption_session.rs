@@ -19,11 +19,11 @@ use std::fmt::{Debug, Formatter, Error as FmtError};
 use std::sync::Arc;
 use parking_lot::{Condvar, Mutex};
 use ethkey::{Public, Secret};
-use key_server_cluster::{Error, NodeId, SessionId};
+use key_server_cluster::{Error, NodeId, SessionId, KeyStorage, DocumentKeyShare};
 use key_server_cluster::math;
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::message::{Message, EncryptionMessage, InitializeSession, ConfirmInitialization, CompleteInitialization,
-	KeysDissemination, Complaint, ComplaintResponse, PublicKeyShare, SessionError};
+	KeysDissemination, Complaint, ComplaintResponse, PublicKeyShare, SessionError, SessionCompleted};
 
 /// Encryption (distributed key generation) session.
 /// Based on "ECDKG: A Distributed Key Generation Protocol Based on Elliptic Curve Discrete Logarithm" paper:
@@ -34,17 +34,32 @@ use key_server_cluster::message::{Message, EncryptionMessage, InitializeSession,
 /// 3) key verification (KV): all nodes are checking values, received for other nodes and complaining if keys are wrong
 /// 4) key check phase (KC): nodes are processing complaints, received from another nodes
 /// 5) key generation phase (KG): nodes are exchanging with information, enough to generate joint public key
+/// 6) encryption phase: master node generates secret key, encrypts it using joint public && broadcasts encryption result
 pub struct Session {
 	/// Unique session id.
 	id: SessionId,
 	/// Public identifier of this node.
 	self_node_id: NodeId,
+	/// Key storage.
+	key_storage: Arc<KeyStorage>,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
 	cluster: Arc<Cluster>,
 	/// Session completion condvar.
 	completed: Condvar,
 	/// Mutable session data.
 	data: Mutex<SessionData>,
+}
+
+/// Session creation parameters
+pub struct SessionParams {
+	/// Session identifier.
+	pub id: SessionId,
+	/// Id of node, on which this session is running.
+	pub self_node_id: Public,
+	/// Key storage.
+	pub key_storage: Arc<KeyStorage>,
+	/// Cluster
+	pub cluster: Arc<Cluster>,
 }
 
 #[derive(Debug)]
@@ -77,6 +92,8 @@ struct SessionData {
 	/// === Values, filled when DKG session is completed successfully ===
 	/// Jointly generated public key, which can be used to encrypt secret. Public.
 	joint_public: Option<Result<Public, Error>>,
+	/// Secret point.
+	secret_point: Option<Result<Public, Error>>,
 }
 
 #[derive(Debug, Clone)]
@@ -97,13 +114,17 @@ struct NodeData {
 	/// Public values, which have been received from this node.
 	pub publics: Option<Vec<Public>>,
 
-	/// === Values, filled during KC phase ===
+	// === Values, filled during KC phase ===
 	/// Nodes, complaining against this node.
 	pub complaints: BTreeSet<NodeId>,
 
-	/// === Values, filled during KG phase ===
+	// === Values, filled during KG phase ===
 	/// Public share, which has been received from this node.
 	pub public_share: Option<Public>,
+
+	// === Values, filled during encryption phase ===
+	/// Flags marking that node has confirmed session completion (encryption data is stored).
+	pub completion_confirmed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -141,6 +162,10 @@ pub enum SessionState {
 	/// Node is waiting for joint public key share to be received from every other node.
 	WaitingForPublicKeyShare,
 
+	// === Encryption phase states ===
+	/// Node is waiting for session completion/session completion confirmation.
+	WaitingForEncryptionConfirmation,
+
 	// === Final states of the session ===
 	/// Joint public key generation is completed.
 	Finished,
@@ -150,11 +175,12 @@ pub enum SessionState {
 
 impl Session {
 	/// Create new encryption session.
-	pub fn new(id: SessionId, self_node_id: Public, cluster: Arc<Cluster>) -> Self {
+	pub fn new(params: SessionParams) -> Self {
 		Session {
-			id: id,
-			self_node_id: self_node_id,
-			cluster: cluster,
+			id: params.id,
+			self_node_id: params.self_node_id,
+			key_storage: params.key_storage,
+			cluster: params.cluster,
 			completed: Condvar::new(),
 			data: Mutex::new(SessionData {
 				state: SessionState::WaitingForInitialization,
@@ -165,6 +191,7 @@ impl Session {
 				secret_coeff: None,
 				secret_share: None,
 				joint_public: None,
+				secret_point: None,
 			}),
 		}
 	}
@@ -571,11 +598,113 @@ impl Session {
 			return Ok(());
 		}
 
-		// else - calculate joint public key && finish session
-		data.joint_public = {
+		// else - calculate joint public key
+		let joint_public = {
 			let public_shares = data.nodes.values().map(|n| n.public_share.as_ref().expect("keys received on KD phase; KG phase follows KD phase; qed"));
-			Some(Ok(math::compute_joint_public(public_shares)?))
+			math::compute_joint_public(public_shares)?
 		};
+
+		// if we are at the slave node - wait for session completion
+		if data.master.as_ref() != Some(self.node()) {
+			data.joint_public = Some(Ok(joint_public));
+			data.state = SessionState::WaitingForEncryptionConfirmation;
+			return Ok(());
+		}
+
+		// then generate secret point
+		// then encrypt secret point with joint public key
+		let secret_point = math::generate_random_point()?;
+		let encrypted_secret_point = math::encrypt_secret(&secret_point, &joint_public)?;
+
+		// then save encrypted data to the key storage
+		let encrypted_data = DocumentKeyShare {
+			threshold: data.threshold.expect("threshold is filled in initialization phase; KG phase follows initialization phase; qed"),
+			id_numbers: data.nodes.iter().map(|(node_id, node_data)| (node_id.clone(), node_data.id_number.clone())).collect(),
+			secret_share: data.secret_share.as_ref().expect("secret_share is filled in KG phase; we are at the end of KG phase; qed").clone(),
+			common_point: encrypted_secret_point.common_point,
+			encrypted_point: encrypted_secret_point.encrypted_point,
+		};
+		self.key_storage.insert(self.id.clone(), encrypted_data.clone())
+			.map_err(|e| Error::KeyStorage(e.into()))?;
+
+		// then distribute encrypted data to every other node
+		self.cluster.broadcast(Message::Encryption(EncryptionMessage::SessionCompleted(SessionCompleted {
+			session: self.id.clone().into(),
+			common_point: encrypted_data.common_point.clone().into(),
+			encrypted_point: encrypted_data.encrypted_point.clone().into(),
+		})))?;
+
+		// then wait for confirmation from all other nodes
+		{
+			let self_node = data.nodes.get_mut(self.node()).expect("node is always qualified by himself; qed");
+			self_node.completion_confirmed = true;
+		}
+		data.joint_public = Some(Ok(joint_public));
+		data.secret_point = Some(Ok(secret_point));
+		data.state = SessionState::WaitingForEncryptionConfirmation;
+
+		Ok(())
+	}
+
+	/// When session completion message is received.
+	pub fn on_session_completed(&self, sender: NodeId, message: &SessionCompleted) -> Result<(), Error> {
+		debug_assert!(self.id == *message.session);
+		debug_assert!(&sender != self.node());
+
+		let mut data = self.data.lock();
+		debug_assert!(data.nodes.contains_key(&sender));
+
+		// check state
+		if data.state != SessionState::WaitingForEncryptionConfirmation {
+			match data.state {
+				SessionState::WaitingForPublicKeyShare => return Err(Error::TooEarlyForRequest),
+				_ => return Err(Error::InvalidStateForRequest),
+			}
+		}
+
+		// if we are not masters, save result and respond with confirmation
+		if data.master.as_ref() != Some(self.node()) {
+			// check that we have received message from master
+			if data.master.as_ref() != Some(&sender) {
+				return Err(Error::InvalidMessage);
+			}
+
+			// save encrypted data to key storage
+			let encrypted_data = DocumentKeyShare {
+				threshold: data.threshold.expect("threshold is filled in initialization phase; KG phase follows initialization phase; qed"),
+				id_numbers: data.nodes.iter().map(|(node_id, node_data)| (node_id.clone(), node_data.id_number.clone())).collect(),
+				secret_share: data.secret_share.as_ref().expect("secret_share is filled in KG phase; we are at the end of KG phase; qed").clone(),
+				common_point: message.common_point.clone().into(),
+				encrypted_point: message.encrypted_point.clone().into(),
+			};
+			self.key_storage.insert(self.id.clone(), encrypted_data.clone())
+				.map_err(|e| Error::KeyStorage(e.into()))?;
+
+			// then respond with confirmation
+			data.state = SessionState::Finished;
+			return self.cluster.send(&sender, Message::Encryption(EncryptionMessage::SessionCompleted(SessionCompleted {
+				session: self.id.clone().into(),
+				common_point: encrypted_data.common_point.clone().into(),
+				encrypted_point: encrypted_data.encrypted_point.clone().into(),
+			})));
+		}
+
+		// remember that we have received confirmation from sender node
+		{
+			let sender_node = data.nodes.get_mut(&sender).expect("node is always qualified by himself; qed");
+			if sender_node.completion_confirmed {
+				return Err(Error::InvalidMessage);
+			}
+
+			sender_node.completion_confirmed = true;
+		}
+
+		// check if we have received confirmations from all cluster nodes
+		if data.nodes.iter().any(|(_, node_data)| !node_data.completion_confirmed) {
+			return Ok(())
+		}
+
+		// we have received enough confirmations => complete session
 		data.state = SessionState::Finished;
 		self.completed.notify_all();
 
@@ -586,8 +715,9 @@ impl Session {
 	pub fn on_session_error(&self, sender: NodeId, message: &SessionError) {
 		warn!("{}: encryption session error: {:?}", self.node(), message);
 		let mut data = self.data.lock();
-		data.state = SessionState::Finished;
+		data.state = SessionState::Failed;
 		data.joint_public = Some(Err(Error::Io(message.error.clone())));
+		data.secret_point = Some(Err(Error::Io(message.error.clone())));
 		self.completed.notify_all();
 	}
 
@@ -595,9 +725,13 @@ impl Session {
 	pub fn on_session_timeout(&self, node: &NodeId) {
 		warn!("{}: encryption session timeout", self.node());
 		let mut data = self.data.lock();
-		// TODO: check that the node is a part of the session
-		data.state = SessionState::Finished;
+		if !data.nodes.contains_key(node) {
+			return;
+		}
+
+		data.state = SessionState::Failed;
 		data.joint_public = Some(Err(Error::Io("session expired".into())));
+		data.secret_point = Some(Err(Error::Io("session expired".into())));
 		self.completed.notify_all();
 	}
 
@@ -699,6 +833,7 @@ impl NodeData {
 			secret2: None,
 			publics: None,
 			public_share: None,
+			completion_confirmed: false,
 		}
 	}
 }
@@ -736,14 +871,14 @@ mod tests {
 	use std::time;
 	use std::thread;
 	use std::sync::Arc;
-	use std::collections::{BTreeSet, BTreeMap};
+	use std::collections::{BTreeSet, BTreeMap, VecDeque};
 	use tokio_core::reactor::Core;
 	use ethkey::{Random, Generator};
-	use key_server_cluster::{NodeId, SessionId, Error, ClusterConfiguration};
+	use key_server_cluster::{NodeId, SessionId, Error, ClusterConfiguration, DummyKeyStorage};
 	use key_server_cluster::message::{self, Message, EncryptionMessage};
 	use key_server_cluster::cluster::{Cluster, ClusterCore, ClusterView};
 	use key_server_cluster::cluster::tests::{DummyCluster, make_clusters, run_clusters, loop_until, loop_for, all_connections_established};
-	use key_server_cluster::encryption_session::{Session, SessionState};
+	use key_server_cluster::encryption_session::{Session, SessionState, SessionParams};
 	use key_server_cluster::math;
 	use key_server_cluster::math::tests::do_encryption_and_decryption;
 
@@ -757,6 +892,7 @@ mod tests {
 	struct MessageLoop {
 		pub session_id: SessionId,
 		pub nodes: BTreeMap<NodeId, Node>,
+		pub queue: VecDeque<(NodeId, NodeId, Message)>,
 	}
 
 	impl MessageLoop {
@@ -767,7 +903,12 @@ mod tests {
 				let key_pair = Random.generate().unwrap();
 				let node_id = key_pair.public().clone();
 				let cluster = Arc::new(DummyCluster::new(node_id.clone()));
-				let session = Session::new(session_id.clone(), node_id.clone(), cluster.clone());
+				let session = Session::new(SessionParams {
+					id: session_id.clone(),
+					self_node_id: node_id.clone(),
+					key_storage: Arc::new(DummyKeyStorage::default()),
+					cluster: cluster.clone(),
+				});
 				nodes.insert(node_id, Node { cluster: cluster, session: session });
 			}
 
@@ -781,6 +922,7 @@ mod tests {
 			MessageLoop {
 				session_id: session_id,
 				nodes: nodes,
+				queue: VecDeque::new(),
 			}
 		}
 
@@ -804,18 +946,29 @@ mod tests {
 			self.nodes.values()
 				.filter_map(|n| n.cluster.take_message().map(|m| (n.session.node().clone(), m.0, m.1)))
 				.nth(0)
+				.or_else(|| self.queue.pop_front())
 		}
 
 		pub fn process_message(&mut self, msg: (NodeId, NodeId, Message)) -> Result<(), Error> {
-			match msg.2 {
-				Message::Encryption(EncryptionMessage::InitializeSession(message)) => self.nodes[&msg.1].session.on_initialize_session(msg.0, &message),
-				Message::Encryption(EncryptionMessage::ConfirmInitialization(message)) => self.nodes[&msg.1].session.on_confirm_initialization(msg.0, &message),
-				Message::Encryption(EncryptionMessage::CompleteInitialization(message)) => self.nodes[&msg.1].session.on_complete_initialization(msg.0, &message),
-				Message::Encryption(EncryptionMessage::KeysDissemination(message)) => self.nodes[&msg.1].session.on_keys_dissemination(msg.0, &message),
-				Message::Encryption(EncryptionMessage::Complaint(message)) => self.nodes[&msg.1].session.on_complaint(msg.0, &message),
-				Message::Encryption(EncryptionMessage::ComplaintResponse(message)) => self.nodes[&msg.1].session.on_complaint_response(msg.0, &message),
-				Message::Encryption(EncryptionMessage::PublicKeyShare(message)) => self.nodes[&msg.1].session.on_public_key_share(msg.0, &message),
-				_ => panic!("unexpected"),
+			match {
+				match msg.2 {
+					Message::Encryption(EncryptionMessage::InitializeSession(ref message)) => self.nodes[&msg.1].session.on_initialize_session(msg.0.clone(), &message),
+					Message::Encryption(EncryptionMessage::ConfirmInitialization(ref message)) => self.nodes[&msg.1].session.on_confirm_initialization(msg.0.clone(), &message),
+					Message::Encryption(EncryptionMessage::CompleteInitialization(ref message)) => self.nodes[&msg.1].session.on_complete_initialization(msg.0.clone(), &message),
+					Message::Encryption(EncryptionMessage::KeysDissemination(ref message)) => self.nodes[&msg.1].session.on_keys_dissemination(msg.0.clone(), &message),
+					Message::Encryption(EncryptionMessage::Complaint(ref message)) => self.nodes[&msg.1].session.on_complaint(msg.0.clone(), &message),
+					Message::Encryption(EncryptionMessage::ComplaintResponse(ref message)) => self.nodes[&msg.1].session.on_complaint_response(msg.0.clone(), &message),
+					Message::Encryption(EncryptionMessage::PublicKeyShare(ref message)) => self.nodes[&msg.1].session.on_public_key_share(msg.0.clone(), &message),
+					Message::Encryption(EncryptionMessage::SessionCompleted(ref message)) => self.nodes[&msg.1].session.on_session_completed(msg.0.clone(), &message),
+					_ => panic!("unexpected"),
+				}
+			} {
+				Ok(_) => Ok(()),
+				Err(Error::TooEarlyForRequest) => {
+					self.queue.push_back(msg);
+					Ok(())
+				},
+				Err(err) => Err(err),
 			}
 		}
 
@@ -851,7 +1004,12 @@ mod tests {
 	fn fails_to_initialize_if_not_a_part_of_cluster() {
 		let node_id = math::generate_random_point().unwrap();
 		let cluster = Arc::new(DummyCluster::new(node_id.clone()));
-		let session = Session::new(SessionId::default(), node_id.clone(), cluster);
+		let session = Session::new(SessionParams {
+			id: SessionId::default(),
+			self_node_id: node_id.clone(),
+			key_storage: Arc::new(DummyKeyStorage::default()),
+			cluster: cluster,
+		});
 		let cluster_nodes: BTreeSet<_> = (0..2).map(|_| math::generate_random_point().unwrap()).collect();
 		assert_eq!(session.initialize(0, cluster_nodes).unwrap_err(), Error::InvalidNodesConfiguration);
 	}

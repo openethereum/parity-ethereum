@@ -71,6 +71,8 @@ pub enum EncryptionMessage {
 	PublicKeyShare(PublicKeyShare),
 	/// When session error has occured.
 	SessionError(SessionError),
+	/// When session is completed.
+	SessionCompleted(SessionCompleted),
 }
 
 #[derive(Clone, Debug)]
@@ -202,6 +204,17 @@ pub struct SessionError {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+/// When session is completed.
+pub struct SessionCompleted {
+	/// Session Id.
+	pub session: MessageSessionId,
+	/// Common (shared) encryption point.
+	pub common_point: MessagePublic,
+	/// Encrypted point.
+	pub encrypted_point: MessagePublic,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Node is requested to decrypt data, encrypted in given session.
 pub struct InitializeDecryptionSession {
 	/// Encryption session Id.
@@ -267,6 +280,7 @@ impl EncryptionMessage {
 			EncryptionMessage::ComplaintResponse(ref msg) => &msg.session,
 			EncryptionMessage::PublicKeyShare(ref msg) => &msg.session,
 			EncryptionMessage::SessionError(ref msg) => &msg.session,
+			EncryptionMessage::SessionCompleted(ref msg) => &msg.session,
 		}
 	}
 }
@@ -303,6 +317,7 @@ impl fmt::Display for EncryptionMessage {
 			EncryptionMessage::ComplaintResponse(_) => write!(f, "ComplaintResponse"),
 			EncryptionMessage::PublicKeyShare(_) => write!(f, "PublicKeyShare"),
 			EncryptionMessage::SessionError(_) => write!(f, "SessionError"),
+			EncryptionMessage::SessionCompleted(_) => write!(f, "SessionCompleted"),
 		}
 	}
 }

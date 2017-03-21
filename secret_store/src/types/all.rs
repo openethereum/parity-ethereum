@@ -21,6 +21,8 @@ use ethkey;
 use util;
 use key_server_cluster;
 
+/// Node id.
+pub type NodeId = ethkey::Public;
 /// Document address type.
 pub type DocumentAddress = util::H256;
 /// Document key type.

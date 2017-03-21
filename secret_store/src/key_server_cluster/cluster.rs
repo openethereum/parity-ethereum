@@ -28,10 +28,11 @@ use tokio_core::io::IoFuture;
 use tokio_core::reactor::{Handle, Remote, Timeout, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::KeyPair;
-use key_server_cluster::{Error, NodeId, SessionId, EncryptionConfiguration};
+use key_server_cluster::{Error, NodeId, SessionId, EncryptionConfiguration, AclStorage, KeyStorage};
 use key_server_cluster::message::{self, Message, ClusterMessage, EncryptionMessage, DecryptionMessage};
 use key_server_cluster::decryption_session::{Session as DecryptionSession, DecryptionSessionId};
-use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionState as EncryptionSessionState};
+use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionState as EncryptionSessionState,
+	SessionParams as EncryptionSessionParams};
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_message, WriteMessage, write_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
 
@@ -70,6 +71,10 @@ pub struct ClusterConfiguration {
 	pub nodes: BTreeMap<NodeId, (String, u16)>,
 	/// Encryption session configuration.
 	pub encryption_config: EncryptionConfiguration,
+	/// Reference to key storage
+	pub key_storage: Arc<KeyStorage>,
+	/// Reference to ACL storage
+	pub acl_storage: Arc<AclStorage>,
 }
 
 /// Cluster state.
@@ -132,6 +137,10 @@ pub struct ClusterConnections {
 pub struct ClusterSessions {
 	/// Self node id.
 	pub self_node_id: NodeId,
+	/// Reference to key storage
+	pub key_storage: Arc<KeyStorage>,
+	/// Reference to ACL storage
+	pub acl_storage: Arc<AclStorage>,
 	/// Active encryption sessions.
 	pub encryption_sessions: RwLock<BTreeMap<SessionId, QueuedEncryptionSession>>,
 	/// Active decryption sessions.
@@ -266,6 +275,7 @@ impl ClusterCore {
 
 	/// Schedule mainatain procedures.
 	fn schedule_maintain(handle: &Handle, data: Arc<ClusterData>) {
+		// TODO: per-session timeouts (node can respond to messages, but ignore sessions messages)
 		let (d1, d2, d3) = (data.clone(), data.clone(), data.clone());
 		let interval: BoxedEmptyFuture = Interval::new(time::Duration::new(10, 0), handle)
 			.expect("failed to create interval")
@@ -432,6 +442,12 @@ impl ClusterCore {
 						}
 						Ok(())
 					},
+				EncryptionMessage::SessionCompleted(ref message) => data.sessions.encryption_session(&*message.session)
+					.ok_or(Error::InvalidSessionId)
+					.and_then(|s| {
+						data.sessions.remove_encryption_session(s.id());
+						s.on_session_completed(sender.clone(), message)
+					}),
 			};
 
 			match result {
@@ -555,6 +571,8 @@ impl ClusterSessions {
 	pub fn new(config: &ClusterConfiguration) -> Self {
 		ClusterSessions {
 			self_node_id: config.self_key_pair.public().clone(),
+			acl_storage: config.acl_storage.clone(),
+			key_storage: config.key_storage.clone(),
 			encryption_sessions: RwLock::new(BTreeMap::new()),
 			decryption_sessions: RwLock::new(BTreeMap::new()),
 		}
@@ -566,7 +584,12 @@ impl ClusterSessions {
 			return Err(Error::DuplicateSessionId);
 		}
 
-		let session = Arc::new(EncryptionSession::new(session_id.clone(), self.self_node_id.clone(), cluster));
+		let session = Arc::new(EncryptionSession::new(EncryptionSessionParams {
+			id: session_id.clone(),
+			self_node_id: self.self_node_id.clone(),
+			key_storage: self.key_storage.clone(),
+			cluster: cluster,
+		}));
 		let encryption_session = QueuedEncryptionSession {
 			session: session.clone(),
 			queue: VecDeque::new()
@@ -737,7 +760,7 @@ pub mod tests {
 	use parking_lot::Mutex;
 	use tokio_core::reactor::Core;
 	use ethkey::{Random, Generator};
-	use key_server_cluster::{NodeId, Error, EncryptionConfiguration};
+	use key_server_cluster::{NodeId, Error, EncryptionConfiguration, DummyAclStorage, DummyKeyStorage};
 	use key_server_cluster::message::Message;
 	use key_server_cluster::cluster::{Cluster, ClusterCore, ClusterConfiguration};
 
@@ -837,6 +860,8 @@ pub mod tests {
 			encryption_config: EncryptionConfiguration {
 				key_check_timeout_ms: 10,
 			},
+			key_storage: Arc::new(DummyKeyStorage::default()),
+			acl_storage: Arc::new(DummyAclStorage::default()),
 		}).collect();
 		let clusters: Vec<_> = cluster_params.into_iter().enumerate()
 			.map(|(i, params)| ClusterCore::new(core.handle(), params).unwrap())

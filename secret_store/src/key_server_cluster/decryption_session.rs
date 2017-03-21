@@ -19,7 +19,7 @@ use std::collections::{BTreeSet, BTreeMap};
 use std::sync::Arc;
 use parking_lot::Mutex;
 use ethkey::{self, Secret, Public, Signature};
-use key_server_cluster::{Error, AclStorage, EncryptedData, NodeId, SessionId};
+use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::math;
 use key_server_cluster::message::{Message, DecryptionMessage, InitializeDecryptionSession, ConfirmDecryptionInitialization,
@@ -41,7 +41,7 @@ pub struct Session {
 	/// Public identifier of this node.
 	self_node_id: NodeId,
 	/// Encrypted data.
-	encrypted_data: EncryptedData,
+	encrypted_data: DocumentKeyShare,
 	/// ACL storate to check access to the resource.
 	acl_storage: Arc<AclStorage>,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
@@ -68,7 +68,7 @@ pub struct SessionParams {
 	/// Id of node, on which this session is running.
 	pub self_node_id: Public,
 	/// Encrypted data (result of running encryption_session::Session).
-	pub encrypted_data: EncryptedData,
+	pub encrypted_data: DocumentKeyShare,
 	/// ACL storage.
 	pub acl_storage: Arc<AclStorage>,
 	/// Cluster
@@ -395,7 +395,7 @@ impl Ord for DecryptionSessionId {
 }
 
 
-fn check_encrypted_data(self_node_id: &Public, encrypted_data: &EncryptedData) -> Result<(), Error> {
+fn check_encrypted_data(self_node_id: &Public, encrypted_data: &DocumentKeyShare) -> Result<(), Error> {
 	use key_server_cluster::encryption_session::{check_cluster_nodes, check_threshold};
 
 	let nodes = encrypted_data.id_numbers.keys().cloned().collect();
@@ -405,7 +405,7 @@ fn check_encrypted_data(self_node_id: &Public, encrypted_data: &EncryptedData) -
 	Ok(())
 }
 
-fn process_initialization_response(encrypted_data: &EncryptedData, data: &mut SessionData, node: &NodeId, check_result: bool) -> Result<(), Error> {
+fn process_initialization_response(encrypted_data: &DocumentKeyShare, data: &mut SessionData, node: &NodeId, check_result: bool) -> Result<(), Error> {
 	if !data.requested_nodes.remove(node) {
 		return Err(Error::InvalidMessage);
 	}
@@ -432,7 +432,7 @@ fn process_initialization_response(encrypted_data: &EncryptedData, data: &mut Se
 	Ok(())
 }
 
-fn do_partial_decryption(node: &NodeId, _requestor_public: &Public, participants: &BTreeSet<NodeId>, access_key: &Secret, encrypted_data: &EncryptedData) -> Result<Public, Error> {
+fn do_partial_decryption(node: &NodeId, _requestor_public: &Public, participants: &BTreeSet<NodeId>, access_key: &Secret, encrypted_data: &DocumentKeyShare) -> Result<Public, Error> {
 	let node_id_number = &encrypted_data.id_numbers[node];
 	let node_secret_share = &encrypted_data.secret_share;
 	let other_id_numbers = participants.iter()
@@ -450,7 +450,7 @@ mod tests {
 	use std::collections::BTreeMap;
 	use super::super::super::acl_storage::DummyAclStorage;
 	use ethkey::{self, Random, Generator, Public, Secret};
-	use key_server_cluster::{NodeId, EncryptedData, SessionId, Error};
+	use key_server_cluster::{NodeId, DocumentKeyShare, SessionId, Error};
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::decryption_session::{Session, SessionParams, SessionState};
 	use key_server_cluster::message::{self, Message, DecryptionMessage};
@@ -482,7 +482,7 @@ mod tests {
 		];
 		let common_point: Public = "6962be696e1bcbba8e64cc7fddf140f854835354b5804f3bb95ae5a2799130371b589a131bd39699ac7174ccb35fc4342dab05331202209582fc8f3a40916ab0".into();
 		let encrypted_point: Public = "b07031982bde9890e12eff154765f03c56c3ab646ad47431db5dd2d742a9297679c4c65b998557f8008469afd0c43d40b6c5f6c6a1c7354875da4115237ed87a".into();
-		let encrypted_datas: Vec<_> = (0..5).map(|i| EncryptedData {
+		let encrypted_datas: Vec<_> = (0..5).map(|i| DocumentKeyShare {
 			threshold: 3,
 			id_numbers: id_numbers.clone().into_iter().collect(),
 			secret_share: secret_shares[i].clone(),
@@ -533,7 +533,7 @@ mod tests {
 			id: SessionId::default(),
 			access_key: Random.generate().unwrap().secret().clone(),
 			self_node_id: self_node_id.clone(),
-			encrypted_data: EncryptedData {
+			encrypted_data: DocumentKeyShare {
 				threshold: 0,
 				id_numbers: nodes,
 				secret_share: Random.generate().unwrap().secret().clone(),
@@ -558,7 +558,7 @@ mod tests {
 			id: SessionId::default(),
 			access_key: Random.generate().unwrap().secret().clone(),
 			self_node_id: self_node_id.clone(),
-			encrypted_data: EncryptedData {
+			encrypted_data: DocumentKeyShare {
 				threshold: 0,
 				id_numbers: nodes,
 				secret_share: Random.generate().unwrap().secret().clone(),
@@ -583,7 +583,7 @@ mod tests {
 			id: SessionId::default(),
 			access_key: Random.generate().unwrap().secret().clone(),
 			self_node_id: self_node_id.clone(),
-			encrypted_data: EncryptedData {
+			encrypted_data: DocumentKeyShare {
 				threshold: 2,
 				id_numbers: nodes,
 				secret_share: Random.generate().unwrap().secret().clone(),

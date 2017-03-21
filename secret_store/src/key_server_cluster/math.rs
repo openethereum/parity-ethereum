@@ -160,7 +160,7 @@ pub fn compute_joint_secret<'a, I>(mut secret_coeffs: I) -> Result<Secret, Error
 }
 
 /// Encrypt secret with joint public key.
-pub fn encrypt_secret(secret: Public, joint_public: &Public) -> Result<EncryptedSecret, Error> {
+pub fn encrypt_secret(secret: &Public, joint_public: &Public) -> Result<EncryptedSecret, Error> {
 	// this is performed by KS-cluster client (or KS master)
 	let key_pair = Random.generate()?;
 
@@ -171,7 +171,7 @@ pub fn encrypt_secret(secret: Public, joint_public: &Public) -> Result<Encrypted
 	// M + k * y
 	let mut encrypted_point = joint_public.clone();
 	math::public_mul_secret(&mut encrypted_point, key_pair.secret())?;
-	math::public_add(&mut encrypted_point, &secret)?;
+	math::public_add(&mut encrypted_point, secret)?;
 
 	Ok(EncryptedSecret {
 		common_point: common_point,
@@ -262,7 +262,7 @@ pub mod tests {
 		// === PART2: encryption using joint public key ===
 
 		// the next line is executed on KeyServer-client
-		let encrypted_secret = encrypt_secret(document_secret_plain.clone(), &joint_public).unwrap();
+		let encrypted_secret = encrypt_secret(&document_secret_plain, &joint_public).unwrap();
 
 		// === PART3: decryption ===
 

@@ -15,15 +15,32 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::path::PathBuf;
+use std::collections::BTreeMap;
+use ethkey::{Secret, Public};
 use util::Database;
-use types::all::{Error, ServiceConfiguration, DocumentAddress, DocumentKey};
+use types::all::{Error, ServiceConfiguration, DocumentAddress, DocumentKey, NodeId};
+
+#[derive(Debug, Clone)]
+/// Encrypted key share, stored by key storage on the single key serve.
+pub struct DocumentKeyShare {
+	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
+	pub threshold: usize,
+	/// Nodes ids numbers.
+	pub id_numbers: BTreeMap<NodeId, Secret>,
+	/// Node secret share.
+	pub secret_share: Secret,
+	/// Common (shared) encryption point.
+	pub common_point: Public,
+	/// Encrypted point.
+	pub encrypted_point: Public,
+}
 
 /// Document encryption keys storage
 pub trait KeyStorage: Send + Sync {
 	/// Insert document encryption key
-	fn insert(&self, document: DocumentAddress, key: DocumentKey) -> Result<(), Error>;
+	fn insert(&self, document: DocumentAddress, key: DocumentKeyShare) -> Result<(), Error>;
 	/// Get document encryption key
-	fn get(&self, document: &DocumentAddress) -> Result<DocumentKey, Error>;
+	fn get(&self, document: &DocumentAddress) -> Result<DocumentKeyShare, Error>;
 }
 
 /// Persistent document encryption keys storage
@@ -45,17 +62,19 @@ impl PersistentKeyStorage {
 }
 
 impl KeyStorage for PersistentKeyStorage {
-	fn insert(&self, document: DocumentAddress, key: DocumentKey) -> Result<(), Error> {
-		let mut batch = self.db.transaction();
+	fn insert(&self, document: DocumentAddress, key: DocumentKeyShare) -> Result<(), Error> {
+		/*let mut batch = self.db.transaction();
 		batch.put(None, &document, &key);
-		self.db.write(batch).map_err(Error::Database)
+		self.db.write(batch).map_err(Error::Database)*/
+		unimplemented!()
 	}
 
-	fn get(&self, document: &DocumentAddress) -> Result<DocumentKey, Error> {
-		self.db.get(None, document)
+	fn get(&self, document: &DocumentAddress) -> Result<DocumentKeyShare, Error> {
+		/*self.db.get(None, document)
 			.map_err(Error::Database)?
 			.ok_or(Error::DocumentNotFound)
-			.map(|key| key.to_vec())
+			.map(|key| key.to_vec())*/
+		unimplemented!()
 	}
 }
 
@@ -67,26 +86,26 @@ pub mod tests {
 	use ethkey::{Random, Generator};
 	use super::super::types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration,
 		DocumentAddress, DocumentKey, EncryptionConfiguration};
-	use super::{KeyStorage, PersistentKeyStorage};
+	use super::{KeyStorage, PersistentKeyStorage, DocumentKeyShare};
 
 	#[derive(Default)]
 	/// In-memory document encryption keys storage
 	pub struct DummyKeyStorage {
-		keys: RwLock<HashMap<DocumentAddress, DocumentKey>>,
+		keys: RwLock<HashMap<DocumentAddress, DocumentKeyShare>>,
 	}
 
 	impl KeyStorage for DummyKeyStorage {
-		fn insert(&self, document: DocumentAddress, key: DocumentKey) -> Result<(), Error> {
+		fn insert(&self, document: DocumentAddress, key: DocumentKeyShare) -> Result<(), Error> {
 			self.keys.write().insert(document, key);
 			Ok(())
 		}
 
-		fn get(&self, document: &DocumentAddress) -> Result<DocumentKey, Error> {
+		fn get(&self, document: &DocumentAddress) -> Result<DocumentKeyShare, Error> {
 			self.keys.read().get(document).cloned().ok_or(Error::DocumentNotFound)
 		}
 	}
 
-	#[test]
+	/*#[test]
 	fn persistent_key_storage() {
 		let path = RandomTempPath::create_dir();
 		let config = ServiceConfiguration {
@@ -128,5 +147,5 @@ pub mod tests {
 		assert_eq!(key_storage.get(&key1), Ok(value1));
 		assert_eq!(key_storage.get(&key2), Ok(value2));
 		assert_eq!(key_storage.get(&key3), Err(Error::DocumentNotFound));
-	}
+	}*/
 }

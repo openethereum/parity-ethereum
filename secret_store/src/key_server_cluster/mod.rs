@@ -26,11 +26,14 @@ use ethkey::{self, Public, Secret, Signature};
 use ethcrypto;
 use super::types::all::DocumentAddress;
 
-pub use super::types::all::EncryptionConfiguration;
-pub use super::acl_storage::AclStorage;
+pub use super::types::all::{NodeId, EncryptionConfiguration};
+pub use super::acl_storage::{AclStorage, DummyAclStorage};
+pub use super::key_storage::{KeyStorage, DocumentKeyShare};
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
 
-pub type NodeId = Public;
+#[cfg(test)]
+pub use super::key_storage::tests::DummyKeyStorage;
+
 pub type SessionId = DocumentAddress;
 pub type SessionIdSignature = Signature;
 
@@ -71,21 +74,8 @@ pub enum Error {
 	Io(String),
 	/// Deserialization error has occured.
 	Serde(String),
-}
-
-#[derive(Debug, Clone)]
-/// Data, which is stored on every node after DKG && encryption is completed.
-pub struct EncryptedData {
-	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
-	threshold: usize,
-	/// Nodes ids numbers.
-	id_numbers: BTreeMap<NodeId, Secret>,
-	/// Node secret share.
-	secret_share: Secret,
-	/// Common (shared) encryption point.
-	common_point: Public,
-	/// Encrypted point.
-	encrypted_point: Public,
+	/// Key storage error.
+	KeyStorage(String),
 }
 
 impl From<ethkey::Error> for Error {
@@ -123,6 +113,7 @@ impl fmt::Display for Error {
 			Error::EthKey(ref e) => write!(f, "cryptographic error {}", e),
 			Error::Io(ref e) => write!(f, "i/o error {}", e),
 			Error::Serde(ref e) => write!(f, "serde error {}", e),
+			Error::KeyStorage(ref e) => write!(f, "key storage error {}", e),
 		}
 	}
 }
