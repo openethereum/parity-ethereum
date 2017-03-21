@@ -135,6 +135,8 @@ pub struct OnDemand {
 	orphaned_requests: RwLock<Vec<Pending>>,
 }
 
+const RECEIVER_IN_SCOPE: &'static str = "Receiver is still in scope, so it's not dropped; qed";
+
 impl OnDemand {
 	/// Create a new `OnDemand` service with the given cache.
 	pub fn new(cache: Arc<Mutex<Cache>>) -> Self {
@@ -156,7 +158,7 @@ impl OnDemand {
 		};
 
 		match cached {
-			Some(hash) => sender.send(hash).expect("receiver alive here; qed"),
+			Some(hash) => sender.send(hash).expect(RECEIVER_IN_SCOPE),
 			None => self.dispatch(ctx, Pending::HeaderProof(req, ChtProofSender::Hash(sender))),
 		}
 		receiver
@@ -172,7 +174,7 @@ impl OnDemand {
 		};
 
 		match cached {
-			Some(score) => sender.send(score).expect("receiver alive here; qed"),
+			Some(score) => sender.send(score).expect(RECEIVER_IN_SCOPE),
 			None => self.dispatch(ctx, Pending::HeaderProof(req, ChtProofSender::ChainScore(sender))),
 		}
 
@@ -193,7 +195,7 @@ impl OnDemand {
 		};
 
 		match cached {
-			(Some(hash), Some(score)) => sender.send((hash, score)).expect("receiver alive here; qed"),
+			(Some(hash), Some(score)) => sender.send((hash, score)).expect(RECEIVER_IN_SCOPE),
 			_ => self.dispatch(ctx, Pending::HeaderProof(req, ChtProofSender::Both(sender))),
 		}
 
@@ -206,7 +208,7 @@ impl OnDemand {
 	pub fn header_by_hash(&self, ctx: &BasicContext, req: request::HeaderByHash) -> Receiver<encoded::Header> {
 		let (sender, receiver) = oneshot::channel();
 		match self.cache.lock().block_header(&req.0) {
-			Some(hdr) => sender.send(hdr).expect("receiver alive here; qed"),
+			Some(hdr) => sender.send(hdr).expect(RECEIVER_IN_SCOPE),
 			None => self.dispatch(ctx, Pending::HeaderByHash(req, sender)),
 		}
 		receiver
@@ -225,7 +227,7 @@ impl OnDemand {
 			stream.begin_list(0);
 			stream.begin_list(0);
 
-			sender.send(encoded::Block::new(stream.out())).expect("receiver alive here; qed");
+			sender.send(encoded::Block::new(stream.out())).expect(RECEIVER_IN_SCOPE);
 		} else {
 			match self.cache.lock().block_body(&req.hash) {
 				Some(body) => {
@@ -233,7 +235,7 @@ impl OnDemand {
 					stream.append_raw(&req.header.into_inner(), 1);
 					stream.append_raw(&body.into_inner(), 2);
 
-					sender.send(encoded::Block::new(stream.out())).expect("receiver alive here; qed");
+					sender.send(encoded::Block::new(stream.out())).expect(RECEIVER_IN_SCOPE);
 				}
 				None => self.dispatch(ctx, Pending::Block(req, sender)),
 			}
@@ -248,10 +250,10 @@ impl OnDemand {
 
 		// fast path for empty receipts.
 		if req.0.receipts_root() == SHA3_NULL_RLP {
-			sender.send(Vec::new()).expect("receiver alive here; qed");
+			sender.send(Vec::new()).expect(RECEIVER_IN_SCOPE);
 		} else {
 			match self.cache.lock().block_receipts(&req.0.hash()) {
-				Some(receipts) => sender.send(receipts).expect("receiver alive here; qed"),
+				Some(receipts) => sender.send(receipts).expect(RECEIVER_IN_SCOPE),
 				None => self.dispatch(ctx, Pending::BlockReceipts(req, sender)),
 			}
 		}
@@ -273,7 +275,7 @@ impl OnDemand {
 
 		// fast path for no code.
 		if req.code_hash == ::util::sha3::SHA3_EMPTY {
-			sender.send(Vec::new()).expect("receiver alive here; qed")
+			sender.send(Vec::new()).expect(RECEIVER_IN_SCOPE)
 		} else {
 			self.dispatch(ctx, Pending::Code(req, sender));
 		}

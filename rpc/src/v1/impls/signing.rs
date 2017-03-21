@@ -22,10 +22,10 @@ use util::{U256, Mutex};
 
 use ethcore::account_provider::AccountProvider;
 
-use futures::{self, future, BoxFuture, Future};
+use futures::{future, BoxFuture, Future};
 use jsonrpc_core::Error;
 use v1::helpers::{
-	errors,
+	errors, oneshot,
 	DefaultAccount,
 	SIGNING_QUEUE_LIMIT, SigningQueue, ConfirmationPromise, ConfirmationResult, SignerService
 };
@@ -188,21 +188,20 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		let (ready, p) = futures::oneshot();
+		let (ready, p) = oneshot::oneshot();
 
 		// when dispatch is complete
 		res.then(move |res| {
 			// register callback via the oneshot sender.
 			handle_dispatch(res, move |response| {
 				match response {
-					Ok(RpcConfirmationResponse::Decrypt(data)) => ready.complete(Ok(data)),
-					Err(e) => ready.complete(Err(e)),
-					e => ready.complete(Err(errors::internal("Unexpected result.", e))),
+					Ok(RpcConfirmationResponse::Decrypt(data)) => ready.send(Ok(data)),
+					Err(e) => ready.send(Err(e)),
+					e => ready.send(Err(errors::internal("Unexpected result.", e))),
 				}
 			});
 
-			// and wait for that to resolve.
-			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))
+			p
 		}).boxed()
 	}
 }
@@ -217,18 +216,18 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		let (ready, p) = futures::oneshot();
+		let (ready, p) = oneshot::oneshot();
 
 		res.then(move |res| {
 			handle_dispatch(res, move |response| {
 				match response {
-					Ok(RpcConfirmationResponse::Signature(sig)) => ready.complete(Ok(sig)),
-					Err(e) => ready.complete(Err(e)),
-					e => ready.complete(Err(errors::internal("Unexpected result.", e))),
+					Ok(RpcConfirmationResponse::Signature(sig)) => ready.send(Ok(sig)),
+					Err(e) => ready.send(Err(e)),
+					e => ready.send(Err(errors::internal("Unexpected result.", e))),
 				}
 			});
 
-			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))
+			p
 		}).boxed()
 	}
 
@@ -239,18 +238,18 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		let (ready, p) = futures::oneshot();
+		let (ready, p) = oneshot::oneshot();
 
 		res.then(move |res| {
 			handle_dispatch(res, move |response| {
 				match response {
-					Ok(RpcConfirmationResponse::SendTransaction(hash)) => ready.complete(Ok(hash)),
-					Err(e) => ready.complete(Err(e)),
-					e => ready.complete(Err(errors::internal("Unexpected result.", e))),
+					Ok(RpcConfirmationResponse::SendTransaction(hash)) => ready.send(Ok(hash)),
+					Err(e) => ready.send(Err(e)),
+					e => ready.send(Err(errors::internal("Unexpected result.", e))),
 				}
 			});
 
-			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))
+			p
 		}).boxed()
 	}
 
@@ -261,18 +260,18 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		let (ready, p) = futures::oneshot();
+		let (ready, p) = oneshot::oneshot();
 
 		res.then(move |res| {
 			handle_dispatch(res, move |response| {
 				match response {
-					Ok(RpcConfirmationResponse::SignTransaction(tx)) => ready.complete(Ok(tx)),
-					Err(e) => ready.complete(Err(e)),
-					e => ready.complete(Err(errors::internal("Unexpected result.", e))),
+					Ok(RpcConfirmationResponse::SignTransaction(tx)) => ready.send(Ok(tx)),
+					Err(e) => ready.send(Err(e)),
+					e => ready.send(Err(errors::internal("Unexpected result.", e))),
 				}
 			});
 
-			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))
+			p
 		}).boxed()
 	}
 }

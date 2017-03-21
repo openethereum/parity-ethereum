@@ -44,10 +44,8 @@ ethcore-stratum = { path = "../stratum" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 hardware-wallet = { path = "../hw" }
 stats = { path = "../util/stats" }
-
-[dependencies.hyper]
-git = "https://github.com/ethcore/hyper"
-default-features = false
+num = "0.1"
+hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
 
 [features]
 jit = ["evmjit"]
