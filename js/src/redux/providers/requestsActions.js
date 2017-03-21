@@ -45,7 +45,7 @@ export const watchRequest = (request) => (dispatch, getState) => {
   dispatch(trackRequest(requestId, request));
 };
 
-export const trackRequest = (requestId, { transactionHash = null }) => (dispatch, getState) => {
+export const trackRequest = (requestId, { transactionHash = null } = {}) => (dispatch, getState) => {
   const { api } = getState();
 
   trackRequestUtil(api, { requestId, transactionHash }, (error, data) => {
