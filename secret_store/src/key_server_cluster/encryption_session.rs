@@ -223,7 +223,6 @@ impl Session {
 
 		// check state
 		if data.state != SessionState::WaitingForInitialization {
-println!("=== invalid1");
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -257,7 +256,6 @@ println!("=== invalid1");
 
 		// check state
 		if data.state != SessionState::WaitingForInitialization {
-println!("=== invalid2");
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -290,7 +288,6 @@ println!("=== invalid2");
 		let next_receiver = match data.state {
 			SessionState::WaitingForInitializationConfirm(ref mut visit_policy) => {
 				if !visit_policy.mark_visited(&sender) {
-println!("=== invalid3");
 					return Err(Error::InvalidStateForRequest);
 				}
 
@@ -344,7 +341,6 @@ println!("=== invalid3");
 
 		// check state
 		if data.state != SessionState::WaitingForInitializationComplete {
-println!("=== invalid4");
 			return Err(Error::InvalidStateForRequest);
 		}
 		if data.master != Some(sender) {
@@ -370,7 +366,6 @@ println!("=== invalid4");
 
 		// check state
 		if data.state != SessionState::WaitingForKeysDissemination {
-println!("=== invalid5: {:?}", data.state);
 			match data.state {
 				SessionState::WaitingForInitializationComplete => return Err(Error::TooEarlyForRequest),
 				_ => return Err(Error::InvalidStateForRequest),
@@ -388,7 +383,6 @@ println!("=== invalid5: {:?}", data.state);
 		{
 			let node_data = data.nodes.get_mut(&sender).ok_or(Error::InvalidMessage)?;
 			if node_data.secret1.is_some() || node_data.secret2.is_some() || node_data.publics.is_some() {
-println!("=== invalid6");
 				return Err(Error::InvalidStateForRequest);
 			}
 
@@ -519,7 +513,6 @@ println!("=== invalid6");
 		let mut data = self.data.lock();
 
 		if data.state != SessionState::KeyCheck {
-println!("=== invalid7");
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -555,7 +548,6 @@ println!("=== invalid7");
 
 		// check state
 		if data.state != SessionState::WaitingForPublicKeyShare {
-println!("=== invalid8");
 			match data.state {
 				SessionState::WaitingForInitializationComplete |
 					SessionState::WaitingForKeysDissemination |
@@ -592,7 +584,7 @@ println!("=== invalid8");
 
 	/// When error has occured on another node.
 	pub fn on_session_error(&self, sender: NodeId, message: &SessionError) {
-println!("=== {}: on_session_error: {:?}", self.node(), message);
+		warn!("{}: encryption session error: {:?}", self.node(), message);
 		let mut data = self.data.lock();
 		data.state = SessionState::Finished;
 		data.joint_public = Some(Err(Error::Io(message.error.clone())));
@@ -601,7 +593,7 @@ println!("=== {}: on_session_error: {:?}", self.node(), message);
 
 	/// When session timeout has occured.
 	pub fn on_session_timeout(&self, node: &NodeId) {
-println!("=== {}: on_session_timeout: {:?}", self.node(), node);
+		warn!("{}: encryption session timeout", self.node());
 		let mut data = self.data.lock();
 		// TODO: check that the node is a part of the session
 		data.state = SessionState::Finished;

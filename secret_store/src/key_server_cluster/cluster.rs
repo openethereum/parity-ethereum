@@ -269,7 +269,7 @@ impl ClusterCore {
 		let (d1, d2, d3) = (data.clone(), data.clone(), data.clone());
 		let interval: BoxedEmptyFuture = Interval::new(time::Duration::new(10, 0), handle)
 			.expect("failed to create interval")
-			.and_then(move |_| Ok(println!("=== {}: executing maintain procedures", d1.self_key_pair.public())))
+			.and_then(move |_| Ok(trace!(target: "secretstore_net", "{}: executing maintain procedures", d1.self_key_pair.public())))
 			.and_then(move |_| Ok(ClusterCore::keep_alive(d2.clone())))
 			.and_then(move |_| Ok(ClusterCore::connect_disconnected_nodes(d3.clone())))
 			.for_each(|_| Ok(()))
@@ -292,14 +292,12 @@ impl ClusterCore {
 						finished(Ok(())).boxed()
 					},
 					Ok((_, Err(err))) => {
-println!("=== {}: protocol error {} when reading message from node {}", data.self_key_pair.public(), err, connection.node_id());
 						warn!(target: "secretstore_net", "{}: protocol error {} when reading message from node {}", data.self_key_pair.public(), err, connection.node_id());
 						// continue serving connection
 						data.spawn(ClusterCore::process_connection_messages(data.clone(), connection));
 						finished(Err(err)).boxed()
 					},
 					Err(err) => {
-println!("=== {}: network error {} when reading message from node {}", data.self_key_pair.public(), err, connection.node_id());
 						warn!(target: "secretstore_net", "{}: network error {} when reading message from node {}", data.self_key_pair.public(), err, connection.node_id());
 						// close connection
 						data.connections.remove(connection.node_id(), connection.is_inbound());
@@ -359,7 +357,6 @@ println!("=== {}: network error {} when reading message from node {}", data.self
 
 	/// Process single message from the connection.
 	fn process_connection_message(data: Arc<ClusterData>, connection: Arc<Connection>, message: Message) {
-println!("=== {}: processing message {} from {}", data.self_key_pair.public(), message, connection.node_id());
 		connection.set_last_message_time(time::Instant::now());
 		trace!(target: "secretstore_net", "{}: processing message {} from {}", data.self_key_pair.public(), message, connection.node_id());
 		match message {
@@ -520,7 +517,6 @@ impl ClusterConnections {
 				return false;
 			}
 		}
-println!("=== {}: inserting connection to {} at {}", self.self_node_id, connection.node_id(), connection.node_address());
 		trace!(target: "secretstore_net", "{}: inserting connection to {} at {}", self.self_node_id, connection.node_id(), connection.node_address());
 		connections.insert(connection.node_id().clone(), connection);
 		true
@@ -533,7 +529,6 @@ println!("=== {}: inserting connection to {} at {}", self.self_node_id, connecti
 				return;
 			}
 
-println!("=== {}: removing connection to {} at {}", self.self_node_id, entry.get().node_id(), entry.get().node_address());
 			trace!(target: "secretstore_net", "{}: removing connection to {} at {}", self.self_node_id, entry.get().node_id(), entry.get().node_address());
 			entry.remove_entry();
 		}
@@ -688,7 +683,6 @@ impl Cluster for ClusterView {
 		let core = self.core.lock();
 		for node in core.nodes.iter().filter(|n| *n != core.cluster.self_key_pair.public()) {
 			let connection = core.cluster.connection(node).ok_or(Error::NodeDisconnected)?;
-println!("=== {}: sending {} to {}", core.cluster.self_key_pair.public(), message, connection.node_id());
 			core.cluster.spawn(connection.send_message(message.clone()))
 		}
 		Ok(())
@@ -697,7 +691,6 @@ println!("=== {}: sending {} to {}", core.cluster.self_key_pair.public(), messag
 	fn send(&self, to: &NodeId, message: Message) -> Result<(), Error> {
 		let core = self.core.lock();
 		let connection = core.cluster.connection(to).ok_or(Error::NodeDisconnected)?;
-println!("=== {}: sending {} to {}", core.cluster.self_key_pair.public(), message, to);
 		core.cluster.spawn(connection.send_message(message));
 		Ok(())
 	}
@@ -727,7 +720,6 @@ impl ClusterClient for ClusterClientImpl {
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.new_encryption_session(self.data.self_key_pair.public().clone(), session_id, cluster)?;
 		session.initialize(threshold, connected_nodes)?;
-println!("=== session.initialize");
 		Ok(session)
 	}
 }
