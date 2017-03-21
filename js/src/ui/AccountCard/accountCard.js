@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import ReactDOM from 'react-dom';
 import keycode from 'keycode';
 
@@ -34,7 +35,8 @@ export default class AccountCard extends Component {
     disableAddressClick: PropTypes.bool,
     onClick: PropTypes.func,
     onFocus: PropTypes.func,
-    password: PropTypes.bool
+    password: PropTypes.bool,
+    store: PropTypes.object
   };
 
   static defaultProps = {
@@ -140,7 +142,9 @@ export default class AccountCard extends Component {
   }
 
   renderPassword () {
-    const { password } = this.props;
+    const { account, password, store } = this.props;
+    const { getPassword } = store;
+    const inputValue = getPassword(account);
 
     if (password) {
       return (
@@ -148,14 +152,33 @@ export default class AccountCard extends Component {
           <Input
             type='password'
             name='passwordHere'
-            autoFocus
-            placeholder='Password Here'
+            label={
+              <FormattedMessage
+                id='accountCard.setPassword.label'
+                defaultMessage='Password'
+              />
+            }
+            hint={
+              <FormattedMessage
+                id='accountCard.setPassword.hint'
+                defaultMessage='Enter Password Here'
+              />
+            }
+            value={ inputValue }
+            onChange={ this.changePassword }
           />
         </div>
       );
     }
 
     return null;
+  }
+
+  changePassword = (event, password) => {
+    const { account, store } = this.props;
+    const { setPassword } = store;
+
+    setPassword(account, password);
   }
 
   handleAddressClick = (event) => {

@@ -19,21 +19,29 @@ import { action, observable } from 'mobx';
 class ExportStore {
   @observable canExport = false;
   @observable selectedAccounts = {};
+  @observable inputValue = {};
 
-  @action toggleSelectedAccount = (address) => {
-    this.selectedAccounts[address] = !this.selectedAccounts[address];
-    this.checkCanExport();
-  }
-
-  checkCanExport () {
+  @action toggleSelectedAccount = (addr) => {
+    this.selectedAccounts[addr] = true;
     this.canExport = false;
     Object
       .keys(this.selectedAccounts)
       .forEach((address) => {
+        if (addr !== address) {
+          this.selectedAccounts[address] = false;
+        }
         if (this.selectedAccounts[address]) {
           this.canExport = true;
         }
       });
+  }
+
+  @actions getPassword = (account) => {
+    return this.inputValue[account];
+  }
+
+  @actions setPassword = (account, password) => {
+    this.inputValue[account.address] = password;
   }
 }
 

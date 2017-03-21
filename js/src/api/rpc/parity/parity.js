@@ -139,7 +139,7 @@ export default class Parity {
 
   exportAccount (account, password) {
     return this._transport
-      .execute('parity_exportAccount', inAddress(account), password);
+      .execute('parity_exportAccount', inHex(account), password);
   }
 
   extraData () {

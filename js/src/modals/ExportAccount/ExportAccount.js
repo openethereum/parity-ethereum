@@ -22,9 +22,11 @@ import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
 import { personalAccountsInfo } from '~/redux/providers/personalActions';
-import { AccountCard, Button, Portal, SelectionList } from '~/ui';
+import { AccountCard, Button, Errors, Portal, SelectionList } from '~/ui';
 import { CancelIcon, CheckIcon } from '~/ui/Icons';
 import ExportStore from './ExportStore';
+
+import FileSaver from 'file-saver';
 
 @observer
 class ExportAccount extends Component {
@@ -81,7 +83,7 @@ class ExportAccount extends Component {
         title={
           <FormattedMessage
             id='export.accounts.title'
-            defaultMessage='Export Accounts'
+            defaultMessage='Export an Account'
           />
         }
       >
@@ -117,6 +119,7 @@ class ExportAccount extends Component {
         account={ account }
         balance={ balance }
         password
+        store={ ExportStore }
       />
     );
   }
@@ -136,18 +139,36 @@ class ExportAccount extends Component {
   }
 
   onExport = () => {
-    const { selectedAccounts } = ExportStore;
+    const { selectedAccounts, inputValue } = ExportStore;
 
     Object
       .keys(selectedAccounts)
-      .forEach((address) => {
-        // To be updated...
-        this.exportAddress(address, selectedAccounts[address]);
+      .forEach((account) => {
+        if (selectedAccounts[account])
+          this.exportAddress(account, inputValue[account]);
       });
   }
 
-  exportAddress (address, password) {
-    // const { parity } = this.context.api;
+  exportAddress (account, password) {
+    const { parity } = this.context.api;
+    const { accounts, newError } = this.props;
+
+    parity.exportAccount(account, password)
+      .then((content) => {
+        const text = JSON.stringify(content, null, 4);
+        const blob = new Blob([ text ], { type: 'application/json' });
+        const filename = accounts[account].name;
+
+        FileSaver.saveAs(blob, `${filename}.json`);
+      })
+      .catch((err) => {
+        const { passwordHint } = accounts[account].meta;
+        const { code, type } = err;
+
+        newError({
+          message:`[${code}] - Incorrect password. Password Hint: (${passwordHint})`
+        });
+      });
   }
 }
 
