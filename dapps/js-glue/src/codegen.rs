@@ -22,16 +22,12 @@ use self::mime_guess::guess_mime_type;
 use std::path::{self, Path, PathBuf};
 use std::ops::Deref;
 
-use syntax::ast::{MetaItem, Item};
-
-use syntax::ast;
 use syntax::attr;
+use syntax::ast::{self, MetaItem, Item};
 use syntax::codemap::Span;
 use syntax::ext::base::{Annotatable, ExtCtxt};
-use syntax::ptr::P;
-use syntax::print::pprust::{lit_to_string};
-use syntax::parse::token::{InternedString};
-
+use syntax::print::pprust::lit_to_string;
+use syntax::symbol::InternedString;
 
 pub fn expand_webapp_implementation(
 	cx: &mut ExtCtxt,
@@ -48,7 +44,7 @@ pub fn expand_webapp_implementation(
 		},
 	};
 	let builder = aster::AstBuilder::new().span(span);
-	implement_webapp(cx, &builder, &item, push);
+	implement_webapp(cx, &builder, item, push);
 }
 
 fn implement_webapp(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push: &mut FnMut(Annotatable)) {
@@ -117,11 +113,12 @@ fn implement_webapp(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push
 }
 
 fn extract_path(cx: &ExtCtxt, item: &Item) -> String {
-	for meta_items in item.attrs().iter().filter_map(webapp_meta_items) {
+	for meta_items in item.attrs.iter().filter_map(webapp_meta_items) {
 		for meta_item in meta_items {
+			let is_path = &*meta_item.name.as_str() == "path";
 			match meta_item.node {
-				ast::MetaItemKind::NameValue(ref name, ref lit) if name == &"path" => {
-					if let Some(s) = get_str_from_lit(cx, name, lit) {
+				ast::MetaItemKind::NameValue(ref lit) if is_path => {
+					if let Some(s) = get_str_from_lit(cx, lit) {
 						return s.deref().to_owned();
 					}
 				},
@@ -134,29 +131,37 @@ fn extract_path(cx: &ExtCtxt, item: &Item) -> String {
 	"web".to_owned()
 }
 
-fn get_str_from_lit(cx: &ExtCtxt, name: &str, lit: &ast::Lit) -> Option<InternedString> {
+fn webapp_meta_items(attr: &ast::Attribute) -> Option<Vec<ast::MetaItem>> {
+	let is_webapp = &*attr.value.name.as_str() == "webapp";
+	match attr.value.node {
+		ast::MetaItemKind::List(ref items) if is_webapp => {
+			attr::mark_used(&attr);
+			Some(
+				items.iter()
+				.map(|item| item.node.clone())
+				.filter_map(|item| match item {
+					ast::NestedMetaItemKind::MetaItem(item) => Some(item),
+					_ => None,
+				})
+				.collect()
+			)
+		}
+		_ => None
+	}
+}
+
+fn get_str_from_lit(cx: &ExtCtxt, lit: &ast::Lit) -> Option<InternedString> {
 	match lit.node {
-		ast::LitKind::Str(ref s, _) => Some(s.clone()),
+		ast::LitKind::Str(ref s, _) => Some(s.clone().as_str()),
 		_ => {
 			cx.span_err(
 				lit.span,
-				&format!("webapp annotation `{}` must be a string, not `{}`",
-					name,
+				&format!("webapp annotation path must be a string, not `{}`",
 					lit_to_string(lit)
 				)
 			);
 			return None;
 		}
-	}
-}
-
-fn webapp_meta_items(attr: &ast::Attribute) -> Option<&[P<ast::MetaItem>]> {
-	match attr.node.value.node {
-		ast::MetaItemKind::List(ref name, ref items) if name == &"webapp" => {
-			attr::mark_used(&attr);
-			Some(items)
-		}
-		_ => None
 	}
 }
 
@@ -168,7 +173,6 @@ fn as_uri(path: &Path) -> String {
 	}
 	s[0..s.len()-1].into()
 }
-
 
 #[test]
 fn should_convert_path_separators_on_all_platforms() {
