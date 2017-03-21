@@ -101,7 +101,10 @@ class ParityBar extends Component {
 
   setOpened (opened, displayType = DISPLAY_SIGNER) {
     this.setState({ displayType, opened });
+    this.dispatchOpenEvent(opened);
+  }
 
+  dispatchOpenEvent (opened) {
     if (!this.bar) {
       return;
     }
@@ -241,10 +244,6 @@ class ParityBar extends Component {
   }
 
   renderDrag () {
-    if (this.props.externalLink) {
-      return;
-    }
-
     const dragButtonClasses = [ styles.dragButton ];
 
     if (this.state.moving) {
@@ -501,7 +500,7 @@ class ParityBar extends Component {
       page
     };
 
-    this.setState({ moving: true });
+    this.setMovingState(true);
   }
 
   onMouseEnter = (event) => {
@@ -570,7 +569,7 @@ class ParityBar extends Component {
     }
 
     this.moving = false;
-    this.setState({ moving: false, position });
+    this.setMovingState(false, { position });
     this.savePosition(position);
   }
 
@@ -646,6 +645,13 @@ class ParityBar extends Component {
       default:
         return DEFAULT_POSITION;
     }
+  }
+
+  setMovingState (moving, extras = {}) {
+    this.setState({ moving, ...extras });
+
+    // Trigger an open event if it's moving
+    this.dispatchOpenEvent(moving);
   }
 }
 
