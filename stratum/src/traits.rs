@@ -42,8 +42,8 @@ impl From<PushMessageError> for Error {
 	}
 }
 
-#[ipc(client_ident="RemoteJobDispatcher")]
 /// Interface that can provide pow/blockchain-specific responses for the clients
+#[ipc(client_ident="RemoteJobDispatcher")]
 pub trait JobDispatcher: Send + Sync {
 	// json for initial client handshake
 	fn initial(&self) -> Option<String> { None }
@@ -55,8 +55,8 @@ pub trait JobDispatcher: Send + Sync {
 	fn submit(&self, payload: Vec<String>) -> Result<(), Error>;
 }
 
-#[ipc(client_ident="RemoteWorkHandler")]
 /// Interface that can handle requests to push job for workers
+#[ipc(client_ident="RemoteWorkHandler")]
 pub trait PushWorkHandler: Send + Sync {
 	/// push the same work package for all workers (`payload`: json of pow-specific set of work specification)
 	fn push_work_all(&self, payload: String) -> Result<(), Error>;
