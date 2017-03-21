@@ -1093,6 +1093,28 @@ export default {
     }
   },
 
+  exportAccount: {
+    subdoc: SUBDOC_ACCOUNTS,
+    desc: 'Exports an account as a json file.',
+    params: [
+      {
+        type: Address,
+        desc: 'The account to export.',
+        example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
+      },
+      {
+        type: String,
+        desc: 'Account password.',
+        example: 'hunter2'
+      }
+    ],
+    returns: {
+      type: JSON,
+      desc: '',
+      example: { something: 'toEdit' }
+    }
+  },
+
   killAccount: {
     subdoc: SUBDOC_ACCOUNTS,
     desc: 'Deletes an account.',

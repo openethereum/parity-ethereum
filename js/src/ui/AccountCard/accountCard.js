@@ -22,6 +22,7 @@ import Balance from '~/ui/Balance';
 import IdentityIcon from '~/ui/IdentityIcon';
 import IdentityName from '~/ui/IdentityName';
 import Tags from '~/ui/Tags';
+import Input from '~/ui/Form/Input';
 
 import styles from './accountCard.css';
 
@@ -32,7 +33,8 @@ export default class AccountCard extends Component {
     className: PropTypes.string,
     disableAddressClick: PropTypes.bool,
     onClick: PropTypes.func,
-    onFocus: PropTypes.func
+    onFocus: PropTypes.func,
+    password: PropTypes.bool
   };
 
   static defaultProps = {
@@ -88,6 +90,7 @@ export default class AccountCard extends Component {
             className={ styles.balance }
             showOnlyEth
           />
+          { this.renderPassword() }
         </div>
 
         {
@@ -134,6 +137,25 @@ export default class AccountCard extends Component {
         </span>
       </div>
     );
+  }
+
+  renderPassword () {
+    const { password } = this.props;
+
+    if (password) {
+      return (
+        <div>
+          <Input
+            type='password'
+            name='passwordHere'
+            autoFocus
+            placeholder='Password Here'
+          />
+        </div>
+      );
+    }
+
+    return null;
   }
 
   handleAddressClick = (event) => {

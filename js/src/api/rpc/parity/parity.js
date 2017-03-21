@@ -137,6 +137,11 @@ export default class Parity {
       .execute('parity_executeUpgrade');
   }
 
+  exportAccount (account, password) {
+    return this._transport
+      .execute('parity_exportAccount', inAddress(account), password);
+  }
+
   extraData () {
     return this._transport
       .execute('parity_extraData');
