@@ -18,8 +18,7 @@ import React, { PropTypes } from 'react';
 
 import styles from './scrollableText.css';
 
-export default function ScrollableText (props) {
-  const { small = false, text } = props;
+export default function ScrollableText ({ small = false, text }) {
   const classes = [ styles.input ];
 
   if (small) {

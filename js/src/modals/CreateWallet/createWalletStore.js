@@ -115,9 +115,7 @@ export default class CreateWalletStore {
       .filter((step) => this.walletType === 'WATCH' || step.key !== 'INFO');
   }
 
-  constructor (api, props) {
-    const { accounts, onClose } = props;
-
+  constructor (api, { accounts, onClose }) {
     this.api = api;
 
     this.step = this.stepsKeys[0];

@@ -149,8 +149,6 @@ export function inOptions (_options = {}) {
         // (eg. contract deployments)
         if (options[key]) {
           options.to = inAddress(options[key]);
-        } else {
-          options.to = '';
         }
         break;
 

@@ -194,9 +194,7 @@ export default class WalletSettingsStore {
     });
   }
 
-  constructor (api, props) {
-    const { onClose, wallet } = props;
-
+  constructor (api, { onClose, wallet }) {
     this.api = api;
     this.step = this.stepsKeys[0];
 

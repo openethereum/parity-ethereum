@@ -188,7 +188,8 @@ export function parseTransactionReceipt (api, options, receipt) {
 
   const contractAddress = receipt.contractAddress;
 
-  return api.eth.getCode(contractAddress)
+  return api.eth
+    .getCode(contractAddress)
     .then((code) => {
       if (code === '0x') {
         throw new Error('Contract not deployed, getCode returned 0x');

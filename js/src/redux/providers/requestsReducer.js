@@ -24,7 +24,7 @@ export default handleActions({
 
     const nextState = {
       ...state,
-      [ requestId ]: {
+      [requestId]: {
         ...(state[requestId] || {}),
         ...requestData
       }
