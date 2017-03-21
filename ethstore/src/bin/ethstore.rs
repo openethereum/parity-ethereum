@@ -49,14 +49,14 @@ Usage:
 Options:
     -h, --help               Display this message and exit.
     --dir DIR                Specify the secret store directory. It may be either
-                             parity, parity-test, geth, geth-test
+                             parity, parity-(chain), geth, geth-test
                              or a path [default: parity].
     --vault VAULT            Specify vault to use in this operation.
     --vault-pwd VAULTPWD     Specify vault password to use in this operation. Please note
                              that this option is required when vault option is set.
                              Otherwise it is ignored.
     --src DIR                Specify import source. It may be either
-                             parity, parity-test, get, geth-test
+                             parity, parity-(chain), get, geth-test
                              or a path [default: geth].
 
 Commands:
