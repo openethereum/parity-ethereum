@@ -434,7 +434,7 @@ impl Ethash {
 			let (increment_divisor, threshold) = if header.number() < self.ethash_params.eip100_transition {
 				(self.ethash_params.difficulty_increment_divisor, 1)
 			} else {
-				(self.ethash_params.metropolis_difficulty_increment_divisor, 1 + parent_uncles as u64)
+				(self.ethash_params.metropolis_difficulty_increment_divisor, 1 + cmp::min(parent_uncles as u64, 1))
 			};
 			let diff_inc = (header.timestamp() - parent.timestamp()) / increment_divisor;
 			if diff_inc <= threshold {
