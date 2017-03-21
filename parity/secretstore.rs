@@ -90,6 +90,10 @@ mod server {
 							address: conf.interface.clone(),
 							port: 8082 + 10 + (i as u16),
 						})).collect(),
+					allow_connecting_to_higher_nodes: true,
+					encryption_config: ethcore_secretstore::EncryptionConfiguration {
+						key_check_timeout_ms: 1000,
+					},
 				}
 			};
 
