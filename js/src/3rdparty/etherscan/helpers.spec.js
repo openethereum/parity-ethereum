@@ -19,8 +19,8 @@ import { stringify } from 'qs';
 
 import { url } from './links';
 
-function mockget (requests, test) {
-  let scope = nock(url(test));
+function mockget (requests, test, netVersion) {
+  let scope = nock(url(test, netVersion));
 
   requests.forEach((request) => {
     scope = scope

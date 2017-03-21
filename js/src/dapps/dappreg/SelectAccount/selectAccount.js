@@ -14,20 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import React, { Component, PropTypes } from 'react';
 import { observer } from 'mobx-react';
 
 import DappsStore from '../dappsStore';
 
 @observer
 export default class SelectAccount extends Component {
-  dappsStore = DappsStore.instance();
+  dappsStore = DappsStore.get();
+
+  static propTypes = {
+    value: PropTypes.string.isRequired,
+    onSelect: PropTypes.func.isRequired
+  };
 
   render () {
+    const { value } = this.props;
+
     return (
       <select
-        value={ this.dappsStore.currentAccount.address }
-        onChange={ this.onSelect }
+        value={ value }
+        onChange={ this.handleSelect }
       >
         { this.renderOptions() }
       </select>
@@ -44,7 +51,7 @@ export default class SelectAccount extends Component {
     });
   }
 
-  onSelect = (event) => {
-    this.dappsStore.setCurrentAccount(event.target.value);
+  handleSelect = (event) => {
+    this.props.onSelect && this.props.onSelect(event);
   }
 }

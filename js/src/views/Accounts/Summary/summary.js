@@ -22,7 +22,7 @@ import { isEqual } from 'lodash';
 import ReactTooltip from 'react-tooltip';
 import { FormattedMessage } from 'react-intl';
 
-import { Balance, Container, ContainerTitle, CopyToClipboard, IdentityIcon, IdentityName, Tags } from '~/ui';
+import { Balance, Container, ContainerTitle, CopyToClipboard, IdentityIcon, IdentityName, Tags, VaultTag } from '~/ui';
 import Certifications from '~/ui/Certifications';
 import { arrayOrObjectProptype, nullableProptype } from '~/util/proptypes';
 
@@ -37,6 +37,7 @@ class Summary extends Component {
     account: PropTypes.object.isRequired,
     accountsInfo: PropTypes.object.isRequired,
     balance: PropTypes.object,
+    disabled: PropTypes.bool,
     link: PropTypes.string,
     name: PropTypes.string,
     noLink: PropTypes.bool,
@@ -52,15 +53,21 @@ class Summary extends Component {
 
   shouldComponentUpdate (nextProps) {
     const prev = {
-      link: this.props.link, name: this.props.name,
+      link: this.props.link,
+      disabled: this.props.disabled,
+      name: this.props.name,
       noLink: this.props.noLink,
-      meta: this.props.account.meta, address: this.props.account.address
+      meta: this.props.account.meta,
+      address: this.props.account.address
     };
 
     const next = {
-      link: nextProps.link, name: nextProps.name,
+      link: nextProps.link,
+      disabled: nextProps.disabled,
+      name: nextProps.name,
       noLink: nextProps.noLink,
-      meta: nextProps.account.meta, address: nextProps.account.address
+      meta: nextProps.account.meta,
+      address: nextProps.account.address
     };
 
     if (!isEqual(next, prev)) {
@@ -92,7 +99,7 @@ class Summary extends Component {
   }
 
   render () {
-    const { account, handleAddSearchToken, noLink } = this.props;
+    const { account, disabled, handleAddSearchToken, noLink } = this.props;
     const { tags } = account.meta;
 
     if (!account) {
@@ -109,7 +116,7 @@ class Summary extends Component {
             { this.renderBalance(false) }
             { this.renderDescription(account.meta) }
             { this.renderOwners() }
-            { this.renderCertifications() }
+            { this.renderVault(account.meta) }
           </div>
         }
         link={ this.getLink() }
@@ -122,6 +129,7 @@ class Summary extends Component {
         <div className={ styles.heading }>
           <IdentityIcon
             address={ address }
+            disabled={ disabled }
           />
           <ContainerTitle
             byline={
@@ -146,8 +154,8 @@ class Summary extends Component {
         </div>
         <div className={ styles.summary }>
           { this.renderBalance(true) }
-          { this.renderCertifications(true) }
         </div>
+        { this.renderCertifications(true) }
       </Container>
     );
   }
@@ -277,6 +285,16 @@ class Summary extends Component {
         }
         showOnlyIcon={ onlyIcon }
       />
+    );
+  }
+
+  renderVault (meta) {
+    if (!meta || !meta.vault) {
+      return null;
+    }
+
+    return (
+      <VaultTag vault={ meta.vault } />
     );
   }
 }

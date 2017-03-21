@@ -62,8 +62,7 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: /(node_modules)/,
-        // use: [ 'happypack/loader?id=js' ]
-        use: isProd ? 'babel-loader' : 'babel-loader?cacheDirectory=true'
+        use: [ 'happypack/loader?id=babel-js' ]
       },
       {
         test: /\.js$/,
@@ -96,17 +95,16 @@ module.exports = {
         test: /\.css$/,
         include: [ /src/ ],
         // exclude: [ /src\/dapps/ ],
-        loader: (isProd && !isEmbed) ? ExtractTextPlugin.extract([
-          // 'style-loader',
-          'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-          'postcss-loader'
-        ]) : undefined,
-        // use: [ 'happypack/loader?id=css' ]
-        use: (isProd && !isEmbed) ? undefined : [
-          'style-loader',
-          'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-          'postcss-loader'
-        ]
+        loader: (isProd && !isEmbed)
+          ? ExtractTextPlugin.extract([
+            // 'style-loader',
+            'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+            'postcss-loader'
+          ])
+          : undefined,
+        use: (isProd && !isEmbed)
+          ? undefined
+          : [ 'happypack/loader?id=css' ]
       },
 
       {

@@ -32,12 +32,12 @@ use views::BlockView;
 
 use util::{Bytes, Hashable, HashDB, DBValue, snappy, U256, Uint};
 use util::Mutex;
-use util::hash::{FixedHash, H256};
+use util::hash::{H256};
 use util::journaldb::{self, Algorithm, JournalDB};
 use util::kvdb::Database;
 use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 use util::sha3::SHA3_NULL_RLP;
-use rlp::{RlpStream, Stream, UntrustedRlp, View};
+use rlp::{RlpStream, UntrustedRlp, View};
 use bloom_journal::Bloom;
 
 use self::block::AbridgedBlock;

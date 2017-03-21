@@ -1,7 +1,7 @@
 [package]
 description = "Parity Dapps crate"
 name = "ethcore-dapps"
-version = "1.6.0"
+version = "1.7.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -12,8 +12,8 @@ rand = "0.3"
 log = "0.3"
 env_logger = "0.3"
 futures = "0.1"
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
+jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
 hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
 unicase = "1.3"
 url = "1.0"

@@ -16,7 +16,7 @@
 */
 
 .item {
-  border: 2px solid transparent;
+  cursor: pointer;
   display: flex;
   flex: 1;
   height: 100%;
@@ -24,7 +24,6 @@
   width: 100%;
 
   &:hover {
-    border-color: transparent;
     filter: none;
     opacity: 1;
   }
@@ -34,31 +33,57 @@
     width: 100%;
 
     &:hover {
-      background-color: rgba(255, 255, 255, 0.5);
+      background-color: rgba(255, 255, 255, 0.15);
     }
   }
 
   .overlay {
     position: absolute;
-    right: 0.5em;
-    top: 0.5em;
+    left: 0.75em;
+    top: 0.75em;
+    z-index: 1;
+
+    .icon,
+    .iconDisabled {
+      border-radius: 0.25em;
+      color: #333 !important;
+      cursor: pointer;
+      margin-right: 0.25em;
+    }
+
+    .icon {
+      background: white;
+    }
+
+    .iconDisabled {
+      background: #666;
+
+      &:hover {
+        background: white;
+      }
+    }
   }
 }
 
 .selected {
-  border-color: rgba(255, 255, 255, 0.25);
   filter: none;
 
-  &.default {
-    border-color: rgba(255, 255, 255, 0.75);
+  &::after {
+    background: rgb(0, 151, 167);
+    content: '';
+    height: 4px;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
+
+  &.default::after {
+    background: rgb(167, 151, 0);
   }
 }
 
 .unselected {
-  filter: grayscale(10%);
+  filter: grayscale(50%);
   opacity: 0.75;
-}
-
-.iconDisabled {
-  opacity: 0.15;
 }

@@ -46,7 +46,7 @@ describe('abi/util/signature', () => {
       expect(eventSignature(undefined, [])).to.deep.equal({
         id: '()',
         name: undefined,
-        signature: '861731d50c3880a2ca1994d5ec287b94b2f4bd832a67d3e41c08177bdd5674fe'
+        signature: ''
       });
     });
 
@@ -54,7 +54,7 @@ describe('abi/util/signature', () => {
       expect(eventSignature(undefined, undefined)).to.deep.equal({
         id: '()',
         name: undefined,
-        signature: '861731d50c3880a2ca1994d5ec287b94b2f4bd832a67d3e41c08177bdd5674fe'
+        signature: ''
       });
     });
   });
@@ -96,7 +96,7 @@ describe('abi/util/signature', () => {
       expect(methodSignature(undefined, [])).to.deep.equal({
         id: '()',
         name: undefined,
-        signature: '861731d5'
+        signature: ''
       });
     });
 
@@ -104,7 +104,7 @@ describe('abi/util/signature', () => {
       expect(methodSignature(undefined, undefined)).to.deep.equal({
         id: '()',
         name: undefined,
-        signature: '861731d5'
+        signature: ''
       });
     });
   });

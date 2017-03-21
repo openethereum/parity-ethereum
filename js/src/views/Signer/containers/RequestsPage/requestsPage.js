@@ -15,10 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import React, { Component, PropTypes } from 'react';
-import { bindActionCreators } from 'redux';
-import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
+import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import Store from '../../store';
 import * as RequestsActions from '~/redux/providers/signerActions';
@@ -40,7 +41,7 @@ class RequestsPage extends Component {
       startRejectRequest: PropTypes.func.isRequired
     }).isRequired,
     gasLimit: PropTypes.object.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     signer: PropTypes.shape({
       pending: PropTypes.array.isRequired,
       finished: PropTypes.array.isRequired
@@ -74,7 +75,14 @@ class RequestsPage extends Component {
     }
 
     return (
-      <Container title='Local Transactions'>
+      <Container
+        title={
+          <FormattedMessage
+            id='signer.requestsPage.queueTitle'
+            defaultMessage='Local Transactions'
+          />
+        }
+      >
         <TxList
           address=''
           hashes={ localHashes }
@@ -90,7 +98,10 @@ class RequestsPage extends Component {
       return (
         <Container>
           <div className={ styles.noRequestsMsg }>
-            There are no requests requiring your confirmation.
+            <FormattedMessage
+              id='signer.requestsPage.noPending'
+              defaultMessage='There are no requests requiring your confirmation.'
+            />
           </div>
         </Container>
       );
@@ -99,14 +110,21 @@ class RequestsPage extends Component {
     const items = pending.sort(this._sortRequests).map(this.renderPending);
 
     return (
-      <Container title='Pending Requests'>
+      <Container
+        title={
+          <FormattedMessage
+            id='signer.requestsPage.pendingTitle'
+            defaultMessage='Pending Requests'
+          />
+        }
+      >
         { items }
       </Container>
     );
   }
 
   renderPending = (data, index) => {
-    const { actions, gasLimit, isTest } = this.props;
+    const { actions, gasLimit, netVersion } = this.props;
     const { date, id, isSending, payload, origin } = data;
 
     return (
@@ -117,26 +135,26 @@ class RequestsPage extends Component {
         gasLimit={ gasLimit }
         id={ id }
         isSending={ isSending }
-        isTest={ isTest }
+        netVersion={ netVersion }
         key={ id }
         onConfirm={ actions.startConfirmRequest }
         onReject={ actions.startRejectRequest }
         origin={ origin }
         payload={ payload }
-        store={ this.store }
+        signerstore={ this.store }
       />
     );
   }
 }
 
 function mapStateToProps (state) {
-  const { gasLimit, isTest } = state.nodeStatus;
+  const { gasLimit, netVersion } = state.nodeStatus;
   const { actions, signer } = state;
 
   return {
     actions,
     gasLimit,
-    isTest,
+    netVersion,
     signer
   };
 }

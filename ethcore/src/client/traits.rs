@@ -16,6 +16,7 @@
 
 use std::collections::BTreeMap;
 use util::{U256, Address, H256, H2048, Bytes, Itertools};
+use util::hashdb::DBValue;
 use blockchain::TreeRoute;
 use verification::queue::QueueInfo as BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
@@ -240,6 +241,12 @@ pub trait BlockChainClient : Sync + Send {
 	/// Set the mode.
 	fn set_mode(&self, mode: Mode);
 
+	/// Get the chain spec name.
+	fn spec_name(&self) -> String;
+
+	/// Set the chain via a spec name.
+	fn set_spec_name(&self, spec_name: String);
+
 	/// Disable the client from importing blocks. This cannot be undone in this session and indicates
 	/// that a subsystem has reason to believe this executable incapable of syncing the chain.
 	fn disable(&self);
@@ -254,7 +261,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn pruning_info(&self) -> PruningInfo;
 
 	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
-	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String>;
+	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
 
 	/// Import a transaction: used for misbehaviour reporting.
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError>;
@@ -321,4 +328,7 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 
 	/// Get code by address hash.
 	fn code_by_hash(&self, account_key: H256, id: BlockId) -> Bytes;
+
+	/// Prove execution of a transaction at the given block.
+	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<Vec<DBValue>>;
 }

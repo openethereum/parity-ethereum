@@ -32,7 +32,7 @@
 //! use ethcore::miner::{Miner, MinerService};
 //!
 //! fn main() {
-//!		let miner: Miner = Miner::with_spec(&ethereum::new_frontier());
+//!		let miner: Miner = Miner::with_spec(&ethereum::new_foundation());
 //!		// get status
 //!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
@@ -149,6 +149,10 @@ pub trait MinerService : Send + Sync {
 
 	/// Query pending transactions for hash.
 	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction>;
+
+	/// Removes transaction from the queue.
+	/// NOTE: The transaction is not removed from pending block if mining.
+	fn remove_pending_transaction(&self, chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction>;
 
 	/// Get a list of all pending transactions in the queue.
 	fn pending_transactions(&self) -> Vec<PendingTransaction>;

@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Snackbar } from 'material-ui';
@@ -24,6 +25,19 @@ import { closeErrors } from './actions';
 import styles from './errors.css';
 
 const ERROR_REGEX = /-(\d+): (.+)$/;
+const DURATION_OPEN = 60000;
+const STYLE_BODY = {
+  height: 'auto',
+  whiteSpace: 'pre-line'
+};
+const STYLE_CONTENT = {
+  alignItems: 'center',
+  display: 'flex',
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  lineHeight: '1.5em',
+  padding: '0.75em 0'
+};
 
 class Errors extends Component {
   static propTypes = {
@@ -46,23 +60,18 @@ class Errors extends Component {
       <Snackbar
         className={ styles.container }
         open
-        action='close'
-        autoHideDuration={ 60000 }
+        action={
+          <FormattedMessage
+            id='ui.errors.close'
+            defaultMessage='close'
+          />
+        }
+        autoHideDuration={ DURATION_OPEN }
         message={ text }
         onActionTouchTap={ onCloseErrors }
         onRequestClose={ this.onRequestClose }
-        bodyStyle={ {
-          whiteSpace: 'pre-line',
-          height: 'auto'
-        } }
-        contentStyle={ {
-          display: 'flex',
-          flexDirection: 'row',
-          lineHeight: '1.5em',
-          padding: '0.75em 0',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        } }
+        bodyStyle={ STYLE_BODY }
+        contentStyle={ STYLE_CONTENT }
       />
     );
   }

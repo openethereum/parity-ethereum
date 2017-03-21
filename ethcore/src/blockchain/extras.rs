@@ -172,7 +172,7 @@ impl Encodable for BlockDetails {
 		s.append(&self.number);
 		s.append(&self.total_difficulty);
 		s.append(&self.parent);
-		s.append(&self.children);
+		s.append_list(&self.children);
 	}
 }
 
@@ -233,7 +233,7 @@ impl Decodable for BlockReceipts {
 
 impl Encodable for BlockReceipts {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		Encodable::rlp_append(&self.receipts, s);
+		s.append_list(&self.receipts);
 	}
 }
 

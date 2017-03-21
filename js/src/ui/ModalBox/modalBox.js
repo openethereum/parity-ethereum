@@ -14,48 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
+import Body from './body';
+import Summary from './summary';
 import styles from './modalBox.css';
 
-export default class ModalBox extends Component {
-  static propTypes = {
-    children: PropTypes.node.isRequired,
-    icon: PropTypes.node.isRequired,
-    summary: nodeOrStringProptype()
-  }
-
-  render () {
-    const { children, icon } = this.props;
-
-    return (
-      <div className={ styles.body }>
-        <div className={ styles.icon }>
-          { icon }
-        </div>
-        <div className={ styles.content }>
-          { this.renderSummary() }
-          <div className={ styles.body }>
-            { children }
-          </div>
-        </div>
+export default function ModalBox ({ children, icon, summary }) {
+  return (
+    <div className={ styles.body }>
+      <div className={ styles.icon }>
+        { icon }
       </div>
-    );
-  }
-
-  renderSummary () {
-    const { summary } = this.props;
-
-    if (!summary) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.summary }>
-        { summary }
+      <div className={ styles.content }>
+        <Summary summary={ summary } />
+        <Body children={ children } />
       </div>
-    );
-  }
+    </div>
+  );
 }
+
+ModalBox.propTypes = {
+  children: PropTypes.node,
+  icon: PropTypes.node.isRequired,
+  summary: nodeOrStringProptype()
+};

@@ -48,7 +48,7 @@ let progressBar = { update: () => {} };
 
   webpackConfig.plugins.push(new webpack.HotModuleReplacementPlugin());
   webpackConfig.plugins.push(new webpack.NamedModulesPlugin());
-  webpackConfig.plugins.push(new webpack.NoErrorsPlugin());
+  webpackConfig.plugins.push(new webpack.NoEmitOnErrorsPlugin());
 
   webpackConfig.plugins.push(new webpack.ProgressPlugin(
     (percentage) => progressBar.update(percentage)

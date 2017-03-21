@@ -16,7 +16,8 @@
 
 //! Test implementation of miner service.
 
-use util::{Address, H256, Bytes, U256, FixedHash, Uint};
+use std::collections::hash_map::Entry;
+use util::{Address, H256, Bytes, U256, Uint};
 use util::standard::*;
 use ethcore::error::{Error, CallError};
 use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};
@@ -68,6 +69,22 @@ impl Default for TestMinerService {
 			extra_data: RwLock::new(vec![1, 2, 3, 4]),
 			limit: RwLock::new(1024),
 			tx_gas_limit: RwLock::new(!U256::zero()),
+		}
+	}
+}
+
+impl TestMinerService {
+	/// Increments last nonce for given address.
+	pub fn increment_last_nonce(&self, address: Address) {
+		let mut last_nonces = self.last_nonces.write();
+		match last_nonces.entry(address) {
+			Entry::Occupied(mut occupied) => {
+				let val = *occupied.get();
+				*occupied.get_mut() = val + 1.into();
+			},
+			Entry::Vacant(vacant) => {
+				vacant.insert(0.into());
+			},
 		}
 	}
 }
@@ -202,6 +219,10 @@ impl MinerService for TestMinerService {
 
 	fn transaction(&self, _best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction> {
 		self.pending_transactions.lock().get(hash).cloned().map(Into::into)
+	}
+
+	fn remove_pending_transaction(&self, _chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction> {
+		self.pending_transactions.lock().remove(hash).map(Into::into)
 	}
 
 	fn pending_transactions(&self) -> Vec<PendingTransaction> {

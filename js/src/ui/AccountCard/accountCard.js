@@ -30,8 +30,13 @@ export default class AccountCard extends Component {
     account: PropTypes.object.isRequired,
     balance: PropTypes.object,
     className: PropTypes.string,
+    disableAddressClick: PropTypes.bool,
     onClick: PropTypes.func,
     onFocus: PropTypes.func
+  };
+
+  static defaultProps = {
+    disableAddressClick: false
   };
 
   state = {
@@ -82,7 +87,6 @@ export default class AccountCard extends Component {
             balance={ balance }
             className={ styles.balance }
             showOnlyEth
-            showZeroValues
           />
         </div>
 
@@ -122,7 +126,7 @@ export default class AccountCard extends Component {
       <div className={ styles.addressContainer }>
         <span
           className={ styles.address }
-          onClick={ this.preventEvent }
+          onClick={ this.handleAddressClick }
           ref={ `address` }
           title={ address }
         >
@@ -130,6 +134,17 @@ export default class AccountCard extends Component {
         </span>
       </div>
     );
+  }
+
+  handleAddressClick = (event) => {
+    const { disableAddressClick } = this.props;
+
+    // Stop the event if address click is disallowed
+    if (disableAddressClick) {
+      return this.preventEvent(event);
+    }
+
+    return this.onClick(event);
   }
 
   handleKeyDown = (event) => {
@@ -172,8 +187,13 @@ export default class AccountCard extends Component {
     }
   }
 
-  onClick = () => {
+  onClick = (event) => {
     const { account, onClick } = this.props;
+
+    // Stop the default event if text is selected
+    if (window.getSelection && window.getSelection().type === 'Range') {
+      return this.preventEvent(event);
+    }
 
     onClick && onClick(account.address);
   }
@@ -184,9 +204,9 @@ export default class AccountCard extends Component {
     onFocus && onFocus(account.index);
   }
 
-  preventEvent = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  preventEvent = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   setTagRef = (tagRef) => {

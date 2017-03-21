@@ -16,10 +16,10 @@
 
 //! Peer status and capabilities.
 
-use rlp::{DecoderError, RlpDecodable, RlpEncodable, RlpStream, Stream, UntrustedRlp, View};
+use rlp::{DecoderError, RlpDecodable, Encodable, RlpStream, UntrustedRlp, View};
 use util::{H256, U256};
 
-use super::buffer_flow::FlowParams;
+use super::request_credits::FlowParams;
 
 // recognized handshake/announcement keys.
 // unknown keys are to be skipped, known keys have a defined order.
@@ -126,7 +126,7 @@ impl<'a> Parser<'a> {
 }
 
 // Helper for encoding a key-value pair
-fn encode_pair<T: RlpEncodable>(key: Key, val: &T) -> Vec<u8> {
+fn encode_pair<T: Encodable>(key: Key, val: &T) -> Vec<u8> {
 	let mut s = RlpStream::new_list(2);
 	s.append(&key.as_str()).append(val);
 	s.out()
@@ -207,7 +207,7 @@ impl Capabilities {
 /// Attempt to parse a handshake message into its three parts:
 ///   - chain status
 ///   - serving capabilities
-///   - buffer flow parameters
+///   - request credit parameters
 pub fn parse_handshake(rlp: UntrustedRlp) -> Result<(Status, Capabilities, Option<FlowParams>), DecoderError> {
 	let mut parser = Parser {
 		pos: 0,
@@ -300,7 +300,7 @@ pub struct Announcement {
 	pub serve_chain_since: Option<u64>,
 	/// optional new transaction-relay capability. false means "no change"
 	pub tx_relay: bool,
-	// TODO: changes in buffer flow?
+	// TODO: changes in request credits.
 }
 
 /// Parse an announcement.
@@ -372,9 +372,9 @@ pub fn write_announcement(announcement: &Announcement) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use super::super::buffer_flow::FlowParams;
-	use util::{U256, H256, FixedHash};
-	use rlp::{RlpStream, Stream ,UntrustedRlp, View};
+	use super::super::request_credits::FlowParams;
+	use util::{U256, H256};
+	use rlp::{RlpStream, UntrustedRlp, View};
 
 	#[test]
 	fn full_handshake() {

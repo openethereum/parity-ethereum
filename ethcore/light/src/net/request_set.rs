@@ -101,6 +101,7 @@ impl RequestSet {
 			request::Kind::StateProofs => timeout::PROOFS,
 			request::Kind::Codes => timeout::CONTRACT_CODES,
 			request::Kind::HeaderProofs => timeout::HEADER_PROOFS,
+			request::Kind::TransactionProof => timeout::TRANSACTION_PROOF,
 		};
 
 		base + Duration::milliseconds(kind_timeout) <= now

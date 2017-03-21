@@ -85,6 +85,7 @@ engine_signer = "0xdeadbeefcafe0000000000000000000000000001"
 force_sealing = true
 reseal_on_txs = "all"
 reseal_min_period = 4000
+reseal_max_period = 60000
 work_queue_size = 20
 relay_set = "cheap"
 usd_per_tx = "0.0025"

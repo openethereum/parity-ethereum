@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { outBlock, outAccountInfo, outAddress, outChainStatus, outDate, outHistogram, outNumber, outPeer, outPeers, outReceipt, outRecentDapps, outSyncing, outTransaction, outTrace, outVaultMeta } from './output';
+import { outBlock, outAccountInfo, outAddress, outChainStatus, outDate, outHistogram, outHwAccountInfo, outNumber, outPeer, outPeers, outReceipt, outRecentDapps, outSyncing, outTransaction, outTrace, outVaultMeta } from './output';
 import { isAddress, isBigNumber, isInstanceOf } from '../../../test/types';
 
 describe('api/format/output', () => {
@@ -159,6 +159,16 @@ describe('api/format/output', () => {
         ).to.deep.equal({
           [type]: [new BigNumber(0x123), new BigNumber(0x456), new BigNumber(0x789)]
         });
+      });
+    });
+  });
+
+  describe('outHwAccountInfo', () => {
+    it('returns objects with formatted addresses', () => {
+      expect(outHwAccountInfo(
+        { '0x63cf90d3f0410092fc0fca41846f596223979195': { manufacturer: 'mfg', name: 'type' } }
+      )).to.deep.equal({
+        '0x63Cf90D3f0410092FC0fca41846f596223979195': { manufacturer: 'mfg', name: 'type' }
       });
     });
   });

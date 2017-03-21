@@ -38,10 +38,12 @@ describe('views/Settings/Parity', () => {
   beforeEach(() => {
     render();
     sinon.spy(instance.store, 'loadMode');
+    sinon.spy(instance.store, 'loadChain');
   });
 
   afterEach(() => {
     instance.store.loadMode.restore();
+    instance.store.loadChain.restore();
   });
 
   it('renders defaults', () => {
@@ -55,6 +57,10 @@ describe('views/Settings/Parity', () => {
 
     it('loads the mode in the store', () => {
       expect(instance.store.loadMode).to.have.been.called;
+    });
+
+    it('loads the chain in the store', () => {
+      expect(instance.store.loadChain).to.have.been.called;
     });
   });
 
@@ -92,6 +98,28 @@ describe('views/Settings/Parity', () => {
       it('changes the mode on the store when changed', () => {
         select.simulate('change', { target: { value: 'dark' } });
         expect(instance.store.changeMode).to.have.been.calledWith('dark');
+      });
+    });
+
+    describe('chain selector', () => {
+      let select;
+
+      beforeEach(() => {
+        select = component.find('Select[id="parityChainSelect"]');
+        sinon.spy(instance.store, 'changeChain');
+      });
+
+      afterEach(() => {
+        instance.store.changeChain.restore();
+      });
+
+      it('renders a chain selector', () => {
+        expect(select).to.have.length(1);
+      });
+
+      it('changes the chain on the store when changed', () => {
+        select.simulate('change', { target: { value: 'dark' } });
+        expect(instance.store.changeChain).to.have.been.calledWith('dark');
       });
     });
   });

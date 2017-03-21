@@ -97,54 +97,6 @@ The following options are possible for the \`defaultBlock\` parameter:
     }
   },
 
-  compileSerpent: {
-    desc: 'Returns compiled serpent code.',
-    params: [
-      {
-        type: String,
-        desc: 'The source code.',
-        example: '/* some serpent */'
-      }
-    ],
-    returns: {
-      type: Data,
-      desc: 'The compiled source code.',
-      example: '0x603880600c6000396000f3006001600060e060020a600035048063c6888fa114601857005b6021600435602b565b8060005260206000f35b600081600702905091905056'
-    }
-  },
-
-  compileSolidity: {
-    desc: 'Returns compiled solidity code.',
-    params: [
-      {
-        type: String,
-        desc: 'The source code.',
-        example: 'contract test { function multiply(uint a) returns(uint d) {   return a * 7;   } }'
-      }
-    ],
-    returns: {
-      type: Data,
-      desc: 'The compiled source code.',
-      example: '0x605880600c6000396000f3006000357c010000000000000000000000000000000000000000000000000000000090048063c6888fa114602e57005b603d6004803590602001506047565b8060005260206000f35b60006007820290506053565b91905056'
-    }
-  },
-
-  compileLLL: {
-    desc: 'Returns compiled LLL code.',
-    params: [
-      {
-        type: String,
-        desc: 'The source code.',
-        example: '(returnlll (suicide (caller)))'
-      }
-    ],
-    returns: {
-      type: Data,
-      desc: 'The compiled source code.',
-      example: '0x603880600c6000396000f3006001600060e060020a600035048063c6888fa114601857005b6021600435602b565b8060005260206000f35b600081600702905091905056'
-    }
-  },
-
   estimateGas: {
     desc: 'Makes a call or transaction, which won\'t be added to the blockchain and returns the used gas, which can be used for estimating the used gas.',
     params: [
@@ -412,16 +364,6 @@ The following options are possible for the \`defaultBlock\` parameter:
       type: Data,
       desc: 'the code from the given address.',
       example: '0x600160008035811a818181146012578301005b601b6001356025565b8060005260206000f25b600060078202905091905056'
-    }
-  },
-
-  getCompilers: {
-    desc: 'Returns a list of available compilers in the client.',
-    params: [],
-    returns: {
-      type: Array,
-      desc: 'Array of available compilers.',
-      example: ['solidity', 'lll', 'serpent']
     }
   },
 

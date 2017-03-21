@@ -17,7 +17,7 @@
 //! Diff misc.
 
 use common::*;
-use rlp::{Stream, RlpStream};
+use rlp::RlpStream;
 use target_info::Target;
 
 include!(concat!(env!("OUT_DIR"), "/version.rs"));

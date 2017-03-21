@@ -24,8 +24,8 @@ use time::precise_time_ns;
 
 // util
 use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, MutexGuard, Hashable};
-use util::{journaldb, TrieFactory, Trie};
-use util::{U256, H256, Address, H2048, Uint, FixedHash};
+use util::{journaldb, DBValue, TrieFactory, Trie};
+use util::{U256, H256, Address, H2048, Uint};
 use util::trie::TrieSpec;
 use util::kvdb::*;
 
@@ -34,7 +34,7 @@ use io::*;
 use views::BlockView;
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use header::BlockNumber;
-use state::{State, CleanupMode};
+use state::{self, State, CleanupMode};
 use spec::Spec;
 use basic_types::Seal;
 use engines::Engine;
@@ -151,8 +151,9 @@ pub struct Client {
 	factories: Factories,
 	history: u64,
 	rng: Mutex<OsRng>,
-	on_mode_change: Mutex<Option<Box<FnMut(&Mode) + 'static + Send>>>,
+	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
 	registrar: Mutex<Option<Registry>>,
+	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
 }
 
 impl Client {
@@ -240,8 +241,9 @@ impl Client {
 			factories: factories,
 			history: history,
 			rng: Mutex::new(OsRng::new().map_err(::util::UtilError::StdIo)?),
-			on_mode_change: Mutex::new(None),
+			on_user_defaults_change: Mutex::new(None),
 			registrar: Mutex::new(None),
+			exit_handler: Mutex::new(None),
 		});
 
 		{
@@ -253,7 +255,7 @@ impl Client {
 		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
 			trace!(target: "client", "Found registrar at {}", reg_addr);
 			let weak = Arc::downgrade(&client);
-			let registrar = Registry::new(reg_addr, move |a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d)));
+			let registrar = Registry::new(reg_addr, move |a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(BlockId::Latest, a, d)));
 			*client.registrar.lock() = Some(registrar);
 		}
 		Ok(client)
@@ -276,6 +278,11 @@ impl Client {
 		self.notify.write().push(Arc::downgrade(&target));
 	}
 
+	/// Set a closure to call when we want to restart the client
+	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(bool, Option<String>) + 'static + Send {
+		*self.exit_handler.lock() = Some(Box::new(f));
+	}
+
 	/// Returns engine reference.
 	pub fn engine(&self) -> &Engine {
 		&*self.engine
@@ -294,9 +301,9 @@ impl Client {
 		self.registrar.lock()
 	}
 
-	/// Register an action to be done if a mode change happens.
-	pub fn on_mode_change<F>(&self, f: F) where F: 'static + FnMut(&Mode) + Send {
-		*self.on_mode_change.lock() = Some(Box::new(f));
+	/// Register an action to be done if a mode/spec_name change happens.
+	pub fn on_user_defaults_change<F>(&self, f: F) where F: 'static + FnMut(Option<Mode>) + Send {
+		*self.on_user_defaults_change.lock() = Some(Box::new(f));
 	}
 
 	/// Flush the block import queue.
@@ -308,18 +315,24 @@ impl Client {
 	}
 
 	/// The env info as of the best block.
-	fn latest_env_info(&self) -> EnvInfo {
-		let header = self.best_block_header();
+	pub fn latest_env_info(&self) -> EnvInfo {
+		self.env_info(BlockId::Latest).expect("Best block header always stored; qed")
+	}
 
-		EnvInfo {
-			number: header.number(),
-			author: header.author(),
-			timestamp: header.timestamp(),
-			difficulty: header.difficulty(),
-			last_hashes: self.build_last_hashes(header.hash()),
-			gas_used: U256::default(),
-			gas_limit: header.gas_limit(),
-		}
+	/// The env info as of a given block.
+	/// returns `None` if the block unknown.
+	pub fn env_info(&self, id: BlockId) -> Option<EnvInfo> {
+		self.block_header(id).map(|header| {
+			EnvInfo {
+				number: header.number(),
+				author: header.author(),
+				timestamp: header.timestamp(),
+				difficulty: header.difficulty(),
+				last_hashes: self.build_last_hashes(header.parent_hash()),
+				gas_used: U256::default(),
+				gas_limit: header.gas_limit(),
+			}
+		})
 	}
 
 	fn build_last_hashes(&self, parent_hash: H256) -> Arc<LastHashes> {
@@ -380,7 +393,7 @@ impl Client {
 			})?;
 
 			// Final Verification
-			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
+			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header(), self.engine().params().validate_receipts) {
 				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				return Err(());
 			}
@@ -645,7 +658,6 @@ impl Client {
 		self.miner.clone()
 	}
 
-
 	/// Replace io channel. Useful for testing.
 	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
 		*self.io_channel.lock() = io_channel;
@@ -874,17 +886,9 @@ impl snapshot::DatabaseRestore for Client {
 
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
-		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
-		let last_hashes = self.build_last_hashes(header.parent_hash());
-		let env_info = EnvInfo {
-			number: header.number(),
-			author: header.author(),
-			timestamp: header.timestamp(),
-			difficulty: header.difficulty(),
-			last_hashes: last_hashes,
-			gas_used: U256::zero(),
-			gas_limit: U256::max_value(),
-		};
+		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+		env_info.gas_limit = U256::max_value();
+
 		// that's just a copy of the state.
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
@@ -910,17 +914,13 @@ impl BlockChainClient for Client {
 
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
 		const UPPER_CEILING: u64 = 1_000_000_000_000u64;
-		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
-		let last_hashes = self.build_last_hashes(header.parent_hash());
-		let env_info = EnvInfo {
-			number: header.number(),
-			author: header.author(),
-			timestamp: header.timestamp(),
-			difficulty: header.difficulty(),
-			last_hashes: last_hashes,
-			gas_used: U256::zero(),
-			gas_limit: UPPER_CEILING.into(),
+		let (mut upper, env_info)  = {
+			let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+			let initial_upper = env_info.gas_limit;
+			env_info.gas_limit = UPPER_CEILING.into();
+			(initial_upper, env_info)
 		};
+
 		// that's just a copy of the state.
 		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender();
@@ -946,7 +946,6 @@ impl BlockChainClient for Client {
 				.unwrap_or(false))
 		};
 
-		let mut upper = header.gas_limit();
 		if !cond(upper)? {
 			// impossible at block gas limit - try `UPPER_CEILING` instead.
 			// TODO: consider raising limit by powers of two.
@@ -989,7 +988,7 @@ impl BlockChainClient for Client {
 
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
-		let header = self.block_header(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
+		let mut env_info = self.env_info(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let body = self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let mut state = self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let mut txs = body.transactions();
@@ -999,16 +998,6 @@ impl BlockChainClient for Client {
 		}
 
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let last_hashes = self.build_last_hashes(header.hash());
-		let mut env_info = EnvInfo {
-			number: header.number(),
-			author: header.author(),
-			timestamp: header.timestamp(),
-			difficulty: header.difficulty(),
-			last_hashes: last_hashes,
-			gas_used: U256::default(),
-			gas_limit: header.gas_limit(),
-		};
 		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
 		let rest = txs.split_off(address.index);
 		for t in txs {
@@ -1047,15 +1036,31 @@ impl BlockChainClient for Client {
 			let mut mode = self.mode.lock();
 			*mode = new_mode.clone().into();
 			trace!(target: "mode", "Mode now {:?}", &*mode);
-			if let Some(ref mut f) = *self.on_mode_change.lock() {
+			if let Some(ref mut f) = *self.on_user_defaults_change.lock() {
 				trace!(target: "mode", "Making callback...");
-				f(&*mode)
+				f(Some((&*mode).clone()))
 			}
 		}
 		match new_mode {
 			IpcMode::Active => self.wake_up(),
 			IpcMode::Off => self.sleep(),
 			_ => {(*self.sleep_state.lock()).last_activity = Some(Instant::now()); }
+		}
+	}
+
+	fn spec_name(&self) -> String {
+		self.config.spec_name.clone()
+	}
+
+	fn set_spec_name(&self, new_spec_name: String) {
+		trace!(target: "mode", "Client::set_spec_name({:?})", new_spec_name);
+		if !self.enabled.load(AtomicOrdering::Relaxed) {
+			return;
+		}
+		if let Some(ref h) = *self.exit_handler.lock() {
+			(*h)(true, Some(new_spec_name));
+		} else {
+			warn!("Not hypervised; cannot change chain.");
 		}
 	}
 
@@ -1445,7 +1450,7 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
+	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
 		let from = Address::default();
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&from),
@@ -1456,7 +1461,7 @@ impl BlockChainClient for Client {
 			data: data,
 		}.fake_sign(from);
 
-		self.call(&transaction, BlockId::Latest, Default::default())
+		self.call(&transaction, block_id, Default::default())
 			.map_err(|e| format!("{:?}", e))
 			.map(|executed| {
 				executed.output
@@ -1620,6 +1625,25 @@ impl ::client::ProvingBlockChainClient for Client {
 			.and_then(|x| x)
 			.unwrap_or_else(Vec::new)
 	}
+
+	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<Vec<DBValue>> {
+		let (state, env_info) = match (self.state_at(id), self.env_info(id)) {
+			(Some(s), Some(e)) => (s, e),
+			_ => return None,
+		};
+		let mut jdb = self.state_db.lock().journal_db().boxed_clone();
+		let backend = state::backend::Proving::new(jdb.as_hashdb_mut());
+
+		let mut state = state.replace_backend(backend);
+		let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
+		let res = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&transaction, options);
+
+		match res {
+			Err(ExecutionError::Internal(_)) => return None,
+			_ => return Some(state.drop().1.extract_proof()),
+		}
+	}
+
 }
 
 impl Drop for Client {

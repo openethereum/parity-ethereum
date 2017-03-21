@@ -16,11 +16,15 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { MenuItem } from 'material-ui';
+import { Checkbox, MenuItem } from 'material-ui';
 
 import { AddressSelect, Form, Input, Select } from '~/ui';
 import { validateAbi } from '~/util/validation';
 import { parseAbiType } from '~/util/abi';
+
+const CHECK_STYLE = {
+  marginTop: '1em'
+};
 
 export default class DetailsStep extends Component {
   static contextTypes = {
@@ -30,8 +34,10 @@ export default class DetailsStep extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     onAbiChange: PropTypes.func.isRequired,
+    onAmountChange: PropTypes.func.isRequired,
     onCodeChange: PropTypes.func.isRequired,
     onDescriptionChange: PropTypes.func.isRequired,
+    onExtrasChange: PropTypes.func.isRequired,
     onFromAddressChange: PropTypes.func.isRequired,
     onInputsChange: PropTypes.func.isRequired,
     onNameChange: PropTypes.func.isRequired,
@@ -39,11 +45,14 @@ export default class DetailsStep extends Component {
 
     abi: PropTypes.string,
     abiError: PropTypes.string,
+    amount: PropTypes.string,
+    amountError: PropTypes.string,
     balances: PropTypes.object,
     code: PropTypes.string,
     codeError: PropTypes.string,
     description: PropTypes.string,
     descriptionError: PropTypes.string,
+    extras: PropTypes.bool,
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
     name: PropTypes.string,
@@ -52,6 +61,7 @@ export default class DetailsStep extends Component {
   };
 
   static defaultProps = {
+    extras: false,
     readOnly: false
   };
 
@@ -83,7 +93,7 @@ export default class DetailsStep extends Component {
       fromAddress, fromAddressError,
       name, nameError,
       description, descriptionError,
-      abiError,
+      abiError, extras,
       code, codeError
     } = this.props;
 
@@ -189,7 +199,67 @@ export default class DetailsStep extends Component {
           value={ code }
         />
 
+        { this.renderValueInput() }
+
+        <div>
+          <Checkbox
+            checked={ extras }
+            label={
+              <FormattedMessage
+                id='deployContract.details.advanced.label'
+                defaultMessage='advanced sending options'
+              />
+            }
+            onCheck={ this.onCheckExtras }
+            style={ CHECK_STYLE }
+          />
+        </div>
+
       </Form>
+    );
+  }
+
+  renderValueInput () {
+    const { abi, amount, amountError } = this.props;
+
+    let payable = false;
+
+    try {
+      const parsedAbi = JSON.parse(abi);
+
+      payable = parsedAbi.find((method) => method.type === 'constructor' && method.payable);
+    } catch (error) {
+      return null;
+    }
+
+    if (!payable) {
+      return null;
+    }
+
+    return (
+      <Input
+        error={ amountError }
+        hint={
+          <FormattedMessage
+            id='deployContract.details.amount.hint'
+            defaultMessage='the amount to transfer to the contract'
+          />
+        }
+        label={
+          <FormattedMessage
+            id='deployContract.details.amount.label'
+            defaultMessage='amount to transfer (in {tag})'
+            values={ {
+              tag: 'ETH'
+            } }
+          />
+        }
+        min={ 0 }
+        step={ 0.1 }
+        type='number'
+        onChange={ this.onAmountChange }
+        value={ amount }
+      />
     );
   }
 
@@ -293,6 +363,16 @@ export default class DetailsStep extends Component {
     const { onDescriptionChange } = this.props;
 
     onDescriptionChange(description);
+  }
+
+  onAmountChange = (event, value) => {
+    const { onAmountChange } = this.props;
+
+    onAmountChange(value);
+  }
+
+  onCheckExtras = () => {
+    this.props.onExtrasChange(!this.props.extras);
   }
 
   onAbiChange = (abi) => {

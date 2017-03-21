@@ -15,11 +15,16 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+@import '../_colors.css';
+@import '../_utils.css';
+
 .button {
-  background: #44e;
+  composes: bezier-transform;
+
+  background: $blue;
   border: none;
   border-radius: 0.25em;
-  color: #fff;
+  color: white;
   cursor: pointer;
   font-size: 1em;
   margin: 1em 0.375em;
@@ -29,10 +34,14 @@
   &[disabled] {
     opacity: 0.5;
     cursor: default;
-    background: #aaa;
+    background: $disabled-bg;
   }
 
   &[data-warning="true"] {
-    background: #e44;
+    background: $warning-bg;
+  }
+
+  &:focus {
+    transform: scale(1.05);
   }
 }

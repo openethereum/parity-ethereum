@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { isEqual } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import LinearProgress from 'material-ui/LinearProgress';
@@ -24,6 +25,7 @@ import { bindActionCreators } from 'redux';
 import { newError } from '~/redux/actions';
 import { Button, TypedInput } from '~/ui';
 import { arrayOrObjectProptype } from '~/util/proptypes';
+import { parseAbiType } from '~/util/abi';
 
 import styles from './queries.css';
 
@@ -44,10 +46,34 @@ class InputQuery extends Component {
   };
 
   state = {
+    inputs: [],
     isValid: true,
     results: [],
     values: {}
   };
+
+  componentWillMount () {
+    this.parseInputs();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const prevInputTypes = this.props.inputs.map((input) => input.type);
+    const nextInputTypes = nextProps.inputs.map((input) => input.type);
+
+    if (!isEqual(prevInputTypes, nextInputTypes)) {
+      this.parseInputs(nextProps);
+    }
+  }
+
+  parseInputs (props = this.props) {
+    const inputs = props.inputs.map((input) => ({ ...input, parsed: parseAbiType(input.type) }));
+    const values = inputs.reduce((values, input, index) => {
+      values[index] = input.parsed.default;
+      return values;
+    }, {});
+
+    this.setState({ inputs, values });
+  }
 
   render () {
     const { name, className } = this.props;
@@ -64,10 +90,9 @@ class InputQuery extends Component {
   }
 
   renderContent () {
-    const { inputs } = this.props;
+    const { inputs } = this.state;
 
     const { isValid } = this.state;
-
     const inputsFields = inputs
       .map((input, index) => this.renderInput(input, index));
 
@@ -190,15 +215,15 @@ class InputQuery extends Component {
   }
 
   onClick = () => {
-    const { values } = this.state;
-    const { inputs, contract, name, outputs, signature } = this.props;
+    const { inputs, values } = this.state;
+    const { contract, name, outputs, signature } = this.props;
 
     this.setState({
       isLoading: true,
       results: []
     });
 
-    const inputValues = inputs.map((input, index) => values[index] || '');
+    const inputValues = inputs.map((input, index) => values[index]);
 
     contract
       .instance[signature]

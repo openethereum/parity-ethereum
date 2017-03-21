@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { registry as registryAbi } from '~/contracts/abi';
+import Contracts from '~/contracts';
 
 import { api } from './parity.js';
 import * as addresses from './addresses/actions.js';
@@ -27,15 +27,12 @@ import * as reverse from './Reverse/actions.js';
 
 export { addresses, accounts, lookup, events, names, records, reverse };
 
-export const setIsTestnet = (isTestnet) => ({ type: 'set isTestnet', isTestnet });
+export const setNetVersion = (netVersion) => ({ type: 'set netVersion', netVersion });
 
 export const fetchIsTestnet = () => (dispatch) =>
   api.net.version()
     .then((netVersion) => {
-      dispatch(setIsTestnet(
-        netVersion === '2' || // morden
-        netVersion === '3' // ropsten
-      ));
+      dispatch(setNetVersion(netVersion));
     })
     .catch((err) => {
       console.error('could not check if testnet');
@@ -46,21 +43,18 @@ export const fetchIsTestnet = () => (dispatch) =>
 
 export const setContract = (contract) => ({ type: 'set contract', contract });
 
-export const fetchContract = () => (dispatch) =>
-  api.parity.registryAddress()
-    .then((address) => {
-      const contract = api.newContract(registryAbi, address);
-
+export const fetchContract = () => (dispatch) => {
+  return Contracts.create(api).registry
+    .fetchContract()
+    .then((contract) => {
       dispatch(setContract(contract));
       dispatch(fetchFee());
       dispatch(fetchOwner());
     })
-    .catch((err) => {
-      console.error('could not fetch contract');
-      if (err) {
-        console.error(err.stack);
-      }
+    .catch((error) => {
+      console.error('could not fetch contract', error);
     });
+};
 
 export const setFee = (fee) => ({ type: 'set fee', fee });
 

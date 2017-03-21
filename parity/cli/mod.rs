@@ -90,7 +90,7 @@ usage! {
 		flag_release_track: String = "current", or |c: &Config| otry!(c.parity).release_track.clone(),
 		flag_no_download: bool = false, or |c: &Config| otry!(c.parity).no_download.clone(),
 		flag_no_consensus: bool = false, or |c: &Config| otry!(c.parity).no_consensus.clone(),
-		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
+		flag_chain: String = "foundation", or |c: &Config| otry!(c.parity).chain.clone(),
 		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
 
@@ -119,8 +119,8 @@ usage! {
 		flag_ui_no_validation: bool = false, or |_| None,
 
 		// -- Networking Options
-		flag_warp: bool = false,
-			or |c: &Config| otry!(c.network).warp.clone(),
+		flag_no_warp: bool = false,
+			or |c: &Config| otry!(c.network).warp.clone().map(|w| !w),
 		flag_port: u16 = 30303u16,
 			or |c: &Config| otry!(c.network).port.clone(),
 		flag_min_peers: u16 = 25u16,
@@ -181,6 +181,8 @@ usage! {
 			or |c: &Config| otry!(c.dapps).interface.clone(),
 		flag_dapps_hosts: String = "none",
 			or |c: &Config| otry!(c.dapps).hosts.as_ref().map(|vec| vec.join(",")),
+		flag_dapps_cors: Option<String> = None,
+			or |c: &Config| otry!(c.dapps).cors.clone().map(Some),
 		flag_dapps_path: String = "$BASE/dapps",
 			or |c: &Config| otry!(c.dapps).path.clone(),
 		flag_dapps_user: Option<String> = None,
@@ -222,6 +224,8 @@ usage! {
 			or |c: &Config| otry!(c.mining).reseal_on_txs.clone(),
 		flag_reseal_min_period: u64 = 2000u64,
 			or |c: &Config| otry!(c.mining).reseal_min_period.clone(),
+		flag_reseal_max_period: u64 = 120000u64,
+			or |c: &Config| otry!(c.mining).reseal_max_period.clone(),
 		flag_work_queue_size: usize = 20usize,
 			or |c: &Config| otry!(c.mining).work_queue_size.clone(),
 		flag_tx_gas_limit: Option<String> = None,
@@ -330,6 +334,7 @@ usage! {
 		// Values with optional default value.
 		flag_base_path: Option<String>, display dir::default_data_path(), or |c: &Config| otry!(c.parity).base_path.clone().map(Some),
 		flag_db_path: Option<String>, display dir::CHAINS_PATH, or |c: &Config| otry!(c.parity).db_path.clone().map(Some),
+		flag_warp: Option<bool>, display true, or |c: &Config| Some(otry!(c.network).warp.clone()),
 	}
 }
 
@@ -427,6 +432,7 @@ struct Dapps {
 	port: Option<u16>,
 	interface: Option<String>,
 	hosts: Option<Vec<String>>,
+	cors: Option<String>,
 	path: Option<String>,
 	user: Option<String>,
 	pass: Option<String>,
@@ -456,6 +462,7 @@ struct Mining {
 	force_sealing: Option<bool>,
 	reseal_on_txs: Option<String>,
 	reseal_min_period: Option<u64>,
+	reseal_max_period: Option<u64>,
 	work_queue_size: Option<usize>,
 	tx_gas_limit: Option<String>,
 	tx_time_limit: Option<u64>,
@@ -638,7 +645,7 @@ mod tests {
 			flag_ui_no_validation: false,
 
 			// -- Networking Options
-			flag_warp: true,
+			flag_no_warp: false,
 			flag_port: 30303u16,
 			flag_min_peers: 25u16,
 			flag_max_peers: 50u16,
@@ -673,6 +680,7 @@ mod tests {
 			flag_dapps_port: 8080u16,
 			flag_dapps_interface: "local".into(),
 			flag_dapps_hosts: "none".into(),
+			flag_dapps_cors: None,
 			flag_dapps_path: "$HOME/.parity/dapps".into(),
 			flag_dapps_user: Some("test_user".into()),
 			flag_dapps_pass: Some("test_pass".into()),
@@ -696,6 +704,7 @@ mod tests {
 			flag_force_sealing: true,
 			flag_reseal_on_txs: "all".into(),
 			flag_reseal_min_period: 4000u64,
+			flag_reseal_max_period: 60000u64,
 			flag_work_queue_size: 20usize,
 			flag_tx_gas_limit: Some("6283184".into()),
 			flag_tx_time_limit: Some(100u64),
@@ -779,6 +788,7 @@ mod tests {
 			flag_etherbase: None,
 			flag_extradata: None,
 			flag_cache: None,
+			flag_warp: Some(true),
 
 			// -- Miscellaneous Options
 			flag_version: false,
@@ -871,6 +881,7 @@ mod tests {
 				path: None,
 				interface: None,
 				hosts: None,
+				cors: None,
 				user: Some("username".into()),
 				pass: Some("password".into())
 			}),
@@ -893,6 +904,7 @@ mod tests {
 				force_sealing: Some(true),
 				reseal_on_txs: Some("all".into()),
 				reseal_min_period: Some(4000),
+				reseal_max_period: Some(60000),
 				work_queue_size: None,
 				relay_set: None,
 				usd_per_tx: None,

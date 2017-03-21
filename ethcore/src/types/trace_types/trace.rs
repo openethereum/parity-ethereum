@@ -475,7 +475,7 @@ impl Encodable for VMExecutedOperation {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(4);
 		s.append(&self.gas_used);
-		s.append(&self.stack_push);
+		s.append_list(&self.stack_push);
 		s.append(&self.mem_diff);
 		s.append(&self.store_diff);
 	}
@@ -551,8 +551,8 @@ impl Encodable for VMTrace {
 		s.begin_list(4);
 		s.append(&self.parent_step);
 		s.append(&self.code);
-		s.append(&self.operations);
-		s.append(&self.subs);
+		s.append_list(&self.operations);
+		s.append_list(&self.subs);
 	}
 }
 

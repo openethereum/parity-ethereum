@@ -284,15 +284,17 @@ export default class Status {
         this._api.parity.netChain(),
         this._api.parity.netPort(),
         this._api.parity.rpcSettings(),
-        this._api.parity.enode(),
+        this._api.parity.enode().then((enode) => enode).catch(() => '-'),
         this._upgradeStore.checkUpgrade()
       ])
       .then(([
         netPeers, clientVersion, netVersion, defaultExtraData, netChain, netPort, rpcSettings, enode, upgradeStatus
       ]) => {
-        const isTest =
-          netVersion === '2' || // morden
-          netVersion === '3'; // ropsten
+        const isTest = [
+          '2', // morden
+          '3', // ropsten
+          '42' // kovan
+        ].includes(netVersion);
 
         const longStatus = {
           netPeers,
@@ -300,6 +302,7 @@ export default class Status {
           defaultExtraData,
           netChain,
           netPort,
+          netVersion,
           rpcSettings,
           isTest,
           enode

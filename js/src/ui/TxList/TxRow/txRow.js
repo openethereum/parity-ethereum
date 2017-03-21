@@ -35,7 +35,8 @@ class TxRow extends Component {
   static propTypes = {
     accountAddresses: PropTypes.array.isRequired,
     address: PropTypes.string.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    contractAddresses: PropTypes.array.isRequired,
+    netVersion: PropTypes.string.isRequired,
     tx: PropTypes.object.isRequired,
 
     block: PropTypes.object,
@@ -48,26 +49,26 @@ class TxRow extends Component {
   };
 
   render () {
-    const { tx, address, isTest, historic, className } = this.props;
+    const { address, className, historic, netVersion, tx } = this.props;
 
     return (
       <tr className={ className || '' }>
         { this.renderBlockNumber(tx.blockNumber) }
-        { this.renderAddress(tx.from) }
+        { this.renderAddress(tx.from, false) }
         <td className={ styles.transaction }>
           { this.renderEtherValue(tx.value) }
           <div>⇒</div>
           <div>
             <a
               className={ styles.link }
-              href={ txLink(tx.hash, isTest) }
+              href={ txLink(tx.hash, false, netVersion) }
               target='_blank'
             >
               { `${tx.hash.substr(2, 6)}...${tx.hash.slice(-6)}` }
             </a>
           </div>
         </td>
-        { this.renderAddress(tx.to) }
+        { this.renderAddress(tx.to || tx.creates, !!tx.creates) }
         <td className={ styles.method }>
           <MethodDecoding
             historic={ historic }
@@ -79,10 +80,11 @@ class TxRow extends Component {
     );
   }
 
-  renderAddress (address) {
+  renderAddress (address, isDeploy = false) {
+    const isKnownContract = this.getIsKnownContract(address);
     let esLink = null;
 
-    if (address) {
+    if (address && (!isDeploy || isKnownContract)) {
       esLink = (
         <Link
           activeClassName={ styles.currentLink }
@@ -103,7 +105,7 @@ class TxRow extends Component {
           <IdentityIcon
             center
             className={ styles.icon }
-            address={ address }
+            address={ (!isDeploy || isKnownContract) ? address : '' }
           />
         </div>
         <div className={ styles.center }>
@@ -140,9 +142,22 @@ class TxRow extends Component {
     );
   }
 
+  getIsKnownContract (address) {
+    const { contractAddresses } = this.props;
+
+    return contractAddresses
+      .map((a) => a.toLowerCase())
+      .includes(address.toLowerCase());
+  }
+
   addressLink (address) {
     const { accountAddresses } = this.props;
     const isAccount = accountAddresses.includes(address);
+    const isContract = this.getIsKnownContract(address);
+
+    if (isContract) {
+      return `/contracts/${address}`;
+    }
 
     if (isAccount) {
       return `/accounts/${address}`;
@@ -153,11 +168,18 @@ class TxRow extends Component {
 }
 
 function mapStateToProps (initState) {
-  const { accounts } = initState.personal;
+  const { accounts, contracts } = initState.personal;
   const accountAddresses = Object.keys(accounts);
+  const contractAddresses = Object.keys(contracts);
 
-  return () => {
-    return { accountAddresses };
+  return (state) => {
+    const { netVersion } = state.nodeStatus;
+
+    return {
+      accountAddresses,
+      contractAddresses,
+      netVersion
+    };
   };
 }
 
@@ -165,4 +187,3 @@ export default connect(
   mapStateToProps,
   null
 )(TxRow);
-

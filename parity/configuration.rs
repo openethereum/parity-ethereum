@@ -15,12 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time::Duration;
-use std::io::Read;
+use std::io::{Read, Write, stderr};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::cmp::max;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
+use util::journaldb::Algorithm;
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::ethstore::ethkey::Secret;
@@ -33,7 +34,7 @@ use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
-use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
@@ -84,14 +85,16 @@ pub struct Execute {
 #[derive(Debug, PartialEq)]
 pub struct Configuration {
 	pub args: Args,
+	pub spec_name_override: Option<String>,
 }
 
 impl Configuration {
-	pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
+	pub fn parse<S: AsRef<str>>(command: &[S], spec_name_override: Option<String>) -> Result<Self, ArgsError> {
 		let args = Args::parse(command)?;
 
 		let config = Configuration {
 			args: args,
+			spec_name_override: spec_name_override,
 		};
 
 		Ok(config)
@@ -102,7 +105,11 @@ impl Configuration {
 		let pruning = self.args.flag_pruning.parse()?;
 		let pruning_history = self.args.flag_pruning_history;
 		let vm_type = self.vm_type()?;
-		let mode = match self.args.flag_mode.as_ref() { "last" => None, mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?), };
+		let spec = self.chain().parse()?;
+		let mode = match self.args.flag_mode.as_ref() {
+			"last" => None,
+			mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?),
+		};
 		let update_policy = self.update_policy()?;
 		let logger_config = self.logger_config();
 		let http_conf = self.http_config()?;
@@ -110,12 +117,18 @@ impl Configuration {
 		let net_conf = self.net_config()?;
 		let network_id = self.network_id();
 		let cache_config = self.cache_config();
-		let spec = self.chain().parse()?;
 		let tracing = self.args.flag_tracing.parse()?;
 		let fat_db = self.args.flag_fat_db.parse()?;
 		let compaction = self.args.flag_db_compaction.parse()?;
 		let wal = !self.args.flag_fast_and_loose;
-		let warp_sync = self.args.flag_warp;
+		match self.args.flag_warp {
+			// Logging is not initialized yet, so we print directly to stderr
+			Some(true) if fat_db == Switch::On => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because Fat DB is turned on").expect("Error writing to stderr"),
+			Some(true) if tracing == Switch::On => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because tracing is turned on").expect("Error writing to stderr"),
+			Some(true) if pruning == Pruning::Specific(Algorithm::Archive) => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because pruning mode is set to archive").expect("Error writing to stderr"),
+			_ => {},
+		};
+		let warp_sync = !self.args.flag_no_warp && fat_db != Switch::On && tracing != Switch::On && pruning != Pruning::Specific(Algorithm::Archive);
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let dapps_conf = self.dapps_config();
@@ -429,8 +442,11 @@ impl Configuration {
 	}
 
 	fn chain(&self) -> String {
-		if self.args.flag_testnet {
-			"ropsten".to_owned()
+		if let Some(ref s) = self.spec_name_override {
+			s.clone()
+		}
+		else if self.args.flag_testnet {
+			"testnet".to_owned()
 		} else {
 			self.args.flag_chain.clone()
 		}
@@ -506,6 +522,7 @@ impl Configuration {
 			tx_queue_strategy: to_queue_strategy(&self.args.flag_tx_queue_strategy)?,
 			pending_set: to_pending_set(&self.args.flag_relay_set)?,
 			reseal_min_period: Duration::from_millis(reseal_min_period),
+			reseal_max_period: Duration::from_millis(self.args.flag_reseal_max_period),
 			work_queue_size: self.args.flag_work_queue_size,
 			enable_resubmission: !self.args.flag_remove_solved,
 			tx_queue_banning: match self.args.flag_tx_time_limit {
@@ -538,6 +555,7 @@ impl Configuration {
 			interface: self.dapps_interface(),
 			port: self.args.flag_dapps_port,
 			hosts: self.dapps_hosts(),
+			cors: self.dapps_cors(),
 			user: self.args.flag_dapps_user.clone(),
 			pass: self.args.flag_dapps_pass.clone(),
 			dapps_path: PathBuf::from(self.directories().dapps),
@@ -714,6 +732,10 @@ impl Configuration {
 		Self::cors(self.args.flag_ipfs_api_cors.as_ref())
 	}
 
+	fn dapps_cors(&self) -> Option<Vec<String>> {
+		Self::cors(self.args.flag_dapps_cors.as_ref())
+	}
+
 	fn hosts(hosts: &str) -> Option<Vec<String>> {
 		match hosts {
 			"none" => return Some(Vec::new()),
@@ -820,8 +842,8 @@ impl Configuration {
 		let secretstore_path = replace_home(&data_path, &self.args.flag_secretstore_path);
 		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
 
-		if self.args.flag_geth  && !cfg!(windows) {
-			let geth_root  = if self.args.flag_testnet { path::ethereum::test() } else {  path::ethereum::default() };
+		if self.args.flag_geth && !cfg!(windows) {
+			let geth_root  = if self.chain() == "testnet".to_owned() { path::ethereum::test() } else {  path::ethereum::default() };
 			::std::fs::create_dir_all(geth_root.as_path()).unwrap_or_else(
 				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_root.to_str().unwrap(), e));
 		}
@@ -959,6 +981,7 @@ mod tests {
 	fn parse(args: &[&str]) -> Configuration {
 		Configuration {
 			args: Args::parse_without_config(args).unwrap(),
+			spec_name_override: None,
 		}
 	}
 
@@ -1144,7 +1167,7 @@ mod tests {
 			ipc_conf: Default::default(),
 			net_conf: default_network_config(),
 			network_id: None,
-			warp_sync: false,
+			warp_sync: true,
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),
@@ -1223,7 +1246,7 @@ mod tests {
 		// then
 		assert_eq!(conf.network_settings(), NetworkSettings {
 			name: "testname".to_owned(),
-			chain: "ropsten".to_owned(),
+			chain: "testnet".to_owned(),
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "local".to_owned(),
@@ -1416,7 +1439,7 @@ mod tests {
 		let filename = temp.as_str().to_owned() + "/peers";
 		File::create(filename.clone()).unwrap().write_all(b"  \n\t\n").unwrap();
 		let args = vec!["parity", "--reserved-peers", &filename];
-		let conf = Configuration::parse(&args).unwrap();
+		let conf = Configuration::parse(&args, None).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
 	}
 
