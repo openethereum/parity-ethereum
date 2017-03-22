@@ -54,6 +54,11 @@ impl Snapshot {
 		self.snapshot_hash = None;
 	}
 
+	/// Check if currently downloading a snapshot.
+	pub fn have_manifest(&self) -> bool {
+		self.snapshot_hash.is_some()
+	}
+
 	/// Reset collection for a manifest RLP
 	pub fn reset_to(&mut self, manifest: &ManifestData, hash: &H256) {
 		self.clear();

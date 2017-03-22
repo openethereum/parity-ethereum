@@ -35,8 +35,8 @@ use stats::NetworkStats;
 use time;
 
 // Timeout must be less than (interval - 1).
-const PING_TIMEOUT_SEC: u64 = 15;
-const PING_INTERVAL_SEC: u64 = 30;
+const PING_TIMEOUT_SEC: u64 = 60;
+const PING_INTERVAL_SEC: u64 = 120;
 
 #[derive(Debug, Clone)]
 enum ProtocolState {
