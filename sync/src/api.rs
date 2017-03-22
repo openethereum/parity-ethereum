@@ -662,6 +662,8 @@ pub struct LightSyncParams<L> {
 	pub network_id: u64,
 	/// Subprotocol name.
 	pub subprotocol_name: [u8; 3],
+	/// Other handlers to attach.
+	pub handlers: Vec<Arc<LightHandler>>,
 }
 
 /// Service for light synchronization.
@@ -695,6 +697,10 @@ impl LightSync {
 			let mut light_proto = LightProtocol::new(params.client.clone(), light_params);
 			let sync_handler = try!(SyncHandler::new(params.client.clone()));
 			light_proto.add_handler(Arc::new(sync_handler));
+
+			for handler in params.handlers {
+				light_proto.add_handler(handler);
+			}
 
 			Arc::new(light_proto)
 		};

@@ -18,13 +18,15 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use dir::default_data_path;
-use ethcore::client::Client;
+use ethcore::client::{Client, BlockChainClient, BlockId};
+use ethcore::transaction::{Transaction, Action};
 use ethcore_rpc::informant::RpcStats;
-use ethsync::SyncProvider;
 use hash_fetch::fetch::Client as FetchClient;
+use hash_fetch::urlhint::ContractClient;
 use helpers::replace_home;
 use rpc_apis::{self, SignerService};
 use parity_reactor;
+use util::{Bytes, Address, U256};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
@@ -58,17 +60,56 @@ impl Default for Configuration {
 	}
 }
 
-pub struct Dependencies {
-	pub apis: Arc<rpc_apis::FullDependencies>,
+/// Registrar implementation of the full client.
+pub struct FullRegistrar {
+	/// Handle to the full client.
 	pub client: Arc<Client>,
-	pub sync: Arc<SyncProvider>,
+}
+
+impl ContractClient for FullRegistrar {
+	fn registrar(&self) -> Result<Address, String> {
+		self.client.additional_params().get("registrar")
+			 .ok_or_else(|| "Registrar not defined.".into())
+			 .and_then(|registrar| {
+				 registrar.parse().map_err(|e| format!("Invalid registrar address: {:?}", e))
+			 })
+	}
+
+	fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
+		let from = Address::default();
+		let transaction = Transaction {
+			nonce: self.client.latest_nonce(&from),
+			action: Action::Call(address),
+			gas: U256::from(50_000_000),
+			gas_price: U256::default(),
+			value: U256::default(),
+			data: data,
+		}.fake_sign(from);
+
+		self.client.call(&transaction, BlockId::Latest, Default::default())
+			.map_err(|e| format!("{:?}", e))
+			.map(|executed| {
+				executed.output
+			})
+	}
+}
+
+// TODO: light client implementation forwarding to OnDemand and waiting for future
+// to resolve.
+
+pub struct Dependencies<D: rpc_apis::Dependencies> {
+	pub apis: Arc<D>,
+	pub sync_status: Arc<::ethcore_dapps::SyncStatus>,
+	pub contract_client: Arc<ContractClient>,
 	pub remote: parity_reactor::TokioRemote,
 	pub fetch: FetchClient,
 	pub signer: Arc<SignerService>,
 	pub stats: Arc<RpcStats>,
 }
 
-pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<WebappServer>, String> {
+pub fn new<D>(configuration: Configuration, deps: Dependencies<D>) -> Result<Option<WebappServer>, String>
+	where D: rpc_apis::Dependencies
+{
 	if !configuration.enabled {
 		return Ok(None);
 	}
@@ -130,21 +171,16 @@ mod server {
 	use std::sync::Arc;
 	use std::net::SocketAddr;
 	use std::io;
-	use util::{Bytes, Address, U256};
 
 	use ansi_term::Colour;
-	use ethcore::transaction::{Transaction, Action};
-	use ethcore::client::{Client, BlockChainClient, BlockId};
 	use ethcore_dapps::{AccessControlAllowOrigin, Host};
-	use ethcore_rpc::is_major_importing;
-	use hash_fetch::urlhint::ContractClient;
 	use parity_reactor;
 	use rpc_apis;
 
 	pub use ethcore_dapps::Server as WebappServer;
 
-	pub fn setup_dapps_server(
-		deps: Dependencies,
+	pub fn setup_dapps_server<D: rpc_apis::Dependencies>(
+		deps: Dependencies<D>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		url: &SocketAddr,
@@ -157,18 +193,16 @@ mod server {
 
 		let server = dapps::ServerBuilder::new(
 			&dapps_path,
-			Arc::new(Registrar { client: deps.client.clone() }),
+			deps.contract_client,
 			parity_reactor::Remote::new(deps.remote.clone()),
 		);
 		let allowed_hosts: Option<Vec<_>> = allowed_hosts.map(|hosts| hosts.into_iter().map(Host::from).collect());
 		let cors: Option<Vec<_>> = cors.map(|cors| cors.into_iter().map(AccessControlAllowOrigin::from).collect());
 
-		let sync = deps.sync.clone();
-		let client = deps.client.clone();
 		let signer = deps.signer.clone();
 		let server = server
 			.fetch(deps.fetch.clone())
-			.sync_status(Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())))
+			.sync_status(deps.sync_status)
 			.web_proxy_tokens(Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token)))
 			.extra_dapps(&extra_dapps)
 			.signer_address(deps.signer.address())
@@ -199,38 +233,6 @@ mod server {
 			},
 			Err(e) => Err(format!("WebApps error: {:?}", e)),
 			Ok(server) => Ok(server),
-		}
-	}
-
-	struct Registrar {
-		client: Arc<Client>,
-	}
-
-	impl ContractClient for Registrar {
-		fn registrar(&self) -> Result<Address, String> {
-			self.client.additional_params().get("registrar")
-				 .ok_or_else(|| "Registrar not defined.".into())
-				 .and_then(|registrar| {
-					 registrar.parse().map_err(|e| format!("Invalid registrar address: {:?}", e))
-				 })
-		}
-
-		fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
-			let from = Address::default();
-			let transaction = Transaction {
-				nonce: self.client.latest_nonce(&from),
-				action: Action::Call(address),
-				gas: U256::from(50_000_000),
-				gas_price: U256::default(),
-				value: U256::default(),
-				data: data,
-			}.fake_sign(from);
-
-			self.client.call(&transaction, BlockId::Latest, Default::default())
-				.map_err(|e| format!("{:?}", e))
-				.map(|executed| {
-					executed.output
-				})
 		}
 	}
 }

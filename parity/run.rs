@@ -30,6 +30,7 @@ use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::snapshot;
 use ethcore::verification::queue::VerifierSettings;
+use light::Cache as LightDataCache;
 use ethsync::SyncConfig;
 use informant::Informant;
 use updater::{UpdatePolicy, Updater};
@@ -60,6 +61,10 @@ const SNAPSHOT_PERIOD: u64 = 10000;
 
 // how many blocks to wait before starting a periodic snapshot.
 const SNAPSHOT_HISTORY: u64 = 100;
+
+// Number of minutes before a given gas price corpus should expire.
+// Light client only.
+const GAS_CORPUS_EXPIRATION_MINUTES: i64 = 60 * 6;
 
 // Pops along with error messages when a password is missing or invalid.
 const VERIFY_PASSWORD_HINT: &'static str = "Make sure valid password is present in files passed using `--password` or in the configuration file.";
@@ -155,7 +160,7 @@ impl ::local_store::NodeInfo for FullNodeInfo {
 }
 
 // helper for light execution.
-fn execute_light(cmd: RunCmd, can_restart: bool, _logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
+fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
 	use light::client as light_client;
 	use ethsync::{LightSyncParams, LightSync, ManageNetwork};
 	use util::RwLock;
@@ -206,7 +211,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, _logger: Arc<RotatingLogger>) -
 	let service = light_client::Service::start(config, &spec, &db_dirs.client_path(algorithm))
 		.map_err(|e| format!("Error starting light client: {}", e))?;
 	let txq = Arc::new(RwLock::new(::light::transaction_queue::TransactionQueue::default()));
-	let provider = ::light::provider::LightProvider::new(service.client().clone(), txq);
+	let provider = ::light::provider::LightProvider::new(service.client().clone(), txq.clone());
 
 	// start network.
 	// set up bootnodes
@@ -215,6 +220,13 @@ fn execute_light(cmd: RunCmd, can_restart: bool, _logger: Arc<RotatingLogger>) -
 		net_conf.boot_nodes = spec.nodes.clone();
 	}
 
+	// TODO: configurable cache size.
+	let cache = LightDataCache::new(Default::default(), ::time::Duration::minutes(GAS_CORPUS_EXPIRATION_MINUTES));
+	let cache = Arc::new(::util::Mutex::new(cache));
+
+	// start on_demand service.
+	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
+
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
 	let sync_params = LightSyncParams {
@@ -222,16 +234,70 @@ fn execute_light(cmd: RunCmd, can_restart: bool, _logger: Arc<RotatingLogger>) -
 		client: Arc::new(provider),
 		network_id: cmd.network_id.unwrap_or(spec.network_id()),
 		subprotocol_name: ::ethsync::LIGHT_PROTOCOL,
+		handlers: vec![on_demand.clone()],
 	};
 	let light_sync = LightSync::new(sync_params).map_err(|e| format!("Error starting network: {}", e))?;
+	let light_sync = Arc::new(light_sync);
 	light_sync.start_network();
 
 	// start RPCs.
+	// spin up event loop
+	let event_loop = EventLoop::spawn();
+
+	// fetch service
+	let fetch = FetchClient::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 
 	// prepare account provider
-	let _account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
-	// rest TODO
+	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
+	let rpc_stats = Arc::new(informant::RpcStats::default());
+	let signer_path = cmd.signer_conf.signer_path.clone();
+
+	let deps_for_rpc_apis = Arc::new(rpc_apis::LightDependencies {
+		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
+			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
+		}, cmd.ui_address)),
+		client: service.client().clone(),
+		sync: light_sync.clone(),
+		net: light_sync.clone(),
+		secret_store: account_provider,
+		logger: logger,
+		settings: Arc::new(cmd.net_settings),
+		on_demand: on_demand,
+		cache: cache,
+		transaction_queue: txq,
+		dapps_interface: match cmd.dapps_conf.enabled {
+			true => Some(cmd.dapps_conf.interface.clone()),
+			false => None,
+		},
+		dapps_port: match cmd.dapps_conf.enabled {
+			true => Some(cmd.dapps_conf.port),
+			false => None,
+		},
+		fetch: fetch,
+		geth_compatibility: cmd.geth_compatibility,
+	});
+
+	let dependencies = rpc::Dependencies {
+		apis: deps_for_rpc_apis.clone(),
+		remote: event_loop.raw_remote(),
+		stats: rpc_stats.clone(),
+	};
+
+	// start rpc servers
+	let _http_server = rpc::new_http(cmd.http_conf, &dependencies)?;
+	let _ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
+
+	// the signer server
+	let signer_deps = signer::Dependencies {
+		apis: deps_for_rpc_apis.clone(),
+		remote: event_loop.raw_remote(),
+		rpc_stats: rpc_stats.clone(),
+	};
+	let signing_queue = deps_for_rpc_apis.signer_service.queue();
+	let _signer_server = signer::start(cmd.signer_conf.clone(), signing_queue, signer_deps)?;
+
+	// TODO: Dapps
 
 	// wait for ctrl-c.
 	Ok(wait_for_exit(panic_handler, None, None, can_restart))
@@ -536,14 +602,19 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
 
 	// the dapps server
-	let dapps_deps = dapps::Dependencies {
-		apis: deps_for_rpc_apis.clone(),
-		client: client.clone(),
-		sync: sync_provider.clone(),
-		remote: event_loop.raw_remote(),
-		fetch: fetch.clone(),
-		signer: deps_for_rpc_apis.signer_service.clone(),
-		stats: rpc_stats.clone(),
+	let dapps_deps = {
+		let (sync, client) = (sync_provider.clone(), client.clone());
+		let contract_client = Arc::new(::dapps::FullRegistrar { client: client.clone() });
+
+		dapps::Dependencies {
+			apis: deps_for_rpc_apis.clone(),
+			sync_status: Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())),
+			contract_client: contract_client,
+			remote: event_loop.raw_remote(),
+			fetch: fetch.clone(),
+			signer: deps_for_rpc_apis.signer_service.clone(),
+			stats: rpc_stats.clone(),
+		}
 	};
 	let dapps_server = dapps::new(cmd.dapps_conf.clone(), dapps_deps)?;
 

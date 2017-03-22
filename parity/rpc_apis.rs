@@ -291,7 +291,6 @@ pub struct LightDependencies {
 	pub on_demand: Arc<::light::on_demand::OnDemand>,
 	pub cache: Arc<Mutex<LightDataCache>>,
 	pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
-	pub updater: Arc<Updater>,
 	pub dapps_interface: Option<String>,
 	pub dapps_port: Option<u16>,
 	pub fetch: FetchClient,
