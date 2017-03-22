@@ -78,15 +78,23 @@ class ParityBar extends Component {
 
     // Hook to the dapp loaded event to position the
     // Parity Bar accordingly
-    DappsStore.get(api).on('loaded', (app) => {
-      this.app = app;
-      this.loadPosition();
-    });
+    const dappsStore = DappsStore.get(api);
+
+    dappsStore
+      .on('loaded', (app) => {
+        this.app = app;
+        this.loadPosition();
+      });
   }
 
   componentWillReceiveProps (nextProps) {
     const count = this.props.pending.length;
     const newCount = nextProps.pending.length;
+
+    // Replace to default position when leaving a dapp
+    if (this.props.dapp && !nextProps.dapp) {
+      this.loadPosition(true);
+    }
 
     if (count === newCount) {
       return;
@@ -586,39 +594,61 @@ class ParityBar extends Component {
   }
 
   get config () {
-    let config;
+    const config = store.get(LS_STORE_KEY);
 
-    try {
-      config = JSON.parse(store.get(LS_STORE_KEY));
-    } catch (error) {
-      config = {};
+    if (typeof config === 'string') {
+      try {
+        return JSON.parse(config);
+      } catch (e) {
+        return {};
+      }
     }
 
-    return config;
+    return config || {};
   }
 
-  loadPosition (props = this.props) {
-    const { app, config } = this;
+  /**
+   * Return the config key for the current view.
+   * If inside a dapp, should be the dapp id.
+   * Otherwise, try to get the current hostname.
+   */
+  getConfigKey () {
+    const { app } = this;
 
-    if (!app) {
+    if (app && app.id) {
+      return app.id;
+    }
+
+    return window.location.hostname;
+  }
+
+  loadPosition (loadDefault = false) {
+    if (loadDefault) {
       return this.setState({ position: DEFAULT_POSITION });
     }
 
-    if (config[app.id]) {
-      return this.setState({ position: config[app.id] });
+    const { app, config } = this;
+    const configKey = this.getConfigKey();
+
+    if (config[configKey]) {
+      return this.setState({ position: config[configKey] });
     }
 
-    const position = this.stringToPosition(app.position);
+    if (app && app.position) {
+      const position = this.stringToPosition(app.position);
 
-    this.setState({ position });
+      return this.setState({ position });
+    }
+
+    return this.setState({ position: DEFAULT_POSITION });
   }
 
   savePosition (position) {
-    const { app, config } = this;
+    const { config } = this;
+    const configKey = this.getConfigKey();
 
-    config[app.id] = position;
-
-    store.set(LS_STORE_KEY, JSON.stringify(config));
+    config[configKey] = position;
+    store.set(LS_STORE_KEY, config);
   }
 
   stringToPosition (value) {
