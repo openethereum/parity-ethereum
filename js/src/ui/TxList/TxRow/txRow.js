@@ -178,13 +178,27 @@ class TxRow extends Component {
     }
 
     if (!isCancelOpen && !isEditOpen) {
+      const pendingStatus = this.getCondition();
+      if (pendingStatus === 'submitting...') {
+        return (
+          <div className={ styles.pending }>
+            <div />
+            <div>
+              <FormattedMessage
+                id='ui.txList.txRow.submitting'
+                defaultMessage='SUBMITTING'
+              />
+            </div>
+          </div>
+        );
+      }
       return (
         <div className={ styles.pending }>
           <span>
             <FormattedMessage
               id='ui.txList.txRow.time'
-              defaultMessage='{when}'
-              values={ { when: this.getCondition() } }
+              defaultMessage='{ which }'
+              values={ { which: pendingStatus } }
             />
           </span>
           <div>
@@ -285,25 +299,38 @@ class TxRow extends Component {
     const { parity } = this.context.api;
     const { hash } = this.props.tx;
 
-    parity.removeTransaction(hash);
-    this.setState({ canceled: true });
+    parity.removeTransaction(hash)
+    .then((hash) => {
+      this.setState({ canceled: true });
+    })
+    .catch((err) => {
+      console.log("error", err);
+    });
   }
 
   editTransaction = () => {
     const { parity } = this.context.api;
     const { hash, gas, gasPrice, to, from, value, input, condition } = this.props.tx;
 
-    parity.removeTransaction(hash);
-    parity.postTransaction({
-      from,
-      to,
-      gas,
-      gasPrice,
-      value,
-      condition,
-      data: input
-    });
-    this.setState({ editing: true });
+    parity.removeTransaction(hash)
+      .then(() => {
+        parity.postTransaction({
+          from,
+          to,
+          gas,
+          gasPrice,
+          value,
+          condition,
+          data: input
+        })
+        .catch((err) => {
+          console.log("ERROR postTransaction", err);
+        });
+        this.setState({ editing: true });
+      })
+      .catch((err) => {
+        console.log("error removeTransaction", err);
+      });
   }
 
   setCancel = () => {

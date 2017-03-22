@@ -36,7 +36,7 @@ class TxList extends Component {
       PropTypes.object
     ]).isRequired,
     blockNumber: PropTypes.object,
-    netVersion: PropTypes.string.isRequired
+    netVersion: PropTypes.string.isRequired,
   };
 
   store = new Store(this.context.api);

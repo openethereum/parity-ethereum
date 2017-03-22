@@ -645,7 +645,7 @@ export default {
 
   removeTransaction: {
     section: SECTION_ACCOUNTS,
-    desc: 'Cancel a pending transaction',
+    desc: 'Cancel a pending transaction.',
     params: [
       {
         type: Data,
@@ -654,9 +654,20 @@ export default {
       }
     ],
     returns: {
-      type: Boolean,
-      desc: 'returns `true` if the transaction was successfully canceled, `false` if not.',
-      example: true
+      type: Object,
+      desc: 'the removed transaction if cancellation was successful, an error if not.',
+      example: {
+        condition: {},
+        from: "0x00d0f4d320c54b44f9fe852af1215a528c99f1ab",
+        gas: "0x5208",
+        gasPrice: "0x2540be400",
+        hash: "0x9f771b70b3d33eae61064432f7398593d28d7bfa49004bc43004dfbe0777ab0e",
+        input: "0x",
+        networkId: 42,
+        nonce: "0x10",
+        to: "0x00a3755a680f9b906a4465923ea5ad3c960ddcec",
+        value: "0xde0b6b3a7640000"
+      }
     }
   },
 
