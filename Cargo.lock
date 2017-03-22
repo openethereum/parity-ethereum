@@ -178,7 +178,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "bn"
 version = "0.4.2"
-source = "git+https://github.com/paritytech/bn#78cf02fd7b35e4a2398fedd96f68c92953badea7"
+source = "git+https://github.com/paritytech/bn#7e513a84330f02603759e370f22af90c99e3e717"
 dependencies = [
  "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",

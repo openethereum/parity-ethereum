@@ -112,7 +112,7 @@ impl Builtin {
 
 	/// Simple forwarder for execute.
 	pub fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> { 
-		self.native.execute(input, output);
+		self.native.execute(input, output)?;
 		Ok(()) 
 	}
 
@@ -157,6 +157,8 @@ fn ethereum_builtin(name: &str) -> Box<Impl> {
 		"sha256" => Box::new(Sha256) as Box<Impl>,
 		"ripemd160" => Box::new(Ripemd160) as Box<Impl>,
 		"modexp" => Box::new(ModexpImpl) as Box<Impl>,
+		"alt_bn128_add" => Box::new(Bn128AddImpl) as Box<Impl>,
+		"alt_bn128_mul" => Box::new(Bn128MulImpl) as Box<Impl>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -326,25 +328,39 @@ impl Impl for ModexpImpl {
 
 impl Impl for Bn128AddImpl {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
-		use bn::{Fq, AffineG1, G1};
+		use bn::{Fq, AffineG1, G1, Group};
 
 		let mut buf = [0u8; 32];
 		let mut next_coord = |reader: &mut io::Chain<&[u8], io::Repeat>| {
 			reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
-			Fq::from_slice(&input[0..32])
+			Fq::from_slice(&buf[0..32])
 		};
 
 		let mut padded_input = input.chain(io::repeat(0));
 
-		let p1x = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p1 x coordinate"))?;
-		let p1y = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p1 y coordinate"))?;
-		let p1: G1 = AffineG1::new(p1x, p1y).into();
+		let px = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p1 x coordinate"))?;
+		let py = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p1 y coordinate"))?;
+		let p1: G1 = if px == Fq::zero() && py == Fq::zero() {
+			G1::zero()
+		} else {
+			AffineG1::new(px, py).map_err(|_| Error::from("Invalid curve point"))?.into()
+		};
 
-		let p2x = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p2 x coordinate"))?;
-		let p2y = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p2 y coordinate"))?;
-		let p2: G1 = AffineG1::new(p2x, p2y).into();
+		let px = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p1 x coordinate"))?;
+		let py = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p1 y coordinate"))?;
+		let p2: G1 = if px == Fq::zero() && py == Fq::zero() {
+			G1::zero()
+		} else {
+			AffineG1::new(px, py).map_err(|_| Error::from("Invalid curve point"))?.into()
+		};
 
-		let sum  = AffineG1::from_jacobian(p1 + p2).expect("Sum of two valid points is a valid point also; qed");
+		let mut write_buf = [0u8; 64];
+		if let Some(sum) = AffineG1::from_jacobian(p1 + p2) {
+			// point not at infinity
+			sum.x().to_big_endian(&mut write_buf[0..32]);
+			sum.y().to_big_endian(&mut write_buf[32..64]);
+		}
+		output.write(0, &write_buf);
 
 		Ok(())
 	}	
@@ -570,6 +586,51 @@ mod tests {
 			assert_eq!(output.len(), 0); // shouldn't have written any output.
 			assert_eq!(f.cost(&input[..]), expected_cost.into());
 		}
+	}
+
+	#[test]
+	fn alt_bn128_add() {
+		use rustc_serialize::hex::FromHex;
+
+		let f = Builtin {
+			pricer: Box::new(Linear { base: 0, word: 0 }),
+			native: ethereum_builtin("alt_bn128_add"),
+			activate_at: 0,
+		};		
+
+		// zero-points additions
+		{
+			let input = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000"
+			).unwrap();
+
+			let mut output = vec![0u8; 64];
+			let expected = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000"
+			).unwrap();
+
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
+			assert_eq!(output, expected);
+		}		
+
+		// should fail - point not on curve
+		{
+			let input = FromHex::from_hex("\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111"
+			).unwrap();
+
+			let mut output = vec![0u8; 64];
+
+			let res = f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
+			assert!(res.is_err(), "There should be built-in error here");
+		}		
 	}
 
 	#[test]
