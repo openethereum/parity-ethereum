@@ -50,7 +50,7 @@ impl<'a> From<&'a EvmError> for Error {
 			EvmError::BadInstruction { .. } => Error::BadInstruction,
 			EvmError::StackUnderflow { .. } => Error::StackUnderflow,
 			EvmError::OutOfStack { .. } => Error::OutOfStack,
-			EvmError::BuiltIn { .. } => Error::OutOfStack,
+			EvmError::BuiltIn { .. } => Error::BuiltIn,
 			EvmError::Internal(_) => Error::Internal,
 		}
 	}
@@ -106,6 +106,7 @@ impl Decodable for Error {
 			3 => Ok(StackUnderflow),
 			4 => Ok(OutOfStack),
 			5 => Ok(Internal),
+			6 => Ok(BuiltIn),
 			_ => Err(DecoderError::Custom("Invalid error type")),
 		}
 	}
