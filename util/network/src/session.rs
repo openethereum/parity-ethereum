@@ -116,9 +116,8 @@ pub struct PeerCapabilityInfo {
 }
 
 impl Decodable for PeerCapabilityInfo {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let c = decoder.as_rlp();
-		let p: Vec<u8> = c.val_at(0)?;
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let p: Vec<u8> = rlp.val_at(0)?;
 		if p.len() != 3 {
 			return Err(DecoderError::Custom("Invalid subprotocol string length. Should be 3"));
 		}
@@ -126,7 +125,7 @@ impl Decodable for PeerCapabilityInfo {
 		p2.clone_from_slice(&p);
 		Ok(PeerCapabilityInfo {
 			protocol: p2,
-			version: c.val_at(1)?
+			version: rlp.val_at(1)?
 		})
 	}
 }
@@ -473,7 +472,7 @@ impl Session {
 	where Message: Send + Sync + Clone {
 		let protocol = rlp.val_at::<u32>(0)?;
 		let client_version = rlp.val_at::<String>(1)?;
-		let peer_caps = rlp.val_at::<Vec<PeerCapabilityInfo>>(2)?;
+		let peer_caps: Vec<PeerCapabilityInfo> = rlp.list_at(2)?;
 		let id = rlp.val_at::<NodeId>(4)?;
 
 		// Intersect with host capabilities

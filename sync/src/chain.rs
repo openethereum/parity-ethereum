@@ -659,7 +659,7 @@ impl ChainSync {
 		let confirmed = match self.peers.get_mut(&peer_id) {
 			Some(ref mut peer) if peer.asking == PeerAsking::ForkHeader => {
 				peer.asking = PeerAsking::Nothing;
-				let item_count = r.item_count();
+				let item_count = r.item_count()?;
 				let (fork_number, fork_hash) = self.fork_block.expect("ForkHeader request is sent only fork block is Some; qed").clone();
 				if item_count == 0 || item_count != 1 {
 					trace!(target: "sync", "{}: Chain is too short to confirm the block", peer_id);
@@ -696,7 +696,7 @@ impl ChainSync {
 			self.continue_sync(io);
 			return Ok(());
 		}
-		let item_count = r.item_count();
+		let item_count = r.item_count()?;
 		trace!(target: "sync", "{} -> BlockHeaders ({} entries), state = {:?}, set = {:?}", peer_id, item_count, self.state, block_set);
 		if (self.state == SyncState::Idle || self.state == SyncState::WaitingPeers) && self.old_blocks.is_none() {
 			trace!(target: "sync", "Ignored unexpected block headers");
@@ -764,7 +764,7 @@ impl ChainSync {
 			self.continue_sync(io);
 			return Ok(());
 		}
-		let item_count = r.item_count();
+		let item_count = r.item_count()?;
 		trace!(target: "sync", "{} -> BlockBodies ({} entries), set = {:?}", peer_id, item_count, block_set);
 		if item_count == 0 {
 			self.deactivate_peer(io, peer_id);
@@ -818,7 +818,7 @@ impl ChainSync {
 			self.continue_sync(io);
 			return Ok(());
 		}
-		let item_count = r.item_count();
+		let item_count = r.item_count()?;
 		trace!(target: "sync", "{} -> BlockReceipts ({} entries)", peer_id, item_count);
 		if item_count == 0 {
 			self.deactivate_peer(io, peer_id);
@@ -954,7 +954,7 @@ impl ChainSync {
 			self.continue_sync(io);
 			return Ok(());
 		}
-		trace!(target: "sync", "{} -> NewHashes ({} entries)", peer_id, r.item_count());
+		trace!(target: "sync", "{} -> NewHashes ({} entries)", peer_id, r.item_count()?);
 		let mut max_height: BlockNumber = 0;
 		let mut new_hashes = Vec::new();
 		let last_imported_number = self.new_blocks.last_imported_block_number();
@@ -1439,7 +1439,7 @@ impl ChainSync {
 			trace!(target: "sync", "{} Ignoring transactions from unconfirmed/unknown peer", peer_id);
 		}
 
-		let mut item_count = r.item_count();
+		let mut item_count = r.item_count()?;
 		trace!(target: "sync", "{:02} -> Transactions ({} entries)", peer_id, item_count);
 		item_count = min(item_count, MAX_TX_TO_IMPORT);
 		let mut transactions = Vec::with_capacity(item_count);
@@ -1557,7 +1557,7 @@ impl ChainSync {
 
 	/// Respond to GetBlockBodies request
 	fn return_block_bodies(io: &SyncIo, r: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
-		let mut count = r.item_count();
+		let mut count = r.item_count().unwrap_or(0);
 		if count == 0 {
 			debug!(target: "sync", "Empty GetBlockBodies request, ignoring.");
 			return Ok(None);
@@ -1579,7 +1579,7 @@ impl ChainSync {
 
 	/// Respond to GetNodeData request
 	fn return_node_data(io: &SyncIo, r: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
-		let mut count = r.item_count();
+		let mut count = r.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetNodeData: {} entries", peer_id, count);
 		if count == 0 {
 			debug!(target: "sync", "Empty GetNodeData request, ignoring.");
@@ -1603,7 +1603,7 @@ impl ChainSync {
 	}
 
 	fn return_receipts(io: &SyncIo, rlp: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
-		let mut count = rlp.item_count();
+		let mut count = rlp.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetReceipts: {} entries", peer_id, count);
 		if count == 0 {
 			debug!(target: "sync", "Empty GetReceipts request, ignoring.");
@@ -1628,7 +1628,7 @@ impl ChainSync {
 
 	/// Respond to GetSnapshotManifest request
 	fn return_snapshot_manifest(io: &SyncIo, r: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
-		let count = r.item_count();
+		let count = r.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetSnapshotManifest", peer_id);
 		if count != 0 {
 			debug!(target: "sync", "Invalid GetSnapshotManifest request, ignoring.");
@@ -2177,7 +2177,7 @@ mod tests {
 	use util::sha3::Hashable;
 	use util::hash::H256;
 	use util::bytes::Bytes;
-	use rlp::{Rlp, RlpStream, UntrustedRlp, View};
+	use rlp::{Rlp, RlpStream, UntrustedRlp};
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
@@ -2746,7 +2746,7 @@ mod tests {
 				}
 
 				let rlp = UntrustedRlp::new(&*p.data);
-				let item_count = rlp.item_count();
+				let item_count = rlp.item_count().unwrap_or(0);
 				if item_count != 1 {
 					return None;
 				}

@@ -45,11 +45,10 @@ impl Encodable for CallResult {
 }
 
 impl Decodable for CallResult {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let res = CallResult {
-			gas_used: d.val_at(0)?,
-			output: d.val_at(1)?,
+			gas_used: rlp.val_at(0)?,
+			output: rlp.val_at(1)?,
 		};
 
 		Ok(res)
@@ -78,12 +77,11 @@ impl Encodable for CreateResult {
 }
 
 impl Decodable for CreateResult {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let res = CreateResult {
-			gas_used: d.val_at(0)?,
-			code: d.val_at(1)?,
-			address: d.val_at(2)?,
+			gas_used: rlp.val_at(0)?,
+			code: rlp.val_at(1)?,
+			address: rlp.val_at(2)?,
 		};
 
 		Ok(res)
@@ -141,15 +139,14 @@ impl Encodable for Call {
 }
 
 impl Decodable for Call {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let res = Call {
-			from: d.val_at(0)?,
-			to: d.val_at(1)?,
-			value: d.val_at(2)?,
-			gas: d.val_at(3)?,
-			input: d.val_at(4)?,
-			call_type: d.val_at(5)?,
+			from: rlp.val_at(0)?,
+			to: rlp.val_at(1)?,
+			value: rlp.val_at(2)?,
+			gas: rlp.val_at(3)?,
+			input: rlp.val_at(4)?,
+			call_type: rlp.val_at(5)?,
 		};
 
 		Ok(res)
@@ -201,13 +198,12 @@ impl Encodable for Create {
 }
 
 impl Decodable for Create {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let res = Create {
-			from: d.val_at(0)?,
-			value: d.val_at(1)?,
-			gas: d.val_at(2)?,
-			init: d.val_at(3)?,
+			from: rlp.val_at(0)?,
+			value: rlp.val_at(1)?,
+			gas: rlp.val_at(2)?,
+			init: rlp.val_at(3)?,
 		};
 
 		Ok(res)
@@ -252,12 +248,11 @@ impl Encodable for Suicide {
 }
 
 impl Decodable for Suicide {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let res = Suicide {
-			address: d.val_at(0)?,
-			refund_address: d.val_at(1)?,
-			balance: d.val_at(2)?,
+			address: rlp.val_at(0)?,
+			refund_address: rlp.val_at(1)?,
+			balance: rlp.val_at(2)?,
 		};
 
 		Ok(res)
@@ -298,13 +293,12 @@ impl Encodable for Action {
 }
 
 impl Decodable for Action {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
-		let action_type: u8 = d.val_at(0)?;
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let action_type: u8 = rlp.val_at(0)?;
 		match action_type {
-			0 => d.val_at(1).map(Action::Call),
-			1 => d.val_at(1).map(Action::Create),
-			2 => d.val_at(1).map(Action::Suicide),
+			0 => rlp.val_at(1).map(Action::Call),
+			1 => rlp.val_at(1).map(Action::Create),
+			2 => rlp.val_at(1).map(Action::Suicide),
 			_ => Err(DecoderError::Custom("Invalid action type.")),
 		}
 	}
@@ -369,14 +363,13 @@ impl Encodable for Res {
 }
 
 impl Decodable for Res {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
-		let action_type: u8 = d.val_at(0)?;
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let action_type: u8 = rlp.val_at(0)?;
 		match action_type {
-			0 => d.val_at(1).map(Res::Call),
-			1 => d.val_at(1).map(Res::Create),
-			2 => d.val_at(1).map(Res::FailedCall),
-			3 => d.val_at(1).map(Res::FailedCreate),
+			0 => rlp.val_at(1).map(Res::Call),
+			1 => rlp.val_at(1).map(Res::Create),
+			2 => rlp.val_at(1).map(Res::FailedCall),
+			3 => rlp.val_at(1).map(Res::FailedCreate),
 			4 => Ok(Res::None),
 			_ => Err(DecoderError::Custom("Invalid result type.")),
 		}
@@ -420,11 +413,10 @@ impl Encodable for MemoryDiff {
 }
 
 impl Decodable for MemoryDiff {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		Ok(MemoryDiff {
-			offset: d.val_at(0)?,
-			data: d.val_at(1)?,
+			offset: rlp.val_at(0)?,
+			data: rlp.val_at(1)?,
 		})
 	}
 }
@@ -448,11 +440,10 @@ impl Encodable for StorageDiff {
 }
 
 impl Decodable for StorageDiff {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		Ok(StorageDiff {
-			location: d.val_at(0)?,
-			value: d.val_at(1)?,
+			location: rlp.val_at(0)?,
+			value: rlp.val_at(1)?,
 		})
 	}
 }
@@ -482,13 +473,12 @@ impl Encodable for VMExecutedOperation {
 }
 
 impl Decodable for VMExecutedOperation {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		Ok(VMExecutedOperation {
-			gas_used: d.val_at(0)?,
-			stack_push: d.val_at(1)?,
-			mem_diff: d.val_at(2)?,
-			store_diff: d.val_at(3)?,
+			gas_used: rlp.val_at(0)?,
+			stack_push: rlp.list_at(1)?,
+			mem_diff: rlp.val_at(2)?,
+			store_diff: rlp.val_at(3)?,
 		})
 	}
 }
@@ -518,13 +508,12 @@ impl Encodable for VMOperation {
 }
 
 impl Decodable for VMOperation {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let res = VMOperation {
-			pc: d.val_at(0)?,
-			instruction: d.val_at(1)?,
-			gas_cost: d.val_at(2)?,
-			executed: d.val_at(3)?,
+			pc: rlp.val_at(0)?,
+			instruction: rlp.val_at(1)?,
+			gas_cost: rlp.val_at(2)?,
+			executed: rlp.val_at(3)?,
 		};
 
 		Ok(res)
@@ -557,13 +546,12 @@ impl Encodable for VMTrace {
 }
 
 impl Decodable for VMTrace {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let res = VMTrace {
-			parent_step: d.val_at(0)?,
-			code: d.val_at(1)?,
-			operations: d.val_at(2)?,
-			subs: d.val_at(3)?,
+			parent_step: rlp.val_at(0)?,
+			code: rlp.val_at(1)?,
+			operations: rlp.list_at(2)?,
+			subs: rlp.list_at(3)?,
 		};
 
 		Ok(res)

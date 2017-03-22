@@ -22,7 +22,7 @@ use ethcore::transaction::UnverifiedTransaction;
 
 use io::TimerToken;
 use network::{NetworkProtocolHandler, NetworkContext, PeerId};
-use rlp::{RlpStream, UntrustedRlp, View};
+use rlp::{RlpStream, UntrustedRlp};
 use util::hash::H256;
 use util::{DBValue, Mutex, RwLock, U256};
 use time::{Duration, SteadyTime};
@@ -723,7 +723,7 @@ impl LightProtocol {
 	fn response(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
 		let (req_id, responses) = {
 			let id_guard = self.pre_verify_response(peer, &raw)?;
-			let responses: Vec<Response> = raw.val_at(2)?;
+			let responses: Vec<Response> = raw.list_at(2)?;
 			(id_guard.defuse(), responses)
 		};
 

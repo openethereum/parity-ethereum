@@ -27,7 +27,7 @@ use transaction::UnverifiedTransaction;
 use engines::Engine;
 use evm::Schedule;
 use ethjson;
-use rlp::{self, UntrustedRlp, View};
+use rlp::{self, UntrustedRlp};
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);

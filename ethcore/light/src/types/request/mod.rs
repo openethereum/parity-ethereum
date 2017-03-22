@@ -16,7 +16,7 @@
 
 //! Light protocol request types.
 
-use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
+use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 use util::H256;
 
 mod builder;
@@ -105,9 +105,7 @@ impl<T> From<T> for Field<T> {
 }
 
 impl<T: Decodable> Decodable for Field<T> {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let rlp = decoder.as_rlp();
-
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		match rlp.val_at::<u8>(0)? {
 			0 => Ok(Field::Scalar(rlp.val_at::<T>(1)?)),
 			1 => Ok({
@@ -184,9 +182,7 @@ impl From<u64> for HashOrNumber {
 }
 
 impl Decodable for HashOrNumber {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let rlp = decoder.as_rlp();
-
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		rlp.as_val::<H256>().map(HashOrNumber::Hash)
 			.or_else(|_| rlp.as_val().map(HashOrNumber::Number))
 	}
@@ -263,9 +259,7 @@ impl Request {
 }
 
 impl Decodable for Request {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let rlp = decoder.as_rlp();
-
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		match rlp.val_at::<Kind>(0)? {
 			Kind::Headers => Ok(Request::Headers(rlp.val_at(1)?)),
 			Kind::HeaderProof => Ok(Request::HeaderProof(rlp.val_at(1)?)),
@@ -382,9 +376,7 @@ pub enum Kind {
 }
 
 impl Decodable for Kind {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let rlp = decoder.as_rlp();
-
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		match rlp.as_val::<u8>()? {
 			0 => Ok(Kind::Headers),
 			1 => Ok(Kind::HeaderProof),
@@ -458,9 +450,7 @@ impl Response {
 }
 
 impl Decodable for Response {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let rlp = decoder.as_rlp();
-
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		match rlp.val_at::<Kind>(0)? {
 			Kind::Headers => Ok(Response::Headers(rlp.val_at(1)?)),
 			Kind::HeaderProof => Ok(Response::HeaderProof(rlp.val_at(1)?)),
@@ -525,7 +515,7 @@ pub trait IncompleteRequest: Sized {
 pub mod header {
 	use super::{Field, HashOrNumber, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 
 	/// Potentially incomplete headers request.
 	#[derive(Debug, Clone, PartialEq, Eq)]
@@ -541,8 +531,7 @@ pub mod header {
 	}
 
 	impl Decodable for Incomplete {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-			let rlp = decoder.as_rlp();
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 			Ok(Incomplete {
 				start: rlp.val_at(0)?,
 				skip: rlp.val_at(1)?,
@@ -623,9 +612,8 @@ pub mod header {
 	}
 
 	impl Decodable for Response {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 			use ethcore::header::Header as FullHeader;
-			let rlp = decoder.as_rlp();
 
 			let mut headers = Vec::new();
 
@@ -655,7 +643,7 @@ pub mod header {
 /// Request and response for header proofs.
 pub mod header_proof {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete header proof request.
@@ -666,8 +654,7 @@ pub mod header_proof {
 	}
 
 	impl Decodable for Incomplete {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-			let rlp = decoder.as_rlp();
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 			Ok(Incomplete {
 				num: rlp.val_at(0)?,
 			})
@@ -738,11 +725,10 @@ pub mod header_proof {
 	}
 
 	impl Decodable for Response {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-			let rlp = decoder.as_rlp();
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 
 			Ok(Response {
-				proof: rlp.val_at(0)?,
+				proof: rlp.list_at(0)?,
 				hash: rlp.val_at(1)?,
 				td: rlp.val_at(2)?,
 			})
@@ -765,7 +751,7 @@ pub mod header_proof {
 pub mod block_receipts {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::receipt::Receipt;
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use util::H256;
 
 	/// Potentially incomplete block receipts request.
@@ -776,8 +762,7 @@ pub mod block_receipts {
 	}
 
 	impl Decodable for Incomplete {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-			let rlp = decoder.as_rlp();
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 			Ok(Incomplete {
 				hash: rlp.val_at(0)?,
 			})
@@ -840,11 +825,10 @@ pub mod block_receipts {
 	}
 
 	impl Decodable for Response {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-			let rlp = decoder.as_rlp();
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 
 			Ok(Response {
-				receipts: rlp.as_val()?,
+				receipts: rlp.as_list()?,
 			})
 		}
 	}
@@ -860,7 +844,7 @@ pub mod block_receipts {
 pub mod block_body {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use util::H256;
 
 	/// Potentially incomplete block body request.
@@ -871,8 +855,7 @@ pub mod block_body {
 	}
 
 	impl Decodable for Incomplete {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-			let rlp = decoder.as_rlp();
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 			Ok(Incomplete {
 				hash: rlp.val_at(0)?,
 			})
@@ -935,15 +918,13 @@ pub mod block_body {
 	}
 
 	impl Decodable for Response {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 			use ethcore::header::Header as FullHeader;
 			use ethcore::transaction::UnverifiedTransaction;
 
-			let rlp = decoder.as_rlp();
-
 			// check body validity.
-			let _: Vec<FullHeader> = rlp.val_at(0)?;
-			let _: Vec<UnverifiedTransaction> = rlp.val_at(1)?;
+			let _: Vec<FullHeader> = rlp.list_at(0)?;
+			let _: Vec<UnverifiedTransaction> = rlp.list_at(1)?;
 
 			Ok(Response {
 				body: encoded::Body::new(rlp.as_raw().to_owned()),
@@ -961,7 +942,7 @@ pub mod block_body {
 /// A request for an account proof.
 pub mod account {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete request for an account proof.
@@ -974,8 +955,7 @@ pub mod account {
 	}
 
 	impl Decodable for Incomplete {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-			let rlp = decoder.as_rlp();
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 			Ok(Incomplete {
 				block_hash: rlp.val_at(0)?,
 				address_hash: rlp.val_at(1)?,
@@ -1070,11 +1050,9 @@ pub mod account {
 	}
 
 	impl Decodable for Response {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-			let rlp = decoder.as_rlp();
-
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 			Ok(Response {
-				proof: rlp.val_at(0)?,
+				proof: rlp.list_at(0)?,
 				nonce: rlp.val_at(1)?,
 				balance: rlp.val_at(2)?,
 				code_hash: rlp.val_at(3)?,
@@ -1101,7 +1079,7 @@ pub mod account {
 /// A request for a storage proof.
 pub mod storage {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use util::{Bytes, H256};
 
 	/// Potentially incomplete request for an storage proof.
@@ -1116,8 +1094,7 @@ pub mod storage {
 	}
 
 	impl Decodable for Incomplete {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-			let rlp = decoder.as_rlp();
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 			Ok(Incomplete {
 				block_hash: rlp.val_at(0)?,
 				address_hash: rlp.val_at(1)?,
@@ -1220,11 +1197,9 @@ pub mod storage {
 	}
 
 	impl Decodable for Response {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-			let rlp = decoder.as_rlp();
-
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 			Ok(Response {
-				proof: rlp.val_at(0)?,
+				proof: rlp.list_at(0)?,
 				value: rlp.val_at(1)?,
 			})
 		}
@@ -1244,7 +1219,7 @@ pub mod storage {
 /// A request for contract code.
 pub mod contract_code {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use util::{Bytes, H256};
 
 	/// Potentially incomplete contract code request.
@@ -1257,8 +1232,7 @@ pub mod contract_code {
 	}
 
 	impl Decodable for Incomplete {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-			let rlp = decoder.as_rlp();
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 			Ok(Incomplete {
 				block_hash: rlp.val_at(0)?,
 				code_hash: rlp.val_at(1)?,
@@ -1338,8 +1312,7 @@ pub mod contract_code {
 	}
 
 	impl Decodable for Response {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-			let rlp = decoder.as_rlp();
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 
 			Ok(Response {
 				code: rlp.as_val()?,
@@ -1358,7 +1331,7 @@ pub mod contract_code {
 pub mod execution {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::transaction::Action;
-	use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, View};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use util::{Bytes, Address, U256, H256, DBValue};
 
 	/// Potentially incomplete execution proof request.
@@ -1381,8 +1354,7 @@ pub mod execution {
 	}
 
 	impl Decodable for Incomplete {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-			let rlp = decoder.as_rlp();
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 			Ok(Incomplete {
 				block_hash: rlp.val_at(0)?,
 				from: rlp.val_at(1)?,
@@ -1481,8 +1453,7 @@ pub mod execution {
 	}
 
 	impl Decodable for Response {
-		fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-			let rlp = decoder.as_rlp();
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 			let mut items = Vec::new();
 			for raw_item in rlp.iter() {
 				let mut item = DBValue::new();
@@ -1734,6 +1705,6 @@ mod tests {
 
 		let rlp = UntrustedRlp::new(&out);
 		assert_eq!(rlp.val_at::<usize>(0).unwrap(), 100usize);
-		assert_eq!(rlp.val_at::<Vec<Request>>(1).unwrap(), reqs);
+		assert_eq!(rlp.list_at::<Request>(1).unwrap(), reqs);
 	}
 }
