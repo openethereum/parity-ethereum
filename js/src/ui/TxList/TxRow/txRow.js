@@ -179,6 +179,7 @@ class TxRow extends Component {
 
     if (!isCancelOpen && !isEditOpen) {
       const pendingStatus = this.getCondition();
+
       if (pendingStatus === 'submitting...') {
         return (
           <div className={ styles.pending }>
@@ -304,7 +305,7 @@ class TxRow extends Component {
       this.setState({ canceled: true });
     })
     .catch((err) => {
-      console.log("error", err);
+      console.log('error', err);
     });
   }
 
@@ -324,12 +325,12 @@ class TxRow extends Component {
           data: input
         })
         .catch((err) => {
-          console.log("ERROR postTransaction", err);
+          console.log('ERROR postTransaction', err);
         });
         this.setState({ editing: true });
       })
       .catch((err) => {
-        console.log("error removeTransaction", err);
+        console.log('error removeTransaction', err);
       });
   }
 
