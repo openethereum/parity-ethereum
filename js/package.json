@@ -48,6 +48,7 @@
     "lint": "npm run lint:css && npm run lint:js",
     "lint:cached": "npm run lint:css && npm run lint:js:cached",
     "lint:css": "stylelint ./src/**/*.css",
+    "lint:fix": "./node_modules/.bin/eslint --fix 'src/**/*.spec.js' && ./node_modules/.bin/eslint --fix 'src/**/*.js'",
     "lint:js": "eslint --ignore-path .gitignore ./src/",
     "lint:js:cached": "eslint --cache --ignore-path .gitignore ./src/",
     "test": "NODE_ENV=test mocha --compilers ejs:ejsify 'src/**/*.spec.js'",
