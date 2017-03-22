@@ -112,8 +112,7 @@ impl Builtin {
 
 	/// Simple forwarder for execute.
 	pub fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> { 
-		self.native.execute(input, output)?;
-		Ok(()) 
+		self.native.execute(input, output)
 	}
 
 	/// Whether the builtin is activated at the given block number.
@@ -354,6 +353,7 @@ fn read_point(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::G1, Err
 }
 
 impl Impl for Bn128AddImpl {
+	// Can fail if any of the 2 points does not belong the bn128 curve
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		use bn::AffineG1;
 
@@ -374,6 +374,7 @@ impl Impl for Bn128AddImpl {
 }
 
 impl Impl for Bn128MulImpl {
+	// Can fail if first paramter (bn128 curve point) does not actually belong to the curve
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		use bn::AffineG1;
 
