@@ -59,7 +59,7 @@ impl Default for Configuration {
 }
 
 pub struct Dependencies {
-	pub apis: Arc<rpc_apis::Dependencies>,
+	pub apis: Arc<rpc_apis::FullDependencies>,
 	pub client: Arc<Client>,
 	pub sync: Arc<SyncProvider>,
 	pub remote: parity_reactor::TokioRemote,
@@ -182,7 +182,7 @@ mod server {
 		} else {
 			rpc_apis::ApiSet::UnsafeContext
 		};
-		let apis = rpc_apis::setup_rpc(deps.stats, deps.apis.clone(), api_set);
+		let apis = rpc_apis::setup_rpc(deps.stats, &*deps.apis, api_set);
 		let start_result = match auth {
 			None => {
 				server.start_unsecured_http(url, apis, deps.remote)

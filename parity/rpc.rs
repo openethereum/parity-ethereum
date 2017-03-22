@@ -82,8 +82,8 @@ impl fmt::Display for IpcConfiguration {
 	}
 }
 
-pub struct Dependencies {
-	pub apis: Arc<rpc_apis::Dependencies>,
+pub struct Dependencies<D: rpc_apis::Dependencies> {
+	pub apis: Arc<D>,
 	pub remote: TokioRemote,
 	pub stats: Arc<RpcStats>,
 }
@@ -109,7 +109,9 @@ impl rpc::IpcMetaExtractor<Metadata> for RpcExtractor {
 	}
 }
 
-pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<HttpServer>, String> {
+pub fn new_http<D>(conf: HttpConfiguration, deps: &Dependencies<D>) -> Result<Option<HttpServer>, String>
+	where D: rpc_apis::Dependencies
+{
 	if !conf.enabled {
 		return Ok(None);
 	}
@@ -119,12 +121,14 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<H
 	Ok(Some(setup_http_rpc_server(deps, &addr, conf.cors, conf.hosts, conf.apis)?))
 }
 
-fn setup_apis(apis: ApiSet, deps: &Dependencies) -> MetaIoHandler<Metadata, Middleware> {
-	rpc_apis::setup_rpc(deps.stats.clone(), deps.apis.clone(), apis)
+fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
+	where D: rpc_apis::Dependencies
+{
+	rpc_apis::setup_rpc(deps.stats.clone(), &*deps.apis, apis)
 }
 
-pub fn setup_http_rpc_server(
-	dependencies: &Dependencies,
+pub fn setup_http_rpc_server<D: rpc_apis::Dependencies>(
+	dependencies: &Dependencies<D>,
 	url: &SocketAddr,
 	cors_domains: Option<Vec<String>>,
 	allowed_hosts: Option<Vec<String>>,
@@ -145,12 +149,12 @@ pub fn setup_http_rpc_server(
 	}
 }
 
-pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<IpcServer>, String> {
+pub fn new_ipc<D: rpc_apis::Dependencies>(conf: IpcConfiguration, deps: &Dependencies<D>) -> Result<Option<IpcServer>, String> {
 	if !conf.enabled { return Ok(None); }
 	Ok(Some(setup_ipc_rpc_server(deps, &conf.socket_addr, conf.apis)?))
 }
 
-pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer, String> {
+pub fn setup_ipc_rpc_server<D: rpc_apis::Dependencies>(dependencies: &Dependencies<D>, addr: &str, apis: ApiSet) -> Result<IpcServer, String> {
 	let handler = setup_apis(apis, dependencies);
 	let remote = dependencies.remote.clone();
 	match rpc::start_ipc(addr, handler, remote, RpcExtractor) {

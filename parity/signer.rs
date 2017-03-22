@@ -23,7 +23,7 @@ pub use ethcore_signer::Server as SignerServer;
 use ansi_term::Colour;
 use dir::default_data_path;
 use ethcore_rpc::informant::RpcStats;
-use ethcore_rpc;
+use ethcore_rpc::{self, ConfirmationsQueue};
 use ethcore_signer as signer;
 use helpers::replace_home;
 use parity_reactor::TokioRemote;
@@ -55,8 +55,8 @@ impl Default for Configuration {
 	}
 }
 
-pub struct Dependencies {
-	pub apis: Arc<rpc_apis::Dependencies>,
+pub struct Dependencies<D: rpc_apis::Dependencies> {
+	pub apis: Arc<D>,
 	pub remote: TokioRemote,
 	pub rpc_stats: Arc<RpcStats>,
 }
@@ -77,11 +77,15 @@ impl signer::MetaExtractor<ethcore_rpc::Metadata> for StandardExtractor {
 	}
 }
 
-pub fn start(conf: Configuration, deps: Dependencies) -> Result<Option<SignerServer>, String> {
+pub fn start<D: rpc_apis::Dependencies>(
+	conf: Configuration,
+	queue: Arc<ConfirmationsQueue>,
+	deps: Dependencies<D>,
+) -> Result<Option<SignerServer>, String> {
 	if !conf.enabled {
 		Ok(None)
 	} else {
-		Ok(Some(do_start(conf, deps)?))
+		Ok(Some(do_start(conf, queue, deps)?))
 	}
 }
 
@@ -125,14 +129,18 @@ pub fn generate_new_token(path: String) -> io::Result<String> {
 	Ok(code)
 }
 
-fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, String> {
+fn do_start<D: rpc_apis::Dependencies>(
+	conf: Configuration,
+	queue: Arc<ConfirmationsQueue>,
+	deps: Dependencies<D>
+) -> Result<SignerServer, String> {
 	let addr = format!("{}:{}", conf.interface, conf.port)
 		.parse()
 		.map_err(|_| format!("Invalid port specified: {}", conf.port))?;
 
 	let start_result = {
 		let server = signer::ServerBuilder::new(
-			deps.apis.signer_service.queue(),
+			queue,
 			codes_path(conf.signer_path),
 		);
 		if conf.skip_origin_validation {
@@ -141,7 +149,7 @@ fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, Str
 		}
 		let server = server.skip_origin_validation(conf.skip_origin_validation);
 		let server = server.stats(deps.rpc_stats.clone());
-		let handler = rpc_apis::setup_rpc(deps.rpc_stats, deps.apis, rpc_apis::ApiSet::SafeContext);
+		let handler = rpc_apis::setup_rpc(deps.rpc_stats, &*deps.apis, rpc_apis::ApiSet::SafeContext);
 		let remote = deps.remote.clone();
 		server.start_with_extractor(addr, handler, remote, StandardExtractor)
 	};

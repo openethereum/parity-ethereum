@@ -498,7 +498,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// set up dependencies for rpc servers
 	let rpc_stats = Arc::new(informant::RpcStats::default());
 	let signer_path = cmd.signer_conf.signer_path.clone();
-	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
+	let deps_for_rpc_apis = Arc::new(rpc_apis::FullDependencies {
 		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
 			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
 		}, cmd.ui_address)),
@@ -553,7 +553,8 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		remote: event_loop.raw_remote(),
 		rpc_stats: rpc_stats.clone(),
 	};
-	let signer_server = signer::start(cmd.signer_conf.clone(), signer_deps)?;
+	let signing_queue = deps_for_rpc_apis.signer_service.queue();
+	let signer_server = signer::start(cmd.signer_conf.clone(), signing_queue, signer_deps)?;
 
 	// secret store key server
 	let secretstore_deps = secretstore::Dependencies { };
