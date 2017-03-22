@@ -18,7 +18,7 @@
 
 use std::sync::{Arc, Weak};
 
-use rlp::{UntrustedRlp, View};
+use rlp::UntrustedRlp;
 use ethcore::account_provider::AccountProvider;
 use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use futures::{future, BoxFuture, Future, IntoFuture};

@@ -154,13 +154,12 @@ impl HeapSizeOf for BlockDetails {
 }
 
 impl Decodable for BlockDetails {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let details = BlockDetails {
-			number: d.val_at(0)?,
-			total_difficulty: d.val_at(1)?,
-			parent: d.val_at(2)?,
-			children: d.val_at(3)?,
+			number: rlp.val_at(0)?,
+			total_difficulty: rlp.val_at(1)?,
+			parent: rlp.val_at(2)?,
+			children: rlp.list_at(3)?,
 		};
 		Ok(details)
 	}
@@ -190,11 +189,10 @@ impl HeapSizeOf for TransactionAddress {
 }
 
 impl Decodable for TransactionAddress {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let tx_address = TransactionAddress {
-			block_hash: d.val_at(0)?,
-			index: d.val_at(1)?,
+			block_hash: rlp.val_at(0)?,
+			index: rlp.val_at(1)?,
 		};
 
 		Ok(tx_address)
@@ -224,9 +222,9 @@ impl BlockReceipts {
 }
 
 impl Decodable for BlockReceipts {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		Ok(BlockReceipts {
-			receipts: Decodable::decode(decoder)?
+			receipts: rlp.as_list()?,
 		})
 	}
 }

@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 
 use util::Bytes;
 use util::hash::H256;
-use rlp::{self, Encodable, RlpStream, UntrustedRlp, View};
+use rlp::{self, Encodable, RlpStream, UntrustedRlp};
 
 use super::ManifestData;
 
@@ -57,12 +57,10 @@ impl Encodable for ChunkInfo {
 }
 
 impl rlp::Decodable for ChunkInfo {
-	fn decode<D: rlp::Decoder>(decoder: &D) -> Result<Self, rlp::DecoderError> {
-		let d = decoder.as_rlp();
-
-		let hash = d.val_at(0)?;
-		let len = d.val_at(1)?;
-		let off = d.val_at(2)?;
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, rlp::DecoderError> {
+		let hash = rlp.val_at(0)?;
+		let len = rlp.val_at(1)?;
+		let off = rlp.val_at(2)?;
 		Ok(ChunkInfo(hash, len, off))
 	}
 }
@@ -257,8 +255,8 @@ impl PackedReader {
 
 		let rlp = UntrustedRlp::new(&manifest_buf);
 
-		let state: Vec<ChunkInfo> = rlp.val_at(0)?;
-		let blocks: Vec<ChunkInfo> = rlp.val_at(1)?;
+		let state: Vec<ChunkInfo> = rlp.list_at(0)?;
+		let blocks: Vec<ChunkInfo> = rlp.list_at(1)?;
 
 		let manifest = ManifestData {
 			state_hashes: state.iter().map(|c| c.0).collect(),

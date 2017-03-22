@@ -21,7 +21,7 @@ use std::sync::Weak;
 use std::time::{UNIX_EPOCH, Duration};
 use util::*;
 use ethkey::{verify_address, Signature};
-use rlp::{UntrustedRlp, View, encode};
+use rlp::{UntrustedRlp, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;

@@ -16,13 +16,10 @@
 
 use std::fmt;
 use std::error::Error as StdError;
-use bytes::FromBytesError;
 
 #[derive(Debug, PartialEq, Eq)]
 /// Error concerning the RLP decoder.
 pub enum DecoderError {
-	/// Couldn't convert given bytes to an instance of required type.
-	FromBytesError(FromBytesError),
 	/// Data has additional bytes at the end of the valid RLP fragment.
 	RlpIsTooBig,
 	/// Data has too few bytes for valid RLP.
@@ -54,11 +51,5 @@ impl StdError for DecoderError {
 impl fmt::Display for DecoderError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		fmt::Debug::fmt(&self, f)
-	}
-}
-
-impl From<FromBytesError> for DecoderError {
-	fn from(err: FromBytesError) -> DecoderError {
-		DecoderError::FromBytesError(err)
 	}
 }
