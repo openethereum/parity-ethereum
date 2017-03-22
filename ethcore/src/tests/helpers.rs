@@ -175,6 +175,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 
 	let kp = KeyPair::from_secret_slice(&"".sha3()).unwrap();
 	let author = kp.address();
+	let parent_uncles = 0;
 
 	let mut n = 0;
 	for _ in 0..block_number {
@@ -187,6 +188,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 			false,
 			db,
 			&last_header,
+			parent_uncles,
 			Arc::new(last_hashes.clone()),
 			author.clone(),
 			(3141562.into(), 31415620.into()),
@@ -438,6 +440,7 @@ pub fn get_default_ethash_params() -> EthashParams{
 		minimum_difficulty: U256::from(131072),
 		difficulty_bound_divisor: U256::from(2048),
 		difficulty_increment_divisor: 10,
+		metropolis_difficulty_increment_divisor: 9,
 		duration_limit: 13,
 		block_reward: U256::from(0),
 		registrar: "0000000000000000000000000000000000000001".into(),
@@ -448,6 +451,7 @@ pub fn get_default_ethash_params() -> EthashParams{
 		difficulty_hardfork_transition: u64::max_value(),
 		difficulty_hardfork_bound_divisor: U256::from(0),
 		bomb_defuse_transition: u64::max_value(),
+		eip100_transition: u64::max_value(),
 		eip150_transition: u64::max_value(),
 		eip155_transition: u64::max_value(),
 		eip160_transition: u64::max_value(),

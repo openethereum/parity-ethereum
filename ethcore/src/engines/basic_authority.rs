@@ -90,7 +90,7 @@ impl Engine for BasicAuthority {
 		Schedule::new_homestead()
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _parent_uncles: usize, gas_floor_target: U256, _gas_ceil_target: U256) {
 		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
@@ -137,7 +137,7 @@ impl Engine for BasicAuthority {
 		Ok(())
 	}
 
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_family(&self, header: &Header, parent: &Header, _parent_uncles: usize, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		use rlp::{UntrustedRlp, View};
 		// Check if the signature belongs to a validator, can depend on parent state.
 		let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
@@ -239,7 +239,7 @@ mod tests {
 		let mut header: Header = Header::default();
 		header.set_seal(vec![::rlp::encode(&H520::default()).to_vec()]);
 
-		let verify_result = engine.verify_block_family(&header, &Default::default(), None);
+		let verify_result = engine.verify_block_family(&header, &Default::default(), 0, None);
 		assert!(verify_result.is_err());
 	}
 
@@ -255,7 +255,8 @@ mod tests {
 		let mut db_result = get_temp_state_db();
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let parent_uncles = 0;
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, parent_uncles, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
 		if let Seal::Regular(seal) = engine.generate_seal(b.block()) {
 			assert!(b.try_seal(engine, seal).is_ok());

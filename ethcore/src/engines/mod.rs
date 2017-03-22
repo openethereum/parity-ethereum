@@ -150,7 +150,7 @@ pub trait Engine : Sync + Send {
 
 	/// Phase 3 verification. Check block information against parent and uncles. `block` (the header's full block)
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_family(&self, _header: &Header, _parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+	fn verify_block_family(&self, _header: &Header, _parent: &Header, _parent_uncles: usize, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
 
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.
@@ -180,7 +180,7 @@ pub trait Engine : Sync + Send {
 	/// Populate a header's fields based on its parent's header.
 	/// Usually implements the chain scoring rule based on weight.
 	/// The gas floor target must not be lower than the engine's minimum gas limit.
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _gas_floor_target: U256, _gas_ceil_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _parent_uncles: usize, _gas_floor_target: U256, _gas_ceil_target: U256) {
 		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit(parent.gas_limit().clone());
 	}

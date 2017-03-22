@@ -405,7 +405,7 @@ impl Engine for Tendermint {
 		Schedule::new_post_eip150(usize::max_value(), true, true, true)
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _parent_uncles: usize, gas_floor_target: U256, _gas_ceil_target: U256) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - view
 		let new_difficulty = U256::from(U128::max_value()) + consensus_view(parent).expect("Header has been verified; qed").into() - self.view.load(AtomicOrdering::SeqCst).into();
 		header.set_difficulty(new_difficulty);
@@ -514,7 +514,7 @@ impl Engine for Tendermint {
 	}
 
 	/// Verify validators and gas limit.
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+	fn verify_block_family(&self, header: &Header, parent: &Header, _parent_uncles: usize, _block: Option<&[u8]>) -> Result<(), Error> {
 		let proposal = ConsensusMessage::new_proposal(header)?;
 		let proposer = proposal.verify()?;
 		if !self.is_authority(&proposer) {
@@ -680,7 +680,8 @@ mod tests {
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let parent_uncles = 0;
+		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, parent_uncles, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close();
 		if let Seal::Proposal(seal) = spec.engine.generate_seal(b.block()) {
 			(b, seal)
@@ -783,14 +784,14 @@ mod tests {
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Good proposer.
-		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
+		assert!(engine.verify_block_family(&header, &parent_header, 0, None).is_ok());
 
 		let validator = insert_and_unlock(&tap, "0");
 		header.set_author(validator);
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Bad proposer.
-		match engine.verify_block_family(&header, &parent_header, None) {
+		match engine.verify_block_family(&header, &parent_header, 0, None) {
 			Err(Error::Engine(EngineError::NotProposer(_))) => {},
 			_ => panic!(),
 		}
@@ -800,7 +801,7 @@ mod tests {
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Not authority.
-		match engine.verify_block_family(&header, &parent_header, None) {
+		match engine.verify_block_family(&header, &parent_header, 0, None) {
 			Err(Error::Engine(EngineError::NotAuthorized(_))) => {},
 			_ => panic!(),
 		};
@@ -829,7 +830,7 @@ mod tests {
 		header.set_seal(seal.clone());
 
 		// One good signature is not enough.
-		match engine.verify_block_family(&header, &parent_header, None) {
+		match engine.verify_block_family(&header, &parent_header, 0, None) {
 			Err(Error::Engine(EngineError::BadSealFieldSize(_))) => {},
 			_ => panic!(),
 		}
@@ -840,7 +841,7 @@ mod tests {
 		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone()), H520::from(signature0.clone())]).to_vec();
 		header.set_seal(seal.clone());
 
-		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
+		assert!(engine.verify_block_family(&header, &parent_header, 0, None).is_ok());
 
 		let bad_voter = insert_and_unlock(&tap, "101");
 		let bad_signature = tap.sign(bad_voter, None, vote_info.sha3()).unwrap();
@@ -849,7 +850,7 @@ mod tests {
 		header.set_seal(seal);
 
 		// One good and one bad signature.
-		match engine.verify_block_family(&header, &parent_header, None) {
+		match engine.verify_block_family(&header, &parent_header, 0, None) {
 			Err(Error::Engine(EngineError::NotAuthorized(_))) => {},
 			_ => panic!(),
 		};

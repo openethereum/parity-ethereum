@@ -385,9 +385,11 @@ impl Client {
 		if let Some(parent) = chain_has_parent {
 			// Enact Verified Block
 			let last_hashes = self.build_last_hashes(header.parent_hash().clone());
+			let uncles_count = chain.uncles_count(header.parent_hash())
+				.expect("chain_has_parent.is_some() so block body must exist; qed");
 			let db = self.state_db.lock().boxed_clone_canon(header.parent_hash());
 
-			let enact_result = enact_verified(block, engine, self.tracedb.read().tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
+			let enact_result = enact_verified(block, engine, self.tracedb.read().tracing_enabled(), db, &parent, uncles_count, last_hashes, self.factories.clone());
 			let locked_block = enact_result.map_err(|e| {
 				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			})?;
@@ -1510,6 +1512,7 @@ impl MiningBlockChainClient for Client {
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().boxed_clone_canon(&h),
 			&chain.block_header(&h).expect("h is best block hash: so its header must exist: qed"),
+			chain.uncles_count(&h).expect("h is best block hash; qed"),
 			self.build_last_hashes(h.clone()),
 			author,
 			gas_range_target,
