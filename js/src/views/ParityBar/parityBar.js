@@ -85,6 +85,10 @@ class ParityBar extends Component {
         this.app = app;
         this.loadPosition();
       });
+
+    if (this.props.dapp) {
+      this.loadPosition();
+    }
   }
 
   componentWillReceiveProps (nextProps) {
@@ -94,6 +98,11 @@ class ParityBar extends Component {
     // Replace to default position when leaving a dapp
     if (this.props.dapp && !nextProps.dapp) {
       this.loadPosition(true);
+    }
+
+    // Load position when dapp loads
+    if (!this.props.dapp && nextProps.dapp) {
+      this.loadPosition();
     }
 
     if (count === newCount) {
@@ -464,51 +473,56 @@ class ParityBar extends Component {
     return position;
   }
 
-  onMouseDown = (event) => {
-    const containerElt = ReactDOM.findDOMNode(this.refs.container);
-    const dragButtonElt = ReactDOM.findDOMNode(this.refs.dragButton);
+  onMouseDown = () => {
+    // Dispatch an open event in case in an iframe (get full w and h)
+    this.dispatchOpenEvent(true);
 
-    if (!containerElt || !dragButtonElt) {
-      console.warn(containerElt ? 'drag button' : 'container', 'not found...');
-      return;
-    }
+    window.setTimeout(() => {
+      const containerElt = ReactDOM.findDOMNode(this.refs.container);
+      const dragButtonElt = ReactDOM.findDOMNode(this.refs.dragButton);
 
-    const bodyRect = document.body.getBoundingClientRect();
-    const containerRect = containerElt.getBoundingClientRect();
-    const buttonRect = dragButtonElt.getBoundingClientRect();
+      if (!containerElt || !dragButtonElt) {
+        console.warn(containerElt ? 'drag button' : 'container', 'not found...');
+        return;
+      }
 
-    const buttonOffset = {
-      top: (buttonRect.top + buttonRect.height / 2) - containerRect.top,
-      left: (buttonRect.left + buttonRect.width / 2) - containerRect.left
-    };
+      const bodyRect = document.body.getBoundingClientRect();
+      const containerRect = containerElt.getBoundingClientRect();
+      const buttonRect = dragButtonElt.getBoundingClientRect();
 
-    buttonOffset.bottom = containerRect.height - buttonOffset.top;
-    buttonOffset.right = containerRect.width - buttonOffset.left;
+      const buttonOffset = {
+        top: (buttonRect.top + buttonRect.height / 2) - containerRect.top,
+        left: (buttonRect.left + buttonRect.width / 2) - containerRect.left
+      };
 
-    const button = {
-      offset: buttonOffset,
-      height: buttonRect.height,
-      width: buttonRect.width
-    };
+      buttonOffset.bottom = containerRect.height - buttonOffset.top;
+      buttonOffset.right = containerRect.width - buttonOffset.left;
 
-    const container = {
-      height: containerRect.height,
-      width: containerRect.width
-    };
+      const button = {
+        offset: buttonOffset,
+        height: buttonRect.height,
+        width: buttonRect.width
+      };
 
-    const page = {
-      height: bodyRect.height,
-      width: bodyRect.width
-    };
+      const container = {
+        height: containerRect.height,
+        width: containerRect.width
+      };
 
-    this.moving = true;
-    this.measures = {
-      button,
-      container,
-      page
-    };
+      const page = {
+        height: bodyRect.height,
+        width: bodyRect.width
+      };
 
-    this.setMovingState(true);
+      this.moving = true;
+      this.measures = {
+        button,
+        container,
+        page
+      };
+
+      this.setMovingState(true);
+    }, 50);
   }
 
   onMouseEnter = (event) => {
