@@ -22,7 +22,7 @@ $baseOpacity: 0.95;
   bottom: 2.5em;
   position: fixed;
   right: 0.5em;
-  z-index: 2750;
+  z-index: 750;
 
   * {
     font-size: 0.85rem !important;
@@ -120,10 +120,5 @@ $baseOpacity: 0.95;
 }
 
 .hash {
-  margin-left: 0.35em;
-  width: 10em;
-
-  * {
-    height: auto !important;
-  }
+  width: 5em;
 }

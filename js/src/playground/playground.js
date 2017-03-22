@@ -26,12 +26,6 @@ import Portal from '~/ui/Portal/portal.example';
 import PlaygroundStore from './store';
 import styles from './playground.css';
 
-PlaygroundStore.register(<AccountCard />);
-PlaygroundStore.register(<CurrencySymbol />);
-PlaygroundStore.register(<QrCode />);
-PlaygroundStore.register(<SectionList />);
-PlaygroundStore.register(<Portal />);
-
 @observer
 export default class Playground extends Component {
   state = {
@@ -39,6 +33,14 @@ export default class Playground extends Component {
   };
 
   store = PlaygroundStore.get();
+
+  componentWillMount () {
+    PlaygroundStore.register(<AccountCard />);
+    PlaygroundStore.register(<CurrencySymbol />);
+    PlaygroundStore.register(<QrCode />);
+    PlaygroundStore.register(<SectionList />);
+    PlaygroundStore.register(<Portal />);
+  }
 
   render () {
     return (

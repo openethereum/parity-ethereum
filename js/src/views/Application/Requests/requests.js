@@ -164,7 +164,7 @@ class Requests extends Component {
             id='requests.status.transactionSent'
             defaultMessage='Transaction sent to network with hash'
           />
-          <div className={ styles.fill }>
+          <div className={ [ styles.fill, styles.hash ].join(' ') }>
             <ScrollableText
               text={ transactionHash }
             />
