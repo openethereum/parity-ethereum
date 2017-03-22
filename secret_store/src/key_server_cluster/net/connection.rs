@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::net;
+use ethkey::Secret;
 use key_server_cluster::NodeId;
 use key_server_cluster::io::SharedTcpStream;
 
@@ -26,4 +27,6 @@ pub struct Connection {
 	pub stream: SharedTcpStream,
 	/// Peer node id.
 	pub node_id: NodeId,
+	/// Encryption key.
+	pub key: Secret,
 }

@@ -56,6 +56,7 @@ impl Future for AcceptConnection {
 			stream: stream.into(),
 			address: self.address,
 			node_id: result.node_id,
+			key: result.shared_key,
 		};
 		Ok(Ok(connection).into())
 	}

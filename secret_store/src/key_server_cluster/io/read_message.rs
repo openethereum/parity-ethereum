@@ -16,13 +16,23 @@
 
 use std::io;
 use futures::{Poll, Future, Async};
+use ethkey::Secret;
 use key_server_cluster::Error;
 use key_server_cluster::message::Message;
-use key_server_cluster::io::{read_header, ReadHeader, read_payload, ReadPayload};
+use key_server_cluster::io::{read_header, ReadHeader, read_payload, read_encrypted_payload, ReadPayload};
 
 /// Create future for read single message from the stream.
 pub fn read_message<A>(a: A) -> ReadMessage<A> where A: io::Read {
 	ReadMessage {
+		key: None,
+		state: ReadMessageState::ReadHeader(read_header(a)),
+	}
+}
+
+/// Create future for read single encrypted message from the stream.
+pub fn read_encrypted_message<A>(a: A, key: Secret) -> ReadMessage<A> where A: io::Read {
+	ReadMessage {
+		key: Some(key),
 		state: ReadMessageState::ReadHeader(read_header(a)),
 	}
 }
@@ -35,6 +45,7 @@ enum ReadMessageState<A> {
 
 /// Future for read single message from the stream.
 pub struct ReadMessage<A> {
+	key: Option<Secret>,
 	state: ReadMessageState<A>,
 }
 
@@ -51,7 +62,10 @@ impl<A> Future for ReadMessage<A> where A: io::Read {
 					Err(err) => return Ok((read, Err(err)).into()),
 				};
 
-				let future = read_payload(read, header);
+				let future = match self.key.take() {
+					Some(key) => read_encrypted_payload(read, header, key),
+					None => read_payload(read, header),
+				};
 				let next = ReadMessageState::ReadPayload(future);
 				(next, Async::NotReady)
 			},

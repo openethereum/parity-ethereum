@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 use serde_json;
 use ethkey::{Secret, Public};
 use util::Database;
-use types::all::{Error, ServiceConfiguration, DocumentAddress, DocumentKey, NodeId};
+use types::all::{Error, ServiceConfiguration, DocumentAddress, NodeId};
 use serialization::{SerializablePublic, SerializableSecret};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -128,7 +128,7 @@ pub mod tests {
 	use devtools::RandomTempPath;
 	use ethkey::{Random, Generator};
 	use super::super::types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration,
-		DocumentAddress, DocumentKey, EncryptionConfiguration};
+		DocumentAddress, EncryptionConfiguration};
 	use super::{KeyStorage, PersistentKeyStorage, DocumentKeyShare};
 
 	#[derive(Default)]

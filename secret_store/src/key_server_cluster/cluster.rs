@@ -34,7 +34,7 @@ use key_server_cluster::decryption_session::{SessionImpl as DecryptionSessionImp
 	SessionParams as DecryptionSessionParams, Session as DecryptionSession};
 use key_server_cluster::encryption_session::{SessionImpl as EncryptionSessionImpl, SessionState as EncryptionSessionState,
 	SessionParams as EncryptionSessionParams, Session as EncryptionSession};
-use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_message, WriteMessage, write_message};
+use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
 
 pub type BoxedEmptyFuture = BoxFuture<(), ()>;
@@ -184,6 +184,8 @@ pub struct Connection {
 	is_inbound: bool,
 	/// Tcp stream.
 	stream: SharedTcpStream,
+	/// Connection key.
+	key: Secret,
 	/// Last message time.
 	last_message_time: Mutex<time::Instant>,
 }
@@ -217,12 +219,6 @@ impl ClusterCore {
 	/// Get connection to given node.
 	pub fn connection(&self, node: &NodeId) -> Option<Arc<Connection>> {
 		self.data.connection(node)
-	}
-
-	#[cfg(test)]
-	/// Get default clustr view of this cluster (all nodes are present).
-	pub fn default_view(&self) -> ClusterView {
-		ClusterView::new(self.data.clone(), self.data.config.nodes.keys().cloned().collect())
 	}
 
 	/// Run cluster
@@ -362,7 +358,7 @@ impl ClusterCore {
 					finished(Ok(())).boxed()
 				}
 			},
-			Ok(DeadlineStatus::Meet(Err(err))) => {
+			Ok(DeadlineStatus::Meet(Err(_))) => {
 				finished(Ok(())).boxed()
 			},
 			Ok(DeadlineStatus::Timeout) => {
@@ -655,7 +651,7 @@ impl ClusterSessions {
 		}
 	}
 
-	pub fn new_encryption_session(&self, master: NodeId, session_id: SessionId, cluster: Arc<Cluster>) -> Result<Arc<EncryptionSessionImpl>, Error> {
+	pub fn new_encryption_session(&self, _master: NodeId, session_id: SessionId, cluster: Arc<Cluster>) -> Result<Arc<EncryptionSessionImpl>, Error> {
 		let mut encryption_sessions = self.encryption_sessions.write();
 		if encryption_sessions.contains_key(&session_id) {
 			return Err(Error::DuplicateSessionId);
@@ -694,7 +690,7 @@ impl ClusterSessions {
 			.and_then(|session| session.queue.pop_front())
 	}
 
-	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, cluster: Arc<Cluster>) -> Result<Arc<DecryptionSessionImpl>, Error> {
+	pub fn new_decryption_session(&self, _master: NodeId, session_id: SessionId, sub_session_id: Secret, cluster: Arc<Cluster>) -> Result<Arc<DecryptionSessionImpl>, Error> {
 		let mut decryption_sessions = self.decryption_sessions.write();
 		let session_id = DecryptionSessionId::new(session_id, sub_session_id);
 		if decryption_sessions.contains_key(&session_id) {
@@ -783,6 +779,7 @@ impl Connection {
 			node_address: connection.address,
 			is_inbound: is_inbound,
 			stream: connection.stream,
+			key: connection.key,
 			last_message_time: Mutex::new(time::Instant::now()),
 		})
 	}
@@ -808,11 +805,11 @@ impl Connection {
 	}
 
 	pub fn send_message(&self, message: Message) -> WriteMessage<SharedTcpStream> {
-		write_message(self.stream.clone(), message)
+		write_encrypted_message(self.stream.clone(), &self.key, message)
 	}
 
 	pub fn read_message(&self) -> ReadMessage<SharedTcpStream> {
-		read_message(self.stream.clone())
+		read_encrypted_message(self.stream.clone(), self.key.clone())
 	}
 }
 
@@ -844,8 +841,8 @@ impl Cluster for ClusterView {
 		Ok(())
 	}
 
-	fn blacklist(&self, node: &NodeId) {
-		unimplemented!()
+	fn blacklist(&self, _node: &NodeId) {
+		// TODO: unimplemented!()
 	}
 }
 
@@ -968,16 +965,6 @@ pub mod tests {
 		}
 	}
 
-	pub fn loop_for(core: &mut Core, timeout: time::Duration) {
-		let start = time::Instant::now();
-		loop {
-			core.turn(Some(time::Duration::from_millis(1)));
-			if time::Instant::now() - start > timeout {
-				break;
-			}
-		}
-	}
-
 	pub fn all_connections_established(cluster: &Arc<ClusterCore>) -> bool {
 		cluster.config().nodes.keys()
 			.filter(|p| *p != cluster.config().self_key_pair.public())
@@ -1001,7 +988,7 @@ pub mod tests {
 			acl_storage: Arc::new(DummyAclStorage::default()),
 		}).collect();
 		let clusters: Vec<_> = cluster_params.into_iter().enumerate()
-			.map(|(i, params)| ClusterCore::new(core.handle(), params).unwrap())
+			.map(|(_, params)| ClusterCore::new(core.handle(), params).unwrap())
 			.collect();
 
 		clusters

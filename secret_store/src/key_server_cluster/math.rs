@@ -247,6 +247,7 @@ pub fn decrypt_with_joint_shadow(access_key: &Secret, encrypted_point: &Public, 
 	Ok(decrypted_point)
 }
 
+#[cfg(test)]
 /// Decrypt data using joint secret (version for tests).
 pub fn decrypt_with_joint_secret(encrypted_point: &Public, common_point: &Public, joint_secret: &Secret) -> Result<Public, Error> {
 	let mut common_point_mul = common_point.clone();

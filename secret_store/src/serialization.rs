@@ -17,7 +17,7 @@
 use std::fmt;
 use std::cmp::{Ord, PartialOrd, Ordering};
 use std::ops::Deref;
-use rustc_serialize::hex::{FromHex, ToHex};
+use rustc_serialize::hex::ToHex;
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use serde::de::{Visitor, Error as SerdeError};
 use ethkey::{Public, Secret, Signature};

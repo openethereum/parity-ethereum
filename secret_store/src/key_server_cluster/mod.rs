@@ -14,15 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#![allow(dead_code)] // TODO: remove me
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(unused_mut)]
-
 use std::fmt;
 use std::io::Error as IoError;
-use std::collections::BTreeMap;
-use ethkey::{self, Public, Secret, Signature};
+use ethkey;
 use ethcrypto;
 use super::types::all::DocumentAddress;
 
@@ -38,7 +32,6 @@ pub use self::decryption_session::Session as DecryptionSession;
 pub use super::key_storage::tests::DummyKeyStorage;
 
 pub type SessionId = DocumentAddress;
-pub type SessionIdSignature = Signature;
 
 #[derive(Clone, Debug, PartialEq)]
 /// Errors which can occur during encryption/decryption session

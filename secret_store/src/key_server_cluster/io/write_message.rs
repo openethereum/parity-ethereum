@@ -17,8 +17,7 @@
 use std::io;
 use futures::{Future, Poll};
 use tokio_core::io::{WriteAll, write_all};
-use ethkey::Public;
-use key_server_cluster::Error;
+use ethkey::Secret;
 use key_server_cluster::message::Message;
 use key_server_cluster::io::{serialize_message, encrypt_message};
 
@@ -36,7 +35,7 @@ pub fn write_message<A>(a: A, message: Message) -> WriteMessage<A> where A: io::
 }
 
 /// Write encrypted message to the channel.
-pub fn write_encrypted_message<A>(a: A, key: &Public, message: Message) -> WriteMessage<A> where A: io::Write {
+pub fn write_encrypted_message<A>(a: A, key: &Secret, message: Message) -> WriteMessage<A> where A: io::Write {
 	let (error, future) = match serialize_message(message)
 		.and_then(|message| encrypt_message(key, message))
 		.map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e))) {

@@ -112,13 +112,8 @@ struct SessionData {
 	decrypted_secret: Option<Result<Public, Error>>,
 }
 
-#[derive(Debug)]
-struct NodeData {
-	/// Node-generated shadow point.
-	shadow_point: Option<Public>,
-}
-
 #[derive(Debug, Clone, PartialEq)]
+/// Decryption session data.
 pub enum SessionState {
 	/// Every node starts in this state.
 	WaitingForInitialization,
@@ -165,16 +160,19 @@ impl SessionImpl {
 		&self.self_node_id
 	}
 
+	#[cfg(test)]
 	/// Get this session access key.
 	pub fn access_key(&self) -> &Secret {
 		&self.access_key
 	}
 
+	#[cfg(test)]
 	/// Get current session state.
 	pub fn state(&self) -> SessionState {
 		self.data.lock().state.clone()
 	}
 
+	#[cfg(test)]
 	/// Get decrypted secret
 	pub fn decrypted_secret(&self) -> Option<Public> {
 		self.data.lock().decrypted_secret.clone().and_then(|r| r.ok())
@@ -380,13 +378,22 @@ impl SessionImpl {
 	}
 
 	/// When error has occured on another node.
-	pub fn on_session_error(&self, sender: NodeId, message: &DecryptionSessionError) -> Result<(), Error> {
-		unimplemented!()
+	pub fn on_session_error(&self, sender: NodeId, message: &DecryptionSessionError) {
+		warn!("{}: decryption session error: {:?} from {}", self.node(), message, sender);
+		let mut data = self.data.lock();
+		data.state = SessionState::Failed;
+		data.decrypted_secret = Some(Err(Error::Io(message.error.clone())));
+		self.completed.notify_all();
 	}
 
 	/// When session timeout has occured.
-	pub fn on_session_timeout(&self, node: &NodeId) -> Result<(), Error> {
-		unimplemented!()
+	pub fn on_session_timeout(&self, _node: &NodeId) {
+		warn!("{}: decryption session timeout", self.node());
+		let mut data = self.data.lock();
+		// TODO: check that node is a part of decryption process
+		data.state = SessionState::Failed;
+		data.decrypted_secret = Some(Err(Error::Io("session expired".into())));
+		self.completed.notify_all();
 	}
 }
 

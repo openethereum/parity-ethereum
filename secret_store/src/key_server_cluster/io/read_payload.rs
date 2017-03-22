@@ -15,18 +15,28 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io;
-use std::marker::PhantomData;
 use futures::{Poll, Future};
 use tokio_core::io::{read_exact, ReadExact};
+use ethkey::Secret;
 use key_server_cluster::Error;
 use key_server_cluster::message::Message;
-use key_server_cluster::io::message::{MessageHeader, deserialize_message};
+use key_server_cluster::io::message::{MessageHeader, deserialize_message, decrypt_message};
 
 /// Create future for read single message payload from the stream.
 pub fn read_payload<A>(a: A, header: MessageHeader) -> ReadPayload<A> where A: io::Read {
 	ReadPayload {
 		reader: read_exact(a, vec![0; header.size as usize]),
 		header: header,
+		key: None,
+	}
+}
+
+/// Create future for read single encrypted message payload from the stream.
+pub fn read_encrypted_payload<A>(a: A, header: MessageHeader, key: Secret) -> ReadPayload<A> where A: io::Read {
+	ReadPayload {
+		reader: read_exact(a, vec![0; header.size as usize]),
+		header: header,
+		key: Some(key),
 	}
 }
 
@@ -34,6 +44,7 @@ pub fn read_payload<A>(a: A, header: MessageHeader) -> ReadPayload<A> where A: i
 pub struct ReadPayload<A> {
 	reader: ReadExact<A, Vec<u8>>,
 	header: MessageHeader,
+	key: Option<Secret>,
 }
 
 impl<A> Future for ReadPayload<A> where A: io::Read {
@@ -42,7 +53,12 @@ impl<A> Future for ReadPayload<A> where A: io::Read {
 
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
 		let (read, data) = try_ready!(self.reader.poll());
-		let payload = deserialize_message(&self.header, data);
+		let payload = if let Some(key) = self.key.take() {
+			decrypt_message(&key, data)
+				.and_then(|data| deserialize_message(&self.header, data))
+		} else {
+			deserialize_message(&self.header, data)
+		};
 		Ok((read, payload).into())
 	}
 }

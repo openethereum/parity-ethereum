@@ -25,9 +25,10 @@ mod write_message;
 
 pub use self::deadline::{deadline, Deadline, DeadlineStatus};
 pub use self::handshake::{handshake, accept_handshake, Handshake, HandshakeResult};
-pub use self::message::{MessageHeader, SerializedMessage, serialize_message, deserialize_message, encrypt_message};
+pub use self::message::{MessageHeader, SerializedMessage, serialize_message, deserialize_message,
+	encrypt_message, compute_shared_key};
 pub use self::read_header::{read_header, ReadHeader};
-pub use self::read_payload::{read_payload, ReadPayload};
-pub use self::read_message::{read_message, ReadMessage};
+pub use self::read_payload::{read_payload, read_encrypted_payload, ReadPayload};
+pub use self::read_message::{read_message, read_encrypted_message, ReadMessage};
 pub use self::shared_tcp_stream::SharedTcpStream;
-pub use self::write_message::{write_message, WriteMessage};
+pub use self::write_message::{write_message, write_encrypted_message, WriteMessage};

@@ -18,7 +18,6 @@ use std::io;
 use std::time::Duration;
 use futures::{Future, Select, BoxFuture, Poll, Async};
 use tokio_core::reactor::{Handle, Timeout};
-use key_server_cluster::Error;
 
 type DeadlineBox<F> where F: Future = BoxFuture<DeadlineStatus<F::Item>, F::Error>;
 

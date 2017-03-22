@@ -17,7 +17,7 @@
 use std::fmt;
 use std::collections::{BTreeSet, BTreeMap};
 use ethkey::Secret;
-use key_server_cluster::{NodeId, SessionId};
+use key_server_cluster::SessionId;
 use super::{SerializableH256, SerializablePublic, SerializableSecret, SerializableSignature};
 
 pub type MessageSessionId = SerializableH256;

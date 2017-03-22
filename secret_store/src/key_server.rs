@@ -27,18 +27,15 @@ use super::key_storage::KeyStorage;
 use key_server_cluster::ClusterCore;
 use traits::KeyServer;
 use types::all::{Error, RequestSignature, DocumentAddress, DocumentEncryptedKey, ClusterConfiguration};
-use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration, EncryptionSession, DecryptionSession};
+use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration};
 
 /// Secret store key server implementation
 pub struct KeyServerImpl {
-	acl_storage: Arc<AclStorage>,
-	key_storage: Arc<KeyStorage>,
 	data: Arc<Mutex<KeyServerCore>>,
 }
 
 unsafe impl Send for KeyServerImpl {}
 unsafe impl Sync for KeyServerImpl {}
-
 
 /// Secret store key server data.
 pub struct KeyServerCore {
@@ -51,8 +48,6 @@ impl KeyServerImpl {
 	/// Create new key server instance
 	pub fn new(config: &ClusterConfiguration, acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>) -> Result<Self, Error> {
 		Ok(KeyServerImpl {
-			acl_storage: acl_storage.clone(),
-			key_storage: key_storage.clone(),
 			data: Arc::new(Mutex::new(KeyServerCore::new(config, acl_storage, key_storage)?)),
 		})
 	}
@@ -149,18 +144,13 @@ mod tests {
 	use ethcrypto;
 	use ethkey::{self, Secret, Random, Generator};
 	use acl_storage::DummyAclStorage;
-	use key_storage::KeyStorage;
 	use key_storage::tests::DummyKeyStorage;
 	use types::all::{ClusterConfiguration, NodeAddress, EncryptionConfiguration, DocumentEncryptedKey, DocumentKey};
-	use super::super::{Error, RequestSignature, DocumentAddress};
+	use super::super::{RequestSignature, DocumentAddress};
 	use super::{KeyServer, KeyServerImpl};
 
 	const DOCUMENT1: &'static str = "0000000000000000000000000000000000000000000000000000000000000001";
-	const DOCUMENT2: &'static str = "0000000000000000000000000000000000000000000000000000000000000002";
-	const KEY1: &'static str = "key1";
 	const PRIVATE1: &'static str = "03055e18a8434dcc9061cc1b81c4ef84dc7cf4574d755e52cdcf0c8898b25b11";
-	const PUBLIC2: &'static str = "dfe62f56bb05fbd85b485bac749f3410309e24b352bac082468ce151e9ddb94fa7b5b730027fe1c7c5f3d5927621d269f91aceb5caa3c7fe944677a22f88a318";
-	const PRIVATE2: &'static str = "0eb3816f4f705fa0fd952fb27b71b8c0606f09f4743b5b65cbc375bd569632f2";
 
 	fn make_signature(secret: &str, document: &'static str) -> RequestSignature {
 		let secret = Secret::from_str(secret).unwrap();
@@ -172,60 +162,6 @@ mod tests {
 		let secret = Secret::from_str(secret).unwrap();
 		ethcrypto::ecies::decrypt_single_message(&secret, &document_key).unwrap()
 	}
-
-	/* TODO: restore tests once scheme 1-of-N will be functional
-	fn create_single_key_server() -> KeyServerImpl {
-		let acl_storage = Arc::new(DummyAclStorage::default());
-		let key_storage = Arc::new(DummyKeyStorage::default());
-		let self_key_pair = KeyPair::from_secret(Secret::from_str(PRIVATE1).unwrap()).unwrap();
-		key_storage.insert(DOCUMENT1.into(), KEY1.into()).unwrap();
-		acl_storage.prohibit(PUBLIC2.into(), DOCUMENT1.into());
-		KeyServerImpl::new(ClusterConfiguration {
-			threads: 1,
-			allow_connecting_to_higher_nodes: false,
-			self_key_pair: self_key_pair.clone(),
-			listen_address: ("0.0.0.0".into(), 6050),
-			nodes: vec![(self_key_pair.public().clone(), ("127.0.0.1", 6050)],
-			encryption_config: EncryptionConfiguration,
-			/// Reference to key storage
-			pub key_storage: Arc<KeyStorage>,
-			/// Reference to ACL storage
-			pub acl_storage: Arc<AclStorage>,
-		}, acl_storage, key_storage).unwrap()
-	}
-
-	#[test]
-	fn document_key_succeeds_on_single_node() {
-		let key_server = create_key_server();
-		let signature = make_signature(PRIVATE1, DOCUMENT1);
-		let document_key = key_server.document_key(&signature, &DOCUMENT1.into()).unwrap();
-		let document_key = ethcrypto::ecies::decrypt_single_message(&Secret::from_str(PRIVATE1).unwrap(), &document_key);
-		assert_eq!(document_key, Ok(KEY1.into()));
-	}
-
-	#[test]
-	fn document_key_fails_when_bad_signature_on_single_node() {
-		let key_server = create_key_server();
-		let signature = RequestSignature::default();
-		let document_key = key_server.document_key(&signature, &DOCUMENT1.into());
-		assert_eq!(document_key, Err(Error::BadSignature));
-	}
-
-	#[test]
-	fn document_key_fails_when_acl_check_fails_on_single_node() {
-		let key_server = create_key_server();
-		let signature = make_signature(PRIVATE2, DOCUMENT1);
-		let document_key = key_server.document_key(&signature, &DOCUMENT1.into());
-		assert_eq!(document_key, Err(Error::AccessDenied));
-	}
-
-	#[test]
-	fn document_key_fails_when_document_not_found_on_single_node() {
-		let key_server = create_key_server();
-		let signature = make_signature(PRIVATE1, DOCUMENT2);
-		let document_key = key_server.document_key(&signature, &DOCUMENT2.into());
-		assert_eq!(document_key, Err(Error::DocumentNotFound));
-	}*/
 
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network() {

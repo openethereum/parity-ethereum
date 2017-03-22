@@ -73,6 +73,7 @@ impl Future for Connect {
 					stream: stream.into(),
 					address: self.address,
 					node_id: result.node_id,
+					key: result.shared_key,
 				};
 				(ConnectState::Connected, Async::Ready(Ok(connection)))
 			},

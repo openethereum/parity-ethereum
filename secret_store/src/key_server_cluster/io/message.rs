@@ -19,9 +19,9 @@ use std::u16;
 use std::ops::Deref;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde_json;
+use ethcrypto::ecdh::agree;
 use ethkey::{Public, Secret};
-use ethcrypto::ecies;
-use key_server_cluster::{Error, NodeId};
+use key_server_cluster::Error;
 use key_server_cluster::message::{Message, ClusterMessage, EncryptionMessage, DecryptionMessage};
 
 /// Size of serialized header.
@@ -127,13 +127,18 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 }
 
 /// Encrypt serialized message.
-pub fn encrypt_message(key: &Public, message: SerializedMessage) -> Result<SerializedMessage, Error> {
+pub fn encrypt_message(_key: &Secret, message: SerializedMessage) -> Result<SerializedMessage, Error> {
 	Ok(message) // TODO: implement me
 }
 
 /// Decrypt serialized message.
-pub fn decrypt_message(key: &Secret, payload: Vec<u8>) -> Result<Vec<u8>, Error> {
+pub fn decrypt_message(_key: &Secret, payload: Vec<u8>) -> Result<Vec<u8>, Error> {
 	Ok(payload) // TODO: implement me
+}
+
+/// Compute shared encryption key.
+pub fn compute_shared_key(self_secret: &Secret, other_public: &Public) -> Result<Secret, Error> {
+	Ok(agree(self_secret, other_public)?)
 }
 
 /// Serialize message header.
@@ -158,11 +163,9 @@ pub fn deserialize_header(data: Vec<u8>) -> Result<MessageHeader, Error> {
 #[cfg(test)]
 pub mod tests {
 	use std::io;
-	use ethcrypto::ecdh::agree;
-	use ethkey::{Random, Generator, KeyPair, Public};
+	use ethkey::{KeyPair, Public};
 	use key_server_cluster::message::Message;
-	use super::{MESSAGE_HEADER_SIZE, MessageHeader, SerializedMessage, serialize_message, deserialize_message,
-		encrypt_message, decrypt_message, serialize_header, deserialize_header};
+	use super::{MESSAGE_HEADER_SIZE, MessageHeader, serialize_message, serialize_header, deserialize_header};
 
 	pub struct TestIo {
 		self_key_pair: KeyPair,
@@ -240,23 +243,5 @@ pub mod tests {
 
 		let deserialized_header = deserialize_header(serialized_header).unwrap();
 		assert_eq!(deserialized_header, header);
-	}
-
-	// TODO: #[test]
-	fn message_encryption_works() {
-		let key_pair1 = Random.generate().unwrap();
-		let key_pair2 = Random.generate().unwrap();
-		let secret1 = agree(key_pair1.secret(), key_pair2.public()).unwrap();
-		let secret2 = agree(key_pair2.secret(), key_pair1.public()).unwrap();
-		assert_eq!(secret1, secret2);
-
-		let plain_message = SerializedMessage(vec![1, 2, 3, 4]);
-		let shared_key_pair = KeyPair::from_secret(secret1).unwrap();
-
-		let encrypted_message = encrypt_message(shared_key_pair.public(), plain_message.clone()).unwrap();
-		assert!(plain_message != encrypted_message);
-
-		let decrypted_message = decrypt_message(shared_key_pair.secret(), encrypted_message.0).unwrap();
-		assert_eq!(decrypted_message, plain_message.0);
 	}
 }

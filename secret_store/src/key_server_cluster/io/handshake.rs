@@ -14,14 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{io, cmp};
+use std::io;
 use std::collections::BTreeSet;
 use futures::{Future, Poll, Async};
 use ethkey::{Random, Generator, KeyPair, Secret, sign, verify_public};
 use util::H256;
 use key_server_cluster::{NodeId, Error};
 use key_server_cluster::message::{Message, ClusterMessage, NodePublicKey, NodePrivateKeySignature};
-use key_server_cluster::io::{write_message, WriteMessage, ReadMessage, read_message, serialize_message, SerializedMessage};
+use key_server_cluster::io::{write_message, write_encrypted_message, WriteMessage, ReadMessage,
+	read_message, compute_shared_key};
 
 /// Start handshake procedure with another node from the cluster.
 pub fn handshake<A>(a: A, self_key_pair: KeyPair, trusted_nodes: BTreeSet<NodeId>) -> Handshake<A> where A: io::Write + io::Read {
@@ -46,6 +47,7 @@ pub fn handshake_with_plain_confirmation<A>(a: A, self_confirmation_plain: Resul
 		trusted_nodes: trusted_nodes,
 		other_node_id: None,
 		other_confirmation_plain: None,
+		shared_key: None,
 	}
 }
 
@@ -66,6 +68,7 @@ pub fn accept_handshake<A>(a: A, self_key_pair: KeyPair, trusted_nodes: BTreeSet
 		trusted_nodes: trusted_nodes,
 		other_node_id: None,
 		other_confirmation_plain: None,
+		shared_key: None,
 	}
 }
 
@@ -74,6 +77,8 @@ pub fn accept_handshake<A>(a: A, self_key_pair: KeyPair, trusted_nodes: BTreeSet
 pub struct HandshakeResult {
 	/// Node id.
 	pub node_id: NodeId,
+	/// Shared key.
+	pub shared_key: Secret,
 }
 
 /// Future handshake procedure.
@@ -86,6 +91,7 @@ pub struct Handshake<A> {
 	trusted_nodes: BTreeSet<NodeId>,
 	other_node_id: Option<NodeId>,
 	other_confirmation_plain: Option<H256>,
+	shared_key: Option<Secret>,
 }
 
 /// Active handshake state.
@@ -135,6 +141,13 @@ impl<A> Future for Handshake<A> where A: io::Read + io::Write {
 						read_message(stream)
 					), Async::NotReady)
 				} else {
+					self.shared_key = match compute_shared_key(self.self_key_pair.secret(),
+						self.other_node_id.as_ref().expect("we are in passive mode; in passive mode SendPublicKey follows ReceivePublicKey; other_node_id is filled in ReceivePublicKey; qed")
+					) {
+						Ok(shared_key) => Some(shared_key),
+						Err(err) => return Ok((stream, Err(err)).into()),
+					};
+
 					let message = match Handshake::<A>::make_private_key_signature_message(
 						self.self_key_pair.secret(),
 						self.other_confirmation_plain.as_ref().expect("we are in passive mode; in passive mode SendPublicKey follows ReceivePublicKey; other_confirmation_plain is filled in ReceivePublicKey; qed")
@@ -142,7 +155,9 @@ impl<A> Future for Handshake<A> where A: io::Read + io::Write {
 						Ok(message) => message,
 						Err(err) => return Ok((stream, Err(err)).into()),
 					};
-					(HandshakeState::SendPrivateKeySignature(write_message(stream, message)), Async::NotReady)
+					(HandshakeState::SendPrivateKeySignature(write_encrypted_message(stream,
+						self.shared_key.as_ref().expect("filled couple of lines above; qed"),
+					message)), Async::NotReady)
 				}
 			},
 			HandshakeState::ReceivePublicKey(ref mut future) => {
@@ -163,6 +178,13 @@ impl<A> Future for Handshake<A> where A: io::Read + io::Write {
 				self.other_node_id = Some(message.node_id.into());
 				self.other_confirmation_plain = Some(message.confirmation_plain.into());
 				if self.is_active {
+					self.shared_key = match compute_shared_key(self.self_key_pair.secret(),
+						self.other_node_id.as_ref().expect("filled couple of lines above; qed")
+					) {
+						Ok(shared_key) => Some(shared_key),
+						Err(err) => return Ok((stream, Err(err)).into()),
+					};
+
 					let message = match Handshake::<A>::make_private_key_signature_message(
 						self.self_key_pair.secret(),
 						self.other_confirmation_plain.as_ref().expect("filled couple of lines above; qed")
@@ -170,7 +192,9 @@ impl<A> Future for Handshake<A> where A: io::Read + io::Write {
 						Ok(message) => message,
 						Err(err) => return Ok((stream, Err(err)).into()),
 					};
-					(HandshakeState::SendPrivateKeySignature(write_message(stream, message)), Async::NotReady)
+					(HandshakeState::SendPrivateKeySignature(write_encrypted_message(stream,
+						self.shared_key.as_ref().expect("filled couple of lines above; qed"),
+					message)), Async::NotReady)
 				} else {
 					let message = match Handshake::<A>::make_public_key_message(self.self_key_pair.public().clone(), self.self_confirmation_plain.clone()) {
 						Ok(message) => message,
@@ -203,7 +227,8 @@ impl<A> Future for Handshake<A> where A: io::Read + io::Write {
 				}
 
 				(HandshakeState::Finished, Async::Ready((stream, Ok(HandshakeResult {
-					node_id: self.other_node_id.expect("other_node_id is filled in ReceivePublicKey; ReceivePrivateKeySignature follows ReceivePublicKey; qed")
+					node_id: self.other_node_id.expect("other_node_id is filled in ReceivePublicKey; ReceivePrivateKeySignature follows ReceivePublicKey; qed"),
+					shared_key: self.shared_key.clone().expect("shared_key is filled in Send/ReceivePublicKey; ReceivePrivateKeySignature follows Send/ReceivePublicKey; qed"),
 				}))))
 			},
 			HandshakeState::Finished => panic!("poll Handshake after it's done"),
@@ -220,9 +245,9 @@ impl<A> Future for Handshake<A> where A: io::Read + io::Write {
 
 #[cfg(test)]
 mod tests {
-	use std::io;
 	use std::collections::BTreeSet;
 	use futures::Future;
+	use ethcrypto::ecdh::agree;
 	use ethkey::{Random, Generator, sign};
 	use util::H256;
 	use key_server_cluster::io::message::tests::TestIo;
@@ -264,11 +289,13 @@ mod tests {
 		let (self_confirmation_plain, io) = prepare_test_io();
 		let self_key_pair = io.self_key_pair().clone();
 		let trusted_nodes: BTreeSet<_> = vec![io.peer_public().clone()].into_iter().collect();
+		let shared_key = agree(self_key_pair.secret(), trusted_nodes.iter().nth(0).unwrap()).unwrap();
 
 		let handshake = handshake_with_plain_confirmation(io, Ok(self_confirmation_plain), self_key_pair, trusted_nodes);
 		let handshake_result = handshake.wait().unwrap();
 		assert_eq!(handshake_result.1, Ok(HandshakeResult {
 			node_id: handshake_result.0.peer_public().clone(),
+			shared_key: shared_key,
 		}));
 		handshake_result.0.assert_output();
 	}
@@ -278,6 +305,7 @@ mod tests {
 		let (self_confirmation_plain, io) = prepare_test_io();
 		let self_key_pair = io.self_key_pair().clone();
 		let trusted_nodes: BTreeSet<_> = vec![io.peer_public().clone()].into_iter().collect();
+		let shared_key = agree(self_key_pair.secret(), io.peer_public()).unwrap();
 
 		let mut handshake = accept_handshake(io, self_key_pair, trusted_nodes);
 		handshake.set_self_confirmation_plain(self_confirmation_plain);
@@ -285,6 +313,7 @@ mod tests {
 		let handshake_result = handshake.wait().unwrap();
 		assert_eq!(handshake_result.1, Ok(HandshakeResult {
 			node_id: handshake_result.0.peer_public().clone(),
+			shared_key: shared_key,
 		}));
 		handshake_result.0.assert_output();
 	}

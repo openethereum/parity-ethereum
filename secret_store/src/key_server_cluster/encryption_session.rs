@@ -704,7 +704,7 @@ impl SessionImpl {
 
 	/// When error has occured on another node.
 	pub fn on_session_error(&self, sender: NodeId, message: &SessionError) {
-		warn!("{}: encryption session error: {:?}", self.node(), message);
+		warn!("{}: encryption session error: {:?} from {}", self.node(), message, sender);
 		let mut data = self.data.lock();
 		data.state = SessionState::Failed;
 		data.joint_public = Some(Err(Error::Io(message.error.clone())));
@@ -716,8 +716,14 @@ impl SessionImpl {
 	pub fn on_session_timeout(&self, node: &NodeId) {
 		warn!("{}: encryption session timeout", self.node());
 		let mut data = self.data.lock();
-		if !data.nodes.contains_key(node) {
-			return;
+
+		match data.state {
+			SessionState::WaitingForInitialization |
+				SessionState::WaitingForInitializationConfirm(_) |
+				SessionState::WaitingForInitializationComplete => (),
+			_ => if !data.nodes.contains_key(node) {
+				return;
+			},
 		}
 
 		data.state = SessionState::Failed;
@@ -775,7 +781,7 @@ impl SessionImpl {
 	fn disqualify_node(node: &NodeId, cluster: &Cluster, data: &mut SessionData) {
 		let threshold = data.threshold
 			.expect("threshold is filled on initialization phase; node can only be disqualified during KC phase; KC phase follows initialization phase; qed");
-		
+
 		// blacklist node
 		cluster.blacklist(&node);
 		// too many complaints => exclude from session
@@ -879,15 +885,13 @@ pub fn check_threshold(threshold: usize, nodes: &BTreeSet<NodeId>) -> Result<(),
 #[cfg(test)]
 mod tests {
 	use std::time;
-	use std::thread;
 	use std::sync::Arc;
 	use std::collections::{BTreeSet, BTreeMap, VecDeque};
 	use tokio_core::reactor::Core;
 	use ethkey::{Random, Generator};
-	use key_server_cluster::{NodeId, SessionId, Error, ClusterConfiguration, DummyKeyStorage};
+	use key_server_cluster::{NodeId, SessionId, Error, DummyKeyStorage};
 	use key_server_cluster::message::{self, Message, EncryptionMessage};
-	use key_server_cluster::cluster::{Cluster, ClusterCore, ClusterView};
-	use key_server_cluster::cluster::tests::{DummyCluster, make_clusters, run_clusters, loop_until, loop_for, all_connections_established};
+	use key_server_cluster::cluster::tests::{DummyCluster, make_clusters, run_clusters, loop_until, all_connections_established};
 	use key_server_cluster::encryption_session::{Session, SessionImpl, SessionState, SessionParams};
 	use key_server_cluster::math;
 	use key_server_cluster::math::tests::do_encryption_and_decryption;
@@ -1420,6 +1424,8 @@ mod tests {
 
 	#[test]
 	fn encryption_session_works_over_network() {
+		//::util::log::init_log();
+
 		let test_cases = [(1, 3)];
 		for &(threshold, num_nodes) in &test_cases {
 			let mut core = Core::new().unwrap();
@@ -1429,7 +1435,6 @@ mod tests {
 			run_clusters(&clusters);
 
 			// establish connections
-			let key_pairs: Vec<_> = clusters.iter().map(|c| c.config().self_key_pair.clone()).collect();
 			loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
 
 			// run session to completion
