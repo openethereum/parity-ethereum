@@ -120,20 +120,22 @@ export default class HardwareStore {
       });
   }
 
-  createAccountInfo (entry) {
+  createAccountInfo (entry, original = {}) {
     const { address, manufacturer, name } = entry;
 
     return Promise
       .all([
-        this._api.parity.setAccountName(address, name),
-        this._api.parity.setAccountMeta(address, {
+        original.name
+          ? Promise.resolve(true)
+          : this._api.parity.setAccountName(address, name),
+        this._api.parity.setAccountMeta(address, Object.assign({
           description: `${manufacturer} ${name}`,
           hardware: {
             manufacturer
           },
           tags: ['hardware'],
           timestamp: Date.now()
-        })
+        }, original.meta || {}))
       ])
       .catch((error) => {
         console.warn('HardwareStore::createEntry', error);
