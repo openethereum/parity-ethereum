@@ -28,7 +28,7 @@ use ethcore_signer as signer;
 use helpers::replace_home;
 use parity_reactor::TokioRemote;
 use rpc_apis;
-use util::path::restrict_permissions_owner;
+use path::restrict_permissions_owner;
 use util::H256;
 
 const CODES_FILENAME: &'static str = "authcodes";

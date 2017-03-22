@@ -61,6 +61,7 @@ extern crate parity_reactor;
 extern crate parity_updater as updater;
 extern crate parity_local_store as local_store;
 extern crate rpc_cli;
+extern crate path;
 
 #[macro_use]
 extern crate log as rlog;

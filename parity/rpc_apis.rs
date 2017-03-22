@@ -35,6 +35,7 @@ use jsonrpc_core::{MetaIoHandler};
 use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
 use updater::Updater;
 use util::{Mutex, RwLock, RotatingLogger};
+use ethcore_logger::RotatingLogger;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {

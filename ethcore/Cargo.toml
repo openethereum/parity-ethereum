@@ -43,9 +43,10 @@ rlp = { path = "../util/rlp" }
 ethcore-stratum = { path = "../stratum" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 hardware-wallet = { path = "../hw" }
+ethcore-logger = { path = "../logger" }
 stats = { path = "../util/stats" }
-num = "0.1"
 hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
+num = "0.1"
 
 [features]
 jit = ["evmjit"]

@@ -25,7 +25,6 @@ use types::filter::Filter;
 use util::*;
 use devtools::*;
 use miner::Miner;
-use rlp::View;
 use spec::Spec;
 use views::BlockView;
 use ethkey::{KeyPair, Secret};

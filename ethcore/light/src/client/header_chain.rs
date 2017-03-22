@@ -35,7 +35,7 @@ use ethcore::encoded;
 use ethcore::header::Header;
 use ethcore::ids::BlockId;
 
-use rlp::{Encodable, Decodable, Decoder, DecoderError, RlpStream, Rlp, View};
+use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp};
 use util::{H256, U256, HeapSizeOf, RwLock};
 use util::kvdb::{DBTransaction, KeyValueDB};
 
@@ -95,8 +95,7 @@ impl Encodable for Entry {
 }
 
 impl Decodable for Entry {
-	fn decode<D: Decoder>(decoder: &D) -> Result<Self, DecoderError> {
-		let rlp = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 
 		let mut candidates = SmallVec::<[Candidate; 3]>::new();
 

@@ -36,6 +36,7 @@ ethsync = { path = "../sync" }
 ethjson = { path = "../json" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-light = { path = "../ethcore/light" }
+ethcore-logger = { path = "../logger" }
 parity-updater = { path = "../updater" }
 parity-reactor = { path = "../util/reactor" }
 rlp = { path = "../util/rlp" }

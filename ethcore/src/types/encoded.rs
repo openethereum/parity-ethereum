@@ -29,7 +29,7 @@ use transaction::UnverifiedTransaction;
 use views;
 
 use util::{Address, Hashable, H256, H2048, U256, HeapSizeOf};
-use rlp::{Rlp, View};
+use rlp::Rlp;
 
 /// Owning header view.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -36,7 +36,7 @@ use ethcore::executed::{Executed, ExecutionError};
 use ethcore::ids::BlockId;
 use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransaction};
 use ethsync::LightSync;
-use rlp::{UntrustedRlp, View};
+use rlp::UntrustedRlp;
 use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
 use util::{RwLock, Mutex, Uint, U256};
 

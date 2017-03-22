@@ -290,7 +290,7 @@ impl EarlyMergeDB {
 					&r.drain()
 				}).expect("Low-level database error.") {
 					let rlp = Rlp::new(&rlp_data);
-					let inserts: Vec<H256> = rlp.val_at(1);
+					let inserts: Vec<H256> = rlp.list_at(1);
 					Self::replay_keys(&inserts, db, col, &mut refs);
 					index += 1;
 				};
@@ -466,11 +466,11 @@ impl JournalDB for EarlyMergeDB {
 			&last
 		})? {
 			let rlp = Rlp::new(&rlp_data);
-			let inserts: Vec<H256> = rlp.val_at(1);
+			let inserts: Vec<H256> = rlp.list_at(1);
 
 			if canon_id == &rlp.val_at::<H256>(0) {
 				// Collect keys to be removed. Canon block - remove the (enacted) deletes.
-				let deletes: Vec<H256> = rlp.val_at(2);
+				let deletes: Vec<H256> = rlp.list_at(2);
 				trace!(target: "jdb.ops", "  Expunging: {:?}", deletes);
 				Self::remove_keys(&deletes, &mut refs, batch, self.column, RemoveFrom::Archive, trace);
 
@@ -553,7 +553,7 @@ mod tests {
 	use hashdb::{HashDB, DBValue};
 	use super::*;
 	use super::super::traits::JournalDB;
-	use log::init_log;
+	use ethcore_logger::init_log;
 	use kvdb::{DatabaseConfig};
 
 	#[test]
