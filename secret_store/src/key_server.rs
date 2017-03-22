@@ -132,7 +132,7 @@ impl KeyServerCore {
 
 impl Drop for KeyServerCore {
 	fn drop(&mut self) {
-		self.close.take().map(|v| v.complete(()));
+		self.close.take().map(|v| v.send(()));
 	}
 }
 
