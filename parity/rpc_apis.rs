@@ -34,7 +34,7 @@ use hash_fetch::fetch::Client as FetchClient;
 use jsonrpc_core::{MetaIoHandler};
 use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
 use updater::Updater;
-use util::{Mutex, RwLock, RotatingLogger};
+use util::{Mutex, RwLock};
 use ethcore_logger::RotatingLogger;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
