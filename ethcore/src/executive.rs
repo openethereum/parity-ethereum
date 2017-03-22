@@ -261,17 +261,22 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		}
 		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
-		if self.engine.is_builtin(&params.code_address) {
-			// if destination is builtin, try to execute it
+		// if destination is builtin, try to execute it
+		if let Some(builtin) = self.engine.builtin(&params.code_address, self.info.number) {
+			// Engines aren't supposed to return builtins until activation, but
+			// prefer to fail rather than silently break consensus.
+			if !builtin.is_active(self.info.number) {
+				panic!("Consensus failure: engine implementation prematurely enabled built-in at {}", params.code_address);
+			}
 
 			let default = [];
 			let data = if let Some(ref d) = params.data { d as &[u8] } else { &default as &[u8] };
 
 			let trace_info = tracer.prepare_trace_call(&params);
 
-			let cost = self.engine.cost_of_builtin(&params.code_address, data);
+			let cost = builtin.cost(data);
 			if cost <= params.gas {
-				self.engine.execute_builtin(&params.code_address, data, &mut output);
+				builtin.execute(data, &mut output);
 				self.state.discard_checkpoint();
 
 				// trace only top level calls to builtins to avoid DDoS attacks

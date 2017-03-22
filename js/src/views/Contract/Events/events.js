@@ -46,6 +46,12 @@ export default class Events extends Component {
     events: []
   };
 
+  shouldComponentUpdate (nextProps) {
+    return (nextProps.events !== this.props.events) ||
+      (nextProps.netVersion !== this.props.netVersion) ||
+      (nextProps.isLoading !== this.props.isLoading);
+  }
+
   render () {
     const { events, isLoading, netVersion } = this.props;
 

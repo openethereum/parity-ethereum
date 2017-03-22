@@ -33,7 +33,7 @@ use ethsync::{ManageNetwork, SyncProvider};
 use hash_fetch::fetch::Client as FetchClient;
 use jsonrpc_core::{MetaIoHandler};
 use updater::Updater;
-use util::RotatingLogger;
+use ethcore_logger::RotatingLogger;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
