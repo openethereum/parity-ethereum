@@ -1,6 +1,5 @@
 //! Creates fixed size token from bytes.
 
-use std::ptr;
 use rustc_serialize::hex::FromHex;
 use super::Error;
 
@@ -21,10 +20,7 @@ macro_rules! impl_token_from_hex {
 					return Err(Error::InvalidValue);
 				}
 
-				unsafe {
-					ptr::copy(bytes.as_ptr(), result.as_mut_ptr(), $size);
-				}
-
+				result.copy_from_slice(&bytes);
 				Ok(result)
 			}
 		}

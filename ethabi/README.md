@@ -20,7 +20,7 @@ This library encodes function calls and decodes their output.
 - via cargo
 
   ```
-  cargo install ethabi
+  cargo install ethabi --features="cli"
   ```
 
 - via homebrew
