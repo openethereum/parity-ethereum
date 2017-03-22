@@ -303,12 +303,9 @@ impl LightProtocol {
 		match peer.remote_flow {
 			None => Err(Error::NotServer),
 			Some((ref mut creds, ref params)) => {
-				// check that enough credits are available.
-				let mut temp_creds: Credits = creds.clone();
-				for request in requests.requests() {
-					temp_creds.deduct_cost(params.compute_cost(request))?;
-				}
-				*creds = temp_creds;
+				// compute and deduct cost.
+				let cost = params.compute_cost_multi(requests.requests());
+				creds.deduct_cost(cost)?;
 
 				let req_id = ReqId(self.req_id.fetch_add(1, Ordering::SeqCst));
 				io.send(*peer_id, packet::REQUEST, {
@@ -318,7 +315,7 @@ impl LightProtocol {
 				});
 
 				// begin timeout.
-				peer.pending_requests.insert(req_id, requests, SteadyTime::now());
+				peer.pending_requests.insert(req_id, requests, cost, SteadyTime::now());
 				Ok(req_id)
 			}
 		}
@@ -408,13 +405,18 @@ impl LightProtocol {
 			Some(peer_info) => {
 				let mut peer_info = peer_info.lock();
 				let req_info = peer_info.pending_requests.remove(&req_id, SteadyTime::now());
+				let cumulative_cost = peer_info.pending_requests.cumulative_cost();
 				let flow_info = peer_info.remote_flow.as_mut();
 
 				match (req_info, flow_info) {
 					(Some(_), Some(flow_info)) => {
 						let &mut (ref mut c, ref mut flow) = flow_info;
-						let actual_credits = ::std::cmp::min(cur_credits, *flow.limit());
-						c.update_to(actual_credits);
+
+						// only update if the cumulative cost of the request set is zero.
+						if cumulative_cost == 0.into() {
+							let actual_credits = ::std::cmp::min(cur_credits, *flow.limit());
+							c.update_to(actual_credits);
+						}
 
 						Ok(())
 					}
@@ -520,6 +522,7 @@ impl LightProtocol {
 			last_update: SteadyTime::now(),
 		});
 
+		trace!(target: "pip", "Sending status to peer {}", peer);
 		io.send(*peer, packet::STATUS, status_packet);
 	}
 

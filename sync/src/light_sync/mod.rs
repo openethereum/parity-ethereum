@@ -418,8 +418,10 @@ impl<L: AsLightClient> LightSync<L> {
 			let best_td = chain_info.pending_total_difficulty;
 			let sync_target = match *self.best_seen.lock() {
 				Some(ref target) if target.head_td > best_td => (target.head_num, target.head_hash),
-				_ => {
-					trace!(target: "sync", "No target to sync to.");
+				ref other => {
+					let network_score = other.as_ref().map(|target| target.head_td);
+					trace!(target: "sync", "No target to sync to. Network score: {:?}, Local score: {:?}",
+						network_score, best_td);
 					*state = SyncState::Idle;
 					return;
 				}
