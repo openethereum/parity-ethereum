@@ -40,7 +40,7 @@ use node_table::*;
 use stats::NetworkStats;
 use discovery::{Discovery, TableUpdates, NodeEntry};
 use ip_utils::{map_external_address, select_public_address};
-use util::path::restrict_permissions_owner;
+use path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
 
 type Slab<T> = ::slab::Slab<T, usize>;

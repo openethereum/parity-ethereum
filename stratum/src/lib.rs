@@ -24,6 +24,7 @@ extern crate ethcore_util as util;
 extern crate ethcore_ipc as ipc;
 extern crate semver;
 extern crate futures;
+extern crate ethcore_logger;
 
 #[cfg(test)] extern crate tokio_core;
 extern crate ethcore_devtools as devtools;
@@ -327,38 +328,14 @@ mod tests {
 	use tokio_core::io;
 	use futures::{Future, future};
 
+	use ethcore_logger::init_log;
+
 	pub struct VoidManager;
 
 	impl JobDispatcher for VoidManager {
 		fn submit(&self, _payload: Vec<String>) -> Result<(), Error> {
 			Ok(())
 		}
-	}
-
-	lazy_static! {
-		static ref LOG_DUMMY: bool = {
-			use log::LogLevelFilter;
-			use env_logger::LogBuilder;
-			use std::env;
-
-			let mut builder = LogBuilder::new();
-			builder.filter(None, LogLevelFilter::Info);
-
-			if let Ok(log) = env::var("RUST_LOG") {
-				builder.parse(&log);
-			}
-
-			if let Ok(_) = builder.init() {
-				println!("logger initialized");
-			}
-			true
-		};
-	}
-
-	/// Intialize log with default settings
-	#[cfg(test)]
-	fn init_log() {
-		let _ = *LOG_DUMMY;
 	}
 
 	fn dummy_request(addr: &SocketAddr, data: &str) -> Vec<u8> {

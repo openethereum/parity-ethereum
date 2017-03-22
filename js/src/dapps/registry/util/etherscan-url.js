@@ -22,7 +22,7 @@ const etherscanUrl = (hash, isTestnet, netVersion) => {
   hash = hash.toLowerCase().replace(leading0x, '');
   const type = hash.length === 40 ? 'address' : 'tx';
 
-  return `https://${externalUrl(isTestnet, netVersion)}/${type}/0x${hash}`;
+  return `${externalUrl(isTestnet, netVersion)}/${type}/0x${hash}`;
 };
 
 export default etherscanUrl;

@@ -110,7 +110,7 @@ impl PriceInfo {
 fn should_get_price_info() {
 	use std::sync::Arc;
 	use std::time::Duration;
-	use util::log::init_log;
+	use ethcore_logger::init_log;
 	use util::{Condvar, Mutex};
 
 	init_log();

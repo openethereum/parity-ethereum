@@ -16,7 +16,7 @@
 
 //! Logger for parity executables
 
-extern crate ethcore_util as util;
+extern crate arrayvec;
 extern crate log as rlog;
 extern crate isatty;
 extern crate regex;
@@ -24,6 +24,10 @@ extern crate env_logger;
 extern crate time;
 #[macro_use]
 extern crate lazy_static;
+extern crate parking_lot;
+extern crate ansi_term;
+
+mod rotating;
 
 use std::{env, thread, fs};
 use std::sync::{Weak, Arc};
@@ -31,8 +35,10 @@ use std::io::Write;
 use isatty::{stderr_isatty, stdout_isatty};
 use env_logger::LogBuilder;
 use regex::Regex;
-use util::{Mutex, RotatingLogger}	;
-use util::log::Colour;
+use ansi_term::Colour;
+use parking_lot::Mutex;
+
+pub use rotating::{RotatingLogger, init_log};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Config {

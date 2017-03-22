@@ -7,17 +7,17 @@ authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [build-dependencies]
-quasi_codegen = { version = "0.11", optional = true }
-syntex = { version = "0.33", optional = true }
+quasi_codegen = { version = "0.32", optional = true }
+syntex = { version = "0.58", optional = true }
 
 [dependencies]
 glob = { version = "0.2.11" }
 mime_guess = { version = "1.6.1" }
-aster = { version = "0.17", default-features = false }
-quasi = { version = "0.11", default-features = false }
-quasi_macros = { version = "0.11", optional = true }
-syntex = { version = "0.33", optional = true }
-syntex_syntax = { version = "0.33", optional = true }
+aster = { version = "0.41", default-features = false }
+quasi = { version = "0.32", default-features = false }
+quasi_macros = { version = "0.32", optional = true }
+syntex = { version = "0.58", optional = true }
+syntex_syntax = { version = "0.58", optional = true }
 clippy = { version = "0.0.90", optional = true }
 
 [features]

@@ -16,7 +16,7 @@ num_cpus = "1.2"
 number_prefix = "0.2"
 rpassword = "0.2.1"
 semver = "0.5"
-ansi_term = "0.7"
+ansi_term = "0.9"
 regex = "0.1"
 isatty = "0.1"
 toml = "0.2"
@@ -50,6 +50,7 @@ parity-updater = { path = "updater" }
 parity-reactor = { path = "util/reactor" }
 parity-local-store = { path = "local-store" }
 ethcore-dapps = { path = "dapps", optional = true }
+path = { path = "util/path" }
 clippy = { version = "0.0.103", optional = true}
 ethcore-secretstore = { path = "secret_store", optional = true }
 
