@@ -326,33 +326,40 @@ impl Impl for ModexpImpl {
 	}
 }
 
+fn read_fr(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::Fr, Error> {
+	let mut buf = [0u8; 32];
+	
+	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
+	::bn::Fr::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid field element"))
+}
+
+fn read_point(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::G1, Error> {
+	use bn::{Fq, AffineG1, G1, Group};
+	
+	let mut buf = [0u8; 32];
+	
+	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
+	let px = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point x coordinate"))?;
+
+	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
+	let py = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point x coordinate"))?;
+	
+	Ok(
+		if px == Fq::zero() && py == Fq::zero() {
+			G1::zero()
+		} else {
+			AffineG1::new(px, py).map_err(|_| Error::from("Invalid curve point"))?.into()
+		}
+	)
+}
+
 impl Impl for Bn128AddImpl {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
-		use bn::{Fq, AffineG1, G1, Group};
-
-		let mut buf = [0u8; 32];
-		let mut next_coord = |reader: &mut io::Chain<&[u8], io::Repeat>| {
-			reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
-			Fq::from_slice(&buf[0..32])
-		};
+		use bn::AffineG1;
 
 		let mut padded_input = input.chain(io::repeat(0));
-
-		let px = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p1 x coordinate"))?;
-		let py = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p1 y coordinate"))?;
-		let p1: G1 = if px == Fq::zero() && py == Fq::zero() {
-			G1::zero()
-		} else {
-			AffineG1::new(px, py).map_err(|_| Error::from("Invalid curve point"))?.into()
-		};
-
-		let px = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p1 x coordinate"))?;
-		let py = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p1 y coordinate"))?;
-		let p2: G1 = if px == Fq::zero() && py == Fq::zero() {
-			G1::zero()
-		} else {
-			AffineG1::new(px, py).map_err(|_| Error::from("Invalid curve point"))?.into()
-		};
+		let p1 = read_point(&mut padded_input)?;
+		let p2 = read_point(&mut padded_input)?;
 
 		let mut write_buf = [0u8; 64];
 		if let Some(sum) = AffineG1::from_jacobian(p1 + p2) {
@@ -368,6 +375,19 @@ impl Impl for Bn128AddImpl {
 
 impl Impl for Bn128MulImpl {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+		use bn::AffineG1;
+
+		let mut padded_input = input.chain(io::repeat(0));
+		let p = read_point(&mut padded_input)?;
+		let fr = read_fr(&mut padded_input)?;
+
+		let mut write_buf = [0u8; 64];
+		if let Some(sum) = AffineG1::from_jacobian(p * fr) {
+			// point not at infinity
+			sum.x().to_big_endian(&mut write_buf[0..32]).expect("Cannot fail since 0..32 is 32-byte length");
+			sum.y().to_big_endian(&mut write_buf[32..64]).expect("Cannot fail since 32..64 is 32-byte length");;
+		}
+		output.write(0, &write_buf);
 		Ok(())
 	}	
 }
@@ -617,6 +637,22 @@ mod tests {
 			assert_eq!(output, expected);
 		}		
 
+
+		// no input, should not fail
+		{
+			let mut empty = [0u8; 0];
+			let input = BytesRef::Fixed(&mut empty);
+
+			let mut output = vec![0u8; 64];
+			let expected = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000"
+			).unwrap();
+
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
+			assert_eq!(output, expected);
+		}				
+
 		// should fail - point not on curve
 		{
 			let input = FromHex::from_hex("\
@@ -632,6 +668,51 @@ mod tests {
 			assert!(res.is_err(), "There should be built-in error here");
 		}		
 	}
+
+
+	#[test]
+	fn alt_bn128_mul() {
+		use rustc_serialize::hex::FromHex;
+
+		let f = Builtin {
+			pricer: Box::new(Linear { base: 0, word: 0 }),
+			native: ethereum_builtin("alt_bn128_mul"),
+			activate_at: 0,
+		};		
+
+		// zero-point multiplication
+		{
+			let input = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0200000000000000000000000000000000000000000000000000000000000000"
+			).unwrap();
+
+			let mut output = vec![0u8; 64];
+			let expected = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000"
+			).unwrap();
+
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
+			assert_eq!(output, expected);
+		}		
+
+		// should fail - point not on curve
+		{
+			let input = FromHex::from_hex("\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				0f00000000000000000000000000000000000000000000000000000000000000"
+			).unwrap();
+
+			let mut output = vec![0u8; 64];
+
+			let res = f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
+			assert!(res.is_err(), "There should be built-in error here");
+		}		
+	}
+	
 
 	#[test]
 	#[should_panic]
