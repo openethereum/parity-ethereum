@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
-use ethcore::client::{ClientReport, EnvInfo, DatabaseCompactionProfile};
+use ethcore::client::{ClientReport, EnvInfo};
 use ethcore::engines::Engine;
 use ethcore::ids::BlockId;
 use ethcore::header::Header;
@@ -31,7 +31,8 @@ use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
 
-use util::{H256, Mutex, RwLock, KeyValueDB};
+use util::{H256, Mutex, RwLock};
+use util::kvdb::{KeyValueDB, CompactionProfile};
 
 use self::header_chain::{AncestryIter, HeaderChain};
 
@@ -50,7 +51,7 @@ pub struct Config {
 	/// Database cache size. `None` => rocksdb default.
 	pub db_cache_size: Option<usize>,
 	/// State db compaction profile
-	pub db_compaction: DatabaseCompactionProfile,
+	pub db_compaction: CompactionProfile,
 	/// Should db have WAL enabled?
 	pub db_wal: bool,
 }

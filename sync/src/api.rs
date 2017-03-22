@@ -43,7 +43,7 @@ pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
 /// Ethereum sync protocol
 pub const ETH_PROTOCOL: ProtocolId = *b"eth";
 /// Ethereum light protocol
-pub const LIGHT_PROTOCOL: ProtocolId = *b"plp";
+pub const LIGHT_PROTOCOL: ProtocolId = *b"pip";
 
 /// Sync configuration
 #[derive(Debug, Clone, Copy)]

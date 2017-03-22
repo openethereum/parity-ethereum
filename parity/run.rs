@@ -154,6 +154,89 @@ impl ::local_store::NodeInfo for FullNodeInfo {
 	}
 }
 
+// helper for light execution.
+fn execute_light(cmd: RunCmd, can_restart: bool, _logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
+	use light::client as light_client;
+	use ethsync::{LightSyncParams, LightSync, ManageNetwork};
+	use util::RwLock;
+
+	let panic_handler = PanicHandler::new_in_arc();
+
+	// load spec
+	let spec = cmd.spec.spec()?;
+
+	// load genesis hash
+	let genesis_hash = spec.genesis_header().hash();
+
+	// database paths
+	let db_dirs = cmd.dirs.database(genesis_hash, cmd.spec.legacy_fork_name(), spec.data_dir.clone());
+
+	// user defaults path
+	let user_defaults_path = db_dirs.user_defaults_path();
+
+	// load user defaults
+	let user_defaults = UserDefaults::load(&user_defaults_path)?;
+
+	// select pruning algorithm
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+
+	let compaction = cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path());
+
+	// execute upgrades
+	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, compaction.clone())?;
+
+	// create dirs used by parity
+	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled, cmd.secretstore_conf.enabled)?;
+
+	info!("Starting {}", Colour::White.bold().paint(version()));
+	info!("Running in experimental {} mode.", Colour::Blue.bold().paint("Light Client"));
+
+	// start client and create transaction queue.
+	let mut config = light_client::Config {
+		queue: Default::default(),
+		chain_column: ::ethcore::db::COL_LIGHT_CHAIN,
+		db_cache_size: Some(cmd.cache_config.blockchain() as usize * 1024 * 1024),
+		db_compaction: compaction,
+		db_wal: cmd.wal,
+	};
+
+	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
+	config.queue.verifier_settings = cmd.verifier_settings;
+
+	let service = light_client::Service::start(config, &spec, &db_dirs.client_path(algorithm))
+		.map_err(|e| format!("Error starting light client: {}", e))?;
+	let txq = Arc::new(RwLock::new(::light::transaction_queue::TransactionQueue::default()));
+	let provider = ::light::provider::LightProvider::new(service.client().clone(), txq);
+
+	// start network.
+	// set up bootnodes
+	let mut net_conf = cmd.net_conf;
+	if !cmd.custom_bootnodes {
+		net_conf.boot_nodes = spec.nodes.clone();
+	}
+
+	// set network path.
+	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
+	let sync_params = LightSyncParams {
+		network_config: net_conf.into_basic().map_err(|e| format!("Failed to produce network config: {}", e))?,
+		client: Arc::new(provider),
+		network_id: cmd.network_id.unwrap_or(spec.network_id()),
+		subprotocol_name: ::ethsync::LIGHT_PROTOCOL,
+	};
+	let light_sync = LightSync::new(sync_params).map_err(|e| format!("Error starting network: {}", e))?;
+	light_sync.start_network();
+
+	// start RPCs.
+	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
+
+	// prepare account provider
+	let _account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
+	// rest TODO
+
+	// wait for ctrl-c.
+	Ok(wait_for_exit(panic_handler, None, None, can_restart))
+}
+
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
 		// Check if Parity is already running
@@ -163,11 +246,16 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		}
 	}
 
-	// set up panic handler
-	let panic_handler = PanicHandler::new_in_arc();
-
 	// increase max number of open files
 	raise_fd_limit();
+
+	// run as light client.
+	if cmd.light {
+		return execute_light(cmd, can_restart, logger);
+	}
+
+	// set up panic handler
+	let panic_handler = PanicHandler::new_in_arc();
 
 	// load spec
 	let spec = cmd.spec.spec()?;

@@ -64,7 +64,7 @@ impl Service {
 			db_config.set_cache(db::COL_LIGHT_CHAIN, size);
 		}
 
-		db_config.compaction = config.db_compaction.compaction_profile(path);
+		db_config.compaction = config.db_compaction;
 		db_config.wal = config.db_wal;
 
 		let db = Arc::new(Database::open(
