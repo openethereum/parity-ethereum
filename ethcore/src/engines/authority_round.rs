@@ -300,13 +300,17 @@ impl Engine for AuthorityRound {
 			Err(From::from(BlockError::InvalidSealArity(
 				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
 			)))
+		} else if header.number() >= self.validate_score_transition && *header.difficulty() >= U256::from(U128::max_value()) {
+			Err(From::from(BlockError::DifficultyOutOfBounds(
+				OutOfBounds { min: None, max: Some(U256::from(U128::max_value())), found: *header.difficulty() }
+			)))
 		} else {
 			Ok(())
 		}
 	}
 
 	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-				Ok(())
+		Ok(())
 	}
 
 	/// Do the validator and gas limit validation.
@@ -337,14 +341,6 @@ impl Engine for AuthorityRound {
 			trace!(target: "engine", "Multiple blocks proposed for step {}.", step);
 			self.validators.report_malicious(header.author());
 			Err(EngineError::DoubleVote(header.author().clone()))?;
-		}
-
-
-		let expected_score = U256::from(U128::max_value()) + parent_step.into() - step.into();
-		if header.number() >= self.validate_score_transition && *header.difficulty() == expected_score {
-			return Err(From::from(BlockError::DifficultyOutOfBounds(
-				OutOfBounds { min: Some(expected_score), max: Some(expected_score), found: *header.difficulty() }
-			)));
 		}
 
 		let gas_limit_divisor = self.gas_limit_bound_divisor;

@@ -55,6 +55,7 @@ fn new_tx(secret: &Secret, nonce: U256) -> PendingTransaction {
 
 #[test]
 fn authority_round() {
+	::env_logger::init().unwrap();
 	let s0 = KeyPair::from_secret_slice(&"1".sha3()).unwrap();
 	let s1 = KeyPair::from_secret_slice(&"0".sha3()).unwrap();
 	let ap = Arc::new(AccountProvider::transient_provider());
