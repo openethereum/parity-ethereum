@@ -174,7 +174,7 @@ fn rpc_trace_call_state_pruned() {
 	*tester.client.execution_result.write() = Some(Err(CallError::StatePruned));
 
 	let request = r#"{"jsonrpc":"2.0","method":"trace_call","params":[{}, ["stateDiff", "vmTrace", "trace"]],"id":1}"#;
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"This request is not supported because your node is running with state pruning. Run with --pruning=archive.","data":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"This request is not supported because your node is running with state pruning. Run with --pruning=archive."},"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -195,7 +195,7 @@ fn rpc_trace_raw_transaction_state_pruned() {
 	*tester.client.execution_result.write() = Some(Err(CallError::StatePruned));
 
 	let request = r#"{"jsonrpc":"2.0","method":"trace_rawTransaction","params":["0xf869018609184e72a0008276c094d46e8dd67c5d32be8058bb8eb970870f07244567849184e72a801ba0617f39c1a107b63302449c476d96a6cb17a5842fc98ff0c5bcf4d5c4d8166b95a009fdb6097c6196b9bbafc3a59f02f38d91baeef23d0c60a8e4f23c7714cea3a9", ["stateDiff", "vmTrace", "trace"]],"id":1}"#;
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"This request is not supported because your node is running with state pruning. Run with --pruning=archive.","data":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"This request is not supported because your node is running with state pruning. Run with --pruning=archive."},"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -216,7 +216,7 @@ fn rpc_trace_replay_transaction_state_pruned() {
 	*tester.client.execution_result.write() = Some(Err(CallError::StatePruned));
 
 	let request = r#"{"jsonrpc":"2.0","method":"trace_replayTransaction","params":["0x0000000000000000000000000000000000000000000000000000000000000005", ["trace", "stateDiff", "vmTrace"]],"id":1}"#;
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"This request is not supported because your node is running with state pruning. Run with --pruning=archive.","data":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"This request is not supported because your node is running with state pruning. Run with --pruning=archive."},"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }

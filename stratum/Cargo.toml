@@ -11,10 +11,9 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 log = "0.3"
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
-jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
-jsonrpc-tcp-server = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
-mio = { git = "https://github.com/ethcore/mio", branch = "v0.5.x" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 ethcore-util = { path = "../util" }
 ethcore-devtools = { path = "../devtools" }
 lazy_static = "0.2"

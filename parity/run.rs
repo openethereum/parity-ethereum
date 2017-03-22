@@ -435,7 +435,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	});
 
 	let dependencies = rpc::Dependencies {
-		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 		remote: event_loop.raw_remote(),
 		stats: rpc_stats.clone(),
@@ -447,7 +446,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// the dapps server
 	let dapps_deps = dapps::Dependencies {
-		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
@@ -460,7 +458,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// the signer server
 	let signer_deps = signer::Dependencies {
-		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 		remote: event_loop.raw_remote(),
 		rpc_stats: rpc_stats.clone(),

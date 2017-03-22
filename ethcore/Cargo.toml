@@ -45,11 +45,8 @@ ethcore-bloom-journal = { path = "../util/bloom" }
 hardware-wallet = { path = "../hw" }
 ethcore-logger = { path = "../logger" }
 stats = { path = "../util/stats" }
+hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
 num = "0.1"
-
-[dependencies.hyper]
-git = "https://github.com/ethcore/hyper"
-default-features = false
 
 [features]
 jit = ["evmjit"]
