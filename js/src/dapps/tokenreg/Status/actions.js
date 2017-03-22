@@ -17,8 +17,7 @@
 import Contracts from '~/contracts';
 
 import { loadToken, setTokenPending, deleteToken, setTokenData } from '../Tokens/actions';
-
-const { api } = window.parity;
+import { api } from '../parity';
 
 export const SET_LOADING = 'SET_LOADING';
 export const setLoading = (isLoading) => ({

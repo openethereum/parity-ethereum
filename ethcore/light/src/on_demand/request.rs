@@ -26,7 +26,7 @@ use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
 use ethcore::transaction::SignedTransaction;
 
-use rlp::{RlpStream, UntrustedRlp, View};
+use rlp::{RlpStream, UntrustedRlp};
 use util::{Address, Bytes, DBValue, HashDB, H256, U256};
 use util::memorydb::MemoryDB;
 use util::sha3::Hashable;

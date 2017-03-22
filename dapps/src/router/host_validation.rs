@@ -19,18 +19,13 @@ use apps::DAPPS_DOMAIN;
 use hyper::{server, header, StatusCode};
 use hyper::net::HttpStream;
 
-use jsonrpc_http_server::{is_host_header_valid};
 use handlers::ContentHandler;
+use jsonrpc_http_server;
+use jsonrpc_server_utils::hosts;
 
-pub fn is_valid(request: &server::Request<HttpStream>, allowed_hosts: &[String], endpoints: Vec<String>) -> bool {
-	let mut endpoints = endpoints.iter()
-		.map(|endpoint| format!("{}{}", endpoint, DAPPS_DOMAIN))
-		.collect::<Vec<String>>();
-	endpoints.extend_from_slice(allowed_hosts);
-
-	let header_valid = is_host_header_valid(request, &endpoints);
-
-	match (header_valid, request.headers().get::<header::Host>()) {
+pub fn is_valid(req: &server::Request<HttpStream>, allowed_hosts: &Option<Vec<hosts::Host>>) -> bool {
+	let header_valid = jsonrpc_http_server::is_host_allowed(req, allowed_hosts);
+	match (header_valid, req.headers().get::<header::Host>()) {
 		(true, _) => true,
 		(_, Some(host)) => host.hostname.ends_with(DAPPS_DOMAIN),
 		_ => false,

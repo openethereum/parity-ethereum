@@ -24,7 +24,7 @@ use std::thread;
 use std::sync::mpsc;
 use std::time::Duration;
 use futures::{Future, IntoFuture};
-use self::tokio_core::reactor::{Remote as TokioRemote, Timeout};
+pub use tokio_core::reactor::{Remote as TokioRemote, Timeout};
 
 /// Event Loop for futures.
 /// Wrapper around `tokio::reactor::Core`.
@@ -47,7 +47,7 @@ impl EventLoop {
 		let remote = rx.recv().expect("tx is transfered to a newly spawned thread.");
 
 		EventLoop {
-			remote: Remote{
+			remote: Remote {
 				inner: Mode::Tokio(remote),
 			},
 			handle: EventLoopHandle {
@@ -190,7 +190,7 @@ impl From<EventLoop> for EventLoopHandle {
 
 impl Drop for EventLoopHandle {
 	fn drop(&mut self) {
-		self.close.take().map(|v| v.complete(()));
+		self.close.take().map(|v| v.send(()));
 	}
 }
 
@@ -203,7 +203,8 @@ impl EventLoopHandle {
 
 	/// Finishes this event loop.
 	pub fn close(mut self) {
-		self.close.take()
-			.expect("Close is taken only in `close` and `drop`. `close` is consuming; qed").complete(())
+		let _ = self.close.take()
+			.expect("Close is taken only in `close` and `drop`. `close` is consuming; qed")
+			.send(());
 	}
 }

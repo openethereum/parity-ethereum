@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::collections::{BTreeMap, HashSet};
 use futures::{future, Future, BoxFuture};
 
-use util::RotatingLogger;
+use ethcore_logger::RotatingLogger;
 use util::misc::version_data;
 
 use crypto::ecies;

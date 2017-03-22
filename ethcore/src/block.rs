@@ -20,7 +20,7 @@ use std::cmp;
 use std::sync::Arc;
 use std::collections::HashSet;
 
-use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, Decoder, DecoderError, View};
+use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
 use util::{Bytes, Address, Uint, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP};
 use util::error::{Mismatch, OutOfBounds};
 
@@ -67,18 +67,17 @@ impl Block {
 
 
 impl Decodable for Block {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		if decoder.as_raw().len() != decoder.as_rlp().payload_info()?.total() {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		if rlp.as_raw().len() != rlp.payload_info()?.total() {
 			return Err(DecoderError::RlpIsTooBig);
 		}
-		let d = decoder.as_rlp();
-		if d.item_count() != 3 {
+		if rlp.item_count()? != 3 {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}
 		Ok(Block {
-			header: d.val_at(0)?,
-			transactions: d.val_at(1)?,
-			uncles: d.val_at(2)?,
+			header: rlp.val_at(0)?,
+			transactions: rlp.list_at(1)?,
+			uncles: rlp.list_at(2)?,
 		})
 	}
 }

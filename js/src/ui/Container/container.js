@@ -82,11 +82,16 @@ export default class Container extends Component {
                 to={ link }
               >
                 { card }
+                { this.renderHover() }
               </Link>
             )
-            : card
+            : (
+              <div>
+                { card }
+                { this.renderHover() }
+              </div>
+            )
         }
-        { this.renderHover() }
       </div>
     );
   }

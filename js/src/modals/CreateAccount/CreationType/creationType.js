@@ -145,6 +145,7 @@ export default class CreationType extends Component {
         items={ TYPES }
         noStretch
         onSelectClick={ this.onChange }
+        onSelectDoubleClick={ this.onSelect }
         renderItem={ this.renderItem }
       />
     );
@@ -179,5 +180,12 @@ export default class CreationType extends Component {
     const { store } = this.props;
 
     store.setCreateType(item.key);
+  }
+
+  onSelect = (item) => {
+    const { store } = this.props;
+
+    store.setCreateType(item.key);
+    store.nextStage();
   }
 }

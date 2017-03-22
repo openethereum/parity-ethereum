@@ -31,8 +31,8 @@ export default (state = initialState, action) => {
     return { ...state, all: accounts };
   }
 
-  if (action.type === 'accounts select' && state.all[action.address]) {
-    return { ...state, selected: state.all[action.address] };
+  if (action.type === 'accounts select') {
+    return { ...state, selected: action.address };
   }
 
   return state;

@@ -24,7 +24,7 @@ use super::node::NodeKey;
 use ::{HashDB, H256};
 use ::bytes::ToPretty;
 use ::nibbleslice::NibbleSlice;
-use ::rlp::{Rlp, RlpStream, View};
+use ::rlp::{Rlp, RlpStream};
 use ::sha3::SHA3_NULL_RLP;
 use hashdb::DBValue;
 
@@ -958,7 +958,7 @@ mod tests {
 
 	#[test]
 	fn playpen() {
-		::log::init_log();
+		::ethcore_logger::init_log();
 
 		let mut seed = H256::new();
 		for test_i in 0..10 {

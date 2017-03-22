@@ -18,19 +18,18 @@ use std::fmt;
 use std::sync::Arc;
 use std::net::SocketAddr;
 use std::io;
-use io::PanicHandler;
 
 use dir::default_data_path;
-use ethcore_rpc::{self as rpc, RpcServerError, IpcServerError, Metadata, Origin};
+use ethcore_rpc::{self as rpc, HttpServerError, Metadata, Origin, AccessControlAllowOrigin, Host};
 use ethcore_rpc::informant::{RpcStats, Middleware};
 use helpers::parity_ipc_path;
 use hyper;
 use jsonrpc_core::MetaIoHandler;
-use jsonrpc_core::reactor::{RpcHandler, Remote};
 use rpc_apis;
 use rpc_apis::ApiSet;
+use parity_reactor::TokioRemote;
 
-pub use ethcore_rpc::{IpcServer, Server as HttpServer};
+pub use ethcore_rpc::{IpcServer, HttpServer};
 
 #[derive(Debug, PartialEq)]
 pub struct HttpConfiguration {
@@ -84,9 +83,8 @@ impl fmt::Display for IpcConfiguration {
 }
 
 pub struct Dependencies {
-	pub panic_handler: Arc<PanicHandler>,
 	pub apis: Arc<rpc_apis::Dependencies>,
-	pub remote: Remote,
+	pub remote: TokioRemote,
 	pub stats: Arc<RpcStats>,
 }
 
@@ -98,6 +96,15 @@ impl rpc::HttpMetaExtractor<Metadata> for RpcExtractor {
 			.unwrap_or_else(|| "unknown".into());
 		let mut metadata = Metadata::default();
 		metadata.origin = Origin::Rpc(origin);
+		metadata
+	}
+}
+
+impl rpc::IpcMetaExtractor<Metadata> for RpcExtractor {
+	fn extract(&self, _req: &rpc::IpcRequestContext) -> Metadata {
+		let mut metadata = Metadata::default();
+		// TODO [ToDr] Extract proper session id when it's available in context.
+		metadata.origin = Origin::Ipc(1.into());
 		metadata
 	}
 }
@@ -123,12 +130,13 @@ pub fn setup_http_rpc_server(
 	allowed_hosts: Option<Vec<String>>,
 	apis: ApiSet
 ) -> Result<HttpServer, String> {
-	let apis = setup_apis(apis, dependencies);
-	let handler = RpcHandler::new(Arc::new(apis), dependencies.remote.clone());
-	let ph = dependencies.panic_handler.clone();
-	let start_result = rpc::start_http(url, cors_domains, allowed_hosts, ph, handler, RpcExtractor);
+	let handler = setup_apis(apis, dependencies);
+	let remote = dependencies.remote.clone();
+	let cors_domains: Option<Vec<_>> = cors_domains.map(|domains| domains.into_iter().map(AccessControlAllowOrigin::from).collect());
+	let allowed_hosts: Option<Vec<_>> = allowed_hosts.map(|hosts| hosts.into_iter().map(Host::from).collect());
+	let start_result = rpc::start_http(url, cors_domains.into(), allowed_hosts.into(), handler, remote, RpcExtractor);
 	match start_result {
-		Err(RpcServerError::IoError(err)) => match err.kind() {
+		Err(HttpServerError::IoError(err)) => match err.kind() {
 			io::ErrorKind::AddrInUse => Err(format!("RPC address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)),
 			_ => Err(format!("RPC io error: {}", err)),
 		},
@@ -137,17 +145,16 @@ pub fn setup_http_rpc_server(
 	}
 }
 
-pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<IpcServer<Metadata, Middleware>>, String> {
+pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<IpcServer>, String> {
 	if !conf.enabled { return Ok(None); }
 	Ok(Some(setup_ipc_rpc_server(deps, &conf.socket_addr, conf.apis)?))
 }
 
-pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer<Metadata, Middleware>, String> {
-	let apis = setup_apis(apis, dependencies);
-	let handler = RpcHandler::new(Arc::new(apis), dependencies.remote.clone());
-	match rpc::start_ipc(addr, handler) {
-		Err(IpcServerError::Io(io_error)) => Err(format!("RPC io error: {}", io_error)),
-		Err(any_error) => Err(format!("Rpc error: {:?}", any_error)),
+pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer, String> {
+	let handler = setup_apis(apis, dependencies);
+	let remote = dependencies.remote.clone();
+	match rpc::start_ipc(addr, handler, remote, RpcExtractor) {
+		Err(io_error) => Err(format!("RPC io error: {}", io_error)),
 		Ok(server) => Ok(server)
 	}
 }

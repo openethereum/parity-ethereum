@@ -32,7 +32,6 @@ use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 use ethcore_rpc::{is_major_importing};
 use ethcore_rpc::informant::RpcStats;
-use rlp::View;
 
 pub struct Informant {
 	report: RwLock<Option<ClientReport>>,

@@ -18,6 +18,9 @@
 //! The request service is implemented using Futures. Higher level request handlers
 //! will take the raw data received here and extract meaningful results from it.
 
+// TODO [ToDr] Suppressing deprecation warnings. Rob will fix the API anyway.
+#![allow(deprecated)]
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -74,6 +77,8 @@ pub struct OnDemand {
 	orphaned_requests: RwLock<Vec<Pending>>,
 }
 
+const RECEIVER_IN_SCOPE: &'static str = "Receiver is still in scope, so it's not dropped; qed";
+
 impl OnDemand {
 	/// Create a new `OnDemand` service with the given cache.
 	pub fn new(cache: Arc<Mutex<Cache>>) -> Self {
@@ -95,7 +100,7 @@ impl OnDemand {
 		};
 
 		match cached {
-			Some(hdr) => sender.complete(hdr),
+			Some(hdr) => sender.send(hdr).expect(RECEIVER_IN_SCOPE),
 			None => self.dispatch_header_by_number(ctx, req, ChtProofSender::Header(sender)),
 		}
 		receiver
@@ -111,7 +116,7 @@ impl OnDemand {
 		};
 
 		match cached {
-			Some(score) => sender.complete(score),
+			Some(score) => sender.send(score).expect(RECEIVER_IN_SCOPE),
 			None => self.dispatch_header_by_number(ctx, req, ChtProofSender::ChainScore(sender)),
 		}
 
@@ -132,7 +137,7 @@ impl OnDemand {
 		};
 
 		match cached {
-			(Some(hdr), Some(score)) => sender.complete((hdr, score)),
+			(Some(hdr), Some(score)) => sender.send((hdr, score)).expect(RECEIVER_IN_SCOPE),
 			_ => self.dispatch_header_by_number(ctx, req, ChtProofSender::Both(sender)),
 		}
 
@@ -183,7 +188,7 @@ impl OnDemand {
 	pub fn header_by_hash(&self, ctx: &BasicContext, req: request::HeaderByHash) -> Receiver<encoded::Header> {
 		let (sender, receiver) = oneshot::channel();
 		match self.cache.lock().block_header(&req.0) {
-			Some(hdr) => sender.complete(hdr),
+			Some(hdr) => sender.send(hdr).expect(RECEIVER_IN_SCOPE),
 			None => self.dispatch_header_by_hash(ctx, req, sender),
 		}
 		receiver
@@ -241,7 +246,7 @@ impl OnDemand {
 			stream.begin_list(0);
 			stream.begin_list(0);
 
-			sender.complete(encoded::Block::new(stream.out()))
+			sender.send(encoded::Block::new(stream.out())).expect(RECEIVER_IN_SCOPE)
 		} else {
 			match self.cache.lock().block_body(&req.hash) {
 				Some(body) => {
@@ -293,10 +298,10 @@ impl OnDemand {
 
 		// fast path for empty receipts.
 		if req.0.receipts_root() == SHA3_NULL_RLP {
-			sender.complete(Vec::new())
+			sender.send(Vec::new()).expect(RECEIVER_IN_SCOPE)
 		} else {
 			match self.cache.lock().block_receipts(&req.0.hash()) {
-				Some(receipts) => sender.complete(receipts),
+				Some(receipts) => sender.send(receipts).expect(RECEIVER_IN_SCOPE),
 				None => self.dispatch_block_receipts(ctx, req, sender),
 			}
 		}
@@ -381,7 +386,7 @@ impl OnDemand {
 
 		// fast path for no code.
 		if req.code_hash == ::util::sha3::SHA3_EMPTY {
-			sender.complete(Vec::new())
+			sender.send(Vec::new()).expect(RECEIVER_IN_SCOPE)
 		} else {
 			self.dispatch_code(ctx, req, sender);
 		}

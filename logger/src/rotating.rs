@@ -20,7 +20,6 @@ use std::env;
 use rlog::LogLevelFilter;
 use env_logger::LogBuilder;
 use arrayvec::ArrayVec;
-pub use ansi_term::{Colour, Style};
 
 use parking_lot::{RwLock, RwLockReadGuard};
 

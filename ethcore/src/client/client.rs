@@ -66,7 +66,7 @@ use evm::{Factory as EvmFactory, Schedule};
 use miner::{Miner, MinerService, TransactionImportResult};
 use snapshot::{self, io as snapshot_io};
 use factory::Factories;
-use rlp::{View, UntrustedRlp};
+use rlp::UntrustedRlp;
 use state_db::StateDB;
 use rand::OsRng;
 use client::registry::Registry;
@@ -539,7 +539,7 @@ impl Client {
 			)?;
 
 			// Commit results
-			let receipts = ::rlp::decode(&receipts_bytes);
+			let receipts = ::rlp::decode_list(&receipts_bytes);
 			let mut batch = DBTransaction::new();
 			chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, false, true);
 			// Final commit to the DB

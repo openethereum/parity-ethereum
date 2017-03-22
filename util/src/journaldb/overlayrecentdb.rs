@@ -155,7 +155,7 @@ impl OverlayRecentDB {
 					let rlp = Rlp::new(&rlp_data);
 					let id: H256 = rlp.val_at(0);
 					let insertions = rlp.at(1);
-					let deletions: Vec<H256> = rlp.val_at(2);
+					let deletions: Vec<H256> = rlp.list_at(2);
 					let mut inserted_keys = Vec::new();
 					for r in insertions.iter() {
 						let k: H256 = r.val_at(0);
@@ -456,7 +456,7 @@ mod tests {
 	use common::*;
 	use super::*;
 	use hashdb::{HashDB, DBValue};
-	use log::init_log;
+	use ethcore_logger::init_log;
 	use journaldb::JournalDB;
 	use kvdb::Database;
 
