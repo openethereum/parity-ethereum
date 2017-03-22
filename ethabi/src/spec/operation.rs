@@ -7,7 +7,7 @@ use serde_json::value::from_value;
 use super::{Function, Event, Constructor};
 
 /// Operation type.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Operation {
 	/// Contract constructor.
 	Constructor(Constructor),

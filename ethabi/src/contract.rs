@@ -5,6 +5,7 @@ use event::Event;
 use error::Error;
 
 /// API building calls to contracts ABI.
+#[derive(Clone, Debug)]
 pub struct Contract {
 	interface: Interface,
 }

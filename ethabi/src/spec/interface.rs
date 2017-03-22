@@ -4,7 +4,7 @@ use serde_json;
 use super::{Operation, Constructor, Function, Event, Error};
 
 /// Contract interface.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct Interface(Vec<Operation>);
 
 impl Interface {
@@ -22,7 +22,7 @@ impl Interface {
 	}
 
 	/// Returns specification of contract function.
-	pub fn function(&self, name: String) -> Option<Function> { 
+	pub fn function(&self, name: String) -> Option<Function> {
 		self.0.iter()
 			.filter_map(Operation::function)
 			.find(|f| f.name == name)
@@ -68,7 +68,7 @@ mod tests {
 			"name":"foo",
 			"outputs": []
 		}]"#;
-		
+
 		let deserialized: Interface = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, Interface(vec![
