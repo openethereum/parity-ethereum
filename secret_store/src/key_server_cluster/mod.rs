@@ -31,6 +31,8 @@ pub use super::acl_storage::{AclStorage, DummyAclStorage};
 pub use super::key_storage::{KeyStorage, DocumentKeyShare};
 pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic};
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
+pub use self::encryption_session::Session as EncryptionSession;
+pub use self::decryption_session::Session as DecryptionSession;
 
 #[cfg(test)]
 pub use super::key_storage::tests::DummyKeyStorage;

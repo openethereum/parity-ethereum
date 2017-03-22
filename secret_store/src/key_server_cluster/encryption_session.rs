@@ -25,6 +25,15 @@ use key_server_cluster::cluster::Cluster;
 use key_server_cluster::message::{Message, EncryptionMessage, InitializeSession, ConfirmInitialization, CompleteInitialization,
 	KeysDissemination, Complaint, ComplaintResponse, PublicKeyShare, SessionError, SessionCompleted};
 
+/// Encryption session API.
+pub trait Session: Send + Sync + 'static {
+	#[cfg(test)]
+	/// Get joint public key (if it is known).
+	fn joint_public_key(&self) -> Option<Public>;
+	/// Wait until session is completed. Returns distributely generated secret key.
+	fn wait(&self) -> Result<Public, Error>;
+}
+
 /// Encryption (distributed key generation) session.
 /// Based on "ECDKG: A Distributed Key Generation Protocol Based on Elliptic Curve Discrete Logarithm" paper:
 /// http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.124.4128&rep=rep1&type=pdf
@@ -35,7 +44,7 @@ use key_server_cluster::message::{Message, EncryptionMessage, InitializeSession,
 /// 4) key check phase (KC): nodes are processing complaints, received from another nodes
 /// 5) key generation phase (KG): nodes are exchanging with information, enough to generate joint public key
 /// 6) encryption phase: master node generates secret key, encrypts it using joint public && broadcasts encryption result
-pub struct Session {
+pub struct SessionImpl {
 	/// Unique session id.
 	id: SessionId,
 	/// Public identifier of this node.
@@ -44,15 +53,15 @@ pub struct Session {
 	key_storage: Arc<KeyStorage>,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
 	cluster: Arc<Cluster>,
-	/// Session completion condvar.
+	/// SessionImpl completion condvar.
 	completed: Condvar,
 	/// Mutable session data.
 	data: Mutex<SessionData>,
 }
 
-/// Session creation parameters
+/// SessionImpl creation parameters
 pub struct SessionParams {
-	/// Session identifier.
+	/// SessionImpl identifier.
 	pub id: SessionId,
 	/// Id of node, on which this session is running.
 	pub self_node_id: Public,
@@ -173,10 +182,10 @@ pub enum SessionState {
 	Failed,
 }
 
-impl Session {
+impl SessionImpl {
 	/// Create new encryption session.
 	pub fn new(params: SessionParams) -> Self {
-		Session {
+		SessionImpl {
 			id: params.id,
 			self_node_id: params.self_node_id,
 			key_storage: params.key_storage,
@@ -212,12 +221,6 @@ impl Session {
 	}
 
 	#[cfg(test)]
-	/// Get joint public key.
-	pub fn joint_public_key(&self) -> Option<Public> {
-		self.data.lock().joint_public.clone().and_then(|r| r.ok())
-	}
-
-	#[cfg(test)]
 	/// Get derived point.
 	pub fn derived_point(&self) -> Option<Public> {
 		self.data.lock().derived_point.clone()
@@ -227,18 +230,6 @@ impl Session {
 	/// Get qualified nodes.
 	pub fn qualified_nodes(&self) -> BTreeSet<NodeId> {
 		self.data.lock().nodes.keys().cloned().collect()
-	}
-
-	/// Wait until session is completed.
-	pub fn wait(&self) -> Result<Public, Error> {
-		let mut data = self.data.lock();
-		if !data.secret_point.is_some() {
-			self.completed.wait(&mut data);
-		}
-
-		data.secret_point.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when secret_point.is_some(); qed")
-			.clone()
 	}
 
 	/// Start new session initialization. This must be called on master node.
@@ -487,7 +478,7 @@ impl Session {
 
 		if is_critical_complaints_num {
 			// too many complaints => exclude from session
-			Session::disqualify_node(&message.against, &*self.cluster, &mut *data);
+			SessionImpl::disqualify_node(&message.against, &*self.cluster, &mut *data);
 		}
 
 		Ok(())
@@ -524,7 +515,7 @@ impl Session {
 		};
 
 		if !is_key_verification_ok {
-			Session::disqualify_node(&sender, &*self.cluster, &mut *data);
+			SessionImpl::disqualify_node(&sender, &*self.cluster, &mut *data);
 		} else {
 			let node_data = data.nodes.get_mut(&sender).expect("cluster guarantees to deliver messages from qualified nodes only; qed");
 			node_data.secret1 = Some(message.secret1.clone().into());
@@ -797,6 +788,25 @@ impl Session {
 	}
 }
 
+impl Session for SessionImpl {
+	#[cfg(test)]
+	fn joint_public_key(&self) -> Option<Public> {
+		self.data.lock().joint_public.clone().and_then(|r| r.ok())
+	}
+
+
+	fn wait(&self) -> Result<Public, Error> {
+		let mut data = self.data.lock();
+		if !data.secret_point.is_some() {
+			self.completed.wait(&mut data);
+		}
+
+		data.secret_point.as_ref()
+			.expect("checked above or waited for completed; completed is only signaled when secret_point.is_some(); qed")
+			.clone()
+	}
+}
+
 impl EveryOtherNodeVisitor {
 	pub fn new<I>(self_id: &NodeId, nodes: I) -> Self where I: Iterator<Item=NodeId> {
 		EveryOtherNodeVisitor {
@@ -838,7 +848,7 @@ impl NodeData {
 	}
 }
 
-impl Debug for Session {
+impl Debug for SessionImpl {
 	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
 		write!(f, "Encryption session {} on {}", self.id, self.self_node_id)
 	}
@@ -878,14 +888,14 @@ mod tests {
 	use key_server_cluster::message::{self, Message, EncryptionMessage};
 	use key_server_cluster::cluster::{Cluster, ClusterCore, ClusterView};
 	use key_server_cluster::cluster::tests::{DummyCluster, make_clusters, run_clusters, loop_until, loop_for, all_connections_established};
-	use key_server_cluster::encryption_session::{Session, SessionState, SessionParams};
+	use key_server_cluster::encryption_session::{Session, SessionImpl, SessionState, SessionParams};
 	use key_server_cluster::math;
 	use key_server_cluster::math::tests::do_encryption_and_decryption;
 
 	#[derive(Debug)]
 	struct Node {
 		pub cluster: Arc<DummyCluster>,
-		pub session: Session,
+		pub session: SessionImpl,
 	}
 
 	#[derive(Debug)]
@@ -903,7 +913,7 @@ mod tests {
 				let key_pair = Random.generate().unwrap();
 				let node_id = key_pair.public().clone();
 				let cluster = Arc::new(DummyCluster::new(node_id.clone()));
-				let session = Session::new(SessionParams {
+				let session = SessionImpl::new(SessionParams {
 					id: session_id.clone(),
 					self_node_id: node_id.clone(),
 					key_storage: Arc::new(DummyKeyStorage::default()),
@@ -926,19 +936,19 @@ mod tests {
 			}
 		}
 
-		pub fn master(&self) -> &Session {
+		pub fn master(&self) -> &SessionImpl {
 			&self.nodes.values().nth(0).unwrap().session
 		}
 
-		pub fn first_slave(&self) -> &Session {
+		pub fn first_slave(&self) -> &SessionImpl {
 			&self.nodes.values().nth(1).unwrap().session
 		}
 
-		pub fn second_slave(&self) -> &Session {
+		pub fn second_slave(&self) -> &SessionImpl {
 			&self.nodes.values().nth(2).unwrap().session
 		}
 
-		pub fn third_slave(&self) -> &Session {
+		pub fn third_slave(&self) -> &SessionImpl {
 			&self.nodes.values().nth(3).unwrap().session
 		}
 
@@ -1004,7 +1014,7 @@ mod tests {
 	fn fails_to_initialize_if_not_a_part_of_cluster() {
 		let node_id = math::generate_random_point().unwrap();
 		let cluster = Arc::new(DummyCluster::new(node_id.clone()));
-		let session = Session::new(SessionParams {
+		let session = SessionImpl::new(SessionParams {
 			id: SessionId::default(),
 			self_node_id: node_id.clone(),
 			key_storage: Arc::new(DummyKeyStorage::default()),

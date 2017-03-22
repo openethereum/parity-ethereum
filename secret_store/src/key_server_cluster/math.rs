@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::str::FromStr;
 use ethkey::{Public, Secret, Random, Generator, math};
 use key_server_cluster::Error;
 
@@ -181,7 +182,11 @@ pub fn encrypt_secret(secret: &Public, joint_public: &Public) -> Result<Encrypte
 
 /// Compute shadow for the node.
 pub fn compute_node_shadow<'a, I>(node_number: &Secret, node_secret_share: &Secret, mut other_nodes_numbers: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
-	let other_node_number = other_nodes_numbers.next().expect("compute_node_shadow is called when at least two nodes are required to decrypt secret; qed");
+	let other_node_number = match other_nodes_numbers.next() {
+		Some(other_node_number) => other_node_number,
+		None => return Ok(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001")?),
+	};
+
 	let mut shadow = node_number.clone();
 	shadow.sub(other_node_number)?;
 	shadow.inv()?;

@@ -25,6 +25,12 @@ use key_server_cluster::math;
 use key_server_cluster::message::{Message, DecryptionMessage, InitializeDecryptionSession, ConfirmDecryptionInitialization,
 	RequestPartialDecryption, PartialDecryption, DecryptionSessionError};
 
+/// Decryption session API.
+pub trait Session: Send + Sync + 'static {
+	/// Wait until session is completed. Returns distributely restored secret key.
+	fn wait(&self) -> Result<Public, Error>;
+}
+
 /// Distributed decryption session.
 /// Based on "ECDKG: A Distributed Key Generation Protocol Based on Elliptic Curve Discrete Logarithm" paper:
 /// http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.124.4128&rep=rep1&type=pdf
@@ -33,7 +39,7 @@ use key_server_cluster::message::{Message, DecryptionMessage, InitializeDecrypti
 /// 2) ACL check: all nodes which have received the request are querying ACL-contract to check if requestor has access to the document
 /// 3) partial decryption: every node which has succussfully checked access for the requestor do a partial decryption
 /// 4) decryption: master node receives all partial decryptions of the secret and restores the secret
-pub struct Session {
+pub struct SessionImpl {
 	/// Encryption session id.
 	id: SessionId,
 	/// Decryption session access key.
@@ -46,7 +52,7 @@ pub struct Session {
 	acl_storage: Arc<AclStorage>,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
 	cluster: Arc<Cluster>,
-	/// Session completion condvar.
+	/// SessionImpl completion condvar.
 	completed: Condvar,
 	/// Mutable session data.
 	data: Mutex<SessionData>,
@@ -61,15 +67,15 @@ pub struct DecryptionSessionId {
 	pub access_key: Secret,
 }
 
-/// Session creation parameters
+/// SessionImpl creation parameters
 pub struct SessionParams {
-	/// Session identifier.
+	/// SessionImpl identifier.
 	pub id: SessionId,
-	/// Session access key.
+	/// SessionImpl access key.
 	pub access_key: Secret,
 	/// Id of node, on which this session is running.
 	pub self_node_id: Public,
-	/// Encrypted data (result of running encryption_session::Session).
+	/// Encrypted data (result of running encryption_session::SessionImpl).
 	pub encrypted_data: DocumentKeyShare,
 	/// ACL storage.
 	pub acl_storage: Arc<AclStorage>,
@@ -128,12 +134,12 @@ pub enum SessionState {
 	Failed,
 }
 
-impl Session {
+impl SessionImpl {
 	/// Create new decryption session.
 	pub fn new(params: SessionParams) -> Result<Self, Error> {
 		check_encrypted_data(&params.self_node_id, &params.encrypted_data)?;
 
-		Ok(Session {
+		Ok(SessionImpl {
 			id: params.id,
 			access_key: params.access_key,
 			self_node_id: params.self_node_id,
@@ -172,18 +178,6 @@ impl Session {
 	/// Get decrypted secret
 	pub fn decrypted_secret(&self) -> Option<Public> {
 		self.data.lock().decrypted_secret.clone().and_then(|r| r.ok())
-	}
-
-	/// Wait until session is completed.
-	pub fn wait(&self) -> Result<Public, Error> {
-		let mut data = self.data.lock();
-		if !data.decrypted_secret.is_some() {
-			self.completed.wait(&mut data);
-		}
-
-		data.decrypted_secret.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when decrypted_secret.is_some(); qed")
-			.clone()
 	}
 
 	/// Initialize decryption session.
@@ -396,6 +390,19 @@ impl Session {
 	}
 }
 
+impl Session for SessionImpl {
+	fn wait(&self) -> Result<Public, Error> {
+		let mut data = self.data.lock();
+		if !data.decrypted_secret.is_some() {
+			self.completed.wait(&mut data);
+		}
+
+		data.decrypted_secret.as_ref()
+			.expect("checked above or waited for completed; completed is only signaled when decrypted_secret.is_some(); qed")
+			.clone()
+	}
+}
+
 impl DecryptionSessionId {
 	/// Create new decryption session Id.
 	pub fn new(session_id: SessionId, sub_session_id: Secret) -> Self {
@@ -480,12 +487,12 @@ mod tests {
 	use ethkey::{self, Random, Generator, Public, Secret};
 	use key_server_cluster::{NodeId, DocumentKeyShare, SessionId, Error};
 	use key_server_cluster::cluster::tests::DummyCluster;
-	use key_server_cluster::decryption_session::{Session, SessionParams, SessionState};
+	use key_server_cluster::decryption_session::{SessionImpl, SessionParams, SessionState};
 	use key_server_cluster::message::{self, Message, DecryptionMessage};
 
 	const SECRET_PLAIN: &'static str = "d2b57ae7619e070af0af6bc8c703c0cd27814c54d5d6a999cacac0da34ede279ca0d9216e85991029e54e2f0c92ee0bd30237725fa765cbdbfc4529489864c5f";
 
-	fn prepare_decryption_sessions() -> (Vec<Arc<DummyCluster>>, Vec<Arc<DummyAclStorage>>, Vec<Session>) {
+	fn prepare_decryption_sessions() -> (Vec<Arc<DummyCluster>>, Vec<Arc<DummyAclStorage>>, Vec<SessionImpl>) {
 		// prepare encrypted data + cluster configuration for scheme 4-of-5
 		let session_id = SessionId::default();
 		let access_key = Random.generate().unwrap().secret().clone();
@@ -519,7 +526,7 @@ mod tests {
 		}).collect();
 		let acl_storages: Vec<_> = (0..5).map(|_| Arc::new(DummyAclStorage::default())).collect();
 		let clusters: Vec<_> = (0..5).map(|i| Arc::new(DummyCluster::new(id_numbers.iter().nth(i).clone().unwrap().0))).collect();
-		let sessions: Vec<_> = (0..5).map(|i| Session::new(SessionParams {
+		let sessions: Vec<_> = (0..5).map(|i| SessionImpl::new(SessionParams {
 			id: session_id.clone(),
 			access_key: access_key.clone(),
 			self_node_id: id_numbers.iter().nth(i).clone().unwrap().0,
@@ -531,11 +538,11 @@ mod tests {
 		(clusters, acl_storages, sessions)
 	}
 
-	fn do_messages_exchange(clusters: &[Arc<DummyCluster>], sessions: &[Session]) {
+	fn do_messages_exchange(clusters: &[Arc<DummyCluster>], sessions: &[SessionImpl]) {
 		do_messages_exchange_until(clusters, sessions, |_, _, _| false);
 	}
 
-	fn do_messages_exchange_until<F>(clusters: &[Arc<DummyCluster>], sessions: &[Session], mut cond: F) where F: FnMut(&NodeId, &NodeId, &Message) -> bool {
+	fn do_messages_exchange_until<F>(clusters: &[Arc<DummyCluster>], sessions: &[SessionImpl], mut cond: F) where F: FnMut(&NodeId, &NodeId, &Message) -> bool {
 		while let Some((from, to, message)) = clusters.iter().filter_map(|c| c.take_message().map(|(to, msg)| (c.node(), to, msg))).next() {
 			let session = &sessions[sessions.iter().position(|s| s.node() == &to).unwrap()];
 			if cond(&from, &to, &message) {
@@ -557,7 +564,7 @@ mod tests {
 		let mut nodes = BTreeMap::new();
 		let self_node_id = Random.generate().unwrap().public().clone();
 		nodes.insert(self_node_id, Random.generate().unwrap().secret().clone());
-		match Session::new(SessionParams {
+		match SessionImpl::new(SessionParams {
 			id: SessionId::default(),
 			access_key: Random.generate().unwrap().secret().clone(),
 			self_node_id: self_node_id.clone(),
@@ -582,7 +589,7 @@ mod tests {
 		let self_node_id = Random.generate().unwrap().public().clone();
 		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
 		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
-		match Session::new(SessionParams {
+		match SessionImpl::new(SessionParams {
 			id: SessionId::default(),
 			access_key: Random.generate().unwrap().secret().clone(),
 			self_node_id: self_node_id.clone(),
@@ -607,7 +614,7 @@ mod tests {
 		let self_node_id = Random.generate().unwrap().public().clone();
 		nodes.insert(self_node_id.clone(), Random.generate().unwrap().secret().clone());
 		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
-		match Session::new(SessionParams {
+		match SessionImpl::new(SessionParams {
 			id: SessionId::default(),
 			access_key: Random.generate().unwrap().secret().clone(),
 			self_node_id: self_node_id.clone(),

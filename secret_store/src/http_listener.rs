@@ -66,8 +66,8 @@ impl<T> KeyServerHttpListener<T> where T: KeyServer + 'static {
 		};
 
 		let listener_addr: &str = &format!("{}:{}", config.listener_address.address, config.listener_address.port);
-		let http_server = HttpServer::http(&listener_addr).unwrap();
-		let http_server = http_server.handle(handler).unwrap();
+		let http_server = HttpServer::http(&listener_addr).expect("cannot start HttpServer");
+		let http_server = http_server.handle(handler).expect("cannot start HttpServer");
 		let listener = KeyServerHttpListener {
 			_http_server: http_server,
 			handler: shared_handler,

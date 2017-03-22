@@ -27,7 +27,7 @@ use super::key_storage::KeyStorage;
 use key_server_cluster::ClusterCore;
 use traits::KeyServer;
 use types::all::{Error, RequestSignature, DocumentAddress, DocumentEncryptedKey, ClusterConfiguration};
-use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration};
+use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration, EncryptionSession, DecryptionSession};
 
 /// Secret store key server implementation
 pub struct KeyServerImpl {
@@ -173,7 +173,8 @@ mod tests {
 		ethcrypto::ecies::decrypt_single_message(&secret, &document_key).unwrap()
 	}
 
-	/*fn create_single_key_server() -> KeyServerImpl {
+	/* TODO: restore tests once scheme 1-of-N will be functional
+	fn create_single_key_server() -> KeyServerImpl {
 		let acl_storage = Arc::new(DummyAclStorage::default());
 		let key_storage = Arc::new(DummyKeyStorage::default());
 		let self_key_pair = KeyPair::from_secret(Secret::from_str(PRIVATE1).unwrap()).unwrap();
@@ -184,9 +185,8 @@ mod tests {
 			allow_connecting_to_higher_nodes: false,
 			self_key_pair: self_key_pair.clone(),
 			listen_address: ("0.0.0.0".into(), 6050),
-			nodes: vec![],BTreeMap<NodeId, (String, u16)>,
-			/// Encryption session configuration.
-			pub encryption_config: EncryptionConfiguration,
+			nodes: vec![(self_key_pair.public().clone(), ("127.0.0.1", 6050)],
+			encryption_config: EncryptionConfiguration,
 			/// Reference to key storage
 			pub key_storage: Arc<KeyStorage>,
 			/// Reference to ACL storage

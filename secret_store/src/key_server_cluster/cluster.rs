@@ -30,10 +30,10 @@ use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::{Secret, KeyPair, Signature, Random, Generator};
 use key_server_cluster::{Error, NodeId, SessionId, EncryptionConfiguration, AclStorage, KeyStorage};
 use key_server_cluster::message::{self, Message, ClusterMessage, EncryptionMessage, DecryptionMessage};
-use key_server_cluster::decryption_session::{Session as DecryptionSession, DecryptionSessionId,
-	SessionParams as DecryptionSessionParams};
-use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionState as EncryptionSessionState,
-	SessionParams as EncryptionSessionParams};
+use key_server_cluster::decryption_session::{SessionImpl as DecryptionSessionImpl, DecryptionSessionId,
+	SessionParams as DecryptionSessionParams, Session as DecryptionSession};
+use key_server_cluster::encryption_session::{SessionImpl as EncryptionSessionImpl, SessionState as EncryptionSessionState,
+	SessionParams as EncryptionSessionParams, Session as EncryptionSession};
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_message, WriteMessage, write_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
 
@@ -153,7 +153,7 @@ pub struct ClusterSessions {
 /// Encryption session and its message queue.
 pub struct QueuedEncryptionSession {
 	/// Encryption session.
-	pub session: Arc<EncryptionSession>,
+	pub session: Arc<EncryptionSessionImpl>,
 	/// Messages queue.
 	pub queue: VecDeque<(NodeId, EncryptionMessage)>,
 }
@@ -161,7 +161,7 @@ pub struct QueuedEncryptionSession {
 /// Decryption session and its message queue.
 pub struct QueuedDecryptionSession {
 	/// Decryption session.
-	pub session: Arc<DecryptionSession>,
+	pub session: Arc<DecryptionSessionImpl>,
 	/// Messages queue.
 	pub queue: VecDeque<(NodeId, DecryptionMessage)>,
 }
@@ -655,13 +655,13 @@ impl ClusterSessions {
 		}
 	}
 
-	pub fn new_encryption_session(&self, master: NodeId, session_id: SessionId, cluster: Arc<Cluster>) -> Result<Arc<EncryptionSession>, Error> {
+	pub fn new_encryption_session(&self, master: NodeId, session_id: SessionId, cluster: Arc<Cluster>) -> Result<Arc<EncryptionSessionImpl>, Error> {
 		let mut encryption_sessions = self.encryption_sessions.write();
 		if encryption_sessions.contains_key(&session_id) {
 			return Err(Error::DuplicateSessionId);
 		}
 
-		let session = Arc::new(EncryptionSession::new(EncryptionSessionParams {
+		let session = Arc::new(EncryptionSessionImpl::new(EncryptionSessionParams {
 			id: session_id.clone(),
 			self_node_id: self.self_node_id.clone(),
 			key_storage: self.key_storage.clone(),
@@ -679,7 +679,7 @@ impl ClusterSessions {
 		self.encryption_sessions.write().remove(session_id);
 	}
 
-	pub fn encryption_session(&self, session_id: &SessionId) -> Option<Arc<EncryptionSession>> {
+	pub fn encryption_session(&self, session_id: &SessionId) -> Option<Arc<EncryptionSessionImpl>> {
 		self.encryption_sessions.read().get(session_id).map(|s| s.session.clone())
 	}
 
@@ -694,14 +694,14 @@ impl ClusterSessions {
 			.and_then(|session| session.queue.pop_front())
 	}
 
-	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, cluster: Arc<Cluster>) -> Result<Arc<DecryptionSession>, Error> {
+	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, cluster: Arc<Cluster>) -> Result<Arc<DecryptionSessionImpl>, Error> {
 		let mut decryption_sessions = self.decryption_sessions.write();
 		let session_id = DecryptionSessionId::new(session_id, sub_session_id);
 		if decryption_sessions.contains_key(&session_id) {
 			return Err(Error::DuplicateSessionId);
 		}
 
-		let session = Arc::new(DecryptionSession::new(DecryptionSessionParams {
+		let session = Arc::new(DecryptionSessionImpl::new(DecryptionSessionParams {
 			id: session_id.id.clone(),
 			access_key: session_id.access_key.clone(),
 			self_node_id: self.self_node_id.clone(),
@@ -722,7 +722,7 @@ impl ClusterSessions {
 		self.decryption_sessions.write().remove(&session_id);
 	}
 
-	pub fn decryption_session(&self, session_id: &SessionId, sub_session_id: &Secret) -> Option<Arc<DecryptionSession>> {
+	pub fn decryption_session(&self, session_id: &SessionId, sub_session_id: &Secret) -> Option<Arc<DecryptionSessionImpl>> {
 		let session_id = DecryptionSessionId::new(session_id.clone(), sub_session_id.clone());
 		self.decryption_sessions.read().get(&session_id).map(|s| s.session.clone())
 	}
