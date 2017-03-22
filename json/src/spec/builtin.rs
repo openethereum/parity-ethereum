@@ -16,6 +16,8 @@
 
 //! Spec builtin deserialization.
 
+use uint::Uint;
+
 /// Linear pricing.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 pub struct Linear {
@@ -25,12 +27,22 @@ pub struct Linear {
 	pub word: usize,
 }
 
+/// Pricing for modular exponentiation.
+#[derive(Debug, PartialEq, Deserialize, Clone)]
+pub struct Modexp {
+	/// Price divisor.
+	pub divisor: usize,
+}
+
 /// Pricing variants.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 pub enum Pricing {
 	/// Linear pricing.
 	#[serde(rename="linear")]
 	Linear(Linear),
+	/// Pricing for modular exponentiation.
+	#[serde(rename="modexp")]
+	Modexp(Modexp),
 }
 
 /// Spec builtin.
@@ -40,12 +52,15 @@ pub struct Builtin {
 	pub name: String,
 	/// Builtin pricing.
 	pub pricing: Pricing,
+	/// Activation block.
+	pub activate_at: Option<Uint>,
 }
 
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use spec::builtin::{Builtin, Pricing, Linear};
+	use spec::builtin::{Builtin, Pricing, Linear, Modexp};
+	use uint::Uint;
 
 	#[test]
 	fn builtin_deserialization() {
@@ -56,5 +71,20 @@ mod tests {
 		let deserialized: Builtin = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized.name, "ecrecover");
 		assert_eq!(deserialized.pricing, Pricing::Linear(Linear { base: 3000, word: 0 }));
+		assert!(deserialized.activate_at.is_none());
+	}
+
+	#[test]
+	fn activate_at() {
+		let s = r#"{
+			"name": "late_start",
+			"activate_at": 100000,
+			"pricing": { "modexp": { "divisor": 5 } }
+		}"#;
+
+		let deserialized: Builtin = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized.name, "late_start");
+		assert_eq!(deserialized.pricing, Pricing::Modexp(Modexp { divisor: 5 }));
+		assert_eq!(deserialized.activate_at, Some(Uint(100000.into())));
 	}
 }

@@ -23,6 +23,7 @@ import CircularProgress from 'material-ui/CircularProgress';
 import { Card, CardText } from 'material-ui/Card';
 
 import { nullableProptype } from '~/util/proptypes';
+import { api } from '../parity';
 
 import styles from './application.css';
 import Accounts from '../Accounts';
@@ -39,7 +40,7 @@ export default class Application extends Component {
   };
 
   getChildContext () {
-    return { muiTheme, api: window.parity.api };
+    return { muiTheme, api };
   }
 
   static propTypes = {
@@ -49,7 +50,6 @@ export default class Application extends Component {
   };
 
   render () {
-    const { api } = window.parity;
     const { contract, fee } = this.props;
     let warning = null;
 
