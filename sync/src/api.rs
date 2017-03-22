@@ -642,6 +642,9 @@ pub trait LightSyncProvider {
 	/// Get peers information
 	fn peers(&self) -> Vec<PeerInfo>;
 
+	/// Get network id.
+	fn network_id(&self) -> u64;
+
 	/// Get the enode if available.
 	fn enode(&self) -> Option<String>;
 
@@ -666,6 +669,7 @@ pub struct LightSync {
 	proto: Arc<LightProtocol>,
 	network: NetworkService,
 	subprotocol_name: [u8; 3],
+	network_id: u64,
 }
 
 impl LightSync {
@@ -701,6 +705,7 @@ impl LightSync {
 			proto: light_proto,
 			network: service,
 			subprotocol_name: params.subprotocol_name,
+			network_id: params.network_id,
 		})
 	}
 
@@ -794,6 +799,10 @@ impl LightSyncProvider for LightSync {
 
 	fn enode(&self) -> Option<String> {
 		self.network.external_url()
+	}
+
+	fn network_id(&self) -> u64 {
+		self.network_id
 	}
 
 	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats> {

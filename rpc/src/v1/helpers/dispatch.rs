@@ -207,7 +207,6 @@ pub fn fetch_gas_price_corpus(
 }
 
 /// Dispatcher for light clients -- fetches default gas price, next nonce, etc. from network.
-/// Light client `ETH` RPC.
 #[derive(Clone)]
 pub struct LightDispatcher {
 	/// Sync service.
