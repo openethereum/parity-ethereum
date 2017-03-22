@@ -18,7 +18,7 @@ use std::{io, env};
 use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
 use std::fs::File;
-use util::{clean_0x, U256, Uint, Address, path, CompactionProfile};
+use util::{clean_0x, U256, Uint, Address, CompactionProfile};
 use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
@@ -27,6 +27,7 @@ use dir::DatabaseDirectories;
 use upgrade::{upgrade, upgrade_data_paths};
 use migration::migrate;
 use ethsync::is_valid_node_url;
+use path;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
 	to_seconds(s).map(Duration::from_secs)
@@ -465,7 +466,7 @@ but the first password is trimmed
 	#[test]
 	#[cfg(not(windows))]
 	fn test_geth_ipc_path() {
-		use util::path;
+		use path;
 		assert_eq!(geth_ipc_path(true), path::ethereum::with_testnet("geth.ipc").to_str().unwrap().to_owned());
 		assert_eq!(geth_ipc_path(false), path::ethereum::with_default("geth.ipc").to_str().unwrap().to_owned());
 	}

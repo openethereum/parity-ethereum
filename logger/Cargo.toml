@@ -8,11 +8,13 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 log = "0.3"
 env_logger = "0.3"
-ethcore-util = { path = "../util" }
 isatty = "0.1"
 lazy_static = "0.2"
 regex = "0.1"
 time = "0.1"
+parking_lot = "0.3"
+arrayvec = "0.3"
+ansi_term = "0.9"
 
 [profile.release]
 debug = true

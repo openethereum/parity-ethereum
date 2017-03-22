@@ -456,7 +456,7 @@ mod tests {
 	use common::*;
 	use super::*;
 	use hashdb::{HashDB, DBValue};
-	use log::init_log;
+	use ethcore_logger::init_log;
 	use journaldb::JournalDB;
 	use kvdb::Database;
 

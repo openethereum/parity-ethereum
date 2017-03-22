@@ -958,7 +958,7 @@ mod tests {
 
 	#[test]
 	fn playpen() {
-		::log::init_log();
+		::ethcore_logger::init_log();
 
 		let mut seed = H256::new();
 		for test_i in 0..10 {
