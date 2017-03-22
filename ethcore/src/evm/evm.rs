@@ -60,6 +60,7 @@ pub enum Error {
 		/// What was the stack limit
 		limit: usize
 	},
+	/// Built-in contract failed on given input
 	BuiltIn(String),
 	/// Returned on evm internal error. Should never be ignored during development.
 	/// Likely to cause consensus issues.

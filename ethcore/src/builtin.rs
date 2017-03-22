@@ -357,8 +357,8 @@ impl Impl for Bn128AddImpl {
 		let mut write_buf = [0u8; 64];
 		if let Some(sum) = AffineG1::from_jacobian(p1 + p2) {
 			// point not at infinity
-			sum.x().to_big_endian(&mut write_buf[0..32]);
-			sum.y().to_big_endian(&mut write_buf[32..64]);
+			sum.x().to_big_endian(&mut write_buf[0..32]).expect("Cannot fail since 0..32 is 32-byte length");
+			sum.y().to_big_endian(&mut write_buf[32..64]).expect("Cannot fail since 32..64 is 32-byte length");;
 		}
 		output.write(0, &write_buf);
 
@@ -385,15 +385,15 @@ mod tests {
 		let i = [0u8, 1, 2, 3];
 
 		let mut o2 = [255u8; 2];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o2[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o2[..])).expect("Builtin should not fail");
 		assert_eq!(i[0..2], o2);
 
 		let mut o4 = [255u8; 4];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o4[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o4[..])).expect("Builtin should not fail");
 		assert_eq!(i, o4);
 
 		let mut o8 = [255u8; 8];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..])).expect("Builtin should not fail");
 		assert_eq!(i, o8[..4]);
 		assert_eq!([255u8; 4], o8[4..]);
 	}
@@ -406,19 +406,19 @@ mod tests {
 		let i = [0u8; 0];
 
 		let mut o = [255u8; 32];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap())[..]);
 
 		let mut o8 = [255u8; 8];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..])).expect("Builtin should not fail");
 		assert_eq!(&o8[..], &(FromHex::from_hex("e3b0c44298fc1c14").unwrap())[..]);
 
 		let mut o34 = [255u8; 34];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..])).expect("Builtin should not fail");
 		assert_eq!(&o34[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855ffff").unwrap())[..]);
 
 		let mut ov = vec![];
-		f.execute(&i[..], &mut BytesRef::Flexible(&mut ov));
+		f.execute(&i[..], &mut BytesRef::Flexible(&mut ov)).expect("Builtin should not fail");
 		assert_eq!(&ov[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap())[..]);
 	}
 
@@ -430,15 +430,15 @@ mod tests {
 		let i = [0u8; 0];
 
 		let mut o = [255u8; 32];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31").unwrap())[..]);
 
 		let mut o8 = [255u8; 8];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..])).expect("Builtin should not fail");
 		assert_eq!(&o8[..], &(FromHex::from_hex("0000000000000000").unwrap())[..]);
 
 		let mut o34 = [255u8; 34];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..])).expect("Builtin should not fail");
 		assert_eq!(&o34[..], &(FromHex::from_hex("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31ffff").unwrap())[..]);
 	}
 
@@ -458,40 +458,40 @@ mod tests {
 		let i = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
 
 		let mut o = [255u8; 32];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("000000000000000000000000c08b5542d177ac6686946920409741463a15dddb").unwrap())[..]);
 
 		let mut o8 = [255u8; 8];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..])).expect("Builtin should not fail");
 		assert_eq!(&o8[..], &(FromHex::from_hex("0000000000000000").unwrap())[..]);
 
 		let mut o34 = [255u8; 34];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..])).expect("Builtin should not fail");
 		assert_eq!(&o34[..], &(FromHex::from_hex("000000000000000000000000c08b5542d177ac6686946920409741463a15dddbffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001a650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001b").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000000000000000000000000000000000000000000000000000000000001b").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		// TODO: Should this (corrupted version of the above) fail rather than returning some address?
@@ -525,7 +525,7 @@ mod tests {
 			let expected = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
 			let expected_cost = 1638;
 
-			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
 			assert_eq!(f.cost(&input[..]), expected_cost.into());
 		}
@@ -544,7 +544,7 @@ mod tests {
 			let expected = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
 			let expected_cost = 1638;
 
-			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
 			assert_eq!(f.cost(&input[..]), expected_cost.into());
 		}
@@ -564,7 +564,7 @@ mod tests {
 			let expected = FromHex::from_hex("3b01b01ac41f2d6e917c6d6a221ce793802469026d9ab7578fa2e79e4da6aaab").unwrap();
 			let expected_cost = 102;
 
-			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
 			assert_eq!(f.cost(&input[..]), expected_cost.into());
 		}
@@ -582,7 +582,7 @@ mod tests {
 			let mut output = vec![];
 			let expected_cost = 0;
 
-			f.execute(&input[..], &mut BytesRef::Flexible(&mut output));
+			f.execute(&input[..], &mut BytesRef::Flexible(&mut output)).expect("Builtin should not fail");
 			assert_eq!(output.len(), 0); // shouldn't have written any output.
 			assert_eq!(f.cost(&input[..]), expected_cost.into());
 		}
@@ -669,7 +669,7 @@ mod tests {
 
 		let i = [0u8, 1, 2, 3];
 		let mut o = [255u8; 4];
-		b.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
+		b.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(i, o);
 	}
 
@@ -691,7 +691,7 @@ mod tests {
 
 		let i = [0u8, 1, 2, 3];
 		let mut o = [255u8; 4];
-		b.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
+		b.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(i, o);
 	}
 }
