@@ -230,7 +230,8 @@ pub struct Miner {
 impl Miner {
 	/// Push notifier that will handle new jobs
 	pub fn push_notifier(&self, notifier: Box<NotifyWork>) {
-		self.notifiers.write().push(notifier)
+		self.notifiers.write().push(notifier);
+		self.sealing_work.lock().enabled = true;
 	}
 
 	/// Creates new instance of miner Arc.
@@ -298,7 +299,7 @@ impl Miner {
 	}
 
 	fn forced_sealing(&self) -> bool {
-		self.options.force_sealing || !self.options.new_work_notify.is_empty()
+		self.options.force_sealing || !self.notifiers.read().is_empty()
 	}
 
 	/// Clear all pending block states

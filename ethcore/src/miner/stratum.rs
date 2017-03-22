@@ -211,6 +211,8 @@ impl From<AddrParseError> for Error {
 
 impl super::work_notify::NotifyWork for Stratum {
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
+		trace!(target: "stratum", "Notify work");
+
 		self.service.push_work_all(
 			self.dispatcher.payload(pow_hash, difficulty, number)
 		).unwrap_or_else(
