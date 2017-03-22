@@ -19,7 +19,7 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { IdentityIcon, IdentityName, Input, InputAddress } from '~/ui';
+import { IdentityIcon, IdentityName, TypedInput } from '~/ui';
 import ShortenedHash from '~/ui/ShortenedHash';
 import { txLink } from '~/3rdparty/etherscan/links';
 
@@ -112,41 +112,16 @@ export default class Event extends Component {
   }
 
   renderParam (name, param) {
-    const { api } = this.context;
-
-    switch (param.type) {
-      case 'address':
-        return (
-          <InputAddress
-            disabled
-            text
-            className={ styles.input }
-            value={ param.value }
-            label={ name }
-          />
-        );
-
-      default:
-        let value;
-
-        if (api.util.isInstanceOf(param.value, BigNumber)) {
-          value = param.value.toFormat(0);
-        } else if (api.util.isArray(param.value)) {
-          value = api.util.bytesToHex(param.value);
-        } else {
-          value = param.value.toString();
-        }
-
-        return (
-          <Input
-            readOnly
-            allowCopy
-            className={ styles.input }
-            value={ value }
-            label={ name }
-          />
-        );
-    }
+    return (
+      <TypedInput
+        allowCopy
+        className={ styles.input }
+        label={ name }
+        param={ param.type }
+        readOnly
+        value={ param.value }
+      />
+    );
   }
 
   formatBlockTimestamp (block) {

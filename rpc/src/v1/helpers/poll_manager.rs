@@ -19,7 +19,7 @@
 use transient_hashmap::{TransientHashMap, Timer, StandardTimer};
 
 /// Lifetime of poll (in seconds).
-const POLL_LIFETIME: u64 = 60;
+const POLL_LIFETIME: u32 = 60;
 
 pub type PollId = usize;
 

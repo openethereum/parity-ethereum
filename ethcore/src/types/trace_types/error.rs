@@ -17,7 +17,7 @@
 //! Trace errors.
 
 use std::fmt;
-use rlp::{RlpEncodable, Encodable, RlpStream, Decodable, Decoder, DecoderError, View};
+use rlp::{Encodable, RlpStream, Decodable, Decoder, DecoderError, View};
 use evm::Error as EvmError;
 
 /// Trace evm errors.
@@ -85,7 +85,8 @@ impl Encodable for Error {
 			OutOfStack => 4,
 			Internal => 5,
 		};
-		RlpEncodable::rlp_append(&value, s);
+
+		s.append_internal(&value);
 	}
 }
 

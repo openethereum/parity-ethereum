@@ -23,7 +23,7 @@
 use ethcore::ids::BlockId;
 use util::{Bytes, H256, U256, HashDB, MemoryDB};
 use util::trie::{self, TrieMut, TrieDBMut, Trie, TrieDB, Recorder};
-use rlp::{Stream, RlpStream, UntrustedRlp, View};
+use rlp::{RlpStream, UntrustedRlp, View};
 
 // encode a key.
 macro_rules! key {

@@ -20,7 +20,8 @@ use std::str::FromStr;
 use std::collections::{BTreeMap, HashSet};
 use futures::{future, Future, BoxFuture};
 
-use util::{RotatingLogger, Address};
+use ethcore_logger::RotatingLogger;
+use util::Address;
 use util::misc::version_data;
 
 use crypto::ecies;

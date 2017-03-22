@@ -34,7 +34,7 @@ use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 use ethereum;
 use ethjson;
-use rlp::{Rlp, RlpStream, View, Stream};
+use rlp::{Rlp, RlpStream, View};
 
 /// Parameters common to all engines.
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -326,7 +326,7 @@ impl Spec {
 	pub fn load<R>(reader: R) -> Result<Self, String> where R: Read {
 		match ethjson::spec::Spec::load(reader) {
 			Ok(spec) => Ok(spec.into()),
-			_ => Err("Spec json is invalid".into()),
+			Err(e) => Err(format!("Spec json is invalid: {}", e)),
 		}
 	}
 

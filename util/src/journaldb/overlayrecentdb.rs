@@ -278,7 +278,7 @@ impl JournalDB for OverlayRecentDB {
 
 			journal_overlay.backing_overlay.emplace(short_key, v);
 		}
-		r.append(&removed_keys);
+		r.append_list(&removed_keys);
 
 		let mut k = RlpStream::new_list(3);
 		let index = journal_overlay.journal.get(&now).map_or(0, |j| j.len());
@@ -456,7 +456,7 @@ mod tests {
 	use common::*;
 	use super::*;
 	use hashdb::{HashDB, DBValue};
-	use log::init_log;
+	use ethcore_logger::init_log;
 	use journaldb::JournalDB;
 	use kvdb::Database;
 

@@ -427,7 +427,7 @@ impl JournalDB for EarlyMergeDB {
 
 			r.begin_list(inserts.len());
 			inserts.iter().foreach(|&(k, _)| {r.append(&k);});
-			r.append(&removes);
+			r.append_list(&removes);
 			Self::insert_keys(&inserts, &*self.backing, self.column, &mut refs, batch, trace);
 
 			let ins = inserts.iter().map(|&(k, _)| k).collect::<Vec<_>>();
@@ -553,7 +553,7 @@ mod tests {
 	use hashdb::{HashDB, DBValue};
 	use super::*;
 	use super::super::traits::JournalDB;
-	use log::init_log;
+	use ethcore_logger::init_log;
 	use kvdb::{DatabaseConfig};
 
 	#[test]

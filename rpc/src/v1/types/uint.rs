@@ -74,20 +74,20 @@ macro_rules! impl_uint {
 					type Value = $name;
 
 					fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-						write!(formatter, "a 0x-prefixed, hex-encoded number of type {}", stringify!($name))
+						write!(formatter, "a 0x-prefixed, hex-encoded number of length {}", $size*16)
 					}
 
 					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: serde::de::Error {
+						if value.len() < 2  || &value[0..2] != "0x" {
+							return Err(E::custom("expected a hex-encoded numbers with 0x prefix"))
+						}
+
 						// 0x + len
-						if value.len() > 2 + $size * 16 || value.len() < 2 {
-							return Err(E::custom("Invalid length."));
+						if value.len() > 2 + $size * 16 {
+							return Err(E::invalid_length(value.len() - 2, &self));
 						}
 
-						if &value[0..2] != "0x" {
-							return Err(E::custom("Use hex encoded numbers with 0x prefix."))
-						}
-
-						$other::from_str(&value[2..]).map($name).map_err(|_| E::custom("Invalid hex value."))
+						$other::from_str(&value[2..]).map($name).map_err(|e| E::custom(&format!("invalid hex value: {:?}", e)))
 					}
 
 					fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: serde::de::Error {

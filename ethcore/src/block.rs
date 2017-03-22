@@ -20,7 +20,7 @@ use std::cmp;
 use std::sync::Arc;
 use std::collections::HashSet;
 
-use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, Decoder, DecoderError, View, Stream};
+use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, Decoder, DecoderError, View};
 use util::{Bytes, Address, Uint, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP};
 use util::error::{Mismatch, OutOfBounds};
 
@@ -59,8 +59,8 @@ impl Block {
 	pub fn rlp_bytes(&self, seal: Seal) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
 		self.header.stream_rlp(&mut block_rlp, seal);
-		block_rlp.append(&self.transactions);
-		block_rlp.append(&self.uncles);
+		block_rlp.append_list(&self.transactions);
+		block_rlp.append_list(&self.uncles);
 		block_rlp.out()
 	}
 }
@@ -507,7 +507,7 @@ impl SealedBlock {
 	pub fn rlp_bytes(&self) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
 		self.block.header.stream_rlp(&mut block_rlp, Seal::With);
-		block_rlp.append(&self.block.transactions);
+		block_rlp.append_list(&self.block.transactions);
 		block_rlp.append_raw(&self.uncle_bytes, 1);
 		block_rlp.out()
 	}

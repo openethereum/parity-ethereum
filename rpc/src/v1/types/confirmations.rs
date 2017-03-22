@@ -18,7 +18,7 @@
 
 use std::fmt;
 use serde::{Serialize, Serializer};
-use util::log::Colour;
+use util::Colour;
 use util::bytes::ToPretty;
 
 use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes, TransactionCondition, Origin};

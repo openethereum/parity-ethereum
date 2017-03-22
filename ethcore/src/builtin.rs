@@ -14,11 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp::{max, min};
+use std::io::{self, Read};
+
+use byteorder::{ByteOrder, BigEndian};
 use crypto::sha2::Sha256 as Sha256Digest;
 use crypto::ripemd160::Ripemd160 as Ripemd160Digest;
 use crypto::digest::Digest;
-use std::cmp::min;
-use util::{U256, H256, Hashable, BytesRef};
+use num::{BigUint, Zero, One};
+
+use util::{U256, H256, Uint, Hashable, BytesRef};
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
@@ -30,8 +35,8 @@ pub trait Impl: Send + Sync {
 
 /// A gas pricing scheme for built-in contracts.
 pub trait Pricer: Send + Sync {
-	/// The gas cost of running this built-in for the given size of input data.
-	fn cost(&self, in_size: usize) -> U256;
+	/// The gas cost of running this built-in for the given input data.
+	fn cost(&self, input: &[u8]) -> U256;
 }
 
 /// A linear pricing model. This computes a price using a base cost and a cost per-word.
@@ -40,33 +45,86 @@ struct Linear {
 	word: usize,
 }
 
+/// A special pricing model for modular exponentiation.
+struct Modexp {
+	divisor: usize,
+}
+
 impl Pricer for Linear {
-	fn cost(&self, in_size: usize) -> U256 {
-		U256::from(self.base) + U256::from(self.word) * U256::from((in_size + 31) / 32)
+	fn cost(&self, input: &[u8]) -> U256 {
+		U256::from(self.base) + U256::from(self.word) * U256::from((input.len() + 31) / 32)
 	}
 }
 
-/// Pricing scheme and execution definition for a built-in contract.
+impl Pricer for Modexp {
+	fn cost(&self, input: &[u8]) -> U256 {
+		let mut reader = input.chain(io::repeat(0));
+		let mut buf = [0; 32];
+
+		// read lengths as U256 here for accurate gas calculation.
+		let mut read_len = || {
+			reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
+			U256::from(H256::from_slice(&buf[..]))
+		};
+		let base_len = read_len();
+		let exp_len = read_len();
+		let mod_len = read_len();
+
+		// floor(max(length_of_MODULUS, length_of_BASE) ** 2 * max(length_of_EXPONENT, 1) / GQUADDIVISOR)
+		// TODO: is saturating the best behavior here?
+		let m = max(mod_len, base_len);
+		match m.overflowing_mul(m) {
+			(_, true) => U256::max_value(),
+			(val, _) => {
+				match val.overflowing_mul(max(exp_len, U256::one())) {
+					(_, true) => U256::max_value(),
+					(val, _) => val / (self.divisor as u64).into()
+				}
+			}
+		}
+	}
+}
+
+/// Pricing scheme, execution definition, and activation block for a built-in contract.
+///
+/// Call `cost` to compute cost for the given input, `execute` to execute the contract
+/// on the given input, and `is_active` to determine whether the contract is active.
+///
+/// Unless `is_active` is true,
 pub struct Builtin {
 	pricer: Box<Pricer>,
 	native: Box<Impl>,
+	activate_at: u64,
 }
 
 impl Builtin {
 	/// Simple forwarder for cost.
-	pub fn cost(&self, s: usize) -> U256 { self.pricer.cost(s) }
+	pub fn cost(&self, input: &[u8]) -> U256 { self.pricer.cost(input) }
 
 	/// Simple forwarder for execute.
 	pub fn execute(&self, input: &[u8], output: &mut BytesRef) { self.native.execute(input, output) }
+
+	/// Whether the builtin is activated at the given block number.
+	pub fn is_active(&self, at: u64) -> bool { at >= self.activate_at }
 }
 
 impl From<ethjson::spec::Builtin> for Builtin {
 	fn from(b: ethjson::spec::Builtin) -> Self {
-		let pricer = match b.pricing {
+		let pricer: Box<Pricer> = match b.pricing {
 			ethjson::spec::Pricing::Linear(linear) => {
 				Box::new(Linear {
 					base: linear.base,
 					word: linear.word,
+				})
+			}
+			ethjson::spec::Pricing::Modexp(exp) => {
+				Box::new(Modexp {
+					divisor: if exp.divisor == 0 {
+						warn!("Zero modexp divisor specified. Falling back to default.");
+						10
+					} else {
+						exp.divisor
+					}
 				})
 			}
 		};
@@ -74,6 +132,7 @@ impl From<ethjson::spec::Builtin> for Builtin {
 		Builtin {
 			pricer: pricer,
 			native: ethereum_builtin(&b.name),
+			activate_at: b.activate_at.map(Into::into).unwrap_or(0),
 		}
 	}
 }
@@ -85,6 +144,7 @@ fn ethereum_builtin(name: &str) -> Box<Impl> {
 		"ecrecover" => Box::new(EcRecover) as Box<Impl>,
 		"sha256" => Box::new(Sha256) as Box<Impl>,
 		"ripemd160" => Box::new(Ripemd160) as Box<Impl>,
+		"modexp" => Box::new(ModexpImpl) as Box<Impl>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -95,6 +155,7 @@ fn ethereum_builtin(name: &str) -> Box<Impl> {
 // - ec recovery
 // - sha256
 // - ripemd160
+// - modexp (EIP198)
 
 #[derive(Debug)]
 struct Identity;
@@ -107,6 +168,9 @@ struct Sha256;
 
 #[derive(Debug)]
 struct Ripemd160;
+
+#[derive(Debug)]
+struct ModexpImpl;
 
 impl Impl for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) {
@@ -166,9 +230,76 @@ impl Impl for Ripemd160 {
 	}
 }
 
+impl Impl for ModexpImpl {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) {
+		let mut reader = input.chain(io::repeat(0));
+		let mut buf = [0; 32];
+
+		// read lengths as usize.
+		// ignoring the first 24 bytes might technically lead us to fall out of consensus,
+		// but so would running out of addressable memory!
+		let mut read_len = |reader: &mut io::Chain<&[u8], io::Repeat>| {
+			reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
+			BigEndian::read_u64(&buf[24..]) as usize
+		};
+
+		let base_len = read_len(&mut reader);
+		let exp_len = read_len(&mut reader);
+		let mod_len = read_len(&mut reader);
+
+		// read the numbers themselves.
+		let mut buf = vec![0; max(mod_len, max(base_len, exp_len))];
+		let mut read_num = |len| {
+			reader.read_exact(&mut buf[..len]).expect("reading from zero-extended memory cannot fail; qed");
+			BigUint::from_bytes_be(&buf[..len])
+		};
+
+		let base = read_num(base_len);
+		let exp = read_num(exp_len);
+		let modulus = read_num(mod_len);
+
+		// calculate modexp: exponentiation by squaring.
+		fn modexp(mut base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
+			match (base == BigUint::zero(), exp == BigUint::zero()) {
+				(_, true) => return BigUint::one(), // n^0 % m
+				(true, false) => return BigUint::zero(), // 0^n % m, n>0
+				(false, false) if modulus <= BigUint::one() => return BigUint::zero(), // a^b % 1 = 0.
+				_ => {}
+			}
+
+			let mut result = BigUint::one();
+			base = base % &modulus;
+
+			// fast path for base divisible by modulus.
+			if base == BigUint::zero() { return result }
+			while exp != BigUint::zero() {
+				// exp has to be on the right here to avoid move.
+				if BigUint::one() & &exp == BigUint::one() {
+					result = (result * &base) % &modulus;
+				}
+
+				exp = exp >> 1;
+				base = (base.clone() * base) % &modulus;
+			}
+
+			result
+		}
+
+		// write output to given memory, left padded and same length as the modulus.
+		let bytes = modexp(base, exp, modulus).to_bytes_be();
+
+		// always true except in the case of zero-length modulus, which leads to
+		// output of length and value 1.
+		if bytes.len() <= mod_len {
+			let res_start = mod_len - bytes.len();
+			output.write(res_start, &bytes);
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
-	use super::{Builtin, Linear, ethereum_builtin, Pricer};
+	use super::{Builtin, Linear, ethereum_builtin, Pricer, Modexp};
 	use ethjson;
 	use util::{U256, BytesRef};
 
@@ -296,9 +427,110 @@ mod tests {
 	}
 
 	#[test]
+	fn modexp() {
+		use rustc_serialize::hex::FromHex;
+
+		let f = Builtin {
+			pricer: Box::new(Modexp { divisor: 20 }),
+			native: ethereum_builtin("modexp"),
+			activate_at: 0,
+		};
+		// fermat's little theorem example.
+		{
+			let input = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000001\
+				0000000000000000000000000000000000000000000000000000000000000020\
+				0000000000000000000000000000000000000000000000000000000000000020\
+				03\
+				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e\
+				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"
+			).unwrap();
+
+			let mut output = vec![0u8; 32];
+			let expected = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
+			let expected_cost = 1638;
+
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
+			assert_eq!(output, expected);
+			assert_eq!(f.cost(&input[..]), expected_cost.into());
+		}
+
+		// second example from EIP: zero base.
+		{
+			let input = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000000\
+ 				0000000000000000000000000000000000000000000000000000000000000020\
+ 				0000000000000000000000000000000000000000000000000000000000000020\
+ 				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e\
+ 				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"
+			).unwrap();
+
+			let mut output = vec![0u8; 32];
+			let expected = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
+			let expected_cost = 1638;
+
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
+			assert_eq!(output, expected);
+			assert_eq!(f.cost(&input[..]), expected_cost.into());
+		}
+
+		// another example from EIP: zero-padding
+		{
+			let input = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000001\
+				0000000000000000000000000000000000000000000000000000000000000002\
+				0000000000000000000000000000000000000000000000000000000000000020\
+				03\
+				ffff\
+				80"
+			).unwrap();
+
+			let mut output = vec![0u8; 32];
+			let expected = FromHex::from_hex("3b01b01ac41f2d6e917c6d6a221ce793802469026d9ab7578fa2e79e4da6aaab").unwrap();
+			let expected_cost = 102;
+
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
+			assert_eq!(output, expected);
+			assert_eq!(f.cost(&input[..]), expected_cost.into());
+		}
+
+		// zero-length modulus.
+		{
+			let input = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000001\
+				0000000000000000000000000000000000000000000000000000000000000002\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				03\
+				ffff"
+			).unwrap();
+
+			let mut output = vec![];
+			let expected_cost = 0;
+
+			f.execute(&input[..], &mut BytesRef::Flexible(&mut output));
+			assert_eq!(output.len(), 0); // shouldn't have written any output.
+			assert_eq!(f.cost(&input[..]), expected_cost.into());
+		}
+	}
+
+	#[test]
 	#[should_panic]
 	fn from_unknown_linear() {
 		let _ = ethereum_builtin("foo");
+	}
+
+	#[test]
+	fn is_active() {
+		let pricer = Box::new(Linear { base: 10, word: 20} );
+		let b = Builtin {
+			pricer: pricer as Box<Pricer>,
+			native: ethereum_builtin("identity"),
+			activate_at: 100_000,
+		};
+
+		assert!(!b.is_active(99_999));
+		assert!(b.is_active(100_000));
+		assert!(b.is_active(100_001));
 	}
 
 	#[test]
@@ -307,12 +539,13 @@ mod tests {
 		let b = Builtin {
 			pricer: pricer as Box<Pricer>,
 			native: ethereum_builtin("identity"),
+			activate_at: 1,
 		};
 
-		assert_eq!(b.cost(0), U256::from(10));
-		assert_eq!(b.cost(1), U256::from(30));
-		assert_eq!(b.cost(32), U256::from(30));
-		assert_eq!(b.cost(33), U256::from(50));
+		assert_eq!(b.cost(&[0; 0]), U256::from(10));
+		assert_eq!(b.cost(&[0; 1]), U256::from(30));
+		assert_eq!(b.cost(&[0; 32]), U256::from(30));
+		assert_eq!(b.cost(&[0; 33]), U256::from(50));
 
 		let i = [0u8, 1, 2, 3];
 		let mut o = [255u8; 4];
@@ -327,13 +560,14 @@ mod tests {
 			pricing: ethjson::spec::Pricing::Linear(ethjson::spec::Linear {
 				base: 10,
 				word: 20,
-			})
+			}),
+			activate_at: None,
 		});
 
-		assert_eq!(b.cost(0), U256::from(10));
-		assert_eq!(b.cost(1), U256::from(30));
-		assert_eq!(b.cost(32), U256::from(30));
-		assert_eq!(b.cost(33), U256::from(50));
+		assert_eq!(b.cost(&[0; 0]), U256::from(10));
+		assert_eq!(b.cost(&[0; 1]), U256::from(30));
+		assert_eq!(b.cost(&[0; 32]), U256::from(30));
+		assert_eq!(b.cost(&[0; 33]), U256::from(50));
 
 		let i = [0u8, 1, 2, 3];
 		let mut o = [255u8; 4];
