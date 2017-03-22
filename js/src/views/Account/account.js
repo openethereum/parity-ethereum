@@ -383,7 +383,7 @@ class Account extends Component {
       .then((content) => {
         const text = JSON.stringify(content, null, 4);
         const blob = new Blob([ text ], { type: 'application/json' });
-        const filename = accounts[address].name;
+        const filename = accounts[address].uuid;
 
         FileSaver.saveAs(blob, `${filename}.json`);
         setTimeout(() => {

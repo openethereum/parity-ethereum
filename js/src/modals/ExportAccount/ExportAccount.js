@@ -42,12 +42,6 @@ class ExportAccount extends Component {
     onClose: PropTypes.func.isRequired
   };
 
-  static ExportStore = ExportStore;
-
-  componentDidMount () {
-
-  }
-
   render () {
     const { canExport } = ExportStore;
 
@@ -118,7 +112,7 @@ class ExportAccount extends Component {
       <AccountCard
         account={ account }
         balance={ balance }
-        password
+        showPassword
         store={ ExportStore }
       />
     );
@@ -158,7 +152,7 @@ class ExportAccount extends Component {
       .then((content) => {
         const text = JSON.stringify(content, null, 4);
         const blob = new Blob([ text ], { type: 'application/json' });
-        const filename = accounts[account].name;
+        const filename = accounts[account].uuid;
 
         FileSaver.saveAs(blob, `${filename}.json`);
       })

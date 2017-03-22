@@ -35,13 +35,13 @@ export default class AccountCard extends Component {
     disableAddressClick: PropTypes.bool,
     onClick: PropTypes.func,
     onFocus: PropTypes.func,
-    password: PropTypes.bool,
+    showPassword: PropTypes.bool,
     store: PropTypes.object
   };
 
   static defaultProps = {
     disableAddressClick: false,
-    password: false
+    showPassword: false
   };
 
   state = {
@@ -49,7 +49,7 @@ export default class AccountCard extends Component {
   };
 
   render () {
-    const { account, balance, className, onFocus, password } = this.props;
+    const { account, balance, className, onFocus, showPassword } = this.props;
     const { copied } = this.state;
     const { address, description, meta = {}, name } = account;
     const { tags = [] } = meta;
@@ -93,7 +93,7 @@ export default class AccountCard extends Component {
             className={ styles.balance }
             showOnlyEth
           />
-          { (password) ? this.renderPassword() : null }
+          { (showPassword) ? this.renderPassword() : null }
         </div>
 
         {
