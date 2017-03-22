@@ -22,7 +22,6 @@
 extern crate syntex;
 
 #[cfg(feature = "with-syntex")]
-#[macro_use]
 extern crate syntex_syntax as syntax;
 
 #[cfg(feature = "with-syntex")]

@@ -578,6 +578,10 @@ class WriteContract extends Component {
   }
 
   renderContract (contract) {
+    if (!contract) {
+      return null;
+    }
+
     const { bytecode } = contract;
     const abi = contract.interface;
 

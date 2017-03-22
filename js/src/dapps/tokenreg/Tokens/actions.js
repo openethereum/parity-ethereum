@@ -16,8 +16,9 @@
 
 import { URL_TYPE } from '../Inputs/validation';
 import { getTokenTotalSupply, urlToHash } from '../utils';
+import { api } from '../parity';
 
-const { bytesToHex } = window.parity.api.util;
+const { bytesToHex } = api.util;
 
 export const SET_TOKENS_LOADING = 'SET_TOKENS_LOADING';
 export const setTokensLoading = (isLoading) => ({

@@ -107,6 +107,7 @@ extern crate ethabi;
 extern crate hardware_wallet;
 extern crate stats;
 extern crate ethcore_logger;
+extern crate num;
 
 #[macro_use]
 extern crate log;
