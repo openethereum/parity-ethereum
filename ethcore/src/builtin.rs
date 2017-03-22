@@ -27,10 +27,19 @@ use util::{U256, H256, Uint, Hashable, BytesRef};
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
+#[derive(Debug)]
+pub struct Error(pub String);
+
+impl From<&'static str> for Error {
+	fn from(val: &'static str) -> Self {
+		Error(val.to_owned())
+	}
+}
+
 /// Native implementation of a built-in contract.
 pub trait Impl: Send + Sync {
 	/// execute this built-in on the given input, writing to the given output.
-	fn execute(&self, input: &[u8], output: &mut BytesRef);
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error>;
 }
 
 /// A gas pricing scheme for built-in contracts.
@@ -102,7 +111,10 @@ impl Builtin {
 	pub fn cost(&self, input: &[u8]) -> U256 { self.pricer.cost(input) }
 
 	/// Simple forwarder for execute.
-	pub fn execute(&self, input: &[u8], output: &mut BytesRef) { self.native.execute(input, output) }
+	pub fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> { 
+		self.native.execute(input, output);
+		Ok(()) 
+	}
 
 	/// Whether the builtin is activated at the given block number.
 	pub fn is_active(&self, at: u64) -> bool { at >= self.activate_at }
@@ -172,14 +184,21 @@ struct Ripemd160;
 #[derive(Debug)]
 struct ModexpImpl;
 
+#[derive(Debug)]
+struct Bn128AddImpl;
+
+#[derive(Debug)]
+struct Bn128MulImpl;
+
 impl Impl for Identity {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		output.write(0, input);
+		Ok(())
 	}
 }
 
 impl Impl for EcRecover {
-	fn execute(&self, i: &[u8], output: &mut BytesRef) {
+	fn execute(&self, i: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		let len = min(i.len(), 128);
 
 		let mut input = [0; 128];
@@ -192,7 +211,7 @@ impl Impl for EcRecover {
 
 		let bit = match v[31] {
 			27 | 28 if &v.0[..31] == &[0; 31] => v[31] - 27,
-			_ => return,
+			_ => { return Ok(()); },
 		};
 
 		let s = Signature::from_rsv(&r, &s, bit);
@@ -203,11 +222,13 @@ impl Impl for EcRecover {
 				output.write(12, &r[12..r.len()]);
 			}
 		}
+
+		Ok(())
 	}
 }
 
 impl Impl for Sha256 {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		let mut sha = Sha256Digest::new();
 		sha.input(input);
 
@@ -215,11 +236,13 @@ impl Impl for Sha256 {
 		sha.result(&mut out);
 
 		output.write(0, &out);
+
+		Ok(())
 	}
 }
 
 impl Impl for Ripemd160 {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		let mut sha = Ripemd160Digest::new();
 		sha.input(input);
 
@@ -227,11 +250,13 @@ impl Impl for Ripemd160 {
 		sha.result(&mut out[12..32]);
 
 		output.write(0, &out);
+
+		Ok(())
 	}
 }
 
 impl Impl for ModexpImpl {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		let mut reader = input.chain(io::repeat(0));
 		let mut buf = [0; 32];
 
@@ -294,7 +319,41 @@ impl Impl for ModexpImpl {
 			let res_start = mod_len - bytes.len();
 			output.write(res_start, &bytes);
 		}
+
+		Ok(())
 	}
+}
+
+impl Impl for Bn128AddImpl {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+		use bn::{Fq, AffineG1, G1};
+
+		let mut buf = [0u8; 32];
+		let mut next_coord = |reader: &mut io::Chain<&[u8], io::Repeat>| {
+			reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
+			Fq::from_slice(&input[0..32])
+		};
+
+		let mut padded_input = input.chain(io::repeat(0));
+
+		let p1x = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p1 x coordinate"))?;
+		let p1y = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p1 y coordinate"))?;
+		let p1: G1 = AffineG1::new(p1x, p1y).into();
+
+		let p2x = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p2 x coordinate"))?;
+		let p2y = next_coord(&mut padded_input).map_err(|_| Error::from("Invalid p2 y coordinate"))?;
+		let p2: G1 = AffineG1::new(p2x, p2y).into();
+
+		let sum  = AffineG1::from_jacobian(p1 + p2).expect("Sum of two valid points is a valid point also; qed");
+
+		Ok(())
+	}	
+}
+
+impl Impl for Bn128MulImpl {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+		Ok(())
+	}	
 }
 
 #[cfg(test)]

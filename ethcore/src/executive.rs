@@ -276,7 +276,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 			let cost = builtin.cost(data);
 			if cost <= params.gas {
-				builtin.execute(data, &mut output);
+				builtin.execute(data, &mut output)?;
 				self.state.discard_checkpoint();
 
 				// trace only top level calls to builtins to avoid DDoS attacks
@@ -497,6 +497,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				| Err(evm::Error::BadJumpDestination {..})
 				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
+				| Err(evm::Error::BuiltIn {..})
 				| Err(evm::Error::OutOfStack {..}) => {
 					self.state.revert_to_checkpoint();
 			},

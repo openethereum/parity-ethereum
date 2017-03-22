@@ -34,7 +34,9 @@ pub enum Error {
 	/// `StackUnderflow` when there is not enough stack elements to execute instruction
 	StackUnderflow,
 	/// When execution would exceed defined Stack Limit
-	OutOfStack,
+	OutOfStack,	
+	/// When builtin contract failed on input data
+	BuiltIn,
 	/// Returned on evm internal error. Should never be ignored during development.
 	/// Likely to cause consensus issues.
 	Internal,
@@ -48,6 +50,7 @@ impl<'a> From<&'a EvmError> for Error {
 			EvmError::BadInstruction { .. } => Error::BadInstruction,
 			EvmError::StackUnderflow { .. } => Error::StackUnderflow,
 			EvmError::OutOfStack { .. } => Error::OutOfStack,
+			EvmError::BuiltIn { .. } => Error::OutOfStack,
 			EvmError::Internal(_) => Error::Internal,
 		}
 	}
@@ -68,6 +71,7 @@ impl fmt::Display for Error {
 			BadInstruction => "Bad instruction",
 			StackUnderflow => "Stack underflow",
 			OutOfStack => "Out of stack",
+			BuiltIn => "Built-in failed",
 			Internal => "Internal error",
 		};
 		message.fmt(f)
@@ -84,6 +88,7 @@ impl Encodable for Error {
 			StackUnderflow => 3,
 			OutOfStack => 4,
 			Internal => 5,
+			BuiltIn => 6,
 		};
 
 		s.append_internal(&value);
