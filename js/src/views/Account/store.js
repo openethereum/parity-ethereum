@@ -19,11 +19,17 @@ import { action, observable } from 'mobx';
 export default class Store {
   @observable isDeleteVisible = false;
   @observable isEditVisible = false;
+  @observable isExportVisible = false;
   @observable isFaucetVisible = false;
   @observable isFundVisible = false;
   @observable isPasswordVisible = false;
   @observable isTransferVisible = false;
   @observable isVerificationVisible = false;
+  @observable exportValue = '';
+
+  @action editExportValue = (event, value) => {
+    this.exportValue = value;
+  }
 
   @action toggleDeleteDialog = () => {
     this.isDeleteVisible = !this.isDeleteVisible;
@@ -31,6 +37,10 @@ export default class Store {
 
   @action toggleEditDialog = () => {
     this.isEditVisible = !this.isEditVisible;
+  }
+
+  @action toggleExportDialog = () => {
+    this.isExportVisible = !this.isExportVisible;
   }
 
   @action toggleFaucetDialog = () => {

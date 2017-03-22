@@ -19,14 +19,16 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import FileSaver from 'file-saver';
 
+import { newError } from '~/redux/actions';
 import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
 import HardwareStore from '~/mobx/hardwareStore';
 import { DeleteAccount, EditMeta, Faucet, PasswordManager, Shapeshift, Transfer, Verification } from '~/modals';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
-import { Actionbar, Button, Page } from '~/ui';
-import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon } from '~/ui/Icons';
+import { Actionbar, Button, ConfirmDialog, Input, Page, Portal } from '~/ui';
+import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon, FileDownloadIcon } from '~/ui/Icons';
 
 import DeleteAddress from '../Address/Delete';
 
@@ -50,6 +52,7 @@ class Account extends Component {
     balances: PropTypes.object,
     certifications: PropTypes.object,
     netVersion: PropTypes.string.isRequired,
+    newError: PropTypes.func,
     params: PropTypes.object
   }
 
@@ -99,6 +102,7 @@ class Account extends Component {
       <div>
         { this.renderDeleteDialog(account) }
         { this.renderEditDialog(account) }
+        { this.renderExportDialog(account) }
         { this.renderFaucetDialog() }
         { this.renderFundDialog() }
         { this.renderPasswordDialog(account) }
@@ -220,6 +224,17 @@ class Account extends Component {
         }
         onClick={ this.store.toggleEditDialog }
       />,
+      <Button
+        icon={ <FileDownloadIcon /> }
+        key='exportmeta'
+        label={
+          <FormattedMessage
+            id='account.button.export'
+            defaultMessage='export'
+          />
+        }
+        onClick={ this.store.toggleExportDialog }
+      />,
       !account.hardware && (
         <Button
           icon={ <LockedIcon /> }
@@ -300,6 +315,88 @@ class Account extends Component {
         onClose={ this.store.toggleEditDialog }
       />
     );
+  }
+
+  renderExportDialog (account) {
+    const { editExportValue, exportValue, toggleExportDialog } = this.store;
+
+    if (!this.store.isExportVisible) {
+      return null;
+    }
+    return (
+      <Portal
+        open
+        isSmallModal
+        onClose={ toggleExportDialog }
+      >
+        <ConfirmDialog
+          open
+          disabledConfirm={ !exportValue.length }
+          labelConfirm='Export'
+          labelDeny='Cancel'
+          onConfirm={ this.onExport }
+          onDeny={ toggleExportDialog }
+          title={
+            <FormattedMessage
+              id='export.account.title'
+              defaultMessage='Export Account'
+            />
+          }
+        >
+          <div className={ styles.textbox }>
+            <FormattedMessage
+              id='export.account.info'
+              defaultMessage='Export your account as a JSON file. Please enter the password linked with this account.'
+            />
+          </div>
+          <Input
+            className={ styles.textbox }
+            autoFocus
+            type='password'
+            hint={
+              <FormattedMessage
+                id='export.account.password.hint'
+                defaultMessage='the password specified when creating this account'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='export.account.password.label'
+                defaultMessage='account password'
+              />
+            }
+            onChange={ editExportValue }
+            value={ exportValue }
+          />
+        </ConfirmDialog>
+      </Portal>
+    );
+  }
+
+  onExport = () => {
+    const { parity } = this.context.api;
+    const { accounts, newError, params } = this.props;
+    const { address } = params;
+    const { exportValue, toggleExportDialog } = this.store;
+
+    parity.exportAccount(address, exportValue)
+      .then((content) => {
+        const text = JSON.stringify(content, null, 4);
+        const blob = new Blob([ text ], { type: 'application/json' });
+        const filename = accounts[address].name;
+
+        FileSaver.saveAs(blob, `${filename}.json`);
+        setTimeout(() => {
+          toggleExportDialog();
+        }, 500);
+      })
+      .catch((err) => {
+        const { passwordHint } = accounts[address].meta;
+
+        newError({
+          message: `[${err.code}] - Incorrect password. Password Hint: (${passwordHint})`
+        });
+      });
   }
 
   renderFaucetDialog () {
@@ -399,6 +496,7 @@ function mapDispatchToProps (dispatch) {
   return bindActionCreators({
     fetchCertifiers,
     fetchCertifications,
+    newError,
     setVisibleAccounts
   }, dispatch);
 }
