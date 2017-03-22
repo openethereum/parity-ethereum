@@ -67,6 +67,10 @@ Operating Options:
   --keys-path PATH               Specify the path for JSON key files to be found
                                  (default: {flag_keys_path}).
   --identity NAME                Specify your node's name. (default: {flag_identity})
+  --light                        Experimental: run in light client mode. Light clients
+                                 synchronize a bare minimum of data and fetch necessary
+								 data on-demand from the network. Much lower in storage,
+								 potentially higher in bandwidth. (default: {flag_light})
 
 Account Options:
   --unlock ACCOUNTS              Unlock ACCOUNTS for the duration of the execution.
@@ -126,6 +130,7 @@ Networking Options:
   --max-pending-peers NUM        Allow up to NUM pending connections. (default: {flag_max_pending_peers})
   --no-ancient-blocks            Disable downloading old blocks after snapshot restoration
                                  or warp sync. (default: {flag_no_ancient_blocks})
+  --no-serve-light               Disable serving of light peers. (default: {flag_no_serve_light})
 
 API and Console Options:
   --no-jsonrpc                   Disable the JSON-RPC API server. (default: {flag_no_jsonrpc})

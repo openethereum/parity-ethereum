@@ -126,7 +126,7 @@ pub struct PeerInfo {
 	/// Eth protocol info.
 	pub eth_info: Option<EthProtocolInfo>,
 	/// Light protocol info.
-	pub les_info: Option<LesProtocolInfo>,
+	pub pip_info: Option<PipProtocolInfo>,
 }
 
 /// Ethereum protocol info.
@@ -141,10 +141,10 @@ pub struct EthProtocolInfo {
 	pub difficulty: Option<U256>,
 }
 
-/// LES protocol info.
+/// PIP protocol info.
 #[derive(Debug)]
 #[cfg_attr(feature = "ipc", derive(Binary))]
-pub struct LesProtocolInfo {
+pub struct PipProtocolInfo {
 	/// Protocol version
 	pub version: u32,
 	/// SHA3 of peer best block hash
@@ -153,9 +153,9 @@ pub struct LesProtocolInfo {
 	pub difficulty: U256,
 }
 
-impl From<light_net::Status> for LesProtocolInfo {
+impl From<light_net::Status> for PipProtocolInfo {
 	fn from(status: light_net::Status) -> Self {
-		LesProtocolInfo {
+		PipProtocolInfo {
 			version: status.protocol_version,
 			head: status.head_hash,
 			difficulty: status.head_td,
@@ -184,7 +184,7 @@ pub struct EthSync {
 	network: NetworkService,
 	/// Main (eth/par) protocol handler
 	eth_handler: Arc<SyncProtocolHandler>,
-	/// Light (les) protocol handler
+	/// Light (pip) protocol handler
 	light_proto: Option<Arc<LightProtocol>>,
 	/// The main subprotocol name
 	subprotocol_name: [u8; 3],
@@ -264,7 +264,7 @@ impl SyncProvider for EthSync {
 					remote_address: session_info.remote_address,
 					local_address: session_info.local_address,
 					eth_info: eth_sync.peer_info(&peer_id),
-					les_info: light_proto.as_ref().and_then(|lp| lp.peer_status(&peer_id)).map(Into::into),
+					pip_info: light_proto.as_ref().and_then(|lp| lp.peer_status(&peer_id)).map(Into::into),
 				})
 			}).collect()
 		}).unwrap_or_else(Vec::new)
@@ -408,7 +408,7 @@ impl ChainNotify for EthSync {
 	}
 }
 
-/// LES event handler.
+/// PIP event handler.
 /// Simply queues transactions from light client peers.
 struct TxRelay(Arc<BlockChainClient>);
 
@@ -786,7 +786,7 @@ impl LightSyncProvider for LightSync {
 					remote_address: session_info.remote_address,
 					local_address: session_info.local_address,
 					eth_info: None,
-					les_info: self.proto.peer_status(&peer_id).map(Into::into),
+					pip_info: self.proto.peer_status(&peer_id).map(Into::into),
 				})
 			}).collect()
 		}).unwrap_or_else(Vec::new)

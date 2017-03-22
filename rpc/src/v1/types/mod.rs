@@ -63,7 +63,7 @@ pub use self::receipt::Receipt;
 pub use self::rpc_settings::RpcSettings;
 pub use self::sync::{
 	SyncStatus, SyncInfo, Peers, PeerInfo, PeerNetworkInfo, PeerProtocolsInfo,
-	TransactionStats, ChainStatus, EthProtocolInfo, LesProtocolInfo,
+	TransactionStats, ChainStatus, EthProtocolInfo, PipProtocolInfo,
 };
 pub use self::trace::{LocalizedTrace, TraceResults};
 pub use self::trace_filter::TraceFilter;

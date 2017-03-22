@@ -107,6 +107,8 @@ pub struct RunCmd {
 	pub check_seal: bool,
 	pub download_old_blocks: bool,
 	pub verifier_settings: VerifierSettings,
+	pub serve_light: bool,
+	pub light: bool,
 }
 
 pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configuration) -> Result<(), String> {
@@ -248,6 +250,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	sync_config.fork_block = spec.fork_block();
 	sync_config.warp_sync = cmd.warp_sync;
 	sync_config.download_old_blocks = cmd.download_old_blocks;
+	sync_config.serve_light = cmd.serve_light;
 
 	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 

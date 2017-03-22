@@ -375,6 +375,8 @@ impl Configuration {
 				check_seal: !self.args.flag_no_seal_check,
 				download_old_blocks: !self.args.flag_no_ancient_blocks,
 				verifier_settings: verifier_settings,
+				serve_light: !self.args.flag_no_serve_light,
+				light: self.args.flag_light,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -1194,6 +1196,8 @@ mod tests {
 			check_seal: true,
 			download_old_blocks: true,
 			verifier_settings: Default::default(),
+			serve_light: true,
+			light: false,
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));
