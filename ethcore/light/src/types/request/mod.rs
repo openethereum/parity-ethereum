@@ -1601,7 +1601,7 @@ mod tests {
 
 		let full_req = Request::Account(req.clone());
 		let res = AccountResponse {
-			proof: Vec::new(),
+			proof: vec![vec![1, 2, 3], vec![4, 5, 6]],
 			nonce: 100.into(),
 			balance: 123456.into(),
 			code_hash: Default::default(),
@@ -1625,7 +1625,7 @@ mod tests {
 
 		let full_req = Request::Storage(req.clone());
 		let res = StorageResponse {
-			proof: Vec::new(),
+			proof: vec![vec![1, 2, 3], vec![4, 5, 6]],
 			value: H256::default(),
 		};
 		let full_res = Response::Storage(res.clone());
