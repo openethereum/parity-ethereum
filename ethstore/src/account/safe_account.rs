@@ -19,14 +19,22 @@ use {json, Error, crypto};
 use account::Version;
 use super::crypto::Crypto;
 
+/// Account representation.
 #[derive(Debug, PartialEq, Clone)]
 pub struct SafeAccount {
+	/// Account ID
 	pub id: [u8; 16],
+	/// Account version
 	pub version: Version,
+	/// Account address
 	pub address: Address,
+	/// Account private key derivation definition.
 	pub crypto: Crypto,
+	/// Account filename
 	pub filename: Option<String>,
+	/// Account name
 	pub name: String,
+	/// Account metadata
 	pub meta: String,
 }
 
@@ -44,6 +52,7 @@ impl Into<json::KeyFile> for SafeAccount {
 }
 
 impl SafeAccount {
+	/// Create a new account
 	pub fn create(
 		keypair: &KeyPair,
 		id: [u8; 16],
@@ -114,21 +123,25 @@ impl SafeAccount {
 		})
 	}
 
+	/// Sign a message.
 	pub fn sign(&self, password: &str, message: &Message) -> Result<Signature, Error> {
 		let secret = self.crypto.secret(password)?;
 		sign(&secret, message).map_err(From::from)
 	}
 
+	/// Decrypt a message.
 	pub fn decrypt(&self, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
 		let secret = self.crypto.secret(password)?;
 		crypto::ecies::decrypt(&secret, shared_mac, message).map_err(From::from)
 	}
 
+	/// Derive public key.
 	pub fn public(&self, password: &str) -> Result<Public, Error> {
 		let secret = self.crypto.secret(password)?;
 		Ok(KeyPair::from_secret(secret)?.public().clone())
 	}
 
+	/// Change account's password.
 	pub fn change_password(&self, old_password: &str, new_password: &str, iterations: u32) -> Result<Self, Error> {
 		let secret = self.crypto.secret(old_password)?;
 		let result = SafeAccount {
@@ -143,6 +156,7 @@ impl SafeAccount {
 		Ok(result)
 	}
 
+	/// Check if password matches the account.
 	pub fn check_password(&self, password: &str) -> bool {
 		self.crypto.secret(password).is_ok()
 	}

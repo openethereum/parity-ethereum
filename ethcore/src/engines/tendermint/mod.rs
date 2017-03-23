@@ -98,7 +98,7 @@ pub struct Tendermint {
 	/// Hash of the proposal parent block.
 	proposal_parent: RwLock<H256>,
 	/// Set used to determine the current validators.
-	validators: Box<ValidatorSet + Send + Sync>,
+	validators: Box<ValidatorSet>,
 }
 
 impl Tendermint {
