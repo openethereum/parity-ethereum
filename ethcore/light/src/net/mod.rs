@@ -309,11 +309,12 @@ impl LightProtocol {
 				}
 
 				// compute and deduct cost.
+				let pre_creds = creds.current();
 				let cost = params.compute_cost_multi(requests.requests());
 				creds.deduct_cost(cost)?;
 
 				trace!(target: "pip", "requesting from peer {}. Cost: {}; Available: {}",
-					peer_id, cost, creds.current());
+					peer_id, cost, pre_creds);
 
 				let req_id = ReqId(self.req_id.fetch_add(1, Ordering::SeqCst));
 				io.send(*peer_id, packet::REQUEST, {
