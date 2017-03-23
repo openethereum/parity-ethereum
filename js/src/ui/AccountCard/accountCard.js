@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { FormattedMessage } from 'react-intl';
 import ReactDOM from 'react-dom';
 import keycode from 'keycode';
 
@@ -34,7 +33,7 @@ export default class AccountCard extends Component {
     className: PropTypes.string,
     disableAddressClick: PropTypes.bool,
     onClick: PropTypes.func,
-    onFocus: PropTypes.func,
+    onFocus: PropTypes.func
   };
 
   static defaultProps = {

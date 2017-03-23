@@ -104,7 +104,8 @@ class ExportAccount extends Component {
         items={ accounts }
         noStretch
         onSelectClick={ this.onSelect }
-        renderItem={ this.renderAccount } />
+        renderItem={ this.renderAccount }
+      />
     );
   }
 
