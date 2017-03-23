@@ -244,7 +244,8 @@ pub enum CompleteRequest {
 }
 
 impl Request {
-	fn kind(&self) -> Kind {
+	/// Get the request kind.
+	pub fn kind(&self) -> Kind {
 		match *self {
 			Request::Headers(_) => Kind::Headers,
 			Request::HeaderProof(_) => Kind::HeaderProof,
@@ -727,7 +728,6 @@ pub mod header_proof {
 
 	impl Decodable for Response {
 		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-
 			Ok(Response {
 				proof: rlp.list_at(0)?,
 				hash: rlp.val_at(1)?,
@@ -825,7 +825,6 @@ pub mod block_receipts {
 
 	impl Decodable for Response {
 		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-
 			Ok(Response {
 				receipts: rlp.as_list()?,
 			})
@@ -922,8 +921,8 @@ pub mod block_body {
 			use ethcore::transaction::UnverifiedTransaction;
 
 			// check body validity.
-			let _: Vec<FullHeader> = rlp.list_at(0)?;
-			let _: Vec<UnverifiedTransaction> = rlp.list_at(1)?;
+			let _: Vec<UnverifiedTransaction> = rlp.list_at(0)?;
+			let _: Vec<FullHeader> = rlp.list_at(1)?;
 
 			Ok(Response {
 				body: encoded::Body::new(rlp.as_raw().to_owned()),
@@ -1480,9 +1479,16 @@ mod tests {
 	fn check_roundtrip<T>(val: T)
 		where T: ::rlp::Encodable + ::rlp::Decodable + PartialEq + ::std::fmt::Debug
 	{
+		// check as single value.
 		let bytes = ::rlp::encode(&val);
 		let new_val: T = ::rlp::decode(&bytes);
 		assert_eq!(val, new_val);
+
+		// check as list containing single value.
+		let list = [val];
+		let bytes = ::rlp::encode_list(&list);
+		let new_list: Vec<T> = ::rlp::decode_list(&bytes);
+		assert_eq!(&list, &new_list[..]);
 	}
 
 	#[test]
@@ -1566,6 +1572,7 @@ mod tests {
 
 	#[test]
 	fn body_roundtrip() {
+		use ethcore::transaction::{Transaction, UnverifiedTransaction};
 		let req = IncompleteBodyRequest {
 			hash: Field::Scalar(Default::default()),
 		};
@@ -1573,8 +1580,12 @@ mod tests {
 		let full_req = Request::Body(req.clone());
 		let res = BodyResponse {
 			body: {
+				let header = ::ethcore::header::Header::default();
+				let tx = UnverifiedTransaction::from(Transaction::default().fake_sign(Default::default()));
 				let mut stream = RlpStream::new_list(2);
-				stream.begin_list(0).begin_list(0);
+				stream.begin_list(2).append(&tx).append(&tx)
+					.begin_list(1).append(&header);
+
 				::ethcore::encoded::Body::new(stream.out())
 			},
 		};

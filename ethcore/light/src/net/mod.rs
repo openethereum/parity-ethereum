@@ -407,7 +407,7 @@ impl LightProtocol {
 		let req_id = ReqId(raw.val_at(0)?);
 		let cur_credits: U256 = raw.val_at(1)?;
 
-		trace!(target: "pip", "pre-verifying response from peer {}", peer);
+		trace!(target: "pip", "pre-verifying response for {} from peer {}", req_id, peer);
 
 		let peers = self.peers.read();
 		let res = match peers.get(peer) {

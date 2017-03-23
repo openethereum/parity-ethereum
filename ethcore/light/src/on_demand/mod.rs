@@ -37,7 +37,7 @@ use rlp::RlpStream;
 use util::{Bytes, RwLock, Mutex, U256, H256};
 use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
 
-use net::{Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
+use net::{self, Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
 use cache::Cache;
 use request::{self as basic_request, Request as NetworkRequest, Response as NetworkResponse};
 
@@ -303,17 +303,21 @@ impl OnDemand {
 
 		let complete = builder.build();
 
+		let kind = complete.requests()[0].kind();
 		for (id, peer) in self.peers.read().iter() {
 			if !peer.can_handle(&pending) { continue }
 			match ctx.request_from(*id, complete.clone()) {
 				Ok(req_id) => {
-					trace!(target: "on_demand", "Assigning request to peer {}", id);
+					trace!(target: "on_demand", "{}: Assigned {:?} to peer {}",
+						req_id, kind, id);
+
 					self.pending_requests.write().insert(
 						req_id,
 						pending,
 					);
 					return
 				}
+				Err(net::Error::NoCredits) => {}
 				Err(e) =>
 					trace!(target: "on_demand", "Failed to make request of peer {}: {:?}", id, e),
 			}

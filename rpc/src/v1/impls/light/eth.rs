@@ -166,7 +166,6 @@ impl EthClient {
 	fn proved_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<ExecutionResult, Error> {
 		const DEFAULT_GAS_PRICE: U256 = U256([0, 0, 0, 21_000_000]);
 
-
 		let (sync, on_demand, client) = (self.sync.clone(), self.on_demand.clone(), self.client.clone());
 		let req: CRequest = req.into();
 		let id = num.0.into();
