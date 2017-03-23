@@ -57,15 +57,15 @@ impl Peer {
 				self.capabilities.serve_headers && self.status.head_num > req.num(),
 			Pending::HeaderByHash(_, _) => self.capabilities.serve_headers,
 			Pending::Block(ref req, _) =>
-				self.capabilities.serve_chain_since.as_ref().map_or(false, |x| *x >= req.header.number()),
+				self.capabilities.serve_chain_since.as_ref().map_or(false, |x| *x <= req.header.number()),
 			Pending::BlockReceipts(ref req, _) =>
-				self.capabilities.serve_chain_since.as_ref().map_or(false, |x| *x >= req.0.number()),
+				self.capabilities.serve_chain_since.as_ref().map_or(false, |x| *x <= req.0.number()),
 			Pending::Account(ref req, _) =>
-				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= req.header.number()),
+				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x <= req.header.number()),
 			Pending::Code(ref req, _) =>
-				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= req.block_id.1),
+				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x <= req.block_id.1),
 			Pending::TxProof(ref req, _) =>
-				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= req.header.number()),
+				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x <= req.header.number()),
 		}
 	}
 }
