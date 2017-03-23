@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { action, observable } from 'mobx';
+import FileSaver from 'file-saver';
 
 export default class Store {
   @observable isDeleteVisible = false;
@@ -26,6 +27,13 @@ export default class Store {
   @observable isTransferVisible = false;
   @observable isVerificationVisible = false;
   @observable exportValue = '';
+
+  insertProps (api, accounts, address, newError) {
+    this._api = api;
+    this._accounts = accounts;
+    this._address = address;
+    this._newError = newError;
+  }
 
   @action editExportValue = (event, value) => {
     this.exportValue = value;
@@ -61,5 +69,28 @@ export default class Store {
 
   @action toggleVerificationDialog = () => {
     this.isVerificationVisible = !this.isVerificationVisible;
+  }
+
+  onExport = () => {
+    const { parity } = this._api;
+
+    parity.exportAccount(this._address, this.exportValue)
+      .then((content) => {
+        const text = JSON.stringify(content, null, 4);
+        const blob = new Blob([ text ], { type: 'application/json' });
+        const filename = this._accounts[this._address].uuid;
+
+        FileSaver.saveAs(blob, `${filename}.json`);
+        setTimeout(() => {
+          this.toggleExportDialog();
+        }, 500);
+      })
+      .catch((err) => {
+        const { passwordHint } = this._accounts[this._address].meta;
+
+        this._newError({
+          message: `[${err.code}] - Incorrect password. Password Hint: (${passwordHint})`
+        });
+      });
   }
 }

@@ -19,7 +19,6 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import FileSaver from 'file-saver';
 
 import { newError } from '~/redux/actions';
 import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
@@ -60,8 +59,12 @@ class Account extends Component {
   hwstore = HardwareStore.get(this.context.api);
 
   componentDidMount () {
+    const { accounts, newError, params } = this.props;
+    const { address } = params;
+
     this.props.fetchCertifiers();
     this.setVisibleAccounts();
+    this.store.insertProps(this.context.api, accounts, address, newError);
   }
 
   componentWillReceiveProps (nextProps) {
@@ -318,7 +321,7 @@ class Account extends Component {
   }
 
   renderExportDialog (account) {
-    const { editExportValue, exportValue, toggleExportDialog } = this.store;
+    const { editExportValue, exportValue, onExport, toggleExportDialog } = this.store;
 
     if (!this.store.isExportVisible) {
       return null;
@@ -334,7 +337,7 @@ class Account extends Component {
           disabledConfirm={ !exportValue.length }
           labelConfirm='Export'
           labelDeny='Cancel'
-          onConfirm={ this.onExport }
+          onConfirm={ onExport }
           onDeny={ toggleExportDialog }
           title={
             <FormattedMessage
@@ -356,13 +359,13 @@ class Account extends Component {
             hint={
               <FormattedMessage
                 id='export.account.password.hint'
-                defaultMessage='the password specified when creating this account'
+                defaultMessage='The password specified when creating this account'
               />
             }
             label={
               <FormattedMessage
                 id='export.account.password.label'
-                defaultMessage='account password'
+                defaultMessage='Account password'
               />
             }
             onChange={ editExportValue }
@@ -371,32 +374,6 @@ class Account extends Component {
         </ConfirmDialog>
       </Portal>
     );
-  }
-
-  onExport = () => {
-    const { parity } = this.context.api;
-    const { accounts, newError, params } = this.props;
-    const { address } = params;
-    const { exportValue, toggleExportDialog } = this.store;
-
-    parity.exportAccount(address, exportValue)
-      .then((content) => {
-        const text = JSON.stringify(content, null, 4);
-        const blob = new Blob([ text ], { type: 'application/json' });
-        const filename = accounts[address].uuid;
-
-        FileSaver.saveAs(blob, `${filename}.json`);
-        setTimeout(() => {
-          toggleExportDialog();
-        }, 500);
-      })
-      .catch((err) => {
-        const { passwordHint } = accounts[address].meta;
-
-        newError({
-          message: `[${err.code}] - Incorrect password. Password Hint: (${passwordHint})`
-        });
-      });
   }
 
   renderFaucetDialog () {
