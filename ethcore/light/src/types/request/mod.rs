@@ -738,12 +738,10 @@ pub mod header_proof {
 
 	impl Encodable for Response {
 		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(3).begin_list(self.proof.len());
-			for item in &self.proof {
-				s.append_list(&item);
-			}
-
-			s.append(&self.hash).append(&self.td);
+			s.begin_list(3)
+				.append_list::<Vec<u8>,_>(&self.proof[..])
+				.append(&self.hash)
+				.append(&self.td);
 		}
 	}
 }
@@ -1052,9 +1050,8 @@ pub mod account {
 
 	impl Decodable for Response {
 		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			let proof: Result<_, _> = rlp.at(0)?.iter().map(|x| x.as_list()).collect();
 			Ok(Response {
-				proof: proof?,
+				proof: rlp.list_at(0)?,
 				nonce: rlp.val_at(1)?,
 				balance: rlp.val_at(2)?,
 				code_hash: rlp.val_at(3)?,
@@ -1065,12 +1062,9 @@ pub mod account {
 
 	impl Encodable for Response {
 		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(5).begin_list(self.proof.len());
-			for item in &self.proof {
-				s.append_list(&item);
-			}
-
-			s.append(&self.nonce)
+			s.begin_list(5)
+				.append_list::<Vec<u8>,_>(&self.proof[..])
+				.append(&self.nonce)
 				.append(&self.balance)
 				.append(&self.code_hash)
 				.append(&self.storage_root);
@@ -1200,9 +1194,8 @@ pub mod storage {
 
 	impl Decodable for Response {
 		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			let proof: Result<_, _> = rlp.at(0)?.iter().map(|x| x.as_list()).collect();
 			Ok(Response {
-				proof: proof?,
+				proof: rlp.list_at(0)?,
 				value: rlp.val_at(1)?,
 			})
 		}
@@ -1210,11 +1203,9 @@ pub mod storage {
 
 	impl Encodable for Response {
 		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(2).begin_list(self.proof.len());
-			for item in &self.proof {
-				s.append_list(&item);
-			}
-			s.append(&self.value);
+			s.begin_list(2)
+				.append_list::<Vec<u8>,_>(&self.proof[..])
+				.append(&self.value);
 		}
 	}
 }
@@ -1543,7 +1534,7 @@ mod tests {
 
 		let full_req = Request::HeaderProof(req.clone());
 		let res = HeaderProofResponse {
-			proof: Vec::new(),
+			proof: vec![vec![1, 2, 3], vec![4, 5, 6]],
 			hash: Default::default(),
 			td: 100.into(),
 		};
