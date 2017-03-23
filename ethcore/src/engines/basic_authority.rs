@@ -104,14 +104,14 @@ impl Engine for BasicAuthority {
 	}
 
 	fn seals_internally(&self) -> Option<bool> {
-		Some(self.validators.contains(&self.signer.address()))
+		Some(self.signer.address() != Address::default())
 	}
 
 	/// Attempt to seal the block internally.
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
 		let header = block.header();
 		let author = header.author();
-		if self.validators.contains(author) {
+		if self.validators.contains(header.parent_hash(), author) {
 			// account should be pernamently unlocked, otherwise sealing will fail
 			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
 				return Seal::Regular(vec![::rlp::encode(&(&H520::from(signature) as &[u8])).to_vec()]);
@@ -133,20 +133,20 @@ impl Engine for BasicAuthority {
 		Ok(())
 	}
 
-	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
-		use rlp::{UntrustedRlp, View};
-
-		// check the signature is legit.
-		let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
-		let signer = public_to_address(&recover(&sig.into(), &header.bare_hash())?);
-		if !self.validators.contains(&signer) {
-			return Err(BlockError::InvalidSeal)?;
-		}
+	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		Ok(())
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
-		// we should not calculate difficulty for genesis blocks
+		use rlp::{UntrustedRlp, View};
+		// Check if the signature belongs to a validator, can depend on parent state.
+		let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
+		let signer = public_to_address(&recover(&sig.into(), &header.bare_hash())?);
+		if !self.validators.contains(header.parent_hash(), &signer) {
+			return Err(BlockError::InvalidSeal)?;
+		}
+
+		// Do not calculate difficulty for genesis blocks.
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
@@ -239,7 +239,7 @@ mod tests {
 		let mut header: Header = Header::default();
 		header.set_seal(vec![::rlp::encode(&H520::default()).to_vec()]);
 
-		let verify_result = engine.verify_block_unordered(&header, None);
+		let verify_result = engine.verify_block_family(&header, &Default::default(), None);
 		assert!(verify_result.is_err());
 	}
 
