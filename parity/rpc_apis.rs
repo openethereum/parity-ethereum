@@ -348,7 +348,6 @@ impl Dependencies for LightDependencies {
 
 					// TODO: filters.
 					add_signing_methods!(EthSigning, handler, self);
-
 				},
 				Api::Personal => {
 					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());

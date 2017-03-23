@@ -27,7 +27,7 @@ use util::hash::H256;
 use util::{DBValue, Mutex, RwLock, U256};
 use time::{Duration, SteadyTime};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -60,6 +60,9 @@ const TIMEOUT_INTERVAL_MS: u64 = 1000;
 
 const TICK_TIMEOUT: TimerToken = 1;
 const TICK_TIMEOUT_INTERVAL_MS: u64 = 5000;
+
+const PROPAGATE_TIMEOUT: TimerToken = 2;
+const PROPAGATE_TIMEOUT_INTERVAL_MS: u64 = 5000;
 
 // minimum interval between updates.
 const UPDATE_INTERVAL_MS: i64 = 5000;
@@ -132,6 +135,7 @@ pub struct Peer {
 	last_update: SteadyTime,
 	pending_requests: RequestSet,
 	failed_requests: Vec<ReqId>,
+	propagated_transactions: HashSet<H256>,
 }
 
 /// A light protocol event handler.
@@ -499,6 +503,47 @@ impl LightProtocol {
 		}
 	}
 
+	// propagate transactions to relay peers.
+	// if we aren't on the mainnet, we just propagate to all relay peers
+	fn propagate_transactions(&self, io: &IoContext) {
+		if self.capabilities.read().tx_relay { return }
+
+		let ready_transactions = self.provider.ready_transactions();
+		if ready_transactions.is_empty() { return }
+
+		trace!(target: "pip", "propagate transactions: {} ready", ready_transactions.len());
+
+		let all_transaction_hashes: HashSet<_> = ready_transactions.iter().map(|tx| tx.hash()).collect();
+		let mut buf = Vec::new();
+
+		let peers = self.peers.read();
+		for (peer_id, peer_info) in peers.iter() {
+			let mut peer_info = peer_info.lock();
+			if !peer_info.capabilities.tx_relay { continue }
+
+			let prop_filter = &mut peer_info.propagated_transactions;
+			*prop_filter = &*prop_filter & &all_transaction_hashes;
+
+			// fill the buffer with all non-propagated transactions.
+			let to_propagate = ready_transactions.iter()
+				.filter(|tx| prop_filter.insert(tx.hash()))
+				.map(|tx| &tx.transaction);
+
+			buf.extend(to_propagate);
+
+			// propagate to the given peer.
+			if buf.is_empty() { continue }
+			io.send(*peer_id, packet::SEND_TRANSACTIONS, {
+				let mut stream = RlpStream::new_list(buf.len());
+				for pending_tx in buf.drain(..) {
+					stream.append(pending_tx);
+				}
+
+				stream.out()
+			})
+		}
+	}
+
 	/// called when a peer connects.
 	pub fn on_connect(&self, peer: &PeerId, io: &IoContext) {
 		let proto_version = match io.protocol_version(*peer).ok_or(Error::WrongNetwork) {
@@ -613,6 +658,7 @@ impl LightProtocol {
 			last_update: pending.last_update,
 			pending_requests: RequestSet::default(),
 			failed_requests: Vec::new(),
+			propagated_transactions: HashSet::new(),
 		}));
 
 		for handler in &self.handlers {
@@ -797,6 +843,8 @@ impl NetworkProtocolHandler for LightProtocol {
 			.expect("Error registering sync timer.");
 		io.register_timer(TICK_TIMEOUT, TICK_TIMEOUT_INTERVAL_MS)
 			.expect("Error registering sync timer.");
+		io.register_timer(PROPAGATE_TIMEOUT, PROPAGATE_TIMEOUT_INTERVAL_MS)
+			.expect("Error registering sync timer.");
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
@@ -815,6 +863,7 @@ impl NetworkProtocolHandler for LightProtocol {
 		match timer {
 			TIMEOUT => self.timeout_check(io),
 			TICK_TIMEOUT => self.tick_handlers(io),
+			PROPAGATE_TIMEOUT => self.propagate_transactions(io),
 			_ => warn!(target: "pip", "received timeout on unknown token {}", timer),
 		}
 	}
