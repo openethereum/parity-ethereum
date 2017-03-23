@@ -517,8 +517,9 @@ mod tests {
 			parent_hash = header.hash();
 
 			let mut tx = db.transaction();
-			chain.insert(&mut tx, header).unwrap();
+			let pending = chain.insert(&mut tx, header).unwrap();
 			db.write(tx).unwrap();
+			chain.apply_pending(pending);
 
 			rolling_timestamp += 10;
 		}
@@ -548,8 +549,9 @@ mod tests {
 			parent_hash = header.hash();
 
 			let mut tx = db.transaction();
-			chain.insert(&mut tx, header).unwrap();
+			let pending = chain.insert(&mut tx, header).unwrap();
 			db.write(tx).unwrap();
+			chain.apply_pending(pending);
 
 			rolling_timestamp += 10;
 		}
@@ -566,8 +568,9 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				chain.insert(&mut tx, header).unwrap();
+				let pending = chain.insert(&mut tx, header).unwrap();
 				db.write(tx).unwrap();
+				chain.apply_pending(pending);
 
 				rolling_timestamp += 10;
 			}
@@ -589,8 +592,9 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				chain.insert(&mut tx, header).unwrap();
+				let pending = chain.insert(&mut tx, header).unwrap();
 				db.write(tx).unwrap();
+				chain.apply_pending(pending);
 
 				rolling_timestamp += 11;
 			}
@@ -640,8 +644,9 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				chain.insert(&mut tx, header).unwrap();
+				let pending = chain.insert(&mut tx, header).unwrap();
 				db.write(tx).unwrap();
+				chain.apply_pending(pending);
 
 				rolling_timestamp += 10;
 			}
@@ -676,8 +681,9 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				chain.insert(&mut tx, header).unwrap();
+				let pending = chain.insert(&mut tx, header).unwrap();
 				db.write(tx).unwrap();
+				chain.apply_pending(pending);
 
 				rolling_timestamp += 10;
 			}
@@ -692,8 +698,9 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				chain.insert(&mut tx, header).unwrap();
+				let pending = chain.insert(&mut tx, header).unwrap();
 				db.write(tx).unwrap();
+				chain.apply_pending(pending);
 
 				rolling_timestamp += 10;
 			}
