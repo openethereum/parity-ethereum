@@ -313,6 +313,20 @@ impl Dependencies for LightDependencies {
 			self.transaction_queue.clone(),
 		);
 
+		macro_rules! add_signing_methods {
+			($namespace:ident, $handler:expr, $deps:expr) => {
+				{
+					let deps = &$deps;
+					let dispatcher = dispatcher.clone();
+					if deps.signer_service.is_enabled() {
+						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, &deps.secret_store)))
+					} else {
+						$handler.extend_with($namespace::to_delegate(SigningUnsafeClient::new(&deps.secret_store, dispatcher)))
+					}
+				}
+			}
+		}
+
 		for api in apis {
 			match *api {
 				Api::Web3 => {
@@ -332,7 +346,9 @@ impl Dependencies for LightDependencies {
 					);
 					handler.extend_with(client.to_delegate());
 
-					// TODO: filters and signing methods.
+					// TODO: filters.
+					add_signing_methods!(EthSigning, handler, self);
+
 				},
 				Api::Personal => {
 					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
@@ -355,9 +371,8 @@ impl Dependencies for LightDependencies {
 						self.dapps_port,
 					).to_delegate());
 
-					// TODO
-					//add_signing_methods!(EthSigning, handler, self);
-					//add_signing_methods!(ParitySigning, handler, self);
+					add_signing_methods!(EthSigning, handler, self);
+					add_signing_methods!(ParitySigning, handler, self);
 				},
 				Api::ParityAccounts => {
 					handler.extend_with(ParityAccountsClient::new(&self.secret_store).to_delegate());
