@@ -22,7 +22,7 @@ use ethereum;
 use ethjson;
 
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
-	init_log();
+	::ethcore_logger::init_log();
 	let tests = ethjson::state::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 	let engine = match era {

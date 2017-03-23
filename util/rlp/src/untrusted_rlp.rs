@@ -17,9 +17,8 @@
 use std::cell::Cell;
 use std::fmt;
 use rustc_serialize::hex::ToHex;
-
-use bytes::{FromBytes, FromBytesResult, FromBytesError};
-use ::{View, Decoder, Decodable, DecoderError, RlpDecodable};
+use impls::decode_usize;
+use {Decodable, DecoderError};
 
 /// rlp offset
 #[derive(Copy, Clone, Debug)]
@@ -64,7 +63,7 @@ fn calculate_payload_info(header_bytes: &[u8], len_of_len: usize) -> Result<Payl
 		_ => (),
 	}
 	if header_bytes.len() < header_len { return Err(DecoderError::RlpIsTooShort); }
-	let value_len = usize::from_bytes(&header_bytes[1..header_len])?;
+	let value_len = decode_usize(&header_bytes[1..header_len])?;
 	Ok(PayloadInfo::new(header_len, value_len))
 }
 
@@ -141,15 +140,8 @@ impl<'a> fmt::Display for UntrustedRlp<'a> {
 	}
 }
 
-impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
-	type Prototype = Result<Prototype, DecoderError>;
-	type PayloadInfo = Result<PayloadInfo, DecoderError>;
-	type Data = Result<&'a [u8], DecoderError>;
-	type Item = Result<UntrustedRlp<'a>, DecoderError>;
-	type Iter = UntrustedRlpIterator<'a, 'view>;
-
-	//returns new instance of `UntrustedRlp`
-	fn new(bytes: &'a [u8]) -> UntrustedRlp<'a> {
+impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
+	pub fn new(bytes: &'a [u8]) -> UntrustedRlp<'a> {
 		UntrustedRlp {
 			bytes: bytes,
 			offset_cache: Cell::new(OffsetCache::new(usize::max_value(), 0)),
@@ -157,45 +149,45 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 		}
 	}
 
-	fn as_raw(&'view self) -> &'a [u8] {
+	pub fn as_raw(&'view self) -> &'a [u8] {
 		self.bytes
 	}
 
-	fn prototype(&self) -> Self::Prototype {
+	pub fn prototype(&self) -> Result<Prototype, DecoderError> {
 		// optimize? && return appropriate errors
 		if self.is_data() {
 			Ok(Prototype::Data(self.size()))
 		} else if self.is_list() {
-			Ok(Prototype::List(self.item_count()))
+			self.item_count().map(Prototype::List)
 		} else {
 			Ok(Prototype::Null)
 		}
 	}
 
-	fn payload_info(&self) -> Self::PayloadInfo {
+	pub fn payload_info(&self) -> Result<PayloadInfo, DecoderError> {
 		BasicDecoder::payload_info(self.bytes)
 	}
 
-	fn data(&'view self) -> Self::Data {
+	pub fn data(&'view self) -> Result<&'a [u8], DecoderError> {
 		let pi = BasicDecoder::payload_info(self.bytes)?;
 		Ok(&self.bytes[pi.header_len..(pi.header_len + pi.value_len)])
 	}
 
-	fn item_count(&self) -> usize {
+	pub fn item_count(&self) -> Result<usize, DecoderError> {
 		match self.is_list() {
 			true => match self.count_cache.get() {
-				Some(c) => c,
+				Some(c) => Ok(c),
 				None => {
 					let c = self.iter().count();
 					self.count_cache.set(Some(c));
-					c
+					Ok(c)
 				}
 			},
-			false => 0
+			false => Err(DecoderError::RlpExpectedToBeList),
 		}
 	}
 
-	fn size(&self) -> usize {
+	pub fn size(&self) -> usize {
 		match self.is_data() {
 			// TODO: No panic on malformed data, but ideally would Err on no PayloadInfo.
 			true => BasicDecoder::payload_info(self.bytes).map(|b| b.value_len).unwrap_or(0),
@@ -203,7 +195,7 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 		}
 	}
 
-	fn at(&'view self, index: usize) -> Self::Item {
+	pub fn at(&'view self, index: usize) -> Result<UntrustedRlp<'a>, DecoderError> {
 		if !self.is_list() {
 			return Err(DecoderError::RlpExpectedToBeList);
 		}
@@ -213,7 +205,7 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 		let c = self.offset_cache.get();
 		let (mut bytes, to_skip) = match c.index <= index {
 			true => (UntrustedRlp::consume(self.bytes, c.offset)?, index - c.index),
-			false => (self.consume_list_prefix()?, index),
+			false => (self.consume_list_payload()?, index),
 		};
 
 		// skip up to x items
@@ -227,23 +219,23 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 		Ok(UntrustedRlp::new(&bytes[0..found.header_len + found.value_len]))
 	}
 
-	fn is_null(&self) -> bool {
+	pub fn is_null(&self) -> bool {
 		self.bytes.len() == 0
 	}
 
-	fn is_empty(&self) -> bool {
+	pub fn is_empty(&self) -> bool {
 		!self.is_null() && (self.bytes[0] == 0xc0 || self.bytes[0] == 0x80)
 	}
 
-	fn is_list(&self) -> bool {
+	pub fn is_list(&self) -> bool {
 		!self.is_null() && self.bytes[0] >= 0xc0
 	}
 
-	fn is_data(&self) -> bool {
+	pub fn is_data(&self) -> bool {
 		!self.is_null() && self.bytes[0] < 0xc0
 	}
 
-	fn is_int(&self) -> bool {
+	pub fn is_int(&self) -> bool {
 		if self.is_null() {
 			return false;
 		}
@@ -256,23 +248,32 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 		}
 	}
 
-	fn iter(&'view self) -> Self::Iter {
+	pub fn iter(&'view self) -> UntrustedRlpIterator<'a, 'view> {
 		self.into_iter()
 	}
 
-	fn as_val<T>(&self) -> Result<T, DecoderError> where T: RlpDecodable {
-		// optimize, so it doesn't use clone (although This clone is cheap)
-		T::decode(&BasicDecoder::new(self.clone()))
+	pub fn as_val<T>(&self) -> Result<T, DecoderError> where T: Decodable {
+		T::decode(self)
 	}
 
-	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: RlpDecodable {
+	pub fn as_list<T>(&self) -> Result<Vec<T>, DecoderError> where T: Decodable {
+		self.iter().map(|rlp| rlp.as_val()).collect()
+	}
+
+	pub fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: Decodable {
 		self.at(index)?.as_val()
 	}
-}
 
-impl<'a> UntrustedRlp<'a> {
+	pub fn list_at<T>(&self, index: usize) -> Result<Vec<T>, DecoderError> where T: Decodable {
+		self.at(index)?.as_list()
+	}
+
+	pub fn decoder(&self) -> BasicDecoder {
+		BasicDecoder::new(self.clone())
+	}
+
 	/// consumes first found prefix
-	fn consume_list_prefix(&self) -> Result<&'a [u8], DecoderError> {
+	fn consume_list_payload(&self) -> Result<&'a [u8], DecoderError> {
 		let item = BasicDecoder::payload_info(self.bytes)?;
 		let bytes = UntrustedRlp::consume(self.bytes, item.header_len)?;
 		Ok(bytes)
@@ -327,7 +328,7 @@ impl<'a, 'view> Iterator for UntrustedRlpIterator<'a, 'view> {
 	}
 }
 
-struct BasicDecoder<'a> {
+pub struct BasicDecoder<'a> {
 	rlp: UntrustedRlp<'a>
 }
 
@@ -346,10 +347,8 @@ impl<'a> BasicDecoder<'a> {
 			_ => Err(DecoderError::RlpIsTooShort),
 		}
 	}
-}
 
-impl<'a> Decoder for BasicDecoder<'a> {
-	fn read_value<T, F>(&self, f: &F) -> Result<T, DecoderError>
+	pub fn decode_value<T, F>(&self, f: F) -> Result<T, DecoderError>
 		where F: Fn(&[u8]) -> Result<T, DecoderError> {
 
 		let bytes = self.rlp.as_raw();
@@ -378,7 +377,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 				if bytes.len() < begin_of_value {
 					return Err(DecoderError::RlpInconsistentLengthAndData);
 				}
-				let len = usize::from_bytes(&bytes[1..begin_of_value])?;
+				let len = decode_usize(&bytes[1..begin_of_value])?;
 
 				let last_index_of_value = begin_of_value + len;
 				if bytes.len() < last_index_of_value {
@@ -390,108 +389,12 @@ impl<'a> Decoder for BasicDecoder<'a> {
 			_ => Err(DecoderError::RlpExpectedToBeData)
 		}
 	}
-
-	fn as_raw(&self) -> &[u8] {
-		self.rlp.as_raw()
-	}
-
-	fn as_rlp(&self) -> &UntrustedRlp {
-		&self.rlp
-	}
-}
-
-impl<T> Decodable for T where T: FromBytes {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		decoder.read_value(&|bytes: &[u8]| Ok(T::from_bytes(bytes)?))
-	}
-}
-
-impl<T> Decodable for Vec<T> where T: Decodable {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		decoder.as_rlp().iter().map(|d| T::decode(&BasicDecoder::new(d))).collect()
-	}
-}
-
-impl<T> Decodable for Option<T> where T: Decodable {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		decoder.as_rlp().iter().map(|d| T::decode(&BasicDecoder::new(d))).collect::<Result<Vec<_>, DecoderError>>().map(|mut a| a.pop())
-	}
-}
-
-impl Decodable for Vec<u8> {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		decoder.read_value(&|bytes: &[u8]| Ok(bytes.to_vec()))
-	}
-}
-
-macro_rules! impl_array_decodable {
-	($index_type:ty, $len:expr ) => (
-		impl<T> Decodable for [T; $len] where T: Decodable {
-			fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-				let decoders = decoder.as_rlp();
-
-				let mut result: [T; $len] = unsafe { ::std::mem::uninitialized() };
-				if decoders.item_count() != $len {
-					return Err(DecoderError::RlpIncorrectListLen);
-				}
-
-				for i in 0..decoders.item_count() {
-					result[i] = T::decode(&BasicDecoder::new(decoders.at(i)?))?;
-				}
-
-				Ok(result)
-			}
-		}
-	)
-}
-
-macro_rules! impl_array_decodable_recursive {
-	($index_type:ty, ) => ();
-	($index_type:ty, $len:expr, $($more:expr,)*) => (
-		impl_array_decodable!($index_type, $len);
-		impl_array_decodable_recursive!($index_type, $($more,)*);
-	);
-}
-
-impl_array_decodable_recursive!(
-	u8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-	16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-	32, 40, 48, 56, 64, 72, 96, 128, 160, 192, 224,
-);
-
-impl<T> RlpDecodable for T where T: Decodable {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		Decodable::decode(decoder)
-	}
-}
-
-struct DecodableU8 (u8);
-
-impl FromBytes for DecodableU8 {
-	fn from_bytes(bytes: &[u8]) -> FromBytesResult<DecodableU8> {
-		match bytes.len() {
-			0 => Ok(DecodableU8(0u8)),
-			1 => {
-				if bytes[0] == 0 {
-					return Err(FromBytesError::ZeroPrefixedInt)
-				}
-				Ok(DecodableU8(bytes[0]))
-			}
-			_ => Err(FromBytesError::DataIsTooLong)
-		}
-	}
-}
-
-impl RlpDecodable for u8 {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let u: DecodableU8 = Decodable::decode(decoder)?;
-		Ok(u.0)
-	}
 }
 
 #[cfg(test)]
 mod tests {
-	use ::{UntrustedRlp, View};
+	use UntrustedRlp;
+
 	#[test]
 	fn test_rlp_display() {
 		use rustc_serialize::hex::FromHex;

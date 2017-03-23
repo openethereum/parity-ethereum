@@ -8,33 +8,36 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
-rand = "0.3"
-log = "0.3"
+base32 = "0.3"
 env_logger = "0.3"
 futures = "0.1"
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
-jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
-hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
-unicase = "1.3"
-url = "1.0"
-rustc-serialize = "0.3"
-serde = "0.9"
-serde_json = "0.9"
-serde_derive = "0.9"
 linked-hash-map = "0.3"
+log = "0.3"
 parity-dapps-glue = "1.7"
-base32 = "0.3"
 mime = "0.2"
 mime_guess = "1.6.1"
+rand = "0.3"
+rustc-serialize = "0.3"
+serde = "0.9"
+serde_derive = "0.9"
+serde_json = "0.9"
 time = "0.1.35"
+unicase = "1.3"
+url = "1.0"
 zip = { version = "0.1", default-features = false }
+
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+# TODO [ToDr] Temporary solution, server should be merged with RPC.
+jsonrpc-server-utils = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+
 ethcore-devtools = { path = "../devtools" }
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
 fetch = { path = "../util/fetch" }
-parity-ui = { path = "./ui" }
 parity-hash-fetch = { path = "../hash-fetch" }
 parity-reactor = { path = "../util/reactor" }
+parity-ui = { path = "./ui" }
 
 clippy = { version = "0.0.103", optional = true}
 

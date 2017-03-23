@@ -19,6 +19,7 @@
 mod simple_list;
 mod safe_contract;
 mod contract;
+mod multi;
 
 use std::sync::Weak;
 use util::{Address, H256};
@@ -27,23 +28,27 @@ use client::Client;
 use self::simple_list::SimpleList;
 use self::contract::ValidatorContract;
 use self::safe_contract::ValidatorSafeContract;
+use self::multi::Multi;
 
 /// Creates a validator set from spec.
-pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet + Send + Sync> {
+pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet> {
 	match spec {
 		ValidatorSpec::List(list) => Box::new(SimpleList::new(list.into_iter().map(Into::into).collect())),
 		ValidatorSpec::SafeContract(address) => Box::new(ValidatorSafeContract::new(address.into())),
 		ValidatorSpec::Contract(address) => Box::new(ValidatorContract::new(address.into())),
+		ValidatorSpec::Multi(sequence) => Box::new(
+			Multi::new(sequence.into_iter().map(|(block, set)| (block.into(), new_validator_set(set))).collect())
+		),
 	}
 }
 
-pub trait ValidatorSet {
+pub trait ValidatorSet: Send + Sync {
 	/// Checks if a given address is a validator.
-	fn contains(&self, bh: &H256, address: &Address) -> bool;
+	fn contains(&self, parent_block_hash: &H256, address: &Address) -> bool;
 	/// Draws an validator nonce modulo number of validators.
-	fn get(&self, bh: &H256, nonce: usize) -> Address;
+	fn get(&self, parent_block_hash: &H256, nonce: usize) -> Address;
 	/// Returns the current number of validators.
-	fn count(&self, bh: &H256) -> usize;
+	fn count(&self, parent_block_hash: &H256) -> usize;
 	/// Notifies about malicious behaviour.
 	fn report_malicious(&self, _validator: &Address) {}
 	/// Notifies about benign misbehaviour.

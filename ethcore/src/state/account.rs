@@ -438,18 +438,19 @@ impl Account {
 	/// trie.
 	/// `storage_key` is the hash of the desired storage key, meaning
 	/// this will only work correctly under a secure trie.
-	/// Returns a merkle proof of the storage trie node with all nodes before `from_level`
-	/// omitted.
-	pub fn prove_storage(&self, db: &HashDB, storage_key: H256, from_level: u32) -> Result<Vec<Bytes>, Box<TrieError>> {
+	pub fn prove_storage(&self, db: &HashDB, storage_key: H256) -> Result<(Vec<Bytes>, H256), Box<TrieError>> {
 		use util::trie::{Trie, TrieDB};
 		use util::trie::recorder::Recorder;
 
-		let mut recorder = Recorder::with_depth(from_level);
+		let mut recorder = Recorder::new();
 
 		let trie = TrieDB::new(db, &self.storage_root)?;
-		let _ = trie.get_with(&storage_key, &mut recorder)?;
+		let item: U256 = {
+			let query = (&mut recorder, ::rlp::decode);
+			trie.get_with(&storage_key, query)?.unwrap_or_else(U256::zero)
+		};
 
-		Ok(recorder.drain().into_iter().map(|r| r.data).collect())
+		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), item.into()))
 	}
 }
 
@@ -461,7 +462,7 @@ impl fmt::Debug for Account {
 
 #[cfg(test)]
 mod tests {
-	use rlp::{UntrustedRlp, RlpType, View, Compressible};
+	use rlp::{UntrustedRlp, RlpType, Compressible};
 	use util::*;
 	use super::*;
 	use account_db::*;

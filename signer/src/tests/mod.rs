@@ -22,7 +22,7 @@ use devtools::RandomTempPath;
 
 use rpc::ConfirmationsQueue;
 use jsonrpc_core::IoHandler;
-use jsonrpc_core::reactor::RpcEventLoop;
+use jsonrpc_server_utils::reactor::RpcEventLoop;
 use rand;
 
 use ServerBuilder;
@@ -70,9 +70,10 @@ pub fn serve() -> (ServerLoop, usize, GuardedAuthCodes) {
 	let queue = Arc::new(ConfirmationsQueue::default());
 	let builder = ServerBuilder::new(queue, path.to_path_buf());
 	let port = 35000 + rand::random::<usize>() % 10000;
-	let event_loop = RpcEventLoop::spawn();
-	let handler = event_loop.handler(Arc::new(IoHandler::default().into()));
-	let server = builder.start(format!("127.0.0.1:{}", port).parse().unwrap(), handler).unwrap();
+	let event_loop = RpcEventLoop::spawn().unwrap();
+	let io = IoHandler::default();
+	let remote = event_loop.remote();
+	let server = builder.start(format!("127.0.0.1:{}", port).parse().unwrap(), io, remote).unwrap();
 	let res = ServerLoop {
 		server: server,
 		event_loop: event_loop,

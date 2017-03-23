@@ -25,18 +25,21 @@ use ethkey::{self, Signature, Address, Message, Secret, Public, KeyPair, Extende
 use dir::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
 use account::SafeAccount;
 use presale::PresaleWallet;
-use json::{self, Uuid};
+use json::{self, Uuid, OpaqueKeyFile};
 use {import, Error, SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation};
 
+/// Accounts store.
 pub struct EthStore {
 	store: EthMultiStore,
 }
 
 impl EthStore {
+	/// Open a new accounts store with given key directory backend.
 	pub fn open(directory: Box<KeyDirectory>) -> Result<Self, Error> {
 		Self::open_with_iterations(directory, KEY_ITERATIONS as u32)
 	}
 
+	/// Open a new account store with given key directory backend and custom number of iterations.
 	pub fn open_with_iterations(directory: Box<KeyDirectory>, iterations: u32) -> Result<Self, Error> {
 		Ok(EthStore {
 			store: EthMultiStore::open_with_iterations(directory, iterations)?,
@@ -44,7 +47,7 @@ impl EthStore {
 	}
 
 	fn get(&self, account: &StoreAccountRef) -> Result<SafeAccount, Error> {
-		let mut accounts = self.store.get(account)?.into_iter();
+		let mut accounts = self.store.get_accounts(account)?.into_iter();
 		accounts.next().ok_or(Error::InvalidAccount)
 	}
 }
@@ -74,6 +77,10 @@ impl SimpleSecretStore for EthStore {
 
 	fn change_password(&self, account: &StoreAccountRef, old_password: &str, new_password: &str) -> Result<(), Error> {
 		self.store.change_password(account, old_password, new_password)
+	}
+
+	fn export_account(&self, account: &StoreAccountRef, password: &str) -> Result<OpaqueKeyFile, Error> {
+		self.store.export_account(account, password)
 	}
 
 	fn remove_account(&self, account: &StoreAccountRef, password: &str) -> Result<(), Error> {
@@ -234,11 +241,12 @@ pub struct EthMultiStore {
 }
 
 impl EthMultiStore {
-
+	/// Open new multi-accounts store with given key directory backend.
 	pub fn open(directory: Box<KeyDirectory>) -> Result<Self, Error> {
 		Self::open_with_iterations(directory, KEY_ITERATIONS as u32)
 	}
 
+	/// Open new multi-accounts store with given key directory backend and custom number of iterations for new keys.
 	pub fn open_with_iterations(directory: Box<KeyDirectory>, iterations: u32) -> Result<Self, Error> {
 		let store = EthMultiStore {
 			dir: directory,
@@ -259,7 +267,7 @@ impl EthMultiStore {
 		}
 		self.reload_accounts()?;
 		*last_dir_hash = dir_hash;
-		Ok(()) 
+		Ok(())
 	}
 
 	fn reload_accounts(&self) -> Result<(), Error> {
@@ -287,7 +295,7 @@ impl EthMultiStore {
 		Ok(())
 	}
 
-	fn get(&self, account: &StoreAccountRef) -> Result<Vec<SafeAccount>, Error> {
+	fn get_accounts(&self, account: &StoreAccountRef) -> Result<Vec<SafeAccount>, Error> {
 		{
 			let cache = self.cache.read();
 			if let Some(accounts) = cache.get(account) {
@@ -305,6 +313,15 @@ impl EthMultiStore {
 		} else {
 			Ok(accounts.clone())
 		}
+	}
+
+	fn get_matching(&self, account: &StoreAccountRef, password: &str) -> Result<Vec<SafeAccount>, Error> {
+		let accounts = self.get_accounts(account)?;
+
+		Ok(accounts.into_iter()
+			.filter(|acc| acc.check_password(password))
+			.collect()
+		)
 	}
 
 	fn import(&self, vault: SecretVaultRef, account: SafeAccount) -> Result<StoreAccountRef, Error> {
@@ -398,12 +415,8 @@ impl SimpleSecretStore for EthMultiStore {
 	fn insert_derived(&self, vault: SecretVaultRef, account_ref: &StoreAccountRef, password: &str, derivation: Derivation)
 		-> Result<StoreAccountRef, Error>
 	{
-		let accounts = self.get(account_ref)?;
+		let accounts = self.get_matching(account_ref, password)?;
 		for account in accounts {
-			// Skip if password is invalid
-			if !account.check_password(password) {
-				continue;
-			}
 			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
 			return self.insert_account(vault, extended.secret().as_raw().clone(), password);
 		}
@@ -413,14 +426,9 @@ impl SimpleSecretStore for EthMultiStore {
 	fn generate_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation)
 	    -> Result<Address, Error>
 	{
-		let accounts = self.get(&account_ref)?;
+		let accounts = self.get_matching(&account_ref, password)?;
 		for account in accounts {
-			// Skip if password is invalid
-			if !account.check_password(password) {
-				continue;
-			}
 			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
-
 			return Ok(ethkey::public_to_address(extended.public().public()));
 		}
 		Err(Error::InvalidPassword)
@@ -429,18 +437,13 @@ impl SimpleSecretStore for EthMultiStore {
 	fn sign_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation, message: &Message)
 		-> Result<Signature, Error>
 	{
-		let accounts = self.get(&account_ref)?;
+		let accounts = self.get_matching(&account_ref, password)?;
 		for account in accounts {
-			// Skip if password is invalid
-			if !account.check_password(password) {
-				continue;
-			}
 			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
 			let secret = extended.secret().as_raw();
 			return Ok(ethkey::sign(&secret, message)?)
 		}
 		Err(Error::InvalidPassword)
-
 	}
 
 	fn account_ref(&self, address: &Address) -> Result<StoreAccountRef, Error> {
@@ -457,47 +460,47 @@ impl SimpleSecretStore for EthMultiStore {
 	}
 
 	fn remove_account(&self, account_ref: &StoreAccountRef, password: &str) -> Result<(), Error> {
-		let accounts = self.get(account_ref)?;
+		let accounts = self.get_matching(account_ref, password)?;
 
 		for account in accounts {
-			// Skip if password is invalid
-			if !account.check_password(password) {
-				continue;
-			}
-
 			return self.remove_safe_account(account_ref, &account);
 		}
+
 		Err(Error::InvalidPassword)
 	}
 
 	fn change_password(&self, account_ref: &StoreAccountRef, old_password: &str, new_password: &str) -> Result<(), Error> {
-		let accounts = self.get(account_ref)?;
+		let accounts = self.get_matching(account_ref, old_password)?;
+
+		if accounts.is_empty() {
+			return Err(Error::InvalidPassword);
+		}
 
 		for account in accounts {
 			// Change password
 			let new_account = account.change_password(old_password, new_password, self.iterations)?;
 			self.update(account_ref, account, new_account)?;
 		}
+
 		Ok(())
 	}
 
-	fn sign(&self, account: &StoreAccountRef, password: &str, message: &Message) -> Result<Signature, Error> {
-		let accounts = self.get(account)?;
-		for account in accounts {
-			if account.check_password(password) {
-				return account.sign(password, message);
-			}
-		}
+	fn export_account(&self, account_ref: &StoreAccountRef, password: &str) -> Result<OpaqueKeyFile, Error> {
+		self.get_matching(account_ref, password)?.into_iter().nth(0).map(Into::into).ok_or(Error::InvalidPassword)
+	}
 
+	fn sign(&self, account: &StoreAccountRef, password: &str, message: &Message) -> Result<Signature, Error> {
+		let accounts = self.get_matching(account, password)?;
+		for account in accounts {
+			return account.sign(password, message);
+		}
 		Err(Error::InvalidPassword)
 	}
 
 	fn decrypt(&self, account: &StoreAccountRef, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
-		let accounts = self.get(account)?;
+		let accounts = self.get_matching(account, password)?;
 		for account in accounts {
-			if account.check_password(password) {
-				return account.decrypt(password, shared_mac, message);
-			}
+			return account.decrypt(password, shared_mac, message);
 		}
 		Err(Error::InvalidPassword)
 	}
@@ -586,7 +589,7 @@ impl SimpleSecretStore for EthMultiStore {
 			return Ok(account_ref);
 		}
 
-		let account = self.get(&account_ref)?.into_iter().nth(0).ok_or(Error::InvalidAccount)?;
+		let account = self.get_accounts(&account_ref)?.into_iter().nth(0).ok_or(Error::InvalidAccount)?;
 		let new_account_ref = self.import(vault, account.clone())?;
 		self.remove_safe_account(&account_ref, &account)?;
 		self.reload_accounts()?;
@@ -1031,5 +1034,19 @@ mod tests {
 
 		// then
 		assert_eq!(store.get_vault_meta(name).unwrap(), "OldMeta".to_owned());
+	}
+
+	#[test]
+	fn should_export_account() {
+		// given
+		let store = store();
+		let keypair = keypair();
+		let address = store.insert_account(SecretVaultRef::Root, keypair.secret().clone(), "test").unwrap();
+
+		// when
+		let exported = store.export_account(&address, "test");
+
+		// then
+		assert!(exported.is_ok(), "Should export single account: {:?}", exported);
 	}
 }

@@ -53,8 +53,8 @@ impl ManifestData {
 	pub fn from_rlp(raw: &[u8]) -> Result<Self, DecoderError> {
 		let decoder = UntrustedRlp::new(raw);
 
-		let state_hashes: Vec<H256> = decoder.val_at(0)?;
-		let block_hashes: Vec<H256> = decoder.val_at(1)?;
+		let state_hashes: Vec<H256> = decoder.list_at(0)?;
+		let block_hashes: Vec<H256> = decoder.list_at(1)?;
 		let state_root: H256 = decoder.val_at(2)?;
 		let block_number: u64 = decoder.val_at(3)?;
 		let block_hash: H256 = decoder.val_at(4)?;

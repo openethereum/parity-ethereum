@@ -16,7 +16,7 @@
 
 //! View onto transaction rlp
 use util::{U256, Bytes, Hashable, H256};
-use rlp::{Rlp, View};
+use rlp::Rlp;
 
 /// View onto transaction rlp.
 pub struct TransactionView<'a> {

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { bytesToHex, hexToBytes, hexToAscii, bytesToAscii, asciiToHex } from './format';
+import { bytesToHex, cleanupValue, hexToBytes, hexToAscii, bytesToAscii, asciiToHex } from './format';
 
 describe('api/util/format', () => {
   describe('bytesToHex', () => {
@@ -24,6 +24,28 @@ describe('api/util/format', () => {
 
     it('correctly converts a non-empty array', () => {
       expect(bytesToHex([0, 15, 16])).to.equal('0x000f10');
+    });
+  });
+
+  describe('cleanupValue', () => {
+    it('returns unknown values as the original', () => {
+      expect(cleanupValue('original', 'unknown')).to.equal('original');
+    });
+
+    it('returns ascii arrays as ascii', () => {
+      expect(cleanupValue([97, 115, 99, 105, 105, 0], 'bytes32')).to.equal('ascii');
+    });
+
+    it('returns non-ascii arrays as hex strings', () => {
+      expect(cleanupValue([97, 200, 0, 0], 'bytes4')).to.equal('0x61c80000');
+    });
+
+    it('returns uint (>48) as the original', () => {
+      expect(cleanupValue('original', 'uint49')).to.equal('original');
+    });
+
+    it('returns uint (<=48) as the number value', () => {
+      expect(cleanupValue('12345', 'uint48')).to.equal(12345);
     });
   });
 
