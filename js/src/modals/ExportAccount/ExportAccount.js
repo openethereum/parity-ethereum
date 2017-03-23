@@ -23,10 +23,9 @@ import { bindActionCreators } from 'redux';
 import { newError } from '~/redux/actions';
 import { personalAccountsInfo } from '~/redux/providers/personalActions';
 import { AccountCard, Button, Portal, SelectionList } from '~/ui';
+import { Input } from '~/ui/Form';
 import { CancelIcon, CheckIcon } from '~/ui/Icons';
 import ExportStore from './ExportStore';
-
-import FileSaver from 'file-saver';
 
 @observer
 class ExportAccount extends Component {
@@ -42,8 +41,14 @@ class ExportAccount extends Component {
     onClose: PropTypes.func.isRequired
   };
 
+  componentWillMount () {
+    const { accounts, newError } = this.props;
+
+    ExportStore.insertProps(this.context.api, accounts, newError);
+  }
+
   render () {
-    const { canExport } = ExportStore;
+    const { canExport, onExport } = ExportStore;
 
     return (
       <Portal
@@ -69,7 +74,7 @@ class ExportAccount extends Component {
                 defaultMessage='Export'
               />
             }
-            onClick={ this.onExport }
+            onClick={ onExport }
           />
         ] }
         onClose={ this.onClose }
@@ -99,22 +104,42 @@ class ExportAccount extends Component {
         items={ accounts }
         noStretch
         onSelectClick={ this.onSelect }
-        renderItem={ this.renderAccount }
-      />
+        renderItem={ this.renderAccount } />
     );
   }
 
   renderAccount = (account) => {
     const { balances } = this.props;
     const balance = balances[account.address];
+    const { changePassword, getPassword } = ExportStore;
+    const inputValue = getPassword(account);
 
     return (
       <AccountCard
         account={ account }
         balance={ balance }
-        showPassword
-        store={ ExportStore }
-      />
+      >
+        <div>
+          <Input
+            type='password'
+            name='passwordHere'
+            label={
+              <FormattedMessage
+                id='export.setPassword.label'
+                defaultMessage='Password'
+              />
+            }
+            hint={
+              <FormattedMessage
+                id='export.setPassword.hint'
+                defaultMessage='Enter Password Here'
+              />
+            }
+            value={ inputValue }
+            onChange={ changePassword }
+          />
+        </div>
+      </AccountCard>
     );
   }
 
@@ -130,39 +155,6 @@ class ExportAccount extends Component {
 
   onClose = () => {
     this.props.onClose();
-  }
-
-  onExport = () => {
-    const { selectedAccounts, inputValue } = ExportStore;
-
-    Object
-      .keys(selectedAccounts)
-      .forEach((account) => {
-        if (selectedAccounts[account]) {
-          this.exportAddress(account, inputValue[account]);
-        }
-      });
-  }
-
-  exportAddress (account, password) {
-    const { parity } = this.context.api;
-    const { accounts, newError } = this.props;
-
-    parity.exportAccount(account, password)
-      .then((content) => {
-        const text = JSON.stringify(content, null, 4);
-        const blob = new Blob([ text ], { type: 'application/json' });
-        const filename = accounts[account].uuid;
-
-        FileSaver.saveAs(blob, `${filename}.json`);
-      })
-      .catch((err) => {
-        const { passwordHint } = accounts[account].meta;
-
-        newError({
-          message: `[${err.code}] - Incorrect password. Password Hint: (${passwordHint})`
-        });
-      });
   }
 }
 

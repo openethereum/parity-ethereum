@@ -23,20 +23,18 @@ import Balance from '~/ui/Balance';
 import IdentityIcon from '~/ui/IdentityIcon';
 import IdentityName from '~/ui/IdentityName';
 import Tags from '~/ui/Tags';
-import Input from '~/ui/Form/Input';
 
 import styles from './accountCard.css';
 
 export default class AccountCard extends Component {
   static propTypes = {
+    children: PropTypes.node.isRequired,
     account: PropTypes.object.isRequired,
     balance: PropTypes.object,
     className: PropTypes.string,
     disableAddressClick: PropTypes.bool,
     onClick: PropTypes.func,
     onFocus: PropTypes.func,
-    showPassword: PropTypes.bool,
-    store: PropTypes.object
   };
 
   static defaultProps = {
@@ -49,7 +47,7 @@ export default class AccountCard extends Component {
   };
 
   render () {
-    const { account, balance, className, onFocus, showPassword } = this.props;
+    const { account, balance, className, onFocus, children } = this.props;
     const { copied } = this.state;
     const { address, description, meta = {}, name } = account;
     const { tags = [] } = meta;
@@ -93,7 +91,7 @@ export default class AccountCard extends Component {
             className={ styles.balance }
             showOnlyEth
           />
-          { (showPassword) ? this.renderPassword() : null }
+          { children }
         </div>
 
         {
@@ -140,42 +138,6 @@ export default class AccountCard extends Component {
         </span>
       </div>
     );
-  }
-
-  renderPassword () {
-    const { account, store } = this.props;
-    const { getPassword } = store;
-    const inputValue = getPassword(account);
-
-    return (
-      <div>
-        <Input
-          type='password'
-          name='passwordHere'
-          label={
-            <FormattedMessage
-              id='accountCard.setPassword.label'
-              defaultMessage='Password'
-            />
-          }
-          hint={
-            <FormattedMessage
-              id='accountCard.setPassword.hint'
-              defaultMessage='Enter Password Here'
-            />
-          }
-          value={ inputValue }
-          onChange={ this.changePassword }
-        />
-      </div>
-    );
-  }
-
-  changePassword = (event, password) => {
-    const { account, store } = this.props;
-    const { setPassword } = store;
-
-    setPassword(account, password);
   }
 
   handleAddressClick = (event) => {

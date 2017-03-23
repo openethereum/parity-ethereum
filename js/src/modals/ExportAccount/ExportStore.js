@@ -15,11 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { action, observable } from 'mobx';
+import FileSaver from 'file-saver';
 
 class ExportStore {
   @observable canExport = false;
   @observable selectedAccounts = {};
   @observable inputValue = {};
+
+  insertProps (api, accounts, newError) {
+    this._api = api;
+    this._accounts = accounts;
+    this._newError = newError;
+  }
 
   @action toggleSelectedAccount = (addr) => {
     this.selectedAccounts[addr] = true;
@@ -41,7 +48,41 @@ class ExportStore {
   }
 
   @action setPassword = (account, password) => {
-    this.inputValue[account.address] = password;
+    this.inputValue[account] = password;
+  }
+
+  @action changePassword = (event, password) => {
+    const selectedAccount = this.getSelectedAccount();
+
+    this.setPassword(selectedAccount, password);
+  }
+
+  onExport = () => {
+    const { parity } = this._api;
+    const account = this.getSelectedAccount();
+    const password = this.inputValue[account];
+
+    parity.exportAccount(account, password)
+      .then((content) => {
+        const text = JSON.stringify(content, null, 4);
+        const blob = new Blob([ text ], { type: 'application/json' });
+        const filename = this._accounts[account].uuid;
+
+        FileSaver.saveAs(blob, `${filename}.json`);
+      })
+      .catch((err) => {
+        const { passwordHint } = this._accounts[account].meta;
+
+        this._newError({
+          message: `[${err.code}] - Incorrect password. Password Hint: (${passwordHint})`
+        });
+      });
+  }
+
+  getSelectedAccount () {
+    return Object
+      .keys(this.selectedAccounts)
+      .filter((account) => this.selectedAccounts[account])[0];
   }
 }
 
