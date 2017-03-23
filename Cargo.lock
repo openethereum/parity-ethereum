@@ -366,7 +366,7 @@ dependencies = [
 
 [[package]]
 name = "ethabi"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -396,7 +396,7 @@ dependencies = [
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.7.0",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-devtools 1.7.0",
@@ -461,7 +461,6 @@ dependencies = [
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
- "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1648,7 +1647,7 @@ dependencies = [
 name = "parity-hash-fetch"
 version = "1.7.0"
 dependencies = [
- "ethabi 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-util 1.7.0",
  "fetch 0.1.0",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1758,7 +1757,7 @@ dependencies = [
 name = "parity-updater"
 version = "1.7.0"
 dependencies = [
- "ethabi 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.7.0",
  "ethcore-ipc 1.7.0",
  "ethcore-ipc-codegen 1.7.0",
@@ -2737,7 +2736,7 @@ dependencies = [
 "checksum elastic-array 0.6.0 (git+https://github.com/ethcore/elastic-array)" = "<none>"
 "checksum env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "aba65b63ffcc17ffacd6cf5aa843da7c5a25e3bd4bbe0b7def8b214e411250e5"
 "checksum eth-secp256k1 0.5.6 (git+https://github.com/ethcore/rust-secp256k1)" = "<none>"
-"checksum ethabi 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "5d8f6cc4c1acd005f48e1d17b06a461adac8fb6eeeb331fbf19a0e656fba91cd"
+"checksum ethabi 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2f6ae4e7b8b454cc37c70a7055548b646012293b058e3aa246f952bfa5877587"
 "checksum fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b1ee15a7050e5580b3712877157068ea713b245b080ff302ae2ca973cfcd9baa"
 "checksum flate2 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)" = "3eeb481e957304178d2e782f2da1257f1434dfecbae883bafb61ada2a9fea3bb"
 "checksum futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)" = "8e51e7f9c150ba7fd4cee9df8bf6ea3dea5b63b68955ddad19ccd35b71dcfb4d"

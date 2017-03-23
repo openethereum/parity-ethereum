@@ -81,24 +81,6 @@ pub fn init_server<F, B>(process: F, io: MetaIoHandler<Metadata>, remote: Remote
 	)
 }
 
-pub fn serve_with_auth(user: &str, pass: &str) -> ServerLoop {
-	init_logger();
-	let registrar = Arc::new(FakeRegistrar::new());
-	let mut dapps_path = env::temp_dir();
-	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-
-	let event_loop = EventLoop::spawn();
-	let io = MetaIoHandler::default();
-	let server = ServerBuilder::new(&dapps_path, registrar, event_loop.remote())
-		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
-		.allowed_hosts(None.into())
-		.start_basic_auth_http(&"127.0.0.1:0".parse().unwrap(), user, pass, io, event_loop.raw_remote()).unwrap();
-	ServerLoop {
-		server: server,
-		event_loop: event_loop,
-	}
-}
-
 pub fn serve_with_rpc(io: MetaIoHandler<Metadata>) -> ServerLoop {
 	init_server(|builder| builder.allowed_hosts(None.into()), io, Remote::new_sync()).0
 }

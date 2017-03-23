@@ -34,7 +34,7 @@ fn should_reject_invalid_host() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 403 Forbidden".to_owned());
-	assert!(response.body.contains("Current Host Is Disallowed"), response.body);
+	assert!(response.body.contains("Provided Host header is not whitelisted."), response.body);
 }
 
 #[test]

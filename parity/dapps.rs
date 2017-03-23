@@ -188,7 +188,7 @@ mod server {
 				server.start_unsecured_http(url, apis, deps.remote)
 			},
 			Some((username, password)) => {
-				server.start_basic_auth_http(url, &username, &password, apis, deps.remote)
+				return Err(format!("Authentication is not supported any more."))
 			},
 		};
 

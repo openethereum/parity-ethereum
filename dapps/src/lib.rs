@@ -34,7 +34,6 @@ extern crate zip;
 
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
-extern crate jsonrpc_server_utils;
 
 extern crate ethcore_rpc;
 extern crate ethcore_util as util;
@@ -75,6 +74,7 @@ use std::net::SocketAddr;
 use std::collections::HashMap;
 
 use jsonrpc_core::{Middleware, MetaIoHandler};
+use jsonrpc_http_server as http;
 use jsonrpc_http_server::tokio_core::reactor::Remote as TokioRemote;
 pub use jsonrpc_http_server::{DomainsValidation, Host, AccessControlAllowOrigin};
 pub use jsonrpc_http_server::hyper;
@@ -83,7 +83,6 @@ use ethcore_rpc::Metadata;
 use fetch::{Fetch, Client as FetchClient};
 use hash_fetch::urlhint::ContractClient;
 use parity_reactor::Remote;
-use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 
 use self::apps::{HOME_PAGE, DAPPS_DOMAIN};
 
@@ -203,29 +202,6 @@ impl<T: Fetch> ServerBuilder<T> {
 			addr,
 			self.allowed_hosts,
 			self.extra_cors,
-			NoAuth,
-			handler,
-			self.dapps_path,
-			self.extra_dapps,
-			self.signer_address,
-			self.registrar,
-			self.sync_status,
-			self.web_proxy_tokens,
-			self.remote,
-			tokio_remote,
-			fetch,
-		)
-	}
-
-	/// Asynchronously start server with `HTTP Basic Authentication`,
-	/// return result with `Server` handle on success or an error.
-	pub fn start_basic_auth_http<S: Middleware<Metadata>>(self, addr: &SocketAddr, username: &str, password: &str, handler: MetaIoHandler<Metadata, S>, tokio_remote: TokioRemote) -> Result<Server, ServerError> {
-		let fetch = self.fetch_client()?;
-		Server::start_http(
-			addr,
-			self.allowed_hosts,
-			self.extra_cors,
-			HttpBasicAuth::single_user(username, password),
 			handler,
 			self.dapps_path,
 			self.extra_dapps,
@@ -249,7 +225,7 @@ impl<T: Fetch> ServerBuilder<T> {
 
 /// Webapps HTTP server.
 pub struct Server {
-	server: Option<hyper::server::Listening>,
+	server: Option<http::Server>,
 }
 
 impl Server {
@@ -291,11 +267,10 @@ impl Server {
 		}
 	}
 
-	fn start_http<A: Authorization + 'static, F: Fetch, T: Middleware<Metadata>>(
+	fn start_http<F: Fetch, T: Middleware<Metadata>>(
 		addr: &SocketAddr,
 		hosts: Option<Vec<Host>>,
 		extra_cors: Option<Vec<AccessControlAllowOrigin>>,
-		authorization: A,
 		handler: MetaIoHandler<Metadata, T>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
@@ -307,57 +282,51 @@ impl Server {
 		tokio_remote: TokioRemote,
 		fetch: F,
 	) -> Result<Server, ServerError> {
-		let authorization = Arc::new(authorization);
-		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
+		let content_fetcher = apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
 			sync_status,
 			signer_address.clone(),
 			remote.clone(),
 			fetch.clone(),
-		));
-		let endpoints = Arc::new(apps::all_endpoints(
+		);
+		let endpoints = apps::all_endpoints(
 			dapps_path,
 			extra_dapps,
 			signer_address.clone(),
 			web_proxy_tokens,
 			remote.clone(),
 			fetch.clone(),
-		));
+		);
 		let cors_domains = Self::cors_domains(signer_address.clone(), extra_cors);
 
-		let special = Arc::new({
+		let special = {
 			let mut special = HashMap::new();
-			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, tokio_remote, cors_domains.clone()));
-			special.insert(router::SpecialEndpoint::Utils, apps::utils());
+			special.insert(router::SpecialEndpoint::Rpc, None);
+			special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
 			special.insert(
 				router::SpecialEndpoint::Api,
-				api::RestApi::new(cors_domains, endpoints.clone(), content_fetcher.clone())
+				Some(api::RestApi::new(cors_domains.clone(), &endpoints, content_fetcher.clone())),
 			);
 			special
-		});
+		};
 		let hosts = Self::allowed_hosts(hosts, format!("{}", addr));
 
-		hyper::Server::http(addr)?
-			.handle(move |ctrl| router::Router::new(
-				ctrl,
-				signer_address.clone(),
-				content_fetcher.clone(),
-				endpoints.clone(),
-				special.clone(),
-				authorization.clone(),
-				hosts.clone(),
+		http::ServerBuilder::new(handler)
+			.event_loop_remote(tokio_remote)
+			.cors(DomainsValidation::AllowOnly(cors_domains.clone()))
+			.meta_extractor(rpc::MetadataExtractor)
+			.request_middleware(router::Router::new(
+				signer_address,
+				content_fetcher,
+				endpoints,
+				special,
 			))
-			.map(|(l, srv)| {
-
-				::std::thread::spawn(move || {
-					srv.run();
-				});
-
-				Server {
-					server: Some(l),
-				}
+			.allowed_hosts(hosts.into())
+			.start_http(addr)
+			.map(|server| Server {
+				server: Some(server),
 			})
-			.map_err(ServerError::from)
+			.map_err(|_| unimplemented!())
 	}
 
 	#[cfg(test)]
@@ -382,19 +351,8 @@ impl Drop for Server {
 pub enum ServerError {
 	/// Wrapped `std::io::Error`
 	IoError(std::io::Error),
-	/// Other `hyper` error
-	Other(hyper::error::Error),
 	/// Fetch service initialization error
 	FetchInitialization,
-}
-
-impl From<hyper::error::Error> for ServerError {
-	fn from(err: hyper::error::Error) -> Self {
-		match err {
-			hyper::error::Error::Io(e) => ServerError::IoError(e),
-			e => ServerError::Other(e),
-		}
-	}
 }
 
 /// Random filename
