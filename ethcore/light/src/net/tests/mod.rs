@@ -612,6 +612,7 @@ fn id_guard() {
 		last_update: ::time::SteadyTime::now(),
 		pending_requests: pending_requests,
 		failed_requests: Vec::new(),
+		propagated_transactions: Default::default(),
 	}));
 
 	// first, malformed responses.
