@@ -50,7 +50,7 @@ impl fmt::Display for Error {
 /// Light client service.
 pub struct Service {
 	client: Arc<Client>,
-	_io_service: IoService<ClientIoMessage>,
+	io_service: IoService<ClientIoMessage>,
 }
 
 impl Service {
@@ -82,8 +82,13 @@ impl Service {
 		io_service.register_handler(Arc::new(ImportBlocks(client.clone()))).map_err(Error::Io)?;
 		Ok(Service {
 			client: client,
-			_io_service: io_service,
+			io_service: io_service,
 		})
+	}
+
+	/// Register an I/O handler on the service.
+	pub fn register_handler(&self, handler: Arc<IoHandler<ClientIoMessage> + Send>) -> Result<(), IoError> {
+		self.io_service.register_handler(handler)
 	}
 
 	/// Get a handle to the client.

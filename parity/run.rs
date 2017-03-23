@@ -238,11 +238,23 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	};
 	let light_sync = LightSync::new(sync_params).map_err(|e| format!("Error starting network: {}", e))?;
 	let light_sync = Arc::new(light_sync);
-	light_sync.start_network();
 
-	// start RPCs.
 	// spin up event loop
 	let event_loop = EventLoop::spawn();
+
+	// queue cull service.
+	let queue_cull = Arc::new(::light_helpers::QueueCull {
+		client: service.client().clone(),
+		sync: light_sync.clone(),
+		on_demand: on_demand.clone(),
+		txq: txq.clone(),
+		remote: event_loop.remote(),
+	});
+
+	service.register_handler(queue_cull).map_err(|e| format!("Error attaching service: {:?}", e))?;
+
+	// start the network.
+	light_sync.start_network();
 
 	// fetch service
 	let fetch = FetchClient::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
@@ -253,6 +265,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	let rpc_stats = Arc::new(informant::RpcStats::default());
 	let signer_path = cmd.signer_conf.signer_path.clone();
 
+	// start RPCs
 	let deps_for_rpc_apis = Arc::new(rpc_apis::LightDependencies {
 		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
 			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
@@ -298,6 +311,14 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	let _signer_server = signer::start(cmd.signer_conf.clone(), signing_queue, signer_deps)?;
 
 	// TODO: Dapps
+
+	// minimal informant thread. Just prints block number every 5 seconds.
+	// TODO: integrate with informant.rs
+	let informant_client = service.client().clone();
+	::std::thread::spawn(move || loop {
+		info!("#{}", informant_client.best_block_header().number());
+		::std::thread::sleep(::std::time::Duration::from_secs(5));
+	});
 
 	// wait for ctrl-c.
 	Ok(wait_for_exit(panic_handler, None, None, can_restart))
