@@ -669,6 +669,7 @@ pub struct LightSyncParams<L> {
 /// Service for light synchronization.
 pub struct LightSync {
 	proto: Arc<LightProtocol>,
+	sync: Arc<::light_sync::SyncInfo + Sync + Send>,
 	network: NetworkService,
 	subprotocol_name: [u8; 3],
 	network_id: u64,
@@ -682,7 +683,7 @@ impl LightSync {
 		use light_sync::LightSync as SyncHandler;
 
 		// initialize light protocol handler and attach sync module.
-		let light_proto = {
+		let (sync, light_proto) = {
 			let light_params = LightParams {
 				network_id: params.network_id,
 				flow_params: Default::default(), // or `None`?
@@ -695,20 +696,21 @@ impl LightSync {
 			};
 
 			let mut light_proto = LightProtocol::new(params.client.clone(), light_params);
-			let sync_handler = try!(SyncHandler::new(params.client.clone()));
-			light_proto.add_handler(Arc::new(sync_handler));
+			let sync_handler = Arc::new(try!(SyncHandler::new(params.client.clone())));
+			light_proto.add_handler(sync_handler.clone());
 
 			for handler in params.handlers {
 				light_proto.add_handler(handler);
 			}
 
-			Arc::new(light_proto)
+			(sync_handler, Arc::new(light_proto))
 		};
 
 		let service = try!(NetworkService::new(params.network_config));
 
 		Ok(LightSync {
 			proto: light_proto,
+			sync: sync,
 			network: service,
 			subprotocol_name: params.subprotocol_name,
 			network_id: params.network_id,
@@ -724,6 +726,12 @@ impl LightSync {
 			move |ctx| self.proto.with_context(ctx, f),
 		)
 	}
+}
+
+impl ::std::ops::Deref for LightSync {
+	type Target = ::light_sync::SyncInfo;
+
+	fn deref(&self) -> &Self::Target { &*self.sync }
 }
 
 impl ManageNetwork for LightSync {

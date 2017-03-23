@@ -206,6 +206,7 @@ impl<'a> ResponseContext for ResponseCtx<'a> {
 
 /// Light client synchronization manager. See module docs for more details.
 pub struct LightSync<L: AsLightClient> {
+	start_block_number: u64,
 	best_seen: Mutex<Option<ChainInfo>>, // best seen block on the network.
 	peers: RwLock<HashMap<PeerId, Mutex<Peer>>>, // peers which are relevant to synchronization.
 	client: Arc<L>,
@@ -525,11 +526,47 @@ impl<L: AsLightClient> LightSync<L> {
 	/// so it can act on events.
 	pub fn new(client: Arc<L>) -> Result<Self, ::std::io::Error> {
 		Ok(LightSync {
+			start_block_number: client.as_light_client().chain_info().best_block_number,
 			best_seen: Mutex::new(None),
 			peers: RwLock::new(HashMap::new()),
 			client: client,
 			rng: Mutex::new(try!(OsRng::new())),
 			state: Mutex::new(SyncState::Idle),
 		})
+	}
+}
+
+/// Trait for erasing the type of a light sync object and exposing read-only methods.
+pub trait SyncInfo {
+	/// Get the highest block advertised on the network.
+	fn highest_block(&self) -> Option<u64>;
+
+	/// Get the block number at the time of sync start.
+	fn start_block(&self) -> u64;
+
+	/// Whether major sync is underway.
+	fn is_major_importing(&self) -> bool;
+}
+
+impl<L: AsLightClient> SyncInfo for LightSync<L> {
+	fn highest_block(&self) -> Option<u64> {
+		self.best_seen.lock().as_ref().map(|x| x.head_num)
+	}
+
+	fn start_block(&self) -> u64 {
+		self.start_block_number
+	}
+
+	fn is_major_importing(&self) -> bool {
+		const EMPTY_QUEUE: usize = 3;
+
+		if self.client.as_light_client().queue_info().unverified_queue_size > EMPTY_QUEUE {
+			return true;
+		}
+
+		match *self.state.lock() {
+			SyncState::Idle => false,
+			_ => true,
+		}
 	}
 }
