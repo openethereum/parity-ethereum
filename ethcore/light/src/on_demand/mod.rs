@@ -319,7 +319,6 @@ impl OnDemand {
 			}
 		}
 
-		trace!(target: "on_demand", "No suitable peer for request");
 		self.orphaned_requests.write().push(pending);
 	}
 
@@ -353,6 +352,7 @@ impl OnDemand {
 
 		let to_dispatch = ::std::mem::replace(&mut *self.orphaned_requests.write(), Vec::new());
 
+		trace!(target: "on_demand", "Attempting to dispatch {} orphaned requests.", to_dispatch.len());
 		for mut orphaned in to_dispatch {
 			let hung_up = match orphaned {
 				Pending::HeaderProof(_, ref mut sender) => match *sender {
