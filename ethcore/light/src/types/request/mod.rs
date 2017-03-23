@@ -1051,8 +1051,9 @@ pub mod account {
 
 	impl Decodable for Response {
 		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+			let proof: Result<_, _> = rlp.at(0)?.iter().map(|x| x.as_list()).collect();
 			Ok(Response {
-				proof: rlp.list_at(0)?,
+				proof: proof?,
 				nonce: rlp.val_at(1)?,
 				balance: rlp.val_at(2)?,
 				code_hash: rlp.val_at(3)?,
@@ -1198,8 +1199,9 @@ pub mod storage {
 
 	impl Decodable for Response {
 		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+			let proof: Result<_, _> = rlp.at(0)?.iter().map(|x| x.as_list()).collect();
 			Ok(Response {
-				proof: rlp.list_at(0)?,
+				proof: proof?,
 				value: rlp.val_at(1)?,
 			})
 		}
