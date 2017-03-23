@@ -235,8 +235,10 @@ impl OnDemand {
 			match { self.cache.lock().block_body(&req.hash) } {
 				Some(body) => {
 					let mut stream = RlpStream::new_list(3);
+					let body = body.rlp();
 					stream.append_raw(&req.header.into_inner(), 1);
-					stream.append_raw(&body.into_inner(), 2);
+					stream.append_raw(&body.at(0).as_raw(), 1);
+					stream.append_raw(&body.at(1).as_raw(), 1);
 
 					sender.send(encoded::Block::new(stream.out())).expect(RECEIVER_IN_SCOPE);
 				}
