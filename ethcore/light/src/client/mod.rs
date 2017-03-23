@@ -223,18 +223,20 @@ impl Client {
 			let (num, hash) = (verified_header.number(), verified_header.hash());
 
 			let mut tx = self.db.transaction();
-			match self.chain.insert(&mut tx, verified_header) {
-				Ok(()) => {
+			let pending = match self.chain.insert(&mut tx, verified_header) {
+				Ok(pending) => {
 					good.push(hash);
 					self.report.write().blocks_imported += 1;
+					pending
 				}
 				Err(e) => {
 					debug!(target: "client", "Error importing header {:?}: {}", (num, hash), e);
 					bad.push(hash);
+					break;
 				}
-			}
+			};
 			self.db.write_buffered(tx);
-
+			self.chain.apply_pending(pending);
 			if let Err(e) = self.db.flush() {
 				panic!("Database flush failed: {}. Check disk health and space.", e);
 			}

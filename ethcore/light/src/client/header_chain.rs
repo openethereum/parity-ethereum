@@ -126,6 +126,11 @@ fn era_key(number: u64) -> String {
 	format!("candidates_{}", number)
 }
 
+/// Pending changes from `insert` to be applied after the database write has finished.
+pub struct PendingChanges {
+	best_block: Option<BlockDescriptor>, // new best block.
+}
+
 /// Header chain. See module docs for more details.
 pub struct HeaderChain {
 	genesis_header: encoded::Header, // special-case the genesis.
@@ -203,10 +208,15 @@ impl HeaderChain {
 	/// Insert a pre-verified header.
 	///
 	/// This blindly trusts that the data given to it is sensible.
-	pub fn insert(&self, transaction: &mut DBTransaction, header: Header) -> Result<(), BlockError> {
+	/// Returns a set of pending changes to be applied with `apply_pending`
+	/// before the next call to insert and after the transaction has been written.
+	pub fn insert(&self, transaction: &mut DBTransaction, header: Header) -> Result<PendingChanges, BlockError> {
 		let hash = header.hash();
 		let number = header.number();
 		let parent_hash = *header.parent_hash();
+		let mut pending = PendingChanges {
+			best_block: None,
+		};
 
 		// hold candidates the whole time to guard import order.
 		let mut candidates = self.candidates.write();
@@ -286,11 +296,11 @@ impl HeaderChain {
 			}
 
 			trace!(target: "chain", "New best block: ({}, {}), TD {}", number, hash, total_difficulty);
-			*self.best_block.write() = BlockDescriptor {
+			pending.best_block = Some(BlockDescriptor {
 				hash: hash,
 				number: number,
 				total_difficulty: total_difficulty,
-			};
+			});
 
 			// produce next CHT root if it's time.
 			let earliest_era = *candidates.keys().next().expect("at least one era just created; qed");
@@ -334,7 +344,15 @@ impl HeaderChain {
 			stream.append(&best_num).append(&latest_num);
 			transaction.put(self.col, CURRENT_KEY, &stream.out())
 		}
-		Ok(())
+		Ok(pending)
+	}
+
+	/// Apply pending changes from a previous `insert` operation.
+	/// Must be done before the next `insert` call.
+	pub fn apply_pending(&self, pending: PendingChanges) {
+		if let Some(best_block) = pending.best_block {
+			*self.best_block.write() = best_block;
+		}
 	}
 
 	/// Get a block header. In the case of query by number, only canonical blocks
@@ -360,6 +378,9 @@ impl HeaderChain {
 					.and_then(load_from_db)
 			}
 			BlockId::Latest | BlockId::Pending => {
+				// hold candidates hear to prevent deletion of the header
+				// as we read it.
+				let _candidates = self.candidates.read();
 				let hash = {
 					let best = self.best_block.read();
 					if best.number == 0 {
