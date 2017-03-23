@@ -210,7 +210,7 @@ impl OnDemand {
 	/// it as easily.
 	pub fn header_by_hash(&self, ctx: &BasicContext, req: request::HeaderByHash) -> Receiver<encoded::Header> {
 		let (sender, receiver) = oneshot::channel();
-		match self.cache.lock().block_header(&req.0) {
+		match { self.cache.lock().block_header(&req.0) } {
 			Some(hdr) => sender.send(hdr).expect(RECEIVER_IN_SCOPE),
 			None => self.dispatch(ctx, Pending::HeaderByHash(req, sender)),
 		}
@@ -232,7 +232,7 @@ impl OnDemand {
 
 			sender.send(encoded::Block::new(stream.out())).expect(RECEIVER_IN_SCOPE);
 		} else {
-			match self.cache.lock().block_body(&req.hash) {
+			match { self.cache.lock().block_body(&req.hash) } {
 				Some(body) => {
 					let mut stream = RlpStream::new_list(3);
 					stream.append_raw(&req.header.into_inner(), 1);
@@ -255,7 +255,7 @@ impl OnDemand {
 		if req.0.receipts_root() == SHA3_NULL_RLP {
 			sender.send(Vec::new()).expect(RECEIVER_IN_SCOPE);
 		} else {
-			match self.cache.lock().block_receipts(&req.0.hash()) {
+			match { self.cache.lock().block_receipts(&req.0.hash()) } {
 				Some(receipts) => sender.send(receipts).expect(RECEIVER_IN_SCOPE),
 				None => self.dispatch(ctx, Pending::BlockReceipts(req, sender)),
 			}
@@ -397,10 +397,12 @@ impl Handler for OnDemand {
 	}
 
 	fn on_announcement(&self, ctx: &EventContext, announcement: &Announcement) {
-		let mut peers = self.peers.write();
-		if let Some(ref mut peer) = peers.get_mut(&ctx.peer()) {
-			peer.status.update_from(&announcement);
-			peer.capabilities.update_from(&announcement);
+		{
+			let mut peers = self.peers.write();
+			if let Some(ref mut peer) = peers.get_mut(&ctx.peer()) {
+				peer.status.update_from(&announcement);
+				peer.capabilities.update_from(&announcement);
+			}
 		}
 
 		self.dispatch_orphaned(ctx.as_basic());
