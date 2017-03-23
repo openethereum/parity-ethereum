@@ -303,9 +303,17 @@ impl LightProtocol {
 		match peer.remote_flow {
 			None => Err(Error::NotServer),
 			Some((ref mut creds, ref params)) => {
+				// apply recharge to credits if there's no pending requests.
+				if peer.pending_requests.is_empty() {
+					params.recharge(creds);
+				}
+
 				// compute and deduct cost.
 				let cost = params.compute_cost_multi(requests.requests());
 				creds.deduct_cost(cost)?;
+
+				trace!(target: "pip", "requesting from peer {}. Cost: {}; Available: {}",
+					peer_id, cost, creds.current());
 
 				let req_id = ReqId(self.req_id.fetch_add(1, Ordering::SeqCst));
 				io.send(*peer_id, packet::REQUEST, {
@@ -686,6 +694,8 @@ impl LightProtocol {
 		trace!(target: "pip", "Received requests (id: {}) from peer {}", req_id, peer_id);
 
 		// deserialize requests, check costs and request validity.
+		self.flow_params.recharge(&mut peer.local_credits);
+
 		peer.local_credits.deduct_cost(self.flow_params.base_cost())?;
 		for request_rlp in raw.at(1)?.iter().take(MAX_REQUESTS) {
 			let request: Request = request_rlp.as_val()?;
@@ -712,6 +722,7 @@ impl LightProtocol {
 		});
 
 		trace!(target: "pip", "Responded to {}/{} requests in packet {}", responses.len(), num_requests, req_id);
+		trace!(target: "pip", "Peer {} has {} credits remaining.", peer_id, peer.local_credits.current());
 
 		io.respond(packet::RESPONSE, {
 			let mut stream = RlpStream::new_list(3);
