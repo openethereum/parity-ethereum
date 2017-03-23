@@ -26,6 +26,10 @@
     "Promise"
   ],
   "scripts": {
+    "analize": "npm run analize:lib && npm run analize:dll && npm run analize:app",
+    "analize:app": "WPANALIZE=1 webpack --config webpack/app --json > .build/analize.app.json && cat .build/analize.app.json | webpack-bundle-size-analyzer",
+    "analize:lib": "WPANALIZE=1 webpack --config webpack/libraries --json > .build/analize.lib.json && cat .build/analize.lib.json | webpack-bundle-size-analyzer",
+    "analize:dll": "WPANALIZE=1 webpack --config webpack/vendor --json > .build/analize.dll.json && cat .build/analize.app.json | webpack-bundle-size-analyzer",
     "build": "npm run build:lib && npm run build:dll && npm run build:app && npm run build:embed",
     "build:app": "webpack --config webpack/app",
     "build:lib": "webpack --config webpack/libraries",
@@ -141,6 +145,7 @@
     "to-source": "2.0.3",
     "url-loader": "0.5.7",
     "webpack": "2.2.1",
+    "webpack-bundle-size-analyzer": "2.5.0",
     "webpack-dev-middleware": "1.10.1",
     "webpack-error-notification": "0.1.6",
     "webpack-hot-middleware": "2.17.1",
