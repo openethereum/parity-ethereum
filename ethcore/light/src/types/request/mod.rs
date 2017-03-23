@@ -435,7 +435,8 @@ impl Response {
 		}
 	}
 
-	fn kind(&self) -> Kind {
+	/// Inspect the kind of this response.
+	pub fn kind(&self) -> Kind {
 		match *self {
 			Response::Headers(_) => Kind::Headers,
 			Response::HeaderProof(_) => Kind::HeaderProof,

@@ -424,6 +424,8 @@ impl Handler for OnDemand {
 			}
 		};
 
+		trace!(target: "on_demand", "Handling response for request {}, kind={:?}", req_id, response.kind());
+
 		// handle the response appropriately for the request.
 		// all branches which do not return early lead to disabling of the peer
 		// due to misbehavior.
@@ -443,7 +445,7 @@ impl Handler for OnDemand {
 							}
 							return
 						}
-						Err(e) => warn!("Error handling response for header request: {:?}", e),
+						Err(e) => warn!(target: "on_demand", "Error handling response for header request: {:?}", e),
 					}
 				}
 			}
@@ -456,7 +458,7 @@ impl Handler for OnDemand {
 								let _ = sender.send(header);
 								return
 							}
-							Err(e) => warn!("Error handling response for header request: {:?}", e),
+							Err(e) => warn!(target: "on_demand", "Error handling response for header request: {:?}", e),
 						}
 					}
 				}
@@ -469,7 +471,7 @@ impl Handler for OnDemand {
 							let _ = sender.send(block);
 							return
 						}
-						Err(e) => warn!("Error handling response for block request: {:?}", e),
+						Err(e) => warn!(target: "on_demand", "Error handling response for block request: {:?}", e),
 					}
 				}
 			}
@@ -482,7 +484,7 @@ impl Handler for OnDemand {
 							let _ = sender.send(receipts);
 							return
 						}
-						Err(e) => warn!("Error handling response for receipts request: {:?}", e),
+						Err(e) => warn!(target: "on_demand", "Error handling response for receipts request: {:?}", e),
 					}
 				}
 			}
@@ -495,7 +497,7 @@ impl Handler for OnDemand {
 							let _ = sender.send(maybe_account);
 							return
 						}
-						Err(e) => warn!("Error handling response for state request: {:?}", e),
+						Err(e) => warn!(target: "on_demand", "Error handling response for state request: {:?}", e),
 					}
 				}
 			}
@@ -506,7 +508,7 @@ impl Handler for OnDemand {
 							let _ = sender.send(response.code.clone());
 							return
 						}
-						Err(e) => warn!("Error handling response for code request: {:?}", e),
+						Err(e) => warn!(target: "on_demand", "Error handling response for code request: {:?}", e),
 					}
 				}
 			}
@@ -521,7 +523,7 @@ impl Handler for OnDemand {
 							let _ = sender.send(Err(err));
 							return
 						}
-						ProvedExecution::BadProof => warn!("Error handling response for transaction proof request"),
+						ProvedExecution::BadProof => warn!(target: "on_demand", "Error handling response for transaction proof request"),
 					}
 				}
 			}

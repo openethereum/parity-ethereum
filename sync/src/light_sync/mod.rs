@@ -32,7 +32,7 @@
 //!   announced blocks.
 //! - On bad block/response, punish peer and reset.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::mem;
 use std::sync::Arc;
 
@@ -150,6 +150,19 @@ impl AncestorSearch {
 		}
 	}
 
+	fn requests_abandoned(self, req_ids: &[ReqId]) -> AncestorSearch {
+		match self {
+			AncestorSearch::Awaiting(id, start, req) => {
+				if req_ids.iter().find(|&x| x == &id).is_some() {
+					AncestorSearch::Queued(start)
+				} else {
+					AncestorSearch::Awaiting(id, start, req)
+				}
+			}
+			other => other,
+		}
+	}
+
 	fn dispatch_request<F>(self, mut dispatcher: F) -> AncestorSearch
 		where F: FnMut(HeadersRequest) -> Option<ReqId>
 	{
@@ -209,6 +222,7 @@ pub struct LightSync<L: AsLightClient> {
 	start_block_number: u64,
 	best_seen: Mutex<Option<ChainInfo>>, // best seen block on the network.
 	peers: RwLock<HashMap<PeerId, Mutex<Peer>>>, // peers which are relevant to synchronization.
+	pending_reqs: Mutex<HashSet<ReqId>>, // requests from this handler.
 	client: Arc<L>,
 	rng: Mutex<OsRng>,
 	state: Mutex<SyncState>,
@@ -271,7 +285,8 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 
 			*state = match mem::replace(&mut *state, SyncState::Idle) {
 				SyncState::Idle => SyncState::Idle,
-				SyncState::AncestorSearch(search) => SyncState::AncestorSearch(search),
+				SyncState::AncestorSearch(search) =>
+					SyncState::AncestorSearch(search.requests_abandoned(unfulfilled)),
 				SyncState::Rounds(round) => SyncState::Rounds(round.requests_abandoned(unfulfilled)),
 			};
 		}
@@ -318,6 +333,10 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 	fn on_responses(&self, ctx: &EventContext, req_id: ReqId, responses: &[request::Response]) {
 		let peer = ctx.peer();
 		if !self.peers.read().contains_key(&peer) {
+			return
+		}
+
+		if !self.pending_reqs.lock().remove(&req_id) {
 			return
 		}
 
@@ -496,6 +515,7 @@ impl<L: AsLightClient> LightSync<L> {
 				for peer in &peer_ids {
 					match ctx.request_from(*peer, request.clone()) {
 						Ok(id) => {
+							self.pending_reqs.lock().insert(id.clone());
 							return Some(id)
 						}
 						Err(NetError::NoCredits) => {}
@@ -529,6 +549,7 @@ impl<L: AsLightClient> LightSync<L> {
 			start_block_number: client.as_light_client().chain_info().best_block_number,
 			best_seen: Mutex::new(None),
 			peers: RwLock::new(HashMap::new()),
+			pending_reqs: Mutex::new(HashSet::new()),
 			client: client,
 			rng: Mutex::new(try!(OsRng::new())),
 			state: Mutex::new(SyncState::Idle),
