@@ -1707,4 +1707,31 @@ mod tests {
 		assert_eq!(rlp.val_at::<usize>(0).unwrap(), 100usize);
 		assert_eq!(rlp.list_at::<Request>(1).unwrap(), reqs);
 	}
+
+	#[test]
+	fn responses_vec() {
+		let mut stream = RlpStream::new_list(2);
+				stream.begin_list(0).begin_list(0);
+
+		let body = ::ethcore::encoded::Body::new(stream.out());
+		let reqs = vec![
+			Response::Headers(HeadersResponse { headers: vec![] }),
+			Response::HeaderProof(HeaderProofResponse { proof: vec![], hash: Default::default(), td: 100.into()}),
+			Response::Receipts(ReceiptsResponse { receipts: vec![Default::default()] }),
+			Response::Body(BodyResponse { body: body }),
+			Response::Account(AccountResponse {
+				proof: vec![],
+				nonce: 100.into(),
+				balance: 123.into(),
+				code_hash: Default::default(),
+				storage_root: Default::default()
+			}),
+			Response::Storage(StorageResponse { proof: vec![], value: H256::default() }),
+			Response::Code(CodeResponse { code: vec![1, 2, 3, 4, 5] }),
+			Response::Execution(ExecutionResponse { items: vec![] }),
+		];
+
+		let raw = ::rlp::encode_list(&reqs);
+		assert_eq!(::rlp::decode_list::<Response>(&raw), reqs);
+	}
 }
