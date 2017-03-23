@@ -82,7 +82,7 @@ pub struct AuthorityRound {
 	proposed: AtomicBool,
 	client: RwLock<Option<Weak<EngineClient>>>,
 	signer: EngineSigner,
-	validators: Box<ValidatorSet + Send + Sync>,
+	validators: Box<ValidatorSet>,
 	/// Is this Engine just for testing (prevents step calibration).
 	calibrate_step: bool,
 }

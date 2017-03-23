@@ -58,7 +58,7 @@ pub struct BasicAuthority {
 	gas_limit_bound_divisor: U256,
 	builtins: BTreeMap<Address, Builtin>,
 	signer: EngineSigner,
-	validators: Box<ValidatorSet + Send + Sync>,
+	validators: Box<ValidatorSet>,
 }
 
 impl BasicAuthority {
