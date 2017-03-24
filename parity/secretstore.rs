@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
 use dir::default_data_path;
 use ethcore::client::Client;
 use helpers::replace_home;
