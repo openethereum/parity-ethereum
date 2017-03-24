@@ -213,7 +213,12 @@ impl SessionImpl {
 				}
 			},
 			// we can decrypt data on our own
-			SessionState::WaitingForPartialDecryption => unimplemented!(),
+			SessionState::WaitingForPartialDecryption => {
+				data.confirmed_nodes.insert(self.node().clone());
+				SessionImpl::start_waiting_for_partial_decryption(self.node().clone(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data)?;
+				SessionImpl::do_decryption(self.access_key.clone(), &self.encrypted_data, &mut *data)?;
+				self.completed.notify_all();
+			},
 			// we can not decrypt data
 			SessionState::Failed => (),
 			// cannot reach other states
@@ -277,26 +282,8 @@ impl SessionImpl {
 			// we do not yet have enough nodes for decryption
 			SessionState::WaitingForInitializationConfirm => Ok(()),
 			// we have enough nodes for decryption
-			SessionState::WaitingForPartialDecryption => {
-				let confirmed_nodes: BTreeSet<_> = data.confirmed_nodes.clone();
-				for node in data.confirmed_nodes.iter().filter(|n| n != &self.node()) {
-					self.cluster.send(node, Message::Decryption(DecryptionMessage::RequestPartialDecryption(RequestPartialDecryption {
-						session: self.id.clone().into(),
-						sub_session: self.access_key.clone().into(),
-						nodes: confirmed_nodes.iter().cloned().map(Into::into).collect(),
-					})))?;
-				}
-
-				assert!(data.confirmed_nodes.remove(self.node()));
-
-				let shadow_point = {
-					let requestor = data.requestor.as_ref().expect("requestor public is filled during initialization; WaitingForPartialDecryption follows initialization; qed");
-					do_partial_decryption(self.node(), &requestor, &data.confirmed_nodes, &self.access_key, &self.encrypted_data)?
-				};
-				data.shadow_points.insert(self.node().clone(), shadow_point);
-
-				Ok(())
-			},
+			SessionState::WaitingForPartialDecryption =>
+				SessionImpl::start_waiting_for_partial_decryption(self.node().clone(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data),
 			// we can not have enough nodes for decryption
 			SessionState::Failed => Ok(()),
 			// cannot reach other states
@@ -365,13 +352,7 @@ impl SessionImpl {
 			return Ok(());
 		}
 
-		// decrypt the secret using shadow points
-		let joint_shadow_point = math::compute_joint_shadow_point(data.shadow_points.values())?;
-		let decrypted_secret = math::decrypt_with_joint_shadow(&self.access_key, &self.encrypted_data.encrypted_point, &joint_shadow_point)?;
-		data.decrypted_secret = Some(Ok(decrypted_secret));
-
-		// switch to completed state
-		data.state = SessionState::Finished;
+		SessionImpl::do_decryption(self.access_key.clone(), &self.encrypted_data, &mut *data)?;
 		self.completed.notify_all();
 
 		Ok(())
@@ -394,6 +375,39 @@ impl SessionImpl {
 		data.state = SessionState::Failed;
 		data.decrypted_secret = Some(Err(Error::Io("session expired".into())));
 		self.completed.notify_all();
+	}
+
+	fn start_waiting_for_partial_decryption(self_node_id: NodeId, session_id: SessionId, access_key: Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
+		let confirmed_nodes: BTreeSet<_> = data.confirmed_nodes.clone();
+		for node in data.confirmed_nodes.iter().filter(|n| n != &&self_node_id) {
+			cluster.send(node, Message::Decryption(DecryptionMessage::RequestPartialDecryption(RequestPartialDecryption {
+				session: session_id.clone().into(),
+				sub_session: access_key.clone().into(),
+				nodes: confirmed_nodes.iter().cloned().map(Into::into).collect(),
+			})))?;
+		}
+
+		assert!(data.confirmed_nodes.remove(&self_node_id));
+
+		let shadow_point = {
+			let requestor = data.requestor.as_ref().expect("requestor public is filled during initialization; WaitingForPartialDecryption follows initialization; qed");
+			do_partial_decryption(&self_node_id, &requestor, &data.confirmed_nodes, &access_key, &encrypted_data)?
+		};
+		data.shadow_points.insert(self_node_id.clone(), shadow_point);
+
+		Ok(())
+	}
+
+	fn do_decryption(access_key: Secret, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
+		// decrypt the secret using shadow points
+		let joint_shadow_point = math::compute_joint_shadow_point(data.shadow_points.values())?;
+		let decrypted_secret = math::decrypt_with_joint_shadow(encrypted_data.threshold, &access_key, &encrypted_data.encrypted_point, &joint_shadow_point)?;
+		data.decrypted_secret = Some(Ok(decrypted_secret));
+
+		// switch to completed state
+		data.state = SessionState::Finished;
+
+		Ok(())
 	}
 }
 

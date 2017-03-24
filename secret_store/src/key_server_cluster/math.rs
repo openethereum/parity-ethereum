@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::str::FromStr;
 use ethkey::{Public, Secret, Random, Generator, math};
 use key_server_cluster::Error;
 
@@ -184,7 +183,7 @@ pub fn encrypt_secret(secret: &Public, joint_public: &Public) -> Result<Encrypte
 pub fn compute_node_shadow<'a, I>(node_number: &Secret, node_secret_share: &Secret, mut other_nodes_numbers: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	let other_node_number = match other_nodes_numbers.next() {
 		Some(other_node_number) => other_node_number,
-		None => return Ok(Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001")?),
+		None => return Ok(node_secret_share.clone()),
 	};
 
 	let mut shadow = node_number.clone();
@@ -236,13 +235,19 @@ pub fn compute_joint_shadow_point_test<'a, I>(access_key: &Secret, common_point:
 }
 
 /// Decrypt data using joint shadow point.
-pub fn decrypt_with_joint_shadow(access_key: &Secret, encrypted_point: &Public, joint_shadow_point: &Public) -> Result<Public, Error> {
+pub fn decrypt_with_joint_shadow(threshold: usize, access_key: &Secret, encrypted_point: &Public, joint_shadow_point: &Public) -> Result<Public, Error> {
 	let mut inv_access_key = access_key.clone();
 	inv_access_key.inv()?;
-	
-	let mut decrypted_point = joint_shadow_point.clone();
-	math::public_mul_secret(&mut decrypted_point, &inv_access_key)?;
-	math::public_add(&mut decrypted_point, encrypted_point)?;
+
+	let mut mul = joint_shadow_point.clone();
+	math::public_mul_secret(&mut mul, &inv_access_key)?;
+
+	let mut decrypted_point = encrypted_point.clone();
+	if threshold % 2 != 0 {
+		math::public_add(&mut decrypted_point, &mul)?;
+	} else {
+		math::public_sub(&mut decrypted_point, &mul)?;
+	}
 
 	Ok(decrypted_point)
 }
@@ -291,7 +296,7 @@ pub mod tests {
 		assert_eq!(joint_shadow_point, joint_shadow_point_test);
 
 		// decrypt encrypted secret using joint shadow point
-		let document_secret_decrypted = decrypt_with_joint_shadow(&access_key, &encrypted_secret.encrypted_point, &joint_shadow_point).unwrap();
+		let document_secret_decrypted = decrypt_with_joint_shadow(t, &access_key, &encrypted_secret.encrypted_point, &joint_shadow_point).unwrap();
 
 		// decrypt encrypted secret using joint secret [just for test]
 		let document_secret_decrypted_test = match joint_secret {
@@ -304,7 +309,8 @@ pub mod tests {
 
 	#[test]
 	fn full_encryption_math_session() {
-		let test_cases = [(1, 3)];
+		let test_cases = [(0, 2), (1, 2), (1, 3), (2, 3), (1, 4), (2, 4), (3, 4), (1, 5), (2, 5), (3, 5), (4, 5),
+			(1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10)];
 		for &(t, n) in &test_cases {
 			// === PART1: DKG ===
 			
