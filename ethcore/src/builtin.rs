@@ -156,8 +156,8 @@ fn ethereum_builtin(name: &str) -> Box<Impl> {
 		"sha256" => Box::new(Sha256) as Box<Impl>,
 		"ripemd160" => Box::new(Ripemd160) as Box<Impl>,
 		"modexp" => Box::new(ModexpImpl) as Box<Impl>,
-		"alt_bn128_add" => Box::new(Bn128AddImpl) as Box<Impl>,
-		"alt_bn128_mul" => Box::new(Bn128MulImpl) as Box<Impl>,
+		"bn128_add" => Box::new(Bn128AddImpl) as Box<Impl>,
+		"bn128_mul" => Box::new(Bn128MulImpl) as Box<Impl>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -610,12 +610,12 @@ mod tests {
 	}
 
 	#[test]
-	fn alt_bn128_add() {
+	fn bn128_add() {
 		use rustc_serialize::hex::FromHex;
 
 		let f = Builtin {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
-			native: ethereum_builtin("alt_bn128_add"),
+			native: ethereum_builtin("bn128_add"),
 			activate_at: 0,
 		};		
 
@@ -672,12 +672,12 @@ mod tests {
 
 
 	#[test]
-	fn alt_bn128_mul() {
+	fn bn128_mul() {
 		use rustc_serialize::hex::FromHex;
 
 		let f = Builtin {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
-			native: ethereum_builtin("alt_bn128_mul"),
+			native: ethereum_builtin("bn128_mul"),
 			activate_at: 0,
 		};		
 
