@@ -198,9 +198,9 @@ export default class CreationType extends Component {
   }
 
   onSelect = (item) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setCreateType(item.key);
-    store.nextStage();
+    createStore.setCreateType(item.key);
+    createStore.nextStage();
   }
 }
