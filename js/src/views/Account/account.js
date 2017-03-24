@@ -23,6 +23,7 @@ import { bindActionCreators } from 'redux';
 import { newError } from '~/redux/actions';
 import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
 import HardwareStore from '~/mobx/hardwareStore';
+import ExportStore from '~/modals/ExportAccount/exportStore';
 import { DeleteAccount, EditMeta, Faucet, PasswordManager, Shapeshift, Transfer, Verification } from '~/modals';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
@@ -64,7 +65,7 @@ class Account extends Component {
 
     this.props.fetchCertifiers();
     this.setVisibleAccounts();
-    this.store.insertProps(this.context.api, accounts, address, newError);
+    ExportStore.insertProps(this.context.api, accounts, newError, address);
   }
 
   componentWillReceiveProps (nextProps) {
@@ -105,7 +106,7 @@ class Account extends Component {
       <div>
         { this.renderDeleteDialog(account) }
         { this.renderEditDialog(account) }
-        { this.renderExportDialog(account) }
+        { this.renderExportDialog() }
         { this.renderFaucetDialog() }
         { this.renderFundDialog() }
         { this.renderPasswordDialog(account) }
@@ -320,8 +321,8 @@ class Account extends Component {
     );
   }
 
-  renderExportDialog (account) {
-    const { editExportValue, exportValue, onExport, toggleExportDialog } = this.store;
+  renderExportDialog () {
+    const { changePassword, accountValue, onExport } = ExportStore;
 
     if (!this.store.isExportVisible) {
       return null;
@@ -330,15 +331,15 @@ class Account extends Component {
       <Portal
         open
         isSmallModal
-        onClose={ toggleExportDialog }
+        onClose={ this.toggleExport }
       >
         <ConfirmDialog
           open
-          disabledConfirm={ !exportValue.length }
+          disabledConfirm={ !accountValue.length }
           labelConfirm='Export'
           labelDeny='Cancel'
           onConfirm={ onExport }
-          onDeny={ toggleExportDialog }
+          onDeny={ this.toggleExport }
           title={
             <FormattedMessage
               id='export.account.title'
@@ -368,8 +369,8 @@ class Account extends Component {
                 defaultMessage='Account password'
               />
             }
-            onChange={ editExportValue }
-            value={ exportValue }
+            onChange={ changePassword }
+            value={ accountValue }
           />
         </ConfirmDialog>
       </Portal>
@@ -452,6 +453,14 @@ class Account extends Component {
         onClose={ this.store.toggleVerificationDialog }
       />
     );
+  }
+
+  toggleExport = () => {
+    const { toggleExportDialog } = this.store;
+    const { resetAccountValue } = ExportStore;
+
+    resetAccountValue();
+    toggleExportDialog();
   }
 }
 

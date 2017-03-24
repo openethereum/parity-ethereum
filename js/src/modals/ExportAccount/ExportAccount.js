@@ -25,7 +25,7 @@ import { personalAccountsInfo } from '~/redux/providers/personalActions';
 import { AccountCard, Button, Portal, SelectionList } from '~/ui';
 import { Input } from '~/ui/Form';
 import { CancelIcon, CheckIcon } from '~/ui/Icons';
-import ExportStore from './ExportStore';
+import ExportStore from './exportStore';
 
 @observer
 class ExportAccount extends Component {
@@ -44,7 +44,7 @@ class ExportAccount extends Component {
   componentWillMount () {
     const { accounts, newError } = this.props;
 
-    ExportStore.insertProps(this.context.api, accounts, newError);
+    ExportStore.insertProps(this.context.api, accounts, newError, null);
   }
 
   render () {

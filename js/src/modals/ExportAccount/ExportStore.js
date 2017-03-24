@@ -20,12 +20,14 @@ import FileSaver from 'file-saver';
 class ExportStore {
   @observable canExport = false;
   @observable selectedAccounts = {};
+  @observable accountValue = '';
   @observable inputValue = {};
 
-  insertProps (api, accounts, newError) {
+  insertProps (api, accounts, newError, address) {
     this._api = api;
     this._accounts = accounts;
     this._newError = newError;
+    this._address = address;
   }
 
   @action toggleSelectedAccount = (addr) => {
@@ -48,19 +50,25 @@ class ExportStore {
   }
 
   @action setPassword = (account, password) => {
-    this.inputValue[account] = password;
+    (this._address)
+      ? this.accountValue = password
+      : this.inputValue[account] = password;
   }
 
   @action changePassword = (event, password) => {
-    const selectedAccount = this.getSelectedAccount();
+    const selectedAccount = (this._address) ? null : this.getSelectedAccount();
 
     this.setPassword(selectedAccount, password);
   }
 
+  @action resetAccountValue = () => {
+    this.accountValue = '';
+  }
+
   onExport = () => {
     const { parity } = this._api;
-    const account = this.getSelectedAccount();
-    const password = this.inputValue[account];
+    const account = (this._address) ? this._address : this.getSelectedAccount();
+    const password = (this._address) ? this.accountValue : this.inputValue[account];
 
     parity.exportAccount(account, password)
       .then((content) => {

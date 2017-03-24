@@ -27,7 +27,7 @@ import styles from './accountCard.css';
 
 export default class AccountCard extends Component {
   static propTypes = {
-    children: PropTypes.node.isRequired,
+    children: PropTypes.node,
     account: PropTypes.object.isRequired,
     balance: PropTypes.object,
     className: PropTypes.string,
@@ -37,8 +37,7 @@ export default class AccountCard extends Component {
   };
 
   static defaultProps = {
-    disableAddressClick: false,
-    showPassword: false
+    disableAddressClick: false
   };
 
   state = {
