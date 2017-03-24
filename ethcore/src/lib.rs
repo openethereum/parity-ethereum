@@ -103,6 +103,7 @@ extern crate ethcore_bloom_journal as bloom_journal;
 extern crate byteorder;
 extern crate transient_hashmap;
 extern crate linked_hash_map;
+extern crate itertools;
 
 #[macro_use]
 extern crate log;
