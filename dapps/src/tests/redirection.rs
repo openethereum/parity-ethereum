@@ -32,7 +32,7 @@ fn should_redirect_to_home() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 302 Found".to_owned());
+	response.assert_status("HTTP/1.1 302 Found");
 	assert_eq!(response.headers.get(0).unwrap(), "Location: http://127.0.0.1:18180");
 }
 
@@ -52,7 +52,7 @@ fn should_redirect_to_home_when_trailing_slash_is_missing() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 302 Found".to_owned());
+	response.assert_status("HTTP/1.1 302 Found");
 	assert_eq!(response.headers.get(0).unwrap(), "Location: http://127.0.0.1:18180");
 }
 
@@ -72,7 +72,7 @@ fn should_redirect_to_home_for_users_with_cached_redirection() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 302 Found".to_owned());
+	response.assert_status("HTTP/1.1 302 Found");
 	assert_eq!(response.headers.get(0).unwrap(), "Location: http://127.0.0.1:18180");
 }
 
@@ -92,7 +92,7 @@ fn should_display_404_on_invalid_dapp() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
+	response.assert_status("HTTP/1.1 404 Not Found");
 	assert_security_headers_for_embed(&response.headers);
 }
 
@@ -112,7 +112,7 @@ fn should_display_404_on_invalid_dapp_with_domain() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
+	response.assert_status("HTTP/1.1 404 Not Found");
 	assert_security_headers_for_embed(&response.headers);
 }
 
@@ -134,8 +134,8 @@ fn should_serve_rpc() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	assert_eq!(response.body, format!("58\n{}\n\n0\n\n", r#"{"jsonrpc":"2.0","error":{"code":-32700,"message":"Parse error","data":null},"id":null}"#));
+	response.assert_status("HTTP/1.1 200 OK");
+	assert_eq!(response.body, format!("4C\n{}\n\n0\n\n", r#"{"jsonrpc":"2.0","error":{"code":-32700,"message":"Parse error"},"id":null}"#));
 }
 
 #[test]
@@ -156,8 +156,8 @@ fn should_serve_rpc_at_slash_rpc() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	assert_eq!(response.body, format!("58\n{}\n\n0\n\n", r#"{"jsonrpc":"2.0","error":{"code":-32700,"message":"Parse error","data":null},"id":null}"#));
+	response.assert_status("HTTP/1.1 200 OK");
+	assert_eq!(response.body, format!("4C\n{}\n\n0\n\n", r#"{"jsonrpc":"2.0","error":{"code":-32700,"message":"Parse error"},"id":null}"#));
 }
 
 
@@ -178,7 +178,7 @@ fn should_serve_proxy_pac() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
+	response.assert_status("HTTP/1.1 200 OK");
 	assert_eq!(response.body, "DD\n\nfunction FindProxyForURL(url, host) {\n\tif (shExpMatch(host, \"parity.web3.site\"))\n\t{\n\t\treturn \"PROXY 127.0.0.1:18180\";\n\t}\n\n\tif (shExpMatch(host, \"*.web3.site\"))\n\t{\n\t\treturn \"PROXY 127.0.0.1:8080\";\n\t}\n\n\treturn \"DIRECT\";\n}\n\n0\n\n".to_owned());
 	assert_security_headers(&response.headers);
 }
@@ -200,7 +200,7 @@ fn should_serve_utils() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
+	response.assert_status("HTTP/1.1 200 OK");
 	assert_eq!(response.body.contains("function(){"), true);
 	assert_security_headers(&response.headers);
 }

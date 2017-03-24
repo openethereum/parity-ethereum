@@ -12,7 +12,7 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
 //! I/O and event context generalizations.
 
@@ -20,7 +20,7 @@ use network::{NetworkContext, PeerId, NodeId};
 
 use super::{Announcement, LightProtocol, ReqId};
 use super::error::Error;
-use request::{self, Request};
+use request::Requests;
 
 /// An I/O context which allows sending and receiving packets as well as
 /// disconnecting peers. This is used as a generalization of the portions
@@ -50,13 +50,13 @@ pub trait IoContext {
 impl<'a> IoContext for NetworkContext<'a> {
 	fn send(&self, peer: PeerId, packet_id: u8, packet_body: Vec<u8>) {
 		if let Err(e) = self.send(peer, packet_id, packet_body) {
-			debug!(target: "les", "Error sending packet to peer {}: {}", peer, e);
+			debug!(target: "pip", "Error sending packet to peer {}: {}", peer, e);
 		}
 	}
 
 	fn respond(&self, packet_id: u8, packet_body: Vec<u8>) {
 		if let Err(e) = self.respond(packet_id, packet_body) {
-			debug!(target: "les", "Error responding to peer message: {}", e);
+			debug!(target: "pip", "Error responding to peer message: {}", e);
 		}
 	}
 
@@ -83,15 +83,16 @@ pub trait BasicContext {
 	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId>;
 
 	/// Make a request from a peer.
-	fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error>;
+	///
+	/// Fails on: nonexistent peer, network error, peer not server,
+	/// insufficient credits. Does not check capabilities before sending.
+	/// On success, returns a request id which can later be coordinated
+	/// with an event.
+	fn request_from(&self, peer: PeerId, request: Requests) -> Result<ReqId, Error>;
 
 	/// Make an announcement of new capabilities to the rest of the peers.
 	// TODO: maybe just put this on a timer in LightProtocol?
 	fn make_announcement(&self, announcement: Announcement);
-
-	/// Find the maximum number of requests of a specific type which can be made from
-	/// supplied peer.
-	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize;
 
 	/// Disconnect a peer.
 	fn disconnect_peer(&self, peer: PeerId);
@@ -123,16 +124,12 @@ impl<'a> BasicContext for TickCtx<'a> {
 		self.io.persistent_peer_id(id)
 	}
 
-	fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error> {
-		self.proto.request_from(self.io, &peer, request)
+	fn request_from(&self, peer: PeerId, requests: Requests) -> Result<ReqId, Error> {
+		self.proto.request_from(self.io, &peer, requests)
 	}
 
 	fn make_announcement(&self, announcement: Announcement) {
 		self.proto.make_announcement(self.io, announcement);
-	}
-
-	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
-		self.proto.max_requests(peer, kind)
 	}
 
 	fn disconnect_peer(&self, peer: PeerId) {
@@ -160,16 +157,12 @@ impl<'a> BasicContext for Ctx<'a> {
 		self.io.persistent_peer_id(id)
 	}
 
-	fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error> {
-		self.proto.request_from(self.io, &peer, request)
+	fn request_from(&self, peer: PeerId, requests: Requests) -> Result<ReqId, Error> {
+		self.proto.request_from(self.io, &peer, requests)
 	}
 
 	fn make_announcement(&self, announcement: Announcement) {
 		self.proto.make_announcement(self.io, announcement);
-	}
-
-	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
-		self.proto.max_requests(peer, kind)
 	}
 
 	fn disconnect_peer(&self, peer: PeerId) {

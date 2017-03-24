@@ -245,7 +245,7 @@ mod tests {
 
 	#[test]
 	fn seal_retrieval() {
-		let collector = VoteCollector::default();	
+		let collector = VoteCollector::default();
 		let bh = Some("1".sha3());
 		let mut signatures = Vec::new();
 		for _ in 0..5 {
@@ -284,7 +284,7 @@ mod tests {
 
 	#[test]
 	fn count_votes() {
-		let collector = VoteCollector::default();	
+		let collector = VoteCollector::default();
 		let round1 = 1;
 		let round3 = 3;
 		// good 1
@@ -318,7 +318,7 @@ mod tests {
 
 	#[test]
 	fn remove_old() {
-		let collector = VoteCollector::default();	
+		let collector = VoteCollector::default();
 		let vote = |round, hash| {
 			random_vote(&collector, H520::random(), round, hash);
 		};
@@ -334,7 +334,7 @@ mod tests {
 
 	#[test]
 	fn malicious_authority() {
-		let collector = VoteCollector::default();	
+		let collector = VoteCollector::default();
 		let round = 3;
 		// Vote is inserted fine.
 		assert!(full_vote(&collector, H520::random(), round, Some("0".sha3()), &Address::default()).is_none());

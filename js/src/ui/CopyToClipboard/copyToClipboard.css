@@ -28,6 +28,6 @@
   text-overflow: ellipsis;
 }
 
-.container {
+.container > * {
   display: flex;
 }

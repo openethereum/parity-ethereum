@@ -24,14 +24,16 @@ use std::fmt;
 use std::collections::{HashMap, HashSet};
 use std::time::{Instant, Duration};
 use util::{RwLock};
-use ethstore::{SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
-	random_string, SecretVaultRef, StoreAccountRef};
+use ethstore::{
+	SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
+	random_string, SecretVaultRef, StoreAccountRef,
+};
 use ethstore::dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
 use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath};
 pub use ethstore::ethkey::Signature;
-pub use ethstore::{Derivation, IndexDerivation};
+pub use ethstore::{Derivation, IndexDerivation, KeyFile};
 
 /// Type of unlock.
 #[derive(Clone)]
@@ -498,6 +500,11 @@ impl AccountProvider {
 	/// Changes the password of `account` from `password` to `new_password`. Fails if incorrect `password` given.
 	pub fn change_password(&self, address: &Address, password: String, new_password: String) -> Result<(), Error> {
 		self.sstore.change_password(&self.sstore.account_ref(address)?, &password, &new_password)
+	}
+
+	/// Exports an account for given address.
+	pub fn export_account(&self, address: &Address, password: String) -> Result<KeyFile, Error> {
+		self.sstore.export_account(&self.sstore.account_ref(address)?, &password)
 	}
 
 	/// Helper method used for unlocking accounts.

@@ -14,10 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate ethcore_bigint as bigint;
+extern crate rlp;
+
 use std::{fmt, cmp};
-use std::str::FromStr;
-use ::{Encodable, RlpDecodable, UntrustedRlp, RlpStream, View, Stream, DecoderError};
 use bigint::prelude::U256;
+use rlp::{Encodable, Decodable, UntrustedRlp, RlpStream, DecoderError};
 
 #[test]
 fn rlp_at() {
@@ -25,7 +27,7 @@ fn rlp_at() {
 	{
 		let rlp = UntrustedRlp::new(&data);
 		assert!(rlp.is_list());
-		let animals: Vec<String> = rlp.as_val().unwrap();
+		let animals: Vec<String> = rlp.as_list().unwrap();
 		assert_eq!(animals, vec!["cat".to_owned(), "dog".to_owned()]);
 
 		let cat = rlp.at(0).unwrap();
@@ -90,7 +92,18 @@ fn run_encode_tests<T>(tests: Vec<ETestPair<T>>)
 	where T: Encodable
 {
 	for t in &tests {
-		let res = super::encode(&t.0);
+		let res = rlp::encode(&t.0);
+		assert_eq!(&res[..], &t.1[..]);
+	}
+}
+
+struct VETestPair<T>(Vec<T>, Vec<u8>) where T: Encodable;
+
+fn run_encode_tests_list<T>(tests: Vec<VETestPair<T>>)
+	where T: Encodable
+{
+	for t in &tests {
+		let res = rlp::encode_list(&t.0);
 		assert_eq!(&res[..], &t.1[..]);
 	}
 }
@@ -131,9 +144,8 @@ fn encode_u256() {
 					 ETestPair(U256::from(0x1000000u64), vec![0x84, 0x01, 0x00, 0x00, 0x00]),
 					 ETestPair(U256::from(0xffffffffu64),
 							   vec![0x84, 0xff, 0xff, 0xff, 0xff]),
-					 ETestPair(U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000\
-											   000100000000000012f0")
-								   .unwrap(),
+					 ETestPair(("8090a0b0c0d0e0f00910203040506077000000000000\
+											   000100000000000012f0").into(),
 							   vec![0xa0, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
 									0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0x00,
 									0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
@@ -186,26 +198,35 @@ fn encode_vector_u8() {
 #[test]
 fn encode_vector_u64() {
 	let tests = vec![
-		ETestPair(vec![], vec![0xc0]),
-		ETestPair(vec![15u64], vec![0xc1, 0x0f]),
-		ETestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
-		ETestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
+		VETestPair(vec![], vec![0xc0]),
+		VETestPair(vec![15u64], vec![0xc1, 0x0f]),
+		VETestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
+		VETestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
 	];
-	run_encode_tests(tests);
+	run_encode_tests_list(tests);
 }
 
 #[test]
 fn encode_vector_str() {
-	let tests = vec![ETestPair(vec!["cat", "dog"],
+	let tests = vec![VETestPair(vec!["cat", "dog"],
 							   vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])];
-	run_encode_tests(tests);
+	run_encode_tests_list(tests);
 }
 
-struct DTestPair<T>(T, Vec<u8>) where T: RlpDecodable + fmt::Debug + cmp::Eq;
+struct DTestPair<T>(T, Vec<u8>) where T: Decodable + fmt::Debug + cmp::Eq;
 
-fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: RlpDecodable + fmt::Debug + cmp::Eq {
+struct VDTestPair<T>(Vec<T>, Vec<u8>) where T: Decodable + fmt::Debug + cmp::Eq;
+
+fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: Decodable + fmt::Debug + cmp::Eq {
 	for t in &tests {
-		let res: T = super::decode(&t.1);
+		let res: T = rlp::decode(&t.1);
+		assert_eq!(res, t.0);
+	}
+}
+
+fn run_decode_tests_list<T>(tests: Vec<VDTestPair<T>>) where T: Decodable + fmt::Debug + cmp::Eq {
+	for t in &tests {
+		let res: Vec<T> = rlp::decode_list(&t.1);
 		assert_eq!(res, t.0);
 	}
 }
@@ -265,9 +286,8 @@ fn decode_untrusted_u256() {
 					 DTestPair(U256::from(0x1000000u64), vec![0x84, 0x01, 0x00, 0x00, 0x00]),
 					 DTestPair(U256::from(0xffffffffu64),
 							   vec![0x84, 0xff, 0xff, 0xff, 0xff]),
-					 DTestPair(U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000\
-											   000100000000000012f0")
-								   .unwrap(),
+					 DTestPair(("8090a0b0c0d0e0f00910203040506077000000000000\
+											   000100000000000012f0").into(),
 							   vec![0xa0, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
 									0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0x00,
 									0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
@@ -310,35 +330,19 @@ fn decode_untrusted_address() {
 #[test]
 fn decode_untrusted_vector_u64() {
 	let tests = vec![
-		DTestPair(vec![], vec![0xc0]),
-		DTestPair(vec![15u64], vec![0xc1, 0x0f]),
-		DTestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
-		DTestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
+		VDTestPair(vec![], vec![0xc0]),
+		VDTestPair(vec![15u64], vec![0xc1, 0x0f]),
+		VDTestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
+		VDTestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
 	];
-	run_decode_tests(tests);
+	run_decode_tests_list(tests);
 }
 
 #[test]
 fn decode_untrusted_vector_str() {
-	let tests = vec![DTestPair(vec!["cat".to_owned(), "dog".to_owned()],
+	let tests = vec![VDTestPair(vec!["cat".to_owned(), "dog".to_owned()],
 							   vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])];
-	run_decode_tests(tests);
-}
-
-#[test]
-fn decode_untrusted_vector_of_vectors_str() {
-	let tests = vec![DTestPair(vec![vec!["cat".to_owned()]],
-							   vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])];
-	run_decode_tests(tests);
-}
-
-#[test]
-fn test_decoding_array() {
-	let v = vec![5u16, 2u16];
-	let res = super::encode(&v);
-	let arr: [u16; 2] = super::decode(&res);
-	assert_eq!(arr[0], 5);
-	assert_eq!(arr[1], 2);
+	run_decode_tests_list(tests);
 }
 
 #[test]
@@ -396,7 +400,7 @@ fn test_rlp_2bytes_data_length_check()
 #[test]
 fn test_rlp_nested_empty_list_encode() {
 	let mut stream = RlpStream::new_list(2);
-	stream.append(&(Vec::new() as Vec<u32>));
+	stream.append_list(&(Vec::new() as Vec<u32>));
 	stream.append(&40u32);
 	assert_eq!(stream.drain()[..], [0xc2u8, 0xc0u8, 40u8][..]);
 }

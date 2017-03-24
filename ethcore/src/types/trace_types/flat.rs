@@ -59,14 +59,13 @@ impl Encodable for FlatTrace {
 		s.append(&self.action);
 		s.append(&self.result);
 		s.append(&self.subtraces);
-		s.append(&self.trace_address.clone().into_iter().collect::<Vec<_>>());
+		s.append_list::<usize, &usize>(&self.trace_address.iter().collect::<Vec<_>>());
 	}
 }
 
 impl Decodable for FlatTrace {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
-		let v: Vec<usize> = d.val_at(3)?;
+	fn decode(d: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let v: Vec<usize> = d.list_at(3)?;
 		let res = FlatTrace {
 			action: d.val_at(0)?,
 			result: d.val_at(1)?,
@@ -103,13 +102,13 @@ impl FlatTransactionTraces {
 
 impl Encodable for FlatTransactionTraces {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		Encodable::rlp_append(&self.0, s);
+		s.append_list(&self.0);
 	}
 }
 
 impl Decodable for FlatTransactionTraces {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		Ok(FlatTransactionTraces(Decodable::decode(decoder)?))
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		Ok(FlatTransactionTraces(rlp.as_list()?))
 	}
 }
 
@@ -144,13 +143,13 @@ impl FlatBlockTraces {
 
 impl Encodable for FlatBlockTraces {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		Encodable::rlp_append(&self.0, s);
+		s.append_list(&self.0);
 	}
 }
 
 impl Decodable for FlatBlockTraces {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		Ok(FlatBlockTraces(Decodable::decode(decoder)?))
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		Ok(FlatBlockTraces(rlp.as_list()?))
 	}
 }
 

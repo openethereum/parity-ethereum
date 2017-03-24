@@ -13,9 +13,8 @@ pub mod inner {
 
 		impl fold::Folder for StripAttributeFolder {
 			fn fold_attribute(&mut self, attr: ast::Attribute) -> Option<ast::Attribute> {
-				match attr.node.value.node {
-					ast::MetaItemKind::List(ref n, _) if n == &"webapp" => { return None; }
-					_ => {}
+				if &*attr.value.name.as_str() == "webapp" {
+					return None;
 				}
 
 				Some(attr)

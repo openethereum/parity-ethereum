@@ -16,7 +16,7 @@
 
 //! Contains RLPs used for compression.
 
-use rlpcompression::InvalidRlpSwapper;
+use compression::InvalidRlpSwapper;
 
 lazy_static! {
 	/// Swapper for snapshot compression.

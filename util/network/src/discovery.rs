@@ -213,7 +213,7 @@ impl Discovery {
 			let nearest = Discovery::nearest_node_entries(&self.discovery_id, &self.node_buckets).into_iter();
 			let nearest = nearest.filter(|x| !self.discovery_nodes.contains(&x.id)).take(ALPHA).collect::<Vec<_>>();
 			for r in nearest {
-				let rlp = encode(&(&[self.discovery_id.clone()][..]));
+				let rlp = encode_list(&(&[self.discovery_id.clone()][..]));
 				self.send_packet(PACKET_FIND_NODE, &r.endpoint.udp_address(), &rlp);
 				self.discovery_nodes.insert(r.id.clone());
 				tried_count += 1;
@@ -481,7 +481,7 @@ impl Discovery {
 	fn on_neighbours(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
 		// TODO: validate packet
 		let mut added = HashMap::new();
-		trace!(target: "discovery", "Got {} Neighbours from {:?}", rlp.at(0)?.item_count(), &from);
+		trace!(target: "discovery", "Got {} Neighbours from {:?}", rlp.at(0)?.item_count()?, &from);
 		for r in rlp.at(0)?.iter() {
 			let endpoint = NodeEndpoint::from_rlp(&r)?;
 			if !endpoint.is_valid() {

@@ -30,21 +30,23 @@
 //!
 //! ```
 //! extern crate jsonrpc_core;
+//! extern crate jsonrpc_server_utils;
 //! extern crate ethcore_signer;
 //! extern crate ethcore_rpc;
 //!
 //! use std::sync::Arc;
 //! use jsonrpc_core::IoHandler;
-//! use jsonrpc_core::reactor::RpcEventLoop;
+//! use jsonrpc_server_utils::reactor::RpcEventLoop;
 //! use ethcore_signer::ServerBuilder;
 //! use ethcore_rpc::ConfirmationsQueue;
 //!
 //!	fn main() {
 //!	 let queue = Arc::new(ConfirmationsQueue::default());
-//!	 let io = Arc::new(IoHandler::new().into());
-//!	 let event_loop = RpcEventLoop::spawn();
+//!	 let io = IoHandler::default();
+//!	 let event_loop = RpcEventLoop::spawn().unwrap();
+//!	 let remote = event_loop.remote();
 //!	 let _server = ServerBuilder::new(queue, "/tmp/authcodes".into())
-//!		.start("127.0.0.1:8084".parse().unwrap(), event_loop.handler(io));
+//!		.start("127.0.0.1:8084".parse().unwrap(), io, remote);
 //!	}
 //! ```
 
@@ -57,6 +59,7 @@ extern crate ethcore_util as util;
 extern crate ethcore_rpc as rpc;
 extern crate ethcore_io as io;
 extern crate jsonrpc_core;
+extern crate jsonrpc_server_utils;
 extern crate ws;
 
 extern crate ethcore_devtools as devtools;

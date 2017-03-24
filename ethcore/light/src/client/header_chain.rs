@@ -24,7 +24,6 @@
 //!   - It stores only headers (and a pruned subset of them)
 //!   - To allow for flexibility in the database layout once that's incorporated.
 // TODO: use DB instead of memory. DB Layout: just the contents of `candidates`/`headers`
-//
 
 use std::collections::{BTreeMap, HashMap};
 

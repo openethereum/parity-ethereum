@@ -47,7 +47,7 @@ export default class SignRequest extends Component {
     id: PropTypes.object.isRequired,
     isFinished: PropTypes.bool.isRequired,
     netVersion: PropTypes.string.isRequired,
-    signerstore: PropTypes.object.isRequired,
+    signerStore: PropTypes.object.isRequired,
 
     className: PropTypes.string,
     focus: PropTypes.bool,
@@ -67,9 +67,9 @@ export default class SignRequest extends Component {
   };
 
   componentWillMount () {
-    const { address, signerstore } = this.props;
+    const { address, signerStore } = this.props;
 
-    signerstore.fetchBalance(address);
+    signerStore.fetchBalance(address);
   }
 
   render () {
@@ -106,8 +106,8 @@ export default class SignRequest extends Component {
 
   renderDetails () {
     const { api } = this.context;
-    const { address, data, netVersion, origin, signerstore } = this.props;
-    const { balances, externalLink } = signerstore;
+    const { address, data, netVersion, origin, signerStore } = this.props;
+    const { balances, externalLink } = signerStore;
 
     const balance = balances[address];
 

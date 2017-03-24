@@ -19,7 +19,7 @@ clippy = { version = "0.0.103", optional = true}
 igd = "0.5.0"
 libc = "0.2.7"
 parking_lot = "0.3"
-ansi_term = "0.7"
+ansi_term = "0.9"
 rustc-serialize = "0.3"
 ethcore-io = { path = "../io" }
 ethcore-util = { path = ".." }
@@ -27,6 +27,8 @@ ethcore-devtools = { path = "../../devtools" }
 ethkey = { path = "../../ethkey" }
 ethcrypto = { path = "../../ethcrypto" }
 rlp = { path = "../rlp" }
+path = { path = "../path" }
+ethcore-logger = { path ="../../logger" }
 
 [features]
 default = []

@@ -17,83 +17,50 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import IconMenu from 'material-ui/IconMenu';
-import IconButton from 'material-ui/IconButton/IconButton';
 import AccountIcon from 'material-ui/svg-icons/action/account-circle';
-import MenuItem from 'material-ui/MenuItem';
 
+import { init } from './actions';
 import IdentityIcon from '../IdentityIcon';
-import Address from '../ui/address';
 
-import { select } from './actions';
 import styles from './accounts.css';
 
 class Accounts extends Component {
   static propTypes = {
-    all: PropTypes.object.isRequired,
-    selected: PropTypes.object,
+    selected: PropTypes.oneOfType([
+      PropTypes.oneOf([ null ]),
+      PropTypes.string
+    ]),
+    onInit: PropTypes.func.isRequired
+  };
 
-    select: PropTypes.func.isRequired
+  componentWillMount () {
+    this.props.onInit();
   }
 
   render () {
-    const { all, selected } = this.props;
+    const { selected } = this.props;
 
-    const origin = { horizontal: 'right', vertical: 'top' };
-
-    const accountsButton = (
-      <IconButton className={ styles.button }>
-        { selected
-          ? (
-            <IdentityIcon
-              className={ styles.icon }
-              address={ selected.address }
-            />
-          ) : (
-            <AccountIcon
-              className={ styles.icon }
-              color='white'
-            />
-          )
-        }
-      </IconButton>);
+    if (!selected) {
+      return (
+        <AccountIcon
+          className={ styles.icon }
+          color='white'
+        />
+      );
+    }
 
     return (
-      <IconMenu
-        value={ selected ? this.renderAccount(selected) : null }
-        onChange={ this.onAccountSelect }
-        iconButtonElement={ accountsButton }
-
-        anchorOrigin={ origin }
-        targetOrigin={ origin }
-      >
-        { Object.values(all).map(this.renderAccount) }
-      </IconMenu>
+      <IdentityIcon
+        className={ styles.icon }
+        address={ selected }
+      />
     );
   }
-
-  renderAccount = (account) => {
-    const { selected } = this.props;
-    const isSelected = selected && selected.address === account.address;
-
-    return (
-      <MenuItem
-        key={ account.address }
-        value={ account.address }
-        checked={ isSelected }
-        insetChildren={ !isSelected }
-      >
-        <Address address={ account.address } />
-      </MenuItem>
-    );
-  };
-
-  onAccountSelect = (e, address) => {
-    this.props.select(address);
-  };
 }
 
 const mapStateToProps = (state) => state.accounts;
-const mapDispatchToProps = (dispatch) => bindActionCreators({ select }, dispatch);
+const mapDispatchToProps = (dispatch) => bindActionCreators({
+  onInit: init
+}, dispatch);
 
 export default connect(mapStateToProps, mapDispatchToProps)(Accounts);
