@@ -367,7 +367,7 @@ impl SessionImpl {
 
 		// decrypt the secret using shadow points
 		let joint_shadow_point = math::compute_joint_shadow_point(data.shadow_points.values())?;
-		let decrypted_secret = math::decrypt_with_joint_shadow(&self.access_key, &self.encrypted_data.encrypted_point, &joint_shadow_point)?;
+		let decrypted_secret = math::decrypt_with_joint_shadow(self.encrypted_data.threshold, &self.access_key, &self.encrypted_data.encrypted_point, &joint_shadow_point)?;
 		data.decrypted_secret = Some(Ok(decrypted_secret));
 
 		// switch to completed state
