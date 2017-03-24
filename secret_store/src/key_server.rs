@@ -143,7 +143,7 @@ mod tests {
 	use std::str::FromStr;
 	use ethcrypto;
 	use ethkey::{self, Secret, Random, Generator};
-	use acl_storage::DummyAclStorage;
+	use acl_storage::tests::DummyAclStorage;
 	use key_storage::tests::DummyKeyStorage;
 	use types::all::{ClusterConfiguration, NodeAddress, EncryptionConfiguration, DocumentEncryptedKey, DocumentKey};
 	use super::super::{RequestSignature, DocumentAddress};

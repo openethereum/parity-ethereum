@@ -504,7 +504,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
 	use std::collections::BTreeMap;
-	use super::super::super::acl_storage::DummyAclStorage;
+	use super::super::super::acl_storage::tests::DummyAclStorage;
 	use ethkey::{self, Random, Generator, Public, Secret};
 	use key_server_cluster::{NodeId, DocumentKeyShare, SessionId, Error};
 	use key_server_cluster::cluster::tests::DummyCluster;
