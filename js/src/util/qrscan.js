@@ -17,6 +17,7 @@
 import Transaction from 'ethereumjs-tx';
 
 import { inHex } from '~/api/format/input';
+import { sha3 } from '~/api/util/sha3';
 
 export function createUnsignedTx (api, netVersion, gasStore, transaction) {
   const { data, from, gas, gasPrice, to, value } = gasStore.overrideTransaction(transaction);
@@ -35,17 +36,21 @@ export function createUnsignedTx (api, netVersion, gasStore, transaction) {
         gasPrice: inHex(gasPrice),
         gasLimit: inHex(gas),
         nonce: inHex(nonce),
-        to: inHex(to),
+        to: to ? inHex(to) : undefined,
         value: inHex(value),
         r: 0,
         s: 0,
         v: chainId
       });
 
+      const rlp = inHex(tx.serialize().toString('hex'));
+      const hash = sha3(rlp);
+
       return {
         chainId,
+        hash,
         nonce,
-        rlp: inHex(tx.serialize().toString('hex')),
+        rlp,
         tx
       };
     });

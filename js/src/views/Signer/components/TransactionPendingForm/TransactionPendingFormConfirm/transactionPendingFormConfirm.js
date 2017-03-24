@@ -324,6 +324,7 @@ export default class TransactionPendingFormConfirm extends Component {
     );
   }
 
+  // TODO: Split into sub-scomponent
   renderQrCode () {
     const { account } = this.props;
     const { qrState, qrValue } = this.state;
@@ -340,6 +341,7 @@ export default class TransactionPendingFormConfirm extends Component {
     );
   }
 
+  // TODO: Split into sub-scomponent
   renderQrScanner () {
     const { account } = this.props;
     const { qrState } = this.state;
@@ -406,7 +408,6 @@ export default class TransactionPendingFormConfirm extends Component {
   onScanTx = (signature) => {
     const { qrChainId, qrRlp, qrTx } = this.state;
 
-    // FIXME: Would prefer 0x back from the actual QR
     if (signature && signature.substr(0, 2) !== '0x') {
       signature = `0x${signature}`;
     }
@@ -490,20 +491,41 @@ export default class TransactionPendingFormConfirm extends Component {
     const { api } = this.context;
     const { netVersion, gasStore, transaction } = this.props;
 
-    createUnsignedTx(api, netVersion, gasStore, transaction).then(({ chainId, nonce, rlp, tx }) => {
-      this.setState({
-        qrChainId: chainId,
-        qrNonce: nonce,
-        qrRlp: rlp,
-        qrTx: tx,
+    createUnsignedTx(api, netVersion, gasStore, transaction)
+      .then(({ chainId, hash, nonce, rlp, tx }) => {
+        // FIXME: transaction contains data, send hash (check for length, i.e. >64)
+        let qrValue = transaction.data && transaction.data.length
+          ? {
+            action: 'signTransactionHash',
+            data: {
+              account: transaction.from.substr(2),
+              hash: hash.substr(2),
+              details: {
+                gasPrice: tx.gasPrice.toString('hex').substr(2),
+                gas: tx.gasLimit.toString('hex').substr(2),
+                nonce: tx.gasLimit.toString('hex').substr(2),
+                to: transaction.to ? tx.to.toString('hex').substr(2) : undefined,
+                value: tx.value.toString('hex').substr(2)
+              }
+            }
+          }
+          : {
+            action: 'signTransaction',
+            data: {
+              account: transaction.from.substr(2),
+              rlp: rlp.substr(2)
+            }
+          };
 
-        // NOTE: leading 0x is dropped for Native Signer compatibility
-        qrValue: JSON.stringify({
-          from: transaction.from.substr(2),
-          rlp: rlp.substr(2)
-        })
+        this.setState({
+          qrChainId: chainId,
+          qrHash: hash,
+          qrNonce: nonce,
+          qrRlp: rlp,
+          qrTx: tx,
+          qrValue: JSON.stringify(qrValue)
+        });
       });
-    });
   }
 
   onKeyDown = (event) => {
