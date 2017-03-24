@@ -17,13 +17,13 @@
 import { action, observable } from 'mobx';
 import FileSaver from 'file-saver';
 
-class ExportStore {
+export default class ExportStore {
   @observable canExport = false;
   @observable selectedAccounts = {};
   @observable accountValue = '';
   @observable inputValue = {};
 
-  insertProps (api, accounts, newError, address) {
+  constructor (api, accounts, newError, address) {
     this._api = api;
     this._accounts = accounts;
     this._newError = newError;
@@ -93,5 +93,3 @@ class ExportStore {
       .filter((account) => this.selectedAccounts[account])[0];
   }
 }
-
-export default new ExportStore();

@@ -44,11 +44,11 @@ class ExportAccount extends Component {
   componentWillMount () {
     const { accounts, newError } = this.props;
 
-    ExportStore.insertProps(this.context.api, accounts, newError, null);
+    this.exportStore = new ExportStore(this.context.api, accounts, newError, null);
   }
 
   render () {
-    const { canExport, onExport } = ExportStore;
+    const { canExport, onExport } = this.exportStore;
 
     return (
       <Portal
@@ -112,7 +112,7 @@ class ExportAccount extends Component {
   renderAccount = (account) => {
     const { balances } = this.props;
     const balance = balances[account.address];
-    const { changePassword, getPassword } = ExportStore;
+    const { changePassword, getPassword } = this.exportStore;
     const inputValue = getPassword(account);
 
     return (
@@ -145,13 +145,13 @@ class ExportAccount extends Component {
   }
 
   isSelected = (account) => {
-    const { selectedAccounts } = ExportStore;
+    const { selectedAccounts } = this.exportStore;
 
     return selectedAccounts[account.address];
   }
 
   onSelect = (account) => {
-    ExportStore.toggleSelectedAccount(account.address);
+    this.exportStore.toggleSelectedAccount(account.address);
   }
 
   onClose = () => {

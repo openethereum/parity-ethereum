@@ -59,13 +59,16 @@ class Account extends Component {
   store = new Store();
   hwstore = HardwareStore.get(this.context.api);
 
-  componentDidMount () {
+  componentWillMount () {
     const { accounts, newError, params } = this.props;
     const { address } = params;
 
+    this.exportStore = new ExportStore(this.context.api, accounts, newError, address);
+  }
+
+  componentDidMount () {
     this.props.fetchCertifiers();
     this.setVisibleAccounts();
-    ExportStore.insertProps(this.context.api, accounts, newError, address);
   }
 
   componentWillReceiveProps (nextProps) {
@@ -322,7 +325,8 @@ class Account extends Component {
   }
 
   renderExportDialog () {
-    const { changePassword, accountValue, onExport } = ExportStore;
+    const { toggleExportDialog } = this.store;
+    const { changePassword, accountValue, onExport } = this.exportStore;
 
     if (!this.store.isExportVisible) {
       return null;
@@ -331,15 +335,15 @@ class Account extends Component {
       <Portal
         open
         isSmallModal
-        onClose={ this.toggleExport }
+        onClose={ toggleExportDialog }
       >
         <ConfirmDialog
           open
-          disabledConfirm={ !accountValue.length }
+          disabledConfirm={ false }
           labelConfirm='Export'
           labelDeny='Cancel'
           onConfirm={ onExport }
-          onDeny={ this.toggleExport }
+          onDeny={ toggleExportDialog }
           title={
             <FormattedMessage
               id='export.account.title'
@@ -453,14 +457,6 @@ class Account extends Component {
         onClose={ this.store.toggleVerificationDialog }
       />
     );
-  }
-
-  toggleExport = () => {
-    const { toggleExportDialog } = this.store;
-    const { resetAccountValue } = ExportStore;
-
-    resetAccountValue();
-    toggleExportDialog();
   }
 }
 
