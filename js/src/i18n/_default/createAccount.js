@@ -17,66 +17,66 @@
 export default {
   accountDetails: {
     address: {
-      hint: `the network address for the account账户地址`,
-      label: `address 地址`
+      hint: `账户地址`,
+      label: `地址`
     },
     name: {
-      hint: `a descriptive name for the account描述账户的名字`,
-      label: `account name账户名`
+      hint: `描述账户的名字`,
+      label: `账户名`
     },
     phrase: {
-      hint: `the account recovery phrase账户恢复词`,
-      label: `owner recovery phrase (keep private and secure, it allows full and unlimited access to the account)账户恢复此（安全保存，别人拥有它就可以完全控制你的账户）`
+      hint: `账户恢复词`,
+      label: `账户恢复词（安全保存，别人拥有它就可以完全控制你的账户）`
     }
   },
   accountDetailsGeth: {
-    imported: `You have imported {number} addresses from the Geth keystore:你已经从Geth keystore导入了{number}个地址`
+    imported: `你已经从Geth keystore导入了{number}个地址`
   },
   button: {
-    back: `Back返回`,
-    cancel: `Cancel取消`,
-    close: `Close关闭`,
-    create: `Create创建`,
-    import: `Import导入`,
-    next: `Next下一步`,
-    print: `Print Phrase打印词组`
+    back: `返回`,
+    cancel: `取消`,
+    close: `关闭`,
+    create: `创建`,
+    import: `导入`,
+    next: `下一步`,
+    print: `打印恢复词`
   },
   creationType: {
     fromGeth: {
-      label: `Import accounts from Geth keystore从Geth keystore导入账户`
+      label: `从Geth keystore导入账户`
     },
     fromJSON: {
-      label: `Import account from a backup JSON file从JSON文件导入账户`
+      label: `从JSON文件导入账户`
     },
     fromNew: {
-      label: `Create new account manually手动创建新账户`
+      label: `手动创建新账户`
     },
     fromPhrase: {
-      label: `Recover account from recovery phrase通过恢复词恢复账户`
+      label: `通过恢复词恢复账户`
     },
     fromPresale: {
-      label: `Import account from an Ethereum pre-sale wallet从以太坊预售钱包导入账户`
+      label: `从以太坊预售钱包导入账户`
     },
     fromRaw: {
-      label: `Import raw private key导入私钥`
+      label: `导入私钥`
     }
   },
   newAccount: {
     hint: {
-      hint: `(optional) a hint to help with remembering the password（可选）帮助你记住密码的提示`,
-      label: `password hint密码提示`
+      hint: `（可选）帮助你记住密码的提示`,
+      label: `密码提示`
     },
     name: {
-      hint: `a descriptive name for the account描述账户的名字`,
-      label: `account name账户名`
+      hint: `描述账户的名字`,
+      label: `账户名`
     },
     password: {
-      hint: `a strong, unique password足够强的密码`,
-      label: `password密码`
+      hint: `足够强的密码`,
+      label: `密码`
     },
     password2: {
-      hint: `verify your password确认你的密码`,
-      label: `password (repeat)再次输入密码`
+      hint: `确认你的密码`,
+      label: `再次输入密码`
     }
   },
   newGeth: {
