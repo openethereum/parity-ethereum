@@ -32,7 +32,6 @@ pub struct Configuration {
 	pub data_path: String,
 }
 
-#[derive(Debug, PartialEq, Clone)]
 /// Secret store dependencies
 pub struct Dependencies {
 	/// Blockchain client.
@@ -100,7 +99,7 @@ mod server {
 				}
 			};
 
-			let key_server = ethcore_secretstore::start(conf)
+			let key_server = ethcore_secretstore::start(deps.client, conf)
 				.map_err(Into::<String>::into)?;
 
 			Ok(KeyServer {
