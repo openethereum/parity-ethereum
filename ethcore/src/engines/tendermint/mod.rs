@@ -33,7 +33,7 @@ use error::{Error, BlockError};
 use header::Header;
 use builtin::Builtin;
 use env_info::EnvInfo;
-use rlp::{UntrustedRlp, View as RlpView};
+use rlp::UntrustedRlp;
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;
@@ -98,7 +98,7 @@ pub struct Tendermint {
 	/// Hash of the proposal parent block.
 	proposal_parent: RwLock<H256>,
 	/// Set used to determine the current validators.
-	validators: Box<ValidatorSet + Send + Sync>,
+	validators: Box<ValidatorSet>,
 }
 
 impl Tendermint {
@@ -243,7 +243,7 @@ impl Tendermint {
 							let seal = vec![
 								::rlp::encode(&view).to_vec(),
 								::rlp::encode(&seal.proposal).to_vec(),
-								::rlp::encode(&seal.votes).to_vec()
+								::rlp::encode_list(&seal.votes).to_vec()
 							];
 							self.submit_seal(block_hash, seal);
 							self.to_next_height(height);
@@ -825,7 +825,7 @@ mod tests {
 		let vote_info = message_info_rlp(&VoteStep::new(2, 0, Step::Precommit), Some(header.bare_hash()));
 		let signature1 = tap.sign(proposer, None, vote_info.sha3()).unwrap();
 
-		seal[2] = ::rlp::encode(&vec![H520::from(signature1.clone())]).to_vec();
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone())]).to_vec();
 		header.set_seal(seal.clone());
 
 		// One good signature is not enough.
@@ -837,7 +837,7 @@ mod tests {
 		let voter = insert_and_unlock(&tap, "0");
 		let signature0 = tap.sign(voter, None, vote_info.sha3()).unwrap();
 
-		seal[2] = ::rlp::encode(&vec![H520::from(signature1.clone()), H520::from(signature0.clone())]).to_vec();
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone()), H520::from(signature0.clone())]).to_vec();
 		header.set_seal(seal.clone());
 
 		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
@@ -845,7 +845,7 @@ mod tests {
 		let bad_voter = insert_and_unlock(&tap, "101");
 		let bad_signature = tap.sign(bad_voter, None, vote_info.sha3()).unwrap();
 
-		seal[2] = ::rlp::encode(&vec![H520::from(signature1), H520::from(bad_signature)]).to_vec();
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1), H520::from(bad_signature)]).to_vec();
 		header.set_seal(seal);
 
 		// One good and one bad signature.

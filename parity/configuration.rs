@@ -22,7 +22,7 @@ use std::cmp::max;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
-use util::log::Colour;
+use util::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::ethstore::ethkey::Secret;
 use ethcore::client::{VMType};
@@ -824,7 +824,7 @@ impl Configuration {
 	}
 
 	fn directories(&self) -> Directories {
-		use util::path;
+		use path;
 
 		let local_path = default_local_path();
 		let base_path = self.args.flag_base_path.as_ref().map_or_else(|| default_data_path(), |s| s.clone());

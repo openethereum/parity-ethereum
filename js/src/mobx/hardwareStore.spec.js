@@ -130,25 +130,58 @@ describe('mobx/HardwareStore', () => {
 
   describe('operations', () => {
     describe('createAccountInfo', () => {
-      beforeEach(() => {
-        return store.createAccountInfo({
-          address: 'testAddr',
-          manufacturer: 'testMfg',
-          name: 'testName'
+      describe('when not existing', () => {
+        beforeEach(() => {
+          return store.createAccountInfo({
+            address: 'testAddr',
+            manufacturer: 'testMfg',
+            name: 'testName'
+          });
+        });
+
+        it('calls into parity_setAccountName', () => {
+          expect(api.parity.setAccountName).to.have.been.calledWith('testAddr', 'testName');
+        });
+
+        it('calls into parity_setAccountMeta', () => {
+          expect(api.parity.setAccountMeta).to.have.been.calledWith('testAddr', sinon.match({
+            description: 'testMfg testName',
+            hardware: {
+              manufacturer: 'testMfg'
+            },
+            tags: ['hardware']
+          }));
         });
       });
 
-      it('calls into parity_setAccountName', () => {
-        expect(api.parity.setAccountName).to.have.been.calledWith('testAddr', 'testName');
-      });
+      describe('when already exists', () => {
+        beforeEach(() => {
+          return store.createAccountInfo({
+            address: 'testAddr',
+            manufacturer: 'testMfg',
+            name: 'testName'
+          }, {
+            name: 'originalName',
+            meta: {
+              description: 'originalDescription',
+              tags: ['tagA', 'tagB']
+            }
+          });
+        });
 
-      it('calls into parity_setAccountMeta', () => {
-        expect(api.parity.setAccountMeta).to.have.been.calledWith('testAddr', sinon.match({
-          description: 'testMfg testName',
-          hardware: {
-            manufacturer: 'testMfg'
-          }
-        }));
+        it('does not call into parity_setAccountName', () => {
+          expect(api.parity.setAccountName).not.to.have.been.called;
+        });
+
+        it('calls into parity_setAccountMeta', () => {
+          expect(api.parity.setAccountMeta).to.have.been.calledWith('testAddr', sinon.match({
+            description: 'originalDescription',
+            hardware: {
+              manufacturer: 'testMfg'
+            },
+            tags: ['tagA', 'tagB']
+          }));
+        });
       });
     });
 

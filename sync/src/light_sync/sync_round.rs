@@ -20,13 +20,14 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::fmt;
 
+use ethcore::encoded;
 use ethcore::header::Header;
 
 use light::net::ReqId;
-use light::request::Headers as HeadersRequest;
+use light::request::CompleteHeadersRequest as HeadersRequest;
 
 use network::PeerId;
-use util::{Bytes, H256};
+use util::H256;
 
 use super::response;
 
@@ -40,7 +41,7 @@ pub trait ResponseContext {
 	/// Get the request ID this response corresponds to.
 	fn req_id(&self) -> &ReqId;
 	/// Get the (unverified) response data.
-	fn data(&self) -> &[Bytes];
+	fn data(&self) -> &[encoded::Header];
 	/// Punish the responder.
 	fn punish_responder(&self);
 }
@@ -114,7 +115,7 @@ impl Fetcher {
 
 			let needed_headers = HeadersRequest {
 				start: high_rung.parent_hash().clone().into(),
-				max: diff as usize - 1,
+				max: diff - 1,
 				skip: 0,
 				reverse: true,
 			};
@@ -190,7 +191,7 @@ impl Fetcher {
 			return SyncRound::Fetch(self);
 		}
 
-		match response::decode_and_verify(headers, &request.headers_request) {
+		match response::verify(headers, &request.headers_request) {
 			Err(e) => {
 				trace!(target: "sync", "Punishing peer {} for invalid response ({})", ctx.responder(), e);
 				ctx.punish_responder();
@@ -286,21 +287,21 @@ impl Fetcher {
 }
 
 // Compute scaffold parameters from non-zero distance between start and target block: (skip, pivots).
-fn scaffold_params(diff: u64) -> (u64, usize) {
+fn scaffold_params(diff: u64) -> (u64, u64) {
 	// default parameters.
 	// amount of blocks between each scaffold pivot.
 	const ROUND_SKIP: u64 = 255;
 	// amount of scaffold pivots: these are the Xs in "X___X___X"
-	const ROUND_PIVOTS: usize = 256;
+	const ROUND_PIVOTS: u64 = 256;
 
 	let rem = diff % (ROUND_SKIP + 1);
 	if diff <= ROUND_SKIP {
 		// just request headers from the start to the target.
-		(0, rem as usize)
+		(0, rem)
 	} else {
 		// the number of pivots necessary to exactly hit or overshoot the target.
 		let pivots_to_target = (diff / (ROUND_SKIP + 1)) + if rem == 0 { 0 } else { 1 };
-		let num_pivots = ::std::cmp::min(pivots_to_target, ROUND_PIVOTS as u64) as usize;
+		let num_pivots = ::std::cmp::min(pivots_to_target, ROUND_PIVOTS);
 		(ROUND_SKIP, num_pivots)
 	}
 }
@@ -319,7 +320,7 @@ pub struct RoundStart {
 	contributors: HashSet<PeerId>,
 	attempt: usize,
 	skip: u64,
-	pivots: usize,
+	pivots: u64,
 }
 
 impl RoundStart {
@@ -372,7 +373,7 @@ impl RoundStart {
 			}
 		};
 
-		match response::decode_and_verify(ctx.data(), &req) {
+		match response::verify(ctx.data(), &req) {
 			Ok(headers) => {
 				if self.sparse_headers.len() == 0
 					&& headers.get(0).map_or(false, |x| x.parent_hash() != &self.start_block.1) {
@@ -383,7 +384,7 @@ impl RoundStart {
 				self.contributors.insert(ctx.responder());
 				self.sparse_headers.extend(headers);
 
-				if self.sparse_headers.len() == self.pivots {
+				if self.sparse_headers.len() as u64 == self.pivots {
 					return if self.skip == 0 {
 						SyncRound::abort(AbortReason::TargetReached, self.sparse_headers.into())
 					} else {
@@ -429,7 +430,7 @@ impl RoundStart {
 			let start = (self.start_block.0 + 1)
 				+ self.sparse_headers.len() as u64 * (self.skip + 1);
 
-			let max = self.pivots - self.sparse_headers.len();
+			let max = self.pivots - self.sparse_headers.len() as u64;
 
 			let headers_request = HeadersRequest {
 				start: start.into(),

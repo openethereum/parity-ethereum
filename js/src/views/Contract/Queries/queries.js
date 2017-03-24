@@ -139,15 +139,14 @@ export default class Queries extends Component {
     );
   }
 
-  renderValue (tokenValue, output, key) {
-    if (typeof tokenValue === 'undefined') {
+  renderValue (value, output, key) {
+    if (typeof value === 'undefined') {
       return null;
     }
 
     const { accountsInfo } = this.props;
     const { name, type } = output;
     const label = `${name ? `${name}: ` : ''}${type}`;
-    const value = this.getTokenValue(tokenValue);
 
     return (
       <TypedInput
@@ -161,25 +160,6 @@ export default class Queries extends Component {
         value={ value }
       />
     );
-  }
-
-  getTokenValue (token) {
-    const { api } = this.context;
-    const { type, value } = token;
-
-    if (value === null || value === undefined) {
-      return 'no data';
-    }
-
-    if (type === 'array' || type === 'fixedArray') {
-      return value.map((tok) => this.getTokenValue(tok));
-    }
-
-    if (Array.isArray(value)) {
-      return api.util.bytesToHex(value);
-    }
-
-    return value;
   }
 
   _sortEntries (a, b) {

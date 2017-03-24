@@ -23,6 +23,7 @@ mod disk;
 mod memory;
 mod vault;
 <<<<<<< HEAD
+<<<<<<< HEAD
 pub mod paths;
 =======
 
@@ -34,6 +35,9 @@ pub enum DirectoryType {
 	Main,
 }
 >>>>>>> Export account RPC
+=======
+pub mod paths;
+>>>>>>> 9efab789aa875ad3b6930403135ea9bdf1c3468b
 
 /// `VaultKeyDirectory::set_key` error
 #[derive(Debug)]

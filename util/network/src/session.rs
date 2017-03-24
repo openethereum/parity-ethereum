@@ -59,8 +59,8 @@ pub struct Session {
 	ping_time_ns: u64,
 	pong_time_ns: Option<u64>,
 	state: State,
-	// Protocol states -- accumulates pending packets until signaled as ready.	
-	protocol_states: HashMap<ProtocolId, ProtocolState>,		
+	// Protocol states -- accumulates pending packets until signaled as ready.
+	protocol_states: HashMap<ProtocolId, ProtocolState>,
 }
 
 enum State {
@@ -116,9 +116,8 @@ pub struct PeerCapabilityInfo {
 }
 
 impl Decodable for PeerCapabilityInfo {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let c = decoder.as_rlp();
-		let p: Vec<u8> = c.val_at(0)?;
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let p: Vec<u8> = rlp.val_at(0)?;
 		if p.len() != 3 {
 			return Err(DecoderError::Custom("Invalid subprotocol string length. Should be 3"));
 		}
@@ -126,7 +125,7 @@ impl Decodable for PeerCapabilityInfo {
 		p2.clone_from_slice(&p);
 		Ok(PeerCapabilityInfo {
 			protocol: p2,
-			version: c.val_at(1)?
+			version: rlp.val_at(1)?
 		})
 	}
 }
@@ -198,7 +197,7 @@ impl Session {
 			ping_time_ns: 0,
 			pong_time_ns: None,
 			expired: false,
-			protocol_states: HashMap::new(),			
+			protocol_states: HashMap::new(),
 		})
 	}
 
@@ -374,16 +373,16 @@ impl Session {
 		self.connection().token()
 	}
 
-	/// Signal that a subprotocol has handled the connection successfully and 
+	/// Signal that a subprotocol has handled the connection successfully and
 	/// get all pending packets in order received.
 	pub fn mark_connected(&mut self, protocol: ProtocolId) -> Vec<(ProtocolId, u8, Vec<u8>)> {
 		match self.protocol_states.insert(protocol, ProtocolState::Connected) {
-			None => Vec::new(),			
+			None => Vec::new(),
 			Some(ProtocolState::Connected) => {
 				debug!(target: "network", "Protocol {:?} marked as connected more than once", protocol);
 				Vec::new()
 			}
-			Some(ProtocolState::Pending(pending)) => 
+			Some(ProtocolState::Pending(pending)) =>
 				pending.into_iter().map(|(data, id)| (protocol, id, data)).collect(),
 		}
 	}
@@ -463,7 +462,7 @@ impl Session {
 		rlp.begin_list(5)
 			.append(&host.protocol_version)
 			.append(&host.client_version)
-			.append(&host.capabilities)
+			.append_list(&host.capabilities)
 			.append(&host.local_endpoint.address.port())
 			.append(host.id());
 		self.send(io, rlp)
@@ -473,7 +472,7 @@ impl Session {
 	where Message: Send + Sync + Clone {
 		let protocol = rlp.val_at::<u32>(0)?;
 		let client_version = rlp.val_at::<String>(1)?;
-		let peer_caps = rlp.val_at::<Vec<PeerCapabilityInfo>>(2)?;
+		let peer_caps: Vec<PeerCapabilityInfo> = rlp.list_at(2)?;
 		let id = rlp.val_at::<NodeId>(4)?;
 
 		// Intersect with host capabilities
@@ -515,7 +514,7 @@ impl Session {
 		self.info.protocol_version = protocol;
 		self.info.client_version = client_version;
 		self.info.capabilities = caps;
-		self.info.peer_capabilities = peer_caps; 
+		self.info.peer_capabilities = peer_caps;
 		if self.info.capabilities.is_empty() {
 			trace!(target: "network", "No common capabilities with peer.");
 			return Err(From::from(self.disconnect(io, DisconnectReason::UselessPeer)));

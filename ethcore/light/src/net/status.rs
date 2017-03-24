@@ -16,7 +16,7 @@
 
 //! Peer status and capabilities.
 
-use rlp::{DecoderError, RlpDecodable, RlpEncodable, RlpStream, Stream, UntrustedRlp, View};
+use rlp::{DecoderError, Encodable, Decodable, RlpStream, UntrustedRlp};
 use util::{H256, U256};
 
 use super::request_credits::FlowParams;
@@ -91,7 +91,7 @@ struct Parser<'a> {
 impl<'a> Parser<'a> {
 	// expect a specific next key, and decode the value.
 	// error on unexpected key or invalid value.
-	fn expect<T: RlpDecodable>(&mut self, key: Key) -> Result<T, DecoderError> {
+	fn expect<T: Decodable>(&mut self, key: Key) -> Result<T, DecoderError> {
 		self.expect_raw(key).and_then(|item| item.as_val())
 	}
 
@@ -110,7 +110,7 @@ impl<'a> Parser<'a> {
 
 	// get the next key and value RLP.
 	fn get_next(&mut self) -> Result<Option<(Key, UntrustedRlp<'a>)>, DecoderError> {
-		while self.pos < self.rlp.item_count() {
+		while self.pos < self.rlp.item_count()? {
 			let pair = self.rlp.at(self.pos)?;
 			let k: String = pair.val_at(0)?;
 
@@ -126,7 +126,7 @@ impl<'a> Parser<'a> {
 }
 
 // Helper for encoding a key-value pair
-fn encode_pair<T: RlpEncodable>(key: Key, val: &T) -> Vec<u8> {
+fn encode_pair<T: Encodable>(key: Key, val: &T) -> Vec<u8> {
 	let mut s = RlpStream::new_list(2);
 	s.append(&key.as_str()).append(val);
 	s.out()
@@ -374,7 +374,7 @@ mod tests {
 	use super::*;
 	use super::super::request_credits::FlowParams;
 	use util::{U256, H256};
-	use rlp::{RlpStream, Stream ,UntrustedRlp, View};
+	use rlp::{RlpStream, UntrustedRlp};
 
 	#[test]
 	fn full_handshake() {
@@ -474,7 +474,7 @@ mod tests {
 		let handshake = write_handshake(&status, &capabilities, Some(&flow_params));
 		let interleaved = {
 			let handshake = UntrustedRlp::new(&handshake);
-			let mut stream = RlpStream::new_list(handshake.item_count() * 3);
+			let mut stream = RlpStream::new_list(handshake.item_count().unwrap_or(0) * 3);
 
 			for item in handshake.iter() {
 				stream.append_raw(item.as_raw(), 1);

@@ -51,8 +51,8 @@ impl Encodable for CallType {
 }
 
 impl Decodable for CallType {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		decoder.as_rlp().as_val().and_then(|v| Ok(match v {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		rlp.as_val().and_then(|v| Ok(match v {
 			0u32 => CallType::None,
 			1 => CallType::Call,
 			2 => CallType::CallCode,

@@ -43,8 +43,7 @@ impl Encodable for BasicAccount {
 }
 
 impl Decodable for BasicAccount {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let rlp = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		Ok(BasicAccount {
 			nonce: rlp.val_at(0)?,
 			balance: rlp.val_at(1)?,

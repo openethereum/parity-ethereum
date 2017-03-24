@@ -26,10 +26,9 @@ use ethcore_rpc::informant::RpcStats;
 use ethcore_rpc;
 use ethcore_signer as signer;
 use helpers::replace_home;
-use io::{ForwardPanic, PanicHandler};
-use jsonrpc_core::reactor::{RpcHandler, Remote};
+use parity_reactor::TokioRemote;
 use rpc_apis;
-use util::path::restrict_permissions_owner;
+use path::restrict_permissions_owner;
 use util::H256;
 
 const CODES_FILENAME: &'static str = "authcodes";
@@ -57,9 +56,8 @@ impl Default for Configuration {
 }
 
 pub struct Dependencies {
-	pub panic_handler: Arc<PanicHandler>,
 	pub apis: Arc<rpc_apis::Dependencies>,
-	pub remote: Remote,
+	pub remote: TokioRemote,
 	pub rpc_stats: Arc<RpcStats>,
 }
 
@@ -143,9 +141,9 @@ fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, Str
 		}
 		let server = server.skip_origin_validation(conf.skip_origin_validation);
 		let server = server.stats(deps.rpc_stats.clone());
-		let apis = rpc_apis::setup_rpc(deps.rpc_stats, deps.apis, rpc_apis::ApiSet::SafeContext);
-		let handler = RpcHandler::new(Arc::new(apis), deps.remote);
-		server.start_with_extractor(addr, handler, StandardExtractor)
+		let handler = rpc_apis::setup_rpc(deps.rpc_stats, deps.apis, rpc_apis::ApiSet::SafeContext);
+		let remote = deps.remote.clone();
+		server.start_with_extractor(addr, handler, remote, StandardExtractor)
 	};
 
 	match start_result {
@@ -154,10 +152,7 @@ fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, Str
 			_ => Err(format!("Trusted Signer io error: {}", err)),
 		},
 		Err(e) => Err(format!("Trusted Signer Error: {:?}", e)),
-		Ok(server) => {
-			deps.panic_handler.forward_from(&server);
-			Ok(server)
-		},
+		Ok(server) => Ok(server),
 	}
 }
 

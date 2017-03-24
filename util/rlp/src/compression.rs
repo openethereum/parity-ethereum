@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ::{UntrustedRlp, View, Compressible, encode, Stream, RlpStream};
-use commonrlps::{BLOCKS_RLP_SWAPPER, SNAPSHOT_RLP_SWAPPER};
-
 use std::collections::HashMap;
 use elastic_array::ElasticArray1024;
+use common::{BLOCKS_RLP_SWAPPER, SNAPSHOT_RLP_SWAPPER};
+use {UntrustedRlp, Compressible, encode, RlpStream};
 
 /// Stores RLPs used for compression
 pub struct InvalidRlpSwapper<'a> {
@@ -70,7 +69,7 @@ fn to_elastic(slice: &[u8]) -> ElasticArray1024<u8> {
 fn map_rlp<F>(rlp: &UntrustedRlp, f: F) -> Option<ElasticArray1024<u8>> where
 	F: Fn(&UntrustedRlp) -> Option<ElasticArray1024<u8>> {
 	match rlp.iter()
-	.fold((false, RlpStream::new_list(rlp.item_count())),
+		.fold((false, RlpStream::new_list(rlp.item_count().unwrap_or(0))),
 		|(is_some, mut acc), subrlp| {
   		let new = f(&subrlp);
   		if let Some(ref insert) = new {
@@ -139,7 +138,7 @@ fn deep_decompress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> Option<El
 		swapper.get_valid(rlp.as_raw()).map(to_elastic);
 	// Simply decompress data.
 	if rlp.is_data() { return simple_swap(); }
-	match rlp.item_count() {
+	match rlp.item_count().unwrap_or(0) {
 		// Look for special compressed list, which contains nested data.
 		2 if rlp.at(0).map(|r| r.as_raw() == &[0x81, 0x7f]).unwrap_or(false) =>
 			rlp.at(1).ok().map_or(simple_swap(),
@@ -148,8 +147,6 @@ fn deep_decompress(rlp: &UntrustedRlp, swapper: &InvalidRlpSwapper) -> Option<El
 		_ => map_rlp(rlp, |r| deep_decompress(r, swapper)),
   	}
 }
-
-
 
 impl<'a> Compressible for UntrustedRlp<'a> {
 	type DataType = RlpType;
@@ -171,8 +168,8 @@ impl<'a> Compressible for UntrustedRlp<'a> {
 
 #[cfg(test)]
 mod tests {
-	use ::{UntrustedRlp, Compressible, View, RlpType};
-	use rlpcompression::InvalidRlpSwapper;
+	use compression::InvalidRlpSwapper;
+	use {UntrustedRlp, Compressible, RlpType};
 
 	#[test]
 	fn invalid_rlp_swapper() {
