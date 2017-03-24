@@ -333,4 +333,13 @@ impl Parity for ParityClient {
 			block_gap: gap.map(|(x, y)| (x.into(), y.into())),
 		})
 	}
+
+	fn node_kind(&self) -> Result<::v1::types::NodeKind, Error> {
+		use ::v1::types::{NodeKind, Availability, Capability};
+
+		Ok(NodeKind {
+			availability: Availability::Personal,
+			capability: Capability::Light,
+		})
+	}
 }

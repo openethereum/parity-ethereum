@@ -372,4 +372,14 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			block_gap: gap.map(|(x, y)| (x.into(), y.into())),
 		})
 	}
+
+	fn node_kind(&self) -> Result<::v1::types::NodeKind, Error> {
+		use ::v1::types::{NodeKind, Availability, Capability};
+
+		// TODO [maciej]: public availability flag.
+		Ok(NodeKind {
+			availability: Availability::Personal,
+			capability: Capability::Full,
+		})
+	}
 }
