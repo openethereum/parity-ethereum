@@ -493,8 +493,9 @@ export default class TransactionPendingFormConfirm extends Component {
 
     createUnsignedTx(api, netVersion, gasStore, transaction)
       .then(({ chainId, hash, nonce, rlp, tx }) => {
+        console.log('then', tx.data);
         // FIXME: transaction contains data, send hash (check for length, i.e. >64)
-        let qrValue = transaction.data && transaction.data.length
+        let qrValue = tx.data && tx.data.length
           ? {
             action: 'signTransactionHash',
             data: {

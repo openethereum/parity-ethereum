@@ -15,10 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import qrcode from 'qrcode-generator/js/qrcode';
-
-console.log('qrcode', qrcode);
-
 import React, { Component, PropTypes } from 'react';
+
+import styles from './qrCode.css';
 
 const QROPTS = {
   ERROR_LEVEL: 'M',
@@ -63,7 +62,7 @@ export default class QrCode extends Component {
 
     return (
       <div
-        className={ className }
+        className={ [styles.qr, className].join(' ') }
         dangerouslySetInnerHTML={ {
           __html: image
         } }
@@ -72,7 +71,7 @@ export default class QrCode extends Component {
   }
 
   calculateSize (length) {
-    const minSize = Math.min(QROPTS.MAX_SIZE, Math.ceil((length * 8) / 128));
+    const minSize = Math.min(QROPTS.MAX_SIZE, Math.ceil(length / 16));
 
     return Math.max(minSize, QROPTS.MIN_SIZE);
   }
@@ -80,15 +79,13 @@ export default class QrCode extends Component {
   generateCode (props) {
     const { margin, size, value } = props;
     const qrSize = this.calculateSize(value.length);
-    const qr = qrcode(19, 'M');
-
-    console.log('generateCode', value.length, qrSize, QROPTS.ERROR_LEVEL, value);
+    const qr = qrcode(qrSize, 'M');
 
     qr.addData(value, 'Byte');
     qr.make();
 
     this.setState({
-      image: qr.createImgTag(size, margin)
+      image: qr.createSvgTag(size, margin)
     });
   }
 }
