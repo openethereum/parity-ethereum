@@ -167,44 +167,46 @@ mod tests {
 	fn document_key_generation_and_retrievement_works_over_network() {
 		//::util::log::init_log();
 
-		let test_cases = [(1, 3)];
-		for &(threshold, num_nodes) in &test_cases {
-			let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
-			let configs: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
-					threads: 1,
-					self_private: (***key_pairs[i].secret()).into(),
-					listener_address: NodeAddress {
+		let num_nodes = 3;
+		let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
+		let configs: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
+				threads: 1,
+				self_private: (***key_pairs[i].secret()).into(),
+				listener_address: NodeAddress {
+					address: "127.0.0.1".into(),
+					port: 6060 + (i as u16),
+				},
+				nodes: key_pairs.iter().enumerate().map(|(j, kp)| (kp.public().clone(),
+					NodeAddress {
 						address: "127.0.0.1".into(),
-						port: 6060 + (i as u16),
-					},
-					nodes: key_pairs.iter().enumerate().map(|(j, kp)| (kp.public().clone(),
-						NodeAddress {
-							address: "127.0.0.1".into(),
-							port: 6060 + (j as u16),
-						})).collect(),
-					allow_connecting_to_higher_nodes: false,
-					encryption_config: EncryptionConfiguration {
-						key_check_timeout_ms: 10,
-					},
-				}).collect();
-			let key_servers: Vec<_> = configs.into_iter().map(|cfg|
-				KeyServerImpl::new(&cfg, Arc::new(DummyAclStorage::default()), Arc::new(DummyKeyStorage::default())).unwrap()
-			).collect();
+						port: 6060 + (j as u16),
+					})).collect(),
+				allow_connecting_to_higher_nodes: false,
+				encryption_config: EncryptionConfiguration {
+					key_check_timeout_ms: 10,
+				},
+			}).collect();
+		let key_servers: Vec<_> = configs.into_iter().map(|cfg|
+			KeyServerImpl::new(&cfg, Arc::new(DummyAclStorage::default()), Arc::new(DummyKeyStorage::default())).unwrap()
+		).collect();
 
-			// wait until connections are established
-			let start = time::Instant::now();
-			loop {
-				if key_servers.iter().all(|ks| ks.cluster().cluster_state().connected.len() == num_nodes - 1) {
-					break;
-				}
-				if time::Instant::now() - start > time::Duration::from_millis(30000) {
-					panic!("connections are not established in 30000ms");
-				}
+		// wait until connections are established
+		let start = time::Instant::now();
+		loop {
+			if key_servers.iter().all(|ks| ks.cluster().cluster_state().connected.len() == num_nodes - 1) {
+				break;
 			}
+			if time::Instant::now() - start > time::Duration::from_millis(30000) {
+				panic!("connections are not established in 30000ms");
+			}
+		}
 
+		let test_cases = [0, 1, 2];
+		for threshold in &test_cases {
 			// generate document key
+			// TODO: it is an error that we can regenerate key for the same DOCUMENT
 			let signature = make_signature(PRIVATE1, DOCUMENT1);
-			let generated_key = key_servers[0].generate_document_key(&signature, &DOCUMENT1.into(), threshold).unwrap();
+			let generated_key = key_servers[0].generate_document_key(&signature, &DOCUMENT1.into(), *threshold).unwrap();
 			let generated_key = decrypt_document_key(PRIVATE1, generated_key);
 
 			// now let's try to retrieve key back

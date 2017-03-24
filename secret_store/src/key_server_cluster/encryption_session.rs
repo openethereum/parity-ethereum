@@ -1370,7 +1370,7 @@ mod tests {
 
 	#[test]
 	fn complete_enc_dec_session() {
-		let test_cases = [(3, 5)];
+		let test_cases = [(0, 5), (2, 5), (3, 5)];
 		for &(threshold, num_nodes) in &test_cases {
 			let mut l = MessageLoop::new(num_nodes);
 			l.master().initialize(threshold, l.nodes.keys().cloned().collect()).unwrap();
