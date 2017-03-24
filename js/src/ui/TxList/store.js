@@ -87,7 +87,9 @@ export default class Store {
   }
 
   loadTransactions (_txhashes) {
-    if (Array.isArray(_txhashes)) return;
+    if (Array.isArray(_txhashes)) {
+      return;
+    }
 
     const promises = _txhashes
       .filter((txhash) => !this.transactions[txhash] || this._pendingHashes.includes(txhash))
