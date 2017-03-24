@@ -16,6 +16,16 @@
 */
 
 .qr {
+  max-width: 15em;
+  max-height: 15em;
+
+  img {
+    height: auto !important;
+    max-height: 100%;
+    max-width: 100%;
+    width: auto !important;
+  }
+
   svg {
     background: white;
   }

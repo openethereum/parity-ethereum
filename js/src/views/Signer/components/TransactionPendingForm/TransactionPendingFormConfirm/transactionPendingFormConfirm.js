@@ -493,38 +493,36 @@ export default class TransactionPendingFormConfirm extends Component {
 
     createUnsignedTx(api, netVersion, gasStore, transaction)
       .then(({ chainId, hash, nonce, rlp, tx }) => {
-        console.log('then', tx.data);
-        // FIXME: transaction contains data, send hash (check for length, i.e. >64)
-        let qrValue = tx.data && tx.data.length
-          ? {
-            action: 'signTransactionHash',
-            data: {
-              account: transaction.from.substr(2),
-              hash: hash.substr(2),
-              details: {
-                gasPrice: tx.gasPrice.toString('hex').substr(2),
-                gas: tx.gasLimit.toString('hex').substr(2),
-                nonce: tx.gasLimit.toString('hex').substr(2),
-                to: transaction.to ? tx.to.toString('hex').substr(2) : undefined,
-                value: tx.value.toString('hex').substr(2)
-              }
-            }
-          }
-          : {
-            action: 'signTransaction',
-            data: {
-              account: transaction.from.substr(2),
-              rlp: rlp.substr(2)
-            }
-          };
-
         this.setState({
           qrChainId: chainId,
           qrHash: hash,
           qrNonce: nonce,
           qrRlp: rlp,
           qrTx: tx,
-          qrValue: JSON.stringify(qrValue)
+          qrValue: JSON.stringify(
+            tx.data && tx.data.length > 64
+              ? {
+                action: 'signTransactionHash',
+                data: {
+                  account: transaction.from.substr(2),
+                  hash: hash.substr(2),
+                  details: {
+                    gasPrice: tx.gasPrice.toString('hex').substr(2),
+                    gas: tx.gasLimit.toString('hex').substr(2),
+                    nonce: tx.gasLimit.toString('hex').substr(2),
+                    to: transaction.to ? tx.to.toString('hex').substr(2) : undefined,
+                    value: tx.value.toString('hex').substr(2)
+                  }
+                }
+              }
+              : {
+                action: 'signTransaction',
+                data: {
+                  account: transaction.from.substr(2),
+                  rlp: rlp.substr(2)
+                }
+              }
+          )
         });
       });
   }

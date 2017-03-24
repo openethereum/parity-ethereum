@@ -85,7 +85,7 @@ export default class QrCode extends Component {
     qr.make();
 
     this.setState({
-      image: qr.createSvgTag(size, margin)
+      image: qr.createImgTag(size, margin)
     });
   }
 }
