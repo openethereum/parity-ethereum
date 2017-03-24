@@ -2,8 +2,8 @@
 
 [![Build Status][travis-image]][travis-url]
 
-[travis-image]: https://travis-ci.org/ethcore/ethabi.svg?branch=master
-[travis-url]: https://travis-ci.org/ethcore/ethabi
+[travis-image]: https://travis-ci.org/paritytech/ethabi.svg?branch=master
+[travis-url]: https://travis-ci.org/paritytech/ethabi
 
 The ABI, Application Binary Interface, is basically how you call functions in a contract and get data back.
 
@@ -13,7 +13,7 @@ An Ethereum smart contract is bytecode, EVM, on the Ethereum blockchain. Among t
 
 This library encodes function calls and decodes their output.
 
-[Documentation](http://ethcore.github.io/ethabi/ethabi/index.html)
+[Documentation](http://paritytech.github.io/ethabi/ethabi/index.html)
 
 ### Installation
 
@@ -26,7 +26,7 @@ This library encodes function calls and decodes their output.
 - via homebrew
 
   ```
-  brew tap ethcore/ethcore
+  brew tap paritytech/paritytech
   brew install ethabi
   ```
 
@@ -163,9 +163,9 @@ ethabi decode log ./examples/event.json Event -l 0000000000000000000000000000000
 
 -  [ethabi-js](https://github.com/jacogr/ethabi-js) - javascript port of this library created by [@jacogr](https://github.com/jacogr)
 
-# Ethcore toolchain
+# Parity toolchain
 *this project is a part of the parity toolchain*
 
-- [**ethkey**](https://github.com/ethcore/ethkey) - Ethereum keys generator and signer.
-- [**ethstore**](https://github.com/ethcore/ethstore) - Ethereum key management.
-- [**ethabi**](https://github.com/ethcore/ethabi) - Ethereum function calls encoding.
+- [**ethkey**](https://github.com/paritytech/ethkey) - Ethereum keys generator and signer.
+- [**ethstore**](https://github.com/paritytech/ethstore) - Ethereum key management.
+- [**ethabi**](https://github.com/paritytech/ethabi) - Ethereum function calls encoding.
