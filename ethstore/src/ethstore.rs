@@ -1044,22 +1044,9 @@ mod tests {
 		let address = store.insert_account(SecretVaultRef::Root, keypair.secret().clone(), "test").unwrap();
 
 		// when
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 9efab789aa875ad3b6930403135ea9bdf1c3468b
 		let exported = store.export_account(&address, "test");
 
 		// then
 		assert!(exported.is_ok(), "Should export single account: {:?}", exported);
-<<<<<<< HEAD
-=======
-		let exported = store.export_account(&address, "test").unwrap();
-
-		// then
-		assert_eq!(exported.len(), 1, "Should export single account: {:?}", exported);
->>>>>>> Export account RPC
-=======
->>>>>>> 9efab789aa875ad3b6930403135ea9bdf1c3468b
 	}
 }

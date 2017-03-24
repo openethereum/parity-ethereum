@@ -22,22 +22,7 @@ use {SafeAccount, Error};
 mod disk;
 mod memory;
 mod vault;
-<<<<<<< HEAD
-<<<<<<< HEAD
 pub mod paths;
-=======
-
-/// Directory
-pub enum DirectoryType {
-	/// For testnet
-	Testnet,
-	/// For mainnet
-	Main,
-}
->>>>>>> Export account RPC
-=======
-pub mod paths;
->>>>>>> 9efab789aa875ad3b6930403135ea9bdf1c3468b
 
 /// `VaultKeyDirectory::set_key` error
 #[derive(Debug)]
