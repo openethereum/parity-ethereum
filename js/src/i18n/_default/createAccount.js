@@ -80,7 +80,7 @@ export default {
     }
   },
   newGeth: {
-    noKeys: `There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance 现在Geth keystore中没有可用的`
+    noKeys: `现在Geth keystore中没有可导入的私钥`
   },
   newImport: {
     file: {
