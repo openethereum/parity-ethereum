@@ -21,7 +21,7 @@ use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
 
 use futures::{self, future, BoxFuture, Future};
-use rlp::{self, UntrustedRlp, View};
+use rlp::{self, UntrustedRlp};
 use time::get_time;
 use util::{H160, H256, Address, U256, H64};
 use util::sha3::Hashable;

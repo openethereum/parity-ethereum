@@ -64,9 +64,8 @@ impl Encodable for FlatTrace {
 }
 
 impl Decodable for FlatTrace {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
-		let v: Vec<usize> = d.val_at(3)?;
+	fn decode(d: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let v: Vec<usize> = d.list_at(3)?;
 		let res = FlatTrace {
 			action: d.val_at(0)?,
 			result: d.val_at(1)?,
@@ -108,8 +107,8 @@ impl Encodable for FlatTransactionTraces {
 }
 
 impl Decodable for FlatTransactionTraces {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		Ok(FlatTransactionTraces(Decodable::decode(decoder)?))
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		Ok(FlatTransactionTraces(rlp.as_list()?))
 	}
 }
 
@@ -149,8 +148,8 @@ impl Encodable for FlatBlockTraces {
 }
 
 impl Decodable for FlatBlockTraces {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		Ok(FlatBlockTraces(Decodable::decode(decoder)?))
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		Ok(FlatBlockTraces(rlp.as_list()?))
 	}
 }
 

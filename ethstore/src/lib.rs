@@ -14,6 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Ethereum key-management.
+
+
+#![warn(missing_docs)]
+
 extern crate libc;
 extern crate itertools;
 extern crate smallvec;
@@ -52,10 +57,11 @@ mod presale;
 mod random;
 mod secret_store;
 
-pub use self::account::{SafeAccount};
+pub use self::account::SafeAccount;
 pub use self::error::Error;
 pub use self::ethstore::{EthStore, EthMultiStore};
 pub use self::import::{import_accounts, read_geth_accounts};
+pub use self::json::OpaqueKeyFile as KeyFile;
 pub use self::presale::PresaleWallet;
 pub use self::secret_store::{
 	SecretVaultRef, StoreAccountRef, SimpleSecretStore, SecretStore,

@@ -20,6 +20,7 @@ use std::collections::BTreeMap;
 use util::{Address};
 
 use ethkey::{Brain, Generator, Secret};
+use ethstore::KeyFile;
 use ethcore::account_provider::AccountProvider;
 
 use jsonrpc_core::Error;
@@ -314,6 +315,17 @@ impl ParityAccounts for ParityAccountsClient {
 				save_as_account)
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not derive account.", e))
+	}
+
+	fn export_account(&self, addr: RpcH160, password: String) -> Result<KeyFile, Error> {
+		let addr = addr.into();
+		take_weak!(self.accounts)
+			.export_account(
+				&addr,
+				password,
+			)
+			.map(Into::into)
+			.map_err(|e| errors::account("Could not export account.", e))
 	}
 }
 

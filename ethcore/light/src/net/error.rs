@@ -56,6 +56,8 @@ pub enum Error {
 	UnknownPeer,
 	/// Unsolicited response.
 	UnsolicitedResponse,
+	/// Bad back-reference in request.
+	BadBackReference,
 	/// Not a server.
 	NotServer,
 	/// Unsupported protocol version.
@@ -78,6 +80,7 @@ impl Error {
 			Error::WrongNetwork => Punishment::Disable,
 			Error::UnknownPeer => Punishment::Disconnect,
 			Error::UnsolicitedResponse => Punishment::Disable,
+			Error::BadBackReference => Punishment::Disable,
 			Error::NotServer => Punishment::Disable,
 			Error::UnsupportedProtocolVersion(_) => Punishment::Disable,
 			Error::BadProtocolVersion => Punishment::Disable,
@@ -109,6 +112,7 @@ impl fmt::Display for Error {
 			Error::WrongNetwork => write!(f, "Wrong network"),
 			Error::UnknownPeer => write!(f, "Unknown peer"),
 			Error::UnsolicitedResponse => write!(f, "Peer provided unsolicited data"),
+			Error::BadBackReference => write!(f, "Bad back-reference in request."),
 			Error::NotServer => write!(f, "Peer not a server."),
 			Error::UnsupportedProtocolVersion(pv) => write!(f, "Unsupported protocol version: {}", pv),
 			Error::BadProtocolVersion => write!(f, "Bad protocol version in handshake"),

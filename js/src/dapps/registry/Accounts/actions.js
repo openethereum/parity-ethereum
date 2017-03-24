@@ -14,4 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { api } from '../parity';
+
 export const select = (address) => ({ type: 'accounts select', address });
+
+export const init = () => (dispatch) => {
+  api.subscribe('parity_defaultAccount', (error, accountAddress) => {
+    if (error) {
+      return console.error(error);
+    }
+
+    if (accountAddress) {
+      dispatch(select(accountAddress));
+    }
+  });
+
+  return api.parity
+    .defaultAccount()
+    .then((accountAddress) => {
+      dispatch(select(accountAddress));
+    })
+    .catch((error) => {
+      console.error(error);
+    });
+};

@@ -141,7 +141,7 @@ class RequestsPage extends Component {
         onReject={ actions.startRejectRequest }
         origin={ origin }
         payload={ payload }
-        signerstore={ this.store }
+        signerStore={ this.store }
       />
     );
   }

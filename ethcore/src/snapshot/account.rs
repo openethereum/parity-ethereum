@@ -22,7 +22,7 @@ use snapshot::Error;
 
 use util::{U256, H256, Bytes, HashDB, SHA3_EMPTY, SHA3_NULL_RLP};
 use util::trie::{TrieDB, Trie};
-use rlp::{RlpStream, UntrustedRlp, View};
+use rlp::{RlpStream, UntrustedRlp};
 
 use std::collections::HashSet;
 
@@ -180,7 +180,7 @@ mod tests {
 
 	use util::sha3::{SHA3_EMPTY, SHA3_NULL_RLP};
 	use util::{Address, H256, HashDB, DBValue};
-	use rlp::{UntrustedRlp, View};
+	use rlp::UntrustedRlp;
 
 	use std::collections::HashSet;
 

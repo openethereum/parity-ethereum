@@ -58,7 +58,7 @@ pub struct BasicAuthority {
 	gas_limit_bound_divisor: U256,
 	builtins: BTreeMap<Address, Builtin>,
 	signer: EngineSigner,
-	validators: Box<ValidatorSet + Send + Sync>,
+	validators: Box<ValidatorSet>,
 }
 
 impl BasicAuthority {
@@ -138,7 +138,7 @@ impl Engine for BasicAuthority {
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
-		use rlp::{UntrustedRlp, View};
+		use rlp::UntrustedRlp;
 		// Check if the signature belongs to a validator, can depend on parent state.
 		let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
 		let signer = public_to_address(&recover(&sig.into(), &header.bare_hash())?);

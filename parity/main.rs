@@ -75,6 +75,9 @@ extern crate ethcore_secretstore;
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
 
+#[cfg(windows)] extern crate ws2_32;
+#[cfg(windows)] extern crate winapi;
+
 macro_rules! dependency {
 	($dep_ty:ident, $url:expr) => {
 		{
@@ -123,7 +126,7 @@ mod stratum;
 use std::{process, env};
 use std::collections::HashMap;
 use std::io::{self as stdio, BufReader, Read, Write};
-use std::fs::{remove_file, metadata, File};
+use std::fs::{remove_file, metadata, File, create_dir_all};
 use std::path::PathBuf;
 use util::sha3::sha3;
 use cli::Args;
@@ -210,10 +213,11 @@ fn latest_exe_path() -> Option<PathBuf> {
 }
 
 fn set_spec_name_override(spec_name: String) {
-	if let Err(e) = File::create(updates_path("spec_name_overide"))
-		.and_then(|mut f| f.write_all(spec_name.as_bytes()))
+	if let Err(e) = create_dir_all(default_hypervisor_path())
+		.and_then(|_| File::create(updates_path("spec_name_overide"))
+		.and_then(|mut f| f.write_all(spec_name.as_bytes())))
 	{
-		warn!("Couldn't override chain spec: {}", e);
+		warn!("Couldn't override chain spec: {} at {:?}", e, updates_path("spec_name_overide"));
 	}
 }
 
@@ -227,12 +231,24 @@ fn take_spec_name_override() -> Option<String> {
 
 #[cfg(windows)]
 fn global_cleanup() {
-	extern "system" { pub fn WSACleanup() -> i32; }
 	// We need to cleanup all sockets before spawning another Parity process. This makes shure everything is cleaned up.
 	// The loop is required because of internal refernce counter for winsock dll. We don't know how many crates we use do
 	// initialize it. There's at least 2 now.
 	for _ in 0.. 10 {
-		unsafe { WSACleanup(); }
+		unsafe { ::ws2_32::WSACleanup(); }
+	}
+}
+
+#[cfg(not(windows))]
+fn global_init() {}
+
+#[cfg(windows)]
+fn global_init() {
+	// When restarting in the same process this reinits windows sockets.
+	unsafe {
+		const WS_VERSION: u16 = 0x202;
+		let mut wsdata: ::winapi::winsock2::WSADATA = ::std::mem::zeroed();
+		::ws2_32::WSAStartup(WS_VERSION, &mut wsdata);
 	}
 }
 
@@ -241,15 +257,17 @@ fn global_cleanup() {}
 
 // Starts ~/.parity-updates/parity and returns the code it exits with.
 fn run_parity() -> Option<i32> {
-	global_cleanup();
+	global_init();
 	use ::std::ffi::OsString;
 	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct")];
-	latest_exe_path().and_then(|exe| process::Command::new(exe)
+	let res = latest_exe_path().and_then(|exe| process::Command::new(exe)
 		.args(&(env::args_os().skip(1).chain(prefix.into_iter()).collect::<Vec<_>>()))
 		.status()
 		.map(|es| es.code().unwrap_or(128))
 		.ok()
-	)
+	);
+	global_cleanup();
+	res
 }
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
@@ -257,10 +275,11 @@ const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 // Run our version of parity.
 // Returns the exit error code.
 fn main_direct(can_restart: bool) -> i32 {
+	global_init();
 	let mut alt_mains = HashMap::new();
 	sync_main(&mut alt_mains);
 	stratum_main(&mut alt_mains);
-	if let Some(f) = std::env::args().nth(1).and_then(|arg| alt_mains.get(&arg.to_string())) {
+	let res = if let Some(f) = std::env::args().nth(1).and_then(|arg| alt_mains.get(&arg.to_string())) {
 		f();
 		0
 	} else {
@@ -280,7 +299,9 @@ fn main_direct(can_restart: bool) -> i32 {
 				1
 			},
 		}
-	}
+	};
+	global_cleanup();
+	res
 }
 
 fn println_trace_main(s: String) {
