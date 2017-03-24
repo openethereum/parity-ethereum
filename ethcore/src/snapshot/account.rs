@@ -71,8 +71,9 @@ pub fn to_fat_rlps(acc: &BasicAccount, acct_db: &AccountDB, used_code: &mut Hash
 
 	let db = TrieDB::new(acct_db, &acc.storage_root)?;
 
-	let pair_chunks: Vec<Vec<_>> = db.iter()?.chunks(preferred_size / AVERAGE_BYTES_PER_STORAGE_ENTRY).into_iter().map(|chunk| chunk.collect()).collect();
-	pair_chunks.into_iter().pad_using(1, |_| Vec::new(), ).map(|pairs| {
+	let chunks = db.iter()?.chunks(preferred_size / AVERAGE_BYTES_PER_STORAGE_ENTRY);
+	let pair_chunks = chunks.into_iter().map(|chunk| chunk.collect());
+	pair_chunks.pad_using(1, |_| Vec::new(), ).map(|pairs| {
 		let mut stream = RlpStream::new_list(pairs.len());
 
 		for r in pairs {
