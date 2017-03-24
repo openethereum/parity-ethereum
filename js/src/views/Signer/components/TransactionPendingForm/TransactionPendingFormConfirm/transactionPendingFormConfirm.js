@@ -499,30 +499,35 @@ export default class TransactionPendingFormConfirm extends Component {
           qrNonce: nonce,
           qrRlp: rlp,
           qrTx: tx,
-          qrValue: JSON.stringify(
-            tx.data && tx.data.length > 64
-              ? {
-                action: 'signTransactionHash',
-                data: {
-                  account: transaction.from.substr(2),
-                  hash: hash.substr(2),
-                  details: {
-                    gasPrice: tx.gasPrice.toString('hex').substr(2),
-                    gas: tx.gasLimit.toString('hex').substr(2),
-                    nonce: tx.gasLimit.toString('hex').substr(2),
-                    to: transaction.to ? tx.to.toString('hex').substr(2) : undefined,
-                    value: tx.value.toString('hex').substr(2)
-                  }
-                }
-              }
-              : {
-                action: 'signTransaction',
-                data: {
-                  account: transaction.from.substr(2),
-                  rlp: rlp.substr(2)
-                }
-              }
-          )
+          // TODO: Activate new format once mobile app is updated
+          qrValue: JSON.stringify({
+            from: transaction.from.substr(2),
+            rlp: rlp.substr(2)
+          })
+          // qrValue: JSON.stringify(
+          //   tx.data && tx.data.length > 64
+          //     ? {
+          //       action: 'signTransactionHash',
+          //       data: {
+          //         account: transaction.from.substr(2),
+          //         hash: hash.substr(2),
+          //         details: {
+          //           gasPrice: tx.gasPrice.toString('hex').substr(2),
+          //           gas: tx.gasLimit.toString('hex').substr(2),
+          //           nonce: tx.gasLimit.toString('hex').substr(2),
+          //           to: transaction.to ? tx.to.toString('hex').substr(2) : undefined,
+          //           value: tx.value.toString('hex').substr(2)
+          //         }
+          //       }
+          //     }
+          //     : {
+          //       action: 'signTransaction',
+          //       data: {
+          //         account: transaction.from.substr(2),
+          //         rlp: rlp.substr(2)
+          //       }
+          //     }
+          // )
         });
       });
   }
