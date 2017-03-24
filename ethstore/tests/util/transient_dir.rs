@@ -14,6 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+<<<<<<< HEAD:ethstore/tests/util/transient_dir.rs
+=======
+// TODO [ToDr] Very outdated! Remove!
+
+use std::env;
+>>>>>>> Export account RPC:ethstore/src/dir/parity.rs
 use std::path::PathBuf;
 use std::{env, fs};
 use rand::{Rng, OsRng};
@@ -27,27 +33,47 @@ pub fn random_dir() -> PathBuf {
 	dir
 }
 
+<<<<<<< HEAD:ethstore/tests/util/transient_dir.rs
 pub struct TransientDir {
+=======
+/// Accounts on-disk storage for Parity directories.
+pub struct ParityDirectory {
+>>>>>>> Export account RPC:ethstore/src/dir/parity.rs
 	dir: RootDiskDirectory,
 	path: PathBuf,
 }
 
+<<<<<<< HEAD:ethstore/tests/util/transient_dir.rs
 impl TransientDir {
 	pub fn create() -> Result<Self, Error> {
 		let path = random_dir();
 		let result = TransientDir {
 			dir: RootDiskDirectory::create(&path)?,
 			path: path,
+=======
+impl ParityDirectory {
+	/// Create new directory.
+	pub fn create(t: DirectoryType) -> Result<Self, Error> {
+		let result = ParityDirectory {
+			dir: RootDiskDirectory::create(parity_keystore(t))?,
+>>>>>>> Export account RPC:ethstore/src/dir/parity.rs
 		};
 
 		Ok(result)
 	}
 
+<<<<<<< HEAD:ethstore/tests/util/transient_dir.rs
 	pub fn open() -> Self {
 		let path = random_dir();
 		TransientDir {
 			dir: RootDiskDirectory::at(&path),
 			path: path,
+=======
+	/// Open existing directory.
+	pub fn open(t: DirectoryType) -> Self {
+		ParityDirectory {
+			dir: RootDiskDirectory::at(parity_keystore(t)),
+>>>>>>> Export account RPC:ethstore/src/dir/parity.rs
 		}
 	}
 }
