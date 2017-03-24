@@ -34,9 +34,6 @@ pub struct KeyServerImpl {
 	data: Arc<Mutex<KeyServerCore>>,
 }
 
-unsafe impl Send for KeyServerImpl {}
-unsafe impl Sync for KeyServerImpl {}
-
 /// Secret store key server data.
 pub struct KeyServerCore {
 	close: Option<futures::Complete<()>>,
@@ -121,7 +118,7 @@ impl KeyServerCore {
 			let _ = el.run(futures::empty().select(stopped));
 		});
 		let cluster = rx.recv().expect("tx is transfered to a newly spawned thread.")?;
- 
+
 		Ok(KeyServerCore {
 			close: Some(stop),
 			_handle: Some(handle),

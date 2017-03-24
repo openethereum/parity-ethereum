@@ -107,9 +107,6 @@ pub struct ClusterView {
 	core: Arc<Mutex<ClusterViewCore>>,
 }
 
-unsafe impl Send for ClusterView {}
-unsafe impl Sync for ClusterView {}
-
 /// Cross-thread shareable cluster data.
 pub struct ClusterData {
 	/// Cluster configuration.
