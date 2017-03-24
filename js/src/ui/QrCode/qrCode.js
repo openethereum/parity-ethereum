@@ -20,8 +20,9 @@ import { qrcode } from 'qrcode-npm';
 import React, { Component, PropTypes } from 'react';
 
 const QROPTS = {
-  CODE_TYPE: 5,
-  ERROR_LEVEL: 'M'
+  ERROR_LEVEL: 'M',
+  MAX_SIZE: 40,
+  MIN_SIZE: 5
 };
 
 export default class QrCode extends Component {
@@ -69,10 +70,18 @@ export default class QrCode extends Component {
     );
   }
 
+  calculateSize (length) {
+    const minSize = Math.min(QROPTS.MAX_SIZE, Math.ceil((length * 8) / 128));
+
+    return Math.max(minSize, QROPTS.MIN_SIZE);
+  }
+
   generateCode (props) {
     const { margin, size, value } = props;
-    const minSize = Math.ceil((value.length * 8) / 128);
-    const qr = qrcode(Math.max(minSize, QROPTS.CODE_TYPE), QROPTS.ERROR_LEVEL);
+    const qrSize = this.calculateSize(value.length);
+    const qr = qrcode(qrSize, QROPTS.ERROR_LEVEL);
+
+    console.log('generateCode', value, value.length, qrSize);
 
     qr.addData(value);
     qr.make();
