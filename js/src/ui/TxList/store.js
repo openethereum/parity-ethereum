@@ -86,7 +86,9 @@ export default class Store {
     this._subscriptionId = 0;
   }
 
-  loadTransactions (_txhashes = []) {
+  loadTransactions (_txhashes) {
+    if (Array.isArray(_txhashes)) return;
+
     const promises = _txhashes
       .filter((txhash) => !this.transactions[txhash] || this._pendingHashes.includes(txhash))
       .map((txhash) => {
