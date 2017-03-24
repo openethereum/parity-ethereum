@@ -81,8 +81,6 @@ export default class QrCode extends Component {
     const qrSize = this.calculateSize(value.length);
     const qr = qrcode(qrSize, QROPTS.ERROR_LEVEL);
 
-    console.log('generateCode', value, value.length, qrSize);
-
     qr.addData(value);
     qr.make();
 
