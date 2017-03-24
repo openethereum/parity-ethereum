@@ -56,6 +56,7 @@ pub use self::traits::SnapshotService;
 pub use self::watcher::Watcher;
 pub use types::snapshot_manifest::ManifestData;
 pub use types::restoration_status::RestorationStatus;
+pub use types::basic_account::BasicAccount;
 
 pub mod io;
 pub mod service;
@@ -147,6 +148,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	info!("produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
 	let manifest_data = ManifestData {
+		version: 2,
 		state_hashes: state_hashes,
 		block_hashes: block_hashes,
 		state_root: *state_root,
@@ -300,14 +302,14 @@ impl<'a> StateChunker<'a> {
 	//
 	// If the buffer is greater than the desired chunk size,
 	// this will write out the data to disk.
-	fn push(&mut self, account_hash: Bytes, data: Bytes) -> Result<(), Error> {
+	fn push(&mut self, account_hash: Bytes, data: Bytes, force_chunk: bool) -> Result<(), Error> {
 		let pair = {
 			let mut stream = RlpStream::new_list(2);
 			stream.append(&account_hash).append_raw(&data, 1);
 			stream.out()
 		};
 
-		if self.cur_size + pair.len() >= PREFERRED_CHUNK_SIZE {
+		if force_chunk || self.cur_size + pair.len() >= PREFERRED_CHUNK_SIZE {
 			self.write_chunk()?;
 		}
 
@@ -372,8 +374,10 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
-		let fat_rlp = account::to_fat_rlp(&account, &account_db, &mut used_code)?;
-		chunker.push(account_key, fat_rlp)?;
+		let fat_rlps = account::to_fat_rlps(&account, &account_db, &mut used_code, PREFERRED_CHUNK_SIZE)?;
+		for (i, fat_rlp) in fat_rlps.into_iter().enumerate() {
+			chunker.push(account_key.clone(), fat_rlp, i > 0)?;
+		}
 	}
 
 	if chunker.cur_size != 0 {
@@ -390,6 +394,7 @@ pub struct StateRebuilder {
 	known_code: HashMap<H256, H256>, // code hashes mapped to first account with this code.
 	missing_code: HashMap<H256, Vec<H256>>, // maps code hashes to lists of accounts missing that code.
 	bloom: Bloom,
+	known_storage_roots: HashMap<H256, H256>, // maps account hashes to last known storage root. Only filled for last account per chunk.
 }
 
 impl StateRebuilder {
@@ -401,6 +406,7 @@ impl StateRebuilder {
 			known_code: HashMap::new(),
 			missing_code: HashMap::new(),
 			bloom: StateDB::load_bloom(&*db),
+			known_storage_roots: HashMap::new(),
 		}
 	}
 
@@ -418,6 +424,7 @@ impl StateRebuilder {
 			rlp,
 			&mut pairs,
 			&self.known_code,
+			&mut self.known_storage_roots,
 			flag
 		)?;
 
@@ -496,10 +503,11 @@ fn rebuild_accounts(
 	account_fat_rlps: UntrustedRlp,
 	out_chunk: &mut [(H256, Bytes)],
 	known_code: &HashMap<H256, H256>,
+	known_storage_roots: &mut HashMap<H256, H256>,
 	abort_flag: &AtomicBool,
 ) -> Result<RebuiltStatus, ::error::Error> {
 	let mut status = RebuiltStatus::default();
-	for (account_rlp, out) in account_fat_rlps.into_iter().zip(out_chunk) {
+	for (account_rlp, out) in account_fat_rlps.into_iter().zip(out_chunk.iter_mut()) {
 		if !abort_flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
 
 		let hash: H256 = account_rlp.val_at(0)?;
@@ -510,7 +518,8 @@ fn rebuild_accounts(
 			// fill out the storage trie and code while decoding.
 			let (acc, maybe_code) = {
 				let mut acct_db = AccountDBMut::from_hash(db, hash);
-				account::from_fat_rlp(&mut acct_db, fat_rlp)?
+				let storage_root = known_storage_roots.get(&hash).cloned().unwrap_or(H256::zero());
+				account::from_fat_rlp(&mut acct_db, fat_rlp, storage_root)?
 			};
 
 			let code_hash = acc.code_hash.clone();
@@ -541,6 +550,12 @@ fn rebuild_accounts(
 		};
 
 		*out = (hash, thin_rlp);
+	}
+	if let Some(&(ref hash, ref rlp)) = out_chunk.iter().last() {
+		known_storage_roots.insert(*hash, ::rlp::decode::<BasicAccount>(rlp).storage_root);
+	}
+	if let Some(&(ref hash, ref rlp)) = out_chunk.iter().next() {
+		known_storage_roots.insert(*hash, ::rlp::decode::<BasicAccount>(rlp).storage_root);
 	}
 	Ok(status)
 }

@@ -414,6 +414,7 @@ dependencies = [
  "evmjit 1.7.0",
  "hardware-wallet 1.7.0",
  "hyper 0.10.0-a.0 (git+https://github.com/paritytech/hyper)",
+ "itertools 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
