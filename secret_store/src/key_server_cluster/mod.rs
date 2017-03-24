@@ -21,7 +21,7 @@ use ethcrypto;
 use super::types::all::DocumentAddress;
 
 pub use super::types::all::{NodeId, EncryptionConfiguration};
-pub use super::acl_storage::{AclStorage, DummyAclStorage};
+pub use super::acl_storage::AclStorage;
 pub use super::key_storage::{KeyStorage, DocumentKeyShare};
 pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic};
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
@@ -30,6 +30,8 @@ pub use self::decryption_session::Session as DecryptionSession;
 
 #[cfg(test)]
 pub use super::key_storage::tests::DummyKeyStorage;
+#[cfg(test)]
+pub use super::acl_storage::tests::DummyAclStorage;
 
 pub type SessionId = DocumentAddress;
 
