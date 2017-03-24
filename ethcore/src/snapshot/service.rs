@@ -166,7 +166,7 @@ impl Restoration {
 		}
 
 		// check for missing code.
-		self.state.check_missing()?;
+		self.state.finalize(self.manifest.block_number, self.manifest.block_hash)?;
 
 		// connect out-of-order chunks and verify chain integrity.
 		self.blocks.finalize(self.canonical_hashes)?;

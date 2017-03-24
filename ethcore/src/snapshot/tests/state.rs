@@ -61,7 +61,7 @@ fn snap_and_restore() {
 		state_hashes: state_hashes,
 		block_hashes: Vec::new(),
 		state_root: state_root,
-		block_number: 0,
+		block_number: 1000,
 		block_hash: H256::default(),
 	}).unwrap();
 
@@ -69,7 +69,7 @@ fn snap_and_restore() {
 	db_path.push("db");
 	let db = {
 		let new_db = Arc::new(Database::open(&db_cfg, &db_path.to_string_lossy()).unwrap());
-		let mut rebuilder = StateRebuilder::new(new_db.clone(), Algorithm::Archive);
+		let mut rebuilder = StateRebuilder::new(new_db.clone(), Algorithm::OverlayRecent);
 		let reader = PackedReader::new(&snap_file).unwrap().unwrap();
 
 		let flag = AtomicBool::new(true);
@@ -82,12 +82,13 @@ fn snap_and_restore() {
 		}
 
 		assert_eq!(rebuilder.state_root(), state_root);
-		rebuilder.check_missing().unwrap();
+		rebuilder.finalize(1000, H256::default()).unwrap();
 
 		new_db
 	};
 
-	let new_db = journaldb::new(db, Algorithm::Archive, ::db::COL_STATE);
+	let new_db = journaldb::new(db, Algorithm::OverlayRecent, ::db::COL_STATE);
+	assert_eq!(new_db.earliest_era(), Some(1000));
 
 	compare_dbs(&old_db, new_db.as_hashdb());
 }
@@ -134,13 +135,18 @@ fn get_code_from_prev_chunk() {
 	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let new_db = Arc::new(Database::open(&db_cfg, &db_path.to_string_lossy()).unwrap());
 
-	let mut rebuilder = StateRebuilder::new(new_db, Algorithm::Archive);
-	let flag = AtomicBool::new(true);
+	{
+		let mut rebuilder = StateRebuilder::new(new_db.clone(), Algorithm::OverlayRecent);
+		let flag = AtomicBool::new(true);
 
-	rebuilder.feed(&chunk1, &flag).unwrap();
-	rebuilder.feed(&chunk2, &flag).unwrap();
+		rebuilder.feed(&chunk1, &flag).unwrap();
+		rebuilder.feed(&chunk2, &flag).unwrap();
 
-	rebuilder.check_missing().unwrap();
+		rebuilder.finalize(1000, H256::random()).unwrap();
+	}
+
+	let state_db = journaldb::new(new_db, Algorithm::OverlayRecent, ::db::COL_STATE);
+	assert_eq!(state_db.earliest_era(), Some(1000));
 }
 
 #[test]
@@ -175,7 +181,7 @@ fn checks_flag() {
 	db_path.push("db");
 	{
 		let new_db = Arc::new(Database::open(&db_cfg, &db_path.to_string_lossy()).unwrap());
-		let mut rebuilder = StateRebuilder::new(new_db.clone(), Algorithm::Archive);
+		let mut rebuilder = StateRebuilder::new(new_db.clone(), Algorithm::OverlayRecent);
 		let reader = PackedReader::new(&snap_file).unwrap().unwrap();
 
 		let flag = AtomicBool::new(false);
