@@ -17,6 +17,8 @@
 import qrcode from 'qrcode-generator/js/qrcode';
 import React, { Component, PropTypes } from 'react';
 
+import { calculateSize } from './qrSize';
+
 import styles from './qrCode.css';
 
 const QROPTS = {
@@ -70,16 +72,9 @@ export default class QrCode extends Component {
     );
   }
 
-  calculateSize (length) {
-    const minSize = Math.min(QROPTS.MAX_SIZE, Math.ceil(length / 16));
-
-    return Math.max(minSize, QROPTS.MIN_SIZE);
-  }
-
   generateCode (props) {
     const { margin, size, value } = props;
-    const qrSize = this.calculateSize(value.length);
-    const qr = qrcode(qrSize, 'M');
+    const qr = qrcode(calculateSize(value.length), QROPTS.ERROR_LEVEL);
 
     qr.addData(value, 'Byte');
     qr.make();
