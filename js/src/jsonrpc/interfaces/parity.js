@@ -1095,7 +1095,7 @@ export default {
 
   exportAccount: {
     subdoc: SUBDOC_ACCOUNTS,
-    desc: 'Upon receiving an account address and password, returns an account as a JSON object.',
+    desc: 'Upon receiving an account address and password, returns the said account as a JSON object.',
     params: [
       {
         type: Address,
