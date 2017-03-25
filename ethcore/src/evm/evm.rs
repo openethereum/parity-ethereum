@@ -61,7 +61,7 @@ pub enum Error {
 		limit: usize
 	},
 	/// Built-in contract failed on given input
-	BuiltIn(String),
+	BuiltIn(&'static str),
 	/// Returned on evm internal error. Should never be ignored during development.
 	/// Likely to cause consensus issues.
 	Internal(String),

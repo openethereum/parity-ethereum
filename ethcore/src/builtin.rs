@@ -28,11 +28,11 @@ use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
 #[derive(Debug)]
-pub struct Error(pub String);
+pub struct Error(pub &'static str);
 
 impl From<&'static str> for Error {
 	fn from(val: &'static str) -> Self {
-		Error(val.to_owned())
+		Error(val)
 	}
 }
 
