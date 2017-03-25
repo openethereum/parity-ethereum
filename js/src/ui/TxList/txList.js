@@ -45,10 +45,6 @@ class TxList extends Component {
     this.store.loadTransactions(this.props.hashes);
   }
 
-  componentWillUnmount () {
-    this.store.unsubscribe();
-  }
-
   componentWillReceiveProps (newProps) {
     this.store.loadTransactions(newProps.hashes);
   }

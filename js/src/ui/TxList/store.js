@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable, transaction } from 'mobx';
-import { uniq } from 'lodash';
+import { action, observable } from 'mobx';
 
 export default class Store {
   @observable blocks = {};
@@ -27,141 +26,74 @@ export default class Store {
     this._subscriptionId = 0;
     this._pendingHashes = [];
 
-    this.subscribe();
+    this.containsAll = (arr1, arr2) => arr2.every(arr2Item => arr1.includes(arr2Item));
+    this.sameMembers = (arr1, arr2) => this.containsAll(arr1, arr2) && this.containsAll(arr2, arr1);
   }
 
   @action addBlocks = (blocks) => {
     this.blocks = Object.assign({}, this.blocks, blocks);
   }
 
-  @action addTransactions = (transactions) => {
-    transaction(() => {
-      this.transactions = Object.assign({}, this.transactions, transactions);
-      this.sortedHashes = Object
-        .keys(this.transactions)
-        .sort((ahash, bhash) => {
-          const bnA = this.transactions[ahash].blockNumber;
-          const bnB = this.transactions[bhash].blockNumber;
+  @action addHash = (hash) => {
+    if (!this.sortedHashes.includes(hash)) {
+      this.sortedHashes.push(hash);
+      this.sortHashes();
+    }
+  }
 
-          if (bnB.eq(0)) {
-            return bnB.eq(bnA) ? 0 : 1;
-          } else if (bnA.eq(0)) {
-            return -1;
-          }
+  @action removeHash = (hashes) => {
+    this.sortedHashes = hashes;
+    this.sortHashes();
+  }
 
-          return bnB.comparedTo(bnA);
-        });
+  sameHashList = (transactions) => {
+    return this.sameMembers(this.sortedHashes, transactions);
+  }
 
-      this._pendingHashes = this.sortedHashes.filter((hash) => this.transactions[hash].blockNumber.eq(0));
+  sortHashes = () => {
+    this.sortedHashes = this.sortedHashes.sort((hashA, hashB) => {
+      const bnA = this.transactions[hashA].blockNumber;
+      const bnB = this.transactions[hashB].blockNumber;
+
+      if (bnB.eq(0)) {
+        return bnB.eq(bnA) ? 0 : 1;
+      } else if (bnA.eq(0)) {
+        return -1;
+      }
+
+      return bnB.comparedTo(bnA);
     });
   }
 
-  @action clearPending () {
-    this._pendingHashes = [];
-  }
-
-  subscribe () {
-    this._api
-      .subscribe('eth_blockNumber', (error, blockNumber) => {
-        if (error) {
-          return;
-        }
-
-        if (this._pendingHashes.length) {
-          this.loadTransactions(this._pendingHashes);
-          this.clearPending();
-        }
-      })
-      .then((subscriptionId) => {
-        this._subscriptionId = subscriptionId;
-      });
-  }
-
-  unsubscribe () {
-    if (!this._subscriptionId) {
-      return;
-    }
-
-    this._api.unsubscribe(this._subscriptionId);
-    this._subscriptionId = 0;
-  }
-
   loadTransactions (_txhashes) {
-    if (Array.isArray(_txhashes)) {
+    const { eth } = this._api;
+
+    // Ignore special cases and if the contents of _txhashes && this.sortedHashes are the same
+    if (Array.isArray(_txhashes) || this.sameHashList(_txhashes)) {
+      return;
+    }
+    // If there was a hash removed:
+    if (_txhashes.length < this.sortedHashes.length) {
+      this.removeHash(_txhashes);
       return;
     }
 
-    const promises = _txhashes
-      .filter((txhash) => !this.transactions[txhash] || this._pendingHashes.includes(txhash))
+    _txhashes
       .map((txhash) => {
-        return Promise
-          .all([
-            this._api.eth.getTransactionByHash(txhash),
-            this._api.eth.getTransactionReceipt(txhash)
-          ])
-          .then(([
-            transaction = {},
-            transactionReceipt = {}
-          ]) => {
-            return {
-              ...transactionReceipt,
-              ...transaction
-            };
-          });
-      });
-
-    if (!promises.length) {
-      return;
-    }
-
-    Promise
-      .all(promises)
-      .then((_transactions) => {
-        const blockNumbers = [];
-        const transactions = _transactions
-          .filter((tx) => tx && tx.hash)
-          .reduce((txs, tx) => {
-            txs[tx.hash] = tx;
-
-            if (tx.blockNumber && tx.blockNumber.gt(0)) {
-              blockNumbers.push(tx.blockNumber.toNumber());
+        eth.getTransactionByHash(txhash)
+          .then((tx) => {
+            this.transactions[txhash] = tx;
+            // If the tx has a blockHash, let's get the blockNumber, otherwise it's ready to be added
+            if (tx.blockHash) {
+              eth.getBlockByNumber(tx.blockNumber)
+                .then((block) => {
+                  this.blocks[tx.blockNumber] = block;
+                  this.addHash(txhash);
+                });
+            } else {
+              this.addHash(txhash);
             }
-
-            return txs;
-          }, {});
-
-        // No need to add transactions if there are none
-        if (Object.keys(transactions).length === 0) {
-          return false;
-        }
-
-        this.addTransactions(transactions);
-        this.loadBlocks(blockNumbers);
-      })
-      .catch((error) => {
-        console.warn('loadTransactions', error);
-      });
-  }
-
-  loadBlocks (_blockNumbers) {
-    const blockNumbers = uniq(_blockNumbers).filter((bn) => !this.blocks[bn]);
-
-    if (!blockNumbers || !blockNumbers.length) {
-      return;
-    }
-
-    Promise
-      .all(blockNumbers.map((blockNumber) => this._api.eth.getBlockByNumber(blockNumber)))
-      .then((blocks) => {
-        this.addBlocks(
-          blocks.reduce((blocks, block, index) => {
-            blocks[blockNumbers[index]] = block;
-            return blocks;
-          }, {})
-        );
-      })
-      .catch((error) => {
-        console.warn('loadBlocks', error);
+          });
       });
   }
 }
