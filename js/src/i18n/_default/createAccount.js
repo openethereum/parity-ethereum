@@ -17,140 +17,140 @@
 export default {
   accountDetails: {
     address: {
-      hint: `the network address for the account`,
-      label: `address`
+      hint: `账户地址`,
+      label: `地址`
     },
     name: {
-      hint: `a descriptive name for the account`,
-      label: `account name`
+      hint: `描述账户的名字`,
+      label: `账户名`
     },
     phrase: {
-      hint: `the account recovery phrase`,
-      label: `owner recovery phrase (keep private and secure, it allows full and unlimited access to the account)`
+      hint: `账户恢复词`,
+      label: `账户恢复词（安全保存，别人拥有它就可以完全控制你的账户）`
     }
   },
   accountDetailsGeth: {
-    imported: `You have imported {number} addresses from the Geth keystore:`
+    imported: `你已经从Geth keystore导入了{number}个地址`
   },
   button: {
-    back: `Back`,
-    cancel: `Cancel`,
-    close: `Close`,
-    create: `Create`,
-    import: `Import`,
-    next: `Next`,
-    print: `Print Phrase`
+    back: `返回`,
+    cancel: `取消`,
+    close: `关闭`,
+    create: `创建`,
+    import: `导入`,
+    next: `下一步`,
+    print: `打印恢复词`
   },
   creationType: {
     fromGeth: {
-      label: `Import accounts from Geth keystore`
+      label: `从Geth keystore导入账户`
     },
     fromJSON: {
-      label: `Import account from a backup JSON file`
+      label: `从JSON文件导入账户`
     },
     fromNew: {
-      label: `Create new account manually`
+      label: `手动创建新账户`
     },
     fromPhrase: {
-      label: `Recover account from recovery phrase`
+      label: `通过恢复词恢复账户`
     },
     fromPresale: {
-      label: `Import account from an Ethereum pre-sale wallet`
+      label: `从以太坊预售钱包导入账户`
     },
     fromRaw: {
-      label: `Import raw private key`
+      label: `导入私钥`
     }
   },
   newAccount: {
     hint: {
-      hint: `(optional) a hint to help with remembering the password`,
-      label: `password hint`
+      hint: `（可选）帮助你记住密码的提示`,
+      label: `密码提示`
     },
     name: {
-      hint: `a descriptive name for the account`,
-      label: `account name`
+      hint: `描述账户的名字`,
+      label: `账户名`
     },
     password: {
-      hint: `a strong, unique password`,
-      label: `password`
+      hint: `足够强的密码`,
+      label: `密码`
     },
     password2: {
-      hint: `verify your password`,
-      label: `password (repeat)`
+      hint: `确认你的密码`,
+      label: `再次输入密码`
     }
   },
   newGeth: {
-    noKeys: `There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance`
+    noKeys: `现在Geth keystore中没有可导入的私钥`
   },
   newImport: {
     file: {
-      hint: `the wallet file for import`,
-      label: `wallet file`
+      hint: `要导入的钱包文件`,
+      label: `钱包文件`
     },
     hint: {
-      hint: `(optional) a hint to help with remembering the password`,
-      label: `password hint`
+      hint: `（可选）帮助你记住密码的提示`,
+      label: `密码提示`
     },
     name: {
-      hint: `a descriptive name for the account`,
-      label: `account name`
+      hint: `描述账户的名字`,
+      label: `账户名`
     },
     password: {
-      hint: `the password to unlock the wallet`,
-      label: `password`
+      hint: `输入密码，解锁钱包`,
+      label: `密码`
     }
   },
   rawKey: {
     hint: {
-      hint: `(optional) a hint to help with remembering the password`,
-      label: `password hint`
+      hint: `（可选）帮助你记住密码的提示`,
+      label: `密码提示`
     },
     name: {
-      hint: `a descriptive name for the account`,
-      label: `account name`
+      hint: `描述账户的名字`,
+      label: `账户名`
     },
     password: {
-      hint: `a strong, unique password`,
-      label: `password`
+      hint: `足够强的密码`,
+      label: `密码`
     },
     password2: {
-      hint: `verify your password`,
-      label: `password (repeat)`
+      hint: `确认密码`,
+      label: `再次输入密码`
     },
     private: {
-      hint: `the raw hex encoded private key`,
-      label: `private key`
+      hint: `原始的十六进制编码私钥`,
+      label: `私钥`
     }
   },
   recoveryPhrase: {
     hint: {
-      hint: `(optional) a hint to help with remembering the password`,
-      label: `password hint`
+      hint: `（可选）帮助你记住密码的提示`,
+      label: `密码提示`
     },
     name: {
-      hint: `a descriptive name for the account`,
-      label: `account name`
+      hint: `描述账户的名字`,
+      label: `账户名`
     },
     password: {
-      hint: `a strong, unique password`,
-      label: `password`
+      hint: `足够强的密码`,
+      label: `密码`
     },
     password2: {
-      hint: `verify your password`,
-      label: `password (repeat)`
+      hint: `确认密码`,
+      label: `再次输入密码`
     },
     phrase: {
-      hint: `the account recovery phrase`,
-      label: `account recovery phrase`
+      hint: `账户恢复词`,
+      label: `账户恢复词`
     },
     windowsKey: {
-      label: `Key was created with Parity <1.4.5 on Windows`
+      label: `在Windows系统上由Parity 1.4.5以前的版本创建的私钥`
     }
   },
   title: {
-    accountInfo: `account information`,
-    createAccount: `create account`,
-    createType: `creation type`,
-    importWallet: `import wallet`
+    accountInfo: `账户信息`,
+    createAccount: `创建账户`,
+    createType: `创建类型`,
+    importWallet: `导入钱包`
   }
 };
