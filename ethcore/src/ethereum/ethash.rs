@@ -412,7 +412,7 @@ impl Ethash {
 			panic!("Can't calculate genesis block difficulty");
 		}
 
-		let parent_has_uncles = &sha3::SHA3_EMPTY_LIST_RLP == parent.uncles_hash();
+		let parent_has_uncles = &sha3::SHA3_EMPTY_LIST_RLP != parent.uncles_hash();
 
 		let min_difficulty = self.ethash_params.minimum_difficulty;
 		let difficulty_hardfork = header.number() >= self.ethash_params.difficulty_hardfork_transition;
