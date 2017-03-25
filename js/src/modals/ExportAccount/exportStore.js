@@ -61,10 +61,6 @@ export default class ExportStore {
     this.setPassword(selectedAccount, password);
   }
 
-  @action resetAccountValue = () => {
-    this.accountValue = '';
-  }
-
   onExport = () => {
     const { parity } = this._api;
     const account = (this._address) ? this._address : this.getSelectedAccount();
