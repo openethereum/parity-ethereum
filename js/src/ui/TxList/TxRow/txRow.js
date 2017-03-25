@@ -44,6 +44,8 @@ class TxRow extends Component {
 
     block: PropTypes.object,
     className: PropTypes.string,
+    cancelTransaction: PropTypes.func,
+    editTransaction: PropTypes.func,
     historic: PropTypes.bool
   };
 
@@ -234,7 +236,7 @@ class TxRow extends Component {
             defaultMessage='ARE YOU SURE?'
           />
         </div>
-        <a onClick={ (isCancelOpen) ? this.cancelTransaction : this.editTransaction }>
+        <a onClick={ (isCancelOpen) ? this.cancelTx : this.editTx }>
           <FormattedMessage
             id='ui.txList.txRow.verify.cancelEdit'
             defaultMessage='{ which }'
@@ -296,42 +298,16 @@ class TxRow extends Component {
     }
   }
 
-  cancelTransaction = () => {
-    const { parity } = this.context.api;
-    const { hash } = this.props.tx;
+  cancelTx = () => {
+    const { cancelTransaction, tx } = this.props;
 
-    parity.removeTransaction(hash)
-    .then((hash) => {
-      this.setState({ canceled: true });
-    })
-    .catch((err) => {
-      console.log('error', err);
-    });
+    cancelTransaction(this, tx);
   }
 
-  editTransaction = () => {
-    const { parity } = this.context.api;
-    const { hash, gas, gasPrice, to, from, value, input, condition } = this.props.tx;
+  editTx = () => {
+    const { editTransaction, tx } = this.props;
 
-    parity.removeTransaction(hash)
-      .then(() => {
-        parity.postTransaction({
-          from,
-          to,
-          gas,
-          gasPrice,
-          value,
-          condition,
-          data: input
-        })
-        .catch((err) => {
-          console.log('ERROR postTransaction', err);
-        });
-        this.setState({ editing: true });
-      })
-      .catch((err) => {
-        console.log('error removeTransaction', err);
-      });
+    editTransaction(this, tx);
   }
 
   setCancel = () => {

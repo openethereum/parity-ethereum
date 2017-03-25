@@ -645,7 +645,7 @@ export default {
 
   removeTransaction: {
     section: SECTION_ACCOUNTS,
-    desc: 'Cancel a pending transaction.',
+    desc: 'Cancel a pending transaction. If the transaction has already been pushed to the network, there is no guarantee that the transaction can be removed.',
     params: [
       {
         type: Data,

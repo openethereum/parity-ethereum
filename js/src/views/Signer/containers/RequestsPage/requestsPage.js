@@ -22,7 +22,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import Store from '../../store';
-import * as RequestsActions from '~/redux/providers/signerActions';
+import { newError } from '~/redux/actions';
+import { startConfirmRequest, startRejectRequest } from '~/redux/providers/signerActions';
 import { Container, Page, TxList } from '~/ui';
 
 import RequestPending from '../../components/RequestPending';
@@ -36,13 +37,13 @@ class RequestsPage extends Component {
   };
 
   static propTypes = {
-    actions: PropTypes.shape({
-      startConfirmRequest: PropTypes.func.isRequired,
-      startRejectRequest: PropTypes.func.isRequired
-    }).isRequired,
     gasLimit: PropTypes.object.isRequired,
-    blockNumber: PropTypes.object,
     netVersion: PropTypes.string.isRequired,
+    startConfirmRequest: PropTypes.func.isRequired,
+    startRejectRequest: PropTypes.func.isRequired,
+
+    blockNumber: PropTypes.object,
+    newError: PropTypes.func,
     signer: PropTypes.shape({
       pending: PropTypes.array.isRequired,
       finished: PropTypes.array.isRequired
@@ -70,7 +71,7 @@ class RequestsPage extends Component {
 
   renderLocalQueue () {
     const { localHashes } = this.store;
-    const { blockNumber } = this.props;
+    const { blockNumber, newError } = this.props;
 
     if (!localHashes.length) {
       return null;
@@ -89,6 +90,7 @@ class RequestsPage extends Component {
           address=''
           blockNumber={ blockNumber }
           hashes={ localHashes }
+          newError={ newError }
         />
       </Container>
     );
@@ -127,7 +129,7 @@ class RequestsPage extends Component {
   }
 
   renderPending = (data, index) => {
-    const { actions, gasLimit, netVersion } = this.props;
+    const { startConfirmRequest, startRejectRequest, gasLimit, netVersion } = this.props;
     const { date, id, isSending, payload, origin } = data;
 
     return (
@@ -140,8 +142,8 @@ class RequestsPage extends Component {
         isSending={ isSending }
         netVersion={ netVersion }
         key={ id }
-        onConfirm={ actions.startConfirmRequest }
-        onReject={ actions.startRejectRequest }
+        onConfirm={ startConfirmRequest }
+        onReject={ startRejectRequest }
         origin={ origin }
         payload={ payload }
         signerStore={ this.store }
@@ -152,10 +154,9 @@ class RequestsPage extends Component {
 
 function mapStateToProps (state) {
   const { gasLimit, netVersion, blockNumber } = state.nodeStatus;
-  const { actions, signer } = state;
+  const { signer } = state;
 
   return {
-    actions,
     blockNumber,
     gasLimit,
     netVersion,
@@ -164,9 +165,11 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return {
-    actions: bindActionCreators(RequestsActions, dispatch)
-  };
+  return bindActionCreators({
+    newError,
+    startConfirmRequest,
+    startRejectRequest
+  }, dispatch);
 }
 
 export default connect(

@@ -21,17 +21,12 @@ export default class Store {
   @observable sortedHashes = [];
   @observable transactions = {};
 
-  constructor (api) {
+  constructor (api, newError) {
     this._api = api;
-    this._subscriptionId = 0;
-    this._pendingHashes = [];
+    this._newError = newError;
 
     this.containsAll = (arr1, arr2) => arr2.every(arr2Item => arr1.includes(arr2Item));
     this.sameMembers = (arr1, arr2) => this.containsAll(arr1, arr2) && this.containsAll(arr2, arr1);
-  }
-
-  @action addBlocks = (blocks) => {
-    this.blocks = Object.assign({}, this.blocks, blocks);
   }
 
   @action addHash = (hash) => {
@@ -55,6 +50,7 @@ export default class Store {
       const bnA = this.transactions[hashA].blockNumber;
       const bnB = this.transactions[hashB].blockNumber;
 
+      // 0 is a special case (has not been added to the blockchain yet)
       if (bnB.eq(0)) {
         return bnB.eq(bnA) ? 0 : 1;
       } else if (bnA.eq(0)) {
@@ -94,6 +90,44 @@ export default class Store {
               this.addHash(txhash);
             }
           });
+      });
+  }
+
+  cancelTransaction = (txComponent, tx) => {
+    const { parity } = this._api;
+    const { hash } = tx;
+
+    parity.removeTransaction(hash)
+    .then(() => {
+      txComponent.setState({ canceled: true });
+    })
+    .catch((err) => {
+      this._newError({ message: err });
+    });
+  }
+
+  editTransaction = (txComponent, tx) => {
+    const { parity } = this._api;
+    const { hash, gas, gasPrice, to, from, value, input, condition } = tx;
+
+    parity.removeTransaction(hash)
+      .then(() => {
+        parity.postTransaction({
+          from,
+          to,
+          gas,
+          gasPrice,
+          value,
+          condition,
+          data: input
+        })
+        .catch((err) => {
+          this._newError({ message: err });
+        });
+        txComponent.setState({ editing: true });
+      })
+      .catch((err) => {
+        this._newError({ message: err });
       });
   }
 }
