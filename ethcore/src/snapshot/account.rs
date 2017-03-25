@@ -63,15 +63,14 @@ impl CodeState {
 
 // walk the account's storage trie, returning an RLP item containing the
 // account properties and the storage.
-pub fn to_fat_rlps(acc: &BasicAccount, acct_db: &AccountDB, used_code: &mut HashSet<H256>, preferred_size: usize) -> Result<Vec<Bytes>, Error> {
-	const AVERAGE_BYTES_PER_STORAGE_ENTRY: usize = 47;
+pub fn to_fat_rlps(acc: &BasicAccount, acct_db: &AccountDB, used_code: &mut HashSet<H256>, max_storage_items: usize) -> Result<Vec<Bytes>, Error> {
 	if acc == &ACC_EMPTY {
 		return Ok(vec![::rlp::NULL_RLP.to_vec()]);
 	}
 
 	let db = TrieDB::new(acct_db, &acc.storage_root)?;
 
-	let chunks = db.iter()?.chunks(preferred_size / AVERAGE_BYTES_PER_STORAGE_ENTRY);
+	let chunks = db.iter()?.chunks(max_storage_items);
 	let pair_chunks = chunks.into_iter().map(|chunk| chunk.collect());
 	pair_chunks.pad_using(1, |_| Vec::new(), ).map(|pairs| {
 		let mut stream = RlpStream::new_list(pairs.len());
@@ -253,7 +252,7 @@ mod tests {
 		let thin_rlp = ::rlp::encode(&account);
 		assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp), account);
 
-		let fat_rlps = to_fat_rlps(&account, &AccountDB::new(db.as_hashdb(), &addr), &mut Default::default(), 1000).unwrap();
+		let fat_rlps = to_fat_rlps(&account, &AccountDB::new(db.as_hashdb(), &addr), &mut Default::default(), 100).unwrap();
 		let mut root = SHA3_NULL_RLP;
 		let mut restored_account = None;
 		for rlp in fat_rlps {

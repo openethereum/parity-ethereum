@@ -83,6 +83,9 @@ mod traits {
 // Try to have chunks be around 4MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;
 
+// Try to have chunks be around 4MB (before compression)
+const MAX_STORAGE_ENTRIES_PER_ACCOUNT_RECORD: usize = 80_000;
+
 // How many blocks to include in a snapshot, starting from the head of the chain.
 const SNAPSHOT_BLOCKS: u64 = 30000;
 
@@ -374,7 +377,7 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
-		let fat_rlps = account::to_fat_rlps(&account, &account_db, &mut used_code, PREFERRED_CHUNK_SIZE)?;
+		let fat_rlps = account::to_fat_rlps(&account, &account_db, &mut used_code, MAX_STORAGE_ENTRIES_PER_ACCOUNT_RECORD)?;
 		for (i, fat_rlp) in fat_rlps.into_iter().enumerate() {
 			chunker.push(account_key.clone(), fat_rlp, i > 0)?;
 		}
