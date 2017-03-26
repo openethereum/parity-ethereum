@@ -26,7 +26,7 @@ use io::TimerToken;
 use network::{NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, Stream, UntrustedRlp, View};
 use util::hash::H256;
-use util::{Bytes, DBValue, FromSlice, Mutex, RwLock, U256};
+use util::{Bytes, DBValue, Mutex, RwLock, U256};
 use time::{Duration, SteadyTime};
 
 use std::collections::HashMap;

@@ -30,7 +30,7 @@ use header::Header;
 use ids::BlockId;
 use views::BlockView;
 
-use util::{Bytes, Hashable, HashDB, DBValue, FromSlice, snappy, U256, Uint};
+use util::{Bytes, Hashable, HashDB, DBValue, snappy, U256, Uint};
 use util::Mutex;
 use util::hash::{H256};
 use util::journaldb::{self, Algorithm, JournalDB};

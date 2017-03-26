@@ -21,7 +21,7 @@ use basic_account::BasicAccount;
 use account_db::AccountDBMut;
 use rand::Rng;
 
-use util::{DBValue, FromSlice};
+use util::DBValue;
 use util::hash::H256;
 use util::hashdb::HashDB;
 use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
