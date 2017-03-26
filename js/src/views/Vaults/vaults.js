@@ -19,9 +19,9 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { VaultAccounts, VaultCreate, VaultLock, VaultUnlock } from '~/modals';
+import { VaultAccounts, VaultCreate, VaultLock, VaultMeta, VaultUnlock } from '~/modals';
 import { Button, Container, Page, SectionList, VaultCard } from '~/ui';
-import { AccountsIcon, AddIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
+import { AccountsIcon, AddIcon, EditIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
 
 import Store from './store';
 import styles from './vaults.css';
@@ -70,6 +70,7 @@ class Vaults extends Component {
         <VaultAccounts vaultStore={ this.vaultStore } />
         <VaultCreate vaultStore={ this.vaultStore } />
         <VaultLock vaultStore={ this.vaultStore } />
+        <VaultMeta vaultStore={ this.vaultStore } />
         <VaultUnlock vaultStore={ this.vaultStore } />
         { this.renderList() }
       </Page>
@@ -109,6 +110,10 @@ class Vaults extends Component {
       this.onOpenAccounts(name);
       return false;
     };
+    const onClickEdit = () => {
+      this.onOpenEdit(name);
+      return false;
+    };
     const onClickOpen = () => {
       isOpen
         ? this.onOpenLockVault(name)
@@ -134,12 +139,23 @@ class Vaults extends Component {
                 onClick={ onClickAccounts }
               />,
               <Button
+                icon={ <EditIcon /> }
+                key='edit'
+                label={
+                  <FormattedMessage
+                    id='vaults.button.edit'
+                    defaultMessage='edit'
+                  />
+                }
+                onClick={ onClickEdit }
+              />,
+              <Button
                 icon={ <LockedIcon /> }
                 key='close'
                 label={
                   <FormattedMessage
                     id='vaults.button.close'
-                    defaultMessage='close vault'
+                    defaultMessage='close'
                   />
                 }
                 onClick={ onClickOpen }
@@ -152,7 +168,7 @@ class Vaults extends Component {
                 label={
                   <FormattedMessage
                     id='vaults.button.open'
-                    defaultMessage='open vault'
+                    defaultMessage='open'
                   />
                 }
                 onClick={ onClickOpen }
@@ -172,8 +188,16 @@ class Vaults extends Component {
     this.vaultStore.openCreateModal();
   }
 
+  onOpenEdit = (name) => {
+    this.vaultStore.openMetaModal(name);
+  }
+
   onOpenLockVault = (name) => {
     this.vaultStore.openLockModal(name);
+  }
+
+  onOpenMeta = (name) => {
+    this.vaultStore.openMetaModal(name);
   }
 
   onOpenUnlockVault = (name) => {

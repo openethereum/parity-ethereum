@@ -46,8 +46,6 @@ class Application extends Component {
   static propTypes = {
     blockNumber: PropTypes.object,
     children: PropTypes.node,
-    isTest: PropTypes.bool,
-    netChain: PropTypes.string,
     pending: PropTypes.array
   }
 
@@ -86,7 +84,7 @@ class Application extends Component {
   }
 
   renderApp () {
-    const { blockNumber, children, pending, netChain, isTest } = this.props;
+    const { blockNumber, children, pending } = this.props;
 
     return (
       <Container
@@ -94,11 +92,7 @@ class Application extends Component {
         onCloseFirstRun={ this.store.closeFirstrun }
         showFirstRun={ this.store.firstrunVisible }
       >
-        <TabBar
-          netChain={ netChain }
-          isTest={ isTest }
-          pending={ pending }
-        />
+        <TabBar pending={ pending } />
         <div className={ styles.content }>
           { children }
         </div>
@@ -125,15 +119,13 @@ class Application extends Component {
 }
 
 function mapStateToProps (state) {
-  const { blockNumber, netChain, isTest } = state.nodeStatus;
+  const { blockNumber } = state.nodeStatus;
   const { hasAccounts } = state.personal;
   const { pending } = state.signer;
 
   return {
     blockNumber,
     hasAccounts,
-    isTest,
-    netChain,
     pending
   };
 }

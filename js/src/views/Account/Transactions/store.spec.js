@@ -43,7 +43,7 @@ function mockQuery () {
       sort: 'desc'
     },
     reply: [{ hash: '123' }]
-  }], true);
+  }], false, '42');
 }
 
 describe('views/Account/Transactions/store', () => {
@@ -94,10 +94,10 @@ describe('views/Account/Transactions/store', () => {
       });
     });
 
-    describe('setTest', () => {
-      it('sets the isTest flag', () => {
-        store.setTest(true);
-        expect(store.isTest).to.be.true;
+    describe('setNetVersion', () => {
+      it('sets the netVersion', () => {
+        store.setNetVersion('testing');
+        expect(store.netVersion).to.equal('testing');
       });
     });
 
@@ -124,7 +124,7 @@ describe('views/Account/Transactions/store', () => {
       it('retrieves the hashes via etherscan', () => {
         sinon.spy(store, 'fetchEtherscanTransactions');
         store.setAddress(ADDRESS);
-        store.setTest(true);
+        store.setNetVersion('42');
         store.setTracing(false);
 
         return store.getTransactions().then(() => {
@@ -137,7 +137,7 @@ describe('views/Account/Transactions/store', () => {
       it('retrieves the hashes via tracing', () => {
         sinon.spy(store, 'fetchTraceTransactions');
         store.setAddress(ADDRESS);
-        store.setTest(true);
+        store.setNetVersion('42');
         store.setTracing(true);
 
         return store.getTransactions().then(() => {
@@ -151,7 +151,7 @@ describe('views/Account/Transactions/store', () => {
     describe('fetchEtherscanTransactions', () => {
       it('retrieves the transactions', () => {
         store.setAddress(ADDRESS);
-        store.setTest(true);
+        store.setNetVersion('42');
 
         return store.fetchEtherscanTransactions().then((transactions) => {
           expect(transactions).to.deep.equal([{
@@ -169,7 +169,7 @@ describe('views/Account/Transactions/store', () => {
     describe('fetchTraceTransactions', () => {
       it('retrieves the transactions', () => {
         store.setAddress(ADDRESS);
-        store.setTest(true);
+        store.setNetVersion('42');
 
         return store.fetchTraceTransactions().then((transactions) => {
           expect(transactions).to.deep.equal([

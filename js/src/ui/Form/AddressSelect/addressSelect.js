@@ -23,6 +23,7 @@ import { observer } from 'mobx-react';
 
 import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
+import apiutil from '~/api/util';
 import AccountCard from '~/ui/AccountCard';
 import InputAddress from '~/ui/Form/InputAddress';
 import Loading from '~/ui/Loading';
@@ -177,6 +178,7 @@ class AddressSelect extends Component {
       <Portal
         className={ styles.inputContainer }
         isChildModal
+        onClick={ this.handleClose }
         onClose={ this.handleClose }
         onKeyDown={ this.handleKeyDown }
         open={ expanded }
@@ -191,6 +193,7 @@ class AddressSelect extends Component {
                 className={ styles.input }
                 placeholder={ ilHint }
                 onBlur={ this.handleInputBlur }
+                onClick={ this.stopEvent }
                 onFocus={ this.handleInputFocus }
                 onChange={ this.handleChange }
                 ref={ this.setInputRef }
@@ -346,6 +349,7 @@ class AddressSelect extends Component {
       <AccountCard
         account={ account }
         balance={ balance }
+        className={ styles.account }
         key={ `account_${index}` }
         onClick={ this.handleClick }
         onFocus={ this.focusItem }
@@ -374,6 +378,10 @@ class AddressSelect extends Component {
 
       return this.handleClick(value.address);
     }
+  }
+
+  stopEvent = (event) => {
+    event.stopPropagation();
   }
 
   handleInputAddresKeydown = (event) => {
@@ -587,6 +595,7 @@ class AddressSelect extends Component {
     }
 
     this.store.resetRegistryValues();
+    this.store.handleChange('');
 
     this.setState({
       expanded: false,
@@ -612,6 +621,10 @@ class AddressSelect extends Component {
       focusedItem: null,
       inputValue: value
     });
+
+    if (apiutil.isAddressValid(value)) {
+      this.handleClick(value);
+    }
   }
 }
 

@@ -23,9 +23,8 @@ use ethcore_rpc::informant::RpcStats;
 use ethsync::SyncProvider;
 use hash_fetch::fetch::Client as FetchClient;
 use helpers::replace_home;
-use io::PanicHandler;
-use jsonrpc_core::reactor::Remote;
 use rpc_apis::{self, SignerService};
+use parity_reactor;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
@@ -33,6 +32,7 @@ pub struct Configuration {
 	pub interface: String,
 	pub port: u16,
 	pub hosts: Option<Vec<String>>,
+	pub cors: Option<Vec<String>>,
 	pub user: Option<String>,
 	pub pass: Option<String>,
 	pub dapps_path: PathBuf,
@@ -48,6 +48,7 @@ impl Default for Configuration {
 			interface: "127.0.0.1".into(),
 			port: 8080,
 			hosts: Some(Vec::new()),
+			cors: None,
 			user: None,
 			pass: None,
 			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
@@ -58,11 +59,10 @@ impl Default for Configuration {
 }
 
 pub struct Dependencies {
-	pub panic_handler: Arc<PanicHandler>,
 	pub apis: Arc<rpc_apis::Dependencies>,
 	pub client: Arc<Client>,
 	pub sync: Arc<SyncProvider>,
-	pub remote: Remote,
+	pub remote: parity_reactor::TokioRemote,
 	pub fetch: FetchClient,
 	pub signer: Arc<SignerService>,
 	pub stats: Arc<RpcStats>,
@@ -93,6 +93,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		configuration.extra_dapps,
 		&addr,
 		configuration.hosts,
+		configuration.cors,
 		auth,
 		configuration.all_apis,
 	)?))
@@ -114,6 +115,7 @@ mod server {
 		_extra_dapps: Vec<PathBuf>,
 		_url: &SocketAddr,
 		_allowed_hosts: Option<Vec<String>>,
+		_cors: Option<Vec<String>>,
 		_auth: Option<(String, String)>,
 		_all_apis: bool,
 	) -> Result<WebappServer, String> {
@@ -133,9 +135,9 @@ mod server {
 	use ansi_term::Colour;
 	use ethcore::transaction::{Transaction, Action};
 	use ethcore::client::{Client, BlockChainClient, BlockId};
+	use ethcore_dapps::{AccessControlAllowOrigin, Host};
 	use ethcore_rpc::is_major_importing;
 	use hash_fetch::urlhint::ContractClient;
-	use jsonrpc_core::reactor::RpcHandler;
 	use parity_reactor;
 	use rpc_apis;
 
@@ -147,6 +149,7 @@ mod server {
 		extra_dapps: Vec<PathBuf>,
 		url: &SocketAddr,
 		allowed_hosts: Option<Vec<String>>,
+		cors: Option<Vec<String>>,
 		auth: Option<(String, String)>,
 		all_apis: bool,
 	) -> Result<WebappServer, String> {
@@ -157,6 +160,8 @@ mod server {
 			Arc::new(Registrar { client: deps.client.clone() }),
 			parity_reactor::Remote::new(deps.remote.clone()),
 		);
+		let allowed_hosts: Option<Vec<_>> = allowed_hosts.map(|hosts| hosts.into_iter().map(Host::from).collect());
+		let cors: Option<Vec<_>> = cors.map(|cors| cors.into_iter().map(AccessControlAllowOrigin::from).collect());
 
 		let sync = deps.sync.clone();
 		let client = deps.client.clone();
@@ -167,7 +172,8 @@ mod server {
 			.web_proxy_tokens(Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token)))
 			.extra_dapps(&extra_dapps)
 			.signer_address(deps.signer.address())
-			.allowed_hosts(allowed_hosts);
+			.allowed_hosts(allowed_hosts.into())
+			.extra_cors_headers(cors.into());
 
 		let api_set = if all_apis {
 			warn!("{}", Colour::Red.bold().paint("*** INSECURE *** Running Dapps with all APIs exposed."));
@@ -177,13 +183,12 @@ mod server {
 			rpc_apis::ApiSet::UnsafeContext
 		};
 		let apis = rpc_apis::setup_rpc(deps.stats, deps.apis.clone(), api_set);
-		let handler = RpcHandler::new(Arc::new(apis), deps.remote);
 		let start_result = match auth {
 			None => {
-				server.start_unsecured_http(url, handler)
+				server.start_unsecured_http(url, apis, deps.remote)
 			},
 			Some((username, password)) => {
-				server.start_basic_auth_http(url, &username, &password, handler)
+				server.start_basic_auth_http(url, &username, &password, apis, deps.remote)
 			},
 		};
 
@@ -193,13 +198,7 @@ mod server {
 				_ => Err(format!("WebApps io error: {}", err)),
 			},
 			Err(e) => Err(format!("WebApps error: {:?}", e)),
-			Ok(server) => {
-				let ph = deps.panic_handler;
-				server.set_panic_handler(move || {
-					ph.notify_all("Panic in WebApp thread.".to_owned());
-				});
-				Ok(server)
-			},
+			Ok(server) => Ok(server),
 		}
 	}
 

@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { omitBy } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
@@ -47,6 +46,7 @@ export default class WalletDetails extends Component {
     return (
       <Form>
         <InputAddress
+          autoFocus
           hint={
             <FormattedMessage
               id='createWallet.details.address.hint'
@@ -105,31 +105,10 @@ export default class WalletDetails extends Component {
   renderMultisigDetails () {
     const { accounts, wallet, errors } = this.props;
 
-    // Wallets cannot create contracts
-    const _accounts = omitBy(accounts, (a) => a.wallet);
-
     return (
       <Form>
-        <AddressSelect
-          accounts={ _accounts }
-          error={ errors.account }
-          hint={
-            <FormattedMessage
-              id='createWallet.details.ownerMulti.hint'
-              defaultMessage='the owner account for this contract'
-            />
-          }
-          label={
-            <FormattedMessage
-              id='createWallet.details.ownerMulti.label'
-              defaultMessage='from account (contract owner)'
-            />
-          }
-          value={ wallet.account }
-          onChange={ this.onAccoutChange }
-        />
-
         <Input
+          autoFocus
           error={ errors.name }
           hint={
             <FormattedMessage
@@ -162,6 +141,25 @@ export default class WalletDetails extends Component {
           }
           value={ wallet.description }
           onChange={ this.onDescriptionChange }
+        />
+
+        <AddressSelect
+          accounts={ accounts }
+          error={ errors.account }
+          hint={
+            <FormattedMessage
+              id='createWallet.details.ownerMulti.hint'
+              defaultMessage='the owner account for this contract'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createWallet.details.ownerMulti.label'
+              defaultMessage='from account (contract owner)'
+            />
+          }
+          value={ wallet.account }
+          onChange={ this.onAccoutChange }
         />
 
         <TypedInput

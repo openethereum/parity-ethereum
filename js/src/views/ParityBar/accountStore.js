@@ -37,7 +37,7 @@ export default class AccountStore {
   @action setDefaultAccount = (defaultAccount) => {
     transaction(() => {
       this.accounts = this.accounts.map((account) => {
-        account.default = account.address === defaultAccount;
+        account.checked = account.address === defaultAccount;
 
         return account;
       });
@@ -50,18 +50,11 @@ export default class AccountStore {
     this.isLoading = isLoading;
   }
 
-  makeDefaultAccount = (address) => {
-    const accounts = [address].concat(
-      this.accounts
-        .filter((account) => account.address !== address)
-        .map((account) => account.address)
-    );
-
-    // Have optimistic UI: https://www.smashingmagazine.com/2016/11/true-lies-of-optimistic-user-interfaces/?utm_source=codropscollective
-    this.setDefaultAccount(address);
+  makeDefaultAccount = (defaultAddress) => {
+    this.setDefaultAccount(defaultAddress);
 
     return this._api.parity
-      .setNewDappsAddresses(accounts)
+      .setNewDappsDefaultAddress(defaultAddress)
       .catch((error) => {
         console.warn('makeDefaultAccount', error);
       });
@@ -81,27 +74,27 @@ export default class AccountStore {
         this._api.parity.getNewDappsAddresses(),
         this._api.parity.allAccountsInfo()
       ])
-      .then(([whitelist, accounts]) => {
+      .then(([whitelist, allAccounts]) => {
         transaction(() => {
+          const accounts = Object
+            .keys(allAccounts)
+            .filter((address) => {
+              const account = allAccounts[address];
+              const isAccount = account.uuid || (account.meta && account.meta.hardware);
+              const isWhitelisted = !whitelist || whitelist.includes(address);
+
+              return isAccount && isWhitelisted;
+            })
+            .map((address) => {
+              return {
+                ...allAccounts[address],
+                checked: address === this.defaultAccount,
+                address
+              };
+            });
+
           this.setLoading(false);
-          this.setAccounts(
-            Object
-              .keys(accounts)
-              .filter((address) => {
-                const isAccount = accounts[address].uuid;
-                const isWhitelisted = !whitelist || whitelist.includes(address);
-
-                return isAccount && isWhitelisted;
-              })
-              .map((address) => {
-                const account = accounts[address];
-
-                account.address = address;
-                account.default = address === this.defaultAccount;
-
-                return account;
-              })
-          );
+          this.setAccounts(accounts);
         });
       })
       .catch((error) => {
@@ -123,6 +116,13 @@ export default class AccountStore {
       }
     });
 
-    return Promise.all([ promiseDefaultAccount, promiseEthAccounts ]);
+    const promiseAccountsInfo = this._api
+      .subscribe('parity_allAccountsInfo', (error, accountsInfo) => {
+        if (!error) {
+          this.loadAccounts();
+        }
+      });
+
+    return Promise.all([ promiseDefaultAccount, promiseEthAccounts, promiseAccountsInfo ]);
   }
 }

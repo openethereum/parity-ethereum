@@ -15,13 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time::Duration;
-use std::io::Read;
+use std::io::{Read, Write, stderr};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::cmp::max;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
-use util::log::Colour;
+use util::journaldb::Algorithm;
+use util::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::ethstore::ethkey::Secret;
 use ethcore::client::{VMType};
@@ -33,7 +34,7 @@ use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
-use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
@@ -84,14 +85,16 @@ pub struct Execute {
 #[derive(Debug, PartialEq)]
 pub struct Configuration {
 	pub args: Args,
+	pub spec_name_override: Option<String>,
 }
 
 impl Configuration {
-	pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
+	pub fn parse<S: AsRef<str>>(command: &[S], spec_name_override: Option<String>) -> Result<Self, ArgsError> {
 		let args = Args::parse(command)?;
 
 		let config = Configuration {
 			args: args,
+			spec_name_override: spec_name_override,
 		};
 
 		Ok(config)
@@ -102,21 +105,30 @@ impl Configuration {
 		let pruning = self.args.flag_pruning.parse()?;
 		let pruning_history = self.args.flag_pruning_history;
 		let vm_type = self.vm_type()?;
-		let mode = match self.args.flag_mode.as_ref() { "last" => None, mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?), };
+		let spec = self.chain().parse()?;
+		let mode = match self.args.flag_mode.as_ref() {
+			"last" => None,
+			mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?),
+		};
 		let update_policy = self.update_policy()?;
-		let miner_options = self.miner_options()?;
 		let logger_config = self.logger_config();
 		let http_conf = self.http_config()?;
 		let ipc_conf = self.ipc_config()?;
 		let net_conf = self.net_config()?;
 		let network_id = self.network_id();
 		let cache_config = self.cache_config();
-		let spec = self.chain().parse()?;
 		let tracing = self.args.flag_tracing.parse()?;
 		let fat_db = self.args.flag_fat_db.parse()?;
 		let compaction = self.args.flag_db_compaction.parse()?;
 		let wal = !self.args.flag_fast_and_loose;
-		let warp_sync = self.args.flag_warp;
+		match self.args.flag_warp {
+			// Logging is not initialized yet, so we print directly to stderr
+			Some(true) if fat_db == Switch::On => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because Fat DB is turned on").expect("Error writing to stderr"),
+			Some(true) if tracing == Switch::On => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because tracing is turned on").expect("Error writing to stderr"),
+			Some(true) if pruning == Pruning::Specific(Algorithm::Archive) => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because pruning mode is set to archive").expect("Error writing to stderr"),
+			_ => {},
+		};
+		let warp_sync = !self.args.flag_no_warp && fat_db != Switch::On && tracing != Switch::On && pruning != Pruning::Specific(Algorithm::Archive);
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let dapps_conf = self.dapps_config();
@@ -316,6 +328,12 @@ impl Configuration {
 
 			let verifier_settings = self.verifier_settings();
 
+			// Special presets are present for the dev chain.
+			let (gas_pricer, miner_options) = match spec {
+				SpecType::Dev => (GasPricerConfig::Fixed(0.into()), self.miner_options(0)?),
+				_ => (self.gas_pricer_config()?, self.miner_options(self.args.flag_reseal_min_period)?),
+			};
+
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
 				dirs: dirs,
@@ -331,7 +349,7 @@ impl Configuration {
 				net_conf: net_conf,
 				network_id: network_id,
 				acc_conf: self.accounts_config()?,
-				gas_pricer: self.gas_pricer_config()?,
+				gas_pricer: gas_pricer,
 				miner_extras: self.miner_extras()?,
 				stratum: self.stratum_options()?,
 				update_policy: update_policy,
@@ -424,8 +442,11 @@ impl Configuration {
 	}
 
 	fn chain(&self) -> String {
-		if self.args.flag_testnet {
-			"ropsten".to_owned()
+		if let Some(ref s) = self.spec_name_override {
+			s.clone()
+		}
+		else if self.args.flag_testnet {
+			"testnet".to_owned()
 		} else {
 			self.args.flag_chain.clone()
 		}
@@ -484,7 +505,7 @@ impl Configuration {
 		} else { Ok(None) }
 	}
 
-	fn miner_options(&self) -> Result<MinerOptions, String> {
+	fn miner_options(&self, reseal_min_period: u64) -> Result<MinerOptions, String> {
 		let reseal = self.args.flag_reseal_on_txs.parse::<ResealPolicy>()?;
 
 		let options = MinerOptions {
@@ -500,7 +521,8 @@ impl Configuration {
 			tx_queue_gas_limit: to_gas_limit(&self.args.flag_tx_queue_gas)?,
 			tx_queue_strategy: to_queue_strategy(&self.args.flag_tx_queue_strategy)?,
 			pending_set: to_pending_set(&self.args.flag_relay_set)?,
-			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
+			reseal_min_period: Duration::from_millis(reseal_min_period),
+			reseal_max_period: Duration::from_millis(self.args.flag_reseal_max_period),
 			work_queue_size: self.args.flag_work_queue_size,
 			enable_resubmission: !self.args.flag_remove_solved,
 			tx_queue_banning: match self.args.flag_tx_time_limit {
@@ -533,6 +555,7 @@ impl Configuration {
 			interface: self.dapps_interface(),
 			port: self.args.flag_dapps_port,
 			hosts: self.dapps_hosts(),
+			cors: self.dapps_cors(),
 			user: self.args.flag_dapps_user.clone(),
 			pass: self.args.flag_dapps_pass.clone(),
 			dapps_path: PathBuf::from(self.directories().dapps),
@@ -558,6 +581,9 @@ impl Configuration {
 		IpfsConfiguration {
 			enabled: self.args.flag_ipfs_api,
 			port: self.args.flag_ipfs_api_port,
+			interface: self.ipfs_interface(),
+			cors: self.ipfs_cors(),
+			hosts: self.ipfs_hosts(),
 		}
 	}
 
@@ -693,29 +719,43 @@ impl Configuration {
 		apis
 	}
 
+	fn cors(cors: Option<&String>) -> Option<Vec<String>> {
+		cors.map(|ref c| c.split(',').map(Into::into).collect())
+	}
+
 	fn rpc_cors(&self) -> Option<Vec<String>> {
-		let cors = self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone());
-		cors.map(|c| c.split(',').map(|s| s.to_owned()).collect())
+		let cors = self.args.flag_jsonrpc_cors.as_ref().or(self.args.flag_rpccorsdomain.as_ref());
+		Self::cors(cors)
+	}
+
+	fn ipfs_cors(&self) -> Option<Vec<String>> {
+		Self::cors(self.args.flag_ipfs_api_cors.as_ref())
+	}
+
+	fn dapps_cors(&self) -> Option<Vec<String>> {
+		Self::cors(self.args.flag_dapps_cors.as_ref())
+	}
+
+	fn hosts(hosts: &str) -> Option<Vec<String>> {
+		match hosts {
+			"none" => return Some(Vec::new()),
+			"all" => return None,
+			_ => {}
+		}
+		let hosts = hosts.split(',').map(Into::into).collect();
+		Some(hosts)
 	}
 
 	fn rpc_hosts(&self) -> Option<Vec<String>> {
-		match self.args.flag_jsonrpc_hosts.as_ref() {
-			"none" => return Some(Vec::new()),
-			"all" => return None,
-			_ => {}
-		}
-		let hosts = self.args.flag_jsonrpc_hosts.split(',').map(|h| h.into()).collect();
-		Some(hosts)
+		Self::hosts(&self.args.flag_jsonrpc_hosts)
 	}
 
 	fn dapps_hosts(&self) -> Option<Vec<String>> {
-		match self.args.flag_dapps_hosts.as_ref() {
-			"none" => return Some(Vec::new()),
-			"all" => return None,
-			_ => {}
-		}
-		let hosts = self.args.flag_dapps_hosts.split(',').map(|h| h.into()).collect();
-		Some(hosts)
+		Self::hosts(&self.args.flag_dapps_hosts)
+	}
+
+	fn ipfs_hosts(&self) -> Option<Vec<String>> {
+		Self::hosts(&self.args.flag_ipfs_api_hosts)
 	}
 
 	fn ipc_config(&self) -> Result<IpcConfiguration, String> {
@@ -784,7 +824,7 @@ impl Configuration {
 	}
 
 	fn directories(&self) -> Directories {
-		use util::path;
+		use path;
 
 		let local_path = default_local_path();
 		let base_path = self.args.flag_base_path.as_ref().map_or_else(|| default_data_path(), |s| s.clone());
@@ -802,8 +842,8 @@ impl Configuration {
 		let secretstore_path = replace_home(&data_path, &self.args.flag_secretstore_path);
 		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
 
-		if self.args.flag_geth  && !cfg!(windows) {
-			let geth_root  = if self.args.flag_testnet { path::ethereum::test() } else {  path::ethereum::default() };
+		if self.args.flag_geth && !cfg!(windows) {
+			let geth_root  = if self.chain() == "testnet".to_owned() { path::ethereum::test() } else {  path::ethereum::default() };
 			::std::fs::create_dir_all(geth_root.as_path()).unwrap_or_else(
 				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_root.to_str().unwrap(), e));
 		}
@@ -850,12 +890,16 @@ impl Configuration {
 		}.into()
 	}
 
-	fn rpc_interface(&self) -> String {
-		match self.network_settings().rpc_interface.as_str() {
+	fn interface(interface: &str) -> String {
+		match interface {
 			"all" => "0.0.0.0",
 			"local" => "127.0.0.1",
 			x => x,
 		}.into()
+	}
+
+	fn rpc_interface(&self) -> String {
+		Self::interface(&self.network_settings().rpc_interface)
 	}
 
 	fn dapps_interface(&self) -> String {
@@ -863,6 +907,10 @@ impl Configuration {
 			"local" => "127.0.0.1",
 			x => x,
 		}.into()
+	}
+
+	fn ipfs_interface(&self) -> String {
+		Self::interface(&self.args.flag_ipfs_api_interface)
 	}
 
 	fn secretstore_interface(&self) -> String {
@@ -873,11 +921,7 @@ impl Configuration {
 	}
 
 	fn stratum_interface(&self) -> String {
-		match self.args.flag_stratum_interface.as_str() {
-			"local" => "127.0.0.1",
-			"all" => "0.0.0.0",
-			x => x,
-		}.into()
+		Self::interface(&self.args.flag_stratum_interface)
 	}
 
 	fn dapps_enabled(&self) -> bool {
@@ -937,6 +981,7 @@ mod tests {
 	fn parse(args: &[&str]) -> Configuration {
 		Configuration {
 			args: Args::parse_without_config(args).unwrap(),
+			spec_name_override: None,
 		}
 	}
 
@@ -1122,7 +1167,7 @@ mod tests {
 			ipc_conf: Default::default(),
 			net_conf: default_network_config(),
 			network_id: None,
-			warp_sync: false,
+			warp_sync: true,
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),
@@ -1166,13 +1211,14 @@ mod tests {
 		let conf3 = parse(&["parity", "--tx-queue-strategy", "gas"]);
 
 		// then
-		assert_eq!(conf0.miner_options().unwrap(), mining_options);
+		let min_period = conf0.args.flag_reseal_min_period;
+		assert_eq!(conf0.miner_options(min_period).unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasFactorAndGasPrice;
-		assert_eq!(conf1.miner_options().unwrap(), mining_options);
+		assert_eq!(conf1.miner_options(min_period).unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasPriceOnly;
-		assert_eq!(conf2.miner_options().unwrap(), mining_options);
+		assert_eq!(conf2.miner_options(min_period).unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasAndGasPrice;
-		assert_eq!(conf3.miner_options().unwrap(), mining_options);
+		assert_eq!(conf3.miner_options(min_period).unwrap(), mining_options);
 	}
 
 	#[test]
@@ -1200,7 +1246,7 @@ mod tests {
 		// then
 		assert_eq!(conf.network_settings(), NetworkSettings {
 			name: "testname".to_owned(),
-			chain: "ropsten".to_owned(),
+			chain: "testnet".to_owned(),
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "local".to_owned(),
@@ -1271,6 +1317,38 @@ mod tests {
 		assert_eq!(conf1.dapps_hosts(), Some(Vec::new()));
 		assert_eq!(conf2.dapps_hosts(), None);
 		assert_eq!(conf3.dapps_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
+	}
+
+	#[test]
+	fn should_parse_ipfs_hosts() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity"]);
+		let conf1 = parse(&["parity", "--ipfs-api-hosts", "none"]);
+		let conf2 = parse(&["parity", "--ipfs-api-hosts", "all"]);
+		let conf3 = parse(&["parity", "--ipfs-api-hosts", "ethcore.io,something.io"]);
+
+		// then
+		assert_eq!(conf0.ipfs_hosts(), Some(Vec::new()));
+		assert_eq!(conf1.ipfs_hosts(), Some(Vec::new()));
+		assert_eq!(conf2.ipfs_hosts(), None);
+		assert_eq!(conf3.ipfs_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
+	}
+
+	#[test]
+	fn should_parse_ipfs_cors() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity"]);
+		let conf1 = parse(&["parity", "--ipfs-api-cors", "*"]);
+		let conf2 = parse(&["parity", "--ipfs-api-cors", "http://ethcore.io,http://something.io"]);
+
+		// then
+		assert_eq!(conf0.ipfs_cors(), None);
+		assert_eq!(conf1.ipfs_cors(), Some(vec!["*".into()]));
+		assert_eq!(conf2.ipfs_cors(), Some(vec!["http://ethcore.io".into(),"http://something.io".into()]));
 	}
 
 	#[test]
@@ -1361,7 +1439,20 @@ mod tests {
 		let filename = temp.as_str().to_owned() + "/peers";
 		File::create(filename.clone()).unwrap().write_all(b"  \n\t\n").unwrap();
 		let args = vec!["parity", "--reserved-peers", &filename];
-		let conf = Configuration::parse(&args).unwrap();
+		let conf = Configuration::parse(&args, None).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
+	}
+
+	#[test]
+	fn test_dev_chain() {
+		let args = vec!["parity", "--chain", "dev"];
+		let conf = parse(&args);
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.gas_pricer, GasPricerConfig::Fixed(0.into()));
+				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
 	}
 }

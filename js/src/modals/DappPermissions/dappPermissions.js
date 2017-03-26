@@ -17,40 +17,27 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
 
-import { AccountCard, Portal, SectionList } from '~/ui';
-import { CheckIcon, StarIcon, StarOutlineIcon } from '~/ui/Icons';
-
-import styles from './dappPermissions.css';
+import { AccountCard, Portal, SelectionList } from '~/ui';
 
 @observer
-export default class DappPermissions extends Component {
+class DappPermissions extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired
+    balances: PropTypes.object,
+    permissionStore: PropTypes.object.isRequired
   };
 
   render () {
-    const { store } = this.props;
+    const { permissionStore } = this.props;
 
-    if (!store.modalOpen) {
+    if (!permissionStore.modalOpen) {
       return null;
     }
 
     return (
       <Portal
-        buttons={
-          <div className={ styles.legend }>
-            <FormattedMessage
-              id='dapps.permissions.description'
-              defaultMessage='{activeIcon} account is available to application, {defaultIcon} account is the default account'
-              values={ {
-                activeIcon: <CheckIcon />,
-                defaultIcon: <StarIcon />
-              } }
-            />
-          </div>
-        }
-        onClose={ store.closeModal }
+        onClose={ permissionStore.closeModal }
         open
         title={
           <FormattedMessage
@@ -59,58 +46,47 @@ export default class DappPermissions extends Component {
           />
         }
       >
-        <div className={ styles.container }>
-          <SectionList
-            items={ store.accounts }
-            noStretch
-            renderItem={ this.renderAccount }
-          />
-        </div>
+        <SelectionList
+          items={ permissionStore.accounts }
+          noStretch
+          onDefaultClick={ this.onMakeDefault }
+          onSelectClick={ this.onSelect }
+          renderItem={ this.renderAccount }
+        />
       </Portal>
     );
   }
 
+  onMakeDefault = (account) => {
+    this.props.permissionStore.setDefaultAccount(account.address);
+  }
+
+  onSelect = (account) => {
+    this.props.permissionStore.selectAccount(account.address);
+  }
+
   renderAccount = (account) => {
-    const { store } = this.props;
-
-    const onMakeDefault = () => {
-      store.setDefaultAccount(account.address);
-    };
-
-    const onSelect = () => {
-      store.selectAccount(account.address);
-    };
-
-    let className;
-
-    if (account.checked) {
-      className = account.default
-        ? `${styles.selected} ${styles.default}`
-        : styles.selected;
-    } else {
-      className = styles.unselected;
-    }
+    const { balances } = this.props;
+    const balance = balances[account.address];
 
     return (
-      <div className={ styles.item }>
-        <AccountCard
-          account={ account }
-          className={ className }
-          onClick={ onSelect }
-        />
-        <div className={ styles.overlay }>
-          {
-            account.checked && account.default
-              ? <StarIcon />
-              : <StarOutlineIcon className={ styles.iconDisabled } onClick={ onMakeDefault } />
-          }
-          {
-            account.checked
-              ? <CheckIcon onClick={ onSelect } />
-              : <CheckIcon className={ styles.iconDisabled } onClick={ onSelect } />
-          }
-        </div>
-      </div>
+      <AccountCard
+        account={ account }
+        balance={ balance }
+      />
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { balances } = state.balances;
+
+  return {
+    balances
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(DappPermissions);

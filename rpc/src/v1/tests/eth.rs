@@ -18,7 +18,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use devtools::RandomTempPath;
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use ethcore::ids::BlockId;
 use ethcore::spec::{Genesis, Spec};
@@ -65,6 +64,7 @@ fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			tx_queue_banning: Banning::Disabled,
 			pending_set: PendingSet::SealingOrElseQueue,
 			reseal_min_period: Duration::from_secs(0),
+			reseal_max_period: Duration::from_secs(120),
 			work_queue_size: 50,
 			enable_resubmission: true,
 			refuse_service_transactions: false,

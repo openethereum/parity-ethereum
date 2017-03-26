@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import IdentityIcon from '~/ui/IdentityIcon';
 
@@ -45,16 +46,36 @@ export default class RequestOrigin extends Component {
   renderOrigin (origin) {
     if (origin.type === 'unknown') {
       return (
-        <span className={ styles.unknown }>via unknown interface</span>
+        <span className={ styles.unknown }>
+          <FormattedMessage
+            id='signer.requestOrigin.unknownInterface'
+            defaultMessage='via unknown interface'
+          />
+        </span>
       );
     }
 
     if (origin.type === 'dapp') {
       return (
         <span>
-          by a dapp at <span className={ styles.url }>
-            { origin.details || 'unknown URL' }
-          </span>
+          <FormattedMessage
+            id='signer.requestOrigin.dapp'
+            defaultMessage='by a dapp at {url}'
+            values={ {
+              url: (
+                <span className={ styles.url }>
+                  {
+                    origin.details || (
+                      <FormattedMessage
+                        id='signer.requestOrigin.unknownUrl'
+                        defaultMessage='unknown URL'
+                      />
+                    )
+                  }
+                </span>
+              )
+            } }
+          />
         </span>
       );
     }
@@ -62,9 +83,24 @@ export default class RequestOrigin extends Component {
     if (origin.type === 'rpc') {
       return (
         <span>
-          via RPC <span className={ styles.url }>
-            ({ origin.details || 'unidentified' })
-          </span>
+          <FormattedMessage
+            id='signer.requestOrigin.rpc'
+            defaultMessage='via RPC {rpc}'
+            values={ {
+              url: (
+                <span className={ styles.url }>
+                  ({
+                    origin.details || (
+                      <FormattedMessage
+                        id='signer.requestOrigin.unknownRpc'
+                        defaultMessage='unidentified'
+                      />
+                    )
+                  })
+                </span>
+              )
+            } }
+          />
         </span>
       );
     }
@@ -72,7 +108,10 @@ export default class RequestOrigin extends Component {
     if (origin.type === 'ipc') {
       return (
         <span>
-          via IPC session
+          <FormattedMessage
+            id='signer.requestOrigin.ipc'
+            defaultMessage='via IPC session'
+          />
           <span
             className={ styles.hash }
             title={ origin.details }
@@ -94,13 +133,21 @@ export default class RequestOrigin extends Component {
   renderSigner (session) {
     if (session.substr(2) === this.context.api.transport.sessionHash) {
       return (
-        <span title={ session }>via current tab</span>
+        <span title={ session }>
+          <FormattedMessage
+            id='signer.requestOrigin.signerCurrent'
+            defaultMessage='via current tab'
+          />
+        </span>
       );
     }
 
     return (
       <span>
-        via UI session
+        <FormattedMessage
+          id='signer.requestOrigin.signerUI'
+          defaultMessage='via UI session'
+        />
         <span
           className={ styles.hash }
           title={ `UI Session id: ${session}` }

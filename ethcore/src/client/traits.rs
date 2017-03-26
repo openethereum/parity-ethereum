@@ -16,7 +16,7 @@
 
 use std::collections::BTreeMap;
 use util::{U256, Address, H256, H2048, Bytes, Itertools};
-use util::stats::Histogram;
+use util::hashdb::DBValue;
 use blockchain::TreeRoute;
 use verification::queue::QueueInfo as BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
@@ -34,6 +34,7 @@ use env_info::LastHashes;
 use block_import_error::BlockImportError;
 use ipc::IpcConfig;
 use types::ids::*;
+use types::basic_account::BasicAccount;
 use types::trace_filter::Filter as TraceFilter;
 use types::call_analytics::CallAnalytics;
 use types::blockchain_info::BlockChainInfo;
@@ -212,38 +213,24 @@ pub trait BlockChainClient : Sync + Send {
 	fn ready_transactions(&self) -> Vec<PendingTransaction>;
 
 	/// Sorted list of transaction gas prices from at least last sample_size blocks.
-	fn gas_price_corpus(&self, sample_size: usize) -> Vec<U256> {
+	fn gas_price_corpus(&self, sample_size: usize) -> ::stats::Corpus<U256> {
 		let mut h = self.chain_info().best_block_hash;
 		let mut corpus = Vec::new();
 		while corpus.is_empty() {
 			for _ in 0..sample_size {
-				let block = self.block(BlockId::Hash(h)).expect("h is either the best_block_hash or an ancestor; qed");
-				let header = block.header_view();
-				if header.number() == 0 {
-					corpus.sort();
-					return corpus;
+				let block = match self.block(BlockId::Hash(h)) {
+					Some(block) => block,
+					None => return corpus.into(),
+				};
+
+				if block.number() == 0 {
+					return corpus.into();
 				}
 				block.transaction_views().iter().foreach(|t| corpus.push(t.gas_price()));
-				h = header.parent_hash().clone();
+				h = block.parent_hash().clone();
 			}
 		}
-		corpus.sort();
-		corpus
-	}
-
-	/// Calculate median gas price from recent blocks if they have any transactions.
-	fn gas_price_median(&self, sample_size: usize) -> Option<U256> {
-		let corpus = self.gas_price_corpus(sample_size);
-		corpus.get(corpus.len() / 2).cloned()
-	}
-
-	/// Get the gas price distribution based on recent blocks if they have any transactions.
-	fn gas_price_histogram(&self, sample_size: usize, bucket_number: usize) -> Option<Histogram> {
-		let raw_corpus = self.gas_price_corpus(sample_size);
-		let raw_len = raw_corpus.len();
-		// Throw out outliers.
-		let (corpus, _) = raw_corpus.split_at(raw_len - raw_len / 40);
-		Histogram::new(corpus, bucket_number)
+		corpus.into()
 	}
 
 	/// Get the preferred network ID to sign on
@@ -254,6 +241,12 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Set the mode.
 	fn set_mode(&self, mode: Mode);
+
+	/// Get the chain spec name.
+	fn spec_name(&self) -> String;
+
+	/// Set the chain via a spec name.
+	fn set_spec_name(&self, spec_name: String);
 
 	/// Disable the client from importing blocks. This cannot be undone in this session and indicates
 	/// that a subsystem has reason to believe this executable incapable of syncing the chain.
@@ -269,7 +262,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn pruning_info(&self) -> PruningInfo;
 
 	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
-	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String>;
+	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
 
 	/// Import a transaction: used for misbehaviour reporting.
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError>;
@@ -323,17 +316,13 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 	///
 	/// Both provided keys assume a secure trie.
 	/// Returns a vector of raw trie nodes (in order from the root) proving the storage query.
-	/// Nodes after `from_level` may be omitted.
-	/// An empty vector indicates unservable query.
-	fn prove_storage(&self, key1: H256, key2: H256, from_level: u32, id: BlockId) -> Vec<Bytes>;
+	fn prove_storage(&self, key1: H256, key2: H256, id: BlockId) -> Option<(Vec<Bytes>, H256)>;
 
 	/// Prove account existence at a specific block id.
 	/// The key is the keccak hash of the account's address.
 	/// Returns a vector of raw trie nodes (in order from the root) proving the query.
-	/// Nodes after `from_level` may be omitted.
-	/// An empty vector indicates unservable query.
-	fn prove_account(&self, key1: H256, from_level: u32, id: BlockId) -> Vec<Bytes>;
+	fn prove_account(&self, key1: H256, id: BlockId) -> Option<(Vec<Bytes>, BasicAccount)>;
 
-	/// Get code by address hash.
-	fn code_by_hash(&self, account_key: H256, id: BlockId) -> Bytes;
+	/// Prove execution of a transaction at the given block.
+	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<Vec<DBValue>>;
 }

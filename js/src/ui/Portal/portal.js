@@ -14,22 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import EventListener from 'react-event-listener';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import ReactPortal from 'react-portal';
 import keycode from 'keycode';
+import { noop } from 'lodash';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 import { CloseIcon } from '~/ui/Icons';
 import ParityBackground from '~/ui/ParityBackground';
+import StackEventListener from '~/ui/StackEventListener';
 import Title from '~/ui/Title';
 
 import styles from './portal.css';
 
 export default class Portal extends Component {
   static propTypes = {
-    onClose: PropTypes.func.isRequired,
     open: PropTypes.bool.isRequired,
     activeStep: PropTypes.number,
     busy: PropTypes.bool,
@@ -44,9 +44,15 @@ export default class Portal extends Component {
     hideClose: PropTypes.bool,
     isChildModal: PropTypes.bool,
     isSmallModal: PropTypes.bool,
+    onClick: PropTypes.func,
+    onClose: PropTypes.func,
     onKeyDown: PropTypes.func,
     steps: PropTypes.array,
     title: nodeOrStringProptype()
+  };
+
+  static defaultProps = {
+    onClose: noop
   };
 
   componentDidMount () {
@@ -71,10 +77,7 @@ export default class Portal extends Component {
     }
 
     return (
-      <ReactPortal
-        isOpened
-        onClose={ this.handleClose }
-      >
+      <ReactPortal isOpened>
         <div
           className={ styles.backOverlay }
           onClick={ this.handleClose }
@@ -92,13 +95,10 @@ export default class Portal extends Component {
                 className
               ].join(' ')
             }
-            onClick={ this.stopEvent }
+            onClick={ this.handleContainerClick }
             onKeyDown={ this.handleKeyDown }
           >
-            <EventListener
-              target='window'
-              onKeyUp={ this.handleKeyUp }
-            />
+            <StackEventListener onKeyUp={ this.handleKeyUp } />
             <ParityBackground className={ styles.parityBackground } />
             { this.renderClose() }
             <Title
@@ -149,8 +149,17 @@ export default class Portal extends Component {
   }
 
   stopEvent = (event) => {
-    event.preventDefault();
     event.stopPropagation();
+  }
+
+  handleContainerClick = (event) => {
+    const { onClick } = this.props;
+
+    if (!onClick) {
+      return this.stopEvent(event);
+    }
+
+    return onClick(event);
   }
 
   handleClose = () => {
@@ -159,6 +168,8 @@ export default class Portal extends Component {
     if (!hideClose) {
       onClose();
     }
+
+    this.stopEvent(event);
   }
 
   handleKeyDown = (event) => {
@@ -177,7 +188,7 @@ export default class Portal extends Component {
     switch (codeName) {
       case 'esc':
         event.preventDefault();
-        return this.handleClose();
+        return this.props.onClose();
     }
   }
 

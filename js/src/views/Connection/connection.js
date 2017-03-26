@@ -88,7 +88,7 @@ class Connection extends Component {
           <div>
             <FormattedMessage
               id='connection.noConnection'
-              defaultMessage='Unable to make a connection to the Parity Secure API. To update your secure token or to generate a new one, run {newToken} and supply the token below'
+              defaultMessage='Unable to make a connection to the Parity Secure API. To update your secure token or to generate a new one, run {newToken} and paste the generated token into the space below.'
               values={ {
                 newToken: <span className={ styles.console }>parity signer new-token</span>
               } }

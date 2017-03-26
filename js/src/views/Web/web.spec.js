@@ -17,9 +17,8 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
+import { DEFAULT_URL } from './store';
 import Web from './';
-
-const TEST_URL = 'https://mkr.market';
 
 let api;
 let component;
@@ -30,7 +29,7 @@ function createApi () {
   return api;
 }
 
-function render (url = TEST_URL) {
+function render (url = DEFAULT_URL) {
   component = shallow(
     <Web params={ { url } } />,
     {

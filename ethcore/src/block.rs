@@ -20,8 +20,8 @@ use std::cmp;
 use std::sync::Arc;
 use std::collections::HashSet;
 
-use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, Decoder, DecoderError, View, Stream};
-use util::{Bytes, Address, Uint, FixedHash, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP};
+use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
+use util::{Bytes, Address, Uint, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP};
 use util::error::{Mismatch, OutOfBounds};
 
 use basic_types::{LogBloom, Seal};
@@ -59,26 +59,25 @@ impl Block {
 	pub fn rlp_bytes(&self, seal: Seal) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
 		self.header.stream_rlp(&mut block_rlp, seal);
-		block_rlp.append(&self.transactions);
-		block_rlp.append(&self.uncles);
+		block_rlp.append_list(&self.transactions);
+		block_rlp.append_list(&self.uncles);
 		block_rlp.out()
 	}
 }
 
 
 impl Decodable for Block {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		if decoder.as_raw().len() != decoder.as_rlp().payload_info()?.total() {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		if rlp.as_raw().len() != rlp.payload_info()?.total() {
 			return Err(DecoderError::RlpIsTooBig);
 		}
-		let d = decoder.as_rlp();
-		if d.item_count() != 3 {
+		if rlp.item_count()? != 3 {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}
 		Ok(Block {
-			header: d.val_at(0)?,
-			transactions: d.val_at(1)?,
-			uncles: d.val_at(2)?,
+			header: rlp.val_at(0)?,
+			transactions: rlp.list_at(1)?,
+			uncles: rlp.list_at(2)?,
 		})
 	}
 }
@@ -91,7 +90,7 @@ pub struct ExecutedBlock {
 	uncles: Vec<Header>,
 	receipts: Vec<Receipt>,
 	transactions_set: HashSet<H256>,
-	state: State,
+	state: State<StateDB>,
 	traces: Option<Vec<Vec<FlatTrace>>>,
 }
 
@@ -106,7 +105,7 @@ pub struct BlockRefMut<'a> {
 	/// Transaction receipts.
 	pub receipts: &'a [Receipt],
 	/// State.
-	pub state: &'a mut State,
+	pub state: &'a mut State<StateDB>,
 	/// Traces.
 	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
 }
@@ -122,14 +121,14 @@ pub struct BlockRef<'a> {
 	/// Transaction receipts.
 	pub receipts: &'a [Receipt],
 	/// State.
-	pub state: &'a State,
+	pub state: &'a State<StateDB>,
 	/// Traces.
 	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
 }
 
 impl ExecutedBlock {
 	/// Create a new block from the given `state`.
-	fn new(state: State, tracing: bool) -> ExecutedBlock {
+	fn new(state: State<StateDB>, tracing: bool) -> ExecutedBlock {
 		ExecutedBlock {
 			header: Default::default(),
 			transactions: Default::default(),
@@ -184,7 +183,7 @@ pub trait IsBlock {
 	fn header(&self) -> &Header { &self.block().header }
 
 	/// Get the final state associated with this object's block.
-	fn state(&self) -> &State { &self.block().state }
+	fn state(&self) -> &State<StateDB> { &self.block().state }
 
 	/// Get all information on transactions in this block.
 	fn transactions(&self) -> &[SignedTransaction] { &self.block().transactions }
@@ -228,7 +227,7 @@ pub struct ClosedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,
 	last_hashes: Arc<LastHashes>,
-	unclosed_state: State,
+	unclosed_state: State<StateDB>,
 }
 
 /// Just like `ClosedBlock` except that we can't reopen it and it's faster.
@@ -507,7 +506,7 @@ impl SealedBlock {
 	pub fn rlp_bytes(&self) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
 		self.block.header.stream_rlp(&mut block_rlp, Seal::With);
-		block_rlp.append(&self.block.transactions);
+		block_rlp.append_list(&self.block.transactions);
 		block_rlp.append_raw(&self.uncle_bytes, 1);
 		block_rlp.out()
 	}
@@ -540,7 +539,8 @@ pub fn enact(
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
 			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(), factories.clone())?;
-			trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n", header.number(), s.root(), header.author(), s.balance(&header.author()));
+			trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
+				header.number(), s.root(), header.author(), s.balance(&header.author())?);
 		}
 	}
 
@@ -552,7 +552,6 @@ pub fn enact(
 	b.set_extra_data(header.extra_data().clone()).unwrap_or_else(|e| warn!("Couldn't set extradata: {}. Ignoring.", e));
 	b.set_uncles_hash(header.uncles_hash().clone());
 	b.set_transactions_root(header.transactions_root().clone());
-	b.set_receipts_root(header.receipts_root().clone());
 
 	push_transactions(&mut b, transactions)?;
 	for u in uncles {
@@ -617,7 +616,6 @@ mod tests {
 	use state_db::StateDB;
 	use views::BlockView;
 	use util::Address;
-	use util::hash::FixedHash;
 	use std::sync::Arc;
 	use transaction::SignedTransaction;
 

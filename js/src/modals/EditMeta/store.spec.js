@@ -14,14 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import sinon from 'sinon';
+
 import Store from './store';
 import { ACCOUNT, ADDRESS, createApi } from './editMeta.test.js';
 
 let api;
 let store;
+let vaultStore;
+
+function createVaultStore () {
+  return {
+    moveAccount: sinon.stub().resolves(true)
+  };
+}
 
 function createStore (account) {
   api = createApi();
+  vaultStore = createVaultStore();
 
   store = new Store(api, account);
 
@@ -108,6 +118,13 @@ describe('modals/EditMeta/Store', () => {
       createStore(ADDRESS);
     });
 
+    describe('setBusy', () => {
+      it('sets the isBusy flag', () => {
+        store.setBusy('testing');
+        expect(store.isBusy).to.equal('testing');
+      });
+    });
+
     describe('setDescription', () => {
       it('sets the description', () => {
         store.setDescription('description');
@@ -142,31 +159,77 @@ describe('modals/EditMeta/Store', () => {
         expect(store.tags.peek()).to.deep.equal(['taga', 'tagb']);
       });
     });
+
+    describe('setVaultName', () => {
+      it('sets the name', () => {
+        store.setVaultName('testing');
+        expect(store.vaultName).to.equal('testing');
+      });
+    });
   });
 
-  describe('save', () => {
-    beforeEach(() => {
-      createStore(ACCOUNT);
-    });
+  describe('operations', () => {
+    describe('save', () => {
+      beforeEach(() => {
+        createStore(ACCOUNT);
+        sinon.spy(store, 'setBusy');
+      });
 
-    it('calls parity.setAccountName with the set value', () => {
-      store.setName('test name');
-      store.save();
+      afterEach(() => {
+        store.setBusy.restore();
+      });
 
-      expect(api.parity.setAccountName).to.be.calledWith(ACCOUNT.address, 'test name');
-    });
+      it('sets the busy flag, clearing it when done', () => {
+        return store.save().then(() => {
+          expect(store.setBusy).to.have.been.calledWith(true);
+          expect(store.setBusy).to.have.been.calledWith(false);
+        });
+      });
 
-    it('calls parity.setAccountMeta with the adjusted values', () => {
-      store.setDescription('some new description');
-      store.setPasswordHint('some new passwordhint');
-      store.setTags(['taga']);
-      store.save();
+      it('calls parity.setAccountName with the set value', () => {
+        store.setName('test name');
 
-      expect(api.parity.setAccountMeta).to.have.been.calledWith(ACCOUNT.address, Object.assign({}, ACCOUNT.meta, {
-        description: 'some new description',
-        passwordHint: 'some new passwordhint',
-        tags: ['taga']
-      }));
+        return store.save().then(() => {
+          expect(api.parity.setAccountName).to.be.calledWith(ACCOUNT.address, 'test name');
+        });
+      });
+
+      it('calls parity.setAccountMeta with the adjusted values', () => {
+        store.setDescription('some new description');
+        store.setPasswordHint('some new passwordhint');
+        store.setTags(['taga']);
+
+        return store.save().then(() => {
+          expect(api.parity.setAccountMeta).to.have.been.calledWith(
+            ACCOUNT.address, Object.assign({}, ACCOUNT.meta, {
+              description: 'some new description',
+              passwordHint: 'some new passwordhint',
+              tags: ['taga']
+            })
+          );
+        });
+      });
+
+      it('moves vault account when applicable', () => {
+        store.setVaultName('testing');
+
+        return store.save(vaultStore).then(() => {
+          expect(vaultStore.moveAccount).to.have.been.calledWith('testing', ACCOUNT.address);
+        });
+      });
+
+      it('calls parity.setAccountMeta with the adjusted values', () => {
+        store.setDescription('some new description');
+        store.setPasswordHint('some new passwordhint');
+        store.setTags(['taga']);
+        store.save();
+
+        expect(api.parity.setAccountMeta).to.have.been.calledWith(ACCOUNT.address, Object.assign({}, ACCOUNT.meta, {
+          description: 'some new description',
+          passwordHint: 'some new passwordhint',
+          tags: ['taga']
+        }));
+      });
     });
   });
 });

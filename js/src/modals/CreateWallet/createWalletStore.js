@@ -22,10 +22,11 @@ import Contract from '~/api/contract';
 import { ERROR_CODES } from '~/api/transport/error';
 import Contracts from '~/contracts';
 import { wallet as walletAbi } from '~/contracts/abi';
-import { wallet as walletCode, walletLibraryRegKey, fullWalletCode } from '~/contracts/code/wallet';
+import { wallet as walletCode, walletLibrary as walletLibraryCode, walletLibraryRegKey, fullWalletCode } from '~/contracts/code/wallet';
 
 import { validateUint, validateAddress, validateName } from '~/util/validation';
 import { toWei } from '~/api/util/wei';
+import { deploy } from '~/util/tx';
 import WalletsUtils from '~/util/wallets';
 
 const STEPS = {
@@ -179,6 +180,8 @@ export default class CreateWalletStore {
           this.wallet.owners = owners;
           this.wallet.required = require.toNumber();
           this.wallet.dailylimit = dailylimit.limit;
+
+          this.wallet = this.getWalletWithMeta(this.wallet);
         });
 
         return this.addWallet(this.wallet);
@@ -202,21 +205,51 @@ export default class CreateWalletStore {
         return null; // exception when registry is not available
       })
       .then((address) => {
-        const walletLibraryAddress = (address || '').replace(/^0x/, '').toLowerCase();
-        const code = walletLibraryAddress.length && !/^0+$/.test(walletLibraryAddress)
-          ? walletCode.replace(/(_)+WalletLibrary(_)+/g, walletLibraryAddress)
-          : fullWalletCode;
+        if (!address || /^(0x)?0*$/.test(address)) {
+          return null;
+        }
+
+        // Check that it's actually the expected code
+        return this.api.eth
+          .getCode(address)
+          .then((code) => {
+            const strippedCode = code.replace(/^0x/, '');
+
+            // The actual deployed code is included in the wallet
+            // library code (which might have some more data)
+            if (walletLibraryCode.indexOf(strippedCode) >= 0) {
+              return address;
+            }
+
+            return null;
+          });
+      })
+      .then((address) => {
+        let code = fullWalletCode;
+
+        if (address) {
+          const walletLibraryAddress = address.replace(/^0x/, '').toLowerCase();
+
+          code = walletCode.replace(/(_)+WalletLibrary(_)+/g, walletLibraryAddress);
+        } else {
+          console.warn('wallet library has not been found in the registry');
+        }
 
         const options = {
           data: code,
           from: account
         };
 
-        return this.api
-          .newContract(walletAbi)
-          .deploy(options, [ owners, required, daylimit ], this.onDeploymentState);
+        const contract = this.api.newContract(walletAbi);
+
+        this.wallet = this.getWalletWithMeta(this.wallet);
+        return deploy(contract, options, [ owners, required, daylimit ], this.wallet.metadata, this.onDeploymentState);
       })
       .then((address) => {
+        if (!address || /^(0x)?0*$/.test(address)) {
+          return false;
+        }
+
         this.deployed = true;
         this.wallet.address = address;
         return this.addWallet(this.wallet);
@@ -233,24 +266,35 @@ export default class CreateWalletStore {
   }
 
   @action addWallet = (wallet) => {
-    const { address, name, description } = wallet;
+    const { address, name, metadata } = wallet;
 
     return Promise
       .all([
         this.api.parity.setAccountName(address, name),
-        this.api.parity.setAccountMeta(address, {
-          abi: walletAbi,
-          wallet: true,
-          timestamp: Date.now(),
-          deleted: false,
-          description,
-          name,
-          tags: ['wallet']
-        })
+        this.api.parity.setAccountMeta(address, metadata)
       ])
       .then(() => {
         this.step = 'INFO';
       });
+  }
+
+  getWalletWithMeta = (wallet) => {
+    const { name, description } = wallet;
+
+    const metadata = {
+      abi: walletAbi,
+      wallet: true,
+      timestamp: Date.now(),
+      deleted: false,
+      tags: [ 'wallet' ],
+      description,
+      name
+    };
+
+    return {
+      ...wallet,
+      metadata
+    };
   }
 
   onDeploymentState = (error, data) => {
@@ -294,6 +338,15 @@ export default class CreateWalletStore {
           <FormattedMessage
             id='createWallet.states.validatingCode'
             defaultMessage='Validating the deployed contract code'
+          />
+        );
+        return;
+
+      case 'confirmationNeeded':
+        this.deployState = (
+          <FormattedMessage
+            id='createWallet.states.confirmationNeeded'
+            defaultMessage='The contract deployment needs confirmations from other owners of the Wallet'
           />
         );
         return;

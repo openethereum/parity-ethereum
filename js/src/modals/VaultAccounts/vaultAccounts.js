@@ -22,10 +22,8 @@ import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
 import { personalAccountsInfo } from '~/redux/providers/personalActions';
-import { AccountCard, Button, Portal, SectionList } from '~/ui';
+import { AccountCard, Button, Portal, SelectionList } from '~/ui';
 import { CancelIcon, CheckIcon } from '~/ui/Icons';
-
-import styles from './vaultAccounts.css';
 
 @observer
 class VaultAccounts extends Component {
@@ -35,6 +33,7 @@ class VaultAccounts extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
+    balances: PropTypes.object.isRequired,
     newError: PropTypes.func.isRequired,
     personalAccountsInfo: PropTypes.func.isRequired,
     vaultStore: PropTypes.object.isRequired
@@ -91,50 +90,45 @@ class VaultAccounts extends Component {
           />
         }
       >
-        <SectionList
-          items={ vaultAccounts }
-          noStretch
-          renderItem={ this.renderAccount }
-          selectedAccounts={ selectedAccounts }
-        />
+        { this.renderList(vaultAccounts, selectedAccounts) }
       </Portal>
     );
   }
 
-  // TODO: There are a lot of similarities between the dapp permissions selector
-  // (although that has defaults) and this one. A genrerix multi-select component
-  // would be applicable going forward. (Originals passed in, new selections back)
-  renderAccount = (account) => {
-    const { vaultName, selectedAccounts } = this.props.vaultStore;
-    const isInVault = account.meta.vault === vaultName;
-    const isSelected = isInVault
-      ? !selectedAccounts[account.address]
-      : selectedAccounts[account.address];
+  renderList (vaultAccounts) {
+    return (
+      <SelectionList
+        isChecked={ this.isSelected }
+        items={ vaultAccounts }
+        noStretch
+        onSelectClick={ this.onSelect }
+        renderItem={ this.renderAccount }
+      />
+    );
+  }
 
-    const onSelect = () => {
-      this.props.vaultStore.toggleSelectedAccount(account.address);
-    };
+  renderAccount = (account) => {
+    const { balances } = this.props;
+    const balance = balances[account.address];
 
     return (
-      <div className={ styles.item }>
-        <AccountCard
-          account={ account }
-          className={
-            isSelected
-              ? styles.selected
-              : styles.unselected
-          }
-          onClick={ onSelect }
-        />
-        <div className={ styles.overlay }>
-          {
-            isSelected
-              ? <CheckIcon onClick={ onSelect } />
-              : <CheckIcon className={ styles.iconDisabled } onClick={ onSelect } />
-          }
-        </div>
-      </div>
+      <AccountCard
+        account={ account }
+        balance={ balance }
+      />
     );
+  }
+
+  isSelected = (account) => {
+    const { vaultName, selectedAccounts } = this.props.vaultStore;
+
+    return account.meta.vault === vaultName
+      ? !selectedAccounts[account.address]
+      : selectedAccounts[account.address];
+  }
+
+  onSelect = (account) => {
+    this.props.vaultStore.toggleSelectedAccount(account.address);
   }
 
   onClose = () => {
@@ -177,9 +171,13 @@ class VaultAccounts extends Component {
 }
 
 function mapStateToProps (state) {
+  const { balances } = state.balances;
   const { accounts } = state.personal;
 
-  return { accounts };
+  return {
+    accounts,
+    balances
+  };
 }
 
 function mapDispatchToProps (dispatch) {

@@ -16,7 +16,8 @@
 
 use io::IoChannel;
 use client::{BlockChainClient, MiningBlockChainClient, Client, ClientConfig, BlockId};
-use state::CleanupMode;
+use state::{self, State, CleanupMode};
+use executive::Executive;
 use ethereum;
 use block::IsBlock;
 use tests::helpers::*;
@@ -24,10 +25,8 @@ use types::filter::Filter;
 use util::*;
 use devtools::*;
 use miner::Miner;
-use rlp::View;
 use spec::Spec;
 use views::BlockView;
-use util::stats::Histogram;
 use ethkey::{KeyPair, Secret};
 use transaction::{PendingTransaction, Transaction, Action, Condition};
 use miner::MinerService;
@@ -208,11 +207,11 @@ fn can_collect_garbage() {
 fn can_generate_gas_price_median() {
 	let client_result = generate_dummy_client_with_data(3, 1, slice_into![1, 2, 3]);
 	let client = client_result.reference();
-	assert_eq!(Some(U256::from(2)), client.gas_price_median(3));
+	assert_eq!(Some(&U256::from(2)), client.gas_price_corpus(3).median());
 
 	let client_result = generate_dummy_client_with_data(4, 1, slice_into![1, 4, 3, 2]);
 	let client = client_result.reference();
-	assert_eq!(Some(U256::from(3)), client.gas_price_median(4));
+	assert_eq!(Some(&U256::from(3)), client.gas_price_corpus(3).median());
 }
 
 #[test]
@@ -220,8 +219,8 @@ fn can_generate_gas_price_histogram() {
 	let client_result = generate_dummy_client_with_data(20, 1, slice_into![6354,8593,6065,4842,7845,7002,689,4958,4250,6098,5804,4320,643,8895,2296,8589,7145,2000,2512,1408]);
 	let client = client_result.reference();
 
-	let hist = client.gas_price_histogram(20, 5).unwrap();
-	let correct_hist = Histogram { bucket_bounds: vec_into![643, 2294, 3945, 5596, 7247, 8898], counts: vec![4,2,4,6,4] };
+	let hist = client.gas_price_corpus(20).histogram(5).unwrap();
+	let correct_hist = ::stats::Histogram { bucket_bounds: vec_into![643, 2294, 3945, 5596, 7247, 8898], counts: vec![4,2,4,6,4] };
 	assert_eq!(hist, correct_hist);
 }
 
@@ -230,7 +229,7 @@ fn empty_gas_price_histogram() {
 	let client_result = generate_dummy_client_with_data(20, 0, slice_into![]);
 	let client = client_result.reference();
 
-	assert!(client.gas_price_histogram(20, 5).is_none());
+	assert!(client.gas_price_corpus(20).histogram(5).is_none());
 }
 
 #[test]
@@ -292,7 +291,7 @@ fn change_history_size() {
 
 		for _ in 0..20 {
 			let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
-			b.block_mut().fields_mut().state.add_balance(&address, &5.into(), CleanupMode::NoEmpty);
+			b.block_mut().fields_mut().state.add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
 			b.block_mut().fields_mut().state.commit().unwrap();
 			let b = b.close_and_lock().seal(&*test_spec.engine, vec![]).unwrap();
 			client.import_sealed_block(b).unwrap(); // account change is in the journal overlay
@@ -307,7 +306,7 @@ fn change_history_size() {
 		Arc::new(Miner::with_spec(&test_spec)),
 		IoChannel::disconnected(),
 	).unwrap();
-	assert_eq!(client.state().balance(&address), 100.into());
+	assert_eq!(client.state().balance(&address).unwrap(), 100.into());
 }
 
 #[test]
@@ -341,4 +340,44 @@ fn does_not_propagate_delayed_transactions() {
 	client.flush_queue();
 	assert_eq!(2, client.ready_transactions().len());
 	assert_eq!(2, client.miner().pending_transactions().len());
+}
+
+#[test]
+fn transaction_proof() {
+	use ::client::ProvingBlockChainClient;
+
+	let client_result = generate_dummy_client(0);
+	let client = client_result.reference();
+	let address = Address::random();
+	let test_spec = Spec::new_test();
+	for _ in 0..20 {
+		let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
+		b.block_mut().fields_mut().state.add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
+		b.block_mut().fields_mut().state.commit().unwrap();
+		let b = b.close_and_lock().seal(&*test_spec.engine, vec![]).unwrap();
+		client.import_sealed_block(b).unwrap(); // account change is in the journal overlay
+	}
+
+	let transaction = Transaction {
+		nonce: 0.into(),
+		gas_price: 0.into(),
+		gas: 21000.into(),
+		action: Action::Call(Address::default()),
+		value: 5.into(),
+		data: Vec::new(),
+	}.fake_sign(address);
+
+	let proof = client.prove_transaction(transaction.clone(), BlockId::Latest).unwrap();
+	let backend = state::backend::ProofCheck::new(&proof);
+
+	let mut factories = ::factory::Factories::default();
+	factories.accountdb = ::account_db::Factory::Plain; // raw state values, no mangled keys.
+	let root = client.best_block_header().state_root();
+
+	let mut state = State::from_existing(backend, root, 0.into(), factories.clone()).unwrap();
+	Executive::new(&mut state, &client.latest_env_info(), &*test_spec.engine, &factories.vm)
+		.transact(&transaction, Default::default()).unwrap();
+
+	assert_eq!(state.balance(&Address::default()).unwrap(), 5.into());
+	assert_eq!(state.balance(&address).unwrap(), 95.into());
 }

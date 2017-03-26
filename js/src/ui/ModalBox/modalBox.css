@@ -1,0 +1,62 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.body {
+  display: flex;
+  justify-content: flex-start;
+
+  .content {
+    flex: 1;
+
+    .body {
+      width: 100%;
+    }
+
+    .summary {
+      line-height: 1.618em;
+      padding: 0 4em 1.5em 4em;
+      text-align: center;
+    }
+  }
+
+  .icon {
+    align-items: center;
+    background: rgb(167, 151, 0);
+    border-radius: 50%;
+    display: flex;
+    flex: 0 0 5em;
+    flex-direction: column;
+    height: 5em;
+    justify-content: center;
+    margin-right: 1.5em;
+    padding: 0.75em;
+    width: 5em;
+
+    img {
+      margin: 0;
+      padding: 0;
+    }
+
+    svg {
+      fill: white !important;
+      font-size: 3.5em !important;
+      height: 3.5em !important;
+      margin: 0 !important;
+      width: 3.5em !important;
+    }
+  }
+}

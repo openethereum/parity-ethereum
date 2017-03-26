@@ -14,19 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { pick, omitBy } from 'lodash';
+import BigNumber from 'bignumber.js';
+import { pick } from 'lodash';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { BusyStep, Button, CompletedStep, CopyToClipboard, GasPriceEditor, IdentityIcon, Modal, TxHash, Warning } from '~/ui';
+import { BusyStep, Button, CompletedStep, CopyToClipboard, GasPriceEditor, IdentityIcon, Portal, TxHash, Warning } from '~/ui';
 import { CancelIcon, DoneIcon } from '~/ui/Icons';
-import { ERRORS, validateAbi, validateCode, validateName } from '~/util/validation';
+import { ERRORS, validateAbi, validateCode, validateName, validatePositiveNumber } from '~/util/validation';
+import { deploy, deployEstimateGas } from '~/util/tx';
 
 import DetailsStep from './DetailsStep';
 import ParametersStep from './ParametersStep';
 import ErrorStep from './ErrorStep';
+import Extras from '../Transfer/Extras';
 
 import styles from './deployContract.css';
 
@@ -46,6 +49,14 @@ const STEPS = {
       <FormattedMessage
         id='deployContract.title.parameters'
         defaultMessage='contract parameters'
+      />
+    )
+  },
+  EXTRAS: {
+    title: (
+      <FormattedMessage
+        id='deployContract.title.extras'
+        defaultMessage='extra information'
       />
     )
   },
@@ -73,7 +84,7 @@ class DeployContract extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
     store: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
@@ -96,12 +107,16 @@ class DeployContract extends Component {
   state = {
     abi: '',
     abiError: ERRORS.invalidAbi,
+    amount: '0',
+    amountValue: new BigNumber(0),
+    amountError: '',
     code: '',
     codeError: ERRORS.invalidCode,
     deployState: '',
     deployError: null,
     description: '',
     descriptionError: null,
+    extras: false,
     fromAddress: Object.keys(this.props.accounts)[0],
     fromAddressError: null,
     name: '',
@@ -141,24 +156,42 @@ class DeployContract extends Component {
   render () {
     const { step, deployError, rejected, inputs } = this.state;
 
-    const realStep = Object.keys(STEPS).findIndex((k) => k === step);
-    const realSteps = deployError || rejected
-      ? null
+    const realStepKeys = deployError || rejected
+      ? []
       : Object.keys(STEPS)
-        .filter((k) => k !== 'CONTRACT_PARAMETERS' || inputs.length > 0)
-        .map((k) => STEPS[k]);
+        .filter((k) => {
+          if (k === 'CONTRACT_PARAMETERS') {
+            return inputs.length > 0;
+          }
+
+          if (k === 'EXTRAS') {
+            return this.state.extras;
+          }
+
+          return true;
+        });
+
+    const realStep = realStepKeys.findIndex((k) => k === step);
+    const realSteps = realStepKeys.length
+      ? realStepKeys.map((k) => STEPS[k])
+      : null;
 
     const title = realSteps
       ? null
-      : (deployError
-          ? <FormattedMessage
-            id='deployContract.title.failed'
-            defaultMessage='deployment failed'
+      : (
+        deployError
+          ? (
+            <FormattedMessage
+              id='deployContract.title.failed'
+              defaultMessage='deployment failed'
             />
-          : <FormattedMessage
-            id='deployContract.title.rejected'
-            defaultMessage='rejected'
+          )
+          : (
+            <FormattedMessage
+              id='deployContract.title.rejected'
+              defaultMessage='rejected'
             />
+          )
       );
 
     const waiting = realSteps
@@ -166,21 +199,22 @@ class DeployContract extends Component {
       : null;
 
     return (
-      <Modal
-        actions={ this.renderDialogActions() }
-        current={ realStep }
+      <Portal
+        buttons={ this.renderDialogActions() }
+        activeStep={ realStep }
+        busySteps={ waiting }
+        onClose={ this.onClose }
+        open
         steps={
           realSteps
             ? realSteps.map((s) => s.title)
             : null
         }
         title={ title }
-        visible
-        waiting={ waiting }
       >
         { this.renderExceptionWarning() }
         { this.renderStep() }
-      </Modal>
+      </Portal>
     );
   }
 
@@ -194,19 +228,18 @@ class DeployContract extends Component {
     }
 
     return (
-      <Warning
-        warning={ errorEstimated }
-      />
+      <Warning warning={ errorEstimated } />
     );
   }
 
   renderDialogActions () {
-    const { deployError, abiError, codeError, nameError, descriptionError, fromAddressError, fromAddress, step } = this.state;
-    const isValid = !nameError && !fromAddressError && !descriptionError && !abiError && !codeError;
+    const { deployError, abiError, amountError, codeError, nameError, descriptionError, fromAddressError, fromAddress, step } = this.state;
+    const isValid = !nameError && !fromAddressError && !descriptionError && !abiError && !codeError && !amountError;
 
     const cancelBtn = (
       <Button
         icon={ <CancelIcon /> }
+        key='cancel'
         label={
           <FormattedMessage
             id='deployContract.button.cancel'
@@ -220,6 +253,7 @@ class DeployContract extends Component {
     const closeBtn = (
       <Button
         icon={ <CancelIcon /> }
+        key='close'
         label={
           <FormattedMessage
             id='deployContract.button.close'
@@ -233,6 +267,7 @@ class DeployContract extends Component {
     const closeBtnOk = (
       <Button
         icon={ <DoneIcon /> }
+        key='done'
         label={
           <FormattedMessage
             id='deployContract.button.done'
@@ -247,46 +282,69 @@ class DeployContract extends Component {
       return closeBtn;
     }
 
+    const createButton = (
+      <Button
+        icon={
+          <IdentityIcon
+            address={ fromAddress }
+            button
+          />
+        }
+        key='create'
+        label={
+          <FormattedMessage
+            id='deployContract.button.create'
+            defaultMessage='Create'
+          />
+        }
+        onClick={ this.onDeployStart }
+      />
+    );
+
+    const nextButton = (
+      <Button
+        disabled={ !isValid }
+        key='next'
+        icon={
+          <IdentityIcon
+            address={ fromAddress }
+            button
+          />
+        }
+        label={
+          <FormattedMessage
+            id='deployContract.button.next'
+            defaultMessage='Next'
+          />
+        }
+        onClick={ this.onNextStep }
+      />
+    );
+
+    const hasParameters = this.state.inputs.length > 0;
+    const showExtras = this.state.extras;
+
     switch (step) {
       case 'CONTRACT_DETAILS':
         return [
           cancelBtn,
-          <Button
-            disabled={ !isValid }
-            icon={
-              <IdentityIcon
-                address={ fromAddress }
-                button
-              />
-            }
-            label={
-              <FormattedMessage
-                id='deployContract.button.next'
-                defaultMessage='Next'
-              />
-            }
-            onClick={ this.onParametersStep }
-          />
+          hasParameters || showExtras
+            ? nextButton
+            : createButton
         ];
 
       case 'CONTRACT_PARAMETERS':
         return [
           cancelBtn,
-          <Button
-            icon={
-              <IdentityIcon
-                address={ fromAddress }
-                button
-              />
-            }
-            label={
-              <FormattedMessage
-                id='deployContract.button.create'
-                defaultMessage='Create'
-              />
-            }
-            onClick={ this.onDeployStart }
-          />
+          showExtras
+            ? nextButton
+            : createButton
+        ];
+
+      case 'EXTRAS':
+        return [
+          cancelBtn,
+          createButton
         ];
 
       case 'DEPLOYMENT':
@@ -333,6 +391,8 @@ class DeployContract extends Component {
             { ...this.state }
             accounts={ accounts }
             balances={ balances }
+            onAmountChange={ this.onAmountChange }
+            onExtrasChange={ this.onExtrasChange }
             onFromAddressChange={ this.onFromAddressChange }
             onDescriptionChange={ this.onDescriptionChange }
             onNameChange={ this.onNameChange }
@@ -353,6 +413,9 @@ class DeployContract extends Component {
             readOnly={ readOnly }
           />
         );
+
+      case 'EXTRAS':
+        return this.renderExtrasPage();
 
       case 'DEPLOYMENT':
         const body = txhash
@@ -400,22 +463,37 @@ class DeployContract extends Component {
     }
   }
 
+  renderExtrasPage () {
+    if (!this.gasStore.histogram) {
+      return null;
+    }
+
+    return (
+      <Extras
+        gasStore={ this.gasStore }
+        hideData
+        isEth
+      />
+    );
+  }
+
   estimateGas = () => {
     const { api } = this.context;
-    const { abiError, abiParsed, code, codeError, fromAddress, fromAddressError, params } = this.state;
+    const { abiError, abiParsed, amountValue, amountError, code, codeError, fromAddress, fromAddressError, params } = this.state;
 
-    if (abiError || codeError || fromAddressError) {
+    if (abiError || codeError || fromAddressError || amountError) {
       return;
     }
 
     const options = {
       data: code,
-      from: fromAddress
+      from: fromAddress,
+      value: amountValue
     };
 
-    api
-      .newContract(abiParsed)
-      .deployEstimateGas(options, params)
+    const contract = api.newContract(abiParsed);
+
+    deployEstimateGas(contract, options, params)
       .then(([gasEst, gas]) => {
         this.gasStore.setEstimated(gasEst.toFixed(0));
         this.gasStore.setGas(gas.toFixed(0));
@@ -426,11 +504,32 @@ class DeployContract extends Component {
       });
   }
 
+  onNextStep = () => {
+    switch (this.state.step) {
+      case 'CONTRACT_DETAILS':
+        return this.onParametersStep();
+
+      case 'CONTRACT_PARAMETERS':
+        return this.onExtrasStep();
+
+      default:
+        console.warn('wrong call of "onNextStep" from', this.state.step);
+    }
+  }
+
   onParametersStep = () => {
     const { inputs } = this.state;
 
     if (inputs.length) {
       return this.setState({ step: 'CONTRACT_PARAMETERS' });
+    }
+
+    return this.onExtrasStep();
+  }
+
+  onExtrasStep = () => {
+    if (this.state.extras) {
+      return this.setState({ step: 'EXTRAS' });
     }
 
     return this.onDeployStart();
@@ -477,41 +576,64 @@ class DeployContract extends Component {
     this.setState(validateCode(code), this.estimateGas);
   }
 
+  onAmountChange = (amount) => {
+    const { numberError } = validatePositiveNumber(amount);
+    const nextAmountValue = numberError
+      ? new BigNumber(0)
+      : this.context.api.util.toWei(amount);
+
+    this.gasStore.setEthValue(nextAmountValue);
+    this.setState({ amount, amountValue: nextAmountValue, amountError: numberError }, this.estimateGas);
+  }
+
+  onExtrasChange = (extras) => {
+    this.setState({ extras });
+  }
+
   onDeployStart = () => {
     const { api, store } = this.context;
     const { source } = this.props;
-    const { abiParsed, code, description, name, params, fromAddress } = this.state;
-    const options = {
-      data: code,
-      from: fromAddress
+    const { abiParsed, amountValue, code, description, name, params, fromAddress } = this.state;
+
+    const metadata = {
+      abi: abiParsed,
+      contract: true,
+      deleted: false,
+      timestamp: Date.now(),
+      name,
+      description,
+      source
     };
+
+    const options = this.gasStore.overrideTransaction({
+      data: code,
+      from: fromAddress,
+      value: amountValue
+    });
 
     this.setState({ step: 'DEPLOYMENT' });
 
     const contract = api.newContract(abiParsed);
 
-    contract
-      .deploy(options, params, this.onDeploymentState)
+    deploy(contract, options, params, metadata, this.onDeploymentState, true)
       .then((address) => {
-        const blockNumber = contract._receipt
+        // No contract address given, might need some confirmations
+        // from the wallet owners...
+        if (!address || /^(0x)?0*$/.test(address)) {
+          return false;
+        }
+
+        metadata.blockNumber = contract._receipt
           ? contract.receipt.blockNumber.toNumber()
           : null;
 
         return Promise.all([
           api.parity.setAccountName(address, name),
-          api.parity.setAccountMeta(address, {
-            abi: abiParsed,
-            contract: true,
-            timestamp: Date.now(),
-            deleted: false,
-            blockNumber,
-            description,
-            source
-          })
+          api.parity.setAccountMeta(address, metadata)
         ])
         .then(() => {
           console.log(`contract deployed at ${address}`);
-          this.setState({ step: 'DEPLOYMENT', address });
+          this.setState({ step: 'COMPLETED', address });
         });
       })
       .catch((error) => {
@@ -580,6 +702,17 @@ class DeployContract extends Component {
         });
         return;
 
+      case 'confirmationNeeded':
+        this.setState({
+          deployState: (
+            <FormattedMessage
+              id='deployContract.state.confirmationNeeded'
+              defaultMessage='The operation needs confirmations from the other owners of the contract'
+            />
+          )
+        });
+        return;
+
       case 'completed':
         this.setState({
           deployState: (
@@ -605,17 +738,14 @@ class DeployContract extends Component {
 function mapStateToProps (initState, initProps) {
   const { accounts } = initProps;
 
-  // Skip Wallet accounts : they can't create Contracts
-  const _accounts = omitBy(accounts, (a) => a.wallet);
-
-  const fromAddresses = Object.keys(_accounts);
+  const fromAddresses = Object.keys(accounts);
 
   return (state) => {
     const balances = pick(state.balances.balances, fromAddresses);
     const { gasLimit } = state.nodeStatus;
 
     return {
-      accounts: _accounts,
+      accounts,
       balances,
       gasLimit
     };

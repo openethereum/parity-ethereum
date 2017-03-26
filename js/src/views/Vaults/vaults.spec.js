@@ -42,7 +42,7 @@ function render (props = {}) {
   return component;
 }
 
-describe('modals/Vaults', () => {
+describe('views/Vaults', () => {
   beforeEach(() => {
     render();
   });
@@ -147,6 +147,22 @@ describe('modals/Vaults', () => {
 
       it('calls into vaultStore.openCreateModal', () => {
         expect(instance.vaultStore.openCreateModal).to.have.been.called;
+      });
+    });
+
+    describe('onOpenEdit', () => {
+      beforeEach(() => {
+        sinon.spy(instance.vaultStore, 'openMetaModal');
+
+        instance.onOpenEdit('testing');
+      });
+
+      afterEach(() => {
+        instance.vaultStore.openMetaModal.restore();
+      });
+
+      it('calls into vaultStore.openMetaModal', () => {
+        expect(instance.vaultStore.openMetaModal).to.have.been.calledWith('testing');
       });
     });
 

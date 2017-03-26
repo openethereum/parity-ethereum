@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import MapsLocalGasStation from 'material-ui/svg-icons/maps/local-gas-station';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
 
 import { Button, MethodDecoding } from '~/ui';
+import { GasIcon } from '~/ui/Icons';
 
 import * as tUtil from '../util/transaction';
 import Account from '../Account';
@@ -29,12 +30,13 @@ import styles from './transactionMainDetails.css';
 export default class TransactionMainDetails extends Component {
   static propTypes = {
     children: PropTypes.node,
+    disabled: PropTypes.bool,
     externalLink: PropTypes.string.isRequired,
     from: PropTypes.string.isRequired,
     fromBalance: PropTypes.object,
     gasStore: PropTypes.object,
     id: PropTypes.object.isRequired,
-    isTest: PropTypes.bool.isRequired,
+    netVersion: PropTypes.string.isRequired,
     origin: PropTypes.any,
     totalValue: PropTypes.object.isRequired,
     transaction: PropTypes.object.isRequired,
@@ -61,7 +63,7 @@ export default class TransactionMainDetails extends Component {
   }
 
   render () {
-    const { children, externalLink, from, fromBalance, gasStore, isTest, transaction, origin } = this.props;
+    const { children, disabled, externalLink, from, fromBalance, gasStore, netVersion, transaction, origin } = this.props;
 
     return (
       <div className={ styles.transaction }>
@@ -70,8 +72,9 @@ export default class TransactionMainDetails extends Component {
             <Account
               address={ from }
               balance={ fromBalance }
+              disabled={ disabled }
               externalLink={ externalLink }
-              isTest={ isTest }
+              netVersion={ netVersion }
             />
           </div>
           <RequestOrigin origin={ origin } />
@@ -103,8 +106,13 @@ export default class TransactionMainDetails extends Component {
     return (
       <div className={ styles.editButtonRow }>
         <Button
-          icon={ <MapsLocalGasStation /> }
-          label='Edit conditions/gas/gasPrice'
+          icon={ <GasIcon /> }
+          label={
+            <FormattedMessage
+              id='signer.mainDetails.editTx'
+              defaultMessage='Edit conditions/gas/gasPrice'
+            />
+          }
           onClick={ this.toggleGasEditor }
         />
       </div>
@@ -128,8 +136,23 @@ export default class TransactionMainDetails extends Component {
           { totalValueDisplay } <small>ETH</small>
         </div>
         <ReactTooltip id={ labelId }>
-          The value of the transaction including the mining fee is <strong>{ totalValueDisplayWei }</strong> <small>WEI</small>. <br />
-          (This includes a mining fee of <strong>{ feeEth }</strong> <small>ETH</small>)
+          <FormattedMessage
+            id='signer.mainDetails.tooltips.total1'
+            defaultMessage='The value of the transaction including the mining fee is {total} {type}.'
+            values={ {
+              total: <strong>{ totalValueDisplayWei }</strong>,
+              type: <small>WEI</small>
+            } }
+          />
+          <br />
+          <FormattedMessage
+            id='signer.mainDetails.tooltips.total2'
+            defaultMessage='(This includes a mining fee of {fee} {token})'
+            values={ {
+              fee: <strong>{ feeEth }</strong>,
+              token: <small>ETH</small>
+            } }
+          />
         </ReactTooltip>
       </div>
     );
@@ -151,7 +174,11 @@ export default class TransactionMainDetails extends Component {
           <small>ETH</small>
         </div>
         <ReactTooltip id={ labelId }>
-          The value of the transaction.<br />
+          <FormattedMessage
+            id='signer.mainDetails.tooltips.value1'
+            defaultMessage='The value of the transaction.'
+          />
+          <br />
           <strong>{ valueDisplayWei }</strong> <small>WEI</small>
         </ReactTooltip>
       </div>

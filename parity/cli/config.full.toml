@@ -27,7 +27,6 @@ interface = "127.0.0.1"
 path = "$HOME/.parity/signer"
 
 [network]
-disable = false
 port = 30303
 min_peers = 25
 max_peers = 50
@@ -76,6 +75,9 @@ path = "$HOME/.parity/secretstore"
 [ipfs]
 enable = false
 port = 5001
+interface = "local"
+cors = "null"
+hosts = ["none"]
 
 [mining]
 author = "0xdeadbeefcafe0000000000000000000000000001"
@@ -83,6 +85,7 @@ engine_signer = "0xdeadbeefcafe0000000000000000000000000001"
 force_sealing = true
 reseal_on_txs = "all"
 reseal_min_period = 4000
+reseal_max_period = 60000
 work_queue_size = 20
 relay_set = "cheap"
 usd_per_tx = "0.0025"

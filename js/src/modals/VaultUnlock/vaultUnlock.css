@@ -15,6 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+.form {
+  margin-top: 0;
+}
+
 .passwordHint {
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.75em;

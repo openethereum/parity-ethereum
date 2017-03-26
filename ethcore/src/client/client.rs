@@ -24,8 +24,8 @@ use time::precise_time_ns;
 
 // util
 use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, MutexGuard, Hashable};
-use util::{journaldb, TrieFactory, Trie};
-use util::{U256, H256, Address, H2048, Uint, FixedHash};
+use util::{journaldb, DBValue, TrieFactory, Trie};
+use util::{U256, H256, Address, H2048, Uint};
 use util::trie::TrieSpec;
 use util::kvdb::*;
 
@@ -34,7 +34,7 @@ use io::*;
 use views::BlockView;
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use header::BlockNumber;
-use state::{State, CleanupMode};
+use state::{self, State, CleanupMode};
 use spec::Spec;
 use basic_types::Seal;
 use engines::Engine;
@@ -66,7 +66,7 @@ use evm::{Factory as EvmFactory, Schedule};
 use miner::{Miner, MinerService, TransactionImportResult};
 use snapshot::{self, io as snapshot_io};
 use factory::Factories;
-use rlp::{View, UntrustedRlp};
+use rlp::UntrustedRlp;
 use state_db::StateDB;
 use rand::OsRng;
 use client::registry::Registry;
@@ -151,8 +151,9 @@ pub struct Client {
 	factories: Factories,
 	history: u64,
 	rng: Mutex<OsRng>,
-	on_mode_change: Mutex<Option<Box<FnMut(&Mode) + 'static + Send>>>,
+	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
 	registrar: Mutex<Option<Registry>>,
+	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
 }
 
 impl Client {
@@ -240,8 +241,9 @@ impl Client {
 			factories: factories,
 			history: history,
 			rng: Mutex::new(OsRng::new().map_err(::util::UtilError::StdIo)?),
-			on_mode_change: Mutex::new(None),
+			on_user_defaults_change: Mutex::new(None),
 			registrar: Mutex::new(None),
+			exit_handler: Mutex::new(None),
 		});
 
 		{
@@ -253,7 +255,7 @@ impl Client {
 		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
 			trace!(target: "client", "Found registrar at {}", reg_addr);
 			let weak = Arc::downgrade(&client);
-			let registrar = Registry::new(reg_addr, move |a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d)));
+			let registrar = Registry::new(reg_addr, move |a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(BlockId::Latest, a, d)));
 			*client.registrar.lock() = Some(registrar);
 		}
 		Ok(client)
@@ -276,6 +278,11 @@ impl Client {
 		self.notify.write().push(Arc::downgrade(&target));
 	}
 
+	/// Set a closure to call when we want to restart the client
+	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(bool, Option<String>) + 'static + Send {
+		*self.exit_handler.lock() = Some(Box::new(f));
+	}
+
 	/// Returns engine reference.
 	pub fn engine(&self) -> &Engine {
 		&*self.engine
@@ -294,9 +301,9 @@ impl Client {
 		self.registrar.lock()
 	}
 
-	/// Register an action to be done if a mode change happens.
-	pub fn on_mode_change<F>(&self, f: F) where F: 'static + FnMut(&Mode) + Send {
-		*self.on_mode_change.lock() = Some(Box::new(f));
+	/// Register an action to be done if a mode/spec_name change happens.
+	pub fn on_user_defaults_change<F>(&self, f: F) where F: 'static + FnMut(Option<Mode>) + Send {
+		*self.on_user_defaults_change.lock() = Some(Box::new(f));
 	}
 
 	/// Flush the block import queue.
@@ -308,18 +315,24 @@ impl Client {
 	}
 
 	/// The env info as of the best block.
-	fn latest_env_info(&self) -> EnvInfo {
-		let header = self.best_block_header();
+	pub fn latest_env_info(&self) -> EnvInfo {
+		self.env_info(BlockId::Latest).expect("Best block header always stored; qed")
+	}
 
-		EnvInfo {
-			number: header.number(),
-			author: header.author(),
-			timestamp: header.timestamp(),
-			difficulty: header.difficulty(),
-			last_hashes: self.build_last_hashes(header.hash()),
-			gas_used: U256::default(),
-			gas_limit: header.gas_limit(),
-		}
+	/// The env info as of a given block.
+	/// returns `None` if the block unknown.
+	pub fn env_info(&self, id: BlockId) -> Option<EnvInfo> {
+		self.block_header(id).map(|header| {
+			EnvInfo {
+				number: header.number(),
+				author: header.author(),
+				timestamp: header.timestamp(),
+				difficulty: header.difficulty(),
+				last_hashes: self.build_last_hashes(header.parent_hash()),
+				gas_used: U256::default(),
+				gas_limit: header.gas_limit(),
+			}
+		})
 	}
 
 	fn build_last_hashes(&self, parent_hash: H256) -> Arc<LastHashes> {
@@ -380,7 +393,7 @@ impl Client {
 			})?;
 
 			// Final Verification
-			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
+			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header(), self.engine().params().validate_receipts) {
 				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				return Err(());
 			}
@@ -526,7 +539,7 @@ impl Client {
 			)?;
 
 			// Commit results
-			let receipts = ::rlp::decode(&receipts_bytes);
+			let receipts = ::rlp::decode_list(&receipts_bytes);
 			let mut batch = DBTransaction::new();
 			chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, false, true);
 			// Final commit to the DB
@@ -645,7 +658,6 @@ impl Client {
 		self.miner.clone()
 	}
 
-
 	/// Replace io channel. Useful for testing.
 	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
 		*self.io_channel.lock() = io_channel;
@@ -656,7 +668,7 @@ impl Client {
 	/// This will not fail if given BlockId::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state or the block
 	/// is unknown.
-	pub fn state_at(&self, id: BlockId) -> Option<State> {
+	pub fn state_at(&self, id: BlockId) -> Option<State<StateDB>> {
 		// fast path for latest state.
 		match id.clone() {
 			BlockId::Pending => return self.miner.pending_state().or_else(|| Some(self.state())),
@@ -686,7 +698,7 @@ impl Client {
 	///
 	/// This will not fail if given BlockId::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
-	pub fn state_at_beginning(&self, id: BlockId) -> Option<State> {
+	pub fn state_at_beginning(&self, id: BlockId) -> Option<State<StateDB>> {
 		// fast path for latest state.
 		match id {
 			BlockId::Pending => self.state_at(BlockId::Latest),
@@ -698,7 +710,7 @@ impl Client {
 	}
 
 	/// Get a copy of the best block's state.
-	pub fn state(&self) -> State {
+	pub fn state(&self) -> State<StateDB> {
 		let header = self.best_block_header();
 		State::from_existing(
 			self.state_db.lock().boxed_clone_canon(&header.hash()),
@@ -874,54 +886,45 @@ impl snapshot::DatabaseRestore for Client {
 
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
-		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
-		let last_hashes = self.build_last_hashes(header.parent_hash());
-		let env_info = EnvInfo {
-			number: header.number(),
-			author: header.author(),
-			timestamp: header.timestamp(),
-			difficulty: header.difficulty(),
-			last_hashes: last_hashes,
-			gas_used: U256::zero(),
-			gas_limit: U256::max_value(),
-		};
+		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+		env_info.gas_limit = U256::max_value();
+
 		// that's just a copy of the state.
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
 		let sender = t.sender();
-		let balance = state.balance(&sender);
+		let balance = state.balance(&sender).map_err(|_| CallError::StateCorrupt)?;
 		let needed_balance = t.value + t.gas * t.gas_price;
 		if balance < needed_balance {
 			// give the sender a sufficient balance
-			state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
+			state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)
+				.map_err(|_| CallError::StateCorrupt)?;
 		}
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
 		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, options)?;
 
 		// TODO gav move this into Executive.
-		ret.state_diff = original_state.map(|original| state.diff_from(original));
+		if let Some(original) = original_state {
+			ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
+		}
 
 		Ok(ret)
 	}
 
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
 		const UPPER_CEILING: u64 = 1_000_000_000_000u64;
-		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
-		let last_hashes = self.build_last_hashes(header.parent_hash());
-		let env_info = EnvInfo {
-			number: header.number(),
-			author: header.author(),
-			timestamp: header.timestamp(),
-			difficulty: header.difficulty(),
-			last_hashes: last_hashes,
-			gas_used: U256::zero(),
-			gas_limit: UPPER_CEILING.into(),
+		let (mut upper, env_info)  = {
+			let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+			let initial_upper = env_info.gas_limit;
+			env_info.gas_limit = UPPER_CEILING.into();
+			(initial_upper, env_info)
 		};
+
 		// that's just a copy of the state.
 		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender();
-		let balance = original_state.balance(&sender);
+		let balance = original_state.balance(&sender).map_err(ExecutionError::from)?;
 		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
 
 		let cond = |gas| {
@@ -933,27 +936,28 @@ impl BlockChainClient for Client {
 			let needed_balance = tx.value + tx.gas * tx.gas_price;
 			if balance < needed_balance {
 				// give the sender a sufficient balance
-				state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
+				state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)
+					.map_err(ExecutionError::from)?;
 			}
 
-			Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
+			Ok(Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
 				.transact(&tx, options.clone())
 				.map(|r| r.exception.is_none())
-				.unwrap_or(false)
+				.unwrap_or(false))
 		};
 
-		let mut upper = header.gas_limit();
-		if !cond(upper) {
+		if !cond(upper)? {
 			// impossible at block gas limit - try `UPPER_CEILING` instead.
 			// TODO: consider raising limit by powers of two.
 			upper = UPPER_CEILING.into();
-			if !cond(upper) {
+			if !cond(upper)? {
 				trace!(target: "estimate_gas", "estimate_gas failed with {}", upper);
-				return Err(CallError::Execution(ExecutionError::Internal))
+				let err = ExecutionError::Internal(format!("Requires higher than upper limit of {}", upper));
+				return Err(err.into())
 			}
 		}
 		let lower = t.gas_required(&self.engine.schedule(&env_info)).into();
-		if cond(lower) {
+		if cond(lower)? {
 			trace!(target: "estimate_gas", "estimate_gas succeeded with {}", lower);
 			return Ok(lower)
 		}
@@ -961,28 +965,30 @@ impl BlockChainClient for Client {
 		/// Find transition point between `lower` and `upper` where `cond` changes from `false` to `true`.
 		/// Returns the lowest value between `lower` and `upper` for which `cond` returns true.
 		/// We assert: `cond(lower) = false`, `cond(upper) = true`
-		fn binary_chop<F>(mut lower: U256, mut upper: U256, mut cond: F) -> U256 where F: FnMut(U256) -> bool {
+		fn binary_chop<F, E>(mut lower: U256, mut upper: U256, mut cond: F) -> Result<U256, E>
+			where F: FnMut(U256) -> Result<bool, E>
+		{
 			while upper - lower > 1.into() {
 				let mid = (lower + upper) / 2.into();
 				trace!(target: "estimate_gas", "{} .. {} .. {}", lower, mid, upper);
-				let c = cond(mid);
+				let c = cond(mid)?;
 				match c {
 					true => upper = mid,
 					false => lower = mid,
 				};
 				trace!(target: "estimate_gas", "{} => {} .. {}", c, lower, upper);
 			}
-			upper
+			Ok(upper)
 		}
 
 		// binary chop to non-excepting call with gas somewhere between 21000 and block gas limit
 		trace!(target: "estimate_gas", "estimate_gas chopping {} .. {}", lower, upper);
-		Ok(binary_chop(lower, upper, cond))
+		binary_chop(lower, upper, cond)
 	}
 
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
-		let header = self.block_header(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
+		let mut env_info = self.env_info(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let body = self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let mut state = self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let mut txs = body.transactions();
@@ -992,31 +998,20 @@ impl BlockChainClient for Client {
 		}
 
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let last_hashes = self.build_last_hashes(header.hash());
-		let mut env_info = EnvInfo {
-			number: header.number(),
-			author: header.author(),
-			timestamp: header.timestamp(),
-			difficulty: header.difficulty(),
-			last_hashes: last_hashes,
-			gas_used: U256::default(),
-			gas_limit: header.gas_limit(),
-		};
 		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
 		let rest = txs.split_off(address.index);
 		for t in txs {
 			let t = SignedTransaction::new(t).expect(PROOF);
-			match Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, Default::default()) {
-				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
-				Err(ee) => { return Err(CallError::Execution(ee)) }
-			}
+			let x = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, Default::default())?;
+			env_info.gas_used = env_info.gas_used + x.gas_used;
 		}
 		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
 		let t = SignedTransaction::new(first).expect(PROOF);
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, options)?;
-		ret.state_diff = original_state.map(|original| state.diff_from(original));
-
+		if let Some(original) = original_state {
+			ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?)
+		}
 		Ok(ret)
 	}
 
@@ -1041,15 +1036,31 @@ impl BlockChainClient for Client {
 			let mut mode = self.mode.lock();
 			*mode = new_mode.clone().into();
 			trace!(target: "mode", "Mode now {:?}", &*mode);
-			if let Some(ref mut f) = *self.on_mode_change.lock() {
+			if let Some(ref mut f) = *self.on_user_defaults_change.lock() {
 				trace!(target: "mode", "Making callback...");
-				f(&*mode)
+				f(Some((&*mode).clone()))
 			}
 		}
 		match new_mode {
 			IpcMode::Active => self.wake_up(),
 			IpcMode::Off => self.sleep(),
 			_ => {(*self.sleep_state.lock()).last_activity = Some(Instant::now()); }
+		}
+	}
+
+	fn spec_name(&self) -> String {
+		self.config.spec_name.clone()
+	}
+
+	fn set_spec_name(&self, new_spec_name: String) {
+		trace!(target: "mode", "Client::set_spec_name({:?})", new_spec_name);
+		if !self.enabled.load(AtomicOrdering::Relaxed) {
+			return;
+		}
+		if let Some(ref h) = *self.exit_handler.lock() {
+			(*h)(true, Some(new_spec_name));
+		} else {
+			warn!("Not hypervised; cannot change chain.");
 		}
 	}
 
@@ -1108,11 +1119,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
-		self.state_at(id).map(|s| s.nonce(address))
+		self.state_at(id).and_then(|s| s.nonce(address).ok())
 	}
 
 	fn storage_root(&self, address: &Address, id: BlockId) -> Option<H256> {
-		self.state_at(id).and_then(|s| s.storage_root(address))
+		self.state_at(id).and_then(|s| s.storage_root(address).ok()).and_then(|x| x)
 	}
 
 	fn block_hash(&self, id: BlockId) -> Option<H256> {
@@ -1121,15 +1132,15 @@ impl BlockChainClient for Client {
 	}
 
 	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
-		self.state_at(id).map(|s| s.code(address).map(|c| (*c).clone()))
+		self.state_at(id).and_then(|s| s.code(address).ok()).map(|c| c.map(|c| (&*c).clone()))
 	}
 
 	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
-		self.state_at(id).map(|s| s.balance(address))
+		self.state_at(id).and_then(|s| s.balance(address).ok())
 	}
 
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockId) -> Option<H256> {
-		self.state_at(id).map(|s| s.storage_at(address, position))
+		self.state_at(id).and_then(|s| s.storage_at(address, position).ok())
 	}
 
 	fn list_accounts(&self, id: BlockId, after: Option<&Address>, count: u64) -> Option<Vec<Address>> {
@@ -1182,7 +1193,7 @@ impl BlockChainClient for Client {
 		};
 
 		let root = match state.storage_root(account) {
-			Some(root) => root,
+			Ok(Some(root)) => root,
 			_ => return None,
 		};
 
@@ -1439,7 +1450,7 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
+	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
 		let from = Address::default();
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&from),
@@ -1450,7 +1461,7 @@ impl BlockChainClient for Client {
 			data: data,
 		}.fake_sign(from);
 
-		self.call(&transaction, BlockId::Latest, Default::default())
+		self.call(&transaction, block_id, Default::default())
 			.map_err(|e| format!("{:?}", e))
 			.map(|executed| {
 				executed.output
@@ -1596,23 +1607,32 @@ impl MayPanic for Client {
 }
 
 impl ::client::ProvingBlockChainClient for Client {
-	fn prove_storage(&self, key1: H256, key2: H256, from_level: u32, id: BlockId) -> Vec<Bytes> {
+	fn prove_storage(&self, key1: H256, key2: H256, id: BlockId) -> Option<(Vec<Bytes>, H256)> {
 		self.state_at(id)
-			.and_then(move |state| state.prove_storage(key1, key2, from_level).ok())
-			.unwrap_or_else(Vec::new)
+			.and_then(move |state| state.prove_storage(key1, key2).ok())
 	}
 
-	fn prove_account(&self, key1: H256, from_level: u32, id: BlockId) -> Vec<Bytes> {
+	fn prove_account(&self, key1: H256, id: BlockId) -> Option<(Vec<Bytes>, ::types::basic_account::BasicAccount)> {
 		self.state_at(id)
-			.and_then(move |state| state.prove_account(key1, from_level).ok())
-			.unwrap_or_else(Vec::new)
+			.and_then(move |state| state.prove_account(key1).ok())
 	}
 
-	fn code_by_hash(&self, account_key: H256, id: BlockId) -> Bytes {
-		self.state_at(id)
-			.and_then(move |state| state.code_by_address_hash(account_key).ok())
-			.and_then(|x| x)
-			.unwrap_or_else(Vec::new)
+	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<Vec<DBValue>> {
+		let (state, env_info) = match (self.state_at(id), self.env_info(id)) {
+			(Some(s), Some(e)) => (s, e),
+			_ => return None,
+		};
+		let mut jdb = self.state_db.lock().journal_db().boxed_clone();
+		let backend = state::backend::Proving::new(jdb.as_hashdb_mut());
+
+		let mut state = state.replace_backend(backend);
+		let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
+		let res = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&transaction, options);
+
+		match res {
+			Err(ExecutionError::Internal(_)) => return None,
+			_ => return Some(state.drop().1.extract_proof()),
+		}
 	}
 }
 

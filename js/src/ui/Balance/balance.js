@@ -41,7 +41,7 @@ export default class Balance extends Component {
 
   render () {
     const { api } = this.context;
-    const { balance, className, showZeroValues, showOnlyEth } = this.props;
+    const { balance, className, showOnlyEth } = this.props;
 
     if (!balance || !balance.tokens) {
       return null;
@@ -49,12 +49,13 @@ export default class Balance extends Component {
 
     let body = balance.tokens
       .filter((balance) => {
-        const hasBalance = showZeroValues || new BigNumber(balance.value).gt(0);
-        const isValidToken = !showOnlyEth || (balance.token.tag || '').toLowerCase() === 'eth';
+        const isEthToken = (balance.token.tag || '').toLowerCase() === 'eth';
+        const hasBalance = new BigNumber(balance.value).gt(0);
 
-        return hasBalance && isValidToken;
+        return hasBalance || isEthToken;
       })
       .map((balance, index) => {
+        const isFullToken = !showOnlyEth || (balance.token.tag || '').toLowerCase() === 'eth';
         const token = balance.token;
 
         let value;
@@ -77,16 +78,36 @@ export default class Balance extends Component {
           value = api.util.fromWei(balance.value).toFormat(3);
         }
 
+        const classNames = [styles.balance];
+        let details = null;
+
+        if (isFullToken) {
+          classNames.push(styles.full);
+          details = [
+            <div
+              className={ styles.value }
+              key='value'
+            >
+              <span title={ value }>
+                { value }
+              </span>
+            </div>,
+            <div
+              className={ styles.tag }
+              key='tag'
+            >
+              { token.tag }
+            </div>
+          ];
+        }
+
         return (
           <div
-            className={ styles.balance }
+            className={ classNames.join(' ') }
             key={ `${index}_${token.tag}` }
           >
             <TokenImage token={ token } />
-            <div className={ styles.balanceValue }>
-              <span title={ value }> { value } </span>
-            </div>
-            <div className={ styles.balanceTag }> { token.tag } </div>
+            { details }
           </div>
         );
       });
@@ -96,14 +117,24 @@ export default class Balance extends Component {
         <div className={ styles.empty }>
           <FormattedMessage
             id='ui.balance.none'
-            defaultMessage='There are no balances associated with this account'
+            defaultMessage='No balances associated with this account'
           />
         </div>
       );
     }
 
     return (
-      <div className={ [styles.balances, className].join(' ') }>
+      <div
+        className={
+          [
+            styles.balances,
+            showOnlyEth
+              ? ''
+              : styles.full,
+            className
+          ].join(' ')
+        }
+      >
         { body }
       </div>
     );

@@ -16,7 +16,8 @@
 
 //! Test implementation of miner service.
 
-use util::{Address, H256, Bytes, U256, FixedHash, Uint};
+use std::collections::hash_map::Entry;
+use util::{Address, H256, Bytes, U256, Uint};
 use util::standard::*;
 use ethcore::error::{Error, CallError};
 use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};
@@ -68,6 +69,22 @@ impl Default for TestMinerService {
 			extra_data: RwLock::new(vec![1, 2, 3, 4]),
 			limit: RwLock::new(1024),
 			tx_gas_limit: RwLock::new(!U256::zero()),
+		}
+	}
+}
+
+impl TestMinerService {
+	/// Increments last nonce for given address.
+	pub fn increment_last_nonce(&self, address: Address) {
+		let mut last_nonces = self.last_nonces.write();
+		match last_nonces.entry(address) {
+			Entry::Occupied(mut occupied) => {
+				let val = *occupied.get();
+				*occupied.get_mut() = val + 1.into();
+			},
+			Entry::Vacant(vacant) => {
+				vacant.insert(0.into());
+			},
 		}
 	}
 }
@@ -204,6 +221,10 @@ impl MinerService for TestMinerService {
 		self.pending_transactions.lock().get(hash).cloned().map(Into::into)
 	}
 
+	fn remove_pending_transaction(&self, _chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction> {
+		self.pending_transactions.lock().remove(hash).map(Into::into)
+	}
+
 	fn pending_transactions(&self) -> Vec<PendingTransaction> {
 		self.pending_transactions.lock().values().cloned().map(Into::into).collect()
 	}
@@ -254,26 +275,39 @@ impl MinerService for TestMinerService {
 		unimplemented!();
 	}
 
-	fn balance(&self, _chain: &MiningBlockChainClient, address: &Address) -> U256 {
-		self.latest_closed_block.lock().as_ref().map_or_else(U256::zero, |b| b.block().fields().state.balance(address).clone())
+	fn balance(&self, _chain: &MiningBlockChainClient, address: &Address) -> Option<U256> {
+		self.latest_closed_block.lock()
+			.as_ref()
+			.map(|b| b.block().fields().state.balance(address))
+			.map(|b| b.ok())
+			.unwrap_or(Some(U256::default()))
 	}
 
 	fn call(&self, _chain: &MiningBlockChainClient, _t: &SignedTransaction, _analytics: CallAnalytics) -> Result<Executed, CallError> {
 		unimplemented!();
 	}
 
-	fn storage_at(&self, _chain: &MiningBlockChainClient, address: &Address, position: &H256) -> H256 {
-		self.latest_closed_block.lock().as_ref().map_or_else(H256::default, |b| b.block().fields().state.storage_at(address, position).clone())
+	fn storage_at(&self, _chain: &MiningBlockChainClient, address: &Address, position: &H256) -> Option<H256> {
+		self.latest_closed_block.lock()
+			.as_ref()
+			.map(|b| b.block().fields().state.storage_at(address, position))
+			.map(|s| s.ok())
+			.unwrap_or(Some(H256::default()))
 	}
 
-	fn nonce(&self, _chain: &MiningBlockChainClient, address: &Address) -> U256 {
+	fn nonce(&self, _chain: &MiningBlockChainClient, address: &Address) -> Option<U256> {
 		// we assume all transactions are in a pending block, ignoring the
 		// reality of gas limits.
-		self.last_nonce(address).unwrap_or(U256::zero())
+		Some(self.last_nonce(address).unwrap_or(U256::zero()))
 	}
 
-	fn code(&self, _chain: &MiningBlockChainClient, address: &Address) -> Option<Bytes> {
-		self.latest_closed_block.lock().as_ref().map_or(None, |b| b.block().fields().state.code(address).map(|c| (*c).clone()))
+	fn code(&self, _chain: &MiningBlockChainClient, address: &Address) -> Option<Option<Bytes>> {
+		self.latest_closed_block.lock()
+			.as_ref()
+			.map(|b| b.block().fields().state.code(address))
+			.map(|c| c.ok())
+			.unwrap_or(None)
+			.map(|c| c.map(|c| (&*c).clone()))
 	}
 
 	fn sensible_gas_price(&self) -> U256 {

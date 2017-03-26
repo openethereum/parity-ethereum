@@ -97,6 +97,21 @@ pub struct EthashParams {
 	#[serde(rename="maxCodeSize")]
 	pub max_code_size: Option<Uint>,
 
+	/// See main EthashParams docs.
+	#[serde(rename="maxGasLimitTransition")]
+	pub max_gas_limit_transition: Option<Uint>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="maxGasLimit")]
+	pub max_gas_limit: Option<Uint>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="minGasPriceTransition")]
+	pub min_gas_price_transition: Option<Uint>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="minGasPrice")]
+	pub min_gas_price: Option<Uint>,
 }
 
 /// Ethash engine deserialization.

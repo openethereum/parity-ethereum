@@ -20,25 +20,27 @@
 #![cfg_attr(feature="nightly", plugin(clippy))]
 
 extern crate base32;
-extern crate hyper;
-extern crate time;
-extern crate url as url_lib;
-extern crate unicase;
+extern crate futures;
+extern crate linked_hash_map;
+extern crate mime_guess;
+extern crate rand;
+extern crate rustc_serialize;
 extern crate serde;
 extern crate serde_json;
+extern crate time;
+extern crate unicase;
+extern crate url as url_lib;
 extern crate zip;
-extern crate rand;
+
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
-extern crate mime_guess;
-extern crate rustc_serialize;
+extern crate jsonrpc_server_utils;
+
 extern crate ethcore_rpc;
 extern crate ethcore_util as util;
-extern crate parity_hash_fetch as hash_fetch;
-extern crate linked_hash_map;
 extern crate fetch;
 extern crate parity_dapps_glue as parity_dapps;
-extern crate futures;
+extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_reactor;
 
 #[macro_use]
@@ -68,17 +70,20 @@ mod web;
 mod tests;
 
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::net::SocketAddr;
 use std::collections::HashMap;
 
-use ethcore_rpc::{Metadata};
+use jsonrpc_core::{Middleware, MetaIoHandler};
+use jsonrpc_http_server::tokio_core::reactor::Remote as TokioRemote;
+pub use jsonrpc_http_server::{DomainsValidation, Host, AccessControlAllowOrigin};
+pub use jsonrpc_http_server::hyper;
+
+use ethcore_rpc::Metadata;
 use fetch::{Fetch, Client as FetchClient};
 use hash_fetch::urlhint::ContractClient;
-use jsonrpc_core::Middleware;
-use jsonrpc_core::reactor::RpcHandler;
-use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 use parity_reactor::Remote;
+use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 
 use self::apps::{HOME_PAGE, DAPPS_DOMAIN};
 
@@ -110,7 +115,8 @@ pub struct ServerBuilder<T: Fetch = FetchClient> {
 	sync_status: Arc<SyncStatus>,
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	signer_address: Option<(String, u16)>,
-	allowed_hosts: Option<Vec<String>>,
+	allowed_hosts: Option<Vec<Host>>,
+	extra_cors: Option<Vec<AccessControlAllowOrigin>>,
 	remote: Remote,
 	fetch: Option<T>,
 }
@@ -126,6 +132,7 @@ impl ServerBuilder {
 			web_proxy_tokens: Arc::new(|_| false),
 			signer_address: None,
 			allowed_hosts: Some(vec![]),
+			extra_cors: None,
 			remote: remote,
 			fetch: None,
 		}
@@ -143,6 +150,7 @@ impl<T: Fetch> ServerBuilder<T> {
 			web_proxy_tokens: self.web_proxy_tokens,
 			signer_address: self.signer_address,
 			allowed_hosts: self.allowed_hosts,
+			extra_cors: self.extra_cors,
 			remote: self.remote,
 			fetch: Some(fetch),
 		}
@@ -169,8 +177,15 @@ impl<T: Fetch> ServerBuilder<T> {
 	/// Change allowed hosts.
 	/// `None` - All hosts are allowed
 	/// `Some(whitelist)` - Allow only whitelisted hosts (+ listen address)
-	pub fn allowed_hosts(mut self, allowed_hosts: Option<Vec<String>>) -> Self {
-		self.allowed_hosts = allowed_hosts;
+	pub fn allowed_hosts(mut self, allowed_hosts: DomainsValidation<Host>) -> Self {
+		self.allowed_hosts = allowed_hosts.into();
+		self
+	}
+
+	/// Extra cors headers.
+	/// `None` - no additional CORS URLs
+	pub fn extra_cors_headers(mut self, cors: DomainsValidation<AccessControlAllowOrigin>) -> Self {
+		self.extra_cors = cors.into();
 		self
 	}
 
@@ -182,11 +197,12 @@ impl<T: Fetch> ServerBuilder<T> {
 
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
-	pub fn start_unsecured_http<S: Middleware<Metadata>>(self, addr: &SocketAddr, handler: RpcHandler<Metadata, S>) -> Result<Server, ServerError> {
+	pub fn start_unsecured_http<S: Middleware<Metadata>>(self, addr: &SocketAddr, handler: MetaIoHandler<Metadata, S>, tokio_remote: TokioRemote) -> Result<Server, ServerError> {
 		let fetch = self.fetch_client()?;
 		Server::start_http(
 			addr,
 			self.allowed_hosts,
+			self.extra_cors,
 			NoAuth,
 			handler,
 			self.dapps_path,
@@ -196,17 +212,19 @@ impl<T: Fetch> ServerBuilder<T> {
 			self.sync_status,
 			self.web_proxy_tokens,
 			self.remote,
+			tokio_remote,
 			fetch,
 		)
 	}
 
 	/// Asynchronously start server with `HTTP Basic Authentication`,
 	/// return result with `Server` handle on success or an error.
-	pub fn start_basic_auth_http<S: Middleware<Metadata>>(self, addr: &SocketAddr, username: &str, password: &str, handler: RpcHandler<Metadata, S>) -> Result<Server, ServerError> {
+	pub fn start_basic_auth_http<S: Middleware<Metadata>>(self, addr: &SocketAddr, username: &str, password: &str, handler: MetaIoHandler<Metadata, S>, tokio_remote: TokioRemote) -> Result<Server, ServerError> {
 		let fetch = self.fetch_client()?;
 		Server::start_http(
 			addr,
 			self.allowed_hosts,
+			self.extra_cors,
 			HttpBasicAuth::single_user(username, password),
 			handler,
 			self.dapps_path,
@@ -216,6 +234,7 @@ impl<T: Fetch> ServerBuilder<T> {
 			self.sync_status,
 			self.web_proxy_tokens,
 			self.remote,
+			tokio_remote,
 			fetch,
 		)
 	}
@@ -231,12 +250,11 @@ impl<T: Fetch> ServerBuilder<T> {
 /// Webapps HTTP server.
 pub struct Server {
 	server: Option<hyper::server::Listening>,
-	panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>,
 }
 
 impl Server {
 	/// Returns a list of allowed hosts or `None` if all hosts are allowed.
-	fn allowed_hosts(hosts: Option<Vec<String>>, bind_address: String) -> Option<Vec<String>> {
+	fn allowed_hosts(hosts: Option<Vec<Host>>, bind_address: String) -> Option<Vec<Host>> {
 		let mut allowed = Vec::new();
 
 		match hosts {
@@ -251,26 +269,34 @@ impl Server {
 	}
 
 	/// Returns a list of CORS domains for API endpoint.
-	fn cors_domains(signer_address: Option<(String, u16)>) -> Vec<String> {
-		match signer_address {
-			Some(signer_address) => vec![
+	fn cors_domains(
+		signer_address: Option<(String, u16)>,
+		extra_cors: Option<Vec<AccessControlAllowOrigin>>,
+	) -> Vec<AccessControlAllowOrigin> {
+		let basic_cors = match signer_address {
+			Some(signer_address) => [
 				format!("http://{}{}", HOME_PAGE, DAPPS_DOMAIN),
 				format!("http://{}{}:{}", HOME_PAGE, DAPPS_DOMAIN, signer_address.1),
 				format!("http://{}", address(&signer_address)),
 				format!("https://{}{}", HOME_PAGE, DAPPS_DOMAIN),
 				format!("https://{}{}:{}", HOME_PAGE, DAPPS_DOMAIN, signer_address.1),
 				format!("https://{}", address(&signer_address)),
-
-			],
+			].into_iter().map(|val| AccessControlAllowOrigin::Value(val.into())).collect(),
 			None => vec![],
+		};
+
+		match extra_cors {
+			None => basic_cors,
+			Some(extra_cors) => basic_cors.into_iter().chain(extra_cors).collect(),
 		}
 	}
 
 	fn start_http<A: Authorization + 'static, F: Fetch, T: Middleware<Metadata>>(
 		addr: &SocketAddr,
-		hosts: Option<Vec<String>>,
+		hosts: Option<Vec<Host>>,
+		extra_cors: Option<Vec<AccessControlAllowOrigin>>,
 		authorization: A,
-		handler: RpcHandler<Metadata, T>,
+		handler: MetaIoHandler<Metadata, T>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		signer_address: Option<(String, u16)>,
@@ -278,9 +304,9 @@ impl Server {
 		sync_status: Arc<SyncStatus>,
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		remote: Remote,
+		tokio_remote: TokioRemote,
 		fetch: F,
 	) -> Result<Server, ServerError> {
-		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
@@ -297,11 +323,11 @@ impl Server {
 			remote.clone(),
 			fetch.clone(),
 		));
-		let cors_domains = Self::cors_domains(signer_address.clone());
+		let cors_domains = Self::cors_domains(signer_address.clone(), extra_cors);
 
 		let special = Arc::new({
 			let mut special = HashMap::new();
-			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, cors_domains.clone(), panic_handler.clone()));
+			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, tokio_remote, cors_domains.clone()));
 			special.insert(router::SpecialEndpoint::Utils, apps::utils());
 			special.insert(
 				router::SpecialEndpoint::Api,
@@ -329,15 +355,9 @@ impl Server {
 
 				Server {
 					server: Some(l),
-					panic_handler: panic_handler,
 				}
 			})
 			.map_err(ServerError::from)
-	}
-
-	/// Set callback for panics.
-	pub fn set_panic_handler<F>(&self, handler: F) where F : Fn() -> () + Send + 'static {
-		*self.panic_handler.lock().unwrap() = Some(Box::new(handler));
 	}
 
 	#[cfg(test)]
@@ -391,6 +411,7 @@ fn address(address: &(String, u16)) -> String {
 #[cfg(test)]
 mod util_tests {
 	use super::Server;
+	use jsonrpc_http_server::AccessControlAllowOrigin;
 
 	#[test]
 	fn should_return_allowed_hosts() {
@@ -413,19 +434,20 @@ mod util_tests {
 		// given
 
 		// when
-		let none = Server::cors_domains(None);
-		let some = Server::cors_domains(Some(("127.0.0.1".into(), 18180)));
+		let none = Server::cors_domains(None, None);
+		let some = Server::cors_domains(Some(("127.0.0.1".into(), 18180)), None);
+		let extra = Server::cors_domains(None, Some(vec!["all".into()]));
 
 		// then
-		assert_eq!(none, Vec::<String>::new());
+		assert_eq!(none, Vec::<AccessControlAllowOrigin>::new());
 		assert_eq!(some, vec![
-			"http://parity.web3.site".to_owned(),
+			"http://parity.web3.site".into(),
 			"http://parity.web3.site:18180".into(),
 			"http://127.0.0.1:18180".into(),
 			"https://parity.web3.site".into(),
 			"https://parity.web3.site:18180".into(),
-			"https://127.0.0.1:18180".into()
-
+			"https://127.0.0.1:18180".into(),
 		]);
+		assert_eq!(extra, vec![AccessControlAllowOrigin::Any]);
 	}
 }

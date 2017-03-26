@@ -23,15 +23,17 @@ use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
 use std::fmt;
 use std::collections::{HashMap, HashSet};
 use std::time::{Instant, Duration};
-use util::{FixedHash, RwLock};
-use ethstore::{SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
-	random_string, SecretVaultRef, StoreAccountRef};
+use util::{RwLock};
+use ethstore::{
+	SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
+	random_string, SecretVaultRef, StoreAccountRef,
+};
 use ethstore::dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
 use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath};
 pub use ethstore::ethkey::Signature;
-pub use ethstore::{Derivation, IndexDerivation};
+pub use ethstore::{Derivation, IndexDerivation, KeyFile};
 
 /// Type of unlock.
 #[derive(Clone)]
@@ -152,7 +154,7 @@ impl AccountProvider {
 					manager.set_key_path(if settings.hardware_wallet_classic_key { KeyPath::EthereumClassic } else { KeyPath::Ethereum });
 					hardware_store = Some(manager)
 				},
-				Err(e) => warn!("Error initializing hardware wallets: {}", e),
+				Err(e) => debug!("Error initializing hardware wallets: {}", e),
 			}
 		}
 		AccountProvider {
@@ -498,6 +500,11 @@ impl AccountProvider {
 	/// Changes the password of `account` from `password` to `new_password`. Fails if incorrect `password` given.
 	pub fn change_password(&self, address: &Address, password: String, new_password: String) -> Result<(), Error> {
 		self.sstore.change_password(&self.sstore.account_ref(address)?, &password, &new_password)
+	}
+
+	/// Exports an account for given address.
+	pub fn export_account(&self, address: &Address, password: String) -> Result<KeyFile, Error> {
+		self.sstore.export_account(&self.sstore.account_ref(address)?, &password)
 	}
 
 	/// Helper method used for unlocking accounts.

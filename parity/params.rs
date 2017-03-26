@@ -26,9 +26,10 @@ use user_defaults::UserDefaults;
 
 #[derive(Debug, PartialEq)]
 pub enum SpecType {
-	Mainnet,
+	Foundation,
 	Morden,
 	Ropsten,
+	Kovan,
 	Olympic,
 	Classic,
 	Expanse,
@@ -38,7 +39,7 @@ pub enum SpecType {
 
 impl Default for SpecType {
 	fn default() -> Self {
-		SpecType::Mainnet
+		SpecType::Foundation
 	}
 }
 
@@ -47,10 +48,11 @@ impl str::FromStr for SpecType {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let spec = match s {
-			"frontier" | "homestead" | "mainnet" => SpecType::Mainnet,
+			"foundation" | "frontier" | "homestead" | "mainnet" => SpecType::Foundation,
 			"frontier-dogmatic" | "homestead-dogmatic" | "classic" => SpecType::Classic,
 			"morden" | "classic-testnet" => SpecType::Morden,
-			"ropsten" | "testnet" => SpecType::Ropsten,
+			"ropsten" => SpecType::Ropsten,
+			"kovan" | "testnet" => SpecType::Kovan,
 			"olympic" => SpecType::Olympic,
 			"expanse" => SpecType::Expanse,
 			"dev" => SpecType::Dev,
@@ -63,12 +65,13 @@ impl str::FromStr for SpecType {
 impl fmt::Display for SpecType {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.write_str(match *self {
-			SpecType::Mainnet => "homestead",
+			SpecType::Foundation => "foundation",
 			SpecType::Morden => "morden",
 			SpecType::Ropsten => "ropsten",
 			SpecType::Olympic => "olympic",
 			SpecType::Classic => "classic",
 			SpecType::Expanse => "expanse",
+			SpecType::Kovan => "kovan",
 			SpecType::Dev => "dev",
 			SpecType::Custom(ref custom) => custom,
 		})
@@ -78,12 +81,13 @@ impl fmt::Display for SpecType {
 impl SpecType {
 	pub fn spec(&self) -> Result<Spec, String> {
 		match *self {
-			SpecType::Mainnet => Ok(ethereum::new_frontier()),
+			SpecType::Foundation => Ok(ethereum::new_foundation()),
 			SpecType::Morden => Ok(ethereum::new_morden()),
 			SpecType::Ropsten => Ok(ethereum::new_ropsten()),
 			SpecType::Olympic => Ok(ethereum::new_olympic()),
 			SpecType::Classic => Ok(ethereum::new_classic()),
 			SpecType::Expanse => Ok(ethereum::new_expanse()),
+			SpecType::Kovan => Ok(ethereum::new_kovan()),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
 				let file = fs::File::open(filename).map_err(|_| "Could not load specification file.")?;
@@ -317,10 +321,12 @@ mod tests {
 
 	#[test]
 	fn test_spec_type_parsing() {
-		assert_eq!(SpecType::Mainnet, "frontier".parse().unwrap());
-		assert_eq!(SpecType::Mainnet, "homestead".parse().unwrap());
-		assert_eq!(SpecType::Mainnet, "mainnet".parse().unwrap());
-		assert_eq!(SpecType::Ropsten, "testnet".parse().unwrap());
+		assert_eq!(SpecType::Foundation, "frontier".parse().unwrap());
+		assert_eq!(SpecType::Foundation, "homestead".parse().unwrap());
+		assert_eq!(SpecType::Foundation, "mainnet".parse().unwrap());
+		assert_eq!(SpecType::Foundation, "foundation".parse().unwrap());
+		assert_eq!(SpecType::Kovan, "testnet".parse().unwrap());
+		assert_eq!(SpecType::Kovan, "kovan".parse().unwrap());
 		assert_eq!(SpecType::Morden, "morden".parse().unwrap());
 		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
 		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
@@ -330,17 +336,18 @@ mod tests {
 
 	#[test]
 	fn test_spec_type_default() {
-		assert_eq!(SpecType::Mainnet, SpecType::default());
+		assert_eq!(SpecType::Foundation, SpecType::default());
 	}
 
 	#[test]
 	fn test_spec_type_display() {
-		assert_eq!(format!("{}", SpecType::Mainnet), "homestead");
+		assert_eq!(format!("{}", SpecType::Foundation), "foundation");
 		assert_eq!(format!("{}", SpecType::Ropsten), "ropsten");
 		assert_eq!(format!("{}", SpecType::Morden), "morden");
 		assert_eq!(format!("{}", SpecType::Olympic), "olympic");
 		assert_eq!(format!("{}", SpecType::Classic), "classic");
 		assert_eq!(format!("{}", SpecType::Expanse), "expanse");
+		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
 		assert_eq!(format!("{}", SpecType::Dev), "dev");
 		assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");
 	}

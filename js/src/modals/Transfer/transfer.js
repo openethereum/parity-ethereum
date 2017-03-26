@@ -21,7 +21,7 @@ import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
 import { pick } from 'lodash';
 
-import { BusyStep, CompletedStep, Button, IdentityIcon, Input, Modal, TxHash, Warning } from '~/ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Input, Portal, TxHash, Warning } from '~/ui';
 import { newError } from '~/ui/Errors/actions';
 import { CancelIcon, DoneIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 import { nullableProptype } from '~/util/proptypes';
@@ -60,21 +60,22 @@ class Transfer extends Component {
     const { stage, extras, steps } = this.store;
 
     return (
-      <Modal
-        actions={ this.renderDialogActions() }
-        current={ stage }
-        steps={ steps }
-        waiting={
+      <Portal
+        activeStep={ stage }
+        busySteps={
           extras
             ? [STEP_BUSY]
             : [STEP_ADVANCED_OR_BUSY]
         }
-        visible
+        buttons={ this.renderDialogActions() }
+        onClose={ this.handleClose }
+        open
+        steps={ steps }
       >
         { this.renderExceptionWarning() }
         { this.renderWalletWarning() }
         { this.renderPage() }
-      </Modal>
+      </Portal>
     );
   }
 
@@ -180,11 +181,21 @@ class Transfer extends Component {
             <div>
               <br />
               <div>
-                <p>This transaction needs confirmation from other owners.</p>
+                <p>
+                  <FormattedMessage
+                    id='transfer.wallet.confirmation'
+                    defaultMessage='This transaction needs confirmation from other owners.'
+                  />
+                </p>
                 <Input
                   style={ { width: '50%', margin: '0 auto' } }
                   value={ this.store.operation }
-                  label='operation hash'
+                  label={
+                    <FormattedMessage
+                      id='transfer.wallet.operationHash'
+                      defaultMessage='operation hash'
+                    />
+                  }
                   readOnly
                   allowCopy
                 />
@@ -252,7 +263,13 @@ class Transfer extends Component {
     const cancelBtn = (
       <Button
         icon={ <CancelIcon /> }
-        label='Cancel'
+        key='cancel'
+        label={
+          <FormattedMessage
+            id='transfer.buttons.cancel'
+            defaultMessage='Cancel'
+          />
+        }
         onClick={ this.handleClose }
       />
     );
@@ -260,29 +277,58 @@ class Transfer extends Component {
       <Button
         disabled={ !this.store.isValid }
         icon={ <NextIcon /> }
-        label='Next'
+        key='next'
+        label={
+          <FormattedMessage
+            id='transfer.buttons.next'
+            defaultMessage='Next'
+          />
+        }
         onClick={ this.store.onNext }
       />
     );
     const prevBtn = (
       <Button
         icon={ <PrevIcon /> }
-        label='Back'
+        key='back'
+        label={
+          <FormattedMessage
+            id='transfer.buttons.back'
+            defaultMessage='Back'
+          />
+        }
         onClick={ this.store.onPrev }
       />
     );
     const sendBtn = (
       <Button
         disabled={ !this.store.isValid || sending }
-        icon={ <IdentityIcon address={ account.address } button /> }
-        label='Send'
+        icon={
+          <IdentityIcon
+            address={ account.address }
+            button
+          />
+        }
+        key='send'
+        label={
+          <FormattedMessage
+            id='transfer.buttons.send'
+            defaultMessage='Send'
+          />
+        }
         onClick={ this.store.onSend }
       />
     );
     const doneBtn = (
       <Button
         icon={ <DoneIcon /> }
-        label='Close'
+        key='close'
+        label={
+          <FormattedMessage
+            id='transfer.buttons.close'
+            defaultMessage='Close'
+          />
+        }
         onClick={ this.handleClose }
       />
     );

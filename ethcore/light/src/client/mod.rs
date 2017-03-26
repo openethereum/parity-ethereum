@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
-use ethcore::client::ClientReport;
+use ethcore::client::{ClientReport, EnvInfo};
 use ethcore::engines::Engine;
 use ethcore::ids::BlockId;
 use ethcore::header::Header;
@@ -31,9 +31,9 @@ use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
 
-use util::{Bytes, H256, Mutex, RwLock};
+use util::{H256, Mutex, RwLock};
 
-use self::header_chain::HeaderChain;
+use self::header_chain::{AncestryIter, HeaderChain};
 
 pub use self::service::Service;
 
@@ -61,6 +61,12 @@ pub trait LightChainClient: Send + Sync {
 
 	/// Get the best block header.
 	fn best_block_header(&self) -> encoded::Header;
+
+	/// Get an iterator over a block and its ancestry.
+	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a>;
+
+	/// Get the signing network ID.
+	fn signing_network_id(&self) -> Option<u64>;
 
 	/// Query whether a block is known.
 	fn is_known(&self, hash: &H256) -> bool;
@@ -164,6 +170,16 @@ impl Client {
 		self.chain.best_header()
 	}
 
+	/// Get an iterator over a block and its ancestry.
+	pub fn ancestry_iter(&self, start: BlockId) -> AncestryIter {
+		self.chain.ancestry_iter(start)
+	}
+
+	/// Get the signing network id.
+	pub fn signing_network_id(&self) -> Option<u64> {
+		self.engine.signing_network_id(&self.latest_env_info())
+	}
+
 	/// Flush the header queue.
 	pub fn flush_queue(&self) {
 		self.queue.flush()
@@ -214,8 +230,45 @@ impl Client {
 	}
 
 	/// Get a handle to the verification engine.
-	pub fn engine(&self) -> &Engine {
-		&*self.engine
+	pub fn engine(&self) -> &Arc<Engine> {
+		&self.engine
+	}
+
+	/// Get the latest environment info.
+	pub fn latest_env_info(&self) -> EnvInfo {
+		self.env_info(BlockId::Latest)
+			.expect("Best block header and recent hashes always stored; qed")
+	}
+
+	/// Get environment info for a given block.
+	pub fn env_info(&self, id: BlockId) -> Option<EnvInfo> {
+		let header = match self.block_header(id) {
+			Some(hdr) => hdr,
+			None => return None,
+		};
+
+		Some(EnvInfo {
+			number: header.number(),
+			author: header.author(),
+			timestamp: header.timestamp(),
+			difficulty: header.difficulty(),
+			last_hashes: self.build_last_hashes(header.parent_hash()),
+			gas_used: Default::default(),
+			gas_limit: header.gas_limit(),
+		})
+	}
+
+	fn build_last_hashes(&self, mut parent_hash: H256) -> Arc<Vec<H256>> {
+		let mut v = Vec::with_capacity(256);
+		for _ in 0..255 {
+			v.push(parent_hash);
+			match self.block_header(BlockId::Hash(parent_hash)) {
+				Some(header) => parent_hash = header.hash(),
+				None => break,
+			}
+		}
+
+		Arc::new(v)
 	}
 }
 
@@ -232,6 +285,14 @@ impl LightChainClient for Client {
 
 	fn best_block_header(&self) -> encoded::Header {
 		Client::best_block_header(self)
+	}
+
+	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a> {
+		Box::new(Client::ancestry_iter(self, start))
+	}
+
+	fn signing_network_id(&self) -> Option<u64> {
+		Client::signing_network_id(self)
 	}
 
 	fn is_known(&self, hash: &H256) -> bool {
@@ -252,48 +313,5 @@ impl LightChainClient for Client {
 
 	fn cht_root(&self, i: usize) -> Option<H256> {
 		Client::cht_root(self, i)
-	}
-}
-
-// dummy implementation, should be removed when a `TestClient` is added.
-impl ::provider::Provider for Client {
-	fn chain_info(&self) -> BlockChainInfo {
-		Client::chain_info(self)
-	}
-
-	fn reorg_depth(&self, _a: &H256, _b: &H256) -> Option<u64> {
-		None
-	}
-
-	fn earliest_state(&self) -> Option<u64> {
-		None
-	}
-
-	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
-		Client::block_header(self, id)
-	}
-
-	fn block_body(&self, _id: BlockId) -> Option<encoded::Body> {
-		None
-	}
-
-	fn block_receipts(&self, _hash: &H256) -> Option<Bytes> {
-		None
-	}
-
-	fn state_proof(&self, _req: ::request::StateProof) -> Vec<Bytes> {
-		Vec::new()
-	}
-
-	fn contract_code(&self, _req: ::request::ContractCode) -> Bytes {
-		Vec::new()
-	}
-
-	fn header_proof(&self, _req: ::request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
-		None
-	}
-
-	fn ready_transactions(&self) -> Vec<::ethcore::transaction::PendingTransaction> {
-		Vec::new()
 	}
 }

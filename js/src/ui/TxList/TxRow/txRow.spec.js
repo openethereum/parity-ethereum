@@ -30,9 +30,19 @@ const STORE = {
   subscribe: sinon.stub(),
   getState: () => {
     return {
+      nodeStatus: {
+        netVersion: '42'
+      },
       personal: {
         accounts: {
-          '0x123': {}
+          '0x123': {
+            address: '0x123'
+          }
+        },
+        contracts: {
+          '0x999': {
+            address: '0x999'
+          }
         }
       }
     };
@@ -57,43 +67,64 @@ describe('ui/TxList/TxRow', () => {
       };
       const tx = {
         blockNumber: new BigNumber(123),
-        hash: '0x123456789abcdef0123456789abcdef0123456789abcdef',
-        value: new BigNumber(1)
-      };
-
-      expect(render({ address: '0x123', block, isTest: true, tx })).to.be.ok;
-    });
-
-    it('renders an account link', () => {
-      const block = {
-        timestamp: new Date()
-      };
-      const tx = {
-        blockNumber: new BigNumber(123),
+        from: '0x234',
         hash: '0x123456789abcdef0123456789abcdef0123456789abcdef',
         to: '0x123',
         value: new BigNumber(1)
       };
 
-      const element = render({ address: '0x123', block, isTest: true, tx });
-
-      expect(element.find('Link').prop('to')).to.equal('/accounts/0x123');
+      expect(render({ address: '0x123', block, netVersion: '42', tx })).to.be.ok;
     });
 
-    it('renders an address link', () => {
+    it('renders account links', () => {
       const block = {
         timestamp: new Date()
       };
       const tx = {
         blockNumber: new BigNumber(123),
+        from: '0x234',
+        hash: '0x123456789abcdef0123456789abcdef0123456789abcdef',
+        to: '0x123',
+        value: new BigNumber(1)
+      };
+
+      const element = render({ address: '0x123', block, netVersion: '42', tx });
+
+      expect(element.find('Link').get(1).props.to).to.equal('/accounts/0x123');
+    });
+
+    it('renders address links', () => {
+      const block = {
+        timestamp: new Date()
+      };
+      const tx = {
+        blockNumber: new BigNumber(123),
+        from: '0x234',
         hash: '0x123456789abcdef0123456789abcdef0123456789abcdef',
         to: '0x456',
         value: new BigNumber(1)
       };
 
-      const element = render({ address: '0x123', block, isTest: true, tx });
+      const element = render({ address: '0x123', block, netVersion: '42', tx });
 
-      expect(element.find('Link').prop('to')).to.equal('/addresses/0x456');
+      expect(element.find('Link').get(1).props.to).to.equal('/addresses/0x456');
+    });
+
+    it('renders contract links', () => {
+      const block = {
+        timestamp: new Date()
+      };
+      const tx = {
+        blockNumber: new BigNumber(123),
+        from: '0x234',
+        hash: '0x123456789abcdef0123456789abcdef0123456789abcdef',
+        to: '0x999',
+        value: new BigNumber(1)
+      };
+
+      const element = render({ address: '0x123', block, netVersion: '42', tx });
+
+      expect(element.find('Link').get(1).props.to).to.equal('/contracts/0x999');
     });
   });
 });

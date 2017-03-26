@@ -66,9 +66,11 @@ struct StripAttributeFolder<'a> {
 #[cfg(feature = "with-syntex")]
 impl<'a> fold::Folder for StripAttributeFolder<'a> {
 	fn fold_attribute(&mut self, attr: ast::Attribute) -> Option<ast::Attribute> {
-		match attr.node.value.node {
-			ast::MetaItemKind::List(ref n, _) if n == self.attr_title => { return None; }
-			ast::MetaItemKind::Word(ref n) if n == self.attr_title => { return None; }
+		let is_self = &*attr.value.name.as_str() == self.attr_title;
+
+		match attr.value.node {
+			ast::MetaItemKind::List(_) if is_self => { return None; }
+			ast::MetaItemKind::Word if is_self => { return None; }
 			_ => {}
 		}
 

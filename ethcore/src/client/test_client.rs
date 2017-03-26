@@ -38,6 +38,7 @@ use error::{ImportResult, Error as EthcoreError};
 use evm::{Factory as EvmFactory, VMType, Schedule};
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
+use types::basic_account::BasicAccount;
 use types::mode::Mode;
 use types::pruning_info::PruningInfo;
 
@@ -721,6 +722,10 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn set_mode(&self, _: Mode) { unimplemented!(); }
 
+	fn spec_name(&self) -> String { "foundation".into() }
+
+	fn set_spec_name(&self, _: String) { unimplemented!(); }
+
 	fn disable(&self) { unimplemented!(); }
 
 	fn pruning_info(&self) -> PruningInfo {
@@ -731,7 +736,7 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn call_contract(&self, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+	fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
 		let transaction = Transaction {
@@ -754,16 +759,16 @@ impl BlockChainClient for TestBlockChainClient {
 }
 
 impl ProvingBlockChainClient for TestBlockChainClient {
-	fn prove_storage(&self, _: H256, _: H256, _: u32, _: BlockId) -> Vec<Bytes> {
-		Vec::new()
+	fn prove_storage(&self, _: H256, _: H256, _: BlockId) -> Option<(Vec<Bytes>, H256)> {
+		None
 	}
 
-	fn prove_account(&self, _: H256, _: u32, _: BlockId) -> Vec<Bytes> {
-		Vec::new()
+	fn prove_account(&self, _: H256, _: BlockId) -> Option<(Vec<Bytes>, BasicAccount)> {
+		None
 	}
 
-	fn code_by_hash(&self, _: H256, _: BlockId) -> Bytes {
-		Vec::new()
+	fn prove_transaction(&self, _: SignedTransaction, _: BlockId) -> Option<Vec<DBValue>> {
+		None
 	}
 }
 

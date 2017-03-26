@@ -36,6 +36,10 @@ const TOOL_STYLE = {
 };
 
 export default class GasPriceSelector extends Component {
+  static contextTypes = {
+    intl: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     histogram: PropTypes.object.isRequired,
     onChange: PropTypes.func.isRequired,
@@ -145,7 +149,7 @@ export default class GasPriceSelector extends Component {
                   shape={ <CustomBar selected={ selectedIndex } onClick={ this.onClickprice } /> }stroke={ COLORS.line }
                 />
                 <Tooltip
-                  content={ <CustomTooltip histogram={ histogram } /> }
+                  content={ this.tooltipContentRenderer }
                   cursor={ this.renderCustomCursor() }
                   wrapperStyle={ TOOL_STYLE }
                 />
@@ -165,6 +169,23 @@ export default class GasPriceSelector extends Component {
           </div>
         </div>
       </div>
+    );
+  }
+
+  /**
+   * Passing the `intl` object as a prop
+   * so the CustomTooltip can add for child
+   * context (used by FormattedMessages)
+   */
+  tooltipContentRenderer = (props) => {
+    const { histogram } = this.props;
+
+    return (
+      <CustomTooltip
+        histogram={ histogram }
+        intl={ this.context.intl }
+        { ...props }
+      />
     );
   }
 

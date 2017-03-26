@@ -19,7 +19,9 @@ pub mod errors;
 
 pub mod block_import;
 pub mod dispatch;
+pub mod fake_sign;
 pub mod informant;
+pub mod oneshot;
 
 mod network_settings;
 mod poll_manager;
@@ -37,5 +39,6 @@ pub use self::requests::{
 };
 pub use self::signing_queue::{
 	ConfirmationsQueue, ConfirmationPromise, ConfirmationResult, SigningQueue, QueueEvent, DefaultAccount,
+	QUEUE_LIMIT as SIGNING_QUEUE_LIMIT,
 };
 pub use self::signer::SignerService;

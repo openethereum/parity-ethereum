@@ -16,27 +16,62 @@
 
 #[macro_use]
 extern crate mime;
-extern crate hyper;
 extern crate multihash;
 extern crate cid;
 
 extern crate rlp;
 extern crate ethcore;
 extern crate ethcore_util as util;
+extern crate jsonrpc_http_server as http;
 
-mod error;
-mod handler;
+pub mod error;
+mod route;
 
 use std::io::Write;
 use std::sync::Arc;
-use std::net::{SocketAddr, IpAddr, Ipv4Addr};
+use std::net::{SocketAddr, IpAddr};
 use error::ServerError;
-use handler::{IpfsHandler, Out};
-use hyper::server::{Listening, Handler, Request, Response};
-use hyper::net::HttpStream;
-use hyper::header::{ContentLength, ContentType, Origin};
-use hyper::{Next, Encoder, Decoder, Method, RequestUri, StatusCode};
+use route::Out;
+use http::hyper::server::{Listening, Handler, Request, Response};
+use http::hyper::net::HttpStream;
+use http::hyper::header::{self, Vary, ContentLength, ContentType};
+use http::hyper::{Next, Encoder, Decoder, Method, RequestUri, StatusCode};
 use ethcore::client::BlockChainClient;
+
+pub use http::{AccessControlAllowOrigin, Host, DomainsValidation};
+
+/// Request/response handler
+pub struct IpfsHandler {
+	/// Response to send out
+	out: Out,
+	/// How many bytes from the response have been written
+	out_progress: usize,
+	/// CORS response header
+	cors_header: Option<header::AccessControlAllowOrigin>,
+	/// Allowed CORS domains
+	cors_domains: Option<Vec<AccessControlAllowOrigin>>,
+	/// Hostnames allowed in the `Host` request header
+	allowed_hosts: Option<Vec<Host>>,
+	/// Reference to the Blockchain Client
+	client: Arc<BlockChainClient>,
+}
+
+impl IpfsHandler {
+	pub fn client(&self) -> &BlockChainClient {
+		&*self.client
+	}
+
+	pub fn new(cors: DomainsValidation<AccessControlAllowOrigin>, hosts: DomainsValidation<Host>, client: Arc<BlockChainClient>) -> Self {
+		IpfsHandler {
+			out: Out::Bad("Invalid Request"),
+			out_progress: 0,
+			cors_header: None,
+			cors_domains: cors.into(),
+			allowed_hosts: hosts.into(),
+			client: client,
+		}
+	}
+}
 
 /// Implement Hyper's HTTP handler
 impl Handler<HttpStream> for IpfsHandler {
@@ -45,19 +80,29 @@ impl Handler<HttpStream> for IpfsHandler {
 			return Next::write();
 		}
 
-		// Reject requests if the Origin header isn't valid
-		if req.headers().get::<Origin>().map(|o| "127.0.0.1" != &o.host.hostname).unwrap_or(false) {
-			self.out = Out::Bad("Illegal Origin");
+
+		if !http::is_host_allowed(&req, &self.allowed_hosts) {
+			self.out = Out::Bad("Disallowed Host header");
 
 			return Next::write();
 		}
+
+		let cors_header = http::cors_header(&req, &self.cors_domains);
+		if cors_header == http::CorsHeader::Invalid {
+			self.out = Out::Bad("Disallowed Origin header");
+
+			return Next::write();
+		}
+		self.cors_header = cors_header.into();
 
 		let (path, query) = match *req.uri() {
 			RequestUri::AbsolutePath { ref path, ref query } => (path, query.as_ref().map(AsRef::as_ref)),
 			_ => return Next::write(),
 		};
 
-		self.route(path, query)
+		self.out = self.route(path, query);
+
+		Next::write()
 	}
 
 	fn on_request_readable(&mut self, _decoder: &mut Decoder<HttpStream>) -> Next {
@@ -82,25 +127,27 @@ impl Handler<HttpStream> for IpfsHandler {
 				res.headers_mut().set(ContentLength(bytes.len() as u64));
 				res.headers_mut().set(ContentType(content_type));
 
-				Next::write()
 			},
 			NotFound(reason) => {
 				res.set_status(StatusCode::NotFound);
 
 				res.headers_mut().set(ContentLength(reason.len() as u64));
 				res.headers_mut().set(ContentType(mime!(Text/Plain)));
-
-				Next::write()
 			},
 			Bad(reason) => {
 				res.set_status(StatusCode::BadRequest);
 
 				res.headers_mut().set(ContentLength(reason.len() as u64));
 				res.headers_mut().set(ContentType(mime!(Text/Plain)));
-
-				Next::write()
 			}
 		}
+
+		if let Some(cors_header) = self.cors_header.take() {
+			res.headers_mut().set(cors_header);
+			res.headers_mut().set(Vary::Items(vec!["Origin".into()]));
+		}
+
+		Next::write()
 	}
 
 	fn on_response_writable(&mut self, transport: &mut Encoder<HttpStream>) -> Next {
@@ -116,11 +163,12 @@ impl Handler<HttpStream> for IpfsHandler {
 	}
 }
 
+/// Attempt to write entire `data` from current `progress`
 fn write_chunk<W: Write>(transport: &mut W, progress: &mut usize, data: &[u8]) -> Next {
 	// Skip any bytes that have already been written
 	let chunk = &data[*progress..];
 
-	// Write an get written count
+	// Write an get the amount of bytes written. End the connection in case of an error.
 	let written = match transport.write(chunk) {
 		Ok(written) => written,
 		Err(_) => return Next::end(),
@@ -128,7 +176,7 @@ fn write_chunk<W: Write>(transport: &mut W, progress: &mut usize, data: &[u8]) -
 
 	*progress += written;
 
-	// Close the connection if the entire chunk has been written, otherwise increment progress
+	// Close the connection if the entire remaining chunk has been written
 	if written < chunk.len() {
 		Next::write()
 	} else {
@@ -136,12 +184,32 @@ fn write_chunk<W: Write>(transport: &mut W, progress: &mut usize, data: &[u8]) -
 	}
 }
 
-pub fn start_server(port: u16, client: Arc<BlockChainClient>) -> Result<Listening, ServerError> {
-	let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
+/// Add current interface (default: "127.0.0.1:5001") to list of allowed hosts
+fn include_current_interface(mut hosts: Vec<Host>, interface: String, port: u16) -> Vec<Host> {
+	hosts.push(match port {
+		80 => interface,
+		_ => format!("{}:{}", interface, port),
+	}.into());
+
+	hosts
+}
+
+pub fn start_server(
+	port: u16,
+	interface: String,
+	cors: DomainsValidation<AccessControlAllowOrigin>,
+	hosts: DomainsValidation<Host>,
+	client: Arc<BlockChainClient>
+) -> Result<Listening, ServerError> {
+
+	let ip: IpAddr = interface.parse().map_err(|_| ServerError::InvalidInterface)?;
+	let addr = SocketAddr::new(ip, port);
+	let hosts: Option<Vec<_>> = hosts.into();
+	let hosts: DomainsValidation<_> = hosts.map(move |hosts| include_current_interface(hosts, interface, port)).into();
 
 	Ok(
-		hyper::Server::http(&addr)?
-			.handle(move |_| IpfsHandler::new(client.clone()))
+		http::hyper::Server::http(&addr)?
+			.handle(move |_| IpfsHandler::new(cors.clone(), hosts.clone(), client.clone()))
 			.map(|(listening, srv)| {
 
 				::std::thread::spawn(move || {

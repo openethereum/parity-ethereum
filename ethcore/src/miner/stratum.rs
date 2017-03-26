@@ -25,7 +25,7 @@ use std::sync::{Arc, Weak};
 use std::net::{SocketAddr, AddrParseError};
 use std::fmt;
 
-use util::{H256, U256, FixedHash, H64, clean_0x};
+use util::{H256, U256, H64, clean_0x};
 use ethereum::ethash::Ethash;
 use ethash::SeedHashCompute;
 use util::Mutex;
@@ -211,6 +211,8 @@ impl From<AddrParseError> for Error {
 
 impl super::work_notify::NotifyWork for Stratum {
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
+		trace!(target: "stratum", "Notify work");
+
 		self.service.push_work_all(
 			self.dispatcher.payload(pow_hash, difficulty, number)
 		).unwrap_or_else(

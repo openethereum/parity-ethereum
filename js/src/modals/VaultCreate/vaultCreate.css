@@ -15,24 +15,30 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.body {
-  /* TODO: These styles are shared with CreateAccount - DRY up */
-  .passwords {
-    display: flex;
-    flex-wrap: wrap;
+/* TODO: These styles are shared with CreateAccount - DRY up */
+.passwords {
+  display: flex;
+  flex-wrap: wrap;
 
-    .password {
-      box-sizing: border-box;
-      flex: 0 1 50%;
-      width: 50%;
+  .password {
+    box-sizing: border-box;
+    flex: 0 1 50%;
+    width: 50%;
 
-      &:nth-child(odd) {
-        padding-right: 0.25rem;
-      }
+    &:nth-child(odd) {
+      padding-right: 0.25rem;
+    }
 
-      &:nth-child(even) {
-        padding-left: 0.25rem;
-      }
+    &:nth-child(even) {
+      padding-left: 0.25rem;
     }
   }
+}
+
+.disabled {
+  opacity: 0.25;
+}
+
+.group+.group {
+  margin-top: 1em;
 }

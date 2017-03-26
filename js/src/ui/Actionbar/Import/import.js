@@ -15,13 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import Dropzone from 'react-dropzone';
-import FileUploadIcon from 'material-ui/svg-icons/file/file-upload';
-import ContentClear from 'material-ui/svg-icons/content/clear';
-import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
+import { FormattedMessage } from 'react-intl';
+
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 import Button from '../../Button';
-import Modal from '../../Modal';
+import FileSelect from '../../Form/FileSelect';
+import { CancelIcon, DoneIcon, FileUploadIcon } from '../../Icons';
+import Portal from '../../Portal';
 
 import styles from './import.css';
 
@@ -37,14 +38,19 @@ const initialState = {
 
 export default class ActionbarImport extends Component {
   static propTypes = {
+    className: PropTypes.string,
     onConfirm: PropTypes.func.isRequired,
     renderValidation: PropTypes.func,
-    className: PropTypes.string,
-    title: PropTypes.string
+    title: nodeOrStringProptype()
   };
 
   static defaultProps = {
-    title: 'Import from a file'
+    title: (
+      <FormattedMessage
+        id='ui.actionbar.import.title'
+        defaultMessage='Import from a file'
+      />
+    )
   };
 
   state = Object.assign({}, initialState);
@@ -57,7 +63,12 @@ export default class ActionbarImport extends Component {
         <Button
           className={ className }
           icon={ <FileUploadIcon /> }
-          label='import'
+          label={
+            <FormattedMessage
+              id='ui.actionbar.import.button.import'
+              defaultMessage='import'
+            />
+          }
           onClick={ this.onOpenModal }
         />
         { this.renderModal() }
@@ -73,20 +84,38 @@ export default class ActionbarImport extends Component {
       return null;
     }
 
-    const hasSteps = typeof renderValidation === 'function';
-
-    const steps = hasSteps ? [ 'select a file', error ? 'error' : 'validate' ] : null;
+    const steps = typeof renderValidation === 'function'
+      ? [
+        <FormattedMessage
+          id='ui.actionbar.import.step.select'
+          defaultMessage='select a file'
+        />,
+        error
+          ? (
+            <FormattedMessage
+              id='ui.actionbar.import.step.error'
+              defaultMessage='error'
+            />
+          )
+          : (
+            <FormattedMessage
+              id='ui.actionbar.import.step.validate'
+              defaultMessage='validate'
+            />)
+      ]
+      : null;
 
     return (
-      <Modal
-        actions={ this.renderActions() }
-        title={ title }
+      <Portal
+        activeStep={ step }
+        buttons={ this.renderActions() }
+        onClose={ this.onCloseModal }
+        open
         steps={ steps }
-        current={ step }
-        visible
+        title={ title }
       >
         { this.renderBody() }
-      </Modal>
+      </Portal>
     );
   }
 
@@ -95,9 +124,14 @@ export default class ActionbarImport extends Component {
 
     const cancelBtn = (
       <Button
+        icon={ <CancelIcon /> }
         key='cancel'
-        label='Cancel'
-        icon={ <ContentClear /> }
+        label={
+          <FormattedMessage
+            id='ui.actionbar.import.button.cancel'
+            defaultMessage='Cancel'
+          />
+        }
         onClick={ this.onCloseModal }
       />
     );
@@ -109,9 +143,14 @@ export default class ActionbarImport extends Component {
     if (validate) {
       const confirmBtn = (
         <Button
+          icon={ <DoneIcon /> }
           key='confirm'
-          label='Confirm'
-          icon={ <ActionDoneAll /> }
+          label={
+            <FormattedMessage
+              id='ui.actionbar.import.button.confirm'
+              defaultMessage='Confirm'
+            />
+          }
           onClick={ this.onConfirm }
         />
       );
@@ -128,7 +167,15 @@ export default class ActionbarImport extends Component {
     if (error) {
       return (
         <div>
-          <p>An error occured: { errorText }</p>
+          <p>
+            <FormattedMessage
+              id='ui.actionbar.import.error'
+              defaultMessage='An error occured: {errorText}'
+              values={ {
+                errorText
+              } }
+            />
+          </p>
         </div>
       );
     }
@@ -137,20 +184,8 @@ export default class ActionbarImport extends Component {
       return this.renderValidation();
     }
 
-    return this.renderFileSelect();
-  }
-
-  renderFileSelect () {
     return (
-      <div>
-        <Dropzone
-          onDrop={ this.onDrop }
-          multiple={ false }
-          className={ styles.importZone }
-        >
-          <div>Drop a file here, or click to select a file to upload.</div>
-        </Dropzone>
-      </div>
+      <FileSelect onSelect={ this.onFileSelect } />
     );
   }
 
@@ -160,7 +195,10 @@ export default class ActionbarImport extends Component {
     return (
       <div>
         <p className={ styles.desc }>
-          Confirm that this is what was intended to import.
+          <FormattedMessage
+            id='ui.actionbar.import.confirm'
+            defaultMessage='Confirm that this is what was intended to import.'
+          />
         </p>
         <div>
           { validationBody }
@@ -169,39 +207,30 @@ export default class ActionbarImport extends Component {
     );
   }
 
-  onDrop = (files) => {
+  onFileSelect = (file, content) => {
     const { renderValidation } = this.props;
 
-    const file = files[0];
-    const reader = new FileReader();
+    if (typeof renderValidation !== 'function') {
+      this.props.onConfirm(content);
+      return this.onCloseModal();
+    }
 
-    reader.onload = (e) => {
-      const content = e.target.result;
+    const validationBody = renderValidation(content);
 
-      if (typeof renderValidation !== 'function') {
-        this.props.onConfirm(content);
-        return this.onCloseModal();
-      }
-
-      const validationBody = renderValidation(content);
-
-      if (validationBody && validationBody.error) {
-        return this.setState({
-          step: 1,
-          error: true,
-          errorText: validationBody.error
-        });
-      }
-
-      this.setState({
+    if (validationBody && validationBody.error) {
+      return this.setState({
         step: 1,
-        validate: true,
-        validationBody,
-        content
+        error: true,
+        errorText: validationBody.error
       });
-    };
+    }
 
-    reader.readAsText(file);
+    this.setState({
+      step: 1,
+      validate: true,
+      validationBody,
+      content
+    });
   }
 
   onConfirm = () => {

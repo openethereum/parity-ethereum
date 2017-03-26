@@ -42,8 +42,7 @@ impl Default for Action {
 }
 
 impl Decodable for Action {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let rlp = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		if rlp.is_empty() {
 			Ok(Action::Create)
 		} else {
@@ -243,12 +242,11 @@ impl Deref for UnverifiedTransaction {
 }
 
 impl Decodable for UnverifiedTransaction {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
-		if d.item_count() != 9 {
+	fn decode(d: &UntrustedRlp) -> Result<Self, DecoderError> {
+		if d.item_count()? != 9 {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}
-		let hash = decoder.as_raw().sha3();
+		let hash = d.as_raw().sha3();
 		Ok(UnverifiedTransaction {
 			unsigned: Transaction {
 				nonce: d.val_at(0)?,

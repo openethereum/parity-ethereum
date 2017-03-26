@@ -32,12 +32,12 @@ use views::BlockView;
 
 use util::{Bytes, Hashable, HashDB, DBValue, snappy, U256, Uint};
 use util::Mutex;
-use util::hash::{FixedHash, H256};
+use util::hash::{H256};
 use util::journaldb::{self, Algorithm, JournalDB};
 use util::kvdb::Database;
 use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 use util::sha3::SHA3_NULL_RLP;
-use rlp::{RlpStream, Stream, UntrustedRlp, View};
+use rlp::{RlpStream, UntrustedRlp};
 use bloom_journal::Bloom;
 
 use self::block::AbridgedBlock;
@@ -408,10 +408,10 @@ impl StateRebuilder {
 	pub fn feed(&mut self, chunk: &[u8], flag: &AtomicBool) -> Result<(), ::error::Error> {
 		let rlp = UntrustedRlp::new(chunk);
 		let empty_rlp = StateAccount::new_basic(U256::zero(), U256::zero()).rlp();
-		let mut pairs = Vec::with_capacity(rlp.item_count());
+		let mut pairs = Vec::with_capacity(rlp.item_count()?);
 
 		// initialize the pairs vector with empty values so we have slots to write into.
-		pairs.resize(rlp.item_count(), (H256::new(), Vec::new()));
+		pairs.resize(rlp.item_count()?, (H256::new(), Vec::new()));
 
 		let status = rebuild_accounts(
 			self.db.as_hashdb_mut(),
@@ -464,14 +464,18 @@ impl StateRebuilder {
 		Ok(())
 	}
 
-	/// Check for accounts missing code. Once all chunks have been fed, there should
-	/// be none.
-	pub fn check_missing(self) -> Result<(), Error> {
+	/// Finalize the restoration. Check for accounts missing code and make a dummy
+	/// journal entry.
+	/// Once all chunks have been fed, there should be nothing missing.
+	pub fn finalize(mut self, era: u64, id: H256) -> Result<(), ::error::Error> {
 		let missing = self.missing_code.keys().cloned().collect::<Vec<_>>();
-		match missing.is_empty() {
-			true => Ok(()),
-			false => Err(Error::MissingCode(missing)),
-		}
+		if !missing.is_empty() { return Err(Error::MissingCode(missing).into()) }
+
+		let mut batch = self.db.backing().transaction();
+		self.db.journal_under(&mut batch, era, &id)?;
+		self.db.backing().write_buffered(batch);
+
+		Ok(())
 	}
 
 	/// Get the state root of the rebuilder.
@@ -601,7 +605,7 @@ impl BlockRebuilder {
 		use util::triehash::ordered_trie_root;
 
 		let rlp = UntrustedRlp::new(chunk);
-		let item_count = rlp.item_count();
+		let item_count = rlp.item_count()?;
 		let num_blocks = (item_count - 3) as u64;
 
 		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 3);
@@ -621,7 +625,7 @@ impl BlockRebuilder {
 			let pair = rlp.at(idx)?;
 			let abridged_rlp = pair.at(0)?.as_raw().to_owned();
 			let abridged_block = AbridgedBlock::from_raw(abridged_rlp);
-			let receipts: Vec<::receipt::Receipt> = pair.val_at(1)?;
+			let receipts: Vec<::receipt::Receipt> = pair.list_at(1)?;
 			let receipts_root = ordered_trie_root(
 				pair.at(1)?.iter().map(|r| r.as_raw().to_owned())
 			);

@@ -75,6 +75,9 @@ function createReduxStore () {
     subscribe: sinon.stub(),
     getState: () => {
       return {
+        balances: {
+          balances: {}
+        },
         personal: {
           accounts: ACCOUNTS
         }
@@ -127,11 +130,11 @@ describe('modals/VaultAccounts', () => {
   });
 
   describe('components', () => {
-    describe('SectionList', () => {
+    describe('SelectionList', () => {
       let sectionList;
 
       beforeEach(() => {
-        sectionList = component.find('SectionList');
+        sectionList = component.find('SelectionList');
       });
 
       it('has the filtered accounts', () => {

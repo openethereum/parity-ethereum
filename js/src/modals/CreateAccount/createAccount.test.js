@@ -35,14 +35,16 @@ function createApi () {
     },
     parity: {
       generateSecretPhrase: sinon.stub().resolves('some account phrase'),
-      importGethAccounts: sinon.stub().resolves(),
+      importGethAccounts: sinon.stub().resolves(GETH_ADDRESSES),
       listGethAccounts: sinon.stub().resolves(GETH_ADDRESSES),
       newAccountFromPhrase: sinon.stub().resolves(ADDRESS),
       newAccountFromSecret: sinon.stub().resolves(ADDRESS),
       newAccountFromWallet: sinon.stub().resolves(ADDRESS),
       phraseToAddress: () => Promise.resolve(`${++counter}`),
       setAccountMeta: sinon.stub().resolves(),
-      setAccountName: sinon.stub().resolves()
+      setAccountName: sinon.stub().resolves(),
+      listVaults: sinon.stub().resolves([]),
+      listOpenedVaults: sinon.stub().resolves([])
     }
   };
 }

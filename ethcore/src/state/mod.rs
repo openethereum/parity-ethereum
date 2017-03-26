@@ -14,6 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! A mutable state representation suitable to execute transactions.
+//! Generic over a `Backend`. Deals with `Account`s.
+//! Unconfirmed sub-states are managed with `checkpoint`s which may be canonicalized
+//! or rolled back.
+
 use std::cell::{RefCell, RefMut};
 use std::collections::hash_map::Entry;
 
@@ -26,18 +31,24 @@ use factory::Factories;
 use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
+use types::basic_account::BasicAccount;
+use types::executed::{Executed, ExecutionError};
 use types::state_diff::StateDiff;
 use transaction::SignedTransaction;
 use state_db::StateDB;
 
 use util::*;
 
+use util::trie;
 use util::trie::recorder::Recorder;
 
 mod account;
 mod substate;
 
+pub mod backend;
+
 pub use self::account::Account;
+pub use self::backend::Backend;
 pub use self::substate::Substate;
 
 /// Used to return information about an `State::apply` operation.
@@ -50,6 +61,17 @@ pub struct ApplyOutcome {
 
 /// Result type for the execution ("application") of a transaction.
 pub type ApplyResult = Result<ApplyOutcome, Error>;
+
+/// Return type of proof validity check.
+#[derive(Debug, Clone)]
+pub enum ProvedExecution {
+	/// Proof wasn't enough to complete execution.
+	BadProof,
+	/// The transaction failed, but not due to a bad proof.
+	Failed(ExecutionError),
+	/// The transaction successfully completd with the given proof.
+	Complete(Executed),
+}
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 /// Account modification state. Used to check if the account was
@@ -141,6 +163,39 @@ impl AccountEntry {
 	}
 }
 
+/// Check the given proof of execution.
+/// `Err(ExecutionError::Internal)` indicates failure, everything else indicates
+/// a successful proof (as the transaction itself may be poorly chosen).
+pub fn check_proof(
+	proof: &[::util::DBValue],
+	root: H256,
+	transaction: &SignedTransaction,
+	engine: &Engine,
+	env_info: &EnvInfo,
+) -> ProvedExecution {
+	let backend = self::backend::ProofCheck::new(proof);
+	let mut factories = Factories::default();
+	factories.accountdb = ::account_db::Factory::Plain;
+
+	let res = State::from_existing(
+		backend,
+		root,
+		engine.account_start_nonce(),
+		factories
+	);
+
+	let mut state = match res {
+		Ok(state) => state,
+		Err(_) => return ProvedExecution::BadProof,
+	};
+
+	match state.execute(env_info, engine, transaction, false) {
+		Ok(executed) => ProvedExecution::Complete(executed),
+		Err(ExecutionError::Internal(_)) => ProvedExecution::BadProof,
+		Err(e) => ProvedExecution::Failed(e),
+	}
+}
+
 /// Representation of the entire state of all accounts in the system.
 ///
 /// `State` can work together with `StateDB` to share account cache.
@@ -186,8 +241,8 @@ impl AccountEntry {
 /// checkpoint can be discateded with `discard_checkpoint`. All of the orignal
 /// backed-up values are moved into a parent checkpoint (if any).
 ///
-pub struct State {
-	db: StateDB,
+pub struct State<B: Backend> {
+	db: B,
 	root: H256,
 	cache: RefCell<HashMap<Address, AccountEntry>>,
 	// The original account is preserved in
@@ -203,20 +258,24 @@ enum RequireCache {
 	Code,
 }
 
+/// Mode of dealing with null accounts.
 #[derive(PartialEq)]
 pub enum CleanupMode<'a> {
+	/// Create accounts which would be null.
 	ForceCreate,
+	/// Don't delete null accounts upon touching, but also don't create them.
 	NoEmpty,
+	/// Add encountered null accounts to the provided kill-set, to be deleted later.
 	KillEmpty(&'a mut HashSet<Address>),
 }
 
 const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
 			 Therefore creating a SecTrieDB with this state's root will not fail.";
 
-impl State {
+impl<B: Backend> State<B> {
 	/// Creates new state with empty state root
 	#[cfg(test)]
-	pub fn new(mut db: StateDB, account_start_nonce: U256, factories: Factories) -> State {
+	pub fn new(mut db: B, account_start_nonce: U256, factories: Factories) -> State<B> {
 		let mut root = H256::new();
 		{
 			// init trie and reset root too null
@@ -234,7 +293,7 @@ impl State {
 	}
 
 	/// Creates new state with existing state root
-	pub fn from_existing(db: StateDB, root: H256, account_start_nonce: U256, factories: Factories) -> Result<State, TrieError> {
+	pub fn from_existing(db: B, root: H256, account_start_nonce: U256, factories: Factories) -> Result<State<B>, TrieError> {
 		if !db.as_hashdb().contains(&root) {
 			return Err(TrieError::InvalidStateRoot(root));
 		}
@@ -249,6 +308,19 @@ impl State {
 		};
 
 		Ok(state)
+	}
+
+	/// Swap the current backend for another.
+	// TODO: [rob] find a less hacky way to avoid duplication of `Client::state_at`.
+	pub fn replace_backend<T: Backend>(self, backend: T) -> State<T> {
+		State {
+			db: backend,
+			root: self.root,
+			cache: self.cache,
+			checkpoints: self.checkpoints,
+			account_start_nonce: self.account_start_nonce,
+			factories: self.factories,
+		}
 	}
 
 	/// Create a recoverable checkpoint of this state.
@@ -328,7 +400,7 @@ impl State {
 	}
 
 	/// Destroy the current object and return root and database.
-	pub fn drop(mut self) -> (H256, StateDB) {
+	pub fn drop(mut self) -> (H256, B) {
 		self.propagate_to_global_cache();
 		(self.root, self.db)
 	}
@@ -350,37 +422,37 @@ impl State {
 	}
 
 	/// Determine whether an account exists.
-	pub fn exists(&self, a: &Address) -> bool {
+	pub fn exists(&self, a: &Address) -> trie::Result<bool> {
 		// Bloom filter does not contain empty accounts, so it is important here to
 		// check if account exists in the database directly before EIP-161 is in effect.
 		self.ensure_cached(a, RequireCache::None, false, |a| a.is_some())
 	}
 
 	/// Determine whether an account exists and if not empty.
-	pub fn exists_and_not_null(&self, a: &Address) -> bool {
+	pub fn exists_and_not_null(&self, a: &Address) -> trie::Result<bool> {
 		self.ensure_cached(a, RequireCache::None, false, |a| a.map_or(false, |a| !a.is_null()))
 	}
 
 	/// Get the balance of account `a`.
-	pub fn balance(&self, a: &Address) -> U256 {
+	pub fn balance(&self, a: &Address) -> trie::Result<U256> {
 		self.ensure_cached(a, RequireCache::None, true,
 			|a| a.as_ref().map_or(U256::zero(), |account| *account.balance()))
 	}
 
 	/// Get the nonce of account `a`.
-	pub fn nonce(&self, a: &Address) -> U256 {
+	pub fn nonce(&self, a: &Address) -> trie::Result<U256> {
 		self.ensure_cached(a, RequireCache::None, true,
 			|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
 
 	/// Get the storage root of account `a`.
-	pub fn storage_root(&self, a: &Address) -> Option<H256> {
+	pub fn storage_root(&self, a: &Address) -> trie::Result<Option<H256>> {
 		self.ensure_cached(a, RequireCache::None, true,
 			|a| a.as_ref().and_then(|account| account.storage_root().cloned()))
 	}
 
 	/// Mutate storage of account `address` so that it is `value` for `key`.
-	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
+	pub fn storage_at(&self, address: &Address, key: &H256) -> trie::Result<H256> {
 		// Storage key search and update works like this:
 		// 1. If there's an entry for the account in the local cache check for the key and return it if found.
 		// 2. If there's an entry for the account in the global cache check for the key or load it into that account.
@@ -394,42 +466,46 @@ impl State {
 				match maybe_acc.account {
 					Some(ref account) => {
 						if let Some(value) = account.cached_storage_at(key) {
-							return value;
+							return Ok(value);
 						} else {
 							local_account = Some(maybe_acc);
 						}
 					},
-					_ => return H256::new(),
+					_ => return Ok(H256::new()),
 				}
 			}
 			// check the global cache and and cache storage key there if found,
-			// otherwise cache the account localy and cache storage key there.
-			if let Some(result) = self.db.get_cached(address, |acc| acc.map_or(H256::new(), |a| {
+			let trie_res = self.db.get_cached(address, |acc| match acc {
+				None => Ok(H256::new()),
+				Some(a) => {
 					let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), a.address_hash(address));
 					a.storage_at(account_db.as_hashdb(), key)
-				})) {
-				return result;
+				}
+			});
+
+			match trie_res {
+				None => {}
+				Some(res) => return res,
 			}
+
+			// otherwise cache the account localy and cache storage key there.
 			if let Some(ref mut acc) = local_account {
 				if let Some(ref account) = acc.account {
 					let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(address));
 					return account.storage_at(account_db.as_hashdb(), key)
 				} else {
-					return H256::new()
+					return Ok(H256::new())
 				}
 			}
 		}
 
-		// check bloom before any requests to trie
-		if !self.db.check_non_null_bloom(address) { return H256::zero() }
+		// check if the account could exist before any requests to trie
+		if self.db.is_known_null(address) { return Ok(H256::zero()) }
 
 		// account is not found in the global cache, get from the DB and insert into local
 		let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-		let maybe_acc = match db.get_with(address, Account::from_rlp) {
-			Ok(acc) => acc,
-			Err(e) => panic!("Potential DB corruption encountered: {}", e),
-		};
-		let r = maybe_acc.as_ref().map_or(H256::new(), |a| {
+		let maybe_acc = db.get_with(address, Account::from_rlp)?;
+		let r = maybe_acc.as_ref().map_or(Ok(H256::new()), |a| {
 			let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), a.address_hash(address));
 			a.storage_at(account_db.as_hashdb(), key)
 		});
@@ -438,86 +514,92 @@ impl State {
 	}
 
 	/// Get accounts' code.
-	pub fn code(&self, a: &Address) -> Option<Arc<Bytes>> {
+	pub fn code(&self, a: &Address) -> trie::Result<Option<Arc<Bytes>>> {
 		self.ensure_cached(a, RequireCache::Code, true,
 			|a| a.as_ref().map_or(None, |a| a.code().clone()))
 	}
 
-	pub fn code_hash(&self, a: &Address) -> H256 {
+	/// Get an account's code hash.
+	pub fn code_hash(&self, a: &Address) -> trie::Result<H256> {
 		self.ensure_cached(a, RequireCache::None, true,
 			|a| a.as_ref().map_or(SHA3_EMPTY, |a| a.code_hash()))
 	}
 
 	/// Get accounts' code size.
-	pub fn code_size(&self, a: &Address) -> Option<usize> {
+	pub fn code_size(&self, a: &Address) -> trie::Result<Option<usize>> {
 		self.ensure_cached(a, RequireCache::CodeSize, true,
 			|a| a.as_ref().and_then(|a| a.code_size()))
 	}
 
 	/// Add `incr` to the balance of account `a`.
 	#[cfg_attr(feature="dev", allow(single_match))]
-	pub fn add_balance(&mut self, a: &Address, incr: &U256, cleanup_mode: CleanupMode) {
-		trace!(target: "state", "add_balance({}, {}): {}", a, incr, self.balance(a));
+	pub fn add_balance(&mut self, a: &Address, incr: &U256, cleanup_mode: CleanupMode) -> trie::Result<()> {
+		trace!(target: "state", "add_balance({}, {}): {}", a, incr, self.balance(a)?);
 		let is_value_transfer = !incr.is_zero();
-		if is_value_transfer || (cleanup_mode == CleanupMode::ForceCreate && !self.exists(a)) {
-			self.require(a, false).add_balance(incr);
+		if is_value_transfer || (cleanup_mode == CleanupMode::ForceCreate && !self.exists(a)?) {
+			self.require(a, false)?.add_balance(incr);
 		} else {
 			match cleanup_mode {
-				CleanupMode::KillEmpty(set) => if !is_value_transfer && self.exists(a) && !self.exists_and_not_null(a) {
+				CleanupMode::KillEmpty(set) => if !is_value_transfer && self.exists(a)? && !self.exists_and_not_null(a)? {
 					set.insert(a.clone());
 				},
 				_ => {}
 			}
 		}
+
+		Ok(())
 	}
 
 	/// Subtract `decr` from the balance of account `a`.
-	pub fn sub_balance(&mut self, a: &Address, decr: &U256) {
-		trace!(target: "state", "sub_balance({}, {}): {}", a, decr, self.balance(a));
-		if !decr.is_zero() || !self.exists(a) {
-			self.require(a, false).sub_balance(decr);
+	pub fn sub_balance(&mut self, a: &Address, decr: &U256) -> trie::Result<()> {
+		trace!(target: "state", "sub_balance({}, {}): {}", a, decr, self.balance(a)?);
+		if !decr.is_zero() || !self.exists(a)? {
+			self.require(a, false)?.sub_balance(decr);
 		}
+
+		Ok(())
 	}
 
 	/// Subtracts `by` from the balance of `from` and adds it to that of `to`.
-	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256, cleanup_mode: CleanupMode) {
-		self.sub_balance(from, by);
-		self.add_balance(to, by, cleanup_mode);
+	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256, cleanup_mode: CleanupMode) -> trie::Result<()> {
+		self.sub_balance(from, by)?;
+		self.add_balance(to, by, cleanup_mode)?;
+		Ok(())
 	}
 
 	/// Increment the nonce of account `a` by 1.
-	pub fn inc_nonce(&mut self, a: &Address) {
-		self.require(a, false).inc_nonce()
+	pub fn inc_nonce(&mut self, a: &Address) -> trie::Result<()> {
+		self.require(a, false).map(|mut x| x.inc_nonce())
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
-	pub fn set_storage(&mut self, a: &Address, key: H256, value: H256) {
-		if self.storage_at(a, &key) != value {
-			self.require(a, false).set_storage(key, value)
+	pub fn set_storage(&mut self, a: &Address, key: H256, value: H256) -> trie::Result<()> {
+		if self.storage_at(a, &key)? != value {
+			self.require(a, false)?.set_storage(key, value)
 		}
+
+		Ok(())
 	}
 
 	/// Initialise the code of account `a` so that it is `code`.
 	/// NOTE: Account should have been created with `new_contract`.
-	pub fn init_code(&mut self, a: &Address, code: Bytes) {
-		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{}).init_code(code);
+	pub fn init_code(&mut self, a: &Address, code: Bytes) -> trie::Result<()> {
+		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{})?.init_code(code);
+		Ok(())
 	}
 
 	/// Reset the code of account `a` so that it is `code`.
-	pub fn reset_code(&mut self, a: &Address, code: Bytes) {
-		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{}).reset_code(code);
+	pub fn reset_code(&mut self, a: &Address, code: Bytes) -> trie::Result<()> {
+		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{})?.reset_code(code);
+		Ok(())
 	}
 
-	/// Execute a given transaction.
+	/// Execute a given transaction, producing a receipt and an optional trace.
 	/// This will change the state accordingly.
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> ApplyResult {
 //		let old = self.to_pod();
 
-		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
-		let vm_factory = self.factories.vm.clone();
-		let e = Executive::new(self, env_info, engine, &vm_factory).transact(t, options)?;
-
-		// TODO uncomment once to_pod() works correctly.
+		let e = self.execute(env_info, engine, t, tracing)?;
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
 		let state_root = if env_info.number < engine.params().eip98_transition {
 			self.commit()?;
@@ -530,13 +612,22 @@ impl State {
 		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
 	}
 
+	// Execute a given transaction.
+	fn execute(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> Result<Executed, ExecutionError> {
+		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
+		let vm_factory = self.factories.vm.clone();
+
+		Executive::new(self, env_info, engine, &vm_factory).transact(t, options)
+	}
+
+
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
 	#[cfg_attr(feature="dev", allow(needless_borrow))]
 	fn commit_into(
 		factories: &Factories,
-		db: &mut StateDB,
+		db: &mut B,
 		root: &mut H256,
 		accounts: &mut HashMap<Address, AccountEntry>
 	) -> Result<(), Error> {
@@ -546,7 +637,7 @@ impl State {
 				let addr_hash = account.address_hash(address);
 				{
 					let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
-					account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
+					account.commit_storage(&factories.trie, account_db.as_hashdb_mut())?;
 					account.commit_code(account_db.as_hashdb_mut());
 				}
 				if !account.is_empty() {
@@ -616,29 +707,33 @@ impl State {
 		}))
 	}
 
-	fn query_pod(&mut self, query: &PodState) {
-		for (address, pod_account) in query.get().into_iter()
-			.filter(|&(a, _)| self.ensure_cached(a, RequireCache::Code, true, |a| a.is_some()))
-		{
+	fn query_pod(&mut self, query: &PodState) -> trie::Result<()> {
+		for (address, pod_account) in query.get() {
+			if !self.ensure_cached(address, RequireCache::Code, true, |a| a.is_some())? {
+				continue
+			}
+
 			// needs to be split into two parts for the refcell code here
 			// to work.
 			for key in pod_account.storage.keys() {
-				self.storage_at(address, key);
+				self.storage_at(address, key)?;
 			}
 		}
+
+		Ok(())
 	}
 
 	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
 	/// Consumes self.
-	pub fn diff_from(&self, orig: State) -> StateDiff {
+	pub fn diff_from<X: Backend>(&self, orig: State<X>) -> trie::Result<StateDiff> {
 		let pod_state_post = self.to_pod();
 		let mut state_pre = orig;
-		state_pre.query_pod(&pod_state_post);
-		pod_state::diff_pod(&state_pre.to_pod(), &pod_state_post)
+		state_pre.query_pod(&pod_state_post)?;
+		Ok(pod_state::diff_pod(&state_pre.to_pod(), &pod_state_post))
 	}
 
 	// load required account data from the databases.
-	fn update_account_cache(require: RequireCache, account: &mut Account, state_db: &StateDB, db: &HashDB) {
+	fn update_account_cache(require: RequireCache, account: &mut Account, state_db: &B, db: &HashDB) {
 		match (account.is_cached(), require) {
 			(true, _) | (false, RequireCache::None) => {}
 			(false, require) => {
@@ -668,16 +763,16 @@ impl State {
 	/// Check caches for required data
 	/// First searches for account in the local, then the shared cache.
 	/// Populates local cache if nothing found.
-	fn ensure_cached<F, U>(&self, a: &Address, require: RequireCache, check_bloom: bool, f: F) -> U
+	fn ensure_cached<F, U>(&self, a: &Address, require: RequireCache, check_null: bool, f: F) -> trie::Result<U>
 		where F: Fn(Option<&Account>) -> U {
 		// check local cache first
 		if let Some(ref mut maybe_acc) = self.cache.borrow_mut().get_mut(a) {
 			if let Some(ref mut account) = maybe_acc.account {
 				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
 				Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb());
-				return f(Some(account));
+				return Ok(f(Some(account)));
 			}
-			return f(None);
+			return Ok(f(None));
 		}
 		// check global cache
 		let result = self.db.get_cached(a, |mut acc| {
@@ -688,49 +783,43 @@ impl State {
 			f(acc.map(|a| &*a))
 		});
 		match result {
-			Some(r) => r,
+			Some(r) => Ok(r),
 			None => {
-				// first check bloom if it is not in database for sure
-				if check_bloom && !self.db.check_non_null_bloom(a) { return f(None); }
+				// first check if it is not in database for sure
+				if check_null && self.db.is_known_null(a) { return Ok(f(None)); }
 
 				// not found in the global cache, get from the DB and insert into local
-				let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-				let mut maybe_acc = match db.get_with(a, Account::from_rlp) {
-					Ok(acc) => acc,
-					Err(e) => panic!("Potential DB corruption encountered: {}", e),
-				};
+				let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root)?;
+				let mut maybe_acc = db.get_with(a, Account::from_rlp)?;
 				if let Some(ref mut account) = maybe_acc.as_mut() {
 					let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
 					Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb());
 				}
 				let r = f(maybe_acc.as_ref());
 				self.insert_cache(a, AccountEntry::new_clean(maybe_acc));
-				r
+				Ok(r)
 			}
 		}
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
-	fn require<'a>(&'a self, a: &Address, require_code: bool) -> RefMut<'a, Account> {
+	fn require<'a>(&'a self, a: &Address, require_code: bool) -> trie::Result<RefMut<'a, Account>> {
 		self.require_or_from(a, require_code, || Account::new_basic(U256::from(0u8), self.account_start_nonce), |_|{})
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	/// If it doesn't exist, make account equal the evaluation of `default`.
-	fn require_or_from<'a, F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&'a self, a: &Address, require_code: bool, default: F, not_default: G)
-		-> RefMut<'a, Account>
+	fn require_or_from<'a, F, G>(&'a self, a: &Address, require_code: bool, default: F, not_default: G) -> trie::Result<RefMut<'a, Account>>
+		where F: FnOnce() -> Account, G: FnOnce(&mut Account),
 	{
 		let contains_key = self.cache.borrow().contains_key(a);
 		if !contains_key {
 			match self.db.get_cached_account(a) {
 				Some(acc) => self.insert_cache(a, AccountEntry::new_clean_cached(acc)),
 				None => {
-					let maybe_acc = if self.db.check_non_null_bloom(a) {
-						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-						match db.get_with(a, Account::from_rlp) {
-							Ok(acc) => AccountEntry::new_clean(acc),
-							Err(e) => panic!("Potential DB corruption encountered: {}", e),
-						}
+					let maybe_acc = if !self.db.is_known_null(a) {
+						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root)?;
+						AccountEntry::new_clean(db.get_with(a, Account::from_rlp)?)
 					} else {
 						AccountEntry::new_clean(None)
 					};
@@ -741,7 +830,7 @@ impl State {
 		self.note_cache(a);
 
 		// at this point the entry is guaranteed to be in the cache.
-		RefMut::map(self.cache.borrow_mut(), |c| {
+		Ok(RefMut::map(self.cache.borrow_mut(), |c| {
 			let mut entry = c.get_mut(a).expect("entry known to exist in the cache; qed");
 
 			match &mut entry.account {
@@ -762,65 +851,63 @@ impl State {
 				},
 				_ => panic!("Required account must always exist; qed"),
 			}
-		})
+		}))
 	}
 }
 
-// LES state proof implementations.
-impl State {
+// State proof implementations; useful for light client protocols.
+impl<B: Backend> State<B> {
 	/// Prove an account's existence or nonexistence in the state trie.
-	/// Returns a merkle proof of the account's trie node with all nodes before `from_level`
-	/// omitted or an encountered trie error.
+	/// Returns a merkle proof of the account's trie node omitted or an encountered trie error.
+	/// If the account doesn't exist in the trie, prove that and return defaults.
 	/// Requires a secure trie to be used for accurate results.
 	/// `account_key` == sha3(address)
-	pub fn prove_account(&self, account_key: H256, from_level: u32) -> Result<Vec<Bytes>, Box<TrieError>> {
-		let mut recorder = Recorder::with_depth(from_level);
+	pub fn prove_account(&self, account_key: H256) -> trie::Result<(Vec<Bytes>, BasicAccount)> {
+		let mut recorder = Recorder::new();
 		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
-		trie.get_with(&account_key, &mut recorder)?;
+		let maybe_account: Option<BasicAccount> = {
+			let query = (&mut recorder, ::rlp::decode);
+			trie.get_with(&account_key, query)?
+		};
+		let account = maybe_account.unwrap_or_else(|| BasicAccount {
+			balance: 0.into(),
+			nonce: self.account_start_nonce,
+			code_hash: SHA3_EMPTY,
+			storage_root: ::util::sha3::SHA3_NULL_RLP,
+		});
 
-		Ok(recorder.drain().into_iter().map(|r| r.data).collect())
+		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), account))
 	}
 
 	/// Prove an account's storage key's existence or nonexistence in the state.
-	/// Returns a merkle proof of the account's storage trie with all nodes before
-	/// `from_level` omitted. Requires a secure trie to be used for correctness.
+	/// Returns a merkle proof of the account's storage trie.
+	/// Requires a secure trie to be used for correctness.
 	/// `account_key` == sha3(address)
 	/// `storage_key` == sha3(key)
-	pub fn prove_storage(&self, account_key: H256, storage_key: H256, from_level: u32) -> Result<Vec<Bytes>, Box<TrieError>> {
+	pub fn prove_storage(&self, account_key: H256, storage_key: H256) -> trie::Result<(Vec<Bytes>, H256)> {
 		// TODO: probably could look into cache somehow but it's keyed by
 		// address, not sha3(address).
 		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
 		let acc = match trie.get_with(&account_key, Account::from_rlp)? {
 			Some(acc) => acc,
-			None => return Ok(Vec::new()),
+			None => return Ok((Vec::new(), H256::new())),
 		};
 
 		let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), account_key);
-		acc.prove_storage(account_db.as_hashdb(), storage_key, from_level)
-	}
-
-	/// Get code by address hash.
-	/// Only works when backed by a secure trie.
-	pub fn code_by_address_hash(&self, account_key: H256) -> Result<Option<Bytes>, Box<TrieError>> {
-		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
-		let mut acc = match trie.get_with(&account_key, Account::from_rlp)? {
-			Some(acc) => acc,
-			None => return Ok(None),
-		};
-
-		let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), account_key);
-		Ok(acc.cache_code(account_db.as_hashdb()).map(|c| (&*c).clone()))
+		acc.prove_storage(account_db.as_hashdb(), storage_key)
 	}
 }
 
-impl fmt::Debug for State {
+impl<B: Backend> fmt::Debug for State<B> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{:?}", self.cache.borrow())
 	}
 }
 
-impl Clone for State {
-	fn clone(&self) -> State {
+// TODO: cloning for `State` shouldn't be possible in general; Remove this and use
+// checkpoints where possible.
+impl Clone for State<StateDB> {
+	fn clone(&self) -> State<StateDB> {
 		let cache = {
 			let mut cache: HashMap<Address, AccountEntry> = HashMap::new();
 			for (key, val) in self.cache.borrow().iter() {
@@ -850,13 +937,13 @@ mod tests {
 	use rustc_serialize::hex::FromHex;
 	use super::*;
 	use ethkey::Secret;
-	use util::{U256, H256, FixedHash, Address, Hashable};
+	use util::{U256, H256, Address, Hashable};
 	use tests::helpers::*;
 	use devtools::*;
 	use env_info::EnvInfo;
 	use spec::*;
 	use transaction::*;
-	use util::log::init_log;
+	use ethcore_logger::init_log;
 	use trace::{FlatTrace, TraceError, trace};
 	use types::executed::CallType;
 
@@ -884,7 +971,7 @@ mod tests {
 			data: FromHex::from_hex("601080600c6000396000f3006000355415600957005b60203560003555").unwrap(),
 		}.sign(&secret(), None);
 
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -914,13 +1001,13 @@ mod tests {
 		let temp = RandomTempPath::new();
 		let mut state = {
 			let mut state = get_temp_state_in(temp.as_path());
-			assert_eq!(state.exists(&a), false);
-			state.inc_nonce(&a);
+			assert_eq!(state.exists(&a).unwrap(), false);
+			state.inc_nonce(&a).unwrap();
 			state.commit().unwrap();
 			state.clone()
 		};
 
-		state.inc_nonce(&a);
+		state.inc_nonce(&a).unwrap();
 		state.commit().unwrap();
 	}
 
@@ -944,7 +1031,7 @@ mod tests {
 			data: FromHex::from_hex("5b600056").unwrap(),
 		}.sign(&secret(), None);
 
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -981,8 +1068,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("6000").unwrap());
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1024,7 +1111,7 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1108,7 +1195,7 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060006001610be0f1").unwrap());
+		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060006001610be0f1").unwrap()).unwrap();
 		let result = state.apply(&info, engine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1151,8 +1238,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b611000f2").unwrap());
-		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b611000f2").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap()).unwrap();
 		let result = state.apply(&info, engine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1213,8 +1300,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap());
-		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
+		state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap()).unwrap();
 		let result = state.apply(&info, engine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1272,8 +1359,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("5b600056").unwrap());
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("5b600056").unwrap()).unwrap();
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1312,9 +1399,9 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
-		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1372,8 +1459,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006045600b6000f1").unwrap());
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006045600b6000f1").unwrap()).unwrap();
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1427,8 +1514,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap());	// not enough funds.
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap()).unwrap();	// not enough funds.
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1470,9 +1557,9 @@ mod tests {
 			data: vec![],//600480600b6000396000f35b600056
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
-		state.init_code(&0xb.into(), FromHex::from_hex("5b600056").unwrap());
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("5b600056").unwrap()).unwrap();
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1526,10 +1613,10 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
-		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap());
-		state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap()).unwrap();
+		state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1601,10 +1688,10 @@ mod tests {
 			data: vec![],//600480600b6000396000f35b600056
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
-		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap());
-		state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
-		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap()).unwrap();
+		state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1674,9 +1761,9 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&0xa.into(), FromHex::from_hex("73000000000000000000000000000000000000000bff").unwrap());
-		state.add_balance(&0xa.into(), &50.into(), CleanupMode::NoEmpty);
-		state.add_balance(&t.sender(), &100.into(), CleanupMode::NoEmpty);
+		state.init_code(&0xa.into(), FromHex::from_hex("73000000000000000000000000000000000000000bff").unwrap()).unwrap();
+		state.add_balance(&0xa.into(), &50.into(), CleanupMode::NoEmpty).unwrap();
+		state.add_balance(&t.sender(), &100.into(), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1713,16 +1800,16 @@ mod tests {
 		let temp = RandomTempPath::new();
 		let (root, db) = {
 			let mut state = get_temp_state_in(temp.as_path());
-			state.require_or_from(&a, false, ||Account::new_contract(42.into(), 0.into()), |_|{});
-			state.init_code(&a, vec![1, 2, 3]);
-			assert_eq!(state.code(&a), Some(Arc::new([1u8, 2, 3].to_vec())));
+			state.require_or_from(&a, false, ||Account::new_contract(42.into(), 0.into()), |_|{}).unwrap();
+			state.init_code(&a, vec![1, 2, 3]).unwrap();
+			assert_eq!(state.code(&a).unwrap(), Some(Arc::new([1u8, 2, 3].to_vec())));
 			state.commit().unwrap();
-			assert_eq!(state.code(&a), Some(Arc::new([1u8, 2, 3].to_vec())));
+			assert_eq!(state.code(&a).unwrap(), Some(Arc::new([1u8, 2, 3].to_vec())));
 			state.drop()
 		};
 
 		let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-		assert_eq!(state.code(&a), Some(Arc::new([1u8, 2, 3].to_vec())));
+		assert_eq!(state.code(&a).unwrap(), Some(Arc::new([1u8, 2, 3].to_vec())));
 	}
 
 	#[test]
@@ -1731,13 +1818,13 @@ mod tests {
 		let temp = RandomTempPath::new();
 		let (root, db) = {
 			let mut state = get_temp_state_in(temp.as_path());
-			state.set_storage(&a, H256::from(&U256::from(1u64)), H256::from(&U256::from(69u64)));
+			state.set_storage(&a, H256::from(&U256::from(1u64)), H256::from(&U256::from(69u64))).unwrap();
 			state.commit().unwrap();
 			state.drop()
 		};
 
 		let s = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-		assert_eq!(s.storage_at(&a, &H256::from(&U256::from(1u64))), H256::from(&U256::from(69u64)));
+		assert_eq!(s.storage_at(&a, &H256::from(&U256::from(1u64))).unwrap(), H256::from(&U256::from(69u64)));
 	}
 
 	#[test]
@@ -1746,16 +1833,16 @@ mod tests {
 		let temp = RandomTempPath::new();
 		let (root, db) = {
 			let mut state = get_temp_state_in(temp.as_path());
-			state.inc_nonce(&a);
-			state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty);
+			state.inc_nonce(&a).unwrap();
+			state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty).unwrap();
 			state.commit().unwrap();
-			assert_eq!(state.balance(&a), U256::from(69u64));
+			assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 			state.drop()
 		};
 
 		let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-		assert_eq!(state.balance(&a), U256::from(69u64));
-		assert_eq!(state.nonce(&a), U256::from(1u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(1u64));
 	}
 
 	#[test]
@@ -1763,16 +1850,16 @@ mod tests {
 		let a = Address::zero();
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		assert_eq!(state.exists(&a), false);
-		assert_eq!(state.exists_and_not_null(&a), false);
-		state.inc_nonce(&a);
-		assert_eq!(state.exists(&a), true);
-		assert_eq!(state.exists_and_not_null(&a), true);
-		assert_eq!(state.nonce(&a), U256::from(1u64));
+		assert_eq!(state.exists(&a).unwrap(), false);
+		assert_eq!(state.exists_and_not_null(&a).unwrap(), false);
+		state.inc_nonce(&a).unwrap();
+		assert_eq!(state.exists(&a).unwrap(), true);
+		assert_eq!(state.exists_and_not_null(&a).unwrap(), true);
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(1u64));
 		state.kill_account(&a);
-		assert_eq!(state.exists(&a), false);
-		assert_eq!(state.exists_and_not_null(&a), false);
-		assert_eq!(state.nonce(&a), U256::from(0u64));
+		assert_eq!(state.exists(&a).unwrap(), false);
+		assert_eq!(state.exists_and_not_null(&a).unwrap(), false);
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(0u64));
 	}
 
 	#[test]
@@ -1782,13 +1869,13 @@ mod tests {
 		let db = get_temp_state_db_in(path.as_path());
 		let (root, db) = {
 			let mut state = State::new(db, U256::from(0), Default::default());
-			state.add_balance(&a, &U256::default(), CleanupMode::NoEmpty); // create an empty account
+			state.add_balance(&a, &U256::default(), CleanupMode::NoEmpty).unwrap(); // create an empty account
 			state.commit().unwrap();
 			state.drop()
 		};
 		let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-		assert!(!state.exists(&a));
-		assert!(!state.exists_and_not_null(&a));
+		assert!(!state.exists(&a).unwrap());
+		assert!(!state.exists_and_not_null(&a).unwrap());
 	}
 
 	#[test]
@@ -1798,13 +1885,13 @@ mod tests {
 		let db = get_temp_state_db_in(path.as_path());
 		let (root, db) = {
 			let mut state = State::new(db, U256::from(0), Default::default());
-			state.add_balance(&a, &U256::default(), CleanupMode::ForceCreate); // create an empty account
+			state.add_balance(&a, &U256::default(), CleanupMode::ForceCreate).unwrap(); // create an empty account
 			state.commit().unwrap();
 			state.drop()
 		};
 		let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-		assert!(state.exists(&a));
-		assert!(!state.exists_and_not_null(&a));
+		assert!(state.exists(&a).unwrap());
+		assert!(!state.exists_and_not_null(&a).unwrap());
 	}
 
 	#[test]
@@ -1813,27 +1900,27 @@ mod tests {
 		let temp = RandomTempPath::new();
 		let (root, db) = {
 			let mut state = get_temp_state_in(temp.as_path());
-			state.inc_nonce(&a);
+			state.inc_nonce(&a).unwrap();
 			state.commit().unwrap();
-			assert_eq!(state.exists(&a), true);
-			assert_eq!(state.nonce(&a), U256::from(1u64));
+			assert_eq!(state.exists(&a).unwrap(), true);
+			assert_eq!(state.nonce(&a).unwrap(), U256::from(1u64));
 			state.drop()
 		};
 
 		let (root, db) = {
 			let mut state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-			assert_eq!(state.exists(&a), true);
-			assert_eq!(state.nonce(&a), U256::from(1u64));
+			assert_eq!(state.exists(&a).unwrap(), true);
+			assert_eq!(state.nonce(&a).unwrap(), U256::from(1u64));
 			state.kill_account(&a);
 			state.commit().unwrap();
-			assert_eq!(state.exists(&a), false);
-			assert_eq!(state.nonce(&a), U256::from(0u64));
+			assert_eq!(state.exists(&a).unwrap(), false);
+			assert_eq!(state.nonce(&a).unwrap(), U256::from(0u64));
 			state.drop()
 		};
 
 		let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-		assert_eq!(state.exists(&a), false);
-		assert_eq!(state.nonce(&a), U256::from(0u64));
+		assert_eq!(state.exists(&a).unwrap(), false);
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(0u64));
 	}
 
 	#[test]
@@ -1842,20 +1929,20 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		let a = Address::zero();
 		let b = 1u64.into();
-		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty);
-		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty).unwrap();
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 		state.commit().unwrap();
-		assert_eq!(state.balance(&a), U256::from(69u64));
-		state.sub_balance(&a, &U256::from(42u64));
-		assert_eq!(state.balance(&a), U256::from(27u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
+		state.sub_balance(&a, &U256::from(42u64)).unwrap();
+		assert_eq!(state.balance(&a).unwrap(), U256::from(27u64));
 		state.commit().unwrap();
-		assert_eq!(state.balance(&a), U256::from(27u64));
-		state.transfer_balance(&a, &b, &U256::from(18u64), CleanupMode::NoEmpty);
-		assert_eq!(state.balance(&a), U256::from(9u64));
-		assert_eq!(state.balance(&b), U256::from(18u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(27u64));
+		state.transfer_balance(&a, &b, &U256::from(18u64), CleanupMode::NoEmpty).unwrap();
+		assert_eq!(state.balance(&a).unwrap(), U256::from(9u64));
+		assert_eq!(state.balance(&b).unwrap(), U256::from(18u64));
 		state.commit().unwrap();
-		assert_eq!(state.balance(&a), U256::from(9u64));
-		assert_eq!(state.balance(&b), U256::from(18u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(9u64));
+		assert_eq!(state.balance(&b).unwrap(), U256::from(18u64));
 	}
 
 	#[test]
@@ -1863,16 +1950,16 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		let a = Address::zero();
-		state.inc_nonce(&a);
-		assert_eq!(state.nonce(&a), U256::from(1u64));
-		state.inc_nonce(&a);
-		assert_eq!(state.nonce(&a), U256::from(2u64));
+		state.inc_nonce(&a).unwrap();
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(1u64));
+		state.inc_nonce(&a).unwrap();
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(2u64));
 		state.commit().unwrap();
-		assert_eq!(state.nonce(&a), U256::from(2u64));
-		state.inc_nonce(&a);
-		assert_eq!(state.nonce(&a), U256::from(3u64));
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(2u64));
+		state.inc_nonce(&a).unwrap();
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(3u64));
 		state.commit().unwrap();
-		assert_eq!(state.nonce(&a), U256::from(3u64));
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(3u64));
 	}
 
 	#[test]
@@ -1880,11 +1967,11 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		let a = Address::zero();
-		assert_eq!(state.balance(&a), U256::from(0u64));
-		assert_eq!(state.nonce(&a), U256::from(0u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(0u64));
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(0u64));
 		state.commit().unwrap();
-		assert_eq!(state.balance(&a), U256::from(0u64));
-		assert_eq!(state.nonce(&a), U256::from(0u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(0u64));
+		assert_eq!(state.nonce(&a).unwrap(), U256::from(0u64));
 	}
 
 	#[test]
@@ -1892,7 +1979,7 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		let a = Address::zero();
-		state.require(&a, false);
+		state.require(&a, false).unwrap();
 		state.commit().unwrap();
 		assert_eq!(state.root().hex(), "0ce23f3c809de377b008a4a3ee94a0834aac8bec1f86e28ffe4fdb5a15b0c785");
 	}
@@ -1903,15 +1990,15 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		let a = Address::zero();
 		state.checkpoint();
-		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty);
-		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty).unwrap();
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 		state.discard_checkpoint();
-		assert_eq!(state.balance(&a), U256::from(69u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 		state.checkpoint();
-		state.add_balance(&a, &U256::from(1u64), CleanupMode::NoEmpty);
-		assert_eq!(state.balance(&a), U256::from(70u64));
+		state.add_balance(&a, &U256::from(1u64), CleanupMode::NoEmpty).unwrap();
+		assert_eq!(state.balance(&a).unwrap(), U256::from(70u64));
 		state.revert_to_checkpoint();
-		assert_eq!(state.balance(&a), U256::from(69u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 	}
 
 	#[test]
@@ -1921,12 +2008,12 @@ mod tests {
 		let a = Address::zero();
 		state.checkpoint();
 		state.checkpoint();
-		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty);
-		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty).unwrap();
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 		state.discard_checkpoint();
-		assert_eq!(state.balance(&a), U256::from(69u64));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 		state.revert_to_checkpoint();
-		assert_eq!(state.balance(&a), U256::from(0));
+		assert_eq!(state.balance(&a).unwrap(), U256::from(0));
 	}
 
 	#[test]
@@ -1943,14 +2030,14 @@ mod tests {
 		let mut state = state.reference().clone();
 
 		let a: Address = 0xa.into();
-		state.init_code(&a, b"abcdefg".to_vec());
-		state.add_balance(&a, &256.into(), CleanupMode::NoEmpty);
-		state.set_storage(&a, 0xb.into(), 0xc.into());
+		state.init_code(&a, b"abcdefg".to_vec()).unwrap();;
+		state.add_balance(&a, &256.into(), CleanupMode::NoEmpty).unwrap();
+		state.set_storage(&a, 0xb.into(), 0xc.into()).unwrap();
 
 		let mut new_state = state.clone();
-		new_state.set_storage(&a, 0xb.into(), 0xd.into());
+		new_state.set_storage(&a, 0xb.into(), 0xd.into()).unwrap();
 
-		new_state.diff_from(state);
+		new_state.diff_from(state).unwrap();
 	}
 
 }

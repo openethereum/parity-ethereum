@@ -52,8 +52,8 @@ impl Into<bc::BloomGroup> for BloomGroup {
 }
 
 impl Decodable for BloomGroup {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let blooms = Decodable::decode(decoder)?;
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let blooms = rlp.as_list()?;
 		let group = BloomGroup {
 			blooms: blooms
 		};
@@ -63,7 +63,7 @@ impl Decodable for BloomGroup {
 
 impl Encodable for BloomGroup {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		Encodable::rlp_append(&self.blooms, s)
+		s.append_list(&self.blooms);
 	}
 }
 

@@ -17,7 +17,7 @@
 const webpack = require('webpack');
 const path = require('path');
 const fs = require('fs');
-// const HappyPack = require('happypack');
+const HappyPack = require('happypack');
 
 const postcssImport = require('postcss-import');
 const postcssNested = require('postcss-nested');
@@ -29,6 +29,7 @@ const ProgressBarPlugin = require('progress-bar-webpack-plugin');
 const EMBED = process.env.EMBED;
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
+const isAnalize = process.env.WPANALIZE === '1';
 
 function getBabelrc () {
   const babelrc = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../.babelrc')));
@@ -80,66 +81,59 @@ function getPlugins (_isProd = isProd) {
     })
   ];
 
-  const plugins = [
-    new ProgressBarPlugin({
-      format: '[:msg] [:bar] ' + ':percent' + ' (:elapsed seconds)'
-    }),
+  const plugins = (isAnalize
+    ? []
+    : [
+      new ProgressBarPlugin({
+        format: '[:msg] [:bar] ' + ':percent' + ' (:elapsed seconds)'
+      })
+    ]).concat([
+      new HappyPack({
+        id: 'css',
+        threads: 4,
+        loaders: [
+          'style-loader',
+          'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+          'postcss-loader'
+        ],
+        verbose: !isAnalize
+      }),
 
-    // NB: HappyPack is not yet working with Webpack 2... (as of Nov. 26)
+      new HappyPack({
+        id: 'babel-js',
+        threads: 4,
+        loaders: [ isProd ? 'babel-loader' : 'babel-loader?cacheDirectory=true' ],
+        verbose: !isAnalize
+      }),
 
-    // new HappyPack({
-    //   id: 'css',
-    //   threads: 4,
-    //   loaders: [
-    //     'style-loader',
-    //     'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-    //     'postcss-loader'
-    //   ]
-    // }),
+      new webpack.DefinePlugin({
+        'process.env': {
+          EMBED: JSON.stringify(EMBED),
+          NODE_ENV: JSON.stringify(ENV),
+          RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
+          PARITY_URL: JSON.stringify(process.env.PARITY_URL),
+          DAPPS_URL: JSON.stringify(process.env.DAPPS_URL),
+          LOGGING: JSON.stringify(!isProd)
+        }
+      }),
 
-    // new HappyPack({
-    //   id: 'js',
-    //   threads: 4,
-    //   loaders: _isProd ? ['babel'] : [
-    //     'react-hot-loader',
-    //     'babel-loader?cacheDirectory=true'
-    //   ]
-    // }),
+      new webpack.LoaderOptionsPlugin({
+        minimize: isProd,
+        debug: !isProd,
+        options: {
+          context: path.join(__dirname, '../src'),
+          postcss: postcss,
+          babel: getBabelrc()
+        }
+      }),
 
-    // new HappyPack({
-    //   id: 'babel',
-    //   threads: 4,
-    //   loaders: ['babel-loader']
-    // }),
+      new webpack.optimize.OccurrenceOrderPlugin(!_isProd),
 
-    new webpack.DefinePlugin({
-      'process.env': {
-        EMBED: JSON.stringify(EMBED),
-        NODE_ENV: JSON.stringify(ENV),
-        RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
-        PARITY_URL: JSON.stringify(process.env.PARITY_URL),
-        DAPPS_URL: JSON.stringify(process.env.DAPPS_URL),
-        LOGGING: JSON.stringify(!isProd)
-      }
-    }),
-
-    new webpack.LoaderOptionsPlugin({
-      minimize: isProd,
-      debug: !isProd,
-      options: {
-        context: path.join(__dirname, '../src'),
-        postcss: postcss,
-        babel: getBabelrc()
-      }
-    }),
-
-    new webpack.optimize.OccurrenceOrderPlugin(!_isProd),
-
-    new CircularDependencyPlugin({
-      exclude: /node_modules/,
-      failOnError: true
-    })
-  ];
+      new CircularDependencyPlugin({
+        exclude: /node_modules/,
+        failOnError: true
+      })
+    ]);
 
   if (_isProd) {
     plugins.push(new webpack.optimize.UglifyJsPlugin({

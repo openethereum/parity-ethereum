@@ -28,32 +28,6 @@ use rustc_serialize::hex::{FromHex, FromHexError};
 use bigint::{Uint, U256};
 use libc::{c_void, memcmp};
 
-/// Trait for a fixed-size byte array to be used as the output of hash functions.
-pub trait FixedHash: Sized {
-	/// Create a new, zero-initialised, instance.
-	fn new() -> Self;
-	/// Synonym for `new()`. Prefer to new as it's more readable.
-	fn zero() -> Self;
-	/// Create a new, cryptographically random, instance.
-	fn random() -> Self;
-	/// Assign self have a cryptographically random value.
-	fn randomize(&mut self);
-	/// Get the size of this object in bytes.
-	fn len() -> usize;
-	/// Convert a slice of bytes of length `len()` to an instance of this type.
-	fn from_slice(src: &[u8]) -> Self;
-	/// Assign self to be of the same value as a slice of bytes of length `len()`.
-	fn clone_from_slice(&mut self, src: &[u8]) -> usize;
-	/// Copy the data of this object into some mutable slice of length `len()`.
-	fn copy_to(&self, dest: &mut [u8]);
-	/// Returns `true` if all bits set in `b` are also set in `self`.
-	fn contains<'a>(&'a self, b: &'a Self) -> bool;
-	/// Returns `true` if no bits are set.
-	fn is_zero(&self) -> bool;
-	/// Returns the lowest 8 bytes interpreted as a BigEndian integer.
-	fn low_u64(&self) -> u64;
-}
-
 /// Return `s` without the `0x` at the beginning of it, if any.
 pub fn clean_0x(s: &str) -> &str {
 	if s.starts_with("0x") {
@@ -105,57 +79,68 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl FixedHash for $from {
-			fn new() -> $from {
+		impl $from {
+			/// Create a new, zero-initialised, instance.
+			pub fn new() -> $from {
 				$from([0; $size])
 			}
 
-			fn zero() -> $from {
+			/// Synonym for `new()`. Prefer to new as it's more readable.
+			pub fn zero() -> $from {
 				$from([0; $size])
 			}
 
-			fn random() -> $from {
+			/// Create a new, cryptographically random, instance.
+			pub fn random() -> $from {
 				let mut hash = $from::new();
 				hash.randomize();
 				hash
 			}
 
-			fn randomize(&mut self) {
+			/// Assign self have a cryptographically random value.
+			pub fn randomize(&mut self) {
 				let mut rng = OsRng::new().unwrap();
 				rng.fill_bytes(&mut self.0);
 			}
 
-			fn len() -> usize {
+			/// Get the size of this object in bytes.
+			pub fn len() -> usize {
 				$size
 			}
 
 			#[inline]
-			fn clone_from_slice(&mut self, src: &[u8]) -> usize {
+			/// Assign self to be of the same value as a slice of bytes of length `len()`.
+			pub fn clone_from_slice(&mut self, src: &[u8]) -> usize {
 				let min = cmp::min($size, src.len());
 				self.0[..min].copy_from_slice(&src[..min]);
 				min
 			}
 
-			fn from_slice(src: &[u8]) -> Self {
+			/// Convert a slice of bytes of length `len()` to an instance of this type.
+			pub fn from_slice(src: &[u8]) -> Self {
 				let mut r = Self::new();
 				r.clone_from_slice(src);
 				r
 			}
 
-			fn copy_to(&self, dest: &mut[u8]) {
+			/// Copy the data of this object into some mutable slice of length `len()`.
+			pub fn copy_to(&self, dest: &mut[u8]) {
 				let min = cmp::min($size, dest.len());
 				dest[..min].copy_from_slice(&self.0[..min]);
 			}
 
-			fn contains<'a>(&'a self, b: &'a Self) -> bool {
+			/// Returns `true` if all bits set in `b` are also set in `self`.
+			pub fn contains<'a>(&'a self, b: &'a Self) -> bool {
 				&(b & self) == b
 			}
 
-			fn is_zero(&self) -> bool {
+			/// Returns `true` if no bits are set.
+			pub fn is_zero(&self) -> bool {
 				self.eq(&Self::new())
 			}
 
-			fn low_u64(&self) -> u64 {
+			/// Returns the lowest 8 bytes interpreted as a BigEndian integer.
+			pub fn low_u64(&self) -> u64 {
 				let mut ret = 0u64;
 				for i in 0..min($size, 8) {
 					ret |= (self.0[$size - 1 - i] as u64) << (i * 8);

@@ -169,22 +169,16 @@ impl Account {
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	/// Takes modifed storage into account.
-	pub fn storage_at(&self, db: &HashDB, key: &H256) -> H256 {
+	pub fn storage_at(&self, db: &HashDB, key: &H256) -> trie::Result<H256> {
 		if let Some(value) = self.cached_storage_at(key) {
-			return value;
+			return Ok(value);
 		}
-		let db = SecTrieDB::new(db, &self.storage_root)
-			.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
-			SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
-			using it will not fail.");
+		let db = SecTrieDB::new(db, &self.storage_root)?;
 
-		let item: U256 = match db.get_with(key, ::rlp::decode) {
-			Ok(x) => x.unwrap_or_else(U256::zero),
-			Err(e) => panic!("Encountered potential DB corruption: {}", e),
-		};
+		let item: U256 = db.get_with(key, ::rlp::decode)?.unwrap_or_else(U256::zero);
 		let value: H256 = item.into();
 		self.storage_cache.borrow_mut().insert(key.clone(), value.clone());
-		value
+		Ok(value)
 	}
 
 	/// Get cached storage value if any. Returns `None` if the
@@ -345,24 +339,19 @@ impl Account {
 	}
 
 	/// Commit the `storage_changes` to the backing DB and update `storage_root`.
-	pub fn commit_storage(&mut self, trie_factory: &TrieFactory, db: &mut HashDB) {
-		let mut t = trie_factory.from_existing(db, &mut self.storage_root)
-			.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
-				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
-				using it will not fail.");
+	pub fn commit_storage(&mut self, trie_factory: &TrieFactory, db: &mut HashDB) -> trie::Result<()> {
+		let mut t = trie_factory.from_existing(db, &mut self.storage_root)?;
 		for (k, v) in self.storage_changes.drain() {
 			// cast key and value to trait type,
 			// so we can call overloaded `to_bytes` method
-			let res = match v.is_zero() {
-				true => t.remove(&k),
-				false => t.insert(&k, &encode(&U256::from(&*v))),
+			match v.is_zero() {
+				true => t.remove(&k)?,
+				false => t.insert(&k, &encode(&U256::from(&*v)))?,
 			};
 
-			if let Err(e) = res {
-				warn!("Encountered potential DB corruption: {}", e);
-			}
 			self.storage_cache.borrow_mut().insert(k, v);
 		}
+		Ok(())
 	}
 
 	/// Commit any unsaved code. `code_hash` will always return the hash of the `code_cache` after this.
@@ -449,18 +438,19 @@ impl Account {
 	/// trie.
 	/// `storage_key` is the hash of the desired storage key, meaning
 	/// this will only work correctly under a secure trie.
-	/// Returns a merkle proof of the storage trie node with all nodes before `from_level`
-	/// omitted.
-	pub fn prove_storage(&self, db: &HashDB, storage_key: H256, from_level: u32) -> Result<Vec<Bytes>, Box<TrieError>> {
+	pub fn prove_storage(&self, db: &HashDB, storage_key: H256) -> Result<(Vec<Bytes>, H256), Box<TrieError>> {
 		use util::trie::{Trie, TrieDB};
 		use util::trie::recorder::Recorder;
 
-		let mut recorder = Recorder::with_depth(from_level);
+		let mut recorder = Recorder::new();
 
 		let trie = TrieDB::new(db, &self.storage_root)?;
-		let _ = trie.get_with(&storage_key, &mut recorder)?;
+		let item: U256 = {
+			let query = (&mut recorder, ::rlp::decode);
+			trie.get_with(&storage_key, query)?.unwrap_or_else(U256::zero)
+		};
 
-		Ok(recorder.drain().into_iter().map(|r| r.data).collect())
+		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), item.into()))
 	}
 }
 
@@ -472,7 +462,7 @@ impl fmt::Debug for Account {
 
 #[cfg(test)]
 mod tests {
-	use rlp::{UntrustedRlp, RlpType, View, Compressible};
+	use rlp::{UntrustedRlp, RlpType, Compressible};
 	use util::*;
 	use super::*;
 	use account_db::*;
@@ -494,7 +484,7 @@ mod tests {
 		let rlp = {
 			let mut a = Account::new_contract(69.into(), 0.into());
 			a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
-			a.commit_storage(&Default::default(), &mut db);
+			a.commit_storage(&Default::default(), &mut db).unwrap();
 			a.init_code(vec![]);
 			a.commit_code(&mut db);
 			a.rlp()
@@ -502,8 +492,8 @@ mod tests {
 
 		let a = Account::from_rlp(&rlp);
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
-		assert_eq!(a.storage_at(&db.immutable(), &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
-		assert_eq!(a.storage_at(&db.immutable(), &H256::from(&U256::from(0x01u64))), H256::new());
+		assert_eq!(a.storage_at(&db.immutable(), &H256::from(&U256::from(0x00u64))).unwrap(), H256::from(&U256::from(0x1234u64)));
+		assert_eq!(a.storage_at(&db.immutable(), &H256::from(&U256::from(0x01u64))).unwrap(), H256::new());
 	}
 
 	#[test]
@@ -532,7 +522,7 @@ mod tests {
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(0.into(), 0x1234.into());
 		assert_eq!(a.storage_root(), None);
-		a.commit_storage(&Default::default(), &mut db);
+		a.commit_storage(&Default::default(), &mut db).unwrap();
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
 	}
 
@@ -542,11 +532,11 @@ mod tests {
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(0.into(), 0x1234.into());
-		a.commit_storage(&Default::default(), &mut db);
+		a.commit_storage(&Default::default(), &mut db).unwrap();
 		a.set_storage(1.into(), 0x1234.into());
-		a.commit_storage(&Default::default(), &mut db);
+		a.commit_storage(&Default::default(), &mut db).unwrap();
 		a.set_storage(1.into(), 0.into());
-		a.commit_storage(&Default::default(), &mut db);
+		a.commit_storage(&Default::default(), &mut db).unwrap();
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
 	}
 

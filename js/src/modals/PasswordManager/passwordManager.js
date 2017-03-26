@@ -23,7 +23,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError, openSnackbar } from '~/redux/actions';
-import { Button, Modal, IdentityName, IdentityIcon } from '~/ui';
+import { Button, IdentityName, IdentityIcon, Portal } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 import Form, { Input } from '~/ui/Form';
 import { CancelIcon, CheckIcon, SendIcon } from '~/ui/Icons';
@@ -38,7 +38,7 @@ const MSG_FAILURE_STYLE = {
   backgroundColor: 'rgba(229, 115, 115, 0.75)'
 };
 const TABS_INKBAR_STYLE = {
-  backgroundColor: 'rgba(255, 255, 255, 0.55)'
+  backgroundColor: 'rgb(0, 151, 167)' // 'rgba(255, 255, 255, 0.55)'
 };
 const TABS_ITEM_STYLE = {
   backgroundColor: 'rgba(255, 255, 255, 0.05)'
@@ -60,21 +60,25 @@ class PasswordManager extends Component {
   store = new Store(this.context.api, this.props.account);
 
   render () {
+    const { busy } = this.store;
+
     return (
-      <Modal
-        actions={ this.renderDialogActions() }
+      <Portal
+        busy={ busy }
+        buttons={ this.renderDialogActions() }
+        onClose={ this.onClose }
+        open
         title={
           <FormattedMessage
             id='passwordChange.title'
             defaultMessage='Password Manager'
           />
         }
-        visible
       >
         { this.renderAccount() }
         { this.renderPage() }
         { this.renderMessage() }
-      </Modal>
+      </Portal>
     );
   }
 
@@ -116,8 +120,15 @@ class PasswordManager extends Component {
             { address }
           </span>
           <span className={ styles.passwordHint }>
-            <span className={ styles.hintLabel }>Hint </span>
-            { passwordHint || '-' }
+            <span className={ styles.hintLabel }>
+              <FormattedMessage
+                id='passwordChange.passwordHint'
+                defaultMessage='Hint {hint}'
+                values={ {
+                  hint: passwordHint || '-'
+                } }
+              />
+            </span>
           </span>
         </div>
       </div>
@@ -125,8 +136,6 @@ class PasswordManager extends Component {
   }
 
   renderPage () {
-    const { busy, isRepeatValid, newPassword, passwordHint } = this.store;
-
     return (
       <Tabs
         inkBarStyle={ TABS_INKBAR_STYLE }
@@ -141,29 +150,7 @@ class PasswordManager extends Component {
           }
           onActive={ this.onActivateTestTab }
         >
-          <Form className={ styles.form }>
-            <div>
-              <Input
-                disabled={ busy }
-                hint={
-                  <FormattedMessage
-                    id='passwordChange.testPassword.hint'
-                    defaultMessage='your account password'
-                  />
-                }
-                label={
-                  <FormattedMessage
-                    id='passwordChange.testPassword.label'
-                    defaultMessage='password'
-                  />
-                }
-                onChange={ this.onEditTestPassword }
-                onSubmit={ this.testPassword }
-                submitOnBlur={ false }
-                type='password'
-              />
-            </div>
-          </Form>
+          { this.renderTabTest() }
         </Tab>
         <Tab
           label={
@@ -174,106 +161,153 @@ class PasswordManager extends Component {
           }
           onActive={ this.onActivateChangeTab }
         >
-          <Form className={ styles.form }>
-            <div>
-              <Input
-                disabled={ busy }
-                hint={
-                  <FormattedMessage
-                    id='passwordChange.currentPassword.hint'
-                    defaultMessage='your current password for this account'
-                  />
-                }
-                label={
-                  <FormattedMessage
-                    id='passwordChange.currentPassword.label'
-                    defaultMessage='current password'
-                  />
-                }
-                onChange={ this.onEditCurrentPassword }
-                type='password'
-              />
-              <Input
-                disabled={ busy }
-                hint={
-                  <FormattedMessage
-                    id='passwordChange.passwordHint.hint'
-                    defaultMessage='hint for the new password'
-                  />
-                }
-                label={
-                  <FormattedMessage
-                    id='passwordChange.passwordHint.label'
-                    defaultMessage='(optional) new password hint'
-                  />
-                }
-                onChange={ this.onEditNewPasswordHint }
-                value={ passwordHint }
-              />
-              <div className={ styles.passwords }>
-                <div className={ styles.password }>
-                  <Input
-                    disabled={ busy }
-                    hint={
-                      <FormattedMessage
-                        id='passwordChange.newPassword.hint'
-                        defaultMessage='the new password for this account'
-                      />
-                    }
-                    label={
-                      <FormattedMessage
-                        id='passwordChange.newPassword.label'
-                        defaultMessage='new password'
-                      />
-                    }
-                    onChange={ this.onEditNewPassword }
-                    onSubmit={ this.changePassword }
-                    submitOnBlur={ false }
-                    type='password'
-                  />
-                </div>
-                <div className={ styles.password }>
-                  <Input
-                    disabled={ busy }
-                    error={
-                      isRepeatValid
-                        ? null
-                        : <FormattedMessage
-                          id='passwordChange.repeatPassword.error'
-                          defaultMessage='the supplied passwords do not match'
-                          />
-                    }
-                    hint={
-                      <FormattedMessage
-                        id='passwordChange.repeatPassword.hint'
-                        defaultMessage='repeat the new password for this account'
-                      />
-                    }
-                    label={
-                      <FormattedMessage
-                        id='passwordChange.repeatPassword.label'
-                        defaultMessage='repeat new password'
-                      />
-                    }
-                    onChange={ this.onEditNewPasswordRepeat }
-                    onSubmit={ this.changePassword }
-                    submitOnBlur={ false }
-                    type='password'
-                  />
-                </div>
-              </div>
-
-              <PasswordStrength input={ newPassword } />
-            </div>
-          </Form>
+          { this.renderTabChange() }
         </Tab>
       </Tabs>
     );
   }
 
+  renderTabTest () {
+    const { actionTab, busy } = this.store;
+
+    if (actionTab !== TEST_ACTION) {
+      return null;
+    }
+
+    return (
+      <Form className={ styles.form }>
+        <div>
+          <Input
+            autoFocus
+            disabled={ busy }
+            hint={
+              <FormattedMessage
+                id='passwordChange.testPassword.hint'
+                defaultMessage='your account password'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='passwordChange.testPassword.label'
+                defaultMessage='password'
+              />
+            }
+            onChange={ this.onEditTestPassword }
+            onSubmit={ this.testPassword }
+            submitOnBlur={ false }
+            type='password'
+          />
+        </div>
+      </Form>
+    );
+  }
+
+  renderTabChange () {
+    const { actionTab, busy, isRepeatValid, newPassword, passwordHint } = this.store;
+
+    if (actionTab !== CHANGE_ACTION) {
+      return null;
+    }
+
+    return (
+      <Form className={ styles.form }>
+        <div>
+          <Input
+            autoFocus
+            disabled={ busy }
+            hint={
+              <FormattedMessage
+                id='passwordChange.currentPassword.hint'
+                defaultMessage='your current password for this account'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='passwordChange.currentPassword.label'
+                defaultMessage='current password'
+              />
+            }
+            onChange={ this.onEditCurrentPassword }
+            type='password'
+          />
+          <Input
+            disabled={ busy }
+            hint={
+              <FormattedMessage
+                id='passwordChange.passwordHint.hint'
+                defaultMessage='hint for the new password'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='passwordChange.passwordHint.label'
+                defaultMessage='(optional) new password hint'
+              />
+            }
+            onChange={ this.onEditNewPasswordHint }
+            value={ passwordHint }
+          />
+          <div className={ styles.passwords }>
+            <div className={ styles.password }>
+              <Input
+                disabled={ busy }
+                hint={
+                  <FormattedMessage
+                    id='passwordChange.newPassword.hint'
+                    defaultMessage='the new password for this account'
+                  />
+                }
+                label={
+                  <FormattedMessage
+                    id='passwordChange.newPassword.label'
+                    defaultMessage='new password'
+                  />
+                }
+                onChange={ this.onEditNewPassword }
+                onSubmit={ this.changePassword }
+                submitOnBlur={ false }
+                type='password'
+              />
+            </div>
+            <div className={ styles.password }>
+              <Input
+                disabled={ busy }
+                error={
+                  isRepeatValid
+                    ? null
+                    : <FormattedMessage
+                      id='passwordChange.repeatPassword.error'
+                      defaultMessage='the supplied passwords do not match'
+                      />
+                }
+                hint={
+                  <FormattedMessage
+                    id='passwordChange.repeatPassword.hint'
+                    defaultMessage='repeat the new password for this account'
+                  />
+                }
+                label={
+                  <FormattedMessage
+                    id='passwordChange.repeatPassword.label'
+                    defaultMessage='repeat new password'
+                  />
+                }
+                onChange={ this.onEditNewPasswordRepeat }
+                onSubmit={ this.changePassword }
+                submitOnBlur={ false }
+                type='password'
+              />
+            </div>
+          </div>
+
+          <PasswordStrength input={ newPassword } />
+        </div>
+      </Form>
+    );
+  }
+
   renderDialogActions () {
     const { actionTab, busy, isRepeatValid } = this.store;
-    const { onClose } = this.props;
 
     const cancelBtn = (
       <Button
@@ -285,7 +319,7 @@ class PasswordManager extends Component {
             defaultMessage='Cancel'
           />
         }
-        onClick={ onClose }
+        onClick={ this.onClose }
       />
     );
 
@@ -367,6 +401,10 @@ class PasswordManager extends Component {
     this.store.setValidatePassword(password);
   }
 
+  onClose = () => {
+    this.props.onClose();
+  }
+
   changePassword = () => {
     return this.store
       .changePassword()
@@ -380,7 +418,7 @@ class PasswordManager extends Component {
               />
             </div>
           );
-          this.props.onClose();
+          this.onClose();
         }
       })
       .catch((error) => {
