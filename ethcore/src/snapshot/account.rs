@@ -61,8 +61,9 @@ impl CodeState {
 	}
 }
 
-// walk the account's storage trie, returning an RLP item containing the
-// account properties and the storage.
+// walk the account's storage trie, returning a vector of RLP items containing the
+// account properties and the storage. Each item contains at most `max_storage_items`
+// storage records split according to snapshot format definition.
 pub fn to_fat_rlps(acc: &BasicAccount, acct_db: &AccountDB, used_code: &mut HashSet<H256>, max_storage_items: usize) -> Result<Vec<Bytes>, Error> {
 	if acc == &ACC_EMPTY {
 		return Ok(vec![::rlp::NULL_RLP.to_vec()]);
