@@ -29,7 +29,7 @@ semver = "0.6"
 ethcore-ipc-nano = { path = "../ipc/nano" }
 ethcore-devtools = { path = "../devtools" }
 ethkey = { path = "../ethkey" }
-parking_lot = "0.3"
+parking_lot = "0.4"
 
 [features]
 default = []
