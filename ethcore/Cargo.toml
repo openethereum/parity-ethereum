@@ -15,7 +15,7 @@ log = "0.3"
 env_logger = "0.3"
 rustc-serialize = "0.3"
 rust-crypto = "0.2.34"
-num_cpus = "0.2"
+num_cpus = "1.2"
 crossbeam = "0.2.9"
 lazy_static = "0.2"
 bloomchain = "0.1"
@@ -24,7 +24,7 @@ bit-set = "0.4"
 time = "0.1"
 rand = "0.3"
 byteorder = "1.0"
-transient-hashmap = "0.1"
+transient-hashmap = "0.4"
 linked-hash-map = "0.3.0"
 lru-cache = "0.1.0"
 ethabi = "1.0.0"
@@ -43,11 +43,10 @@ rlp = { path = "../util/rlp" }
 ethcore-stratum = { path = "../stratum" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 hardware-wallet = { path = "../hw" }
+ethcore-logger = { path = "../logger" }
 stats = { path = "../util/stats" }
-
-[dependencies.hyper]
-git = "https://github.com/ethcore/hyper"
-default-features = false
+hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
+num = "0.1"
 
 [features]
 jit = ["evmjit"]

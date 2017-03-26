@@ -20,7 +20,8 @@ use std::str::FromStr;
 use std::collections::{BTreeMap, HashSet};
 use futures::{future, Future, BoxFuture};
 
-use util::{RotatingLogger, Address};
+use ethcore_logger::RotatingLogger;
+use util::Address;
 use util::misc::version_data;
 
 use crypto::ecies;
@@ -186,6 +187,10 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 
 	fn net_chain(&self) -> Result<String, Error> {
 		Ok(self.settings.chain.clone())
+	}
+
+	fn chain(&self) -> Result<String, Error> {
+		Ok(take_weak!(self.client).spec_name())
 	}
 
 	fn net_peers(&self) -> Result<Peers, Error> {

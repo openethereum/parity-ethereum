@@ -114,7 +114,7 @@ impl Fetch for FakeFetch {
 
 			let data = response.lock().take().unwrap_or(b"Some content");
 			let cursor = io::Cursor::new(data);
-			tx.complete(fetch::Response::from_reader(cursor));
+			tx.send(fetch::Response::from_reader(cursor)).unwrap();
 		});
 
 		rx.map_err(|_| fetch::Error::Aborted).boxed()

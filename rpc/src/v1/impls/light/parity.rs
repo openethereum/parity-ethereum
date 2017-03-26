@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::collections::{BTreeMap, HashSet};
 use futures::{future, Future, BoxFuture};
 
-use util::RotatingLogger;
+use ethcore_logger::RotatingLogger;
 use util::misc::version_data;
 
 use crypto::ecies;
@@ -301,6 +301,10 @@ impl Parity for ParityClient {
 
 	fn mode(&self) -> Result<String, Error> {
 		Err(errors::light_unimplemented(None))
+	}
+
+	fn chain(&self) -> Result<String, Error> {
+		Ok(self.settings.chain.clone())
 	}
 
 	fn enode(&self) -> Result<String, Error> {

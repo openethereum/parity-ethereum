@@ -18,10 +18,11 @@
 
 use std::fmt;
 
+use ethcore::encoded;
 use ethcore::header::Header;
-use light::request::{HashOrNumber, Headers as HeadersRequest};
-use rlp::{DecoderError, UntrustedRlp, View};
-use util::{Bytes, H256};
+use light::request::{HashOrNumber, CompleteHeadersRequest as HeadersRequest};
+use rlp::DecoderError;
+use util::H256;
 
 /// Errors found when decoding headers and verifying with basic constraints.
 #[derive(Debug, PartialEq)]
@@ -71,13 +72,13 @@ pub trait Constraint {
 	fn verify(&self, headers: &[Header], reverse: bool) -> Result<(), Self::Error>;
 }
 
-/// Decode a response and do basic verification against a request.
-pub fn decode_and_verify(headers: &[Bytes], request: &HeadersRequest) -> Result<Vec<Header>, BasicError> {
-	let headers: Vec<_> = try!(headers.iter().map(|x| UntrustedRlp::new(&x).as_val()).collect());
+/// Do basic verification of provided headers against a request.
+pub fn verify(headers: &[encoded::Header], request: &HeadersRequest) -> Result<Vec<Header>, BasicError> {
+	let headers: Vec<_> = headers.iter().map(|h| h.decode()).collect();
 
 	let reverse = request.reverse;
 
-	try!(Max(request.max).verify(&headers, reverse));
+	try!(Max(request.max as usize).verify(&headers, reverse));
 	match request.start {
 		HashOrNumber::Number(ref num) => try!(StartsAtNumber(*num).verify(&headers, reverse)),
 		HashOrNumber::Hash(ref hash) => try!(StartsAtHash(*hash).verify(&headers, reverse)),
@@ -150,8 +151,9 @@ impl Constraint for Max {
 
 #[cfg(test)]
 mod tests {
+	use ethcore::encoded;
 	use ethcore::header::Header;
-	use light::request::Headers as HeadersRequest;
+	use light::request::CompleteHeadersRequest as HeadersRequest;
 
 	use super::*;
 
@@ -175,10 +177,10 @@ mod tests {
 
 			parent_hash = Some(header.hash());
 
-			::rlp::encode(&header).to_vec()
+			encoded::Header::new(::rlp::encode(&header).to_vec())
 		}).collect();
 
-		assert!(decode_and_verify(&headers, &request).is_ok());
+		assert!(verify(&headers, &request).is_ok());
 	}
 
 	#[test]
@@ -201,10 +203,10 @@ mod tests {
 
 			parent_hash = Some(header.hash());
 
-			::rlp::encode(&header).to_vec()
+			encoded::Header::new(::rlp::encode(&header).to_vec())
 		}).collect();
 
-		assert!(decode_and_verify(&headers, &request).is_ok());
+		assert!(verify(&headers, &request).is_ok());
 	}
 
 	#[test]
@@ -227,10 +229,10 @@ mod tests {
 
 			parent_hash = Some(header.hash());
 
-			::rlp::encode(&header).to_vec()
+			encoded::Header::new(::rlp::encode(&header).to_vec())
 		}).collect();
 
-		assert_eq!(decode_and_verify(&headers, &request), Err(BasicError::TooManyHeaders(20, 25)));
+		assert_eq!(verify(&headers, &request), Err(BasicError::TooManyHeaders(20, 25)));
 	}
 
 	#[test]
@@ -246,9 +248,9 @@ mod tests {
 			let mut header = Header::default();
 			header.set_number(x);
 
-			::rlp::encode(&header).to_vec()
+			encoded::Header::new(::rlp::encode(&header).to_vec())
 		}).collect();
 
-		assert_eq!(decode_and_verify(&headers, &request), Err(BasicError::WrongSkip(5, Some(2))));
+		assert_eq!(verify(&headers, &request), Err(BasicError::WrongSkip(5, Some(2))));
 	}
 }

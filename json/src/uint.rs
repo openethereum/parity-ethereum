@@ -63,7 +63,7 @@ impl Visitor for UintVisitor {
 	type Value = Uint;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-		write!(formatter, "a hex encoded uint")
+		write!(formatter, "a hex encoded or decimal uint")
 	}
 
 	fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> where E: Error {
@@ -74,11 +74,11 @@ impl Visitor for UintVisitor {
 		let value = match value.len() {
 			0 => U256::from(0),
 			2 if value.starts_with("0x") => U256::from(0),
-			_ if value.starts_with("0x") => U256::from_str(&value[2..]).map_err(|_| {
-				Error::custom(format!("Invalid hex value {}.", value).as_str())
+			_ if value.starts_with("0x") => U256::from_str(&value[2..]).map_err(|e| {
+				Error::custom(format!("Invalid hex value {}: {}", value, e).as_str())
 			})?,
-			_ => U256::from_dec_str(value).map_err(|_| {
-				Error::custom(format!("Invalid decimal value {}.", value).as_str())
+			_ => U256::from_dec_str(value).map_err(|e| {
+				Error::custom(format!("Invalid decimal value {}: {:?}", value, e).as_str())
 			})?
 		};
 

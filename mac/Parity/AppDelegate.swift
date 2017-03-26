@@ -26,7 +26,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 	let statusItem = NSStatusBar.system().statusItem(withLength: NSVariableStatusItemLength)
 	var parityPid: Int32? = nil
 	var commandLine: [String] = []
-	let defaultConfig = "[network]\nwarp = true"
 	let defaultDefaults = "{\"fat_db\":false,\"mode\":\"passive\",\"mode.alarm\":3600,\"mode.timeout\":300,\"pruning\":\"fast\",\"tracing\":false}"
 	
 	func menuAppPath() -> String {
@@ -51,7 +50,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 	
 	func killParity() {
 		if let pid = self.parityPid {
-			kill(pid, SIGINT)
+			kill(pid, SIGKILL)
 		}
 	}
 	
@@ -81,9 +80,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 			}
 		
 			let configFile = basePath?.appendingPathComponent("config.toml")
-			if !FileManager.default.fileExists(atPath: configFile!.path) {
-				try defaultConfig.write(to: configFile!, atomically: false, encoding: String.Encoding.utf8)
-			}
 		}
 		catch {}
 	}

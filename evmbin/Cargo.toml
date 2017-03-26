@@ -5,11 +5,11 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [lib]
-name = "evm"
+name = "evmbin"
 path = "./src/main.rs"
 
 [[bin]]
-name = "evm"
+name = "parity-evm"
 path = "./src/main.rs"
 
 [dependencies]

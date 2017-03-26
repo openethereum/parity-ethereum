@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { noop } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 
 import { StarIcon } from '~/ui/Icons';
@@ -29,8 +30,13 @@ export default class SelectionList extends Component {
     noStretch: PropTypes.bool,
     onDefaultClick: PropTypes.func,
     onSelectClick: PropTypes.func.isRequired,
+    onSelectDoubleClick: PropTypes.func,
     renderItem: PropTypes.func.isRequired
-  }
+  };
+
+  static defaultProps = {
+    onSelectDoubleClick: noop
+  };
 
   render () {
     const { items, noStretch } = this.props;
@@ -45,23 +51,28 @@ export default class SelectionList extends Component {
   }
 
   renderItem = (item, index) => {
-    const { isChecked, onDefaultClick, onSelectClick, renderItem } = this.props;
+    const { isChecked, onDefaultClick, onSelectClick, onSelectDoubleClick, renderItem } = this.props;
     const isSelected = isChecked
       ? isChecked(item)
       : item.checked;
 
-    const makeDefault = () => {
-      onDefaultClick(item);
+    const handleClick = () => {
+      onSelectClick(item);
       return false;
     };
-    const selectItem = () => {
-      onSelectClick(item);
+    const handleDoubleClick = () => {
+      onSelectDoubleClick(item);
       return false;
     };
 
     let defaultIcon = null;
 
     if (onDefaultClick) {
+      const makeDefault = () => {
+        onDefaultClick(item);
+        return false;
+      };
+
       defaultIcon = (
         <div className={ styles.overlay }>
           {
@@ -85,7 +96,8 @@ export default class SelectionList extends Component {
       <div className={ classes.join(' ') }>
         <div
           className={ styles.content }
-          onClick={ selectItem }
+          onClick={ handleClick }
+          onDoubleClick={ handleDoubleClick }
         >
           { renderItem(item, index) }
         </div>

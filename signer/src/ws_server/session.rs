@@ -21,8 +21,9 @@ use std::sync::Arc;
 use std::str::FromStr;
 
 use authcode_store::AuthCodes;
-use jsonrpc_core::{Metadata, Middleware};
-use jsonrpc_core::reactor::RpcHandler;
+use jsonrpc_core::{Metadata, Middleware, MetaIoHandler};
+use jsonrpc_core::futures::Future;
+use jsonrpc_server_utils::tokio_core::reactor::Remote;
 use rpc::informant::RpcStats;
 use util::{H256, version};
 use ws;
@@ -145,7 +146,8 @@ pub struct Session<M: Metadata, S: Middleware<M>, T> {
 	self_origin: String,
 	self_port: u16,
 	authcodes_path: PathBuf,
-	handler: RpcHandler<M, S>,
+	handler: Arc<MetaIoHandler<M, S>>,
+	remote: Remote,
 	file_handler: Arc<ui::Handler>,
 	stats: Option<Arc<RpcStats>>,
 	meta_extractor: T,
@@ -237,7 +239,7 @@ impl<M: Metadata, S: Middleware<M>, T: MetaExtractor<M>> ws::Handler for Session
 		// TODO [ToDr] Move to on_connect
 		let metadata = self.meta_extractor.extract_metadata(&self.session_id);
 
-		self.handler.handle_request(req, metadata, move |response| {
+		let future = self.handler.handle_request(req, metadata).map(move |response| {
 			if let Some(result) = response {
 				let res = out.send(result);
 				if let Err(e) = res {
@@ -245,12 +247,14 @@ impl<M: Metadata, S: Middleware<M>, T: MetaExtractor<M>> ws::Handler for Session
 				}
 			}
 		});
+		self.remote.spawn(move |_| future);
 		Ok(())
 	}
 }
 
 pub struct Factory<M: Metadata, S: Middleware<M>, T> {
-	handler: RpcHandler<M, S>,
+	handler: Arc<MetaIoHandler<M, S>>,
+	remote: Remote,
 	skip_origin_validation: bool,
 	self_origin: String,
 	self_port: u16,
@@ -262,7 +266,8 @@ pub struct Factory<M: Metadata, S: Middleware<M>, T> {
 
 impl<M: Metadata, S: Middleware<M>, T> Factory<M, S, T> {
 	pub fn new(
-		handler: RpcHandler<M, S>,
+		handler: MetaIoHandler<M, S>,
+		remote: Remote,
 		self_origin: String,
 		self_port: u16,
 		authcodes_path: PathBuf,
@@ -271,7 +276,8 @@ impl<M: Metadata, S: Middleware<M>, T> Factory<M, S, T> {
 		meta_extractor: T,
 	) -> Self {
 		Factory {
-			handler: handler,
+			handler: Arc::new(handler),
+			remote: remote,
 			skip_origin_validation: skip_origin_validation,
 			self_origin: self_origin,
 			self_port: self_port,
@@ -293,6 +299,7 @@ impl<M: Metadata, S: Middleware<M>, T: MetaExtractor<M>> ws::Factory for Factory
 			session_id: 0.into(),
 			out: sender,
 			handler: self.handler.clone(),
+			remote: self.remote.clone(),
 			skip_origin_validation: self.skip_origin_validation,
 			self_origin: self.self_origin.clone(),
 			self_port: self.self_port,

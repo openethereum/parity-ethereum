@@ -30,10 +30,10 @@ export const fail = (error) => ({ type: 'records update fail', error });
 
 export const update = (name, key, value) => (dispatch, getState) => {
   const state = getState();
-  const account = state.accounts.selected;
+  const accountAddress = state.accounts.selected;
   const contract = state.contract;
 
-  if (!contract || !account) {
+  if (!contract || !accountAddress) {
     return;
   }
 
@@ -42,7 +42,7 @@ export const update = (name, key, value) => (dispatch, getState) => {
 
   return getOwner(contract, name)
     .then((owner) => {
-      if (owner.toLowerCase() !== account.address.toLowerCase()) {
+      if (owner.toLowerCase() !== accountAddress.toLowerCase()) {
         throw new Error(`you are not the owner of "${name}"`);
       }
 
@@ -51,7 +51,7 @@ export const update = (name, key, value) => (dispatch, getState) => {
         : contract.instance.setData || contract.instance.set;
 
       const options = {
-        from: account.address
+        from: accountAddress
       };
 
       const values = [

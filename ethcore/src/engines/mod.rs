@@ -189,19 +189,14 @@ pub trait Engine : Sync + Send {
 	/// updating consensus state and potentially issuing a new one.
 	fn handle_message(&self, _message: &[u8]) -> Result<(), Error> { Err(EngineError::UnexpectedMessage.into()) }
 
+	/// Attempt to get a handle to a built-in contract.
+	/// Only returns references to activated built-ins.
 	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
 	// from Spec into here and removing the Spec::builtins field.
-	/// Determine whether a particular address is a builtin contract.
-	fn is_builtin(&self, a: &Address) -> bool { self.builtins().contains_key(a) }
-	/// Determine the code execution cost of the builtin contract with address `a`.
-	/// Panics if `is_builtin(a)` is not true.
-	fn cost_of_builtin(&self, a: &Address, input: &[u8]) -> U256 {
-		self.builtins().get(a).expect("queried cost of nonexistent builtin").cost(input.len())
-	}
-	/// Execution the builtin contract `a` on `input` and return `output`.
-	/// Panics if `is_builtin(a)` is not true.
-	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) {
-		self.builtins().get(a).expect("attempted to execute nonexistent builtin").execute(input, output);
+	fn builtin(&self, a: &Address, block_number: ::header::BlockNumber) -> Option<&Builtin> {
+		self.builtins()
+			.get(a)
+			.and_then(|b| if b.is_active(block_number) { Some(b) } else { None })
 	}
 
 	/// Find out if the block is a proposal block and should not be inserted into the DB.

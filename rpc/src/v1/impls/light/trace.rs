@@ -27,15 +27,15 @@ use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, By
 pub struct TracesClient;
 
 impl Traces for TracesClient {
-	fn filter(&self, _filter: TraceFilter) -> Result<Vec<LocalizedTrace>, Error> {
+	fn filter(&self, _filter: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>, Error> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn block_traces(&self, _block_number: BlockNumber) -> Result<Vec<LocalizedTrace>, Error> {
+	fn block_traces(&self, _block_number: BlockNumber) -> Result<Option<Vec<LocalizedTrace>>, Error> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn transaction_traces(&self, _transaction_hash: H256) -> Result<Vec<LocalizedTrace>, Error> {
+	fn transaction_traces(&self, _transaction_hash: H256) -> Result<Option<Vec<LocalizedTrace>>, Error> {
 		Err(errors::light_unimplemented(None))
 	}
 
@@ -43,15 +43,15 @@ impl Traces for TracesClient {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn call(&self, _request: CallRequest, _flags: Vec<String>, _block: Trailing<BlockNumber>) -> Result<Option<TraceResults>, Error> {
+	fn call(&self, _request: CallRequest, _flags: Vec<String>, _block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn raw_transaction(&self, _raw_transaction: Bytes, _flags: Vec<String>, _block: Trailing<BlockNumber>) -> Result<Option<TraceResults>, Error> {
+	fn raw_transaction(&self, _raw_transaction: Bytes, _flags: Vec<String>, _block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn replay_transaction(&self, _transaction_hash: H256, _flags: Vec<String>) -> Result<Option<TraceResults>, Error> {
+	fn replay_transaction(&self, _transaction_hash: H256, _flags: Vec<String>) -> Result<TraceResults, Error> {
 		Err(errors::light_unimplemented(None))
 	}
 }

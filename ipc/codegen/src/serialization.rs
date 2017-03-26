@@ -151,7 +151,7 @@ fn binary_expr(
 		_ => {
 			cx.span_bug(item.span,
 						"expected ItemStruct or ItemEnum in #[derive(Binary)]");
-			Err(Error)
+			Err(Error) as Result<BinaryExpressions, Error>
 		},
 	}
 }
@@ -184,13 +184,17 @@ fn binary_expr_struct(
 	let size_exprs: Vec<P<ast::Expr>> = fields.iter().enumerate().map(|(index, field)| {
 		let raw_ident = ::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty));
 		let index_ident = builder.id(format!("__field{}", index));
+		let field_id = match field.ident {
+			Some(ident) => builder.id(ident),
+			None => builder.id(format!("{}", index)),
+		};
+
 		match raw_ident.as_ref() {
 			"u8" => {
 				quote_expr!(cx, 1)
 			},
 			"[u8]" => {
 				value_ident.and_then(|x| {
-						let field_id = builder.id(field.ident.unwrap());
 						Some(quote_expr!(cx, $x. $field_id .len()))
 					})
 					.unwrap_or_else(|| {
@@ -207,7 +211,6 @@ fn binary_expr_struct(
 
 				value_ident.and_then(|x|
 					{
-						let field_id = builder.id(field.ident.unwrap());
 						Some(quote_expr!(cx,
 							match $field_type_ident_qualified::len_params() {
 								0 => ::std::mem::size_of::<$field_type_ident>(),
@@ -232,12 +235,12 @@ fn binary_expr_struct(
 	}
 
 	let mut write_stmts = Vec::<ast::Stmt>::new();
-	write_stmts.push(quote_stmt!(cx, let mut offset = 0usize;).unwrap());
+	write_stmts.push(quote_stmt!(cx, let mut offset = 0usize;).expect("stmt1"));
 
 	let mut map_stmts = Vec::<ast::Stmt>::new();
 	let field_amount = builder.id(&format!("{}",fields.len()));
-	map_stmts.push(quote_stmt!(cx, let mut map = vec![0usize; $field_amount];).unwrap());
-	map_stmts.push(quote_stmt!(cx, let mut total = 0usize;).unwrap());
+	map_stmts.push(quote_stmt!(cx, let mut map = vec![0usize; $field_amount];).expect("stmt2"));
+	map_stmts.push(quote_stmt!(cx, let mut total = 0usize;).expect("stmt3"));
 
 	let mut post_write_stmts = Vec::<ast::Stmt>::new();
 
@@ -248,9 +251,12 @@ fn binary_expr_struct(
 		let field_type_ident_qualified = builder.id(
 			replace_qualified(&::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty))));
 
+		let field_id = match field.ident {
+			Some(ident) => builder.id(ident),
+			None => builder.id(format!("{}", index)),
+		};
 		let member_expr = match value_ident {
 			Some(x) => {
-				let field_id = builder.id(field.ident.unwrap());
 				quote_expr!(cx, $x . $field_id)
 			},
 			None => {
@@ -267,8 +273,8 @@ fn binary_expr_struct(
 
 		match raw_ident.as_ref() {
 			"u8" => {
-				write_stmts.push(quote_stmt!(cx, let next_line = offset + 1;).unwrap());
-				write_stmts.push(quote_stmt!(cx, buffer[offset] = $member_expr; ).unwrap());
+				write_stmts.push(quote_stmt!(cx, let next_line = offset + 1;).expect("stmt4"));
+				write_stmts.push(quote_stmt!(cx, buffer[offset] = $member_expr; ).expect("stm5"));
 			},
 			"[u8]" => {
 				write_stmts.push(quote_stmt!(cx, let size = $member_expr .len();).unwrap());
@@ -374,7 +380,7 @@ fn binary_expr_item_struct(
 			cx.span_bug(span,
 				&format!("#[derive(Binary)] Unsupported struct content, expected tuple/struct, found: {:?}",
 					variant_data));
-			Err(Error)
+			Err(Error) as Result<BinaryExpressions, Error>
 		},
 	}
 }
@@ -431,13 +437,12 @@ fn fields_sequence(
 	variant_ident: &ast::Ident,
 ) -> ast::Expr {
 	use syntax::parse::token;
-	use syntax::ast::TokenTree::Token;
+	use syntax::tokenstream::TokenTree::Token;
 
 	let named_members = fields.iter().any(|f| f.ident.is_some());
 
 	::quasi::parse_expr_panic(&mut ::syntax::parse::new_parser_from_tts(
 		ext_cx.parse_sess(),
-		ext_cx.cfg(),
 		{
 			let _sp = ext_cx.call_site();
 			let mut tt = ::std::vec::Vec::new();
@@ -569,11 +574,10 @@ fn named_fields_sequence(
 	fields: &[ast::StructField],
 ) -> ast::Stmt {
 	use syntax::parse::token;
-	use syntax::ast::TokenTree::Token;
+	use syntax::tokenstream::TokenTree::Token;
 
 	::quasi::parse_stmt_panic(&mut ::syntax::parse::new_parser_from_tts(
 		ext_cx.parse_sess(),
-		ext_cx.cfg(),
 		{
 			let _sp = ext_cx.call_site();
 			let mut tt = ::std::vec::Vec::new();
@@ -590,7 +594,10 @@ fn named_fields_sequence(
 			tt.push(Token(_sp, token::OpenDelim(token::Brace)));
 
 			for (idx, field) in fields.iter().enumerate() {
-				tt.push(Token(_sp, token::Ident(field.ident.clone().expect("function is called for named fields"))));
+				tt.push(Token(_sp, match field.ident {
+					Some(ident) => token::Ident(ident),
+					None => token::Ident(ext_cx.ident_of(&format!("{}", idx))),
+				}));
 				tt.push(Token(_sp, token::Colon));
 
 				// special case for u8, it just takes byte form sequence

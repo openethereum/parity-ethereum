@@ -22,7 +22,7 @@ use std::path::PathBuf;
 
 use common::*;
 use hashdb::DBValue;
-use rlp::{UntrustedRlp, RlpType, View, Compressible};
+use rlp::{UntrustedRlp, RlpType, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions};
 #[cfg(target_os = "linux")]

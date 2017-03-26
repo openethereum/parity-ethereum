@@ -18,7 +18,7 @@ use std::{io, env};
 use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
 use std::fs::File;
-use util::{clean_0x, U256, Uint, Address, path, CompactionProfile};
+use util::{clean_0x, U256, Uint, Address, CompactionProfile};
 use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
@@ -27,6 +27,7 @@ use dir::DatabaseDirectories;
 use upgrade::{upgrade, upgrade_data_paths};
 use migration::migrate;
 use ethsync::is_valid_node_url;
+use path;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
 	to_seconds(s).map(Duration::from_secs)
@@ -215,6 +216,7 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 #[cfg_attr(feature = "dev", allow(too_many_arguments))]
 pub fn to_client_config(
 		cache_config: &CacheConfig,
+		spec_name: String,
 		mode: Mode,
 		tracing: bool,
 		fat_db: bool,
@@ -261,6 +263,7 @@ pub fn to_client_config(
 	client_config.vm_type = vm_type;
 	client_config.name = name;
 	client_config.verifier_type = if check_seal { VerifierType::Canon } else { VerifierType::CanonNoSeal };
+	client_config.spec_name = spec_name;
 	client_config
 }
 
@@ -463,7 +466,7 @@ but the first password is trimmed
 	#[test]
 	#[cfg(not(windows))]
 	fn test_geth_ipc_path() {
-		use util::path;
+		use path;
 		assert_eq!(geth_ipc_path(true), path::ethereum::with_testnet("geth.ipc").to_str().unwrap().to_owned());
 		assert_eq!(geth_ipc_path(false), path::ethereum::with_default("geth.ipc").to_str().unwrap().to_owned());
 	}
@@ -479,4 +482,3 @@ but the first password is trimmed
 		assert_eq!(to_bootnodes(&Some(two_bootnodes.into())), Ok(vec![one_bootnode.into(), one_bootnode.into()]));
 	}
 }
-

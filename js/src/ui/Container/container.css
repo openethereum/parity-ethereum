@@ -24,6 +24,7 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
   flex: 1;
   height: 100%;
   padding: 0em;
+  max-width: 100%;
   position: relative;
   /*transform: translateZ(0);
   transition: $transitionAll;*/

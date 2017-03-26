@@ -26,8 +26,7 @@ use util::migration::{Batch, Config, Error, Migration, SimpleMigration, Progress
 use util::sha3::Hashable;
 use std::sync::Arc;
 
-use rlp::{decode, Rlp, RlpStream, Stream, View};
-
+use rlp::{decode, Rlp, RlpStream};
 
 // attempt to migrate a key, value pair. None if migration not possible.
 fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {
@@ -184,7 +183,7 @@ impl OverlayRecentV7 {
 						}
 
 						// migrate all deleted keys.
-						let mut deleted_keys: Vec<H256> = rlp.val_at(2);
+						let mut deleted_keys: Vec<H256> = rlp.list_at(2);
 						for old_key in &mut deleted_keys {
 							if let Some(new) = self.migrated_keys.get(&*old_key) {
 								*old_key = new.clone();
@@ -199,7 +198,7 @@ impl OverlayRecentV7 {
 							stream.begin_list(2).append(&k).append(&v);
 						}
 
-						stream.append(&deleted_keys);
+						stream.append_list(&deleted_keys);
 
 						// and insert it into the new database.
 						batch.insert(entry_key, stream.out(), dest)?;

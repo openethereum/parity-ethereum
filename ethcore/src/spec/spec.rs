@@ -34,7 +34,7 @@ use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 use ethereum;
 use ethjson;
-use rlp::{Rlp, RlpStream, View, Stream};
+use rlp::{Rlp, RlpStream};
 
 /// Parameters common to all engines.
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -55,6 +55,8 @@ pub struct CommonParams {
 	pub fork_block: Option<(BlockNumber, H256)>,
 	/// Number of first block where EIP-98 rules begin.
 	pub eip98_transition: BlockNumber,
+	/// Validate block receipts root.
+	pub validate_receipts: bool,
 }
 
 impl From<ethjson::spec::Params> for CommonParams {
@@ -68,6 +70,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			min_gas_limit: p.min_gas_limit.into(),
 			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) { Some((n.into(), h.into())) } else { None },
 			eip98_transition: p.eip98_transition.map_or(0, Into::into),
+			validate_receipts: p.validate_receipts.unwrap_or(true),
 		}
 	}
 }
@@ -323,7 +326,7 @@ impl Spec {
 	pub fn load<R>(reader: R) -> Result<Self, String> where R: Read {
 		match ethjson::spec::Spec::load(reader) {
 			Ok(spec) => Ok(spec.into()),
-			_ => Err("Spec json is invalid".into()),
+			Err(e) => Err(format!("Spec json is invalid: {}", e)),
 		}
 	}
 
@@ -357,6 +360,10 @@ impl Spec {
 	/// Account is marked with `reportBenign` it can be checked as disliked with "0xd8f2e0bf".
 	/// Validator can be removed with `reportMalicious`.
 	pub fn new_validator_contract() -> Self { load_bundled!("validator_contract") }
+
+	/// Create a new Spec with BasicAuthority which uses multiple validator sets changing with height.
+	/// Account with secrets "0".sha3() is the validator for block 1 and with "1".sha3() onwards.
+	pub fn new_validator_multi() -> Self { load_bundled!("validator_multi") }
 }
 
 #[cfg(test)]
