@@ -36,9 +36,8 @@ tiny-keccak= "1.0"
 ethcore-bloom-journal = { path = "bloom" }
 regex = "0.1"
 lru-cache = "0.1.0"
-# smallvec = "0.3"
-# smallvec =  { git = "https://github.com/servo/rust-smallvec" }
-smallvec = { path = "/Users/nipunn/src/rust-smallvec", features = ["heapsizeof"] }
+smallvec = { version = "0.3.2", features = ["heapsizeof"] }
+# smallvec = { path = "/Users/nipunn/src/rust-smallvec", features = ["heapsizeof"] }
 
 [features]
 default = []

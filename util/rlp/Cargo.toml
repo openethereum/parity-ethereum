@@ -9,6 +9,5 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ethcore-bigint = { path = "../bigint" }
 lazy_static = "0.2"
 rustc-serialize = "0.3"
-# smallvec = "0.3"
-# smallvec = { git = "https://github.com/servo/rust-smallvec" }
-smallvec = { path = "/Users/nipunn/src/rust-smallvec", features = ["heapsizeof"] }
+smallvec = { version = "0.3.2", features = ["heapsizeof"] }
+# smallvec = { path = "/Users/nipunn/src/rust-smallvec", features = ["heapsizeof"] }
