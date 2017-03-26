@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Common RLP traits
-use elastic_array::ElasticArray1024;
+use smallvec::SmallVec;
 use {DecoderError, UntrustedRlp, RlpStream};
 
 /// RLP decodable trait
@@ -30,7 +30,7 @@ pub trait Encodable {
 	fn rlp_append(&self, s: &mut RlpStream);
 
 	/// Get rlp-encoded bytes for this instance
-	fn rlp_bytes(&self) -> ElasticArray1024<u8> {
+	fn rlp_bytes(&self) -> SmallVec<[u8; 1024]> {
 		let mut s = RlpStream::new();
 		self.rlp_append(&mut s);
 		s.drain()
@@ -43,7 +43,7 @@ pub trait Compressible: Sized {
 	type DataType;
 
 	/// Compress given RLP type using appropriate methods.
-	fn compress(&self, t: Self::DataType) -> ElasticArray1024<u8>;
+	fn compress(&self, t: Self::DataType) -> SmallVec<[u8; 1024]>;
 	/// Decompress given RLP type using appropriate methods.
-	fn decompress(&self, t: Self::DataType) -> ElasticArray1024<u8>;
+	fn decompress(&self, t: Self::DataType) -> SmallVec<[u8; 1024]>;
 }

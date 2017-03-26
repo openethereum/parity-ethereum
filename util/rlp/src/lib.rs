@@ -116,7 +116,7 @@ pub fn encode<E>(object: &E) -> SmallVec<[u8; 1024]> where E: Encodable {
 	stream.drain()
 }
 
-pub fn encode_list<E, K>(object: &[K]) -> ElasticArray1024<u8> where E: Encodable, K: Borrow<E> {
+pub fn encode_list<E, K>(object: &[K]) -> SmallVec<[u8; 1024]> where E: Encodable, K: Borrow<E> {
 	let mut stream = RlpStream::new();
 	stream.append_list(object);
 	stream.drain()
