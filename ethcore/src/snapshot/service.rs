@@ -658,6 +658,7 @@ mod tests {
 		assert_eq!(service.status(), RestorationStatus::Inactive);
 
 		let manifest = ManifestData {
+			version: 2,
 			state_hashes: vec![],
 			block_hashes: vec![],
 			state_root: Default::default(),
