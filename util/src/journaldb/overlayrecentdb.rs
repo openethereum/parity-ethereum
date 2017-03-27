@@ -380,10 +380,7 @@ impl JournalDB for OverlayRecentDB {
 
 			match rc {
 				0 => {}
-				1 => {
-					if cfg!(debug_assertions) && self.backing.get(self.column, &key)?.is_some() {
-						return Err(BaseDataError::AlreadyExists(key).into());
-					}
+				_ if rc > 0 => {
 					batch.put(self.column, &key, &value)
 				}
 				-1 => {
@@ -392,7 +389,7 @@ impl JournalDB for OverlayRecentDB {
 					}
 					batch.delete(self.column, &key)
 				}
-				_ => panic!("Attempted to inject invalid state."),
+				_ => panic!("Attempted to inject invalid state ({})", rc),
 			}
 		}
 
