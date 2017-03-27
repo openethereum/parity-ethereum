@@ -15,6 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
+  frame: {
+    error: `ERROR: This application cannot and should not be loaded in an embedded iFrame`
+  },
   status: {
     consensus: {
       capable: `Capable`,

@@ -15,20 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  button: {
-    newAccount: `account`,
-    newWallet: `wallet`,
-    vaults: `vaults`
+  buttons: {
+    add: `address`
   },
-  summary: {
-    minedBlock: `Mined at block #{blockNumber}`
+  errors: {
+    invalidFile: `The provided file is invalid...`
   },
-  title: `Accounts Overview`,
-  tooltip: {
-    actions: `actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item`,
-    overview: `your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account`
-  },
-  tooltips: {
-    owner: `{name} (owner)`
-  }
+  title: `Saved Addresses`
 };

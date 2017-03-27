@@ -22,20 +22,32 @@ export default {
     label: `background`
   },
   parity: {
+    chains: {
+      chain_classic: `Parity syncs to the Ethereum Classic network`,
+      chain_dev: `Parity uses a local development chain`,
+      chain_expanse: `Parity syncs to the Expanse network`,
+      chain_foundation: `Parity syncs to the Ethereum network launched by the Ethereum Foundation`,
+      chain_kovan: `Parity syncs to the Kovan test network`,
+      chain_olympic: `Parity syncs to the Olympic test network`,
+      chain_ropsten: `Parity syncs to the Ropsten test network`,
+      cmorden_kovan: `Parity syncs to Morden (Classic) test network`,
+      hint: `the chain for the Parity node to sync to`,
+      label: `chain/network to sync`
+    },
     languages: {
       hint: `the language this interface is displayed with`,
       label: `UI language`
     },
     loglevels: `Choose the different logs level.`,
     modes: {
-      hint: `the syning mode for the Parity node`,
+      hint: `the syncing mode for the Parity node`,
       label: `mode of operation`,
       mode_active: `Parity continuously syncs the chain`,
       mode_dark: `Parity syncs only when the RPC is active`,
       mode_offline: `Parity doesn't sync`,
       mode_passive: `Parity syncs initially, then sleeps and wakes regularly to resync`
     },
-    overview_0: `Control the Parity node settings and mode of operation via this interface.`,
+    overview_0: `Control the Parity node settings and nature of syncing via this interface.`,
     label: `parity`
   },
   proxy: {
@@ -49,25 +61,25 @@ export default {
   },
   views: {
     accounts: {
-      description: `A list of all the accounts associated to and imported into this Parity instance. Send transactions, receive incoming values, manage your balances and fund your accounts.`,
+      description: `A list of all the accounts associated with and imported into this Parity instance. Send transactions, receive incoming values, manage your balances and fund your accounts.`,
       label: `Accounts`
     },
     addresses: {
-      description: `A list of all contacts and address book entries that is managed by this Parity instance. Watch accounts and have the details available at the click of a button when transacting.`,
+      description: `A list of all contacts and address book entries managed by this Parity instance. Watch accounts and have the details available at the click of a button when transacting.`,
       label: `Addressbook`
     },
     apps: {
-      description: `Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with applications from around the network.`,
+      description: `Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.`,
       label: `Applications`
     },
     contracts: {
       description: `Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focused environment, specifically for advanced users that understand the inner working of certain contracts.`,
       label: `Contracts`
     },
-    overview_0: `Manage the available application views, using only the parts of the application applicable to you.`,
+    overview_0: `Manage the available application views using only the parts of the application applicable to you.`,
     overview_1: `Are you an end-user? The defaults are setup for both beginner and advanced users alike.`,
     overview_2: `Are you a developer? Add some features to manage contracts and interact with application deployments.`,
-    overview_3: `Are you a miner or do you run a large-scale node? Add the features to give you all the information needed to watch the node operation.`,
+    overview_3: `Are you a miner or run a large-scale node? Add the features to give you all the information needed to watch the node operation.`,
     settings: {
       description: `This view. Allows you to customize the application in term of options, operation and look and feel.`,
       label: `Settings`
