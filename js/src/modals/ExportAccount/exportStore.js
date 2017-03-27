@@ -30,23 +30,18 @@ export default class ExportStore {
     this._address = address;
   }
 
-  @action toggleSelectedAccount = (addr) => {
-    this.selectedAccounts[addr] = true;
-    this.canExport = false;
-    Object
-      .keys(this.selectedAccounts)
-      .forEach((address) => {
-        if (addr !== address) {
-          this.selectedAccounts[address] = false;
-        }
-        if (this.selectedAccounts[address]) {
-          this.canExport = true;
-        }
-      });
+  @action changePassword = (event, password) => {
+    const selectedAccount = (this._address) ? null : this.getSelectedAccount();
+
+    this.setPassword(selectedAccount, password);
   }
 
   @action getPassword = (account) => {
     return this.inputValue[account];
+  }
+
+  @action resetAccountValue = () => {
+    this.accountValue = '';
   }
 
   @action setPassword = (account, password) => {
@@ -55,13 +50,25 @@ export default class ExportStore {
       : this.inputValue[account] = password;
   }
 
-  @action changePassword = (event, password) => {
-    const selectedAccount = (this._address) ? null : this.getSelectedAccount();
-
-    this.setPassword(selectedAccount, password);
+  @action toggleSelectedAccount = (addr) => {
+    this.selectedAccounts[addr] = !this.selectedAccounts[addr];
+    this.canExport = false;
+    Object
+      .keys(this.selectedAccounts)
+      .forEach((address) => {
+        if (this.selectedAccounts[address]) {
+          this.canExport = true;
+        }
+      });
   }
 
-  onExport = () => {
+  getSelectedAccount () {
+    return Object
+      .keys(this.selectedAccounts)
+      .filter((account) => this.selectedAccounts[account])[0];
+  }
+
+  onExport = (event) => {
     const { parity } = this._api;
     const account = (this._address) ? this._address : this.getSelectedAccount();
     const password = (this._address) ? this.accountValue : this.inputValue[account];
@@ -73,19 +80,18 @@ export default class ExportStore {
         const filename = this._accounts[account].uuid;
 
         FileSaver.saveAs(blob, `${filename}.json`);
+
+        if (event) {
+          event();
+        }
       })
       .catch((err) => {
-        const { passwordHint } = this._accounts[account].meta;
+        const { name, meta } = this._accounts[account];
+        const { passwordHint } = meta;
 
         this._newError({
-          message: `[${err.code}] - Incorrect password. Password Hint: (${passwordHint})`
+          message: `[${err.code}] Account "${name}" - Incorrect password. (Password Hint: ${passwordHint})`
         });
       });
-  }
-
-  getSelectedAccount () {
-    return Object
-      .keys(this.selectedAccounts)
-      .filter((account) => this.selectedAccounts[account])[0];
   }
 }

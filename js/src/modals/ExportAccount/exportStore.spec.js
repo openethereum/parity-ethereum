@@ -74,76 +74,88 @@ describe('modals/exportAccount/Store', () => {
   });
 
   describe('@action', () => {
-    it('toggleSelectedAccount', () => {
-      // First set selectedAccounts
-      multiAccountStore.selectedAccounts = {
-        [ADDRESS]: true,
-        [ADDRESS_2]: false
-      };
-      // Toggle
-      multiAccountStore.toggleSelectedAccount(ADDRESS_2);
-      // Prep eqality
-      const eq = {
-        [ADDRESS]: false,
-        [ADDRESS_2]: true
-      };
+    describe('toggleSelectedAccount', () => {
+      it('Updates the selected accounts', () => {
+        // First set selectedAccounts
+        multiAccountStore.selectedAccounts = {
+          [ADDRESS]: true,
+          [ADDRESS_2]: false
+        };
+        // Toggle
+        multiAccountStore.toggleSelectedAccount(ADDRESS_2);
+        // Prep eqality
+        const eq = {
+          [ADDRESS]: false,
+          [ADDRESS_2]: true
+        };
 
-      // Check equality
-      expect(JSON.stringify(multiAccountStore.selectedAccounts)).to.deep.equal(JSON.stringify(eq));
+        // Check equality
+        expect(JSON.stringify(multiAccountStore.selectedAccounts)).to.deep.equal(JSON.stringify(eq));
+      });
     });
 
-    it('getPassword', () => {
-      // First set inputValue
-      multiAccountStore.inputValue = {
-        [ADDRESS]: 'abc'
-      };
-      // getPassword
-      const pass = multiAccountStore.getPassword(ADDRESS);
+    describe('getPassword', () => {
+      it('Grab from the selected accounts input', () => {
+        // First set inputValue
+        multiAccountStore.inputValue = {
+          [ADDRESS]: 'abc'
+        };
+        // getPassword
+        const pass = multiAccountStore.getPassword(ADDRESS);
 
-      // Check equality
-      expect(multiAccountStore.inputValue[ADDRESS]).to.deep.equal(pass);
+        // Check equality
+        expect(multiAccountStore.inputValue[ADDRESS]).to.deep.equal(pass);
+      });
     });
 
-    it('setPassword & getPassword', () => {
-      // First set pass
-      multiAccountStore.setPassword(ADDRESS, 'abc');
-      // getPassword
-      const pass = multiAccountStore.getPassword(ADDRESS);
+    describe('setPassword & getPassword', () => {
+      it('First save the input of the selected account, than get the input.', () => {
+        // First set pass
+        multiAccountStore.setPassword(ADDRESS, 'abc');
+        // getPassword
+        const pass = multiAccountStore.getPassword(ADDRESS);
 
-      // Check equality
-      expect(multiAccountStore.inputValue[ADDRESS]).to.deep.equal(pass);
+        // Check equality
+        expect(multiAccountStore.inputValue[ADDRESS]).to.deep.equal(pass);
+      });
     });
 
-    it('setPassword - oneAccount', () => {
-      // First set pass
-      oneAccountStore.setPassword(null, 'abc');
-      // Check equality
-      expect(oneAccountStore.accountValue).to.deep.equal('abc');
+    describe('setPassword - oneAccount', () => {
+      it('Set the value of a singe account.', () => {
+        // First set pass
+        oneAccountStore.setPassword(null, 'abc');
+        // Check equality
+        expect(oneAccountStore.accountValue).to.deep.equal('abc');
+      });
     });
 
-    it('changePassword', () => {
-      // First set selectedAccounts
-      multiAccountStore.selectedAccounts = {
-        [ADDRESS]: true,
-        [ADDRESS_2]: false
-      };
-      // First set inputValue
-      multiAccountStore.inputValue = {
-        [ADDRESS]: 'abc'
-      };
-      // Change password
-      multiAccountStore.changePassword(null, '123');
-      // Check equality
-      expect(multiAccountStore.inputValue[ADDRESS]).to.deep.equal('123');
+    describe('changePassword', () => {
+      it('Change the stored value with the new input.', () => {
+        // First set selectedAccounts
+        multiAccountStore.selectedAccounts = {
+          [ADDRESS]: true,
+          [ADDRESS_2]: false
+        };
+        // First set inputValue
+        multiAccountStore.inputValue = {
+          [ADDRESS]: 'abc'
+        };
+        // Change password
+        multiAccountStore.changePassword(null, '123');
+        // Check equality
+        expect(multiAccountStore.inputValue[ADDRESS]).to.deep.equal('123');
+      });
     });
 
-    it('changePassword - oneAccount', () => {
-      // First set accountValue
-      oneAccountStore.accountValue = 'abc';
-      // Change password
-      oneAccountStore.changePassword(null, '123');
-      // Check equality
-      expect(oneAccountStore.accountValue).to.deep.equal('123');
+    describe('changePassword - oneAccount', () => {
+      it('Change the stored value with the new input.', () => {
+        // First set accountValue
+        oneAccountStore.accountValue = 'abc';
+        // Change password
+        oneAccountStore.changePassword(null, '123');
+        // Check equality
+        expect(oneAccountStore.accountValue).to.deep.equal('123');
+      });
     });
   });
 });

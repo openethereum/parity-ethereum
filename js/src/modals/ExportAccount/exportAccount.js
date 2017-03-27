@@ -112,7 +112,7 @@ class ExportAccount extends Component {
   renderAccount = (account) => {
     const { balances } = this.props;
     const balance = balances[account.address];
-    const { changePassword, getPassword } = this.exportStore;
+    const { changePassword, getPassword, onExport } = this.exportStore;
     const inputValue = getPassword(account);
 
     return (
@@ -138,10 +138,23 @@ class ExportAccount extends Component {
             }
             value={ inputValue }
             onChange={ changePassword }
+            onKeyDown={ this.onEnter }
+            onFocus={ this.onFocus }
           />
         </div>
       </AccountCard>
     );
+  }
+
+  onEnter = (event) => {
+    const { onExport } = this.exportStore;
+    if (event.key === 'Enter') {
+      onExport();
+    }
+  }
+
+  onFocus = (event) => {
+    // this.exportStore.toggleSelectedAccount(account.address);
   }
 
   isSelected = (account) => {

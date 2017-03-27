@@ -325,25 +325,25 @@ class Account extends Component {
   }
 
   renderExportDialog () {
-    const { toggleExportDialog } = this.store;
     const { changePassword, accountValue, onExport } = this.exportStore;
 
     if (!this.store.isExportVisible) {
       return null;
     }
+
     return (
       <Portal
         open
         isSmallModal
-        onClose={ toggleExportDialog }
+        onClose={ this.exportClose }
       >
         <ConfirmDialog
           open
           disabledConfirm={ false }
           labelConfirm='Export'
           labelDeny='Cancel'
-          onConfirm={ onExport }
-          onDeny={ toggleExportDialog }
+          onConfirm={ this.onExport }
+          onDeny={ this.exportClose }
           title={
             <FormattedMessage
               id='export.account.title'
@@ -359,6 +359,7 @@ class Account extends Component {
           </div>
           <Input
             className={ styles.textbox }
+            onKeyDown={ this.onEnter }
             autoFocus
             type='password'
             hint={
@@ -457,6 +458,29 @@ class Account extends Component {
         onClose={ this.store.toggleVerificationDialog }
       />
     );
+  }
+
+  onEnter = (event) => {
+    if (event.key === 'Enter') {
+      this.onExport();
+    }
+  }
+
+  exportClose = () => {
+    const { toggleExportDialog } = this.store;
+    const { resetAccountValue } = this.exportStore;
+    resetAccountValue();
+    toggleExportDialog();
+  }
+
+  onExport = () => {
+    const { onExport } = this.exportStore;
+
+    onExport(this.hideExport);
+  }
+
+  hideExport = () => {
+    this.store.toggleExportDialog();
   }
 }
 
