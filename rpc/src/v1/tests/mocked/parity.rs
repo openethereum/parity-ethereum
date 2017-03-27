@@ -497,3 +497,14 @@ fn rpc_parity_chain_status() {
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
+
+#[test]
+fn rpc_parity_node_kind() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_nodeKind", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"availability":"personal","capability":"full"},"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
