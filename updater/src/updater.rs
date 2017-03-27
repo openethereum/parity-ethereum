@@ -21,7 +21,7 @@ use std::path::{PathBuf};
 use target_info::Target;
 use util::misc;
 use ipc_common_types::{VersionInfo, ReleaseTrack};
-use util::path::restrict_permissions_owner;
+use path::restrict_permissions_owner;
 use util::{Address, H160, H256, Mutex, Bytes};
 use ethsync::{SyncProvider};
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
@@ -274,7 +274,7 @@ impl Updater {
 			let running_latest = latest.track.version.hash == self.version_info().hash;
 			let already_have_latest = s.installed.as_ref().or(s.ready.as_ref()).map_or(false, |t| *t == latest.track);
 
-			if self.update_policy.enable_downloading && !running_later && !running_latest && !already_have_latest {
+			if !s.disabled && self.update_policy.enable_downloading && !running_later && !running_latest && !already_have_latest {
 				if let Some(b) = latest.track.binary {
 					if s.fetching.is_none() {
 						if self.updates_path(&Self::update_file_name(&latest.track.version)).exists() {

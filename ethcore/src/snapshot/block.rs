@@ -20,7 +20,7 @@ use block::Block;
 use header::Header;
 
 use views::BlockView;
-use rlp::{DecoderError, RlpStream, UntrustedRlp, View};
+use rlp::{DecoderError, RlpStream, UntrustedRlp};
 use util::{Bytes, Hashable, H256};
 use util::triehash::ordered_trie_root;
 
@@ -101,8 +101,8 @@ impl AbridgedBlock {
 		header.set_timestamp(rlp.val_at(6)?);
 		header.set_extra_data(rlp.val_at(7)?);
 
-		let transactions = rlp.val_at(8)?;
-		let uncles: Vec<Header> = rlp.val_at(9)?;
+		let transactions = rlp.list_at(8)?;
+		let uncles: Vec<Header> = rlp.list_at(9)?;
 
 		header.set_transactions_root(ordered_trie_root(
 			rlp.at(8)?.iter().map(|r| r.as_raw().to_owned())
@@ -114,7 +114,7 @@ impl AbridgedBlock {
 		header.set_uncles_hash(uncles_rlp.as_raw().sha3());
 
 		let mut seal_fields = Vec::new();
-		for i in (HEADER_FIELDS + BLOCK_FIELDS)..rlp.item_count() {
+		for i in (HEADER_FIELDS + BLOCK_FIELDS)..rlp.item_count()? {
 			let seal_rlp = rlp.at(i)?;
 			seal_fields.push(seal_rlp.as_raw().to_owned());
 		}

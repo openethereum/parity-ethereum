@@ -21,7 +21,7 @@ use std::sync::Weak;
 use std::time::{UNIX_EPOCH, Duration};
 use util::*;
 use ethkey::{verify_address, Signature};
-use rlp::{UntrustedRlp, View, encode};
+use rlp::{UntrustedRlp, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
@@ -82,7 +82,7 @@ pub struct AuthorityRound {
 	proposed: AtomicBool,
 	client: RwLock<Option<Weak<EngineClient>>>,
 	signer: EngineSigner,
-	validators: Box<ValidatorSet + Send + Sync>,
+	validators: Box<ValidatorSet>,
 	/// Is this Engine just for testing (prevents step calibration).
 	calibrate_step: bool,
 }

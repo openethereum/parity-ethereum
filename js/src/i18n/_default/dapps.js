@@ -40,7 +40,6 @@ export default {
   },
   label: `Decentralized Applications`,
   permissions: {
-    description: `{activeIcon} account is available to application, {defaultIcon} account is the default account`,
     label: `visible dapp accounts`
   }
 };

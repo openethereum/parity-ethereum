@@ -30,10 +30,10 @@ export const fail = (action, error) => ({ type: `reverse ${action} fail`, error 
 
 export const propose = (name, address) => (dispatch, getState) => {
   const state = getState();
-  const account = state.accounts.selected;
+  const accountAddress = state.accounts.selected;
   const contract = state.contract;
 
-  if (!contract || !account) {
+  if (!contract || !accountAddress) {
     return;
   }
 
@@ -42,14 +42,14 @@ export const propose = (name, address) => (dispatch, getState) => {
 
   return getOwner(contract, name)
     .then((owner) => {
-      if (owner.toLowerCase() !== account.address.toLowerCase()) {
+      if (owner.toLowerCase() !== accountAddress.toLowerCase()) {
         throw new Error(`you are not the owner of "${name}"`);
       }
 
       const { proposeReverse } = contract.instance;
 
       const options = {
-        from: account.address
+        from: accountAddress
       };
 
       const values = [
@@ -74,10 +74,10 @@ export const propose = (name, address) => (dispatch, getState) => {
 
 export const confirm = (name) => (dispatch, getState) => {
   const state = getState();
-  const account = state.accounts.selected;
+  const accountAddress = state.accounts.selected;
   const contract = state.contract;
 
-  if (!contract || !account) {
+  if (!contract || !accountAddress) {
     return;
   }
 
@@ -86,14 +86,14 @@ export const confirm = (name) => (dispatch, getState) => {
 
   return getOwner(contract, name)
     .then((owner) => {
-      if (owner.toLowerCase() !== account.address.toLowerCase()) {
+      if (owner.toLowerCase() !== accountAddress.toLowerCase()) {
         throw new Error(`you are not the owner of "${name}"`);
       }
 
       const { confirmReverse } = contract.instance;
 
       const options = {
-        from: account.address
+        from: accountAddress
       };
 
       const values = [

@@ -30,6 +30,7 @@ export default {
     label: `new password`
   },
   passwordHint: {
+    display: `Hint {hint}`,
     hint: `hint for the new password`,
     label: `(optional) new password hint`
   },

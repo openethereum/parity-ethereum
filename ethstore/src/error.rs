@@ -20,23 +20,40 @@ use ethkey::Error as EthKeyError;
 use crypto::Error as EthCryptoError;
 use ethkey::DerivationError;
 
+/// Account-related errors.
 #[derive(Debug)]
 pub enum Error {
+	/// IO error
 	Io(IoError),
+	/// Invalid Password
 	InvalidPassword,
+	/// Account's secret is invalid.
 	InvalidSecret,
+	/// Invalid Vault Crypto meta.
 	InvalidCryptoMeta,
+	/// Invalid Account.
 	InvalidAccount,
+	/// Invalid Message.
 	InvalidMessage,
+	/// Invalid Key File
 	InvalidKeyFile(String),
+	/// Vaults are not supported.
 	VaultsAreNotSupported,
+	/// Unsupported vault
 	UnsupportedVault,
+	/// Invalid vault name
 	InvalidVaultName,
+	/// Vault not found
 	VaultNotFound,
+	/// Account creation failed.
 	CreationFailed,
+	/// `EthKey` error
 	EthKey(EthKeyError),
+	/// `EthCrypto` error
 	EthCrypto(EthCryptoError),
+	/// Derivation error
 	Derivation(DerivationError),
+	/// Custom error
 	Custom(String),
 }
 

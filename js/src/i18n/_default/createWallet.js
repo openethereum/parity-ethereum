@@ -80,6 +80,7 @@ export default {
   },
   states: {
     completed: `The contract deployment has been completed`,
+    confirmationNeeded: `The contract deployment needs confirmations from other owners of the Wallet`,
     preparing: `Preparing transaction for network transmission`,
     validatingCode: `Validating the deployed contract code`,
     waitingConfirm: `Waiting for confirmation of the transaction in the Parity Secure Signer`,

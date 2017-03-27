@@ -16,10 +16,30 @@
 
 use std::fmt;
 use std::io::{Read, Write};
-use serde::{Deserialize, Deserializer};
+use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::de::{Error, Visitor, MapVisitor};
 use serde_json;
 use super::{Uuid, Version, Crypto, H160};
+
+/// Public opaque type representing serializable `KeyFile`.
+#[derive(Debug, PartialEq)]
+pub struct OpaqueKeyFile {
+	key_file: KeyFile
+}
+
+impl Serialize for OpaqueKeyFile {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where
+		S: Serializer,
+	{
+		self.key_file.serialize(serializer)
+	}
+}
+
+impl<T> From<T> for OpaqueKeyFile where T: Into<KeyFile> {
+	fn from(val: T) -> Self {
+		OpaqueKeyFile { key_file: val.into() }
+	}
+}
 
 #[derive(Debug, PartialEq, Serialize)]
 pub struct KeyFile {

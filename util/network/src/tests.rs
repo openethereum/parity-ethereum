@@ -98,7 +98,7 @@ fn net_service() {
 
 #[test]
 fn net_connect() {
-	::util::log::init_log();
+	::ethcore_logger::init_log();
 	let key1 = Random.generate().unwrap();
 	let mut config1 = NetworkConfiguration::new_local();
 	config1.use_secret = Some(key1.secret().clone());

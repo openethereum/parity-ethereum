@@ -83,18 +83,24 @@ impl Handler for RpcHandler {
 	}
 	fn on_error(&mut self, err: WsError) {
 		match self.complete.take() {
-			Some(c) => c.complete(Err(RpcError::WsError(err))),
-			None => println!("unexpected error: {}", err),
+			Some(c) => match c.send(Err(RpcError::WsError(err))) {
+				Ok(_) => {},
+				Err(_) => warn!(target: "rpc-client", "Unable to notify about error."),
+			},
+			None => warn!(target: "rpc-client", "unexpected error: {}", err),
 		}
 	}
 	fn on_open(&mut self, _: Handshake) -> WsResult<()> {
 		match (self.complete.take(), self.out.take()) {
 			(Some(c), Some(out)) => {
-				c.complete(Ok(Rpc {
+				let res = c.send(Ok(Rpc {
 					out: out,
 					counter: AtomicUsize::new(0),
 					pending: self.pending.clone(),
 				}));
+				if let Err(_) = res {
+					warn!(target: "rpc-client", "Unable to open a connection.")
+				}
 				Ok(())
 			},
 			_ => {
@@ -137,9 +143,9 @@ impl Handler for RpcHandler {
 		}
 
 		match self.pending.remove(response_id) {
-			Some(c) => c.complete(ret.map_err(|err| {
-				RpcError::JsonRpc(err)
-			})),
+			Some(c) => if let Err(_) = c.send(ret.map_err(|err| RpcError::JsonRpc(err))) {
+				warn!(target: "rpc-client", "Unable to send response.")
+			},
 			None => warn!(
 				target: "rpc-client",
 				"warning: unexpected id: {}",
@@ -225,7 +231,7 @@ impl Rpc {
 							// both fail and succeed.
 							let c = once.take()
 								.expect("connection closure called only once");
-							c.complete(Err(RpcError::WsError(err)));
+							let _ = c.send(Err(RpcError::WsError(err)));
 						},
 						// c will complete on the `on_open` event in the Handler
 						_ => ()

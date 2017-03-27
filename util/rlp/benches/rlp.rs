@@ -23,13 +23,12 @@
 #![feature(test)]
 
 extern crate test;
+extern crate ethcore_bigint as bigint;
 extern crate rlp;
-extern crate ethcore_util as util;
 
 use test::Bencher;
-use std::str::FromStr;
-use rlp::*;
-use util::U256;
+use bigint::prelude::U256;
+use rlp::{RlpStream, Rlp};
 
 #[bench]
 fn bench_stream_u64_value(b: &mut Bencher) {
@@ -56,9 +55,8 @@ fn bench_stream_u256_value(b: &mut Bencher) {
 	b.iter(|| {
 		// u256
 		let mut stream = RlpStream::new();
-		stream.append(&U256::from_str("8090a0b0c0d0e0f009102030405060770000000000000001000000000\
-		                               00012f0")
-			               .unwrap());
+		let uint: U256 = "8090a0b0c0d0e0f00910203040506077000000000000000100000000000012f0".into();
+		stream.append(&uint);
 		let _ = stream.out();
 	});
 }
@@ -93,11 +91,11 @@ fn bench_decode_nested_empty_lists(b: &mut Bencher) {
 		// [ [], [[]], [ [], [[]] ] ]
 		let data = vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0];
 		let rlp = Rlp::new(&data);
-		let _v0: Vec<u16> = rlp.val_at(0);
-		let _v1: Vec<Vec<u16>> = rlp.val_at(1);
+		let _v0: Vec<u16> = rlp.at(0).as_list();
+		let _v1: Vec<u16> = rlp.at(1).at(0).as_list();
 		let nested_rlp = rlp.at(2);
-		let _v2a: Vec<u16> = nested_rlp.val_at(0);
-		let _v2b: Vec<Vec<u16>> = nested_rlp.val_at(1);
+		let _v2a: Vec<u16> = nested_rlp.at(0).as_list();
+		let _v2b: Vec<u16> = nested_rlp.at(1).at(0).as_list();
 	});
 }
 

@@ -16,6 +16,8 @@
 
 //! Validator set deserialization.
 
+use std::collections::BTreeMap;
+use uint::Uint;
 use hash::Address;
 
 /// Different ways of specifying validators.
@@ -30,6 +32,9 @@ pub enum ValidatorSet {
 	/// Address of a contract that indicates the list of authorities and enables reporting of theor misbehaviour using transactions.
 	#[serde(rename="contract")]
 	Contract(Address),
+	/// A map of starting blocks for each validator set.
+	#[serde(rename="multi")]
+	Multi(BTreeMap<Uint, ValidatorSet>),
 }
 
 #[cfg(test)]
@@ -40,11 +45,17 @@ mod tests {
 	#[test]
 	fn validator_set_deserialization() {
 		let s = r#"[{
-			"list" : ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
+			"list": ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
 		}, {
-			"safeContract" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b"
+			"safeContract": "0xc6d9d2cd449a754c494264e1809c50e34d64562b"
 		}, {
-			"contract" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b"
+			"contract": "0xc6d9d2cd449a754c494264e1809c50e34d64562b"
+		}, {
+			"multi": {
+				"0": { "list": ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"] },
+				"10": { "list": ["0xd6d9d2cd449a754c494264e1809c50e34d64562b"] },
+				"20": { "contract": "0xc6d9d2cd449a754c494264e1809c50e34d64562b" }
+			}
 		}]"#;
 
 		let _deserialized: Vec<ValidatorSet> = serde_json::from_str(s).unwrap();

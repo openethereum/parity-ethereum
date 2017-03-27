@@ -35,6 +35,9 @@ pub struct EthashParams {
 	#[serde(rename="difficultyIncrementDivisor")]
 	pub difficulty_increment_divisor: Option<Uint>,
 	/// See main EthashParams docs.
+	#[serde(rename="metropolisDifficultyIncrementDivisor")]
+	pub metropolis_difficulty_increment_divisor: Option<Uint>,
+	/// See main EthashParams docs.
 	#[serde(rename="durationLimit")]
 	pub duration_limit: Uint,
 	/// See main EthashParams docs.
@@ -66,6 +69,10 @@ pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="bombDefuseTransition")]
 	pub bomb_defuse_transition: Option<Uint>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="eip100bTransition")]
+	pub eip100b_transition: Option<Uint>,
 
 	/// See main EthashParams docs.
 	#[serde(rename="eip150Transition")]
@@ -164,6 +171,7 @@ mod tests {
 				"difficultyHardforkTransition": "0x59d9",
 				"difficultyHardforkBoundDivisor": "0x0200",
 				"bombDefuseTransition": "0x42",
+				"eip100bTransition": "0x42",
 				"eip150Transition": "0x42",
 				"eip155Transition": "0x42",
 				"eip160Transition": "0x42",

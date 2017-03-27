@@ -33,7 +33,7 @@ use error::{Error, BlockError};
 use header::Header;
 use builtin::Builtin;
 use env_info::EnvInfo;
-use rlp::{UntrustedRlp, View as RlpView};
+use rlp::UntrustedRlp;
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;
@@ -98,7 +98,7 @@ pub struct Tendermint {
 	/// Hash of the proposal parent block.
 	proposal_parent: RwLock<H256>,
 	/// Set used to determine the current validators.
-	validators: Box<ValidatorSet + Send + Sync>,
+	validators: Box<ValidatorSet>,
 }
 
 impl Tendermint {

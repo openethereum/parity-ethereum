@@ -481,7 +481,7 @@ impl Discovery {
 	fn on_neighbours(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
 		// TODO: validate packet
 		let mut added = HashMap::new();
-		trace!(target: "discovery", "Got {} Neighbours from {:?}", rlp.at(0)?.item_count(), &from);
+		trace!(target: "discovery", "Got {} Neighbours from {:?}", rlp.at(0)?.item_count()?, &from);
 		for r in rlp.at(0)?.iter() {
 			let endpoint = NodeEndpoint::from_rlp(&r)?;
 			if !endpoint.is_valid() {

@@ -25,7 +25,7 @@ use ethcore::transaction::{
 };
 use ethcore::service::ClientIoMessage;
 use io::IoHandler;
-use rlp::{UntrustedRlp, View};
+use rlp::UntrustedRlp;
 use util::kvdb::KeyValueDB;
 
 extern crate ethcore;

@@ -21,6 +21,40 @@ export default {
       label: `transaction data`
     }
   },
+  buttons: {
+    back: `Back`,
+    cancel: `Cancel`,
+    close: `Close`,
+    next: `Next`,
+    send: `Send`
+  },
+  details: {
+    advanced: {
+      label: `advanced sending options`
+    },
+    amount: {
+      hint: `the amount to transfer to the recipient`,
+      label: `amount to transfer (in {tag})`
+    },
+    fullBalance: {
+      label: `full account balance`
+    },
+    recipient: {
+      hint: `the recipient address`,
+      label: `recipient address`
+    },
+    sender: {
+      hint: `the sender address`,
+      label: `sender address`
+    },
+    total: {
+      label: `total transaction amount`
+    }
+  },
+  wallet: {
+    confirmation: `This transaction needs confirmation from other owners.`,
+    operationHash: `operation hash`
+  },
   warning: {
     wallet_spent_limit: `This transaction value is above the remaining daily limit. It will need to be confirmed by other owners.`
   }

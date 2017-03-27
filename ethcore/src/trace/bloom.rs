@@ -60,8 +60,8 @@ impl Into<BloomGroup> for BlockTracesBloomGroup {
 }
 
 impl Decodable for BlockTracesBloom {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		Decodable::decode(decoder).map(BlockTracesBloom)
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		LogBloom::decode(rlp).map(BlockTracesBloom)
 	}
 }
 
@@ -72,8 +72,8 @@ impl Encodable for BlockTracesBloom {
 }
 
 impl Decodable for BlockTracesBloomGroup {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let blooms = Decodable::decode(decoder)?;
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let blooms = rlp.as_list()?;
 		let group = BlockTracesBloomGroup {
 			blooms: blooms
 		};
