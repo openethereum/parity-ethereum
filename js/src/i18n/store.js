@@ -72,5 +72,6 @@ export default class Store {
 }
 
 export {
+  LANGUAGES,
   MESSAGES
 };

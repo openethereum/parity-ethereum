@@ -17,34 +17,37 @@
 import flatten from 'flat';
 
 import * as defaults from '../src/i18n/_default';
-import { MESSAGES } from '../src/i18n/store';
+import { LANGUAGES, MESSAGES } from '../src/i18n/store';
 
 const SKIP_LANG = ['en'];
-const DEFAULTS = flatten(defaults);
+const defaultKeys = Object.keys(flatten(Object.assign({}, defaults, LANGUAGES)));
 
 Object
   .keys(MESSAGES)
   .filter((lang) => !SKIP_LANG.includes(lang))
   .forEach((lang) => {
-    const messages = MESSAGES[lang];
+    const messageKeys = Object.keys(MESSAGES[lang]);
+    let extra = 0;
     let found = 0;
     let missing = 0;
-    let total = 0;
 
     console.log(`*** Checking translations for ${lang}`);
 
-    Object
-      .keys(DEFAULTS)
-      .forEach((key) => {
-        total++;
+    defaultKeys.forEach((key) => {
+      if (messageKeys.includes(key)) {
+        found++;
+      } else {
+        missing++;
+        console.log(`  Missing ${key}`);
+      }
+    });
 
-        if (messages[key]) {
-          found++;
-        } else {
-          missing++;
-          console.log(`  Missing ${key}`);
-        }
-      });
+    messageKeys.forEach((key) => {
+      if (!defaultKeys.includes(key)) {
+        extra++;
+        console.log(`  Extra ${key}`);
+      }
+    });
 
-    console.log(`Checked ${total}, found ${found} keys, missing ${missing} keys\n`);
+    console.log(`Found ${found} keys, missing ${missing} keys, ${extra} extraneous keys\n`);
   });
