@@ -489,13 +489,14 @@ class MethodDecoding extends Component {
     const { methodName, methodInputs } = this.state;
 
     const showInputs = !compact && methodInputs && methodInputs.length > 0;
+    const showEth = !!(transaction.value && transaction.value.gt(0));
 
     const method = (
       <span className={ styles.name }>
         { methodName }
       </span>
     );
-    const ethValue = (
+    const ethValue = showEth && (
       <span className={ styles.highlight }>
         { this.renderEtherValue(transaction.value) }
       </span>
@@ -511,10 +512,10 @@ class MethodDecoding extends Component {
               historic,
               method,
               ethValue,
+              showEth,
               showInputs,
               address: this.renderAddressName(transaction.to),
-              inputLength: methodInputs.length,
-              showEth: transaction.value.gt(0)
+              inputLength: methodInputs.length
             } }
           />
         </div>
