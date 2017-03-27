@@ -14,26 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Snapshot tests.
+import createAccount from './createAccount';
+import settings from './settings';
 
-mod blocks;
-mod state;
-mod service;
-
-pub mod helpers;
-
-use super::ManifestData;
-
-#[test]
-fn manifest_rlp() {
-	let manifest = ManifestData {
-		version: 2,
-		block_hashes: Vec::new(),
-		state_hashes: Vec::new(),
-		block_number: 1234567,
-		state_root: Default::default(),
-		block_hash: Default::default(),
-	};
-	let raw = manifest.clone().into_rlp();
-	assert_eq!(ManifestData::from_rlp(&raw).unwrap(), manifest);
-}
+export default {
+  createAccount,
+  settings
+};

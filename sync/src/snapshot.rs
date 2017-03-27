@@ -144,6 +144,7 @@ mod test {
 		let state_chunks: Vec<Bytes> = (0..20).map(|_| H256::random().to_vec()).collect();
 		let block_chunks: Vec<Bytes> = (0..20).map(|_| H256::random().to_vec()).collect();
 		let manifest = ManifestData {
+			version: 2,
 			state_hashes: state_chunks.iter().map(|data| data.sha3()).collect(),
 			block_hashes: block_chunks.iter().map(|data| data.sha3()).collect(),
 			state_root: H256::new(),

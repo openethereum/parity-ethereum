@@ -14,26 +14,54 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Snapshot tests.
+export default {
+  label: 'settings',
 
-mod blocks;
-mod state;
-mod service;
+  background: {
+    label: 'background'
+  },
 
-pub mod helpers;
+  parity: {
+    label: 'parity'
+  },
 
-use super::ManifestData;
+  proxy: {
+    label: 'proxy'
+  },
 
-#[test]
-fn manifest_rlp() {
-	let manifest = ManifestData {
-		version: 2,
-		block_hashes: Vec::new(),
-		state_hashes: Vec::new(),
-		block_number: 1234567,
-		state_root: Default::default(),
-		block_hash: Default::default(),
-	};
-	let raw = manifest.clone().into_rlp();
-	assert_eq!(ManifestData::from_rlp(&raw).unwrap(), manifest);
-}
+  views: {
+    label: 'views',
+
+    accounts: {
+      label: 'Accounts'
+    },
+
+    addresses: {
+      label: 'Addressbook'
+    },
+
+    apps: {
+      label: 'Applications'
+    },
+
+    contracts: {
+      label: 'Contracts'
+    },
+
+    home: {
+      label: 'Home'
+    },
+
+    status: {
+      label: 'Status'
+    },
+
+    signer: {
+      label: 'Signer'
+    },
+
+    settings: {
+      label: 'Settings'
+    }
+  }
+};
