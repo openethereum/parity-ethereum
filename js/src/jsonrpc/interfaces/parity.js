@@ -419,6 +419,30 @@ export default {
     }
   },
 
+  nodeKind: {
+    section: SECTION_NODE,
+    desc: 'Returns the node type availability and capability',
+    params: [],
+    returns: {
+      type: Object,
+      desc: 'Availability and Capability.',
+      details: {
+        availability: {
+          type: String,
+          desc: 'Availability, either `personal` or `public`.'
+        },
+        capability: {
+          type: String,
+          desc: 'Capability, either `full` or `light`.'
+        }
+      }
+    },
+    example: {
+      availability: 'personal',
+      capability: 'light'
+    }
+  },
+
   netChain: {
     section: SECTION_NET,
     desc: 'Returns the name of the connected chain.',
