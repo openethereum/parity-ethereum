@@ -43,9 +43,9 @@ pub struct MessageHeader {
 pub struct SerializedMessage(Vec<u8>);
 
 impl Deref for SerializedMessage {
-	type Target = Vec<u8>;
+	type Target = [u8];
 
-	fn deref(&self) -> &Vec<u8> {
+	fn deref(&self) -> &[u8] {
 		&self.0
 	}
 }
@@ -151,7 +151,7 @@ fn serialize_header(header: &MessageHeader) -> Result<Vec<u8>, Error> {
 }
 
 /// Deserialize message header.
-pub fn deserialize_header(data: Vec<u8>) -> Result<MessageHeader, Error> {
+pub fn deserialize_header(data: &[u8]) -> Result<MessageHeader, Error> {
 	let mut reader = Cursor::new(data);
 	Ok(MessageHeader {
 		version: reader.read_u8()?,
@@ -241,7 +241,7 @@ pub mod tests {
 		let serialized_header = serialize_header(&header).unwrap();
 		assert_eq!(serialized_header.len(), MESSAGE_HEADER_SIZE);
 
-		let deserialized_header = deserialize_header(serialized_header).unwrap();
+		let deserialized_header = deserialize_header(&serialized_header).unwrap();
 		assert_eq!(deserialized_header, header);
 	}
 }
