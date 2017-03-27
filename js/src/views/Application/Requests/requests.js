@@ -22,7 +22,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { hideRequest } from '~/redux/providers/requestsActions';
-import { MethodDecoding, IdentityIcon, ScrollableText } from '~/ui';
+import { MethodDecoding, IdentityIcon, ScrollableText, ShortenedHash } from '~/ui';
 
 import styles from './requests.css';
 
@@ -114,6 +114,7 @@ class Requests extends Component {
           </div>
           <MethodDecoding
             address={ transaction.from }
+            compact
             historic={ state.type === DONE_STATE }
             transaction={ displayedTransaction }
           />
@@ -165,9 +166,7 @@ class Requests extends Component {
             defaultMessage='Transaction sent to network with hash'
           />
           <div className={ [ styles.fill, styles.hash ].join(' ') }>
-            <ScrollableText
-              text={ transactionHash }
-            />
+            <ShortenedHash data={ transactionHash } />
           </div>
         </div>
       );

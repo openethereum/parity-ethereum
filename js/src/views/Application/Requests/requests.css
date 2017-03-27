@@ -19,9 +19,12 @@ $baseColor: 255;
 $baseOpacity: 0.95;
 
 .requests {
-  bottom: 2.5em;
+  align-items: flex-end;
+  bottom: 2em;
+  display: flex;
+  flex-direction: column;
   position: fixed;
-  right: 0.5em;
+  right: 0.175em;
   z-index: 750;
 
   * {
@@ -78,13 +81,13 @@ $baseOpacity: 0.95;
     opacity: 1;
   }
 
-  75% {
+  49% {
     display: block;
     height: inherit;
     opacity: 0;
   }
 
-  99% {
+  98% {
     display: block;
     height: 0;
     opacity: 0;
@@ -120,5 +123,5 @@ $baseOpacity: 0.95;
 }
 
 .hash {
-  width: 5em;
+  margin-left: 0.25em;
 }
