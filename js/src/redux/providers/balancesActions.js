@@ -191,8 +191,6 @@ export function fetchTokens (_tokenIds, options = {}) {
 
     return Promise
       .all(tokenIds.map((id) => fetchTokenInfo(tokenreg, id, api)))
-      // FIXME ; shouldn't have to filter out tokens...
-      .then((tokens) => tokens.filter((token) => token.tag && token.tag.toLowerCase() !== 'eth'))
       .then((tokens) => {
         // dispatch only the changed images
         tokens
