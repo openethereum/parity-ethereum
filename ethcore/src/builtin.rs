@@ -158,6 +158,7 @@ fn ethereum_builtin(name: &str) -> Box<Impl> {
 		"modexp" => Box::new(ModexpImpl) as Box<Impl>,
 		"bn128_add" => Box::new(Bn128AddImpl) as Box<Impl>,
 		"bn128_mul" => Box::new(Bn128MulImpl) as Box<Impl>,
+		"bn128_pairing" => Box::new(Bn128ParingImpl) as Box<Impl>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -409,19 +410,18 @@ mod bn128_gen {
 	lazy_static! {
 		pub static ref P2: G2 = G2::from(AffineG2::new(
 			Fq2::new(
-				Fq::from_str("1").expect("1 is a valid field element"),
-				Fq::from_str("2").expect("2 is a valid field element"),				
+				Fq::from_str("10857046999023057135944570762232829481370756359578518086990519993285655852781").expect("1 is a valid field element"),
+				Fq::from_str("11559732032986387107991004021392285783925812861821192530917403151452391805634").expect("2 is a valid field element"),				
 			),
 			Fq2::new(
-				Fq::from_str("1").expect("1 is a valid field element"),
-				Fq::from_str("2").expect("2 is a valid field element"),				
+				Fq::from_str("8495653923123431417604973247489272438418190587263600148770280649306958101930").expect("1 is a valid field element"),
+				Fq::from_str("4082367875863433681332203403145435568316851327593401208105741076214120093531").expect("2 is a valid field element"),				
 			),			
-		).expect("Generator P2(i+2b, i+2b) is a valid curve point"));
+		).expect("Generator P2(10857046999023057135944570762232829481370756359578518086990519993285655852781 + 11559732032986387107991004021392285783925812861821192530917403151452391805634i, 8495653923123431417604973247489272438418190587263600148770280649306958101930 + 4082367875863433681332203403145435568316851327593401208105741076214120093531i) is a valid curve point"));
 	}	
 
-
 	lazy_static! {
-		pub static ref P1xP2: Gt = pairing(P1.clone(), P2.clone());
+		pub static ref P1_P2_PAIRING: Gt = pairing(P1.clone(), P2.clone());
 	}		
 }
 
@@ -481,18 +481,22 @@ impl Impl for Bn128ParingImpl {
 				};
 				for _ in 1..elements { 
 					let (a, b) = drain.next()
-						.expect("idx-th element should exist, because we do next() no more than elements-1 times; qed");
+						.expect("this element should exist, because we do next() no more than elements-1 times; qed");
 					mul = mul * pairing(a, b);
 				}
 				mul
 			};
 
-			if mul == *bn128_gen::P1xP2 {
+			if mul == *bn128_gen::P1_P2_PAIRING {
 				U256::one()
 			} else {
 				U256::zero()
 			}
 		};
+
+		let mut buf = [0u8; 32];
+		ret_val.to_big_endian(&mut buf);
+		output.write(0, &buf);
 
 		Ok(())
 	}
