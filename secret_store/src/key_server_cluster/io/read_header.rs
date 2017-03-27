@@ -23,13 +23,13 @@ use key_server_cluster::io::message::{MESSAGE_HEADER_SIZE, MessageHeader, deseri
 /// Create future for read single message header from the stream.
 pub fn read_header<A>(a: A) -> ReadHeader<A> where A: io::Read {
 	ReadHeader {
-		reader: read_exact(a, vec![0; MESSAGE_HEADER_SIZE]),
+		reader: read_exact(a, [0; MESSAGE_HEADER_SIZE]),
 	}
 }
 
 /// Future for read single message header from the stream.
 pub struct ReadHeader<A> {
-	reader: ReadExact<A, Vec<u8>>,
+	reader: ReadExact<A, [u8; MESSAGE_HEADER_SIZE]>,
 }
 
 impl<A> Future for ReadHeader<A> where A: io::Read {
@@ -38,7 +38,7 @@ impl<A> Future for ReadHeader<A> where A: io::Read {
 
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
 		let (read, data) = try_ready!(self.reader.poll());
-		let header = deserialize_header(data);
+		let header = deserialize_header(&data);
 		Ok(Async::Ready((read, header)))
 	}
 }

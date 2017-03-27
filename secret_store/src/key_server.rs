@@ -34,13 +34,10 @@ pub struct KeyServerImpl {
 	data: Arc<Mutex<KeyServerCore>>,
 }
 
-unsafe impl Send for KeyServerImpl {}
-unsafe impl Sync for KeyServerImpl {}
-
 /// Secret store key server data.
 pub struct KeyServerCore {
 	close: Option<futures::Complete<()>>,
-	_handle: Option<thread::JoinHandle<()>>,
+	handle: Option<thread::JoinHandle<()>>,
 	cluster: Option<Arc<ClusterClient>>,
 }
 
@@ -114,17 +111,24 @@ impl KeyServerCore {
 		let (stop, stopped) = futures::oneshot();
 		let (tx, rx) = mpsc::channel();
 		let handle = thread::spawn(move || {
-			let mut el = Core::new().expect("Creating an event loop should not fail.");
+			let mut el = match Core::new() {
+				Ok(el) => el,
+				Err(e) => {
+					tx.send(Err(Error::Internal(format!("error initializing event loop: {}", e)))).expect("Rx is blocking upper thread.");
+					return;
+				},
+			};
+			
 			let cluster = ClusterCore::new(el.handle(), config);
 			let cluster_client = cluster.and_then(|c| c.run().map(|_| c.client()));
-			tx.send(cluster_client).expect("Rx is blocking upper thread.");
+			tx.send(cluster_client.map_err(Into::into)).expect("Rx is blocking upper thread.");
 			let _ = el.run(futures::empty().select(stopped));
 		});
-		let cluster = rx.recv().expect("tx is transfered to a newly spawned thread.")?;
- 
+		let cluster = rx.recv().map_err(|e| Error::Internal(format!("error initializing event loop: {}", e)))??;
+
 		Ok(KeyServerCore {
 			close: Some(stop),
-			_handle: Some(handle),
+			handle: Some(handle),
 			cluster: Some(cluster),
 		})
 	}
@@ -133,6 +137,7 @@ impl KeyServerCore {
 impl Drop for KeyServerCore {
 	fn drop(&mut self) {
 		self.close.take().map(|v| v.send(()));
+		self.handle.take().map(|h| h.join());
 	}
 }
 
