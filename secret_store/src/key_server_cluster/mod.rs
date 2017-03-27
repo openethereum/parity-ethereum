@@ -74,6 +74,8 @@ pub enum Error {
 	Serde(String),
 	/// Key storage error.
 	KeyStorage(String),
+	/// Acl storage error.
+	AccessDenied,
 }
 
 impl From<ethkey::Error> for Error {
@@ -112,6 +114,7 @@ impl fmt::Display for Error {
 			Error::Io(ref e) => write!(f, "i/o error {}", e),
 			Error::Serde(ref e) => write!(f, "serde error {}", e),
 			Error::KeyStorage(ref e) => write!(f, "key storage error {}", e),
+			Error::AccessDenied => write!(f, "Access denied"),
 		}
 	}
 }
