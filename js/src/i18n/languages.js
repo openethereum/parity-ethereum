@@ -18,5 +18,5 @@ export default {
   de: 'Deutsch',
   en: 'English',
   nl: 'Nederlands',
-  zh: 'Chinese'
+  zh: '普通话'
 };
