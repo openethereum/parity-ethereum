@@ -37,29 +37,37 @@ export default {
     cancel: `取消`,
     close: `关闭`,
     create: `创建`,
+    done: `Done`,
     import: `导入`,
     next: `下一步`,
     print: `打印恢复词`
   },
   creationType: {
     fromGeth: {
+      description: `Import accounts from the Geth keystore with the original password`,
       label: `从Geth keystore导入账户`
     },
     fromJSON: {
+      description: `Import an industry-standard JSON keyfile with the original password`,
       label: `从JSON文件导入账户`
     },
     fromNew: {
+      description: `Selecting your identity icon and specifying the password`,
       label: `手动创建新账户`
     },
     fromPhrase: {
+      description: `Recover using a previously stored recovery phrase and new password`,
       label: `通过恢复词恢复账户`
     },
     fromPresale: {
+      description: `Import an Ethereum presale wallet file with the original password`,
       label: `从以太坊预售钱包导入账户`
     },
     fromRaw: {
+      description: `Enter a previously created raw private key with a new password`,
       label: `导入私钥`
-    }
+    },
+    info: `Please select the type of account you want to create. Either create an account via name & password, or import it from a variety of existing sources. From here the wizard will guide you through the process of completing your account creation.`
   },
   newAccount: {
     hint: {
@@ -80,6 +88,7 @@ export default {
     }
   },
   newGeth: {
+    available: `There are currently {count} importable keys available from the Geth keystore which are not already available on your Parity instance. Select the accounts you wish to import and move to the next step to complete the import.`,
     noKeys: `现在Geth keystore中没有可导入的私钥`
   },
   newImport: {
