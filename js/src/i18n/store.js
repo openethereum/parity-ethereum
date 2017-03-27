@@ -70,3 +70,7 @@ export default class Store {
     return instance;
   }
 }
+
+export {
+  MESSAGES
+};
