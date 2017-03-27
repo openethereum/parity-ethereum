@@ -98,20 +98,22 @@ export default class Store {
     const { parity } = this._api;
     const { hash } = tx;
 
-    parity.removeTransaction(hash)
-    .then(() => {
-      txComponent.setState({ canceled: true });
-    })
-    .catch((err) => {
-      this._newError({ message: err });
-    });
+    parity
+      .removeTransaction(hash)
+      .then(() => {
+        txComponent.setState({ canceled: true });
+      })
+      .catch((err) => {
+        this._newError({ message: err });
+      });
   }
 
   editTransaction = (txComponent, tx) => {
     const { parity } = this._api;
     const { hash, gas, gasPrice, to, from, value, input, condition } = tx;
 
-    parity.removeTransaction(hash)
+    parity
+      .removeTransaction(hash)
       .then(() => {
         parity.postTransaction({
           from,
@@ -121,10 +123,9 @@ export default class Store {
           value,
           condition,
           data: input
-        })
-        .catch((err) => {
-          this._newError({ message: err });
         });
+      })
+      .then(() => {
         txComponent.setState({ editing: true });
       })
       .catch((err) => {
