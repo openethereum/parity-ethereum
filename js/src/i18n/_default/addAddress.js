@@ -19,6 +19,7 @@ export default {
     add: `Save Address`,
     close: `Cancel`
   },
+  header: `To add a new entry to your addressbook, you need the network address of the account and can supply an optional description. Once added it will reflect in your address book.`,
   input: {
     address: {
       hint: `the network address for the entry`,

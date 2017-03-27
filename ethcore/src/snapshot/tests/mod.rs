@@ -27,6 +27,7 @@ use super::ManifestData;
 #[test]
 fn manifest_rlp() {
 	let manifest = ManifestData {
+		version: 2,
 		block_hashes: Vec::new(),
 		state_hashes: Vec::new(),
 		block_number: 1234567,

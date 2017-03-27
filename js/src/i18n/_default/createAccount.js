@@ -20,46 +20,49 @@ export default {
       hint: `the network address for the account`,
       label: `address`
     },
-    name: {
-      hint: `a descriptive name for the account`,
-      label: `account name`
-    },
     phrase: {
       hint: `the account recovery phrase`,
       label: `owner recovery phrase (keep private and secure, it allows full and unlimited access to the account)`
     }
   },
   accountDetailsGeth: {
-    imported: `You have imported {number} addresses from the Geth keystore:`
+    imported: `You have completed the import of {number} addresses from the Geth keystore. These will now be available in your accounts list as a normal account, along with their associated balances on the network.`
   },
   button: {
     back: `Back`,
     cancel: `Cancel`,
-    close: `Close`,
     create: `Create`,
+    done: `Done`,
     import: `Import`,
     next: `Next`,
     print: `Print Phrase`
   },
   creationType: {
     fromGeth: {
-      label: `Import accounts from Geth keystore`
+      description: `Import accounts from the Geth keystore with the original password`,
+      label: `Geth keystore`
     },
     fromJSON: {
-      label: `Import account from a backup JSON file`
+      description: `Import an industry-standard JSON keyfile with the original password`,
+      label: `JSON file`
     },
     fromNew: {
-      label: `Create new account manually`
+      description: `Selecting your identity icon and specifying the password`,
+      label: `New Account`
     },
     fromPhrase: {
-      label: `Recover account from recovery phrase`
+      description: `Recover using a previously stored recovery phrase and new password`,
+      label: `Recovery phrase`
     },
     fromPresale: {
-      label: `Import account from an Ethereum pre-sale wallet`
+      description: `Import an Ethereum presale wallet file with the original password`,
+      label: `Presale wallet`
     },
     fromRaw: {
-      label: `Import raw private key`
-    }
+      description: `Enter a previously created raw private key with a new password`,
+      label: `Private key`
+    },
+    info: `Please select the type of account you want to create. Either create an account via name & password, or import it from a variety of existing sources. From here the wizard will guide you through the process of completing your account creation.`
   },
   newAccount: {
     hint: {
@@ -80,6 +83,7 @@ export default {
     }
   },
   newGeth: {
+    available: `There are currently {count} importable keys available from the Geth keystore which are not already available on your Parity instance. Select the accounts you wish to import and move to the next step to complete the import.`,
     noKeys: `There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance`
   },
   newImport: {

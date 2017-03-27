@@ -31,6 +31,7 @@ use factory::Factories;
 use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
+use types::basic_account::BasicAccount;
 use types::executed::{Executed, ExecutionError};
 use types::state_diff::StateDiff;
 use transaction::SignedTransaction;
@@ -857,47 +858,43 @@ impl<B: Backend> State<B> {
 // State proof implementations; useful for light client protocols.
 impl<B: Backend> State<B> {
 	/// Prove an account's existence or nonexistence in the state trie.
-	/// Returns a merkle proof of the account's trie node with all nodes before `from_level`
-	/// omitted or an encountered trie error.
+	/// Returns a merkle proof of the account's trie node omitted or an encountered trie error.
+	/// If the account doesn't exist in the trie, prove that and return defaults.
 	/// Requires a secure trie to be used for accurate results.
 	/// `account_key` == sha3(address)
-	pub fn prove_account(&self, account_key: H256, from_level: u32) -> trie::Result<Vec<Bytes>> {
-		let mut recorder = Recorder::with_depth(from_level);
+	pub fn prove_account(&self, account_key: H256) -> trie::Result<(Vec<Bytes>, BasicAccount)> {
+		let mut recorder = Recorder::new();
 		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
-		trie.get_with(&account_key, &mut recorder)?;
+		let maybe_account: Option<BasicAccount> = {
+			let query = (&mut recorder, ::rlp::decode);
+			trie.get_with(&account_key, query)?
+		};
+		let account = maybe_account.unwrap_or_else(|| BasicAccount {
+			balance: 0.into(),
+			nonce: self.account_start_nonce,
+			code_hash: SHA3_EMPTY,
+			storage_root: ::util::sha3::SHA3_NULL_RLP,
+		});
 
-		Ok(recorder.drain().into_iter().map(|r| r.data).collect())
+		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), account))
 	}
 
 	/// Prove an account's storage key's existence or nonexistence in the state.
-	/// Returns a merkle proof of the account's storage trie with all nodes before
-	/// `from_level` omitted. Requires a secure trie to be used for correctness.
+	/// Returns a merkle proof of the account's storage trie.
+	/// Requires a secure trie to be used for correctness.
 	/// `account_key` == sha3(address)
 	/// `storage_key` == sha3(key)
-	pub fn prove_storage(&self, account_key: H256, storage_key: H256, from_level: u32) -> trie::Result<Vec<Bytes>> {
+	pub fn prove_storage(&self, account_key: H256, storage_key: H256) -> trie::Result<(Vec<Bytes>, H256)> {
 		// TODO: probably could look into cache somehow but it's keyed by
 		// address, not sha3(address).
 		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
 		let acc = match trie.get_with(&account_key, Account::from_rlp)? {
 			Some(acc) => acc,
-			None => return Ok(Vec::new()),
+			None => return Ok((Vec::new(), H256::new())),
 		};
 
 		let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), account_key);
-		acc.prove_storage(account_db.as_hashdb(), storage_key, from_level)
-	}
-
-	/// Get code by address hash.
-	/// Only works when backed by a secure trie.
-	pub fn code_by_address_hash(&self, account_key: H256) -> trie::Result<Option<Bytes>> {
-		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
-		let mut acc = match trie.get_with(&account_key, Account::from_rlp)? {
-			Some(acc) => acc,
-			None => return Ok(None),
-		};
-
-		let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), account_key);
-		Ok(acc.cache_code(account_db.as_hashdb()).map(|c| (&*c).clone()))
+		acc.prove_storage(account_db.as_hashdb(), storage_key)
 	}
 }
 

@@ -26,17 +26,12 @@
 //! Current default costs are picked completely arbitrarily, not based
 //! on any empirical timings or mathematical models.
 
-use request;
-use super::packet;
+use request::{self, Request};
 use super::error::Error;
 
 use rlp::*;
 use util::U256;
 use time::{Duration, SteadyTime};
-
-/// A request cost specification.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Cost(pub U256, pub U256);
 
 /// Credits value.
 ///
@@ -81,90 +76,95 @@ impl Credits {
 /// A cost table, mapping requests to base and per-request costs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CostTable {
-	headers: Cost, // cost per header
-	bodies: Cost,
-	receipts: Cost,
-	state_proofs: Cost,
-	contract_codes: Cost,
-	header_proofs: Cost,
-	transaction_proof: Cost, // cost per gas.
+	base: U256, // cost per packet.
+	headers: U256, // cost per header
+	body: U256,
+	receipts: U256,
+	account: U256,
+	storage: U256,
+	code: U256,
+	header_proof: U256,
+	transaction_proof: U256, // cost per gas.
 }
 
 impl Default for CostTable {
 	fn default() -> Self {
 		// arbitrarily chosen constants.
 		CostTable {
-			headers: Cost(100000.into(), 10000.into()),
-			bodies: Cost(150000.into(), 15000.into()),
-			receipts: Cost(50000.into(), 5000.into()),
-			state_proofs: Cost(250000.into(), 25000.into()),
-			contract_codes: Cost(200000.into(), 20000.into()),
-			header_proofs: Cost(150000.into(), 15000.into()),
-			transaction_proof: Cost(100000.into(), 2.into()),
+			base: 100000.into(),
+			headers: 10000.into(),
+			body: 15000.into(),
+			receipts: 5000.into(),
+			account: 25000.into(),
+			storage: 25000.into(),
+			code: 20000.into(),
+			header_proof: 15000.into(),
+			transaction_proof: 2.into(),
 		}
 	}
 }
 
 impl Encodable for CostTable {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		fn append_cost(s: &mut RlpStream, msg_id: u8, cost: &Cost) {
-			s.begin_list(3)
-				.append(&msg_id)
-				.append(&cost.0)
-				.append(&cost.1);
+		fn append_cost(s: &mut RlpStream, cost: &U256, kind: request::Kind) {
+			s.begin_list(2);
+
+			// hack around https://github.com/ethcore/parity/issues/4356
+			Encodable::rlp_append(&kind, s);
+			s.append(cost);
 		}
 
-		s.begin_list(7);
-
-		append_cost(s, packet::GET_BLOCK_HEADERS, &self.headers);
-		append_cost(s, packet::GET_BLOCK_BODIES, &self.bodies);
-		append_cost(s, packet::GET_RECEIPTS, &self.receipts);
-		append_cost(s, packet::GET_PROOFS, &self.state_proofs);
-		append_cost(s, packet::GET_CONTRACT_CODES, &self.contract_codes);
-		append_cost(s, packet::GET_HEADER_PROOFS, &self.header_proofs);
-		append_cost(s, packet::GET_TRANSACTION_PROOF, &self.transaction_proof);
+		s.begin_list(9).append(&self.base);
+		append_cost(s, &self.headers, request::Kind::Headers);
+		append_cost(s, &self.body, request::Kind::Body);
+		append_cost(s, &self.receipts, request::Kind::Receipts);
+		append_cost(s, &self.account, request::Kind::Account);
+		append_cost(s, &self.storage, request::Kind::Storage);
+		append_cost(s, &self.code, request::Kind::Code);
+		append_cost(s, &self.header_proof, request::Kind::HeaderProof);
+		append_cost(s, &self.transaction_proof, request::Kind::Execution);
 	}
 }
 
 impl Decodable for CostTable {
 	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let base = rlp.val_at(0)?;
+
 		let mut headers = None;
-		let mut bodies = None;
+		let mut body = None;
 		let mut receipts = None;
-		let mut state_proofs = None;
-		let mut contract_codes = None;
-		let mut header_proofs = None;
+		let mut account = None;
+		let mut storage = None;
+		let mut code = None;
+		let mut header_proof = None;
 		let mut transaction_proof = None;
 
-		for row in rlp.iter() {
-			let msg_id: u8 = row.val_at(0)?;
-			let cost = {
-				let base = row.val_at(1)?;
-				let per = row.val_at(2)?;
-
-				Cost(base, per)
-			};
-
-			match msg_id {
-				packet::GET_BLOCK_HEADERS => headers = Some(cost),
-				packet::GET_BLOCK_BODIES => bodies = Some(cost),
-				packet::GET_RECEIPTS => receipts = Some(cost),
-				packet::GET_PROOFS => state_proofs = Some(cost),
-				packet::GET_CONTRACT_CODES => contract_codes = Some(cost),
-				packet::GET_HEADER_PROOFS => header_proofs = Some(cost),
-				packet::GET_TRANSACTION_PROOF => transaction_proof = Some(cost),
-				_ => return Err(DecoderError::Custom("Unrecognized message in cost table")),
+		for cost_list in rlp.iter().skip(1) {
+			let cost = cost_list.val_at(1)?;
+			match cost_list.val_at(0)? {
+				request::Kind::Headers => headers = Some(cost),
+				request::Kind::Body => body = Some(cost),
+				request::Kind::Receipts => receipts = Some(cost),
+				request::Kind::Account => account = Some(cost),
+				request::Kind::Storage => storage = Some(cost),
+				request::Kind::Code => code = Some(cost),
+				request::Kind::HeaderProof => header_proof = Some(cost),
+				request::Kind::Execution => transaction_proof = Some(cost),
 			}
 		}
 
+		let unwrap_cost = |cost: Option<U256>| cost.ok_or(DecoderError::Custom("Not all costs specified in cost table."));
+
 		Ok(CostTable {
-			headers: headers.ok_or(DecoderError::Custom("No headers cost specified"))?,
-			bodies: bodies.ok_or(DecoderError::Custom("No bodies cost specified"))?,
-			receipts: receipts.ok_or(DecoderError::Custom("No receipts cost specified"))?,
-			state_proofs: state_proofs.ok_or(DecoderError::Custom("No proofs cost specified"))?,
-			contract_codes: contract_codes.ok_or(DecoderError::Custom("No contract codes specified"))?,
-			header_proofs: header_proofs.ok_or(DecoderError::Custom("No header proofs cost specified"))?,
-			transaction_proof: transaction_proof.ok_or(DecoderError::Custom("No transaction proof gas cost specified"))?,
+			base: base,
+			headers: unwrap_cost(headers)?,
+			body: unwrap_cost(body)?,
+			receipts: unwrap_cost(receipts)?,
+			account: unwrap_cost(account)?,
+			storage: unwrap_cost(storage)?,
+			code: unwrap_cost(code)?,
+			header_proof: unwrap_cost(header_proof)?,
+			transaction_proof: unwrap_cost(transaction_proof)?,
 		})
 	}
 }
@@ -190,17 +190,19 @@ impl FlowParams {
 
 	/// Create effectively infinite flow params.
 	pub fn free() -> Self {
-		let free_cost = Cost(0.into(), 0.into());
+		let free_cost: U256 = 0.into();
 		FlowParams {
 			limit: (!0u64).into(),
 			recharge: 1.into(),
 			costs: CostTable {
+				base: free_cost.clone(),
 				headers: free_cost.clone(),
-				bodies: free_cost.clone(),
+				body: free_cost.clone(),
 				receipts: free_cost.clone(),
-				state_proofs: free_cost.clone(),
-				contract_codes: free_cost.clone(),
-				header_proofs: free_cost.clone(),
+				account: free_cost.clone(),
+				storage: free_cost.clone(),
+				code: free_cost.clone(),
+				header_proof: free_cost.clone(),
 				transaction_proof: free_cost,
 			}
 		}
@@ -212,61 +214,34 @@ impl FlowParams {
 	/// Get a reference to the cost table.
 	pub fn cost_table(&self) -> &CostTable { &self.costs }
 
+	/// Get the base cost of a request.
+	pub fn base_cost(&self) -> U256 { self.costs.base }
+
 	/// Get a reference to the recharge rate.
 	pub fn recharge_rate(&self) -> &U256 { &self.recharge }
 
 	/// Compute the actual cost of a request, given the kind of request
 	/// and number of requests made.
-	pub fn compute_cost(&self, kind: request::Kind, amount: usize) -> U256 {
-		let cost = match kind {
-			request::Kind::Headers => &self.costs.headers,
-			request::Kind::Bodies => &self.costs.bodies,
-			request::Kind::Receipts => &self.costs.receipts,
-			request::Kind::StateProofs => &self.costs.state_proofs,
-			request::Kind::Codes => &self.costs.contract_codes,
-			request::Kind::HeaderProofs => &self.costs.header_proofs,
-			request::Kind::TransactionProof => &self.costs.transaction_proof,
-		};
-
-		let amount: U256 = amount.into();
-		cost.0 + (amount * cost.1)
-	}
-
-	/// Compute the maximum number of costs of a specific kind which can be made
-	/// with the given amount of credits
-	/// Saturates at `usize::max()`. This is not a problem in practice because
-	/// this amount of requests is already prohibitively large.
-	pub fn max_amount(&self, credits: &Credits, kind: request::Kind) -> usize {
-		use util::Uint;
-		use std::usize;
-
-		let cost = match kind {
-			request::Kind::Headers => &self.costs.headers,
-			request::Kind::Bodies => &self.costs.bodies,
-			request::Kind::Receipts => &self.costs.receipts,
-			request::Kind::StateProofs => &self.costs.state_proofs,
-			request::Kind::Codes => &self.costs.contract_codes,
-			request::Kind::HeaderProofs => &self.costs.header_proofs,
-			request::Kind::TransactionProof => &self.costs.transaction_proof,
-		};
-
-		let start = credits.current();
-
-		if start <= cost.0 {
-			return 0;
-		} else if cost.1 == U256::zero() {
-			return usize::MAX;
-		}
-
-		let max = (start - cost.0) / cost.1;
-		if max >= usize::MAX.into() {
-			usize::MAX
-		} else {
-			max.as_u64() as usize
+	pub fn compute_cost(&self, request: &Request) -> U256 {
+		match *request {
+			Request::Headers(ref req) => self.costs.headers * req.max.into(),
+			Request::HeaderProof(_) => self.costs.header_proof,
+			Request::Body(_) => self.costs.body,
+			Request::Receipts(_) => self.costs.receipts,
+			Request::Account(_) => self.costs.account,
+			Request::Storage(_) => self.costs.storage,
+			Request::Code(_) => self.costs.code,
+			Request::Execution(ref req) => self.costs.transaction_proof * req.gas,
 		}
 	}
 
-	/// Create initial credits..
+	/// Compute the cost of a set of requests.
+	/// This is the base cost plus the cost of each individual request.
+	pub fn compute_cost_multi(&self, requests: &[Request]) -> U256 {
+		requests.iter().fold(self.costs.base, |cost, req| cost + self.compute_cost(req))
+	}
+
+	/// Create initial credits.
 	pub fn create_credits(&self) -> Credits {
 		Credits {
 			estimate: self.limit,

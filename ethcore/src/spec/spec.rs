@@ -360,6 +360,10 @@ impl Spec {
 	/// Account is marked with `reportBenign` it can be checked as disliked with "0xd8f2e0bf".
 	/// Validator can be removed with `reportMalicious`.
 	pub fn new_validator_contract() -> Self { load_bundled!("validator_contract") }
+
+	/// Create a new Spec with BasicAuthority which uses multiple validator sets changing with height.
+	/// Account with secrets "0".sha3() is the validator for block 1 and with "1".sha3() onwards.
+	pub fn new_validator_multi() -> Self { load_bundled!("validator_multi") }
 }
 
 #[cfg(test)]

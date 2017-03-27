@@ -1,5 +1,5 @@
 [package]
-description = "Parity LES primitives"
+description = "Parity Light Client Implementation"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-light"
