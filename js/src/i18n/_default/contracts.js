@@ -15,20 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  button: {
-    newAccount: `account`,
-    newWallet: `wallet`,
-    vaults: `vaults`
+  buttons: {
+    deploy: `deploy`,
+    develop: `develop`,
+    watch: `watch`
   },
-  summary: {
-    minedBlock: `Mined at block #{blockNumber}`
+  sortOrder: {
+    date: `date`,
+    minedBlock: `mined block`
   },
-  title: `Accounts Overview`,
-  tooltip: {
-    actions: `actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item`,
-    overview: `your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account`
-  },
-  tooltips: {
-    owner: `{name} (owner)`
-  }
+  title: `Contracts`
 };
