@@ -191,6 +191,9 @@ struct Bn128AddImpl;
 #[derive(Debug)]
 struct Bn128MulImpl;
 
+#[derive(Debug)]
+struct Bn128ParingImpl;
+
 impl Impl for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		output.write(0, input);
@@ -391,6 +394,31 @@ impl Impl for Bn128MulImpl {
 		output.write(0, &write_buf);
 		Ok(())
 	}	
+}
+
+impl Impl for Bn128ParingImpl {
+	// Can fail if any of the 2 points does not belong the bn128 curve
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+		use bn::{Fq, Fq2, AffineG1, AffineG2};
+
+		let p1 = AffineG1::new(
+			Fq::from_str("1").expect("1 is a valid field element"),
+			Fq::from_str("2").expect("2 is a valid field element"),
+		).expect("Generator P1(1, 2) is a valid curve point");
+
+		let p2 = AffineG2::new(
+			Fq2::new(
+				Fq::from_str("1").expect("1 is a valid field element"),
+				Fq::from_str("2").expect("2 is a valid field element"),				
+			),
+			Fq2::new(
+				Fq::from_str("1").expect("1 is a valid field element"),
+				Fq::from_str("2").expect("2 is a valid field element"),				
+			),			
+		).expect("Generator P2(i+2b, i+2b) is a valid curve point");
+
+		Ok(())
+	}
 }
 
 #[cfg(test)]
