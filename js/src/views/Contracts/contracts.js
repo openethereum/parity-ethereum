@@ -238,7 +238,6 @@ class Contracts extends Component {
   }
 
   handleSortChange = (sortOrder) => {
-  console.warn('handle sort change', { sortOrder });
     this.setState({ sortOrder });
   }
 
