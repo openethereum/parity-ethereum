@@ -396,17 +396,18 @@ impl Impl for Bn128MulImpl {
 	}	
 }
 
-impl Impl for Bn128ParingImpl {
-	// Can fail if any of the 2 points does not belong the bn128 curve
-	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
-		use bn::{Fq, Fq2, AffineG1, AffineG2};
+mod bn128_gen {
+	use bn::{AffineG1, AffineG2, Fq, Fq2, G1, G2, Gt, pairing};
 
-		let p1 = AffineG1::new(
+	lazy_static! {
+		pub static ref P1: G1 = G1::from(AffineG1::new(
 			Fq::from_str("1").expect("1 is a valid field element"),
 			Fq::from_str("2").expect("2 is a valid field element"),
-		).expect("Generator P1(1, 2) is a valid curve point");
+		).expect("Generator P1(1, 2) is a valid curve point"));
+	}
 
-		let p2 = AffineG2::new(
+	lazy_static! {
+		pub static ref P2: G2 = G2::from(AffineG2::new(
 			Fq2::new(
 				Fq::from_str("1").expect("1 is a valid field element"),
 				Fq::from_str("2").expect("2 is a valid field element"),				
@@ -415,7 +416,83 @@ impl Impl for Bn128ParingImpl {
 				Fq::from_str("1").expect("1 is a valid field element"),
 				Fq::from_str("2").expect("2 is a valid field element"),				
 			),			
-		).expect("Generator P2(i+2b, i+2b) is a valid curve point");
+		).expect("Generator P2(i+2b, i+2b) is a valid curve point"));
+	}	
+
+
+	lazy_static! {
+		pub static ref P1xP2: Gt = pairing(P1.clone(), P2.clone());
+	}		
+}
+
+impl Impl for Bn128ParingImpl {
+	// Can fail if any of the 2 points does not belong the bn128 curve
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2};
+
+		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
+		if input.len() % 192 != 0 { 
+			return Err("Invalid input length, must be multiple of 192 (3 * (32*2))".into()) 
+		}
+		let ret_val = if input.len() == 0 {
+			U256::one()
+		} else {
+			let mut vals = Vec::new();
+			for idx in 0..elements {
+				let a_x = Fq::from_slice(&input[idx*192..idx*192+32])
+					.map_err(|_| Error::from("Invalid a argument x coordinate"))?;
+
+				let a_y = Fq::from_slice(&input[idx*192+32..idx*192+64])
+					.map_err(|_| Error::from("Invalid a argument y coordinate"))?;
+
+				let b_b_x = Fq::from_slice(&input[idx*192+64..idx*192+96])
+					.map_err(|_| Error::from("Invalid b argument imaginary coeff x coordinate"))?;
+
+				let b_b_y = Fq::from_slice(&input[idx*192+96..idx*192+128])
+					.map_err(|_| Error::from("Invalid b argument imaginary coeff y coordinate"))?;
+
+				let b_a_x = Fq::from_slice(&input[idx*192+128..idx*192+160])
+					.map_err(|_| Error::from("Invalid b argument real coeff x coordinate"))?;					
+
+				let b_a_y = Fq::from_slice(&input[idx*192+160..idx*192+192])
+					.map_err(|_| Error::from("Invalid b argument real coeff y coordinate"))?;					
+				
+				vals.push((
+					G1::from(
+						AffineG1::new(a_x, a_y).map_err(|_| Error::from("Invalid a argument - not on curve"))?
+					),
+					G2::from(
+						AffineG2::new(
+							Fq2::new(b_a_x, b_a_y),
+							Fq2::new(b_b_x, b_b_y),
+						).map_err(|_| Error::from("Invalid b argument - not on curve"))?
+					),
+				));
+			};
+			let mul = if elements == 1 {
+				let (a, b) = vals[0];
+				pairing(a, b)
+			} else {
+				let mut drain = vals.drain(..);				
+				let mut mul = { 
+					let (a, b) = drain.next()
+						.expect("Checked above that elements > 1, so 0th element should exist; qed"); 
+					pairing(a, b) 
+				};
+				for _ in 1..elements { 
+					let (a, b) = drain.next()
+						.expect("idx-th element should exist, because we do next() no more than elements-1 times; qed");
+					mul = mul * pairing(a, b);
+				}
+				mul
+			};
+
+			if mul == *bn128_gen::P1xP2 {
+				U256::one()
+			} else {
+				U256::zero()
+			}
+		};
 
 		Ok(())
 	}
