@@ -45,7 +45,7 @@ export default class Store {
   sameHashList = (transactions) => {
     return this.containsAll(transactions, this.sortedHashes) && this.containsAll(this.sortedHashes, transactions);
   }
-  
+
   sortHashes = () => {
     this.sortedHashes = this.sortedHashes.sort((hashA, hashB) => {
       const bnA = this.transactions[hashA].blockNumber;
