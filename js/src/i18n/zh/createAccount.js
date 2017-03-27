@@ -37,6 +37,7 @@ export default {
     cancel: `取消`,
     close: `关闭`,
     create: `创建`,
+    done: `Done`,
     import: `导入`,
     next: `下一步`,
     print: `打印恢复词`
