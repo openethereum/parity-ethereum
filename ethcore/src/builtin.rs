@@ -507,6 +507,7 @@ mod tests {
 	use super::{Builtin, Linear, ethereum_builtin, Pricer, Modexp};
 	use ethjson;
 	use util::{U256, BytesRef};
+	use rustc_serialize::hex::FromHex;
 
 	#[test]
 	fn identity() {
@@ -822,7 +823,82 @@ mod tests {
 			assert!(res.is_err(), "There should be built-in error here");
 		}		
 	}
+
+	fn builitin_pairing() -> Builtin {
+		Builtin {
+			pricer: Box::new(Linear { base: 0, word: 0 }),
+			native: ethereum_builtin("bn128_pairing"),
+			activate_at: 0,
+		}
+	}
+
+	fn empty_test(f: Builtin, expected: Vec<u8>) {
+		let mut empty = [0u8; 0];
+		let input = BytesRef::Fixed(&mut empty);		
+
+		let mut output = vec![0u8; expected.len()];
+
+		f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
+		assert_eq!(output, expected);		
+	}
+
+	fn error_test(f: Builtin, input: &[u8], msg_contains: Option<&str>) {
+		let mut output = vec![0u8; 64];
+		let res = f.execute(input, &mut BytesRef::Fixed(&mut output[..]));
+		if let Some(msg) = msg_contains {
+			if let Err(e) = res {
+				if !e.0.contains(msg) {
+					panic!("There should be error containing '{}' here, but got: '{}'", msg, e.0);
+				}
+			}
+		} else {
+			assert!(res.is_err(), "There should be built-in error here");
+		}
+	}
+
+	fn bytes(s: &'static str) -> Vec<u8> {
+		FromHex::from_hex(s).expect("static str should contain valid hex bytes")
+	}
 	
+	#[test]
+	fn bn128_pairing_empty() {
+		// should not fail, because empty input is a valid input of 0 elements
+		empty_test(
+			builitin_pairing(), 
+			bytes("0000000000000000000000000000000000000000000000000000000000000001"),
+		);
+	}
+
+	#[test]
+	fn bn128_pairing_notcurve() {
+		// should fail - point not on curve
+		error_test(
+			builitin_pairing(),
+			&bytes("\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111"
+			),
+			Some("not on curve"),
+		);
+	}
+
+	#[test]
+	fn bn128_pairing_fragmented() {
+		// should fail - input length is invalid
+		error_test(
+			builitin_pairing(),
+			&bytes("\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				111111111111111111111111111111"
+			),
+			Some("Invalid input length"),
+		);
+	}	
 
 	#[test]
 	#[should_panic]
