@@ -15,8 +15,40 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
+  actionbar: {
+    export: {
+      button: {
+        export: `export`
+      }
+    },
+    import: {
+      button: {
+        cancel: `Cancel`,
+        confirm: `Confirm`,
+        import: `import`
+      },
+      confirm: `Confirm that this is what was intended to import.`,
+      error: `An error occured: {errorText}`,
+      step: {
+        error: `error`,
+        select: `select a file`,
+        validate: `validate`
+      },
+      title: `Import from a file`
+    },
+    search: {
+      hint: `Enter search input...`
+    },
+    sort: {
+      sortBy: `Sort by {label}`,
+      typeDefault: `Default`,
+      typeEth: `Sort by ETH`,
+      typeName: `Sort by name`,
+      typeTags: `Sort by tags`
+    }
+  },
   balance: {
-    none: `There are no balances associated with this account`
+    none: `No balances associated with this account`
   },
   blockStatus: {
     bestBlock: `{blockNumber} best block`,
@@ -28,9 +60,60 @@ export default {
     no: `no`,
     yes: `yes`
   },
+  copyToClipboard: {
+    copied: `copied {data} to clipboard`
+  },
+  errors: {
+    close: `close`
+  },
+  fileSelect: {
+    defaultLabel: `Drop a file here, or click to select a file to upload`
+  },
+  gasPriceSelector: {
+    customTooltip: {
+      transactions: `{number} {number, plural, one {transaction} other {transactions}} with gas price set from {minPrice} to {maxPrice}`
+    }
+  },
   identityName: {
     null: `NULL`,
     unnamed: `UNNAMED`
+  },
+  methodDecoding: {
+    condition: {
+      block: `, {historic, select, true {Submitted} false {Submission}} at block {blockNumber}`,
+      time: `, {historic, select, true {Submitted} false {Submission}} at {timestamp}`
+    },
+    deploy: {
+      address: `Deployed a contract at address`,
+      params: `with the following parameters:`,
+      willDeploy: `Will deploy a contract`,
+      withValue: `, sending {value}`
+    },
+    gasUsed: `({gas} gas used)`,
+    gasValues: `{gas} gas ({gasPrice}M/{tag})`,
+    input: {
+      data: `data`,
+      input: `input`,
+      withInput: `with the {inputDesc} {inputValue}`
+    },
+    receive: {
+      contract: `the contract`,
+      info: `{historic, select, true {Received} false {Will receive}} {valueEth} from {aContract}{address}`
+    },
+    signature: {
+      info: `{historic, select, true {Executed} false {Will execute}} the {method} function on the contract {address} trsansferring {ethValue}{inputLength, plural, zero {,} other {passing the following {inputLength, plural, one {parameter} other {parameters}}}}`
+    },
+    token: {
+      transfer: `{historic, select, true {Transferred} false {Will transfer}} {value} to {address}`
+    },
+    transfer: {
+      contract: `the contract`,
+      info: `{historic, select, true {Transferred} false {Will transfer}} {valueEth} to {aContract}{address}`
+    },
+    txValues: `{historic, select, true {Provided} false {Provides}} {gasProvided}{gasUsed} for a total transaction value of {totalEthValue}`,
+    unknown: {
+      info: `{historic, select, true {Executed} false {Will execute}} the {method} on the contract {address} transferring {ethValue}.`
+    }
   },
   passwordStrength: {
     label: `password strength`
@@ -48,6 +131,10 @@ export default {
     posted: `The transaction has been posted to the network with a hash of {hashLink}`,
     waiting: `waiting for confirmations`
   },
+  vaultSelect: {
+    hint: `the vault this account is attached to`,
+    label: `associated vault`
+  },
   verification: {
     gatherData: {
       accountHasRequested: {
@@ -60,10 +147,6 @@ export default {
         pending: `Checking if your account is verified…`,
         true: `Your account is already verified.`
       },
-      email: {
-        hint: `the code will be sent to this address`,
-        label: `e-mail address`
-      },
       fee: `The additional fee is {amount} ETH.`,
       isAbleToRequest: {
         pending: `Validating your input…`
@@ -74,10 +157,6 @@ export default {
         true: `The verification server is running.`
       },
       nofee: `There is no additional fee.`,
-      phoneNumber: {
-        hint: `the SMS will be sent to this number`,
-        label: `phone number in international format`
-      },
       termsOfService: `I agree to the terms and conditions below.`
     }
   }

@@ -15,6 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
+  addOwner: {
+    title: `Add Owner`
+  },
+  buttons: {
+    cancel: `Cancel`,
+    close: `Close`,
+    next: `Next`,
+    send: `Send`,
+    sending: `Sending...`
+  },
   changes: {
     modificationString: `For your modifications to be taken into account,
               other owners have to send the same modifications. They can paste
@@ -48,11 +58,12 @@ export default {
       label: `from account (wallet owner)`
     }
   },
-  rejected: {
-    busyStep: {
-      state: `The wallet settings will not be modified. You can safely close this window.`,
-      title: `The modifications have been rejected`
-    },
-    title: `rejected`
+  ownersChange: {
+    details: `from {from} to {to}`,
+    title: `Change Required Owners`
+  },
+  rejected: `The transaction #{txid} has been rejected`,
+  removeOwner: {
+    title: `Remove Owner`
   }
 };

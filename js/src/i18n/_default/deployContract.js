@@ -37,6 +37,13 @@ export default {
       hint: `the owner account for this contract`,
       label: `from account (contract owner)`
     },
+    advanced: {
+      label: `advanced sending options`
+    },
+    amount: {
+      hint: `the amount to transfer to the contract`,
+      label: `amount to transfer (in {tag})`
+    },
     code: {
       hint: `the compiled code of the contract to deploy`,
       label: `code`
@@ -65,6 +72,7 @@ export default {
   },
   state: {
     completed: `The contract deployment has been completed`,
+    confirmationNeeded: `The operation needs confirmations from the other owners of the contract`,
     preparing: `Preparing transaction for network transmission`,
     validatingCode: `Validating the deployed contract code`,
     waitReceipt: `Waiting for the contract deployment transaction receipt`,
@@ -74,6 +82,7 @@ export default {
     completed: `completed`,
     deployment: `deployment`,
     details: `contract details`,
+    extras: `extra information`,
     failed: `deployment failed`,
     parameters: `contract parameters`,
     rejected: `rejected`

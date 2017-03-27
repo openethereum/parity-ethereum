@@ -22,11 +22,28 @@ export default {
     print: `Print Phrase`,
     skip: `Skip`
   },
+  completed: {
+    congrats: `Congratulations! Your node setup has been completed successfully and you are ready to use the application.`,
+    next: `Next you will receive a walk-through of the available functions and the general application interface to get you up and running in record time.`
+  },
   title: {
     completed: `completed`,
     newAccount: `new account`,
     recovery: `recovery`,
     terms: `terms`,
     welcome: `welcome`
+  },
+  tnc: {
+    accept: `I accept these terms and conditions`
+  },
+  welcome: {
+    description: `As part of a new installation, the next few steps will guide you through the process of setting up you Parity instance and your associated accounts. Our aim is to make it as simple as possible and to get you up and running in record-time, so please bear with us. Once completed you will have -`,
+    greeting: `Welcome to Parity, the fastest and simplest way to run your node.`,
+    next: `Click Next to continue your journey.`,
+    step: {
+      account: `Created your first Parity account`,
+      privacy: `Understood our privacy policy & terms of operation`,
+      recovery: `Have the ability to recover your account`
+    }
   }
 };

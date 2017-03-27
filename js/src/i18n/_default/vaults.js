@@ -26,8 +26,9 @@ export default {
   button: {
     accounts: `accounts`,
     add: `create vault`,
-    close: `close vault`,
-    open: `open vault`
+    close: `close`,
+    edit: `edit`,
+    open: `open`
   },
   confirmClose: {
     info: `You are about to close a vault. Any accounts associated with the vault won't be visible after this operation concludes. To view the associated accounts, open the vault again.`,
@@ -70,6 +71,38 @@ export default {
     },
     title: `Create a new vault`
   },
+  editMeta: {
+    allowPassword: `Change vault password`,
+    button: {
+      close: `close`,
+      save: `save`
+    },
+    currentPassword: {
+      hint: `your current vault password`,
+      label: `current password`
+    },
+    description: {
+      hint: `the description for this vault`,
+      label: `vault description`
+    },
+    password: {
+      hint: `a strong, unique password`,
+      label: `new password`
+    },
+    password2: {
+      hint: `verify your new password`,
+      label: `new password (repeat)`
+    },
+    passwordHint: {
+      hint: `your password hint for this vault`,
+      label: `password hint`
+    },
+    title: `Edit Vault Metadata`
+  },
   empty: `There are currently no vaults to display.`,
+  selector: {
+    noneAvailable: `There are currently no vaults opened and available for selection. Create and open some first before attempting to select a vault for an account move.`,
+    title: `Select Account Vault`
+  },
   title: `Vault Management`
 };

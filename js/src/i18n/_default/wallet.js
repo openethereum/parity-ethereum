@@ -15,25 +15,31 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  button: {
-    delete: `delete`,
+  buttons: {
     edit: `edit`,
-    faucet: `Kovan ETH`,
-    password: `password`,
-    shapeshift: `shapeshift`,
-    transfer: `transfer`,
-    verify: `verify`
+    forget: `forget`,
+    settings: `settings`,
+    transfer: `transfer`
   },
-  hardware: {
-    confirmDelete: `Are you sure you want to remove the following hardware address from your account list?`
+  confirmations: {
+    buttons: {
+      confirmAs: `Confirm As...`,
+      revokeAs: `Revoke As...`
+    },
+    none: `No transactions needs confirmation right now.`,
+    tooltip: {
+      confirmed: `Confirmed by {number}/{required} owners`
+    }
   },
-  header: {
-    outgoingTransactions: `{count} outgoing transactions`,
-    uuid: `uuid: {uuid}`
+  details: {
+    requiredOwners: `This wallet requires at least {owners} to validate any action (transactions, modifications).`,
+    requiredOwnersNumber: `{number} {numberValue, plural, one {owner} other {owners}}`,
+    spent: `{spent} has been spent today, out of {limit} set as the daily limit, which has been reset on {date}`,
+    title: `Details`
   },
-  title: `Account Management`,
+  title: `Wallet Management`,
   transactions: {
-    poweredBy: `Transaction list powered by {etherscan}`,
-    title: `transactions`
+    none: `No transactions has been sent.`,
+    title: `Transactions`
   }
 };
