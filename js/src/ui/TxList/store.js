@@ -24,9 +24,6 @@ export default class Store {
   constructor (api, newError) {
     this._api = api;
     this._newError = newError;
-
-    this.containsAll = (arr1, arr2) => arr2.every(arr2Item => arr1.includes(arr2Item));
-    this.sameMembers = (arr1, arr2) => this.containsAll(arr1, arr2) && this.containsAll(arr2, arr1);
   }
 
   @action addHash = (hash) => {
@@ -41,10 +38,14 @@ export default class Store {
     this.sortHashes();
   }
 
-  sameHashList = (transactions) => {
-    return this.sameMembers(this.sortedHashes, transactions);
+  containsAll = (arr1, arr2) => {
+    return arr2.every((arr2Item) => arr1.includes(arr2Item));
   }
 
+  sameHashList = (transactions) => {
+    return this.containsAll(transactions, this.sortedHashes) && this.containsAll(this.sortedHashes, transactions);
+  }
+  
   sortHashes = () => {
     this.sortedHashes = this.sortedHashes.sort((hashA, hashB) => {
       const bnA = this.transactions[hashA].blockNumber;
