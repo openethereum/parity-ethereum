@@ -14,14 +14,54 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const DEFAULT_LOCALE = 'en';
-const DEFAULT_LOCALES = process.env.NODE_ENV === 'production'
-  ? ['en']
-  : ['en', 'de', 'nl', 'zh'];
-const LS_STORE_KEY = '_parity::locale';
+export default {
+  label: 'settings',
 
-export {
-  DEFAULT_LOCALE,
-  DEFAULT_LOCALES,
-  LS_STORE_KEY
+  background: {
+    label: 'background'
+  },
+
+  parity: {
+    label: 'parity'
+  },
+
+  proxy: {
+    label: 'proxy'
+  },
+
+  views: {
+    label: 'views',
+
+    accounts: {
+      label: 'Accounts'
+    },
+
+    addresses: {
+      label: 'Addressbook'
+    },
+
+    apps: {
+      label: 'Applications'
+    },
+
+    contracts: {
+      label: 'Contracts'
+    },
+
+    home: {
+      label: 'Home'
+    },
+
+    status: {
+      label: 'Status'
+    },
+
+    signer: {
+      label: 'Signer'
+    },
+
+    settings: {
+      label: 'Settings'
+    }
+  }
 };
