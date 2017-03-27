@@ -140,6 +140,10 @@ export function outHwAccountInfo (infos) {
     }, {});
 }
 
+export function outNodeKind (info) {
+  return info;
+}
+
 export function outNumber (number) {
   return new BigNumber(number || 0);
 }

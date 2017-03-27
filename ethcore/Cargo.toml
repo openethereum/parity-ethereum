@@ -27,6 +27,7 @@ byteorder = "1.0"
 transient-hashmap = "0.4"
 linked-hash-map = "0.3.0"
 lru-cache = "0.1.0"
+itertools = "0.5"
 ethabi = "1.0.0"
 evmjit = { path = "../evmjit", optional = true }
 clippy = { version = "0.0.103", optional = true}

@@ -469,7 +469,7 @@ export default class TypedInput extends Component {
    *   { value: Object, type: String }
    */
   getValue (value = this.props.value) {
-    return value && value.value
+    return value && value.value !== undefined
       ? value.value
       : value;
   }
