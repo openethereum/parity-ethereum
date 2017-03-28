@@ -158,6 +158,8 @@ pub const SNAPSHOT_SYNC_PACKET_COUNT: u8 = 0x16;
 
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
+const MIN_SUPPORTED_SNAPSHOT_MANIFEST_VERSION: u64 = 1;
+
 const WAIT_PEERS_TIMEOUT_SEC: u64 = 5;
 const STATUS_TIMEOUT_SEC: u64 = 5;
 const HEADERS_TIMEOUT_SEC: u64 = 15;
@@ -1028,12 +1030,18 @@ impl ChainSync {
 		let manifest = match ManifestData::from_rlp(manifest_rlp.as_raw()) {
 			Err(e) => {
 				trace!(target: "sync", "{}: Ignored bad manifest: {:?}", peer_id, e);
-				io.disconnect_peer(peer_id);
+				io.disable_peer(peer_id);
 				self.continue_sync(io);
 				return Ok(());
 			}
 			Ok(manifest) => manifest,
 		};
+		if manifest.version < MIN_SUPPORTED_SNAPSHOT_MANIFEST_VERSION {
+			trace!(target: "sync", "{}: Snapshot manifest version too low: {}", peer_id, manifest.version);
+			io.disable_peer(peer_id);
+			self.continue_sync(io);
+			return Ok(());
+		}
 		self.snapshot.reset_to(&manifest, &manifest_rlp.as_raw().sha3());
 		io.snapshot_service().begin_restore(manifest);
 		self.state = SyncState::SnapshotData;
