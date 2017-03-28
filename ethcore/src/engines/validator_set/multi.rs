@@ -18,7 +18,7 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
-use util::{H256, Address, RwLock, HeapSizeOf};
+use util::{H256, Address, RwLock};
 use ids::BlockId;
 use header::BlockNumber;
 use client::{Client, BlockChainClient};
@@ -98,12 +98,6 @@ impl ValidatorSet for Multi {
 			.upgrade()
 			.ok_or("No client!".into())
 			.and_then(|c| c.block_number(BlockId::Hash(*hash)).ok_or("Unknown block".into())));
-	}
-}
-
-impl HeapSizeOf for Multi {
-	fn heap_size_of_children(&self) -> usize {
-		self.sets.heap_size_of_children()
 	}
 }
 

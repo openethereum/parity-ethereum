@@ -34,12 +34,6 @@ impl SimpleList {
 	}
 }
 
-impl HeapSizeOf for SimpleList {
-	fn heap_size_of_children(&self) -> usize {
-		self.validators.heap_size_of_children() + self.validator_n.heap_size_of_children()
-	}
-}
-
 impl ValidatorSet for SimpleList {
 	fn contains(&self, _bh: &H256, address: &Address) -> bool {
 		self.validators.contains(address)
@@ -51,6 +45,12 @@ impl ValidatorSet for SimpleList {
 
 	fn count(&self, _bh: &H256) -> usize {
 		self.validator_n
+	}
+}
+
+impl HeapSizeOf for SimpleList {
+	fn heap_size_of_children(&self) -> usize {
+		self.validators.heap_size_of_children() + self.validator_n.heap_size_of_children()
 	}
 }
 

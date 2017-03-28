@@ -23,7 +23,7 @@ mod registry_contract;
 mod multi;
 
 use std::sync::Weak;
-use util::{Address, H256, HeapSizeOf};
+use util::{Address, H256};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::Client;
 use self::simple_list::SimpleList;
@@ -46,7 +46,7 @@ pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet> {
 	}
 }
 
-pub trait ValidatorSet: Send + Sync + HeapSizeOf {
+pub trait ValidatorSet: Send + Sync {
 	/// Checks if a given address is a validator.
 	fn contains(&self, parent_block_hash: &H256, address: &Address) -> bool;
 	/// Draws an validator nonce modulo number of validators.

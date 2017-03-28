@@ -135,12 +135,6 @@ mod provider {
 	}
 }
 
-impl HeapSizeOf for ReportingContract {
-	fn heap_size_of_children(&self) -> usize {
-		self.validators.heap_size_of_children()
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use util::*;

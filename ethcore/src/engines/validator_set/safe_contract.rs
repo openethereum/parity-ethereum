@@ -25,7 +25,7 @@ use client::{Client, BlockChainClient};
 use super::ValidatorSet;
 use super::simple_list::SimpleList;
 
-const MEMOIZE_CAPACITY: usize = 500;
+const MEMOIZE_CAPACITY: usize = 1_000_000;
 const CONTRACT_INTERFACE: &'static [u8] = b"[{\"constant\":true,\"inputs\":[],\"name\":\"getValidators\",\"outputs\":[{\"name\":\"\",\"type\":\"address[]\"}],\"payable\":false,\"type\":\"function\"}]";
 const GET_VALIDATORS: &'static str = "getValidators";
 
@@ -124,12 +124,6 @@ impl ValidatorSet for SafeContract {
 			.and_then(|c| c.call_contract(id, contract_address.clone(), data.clone()))
 			.map(|raw_output| call.decode_output(raw_output).expect("ethabi is correct; qed"));
 		*self.provider.write() = Some(provider::Contract::new(do_call));
-	}
-}
-
-impl HeapSizeOf for SafeContract {
-	fn heap_size_of_children(&self) -> usize {
-		self.address.heap_size_of_children() + self.validators.read().current_size()
 	}
 }
 

@@ -17,6 +17,7 @@
 /// Validator set maintained in a contract which can be found in the registry under "validator_set".
 
 use std::sync::Weak;
+use lru_cache::LruCache;
 use util::*;
 use util::cache::MemoryLruCache;
 use ethjson::hash::{Address as AddressSpec};
@@ -29,7 +30,7 @@ use super::new_validator_set;
 /// Number of memoized contract validator sets.
 const ADDRESS_SET_CAPACITY: usize = 3;
 /// Nubmer of memoized validator set registry lookups.
-const BLOCK_ADDRESS_CAPACITY: usize = 500;
+const BLOCK_ADDRESS_SIZE: usize = 1_000_000;
 const REGISTRY_NAME: &'static str  = "validator_set";
 
 type ContractMaker = Box<Fn(Address) -> Box<ValidatorSet> + Send + Sync>;
@@ -37,7 +38,7 @@ type RegistryLookup = Box<Fn(H256) -> Address + Send + Sync>;
 
 /// The validator contract should have the following interface:
 pub struct RegistryContract {
-	validators: RwLock<MemoryLruCache<Address, Box<ValidatorSet>>>,
+	validators: RwLock<LruCache<Address, Box<ValidatorSet>>>,
 	addresses: RwLock<MemoryLruCache<H256, Address>>,
 	contract_maker: RwLock<ContractMaker>,
 	registry_lookup: RwLock<RegistryLookup>,
@@ -47,8 +48,8 @@ pub struct RegistryContract {
 impl RegistryContract {
 	pub fn new(contract_type: spec::ValidatorContract) -> Self {
 		RegistryContract {
-			validators: RwLock::new(MemoryLruCache::new(ADDRESS_SET_CAPACITY)),
-			addresses: RwLock::new(MemoryLruCache::new(BLOCK_ADDRESS_CAPACITY)),
+			validators: RwLock::new(LruCache::new(ADDRESS_SET_CAPACITY)),
+			addresses: RwLock::new(MemoryLruCache::new(BLOCK_ADDRESS_SIZE)),
 			contract_maker: RwLock::new(Box::new(move |_| new_validator_set(spec::ValidatorSet::List(Default::default())))),
 			registry_lookup: RwLock::new(Box::new(move |_| Default::default())),
 			contract_type: contract_type,
@@ -117,11 +118,5 @@ impl ValidatorSet for RegistryContract {
 			set.register_contract(client.clone());
 			set
 		});
-	}
-}
-
-impl HeapSizeOf for RegistryContract {
-	fn heap_size_of_children(&self) -> usize {
-		self.validators.read().current_size() + self.addresses.read().current_size()
 	}
 }
