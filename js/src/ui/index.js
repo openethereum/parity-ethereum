@@ -47,6 +47,7 @@ export ParityBackground from './ParityBackground';
 export Portal from './Portal';
 export QrCode from './QrCode';
 export QrScan from './QrScan';
+export ScrollableText from './ScrollableText';
 export SectionList from './SectionList';
 export SelectionList from './SelectionList';
 export ShortenedHash from './ShortenedHash';

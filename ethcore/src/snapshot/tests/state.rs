@@ -58,6 +58,7 @@ fn snap_and_restore() {
 	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default()).unwrap();
 
 	writer.into_inner().finish(::snapshot::ManifestData {
+		version: 2,
 		state_hashes: state_hashes,
 		block_hashes: Vec::new(),
 		state_root: state_root,
@@ -121,10 +122,10 @@ fn get_code_from_prev_chunk() {
 		let mut db = MemoryDB::new();
 		AccountDBMut::from_hash(&mut db, hash).insert(&code[..]);
 
-		let fat_rlp = account::to_fat_rlp(&acc, &AccountDB::from_hash(&db, hash), &mut used_code).unwrap();
+		let fat_rlp = account::to_fat_rlps(&acc, &AccountDB::from_hash(&db, hash), &mut used_code, usize::max_value()).unwrap();
 
 		let mut stream = RlpStream::new_list(1);
-		stream.begin_list(2).append(&hash).append_raw(&fat_rlp, 1);
+		stream.begin_list(2).append(&hash).append_raw(&fat_rlp[0], 1);
 		stream.out()
 	};
 
@@ -170,6 +171,7 @@ fn checks_flag() {
 	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default()).unwrap();
 
 	writer.into_inner().finish(::snapshot::ManifestData {
+		version: 2,
 		state_hashes: state_hashes,
 		block_hashes: Vec::new(),
 		state_root: state_root,

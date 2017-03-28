@@ -76,7 +76,7 @@ export default class Title extends Component {
   renderSteps () {
     const { activeStep, steps } = this.props;
 
-    if (!steps) {
+    if (!steps || steps.length < 2) {
       return;
     }
 

@@ -124,7 +124,7 @@ describe('api/subscriptions/manager', () => {
               });
           });
 
-          it('does not call the callback after unsibscription', () => {
+          it('does not call the callback after unsubscription', () => {
             expect(cb).to.have.been.calledWith(null, 'test');
             expect(cb).to.not.have.been.calledWith(null, 'test2');
           });

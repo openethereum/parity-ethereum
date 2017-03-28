@@ -121,7 +121,7 @@ export default class Status {
   _subscribeBlockNumber = () => {
     return this._api
       .subscribe('eth_blockNumber', (error, blockNumber) => {
-        if (error) {
+        if (error || !blockNumber) {
           return;
         }
 

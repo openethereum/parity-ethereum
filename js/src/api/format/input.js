@@ -139,46 +139,46 @@ export function inOptionsCondition (condition) {
   return condition;
 }
 
-export function inOptions (options) {
-  if (options) {
-    Object.keys(options).forEach((key) => {
-      switch (key) {
-        case 'to':
-          // Don't encode the `to` option if it's empty
-          // (eg. contract deployments)
-          if (options[key]) {
-            options[key] = inAddress(options[key]);
-          }
-          break;
+export function inOptions (_options = {}) {
+  const options = { ..._options };
 
-        case 'from':
-          options[key] = inAddress(options[key]);
-          break;
+  Object.keys(options).forEach((key) => {
+    switch (key) {
+      case 'to':
+        // Don't encode the `to` option if it's empty
+        // (eg. contract deployments)
+        if (options[key]) {
+          options.to = inAddress(options[key]);
+        }
+        break;
 
-        case 'condition':
-          options[key] = inOptionsCondition(options[key]);
-          break;
+      case 'from':
+        options[key] = inAddress(options[key]);
+        break;
 
-        case 'gas':
-        case 'gasPrice':
-          options[key] = inNumber16((new BigNumber(options[key])).round());
-          break;
+      case 'condition':
+        options[key] = inOptionsCondition(options[key]);
+        break;
 
-        case 'minBlock':
-          options[key] = options[key] ? inNumber16(options[key]) : null;
-          break;
+      case 'gas':
+      case 'gasPrice':
+        options[key] = inNumber16((new BigNumber(options[key])).round());
+        break;
 
-        case 'value':
-        case 'nonce':
-          options[key] = inNumber16(options[key]);
-          break;
+      case 'minBlock':
+        options[key] = options[key] ? inNumber16(options[key]) : null;
+        break;
 
-        case 'data':
-          options[key] = inData(options[key]);
-          break;
-      }
-    });
-  }
+      case 'value':
+      case 'nonce':
+        options[key] = inNumber16(options[key]);
+        break;
+
+      case 'data':
+        options[key] = inData(options[key]);
+        break;
+    }
+  });
 
   return options;
 }

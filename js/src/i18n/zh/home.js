@@ -14,4 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './errorStep';
+export default {
+  account: {
+    visited: `accessed {when}`
+  },
+  accounts: {
+    none: `No recent accounts history available`,
+    title: `Recent Accounts`
+  },
+  dapp: {
+    visited: `accessed {when}`
+  },
+  dapps: {
+    none: `No recent Applications history available`,
+    title: `Recent Dapps`
+  },
+  title: `Parity Home`,
+  url: {
+    none: `No recent URL history available`,
+    title: `Web Applications`,
+    visited: `visited {when}`
+  }
+};

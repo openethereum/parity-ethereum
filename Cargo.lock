@@ -414,6 +414,7 @@ dependencies = [
  "evmjit 1.7.0",
  "hardware-wallet 1.7.0",
  "hyper 0.10.0-a.0 (git+https://github.com/paritytech/hyper)",
+ "itertools 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1750,7 +1751,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#92cf06c1e8c3b79014a9d6adcb1f5c17f0a88030"
+source = "git+https://github.com/ethcore/js-precompiled.git#05a4e30d179ba97f21a037d7508e18ab3e53a8e8"
 dependencies = [
  "parity-dapps-glue 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

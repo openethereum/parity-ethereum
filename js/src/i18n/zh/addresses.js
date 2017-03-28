@@ -14,22 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-
-import styles from '../deployContract.css';
-
-export default class ErrorStep extends Component {
-  static propTypes = {
-    error: PropTypes.object
-  }
-
-  render () {
-    const { error } = this.props;
-
-    return (
-      <div className={ styles.center }>
-        The contract deployment failed: { error.message }
-      </div>
-    );
-  }
-}
+export default {
+  buttons: {
+    add: `address`
+  },
+  errors: {
+    invalidFile: `The provided file is invalid...`
+  },
+  title: `Saved Addresses`
+};
