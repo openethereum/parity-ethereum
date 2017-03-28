@@ -28,26 +28,6 @@ export function statusCollection (collection) {
   };
 }
 
-export function statusLogs (logInfo) {
-  return {
-    type: 'statusLogs',
-    logInfo
-  };
-}
-
-export function toggleStatusLogs (devLogsEnabled) {
-  return {
-    type: 'toggleStatusLogs',
-    devLogsEnabled
-  };
-}
-
-export function clearStatusLogs () {
-  return {
-    type: 'clearStatusLogs'
-  };
-}
-
 export function toggleStatusRefresh (refreshStatus) {
   return {
     type: 'toggleStatusRefresh',

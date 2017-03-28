@@ -20,7 +20,7 @@ import { LOG_KEYS, getLogger } from '~/config';
 import UpgradeStore from '~/modals/UpgradeParity/store';
 
 import BalancesProvider from './balances';
-import { statusBlockNumber, statusCollection, statusLogs } from './statusActions';
+import { statusBlockNumber, statusCollection } from './statusActions';
 
 const log = getLogger(LOG_KEYS.Signer);
 let instance = null;
@@ -74,7 +74,6 @@ export default class Status {
       .all([
         this._subscribeBlockNumber(),
 
-        this._pollLogs(),
         this._pollLongStatus(),
         this._pollStatus()
       ])
@@ -333,40 +332,5 @@ export default class Status {
       });
 
     return Promise.all([ minerPromise, mainPromise ]);
-  }
-
-  _pollLogs = () => {
-    const nextTimeout = (timeout = 1000) => {
-      if (this._timeoutIds.logs) {
-        clearTimeout(this._timeoutIds.logs);
-      }
-
-      this._timeoutIds.logs = setTimeout(this._pollLogs, timeout);
-    };
-
-    const { devLogsEnabled } = this._store.getState().nodeStatus;
-
-    if (!devLogsEnabled) {
-      nextTimeout();
-      return Promise.resolve();
-    }
-
-    return Promise
-      .all([
-        this._api.parity.devLogs(),
-        this._api.parity.devLogsLevels()
-      ])
-      .then(([devLogs, devLogsLevels]) => {
-        this._store.dispatch(statusLogs({
-          devLogs: devLogs.slice(-1024),
-          devLogsLevels
-        }));
-      })
-      .catch((error) => {
-        console.error('_pollLogs', error);
-      })
-      .then(() => {
-        return nextTimeout();
-      });
   }
 }

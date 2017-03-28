@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
-import { clearStatusLogs, toggleStatusLogs, toggleStatusRefresh } from '~/redux/actions';
+import { toggleStatusRefresh } from '~/redux/actions';
 
 import Debug from '../../components/Debug';
 import Status from '../../components/Status';
@@ -43,7 +43,7 @@ class StatusPage extends Component {
     return (
       <div className={ styles.body }>
         <Status { ...this.props } />
-        <Debug { ...this.props } />
+        <Debug />
       </div>
     );
   }
@@ -56,8 +56,6 @@ function mapStateToProps (state) {
 function mapDispatchToProps (dispatch) {
   return {
     actions: bindActionCreators({
-      clearStatusLogs,
-      toggleStatusLogs,
       toggleStatusRefresh
     }, dispatch)
   };
