@@ -411,6 +411,28 @@ impl HeaderChain {
 		}
 	}
 
+	/// Get a block's chain score.
+	/// Returns nothing for non-canonical blocks.
+	pub fn score(&self, id: BlockId) -> Option<U256> {
+		let genesis_hash = self.genesis_hash();
+		match id {
+			BlockId::Earliest | BlockId::Number(0) => Some(self.genesis_header.difficulty()),
+			BlockId::Hash(hash) if hash == genesis_hash => Some(self.genesis_header.difficulty()),
+			BlockId::Hash(hash) => match self.block_header(BlockId::Hash(hash)) {
+				Some(header) => self.candidates.read().get(&header.number())
+					.and_then(|era| era.candidates.iter().find(|e| e.hash == hash))
+					.map(|c| c.total_difficulty),
+				None => None,
+			},
+			BlockId::Number(num) => {
+				let candidates = self.candidates.read();
+				if self.best_block.read().number < num { return None }
+				candidates.get(&num).map(|era| era.candidates[0].total_difficulty)
+			}
+			BlockId::Latest | BlockId::Pending => Some(self.best_block.read().total_difficulty)
+		}
+	}
+
 	/// Get the best block's header.
 	pub fn best_header(&self) -> encoded::Header {
 		self.block_header(BlockId::Latest).expect("Header for best block always stored; qed")

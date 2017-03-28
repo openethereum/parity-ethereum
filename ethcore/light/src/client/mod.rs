@@ -31,7 +31,7 @@ use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
 
-use util::{H256, Mutex, RwLock};
+use util::{H256, U256, Mutex, RwLock};
 use util::kvdb::{KeyValueDB, CompactionProfile};
 
 use self::header_chain::{AncestryIter, HeaderChain};
@@ -73,6 +73,9 @@ pub trait LightChainClient: Send + Sync {
 
 	/// Get the best block header.
 	fn best_block_header(&self) -> encoded::Header;
+
+	/// Get a block's chain score by ID.
+	fn score(&self, id: BlockId) -> Option<U256>;
 
 	/// Get an iterator over a block and its ancestry.
 	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a>;
@@ -197,6 +200,11 @@ impl Client {
 	/// Get the best block header.
 	pub fn best_block_header(&self) -> encoded::Header {
 		self.chain.best_header()
+	}
+
+	/// Get a block's chain score.
+	pub fn score(&self, id: BlockId) -> Option<U256> {
+		self.chain.score(id)
 	}
 
 	/// Get an iterator over a block and its ancestry.
@@ -326,6 +334,10 @@ impl LightChainClient for Client {
 
 	fn best_block_header(&self) -> encoded::Header {
 		Client::best_block_header(self)
+	}
+
+	fn score(&self, id: BlockId) -> Option<U256> {
+		Client::score(self, id)
 	}
 
 	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a> {

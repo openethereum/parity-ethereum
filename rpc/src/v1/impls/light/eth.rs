@@ -254,6 +254,111 @@ impl EthClient {
 			}
 		}).boxed()
 	}
+
+	fn block(&self, id: BlockId) -> BoxFuture<Option<encoded::Block>, Error> {
+		let (on_demand, sync) = (self.on_demand.clone(), self.sync.clone());
+
+		self.header(id).and_then(move |hdr| {
+			let req = match hdr {
+				Some(hdr) => request::Body::new(hdr),
+				None => return future::ok(None).boxed(),
+			};
+
+			match sync.with_context(move |ctx| on_demand.block(ctx, req)) {
+				Some(fut) => fut.map_err(err_premature_cancel).map(Some).boxed(),
+				None => future::err(errors::network_disabled()).boxed(),
+			}
+		}).boxed()
+	}
+
+	// get a "rich" block structure
+	fn rich_block(&self, id: BlockId, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
+		let (on_demand, sync) = (self.on_demand.clone(), self.sync.clone());
+		let (client, engine) = (self.client.clone(), self.client.engine().clone());
+
+		// helper for filling out a rich block once we've got a block and a score.
+		let fill_rich = move |block: encoded::Block, score: Option<U256>| {
+			let header = block.decode_header();
+			let extra_info = engine.extra_info(&header);
+			RichBlock {
+				block: Block {
+					hash: Some(header.hash().into()),
+					size: Some(block.rlp().as_raw().len().into()),
+					parent_hash: header.parent_hash().clone().into(),
+					uncles_hash: header.uncles_hash().clone().into(),
+					author: header.author().clone().into(),
+					miner: header.author().clone().into(),
+					state_root: header.state_root().clone().into(),
+					transactions_root: header.transactions_root().clone().into(),
+					receipts_root: header.receipts_root().clone().into(),
+					number: Some(header.number().into()),
+					gas_used: header.gas_used().clone().into(),
+					gas_limit: header.gas_limit().clone().into(),
+					logs_bloom: header.log_bloom().clone().into(),
+					timestamp: header.timestamp().into(),
+					difficulty: header.difficulty().clone().into(),
+					total_difficulty: score.map(Into::into),
+					seal_fields: header.seal().into_iter().cloned().map(Into::into).collect(),
+					uncles: block.uncle_hashes().into_iter().map(Into::into).collect(),
+					transactions: match include_txs {
+						true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(Into::into).collect()),
+						false => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
+					},
+					extra_data: Bytes::new(header.extra_data().to_vec()),
+				},
+				extra_info: extra_info
+			}
+		};
+
+		// get the block itself.
+		self.block(id).and_then(move |block| match block {
+			None => return future::ok(None).boxed(),
+			Some(block) => {
+				// then fetch the total difficulty (this is much easier after getting the block).
+				match client.score(id) {
+					Some(score) => future::ok(fill_rich(block, Some(score))).map(Some).boxed(),
+					None => {
+						// make a CHT request to fetch the chain score.
+						let req = cht::block_to_cht_number(block.number())
+							.and_then(|num| client.cht_root(num as usize))
+							.and_then(|root| request::HeaderProof::new(block.number(), root));
+
+
+						let req = match req {
+							Some(req) => req,
+							None => {
+								// somehow the genesis block slipped past other checks.
+								// return it now.
+								let score = client.block_header(BlockId::Number(0))
+									.expect("genesis always stored; qed")
+									.difficulty();
+
+								return future::ok(fill_rich(block, Some(score))).map(Some).boxed()
+							}
+						};
+
+						// three possible outcomes:
+						//   - network is down.
+						//   - we get a score, but our hash is non-canonical.
+						//   - we get ascore, and our hash is canonical.
+						let maybe_fut = sync.with_context(move |ctx| on_demand.hash_and_score_by_number(ctx, req));
+						match maybe_fut {
+							Some(fut) => fut.map(move |(hash, score)| {
+									let score = if hash == block.hash() {
+										Some(score)
+									} else {
+										None
+									};
+
+									Some(fill_rich(block, score))
+								}).map_err(err_premature_cancel).boxed(),
+							None => return future::err(errors::network_disabled()).boxed(),
+						}
+					}
+				}
+			}
+		}).boxed()
+	}
 }
 
 impl Eth for EthClient {
@@ -295,7 +400,10 @@ impl Eth for EthClient {
 	}
 
 	fn gas_price(&self) -> Result<RpcU256, Error> {
-		Ok(Default::default())
+		Ok(self.cache.lock().gas_price_corpus()
+			.and_then(|c| c.median().cloned())
+			.map(RpcU256::from)
+			.unwrap_or_else(Default::default))
 	}
 
 	fn accounts(&self, meta: Metadata) -> BoxFuture<Vec<RpcH160>, Error> {
@@ -324,11 +432,11 @@ impl Eth for EthClient {
 	}
 
 	fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
-		future::err(errors::unimplemented(None)).boxed()
+		self.rich_block(BlockId::Hash(hash.into()), include_txs)
 	}
 
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
-		future::err(errors::unimplemented(None)).boxed()
+		self.rich_block(num.into(), include_txs)
 	}
 
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
