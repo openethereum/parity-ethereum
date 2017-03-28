@@ -344,9 +344,8 @@ impl Dependencies for LightDependencies {
 						self.secret_store.clone(),
 						self.cache.clone(),
 					);
-					handler.extend_with(client.to_delegate());
-
-					// TODO: filters.
+					handler.extend_with(Eth::to_delegate(client.clone()));
+					handler.extend_with(EthFilter::to_delegate(client));
 					add_signing_methods!(EthSigning, handler, self);
 				},
 				Api::Personal => {
