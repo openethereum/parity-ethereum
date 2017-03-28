@@ -65,6 +65,9 @@ pub trait LightChainClient: Send + Sync {
 	/// parent queued prior.
 	fn queue_header(&self, header: Header) -> Result<H256, BlockImportError>;
 
+	/// Attempt to get a block hash by block id.
+	fn block_hash(&self, id: BlockId) -> Option<H256>;
+
 	/// Attempt to get block header by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 
@@ -179,6 +182,11 @@ impl Client {
 	/// Get the header queue info.
 	pub fn queue_info(&self) -> queue::QueueInfo {
 		self.queue.queue_info()
+	}
+
+	/// Attempt to get a block hash by block id.
+	pub fn block_hash(&self, id: BlockId) -> Option<H256> {
+		self.chain.block_hash(id)
 	}
 
 	/// Get a block header by Id.
@@ -306,6 +314,10 @@ impl LightChainClient for Client {
 
 	fn queue_header(&self, header: Header) -> Result<H256, BlockImportError> {
 		self.import_header(header)
+	}
+
+	fn block_hash(&self, id: BlockId) -> Option<H256> {
+		Client::block_hash(self, id)
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {

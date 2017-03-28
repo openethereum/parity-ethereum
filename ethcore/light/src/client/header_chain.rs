@@ -355,6 +355,22 @@ impl HeaderChain {
 		}
 	}
 
+	/// Get a block's hash by ID. In the case of query by number, only canonical results
+	/// will be returned.
+	pub fn block_hash(&self, id: BlockId) -> Option<H256> {
+		match id {
+			BlockId::Earliest => Some(self.genesis_hash()),
+			BlockId::Hash(hash) => Some(hash),
+			BlockId::Number(num) => {
+				if self.best_block.read().number < num { return None }
+				self.candidates.read().get(&num).map(|entry| entry.canonical_hash)
+			}
+			BlockId::Latest | BlockId::Pending => {
+				Some(self.best_block.read().hash)
+			}
+		}
+	}
+
 	/// Get a block header. In the case of query by number, only canonical blocks
 	/// will be returned.
 	pub fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
