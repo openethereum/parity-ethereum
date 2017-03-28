@@ -28,12 +28,12 @@ import styles from '../createAccount.css';
 @observer
 export default class RecoveryPhrase extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired,
+    createStore: PropTypes.object.isRequired,
     vaultStore: PropTypes.object
   }
 
   render () {
-    const { isWindowsPhrase, name, nameError, password, passwordRepeat, passwordRepeatError, passwordHint, phrase } = this.props.store;
+    const { isWindowsPhrase, name, nameError, password, passwordRepeat, passwordRepeatError, passwordHint, phrase } = this.props.createStore;
 
     return (
       <Form>
@@ -130,7 +130,7 @@ export default class RecoveryPhrase extends Component {
         </div>
         <PasswordStrength input={ password } />
         <ChangeVault
-          store={ this.props.store }
+          createStore={ this.props.createStore }
           vaultStore={ this.props.vaultStore }
         />
         <Checkbox
@@ -149,38 +149,38 @@ export default class RecoveryPhrase extends Component {
   }
 
   onToggleWindowsPhrase = (event) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setWindowsPhrase(!store.isWindowsPhrase);
+    createStore.setWindowsPhrase(!createStore.isWindowsPhrase);
   }
 
   onEditPhrase = (event, phrase) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setPhrase(phrase);
+    createStore.setPhrase(phrase);
   }
 
   onEditName = (event, name) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setName(name);
+    createStore.setName(name);
   }
 
   onEditPassword = (event, password) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setPassword(password);
+    createStore.setPassword(password);
   }
 
   onEditPasswordRepeat = (event, password) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setPasswordRepeat(password);
+    createStore.setPasswordRepeat(password);
   }
 
   onEditPasswordHint = (event, passwordHint) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setPasswordHint(passwordHint);
+    createStore.setPasswordHint(passwordHint);
   }
 }

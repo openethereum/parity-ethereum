@@ -25,11 +25,11 @@ import styles from '../createAccount.css';
 @observer
 export default class AccountDetails extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired
+    createStore: PropTypes.object.isRequired
   }
 
   render () {
-    const { address, description, name } = this.props.store;
+    const { address, description, name } = this.props.createStore;
 
     return (
       <div className={ styles.details }>
@@ -79,7 +79,7 @@ export default class AccountDetails extends Component {
   }
 
   renderPhrase () {
-    const { phrase } = this.props.store;
+    const { phrase } = this.props.createStore;
 
     if (!phrase) {
       return null;
