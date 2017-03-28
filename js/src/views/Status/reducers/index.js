@@ -14,18 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import status from './status';
-import settings from './settings';
-import mining from './mining';
-import debug from './debug';
 import rpc from './rpc';
 import logger from './logger';
 
 export {
-  status,
-  settings,
-  mining,
   rpc,
-  logger,
-  debug
+  logger
 };
