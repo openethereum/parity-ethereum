@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { observer } from 'mobx-react';
+import { connect } from 'react-redux';
 
 import Account from '../Account';
 import TransactionPendingForm from '../TransactionPendingForm';
@@ -36,12 +37,13 @@ function isAscii (data) {
 }
 
 @observer
-export default class SignRequest extends Component {
+class SignRequest extends Component {
   static contextTypes = {
     api: PropTypes.object
   };
 
   static propTypes = {
+    accounts: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
     data: PropTypes.string.isRequired,
     id: PropTypes.object.isRequired,
@@ -152,7 +154,10 @@ export default class SignRequest extends Component {
   }
 
   renderActions () {
-    const { address, focus, isFinished, status } = this.props;
+    const { accounts, address, focus, isFinished, status } = this.props;
+    const account = Object
+      .values(accounts)
+      .find((account) => address === account.address.toLowerCase());
 
     if (isFinished) {
       if (status === 'confirmed') {
@@ -182,6 +187,7 @@ export default class SignRequest extends Component {
 
     return (
       <TransactionPendingForm
+        account={ account }
         address={ address }
         focus={ focus }
         isSending={ this.props.isSending }
@@ -203,3 +209,16 @@ export default class SignRequest extends Component {
     this.props.onReject(this.props.id);
   }
 }
+
+function mapStateToProps (state) {
+  const { accounts } = state.personal;
+
+  return {
+    accounts
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(SignRequest);
