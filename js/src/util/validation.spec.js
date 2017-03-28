@@ -32,7 +32,8 @@ describe('util/validation', () => {
           name: 'test',
           inputs: [],
           outputs: []
-        }]
+        }],
+        error: null
       });
     });
 
@@ -47,7 +48,8 @@ describe('util/validation', () => {
           name: 'test',
           inputs: [],
           outputs: []
-        }]
+        }],
+        error: null
       });
     });
 
@@ -57,7 +59,8 @@ describe('util/validation', () => {
       expect(validateAbi(abi)).to.deep.equal({
         abi,
         abiError: ERRORS.invalidAbi,
-        abiParsed: null
+        abiParsed: null,
+        error: ERRORS.invalidAbi
       });
     });
 
@@ -67,7 +70,8 @@ describe('util/validation', () => {
       expect(validateAbi(abi)).to.deep.equal({
         abi,
         abiError: ERRORS.invalidAbi,
-        abiParsed: {}
+        abiParsed: {},
+        error: ERRORS.invalidAbi
       });
     });
 
@@ -77,7 +81,8 @@ describe('util/validation', () => {
       expect(validateAbi(abi)).to.deep.equal({
         abi,
         abiError: `${ERRORS.invalidAbi} (#0: event)`,
-        abiParsed: [{ type: 'event' }]
+        abiParsed: [{ type: 'event' }],
+        error: `${ERRORS.invalidAbi} (#0: event)`
       });
     });
 
@@ -87,7 +92,8 @@ describe('util/validation', () => {
       expect(validateAbi(abi)).to.deep.equal({
         abi,
         abiError: `${ERRORS.invalidAbi} (#0: function)`,
-        abiParsed: [{ type: 'function' }]
+        abiParsed: [{ type: 'function' }],
+        error: `${ERRORS.invalidAbi} (#0: function)`
       });
     });
 
@@ -97,7 +103,8 @@ describe('util/validation', () => {
       expect(validateAbi(abi)).to.deep.equal({
         abi,
         abiError: `${ERRORS.invalidAbi} (#0: somethingElse)`,
-        abiParsed: [{ type: 'somethingElse' }]
+        abiParsed: [{ type: 'somethingElse' }],
+        error: `${ERRORS.invalidAbi} (#0: somethingElse)`
       });
     });
   });
@@ -108,7 +115,8 @@ describe('util/validation', () => {
 
       expect(validateAddress(address)).to.deep.equal({
         address,
-        addressError: null
+        addressError: null,
+        error: null
       });
     });
 
@@ -117,14 +125,16 @@ describe('util/validation', () => {
 
       expect(validateAddress(address.toLowerCase())).to.deep.equal({
         address,
-        addressError: null
+        addressError: null,
+        error: null
       });
     });
 
     it('sets error on null addresses', () => {
       expect(validateAddress(null)).to.deep.equal({
         address: null,
-        addressError: ERRORS.invalidAddress
+        addressError: ERRORS.invalidAddress,
+        error: ERRORS.invalidAddress
       });
     });
 
@@ -133,7 +143,8 @@ describe('util/validation', () => {
 
       expect(validateAddress(address)).to.deep.equal({
         address,
-        addressError: ERRORS.invalidAddress
+        addressError: ERRORS.invalidAddress,
+        error: ERRORS.invalidAddress
       });
     });
   });
@@ -142,35 +153,40 @@ describe('util/validation', () => {
     it('validates hex code', () => {
       expect(validateCode('0x123abc')).to.deep.equal({
         code: '0x123abc',
-        codeError: null
+        codeError: null,
+        error: null
       });
     });
 
     it('validates hex code (non-prefix)', () => {
       expect(validateCode('123abc')).to.deep.equal({
         code: '123abc',
-        codeError: null
+        codeError: null,
+        error: null
       });
     });
 
     it('sets error on invalid code', () => {
       expect(validateCode(null)).to.deep.equal({
         code: null,
-        codeError: ERRORS.invalidCode
+        codeError: ERRORS.invalidCode,
+        error: ERRORS.invalidCode
       });
     });
 
     it('sets error on empty code', () => {
       expect(validateCode('')).to.deep.equal({
         code: '',
-        codeError: ERRORS.invalidCode
+        codeError: ERRORS.invalidCode,
+        error: ERRORS.invalidCode
       });
     });
 
     it('sets error on non-hex code', () => {
       expect(validateCode('123hfg')).to.deep.equal({
         code: '123hfg',
-        codeError: ERRORS.invalidCode
+        codeError: ERRORS.invalidCode,
+        error: ERRORS.invalidCode
       });
     });
   });
@@ -179,21 +195,24 @@ describe('util/validation', () => {
     it('validates names', () => {
       expect(validateName('Joe Bloggs')).to.deep.equal({
         name: 'Joe Bloggs',
-        nameError: null
+        nameError: null,
+        error: null
       });
     });
 
     it('sets error on null names', () => {
       expect(validateName(null)).to.deep.equal({
         name: null,
-        nameError: ERRORS.invalidName
+        nameError: ERRORS.invalidName,
+        error: ERRORS.invalidName
       });
     });
 
     it('sets error on short names', () => {
       expect(validateName('  1  ')).to.deep.equal({
         name: '  1  ',
-        nameError: ERRORS.invalidName
+        nameError: ERRORS.invalidName,
+        error: ERRORS.invalidName
       });
     });
   });
@@ -202,35 +221,40 @@ describe('util/validation', () => {
     it('validates numbers', () => {
       expect(validatePositiveNumber(123)).to.deep.equal({
         number: 123,
-        numberError: null
+        numberError: null,
+        error: null
       });
     });
 
     it('validates strings', () => {
       expect(validatePositiveNumber('123')).to.deep.equal({
         number: '123',
-        numberError: null
+        numberError: null,
+        error: null
       });
     });
 
     it('validates bignumbers', () => {
       expect(validatePositiveNumber(new BigNumber(123))).to.deep.equal({
         number: new BigNumber(123),
-        numberError: null
+        numberError: null,
+        error: null
       });
     });
 
     it('sets error on invalid numbers', () => {
       expect(validatePositiveNumber(null)).to.deep.equal({
         number: null,
-        numberError: ERRORS.invalidAmount
+        numberError: ERRORS.invalidAmount,
+        error: ERRORS.invalidAmount
       });
     });
 
     it('sets error on negative numbers', () => {
       expect(validatePositiveNumber(-1)).to.deep.equal({
         number: -1,
-        numberError: ERRORS.invalidAmount
+        numberError: ERRORS.invalidAmount,
+        error: ERRORS.invalidAmount
       });
     });
   });
@@ -239,42 +263,48 @@ describe('util/validation', () => {
     it('validates numbers', () => {
       expect(validateUint(123)).to.deep.equal({
         value: 123,
-        valueError: null
+        valueError: null,
+        error: null
       });
     });
 
     it('validates strings', () => {
       expect(validateUint('123')).to.deep.equal({
         value: '123',
-        valueError: null
+        valueError: null,
+        error: null
       });
     });
 
     it('validates bignumbers', () => {
       expect(validateUint(new BigNumber(123))).to.deep.equal({
         value: new BigNumber(123),
-        valueError: null
+        valueError: null,
+        error: null
       });
     });
 
     it('sets error on invalid numbers', () => {
       expect(validateUint(null)).to.deep.equal({
         value: null,
-        valueError: ERRORS.invalidNumber
+        valueError: ERRORS.invalidNumber,
+        error: ERRORS.invalidNumber
       });
     });
 
     it('sets error on negative numbers', () => {
       expect(validateUint(-1)).to.deep.equal({
         value: -1,
-        valueError: ERRORS.negativeNumber
+        valueError: ERRORS.negativeNumber,
+        error: ERRORS.negativeNumber
       });
     });
 
     it('sets error on decimal numbers', () => {
       expect(validateUint(3.1415927)).to.deep.equal({
         value: 3.1415927,
-        valueError: ERRORS.decimalNumber
+        valueError: ERRORS.decimalNumber,
+        error: ERRORS.decimalNumber
       });
     });
   });

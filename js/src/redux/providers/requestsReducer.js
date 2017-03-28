@@ -14,19 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Balances from './balances';
-export Personal from './personal';
-export Signer from './signer';
-export Status from './status';
+import { handleActions } from 'redux-actions';
 
-export apiReducer from './apiReducer';
-export balancesReducer from './balancesReducer';
-export blockchainReducer from './blockchainReducer';
-export workerReducer from './workerReducer';
-export imagesReducer from './imagesReducer';
-export personalReducer from './personalReducer';
-export requestsReducer from './requestsReducer';
-export signerReducer from './signerReducer';
-export snackbarReducer from './snackbarReducer';
-export statusReducer from './statusReducer';
-export walletReducer from './walletReducer';
+const initialState = {};
+
+export default handleActions({
+  setRequest (state, action) {
+    const { requestId, requestData } = action;
+
+    const nextState = {
+      ...state,
+      [requestId]: {
+        ...(state[requestId] || {}),
+        ...requestData
+      }
+    };
+
+    return nextState;
+  },
+
+  deleteRequest (state, action) {
+    const { requestId } = action;
+    const nextState = { ...state };
+
+    delete nextState[requestId];
+    return nextState;
+  }
+}, initialState);

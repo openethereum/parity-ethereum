@@ -393,7 +393,7 @@ impl Client {
 			})?;
 
 			// Final Verification
-			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header(), self.engine().params().validate_receipts) {
+			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header(), self.engine().params().validate_receipts_transition) {
 				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				return Err(());
 			}
