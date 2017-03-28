@@ -16,13 +16,31 @@
 */
 
 .peers {
-  table-layout: fixed;
+  margin-top: 0.5em;
+  overflow: auto;
   width: 100%;
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th {
+    padding: 0.5em;
+    white-space: nowrap;
+  }
 }
 
 .peer {
+  &:nth-child(odd) {
+    background-color: rgba(200, 200, 200, 0.1);
+  }
+
   td {
-    max-width: 200px;
+    border-top: 1px solid #333;
+    font-size: 0.9em;
     overflow: hidden;
+    padding: 0.5em 0.25em;
+    white-space: nowrap;
   }
 }

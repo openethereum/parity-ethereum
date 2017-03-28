@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { Container, ContainerTitle } from '~/ui';
+import { Container, ContainerTitle, ScrollableText, ShortenedHash } from '~/ui';
 
 import styles from './peers.css';
 
@@ -40,20 +40,63 @@ class Peers extends Component {
             />
           }
         />
-        <table className={ styles.peers }>
-          <tbody>
-            { this.renderPeers(peers) }
-          </tbody>
-        </table>
+        <div className={ styles.peers }>
+          <table>
+            <thead>
+              <tr>
+                <th />
+                <th>
+                  <FormattedMessage
+                    id='status.peers.table.header.id'
+                    defaultMessage='ID'
+                  />
+                </th>
+                <th>
+                  <FormattedMessage
+                    id='status.peers.table.header.remoteAddress'
+                    defaultMessage='Remote Address'
+                  />
+                </th>
+                <th>
+                  <FormattedMessage
+                    id='status.peers.table.header.name'
+                    defaultMessage='Name'
+                  />
+                </th>
+                <th>
+                  <FormattedMessage
+                    id='status.peers.table.header.ethHeader'
+                    defaultMessage='Header (ETH)'
+                  />
+                </th>
+                <th>
+                  <FormattedMessage
+                    id='status.peers.table.header.ethDiff'
+                    defaultMessage='Difficulty (ETH)'
+                  />
+                </th>
+                <th>
+                  <FormattedMessage
+                    id='status.peers.table.header.caps'
+                    defaultMessage='Capabilities'
+                  />
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              { this.renderPeers(peers) }
+            </tbody>
+          </table>
+        </div>
       </Container>
     );
   }
 
   renderPeers (peers) {
-    return peers.map((peer) => this.renderPeer(peer));
+    return peers.map((peer, index) => this.renderPeer(peer, index));
   }
 
-  renderPeer (peer) {
+  renderPeer (peer, index) {
     const { caps, id, name, network, protocols } = peer;
 
     return (
@@ -62,20 +105,57 @@ class Peers extends Component {
         key={ id }
       >
         <td>
-          { id }
+          { index + 1 }
         </td>
-        <td>{ name }</td>
+        <td>
+          <ScrollableText small text={ id } />
+        </td>
+        <td>
+          { network.remoteAddress }
+        </td>
+        <td>
+          { name }
+        </td>
+        <td>
+          {
+            protocols.eth
+            ? <ShortenedHash data={ protocols.eth.head } />
+            : null
+          }
+        </td>
+        <td>
+          {
+            protocols.eth && protocols.eth.difficulty.gt(0)
+            ? protocols.eth.difficulty.toExponential(16)
+            : null
+          }
+        </td>
+        <td>
+          {
+            caps && caps.length > 0
+            ? caps.join(' - ')
+            : null
+          }
+        </td>
       </tr>
     );
   }
 }
 
 function mapStateToProps (state) {
+  const handshakeRegex = /handshake/i;
+
   const { netPeers } = state.nodeStatus;
   const { peers = [] } = netPeers;
   const realPeers = peers
     .filter((peer) => peer.id)
-    .sort((peerA, peerB) => peerA.id.localeCompare(peerB.id));
+    .filter((peer) => !handshakeRegex.test(peer.network.remoteAddress))
+    .filter((peer) => peer.protocols.eth && peer.protocols.eth.head)
+    .sort((peerA, peerB) => {
+      const idComp = peerA.id.localeCompare(peerB.id);
+
+      return idComp;
+    });
 
   return { peers: realPeers };
 }
