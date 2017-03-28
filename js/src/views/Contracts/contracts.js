@@ -66,7 +66,7 @@ class Contracts extends Component {
   state = {
     addContract: false,
     deployContract: false,
-    sortOrder: 'blockNumber',
+    sortOrder: 'blockNumber:-1',
     searchValues: [],
     searchTokens: []
   }
@@ -121,18 +121,16 @@ class Contracts extends Component {
   }
 
   renderSortButton () {
-    const onChange = (sortOrder) => {
-      this.setState({ sortOrder });
-    };
+    const { sortOrder } = this.state;
 
     return (
       <ActionbarSort
         key='sortAccounts'
         id='sortContracts'
-        order={ this.state.sortOrder }
+        order={ sortOrder }
         metas={ META_SORT }
         showDefault={ false }
-        onChange={ onChange }
+        onChange={ this.handleSortChange }
       />
     );
   }
@@ -237,6 +235,10 @@ class Contracts extends Component {
         onClose={ this.onDeployContractClose }
       />
     );
+  }
+
+  handleSortChange = (sortOrder) => {
+    this.setState({ sortOrder });
   }
 
   onAddSearchToken = (token) => {
