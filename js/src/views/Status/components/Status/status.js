@@ -129,8 +129,7 @@ export default class Status extends Component {
 
   renderSettings () {
     const { nodeStatus } = this.props;
-    const { rpcSettings, netPeers, netPort = '' } = nodeStatus;
-    const peers = `${netPeers.active}/${netPeers.connected}/${netPeers.max}`;
+    const { rpcSettings, netPort = '' } = nodeStatus;
 
     if (!rpcSettings) {
       return null;
@@ -167,12 +166,26 @@ export default class Status extends Component {
               readOnly
               label={
                 <FormattedMessage
-                  id='status.status.input.peers'
-                  defaultMessage='peers'
+                  id='status.status.input.rpcEnabled'
+                  defaultMessage='rpc enabled'
                 />
               }
-              value={ peers }
-              { ...this._test('peers') }
+              value={
+                rpcSettings.enabled
+                  ? (
+                    <FormattedMessage
+                      id='status.status.input.yes'
+                      defaultMessage='yes'
+                    />
+                  )
+                  : (
+                    <FormattedMessage
+                      id='status.status.input.no'
+                      defaultMessage='no'
+                    />
+                  )
+              }
+              { ...this._test('rpc-enabled') }
             />
           </div>
           <div className={ styles.col6 }>
@@ -191,32 +204,6 @@ export default class Status extends Component {
           </div>
         </div>
 
-        <Input
-          allowCopy
-          readOnly
-          label={
-            <FormattedMessage
-              id='status.status.input.rpcEnabled'
-              defaultMessage='rpc enabled'
-            />
-          }
-          value={
-            rpcSettings.enabled
-              ? (
-                <FormattedMessage
-                  id='status.status.input.yes'
-                  defaultMessage='yes'
-                />
-              )
-              : (
-                <FormattedMessage
-                  id='status.status.input.no'
-                  defaultMessage='no'
-                />
-              )
-          }
-          { ...this._test('rpc-enabled') }
-        />
         <div className={ styles.row }>
           <div className={ styles.col6 }>
             <Input

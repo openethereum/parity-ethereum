@@ -59,6 +59,14 @@ export default class Status {
     return instance;
   }
 
+  static get () {
+    if (!instance) {
+      throw new Error('The Status Provider has not been initialized yet');
+    }
+
+    return instance;
+  }
+
   start () {
     log.debug('status::start');
 
@@ -169,6 +177,10 @@ export default class Status {
     };
 
     return apiStatus;
+  }
+
+  updateMiningSettings = () => {
+    return this._pollMinerSettings();
   }
 
   _pollStatus = () => {

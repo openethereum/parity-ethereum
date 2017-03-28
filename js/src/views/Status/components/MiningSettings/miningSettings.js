@@ -18,7 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import formatNumber from 'format-number';
 
-import { ContainerTitle, Input } from '~/ui';
+import { ContainerTitle, Input, TypedInput } from '~/ui';
+import StatusProvider from '~/redux/providers/status';
 
 import { numberFromString } from './numberFromString';
 import { decodeExtraData } from './decodeExtraData';
@@ -28,11 +29,13 @@ const toNiceNumber = formatNumber();
 export default class MiningSettings extends Component {
   static contextTypes = {
     api: PropTypes.object
-  }
+  };
 
   static propTypes = {
     nodeStatus: PropTypes.object
-  }
+  };
+
+  statusProvider = StatusProvider.get()
 
   render () {
     const { nodeStatus } = this.props;
@@ -56,7 +59,7 @@ export default class MiningSettings extends Component {
             />
           }
         />
-        <Input
+        <TypedInput
           label={
             <FormattedMessage
               id='status.miningSettings.input.author.label'
@@ -69,8 +72,9 @@ export default class MiningSettings extends Component {
               defaultMessage='the mining author'
             />
           }
+          param='address'
           value={ coinbase }
-          onSubmit={ this.onAuthorChange }
+          onChange={ this.onAuthorChange }
           allowCopy
           floatCopy
           { ...this._test('author') }
@@ -143,7 +147,9 @@ export default class MiningSettings extends Component {
   onMinGasPriceChange = (newVal) => {
     const { api } = this.context;
 
-    api.parity.setMinGasPrice(numberFromString(newVal));
+    api.parity
+      .setMinGasPrice(numberFromString(newVal))
+      .then(() => this.updateMiningSettings());
   };
 
   onExtraDataChange = (newVal, isResetToDefault) => {
@@ -154,18 +160,28 @@ export default class MiningSettings extends Component {
     // When user sets new value we can safely send a string that will be converted to hex by formatter.
     const val = isResetToDefault ? nodeStatus.defaultExtraData : newVal;
 
-    api.parity.setExtraData(val);
+    api.parity
+      .setExtraData(val)
+      .then(() => this.updateMiningSettings());
   };
 
   onAuthorChange = (newVal) => {
     const { api } = this.context;
 
-    api.parity.setAuthor(newVal);
+    api.parity
+      .setAuthor(newVal)
+      .then(() => this.updateMiningSettings());
   };
 
   onGasFloorTargetChange = (newVal) => {
     const { api } = this.context;
 
-    api.parity.setGasFloorTarget(numberFromString(newVal));
+    api.parity
+      .setGasFloorTarget(numberFromString(newVal))
+      .then(() => this.updateMiningSettings());
   };
+
+  updateMiningSettings () {
+    this.statusProvider.updateMiningSettings();
+  }
 }
