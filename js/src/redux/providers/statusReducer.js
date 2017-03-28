@@ -41,6 +41,8 @@ const initialState = {
   },
   netPort: new BigNumber(0),
   netVersion: '0',
+  nodeKind: null,
+  nodeKindFull: false,
   rpcSettings: {},
   syncing: true,
   isConnected: false,

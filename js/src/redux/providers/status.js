@@ -149,7 +149,8 @@ export default class Status {
   }
 
   _pollTraceMode = () => {
-    return this._api.trace.block()
+    return this._api.trace
+      .block()
       .then(blockTraces => {
         // Assumes not in Trace Mode if no transactions
         // in latest block...
@@ -272,23 +273,33 @@ export default class Status {
       this._timeoutIds.longStatus = setTimeout(() => this._pollLongStatus(), timeout);
     };
 
-    // Poll Miner settings just in case
-    const minerPromise = this._pollMinerSettings();
+    let minerPromise = null;
+    const { nodeKindFull } = this._store.getState().nodeStatus;
+    const promises = [
+      this._api.web3.clientVersion(),
+      this._api.net.version(),
+      this._api.parity.netPeers(),
+      this._api.parity.nodeKind()
+    ];
 
-    const mainPromise = Promise
-      .all([
-        this._api.parity.netPeers(),
-        this._api.web3.clientVersion(),
-        this._api.net.version(),
+    // only check for upgrade & miner when running a full node
+    if (nodeKindFull) {
+      Array.prototype.push.apply(promises, [
         this._api.parity.defaultExtraData(),
+        this._api.parity.enode().then((enode) => enode).catch(() => '-'),
         this._api.parity.netChain(),
         this._api.parity.netPort(),
         this._api.parity.rpcSettings(),
-        this._api.parity.enode().then((enode) => enode).catch(() => '-'),
         this._upgradeStore.checkUpgrade()
-      ])
+      ]);
+      minerPromise = this._pollMinerSettings();
+    }
+
+    const mainPromise = Promise
+      .all(promises)
       .then(([
-        netPeers, clientVersion, netVersion, defaultExtraData, netChain, netPort, rpcSettings, enode, upgradeStatus
+        clientVersion, netVersion, netPeers, nodeKind, // default
+        defaultExtraData, enode, netChain, netPort, rpcSettings // optional
       ]) => {
         const isTest = [
           '2', // morden
@@ -296,17 +307,29 @@ export default class Status {
           '42' // kovan
         ].includes(netVersion);
 
-        const longStatus = {
-          netPeers,
-          clientVersion,
-          defaultExtraData,
-          netChain,
-          netPort,
-          netVersion,
-          rpcSettings,
-          isTest,
-          enode
-        };
+        const nodeKindFull = nodeKind &&
+          nodeKind.availability === 'personal' &&
+          nodeKind.capability === 'full';
+
+        const longStatus = Object.assign(
+          {
+            clientVersion,
+            isTest,
+            netVersion,
+            netPeers,
+            nodeKind,
+            nodeKindFull
+          },
+          nodeKindFull
+            ? {
+              defaultExtraData,
+              enode,
+              netChain,
+              netPort,
+              rpcSettings
+            }
+            : {}
+        );
 
         if (!isEqual(longStatus, this._longStatus)) {
           this._store.dispatch(statusCollection(longStatus));
