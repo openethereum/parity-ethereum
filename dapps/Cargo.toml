@@ -1,6 +1,6 @@
 [package]
 description = "Parity Dapps crate"
-name = "ethcore-dapps"
+name = "parity-dapps"
 version = "1.7.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
@@ -30,7 +30,6 @@ jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "pa
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 
 ethcore-devtools = { path = "../devtools" }
-ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
 fetch = { path = "../util/fetch" }
 parity-hash-fetch = { path = "../hash-fetch" }

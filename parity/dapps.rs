@@ -135,13 +135,13 @@ mod server {
 	use ansi_term::Colour;
 	use ethcore::transaction::{Transaction, Action};
 	use ethcore::client::{Client, BlockChainClient, BlockId};
-	use ethcore_dapps::{AccessControlAllowOrigin, Host};
 	use ethcore_rpc::is_major_importing;
 	use hash_fetch::urlhint::ContractClient;
+	use parity_dapps::{AccessControlAllowOrigin, Host};
 	use parity_reactor;
 	use rpc_apis;
 
-	pub use ethcore_dapps::Server as WebappServer;
+	pub use parity_daps::Server as WebappServer;
 
 	pub fn setup_dapps_server(
 		deps: Dependencies,
@@ -153,7 +153,7 @@ mod server {
 		auth: Option<(String, String)>,
 		all_apis: bool,
 	) -> Result<WebappServer, String> {
-		use ethcore_dapps as dapps;
+		use parity_daps as dapps;
 
 		let server = dapps::ServerBuilder::new(
 			&dapps_path,

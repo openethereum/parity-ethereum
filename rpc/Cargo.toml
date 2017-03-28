@@ -43,8 +43,11 @@ rlp = { path = "../util/rlp" }
 fetch = { path = "../util/fetch" }
 stats = { path = "../util/stats" }
 
-# ethcore-dapps = { path = "../dapps", optional = true }
+parity-dapps = { path = "../dapps", optional = true }
+parity-hash-fetch = { path = "../hash-fetch", optional = true }
 clippy = { version = "0.0.103", optional = true}
 
 [features]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]
+default = ["dapps"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "parity-dapps/dev"]
+dapps = ["parity-dapps", "parity-hash-fetch"]

@@ -73,7 +73,7 @@ extern crate ethcore_stratum;
 extern crate ethcore_secretstore;
 
 #[cfg(feature = "dapps")]
-extern crate ethcore_dapps;
+extern crate parity_dapps;
 
 macro_rules! dependency {
 	($dep_ty:ident, $url:expr) => {

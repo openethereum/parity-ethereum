@@ -95,6 +95,69 @@ pub fn start_http<M, S, H, T>(
 		.start_http(addr)
 }
 
+// TODO [ToDr] instead of RPC <- dapps dependency add Option<RequestMiddleware> paremeter to RPC server.
+#[cfg(feature = "dapps")]
+mod dapps {
+	extern crate parity_dapps as dapps;
+	extern crate parity_hash_fetch;
+
+	use std::net::SocketAddr;
+	use std::sync::Arc;
+	use std::path::PathBuf;
+
+	use fetch;
+	use self::parity_hash_fetch::urlhint::ContractClient;
+	use http;
+	use jsonrpc_core;
+	use parity_reactor;
+	use tokio_core;
+
+	use super::{HttpMetaExtractor, HttpServer, HttpServerError};
+
+	/// Start http server asynchronously and returns result with `Server` handle on success or an error.
+	pub fn start_http<M, S, H, T, F>(
+		addr: &SocketAddr,
+		cors_domains: http::DomainsValidation<http::AccessControlAllowOrigin>,
+		allowed_hosts: http::DomainsValidation<http::Host>,
+		handler: H,
+		remote: tokio_core::reactor::Remote,
+		parity_remote: parity_reactor::Remote,
+		extractor: T,
+		signer_address: Option<(String, u16)>,
+		dapps_path: PathBuf,
+		extra_dapps: Vec<PathBuf>,
+		registrar: Arc<dapps::ContractClient>,
+		sync_status: Arc<dapps::SyncStatus>,
+		web_proxy_tokens: Arc<dapps::WebProxyTokens>,
+		fetch: F,
+	) -> Result<HttpServer, HttpServerError> where
+		M: jsonrpc_core::Metadata,
+		S: jsonrpc_core::Middleware<M>,
+		H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
+		T: HttpMetaExtractor<M>,
+		F: fetch::Fetch,
+	{
+		let middleware = dapps::Middleware::new(
+			parity_remote,
+			signer_address,
+			dapps_path,
+			extra_dapps,
+			registrar,
+			sync_status,
+			web_proxy_tokens,
+			fetch,
+		);
+
+		http::ServerBuilder::new(handler)
+			.event_loop_remote(remote)
+			.meta_extractor(extractor)
+			.request_middleware(middleware)
+			.cors(cors_domains.into())
+			.allowed_hosts(allowed_hosts.into())
+			.start_http(addr)
+	}
+}
+
 /// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
 pub fn start_ipc<M, S, H, T>(
 	addr: &str,
