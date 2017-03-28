@@ -19,7 +19,7 @@
 // TODO: push changes upstream in a clean way.
 
 use heapsize::HeapSizeOf;
-use lru_cache::LruCache;
+use lru_cache::{LruCache, Iter};
 
 use std::hash::Hash;
 
@@ -75,5 +75,10 @@ impl<K: Eq + Hash, V: HeapSizeOf> MemoryLruCache<K, V> {
 	/// Currently-used size of values in bytes.
 	pub fn current_size(&self) -> usize {
 		self.cur_size
+	}
+
+	/// Iterate over the cache's key value pairs in least to most recently used order.
+	pub fn iter(&self) -> Iter<K, V> {
+		self.inner.iter()
 	}
 }

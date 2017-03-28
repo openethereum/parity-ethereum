@@ -31,15 +31,15 @@ const GET_VALIDATORS: &'static str = "getValidators";
 
 /// The validator contract should have the following interface:
 /// [{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}]
-pub struct ValidatorSafeContract {
+pub struct SafeContract {
 	pub address: Address,
 	validators: RwLock<MemoryLruCache<H256, SimpleList>>,
 	provider: RwLock<Option<provider::Contract>>,
 }
 
-impl ValidatorSafeContract {
+impl SafeContract {
 	pub fn new(contract_address: Address) -> Self {
-		ValidatorSafeContract {
+		SafeContract {
 			address: contract_address,
 			validators: RwLock::new(MemoryLruCache::new(MEMOIZE_CAPACITY)),
 			provider: RwLock::new(None),
@@ -66,7 +66,7 @@ impl ValidatorSafeContract {
 	}
 }
 
-impl ValidatorSet for ValidatorSafeContract {
+impl ValidatorSet for SafeContract {
 	fn contains(&self, block_hash: &H256, address: &Address) -> bool {
 		let mut guard = self.validators.write();
 		let maybe_existing = guard
@@ -127,6 +127,12 @@ impl ValidatorSet for ValidatorSafeContract {
 	}
 }
 
+impl HeapSizeOf for SafeContract {
+	fn heap_size_of_children(&self) -> usize {
+		self.address.heap_size_of_children() + self.validators.read().current_size()
+	}
+}
+
 mod provider {
 	use std::string::String;
 	use std::result::Result;
@@ -178,12 +184,12 @@ mod tests {
 	use miner::MinerService;
 	use tests::helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
 	use super::super::ValidatorSet;
-	use super::ValidatorSafeContract;
+	use super::SafeContract;
 
 	#[test]
 	fn fetches_validators() {
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
-		let vc = Arc::new(ValidatorSafeContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
+		let vc = Arc::new(SafeContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
 		vc.register_contract(Arc::downgrade(&client));
 		let last_hash = client.best_block_header().hash();
 		assert!(vc.contains(&last_hash, &Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()));

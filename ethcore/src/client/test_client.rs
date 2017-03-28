@@ -755,7 +755,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn registrar_address(&self) -> Option<Address> { None }
 
-	fn registry_address(&self, id: BlockId, _name: String) -> Option<Address> { None }
+	fn registry_address(&self, _id: BlockId, _name: String) -> Option<Address> { None }
 }
 
 impl ProvingBlockChainClient for TestBlockChainClient {

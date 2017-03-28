@@ -18,13 +18,13 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
-use util::{H256, Address, RwLock};
+use util::{H256, Address, RwLock, HeapSizeOf};
 use ids::BlockId;
 use header::BlockNumber;
 use client::{Client, BlockChainClient};
 use super::ValidatorSet;
 
-type BlockNumberLookup = Box<Fn(&H256) -> Result<BlockNumber, String> + Send + Sync + 'static>;
+type BlockNumberLookup = Box<Fn(&H256) -> Result<BlockNumber, String> + Send + Sync>;
 
 pub struct Multi {
 	sets: BTreeMap<BlockNumber, Box<ValidatorSet>>,
@@ -98,6 +98,12 @@ impl ValidatorSet for Multi {
 			.upgrade()
 			.ok_or("No client!".into())
 			.and_then(|c| c.block_number(BlockId::Hash(*hash)).ok_or("Unknown block".into())));
+	}
+}
+
+impl HeapSizeOf for Multi {
+	fn heap_size_of_children(&self) -> usize {
+		self.sets.heap_size_of_children()
 	}
 }
 

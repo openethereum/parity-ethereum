@@ -32,7 +32,7 @@ impl ServiceTransactionChecker {
 	pub fn update_from_chain_client(&self, client: &MiningBlockChainClient) {
 		let mut contract = self.contract.lock();
 		if contract.is_none() {
-			*contract = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned())
+			*contract = client.registry_address(BlockId::Latest, SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned())
 				.and_then(|contract_addr| {
 					trace!(target: "txqueue", "Configuring for service transaction checker contract from {}", contract_addr);
 
