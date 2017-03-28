@@ -91,6 +91,8 @@ pub enum LocalTransactionStatus {
 	Rejected(Transaction, String),
 	/// Transaction is invalid.
 	Invalid(Transaction),
+	/// Transaction was canceled.
+	Canceled(Transaction),
 }
 
 impl Serialize for LocalTransactionStatus {
@@ -101,7 +103,7 @@ impl Serialize for LocalTransactionStatus {
 
 		let elems = match *self {
 			Pending | Future => 1,
-			Mined(..) | Dropped(..) | Invalid(..) => 2,
+			Mined(..) | Dropped(..) | Invalid(..) | Canceled(..) => 2,
 			Rejected(..) => 3,
 			Replaced(..) => 4,
 		};
@@ -119,6 +121,10 @@ impl Serialize for LocalTransactionStatus {
 			},
 			Dropped(ref tx) => {
 				struc.serialize_field(status, "dropped")?;
+				struc.serialize_field(transaction, tx)?;
+			},
+			Canceled(ref tx) => {
+				struc.serialize_field(status, "canceled")?;
 				struc.serialize_field(transaction, tx)?;
 			},
 			Invalid(ref tx) => {
@@ -249,6 +255,7 @@ impl From<miner::LocalTransactionStatus> for LocalTransactionStatus {
 			Rejected(tx, err) => LocalTransactionStatus::Rejected(tx.into(), errors::transaction_message(err)),
 			Replaced(tx, gas_price, hash) => LocalTransactionStatus::Replaced(tx.into(), gas_price.into(), hash.into()),
 			Invalid(tx) => LocalTransactionStatus::Invalid(tx.into()),
+			Canceled(tx) => LocalTransactionStatus::Canceled(tx.into()),
 		}
 	}
 }
