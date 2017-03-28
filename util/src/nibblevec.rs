@@ -18,13 +18,22 @@
 //! An owning, nibble-oriented byte vector.
 
 use ::NibbleSlice;
-use elastic_array::ElasticArray36;
+use smallvec::SmallVec;
 
 /// Owning, nibble-oriented byte vector. Counterpart to `NibbleSlice`.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct NibbleVec {
-	inner: ElasticArray36<u8>,
+	inner: SmallVec<[u8; 36]>,
 	len: usize,
+}
+
+impl Clone for NibbleVec {
+    fn clone(&self) -> Self {
+        NibbleVec {
+            inner: SmallVec::from_slice(&self.inner),
+            len: self.len,
+        }
+    }
 }
 
 impl Default for NibbleVec {
@@ -37,7 +46,7 @@ impl NibbleVec {
 	/// Make a new `NibbleVec`
 	pub fn new() -> Self {
 		NibbleVec {
-			inner: ElasticArray36::new(),
+			inner: SmallVec::new(),
 			len: 0
 		}
 	}

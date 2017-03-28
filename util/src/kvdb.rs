@@ -21,13 +21,13 @@ use std::marker::PhantomData;
 use std::path::PathBuf;
 
 use common::*;
-use elastic_array::*;
 use hashdb::DBValue;
 use rlp::{UntrustedRlp, RlpType, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions};
 #[cfg(target_os = "linux")]
 use regex::Regex;
+use smallvec::SmallVec;
 #[cfg(target_os = "linux")]
 use std::process::Command;
 #[cfg(target_os = "linux")]
@@ -46,17 +46,17 @@ pub struct DBTransaction {
 enum DBOp {
 	Insert {
 		col: Option<u32>,
-		key: ElasticArray32<u8>,
+		key: SmallVec<[u8; 32]>,
 		value: DBValue,
 	},
 	InsertCompressed {
 		col: Option<u32>,
-		key: ElasticArray32<u8>,
+		key: SmallVec<[u8; 32]>,
 		value: DBValue,
 	},
 	Delete {
 		col: Option<u32>,
-		key: ElasticArray32<u8>,
+		key: SmallVec<[u8; 32]>,
 	}
 }
 
@@ -75,42 +75,42 @@ impl DBTransaction {
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
 	pub fn put(&mut self, col: Option<u32>, key: &[u8], value: &[u8]) {
-		let mut ekey = ElasticArray32::new();
-		ekey.append_slice(key);
+		let mut ekey = SmallVec::new();
+		ekey.extend_from_slice(key);
 		self.ops.push(DBOp::Insert {
 			col: col,
 			key: ekey,
-			value: DBValue::from_slice(value),
+			value: DBValue::from_slice(&value),
 		});
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
 	pub fn put_vec(&mut self, col: Option<u32>, key: &[u8], value: Bytes) {
-		let mut ekey = ElasticArray32::new();
-		ekey.append_slice(key);
+		let mut ekey = SmallVec::new();
+		ekey.extend_from_slice(key);
 		self.ops.push(DBOp::Insert {
 			col: col,
 			key: ekey,
-			value: DBValue::from_vec(value),
+			value: DBValue::from_slice(&value),
 		});
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
 	/// Value will be RLP-compressed on flush
 	pub fn put_compressed(&mut self, col: Option<u32>, key: &[u8], value: Bytes) {
-		let mut ekey = ElasticArray32::new();
-		ekey.append_slice(key);
+		let mut ekey = SmallVec::new();
+		ekey.extend_from_slice(key);
 		self.ops.push(DBOp::InsertCompressed {
 			col: col,
 			key: ekey,
-			value: DBValue::from_vec(value),
+			value: DBValue::from_slice(&value),
 		});
 	}
 
 	/// Delete value by key.
 	pub fn delete(&mut self, col: Option<u32>, key: &[u8]) {
-		let mut ekey = ElasticArray32::new();
-		ekey.append_slice(key);
+		let mut ekey = SmallVec::new();
+		ekey.extend_from_slice(key);
 		self.ops.push(DBOp::Delete {
 			col: col,
 			key: ekey,
@@ -225,9 +225,7 @@ impl KeyValueDB for InMemory {
 				DBOp::InsertCompressed { col, key, value } => {
 					if let Some(mut col) = columns.get_mut(&col) {
 						let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
-						let mut value = DBValue::new();
-						value.append_slice(&compressed);
-						col.insert(key.to_vec(), value);
+						col.insert(key.to_vec(), DBValue::from_slice(&compressed));
 					}
 				},
 				DBOp::Delete { col, key } => {
@@ -441,9 +439,9 @@ pub struct Database {
 	read_opts: ReadOptions,
 	path: String,
 	// Dirty values added with `write_buffered`. Cleaned on `flush`.
-	overlay: RwLock<Vec<HashMap<ElasticArray32<u8>, KeyState>>>,
+	overlay: RwLock<Vec<HashMap<SmallVec<[u8; 32]>, KeyState>>>,
 	// Values currently being flushed. Cleared when `flush` completes.
-	flushing: RwLock<Vec<HashMap<ElasticArray32<u8>, KeyState>>>,
+	flushing: RwLock<Vec<HashMap<SmallVec<[u8; 32]>, KeyState>>>,
 	// Prevents concurrent flushes.
 	// Value indicates if a flush is in progress.
 	flushing_lock: Mutex<bool>,

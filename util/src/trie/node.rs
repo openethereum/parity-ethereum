@@ -14,15 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use elastic_array::ElasticArray36;
 use nibbleslice::*;
 use nibblevec::NibbleVec;
 use bytes::*;
 use rlp::*;
 use hashdb::DBValue;
+use smallvec::SmallVec;
 
 /// Partial node key type.
-pub type NodeKey = ElasticArray36<u8>;
+pub type NodeKey = SmallVec<[u8; 36]>;
 
 /// Type of node in the trie and essential information thereof.
 #[derive(Eq, PartialEq, Debug, Clone)]
@@ -121,8 +121,8 @@ impl Clone for OwnedNode {
 	fn clone(&self) -> Self {
 		match *self {
 			OwnedNode::Empty => OwnedNode::Empty,
-			OwnedNode::Leaf(ref k, ref v) => OwnedNode::Leaf(k.clone(), v.clone()),
-			OwnedNode::Extension(ref k, ref c) => OwnedNode::Extension(k.clone(), c.clone()),
+			OwnedNode::Leaf(ref k, ref v) => OwnedNode::Leaf(k.clone(), DBValue::from_slice(v)),
+			OwnedNode::Extension(ref k, ref c) => OwnedNode::Extension(k.clone(), DBValue::from_slice(c)),
 			OwnedNode::Branch(ref c, ref v) => {
 				let mut children = [
 					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
@@ -132,10 +132,11 @@ impl Clone for OwnedNode {
 				];
 
 				for (owned, borrowed) in children.iter_mut().zip(c.iter()) {
-					*owned = borrowed.clone()
+                    *owned = SmallVec::from_slice(borrowed);
 				}
 
-				OwnedNode::Branch(children, v.as_ref().cloned())
+                let v = v.as_ref().map(|val| DBValue::from_slice(val));
+				OwnedNode::Branch(children, v)
 			}
 		}
 	}

@@ -16,11 +16,11 @@
 
 //! Database of byte-slices keyed to their Keccak hash.
 use hash::*;
+use smallvec::SmallVec;
 use std::collections::HashMap;
-use elastic_array::ElasticArray128;
 
 /// `HashDB` value type.
-pub type DBValue = ElasticArray128<u8>;
+pub type DBValue = SmallVec<[u8; 128]>;
 
 /// Trait modelling datastore keyed by a 32-byte Keccak hash.
 pub trait HashDB: AsHashDB + Send + Sync {

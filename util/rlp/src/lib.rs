@@ -48,8 +48,8 @@
 
 extern crate byteorder;
 extern crate ethcore_bigint as bigint;
-extern crate elastic_array;
 extern crate rustc_serialize;
+extern crate smallvec;
 
 #[macro_use]
 extern crate lazy_static;
@@ -64,7 +64,7 @@ mod common;
 mod impls;
 
 use std::borrow::Borrow;
-use elastic_array::ElasticArray1024;
+use smallvec::SmallVec;
 
 pub use error::DecoderError;
 pub use traits::{Decodable, Encodable, Compressible};
@@ -110,13 +110,13 @@ pub fn decode_list<T>(bytes: &[u8]) -> Vec<T> where T: Decodable {
 /// 	assert_eq!(out, vec![0x83, b'c', b'a', b't']);
 /// }
 /// ```
-pub fn encode<E>(object: &E) -> ElasticArray1024<u8> where E: Encodable {
+pub fn encode<E>(object: &E) -> SmallVec<[u8; 1024]> where E: Encodable {
 	let mut stream = RlpStream::new();
 	stream.append(object);
 	stream.drain()
 }
 
-pub fn encode_list<E, K>(object: &[K]) -> ElasticArray1024<u8> where E: Encodable, K: Borrow<E> {
+pub fn encode_list<E, K>(object: &[K]) -> SmallVec<[u8; 1024]> where E: Encodable, K: Borrow<E> {
 	let mut stream = RlpStream::new();
 	stream.append_list(object);
 	stream.drain()

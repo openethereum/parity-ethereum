@@ -16,7 +16,7 @@
 
 use std::borrow::Borrow;
 use byteorder::{ByteOrder, BigEndian};
-use elastic_array::{ElasticArray16, ElasticArray1024};
+use smallvec::SmallVec;
 use traits::Encodable;
 
 #[derive(Debug, Copy, Clone)]
@@ -38,8 +38,8 @@ impl ListInfo {
 
 /// Appendable rlp encoder.
 pub struct RlpStream {
-	unfinished_lists: ElasticArray16<ListInfo>,
-	buffer: ElasticArray1024<u8>,
+	unfinished_lists: SmallVec<[ListInfo; 16]>,
+	buffer: SmallVec<[u8; 1024]>,
 	finished_list: bool,
 }
 
@@ -53,8 +53,8 @@ impl RlpStream {
 	/// Initializes instance of empty `Stream`.
 	pub fn new() -> Self {
 		RlpStream {
-			unfinished_lists: ElasticArray16::new(),
-			buffer: ElasticArray1024::new(),
+			unfinished_lists: SmallVec::new(),
+			buffer: SmallVec::new(),
 			finished_list: false,
 		}
 	}
@@ -168,7 +168,7 @@ impl RlpStream {
 	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
 	pub fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut RlpStream {
 		// push raw items
-		self.buffer.append_slice(bytes);
+		self.buffer.extend_from_slice(bytes);
 
 		// try to finish and prepend the length
 		self.note_appended(item_count);
@@ -267,7 +267,7 @@ impl RlpStream {
 	}
 
 	/// Drain the object and return the underlying ElasticArray.
-	pub fn drain(self) -> ElasticArray1024<u8> {
+	pub fn drain(self) -> SmallVec<[u8; 1024]> {
 		match self.is_finished() {
 			true => self.buffer,
 			false => panic!()
@@ -276,7 +276,7 @@ impl RlpStream {
 }
 
 pub struct BasicEncoder<'a> {
-	buffer: &'a mut ElasticArray1024<u8>,
+	buffer: &'a mut SmallVec<[u8; 1024]>,
 }
 
 impl<'a> BasicEncoder<'a> {
@@ -292,7 +292,7 @@ impl<'a> BasicEncoder<'a> {
 		let size_bytes = 4 - leading_empty_bytes as u8;
 		let mut buffer = [0u8; 4];
 		BigEndian::write_u32(&mut buffer, size);
-		self.buffer.insert_slice(position, &buffer[leading_empty_bytes..]);
+		self.buffer.insert_from_slice(position, &buffer[leading_empty_bytes..]);
 		size_bytes as u8
 	}
 
@@ -320,7 +320,7 @@ impl<'a> BasicEncoder<'a> {
 			// (prefix + length), followed by the string
 			len @ 1 ... 55 => {
 				self.buffer.push(0x80u8 + len as u8);
-				self.buffer.append_slice(value);
+				self.buffer.extend_from_slice(value);
 			}
 			// (prefix + length of length), followed by the length, followd by the string
 			len => {
@@ -328,7 +328,7 @@ impl<'a> BasicEncoder<'a> {
 				let position = self.buffer.len();
 				let inserted_bytes = self.insert_size(len, position);
 				self.buffer[position - 1] = 0xb7 + inserted_bytes;
-				self.buffer.append_slice(value);
+				self.buffer.extend_from_slice(value);
 			}
 		}
 	}

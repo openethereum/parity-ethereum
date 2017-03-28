@@ -16,7 +16,6 @@ time = "0.1.34"
 rocksdb = { git = "https://github.com/ethcore/rust-rocksdb" }
 eth-secp256k1 = { git = "https://github.com/ethcore/rust-secp256k1" }
 rust-crypto = "0.2.34"
-elastic-array = { git = "https://github.com/ethcore/elastic-array" }
 rlp = { path = "rlp" }
 heapsize = { version = "0.3", features = ["unstable"] }
 itertools = "0.5"
@@ -36,6 +35,8 @@ ethcore-bloom-journal = { path = "bloom" }
 regex = "0.1"
 lru-cache = "0.1.0"
 ethcore-logger = { path = "../logger" }
+smallvec = { version = "0.3.2", features = ["heapsizeof"] }
+# smallvec = { path = "/Users/nipunn/src/rust-smallvec", features = ["heapsizeof"] }
 
 [features]
 default = []
