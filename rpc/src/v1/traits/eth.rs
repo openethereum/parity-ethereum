@@ -162,8 +162,8 @@ build_rpc_trait! {
 		fn compile_serpent(&self, String) -> Result<Bytes, Error>;
 
 		/// Returns logs matching given filter object.
-		#[rpc(name = "eth_getLogs")]
-		fn logs(&self, Filter) -> Result<Vec<Log>, Error>;
+		#[rpc(async, name = "eth_getLogs")]
+		fn logs(&self, Filter) -> BoxFuture<Vec<Log>, Error>;
 
 		/// Returns the hash of the current block, the seedHash, and the boundary condition to be met.
 		#[rpc(name = "eth_getWork")]

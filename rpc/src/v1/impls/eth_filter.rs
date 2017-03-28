@@ -53,7 +53,7 @@ pub trait Filterable {
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>>;
 }
 
-/// Eth filter rpc implementation.
+/// Eth filter rpc implementation for a full node.
 pub struct EthFilterClient<C, M> where
 	C: BlockChainClient,
 	M: MinerService {
@@ -97,6 +97,8 @@ impl<C, M> Filterable for EthFilterClient<C, M> where C: BlockChainClient, M: Mi
 
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>> { &self.polls }
 }
+
+
 
 impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 	fn new_filter(&self, filter: Filter) -> Result<RpcU256, Error> {
