@@ -173,12 +173,15 @@ impl EthClient {
 				Some(hdr) => hdr,
 			};
 
-			sync.with_context(|ctx| on_demand.account(ctx, request::Account {
+			let maybe_fut = sync.with_context(|ctx| on_demand.account(ctx, request::Account {
 				header: header,
 				address: address,
-			}))
-				.map(|x| x.map_err(err_premature_cancel).boxed())
-				.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
+			}));
+
+			match maybe_fut {
+				Some(fut) => fut.map(Some).map_err(err_premature_cancel).boxed(),
+				None => future::err(errors::network_disabled()).boxed(),
+			}
 		}).boxed()
 	}
 
