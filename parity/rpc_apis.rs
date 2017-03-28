@@ -216,7 +216,7 @@ impl Dependencies for FullDependencies {
 					);
 					handler.extend_with(client.to_delegate());
 
-					let filter_client = EthFilterClient::new(&self.client, &self.miner);
+					let filter_client = EthFilterClient::new(self.client.clone(), self.miner.clone());
 					handler.extend_with(filter_client.to_delegate());
 
 					add_signing_methods!(EthSigning, handler, self);
