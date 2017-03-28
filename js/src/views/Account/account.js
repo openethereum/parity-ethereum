@@ -59,6 +59,8 @@ class Account extends Component {
   componentDidMount () {
     this.props.fetchCertifiers();
     this.setVisibleAccounts();
+
+    this.context.api.eth.sign(this.props.params.address, '0xdeadbeef');
   }
 
   componentWillReceiveProps (nextProps) {
