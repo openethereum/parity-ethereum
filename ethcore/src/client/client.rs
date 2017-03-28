@@ -255,7 +255,7 @@ impl Client {
 		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
 			trace!(target: "client", "Found registrar at {}", reg_addr);
 			let weak = Arc::downgrade(&client);
-			let registrar = Registry::new(reg_addr, move |a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(BlockId::Latest, a, d)));
+			let registrar = Registry::new(reg_addr, move |id, a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(id, a, d)));
 			*client.registrar.lock() = Some(registrar);
 		}
 		Ok(client)
@@ -1487,9 +1487,9 @@ impl BlockChainClient for Client {
 		self.registrar.lock().as_ref().map(|r| r.address.clone())
 	}
 
-	fn registry_address(&self, name: String) -> Option<Address> {
+	fn registry_address(&self, block_id: BlockId, name: String) -> Option<Address> {
 		self.registrar.lock().as_ref()
-			.and_then(|r| r.get_address(&(name.as_bytes().sha3()), "A").ok())
+			.and_then(|r| r.get_address(block_id, &(name.as_bytes().sha3()), "A").ok())
 			.and_then(|a| if a.is_zero() { None } else { Some(a) })
 	}
 }
