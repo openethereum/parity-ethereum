@@ -27,7 +27,8 @@ const initialState = {
   netPeers: {
     active: new BigNumber(0),
     connected: new BigNumber(0),
-    max: new BigNumber(0)
+    max: new BigNumber(0),
+    peers: []
   },
   netVersion: '0',
   syncing: true,
