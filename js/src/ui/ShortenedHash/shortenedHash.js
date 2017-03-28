@@ -36,7 +36,7 @@ export default class ShortenedHash extends Component {
     }
 
     return (
-      <abbr className={ styles.hash } title={ shortened }>{ shortened }</abbr>
+      <abbr className={ styles.hash } title={ data }>{ shortened }</abbr>
     );
   }
 }

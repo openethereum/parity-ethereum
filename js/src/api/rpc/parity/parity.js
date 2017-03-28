@@ -380,7 +380,7 @@ export default class Parity {
       .execute('parity_postSign', inAddress(address), inHex(hash));
   }
 
-  postTransaction (options) {
+  postTransaction (options = {}) {
     return this._transport
       .execute('parity_postTransaction', inOptions(options));
   }
