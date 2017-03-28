@@ -21,25 +21,25 @@ use std::sync::Weak;
 use util::*;
 use client::{Client, BlockChainClient};
 use super::ValidatorSet;
-use super::safe_contract::ValidatorSafeContract;
+use super::safe_contract::SafeContract;
 
 /// The validator contract should have the following interface:
 /// [{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}]
-pub struct ValidatorContract {
-	validators: ValidatorSafeContract,
+pub struct ReportingContract {
+	validators: SafeContract,
 	provider: RwLock<Option<provider::Contract>>,
 }
 
-impl ValidatorContract {
+impl ReportingContract {
 	pub fn new(contract_address: Address) -> Self {
-		ValidatorContract {
-			validators: ValidatorSafeContract::new(contract_address),
+		ReportingContract {
+			validators: SafeContract::new(contract_address),
 			provider: RwLock::new(None),
 		}
 	}
 }
 
-impl ValidatorSet for ValidatorContract {
+impl ValidatorSet for ReportingContract {
 	fn contains(&self, bh: &H256, address: &Address) -> bool {
 		self.validators.contains(bh, address)
 	}
@@ -135,6 +135,12 @@ mod provider {
 	}
 }
 
+impl HeapSizeOf for ReportingContract {
+	fn heap_size_of_children(&self) -> usize {
+		self.validators.heap_size_of_children()
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use util::*;
@@ -148,12 +154,12 @@ mod tests {
 	use client::BlockChainClient;
 	use tests::helpers::generate_dummy_client_with_spec_and_accounts;
 	use super::super::ValidatorSet;
-	use super::ValidatorContract;
+	use super::ReportingContract;
 
 	#[test]
 	fn fetches_validators() {
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, None);
-		let vc = Arc::new(ValidatorContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
+		let vc = Arc::new(ReportingContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
 		vc.register_contract(Arc::downgrade(&client));
 		let last_hash = client.best_block_header().hash();
 		assert!(vc.contains(&last_hash, &Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()));
