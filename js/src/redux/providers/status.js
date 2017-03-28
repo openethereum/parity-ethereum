@@ -178,10 +178,6 @@ export default class Status {
     return apiStatus;
   }
 
-  updateMiningSettings = () => {
-    return this._pollMinerSettings();
-  }
-
   _pollStatus = () => {
     const nextTimeout = (timeout = 1000) => {
       if (this._timeoutIds.status) {
@@ -198,25 +194,12 @@ export default class Status {
       return Promise.resolve();
     }
 
-    const { refreshStatus } = this._store.getState().nodeStatus;
-
-    const statusPromises = [ this._api.eth.syncing() ];
-
-    if (refreshStatus) {
-      statusPromises.push(this._api.parity.netPeers());
-      statusPromises.push(this._api.eth.hashrate());
-    }
+    const statusPromises = [ this._api.eth.syncing(), this._api.parity.netPeers() ];
 
     return Promise
       .all(statusPromises)
-      .then(([ syncing, ...statusResults ]) => {
-        const status = statusResults.length === 0
-          ? { syncing }
-          : {
-            syncing,
-            netPeers: statusResults[0],
-            hashrate: statusResults[1]
-          };
+      .then(([ syncing, netPeers ]) => {
+        const status = { netPeers, syncing };
 
         if (!isEqual(status, this._status)) {
           this._store.dispatch(statusCollection(status));
@@ -228,39 +211,6 @@ export default class Status {
       })
       .then(() => {
         nextTimeout();
-      });
-  }
-
-  /**
-   * Miner settings should never changes unless
-   * Parity is restarted, or if the values are changed
-   * from the UI
-   */
-  _pollMinerSettings = () => {
-    return Promise
-      .all([
-        this._api.eth.coinbase(),
-        this._api.parity.extraData(),
-        this._api.parity.minGasPrice(),
-        this._api.parity.gasFloorTarget()
-      ])
-      .then(([
-        coinbase, extraData, minGasPrice, gasFloorTarget
-      ]) => {
-        const minerSettings = {
-          coinbase,
-          extraData,
-          minGasPrice,
-          gasFloorTarget
-        };
-
-        if (!isEqual(minerSettings, this._minerSettings)) {
-          this._store.dispatch(statusCollection(minerSettings));
-          this._minerSettings = minerSettings;
-        }
-      })
-      .catch((error) => {
-        console.error('_pollMinerSettings', error);
       });
   }
 
@@ -283,23 +233,16 @@ export default class Status {
       this._timeoutIds.longStatus = setTimeout(() => this._pollLongStatus(), timeout);
     };
 
-    // Poll Miner settings just in case
-    const minerPromise = this._pollMinerSettings();
-
-    const mainPromise = Promise
+    return Promise
       .all([
         this._api.parity.netPeers(),
         this._api.web3.clientVersion(),
         this._api.net.version(),
-        this._api.parity.defaultExtraData(),
         this._api.parity.netChain(),
-        this._api.parity.netPort(),
-        this._api.parity.rpcSettings(),
-        this._api.parity.enode().then((enode) => enode).catch(() => '-'),
         this._upgradeStore.checkUpgrade()
       ])
       .then(([
-        netPeers, clientVersion, netVersion, defaultExtraData, netChain, netPort, rpcSettings, enode, upgradeStatus
+        netPeers, clientVersion, netVersion, netChain, upgradeStatus
       ]) => {
         const isTest = [
           '2', // morden
@@ -310,13 +253,9 @@ export default class Status {
         const longStatus = {
           netPeers,
           clientVersion,
-          defaultExtraData,
           netChain,
-          netPort,
           netVersion,
-          rpcSettings,
-          isTest,
-          enode
+          isTest
         };
 
         if (!isEqual(longStatus, this._longStatus)) {
@@ -330,7 +269,5 @@ export default class Status {
       .then(() => {
         nextTimeout(60000);
       });
-
-    return Promise.all([ minerPromise, mainPromise ]);
   }
 }

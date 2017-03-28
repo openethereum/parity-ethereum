@@ -27,10 +27,3 @@ export function statusCollection (collection) {
     collection
   };
 }
-
-export function toggleStatusRefresh (refreshStatus) {
-  return {
-    type: 'toggleStatusRefresh',
-    refreshStatus
-  };
-}

@@ -22,28 +22,18 @@ const initialState = {
   blockNumber: new BigNumber(0),
   blockTimestamp: new Date(),
   clientVersion: '',
-  coinbase: '',
-  defaultExtraData: '',
-  enode: '',
-  extraData: '',
-  gasFloorTarget: new BigNumber(0),
   gasLimit: new BigNumber(0),
-  hashrate: new BigNumber(0),
-  minGasPrice: new BigNumber(0),
   netChain: DEFAULT_NETCHAIN,
   netPeers: {
     active: new BigNumber(0),
     connected: new BigNumber(0),
     max: new BigNumber(0)
   },
-  netPort: new BigNumber(0),
   netVersion: '0',
-  rpcSettings: {},
   syncing: true,
   isConnected: false,
   isConnecting: false,
   isTest: undefined,
-  refreshStatus: false,
   traceMode: undefined
 };
 
@@ -58,12 +48,6 @@ export default handleActions({
     const { collection } = action;
 
     return Object.assign({}, state, collection);
-  },
-
-  toggleStatusRefresh (state, action) {
-    const { refreshStatus } = action;
-
-    return Object.assign({}, state, { refreshStatus });
   }
 }, initialState);
 

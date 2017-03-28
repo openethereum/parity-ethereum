@@ -18,28 +18,46 @@ import bytes from 'bytes';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
 
 import { Container, ContainerTitle, Input } from '~/ui';
 
 import MiningSettings from '../MiningSettings';
+import StatusStore from './store';
 
 import styles from './status.css';
 
-export default class Status extends Component {
+class Status extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
-    nodeStatus: PropTypes.object.isRequired,
-    actions: PropTypes.object.isRequired
+    blockNumber: PropTypes.object,
+    blockTimestamp: PropTypes.object,
+    netChain: PropTypes.string,
+    netPeers: PropTypes.object
+  };
+
+  statusStore = new StatusStore(this.context.api);
+
+  componentWillMount () {
+    this.statusStore.startPolling();
+  }
+
+  componentWillUnmount () {
+    this.statusStore.stopPolling();
   }
 
   render () {
-    const { nodeStatus } = this.props;
-    const { netPeers } = nodeStatus;
+    const { blockNumber, blockTimestamp, netPeers } = this.props;
+    const { hashrate } = this.statusStore;
 
-    if (!netPeers || !nodeStatus.blockNumber) {
+    if (!netPeers || !blockNumber) {
       return null;
     }
 
-    const hashrate = bytes(nodeStatus.hashrate.toNumber()) || 0;
+    const hashrateValue = bytes(hashrate.toNumber()) || 0;
     const peers = `${netPeers.active}/${netPeers.connected}/${netPeers.max}`;
 
     return (
@@ -56,11 +74,11 @@ export default class Status extends Component {
                     />
                   }
                 />
-                <div { ...this._test('best-block') } className={ styles.blockInfo }>
-                  #{ nodeStatus.blockNumber.toFormat() }
+                <div className={ styles.blockInfo }>
+                  #{ blockNumber.toFormat() }
                 </div>
                 <div className={ styles.blockByline }>
-                  { moment(nodeStatus.blockTimestamp).calendar() }
+                  { moment(blockTimestamp).calendar() }
                 </div>
               </div>
               <div className={ `${styles.col12} ${styles.padBottom}` }>
@@ -72,7 +90,7 @@ export default class Status extends Component {
                     />
                   }
                 />
-                <div { ...this._test('peers') } className={ styles.blockInfo }>
+                <div className={ styles.blockInfo }>
                   { peers }
                 </div>
               </div>
@@ -85,23 +103,19 @@ export default class Status extends Component {
                     />
                   }
                 />
-                <div { ...this._test('hashrate') } className={ styles.blockInfo }>
+                <div className={ styles.blockInfo }>
                   <FormattedMessage
                     id='status.status.hashrate'
                     defaultMessage='{hashrate} H/s'
                     values={ {
-                      hashrate
+                      hashrate: hashrateValue
                     } }
                   />
                 </div>
               </div>
             </div>
             <div className={ styles.col4_5 }>
-              <MiningSettings
-                { ...this._test('mining') }
-                nodeStatus={ nodeStatus }
-                actions={ this.props.actions }
-              />
+              { this.renderMiningSettings() }
             </div>
             <div className={ styles.col4_5 }>
               { this.renderSettings() }
@@ -112,12 +126,27 @@ export default class Status extends Component {
     );
   }
 
+  renderMiningSettings () {
+    const { coinbase, defaultExtraData, extraData, gasFloorTarget, minGasPrice } = this.statusStore;
+
+    return (
+      <MiningSettings
+        coinbase={ coinbase }
+        defaultExtraData={ defaultExtraData }
+        extraData={ extraData }
+        gasFloorTarget={ gasFloorTarget }
+        minGasPrice={ minGasPrice }
+        onUpdateSetting={ this.statusStore.handleUpdateSetting }
+      />
+    );
+  }
+
   renderNodeName () {
-    const { nodeStatus } = this.props;
+    const { nodeName } = this.statusStore;
 
     return (
       <span>
-        { nodeStatus.nodeName || (
+        { nodeName || (
           <FormattedMessage
             id='status.status.title.node'
             defaultMessage='Node'
@@ -128,8 +157,8 @@ export default class Status extends Component {
   }
 
   renderSettings () {
-    const { nodeStatus } = this.props;
-    const { rpcSettings, netPort = '' } = nodeStatus;
+    const { netChain } = this.props;
+    const { enode, rpcSettings, netPort = '' } = this.statusStore;
 
     if (!rpcSettings) {
       return null;
@@ -138,7 +167,7 @@ export default class Status extends Component {
     const rpcPort = rpcSettings.port || '';
 
     return (
-      <div { ...this._test('settings') }>
+      <div>
         <ContainerTitle
           title={
             <FormattedMessage
@@ -156,8 +185,7 @@ export default class Status extends Component {
               defaultMessage='chain'
             />
           }
-          value={ nodeStatus.netChain }
-          { ...this._test('chain') }
+          value={ netChain }
         />
         <div className={ styles.row }>
           <div className={ styles.col6 }>
@@ -185,7 +213,6 @@ export default class Status extends Component {
                     />
                   )
               }
-              { ...this._test('rpc-enabled') }
             />
           </div>
           <div className={ styles.col6 }>
@@ -199,7 +226,6 @@ export default class Status extends Component {
                 />
               }
               value={ netPort.toString() }
-              { ...this._test('network-port') }
             />
           </div>
         </div>
@@ -216,7 +242,6 @@ export default class Status extends Component {
                 />
               }
               value={ rpcSettings.interface }
-              { ...this._test('rpc-interface') }
             />
           </div>
           <div className={ styles.col6 }>
@@ -230,7 +255,6 @@ export default class Status extends Component {
                 />
               }
               value={ rpcPort.toString() }
-              { ...this._test('rpc-port') }
             />
           </div>
         </div>
@@ -246,8 +270,7 @@ export default class Status extends Component {
                   defaultMessage='enode'
                 />
               }
-              value={ nodeStatus.enode }
-              { ...this._test('node-enode') }
+              value={ enode }
             />
           </div>
         </div>
@@ -255,3 +278,24 @@ export default class Status extends Component {
     );
   }
 }
+
+function mapStateToProps (state) {
+  const {
+    blockNumber,
+    blockTimestamp,
+    netChain,
+    netPeers
+  } = state.nodeStatus;
+
+  return {
+    blockNumber,
+    blockTimestamp,
+    netChain,
+    netPeers
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(Status);

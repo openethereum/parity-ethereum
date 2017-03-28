@@ -14,54 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-import { bindActionCreators } from 'redux';
-import { connect } from 'react-redux';
-
-import { toggleStatusRefresh } from '~/redux/actions';
+import React from 'react';
 
 import Debug from '../../components/Debug';
 import Status from '../../components/Status';
 
 import styles from './statusPage.css';
 
-class StatusPage extends Component {
-  static propTypes = {
-    nodeStatus: PropTypes.object.isRequired,
-    actions: PropTypes.object.isRequired
-  }
-
-  componentWillMount () {
-    this.props.actions.toggleStatusRefresh(true);
-  }
-
-  componentWillUnmount () {
-    this.props.actions.toggleStatusRefresh(false);
-  }
-
-  render () {
-    return (
-      <div className={ styles.body }>
-        <Status { ...this.props } />
-        <Debug />
-      </div>
-    );
-  }
-}
-
-function mapStateToProps (state) {
-  return state;
-}
-
-function mapDispatchToProps (dispatch) {
-  return {
-    actions: bindActionCreators({
-      toggleStatusRefresh
-    }, dispatch)
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(StatusPage);
+export default () => (
+  <div className={ styles.body }>
+    <Status />
+    <Debug />
+  </div>
+);
