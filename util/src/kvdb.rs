@@ -287,7 +287,7 @@ pub fn rotational_from_df_output(df_out: Vec<u8>) -> Option<PathBuf> {
 		// Generate path e.g. /sys/block/sda/queue/rotational
 		.map(|drive_path| {
 			let mut p = PathBuf::from("/sys/block");
-			p.push(drive_path);
+			p.push(drive_path.as_str());
 			p.push("queue/rotational");
 			p
 		})
