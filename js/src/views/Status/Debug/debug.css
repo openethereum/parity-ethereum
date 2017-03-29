@@ -43,6 +43,7 @@
 
 .log {
   font-family: monospace;
+  font-size: 0.9em;
   white-space: pre-line;
   word-wrap: break-word;
   color: #aaa;

@@ -14,30 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { Container } from '~/ui';
 import { PauseIcon, PlayIcon, ReorderIcon, ReplayIcon } from '~/ui/Icons';
 
+import DebugStore from './store';
 import styles from './debug.css';
 
+@observer
 export default class Debug extends Component {
-  static propTypes = {
-    actions: PropTypes.shape({
-      clearStatusLogs: PropTypes.func.isRequired,
-      toggleStatusLogs: PropTypes.func.isRequired
-    }).isRequired,
-    nodeStatus: PropTypes.object.isRequired
-  }
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
 
-  state = {
-    reversed: true
+  debugStore = new DebugStore(this.context.api);
+
+  componentWillUnmount () {
+    this.debugStore.stopPolling();
   }
 
   render () {
-    const { nodeStatus } = this.props;
-    const { devLogsLevels } = nodeStatus;
+    const { logsLevels } = this.debugStore;
 
     return (
       <Container
@@ -50,7 +50,7 @@ export default class Debug extends Component {
       >
         { this.renderActions() }
         <h2 className={ styles.subheader }>
-          { devLogsLevels || '-' }
+          { logsLevels || '-' }
         </h2>
         { this.renderToggle() }
         { this.renderLogs() }
@@ -59,9 +59,9 @@ export default class Debug extends Component {
   }
 
   renderToggle () {
-    const { devLogsEnabled } = this.props.nodeStatus;
+    const { logsEnabled } = this.debugStore;
 
-    if (devLogsEnabled) {
+    if (logsEnabled) {
       return null;
     }
 
@@ -76,36 +76,18 @@ export default class Debug extends Component {
   }
 
   renderLogs () {
-    const { nodeStatus } = this.props;
-    const { reversed } = this.state;
-    const { devLogs } = nodeStatus;
+    const { logs } = this.debugStore;
 
-    const dateRegex = /^(\d{4}.\d{2}.\d{2}.\d{2}.\d{2}.\d{2})(.*)$/i;
-
-    if (!devLogs) {
+    if (logs.length === 0) {
       return null;
     }
 
-    const logs = reversed
-      ? [].concat(devLogs).reverse()
-      : [].concat(devLogs);
-
     const text = logs
       .map((log, index) => {
-        const logDate = dateRegex.exec(log);
-
-        if (!logDate) {
-          return (
-            <p key={ index } className={ styles.log }>
-              { log }
-            </p>
-          );
-        }
-
         return (
           <p key={ index } className={ styles.log }>
-            <span className={ styles.logDate }>{ logDate[1] }</span>
-            <span className={ styles.logText }>{ logDate[2] }</span>
+            <span className={ styles.logDate }>[{ log.date.toLocaleString() }]</span>
+            <span className={ styles.logText }>{ log.log }</span>
           </p>
         );
       });
@@ -118,8 +100,8 @@ export default class Debug extends Component {
   }
 
   renderActions () {
-    const { devLogsEnabled } = this.props.nodeStatus;
-    const toggleButton = devLogsEnabled
+    const { logsEnabled } = this.debugStore;
+    const toggleButton = logsEnabled
       ? <PauseIcon />
       : <PlayIcon />;
 
@@ -143,21 +125,14 @@ export default class Debug extends Component {
   }
 
   clear = () => {
-    const { clearStatusLogs } = this.props.actions;
-
-    clearStatusLogs();
-  }
+    this.debugStore.clearLogs();
+  };
 
   toggle = () => {
-    const { devLogsEnabled } = this.props.nodeStatus;
-    const { toggleStatusLogs } = this.props.actions;
-
-    toggleStatusLogs(!devLogsEnabled);
-  }
+    this.debugStore.toggle();
+  };
 
   reverse = () => {
-    const { reversed } = this.state;
-
-    this.setState({ reversed: !reversed });
-  }
+    this.debugStore.reverse();
+  };
 }

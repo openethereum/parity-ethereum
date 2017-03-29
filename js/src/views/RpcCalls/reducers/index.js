@@ -14,4 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './statusPage';
+import rpc from './rpc';
+import logger from './logger';
+
+export {
+  rpc,
+  logger
+};

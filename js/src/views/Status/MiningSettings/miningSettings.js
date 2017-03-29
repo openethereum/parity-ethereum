@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import formatNumber from 'format-number';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import formatNumber from 'format-number';
 
-import { ContainerTitle, Input } from '~/ui';
+import { ContainerTitle, Input, TypedInput } from '~/ui';
 
 import { numberFromString } from './numberFromString';
 import { decodeExtraData } from './decodeExtraData';
@@ -28,21 +28,23 @@ const toNiceNumber = formatNumber();
 export default class MiningSettings extends Component {
   static contextTypes = {
     api: PropTypes.object
-  }
+  };
 
   static propTypes = {
-    nodeStatus: PropTypes.object
-  }
+    coinbase: PropTypes.string,
+    defaultExtraData: PropTypes.string,
+    extraData: PropTypes.string,
+    gasFloorTarget: PropTypes.object,
+    minGasPrice: PropTypes.object,
+    onUpdateSetting: PropTypes.func.isRequired
+  };
 
   render () {
-    const { nodeStatus } = this.props;
-    const { coinbase, defaultExtraData, extraData, gasFloorTarget, minGasPrice } = nodeStatus;
-
-    const extradata = extraData
+    const { coinbase, defaultExtraData, extraData, gasFloorTarget, minGasPrice } = this.props;
+    const decodedExtraData = extraData
       ? decodeExtraData(extraData)
       : '';
-
-    const defaultExtradata = defaultExtraData
+    const decodedDefaultExtraData = defaultExtraData
       ? decodeExtraData(defaultExtraData)
       : '';
 
@@ -56,7 +58,7 @@ export default class MiningSettings extends Component {
             />
           }
         />
-        <Input
+        <TypedInput
           label={
             <FormattedMessage
               id='status.miningSettings.input.author.label'
@@ -69,14 +71,15 @@ export default class MiningSettings extends Component {
               defaultMessage='the mining author'
             />
           }
+          param='address'
           value={ coinbase }
-          onSubmit={ this.onAuthorChange }
+          onChange={ this.onAuthorChange }
           allowCopy
-          floatCopy
-          { ...this._test('author') }
         />
 
         <Input
+          defaultValue={ decodedDefaultExtraData }
+          escape='default'
           label={
             <FormattedMessage
               id='status.miningSettings.input.extradata.label'
@@ -89,12 +92,9 @@ export default class MiningSettings extends Component {
               defaultMessage='extra data for mined blocks'
             />
           }
-          value={ extradata }
+          value={ decodedExtraData }
           onSubmit={ this.onExtraDataChange }
-          defaultValue={ defaultExtradata }
           allowCopy
-          floatCopy
-          { ...this._test('extra-data') }
         />
 
         <Input
@@ -113,8 +113,6 @@ export default class MiningSettings extends Component {
           value={ toNiceNumber(minGasPrice) }
           onSubmit={ this.onMinGasPriceChange }
           allowCopy={ minGasPrice.toString() }
-          floatCopy
-          { ...this._test('min-gas-price') }
         />
 
         <Input
@@ -133,8 +131,6 @@ export default class MiningSettings extends Component {
           value={ toNiceNumber(gasFloorTarget) }
           onSubmit={ this.onGasFloorTargetChange }
           allowCopy={ gasFloorTarget.toString() }
-          floatCopy
-          { ...this._test('gas-floor-target') }
         />
       </div>
     );
@@ -143,29 +139,36 @@ export default class MiningSettings extends Component {
   onMinGasPriceChange = (newVal) => {
     const { api } = this.context;
 
-    api.parity.setMinGasPrice(numberFromString(newVal));
+    api.parity
+      .setMinGasPrice(numberFromString(newVal))
+      .then(() => this.updateMiningSettings());
   };
 
-  onExtraDataChange = (newVal, isResetToDefault) => {
+  onExtraDataChange = (value) => {
     const { api } = this.context;
-    const { nodeStatus } = this.props;
 
-    // In case of resetting to default we are just using raw bytes from defaultExtraData
-    // When user sets new value we can safely send a string that will be converted to hex by formatter.
-    const val = isResetToDefault ? nodeStatus.defaultExtraData : newVal;
-
-    api.parity.setExtraData(val);
+    api.parity
+      .setExtraData(value)
+      .then(() => this.updateMiningSettings());
   };
 
   onAuthorChange = (newVal) => {
     const { api } = this.context;
 
-    api.parity.setAuthor(newVal);
+    api.parity
+      .setAuthor(newVal)
+      .then(() => this.updateMiningSettings());
   };
 
   onGasFloorTargetChange = (newVal) => {
     const { api } = this.context;
 
-    api.parity.setGasFloorTarget(numberFromString(newVal));
+    api.parity
+      .setGasFloorTarget(numberFromString(newVal))
+      .then(() => this.updateMiningSettings());
   };
+
+  updateMiningSettings () {
+    this.props.onUpdateSetting();
+  }
 }
