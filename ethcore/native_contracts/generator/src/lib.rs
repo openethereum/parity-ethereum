@@ -17,6 +17,9 @@
 //! Rust code contract generator.
 //! The code generated will require a dependence on the `ethcore-util`,
 //! `ethabi`, `byteorder`, and `futures` crates.
+//! This currently isn't hygienic, so compilation of generated code may fail
+//! due to missing crates or name collisions. This will change when
+//! it can be ported to a procedural macro.
 
 use ethabi::Contract;
 use ethabi::spec::{Interface, ParamType, Error as AbiError};
@@ -31,7 +34,7 @@ pub enum Error {
 	/// Bad ABI.
 	Abi(AbiError),
 	/// Unsupported parameter type in given function.
-	UnsupportedType(String, ethabi::ParamType),
+	UnsupportedType(String, ParamType),
 }
 
 /// Required OIBIT bounds on the trait.
@@ -57,9 +60,9 @@ pub fn generate_module(struct_name: &str, abi: &str, bounds: Bounds) -> Result<S
 	let functions = generate_functions(&contract)?;
 
 	Ok(format!(r##"
-use byteorder::{BigEndian, ByteOrder};
+use byteorder::{{BigEndian, ByteOrder}};
 use futures::{{future, Future, BoxFuture}};
-use ethabi::{{Contract, Interface}};
+use ethabi::{{Contract, Interface, Token}};
 use util;
 
 /// Helper type for a calling closure.
@@ -70,12 +73,14 @@ pub struct {name} {{
 	do_call: Box<Call>
 }}
 
+const ABI: &'static str = r#"{abi_str}"#;
+
 impl {name} {{
 	/// Create a new instance of `{name}` with a function for dispatching calls
 	/// asynchronously.
 	pub fn new(do_call: Box<Call>) -> Self {{
-		let contract = Contract::new(Interface::load(r#"{abi_str}"#.as_bytes()))
-			.expect("ABI checked at generation-time; qed");
+		let contract = Contract::new(Interface::load(ABI.as_bytes())
+			.expect("ABI checked at generation-time; qed"));
 		{name} {{
 			contract: contract,
 			do_call: do_call,
@@ -83,6 +88,7 @@ impl {name} {{
 	}}
 
 	{functions}
+}}
 "##,
 		name = struct_name,
 		send = if bounds.send { "+ Send" } else { "" },
@@ -101,42 +107,42 @@ fn generate_functions(contract: &Contract) -> Result<String, Error> {
 		let inputs = function.input_params();
 		let outputs = function.output_params();
 
-		let (input_type, to_tokens) = input_params_codegen(&inputs)
-			.map_err(|bad_type| Error::UnsupportedType(name.clone(), bad_type))?;
+		let (input_params, to_tokens) = input_params_codegen(&inputs)
+			.map_err(|bad_type| Error::UnsupportedType(name.into(), bad_type))?;
 
 		let (output_type, decode_outputs) = output_params_codegen(&outputs)
-			.map_err(|bad_type| Error::UnsupportedType(name.clone(), bad_type))?;
+			.map_err(|bad_type| Error::UnsupportedType(name.into(), bad_type))?;
 
-		functions.push(format!(r#"
+		functions.push_str(&format!(r##"
 /// Call the function "{abi_name}" on the contract.
 /// Inputs: {abi_inputs:?}
 /// Outputs: {abi_outputs:?}
 pub fn {snake_name}(&self{params}) -> BoxFuture<{output_type}, String> {{
-	let function = self.contract.function({abi_name})
+	let function = self.contract.function(r#"{abi_name}"#)
 		.expect("function existence checked at compile-time; qed");
 	let call_future = match function.encode_call({to_tokens}) {{
-		Ok(call_data) => (self.do_call)(call),
-		Err(e) => return future::err(format!("Error encoding call: {{:?}}", e))).boxed(),
+		Ok(call_data) => (self.do_call)(call_data),
+		Err(e) => return future::err(format!("Error encoding call: {{:?}}", e)).boxed(),
 	}};
 	call_future
 		.and_then(move |out| function.decode_output(out).map_err(|e| format!("{{:?}}", e)))
 		.map(::std::collections::VecDeque::from)
-		.and_then(|outputs| {decode_outputs}))
+		.and_then(|outputs| {decode_outputs})
 		.boxed()
 }}
-	"#,
+	"##,
 		abi_name = name,
 		abi_inputs = inputs,
 		abi_outputs = outputs,
 		snake_name = snake_name,
-		params = params,
+		params = input_params,
 		output_type = output_type,
 		to_tokens = to_tokens,
 		decode_outputs = decode_outputs,
 		))
 	}
 
-	functions
+	Ok(functions)
 }
 
 // generate code for params in function signature and turning them into tokens.
@@ -150,7 +156,7 @@ pub fn {snake_name}(&self{params}) -> BoxFuture<{output_type}, String> {{
 // returns any unsupported param type encountered.
 fn input_params_codegen(inputs: &[ParamType]) -> Result<(String, String), ParamType> {
 	if inputs.is_empty() {
-		("".into(), "Vec::new()".into())
+		Ok(("".into(), "Vec::new()".into()))
 	} else {
 		let mut params = ", ".to_string();
 		let mut to_tokens = "{ let mut tokens = Vec::new();".to_string();
@@ -160,14 +166,14 @@ fn input_params_codegen(inputs: &[ParamType]) -> Result<(String, String), ParamT
 			let rust_type = rust_type(param_type.clone())?;
 			let (needs_mut, tokenize_code) = tokenize(&param_name, param_type.clone());
 
-			params.extend(format!("{}{}: {}, ",
+			params.push_str(&format!("{}{}: {}, ",
 				if needs_mut { "mut " } else { "" }, param_name, rust_type));
 
-			to_tokens.extend(format!("tokens.push({{ {} }});", tokenize_code));
+			to_tokens.push_str(&format!("tokens.push({{ {} }});", tokenize_code));
 		}
 
-		to_tokens.extend(" tokens }");
-		(params, to_tokens)
+		to_tokens.push_str(" tokens }");
+		Ok((params, to_tokens))
 	}
 }
 
@@ -188,9 +194,9 @@ fn output_params_codegen(outputs: &[ParamType]) -> Result<(String, String), Para
 	for (index, output) in outputs.iter().cloned().enumerate() {
 		let rust_type = rust_type(output.clone())?;
 
-		output_type.extend(rust_type);
+		output_type.push_str(&rust_type);
 
-		decode_outputs.extend(format!(
+		decode_outputs.push_str(&format!(
 			r#"
 				outputs
 					.pop_front()
@@ -204,20 +210,20 @@ fn output_params_codegen(outputs: &[ParamType]) -> Result<(String, String), Para
 		// so we can reuse the same code for single-output contracts,
 		// since T == (T) != (T,)
 		if index < outputs.len() - 1 {
-			output_type.extend(", ");
-			decode_outputs.extend(", ");
+			output_type.push_str(", ");
+			decode_outputs.push_str(", ");
 		}
 	}
 
-	output_type.extend(")");
-	decode_outputs.extend("))");
-	(output_type, decode_outputs)
+	output_type.push_str(")");
+	decode_outputs.push_str("))");
+	Ok((output_type, decode_outputs))
 }
 
 // create code for an argument type from param type.
 fn rust_type(input: ParamType) -> Result<String, ParamType> {
 	Ok(match input {
-		ParamType::Address => "Address".into(),
+		ParamType::Address => "util::Address".into(),
 		ParamType::FixedBytes(len) if len <= 32 => format!("util::H{}", len * 8),
     	ParamType::Bytes | ParamType::FixedBytes(_) => "Vec<u8>".into(),
     	ParamType::Int(width) => match width {
@@ -231,7 +237,7 @@ fn rust_type(input: ParamType) -> Result<String, ParamType> {
 		},
     	ParamType::Bool => "bool".into(),
     	ParamType::String => "String".into(),
-		ParamType::Array(kind) => format!("Vec<{}>", param_type(*kind)?),
+		ParamType::Array(kind) => format!("Vec<{}>", rust_type(*kind)?),
 		other => return Err(other),
 	})
 }
@@ -242,7 +248,7 @@ fn rust_type(input: ParamType) -> Result<String, ParamType> {
 fn tokenize(name: &str, input: ParamType) -> (bool, String) {
 	let mut needs_mut = false;
 	let code = match input {
-		ParamType::Address => format!("Token::Address({}.0)"),
+		ParamType::Address => format!("Token::Address({}.0)", name),
 		ParamType::Bytes => format!("Token::Bytes({})", name),
 		ParamType::FixedBytes(len) if len <= 32 =>
 			format!("Token::FixedBytes({}.0.to_vec())", name),
@@ -256,19 +262,21 @@ fn tokenize(name: &str, input: ParamType) -> (bool, String) {
 				format!("let mut r = [0xff; 32]; BigEndian::write_i{}(&mut r[{}..], {}); Token::Int(r))",
 					width, 32 - (width / 8), name),
 			_ => panic!("Signed int with more than 64 bits not supported."),
-		}
-		ParamType::Uint(width) => match width {
-			x => format!("let mut r = [0; 32]; {}.to_big_endian(&mut r); Token::Uint(r)"),
-				if x <= 64 { format!("util::U256::from({} as u64)", name) }
-				else { format!("util::U256::from({})", name) },
-		}
+		},
+		ParamType::Uint(width) => format!(
+			"let mut r = [0; 32]; {}.to_big_endian(&mut r); Token::Uint(r)",
+			if width <= 64 { format!("util::U256::from({} as u64)", name) }
+			else { format!("util::U256::from({})", name) }
+		),
 		ParamType::Bool => format!("Token::Bool({})", name),
 		ParamType::String => format!("Token::String({})", name),
-		ParamType::Array(kind) =>
-			format!("Token::Array({}.into_iter().map(|i| {{ {} }}).collect())",
-				name, tokenize("i", *kind)),
+		ParamType::Array(kind) => {
+			let (needs_mut, code) = tokenize("i", *kind);
+			format!("Token::Array({}.into_iter().map(|{}i| {{ {} }}).collect())",
+				name, if needs_mut { "mut " } else { "" }, code)
+		}
 		ParamType::FixedArray(_, _) => panic!("Fixed-length arrays not supported."),
-	}
+	};
 
 	(needs_mut, code)
 }
@@ -294,16 +302,17 @@ fn detokenize(name: &str, output_type: ParamType) -> String {
 			let read_int = match width {
 				8 => "i[31] as i8".into(),
 				16 | 32 | 64 => format!("BigEndian::read_i{}(&i[{}..])", width, 32 - (width / 8)),
+				_ => panic!("Signed integers over 64 bytes not allowed."),
 			};
 			format!("{}.to_int().map(|i| {})", name, read_int)
 		}
 		ParamType::Uint(width) => {
 			let read_uint = match width {
 				8 | 16 | 32 | 64 => format!("util::U256(u).low_u64() as u{}", width),
-				_ => format!("util::U{}::from(&u[..])"),
+				_ => format!("util::U{}::from(&u[..])", width),
 			};
 
-			format!("{}.to_uint().map(|u| {})", read_uint)
+			format!("{}.to_uint().map(|u| {})", name, read_uint)
 		}
 		ParamType::Bool => format!("{}.to_bool()", name),
 		ParamType::String => format!("{}.to_string()", name),
@@ -316,4 +325,9 @@ fn detokenize(name: &str, output_type: ParamType) -> String {
 		}
 		ParamType::FixedArray(_, _) => panic!("Fixed-length arrays not supported.")
 	}
+}
+
+#[cfg(test)]
+mod tests {
+
 }
