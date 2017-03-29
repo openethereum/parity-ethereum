@@ -1181,17 +1181,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "libusb"
 version = "0.3.0"
-source = "git+https://github.com/paritytech/libusb-rs#32bacf61abd981d5cbd4a8fecca5a2dc0b762a96"
+source = "git+https://github.com/paritytech/libusb-rs#47c3d09cab346d629328d4bd691ed3509ffb8cbb"
 dependencies = [
  "bit-set 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
- "libusb-sys 0.2.3 (git+https://github.com/ethcore/libusb-sys)",
+ "libusb-sys 0.2.3 (git+https://github.com/paritytech/libusb-sys)",
 ]
 
 [[package]]
 name = "libusb-sys"
 version = "0.2.3"
-source = "git+https://github.com/ethcore/libusb-sys#c10b1180646c9dc3f23a9b6bb825abcd3b7487ce"
+source = "git+https://github.com/paritytech/libusb-sys#c10b1180646c9dc3f23a9b6bb825abcd3b7487ce"
 dependencies = [
  "gcc 0.3.43 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1259,22 +1259,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "gcc 0.3.43 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "mio"
-version = "0.6.1"
-source = "git+https://github.com/ethcore/mio#15a577039bed3c72f2952459f8ad687a56f63e29"
-dependencies = [
- "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "lazycell 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "miow 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
- "nix 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1964,10 +1948,10 @@ dependencies = [
 [[package]]
 name = "rotor"
 version = "0.6.3"
-source = "git+https://github.com/paritytech/rotor#c1a2dd0046c5ea2517a5b637fca8ee2e77021e82"
+source = "git+https://github.com/paritytech/rotor#2a3764a830174aa94405593be550e8fc7ecea25a"
 dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.6.1 (git+https://github.com/ethcore/mio)",
+ "mio 0.6.1 (git+https://github.com/paritytech/mio)",
  "quick-error 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2704,7 +2688,7 @@ dependencies = [
 "checksum lazycell 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ec38a5c22f1ef3e30d2642aa875620d60edeef36cef43c4739d86215ce816331"
 "checksum libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)" = "88ee81885f9f04bff991e306fea7c1c60a5f0f9e409e99f6b40e3311a3363135"
 "checksum libusb 0.3.0 (git+https://github.com/paritytech/libusb-rs)" = "<none>"
-"checksum libusb-sys 0.2.3 (git+https://github.com/ethcore/libusb-sys)" = "<none>"
+"checksum libusb-sys 0.2.3 (git+https://github.com/paritytech/libusb-sys)" = "<none>"
 "checksum linked-hash-map 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "bda158e0dabeb97ee8a401f4d17e479d6b891a14de0bba79d5cc2d4d325b5e48"
 "checksum linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6d262045c5b87c0861b3f004610afd0e2c851e2908d08b6c870cbb9d5f494ecd"
 "checksum log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "ab83497bf8bf4ed2a74259c1c802351fcd67a65baa86394b6ba73c36f4838054"
@@ -2714,7 +2698,6 @@ dependencies = [
 "checksum mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a74cc2587bf97c49f3f5bab62860d6abf3902ca73b66b51d9b049fbdcd727bd2"
 "checksum mime_guess 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "5e50bf542f81754ef69e5cea856946a3819f7c09ea97b4903c8bc8a89f74e7b6"
 "checksum miniz-sys 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "9d1f4d337a01c32e1f2122510fed46393d53ca35a7f429cb0450abaedfa3ed54"
-"checksum mio 0.6.1 (git+https://github.com/ethcore/mio)" = "<none>"
 "checksum mio 0.6.1 (git+https://github.com/paritytech/mio)" = "<none>"
 "checksum mio 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "5b493dc9fd96bd2077f2117f178172b0765db4dfda3ea4d8000401e6d65d3e80"
 "checksum mio-named-pipes 0.1.4 (git+https://github.com/alexcrichton/mio-named-pipes)" = "<none>"
