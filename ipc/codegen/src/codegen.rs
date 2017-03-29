@@ -56,7 +56,7 @@ pub fn expand_ipc_implementation(
 
 	let builder = aster::AstBuilder::new().span(span);
 
-	let interface_map = match implement_interface(cx, &builder, &item, push) {
+	let interface_map = match implement_interface(cx, &builder, &item, push, meta_item) {
 		Ok(interface_map) => interface_map,
 		Err(Error) => { return; },
 	};
@@ -99,9 +99,9 @@ fn push_invoke_signature_aster(
 	let inputs = &named_signature.sig.decl.inputs;
 	let (input_type_name, input_arg_names, input_arg_tys) = if inputs.len() > 0 {
 		let first_field_name = field_name(builder, &inputs[0]).name.as_str();
-		if first_field_name == "self" && inputs.len() == 1 { (None, vec![], vec![]) }
+		if &*first_field_name == "self" && inputs.len() == 1 { (None, vec![], vec![]) }
 		else {
-			let skip = if first_field_name == "self" { 2 } else { 1 };
+			let skip = if &*first_field_name == "self" { 2 } else { 1 };
 			let name_str = format!("{}_input", named_signature.ident.name.as_str());
 
 			let mut arg_names = Vec::new();
@@ -181,6 +181,7 @@ fn implement_dispatch_arm_invoke_stmt(
 	dispatch: &Dispatch,
 ) -> ast::Stmt
 {
+	use ::syntax::tokenstream::TokenTree::Token;
 	let function_name = builder.id(dispatch.function_name.as_str());
 
 	let input_args_exprs = dispatch.input_arg_names.iter().enumerate().map(|(arg_index, arg_name)| {
@@ -193,56 +194,56 @@ fn implement_dispatch_arm_invoke_stmt(
 	let ext_cx = &*cx;
 	::quasi::parse_stmt_panic(&mut ::syntax::parse::new_parser_from_tts(
 		ext_cx.parse_sess(),
-		ext_cx.cfg(),
 		{
 			let _sp = ext_cx.call_site();
 			let mut tt = ::std::vec::Vec::new();
 
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
+			tt.push(Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
 
 			if dispatch.return_type_ty.is_some() {
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("ipc"))));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("binary"))));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("serialize"))));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
+				tt.push(Token(_sp, ::syntax::parse::token::ModSep));
+				tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("ipc"))));
+				tt.push(Token(_sp, ::syntax::parse::token::ModSep));
+				tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("binary"))));
+				tt.push(Token(_sp, ::syntax::parse::token::ModSep));
+				tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("serialize"))));
+				tt.push(Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
+				tt.push(Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
 			}
 
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"))));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Dot));
+			tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"))));
+			tt.push(Token(_sp, ::syntax::parse::token::Dot));
 			tt.extend(::quasi::ToTokens::to_tokens(&function_name, ext_cx).into_iter());
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
+			tt.push(Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
 
 			for arg_expr in input_args_exprs {
 				tt.extend(::quasi::ToTokens::to_tokens(&arg_expr, ext_cx).into_iter());
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
+				tt.push(Token(_sp, ::syntax::parse::token::Comma));
 			}
 
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
+			tt.push(Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
 
 			if dispatch.return_type_ty.is_some() {
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Dot));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("unwrap"))));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
+				tt.push(Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
+				tt.push(Token(_sp, ::syntax::parse::token::Dot));
+				tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("unwrap"))));
+				tt.push(Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
+				tt.push(Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
 			}
 			else {
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Semi));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("Vec"))));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("new"))));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
+				tt.push(Token(_sp, ::syntax::parse::token::Semi));
+				tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("Vec"))));
+				tt.push(Token(_sp, ::syntax::parse::token::ModSep));
+				tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("new"))));
+				tt.push(Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
+				tt.push(Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
 
 			}
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
+			tt.push(Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
 
 			tt
-		})).unwrap()
+		}
+	)).unwrap()
 }
 
 fn implement_dispatch_arm_invoke(
@@ -344,6 +345,8 @@ fn implement_client_method_body(
 	interface_map: &InterfaceMap,
 ) -> P<ast::Expr>
 {
+	use ::syntax::tokenstream::TokenTree::Token;
+
 	let dispatch = &interface_map.dispatches[index as usize];
 	let index_ident = builder.id(format!("{}", index + RESERVED_MESSAGE_IDS).as_str());
 
@@ -391,26 +394,25 @@ fn implement_client_method_body(
 			let ext_cx = &*cx;
 			::quasi::parse_stmt_panic(&mut ::syntax::parse::new_parser_from_tts(
 				ext_cx.parse_sess(),
-				ext_cx.cfg(),
 				{
 					let _sp = ext_cx.call_site();
 					let mut tt = ::std::vec::Vec::new();
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("let"))));
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("payload"))));
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Eq));
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("Request"))));
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
+					tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("let"))));
+					tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("payload"))));
+					tt.push(Token(_sp, ::syntax::parse::token::Eq));
+					tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("Request"))));
+					tt.push(Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
 
 					for arg in dispatch.input_arg_names.iter() {
-						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg.as_str()))));
-						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Colon));
-						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
+						tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg.as_str()))));
+						tt.push(Token(_sp, ::syntax::parse::token::Colon));
+						tt.push(Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
 
-						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg.as_str()))));
-						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
+						tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg.as_str()))));
+						tt.push(Token(_sp, ::syntax::parse::token::Comma));
 					}
 
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
+					tt.push(Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
 					tt
 				}))
 			});
@@ -465,6 +467,8 @@ fn implement_client_method(
 )
 	-> ast::ImplItem
 {
+	use ::syntax::tokenstream::TokenTree::Token;
+
 	let dispatch = &interface_map.dispatches[index as usize];
 	let method_name = builder.id(dispatch.function_name.as_str());
 	let body = implement_client_method_body(cx, builder, index, interface_map);
@@ -476,36 +480,35 @@ fn implement_client_method(
 	let signature = ::syntax::parse::parser::Parser::parse_impl_item(
 		&mut ::syntax::parse::new_parser_from_tts(
 			ext_cx.parse_sess(),
-			ext_cx.cfg(),
 			{
 				let _sp = ext_cx.call_site();
 				let mut tt = ::std::vec::Vec::new();
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("fn"))));
+				tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("fn"))));
 				tt.extend(::quasi::ToTokens::to_tokens(&method_name, ext_cx).into_iter());
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"))));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
+				tt.push(Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
+				tt.push(Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
+				tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"))));
+				tt.push(Token(_sp, ::syntax::parse::token::Comma));
 
 				for arg_idx in 0..dispatch.input_arg_names.len() {
 					let arg_name = dispatch.input_arg_names[arg_idx].as_str();
 					let arg_ty = dispatch.input_arg_tys[arg_idx].clone();
 
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg_name))));
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Colon));
+					tt.push(Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg_name))));
+					tt.push(Token(_sp, ::syntax::parse::token::Colon));
 					tt.extend(::quasi::ToTokens::to_tokens(&arg_ty, ext_cx).into_iter());
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
+					tt.push(Token(_sp, ::syntax::parse::token::Comma));
 				}
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
+				tt.push(Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
 
 				if let Some(ref return_ty) = dispatch.return_type_ty {
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::RArrow));
+					tt.push(Token(_sp, ::syntax::parse::token::RArrow));
 					tt.extend(::quasi::ToTokens::to_tokens(return_ty, ext_cx).into_iter());
 				}
 
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
+				tt.push(Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
 				tt.extend(::quasi::ToTokens::to_tokens(&body, ext_cx).into_iter());
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
+				tt.push(Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
 
 				tt
 			}));
@@ -526,7 +529,7 @@ fn client_generics(builder: &aster::AstBuilder, interface_map: &InterfaceMap) ->
 
 fn client_qualified_ident(cx: &ExtCtxt, builder: &aster::AstBuilder, interface_map: &InterfaceMap) -> P<Ty> {
 	let generics = client_generics(builder, interface_map);
-	aster::ty::TyBuilder::new().path().segment(interface_map.ident_map.client_ident(cx, builder, &interface_map.original_item))
+	aster::ty::TyBuilder::new().path().segment(interface_map.ident_map.client_ident(cx, builder))
 		.with_generics(generics).build()
 		.build()
 }
@@ -542,7 +545,7 @@ fn client_phantom_ident(builder: &aster::AstBuilder, interface_map: &InterfaceMa
 /// for say `Service` it generates `ServiceClient`
 fn push_client_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, interface_map: &InterfaceMap, push: &mut FnMut(Annotatable)) {
 	let generics = client_generics(builder, interface_map);
-	let client_short_ident = interface_map.ident_map.client_ident(cx, builder, &interface_map.original_item);
+	let client_short_ident = interface_map.ident_map.client_ident(cx, builder);
 	let phantom = client_phantom_ident(builder, interface_map);
 
 	let client_struct_item = quote_item!(cx,
@@ -575,7 +578,7 @@ fn push_with_socket_client_implementation(
 	let generics = client_generics(builder, interface_map);
 	let client_ident = client_qualified_ident(cx, builder, interface_map);
 	let where_clause = &generics.where_clause;
-	let client_short_ident = interface_map.ident_map.client_ident(cx, builder, &interface_map.original_item);
+	let client_short_ident = interface_map.ident_map.client_ident(cx, builder);
 
 	let implement = quote_item!(cx,
 		impl $generics ::ipc::WithSocket<S> for $client_ident $where_clause {
@@ -717,33 +720,31 @@ fn get_str_from_lit(cx: &ExtCtxt, name: &str, lit: &ast::Lit) -> Result<String, 
 	}
 }
 
-pub fn get_ipc_meta_items(attr: &ast::Attribute) -> Option<&[P<ast::MetaItem>]> {
-    match attr.node.value.node {
-        ast::MetaItemKind::List(ref name, ref items) if name == &"ipc" => {
-            Some(items)
-        }
-        _ => None
-    }
-}
-
-fn client_ident_renamed(cx: &ExtCtxt, item: &ast::Item) -> Option<String> {
-	for meta_items in item.attrs().iter().filter_map(get_ipc_meta_items) {
-		for meta_item in meta_items {
-			match meta_item.node {
-				ast::MetaItemKind::NameValue(ref name, ref lit) if name == &"client_ident" => {
-					if let Ok(s) = get_str_from_lit(cx, name, lit) {
-						return Some(s);
+fn client_ident_renamed(cx: &ExtCtxt, meta_item: &MetaItem) -> Option<String> {
+	if let ast::MetaItemKind::List(ref list) = meta_item.node {
+		for nested in list {
+			match nested.node {
+				ast::NestedMetaItemKind::MetaItem(ref meta_item) => {
+					let is_client_ident = &*meta_item.name.as_str() == "client_ident";
+					match meta_item.node {
+						ast::MetaItemKind::NameValue(ref lit) if is_client_ident => {
+							if let Ok(s) = get_str_from_lit(cx, "client_ident", lit) {
+								return Some(s);
+							}
+						}
+						_ => {
+							cx.span_err(
+								meta_item.span,
+								&format!("unknown client_ident container attribute `{}`",
+										 ::syntax::print::pprust::meta_item_to_string(&meta_item)));
+						}
 					}
-				}
-				_ => {
-					cx.span_err(
-						meta_item.span,
-						&format!("unknown client_ident container attribute `{}`",
-								 ::syntax::print::pprust::meta_item_to_string(meta_item)));
-				}
+				},
+				_ => {},
 			}
 		}
 	}
+
 	None
 }
 
@@ -759,6 +760,7 @@ struct InterfaceMap {
 
 struct IdentMap {
 	original_path: ast::Path,
+	meta_item: MetaItem,
 }
 
 impl IdentMap {
@@ -766,8 +768,8 @@ impl IdentMap {
 		builder.id(format!("{}", ::syntax::print::pprust::path_to_string(&self.original_path)))
 	}
 
-	fn client_ident(&self, cx: &ExtCtxt, builder: &aster::AstBuilder, item: &ast::Item) -> Ident {
-		if let Some(new_name) = client_ident_renamed(cx, item) {
+	fn client_ident(&self, cx: &ExtCtxt, builder: &aster::AstBuilder) -> Ident {
+		if let Some(new_name) = client_ident_renamed(cx, &self.meta_item) {
 			builder.id(new_name)
 		}
 		else {
@@ -776,12 +778,12 @@ impl IdentMap {
 	}
 }
 
-fn ty_ident_map(original_ty: &P<Ty>) -> IdentMap {
+fn ty_ident_map(original_ty: &P<Ty>, meta_item: &MetaItem) -> IdentMap {
 	let original_path = match original_ty.node {
 		::syntax::ast::TyKind::Path(_, ref path) => path.clone(),
 		_ => { panic!("incompatible implementation"); }
 	};
-	let ident_map = IdentMap { original_path: original_path };
+	let ident_map = IdentMap { original_path: original_path, meta_item: meta_item.clone() };
 	ident_map
 }
 
@@ -791,6 +793,7 @@ fn implement_interface(
 	builder: &aster::AstBuilder,
 	item: &Item,
 	push: &mut FnMut(Annotatable),
+	meta_item: &MetaItem,
 ) -> Result<InterfaceMap, Error> {
 	let (generics, impl_trait, original_ty, dispatch_table) = match item.node {
 		ast::ItemKind::Impl(_, _, ref generics, ref impl_trait, ref ty, ref impl_items) => {
@@ -844,7 +847,7 @@ fn implement_interface(
 
 	let (handshake_arm, handshake_arm_buf) = implement_handshake_arm(cx);
 
-	let ty = ty_ident_map(&original_ty).ident(builder);
+	let ty = ty_ident_map(&original_ty, meta_item).ident(builder);
 	let (interface_endpoint, host_generics) = match impl_trait {
 		Some(ref trait_) => (builder.id(::syntax::print::pprust::path_to_string(&trait_.path)), None),
 		None => (ty, Some(&impl_generics)),
@@ -884,7 +887,7 @@ fn implement_interface(
 	).unwrap();
 
 	Ok(InterfaceMap {
-		ident_map: ty_ident_map(&original_ty),
+		ident_map: ty_ident_map(&original_ty, meta_item),
 		original_item: item.clone(),
 		item: ipc_item,
 		dispatches: dispatch_table,
