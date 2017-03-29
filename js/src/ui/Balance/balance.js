@@ -17,18 +17,20 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
 
 import TokenImage from '~/ui/TokenImage';
 
 import styles from './balance.css';
 
-export default class Balance extends Component {
+class Balance extends Component {
   static contextTypes = {
     api: PropTypes.object
   };
 
   static propTypes = {
-    balance: PropTypes.object,
+    address: PropTypes.string.isRequired,
+    balance: PropTypes.object.isRequired,
     className: PropTypes.string,
     showOnlyEth: PropTypes.bool,
     showZeroValues: PropTypes.bool
@@ -43,7 +45,7 @@ export default class Balance extends Component {
     const { api } = this.context;
     const { balance, className, showOnlyEth } = this.props;
 
-    if (!balance || !balance.tokens) {
+    if (!balance.tokens) {
       return null;
     }
 
@@ -140,3 +142,14 @@ export default class Balance extends Component {
     );
   }
 }
+
+function mapStateToProps (state, props) {
+  const { balances } = state.balances;
+  const { address } = props;
+
+  return {
+    balance: balances[address] || props.balance || {}
+  };
+}
+
+export default connect(mapStateToProps)(Balance);

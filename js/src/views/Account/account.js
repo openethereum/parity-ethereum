@@ -108,7 +108,6 @@ class Account extends Component {
         <Page padded>
           <Header
             account={ account }
-            balance={ balance }
             disabled={ !isAvailable }
           />
           <Transactions

@@ -33,7 +33,6 @@ class VaultAccounts extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    balances: PropTypes.object.isRequired,
     newError: PropTypes.func.isRequired,
     personalAccountsInfo: PropTypes.func.isRequired,
     vaultStore: PropTypes.object.isRequired
@@ -108,13 +107,9 @@ class VaultAccounts extends Component {
   }
 
   renderAccount = (account) => {
-    const { balances } = this.props;
-    const balance = balances[account.address];
-
     return (
       <AccountCard
         account={ account }
-        balance={ balance }
       />
     );
   }
@@ -171,12 +166,10 @@ class VaultAccounts extends Component {
 }
 
 function mapStateToProps (state) {
-  const { balances } = state.balances;
   const { accounts } = state.personal;
 
   return {
-    accounts,
-    balances
+    accounts
   };
 }
 

@@ -24,7 +24,6 @@ import styles from './header.css';
 export default class Header extends Component {
   static propTypes = {
     account: PropTypes.object,
-    balance: PropTypes.object,
     children: PropTypes.node,
     className: PropTypes.string,
     disabled: PropTypes.bool,
@@ -40,7 +39,7 @@ export default class Header extends Component {
   };
 
   render () {
-    const { account, balance, children, className, disabled, hideName } = this.props;
+    const { account, children, className, disabled, hideName } = this.props;
 
     if (!account) {
       return null;
@@ -76,8 +75,7 @@ export default class Header extends Component {
             { this.renderTxCount() }
             <div className={ styles.balances }>
               <Balance
-                account={ account }
-                balance={ balance }
+                address={ address }
               />
               <Certifications address={ address } />
               { this.renderVault() }
@@ -114,30 +112,32 @@ export default class Header extends Component {
     );
   }
 
+  // TODO: re-introduce txCountf
   renderTxCount () {
-    const { balance, isContract } = this.props;
+    return null;
+    // const { balance, isContract } = this.props;
 
-    if (!balance || isContract) {
-      return null;
-    }
+    // if (!balance || isContract) {
+    //   return null;
+    // }
 
-    const { txCount } = balance;
+    // const { txCount } = balance;
 
-    if (!txCount) {
-      return null;
-    }
+    // if (!txCount) {
+    //   return null;
+    // }
 
-    return (
-      <div className={ styles.infoline }>
-        <FormattedMessage
-          id='account.header.outgoingTransactions'
-          defaultMessage='{count} outgoing transactions'
-          values={ {
-            count: txCount.toFormat()
-          } }
-        />
-      </div>
-    );
+    // return (
+    //   <div className={ styles.infoline }>
+    //     <FormattedMessage
+    //       id='account.header.outgoingTransactions'
+    //       defaultMessage='{count} outgoing transactions'
+    //       values={ {
+    //         count: txCount.toFormat()
+    //       } }
+    //     />
+    //   </div>
+    // );
   }
 
   renderUuid () {

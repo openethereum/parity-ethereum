@@ -54,7 +54,6 @@ class AddressSelect extends Component {
     // Redux props
     accountsInfo: PropTypes.object,
     accounts: PropTypes.object,
-    balances: PropTypes.object,
     contacts: PropTypes.object,
     contracts: PropTypes.object,
     tokens: PropTypes.object,
@@ -336,10 +335,9 @@ class AddressSelect extends Component {
   }
 
   renderAccountCard (_account) {
-    const { balances, accountsInfo } = this.props;
+    const { accountsInfo } = this.props;
     const { address, index = null } = _account;
 
-    const balance = balances[address];
     const account = {
       ...accountsInfo[address],
       ..._account
@@ -348,7 +346,6 @@ class AddressSelect extends Component {
     return (
       <AccountCard
         account={ account }
-        balance={ balance }
         className={ styles.account }
         key={ `account_${index}` }
         onClick={ this.handleClick }
@@ -630,12 +627,10 @@ class AddressSelect extends Component {
 
 function mapStateToProps (state) {
   const { accountsInfo } = state.personal;
-  const { balances } = state.balances;
   const { reverse } = state.registry;
 
   return {
     accountsInfo,
-    balances,
     reverse
   };
 }

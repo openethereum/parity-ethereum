@@ -105,7 +105,7 @@ class Wallet extends Component {
   }
 
   render () {
-    const { walletAccount, balance, wallet } = this.props;
+    const { walletAccount, wallet } = this.props;
 
     if (!walletAccount) {
       return null;
@@ -125,7 +125,6 @@ class Wallet extends Component {
             <Header
               className={ styles.header }
               account={ walletAccount }
-              balance={ balance }
               isContract
             >
               { this.renderInfos() }
