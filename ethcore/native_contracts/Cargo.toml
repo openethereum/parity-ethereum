@@ -1,5 +1,5 @@
 [package]
-name = "native_contracts"
+name = "native-contracts"
 description = "Generated Rust code for Ethereum contract ABIs"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
