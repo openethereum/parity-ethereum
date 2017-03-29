@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BalancesProvider from './balances';
-import { showSnackbar } from './snackbarActions';
 import { DEFAULT_NETCHAIN } from './statusReducer';
 
 export default class ChainMiddleware {
@@ -24,20 +22,28 @@ export default class ChainMiddleware {
       if (action.type === 'statusCollection') {
         const { collection } = action;
 
-        if (collection && collection.netChain) {
+        if (collection) {
           const newChain = collection.netChain;
-          const { nodeStatus } = store.getState();
+          const newNodeKind = collection.nodeKind;
 
-          if (newChain !== nodeStatus.netChain && nodeStatus.netChain !== DEFAULT_NETCHAIN) {
-            store.dispatch(showSnackbar(`Switched to ${newChain}. The UI will reload now...`));
-            setTimeout(() => {
-              window.location.reload();
-            }, 0);
+          if (newChain) {
+            const { nodeStatus } = store.getState();
+            const { netChain, nodeKind } = nodeStatus;
 
-            // Fetch the new balances without notifying the user of any change
-            BalancesProvider.get(store).fetchAllBalances({
-              changedNetwork: true
-            });
+            // force reload when chain has changed
+            let forceReload = newChain !== netChain && netChain !== DEFAULT_NETCHAIN;
+
+            // force reload when nodeKind (availability/capability) has changed
+            if (!forceReload && collection.nodeKind !== null && nodeKind !== null) {
+              forceReload = nodeKind.availability !== newNodeKind.availability ||
+                nodeKind.capability !== newNodeKind.capability;
+            }
+
+            if (forceReload) {
+              setTimeout(() => {
+                window.location.reload();
+              }, 0);
+            }
           }
         }
       }
