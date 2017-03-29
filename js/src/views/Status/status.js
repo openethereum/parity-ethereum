@@ -21,7 +21,7 @@ import { Page } from '~/ui';
 
 import Debug from './Debug';
 import Peers from './Peers';
-import Status from './Status';
+import NodeStatus from './NodeStatus';
 
 import styles from './status.css';
 
@@ -35,7 +35,7 @@ export default () => (
     }
   >
     <div className={ styles.body }>
-      <Status />
+      <NodeStatus />
       <Peers />
       <Debug />
     </div>
