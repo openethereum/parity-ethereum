@@ -16,45 +16,28 @@
 
 import { handleActions } from 'redux-actions';
 
-const initialState = {
-  chain: 'loading...',
-  networkPort: 0,
-  maxPeers: 0,
-  rpcEnabled: false,
-  rpcInterface: '-',
-  rpcPort: 0
-};
+const initialState = {};
 
 export default handleActions({
-  'update netChain' (state, action) {
-    return {
+  setRequest (state, action) {
+    const { requestId, requestData } = action;
+
+    const nextState = {
       ...state,
-      chain: action.payload
+      [requestId]: {
+        ...(state[requestId] || {}),
+        ...requestData
+      }
     };
+
+    return nextState;
   },
 
-  'update netPort' (state, action) {
-    return {
-      ...state,
-      networkPort: action.payload
-    };
-  },
+  deleteRequest (state, action) {
+    const { requestId } = action;
+    const nextState = { ...state };
 
-  'update netPeers' (state, action) {
-    return {
-      ...state,
-      maxPeers: action.payload.max
-    };
-  },
-
-  'update rpcSettings' (state, action) {
-    const rpc = action.payload;
-
-    return {
-      ...state,
-      rpcEnabled: rpc.enabled,
-      rpcInterface: rpc.interface,
-      rpcPort: rpc.port
-    };
+    delete nextState[requestId];
+    return nextState;
   }
 }, initialState);

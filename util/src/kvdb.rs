@@ -283,11 +283,11 @@ pub fn rotational_from_df_output(df_out: Vec<u8>) -> Option<PathBuf> {
 		.and_then(|df_str| Regex::new(r"/dev/(sd[:alpha:]{1,2})")
 			.ok()
 			.and_then(|re| re.captures(df_str))
-			.and_then(|captures| captures.at(1)))
+			.and_then(|captures| captures.get(1)))
 		// Generate path e.g. /sys/block/sda/queue/rotational
 		.map(|drive_path| {
 			let mut p = PathBuf::from("/sys/block");
-			p.push(drive_path);
+			p.push(drive_path.as_str());
 			p.push("queue/rotational");
 			p
 		})

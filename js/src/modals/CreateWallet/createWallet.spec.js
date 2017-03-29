@@ -18,7 +18,7 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import CreateWallet from './';
+import { CreateWallet } from './createWallet';
 
 import { ACCOUNTS } from './createWallet.test.js';
 
@@ -47,7 +47,7 @@ function render () {
   return component;
 }
 
-describe('CreateWallet', () => {
+describe('modals/CreateWallet', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });

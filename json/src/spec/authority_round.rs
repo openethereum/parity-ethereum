@@ -40,6 +40,9 @@ pub struct AuthorityRoundParams {
 	/// To be used for testing only.
 	#[serde(rename="startStep")]
 	pub start_step: Option<Uint>,
+	/// Block at which score validation should start.
+	#[serde(rename="validateScoreTransition")]
+	pub validate_score_transition: Option<Uint>,
 }
 
 /// Authority engine deserialization.

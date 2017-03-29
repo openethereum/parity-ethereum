@@ -14,4 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './statusPage';
+import React, { PropTypes } from 'react';
+
+import styles from './scrollableText.css';
+
+export default function ScrollableText ({ small = false, text }) {
+  const classes = [ styles.input ];
+
+  if (small) {
+    classes.push(styles.small);
+  }
+
+  return (
+    <input
+      className={ classes.join(' ') }
+      readOnly
+      value={ text }
+    />
+  );
+}
+
+ScrollableText.propTypes = {
+  text: PropTypes.string.isRequired,
+  small: PropTypes.bool
+};

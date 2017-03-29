@@ -20,7 +20,7 @@ import { LOG_KEYS, getLogger } from '~/config';
 import UpgradeStore from '~/modals/UpgradeParity/store';
 
 import BalancesProvider from './balances';
-import { statusBlockNumber, statusCollection, statusLogs } from './statusActions';
+import { statusBlockNumber, statusCollection } from './statusActions';
 
 const log = getLogger(LOG_KEYS.Signer);
 let instance = null;
@@ -59,6 +59,14 @@ export default class Status {
     return instance;
   }
 
+  static get () {
+    if (!instance) {
+      throw new Error('The Status Provider has not been initialized yet');
+    }
+
+    return instance;
+  }
+
   start () {
     log.debug('status::start');
 
@@ -66,7 +74,6 @@ export default class Status {
       .all([
         this._subscribeBlockNumber(),
 
-        this._pollLogs(),
         this._pollLongStatus(),
         this._pollStatus()
       ])
@@ -121,7 +128,7 @@ export default class Status {
   _subscribeBlockNumber = () => {
     return this._api
       .subscribe('eth_blockNumber', (error, blockNumber) => {
-        if (error) {
+        if (error || !blockNumber) {
           return;
         }
 
@@ -149,8 +156,7 @@ export default class Status {
   }
 
   _pollTraceMode = () => {
-    return this._api.trace
-      .block()
+    return this._api.trace.block()
       .then(blockTraces => {
         // Assumes not in Trace Mode if no transactions
         // in latest block...
@@ -188,25 +194,12 @@ export default class Status {
       return Promise.resolve();
     }
 
-    const { refreshStatus } = this._store.getState().nodeStatus;
-
-    const statusPromises = [ this._api.eth.syncing() ];
-
-    if (refreshStatus) {
-      statusPromises.push(this._api.parity.netPeers());
-      statusPromises.push(this._api.eth.hashrate());
-    }
+    const statusPromises = [ this._api.eth.syncing(), this._api.parity.netPeers() ];
 
     return Promise
       .all(statusPromises)
-      .then(([ syncing, ...statusResults ]) => {
-        const status = statusResults.length === 0
-          ? { syncing }
-          : {
-            syncing,
-            netPeers: statusResults[0],
-            hashrate: statusResults[1]
-          };
+      .then(([ syncing, netPeers ]) => {
+        const status = { netPeers, syncing };
 
         if (!isEqual(status, this._status)) {
           this._store.dispatch(statusCollection(status));
@@ -218,39 +211,6 @@ export default class Status {
       })
       .then(() => {
         nextTimeout();
-      });
-  }
-
-  /**
-   * Miner settings should never changes unless
-   * Parity is restarted, or if the values are changed
-   * from the UI
-   */
-  _pollMinerSettings = () => {
-    return Promise
-      .all([
-        this._api.eth.coinbase(),
-        this._api.parity.extraData(),
-        this._api.parity.minGasPrice(),
-        this._api.parity.gasFloorTarget()
-      ])
-      .then(([
-        coinbase, extraData, minGasPrice, gasFloorTarget
-      ]) => {
-        const minerSettings = {
-          coinbase,
-          extraData,
-          minGasPrice,
-          gasFloorTarget
-        };
-
-        if (!isEqual(minerSettings, this._minerSettings)) {
-          this._store.dispatch(statusCollection(minerSettings));
-          this._minerSettings = minerSettings;
-        }
-      })
-      .catch((error) => {
-        console.error('_pollMinerSettings', error);
       });
   }
 
@@ -273,33 +233,16 @@ export default class Status {
       this._timeoutIds.longStatus = setTimeout(() => this._pollLongStatus(), timeout);
     };
 
-    let minerPromise = null;
-    const { nodeKindFull } = this._store.getState().nodeStatus;
-    const promises = [
-      this._api.web3.clientVersion(),
-      this._api.net.version(),
-      this._api.parity.netPeers(),
-      this._api.parity.nodeKind()
-    ];
-
-    // only check for upgrade & miner when running a full node
-    if (nodeKindFull) {
-      Array.prototype.push.apply(promises, [
-        this._api.parity.defaultExtraData(),
-        this._api.parity.enode().then((enode) => enode).catch(() => '-'),
+    return Promise
+      .all([
+        this._api.parity.netPeers(),
+        this._api.web3.clientVersion(),
+        this._api.net.version(),
         this._api.parity.netChain(),
-        this._api.parity.netPort(),
-        this._api.parity.rpcSettings(),
         this._upgradeStore.checkUpgrade()
-      ]);
-      minerPromise = this._pollMinerSettings();
-    }
-
-    const mainPromise = Promise
-      .all(promises)
+      ])
       .then(([
-        clientVersion, netVersion, netPeers, nodeKind, // default
-        defaultExtraData, enode, netChain, netPort, rpcSettings // optional
+        netPeers, clientVersion, netVersion, netChain, upgradeStatus
       ]) => {
         const isTest = [
           '2', // morden
@@ -307,29 +250,13 @@ export default class Status {
           '42' // kovan
         ].includes(netVersion);
 
-        const nodeKindFull = nodeKind &&
-          nodeKind.availability === 'personal' &&
-          nodeKind.capability === 'full';
-
-        const longStatus = Object.assign(
-          {
-            clientVersion,
-            isTest,
-            netVersion,
-            netPeers,
-            nodeKind,
-            nodeKindFull
-          },
-          nodeKindFull
-            ? {
-              defaultExtraData,
-              enode,
-              netChain,
-              netPort,
-              rpcSettings
-            }
-            : {}
-        );
+        const longStatus = {
+          netPeers,
+          clientVersion,
+          netChain,
+          netVersion,
+          isTest
+        };
 
         if (!isEqual(longStatus, this._longStatus)) {
           this._store.dispatch(statusCollection(longStatus));
@@ -341,43 +268,6 @@ export default class Status {
       })
       .then(() => {
         nextTimeout(60000);
-      });
-
-    return Promise.all([ minerPromise, mainPromise ]);
-  }
-
-  _pollLogs = () => {
-    const nextTimeout = (timeout = 1000) => {
-      if (this._timeoutIds.logs) {
-        clearTimeout(this._timeoutIds.logs);
-      }
-
-      this._timeoutIds.logs = setTimeout(this._pollLogs, timeout);
-    };
-
-    const { devLogsEnabled } = this._store.getState().nodeStatus;
-
-    if (!devLogsEnabled) {
-      nextTimeout();
-      return Promise.resolve();
-    }
-
-    return Promise
-      .all([
-        this._api.parity.devLogs(),
-        this._api.parity.devLogsLevels()
-      ])
-      .then(([devLogs, devLogsLevels]) => {
-        this._store.dispatch(statusLogs({
-          devLogs: devLogs.slice(-1024),
-          devLogsLevels
-        }));
-      })
-      .catch((error) => {
-        console.error('_pollLogs', error);
-      })
-      .then(() => {
-        return nextTimeout();
       });
   }
 }
