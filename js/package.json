@@ -14,7 +14,7 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ethcore/parity.git"
+    "url": "git+https://github.com/paritytech/parity.git"
   },
   "keywords": [
     "Ethereum",

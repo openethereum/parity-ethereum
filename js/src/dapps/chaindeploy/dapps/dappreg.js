@@ -20,7 +20,7 @@ const id = 'dappreg';
 const app = builtins.find((app) => app.url === id);
 const hashId = app.id;
 const source = {
-  imageUrl: 'https://raw.githubusercontent.com/ethcore/dapp-assets/cdd6ac4f1e2f11619bed72a53ae71217dffe19ad/dapps/legos-64x64.png',
+  imageUrl: 'https://raw.githubusercontent.com/paritytech/dapp-assets/cdd6ac4f1e2f11619bed72a53ae71217dffe19ad/dapps/legos-64x64.png',
   imageHash: '0xa8feea35c761cc6c2fe862fe336419f11ca5421f578757720a899b89fc1df154'
 };
 const name = app.name;

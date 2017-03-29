@@ -17,7 +17,7 @@
 //! Snapshot creation, restoration, and network service.
 //!
 //! Documentation of the format can be found at
-//! https://github.com/ethcore/parity/wiki/%22PV64%22-Snapshot-Format
+//! https://github.com/paritytech/parity/wiki/%22PV64%22-Snapshot-Format
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;

@@ -47,7 +47,7 @@
 :root .reset { font-size: initial; width: 100%; height: 100%; }
 /* shame:on */
 /* Material-ui is changing input properties with inline styles. */
-/* because of that https://github.com/ethcore/eth-node-status-page is overriding all inputs with !important
+/* because of that https://github.com/paritytech/eth-node-status-page is overriding all inputs with !important
 /* We want to keep it consistent and we use material ui, so we set the default color according to material ui */
 :root .reset input {
   margin-top: 0;
