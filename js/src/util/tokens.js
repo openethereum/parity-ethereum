@@ -28,11 +28,11 @@ export function fetchTokenIds (tokenregInstance) {
     });
 }
 
-export function fetchTokens (api, tokenregInstace, _tokenIds = []) {
-  const tokenIds = uniq(_tokenIds);
+export function fetchTokensInfo (api, tokenregInstace, tokenIds = []) {
+  const uniqTokenIds = uniq(tokenIds);
 
   return Promise
-    .all(tokenIds.map((id) => fetchTokenInfo(api, tokenregInstace, id)));
+    .all(uniqTokenIds.map((id) => fetchTokenInfo(api, tokenregInstace, id)));
 }
 
 export function fetchTokenInfo (api, tokenregInstace, tokenId) {

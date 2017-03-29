@@ -18,7 +18,7 @@ import { combineReducers } from 'redux';
 import { routerReducer } from 'react-router-redux';
 
 import {
-  apiReducer, balancesReducer, blockchainReducer,
+  apiReducer, balancesReducer,
   workerReducer, imagesReducer, personalReducer, requestsReducer,
   signerReducer, statusReducer as nodeStatusReducer,
   snackbarReducer, walletReducer
@@ -40,7 +40,6 @@ export default function () {
 
     balances: balancesReducer,
     certifications: certificationsReducer,
-    blockchain: blockchainReducer,
     images: imagesReducer,
     nodeStatus: nodeStatusReducer,
     personal: personalReducer,
