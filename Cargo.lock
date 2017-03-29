@@ -560,7 +560,7 @@ dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
- "smallvec 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "stats 0.1.0",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -791,7 +791,7 @@ dependencies = [
  "serde 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "smallvec 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -817,7 +817,8 @@ dependencies = [
  "parking_lot 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
- "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "semver 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2098,6 +2099,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "semver"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "semver-parser 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "semver-parser"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2105,6 +2114,11 @@ dependencies = [
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.68 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "semver-parser"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "serde"
@@ -2209,8 +2223,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "smallvec"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "solicit"
@@ -2743,7 +2760,9 @@ dependencies = [
 "checksum semver 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)" = "d4f410fedcf71af0345d7607d246e7ad15faaadd49d240ee3b24e5dc21a820ac"
 "checksum semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "2d5b7638a1f03815d94e88cb3b3c08e87f0db4d683ef499d1836aaf70a45623f"
 "checksum semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ae2ff60ecdb19c255841c066cbfa5f8c2a4ada1eb3ae47c77ab6667128da71f5"
+"checksum semver 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7a3186ec9e65071a2095434b1f5bb24838d4e8e130f584c790f6033c79943537"
 "checksum semver-parser 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e88e43a5a74dd2a11707f9c21dfd4a423c66bd871df813227bb0a3e78f3a1ae9"
+"checksum semver-parser 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 "checksum serde 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)" = "0ae9a3c8b07c09dbe43022486d55a18c629a0618d2241e49829aaef9b6d862f9"
 "checksum serde_codegen_internals 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c3172bf2940b975c0e4f6ab42a511c0a4407d4f46ccef87a9d3615db5c26fa96"
 "checksum serde_derive 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)" = "ecc6e0379ca933ece58302d2d3034443f06fbf38fd535857c1dc516195cbc3bf"
@@ -2758,7 +2777,7 @@ dependencies = [
 "checksum slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "17b4fcaed89ab08ef143da37bc52adbcc04d4a69014f4c1208d6b51f0c47bc23"
 "checksum smallvec 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "fcc8d19212aacecf95e4a7a2179b26f7aeb9732a915cf01f05b0d3e044865410"
 "checksum smallvec 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "4c8cbcd6df1e117c2210e13ab5109635ad68a929fcbb8964dc965b76cb5ee013"
-"checksum smallvec 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3a3c84984c278afe61a46e19868e8b23e2ee3be5b3cc6dea6edad4893bc6c841"
+"checksum smallvec 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "dca03f2f42500a9ef8ac0d16183dff8bed40e3dcf98f9d4147928548d5c4236e"
 "checksum solicit 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "172382bac9424588d7840732b250faeeef88942e37b6e35317dce98cafdd75b2"
 "checksum spmc 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "93bdab61c1a413e591c4d17388ffa859eaff2df27f1e13a5ec8b716700605adf"
 "checksum stable-heap 0.1.0 (git+https://github.com/carllerche/stable-heap?rev=3c5cd1ca47)" = "<none>"

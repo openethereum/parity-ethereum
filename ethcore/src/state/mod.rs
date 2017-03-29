@@ -546,7 +546,7 @@ impl<B: Backend> State<B> {
 
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
-		let state_root = if env_info.number < engine.params().eip98_transition {
+		let state_root = if env_info.number < engine.params().eip98_transition || env_info.number < engine.params().validate_receipts_transition {
 			self.commit()?;
 			Some(self.root().clone())
 		} else {
