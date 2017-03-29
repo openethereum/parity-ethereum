@@ -20,7 +20,7 @@ const id = 'githubhint';
 const app = builtins.find((app) => app.url === id);
 const hashId = app.id;
 const source = {
-  imageUrl: 'https://raw.githubusercontent.com/ethcore/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/link-64x64.jpg',
+  imageUrl: 'https://raw.githubusercontent.com/paritytech/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/link-64x64.jpg',
   imageHash: '0x6568901e711886e2c61eef1bbc7e2d8d37a27b9eb3e9e270eda8548f2ec796e8'
 };
 const name = app.name;

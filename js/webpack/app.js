@@ -36,6 +36,7 @@ const EMBED = process.env.EMBED;
 
 const isProd = ENV === 'production';
 const isEmbed = EMBED === '1' || EMBED === 'true';
+const isAnalize = process.env.WPANALIZE === '1';
 
 const entry = isEmbed
   ? {
@@ -215,7 +216,7 @@ module.exports = {
       );
     }
 
-    if (!isProd) {
+    if (!isAnalize && !isProd) {
       const DEST_I18N = path.join(__dirname, '..', DEST, 'i18n');
 
       plugins.push(

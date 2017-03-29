@@ -23,6 +23,7 @@ import { Db, Eth, Parity, Net, Personal, Shh, Signer, Trace, Web3 } from './rpc'
 import Subscriptions from './subscriptions';
 import util from './util';
 import { isFunction } from './util/types';
+import { LocalAccountsMiddleware } from './local';
 
 export default class Api extends EventEmitter {
   constructor (transport) {
@@ -45,6 +46,21 @@ export default class Api extends EventEmitter {
     this._web3 = new Web3(transport);
 
     this._subscriptions = new Subscriptions(this);
+
+    // Doing a request here in test env would cause an error
+    if (process.env.NODE_ENV !== 'test') {
+      const middleware = this.parity
+        .nodeKind()
+        .then((nodeKind) => {
+          if (nodeKind.availability === 'public') {
+            return new LocalAccountsMiddleware(transport);
+          }
+
+          return null;
+        });
+
+      transport.addMiddleware(middleware);
+    }
   }
 
   get db () {

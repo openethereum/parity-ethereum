@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { outTransaction } from '../format/output';
+
 export default class Signer {
   constructor (updateSubscriptions, api, subscriber) {
     this._subscriber = subscriber;
@@ -58,6 +60,15 @@ export default class Signer {
       .catch(nextTimeout);
   }
 
+  _postTransaction (data) {
+    const request = {
+      transaction: outTransaction(data.params[0]),
+      requestId: data.json.result.result
+    };
+
+    this._updateSubscriptions('parity_postTransaction', null, request);
+  }
+
   _loggingSubscribe () {
     return this._subscriber.subscribe('logging', (error, data) => {
       if (error || !data) {
@@ -65,9 +76,13 @@ export default class Signer {
       }
 
       switch (data.method) {
-        case 'parity_postTransaction':
-        case 'eth_sendTranasction':
+        case 'eth_sendTransaction':
         case 'eth_sendRawTransaction':
+          this._listRequests(false);
+          return;
+
+        case 'parity_postTransaction':
+          this._postTransaction(data);
           this._listRequests(false);
           return;
       }

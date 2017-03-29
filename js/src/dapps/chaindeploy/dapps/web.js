@@ -20,7 +20,7 @@ const id = 'web';
 const app = builtins.find((app) => app.url === id);
 const hashId = app.id;
 const source = {
-  imageUrl: 'https://raw.githubusercontent.com/ethcore/dapp-assets/ec6138115d0e1f45258969cd90b3b274e0ff2258/dapps/earth-64x64.jpg',
+  imageUrl: 'https://raw.githubusercontent.com/paritytech/dapp-assets/ec6138115d0e1f45258969cd90b3b274e0ff2258/dapps/earth-64x64.jpg',
   imageHash: '0x0b9b62a9262f75461191d4e8bf686c56528cbc0fe885c1f5878052ca8b2f65bf'
 };
 const name = app.name;

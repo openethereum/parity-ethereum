@@ -67,7 +67,7 @@ pub fn init_server<F, B>(process: F, io: MetaIoHandler<Metadata>, remote: Remote
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
 
-	// TODO [ToDr] When https://github.com/ethcore/jsonrpc/issues/26 is resolved
+	// TODO [ToDr] When https://github.com/paritytech/jsonrpc/issues/26 is resolved
 	// this additional EventLoop wouldn't be needed, we should be able to re-use remote.
 	let event_loop = EventLoop::spawn();
 	let server = process(ServerBuilder::new(

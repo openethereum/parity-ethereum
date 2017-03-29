@@ -194,5 +194,9 @@ build_rpc_trait! {
 		/// Get the current chain status.
 		#[rpc(name = "parity_chainStatus")]
 		fn chain_status(&self) -> Result<ChainStatus, Error>;
+
+		/// Get node kind info.
+		#[rpc(name = "parity_nodeKind")]
+		fn node_kind(&self) -> Result<::v1::types::NodeKind, Error>;
 	}
 }

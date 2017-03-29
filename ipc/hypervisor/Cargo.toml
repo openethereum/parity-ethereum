@@ -9,9 +9,9 @@ build = "build.rs"
 
 [dependencies]
 ethcore-ipc = { path = "../rpc" }
-nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git", branch = "parity-1.7" }
+nanomsg = { git = "https://github.com/paritytech/nanomsg.rs.git", branch = "parity-1.7" }
 ethcore-ipc-nano = { path = "../nano" }
-semver = "0.5"
+semver = "0.6"
 log = "0.3"
 time = "0.1"
 

@@ -29,7 +29,7 @@ impl Brain {
 impl Generator for Brain {
 	fn generate(self) -> Result<KeyPair, Error> {
 		let seed = self.0;
-		let mut secret = seed.bytes().collect::<Vec<u8>>().keccak256();
+		let mut secret = seed.into_bytes().keccak256();
 
 		let mut i = 0;
 		loop {
