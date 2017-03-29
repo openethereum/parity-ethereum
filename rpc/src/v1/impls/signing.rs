@@ -30,6 +30,7 @@ use v1::helpers::{
 	SIGNING_QUEUE_LIMIT, SigningQueue, ConfirmationPromise, ConfirmationResult, SignerService
 };
 use v1::helpers::dispatch::{self, Dispatcher};
+use v1::helpers::accounts::unwrap_provider;
 use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning};
 use v1::types::{
@@ -55,7 +56,7 @@ enum DispatchResult {
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct SigningQueueClient<D> {
 	signer: Weak<SignerService>,
-	accounts: Weak<AccountProvider>,
+	accounts: Option<Weak<AccountProvider>>,
 	dispatcher: D,
 	pending: Arc<Mutex<TransientHashMap<U256, ConfirmationPromise>>>,
 }
@@ -91,17 +92,21 @@ fn collect_garbage(map: &mut TransientHashMap<U256, ConfirmationPromise>) {
 
 impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 	/// Creates a new signing queue client given shared signing queue.
-	pub fn new(signer: &Arc<SignerService>, dispatcher: D, accounts: &Arc<AccountProvider>) -> Self {
+	pub fn new(signer: &Arc<SignerService>, dispatcher: D, accounts: &Option<Arc<AccountProvider>>) -> Self {
 		SigningQueueClient {
 			signer: Arc::downgrade(signer),
-			accounts: Arc::downgrade(accounts),
+			accounts: accounts.as_ref().map(Arc::downgrade),
 			dispatcher: dispatcher,
 			pending: Arc::new(Mutex::new(TransientHashMap::new(MAX_PENDING_DURATION_SEC))),
 		}
 	}
 
+	fn account_provider(&self) -> Result<Arc<AccountProvider>, Error> {
+		unwrap_provider(&self.accounts)
+	}
+
 	fn dispatch(&self, payload: RpcConfirmationPayload, default_account: DefaultAccount, origin: Origin) -> BoxFuture<DispatchResult, Error> {
-		let accounts = take_weakf!(self.accounts);
+		let accounts = try_bf!(self.account_provider());
 		let default_account = match default_account {
 			DefaultAccount::Provided(acc) => acc,
 			DefaultAccount::ForDapp(dapp) => accounts.dapp_default_address(dapp).ok().unwrap_or_default(),
