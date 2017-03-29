@@ -2,12 +2,12 @@
 
 [![Build Status][travis-image]][travis-url]
 
-[travis-image]: https://travis-ci.org/ethcore/ethstore.svg?branch=master
-[travis-url]: https://travis-ci.org/ethcore/ethstore
+[travis-image]: https://travis-ci.org/paritytech/ethstore.svg?branch=master
+[travis-url]: https://travis-ci.org/paritytech/ethstore
 
 Ethereum key management.
 
-[Documentation](http://ethcore.github.io/ethstore/ethstore/index.html)
+[Documentation](http://paritytech.github.io/ethstore/ethstore/index.html)
 
 ### Usage
 
@@ -289,7 +289,7 @@ OK
 
 ```
 ethstore move-to-vault 00e63fdb87ceb815ec96ae185b8f7381a0b4a5ea vault3 vault3_password.txt
-ethstore move-to-vault 00e63fdb87ceb815ec96ae185b8f7381a0b4a5ea vault1 vault1_password.txt --vault vault3 --vault-pwd vault3_password.txt 
+ethstore move-to-vault 00e63fdb87ceb815ec96ae185b8f7381a0b4a5ea vault1 vault1_password.txt --vault vault3 --vault-pwd vault3_password.txt
 ```
 
 ```
