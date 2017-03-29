@@ -56,7 +56,7 @@ describe('api/local/ethkey', () => {
     });
   });
 
-  describe('phraseToAddress', function () {
+  describe.skip('phraseToAddress', function () {
     this.timeout(10000);
 
     it('generates a valid address', () => {
@@ -75,7 +75,7 @@ describe('api/local/ethkey', () => {
     });
   });
 
-  describe('phraseToWallet', function () {
+  describe.skip('phraseToWallet', function () {
     this.timeout(10000);
 
     it('generates a valid wallet object', () => {
