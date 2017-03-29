@@ -29,7 +29,7 @@ use transaction::{Action, UnverifiedTransaction, PendingTransaction, SignedTrans
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use engines::{Engine, Seal};
-use miner::{MinerService, MinerStatus, TransactionQueue, TransactionQueueDetailsProvider, PrioritizationStrategy,
+use miner::{MinerService, MinerStatus, TransactionQueue, RemovalReason, TransactionQueueDetailsProvider, PrioritizationStrategy,
 	AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::{WorkPoster, NotifyWork};
@@ -430,7 +430,7 @@ impl Miner {
 		{
 			let mut queue = self.transaction_queue.write();
 			for hash in invalid_transactions {
-				queue.remove_invalid(&hash, &fetch_nonce);
+				queue.remove(&hash, &fetch_nonce, RemovalReason::Invalid);
 			}
 			for hash in transactions_to_penalize {
 				queue.penalize(&hash);
@@ -1021,7 +1021,7 @@ impl MinerService for Miner {
 		let tx = queue.find(hash);
 		if tx.is_some() {
 			let fetch_nonce = |a: &Address| chain.latest_nonce(a);
-			queue.remove_invalid(hash, &fetch_nonce);
+			queue.remove(hash, &fetch_nonce, RemovalReason::Canceled);
 		}
 		tx
 	}

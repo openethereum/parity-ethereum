@@ -131,16 +131,16 @@ contract
 
 ## apis
 
-APIs implement the calls as exposed in the [Ethcore JSON Ethereum RPC](https://github.com/ethcore/ethereum-rpc-json/) definitions. Mapping follows the naming conventions of the originals, i.e. `eth_call` becomes `eth.call`, `personal_accounts` becomes `personal.accounts`, etc.
+APIs implement the calls as exposed in the [Ethcore JSON Ethereum RPC](https://github.com/paritytech/ethereum-rpc-json/) definitions. Mapping follows the naming conventions of the originals, i.e. `eth_call` becomes `eth.call`, `personal_accounts` becomes `personal.accounts`, etc.
 
-- [ethapi.db](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#db)
-- [ethapi.eth](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#eth)
-- [ethapi.parity](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#parity)
-- [ethapi.net](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#net)
-- [ethapi.personal](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#personal)
-- [ethapi.shh](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#shh)
-- [ethapi.signer](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#signer)
-- [ethapi.trace](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#trace)
-- [ethapi.web3](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#web3)
+- [ethapi.db](https://github.com/paritytech/ethereum-rpc-json/blob/master/interfaces.md#db)
+- [ethapi.eth](https://github.com/paritytech/ethereum-rpc-json/blob/master/interfaces.md#eth)
+- [ethapi.parity](https://github.com/paritytech/ethereum-rpc-json/blob/master/interfaces.md#parity)
+- [ethapi.net](https://github.com/paritytech/ethereum-rpc-json/blob/master/interfaces.md#net)
+- [ethapi.personal](https://github.com/paritytech/ethereum-rpc-json/blob/master/interfaces.md#personal)
+- [ethapi.shh](https://github.com/paritytech/ethereum-rpc-json/blob/master/interfaces.md#shh)
+- [ethapi.signer](https://github.com/paritytech/ethereum-rpc-json/blob/master/interfaces.md#signer)
+- [ethapi.trace](https://github.com/paritytech/ethereum-rpc-json/blob/master/interfaces.md#trace)
+- [ethapi.web3](https://github.com/paritytech/ethereum-rpc-json/blob/master/interfaces.md#web3)
 
 As a verification step, all exposed interfaces are tested for existing and pointing to the correct endpoints by using the generated interfaces from the above repo.

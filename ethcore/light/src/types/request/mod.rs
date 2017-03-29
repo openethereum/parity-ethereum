@@ -277,7 +277,7 @@ impl Encodable for Request {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(2);
 
-		// hack around https://github.com/ethcore/parity/issues/4356
+		// hack around https://github.com/paritytech/parity/issues/4356
 		Encodable::rlp_append(&self.kind(), s);
 
 		match *self {
@@ -468,7 +468,7 @@ impl Encodable for Response {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(2);
 
-		// hack around https://github.com/ethcore/parity/issues/4356
+		// hack around https://github.com/paritytech/parity/issues/4356
 		Encodable::rlp_append(&self.kind(), s);
 
 		match *self {

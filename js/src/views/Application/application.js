@@ -79,6 +79,7 @@ class Application extends Component {
             : this.renderApp()
         }
         <Connection />
+        <Requests />
         <ParityBar dapp={ isMinimized } />
       </div>
     );
@@ -104,7 +105,6 @@ class Application extends Component {
         }
         <Extension />
         <Snackbar />
-        <Requests />
       </Container>
     );
   }

@@ -128,6 +128,7 @@ impl Configuration {
 			Some(true) if pruning == Pruning::Specific(Algorithm::Archive) => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because pruning mode is set to archive").expect("Error writing to stderr"),
 			_ => {},
 		};
+		let public_node = self.args.flag_public_node;
 		let warp_sync = !self.args.flag_no_warp && fat_db != Switch::On && tracing != Switch::On && pruning != Pruning::Specific(Algorithm::Archive);
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
@@ -360,6 +361,7 @@ impl Configuration {
 				wal: wal,
 				vm_type: vm_type,
 				warp_sync: warp_sync,
+				public_node: public_node,
 				geth_compatibility: geth_compatibility,
 				ui_address: ui_address,
 				net_settings: self.network_settings(),
@@ -709,14 +711,26 @@ impl Configuration {
 	}
 
 	fn rpc_apis(&self) -> String {
-		let mut apis = self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone());
+		let mut apis: Vec<&str> = self.args.flag_rpcapi
+			.as_ref()
+			.unwrap_or(&self.args.flag_jsonrpc_apis)
+			.split(",")
+			.collect();
+
 		if self.args.flag_geth {
-			if !apis.is_empty() {
-				apis.push_str(",");
-			}
-			apis.push_str("personal");
+			apis.push("personal");
 		}
-		apis
+
+		if self.args.flag_public_node {
+			apis.retain(|api| {
+				match *api {
+					"eth" | "net" | "parity" | "rpc" | "web3" => true,
+					_ => false
+				}
+			});
+		}
+
+		apis.join(",")
 	}
 
 	fn cors(cors: Option<&String>) -> Option<Vec<String>> {
@@ -1167,6 +1181,7 @@ mod tests {
 			ipc_conf: Default::default(),
 			net_conf: default_network_config(),
 			network_id: None,
+			public_node: false,
 			warp_sync: true,
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),

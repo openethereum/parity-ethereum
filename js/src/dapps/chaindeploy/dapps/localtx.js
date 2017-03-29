@@ -20,7 +20,7 @@ const id = 'localtx';
 const app = builtins.find((app) => app.url === id);
 const hashId = app.id;
 const source = {
-  imageUrl: 'https://raw.githubusercontent.com/ethcore/dapp-assets/cdd6ac4f1e2f11619bed72a53ae71217dffe19ad/dapps/stack-64x64.png',
+  imageUrl: 'https://raw.githubusercontent.com/paritytech/dapp-assets/cdd6ac4f1e2f11619bed72a53ae71217dffe19ad/dapps/stack-64x64.png',
   imageHash: '0x22b924801e1971659a51956dcdfc5a2d592d8bdd03780dd72d5bc4c84b595b4c'
 };
 const name = app.name;

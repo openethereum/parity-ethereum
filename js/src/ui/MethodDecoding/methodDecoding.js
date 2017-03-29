@@ -36,7 +36,7 @@ class MethodDecoding extends Component {
   };
 
   static propTypes = {
-    address: PropTypes.string.isRequired,
+    address: PropTypes.string,
     compact: PropTypes.bool,
     token: PropTypes.object,
     transaction: PropTypes.object,
@@ -44,6 +44,7 @@ class MethodDecoding extends Component {
   };
 
   static defaultProps = {
+    address: '',
     compact: false,
     historic: false
   };
@@ -653,9 +654,9 @@ class MethodDecoding extends Component {
 
 function mapStateToProps (initState, initProps) {
   const { tokens } = initState.balances;
-  const { address } = initProps;
+  const { transaction } = initProps;
 
-  const token = (tokens || {})[address];
+  const token = (tokens || {})[transaction.to];
 
   return () => {
     return { token };
