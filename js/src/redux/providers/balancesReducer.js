@@ -16,9 +16,13 @@
 
 import { handleActions } from 'redux-actions';
 
+import { ETH_TOKEN } from '~/util/tokens';
+
 const initialState = {
   balances: {},
-  tokens: {},
+  tokens: {
+    [ ETH_TOKEN.id ]: ETH_TOKEN
+  },
   tokenreg: null,
   tokensFilter: {}
 };
@@ -39,10 +43,20 @@ export default handleActions({
         return _tokens;
       }, {});
 
-      return Object.assign({}, state, { tokens: objTokens });
+      return Object.assign({}, state, {
+        tokens: {
+          ...state.tokens,
+          ...objTokens
+        }
+      });
     }
 
-    return Object.assign({}, state, { tokens });
+    return Object.assign({}, state, {
+      tokens: {
+        ...state.tokens,
+        ...tokens
+      }
+    });
   },
 
   setTokenImage (state, action) {
@@ -51,7 +65,9 @@ export default handleActions({
     const nextBalances = {};
 
     Object.keys(balances).forEach((address) => {
-      const tokenIndex = balances[address].tokens.findIndex((t) => t.token.address === tokenAddress);
+      const tokenIndex = balances[address].tokens
+        ? balances[address].tokens.findIndex((t) => t.token.address === tokenAddress)
+        : -1;
 
       if (tokenIndex === -1 || balances[address].tokens[tokenIndex].value.equals(0)) {
         return;

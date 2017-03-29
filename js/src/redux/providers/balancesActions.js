@@ -14,117 +14,99 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { range, uniq, isEqual } from 'lodash';
-import BigNumber from 'bignumber.js';
+import { uniq, isEqual } from 'lodash';
 import { push } from 'react-router-redux';
 
-import { hashToImageUrl } from './imagesReducer';
 import { setAddressImage } from './imagesActions';
 
-import * as ABIS from '~/contracts/abi';
 import { notifyTransaction } from '~/util/notifications';
+import { ETH_TOKEN, fetchTokenIds, fetchTokenInfo, fetchAccountsBalances } from '~/util/tokens';
 import { LOG_KEYS, getLogger } from '~/config';
-import imagesEthereum from '~/../assets/images/contracts/ethereum-black-64x64.png';
+import { sha3 } from '~/api/util/sha3';
+
+const TRANSFER_SIGNATURE = sha3('Transfer(address,address,uint256)');
 
 const log = getLogger(LOG_KEYS.Balances);
 
-const ETH = {
-  name: 'Ethereum',
-  tag: 'ETH',
-  image: imagesEthereum,
-  native: true
-};
-
-function setBalances (_balances, skipNotifications = false) {
+/**
+ * @param {Object}  _balances         - In the shape:
+ *   {
+ *     [ who ]: { [ tokenId ]: BigNumber } // The balances of `who`
+ *   }
+ * @param {Boolean} skipNotifications [description]
+ */
+function setBalances (updates, skipNotifications = false) {
   return (dispatch, getState) => {
     const state = getState();
+    const tokens = Object.values(state.balances.tokens);
 
-    const currentTokens = Object.values(state.balances.tokens || {});
-    const tokensAddresses = currentTokens
-      .map((token) => token.address)
-      .filter((address) => address);
-
-    const accounts = state.personal.accounts;
-    const nextBalances = _balances;
     const prevBalances = state.balances.balances;
-    const balances = { ...prevBalances };
+    const nextBalances = { ...prevBalances };
 
-    Object.keys(nextBalances).forEach((address) => {
-      if (!balances[address]) {
-        balances[address] = Object.assign({}, nextBalances[address]);
-        return;
-      }
+    Object.keys(updates).forEach((who) => {
+      const accountUpdates = updates[who];
 
-      const balance = Object.assign({}, balances[address]);
-      const { tokens, txCount = balance.txCount } = nextBalances[address];
+      const prevAccountTokens = (prevBalances[who] || {}).tokens || [];
+      const nextAccountTokens = prevAccountTokens.slice();
 
-      const prevTokens = balance.tokens.slice();
-      const nextTokens = [];
+      const prevAccountBalancesTokenIds = prevAccountTokens.map((tok) => tok.token.id);
+      const nextAccountBalancesTokenIds = Object.keys(accountUpdates);
 
-      const handleToken = (prevToken, nextToken) => {
-        // If the given token is not in the current tokens, skip
-        if (!nextToken && !prevToken) {
-          return false;
-        }
+      const existingTokens = nextAccountBalancesTokenIds.filter((id) => prevAccountBalancesTokenIds.includes(id));
+      const newTokens = nextAccountBalancesTokenIds.filter((id) => !prevAccountBalancesTokenIds.includes(id));
 
-        // No updates
-        if (!nextToken) {
-          return nextTokens.push(prevToken);
-        }
-
-        const { token, value } = nextToken;
-
-        // If it's a new token, push it
-        if (!prevToken) {
-          return nextTokens.push({
-            token, value
-          });
-        }
-
-        // Otherwise, update the value
-        const prevValue = prevToken.value;
+      existingTokens.forEach((tokenId) => {
+        const token = tokens.find((token) => token.id === tokenId);
+        const tokenIndex = nextAccountTokens.findIndex((tok) => tok.token.id === tokenId);
+        const prevValue = nextAccountTokens[tokenIndex].value;
+        const nextValue = accountUpdates[tokenId];
 
         // If received a token/eth (old value < new value), notify
-        if (prevValue.lt(value) && accounts[address] && !skipNotifications) {
-          const account = accounts[address];
-          const txValue = value.minus(prevValue);
-
-          const redirectToAccount = () => {
-            const basePath = account.wallet
-              ? 'wallet'
-              : 'accounts';
-
-            const route = `/${basePath}/${account.address}`;
-
-            dispatch(push(route));
-          };
-
-          notifyTransaction(account, token, txValue, redirectToAccount);
+        if (prevValue.lt(nextValue) && !skipNotifications) {
+          dispatch(notifyBalanceChange(who, prevValue, nextValue, token));
         }
 
-        return nextTokens.push({
-          ...prevToken,
-          value
-        });
+        nextAccountTokens[tokenIndex].value = nextValue;
+      });
+
+      newTokens.forEach((tokenId) => {
+        const token = tokens.find((tok) => tok.id.toString() === tokenId.toString());
+        const value = accountUpdates[tokenId];
+
+        if (value.gt(0)) {
+          nextAccountTokens.push({ token, value });
+        }
+      });
+
+      nextBalances[who] = {
+        ...(nextBalances[who] || {}),
+        tokens: nextAccountTokens
       };
-
-      const prevEthToken = prevTokens.find((tok) => tok.token.native);
-      const nextEthToken = tokens.find((tok) => tok.token.native);
-
-      handleToken(prevEthToken, nextEthToken);
-
-      tokensAddresses
-        .forEach((address) => {
-          const prevToken = prevTokens.find((tok) => tok.token.address === address);
-          const nextToken = tokens.find((tok) => tok.token.address === address);
-
-          handleToken(prevToken, nextToken);
-        });
-
-      balances[address] = { txCount: txCount || new BigNumber(0), tokens: nextTokens };
     });
 
-    dispatch(_setBalances(balances));
+    return dispatch(_setBalances(nextBalances));
+  };
+}
+
+function notifyBalanceChange (who, fromValue, toValue, token) {
+  return (dispatch, getState) => {
+    const account = getState().personal.accounts[who];
+
+    if (account) {
+      const txValue = toValue.minus(fromValue);
+
+      const redirectToAccount = () => {
+        const basePath = account.wallet
+          ? 'wallet'
+          : 'accounts';
+
+        const route = `/${basePath}/${account.address}`;
+
+        dispatch(push(route));
+      };
+
+      notifyTransaction(account, token, txValue, redirectToAccount);
+    }
   };
 }
 
@@ -169,28 +151,24 @@ export function loadTokens (options = {}) {
   return (dispatch, getState) => {
     const { tokenreg } = getState().balances;
 
-    return tokenreg.instance.tokenCount
-      .call()
-      .then((numTokens) => {
-        const tokenIds = range(numTokens.toNumber());
-
-        dispatch(fetchTokens(tokenIds, options));
-      })
+    return fetchTokenIds(tokenreg.instance)
+      .then((tokenIds) => dispatch(fetchTokens(tokenIds, options)))
       .catch((error) => {
         console.warn('balances::loadTokens', error);
       });
   };
 }
 
-export function fetchTokens (_tokenIds, options = {}) {
-  const tokenIds = uniq(_tokenIds || []);
+export function fetchTokens (_tokenIndexes, options = {}) {
+  const tokenIndexes = uniq(_tokenIndexes || []);
 
   return (dispatch, getState) => {
     const { api, images, balances } = getState();
     const { tokenreg } = balances;
+    const promises = tokenIndexes.map((id) => fetchTokenInfo(api, tokenreg.instance, id));
 
     return Promise
-      .all(tokenIds.map((id) => fetchTokenInfo(tokenreg, id, api)))
+      .all(promises)
       .then((tokens) => {
         // dispatch only the changed images
         tokens
@@ -215,34 +193,9 @@ export function fetchTokens (_tokenIds, options = {}) {
   };
 }
 
+// TODO: fetch txCount when needed
 export function fetchBalances (_addresses, skipNotifications = false) {
-  return (dispatch, getState) => {
-    const { api, personal } = getState();
-    const { visibleAccounts, accounts } = personal;
-
-    const addresses = uniq(_addresses || visibleAccounts || []);
-
-    // With only a single account, more info will be displayed.
-    const fullFetch = addresses.length === 1;
-
-    // Add accounts addresses (for notifications, accounts selection, etc.)
-    const addressesToFetch = uniq(addresses.concat(Object.keys(accounts)));
-
-    return Promise
-      .all(addressesToFetch.map((addr) => fetchAccount(addr, api, fullFetch)))
-      .then((accountsBalances) => {
-        const balances = {};
-
-        addressesToFetch.forEach((addr, idx) => {
-          balances[addr] = accountsBalances[idx];
-        });
-
-        dispatch(setBalances(balances, skipNotifications));
-      })
-      .catch((error) => {
-        console.warn('balances::fetchBalances', error);
-      });
-  };
+  return fetchTokensBalances(_addresses, [ ETH_TOKEN ], skipNotifications);
 }
 
 export function updateTokensFilter (_addresses, _tokens, options = {}) {
@@ -255,7 +208,10 @@ export function updateTokensFilter (_addresses, _tokens, options = {}) {
     const addresses = uniq(_addresses || addressesToFetch || []).sort();
 
     const tokens = _tokens || Object.values(balances.tokens) || [];
-    const tokenAddresses = tokens.map((t) => t.address).sort();
+    const tokenAddresses = tokens
+      .map((t) => t.address)
+      .filter((address) => address)
+      .sort();
 
     if (tokensFilter.filterFromId || tokensFilter.filterToId) {
       // Has the tokens addresses changed (eg. a network change)
@@ -285,7 +241,6 @@ export function updateTokensFilter (_addresses, _tokens, options = {}) {
 
     const promise = Promise.all(promises);
 
-    const TRANSFER_SIGNATURE = api.util.sha3('Transfer(address,address,uint256)');
     const topicsFrom = [ TRANSFER_SIGNATURE, addresses, null ];
     const topicsTo = [ TRANSFER_SIGNATURE, null, addresses ];
 
@@ -381,103 +336,27 @@ export function fetchTokensBalances (_addresses = null, _tokens = null, skipNoti
   return (dispatch, getState) => {
     const { api, personal, balances } = getState();
     const { visibleAccounts, accounts } = personal;
+    const allTokens = Object.values(balances.tokens);
 
     const addressesToFetch = uniq(visibleAccounts.concat(Object.keys(accounts)));
     const addresses = _addresses || addressesToFetch;
-    const tokens = _tokens || Object.values(balances.tokens);
+    const tokens = _tokens || allTokens;
 
     if (addresses.length === 0) {
       return Promise.resolve();
     }
 
-    return Promise
-      .all(addresses.map((addr) => fetchTokensBalance(addr, tokens, api)))
-      .then((tokensBalances) => {
-        const balances = {};
+    const updates = addresses.reduce((updates, who) => {
+      updates[who] = tokens.map((token) => token.id);
+      return updates;
+    }, {});
 
-        addresses.forEach((addr, idx) => {
-          balances[addr] = tokensBalances[idx];
-        });
-
+    return fetchAccountsBalances(api, allTokens, updates)
+      .then((balances) => {
         dispatch(setBalances(balances, skipNotifications));
       })
       .catch((error) => {
         console.warn('balances::fetchTokensBalances', error);
       });
   };
-}
-
-function fetchAccount (address, api, full = false) {
-  const promises = [ api.eth.getBalance(address) ];
-
-  if (full) {
-    promises.push(api.eth.getTransactionCount(address));
-  }
-
-  return Promise
-    .all(promises)
-    .then(([ ethBalance, txCount ]) => {
-      const tokens = [ { token: ETH, value: ethBalance } ];
-      const balance = { tokens };
-
-      if (full) {
-        balance.txCount = txCount;
-      }
-
-      return balance;
-    })
-    .catch((error) => {
-      console.warn('balances::fetchAccountBalance', `couldn't fetch balance for account #${address}`, error);
-    });
-}
-
-function fetchTokensBalance (address, _tokens, api) {
-  const tokensPromises = _tokens
-    .map((token) => {
-      return token.contract.instance.balanceOf.call({}, [ address ]);
-    });
-
-  return Promise
-    .all(tokensPromises)
-    .then((tokensBalance) => {
-      const tokens = _tokens
-        .map((token, index) => ({
-          token,
-          value: tokensBalance[index]
-        }));
-
-      const balance = { tokens };
-
-      return balance;
-    })
-    .catch((error) => {
-      console.warn('balances::fetchTokensBalance', `couldn't fetch tokens balance for account #${address}`, error);
-    });
-}
-
-function fetchTokenInfo (tokenreg, tokenId, api, dispatch) {
-  return Promise
-    .all([
-      tokenreg.instance.token.call({}, [tokenId]),
-      tokenreg.instance.meta.call({}, [tokenId, 'IMG'])
-    ])
-    .then(([ tokenData, image ]) => {
-      const [ address, tag, format, name ] = tokenData;
-      const contract = api.newContract(ABIS.eip20, address);
-
-      const token = {
-        format: format.toString(),
-        id: tokenId,
-        image: hashToImageUrl(image),
-        address,
-        tag,
-        name,
-        contract
-      };
-
-      return token;
-    })
-    .catch((error) => {
-      console.warn('balances::fetchTokenInfo', `couldn't fetch token #${tokenId}`, error);
-    });
 }
