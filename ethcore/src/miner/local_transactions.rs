@@ -17,7 +17,7 @@
 //! Local Transactions List.
 
 use linked_hash_map::LinkedHashMap;
-use transaction::SignedTransaction;
+use transaction::{SignedTransaction, PendingTransaction};
 use error::TransactionError;
 use util::{U256, H256};
 
@@ -40,6 +40,8 @@ pub enum Status {
 	Rejected(SignedTransaction, TransactionError),
 	/// Transaction is invalid.
 	Invalid(SignedTransaction),
+	/// Transaction was canceled.
+	Canceled(PendingTransaction),
 }
 
 impl Status {
@@ -96,6 +98,12 @@ impl LocalTransactionsList {
 	pub fn mark_invalid(&mut self, tx: SignedTransaction) {
 		warn!(target: "own_tx", "Transaction marked invalid (hash {:?})", tx.hash());
 		self.transactions.insert(tx.hash(), Status::Invalid(tx));
+		self.clear_old();
+	}
+
+	pub fn mark_canceled(&mut self, tx: PendingTransaction) {
+		warn!(target: "own_tx", "Transaction canceled (hash {:?})", tx.hash());
+		self.transactions.insert(tx.hash(), Status::Canceled(tx));
 		self.clear_old();
 	}
 
