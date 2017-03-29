@@ -20,7 +20,7 @@ Be sure to check out [our wiki][wiki-url] for more information.
 [license-image]: https://img.shields.io/badge/license-GPL%20v3-green.svg
 [license-url]: https://www.gnu.org/licenses/gpl-3.0.en.html
 [doc-url]: https://ethcore.github.io/parity/ethcore/index.html
-[wiki-url]: https://github.com/ethcore/parity/wiki
+[wiki-url]: https://github.com/paritytech/parity/wiki
 
 **Parity requires Rust version 1.15.0 to build**
 
@@ -83,7 +83,7 @@ Once you have rustup, install parity or download and build from source
 ## Quick install
 
 ```bash
-cargo install --git https://github.com/ethcore/parity.git parity
+cargo install --git https://github.com/paritytech/parity.git parity
 ```
 
 ----
@@ -92,7 +92,7 @@ cargo install --git https://github.com/ethcore/parity.git parity
 
 ```bash
 # download Parity code
-$ git clone https://github.com/ethcore/parity
+$ git clone https://github.com/paritytech/parity
 $ cd parity
 
 # build in release mode

@@ -15,7 +15,7 @@ serde_json = "0.9"
 tempdir = "0.3.5"
 url = "1.2.0"
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-ws = { git = "https://github.com/paritytech/ws-rs.git", branch = "mio-upstream-stable" }
+ws = { git = "https://github.com/paritytech/ws-rs.git", branch = "parity-1.7" }
 ethcore-rpc = { path = "../rpc" }
 ethcore-signer = { path = "../signer" }
 ethcore-util = { path = "../util" }

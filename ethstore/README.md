@@ -321,6 +321,6 @@ OK
 # Ethcore toolchain
 *this project is a part of the ethcore toolchain*
 
-- [**ethkey**](https://github.com/ethcore/ethkey) - Ethereum keys generator and signer.
-- [**ethstore**](https://github.com/ethcore/ethstore) - Ethereum key management.
-- [**ethabi**](https://github.com/ethcore/ethabi) - Ethereum function calls encoding.
+- [**ethkey**](https://github.com/paritytech/ethkey) - Ethereum keys generator and signer.
+- [**ethstore**](https://github.com/paritytech/ethstore) - Ethereum key management.
+- [**ethabi**](https://github.com/paritytech/ethabi) - Ethereum function calls encoding.
