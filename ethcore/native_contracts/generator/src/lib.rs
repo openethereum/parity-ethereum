@@ -117,7 +117,7 @@ fn generate_functions(contract: &Contract) -> Result<String, Error> {
 /// Call the function "{abi_name}" on the contract.
 /// Inputs: {abi_inputs:?}
 /// Outputs: {abi_outputs:?}
-pub fn {snake_name}(&self{params}) -> BoxFuture<{output_type}, String> {{
+pub fn {snake_name}(&self,{params}) -> BoxFuture<{output_type}, String> {{
 	let function = self.contract.function(r#"{abi_name}"#)
 		.expect("function existence checked at compile-time; qed");
 	let call_future = match function.encode_call({to_tokens}) {{
@@ -150,31 +150,27 @@ pub fn {snake_name}(&self{params}) -> BoxFuture<{output_type}, String> {{
 // two pieces of code are generated: the first gives input types for the function signature,
 // and the second gives code to tokenize those inputs.
 //
-// params of form `, param_0: type_0, param_1: type_1 ...`
+// params of form `param_0: type_0, param_1: type_1, ...`
 // tokenizing code of form `{let mut tokens = Vec::new(); tokens.push({param_X}); tokens }`
 //
 // returns any unsupported param type encountered.
 fn input_params_codegen(inputs: &[ParamType]) -> Result<(String, String), ParamType> {
-	if inputs.is_empty() {
-		Ok(("".into(), "Vec::new()".into()))
-	} else {
-		let mut params = ", ".to_string();
-		let mut to_tokens = "{ let mut tokens = Vec::new();".to_string();
+	let mut params = String::new();
+	let mut to_tokens = "{ let mut tokens = Vec::new();".to_string();
 
-		for (index, param_type) in inputs.iter().enumerate() {
-			let param_name = format!("param_{}", index);
-			let rust_type = rust_type(param_type.clone())?;
-			let (needs_mut, tokenize_code) = tokenize(&param_name, param_type.clone());
+	for (index, param_type) in inputs.iter().enumerate() {
+		let param_name = format!("param_{}", index);
+		let rust_type = rust_type(param_type.clone())?;
+		let (needs_mut, tokenize_code) = tokenize(&param_name, param_type.clone());
 
-			params.push_str(&format!("{}{}: {}, ",
-				if needs_mut { "mut " } else { "" }, param_name, rust_type));
+		params.push_str(&format!("{}{}: {}, ",
+			if needs_mut { "mut " } else { "" }, param_name, rust_type));
 
-			to_tokens.push_str(&format!("tokens.push({{ {} }});", tokenize_code));
-		}
-
-		to_tokens.push_str(" tokens }");
-		Ok((params, to_tokens))
+		to_tokens.push_str(&format!("tokens.push({{ {} }});", tokenize_code));
 	}
+
+	to_tokens.push_str(" tokens }");
+	Ok((params, to_tokens))
 }
 
 // generate code for outputs of the function and detokenizing them.
@@ -329,5 +325,36 @@ fn detokenize(name: &str, output_type: ParamType) -> String {
 
 #[cfg(test)]
 mod tests {
+	use ethabi::spec::ParamType;
 
+	#[test]
+	fn input_types() {
+		assert_eq!(::input_params_codegen(&[]).unwrap().0, "");
+		assert_eq!(::input_params_codegen(&[ParamType::Address]).unwrap().0, "param_0: util::Address, ");
+		assert_eq!(::input_params_codegen(&[ParamType::Address, ParamType::Bytes]).unwrap().0,
+			"param_0: util::Address, param_1: Vec<u8>, ");
+	}
+
+	#[test]
+	fn output_types() {
+		assert_eq!(::output_params_codegen(&[]).unwrap().0, "()");
+		assert_eq!(::output_params_codegen(&[ParamType::Address]).unwrap().0, "(util::Address)");
+		assert_eq!(::output_params_codegen(&[ParamType::Address, ParamType::Array(Box::new(ParamType::Bytes))]).unwrap().0,
+			"(util::Address, Vec<Vec<u8>>)");
+	}
+
+	#[test]
+	fn rust_type() {
+		assert_eq!(::rust_type(ParamType::FixedBytes(32)).unwrap(), "util::H256");
+		assert_eq!(::rust_type(ParamType::Array(Box::new(ParamType::FixedBytes(32)))).unwrap(),
+			"Vec<util::H256>");
+
+		assert_eq!(::rust_type(ParamType::Uint(64)).unwrap(), "u64");
+		assert!(::rust_type(ParamType::Uint(63)).is_err());
+
+		assert_eq!(::rust_type(ParamType::Int(32)).unwrap(), "i32");
+		assert_eq!(::rust_type(ParamType::Uint(256)).unwrap(), "util::U256");
+	}
+
+	// codegen tests will need bootstrapping of some kind.
 }

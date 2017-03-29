@@ -2,7 +2,7 @@
 name = "native_contract_generator"
 description = "Generates Rust code for ethereum contract ABIs"
 version = "0.1.0"
-authors = ["Robert Habermeier <rphmeier@gmail.com>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ethabi = "1.0.2"
