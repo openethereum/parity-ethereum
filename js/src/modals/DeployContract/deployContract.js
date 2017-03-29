@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { pick } from 'lodash';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -482,18 +481,11 @@ class DeployContract extends Component {
   }
 }
 
-function mapStateToProps (initState, initProps) {
-  const { accounts } = initProps;
+function mapStateToProps (state) {
+  const { gasLimit } = state.nodeStatus;
 
-  const fromAddresses = Object.keys(accounts);
-
-  return (state) => {
-    const { gasLimit } = state.nodeStatus;
-
-    return {
-      accounts,
-      gasLimit
-    };
+  return {
+    gasLimit
   };
 }
 
