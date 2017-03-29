@@ -93,6 +93,11 @@ impl Event {
 
 		Ok(result)
 	}
+
+	/// Return the name of the event.
+	pub fn name(&self) -> &str {
+		&self.interface.name
+	}
 }
 
 #[cfg(test)]

@@ -24,7 +24,7 @@ impl Function {
 	pub fn input_params(&self) -> Vec<ParamType> {
 		self.interface.input_param_types()
 	}
-	
+
 	/// Return output params.
 	pub fn output_params(&self) -> Vec<ParamType> {
 		self.interface.output_param_types()
@@ -42,6 +42,11 @@ impl Function {
 	/// Parses the ABI function output to list of tokens.
 	pub fn decode_output(&self, data: Vec<u8>) -> Result<Vec<Token>, Error> {
 		Decoder::decode(&self.interface.output_param_types(), data)
+	}
+
+	/// Get the name of the function.
+	pub fn name(&self) -> &str {
+		&self.interface.name
 	}
 }
 
