@@ -16,7 +16,7 @@
 
 import Transaction from 'ethereumjs-tx';
 
-import { inHex } from '~/api/format/input';
+import { inAddress, inHex, inNumber10 } from '~/api/format/input';
 import { sha3 } from '~/api/util/sha3';
 
 export function createUnsignedTx (api, netVersion, gasStore, transaction) {
@@ -82,4 +82,40 @@ export function createSignedTx (netVersion, signature, unsignedTx) {
     rlp: inHex(tx.serialize().toString('hex')),
     tx
   };
+}
+
+export function generateQr (from, tx, hash, rlp) {
+  if (tx.data && tx.data.length > 64) {
+    return JSON.stringify({
+      action: 'signTransactionHash',
+      data: {
+        account: from.substr(2),
+        hash: hash.substr(2),
+        details: {
+          gasPrice: inNumber10(inHex(tx.gasPrice.toString('hex'))),
+          gas: inNumber10(inHex(tx.gasLimit.toString('hex'))),
+          nonce: inNumber10(inHex(tx.nonce.toString('hex'))),
+          to: inAddress(tx.to.toString('hex')),
+          value: inHex(tx.value.toString('hex') || '0')
+        }
+      }
+    });
+  }
+
+  return JSON.stringify({
+    action: 'signTransaction',
+    data: {
+      account: from.substr(2),
+      rlp: rlp.substr(2)
+    }
+  });
+}
+
+export function generateTxQr (api, netVersion, gasStore, transaction) {
+  return createUnsignedTx(api, netVersion, gasStore, transaction)
+    .then((qr) => {
+      qr.value = generateQr(transaction.from, qr.tx, qr.hash, qr.rlp);
+
+      return qr;
+    });
 }

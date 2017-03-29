@@ -22,7 +22,7 @@ import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
 
 import { Form, Input, IdentityIcon, QrCode, QrScan } from '~/ui';
-import { createUnsignedTx } from '~/util/qrscan';
+import { generateTxQr } from '~/util/qrscan';
 
 import styles from './transactionPendingFormConfirm.css';
 
@@ -57,7 +57,7 @@ export default class TransactionPendingFormConfirm extends Component {
   state = {
     password: '',
     qrState: QR_VISIBLE,
-    qrValue: null,
+    qr: {},
     wallet: null,
     walletError: null
   }
@@ -327,16 +327,16 @@ export default class TransactionPendingFormConfirm extends Component {
   // TODO: Split into sub-scomponent
   renderQrCode () {
     const { account } = this.props;
-    const { qrState, qrValue } = this.state;
+    const { qrState, qr } = this.state;
 
-    if (!account.external || qrState !== QR_VISIBLE || !qrValue) {
+    if (!account.external || qrState !== QR_VISIBLE || !qr.value) {
       return null;
     }
 
     return (
       <QrCode
         className={ styles.qr }
-        value={ qrValue }
+        value={ qr.value }
       />
     );
   }
@@ -406,7 +406,7 @@ export default class TransactionPendingFormConfirm extends Component {
   }
 
   onScanTx = (signature) => {
-    const { qrChainId, qrRlp, qrTx } = this.state;
+    const { chainId, rlp, tx } = this.state.qr;
 
     if (signature && signature.substr(0, 2) !== '0x') {
       signature = `0x${signature}`;
@@ -416,10 +416,10 @@ export default class TransactionPendingFormConfirm extends Component {
 
     this.props.onConfirm({
       txSigned: {
-        chainId: qrChainId,
-        rlp: qrRlp,
+        chainId,
+        rlp,
         signature,
-        tx: qrTx
+        tx
       }
     });
   }
@@ -491,45 +491,9 @@ export default class TransactionPendingFormConfirm extends Component {
     const { api } = this.context;
     const { netVersion, gasStore, transaction } = this.props;
 
-    createUnsignedTx(api, netVersion, gasStore, transaction)
-      .then(({ chainId, hash, nonce, rlp, tx }) => {
-        this.setState({
-          qrChainId: chainId,
-          qrHash: hash,
-          qrNonce: nonce,
-          qrRlp: rlp,
-          qrTx: tx,
-          // TODO: Activate new format once mobile app is updated
-          qrValue: JSON.stringify({
-            from: transaction.from.substr(2),
-            rlp: rlp.substr(2)
-          })
-          // qrValue: JSON.stringify(
-          //   tx.data && tx.data.length > 64
-          //     ? {
-          //       action: 'signTransactionHash',
-          //       data: {
-          //         account: transaction.from.substr(2),
-          //         hash: hash.substr(2),
-          //         details: {
-          //           gasPrice: tx.gasPrice.toString('hex').substr(2),
-          //           gas: tx.gasLimit.toString('hex').substr(2),
-          //           nonce: tx.gasLimit.toString('hex').substr(2),
-          //           to: transaction.to ? tx.to.toString('hex').substr(2) : undefined,
-          //           value: tx.value.toString('hex').substr(2)
-          //         }
-          //       }
-          //     }
-          //     : {
-          //       action: 'signTransaction',
-          //       data: {
-          //         account: transaction.from.substr(2),
-          //         rlp: rlp.substr(2)
-          //       }
-          //     }
-          // )
-        });
-      });
+    generateTxQr(api, netVersion, gasStore, transaction).then((qr) => {
+      this.setState({ qr });
+    });
   }
 
   onKeyDown = (event) => {
@@ -573,9 +537,9 @@ export default class TransactionPendingFormConfirm extends Component {
     return api.parity
       .nextNonce(account.address)
       .then((nonce) => {
-        const { qrNonce } = this.state;
+        const { qr } = this.state;
 
-        if (!qrNonce || !nonce.eq(qrNonce)) {
+        if (!qr.nonce || !nonce.eq(qr.nonce)) {
           this.generateTxQr();
         }
       });
