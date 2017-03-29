@@ -63,7 +63,7 @@ pub fn generate_module(struct_name: &str, abi: &str, bounds: Bounds) -> Result<S
 use byteorder::{{BigEndian, ByteOrder}};
 use futures::{{future, Future, BoxFuture}};
 use ethabi::{{Contract, Interface, Token}};
-use util;
+use util::{{self, Uint}};
 
 /// Helper type for a calling closure.
 pub type Call = Fn(Vec<u8>) -> BoxFuture<Vec<u8>, String> + 'static {send} {sync};
@@ -118,7 +118,7 @@ fn generate_functions(contract: &Contract) -> Result<String, Error> {
 /// Inputs: {abi_inputs:?}
 /// Outputs: {abi_outputs:?}
 pub fn {snake_name}(&self,{params}) -> BoxFuture<{output_type}, String> {{
-	let function = self.contract.function(r#"{abi_name}"#)
+	let function = self.contract.function(r#"{abi_name}"#.to_string())
 		.expect("function existence checked at compile-time; qed");
 	let call_future = match function.encode_call({to_tokens}) {{
 		Ok(call_data) => (self.do_call)(call_data),
@@ -127,7 +127,7 @@ pub fn {snake_name}(&self,{params}) -> BoxFuture<{output_type}, String> {{
 	call_future
 		.and_then(move |out| function.decode_output(out).map_err(|e| format!("{{:?}}", e)))
 		.map(::std::collections::VecDeque::from)
-		.and_then(|outputs| {decode_outputs})
+		.and_then(|mut outputs| {decode_outputs})
 		.boxed()
 }}
 	"##,
@@ -250,7 +250,7 @@ fn tokenize(name: &str, input: ParamType) -> (bool, String) {
 			format!("Token::FixedBytes({}.0.to_vec())", name),
 		ParamType::FixedBytes(len) => {
 			needs_mut = true;
-			format!("{}.resize_to({}, 0); Token::FixedBytes({})", name, len, name)
+			format!("{}.resize({}, 0); Token::FixedBytes({})", name, len, name)
 		}
 		ParamType::Int(width) => match width {
 			8 => format!("let mut r = [0xff; 32]; r[31] = {}; Token::Int(r)", name),
@@ -283,14 +283,14 @@ fn tokenize(name: &str, input: ParamType) -> (bool, String) {
 // panics on unsupported types.
 fn detokenize(name: &str, output_type: ParamType) -> String {
 	match output_type {
-		ParamType::Address => format!("{}.to_address()", name),
+		ParamType::Address => format!("{}.to_address().map(util::H160)", name),
 		ParamType::Bytes => format!("{}.to_bytes()", name),
 		ParamType::FixedBytes(len) if len <= 32 => {
 			// ensure no panic on slice too small.
-			let read_hash = format!("b.resize_to({}, 0); H{}::from_slice(&b[..{}])",
+			let read_hash = format!("b.resize({}, 0); util::H{}::from_slice(&b[..{}])",
 				len, len * 8, len);
 
-			format!("{}.to_fixed_bytes(|mut b| {{ {} }})",
+			format!("{}.to_fixed_bytes().map(|mut b| {{ {} }})",
 				name, read_hash)
 		}
 		ParamType::FixedBytes(_) => format!("{}.to_fixed_bytes()", name),

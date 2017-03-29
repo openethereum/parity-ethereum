@@ -7,3 +7,9 @@ build = "build.rs"
 
 [dependencies]
 ethabi = "1.0"
+futures = "0.1"
+byteorder = "1.0"
+ethcore-util = { path = "../../util" }
+
+[build-dependencies]
+native-contract-generator = { path = "generator" }
