@@ -14,22 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 
-import styles from '../deployContract.css';
+import styles from './scrollableText.css';
 
-export default class ErrorStep extends Component {
-  static propTypes = {
-    error: PropTypes.object
+export default function ScrollableText ({ small = false, text }) {
+  const classes = [ styles.input ];
+
+  if (small) {
+    classes.push(styles.small);
   }
 
-  render () {
-    const { error } = this.props;
-
-    return (
-      <div className={ styles.center }>
-        The contract deployment failed: { error.message }
-      </div>
-    );
-  }
+  return (
+    <input
+      className={ classes.join(' ') }
+      readOnly
+      value={ text }
+    />
+  );
 }
+
+ScrollableText.propTypes = {
+  text: PropTypes.string.isRequired,
+  small: PropTypes.bool
+};

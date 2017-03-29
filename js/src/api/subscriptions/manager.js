@@ -27,6 +27,7 @@ const events = {
   'parity_accountsInfo': { module: 'personal' },
   'parity_allAccountsInfo': { module: 'personal' },
   'parity_defaultAccount': { module: 'personal' },
+  'parity_postTransaction': { module: 'signer' },
   'eth_accounts': { module: 'personal' },
   'signer_requestsToConfirm': { module: 'signer' }
 };
@@ -83,7 +84,7 @@ export default class Manager {
 
       if (!engine.isStarted) {
         engine.start();
-      } else {
+      } else if (error !== null || data !== null) {
         this._sendData(subscriptionId, error, data);
       }
 

@@ -31,6 +31,7 @@ import FrameError from './FrameError';
 import Status from './Status';
 import Store from './store';
 import TabBar from './TabBar';
+import Requests from './Requests';
 
 import styles from './application.css';
 
@@ -103,6 +104,7 @@ class Application extends Component {
         }
         <Extension />
         <Snackbar />
+        <Requests />
       </Container>
     );
   }

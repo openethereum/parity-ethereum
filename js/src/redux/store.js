@@ -20,6 +20,7 @@ import initMiddleware from './middleware';
 import initReducers from './reducers';
 
 import { load as loadWallet } from './providers/walletActions';
+import { init as initRequests } from './providers/requestsActions';
 import { setupWorker } from './providers/workerWrapper';
 
 import {
@@ -44,6 +45,7 @@ export default function (api, browserHistory, forEmbed = false) {
   new SignerProvider(store, api).start();
 
   store.dispatch(loadWallet(api));
+  store.dispatch(initRequests(api));
   setupWorker(store);
 
   return store;

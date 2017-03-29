@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 log = "0.3"
-parking_lot = "0.3"
+parking_lot = "0.4"
 hidapi = { git = "https://github.com/ethcore/hidapi-rs" }
 libusb = { git = "https://github.com/ethcore/libusb-rs" }
 ethkey = { path = "../ethkey" }

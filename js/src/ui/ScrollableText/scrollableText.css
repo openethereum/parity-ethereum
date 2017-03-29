@@ -15,12 +15,20 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.funcparams {
-  padding-left: 3em;
-}
+.input {
+  background-color: transparent;
+  border: none;
+  box-sizing: border-box;
+  color: inherit;
+  cursor: text;
+  display: inline-block;
+  font-family: inherit;
+  font-size: inherit;
+  margin-left: 0.25em;
+  padding: 0;
+  width: 100%;
 
-.parameters {
-  p {
-    color: rgba(255, 255, 255, 0.498039);
+  &.small {
+    width: 10em;
   }
 }
