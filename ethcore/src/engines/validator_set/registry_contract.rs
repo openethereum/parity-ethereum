@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// Validator set maintained in a contract which can be found in the registry under "validator_set".
+/// Validator set maintained in a contract which can be found in the registry under REGISTRY_NAME.
 
 use std::sync::Weak;
 use lru_cache::LruCache;
@@ -56,6 +56,7 @@ impl RegistryContract {
 		}
 	}
 
+	/// Apply a query to a memoized validator set.
 	pub fn check<F, T>(&self, block_hash: &H256, query: F) -> T where F: Fn(&Box<ValidatorSet>) -> T {
 		let mut addresses = self.addresses.write();
 		let mut validators = self.validators.write();
@@ -109,6 +110,7 @@ impl ValidatorSet for RegistryContract {
 			.upgrade()
 			.and_then(|c| c.registry_address(BlockId::Hash(hash), REGISTRY_NAME.into()))
 			.unwrap_or_else(Default::default));
+
 		let contract = self.contract_type;
 		*self.contract_maker.write() = Box::new(move |address| {
 			let set = new_validator_set(match contract {
