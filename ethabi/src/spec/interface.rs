@@ -36,6 +36,26 @@ impl Interface {
 			.find(|e| e.name == name)
 			.cloned()
 	}
+
+	/// Get an iterator over all operations of the contract.
+	pub fn operations(&self) -> Operations {
+		Operations {
+			inner: self.0.iter()
+		}
+	}
+}
+
+/// An iterator over all operations of an interface.
+pub struct Operations<'a> {
+	inner: ::std::slice::Iter<'a, Operation>,
+}
+
+impl<'a> Iterator for Operations<'a> {
+	type Item = &'a Operation;
+
+	fn next(&mut self) -> Option<&'a Operation> {
+		self.inner.next()
+	}
 }
 
 #[cfg(test)]
