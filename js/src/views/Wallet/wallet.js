@@ -65,7 +65,6 @@ class Wallet extends Component {
 
   static propTypes = {
     address: PropTypes.string.isRequired,
-    balance: nullableProptype(PropTypes.object.isRequired),
     netVersion: PropTypes.string.isRequired,
     owned: PropTypes.bool.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired,
@@ -211,15 +210,13 @@ class Wallet extends Component {
   }
 
   renderActionbar () {
-    const { balance, owned } = this.props;
-    const showTransferButton = !!(balance && balance.tokens);
+    const { owned } = this.props;
 
     const buttons = [];
 
     if (owned) {
       buttons.push(
         <Button
-          disabled={ !showTransferButton }
           icon={ <SendIcon /> }
           key='transferFunds'
           label={
@@ -342,12 +339,11 @@ class Wallet extends Component {
       return null;
     }
 
-    const { walletAccount, balance } = this.props;
+    const { walletAccount } = this.props;
 
     return (
       <Transfer
         account={ walletAccount }
-        balance={ balance }
         onClose={ this.onTransferClose }
       />
     );
@@ -390,7 +386,6 @@ function mapStateToProps (_, initProps) {
   return (state) => {
     const { netVersion } = state.nodeStatus;
     const { accountsInfo = {}, accounts = {} } = state.personal;
-    const { balances } = state.balances;
     const walletAccount = accounts[address] || accountsInfo[address] || null;
 
     if (walletAccount) {
@@ -398,12 +393,10 @@ function mapStateToProps (_, initProps) {
     }
 
     const wallet = state.wallet.wallets[address] || {};
-    const balance = balances[address] || null;
     const owned = !!accounts[address];
 
     return {
       address,
-      balance,
       netVersion,
       owned,
       wallet,

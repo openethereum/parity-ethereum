@@ -45,12 +45,12 @@ class Transfer extends Component {
     newError: PropTypes.func.isRequired,
     gasLimit: PropTypes.object.isRequired,
 
-    senders: nullableProptype(PropTypes.object),
-    sendersBalances: nullableProptype(PropTypes.object),
     account: PropTypes.object,
     balance: PropTypes.object,
-    wallet: PropTypes.object,
-    onClose: PropTypes.func
+    onClose: PropTypes.func,
+    senders: nullableProptype(PropTypes.object),
+    sendersBalances: nullableProptype(PropTypes.object),
+    wallet: PropTypes.object
   }
 
   store = new TransferStore(this.context.api, this.props);
@@ -290,9 +290,12 @@ function mapStateToProps (initState, initProps) {
 
   return (state) => {
     const { gasLimit } = state.nodeStatus;
-    const sendersBalances = senders ? pick(state.balances.balances, Object.keys(senders)) : null;
+    const { balances } = state.balances;
 
-    return { gasLimit, wallet, senders, sendersBalances };
+    const balance = balances[address];
+    const sendersBalances = senders ? pick(balances, Object.keys(senders)) : null;
+
+    return { balance, gasLimit, wallet, senders, sendersBalances };
   };
 }
 
