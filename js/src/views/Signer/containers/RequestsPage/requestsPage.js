@@ -64,7 +64,7 @@ class RequestsPage extends Component {
   }
 
   _sortRequests = (a, b) => {
-    return new BigNumber(b.id).cmp(a.id);
+    return new BigNumber(a.id).cmp(b.id);
   }
 
   renderLocalQueue () {
