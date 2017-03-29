@@ -38,7 +38,6 @@ export default class Details extends Component {
     extras: PropTypes.bool,
     sender: PropTypes.string,
     senderError: PropTypes.string,
-    sendersBalances: PropTypes.object,
     recipient: PropTypes.string,
     recipientError: PropTypes.string,
     tag: PropTypes.string,
@@ -140,7 +139,7 @@ export default class Details extends Component {
   }
 
   renderFromAddress () {
-    const { sender, senderError, senders, sendersBalances } = this.props;
+    const { sender, senderError, senders } = this.props;
 
     if (!senders) {
       return null;
@@ -165,7 +164,6 @@ export default class Details extends Component {
           }
           value={ sender }
           onChange={ this.onEditSender }
-          balances={ sendersBalances }
         />
       </div>
     );

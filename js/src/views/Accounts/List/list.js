@@ -26,9 +26,9 @@ import styles from './list.css';
 
 class List extends Component {
   static propTypes = {
-    accounts: PropTypes.object,
-    balances: PropTypes.object,
+    balances: PropTypes.object.isRequired,
     certifications: PropTypes.object.isRequired,
+    accounts: PropTypes.object,
     disabled: PropTypes.object,
     empty: PropTypes.bool,
     link: PropTypes.string,
@@ -255,9 +255,10 @@ class List extends Component {
 }
 
 function mapStateToProps (state) {
+  const { balances } = state.balances;
   const { certifications } = state;
 
-  return { certifications };
+  return { balances, certifications };
 }
 
 function mapDispatchToProps (dispatch) {

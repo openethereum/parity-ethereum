@@ -73,7 +73,8 @@ function setBalances (updates, skipNotifications = false) {
         const token = tokens.find((tok) => tok.id.toString() === tokenId.toString());
         const value = accountUpdates[tokenId];
 
-        if (value.gt(0)) {
+        // Add the token if it's native ETH or if it has a value
+        if (token.native || value.gt(0)) {
           nextAccountTokens.push({ token, value });
         }
       });
