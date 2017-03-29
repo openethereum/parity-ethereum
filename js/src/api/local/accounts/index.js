@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Http from './http';
-export Ws from './ws';
-export TransportError from './error';
-export Middleware from './middleware';
+import Accounts from './accounts';
+
+const accounts = new Accounts();
+
+export default accounts;
