@@ -26,6 +26,7 @@ $norderColor: rgba(117, 117, 117, 0.25);
   flex-direction: column;
   position: fixed;
   right: 0.175em;
+  width: 24em;
   z-index: 750;
 
   * {
@@ -41,6 +42,7 @@ $norderColor: rgba(117, 117, 117, 0.25);
   cursor: pointer;
   margin-top: 0.25em;
   opacity: 1;
+  width: 100%;
 
   &.hide {
     animation-duration: 0.5s;
