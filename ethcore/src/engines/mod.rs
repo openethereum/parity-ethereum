@@ -39,7 +39,7 @@ use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;
 use env_info::EnvInfo;
-use error::Error;
+use error::{Error, TransactionError};
 use spec::CommonParams;
 use evm::Schedule;
 use header::Header;
@@ -157,6 +157,13 @@ pub trait Engine : Sync + Send {
 	// TODO: consider including State in the params.
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, _header: &Header) -> Result<(), Error> {
 		t.check_low_s()?;
+
+		if let Some(n) = t.network_id() {
+			if n != self.params().chain_id {
+				return Err(TransactionError::InvalidNetworkId.into());
+			}
+		}
+
 		Ok(())
 	}
 
