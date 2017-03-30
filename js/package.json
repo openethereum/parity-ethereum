@@ -154,6 +154,7 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
+    "@parity/wordlist": "1.0.1",
     "base32.js": "0.1.0",
     "bignumber.js": "3.0.1",
     "blockies": "0.0.2",

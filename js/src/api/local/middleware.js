@@ -19,7 +19,8 @@ import accounts from './accounts';
 import transactions from './transactions';
 import { Middleware } from '../transport';
 import { inNumber16 } from '../format/input';
-import { phraseToWallet, phraseToAddress, randomPhrase } from './ethkey';
+import { phraseToWallet, phraseToAddress } from './ethkey';
+import { randomPhrase } from '@parity/wordlist';
 
 export default class LocalAccountsMiddleware extends Middleware {
   // Maps transaction requests to transaction hashes.
