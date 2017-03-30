@@ -16,7 +16,9 @@
 
 use super::{SECP256K1, Public, Secret, Error};
 use secp256k1::key;
-use secp256k1::constants::{GENERATOR_X, GENERATOR_Y};
+use secp256k1::constants::{GENERATOR_X, GENERATOR_Y, CURVE_ORDER};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 
 /// Inplace multiply public key by secret key (EC point * scalar)
 pub fn public_mul_secret(public: &mut Public, secret: &Secret) -> Result<(), Error> {
@@ -59,6 +61,11 @@ pub fn generation_point() -> Public {
 	let mut public = Public::default();
 	set_public(&mut public, &public_key);
 	public
+}
+
+/// Return secp256k1 elliptic curve order
+pub fn curve_order() -> U256 {
+	H256::from_slice(&CURVE_ORDER).into()
 }
 
 fn to_secp256k1_public(public: &Public) -> Result<key::PublicKey, Error> {

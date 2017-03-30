@@ -182,7 +182,7 @@ pub struct Connection {
 	/// Tcp stream.
 	stream: SharedTcpStream,
 	/// Connection key.
-	key: Secret,
+	key: KeyPair,
 	/// Last message time.
 	last_message_time: Mutex<time::Instant>,
 }
