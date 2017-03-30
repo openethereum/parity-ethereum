@@ -37,25 +37,10 @@ pub enum Error {
 	UnsupportedType(String, ParamType),
 }
 
-/// Required OIBIT bounds on the trait.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Bounds {
-	/// Whether the `Sync` trait is required (true by default)
-	pub sync: bool,
-	/// Whether the `Send` trait is required (true by default)
-	pub send: bool,
-}
-
-impl Default for Bounds {
-	fn default() -> Self {
-		Bounds { sync: true, send: true }
-	}
-}
-
 /// Given an ABI string, generate code for a a Rust module containing
 /// a struct which can be used to call it.
 // TODO: make this a proc macro when that's possible.
-pub fn generate_module(struct_name: &str, abi: &str, bounds: Bounds) -> Result<String, Error> {
+pub fn generate_module(struct_name: &str, abi: &str) -> Result<String, Error> {
 	let contract = Contract::new(Interface::load(abi.as_bytes()).map_err(Error::Abi)?);
 	let functions = generate_functions(&contract)?;
 
@@ -65,25 +50,23 @@ use futures::{{future, Future, BoxFuture}};
 use ethabi::{{Contract, Interface, Token}};
 use util::{{self, Uint}};
 
-/// Helper type for a calling closure.
-pub type Call = Fn(Vec<u8>) -> BoxFuture<Vec<u8>, String> + 'static {send} {sync};
-
 pub struct {name} {{
 	contract: Contract,
-	do_call: Box<Call>
+	/// Address to make calls to.
+	pub address: util::Address,
 }}
 
 const ABI: &'static str = r#"{abi_str}"#;
 
 impl {name} {{
-	/// Create a new instance of `{name}` with a function for dispatching calls
-	/// asynchronously.
-	pub fn new(do_call: Box<Call>) -> Self {{
+	/// Create a new instance of `{name}` with an address.
+	/// Calls can be made, given a callback for dispatching calls asynchronously.
+	pub fn new(address: util::Address) -> Self {{
 		let contract = Contract::new(Interface::load(ABI.as_bytes())
 			.expect("ABI checked at generation-time; qed"));
 		{name} {{
 			contract: contract,
-			do_call: do_call,
+			address: address,
 		}}
 	}}
 
@@ -91,8 +74,6 @@ impl {name} {{
 }}
 "##,
 		name = struct_name,
-		send = if bounds.send { "+ Send" } else { "" },
-		sync = if bounds.sync { "+ Sync" } else { "" },
 		abi_str = abi,
 		functions = functions,
 	))
@@ -117,13 +98,18 @@ fn generate_functions(contract: &Contract) -> Result<String, Error> {
 /// Call the function "{abi_name}" on the contract.
 /// Inputs: {abi_inputs:?}
 /// Outputs: {abi_outputs:?}
-pub fn {snake_name}(&self,{params}) -> BoxFuture<{output_type}, String> {{
+pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, String>
+	where F: Fn(util::Address, Vec<u8>) -> U, U: Future<Item=Vec<u8>, Error=String> + Send + 'static
+{{
 	let function = self.contract.function(r#"{abi_name}"#.to_string())
 		.expect("function existence checked at compile-time; qed");
+	let call_addr = self.address;
+
 	let call_future = match function.encode_call({to_tokens}) {{
-		Ok(call_data) => (self.do_call)(call_data),
+		Ok(call_data) => (call)(call_addr, call_data),
 		Err(e) => return future::err(format!("Error encoding call: {{:?}}", e)).boxed(),
 	}};
+
 	call_future
 		.and_then(move |out| function.decode_output(out).map_err(|e| format!("{{:?}}", e)))
 		.map(::std::collections::VecDeque::from)
