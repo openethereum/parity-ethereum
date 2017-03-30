@@ -26,7 +26,7 @@ use super::acl_storage::AclStorage;
 use super::key_storage::KeyStorage;
 use key_server_cluster::ClusterCore;
 use traits::KeyServer;
-use types::all::{Error, RequestSignature, DocumentAddress, DocumentEncryptedKey, ClusterConfiguration};
+use types::all::{Error, RequestSignature, DocumentAddress, DocumentEncryptedKey, DocumentEncryptedKeyShadow, ClusterConfiguration};
 use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration};
 
 /// Secret store key server implementation
@@ -38,7 +38,7 @@ pub struct KeyServerImpl {
 pub struct KeyServerCore {
 	close: Option<futures::Complete<()>>,
 	handle: Option<thread::JoinHandle<()>>,
-	cluster: Option<Arc<ClusterClient>>,
+	cluster: Arc<ClusterClient>,
 }
 
 impl KeyServerImpl {
@@ -53,7 +53,6 @@ impl KeyServerImpl {
 	/// Get cluster client reference.
 	pub fn cluster(&self) -> Arc<ClusterClient> {
 		self.data.lock().cluster.clone()
-			.expect("cluster can be None in test cfg only; test cfg is for correct tests; qed")
 	}
 }
 
@@ -64,9 +63,7 @@ impl KeyServer for KeyServerImpl {
 			.map_err(|_| Error::BadSignature)?;
 
 		// generate document key
-		let data = self.data.lock();
-		let encryption_session = data.cluster.as_ref().expect("cluster can be None in test cfg only; test cfg is for correct tests; qed")
-			.new_encryption_session(document.clone(), threshold)?;
+		let encryption_session = self.data.lock().cluster.new_encryption_session(document.clone(), threshold)?;
 		let document_key = encryption_session.wait()?;
 
 		// encrypt document key with requestor public key
@@ -80,16 +77,20 @@ impl KeyServer for KeyServerImpl {
 		let public = ethkey::recover(signature, document)
 			.map_err(|_| Error::BadSignature)?;
 
+
 		// decrypt document key
-		let data = self.data.lock();
-		let decryption_session = data.cluster.as_ref().expect("cluster can be None in test cfg only; test cfg is for correct tests; qed")
-			.new_decryption_session(document.clone(), signature.clone())?;
-		let document_key = decryption_session.wait()?;
+		let decryption_session = self.data.lock().cluster.new_decryption_session(document.clone(), signature.clone(), false)?;
+		let document_key = decryption_session.wait()?.decrypted_secret;
 
 		// encrypt document key with requestor public key
 		let document_key = ethcrypto::ecies::encrypt_single_message(&public, &document_key)
 			.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err)))?;
 		Ok(document_key)
+	}
+
+	fn document_key_shadow(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKeyShadow, Error> {
+		let decryption_session = self.data.lock().cluster.new_decryption_session(document.clone(), signature.clone(), false)?;
+		decryption_session.wait().map_err(Into::into)
 	}
 }
 
@@ -129,7 +130,7 @@ impl KeyServerCore {
 		Ok(KeyServerCore {
 			close: Some(stop),
 			handle: Some(handle),
-			cluster: Some(cluster),
+			cluster: cluster,
 		})
 	}
 }

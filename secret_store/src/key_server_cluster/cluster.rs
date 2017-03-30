@@ -46,7 +46,7 @@ pub trait ClusterClient: Send + Sync {
 	/// Start new encryption session.
 	fn new_encryption_session(&self, session_id: SessionId, threshold: usize) -> Result<Arc<EncryptionSession>, Error>;
 	/// Start new decryption session.
-	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature) -> Result<Arc<DecryptionSession>, Error>;
+	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error>;
 }
 
 /// Cluster access for single encryption/decryption participant.
@@ -866,14 +866,14 @@ impl ClusterClient for ClusterClientImpl {
 		Ok(session)
 	}
 
-	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature) -> Result<Arc<DecryptionSession>, Error> {
+	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let access_key = Random.generate()?.secret().clone();
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.new_decryption_session(self.data.self_key_pair.public().clone(), session_id, access_key, cluster)?;
-		session.initialize(requestor_signature)?;
+		session.initialize(requestor_signature, is_shadow_decryption)?;
 		Ok(session)
 	}
 }

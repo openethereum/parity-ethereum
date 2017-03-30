@@ -49,6 +49,14 @@ pub fn public_sub(public: &mut Public, other: &Public) -> Result<(), Error> {
 	Ok(())
 }
 
+/// Replace public key with its negation (EC point = - EC point)
+pub fn public_negate(public: &mut Public) -> Result<(), Error> {
+	let mut key_public = to_secp256k1_public(public)?;
+	key_public.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
+	set_public(public, &key_public);
+	Ok(())
+}
+
 /// Return base point of secp256k1
 pub fn generation_point() -> Public {
 	let mut public_sec_raw = [0u8; 65];
