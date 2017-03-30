@@ -207,18 +207,18 @@ fn rust_type(input: ParamType) -> Result<String, ParamType> {
 	Ok(match input {
 		ParamType::Address => "util::Address".into(),
 		ParamType::FixedBytes(len) if len <= 32 => format!("util::H{}", len * 8),
-    	ParamType::Bytes | ParamType::FixedBytes(_) => "Vec<u8>".into(),
-    	ParamType::Int(width) => match width {
+		ParamType::Bytes | ParamType::FixedBytes(_) => "Vec<u8>".into(),
+		ParamType::Int(width) => match width {
 			8 | 16 | 32 | 64 => format!("i{}", width),
 			_ => return Err(ParamType::Int(width)),
 		},
-    	ParamType::Uint(width) => match width {
+		ParamType::Uint(width) => match width {
 			8 | 16 | 32 | 64 => format!("u{}", width),
 			128 | 160 | 256 => format!("util::U{}", width),
 			_ => return Err(ParamType::Uint(width)),
 		},
-    	ParamType::Bool => "bool".into(),
-    	ParamType::String => "String".into(),
+		ParamType::Bool => "bool".into(),
+		ParamType::String => "String".into(),
 		ParamType::Array(kind) => format!("Vec<{}>", rust_type(*kind)?),
 		other => return Err(other),
 	})

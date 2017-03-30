@@ -28,8 +28,8 @@ fn build_file(name: &str, abi: &str, filename: &str) {
 	let code = ::native_contract_generator::generate_module(name, abi).unwrap();
 
 	let out_dir = ::std::env::var("OUT_DIR").unwrap();
-    let dest_path = Path::new(&out_dir).join(filename);
-    let mut f = File::create(&dest_path).unwrap();
+	let dest_path = Path::new(&out_dir).join(filename);
+	let mut f = File::create(&dest_path).unwrap();
 
 	f.write_all(code.as_bytes()).unwrap();
 }
