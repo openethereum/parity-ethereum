@@ -244,7 +244,7 @@ export default class Ws extends JsonRpcBase {
     message.timestamp = Date.now();
   }
 
-  execute (method, ...params) {
+  _execute (method, params) {
     return new Promise((resolve, reject) => {
       const id = this.id;
       const json = this.encode(method, params);

@@ -57,6 +57,11 @@ module.exports = {
         ]
       },
       {
+        test: /\.js$/,
+        include: /node_modules\/ethereumjs-tx/,
+        use: 'babel-loader'
+      },
+      {
         test: /\.json$/,
         use: [ 'json-loader' ]
       },
