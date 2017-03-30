@@ -45,7 +45,7 @@ gcc -v &&\
 g++ -v
 
 # build parity
-RUN git clone https://github.com/ethcore/parity && \
+RUN git clone https://github.com/paritytech/parity && \
         cd parity && \
         git checkout beta && \
         git pull && \

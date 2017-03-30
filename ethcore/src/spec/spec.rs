@@ -350,7 +350,7 @@ impl Spec {
 	/// Account "0".sha3() and "1".sha3() are a authorities.
 	pub fn new_test_tendermint() -> Self { load_bundled!("tendermint") }
 
-	/// TestList.sol used in both specs: https://github.com/ethcore/contracts/pull/30/files
+	/// TestList.sol used in both specs: https://github.com/paritytech/contracts/pull/30/files
 	/// Accounts with secrets "0".sha3() and "1".sha3() are initially the validators.
 	/// Create a new Spec with BasicAuthority which uses a contract at address 5 to determine the current validators using `getValidators`.
 	/// Second validator can be removed with "0xbfc708a000000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1" and added back in using "0x4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".
@@ -374,7 +374,7 @@ mod tests {
 	use state::State;
 	use super::*;
 
-	// https://github.com/ethcore/parity/issues/1840
+	// https://github.com/paritytech/parity/issues/1840
 	#[test]
 	fn test_load_empty() {
 		assert!(Spec::load(&[] as &[u8]).is_err());

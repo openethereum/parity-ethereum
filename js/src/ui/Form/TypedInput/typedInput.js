@@ -252,12 +252,10 @@ export default class TypedInput extends Component {
     );
   }
 
-  getNumberValue (value) {
+  getNumberValue (value, readOnly = this.props.readOnly) {
     if (!value) {
       return value;
     }
-
-    const { readOnly } = this.props;
 
     const rawValue = typeof value === 'string'
       ? value.replace(/,/g, '')
@@ -278,7 +276,7 @@ export default class TypedInput extends Component {
 
     return (
       <Input
-        allowCopy={ allowCopy ? value : undefined }
+        allowCopy={ allowCopy ? this.getNumberValue(value, false) : undefined }
         className={ className }
         label={ label }
         hint={ hint }
@@ -309,7 +307,7 @@ export default class TypedInput extends Component {
 
     return (
       <Input
-        allowCopy={ allowCopy ? value : undefined }
+        allowCopy={ allowCopy ? this.getNumberValue(value, false) : undefined }
         className={ className }
         label={ label }
         hint={ hint }

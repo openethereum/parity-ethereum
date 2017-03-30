@@ -51,11 +51,12 @@ fn miner_service() -> Arc<TestMinerService> {
 
 fn setup() -> PersonalTester {
 	let accounts = accounts_provider();
+	let opt_accounts = Some(accounts.clone());
 	let client = blockchain_client();
 	let miner = miner_service();
 
 	let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
-	let personal = PersonalClient::new(&accounts, dispatcher, false);
+	let personal = PersonalClient::new(&opt_accounts, dispatcher, false);
 
 	let mut io = IoHandler::default();
 	io.extend_with(personal.to_delegate());

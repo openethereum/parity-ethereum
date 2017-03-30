@@ -20,7 +20,6 @@ import ErrorsMiddleware from '~/ui/Errors/middleware';
 import SettingsMiddleware from '~/views/Settings/middleware';
 import SignerMiddleware from './providers/signerMiddleware';
 
-import statusMiddleware from '~/views/Status/middleware';
 import CertificationsMiddleware from './providers/certifications/middleware';
 import ChainMiddleware from './providers/chainMiddleware';
 import RegistryMiddleware from './providers/registry/middleware';
@@ -44,8 +43,7 @@ export default function (api, browserHistory, forEmbed = false) {
     middleware.push(certifications, registry);
   }
 
-  const status = statusMiddleware();
   const routeMiddleware = browserHistory ? routerMiddleware(browserHistory) : [];
 
-  return middleware.concat(status, routeMiddleware, thunk);
+  return middleware.concat(routeMiddleware, thunk);
 }

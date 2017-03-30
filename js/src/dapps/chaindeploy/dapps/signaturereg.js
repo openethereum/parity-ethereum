@@ -20,7 +20,7 @@ const id = 'signaturereg';
 const app = builtins.find((app) => app.url === id);
 const hashId = app.id;
 const source = {
-  imageUrl: 'https://raw.githubusercontent.com/ethcore/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/hex-64x64.jpg',
+  imageUrl: 'https://raw.githubusercontent.com/paritytech/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/hex-64x64.jpg',
   imageHash: '0x26f7f2415cd5cbbffa58e8119fdbdd7181cac79119dd7f6ba6ee99d7f4445640'
 };
 const name = app.name;

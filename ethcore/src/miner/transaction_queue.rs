@@ -31,7 +31,7 @@
 //!
 //! use util::{Uint, U256, Address};
 //! use ethkey::{Random, Generator};
-//!	use ethcore::miner::{TransactionQueue, TransactionQueueDetailsProvider, AccountDetails, TransactionOrigin};
+//!	use ethcore::miner::{TransactionQueue, RemovalReason, TransactionQueueDetailsProvider, AccountDetails, TransactionOrigin};
 //!	use ethcore::transaction::*;
 //!	use rustc_serialize::hex::FromHex;
 //!
@@ -80,7 +80,7 @@
 //!
 //!		// And when transaction is removed (but nonce haven't changed)
 //!		// it will move subsequent transactions to future
-//!		txq.remove_invalid(&st1.hash(), &|_| 10.into());
+//!		txq.remove(&st1.hash(), &|_| 10.into(), RemovalReason::Invalid);
 //!		assert_eq!(txq.status().pending, 0);
 //!		assert_eq!(txq.status().future, 1);
 //!		assert_eq!(txq.top_transactions().len(), 0);
@@ -510,6 +510,15 @@ pub enum PrioritizationStrategy {
 	GasFactorAndGasPrice,
 }
 
+/// Reason to remove single transaction from the queue.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum RemovalReason {
+	/// Transaction is invalid
+	Invalid,
+	/// Transaction was canceled
+	Canceled,
+}
+
 /// Point in time when transaction was inserted.
 pub type QueuingInstant = BlockNumber;
 const DEFAULT_QUEUING_PERIOD: BlockNumber = 128;
@@ -897,7 +906,7 @@ impl TransactionQueue {
 			.expect("We fetch details for all senders from both current and future")
 			.nonce;
 		for hash in invalid {
-			self.remove_invalid(&hash, &fetch_nonce);
+			self.remove(&hash, &fetch_nonce, RemovalReason::Invalid);
 		}
 	}
 
@@ -945,7 +954,7 @@ impl TransactionQueue {
 	/// so transactions left in queue are processed according to client nonce.
 	///
 	/// If gap is introduced marks subsequent transactions as future
-	pub fn remove_invalid<F>(&mut self, transaction_hash: &H256, fetch_nonce: &F)
+	pub fn remove<F>(&mut self, transaction_hash: &H256, fetch_nonce: &F, reason: RemovalReason)
 		where F: Fn(&Address) -> U256 {
 
 		assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
@@ -964,7 +973,14 @@ impl TransactionQueue {
 
 		// Mark in locals
 		if self.local_transactions.contains(transaction_hash) {
-			self.local_transactions.mark_invalid(transaction.transaction.into());
+			match reason {
+				RemovalReason::Invalid => self.local_transactions.mark_invalid(
+					transaction.transaction.into()
+				),
+				RemovalReason::Canceled => self.local_transactions.mark_canceled(
+					PendingTransaction::new(transaction.transaction, transaction.condition)
+				),
+			}
 		}
 
 		// Remove from future
@@ -2277,7 +2293,7 @@ pub mod test {
 		assert_eq!(txq.status().pending, 3);
 
 		// when
-		txq.remove_invalid(&tx.hash(), &|_| default_nonce());
+		txq.remove(&tx.hash(), &|_| default_nonce(), RemovalReason::Invalid);
 
 		// then
 		let stats = txq.status();
@@ -2420,7 +2436,7 @@ pub mod test {
 		assert_eq!(txq.status().pending, 2);
 
 		// when
-		txq.remove_invalid(&tx1.hash(), &|_| default_nonce());
+		txq.remove(&tx1.hash(), &|_| default_nonce(), RemovalReason::Invalid);
 		assert_eq!(txq.status().pending, 0);
 		assert_eq!(txq.status().future, 1);
 		txq.add(tx1.clone(), TransactionOrigin::External, 0, None, &default_tx_provider()).unwrap();
@@ -2518,7 +2534,7 @@ pub mod test {
 		assert_eq!(txq.status().future, 2);
 
 		// when
-		txq.remove_invalid(&tx1.hash(), &|_| default_nonce() + 1.into());
+		txq.remove(&tx1.hash(), &|_| default_nonce() + 1.into(), RemovalReason::Invalid);
 
 		// then
 		let stats = txq.status();
