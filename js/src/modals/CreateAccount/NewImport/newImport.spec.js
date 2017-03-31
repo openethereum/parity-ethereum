@@ -30,7 +30,7 @@ function render () {
   store = createStore();
   component = shallow(
     <NewImport
-      store={ store }
+      createStore={ store }
     />
   );
   instance = component.instance();

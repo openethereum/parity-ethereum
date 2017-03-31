@@ -26,6 +26,7 @@
     "Promise"
   ],
   "scripts": {
+    "install": "napa",
     "analize": "npm run analize:lib && npm run analize:dll && npm run analize:app",
     "analize:app": "WPANALIZE=1 webpack --config webpack/app --json > .build/analize.app.json && cat .build/analize.app.json | webpack-bundle-size-analyzer",
     "analize:lib": "WPANALIZE=1 webpack --config webpack/libraries --json > .build/analize.lib.json && cat .build/analize.lib.json | webpack-bundle-size-analyzer",
@@ -62,6 +63,9 @@
     "test:e2e": "NODE_ENV=test mocha 'src/**/*.e2e.js'",
     "test:npm": "(cd .npmjs && npm i) && node test/npmParity && node test/npmJsonRpc && (rm -rf .npmjs/node_modules)",
     "prepush": "npm run lint:cached"
+  },
+  "napa": {
+    "qrcode-generator": "kazuhikoarase/qrcode-generator"
   },
   "devDependencies": {
     "babel-cli": "6.23.0",
@@ -182,10 +186,10 @@
     "mobx-react": "4.0.3",
     "mobx-react-devtools": "4.2.10",
     "moment": "2.17.0",
+    "napa": "2.3.0",
     "phoneformat.js": "1.0.3",
     "promise-worker": "1.1.1",
     "push.js": "0.0.11",
-    "qrcode-npm": "0.0.3",
     "qs": "6.3.0",
     "react": "15.4.2",
     "react-ace": "4.1.0",
@@ -198,6 +202,7 @@
     "react-intl": "2.1.5",
     "react-markdown": "2.4.4",
     "react-portal": "3.0.0",
+    "react-qr-reader": "1.0.3",
     "react-redux": "4.4.6",
     "react-router": "3.0.0",
     "react-router-redux": "4.0.7",

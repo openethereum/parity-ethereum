@@ -14,38 +14,19 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.confirmForm {
-  margin-top: -2em;
-}
-
-.confirmButton {
-  display: block !important;
-  margin-bottom: 10px;
-  white-space: nowrap;
-}
-
-.signerIcon {
-  width: 24px;
-  height: 24px;
-  vertical-align: middle;
-  margin-left: 12px;
-}
-
-.passwordHint {
-  font-size: 0.75em;
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 0.75em;
-}
-
-.passwordHint span {
-  opacity: 0.85;
-}
-
-.fileInput input {
-  top: 22px;
-}
 
 .qr {
-  margin-bottom: 0.5em;
-  text-align: center;
+  max-width: 15em;
+  max-height: 15em;
+
+  img {
+    height: auto !important;
+    max-height: 100%;
+    max-width: 100%;
+    width: auto !important;
+  }
+
+  svg {
+    background: white;
+  }
 }

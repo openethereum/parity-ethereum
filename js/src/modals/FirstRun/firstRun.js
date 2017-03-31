@@ -124,12 +124,12 @@ class FirstRun extends Component {
         return (
           <NewAccount
             newError={ this.props.newError }
-            store={ this.createStore }
+            createStore={ this.createStore }
           />
         );
       case 3:
         return (
-          <AccountDetails store={ this.createStore } />
+          <AccountDetails createStore={ this.createStore } />
         );
       case 4:
         return (
