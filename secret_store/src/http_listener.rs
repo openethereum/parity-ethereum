@@ -205,9 +205,9 @@ fn parse_request(method: &HttpMethod, uri_path: &str) -> Request {
 	}
 
 	let args_len = path.len();
-	let document = DocumentAddress::from_str(&path[args_offset]);
-	let signature = RequestSignature::from_str(&path[args_offset + 1]);
-	let threshold = usize::from_str(if args_len > args_offset + 2 { &path[args_offset + 2] } else { "" });
+	let document = path[args_offset].parse();
+	let signature = path[args_offset + 1].parse();
+	let threshold = (if args_len > args_offset + 2 { &path[args_offset + 2] } else { "" }).parse();
 	match (args_prefix, args_len, method, document, signature, threshold) {
 		("",		3, &HttpMethod::Post, Ok(document), Ok(signature), Ok(threshold)) => Request::GenerateDocumentKey(document, signature, threshold),
 		("",		2, &HttpMethod::Get, Ok(document), Ok(signature), _) => Request::GetDocumentKey(document, signature),
