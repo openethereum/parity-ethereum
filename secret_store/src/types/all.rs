@@ -50,7 +50,7 @@ pub enum Error {
 	Internal(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[binary]
 /// Secret store configuration
 pub struct NodeAddress {
