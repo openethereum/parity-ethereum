@@ -23,7 +23,7 @@ use std::net::{SocketAddr, IpAddr};
 use futures::{finished, failed, Future, Stream, BoxFuture};
 use futures_cpupool::CpuPool;
 use parking_lot::{RwLock, Mutex};
-use tokio_core::io::IoFuture;
+use tokio_io::IoFuture;
 use tokio_core::reactor::{Handle, Remote, Timeout, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::{Secret, KeyPair, Signature, Random, Generator};

@@ -17,6 +17,7 @@
 use std::io;
 use std::collections::BTreeSet;
 use futures::{Future, Poll, Async};
+use tokio_io::{AsyncRead, AsyncWrite};
 use ethkey::{Random, Generator, KeyPair, Secret, sign, verify_public};
 use util::H256;
 use key_server_cluster::{NodeId, Error};
@@ -25,13 +26,13 @@ use key_server_cluster::io::{write_message, write_encrypted_message, WriteMessag
 	read_message, read_encrypted_message, compute_shared_key};
 
 /// Start handshake procedure with another node from the cluster.
-pub fn handshake<A>(a: A, self_key_pair: KeyPair, trusted_nodes: BTreeSet<NodeId>) -> Handshake<A> where A: io::Write + io::Read {
+pub fn handshake<A>(a: A, self_key_pair: KeyPair, trusted_nodes: BTreeSet<NodeId>) -> Handshake<A> where A: AsyncWrite + AsyncRead {
 	let self_confirmation_plain = Random.generate().map(|kp| *kp.secret().clone()).map_err(Into::into);
 	handshake_with_plain_confirmation(a, self_confirmation_plain, self_key_pair, trusted_nodes)
 }
 
 /// Start handshake procedure with another node from the cluster and given plain confirmation.
-pub fn handshake_with_plain_confirmation<A>(a: A, self_confirmation_plain: Result<H256, Error>, self_key_pair: KeyPair, trusted_nodes: BTreeSet<NodeId>) -> Handshake<A> where A: io::Write + io::Read {
+pub fn handshake_with_plain_confirmation<A>(a: A, self_confirmation_plain: Result<H256, Error>, self_key_pair: KeyPair, trusted_nodes: BTreeSet<NodeId>) -> Handshake<A> where A: AsyncWrite + AsyncRead {
 	let (error, state) = match self_confirmation_plain.clone()
 		.and_then(|c| Handshake::<A>::make_public_key_message(self_key_pair.public().clone(), c)) {
 		Ok(message) => (None, HandshakeState::SendPublicKey(write_message(a, message))),
@@ -52,7 +53,7 @@ pub fn handshake_with_plain_confirmation<A>(a: A, self_confirmation_plain: Resul
 }
 
 /// Wait for handshake procedure to be started by another node from the cluster.
-pub fn accept_handshake<A>(a: A, self_key_pair: KeyPair, trusted_nodes: BTreeSet<NodeId>) -> Handshake<A> where A: io::Write + io::Read {
+pub fn accept_handshake<A>(a: A, self_key_pair: KeyPair, trusted_nodes: BTreeSet<NodeId>) -> Handshake<A> where A: AsyncWrite + AsyncRead {
 	let self_confirmation_plain = Random.generate().map(|kp| *kp.secret().clone()).map_err(Into::into);
 	let (error, state) = match self_confirmation_plain.clone() {
 		Ok(_) => (None, HandshakeState::ReceivePublicKey(read_message(a))),
@@ -103,7 +104,7 @@ enum HandshakeState<A> {
 	Finished,
 }
 
-impl<A> Handshake<A> where A: io::Read + io::Write {
+impl<A> Handshake<A> where A: AsyncRead + AsyncWrite {
 	#[cfg(test)]
 	pub fn set_self_confirmation_plain(&mut self, self_confirmation_plain: H256) {
 		self.self_confirmation_plain = self_confirmation_plain;
@@ -123,7 +124,7 @@ impl<A> Handshake<A> where A: io::Read + io::Write {
 	}
 }
 
-impl<A> Future for Handshake<A> where A: io::Read + io::Write {
+impl<A> Future for Handshake<A> where A: AsyncRead + AsyncWrite {
 	type Item = (A, Result<HandshakeResult, Error>);
 	type Error = io::Error;
 

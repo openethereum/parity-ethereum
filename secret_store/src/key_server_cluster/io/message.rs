@@ -182,6 +182,8 @@ fn build_serialized_message(mut header: MessageHeader, payload: Vec<u8>) -> Resu
 #[cfg(test)]
 pub mod tests {
 	use std::io;
+	use futures::Poll;
+	use tokio_io::{AsyncRead, AsyncWrite};
 	use ethkey::{KeyPair, Public};
 	use key_server_cluster::message::Message;
 	use super::{MESSAGE_HEADER_SIZE, MessageHeader, compute_shared_key, encrypt_message, serialize_message,
@@ -229,6 +231,14 @@ pub mod tests {
 			for b in serialized_message {
 				input_buffer.push(b);
 			}
+		}
+	}
+
+	impl AsyncRead for TestIo {}
+
+	impl AsyncWrite for TestIo {
+		fn shutdown(&mut self) -> Poll<(), io::Error> {
+			Ok(().into())
 		}
 	}
 
