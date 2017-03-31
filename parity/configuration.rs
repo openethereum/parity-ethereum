@@ -131,11 +131,16 @@ impl Configuration {
 		let warp_sync = !self.args.flag_no_warp && fat_db != Switch::On && tracing != Switch::On && pruning != Pruning::Specific(Algorithm::Archive);
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
-		let dapps_conf = self.dapps_config();
+		let mut dapps_conf = self.dapps_config();
 		let ipfs_conf = self.ipfs_config();
 		let signer_conf = self.signer_config();
 		let secretstore_conf = self.secretstore_config();
 		let format = self.format()?;
+
+		if self.args.flag_jsonrpc_threads.is_some() && dapps_conf.enabled {
+			dapps_conf.enabled = false;
+			writeln!(&mut stderr(), "Warning: Disabling Dapps server because fast RPC server was enabled.").expect("Error writing to stderr.")
+		}
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -770,6 +775,11 @@ impl Configuration {
 			apis: self.rpc_apis().parse()?,
 			hosts: self.rpc_hosts(),
 			cors: self.rpc_cors(),
+			threads: match self.args.flag_jsonrpc_threads {
+				Some(threads) if threads > 0 => Some(threads),
+				None => None,
+				_ => return Err("--jsonrpc-threads number needs to be positive.".into()),
+			}
 		};
 
 		Ok(conf)

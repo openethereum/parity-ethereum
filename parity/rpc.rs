@@ -20,7 +20,7 @@ use std::sync::Arc;
 use dapps;
 use dir::default_data_path;
 use ethcore_rpc::informant::{RpcStats, Middleware};
-use ethcore_rpc::{self as rpc, hyper, HttpServerError, Metadata, Origin, AccessControlAllowOrigin, Host};
+use ethcore_rpc::{self as rpc, HttpServerError, Metadata, Origin, AccessControlAllowOrigin, Host};
 use helpers::parity_ipc_path;
 use jsonrpc_core::MetaIoHandler;
 use parity_reactor::TokioRemote;
@@ -36,6 +36,7 @@ pub struct HttpConfiguration {
 	pub apis: ApiSet,
 	pub cors: Option<Vec<String>>,
 	pub hosts: Option<Vec<String>>,
+	pub threads: Option<usize>,
 }
 
 impl Default for HttpConfiguration {
@@ -47,6 +48,7 @@ impl Default for HttpConfiguration {
 			apis: ApiSet::UnsafeContext,
 			cors: None,
 			hosts: Some(Vec::new()),
+			threads: None,
 		}
 	}
 }
@@ -86,14 +88,17 @@ pub struct Dependencies {
 }
 
 pub struct RpcExtractor;
-impl rpc::HttpMetaExtractor<Metadata> for RpcExtractor {
-	fn read_metadata(&self, req: &hyper::server::Request<hyper::net::HttpStream>) -> Metadata {
-		// TODO [ToDr] Extract dapps-specific metadata
-		let origin = req.headers().get::<hyper::header::Origin>()
-			.map(|origin| format!("{}://{}", origin.scheme, origin.host))
-			.unwrap_or_else(|| "unknown".into());
+impl rpc::HttpMetaExtractor for RpcExtractor {
+	type Metadata = Metadata;
+
+	fn read_metadata(&self, origin: String, dapps_origin: Option<String>) -> Metadata {
 		let mut metadata = Metadata::default();
-		metadata.origin = Origin::Rpc(origin);
+
+		metadata.origin = match (origin.as_str(), dapps_origin) {
+			("null", Some(dapp)) => Origin::Dapps(dapp.into()),
+			_ => Origin::Rpc(origin),
+		};
+
 		metadata
 	}
 }
@@ -131,12 +136,18 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies, middleware: Option
 		handler,
 		remote,
 		RpcExtractor,
-		middleware,
+		match (conf.threads, middleware) {
+			(Some(threads), None) => rpc::HttpSettings::Threads(threads),
+			(None, middleware) => rpc::HttpSettings::Dapps(middleware),
+			(Some(_), Some(_)) => {
+				return Err("Dapps and fast multi-threaded RPC server cannot be enabled at the same time.".into())
+			},
+		}
 	);
 
 	match start_result {
 		Ok(server) => Ok(Some(server)),
-		Err(HttpServerError::IoError(err)) => match err.kind() {
+		Err(HttpServerError::Io(err)) => match err.kind() {
 			io::ErrorKind::AddrInUse => Err(
 				format!("RPC address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)
 			),

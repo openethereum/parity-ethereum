@@ -59,6 +59,7 @@ rustc_version = "0.2"
 
 [dev-dependencies]
 ethcore-ipc-tests = { path = "ipc/tests" }
+pretty_assertions = "0.1"
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"

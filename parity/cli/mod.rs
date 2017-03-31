@@ -163,6 +163,8 @@ usage! {
 			or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.as_ref().map(|vec| vec.join(",")),
+		flag_jsonrpc_threads: Option<usize> = None,
+			or |c: &Config| otry!(c.rpc).threads.map(Some),
 
 		// IPC
 		flag_no_ipc: bool = false,
@@ -420,6 +422,7 @@ struct Rpc {
 	cors: Option<String>,
 	apis: Option<Vec<String>>,
 	hosts: Option<Vec<String>>,
+	threads: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -672,6 +675,7 @@ mod tests {
 			flag_jsonrpc_cors: Some("null".into()),
 			flag_jsonrpc_apis: "web3,eth,net,parity,traces,rpc".into(),
 			flag_jsonrpc_hosts: "none".into(),
+			flag_jsonrpc_threads: None,
 
 			// IPC
 			flag_no_ipc: false,
@@ -786,9 +790,9 @@ mod tests {
 			flag_cache: None,
 			flag_warp: Some(true),
 			// Legacy-Dapps
-			flag_dapps_port: None,
-			flag_dapps_interface: None,
-			flag_dapps_hosts: None,
+			flag_dapps_port: Some(8080),
+			flag_dapps_interface: Some("local".into()),
+			flag_dapps_hosts: Some("none".into()),
 			flag_dapps_cors: None,
 			flag_dapps_user: Some("test_user".into()),
 			flag_dapps_pass: Some("test_pass".into()),
@@ -873,6 +877,7 @@ mod tests {
 				cors: None,
 				apis: None,
 				hosts: None,
+				threads: None,
 			}),
 			ipc: Some(Ipc {
 				disable: None,

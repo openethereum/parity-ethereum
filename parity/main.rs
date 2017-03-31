@@ -74,6 +74,10 @@ extern crate ethcore_secretstore;
 #[cfg(feature = "dapps")]
 extern crate parity_dapps;
 
+#[cfg(test)]
+#[macro_use]
+extern crate pretty_assertions;
+
 macro_rules! dependency {
 	($dep_ty:ident, $url:expr) => {
 		{
