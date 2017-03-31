@@ -94,7 +94,7 @@ export default class JsonRpcBase extends EventEmitter {
   }
 
   _execute () {
-    throw new Error('Missing implementation of JsonRpcBase#_execute');
+    throw new Error('Missing implementation of JsonRpcBase:_execute');
   }
 
   _setConnected () {
