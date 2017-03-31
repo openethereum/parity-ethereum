@@ -74,8 +74,6 @@ pub enum ProvedExecution {
 	Complete(Executed),
 }
 
-const RIPEMD_BUILTIN: Address = H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]);
-
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 /// Account modification state. Used to check if the account was
 /// Modified in between commits and overall.
@@ -275,13 +273,13 @@ enum RequireCache {
 
 /// Mode of dealing with null accounts.
 #[derive(PartialEq)]
-pub enum CleanupMode {
+pub enum CleanupMode<'a> {
 	/// Create accounts which would be null.
 	ForceCreate,
 	/// Don't delete null accounts upon touching, but also don't create them.
 	NoEmpty,
-	/// Add encountered null accounts to the dirty-set, to be deleted later.
-	KillEmpty,
+	/// Mark all touched accounts.
+	TrackTouched(&'a mut HashSet<Address>),
 }
 
 const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
@@ -563,26 +561,30 @@ impl<B: Backend> State<B> {
 		let is_value_transfer = !incr.is_zero();
 		if is_value_transfer || (cleanup_mode == CleanupMode::ForceCreate && !self.exists(a)?) {
 			self.require(a, false)?.add_balance(incr);
-		} else if cleanup_mode == CleanupMode::KillEmpty && self.exists(a)? {
-			self.touch(a)?;
+		} else if let CleanupMode::TrackTouched(set) = cleanup_mode {
+			if self.exists(a)? {
+				set.insert(*a);
+				self.touch(a)?;
+			}
 		}
-
 		Ok(())
 	}
 
 	/// Subtract `decr` from the balance of account `a`.
-	pub fn sub_balance(&mut self, a: &Address, decr: &U256) -> trie::Result<()> {
+	pub fn sub_balance(&mut self, a: &Address, decr: &U256, cleanup_mode: &mut CleanupMode) -> trie::Result<()> {
 		trace!(target: "state", "sub_balance({}, {}): {}", a, decr, self.balance(a)?);
-		if !decr.is_zero() || !self.exists(a)? {
+		if !decr.is_zero() {
 			self.require(a, false)?.sub_balance(decr);
 		}
-
+		if let CleanupMode::TrackTouched(ref mut set) = *cleanup_mode {
+			set.insert(*a);
+		}
 		Ok(())
 	}
 
 	/// Subtracts `by` from the balance of `from` and adds it to that of `to`.
-	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256, cleanup_mode: CleanupMode) -> trie::Result<()> {
-		self.sub_balance(from, by)?;
+	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256, mut cleanup_mode: CleanupMode) -> trie::Result<()> {
+		self.sub_balance(from, by, &mut cleanup_mode)?;
 		self.add_balance(to, by, cleanup_mode)?;
 		Ok(())
 	}
@@ -707,10 +709,10 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Remove any touched empty or dust accounts.
-	pub fn kill_garbage(&mut self, remove_empty_touched: bool, min_balance: &Option<U256>, kill_contracts: bool) -> trie::Result<()> {
+	pub fn kill_garbage(&mut self, touched: &HashSet<Address>, remove_empty_touched: bool, min_balance: &Option<U256>, kill_contracts: bool) -> trie::Result<()> {
 		let to_kill: HashSet<_> = {
 			self.cache.borrow().iter().filter_map(|(address, ref entry)|
-			if (entry.is_dirty() || address == &RIPEMD_BUILTIN) && // Check any modified accounts and 0x3 additionally.
+			if touched.contains(address) && // Check any modified accounts and 0x3 additionally.
 				((remove_empty_touched && entry.is_null()) // Remove all empty touched accounts.
 				|| min_balance.map_or(false, |ref balance| entry.account.as_ref().map_or(false, |account|
 					(account.is_basic() || kill_contracts) // Remove all basic and optionally contract accounts where balance has been decreased.
@@ -1948,7 +1950,7 @@ mod tests {
 		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
 		state.commit().unwrap();
 		assert_eq!(state.balance(&a).unwrap(), U256::from(69u64));
-		state.sub_balance(&a, &U256::from(42u64)).unwrap();
+		state.sub_balance(&a, &U256::from(42u64), &mut CleanupMode::NoEmpty).unwrap();
 		assert_eq!(state.balance(&a).unwrap(), U256::from(27u64));
 		state.commit().unwrap();
 		assert_eq!(state.balance(&a).unwrap(), U256::from(27u64));
@@ -2055,8 +2057,8 @@ mod tests {
 		let c = 30.into();
 		let d = 40.into();
 		let e = 50.into();
-		let path = RandomTempPath::new();
-		let db = get_temp_state_db_in(path.as_path());
+		let x = 0.into();
+		let db = get_temp_state_db();
 		let (root, db) = {
 			let mut state = State::new(db, U256::from(0), Default::default());
 			state.add_balance(&a, &U256::default(), CleanupMode::ForceCreate).unwrap(); // create an empty account
@@ -2070,19 +2072,20 @@ mod tests {
 		};
 
 		let mut state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-		state.add_balance(&a, &U256::default(), CleanupMode::KillEmpty).unwrap(); // touch an account
-		state.sub_balance(&b, &1.into()).unwrap(); // touch an account decreasing its balance
-		state.sub_balance(&c, &1.into()).unwrap(); // touch an account decreasing its balance
-		state.sub_balance(&e, &1.into()).unwrap(); // touch an account decreasing its balance
-		state.kill_garbage(true, &None, false).unwrap();
+		let mut touched = HashSet::new();
+		state.add_balance(&a, &U256::default(), CleanupMode::TrackTouched(&mut touched)).unwrap(); // touch an account
+		state.transfer_balance(&b, &x, &1.into(), CleanupMode::TrackTouched(&mut touched)).unwrap(); // touch an account decreasing its balance
+		state.transfer_balance(&c, &x, &1.into(), CleanupMode::TrackTouched(&mut touched)).unwrap(); // touch an account decreasing its balance
+		state.transfer_balance(&e, &x, &1.into(), CleanupMode::TrackTouched(&mut touched)).unwrap(); // touch an account decreasing its balance
+		state.kill_garbage(&touched, true, &None, false).unwrap();
 		assert!(!state.exists(&a).unwrap());
 		assert!(state.exists(&b).unwrap());
-		state.kill_garbage(true, &Some(100.into()), false).unwrap();
+		state.kill_garbage(&touched, true, &Some(100.into()), false).unwrap();
 		assert!(!state.exists(&b).unwrap());
 		assert!(state.exists(&c).unwrap());
 		assert!(state.exists(&d).unwrap());
 		assert!(state.exists(&e).unwrap());
-		state.kill_garbage(true, &Some(100.into()), true).unwrap();
+		state.kill_garbage(&touched, true, &Some(100.into()), true).unwrap();
 		assert!(state.exists(&c).unwrap());
 		assert!(state.exists(&d).unwrap());
 		assert!(!state.exists(&e).unwrap());

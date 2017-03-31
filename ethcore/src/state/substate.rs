@@ -18,7 +18,7 @@
 use std::collections::HashSet;
 use util::{Address, U256};
 use log_entry::LogEntry;
-use evm::Schedule;
+use evm::{Schedule, CleanDustMode};
 use super::CleanupMode;
 
 /// State changes which should be applied in finalize,
@@ -27,6 +27,9 @@ use super::CleanupMode;
 pub struct Substate {
 	/// Any accounts that have suicided.
 	pub suicides: HashSet<Address>,
+
+	/// Any accounts that are touched.
+	pub touched: HashSet<Address>,
 
 	/// Any logs.
 	pub logs: Vec<LogEntry>,
@@ -47,6 +50,7 @@ impl Substate {
 	/// Merge secondary substate `s` into self, accruing each element correspondingly.
 	pub fn accrue(&mut self, s: Substate) {
 		self.suicides.extend(s.suicides.into_iter());
+		self.touched.extend(s.touched.into_iter());
 		self.logs.extend(s.logs.into_iter());
 		self.sstore_clears_count = self.sstore_clears_count + s.sstore_clears_count;
 		self.contracts_created.extend(s.contracts_created.into_iter());
@@ -55,10 +59,10 @@ impl Substate {
 	/// Get the cleanup mode object from this.
 	#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 	pub fn to_cleanup_mode(&mut self, schedule: &Schedule) -> CleanupMode {
-		match (schedule.no_empty, schedule.kill_empty) {
-			(false, _) => CleanupMode::ForceCreate,
-			(true, false) => CleanupMode::NoEmpty,
-			(true, true) => CleanupMode::KillEmpty,
+		match (schedule.kill_dust != CleanDustMode::Off, schedule.no_empty, schedule.kill_empty) {
+			(false, false, _) => CleanupMode::ForceCreate,
+			(false, true, false) => CleanupMode::NoEmpty,
+			(false, true, true) | (true, _, _,) => CleanupMode::TrackTouched(&mut self.touched),
 		}
 	}
 }

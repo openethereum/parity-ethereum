@@ -164,8 +164,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			return Err(From::from(ExecutionError::NotEnoughBaseGas { required: base_gas_required, got: t.gas }));
 		}
 
-		// TODO: unless UNSIGNED_SENDER
-		if check_nonce && schedule.kill_dust != CleanDustMode::Off && !self.state.exists(&sender)? {
+		if !t.is_unsigned() && check_nonce && schedule.kill_dust != CleanDustMode::Off && !self.state.exists(&sender)? {
 			return Err(From::from(ExecutionError::SenderMustExist));
 		}
 
@@ -196,13 +195,13 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: balance512 }));
 		}
 
+		let mut substate = Substate::new();
+
 		// NOTE: there can be no invalid transactions from this point.
 		if !t.is_unsigned() {
 			self.state.inc_nonce(&sender)?;
 		}
-		self.state.sub_balance(&sender, &U256::from(gas_cost))?;
-
-		let mut substate = Substate::new();
+		self.state.sub_balance(&sender, &U256::from(gas_cost), &mut substate.to_cleanup_mode(&schedule))?;
 
 		let (result, output) = match t.action {
 			Action::Create => {
@@ -439,7 +438,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		let nonce_offset = if schedule.no_empty {1} else {0}.into();
 		let prev_bal = self.state.balance(&params.address)?;
 		if let ActionValue::Transfer(val) = params.value {
-			self.state.sub_balance(&params.sender, &val)?;
+			self.state.sub_balance(&params.sender, &val, &mut substate.to_cleanup_mode(&schedule))?;
 			self.state.new_contract(&params.address, val + prev_bal, nonce_offset);
 		} else {
 			self.state.new_contract(&params.address, prev_bal, nonce_offset);
@@ -518,7 +517,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 
 		// perform garbage-collection
 		let min_balance = if schedule.kill_dust != CleanDustMode::Off { Some(U256::from(schedule.tx_gas) * t.gas_price) } else { None };
-		self.state.kill_garbage(schedule.kill_empty, &min_balance, schedule.kill_dust == CleanDustMode::WithCodeAndStorage)?;
+		self.state.kill_garbage(&substate.touched, schedule.kill_empty, &min_balance, schedule.kill_dust == CleanDustMode::WithCodeAndStorage)?;
 
 		match result {
 			Err(evm::Error::Internal(msg)) => Err(ExecutionError::Internal(msg)),
