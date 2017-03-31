@@ -430,11 +430,14 @@ mod bn128_gen {
 }
 
 impl Impl for Bn128ParingImpl {
-	// Can fail if any of the 2 points does not belong the bn128 curve
+	/// Can fail if:
+	///     - input length is not a multiple of 192
+	///     - any of odd points does not belong to bn128 curve
+	///     - any of even points does not belong to the twisted bn128 curve over the field F_p^2 = F_p[i] / (i^2 + 1)
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2};
 
-		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
+		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinate)
 		if input.len() % 192 != 0 { 
 			return Err("Invalid input length, must be multiple of 192 (3 * (32*2))".into()) 
 		}
