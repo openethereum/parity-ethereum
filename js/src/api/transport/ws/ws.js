@@ -47,7 +47,6 @@ export default class Ws extends JsonRpcBase {
 
   updateToken (token, connect = true) {
     this._token = token;
-    // this._autoConnect = true;
 
     if (connect) {
       this.connect();
@@ -120,7 +119,10 @@ export default class Ws extends JsonRpcBase {
     }
 
     this._connectPromise = new Promise((resolve, reject) => {
-      this._connectPromiseFunctions = { resolve, reject };
+      this._connectPromiseFunctions = {
+        resolve,
+        reject
+      };
     });
 
     return this._connectPromise;
@@ -228,16 +230,16 @@ export default class Ws extends JsonRpcBase {
   _send = (id) => {
     const { json, method, reject } = this._messages[id];
 
-    if (!this._connected) {
-      const error = new TransportError(method, ERROR_CODES.NO_TRANSPORT, 'Not connected to Parity');
-
-      delete this._messages[id];
-
-      return reject(error);
-    }
-
     if (process.env.NODE_ENV === 'development') {
       this._count++;
+    }
+
+    if (!this.isConnected) {
+      delete this._messages[id];
+
+      return reject(
+        new TransportError(method, ERROR_CODES.NO_TRANSPORT, 'Not connected to Parity')
+      );
     }
 
     return this._ws.send(json);

@@ -117,7 +117,7 @@ describe('api/transport/Ws', () => {
     });
 
     it('returns TransportError when not connected', () => {
-      transport._connected = false;
+      transport._setConnected();
 
       return transport
         .execute('test_anyCall')

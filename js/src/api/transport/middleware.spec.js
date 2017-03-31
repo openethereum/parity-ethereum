@@ -35,6 +35,7 @@ describe('api/transport/Middleware', () => {
 
     middleware.register('mock_rpc', ([num]) => num);
     middleware.register('mock_null', () => null);
+
     transport.addMiddleware(middleware);
   });
 
