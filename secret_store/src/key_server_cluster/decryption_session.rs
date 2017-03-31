@@ -402,7 +402,6 @@ impl SessionImpl {
 		self.completed.notify_all();
 	}
 
-	// TODO: add test where ACL checker on master node fails check
 	fn start_waiting_for_partial_decryption(self_node_id: NodeId, session_id: SessionId, access_key: Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
 		let confirmed_nodes: BTreeSet<_> = data.confirmed_nodes.clone();
 		for node in data.confirmed_nodes.iter().filter(|n| n != &&self_node_id) {
