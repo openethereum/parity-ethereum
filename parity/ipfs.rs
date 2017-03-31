@@ -15,10 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use parity_ipfs_api::{self, AccessControlAllowOrigin, Host};
+use parity_ipfs_api::{self, AccessControlAllowOrigin, Host, Listening};
 use parity_ipfs_api::error::ServerError;
 use ethcore::client::BlockChainClient;
-use hyper::server::Listening;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {

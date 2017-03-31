@@ -552,19 +552,12 @@ impl Configuration {
 	fn dapps_config(&self) -> DappsConfiguration {
 		DappsConfiguration {
 			enabled: self.dapps_enabled(),
-			interface: self.dapps_interface(),
-			port: self.args.flag_dapps_port,
-			hosts: self.dapps_hosts(),
-			cors: self.dapps_cors(),
-			user: self.args.flag_dapps_user.clone(),
-			pass: self.args.flag_dapps_pass.clone(),
 			dapps_path: PathBuf::from(self.directories().dapps),
 			extra_dapps: if self.args.cmd_dapp {
 				self.args.arg_path.iter().map(|path| PathBuf::from(path)).collect()
 			} else {
 				vec![]
 			},
-			all_apis: self.args.flag_dapps_apis_all,
 		}
 	}
 
@@ -732,10 +725,6 @@ impl Configuration {
 		Self::cors(self.args.flag_ipfs_api_cors.as_ref())
 	}
 
-	fn dapps_cors(&self) -> Option<Vec<String>> {
-		Self::cors(self.args.flag_dapps_cors.as_ref())
-	}
-
 	fn hosts(hosts: &str) -> Option<Vec<String>> {
 		match hosts {
 			"none" => return Some(Vec::new()),
@@ -748,10 +737,6 @@ impl Configuration {
 
 	fn rpc_hosts(&self) -> Option<Vec<String>> {
 		Self::hosts(&self.args.flag_jsonrpc_hosts)
-	}
-
-	fn dapps_hosts(&self) -> Option<Vec<String>> {
-		Self::hosts(&self.args.flag_dapps_hosts)
 	}
 
 	fn ipfs_hosts(&self) -> Option<Vec<String>> {
@@ -779,7 +764,7 @@ impl Configuration {
 
 	fn http_config(&self) -> Result<HttpConfiguration, String> {
 		let conf = HttpConfiguration {
-			enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
+			enabled: self.rpc_enabled(),
 			interface: self.rpc_interface(),
 			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
 			apis: self.rpc_apis().parse()?,
@@ -795,7 +780,7 @@ impl Configuration {
 			name: self.args.flag_identity.clone(),
 			chain: self.chain(),
 			network_port: self.args.flag_port,
-			rpc_enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
+			rpc_enabled: self.rpc_enabled(),
 			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
 			rpc_port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
 		}
@@ -902,13 +887,6 @@ impl Configuration {
 		Self::interface(&self.network_settings().rpc_interface)
 	}
 
-	fn dapps_interface(&self) -> String {
-		match self.args.flag_dapps_interface.as_str() {
-			"local" => "127.0.0.1",
-			x => x,
-		}.into()
-	}
-
 	fn ipfs_interface(&self) -> String {
 		Self::interface(&self.args.flag_ipfs_api_interface)
 	}
@@ -924,8 +902,12 @@ impl Configuration {
 		Self::interface(&self.args.flag_stratum_interface)
 	}
 
+	fn rpc_enabled(&self) -> bool {
+		!self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc
+	}
+
 	fn dapps_enabled(&self) -> bool {
-		!self.args.flag_dapps_off && !self.args.flag_no_dapps && cfg!(feature = "dapps")
+		!self.args.flag_dapps_off && !self.args.flag_no_dapps && self.rpc_enabled() && cfg!(feature = "dapps")
 	}
 
 	fn secretstore_enabled(&self) -> bool {
@@ -1300,23 +1282,6 @@ mod tests {
 		assert_eq!(conf1.rpc_hosts(), Some(Vec::new()));
 		assert_eq!(conf2.rpc_hosts(), None);
 		assert_eq!(conf3.rpc_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
-	}
-
-	#[test]
-	fn should_parse_dapps_hosts() {
-		// given
-
-		// when
-		let conf0 = parse(&["parity"]);
-		let conf1 = parse(&["parity", "--dapps-hosts", "none"]);
-		let conf2 = parse(&["parity", "--dapps-hosts", "all"]);
-		let conf3 = parse(&["parity", "--dapps-hosts", "ethcore.io,something.io"]);
-
-		// then
-		assert_eq!(conf0.dapps_hosts(), Some(Vec::new()));
-		assert_eq!(conf1.dapps_hosts(), Some(Vec::new()));
-		assert_eq!(conf2.dapps_hosts(), None);
-		assert_eq!(conf3.dapps_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
 	}
 
 	#[test]

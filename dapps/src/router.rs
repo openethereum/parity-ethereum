@@ -46,6 +46,7 @@ pub struct Router<F> {
 	fetch: F,
 	special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
 }
+
 impl<F: Fetcher + 'static> http::RequestMiddleware for Router<F> {
 	fn on_request(&self, req: &server::Request<HttpStream>, control: &Control) -> http::RequestMiddlewareAction {
 		// Choose proper handler depending on path / domain

@@ -14,24 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
+use std::{io, fmt};
 use std::sync::Arc;
-use std::net::SocketAddr;
-use std::io;
 
+use dapps;
 use dir::default_data_path;
-use ethcore_rpc::{self as rpc, HttpServerError, Metadata, Origin, AccessControlAllowOrigin, Host};
 use ethcore_rpc::informant::{RpcStats, Middleware};
+use ethcore_rpc::{self as rpc, hyper, HttpServerError, Metadata, Origin, AccessControlAllowOrigin, Host};
 use helpers::parity_ipc_path;
-use hyper;
 use jsonrpc_core::MetaIoHandler;
-use rpc_apis;
-use rpc_apis::ApiSet;
 use parity_reactor::TokioRemote;
+use rpc_apis::{self, ApiSet};
 
-pub use ethcore_rpc::{IpcServer, HttpServer};
+pub use ethcore_rpc::{IpcServer, HttpServer, RequestMiddleware};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HttpConfiguration {
 	pub enabled: bool,
 	pub interface: String,
@@ -91,6 +88,7 @@ pub struct Dependencies {
 pub struct RpcExtractor;
 impl rpc::HttpMetaExtractor<Metadata> for RpcExtractor {
 	fn read_metadata(&self, req: &hyper::server::Request<hyper::net::HttpStream>) -> Metadata {
+		// TODO [ToDr] Extract dapps-specific metadata
 		let origin = req.headers().get::<hyper::header::Origin>()
 			.map(|origin| format!("{}://{}", origin.scheme, origin.host))
 			.unwrap_or_else(|| "unknown".into());
@@ -109,52 +107,53 @@ impl rpc::IpcMetaExtractor<Metadata> for RpcExtractor {
 	}
 }
 
-pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<HttpServer>, String> {
+fn setup_apis(apis: ApiSet, deps: &Dependencies) -> MetaIoHandler<Metadata, Middleware> {
+	rpc_apis::setup_rpc(deps.stats.clone(), deps.apis.clone(), apis)
+}
+
+pub fn new_http(conf: HttpConfiguration, deps: &Dependencies, middleware: Option<dapps::Middleware>) -> Result<Option<HttpServer>, String> {
 	if !conf.enabled {
 		return Ok(None);
 	}
 
 	let url = format!("{}:{}", conf.interface, conf.port);
 	let addr = url.parse().map_err(|_| format!("Invalid JSONRPC listen host/port given: {}", url))?;
-	Ok(Some(setup_http_rpc_server(deps, &addr, conf.cors, conf.hosts, conf.apis)?))
-}
+	let handler = setup_apis(conf.apis, deps);
+	let remote = deps.remote.clone();
 
-fn setup_apis(apis: ApiSet, deps: &Dependencies) -> MetaIoHandler<Metadata, Middleware> {
-	rpc_apis::setup_rpc(deps.stats.clone(), deps.apis.clone(), apis)
-}
+	let cors_domains: Option<Vec<_>> = conf.cors.map(|domains| domains.into_iter().map(AccessControlAllowOrigin::from).collect());
+	let allowed_hosts: Option<Vec<_>> = conf.hosts.map(|hosts| hosts.into_iter().map(Host::from).collect());
 
-pub fn setup_http_rpc_server(
-	dependencies: &Dependencies,
-	url: &SocketAddr,
-	cors_domains: Option<Vec<String>>,
-	allowed_hosts: Option<Vec<String>>,
-	apis: ApiSet
-) -> Result<HttpServer, String> {
-	let handler = setup_apis(apis, dependencies);
-	let remote = dependencies.remote.clone();
-	let cors_domains: Option<Vec<_>> = cors_domains.map(|domains| domains.into_iter().map(AccessControlAllowOrigin::from).collect());
-	let allowed_hosts: Option<Vec<_>> = allowed_hosts.map(|hosts| hosts.into_iter().map(Host::from).collect());
-	let start_result = rpc::start_http(url, cors_domains.into(), allowed_hosts.into(), handler, remote, RpcExtractor);
+	let start_result = rpc::start_http(
+		&addr,
+		cors_domains.into(),
+		allowed_hosts.into(),
+		handler,
+		remote,
+		RpcExtractor,
+		middleware,
+	);
+
 	match start_result {
+		Ok(server) => Ok(Some(server)),
 		Err(HttpServerError::IoError(err)) => match err.kind() {
-			io::ErrorKind::AddrInUse => Err(format!("RPC address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)),
+			io::ErrorKind::AddrInUse => Err(
+				format!("RPC address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)
+			),
 			_ => Err(format!("RPC io error: {}", err)),
 		},
 		Err(e) => Err(format!("RPC error: {:?}", e)),
-		Ok(server) => Ok(server),
 	}
 }
 
-pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<IpcServer>, String> {
-	if !conf.enabled { return Ok(None); }
-	Ok(Some(setup_ipc_rpc_server(deps, &conf.socket_addr, conf.apis)?))
-}
-
-pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer, String> {
-	let handler = setup_apis(apis, dependencies);
+pub fn new_ipc(conf: IpcConfiguration, dependencies: &Dependencies) -> Result<Option<IpcServer>, String> {
+	if !conf.enabled {
+		return Ok(None);
+	}
+	let handler = setup_apis(conf.apis, dependencies);
 	let remote = dependencies.remote.clone();
-	match rpc::start_ipc(addr, handler, remote, RpcExtractor) {
+	match rpc::start_ipc(&conf.socket_addr, handler, remote, RpcExtractor) {
+		Ok(server) => Ok(Some(server)),
 		Err(io_error) => Err(format!("RPC io error: {}", io_error)),
-		Ok(server) => Ok(server)
 	}
 }
