@@ -413,14 +413,14 @@ impl SessionImpl {
 			})))?;
 		}
 
-		assert!(data.confirmed_nodes.remove(&self_node_id));
-
-		let decryption_result = {
-			let requestor = data.requestor.as_ref().expect("requestor public is filled during initialization; WaitingForPartialDecryption follows initialization; qed");
-			let is_shadow_decryption = data.is_shadow_decryption.expect("is_shadow_decryption is filled during initialization; WaitingForPartialDecryption follows initialization; qed");
-			do_partial_decryption(&self_node_id, &requestor, is_shadow_decryption, &data.confirmed_nodes, &access_key, &encrypted_data)?
-		};
-		data.shadow_points.insert(self_node_id.clone(), decryption_result);
+		if data.confirmed_nodes.remove(&self_node_id) {
+			let decryption_result = {
+				let requestor = data.requestor.as_ref().expect("requestor public is filled during initialization; WaitingForPartialDecryption follows initialization; qed");
+				let is_shadow_decryption = data.is_shadow_decryption.expect("is_shadow_decryption is filled during initialization; WaitingForPartialDecryption follows initialization; qed");
+				do_partial_decryption(&self_node_id, &requestor, is_shadow_decryption, &data.confirmed_nodes, &access_key, &encrypted_data)?
+			};
+			data.shadow_points.insert(self_node_id.clone(), decryption_result);
+		}
 
 		Ok(())
 	}
@@ -890,6 +890,33 @@ mod tests {
 		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::WaitingForPartialDecryptionRequest).count(), 2);
 		// 3) 0 sessions have decrypted key value
 		assert!(sessions.iter().all(|s| s.decrypted_secret().is_none()));
+	}
+
+	#[test]
+	fn complete_dec_session_with_acl_check_failed_on_master() {
+		let (clusters, acl_storages, sessions) = prepare_decryption_sessions();
+
+		// we need 4 out of 5 nodes to agree to do a decryption
+		// let's say that 1 of these nodes (master) is disagree
+		let key_pair = Random.generate().unwrap();
+		acl_storages[0].prohibit(key_pair.public().clone(), SessionId::default());
+
+		// now let's try to do a decryption
+		let signature = ethkey::sign(key_pair.secret(), &SessionId::default()).unwrap();
+		sessions[0].initialize(signature, false).unwrap();
+
+		do_messages_exchange(&clusters, &sessions);
+
+		// now check that:
+		// 1) 4 of 5 sessions are in Finished state
+		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::Finished).count(), 5);
+		// 2) 1 session has decrypted key value
+		assert!(sessions.iter().skip(1).all(|s| s.decrypted_secret().is_none()));
+		assert_eq!(sessions[0].decrypted_secret(), Some(DocumentEncryptedKeyShadow {
+			decrypted_secret: SECRET_PLAIN.into(),
+			common_point: None,
+			decrypt_shadows: None,
+		}));
 	}
 
 	#[test]
