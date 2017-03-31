@@ -12,7 +12,7 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 [dependencies]
 byteorder = "1.0"
 log = "0.3"
-parking_lot = "0.3"
+parking_lot = "0.4"
 hyper = { version = "0.10", default-features = false }
 serde = "0.9"
 serde_json = "0.9"

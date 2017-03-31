@@ -17,9 +17,9 @@ jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch
 ethcore-util = { path = "../util" }
 ethcore-devtools = { path = "../devtools" }
 lazy_static = "0.2"
-env_logger = "0.3"
+env_logger = "0.4"
 ethcore-ipc = { path = "../ipc/rpc" }
-semver = "0.5"
+semver = "0.6"
 ethcore-ipc-nano = { path = "../ipc/nano" }
 futures = "0.1"
 tokio-core = "0.1"

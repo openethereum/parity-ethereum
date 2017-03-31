@@ -92,7 +92,7 @@ impl From<ethcrypto::Error> for Error {
 
 impl From<IoError> for Error {
 	fn from(err: IoError) -> Self {
-		Error::Io(format!("{}", err))
+		Error::Io(err.to_string())
 	}
 }
 

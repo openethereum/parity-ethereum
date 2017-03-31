@@ -26,7 +26,7 @@
 //! use-cases like sending transactions from a personal account.
 //!
 //! The light client performs a header-only sync, doing verification and pruning
-//! historical blocks. Upon pruning, batches of 2048 blocks have a number => hash
+//! historical blocks. Upon pruning, batches of 2048 blocks have a number => (hash, TD)
 //! mapping sealed into "canonical hash tries" which can later be used to verify
 //! historical block queries from peers.
 
@@ -57,7 +57,7 @@ mod types;
 
 pub use self::provider::Provider;
 pub use self::transaction_queue::TransactionQueue;
-pub use types::les_request as request;
+pub use types::request as request;
 
 #[macro_use]
 extern crate log;

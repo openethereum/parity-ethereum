@@ -261,9 +261,7 @@ impl Header {
 }
 
 impl Decodable for Header {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let r = decoder.as_rlp();
-
+	fn decode(r: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let mut blockheader = Header {
 			parent_hash: r.val_at(0)?,
 			uncles_hash: r.val_at(1)?,
@@ -283,7 +281,7 @@ impl Decodable for Header {
 			bare_hash: RefCell::new(None),
 		};
 
-		for i in 13..r.item_count() {
+		for i in 13..r.item_count()? {
 			blockheader.seal.push(r.at(i)?.as_raw().to_vec())
 		}
 

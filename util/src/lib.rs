@@ -62,7 +62,7 @@
 //!   export LIBRARY_PATH=/usr/local/lib
 //!
 //!   # download and build parity
-//!   git clone https://github.com/ethcore/parity
+//!   git clone https://github.com/paritytech/parity
 //!   cd parity
 //!   cargo build --release
 //!   ```
@@ -82,7 +82,7 @@
 //!   export LIBRARY_PATH=/usr/local/lib
 //!
 //!   # download and build parity
-//!   git clone https://github.com/ethcore/parity
+//!   git clone https://github.com/paritytech/parity
 //!   cd parity
 //!   cargo build --release
 //!   ```

@@ -27,7 +27,7 @@ use transaction::UnverifiedTransaction;
 use engines::Engine;
 use evm::Schedule;
 use ethjson;
-use rlp::{self, UntrustedRlp, View};
+use rlp::{self, UntrustedRlp};
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
@@ -43,6 +43,8 @@ pub struct EthashParams {
 	pub difficulty_bound_divisor: U256,
 	/// Difficulty increment divisor.
 	pub difficulty_increment_divisor: u64,
+	/// Metropolis difficulty increment divisor.
+	pub metropolis_difficulty_increment_divisor: u64,
 	/// Block duration.
 	pub duration_limit: u64,
 	/// Block reward.
@@ -63,6 +65,8 @@ pub struct EthashParams {
 	pub difficulty_hardfork_bound_divisor: U256,
 	/// Block on which there is no additional difficulty from the exponential bomb.
 	pub bomb_defuse_transition: u64,
+	/// Number of first block where EIP-100 rules begin.
+	pub eip100b_transition: u64,
 	/// Number of first block where EIP-150 rules begin.
 	pub eip150_transition: u64,
 	/// Number of first block where EIP-155 rules begin.
@@ -96,6 +100,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			minimum_difficulty: p.minimum_difficulty.into(),
 			difficulty_bound_divisor: p.difficulty_bound_divisor.into(),
 			difficulty_increment_divisor: p.difficulty_increment_divisor.map_or(10, Into::into),
+			metropolis_difficulty_increment_divisor: p.metropolis_difficulty_increment_divisor.map_or(9, Into::into),
 			duration_limit: p.duration_limit.into(),
 			block_reward: p.block_reward.into(),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
@@ -106,6 +111,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			difficulty_hardfork_transition: p.difficulty_hardfork_transition.map_or(u64::max_value(), Into::into),
 			difficulty_hardfork_bound_divisor: p.difficulty_hardfork_bound_divisor.map_or(p.difficulty_bound_divisor.into(), Into::into),
 			bomb_defuse_transition: p.bomb_defuse_transition.map_or(u64::max_value(), Into::into),
+			eip100b_transition: p.eip100b_transition.map_or(u64::max_value(), Into::into),
 			eip150_transition: p.eip150_transition.map_or(0, Into::into),
 			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			eip160_transition: p.eip160_transition.map_or(0, Into::into),
@@ -406,6 +412,8 @@ impl Ethash {
 			panic!("Can't calculate genesis block difficulty");
 		}
 
+		let parent_has_uncles = parent.uncles_hash() != &sha3::SHA3_EMPTY_LIST_RLP;
+
 		let min_difficulty = self.ethash_params.minimum_difficulty;
 		let difficulty_hardfork = header.number() >= self.ethash_params.difficulty_hardfork_transition;
 		let difficulty_bound_divisor = match difficulty_hardfork {
@@ -417,19 +425,27 @@ impl Ethash {
 
 		let mut target = if header.number() < frontier_limit {
 			if header.timestamp() >= parent.timestamp() + duration_limit {
-				parent.difficulty().clone() - (parent.difficulty().clone() / difficulty_bound_divisor)
+				*parent.difficulty() - (*parent.difficulty() / difficulty_bound_divisor)
 			} else {
-				parent.difficulty().clone() + (parent.difficulty().clone() / difficulty_bound_divisor)
+				*parent.difficulty() + (*parent.difficulty() / difficulty_bound_divisor)
 			}
 		}
 		else {
 			trace!(target: "ethash", "Calculating difficulty parent.difficulty={}, header.timestamp={}, parent.timestamp={}", parent.difficulty(), header.timestamp(), parent.timestamp());
 			//block_diff = parent_diff + parent_diff // 2048 * max(1 - (block_timestamp - parent_timestamp) // 10, -99)
-			let diff_inc = (header.timestamp() - parent.timestamp()) / self.ethash_params.difficulty_increment_divisor;
-			if diff_inc <= 1 {
-				parent.difficulty().clone() + parent.difficulty().clone() / From::from(difficulty_bound_divisor) * From::from(1 - diff_inc)
+			let (increment_divisor, threshold) = if header.number() < self.ethash_params.eip100b_transition {
+				(self.ethash_params.difficulty_increment_divisor, 1)
+			} else if parent_has_uncles {
+				(self.ethash_params.metropolis_difficulty_increment_divisor, 2)
 			} else {
-				parent.difficulty().clone() - parent.difficulty().clone() / From::from(difficulty_bound_divisor) * From::from(min(diff_inc - 1, 99))
+				(self.ethash_params.metropolis_difficulty_increment_divisor, 1)
+			};
+
+			let diff_inc = (header.timestamp() - parent.timestamp()) / increment_divisor;
+			if diff_inc <= threshold {
+				*parent.difficulty() + *parent.difficulty() / difficulty_bound_divisor * (threshold - diff_inc).into()
+			} else {
+				*parent.difficulty() - *parent.difficulty() / difficulty_bound_divisor * min(diff_inc - threshold, 99).into()
 			}
 		};
 		target = max(min_difficulty, target);

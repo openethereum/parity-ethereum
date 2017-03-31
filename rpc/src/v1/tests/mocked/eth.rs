@@ -84,15 +84,16 @@ impl EthTester {
 		let client = blockchain_client();
 		let sync = sync_provider();
 		let ap = accounts_provider();
+		let opt_ap = Some(ap.clone());
 		let miner = miner_service();
 		let snapshot = snapshot_service();
 		let hashrates = Arc::new(Mutex::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
-		let eth = EthClient::new(&client, &snapshot, &sync, &ap, &miner, &external_miner, options).to_delegate();
+		let eth = EthClient::new(&client, &snapshot, &sync, &opt_ap, &miner, &external_miner, options).to_delegate();
 		let filter = EthFilterClient::new(&client, &miner).to_delegate();
 
 		let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
-		let sign = SigningUnsafeClient::new(&ap, dispatcher).to_delegate();
+		let sign = SigningUnsafeClient::new(&opt_ap, dispatcher).to_delegate();
 		let mut io: IoHandler<Metadata> = IoHandler::default();
 		io.extend_with(eth);
 		io.extend_with(sign);
@@ -940,7 +941,7 @@ fn rpc_eth_send_raw_transaction_error() {
 		],
 		"id": 1
 	}"#;
-	let res = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid RLP.","data":"RlpIncorrectListLen"},"id":1}"#.into();
+	let res = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid RLP.","data":"RlpExpectedToBeList"},"id":1}"#.into();
 
 	assert_eq!(tester.io.handle_request_sync(&req), Some(res));
 }

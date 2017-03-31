@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::str::FromStr;
 use std::sync::Arc;
 use hyper::header;
 use hyper::uri::RequestUri;
@@ -219,19 +218,17 @@ fn parse_request(method: &HttpMethod, uri_path: &str) -> Request {
 
 #[cfg(test)]
 mod tests {
-	use std::str::FromStr;
 	use hyper::method::Method as HttpMethod;
-	use super::super::RequestSignature;
 	use super::{parse_request, Request};
 
 	#[test]
 	fn parse_request_successful() {
 		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01"),
 			Request::GetDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
-				RequestSignature::from_str("a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01").unwrap()));
+				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap()));
 		assert_eq!(parse_request(&HttpMethod::Get, "/%30000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01"),
 			Request::GetDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
-				RequestSignature::from_str("a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01").unwrap()));
+				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap()));
 	}
 
 	#[test]

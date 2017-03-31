@@ -15,8 +15,8 @@ rand = "0.3.14"
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-server-utils = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 log = "0.3"
-env_logger = "0.3"
-ws = { git = "https://github.com/paritytech/ws-rs.git", branch = "mio-upstream-stable" }
+env_logger = "0.4"
+ws = { git = "https://github.com/paritytech/ws-rs.git", branch = "parity-1.7" }
 parity-dapps-glue = { version = "1.7", optional = true }
 ethcore-util = { path = "../util" }
 ethcore-io = { path = "../util/io" }

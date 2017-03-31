@@ -47,12 +47,11 @@ impl Encodable for LogEntry {
 }
 
 impl Decodable for LogEntry {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let entry = LogEntry {
-			address: d.val_at(0)?,
-			topics: d.val_at(1)?,
-			data: d.val_at(2)?,
+			address: rlp.val_at(0)?,
+			topics: rlp.list_at(1)?,
+			data: rlp.val_at(2)?,
 		};
 		Ok(entry)
 	}

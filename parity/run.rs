@@ -81,6 +81,7 @@ pub struct RunCmd {
 	pub net_conf: NetworkConfiguration,
 	pub network_id: Option<u64>,
 	pub warp_sync: bool,
+	pub public_node: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
 	pub miner_extras: MinerExtras,
@@ -407,6 +408,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// set up dependencies for rpc servers
 	let rpc_stats = Arc::new(informant::RpcStats::default());
 	let signer_path = cmd.signer_conf.signer_path.clone();
+	let secret_store = match cmd.public_node {
+		true => None,
+		false => Some(account_provider.clone())
+	};
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
 			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
@@ -415,7 +420,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
-		secret_store: account_provider.clone(),
+		secret_store: secret_store,
 		miner: miner.clone(),
 		external_miner: external_miner.clone(),
 		logger: logger.clone(),

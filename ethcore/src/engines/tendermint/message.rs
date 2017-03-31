@@ -20,7 +20,7 @@ use util::*;
 use super::{Height, View, BlockHash, Step};
 use error::Error;
 use header::Header;
-use rlp::{Rlp, UntrustedRlp, RlpStream, Encodable, Decodable, Decoder, DecoderError, View as RlpView};
+use rlp::{Rlp, UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
 use ethkey::{recover, public_to_address};
 use super::super::vote_collector::Message;
 
@@ -150,8 +150,8 @@ impl Step {
 }
 
 impl Decodable for Step {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		match decoder.as_rlp().as_val()? {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		match rlp.as_val()? {
 			0u8 => Ok(Step::Propose),
 			1 => Ok(Step::Prevote),
 			2 => Ok(Step::Precommit),
@@ -168,8 +168,7 @@ impl Encodable for Step {
 
 /// (signature, (height, view, step, block_hash))
 impl Decodable for ConsensusMessage {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let rlp = decoder.as_rlp();
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let m = rlp.at(1)?;
 		let block_message: H256 = m.val_at(3)?;
 		Ok(ConsensusMessage {

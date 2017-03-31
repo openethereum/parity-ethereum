@@ -31,7 +31,7 @@ impl Verifier for CanonVerifier {
 		verification::verify_block_family(header, bytes, engine, bc)
 	}
 
-	fn verify_block_final(&self, expected: &Header, got: &Header, receipts: bool) -> Result<(), Error> {
+	fn verify_block_final(&self, expected: &Header, got: &Header, receipts: u64) -> Result<(), Error> {
 		verification::verify_block_final(expected, got, receipts)
 	}
 }
