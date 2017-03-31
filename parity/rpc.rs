@@ -168,3 +168,36 @@ pub fn new_ipc(conf: IpcConfiguration, dependencies: &Dependencies) -> Result<Op
 		Err(io_error) => Err(format!("RPC io error: {}", io_error)),
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::RpcExtractor;
+	use ethcore_rpc::{HttpMetaExtractor, Origin};
+
+	#[test]
+	fn should_extract_rpc_origin() {
+		// given
+		let extractor = RpcExtractor;
+
+		// when
+		let meta = extractor.read_metadata("http://parity.io".into(), None);
+		let meta1 = extractor.read_metadata("http://parity.io".into(), Some("ignored".into()));
+
+		// then
+		assert_eq!(meta.origin, Origin::Rpc("http://parity.io".into()));
+		assert_eq!(meta1.origin, Origin::Rpc("http://parity.io".into()));
+	}
+
+	#[test]
+	fn should_dapps_origin() {
+		// given
+		let extractor = RpcExtractor;
+		let dapp = "https://wallet.ethereum.org".to_owned();
+
+		// when
+		let meta = extractor.read_metadata("null".into(), Some(dapp.clone()));
+
+		// then
+		assert_eq!(meta.origin, Origin::Dapps(dapp.into()));
+	}
+}
