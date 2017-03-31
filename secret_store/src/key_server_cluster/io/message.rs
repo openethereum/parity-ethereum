@@ -81,7 +81,7 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::Decryption(DecryptionMessage::DecryptionSessionError(payload))				=> (104, serde_json::to_vec(&payload)),
 	};
 
-	let payload = payload.map_err(|err| Error::Serde(format!("{}", err)))?;
+	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;
 	let payload_len = payload.len();
 	if payload_len > u16::MAX as usize {
 		return Err(Error::InvalidMessage);

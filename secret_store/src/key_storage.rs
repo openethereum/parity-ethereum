@@ -81,7 +81,7 @@ impl PersistentKeyStorage {
 impl KeyStorage for PersistentKeyStorage {
 	fn insert(&self, document: DocumentAddress, key: DocumentKeyShare) -> Result<(), Error> {
 		let key: SerializableDocumentKeyShare = key.into();
-		let key = serde_json::to_vec(&key).map_err(|e| Error::Database(format!("{}", e)))?;
+		let key = serde_json::to_vec(&key).map_err(|e| Error::Database(e.to_string()))?;
 		let mut batch = self.db.transaction();
 		batch.put(None, &document, &key);
 		self.db.write(batch).map_err(Error::Database)
@@ -92,7 +92,7 @@ impl KeyStorage for PersistentKeyStorage {
 			.map_err(Error::Database)?
 			.ok_or(Error::DocumentNotFound)
 			.map(|key| key.to_vec())
-			.and_then(|key| serde_json::from_slice::<SerializableDocumentKeyShare>(&key).map_err(|e| Error::Database(format!("{}", e))))
+			.and_then(|key| serde_json::from_slice::<SerializableDocumentKeyShare>(&key).map_err(|e| Error::Database(e.to_string())))
 			.map(Into::into)
 	}
 }

@@ -145,9 +145,8 @@ impl Drop for KeyServerCore {
 mod tests {
 	use std::time;
 	use std::sync::Arc;
-	use std::str::FromStr;
 	use ethcrypto;
-	use ethkey::{self, Secret, Random, Generator};
+	use ethkey::{self, Random, Generator};
 	use acl_storage::DummyAclStorage;
 	use key_storage::tests::DummyKeyStorage;
 	use types::all::{ClusterConfiguration, NodeAddress, EncryptionConfiguration, DocumentEncryptedKey, DocumentKey};
@@ -158,13 +157,13 @@ mod tests {
 	const PRIVATE1: &'static str = "03055e18a8434dcc9061cc1b81c4ef84dc7cf4574d755e52cdcf0c8898b25b11";
 
 	fn make_signature(secret: &str, document: &'static str) -> RequestSignature {
-		let secret = Secret::from_str(secret).unwrap();
+		let secret = secret.parse().unwrap();
 		let document: DocumentAddress = document.into();
 		ethkey::sign(&secret, &document).unwrap()
 	}
 
 	fn decrypt_document_key(secret: &str, document_key: DocumentEncryptedKey) -> DocumentKey {
-		let secret = Secret::from_str(secret).unwrap();
+		let secret = secret.parse().unwrap();
 		ethcrypto::ecies::decrypt_single_message(&secret, &document_key).unwrap()
 	}
 
