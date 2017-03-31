@@ -43,6 +43,9 @@ pub struct AuthorityRoundParams {
 	/// Block at which score validation should start.
 	#[serde(rename="validateScoreTransition")]
 	pub validate_score_transition: Option<Uint>,
+	/// See main AuthorityRoundParams docs.
+	#[serde(rename="eip155Transition")]
+	pub eip155_transition: Option<Uint>,
 }
 
 /// Authority engine deserialization.
@@ -67,7 +70,8 @@ mod tests {
 					"list" : ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
 				},
 				"blockReward": "0x50",
-				"startStep" : 24
+				"startStep" : 24,
+				"eip155Transition": "0x42"
 			}
 		}"#;
 
