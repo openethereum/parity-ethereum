@@ -650,7 +650,12 @@ impl ClusterSessions {
 
 	pub fn new_encryption_session(&self, _master: NodeId, session_id: SessionId, cluster: Arc<Cluster>) -> Result<Arc<EncryptionSessionImpl>, Error> {
 		let mut encryption_sessions = self.encryption_sessions.write();
+		// check that there's no active encryption session with the same id
 		if encryption_sessions.contains_key(&session_id) {
+			return Err(Error::DuplicateSessionId);
+		}
+		// check that there's no finished encryption session with the same id
+		if self.key_storage.contains(&session_id) {
 			return Err(Error::DuplicateSessionId);
 		}
 

@@ -146,28 +146,12 @@ impl Drop for KeyServerCore {
 mod tests {
 	use std::time;
 	use std::sync::Arc;
-	use std::str::FromStr;
 	use ethcrypto;
-	use ethkey::{self, Secret, Random, Generator};
+	use ethkey::{self, Random, Generator};
 	use acl_storage::tests::DummyAclStorage;
 	use key_storage::tests::DummyKeyStorage;
-	use types::all::{ClusterConfiguration, NodeAddress, EncryptionConfiguration, DocumentEncryptedKey, DocumentKey};
-	use super::super::{RequestSignature, DocumentAddress};
+	use types::all::{ClusterConfiguration, NodeAddress, EncryptionConfiguration};
 	use super::{KeyServer, KeyServerImpl};
-
-	const DOCUMENT1: &'static str = "0000000000000000000000000000000000000000000000000000000000000001";
-	const PRIVATE1: &'static str = "03055e18a8434dcc9061cc1b81c4ef84dc7cf4574d755e52cdcf0c8898b25b11";
-
-	fn make_signature(secret: &str, document: &'static str) -> RequestSignature {
-		let secret = Secret::from_str(secret).unwrap();
-		let document: DocumentAddress = document.into();
-		ethkey::sign(&secret, &document).unwrap()
-	}
-
-	fn decrypt_document_key(secret: &str, document_key: DocumentEncryptedKey) -> DocumentKey {
-		let secret = Secret::from_str(secret).unwrap();
-		ethcrypto::ecies::decrypt_single_message(&secret, &document_key).unwrap()
-	}
 
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network() {
@@ -210,15 +194,16 @@ mod tests {
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
 			// generate document key
-			// TODO: it is an error that we can regenerate key for the same DOCUMENT
-			let signature = make_signature(PRIVATE1, DOCUMENT1);
-			let generated_key = key_servers[0].generate_document_key(&signature, &DOCUMENT1.into(), *threshold).unwrap();
-			let generated_key = decrypt_document_key(PRIVATE1, generated_key);
+			let document = Random.generate().unwrap().secret().clone();
+			let secret = Random.generate().unwrap().secret().clone();
+			let signature = ethkey::sign(&secret, &document).unwrap();
+			let generated_key = key_servers[0].generate_document_key(&signature, &document, *threshold).unwrap();
+			let generated_key = ethcrypto::ecies::decrypt_single_message(&secret, &generated_key).unwrap();
 
 			// now let's try to retrieve key back
 			for key_server in key_servers.iter() {
-				let retrieved_key = key_server.document_key(&signature, &DOCUMENT1.into()).unwrap();
-				let retrieved_key = decrypt_document_key(PRIVATE1, retrieved_key);
+				let retrieved_key = key_server.document_key(&signature, &document).unwrap();
+				let retrieved_key = ethcrypto::ecies::decrypt_single_message(&secret, &retrieved_key).unwrap();
 				assert_eq!(retrieved_key, generated_key);
 			}
 		}
