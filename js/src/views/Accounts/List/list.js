@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { pick } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
@@ -254,8 +255,9 @@ class List extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  const { balances } = state.balances;
+function mapStateToProps (state, props) {
+  const addresses = Object.keys(props.accounts);
+  const balances = pick(state.balances.balances, addresses);
   const { certifications } = state;
 
   return { balances, certifications };
