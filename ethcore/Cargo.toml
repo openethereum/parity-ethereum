@@ -48,6 +48,7 @@ ethcore-logger = { path = "../logger" }
 stats = { path = "../util/stats" }
 hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
 num = "0.1"
+bn = { git = "https://github.com/paritytech/bn" }
 
 [features]
 jit = ["evmjit"]

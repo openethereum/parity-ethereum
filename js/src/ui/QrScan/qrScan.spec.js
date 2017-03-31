@@ -16,27 +16,54 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
-import { createStore } from '../createAccount.test.js';
-
-import AccountDetailsGeth from './';
+import QrScan from './';
 
 let component;
-let store;
+let onError;
+let onScan;
 
 function render () {
-  store = createStore();
+  onError = sinon.stub();
+  onScan = sinon.stub();
+
   component = shallow(
-    <AccountDetailsGeth
-      createStore={ store }
+    <QrScan
+      onError={ onError }
+      onScan={ onScan }
     />
   );
 
   return component;
 }
 
-describe('modals/CreateAccount/AccountDetailsGeth', () => {
-  it('renders with defaults', () => {
-    expect(render()).to.be.ok;
+describe('ui/QrScan', () => {
+  beforeEach(() => {
+    render();
+  });
+
+  it('renders defaults', () => {
+    expect(component).to.be.ok;
+  });
+
+  describe('Reader', () => {
+    let reader;
+
+    beforeEach(() => {
+      reader = component.find('Reader');
+    });
+
+    it('renders component', () => {
+      expect(reader.get(0)).to.be.ok;
+    });
+
+    it('attaches onError', () => {
+      expect(reader.props().onError).to.equal(onError);
+    });
+
+    it('attaches onScan', () => {
+      expect(reader.props().onScan).to.equal(onScan);
+    });
   });
 });

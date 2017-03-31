@@ -14,29 +14,37 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { shallow } from 'enzyme';
-import React from 'react';
+import React, { PropTypes } from 'react';
+import Reader from 'react-qr-reader';
 
-import { createStore } from '../createAccount.test.js';
+import styles from './qrScan.css';
 
-import AccountDetailsGeth from './';
+const SCAN_DELAY = 100;
+const SCAN_STYLE = {
+  display: 'inline-block',
+  width: '30em'
+};
 
-let component;
-let store;
-
-function render () {
-  store = createStore();
-  component = shallow(
-    <AccountDetailsGeth
-      createStore={ store }
-    />
+export default function QrScan ({ onError, onScan }) {
+  return (
+    <div className={ styles.qr }>
+      <Reader
+        delay={ SCAN_DELAY }
+        onError={ onError }
+        onScan={ onScan }
+        style={ SCAN_STYLE }
+      />
+    </div>
   );
-
-  return component;
 }
 
-describe('modals/CreateAccount/AccountDetailsGeth', () => {
-  it('renders with defaults', () => {
-    expect(render()).to.be.ok;
-  });
-});
+QrScan.propTypes = {
+  onError: PropTypes.func,
+  onScan: PropTypes.func.isRequired
+};
+
+QrScan.defaultProps = {
+  onError: (error) => {
+    console.log('QrScan', error);
+  }
+};

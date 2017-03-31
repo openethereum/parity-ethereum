@@ -108,6 +108,7 @@ extern crate hardware_wallet;
 extern crate stats;
 extern crate ethcore_logger;
 extern crate num;
+extern crate bn;
 extern crate itertools;
 
 #[macro_use]
