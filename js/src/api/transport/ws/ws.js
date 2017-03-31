@@ -234,20 +234,36 @@ export default class Ws extends JsonRpcBase {
 
       this._sendResponse(result.id, result);
 
-      if (message.duplicates) {
-        message.duplicates.forEach((id) => {
-          this._sendResponse(id, result);
-        });
-      }
+      message.duplicates.forEach((id) => {
+        this._sendResponse(id, result);
+      });
     } catch (e) {
       console.error('ws::_onMessage', event.data, e);
     }
   }
 
+  _queueRequest (message) {
+    const firstQueue = Object
+      .values(this._messages)
+      .find((queued) => {
+        return queued &&
+          queued.id !== message.id &&
+          queued.method === message.method &&
+          isEqual(queued.params, message.params);
+      });
+
+    if (firstQueue) {
+      message.isDuplicate = true;
+      firstQueue.duplicates.push(message.id);
+    } else {
+      message.isQueued = true;
+    }
+
+    message.timestamp = Date.now();
+  }
+
   _send = (id) => {
     const message = this._messages[id];
-
-    console.log('send', message.method, id);
 
     if (this.isConnected) {
       if (process.env.NODE_ENV === 'development') {
@@ -257,22 +273,7 @@ export default class Ws extends JsonRpcBase {
       return this._ws.send(message.json);
     }
 
-    // find duplicates for this request and bundle together
-    const firstQueued = Object
-      .values(this._messages)
-      .find((queued) => {
-        return queued.method === message.method &&
-          isEqual(queued.params, message.params);
-      });
-
-    if (firstQueued) {
-      message.isDuplicate = true;
-      firstQueued.duplicates = (firstQueued.duplicates || []).push(id);
-    } else {
-      message.isQueued = true;
-    }
-
-    message.timestamp = Date.now();
+    this._queueRequest(message);
   }
 
   _execute (method, params) {
@@ -280,7 +281,7 @@ export default class Ws extends JsonRpcBase {
       const id = this.id;
       const json = this.encode(method, params);
 
-      this._messages[id] = { id, method, params, json, resolve, reject };
+      this._messages[id] = { id, method, params, json, resolve, reject, duplicates: [] };
       this._send(id);
     });
   }
