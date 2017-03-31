@@ -21,7 +21,7 @@ import {
   apiReducer, balancesReducer,
   workerReducer, imagesReducer, personalReducer, requestsReducer,
   signerReducer, statusReducer as nodeStatusReducer,
-  snackbarReducer, walletReducer
+  snackbarReducer, tokensReducer, walletReducer
 } from './providers';
 import certificationsReducer from './providers/certifications/reducer';
 import registryReducer from './providers/registry/reducer';
@@ -47,6 +47,7 @@ export default function () {
     requests: requestsReducer,
     signer: signerReducer,
     snackbar: snackbarReducer,
+    tokens: tokensReducer,
     wallet: walletReducer,
     worker: workerReducer
   });

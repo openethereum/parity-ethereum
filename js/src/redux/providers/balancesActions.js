@@ -17,10 +17,8 @@
 import { uniq, isEqual } from 'lodash';
 import { push } from 'react-router-redux';
 
-import { setAddressImage } from './imagesActions';
-
 import { notifyTransaction } from '~/util/notifications';
-import { ETH_TOKEN, fetchTokenIds, fetchTokenInfo, fetchAccountsBalances } from '~/util/tokens';
+import { ETH_TOKEN, fetchAccountsBalances } from '~/util/tokens';
 import { LOG_KEYS, getLogger } from '~/config';
 import { sha3 } from '~/api/util/sha3';
 
@@ -38,7 +36,7 @@ const log = getLogger(LOG_KEYS.Balances);
 function setBalances (updates, skipNotifications = false) {
   return (dispatch, getState) => {
     const state = getState();
-    const tokens = Object.values(state.balances.tokens);
+    const tokens = Object.values(state.tokens);
 
     const prevBalances = state.balances.balances;
     const nextBalances = { ...prevBalances };
@@ -118,79 +116,10 @@ function _setBalances (balances) {
   };
 }
 
-export function setTokens (tokens) {
-  return {
-    type: 'setTokens',
-    tokens
-  };
-}
-
-export function setTokenReg (tokenreg) {
-  return {
-    type: 'setTokenReg',
-    tokenreg
-  };
-}
-
 export function setTokensFilter (tokensFilter) {
   return {
     type: 'setTokensFilter',
     tokensFilter
-  };
-}
-
-export function setTokenImage (tokenAddress, image) {
-  return {
-    type: 'setTokenImage',
-    tokenAddress, image
-  };
-}
-
-export function loadTokens (options = {}) {
-  log.debug('loading tokens', Object.keys(options).length ? options : '');
-
-  return (dispatch, getState) => {
-    const { tokenreg } = getState().balances;
-
-    return fetchTokenIds(tokenreg.instance)
-      .then((tokenIds) => dispatch(fetchTokens(tokenIds, options)))
-      .catch((error) => {
-        console.warn('balances::loadTokens', error);
-      });
-  };
-}
-
-export function fetchTokens (_tokenIndexes, options = {}) {
-  const tokenIndexes = uniq(_tokenIndexes || []);
-
-  return (dispatch, getState) => {
-    const { api, images, balances } = getState();
-    const { tokenreg } = balances;
-    const promises = tokenIndexes.map((id) => fetchTokenInfo(api, tokenreg.instance, id));
-
-    return Promise
-      .all(promises)
-      .then((tokens) => {
-        // dispatch only the changed images
-        tokens
-          .forEach((token) => {
-            const { image, address } = token;
-
-            if (images[address] === image) {
-              return;
-            }
-
-            dispatch(setTokenImage(address, image));
-            dispatch(setAddressImage(address, image, true));
-          });
-
-        log.debug('fetched token', tokens);
-        dispatch(setTokens(tokens));
-        dispatch(updateTokensFilter(null, null, options));
-      })
-      .catch((error) => {
-        console.warn('balances::fetchTokens', error);
-      });
   };
 }
 
@@ -201,15 +130,15 @@ export function fetchBalances (_addresses, skipNotifications = false) {
 
 export function updateTokensFilter (_addresses, _tokens, options = {}) {
   return (dispatch, getState) => {
-    const { api, balances, personal } = getState();
+    const { api, balances, personal, tokens } = getState();
     const { visibleAccounts, accounts } = personal;
     const { tokensFilter } = balances;
 
     const addressesToFetch = uniq(visibleAccounts.concat(Object.keys(accounts)));
     const addresses = uniq(_addresses || addressesToFetch || []).sort();
 
-    const tokens = _tokens || Object.values(balances.tokens) || [];
-    const tokenAddresses = tokens
+    const tokensToUpdate = _tokens || Object.values(tokens) || [];
+    const tokenAddresses = tokensToUpdate
       .map((t) => t.address)
       .filter((address) => address)
       .sort();
@@ -277,7 +206,7 @@ export function updateTokensFilter (_addresses, _tokens, options = {}) {
         const { skipNotifications } = options;
 
         dispatch(setTokensFilter(nextTokensFilter));
-        fetchTokensBalances(addresses, tokens, skipNotifications)(dispatch, getState);
+        fetchTokensBalances(addresses, tokensToUpdate, skipNotifications)(dispatch, getState);
       })
       .catch((error) => {
         console.warn('balances::updateTokensFilter', error);
@@ -287,7 +216,7 @@ export function updateTokensFilter (_addresses, _tokens, options = {}) {
 
 export function queryTokensFilter (tokensFilter) {
   return (dispatch, getState) => {
-    const { api, personal, balances } = getState();
+    const { api, personal, tokens } = getState();
     const { visibleAccounts, accounts } = personal;
 
     const visibleAddresses = visibleAccounts.map((a) => a.toLowerCase());
@@ -325,30 +254,30 @@ export function queryTokensFilter (tokensFilter) {
           return;
         }
 
-        const tokens = Object.values(balances.tokens)
+        const tokensToUpdate = Object.values(tokens)
           .filter((t) => tokenAddresses.includes(t.address));
 
-        fetchTokensBalances(uniq(addresses), tokens)(dispatch, getState);
+        fetchTokensBalances(uniq(addresses), tokensToUpdate)(dispatch, getState);
       });
   };
 }
 
 export function fetchTokensBalances (_addresses = null, _tokens = null, skipNotifications = false) {
   return (dispatch, getState) => {
-    const { api, personal, balances } = getState();
+    const { api, personal, tokens } = getState();
     const { visibleAccounts, accounts } = personal;
-    const allTokens = Object.values(balances.tokens);
+    const allTokens = Object.values(tokens);
 
     const addressesToFetch = uniq(visibleAccounts.concat(Object.keys(accounts)));
     const addresses = _addresses || addressesToFetch;
-    const tokens = _tokens || allTokens;
+    const tokensToUpdate = _tokens || allTokens;
 
     if (addresses.length === 0) {
       return Promise.resolve();
     }
 
     const updates = addresses.reduce((updates, who) => {
-      updates[who] = tokens.map((token) => token.id);
+      updates[who] = tokensToUpdate.map((token) => token.id);
       return updates;
     }, {});
 

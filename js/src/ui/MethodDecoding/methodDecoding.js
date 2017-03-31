@@ -653,10 +653,10 @@ class MethodDecoding extends Component {
 }
 
 function mapStateToProps (initState, initProps) {
-  const { tokens } = initState.balances;
+  const { tokens } = initState;
   const { transaction } = initProps;
 
-  const token = (tokens || {})[transaction.to];
+  const token = Object.values(tokens).find((token) => token.address === transaction.to);
 
   return () => {
     return { token };

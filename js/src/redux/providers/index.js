@@ -28,4 +28,5 @@ export requestsReducer from './requestsReducer';
 export signerReducer from './signerReducer';
 export snackbarReducer from './snackbarReducer';
 export statusReducer from './statusReducer';
+export tokensReducer from './tokensReducer';
 export walletReducer from './walletReducer';

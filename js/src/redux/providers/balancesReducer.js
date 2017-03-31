@@ -16,14 +16,8 @@
 
 import { handleActions } from 'redux-actions';
 
-import { ETH_TOKEN } from '~/util/tokens';
-
 const initialState = {
   balances: {},
-  tokens: {
-    [ ETH_TOKEN.id ]: ETH_TOKEN
-  },
-  tokenreg: null,
   tokensFilter: {}
 };
 
@@ -32,67 +26,6 @@ export default handleActions({
     const { balances } = action;
 
     return Object.assign({}, state, { balances });
-  },
-
-  setTokens (state, action) {
-    const { tokens } = action;
-
-    if (Array.isArray(tokens)) {
-      const objTokens = tokens.reduce((_tokens, token) => {
-        _tokens[token.address] = token;
-        return _tokens;
-      }, {});
-
-      return Object.assign({}, state, {
-        tokens: {
-          ...state.tokens,
-          ...objTokens
-        }
-      });
-    }
-
-    return Object.assign({}, state, {
-      tokens: {
-        ...state.tokens,
-        ...tokens
-      }
-    });
-  },
-
-  setTokenImage (state, action) {
-    const { tokenAddress, image } = action;
-    const { balances } = state;
-    const nextBalances = {};
-
-    Object.keys(balances).forEach((address) => {
-      const tokenIndex = balances[address].tokens
-        ? balances[address].tokens.findIndex((t) => t.token.address === tokenAddress)
-        : -1;
-
-      if (tokenIndex === -1 || balances[address].tokens[tokenIndex].value.equals(0)) {
-        return;
-      }
-
-      const tokens = [].concat(balances[address].tokens);
-
-      tokens[tokenIndex].token = {
-        ...tokens[tokenIndex].token,
-        image
-      };
-
-      nextBalances[address] = {
-        ...balances[address],
-        tokens
-      };
-    });
-
-    return Object.assign({}, state, { balance: { ...balances, nextBalances } });
-  },
-
-  setTokenReg (state, action) {
-    const { tokenreg } = action;
-
-    return Object.assign({}, state, { tokenreg });
   },
 
   setTokensFilter (state, action) {

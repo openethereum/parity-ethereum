@@ -25,6 +25,7 @@ const BALANCEOF_SIGNATURE = sha3('balanceOf(address)');
 const ADDRESS_PADDING = range(24).map(() => '0').join('');
 
 export const ETH_TOKEN = {
+  address: '',
   name: 'Ethereum',
   tag: 'ETH',
   image: imagesEthereum,

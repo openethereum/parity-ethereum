@@ -14,31 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default class TokenReg {
-  constructor (api, registry) {
-    this._api = api;
-    this._registry = registry;
+import { handleActions } from 'redux-actions';
 
-    this.getInstance();
-  }
+import { ETH_TOKEN } from '~/util/tokens';
 
-  getContract () {
-    return this._registry.getContract('tokenreg');
-  }
+const initialState = {
+  [ ETH_TOKEN.id ]: ETH_TOKEN
+};
 
-  getInstance () {
-    return this.getContract().then((contract) => contract.instance);
-  }
+export default handleActions({
+  setTokens (state, action) {
+    const { tokens } = action;
 
-  tokenCount () {
-    return this.getInstance().then((instance) => {
-      return instance.tokenCount.call();
-    });
+    return {
+      ...state,
+      ...tokens
+    };
   }
-
-  token (index) {
-    return this.getInstance().then((instance) => {
-      return instance.token.call({}, [index]);
-    });
-  }
-}
+}, initialState);

@@ -16,7 +16,8 @@
 
 import { throttle } from 'lodash';
 
-import { loadTokens, setTokenReg, fetchBalances, fetchTokens, fetchTokensBalances } from './balancesActions';
+import { fetchBalances, fetchTokensBalances } from './balancesActions';
+import { loadTokens, fetchTokens } from './tokensActions';
 import { padRight } from '~/api/util/format';
 
 import Contracts from '~/contracts';
@@ -276,7 +277,6 @@ export default class Balances {
       .then((tokenreg) => {
         this._tokenreg = tokenreg;
 
-        this._store.dispatch(setTokenReg(tokenreg));
         this._store.dispatch(loadTokens(options));
 
         return this.attachToTokens(tokenreg);
