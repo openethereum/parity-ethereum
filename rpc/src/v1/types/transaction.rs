@@ -16,8 +16,9 @@
 
 use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
+use util::Hashable;
 use ethcore::miner;
-use ethcore::contract_address;
+use ethcore::{contract_address, CreateContractAddress};
 use ethcore::transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};
 use v1::helpers::errors;
 use v1::types::{Bytes, H160, H256, U256, H512, TransactionCondition};
@@ -158,9 +159,11 @@ pub struct RichRawTransaction {
 	pub transaction: Transaction
 }
 
+
 impl From<SignedTransaction> for RichRawTransaction {
 	fn from(t: SignedTransaction) -> Self {
-		let tx: Transaction = t.into();
+		// TODO: change transition to 0 when EIP-86 is commonly used.
+		let tx: Transaction = Transaction::from_signed(t, 0, u64::max_value());
 		RichRawTransaction {
 			raw: tx.raw.clone(),
 			transaction: tx,
@@ -168,9 +171,11 @@ impl From<SignedTransaction> for RichRawTransaction {
 	}
 }
 
-impl From<LocalizedTransaction> for Transaction {
-	fn from(mut t: LocalizedTransaction) -> Transaction {
+impl Transaction {
+	/// Convert `LocalizedTransaction` into RPC Transaction.
+	pub fn from_localized(mut t: LocalizedTransaction, eip86_transition: u64) -> Transaction {
 		let signature = t.signature();
+		let scheme = if t.block_number >= eip86_transition { CreateContractAddress::FromCodeHash } else { CreateContractAddress::FromSenderAndNonce };
 		Transaction {
 			hash: t.hash().into(),
 			nonce: t.nonce.into(),
@@ -187,7 +192,7 @@ impl From<LocalizedTransaction> for Transaction {
 			gas: t.gas.into(),
 			input: Bytes::new(t.data.clone()),
 			creates: match t.action {
-				Action::Create => Some(contract_address(&t.sender(), &t.nonce).into()),
+				Action::Create => Some(contract_address(scheme, &t.sender(), &t.nonce, &t.data.sha3()).into()),
 				Action::Call(_) => None,
 			},
 			raw: ::rlp::encode(&t.signed).to_vec().into(),
@@ -200,11 +205,11 @@ impl From<LocalizedTransaction> for Transaction {
 			condition: None,
 		}
 	}
-}
 
-impl From<SignedTransaction> for Transaction {
-	fn from(t: SignedTransaction) -> Transaction {
+	/// Convert `SignedTransaction` into RPC Transaction.
+	pub fn from_signed(t: SignedTransaction, block_number: u64, eip86_transition: u64) -> Transaction {
 		let signature = t.signature();
+		let scheme = if block_number >= eip86_transition { CreateContractAddress::FromCodeHash } else { CreateContractAddress::FromSenderAndNonce };
 		Transaction {
 			hash: t.hash().into(),
 			nonce: t.nonce.into(),
@@ -221,11 +226,11 @@ impl From<SignedTransaction> for Transaction {
 			gas: t.gas.into(),
 			input: Bytes::new(t.data.clone()),
 			creates: match t.action {
-				Action::Create => Some(contract_address(&t.sender(), &t.nonce).into()),
+				Action::Create => Some(contract_address(scheme, &t.sender(), &t.nonce, &t.data.sha3()).into()),
 				Action::Call(_) => None,
 			},
 			raw: ::rlp::encode(&t).to_vec().into(),
-			public_key: Some(t.public_key().into()),
+			public_key: t.public_key().map(Into::into),
 			network_id: t.network_id(),
 			standard_v: t.standard_v().into(),
 			v: t.original_v().into(),
@@ -234,28 +239,28 @@ impl From<SignedTransaction> for Transaction {
 			condition: None,
 		}
 	}
-}
 
-impl From<PendingTransaction> for Transaction {
-	fn from(t: PendingTransaction) -> Transaction {
-		let mut r = Transaction::from(t.transaction);
+	/// Convert `PendingTransaction` into RPC Transaction.
+	pub fn from_pending(t: PendingTransaction, block_number: u64, eip86_transition: u64) -> Transaction {
+		let mut r = Transaction::from_signed(t.transaction, block_number, eip86_transition);
 		r.condition = t.condition.map(|b| b.into());
 		r
 	}
 }
 
-impl From<miner::LocalTransactionStatus> for LocalTransactionStatus {
-	fn from(s: miner::LocalTransactionStatus) -> Self {
+impl LocalTransactionStatus {
+	/// Convert `LocalTransactionStatus` into RPC `LocalTransactionStatus`.
+	pub fn from(s: miner::LocalTransactionStatus, block_number: u64, eip86_transition: u64) -> Self {
 		use ethcore::miner::LocalTransactionStatus::*;
 		match s {
 			Pending => LocalTransactionStatus::Pending,
 			Future => LocalTransactionStatus::Future,
-			Mined(tx) => LocalTransactionStatus::Mined(tx.into()),
-			Dropped(tx) => LocalTransactionStatus::Dropped(tx.into()),
-			Rejected(tx, err) => LocalTransactionStatus::Rejected(tx.into(), errors::transaction_message(err)),
-			Replaced(tx, gas_price, hash) => LocalTransactionStatus::Replaced(tx.into(), gas_price.into(), hash.into()),
-			Invalid(tx) => LocalTransactionStatus::Invalid(tx.into()),
-			Canceled(tx) => LocalTransactionStatus::Canceled(tx.into()),
+			Mined(tx) => LocalTransactionStatus::Mined(Transaction::from_signed(tx, block_number, eip86_transition)),
+			Dropped(tx) => LocalTransactionStatus::Dropped(Transaction::from_signed(tx, block_number, eip86_transition)),
+			Rejected(tx, err) => LocalTransactionStatus::Rejected(Transaction::from_signed(tx, block_number, eip86_transition), errors::transaction_message(err)),
+			Replaced(tx, gas_price, hash) => LocalTransactionStatus::Replaced(Transaction::from_signed(tx, block_number, eip86_transition), gas_price.into(), hash.into()),
+			Invalid(tx) => LocalTransactionStatus::Invalid(Transaction::from_signed(tx, block_number, eip86_transition)),
+			Canceled(tx) => LocalTransactionStatus::Canceled(Transaction::from_pending(tx, block_number, eip86_transition)),
 		}
 	}
 }

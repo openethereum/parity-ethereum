@@ -1279,7 +1279,7 @@ mod tests {
 		info.number = 0x789b0;
 		let engine = &*Spec::new_test().engine;
 
-		println!("schedule.have_delegate_call: {:?}", engine.schedule(&info).have_delegate_call);
+		println!("schedule.have_delegate_call: {:?}", engine.schedule(info.number).have_delegate_call);
 
 		let t = Transaction {
 			nonce: 0.into(),

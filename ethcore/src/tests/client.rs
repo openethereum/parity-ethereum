@@ -162,7 +162,7 @@ fn returns_logs_with_limit() {
 		to_block: BlockId::Latest,
 		address: None,
 		topics: vec![],
-		limit: Some(2),
+		limit: None,
 	});
 	assert_eq!(logs.len(), 0);
 }

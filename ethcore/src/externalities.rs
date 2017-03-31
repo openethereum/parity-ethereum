@@ -21,8 +21,9 @@ use state::{Backend as StateBackend, State, Substate};
 use engines::Engine;
 use env_info::EnvInfo;
 use executive::*;
-use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory};
+use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory, CreateContractAddress};
 use types::executed::CallType;
+use types::transaction::UNSIGNED_SENDER;
 use trace::{Tracer, VMTracer};
 
 /// Policy for handling output data on `RETURN` opcode.
@@ -97,7 +98,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Externalities<'a, T, V, B>
 			depth: depth,
 			origin_info: origin_info,
 			substate: substate,
-			schedule: engine.schedule(env_info),
+			schedule: engine.schedule(env_info.number),
 			output: output,
 			tracer: tracer,
 			vm_tracer: vm_tracer,
@@ -147,10 +148,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		}
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address_scheme: CreateContractAddress) -> ContractCreateResult {
 		// create new contract address
+		let code_hash = code.sha3();
 		let address = match self.state.nonce(&self.origin_info.address) {
-			Ok(nonce) => contract_address(&self.origin_info.address, &nonce),
+			Ok(nonce) => contract_address(address_scheme, &self.origin_info.address, &nonce, &code_hash),
 			Err(e) => {
 				debug!(target: "ext", "Database corruption encountered: {:?}", e);
 				return ContractCreateResult::Failed
@@ -167,14 +169,16 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			gas_price: self.origin_info.gas_price,
 			value: ActionValue::Transfer(*value),
 			code: Some(Arc::new(code.to_vec())),
-			code_hash: code.sha3(),
+			code_hash: code_hash,
 			data: None,
 			call_type: CallType::None,
 		};
 
-		if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
-			debug!(target: "ext", "Database corruption encountered: {:?}", e);
-			return ContractCreateResult::Failed
+		if params.sender != UNSIGNED_SENDER {
+			if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
+				debug!(target: "ext", "Database corruption encountered: {:?}", e);
+				return ContractCreateResult::Failed
+			}
 		}
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.vm_factory, self.depth);
 
