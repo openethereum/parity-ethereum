@@ -119,14 +119,14 @@ export default class MethodDecodingStore {
    *        signature: String
    *      }
    */
-  lookup (address, transaction) {
+  lookup (currentAddress, transaction) {
     const result = {};
 
     if (!transaction) {
       return Promise.resolve(result);
     }
 
-    const isReceived = transaction.to === address;
+    const isReceived = transaction.to === currentAddress;
     const contractAddress = isReceived ? transaction.from : transaction.to;
     const input = transaction.input || transaction.data;
 

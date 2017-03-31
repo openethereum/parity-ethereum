@@ -59,11 +59,15 @@ export default class Input extends Component {
     autoFocus: PropTypes.bool,
     children: PropTypes.node,
     className: PropTypes.string,
+    defaultValue: PropTypes.string,
     disabled: PropTypes.bool,
     error: nodeOrStringProptype(),
+    escape: PropTypes.oneOf([
+      'default',
+      'initial'
+    ]),
     focused: PropTypes.bool,
     readOnly: PropTypes.bool,
-    floatCopy: PropTypes.bool,
     hint: nodeOrStringProptype(),
     hideUnderline: PropTypes.bool,
     label: nodeOrStringProptype(),
@@ -92,8 +96,8 @@ export default class Input extends Component {
 
   static defaultProps = {
     allowCopy: false,
+    escape: 'initial',
     hideUnderline: false,
-    floatCopy: false,
     onBlur: noop,
     onFocus: noop,
     onChange: noop,
@@ -124,8 +128,8 @@ export default class Input extends Component {
 
   render () {
     const { value } = this.state;
-    const { autoFocus, children, className, hideUnderline, disabled, error, focused, label } = this.props;
-    const { hint, onClick, multiLine, rows, type, min, max, step, style, tabIndex } = this.props;
+    const { autoFocus, children, className, defaultValue, hideUnderline, disabled, error } = this.props;
+    const { focused, label, hint, onClick, multiLine, rows, type, min, max, step, style, tabIndex } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 
@@ -159,6 +163,7 @@ export default class Input extends Component {
           autoComplete='off'
           autoFocus={ autoFocus }
           className={ className }
+          defaultValue={ defaultValue }
           errorText={ error }
           floatingLabelFixed
           floatingLabelText={ label }
@@ -275,14 +280,22 @@ export default class Input extends Component {
    * if we only want to revert to initial value
    */
   onKeyUp = (event) => {
+    const { escape } = this.props;
     const codeName = keycode(event);
 
-    if (codeName === 'esc' && !this.pressedEsc && this.intialValue !== undefined) {
+    if (codeName === 'esc' && !this.pressedEsc) {
       event.stopPropagation();
       event.preventDefault();
 
       this.pressedEsc = true;
-      this.onChange(event, this.intialValue);
+
+      if (escape === 'initial' && this.intialValue !== undefined) {
+        return this.onChange(event, this.intialValue);
+      }
+
+      if (escape === 'default' && this.props.defaultValue !== undefined) {
+        return this.onSubmit(this.props.defaultValue);
+      }
     } else if (this.pressedEsc) {
       this.pressedEsc = false;
     }

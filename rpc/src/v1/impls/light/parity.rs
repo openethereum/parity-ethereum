@@ -40,7 +40,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
-	AccountInfo, HwAccountInfo
+	AccountInfo, HwAccountInfo,
 };
 
 /// Parity implementation for light client.

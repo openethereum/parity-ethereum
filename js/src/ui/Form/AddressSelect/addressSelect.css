@@ -56,10 +56,25 @@
   }
 }
 
-.inputAddress {
-  position: relative;
+.copy {
+  margin-right: 0.5em;
+}
 
-  &:hover, *:hover {
+.inputAddressContainer {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  position: relative;
+}
+
+.inputAddress {
+  flex: 1;
+
+  &:focus {
+    outline: none;
+  }
+
+  > *:hover {
     cursor: text !important;
   }
 }
@@ -67,10 +82,6 @@
 .main {
   position: relative;
   left: 0;
-
-  &:focus {
-    outline: none;
-  }
 }
 
 .title {

@@ -57,12 +57,13 @@ fn miner_service() -> Arc<TestMinerService> {
 fn signer_tester() -> SignerTester {
 	let signer = Arc::new(SignerService::new_test(None));
 	let accounts = accounts_provider();
+	let opt_accounts = Some(accounts.clone());
 	let client = blockchain_client();
 	let miner = miner_service();
 
 	let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
 	let mut io = IoHandler::default();
-	io.extend_with(SignerClient::new(&accounts, dispatcher, &signer).to_delegate());
+	io.extend_with(SignerClient::new(&opt_accounts, dispatcher, &signer).to_delegate());
 
 	SignerTester {
 		signer: signer,

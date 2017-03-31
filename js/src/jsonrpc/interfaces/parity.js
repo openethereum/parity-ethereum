@@ -1519,7 +1519,7 @@ export default {
       {
         type: String,
         desc: 'The url of the content.',
-        example: 'https://raw.githubusercontent.com/ethcore/parity/master/README.md'
+        example: 'https://raw.githubusercontent.com/paritytech/parity/master/README.md'
       }
     ],
     returns: {

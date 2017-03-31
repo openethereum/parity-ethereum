@@ -6,7 +6,7 @@ Code generator to simplify creating a built-in Parity Dapp
 1. Clone this repository.
 
    ```bash
-   $ git clone https://github.com/ethcore/parity.git
+   $ git clone https://github.com/paritytech/parity.git
    ```
 
 1. Create a new directory for your Dapp. (`./myapp`)
@@ -29,10 +29,10 @@ Code generator to simplify creating a built-in Parity Dapp
 
    The `inject.js` script will create global `web3` instance with proper provider that should be used by your dapp.
 
-1. Create `./parity/dapps/myapp/Cargo.toml` with you apps details. See example here: [parity-status Cargo.toml](https://github.com/ethcore/parity-ui/blob/master/status/Cargo.toml).
+1. Create `./parity/dapps/myapp/Cargo.toml` with you apps details. See example here: [parity-status Cargo.toml](https://github.com/paritytech/parity-ui/blob/master/status/Cargo.toml).
 
    ```bash
-   $ git clone https://github.com/ethcore/parity-ui.git
+   $ git clone https://github.com/paritytech/parity-ui.git
    $ cd ./parity-ui/
    $ cp ./home/Cargo.toml ../parity/dapps/myapp/Cargo.toml
    $ cp ./home/build.rs ../parity/dapps/myapp/build.rs

@@ -14,9 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { createAction } from 'redux-actions';
-
-import { identity } from '../util';
-import { withError } from '~/redux/util';
-
-export const copyToClipboard = createAction('copy toClipboard', identity, withError(identity));
+export LocalAccountsMiddleware from './middleware';

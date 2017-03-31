@@ -14,10 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { createAction } from 'redux-actions';
+import Accounts from './accounts';
 
-export const error = createAction('error');
-export const updateDevLogs = createAction('update devLogs');
-export const removeDevLogs = createAction('remove devLogs');
-export const updateDevLogging = createAction('update devLogging');
-export const updateDevLogsLevels = createAction('update devLogsLevels');
+const accounts = new Accounts();
+
+export default accounts;
