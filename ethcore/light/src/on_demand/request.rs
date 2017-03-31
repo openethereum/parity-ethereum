@@ -61,9 +61,9 @@ impl From<Box<TrieError>> for Error {
 	}
 }
 
-/// Request for a header by number.
+/// Request for header proof by number
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HeaderByNumber {
+pub struct HeaderProof {
 	/// The header's number.
 	num: u64,
 	/// The cht number for the given block number.
@@ -72,11 +72,11 @@ pub struct HeaderByNumber {
 	cht_root: H256,
 }
 
-impl HeaderByNumber {
+impl HeaderProof {
 	/// Construct a new header-by-number request. Fails if the given number is 0.
 	/// Provide the expected CHT root to compare against.
 	pub fn new(num: u64, cht_root: H256) -> Option<Self> {
-		::cht::block_to_cht_number(num).map(|cht_num| HeaderByNumber {
+		::cht::block_to_cht_number(num).map(|cht_num| HeaderProof {
 			num: num,
 			cht_num: cht_num,
 			cht_root: cht_root,
@@ -92,18 +92,11 @@ impl HeaderByNumber {
 	/// Access the expected CHT root.
 	pub fn cht_root(&self) -> H256 { self.cht_root }
 
-	/// Check a response with a header and cht proof.
-	pub fn check_response(&self, header: &[u8], proof: &[Bytes]) -> Result<(encoded::Header, U256), Error> {
-		let (expected_hash, td) = match ::cht::check_proof(proof, self.num, self.cht_root) {
-			Some((expected_hash, td)) => (expected_hash, td),
-			None => return Err(Error::BadProof),
-		};
-
-		// and compare the hash to the found header.
-		let found_hash = header.sha3();
-		match expected_hash == found_hash {
-			true => Ok((encoded::Header::new(header.to_vec()), td)),
-			false => Err(Error::WrongHash(expected_hash, found_hash)),
+	/// Check a response with a CHT proof, get a hash and total difficulty back.
+	pub fn check_response(&self, proof: &[Bytes]) -> Result<(H256, U256), Error> {
+		match ::cht::check_proof(proof, self.num, self.cht_root) {
+			Some((expected_hash, td)) => Ok((expected_hash, td)),
+			None => Err(Error::BadProof),
 		}
 	}
 }
@@ -114,10 +107,10 @@ pub struct HeaderByHash(pub H256);
 
 impl HeaderByHash {
 	/// Check a response for the header.
-	pub fn check_response(&self, header: &[u8]) -> Result<encoded::Header, Error> {
+	pub fn check_response(&self, header: &encoded::Header) -> Result<encoded::Header, Error> {
 		let hash = header.sha3();
 		match hash == self.0 {
-			true => Ok(encoded::Header::new(header.to_vec())),
+			true => Ok(header.clone()),
 			false => Err(Error::WrongHash(self.0, hash)),
 		}
 	}
@@ -143,16 +136,14 @@ impl Body {
 	}
 
 	/// Check a response for this block body.
-	pub fn check_response(&self, body: &[u8]) -> Result<encoded::Block, Error> {
-		let body_view = UntrustedRlp::new(&body);
-
+	pub fn check_response(&self, body: &encoded::Body) -> Result<encoded::Block, Error> {
 		// check the integrity of the the body against the header
-		let tx_root = ::util::triehash::ordered_trie_root(body_view.at(0)?.iter().map(|r| r.as_raw().to_vec()));
+		let tx_root = ::util::triehash::ordered_trie_root(body.rlp().at(0).iter().map(|r| r.as_raw().to_vec()));
 		if tx_root != self.header.transactions_root() {
 			return Err(Error::WrongTrieRoot(self.header.transactions_root(), tx_root));
 		}
 
-		let uncles_hash = body_view.at(1)?.as_raw().sha3();
+		let uncles_hash = body.rlp().at(1).as_raw().sha3();
 		if uncles_hash != self.header.uncles_hash() {
 			return Err(Error::WrongHash(self.header.uncles_hash(), uncles_hash));
 		}
@@ -160,7 +151,7 @@ impl Body {
 		// concatenate the header and the body.
 		let mut stream = RlpStream::new_list(3);
 		stream.append_raw(self.header.rlp().as_raw(), 1);
-		stream.append_raw(body, 2);
+		stream.append_raw(&body.rlp().as_raw(), 2);
 
 		Ok(encoded::Block::new(stream.out()))
 	}
@@ -194,7 +185,7 @@ pub struct Account {
 
 impl Account {
 	/// Check a response with an account against the stored header.
-	pub fn check_response(&self, proof: &[Bytes]) -> Result<BasicAccount, Error> {
+	pub fn check_response(&self, proof: &[Bytes]) -> Result<Option<BasicAccount>, Error> {
 		let state_root = self.header.state_root();
 
 		let mut db = MemoryDB::new();
@@ -203,14 +194,14 @@ impl Account {
 		match TrieDB::new(&db, &state_root).and_then(|t| t.get(&self.address.sha3()))? {
 			Some(val) => {
 				let rlp = UntrustedRlp::new(&val);
-				Ok(BasicAccount {
+				Ok(Some(BasicAccount {
 					nonce: rlp.val_at(0)?,
 					balance: rlp.val_at(1)?,
 					storage_root: rlp.val_at(2)?,
 					code_hash: rlp.val_at(3)?,
-				})
+				}))
 			},
-			None => Err(Error::BadProof)
+			None => Ok(None),
 		}
 	}
 }
@@ -219,8 +210,6 @@ impl Account {
 pub struct Code {
 	/// Block hash, number pair.
 	pub block_id: (H256, u64),
-	/// Address requested.
-	pub address: Address,
 	/// Account's code hash.
 	pub code_hash: H256,
 }
@@ -278,11 +267,11 @@ mod tests {
 
 	#[test]
 	fn no_invalid_header_by_number() {
-		assert!(HeaderByNumber::new(0, Default::default()).is_none())
+		assert!(HeaderProof::new(0, Default::default()).is_none())
 	}
 
 	#[test]
-	fn check_header_by_number() {
+	fn check_header_proof() {
 		use ::cht;
 
 		let test_client = TestBlockChainClient::new();
@@ -303,11 +292,9 @@ mod tests {
 		};
 
 		let proof = cht.prove(10_000, 0).unwrap().unwrap();
-		let req = HeaderByNumber::new(10_000, cht.root()).unwrap();
+		let req = HeaderProof::new(10_000, cht.root()).unwrap();
 
-		let raw_header = test_client.block_header(::ethcore::ids::BlockId::Number(10_000)).unwrap();
-
-		assert!(req.check_response(&raw_header.into_inner(), &proof[..]).is_ok());
+		assert!(req.check_response(&proof[..]).is_ok());
 	}
 
 	#[test]
@@ -316,9 +303,9 @@ mod tests {
 		header.set_number(10_000);
 		header.set_extra_data(b"test_header".to_vec());
 		let hash = header.hash();
-		let raw_header = ::rlp::encode(&header);
+		let raw_header = encoded::Header::new(::rlp::encode(&header).to_vec());
 
-		assert!(HeaderByHash(hash).check_response(&*raw_header).is_ok())
+		assert!(HeaderByHash(hash).check_response(&raw_header).is_ok())
 	}
 
 	#[test]
@@ -334,7 +321,8 @@ mod tests {
 			hash: header.hash(),
 		};
 
-		assert!(req.check_response(&*body_stream.drain()).is_ok())
+		let response = encoded::Body::new(body_stream.drain().to_vec());
+		assert!(req.check_response(&response).is_ok())
 	}
 
 	#[test]
@@ -412,7 +400,6 @@ mod tests {
 		let code = vec![1u8; 256];
 		let req = Code {
 			block_id: (Default::default(), 2),
-			address: Default::default(),
 			code_hash: ::util::Hashable::sha3(&code),
 		};
 

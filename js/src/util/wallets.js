@@ -222,7 +222,8 @@ export default class WalletsUtils {
             }
 
             return owners;
-          });
+          })
+          .then((owners) => uniq(owners));
       });
   }
 

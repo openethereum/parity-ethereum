@@ -14,24 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { noop } from 'lodash';
 import { observable, computed, action, transaction } from 'mobx';
 import BigNumber from 'bignumber.js';
 
 import { validateUint, validateAddress } from '~/util/validation';
 import { DEFAULT_GAS, MAX_GAS_ESTIMATION } from '~/util/constants';
-import { ERROR_CODES } from '~/api/transport/error';
 
 const STEPS = {
   EDIT: { title: 'wallet settings' },
-  CONFIRMATION: { title: 'confirmation' },
-  SENDING: { title: 'sending transaction', waiting: true }
+  CONFIRMATION: { title: 'confirmation' }
 };
 
 export default class WalletSettingsStore {
   accounts = {};
+  onClose = noop;
 
-  @observable deployState = '';
-  @observable done = false;
   @observable fromString = false;
   @observable requests = [];
   @observable step = null;
@@ -71,13 +69,6 @@ export default class WalletSettingsStore {
           key
         };
       });
-  }
-
-  @computed get waiting () {
-    this.steps
-      .map((s, idx) => ({ idx, waiting: s.waiting }))
-      .filter((s) => s.waiting)
-      .map((s) => s.idx);
   }
 
   @action
@@ -203,7 +194,7 @@ export default class WalletSettingsStore {
     });
   }
 
-  constructor (api, wallet) {
+  constructor (api, { onClose, wallet }) {
     this.api = api;
     this.step = this.stepsKeys[0];
 
@@ -223,6 +214,8 @@ export default class WalletSettingsStore {
 
       this.validateWallet(this.wallet);
     });
+
+    this.onClose = onClose;
   }
 
   @action onNext = () => {
@@ -267,40 +260,8 @@ export default class WalletSettingsStore {
     const changes = this.changes;
     const walletInstance = this.walletInstance;
 
-    this.step = 'SENDING';
-
-    this.onTransactionsState('postTransaction');
-    Promise
-      .all(changes.map((change) => this.sendChange(change, walletInstance)))
-      .then((requestIds) => {
-        this.onTransactionsState('checkRequest');
-        this.requests = requestIds.map((id) => ({ id, rejected: false, txhash: null }));
-
-        return Promise
-          .all(requestIds.map((id) => {
-            return this.api
-              .pollMethod('parity_checkRequest', id)
-              .then((txhash) => {
-                const index = this.requests.findIndex((r) => r.id === id);
-
-                this.requests[index].txhash = txhash;
-              })
-              .catch((e) => {
-                if (e.code === ERROR_CODES.REQUEST_REJECTED) {
-                  const index = this.requests.findIndex((r) => r.id === id);
-
-                  this.requests[index].rejected = true;
-                  return false;
-                }
-
-                throw e;
-              });
-          }));
-      })
-      .then(() => {
-        this.done = true;
-        this.onTransactionsState('completed');
-      });
+    Promise.all(changes.map((change) => this.sendChange(change, walletInstance)));
+    this.onClose();
   }
 
   @action sendChange = (change, walletInstance) => {
@@ -353,23 +314,6 @@ export default class WalletSettingsStore {
         method: walletInstance.removeOwner,
         values: [ change.value ]
       };
-    }
-  }
-
-  @action onTransactionsState = (state) => {
-    switch (state) {
-      case 'estimateGas':
-      case 'postTransaction':
-        this.deployState = 'Preparing transaction for network transmission';
-        return;
-
-      case 'checkRequest':
-        this.deployState = 'Waiting for confirmation of the transaction in the Parity Secure Signer';
-        return;
-
-      case 'completed':
-        this.deployState = '';
-        return;
     }
   }
 

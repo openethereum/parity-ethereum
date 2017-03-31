@@ -28,6 +28,7 @@ use io::IoChannel;
 use light::client::Client as LightClient;
 use light::net::{LightProtocol, IoContext, Capabilities, Params as LightParams};
 use light::net::request_credits::FlowParams;
+use light::provider::LightProvider;
 use network::{NodeId, PeerId};
 use util::RwLock;
 
@@ -71,7 +72,7 @@ enum PeerData {
 }
 
 // test peer type.
-// Either a full peer or a LES peer.
+// Either a full peer or a light peer.
 pub struct Peer {
 	proto: LightProtocol,
 	queue: RwLock<VecDeque<TestPacket>>,
@@ -115,7 +116,8 @@ impl Peer {
 			},
 		};
 
-		let mut proto = LightProtocol::new(chain.clone(), params);
+		let provider = LightProvider::new(chain.clone(), Arc::new(RwLock::new(Default::default())));
+		let mut proto = LightProtocol::new(Arc::new(provider), params);
 		proto.add_handler(sync.clone());
 		Peer {
 			proto: proto,

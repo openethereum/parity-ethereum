@@ -2,12 +2,12 @@
 
 [![Build Status][travis-image]][travis-url]
 
-[travis-image]: https://travis-ci.org/ethcore/ethkey.svg?branch=master
-[travis-url]: https://travis-ci.org/ethcore/ethkey
+[travis-image]: https://travis-ci.org/paritytech/ethkey.svg?branch=master
+[travis-url]: https://travis-ci.org/paritytech/ethkey
 
 Ethereum keys generator.
 
-[Documentation](http://ethcore.github.io/ethkey/ethkey/index.html)
+[Documentation](http://paritytech.github.io/ethkey/ethkey/index.html)
 
 ### Usage
 
@@ -60,7 +60,7 @@ address: 26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5
 
 --
 
-#### `generate brain <seed>` 
+#### `generate brain <seed>`
 *Generate new brain-wallet keypair using 16384 iterations.*
 
 - `<seed>` - brain-wallet seed, any string
@@ -163,6 +163,6 @@ true
 # Ethcore toolchain
 *this project is a part of the ethcore toolchain*
 
-- [**ethkey**](https://github.com/ethcore/ethkey) - Ethereum keys generator and signer.
-- [**ethstore**](https://github.com/ethcore/ethstore) - Ethereum key management.
-- [**ethabi**](https://github.com/ethcore/ethabi) - Ethereum function calls encoding.
+- [**ethkey**](https://github.com/paritytech/ethkey) - Ethereum keys generator and signer.
+- [**ethstore**](https://github.com/paritytech/ethstore) - Ethereum key management.
+- [**ethabi**](https://github.com/paritytech/ethabi) - Ethereum function calls encoding.

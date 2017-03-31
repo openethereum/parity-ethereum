@@ -118,7 +118,7 @@ pub struct Dependencies {
 	pub snapshot: Arc<SnapshotService>,
 	pub sync: Arc<SyncProvider>,
 	pub net: Arc<ManageNetwork>,
-	pub secret_store: Arc<AccountProvider>,
+	pub secret_store: Option<Arc<AccountProvider>>,
 	pub miner: Arc<Miner>,
 	pub external_miner: Arc<ExternalMiner>,
 	pub logger: Arc<RotatingLogger>,

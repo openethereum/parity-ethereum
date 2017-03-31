@@ -16,6 +16,25 @@
 
 import WalletsUtils from '~/util/wallets';
 
+export function trackRequest (api, options, statusCallback) {
+  const { requestId, transactionHash } = options;
+  const txHashPromise = transactionHash
+    ? Promise.resolve(transactionHash)
+    : api.pollMethod('parity_checkRequest', requestId);
+
+  return txHashPromise
+    .then((transactionHash) => {
+      statusCallback(null, { transactionHash });
+      return api.pollMethod('eth_getTransactionReceipt', transactionHash, isValidReceipt);
+    })
+    .then((transactionReceipt) => {
+      statusCallback(null, { transactionReceipt });
+    })
+    .catch((error) => {
+      statusCallback(error);
+    });
+}
+
 const isValidReceipt = (receipt) => {
   return receipt && receipt.blockNumber && receipt.blockNumber.gt(0);
 };
@@ -73,100 +92,6 @@ export function postTransaction (_func, _options, _values = []) {
     });
 }
 
-export function deploy (contract, _options, values, metadata = {}, statecb = () => {}, skipGasEstimate = false) {
-  const options = { ..._options };
-  const { api } = contract;
-  const address = options.from;
-
-  return WalletsUtils
-    .isWallet(api, address)
-    .then((isWallet) => {
-      if (!isWallet) {
-        return contract.deploy(options, values, statecb, skipGasEstimate);
-      }
-
-      let gasEstPromise;
-
-      if (skipGasEstimate) {
-        gasEstPromise = Promise.resolve(null);
-      } else {
-        statecb(null, { state: 'estimateGas' });
-
-        gasEstPromise = deployEstimateGas(contract, options, values)
-          .then(([gasEst, gas]) => gas);
-      }
-
-      return gasEstPromise
-        .then((gas) => {
-          if (gas) {
-            options.gas = gas.toFixed(0);
-          }
-
-          statecb(null, { state: 'postTransaction', gas: options.gas });
-
-          return WalletsUtils.getDeployArgs(contract, options, values);
-        })
-        .then((callArgs) => {
-          const { func, options, values } = callArgs;
-
-          return func._postTransaction(options, values)
-            .then((requestId) => {
-              statecb(null, { state: 'checkRequest', requestId });
-              return contract._pollCheckRequest(requestId);
-            })
-            .then((txhash) => {
-              statecb(null, { state: 'getTransactionReceipt', txhash });
-              return contract._pollTransactionReceipt(txhash, options.gas);
-            })
-            .then((receipt) => {
-              if (receipt.gasUsed.eq(options.gas)) {
-                throw new Error(`Contract not deployed, gasUsed == ${options.gas.toFixed(0)}`);
-              }
-
-              const logs = WalletsUtils.parseLogs(api, receipt.logs || []);
-
-              const confirmationLog = logs.find((log) => log.event === 'ConfirmationNeeded');
-              const transactionLog = logs.find((log) => log.event === 'SingleTransact');
-
-              if (!confirmationLog && !transactionLog) {
-                throw new Error('Something went wrong in the Wallet Contract (no logs have been emitted)...');
-              }
-
-              // Confirmations are needed from the other owners
-              if (confirmationLog) {
-                const operationHash = api.util.bytesToHex(confirmationLog.params.operation.value);
-
-                // Add the contract to pending contracts
-                WalletsUtils.addPendingContract(address, operationHash, metadata);
-                statecb(null, { state: 'confirmationNeeded' });
-                return;
-              }
-
-              // Set the contract address in the receip
-              receipt.contractAddress = transactionLog.params.created.value;
-
-              const contractAddress = receipt.contractAddress;
-
-              statecb(null, { state: 'hasReceipt', receipt });
-              contract._receipt = receipt;
-              contract._address = contractAddress;
-
-              statecb(null, { state: 'getCode' });
-
-              return api.eth.getCode(contractAddress)
-                .then((code) => {
-                  if (code === '0x') {
-                    throw new Error('Contract not deployed, getCode returned 0x');
-                  }
-
-                  statecb(null, { state: 'completed' });
-                  return contractAddress;
-                });
-            });
-        });
-    });
-}
-
 export function deployEstimateGas (contract, _options, values) {
   const options = { ..._options };
   const { api } = contract;
@@ -189,6 +114,86 @@ export function deployEstimateGas (contract, _options, values) {
         .then((gasEst) => {
           return [gasEst, gasEst.mul(1.05)];
         });
+    });
+}
+
+export function deploy (contract, options, values, skipGasEstimate = false) {
+  const { api } = contract;
+  const address = options.from;
+
+  const gasEstPromise = skipGasEstimate
+    ? Promise.resolve(null)
+    : deployEstimateGas(contract, options, values).then(([gasEst, gas]) => gas);
+
+  return gasEstPromise
+    .then((gas) => {
+      if (gas) {
+        options.gas = gas.toFixed(0);
+      }
+
+      return WalletsUtils.isWallet(api, address);
+    })
+    .then((isWallet) => {
+      if (!isWallet) {
+        const encodedOptions = contract._encodeOptions(contract.constructors[0], options, values);
+
+        return api.parity.postTransaction(encodedOptions);
+      }
+
+      return WalletsUtils.getDeployArgs(contract, options, values)
+        .then((callArgs) => {
+          const { func, options, values } = callArgs;
+
+          return func._postTransaction(options, values);
+        });
+    });
+}
+
+export function parseTransactionReceipt (api, options, receipt) {
+  const { metadata } = options;
+  const address = options.from;
+
+  if (receipt.gasUsed.eq(options.gas)) {
+    const error = new Error(`Contract not deployed, gasUsed == ${options.gas.toFixed(0)}`);
+
+    return Promise.reject(error);
+  }
+
+  const logs = WalletsUtils.parseLogs(api, receipt.logs || []);
+
+  const confirmationLog = logs.find((log) => log.event === 'ConfirmationNeeded');
+  const transactionLog = logs.find((log) => log.event === 'SingleTransact');
+
+  if (!confirmationLog && !transactionLog && !receipt.contractAddress) {
+    const error = new Error('Something went wrong in the contract deployment...');
+
+    return Promise.reject(error);
+  }
+
+  // Confirmations are needed from the other owners
+  if (confirmationLog) {
+    const operationHash = api.util.bytesToHex(confirmationLog.params.operation.value);
+
+    // Add the contract to pending contracts
+    WalletsUtils.addPendingContract(address, operationHash, metadata);
+    return Promise.resolve(null);
+  }
+
+  if (transactionLog) {
+    // Set the contract address in the receipt
+    receipt.contractAddress = transactionLog.params.created.value;
+  }
+
+  const contractAddress = receipt.contractAddress;
+
+  return api.eth
+    .getCode(contractAddress)
+    .then((code) => {
+      if (code === '0x') {
+        throw new Error('Contract not deployed, getCode returned 0x');
+      }
+
+      return contractAddress;
     });
 }
 

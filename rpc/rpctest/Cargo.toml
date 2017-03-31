@@ -6,8 +6,8 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
-docopt = "0.6"
+ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
+docopt = "0.7"
 rustc-serialize = "0.3"
 ethcore = { path = "../../ethcore" }
 ethcore-devtools = { path = "../../devtools" }

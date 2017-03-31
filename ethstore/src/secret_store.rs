@@ -18,7 +18,7 @@ use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use ethkey::{Address, Message, Signature, Secret, Public};
 use Error;
-use json::Uuid;
+use json::{Uuid, OpaqueKeyFile};
 use util::H256;
 
 /// Key directory reference
@@ -39,16 +39,28 @@ pub struct StoreAccountRef {
 	pub address: Address,
 }
 
+/// Simple Secret Store API
 pub trait SimpleSecretStore: Send + Sync {
+	/// Inserts new accounts to the store (or vault) with given password.
 	fn insert_account(&self, vault: SecretVaultRef, secret: Secret, password: &str) -> Result<StoreAccountRef, Error>;
+	/// Inserts new derived account to the store (or vault) with given password.
 	fn insert_derived(&self, vault: SecretVaultRef, account_ref: &StoreAccountRef, password: &str, derivation: Derivation) -> Result<StoreAccountRef, Error>;
+	/// Changes accounts password.
 	fn change_password(&self, account: &StoreAccountRef, old_password: &str, new_password: &str) -> Result<(), Error>;
+	/// Exports key details for account.
+	fn export_account(&self, account: &StoreAccountRef, password: &str) -> Result<OpaqueKeyFile, Error>;
+	/// Entirely removes account from the store and underlying storage.
 	fn remove_account(&self, account: &StoreAccountRef, password: &str) -> Result<(), Error>;
+	/// Generates new derived account.
 	fn generate_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation) -> Result<Address, Error>;
+	/// Sign a message with given account.
 	fn sign(&self, account: &StoreAccountRef, password: &str, message: &Message) -> Result<Signature, Error>;
+	/// Sign a message with derived account.
 	fn sign_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation, message: &Message) -> Result<Signature, Error>;
+	/// Decrypt a messages with given account.
 	fn decrypt(&self, account: &StoreAccountRef, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error>;
 
+	/// Returns all accounts in this secret store.
 	fn accounts(&self) -> Result<Vec<StoreAccountRef>, Error>;
 	/// Get reference to some account with given address.
 	/// This method could be removed if we will guarantee that there is max(1) account for given address.
@@ -74,23 +86,37 @@ pub trait SimpleSecretStore: Send + Sync {
 	fn set_vault_meta(&self, name: &str, meta: &str) -> Result<(), Error>;
 }
 
+/// Secret Store API
 pub trait SecretStore: SimpleSecretStore {
+	/// Imports presale wallet
 	fn import_presale(&self, vault: SecretVaultRef, json: &[u8], password: &str) -> Result<StoreAccountRef, Error>;
+	/// Imports existing JSON wallet
 	fn import_wallet(&self, vault: SecretVaultRef, json: &[u8], password: &str) -> Result<StoreAccountRef, Error>;
+	/// Copies account between stores and vaults.
 	fn copy_account(&self, new_store: &SimpleSecretStore, new_vault: SecretVaultRef, account: &StoreAccountRef, password: &str, new_password: &str) -> Result<(), Error>;
+	/// Checks if password matches given account.
 	fn test_password(&self, account: &StoreAccountRef, password: &str) -> Result<bool, Error>;
 
+	/// Returns a public key for given account.
 	fn public(&self, account: &StoreAccountRef, password: &str) -> Result<Public, Error>;
 
+	/// Returns uuid of an account.
 	fn uuid(&self, account: &StoreAccountRef) -> Result<Uuid, Error>;
+	/// Returns account's name.
 	fn name(&self, account: &StoreAccountRef) -> Result<String, Error>;
+	/// Returns account's metadata.
 	fn meta(&self, account: &StoreAccountRef) -> Result<String, Error>;
 
+	/// Modifies account metadata.
 	fn set_name(&self, account: &StoreAccountRef, name: String) -> Result<(), Error>;
+	/// Modifies account name.
 	fn set_meta(&self, account: &StoreAccountRef, meta: String) -> Result<(), Error>;
 
+	/// Returns local path of the store.
 	fn local_path(&self) -> PathBuf;
+	/// Lists all found geth accounts.
 	fn list_geth_accounts(&self, testnet: bool) -> Vec<Address>;
+	/// Imports geth accounts to the store/vault.
 	fn import_geth_accounts(&self, vault: SecretVaultRef, desired: Vec<Address>, testnet: bool) -> Result<Vec<StoreAccountRef>, Error>;
 }
 

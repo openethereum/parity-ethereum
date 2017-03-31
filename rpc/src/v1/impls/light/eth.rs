@@ -105,15 +105,22 @@ impl EthClient {
 				match cht_root {
 					None => return future::ok(None).boxed(),
 					Some(root) => {
-						let req = request::HeaderByNumber::new(n, root)
+						let req = request::HeaderProof::new(n, root)
 							.expect("only fails for 0; client always stores genesis; client already queried; qed");
 
-						self.sync.with_context(|ctx|
-							self.on_demand.header_by_number(ctx, req)
-								.map(Some)
-								.map_err(err_premature_cancel)
-								.boxed()
-						)
+						let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
+						self.sync.with_context(|ctx| {
+							let fut = self.on_demand.hash_by_number(ctx, req)
+								.map(request::HeaderByHash)
+								.map_err(err_premature_cancel);
+
+							fut.and_then(move |req| {
+								match sync.with_context(|ctx| on_demand.header_by_hash(ctx, req)) {
+									Some(fut) => fut.map_err(err_premature_cancel).boxed(),
+									None => future::err(errors::network_disabled()).boxed(),
+								}
+							}).map(Some).boxed()
+						})
 					}
 				}
 			}
@@ -149,7 +156,7 @@ impl EthClient {
 			sync.with_context(|ctx| on_demand.account(ctx, request::Account {
 				header: header,
 				address: address,
-			}).map(Some))
+			}))
 				.map(|x| x.map_err(err_premature_cancel).boxed())
 				.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
 		}).boxed()

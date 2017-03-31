@@ -16,9 +16,10 @@
 
 use std::collections::HashSet;
 use ethkey::Address;
-use dir::{GethDirectory, KeyDirectory, DirectoryType};
+use dir::{paths, KeyDirectory, RootDiskDirectory};
 use Error;
 
+/// Import all accounts from one directory to the other.
 pub fn import_accounts(src: &KeyDirectory, dst: &KeyDirectory) -> Result<Vec<Address>, Error> {
 	let accounts = src.load()?;
 	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
@@ -34,27 +35,15 @@ pub fn import_accounts(src: &KeyDirectory, dst: &KeyDirectory) -> Result<Vec<Add
 
 /// Provide a `HashSet` of all accounts available for import from the Geth keystore.
 pub fn read_geth_accounts(testnet: bool) -> Vec<Address> {
-	let t = if testnet {
-		DirectoryType::Testnet
-	} else {
-		DirectoryType::Main
-	};
-
-	GethDirectory::open(t)
+	RootDiskDirectory::at(paths::geth(testnet))
 		.load()
 		.map(|d| d.into_iter().map(|a| a.address).collect())
 		.unwrap_or_else(|_| Vec::new())
 }
 
-/// Import specific `desired` accounts from the Geth keystore into `dst`. 
+/// Import specific `desired` accounts from the Geth keystore into `dst`.
 pub fn import_geth_accounts(dst: &KeyDirectory, desired: HashSet<Address>, testnet: bool) -> Result<Vec<Address>, Error> {
-	let t = if testnet {
-		DirectoryType::Testnet
-	} else {
-		DirectoryType::Main
-	};
-
-	let src = GethDirectory::open(t);
+	let src = RootDiskDirectory::at(paths::geth(testnet));
 	let accounts = src.load()?;
 	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
 
