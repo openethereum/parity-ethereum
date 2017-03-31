@@ -15,9 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import QRcodeReact from 'qr-code-react';
 import { FormattedMessage } from 'react-intl';
 
-import { Balance, Certifications, Container, CopyToClipboard, ContainerTitle, IdentityIcon, IdentityName, QrCode, Tags, VaultTag } from '~/ui';
+import { Balance, Certifications, Container, CopyToClipboard, ContainerTitle, IdentityIcon, IdentityName, Tags, VaultTag } from '~/ui';
 
 import styles from './header.css';
 
@@ -52,9 +53,15 @@ export default class Header extends Component {
     return (
       <div className={ className }>
         <Container>
-          <QrCode
+          <QRcodeReact
             className={ styles.qrcode }
             value={ address }
+            margin={ 2 }
+            size={ 5 }
+            codeType={ 4 }
+            errorLevel={ "M" }
+            color={ "#000000" }
+            bgColor={ "#FFFFFF" }
           />
           <IdentityIcon
             address={ address }
