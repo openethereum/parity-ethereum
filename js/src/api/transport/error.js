@@ -17,6 +17,7 @@
 import ExtendableError from 'es6-error';
 
 export const ERROR_CODES = {
+  NO_TRANSPORT: -31999,
   UNSUPPORTED_REQUEST: -32000,
   NO_WORK: -32001,
   NO_AUTHOR: -32002,

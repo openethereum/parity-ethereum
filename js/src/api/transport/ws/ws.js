@@ -18,7 +18,7 @@ import { keccak_256 } from 'js-sha3'; // eslint-disable-line camelcase
 
 import { Logging } from '../../subscriptions';
 import JsonRpcBase from '../jsonRpcBase';
-import TransportError from '../error';
+import TransportError, { ERROR_CODES } from '../error';
 
 /* global WebSocket */
 export default class Ws extends JsonRpcBase {
@@ -131,10 +131,6 @@ export default class Ws extends JsonRpcBase {
     this._connecting = false;
     this._retries = 0;
 
-    Object.keys(this._messages)
-      .filter((id) => this._messages[id].queued)
-      .forEach(this._send);
-
     this._connectPromiseFunctions.resolve();
 
     this._connectPromise = null;
@@ -230,18 +226,21 @@ export default class Ws extends JsonRpcBase {
   }
 
   _send = (id) => {
-    const message = this._messages[id];
+    const { json, method, reject } = this._messages[id];
 
-    if (this._connected) {
-      if (process.env.NODE_ENV === 'development') {
-        this._count++;
-      }
+    if (!this._connected) {
+      const error = new TransportError(method, ERROR_CODES.NO_TRANSPORT, 'Not connected to Parity');
 
-      return this._ws.send(message.json);
+      delete this._messages[id];
+
+      return reject(error);
     }
 
-    message.queued = !this._connected;
-    message.timestamp = Date.now();
+    if (process.env.NODE_ENV === 'development') {
+      this._count++;
+    }
+
+    return this._ws.send(json);
   }
 
   _execute (method, params) {
