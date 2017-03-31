@@ -18,7 +18,7 @@
 
 use hashdb::HashDB;
 use nibbleslice::NibbleSlice;
-use rlp::{Rlp, View};
+use rlp::Rlp;
 use ::{H256};
 
 use super::{TrieError, Query};

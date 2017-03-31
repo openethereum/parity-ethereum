@@ -158,14 +158,16 @@ pub const SNAPSHOT_SYNC_PACKET_COUNT: u8 = 0x16;
 
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
+const MIN_SUPPORTED_SNAPSHOT_MANIFEST_VERSION: u64 = 1;
+
 const WAIT_PEERS_TIMEOUT_SEC: u64 = 5;
 const STATUS_TIMEOUT_SEC: u64 = 5;
 const HEADERS_TIMEOUT_SEC: u64 = 15;
 const BODIES_TIMEOUT_SEC: u64 = 10;
 const RECEIPTS_TIMEOUT_SEC: u64 = 10;
 const FORK_HEADER_TIMEOUT_SEC: u64 = 3;
-const SNAPSHOT_MANIFEST_TIMEOUT_SEC: u64 = 3;
-const SNAPSHOT_DATA_TIMEOUT_SEC: u64 = 60;
+const SNAPSHOT_MANIFEST_TIMEOUT_SEC: u64 = 5;
+const SNAPSHOT_DATA_TIMEOUT_SEC: u64 = 120;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Sync state
@@ -463,12 +465,7 @@ impl ChainSync {
 	/// Reset sync. Clear all downloaded data but keep the queue
 	fn reset(&mut self, io: &mut SyncIo) {
 		self.new_blocks.reset();
-		self.snapshot.clear();
 		let chain_info = io.chain().chain_info();
-		if self.state == SyncState::SnapshotData {
-			debug!(target:"sync", "Aborting snapshot restore");
-			io.snapshot_service().abort_restore();
-		}
 		for (_, ref mut p) in &mut self.peers {
 			if p.block_set != Some(BlockSet::OldBlocks) {
 				p.reset_asking();
@@ -487,6 +484,11 @@ impl ChainSync {
 	/// Restart sync
 	pub fn reset_and_continue(&mut self, io: &mut SyncIo) {
 		trace!(target: "sync", "Restarting");
+		if self.state == SyncState::SnapshotData {
+			debug!(target:"sync", "Aborting snapshot restore");
+			io.snapshot_service().abort_restore();
+		}
+		self.snapshot.clear();
 		self.reset(io);
 		self.continue_sync(io);
 	}
@@ -499,7 +501,7 @@ impl ChainSync {
 	}
 
 	fn maybe_start_snapshot_sync(&mut self, io: &mut SyncIo) {
-		if self.state != SyncState::WaitingPeers {
+		if self.state != SyncState::WaitingPeers && self.state != SyncState::Blocks && self.state != SyncState::Waiting {
 			return;
 		}
 		// Make sure the snapshot block is not too far away from best block and network best block and
@@ -531,7 +533,7 @@ impl ChainSync {
 			(best_hash, max_peers, snapshot_peers)
 		};
 
-		let timeout = self.sync_start_time.map_or(false, |t| ((time::precise_time_ns() - t) / 1_000_000_000) > WAIT_PEERS_TIMEOUT_SEC);
+		let timeout = (self.state == SyncState::WaitingPeers) && self.sync_start_time.map_or(false, |t| ((time::precise_time_ns() - t) / 1_000_000_000) > WAIT_PEERS_TIMEOUT_SEC);
 
 		if let (Some(hash), Some(peers)) = (best_hash, best_hash.map_or(None, |h| snapshot_peers.get(&h))) {
 			if max_peers >= SNAPSHOT_MIN_PEERS {
@@ -549,13 +551,18 @@ impl ChainSync {
 	}
 
 	fn start_snapshot_sync(&mut self, io: &mut SyncIo, peers: &[PeerId]) {
-		self.snapshot.clear();
-		for p in peers {
-			if self.peers.get(p).map_or(false, |p| p.asking == PeerAsking::Nothing) {
-				self.request_snapshot_manifest(io, *p);
+		if !self.snapshot.have_manifest() {
+			for p in peers {
+				if self.peers.get(p).map_or(false, |p| p.asking == PeerAsking::Nothing) {
+					self.request_snapshot_manifest(io, *p);
+				}
 			}
+			self.state = SyncState::SnapshotManifest;
+			trace!(target: "sync", "New snapshot sync with {:?}", peers);
+		} else {
+			self.state = SyncState::SnapshotData;
+			trace!(target: "sync", "Resumed snapshot sync with {:?}", peers);
 		}
-		self.state = SyncState::SnapshotManifest;
 	}
 
 	/// Restart sync disregarding the block queue status. May end up re-downloading up to QUEUE_SIZE blocks
@@ -659,7 +666,7 @@ impl ChainSync {
 		let confirmed = match self.peers.get_mut(&peer_id) {
 			Some(ref mut peer) if peer.asking == PeerAsking::ForkHeader => {
 				peer.asking = PeerAsking::Nothing;
-				let item_count = r.item_count();
+				let item_count = r.item_count()?;
 				let (fork_number, fork_hash) = self.fork_block.expect("ForkHeader request is sent only fork block is Some; qed").clone();
 				if item_count == 0 || item_count != 1 {
 					trace!(target: "sync", "{}: Chain is too short to confirm the block", peer_id);
@@ -696,7 +703,7 @@ impl ChainSync {
 			self.continue_sync(io);
 			return Ok(());
 		}
-		let item_count = r.item_count();
+		let item_count = r.item_count()?;
 		trace!(target: "sync", "{} -> BlockHeaders ({} entries), state = {:?}, set = {:?}", peer_id, item_count, self.state, block_set);
 		if (self.state == SyncState::Idle || self.state == SyncState::WaitingPeers) && self.old_blocks.is_none() {
 			trace!(target: "sync", "Ignored unexpected block headers");
@@ -764,7 +771,7 @@ impl ChainSync {
 			self.continue_sync(io);
 			return Ok(());
 		}
-		let item_count = r.item_count();
+		let item_count = r.item_count()?;
 		trace!(target: "sync", "{} -> BlockBodies ({} entries), set = {:?}", peer_id, item_count, block_set);
 		if item_count == 0 {
 			self.deactivate_peer(io, peer_id);
@@ -818,7 +825,7 @@ impl ChainSync {
 			self.continue_sync(io);
 			return Ok(());
 		}
-		let item_count = r.item_count();
+		let item_count = r.item_count()?;
 		trace!(target: "sync", "{} -> BlockReceipts ({} entries)", peer_id, item_count);
 		if item_count == 0 {
 			self.deactivate_peer(io, peer_id);
@@ -954,7 +961,7 @@ impl ChainSync {
 			self.continue_sync(io);
 			return Ok(());
 		}
-		trace!(target: "sync", "{} -> NewHashes ({} entries)", peer_id, r.item_count());
+		trace!(target: "sync", "{} -> NewHashes ({} entries)", peer_id, r.item_count()?);
 		let mut max_height: BlockNumber = 0;
 		let mut new_hashes = Vec::new();
 		let last_imported_number = self.new_blocks.last_imported_block_number();
@@ -1023,12 +1030,18 @@ impl ChainSync {
 		let manifest = match ManifestData::from_rlp(manifest_rlp.as_raw()) {
 			Err(e) => {
 				trace!(target: "sync", "{}: Ignored bad manifest: {:?}", peer_id, e);
-				io.disconnect_peer(peer_id);
+				io.disable_peer(peer_id);
 				self.continue_sync(io);
 				return Ok(());
 			}
 			Ok(manifest) => manifest,
 		};
+		if manifest.version < MIN_SUPPORTED_SNAPSHOT_MANIFEST_VERSION {
+			trace!(target: "sync", "{}: Snapshot manifest version too low: {}", peer_id, manifest.version);
+			io.disable_peer(peer_id);
+			self.continue_sync(io);
+			return Ok(());
+		}
 		self.snapshot.reset_to(&manifest, &manifest_rlp.as_raw().sha3());
 		io.snapshot_service().begin_restore(manifest);
 		self.state = SyncState::SnapshotData;
@@ -1439,7 +1452,7 @@ impl ChainSync {
 			trace!(target: "sync", "{} Ignoring transactions from unconfirmed/unknown peer", peer_id);
 		}
 
-		let mut item_count = r.item_count();
+		let mut item_count = r.item_count()?;
 		trace!(target: "sync", "{:02} -> Transactions ({} entries)", peer_id, item_count);
 		item_count = min(item_count, MAX_TX_TO_IMPORT);
 		let mut transactions = Vec::with_capacity(item_count);
@@ -1557,7 +1570,7 @@ impl ChainSync {
 
 	/// Respond to GetBlockBodies request
 	fn return_block_bodies(io: &SyncIo, r: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
-		let mut count = r.item_count();
+		let mut count = r.item_count().unwrap_or(0);
 		if count == 0 {
 			debug!(target: "sync", "Empty GetBlockBodies request, ignoring.");
 			return Ok(None);
@@ -1579,7 +1592,7 @@ impl ChainSync {
 
 	/// Respond to GetNodeData request
 	fn return_node_data(io: &SyncIo, r: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
-		let mut count = r.item_count();
+		let mut count = r.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetNodeData: {} entries", peer_id, count);
 		if count == 0 {
 			debug!(target: "sync", "Empty GetNodeData request, ignoring.");
@@ -1603,7 +1616,7 @@ impl ChainSync {
 	}
 
 	fn return_receipts(io: &SyncIo, rlp: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
-		let mut count = rlp.item_count();
+		let mut count = rlp.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetReceipts: {} entries", peer_id, count);
 		if count == 0 {
 			debug!(target: "sync", "Empty GetReceipts request, ignoring.");
@@ -1628,7 +1641,7 @@ impl ChainSync {
 
 	/// Respond to GetSnapshotManifest request
 	fn return_snapshot_manifest(io: &SyncIo, r: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
-		let count = r.item_count();
+		let count = r.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetSnapshotManifest", peer_id);
 		if count != 0 {
 			debug!(target: "sync", "Invalid GetSnapshotManifest request, ignoring.");
@@ -2177,7 +2190,7 @@ mod tests {
 	use util::sha3::Hashable;
 	use util::hash::H256;
 	use util::bytes::Bytes;
-	use rlp::{Rlp, RlpStream, UntrustedRlp, View};
+	use rlp::{Rlp, RlpStream, UntrustedRlp};
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
@@ -2746,7 +2759,7 @@ mod tests {
 				}
 
 				let rlp = UntrustedRlp::new(&*p.data);
-				let item_count = rlp.item_count();
+				let item_count = rlp.item_count().unwrap_or(0);
 				if item_count != 1 {
 					return None;
 				}

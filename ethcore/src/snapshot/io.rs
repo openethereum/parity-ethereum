@@ -27,9 +27,11 @@ use std::path::{Path, PathBuf};
 
 use util::Bytes;
 use util::hash::H256;
-use rlp::{self, Encodable, RlpStream, UntrustedRlp, View};
+use rlp::{self, Encodable, RlpStream, UntrustedRlp};
 
 use super::ManifestData;
+
+const SNAPSHOT_VERSION: u64 = 2;
 
 /// Something which can write snapshots.
 /// Writing the same chunk multiple times will lead to implementation-defined
@@ -57,12 +59,10 @@ impl Encodable for ChunkInfo {
 }
 
 impl rlp::Decodable for ChunkInfo {
-	fn decode<D: rlp::Decoder>(decoder: &D) -> Result<Self, rlp::DecoderError> {
-		let d = decoder.as_rlp();
-
-		let hash = d.val_at(0)?;
-		let len = d.val_at(1)?;
-		let off = d.val_at(2)?;
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, rlp::DecoderError> {
+		let hash = rlp.val_at(0)?;
+		let len = rlp.val_at(1)?;
+		let off = rlp.val_at(2)?;
 		Ok(ChunkInfo(hash, len, off))
 	}
 }
@@ -120,8 +120,9 @@ impl SnapshotWriter for PackedWriter {
 	fn finish(mut self, manifest: ManifestData) -> io::Result<()> {
 		// we ignore the hashes fields of the manifest under the assumption that
 		// they are consistent with ours.
-		let mut stream = RlpStream::new_list(5);
+		let mut stream = RlpStream::new_list(6);
 		stream
+			.append(&SNAPSHOT_VERSION)
 			.append_list(&self.state_hashes)
 			.append_list(&self.block_hashes)
 			.append(&manifest.state_root)
@@ -223,7 +224,7 @@ impl PackedReader {
 	/// Create a new `PackedReader` for the file at the given path.
 	/// This will fail if any io errors are encountered or the file
 	/// is not a valid packed snapshot.
-	pub fn new(path: &Path) -> Result<Option<Self>, ::error::Error> {
+	pub fn new(path: &Path) -> Result<Option<Self>, ::snapshot::error::Error> {
 		let mut file = File::open(path)?;
 		let file_len = file.metadata()?.len();
 		if file_len < 8 {
@@ -257,15 +258,26 @@ impl PackedReader {
 
 		let rlp = UntrustedRlp::new(&manifest_buf);
 
-		let state: Vec<ChunkInfo> = rlp.val_at(0)?;
-		let blocks: Vec<ChunkInfo> = rlp.val_at(1)?;
+		let (start, version) = if rlp.item_count()? == 5 {
+			(0, 1)
+		} else {
+			(1, rlp.val_at(0)?)
+		};
+
+		if version > SNAPSHOT_VERSION {
+			return Err(::snapshot::error::Error::VersionNotSupported(version));
+		}
+
+		let state: Vec<ChunkInfo> = rlp.list_at(0 + start)?;
+		let blocks: Vec<ChunkInfo> = rlp.list_at(1 + start)?;
 
 		let manifest = ManifestData {
+			version: version,
 			state_hashes: state.iter().map(|c| c.0).collect(),
 			block_hashes: blocks.iter().map(|c| c.0).collect(),
-			state_root: rlp.val_at(2)?,
-			block_number: rlp.val_at(3)?,
-			block_hash: rlp.val_at(4)?,
+			state_root: rlp.val_at(2 + start)?,
+			block_number: rlp.val_at(3 + start)?,
+			block_hash: rlp.val_at(4 + start)?,
 		};
 
 		Ok(Some(PackedReader {
@@ -348,7 +360,7 @@ mod tests {
 	use util::sha3::Hashable;
 
 	use snapshot::ManifestData;
-	use super::{SnapshotWriter, SnapshotReader, PackedWriter, PackedReader, LooseWriter, LooseReader};
+	use super::{SnapshotWriter, SnapshotReader, PackedWriter, PackedReader, LooseWriter, LooseReader, SNAPSHOT_VERSION};
 
 	const STATE_CHUNKS: &'static [&'static [u8]] = &[b"dog", b"cat", b"hello world", b"hi", b"notarealchunk"];
 	const BLOCK_CHUNKS: &'static [&'static [u8]] = &[b"hello!", b"goodbye!", b"abcdefg", b"hijklmnop", b"qrstuvwxy", b"and", b"z"];
@@ -374,6 +386,7 @@ mod tests {
 		}
 
 		let manifest = ManifestData {
+			version: SNAPSHOT_VERSION,
 			state_hashes: state_hashes,
 			block_hashes: block_hashes,
 			state_root: b"notarealroot".sha3(),
@@ -412,6 +425,7 @@ mod tests {
 		}
 
 		let manifest = ManifestData {
+			version: SNAPSHOT_VERSION,
 			state_hashes: state_hashes,
 			block_hashes: block_hashes,
 			state_root: b"notarealroot".sha3(),

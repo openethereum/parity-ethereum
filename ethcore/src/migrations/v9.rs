@@ -17,7 +17,7 @@
 
 //! This migration consolidates all databases into single one using Column Families.
 
-use rlp::{Rlp, RlpStream, View};
+use rlp::{Rlp, RlpStream};
 use util::kvdb::Database;
 use util::migration::{Batch, Config, Error, Migration, Progress};
 use std::sync::Arc;

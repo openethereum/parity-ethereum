@@ -7,9 +7,9 @@ authors = ["Parity Technologies <admin@parity.io>"]
 rand = "0.3.14"
 lazy_static = "0.2"
 tiny-keccak = "1.0"
-eth-secp256k1 = { git = "https://github.com/ethcore/rust-secp256k1" }
+eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
 rustc-serialize = "0.3"
-docopt = { version = "0.6", optional = true }
+docopt = { version = "0.7", optional = true }
 ethcore-bigint = { path = "../util/bigint" }
 rust-crypto = "0.2"
 byteorder = "1.0"

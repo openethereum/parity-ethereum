@@ -26,7 +26,7 @@ use engines::Engine;
 use error::{BlockError, Error};
 use blockchain::*;
 use header::{BlockNumber, Header};
-use rlp::{UntrustedRlp, View};
+use rlp::UntrustedRlp;
 use transaction::SignedTransaction;
 use views::BlockView;
 use time::get_time;
@@ -101,7 +101,7 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 	verify_parent(&header, &parent)?;
 	engine.verify_block_family(&header, &parent, Some(bytes))?;
 
-	let num_uncles = UntrustedRlp::new(bytes).at(2)?.item_count();
+	let num_uncles = UntrustedRlp::new(bytes).at(2)?.item_count()?;
 	if num_uncles != 0 {
 		if num_uncles > engine.maximum_uncle_count() {
 			return Err(From::from(BlockError::TooManyUncles(OutOfBounds { min: None, max: Some(engine.maximum_uncle_count()), found: num_uncles })));
@@ -178,7 +178,7 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 }
 
 /// Phase 4 verification. Check block information against transaction enactment results,
-pub fn verify_block_final(expected: &Header, got: &Header, check_receipts: bool) -> Result<(), Error> {
+pub fn verify_block_final(expected: &Header, got: &Header, check_receipts: u64) -> Result<(), Error> {
 	if expected.gas_used() != got.gas_used() {
 		return Err(From::from(BlockError::InvalidGasUsed(Mismatch { expected: expected.gas_used().clone(), found: got.gas_used().clone() })))
 	}
@@ -188,7 +188,7 @@ pub fn verify_block_final(expected: &Header, got: &Header, check_receipts: bool)
 	if expected.state_root() != got.state_root() {
 		return Err(From::from(BlockError::InvalidStateRoot(Mismatch { expected: expected.state_root().clone(), found: got.state_root().clone() })))
 	}
-	if check_receipts && expected.receipts_root() != got.receipts_root() {
+	if got.number() >= check_receipts && expected.receipts_root() != got.receipts_root() {
 		return Err(From::from(BlockError::InvalidReceiptsRoot(Mismatch { expected: expected.receipts_root().clone(), found: got.receipts_root().clone() })))
 	}
 	Ok(())
@@ -264,7 +264,6 @@ mod tests {
 	use transaction::*;
 	use tests::helpers::*;
 	use types::log_entry::{LogEntry, LocalizedLogEntry};
-	use rlp::View;
 	use time::get_time;
 	use encoded;
 

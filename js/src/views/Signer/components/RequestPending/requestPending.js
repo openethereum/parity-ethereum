@@ -36,7 +36,7 @@ export default class RequestPending extends Component {
       PropTypes.shape({ sign: PropTypes.object.isRequired }),
       PropTypes.shape({ signTransaction: PropTypes.object.isRequired })
     ]).isRequired,
-    signerstore: PropTypes.object.isRequired
+    signerStore: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -45,7 +45,7 @@ export default class RequestPending extends Component {
   };
 
   render () {
-    const { className, date, focus, gasLimit, id, isSending, netVersion, onReject, payload, signerstore, origin } = this.props;
+    const { className, date, focus, gasLimit, id, isSending, netVersion, onReject, payload, signerStore, origin } = this.props;
 
     if (payload.sign) {
       const { sign } = payload;
@@ -63,7 +63,7 @@ export default class RequestPending extends Component {
           onConfirm={ this.onConfirm }
           onReject={ onReject }
           origin={ origin }
-          signerstore={ signerstore }
+          signerStore={ signerStore }
         />
       );
     }
@@ -83,7 +83,7 @@ export default class RequestPending extends Component {
           onConfirm={ this.onConfirm }
           onReject={ onReject }
           origin={ origin }
-          signerstore={ signerstore }
+          signerStore={ signerStore }
           transaction={ transaction }
         />
       );

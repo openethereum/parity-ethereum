@@ -61,17 +61,13 @@ mod untrusted_rlp;
 mod stream;
 mod compression;
 mod common;
-mod bytes;
 mod impls;
-
-#[cfg(test)]
-mod tests;
 
 use std::borrow::Borrow;
 use elastic_array::ElasticArray1024;
 
 pub use error::DecoderError;
-pub use traits::{Decoder, Decodable, View, Encodable, RlpDecodable, Compressible};
+pub use traits::{Decodable, Encodable, Compressible};
 pub use untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
 pub use rlpin::{Rlp, RlpIterator};
 pub use stream::RlpStream;
@@ -88,14 +84,19 @@ pub const EMPTY_LIST_RLP: [u8; 1] = [0xC0; 1];
 /// extern crate rlp;
 ///
 /// fn main () {
-/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
-/// 	let animals: Vec<String> = rlp::decode(&data);
-/// 	assert_eq!(animals, vec!["cat".to_string(), "dog".to_string()]);
+/// 	let data = vec![0x83, b'c', b'a', b't'];
+/// 	let animal: String = rlp::decode(&data);
+/// 	assert_eq!(animal, "cat".to_owned());
 /// }
 /// ```
-pub fn decode<T>(bytes: &[u8]) -> T where T: RlpDecodable {
+pub fn decode<T>(bytes: &[u8]) -> T where T: Decodable {
 	let rlp = Rlp::new(bytes);
 	rlp.as_val()
+}
+
+pub fn decode_list<T>(bytes: &[u8]) -> Vec<T> where T: Decodable {
+	let rlp = Rlp::new(bytes);
+	rlp.as_list()
 }
 
 /// Shortcut function to encode structure into rlp.

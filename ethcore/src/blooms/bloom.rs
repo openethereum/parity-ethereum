@@ -44,8 +44,8 @@ impl Into<bc::Bloom> for Bloom {
 }
 
 impl Decodable for Bloom {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		Decodable::decode(decoder).map(Bloom)
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		LogBloom::decode(rlp).map(Bloom)
 	}
 }
 

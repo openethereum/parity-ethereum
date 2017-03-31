@@ -14,19 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Accounts Directory
+
 use std::path::{PathBuf};
 use {SafeAccount, Error};
 
 mod disk;
-mod geth;
 mod memory;
-mod parity;
 mod vault;
-
-pub enum DirectoryType {
-	Testnet,
-	Main,
-}
+pub mod paths;
 
 /// `VaultKeyDirectory::set_key` error
 #[derive(Debug)]
@@ -54,7 +50,7 @@ pub trait KeyDirectory: Send + Sync {
 	fn load(&self) -> Result<Vec<SafeAccount>, Error>;
 	/// Insert new key to directory
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error>;
-	//// Update key in directory
+	/// Update key in the directory
 	fn update(&self, account: SafeAccount) -> Result<SafeAccount, Error>;
 	/// Remove key from directory
 	fn remove(&self, account: &SafeAccount) -> Result<(), Error>;
@@ -95,9 +91,7 @@ pub trait VaultKeyDirectory: KeyDirectory {
 }
 
 pub use self::disk::RootDiskDirectory;
-pub use self::geth::GethDirectory;
 pub use self::memory::MemoryDirectory;
-pub use self::parity::ParityDirectory;
 pub use self::vault::VaultDiskDirectory;
 
 impl VaultKey {
