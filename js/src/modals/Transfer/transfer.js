@@ -290,7 +290,7 @@ function mapStateToProps (initState, initProps) {
 
   return (state) => {
     const { gasLimit } = state.nodeStatus;
-    const { balances } = state.balances;
+    const { balances } = state;
 
     const balance = balances[address];
     const sendersBalances = senders ? pick(balances, Object.keys(senders)) : null;

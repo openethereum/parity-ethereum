@@ -21,6 +21,7 @@ import { bindActionCreators } from 'redux';
 
 import { Container, SectionList } from '~/ui';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
+import { ETH_TOKEN } from '~/util/tokens';
 
 import Summary from '../Summary';
 import styles from './list.css';
@@ -158,8 +159,8 @@ class List extends Component {
         return 1;
       }
 
-      const ethA = balanceA.tokens.find(token => token.token.tag.toLowerCase() === 'eth');
-      const ethB = balanceB.tokens.find(token => token.token.tag.toLowerCase() === 'eth');
+      const ethA = balanceA[ETH_TOKEN.id];
+      const ethB = balanceB[ETH_TOKEN.id];
 
       if (!ethA && !ethB) {
         return 0;
@@ -169,7 +170,7 @@ class List extends Component {
         return 1;
       }
 
-      return -1 * ethA.value.comparedTo(ethB.value);
+      return -1 * ethA.comparedTo(ethB);
     }
 
     if (key === 'tags') {
@@ -257,7 +258,7 @@ class List extends Component {
 
 function mapStateToProps (state, props) {
   const addresses = Object.keys(props.accounts);
-  const balances = pick(state.balances.balances, addresses);
+  const balances = pick(state.balances, addresses);
   const { certifications } = state;
 
   return { balances, certifications };

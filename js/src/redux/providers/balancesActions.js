@@ -26,6 +26,15 @@ const TRANSFER_SIGNATURE = sha3('Transfer(address,address,uint256)');
 
 const log = getLogger(LOG_KEYS.Balances);
 
+let tokensFilter = {};
+
+function _setBalances (balances) {
+  return {
+    type: 'setBalances',
+    balances
+  };
+}
+
 /**
  * @param {Object}  _balances         - In the shape:
  *   {
@@ -35,53 +44,34 @@ const log = getLogger(LOG_KEYS.Balances);
  */
 function setBalances (updates, skipNotifications = false) {
   return (dispatch, getState) => {
-    const state = getState();
-    const tokens = Object.values(state.tokens);
+    const { tokens, balances } = getState();
 
-    const prevBalances = state.balances.balances;
+    const prevBalances = balances;
     const nextBalances = { ...prevBalances };
 
-    Object.keys(updates).forEach((who) => {
-      const accountUpdates = updates[who];
+    Object.keys(updates)
+      .forEach((who) => {
+        const accountUpdates = updates[who];
 
-      const prevAccountTokens = (prevBalances[who] || {}).tokens || [];
-      const nextAccountTokens = prevAccountTokens.slice();
+        Object.keys(accountUpdates)
+          .forEach((tokenId) => {
+            const token = tokens[tokenId];
+            const prevTokenValue = (prevBalances[who] || {})[tokenId];
+            const nextTokenValue = accountUpdates[tokenId];
 
-      const prevAccountBalancesTokenIds = prevAccountTokens.map((tok) => tok.token.id);
-      const nextAccountBalancesTokenIds = Object.keys(accountUpdates);
+            if (prevTokenValue && prevTokenValue.lt(nextTokenValue)) {
+              dispatch(notifyBalanceChange(who, prevTokenValue, nextTokenValue, token));
+            }
 
-      const existingTokens = nextAccountBalancesTokenIds.filter((id) => prevAccountBalancesTokenIds.includes(id));
-      const newTokens = nextAccountBalancesTokenIds.filter((id) => !prevAccountBalancesTokenIds.includes(id));
-
-      existingTokens.forEach((tokenId) => {
-        const token = tokens.find((token) => token.id === tokenId);
-        const tokenIndex = nextAccountTokens.findIndex((tok) => tok.token.id === tokenId);
-        const prevValue = nextAccountTokens[tokenIndex].value;
-        const nextValue = accountUpdates[tokenId];
-
-        // If received a token/eth (old value < new value), notify
-        if (prevValue.lt(nextValue) && !skipNotifications) {
-          dispatch(notifyBalanceChange(who, prevValue, nextValue, token));
-        }
-
-        nextAccountTokens[tokenIndex].value = nextValue;
+            // Add the token if it's native ETH or if it has a value
+            if (token.native || nextTokenValue.gt(0)) {
+              nextBalances[who] = {
+                ...(nextBalances[who] || {}),
+                [tokenId]: nextTokenValue
+              };
+            }
+          });
       });
-
-      newTokens.forEach((tokenId) => {
-        const token = tokens.find((tok) => tok.id.toString() === tokenId.toString());
-        const value = accountUpdates[tokenId];
-
-        // Add the token if it's native ETH or if it has a value
-        if (token.native || value.gt(0)) {
-          nextAccountTokens.push({ token, value });
-        }
-      });
-
-      nextBalances[who] = {
-        ...(nextBalances[who] || {}),
-        tokens: nextAccountTokens
-      };
-    });
 
     return dispatch(_setBalances(nextBalances));
   };
@@ -109,20 +99,6 @@ function notifyBalanceChange (who, fromValue, toValue, token) {
   };
 }
 
-function _setBalances (balances) {
-  return {
-    type: 'setBalances',
-    balances
-  };
-}
-
-export function setTokensFilter (tokensFilter) {
-  return {
-    type: 'setTokensFilter',
-    tokensFilter
-  };
-}
-
 // TODO: fetch txCount when needed
 export function fetchBalances (_addresses, skipNotifications = false) {
   return fetchTokensBalances(_addresses, [ ETH_TOKEN ], skipNotifications);
@@ -130,14 +106,13 @@ export function fetchBalances (_addresses, skipNotifications = false) {
 
 export function updateTokensFilter (_addresses, _tokens, options = {}) {
   return (dispatch, getState) => {
-    const { api, balances, personal, tokens } = getState();
+    const { api, personal, tokens } = getState();
     const { visibleAccounts, accounts } = personal;
-    const { tokensFilter } = balances;
 
     const addressesToFetch = uniq(visibleAccounts.concat(Object.keys(accounts)));
     const addresses = uniq(_addresses || addressesToFetch || []).sort();
 
-    const tokensToUpdate = _tokens || Object.values(tokens) || [];
+    const tokensToUpdate = _tokens || Object.values(tokens);
     const tokenAddresses = tokensToUpdate
       .map((t) => t.address)
       .filter((address) => address)
@@ -174,19 +149,19 @@ export function updateTokensFilter (_addresses, _tokens, options = {}) {
     const topicsFrom = [ TRANSFER_SIGNATURE, addresses, null ];
     const topicsTo = [ TRANSFER_SIGNATURE, null, addresses ];
 
-    const options = {
+    const filterOptions = {
       fromBlock: 0,
       toBlock: 'pending',
       address: tokenAddresses
     };
 
     const optionsFrom = {
-      ...options,
+      ...filterOptions,
       topics: topicsFrom
     };
 
     const optionsTo = {
-      ...options,
+      ...filterOptions,
       topics: topicsTo
     };
 
@@ -205,7 +180,7 @@ export function updateTokensFilter (_addresses, _tokens, options = {}) {
 
         const { skipNotifications } = options;
 
-        dispatch(setTokensFilter(nextTokensFilter));
+        tokensFilter = nextTokensFilter;
         fetchTokensBalances(addresses, tokensToUpdate, skipNotifications)(dispatch, getState);
       })
       .catch((error) => {
@@ -214,7 +189,7 @@ export function updateTokensFilter (_addresses, _tokens, options = {}) {
   };
 }
 
-export function queryTokensFilter (tokensFilter) {
+export function queryTokensFilter () {
   return (dispatch, getState) => {
     const { api, personal, tokens } = getState();
     const { visibleAccounts, accounts } = personal;

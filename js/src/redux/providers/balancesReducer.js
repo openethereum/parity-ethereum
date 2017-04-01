@@ -16,21 +16,12 @@
 
 import { handleActions } from 'redux-actions';
 
-const initialState = {
-  balances: {},
-  tokensFilter: {}
-};
+const initialState = {};
 
 export default handleActions({
   setBalances (state, action) {
     const { balances } = action;
 
-    return Object.assign({}, state, { balances });
-  },
-
-  setTokensFilter (state, action) {
-    const { tokensFilter } = action;
-
-    return Object.assign({}, state, { tokensFilter });
+    return Object.assign({}, state, balances);
   }
 }, initialState);

@@ -31,6 +31,7 @@ class Balance extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
     balance: PropTypes.object.isRequired,
+    tokens: PropTypes.object.isRequired,
     className: PropTypes.string,
     showOnlyEth: PropTypes.bool,
     showZeroValues: PropTypes.bool
@@ -43,22 +44,24 @@ class Balance extends Component {
 
   render () {
     const { api } = this.context;
-    const { balance, className, showOnlyEth } = this.props;
+    const { balance, className, showOnlyEth, tokens } = this.props;
 
-    if (!balance.tokens) {
+    if (Object.keys(balance).length === 0) {
       return null;
     }
 
-    let body = balance.tokens
-      .filter((balance) => {
-        const isEthToken = (balance.token.tag || '').toLowerCase() === 'eth';
-        const hasBalance = new BigNumber(balance.value).gt(0);
+    let body = Object.keys(balance)
+      .map((tokenId) => {
+        const token = tokens[tokenId];
+        const balanceValue = balance[tokenId];
 
-        return hasBalance || isEthToken;
-      })
-      .map((balance, index) => {
-        const isFullToken = !showOnlyEth || (balance.token.tag || '').toLowerCase() === 'eth';
-        const token = balance.token;
+        const isEthToken = token.native;
+        const isFullToken = !showOnlyEth || isEthToken;
+        const hasBalance = balanceValue.gt(0);
+
+        if (!hasBalance && !isEthToken) {
+          return null;
+        }
 
         let value;
 
@@ -75,9 +78,9 @@ class Balance extends Component {
             decimals = 1;
           }
 
-          value = new BigNumber(balance.value).div(bnf).toFormat(decimals);
+          value = new BigNumber(balanceValue).div(bnf).toFormat(decimals);
         } else {
-          value = api.util.fromWei(balance.value).toFormat(3);
+          value = api.util.fromWei(balanceValue).toFormat(3);
         }
 
         const classNames = [styles.balance];
@@ -106,13 +109,14 @@ class Balance extends Component {
         return (
           <div
             className={ classNames.join(' ') }
-            key={ `${index}_${token.tag}` }
+            key={ tokenId }
           >
             <TokenImage token={ token } />
             { details }
           </div>
         );
-      });
+      })
+      .filter((node) => node);
 
     if (!body.length) {
       body = (
@@ -144,11 +148,12 @@ class Balance extends Component {
 }
 
 function mapStateToProps (state, props) {
-  const { balances } = state.balances;
+  const { balances, tokens } = state;
   const { address } = props;
 
   return {
-    balance: balances[address] || props.balance || {}
+    balance: balances[address] || props.balance || {},
+    tokens
   };
 }
 

@@ -127,7 +127,7 @@ export default class TransferStore {
   }
 
   get token () {
-    return this.balance.tokens.find((balance) => balance.token.tag === this.tag).token;
+    return Object.values(this.tokens).find((token) => token.tag === this.tag);
   }
 
   @action onNext = () => {
@@ -331,7 +331,7 @@ export default class TransferStore {
     }
 
     const _tag = tag.toLowerCase();
-    const token = balance.tokens.find((b) => b.token.tag.toLowerCase() === _tag);
+    const token = Object.values(this.tokens).find((token) => token.tag.toLowerCase() === _tag);
 
     return token;
   }
