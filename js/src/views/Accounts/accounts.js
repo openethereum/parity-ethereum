@@ -207,7 +207,6 @@ class Accounts extends Component {
       <List
         search={ searchValues }
         accounts={ all }
-        balances={ balances }
         disabled={ disabled }
         order={ sortOrder }
         handleAddSearchToken={ this.onAddSearchToken }
