@@ -15,11 +15,13 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+@import '../_colors.css';
+
 .warning {
-  background: #f44;
+  background: $warning-bg;
   border-top-right-radius: 0.25em;
   bottom: 0;
-  color: #fff;
+  color: white;
   cursor: pointer;
   font-size: 0.75em;
   left: 0;

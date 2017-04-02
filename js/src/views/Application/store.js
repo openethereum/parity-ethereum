@@ -17,12 +17,20 @@
 import { action, observable } from 'mobx';
 import store from 'store';
 
+const OLD_LS_FIRST_RUN_KEY = 'showFirstRun';
+const LS_FIRST_RUN_KEY = '_parity::showFirstRun';
+
 export default class Store {
   @observable firstrunVisible = false;
 
   constructor (api) {
+    // Migrate the old key to the new one
+    this._migrateStore();
+
     this._api = api;
-    this.firstrunVisible = store.get('showFirstRun');
+    // Show the first run if it hasn't been shown before
+    // (thus an undefined value)
+    this.firstrunVisible = store.get(LS_FIRST_RUN_KEY) === undefined;
 
     this._checkAccounts();
   }
@@ -33,16 +41,41 @@ export default class Store {
 
   @action toggleFirstrun = (visible = false) => {
     this.firstrunVisible = visible;
-    store.set('showFirstRun', !!visible);
+
+    // There's no need to write to storage that the
+    // First Run should be visible
+    if (!visible) {
+      store.set(LS_FIRST_RUN_KEY, !!visible);
+    }
+  }
+
+  /**
+   * Migrate the old LocalStorage ket format
+   * to the new one
+   */
+  _migrateStore () {
+    const oldValue = store.get(OLD_LS_FIRST_RUN_KEY);
+    const newValue = store.get(LS_FIRST_RUN_KEY);
+
+    if (newValue === undefined && oldValue !== undefined) {
+      store.set(LS_FIRST_RUN_KEY, oldValue);
+      store.remove(OLD_LS_FIRST_RUN_KEY);
+    }
   }
 
   _checkAccounts () {
-    this._api.parity
-      .allAccountsInfo()
-      .then((info) => {
+    return Promise
+      .all([
+        this._api.parity.listVaults(),
+        this._api.parity.allAccountsInfo()
+      ])
+      .then(([ vaults, info ]) => {
         const accounts = Object.keys(info).filter((address) => info[address].uuid);
+        // Has accounts if any vaults or accounts
+        const hasAccounts = (accounts && accounts.length > 0) || (vaults && vaults.length > 0);
 
-        this.toggleFirstrun(this.firstrunVisible || !accounts || !accounts.length);
+        // Show First Run if no accounts and no vaults
+        this.toggleFirstrun(this.firstrunVisible || !hasAccounts);
       })
       .catch((error) => {
         console.error('checkAccounts', error);

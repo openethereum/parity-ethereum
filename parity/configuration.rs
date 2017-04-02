@@ -22,7 +22,7 @@ use std::cmp::max;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
-use util::log::Colour;
+use util::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::ethstore::ethkey::Secret;
 use ethcore::client::{VMType};
@@ -85,14 +85,16 @@ pub struct Execute {
 #[derive(Debug, PartialEq)]
 pub struct Configuration {
 	pub args: Args,
+	pub spec_name_override: Option<String>,
 }
 
 impl Configuration {
-	pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
+	pub fn parse<S: AsRef<str>>(command: &[S], spec_name_override: Option<String>) -> Result<Self, ArgsError> {
 		let args = Args::parse(command)?;
 
 		let config = Configuration {
 			args: args,
+			spec_name_override: spec_name_override,
 		};
 
 		Ok(config)
@@ -103,7 +105,11 @@ impl Configuration {
 		let pruning = self.args.flag_pruning.parse()?;
 		let pruning_history = self.args.flag_pruning_history;
 		let vm_type = self.vm_type()?;
-		let mode = match self.args.flag_mode.as_ref() { "last" => None, mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?), };
+		let spec = self.chain().parse()?;
+		let mode = match self.args.flag_mode.as_ref() {
+			"last" => None,
+			mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?),
+		};
 		let update_policy = self.update_policy()?;
 		let logger_config = self.logger_config();
 		let http_conf = self.http_config()?;
@@ -111,7 +117,6 @@ impl Configuration {
 		let net_conf = self.net_config()?;
 		let network_id = self.network_id();
 		let cache_config = self.cache_config();
-		let spec = self.chain().parse()?;
 		let tracing = self.args.flag_tracing.parse()?;
 		let fat_db = self.args.flag_fat_db.parse()?;
 		let compaction = self.args.flag_db_compaction.parse()?;
@@ -123,6 +128,7 @@ impl Configuration {
 			Some(true) if pruning == Pruning::Specific(Algorithm::Archive) => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because pruning mode is set to archive").expect("Error writing to stderr"),
 			_ => {},
 		};
+		let public_node = self.args.flag_public_node;
 		let warp_sync = !self.args.flag_no_warp && fat_db != Switch::On && tracing != Switch::On && pruning != Pruning::Specific(Algorithm::Archive);
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
@@ -355,6 +361,7 @@ impl Configuration {
 				wal: wal,
 				vm_type: vm_type,
 				warp_sync: warp_sync,
+				public_node: public_node,
 				geth_compatibility: geth_compatibility,
 				ui_address: ui_address,
 				net_settings: self.network_settings(),
@@ -437,7 +444,10 @@ impl Configuration {
 	}
 
 	fn chain(&self) -> String {
-		if self.args.flag_testnet {
+		if let Some(ref s) = self.spec_name_override {
+			s.clone()
+		}
+		else if self.args.flag_testnet {
 			"testnet".to_owned()
 		} else {
 			self.args.flag_chain.clone()
@@ -514,6 +524,7 @@ impl Configuration {
 			tx_queue_strategy: to_queue_strategy(&self.args.flag_tx_queue_strategy)?,
 			pending_set: to_pending_set(&self.args.flag_relay_set)?,
 			reseal_min_period: Duration::from_millis(reseal_min_period),
+			reseal_max_period: Duration::from_millis(self.args.flag_reseal_max_period),
 			work_queue_size: self.args.flag_work_queue_size,
 			enable_resubmission: !self.args.flag_remove_solved,
 			tx_queue_banning: match self.args.flag_tx_time_limit {
@@ -700,14 +711,26 @@ impl Configuration {
 	}
 
 	fn rpc_apis(&self) -> String {
-		let mut apis = self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone());
+		let mut apis: Vec<&str> = self.args.flag_rpcapi
+			.as_ref()
+			.unwrap_or(&self.args.flag_jsonrpc_apis)
+			.split(",")
+			.collect();
+
 		if self.args.flag_geth {
-			if !apis.is_empty() {
-				apis.push_str(",");
-			}
-			apis.push_str("personal");
+			apis.push("personal");
 		}
-		apis
+
+		if self.args.flag_public_node {
+			apis.retain(|api| {
+				match *api {
+					"eth" | "net" | "parity" | "rpc" | "web3" => true,
+					_ => false
+				}
+			});
+		}
+
+		apis.join(",")
 	}
 
 	fn cors(cors: Option<&String>) -> Option<Vec<String>> {
@@ -815,7 +838,7 @@ impl Configuration {
 	}
 
 	fn directories(&self) -> Directories {
-		use util::path;
+		use path;
 
 		let local_path = default_local_path();
 		let base_path = self.args.flag_base_path.as_ref().map_or_else(|| default_data_path(), |s| s.clone());
@@ -972,6 +995,7 @@ mod tests {
 	fn parse(args: &[&str]) -> Configuration {
 		Configuration {
 			args: Args::parse_without_config(args).unwrap(),
+			spec_name_override: None,
 		}
 	}
 
@@ -1157,6 +1181,7 @@ mod tests {
 			ipc_conf: Default::default(),
 			net_conf: default_network_config(),
 			network_id: None,
+			public_node: false,
 			warp_sync: true,
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
@@ -1429,7 +1454,7 @@ mod tests {
 		let filename = temp.as_str().to_owned() + "/peers";
 		File::create(filename.clone()).unwrap().write_all(b"  \n\t\n").unwrap();
 		let args = vec!["parity", "--reserved-peers", &filename];
-		let conf = Configuration::parse(&args).unwrap();
+		let conf = Configuration::parse(&args, None).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
 	}
 

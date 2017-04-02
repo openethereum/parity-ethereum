@@ -22,6 +22,7 @@ use ethkey::Address;
 use {SafeAccount, Error};
 use super::KeyDirectory;
 
+/// Accounts in-memory storage.
 #[derive(Default)]
 pub struct MemoryDirectory {
 	accounts: RwLock<HashMap<Address, Vec<SafeAccount>>>,
@@ -67,7 +68,7 @@ impl KeyDirectory for MemoryDirectory {
 	fn unique_repr(&self) -> Result<u64, Error> {
 		let mut val = 0u64;
 		let accounts = self.accounts.read();
-		for acc in accounts.keys() { val = val ^ ::util::FixedHash::low_u64(acc) }
+		for acc in accounts.keys() { val = val ^ acc.low_u64() }
 		Ok(val)
 	}
 }

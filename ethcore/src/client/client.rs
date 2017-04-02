@@ -25,7 +25,7 @@ use time::precise_time_ns;
 // util
 use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, MutexGuard, Hashable};
 use util::{journaldb, DBValue, TrieFactory, Trie};
-use util::{U256, H256, Address, H2048, Uint, FixedHash};
+use util::{U256, H256, Address, H2048, Uint};
 use util::trie::TrieSpec;
 use util::kvdb::*;
 
@@ -66,7 +66,7 @@ use evm::{Factory as EvmFactory, Schedule};
 use miner::{Miner, MinerService, TransactionImportResult};
 use snapshot::{self, io as snapshot_io};
 use factory::Factories;
-use rlp::{View, UntrustedRlp};
+use rlp::UntrustedRlp;
 use state_db::StateDB;
 use rand::OsRng;
 use client::registry::Registry;
@@ -151,8 +151,9 @@ pub struct Client {
 	factories: Factories,
 	history: u64,
 	rng: Mutex<OsRng>,
-	on_mode_change: Mutex<Option<Box<FnMut(&Mode) + 'static + Send>>>,
+	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
 	registrar: Mutex<Option<Registry>>,
+	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
 }
 
 impl Client {
@@ -240,8 +241,9 @@ impl Client {
 			factories: factories,
 			history: history,
 			rng: Mutex::new(OsRng::new().map_err(::util::UtilError::StdIo)?),
-			on_mode_change: Mutex::new(None),
+			on_user_defaults_change: Mutex::new(None),
 			registrar: Mutex::new(None),
+			exit_handler: Mutex::new(None),
 		});
 
 		{
@@ -276,6 +278,11 @@ impl Client {
 		self.notify.write().push(Arc::downgrade(&target));
 	}
 
+	/// Set a closure to call when we want to restart the client
+	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(bool, Option<String>) + 'static + Send {
+		*self.exit_handler.lock() = Some(Box::new(f));
+	}
+
 	/// Returns engine reference.
 	pub fn engine(&self) -> &Engine {
 		&*self.engine
@@ -294,9 +301,9 @@ impl Client {
 		self.registrar.lock()
 	}
 
-	/// Register an action to be done if a mode change happens.
-	pub fn on_mode_change<F>(&self, f: F) where F: 'static + FnMut(&Mode) + Send {
-		*self.on_mode_change.lock() = Some(Box::new(f));
+	/// Register an action to be done if a mode/spec_name change happens.
+	pub fn on_user_defaults_change<F>(&self, f: F) where F: 'static + FnMut(Option<Mode>) + Send {
+		*self.on_user_defaults_change.lock() = Some(Box::new(f));
 	}
 
 	/// Flush the block import queue.
@@ -381,10 +388,14 @@ impl Client {
 			let db = self.state_db.lock().boxed_clone_canon(header.parent_hash());
 
 			let enact_result = enact_verified(block, engine, self.tracedb.read().tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
-			let locked_block = enact_result.map_err(|e| {
+			let mut locked_block = enact_result.map_err(|e| {
 				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			})?;
 
+			if header.number() < self.engine().params().validate_receipts_transition && header.receipts_root() != locked_block.block().header().receipts_root() {
+				locked_block = locked_block.strip_receipts();
+			}
+	
 			// Final Verification
 			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
 				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
@@ -532,7 +543,7 @@ impl Client {
 			)?;
 
 			// Commit results
-			let receipts = ::rlp::decode(&receipts_bytes);
+			let receipts = ::rlp::decode_list(&receipts_bytes);
 			let mut batch = DBTransaction::new();
 			chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, false, true);
 			// Final commit to the DB
@@ -650,7 +661,6 @@ impl Client {
 	pub fn miner(&self) -> Arc<Miner> {
 		self.miner.clone()
 	}
-
 
 	/// Replace io channel. Useful for testing.
 	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
@@ -1030,15 +1040,31 @@ impl BlockChainClient for Client {
 			let mut mode = self.mode.lock();
 			*mode = new_mode.clone().into();
 			trace!(target: "mode", "Mode now {:?}", &*mode);
-			if let Some(ref mut f) = *self.on_mode_change.lock() {
+			if let Some(ref mut f) = *self.on_user_defaults_change.lock() {
 				trace!(target: "mode", "Making callback...");
-				f(&*mode)
+				f(Some((&*mode).clone()))
 			}
 		}
 		match new_mode {
 			IpcMode::Active => self.wake_up(),
 			IpcMode::Off => self.sleep(),
 			_ => {(*self.sleep_state.lock()).last_activity = Some(Instant::now()); }
+		}
+	}
+
+	fn spec_name(&self) -> String {
+		self.config.spec_name.clone()
+	}
+
+	fn set_spec_name(&self, new_spec_name: String) {
+		trace!(target: "mode", "Client::set_spec_name({:?})", new_spec_name);
+		if !self.enabled.load(AtomicOrdering::Relaxed) {
+			return;
+		}
+		if let Some(ref h) = *self.exit_handler.lock() {
+			(*h)(true, Some(new_spec_name));
+		} else {
+			warn!("Not hypervised; cannot change chain.");
 		}
 	}
 
@@ -1585,23 +1611,14 @@ impl MayPanic for Client {
 }
 
 impl ::client::ProvingBlockChainClient for Client {
-	fn prove_storage(&self, key1: H256, key2: H256, from_level: u32, id: BlockId) -> Vec<Bytes> {
+	fn prove_storage(&self, key1: H256, key2: H256, id: BlockId) -> Option<(Vec<Bytes>, H256)> {
 		self.state_at(id)
-			.and_then(move |state| state.prove_storage(key1, key2, from_level).ok())
-			.unwrap_or_else(Vec::new)
+			.and_then(move |state| state.prove_storage(key1, key2).ok())
 	}
 
-	fn prove_account(&self, key1: H256, from_level: u32, id: BlockId) -> Vec<Bytes> {
+	fn prove_account(&self, key1: H256, id: BlockId) -> Option<(Vec<Bytes>, ::types::basic_account::BasicAccount)> {
 		self.state_at(id)
-			.and_then(move |state| state.prove_account(key1, from_level).ok())
-			.unwrap_or_else(Vec::new)
-	}
-
-	fn code_by_hash(&self, account_key: H256, id: BlockId) -> Bytes {
-		self.state_at(id)
-			.and_then(move |state| state.code_by_address_hash(account_key).ok())
-			.and_then(|x| x)
-			.unwrap_or_else(Vec::new)
+			.and_then(move |state| state.prove_account(key1).ok())
 	}
 
 	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<Vec<DBValue>> {
@@ -1621,7 +1638,6 @@ impl ::client::ProvingBlockChainClient for Client {
 			_ => return Some(state.drop().1.extract_proof()),
 		}
 	}
-
 }
 
 impl Drop for Client {

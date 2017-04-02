@@ -199,7 +199,7 @@ export default {
         '2017-01-20 18:14:19  Configured for DevelopmentChain using InstantSeal engine',
         '2017-01-20 18:14:19  Operating mode: active',
         '2017-01-20 18:14:19  State DB configuration: fast',
-        '2017-01-20 18:14:19  Starting Parity/v1.6.0-unstable-2ae8b4c-20170120/x86_64-linux-gnu/rustc1.14.0'
+        '2017-01-20 18:14:19  Starting Parity/v1.7.0-unstable-2ae8b4c-20170120/x86_64-linux-gnu/rustc1.14.0'
       ]
     }
   },
@@ -416,6 +416,30 @@ export default {
       type: String,
       desc: 'The mode.',
       example: 'active'
+    }
+  },
+
+  nodeKind: {
+    section: SECTION_NODE,
+    desc: 'Returns the node type availability and capability',
+    params: [],
+    returns: {
+      type: Object,
+      desc: 'Availability and Capability.',
+      details: {
+        availability: {
+          type: String,
+          desc: 'Availability, either `personal` or `public`.'
+        },
+        capability: {
+          type: String,
+          desc: 'Capability, either `full` or `light`.'
+        }
+      }
+    },
+    example: {
+      availability: 'personal',
+      capability: 'light'
     }
   },
 
@@ -1495,7 +1519,7 @@ export default {
       {
         type: String,
         desc: 'The url of the content.',
-        example: 'https://raw.githubusercontent.com/ethcore/parity/master/README.md'
+        example: 'https://raw.githubusercontent.com/paritytech/parity/master/README.md'
       }
     ],
     returns: {

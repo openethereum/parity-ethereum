@@ -15,15 +15,17 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+@import '../_colors.css';
+
 .body {
-  color: #333;
-  background: #eee;
-  padding: 4.5em 0;
+  color: $text-color;
+  background: $background-color;
+  padding: 3em 0 6em;
   text-align: center;
 }
 
 .apps {
-  background: #fff;
+  background: white;
   border-radius: 0.5em;
   margin: 0 auto;
   max-width: 980px;
@@ -39,9 +41,8 @@
 }
 
 .header {
-  background: #44e;
-  border-radius: 0 0 0.25em 0.25em;
-  color: #fff;
+  background: $blue;
+  color: white;
   left: 0;
   padding: 1em;
   position: fixed;
@@ -54,5 +55,5 @@
   text-align: center;
   padding-top: 5em;
   font-size: 2em;
-  color: #999;
+  color: $loading-color;
 }

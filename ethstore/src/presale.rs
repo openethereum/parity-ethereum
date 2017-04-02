@@ -8,6 +8,7 @@ use ethkey::{Address, Secret, KeyPair};
 use crypto::Keccak256;
 use {crypto, Error};
 
+/// Pre-sale wallet.
 pub struct PresaleWallet {
 	iv: [u8; 16],
 	ciphertext: Vec<u8>,
@@ -31,6 +32,7 @@ impl From<json::PresaleWallet> for PresaleWallet {
 }
 
 impl PresaleWallet {
+	/// Open a pre-sale wallet.
 	pub fn open<P>(path: P) -> Result<Self, Error> where P: AsRef<Path> {
 		let file = fs::File::open(path)?;
 		let presale = json::PresaleWallet::load(file)
@@ -38,6 +40,7 @@ impl PresaleWallet {
 		Ok(PresaleWallet::from(presale))
 	}
 
+	/// Decrypt the wallet.
 	pub fn decrypt(&self, password: &str) -> Result<KeyPair, Error> {
 		let mut h_mac = Hmac::new(Sha256::new(), password.as_bytes());
 		let mut derived_key = vec![0u8; 16];

@@ -454,10 +454,10 @@ impl state::Backend for StateDB {
 
 #[cfg(test)]
 mod tests {
-	use util::{U256, H256, FixedHash, Address, DBTransaction};
+	use util::{U256, H256, Address, DBTransaction};
 	use tests::helpers::*;
 	use state::{Account, Backend};
-	use util::log::init_log;
+	use ethcore_logger::init_log;
 
 	#[test]
 	fn state_db_smoke() {

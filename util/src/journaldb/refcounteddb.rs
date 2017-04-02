@@ -136,8 +136,8 @@ impl JournalDB for RefCountedDB {
 
 		let mut r = RlpStream::new_list(3);
 		r.append(id);
-		r.append(&self.inserts);
-		r.append(&self.removes);
+		r.append_list(&self.inserts);
+		r.append_list(&self.removes);
 		batch.put(self.column, &last, r.as_raw());
 
 		let ops = self.inserts.len() + self.removes.len();
@@ -171,7 +171,7 @@ impl JournalDB for RefCountedDB {
 		} {
 			let rlp = Rlp::new(&rlp_data);
 			let our_id: H256 = rlp.val_at(0);
-			let to_remove: Vec<H256> = rlp.val_at(if *canon_id == our_id {2} else {1});
+			let to_remove: Vec<H256> = rlp.list_at(if *canon_id == our_id {2} else {1});
 			trace!(target: "rcdb", "delete journal for time #{}.{}=>{}, (canon was {}): deleting {:?}", end_era, index, our_id, canon_id, to_remove);
 			for i in &to_remove {
 				self.forward.remove(i);

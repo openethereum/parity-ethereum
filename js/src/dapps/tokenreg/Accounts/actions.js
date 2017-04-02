@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const { api } = window.parity;
+import { api } from '../parity';
 
 export const SET_ACCOUNTS = 'SET_ACCOUNTS';
 export const setAccounts = (accounts) => ({

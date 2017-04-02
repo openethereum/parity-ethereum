@@ -78,15 +78,32 @@ class ParityBar extends Component {
 
     // Hook to the dapp loaded event to position the
     // Parity Bar accordingly
-    DappsStore.get(api).on('loaded', (app) => {
-      this.app = app;
+    const dappsStore = DappsStore.get(api);
+
+    dappsStore
+      .on('loaded', (app) => {
+        this.app = app;
+        this.loadPosition();
+      });
+
+    if (this.props.dapp) {
       this.loadPosition();
-    });
+    }
   }
 
   componentWillReceiveProps (nextProps) {
     const count = this.props.pending.length;
     const newCount = nextProps.pending.length;
+
+    // Replace to default position when leaving a dapp
+    if (this.props.dapp && !nextProps.dapp) {
+      this.loadPosition(true);
+    }
+
+    // Load position when dapp loads
+    if (!this.props.dapp && nextProps.dapp) {
+      this.loadPosition();
+    }
 
     if (count === newCount) {
       return;
@@ -101,7 +118,10 @@ class ParityBar extends Component {
 
   setOpened (opened, displayType = DISPLAY_SIGNER) {
     this.setState({ displayType, opened });
+    this.dispatchOpenEvent(opened);
+  }
 
+  dispatchOpenEvent (opened) {
     if (!this.bar) {
       return;
     }
@@ -241,10 +261,6 @@ class ParityBar extends Component {
   }
 
   renderDrag () {
-    if (this.props.externalLink) {
-      return;
-    }
-
     const dragButtonClasses = [ styles.dragButton ];
 
     if (this.state.moving) {
@@ -457,51 +473,56 @@ class ParityBar extends Component {
     return position;
   }
 
-  onMouseDown = (event) => {
-    const containerElt = ReactDOM.findDOMNode(this.refs.container);
-    const dragButtonElt = ReactDOM.findDOMNode(this.refs.dragButton);
+  onMouseDown = () => {
+    // Dispatch an open event in case in an iframe (get full w and h)
+    this.dispatchOpenEvent(true);
 
-    if (!containerElt || !dragButtonElt) {
-      console.warn(containerElt ? 'drag button' : 'container', 'not found...');
-      return;
-    }
+    window.setTimeout(() => {
+      const containerElt = ReactDOM.findDOMNode(this.refs.container);
+      const dragButtonElt = ReactDOM.findDOMNode(this.refs.dragButton);
 
-    const bodyRect = document.body.getBoundingClientRect();
-    const containerRect = containerElt.getBoundingClientRect();
-    const buttonRect = dragButtonElt.getBoundingClientRect();
+      if (!containerElt || !dragButtonElt) {
+        console.warn(containerElt ? 'drag button' : 'container', 'not found...');
+        return;
+      }
 
-    const buttonOffset = {
-      top: (buttonRect.top + buttonRect.height / 2) - containerRect.top,
-      left: (buttonRect.left + buttonRect.width / 2) - containerRect.left
-    };
+      const bodyRect = document.body.getBoundingClientRect();
+      const containerRect = containerElt.getBoundingClientRect();
+      const buttonRect = dragButtonElt.getBoundingClientRect();
 
-    buttonOffset.bottom = containerRect.height - buttonOffset.top;
-    buttonOffset.right = containerRect.width - buttonOffset.left;
+      const buttonOffset = {
+        top: (buttonRect.top + buttonRect.height / 2) - containerRect.top,
+        left: (buttonRect.left + buttonRect.width / 2) - containerRect.left
+      };
 
-    const button = {
-      offset: buttonOffset,
-      height: buttonRect.height,
-      width: buttonRect.width
-    };
+      buttonOffset.bottom = containerRect.height - buttonOffset.top;
+      buttonOffset.right = containerRect.width - buttonOffset.left;
 
-    const container = {
-      height: containerRect.height,
-      width: containerRect.width
-    };
+      const button = {
+        offset: buttonOffset,
+        height: buttonRect.height,
+        width: buttonRect.width
+      };
 
-    const page = {
-      height: bodyRect.height,
-      width: bodyRect.width
-    };
+      const container = {
+        height: containerRect.height,
+        width: containerRect.width
+      };
 
-    this.moving = true;
-    this.measures = {
-      button,
-      container,
-      page
-    };
+      const page = {
+        height: bodyRect.height,
+        width: bodyRect.width
+      };
 
-    this.setState({ moving: true });
+      this.moving = true;
+      this.measures = {
+        button,
+        container,
+        page
+      };
+
+      this.setMovingState(true);
+    }, 50);
   }
 
   onMouseEnter = (event) => {
@@ -570,7 +591,7 @@ class ParityBar extends Component {
     }
 
     this.moving = false;
-    this.setState({ moving: false, position });
+    this.setMovingState(false, { position });
     this.savePosition(position);
   }
 
@@ -587,39 +608,61 @@ class ParityBar extends Component {
   }
 
   get config () {
-    let config;
+    const config = store.get(LS_STORE_KEY);
 
-    try {
-      config = JSON.parse(store.get(LS_STORE_KEY));
-    } catch (error) {
-      config = {};
+    if (typeof config === 'string') {
+      try {
+        return JSON.parse(config);
+      } catch (e) {
+        return {};
+      }
     }
 
-    return config;
+    return config || {};
   }
 
-  loadPosition (props = this.props) {
-    const { app, config } = this;
+  /**
+   * Return the config key for the current view.
+   * If inside a dapp, should be the dapp id.
+   * Otherwise, try to get the current hostname.
+   */
+  getConfigKey () {
+    const { app } = this;
 
-    if (!app) {
+    if (app && app.id) {
+      return app.id;
+    }
+
+    return window.location.hostname;
+  }
+
+  loadPosition (loadDefault = false) {
+    if (loadDefault) {
       return this.setState({ position: DEFAULT_POSITION });
     }
 
-    if (config[app.id]) {
-      return this.setState({ position: config[app.id] });
+    const { app, config } = this;
+    const configKey = this.getConfigKey();
+
+    if (config[configKey]) {
+      return this.setState({ position: config[configKey] });
     }
 
-    const position = this.stringToPosition(app.position);
+    if (app && app.position) {
+      const position = this.stringToPosition(app.position);
 
-    this.setState({ position });
+      return this.setState({ position });
+    }
+
+    return this.setState({ position: DEFAULT_POSITION });
   }
 
   savePosition (position) {
-    const { app, config } = this;
+    const { config } = this;
+    const configKey = this.getConfigKey();
 
-    config[app.id] = position;
-
-    store.set(LS_STORE_KEY, JSON.stringify(config));
+    config[configKey] = position;
+    store.set(LS_STORE_KEY, config);
   }
 
   stringToPosition (value) {
@@ -646,6 +689,13 @@ class ParityBar extends Component {
       default:
         return DEFAULT_POSITION;
     }
+  }
+
+  setMovingState (moving, extras = {}) {
+    this.setState({ moving, ...extras });
+
+    // Trigger an open event if it's moving
+    this.dispatchOpenEvent(moving);
   }
 }
 

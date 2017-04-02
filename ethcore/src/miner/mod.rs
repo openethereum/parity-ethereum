@@ -54,7 +54,7 @@ mod stratum;
 pub use self::external::{ExternalMiner, ExternalMinerService};
 
 pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
-pub use self::transaction_queue::{TransactionQueue, TransactionDetailsProvider as TransactionQueueDetailsProvider,
+pub use self::transaction_queue::{TransactionQueue, RemovalReason, TransactionDetailsProvider as TransactionQueueDetailsProvider,
 	PrioritizationStrategy, AccountDetails, TransactionOrigin};
 pub use self::local_transactions::{Status as LocalTransactionStatus};
 pub use client::TransactionImportResult;
@@ -149,6 +149,10 @@ pub trait MinerService : Send + Sync {
 
 	/// Query pending transactions for hash.
 	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction>;
+
+	/// Removes transaction from the queue.
+	/// NOTE: The transaction is not removed from pending block if mining.
+	fn remove_pending_transaction(&self, chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction>;
 
 	/// Get a list of all pending transactions in the queue.
 	fn pending_transactions(&self) -> Vec<PendingTransaction>;

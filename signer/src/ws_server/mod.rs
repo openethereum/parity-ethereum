@@ -26,8 +26,8 @@ use std::thread;
 use std;
 
 use io::{PanicHandler, OnPanicListener, MayPanic};
-use jsonrpc_core::{Metadata, Middleware};
-use jsonrpc_core::reactor::RpcHandler;
+use jsonrpc_core::{Metadata, Middleware, MetaIoHandler};
+use jsonrpc_server_utils::tokio_core::reactor::Remote;
 use rpc::{ConfirmationsQueue};
 use rpc::informant::RpcStats;
 
@@ -92,21 +92,28 @@ impl ServerBuilder {
 
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	pub fn start<M: Metadata, S: Middleware<M>>(self, addr: SocketAddr, handler: RpcHandler<M, S>) -> Result<Server, ServerError> {
-		self.start_with_extractor(addr, handler, NoopExtractor)
+	pub fn start<M: Metadata, S: Middleware<M>, H: Into<MetaIoHandler<M, S>>>(
+		self,
+		addr: SocketAddr,
+		handler: H,
+		remote: Remote,
+	) -> Result<Server, ServerError> {
+		self.start_with_extractor(addr, handler, remote, NoopExtractor)
 	}
 
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	pub fn start_with_extractor<M: Metadata, S: Middleware<M>, T: session::MetaExtractor<M>>(
+	pub fn start_with_extractor<M: Metadata, S: Middleware<M>, H: Into<MetaIoHandler<M, S>>, T: session::MetaExtractor<M>>(
 		self,
 		addr: SocketAddr,
-		handler: RpcHandler<M, S>,
+		handler: H,
+		remote: Remote,
 		meta_extractor: T,
 	) -> Result<Server, ServerError> {
 		Server::start(
 			addr,
-			handler,
+			handler.into(),
+			remote,
 			self.queue,
 			self.authcodes_path,
 			self.skip_origin_validation,
@@ -136,7 +143,8 @@ impl Server {
 	/// Returns a `Server` handle which closes the server when droped.
 	fn start<M: Metadata, S: Middleware<M>, T: session::MetaExtractor<M>>(
 		addr: SocketAddr,
-		handler: RpcHandler<M, S>,
+		handler: MetaIoHandler<M, S>,
+		remote: Remote,
 		queue: Arc<ConfirmationsQueue>,
 		authcodes_path: PathBuf,
 		skip_origin_validation: bool,
@@ -156,7 +164,7 @@ impl Server {
 		let origin = format!("{}", addr);
 		let port = addr.port();
 		let ws = ws::Builder::new().with_settings(config).build(
-			session::Factory::new(handler, origin, port, authcodes_path, skip_origin_validation, stats, meta_extractor)
+			session::Factory::new(handler, remote, origin, port, authcodes_path, skip_origin_validation, stats, meta_extractor)
 		)?;
 
 		let panic_handler = PanicHandler::new_in_arc();

@@ -34,6 +34,7 @@ use env_info::LastHashes;
 use block_import_error::BlockImportError;
 use ipc::IpcConfig;
 use types::ids::*;
+use types::basic_account::BasicAccount;
 use types::trace_filter::Filter as TraceFilter;
 use types::call_analytics::CallAnalytics;
 use types::blockchain_info::BlockChainInfo;
@@ -241,6 +242,12 @@ pub trait BlockChainClient : Sync + Send {
 	/// Set the mode.
 	fn set_mode(&self, mode: Mode);
 
+	/// Get the chain spec name.
+	fn spec_name(&self) -> String;
+
+	/// Set the chain via a spec name.
+	fn set_spec_name(&self, spec_name: String);
+
 	/// Disable the client from importing blocks. This cannot be undone in this session and indicates
 	/// that a subsystem has reason to believe this executable incapable of syncing the chain.
 	fn disable(&self);
@@ -309,19 +316,12 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 	///
 	/// Both provided keys assume a secure trie.
 	/// Returns a vector of raw trie nodes (in order from the root) proving the storage query.
-	/// Nodes after `from_level` may be omitted.
-	/// An empty vector indicates unservable query.
-	fn prove_storage(&self, key1: H256, key2: H256, from_level: u32, id: BlockId) -> Vec<Bytes>;
+	fn prove_storage(&self, key1: H256, key2: H256, id: BlockId) -> Option<(Vec<Bytes>, H256)>;
 
 	/// Prove account existence at a specific block id.
 	/// The key is the keccak hash of the account's address.
 	/// Returns a vector of raw trie nodes (in order from the root) proving the query.
-	/// Nodes after `from_level` may be omitted.
-	/// An empty vector indicates unservable query.
-	fn prove_account(&self, key1: H256, from_level: u32, id: BlockId) -> Vec<Bytes>;
-
-	/// Get code by address hash.
-	fn code_by_hash(&self, account_key: H256, id: BlockId) -> Bytes;
+	fn prove_account(&self, key1: H256, id: BlockId) -> Option<(Vec<Bytes>, BasicAccount)>;
 
 	/// Prove execution of a transaction at the given block.
 	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<Vec<DBValue>>;

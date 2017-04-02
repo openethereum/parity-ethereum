@@ -25,7 +25,7 @@ use light::cache::Cache as LightDataCache;
 use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
 use light::TransactionQueue as LightTransactionQueue;
-use rlp::{self, Stream as StreamRlp};
+use rlp;
 use util::{Address, H520, H256, U256, Uint, Bytes, Mutex, RwLock};
 use util::sha3::Hashable;
 use stats::Corpus;
@@ -268,7 +268,10 @@ impl LightDispatcher {
 		}));
 
 		match nonce_future {
-			Some(x) => x.map(|acc| acc.nonce).map_err(|_| errors::no_light_peers()).boxed(),
+			Some(x) =>
+				x.map(|acc| acc.map_or_else(Default::default, |acc| acc.nonce))
+					.map_err(|_| errors::no_light_peers())
+					.boxed(),
 			None =>  future::err(errors::network_disabled()).boxed()
 		}
 	}

@@ -195,7 +195,7 @@ pub mod ecies {
 	use rcrypto::sha2::Sha256;
 	use rcrypto::hmac::Hmac;
 	use rcrypto::mac::Mac;
-	use bigint::hash::{FixedHash, H128};
+	use bigint::hash::H128;
 	use ethkey::{Random, Generator, Public, Secret};
 	use {Error, ecdh, aes, Keccak256};
 

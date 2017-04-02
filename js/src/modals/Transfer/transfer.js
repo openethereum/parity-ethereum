@@ -21,9 +21,9 @@ import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
 import { pick } from 'lodash';
 
-import { BusyStep, CompletedStep, Button, IdentityIcon, Input, Portal, TxHash, Warning } from '~/ui';
+import { Button, IdentityIcon, Portal, Warning } from '~/ui';
 import { newError } from '~/ui/Errors/actions';
-import { CancelIcon, DoneIcon, NextIcon, PrevIcon } from '~/ui/Icons';
+import { CancelIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 import { nullableProptype } from '~/util/proptypes';
 
 import Details from './Details';
@@ -33,8 +33,7 @@ import TransferStore, { WALLET_WARNING_SPENT_TODAY_LIMIT } from './store';
 import styles from './transfer.css';
 
 const STEP_DETAILS = 0;
-const STEP_ADVANCED_OR_BUSY = 1;
-const STEP_BUSY = 2;
+const STEP_EXTRA = 1;
 
 @observer
 class Transfer extends Component {
@@ -57,16 +56,11 @@ class Transfer extends Component {
   store = new TransferStore(this.context.api, this.props);
 
   render () {
-    const { stage, extras, steps } = this.store;
+    const { stage, steps } = this.store;
 
     return (
       <Portal
         activeStep={ stage }
-        busySteps={
-          extras
-            ? [STEP_BUSY]
-            : [STEP_ADVANCED_OR_BUSY]
-        }
         buttons={ this.renderDialogActions() }
         onClose={ this.handleClose }
         open
@@ -80,10 +74,9 @@ class Transfer extends Component {
   }
 
   renderExceptionWarning () {
-    const { extras, stage } = this.store;
     const { errorEstimated } = this.store.gasStore;
 
-    if (!errorEstimated || stage >= (extras ? STEP_BUSY : STEP_ADVANCED_OR_BUSY)) {
+    if (!errorEstimated) {
       return null;
     }
 
@@ -144,68 +137,9 @@ class Transfer extends Component {
 
     if (stage === STEP_DETAILS) {
       return this.renderDetailsPage();
-    } else if (stage === STEP_ADVANCED_OR_BUSY && extras) {
+    } else if (stage === STEP_EXTRA && extras) {
       return this.renderExtrasPage();
     }
-
-    return this.renderCompletePage();
-  }
-
-  renderCompletePage () {
-    const { sending, txhash, busyState, rejected } = this.store;
-
-    if (rejected) {
-      return (
-        <BusyStep
-          title='The transaction has been rejected'
-          state='You can safely close this window, the transfer will not occur.'
-        />
-      );
-    }
-
-    if (sending) {
-      return (
-        <BusyStep
-          title='The transaction is in progress'
-          state={ busyState }
-        />
-      );
-    }
-
-    return (
-      <CompletedStep>
-        <TxHash hash={ txhash } />
-        {
-          this.store.operation
-          ? (
-            <div>
-              <br />
-              <div>
-                <p>
-                  <FormattedMessage
-                    id='transfer.wallet.confirmation'
-                    defaultMessage='This transaction needs confirmation from other owners.'
-                  />
-                </p>
-                <Input
-                  style={ { width: '50%', margin: '0 auto' } }
-                  value={ this.store.operation }
-                  label={
-                    <FormattedMessage
-                      id='transfer.wallet.operationHash'
-                      defaultMessage='operation hash'
-                    />
-                  }
-                  readOnly
-                  allowCopy
-                />
-              </div>
-            </div>
-          )
-          : null
-        }
-      </CompletedStep>
-    );
   }
 
   renderDetailsPage () {
@@ -319,19 +253,6 @@ class Transfer extends Component {
         onClick={ this.store.onSend }
       />
     );
-    const doneBtn = (
-      <Button
-        icon={ <DoneIcon /> }
-        key='close'
-        label={
-          <FormattedMessage
-            id='transfer.buttons.close'
-            defaultMessage='Close'
-          />
-        }
-        onClick={ this.handleClose }
-      />
-    );
 
     switch (stage) {
       case 0:
@@ -339,19 +260,14 @@ class Transfer extends Component {
           ? [cancelBtn, nextBtn]
           : [cancelBtn, sendBtn];
       case 1:
-        return extras
-          ? [cancelBtn, prevBtn, sendBtn]
-          : [doneBtn];
+        return [cancelBtn, prevBtn, sendBtn];
       default:
-        return [doneBtn];
+        return [cancelBtn];
     }
   }
 
   handleClose = () => {
-    const { onClose } = this.props;
-
     this.store.handleClose();
-    typeof onClose === 'function' && onClose();
   }
 }
 

@@ -36,9 +36,9 @@ use ethcore::executed::{Executed, ExecutionError};
 use ethcore::ids::BlockId;
 use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransaction};
 use ethsync::LightSync;
-use rlp::{UntrustedRlp, View};
+use rlp::UntrustedRlp;
 use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
-use util::{RwLock, Mutex, FixedHash, Uint, U256};
+use util::{RwLock, Mutex, Uint, U256};
 
 use futures::{future, Future, BoxFuture, IntoFuture};
 use futures::sync::oneshot;
@@ -105,15 +105,22 @@ impl EthClient {
 				match cht_root {
 					None => return future::ok(None).boxed(),
 					Some(root) => {
-						let req = request::HeaderByNumber::new(n, root)
+						let req = request::HeaderProof::new(n, root)
 							.expect("only fails for 0; client always stores genesis; client already queried; qed");
 
-						self.sync.with_context(|ctx|
-							self.on_demand.header_by_number(ctx, req)
-								.map(Some)
-								.map_err(err_premature_cancel)
-								.boxed()
-						)
+						let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
+						self.sync.with_context(|ctx| {
+							let fut = self.on_demand.hash_by_number(ctx, req)
+								.map(request::HeaderByHash)
+								.map_err(err_premature_cancel);
+
+							fut.and_then(move |req| {
+								match sync.with_context(|ctx| on_demand.header_by_hash(ctx, req)) {
+									Some(fut) => fut.map_err(err_premature_cancel).boxed(),
+									None => future::err(errors::network_disabled()).boxed(),
+								}
+							}).map(Some).boxed()
+						})
 					}
 				}
 			}
@@ -149,7 +156,7 @@ impl EthClient {
 			sync.with_context(|ctx| on_demand.account(ctx, request::Account {
 				header: header,
 				address: address,
-			}).map(Some))
+			}))
 				.map(|x| x.map_err(err_premature_cancel).boxed())
 				.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
 		}).boxed()
@@ -263,7 +270,7 @@ impl Eth for EthClient {
 		let accounts = self.accounts
 			.note_dapp_used(dapp.clone())
 			.and_then(|_| self.accounts.dapp_addresses(dapp))
-			.map_err(|e| errors::internal("Could not fetch accounts.", e))
+			.map_err(|e| errors::account("Could not fetch accounts.", e))
 			.map(|accs| accs.into_iter().map(Into::<RpcH160>::into).collect());
 
 		future::done(accounts).boxed()

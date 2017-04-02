@@ -60,26 +60,25 @@ impl Encodable for Receipt {
 		}
 		s.append(&self.gas_used);
 		s.append(&self.log_bloom);
-		s.append(&self.logs);
+		s.append_list(&self.logs);
 	}
 }
 
 impl Decodable for Receipt {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = decoder.as_rlp();
-		if d.item_count() == 3 {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		if rlp.item_count()? == 3 {
 			Ok(Receipt {
 				state_root: None,
-				gas_used: d.val_at(0)?,
-				log_bloom: d.val_at(1)?,
-				logs: d.val_at(2)?,
+				gas_used: rlp.val_at(0)?,
+				log_bloom: rlp.val_at(1)?,
+				logs: rlp.list_at(2)?,
 			})
 		} else {
 			Ok(Receipt {
-				state_root: Some(d.val_at(0)?),
-				gas_used: d.val_at(1)?,
-				log_bloom: d.val_at(2)?,
-				logs: d.val_at(3)?,
+				state_root: Some(rlp.val_at(0)?),
+				gas_used: rlp.val_at(1)?,
+				log_bloom: rlp.val_at(2)?,
+				logs: rlp.list_at(3)?,
 			})
 		}
 	}

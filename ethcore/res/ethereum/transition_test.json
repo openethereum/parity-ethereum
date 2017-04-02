@@ -139,6 +139,7 @@
 		}
 	},
 	"params": {
+		"eip98Transition": "0x7fffffffffffffff",
 		"accountStartNonce": "0x00",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",

@@ -29,8 +29,14 @@ export default class Input extends Component {
   render () {
     const { children, hint, label, overlay } = this.props;
 
+    const inputClasses = [ styles.input ];
+
+    if (overlay) {
+      inputClasses.push(styles.withOverlay);
+    }
+
     return (
-      <div className={ styles.input }>
+      <div className={ inputClasses.join(' ') }>
         <label>
           { label }
         </label>

@@ -294,7 +294,7 @@ contract multisig {
 
   // TODO: document
   function execute(address _to, uint _value, bytes _data) external returns (bytes32 o_hash);
-  function confirm(bytes32 _h) external returns (bool o_success);
+  function confirm(bytes32 _h) returns (bool o_success);
 }
 
 // usage:

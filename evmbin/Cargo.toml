@@ -5,16 +5,16 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [lib]
-name = "evm"
+name = "evmbin"
 path = "./src/main.rs"
 
 [[bin]]
-name = "evm"
+name = "parity-evm"
 path = "./src/main.rs"
 
 [dependencies]
 rustc-serialize = "0.3"
-docopt = { version = "0.6" }
+docopt = { version = "0.7" }
 ethcore = { path = "../ethcore" }
 ethcore-util = { path = "../util" }
 

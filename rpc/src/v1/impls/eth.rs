@@ -21,9 +21,9 @@ use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
 
 use futures::{self, future, BoxFuture, Future};
-use rlp::{self, UntrustedRlp, View};
+use rlp::{self, UntrustedRlp};
 use time::get_time;
-use util::{H160, H256, Address, FixedHash, U256, H64, Uint};
+use util::{H160, H256, Address, U256, H64};
 use util::sha3::Hashable;
 use util::Mutex;
 
@@ -36,16 +36,17 @@ use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
 use ethcore::log_entry::LogEntry;
 use ethcore::miner::{MinerService, ExternalMinerService};
-use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
+use ethcore::transaction::SignedTransaction;
 use ethcore::snapshot::SnapshotService;
 use ethsync::{SyncProvider};
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 
-use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
+use v1::helpers::{errors, limit_logs, fake_sign};
 use v1::helpers::dispatch::{Dispatcher, FullDispatcher, default_gas_price};
 use v1::helpers::block_import::is_major_importing;
+use v1::helpers::accounts::unwrap_provider;
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
@@ -58,15 +59,28 @@ const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched 
 
 /// Eth RPC options
 pub struct EthClientOptions {
+	/// Return nonce from transaction queue when pending block not available.
+	pub pending_nonce_from_queue: bool,
 	/// Returns receipt from pending blocks
 	pub allow_pending_receipt_query: bool,
 	/// Send additional block number when asking for work
 	pub send_block_number_in_get_work: bool,
 }
 
+impl EthClientOptions {
+	/// Creates new default `EthClientOptions` and allows alterations
+	/// by provided function.
+	pub fn with<F: Fn(&mut Self)>(fun: F) -> Self {
+		let mut options = Self::default();
+		fun(&mut options);
+		options
+	}
+}
+
 impl Default for EthClientOptions {
 	fn default() -> Self {
 		EthClientOptions {
+			pending_nonce_from_queue: false,
 			allow_pending_receipt_query: true,
 			send_block_number_in_get_work: true,
 		}
@@ -84,7 +98,7 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	client: Weak<C>,
 	snapshot: Weak<SN>,
 	sync: Weak<S>,
-	accounts: Weak<AccountProvider>,
+	accounts: Option<Weak<AccountProvider>>,
 	miner: Weak<M>,
 	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
@@ -103,7 +117,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 		client: &Arc<C>,
 		snapshot: &Arc<SN>,
 		sync: &Arc<S>,
-		accounts: &Arc<AccountProvider>,
+		accounts: &Option<Arc<AccountProvider>>,
 		miner: &Arc<M>,
 		em: &Arc<EM>,
 		options: EthClientOptions
@@ -113,11 +127,17 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 			snapshot: Arc::downgrade(snapshot),
 			sync: Arc::downgrade(sync),
 			miner: Arc::downgrade(miner),
-			accounts: Arc::downgrade(accounts),
+			accounts: accounts.as_ref().map(Arc::downgrade),
 			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::new()),
 			options: options,
 		}
+	}
+
+	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
+	/// set, or if upgrading the weak reference failed.
+	fn account_provider(&self) -> Result<Arc<AccountProvider>, Error> {
+		unwrap_provider(&self.accounts)
 	}
 
 	fn block(&self, id: BlockId, include_txs: bool) -> Result<Option<RichBlock>, Error> {
@@ -209,25 +229,12 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 		Ok(Some(block))
 	}
 
-	fn sign_call(&self, request: CRequest) -> Result<SignedTransaction, Error> {
-		let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
-		let from = request.from.unwrap_or(Address::zero());
-		Ok(EthTransaction {
-			nonce: request.nonce.unwrap_or_else(|| client.latest_nonce(&from)),
-			action: request.to.map_or(Action::Create, Action::Call),
-			gas: request.gas.unwrap_or(U256::from(50_000_000)),
-			gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(&*client, &*miner)),
-			value: request.value.unwrap_or_else(U256::zero),
-			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
-		}.fake_sign(from))
-	}
-
 	fn dapp_accounts(&self, dapp: DappId) -> Result<Vec<H160>, Error> {
-		let store = take_weak!(self.accounts);
+		let store = self.account_provider()?;
 		store
 			.note_dapp_used(dapp.clone())
 			.and_then(|_| store.dapp_addresses(dapp))
-			.map_err(|e| errors::internal("Could not fetch accounts.", e))
+			.map_err(|e| errors::account("Could not fetch accounts.", e))
 	}
 }
 
@@ -352,18 +359,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let address = address.into();
+		let client = take_weakf!(self.client);
 
 		let res = match num.0.clone() {
 			BlockNumber::Pending => {
-				let client = take_weakf!(self.client);
 				match take_weakf!(self.miner).balance(&*client, &address) {
 					Some(balance) => Ok(balance.into()),
-					None => Err(errors::internal("Unable to load balance from database", ""))
+					None => Err(errors::database_error("latest balance missing"))
 				}
 			}
 			id => {
-				let client = take_weakf!(self.client);
-
 				try_bf!(check_known(&*client, id.clone()));
 				match client.balance(&address, id.into()) {
 					Some(balance) => Ok(balance.into()),
@@ -384,7 +389,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 				let client = take_weakf!(self.client);
 				match take_weakf!(self.miner).storage_at(&*client, &address, &H256::from(position)) {
 					Some(s) => Ok(s.into()),
-					None => Err(errors::internal("Unable to load storage from database", ""))
+					None => Err(errors::database_error("latest storage missing"))
 				}
 			}
 			id => {
@@ -403,17 +408,26 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let address: Address = RpcH160::into(address);
+		let client = take_weakf!(self.client);
+		let miner = take_weakf!(self.miner);
+
 		let res = match num.0.clone() {
-			BlockNumber::Pending => {
-				let client = take_weakf!(self.client);
-				match take_weakf!(self.miner).nonce(&*client, &address) {
+			BlockNumber::Pending if self.options.pending_nonce_from_queue => {
+				let nonce = miner.last_nonce(&address)
+					.map(|n| n + 1.into())
+					.or_else(|| miner.nonce(&*client, &address));
+				match nonce {
 					Some(nonce) => Ok(nonce.into()),
-					None => Err(errors::internal("Unable to load nonce from database", ""))
+					None => Err(errors::database_error("latest nonce missing"))
+				}
+			}
+			BlockNumber::Pending => {
+				match miner.nonce(&*client, &address) {
+					Some(nonce) => Ok(nonce.into()),
+					None => Err(errors::database_error("latest nonce missing"))
 				}
 			}
 			id => {
-				let client = take_weakf!(self.client);
-
 				try_bf!(check_known(&*client, id.clone()));
 				match client.nonce(&address, id.into()) {
 					Some(nonce) => Ok(nonce.into()),
@@ -464,7 +478,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 				let client = take_weakf!(self.client);
 				match take_weakf!(self.miner).code(&*client, &address) {
 					Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
-					None => Err(errors::internal("Unable to load code from database", ""))
+					None => Err(errors::database_error("latest code missing"))
 				}
 			}
 			id => {
@@ -597,7 +611,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 					number: None
 				})
 			}
-		}).unwrap_or(Err(Error::internal_error()))	// no work found.
+		}).unwrap_or(Err(errors::internal("No work found.", "")))
 	}
 
 	fn submit_work(&self, nonce: RpcH64, pow_hash: RpcH256, mix_hash: RpcH256) -> Result<bool, Error> {
@@ -634,7 +648,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn call(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
 		let request = CallRequest::into(request);
-		let signed = match self.sign_call(request) {
+		let signed = match fake_sign::sign_call(&self.client, &self.miner, request) {
 			Ok(signed) => signed,
 			Err(e) => return future::err(e).boxed(),
 		};
@@ -652,7 +666,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let request = CallRequest::into(request);
-		let signed = match self.sign_call(request) {
+		let signed = match fake_sign::sign_call(&self.client, &self.miner, request) {
 			Ok(signed) => signed,
 			Err(e) => return future::err(e).boxed(),
 		};

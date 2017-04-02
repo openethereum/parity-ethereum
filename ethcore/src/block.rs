@@ -20,8 +20,8 @@ use std::cmp;
 use std::sync::Arc;
 use std::collections::HashSet;
 
-use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, Decoder, DecoderError, View, Stream};
-use util::{Bytes, Address, Uint, FixedHash, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP};
+use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
+use util::{Bytes, Address, Uint, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP};
 use util::error::{Mismatch, OutOfBounds};
 
 use basic_types::{LogBloom, Seal};
@@ -59,26 +59,25 @@ impl Block {
 	pub fn rlp_bytes(&self, seal: Seal) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
 		self.header.stream_rlp(&mut block_rlp, seal);
-		block_rlp.append(&self.transactions);
-		block_rlp.append(&self.uncles);
+		block_rlp.append_list(&self.transactions);
+		block_rlp.append_list(&self.uncles);
 		block_rlp.out()
 	}
 }
 
 
 impl Decodable for Block {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		if decoder.as_raw().len() != decoder.as_rlp().payload_info()?.total() {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		if rlp.as_raw().len() != rlp.payload_info()?.total() {
 			return Err(DecoderError::RlpIsTooBig);
 		}
-		let d = decoder.as_rlp();
-		if d.item_count() != 3 {
+		if rlp.item_count()? != 3 {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}
 		Ok(Block {
-			header: d.val_at(0)?,
-			transactions: d.val_at(1)?,
-			uncles: d.val_at(2)?,
+			header: rlp.val_at(0)?,
+			transactions: rlp.list_at(1)?,
+			uncles: rlp.list_at(2)?,
 		})
 	}
 }
@@ -493,6 +492,16 @@ impl LockedBlock {
 			_ => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
 		}
 	}
+
+	/// Remove state root from transaction receipts to make them EIP-98 compatible.
+	pub fn strip_receipts(self) -> LockedBlock {
+		let mut block = self;
+		for receipt in &mut block.block.receipts {
+			receipt.state_root = None;
+		}
+		block.block.header.set_receipts_root(ordered_trie_root(block.block.receipts.iter().map(|r| r.rlp_bytes().to_vec())));
+		block
+	}
 }
 
 impl Drain for LockedBlock {
@@ -507,7 +516,7 @@ impl SealedBlock {
 	pub fn rlp_bytes(&self) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
 		self.block.header.stream_rlp(&mut block_rlp, Seal::With);
-		block_rlp.append(&self.block.transactions);
+		block_rlp.append_list(&self.block.transactions);
 		block_rlp.append_raw(&self.uncle_bytes, 1);
 		block_rlp.out()
 	}
@@ -553,7 +562,6 @@ pub fn enact(
 	b.set_extra_data(header.extra_data().clone()).unwrap_or_else(|e| warn!("Couldn't set extradata: {}. Ignoring.", e));
 	b.set_uncles_hash(header.uncles_hash().clone());
 	b.set_transactions_root(header.transactions_root().clone());
-	b.set_receipts_root(header.receipts_root().clone());
 
 	push_transactions(&mut b, transactions)?;
 	for u in uncles {
@@ -618,7 +626,6 @@ mod tests {
 	use state_db::StateDB;
 	use views::BlockView;
 	use util::Address;
-	use util::hash::FixedHash;
 	use std::sync::Arc;
 	use transaction::SignedTransaction;
 

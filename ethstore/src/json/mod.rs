@@ -36,7 +36,7 @@ pub use self::error::Error;
 pub use self::hash::{H128, H160, H256};
 pub use self::id::Uuid;
 pub use self::kdf::{Kdf, KdfSer, Prf, Pbkdf2, Scrypt, KdfSerParams};
-pub use self::key_file::KeyFile;
+pub use self::key_file::{KeyFile, OpaqueKeyFile};
 pub use self::presale::{PresaleWallet, Encseed};
 pub use self::vault_file::VaultFile;
 pub use self::vault_key_file::{VaultKeyFile, VaultKeyMeta, insert_vault_name_to_json_meta, remove_vault_name_from_json_meta};

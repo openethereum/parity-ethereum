@@ -16,6 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
@@ -65,7 +66,10 @@ class Embedded extends Component {
     if (!pending.length) {
       return (
         <div className={ styles.none }>
-          There are currently no pending requests awaiting your confirmation
+          <FormattedMessage
+            id='signer.embedded.noPending'
+            defaultMessage='There are currently no pending requests awaiting your confirmation'
+          />
         </div>
       );
     }
@@ -97,13 +101,13 @@ class Embedded extends Component {
         onReject={ actions.startRejectRequest }
         origin={ origin }
         payload={ payload }
-        signerstore={ this.store }
+        signerStore={ this.store }
       />
     );
   }
 
   _sortRequests = (a, b) => {
-    return new BigNumber(b.id).cmp(a.id);
+    return new BigNumber(a.id).cmp(b.id);
   }
 }
 

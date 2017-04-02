@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use util::log::RotatingLogger;
+use ethcore_logger::RotatingLogger;
 use util::Address;
 use ethsync::ManageNetwork;
 use ethcore::account_provider::AccountProvider;
@@ -72,13 +72,15 @@ impl Dependencies {
 	}
 
 	pub fn client(&self, signer: Option<Arc<SignerService>>) -> TestParityClient {
+		let opt_accounts = Some(self.accounts.clone());
+
 		ParityClient::new(
 			&self.client,
 			&self.miner,
 			&self.sync,
 			&self.updater,
 			&self.network,
-			&self.accounts,
+			&opt_accounts,
 			self.logger.clone(),
 			self.settings.clone(),
 			signer,
@@ -286,6 +288,17 @@ fn rpc_parity_net_chain() {
 }
 
 #[test]
+fn rpc_parity_chain() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_chain", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"foundation","id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
 fn rpc_parity_net_peers() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
@@ -346,7 +359,7 @@ fn rpc_parity_unsigned_transactions_count_when_signer_disabled() {
 	let io = deps.default_client();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_unsignedTransactionsCount", "params":[], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32030,"message":"Trusted Signer is disabled. This API is not available.","data":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Trusted Signer is disabled. This API is not available."},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -382,7 +395,7 @@ fn rpc_parity_signer_port() {
 	// when
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_signerPort", "params": [], "id": 1}"#;
 	let response1 = r#"{"jsonrpc":"2.0","result":18180,"id":1}"#;
-	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32030,"message":"Trusted Signer is disabled. This API is not available.","data":null},"id":1}"#;
+	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Trusted Signer is disabled. This API is not available."},"id":1}"#;
 
 	// then
 	assert_eq!(io1.handle_request_sync(request), Some(response1.to_owned()));
@@ -400,7 +413,7 @@ fn rpc_parity_dapps_port() {
 	// when
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_dappsPort", "params": [], "id": 1}"#;
 	let response1 = r#"{"jsonrpc":"2.0","result":18080,"id":1}"#;
-	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32031,"message":"Dapps Server is disabled. This API is not available.","data":null},"id":1}"#;
+	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Dapps Server is disabled. This API is not available."},"id":1}"#;
 
 	// then
 	assert_eq!(io1.handle_request_sync(request), Some(response1.to_owned()));
@@ -418,7 +431,7 @@ fn rpc_parity_dapps_interface() {
 	// when
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_dappsInterface", "params": [], "id": 1}"#;
 	let response1 = r#"{"jsonrpc":"2.0","result":"127.0.0.1","id":1}"#;
-	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32031,"message":"Dapps Server is disabled. This API is not available.","data":null},"id":1}"#;
+	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Dapps Server is disabled. This API is not available."},"id":1}"#;
 
 	// then
 	assert_eq!(io1.handle_request_sync(request), Some(response1.to_owned()));
@@ -483,6 +496,17 @@ fn rpc_parity_chain_status() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_chainStatus", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"blockGap":["0x6","0xd05"]},"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_node_kind() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_nodeKind", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"availability":"personal","capability":"full"},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

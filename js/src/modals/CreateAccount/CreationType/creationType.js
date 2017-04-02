@@ -57,6 +57,21 @@ const TYPES = [
   {
     description: (
       <FormattedMessage
+        id='createAccount.creationType.fromQr.description'
+        defaultMessage='Attach an externally managed account via QR code'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromQr.label'
+        defaultMessage='External Account'
+      />
+    ),
+    key: 'fromQr'
+  },
+  {
+    description: (
+      <FormattedMessage
         id='createAccount.creationType.fromGeth.description'
         defaultMessage='Import accounts from the Geth keystore with the original password'
       />
@@ -87,21 +102,6 @@ const TYPES = [
   {
     description: (
       <FormattedMessage
-        id='createAccount.creationType.fromPresale.description'
-        defaultMessage='Import an Ethereum presale wallet file with the original password'
-      />
-    ),
-    label: (
-      <FormattedMessage
-        id='createAccount.creationType.fromPresale.label'
-        defaultMessage='Presale wallet'
-      />
-    ),
-    key: 'fromPresale'
-  },
-  {
-    description: (
-      <FormattedMessage
         id='createAccount.creationType.fromRaw.description'
         defaultMessage='Enter a previously created raw private key with a new password'
       />
@@ -113,24 +113,39 @@ const TYPES = [
       />
     ),
     key: 'fromRaw'
+  },
+  {
+    description: (
+      <FormattedMessage
+        id='createAccount.creationType.fromPresale.description'
+        defaultMessage='Import an Ethereum presale wallet file with the original password'
+      />
+    ),
+    label: (
+      <FormattedMessage
+        id='createAccount.creationType.fromPresale.label'
+        defaultMessage='Presale wallet'
+      />
+    ),
+    key: 'fromPresale'
   }
 ];
 
 @observer
 export default class CreationType extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired
+    createStore: PropTypes.object.isRequired
   }
 
   render () {
-    const { createType } = this.props.store;
+    const { createType } = this.props.createStore;
 
     return (
       <div>
         <div className={ styles.summary }>
           <FormattedMessage
             id='createAccount.creationType.info'
-            defaultMessage='Please select the type of account you want to create. Either create an account via name & password, or import it from a variety of existing sources. From here the wizard will guid you through the process of completing your account creation.'
+            defaultMessage='Please select the type of account you want to create. Either create an account via name & password, or import it from a variety of existing sources. From here the wizard will guide you through the process of completing your account creation.'
           />
         </div>
         { this.renderList(createType) }
@@ -145,6 +160,7 @@ export default class CreationType extends Component {
         items={ TYPES }
         noStretch
         onSelectClick={ this.onChange }
+        onSelectDoubleClick={ this.onSelect }
         renderItem={ this.renderItem }
       />
     );
@@ -156,7 +172,7 @@ export default class CreationType extends Component {
         <div className={ styles.selectItem }>
           <TypeIcon
             className={ styles.icon }
-            store={ this.props.store }
+            createStore={ this.props.createStore }
             type={ item.key }
           />
           <Title
@@ -170,14 +186,21 @@ export default class CreationType extends Component {
   }
 
   isSelected = (item) => {
-    const { createType } = this.props.store;
+    const { createType } = this.props.createStore;
 
     return item.key === createType;
   }
 
   onChange = (item) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setCreateType(item.key);
+    createStore.setCreateType(item.key);
+  }
+
+  onSelect = (item) => {
+    const { createStore } = this.props;
+
+    createStore.setCreateType(item.key);
+    createStore.nextStage();
   }
 }

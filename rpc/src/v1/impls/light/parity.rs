@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::collections::{BTreeMap, HashSet};
 use futures::{future, Future, BoxFuture};
 
-use util::RotatingLogger;
+use ethcore_logger::RotatingLogger;
 use util::misc::version_data;
 
 use crypto::ecies;
@@ -40,7 +40,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
-	AccountInfo, HwAccountInfo
+	AccountInfo, HwAccountInfo,
 };
 
 /// Parity implementation for light client.
@@ -87,7 +87,7 @@ impl Parity for ParityClient {
 		let dapp_accounts = store
 			.note_dapp_used(dapp.clone().into())
 			.and_then(|_| store.dapp_addresses(dapp.into()))
-			.map_err(|e| errors::internal("Could not fetch accounts.", e))?
+			.map_err(|e| errors::account("Could not fetch accounts.", e))?
 			.into_iter().collect::<HashSet<_>>();
 
 		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
@@ -303,6 +303,10 @@ impl Parity for ParityClient {
 		Err(errors::light_unimplemented(None))
 	}
 
+	fn chain(&self) -> Result<String, Error> {
+		Ok(self.settings.chain.clone())
+	}
+
 	fn enode(&self) -> Result<String, Error> {
 		self.light_dispatch.sync.enode().ok_or_else(errors::network_disabled)
 	}
@@ -327,6 +331,15 @@ impl Parity for ParityClient {
 
 		Ok(ChainStatus {
 			block_gap: gap.map(|(x, y)| (x.into(), y.into())),
+		})
+	}
+
+	fn node_kind(&self) -> Result<::v1::types::NodeKind, Error> {
+		use ::v1::types::{NodeKind, Availability, Capability};
+
+		Ok(NodeKind {
+			availability: Availability::Personal,
+			capability: Capability::Light,
 		})
 	}
 }

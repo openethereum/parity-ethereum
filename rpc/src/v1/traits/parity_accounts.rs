@@ -18,6 +18,7 @@
 use std::collections::BTreeMap;
 
 use jsonrpc_core::Error;
+use ethstore::KeyFile;
 use v1::types::{H160, H256, DappId, DeriveHash, DeriveHierarchical};
 
 build_rpc_trait! {
@@ -175,5 +176,9 @@ build_rpc_trait! {
 		/// Resulting address can be either saved as a new account (with the same password).
 		#[rpc(name = "parity_deriveAddressIndex")]
 		fn derive_key_index(&self, H160, String, DeriveHierarchical, bool) -> Result<H160, Error>;
+
+		/// Exports an account with given address if provided password matches.
+		#[rpc(name = "parity_exportAccount")]
+		fn export_account(&self, H160, String) -> Result<KeyFile, Error>;
 	}
 }

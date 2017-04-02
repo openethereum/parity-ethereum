@@ -19,7 +19,6 @@
 mod bloom;
 mod config;
 mod db;
-mod error;
 mod executive_tracer;
 mod import;
 mod noop_tracer;
@@ -28,7 +27,6 @@ pub use types::trace_types::{filter, flat, localized, trace};
 pub use types::trace_types::error::Error as TraceError;
 pub use self::config::Config;
 pub use self::db::TraceDB;
-pub use self::error::Error;
 pub use types::trace_types::trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff};
 pub use types::trace_types::flat::{FlatTrace, FlatTransactionTraces, FlatBlockTraces};
 pub use self::noop_tracer::{NoopTracer, NoopVMTracer};

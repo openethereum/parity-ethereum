@@ -33,7 +33,7 @@ use ethsync::{ManageNetwork, SyncProvider};
 use hash_fetch::fetch::Client as FetchClient;
 use jsonrpc_core::{MetaIoHandler};
 use updater::Updater;
-use util::RotatingLogger;
+use ethcore_logger::RotatingLogger;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
@@ -118,7 +118,7 @@ pub struct Dependencies {
 	pub snapshot: Arc<SnapshotService>,
 	pub sync: Arc<SyncProvider>,
 	pub net: Arc<ManageNetwork>,
-	pub secret_store: Arc<AccountProvider>,
+	pub secret_store: Option<Arc<AccountProvider>>,
 	pub miner: Arc<Miner>,
 	pub external_miner: Arc<ExternalMiner>,
 	pub logger: Arc<RotatingLogger>,
@@ -215,6 +215,7 @@ pub fn setup_rpc(stats: Arc<RpcStats>, deps: Arc<Dependencies>, apis: ApiSet) ->
 					&deps.miner,
 					&deps.external_miner,
 					EthClientOptions {
+						pending_nonce_from_queue: deps.geth_compatibility,
 						allow_pending_receipt_query: !deps.geth_compatibility,
 						send_block_number_in_get_work: !deps.geth_compatibility,
 					}

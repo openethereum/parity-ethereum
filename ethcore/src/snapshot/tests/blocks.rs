@@ -63,6 +63,7 @@ fn chunk_and_restore(amount: u64) {
 	let writer = Mutex::new(PackedWriter::new(&snapshot_path).unwrap());
 	let block_hashes = chunk_blocks(&bc, best_hash, &writer, &Progress::default()).unwrap();
 	let manifest = ::snapshot::ManifestData {
+		version: 2,
 		state_hashes: Vec::new(),
 		block_hashes: block_hashes,
 		state_root: ::util::sha3::SHA3_NULL_RLP,
@@ -99,7 +100,7 @@ fn chunk_and_restore_40k() { chunk_and_restore(40000) }
 
 #[test]
 fn checks_flag() {
-	use ::rlp::{RlpStream, Stream};
+	use rlp::RlpStream;
 	use util::H256;
 
 	let mut stream = RlpStream::new_list(5);
@@ -125,6 +126,7 @@ fn checks_flag() {
 	let chain = BlockChain::new(Default::default(), &genesis, db.clone());
 
 	let manifest = ::snapshot::ManifestData {
+		version: 2,
 		state_hashes: Vec::new(),
 		block_hashes: Vec::new(),
 		state_root: ::util::sha3::SHA3_NULL_RLP,

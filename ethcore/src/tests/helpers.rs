@@ -34,7 +34,7 @@ use devtools::*;
 use miner::Miner;
 use header::Header;
 use transaction::{Action, Transaction, SignedTransaction};
-use rlp::{self, RlpStream, Stream};
+use rlp::{self, RlpStream};
 use views::BlockView;
 
 #[cfg(feature = "json-tests")]
@@ -129,7 +129,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 	for t in transactions {
 		rlp.append_raw(&rlp::encode(t).to_vec(), 1);
 	}
-	rlp.append(&uncles);
+	rlp.append_list(&uncles);
 	rlp.out()
 }
 
@@ -438,6 +438,7 @@ pub fn get_default_ethash_params() -> EthashParams{
 		minimum_difficulty: U256::from(131072),
 		difficulty_bound_divisor: U256::from(2048),
 		difficulty_increment_divisor: 10,
+		metropolis_difficulty_increment_divisor: 9,
 		duration_limit: 13,
 		block_reward: U256::from(0),
 		registrar: "0000000000000000000000000000000000000001".into(),
@@ -448,6 +449,7 @@ pub fn get_default_ethash_params() -> EthashParams{
 		difficulty_hardfork_transition: u64::max_value(),
 		difficulty_hardfork_bound_divisor: U256::from(0),
 		bomb_defuse_transition: u64::max_value(),
+		eip100b_transition: u64::max_value(),
 		eip150_transition: u64::max_value(),
 		eip155_transition: u64::max_value(),
 		eip160_transition: u64::max_value(),

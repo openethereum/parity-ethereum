@@ -20,11 +20,11 @@ use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use ethcore_rpc::{NetworkSettings, informant, is_major_importing};
 use ethsync::NetworkConfiguration;
-use util::{Colour, version, RotatingLogger, Mutex, Condvar};
+use util::{Colour, version, Mutex, Condvar};
 use io::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore_logger::{Config as LogConfig};
+use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore::miner::{StratumOptions, Stratum};
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
+use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
 use ethcore::service::ClientService;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -81,6 +81,7 @@ pub struct RunCmd {
 	pub net_conf: NetworkConfiguration,
 	pub network_id: Option<u64>,
 	pub warp_sync: bool,
+	pub public_node: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
 	pub miner_extras: MinerExtras,
@@ -152,12 +153,12 @@ impl ::local_store::NodeInfo for FullNodeInfo {
 	}
 }
 
-pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<bool, String> {
+pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
 		// Check if Parity is already running
 		let addr = format!("{}:{}", cmd.dapps_conf.interface, cmd.dapps_conf.port);
 		if !TcpListener::bind(&addr as &str).is_ok() {
-			return open_ui(&cmd.dapps_conf, &cmd.signer_conf).map(|_| false);
+			return open_ui(&cmd.dapps_conf, &cmd.signer_conf).map(|_| (false, None));
 		}
 	}
 
@@ -286,6 +287,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// create client config
 	let mut client_config = to_client_config(
 		&cmd.cache_config,
+		spec.name.to_lowercase(),
 		mode.clone(),
 		tracing,
 		fat_db,
@@ -406,6 +408,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// set up dependencies for rpc servers
 	let rpc_stats = Arc::new(informant::RpcStats::default());
 	let signer_path = cmd.signer_conf.signer_path.clone();
+	let secret_store = match cmd.public_node {
+		true => None,
+		false => Some(account_provider.clone())
+	};
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
 			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
@@ -414,7 +420,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
-		secret_store: account_provider.clone(),
+		secret_store: secret_store,
 		miner: miner.clone(),
 		external_miner: external_miner.clone(),
 		logger: logger.clone(),
@@ -434,7 +440,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	});
 
 	let dependencies = rpc::Dependencies {
-		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 		remote: event_loop.raw_remote(),
 		stats: rpc_stats.clone(),
@@ -446,7 +451,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// the dapps server
 	let dapps_deps = dapps::Dependencies {
-		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
@@ -459,7 +463,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// the signer server
 	let signer_deps = signer::Dependencies {
-		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 		remote: event_loop.raw_remote(),
 		rpc_stats: rpc_stats.clone(),
@@ -493,8 +496,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	user_defaults.save(&user_defaults_path)?;
 
 	// tell client how to save the default mode if it gets changed.
-	client.on_mode_change(move |mode: &Mode| {
-		user_defaults.mode = mode.clone();
+	client.on_user_defaults_change(move |mode: Option<Mode>| {
+		if let Some(mode) = mode {
+			user_defaults.mode = mode;
+		}
 		let _ = user_defaults.save(&user_defaults_path);	// discard failures - there's nothing we can do
 	});
 
@@ -503,6 +508,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		true => None,
 		false => {
 			let sync = sync_provider.clone();
+			let client = client.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
 				move || is_major_importing(Some(sync.status().state), client.queue_info()),
@@ -526,7 +532,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	// Handle exit
-	let restart = wait_for_exit(panic_handler, Some(updater), can_restart);
+	let restart = wait_for_exit(panic_handler, Some(updater), Some(client), can_restart);
 
 	// drop this stuff as soon as exit detected.
 	drop((http_server, ipc_server, dapps_server, signer_server, secretstore_key_server, ipfs_server, event_loop));
@@ -604,9 +610,10 @@ fn build_create_account_hint(spec: &SpecType, keys: &str) -> String {
 fn wait_for_exit(
 	panic_handler: Arc<PanicHandler>,
 	updater: Option<Arc<Updater>>,
+	client: Option<Arc<Client>>,
 	can_restart: bool
-) -> bool {
-	let exit = Arc::new((Mutex::new(false), Condvar::new()));
+) -> (bool, Option<String>) {
+	let exit = Arc::new((Mutex::new((false, None)), Condvar::new()));
 
 	// Handle possible exits
 	let e = exit.clone();
@@ -616,18 +623,24 @@ fn wait_for_exit(
 	let e = exit.clone();
 	panic_handler.on_panic(move |_reason| { e.1.notify_all(); });
 
-	if let Some(updater) = updater {
-		// Handle updater wanting to restart us
-		if can_restart {
+	if can_restart {
+		if let Some(updater) = updater {
+			// Handle updater wanting to restart us
 			let e = exit.clone();
-			updater.set_exit_handler(move || { *e.0.lock() = true; e.1.notify_all(); });
-		} else {
-			updater.set_exit_handler(|| info!("Update installed; ready for restart."));
+			updater.set_exit_handler(move || { *e.0.lock() = (true, None); e.1.notify_all(); });
 		}
+
+		if let Some(client) = client {
+			// Handle updater wanting to restart us
+			let e = exit.clone();
+			client.set_exit_handler(move |restart, new_chain: Option<String>| { *e.0.lock() = (restart, new_chain); e.1.notify_all(); });
+		}
+	} else {
+		trace!(target: "mode", "Not hypervised: not setting exit handlers.");
 	}
 
 	// Wait for signal
 	let mut l = exit.0.lock();
 	let _ = exit.1.wait(&mut l);
-	*l
+	l.clone()
 }

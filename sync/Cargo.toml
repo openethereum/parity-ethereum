@@ -20,16 +20,17 @@ ethcore = { path = "../ethcore" }
 rlp = { path = "../util/rlp" }
 clippy = { version = "0.0.103", optional = true}
 log = "0.3"
-env_logger = "0.3"
+env_logger = "0.4"
 time = "0.1.34"
 rand = "0.3.13"
 heapsize = "0.3"
 ethcore-ipc = { path = "../ipc/rpc" }
-semver = "0.5"
+semver = "0.6"
+smallvec = { version = "0.3", features = ["heapsizeof"] }
 ethcore-ipc-nano = { path = "../ipc/nano" }
 ethcore-devtools = { path = "../devtools" }
 ethkey = { path = "../ethkey" }
-parking_lot = "0.3"
+parking_lot = "0.4"
 
 [features]
 default = []

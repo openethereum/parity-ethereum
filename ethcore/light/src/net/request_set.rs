@@ -24,7 +24,8 @@
 use std::collections::{BTreeMap, HashMap};
 use std::iter::FromIterator;
 
-use request::{self, Request};
+use request::Request;
+use request::Requests;
 use net::{timeout, ReqId};
 
 use time::{Duration, SteadyTime};
@@ -35,7 +36,7 @@ pub struct RequestSet {
 	counter: u64,
 	base: Option<SteadyTime>,
 	ids: HashMap<ReqId, u64>,
-	reqs: BTreeMap<u64, Request>,
+	reqs: BTreeMap<u64, Requests>,
 }
 
 impl Default for RequestSet {
@@ -50,8 +51,8 @@ impl Default for RequestSet {
 }
 
 impl RequestSet {
-	/// Push a request onto the stack.
-	pub fn insert(&mut self, req_id: ReqId, req: Request, now: SteadyTime) {
+	/// Push requests onto the stack.
+	pub fn insert(&mut self, req_id: ReqId, req: Requests, now: SteadyTime) {
 		let counter = self.counter;
 		self.ids.insert(req_id, counter);
 		self.reqs.insert(counter, req);
@@ -63,8 +64,8 @@ impl RequestSet {
 		self.counter += 1;
 	}
 
-	/// Remove a request from the stack.
-	pub fn remove(&mut self, req_id: &ReqId, now: SteadyTime) -> Option<Request> {
+	/// Remove a set of requests from the stack.
+	pub fn remove(&mut self, req_id: &ReqId, now: SteadyTime) -> Option<Requests> {
 		let id = match self.ids.remove(&req_id) {
 			Some(id) => id,
 			None => return None,
@@ -89,22 +90,10 @@ impl RequestSet {
 			None => return false,
 		};
 
-		let kind = self.reqs.values()
-			.next()
-			.map(|r| r.kind())
-			.expect("base time implies `reqs` non-empty; qed");
+		let first_req = self.reqs.values().next()
+			.expect("base existing implies `reqs` non-empty; qed");
 
-		let kind_timeout = match kind {
-			request::Kind::Headers => timeout::HEADERS,
-			request::Kind::Bodies => timeout::BODIES,
-			request::Kind::Receipts => timeout::RECEIPTS,
-			request::Kind::StateProofs => timeout::PROOFS,
-			request::Kind::Codes => timeout::CONTRACT_CODES,
-			request::Kind::HeaderProofs => timeout::HEADER_PROOFS,
-			request::Kind::TransactionProof => timeout::TRANSACTION_PROOF,
-		};
-
-		base + Duration::milliseconds(kind_timeout) <= now
+		base + compute_timeout(&first_req) <= now
 	}
 
 	/// Collect all pending request ids.
@@ -121,25 +110,43 @@ impl RequestSet {
 	pub fn is_empty(&self) -> bool { self.len() == 0 }
 }
 
+// helper to calculate timeout for a specific set of requests.
+// it's a base amount + some amount per request.
+fn compute_timeout(reqs: &Requests) -> Duration {
+	Duration::milliseconds(reqs.requests().iter().fold(timeout::BASE, |tm, req| {
+		tm + match *req {
+			Request::Headers(_) => timeout::HEADERS,
+			Request::HeaderProof(_) => timeout::HEADER_PROOF,
+			Request::Receipts(_) => timeout::RECEIPT,
+			Request::Body(_) => timeout::BODY,
+			Request::Account(_) => timeout::PROOF,
+			Request::Storage(_) => timeout::PROOF,
+			Request::Code(_) => timeout::CONTRACT_CODE,
+			Request::Execution(_) => timeout::TRANSACTION_PROOF,
+		}
+	}))
+}
+
 #[cfg(test)]
 mod tests {
-	use net::{timeout, ReqId};
-	use request::{Request, Receipts};
+	use net::ReqId;
+	use request::RequestBuilder;
 	use time::{SteadyTime, Duration};
-	use super::RequestSet;
+	use super::{RequestSet, compute_timeout};
 
 	#[test]
 	fn multi_timeout() {
 		let test_begin = SteadyTime::now();
 		let mut req_set = RequestSet::default();
 
-		let the_req = Request::Receipts(Receipts { block_hashes: Vec::new() });
+		let the_req = RequestBuilder::default().build();
+		let req_time = compute_timeout(&the_req);
 		req_set.insert(ReqId(0), the_req.clone(), test_begin);
 		req_set.insert(ReqId(1), the_req, test_begin + Duration::seconds(1));
 
 		assert_eq!(req_set.base, Some(test_begin));
 
-		let test_end = test_begin + Duration::milliseconds(timeout::RECEIPTS);
+		let test_end = test_begin + req_time;
 		assert!(req_set.check_timeout(test_end));
 
 		req_set.remove(&ReqId(0), test_begin + Duration::seconds(1)).unwrap();

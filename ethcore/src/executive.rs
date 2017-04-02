@@ -36,7 +36,7 @@ const STACK_SIZE_PER_DEPTH: usize = 24*1024;
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
-	use rlp::{RlpStream, Stream};
+	use rlp::RlpStream;
 
 	let mut stream = RlpStream::new_list(2);
 	stream.append(address);
@@ -261,35 +261,46 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		}
 		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
-		if self.engine.is_builtin(&params.code_address) {
-			// if destination is builtin, try to execute it
+		// if destination is builtin, try to execute it
+		if let Some(builtin) = self.engine.builtin(&params.code_address, self.info.number) {
+			// Engines aren't supposed to return builtins until activation, but
+			// prefer to fail rather than silently break consensus.
+			if !builtin.is_active(self.info.number) {
+				panic!("Consensus failure: engine implementation prematurely enabled built-in at {}", params.code_address);
+			}
 
 			let default = [];
 			let data = if let Some(ref d) = params.data { d as &[u8] } else { &default as &[u8] };
 
 			let trace_info = tracer.prepare_trace_call(&params);
 
-			let cost = self.engine.cost_of_builtin(&params.code_address, data);
+			let cost = builtin.cost(data);
 			if cost <= params.gas {
-				self.engine.execute_builtin(&params.code_address, data, &mut output);
-				self.state.discard_checkpoint();
+				if let Err(e) = builtin.execute(data, &mut output) {
+					self.state.revert_to_checkpoint();
+					let evm_err: evm::evm::Error = e.into();
+					tracer.trace_failed_call(trace_info, vec![], evm_err.clone().into());
+					Err(evm_err)
+				} else {
+					self.state.discard_checkpoint();
 
-				// trace only top level calls to builtins to avoid DDoS attacks
-				if self.depth == 0 {
-					let mut trace_output = tracer.prepare_trace_output();
-					if let Some(mut out) = trace_output.as_mut() {
-						*out = output.to_owned();
+					// trace only top level calls to builtins to avoid DDoS attacks
+					if self.depth == 0 {
+						let mut trace_output = tracer.prepare_trace_output();
+						if let Some(mut out) = trace_output.as_mut() {
+							*out = output.to_owned();
+						}
+
+						tracer.trace_call(
+							trace_info,
+							cost,
+							trace_output,
+							vec![]
+						);
 					}
 
-					tracer.trace_call(
-						trace_info,
-						cost,
-						trace_output,
-						vec![]
-					);
+					Ok(params.gas - cost)
 				}
-
-				Ok(params.gas - cost)
 			} else {
 				// just drain the whole gas
 				self.state.revert_to_checkpoint();
@@ -492,6 +503,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				| Err(evm::Error::BadJumpDestination {..})
 				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
+				| Err(evm::Error::BuiltIn {..})
 				| Err(evm::Error::OutOfStack {..}) => {
 					self.state.revert_to_checkpoint();
 			},
@@ -509,7 +521,7 @@ mod tests {
 	use std::sync::Arc;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use util::{H256, U256, U512, Address, Uint, FixedHash, FromHex, FromStr};
+	use util::{H256, U256, U512, Address, Uint, FromHex, FromStr};
 	use util::bytes::BytesRef;
 	use action_params::{ActionParams, ActionValue};
 	use env_info::EnvInfo;

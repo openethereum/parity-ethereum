@@ -29,7 +29,10 @@ export default class ChainMiddleware {
           const { nodeStatus } = store.getState();
 
           if (newChain !== nodeStatus.netChain && nodeStatus.netChain !== DEFAULT_NETCHAIN) {
-            store.dispatch(showSnackbar(`Switched to ${newChain}. Please reload the page.`, 60000));
+            store.dispatch(showSnackbar(`Switched to ${newChain}. The UI will reload now...`));
+            setTimeout(() => {
+              window.location.reload();
+            }, 0);
 
             // Fetch the new balances without notifying the user of any change
             BalancesProvider.get(store).fetchAllBalances({

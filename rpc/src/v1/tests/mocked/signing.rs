@@ -28,7 +28,7 @@ use v1::types::ConfirmationResponse;
 use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
-use util::{Address, FixedHash, Uint, U256, ToPretty};
+use util::{Address, Uint, U256, ToPretty};
 use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
@@ -51,13 +51,14 @@ impl Default for SigningTester {
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
+		let opt_accounts = Some(accounts.clone());
 		let mut io = IoHandler::default();
 
 		let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
 
-		let rpc = SigningQueueClient::new(&signer, dispatcher.clone(), &accounts);
+		let rpc = SigningQueueClient::new(&signer, dispatcher.clone(), &opt_accounts);
 		io.extend_with(EthSigning::to_delegate(rpc));
-		let rpc = SigningQueueClient::new(&signer, dispatcher, &accounts);
+		let rpc = SigningQueueClient::new(&signer, dispatcher, &opt_accounts);
 		io.extend_with(ParitySigning::to_delegate(rpc));
 
 		SigningTester {

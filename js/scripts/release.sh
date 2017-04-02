@@ -5,8 +5,8 @@ set -e
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
 PACKAGES=( "parity" "etherscan" "shapeshift" "jsonrpc" )
 BRANCH=$CI_BUILD_REF_NAME
-GIT_JS_PRECOMPILED="https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/js-precompiled.git"
-GIT_PARITY="https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/parity.git"
+GIT_JS_PRECOMPILED="https://${GITHUB_JS_PRECOMPILED}:@github.com/paritytech/js-precompiled.git"
+GIT_PARITY="https://${GITHUB_JS_PRECOMPILED}:@github.com/paritytech/parity.git"
 
 # setup the git user defaults for the current repo
 function setup_git_user {
@@ -89,11 +89,13 @@ fi
 
 echo "*** Updating cargo parity-ui-precompiled#$PRECOMPILED_HASH"
 git submodule update
+sed -i "/^parity-ui-precompiled/ { s/branch = \".*\"/branch = \"$BRANCH\"/g; }" dapps/ui/Cargo.toml
 cargo update -p parity-ui-precompiled
 # --precise "$PRECOMPILED_HASH"
 
 echo "*** Committing updated files"
 git add js
+git add dapps/ui/Cargo.toml
 git add Cargo.lock
 git commit -m "[ci skip] js-precompiled $UTCDATE"
 git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG

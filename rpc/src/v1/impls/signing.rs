@@ -22,14 +22,15 @@ use util::{U256, Mutex};
 
 use ethcore::account_provider::AccountProvider;
 
-use futures::{self, future, BoxFuture, Future};
+use futures::{future, BoxFuture, Future};
 use jsonrpc_core::Error;
 use v1::helpers::{
-	errors,
+	errors, oneshot,
 	DefaultAccount,
-	SigningQueue, ConfirmationPromise, ConfirmationResult, SignerService
+	SIGNING_QUEUE_LIMIT, SigningQueue, ConfirmationPromise, ConfirmationResult, SignerService
 };
 use v1::helpers::dispatch::{self, Dispatcher};
+use v1::helpers::accounts::unwrap_provider;
 use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning};
 use v1::types::{
@@ -42,7 +43,10 @@ use v1::types::{
 	Origin,
 };
 
-const MAX_PENDING_DURATION: u64 = 60 * 60;
+/// After 60s entries that are not queried with `check_request` will get garbage collected.
+const MAX_PENDING_DURATION_SEC: u32 = 60;
+/// Max number of total requests pending and completed, before we start garbage collecting them.
+const MAX_TOTAL_REQUESTS: usize = SIGNING_QUEUE_LIMIT;
 
 enum DispatchResult {
 	Promise(ConfirmationPromise),
@@ -52,7 +56,7 @@ enum DispatchResult {
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct SigningQueueClient<D> {
 	signer: Weak<SignerService>,
-	accounts: Weak<AccountProvider>,
+	accounts: Option<Weak<AccountProvider>>,
 	dispatcher: D,
 	pending: Arc<Mutex<TransientHashMap<U256, ConfirmationPromise>>>,
 }
@@ -71,19 +75,38 @@ fn handle_dispatch<OnResponse>(res: Result<DispatchResult, Error>, on_response: 
 	}
 }
 
+fn collect_garbage(map: &mut TransientHashMap<U256, ConfirmationPromise>) {
+	map.prune();
+	if map.len() > MAX_TOTAL_REQUESTS {
+		// Remove all non-waiting entries.
+		let non_waiting: Vec<_> = map
+			.iter()
+			.filter(|&(_, val)| val.result() != ConfirmationResult::Waiting)
+			.map(|(key, _)| *key)
+			.collect();
+		for k in non_waiting {
+			map.remove(&k);
+		}
+	}
+}
+
 impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 	/// Creates a new signing queue client given shared signing queue.
-	pub fn new(signer: &Arc<SignerService>, dispatcher: D, accounts: &Arc<AccountProvider>) -> Self {
+	pub fn new(signer: &Arc<SignerService>, dispatcher: D, accounts: &Option<Arc<AccountProvider>>) -> Self {
 		SigningQueueClient {
 			signer: Arc::downgrade(signer),
-			accounts: Arc::downgrade(accounts),
+			accounts: accounts.as_ref().map(Arc::downgrade),
 			dispatcher: dispatcher,
-			pending: Arc::new(Mutex::new(TransientHashMap::new(MAX_PENDING_DURATION))),
+			pending: Arc::new(Mutex::new(TransientHashMap::new(MAX_PENDING_DURATION_SEC))),
 		}
 	}
 
+	fn account_provider(&self) -> Result<Arc<AccountProvider>, Error> {
+		unwrap_provider(&self.accounts)
+	}
+
 	fn dispatch(&self, payload: RpcConfirmationPayload, default_account: DefaultAccount, origin: Origin) -> BoxFuture<DispatchResult, Error> {
-		let accounts = take_weakf!(self.accounts);
+		let accounts = try_bf!(self.account_provider());
 		let default_account = match default_account {
 			DefaultAccount::Provided(acc) => acc,
 			DefaultAccount::ForDapp(dapp) => accounts.dapp_default_address(dapp).ok().unwrap_or_default(),
@@ -124,7 +147,10 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 			DispatchResult::Value(v) => RpcEither::Or(v),
 			DispatchResult::Promise(promise) => {
 				let id = promise.id();
-				pending.lock().insert(id, promise);
+				let mut pending = pending.lock();
+				collect_garbage(&mut pending);
+				pending.insert(id, promise);
+
 				RpcEither::Either(id.into())
 			},
 		})
@@ -138,7 +164,10 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 				DispatchResult::Value(v) => RpcEither::Or(v),
 				DispatchResult::Promise(promise) => {
 					let id = promise.id();
-					pending.lock().insert(id, promise);
+					let mut pending = pending.lock();
+					collect_garbage(&mut pending);
+					pending.insert(id, promise);
+
 					RpcEither::Either(id.into())
 				},
 			})
@@ -146,18 +175,15 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 	}
 
 	fn check_request(&self, id: RpcU256) -> Result<Option<RpcConfirmationResponse>, Error> {
-		let mut pending = self.pending.lock();
 		let id: U256 = id.into();
-		let res = match pending.get(&id) {
+		match self.pending.lock().get(&id) {
 			Some(ref promise) => match promise.result() {
-				ConfirmationResult::Waiting => { return Ok(None); }
+				ConfirmationResult::Waiting => Ok(None),
 				ConfirmationResult::Rejected => Err(errors::request_rejected()),
 				ConfirmationResult::Confirmed(rpc_response) => rpc_response.map(Some),
 			},
-			_ => { return Err(errors::request_not_found()); }
-		};
-		pending.remove(&id);
-		res
+			_ => Err(errors::request_not_found()),
+		}
 	}
 
 	fn decrypt_message(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes, Error> {
@@ -167,21 +193,20 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		let (ready, p) = futures::oneshot();
+		let (ready, p) = oneshot::oneshot();
 
 		// when dispatch is complete
 		res.then(move |res| {
 			// register callback via the oneshot sender.
 			handle_dispatch(res, move |response| {
 				match response {
-					Ok(RpcConfirmationResponse::Decrypt(data)) => ready.complete(Ok(data)),
-					Err(e) => ready.complete(Err(e)),
-					e => ready.complete(Err(errors::internal("Unexpected result.", e))),
+					Ok(RpcConfirmationResponse::Decrypt(data)) => ready.send(Ok(data)),
+					Err(e) => ready.send(Err(e)),
+					e => ready.send(Err(errors::internal("Unexpected result.", e))),
 				}
 			});
 
-			// and wait for that to resolve.
-			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))
+			p
 		}).boxed()
 	}
 }
@@ -196,18 +221,18 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		let (ready, p) = futures::oneshot();
+		let (ready, p) = oneshot::oneshot();
 
 		res.then(move |res| {
 			handle_dispatch(res, move |response| {
 				match response {
-					Ok(RpcConfirmationResponse::Signature(sig)) => ready.complete(Ok(sig)),
-					Err(e) => ready.complete(Err(e)),
-					e => ready.complete(Err(errors::internal("Unexpected result.", e))),
+					Ok(RpcConfirmationResponse::Signature(sig)) => ready.send(Ok(sig)),
+					Err(e) => ready.send(Err(e)),
+					e => ready.send(Err(errors::internal("Unexpected result.", e))),
 				}
 			});
 
-			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))
+			p
 		}).boxed()
 	}
 
@@ -218,18 +243,18 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		let (ready, p) = futures::oneshot();
+		let (ready, p) = oneshot::oneshot();
 
 		res.then(move |res| {
 			handle_dispatch(res, move |response| {
 				match response {
-					Ok(RpcConfirmationResponse::SendTransaction(hash)) => ready.complete(Ok(hash)),
-					Err(e) => ready.complete(Err(e)),
-					e => ready.complete(Err(errors::internal("Unexpected result.", e))),
+					Ok(RpcConfirmationResponse::SendTransaction(hash)) => ready.send(Ok(hash)),
+					Err(e) => ready.send(Err(e)),
+					e => ready.send(Err(errors::internal("Unexpected result.", e))),
 				}
 			});
 
-			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))
+			p
 		}).boxed()
 	}
 
@@ -240,18 +265,18 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		let (ready, p) = futures::oneshot();
+		let (ready, p) = oneshot::oneshot();
 
 		res.then(move |res| {
 			handle_dispatch(res, move |response| {
 				match response {
-					Ok(RpcConfirmationResponse::SignTransaction(tx)) => ready.complete(Ok(tx)),
-					Err(e) => ready.complete(Err(e)),
-					e => ready.complete(Err(errors::internal("Unexpected result.", e))),
+					Ok(RpcConfirmationResponse::SignTransaction(tx)) => ready.send(Ok(tx)),
+					Err(e) => ready.send(Err(e)),
+					e => ready.send(Err(errors::internal("Unexpected result.", e))),
 				}
 			});
 
-			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))
+			p
 		}).boxed()
 	}
 }

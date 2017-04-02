@@ -33,7 +33,7 @@ use error::{Error, BlockError};
 use header::Header;
 use builtin::Builtin;
 use env_info::EnvInfo;
-use rlp::{UntrustedRlp, View as RlpView};
+use rlp::UntrustedRlp;
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;
@@ -100,7 +100,7 @@ pub struct Tendermint {
 	/// Last block proposed by this validator.
 	last_proposed: RwLock<H256>,
 	/// Set used to determine the current validators.
-	validators: Box<ValidatorSet + Send + Sync>,
+	validators: Box<ValidatorSet>,
 }
 
 impl Tendermint {
@@ -347,7 +347,7 @@ impl Tendermint {
 						let seal = vec![
 							::rlp::encode(&vote_step.view).to_vec(),
 							::rlp::NULL_RLP.to_vec(),
-							::rlp::encode(&precommits).to_vec()
+							::rlp::encode_list(&precommits).to_vec()
 						];
 						self.submit_seal(bh, seal);
 						self.votes.throw_out_old(&vote_step);
@@ -844,7 +844,7 @@ mod tests {
 		let voter = insert_and_unlock(&tap, "0");
 		let signature0 = tap.sign(voter, None, vote_info.sha3()).unwrap();
 
-		seal[2] = ::rlp::encode(&vec![H520::from(signature1.clone()), H520::from(signature0.clone())]).to_vec();
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone()), H520::from(signature0.clone())]).to_vec();
 		header.set_seal(seal.clone());
 
 		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
@@ -852,7 +852,7 @@ mod tests {
 		let bad_voter = insert_and_unlock(&tap, "101");
 		let bad_signature = tap.sign(bad_voter, None, vote_info.sha3()).unwrap();
 
-		seal[2] = ::rlp::encode(&vec![H520::from(signature1), H520::from(bad_signature)]).to_vec();
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1), H520::from(bad_signature)]).to_vec();
 		header.set_seal(seal);
 
 		// One good and one bad signature.

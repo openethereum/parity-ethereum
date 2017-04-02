@@ -1,7 +1,7 @@
 [package]
 description = "Large fixed-size integers and hash function outputs"
 homepage = "http://parity.io"
-repository = "https://github.com/ethcore/parity"
+repository = "https://github.com/paritytech/parity"
 license = "GPL-3.0"
 name = "ethcore-bigint"
 version = "0.1.2"

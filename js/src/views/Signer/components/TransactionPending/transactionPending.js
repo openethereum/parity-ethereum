@@ -48,7 +48,7 @@ class TransactionPending extends Component {
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
     origin: PropTypes.any,
-    signerstore: PropTypes.object.isRequired,
+    signerStore: PropTypes.object.isRequired,
     transaction: PropTypes.shape({
       condition: PropTypes.object,
       data: PropTypes.string,
@@ -75,10 +75,10 @@ class TransactionPending extends Component {
     gasPrice: this.props.transaction.gasPrice.toFixed()
   });
 
-  hwstore = HardwareStore.get(this.context.api);
+  hardwareStore = HardwareStore.get(this.context.api);
 
   componentWillMount () {
-    const { signerstore, transaction } = this.props;
+    const { signerStore, transaction } = this.props;
     const { from, gas, gasPrice, to, value } = transaction;
 
     const fee = tUtil.getFee(gas, gasPrice); // BigNumber object
@@ -88,7 +88,7 @@ class TransactionPending extends Component {
 
     this.setState({ gasPriceEthmDisplay, totalValue, gasToDisplay });
     this.gasStore.setEthValue(value);
-    signerstore.fetchBalances([from, to]);
+    signerStore.fetchBalances([from, to]);
   }
 
   render () {
@@ -98,13 +98,13 @@ class TransactionPending extends Component {
   }
 
   renderTransaction () {
-    const { accounts, className, focus, id, isSending, netVersion, origin, signerstore, transaction } = this.props;
+    const { accounts, className, focus, id, isSending, netVersion, origin, signerStore, transaction } = this.props;
     const { totalValue } = this.state;
-    const { balances, externalLink } = signerstore;
+    const { balances, externalLink } = signerStore;
     const { from, value } = transaction;
     const fromBalance = balances[from];
     const account = accounts[from] || {};
-    const disabled = account.hardware && !this.hwstore.isConnected(from);
+    const disabled = account.hardware && !this.hardwareStore.isConnected(from);
 
     return (
       <div className={ `${styles.container} ${className}` }>
@@ -127,9 +127,12 @@ class TransactionPending extends Component {
           address={ from }
           disabled={ disabled }
           focus={ focus }
+          gasStore={ this.gasStore }
           isSending={ isSending }
+          netVersion={ netVersion }
           onConfirm={ this.onConfirm }
           onReject={ this.onReject }
+          transaction={ transaction }
         />
       </div>
     );
@@ -157,7 +160,7 @@ class TransactionPending extends Component {
 
   onConfirm = (data) => {
     const { id, transaction } = this.props;
-    const { password, wallet } = data;
+    const { password, txSigned, wallet } = data;
     const { condition, gas, gasPrice } = this.gasStore.overrideTransaction(transaction);
 
     const options = {
@@ -165,6 +168,7 @@ class TransactionPending extends Component {
       gasPrice,
       id,
       password,
+      txSigned,
       wallet
     };
 

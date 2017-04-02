@@ -101,7 +101,7 @@ export function parseAbiType (type) {
     };
   }
 
-  if (type === 'bytes') {
+  if (type === 'bytes' || type === 'fixedBytes') {
     return {
       type: BYTES_TYPE,
       default: '0x'

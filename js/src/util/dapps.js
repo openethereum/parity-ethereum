@@ -21,7 +21,9 @@ import Contracts from '~/contracts';
 import { hashToImageUrl } from '~/redux/util';
 import { bytesToHex } from '~/api/util/format';
 
-import builtinApps from '~/views/Dapps/builtin.json';
+import builtinJson from '~/views/Dapps/builtin.json';
+
+const builtinApps = builtinJson.filter((app) => app.id);
 
 function getHost (api) {
   const host = process.env.DAPPS_URL ||
@@ -140,7 +142,7 @@ export function fetchRegistryAppIds () {
           return (new BigNumber(appId)).gt(0) && !builtinApps.find((app) => app.id === appId);
         });
 
-      return appIds;
+      return uniq(appIds);
     })
     .catch((error) => {
       console.warn('DappsStore:fetchRegistryAppIds', error);

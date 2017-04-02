@@ -64,6 +64,7 @@ fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			tx_queue_banning: Banning::Disabled,
 			pending_set: PendingSet::SealingOrElseQueue,
 			reseal_min_period: Duration::from_secs(0),
+			reseal_max_period: Duration::from_secs(120),
 			work_queue_size: 50,
 			enable_resubmission: true,
 			refuse_service_transactions: false,
@@ -116,6 +117,7 @@ impl EthTester {
 
 	fn from_spec(spec: Spec) -> Self {
 		let account_provider = account_provider();
+		let opt_account_provider = Some(account_provider.clone());
 		let miner_service = miner_service(&spec, account_provider.clone());
 		let snapshot_service = snapshot_service();
 
@@ -133,7 +135,7 @@ impl EthTester {
 			&client,
 			&snapshot_service,
 			&sync_provider,
-			&account_provider,
+			&opt_account_provider,
 			&miner_service,
 			&external_miner,
 			Default::default(),
@@ -141,7 +143,7 @@ impl EthTester {
 
 		let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner_service));
 		let eth_sign = SigningUnsafeClient::new(
-			&account_provider,
+			&opt_account_provider,
 			dispatcher,
 		);
 

@@ -31,11 +31,4 @@ describe('playground/store', () => {
     PlaygroundStore.register(<QrCode />);
     expect(store.components.length).greaterThan(0);
   });
-
-  it('adds new Components only once', () => {
-    PlaygroundStore.register(<QrCode />);
-    PlaygroundStore.register(<QrCode />);
-
-    expect(store.components.filter((c) => /QrCode/i.test(c.type.name)).length).equal(1);
-  });
 });

@@ -17,7 +17,7 @@
 use super::test_common::*;
 use evm;
 use ethjson;
-use rlp::{UntrustedRlp, View};
+use rlp::UntrustedRlp;
 use transaction::{Action, UnverifiedTransaction};
 use ethstore::ethkey::public_to_address;
 
