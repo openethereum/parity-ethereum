@@ -26,6 +26,7 @@ rand = "0.3.13"
 heapsize = "0.3"
 ethcore-ipc = { path = "../ipc/rpc" }
 semver = "0.6"
+smallvec = { version = "0.3", features = ["heapsizeof"] }
 ethcore-ipc-nano = { path = "../ipc/nano" }
 ethcore-devtools = { path = "../devtools" }
 ethkey = { path = "../ethkey" }

@@ -81,7 +81,7 @@ impl FromStr for Api {
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ApiSet {
 	SafeContext,
 	UnsafeContext,

@@ -15,8 +15,9 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$baseColor: 255;
+$baseColor: 18;
 $baseOpacity: 0.95;
+$borderColor: rgba($baseColor, $baseColor, $baseColor, 0.25);
 
 .requests {
   align-items: flex-end;
@@ -25,6 +26,7 @@ $baseOpacity: 0.95;
   flex-direction: column;
   position: fixed;
   right: 0.175em;
+  width: 24em;
   z-index: 750;
 
   * {
@@ -36,10 +38,11 @@ $baseOpacity: 0.95;
   animation-fill-mode: forwards;
   animation-timing-function: cubic-bezier(0.7, 0, 0.3, 1);
   background-color: rgba($baseColor, $baseColor, $baseColor, $baseOpacity);
-  color: black;
+  border: 4px solid $borderColor;
   cursor: pointer;
-  margin-top: 0.5em;
+  margin-top: 0.25em;
   opacity: 1;
+  width: 100%;
 
   &.hide {
     animation-duration: 0.5s;
@@ -58,11 +61,7 @@ $baseOpacity: 0.95;
   .container {
     display: flex;
     flex-direction: row;
-    padding: 1em;
-
-    * {
-      color: black !important;
-    }
+    padding: 1em 1em 0.5em 1em;
   }
 
   &:hover .container {

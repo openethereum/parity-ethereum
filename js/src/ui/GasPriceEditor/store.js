@@ -74,6 +74,18 @@ export default class GasPriceEditor {
     }
   }
 
+  @computed get conditionValue () {
+    switch (this.conditionType) {
+      case CONDITIONS.BLOCK:
+        return { block: new BigNumber(this.condition.block || 0) };
+
+      case CONDITIONS.TIME:
+        return { time: this.condition.time };
+    }
+
+    return;
+  }
+
   @action setConditionType = (conditionType = CONDITIONS.NONE) => {
     transaction(() => {
       this.conditionBlockError = null;
@@ -224,11 +236,8 @@ export default class GasPriceEditor {
 
     switch (this.conditionType) {
       case CONDITIONS.BLOCK:
-        result.condition = { block: new BigNumber(this.condition.block || 0) };
-        break;
-
       case CONDITIONS.TIME:
-        result.condition = { time: this.condition.time };
+        result.condition = this.conditionValue;
         break;
 
       case CONDITIONS.NONE:

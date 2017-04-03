@@ -46,7 +46,11 @@ class Requests extends Component {
 
     return (
       <div className={ styles.requests }>
-        { Object.values(requests).map((request) => this.renderRequest(request, extras[request.requestId])) }
+        {
+          Object
+            .values(requests)
+            .map((request) => this.renderRequest(request, extras[request.requestId]))
+        }
       </div>
     );
   }
@@ -94,17 +98,20 @@ class Requests extends Component {
         </div>
         {
           state.type === ERROR_STATE
-          ? null
-          : (
-            <LinearProgress
-              max={ 6 }
-              mode={ state.type === WAITING_STATE ? 'indeterminate' : 'determinate' }
-              value={ state.type === DONE_STATE ? request.blockHeight.toNumber() : 6 }
-            />
-          )
+            ? null
+            : (
+              <LinearProgress
+                max={ 6 }
+                mode={ state.type === WAITING_STATE ? 'indeterminate' : 'determinate' }
+                value={ state.type === DONE_STATE ? request.blockHeight.toNumber() : 6 }
+              />
+            )
         }
         <div className={ styles.container }>
-          <div className={ styles.identity } title={ transaction.from }>
+          <div
+            className={ styles.identity }
+            title={ transaction.from }
+          >
             <IdentityIcon
               address={ transaction.from }
               inline
@@ -230,4 +237,7 @@ function mapDispatchToProps (dispatch) {
   }, dispatch);
 }
 
-export default connect(mapStateToProps, mapDispatchToProps)(Requests);
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Requests);

@@ -21,18 +21,30 @@ import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
 
-import { Form, Input, IdentityIcon } from '~/ui';
+import { Form, Input, IdentityIcon, QrCode, QrScan } from '~/ui';
+import { generateTxQr } from '~/util/qrscan';
 
 import styles from './transactionPendingFormConfirm.css';
 
+const QR_VISIBLE = 1;
+const QR_SCAN = 2;
+const QR_COMPLETED = 3;
+
 export default class TransactionPendingFormConfirm extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     account: PropTypes.object,
     address: PropTypes.string.isRequired,
     disabled: PropTypes.bool,
+    focus: PropTypes.bool,
+    gasStore: PropTypes.object.isRequired,
+    netVersion: PropTypes.string.isRequired,
     isSending: PropTypes.bool.isRequired,
     onConfirm: PropTypes.func.isRequired,
-    focus: PropTypes.bool
+    transaction: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -44,12 +56,23 @@ export default class TransactionPendingFormConfirm extends Component {
 
   state = {
     password: '',
+    qrState: QR_VISIBLE,
+    qr: {},
     wallet: null,
     walletError: null
   }
 
   componentDidMount () {
     this.focus();
+  }
+
+  componentWillMount () {
+    this.readNonce();
+    this.subscribeNonce();
+  }
+
+  componentWillUnmount () {
+    this.unsubscribeNonce();
   }
 
   componentWillReceiveProps (nextProps) {
@@ -93,64 +116,96 @@ export default class TransactionPendingFormConfirm extends Component {
     return walletHint || null;
   }
 
+  // TODO: Now that we have 3 types, it would make sense splitting each into their own
+  // sub-module and having the consistent bits combined (e.g. i18n, layouts)
   render () {
     const { account, address, disabled, isSending } = this.props;
     const { wallet, walletError } = this.state;
-    const isWalletOk = account.hardware || account.uuid || (walletError === null && wallet !== null);
+    const isAccount = account.external || account.hardware || account.uuid;
+    const isWalletOk = isAccount || (walletError === null && wallet !== null);
+    const confirmText = this.renderConfirmButton();
+    const confirmButton = confirmText
+      ? (
+        <div
+          data-effect='solid'
+          data-for={ `transactionConfirmForm${this.id}` }
+          data-place='bottom'
+          data-tip
+        >
+          <RaisedButton
+            className={ styles.confirmButton }
+            disabled={ disabled || isSending || !isWalletOk }
+            fullWidth
+            icon={
+              <IdentityIcon
+                address={ address }
+                button
+                className={ styles.signerIcon }
+              />
+            }
+            label={ confirmText }
+            onTouchTap={ this.onConfirm }
+            primary
+          />
+        </div>
+      )
+      : null;
 
     return (
       <div className={ styles.confirmForm }>
         <Form>
           { this.renderKeyInput() }
+          { this.renderQrCode() }
+          { this.renderQrScanner() }
           { this.renderPassword() }
           { this.renderHint() }
-          <div
-            data-effect='solid'
-            data-for={ `transactionConfirmForm${this.id}` }
-            data-place='bottom'
-            data-tip
-          >
-            <RaisedButton
-              className={ styles.confirmButton }
-              disabled={ disabled || isSending || !isWalletOk }
-              fullWidth
-              icon={
-                <IdentityIcon
-                  address={ address }
-                  button
-                  className={ styles.signerIcon }
-                />
-              }
-              label={
-                isSending
-                  ? (
-                    <FormattedMessage
-                      id='signer.txPendingConfirm.buttons.confirmBusy'
-                      defaultMessage='Confirming...'
-                    />
-                  )
-                  : (
-                    <FormattedMessage
-                      id='signer.txPendingConfirm.buttons.confirmRequest'
-                      defaultMessage='Confirm Request'
-                    />
-                  )
-              }
-              onTouchTap={ this.onConfirm }
-              primary
-            />
-          </div>
+          { confirmButton }
           { this.renderTooltip() }
         </Form>
       </div>
     );
   }
 
+  renderConfirmButton () {
+    const { account, isSending } = this.props;
+    const { qrState } = this.state;
+
+    if (account.external) {
+      switch (qrState) {
+        case QR_VISIBLE:
+          return (
+            <FormattedMessage
+              id='signer.txPendingConfirm.buttons.scanSigned'
+              defaultMessage='Scan Signed QR'
+            />
+          );
+
+        case QR_SCAN:
+        case QR_COMPLETED:
+          return null;
+      }
+    }
+
+    return isSending
+      ? (
+        <FormattedMessage
+          id='signer.txPendingConfirm.buttons.confirmBusy'
+          defaultMessage='Confirming...'
+        />
+      )
+      : (
+        <FormattedMessage
+          id='signer.txPendingConfirm.buttons.confirmRequest'
+          defaultMessage='Confirm Request'
+        />
+      );
+  }
+
   renderPassword () {
     const { account } = this.props;
     const { password } = this.state;
 
-    if (account.hardware) {
+    if (account.hardware || account.external) {
       return null;
     }
 
@@ -199,6 +254,34 @@ export default class TransactionPendingFormConfirm extends Component {
 
   renderHint () {
     const { account, disabled, isSending } = this.props;
+    const { qrState } = this.state;
+
+    if (account.external) {
+      switch (qrState) {
+        case QR_VISIBLE:
+          return (
+            <div className={ styles.passwordHint }>
+              <FormattedMessage
+                id='signer.sending.external.scanTx'
+                defaultMessage='Please scan the transaction QR on your external device'
+              />
+            </div>
+          );
+
+        case QR_SCAN:
+          return (
+            <div className={ styles.passwordHint }>
+              <FormattedMessage
+                id='signer.sending.external.scanSigned'
+                defaultMessage='Scan the QR code of the signed transaction from your external device'
+              />
+            </div>
+          );
+
+        case QR_COMPLETED:
+          return null;
+      }
+    }
 
     if (account.hardware) {
       if (isSending) {
@@ -241,11 +324,45 @@ export default class TransactionPendingFormConfirm extends Component {
     );
   }
 
+  // TODO: Split into sub-scomponent
+  renderQrCode () {
+    const { account } = this.props;
+    const { qrState, qr } = this.state;
+
+    if (!account.external || qrState !== QR_VISIBLE || !qr.value) {
+      return null;
+    }
+
+    return (
+      <QrCode
+        className={ styles.qr }
+        value={ qr.value }
+      />
+    );
+  }
+
+  // TODO: Split into sub-scomponent
+  renderQrScanner () {
+    const { account } = this.props;
+    const { qrState } = this.state;
+
+    if (!account.external || qrState !== QR_SCAN) {
+      return null;
+    }
+
+    return (
+      <QrScan
+        className={ styles.camera }
+        onScan={ this.onScanTx }
+      />
+    );
+  }
+
   renderKeyInput () {
     const { account } = this.props;
     const { walletError } = this.state;
 
-    if (account.uuid || account.wallet || account.hardware) {
+    if (account.uuid || account.wallet || account.hardware || account.external) {
       return null;
     }
 
@@ -274,8 +391,8 @@ export default class TransactionPendingFormConfirm extends Component {
   renderTooltip () {
     const { account } = this.props;
 
-    if (this.state.password.length || account.hardware) {
-      return;
+    if (this.state.password.length || account.hardware || account.external) {
+      return null;
     }
 
     return (
@@ -286,6 +403,25 @@ export default class TransactionPendingFormConfirm extends Component {
         />
       </ReactTooltip>
     );
+  }
+
+  onScanTx = (signature) => {
+    const { chainId, rlp, tx } = this.state.qr;
+
+    if (signature && signature.substr(0, 2) !== '0x') {
+      signature = `0x${signature}`;
+    }
+
+    this.setState({ qrState: QR_COMPLETED });
+
+    this.props.onConfirm({
+      txSigned: {
+        chainId,
+        rlp,
+        signature,
+        tx
+      }
+    });
   }
 
   onKeySelect = (event) => {
@@ -338,11 +474,25 @@ export default class TransactionPendingFormConfirm extends Component {
   }
 
   onConfirm = () => {
-    const { password, wallet } = this.state;
+    const { account } = this.props;
+    const { password, qrState, wallet } = this.state;
+
+    if (account.external && qrState === QR_VISIBLE) {
+      return this.setState({ qrState: QR_SCAN });
+    }
 
     this.props.onConfirm({
       password,
       wallet
+    });
+  }
+
+  generateTxQr = () => {
+    const { api } = this.context;
+    const { netVersion, gasStore, transaction } = this.props;
+
+    generateTxQr(api, netVersion, gasStore, transaction).then((qr) => {
+      this.setState({ qr });
     });
   }
 
@@ -354,5 +504,44 @@ export default class TransactionPendingFormConfirm extends Component {
     }
 
     this.onConfirm();
+  }
+
+  // FIXME: Sadly the API subscription channels currently does not allow for specific values,
+  // rather it can only do general queries where parameters are not specified. Hence we are
+  // polling for the nonce here. Since we are moving to node-based subscriptions on the API layer,
+  // this can be optimised when the subscription mechanism is reworked to conform.
+  subscribeNonce () {
+    const nonceTimerId = setInterval(this.readNonce, 1000);
+
+    this.setState({ nonceTimerId });
+  }
+
+  unsubscribeNonce () {
+    const { nonceTimerId } = this.state;
+
+    if (!nonceTimerId) {
+      return;
+    }
+
+    clearInterval(nonceTimerId);
+  }
+
+  readNonce = () => {
+    const { api } = this.context;
+    const { account } = this.props;
+
+    if (!account || !account.external || !api.transport.isConnected) {
+      return;
+    }
+
+    return api.parity
+      .nextNonce(account.address)
+      .then((nonce) => {
+        const { qr } = this.state;
+
+        if (!qr.nonce || !nonce.eq(qr.nonce)) {
+          this.generateTxQr();
+        }
+      });
   }
 }

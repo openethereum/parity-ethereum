@@ -15,24 +15,20 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Router implementation
-//! Processes request handling authorization and dispatching it to proper application.
-
-pub mod auth;
-mod host_validation;
+//! Dispatch requests to proper application.
 
 use address;
 use std::cmp;
-use std::sync::Arc;
 use std::collections::HashMap;
 
 use url::{Url, Host};
-use hyper::{self, server, header, Next, Encoder, Decoder, Control, StatusCode};
+use hyper::{self, server, header, Control, StatusCode};
 use hyper::net::HttpStream;
-use jsonrpc_server_utils::hosts;
+use jsonrpc_http_server as http;
 
 use apps::{self, DAPPS_DOMAIN};
 use apps::fetcher::Fetcher;
-use endpoint::{Endpoint, Endpoints, EndpointPath};
+use endpoint::{Endpoint, Endpoints, EndpointPath, Handler};
 use handlers::{self, Redirection, ContentHandler};
 
 /// Special endpoints are accessible on every domain (every dapp)
@@ -44,51 +40,29 @@ pub enum SpecialEndpoint {
 	None,
 }
 
-pub struct Router<A: auth::Authorization + 'static> {
-	control: Option<Control>,
+pub struct Router<F> {
 	signer_address: Option<(String, u16)>,
-	endpoints: Arc<Endpoints>,
-	fetch: Arc<Fetcher>,
-	special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
-	authorization: Arc<A>,
-	allowed_hosts: Option<Vec<hosts::Host>>,
-	handler: Box<server::Handler<HttpStream> + Send>,
+	endpoints: Endpoints,
+	fetch: F,
+	special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
 }
 
-impl<A: auth::Authorization + 'static> server::Handler<HttpStream> for Router<A> {
-
-	fn on_request(&mut self, req: server::Request<HttpStream>) -> Next {
+impl<F: Fetcher + 'static> http::RequestMiddleware for Router<F> {
+	fn on_request(&self, req: &server::Request<HttpStream>, control: &Control) -> http::RequestMiddlewareAction {
 		// Choose proper handler depending on path / domain
-		let url = handlers::extract_url(&req);
+		let url = handlers::extract_url(req);
 		let endpoint = extract_endpoint(&url);
-		let referer = extract_referer_endpoint(&req);
+		let referer = extract_referer_endpoint(req);
 		let is_utils = endpoint.1 == SpecialEndpoint::Utils;
+		let is_dapps_domain = endpoint.0.as_ref().map(|endpoint| endpoint.using_dapps_domains).unwrap_or(false);
+		let is_origin_set = req.headers().get::<http::hyper::header::Origin>().is_some();
 		let is_get_request = *req.method() == hyper::Method::Get;
 
 		trace!(target: "dapps", "Routing request to {:?}. Details: {:?}", url, req);
 
-		// Validate Host header
-		trace!(target: "dapps", "Validating host headers against: {:?}", self.allowed_hosts);
-		let is_valid = is_utils || host_validation::is_valid(&req, &self.allowed_hosts);
-		if !is_valid {
-			debug!(target: "dapps", "Rejecting invalid host header.");
-			self.handler = host_validation::host_invalid_response();
-			return self.handler.on_request(req);
-		}
-
-		trace!(target: "dapps", "Checking authorization.");
-		// Check authorization
-		let auth = self.authorization.is_authorized(&req);
-		if let auth::Authorized::No(handler) = auth {
-			debug!(target: "dapps", "Authorization denied.");
-			self.handler = handler;
-			return self.handler.on_request(req);
-		}
-
-
-		let control = self.control.take().expect("on_request is called only once; control is always defined at start; qed");
+		let control = control.clone();
 		debug!(target: "dapps", "Handling endpoint request: {:?}", endpoint);
-		self.handler = match (endpoint.0, endpoint.1, referer) {
+		let handler: Option<Box<Handler>> = match (endpoint.0, endpoint.1, referer) {
 			// Handle invalid web requests that we can recover from
 			(ref path, SpecialEndpoint::None, Some((ref referer, ref referer_url)))
 				if referer.app_id == apps::WEB_PATH
@@ -100,26 +74,27 @@ impl<A: auth::Authorization + 'static> server::Handler<HttpStream> for Router<A>
 				let len = cmp::min(referer_url.path.len(), 2); // /web/<encoded>/
 				let base = referer_url.path[..len].join("/");
 				let requested = url.map(|u| u.path.join("/")).unwrap_or_default();
-				Redirection::boxed(&format!("/{}/{}", base, requested))
+				Some(Redirection::boxed(&format!("/{}/{}", base, requested)))
 			},
 			// First check special endpoints
 			(ref path, ref endpoint, _) if self.special.contains_key(endpoint) => {
 				trace!(target: "dapps", "Resolving to special endpoint.");
 				self.special.get(endpoint)
 					.expect("special known to contain key; qed")
-					.to_async_handler(path.clone().unwrap_or_default(), control)
+					.as_ref()
+					.map(|special| special.to_async_handler(path.clone().unwrap_or_default(), control))
 			},
 			// Then delegate to dapp
 			(Some(ref path), _, _) if self.endpoints.contains_key(&path.app_id) => {
 				trace!(target: "dapps", "Resolving to local/builtin dapp.");
-				self.endpoints.get(&path.app_id)
+				Some(self.endpoints.get(&path.app_id)
 					.expect("endpoints known to contain key; qed")
-					.to_async_handler(path.clone(), control)
+					.to_async_handler(path.clone(), control))
 			},
 			// Try to resolve and fetch the dapp
 			(Some(ref path), _, _) if self.fetch.contains(&path.app_id) => {
 				trace!(target: "dapps", "Resolving to fetchable content.");
-				self.fetch.to_async_handler(path.clone(), control)
+				Some(self.fetch.to_async_handler(path.clone(), control))
 			},
 			// NOTE [todr] /home is redirected to home page since some users may have the redirection cached
 			// (in the past we used 301 instead of 302)
@@ -128,82 +103,61 @@ impl<A: auth::Authorization + 'static> server::Handler<HttpStream> for Router<A>
 			// 404 for non-existent content
 			(Some(ref path), _, _) if is_get_request && path.app_id != "home" => {
 				trace!(target: "dapps", "Resolving to 404.");
-				Box::new(ContentHandler::error(
+				Some(Box::new(ContentHandler::error(
 					StatusCode::NotFound,
 					"404 Not Found",
 					"Requested content was not found.",
 					None,
 					self.signer_address.clone(),
-				))
+				)))
 			},
 			// Redirect any other GET request to signer.
 			_ if is_get_request => {
 				if let Some(ref signer_address) = self.signer_address {
 					trace!(target: "dapps", "Redirecting to signer interface.");
-					Redirection::boxed(&format!("http://{}", address(signer_address)))
+					Some(Redirection::boxed(&format!("http://{}", address(signer_address))))
 				} else {
 					trace!(target: "dapps", "Signer disabled, returning 404.");
-					Box::new(ContentHandler::error(
+					Some(Box::new(ContentHandler::error(
 						StatusCode::NotFound,
 						"404 Not Found",
 						"Your homepage is not available when Trusted Signer is disabled.",
 						Some("You can still access dapps by writing a correct address, though. Re-enable Signer to get your homepage back."),
 						self.signer_address.clone(),
-					))
+					)))
 				}
 			},
 			// RPC by default
 			_ => {
 				trace!(target: "dapps", "Resolving to RPC call.");
-				self.special.get(&SpecialEndpoint::Rpc)
-					.expect("RPC endpoint always stored; qed")
-					.to_async_handler(EndpointPath::default(), control)
+				None
 			}
 		};
 
-		// Delegate on_request to proper handler
-		self.handler.on_request(req)
-	}
-
-	/// This event occurs each time the `Request` is ready to be read from.
-	fn on_request_readable(&mut self, decoder: &mut Decoder<HttpStream>) -> Next {
-		self.handler.on_request_readable(decoder)
-	}
-
-	/// This event occurs after the first time this handled signals `Next::write()`.
-	fn on_response(&mut self, response: &mut server::Response) -> Next {
-		self.handler.on_response(response)
-	}
-
-	/// This event occurs each time the `Response` is ready to be written to.
-	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
-		self.handler.on_response_writable(encoder)
+		match handler {
+			Some(handler) => http::RequestMiddlewareAction::Respond {
+				should_validate_hosts: !(is_utils || is_dapps_domain),
+				handler: handler,
+			},
+			None => http::RequestMiddlewareAction::Proceed {
+				should_continue_on_invalid_cors: !is_origin_set,
+			},
+		}
 	}
 }
 
-impl<A: auth::Authorization> Router<A> {
+impl<F> Router<F> {
 	pub fn new(
-		control: Control,
 		signer_address: Option<(String, u16)>,
-		content_fetcher: Arc<Fetcher>,
-		endpoints: Arc<Endpoints>,
-		special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
-		authorization: Arc<A>,
-		allowed_hosts: Option<Vec<hosts::Host>>,
-		) -> Self {
-
-		let handler = special.get(&SpecialEndpoint::Utils)
-			.expect("Utils endpoint always stored; qed")
-			.to_handler(EndpointPath::default());
+		content_fetcher: F,
+		endpoints: Endpoints,
+		special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
+	) -> Self {
 		Router {
-			control: Some(control),
 			signer_address: signer_address,
 			endpoints: endpoints,
 			fetch: content_fetcher,
 			special: special,
-			authorization: authorization,
-			allowed_hosts: allowed_hosts,
-			handler: handler,
 		}
 	}
 }
