@@ -33,8 +33,8 @@ class TokenSelect extends Component {
   static propTypes = {
     onChange: PropTypes.func.isRequired,
     balance: PropTypes.object.isRequired,
-    tag: PropTypes.string.isRequired,
-    tokens: PropTypes.object.isRequired
+    tokens: PropTypes.object.isRequired,
+    value: PropTypes.string.isRequired
   };
 
   componentWillMount () {
@@ -92,7 +92,7 @@ class TokenSelect extends Component {
         return (
           <MenuItem
             key={ tokenId }
-            value={ token.tag }
+            value={ token.id }
             label={ label }
           >
             { label }
@@ -105,7 +105,7 @@ class TokenSelect extends Component {
   }
 
   render () {
-    const { tag, onChange } = this.props;
+    const { onChange, value } = this.props;
     const { items } = this.state;
 
     return (
@@ -113,7 +113,7 @@ class TokenSelect extends Component {
         className={ styles.tokenSelect }
         label='type of token transfer'
         hint='type of token to transfer'
-        value={ tag }
+        value={ value }
         onChange={ onChange }
       >
         { items }

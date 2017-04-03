@@ -50,6 +50,7 @@ class Transfer extends Component {
     onClose: PropTypes.func,
     senders: nullableProptype(PropTypes.object),
     sendersBalances: nullableProptype(PropTypes.object),
+    tokens: PropTypes.object,
     wallet: PropTypes.object
   }
 
@@ -145,7 +146,7 @@ class Transfer extends Component {
   renderDetailsPage () {
     const { account, balance, senders } = this.props;
     const { recipient, recipientError, sender, senderError } = this.store;
-    const { valueAll, extras, tag, total, totalError, value, valueError } = this.store;
+    const { valueAll, extras, token, total, totalError, value, valueError } = this.store;
 
     return (
       <Details
@@ -159,7 +160,7 @@ class Transfer extends Component {
         sender={ sender }
         senderError={ senderError }
         senders={ senders }
-        tag={ tag }
+        token={ token }
         total={ total }
         totalError={ totalError }
         value={ value }
@@ -271,6 +272,7 @@ class Transfer extends Component {
 }
 
 function mapStateToProps (initState, initProps) {
+  const { tokens } = initState;
   const { address } = initProps.account;
 
   const isWallet = initProps.account && initProps.account.wallet;
@@ -295,7 +297,7 @@ function mapStateToProps (initState, initProps) {
     const balance = balances[address];
     const sendersBalances = senders ? pick(balances, Object.keys(senders)) : null;
 
-    return { balance, gasLimit, wallet, senders, sendersBalances };
+    return { balance, gasLimit, senders, sendersBalances, tokens, wallet };
   };
 }
 
