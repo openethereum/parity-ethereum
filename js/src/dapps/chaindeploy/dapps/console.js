@@ -20,7 +20,7 @@ const id = 'console';
 const app = builtins.find((app) => app.url === id);
 const hashId = app.id;
 const source = {
-  imageUrl: 'https://raw.githubusercontent.com/ethcore/console/3ea0dbfefded359ccdbea37bc4cf350c0aa16948/console.jpeg',
+  imageUrl: 'https://raw.githubusercontent.com/paritytech/console/3ea0dbfefded359ccdbea37bc4cf350c0aa16948/console.jpeg',
   imageHash: '0xc3962e2eab7afaeb9cd11522381723afbafdc41dc7ba31bee472e187c4459e81'
 };
 const name = app.name;

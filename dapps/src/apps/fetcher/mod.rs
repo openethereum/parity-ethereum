@@ -47,7 +47,8 @@ pub trait Fetcher: Send + Sync + 'static {
 	fn to_async_handler(&self, path: EndpointPath, control: hyper::Control) -> Box<Handler>;
 }
 
-pub struct ContentFetcher<F: Fetch = FetchClient, R: URLHint + Send + Sync + 'static = URLHintContract> {
+#[derive(Clone)]
+pub struct ContentFetcher<F: Fetch + Clone = FetchClient, R: URLHint + Clone + 'static = URLHintContract> {
 	dapps_path: PathBuf,
 	resolver: R,
 	cache: Arc<Mutex<ContentCache>>,
@@ -57,14 +58,14 @@ pub struct ContentFetcher<F: Fetch = FetchClient, R: URLHint + Send + Sync + 'st
 	fetch: F,
 }
 
-impl<R: URLHint + Send + Sync + 'static, F: Fetch> Drop for ContentFetcher<F, R> {
+impl<R: URLHint + Clone + 'static, F: Fetch + Clone> Drop for ContentFetcher<F, R> {
 	fn drop(&mut self) {
 		// Clear cache path
 		let _ = fs::remove_dir_all(&self.dapps_path);
 	}
 }
 
-impl<R: URLHint + Send + Sync + 'static, F: Fetch> ContentFetcher<F, R> {
+impl<R: URLHint + Clone + 'static, F: Fetch + Clone> ContentFetcher<F, R> {
 
 	pub fn new(resolver: R, sync_status: Arc<SyncStatus>, embeddable_on: Option<(String, u16)>, remote: Remote, fetch: F) -> Self {
 		let mut dapps_path = env::temp_dir();
@@ -97,7 +98,7 @@ impl<R: URLHint + Send + Sync + 'static, F: Fetch> ContentFetcher<F, R> {
 	}
 }
 
-impl<R: URLHint + Send + Sync + 'static, F: Fetch> Fetcher for ContentFetcher<F, R> {
+impl<R: URLHint + Clone + 'static, F: Fetch + Clone> Fetcher for ContentFetcher<F, R> {
 	fn contains(&self, content_id: &str) -> bool {
 		{
 			let mut cache = self.cache.lock();
@@ -233,6 +234,7 @@ mod tests {
 	use page::LocalPageEndpoint;
 	use super::{ContentFetcher, Fetcher};
 
+	#[derive(Clone)]
 	struct FakeResolver;
 	impl URLHint for FakeResolver {
 		fn resolve(&self, _id: Bytes) -> Option<URLHintResult> {

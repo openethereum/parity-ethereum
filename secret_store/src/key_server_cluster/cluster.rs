@@ -19,7 +19,6 @@ use std::time;
 use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::collections::btree_map::Entry;
-use std::str::FromStr;
 use std::net::{SocketAddr, IpAddr};
 use futures::{finished, failed, Future, Stream, BoxFuture};
 use futures_cpupool::CpuPool;
@@ -879,7 +878,7 @@ impl ClusterClient for ClusterClientImpl {
 }
 
 fn make_socket_address(address: &str, port: u16) -> Result<SocketAddr, Error> {
-	let ip_address = IpAddr::from_str(&address).map_err(|_| Error::InvalidNodeAddress)?;
+	let ip_address: IpAddr = address.parse().map_err(|_| Error::InvalidNodeAddress)?;
 	Ok(SocketAddr::new(ip_address, port))
 }
 

@@ -72,13 +72,15 @@ impl Dependencies {
 	}
 
 	pub fn client(&self, signer: Option<Arc<SignerService>>) -> TestParityClient {
+		let opt_accounts = Some(self.accounts.clone());
+
 		ParityClient::new(
 			&self.client,
 			&self.miner,
 			&self.sync,
 			&self.updater,
 			&self.network,
-			&self.accounts,
+			&opt_accounts,
 			self.logger.clone(),
 			self.settings.clone(),
 			signer,
@@ -494,6 +496,17 @@ fn rpc_parity_chain_status() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_chainStatus", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"blockGap":["0x6","0xd05"]},"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_node_kind() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_nodeKind", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"availability":"personal","capability":"full"},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

@@ -20,6 +20,7 @@ import { addLocaleData } from 'react-intl';
 import de from 'react-intl/locale-data/de';
 import en from 'react-intl/locale-data/en';
 import nl from 'react-intl/locale-data/nl';
+import zh from 'react-intl/locale-data/zh';
 import store from 'store';
 
 import { DEFAULT_LOCALE, DEFAULT_LOCALES, LS_STORE_KEY } from './constants';
@@ -27,6 +28,7 @@ import languages from './languages';
 import deMessages from './de';
 import enMessages from './en';
 import nlMessages from './nl';
+import zhMessages from './zh';
 
 let instance = null;
 
@@ -34,10 +36,11 @@ const LANGUAGES = flatten({ languages });
 const MESSAGES = {
   de: Object.assign(flatten(deMessages), LANGUAGES),
   en: Object.assign(flatten(enMessages), LANGUAGES),
-  nl: Object.assign(flatten(nlMessages), LANGUAGES)
+  nl: Object.assign(flatten(nlMessages), LANGUAGES),
+  zh: Object.assign(flatten(zhMessages), LANGUAGES)
 };
 
-addLocaleData([...de, ...en, ...nl]);
+addLocaleData([...de, ...en, ...nl, ...zh]);
 
 export default class Store {
   @observable locale = DEFAULT_LOCALE;
@@ -70,3 +73,8 @@ export default class Store {
     return instance;
   }
 }
+
+export {
+  LANGUAGES,
+  MESSAGES
+};

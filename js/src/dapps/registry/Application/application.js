@@ -49,6 +49,10 @@ export default class Application extends Component {
     fee: nullableProptype(PropTypes.object.isRequired)
   };
 
+  state = {
+    showWarning: true
+  };
+
   render () {
     const { contract, fee } = this.props;
     let warning = null;
@@ -65,9 +69,7 @@ export default class Application extends Component {
             <Lookup />
             { this.renderActions() }
             <Events />
-            <div className={ styles.warning }>
-              WARNING: The name registry is experimental. Please ensure that you understand the risks, benefits & consequences of registering a name before doing so. A non-refundable fee of { api.util.fromWei(fee).toFormat(3) }<small>ETH</small> is required for all registrations.
-            </div>
+            { this.renderWarning() }
           </div>
         ) : (
           <CircularProgress size={ 60 } />
@@ -97,5 +99,40 @@ export default class Application extends Component {
         <Reverse />
       </div>
     );
+  }
+
+  renderWarning () {
+    const { showWarning } = this.state;
+    const { fee } = this.props;
+
+    if (!showWarning) {
+      return null;
+    }
+
+    return (
+      <div
+        className={ styles.warning }
+        onClick={ this.handleHideWarning }
+      >
+        <span>
+          WARNING: The name registry is experimental. Please ensure that you understand the risks,
+          benefits & consequences of registering a name before doing so.
+        </span>
+        {
+          fee && api.util.fromWei(fee).gt(0)
+          ? (
+            <span>
+                &nbsp;A non-refundable fee of { api.util.fromWei(fee).toFormat(3) } <small>ETH</small>
+              &nbsp;is required for all registrations.
+            </span>
+          )
+          : null
+        }
+      </div>
+    );
+  }
+
+  handleHideWarning = () => {
+    this.setState({ showWarning: false });
   }
 }

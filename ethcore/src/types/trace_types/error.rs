@@ -17,7 +17,7 @@
 //! Trace errors.
 
 use std::fmt;
-use rlp::{Encodable, RlpStream, Decodable, Decoder, DecoderError, View};
+use rlp::{Encodable, RlpStream, Decodable, DecoderError, UntrustedRlp};
 use evm::Error as EvmError;
 
 /// Trace evm errors.
@@ -34,7 +34,9 @@ pub enum Error {
 	/// `StackUnderflow` when there is not enough stack elements to execute instruction
 	StackUnderflow,
 	/// When execution would exceed defined Stack Limit
-	OutOfStack,
+	OutOfStack,	
+	/// When builtin contract failed on input data
+	BuiltIn,
 	/// Returned on evm internal error. Should never be ignored during development.
 	/// Likely to cause consensus issues.
 	Internal,
@@ -48,6 +50,7 @@ impl<'a> From<&'a EvmError> for Error {
 			EvmError::BadInstruction { .. } => Error::BadInstruction,
 			EvmError::StackUnderflow { .. } => Error::StackUnderflow,
 			EvmError::OutOfStack { .. } => Error::OutOfStack,
+			EvmError::BuiltIn { .. } => Error::BuiltIn,
 			EvmError::Internal(_) => Error::Internal,
 		}
 	}
@@ -68,6 +71,7 @@ impl fmt::Display for Error {
 			BadInstruction => "Bad instruction",
 			StackUnderflow => "Stack underflow",
 			OutOfStack => "Out of stack",
+			BuiltIn => "Built-in failed",
 			Internal => "Internal error",
 		};
 		message.fmt(f)
@@ -84,6 +88,7 @@ impl Encodable for Error {
 			StackUnderflow => 3,
 			OutOfStack => 4,
 			Internal => 5,
+			BuiltIn => 6,
 		};
 
 		s.append_internal(&value);
@@ -91,9 +96,9 @@ impl Encodable for Error {
 }
 
 impl Decodable for Error {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		use self::Error::*;
-		let value: u8 = decoder.as_rlp().as_val()?;
+		let value: u8 = rlp.as_val()?;
 		match value {
 			0 => Ok(OutOfGas),
 			1 => Ok(BadJumpDestination),
@@ -101,6 +106,7 @@ impl Decodable for Error {
 			3 => Ok(StackUnderflow),
 			4 => Ok(OutOfStack),
 			5 => Ok(Internal),
+			6 => Ok(BuiltIn),
 			_ => Err(DecoderError::Custom("Invalid error type")),
 		}
 	}

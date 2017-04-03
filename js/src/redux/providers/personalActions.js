@@ -48,6 +48,9 @@ export function personalAccountsInfo (accountsInfo) {
         account.hardware = true;
         hardware[account.address] = account;
         accounts[account.address] = account;
+      } else if (account.meta.external) {
+        account.external = true;
+        accounts[account.address] = account;
       } else {
         contacts[account.address] = account;
       }

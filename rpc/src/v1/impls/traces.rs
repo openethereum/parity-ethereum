@@ -18,7 +18,7 @@
 
 use std::sync::{Weak, Arc};
 
-use rlp::{UntrustedRlp, View};
+use rlp::UntrustedRlp;
 use ethcore::client::{MiningBlockChainClient, CallAnalytics, TransactionId, TraceId};
 use ethcore::miner::MinerService;
 use ethcore::transaction::SignedTransaction;

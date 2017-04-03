@@ -16,8 +16,9 @@
 
 //! URL Endpoint traits
 
-use hyper::{self, server, net};
 use std::collections::BTreeMap;
+
+use hyper::{self, server, net};
 
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct EndpointPath {

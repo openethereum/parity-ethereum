@@ -14,26 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import React from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { Page } from '~/ui';
 
-import StatusPage from './containers/StatusPage';
+import Debug from './Debug';
+import Peers from './Peers';
+import NodeStatus from './NodeStatus';
 
-export default class Status extends Component {
-  render () {
-    return (
-      <Page
-        title={
-          <FormattedMessage
-            id='status.title'
-            defaultMessage='Status'
-          />
-        }
-      >
-        <StatusPage />
-      </Page>
-    );
-  }
-}
+import styles from './status.css';
+
+export default () => (
+  <Page
+    title={
+      <FormattedMessage
+        id='status.title'
+        defaultMessage='Status'
+      />
+    }
+  >
+    <div className={ styles.body }>
+      <NodeStatus />
+      <Peers />
+      <Debug />
+    </div>
+  </Page>
+);

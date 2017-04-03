@@ -16,7 +16,7 @@
 
 //! Light client synchronization.
 //!
-//! This will synchronize the header chain using LES messages.
+//! This will synchronize the header chain using PIP messages.
 //! Dataflow is largely one-directional as headers are pushed into
 //! the light client queue for import. Where possible, they are batched
 //! in groups.
@@ -36,14 +36,15 @@ use std::collections::HashMap;
 use std::mem;
 use std::sync::Arc;
 
+use ethcore::encoded;
 use light::client::{AsLightClient, LightChainClient};
 use light::net::{
 	Announcement, Handler, BasicContext, EventContext,
-	Capabilities, ReqId, Status,
+	Capabilities, ReqId, Status, Error as NetError,
 };
-use light::request;
+use light::request::{self, CompleteHeadersRequest as HeadersRequest};
 use network::PeerId;
-use util::{Bytes, U256, H256, Mutex, RwLock};
+use util::{U256, H256, Mutex, RwLock};
 use rand::{Rng, OsRng};
 
 use self::sync_round::{AbortReason, SyncRound, ResponseContext};
@@ -91,7 +92,7 @@ impl Peer {
 #[derive(Debug)]
 enum AncestorSearch {
 	Queued(u64), // queued to search for blocks starting from here.
-	Awaiting(ReqId, u64, request::Headers), // awaiting response for this request.
+	Awaiting(ReqId, u64, HeadersRequest), // awaiting response for this request.
 	Prehistoric, // prehistoric block found. TODO: start to roll back CHTs.
 	FoundCommon(u64, H256), // common block found.
 	Genesis, // common ancestor is the genesis.
@@ -113,7 +114,7 @@ impl AncestorSearch {
 		match self {
 			AncestorSearch::Awaiting(id, start, req) => {
 				if &id == ctx.req_id() {
-					match response::decode_and_verify(ctx.data(), &req) {
+					match response::verify(ctx.data(), &req) {
 						Ok(headers) => {
 							for header in &headers {
 								if client.is_known(&header.hash()) {
@@ -150,17 +151,17 @@ impl AncestorSearch {
 	}
 
 	fn dispatch_request<F>(self, mut dispatcher: F) -> AncestorSearch
-		where F: FnMut(request::Headers) -> Option<ReqId>
+		where F: FnMut(HeadersRequest) -> Option<ReqId>
 	{
-		const BATCH_SIZE: usize = 64;
+		const BATCH_SIZE: u64 = 64;
 
 		match self {
 			AncestorSearch::Queued(start) => {
-				let batch_size = ::std::cmp::min(start as usize, BATCH_SIZE);
+				let batch_size = ::std::cmp::min(start, BATCH_SIZE);
 				trace!(target: "sync", "Requesting {} reverse headers from {} to find common ancestor",
 					batch_size, start);
 
-				let req = request::Headers {
+				let req = HeadersRequest {
 					start: start.into(),
 					max: batch_size,
 					skip: 0,
@@ -193,13 +194,13 @@ struct ResponseCtx<'a> {
 	peer: PeerId,
 	req_id: ReqId,
 	ctx: &'a BasicContext,
-	data: &'a [Bytes],
+	data: &'a [encoded::Header],
 }
 
 impl<'a> ResponseContext for ResponseCtx<'a> {
 	fn responder(&self) -> PeerId { self.peer }
 	fn req_id(&self) -> &ReqId { &self.req_id }
-	fn data(&self) -> &[Bytes] { self.data }
+	fn data(&self) -> &[encoded::Header] { self.data }
 	fn punish_responder(&self) { self.ctx.disable_peer(self.peer) }
 }
 
@@ -313,10 +314,21 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 		self.maintain_sync(ctx.as_basic());
 	}
 
-	fn on_block_headers(&self, ctx: &EventContext, req_id: ReqId, headers: &[Bytes]) {
-		if !self.peers.read().contains_key(&ctx.peer()) {
+	fn on_responses(&self, ctx: &EventContext, req_id: ReqId, responses: &[request::Response]) {
+		let peer = ctx.peer();
+		if !self.peers.read().contains_key(&peer) {
 			return
 		}
+
+		let headers = match responses.get(0) {
+			Some(&request::Response::Headers(ref response)) => &response.headers[..],
+			Some(_) => {
+				trace!("Disabling peer {} for wrong response type.", peer);
+				ctx.disable_peer(peer);
+				&[]
+			}
+			None => &[],
+		};
 
 		{
 			let mut state = self.state.lock();
@@ -465,18 +477,27 @@ impl<L: AsLightClient> LightSync<L> {
 
 			// naive request dispatcher: just give to any peer which says it will
 			// give us responses.
-			let dispatcher = move |req: request::Headers| {
+			let dispatcher = move |req: HeadersRequest| {
 				rng.shuffle(&mut peer_ids);
 
+				let request = {
+					let mut builder = request::RequestBuilder::default();
+					builder.push(request::Request::Headers(request::IncompleteHeadersRequest {
+						start: req.start.into(),
+						skip: req.skip,
+						max: req.max,
+						reverse: req.reverse,
+					})).expect("request provided fully complete with no unresolved back-references; qed");
+					builder.build()
+				};
 				for peer in &peer_ids {
-					if ctx.max_requests(*peer, request::Kind::Headers) >= req.max {
-						match ctx.request_from(*peer, request::Request::Headers(req.clone())) {
-							Ok(id) => {
-								return Some(id)
-							}
-							Err(e) =>
-								trace!(target: "sync", "Error requesting headers from viable peer: {}", e),
+					match ctx.request_from(*peer, request.clone()) {
+						Ok(id) => {
+							return Some(id)
 						}
+						Err(NetError::NoCredits) => {}
+						Err(e) =>
+							trace!(target: "sync", "Error requesting headers from viable peer: {}", e),
 					}
 				}
 

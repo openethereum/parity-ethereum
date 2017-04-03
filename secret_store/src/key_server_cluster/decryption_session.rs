@@ -506,7 +506,6 @@ fn do_partial_decryption(node: &NodeId, _requestor_public: &Public, participants
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use std::str::FromStr;
 	use std::collections::BTreeMap;
 	use super::super::super::acl_storage::tests::DummyAclStorage;
 	use ethkey::{self, Random, Generator, Public, Secret};
@@ -521,24 +520,24 @@ mod tests {
 		// prepare encrypted data + cluster configuration for scheme 4-of-5
 		let session_id = SessionId::default();
 		let access_key = Random.generate().unwrap().secret().clone();
-		let secret_shares = vec![
-			Secret::from_str("834cb736f02d9c968dfaf0c37658a1d86ff140554fc8b59c9fdad5a8cf810eec").unwrap(),
-			Secret::from_str("5a3c1d90fafafa66bb808bcc464354a98b05e6b2c95b5f609d4511cdd1b17a0b").unwrap(),
-			Secret::from_str("71bf61e7848e08e3a8486c308ce521bdacfebcf9116a0151447eb301f3a2d0e9").unwrap(),
-			Secret::from_str("80c0e5e2bea66fa9b2e07f7ce09630a9563e8242446d5ee63221feb09c4338f4").unwrap(),
-			Secret::from_str("c06546b5669877ba579ca437a5602e89425c53808c708d44ccd6afcaa4610fad").unwrap(),
+		let secret_shares: Vec<Secret> = vec![
+			"834cb736f02d9c968dfaf0c37658a1d86ff140554fc8b59c9fdad5a8cf810eec".parse().unwrap(),
+			"5a3c1d90fafafa66bb808bcc464354a98b05e6b2c95b5f609d4511cdd1b17a0b".parse().unwrap(),
+			"71bf61e7848e08e3a8486c308ce521bdacfebcf9116a0151447eb301f3a2d0e9".parse().unwrap(),
+			"80c0e5e2bea66fa9b2e07f7ce09630a9563e8242446d5ee63221feb09c4338f4".parse().unwrap(),
+			"c06546b5669877ba579ca437a5602e89425c53808c708d44ccd6afcaa4610fad".parse().unwrap(),
 		];
 		let id_numbers: Vec<(NodeId, Secret)> = vec![
 			("b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into(),
-				Secret::from_str("281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c").unwrap()),
+				"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse().unwrap()),
 			("1395568277679f7f583ab7c0992da35f26cde57149ee70e524e49bdae62db3e18eb96122501e7cbb798b784395d7bb5a499edead0706638ad056d886e56cf8fb".into(),
-				Secret::from_str("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b").unwrap()),
+				"00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse().unwrap()),
 			("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".into(),
-				Secret::from_str("f43ac0fba42a5b6ed95707d2244659e89ba877b1c9b82c0d0a9dcf834e80fc62").unwrap()),
+				"f43ac0fba42a5b6ed95707d2244659e89ba877b1c9b82c0d0a9dcf834e80fc62".parse().unwrap()),
 			("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".into(),
-				Secret::from_str("5a324938dfb2516800487d25ab7289ba8ec38811f77c3df602e4e65e3c9acd9f").unwrap()),
+				"5a324938dfb2516800487d25ab7289ba8ec38811f77c3df602e4e65e3c9acd9f".parse().unwrap()),
 			("321977760d1d8e15b047a309e4c7fe6f355c10bb5a06c68472b676926427f69f229024fa2692c10da167d14cdc77eb95d0fce68af0a0f704f0d3db36baa83bb2".into(),
-				Secret::from_str("12cf422d50002d04e52bd4906fd7f5f235f051ca36abfe37e061f8da248008d8").unwrap()),
+				"12cf422d50002d04e52bd4906fd7f5f235f051ca36abfe37e061f8da248008d8".parse().unwrap()),
 		];
 		let common_point: Public = "6962be696e1bcbba8e64cc7fddf140f854835354b5804f3bb95ae5a2799130371b589a131bd39699ac7174ccb35fc4342dab05331202209582fc8f3a40916ab0".into();
 		let encrypted_point: Public = "b07031982bde9890e12eff154765f03c56c3ab646ad47431db5dd2d742a9297679c4c65b998557f8008469afd0c43d40b6c5f6c6a1c7354875da4115237ed87a".into();

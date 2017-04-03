@@ -21,32 +21,20 @@ const DEFAULT_NETCHAIN = '(unknown)';
 const initialState = {
   blockNumber: new BigNumber(0),
   blockTimestamp: new Date(),
-  devLogs: [],
-  devLogsLevels: null,
-  devLogsEnabled: false,
   clientVersion: '',
-  coinbase: '',
-  defaultExtraData: '',
-  enode: '',
-  extraData: '',
-  gasFloorTarget: new BigNumber(0),
   gasLimit: new BigNumber(0),
-  hashrate: new BigNumber(0),
-  minGasPrice: new BigNumber(0),
   netChain: DEFAULT_NETCHAIN,
   netPeers: {
     active: new BigNumber(0),
     connected: new BigNumber(0),
-    max: new BigNumber(0)
+    max: new BigNumber(0),
+    peers: []
   },
-  netPort: new BigNumber(0),
   netVersion: '0',
-  rpcSettings: {},
   syncing: true,
   isConnected: false,
   isConnecting: false,
   isTest: undefined,
-  refreshStatus: false,
   traceMode: undefined
 };
 
@@ -61,28 +49,6 @@ export default handleActions({
     const { collection } = action;
 
     return Object.assign({}, state, collection);
-  },
-
-  statusLogs (state, action) {
-    const { logInfo } = action;
-
-    return Object.assign({}, state, logInfo);
-  },
-
-  toggleStatusLogs (state, action) {
-    const { devLogsEnabled } = action;
-
-    return Object.assign({}, state, { devLogsEnabled });
-  },
-
-  clearStatusLogs (state, action) {
-    return Object.assign({}, state, { devLogs: [] });
-  },
-
-  toggleStatusRefresh (state, action) {
-    const { refreshStatus } = action;
-
-    return Object.assign({}, state, { refreshStatus });
   }
 }, initialState);
 

@@ -8,7 +8,10 @@ RUN apt-get update && \
         curl \
         git \
         file \
-        binutils
+        binutils \
+        libssl-dev \
+        pkg-config \
+        libudev-dev
 
 # install rustup
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
@@ -26,7 +29,7 @@ gcc -v &&\
 g++ -v
 
 # build parity
-RUN git clone https://github.com/ethcore/parity && \
+RUN git clone https://github.com/paritytech/parity && \
         cd parity && \
         git checkout beta && \
         git pull && \

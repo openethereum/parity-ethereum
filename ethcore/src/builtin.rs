@@ -27,10 +27,19 @@ use util::{U256, H256, Uint, Hashable, BytesRef};
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
+#[derive(Debug)]
+pub struct Error(pub &'static str);
+
+impl From<&'static str> for Error {
+	fn from(val: &'static str) -> Self {
+		Error(val)
+	}
+}
+
 /// Native implementation of a built-in contract.
 pub trait Impl: Send + Sync {
 	/// execute this built-in on the given input, writing to the given output.
-	fn execute(&self, input: &[u8], output: &mut BytesRef);
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error>;
 }
 
 /// A gas pricing scheme for built-in contracts.
@@ -102,7 +111,9 @@ impl Builtin {
 	pub fn cost(&self, input: &[u8]) -> U256 { self.pricer.cost(input) }
 
 	/// Simple forwarder for execute.
-	pub fn execute(&self, input: &[u8], output: &mut BytesRef) { self.native.execute(input, output) }
+	pub fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> { 
+		self.native.execute(input, output)
+	}
 
 	/// Whether the builtin is activated at the given block number.
 	pub fn is_active(&self, at: u64) -> bool { at >= self.activate_at }
@@ -145,6 +156,8 @@ fn ethereum_builtin(name: &str) -> Box<Impl> {
 		"sha256" => Box::new(Sha256) as Box<Impl>,
 		"ripemd160" => Box::new(Ripemd160) as Box<Impl>,
 		"modexp" => Box::new(ModexpImpl) as Box<Impl>,
+		"bn128_add" => Box::new(Bn128AddImpl) as Box<Impl>,
+		"bn128_mul" => Box::new(Bn128MulImpl) as Box<Impl>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -172,14 +185,21 @@ struct Ripemd160;
 #[derive(Debug)]
 struct ModexpImpl;
 
+#[derive(Debug)]
+struct Bn128AddImpl;
+
+#[derive(Debug)]
+struct Bn128MulImpl;
+
 impl Impl for Identity {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		output.write(0, input);
+		Ok(())
 	}
 }
 
 impl Impl for EcRecover {
-	fn execute(&self, i: &[u8], output: &mut BytesRef) {
+	fn execute(&self, i: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		let len = min(i.len(), 128);
 
 		let mut input = [0; 128];
@@ -192,7 +212,7 @@ impl Impl for EcRecover {
 
 		let bit = match v[31] {
 			27 | 28 if &v.0[..31] == &[0; 31] => v[31] - 27,
-			_ => return,
+			_ => { return Ok(()); },
 		};
 
 		let s = Signature::from_rsv(&r, &s, bit);
@@ -203,11 +223,13 @@ impl Impl for EcRecover {
 				output.write(12, &r[12..r.len()]);
 			}
 		}
+
+		Ok(())
 	}
 }
 
 impl Impl for Sha256 {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		let mut sha = Sha256Digest::new();
 		sha.input(input);
 
@@ -215,11 +237,13 @@ impl Impl for Sha256 {
 		sha.result(&mut out);
 
 		output.write(0, &out);
+
+		Ok(())
 	}
 }
 
 impl Impl for Ripemd160 {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		let mut sha = Ripemd160Digest::new();
 		sha.input(input);
 
@@ -227,11 +251,13 @@ impl Impl for Ripemd160 {
 		sha.result(&mut out[12..32]);
 
 		output.write(0, &out);
+
+		Ok(())
 	}
 }
 
 impl Impl for ModexpImpl {
-	fn execute(&self, input: &[u8], output: &mut BytesRef) {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		let mut reader = input.chain(io::repeat(0));
 		let mut buf = [0; 32];
 
@@ -294,7 +320,77 @@ impl Impl for ModexpImpl {
 			let res_start = mod_len - bytes.len();
 			output.write(res_start, &bytes);
 		}
+
+		Ok(())
 	}
+}
+
+fn read_fr(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::Fr, Error> {
+	let mut buf = [0u8; 32];
+	
+	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
+	::bn::Fr::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid field element"))
+}
+
+fn read_point(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::G1, Error> {
+	use bn::{Fq, AffineG1, G1, Group};
+	
+	let mut buf = [0u8; 32];
+	
+	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
+	let px = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point x coordinate"))?;
+
+	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
+	let py = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point x coordinate"))?;
+	
+	Ok(
+		if px == Fq::zero() && py == Fq::zero() {
+			G1::zero()
+		} else {
+			AffineG1::new(px, py).map_err(|_| Error::from("Invalid curve point"))?.into()
+		}
+	)
+}
+
+impl Impl for Bn128AddImpl {
+	// Can fail if any of the 2 points does not belong the bn128 curve
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+		use bn::AffineG1;
+
+		let mut padded_input = input.chain(io::repeat(0));
+		let p1 = read_point(&mut padded_input)?;
+		let p2 = read_point(&mut padded_input)?;
+
+		let mut write_buf = [0u8; 64];
+		if let Some(sum) = AffineG1::from_jacobian(p1 + p2) {
+			// point not at infinity
+			sum.x().to_big_endian(&mut write_buf[0..32]).expect("Cannot fail since 0..32 is 32-byte length");
+			sum.y().to_big_endian(&mut write_buf[32..64]).expect("Cannot fail since 32..64 is 32-byte length");;
+		}
+		output.write(0, &write_buf);
+
+		Ok(())
+	}	
+}
+
+impl Impl for Bn128MulImpl {
+	// Can fail if first paramter (bn128 curve point) does not actually belong to the curve
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+		use bn::AffineG1;
+
+		let mut padded_input = input.chain(io::repeat(0));
+		let p = read_point(&mut padded_input)?;
+		let fr = read_fr(&mut padded_input)?;
+
+		let mut write_buf = [0u8; 64];
+		if let Some(sum) = AffineG1::from_jacobian(p * fr) {
+			// point not at infinity
+			sum.x().to_big_endian(&mut write_buf[0..32]).expect("Cannot fail since 0..32 is 32-byte length");
+			sum.y().to_big_endian(&mut write_buf[32..64]).expect("Cannot fail since 32..64 is 32-byte length");;
+		}
+		output.write(0, &write_buf);
+		Ok(())
+	}	
 }
 
 #[cfg(test)]
@@ -310,15 +406,15 @@ mod tests {
 		let i = [0u8, 1, 2, 3];
 
 		let mut o2 = [255u8; 2];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o2[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o2[..])).expect("Builtin should not fail");
 		assert_eq!(i[0..2], o2);
 
 		let mut o4 = [255u8; 4];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o4[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o4[..])).expect("Builtin should not fail");
 		assert_eq!(i, o4);
 
 		let mut o8 = [255u8; 8];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..])).expect("Builtin should not fail");
 		assert_eq!(i, o8[..4]);
 		assert_eq!([255u8; 4], o8[4..]);
 	}
@@ -331,19 +427,19 @@ mod tests {
 		let i = [0u8; 0];
 
 		let mut o = [255u8; 32];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap())[..]);
 
 		let mut o8 = [255u8; 8];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..])).expect("Builtin should not fail");
 		assert_eq!(&o8[..], &(FromHex::from_hex("e3b0c44298fc1c14").unwrap())[..]);
 
 		let mut o34 = [255u8; 34];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..])).expect("Builtin should not fail");
 		assert_eq!(&o34[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855ffff").unwrap())[..]);
 
 		let mut ov = vec![];
-		f.execute(&i[..], &mut BytesRef::Flexible(&mut ov));
+		f.execute(&i[..], &mut BytesRef::Flexible(&mut ov)).expect("Builtin should not fail");
 		assert_eq!(&ov[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap())[..]);
 	}
 
@@ -355,15 +451,15 @@ mod tests {
 		let i = [0u8; 0];
 
 		let mut o = [255u8; 32];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31").unwrap())[..]);
 
 		let mut o8 = [255u8; 8];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..])).expect("Builtin should not fail");
 		assert_eq!(&o8[..], &(FromHex::from_hex("0000000000000000").unwrap())[..]);
 
 		let mut o34 = [255u8; 34];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..])).expect("Builtin should not fail");
 		assert_eq!(&o34[..], &(FromHex::from_hex("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31ffff").unwrap())[..]);
 	}
 
@@ -383,40 +479,40 @@ mod tests {
 		let i = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
 
 		let mut o = [255u8; 32];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("000000000000000000000000c08b5542d177ac6686946920409741463a15dddb").unwrap())[..]);
 
 		let mut o8 = [255u8; 8];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..])).expect("Builtin should not fail");
 		assert_eq!(&o8[..], &(FromHex::from_hex("0000000000000000").unwrap())[..]);
 
 		let mut o34 = [255u8; 34];
-		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..]));
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..])).expect("Builtin should not fail");
 		assert_eq!(&o34[..], &(FromHex::from_hex("000000000000000000000000c08b5542d177ac6686946920409741463a15dddbffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001a650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001b").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000000000000000000000000000000000000000000000000000000000001b").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		// TODO: Should this (corrupted version of the above) fail rather than returning some address?
@@ -450,7 +546,7 @@ mod tests {
 			let expected = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
 			let expected_cost = 1638;
 
-			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
 			assert_eq!(f.cost(&input[..]), expected_cost.into());
 		}
@@ -469,7 +565,7 @@ mod tests {
 			let expected = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
 			let expected_cost = 1638;
 
-			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
 			assert_eq!(f.cost(&input[..]), expected_cost.into());
 		}
@@ -489,7 +585,7 @@ mod tests {
 			let expected = FromHex::from_hex("3b01b01ac41f2d6e917c6d6a221ce793802469026d9ab7578fa2e79e4da6aaab").unwrap();
 			let expected_cost = 102;
 
-			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
 			assert_eq!(f.cost(&input[..]), expected_cost.into());
 		}
@@ -507,11 +603,117 @@ mod tests {
 			let mut output = vec![];
 			let expected_cost = 0;
 
-			f.execute(&input[..], &mut BytesRef::Flexible(&mut output));
+			f.execute(&input[..], &mut BytesRef::Flexible(&mut output)).expect("Builtin should not fail");
 			assert_eq!(output.len(), 0); // shouldn't have written any output.
 			assert_eq!(f.cost(&input[..]), expected_cost.into());
 		}
 	}
+
+	#[test]
+	fn bn128_add() {
+		use rustc_serialize::hex::FromHex;
+
+		let f = Builtin {
+			pricer: Box::new(Linear { base: 0, word: 0 }),
+			native: ethereum_builtin("bn128_add"),
+			activate_at: 0,
+		};		
+
+		// zero-points additions
+		{
+			let input = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000"
+			).unwrap();
+
+			let mut output = vec![0u8; 64];
+			let expected = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000"
+			).unwrap();
+
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
+			assert_eq!(output, expected);
+		}		
+
+
+		// no input, should not fail
+		{
+			let mut empty = [0u8; 0];
+			let input = BytesRef::Fixed(&mut empty);
+
+			let mut output = vec![0u8; 64];
+			let expected = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000"
+			).unwrap();
+
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
+			assert_eq!(output, expected);
+		}				
+
+		// should fail - point not on curve
+		{
+			let input = FromHex::from_hex("\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111"
+			).unwrap();
+
+			let mut output = vec![0u8; 64];
+
+			let res = f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
+			assert!(res.is_err(), "There should be built-in error here");
+		}		
+	}
+
+
+	#[test]
+	fn bn128_mul() {
+		use rustc_serialize::hex::FromHex;
+
+		let f = Builtin {
+			pricer: Box::new(Linear { base: 0, word: 0 }),
+			native: ethereum_builtin("bn128_mul"),
+			activate_at: 0,
+		};		
+
+		// zero-point multiplication
+		{
+			let input = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0200000000000000000000000000000000000000000000000000000000000000"
+			).unwrap();
+
+			let mut output = vec![0u8; 64];
+			let expected = FromHex::from_hex("\
+				0000000000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000"
+			).unwrap();
+
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
+			assert_eq!(output, expected);
+		}		
+
+		// should fail - point not on curve
+		{
+			let input = FromHex::from_hex("\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				0f00000000000000000000000000000000000000000000000000000000000000"
+			).unwrap();
+
+			let mut output = vec![0u8; 64];
+
+			let res = f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
+			assert!(res.is_err(), "There should be built-in error here");
+		}		
+	}
+	
 
 	#[test]
 	#[should_panic]
@@ -549,7 +751,7 @@ mod tests {
 
 		let i = [0u8, 1, 2, 3];
 		let mut o = [255u8; 4];
-		b.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
+		b.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(i, o);
 	}
 
@@ -571,7 +773,7 @@ mod tests {
 
 		let i = [0u8, 1, 2, 3];
 		let mut o = [255u8; 4];
-		b.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
+		b.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
 		assert_eq!(i, o);
 	}
 }

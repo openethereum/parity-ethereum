@@ -20,7 +20,7 @@ use util::*;
 use header::*;
 use transaction::*;
 use super::{TransactionView, HeaderView};
-use rlp::{Rlp, View};
+use rlp::Rlp;
 
 /// View onto block rlp.
 pub struct BlockView<'a> {
@@ -69,7 +69,7 @@ impl<'a> BlockView<'a> {
 
 	/// Return List of transactions in given block.
 	pub fn transactions(&self) -> Vec<UnverifiedTransaction> {
-		self.rlp.val_at(1)
+		self.rlp.list_at(1)
 	}
 
 	/// Return List of transactions with additional localization info.
@@ -125,7 +125,7 @@ impl<'a> BlockView<'a> {
 
 	/// Return list of uncles of given block.
 	pub fn uncles(&self) -> Vec<Header> {
-		self.rlp.val_at(2)
+		self.rlp.list_at(2)
 	}
 
 	/// Return number of uncles in given block, without deserializing them.

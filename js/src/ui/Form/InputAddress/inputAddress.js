@@ -28,7 +28,7 @@ import styles from './inputAddress.css';
 
 class InputAddress extends Component {
   static propTypes = {
-    accountsInfo: PropTypes.object,
+    account: PropTypes.object,
     allowCopy: PropTypes.bool,
     autoFocus: PropTypes.bool,
     allowInvalid: PropTypes.bool,
@@ -47,7 +47,6 @@ class InputAddress extends Component {
     small: PropTypes.bool,
     tabIndex: PropTypes.number,
     text: PropTypes.bool,
-    tokens: PropTypes.object,
     value: PropTypes.string
   };
 
@@ -58,10 +57,9 @@ class InputAddress extends Component {
   };
 
   render () {
-    const { accountsInfo, allowCopy, autoFocus, className, disabled, error, focused, hint } = this.props;
+    const { account, allowCopy, autoFocus, className, disabled, error, focused, hint } = this.props;
     const { hideUnderline, label, onClick, onFocus, readOnly, small } = this.props;
-    const { tabIndex, text, tokens, value } = this.props;
-    const account = value && (accountsInfo[value] || tokens[value]);
+    const { tabIndex, text, value } = this.props;
     const icon = this.renderIcon();
     const classes = [ className ];
 
@@ -168,13 +166,26 @@ class InputAddress extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  const { tokens } = state.balances;
+function mapStateToProps (state, props) {
+  const { text, value } = props;
+
+  if (!text || !value) {
+    return {};
+  }
+
+  const lcValue = value.toLowerCase();
   const { accountsInfo } = state.personal;
+  const { tokens } = state.balances;
+
+  const accountsInfoAddress = Object.keys(accountsInfo).find((address) => address.toLowerCase() === lcValue);
+  const tokensAddress = Object.keys(tokens).find((address) => address.toLowerCase() === lcValue);
+
+  const account = (accountsInfoAddress && accountsInfo[accountsInfoAddress]) ||
+    (tokensAddress && tokens[tokensAddress]) ||
+    null;
 
   return {
-    accountsInfo,
-    tokens
+    account
   };
 }
 

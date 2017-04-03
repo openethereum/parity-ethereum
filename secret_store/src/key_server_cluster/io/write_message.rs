@@ -24,7 +24,7 @@ use key_server_cluster::io::{serialize_message, encrypt_message};
 /// Write plain message to the channel.
 pub fn write_message<A>(a: A, message: Message) -> WriteMessage<A> where A: io::Write {
 	let (error, future) = match serialize_message(message)
-		.map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e))) {
+		.map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string())) {
 		Ok(message) => (None, write_all(a, message.into())),
 		Err(error) => (Some(error), write_all(a, Vec::new())),
 	};
@@ -38,7 +38,7 @@ pub fn write_message<A>(a: A, message: Message) -> WriteMessage<A> where A: io::
 pub fn write_encrypted_message<A>(a: A, key: &Secret, message: Message) -> WriteMessage<A> where A: io::Write {
 	let (error, future) = match serialize_message(message)
 		.and_then(|message| encrypt_message(key, message))
-		.map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{}", e))) {
+		.map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string())) {
 		Ok(message) => (None, write_all(a, message.into())),
 		Err(error) => (Some(error), write_all(a, Vec::new())),
 	};
