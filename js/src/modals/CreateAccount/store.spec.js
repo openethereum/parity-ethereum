@@ -329,6 +329,7 @@ describe('modals/CreateAccount/Store', () => {
       describe('createType === fromNew', () => {
         beforeEach(() => {
           store.setCreateType('fromNew');
+          store.setAddress('0x0000000000000000000000000000000000000000');
         });
 
         it('returns true on no errors', () => {
@@ -337,11 +338,13 @@ describe('modals/CreateAccount/Store', () => {
 
         it('returns false on nameError', () => {
           store.setName('');
+
           expect(store.canCreate).to.be.false;
         });
 
         it('returns false on passwordRepeatError', () => {
           store.setPassword('testing');
+
           expect(store.canCreate).to.be.false;
         });
       });

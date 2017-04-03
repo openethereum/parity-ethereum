@@ -38,14 +38,22 @@ export default class Accounts {
 
   create (secret, password) {
     const privateKey = Buffer.from(secret.slice(2), 'hex');
-    const account = Account.fromPrivateKey(this.persist, privateKey, password);
 
-    this._store.push(account);
-    this.lastAddress = account.address;
+    return Account.fromPrivateKey(this.persist, privateKey, password)
+      .then((account) => {
+        const { address } = account;
 
-    this.persist();
+        if (this._store.find((account) => account.address === address)) {
+          throw new Error(`Account ${address} already exists!`);
+        }
 
-    return account.address;
+        this._store.push(account);
+        this.lastAddress = address;
+
+        this.persist();
+
+        return account.address;
+      });
   }
 
   set lastAddress (value) {
@@ -73,28 +81,40 @@ export default class Accounts {
   remove (address, password) {
     address = address.toLowerCase();
 
+    const account = this.get(address);
+
+    if (!account) {
+      return false;
+    }
+
+    return account.isValidPassword(password)
+      .then((isValid) => {
+        if (!isValid) {
+          return false;
+        }
+
+        if (address === this.lastAddress) {
+          this.lastAddress = NULL_ADDRESS;
+        }
+
+        this.removeUnsafe(address);
+
+        return true;
+      });
+  }
+
+  removeUnsafe (address) {
+    address = address.toLowerCase();
+
     const index = this._store.findIndex((account) => account.address === address);
 
     if (index === -1) {
-      return false;
-    }
-
-    const account = this._store[index];
-
-    if (!account.isValidPassword(password)) {
-      console.log('invalid password');
-      return false;
-    }
-
-    if (address === this.lastAddress) {
-      this.lastAddress = NULL_ADDRESS;
+      return;
     }
 
     this._store.splice(index, 1);
 
     this.persist();
-
-    return true;
   }
 
   mapArray (mapper) {

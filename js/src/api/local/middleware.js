@@ -19,7 +19,7 @@ import accounts from './accounts';
 import transactions from './transactions';
 import { Middleware } from '../transport';
 import { inNumber16 } from '../format/input';
-import { phraseToWallet, phraseToAddress } from './ethkey';
+import { phraseToWallet, phraseToAddress, verifySecret } from './ethkey';
 import { randomPhrase } from '@parity/wordlist';
 
 export default class LocalAccountsMiddleware extends Middleware {
@@ -57,6 +57,21 @@ export default class LocalAccountsMiddleware extends Middleware {
       });
     });
 
+    register('parity_changePassword', ([address, oldPassword, newPassword]) => {
+      const account = accounts.get(address);
+
+      return account.decryptPrivateKey(oldPassword)
+        .then((privateKey) => {
+          if (!privateKey) {
+            return false;
+          }
+
+          account.changePassword(privateKey, newPassword);
+
+          return true;
+        });
+    });
+
     register('parity_checkRequest', ([id]) => {
       return transactions.hash(id) || Promise.resolve(null);
     });
@@ -81,6 +96,17 @@ export default class LocalAccountsMiddleware extends Middleware {
       return phraseToWallet(phrase)
         .then((wallet) => {
           return accounts.create(wallet.secret, password);
+        });
+    });
+
+    register('parity_newAccountFromSecret', ([secret, password]) => {
+      return verifySecret(secret)
+        .then((isValid) => {
+          if (!isValid) {
+            throw new Error('Invalid secret key');
+          }
+
+          return accounts.create(secret, password);
         });
     });
 
@@ -127,6 +153,12 @@ export default class LocalAccountsMiddleware extends Middleware {
       return accounts.remove(address, password);
     });
 
+    register('parity_testPassword', ([address, password]) => {
+      const account = accounts.get(address);
+
+      return account.isValidPassword(password);
+    });
+
     register('signer_confirmRequest', ([id, modify, password]) => {
       const {
         gasPrice,
@@ -137,30 +169,33 @@ export default class LocalAccountsMiddleware extends Middleware {
         data
       } = Object.assign(transactions.get(id), modify);
 
-      return this
-        .rpcRequest('parity_nextNonce', [from])
-        .then((nonce) => {
-          const tx = new EthereumTx({
-            nonce,
-            to,
-            data,
-            gasLimit: inNumber16(gasLimit),
-            gasPrice: inNumber16(gasPrice),
-            value: inNumber16(value)
-          });
-          const account = accounts.get(from);
+      const account = accounts.get(from);
 
-          tx.sign(account.decryptPrivateKey(password));
-
-          const serializedTx = `0x${tx.serialize().toString('hex')}`;
-
-          return this.rpcRequest('eth_sendRawTransaction', [serializedTx]);
-        })
-        .then((hash) => {
-          transactions.confirm(id, hash);
-
-          return {};
+      return Promise.all([
+        this.rpcRequest('parity_nextNonce', [from]),
+        account.decryptPrivateKey(password)
+      ])
+      .then(([nonce, privateKey]) => {
+        const tx = new EthereumTx({
+          nonce,
+          to,
+          data,
+          gasLimit: inNumber16(gasLimit),
+          gasPrice: inNumber16(gasPrice),
+          value: inNumber16(value)
         });
+
+        tx.sign(privateKey);
+
+        const serializedTx = `0x${tx.serialize().toString('hex')}`;
+
+        return this.rpcRequest('eth_sendRawTransaction', [serializedTx]);
+      })
+      .then((hash) => {
+        transactions.confirm(id, hash);
+
+        return {};
+      });
     });
 
     register('signer_rejectRequest', ([id]) => {

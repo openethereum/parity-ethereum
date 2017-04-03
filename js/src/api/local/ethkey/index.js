@@ -14,31 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// Allow a web worker in the browser, with a fallback for Node.js
-const hasWebWorkers = typeof Worker !== 'undefined';
-const KeyWorker = hasWebWorkers ? require('worker-loader!./worker')
-                                : require('./worker').KeyWorker;
+import workerPool from './workerPool';
 
-// Local accounts should never be used outside of the browser
-export let keythereum = null;
+export function createKeyObject (key, password) {
+  return workerPool.getWorker().action('createKeyObject', { key, password })
+    .then((obj) => JSON.parse(obj));
+}
 
-if (hasWebWorkers) {
-  require('keythereum/dist/keythereum');
+export function decryptPrivateKey (keyObject, password) {
+  return workerPool.getWorker()
+    .action('decryptPrivateKey', { keyObject, password })
+    .then((privateKey) => {
+      if (privateKey) {
+        return Buffer.from(privateKey);
+      }
 
-  keythereum = window.keythereum;
+      return null;
+    });
 }
 
 export function phraseToAddress (phrase) {
-  return phraseToWallet(phrase).then((wallet) => wallet.address);
+  return phraseToWallet(phrase)
+    .then((wallet) => wallet.address);
 }
 
 export function phraseToWallet (phrase) {
-  return new Promise((resolve, reject) => {
-    const worker = new KeyWorker();
+  return workerPool.getWorker().action('phraseToWallet', phrase);
+}
 
-    worker.postMessage(phrase);
-    worker.onmessage = ({ data }) => {
-      resolve(data);
-    };
-  });
+export function verifySecret (secret) {
+  return workerPool.getWorker().action('verifySecret', secret);
 }
