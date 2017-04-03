@@ -46,6 +46,7 @@ use jsonrpc_macros::Trailing;
 use v1::helpers::{errors, limit_logs, fake_sign};
 use v1::helpers::dispatch::{Dispatcher, FullDispatcher, default_gas_price};
 use v1::helpers::block_import::is_major_importing;
+use v1::helpers::accounts::unwrap_provider;
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
@@ -97,7 +98,7 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	client: Weak<C>,
 	snapshot: Weak<SN>,
 	sync: Weak<S>,
-	accounts: Weak<AccountProvider>,
+	accounts: Option<Weak<AccountProvider>>,
 	miner: Weak<M>,
 	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
@@ -116,7 +117,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 		client: &Arc<C>,
 		snapshot: &Arc<SN>,
 		sync: &Arc<S>,
-		accounts: &Arc<AccountProvider>,
+		accounts: &Option<Arc<AccountProvider>>,
 		miner: &Arc<M>,
 		em: &Arc<EM>,
 		options: EthClientOptions
@@ -126,11 +127,17 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 			snapshot: Arc::downgrade(snapshot),
 			sync: Arc::downgrade(sync),
 			miner: Arc::downgrade(miner),
-			accounts: Arc::downgrade(accounts),
+			accounts: accounts.as_ref().map(Arc::downgrade),
 			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::new()),
 			options: options,
 		}
+	}
+
+	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
+	/// set, or if upgrading the weak reference failed.
+	fn account_provider(&self) -> Result<Arc<AccountProvider>, Error> {
+		unwrap_provider(&self.accounts)
 	}
 
 	fn block(&self, id: BlockId, include_txs: bool) -> Result<Option<RichBlock>, Error> {
@@ -223,7 +230,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 	}
 
 	fn dapp_accounts(&self, dapp: DappId) -> Result<Vec<H160>, Error> {
-		let store = take_weak!(self.accounts);
+		let store = self.account_provider()?;
 		store
 			.note_dapp_used(dapp.clone())
 			.and_then(|_| store.dapp_addresses(dapp))

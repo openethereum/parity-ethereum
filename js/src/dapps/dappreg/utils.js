@@ -19,6 +19,10 @@ import { api } from './parity';
 export const INVALID_URL_HASH = '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470';
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
+export function isContentHash (url) {
+  return /^0x[0-9a-f]{64}/.test(url);
+}
+
 /**
  * Convert the given URL to a content hash,
  * and checks if it is already registered in GHH
@@ -28,8 +32,11 @@ export const urlToHash = (api, instance, url) => {
     return Promise.resolve(null);
   }
 
-  return api.parity
-    .hashContent(url)
+  const hashPromise = isContentHash(url)
+    ? Promise.resolve(url)
+    : api.parity.hashContent(url);
+
+  return hashPromise
     .catch((error) => {
       const message = error.text || error.message || error.toString();
 
@@ -181,4 +188,3 @@ export const updateDapp = (dappId, dappOwner, updates, dappRegInstance, ghhRegIn
 
   return promises;
 };
-

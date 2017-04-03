@@ -154,7 +154,7 @@ class TxHash extends Component {
     const isOog = gasUsed.gte(gas);
 
     // Skip OOG check if a simple transaction to a non-contract account
-    // @see: https://github.com/ethcore/parity/issues/4550
+    // @see: https://github.com/paritytech/parity/issues/4550
     const skipOogCheck = gasUsed.eq(DEFAULT_GAS) && (!input || input === '0x') && !isRecipientContract;
 
     if (!isOog || skipOogCheck) {

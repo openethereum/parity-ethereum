@@ -92,7 +92,7 @@ describe('views/Signer/RequestPending', () => {
     });
 
     it('renders SignRequest component', () => {
-      expect(component.find('SignRequest')).to.have.length(1);
+      expect(component.find('Connect(SignRequest)')).to.have.length(1);
     });
   });
 

@@ -152,7 +152,7 @@ pub struct FullDependencies {
 	pub snapshot: Arc<SnapshotService>,
 	pub sync: Arc<SyncProvider>,
 	pub net: Arc<ManageNetwork>,
-	pub secret_store: Arc<AccountProvider>,
+	pub secret_store: Option<Arc<AccountProvider>>,
 	pub miner: Arc<Miner>,
 	pub external_miner: Arc<ExternalMiner>,
 	pub logger: Arc<RotatingLogger>,
@@ -318,10 +318,15 @@ impl Dependencies for LightDependencies {
 				{
 					let deps = &$deps;
 					let dispatcher = dispatcher.clone();
+					let secret_store = Some(deps.secret_store.clone());
 					if deps.signer_service.is_enabled() {
-						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, &deps.secret_store)))
+						$handler.extend_with($namespace::to_delegate(
+							SigningQueueClient::new(&deps.signer_service, dispatcher, &secret_store)
+						))
 					} else {
-						$handler.extend_with($namespace::to_delegate(SigningUnsafeClient::new(&deps.secret_store, dispatcher)))
+						$handler.extend_with(
+							$namespace::to_delegate(SigningUnsafeClient::new(&secret_store, dispatcher))
+						)
 					}
 				}
 			}
@@ -349,10 +354,12 @@ impl Dependencies for LightDependencies {
 					add_signing_methods!(EthSigning, handler, self);
 				},
 				Api::Personal => {
-					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
+					let secret_store = Some(self.secret_store.clone());
+					handler.extend_with(PersonalClient::new(&secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
 				},
 				Api::Signer => {
-					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service).to_delegate());
+					let secret_store = Some(self.secret_store.clone());
+					handler.extend_with(SignerClient::new(&secret_store, dispatcher.clone(), &self.signer_service).to_delegate());
 				},
 				Api::Parity => {
 					let signer = match self.signer_service.is_enabled() {
@@ -373,7 +380,8 @@ impl Dependencies for LightDependencies {
 					add_signing_methods!(ParitySigning, handler, self);
 				},
 				Api::ParityAccounts => {
-					handler.extend_with(ParityAccountsClient::new(&self.secret_store).to_delegate());
+					let secret_store = Some(self.secret_store.clone());
+					handler.extend_with(ParityAccountsClient::new(&secret_store).to_delegate());
 				},
 				Api::ParitySet => {
 					handler.extend_with(light::ParitySetClient::new(

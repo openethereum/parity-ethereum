@@ -20,7 +20,7 @@ const id = 'tokenreg';
 const app = builtins.find((app) => app.url === id);
 const hashId = app.id;
 const source = {
-  imageUrl: 'https://raw.githubusercontent.com/ethcore/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/coins-64x64.jpg',
+  imageUrl: 'https://raw.githubusercontent.com/paritytech/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/coins-64x64.jpg',
   imageHash: '0xe23d429d15de98c7878d92bc90b79c7afabe1b04c2ad5e3e2c89adc8f439edc9'
 };
 const name = app.name;

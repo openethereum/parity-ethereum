@@ -21,7 +21,7 @@ const isBadge = true;
 const id = 'emailverification';
 const deployParams = [];
 const badgeSource = {
-  imageUrl: 'https://raw.githubusercontent.com/ethcore/dapp-assets/c4721a87cb95375da91f8699438d8d7907b3f5e9/certifications/email-verification.svg',
+  imageUrl: 'https://raw.githubusercontent.com/paritytech/dapp-assets/c4721a87cb95375da91f8699438d8d7907b3f5e9/certifications/email-verification.svg',
   imageHash: '0x5617a14da2a0c210939da6eafb734e60906f64a504c3e107812668860a752dc6'
 };
 

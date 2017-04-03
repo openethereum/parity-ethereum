@@ -2,7 +2,7 @@
 
 Parity.js is a thin, fast, Promise-based wrapper around the Ethereum APIs.
 
-[https://github.com/ethcore/parity/tree/master/js/src/api](https://github.com/ethcore/parity/tree/master/js/src/api)
+[https://github.com/paritytech/parity/tree/master/js/src/api](https://github.com/paritytech/parity/tree/master/js/src/api)
 
 ## installation
 
@@ -80,4 +80,4 @@ contract.instance
 
 ## apis
 
-APIs implement the calls as exposed in the [Ethcore JSON Ethereum RPC](https://github.com/ethcore/ethereum-rpc-json/) definitions. Mapping follows the naming conventions of the originals, i.e. `eth_call` becomes `eth.call`, `personal_accounts` becomes `personal.accounts`, etc.
+APIs implement the calls as exposed in the [Ethcore JSON Ethereum RPC](https://github.com/paritytech/ethereum-rpc-json/) definitions. Mapping follows the naming conventions of the originals, i.e. `eth_call` becomes `eth.call`, `personal_accounts` becomes `personal.accounts`, etc.

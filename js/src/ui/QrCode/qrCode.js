@@ -14,14 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// https://github.com/cmanzana/qrcode-npm packaging the standard
-// https://github.com/kazuhikoarase/qrcode-generator
-import { qrcode } from 'qrcode-npm';
+import qrcode from 'qrcode-generator/js/qrcode';
 import React, { Component, PropTypes } from 'react';
 
+import { calculateType } from './qrSize';
+
+import styles from './qrCode.css';
+
 const QROPTS = {
-  CODE_TYPE: 4,
-  ERROR_LEVEL: 'M'
+  ERROR_LEVEL: 'M',
+  MAX_SIZE: 40,
+  MIN_SIZE: 5
 };
 
 export default class QrCode extends Component {
@@ -61,7 +64,7 @@ export default class QrCode extends Component {
 
     return (
       <div
-        className={ className }
+        className={ [styles.qr, className].join(' ') }
         dangerouslySetInnerHTML={ {
           __html: image
         } }
@@ -71,9 +74,10 @@ export default class QrCode extends Component {
 
   generateCode (props) {
     const { margin, size, value } = props;
-    const qr = qrcode(QROPTS.CODE_TYPE, QROPTS.ERROR_LEVEL);
+    const type = calculateType(value.length, QROPTS.ERROR_LEVEL);
+    const qr = qrcode(type, QROPTS.ERROR_LEVEL);
 
-    qr.addData(value);
+    qr.addData(value, 'Byte');
     qr.make();
 
     this.setState({

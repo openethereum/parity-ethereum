@@ -26,5 +26,5 @@ pub trait Verifier: Send + Sync {
 	/// Verify a block relative to its parent and uncles.
 	fn verify_block_family(&self, header: &Header, bytes: &[u8], engine: &Engine, bc: &BlockProvider) -> Result<(), Error>;
 	/// Do a final verification check for an enacted header vs its expected counterpart.
-	fn verify_block_final(&self, expected: &Header, got: &Header, receipts: bool) -> Result<(), Error>;
+	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error>;
 }

@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { noop } from 'lodash';
 import { observable, computed, action, transaction } from 'mobx';
 import React from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import Contract from '~/api/contract';
-import { ERROR_CODES } from '~/api/transport/error';
 import Contracts from '~/contracts';
 import { wallet as walletAbi } from '~/contracts/abi';
 import { wallet as walletCode, walletLibrary as walletLibraryCode, walletLibraryRegKey, fullWalletCode } from '~/contracts/code/wallet';
@@ -46,15 +46,6 @@ const STEPS = {
       />
     )
   },
-  DEPLOYMENT: {
-    title: (
-      <FormattedMessage
-        id='createWallet.steps.deployment'
-        defaultMessage='wallet deployment'
-      />
-    ),
-    waiting: true
-  },
   INFO: {
     title: (
       <FormattedMessage
@@ -67,13 +58,8 @@ const STEPS = {
 
 export default class CreateWalletStore {
   @observable step = null;
-  @observable rejected = false;
-
-  @observable deployState = null;
-  @observable deployError = null;
-  @observable deployed = false;
-
   @observable txhash = null;
+  @observable walletType = 'MULTISIG';
 
   @observable wallet = {
     account: '',
@@ -85,7 +71,6 @@ export default class CreateWalletStore {
     name: '',
     description: ''
   };
-  @observable walletType = 'MULTISIG';
 
   @observable errors = {
     account: null,
@@ -95,6 +80,9 @@ export default class CreateWalletStore {
     daylimit: null,
     name: null
   };
+
+  onClose = noop;
+  onSetRequest = noop;
 
   @computed get stage () {
     return this.stepsKeys.findIndex((k) => k === this.step);
@@ -125,24 +113,17 @@ export default class CreateWalletStore {
           key
         };
       })
-      .filter((step) => {
-        return (this.walletType !== 'WATCH' || step.key !== 'DEPLOYMENT');
-      });
+      .filter((step) => this.walletType === 'WATCH' || step.key !== 'INFO');
   }
 
-  @computed get waiting () {
-    this.steps
-      .map((s, idx) => ({ idx, waiting: s.waiting }))
-      .filter((s) => s.waiting)
-      .map((s) => s.idx);
-  }
-
-  constructor (api, accounts) {
+  constructor (api, { accounts, onClose, onSetRequest }) {
     this.api = api;
 
     this.step = this.stepsKeys[0];
     this.wallet.account = Object.values(accounts)[0].address;
     this.validateWallet(this.wallet);
+    this.onClose = onClose;
+    this.onSetRequest = onSetRequest;
   }
 
   @action onTypeChange = (type) => {
@@ -193,8 +174,6 @@ export default class CreateWalletStore {
       return;
     }
 
-    this.step = 'DEPLOYMENT';
-
     const { account, owners, required, daylimit } = this.wallet;
 
     Contracts
@@ -243,25 +222,13 @@ export default class CreateWalletStore {
         const contract = this.api.newContract(walletAbi);
 
         this.wallet = this.getWalletWithMeta(this.wallet);
-        return deploy(contract, options, [ owners, required, daylimit ], this.wallet.metadata, this.onDeploymentState);
-      })
-      .then((address) => {
-        if (!address || /^(0x)?0*$/.test(address)) {
-          return false;
-        }
+        this.onClose();
+        return deploy(contract, options, [ owners, required, daylimit ])
+          .then((requestId) => {
+            const metadata = { ...this.wallet.metadata, deployment: true };
 
-        this.deployed = true;
-        this.wallet.address = address;
-        return this.addWallet(this.wallet);
-      })
-      .catch((error) => {
-        if (error.code === ERROR_CODES.REQUEST_REJECTED) {
-          this.rejected = true;
-          return;
-        }
-
-        console.error('error deploying contract', error);
-        this.deployError = error;
+            this.onSetRequest(requestId, { metadata }, false);
+          });
       });
   }
 
@@ -295,75 +262,6 @@ export default class CreateWalletStore {
       ...wallet,
       metadata
     };
-  }
-
-  onDeploymentState = (error, data) => {
-    if (error) {
-      return console.error('createWallet::onDeploymentState', error);
-    }
-
-    switch (data.state) {
-      case 'estimateGas':
-      case 'postTransaction':
-        this.deployState = (
-          <FormattedMessage
-            id='createWallet.states.preparing'
-            defaultMessage='Preparing transaction for network transmission'
-          />
-        );
-        return;
-
-      case 'checkRequest':
-        this.deployState = (
-          <FormattedMessage
-            id='createWallet.states.waitingConfirm'
-            defaultMessage='Waiting for confirmation of the transaction in the Parity Secure Signer'
-          />
-        );
-        return;
-
-      case 'getTransactionReceipt':
-        this.deployState = (
-          <FormattedMessage
-            id='createWallet.states.waitingReceipt'
-            defaultMessage='Waiting for the contract deployment transaction receipt'
-          />
-        );
-        this.txhash = data.txhash;
-        return;
-
-      case 'hasReceipt':
-      case 'getCode':
-        this.deployState = (
-          <FormattedMessage
-            id='createWallet.states.validatingCode'
-            defaultMessage='Validating the deployed contract code'
-          />
-        );
-        return;
-
-      case 'confirmationNeeded':
-        this.deployState = (
-          <FormattedMessage
-            id='createWallet.states.confirmationNeeded'
-            defaultMessage='The contract deployment needs confirmations from other owners of the Wallet'
-          />
-        );
-        return;
-
-      case 'completed':
-        this.deployState = (
-          <FormattedMessage
-            id='createWallet.states.completed'
-            defaultMessage='The contract deployment has been completed'
-          />
-        );
-        return;
-
-      default:
-        console.error('createWallet::onDeploymentState', 'unknow contract deployment state', data);
-        return;
-    }
   }
 
   @action validateWallet = (_wallet) => {

@@ -17,9 +17,12 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
-import { BusyStep, Button, Portal, TxHash } from '~/ui';
+import { Button, Portal } from '~/ui';
 import { CancelIcon, DoneIcon, NextIcon } from '~/ui/Icons';
+import { setRequest } from '~/redux/providers/requestsActions';
 
 import WalletType from './WalletType';
 import WalletDetails from './WalletDetails';
@@ -27,56 +30,25 @@ import WalletInfo from './WalletInfo';
 import CreateWalletStore from './createWalletStore';
 
 @observer
-export default class CreateWallet extends Component {
+export class CreateWallet extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    onClose: PropTypes.func.isRequired
+    onClose: PropTypes.func.isRequired,
+    onSetRequest: PropTypes.func.isRequired
   };
 
-  store = new CreateWalletStore(this.context.api, this.props.accounts);
+  store = new CreateWalletStore(this.context.api, this.props);
 
   render () {
-    const { stage, steps, waiting, rejected } = this.store;
-
-    if (rejected) {
-      return (
-        <Portal
-          buttons={ this.renderDialogActions() }
-          onClose={ this.onClose }
-          open
-          title={
-            <FormattedMessage
-              id='createWallet.rejected.title'
-              defaultMessage='rejected'
-            />
-          }
-        >
-          <BusyStep
-            title={
-              <FormattedMessage
-                id='createWallet.rejected.message'
-                defaultMessage='The deployment has been rejected'
-              />
-            }
-            state={
-              <FormattedMessage
-                id='createWallet.rejected.state'
-                defaultMessage='The wallet will not be created. You can safely close this window.'
-              />
-            }
-          />
-        </Portal>
-      );
-    }
+    const { stage, steps } = this.store;
 
     return (
       <Portal
         activeStep={ stage }
-        busySteps={ waiting }
         buttons={ this.renderDialogActions() }
         onClose={ this.onClose }
         open
@@ -92,25 +64,6 @@ export default class CreateWallet extends Component {
     const { accounts } = this.props;
 
     switch (step) {
-      case 'DEPLOYMENT':
-        return (
-          <BusyStep
-            title={
-              <FormattedMessage
-                id='createWallet.deployment.message'
-                defaultMessage='The deployment is currently in progress'
-              />
-            }
-            state={ this.store.deployState }
-          >
-            {
-              this.store.txhash
-                ? <TxHash hash={ this.store.txhash } />
-                : null
-              }
-          </BusyStep>
-        );
-
       case 'INFO':
         return (
           <WalletInfo
@@ -148,7 +101,7 @@ export default class CreateWallet extends Component {
   }
 
   renderDialogActions () {
-    const { step, hasErrors, rejected, onCreate, onNext, onAdd } = this.store;
+    const { step, hasErrors, onCreate, onNext, onAdd } = this.store;
 
     const cancelBtn = (
       <Button
@@ -158,20 +111,6 @@ export default class CreateWallet extends Component {
           <FormattedMessage
             id='createWallet.button.cancel'
             defaultMessage='Cancel'
-          />
-        }
-        onClick={ this.onClose }
-      />
-    );
-
-    const closeBtn = (
-      <Button
-        icon={ <CancelIcon /> }
-        key='close'
-        label={
-          <FormattedMessage
-            id='createWallet.button.close'
-            defaultMessage='Close'
           />
         }
         onClick={ this.onClose }
@@ -192,20 +131,6 @@ export default class CreateWallet extends Component {
       />
     );
 
-    const sendingBtn = (
-      <Button
-        icon={ <DoneIcon /> }
-        key='sending'
-        label={
-          <FormattedMessage
-            id='createWallet.button.sending'
-            defaultMessage='Sending...'
-          />
-        }
-        disabled
-      />
-    );
-
     const nextBtn = (
       <Button
         icon={ <NextIcon /> }
@@ -220,14 +145,7 @@ export default class CreateWallet extends Component {
       />
     );
 
-    if (rejected) {
-      return [ closeBtn ];
-    }
-
     switch (step) {
-      case 'DEPLOYMENT':
-        return [ closeBtn, sendingBtn ];
-
       case 'INFO':
         return [ doneBtn ];
 
@@ -274,3 +192,14 @@ export default class CreateWallet extends Component {
     this.props.onClose();
   }
 }
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    onSetRequest: setRequest
+  }, dispatch);
+}
+
+export default connect(
+  null,
+  mapDispatchToProps
+)(CreateWallet);
