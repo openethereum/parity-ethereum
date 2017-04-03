@@ -14,10 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate byteorder;
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate futures;
+extern crate futures_cpupool;
 extern crate hyper;
 extern crate parking_lot;
+extern crate rustc_serialize;
+extern crate serde;
+extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
+extern crate tokio_core;
+extern crate tokio_service;
+extern crate tokio_proto;
 extern crate url;
 
 extern crate ethcore_devtools as devtools;
@@ -38,16 +50,19 @@ mod acl_storage;
 mod http_listener;
 mod key_server;
 mod key_storage;
+mod serialization;
 
 pub use types::all::{DocumentAddress, DocumentKey, DocumentEncryptedKey, RequestSignature, Public,
-	Error, ServiceConfiguration};
+	Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, EncryptionConfiguration};
 pub use traits::{KeyServer};
 
 /// Start new key server instance
 pub fn start(config: ServiceConfiguration) -> Result<Box<KeyServer>, Error> {
-	let acl_storage = acl_storage::DummyAclStorage::default();
-	let key_storage = key_storage::PersistentKeyStorage::new(&config)?;
-	let key_server = key_server::KeyServerImpl::new(acl_storage, key_storage);
+	use std::sync::Arc;
+
+	let acl_storage = Arc::new(acl_storage::DummyAclStorage::default());
+	let key_storage = Arc::new(key_storage::PersistentKeyStorage::new(&config)?);
+	let key_server = key_server::KeyServerImpl::new(&config.cluster_config, acl_storage, key_storage)?;
 	let listener = http_listener::KeyServerHttpListener::start(config, key_server)?;
 	Ok(Box::new(listener))
 }

@@ -29,7 +29,6 @@ extern crate docopt;
 extern crate env_logger;
 extern crate fdlimit;
 extern crate futures;
-extern crate hyper;
 extern crate isatty;
 extern crate jsonrpc_core;
 extern crate num_cpus;
@@ -55,6 +54,7 @@ extern crate ethcore_logger;
 extern crate ethcore_rpc;
 extern crate ethcore_signer;
 extern crate ethcore_util as util;
+extern crate ethkey;
 extern crate ethsync;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_ipfs_api;
@@ -74,7 +74,11 @@ extern crate ethcore_stratum;
 extern crate ethcore_secretstore;
 
 #[cfg(feature = "dapps")]
-extern crate ethcore_dapps;
+extern crate parity_dapps;
+
+#[cfg(test)]
+#[macro_use]
+extern crate pretty_assertions;
 
 #[cfg(windows)] extern crate ws2_32;
 #[cfg(windows)] extern crate winapi;

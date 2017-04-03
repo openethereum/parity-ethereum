@@ -155,6 +155,8 @@ API and Console Options:
                                  is additional security against some attack
                                  vectors. Special options: "all", "none",
                                  (default: {flag_jsonrpc_hosts}).
+  --jsonrpc-threads THREADS      Enables experimental faster implementation of JSON-RPC server.
+                                 Requires Dapps server to be disabled using --no-dapps. (default: {flag_jsonrpc_threads:?})
 
   --no-ipc                       Disable JSON-RPC over IPC service. (default: {flag_no_ipc})
   --ipc-path PATH                Specify custom path for JSON-RPC over IPC service
@@ -163,29 +165,8 @@ API and Console Options:
                                  IPC (default: {flag_ipc_apis}).
 
   --no-dapps                     Disable the Dapps server (e.g. status page). (default: {flag_no_dapps})
-  --dapps-port PORT              Specify the port portion of the Dapps server
-                                 (default: {flag_dapps_port}).
-  --dapps-interface IP           Specify the hostname portion of the Dapps
-                                 server, IP should be an interface's IP address,
-                                 or local (default: {flag_dapps_interface}).
-  --dapps-hosts HOSTS            List of allowed Host header values. This option will
-                                 validate the Host header sent by the browser, it
-                                 is additional security against some attack
-                                 vectors. Special options: "all", "none",
-                                 (default: {flag_dapps_hosts}).
-  --dapps-cors URL               Specify CORS headers for Dapps server APIs.
-                                 (default: {flag_dapps_cors:?})
-  --dapps-user USERNAME          Specify username for Dapps server. It will be
-                                 used in HTTP Basic Authentication Scheme.
-                                 If --dapps-pass is not specified you will be
-                                 asked for password on startup. (default: {flag_dapps_user:?})
-  --dapps-pass PASSWORD          Specify password for Dapps server. Use only in
-                                 conjunction with --dapps-user. (default: {flag_dapps_pass:?})
   --dapps-path PATH              Specify directory where dapps should be installed.
                                  (default: {flag_dapps_path})
-  --dapps-apis-all               Expose all possible RPC APIs on Dapps port.
-                                 WARNING: INSECURE. Used only for development.
-                                 (default: {flag_dapps_apis_all})
   --ipfs-api                     Enable IPFS-compatible HTTP API. (default: {flag_ipfs_api})
   --ipfs-api-port PORT           Configure on which port the IPFS HTTP API should listen.
                                  (default: {flag_ipfs_api_port})
@@ -398,6 +379,13 @@ Legacy Options:
   --jsonrpc-off                  Equivalent to --no-jsonrpc.
   -w --webapp                    Does nothing; dapps server is on by default now.
   --dapps-off                    Equivalent to --no-dapps.
+  --dapps-user USERNAME          Dapps server authentication has been removed. (default: {flag_dapps_user:?})
+  --dapps-pass PASSWORD          Dapps server authentication has been removed. (default: {flag_dapps_pass:?})
+  --dapps-apis-all               Dapps server is merged with RPC server. Use --jsonrpc-apis. (default: {flag_dapps_apis_all:?})
+  --dapps-cors URL               Dapps server is merged with RPC server. Use --jsonrpc-cors. (default: {flag_dapps_cors:?})
+  --dapps-hosts HOSTS            Dapps server is merged with RPC server. Use --jsonrpc-hosts. (default: {flag_dapps_hosts:?})
+  --dapps-interface IP           Dapps server is merged with RPC server. Use --jsonrpc-interface. (default: {flag_dapps_interface:?})
+  --dapps-port PORT              Dapps server is merged with RPC server. Use --jsonrpc-port. (default: {flag_dapps_port:?})
   --rpc                          Does nothing; JSON-RPC is on by default now.
   --warp                         Does nothing; Warp sync is on by default. (default: {flag_warp})
   --rpcaddr IP                   Equivalent to --jsonrpc-interface IP.
