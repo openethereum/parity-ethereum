@@ -20,26 +20,18 @@ use std::sync::Arc;
 use dir::default_data_path;
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethcore::transaction::{Transaction, Action};
-use ethcore_rpc::informant::RpcStats;
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
 use helpers::replace_home;
-use rpc_apis::{self, SignerService};
+use rpc_apis::SignerService;
 use parity_reactor;
 use util::{Bytes, Address, U256};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
 	pub enabled: bool,
-	pub interface: String,
-	pub port: u16,
-	pub hosts: Option<Vec<String>>,
-	pub cors: Option<Vec<String>>,
-	pub user: Option<String>,
-	pub pass: Option<String>,
 	pub dapps_path: PathBuf,
 	pub extra_dapps: Vec<PathBuf>,
-	pub all_apis: bool,
 }
 
 impl Default for Configuration {
@@ -47,15 +39,8 @@ impl Default for Configuration {
 		let data_dir = default_data_path();
 		Configuration {
 			enabled: true,
-			interface: "127.0.0.1".into(),
-			port: 8080,
-			hosts: Some(Vec::new()),
-			cors: None,
-			user: None,
-			pass: None,
 			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
 			extra_dapps: vec![],
-			all_apis: false,
 		}
 	}
 }
@@ -96,70 +81,52 @@ impl ContractClient for FullRegistrar {
 
 // TODO: light client implementation forwarding to OnDemand and waiting for future
 // to resolve.
-
-pub struct Dependencies<D: rpc_apis::Dependencies> {
-	pub apis: Arc<D>,
-	pub sync_status: Arc<::ethcore_dapps::SyncStatus>,
+pub struct Dependencies {
+	pub sync_status: Arc<::parity_dapps::SyncStatus>,
 	pub contract_client: Arc<ContractClient>,
 	pub remote: parity_reactor::TokioRemote,
 	pub fetch: FetchClient,
 	pub signer: Arc<SignerService>,
-	pub stats: Arc<RpcStats>,
 }
 
-pub fn new<D>(configuration: Configuration, deps: Dependencies<D>) -> Result<Option<WebappServer>, String>
-	where D: rpc_apis::Dependencies
+pub fn new(configuration: Configuration, deps: Dependencies)
+	-> Result<Option<Middleware>, String>
 {
 	if !configuration.enabled {
 		return Ok(None);
 	}
 
-	let url = format!("{}:{}", configuration.interface, configuration.port);
-	let addr = url.parse().map_err(|_| format!("Invalid Webapps listen host/port given: {}", url))?;
-
-	let auth = configuration.user.as_ref().map(|username| {
-		let password = configuration.pass.as_ref().map_or_else(|| {
-			use rpassword::read_password;
-			println!("Type password for WebApps server (user: {}): ", username);
-			let pass = read_password().unwrap();
-			println!("OK, got it. Starting server...");
-			pass
-		}, |pass| pass.to_owned());
-		(username.to_owned(), password)
-	});
-
-	Ok(Some(setup_dapps_server(
+	dapps_middleware(
 		deps,
 		configuration.dapps_path,
 		configuration.extra_dapps,
-		&addr,
-		configuration.hosts,
-		configuration.cors,
-		auth,
-		configuration.all_apis,
-	)?))
+	).map(Some)
 }
 
-pub use self::server::WebappServer;
-pub use self::server::setup_dapps_server;
+pub use self::server::Middleware;
+pub use self::server::dapps_middleware;
 
 #[cfg(not(feature = "dapps"))]
 mod server {
 	use super::Dependencies;
-	use std::net::SocketAddr;
 	use std::path::PathBuf;
+	use ethcore_rpc::{hyper, RequestMiddleware, RequestMiddlewareAction};
 
-	pub struct WebappServer;
-	pub fn setup_dapps_server(
+	pub struct Middleware;
+
+	impl RequestMiddleware for Middleware {
+		fn on_request(
+			&self, req: &hyper::server::Request<hyper::net::HttpStream>, control: &hyper::Control
+		) -> RequestMiddlewareAction {
+			unreachable!()
+		}
+	}
+
+	pub fn dapps_middleware(
 		_deps: Dependencies,
 		_dapps_path: PathBuf,
 		_extra_dapps: Vec<PathBuf>,
-		_url: &SocketAddr,
-		_allowed_hosts: Option<Vec<String>>,
-		_cors: Option<Vec<String>>,
-		_auth: Option<(String, String)>,
-		_all_apis: bool,
-	) -> Result<WebappServer, String> {
+	) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
 	}
 }
@@ -169,70 +136,31 @@ mod server {
 	use super::Dependencies;
 	use std::path::PathBuf;
 	use std::sync::Arc;
-	use std::net::SocketAddr;
-	use std::io;
 
-	use ansi_term::Colour;
-	use ethcore_dapps::{AccessControlAllowOrigin, Host};
+	use hash_fetch::fetch::Client as FetchClient;
+	use parity_dapps;
 	use parity_reactor;
-	use rpc_apis;
 
-	pub use ethcore_dapps::Server as WebappServer;
+	pub type Middleware = parity_dapps::Middleware<FetchClient>;
 
-	pub fn setup_dapps_server<D: rpc_apis::Dependencies>(
-		deps: Dependencies<D>,
+	pub fn dapps_middleware(
+		deps: Dependencies,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
-		url: &SocketAddr,
-		allowed_hosts: Option<Vec<String>>,
-		cors: Option<Vec<String>>,
-		auth: Option<(String, String)>,
-		all_apis: bool,
-	) -> Result<WebappServer, String> {
-		use ethcore_dapps as dapps;
-
-		let server = dapps::ServerBuilder::new(
-			&dapps_path,
-			deps.contract_client,
-			parity_reactor::Remote::new(deps.remote.clone()),
-		);
-		let allowed_hosts: Option<Vec<_>> = allowed_hosts.map(|hosts| hosts.into_iter().map(Host::from).collect());
-		let cors: Option<Vec<_>> = cors.map(|cors| cors.into_iter().map(AccessControlAllowOrigin::from).collect());
-
+	) -> Result<Middleware, String> {
 		let signer = deps.signer.clone();
-		let server = server
-			.fetch(deps.fetch.clone())
-			.sync_status(deps.sync_status)
-			.web_proxy_tokens(Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token)))
-			.extra_dapps(&extra_dapps)
-			.signer_address(deps.signer.address())
-			.allowed_hosts(allowed_hosts.into())
-			.extra_cors_headers(cors.into());
+		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
+		let web_proxy_tokens = Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token));
 
-		let api_set = if all_apis {
-			warn!("{}", Colour::Red.bold().paint("*** INSECURE *** Running Dapps with all APIs exposed."));
-			info!("If you do not intend this, exit now.");
-			rpc_apis::ApiSet::SafeContext
-		} else {
-			rpc_apis::ApiSet::UnsafeContext
-		};
-		let apis = rpc_apis::setup_rpc(deps.stats, &*deps.apis, api_set);
-		let start_result = match auth {
-			None => {
-				server.start_unsecured_http(url, apis, deps.remote)
-			},
-			Some((username, password)) => {
-				server.start_basic_auth_http(url, &username, &password, apis, deps.remote)
-			},
-		};
-
-		match start_result {
-			Err(dapps::ServerError::IoError(err)) => match err.kind() {
-				io::ErrorKind::AddrInUse => Err(format!("WebApps address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --dapps-port and --dapps-interface options.", url)),
-				_ => Err(format!("WebApps io error: {}", err)),
-			},
-			Err(e) => Err(format!("WebApps error: {:?}", e)),
-			Ok(server) => Ok(server),
-		}
+		Ok(parity_dapps::Middleware::new(
+			parity_remote,
+			deps.signer.address(),
+			dapps_path,
+			extra_dapps,
+			deps.contract_client,
+			deps.sync_status,
+			web_proxy_tokens,
+			deps.fetch.clone(),
+		))
 	}
 }

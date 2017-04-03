@@ -19,7 +19,6 @@
 mod helpers;
 
 mod api;
-mod authorization;
 mod fetch;
 mod redirection;
 mod rpc;
