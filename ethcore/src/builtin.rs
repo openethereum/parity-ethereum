@@ -435,9 +435,9 @@ impl Impl for Bn128ParingImpl {
 	///     - any of odd points does not belong to bn128 curve
 	///     - any of even points does not belong to the twisted bn128 curve over the field F_p^2 = F_p[i] / (i^2 + 1)
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
-		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2};
+		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2, Gt};
 
-		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinate)
+		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
 		if input.len() % 192 != 0 { 
 			return Err("Invalid input length, must be multiple of 192 (3 * (32*2))".into()) 
 		}
@@ -476,23 +476,8 @@ impl Impl for Bn128ParingImpl {
 					),
 				));
 			};
-			let mul = if elements == 1 {
-				let (a, b) = vals[0];
-				pairing(a, b)
-			} else {
-				let mut drain = vals.drain(..);				
-				let mut mul = { 
-					let (a, b) = drain.next()
-						.expect("Checked above that elements > 1, so 0th element should exist; qed"); 
-					pairing(a, b) 
-				};
-				for _ in 1..elements { 
-					let (a, b) = drain.next()
-						.expect("this element should exist, because we do next() no more than elements-1 times; qed");
-					mul = mul * pairing(a, b);
-				}
-				mul
-			};
+
+			let mul = vals.into_iter().fold(Gt::one(), |s, (a, b)| s * pairing(a, b));
 
 			if mul == *bn128_gen::P1_P2_PAIRING {
 				U256::one()
