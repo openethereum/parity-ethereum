@@ -30,47 +30,48 @@ use util::trie::TrieSpec;
 use util::kvdb::*;
 
 // other
-use io::*;
-use views::BlockView;
-use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
-use header::BlockNumber;
-use state::{self, State, CleanupMode};
-use spec::Spec;
 use basic_types::Seal;
-use engines::Engine;
-use service::ClientIoMessage;
-use env_info::LastHashes;
-use verification;
-use verification::{PreverifiedBlock, Verifier};
 use block::*;
-use transaction::{LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
-use blockchain::extras::TransactionAddress;
-use types::filter::Filter;
-use types::mode::Mode as IpcMode;
-use log_entry::LocalizedLogEntry;
-use verification::queue::BlockQueue;
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
+use blockchain::extras::TransactionAddress;
+use client::Error as ClientError;
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, EngineClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, PruningInfo,
 };
-use client::Error as ClientError;
-use env_info::EnvInfo;
-use executive::{Executive, Executed, TransactOptions, contract_address};
-use receipt::{Receipt, LocalizedReceipt};
-use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
-use trace;
-use trace::FlatTransactionTraces;
-use evm::{Factory as EvmFactory, Schedule};
-use miner::{Miner, MinerService, TransactionImportResult};
-use snapshot::{self, io as snapshot_io};
-use factory::Factories;
-use rlp::UntrustedRlp;
-use state_db::StateDB;
-use rand::OsRng;
-use client::registry::Registry;
 use encoded;
+use engines::Engine;
+use env_info::EnvInfo;
+use env_info::LastHashes;
+use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
+use evm::{Factory as EvmFactory, Schedule};
+use executive::{Executive, Executed, TransactOptions, contract_address};
+use factory::Factories;
+use futures::{future, Future};
+use header::BlockNumber;
+use io::*;
+use log_entry::LocalizedLogEntry;
+use miner::{Miner, MinerService, TransactionImportResult};
+use native_contracts::Registry;
+use rand::OsRng;
+use receipt::{Receipt, LocalizedReceipt};
+use rlp::UntrustedRlp;
+use service::ClientIoMessage;
+use snapshot::{self, io as snapshot_io};
+use spec::Spec;
+use state_db::StateDB;
+use state::{self, State, CleanupMode};
+use trace;
+use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
+use trace::FlatTransactionTraces;
+use transaction::{LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
+use types::filter::Filter;
+use types::mode::Mode as IpcMode;
+use verification;
+use verification::{PreverifiedBlock, Verifier};
+use verification::queue::BlockQueue;
+use views::BlockView;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -254,8 +255,7 @@ impl Client {
 
 		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
 			trace!(target: "client", "Found registrar at {}", reg_addr);
-			let weak = Arc::downgrade(&client);
-			let registrar = Registry::new(reg_addr, move |a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(BlockId::Latest, a, d)));
+			let registrar = Registry::new(reg_addr);
 			*client.registrar.lock() = Some(registrar);
 		}
 		Ok(client)
@@ -1488,12 +1488,17 @@ impl BlockChainClient for Client {
 	}
 
 	fn registrar_address(&self) -> Option<Address> {
-		self.registrar.lock().as_ref().map(|r| r.address.clone())
+		self.registrar.lock().as_ref().map(|r| r.address)
 	}
 
 	fn registry_address(&self, name: String) -> Option<Address> {
 		self.registrar.lock().as_ref()
-			.and_then(|r| r.get_address(&(name.as_bytes().sha3()), "A").ok())
+			.and_then(|r| {
+				let dispatch = move |reg_addr, data| {
+					future::done(self.call_contract(BlockId::Latest, reg_addr, data))
+				};
+				r.get_address(dispatch, name.as_bytes().sha3(), "A".to_string()).wait().ok()
+			})
 			.and_then(|a| if a.is_zero() { None } else { Some(a) })
 	}
 }

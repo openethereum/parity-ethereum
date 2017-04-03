@@ -11,44 +11,46 @@ build = "build.rs"
 "ethcore-ipc-codegen" = { path = "../ipc/codegen" }
 
 [dependencies]
-log = "0.3"
-env_logger = "0.4"
-rustc-serialize = "0.3"
-rust-crypto = "0.2.34"
-num_cpus = "1.2"
-crossbeam = "0.2.9"
-lazy_static = "0.2"
-bloomchain = "0.1"
-semver = "0.6"
 bit-set = "0.4"
-time = "0.1"
-rand = "0.3"
-byteorder = "1.0"
-transient-hashmap = "0.4"
-linked-hash-map = "0.3.0"
-lru-cache = "0.1.0"
-itertools = "0.5"
-ethabi = "1.0.0"
-evmjit = { path = "../evmjit", optional = true }
-clippy = { version = "0.0.103", optional = true}
-ethash = { path = "../ethash" }
-ethcore-util = { path = "../util" }
-ethcore-io = { path = "../util/io" }
-ethcore-devtools = { path = "../devtools" }
-ethjson = { path = "../json" }
-ethcore-ipc = { path = "../ipc/rpc" }
-ethstore = { path = "../ethstore" }
-ethkey = { path = "../ethkey" }
-ethcore-ipc-nano = { path = "../ipc/nano" }
-rlp = { path = "../util/rlp" }
-ethcore-stratum = { path = "../stratum" }
-ethcore-bloom-journal = { path = "../util/bloom" }
-hardware-wallet = { path = "../hw" }
-ethcore-logger = { path = "../logger" }
-stats = { path = "../util/stats" }
-hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
-num = "0.1"
+bloomchain = "0.1"
 bn = { git = "https://github.com/paritytech/bn" }
+byteorder = "1.0"
+clippy = { version = "0.0.103", optional = true}
+crossbeam = "0.2.9"
+env_logger = "0.4"
+ethabi = "1.0.0"
+ethash = { path = "../ethash" }
+ethcore-bloom-journal = { path = "../util/bloom" }
+ethcore-devtools = { path = "../devtools" }
+ethcore-io = { path = "../util/io" }
+ethcore-ipc = { path = "../ipc/rpc" }
+ethcore-ipc-nano = { path = "../ipc/nano" }
+ethcore-logger = { path = "../logger" }
+ethcore-stratum = { path = "../stratum" }
+ethcore-util = { path = "../util" }
+ethjson = { path = "../json" }
+ethkey = { path = "../ethkey" }
+ethstore = { path = "../ethstore" }
+evmjit = { path = "../evmjit", optional = true }
+futures = "0.1"
+hardware-wallet = { path = "../hw" }
+hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
+itertools = "0.5"
+lazy_static = "0.2"
+linked-hash-map = "0.3.0"
+log = "0.3"
+lru-cache = "0.1.0"
+native-contracts = { path = "native_contracts" }
+num = "0.1"
+num_cpus = "1.2"
+rand = "0.3"
+rlp = { path = "../util/rlp" }
+rust-crypto = "0.2.34"
+rustc-serialize = "0.3"
+semver = "0.6"
+stats = { path = "../util/stats" }
+time = "0.1"
+transient-hashmap = "0.4"
 
 [features]
 jit = ["evmjit"]
