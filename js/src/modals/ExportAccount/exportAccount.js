@@ -139,7 +139,6 @@ class ExportAccount extends Component {
             value={ inputValue }
             onChange={ changePassword }
             onKeyDown={ this.onEnter }
-            onFocus={ this.onFocus }
           />
         </div>
       </AccountCard>
@@ -153,8 +152,8 @@ class ExportAccount extends Component {
     }
   }
 
-  onFocus = (event) => {
-    // this.exportStore.toggleSelectedAccount(account.address);
+  onFocus = (account) => {
+    this.exportStore.setSelectedAccount(account.address);
   }
 
   isSelected = (account) => {
