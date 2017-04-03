@@ -220,7 +220,7 @@ impl SessionImpl {
 				self.completed.notify_all();
 			},
 			// we can not decrypt data
-			SessionState::Failed => (),
+			SessionState::Failed => self.completed.notify_all(),
 			// cannot reach other states
 			_ => unreachable!("process_initialization_response can change state to WaitingForPartialDecryption or Failed; checked that we are in WaitingForInitializationConfirm state above; qed"),
 		}
@@ -285,7 +285,10 @@ impl SessionImpl {
 			SessionState::WaitingForPartialDecryption =>
 				SessionImpl::start_waiting_for_partial_decryption(self.node().clone(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data),
 			// we can not have enough nodes for decryption
-			SessionState::Failed => Ok(()),
+			SessionState::Failed => {
+				self.completed.notify_all();
+				Ok(())
+			},
 			// cannot reach other states
 			_ => unreachable!("process_initialization_response can change state to WaitingForPartialDecryption or Failed; checked that we are in WaitingForInitializationConfirm state above; qed"),
 		}
@@ -480,6 +483,7 @@ fn process_initialization_response(encrypted_data: &DocumentKeyShare, data: &mut
 
 			// check if we still can receive enough confirmations to do a decryption?
 			if encrypted_data.id_numbers.len() - data.rejected_nodes.len() < encrypted_data.threshold + 1 {
+				data.decrypted_secret = Some(Err(Error::AccessDenied));
 				data.state = SessionState::Failed;
 			}
 		},
@@ -503,7 +507,7 @@ fn do_partial_decryption(node: &NodeId, _requestor_public: &Public, participants
 mod tests {
 	use std::sync::Arc;
 	use std::collections::BTreeMap;
-	use super::super::super::acl_storage::DummyAclStorage;
+	use super::super::super::acl_storage::tests::DummyAclStorage;
 	use ethkey::{self, Random, Generator, Public, Secret};
 	use key_server_cluster::{NodeId, DocumentKeyShare, SessionId, Error};
 	use key_server_cluster::cluster::tests::DummyCluster;

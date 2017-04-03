@@ -21,7 +21,7 @@ use ethcrypto;
 use super::types::all::DocumentAddress;
 
 pub use super::types::all::{NodeId, EncryptionConfiguration};
-pub use super::acl_storage::{AclStorage, DummyAclStorage};
+pub use super::acl_storage::AclStorage;
 pub use super::key_storage::{KeyStorage, DocumentKeyShare};
 pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic};
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
@@ -30,6 +30,8 @@ pub use self::decryption_session::Session as DecryptionSession;
 
 #[cfg(test)]
 pub use super::key_storage::tests::DummyKeyStorage;
+#[cfg(test)]
+pub use super::acl_storage::tests::DummyAclStorage;
 
 pub type SessionId = DocumentAddress;
 
@@ -72,6 +74,8 @@ pub enum Error {
 	Serde(String),
 	/// Key storage error.
 	KeyStorage(String),
+	/// Acl storage error.
+	AccessDenied,
 }
 
 impl From<ethkey::Error> for Error {
@@ -110,6 +114,7 @@ impl fmt::Display for Error {
 			Error::Io(ref e) => write!(f, "i/o error {}", e),
 			Error::Serde(ref e) => write!(f, "serde error {}", e),
 			Error::KeyStorage(ref e) => write!(f, "key storage error {}", e),
+			Error::AccessDenied => write!(f, "Access denied"),
 		}
 	}
 }

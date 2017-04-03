@@ -119,7 +119,10 @@ impl From<ethkey::Error> for Error {
 
 impl From<key_server_cluster::Error> for Error {
 	fn from(err: key_server_cluster::Error) -> Self {
-		Error::Internal(err.into())
+		match err {
+			key_server_cluster::Error::AccessDenied => Error::AccessDenied,
+			_ => Error::Internal(err.into()),
+		}
 	}
 }
 
