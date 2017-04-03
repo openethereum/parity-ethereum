@@ -5,8 +5,8 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 log = "0.3"
-libc = "0.2.11"
-rand = "0.3.14"
+libc = "0.2"
+rand = "0.3"
 ethkey = { path = "../ethkey" }
 serde = "0.9"
 serde_json = "0.9"
@@ -16,13 +16,13 @@ rust-crypto = "0.2.36"
 tiny-keccak = "1.0"
 docopt = { version = "0.7", optional = true }
 time = "0.1.34"
-lazy_static = "0.2"
 itertools = "0.5"
 parking_lot = "0.4"
 ethcrypto = { path = "../ethcrypto" }
 ethcore-util = { path = "../util" }
 smallvec = "0.3.1"
 ethcore-devtools = { path = "../devtools" }
+parity-wordlist = "1.0"
 
 [features]
 cli = ["docopt"]

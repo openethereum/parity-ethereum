@@ -32,7 +32,7 @@ function render () {
   store = createStore();
   component = shallow(
     <NewAccount
-      store={ store }
+      createStore={ store }
     />,
     {
       context: { api }

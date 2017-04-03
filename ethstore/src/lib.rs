@@ -16,31 +16,28 @@
 
 //! Ethereum key-management.
 
-
 #![warn(missing_docs)]
 
-extern crate libc;
+extern crate crypto as rcrypto;
 extern crate itertools;
-extern crate smallvec;
+extern crate libc;
+extern crate parking_lot;
 extern crate rand;
-extern crate time;
+extern crate rustc_serialize;
 extern crate serde;
 extern crate serde_json;
-extern crate rustc_serialize;
-extern crate crypto as rcrypto;
+extern crate smallvec;
+extern crate time;
 extern crate tiny_keccak;
-extern crate parking_lot;
-extern crate ethcore_devtools as devtools;
 
-// reexport it nicely
-extern crate ethkey as _ethkey;
-extern crate ethcrypto as crypto;
+extern crate ethcore_devtools as devtools;
 extern crate ethcore_util as util;
+extern crate ethcrypto as crypto;
+extern crate ethkey as _ethkey;
+extern crate parity_wordlist;
 
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate lazy_static;
 #[macro_use]
 extern crate serde_derive;
 
@@ -67,4 +64,5 @@ pub use self::secret_store::{
 	SecretVaultRef, StoreAccountRef, SimpleSecretStore, SecretStore,
 	Derivation, IndexDerivation,
 };
-pub use self::random::{random_phrase, random_string};
+pub use self::random::random_string;
+pub use self::parity_wordlist::random_phrase;

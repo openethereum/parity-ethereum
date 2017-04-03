@@ -44,3 +44,8 @@
 .fileInput input {
   top: 22px;
 }
+
+.qr {
+  margin-bottom: 0.5em;
+  text-align: center;
+}

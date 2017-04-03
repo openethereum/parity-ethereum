@@ -20,6 +20,7 @@ use std::{ops, cmp, fmt};
 use util::{U128, U256, U512, Uint, trie};
 use action_params::ActionParams;
 use evm::Ext;
+use builtin;
 
 /// Evm errors.
 #[derive(Debug, Clone, PartialEq)]
@@ -59,6 +60,8 @@ pub enum Error {
 		/// What was the stack limit
 		limit: usize
 	},
+	/// Built-in contract failed on given input
+	BuiltIn(&'static str),
 	/// Returned on evm internal error. Should never be ignored during development.
 	/// Likely to cause consensus issues.
 	Internal(String),
@@ -70,6 +73,12 @@ impl From<Box<trie::TrieError>> for Error {
 	}
 }
 
+impl From<builtin::Error> for Error {
+	fn from(err: builtin::Error) -> Self {
+		Error::BuiltIn(err.0)
+	}	
+}
+
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use self::Error::*;
@@ -79,6 +88,7 @@ impl fmt::Display for Error {
 			BadInstruction { .. } => "Bad instruction",
 			StackUnderflow { .. } => "Stack underflow",
 			OutOfStack { .. } => "Out of stack",
+			BuiltIn { .. } => "Built-in failed",
 			Internal(ref msg) => msg,
 		};
 		message.fmt(f)
