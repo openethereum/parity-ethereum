@@ -379,6 +379,8 @@ pub struct ChainSync {
 	transactions_stats: TransactionsStats,
 	/// Enable ancient block downloading
 	download_old_blocks: bool,
+	/// Enable warp sync.
+	enable_warp_sync: bool,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -403,6 +405,7 @@ impl ChainSync {
 			snapshot: Snapshot::new(),
 			sync_start_time: None,
 			transactions_stats: TransactionsStats::default(),
+			enable_warp_sync: config.warp_sync,
 		};
 		sync.update_targets(chain);
 		sync
@@ -501,6 +504,9 @@ impl ChainSync {
 	}
 
 	fn maybe_start_snapshot_sync(&mut self, io: &mut SyncIo) {
+		if !self.enable_warp_sync {
+			return;
+		}
 		if self.state != SyncState::WaitingPeers && self.state != SyncState::Blocks && self.state != SyncState::Waiting {
 			return;
 		}

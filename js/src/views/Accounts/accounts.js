@@ -110,7 +110,7 @@ class Accounts extends Component {
             }
           />
 
-          { this.renderHwWallets() }
+          { this.renderExternalAccounts() }
           { this.renderWallets() }
           { this.renderAccounts() }
         </Page>
@@ -182,13 +182,14 @@ class Accounts extends Component {
     );
   }
 
-  renderHwWallets () {
+  renderExternalAccounts () {
     const { accounts, balances } = this.props;
     const { wallets } = this.hwstore;
     const hardware = pickBy(accounts, (account) => account.hardware);
-    const hasHardware = Object.keys(hardware).length > 0;
+    const external = pickBy(accounts, (account) => account.external);
+    const all = Object.assign({}, hardware, external);
 
-    if (!hasHardware) {
+    if (Object.keys(all).length === 0) {
       return null;
     }
 
@@ -208,7 +209,7 @@ class Accounts extends Component {
     return (
       <List
         search={ searchValues }
-        accounts={ hardware }
+        accounts={ all }
         balances={ balances }
         disabled={ disabled }
         order={ sortOrder }

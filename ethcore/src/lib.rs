@@ -81,6 +81,7 @@
 
 extern crate bit_set;
 extern crate bloomchain;
+extern crate bn;
 extern crate byteorder;
 extern crate crossbeam;
 extern crate crypto;

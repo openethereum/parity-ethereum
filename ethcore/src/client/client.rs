@@ -388,12 +388,16 @@ impl Client {
 			let db = self.state_db.lock().boxed_clone_canon(header.parent_hash());
 
 			let enact_result = enact_verified(block, engine, self.tracedb.read().tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
-			let locked_block = enact_result.map_err(|e| {
+			let mut locked_block = enact_result.map_err(|e| {
 				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			})?;
 
+			if header.number() < self.engine().params().validate_receipts_transition && header.receipts_root() != locked_block.block().header().receipts_root() {
+				locked_block = locked_block.strip_receipts();
+			}
+	
 			// Final Verification
-			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header(), self.engine().params().validate_receipts_transition) {
+			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
 				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				return Err(());
 			}

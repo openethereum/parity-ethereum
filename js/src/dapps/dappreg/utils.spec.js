@@ -14,24 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! No-op verifier.
+import { INVALID_URL_HASH, ZERO_ADDRESS, isContentHash } from './utils';
 
-use blockchain::BlockProvider;
-use engines::Engine;
-use error::Error;
-use header::Header;
-use super::Verifier;
+describe('dapps/dappreg/utils', () => {
+  describe('isContentHash', () => {
+    it('returns true on valid hashes', () => {
+      expect(isContentHash(INVALID_URL_HASH)).to.be.true;
+    });
 
-/// A no-op verifier -- this will verify everything it's given immediately.
-#[allow(dead_code)]
-pub struct NoopVerifier;
+    it('returns false on valid hex, invalid hash', () => {
+      expect(isContentHash(ZERO_ADDRESS)).to.be.false;
+    });
 
-impl Verifier for NoopVerifier {
-	fn verify_block_family(&self, _header: &Header, _bytes: &[u8], _engine: &Engine, _bc: &BlockProvider) -> Result<(), Error> {
-		Ok(())
-	}
-
-	fn verify_block_final(&self, _expected: &Header, _got: &Header) -> Result<(), Error> {
-		Ok(())
-	}
-}
+    it('returns false on invalid hex', () => {
+      expect(isContentHash('something')).to.be.false;
+    });
+  });
+});

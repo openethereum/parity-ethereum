@@ -13,6 +13,7 @@ build = "build.rs"
 [dependencies]
 bit-set = "0.4"
 bloomchain = "0.1"
+bn = { git = "https://github.com/paritytech/bn" }
 byteorder = "1.0"
 clippy = { version = "0.0.103", optional = true}
 crossbeam = "0.2.9"

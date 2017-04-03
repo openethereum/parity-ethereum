@@ -26,13 +26,13 @@ import styles from '../createAccount.css';
 @observer
 export default class NewImport extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired,
+    createStore: PropTypes.object.isRequired,
     vaultStore: PropTypes.object
 
   }
 
   render () {
-    const { name, nameError, password, passwordHint } = this.props.store;
+    const { name, nameError, password, passwordHint } = this.props.createStore;
 
     return (
       <Form>
@@ -92,7 +92,7 @@ export default class NewImport extends Component {
           </div>
         </div>
         <ChangeVault
-          store={ this.props.store }
+          createStore={ this.props.createStore }
           vaultStore={ this.props.vaultStore }
         />
         { this.renderFileSelector() }
@@ -101,7 +101,7 @@ export default class NewImport extends Component {
   }
 
   renderFileSelector () {
-    const { walletFile, walletFileError } = this.props.store;
+    const { walletFile, walletFileError } = this.props.createStore;
 
     return walletFile
       ? (
@@ -133,27 +133,27 @@ export default class NewImport extends Component {
   }
 
   onFileSelect = (fileName, fileContent) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setWalletFile(fileName);
-    store.setWalletJson(fileContent);
+    createStore.setWalletFile(fileName);
+    createStore.setWalletJson(fileContent);
   }
 
   onEditName = (event, name) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setName(name);
+    createStore.setName(name);
   }
 
   onEditPassword = (event, password) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setPassword(password);
+    createStore.setPassword(password);
   }
 
   onEditPasswordHint = (event, passwordHint) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setPasswordHint(passwordHint);
+    createStore.setPasswordHint(passwordHint);
   }
 }

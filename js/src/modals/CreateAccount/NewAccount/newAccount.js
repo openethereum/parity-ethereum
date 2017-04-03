@@ -31,7 +31,7 @@ import styles from '../createAccount.css';
 export default class CreateAccount extends Component {
   static propTypes = {
     newError: PropTypes.func.isRequired,
-    store: PropTypes.object.isRequired,
+    createStore: PropTypes.object.isRequired,
     vaultStore: PropTypes.object
   }
 
@@ -45,7 +45,7 @@ export default class CreateAccount extends Component {
   }
 
   render () {
-    const { name, nameError, password, passwordRepeat, passwordRepeatError, passwordHint } = this.props.store;
+    const { name, nameError, password, passwordRepeat, passwordRepeatError, passwordHint } = this.props.createStore;
 
     return (
       <Form>
@@ -126,7 +126,7 @@ export default class CreateAccount extends Component {
         </div>
         <PasswordStrength input={ password } />
         <ChangeVault
-          store={ this.props.store }
+          createStore={ this.props.createStore }
           vaultStore={ this.props.vaultStore }
         />
         { this.renderIdentitySelector() }
@@ -203,16 +203,16 @@ export default class CreateAccount extends Component {
   }
 
   createIdentities = () => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    return store
+    return createStore
       .createIdentities()
       .then((accounts) => {
         const selectedAddress = Object.keys(accounts)[0];
         const { phrase } = accounts[selectedAddress];
 
-        store.setAddress(selectedAddress);
-        store.setPhrase(phrase);
+        createStore.setAddress(selectedAddress);
+        createStore.setPhrase(phrase);
 
         this.setState({
           accounts,
@@ -225,7 +225,7 @@ export default class CreateAccount extends Component {
   }
 
   onChangeIdentity = (event) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
     const selectedAddress = event.target.value || event.target.getAttribute('value');
 
     if (!selectedAddress) {
@@ -235,32 +235,32 @@ export default class CreateAccount extends Component {
     this.setState({ selectedAddress }, () => {
       const { phrase } = this.state.accounts[selectedAddress];
 
-      store.setAddress(selectedAddress);
-      store.setPhrase(phrase);
+      createStore.setAddress(selectedAddress);
+      createStore.setPhrase(phrase);
     });
   }
 
   onEditPasswordHint = (event, passwordHint) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setPasswordHint(passwordHint);
+    createStore.setPasswordHint(passwordHint);
   }
 
   onEditAccountName = (event, name) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setName(name);
+    createStore.setName(name);
   }
 
   onEditPassword = (event, password) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setPassword(password);
+    createStore.setPassword(password);
   }
 
   onEditPasswordRepeat = (event, password) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setPasswordRepeat(password);
+    createStore.setPasswordRepeat(password);
   }
 }
