@@ -16,7 +16,7 @@
 
 import { throttle } from 'lodash';
 
-import { fetchBalances, fetchTokensBalances } from './balancesActions';
+import { fetchBalances, fetchTokensBalances, queryTokensFilter } from './balancesActions';
 import { loadTokens, fetchTokens } from './tokensActions';
 import { padRight } from '~/api/util/format';
 
@@ -194,6 +194,7 @@ export default class Balances {
           return console.warn('_subscribeBlockNumber', error);
         }
 
+        this._store.dispatch(queryTokensFilter());
         return this.fetchAllBalances();
       })
       .then((blockNumberSID) => {

@@ -194,8 +194,9 @@ export function queryTokensFilter () {
     const { api, personal, tokens } = getState();
     const { visibleAccounts, accounts } = personal;
 
-    const visibleAddresses = visibleAccounts.map((a) => a.toLowerCase());
-    const addressesToFetch = uniq(visibleAddresses.concat(Object.keys(accounts)));
+    const allAddresses = visibleAccounts.concat(Object.keys(accounts));
+    const addressesToFetch = uniq(allAddresses);
+    const lcAddresses = addressesToFetch.map((a) => a.toLowerCase());
 
     Promise
       .all([
@@ -205,21 +206,28 @@ export function queryTokensFilter () {
       .then(([ logsFrom, logsTo ]) => {
         const addresses = [];
         const tokenAddresses = [];
+        const logs = logsFrom.concat(logsTo);
 
-        logsFrom
-          .concat(logsTo)
+        if (logs.length > 0) {
+          log.debug('got tokens filter logs', logs);
+        }
+
+        logs
           .forEach((log) => {
             const tokenAddress = log.address;
 
             const fromAddress = '0x' + log.topics[1].slice(-40);
             const toAddress = '0x' + log.topics[2].slice(-40);
 
-            if (addressesToFetch.includes(fromAddress)) {
-              addresses.push(fromAddress);
+            const fromAddressIndex = lcAddresses.indexOf(fromAddress);
+            const toAddressIndex = lcAddresses.indexOf(toAddress);
+
+            if (fromAddressIndex > -1) {
+              addresses.push(addressesToFetch[fromAddressIndex]);
             }
 
-            if (addressesToFetch.includes(toAddress)) {
-              addresses.push(toAddress);
+            if (toAddressIndex > -1) {
+              addresses.push(addressesToFetch[toAddressIndex]);
             }
 
             tokenAddresses.push(tokenAddress);
@@ -246,8 +254,6 @@ export function fetchTokensBalances (_addresses = null, _tokens = null, skipNoti
     const addressesToFetch = uniq(visibleAccounts.concat(Object.keys(accounts)));
     const addresses = _addresses || addressesToFetch;
     const tokensToUpdate = _tokens || allTokens;
-
-    log.debug('fetching tokens balances', { addresses, tokens: tokensToUpdate });
 
     if (addresses.length === 0) {
       return Promise.resolve();
