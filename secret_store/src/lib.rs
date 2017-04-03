@@ -39,6 +39,7 @@ extern crate ethcore_util as util;
 extern crate ethcore_ipc as ipc;
 extern crate ethcrypto;
 extern crate ethkey;
+extern crate native_contracts;
 
 mod key_server_cluster;
 mod types;
