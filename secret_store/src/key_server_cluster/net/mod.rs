@@ -14,13 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Dapps server test suite
+mod accept_connection;
+mod connect;
+mod connection;
 
-mod helpers;
-
-mod api;
-mod fetch;
-mod redirection;
-mod rpc;
-mod validation;
-
+pub use self::accept_connection::{AcceptConnection, accept_connection};
+pub use self::connect::{Connect, connect};
+pub use self::connection::Connection;

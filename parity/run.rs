@@ -36,7 +36,6 @@ use updater::{UpdatePolicy, Updater};
 use parity_reactor::EventLoop;
 use hash_fetch::fetch::{Fetch, Client as FetchClient};
 
-use rpc::{HttpConfiguration, IpcConfiguration};
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
 	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
@@ -76,8 +75,8 @@ pub struct RunCmd {
 	pub daemon: Option<String>,
 	pub logger_config: LogConfig,
 	pub miner_options: MinerOptions,
-	pub http_conf: HttpConfiguration,
-	pub ipc_conf: IpcConfiguration,
+	pub http_conf: rpc::HttpConfiguration,
+	pub ipc_conf: rpc::IpcConfiguration,
 	pub net_conf: NetworkConfiguration,
 	pub network_id: Option<u64>,
 	pub warp_sync: bool,
@@ -110,11 +109,7 @@ pub struct RunCmd {
 	pub verifier_settings: VerifierSettings,
 }
 
-pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configuration) -> Result<(), String> {
-	if !dapps_conf.enabled {
-		return Err("Cannot use UI command with Dapps turned off.".into())
-	}
-
+pub fn open_ui(signer_conf: &signer::Configuration) -> Result<(), String> {
 	if !signer_conf.enabled {
 		return Err("Cannot use UI command with UI turned off.".into())
 	}
@@ -127,12 +122,12 @@ pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configur
 	Ok(())
 }
 
-pub fn open_dapp(dapps_conf: &dapps::Configuration, dapp: &str) -> Result<(), String> {
+pub fn open_dapp(dapps_conf: &dapps::Configuration, rpc_conf: &rpc::HttpConfiguration, dapp: &str) -> Result<(), String> {
 	if !dapps_conf.enabled {
 		return Err("Cannot use DAPP command with Dapps turned off.".into())
 	}
 
-	let url = format!("http://{}:{}/{}/", dapps_conf.interface, dapps_conf.port, dapp);
+	let url = format!("http://{}:{}/{}/", rpc_conf.interface, rpc_conf.port, dapp);
 	url::open(&url);
 	Ok(())
 }
@@ -156,9 +151,9 @@ impl ::local_store::NodeInfo for FullNodeInfo {
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
 		// Check if Parity is already running
-		let addr = format!("{}:{}", cmd.dapps_conf.interface, cmd.dapps_conf.port);
+		let addr = format!("{}:{}", cmd.signer_conf.interface, cmd.signer_conf.port);
 		if !TcpListener::bind(&addr as &str).is_ok() {
-			return open_ui(&cmd.dapps_conf, &cmd.signer_conf).map(|_| (false, None));
+			return open_ui(&cmd.signer_conf).map(|_| (false, None));
 		}
 	}
 
@@ -429,11 +424,11 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		updater: updater.clone(),
 		geth_compatibility: cmd.geth_compatibility,
 		dapps_interface: match cmd.dapps_conf.enabled {
-			true => Some(cmd.dapps_conf.interface.clone()),
+			true => Some(cmd.http_conf.interface.clone()),
 			false => None,
 		},
 		dapps_port: match cmd.dapps_conf.enabled {
-			true => Some(cmd.dapps_conf.port),
+			true => Some(cmd.http_conf.port),
 			false => None,
 		},
 		fetch: fetch.clone(),
@@ -445,21 +440,19 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		stats: rpc_stats.clone(),
 	};
 
-	// start rpc servers
-	let http_server = rpc::new_http(cmd.http_conf, &dependencies)?;
-	let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
-
-	// the dapps server
+	// the dapps middleware
 	let dapps_deps = dapps::Dependencies {
-		apis: deps_for_rpc_apis.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		remote: event_loop.raw_remote(),
 		fetch: fetch.clone(),
 		signer: deps_for_rpc_apis.signer_service.clone(),
-		stats: rpc_stats.clone(),
 	};
-	let dapps_server = dapps::new(cmd.dapps_conf.clone(), dapps_deps)?;
+	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps)?;
+
+	// start rpc servers
+	let http_server = rpc::new_http(cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
+	let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
 
 	// the signer server
 	let signer_deps = signer::Dependencies {
@@ -524,18 +517,18 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// start ui
 	if cmd.ui {
-		open_ui(&cmd.dapps_conf, &cmd.signer_conf)?;
+		open_ui(&cmd.signer_conf)?;
 	}
 
 	if let Some(dapp) = cmd.dapp {
-		open_dapp(&cmd.dapps_conf, &dapp)?;
+		open_dapp(&cmd.dapps_conf, &cmd.http_conf, &dapp)?;
 	}
 
 	// Handle exit
 	let restart = wait_for_exit(panic_handler, Some(updater), Some(client), can_restart);
 
 	// drop this stuff as soon as exit detected.
-	drop((http_server, ipc_server, dapps_server, signer_server, secretstore_key_server, ipfs_server, event_loop));
+	drop((http_server, ipc_server, signer_server, secretstore_key_server, ipfs_server, event_loop));
 
 	info!("Finishing work, please wait...");
 

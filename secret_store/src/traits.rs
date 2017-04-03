@@ -19,6 +19,8 @@ use types::all::{Error, RequestSignature, DocumentAddress, DocumentEncryptedKey}
 #[ipc(client_ident="RemoteKeyServer")]
 /// Secret store key server
 pub trait KeyServer: Send + Sync {
+	/// Generate encryption key for given document.
+	fn generate_document_key(&self, signature: &RequestSignature, document: &DocumentAddress, threshold: usize) -> Result<DocumentEncryptedKey, Error>;
 	/// Request encryption key of given document for given requestor
 	fn document_key(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKey, Error>;
 }

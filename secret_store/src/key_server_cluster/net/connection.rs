@@ -14,13 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Dapps server test suite
+use std::net;
+use ethkey::Secret;
+use key_server_cluster::NodeId;
+use key_server_cluster::io::SharedTcpStream;
 
-mod helpers;
-
-mod api;
-mod fetch;
-mod redirection;
-mod rpc;
-mod validation;
-
+/// Established connection data
+pub struct Connection {
+	/// Peer address.
+	pub address: net::SocketAddr,
+	/// Connection stream.
+	pub stream: SharedTcpStream,
+	/// Peer node id.
+	pub node_id: NodeId,
+	/// Encryption key.
+	pub key: Secret,
+}
