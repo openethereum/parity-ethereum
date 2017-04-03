@@ -48,6 +48,9 @@ Operating Options:
                                    testing - Testing releases (do not use).
                                    current - Whatever track this executable was
                                    released on (default: {flag_release_track}).
+  --public-node                    Start Parity as a public web server. Account storage
+                                   and transaction signing will be delegated to the UI.
+                                   (default: {flag_public_node}).
   --no-download                    Normally new releases will be downloaded ready for
                                    updating. This disables it. Not recommended.
                                    (default: {flag_no_download}).
@@ -171,7 +174,6 @@ API and Console Options:
                                    is additional security against some attack
                                    vectors. Special options: "all", "none"
                                    (default: {flag_ipfs_api_hosts}).
-
 
 Secret Store Options:
   --no-secretstore                 Disable Secret Store functionality. (default: {flag_no_secretstore})
