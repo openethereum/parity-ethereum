@@ -66,7 +66,7 @@ mod server {
 
 	impl KeyServer {
 		/// Create new key server
-		pub fn new(conf: Configuration, _deps: Dependencies) -> Result<Self, String> {
+		pub fn new(conf: Configuration, deps: Dependencies) -> Result<Self, String> {
 			let key_pairs = vec![
 				ethkey::KeyPair::from_secret("6c26a76e9b31048d170873a791401c7e799a11f0cefc0171cc31a49800967509".parse().unwrap()).unwrap(),
 				ethkey::KeyPair::from_secret("7e94018b3731afdb3b4e6f4c3e179475640166da12e1d1b0c7d80729b1a5b452".parse().unwrap()).unwrap(),
