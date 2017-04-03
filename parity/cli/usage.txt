@@ -178,7 +178,7 @@ API and Console Options:
 Secret Store Options:
   --no-secretstore                 Disable Secret Store functionality. (default: {flag_no_secretstore})
   --secretstore-secret SECRET      Hex-encoded secret key of this node.
-                                   (required, default: {flag_secretstore_secret}).
+                                   (required, default: {flag_secretstore_secret:?}).
   --secretstore-nodes NODES        Comma-separated list of other secret store cluster nodes in form
                                    NODE_PUBLIC_KEY_IN_HEX@NODE_IP_ADDR:NODE_PORT.
                                    (required, default: {flag_secretstore_nodes}).

@@ -572,7 +572,7 @@ impl Configuration {
 	fn secretstore_config(&self) -> Result<SecretStoreConfiguration, String> {
 		Ok(SecretStoreConfiguration {
 			enabled: self.secretstore_enabled(),
-			self_secret: Some(self.secretstore_self_secret()?),
+			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
 			interface: self.secretstore_interface(),
 			port: self.args.flag_secretstore_port,
@@ -928,14 +928,17 @@ impl Configuration {
 		Self::interface(&self.args.flag_secretstore_http_interface)
 	}
 
-	fn secretstore_self_secret(&self) -> Result<Secret, String> {
-		self.args.flag_secretstore_secret.parse()
-			.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", self.args.flag_secretstore_secret, e))
+	fn secretstore_self_secret(&self) -> Result<Option<Secret>, String> {
+		match self.args.flag_secretstore_secret {
+			Some(ref s) => Ok(Some(s.parse()
+				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?)),
+			None => Ok(None),
+		}
 	}
 
 	fn secretstore_nodes(&self) -> Result<BTreeMap<Public, (String, u16)>, String> {
 		let mut nodes = BTreeMap::new();
-		for node in self.args.flag_secretstore_nodes.split(',') {
+		for node in self.args.flag_secretstore_nodes.split(',').filter(|n| n != &"") {
 			let public_and_addr: Vec<_> = node.split('@').collect();
 			if public_and_addr.len() != 2 {
 				return Err(format!("Invalid secret store node: {}", node));

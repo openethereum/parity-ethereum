@@ -126,9 +126,9 @@ impl Default for Configuration {
 			self_secret: None,
 			nodes: BTreeMap::new(),
 			interface: "127.0.0.1".to_owned(),
-			port: 8082,
+			port: 8083,
 			http_interface: "127.0.0.1".to_owned(),
-			http_port: 8083,
+			http_port: 8082,
 			data_path: replace_home(&data_dir, "$BASE/secretstore"),
 		}
 	}

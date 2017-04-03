@@ -70,7 +70,6 @@ pass = "test_pass"
 [secretstore]
 disable = false
 nodes = []
-self_secret = "0000000000000000000000000000000000000000000000000000000000000001"
 http_interface = "local"
 http_port = 8082
 interface = "local"

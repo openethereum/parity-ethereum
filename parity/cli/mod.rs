@@ -184,8 +184,8 @@ usage! {
 		// Secret Store
 		flag_no_secretstore: bool = false,
 			or |c: &Config| otry!(c.secretstore).disable.clone(),
-		flag_secretstore_secret: String = "",
-			or |c: &Config| otry!(c.secretstore).self_secret.clone(),
+		flag_secretstore_secret: Option<String> = None,
+			or |c: &Config| otry!(c.secretstore).self_secret.clone().map(Some),
 		flag_secretstore_nodes: String = "",
 			or |c: &Config| otry!(c.secretstore).nodes.as_ref().map(|vec| vec.join(",")),
 		flag_secretstore_interface: String = "local",
@@ -702,12 +702,12 @@ mod tests {
 			flag_no_dapps: false,
 
 			flag_no_secretstore: false,
-			flag_secretstore_secret: "".into(),
+			flag_secretstore_secret: None,
 			flag_secretstore_nodes: "".into(),
 			flag_secretstore_interface: "local".into(),
-			flag_secretstore_port: 8082u16,
+			flag_secretstore_port: 8083u16,
 			flag_secretstore_http_interface: "local".into(),
-			flag_secretstore_http_port: 8083u16,
+			flag_secretstore_http_port: 8082u16,
 			flag_secretstore_path: "$HOME/.parity/secretstore".into(),
 
 			// IPFS
