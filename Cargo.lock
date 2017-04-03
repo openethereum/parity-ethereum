@@ -635,7 +635,7 @@ name = "ethcore-secretstore"
 version = "1.0.0"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.7.0",
  "ethcore-devtools 1.7.0",
  "ethcore-ipc 1.7.0",
