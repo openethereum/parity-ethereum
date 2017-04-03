@@ -72,9 +72,9 @@ Operating Options:
   --identity NAME                Specify your node's name. (default: {flag_identity})
   --light                        Experimental: run in light client mode. Light clients
                                  synchronize a bare minimum of data and fetch necessary
-								 data on-demand from the network. Much lower in storage,
-								 potentially higher in bandwidth. Has no effect with
-								 subcommands (default: {flag_light})
+                                 data on-demand from the network. Much lower in storage,
+                                 potentially higher in bandwidth. Has no effect with
+                                 subcommands (default: {flag_light}).
 
 Account Options:
   --unlock ACCOUNTS              Unlock ACCOUNTS for the duration of the execution.
