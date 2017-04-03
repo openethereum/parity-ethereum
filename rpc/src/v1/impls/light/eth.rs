@@ -45,6 +45,7 @@ use futures::sync::oneshot;
 
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs, dispatch};
 use v1::helpers::block_import::is_major_importing;
+use v1::helpers::light_fetch::LightFetch;
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
@@ -65,12 +66,6 @@ pub struct EthClient {
 	cache: Arc<Mutex<LightDataCache>>,
 }
 
-// helper for internal error: on demand sender cancelled.
-fn err_premature_cancel(_cancel: oneshot::Canceled) -> Error {
-	errors::internal("on-demand sender prematurely cancelled", "")
-}
-
-type ExecutionResult = Result<Executed, ExecutionError>;
 
 impl EthClient {
 	/// Create a new `EthClient` with a handle to the light sync instance, client,
@@ -93,147 +88,15 @@ impl EthClient {
 		}
 	}
 
-	/// Get a block header from the on demand service or client, or error.
-	fn header(&self, id: BlockId) -> BoxFuture<Option<encoded::Header>, Error> {
-		if let Some(h) = self.client.block_header(id) {
-			return future::ok(Some(h)).boxed()
+	/// Create a light data fetcher instance.
+	fn fetcher(&self) -> LightFetch {
+		LightFetch {
+			client: self.client.clone(),
+			on_demand: self.on_demand.clone(),
+			sync: self.sync.clone(),
+			cache: self.cache.clone(),
+
 		}
-
-		let maybe_future = match id {
-			BlockId::Number(n) => {
-				let cht_root = cht::block_to_cht_number(n).and_then(|cn| self.client.cht_root(cn as usize));
-				match cht_root {
-					None => return future::ok(None).boxed(),
-					Some(root) => {
-						let req = request::HeaderProof::new(n, root)
-							.expect("only fails for 0; client always stores genesis; client already queried; qed");
-
-						let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
-						self.sync.with_context(|ctx| {
-							let fut = self.on_demand.hash_by_number(ctx, req)
-								.map(request::HeaderByHash)
-								.map_err(err_premature_cancel);
-
-							fut.and_then(move |req| {
-								match sync.with_context(|ctx| on_demand.header_by_hash(ctx, req)) {
-									Some(fut) => fut.map_err(err_premature_cancel).boxed(),
-									None => future::err(errors::network_disabled()).boxed(),
-								}
-							}).map(Some).boxed()
-						})
-					}
-				}
-			}
-			BlockId::Hash(h) => {
-				self.sync.with_context(|ctx|
-					self.on_demand.header_by_hash(ctx, request::HeaderByHash(h))
-						.then(|res| future::done(match res {
-							Ok(h) => Ok(Some(h)),
-							Err(e) => Err(err_premature_cancel(e)),
-						}))
-						.boxed()
-				)
-			}
-			_ => None, // latest, earliest, and pending will have all already returned.
-		};
-
-		match maybe_future {
-			Some(recv) => recv,
-			None => future::err(errors::network_disabled()).boxed()
-		}
-	}
-
-	// helper for getting account info at a given block.
-	fn account(&self, address: Address, id: BlockId) -> BoxFuture<Option<BasicAccount>, Error> {
-		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
-
-		self.header(id).and_then(move |header| {
-			let header = match header {
-				None => return future::ok(None).boxed(),
-				Some(hdr) => hdr,
-			};
-
-			sync.with_context(|ctx| on_demand.account(ctx, request::Account {
-				header: header,
-				address: address,
-			}))
-				.map(|x| x.map_err(err_premature_cancel).boxed())
-				.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
-		}).boxed()
-	}
-
-	// helper for getting proved execution.
-	fn proved_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<ExecutionResult, Error> {
-		const DEFAULT_GAS_PRICE: U256 = U256([0, 0, 0, 21_000_000]);
-
-
-		let (sync, on_demand, client) = (self.sync.clone(), self.on_demand.clone(), self.client.clone());
-		let req: CRequest = req.into();
-		let id = num.0.into();
-
-		let from = req.from.unwrap_or(Address::zero());
-		let nonce_fut = match req.nonce {
-			Some(nonce) => future::ok(Some(nonce)).boxed(),
-			None => self.account(from, id).map(|acc| acc.map(|a| a.nonce)).boxed(),
-		};
-
-		let gas_price_fut = match req.gas_price {
-			Some(price) => future::ok(price).boxed(),
-			None => dispatch::fetch_gas_price_corpus(
-				self.sync.clone(),
-				self.client.clone(),
-				self.on_demand.clone(),
-				self.cache.clone(),
-			).map(|corp| match corp.median() {
-				Some(median) => *median,
-				None => DEFAULT_GAS_PRICE,
-			}).boxed()
-		};
-
-		// if nonce resolves, this should too since it'll be in the LRU-cache.
-		let header_fut = self.header(id);
-
-		// fetch missing transaction fields from the network.
-		nonce_fut.join(gas_price_fut).and_then(move |(nonce, gas_price)| {
-			let action = req.to.map_or(Action::Create, Action::Call);
-			let gas = req.gas.unwrap_or(U256::from(10_000_000)); // better gas amount?
-			let value = req.value.unwrap_or_else(U256::zero);
-			let data = req.data.map_or_else(Vec::new, |d| d.to_vec());
-
-			future::done(match nonce {
-				Some(n) => Ok(EthTransaction {
-					nonce: n,
-					action: action,
-					gas: gas,
-					gas_price: gas_price,
-					value: value,
-					data: data,
-				}.fake_sign(from)),
-				None => Err(errors::unknown_block()),
-			})
-		}).join(header_fut).and_then(move |(tx, hdr)| {
-			// then request proved execution.
-			// TODO: get last-hashes from network.
-			let (env_info, hdr) = match (client.env_info(id), hdr) {
-				(Some(env_info), Some(hdr)) => (env_info, hdr),
-				_ => return future::err(errors::unknown_block()).boxed(),
-			};
-			let request = request::TransactionProof {
-				tx: tx,
-				header: hdr,
-				env_info: env_info,
-				engine: client.engine().clone(),
-			};
-
-			let proved_future = sync.with_context(move |ctx| {
-				on_demand.transaction_proof(ctx, request).map_err(err_premature_cancel).boxed()
-			});
-
-			match proved_future {
-				Some(fut) => fut.boxed(),
-				None => future::err(errors::network_disabled()).boxed(),
-			}
-		}).boxed()
 	}
 }
 
@@ -281,7 +144,7 @@ impl Eth for EthClient {
 	}
 
 	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
-		self.account(address.into(), num.0.into())
+		self.fetcher().account(address.into(), num.0.into())
 			.map(|acc| acc.map_or(0.into(), |a| a.balance).into()).boxed()
 	}
 
@@ -298,14 +161,14 @@ impl Eth for EthClient {
 	}
 
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
-		self.account(address.into(), num.0.into())
+		self.fetcher().account(address.into(), num.0.into())
 			.map(|acc| acc.map_or(0.into(), |a| a.nonce).into()).boxed()
 	}
 
 	fn block_transaction_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
-		self.header(BlockId::Hash(hash.into())).and_then(move |hdr| {
+		self.fetcher().header(BlockId::Hash(hash.into())).and_then(move |hdr| {
 			let hdr = match hdr {
 				None => return future::ok(None).boxed(),
 				Some(hdr) => hdr,
@@ -316,7 +179,7 @@ impl Eth for EthClient {
 			} else {
 				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
 					.map(|x| x.map(|b| Some(U256::from(b.transactions_count()).into())))
-					.map(|x| x.map_err(err_premature_cancel).boxed())
+					.map(|x| x.map_err(errors::on_demand_cancel).boxed())
 					.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
 			}
 		}).boxed()
@@ -325,7 +188,7 @@ impl Eth for EthClient {
 	fn block_transaction_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>, Error> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
-		self.header(num.into()).and_then(move |hdr| {
+		self.fetcher().header(num.into()).and_then(move |hdr| {
 			let hdr = match hdr {
 				None => return future::ok(None).boxed(),
 				Some(hdr) => hdr,
@@ -336,7 +199,7 @@ impl Eth for EthClient {
 			} else {
 				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
 					.map(|x| x.map(|b| Some(U256::from(b.transactions_count()).into())))
-					.map(|x| x.map_err(err_premature_cancel).boxed())
+					.map(|x| x.map_err(errors::on_demand_cancel).boxed())
 					.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
 			}
 		}).boxed()
@@ -345,7 +208,7 @@ impl Eth for EthClient {
 	fn block_uncles_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
-		self.header(BlockId::Hash(hash.into())).and_then(move |hdr| {
+		self.fetcher().header(BlockId::Hash(hash.into())).and_then(move |hdr| {
 			let hdr = match hdr {
 				None => return future::ok(None).boxed(),
 				Some(hdr) => hdr,
@@ -356,7 +219,7 @@ impl Eth for EthClient {
 			} else {
 				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
 					.map(|x| x.map(|b| Some(U256::from(b.uncles_count()).into())))
-					.map(|x| x.map_err(err_premature_cancel).boxed())
+					.map(|x| x.map_err(errors::on_demand_cancel).boxed())
 					.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
 			}
 		}).boxed()
@@ -365,7 +228,7 @@ impl Eth for EthClient {
 	fn block_uncles_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>, Error> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
-		self.header(num.into()).and_then(move |hdr| {
+		self.fetcher().header(num.into()).and_then(move |hdr| {
 			let hdr = match hdr {
 				None => return future::ok(None).boxed(),
 				Some(hdr) => hdr,
@@ -376,7 +239,7 @@ impl Eth for EthClient {
 			} else {
 				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
 					.map(|x| x.map(|b| Some(U256::from(b.uncles_count()).into())))
-					.map(|x| x.map_err(err_premature_cancel).boxed())
+					.map(|x| x.map_err(errors::on_demand_cancel).boxed())
 					.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
 			}
 		}).boxed()
@@ -411,7 +274,7 @@ impl Eth for EthClient {
 	}
 
 	fn call(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
-		self.proved_execution(req, num).and_then(|res| {
+		self.fetcher().proved_execution(req, num).and_then(|res| {
 			match res {
 				Ok(exec) => Ok(exec.output.into()),
 				Err(e) => Err(errors::execution(e)),
@@ -421,7 +284,7 @@ impl Eth for EthClient {
 
 	fn estimate_gas(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		// TODO: binary chop for more accurate estimates.
-		self.proved_execution(req, num).and_then(|res| {
+		self.fetcher().proved_execution(req, num).and_then(|res| {
 			match res {
 				Ok(exec) => Ok((exec.refunded + exec.gas_used).into()),
 				Err(e) => Err(errors::execution(e)),

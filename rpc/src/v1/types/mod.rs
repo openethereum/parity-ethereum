@@ -45,7 +45,7 @@ mod work;
 
 pub use self::account_info::{AccountInfo, HwAccountInfo};
 pub use self::bytes::Bytes;
-pub use self::block::{RichBlock, Block, BlockTransactions};
+pub use self::block::{RichBlock, Block, BlockTransactions, Header, RichHeader, Rich};
 pub use self::block_number::BlockNumber;
 pub use self::call_request::CallRequest;
 pub use self::confirmations::{

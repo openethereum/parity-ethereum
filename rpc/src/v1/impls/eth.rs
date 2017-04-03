@@ -146,7 +146,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 			(Some(block), Some(total_difficulty)) => {
 				let view = block.header_view();
 				Ok(Some(RichBlock {
-					block: Block {
+					inner: Block {
 						hash: Some(view.sha3().into()),
 						size: Some(block.rlp().as_raw().len().into()),
 						parent_hash: view.parent_hash().into(),
@@ -202,7 +202,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 			.map(Into::into);
 
 		let block = RichBlock {
-			block: Block {
+			inner: Block {
 				hash: Some(uncle.hash().into()),
 				size: size,
 				parent_hash: uncle.parent_hash().clone().into(),

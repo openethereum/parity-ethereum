@@ -28,7 +28,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
-	AccountInfo, HwAccountInfo,
+	AccountInfo, HwAccountInfo, RichHeader,
 };
 
 build_rpc_trait! {
@@ -198,5 +198,10 @@ build_rpc_trait! {
 		/// Get node kind info.
 		#[rpc(name = "parity_nodeKind")]
 		fn node_kind(&self) -> Result<::v1::types::NodeKind, Error>;
+
+		/// Get block header.
+		/// Same as `eth_getBlockByNumber` but without uncles and transactions.
+		#[rpc(async, name = "parity_getBlockHeaderByNumber")]
+		fn block_header(&self, Trailing<BlockNumber>) -> BoxFuture<Option<RichHeader>, Error>;
 	}
 }

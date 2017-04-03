@@ -68,6 +68,13 @@ pub trait LightChainClient: Send + Sync {
 	/// Get the signing network ID.
 	fn signing_network_id(&self) -> Option<u64>;
 
+	/// Get environment info for execution at a given block.
+	/// Fails if that block's header is not stored.
+	fn env_info(&self, id: BlockId) -> Option<EnvInfo>;
+
+	/// Get a handle to the consensus engine.
+	fn engine(&self) -> &Arc<Engine>;
+
 	/// Query whether a block is known.
 	fn is_known(&self, hash: &H256) -> bool;
 
@@ -293,6 +300,14 @@ impl LightChainClient for Client {
 
 	fn signing_network_id(&self) -> Option<u64> {
 		Client::signing_network_id(self)
+	}
+
+	fn env_info(&self, id: BlockId) -> Option<EnvInfo> {
+		Client::env_info(self, id)
+	}
+
+	fn engine(&self) -> &Arc<Engine> {
+		Client::engine(self)
 	}
 
 	fn is_known(&self, hash: &H256) -> bool {
