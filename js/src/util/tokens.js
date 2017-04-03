@@ -26,11 +26,12 @@ const ADDRESS_PADDING = range(24).map(() => '0').join('');
 
 export const ETH_TOKEN = {
   address: '',
-  name: 'Ethereum',
-  tag: 'ETH',
+  format: new BigNumber(10).pow(18),
+  id: sha3('eth_native_token').slice(0, 10),
   image: imagesEthereum,
+  name: 'Ethereum',
   native: true,
-  id: sha3('eth_native_token').slice(0, 10)
+  tag: 'ETH'
 };
 
 export function fetchTokenIds (tokenregInstance) {

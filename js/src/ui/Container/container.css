@@ -32,6 +32,7 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
 
   .hoverOverlay {
     background: $background;
+    display: none;
     left: 0;
     margin-top: -1.5em;
     margin-bottom: 3em;
@@ -52,6 +53,7 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
 
     .hoverOverlay {
       background: $backgroundHover;
+      display: block;
       /*transform: scale(1, 1);*/
       opacity: 1;
     }

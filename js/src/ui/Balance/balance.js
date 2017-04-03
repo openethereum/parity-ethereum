@@ -43,7 +43,6 @@ class Balance extends Component {
   };
 
   render () {
-    const { api } = this.context;
     const { balance, className, showOnlyEth, tokens } = this.props;
 
     if (Object.keys(balance).length === 0) {
@@ -63,25 +62,18 @@ class Balance extends Component {
           return null;
         }
 
-        let value;
+        const bnf = new BigNumber(token.format || 1);
+        let decimals = 0;
 
-        if (token.format) {
-          const bnf = new BigNumber(token.format);
-
-          let decimals = 0;
-
-          if (bnf.gte(1000)) {
-            decimals = 3;
-          } else if (bnf.gte(100)) {
-            decimals = 2;
-          } else if (bnf.gte(10)) {
-            decimals = 1;
-          }
-
-          value = new BigNumber(balanceValue).div(bnf).toFormat(decimals);
-        } else {
-          value = api.util.fromWei(balanceValue).toFormat(3);
+        if (bnf.gte(1000)) {
+          decimals = 3;
+        } else if (bnf.gte(100)) {
+          decimals = 2;
+        } else if (bnf.gte(10)) {
+          decimals = 1;
         }
+
+        const value = new BigNumber(balanceValue).div(bnf).toFormat(decimals);
 
         const classNames = [styles.balance];
         let details = null;
