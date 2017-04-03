@@ -703,7 +703,7 @@ mod tests {
 
 			flag_no_secretstore: false,
 			flag_secretstore_secret: "".into(),
-			flag_secretstore_nodes: Vec::new(),
+			flag_secretstore_nodes: "".into(),
 			flag_secretstore_interface: "local".into(),
 			flag_secretstore_port: 8082u16,
 			flag_secretstore_http_interface: "local".into(),
