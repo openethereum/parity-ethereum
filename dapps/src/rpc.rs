@@ -66,14 +66,14 @@ impl<T: Middleware<Metadata>> Endpoint for RpcEndpoint<T> {
 #[derive(Default)]
 struct NoopMiddleware;
 impl http::RequestMiddleware for NoopMiddleware {
-	fn on_request(&self, request: &http::hyper::server::Request<http::hyper::net::HttpStream>) -> http::RequestMiddlewareAction {
+	fn on_request(&self, request: &http::hyper::server::Request<http::hyper::net::HttpStream>, _control: &http::hyper::Control) -> http::RequestMiddlewareAction {
 		http::RequestMiddlewareAction::Proceed {
 			should_continue_on_invalid_cors: request.headers().get::<http::hyper::header::Origin>().is_none(),
 		}
 	}
 }
 
-struct MetadataExtractor;
+pub struct MetadataExtractor;
 impl HttpMetaExtractor<Metadata> for MetadataExtractor {
 	fn read_metadata(&self, request: &http::hyper::server::Request<http::hyper::net::HttpStream>) -> Metadata {
 		let dapp_id = request.headers().get::<http::hyper::header::Origin>()

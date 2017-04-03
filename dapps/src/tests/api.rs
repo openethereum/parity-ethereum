@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use tests::helpers::{serve, serve_with_registrar, serve_extra_cors, request, assert_security_headers};
+use tests::helpers::{serve, serve_with_registrar, request, assert_security_headers};
 
 #[test]
 fn should_return_error() {
@@ -195,26 +195,3 @@ fn should_return_signer_port_cors_headers_for_home_parity_with_port() {
 	response.assert_status("HTTP/1.1 200 OK");
 	response.assert_header("Access-Control-Allow-Origin", "http://parity.web3.site:18180");
 }
-
-#[test]
-fn should_return_extra_cors_headers() {
-	// given
-	let server = serve_extra_cors(Some(vec!["all".to_owned()]));
-
-	// when
-	let response = request(server,
-		"\
-			POST /api/ping HTTP/1.1\r\n\
-			Host: localhost:8080\r\n\
-			Origin: http://somedomain.io\r\n\
-			Connection: close\r\n\
-			\r\n\
-			{}
-		"
-	);
-
-	// then
-	response.assert_status("HTTP/1.1 200 OK");
-	response.assert_header("Access-Control-Allow-Origin", "http://somedomain.io");
-}
-
