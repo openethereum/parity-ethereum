@@ -26,25 +26,30 @@ use futures::{future, Future, BoxFuture};
 use jsonrpc_core::Error;
 use v1::helpers::errors;
 use v1::helpers::dispatch::{Dispatcher, SignWith};
+use v1::helpers::accounts::unwrap_provider;
 use v1::traits::Personal;
 use v1::types::{H160 as RpcH160, H256 as RpcH256, U128 as RpcU128, TransactionRequest};
 use v1::metadata::Metadata;
 
 /// Account management (personal) rpc implementation.
 pub struct PersonalClient<D: Dispatcher> {
-	accounts: Weak<AccountProvider>,
+	accounts: Option<Weak<AccountProvider>>,
 	dispatcher: D,
 	allow_perm_unlock: bool,
 }
 
 impl<D: Dispatcher> PersonalClient<D> {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<AccountProvider>, dispatcher: D, allow_perm_unlock: bool) -> Self {
+	pub fn new(store: &Option<Arc<AccountProvider>>, dispatcher: D, allow_perm_unlock: bool) -> Self {
 		PersonalClient {
-			accounts: Arc::downgrade(store),
+			accounts: store.as_ref().map(Arc::downgrade),
 			dispatcher: dispatcher,
 			allow_perm_unlock: allow_perm_unlock,
 		}
+	}
+
+	fn account_provider(&self) -> Result<Arc<AccountProvider>, Error> {
+		unwrap_provider(&self.accounts)
 	}
 }
 
@@ -52,13 +57,13 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	type Metadata = Metadata;
 
 	fn accounts(&self) -> Result<Vec<RpcH160>, Error> {
-		let store = take_weak!(self.accounts);
+		let store = self.account_provider()?;
 		let accounts = store.accounts().map_err(|e| errors::account("Could not fetch accounts.", e))?;
 		Ok(accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
 	}
 
 	fn new_account(&self, pass: String) -> Result<RpcH160, Error> {
-		let store = take_weak!(self.accounts);
+		let store = self.account_provider()?;
 
 		store.new_account(&pass)
 			.map(Into::into)
@@ -67,7 +72,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 
 	fn unlock_account(&self, account: RpcH160, account_pass: String, duration: Option<RpcU128>) -> Result<bool, Error> {
 		let account: Address = account.into();
-		let store = take_weak!(self.accounts);
+		let store = self.account_provider()?;
 		let duration = match duration {
 			None => None,
 			Some(duration) => {
@@ -96,7 +101,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 
 	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256, Error> {
 		let dispatcher = self.dispatcher.clone();
-		let accounts = take_weakf!(self.accounts);
+		let accounts = try_bf!(self.account_provider());
 
 		let default = match request.from.as_ref() {
 			Some(account) => Ok(account.clone().into()),

@@ -94,10 +94,15 @@ export class Signer {
     this.seed = seed;
   }
 
+  signTransactionObject (tx) {
+    tx.sign(this.seed);
+
+    return tx;
+  }
+
   signTransaction (transaction) {
     const tx = new Transaction(transaction);
 
-    tx.sign(this.seed);
-    return inHex(tx.serialize().toString('hex'));
+    return inHex(this.signTransactionObject(tx).serialize().toString('hex'));
   }
 }

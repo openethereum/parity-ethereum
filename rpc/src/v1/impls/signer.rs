@@ -26,13 +26,14 @@ use futures::{future, BoxFuture, Future, IntoFuture};
 use jsonrpc_core::Error;
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
 use v1::helpers::dispatch::{self, Dispatcher, WithToken};
+use v1::helpers::accounts::unwrap_provider;
 use v1::traits::Signer;
 use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, U256, Bytes};
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<D: Dispatcher> {
 	signer: Weak<SignerService>,
-	accounts: Weak<AccountProvider>,
+	accounts: Option<Weak<AccountProvider>>,
 	dispatcher: D
 }
 
@@ -40,15 +41,19 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 
 	/// Create new instance of signer client.
 	pub fn new(
-		store: &Arc<AccountProvider>,
+		store: &Option<Arc<AccountProvider>>,
 		dispatcher: D,
 		signer: &Arc<SignerService>,
 	) -> Self {
 		SignerClient {
 			signer: Arc::downgrade(signer),
-			accounts: Arc::downgrade(store),
+			accounts: store.as_ref().map(Arc::downgrade),
 			dispatcher: dispatcher,
 		}
+	}
+
+	fn account_provider(&self) -> Result<Arc<AccountProvider>, Error> {
+		unwrap_provider(&self.accounts)
 	}
 
 	fn confirm_internal<F, T>(&self, id: U256, modification: TransactionModification, f: F) -> BoxFuture<WithToken<ConfirmationResponse>, Error> where
@@ -60,7 +65,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		let dispatcher = self.dispatcher.clone();
 
 		let setup = || {
-			Ok((take_weak!(self.accounts), take_weak!(self.signer)))
+			Ok((self.account_provider()?, take_weak!(self.signer)))
 		};
 
 		let (accounts, signer) = match setup() {

@@ -25,6 +25,7 @@ import { NULL_ADDRESS } from './constants';
 export const ERRORS = {
   invalidAddress: 'address is an invalid network address',
   invalidAmount: 'the supplied amount should be a valid positive number',
+  invalidAmountDecimals: 'the supplied amount exceeds the allowed decimals',
   duplicateAddress: 'the address is already in your address book',
   invalidChecksum: 'address has failed the checksum formatting',
   invalidName: 'name should not be blank and longer than 2',
@@ -48,6 +49,7 @@ export function validateAbi (abi) {
       abiError = ERRORS.invalidAbi;
 
       return {
+        error: abiError,
         abi,
         abiError,
         abiParsed
@@ -66,6 +68,7 @@ export function validateAbi (abi) {
       abiError = `${ERRORS.invalidAbi} (#${invalidIndex}: ${invalid.name || invalid.type})`;
 
       return {
+        error: abiError,
         abi,
         abiError,
         abiParsed
@@ -78,6 +81,7 @@ export function validateAbi (abi) {
   }
 
   return {
+    error: abiError,
     abi,
     abiError,
     abiParsed
@@ -123,6 +127,7 @@ export function validateAddress (address) {
   }
 
   return {
+    error: addressError,
     address,
     addressError
   };
@@ -138,6 +143,7 @@ export function validateCode (code) {
   }
 
   return {
+    error: codeError,
     code,
     codeError
   };
@@ -149,6 +155,7 @@ export function validateName (name) {
     : null;
 
   return {
+    error: nameError,
     name,
     nameError
   };
@@ -168,6 +175,27 @@ export function validatePositiveNumber (number) {
   }
 
   return {
+    error: numberError,
+    number,
+    numberError
+  };
+}
+
+export function validateDecimalsNumber (number, base = 1) {
+  let numberError = null;
+
+  try {
+    const s = new BigNumber(number).mul(base).toFixed();
+
+    if (s.indexOf('.') !== -1) {
+      numberError = ERRORS.invalidAmountDecimals;
+    }
+  } catch (e) {
+    numberError = ERRORS.invalidAmount;
+  }
+
+  return {
+    error: numberError,
     number,
     numberError
   };
@@ -189,6 +217,7 @@ export function validateUint (value) {
   }
 
   return {
+    error: valueError,
     value,
     valueError
   };

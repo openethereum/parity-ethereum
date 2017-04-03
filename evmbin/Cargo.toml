@@ -14,7 +14,7 @@ path = "./src/main.rs"
 
 [dependencies]
 rustc-serialize = "0.3"
-docopt = { version = "0.6" }
+docopt = { version = "0.7" }
 ethcore = { path = "../ethcore" }
 ethcore-util = { path = "../util" }
 

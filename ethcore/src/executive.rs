@@ -276,25 +276,31 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 			let cost = builtin.cost(data);
 			if cost <= params.gas {
-				builtin.execute(data, &mut output);
-				self.state.discard_checkpoint();
+				if let Err(e) = builtin.execute(data, &mut output) {
+					self.state.revert_to_checkpoint();
+					let evm_err: evm::evm::Error = e.into();
+					tracer.trace_failed_call(trace_info, vec![], evm_err.clone().into());
+					Err(evm_err)
+				} else {
+					self.state.discard_checkpoint();
 
-				// trace only top level calls to builtins to avoid DDoS attacks
-				if self.depth == 0 {
-					let mut trace_output = tracer.prepare_trace_output();
-					if let Some(mut out) = trace_output.as_mut() {
-						*out = output.to_owned();
+					// trace only top level calls to builtins to avoid DDoS attacks
+					if self.depth == 0 {
+						let mut trace_output = tracer.prepare_trace_output();
+						if let Some(mut out) = trace_output.as_mut() {
+							*out = output.to_owned();
+						}
+
+						tracer.trace_call(
+							trace_info,
+							cost,
+							trace_output,
+							vec![]
+						);
 					}
 
-					tracer.trace_call(
-						trace_info,
-						cost,
-						trace_output,
-						vec![]
-					);
+					Ok(params.gas - cost)
 				}
-
-				Ok(params.gas - cost)
 			} else {
 				// just drain the whole gas
 				self.state.revert_to_checkpoint();
@@ -497,6 +503,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				| Err(evm::Error::BadJumpDestination {..})
 				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
+				| Err(evm::Error::BuiltIn {..})
 				| Err(evm::Error::OutOfStack {..}) => {
 					self.state.revert_to_checkpoint();
 			},

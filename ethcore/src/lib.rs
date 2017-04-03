@@ -56,7 +56,7 @@
 //!   export LIBRARY_PATH=/usr/local/lib
 //!
 //!   # download and build parity
-//!   git clone https://github.com/ethcore/parity
+//!   git clone https://github.com/paritytech/parity
 //!   cd parity
 //!   multirust override beta
 //!   cargo build --release
@@ -73,7 +73,7 @@
 //!   export LIBRARY_PATH=/usr/local/lib
 //!
 //!   # download and build parity
-//!   git clone https://github.com/ethcore/parity
+//!   git clone https://github.com/paritytech/parity
 //!   cd parity
 //!   multirust override beta
 //!   cargo build --release
@@ -108,6 +108,8 @@ extern crate hardware_wallet;
 extern crate stats;
 extern crate ethcore_logger;
 extern crate num;
+extern crate bn;
+extern crate itertools;
 
 #[macro_use]
 extern crate log;

@@ -448,8 +448,8 @@ windows:
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
     - target\release\parity.exe tools hash target\release\parity.exe > parity.sha3
     - set /P SHA3=<parity.sha3
-    - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
-    - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
+    - curl -sL --url "https://github.com/paritytech/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
+    - curl -sL --url "https://github.com/paritytech/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
     - msbuild windows\ptray\ptray.vcxproj /p:Platform=x64 /p:Configuration=Release
     - signtool sign /f %keyfile% /p %certpass% windows\ptray\x64\release\ptray.exe
     - cd nsis
@@ -503,7 +503,7 @@ docker-build:
     - sh scripts/docker-build.sh $DOCKER_TAG
   tags:
     - docker
-test-coverage:   
+test-coverage:
   stage: test
   only:
     - master
@@ -513,7 +513,7 @@ test-coverage:
     - rm -rf js/.coverage
     - scripts/cov.sh
  #   - COVERAGE=$(grep -Po 'covered":.*?[^\\]"' target/cov/index.json | grep "[0-9]*\.[0-9]" -o)
- #   - echo "Coverage:" $COVERAGE   
+ #   - echo "Coverage:" $COVERAGE
   tags:
     - kcov
   allow_failure: true

@@ -47,7 +47,9 @@ export default class SortStore {
   @action restoreSavedOrder = () => {
     const order = this.getSavedOrder();
 
-    this.onChange(order);
+    if (order) {
+      this.onChange(order);
+    }
   }
 
   getSavedOrder = () => {

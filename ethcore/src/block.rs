@@ -492,6 +492,16 @@ impl LockedBlock {
 			_ => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
 		}
 	}
+
+	/// Remove state root from transaction receipts to make them EIP-98 compatible.
+	pub fn strip_receipts(self) -> LockedBlock {
+		let mut block = self;
+		for receipt in &mut block.block.receipts {
+			receipt.state_root = None;
+		}
+		block.block.header.set_receipts_root(ordered_trie_root(block.block.receipts.iter().map(|r| r.rlp_bytes().to_vec())));
+		block
+	}
 }
 
 impl Drain for LockedBlock {

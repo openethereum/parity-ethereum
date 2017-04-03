@@ -2,7 +2,7 @@
 
 A thin ES6 promise wrapper around the shapeshift.io APIs as documented at https://shapeshift.io/api
 
-[https://github.com/ethcore/parity/tree/master/js/src/3rdparty/shapeshift](https://github.com/ethcore/parity/tree/master/js/src/3rdparty/shapeshift)
+[https://github.com/paritytech/parity/tree/master/js/src/3rdparty/shapeshift](https://github.com/paritytech/parity/tree/master/js/src/3rdparty/shapeshift)
 
 ## usage
 

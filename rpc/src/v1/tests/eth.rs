@@ -117,6 +117,7 @@ impl EthTester {
 
 	fn from_spec(spec: Spec) -> Self {
 		let account_provider = account_provider();
+		let opt_account_provider = Some(account_provider.clone());
 		let miner_service = miner_service(&spec, account_provider.clone());
 		let snapshot_service = snapshot_service();
 
@@ -134,7 +135,7 @@ impl EthTester {
 			&client,
 			&snapshot_service,
 			&sync_provider,
-			&account_provider,
+			&opt_account_provider,
 			&miner_service,
 			&external_miner,
 			Default::default(),
@@ -142,7 +143,7 @@ impl EthTester {
 
 		let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner_service));
 		let eth_sign = SigningUnsafeClient::new(
-			&account_provider,
+			&opt_account_provider,
 			dispatcher,
 		);
 

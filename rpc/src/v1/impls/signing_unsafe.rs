@@ -24,6 +24,7 @@ use futures::{future, BoxFuture, Future};
 use jsonrpc_core::Error;
 use v1::helpers::{errors, DefaultAccount};
 use v1::helpers::dispatch::{self, Dispatcher};
+use v1::helpers::accounts::unwrap_provider;
 use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning};
 use v1::types::{
@@ -38,21 +39,25 @@ use v1::types::{
 
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct SigningUnsafeClient<D> {
-	accounts: Weak<AccountProvider>,
+	accounts: Option<Weak<AccountProvider>>,
 	dispatcher: D,
 }
 
 impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 	/// Creates new SigningUnsafeClient.
-	pub fn new(accounts: &Arc<AccountProvider>, dispatcher: D) -> Self {
+	pub fn new(accounts: &Option<Arc<AccountProvider>>, dispatcher: D) -> Self {
 		SigningUnsafeClient {
-			accounts: Arc::downgrade(accounts),
+			accounts: accounts.as_ref().map(Arc::downgrade),
 			dispatcher: dispatcher,
 		}
 	}
 
+	fn account_provider(&self) -> Result<Arc<AccountProvider>, Error> {
+		unwrap_provider(&self.accounts)
+	}
+
 	fn handle(&self, payload: RpcConfirmationPayload, account: DefaultAccount) -> BoxFuture<RpcConfirmationResponse, Error> {
-		let accounts = take_weakf!(self.accounts);
+		let accounts = try_bf!(self.account_provider());
 		let default = match account {
 			DefaultAccount::Provided(acc) => acc,
 			DefaultAccount::ForDapp(dapp) => accounts.dapp_default_address(dapp).ok().unwrap_or_default(),
