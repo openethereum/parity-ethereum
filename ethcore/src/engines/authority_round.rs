@@ -27,12 +27,13 @@ use block::*;
 use spec::CommonParams;
 use engines::{Engine, Seal, EngineError};
 use header::Header;
-use error::{Error, BlockError};
+use error::{Error, TransactionError, BlockError};
 use evm::Schedule;
 use ethjson;
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use env_info::EnvInfo;
 use builtin::Builtin;
+use transaction::UnverifiedTransaction;
 use client::{Client, EngineClient};
 use state::CleanupMode;
 use super::signer::EngineSigner;
@@ -55,6 +56,8 @@ pub struct AuthorityRoundParams {
 	pub validators: ethjson::spec::ValidatorSet,
 	/// Chain score validation transition block.
 	pub validate_score_transition: u64,
+	/// Number of first block where EIP-155 rules are validated.
+	pub eip155_transition: u64,
 }
 
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
@@ -67,6 +70,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			start_step: p.start_step.map(Into::into),
 			validate_score_transition: p.validate_score_transition.map_or(0, Into::into),
+			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 		}
 	}
 }
@@ -89,6 +93,7 @@ pub struct AuthorityRound {
 	/// Is this Engine just for testing (prevents step calibration).
 	calibrate_step: bool,
 	validate_score_transition: u64,
+	eip155_transition: u64,
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
@@ -130,6 +135,7 @@ impl AuthorityRound {
 				validators: new_validator_set(our_params.validators),
 				calibrate_step: our_params.start_step.is_none(),
 				validate_score_transition: our_params.validate_score_transition,
+				eip155_transition: our_params.eip155_transition,
 			});
 		// Do not initialize timeouts for tests.
 		if should_timeout {
@@ -349,6 +355,18 @@ impl Engine for AuthorityRound {
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
 			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
 		}
+		Ok(())
+	}
+
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> result::Result<(), Error> {
+		t.check_low_s()?;
+
+		if let Some(n) = t.network_id() {
+			if header.number() >= self.eip155_transition && n != self.params().chain_id {
+				return Err(TransactionError::InvalidNetworkId.into());
+			}
+		}
+
 		Ok(())
 	}
 

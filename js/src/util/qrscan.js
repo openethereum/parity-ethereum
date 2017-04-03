@@ -92,9 +92,9 @@ export function generateQr (from, tx, hash, rlp) {
         account: from.substr(2),
         hash: hash.substr(2),
         details: {
-          gasPrice: inNumber10(inHex(tx.gasPrice.toString('hex'))),
-          gas: inNumber10(inHex(tx.gasLimit.toString('hex'))),
-          nonce: inNumber10(inHex(tx.nonce.toString('hex'))),
+          gasPrice: inNumber10(inHex(tx.gasPrice.toString('hex') || '0')),
+          gas: inNumber10(inHex(tx.gasLimit.toString('hex') || '0')),
+          nonce: inNumber10(inHex(tx.nonce.toString('hex') || '0')),
           to: inAddress(tx.to.toString('hex')),
           value: inHex(tx.value.toString('hex') || '0')
         }

@@ -164,6 +164,8 @@ usage! {
 			or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.as_ref().map(|vec| vec.join(",")),
+		flag_jsonrpc_threads: Option<usize> = None,
+			or |c: &Config| otry!(c.rpc).threads.map(Some),
 
 		// IPC
 		flag_no_ipc: bool = false,
@@ -176,21 +178,8 @@ usage! {
 		// DAPPS
 		flag_no_dapps: bool = false,
 			or |c: &Config| otry!(c.dapps).disable.clone(),
-		flag_dapps_port: u16 = 8080u16,
-			or |c: &Config| otry!(c.dapps).port.clone(),
-		flag_dapps_interface: String = "local",
-			or |c: &Config| otry!(c.dapps).interface.clone(),
-		flag_dapps_hosts: String = "none",
-			or |c: &Config| otry!(c.dapps).hosts.as_ref().map(|vec| vec.join(",")),
-		flag_dapps_cors: Option<String> = None,
-			or |c: &Config| otry!(c.dapps).cors.clone().map(Some),
 		flag_dapps_path: String = "$BASE/dapps",
 			or |c: &Config| otry!(c.dapps).path.clone(),
-		flag_dapps_user: Option<String> = None,
-			or |c: &Config| otry!(c.dapps).user.clone().map(Some),
-		flag_dapps_pass: Option<String> = None,
-			or |c: &Config| otry!(c.dapps).pass.clone().map(Some),
-		flag_dapps_apis_all: bool = false, or |_| None,
 
 		// Secret Store
 		flag_no_secretstore: bool = false,
@@ -330,6 +319,22 @@ usage! {
 			or |c: &Config| otry!(c.misc).log_file.clone().map(Some),
 		flag_no_color: bool = false,
 			or |c: &Config| otry!(c.misc).color.map(|c| !c).clone(),
+
+
+		// -- Legacy Options supported in configs
+		flag_dapps_port: Option<u16> = None,
+			or |c: &Config| otry!(c.dapps).port.clone().map(Some),
+		flag_dapps_interface: Option<String> = None,
+			or |c: &Config| otry!(c.dapps).interface.clone().map(Some),
+		flag_dapps_hosts: Option<String> = None,
+			or |c: &Config| otry!(c.dapps).hosts.as_ref().map(|vec| Some(vec.join(","))),
+		flag_dapps_cors: Option<String> = None,
+			or |c: &Config| otry!(c.dapps).cors.clone().map(Some),
+		flag_dapps_user: Option<String> = None,
+			or |c: &Config| otry!(c.dapps).user.clone().map(Some),
+		flag_dapps_pass: Option<String> = None,
+			or |c: &Config| otry!(c.dapps).pass.clone().map(Some),
+		flag_dapps_apis_all: Option<bool> = None, or |_| None,
 	}
 	{
 		// Values with optional default value.
@@ -419,6 +424,7 @@ struct Rpc {
 	cors: Option<String>,
 	apis: Option<Vec<String>>,
 	hosts: Option<Vec<String>>,
+	threads: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -672,6 +678,7 @@ mod tests {
 			flag_jsonrpc_cors: Some("null".into()),
 			flag_jsonrpc_apis: "web3,eth,net,parity,traces,rpc".into(),
 			flag_jsonrpc_hosts: "none".into(),
+			flag_jsonrpc_threads: None,
 
 			// IPC
 			flag_no_ipc: false,
@@ -679,15 +686,8 @@ mod tests {
 			flag_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,rpc".into(),
 
 			// DAPPS
-			flag_no_dapps: false,
-			flag_dapps_port: 8080u16,
-			flag_dapps_interface: "local".into(),
-			flag_dapps_hosts: "none".into(),
-			flag_dapps_cors: None,
 			flag_dapps_path: "$HOME/.parity/dapps".into(),
-			flag_dapps_user: Some("test_user".into()),
-			flag_dapps_pass: Some("test_pass".into()),
-			flag_dapps_apis_all: false,
+			flag_no_dapps: false,
 
 			flag_no_secretstore: false,
 			flag_secretstore_port: 8082u16,
@@ -792,6 +792,14 @@ mod tests {
 			flag_extradata: None,
 			flag_cache: None,
 			flag_warp: Some(true),
+			// Legacy-Dapps
+			flag_dapps_port: Some(8080),
+			flag_dapps_interface: Some("local".into()),
+			flag_dapps_hosts: Some("none".into()),
+			flag_dapps_cors: None,
+			flag_dapps_user: Some("test_user".into()),
+			flag_dapps_pass: Some("test_pass".into()),
+			flag_dapps_apis_all: None,
 
 			// -- Miscellaneous Options
 			flag_version: false,
@@ -873,6 +881,7 @@ mod tests {
 				cors: None,
 				apis: None,
 				hosts: None,
+				threads: None,
 			}),
 			ipc: Some(Ipc {
 				disable: None,

@@ -79,37 +79,39 @@
 //!   cargo build --release
 //!   ```
 
-extern crate ethcore_io as io;
-extern crate rustc_serialize;
-extern crate crypto;
-extern crate time;
-extern crate env_logger;
-extern crate num_cpus;
-extern crate crossbeam;
-extern crate ethjson;
-extern crate bloomchain;
-extern crate hyper;
-extern crate ethash;
-extern crate ethkey;
-extern crate semver;
-extern crate ethcore_ipc_nano as nanoipc;
-extern crate ethcore_devtools as devtools;
-extern crate rand;
 extern crate bit_set;
-extern crate rlp;
-extern crate ethcore_bloom_journal as bloom_journal;
+extern crate bloomchain;
+extern crate bn;
 extern crate byteorder;
-extern crate transient_hashmap;
+extern crate crossbeam;
+extern crate crypto;
+extern crate env_logger;
+extern crate ethabi;
+extern crate ethash;
+extern crate ethcore_bloom_journal as bloom_journal;
+extern crate ethcore_devtools as devtools;
+extern crate ethcore_io as io;
+extern crate ethcore_ipc_nano as nanoipc;
+extern crate ethcore_logger;
+extern crate ethcore_stratum;
+extern crate ethjson;
+extern crate ethkey;
+extern crate futures;
+extern crate hardware_wallet;
+extern crate hyper;
+extern crate itertools;
 extern crate linked_hash_map;
 extern crate lru_cache;
-extern crate ethcore_stratum;
-extern crate ethabi;
-extern crate hardware_wallet;
-extern crate stats;
-extern crate ethcore_logger;
+extern crate native_contracts;
+extern crate num_cpus;
 extern crate num;
-extern crate bn;
-extern crate itertools;
+extern crate rand;
+extern crate rlp;
+extern crate rustc_serialize;
+extern crate semver;
+extern crate stats;
+extern crate time;
+extern crate transient_hashmap;
 
 #[macro_use]
 extern crate log;
