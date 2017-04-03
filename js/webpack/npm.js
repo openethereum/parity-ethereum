@@ -76,6 +76,7 @@ module.exports = {
 
   resolve: {
     alias: {
+      'secp256k1/js': path.resolve(__dirname, '../src/api/local/ethkey/dummy.js'),
       '~': path.resolve(__dirname, '../src')
     },
     modules: [
