@@ -10,9 +10,19 @@ build = "build.rs"
 ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
+byteorder = "1.0"
 log = "0.3"
 parking_lot = "0.4"
 hyper = { version = "0.10", default-features = false }
+serde = "0.9"
+serde_json = "0.9"
+serde_derive = "0.9"
+futures = "0.1"
+futures-cpupool = "0.1"
+rustc-serialize = "0.3"
+tokio-core = "0.1"
+tokio-service = "0.1"
+tokio-proto = "0.1"
 url = "1.0"
 ethcore-devtools = { path = "../devtools" }
 ethcore-util = { path = "../util" }

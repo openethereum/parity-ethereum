@@ -14,13 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use types::all::{Error, RequestSignature, DocumentAddress, DocumentEncryptedKey};
+use std::net;
+use ethkey::Secret;
+use key_server_cluster::NodeId;
+use key_server_cluster::io::SharedTcpStream;
 
-#[ipc(client_ident="RemoteKeyServer")]
-/// Secret store key server
-pub trait KeyServer: Send + Sync {
-	/// Generate encryption key for given document.
-	fn generate_document_key(&self, signature: &RequestSignature, document: &DocumentAddress, threshold: usize) -> Result<DocumentEncryptedKey, Error>;
-	/// Request encryption key of given document for given requestor
-	fn document_key(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKey, Error>;
+/// Established connection data
+pub struct Connection {
+	/// Peer address.
+	pub address: net::SocketAddr,
+	/// Connection stream.
+	pub stream: SharedTcpStream,
+	/// Peer node id.
+	pub node_id: NodeId,
+	/// Encryption key.
+	pub key: Secret,
 }

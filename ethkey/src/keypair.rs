@@ -27,6 +27,7 @@ pub fn public_to_address(public: &Public) -> Address {
 	result
 }
 
+#[derive(Clone)]
 /// secp256k1 key pair
 pub struct KeyPair {
 	secret: Secret,

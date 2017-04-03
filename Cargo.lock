@@ -23,6 +23,7 @@ dependencies = [
  "ethcore-signer 1.7.0",
  "ethcore-stratum 1.7.0",
  "ethcore-util 1.7.0",
+ "ethkey 0.2.0",
  "ethsync 1.7.0",
  "evmbin 0.1.0",
  "fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -633,6 +634,7 @@ dependencies = [
 name = "ethcore-secretstore"
 version = "1.0.0"
 dependencies = [
+ "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.7.0",
  "ethcore-ipc 1.7.0",
  "ethcore-ipc-codegen 1.7.0",
@@ -640,9 +642,18 @@ dependencies = [
  "ethcore-util 1.7.0",
  "ethcrypto 0.1.0",
  "ethkey 0.2.0",
+ "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-cpupool 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-core 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-proto 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-service 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

@@ -14,13 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use types::all::{Error, RequestSignature, DocumentAddress, DocumentEncryptedKey};
+mod accept_connection;
+mod connect;
+mod connection;
 
-#[ipc(client_ident="RemoteKeyServer")]
-/// Secret store key server
-pub trait KeyServer: Send + Sync {
-	/// Generate encryption key for given document.
-	fn generate_document_key(&self, signature: &RequestSignature, document: &DocumentAddress, threshold: usize) -> Result<DocumentEncryptedKey, Error>;
-	/// Request encryption key of given document for given requestor
-	fn document_key(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKey, Error>;
-}
+pub use self::accept_connection::{AcceptConnection, accept_connection};
+pub use self::connect::{Connect, connect};
+pub use self::connection::Connection;
