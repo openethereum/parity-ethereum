@@ -247,6 +247,8 @@ export function fetchTokensBalances (_addresses = null, _tokens = null, skipNoti
     const addresses = _addresses || addressesToFetch;
     const tokensToUpdate = _tokens || allTokens;
 
+    log.debug('fetching tokens balances', { addresses, tokens: tokensToUpdate });
+
     if (addresses.length === 0) {
       return Promise.resolve();
     }
