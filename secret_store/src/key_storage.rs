@@ -135,8 +135,7 @@ pub mod tests {
 	use parking_lot::RwLock;
 	use devtools::RandomTempPath;
 	use ethkey::{Random, Generator};
-	use super::super::types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration,
-		DocumentAddress, EncryptionConfiguration};
+	use super::super::types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, DocumentAddress};
 	use super::{KeyStorage, PersistentKeyStorage, DocumentKeyShare};
 
 	#[derive(Default)]
@@ -178,9 +177,6 @@ pub mod tests {
 				},
 				nodes: BTreeMap::new(),
 				allow_connecting_to_higher_nodes: false,
-				encryption_config: EncryptionConfiguration {
-					key_check_timeout_ms: 10,
-				},
 			},
 		};
 		

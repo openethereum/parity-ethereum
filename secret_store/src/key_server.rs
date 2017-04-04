@@ -104,7 +104,6 @@ impl KeyServerCore {
 				.map(|(node_id, node_address)| (node_id.clone(), (node_address.address.clone(), node_address.port)))
 				.collect(),
 			allow_connecting_to_higher_nodes: config.allow_connecting_to_higher_nodes,
-			encryption_config: config.encryption_config.clone(),
 			acl_storage: acl_storage,
 			key_storage: key_storage,
 		};
@@ -150,7 +149,7 @@ mod tests {
 	use ethkey::{self, Random, Generator};
 	use acl_storage::tests::DummyAclStorage;
 	use key_storage::tests::DummyKeyStorage;
-	use types::all::{ClusterConfiguration, NodeAddress, EncryptionConfiguration};
+	use types::all::{ClusterConfiguration, NodeAddress};
 	use super::{KeyServer, KeyServerImpl};
 
 	#[test]
@@ -172,9 +171,6 @@ mod tests {
 						port: 6060 + (j as u16),
 					})).collect(),
 				allow_connecting_to_higher_nodes: false,
-				encryption_config: EncryptionConfiguration {
-					key_check_timeout_ms: 10,
-				},
 			}).collect();
 		let key_servers: Vec<_> = configs.into_iter().map(|cfg|
 			KeyServerImpl::new(&cfg, Arc::new(DummyAclStorage::default()), Arc::new(DummyKeyStorage::default())).unwrap()

@@ -23,7 +23,7 @@ use key_server_cluster::{Error, NodeId, SessionId, KeyStorage, DocumentKeyShare}
 use key_server_cluster::math;
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::message::{Message, EncryptionMessage, InitializeSession, ConfirmInitialization, CompleteInitialization,
-	KeysDissemination, Complaint, ComplaintResponse, PublicKeyShare, SessionError, SessionCompleted};
+	KeysDissemination, PublicKeyShare, SessionError, SessionCompleted};
 
 /// Encryption session API.
 pub trait Session: Send + Sync + 'static {
@@ -40,10 +40,9 @@ pub trait Session: Send + Sync + 'static {
 /// Brief overview:
 /// 1) initialization: master node (which has received request for generating joint public + secret) initializes the session on all other nodes
 /// 2) key dissemination (KD): all nodes are generating secret + public values and send these to appropriate nodes
-/// 3) key verification (KV): all nodes are checking values, received for other nodes and complaining if keys are wrong
-/// 4) key check phase (KC): nodes are processing complaints, received from another nodes
-/// 5) key generation phase (KG): nodes are exchanging with information, enough to generate joint public key
-/// 6) encryption phase: master node generates secret key, encrypts it using joint public && broadcasts encryption result
+/// 3) key verification (KV): all nodes are checking values, received for other nodes
+/// 4) key generation phase (KG): nodes are exchanging with information, enough to generate joint public key
+/// 5) encryption phase: master node generates secret key, encrypts it using joint public && broadcasts encryption result
 pub struct SessionImpl {
 	/// Unique session id.
 	id: SessionId,
@@ -123,10 +122,6 @@ struct NodeData {
 	/// Public values, which have been received from this node.
 	pub publics: Option<Vec<Public>>,
 
-	// === Values, filled during KC phase ===
-	/// Nodes, complaining against this node.
-	pub complaints: BTreeSet<NodeId>,
-
 	// === Values, filled during KG phase ===
 	/// Public share, which has been received from this node.
 	pub public_share: Option<Public>,
@@ -162,10 +157,6 @@ pub enum SessionState {
 	// === KD phase states ===
 	/// Node is waiting for generated keys from every other node.
 	WaitingForKeysDissemination,
-
-	// === KC phase states ===
-	/// Keys check currently occurs.
-	KeyCheck,
 
 	// === KG phase states ===
 	/// Node is waiting for joint public key share to be received from every other node.
@@ -224,12 +215,6 @@ impl SessionImpl {
 	/// Get derived point.
 	pub fn derived_point(&self) -> Option<Public> {
 		self.data.lock().derived_point.clone()
-	}
-
-	#[cfg(test)]
-	/// Get qualified nodes.
-	pub fn qualified_nodes(&self) -> BTreeSet<NodeId> {
-		self.data.lock().nodes.keys().cloned().collect()
 	}
 
 	/// Start new session initialization. This must be called on master node.
@@ -417,7 +402,7 @@ impl SessionImpl {
 		// key verification (KV) phase: check that other nodes have passed correct secrets
 		let derived_point = data.derived_point.clone().expect("derived point generated on initialization phase; KV phase follows initialization phase; qed");
 		let number_id = data.nodes[self.node()].id_number.clone();
-		for (node_id, node_data) in data.nodes.iter_mut().filter(|&(node_id, _)| node_id != self.node()) {
+		for (_	, node_data) in data.nodes.iter_mut().filter(|&(node_id, _)| node_id != self.node()) {
 			let secret1 = node_data.secret1.as_ref().expect("keys received on KD phase; KV phase follows KD phase; qed");
 			let secret2 = node_data.secret2.as_ref().expect("keys received on KD phase; KV phase follows KD phase; qed");
 			let publics = node_data.publics.as_ref().expect("keys received on KD phase; KV phase follows KD phase; qed");
@@ -425,113 +410,9 @@ impl SessionImpl {
 				secret1, secret2, publics)?;
 
 			if !is_key_verification_ok {
-				node_data.complaints.insert(self.node().clone());
-				self.cluster.broadcast(Message::Encryption(EncryptionMessage::Complaint(Complaint {
-					session: self.id.clone().into(),
-					against: node_id.clone().into(),
-				})))?;
+				// node has sent us incorrect values. In original ECDKG protocol we should have sent complaint here.
+				return Err(Error::InvalidMessage);
 			}
-		}
-
-		// update state
-		data.state = SessionState::KeyCheck;
-
-		Ok(())
-	}
-
-	/// When complaint is received.
-	pub fn on_complaint(&self, sender: NodeId, message: &Complaint) -> Result<(), Error> {
-		debug_assert!(self.id == *message.session);
-		debug_assert!(&sender != self.node());
-
-		let mut data = self.data.lock();
-		debug_assert!(data.nodes.contains_key(&sender));
-
-		// check state
-		if data.state != SessionState::KeyCheck && data.state != SessionState::WaitingForKeysDissemination {
-			// message can be received after timeout is passed
-			// => encryption is already in progress
-			// => we can not treat it as an error
-			return Ok(());
-		}
-
-		// respond to complaint
-		if &*message.against == self.node() {
-			let secret1_sent = data.nodes[&sender].secret1_sent.clone().expect("secrets were sent on KD phase; KC phase follows KD phase; qed");
-			let secret2_sent = data.nodes[&sender].secret2_sent.clone().expect("secrets were sent on KD phase; KC phase follows KD phase; qed");
-
-			// someone is complaining against us => let's respond
-			return self.cluster.broadcast(Message::Encryption(EncryptionMessage::ComplaintResponse(ComplaintResponse {
-				session: self.id.clone().into(),
-				secret1: secret1_sent.into(),
-				secret2: secret2_sent.into(),
-			})));
-		}
-
-		// someone is complaining against someone else => let's remember this
-		let threshold = data.threshold.expect("threshold is filled in initialization phase; KD phase follows initialization phase; qed");
-		let is_critical_complaints_num = {
-			let node = data.nodes.get_mut(&message.against).ok_or(Error::InvalidMessage)?;
-			node.complaints.insert(sender);
-			node.complaints.len() >= threshold + 1
-		};
-
-		if is_critical_complaints_num {
-			// too many complaints => exclude from session
-			SessionImpl::disqualify_node(&message.against, &*self.cluster, &mut *data);
-		}
-
-		Ok(())
-	}
-
-	/// When complaint response is received
-	pub fn on_complaint_response(&self, sender: NodeId, message: &ComplaintResponse) -> Result<(), Error> {
-		debug_assert!(self.id == *message.session);
-		debug_assert!(&sender != self.node());
-
-		let mut data = self.data.lock();
-		debug_assert!(data.nodes.contains_key(&sender));
-
-		// check state
-		if data.state != SessionState::KeyCheck {
-			// in theory this message can be received before KeyCheck (in WaitingForKeysDissemination state)
-			// => but the fact that someone is complaining about keys means that sender has already sent its keys
-			// => complaint response can't reach us before keys, as the cluster guarantees that messages are received in FIFO order
-
-			// message can be received after timeout is passed
-			// => encryption is already in progress
-			// => we can not treat it as an error
-			return Ok(());
-		}
-
-		// check keys again
-		let is_key_verification_ok = {
-			let threshold = data.threshold.expect("threshold is filled in initialization phase; KD phase follows initialization phase; qed");
-			let derived_point = data.derived_point.as_ref().expect("derived point generated on initialization phase; KV phase follows initialization phase; qed");
-			let number_id = &data.nodes[self.node()].id_number;
-			let node_data = data.nodes.get(&sender).expect("cluster guarantees to deliver messages from qualified nodes only; qed");
-			let publics = node_data.publics.as_ref().expect("keys received on KD phase; KV phase follows KD phase; qed");
-			math::keys_verification(threshold, derived_point, number_id, &message.secret1, &message.secret2, publics)?
-		};
-
-		if !is_key_verification_ok {
-			SessionImpl::disqualify_node(&sender, &*self.cluster, &mut *data);
-		} else {
-			let node_data = data.nodes.get_mut(&sender).expect("cluster guarantees to deliver messages from qualified nodes only; qed");
-			node_data.secret1 = Some(message.secret1.clone().into());
-			node_data.secret2 = Some(message.secret2.clone().into());
-			node_data.complaints.remove(self.node());
-		}
-
-		Ok(())
-	}
-
-	/// When KC-phase timeout is expired, it is time to start KG phase.
-	pub fn start_key_generation_phase(&self) -> Result<(), Error> {
-		let mut data = self.data.lock();
-
-		if data.state != SessionState::KeyCheck {
-			return Err(Error::InvalidStateForRequest);
 		}
 
 		// calculate public share
@@ -568,8 +449,7 @@ impl SessionImpl {
 		if data.state != SessionState::WaitingForPublicKeyShare {
 			match data.state {
 				SessionState::WaitingForInitializationComplete |
-					SessionState::WaitingForKeysDissemination |
-					SessionState::KeyCheck => return Err(Error::TooEarlyForRequest),
+					SessionState::WaitingForKeysDissemination => return Err(Error::TooEarlyForRequest),
 				_ => return Err(Error::InvalidStateForRequest),
 			}
 		}
@@ -776,22 +656,6 @@ impl SessionImpl {
 
 		Ok(())
 	}
-
-	/// Disqualify node
-	fn disqualify_node(node: &NodeId, cluster: &Cluster, data: &mut SessionData) {
-		let threshold = data.threshold
-			.expect("threshold is filled on initialization phase; node can only be disqualified during KC phase; KC phase follows initialization phase; qed");
-
-		// blacklist node
-		cluster.blacklist(&node);
-		// too many complaints => exclude from session
-		data.nodes.remove(&node);
-		// check if secret still can be reconstructed
-		if data.nodes.len() < threshold + 1 {
-			// not enough nodes => session is failed
-			data.state = SessionState::Failed;
-		}
-	}
 }
 
 impl Session for SessionImpl {
@@ -842,7 +706,6 @@ impl NodeData {
 	fn with_id_number(node_id_number: Secret) -> Self {
 		NodeData {
 			id_number: node_id_number,
-			complaints: BTreeSet::new(),
 			secret1_sent: None,
 			secret2_sent: None,
 			secret1: None,
@@ -952,10 +815,6 @@ mod tests {
 			&self.nodes.values().nth(2).unwrap().session
 		}
 
-		pub fn third_slave(&self) -> &SessionImpl {
-			&self.nodes.values().nth(3).unwrap().session
-		}
-
 		pub fn take_message(&mut self) -> Option<(NodeId, NodeId, Message)> {
 			self.nodes.values()
 				.filter_map(|n| n.cluster.take_message().map(|m| (n.session.node().clone(), m.0, m.1)))
@@ -970,8 +829,6 @@ mod tests {
 					Message::Encryption(EncryptionMessage::ConfirmInitialization(ref message)) => self.nodes[&msg.1].session.on_confirm_initialization(msg.0.clone(), &message),
 					Message::Encryption(EncryptionMessage::CompleteInitialization(ref message)) => self.nodes[&msg.1].session.on_complete_initialization(msg.0.clone(), &message),
 					Message::Encryption(EncryptionMessage::KeysDissemination(ref message)) => self.nodes[&msg.1].session.on_keys_dissemination(msg.0.clone(), &message),
-					Message::Encryption(EncryptionMessage::Complaint(ref message)) => self.nodes[&msg.1].session.on_complaint(msg.0.clone(), &message),
-					Message::Encryption(EncryptionMessage::ComplaintResponse(ref message)) => self.nodes[&msg.1].session.on_complaint_response(msg.0.clone(), &message),
 					Message::Encryption(EncryptionMessage::PublicKeyShare(ref message)) => self.nodes[&msg.1].session.on_public_key_share(msg.0.clone(), &message),
 					Message::Encryption(EncryptionMessage::SessionCompleted(ref message)) => self.nodes[&msg.1].session.on_session_completed(msg.0.clone(), &message),
 					_ => panic!("unexpected"),
@@ -989,13 +846,6 @@ mod tests {
 		pub fn take_and_process_message(&mut self) -> Result<(), Error> {
 			let msg = self.take_message().unwrap();
 			self.process_message(msg)
-		}
-
-		pub fn take_and_process_all_messages(&mut self) -> Result<(), Error> {
-			while let Some(msg) = self.take_message() {
-				self.process_message(msg)?;
-			}
-			Ok(())
 		}
 	}
 
@@ -1228,119 +1078,6 @@ mod tests {
 	}
 
 	#[test]
-	fn defends_if_receives_complain_on_himself() {
-		let (sid, m, s, mut l) = make_simple_cluster(1, 3).unwrap();
-		l.take_and_process_all_messages().unwrap();
-		l.master().on_complaint(s, &message::Complaint {
-			session: sid.into(),
-			against: m.into(),
-		}).unwrap();
-		match l.take_message().unwrap() {
-			(_, _, Message::Encryption(EncryptionMessage::ComplaintResponse(_))) => (),
-			_ => panic!("unexpected"),
-		}
-	}
-
-	#[test]
-	fn node_is_disqualified_if_enough_complaints_received() {
-		let (sid, _, s, mut l) = make_simple_cluster(1, 4).unwrap();
-		l.take_and_process_all_messages().unwrap();
-		l.master().on_complaint(l.second_slave().node().clone(), &message::Complaint {
-			session: sid.into(),
-			against: s.clone().into(),
-		}).unwrap();
-		l.master().on_complaint(l.third_slave().node().clone(), &message::Complaint {
-			session: sid.into(),
-			against: s.into(),
-		}).unwrap();
-		assert_eq!(l.master().qualified_nodes().len(), 3);
-	}
-
-	#[test]
-	fn node_is_not_disqualified_if_enough_complaints_received_from_the_same_node() {
-		let (sid, _, s, mut l) = make_simple_cluster(1, 4).unwrap();
-		l.take_and_process_all_messages().unwrap();
-		l.master().on_complaint(l.second_slave().node().clone(), &message::Complaint {
-			session: sid.into(),
-			against: s.clone().into(),
-		}).unwrap();
-		l.master().on_complaint(l.second_slave().node().clone(), &message::Complaint {
-			session: sid.into(),
-			against: s.into(),
-		}).unwrap();
-		assert_eq!(l.master().qualified_nodes().len(), 4);
-	}
-
-	#[test]
-	fn node_is_disqualified_if_responds_to_complain_with_invalid_data() {
-		let (sid, _, _, mut l) = make_simple_cluster(1, 3).unwrap();
-		l.take_and_process_message().unwrap(); // m -> s1: InitializeSession
-		l.take_and_process_message().unwrap(); // m -> s2: InitializeSession
-		l.take_and_process_message().unwrap(); // s1 -> m: ConfirmInitialization
-		l.take_and_process_message().unwrap(); // s2 -> m: ConfirmInitialization
-		l.take_and_process_message().unwrap(); // m -> s1: CompleteInitialization
-		l.take_and_process_message().unwrap(); // m -> s2: CompleteInitialization
-		l.take_and_process_message().unwrap(); // m -> s1: KeysDissemination
-		l.take_and_process_message().unwrap(); // m -> s2: KeysDissemination
-		l.take_and_process_message().unwrap(); // s1 -> m: KeysDissemination
-		l.take_and_process_message().unwrap(); // s1 -> s2: KeysDissemination
-		let s2 = l.second_slave().node().clone();
-		l.master().on_keys_dissemination(s2.clone(), &message::KeysDissemination {
-			session: sid.clone().into(),
-			secret1: math::generate_random_scalar().unwrap().into(),
-			secret2: math::generate_random_scalar().unwrap().into(),
-			publics: vec![math::generate_random_point().unwrap().into(), math::generate_random_point().unwrap().into()],
-		}).unwrap();
-		assert_eq!(l.master().qualified_nodes().len(), 3);
-		l.master().on_complaint_response(s2, &message::ComplaintResponse {
-			session: sid.into(),
-			secret1: math::generate_random_scalar().unwrap().into(),
-			secret2: math::generate_random_scalar().unwrap().into(),
-		}).unwrap();
-		assert_eq!(l.master().qualified_nodes().len(), 2);
-	}
-
-	#[test]
-	fn node_is_not_disqualified_if_responds_to_complain_with_valid_data() {
-		let (sid, _, _, mut l) = make_simple_cluster(1, 3).unwrap();
-		l.take_and_process_message().unwrap(); // m -> s1: InitializeSession
-		l.take_and_process_message().unwrap(); // m -> s2: InitializeSession
-		l.take_and_process_message().unwrap(); // s1 -> m: ConfirmInitialization
-		l.take_and_process_message().unwrap(); // s2 -> m: ConfirmInitialization
-		l.take_and_process_message().unwrap(); // m -> s1: CompleteInitialization
-		l.take_and_process_message().unwrap(); // m -> s2: CompleteInitialization
-		l.take_and_process_message().unwrap(); // m -> s1: KeysDissemination
-		l.take_and_process_message().unwrap(); // m -> s2: KeysDissemination
-		l.take_and_process_message().unwrap(); // s1 -> m: KeysDissemination
-		l.take_and_process_message().unwrap(); // s1 -> s2: KeysDissemination
-		let (f, t, msg) = match l.take_message() {
-			Some((f, t, Message::Encryption(EncryptionMessage::KeysDissemination(msg)))) => (f, t, msg),
-			_ => panic!("unexpected"),
-		};
-		assert_eq!(&f, l.second_slave().node());
-		assert_eq!(&t, l.master().node());
-		l.master().on_keys_dissemination(f.clone(), &message::KeysDissemination {
-			session: sid.clone().into(),
-			secret1: math::generate_random_scalar().unwrap().into(),
-			secret2: math::generate_random_scalar().unwrap().into(),
-			publics: msg.publics.clone().into(),
-		}).unwrap();
-		assert_eq!(l.master().qualified_nodes().len(), 3);
-		l.master().on_complaint_response(f, &message::ComplaintResponse {
-			session: sid.into(),
-			secret1: msg.secret1.into(),
-			secret2: msg.secret2.into(),
-		}).unwrap();
-		assert_eq!(l.master().qualified_nodes().len(), 3);
-	}
-
-	#[test]
-	fn should_not_start_key_generation_when_not_in_key_check_state() {
-		let (_, _, _, l) = make_simple_cluster(1, 3).unwrap();
-		assert_eq!(l.master().start_key_generation_phase().unwrap_err(), Error::InvalidStateForRequest);
-	}
-
-	#[test]
 	fn should_not_accept_public_key_share_when_is_not_waiting_for_it() {
 		let (sid, _, s, l) = make_simple_cluster(1, 3).unwrap();
 		assert_eq!(l.master().on_public_key_share(s, &message::PublicKeyShare {
@@ -1352,17 +1089,26 @@ mod tests {
 	#[test]
 	fn should_not_accept_public_key_share_when_receiving_twice() {
 		let (sid, m, _, mut l) = make_simple_cluster(0, 3).unwrap();
-		l.take_and_process_all_messages().unwrap();
-		l.master().start_key_generation_phase().unwrap();
-		l.first_slave().start_key_generation_phase().unwrap();
+		l.take_and_process_message().unwrap(); // m -> s1: InitializeSession
+		l.take_and_process_message().unwrap(); // m -> s2: InitializeSession
+		l.take_and_process_message().unwrap(); // s1 -> m: ConfirmInitialization
+		l.take_and_process_message().unwrap(); // s2 -> m: ConfirmInitialization
+		l.take_and_process_message().unwrap(); // m -> s1: CompleteInitialization
+		l.take_and_process_message().unwrap(); // m -> s2: CompleteInitialization
+		l.take_and_process_message().unwrap(); // m -> s1: KeysDissemination
+		l.take_and_process_message().unwrap(); // m -> s2: KeysDissemination
+		l.take_and_process_message().unwrap(); // s1 -> m: KeysDissemination
+		l.take_and_process_message().unwrap(); // s1 -> s2: KeysDissemination
+		l.take_and_process_message().unwrap(); // s2 -> m: KeysDissemination
+		l.take_and_process_message().unwrap(); // s2 -> s1: KeysDissemination
 		let (f, t, msg) = match l.take_message() {
 			Some((f, t, Message::Encryption(EncryptionMessage::PublicKeyShare(msg)))) => (f, t, msg),
 			_ => panic!("unexpected"),
 		};
 		assert_eq!(&f, l.master().node());
-		assert_eq!(&t, l.first_slave().node());
+		assert_eq!(&t, l.second_slave().node());
 		l.process_message((f, t, Message::Encryption(EncryptionMessage::PublicKeyShare(msg.clone())))).unwrap();
-		assert_eq!(l.first_slave().on_public_key_share(m, &message::PublicKeyShare {
+		assert_eq!(l.second_slave().on_public_key_share(m, &message::PublicKeyShare {
 			session: sid.into(),
 			public_share: math::generate_random_point().unwrap().into(),
 		}).unwrap_err(), Error::InvalidMessage);
@@ -1377,20 +1123,6 @@ mod tests {
 			assert_eq!(l.nodes.len(), num_nodes);
 
 			// let nodes do initialization + keys dissemination
-			while let Some((from, to, message)) = l.take_message() {
-				l.process_message((from, to, message)).unwrap();
-			}
-
-			// check that all nodes are waiting for complaint timeout is passed
-			for node in l.nodes.values() {
-				let state = node.session.state();
-				assert_eq!(state, SessionState::KeyCheck);
-
-				// simulate timeout pass
-				node.session.start_key_generation_phase().unwrap();
-			}
-
-			// let nodes do joint public generation
 			while let Some((from, to, message)) = l.take_message() {
 				l.process_message((from, to, message)).unwrap();
 			}
@@ -1416,8 +1148,6 @@ mod tests {
 			assert_eq!(document_secret_plain, document_secret_decrypted);
 		}
 	}
-
-	// TODO: add test where some nodes are disqualified from session
 
 	#[test]
 	fn encryption_session_works_over_network() {

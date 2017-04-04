@@ -58,10 +58,6 @@ pub enum EncryptionMessage {
 	CompleteInitialization(CompleteInitialization),
 	/// Generated keys are sent to every node.
 	KeysDissemination(KeysDissemination),
-	/// Complaint against another node is broadcasted.
-	Complaint(Complaint),
-	/// Complaint response is broadcasted.
-	ComplaintResponse(ComplaintResponse),
 	/// Broadcast self public key portion.
 	PublicKeyShare(PublicKeyShare),
 	/// When session error has occured.
@@ -161,26 +157,6 @@ pub struct KeysDissemination {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-/// Complaint against node is broadcasted.
-pub struct Complaint {
-	/// Session Id.
-	pub session: MessageSessionId,
-	/// Public values.
-	pub against: MessageNodeId,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-/// Node is responding to complaint.
-pub struct ComplaintResponse {
-	/// Session Id.
-	pub session: MessageSessionId,
-	/// Secret 1.
-	pub secret1: SerializableSecret,
-	/// Secret 2.
-	pub secret2: SerializableSecret,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Node is sharing its public key share.
 pub struct PublicKeyShare {
 	/// Session Id.
@@ -276,8 +252,6 @@ impl EncryptionMessage {
 			EncryptionMessage::ConfirmInitialization(ref msg) => &msg.session,
 			EncryptionMessage::CompleteInitialization(ref msg) => &msg.session,
 			EncryptionMessage::KeysDissemination(ref msg) => &msg.session,
-			EncryptionMessage::Complaint(ref msg) => &msg.session,
-			EncryptionMessage::ComplaintResponse(ref msg) => &msg.session,
 			EncryptionMessage::PublicKeyShare(ref msg) => &msg.session,
 			EncryptionMessage::SessionError(ref msg) => &msg.session,
 			EncryptionMessage::SessionCompleted(ref msg) => &msg.session,
@@ -335,8 +309,6 @@ impl fmt::Display for EncryptionMessage {
 			EncryptionMessage::ConfirmInitialization(_) => write!(f, "ConfirmInitialization"),
 			EncryptionMessage::CompleteInitialization(_) => write!(f, "CompleteInitialization"),
 			EncryptionMessage::KeysDissemination(_) => write!(f, "KeysDissemination"),
-			EncryptionMessage::Complaint(_) => write!(f, "Complaint"),
-			EncryptionMessage::ComplaintResponse(_) => write!(f, "ComplaintResponse"),
 			EncryptionMessage::PublicKeyShare(_) => write!(f, "PublicKeyShare"),
 			EncryptionMessage::SessionError(ref msg) => write!(f, "SessionError({})", msg.error),
 			EncryptionMessage::SessionCompleted(_) => write!(f, "SessionCompleted"),

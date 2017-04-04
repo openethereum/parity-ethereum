@@ -60,7 +60,7 @@ use std::sync::Arc;
 use ethcore::client::Client;
 
 pub use types::all::{DocumentAddress, DocumentKey, DocumentEncryptedKey, RequestSignature, Public,
-	Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, EncryptionConfiguration};
+	Error, NodeAddress, ServiceConfiguration, ClusterConfiguration};
 pub use traits::{KeyServer};
 
 /// Start new key server instance
