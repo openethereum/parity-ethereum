@@ -128,7 +128,8 @@ export default class SecureApi extends Api {
     this._resetTokens();
 
     // Try to connect
-    return this._connect()
+    return this
+      ._connect()
       .then((connected) => {
         this._isConnecting = false;
 
@@ -209,7 +210,8 @@ export default class SecureApi extends Api {
 
     nextToken.tried = true;
 
-    return this._connectWithToken(nextToken.value)
+    return this
+      ._connectWithToken(nextToken.value)
       .then((validToken) => {
         // If not valid, try again with the next token in the list
         if (!validToken) {
@@ -218,7 +220,8 @@ export default class SecureApi extends Api {
 
         // If correct and valid token, wait until the Node is ready
         // and resolve as connected
-        return this._waitUntilNodeReady()
+        return this
+          ._waitUntilNodeReady()
           .then(() => this._fetchSettings())
           .then(() => true);
       })
@@ -242,7 +245,8 @@ export default class SecureApi extends Api {
     this.transport.updateToken(token, false);
     log.debug('connecting with token', token);
 
-    const connectPromise = this.transport.connect()
+    const connectPromise = this.transport
+      .connect()
       .then(() => {
         log.debug('connected with', token);
 
@@ -280,7 +284,10 @@ export default class SecureApi extends Api {
 
           return new Promise((resolve, reject) => {
             window.setTimeout(() => {
-              this._connectWithToken(token).then(resolve).catch(reject);
+              this
+                ._connectWithToken(token)
+                .then(resolve)
+                .catch(reject);
             }, timeout);
           });
         }
@@ -381,7 +388,9 @@ export default class SecureApi extends Api {
           return true;
         }
 
-        if (error.type !== 'NETWORK_DISABLED') {
+        const hasNetworkError = ['NETWORK_DISABLED', 'NO_TRANSPORT'].includes(error.type);
+
+        if (!hasNetworkError) {
           throw error;
         }
 
@@ -395,7 +404,10 @@ export default class SecureApi extends Api {
           window.setTimeout(() => {
             const duration = Date.now() - start;
 
-            this._waitUntilNodeReady(timeleft - duration).then(resolve).catch(reject);
+            this
+              ._waitUntilNodeReady(timeleft - duration)
+              .then(resolve)
+              .catch(reject);
           }, timeout);
         });
       });

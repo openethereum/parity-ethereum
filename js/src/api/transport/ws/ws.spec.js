@@ -60,7 +60,8 @@ describe('api/transport/Ws', () => {
       transport = new Ws(TEST_WS_URL);
 
       return transport
-        .execute('test_anyCall', 1, 2, 3)
+        .connect()
+        .then(() => transport.execute('test_anyCall', 1, 2, 3))
         .then((_result) => {
           result = _result;
         });
@@ -99,6 +100,8 @@ describe('api/transport/Ws', () => {
     beforeEach(() => {
       scope = mockWs([{ method: 'test_anyCall', reply: { error: { code: 1, message: 'TestError' } } }]);
       transport = new Ws(TEST_WS_URL);
+
+      return transport.connect();
     });
 
     afterEach(() => {
@@ -110,6 +113,16 @@ describe('api/transport/Ws', () => {
         .execute('test_anyCall')
         .catch((error) => {
           expect(error).to.match(/TestError/);
+        });
+    });
+
+    it('returns TransportError when not connected', () => {
+      transport._setConnected();
+
+      return transport
+        .execute('test_anyCall')
+        .catch((error) => {
+          expect(error).to.match(/TransportError/);
         });
     });
   });

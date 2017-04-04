@@ -47,29 +47,42 @@ export function mockHttp (requests) {
 }
 
 export function mockWs (requests) {
-  let mockServer = new MockWsServer(TEST_WS_URL);
-  const scope = { requests: 0, body: {}, server: mockServer };
+  let server = new MockWsServer(TEST_WS_URL);
+  const scope = {
+    body: {},
+    requests: 0,
+    server
+  };
 
   scope.isDone = () => scope.requests === requests.length;
   scope.stop = () => {
-    if (mockServer) {
-      mockServer.stop();
-      mockServer = null;
+    if (server) {
+      server.stop();
+      server = null;
     }
   };
 
-  mockServer.on('message', (_body) => {
+  server.on('message', (_body) => {
     const body = JSON.parse(_body);
     const request = requests[scope.requests];
-    const reply = request.reply;
-    const response = reply.error
-      ? { id: body.id, error: { code: reply.error.code, message: reply.error.message } }
-      : { id: body.id, result: reply };
+    const result = request.reply;
+    const response = result.error
+      ? {
+        id: body.id,
+        error: {
+          code: result.error.code,
+          message: result.error.message
+        }
+      }
+      : {
+        id: body.id,
+        result
+      };
 
     scope.body[request.method] = body;
     scope.requests++;
 
-    mockServer.send(JSON.stringify(response));
+    server.send(JSON.stringify(response));
   });
 
   return scope;

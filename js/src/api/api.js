@@ -49,20 +49,7 @@ export default class Api extends EventEmitter {
       this._subscriptions = new Subscriptions(this);
     }
 
-    // Doing a request here in test env would cause an error
-    if (process.env.NODE_ENV !== 'test') {
-      const middleware = this.parity
-        .nodeKind()
-        .then((nodeKind) => {
-          if (nodeKind.availability === 'public') {
-            return new LocalAccountsMiddleware(transport);
-          }
-
-          return null;
-        });
-
-      transport.addMiddleware(middleware);
-    }
+    this._applyMiddleware();
   }
 
   get db () {
@@ -107,6 +94,29 @@ export default class Api extends EventEmitter {
 
   get util () {
     return util;
+  }
+
+  _applyMiddleware () {
+    // Doing a request here in test env would cause an error
+    if (process.env.NODE_ENV !== 'test') {
+      let hasMiddleware = false;
+
+      this._transport.on('open', () => {
+        if (hasMiddleware) {
+          return;
+        }
+
+        hasMiddleware = true;
+
+        return this.parity
+          .nodeKind()
+          .then((nodeKind) => {
+            if (nodeKind.availability === 'public') {
+              this._transport.addMiddleware(new LocalAccountsMiddleware(this._transport));
+            }
+          });
+      });
+    }
   }
 
   newContract (abi, address) {

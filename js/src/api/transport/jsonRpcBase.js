@@ -24,7 +24,7 @@ export default class JsonRpcBase extends EventEmitter {
     this._id = 1;
     this._debug = false;
     this._connected = false;
-    this._middlewareList = Promise.resolve([]);
+    this._middlewareList = [];
   }
 
   encode (method, params) {
@@ -39,20 +39,7 @@ export default class JsonRpcBase extends EventEmitter {
   }
 
   addMiddleware (middleware) {
-    this._middlewareList = Promise
-      .all([
-        middleware,
-        this._middlewareList
-      ])
-      .then(([middleware, middlewareList]) => {
-        // Do nothing if `handlerPromise` resolves to a null-y value.
-        if (middleware == null) {
-          return middlewareList;
-        }
-
-        // don't mutate the original array
-        return middlewareList.concat([middleware]);
-      });
+    this._middlewareList = this._middlewareList.concat([middleware]);
   }
 
   _wrapSuccessResult (result) {
@@ -75,22 +62,20 @@ export default class JsonRpcBase extends EventEmitter {
   }
 
   execute (method, ...params) {
-    return this._middlewareList.then((middlewareList) => {
-      for (const middleware of middlewareList) {
-        const res = middleware.handle(method, params);
+    for (const middleware of this._middlewareList) {
+      const res = middleware.handle(method, params);
 
-        if (res != null) {
-          const result = this._wrapSuccessResult(res);
-          const json = this.encode(method, params);
+      if (res != null) {
+        const result = this._wrapSuccessResult(res);
+        const json = this.encode(method, params);
 
-          Logging.send(method, params, { json, result });
+        Logging.send(method, params, { json, result });
 
-          return res;
-        }
+        return Promise.resolve(res);
       }
+    }
 
-      return this._execute(method, params);
-    });
+    return this._execute(method, params);
   }
 
   _execute () {
