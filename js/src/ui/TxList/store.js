@@ -70,16 +70,14 @@ export default class Store {
     if (Array.isArray(_txhashes) || this.sameHashList(_txhashes)) {
       return;
     }
-    // If the hash list has changed:
+    // If there was a hash removed:
     if (_txhashes.length < this.sortedHashes.length) {
       this.setHashes(_txhashes);
+      return;
     }
 
     _txhashes
       .forEach((txhash) => {
-        if (this.transactions[txhash]) {
-          return;
-        }
         eth.getTransactionByHash(txhash)
           .then((tx) => {
             this.transactions[txhash] = tx;
