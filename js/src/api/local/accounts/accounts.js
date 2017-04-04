@@ -39,7 +39,8 @@ export default class Accounts {
   create (secret, password) {
     const privateKey = Buffer.from(secret.slice(2), 'hex');
 
-    return Account.fromPrivateKey(this.persist, privateKey, password)
+    return Account
+      .fromPrivateKey(this.persist, privateKey, password)
       .then((account) => {
         const { address } = account;
 
@@ -87,7 +88,8 @@ export default class Accounts {
       return false;
     }
 
-    return account.isValidPassword(password)
+    return account
+      .isValidPassword(password)
       .then((isValid) => {
         if (!isValid) {
           return false;

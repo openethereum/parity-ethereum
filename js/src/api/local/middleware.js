@@ -60,7 +60,8 @@ export default class LocalAccountsMiddleware extends Middleware {
     register('parity_changePassword', ([address, oldPassword, newPassword]) => {
       const account = accounts.get(address);
 
-      return account.decryptPrivateKey(oldPassword)
+      return account
+        .decryptPrivateKey(oldPassword)
         .then((privateKey) => {
           if (!privateKey) {
             return false;

@@ -22,7 +22,8 @@ export function createKeyObject (key, password) {
 }
 
 export function decryptPrivateKey (keyObject, password) {
-  return workerPool.getWorker()
+  return workerPool
+    .getWorker()
     .action('decryptPrivateKey', { keyObject, password })
     .then((privateKey) => {
       if (privateKey) {

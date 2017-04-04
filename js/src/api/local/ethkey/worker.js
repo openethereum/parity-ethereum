@@ -16,6 +16,7 @@
 
 import secp256k1 from 'secp256k1/js';
 import { keccak_256 as keccak256 } from 'js-sha3';
+import { bytesToHex } from '~/api/util/format';
 
 const isWorker = typeof self !== 'undefined';
 
@@ -106,10 +107,6 @@ const actions = {
     }
   }
 };
-
-function bytesToHex (bytes) {
-  return '0x' + Array.from(bytes).map(n => ('0' + n.toString(16)).slice(-2)).join('');
-}
 
 self.onmessage = function ({ data }) {
   const result = route(data);

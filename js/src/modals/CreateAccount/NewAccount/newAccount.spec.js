@@ -60,7 +60,6 @@ describe('modals/CreateAccount/NewAccount', () => {
 
       it('resets the accounts', () => {
         expect(instance.state.accounts).to.be.null;
-        // expect(Object.keys(instance.state.accounts).length).to.equal(7);
       });
 
       it('resets the initial selected value', () => {
