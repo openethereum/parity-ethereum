@@ -40,7 +40,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
-	AccountInfo, HwAccountInfo
+	AccountInfo, HwAccountInfo,
 };
 
 /// Parity implementation for light client.
@@ -331,6 +331,15 @@ impl Parity for ParityClient {
 
 		Ok(ChainStatus {
 			block_gap: gap.map(|(x, y)| (x.into(), y.into())),
+		})
+	}
+
+	fn node_kind(&self) -> Result<::v1::types::NodeKind, Error> {
+		use ::v1::types::{NodeKind, Availability, Capability};
+
+		Ok(NodeKind {
+			availability: Availability::Personal,
+			capability: Capability::Light,
 		})
 	}
 }

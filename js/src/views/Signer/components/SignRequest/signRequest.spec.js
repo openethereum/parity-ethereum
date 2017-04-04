@@ -20,15 +20,53 @@ import sinon from 'sinon';
 
 import SignRequest from './';
 
-const store = {
-  balances: {},
-  fetchBalance: sinon.stub()
-};
+let component;
+let reduxStore;
+let signerStore;
+
+function createSignerStore () {
+  return {
+    balances: {},
+    fetchBalance: sinon.stub()
+  };
+}
+
+function createReduxStore () {
+  return {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {
+        personal: {
+          accounts: {}
+        }
+      };
+    }
+  };
+}
+
+function render () {
+  reduxStore = createReduxStore();
+  signerStore = createSignerStore();
+
+  component = shallow(
+    <SignRequest signerStore={ signerStore } />,
+    {
+      context: {
+        store: reduxStore
+      }
+    }
+  ).find('SignRequest').shallow();
+
+  return component;
+}
 
 describe('views/Signer/components/SignRequest', () => {
+  beforeEach(() => {
+    render();
+  });
+
   it('renders', () => {
-    expect(shallow(
-      <SignRequest signerStore={ store } />,
-    )).to.be.ok;
+    expect(component).to.be.ok;
   });
 });

@@ -30,11 +30,11 @@ export default class NewGeth extends Component {
   }
 
   static propTypes = {
-    store: PropTypes.object.isRequired
+    createStore: PropTypes.object.isRequired
   }
 
   render () {
-    const { gethAccountsAvailable, gethAddresses } = this.props.store;
+    const { gethAccountsAvailable, gethAddresses } = this.props.createStore;
 
     return gethAccountsAvailable.length
       ? (
@@ -84,14 +84,14 @@ export default class NewGeth extends Component {
   }
 
   isSelected = (account) => {
-    const { gethAddresses } = this.props.store;
+    const { gethAddresses } = this.props.createStore;
 
     return gethAddresses.includes(account.address);
   }
 
   onSelect = (account) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.selectGethAccount(account.address);
+    createStore.selectGethAccount(account.address);
   }
 }

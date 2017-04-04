@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable } from 'mobx';
+import { action } from 'mobx';
 
 let instance = null;
 
 export default class PlaygroundStore {
-  @observable components = [];
+  components = [];
 
   static get () {
     if (!instance) {
@@ -35,17 +35,6 @@ export default class PlaygroundStore {
 
   @action
   add (component) {
-    const name = component.type.displayName || component.type.name;
-    const hasComponent = this.components.find((c) => {
-      const cName = c.type.displayName || c.type.name;
-
-      return name && cName && cName === name;
-    });
-
-    if (hasComponent) {
-      return;
-    }
-
     this.components.push(component);
   }
 }

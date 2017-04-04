@@ -5,8 +5,8 @@ set -e
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
 PACKAGES=( "parity" "etherscan" "shapeshift" "jsonrpc" )
 BRANCH=$CI_BUILD_REF_NAME
-GIT_JS_PRECOMPILED="https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/js-precompiled.git"
-GIT_PARITY="https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/parity.git"
+GIT_JS_PRECOMPILED="https://${GITHUB_JS_PRECOMPILED}:@github.com/paritytech/js-precompiled.git"
+GIT_PARITY="https://${GITHUB_JS_PRECOMPILED}:@github.com/paritytech/parity.git"
 
 # setup the git user defaults for the current repo
 function setup_git_user {

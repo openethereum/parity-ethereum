@@ -15,19 +15,6 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.center {
-  text-align: center;
-}
-
-.address {
-  vertical-align: top;
-  display: inline-block;
-}
-
-.identityicon {
-  margin: -8px 0.5em;
-}
-
 .funcparams {
   padding-left: 3em;
 }

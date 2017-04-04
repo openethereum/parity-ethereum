@@ -146,7 +146,7 @@ fn kill_color(s: &str) -> String {
 	lazy_static! {
 		static ref RE: Regex = Regex::new("\x1b\\[[^m]+m").unwrap();
 	}
-	RE.replace_all(s, "")
+	RE.replace_all(s, "").to_string()
 }
 
 #[test]

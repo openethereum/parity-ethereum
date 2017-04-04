@@ -166,7 +166,7 @@ impl Restoration {
 		}
 
 		// check for missing code.
-		self.state.check_missing()?;
+		self.state.finalize(self.manifest.block_number, self.manifest.block_hash)?;
 
 		// connect out-of-order chunks and verify chain integrity.
 		self.blocks.finalize(self.canonical_hashes)?;
@@ -656,6 +656,7 @@ mod tests {
 		assert_eq!(service.status(), RestorationStatus::Inactive);
 
 		let manifest = ManifestData {
+			version: 2,
 			state_hashes: vec![],
 			block_hashes: vec![],
 			state_root: Default::default(),
