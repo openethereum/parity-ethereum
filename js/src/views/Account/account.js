@@ -231,7 +231,6 @@ class Account extends Component {
         }
         onClick={ this.store.toggleEditDialog }
       />,
-<<<<<<< HEAD
       <Button
         icon={ <FileDownloadIcon /> }
         key='exportmeta'
@@ -243,10 +242,7 @@ class Account extends Component {
         }
         onClick={ this.store.toggleExportDialog }
       />,
-      !account.hardware && (
-=======
       !(account.external || account.hardware) && (
->>>>>>> 5f9dc132074c6c2b33d5e9eb632c932925fab6f1
         <Button
           icon={ <LockedIcon /> }
           key='passwordManager'
