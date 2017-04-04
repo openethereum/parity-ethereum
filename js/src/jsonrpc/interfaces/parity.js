@@ -442,7 +442,7 @@ export default {
         availability: 'personal',
         capability: 'light'
       }
-    },
+    }
   },
 
   netChain: {
@@ -1479,19 +1479,19 @@ export default {
       type: Object,
       desc: 'Standard wallet JSON.',
       example: {
-        "address":"0042e5d2a662eeaca8a7e828c174f98f35d8925b",
-        "crypto":{
-          "cipher":"aes-128-ctr",
-          "cipherparams":{"iv":"a1c6ff99070f8032ca1c4e8add006373"},
-          "ciphertext":"df27e3db64aa18d984b6439443f73660643c2d119a6f0fa2fa9a6456fc802d75",
-          "kdf":"pbkdf2",
-          "kdfparams":{"c":10240,"dklen":32,"prf":"hmac-sha256","salt":"ddc325335cda5567a1719313e73b4842511f3e4a837c9658eeb78e51ebe8c815"},
-          "mac":"3dc888ae79cbb226ff9c455669f6cf2d79be72120f2298f6cb0d444fddc0aa3d"
+        'address': '0042e5d2a662eeaca8a7e828c174f98f35d8925b',
+        'crypto': {
+          'cipher': 'aes-128-ctr',
+          'cipherparams': { 'iv': 'a1c6ff99070f8032ca1c4e8add006373' },
+          'ciphertext': 'df27e3db64aa18d984b6439443f73660643c2d119a6f0fa2fa9a6456fc802d75',
+          'kdf': 'pbkdf2',
+          'kdfparams': { 'c': 10240, 'dklen': 32, 'prf': 'hmac-sha256', 'salt': 'ddc325335cda5567a1719313e73b4842511f3e4a837c9658eeb78e51ebe8c815' },
+          'mac': '3dc888ae79cbb226ff9c455669f6cf2d79be72120f2298f6cb0d444fddc0aa3d'
         },
-        "id":"6a186c80-7797-cff2-bc2e-7c1d6a6cc76e",
-        "meta":"{\"passwordHint\":\"parity-export-test\",\"timestamp\":1490017814987}",
-        "name":"parity-export-test",
-        "version":3
+        'id': '6a186c80-7797-cff2-bc2e-7c1d6a6cc76e',
+        'meta': '{"passwordHint":"parity-export-test","timestamp":1490017814987}',
+        'name': 'parity-export-test',
+        'version': 3
       }
     }
   },

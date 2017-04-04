@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Quantity, Data, BlockNumber } from '../types';
+import { Quantity, Data } from '../types';
 import { fromDecimal, Dummy } from '../helpers';
 
 export default {
@@ -114,7 +114,7 @@ export default {
   },
 
   confirmRequestWithToken: {
-    desc: 'Confirm specific request with token.',
+    desc: 'Confirm specific request with rolling token.',
     params: [
       {
         type: Quantity,
@@ -145,7 +145,7 @@ export default {
       },
       {
         type: String,
-        desc: 'Password.',
+        desc: 'Password (initially) or a token returned by the previous call.',
         example: 'hunter2'
       }
     ],
@@ -159,7 +159,7 @@ export default {
         },
         token: {
           type: String,
-          desc: 'Token used to authenticate the request.'
+          desc: 'Token used to authenticate the next request.'
         }
       },
       example: {
