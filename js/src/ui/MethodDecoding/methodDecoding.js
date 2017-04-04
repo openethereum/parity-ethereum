@@ -512,11 +512,7 @@ class MethodDecoding extends Component {
         <div className={ styles.description }>
           <FormattedMessage
             id='ui.methodDecoding.signature.info'
-<<<<<<< HEAD
-            defaultMessage='{historic, select, true {Executed} false {Will execute}} the {method} function on the contract {address} transferring {ethValue}{inputLength, plural, zero {,} other {passing the following {inputLength, plural, one {parameter} other {parameters}}}}'
-=======
             defaultMessage='{historic, select, true {Executed} false {Will execute}} the {method} function on the contract {address} {showEth, select, true {transferring {ethValue}} false {}} {showInputs, select, false {} true {passing the following {inputLength, plural, one {parameter} other {parameters}}}}'
->>>>>>> 5f9dc132074c6c2b33d5e9eb632c932925fab6f1
             values={ {
               historic,
               method,
