@@ -379,7 +379,9 @@ export default {
             gasPrice: '0x2d20cff33',
             hash: '0x09e64eb1ae32bb9ac415ce4ddb3dbad860af72d9377bb5f073c9628ab413c532',
             input: '0x',
-            minBlock: null,
+            condition: {
+              block: 1
+            },
             networkId: null,
             nonce: '0x0',
             publicKey: '0x3fa8c08c65a83f6b4ea3e04e1cc70cbe3cd391499e3e05ab7dedf28aff9afc538200ff93e3f2b2cb5029f03c7ebee820d63a4c5a9541c83acebe293f54cacf0e',
@@ -589,7 +591,9 @@ export default {
           gasPrice: '0xba43b7400',
           hash: '0x160b3c30ab1cf5871083f97ee1cee3901cfba3b0a2258eb337dd20a7e816b36e',
           input: '0x095ea7b3000000000000000000000000bf4ed7b27f1d666546e30d74d50d173d20bca75400000000000000000000000000002643c948210b4bd99244ccd64d5555555555',
-          minBlock: null,
+          condition: {
+            block: 1
+          },
           networkId: 1,
           nonce: '0x5',
           publicKey: '0x96157302dade55a1178581333e57d60ffe6fdf5a99607890456a578b4e6b60e335037d61ed58aa4180f9fd747dc50d44a7924aa026acbfb988b5062b629d6c36',
@@ -916,7 +920,9 @@ export default {
           v: '0x25',
           r: '0xb40c6967a7e8bbdfd99a25fd306b9ef23b80e719514aeb7ddd19e2303d6fc139',
           s: '0x6bf770ab08119e67dc29817e1412a0e3086f43da308c314db1b3bca9fb6d32bd',
-          minBlock: null
+          condition: {
+            block: 1
+          }
         },
         new Dummy('{ ... }, { ... }, ...')
       ]

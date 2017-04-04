@@ -71,9 +71,9 @@ export default {
             desc: 'Gas provided by the sender in Wei.',
             optional: true
           },
-          minBlock: {
-            type: BlockNumber,
-            desc: 'Integer block number, or the string `\'latest\'`, `\'earliest\'` or `\'pending\'`. Request will not be propagated till the given block is reached.',
+          condition: {
+            type: Object,
+            desc: 'Condition for scheduled transaction. Can be either an integer block number `{ block: 1 }` or UTC timestamp (in seconds) `{ timestamp: 1491290692 }`.',
             optional: true
           }
         },
@@ -135,9 +135,9 @@ export default {
             desc: 'Gas provided by the sender in Wei.',
             optional: true
           },
-          minBlock: {
-            type: BlockNumber,
-            desc: 'Integer block number, or the string `\'latest\'`, `\'earliest\'` or `\'pending\'`. Request will not be propagated till the given block is reached.',
+          condition: {
+            type: Object,
+            desc: 'Conditional submission of the transaction. Can be either an integer block number `{ block: 1 }` or UTC timestamp (in seconds) `{ time: 1491290692 }` or `null`.',
             optional: true
           }
         },
