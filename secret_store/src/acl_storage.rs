@@ -15,9 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use futures::{future, Future};
 use parking_lot::Mutex;
 use ethkey::public_to_address;
 use ethcore::client::{Client, BlockChainClient, BlockId};
+use native_contracts::SecretStoreAclStorage;
 use types::all::{Error, DocumentAddress, Public};
 
 const ACL_CHECKER_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_acl_checker";
