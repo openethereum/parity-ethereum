@@ -161,8 +161,9 @@ class TxRow extends Component {
       return (
         <div className={ styles.pending }>
           <FormattedMessage
+            lassName={ styles.uppercase }
             id='ui.txList.txRow.canceled'
-            defaultMessage='CANCELED'
+            defaultMessage='Canceled'
           />
         </div>
       );
@@ -170,10 +171,10 @@ class TxRow extends Component {
 
     if (editing) {
       return (
-        <div className={ styles.pending }>
+        <div className={ styles.pending, styles.uppercase }>
           <FormattedMessage
             id='ui.txList.txRow.editing'
-            defaultMessage='EDITING'
+            defaultMessage='Editing'
           />
         </div>
       );
@@ -182,14 +183,14 @@ class TxRow extends Component {
     if (!isCancelOpen && !isEditOpen) {
       const pendingStatus = this.getCondition();
 
-      if (pendingStatus === 'submitting...') {
+      if (pendingStatus === 'submitting') {
         return (
           <div className={ styles.pending }>
             <div />
-            <div>
+            <div className={ styles.uppercase }>
               <FormattedMessage
                 id='ui.txList.txRow.submitting'
-                defaultMessage='SUBMITTING'
+                defaultMessage='Submitting'
               />
             </div>
           </div>
@@ -204,23 +205,23 @@ class TxRow extends Component {
               values={ { which: pendingStatus } }
             />
           </span>
-          <div>
+          <div className={ styles.uppercase }>
             <FormattedMessage
               id='ui.txList.txRow.scheduled'
-              defaultMessage='SCHEDULED'
+              defaultMessage='Scheduled'
             />
           </div>
-          <a onClick={ this.setEdit }>
+          <a onClick={ this.setEdit } className={ styles.uppercase }>
             <FormattedMessage
               id='ui.txList.txRow.edit'
-              defaultMessage='EDIT'
+              defaultMessage='Edit'
             />
           </a>
           <span>{' | '}</span>
-          <a onClick={ this.setCancel }>
+          <a onClick={ this.setCancel } className={ styles.uppercase }>
             <FormattedMessage
               id='ui.txList.txRow.cancel'
-              defaultMessage='CANCEL'
+              defaultMessage='Cancel'
             />
           </a>
         </div>
@@ -230,10 +231,10 @@ class TxRow extends Component {
     return (
       <div className={ styles.pending }>
         <div />
-        <div>
+        <div className={ styles.uppercase }>
           <FormattedMessage
             id='ui.txList.txRow.verify'
-            defaultMessage='ARE YOU SURE?'
+            defaultMessage='Are you sure?'
           />
         </div>
         <a onClick={ (isCancelOpen) ? this.cancelTx : this.editTx }>
@@ -246,7 +247,7 @@ class TxRow extends Component {
           />
         </a>
         <span>{' | '}</span>
-        <a onClick={ this.nevermind }>
+        <a onClick={ this.revertEditCancel }>
           <FormattedMessage
             id='ui.txList.txRow.verify.nevermind'
             defaultMessage='Nevermind'
@@ -288,13 +289,13 @@ class TxRow extends Component {
       if ((time.getTime() - Date.now()) >= 0) {
         return `${dateDifference(new Date(), time, { compact: true })} left`;
       } else {
-        return 'submitting...';
+        return 'submitting';
       }
     } else if (blockNumber) {
       block = blockNumber.minus(block);
       return (block.toNumber() < 0)
         ? block.abs().toFormat(0) + ' blocks left'
-        : 'submitting...';
+        : 'submitting';
     }
   }
 
@@ -318,7 +319,7 @@ class TxRow extends Component {
     this.setState({ isEditOpen: true });
   }
 
-  nevermind = () => {
+  revertEditCancel = () => {
     this.setState({ isCancelOpen: false, isEditOpen: false });
   }
 }

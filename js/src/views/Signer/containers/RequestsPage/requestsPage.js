@@ -90,7 +90,7 @@ class RequestsPage extends Component {
           address=''
           blockNumber={ blockNumber }
           hashes={ localHashes }
-          newError={ newError }
+          onNewError={ newError }
         />
       </Container>
     );

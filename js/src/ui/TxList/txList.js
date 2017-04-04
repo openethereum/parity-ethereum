@@ -37,12 +37,11 @@ class TxList extends Component {
     ]).isRequired,
     blockNumber: PropTypes.object,
     netVersion: PropTypes.string.isRequired,
-    newError: PropTypes.func
+    onNewError: PropTypes.func
   };
 
   componentWillMount () {
-    this.store = new Store(this.context.api, this.props.newError);
-    this.store.loadTransactions(this.props.hashes);
+    this.store = new Store(this.context.api, this.props.onNewError, this.props.hashes);
   }
 
   componentWillReceiveProps (newProps) {

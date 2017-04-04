@@ -679,7 +679,7 @@ export default {
     ],
     returns: {
       type: Object,
-      desc: 'the removed transaction if cancellation was successful, an error if not.',
+      desc: 'the removed transaction if found, an error if not. There is no guarantee that the transaction can be removed.',
       example: {
         condition: {},
         from: '0x00d0f4d320c54b44f9fe852af1215a528c99f1ab',
@@ -1674,9 +1674,9 @@ export default {
         example: {
           from: '0xb60e8dd61c5d32be8058bb8eb970870f07233155',
           to: '0xd46e8dd67c5d32be8058bb8eb970870f07244567',
-          gas: fromDecimal(30400),
-          gasPrice: fromDecimal(10000000000000),
-          value: fromDecimal(2441406250),
+          gas: 30400,
+          gasPrice: 10000000000000,
+          value: 2441406250,
           data: '0xd46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675',
           condition: {
             block: 354221,

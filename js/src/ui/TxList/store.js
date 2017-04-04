@@ -21,9 +21,10 @@ export default class Store {
   @observable sortedHashes = [];
   @observable transactions = {};
 
-  constructor (api, newError) {
+  constructor (api, onNewError, hashes) {
     this._api = api;
-    this._newError = newError;
+    this._onNewError = onNewError;
+    this.loadTransactions(hashes);
   }
 
   @action addHash = (hash) => {
@@ -33,7 +34,7 @@ export default class Store {
     }
   }
 
-  @action removeHash = (hashes) => {
+  @action setHashes = (hashes) => {
     this.sortedHashes = hashes;
     this.sortHashes();
   }
@@ -69,14 +70,16 @@ export default class Store {
     if (Array.isArray(_txhashes) || this.sameHashList(_txhashes)) {
       return;
     }
-    // If there was a hash removed:
+    // If the hash list has changed:
     if (_txhashes.length < this.sortedHashes.length) {
-      this.removeHash(_txhashes);
-      return;
+      this.setHashes(_txhashes);
     }
 
     _txhashes
-      .map((txhash) => {
+      .forEach((txhash) => {
+        if (this.transactions[txhash]) {
+          return;
+        }
         eth.getTransactionByHash(txhash)
           .then((tx) => {
             this.transactions[txhash] = tx;
@@ -104,7 +107,7 @@ export default class Store {
         txComponent.setState({ canceled: true });
       })
       .catch((err) => {
-        this._newError({ message: err });
+        this._onNewError({ message: err });
       });
   }
 
@@ -129,7 +132,7 @@ export default class Store {
         txComponent.setState({ editing: true });
       })
       .catch((err) => {
-        this._newError({ message: err });
+        this._onNewError({ message: err });
       });
   }
 }

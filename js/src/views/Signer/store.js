@@ -97,7 +97,7 @@ export default class SignerStore {
       .then((localTransactions) => {
         const keys = Object
           .keys(localTransactions)
-          .filter((key) => localTransactions[key].status !== 'invalid');
+          .filter((key) => localTransactions[key].status !== 'canceled');
 
         this.setLocalHashes(keys);
       })
