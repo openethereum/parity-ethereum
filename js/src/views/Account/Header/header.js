@@ -22,6 +22,10 @@ import { Balance, Certifications, Container, CopyToClipboard, ContainerTitle, Id
 import styles from './header.css';
 
 export default class Header extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     account: PropTypes.object,
     children: PropTypes.node,
@@ -37,6 +41,47 @@ export default class Header extends Component {
     hideName: false,
     isContract: false
   };
+
+  state = {
+    txCount: null
+  };
+
+  txCountSubId = null;
+
+  componentWillMount () {
+    if (this.props.account && !this.props.isContract) {
+      this.subscribeTxCount();
+    }
+  }
+
+  componentWillUnmount () {
+    this.unsubscribeTxCount();
+  }
+
+  subscribeTxCount () {
+    const { api } = this.context;
+
+    api
+      .subscribe('eth_blockNumber', (error) => {
+        if (error) {
+          return console.error(error);
+        }
+
+        api.eth.getTransactionCount(this.props.account.address)
+          .then((txCount) => this.setState({ txCount }));
+      })
+      .then((subscriptionId) => {
+        this.txCountSubId = subscriptionId;
+      });
+  }
+
+  unsubscribeTxCount () {
+    if (!this.txCountSubId) {
+      return;
+    }
+
+    this.context.api.unsubscribe(this.txCountSubId);
+  }
 
   render () {
     const { account, children, className, disabled, hideName } = this.props;
@@ -112,32 +157,25 @@ export default class Header extends Component {
     );
   }
 
-  // TODO: re-introduce txCountf
   renderTxCount () {
-    return null;
-    // const { balance, isContract } = this.props;
+    const { isContract } = this.props;
+    const { txCount } = this.state;
 
-    // if (!balance || isContract) {
-    //   return null;
-    // }
+    if (!txCount || isContract) {
+      return null;
+    }
 
-    // const { txCount } = balance;
-
-    // if (!txCount) {
-    //   return null;
-    // }
-
-    // return (
-    //   <div className={ styles.infoline }>
-    //     <FormattedMessage
-    //       id='account.header.outgoingTransactions'
-    //       defaultMessage='{count} outgoing transactions'
-    //       values={ {
-    //         count: txCount.toFormat()
-    //       } }
-    //     />
-    //   </div>
-    // );
+    return (
+      <div className={ styles.infoline }>
+        <FormattedMessage
+          id='account.header.outgoingTransactions'
+          defaultMessage='{count} outgoing transactions'
+          values={ {
+            count: txCount.toFormat()
+          } }
+        />
+      </div>
+    );
   }
 
   renderUuid () {
