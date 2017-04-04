@@ -23,15 +23,15 @@ import TokenImage from '~/ui/TokenImage';
 
 import styles from './balance.css';
 
-class Balance extends Component {
+export class Balance extends Component {
   static contextTypes = {
     api: PropTypes.object
   };
 
   static propTypes = {
-    address: PropTypes.string.isRequired,
     balance: PropTypes.object.isRequired,
     tokens: PropTypes.object.isRequired,
+    address: PropTypes.string,
     className: PropTypes.string,
     showOnlyEth: PropTypes.bool,
     showZeroValues: PropTypes.bool

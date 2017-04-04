@@ -34,7 +34,7 @@ const defaultNameNull = (
   />
 );
 
-class IdentityName extends Component {
+export class IdentityName extends Component {
   static propTypes = {
     account: PropTypes.object,
     address: PropTypes.string,

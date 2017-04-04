@@ -18,6 +18,8 @@ import BigNumber from 'bignumber.js';
 import { shallow } from 'enzyme';
 import React from 'react';
 
+import { ETH_TOKEN } from '~/util/tokens';
+
 import Header from './';
 
 const ACCOUNT = {
@@ -31,6 +33,21 @@ const ACCOUNT = {
 
 let component;
 let instance;
+
+function reduxStore () {
+  const getState = () => ({
+    balances: {},
+    tokens: {
+      [ETH_TOKEN.id]: ETH_TOKEN
+    }
+  });
+
+  return {
+    getState,
+    dispatch: () => null,
+    subscribe: () => null
+  };
+}
 
 function render (props = {}) {
   if (props && !props.account) {
@@ -72,8 +89,9 @@ describe('views/Account/Header', () => {
         let balance;
 
         beforeEach(() => {
-          render({ balance: { balance: 'testing' } });
-          balance = component.find('Balance');
+          render();
+          balance = component.find('Connect(Balance)')
+            .shallow({ context: { store: reduxStore() } });
         });
 
         it('renders', () => {
@@ -81,11 +99,7 @@ describe('views/Account/Header', () => {
         });
 
         it('passes the account', () => {
-          expect(balance.props().account).to.deep.equal(ACCOUNT);
-        });
-
-        it('passes the balance', () => {
-
+          expect(balance.props().address).to.deep.equal(ACCOUNT.address);
         });
       });
 
