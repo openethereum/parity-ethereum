@@ -1,6 +1,8 @@
 # [Parity](https://ethcore.io/parity.html)
 ### Fast, light, and robust Ethereum implementation
 
+### [Download latest release](https://github.com/paritytech/parity/releases)
+
 [![build status](https://gitlab.ethcore.io/parity/parity/badges/master/build.svg)](https://gitlab.ethcore.io/parity/parity/commits/master) [![Coverage Status][coveralls-image]][coveralls-url]  [![GPLv3][license-image]][license-url]
 
 ### Join the chat!
@@ -22,7 +24,6 @@ Be sure to check out [our wiki][wiki-url] for more information.
 [doc-url]: https://paritytech.github.io/parity/ethcore/index.html
 [wiki-url]: https://github.com/paritytech/parity/wiki
 
-**Parity requires Rust version 1.15.0 to build**
 
 ----
 
@@ -45,14 +46,14 @@ of RPC APIs.
 If you run into an issue while using parity, feel free to file one in this repository
 or hop on our [gitter chat room][gitter-url] to ask a question. We are glad to help!
 
-Parity's current release is 1.5. You can download it at https://parity.io or follow the instructions
+Parity's current release is 1.6. You can download it at https://github.com/paritytech/parity/releases or follow the instructions
 below to build from source.
 
 ----
 
 ## Build dependencies
 
-Parity is fully compatible with Stable Rust.
+**Parity requires Rust version 1.16.0 to build**
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
@@ -80,7 +81,7 @@ Once you have rustup, install parity or download and build from source
 
 ----
 
-## Quick install
+## Quick build and install
 
 ```bash
 cargo install --git https://github.com/paritytech/parity.git parity
