@@ -121,6 +121,7 @@ class ExportAccount extends Component {
         account={ account }
         balance={ balance }
         onClick={ () => onFocus(account.address) }
+        className={ styles.card }
       >
         <form id={ styles.checkbox }>
           <div className={ styles.slider }>
