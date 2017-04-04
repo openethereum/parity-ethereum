@@ -36,7 +36,34 @@ use key_server_cluster::encryption_session::{SessionImpl as EncryptionSessionImp
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
 
-pub type BoxedEmptyFuture = BoxFuture<(), ()>;
+/// Maintain interval (seconds). Every MAINTAN_INTERVAL seconds node:
+/// 1) checks if connected nodes are responding to KeepAlive messages
+/// 2) tries to connect to disconnected nodes
+/// 3) checks if enc/dec sessions are time-outed
+const MAINTAN_INTERVAL: u64 = 10;
+
+/// When no messages have been received from node within KEEP_ALIVE_SEND_INTERVAL seconds,
+/// we must send KeepAlive message to the node to check if it still responds to messages.
+const KEEP_ALIVE_SEND_INTERVAL: u64 = 30;
+/// When no messages have been received from node within KEEP_ALIVE_DISCONNECT_INTERVAL seconds,
+/// we must treat this node as non-responding && disconnect from it.
+const KEEP_ALIVE_DISCONNECT_INTERVAL: u64 = 60;
+
+/// When there are no encryption session-related messages for ENCRYPTION_SESSION_TIMEOUT_INTERVAL seconds,
+/// we must treat this session as stalled && finish it with an error.
+/// This timeout is for cases when node is responding to KeepAlive messages, but intentionally ignores
+/// session messages.
+const ENCRYPTION_SESSION_TIMEOUT_INTERVAL: u64 = 60;
+
+/// When there are no decryption session-related messages for DECRYPTION_SESSION_TIMEOUT_INTERVAL seconds,
+/// we must treat this session as stalled && finish it with an error.
+/// This timeout is for cases when node is responding to KeepAlive messages, but intentionally ignores
+/// session messages.
+const DECRYPTION_SESSION_TIMEOUT_INTERVAL: u64 = 60;
+
+/// Encryption sesion timeout interval. It works
+/// Empty future.
+type BoxedEmptyFuture = BoxFuture<(), ()>;
 
 /// Cluster interface for external clients.
 pub trait ClusterClient: Send + Sync {
@@ -150,6 +177,8 @@ pub struct QueuedEncryptionSession {
 	pub master: NodeId,
 	/// Cluster view.
 	pub cluster_view: Arc<ClusterView>,
+	/// Last received message time.
+	pub last_message_time: time::Instant,
 	/// Encryption session.
 	pub session: Arc<EncryptionSessionImpl>,
 	/// Messages queue.
@@ -162,6 +191,8 @@ pub struct QueuedDecryptionSession {
 	pub master: NodeId,
 	/// Cluster view.
 	pub cluster_view: Arc<ClusterView>,
+	/// Last received message time.
+	pub last_message_time: time::Instant,
 	/// Decryption session.
 	pub session: Arc<DecryptionSessionImpl>,
 	/// Messages queue.
@@ -284,18 +315,24 @@ impl ClusterCore {
 
 	/// Schedule mainatain procedures.
 	fn schedule_maintain(handle: &Handle, data: Arc<ClusterData>) {
-		// TODO: per-session timeouts (node can respond to messages, but ignore sessions messages)
-		let (d1, d2, d3) = (data.clone(), data.clone(), data.clone());
-		let interval: BoxedEmptyFuture = Interval::new(time::Duration::new(10, 0), handle)
+		let d = data.clone();
+		let interval: BoxedEmptyFuture = Interval::new(time::Duration::new(MAINTAN_INTERVAL, 0), handle)
 			.expect("failed to create interval")
-			.and_then(move |_| Ok(trace!(target: "secretstore_net", "{}: executing maintain procedures", d1.self_key_pair.public())))
-			.and_then(move |_| Ok(ClusterCore::keep_alive(d2.clone())))
-			.and_then(move |_| Ok(ClusterCore::connect_disconnected_nodes(d3.clone())))
+			.and_then(move |_| Ok(ClusterCore::maintain(data.clone())))
 			.for_each(|_| Ok(()))
 			.then(|_| finished(()))
 			.boxed();
 
-		data.spawn(interval);
+		d.spawn(interval);
+	}
+
+	/// Execute maintain procedures.
+	fn maintain(data: Arc<ClusterData>) {
+		trace!(target: "secretstore_net", "{}: executing maintain procedures", data.self_key_pair.public());
+
+		ClusterCore::keep_alive(data.clone());
+		ClusterCore::connect_disconnected_nodes(data.clone());
+		data.sessions.stop_stalled_sessions();
 	}
 
 	/// Called for every incomming mesage.
@@ -330,11 +367,11 @@ impl ClusterCore {
 	fn keep_alive(data: Arc<ClusterData>) {
 		for connection in data.connections.active_connections() {
 			let last_message_diff = time::Instant::now() - connection.last_message_time();
-			if last_message_diff > time::Duration::from_secs(60) {
+			if last_message_diff > time::Duration::from_secs(KEEP_ALIVE_DISCONNECT_INTERVAL) {
 				data.connections.remove(connection.node_id(), connection.is_inbound());
 				data.sessions.on_connection_timeout(connection.node_id());
 			}
-			else if last_message_diff > time::Duration::from_secs(30) {
+			else if last_message_diff > time::Duration::from_secs(KEEP_ALIVE_SEND_INTERVAL) {
 				data.spawn(connection.send_message(Message::Cluster(ClusterMessage::KeepAlive(message::KeepAlive {}))));
 			}
 		}
@@ -644,6 +681,7 @@ impl ClusterSessions {
 		let encryption_session = QueuedEncryptionSession {
 			master: master,
 			cluster_view: cluster,
+			last_message_time: time::Instant::now(),
 			session: session.clone(),
 			queue: VecDeque::new()
 		};
@@ -699,6 +737,7 @@ impl ClusterSessions {
 		let decryption_session = QueuedDecryptionSession {
 			master: master,
 			cluster_view: cluster,
+			last_message_time: time::Instant::now(),
 			session: session.clone(),
 			queue: VecDeque::new()
 		};
@@ -744,6 +783,29 @@ impl ClusterSessions {
 					let _ = s.cluster_view.send(to, Message::Decryption(DecryptionMessage::DecryptionSessionError(error)));
 				}
 			});
+	}
+
+	fn stop_stalled_sessions(&self) {
+		{
+			let sessions = self.encryption_sessions.write();
+			for sid in sessions.keys().collect::<Vec<_>>() {
+				let session = sessions.get(&sid).expect("enumerating only existing sessions; qed");
+				if time::Instant::now() - session.last_message_time > time::Duration::from_secs(ENCRYPTION_SESSION_TIMEOUT_INTERVAL) {
+					session.session.on_session_timeout(&self.self_node_id);
+					self.remove_encryption_session(sid);
+				}
+			}
+		}
+		{
+			let sessions = self.decryption_sessions.write();
+			for sid in sessions.keys().collect::<Vec<_>>() {
+				let session = sessions.get(&sid).expect("enumerating only existing sessions; qed");
+				if time::Instant::now() - session.last_message_time > time::Duration::from_secs(DECRYPTION_SESSION_TIMEOUT_INTERVAL) {
+					session.session.on_session_timeout(&self.self_node_id);
+					self.remove_decryption_session(&sid.id, &sid.access_key);
+				}
+			}
+		}
 	}
 
 	pub fn on_connection_timeout(&self, node_id: &NodeId) {
