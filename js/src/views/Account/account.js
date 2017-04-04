@@ -325,7 +325,7 @@ class Account extends Component {
   }
 
   renderExportDialog () {
-    const { changePassword, accountValue, onExport } = this.exportStore;
+    const { changePassword, accountValue } = this.exportStore;
 
     if (!this.store.isExportVisible) {
       return null;
@@ -469,6 +469,7 @@ class Account extends Component {
   exportClose = () => {
     const { toggleExportDialog } = this.store;
     const { resetAccountValue } = this.exportStore;
+
     resetAccountValue();
     toggleExportDialog();
   }

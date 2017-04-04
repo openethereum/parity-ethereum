@@ -27,6 +27,8 @@ import { Input } from '~/ui/Form';
 import { CancelIcon, CheckIcon } from '~/ui/Icons';
 import ExportStore from './exportStore';
 
+import styles from './exportAccount.css';
+
 @observer
 class ExportAccount extends Component {
   static contextTypes = {
@@ -48,7 +50,7 @@ class ExportAccount extends Component {
   }
 
   render () {
-    const { canExport, onExport } = this.exportStore;
+    const { canExport } = this.exportStore;
 
     return (
       <Portal
@@ -74,7 +76,7 @@ class ExportAccount extends Component {
                 defaultMessage='Export'
               />
             }
-            onClick={ onExport }
+            onClick={ this.onExport }
           />
         ] }
         onClose={ this.onClose }
@@ -103,7 +105,6 @@ class ExportAccount extends Component {
         isChecked={ this.isSelected }
         items={ accounts }
         noStretch
-        onSelectClick={ this.onSelect }
         renderItem={ this.renderAccount }
       />
     );
@@ -112,14 +113,27 @@ class ExportAccount extends Component {
   renderAccount = (account) => {
     const { balances } = this.props;
     const balance = balances[account.address];
-    const { changePassword, getPassword, onExport } = this.exportStore;
+    const { changePassword, getPassword, onFocus } = this.exportStore;
     const inputValue = getPassword(account);
 
     return (
       <AccountCard
         account={ account }
         balance={ balance }
+        onClick={ () => onFocus(account.address) }
       >
+        <form id={ styles.checkbox }>
+          <div className={ styles.slider }>
+            <input
+              type='checkbox'
+              id={ `${account.address}` }
+              onChange={ () => this.onSelect(account) }
+              value='None'
+              name='check'
+            />
+            <label htmlFor={ `${account.address}` } />
+          </div>
+        </form>
         <div>
           <Input
             type='password'
@@ -138,22 +152,10 @@ class ExportAccount extends Component {
             }
             value={ inputValue }
             onChange={ changePassword }
-            onKeyDown={ this.onEnter }
           />
         </div>
       </AccountCard>
     );
-  }
-
-  onEnter = (event) => {
-    const { onExport } = this.exportStore;
-    if (event.key === 'Enter') {
-      onExport();
-    }
-  }
-
-  onFocus = (account) => {
-    this.exportStore.setSelectedAccount(account.address);
   }
 
   isSelected = (account) => {
@@ -168,6 +170,10 @@ class ExportAccount extends Component {
 
   onClose = () => {
     this.props.onClose();
+  }
+
+  onExport = () => {
+    this.exportStore.onExport();
   }
 }
 

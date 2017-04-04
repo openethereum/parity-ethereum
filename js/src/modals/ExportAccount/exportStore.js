@@ -19,6 +19,7 @@ import FileSaver from 'file-saver';
 
 export default class ExportStore {
   @observable canExport = false;
+  @observable selectedAccount = '';
   @observable selectedAccounts = {};
   @observable accountValue = '';
   @observable inputValue = {};
@@ -31,13 +32,17 @@ export default class ExportStore {
   }
 
   @action changePassword = (event, password) => {
-    const selectedAccount = (this._address) ? null : this.getSelectedAccount();
+    const selectedAccount = (this._address) ? null : this.selectedAccount;
 
     this.setPassword(selectedAccount, password);
   }
 
   @action getPassword = (account) => {
     return this.inputValue[account];
+  }
+
+  @action onFocus = (address) => {
+    this.selectedAccount = address;
   }
 
   @action resetAccountValue = () => {
@@ -70,25 +75,15 @@ export default class ExportStore {
       });
   }
 
-  getSelectedAccount () {
-    return Object
-      .keys(this.selectedAccounts)
-      .filter((account) => this.selectedAccounts[account])[0];
-  }
-
   onExport = (event) => {
     const { parity } = this._api;
     const accounts = (this._address) ? [this._address] : Object.keys(this.selectedAccounts);
-    const password = (this._address)
-      ? this.accountValue
-      : Object
-        .keys(this.selectedAccounts)
-        .map((account) => { return this.inputValue[account]; });
 
-    accounts.forEach((account, index) => {
+    accounts.forEach((account) => {
       let password = (this._address) ? this.accountValue : this.inputValue[account];
+
       parity
-        .exportAccount(account, password[index])
+        .exportAccount(account, password)
         .then((content) => {
           const text = JSON.stringify(content, null, 4);
           const blob = new Blob([ text ], { type: 'application/json' });
@@ -96,6 +91,7 @@ export default class ExportStore {
 
           FileSaver.saveAs(blob, `${filename}.json`);
 
+          this.accountValue = '';
           if (event) { event(); }
         })
         .catch((err) => {

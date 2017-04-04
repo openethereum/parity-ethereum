@@ -85,7 +85,7 @@ describe('modals/exportAccount/Store', () => {
         multiAccountStore.toggleSelectedAccount(ADDRESS_2);
         // Prep eqality
         const eq = {
-          [ADDRESS]: false,
+          [ADDRESS]: true,
           [ADDRESS_2]: true
         };
 
@@ -140,6 +140,8 @@ describe('modals/exportAccount/Store', () => {
         multiAccountStore.inputValue = {
           [ADDRESS]: 'abc'
         };
+        // 'Focus' on the address:
+        multiAccountStore.onFocus(ADDRESS);
         // Change password
         multiAccountStore.changePassword(null, '123');
         // Check equality
