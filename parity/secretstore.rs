@@ -77,8 +77,17 @@ mod server {
 	impl KeyServer {
 		/// Create new key server
 		pub fn new(conf: Configuration, deps: Dependencies) -> Result<Self, String> {
+<<<<<<< HEAD
 			let self_secret = conf.self_secret.ok_or("self secret is required when using secretstore")?;
 			let mut conf = ethcore_secretstore::ServiceConfiguration {
+=======
+			let key_pairs = vec![
+				ethkey::KeyPair::from_secret("6c26a76e9b31048d170873a791401c7e799a11f0cefc0171cc31a49800967509".parse().unwrap()).unwrap(),
+				ethkey::KeyPair::from_secret("7e94018b3731afdb3b4e6f4c3e179475640166da12e1d1b0c7d80729b1a5b452".parse().unwrap()).unwrap(),
+				ethkey::KeyPair::from_secret("5ab6ed2a52c33142380032c39a03a86b12eacb3fa4b53bc16d84f51318156f8c".parse().unwrap()).unwrap(),
+			];
+			let conf = ethcore_secretstore::ServiceConfiguration {
+>>>>>>> master
 				listener_address: ethcore_secretstore::NodeAddress {
 					address: conf.http_interface.clone(),
 					port: conf.http_port,
