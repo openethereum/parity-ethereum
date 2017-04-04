@@ -4,7 +4,7 @@
 !define WND_TITLE "Parity"
 !define WAIT_MS 5000
 !define SYNC_TERM 0x00100001
-  
+
 !define APPNAME "Parity"
 !define COMPANYNAME "Ethcore"
 !define DESCRIPTION "Fast, light, robust Ethereum implementation"
@@ -16,9 +16,9 @@
 
 !addplugindir .\
 
-!define HELPURL "https://github.com/ethcore/parity/wiki" # "Support Information" link
-!define UPDATEURL "https://github.com/ethcore/parity/releases" # "Product Updates" link
-!define ABOUTURL "https://github.com/ethcore/parity" # "Publisher" link
+!define HELPURL "https://github.com/paritytech/parity/wiki" # "Support Information" link
+!define UPDATEURL "https://github.com/paritytech/parity/releases" # "Product Updates" link
+!define ABOUTURL "https://github.com/paritytech/parity" # "Publisher" link
 !define INSTALLSIZE 26120
 
 !define termMsg "Installer cannot stop running ${WND_TITLE}.$\nDo you want to terminate process?"
@@ -90,7 +90,7 @@ section "install"
 	# Files added here should be removed by the uninstaller (see section "uninstall")
 	file /oname=parity.exe ..\target\release\parity.exe
 	file /oname=ptray.exe ..\windows\ptray\x64\Release\ptray.exe
-	
+
 	file "logo.ico"
 	file vc_redist.x64.exe
 

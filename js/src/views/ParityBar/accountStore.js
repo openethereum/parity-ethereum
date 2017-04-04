@@ -80,10 +80,11 @@ export default class AccountStore {
             .keys(allAccounts)
             .filter((address) => {
               const account = allAccounts[address];
-              const isAccount = account.uuid || (account.meta && account.meta.hardware);
+              const isAccount = account.uuid;
+              const isExternal = account.meta && (account.meta.external || account.meta.hardware);
               const isWhitelisted = !whitelist || whitelist.includes(address);
 
-              return isAccount && isWhitelisted;
+              return (isAccount || isExternal) && isWhitelisted;
             })
             .map((address) => {
               return {

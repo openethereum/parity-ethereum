@@ -17,15 +17,15 @@
 import builtinsJson from '~/views/Dapps/builtin.json';
 
 const REGISTER_URLS = {
-  console: 'https://raw.githubusercontent.com/ethcore/console/3ea0dbfefded359ccdbea37bc4cf350c0aa16948/console.jpeg',
-  dappreg: 'https://raw.githubusercontent.com/ethcore/dapp-assets/cdd6ac4f1e2f11619bed72a53ae71217dffe19ad/dapps/legos-64x64.png',
-  githubhint: 'https://raw.githubusercontent.com/ethcore/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/link-64x64.jpg',
-  localtx: 'https://raw.githubusercontent.com/ethcore/dapp-assets/cdd6ac4f1e2f11619bed72a53ae71217dffe19ad/dapps/stack-64x64.png',
-  registry: 'https://raw.githubusercontent.com/ethcore/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/register-64x64.jpg',
-  signaturereg: 'https://raw.githubusercontent.com/ethcore/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/hex-64x64.jpg',
-  tokendeploy: 'https://raw.githubusercontent.com/ethcore/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/interlock-64x64.png',
-  tokenreg: 'https://raw.githubusercontent.com/ethcore/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/coins-64x64.jpg',
-  web: 'https://raw.githubusercontent.com/ethcore/dapp-assets/ec6138115d0e1f45258969cd90b3b274e0ff2258/dapps/earth-64x64.jpg'
+  console: 'https://raw.githubusercontent.com/paritytech/console/3ea0dbfefded359ccdbea37bc4cf350c0aa16948/console.jpeg',
+  dappreg: 'https://raw.githubusercontent.com/paritytech/dapp-assets/cdd6ac4f1e2f11619bed72a53ae71217dffe19ad/dapps/legos-64x64.png',
+  githubhint: 'https://raw.githubusercontent.com/paritytech/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/link-64x64.jpg',
+  localtx: 'https://raw.githubusercontent.com/paritytech/dapp-assets/cdd6ac4f1e2f11619bed72a53ae71217dffe19ad/dapps/stack-64x64.png',
+  registry: 'https://raw.githubusercontent.com/paritytech/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/register-64x64.jpg',
+  signaturereg: 'https://raw.githubusercontent.com/paritytech/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/hex-64x64.jpg',
+  tokendeploy: 'https://raw.githubusercontent.com/paritytech/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/interlock-64x64.png',
+  tokenreg: 'https://raw.githubusercontent.com/paritytech/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/coins-64x64.jpg',
+  web: 'https://raw.githubusercontent.com/paritytech/dapp-assets/ec6138115d0e1f45258969cd90b3b274e0ff2258/dapps/earth-64x64.jpg'
 };
 
 const builtins = builtinsJson

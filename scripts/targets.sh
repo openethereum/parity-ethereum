@@ -5,7 +5,7 @@ export TARGETS="
 	-p ethash \
 	-p ethcore \
 	-p ethcore-bigint\
-	-p ethcore-dapps \
+	-p parity-dapps \
 	-p ethcore-rpc \
 	-p ethcore-signer \
 	-p ethcore-util \

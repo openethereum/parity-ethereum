@@ -31,12 +31,12 @@ export default class RawKey extends Component {
   }
 
   static propTypes = {
-    store: PropTypes.object.isRequired,
+    createStore: PropTypes.object.isRequired,
     vaultStore: PropTypes.object
   }
 
   render () {
-    const { name, nameError, password, passwordRepeat, passwordRepeatError, passwordHint, rawKey, rawKeyError } = this.props.store;
+    const { name, nameError, password, passwordRepeat, passwordRepeatError, passwordHint, rawKey, rawKeyError } = this.props.createStore;
 
     return (
       <Form>
@@ -134,7 +134,7 @@ export default class RawKey extends Component {
         </div>
         <PasswordStrength input={ password } />
         <ChangeVault
-          store={ this.props.store }
+          createStore={ this.props.createStore }
           vaultStore={ this.props.vaultStore }
         />
       </Form>
@@ -142,32 +142,32 @@ export default class RawKey extends Component {
   }
 
   onEditName = (event, name) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setName(name);
+    createStore.setName(name);
   }
 
   onEditPasswordHint = (event, passwordHint) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setPasswordHint(passwordHint);
+    createStore.setPasswordHint(passwordHint);
   }
 
   onEditPassword = (event, password) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setPassword(password);
+    createStore.setPassword(password);
   }
 
   onEditPasswordRepeat = (event, password) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setPasswordRepeat(password);
+    createStore.setPasswordRepeat(password);
   }
 
   onEditKey = (event, rawKey) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setRawKey(rawKey);
+    createStore.setRawKey(rawKey);
   }
 }

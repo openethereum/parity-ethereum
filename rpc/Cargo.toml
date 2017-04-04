@@ -12,7 +12,7 @@ futures = "0.1"
 log = "0.3"
 order-stat = "0.1"
 rustc-serialize = "0.3"
-semver = "0.5"
+semver = "0.6"
 serde = "0.9"
 serde_derive = "0.9"
 serde_json = "0.9"
@@ -21,6 +21,7 @@ transient-hashmap = "0.4"
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-minihttp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-ipc-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 

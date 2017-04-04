@@ -46,7 +46,7 @@ export default class Http extends JsonRpcBase {
     };
   }
 
-  execute (method, ...params) {
+  _execute (method, params) {
     const request = this._encodeOptions(method, params);
 
     return fetch(this._url, request)

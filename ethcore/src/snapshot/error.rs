@@ -53,6 +53,8 @@ pub enum Error {
 	Decoder(DecoderError),
 	/// Io error.
 	Io(::std::io::Error),
+	/// Snapshot version is not supported.
+	VersionNotSupported(u64),
 }
 
 impl fmt::Display for Error {
@@ -73,6 +75,7 @@ impl fmt::Display for Error {
 			Error::Io(ref err) => err.fmt(f),
 			Error::Decoder(ref err) => err.fmt(f),
 			Error::Trie(ref err) => err.fmt(f),
+			Error::VersionNotSupported(ref ver) => write!(f, "Snapshot version {} is not supprted.", ver),
 		}
 	}
 }

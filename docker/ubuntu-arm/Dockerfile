@@ -26,10 +26,10 @@ ENV RUST_BACKTRACE 1
 
 # show tools
  RUN rustc -vV && \
- cargo -V 
+ cargo -V
 
 # build parity
-RUN git clone https://github.com/ethcore/parity && \
+RUN git clone https://github.com/paritytech/parity && \
         cd parity && \
         git checkout beta && \
         git pull && \
