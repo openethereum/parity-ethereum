@@ -66,6 +66,66 @@ pub enum CheckedRequest {
 	Execution(TransactionProof, net_request::IncompleteExecutionRequest),
 }
 
+impl From<Request> for CheckedRequest {
+	fn from(req: Request) -> Self {
+		match req {
+			Request::HeaderByHash(req) => {
+				let net_req = net_request::IncompleteHeadersRequest {
+					start: net_request::HashOrNumber::Hash(req.0).into(),
+					skip: 0,
+					max: 1,
+					reverse: false,
+				};
+				CheckedRequest::HeaderByHash(req, net_req)
+			}
+			Request::HeaderProof(req) => {
+				let net_req = net_request::IncompleteHeaderProofRequest {
+					num: req.num().into(),
+				};
+				CheckedRequest::HeaderProof(req, net_req)
+			}
+			Request::Body(req) =>  {
+				let net_req = net_request::IncompleteBodyRequest {
+					hash: req.hash.into(),
+				};
+				CheckedRequest::Body(req, net_req)
+			}
+			Request::Receipts(req) => {
+				let net_req = net_request::IncompleteReceiptsRequest {
+					hash: req.0.hash().into(),
+				};
+				CheckedRequest::Receipts(req, net_req)
+			}
+			Request::Account(req) =>  {
+				let net_req = net_request::IncompleteAccountRequest {
+					block_hash: req.header.hash().into(),
+					address_hash: ::util::Hashable::sha3(&req.address).into(),
+				};
+				CheckedRequest::Account(req, net_req)
+			}
+			Request::Code(req) => {
+				let net_req = net_request::IncompleteCodeRequest {
+					block_hash: req.block_id.0.into(),
+					code_hash: req.code_hash.into(),
+				};
+				CheckedRequest::Code(req, net_req)
+			}
+			Request::Execution(req) => {
+				let net_req = net_request::IncompleteExecutionRequest {
+					block_hash: req.header.hash().into(),
+					from: req.tx.sender(),
+					gas: req.tx.gas,
+					gas_price: req.tx.gas_price,
+					action: req.tx.action.clone(),
+					value: req.tx.value,
+					data: req.tx.data.clone(),
+				};
+				CheckedRequest::Execution(req, net_req)
+			}
+		}
+	}
+}
+
 impl IncompleteRequest for CheckedRequest {
 	type Complete = net_request::CompleteRequest;
 	type Response = net_request::Response;
@@ -465,7 +525,7 @@ mod tests {
 		let hash = header.hash();
 		let raw_header = encoded::Header::new(::rlp::encode(&header).to_vec());
 
-		assert!(HeaderByHash(hash).check_response(&raw_header).is_ok())
+		assert!(HeaderByHash(hash).check_response(&[raw_header]).is_ok())
 	}
 
 	#[test]
