@@ -103,8 +103,9 @@ pub fn to_fat_rlps(account_hash: &H256, acc: &BasicAccount, acct_db: &AccountDB,
 		}
 
 		if let Some(pair) = leftover.take() {
-			let leftover_appended = account_stream.append_raw_checked(&pair, 1, target_chunk_size);
-			assert!(leftover_appended);
+			if !account_stream.append_raw_checked(&pair, 1, target_chunk_size) {
+				return Err(Error::ChunkTooSmall);
+			}
 		}
 
 		loop {
