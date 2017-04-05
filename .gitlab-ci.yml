@@ -14,13 +14,14 @@ cache:
   untracked: true
 linux-stable:
   stage: build
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   only:
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup default stable
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - cargo build -j $(nproc) --release -p evmbin
     - cargo build -j $(nproc) --release -p ethstore
@@ -105,13 +106,14 @@ linux-stable-debian:
     name: "stable-x86_64-unknown-debian-gnu_parity"
 linux-beta:
   stage: build
-  image: ethcore/rust:beta
+  image: parity/rust:gitlab-ci
   only:
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup default beta
     - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
   tags:
@@ -124,13 +126,14 @@ linux-beta:
   allow_failure: true
 linux-nightly:
   stage: build
-  image: ethcore/rust:nightly
+  image: parity/rust:gitlab-ci
   only:
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup default nightly
     - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
   tags:
