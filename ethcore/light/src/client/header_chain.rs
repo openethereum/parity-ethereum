@@ -39,6 +39,9 @@ use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp};
 use util::{H256, U256, HeapSizeOf, RwLock};
 use util::kvdb::{DBTransaction, KeyValueDB};
 
+use cache::Cache;
+use util::Mutex;
+
 use smallvec::SmallVec;
 
 /// Store at least this many candidate headers at all times.
@@ -138,11 +141,12 @@ pub struct HeaderChain {
 	best_block: RwLock<BlockDescriptor>,
 	db: Arc<KeyValueDB>,
 	col: Option<u32>,
+	cache: Arc<Mutex<Cache>>,
 }
 
 impl HeaderChain {
 	/// Create a new header chain given this genesis block and database to read from.
-	pub fn new(db: Arc<KeyValueDB>, col: Option<u32>, genesis: &[u8]) -> Result<Self, String> {
+	pub fn new(db: Arc<KeyValueDB>, col: Option<u32>, genesis: &[u8], cache: Arc<Mutex<Cache>>) -> Result<Self, String> {
 		use ethcore::views::HeaderView;
 
 		let chain = if let Some(current) = db.get(col, CURRENT_KEY)? {
@@ -186,6 +190,7 @@ impl HeaderChain {
 				candidates: RwLock::new(candidates),
 				db: db,
 				col: col,
+				cache: cache,
 			}
 		} else {
 			let g_view = HeaderView::new(genesis);
@@ -199,6 +204,7 @@ impl HeaderChain {
 				candidates: RwLock::new(BTreeMap::new()),
 				db: db,
 				col: col,
+				cache: cache,
 			}
 		};
 
@@ -408,7 +414,7 @@ impl HeaderChain {
 		}
 	}
 
-	/// Get the nth CHT root, if it's been computed.
+	/// Get the nth CHT root, if it has been computed.
 	///
 	/// CHT root 0 is from block `1..2048`.
 	/// CHT root 1 is from block `2049..4096`
@@ -493,6 +499,22 @@ mod tests {
 	use ethcore::ids::BlockId;
 	use ethcore::header::Header;
 	use ethcore::spec::Spec;
+  	use cache::Cache;
+
+	use time::Duration;
+	use util::Mutex;
+
+  	#[test]
+  	fn basic_chain_with_cache() {
+    	let spec = Spec::new_test();
+    	let genesis_header = spec.genesis_header();
+		let db = make_db();
+
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		
+		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache);
+		
+  	}
 
 	fn make_db() -> Arc<::util::KeyValueDB> {
 		Arc::new(::util::kvdb::in_memory(0))
@@ -504,7 +526,9 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
 
-		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header)).unwrap();
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+
+		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache).unwrap();
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();
@@ -534,9 +558,10 @@ mod tests {
 	fn reorganize() {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
-
 		let db = make_db();
-		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header)).unwrap();
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+
+		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache).unwrap();
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();
@@ -617,8 +642,10 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
-		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header)).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache).unwrap();
+
 
 		assert!(chain.block_header(BlockId::Earliest).is_some());
 		assert!(chain.block_header(BlockId::Latest).is_some());
@@ -630,9 +657,10 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
 		{
-			let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header)).unwrap();
+			let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache.clone()).unwrap();
 			let mut parent_hash = genesis_header.hash();
 			let mut rolling_timestamp = genesis_header.timestamp();
 			for i in 1..10000 {
@@ -652,7 +680,7 @@ mod tests {
 			}
 		}
 
-		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header)).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache.clone()).unwrap();
 		assert!(chain.block_header(BlockId::Number(10)).is_none());
 		assert!(chain.block_header(BlockId::Number(9000)).is_some());
 		assert!(chain.cht_root(2).is_some());
@@ -665,9 +693,10 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
 		{
-			let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header)).unwrap();
+			let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache.clone()).unwrap();
 			let mut parent_hash = genesis_header.hash();
 			let mut rolling_timestamp = genesis_header.timestamp();
 
@@ -709,7 +738,7 @@ mod tests {
 		}
 
 		// after restoration, non-canonical eras should still be loaded.
-		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header)).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache.clone()).unwrap();
 		assert_eq!(chain.block_header(BlockId::Latest).unwrap().number(), 10);
 		assert!(chain.candidates.read().get(&100).is_some())
 	}
