@@ -119,7 +119,7 @@ impl Decodable for Entry {
 }
 
 fn cht_key(number: u64) -> String {
-	format!("canonical_{}", number)
+	format!("{:08x}_canonical", number)
 }
 
 fn era_key(number: u64) -> String {
