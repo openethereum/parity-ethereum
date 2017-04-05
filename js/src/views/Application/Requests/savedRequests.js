@@ -34,6 +34,7 @@ export default class SavedRequests {
       })
       .catch((error) => {
         console.error(error);
+        return [];
       });
   }
 
@@ -42,7 +43,6 @@ export default class SavedRequests {
    */
   loadRequests (api) {
     const requests = this._get();
-
     const promises = Object.values(requests).map((request) => {
       const { requestId, transactionHash } = request;
 

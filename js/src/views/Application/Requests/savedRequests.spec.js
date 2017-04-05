@@ -25,16 +25,17 @@ const DEFAULT_REQUEST = {
   transaction: {}
 };
 
-const api = createApi();
+const api = createApi(NETWORK_ID);
+const api2 = createApi(1);
 const savedRequests = new SavedRequests();
 
-function createApi () {
+function createApi (networkVersion) {
   return {
     parity: {
       checkRequest: sinon.stub().resolves()
     },
     net: {
-      version: sinon.stub().resolves(NETWORK_ID)
+      version: sinon.stub().resolves(networkVersion)
     }
   };
 }
@@ -92,6 +93,13 @@ describe('views/Application/Requests/savedRequests', () => {
     return savedRequests.load(api)
       .then((requests) => {
         expect(requests[0]).to.deep.equal(DEFAULT_REQUEST);
+      });
+  });
+
+  it('loads requests from the right network', () => {
+    return savedRequests.load(api2)
+      .then((requests) => {
+        expect(requests).to.deep.equal([]);
       });
   });
 });
