@@ -243,12 +243,14 @@ impl TransactionProof {
 	pub fn check_response(&self, state_items: &[DBValue]) -> ProvedExecution {
 		let root = self.header.state_root();
 
+		let mut env_info = self.env_info.clone();
+		env_info.gas_limit = self.tx.gas.clone();
 		state::check_proof(
 			state_items,
 			root,
 			&self.tx,
 			&*self.engine,
-			&self.env_info,
+			&env_info,
 		)
 	}
 }
