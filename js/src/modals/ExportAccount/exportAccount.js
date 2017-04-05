@@ -94,14 +94,12 @@ class ExportAccount extends Component {
   renderList () {
     let { accounts } = this.props;
 
-    accounts = Object
-      .keys(accounts)
-      .map((address) => accounts[address]);
+    const accountList = Object.values(accounts);
 
     return (
       <SelectionList
         isChecked={ this.isSelected }
-        items={ accounts }
+        items={ accountList }
         noStretch
         onSelectClick={ this.onSelect }
         renderItem={ this.renderAccount }
