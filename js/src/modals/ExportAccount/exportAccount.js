@@ -112,7 +112,7 @@ class ExportAccount extends Component {
   renderAccount = (account) => {
     const { balances } = this.props;
     const balance = balances[account.address];
-    const { changePassword, getPassword, onClick } = this.exportStore;
+    const { changePassword, getPassword } = this.exportStore;
     const password = getPassword(account);
 
     return (

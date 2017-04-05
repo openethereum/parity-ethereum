@@ -21,26 +21,26 @@ export default class ExportStore {
   @observable canExport = false;
   @observable selectedAccount = '';
   @observable selectedAccounts = {};
-  @observable accountValue = '';
   @observable passwordInputs = {};
 
   constructor (api, accounts, newError, address) {
     this._api = api;
     this._accounts = accounts;
     this._newError = newError;
-    this._address = address;
+    if (address) {
+      this.selectedAccounts[address] = true;
+      this.selectedAccount = address;
+    }
   }
 
   @action changePassword = (event, password) => {
-    const selectedAccount = (this._address)
-      ? null
-      : this.selectedAccount;
+    const selectedAccount = this.selectedAccount;
 
     this.setPassword(selectedAccount, password);
   }
 
-  @action getPassword = (account) => {
-    return this.passwordInputs[account];
+  @action getPassword = (address) => {
+    return this.passwordInputs[address];
   }
 
   @action onClick = (address) => {
@@ -48,13 +48,11 @@ export default class ExportStore {
   }
 
   @action resetAccountValue = () => {
-    this.accountValue = '';
+    this.passwordInputs[this.selectedAccount] = '';
   }
 
-  @action setPassword = (account, password) => {
-    (this._address)
-      ? this.accountValue = password
-      : this.passwordInputs[account] = password;
+  @action setPassword = (address, password) => {
+    this.passwordInputs[address] = password;
   }
 
   @action setSelectedAccount = (addr) => {
@@ -80,12 +78,10 @@ export default class ExportStore {
 
   onExport = (event) => {
     const { parity } = this._api;
-    const accounts = (this._address)
-      ? [this._address]
-      : Object.keys(this.selectedAccounts);
+    const accounts = Object.keys(this.selectedAccounts);
 
     accounts.forEach((address) => {
-      let password = (this._address) ? this.accountValue : this.passwordInputs[address];
+      let password = this.passwordInputs[address];
 
       parity
         .exportAccount(address, password)

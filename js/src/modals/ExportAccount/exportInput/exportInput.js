@@ -18,13 +18,11 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Input } from '~/ui/Form';
 
-
 export default class ExportInput extends Component {
-
   static propTypes = {
     account: PropTypes.object.isRequired,
     onClick: PropTypes.func.isRequired,
-    onChange: PropTypes.func,
+    onChange: PropTypes.func.isRequired,
     value: PropTypes.string
   };
 
@@ -56,7 +54,7 @@ export default class ExportInput extends Component {
   onClick = (event) => {
     const { account, onClick } = this.props;
 
-    event.stopPropagation()
+    event.stopPropagation();
 
     // Stop the default event if text is selected
     if (window.getSelection && window.getSelection().type === 'Range') {
@@ -65,11 +63,4 @@ export default class ExportInput extends Component {
 
     onClick && onClick(account.address);
   }
-
-  onChange = (event) => {
-    const { account, onChange } = this.props;
-
-    onChange && onChange(account);
-  }
-
 }
