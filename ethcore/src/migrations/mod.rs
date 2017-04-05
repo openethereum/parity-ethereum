@@ -16,6 +16,8 @@
 
 //! Database migrations.
 
+use util::migration::ChangeColumns;
+
 pub mod state;
 pub mod blocks;
 pub mod extras;
@@ -27,5 +29,18 @@ pub use self::v9::Extract;
 mod v10;
 pub use self::v10::ToV10;
 
-mod v11;
-pub use self::v11::TO_V11;
+/// The migration from v10 to v11.
+/// Adds a column for node info.
+pub const TO_V11: ChangeColumns = ChangeColumns {
+	pre_columns: Some(6),
+	post_columns: Some(7),
+	version: 11,
+};
+
+/// The migration from v11 to v12.
+/// Adds a column for light chain storage.
+pub const TO_V12: ChangeColumns = ChangeColumns {
+	pre_columns: Some(7),
+	post_columns: Some(8),
+	version: 12,
+};

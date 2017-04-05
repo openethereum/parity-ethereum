@@ -27,22 +27,29 @@ use std::iter::FromIterator;
 use request::Request;
 use request::Requests;
 use net::{timeout, ReqId};
+use util::U256;
 
 use time::{Duration, SteadyTime};
+
+// Request set entry: requests + cost.
+#[derive(Debug)]
+struct Entry(Requests, U256);
 
 /// Request set.
 #[derive(Debug)]
 pub struct RequestSet {
 	counter: u64,
+	cumulative_cost: U256,
 	base: Option<SteadyTime>,
 	ids: HashMap<ReqId, u64>,
-	reqs: BTreeMap<u64, Requests>,
+	reqs: BTreeMap<u64, Entry>,
 }
 
 impl Default for RequestSet {
 	fn default() -> Self {
 		RequestSet {
 			counter: 0,
+			cumulative_cost: 0.into(),
 			base: None,
 			ids: HashMap::new(),
 			reqs: BTreeMap::new(),
@@ -52,10 +59,12 @@ impl Default for RequestSet {
 
 impl RequestSet {
 	/// Push requests onto the stack.
-	pub fn insert(&mut self, req_id: ReqId, req: Requests, now: SteadyTime) {
+	pub fn insert(&mut self, req_id: ReqId, req: Requests, cost: U256, now: SteadyTime) {
 		let counter = self.counter;
+		self.cumulative_cost = self.cumulative_cost + cost;
+
 		self.ids.insert(req_id, counter);
-		self.reqs.insert(counter, req);
+		self.reqs.insert(counter, Entry(req, cost));
 
 		if self.reqs.keys().next().map_or(true, |x| *x == counter) {
 			self.base = Some(now);
@@ -71,7 +80,7 @@ impl RequestSet {
 			None => return None,
 		};
 
-		let req = self.reqs.remove(&id).expect("entry in `ids` implies entry in `reqs`; qed");
+		let Entry(req, cost) = self.reqs.remove(&id).expect("entry in `ids` implies entry in `reqs`; qed");
 
 		match self.reqs.keys().next() {
 			Some(k) if *k > id => self.base = Some(now),
@@ -79,6 +88,7 @@ impl RequestSet {
 			_ => {}
 		}
 
+		self.cumulative_cost = self.cumulative_cost - cost;
 		Some(req)
 	}
 
@@ -93,7 +103,7 @@ impl RequestSet {
 		let first_req = self.reqs.values().next()
 			.expect("base existing implies `reqs` non-empty; qed");
 
-		base + compute_timeout(&first_req) <= now
+		base + compute_timeout(&first_req.0) <= now
 	}
 
 	/// Collect all pending request ids.
@@ -108,6 +118,9 @@ impl RequestSet {
 
 	/// Whether the set is empty.
 	pub fn is_empty(&self) -> bool { self.len() == 0 }
+
+	/// The cumulative cost of all requests in the set.
+	pub fn cumulative_cost(&self) -> U256 { self.cumulative_cost }
 }
 
 // helper to calculate timeout for a specific set of requests.
@@ -141,8 +154,8 @@ mod tests {
 
 		let the_req = RequestBuilder::default().build();
 		let req_time = compute_timeout(&the_req);
-		req_set.insert(ReqId(0), the_req.clone(), test_begin);
-		req_set.insert(ReqId(1), the_req, test_begin + Duration::seconds(1));
+		req_set.insert(ReqId(0), the_req.clone(), 0.into(), test_begin);
+		req_set.insert(ReqId(1), the_req, 0.into(), test_begin + Duration::seconds(1));
 
 		assert_eq!(req_set.base, Some(test_begin));
 
@@ -152,5 +165,23 @@ mod tests {
 		req_set.remove(&ReqId(0), test_begin + Duration::seconds(1)).unwrap();
 		assert!(!req_set.check_timeout(test_end));
 		assert!(req_set.check_timeout(test_end + Duration::seconds(1)));
+	}
+
+	#[test]
+	fn cumulative_cost() {
+		let the_req = RequestBuilder::default().build();
+		let test_begin = SteadyTime::now();
+		let test_end = test_begin + Duration::seconds(1);
+		let mut req_set = RequestSet::default();
+
+		for i in 0..5 {
+			req_set.insert(ReqId(i), the_req.clone(), 1.into(), test_begin);
+			assert_eq!(req_set.cumulative_cost, (i + 1).into());
+		}
+
+		for i in (0..5).rev() {
+			assert!(req_set.remove(&ReqId(i), test_end).is_some());
+			assert_eq!(req_set.cumulative_cost, i.into());
+		}
 	}
 }

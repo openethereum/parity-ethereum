@@ -151,7 +151,8 @@ impl Body {
 		// concatenate the header and the body.
 		let mut stream = RlpStream::new_list(3);
 		stream.append_raw(self.header.rlp().as_raw(), 1);
-		stream.append_raw(&body.rlp().as_raw(), 2);
+		stream.append_raw(body.rlp().at(0).as_raw(), 1);
+		stream.append_raw(body.rlp().at(1).as_raw(), 1);
 
 		Ok(encoded::Block::new(stream.out()))
 	}
