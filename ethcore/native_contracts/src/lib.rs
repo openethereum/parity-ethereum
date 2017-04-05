@@ -25,6 +25,8 @@ extern crate ethcore_util as util;
 
 mod registry;
 mod service_transaction;
+mod secretstore_acl_storage;
 
 pub use self::registry::Registry;
 pub use self::service_transaction::ServiceTransactionChecker;
+pub use self::secretstore_acl_storage::SecretStoreAclStorage;

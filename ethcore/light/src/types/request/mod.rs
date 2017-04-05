@@ -244,7 +244,8 @@ pub enum CompleteRequest {
 }
 
 impl Request {
-	fn kind(&self) -> Kind {
+	/// Get the request kind.
+	pub fn kind(&self) -> Kind {
 		match *self {
 			Request::Headers(_) => Kind::Headers,
 			Request::HeaderProof(_) => Kind::HeaderProof,
@@ -435,7 +436,8 @@ impl Response {
 		}
 	}
 
-	fn kind(&self) -> Kind {
+	/// Inspect the kind of this response.
+	pub fn kind(&self) -> Kind {
 		match *self {
 			Response::Headers(_) => Kind::Headers,
 			Response::HeaderProof(_) => Kind::HeaderProof,
@@ -726,7 +728,6 @@ pub mod header_proof {
 
 	impl Decodable for Response {
 		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-
 			Ok(Response {
 				proof: rlp.list_at(0)?,
 				hash: rlp.val_at(1)?,
@@ -737,12 +738,10 @@ pub mod header_proof {
 
 	impl Encodable for Response {
 		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(3).begin_list(self.proof.len());
-			for item in &self.proof {
-				s.append_list(&item);
-			}
-
-			s.append(&self.hash).append(&self.td);
+			s.begin_list(3)
+				.append_list::<Vec<u8>,_>(&self.proof[..])
+				.append(&self.hash)
+				.append(&self.td);
 		}
 	}
 }
@@ -826,7 +825,6 @@ pub mod block_receipts {
 
 	impl Decodable for Response {
 		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-
 			Ok(Response {
 				receipts: rlp.as_list()?,
 			})
@@ -923,8 +921,8 @@ pub mod block_body {
 			use ethcore::transaction::UnverifiedTransaction;
 
 			// check body validity.
-			let _: Vec<FullHeader> = rlp.list_at(0)?;
-			let _: Vec<UnverifiedTransaction> = rlp.list_at(1)?;
+			let _: Vec<UnverifiedTransaction> = rlp.list_at(0)?;
+			let _: Vec<FullHeader> = rlp.list_at(1)?;
 
 			Ok(Response {
 				body: encoded::Body::new(rlp.as_raw().to_owned()),
@@ -1063,12 +1061,9 @@ pub mod account {
 
 	impl Encodable for Response {
 		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(5).begin_list(self.proof.len());
-			for item in &self.proof {
-				s.append_list(&item);
-			}
-
-			s.append(&self.nonce)
+			s.begin_list(5)
+				.append_list::<Vec<u8>,_>(&self.proof[..])
+				.append(&self.nonce)
 				.append(&self.balance)
 				.append(&self.code_hash)
 				.append(&self.storage_root);
@@ -1207,11 +1202,9 @@ pub mod storage {
 
 	impl Encodable for Response {
 		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(2).begin_list(self.proof.len());
-			for item in &self.proof {
-				s.append_list(&item);
-			}
-			s.append(&self.value);
+			s.begin_list(2)
+				.append_list::<Vec<u8>,_>(&self.proof[..])
+				.append(&self.value);
 		}
 	}
 }
@@ -1486,9 +1479,16 @@ mod tests {
 	fn check_roundtrip<T>(val: T)
 		where T: ::rlp::Encodable + ::rlp::Decodable + PartialEq + ::std::fmt::Debug
 	{
+		// check as single value.
 		let bytes = ::rlp::encode(&val);
 		let new_val: T = ::rlp::decode(&bytes);
 		assert_eq!(val, new_val);
+
+		// check as list containing single value.
+		let list = [val];
+		let bytes = ::rlp::encode_list(&list);
+		let new_list: Vec<T> = ::rlp::decode_list(&bytes);
+		assert_eq!(&list, &new_list[..]);
 	}
 
 	#[test]
@@ -1540,7 +1540,7 @@ mod tests {
 
 		let full_req = Request::HeaderProof(req.clone());
 		let res = HeaderProofResponse {
-			proof: Vec::new(),
+			proof: vec![vec![1, 2, 3], vec![4, 5, 6]],
 			hash: Default::default(),
 			td: 100.into(),
 		};
@@ -1572,6 +1572,7 @@ mod tests {
 
 	#[test]
 	fn body_roundtrip() {
+		use ethcore::transaction::{Transaction, UnverifiedTransaction};
 		let req = IncompleteBodyRequest {
 			hash: Field::Scalar(Default::default()),
 		};
@@ -1579,8 +1580,12 @@ mod tests {
 		let full_req = Request::Body(req.clone());
 		let res = BodyResponse {
 			body: {
+				let header = ::ethcore::header::Header::default();
+				let tx = UnverifiedTransaction::from(Transaction::default().fake_sign(Default::default()));
 				let mut stream = RlpStream::new_list(2);
-				stream.begin_list(0).begin_list(0);
+				stream.begin_list(2).append(&tx).append(&tx)
+					.begin_list(1).append(&header);
+
 				::ethcore::encoded::Body::new(stream.out())
 			},
 		};
@@ -1601,7 +1606,7 @@ mod tests {
 
 		let full_req = Request::Account(req.clone());
 		let res = AccountResponse {
-			proof: Vec::new(),
+			proof: vec![vec![1, 2, 3], vec![4, 5, 6]],
 			nonce: 100.into(),
 			balance: 123456.into(),
 			code_hash: Default::default(),
@@ -1625,7 +1630,7 @@ mod tests {
 
 		let full_req = Request::Storage(req.clone());
 		let res = StorageResponse {
-			proof: Vec::new(),
+			proof: vec![vec![1, 2, 3], vec![4, 5, 6]],
 			value: H256::default(),
 		};
 		let full_res = Response::Storage(res.clone());
@@ -1706,5 +1711,32 @@ mod tests {
 		let rlp = UntrustedRlp::new(&out);
 		assert_eq!(rlp.val_at::<usize>(0).unwrap(), 100usize);
 		assert_eq!(rlp.list_at::<Request>(1).unwrap(), reqs);
+	}
+
+	#[test]
+	fn responses_vec() {
+		let mut stream = RlpStream::new_list(2);
+				stream.begin_list(0).begin_list(0);
+
+		let body = ::ethcore::encoded::Body::new(stream.out());
+		let reqs = vec![
+			Response::Headers(HeadersResponse { headers: vec![] }),
+			Response::HeaderProof(HeaderProofResponse { proof: vec![], hash: Default::default(), td: 100.into()}),
+			Response::Receipts(ReceiptsResponse { receipts: vec![Default::default()] }),
+			Response::Body(BodyResponse { body: body }),
+			Response::Account(AccountResponse {
+				proof: vec![],
+				nonce: 100.into(),
+				balance: 123.into(),
+				code_hash: Default::default(),
+				storage_root: Default::default()
+			}),
+			Response::Storage(StorageResponse { proof: vec![], value: H256::default() }),
+			Response::Code(CodeResponse { code: vec![1, 2, 3, 4, 5] }),
+			Response::Execution(ExecutionResponse { items: vec![] }),
+		];
+
+		let raw = ::rlp::encode_list(&reqs);
+		assert_eq!(::rlp::decode_list::<Response>(&raw), reqs);
 	}
 }
