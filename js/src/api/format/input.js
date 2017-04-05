@@ -207,3 +207,34 @@ export function inTraceType (whatTrace) {
 
   return whatTrace;
 }
+
+function inDeriveType (derive) {
+  return derive && derive.type === 'hard' ? 'hard' : 'soft';
+}
+export function inDeriveHash (derive) {
+  const hash = derive && derive.hash ? derive.hash : derive;
+  const type = inDeriveType(derive);
+
+  return {
+    hash: inHex(hash),
+    type
+  };
+}
+
+export function inDeriveIndex (derive) {
+  if (!derive) {
+    return [];
+  }
+
+  if (!isArray(derive)) {
+    derive = [derive];
+  }
+
+  return derive.map(item => {
+    const index = inNumber10(item && item.index ? item.index : item);
+    return {
+      index,
+      type: inDeriveType(item)
+    }
+  });
+}
