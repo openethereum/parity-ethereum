@@ -101,12 +101,11 @@ mod server {
 	use ethcore::transaction::{Transaction, Action};
 	use ethcore::client::{Client, BlockChainClient, BlockId};
 	use ethcore_rpc::is_major_importing;
-	use hash_fetch::fetch::Client as FetchClient;
 	use hash_fetch::urlhint::ContractClient;
 	use parity_dapps;
 	use parity_reactor;
 
-	pub type Middleware = parity_dapps::Middleware<FetchClient>;
+	pub use parity_dapps::Middleware;
 
 	pub fn dapps_middleware(
 		deps: Dependencies,
