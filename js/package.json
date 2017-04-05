@@ -43,7 +43,7 @@
     "ci:build:app": "NODE_ENV=production webpack --config webpack/app",
     "ci:build:lib": "NODE_ENV=production webpack --config webpack/libraries",
     "ci:build:dll": "NODE_ENV=production webpack --config webpack/vendor",
-    "ci:build:yarn": "NODE_ENV=production webpack --config webpack/yarn",
+    "ci:build:npm": "NODE_ENV=production webpack --config webpack/npm",
     "ci:build:jsonrpc": "babel-node ./scripts/build-rpc-json.js --output .yarnjs/jsonrpc",
     "ci:build:embed": "NODE_ENV=production EMBED=1 node webpack/embed",
     "start": "yarn install && yarn run build:lib && yarn run build:dll && yarn run start:app",
@@ -61,7 +61,7 @@
     "test": "NODE_ENV=test mocha --compilers ejs:ejsify 'src/**/*.spec.js'",
     "test:coverage": "NODE_ENV=test istanbul cover _mocha -- --compilers ejs:ejsify 'src/**/*.spec.js'",
     "test:e2e": "NODE_ENV=test mocha 'src/**/*.e2e.js'",
-    "test:yarn": "(cd .yarnjs && yarn i) && node test/yarnParity && node test/yarnJsonRpc && (rm -rf .yarnjs/node_modules)",
+    "test:npm": "(cd .npmjs && npm i) && node test/npmParity && node test/npmJsonRpc && (rm -rf .npmjs/node_modules)",
     "prepush": "yarn run lint:cached"
   },
   "napa": {
