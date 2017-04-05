@@ -19,6 +19,7 @@ import store from 'store';
 
 import SavedRequests, { LS_REQUESTS_KEY } from './savedRequests';
 
+const NETWORK_ID = 42;
 const DEFAULT_REQUEST = {
   requestId: '0x1',
   transaction: {}
@@ -31,15 +32,23 @@ function createApi () {
   return {
     parity: {
       checkRequest: sinon.stub().resolves()
+    },
+    net: {
+      version: sinon.stub().resolves(NETWORK_ID)
     }
   };
 }
 
 describe('views/Application/Requests/savedRequests', () => {
-  beforeEach(() => {
+  beforeEach((done) => {
     store.set(LS_REQUESTS_KEY, {
-      [DEFAULT_REQUEST.requestId]: DEFAULT_REQUEST
+      [NETWORK_ID]: {
+        [DEFAULT_REQUEST.requestId]: DEFAULT_REQUEST
+      }
     });
+
+    savedRequests.load(api)
+      .then(() => done());
   });
 
   afterEach(() => {
