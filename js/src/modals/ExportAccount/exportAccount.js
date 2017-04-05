@@ -113,32 +113,31 @@ class ExportAccount extends Component {
   renderAccount = (account) => {
     const { balances } = this.props;
     const balance = balances[account.address];
-    const { changePassword, getPassword, onFocus } = this.exportStore;
+    const { changePassword, getPassword } = this.exportStore;
     const inputValue = getPassword(account);
 
     return (
       <AccountCard
         account={ account }
         balance={ balance }
-        onClick={ () => onFocus(account.address) }
+        onClick={ this.onClick }
         className={ styles.card }
       >
         <form id={ styles.checkbox }>
           <div className={ styles.slider }>
             <input
               type='checkbox'
-              id={ `${account.address}` }
+              id={ `${account.address}-checkbox` }
               onChange={ () => this.onSelect(account) }
               value='None'
               name='check'
             />
-            <label htmlFor={ `${account.address}` } />
+            <label htmlFor={ `${account.address}-checkbox` } />
           </div>
         </form>
         <div>
           <Input
             type='password'
-            name='passwordHere'
             label={
               <FormattedMessage
                 id='export.setPassword.label'
@@ -167,6 +166,10 @@ class ExportAccount extends Component {
 
   onSelect = (account) => {
     this.exportStore.toggleSelectedAccount(account.address);
+  }
+
+  onClick = (account) => {
+    this.exportStore.onClick(account);
   }
 
   onClose = () => {

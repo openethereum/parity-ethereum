@@ -32,7 +32,9 @@ export default class ExportStore {
   }
 
   @action changePassword = (event, password) => {
-    const selectedAccount = (this._address) ? null : this.selectedAccount;
+    const selectedAccount = (this._address)
+      ? null
+      : this.selectedAccount;
 
     this.setPassword(selectedAccount, password);
   }
@@ -41,7 +43,7 @@ export default class ExportStore {
     return this.inputValue[account];
   }
 
-  @action onFocus = (address) => {
+  @action onClick = (address) => {
     this.selectedAccount = address;
   }
 
@@ -61,9 +63,10 @@ export default class ExportStore {
   }
 
   @action toggleSelectedAccount = (addr) => {
-    this.selectedAccounts[addr] = !this.selectedAccounts[addr];
-    if (!this.selectedAccounts[addr]) {
+    if (this.selectedAccounts[addr]) {
       delete this.selectedAccounts[addr];
+    } else {
+      this.selectedAccounts[addr] = true;
     }
     this.canExport = false;
     Object
@@ -77,17 +80,19 @@ export default class ExportStore {
 
   onExport = (event) => {
     const { parity } = this._api;
-    const accounts = (this._address) ? [this._address] : Object.keys(this.selectedAccounts);
+    const accounts = (this._address)
+      ? [this._address]
+      : Object.keys(this.selectedAccounts);
 
-    accounts.forEach((account) => {
-      let password = (this._address) ? this.accountValue : this.inputValue[account];
+    accounts.forEach((address) => {
+      let password = (this._address) ? this.accountValue : this.inputValue[address];
 
       parity
-        .exportAccount(account, password)
+        .exportAccount(address, password)
         .then((content) => {
           const text = JSON.stringify(content, null, 4);
           const blob = new Blob([ text ], { type: 'application/json' });
-          const filename = this._accounts[account].uuid;
+          const filename = this._accounts[address].uuid;
 
           FileSaver.saveAs(blob, `${filename}.json`);
 
@@ -95,7 +100,7 @@ export default class ExportStore {
           if (event) { event(); }
         })
         .catch((err) => {
-          const { name, meta } = this._accounts[account];
+          const { name, meta } = this._accounts[address];
           const { passwordHint } = meta;
 
           this._newError({
