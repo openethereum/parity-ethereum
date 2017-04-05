@@ -74,9 +74,15 @@ class Account extends Component {
   componentWillReceiveProps (nextProps) {
     const prevAddress = this.props.params.address;
     const nextAddress = nextProps.params.address;
+    const { accounts } = nextProps;
 
     if (prevAddress !== nextAddress) {
       this.setVisibleAccounts(nextProps);
+    }
+
+    if (!Object.keys(this.exportStore._accounts).length) {
+      console.log("FIX");
+      this.exportStore.setAccounts(accounts);
     }
   }
 

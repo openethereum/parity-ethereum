@@ -51,6 +51,10 @@ export default class ExportStore {
     this.passwordInputs[this.selectedAccount] = '';
   }
 
+  @action setAccounts = (accounts) => {
+    this._accounts = accounts;
+  }
+
   @action setPassword = (address, password) => {
     this.passwordInputs[address] = password;
   }
