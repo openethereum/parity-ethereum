@@ -81,7 +81,6 @@ class Account extends Component {
     }
 
     if (!Object.keys(this.exportStore._accounts).length) {
-      console.log("FIX");
       this.exportStore.setAccounts(accounts);
     }
   }
