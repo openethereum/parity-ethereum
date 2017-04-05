@@ -80,27 +80,6 @@ pub struct Requests<T: IncompleteRequest> {
 }
 
 impl<T: IncompleteRequest + Clone> Requests<T> {
-	/// For each request, produce a response.
-	/// The responses vector produced goes up to the point where the responder
-	/// first returns `None`, an invalid response, or until all requests have been responded to.
-	pub fn respond_to_all<F>(mut self, responder: F) -> Vec<T::Response>
-		where F: Fn(T::Complete) -> Option<T::Response>
-	{
-		let mut responses = Vec::new();
-
-		while let Some(response) = self.next_complete().and_then(&responder) {
-			match self.supply_response(&response) {
-				Ok(()) => responses.push(response),
-				Err(e) => {
-					debug!(target: "pip", "produced bad response to request: {:?}", e);
-					return responses;
-				}
-			}
-		}
-
-		responses
-	}
-
 	/// Get access to the underlying slice of requests.
 	// TODO: unimplemented -> Vec<Request>, // do we _have to_ allocate?
 	pub fn requests(&self) -> &[T] { &self.requests }
@@ -118,15 +97,20 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 				.expect("All outputs checked as invariant of `Requests` object; qed"))
 		}
 	}
+}
 
+impl<T: super::CheckedRequest> Requests<T> {
 	/// Supply a response for the next request.
 	/// Fails on: wrong request kind, all requests answered already.
-	pub fn supply_response(&mut self, response: &T::Response) -> Result<(), ResponseError> {
+	pub fn supply_response(&mut self, response: &T::Response)
+		-> Result<T::Extract, ResponseError<T::Error>>
+	{
 		let idx = self.answered;
 
 		// check validity.
 		if idx == self.requests.len() { return Err(ResponseError::Unexpected) }
-		if !self.requests[idx].check_response(&response) { return Err(ResponseError::WrongKind) }
+		let extracted = self.requests[idx]
+			.check_response(&response).map_err(ResponseError::Validity)?;
 
 		let outputs = &mut self.outputs;
 		response.fill_outputs(|out_idx, output| {
@@ -143,7 +127,30 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 			req.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
 		}
 
-		Ok(())
+		Ok(extracted)
+	}
+}
+
+impl Requests<super::Request> {
+	/// For each request, produce a response.
+	/// The responses vector produced goes up to the point where the responder
+	/// first returns `None`, an invalid response, or until all requests have been responded to.
+	pub fn respond_to_all<F>(mut self, responder: F) -> Vec<super::Response>
+		where F: Fn(super::CompleteRequest) -> Option<super::Response>
+	{
+		let mut responses = Vec::new();
+
+		while let Some(response) = self.next_complete().and_then(&responder) {
+			match self.supply_response(&response) {
+				Ok(()) => responses.push(response),
+				Err(e) => {
+					debug!(target: "pip", "produced bad response to request: {:?}", e);
+					return responses;
+				}
+			}
+		}
+
+		responses
 	}
 }
 

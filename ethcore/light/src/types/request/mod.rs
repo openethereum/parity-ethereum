@@ -69,11 +69,15 @@ pub use self::builder::{RequestBuilder, Requests};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NoSuchOutput;
 
+/// Wrong kind of response corresponding to request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WrongKind;
+
 /// Error on processing a response.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ResponseError {
-	/// Wrong kind of response.
-	WrongKind,
+pub enum ResponseError<T> {
+	/// Error in validity.
+	Validity(T),
 	/// No responses expected.
 	Unexpected,
 }
@@ -342,10 +346,6 @@ impl IncompleteRequest for Request {
 		}
 	}
 
-	fn check_response(&self, response: &Response) -> bool {
-		self.kind() == response.kind()
-	}
-
 	fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
 		match self {
 			Request::Headers(req) => req.complete().map(CompleteRequest::Headers),
@@ -356,6 +356,19 @@ impl IncompleteRequest for Request {
 			Request::Storage(req) => req.complete().map(CompleteRequest::Storage),
 			Request::Code(req) => req.complete().map(CompleteRequest::Code),
 			Request::Execution(req) => req.complete().map(CompleteRequest::Execution),
+		}
+	}
+}
+
+impl CheckedRequest for Request {
+	type Extract = ();
+	type Error = WrongKind;
+
+	fn check_response(&self, response: &Response) -> Result<(), WrongKind> {
+		if self.kind() == response.kind() {
+			Ok(())
+		} else {
+			Err(WrongKind)
 		}
 	}
 }
@@ -520,12 +533,20 @@ pub trait IncompleteRequest: Sized {
 	/// Only outputs previously checked with `check_outputs` may be available.
 	fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>;
 
-	/// Check whether the response matches (beyond the type).
-	fn check_response(&self, _response: &Self::Response) -> bool { true }
-
 	/// Attempt to convert this request into its complete variant.
 	/// Will succeed if all fields have been filled, will fail otherwise.
 	fn complete(self) -> Result<Self::Complete, NoSuchOutput>;
+}
+
+/// A request which can be checked against its response for more validity.
+pub trait CheckedRequest: IncompleteRequest {
+	/// Data extracted during the check.
+	type Extract;
+	/// Error encountered during the check.
+	type Error;
+
+	/// Check whether the response matches (beyond the type).
+	fn check_response(&self, _response: &Self::Response) -> Result<Self::Extract, Self::Error>;
 }
 
 /// A response-like object.

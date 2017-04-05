@@ -26,17 +26,171 @@ use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
 use ethcore::transaction::SignedTransaction;
 
+use request::{self as net_request, IncompleteRequest, Output, OutputKind};
+
 use rlp::{RlpStream, UntrustedRlp};
 use util::{Address, Bytes, DBValue, HashDB, H256, U256};
 use util::memorydb::MemoryDB;
 use util::sha3::Hashable;
 use util::trie::{Trie, TrieDB, TrieError};
 
+/// Core unit of the API: submit batches of these to be answered with `Response`s.
+pub enum Request {
+	/// A request for a header proof.
+	HeaderProof(HeaderProof),
+	/// A request for a header by hash.
+	HeaderByHash(HeaderByHash),
+	/// A request for block receipts.
+	Receipts(BlockReceipts),
+	/// A request for a block body.
+	Body(Body),
+	/// A request for an account.
+	Account(Account),
+	/// A request for a contract's code.
+	Code(Code),
+	/// A request for proof of execution.
+	Execution(TransactionProof),
+}
+
+/// Requests coupled with their required data for verification.
+/// This is used internally but not part of the public API.
+#[derive(Clone)]
+#[allow(missing_docs)]
+pub enum CheckedRequest {
+	HeaderProof(HeaderProof, net_request::IncompleteHeaderProofRequest),
+	HeaderByHash(HeaderByHash, net_request::IncompleteHeadersRequest),
+	Receipts(BlockReceipts, net_request::IncompleteReceiptsRequest),
+	Body(Body, net_request::IncompleteBodyRequest),
+	Account(Account, net_request::IncompleteAccountRequest),
+	Code(Code, net_request::IncompleteCodeRequest),
+	Execution(TransactionProof, net_request::IncompleteExecutionRequest),
+}
+
+impl IncompleteRequest for CheckedRequest {
+	type Complete = net_request::CompleteRequest;
+	type Response = net_request::Response;
+
+	/// Check prior outputs against the needed inputs.
+	///
+	/// This is called to ensure consistency of this request with
+	/// others in the same packet.
+	fn check_outputs<F>(&self, f: F) -> Result<(), net_request::NoSuchOutput>
+		where F: FnMut(usize, usize, OutputKind) -> Result<(), net_request::NoSuchOutput>
+	{
+		match *self {
+			CheckedRequest::HeaderProof(_, ref req) => req.check_outputs(f),
+			CheckedRequest::HeaderByHash(_, ref req) => req.check_outputs(f),
+			CheckedRequest::Receipts(_, ref req) => req.check_outputs(f),
+			CheckedRequest::Body(_, ref req) => req.check_outputs(f),
+			CheckedRequest::Account(_, ref req) => req.check_outputs(f),
+			CheckedRequest::Code(_, ref req) => req.check_outputs(f),
+			CheckedRequest::Execution(_, ref req) => req.check_outputs(f),
+		}
+	}
+
+	/// Note that this request will produce the following outputs.
+	fn note_outputs<F>(&self, f: F) where F: FnMut(usize, OutputKind) {
+		match *self {
+			CheckedRequest::HeaderProof(_, ref req) => req.note_outputs(f),
+			CheckedRequest::HeaderByHash(_, ref req) => req.note_outputs(f),
+			CheckedRequest::Receipts(_, ref req) => req.note_outputs(f),
+			CheckedRequest::Body(_, ref req) => req.note_outputs(f),
+			CheckedRequest::Account(_, ref req) => req.note_outputs(f),
+			CheckedRequest::Code(_, ref req) => req.note_outputs(f),
+			CheckedRequest::Execution(_, ref req) => req.note_outputs(f),
+		}
+	}
+
+	/// Fill fields of the request.
+	///
+	/// This function is provided an "output oracle" which allows fetching of
+	/// prior request outputs.
+	/// Only outputs previously checked with `check_outputs` may be available.
+	fn fill<F>(&mut self, f: F) where F: Fn(usize, usize) -> Result<Output, net_request::NoSuchOutput> {
+		match *self {
+			CheckedRequest::HeaderProof(_, ref mut req) => req.fill(f),
+			CheckedRequest::HeaderByHash(_, ref mut req) => req.fill(f),
+			CheckedRequest::Receipts(_, ref mut req) => req.fill(f),
+			CheckedRequest::Body(_, ref mut req) => req.fill(f),
+			CheckedRequest::Account(_, ref mut req) => req.fill(f),
+			CheckedRequest::Code(_, ref mut req) => req.fill(f),
+			CheckedRequest::Execution(_, ref mut req) => req.fill(f),
+		}
+	}
+
+	/// Will succeed if all fields have been filled, will fail otherwise.
+	fn complete(self) -> Result<Self::Complete, net_request::NoSuchOutput> {
+		use ::request::CompleteRequest;
+
+		match self {
+			CheckedRequest::HeaderProof(_, req) => req.complete().map(CompleteRequest::HeaderProof),
+			CheckedRequest::HeaderByHash(_, req) => req.complete().map(CompleteRequest::Headers),
+			CheckedRequest::Receipts(_, req) => req.complete().map(CompleteRequest::Receipts),
+			CheckedRequest::Body(_, req) => req.complete().map(CompleteRequest::Body),
+			CheckedRequest::Account(_, req) => req.complete().map(CompleteRequest::Account),
+			CheckedRequest::Code(_, req) => req.complete().map(CompleteRequest::Code),
+			CheckedRequest::Execution(_, req) => req.complete().map(CompleteRequest::Execution),
+		}
+	}
+}
+
+impl net_request::CheckedRequest for CheckedRequest {
+	type Extract = Response;
+	type Error = Error;
+
+	/// Check whether the response matches (beyond the type).
+	fn check_response(&self, response: &Self::Response) -> Result<Response, Error> {
+		use ::request::Response as NetResponse;
+
+		// check response against contained prover.
+		match (self, response) {
+			(&CheckedRequest::HeaderProof(ref prover, _), &NetResponse::HeaderProof(ref res)) =>
+				prover.check_response(&res.proof).map(|(h, s)| Response::HeaderProof(h, s)),
+			(&CheckedRequest::HeaderByHash(ref prover, _), &NetResponse::Headers(ref res)) =>
+				prover.check_response(&res.headers).map(Response::HeaderByHash),
+			(&CheckedRequest::Receipts(ref prover, _), &NetResponse::Receipts(ref res)) =>
+				prover.check_response(&res.receipts).map(Response::Receipts),
+			(&CheckedRequest::Body(ref prover, _), &NetResponse::Body(ref res)) =>
+				prover.check_response(&res.body).map(Response::Body),
+			(&CheckedRequest::Account(ref prover, _), &NetResponse::Account(ref res)) =>
+				prover.check_response(&res.proof).map(Response::Account),
+			(&CheckedRequest::Code(ref prover, _), &NetResponse::Code(ref res)) =>
+				prover.check_response(&res.code).map(Response::Code),
+			(&CheckedRequest::Execution(ref prover, _), &NetResponse::Execution(ref res)) =>
+				Ok(Response::Execution(prover.check_response(&res.items))),
+			_ => Err(Error::WrongKind),
+		}
+	 }
+}
+
+/// Responses to on-demand requests.
+/// All of these are checked.
+pub enum Response {
+	/// Response to a header proof request.
+	/// Returns the hash and chain score.
+	HeaderProof(H256, U256),
+	/// Response to a header-by-hash request.
+	HeaderByHash(encoded::Header),
+	/// Response to a receipts request.
+	Receipts(Vec<Receipt>),
+	/// Response to a block body request.
+	Body(encoded::Block),
+	/// Response to an Account request.
+	// TODO: `unwrap_or(engine_defaults)`
+	Account(Option<BasicAccount>),
+	/// Response to a request for code.
+	Code(Vec<u8>),
+	/// Response to a request for proved execution.
+	Execution(ProvedExecution), // TODO: make into `Result`
+}
+
 /// Errors in verification.
 #[derive(Debug, PartialEq)]
 pub enum Error {
 	/// RLP decoder error.
 	Decoder(::rlp::DecoderError),
+	/// Empty response.
+	Empty,
 	/// Trie lookup error (result of bad proof)
 	Trie(TrieError),
 	/// Bad inclusion proof
@@ -47,6 +201,8 @@ pub enum Error {
 	WrongHash(H256, H256),
 	/// Wrong trie root.
 	WrongTrieRoot(H256, H256),
+	/// Wrong response kind.
+	WrongKind,
 }
 
 impl From<::rlp::DecoderError> for Error {
@@ -107,7 +263,8 @@ pub struct HeaderByHash(pub H256);
 
 impl HeaderByHash {
 	/// Check a response for the header.
-	pub fn check_response(&self, header: &encoded::Header) -> Result<encoded::Header, Error> {
+	pub fn check_response(&self, headers: &[encoded::Header]) -> Result<encoded::Header, Error> {
+		let header = headers.get(0).ok_or(Error::Empty)?;
 		let hash = header.sha3();
 		match hash == self.0 {
 			true => Ok(header.clone()),
@@ -208,6 +365,7 @@ impl Account {
 }
 
 /// Request for account code.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Code {
 	/// Block hash, number pair.
 	pub block_id: (H256, u64),
@@ -217,10 +375,10 @@ pub struct Code {
 
 impl Code {
 	/// Check a response with code against the code hash.
-	pub fn check_response(&self, code: &[u8]) -> Result<(), Error> {
+	pub fn check_response(&self, code: &[u8]) -> Result<Vec<u8>, Error> {
 		let found_hash = code.sha3();
 		if found_hash == self.code_hash {
-			Ok(())
+			Ok(code.to_vec())
 		} else {
 			Err(Error::WrongHash(self.code_hash, found_hash))
 		}
@@ -228,6 +386,7 @@ impl Code {
 }
 
 /// Request for transaction execution, along with the parts necessary to verify the proof.
+#[derive(Clone)]
 pub struct TransactionProof {
 	/// The transaction to request proof of.
 	pub tx: SignedTransaction,

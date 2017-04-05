@@ -459,15 +459,13 @@ impl Handler for OnDemand {
 			}
 			Pending::HeaderByHash(req, sender) => {
 				if let NetworkResponse::Headers(ref response) = *response {
-					if let Some(header) = response.headers.get(0) {
-						match req.check_response(header) {
-							Ok(header) => {
-								self.cache.lock().insert_block_header(req.0, header.clone());
-								let _ = sender.send(header);
-								return
-							}
-							Err(e) => warn!(target: "on_demand", "Error handling response for header request: {:?}", e),
+					match req.check_response(&response.headers) {
+						Ok(header) => {
+							self.cache.lock().insert_block_header(req.0, header.clone());
+							let _ = sender.send(header);
+							return
 						}
+						Err(e) => warn!(target: "on_demand", "Error handling response for header request: {:?}", e),
 					}
 				}
 			}
@@ -521,8 +519,8 @@ impl Handler for OnDemand {
 			Pending::Code(req, sender) => {
 				if let NetworkResponse::Code(ref response) = *response {
 					match req.check_response(response.code.as_slice()) {
-						Ok(()) => {
-							let _ = sender.send(response.code.clone());
+						Ok(code) => {
+							let _ = sender.send(code);
 							return
 						}
 						Err(e) => warn!(target: "on_demand", "Error handling response for code request: {:?}", e),
