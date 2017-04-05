@@ -33,7 +33,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use provider::Provider;
-use request::{Request, Requests, Response};
+use request::{Request, NetworkRequests as Requests, Response};
 
 use self::request_credits::{Credits, FlowParams};
 use self::context::{Ctx, TickCtx};

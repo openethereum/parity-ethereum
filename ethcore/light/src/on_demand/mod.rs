@@ -562,7 +562,7 @@ mod tests {
 
 	use cache::Cache;
 	use net::{Announcement, BasicContext, ReqId, Error as LesError};
-	use request::Requests;
+	use request::NetworkRequests;
 
 	use network::{PeerId, NodeId};
 	use time::Duration;
@@ -572,7 +572,7 @@ mod tests {
 
 	impl BasicContext for FakeContext {
 		fn persistent_peer_id(&self, _: PeerId) -> Option<NodeId> { None }
-		fn request_from(&self, _: PeerId, _: Requests) -> Result<ReqId, LesError> {
+		fn request_from(&self, _: PeerId, _: NetworkRequests) -> Result<ReqId, LesError> {
 			unimplemented!()
 		}
 		fn make_announcement(&self, _: Announcement) { }

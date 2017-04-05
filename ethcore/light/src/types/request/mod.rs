@@ -197,6 +197,9 @@ impl Encodable for HashOrNumber {
 	}
 }
 
+/// Type alias for "network requests".
+pub type NetworkRequests = Requests<Request>;
+
 /// All request types, as they're sent over the network.
 /// They may be incomplete, with back-references to outputs
 /// of prior requests.
@@ -296,6 +299,7 @@ impl Encodable for Request {
 
 impl IncompleteRequest for Request {
 	type Complete = CompleteRequest;
+	type Response = Response;
 
 	fn check_outputs<F>(&self, f: F) -> Result<(), NoSuchOutput>
 		where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -336,6 +340,10 @@ impl IncompleteRequest for Request {
 			Request::Code(ref mut req) => req.fill(oracle),
 			Request::Execution(ref mut req) => req.fill(oracle),
 		}
+	}
+
+	fn check_response(&self, response: &Response) -> bool {
+		self.kind() == response.kind()
 	}
 
 	fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
@@ -421,9 +429,9 @@ pub enum Response {
 	Execution(ExecutionResponse),
 }
 
-impl Response {
+impl ResponseLike for Response {
 	/// Fill reusable outputs by writing them into the function.
-	pub fn fill_outputs<F>(&self, f: F) where F: FnMut(usize, Output) {
+	fn fill_outputs<F>(&self, f: F) where F: FnMut(usize, Output) {
 		match *self {
 			Response::Headers(ref res) => res.fill_outputs(f),
 			Response::HeaderProof(ref res) => res.fill_outputs(f),
@@ -435,7 +443,9 @@ impl Response {
 			Response::Execution(ref res) => res.fill_outputs(f),
 		}
 	}
+}
 
+impl Response {
 	/// Inspect the kind of this response.
 	pub fn kind(&self) -> Kind {
 		match *self {
@@ -490,6 +500,8 @@ impl Encodable for Response {
 pub trait IncompleteRequest: Sized {
 	/// The complete variant of this request.
 	type Complete;
+	/// The response to this request.
+	type Response: ResponseLike;
 
 	/// Check prior outputs against the needed inputs.
 	///
@@ -508,9 +520,20 @@ pub trait IncompleteRequest: Sized {
 	/// Only outputs previously checked with `check_outputs` may be available.
 	fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput>;
 
+	/// Check whether the response matches (beyond the type).
+	fn check_response(&self, _response: &Self::Response) -> bool { true }
+
 	/// Attempt to convert this request into its complete variant.
 	/// Will succeed if all fields have been filled, will fail otherwise.
 	fn complete(self) -> Result<Self::Complete, NoSuchOutput>;
+}
+
+/// A response-like object.
+///
+/// These contain re-usable outputs.
+pub trait ResponseLike {
+	/// Write all re-usable outputs into the provided function.
+	fn fill_outputs<F>(&self, output_store: F) where F: FnMut(usize, Output);
 }
 
 /// Header request.
@@ -555,6 +578,7 @@ pub mod header {
 
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -608,9 +632,9 @@ pub mod header {
 		pub headers: Vec<encoded::Header>,
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by writing them into the function.
-		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) { }
+		fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) { }
 	}
 
 	impl Decodable for Response {
@@ -671,6 +695,7 @@ pub mod header_proof {
 
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -719,9 +744,9 @@ pub mod header_proof {
 		pub td: U256,
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
-		pub fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
+		fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
 			f(0, Output::Hash(self.hash));
 		}
 	}
@@ -776,6 +801,7 @@ pub mod block_receipts {
 
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -818,9 +844,9 @@ pub mod block_receipts {
 		pub receipts: Vec<Receipt>
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
-		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
+		fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
 	}
 
 	impl Decodable for Response {
@@ -868,6 +894,7 @@ pub mod block_body {
 
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -910,9 +937,9 @@ pub mod block_body {
 		pub body: encoded::Body,
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
-		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
+		fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
 	}
 
 	impl Decodable for Response {
@@ -971,6 +998,7 @@ pub mod account {
 
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -1039,9 +1067,9 @@ pub mod account {
 		pub storage_root: H256,
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
-		pub fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
+		fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
 			f(0, Output::Hash(self.code_hash));
 			f(1, Output::Hash(self.storage_root));
 		}
@@ -1109,6 +1137,7 @@ pub mod storage {
 
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -1184,9 +1213,9 @@ pub mod storage {
 		pub value: H256,
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
-		pub fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
+		fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
 			f(0, Output::Hash(self.value));
 		}
 	}
@@ -1243,6 +1272,7 @@ pub mod contract_code {
 
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -1299,9 +1329,9 @@ pub mod contract_code {
 		pub code: Bytes,
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
-		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
+		fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
 	}
 
 	impl Decodable for Response {
@@ -1380,6 +1410,7 @@ pub mod execution {
 
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -1440,9 +1471,9 @@ pub mod execution {
 		pub items: Vec<DBValue>,
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
-		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
+		fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
 	}
 
 	impl Decodable for Response {
