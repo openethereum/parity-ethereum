@@ -22,7 +22,7 @@ export default class ExportStore {
   @observable selectedAccount = '';
   @observable selectedAccounts = {};
   @observable accountValue = '';
-  @observable inputValue = {};
+  @observable passwordInputs = {};
 
   constructor (api, accounts, newError, address) {
     this._api = api;
@@ -40,7 +40,7 @@ export default class ExportStore {
   }
 
   @action getPassword = (account) => {
-    return this.inputValue[account];
+    return this.passwordInputs[account];
   }
 
   @action onClick = (address) => {
@@ -54,7 +54,7 @@ export default class ExportStore {
   @action setPassword = (account, password) => {
     (this._address)
       ? this.accountValue = password
-      : this.inputValue[account] = password;
+      : this.passwordInputs[account] = password;
   }
 
   @action setSelectedAccount = (addr) => {
@@ -85,7 +85,7 @@ export default class ExportStore {
       : Object.keys(this.selectedAccounts);
 
     accounts.forEach((address) => {
-      let password = (this._address) ? this.accountValue : this.inputValue[address];
+      let password = (this._address) ? this.accountValue : this.passwordInputs[address];
 
       parity
         .exportAccount(address, password)

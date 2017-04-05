@@ -23,11 +23,9 @@ import { bindActionCreators } from 'redux';
 import { newError } from '~/redux/actions';
 import { personalAccountsInfo } from '~/redux/providers/personalActions';
 import { AccountCard, Button, Portal, SelectionList } from '~/ui';
-import { Input } from '~/ui/Form';
 import { CancelIcon, CheckIcon } from '~/ui/Icons';
+import ExportInput from './exportInput';
 import ExportStore from './exportStore';
-
-import styles from './exportAccount.css';
 
 @observer
 class ExportAccount extends Component {
@@ -105,6 +103,7 @@ class ExportAccount extends Component {
         isChecked={ this.isSelected }
         items={ accounts }
         noStretch
+        onSelectClick={ this.onSelect }
         renderItem={ this.renderAccount }
       />
     );
@@ -113,44 +112,19 @@ class ExportAccount extends Component {
   renderAccount = (account) => {
     const { balances } = this.props;
     const balance = balances[account.address];
-    const { changePassword, getPassword } = this.exportStore;
-    const inputValue = getPassword(account);
+    const { changePassword, getPassword, onClick } = this.exportStore;
+    const password = getPassword(account);
 
     return (
       <AccountCard
         account={ account }
         balance={ balance }
-        onClick={ this.onClick }
-        className={ styles.card }
       >
-        <form id={ styles.checkbox }>
-          <div className={ styles.slider }>
-            <input
-              type='checkbox'
-              id={ `${account.address}-checkbox` }
-              onChange={ () => this.onSelect(account) }
-              value='None'
-              name='check'
-            />
-            <label htmlFor={ `${account.address}-checkbox` } />
-          </div>
-        </form>
         <div>
-          <Input
-            type='password'
-            label={
-              <FormattedMessage
-                id='export.setPassword.label'
-                defaultMessage='Password'
-              />
-            }
-            hint={
-              <FormattedMessage
-                id='export.setPassword.hint'
-                defaultMessage='Enter Password Here'
-              />
-            }
-            value={ inputValue }
+          <ExportInput
+            account={ account }
+            value={ password }
+            onClick={ this.onClick }
             onChange={ changePassword }
           />
         </div>
@@ -168,8 +142,8 @@ class ExportAccount extends Component {
     this.exportStore.toggleSelectedAccount(account.address);
   }
 
-  onClick = (account) => {
-    this.exportStore.onClick(account);
+  onClick = (address) => {
+    this.exportStore.onClick(address);
   }
 
   onClose = () => {
