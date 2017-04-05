@@ -395,7 +395,7 @@ impl Client {
 			if header.number() < self.engine().params().validate_receipts_transition && header.receipts_root() != locked_block.block().header().receipts_root() {
 				locked_block = locked_block.strip_receipts();
 			}
-	
+
 			// Final Verification
 			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
 				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
@@ -1627,10 +1627,12 @@ impl ::client::ProvingBlockChainClient for Client {
 	}
 
 	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<Vec<DBValue>> {
-		let (state, env_info) = match (self.state_at(id), self.env_info(id)) {
+		let (state, mut env_info) = match (self.state_at(id), self.env_info(id)) {
 			(Some(s), Some(e)) => (s, e),
 			_ => return None,
 		};
+
+		env_info.gas_limit = transaction.gas.clone();
 		let mut jdb = self.state_db.lock().journal_db().boxed_clone();
 		let backend = state::backend::Proving::new(jdb.as_hashdb_mut());
 
