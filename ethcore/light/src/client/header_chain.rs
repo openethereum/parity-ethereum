@@ -371,8 +371,8 @@ impl HeaderChain {
 				Some(header) => Some(header),
 				None => {
 					match self.db.get(self.col, &hash) {
-						Ok(dbValue) => {
-							dbValue.map(|x| x.to_vec()).map(encoded::Header::new)
+						Ok(db_value) => {
+							db_value.map(|x| x.to_vec()).map(encoded::Header::new)
 								.and_then(|header| {
 									cache.insert_block_header(hash.clone(), header.clone());
 									Some(header)
