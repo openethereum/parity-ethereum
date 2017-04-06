@@ -92,13 +92,22 @@ class ExportAccount extends Component {
   }
 
   renderList () {
-    let { accounts } = this.props;
+    const { accounts } = this.props;
 
-    const accountList = Object.values(accounts);
+    const { selectedAccounts } = this.exportStore;
+
+    const accountList = Object.values(accounts)
+      .filter((account) => {
+        return account.uuid;
+      })
+      .map((account) => {
+        account.checked = !!(selectedAccounts[account.address]);
+
+        return account;
+      });
 
     return (
       <SelectionList
-        isChecked={ this.isSelected }
         items={ accountList }
         noStretch
         onSelectClick={ this.onSelect }
@@ -128,12 +137,6 @@ class ExportAccount extends Component {
         </div>
       </AccountCard>
     );
-  }
-
-  isSelected = (account) => {
-    const { selectedAccounts } = this.exportStore;
-
-    return selectedAccounts[account.address];
   }
 
   onSelect = (account) => {
