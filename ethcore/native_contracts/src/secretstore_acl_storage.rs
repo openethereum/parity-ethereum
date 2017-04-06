@@ -14,19 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// import './integration-tests';
-// import './perf-debug';
+#![allow(unused_mut, unused_variables, unused_imports)]
 
-import './tests';
+//! Secret store ACL storage contract.
+// TODO: testing.
 
-const parityNode = (
-    process.env.PARITY_URL && `http://${process.env.PARITY_URL}`
-  ) || (
-    process.env.NODE_ENV === 'production'
-    ? 'http://127.0.0.1:8545'
-    : ''
-  );
-
-export {
-  parityNode
-};
+include!(concat!(env!("OUT_DIR"), "/secretstore_acl_storage.rs"));

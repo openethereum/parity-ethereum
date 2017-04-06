@@ -32,11 +32,14 @@ extern crate tokio_service;
 extern crate tokio_proto;
 extern crate url;
 
+extern crate ethabi;
+extern crate ethcore;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_util as util;
 extern crate ethcore_ipc as ipc;
 extern crate ethcrypto;
 extern crate ethkey;
+extern crate native_contracts;
 
 mod key_server_cluster;
 mod types;
@@ -52,15 +55,18 @@ mod key_server;
 mod key_storage;
 mod serialization;
 
+use std::sync::Arc;
+use ethcore::client::Client;
+
 pub use types::all::{DocumentAddress, DocumentKey, DocumentEncryptedKey, RequestSignature, Public,
 	Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, EncryptionConfiguration};
 pub use traits::{KeyServer};
 
 /// Start new key server instance
-pub fn start(config: ServiceConfiguration) -> Result<Box<KeyServer>, Error> {
+pub fn start(client: Arc<Client>, config: ServiceConfiguration) -> Result<Box<KeyServer>, Error> {
 	use std::sync::Arc;
 
-	let acl_storage = Arc::new(acl_storage::DummyAclStorage::default());
+	let acl_storage = Arc::new(acl_storage::OnChainAclStorage::new(client));
 	let key_storage = Arc::new(key_storage::PersistentKeyStorage::new(&config)?);
 	let key_server = key_server::KeyServerImpl::new(&config.cluster_config, acl_storage, key_storage)?;
 	let listener = http_listener::KeyServerHttpListener::start(config, key_server)?;

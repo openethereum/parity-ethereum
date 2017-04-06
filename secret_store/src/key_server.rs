@@ -147,7 +147,7 @@ mod tests {
 	use std::sync::Arc;
 	use ethcrypto;
 	use ethkey::{self, Random, Generator};
-	use acl_storage::DummyAclStorage;
+	use acl_storage::tests::DummyAclStorage;
 	use key_storage::tests::DummyKeyStorage;
 	use types::all::{ClusterConfiguration, NodeAddress, EncryptionConfiguration, DocumentEncryptedKey, DocumentKey};
 	use super::super::{RequestSignature, DocumentAddress};

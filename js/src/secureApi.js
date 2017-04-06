@@ -28,7 +28,7 @@ export default class SecureApi extends Api {
   _tokens = [];
 
   _dappsInterface = null;
-  _dappsPort = 8080;
+  _dappsPort = 8545;
   _signerPort = 8180;
 
   static getTransport (url, sysuiToken) {
