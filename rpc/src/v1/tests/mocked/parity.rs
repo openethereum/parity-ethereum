@@ -510,3 +510,14 @@ fn rpc_parity_node_kind() {
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
+
+#[test]
+fn rpc_parity_cid() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_cidV0", "params":["0x414243"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"QmSF59MAENc8ZhM4aM1thuAE8w5gDmyfzkAvNoyPea7aDz","id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}

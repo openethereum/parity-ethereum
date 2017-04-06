@@ -342,4 +342,8 @@ impl Parity for ParityClient {
 			capability: Capability::Light,
 		})
 	}
+
+	fn ipfs_cid(&self, _content: Bytes) -> Result<String, Error> {
+		Err(errors::light_unimplemented(None))
+	}
 }

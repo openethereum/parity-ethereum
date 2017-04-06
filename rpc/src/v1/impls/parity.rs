@@ -20,6 +20,11 @@ use std::str::FromStr;
 use std::collections::{BTreeMap, HashSet};
 use futures::{future, Future, BoxFuture};
 
+use multihash;
+use cid::{Cid, Codec, Version};
+use rust_crypto::sha2::Sha256;
+use rust_crypto::digest::Digest;
+
 use ethcore_logger::RotatingLogger;
 use util::Address;
 use util::misc::version_data;
@@ -392,5 +397,17 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			availability: availability,
 			capability: Capability::Full,
 		})
+	}
+
+	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
+		let mut hasher = Sha256::new();
+		hasher.input(&content.0);
+		let len = hasher.output_bytes();
+		let mut buf = Vec::with_capacity(len);
+		buf.resize(len, 0);
+		hasher.result(&mut buf);
+		let mh = multihash::encode(multihash::Hash::SHA2256, &buf).map_err(errors::encoding_error)?;
+		let cid = Cid::new(Codec::DagProtobuf, Version::V0, &mh);
+		Ok(cid.to_string().into())
 	}
 }
