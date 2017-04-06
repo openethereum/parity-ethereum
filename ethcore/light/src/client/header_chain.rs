@@ -366,9 +366,8 @@ impl HeaderChain {
 	pub fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		let load_from_db = |hash: H256| {
 			let mut cache = self.cache.lock();
-			let header = cache.block_header(&hash);
 
-			match header {
+			match cache.block_header(&hash) {
 				Some(header) => Some(header),
 				None => {
 					match self.db.get(self.col, &hash) {
