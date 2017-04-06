@@ -30,6 +30,7 @@ use ethcore::miner::{MinerOptions, Banning, StratumOptions};
 use ethcore::verification::queue::VerifierSettings;
 
 use rpc::{IpcConfiguration, HttpConfiguration};
+use rpc_apis::ApiSet;
 use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
@@ -718,16 +719,7 @@ impl Configuration {
 			.collect();
 
 		if self.args.flag_geth {
-			apis.push("personal");
-		}
-
-		if self.args.flag_public_node {
-			apis.retain(|api| {
-				match *api {
-					"eth" | "net" | "parity" | "rpc" | "web3" => true,
-					_ => false
-				}
-			});
+			apis.insert(0, "personal");
 		}
 
 		apis.join(",")
@@ -788,7 +780,10 @@ impl Configuration {
 			enabled: self.rpc_enabled(),
 			interface: self.rpc_interface(),
 			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
-			apis: self.rpc_apis().parse()?,
+			apis: match self.args.flag_public_node {
+				false => self.rpc_apis().parse()?,
+				true => self.rpc_apis().parse::<ApiSet>()?.retain(ApiSet::PublicContext),
+			},
 			hosts: self.rpc_hosts(),
 			cors: self.rpc_cors(),
 			threads: match self.args.flag_jsonrpc_threads {
