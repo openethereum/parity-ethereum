@@ -26,7 +26,7 @@ use verification::{VerifierType, QueueConfig};
 use util::{journaldb, CompactionProfile};
 
 /// Client state db compaction profile
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum DatabaseCompactionProfile {
 	/// Try to determine compaction profile automatically
 	Auto,

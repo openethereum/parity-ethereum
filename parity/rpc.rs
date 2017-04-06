@@ -81,8 +81,8 @@ impl fmt::Display for IpcConfiguration {
 	}
 }
 
-pub struct Dependencies {
-	pub apis: Arc<rpc_apis::Dependencies>,
+pub struct Dependencies<D: rpc_apis::Dependencies> {
+	pub apis: Arc<D>,
 	pub remote: TokioRemote,
 	pub stats: Arc<RpcStats>,
 }
@@ -112,11 +112,17 @@ impl rpc::IpcMetaExtractor<Metadata> for RpcExtractor {
 	}
 }
 
-fn setup_apis(apis: ApiSet, deps: &Dependencies) -> MetaIoHandler<Metadata, Middleware> {
-	rpc_apis::setup_rpc(deps.stats.clone(), deps.apis.clone(), apis)
+fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
+	where D: rpc_apis::Dependencies
+{
+	rpc_apis::setup_rpc(deps.stats.clone(), &*deps.apis, apis)
 }
 
-pub fn new_http(conf: HttpConfiguration, deps: &Dependencies, middleware: Option<dapps::Middleware>) -> Result<Option<HttpServer>, String> {
+pub fn new_http<D: rpc_apis::Dependencies>(
+	conf: HttpConfiguration,
+	deps: &Dependencies<D>,
+	middleware: Option<dapps::Middleware>
+) -> Result<Option<HttpServer>, String> {
 	if !conf.enabled {
 		return Ok(None);
 	}
@@ -157,7 +163,10 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies, middleware: Option
 	}
 }
 
-pub fn new_ipc(conf: IpcConfiguration, dependencies: &Dependencies) -> Result<Option<IpcServer>, String> {
+pub fn new_ipc<D: rpc_apis::Dependencies>(
+	conf: IpcConfiguration,
+	dependencies: &Dependencies<D>
+) -> Result<Option<IpcServer>, String> {
 	if !conf.enabled {
 		return Ok(None);
 	}

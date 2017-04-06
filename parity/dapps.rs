@@ -18,12 +18,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use dir::default_data_path;
-use ethcore::client::Client;
-use ethsync::SyncProvider;
+use ethcore::client::{Client, BlockChainClient, BlockId};
+use ethcore::transaction::{Transaction, Action};
 use hash_fetch::fetch::Client as FetchClient;
+use hash_fetch::urlhint::ContractClient;
 use helpers::replace_home;
 use rpc_apis::SignerService;
 use parity_reactor;
+use util::{Bytes, Address, U256};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
@@ -43,15 +45,53 @@ impl Default for Configuration {
 	}
 }
 
-pub struct Dependencies {
+/// Registrar implementation of the full client.
+pub struct FullRegistrar {
+	/// Handle to the full client.
 	pub client: Arc<Client>,
-	pub sync: Arc<SyncProvider>,
+}
+
+impl ContractClient for FullRegistrar {
+	fn registrar(&self) -> Result<Address, String> {
+		self.client.additional_params().get("registrar")
+			 .ok_or_else(|| "Registrar not defined.".into())
+			 .and_then(|registrar| {
+				 registrar.parse().map_err(|e| format!("Invalid registrar address: {:?}", e))
+			 })
+	}
+
+	fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
+		let from = Address::default();
+		let transaction = Transaction {
+			nonce: self.client.latest_nonce(&from),
+			action: Action::Call(address),
+			gas: U256::from(50_000_000),
+			gas_price: U256::default(),
+			value: U256::default(),
+			data: data,
+		}.fake_sign(from);
+
+		self.client.call(&transaction, BlockId::Latest, Default::default())
+			.map_err(|e| format!("{:?}", e))
+			.map(|executed| {
+				executed.output
+			})
+	}
+}
+
+// TODO: light client implementation forwarding to OnDemand and waiting for future
+// to resolve.
+pub struct Dependencies {
+	pub sync_status: Arc<::parity_dapps::SyncStatus>,
+	pub contract_client: Arc<ContractClient>,
 	pub remote: parity_reactor::TokioRemote,
 	pub fetch: FetchClient,
 	pub signer: Arc<SignerService>,
 }
 
-pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Middleware>, String> {
+pub fn new(configuration: Configuration, deps: Dependencies)
+	-> Result<Option<Middleware>, String>
+{
 	if !configuration.enabled {
 		return Ok(None);
 	}
@@ -96,13 +136,8 @@ mod server {
 	use super::Dependencies;
 	use std::path::PathBuf;
 	use std::sync::Arc;
-	use util::{Bytes, Address, U256};
 
-	use ethcore::transaction::{Transaction, Action};
-	use ethcore::client::{Client, BlockChainClient, BlockId};
-	use ethcore_rpc::is_major_importing;
 	use hash_fetch::fetch::Client as FetchClient;
-	use hash_fetch::urlhint::ContractClient;
 	use parity_dapps;
 	use parity_reactor;
 
@@ -113,12 +148,8 @@ mod server {
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 	) -> Result<Middleware, String> {
-		let sync = deps.sync;
 		let signer = deps.signer.clone();
-		let client = deps.client;
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
-		let registrar = Arc::new(Registrar { client: client.clone() });
-		let sync_status = Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info()));
 		let web_proxy_tokens = Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token));
 
 		Ok(parity_dapps::Middleware::new(
@@ -126,42 +157,10 @@ mod server {
 			deps.signer.address(),
 			dapps_path,
 			extra_dapps,
-			registrar,
-			sync_status,
+			deps.contract_client,
+			deps.sync_status,
 			web_proxy_tokens,
 			deps.fetch.clone(),
 		))
-	}
-
-	struct Registrar {
-		client: Arc<Client>,
-	}
-
-	impl ContractClient for Registrar {
-		fn registrar(&self) -> Result<Address, String> {
-			self.client.additional_params().get("registrar")
-				 .ok_or_else(|| "Registrar not defined.".into())
-				 .and_then(|registrar| {
-					 registrar.parse().map_err(|e| format!("Invalid registrar address: {:?}", e))
-				 })
-		}
-
-		fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
-			let from = Address::default();
-			let transaction = Transaction {
-				nonce: self.client.latest_nonce(&from),
-				action: Action::Call(address),
-				gas: U256::from(50_000_000),
-				gas_price: U256::default(),
-				value: U256::default(),
-				data: data,
-			}.fake_sign(from);
-
-			self.client.call(&transaction, BlockId::Latest, Default::default())
-				.map_err(|e| format!("{:?}", e))
-				.map(|executed| {
-					executed.output
-				})
-		}
 	}
 }
