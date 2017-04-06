@@ -158,7 +158,7 @@ fn ethereum_builtin(name: &str) -> Box<Impl> {
 		"modexp" => Box::new(ModexpImpl) as Box<Impl>,
 		"bn128_add" => Box::new(Bn128AddImpl) as Box<Impl>,
 		"bn128_mul" => Box::new(Bn128MulImpl) as Box<Impl>,
-		"bn128_pairing" => Box::new(Bn128ParingImpl) as Box<Impl>,
+		"bn128_pairing" => Box::new(Bn128PairingImpl) as Box<Impl>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -193,7 +193,7 @@ struct Bn128AddImpl;
 struct Bn128MulImpl;
 
 #[derive(Debug)]
-struct Bn128ParingImpl;
+struct Bn128PairingImpl;
 
 impl Impl for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
@@ -429,7 +429,7 @@ mod bn128_gen {
 	}		
 }
 
-impl Impl for Bn128ParingImpl {
+impl Impl for Bn128PairingImpl {
 	/// Can fail if:
 	///     - input length is not a multiple of 192
 	///     - any of odd points does not belong to bn128 curve
