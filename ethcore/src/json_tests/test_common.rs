@@ -15,10 +15,19 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 pub use util::*;
+use std::fs::File;
+
+pub fn run_test_file(path: &str, runner: fn (json_data: &[u8]) -> Vec<String>) {
+	let mut data = Vec::new();
+	let mut file = File::open(&path).expect("Error opening test file");
+	file.read_to_end(&mut data).expect("Error reading test file");
+	let results = runner(&data);
+	assert!(results.is_empty());
+}
 
 macro_rules! test {
 	($name: expr) => {
-		assert!(do_json_test(include_bytes!(concat!("../../res/ethereum/tests/", $name, ".json"))).is_empty());
+		::json_tests::test_common::run_test_file(concat!("res/ethereum/tests/", $name, ".json"), do_json_test);
 	}
 }
 
