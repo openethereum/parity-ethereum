@@ -24,6 +24,9 @@ allow_ips = "public"
 reserved_only = true
 reserved_peers = "./path/to/reserved_peers"
 
+[websockets]
+disable = true
+origins = ["none"]
 
 [rpc]
 disable = true

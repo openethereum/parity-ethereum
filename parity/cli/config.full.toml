@@ -52,6 +52,14 @@ cors = "null"
 apis = ["web3", "eth", "net", "parity", "traces", "rpc"]
 hosts = ["none"]
 
+[websockets]
+disable = false
+port = 8546
+interface = "local"
+origins = ["none"]
+apis = ["web3", "eth", "net", "parity", "traces", "rpc"]
+hosts = ["none"]
+
 [ipc]
 disable = false
 path = "$HOME/.parity/jsonrpc.ipc"

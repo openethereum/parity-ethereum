@@ -762,6 +762,14 @@ impl Configuration {
 		Self::hosts(&self.args.flag_jsonrpc_hosts)
 	}
 
+	fn ws_hosts(&self) -> Option<Vec<String>> {
+		Self::hosts(&self.args.flag_ws_hosts)
+	}
+
+	fn ws_origins(&self) -> Option<Vec<String>> {
+		Self::hosts(&self.args.flag_ws_origins)
+	}
+
 	fn ipfs_hosts(&self) -> Option<Vec<String>> {
 		Self::hosts(&self.args.flag_ipfs_api_hosts)
 	}
@@ -805,12 +813,12 @@ impl Configuration {
 
 	fn ws_config(&self) -> Result<WsConfiguration, String> {
 		let conf = WsConfiguration {
-			enabled: self.rpc_enabled(),
-			interface: self.rpc_interface(),
-			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port) + 1,
-			apis: self.rpc_apis().parse()?,
-			hosts: self.rpc_hosts(),
-			origins: self.rpc_cors()
+			enabled: self.ws_enabled(),
+			interface: self.ws_interface(),
+			port: self.args.flag_ws_port,
+			apis: self.args.flag_ws_apis.parse()?,
+			hosts: self.ws_hosts(),
+			origins: self.ws_origins()
 		};
 
 		Ok(conf)
@@ -928,6 +936,10 @@ impl Configuration {
 		Self::interface(&self.network_settings().rpc_interface)
 	}
 
+	fn ws_interface(&self) -> String {
+		Self::interface(&self.args.flag_ws_interface)
+	}
+
 	fn ipfs_interface(&self) -> String {
 		Self::interface(&self.args.flag_ipfs_api_interface)
 	}
@@ -945,6 +957,10 @@ impl Configuration {
 
 	fn rpc_enabled(&self) -> bool {
 		!self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc
+	}
+
+	fn ws_enabled(&self) -> bool {
+		!self.args.flag_no_ws
 	}
 
 	fn dapps_enabled(&self) -> bool {
