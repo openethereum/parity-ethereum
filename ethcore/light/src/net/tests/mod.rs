@@ -600,8 +600,8 @@ fn id_guard() {
 
 	let mut pending_requests = RequestSet::default();
 
-	pending_requests.insert(req_id_1, req.clone(), ::time::SteadyTime::now());
-	pending_requests.insert(req_id_2, req, ::time::SteadyTime::now());
+	pending_requests.insert(req_id_1, req.clone(), 0.into(), ::time::SteadyTime::now());
+	pending_requests.insert(req_id_2, req, 1.into(), ::time::SteadyTime::now());
 
 	proto.peers.write().insert(peer_id, ::util::Mutex::new(Peer {
 		local_credits: flow_params.create_credits(),
@@ -612,6 +612,7 @@ fn id_guard() {
 		last_update: ::time::SteadyTime::now(),
 		pending_requests: pending_requests,
 		failed_requests: Vec::new(),
+		propagated_transactions: Default::default(),
 	}));
 
 	// first, malformed responses.

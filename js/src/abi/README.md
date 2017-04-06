@@ -1,6 +1,6 @@
 # ethabi-js
 
-A very early, very POC-type port of [https://github.com/ethcore/ethabi](https://github.com/ethcore/ethabi) to JavaScript
+A very early, very POC-type port of [https://github.com/paritytech/ethabi](https://github.com/paritytech/ethabi) to JavaScript
 
 [![Build Status](https://travis-ci.org/jacogr/ethabi-js.svg?branch=master)](https://travis-ci.org/jacogr/ethabi-js)
 [![Coverage Status](https://coveralls.io/repos/github/jacogr/ethabi-js/badge.svg?branch=master)](https://coveralls.io/github/jacogr/ethabi-js?branch=master)

@@ -17,7 +17,7 @@
 import { range } from 'lodash';
 
 export function bytesToHex (bytes) {
-  return '0x' + bytes.map((b) => ('0' + b.toString(16)).slice(-2)).join('');
+  return '0x' + Buffer.from(bytes).toString('hex');
 }
 
 export function cleanupValue (value, type) {

@@ -109,7 +109,7 @@ impl Encodable for CostTable {
 		fn append_cost(s: &mut RlpStream, cost: &U256, kind: request::Kind) {
 			s.begin_list(2);
 
-			// hack around https://github.com/ethcore/parity/issues/4356
+			// hack around https://github.com/paritytech/parity/issues/4356
 			Encodable::rlp_append(&kind, s);
 			s.append(cost);
 		}

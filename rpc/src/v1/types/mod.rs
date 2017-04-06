@@ -30,6 +30,7 @@ mod hash;
 mod histogram;
 mod index;
 mod log;
+mod node_kind;
 mod provenance;
 mod receipt;
 mod rpc_settings;
@@ -58,12 +59,13 @@ pub use self::hash::{H64, H160, H256, H512, H520, H2048};
 pub use self::histogram::Histogram;
 pub use self::index::Index;
 pub use self::log::Log;
+pub use self::node_kind::{NodeKind, Availability, Capability};
 pub use self::provenance::{Origin, DappId};
 pub use self::receipt::Receipt;
 pub use self::rpc_settings::RpcSettings;
 pub use self::sync::{
 	SyncStatus, SyncInfo, Peers, PeerInfo, PeerNetworkInfo, PeerProtocolsInfo,
-	TransactionStats, ChainStatus, EthProtocolInfo, LesProtocolInfo,
+	TransactionStats, ChainStatus, EthProtocolInfo, PipProtocolInfo,
 };
 pub use self::trace::{LocalizedTrace, TraceResults};
 pub use self::trace_filter::TraceFilter;

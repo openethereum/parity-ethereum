@@ -20,8 +20,8 @@ import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
 import { pick } from 'lodash';
 
-import { BusyStep, AddressSelect, Button, Form, TypedInput, Input, InputAddress, Portal, TxHash } from '~/ui';
-import { CancelIcon, DoneIcon, NextIcon } from '~/ui/Icons';
+import { AddressSelect, Button, Form, TypedInput, Input, InputAddress, Portal } from '~/ui';
+import { CancelIcon, NextIcon } from '~/ui/Icons';
 import { fromWei } from '~/api/util/wei';
 
 import WalletSettingsStore from './walletSettingsStore.js';
@@ -40,46 +40,14 @@ class WalletSettings extends Component {
     senders: PropTypes.object.isRequired
   };
 
-  store = new WalletSettingsStore(this.context.api, this.props.wallet);
+  store = new WalletSettingsStore(this.context.api, this.props);
 
   render () {
-    const { stage, steps, waiting, rejected } = this.store;
-
-    if (rejected) {
-      return (
-        <Portal
-          onClose={ this.onClose }
-          open
-          title={
-            <FormattedMessage
-              id='walletSettings.rejected.title'
-              defaultMessage='rejected'
-            />
-          }
-          actions={ this.renderDialogActions() }
-        >
-          <BusyStep
-            title={
-              <FormattedMessage
-                id='walletSettings.rejected.busyStep.title'
-                defaultMessage='The modifications have been rejected'
-              />
-            }
-            state={
-              <FormattedMessage
-                id='walletSettings.rejected.busyStep.state'
-                defaultMessage='The wallet settings will not be modified. You can safely close this window.'
-              />
-            }
-          />
-        </Portal>
-      );
-    }
+    const { stage, steps } = this.store;
 
     return (
       <Portal
         activeStep={ stage }
-        busySteps={ waiting }
         buttons={ this.renderDialogActions() }
         onClose={ this.onClose }
         open
@@ -94,43 +62,6 @@ class WalletSettings extends Component {
     const { step } = this.store;
 
     switch (step) {
-      case 'SENDING':
-        return (
-          <BusyStep
-            title='The modifications are currently being sent'
-            state={ this.store.deployState }
-          >
-            {
-              this.store.requests.map((req) => {
-                const key = req.id;
-
-                if (req.txhash) {
-                  return (
-                    <TxHash
-                      key={ key }
-                      hash={ req.txhash }
-                    />
-                  );
-                }
-
-                if (req.rejected) {
-                  return (
-                    <p key={ key }>
-                      <FormattedMessage
-                        id='walletSettings.rejected'
-                        defaultMessage='The transaction #{txid} has been rejected'
-                        values={ {
-                          txid: parseInt(key, 16)
-                        } }
-                      />
-                    </p>
-                  );
-                }
-              })
-            }
-          </BusyStep>
-        );
-
       case 'CONFIRMATION':
         const { changes } = this.store;
 
@@ -396,7 +327,7 @@ class WalletSettings extends Component {
   }
 
   renderDialogActions () {
-    const { step, hasErrors, rejected, onNext, send, done } = this.store;
+    const { step, hasErrors, onNext, send } = this.store;
 
     const cancelBtn = (
       <Button
@@ -423,20 +354,6 @@ class WalletSettings extends Component {
           />
         }
         onClick={ this.onClose }
-      />
-    );
-
-    const sendingBtn = (
-      <Button
-        icon={ <DoneIcon /> }
-        key='sendingBtn'
-        label={
-          <FormattedMessage
-            id='walletSettings.buttons.sending'
-            defaultMessage='Sending...'
-          />
-        }
-        disabled
       />
     );
 
@@ -470,16 +387,7 @@ class WalletSettings extends Component {
       />
     );
 
-    if (rejected) {
-      return [ closeBtn ];
-    }
-
     switch (step) {
-      case 'SENDING':
-        return done
-          ? [ closeBtn ]
-          : [ closeBtn, sendingBtn ];
-
       case 'CONFIRMATION':
         const { changes } = this.store;
 

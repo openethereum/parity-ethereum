@@ -10,7 +10,7 @@ build = "build.rs"
 ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
-semver = "0.5"
+semver = "0.6"
 ethcore-ipc = { path = "../ipc/rpc" }
 ethcore-util = { path = "../util" }
 

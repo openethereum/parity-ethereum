@@ -4,6 +4,7 @@ mode_timeout = 300
 mode_alarm = 3600
 auto_update = "none"
 release_track = "current"
+public_node = false
 no_download = false
 no_consensus = false
 
@@ -38,7 +39,7 @@ warp = true
 allow_ips = "all"
 snapshot_peers = 0
 max_pending_peers = 64
-serve_light = true
+no_serve_light = false
 
 reserved_only = false
 reserved_peers = "./path_to_file"

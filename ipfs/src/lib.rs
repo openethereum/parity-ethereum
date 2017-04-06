@@ -32,12 +32,13 @@ use std::sync::Arc;
 use std::net::{SocketAddr, IpAddr};
 use error::ServerError;
 use route::Out;
-use http::hyper::server::{Listening, Handler, Request, Response};
+use http::hyper::server::{Handler, Request, Response};
 use http::hyper::net::HttpStream;
 use http::hyper::header::{self, Vary, ContentLength, ContentType};
 use http::hyper::{Next, Encoder, Decoder, Method, RequestUri, StatusCode};
 use ethcore::client::BlockChainClient;
 
+pub use http::hyper::server::Listening;
 pub use http::{AccessControlAllowOrigin, Host, DomainsValidation};
 
 /// Request/response handler

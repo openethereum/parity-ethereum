@@ -25,6 +25,7 @@ import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
 import apiutil from '~/api/util';
 import AccountCard from '~/ui/AccountCard';
+import CopyToClipboard from '~/ui/CopyToClipboard';
 import InputAddress from '~/ui/Form/InputAddress';
 import Loading from '~/ui/Loading';
 import Portal from '~/ui/Portal';
@@ -107,18 +108,8 @@ class AddressSelect extends Component {
     const input = this.renderInput();
     const content = this.renderContent();
 
-    const classes = [ styles.main ];
-
     return (
-      <div
-        className={ classes.join(' ') }
-        onBlur={ this.handleMainBlur }
-        onClick={ this.handleFocus }
-        onFocus={ this.handleMainFocus }
-        onKeyDown={ this.handleInputAddresKeydown }
-        ref='inputAddress'
-        tabIndex={ 0 }
-      >
+      <div className={ styles.main }>
         { input }
         { content }
       </div>
@@ -151,8 +142,37 @@ class AddressSelect extends Component {
     }
 
     return (
-      <div className={ styles.inputAddress }>
-        { input }
+      <div className={ styles.inputAddressContainer }>
+        { this.renderCopyButton() }
+        <div
+          className={ styles.inputAddress }
+          onBlur={ this.handleMainBlur }
+          onClick={ this.handleFocus }
+          onFocus={ this.handleMainFocus }
+          onKeyDown={ this.handleInputAddresKeydown }
+          ref='inputAddress'
+          tabIndex={ 0 }
+        >
+          { input }
+        </div>
+      </div>
+    );
+  }
+
+  renderCopyButton () {
+    const { allowCopy, value } = this.props;
+
+    if (!allowCopy) {
+      return null;
+    }
+
+    const text = typeof allowCopy === 'string'
+      ? allowCopy
+      : value.toString();
+
+    return (
+      <div className={ styles.copy }>
+        <CopyToClipboard data={ text } />
       </div>
     );
   }

@@ -24,6 +24,8 @@ use util::Bytes;
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct ManifestData {
+	/// Snapshot format version.
+	pub version: u64,
 	/// List of state chunk hashes.
 	pub state_hashes: Vec<H256>,
 	/// List of block chunk hashes.
@@ -39,7 +41,8 @@ pub struct ManifestData {
 impl ManifestData {
 	/// Encode the manifest data to rlp.
 	pub fn into_rlp(self) -> Bytes {
-		let mut stream = RlpStream::new_list(5);
+		let mut stream = RlpStream::new_list(6);
+		stream.append(&self.version);
 		stream.append_list(&self.state_hashes);
 		stream.append_list(&self.block_hashes);
 		stream.append(&self.state_root);
@@ -52,14 +55,20 @@ impl ManifestData {
 	/// Try to restore manifest data from raw bytes, interpreted as RLP.
 	pub fn from_rlp(raw: &[u8]) -> Result<Self, DecoderError> {
 		let decoder = UntrustedRlp::new(raw);
+		let (start, version) = if decoder.item_count()? == 5 {
+			(0, 1)
+		} else {
+			(1, decoder.val_at(0)?)
+		};
 
-		let state_hashes: Vec<H256> = decoder.list_at(0)?;
-		let block_hashes: Vec<H256> = decoder.list_at(1)?;
-		let state_root: H256 = decoder.val_at(2)?;
-		let block_number: u64 = decoder.val_at(3)?;
-		let block_hash: H256 = decoder.val_at(4)?;
+		let state_hashes: Vec<H256> = decoder.list_at(start + 0)?;
+		let block_hashes: Vec<H256> = decoder.list_at(start + 1)?;
+		let state_root: H256 = decoder.val_at(start + 2)?;
+		let block_number: u64 = decoder.val_at(start + 3)?;
+		let block_hash: H256 = decoder.val_at(start + 4)?;
 
 		Ok(ManifestData {
+			version: version,
 			state_hashes: state_hashes,
 			block_hashes: block_hashes,
 			state_root: state_root,

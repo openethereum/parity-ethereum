@@ -151,7 +151,8 @@ impl Body {
 		// concatenate the header and the body.
 		let mut stream = RlpStream::new_list(3);
 		stream.append_raw(self.header.rlp().as_raw(), 1);
-		stream.append_raw(&body.rlp().as_raw(), 2);
+		stream.append_raw(body.rlp().at(0).as_raw(), 1);
+		stream.append_raw(body.rlp().at(1).as_raw(), 1);
 
 		Ok(encoded::Block::new(stream.out()))
 	}
@@ -243,12 +244,14 @@ impl TransactionProof {
 	pub fn check_response(&self, state_items: &[DBValue]) -> ProvedExecution {
 		let root = self.header.state_root();
 
+		let mut env_info = self.env_info.clone();
+		env_info.gas_limit = self.tx.gas.clone();
 		state::check_proof(
 			state_items,
 			root,
 			&self.tx,
 			&*self.engine,
-			&self.env_info,
+			&env_info,
 		)
 	}
 }

@@ -9,4 +9,4 @@ authors = ["Parity Technologies <admin@parity.io>"]
 log = "0.3"
 sha3 = { path = "../util/sha3" }
 primal = "0.2.3"
-parking_lot = "0.3"
+parking_lot = "0.4"

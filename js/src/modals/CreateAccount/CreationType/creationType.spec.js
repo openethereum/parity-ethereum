@@ -29,7 +29,7 @@ function render () {
   store = createStore();
   component = shallow(
     <CreationType
-      store={ store }
+      createStore={ store }
     />
   );
   instance = component.instance();

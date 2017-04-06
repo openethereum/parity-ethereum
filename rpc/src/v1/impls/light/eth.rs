@@ -166,7 +166,6 @@ impl EthClient {
 	fn proved_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<ExecutionResult, Error> {
 		const DEFAULT_GAS_PRICE: U256 = U256([0, 0, 0, 21_000_000]);
 
-
 		let (sync, on_demand, client) = (self.sync.clone(), self.on_demand.clone(), self.client.clone());
 		let req: CRequest = req.into();
 		let id = num.0.into();
@@ -245,7 +244,22 @@ impl Eth for EthClient {
 	}
 
 	fn syncing(&self) -> Result<SyncStatus, Error> {
-		rpc_unimplemented!()
+		if self.sync.is_major_importing() {
+			let chain_info = self.client.chain_info();
+			let current_block = U256::from(chain_info.best_block_number);
+			let highest_block = self.sync.highest_block().map(U256::from)
+				.unwrap_or_else(|| current_block.clone());
+
+			Ok(SyncStatus::Info(SyncInfo {
+				starting_block: U256::from(self.sync.start_block()).into(),
+				current_block: current_block.into(),
+				highest_block: highest_block.into(),
+				warp_chunks_amount: None,
+				warp_chunks_processed: None,
+			}))
+		} else {
+			Ok(SyncStatus::None)
+		}
 	}
 
 	fn author(&self, _meta: Self::Metadata) -> BoxFuture<RpcH160, Error> {

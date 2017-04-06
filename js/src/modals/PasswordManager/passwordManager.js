@@ -122,7 +122,7 @@ class PasswordManager extends Component {
           <span className={ styles.passwordHint }>
             <span className={ styles.hintLabel }>
               <FormattedMessage
-                id='passwordChange.passwordHint'
+                id='passwordChange.passwordHint.display'
                 defaultMessage='Hint {hint}'
                 values={ {
                   hint: passwordHint || '-'
