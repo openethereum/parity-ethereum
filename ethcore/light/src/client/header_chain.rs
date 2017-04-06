@@ -427,7 +427,7 @@ impl HeaderChain {
 		}
 	}
 
-	/// Get the nth CHT root, if it has been computed.
+	/// Get the nth CHT root, if it's been computed.
 	///
 	/// CHT root 0 is from block `1..2048`.
 	/// CHT root 1 is from block `2049..4096`
