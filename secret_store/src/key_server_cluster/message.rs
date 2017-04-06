@@ -79,6 +79,8 @@ pub enum DecryptionMessage {
 	PartialDecryption(PartialDecryption),
 	/// When decryption session error has occured.
 	DecryptionSessionError(DecryptionSessionError),
+	/// When decryption session is completed.
+	DecryptionSessionCompleted(DecryptionSessionCompleted),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -245,6 +247,15 @@ pub struct DecryptionSessionError {
 	pub error: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// When decryption session is completed.
+pub struct DecryptionSessionCompleted {
+	/// Encryption session Id.
+	pub session: MessageSessionId,
+	/// Decryption session Id.
+	pub sub_session: SerializableSecret,
+}
+
 impl EncryptionMessage {
 	pub fn session_id(&self) -> &SessionId {
 		match *self {
@@ -267,6 +278,7 @@ impl DecryptionMessage {
 			DecryptionMessage::RequestPartialDecryption(ref msg) => &msg.session,
 			DecryptionMessage::PartialDecryption(ref msg) => &msg.session,
 			DecryptionMessage::DecryptionSessionError(ref msg) => &msg.session,
+			DecryptionMessage::DecryptionSessionCompleted(ref msg) => &msg.session,
 		}
 	}
 
@@ -277,6 +289,7 @@ impl DecryptionMessage {
 			DecryptionMessage::RequestPartialDecryption(ref msg) => &msg.sub_session,
 			DecryptionMessage::PartialDecryption(ref msg) => &msg.sub_session,
 			DecryptionMessage::DecryptionSessionError(ref msg) => &msg.sub_session,
+			DecryptionMessage::DecryptionSessionCompleted(ref msg) => &msg.sub_session,
 		}
 	}
 }
@@ -324,6 +337,7 @@ impl fmt::Display for DecryptionMessage {
 			DecryptionMessage::RequestPartialDecryption(_) => write!(f, "RequestPartialDecryption"),
 			DecryptionMessage::PartialDecryption(_) => write!(f, "PartialDecryption"),
 			DecryptionMessage::DecryptionSessionError(_) => write!(f, "DecryptionSessionError"),
+			DecryptionMessage::DecryptionSessionCompleted(_) => write!(f, "DecryptionSessionCompleted"),
 		}
 	}
 }

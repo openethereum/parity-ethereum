@@ -24,7 +24,7 @@ use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId,
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::math;
 use key_server_cluster::message::{Message, DecryptionMessage, InitializeDecryptionSession, ConfirmDecryptionInitialization,
-	RequestPartialDecryption, PartialDecryption, DecryptionSessionError};
+	RequestPartialDecryption, PartialDecryption, DecryptionSessionError, DecryptionSessionCompleted};
 
 /// Decryption session API.
 pub trait Session: Send + Sync + 'static {
@@ -114,8 +114,10 @@ struct SessionData {
 	rejected_nodes: BTreeSet<NodeId>,
 	/// Nodes, which have responded with confirm to initialization request.
 	confirmed_nodes: BTreeSet<NodeId>,
-	
+
 	// === Values, filled during partial decryption ===
+	/// Nodes, which have been asked for partial decryption.
+	shadow_requests: BTreeSet<NodeId>,
 	/// Shadow points, received from nodes as a response to partial decryption request.
 	shadow_points: BTreeMap<NodeId, PartialDecryptionResult>,
 
@@ -162,6 +164,7 @@ impl SessionImpl {
 				requested_nodes: BTreeSet::new(),
 				rejected_nodes: BTreeSet::new(),
 				confirmed_nodes: BTreeSet::new(),
+				shadow_requests: BTreeSet::new(),
 				shadow_points: BTreeMap::new(),
 				decrypted_secret: None,
 			})
@@ -173,16 +176,15 @@ impl SessionImpl {
 		&self.self_node_id
 	}
 
+	/// Get current session state.
+	pub fn state(&self) -> SessionState {
+		self.data.lock().state.clone()
+	}
+
 	#[cfg(test)]
 	/// Get this session access key.
 	pub fn access_key(&self) -> &Secret {
 		&self.access_key
-	}
-
-	#[cfg(test)]
-	/// Get current session state.
-	pub fn state(&self) -> SessionState {
-		self.data.lock().state.clone()
 	}
 
 	#[cfg(test)]
@@ -284,9 +286,17 @@ impl SessionImpl {
 		let mut data = self.data.lock();
 
 		// check state
-		if data.state != SessionState::WaitingForInitializationConfirm {
+		if data.state == SessionState::WaitingForPartialDecryption {
 			// if there were enough confirmations/rejections before this message
 			// we have already moved to the next state
+			if !data.requested_nodes.remove(&sender) {
+				return Err(Error::InvalidMessage);
+			}
+
+			data.confirmed_nodes.insert(sender);
+			return Ok(());
+		}
+		if data.state != SessionState::WaitingForInitializationConfirm {
 			return Ok(());
 		}
 
@@ -321,7 +331,7 @@ impl SessionImpl {
 			return Err(Error::InvalidMessage);
 		}
 
-		let mut data = self.data.lock();
+		let data = self.data.lock();
 
 		// check state
 		if data.master != Some(sender) {
@@ -345,8 +355,8 @@ impl SessionImpl {
 			decrypt_shadow: decryption_result.decrypt_shadow,
 		})))?;
 
-		// update sate
-		data.state = SessionState::Finished;
+		// master could ask us for another partial decryption in case of restart
+		// => no state change is required
 
 		Ok(())
 	}
@@ -377,34 +387,176 @@ impl SessionImpl {
 			return Ok(());
 		}
 
+		// notify all other nodes about session completion
+		self.cluster.broadcast(Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(DecryptionSessionCompleted {
+			session: self.id.clone().into(),
+			sub_session: self.access_key.clone().into(),
+		})))?;
+
+		// do decryption
 		SessionImpl::do_decryption(self.access_key.clone(), &self.encrypted_data, &mut *data)?;
 		self.completed.notify_all();
 
 		Ok(())
 	}
 
+	/// When session is completed.
+	pub fn on_session_completed(&self, sender: NodeId, message: &DecryptionSessionCompleted) -> Result<(), Error> {
+		debug_assert!(self.id == *message.session);
+		debug_assert!(self.access_key == *message.sub_session);
+		debug_assert!(&sender != self.node());
+
+		let mut data = self.data.lock();
+
+		// check state
+		if data.state != SessionState::WaitingForPartialDecryptionRequest {
+			return Err(Error::InvalidStateForRequest);
+		}
+		if data.master != Some(sender) {
+			return Err(Error::InvalidMessage);
+		}
+
+		// update state
+		data.state = SessionState::Finished;
+
+		Ok(())
+	}
+
 	/// When error has occured on another node.
 	pub fn on_session_error(&self, sender: NodeId, message: &DecryptionSessionError) {
-		warn!("{}: decryption session error: {:?} from {}", self.node(), message, sender);
 		let mut data = self.data.lock();
+
+		warn!("{}: decryption session failed with error: {:?} from {}", self.node(), message, sender);
+
 		data.state = SessionState::Failed;
 		data.decrypted_secret = Some(Err(Error::Io(message.error.clone())));
 		self.completed.notify_all();
 	}
 
-	/// When session timeout has occured.
-	pub fn on_session_timeout(&self, _node: &NodeId) {
-		warn!("{}: decryption session timeout", self.node());
+	/// When connection to one of cluster nodes has timeouted.
+	pub fn on_node_timeout(&self, node: &NodeId) -> bool {
 		let mut data = self.data.lock();
-		// TODO: check that node is a part of decryption process
+
+		let is_self_master = data.master.as_ref() == Some(self.node());
+		let is_other_master = data.master.as_ref() == Some(node);
+		// if this is master node, we might have to restart
+		if is_self_master {
+			match data.state {
+				SessionState::WaitingForInitializationConfirm => {
+					// we will never receive confirmation from this node => treat as reject
+					if data.requested_nodes.remove(node) || data.confirmed_nodes.remove(node) {
+						data.rejected_nodes.insert(node.clone());
+					}
+					// check if we still have enough nodes for decryption
+					// TODO: self.encrypted_data.id_numbers != ClusterView.nodes!!!! Remove disconnected nodes on start
+					if self.encrypted_data.id_numbers.len() - data.rejected_nodes.len() >= self.encrypted_data.threshold + 1 {
+						return false;
+					}
+				}
+				SessionState::WaitingForPartialDecryption => {
+					if data.rejected_nodes.contains(node) {
+						// already rejected => does not affect session
+						return false;
+					}
+					if data.requested_nodes.remove(node) {
+						// we have tried to initialize this node, but it has failed
+						// => no restart required, just mark as rejected
+						data.rejected_nodes.insert(node.clone());
+						return false;
+					}
+					if data.confirmed_nodes.contains(node) {
+						if data.shadow_points.contains_key(node) {
+							// we have already received partial decryption from this node
+							// => just ignore this connection drop
+							return false;
+						}
+
+						// the worst case: we have sent partial decryption request to other nodes
+						// => we have to restart the session
+						data.confirmed_nodes.remove(node);
+						data.rejected_nodes.insert(node.clone());
+						// check if we still have enough nodes for decryption
+						// TODO: self.encrypted_data.id_numbers != ClusterView.nodes!!!! Remove disconnected nodes on start
+						if self.encrypted_data.id_numbers.len() - data.rejected_nodes.len() >= self.encrypted_data.threshold + 1 {
+							// we are going to stop session anyway => ignore error
+							let _ = SessionImpl::start_waiting_for_partial_decryption(self.node().clone(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data);
+							return false;
+						}
+						// not enough nodes
+					}
+				}
+				_ => (), // all other states lead to failures
+			}
+		} else if !is_other_master {
+			// disconnected from non-master node on non-master node
+			// => this does not affect this session
+			return false;
+		}
+		// else: disconnecting from master node means failure
+
+		// no more nodes left for decryption => fail
+		warn!("{}: decryption session failed because {} connection has timeouted", self.node(), node);
+
 		data.state = SessionState::Failed;
-		data.decrypted_secret = Some(Err(Error::Io("session expired".into())));
+		data.decrypted_secret = Some(Err(Error::Io(format!("{} connection timeout", node))));
 		self.completed.notify_all();
+
+		true
+	}
+
+	/// When session timeout has occured.
+	pub fn on_session_timeout(&self) -> bool {
+		let mut data = self.data.lock();
+
+		let is_self_master = data.master.as_ref() == Some(self.node());
+		// if this is master node, we might have to restart
+		if is_self_master {
+			match data.state {
+				SessionState::WaitingForInitializationConfirm =>
+					// we have sent initialization requests to all nodes, but haven't received confirmation
+					// => nodes will never respond => fail
+					(),
+				SessionState::WaitingForPartialDecryption => {
+					// we have requested partial decryption, but some nodes have failed to respond
+					// => mark these nodes as rejected && restart
+					let timeouted_nodes = data.shadow_points.keys().cloned().collect();
+					let timeouted_nodes: Vec<_> = data.shadow_requests.difference(&timeouted_nodes).cloned().collect();
+					for timeouted_node in timeouted_nodes {
+						data.confirmed_nodes.remove(&timeouted_node);
+						data.rejected_nodes.insert(timeouted_node.clone());
+					}
+
+					// check if we still have enough nodes for decryption
+					// TODO: self.encrypted_data.id_numbers != ClusterView.nodes!!!! Remove disconnected nodes on start
+					if self.encrypted_data.id_numbers.len() - data.rejected_nodes.len() >= self.encrypted_data.threshold + 1 {
+						// we are going to stop session anyway => ignore error
+						let _ = SessionImpl::start_waiting_for_partial_decryption(self.node().clone(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data);
+						return false;
+					}
+				},
+				// no nodes has responded to our requests => session is failed
+				_ => return false,
+			}
+		}
+
+		// no more nodes left for decryption => fail
+		warn!("{}: decryption session failed with timeout", self.node());
+
+		data.state = SessionState::Failed;
+		data.decrypted_secret = Some(Err(Error::Io("session timeout".into())));
+		self.completed.notify_all();
+
+		true
 	}
 
 	fn start_waiting_for_partial_decryption(self_node_id: NodeId, session_id: SessionId, access_key: Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
 		let confirmed_nodes: BTreeSet<_> = data.confirmed_nodes.clone();
-		for node in data.confirmed_nodes.iter().filter(|n| n != &&self_node_id) {
+		let confirmed_nodes: BTreeSet<_> = confirmed_nodes.difference(&data.rejected_nodes).cloned().collect();
+
+		data.shadow_requests.clear();
+		data.shadow_points.clear();
+		for node in confirmed_nodes.iter().filter(|n| n != &&self_node_id) {
+			data.shadow_requests.insert(node.clone());
 			cluster.send(node, Message::Decryption(DecryptionMessage::RequestPartialDecryption(RequestPartialDecryption {
 				session: session_id.clone().into(),
 				sub_session: access_key.clone().into(),
@@ -595,7 +747,13 @@ mod tests {
 			encrypted_point: encrypted_point.clone(),
 		}).collect();
 		let acl_storages: Vec<_> = (0..5).map(|_| Arc::new(DummyAclStorage::default())).collect();
-		let clusters: Vec<_> = (0..5).map(|i| Arc::new(DummyCluster::new(id_numbers.iter().nth(i).clone().unwrap().0))).collect();
+		let clusters: Vec<_> = (0..5).map(|i| {
+			let cluster = Arc::new(DummyCluster::new(id_numbers.iter().nth(i).clone().unwrap().0));
+			for id_number in &id_numbers {
+				cluster.add_node(id_number.0.clone());
+			}
+			cluster
+		}).collect();
 		let sessions: Vec<_> = (0..5).map(|i| SessionImpl::new(SessionParams {
 			id: session_id.clone(),
 			access_key: access_key.clone(),
@@ -624,6 +782,7 @@ mod tests {
 				Message::Decryption(DecryptionMessage::ConfirmDecryptionInitialization(message)) => session.on_confirm_initialization(from, &message).unwrap(),
 				Message::Decryption(DecryptionMessage::RequestPartialDecryption(message)) => session.on_partial_decryption_requested(from, &message).unwrap(),
 				Message::Decryption(DecryptionMessage::PartialDecryption(message)) => session.on_partial_decryption(from, &message).unwrap(),
+				Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(message)) => session.on_session_completed(from, &message).unwrap(),
 				_ => panic!("unexpected"),
 			}
 		}
@@ -723,27 +882,6 @@ mod tests {
 	}
 
 	#[test]
-	fn fails_to_partial_decrypt_if_not_waiting() {
-		let (_, _, sessions) = prepare_decryption_sessions();
-		assert_eq!(sessions[1].on_initialize_session(sessions[0].node().clone(), &message::InitializeDecryptionSession {
-			session: SessionId::default().into(),
-			sub_session: sessions[0].access_key().clone().into(),
-			requestor_signature: ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
-			is_shadow_decryption: false,
-		}).unwrap(), ());
-		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[0].node().clone(), &message::RequestPartialDecryption {
-			session: SessionId::default().into(),
-			sub_session: sessions[0].access_key().clone().into(),
-			nodes: sessions.iter().map(|s| s.node().clone().into()).take(4).collect(),
-		}).unwrap(), ());
-		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[0].node().clone(), &message::RequestPartialDecryption {
-			session: SessionId::default().into(),
-			sub_session: sessions[0].access_key().clone().into(),
-			nodes: sessions.iter().map(|s| s.node().clone().into()).take(4).collect(),
-		}).unwrap_err(), Error::InvalidStateForRequest);
-	}
-
-	#[test]
 	fn fails_to_partial_decrypt_if_requested_by_slave() {
 		let (_, _, sessions) = prepare_decryption_sessions();
 		assert_eq!(sessions[1].on_initialize_session(sessions[0].node().clone(), &message::InitializeDecryptionSession {
@@ -818,11 +956,9 @@ mod tests {
 		do_messages_exchange(&clusters, &sessions);
 
 		// now check that:
-		// 1) 4 of 5 sessions are in Finished state
-		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::Finished).count(), 4);
-		// 2) 1 session is in WaitingForPartialDecryptionRequest state
-		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::WaitingForPartialDecryptionRequest).count(), 1);
-		// 3) 1 session has decrypted key value
+		// 1) 5 of 5 sessions are in Finished state
+		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::Finished).count(), 5);
+		// 2) 1 session has decrypted key value
 		assert!(sessions.iter().skip(1).all(|s| s.decrypted_secret().is_none()));
 		assert_eq!(sessions[0].decrypted_secret(), Some(DocumentEncryptedKeyShadow {
 			decrypted_secret: SECRET_PLAIN.into(),
@@ -843,11 +979,9 @@ mod tests {
 		do_messages_exchange(&clusters, &sessions);
 
 		// now check that:
-		// 1) 4 of 5 sessions are in Finished state
-		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::Finished).count(), 4);
-		// 2) 1 session is in WaitingForPartialDecryptionRequest state
-		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::WaitingForPartialDecryptionRequest).count(), 1);
-		// 3) 1 session has decrypted key value
+		// 1) 5 of 5 sessions are in Finished state
+		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::Finished).count(), 5);
+		// 2) 1 session has decrypted key value
 		assert!(sessions.iter().skip(1).all(|s| s.decrypted_secret().is_none()));
 
 		let decrypted_secret = sessions[0].decrypted_secret().unwrap();
@@ -879,7 +1013,8 @@ mod tests {
 		acl_storages[1].prohibit(key_pair.public().clone(), SessionId::default());
 		acl_storages[2].prohibit(key_pair.public().clone(), SessionId::default());
 
-		do_messages_exchange(&clusters, &sessions);
+		let node3 = sessions[3].node().clone();
+		do_messages_exchange_until(&clusters, &sessions, |from, _, _msg| from == &node3);
 
 		// now check that:
 		// 1) 3 of 5 sessions are in Failed state

@@ -29,8 +29,8 @@ use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::{Secret, KeyPair, Signature, Random, Generator};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage};
 use key_server_cluster::message::{self, Message, ClusterMessage, EncryptionMessage, DecryptionMessage};
-use key_server_cluster::decryption_session::{SessionImpl as DecryptionSessionImpl, DecryptionSessionId,
-	SessionParams as DecryptionSessionParams, Session as DecryptionSession};
+use key_server_cluster::decryption_session::{SessionImpl as DecryptionSessionImpl, SessionState as DecryptionSessionState,
+	SessionParams as DecryptionSessionParams, Session as DecryptionSession, DecryptionSessionId};
 use key_server_cluster::encryption_session::{SessionImpl as EncryptionSessionImpl, SessionState as EncryptionSessionState,
 	SessionParams as EncryptionSessionParams, Session as EncryptionSession};
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
@@ -530,6 +530,16 @@ impl ClusterCore {
 						}
 						Ok(())
 					},
+				DecryptionMessage::DecryptionSessionCompleted(ref message) => data.sessions.decryption_session(&*message.session, &*message.sub_session)
+					.ok_or(Error::InvalidSessionId)
+					.and_then(|s| {
+						let result = s.on_session_completed(sender.clone(), message);
+						if result.is_ok() && s.state() == DecryptionSessionState::Finished {
+							data.sessions.remove_decryption_session(&session_id, &sub_session_id);
+						}
+
+						result
+					}),
 			};
 
 			match result {
@@ -791,8 +801,9 @@ impl ClusterSessions {
 			for sid in sessions.keys().collect::<Vec<_>>() {
 				let session = sessions.get(&sid).expect("enumerating only existing sessions; qed");
 				if time::Instant::now() - session.last_message_time > time::Duration::from_secs(ENCRYPTION_SESSION_TIMEOUT_INTERVAL) {
-					session.session.on_session_timeout(&self.self_node_id);
-					self.remove_encryption_session(sid);
+					if session.session.on_session_timeout() {
+						self.remove_encryption_session(sid);
+					}
 				}
 			}
 		}
@@ -801,8 +812,9 @@ impl ClusterSessions {
 			for sid in sessions.keys().collect::<Vec<_>>() {
 				let session = sessions.get(&sid).expect("enumerating only existing sessions; qed");
 				if time::Instant::now() - session.last_message_time > time::Duration::from_secs(DECRYPTION_SESSION_TIMEOUT_INTERVAL) {
-					session.session.on_session_timeout(&self.self_node_id);
-					self.remove_decryption_session(&sid.id, &sid.access_key);
+					if session.session.on_session_timeout() {
+						self.remove_decryption_session(&sid.id, &sid.access_key);
+					}
 				}
 			}
 		}
@@ -810,10 +822,12 @@ impl ClusterSessions {
 
 	pub fn on_connection_timeout(&self, node_id: &NodeId) {
 		for encryption_session in self.encryption_sessions.read().values() {
-			encryption_session.session.on_session_timeout(node_id);
+			// TODO: remove session if needed
+			encryption_session.session.on_node_timeout(node_id);
 		}
 		for decryption_session in self.decryption_sessions.read().values() {
-			decryption_session.session.on_session_timeout(node_id);
+			// TODO: remove session if needed
+			decryption_session.session.on_node_timeout(node_id);
 		}
 	}
 }

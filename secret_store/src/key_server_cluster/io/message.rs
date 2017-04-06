@@ -80,6 +80,7 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::Decryption(DecryptionMessage::RequestPartialDecryption(payload))			=> (102, serde_json::to_vec(&payload)),
 		Message::Decryption(DecryptionMessage::PartialDecryption(payload))					=> (103, serde_json::to_vec(&payload)),
 		Message::Decryption(DecryptionMessage::DecryptionSessionError(payload))				=> (104, serde_json::to_vec(&payload)),
+		Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(payload))			=> (105, serde_json::to_vec(&payload)),
 	};
 
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;
@@ -111,6 +112,7 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		102	=> Message::Decryption(DecryptionMessage::RequestPartialDecryption(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		103	=> Message::Decryption(DecryptionMessage::PartialDecryption(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		104	=> Message::Decryption(DecryptionMessage::DecryptionSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		105	=> Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		_ => return Err(Error::Serde(format!("unknown message type {}", header.kind))),
 	})

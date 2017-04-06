@@ -584,32 +584,44 @@ impl SessionImpl {
 
 	/// When error has occured on another node.
 	pub fn on_session_error(&self, sender: NodeId, message: &SessionError) {
-		warn!("{}: encryption session error: {:?} from {}", self.node(), message, sender);
 		let mut data = self.data.lock();
+
+		warn!("{}: encryption session failed with error: {:?} from {}", self.node(), message, sender);
+
 		data.state = SessionState::Failed;
 		data.joint_public = Some(Err(Error::Io(message.error.clone())));
 		data.secret_point = Some(Err(Error::Io(message.error.clone())));
 		self.completed.notify_all();
 	}
 
-	/// When session timeout has occured.
-	pub fn on_session_timeout(&self, node: &NodeId) {
-		warn!("{}: encryption session timeout", self.node());
+	/// When connection to one of cluster nodes has timeouted.
+	pub fn on_node_timeout(&self, node: &NodeId) -> bool {
 		let mut data = self.data.lock();
 
-		match data.state {
-			SessionState::WaitingForInitialization |
-				SessionState::WaitingForInitializationConfirm(_) |
-				SessionState::WaitingForInitializationComplete => (),
-			_ => if !data.nodes.contains_key(node) {
-				return;
-			},
-		}
+		// all nodes are required for encryption session
+		// => fail without check
+		warn!("{}: encryption session failed because {} connection has timeouted", self.node(), node);
 
 		data.state = SessionState::Failed;
-		data.joint_public = Some(Err(Error::Io("session expired".into())));
-		data.secret_point = Some(Err(Error::Io("session expired".into())));
+		data.joint_public = Some(Err(Error::Io(format!("{} connection timeout", node))));
+		data.secret_point = Some(Err(Error::Io(format!("{} connection timeout", node))));
 		self.completed.notify_all();
+
+		true
+	}
+
+	/// When session timeout has occured.
+	pub fn on_session_timeout(&self) -> bool {
+		let mut data = self.data.lock();
+
+		warn!("{}: encryption session failed with timeout", self.node());
+
+		data.state = SessionState::Failed;
+		data.joint_public = Some(Err(Error::Io("session timeout".into())));
+		data.secret_point = Some(Err(Error::Io("session timeout".into())));
+		self.completed.notify_all();
+
+		true
 	}
 
 	/// Keys dissemination (KD) phase
