@@ -23,15 +23,6 @@ import { phraseToWallet, phraseToAddress, verifySecret } from './ethkey';
 import { randomPhrase } from '@parity/wordlist';
 
 export default class LocalAccountsMiddleware extends Middleware {
-  // Maps transaction requests to transaction hashes.
-  // This allows the locally-signed transactions to emulate the signer.
-  transactionHashes = {};
-  transactions = {};
-
-  // Current transaction id. This doesn't need to be stored, as it's
-  // only relevant for the current the session.
-  transactionId = 1;
-
   constructor (transport) {
     super(transport);
 
@@ -169,6 +160,8 @@ export default class LocalAccountsMiddleware extends Middleware {
         value,
         data
       } = Object.assign(transactions.get(id), modify);
+
+      transactions.lock(id);
 
       const account = accounts.get(from);
 

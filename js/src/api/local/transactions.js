@@ -18,6 +18,7 @@ import { toHex } from '../util/format';
 import { TransportError } from '../transport';
 
 const AWAITING = Symbol('awaiting');
+const LOCKED = Symbol('locked');
 const CONFIRMED = Symbol('confirmed');
 const REJECTED = Symbol('rejected');
 
@@ -57,6 +58,16 @@ class Transactions {
     return state.transaction;
   }
 
+  lock (id) {
+    const state = this._states[id];
+
+    if (!state || state.status !== AWAITING) {
+      throw new Error('Trying to lock an invalid transaction');
+    }
+
+    state.status = LOCKED;
+  }
+
   hash (id) {
     const state = this._states[id];
 
@@ -76,9 +87,12 @@ class Transactions {
 
   confirm (id, hash) {
     const state = this._states[id];
+    const status = state ? state.status : null;
 
-    if (!state || state.status !== AWAITING) {
-      throw new Error('Trying to confirm an invalid transaction');
+    switch (status) {
+      case AWAITING: break;
+      case LOCKED: break;
+      default: throw new Error('Trying to confirm an invalid transaction');
     }
 
     state.hash = hash;
