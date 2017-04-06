@@ -732,11 +732,20 @@ impl ClusterSessions {
 			return Err(Error::DuplicateSessionId);
 		}
 
+		// some of nodes, which were encrypting secret may be down
+		// => do not use these in decryption session
+		let mut encrypted_data = self.key_storage.get(&session_id.id).map_err(|e| Error::KeyStorage(e.into()))?;
+		let disconnected_nodes: BTreeSet<_> = encrypted_data.id_numbers.keys().cloned().collect();
+		let disconnected_nodes: BTreeSet<_> = disconnected_nodes.difference(&cluster.nodes()).cloned().collect();
+		for disconnected_node in disconnected_nodes {
+			encrypted_data.id_numbers.remove(&disconnected_node);
+		}
+
 		let session = Arc::new(DecryptionSessionImpl::new(DecryptionSessionParams {
 			id: session_id.id.clone(),
 			access_key: session_id.access_key.clone(),
 			self_node_id: self.self_node_id.clone(),
-			encrypted_data: self.key_storage.get(&session_id.id).map_err(|e| Error::KeyStorage(e.into()))?,
+			encrypted_data: encrypted_data,
 			acl_storage: self.acl_storage.clone(),
 			cluster: cluster.clone(),
 		})?);
@@ -917,6 +926,10 @@ impl ClusterView {
 
 	pub fn is_connected(&self, node: &NodeId) -> bool {
 		self.core.lock().nodes.contains(node)
+	}
+
+	pub fn nodes(&self) -> BTreeSet<NodeId> {
+		self.core.lock().nodes.clone()
 	}
 }
 

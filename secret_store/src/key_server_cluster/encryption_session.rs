@@ -479,6 +479,7 @@ impl SessionImpl {
 
 		// then generate secret point
 		// then encrypt secret point with joint public key
+		// TODO: secret is revealed to KeyServer here
 		let secret_point = math::generate_random_point()?;
 		let encrypted_secret_point = math::encrypt_secret(&secret_point, &joint_public)?;
 

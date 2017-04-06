@@ -450,7 +450,6 @@ impl SessionImpl {
 						data.rejected_nodes.insert(node.clone());
 					}
 					// check if we still have enough nodes for decryption
-					// TODO: self.encrypted_data.id_numbers != ClusterView.nodes!!!! Remove disconnected nodes on start
 					if self.encrypted_data.id_numbers.len() - data.rejected_nodes.len() >= self.encrypted_data.threshold + 1 {
 						return;
 					}
@@ -478,7 +477,6 @@ impl SessionImpl {
 						data.confirmed_nodes.remove(node);
 						data.rejected_nodes.insert(node.clone());
 						// check if we still have enough nodes for decryption
-						// TODO: self.encrypted_data.id_numbers != ClusterView.nodes!!!! Remove disconnected nodes on start
 						if self.encrypted_data.id_numbers.len() - data.rejected_nodes.len() >= self.encrypted_data.threshold + 1 {
 							// we are going to stop session anyway => ignore error
 							let _ = SessionImpl::start_waiting_for_partial_decryption(self.node().clone(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data);
@@ -527,7 +525,6 @@ impl SessionImpl {
 					}
 
 					// check if we still have enough nodes for decryption
-					// TODO: self.encrypted_data.id_numbers != ClusterView.nodes!!!! Remove disconnected nodes on start
 					if self.encrypted_data.id_numbers.len() - data.rejected_nodes.len() >= self.encrypted_data.threshold + 1 {
 						// we are going to stop session anyway => ignore error
 						let _ = SessionImpl::start_waiting_for_partial_decryption(self.node().clone(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data);
