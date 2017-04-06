@@ -87,14 +87,30 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 	/// Get the number of answered requests.
 	pub fn num_answered(&self) -> usize { self.answered }
 
+	/// Whether the batch is complete.
+	pub fn is_complete(&self) -> bool {
+		self.answered == self.requests.len()
+	}
+
 	/// Get the next request as a filled request. Returns `None` when all requests answered.
 	pub fn next_complete(&self) -> Option<T::Complete> {
-		if self.answered == self.requests.len() {
+		if self.is_complete() {
 			None
 		} else {
 			Some(self.requests[self.answered].clone()
 				.complete()
 				.expect("All outputs checked as invariant of `Requests` object; qed"))
+		}
+	}
+
+	/// Map requests from one type into another.
+	pub fn map_requests<F, U>(self, f: F) -> Requests<U>
+		where F: FnMut(T) -> U, U: IncompleteRequest
+	{
+		Requests {
+			outputs: self.outputs,
+			requests: self.requests.into_iter().map(f).collect(),
+			answered: self.answered,
 		}
 	}
 }
@@ -122,8 +138,8 @@ impl<T: super::CheckedRequest> Requests<T> {
 
 		self.answered += 1;
 
-		// fill as much of the next request as we can.
-		if let Some(ref mut req) = self.requests.get_mut(self.answered) {
+		// fill as much of each remaining request as we can.
+		for req in self.requests.iter_mut().skip(self.answered) {
 			req.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
 		}
 

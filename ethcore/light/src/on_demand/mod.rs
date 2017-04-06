@@ -43,6 +43,8 @@ use request::{self as basic_request, Request as NetworkRequest, Response as Netw
 
 pub mod request;
 
+pub use self::request::{CheckedRequest ,Request, Response};
+
 // relevant peer info.
 struct Peer {
 	status: Status,
@@ -50,23 +52,13 @@ struct Peer {
 }
 
 impl Peer {
-	// Whether a given peer can handle a specific request.
-	fn can_handle(&self, pending: &Pending) -> bool {
-		match *pending {
-			Pending::HeaderProof(ref req, _) =>
-				self.capabilities.serve_headers && self.status.head_num > req.num(),
-			Pending::HeaderByHash(_, _) => self.capabilities.serve_headers,
-			Pending::Block(ref req, _) =>
-				self.capabilities.serve_chain_since.as_ref().map_or(false, |x| *x <= req.header.number()),
-			Pending::BlockReceipts(ref req, _) =>
-				self.capabilities.serve_chain_since.as_ref().map_or(false, |x| *x <= req.0.number()),
-			Pending::Account(ref req, _) =>
-				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x <= req.header.number()),
-			Pending::Code(ref req, _) =>
-				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x <= req.block_id.1),
-			Pending::TxProof(ref req, _) =>
-				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x <= req.header.number()),
-		}
+	// whether this peer can fulfill the
+	fn can_fulfill(&self, c: &Capabilities) -> bool {
+		let caps = &self.capabilities;
+
+		caps.serve_headers == c.serve_headers &&
+			caps.serve_chain_since >= c.serve_chain_since &&
+			caps.serve_state_since >= c.serve_chain_since
 	}
 }
 
@@ -78,262 +70,256 @@ enum ChtProofSender {
 }
 
 // Attempted request info and sender to put received value.
-enum Pending {
-	HeaderProof(request::HeaderProof, ChtProofSender),
-	HeaderByHash(request::HeaderByHash, Sender<encoded::Header>),
-	Block(request::Body, Sender<encoded::Block>),
-	BlockReceipts(request::BlockReceipts, Sender<Vec<Receipt>>),
-	Account(request::Account, Sender<BasicAccount>),
-	Code(request::Code, Sender<Bytes>),
-	TxProof(request::TransactionProof, Sender<Result<Executed, ExecutionError>>),
+struct Pending {
+	requests: basic_request::Requests<CheckedRequest>,
+	net_requests: basic_request::Requests<NetworkRequest>,
+	required_capabilities: Capabilities,
+	responses: Vec<Response>,
+	sender: oneshot::Sender<Vec<Response>>,
 }
 
-impl Pending {
-	// Create a network request.
-	fn make_request(&self) -> NetworkRequest {
-		match *self {
-			Pending::HeaderByHash(ref req, _) => NetworkRequest::Headers(basic_request::IncompleteHeadersRequest {
-				start: basic_request::HashOrNumber::Hash(req.0).into(),
-				skip: 0,
-				max: 1,
-				reverse: false,
-			}),
-			Pending::HeaderProof(ref req, _) => NetworkRequest::HeaderProof(basic_request::IncompleteHeaderProofRequest {
-				num: req.num().into(),
-			}),
-			Pending::Block(ref req, _) => NetworkRequest::Body(basic_request::IncompleteBodyRequest {
-				hash: req.hash.into(),
-			}),
-			Pending::BlockReceipts(ref req, _) => NetworkRequest::Receipts(basic_request::IncompleteReceiptsRequest {
-				hash: req.0.hash().into(),
-			}),
-			Pending::Account(ref req, _) => NetworkRequest::Account(basic_request::IncompleteAccountRequest {
-				block_hash: req.header.hash().into(),
-				address_hash: ::util::Hashable::sha3(&req.address).into(),
-			}),
-			Pending::Code(ref req, _) => NetworkRequest::Code(basic_request::IncompleteCodeRequest {
-				block_hash: req.block_id.0.into(),
-				code_hash: req.code_hash.into(),
-			}),
-			Pending::TxProof(ref req, _) => NetworkRequest::Execution(basic_request::IncompleteExecutionRequest {
-				block_hash: req.header.hash().into(),
-				from: req.tx.sender(),
-				gas: req.tx.gas,
-				gas_price: req.tx.gas_price,
-				action: req.tx.action.clone(),
-				value: req.tx.value,
-				data: req.tx.data.clone(),
-			}),
+// helper to guess capabilities required for a given batch of network requests.
+fn guess_capabilities(requests: &[CheckedRequest]) -> Capabilities {
+	let mut caps = Capabilities {
+		serve_headers: false,
+		serve_chain_since: None,
+		serve_state_since: None,
+		tx_relay: false,
+	};
+
+	let update_since = |current: &mut Option<u64>, new|
+		*current = match *current {
+			Some(x) => Some(::std::cmp::min(x, new)),
+			None => Some(new),
+		};
+
+	for request in requests {
+		match *request {
+			// TODO: might be worth returning a required block number for this also.
+			CheckedRequest::HeaderProof(_, _) =>
+				caps.serve_headers = true,
+			CheckedRequest::HeaderByHash(_, _) =>
+				caps.serve_headers = true,
+			CheckedRequest::Body(ref req, _) =>
+				update_since(&mut caps.serve_chain_since, req.header.number()),
+			CheckedRequest::Receipts(ref req, _) =>
+				update_since(&mut caps.serve_chain_since, req.0.number()),
+			CheckedRequest::Account(ref req, _) =>
+				update_since(&mut caps.serve_state_since, req.header.number()),
+			CheckedRequest::Code(ref req, _) =>
+				update_since(&mut caps.serve_state_since, req.block_id.1),
+			CheckedRequest::Execution(ref req, _) =>
+				update_since(&mut caps.serve_state_since, req.header.number()),
 		}
 	}
+
+	caps
 }
 
 /// On demand request service. See module docs for more details.
 /// Accumulates info about all peers' capabilities and dispatches
 /// requests to them accordingly.
+// lock in declaration order.
 pub struct OnDemand {
+	pending: RwLock<Vec<Pending>>,
 	peers: RwLock<HashMap<PeerId, Peer>>,
-	pending_requests: RwLock<HashMap<ReqId, Pending>>,
+	in_transit: RwLock<HashMap<ReqId, Pending>>,
 	cache: Arc<Mutex<Cache>>,
-	orphaned_requests: RwLock<Vec<Pending>>,
-	start_nonce: U256,
 }
 
 const RECEIVER_IN_SCOPE: &'static str = "Receiver is still in scope, so it's not dropped; qed";
 
 impl OnDemand {
 	/// Create a new `OnDemand` service with the given cache.
-	pub fn new(cache: Arc<Mutex<Cache>>, account_start_nonce: U256) -> Self {
+	pub fn new(cache: Arc<Mutex<Cache>>) -> Self {
 		OnDemand {
+			pending: RwLock::new(Vec::new()),
 			peers: RwLock::new(HashMap::new()),
-			pending_requests: RwLock::new(HashMap::new()),
+			in_transit: RwLock::new(HashMap::new()),
 			cache: cache,
-			orphaned_requests: RwLock::new(Vec::new()),
-			start_nonce: account_start_nonce,
 		}
 	}
 
-	/// Request a header's hash by block number and CHT root hash.
-	/// Returns the hash.
-	pub fn hash_by_number(&self, ctx: &BasicContext, req: request::HeaderProof) -> Receiver<H256> {
+	// /// Request a header's hash by block number and CHT root hash.
+	// /// Returns the hash.
+	// pub fn hash_by_number(&self, ctx: &BasicContext, req: request::HeaderProof) -> Receiver<H256> {
+	// 	let (sender, receiver) = oneshot::channel();
+	// 	let cached = {
+	// 		let mut cache = self.cache.lock();
+	// 		cache.block_hash(&req.num())
+	// 	};
+
+	// 	match cached {
+	// 		Some(hash) => sender.send(hash).expect(RECEIVER_IN_SCOPE),
+	// 		None => self.dispatch(ctx, Pending::HeaderProof(req, ChtProofSender::Hash(sender))),
+	// 	}
+	// 	receiver
+	// }
+
+	// /// Request a canonical block's chain score.
+	// /// Returns the chain score.
+	// pub fn chain_score_by_number(&self, ctx: &BasicContext, req: request::HeaderProof) -> Receiver<U256> {
+	// 	let (sender, receiver) = oneshot::channel();
+	// 	let cached = {
+	// 		let mut cache = self.cache.lock();
+	// 		cache.block_hash(&req.num()).and_then(|hash| cache.chain_score(&hash))
+	// 	};
+
+	// 	match cached {
+	// 		Some(score) => sender.send(score).expect(RECEIVER_IN_SCOPE),
+	// 		None => self.dispatch(ctx, Pending::HeaderProof(req, ChtProofSender::ChainScore(sender))),
+	// 	}
+
+	// 	receiver
+	// }
+
+	// /// Request a canonical block's hash and chain score by number.
+	// /// Returns the hash and chain score.
+	// pub fn hash_and_score_by_number(&self, ctx: &BasicContext, req: request::HeaderProof) -> Receiver<(H256, U256)> {
+	// 	let (sender, receiver) = oneshot::channel();
+	// 	let cached = {
+	// 		let mut cache = self.cache.lock();
+	// 		let hash = cache.block_hash(&req.num());
+	// 		(
+	// 			hash.clone(),
+	// 			hash.and_then(|hash| cache.chain_score(&hash)),
+	// 		)
+	// 	};
+
+	// 	match cached {
+	// 		(Some(hash), Some(score)) => sender.send((hash, score)).expect(RECEIVER_IN_SCOPE),
+	// 		_ => self.dispatch(ctx, Pending::HeaderProof(req, ChtProofSender::Both(sender))),
+	// 	}
+
+	// 	receiver
+	// }
+
+	// /// Request a header by hash. This is less accurate than by-number because we don't know
+	// /// where in the chain this header lies, and therefore can't find a peer who is supposed to have
+	// /// it as easily.
+	// pub fn header_by_hash(&self, ctx: &BasicContext, req: request::HeaderByHash) -> Receiver<encoded::Header> {
+	// 	let (sender, receiver) = oneshot::channel();
+	// 	match { self.cache.lock().block_header(&req.0) } {
+	// 		Some(hdr) => sender.send(hdr).expect(RECEIVER_IN_SCOPE),
+	// 		None => self.dispatch(ctx, Pending::HeaderByHash(req, sender)),
+	// 	}
+	// 	receiver
+	// }
+
+	// /// Request a block, given its header. Block bodies are requestable by hash only,
+	// /// and the header is required anyway to verify and complete the block body
+	// /// -- this just doesn't obscure the network query.
+	// pub fn block(&self, ctx: &BasicContext, req: request::Body) -> Receiver<encoded::Block> {
+	// 	let (sender, receiver) = oneshot::channel();
+
+	// 	// fast path for empty body.
+	// 	if req.header.transactions_root() == SHA3_NULL_RLP && req.header.uncles_hash() == SHA3_EMPTY_LIST_RLP {
+	// 		let mut stream = RlpStream::new_list(3);
+	// 		stream.append_raw(&req.header.into_inner(), 1);
+	// 		stream.begin_list(0);
+	// 		stream.begin_list(0);
+
+	// 		sender.send(encoded::Block::new(stream.out())).expect(RECEIVER_IN_SCOPE);
+	// 	} else {
+	// 		match { self.cache.lock().block_body(&req.hash) } {
+	// 			Some(body) => {
+	// 				let mut stream = RlpStream::new_list(3);
+	// 				let body = body.rlp();
+	// 				stream.append_raw(&req.header.into_inner(), 1);
+	// 				stream.append_raw(&body.at(0).as_raw(), 1);
+	// 				stream.append_raw(&body.at(1).as_raw(), 1);
+
+	// 				sender.send(encoded::Block::new(stream.out())).expect(RECEIVER_IN_SCOPE);
+	// 			}
+	// 			None => self.dispatch(ctx, Pending::Block(req, sender)),
+	// 		}
+	// 	}
+	// 	receiver
+	// }
+
+	// /// Request the receipts for a block. The header serves two purposes:
+	// /// provide the block hash to fetch receipts for, and for verification of the receipts root.
+	// pub fn block_receipts(&self, ctx: &BasicContext, req: request::BlockReceipts) -> Receiver<Vec<Receipt>> {
+	// 	let (sender, receiver) = oneshot::channel();
+
+	// 	// fast path for empty receipts.
+	// 	if req.0.receipts_root() == SHA3_NULL_RLP {
+	// 		sender.send(Vec::new()).expect(RECEIVER_IN_SCOPE);
+	// 	} else {
+	// 		match { self.cache.lock().block_receipts(&req.0.hash()) } {
+	// 			Some(receipts) => sender.send(receipts).expect(RECEIVER_IN_SCOPE),
+	// 			None => self.dispatch(ctx, Pending::BlockReceipts(req, sender)),
+	// 		}
+	// 	}
+
+	// 	receiver
+	// }
+
+	// /// Request an account by address and block header -- which gives a hash to query and a state root
+	// /// to verify against.
+	// pub fn account(&self, ctx: &BasicContext, req: request::Account) -> Receiver<BasicAccount> {
+	// 	let (sender, receiver) = oneshot::channel();
+	// 	self.dispatch(ctx, Pending::Account(req, sender));
+	// 	receiver
+	// }
+
+	// /// Request code by address, known code hash, and block header.
+	// pub fn code(&self, ctx: &BasicContext, req: request::Code) -> Receiver<Bytes> {
+	// 	let (sender, receiver) = oneshot::channel();
+
+	// 	// fast path for no code.
+	// 	if req.code_hash == SHA3_EMPTY {
+	// 		sender.send(Vec::new()).expect(RECEIVER_IN_SCOPE)
+	// 	} else {
+	// 		self.dispatch(ctx, Pending::Code(req, sender));
+	// 	}
+
+	// 	receiver
+	// }
+
+	// /// Request proof-of-execution for a transaction.
+	// pub fn transaction_proof(&self, ctx: &BasicContext, req: request::TransactionProof) -> Receiver<Result<Executed, ExecutionError>> {
+	// 	let (sender, receiver) = oneshot::channel();
+
+	// 	self.dispatch(ctx, Pending::TxProof(req, sender));
+
+	// 	receiver
+	// }
+
+	/// Submit a batch of requests.
+	///
+	/// Fails if back-references are not coherent.
+	/// The returned vector of responses will match the requests exactly.
+	pub fn make_requests(&self, ctx: &BasicContext, requests: Vec<Request>)
+		-> Result<Receiver<Vec<Response>>, basic_request::NoSuchOutput>
+	{
 		let (sender, receiver) = oneshot::channel();
-		let cached = {
-			let mut cache = self.cache.lock();
-			cache.block_hash(&req.num())
-		};
 
-		match cached {
-			Some(hash) => sender.send(hash).expect(RECEIVER_IN_SCOPE),
-			None => self.dispatch(ctx, Pending::HeaderProof(req, ChtProofSender::Hash(sender))),
-		}
-		receiver
-	}
-
-	/// Request a canonical block's chain score.
-	/// Returns the chain score.
-	pub fn chain_score_by_number(&self, ctx: &BasicContext, req: request::HeaderProof) -> Receiver<U256> {
-		let (sender, receiver) = oneshot::channel();
-		let cached = {
-			let mut cache = self.cache.lock();
-			cache.block_hash(&req.num()).and_then(|hash| cache.chain_score(&hash))
-		};
-
-		match cached {
-			Some(score) => sender.send(score).expect(RECEIVER_IN_SCOPE),
-			None => self.dispatch(ctx, Pending::HeaderProof(req, ChtProofSender::ChainScore(sender))),
-		}
-
-		receiver
-	}
-
-	/// Request a canonical block's hash and chain score by number.
-	/// Returns the hash and chain score.
-	pub fn hash_and_score_by_number(&self, ctx: &BasicContext, req: request::HeaderProof) -> Receiver<(H256, U256)> {
-		let (sender, receiver) = oneshot::channel();
-		let cached = {
-			let mut cache = self.cache.lock();
-			let hash = cache.block_hash(&req.num());
-			(
-				hash.clone(),
-				hash.and_then(|hash| cache.chain_score(&hash)),
-			)
-		};
-
-		match cached {
-			(Some(hash), Some(score)) => sender.send((hash, score)).expect(RECEIVER_IN_SCOPE),
-			_ => self.dispatch(ctx, Pending::HeaderProof(req, ChtProofSender::Both(sender))),
-		}
-
-		receiver
-	}
-
-	/// Request a header by hash. This is less accurate than by-number because we don't know
-	/// where in the chain this header lies, and therefore can't find a peer who is supposed to have
-	/// it as easily.
-	pub fn header_by_hash(&self, ctx: &BasicContext, req: request::HeaderByHash) -> Receiver<encoded::Header> {
-		let (sender, receiver) = oneshot::channel();
-		match { self.cache.lock().block_header(&req.0) } {
-			Some(hdr) => sender.send(hdr).expect(RECEIVER_IN_SCOPE),
-			None => self.dispatch(ctx, Pending::HeaderByHash(req, sender)),
-		}
-		receiver
-	}
-
-	/// Request a block, given its header. Block bodies are requestable by hash only,
-	/// and the header is required anyway to verify and complete the block body
-	/// -- this just doesn't obscure the network query.
-	pub fn block(&self, ctx: &BasicContext, req: request::Body) -> Receiver<encoded::Block> {
-		let (sender, receiver) = oneshot::channel();
-
-		// fast path for empty body.
-		if req.header.transactions_root() == SHA3_NULL_RLP && req.header.uncles_hash() == SHA3_EMPTY_LIST_RLP {
-			let mut stream = RlpStream::new_list(3);
-			stream.append_raw(&req.header.into_inner(), 1);
-			stream.begin_list(0);
-			stream.begin_list(0);
-
-			sender.send(encoded::Block::new(stream.out())).expect(RECEIVER_IN_SCOPE);
-		} else {
-			match { self.cache.lock().block_body(&req.hash) } {
-				Some(body) => {
-					let mut stream = RlpStream::new_list(3);
-					let body = body.rlp();
-					stream.append_raw(&req.header.into_inner(), 1);
-					stream.append_raw(&body.at(0).as_raw(), 1);
-					stream.append_raw(&body.at(1).as_raw(), 1);
-
-					sender.send(encoded::Block::new(stream.out())).expect(RECEIVER_IN_SCOPE);
-				}
-				None => self.dispatch(ctx, Pending::Block(req, sender)),
-			}
-		}
-		receiver
-	}
-
-	/// Request the receipts for a block. The header serves two purposes:
-	/// provide the block hash to fetch receipts for, and for verification of the receipts root.
-	pub fn block_receipts(&self, ctx: &BasicContext, req: request::BlockReceipts) -> Receiver<Vec<Receipt>> {
-		let (sender, receiver) = oneshot::channel();
-
-		// fast path for empty receipts.
-		if req.0.receipts_root() == SHA3_NULL_RLP {
-			sender.send(Vec::new()).expect(RECEIVER_IN_SCOPE);
-		} else {
-			match { self.cache.lock().block_receipts(&req.0.hash()) } {
-				Some(receipts) => sender.send(receipts).expect(RECEIVER_IN_SCOPE),
-				None => self.dispatch(ctx, Pending::BlockReceipts(req, sender)),
-			}
-		}
-
-		receiver
-	}
-
-	/// Request an account by address and block header -- which gives a hash to query and a state root
-	/// to verify against.
-	pub fn account(&self, ctx: &BasicContext, req: request::Account) -> Receiver<BasicAccount> {
-		let (sender, receiver) = oneshot::channel();
-		self.dispatch(ctx, Pending::Account(req, sender));
-		receiver
-	}
-
-	/// Request code by address, known code hash, and block header.
-	pub fn code(&self, ctx: &BasicContext, req: request::Code) -> Receiver<Bytes> {
-		let (sender, receiver) = oneshot::channel();
-
-		// fast path for no code.
-		if req.code_hash == SHA3_EMPTY {
-			sender.send(Vec::new()).expect(RECEIVER_IN_SCOPE)
-		} else {
-			self.dispatch(ctx, Pending::Code(req, sender));
-		}
-
-		receiver
-	}
-
-	/// Request proof-of-execution for a transaction.
-	pub fn transaction_proof(&self, ctx: &BasicContext, req: request::TransactionProof) -> Receiver<Result<Executed, ExecutionError>> {
-		let (sender, receiver) = oneshot::channel();
-
-		self.dispatch(ctx, Pending::TxProof(req, sender));
-
-		receiver
-	}
-
-	// dispatch the request, with a "suitability" function to filter acceptable peers.
-	fn dispatch(&self, ctx: &BasicContext, pending: Pending) {
 		let mut builder = basic_request::RequestBuilder::default();
-		builder.push(pending.make_request())
-			.expect("make_request always returns fully complete request; qed");
 
-		let complete = builder.build();
-
-		let kind = complete.requests()[0].kind();
-		for (id, peer) in self.peers.read().iter() {
-			if !peer.can_handle(&pending) { continue }
-			match ctx.request_from(*id, complete.clone()) {
-				Ok(req_id) => {
-					trace!(target: "on_demand", "{}: Assigned {:?} to peer {}",
-						req_id, kind, id);
-
-					self.pending_requests.write().insert(
-						req_id,
-						pending,
-					);
-					return
-				}
-				Err(net::Error::NoCredits) => {}
-				Err(e) =>
-					trace!(target: "on_demand", "Failed to make request of peer {}: {:?}", id, e),
-			}
+		let responses = Vec::with_capacity(requests.len());
+		for request in requests {
+			builder.push(CheckedRequest::from(request))?;
 		}
 
-		self.orphaned_requests.write().push(pending);
+		let requests = builder.build();
+		let net_requests = requests.clone().map_requests(|req| req.into_net_request());
+		let capabilities = guess_capabilities(requests.requests());
+
+		self.pending.write().push(Pending {
+			requests: requests,
+			net_requests: net_requests,
+			required_capabilities: capabilities,
+			responses: responses,
+			sender: sender,
+		});
+
+		Ok(receiver)
 	}
 
-
-	// dispatch orphaned requests, and discard those for which the corresponding
+	// dispatch pending requests, and discard those for which the corresponding
 	// receiver has been dropped.
-	fn dispatch_orphaned(&self, ctx: &BasicContext) {
+	fn dispatch_pending(&self, ctx: &BasicContext) {
 		// wrapper future for calling `poll_cancel` on our `Senders` to preserve
 		// the invariant that it's always within a task.
 		struct CheckHangup<'a, T: 'a>(&'a mut Sender<T>);
@@ -356,35 +342,42 @@ impl OnDemand {
 			CheckHangup(send).wait().expect("CheckHangup always returns ok; qed")
 		}
 
-		if self.orphaned_requests.read().is_empty() { return }
+		if self.pending.read().is_empty() { return }
+		let mut pending = self.pending.write();
 
-		let to_dispatch = ::std::mem::replace(&mut *self.orphaned_requests.write(), Vec::new());
+		// iterate over all pending requests, and check them for hang-up.
+		// then, try and find a peer who can serve it.
+		let peers = self.peers.read();
+		*pending = ::std::mem::replace(&mut *pending, Vec::new()).into_iter()
+			.filter_map(|mut pending| match check_hangup(&mut pending.sender) {
+				true => Some(pending),
+				false => None,
+			})
+			.filter_map(|pending| {
+				for (peer_id, peer) in peers.iter() { // .shuffle?
+					if !peer.can_fulfill(&pending.required_capabilities) {
+						continue
+					}
 
-		trace!(target: "on_demand", "Attempting to dispatch {} orphaned requests.", to_dispatch.len());
-		for mut orphaned in to_dispatch {
-			let hung_up = match orphaned {
-				Pending::HeaderProof(_, ref mut sender) => match *sender {
-						ChtProofSender::Both(ref mut s) => check_hangup(s),
-						ChtProofSender::Hash(ref mut s) => check_hangup(s),
-						ChtProofSender::ChainScore(ref mut s) => check_hangup(s),
-				},
-				Pending::HeaderByHash(_, ref mut sender) => check_hangup(sender),
-				Pending::Block(_, ref mut sender) => check_hangup(sender),
-				Pending::BlockReceipts(_, ref mut sender) => check_hangup(sender),
-				Pending::Account(_, ref mut sender) => check_hangup(sender),
-				Pending::Code(_, ref mut sender) => check_hangup(sender),
-				Pending::TxProof(_, ref mut sender) => check_hangup(sender),
-			};
-
-			if !hung_up { self.dispatch(ctx, orphaned) }
-		}
+					match ctx.request_from(*peer_id, pending.net_requests.clone()) {
+						Ok(req_id) => {
+							self.in_transit.write().insert(req_id, pending);
+							return None
+						}
+						Err(net::Error::NoCredits) => {}
+						Err(e) => debug!(target: "on_demand", "Error dispatching request to peer: {}", e),
+					}
+				}
+				Some(pending)
+			})
+			.collect(); // `pending` now contains all requests we couldn't dispatch.
 	}
 }
 
 impl Handler for OnDemand {
 	fn on_connect(&self, ctx: &EventContext, status: &Status, capabilities: &Capabilities) {
 		self.peers.write().insert(ctx.peer(), Peer { status: status.clone(), capabilities: capabilities.clone() });
-		self.dispatch_orphaned(ctx.as_basic());
+		self.dispatch_pending(ctx.as_basic());
 	}
 
 	fn on_disconnect(&self, ctx: &EventContext, unfulfilled: &[ReqId]) {
@@ -392,16 +385,16 @@ impl Handler for OnDemand {
 		let ctx = ctx.as_basic();
 
 		{
-			let mut orphaned = self.orphaned_requests.write();
+			let mut pending = self.pending.write();
 			for unfulfilled in unfulfilled {
-				if let Some(pending) = self.pending_requests.write().remove(unfulfilled) {
+				if let Some(unfulfilled) = self.in_transit.write().remove(unfulfilled) {
 					trace!(target: "on_demand", "Attempting to reassign dropped request");
-					orphaned.push(pending);
+					pending.push(unfulfilled);
 				}
 			}
 		}
 
-		self.dispatch_orphaned(ctx);
+		self.dispatch_pending(ctx);
 	}
 
 	fn on_announcement(&self, ctx: &EventContext, announcement: &Announcement) {
@@ -413,142 +406,68 @@ impl Handler for OnDemand {
 			}
 		}
 
-		self.dispatch_orphaned(ctx.as_basic());
+		self.dispatch_pending(ctx.as_basic());
 	}
 
 	fn on_responses(&self, ctx: &EventContext, req_id: ReqId, responses: &[basic_request::Response]) {
+		use request::IncompleteRequest;
+
 		let peer = ctx.peer();
-		let req = match self.pending_requests.write().remove(&req_id) {
+		let mut pending = match self.in_transit.write().remove(&req_id) {
 			Some(req) => req,
 			None => return,
 		};
 
-		let response = match responses.get(0) {
-			Some(response) => response,
-			None => {
-				trace!(target: "on_demand", "Ignoring empty response for request {}", req_id);
-				self.dispatch(ctx.as_basic(), req);
-				return;
-			}
-		};
+		// for each incoming response
+		//   1. ensure verification data filled.
+		//   2. pending.requests.supply_response
+		//   3. if extracted on-demand response
+		for response in responses {
+			match pending.requests.supply_response(response) {
+				Ok(response) => pending.responses.push(response),
+				Err(e) => {
+					let peer = ctx.peer();
+					debug!(target: "on_demand", "Peer {} gave bad response: {:?}", peer, e);
+					ctx.disable_peer(peer);
 
-		trace!(target: "on_demand", "Handling response for request {}, kind={:?}", req_id, response.kind());
-
-		// handle the response appropriately for the request.
-		// all branches which do not return early lead to disabling of the peer
-		// due to misbehavior.
-		match req {
-			Pending::HeaderProof(req, sender) => {
-				if let NetworkResponse::HeaderProof(ref response) = *response {
-					match req.check_response(&response.proof) {
-						Ok((hash, score)) => {
-							let mut cache = self.cache.lock();
-							cache.insert_block_hash(req.num(), hash);
-							cache.insert_chain_score(hash, score);
-
-							match sender {
-								ChtProofSender::Both(sender) => { let _ = sender.send((hash, score)); }
-								ChtProofSender::Hash(sender) => { let _ = sender.send(hash); }
-								ChtProofSender::ChainScore(sender) => { let _ = sender.send(score); }
-							}
-							return
-						}
-						Err(e) => warn!(target: "on_demand", "Error handling response for header request: {:?}", e),
-					}
-				}
-			}
-			Pending::HeaderByHash(req, sender) => {
-				if let NetworkResponse::Headers(ref response) = *response {
-					match req.check_response(&response.headers) {
-						Ok(header) => {
-							self.cache.lock().insert_block_header(req.0, header.clone());
-							let _ = sender.send(header);
-							return
-						}
-						Err(e) => warn!(target: "on_demand", "Error handling response for header request: {:?}", e),
-					}
-				}
-			}
-			Pending::Block(req, sender) => {
-				if let NetworkResponse::Body(ref response) = *response {
-					match req.check_response(&response.body) {
-						Ok(block) => {
-							self.cache.lock().insert_block_body(req.hash, response.body.clone());
-							let _ = sender.send(block);
-							return
-						}
-						Err(e) => warn!(target: "on_demand", "Error handling response for block request: {:?}", e),
-					}
-				}
-			}
-			Pending::BlockReceipts(req, sender) => {
-				if let NetworkResponse::Receipts(ref response) = *response {
-					match req.check_response(&response.receipts) {
-						Ok(receipts) => {
-							let hash = req.0.hash();
-							self.cache.lock().insert_block_receipts(hash, receipts.clone());
-							let _ = sender.send(receipts);
-							return
-						}
-						Err(e) => warn!(target: "on_demand", "Error handling response for receipts request: {:?}", e),
-					}
-				}
-			}
-			Pending::Account(req, sender) => {
-				if let NetworkResponse::Account(ref response) = *response {
-					match req.check_response(&response.proof) {
-						Ok(account) => {
-							let account = account.unwrap_or_else(|| {
-								BasicAccount {
-									balance: 0.into(),
-									nonce: self.start_nonce,
-									code_hash: SHA3_EMPTY,
-									storage_root: SHA3_NULL_RLP
-								}
-							});
-
-							// TODO: validate against request outputs.
-							// needs engine + env info as part of request.
-							let _ = sender.send(account);
-							return
-						}
-						Err(e) => warn!(target: "on_demand", "Error handling response for state request: {:?}", e),
-					}
-				}
-			}
-			Pending::Code(req, sender) => {
-				if let NetworkResponse::Code(ref response) = *response {
-					match req.check_response(response.code.as_slice()) {
-						Ok(code) => {
-							let _ = sender.send(code);
-							return
-						}
-						Err(e) => warn!(target: "on_demand", "Error handling response for code request: {:?}", e),
-					}
-				}
-			}
-			Pending::TxProof(req, sender) => {
-				if let NetworkResponse::Execution(ref response) = *response {
-					match req.check_response(&response.items) {
-						ProvedExecution::Complete(executed) => {
-							let _ = sender.send(Ok(executed));
-							return
-						}
-						ProvedExecution::Failed(err) => {
-							let _ = sender.send(Err(err));
-							return
-						}
-						ProvedExecution::BadProof => warn!(target: "on_demand", "Error handling response for transaction proof request"),
-					}
+					break;
 				}
 			}
 		}
 
-		ctx.disable_peer(peer);
+		if pending.requests.is_complete() {
+			let _ = pending.sender.send(pending.responses);
+
+			return;
+		}
+
+		// update network requests (unless we're done, in which case fulfill the future.)
+		let mut builder = basic_request::RequestBuilder::default();
+		let num_answered = pending.requests.num_answered();
+		let mut mapping = move |idx| idx - num_answered;
+
+		for request in pending.requests.requests().iter().skip(num_answered) {
+			let mut net_req = request.clone().into_net_request();
+
+			// all back-references with request index less than `num_answered` have
+			// been filled by now. all remaining requests point to nothing earlier
+			// than the next unanswered request.
+			net_req.adjust_refs(&mut mapping);
+			builder.push(net_req)
+				.expect("all back-references to answered requests have been filled; qed");
+		}
+
+		// update pending fields and re-queue.
+		let capabilities = guess_capabilities(&pending.requests.requests()[num_answered..]);
+		pending.net_requests = builder.build();
+		pending.required_capabilities = capabilities;
+
+		self.pending.write().push(pending);
+		self.dispatch_pending(ctx.as_basic());
 	}
 
 	fn tick(&self, ctx: &BasicContext) {
-		self.dispatch_orphaned(ctx)
+		self.dispatch_pending(ctx)
 	}
 }
 
@@ -587,7 +506,7 @@ mod tests {
 		assert!(on_demand.orphaned_requests.read().len() == 1);
 		drop(result);
 
-		on_demand.dispatch_orphaned(&FakeContext);
+		on_demand.dispatch_pending(&FakeContext);
 		assert!(on_demand.orphaned_requests.read().is_empty());
 	}
 }

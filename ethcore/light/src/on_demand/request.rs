@@ -126,6 +126,23 @@ impl From<Request> for CheckedRequest {
 	}
 }
 
+impl CheckedRequest {
+	/// Convert this into a network request.
+	pub fn into_net_request(self) -> net_request::Request {
+		use ::request::Request as NetRequest;
+
+		match self {
+			CheckedRequest::HeaderProof(_, req) => NetRequest::HeaderProof(req),
+			CheckedRequest::HeaderByHash(_, req) => NetRequest::Headers(req),
+			CheckedRequest::Receipts(_, req) => NetRequest::Receipts(req),
+			CheckedRequest::Body(_, req) => NetRequest::Body(req),
+			CheckedRequest::Account(_, req) => NetRequest::Account(req),
+			CheckedRequest::Code(_, req) => NetRequest::Code(req),
+			CheckedRequest::Execution(_, req) => NetRequest::Execution(req),
+		}
+	}
+}
+
 impl IncompleteRequest for CheckedRequest {
 	type Complete = net_request::CompleteRequest;
 	type Response = net_request::Response;
@@ -190,6 +207,19 @@ impl IncompleteRequest for CheckedRequest {
 			CheckedRequest::Account(_, req) => req.complete().map(CompleteRequest::Account),
 			CheckedRequest::Code(_, req) => req.complete().map(CompleteRequest::Code),
 			CheckedRequest::Execution(_, req) => req.complete().map(CompleteRequest::Execution),
+		}
+	}
+
+
+	fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+		match *self {
+			CheckedRequest::HeaderProof(_, ref mut req) => req.adjust_refs(mapping),
+			CheckedRequest::HeaderByHash(_, ref mut req) => req.adjust_refs(mapping),
+			CheckedRequest::Receipts(_, ref mut req) => req.adjust_refs(mapping),
+			CheckedRequest::Body(_, ref mut req) => req.adjust_refs(mapping),
+			CheckedRequest::Account(_, ref mut req) => req.adjust_refs(mapping),
+			CheckedRequest::Code(_, ref mut req) => req.adjust_refs(mapping),
+			CheckedRequest::Execution(_, ref mut req) => req.adjust_refs(mapping),
 		}
 	}
 }

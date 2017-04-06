@@ -100,6 +100,12 @@ impl<T> Field<T> {
 			_ => Err(NoSuchOutput),
 		}
 	}
+
+	fn adjust_req<F>(&mut self, mut mapping: F) where F: FnMut(usize) -> usize {
+		if let Field::BackReference(ref mut req_idx, _) = *self {
+			*req_idx = mapping(*req_idx)
+		}
+	}
 }
 
 impl<T> From<T> for Field<T> {
@@ -358,6 +364,19 @@ impl IncompleteRequest for Request {
 			Request::Execution(req) => req.complete().map(CompleteRequest::Execution),
 		}
 	}
+
+	fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+		match *self {
+			Request::Headers(ref mut req) => req.adjust_refs(mapping),
+			Request::HeaderProof(ref mut req) => req.adjust_refs(mapping),
+			Request::Receipts(ref mut req) => req.adjust_refs(mapping),
+			Request::Body(ref mut req) => req.adjust_refs(mapping),
+			Request::Account(ref mut req) => req.adjust_refs(mapping),
+			Request::Storage(ref mut req) => req.adjust_refs(mapping),
+			Request::Code(ref mut req) => req.adjust_refs(mapping),
+			Request::Execution(ref mut req) => req.adjust_refs(mapping),
+		}
+	}
 }
 
 impl CheckedRequest for Request {
@@ -536,6 +555,9 @@ pub trait IncompleteRequest: Sized {
 	/// Attempt to convert this request into its complete variant.
 	/// Will succeed if all fields have been filled, will fail otherwise.
 	fn complete(self) -> Result<Self::Complete, NoSuchOutput>;
+
+	/// Adjust back-reference request indices.
+	fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize;
 }
 
 /// A request which can be checked against its response for more validity.
@@ -630,6 +652,10 @@ pub mod header {
 				max: self.max,
 				reverse: self.reverse,
 			})
+		}
+
+		fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+			self.start.adjust_req(mapping)
 		}
 	}
 
@@ -745,6 +771,10 @@ pub mod header_proof {
 				num: self.num.into_scalar()?,
 			})
 		}
+
+		fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+			self.num.adjust_req(mapping)
+		}
 	}
 
 	/// A complete header proof request.
@@ -849,6 +879,10 @@ pub mod block_receipts {
 				hash: self.hash.into_scalar()?,
 			})
 		}
+
+		fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+			self.hash.adjust_req(mapping)
+		}
 	}
 
 	/// A complete block receipts request.
@@ -941,6 +975,10 @@ pub mod block_body {
 			Ok(Complete {
 				hash: self.hash.into_scalar()?,
 			})
+		}
+
+		fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+			self.hash.adjust_req(mapping)
 		}
 	}
 
@@ -1061,6 +1099,11 @@ pub mod account {
 				block_hash: self.block_hash.into_scalar()?,
 				address_hash: self.address_hash.into_scalar()?,
 			})
+		}
+
+		fn adjust_refs<F>(&mut self, mut mapping: F) where F: FnMut(usize) -> usize {
+			self.block_hash.adjust_req(&mut mapping);
+			self.address_hash.adjust_req(&mut mapping);
 		}
 	}
 
@@ -1212,6 +1255,12 @@ pub mod storage {
 				key_hash: self.key_hash.into_scalar()?,
 			})
 		}
+
+		fn adjust_refs<F>(&mut self, mut mapping: F) where F: FnMut(usize) -> usize {
+			self.block_hash.adjust_req(&mut mapping);
+			self.address_hash.adjust_req(&mut mapping);
+			self.key_hash.adjust_req(&mut mapping);
+		}
 	}
 
 	/// A complete request for a storage proof.
@@ -1331,6 +1380,11 @@ pub mod contract_code {
 				block_hash: self.block_hash.into_scalar()?,
 				code_hash: self.code_hash.into_scalar()?,
 			})
+		}
+
+		fn adjust_refs<F>(&mut self, mut mapping: F) where F: FnMut(usize) -> usize {
+			self.block_hash.adjust_req(&mut mapping);
+			self.code_hash.adjust_req(&mut mapping);
 		}
 	}
 
@@ -1463,6 +1517,10 @@ pub mod execution {
 				value: self.value,
 				data: self.data,
 			})
+		}
+
+		fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+			self.block_hash.adjust_req(mapping);
 		}
 	}
 
