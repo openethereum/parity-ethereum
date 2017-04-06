@@ -23,6 +23,7 @@ pub mod dispatch;
 pub mod fake_sign;
 pub mod informant;
 pub mod oneshot;
+pub mod ipfs;
 
 mod network_settings;
 mod poll_manager;

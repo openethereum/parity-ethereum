@@ -20,11 +20,6 @@ use std::str::FromStr;
 use std::collections::{BTreeMap, HashSet};
 use futures::{future, Future, BoxFuture};
 
-use multihash;
-use cid::{Cid, Codec, Version};
-use rust_crypto::sha2::Sha256;
-use rust_crypto::digest::Digest;
-
 use ethcore_logger::RotatingLogger;
 use util::Address;
 use util::misc::version_data;
@@ -41,7 +36,7 @@ use updater::{Service as UpdateService};
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
-use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
+use v1::helpers::{errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::accounts::unwrap_provider;
 use v1::helpers::dispatch::DEFAULT_MAC;
 use v1::metadata::Metadata;
@@ -400,14 +395,6 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
-		let mut hasher = Sha256::new();
-		hasher.input(&content.0);
-		let len = hasher.output_bytes();
-		let mut buf = Vec::with_capacity(len);
-		buf.resize(len, 0);
-		hasher.result(&mut buf);
-		let mh = multihash::encode(multihash::Hash::SHA2256, &buf).map_err(errors::encoding_error)?;
-		let cid = Cid::new(Codec::DagProtobuf, Version::V0, &mh);
-		Ok(cid.to_string().into())
+		ipfs::cid(content)
 	}
 }

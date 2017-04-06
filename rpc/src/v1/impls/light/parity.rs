@@ -22,11 +22,6 @@ use futures::{future, Future, BoxFuture};
 use ethcore_logger::RotatingLogger;
 use util::misc::version_data;
 
-use multihash;
-use cid::{Cid, Codec, Version};
-use rust_crypto::sha2::Sha256;
-use rust_crypto::digest::Digest;
-
 use crypto::ecies;
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
@@ -35,7 +30,7 @@ use ethcore::account_provider::AccountProvider;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
-use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
+use v1::helpers::{errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::{LightDispatcher, DEFAULT_MAC};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
@@ -349,14 +344,6 @@ impl Parity for ParityClient {
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
-		let mut hasher = Sha256::new();
-		hasher.input(&content.0);
-		let len = hasher.output_bytes();
-		let mut buf = Vec::with_capacity(len);
-		buf.resize(len, 0);
-		hasher.result(&mut buf);
-		let mh = multihash::encode(multihash::Hash::SHA2256, &buf).map_err(errors::encoding_error)?;
-		let cid = Cid::new(Codec::DagProtobuf, Version::V0, &mh);
-		Ok(cid.to_string().into())
+		ipfs::cid(content)
 	}
 }
