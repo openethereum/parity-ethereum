@@ -833,7 +833,7 @@ mod tests {
 		let signature1 = tap.sign(proposer, None, vote_info.sha3()).unwrap();
 
 		seal[1] = ::rlp::NULL_RLP.to_vec();
-		seal[2] = ::rlp::encode(&vec![H520::from(signature1.clone())]).to_vec();
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone())]).to_vec();
 		header.set_seal(seal.clone());
 
 		// One good signature is not enough.
