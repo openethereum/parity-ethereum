@@ -171,11 +171,13 @@ class TxRow extends Component {
 
     if (editing) {
       return (
-        <div className={ styles.pending, styles.uppercase }>
-          <FormattedMessage
-            id='ui.txList.txRow.editing'
-            defaultMessage='Editing'
-          />
+        <div className={ styles.pending }>
+          <div className={ styles.uppercase }>
+            <FormattedMessage
+              id='ui.txList.txRow.editing'
+              defaultMessage='Editing'
+            />
+          </div>
         </div>
       );
     }

@@ -84,10 +84,10 @@ export default class Store {
     // Add any new tx
     _txhashes
       .forEach((txhash) => {
-        if (this.sortedHashes.includes(txhash)) return;
+        if (this.sortedHashes.includes(txhash)) { return; }
         eth.getTransactionByHash(txhash)
           .then((tx) => {
-            if (!tx) return;
+            if (!tx) { return; }
             this.transactions[txhash] = tx;
             // If the tx has a blockHash, let's get the blockNumber, otherwise it's ready to be added
             if (tx.blockHash) {
