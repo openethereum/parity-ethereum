@@ -196,11 +196,6 @@ impl SessionImpl {
 		}
 	}
 
-	/// Get this session Id.
-	pub fn id(&self) -> &SessionId {
-		&self.id
-	}
-
 	/// Get this node Id.
 	pub fn node(&self) -> &NodeId {
 		&self.self_node_id
@@ -583,7 +578,7 @@ impl SessionImpl {
 	}
 
 	/// When error has occured on another node.
-	pub fn on_session_error(&self, sender: NodeId, message: &SessionError) {
+	pub fn on_session_error(&self, sender: NodeId, message: &SessionError) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
 		warn!("{}: encryption session failed with error: {:?} from {}", self.node(), message, sender);
@@ -592,10 +587,12 @@ impl SessionImpl {
 		data.joint_public = Some(Err(Error::Io(message.error.clone())));
 		data.secret_point = Some(Err(Error::Io(message.error.clone())));
 		self.completed.notify_all();
+
+		Ok(())
 	}
 
 	/// When connection to one of cluster nodes has timeouted.
-	pub fn on_node_timeout(&self, node: &NodeId) -> bool {
+	pub fn on_node_timeout(&self, node: &NodeId) {
 		let mut data = self.data.lock();
 
 		// all nodes are required for encryption session
@@ -606,12 +603,10 @@ impl SessionImpl {
 		data.joint_public = Some(Err(Error::Io(format!("{} connection timeout", node))));
 		data.secret_point = Some(Err(Error::Io(format!("{} connection timeout", node))));
 		self.completed.notify_all();
-
-		true
 	}
 
 	/// When session timeout has occured.
-	pub fn on_session_timeout(&self) -> bool {
+	pub fn on_session_timeout(&self) {
 		let mut data = self.data.lock();
 
 		warn!("{}: encryption session failed with timeout", self.node());
@@ -620,8 +615,6 @@ impl SessionImpl {
 		data.joint_public = Some(Err(Error::Io("session timeout".into())));
 		data.secret_point = Some(Err(Error::Io("session timeout".into())));
 		self.completed.notify_all();
-
-		true
 	}
 
 	/// Keys dissemination (KD) phase

@@ -423,7 +423,7 @@ impl SessionImpl {
 	}
 
 	/// When error has occured on another node.
-	pub fn on_session_error(&self, sender: NodeId, message: &DecryptionSessionError) {
+	pub fn on_session_error(&self, sender: NodeId, message: &DecryptionSessionError) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
 		warn!("{}: decryption session failed with error: {:?} from {}", self.node(), message, sender);
@@ -431,10 +431,12 @@ impl SessionImpl {
 		data.state = SessionState::Failed;
 		data.decrypted_secret = Some(Err(Error::Io(message.error.clone())));
 		self.completed.notify_all();
+
+		Ok(())
 	}
 
 	/// When connection to one of cluster nodes has timeouted.
-	pub fn on_node_timeout(&self, node: &NodeId) -> bool {
+	pub fn on_node_timeout(&self, node: &NodeId) {
 		let mut data = self.data.lock();
 
 		let is_self_master = data.master.as_ref() == Some(self.node());
@@ -450,25 +452,25 @@ impl SessionImpl {
 					// check if we still have enough nodes for decryption
 					// TODO: self.encrypted_data.id_numbers != ClusterView.nodes!!!! Remove disconnected nodes on start
 					if self.encrypted_data.id_numbers.len() - data.rejected_nodes.len() >= self.encrypted_data.threshold + 1 {
-						return false;
+						return;
 					}
 				}
 				SessionState::WaitingForPartialDecryption => {
 					if data.rejected_nodes.contains(node) {
 						// already rejected => does not affect session
-						return false;
+						return;
 					}
 					if data.requested_nodes.remove(node) {
 						// we have tried to initialize this node, but it has failed
 						// => no restart required, just mark as rejected
 						data.rejected_nodes.insert(node.clone());
-						return false;
+						return;
 					}
 					if data.confirmed_nodes.contains(node) {
 						if data.shadow_points.contains_key(node) {
 							// we have already received partial decryption from this node
 							// => just ignore this connection drop
-							return false;
+							return;
 						}
 
 						// the worst case: we have sent partial decryption request to other nodes
@@ -480,7 +482,7 @@ impl SessionImpl {
 						if self.encrypted_data.id_numbers.len() - data.rejected_nodes.len() >= self.encrypted_data.threshold + 1 {
 							// we are going to stop session anyway => ignore error
 							let _ = SessionImpl::start_waiting_for_partial_decryption(self.node().clone(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data);
-							return false;
+							return;
 						}
 						// not enough nodes
 					}
@@ -490,7 +492,7 @@ impl SessionImpl {
 		} else if !is_other_master {
 			// disconnected from non-master node on non-master node
 			// => this does not affect this session
-			return false;
+			return;
 		}
 		// else: disconnecting from master node means failure
 
@@ -500,12 +502,10 @@ impl SessionImpl {
 		data.state = SessionState::Failed;
 		data.decrypted_secret = Some(Err(Error::Io(format!("{} connection timeout", node))));
 		self.completed.notify_all();
-
-		true
 	}
 
 	/// When session timeout has occured.
-	pub fn on_session_timeout(&self) -> bool {
+	pub fn on_session_timeout(&self) {
 		let mut data = self.data.lock();
 
 		let is_self_master = data.master.as_ref() == Some(self.node());
@@ -531,11 +531,11 @@ impl SessionImpl {
 					if self.encrypted_data.id_numbers.len() - data.rejected_nodes.len() >= self.encrypted_data.threshold + 1 {
 						// we are going to stop session anyway => ignore error
 						let _ = SessionImpl::start_waiting_for_partial_decryption(self.node().clone(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data);
-						return false;
+						return;
 					}
 				},
 				// no nodes has responded to our requests => session is failed
-				_ => return false,
+				_ => return,
 			}
 		}
 
@@ -545,8 +545,6 @@ impl SessionImpl {
 		data.state = SessionState::Failed;
 		data.decrypted_secret = Some(Err(Error::Io("session timeout".into())));
 		self.completed.notify_all();
-
-		true
 	}
 
 	fn start_waiting_for_partial_decryption(self_node_id: NodeId, session_id: SessionId, access_key: Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
