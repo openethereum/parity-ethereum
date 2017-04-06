@@ -56,7 +56,7 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 					let post_root: H256 = state.hash.into();
 					let transaction = multitransaction.select(&state.indexes).into();
 
-					let mut state = get_temp_mem_state();
+					let mut state = get_temp_state();
 					state.populate_from(pre.clone());
 					state.commit().expect(&format!("State test {} failed due to internal error.", name));
 					let _res = state.apply(&env, &**engine, &transaction, false);

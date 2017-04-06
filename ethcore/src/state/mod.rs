@@ -939,7 +939,6 @@ mod tests {
 	use ethkey::Secret;
 	use util::{U256, H256, Address, Hashable};
 	use tests::helpers::*;
-	use devtools::*;
 	use env_info::EnvInfo;
 	use spec::*;
 	use transaction::*;
@@ -955,8 +954,7 @@ mod tests {
 	fn should_apply_create_transaction() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -998,9 +996,8 @@ mod tests {
 
 		let a = Address::zero();
 
-		let temp = RandomTempPath::new();
 		let mut state = {
-			let mut state = get_temp_state_in(temp.as_path());
+			let mut state = get_temp_state();
 			assert_eq!(state.exists(&a).unwrap(), false);
 			state.inc_nonce(&a).unwrap();
 			state.commit().unwrap();
@@ -1015,8 +1012,7 @@ mod tests {
 	fn should_trace_failed_create_transaction() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1052,8 +1048,7 @@ mod tests {
 	fn should_trace_call_transaction() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1095,8 +1090,7 @@ mod tests {
 	fn should_trace_basic_call_transaction() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1137,8 +1131,7 @@ mod tests {
 	fn should_trace_call_transaction_to_builtin() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1179,8 +1172,7 @@ mod tests {
 	fn should_not_trace_subcall_transaction_to_builtin() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1222,8 +1214,7 @@ mod tests {
 	fn should_not_trace_callcode() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1281,8 +1272,7 @@ mod tests {
 	fn should_not_trace_delegatecall() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1343,8 +1333,7 @@ mod tests {
 	fn should_trace_failed_call_transaction() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1383,8 +1372,7 @@ mod tests {
 	fn should_trace_call_with_subcall_transaction() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1443,8 +1431,7 @@ mod tests {
 	fn should_trace_call_with_basic_subcall_transaction() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1498,8 +1485,7 @@ mod tests {
 	fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1541,8 +1527,7 @@ mod tests {
 	fn should_trace_failed_subcall_transaction() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1597,8 +1582,7 @@ mod tests {
 	fn should_trace_call_with_subcall_with_subcall_transaction() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1672,8 +1656,7 @@ mod tests {
 	fn should_trace_failed_subcall_with_subcall_transaction() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1745,8 +1728,7 @@ mod tests {
 	fn should_trace_suicide() {
 		init_log();
 
-		let temp = RandomTempPath::new();
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = get_temp_state();
 
 		let mut info = EnvInfo::default();
 		info.gas_limit = 1_000_000.into();
@@ -1797,9 +1779,8 @@ mod tests {
 	#[test]
 	fn code_from_database() {
 		let a = Address::zero();
-		let temp = RandomTempPath::new();
 		let (root, db) = {
-			let mut state = get_temp_state_in(temp.as_path());
+			let mut state = get_temp_state();
 			state.require_or_from(&a, false, ||Account::new_contract(42.into(), 0.into()), |_|{}).unwrap();
 			state.init_code(&a, vec![1, 2, 3]).unwrap();
 			assert_eq!(state.code(&a).unwrap(), Some(Arc::new([1u8, 2, 3].to_vec())));
@@ -1815,9 +1796,8 @@ mod tests {
 	#[test]
 	fn storage_at_from_database() {
 		let a = Address::zero();
-		let temp = RandomTempPath::new();
 		let (root, db) = {
-			let mut state = get_temp_state_in(temp.as_path());
+			let mut state = get_temp_state();
 			state.set_storage(&a, H256::from(&U256::from(1u64)), H256::from(&U256::from(69u64))).unwrap();
 			state.commit().unwrap();
 			state.drop()
@@ -1830,9 +1810,8 @@ mod tests {
 	#[test]
 	fn get_from_database() {
 		let a = Address::zero();
-		let temp = RandomTempPath::new();
 		let (root, db) = {
-			let mut state = get_temp_state_in(temp.as_path());
+			let mut state = get_temp_state();
 			state.inc_nonce(&a).unwrap();
 			state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty).unwrap();
 			state.commit().unwrap();
@@ -1848,8 +1827,7 @@ mod tests {
 	#[test]
 	fn remove() {
 		let a = Address::zero();
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		assert_eq!(state.exists(&a).unwrap(), false);
 		assert_eq!(state.exists_and_not_null(&a).unwrap(), false);
 		state.inc_nonce(&a).unwrap();
@@ -1865,8 +1843,7 @@ mod tests {
 	#[test]
 	fn empty_account_is_not_created() {
 		let a = Address::zero();
-		let path = RandomTempPath::new();
-		let db = get_temp_state_db_in(path.as_path());
+		let db = get_temp_state_db();
 		let (root, db) = {
 			let mut state = State::new(db, U256::from(0), Default::default());
 			state.add_balance(&a, &U256::default(), CleanupMode::NoEmpty).unwrap(); // create an empty account
@@ -1881,8 +1858,7 @@ mod tests {
 	#[test]
 	fn empty_account_exists_when_creation_forced() {
 		let a = Address::zero();
-		let path = RandomTempPath::new();
-		let db = get_temp_state_db_in(path.as_path());
+		let db = get_temp_state_db();
 		let (root, db) = {
 			let mut state = State::new(db, U256::from(0), Default::default());
 			state.add_balance(&a, &U256::default(), CleanupMode::ForceCreate).unwrap(); // create an empty account
@@ -1897,9 +1873,8 @@ mod tests {
 	#[test]
 	fn remove_from_database() {
 		let a = Address::zero();
-		let temp = RandomTempPath::new();
 		let (root, db) = {
-			let mut state = get_temp_state_in(temp.as_path());
+			let mut state = get_temp_state();
 			state.inc_nonce(&a).unwrap();
 			state.commit().unwrap();
 			assert_eq!(state.exists(&a).unwrap(), true);
@@ -1925,8 +1900,7 @@ mod tests {
 
 	#[test]
 	fn alter_balance() {
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		let a = Address::zero();
 		let b = 1u64.into();
 		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty).unwrap();
@@ -1947,8 +1921,7 @@ mod tests {
 
 	#[test]
 	fn alter_nonce() {
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		let a = Address::zero();
 		state.inc_nonce(&a).unwrap();
 		assert_eq!(state.nonce(&a).unwrap(), U256::from(1u64));
@@ -1964,8 +1937,7 @@ mod tests {
 
 	#[test]
 	fn balance_nonce() {
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		let a = Address::zero();
 		assert_eq!(state.balance(&a).unwrap(), U256::from(0u64));
 		assert_eq!(state.nonce(&a).unwrap(), U256::from(0u64));
@@ -1976,8 +1948,7 @@ mod tests {
 
 	#[test]
 	fn ensure_cached() {
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		let a = Address::zero();
 		state.require(&a, false).unwrap();
 		state.commit().unwrap();
@@ -1986,8 +1957,7 @@ mod tests {
 
 	#[test]
 	fn checkpoint_basic() {
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		let a = Address::zero();
 		state.checkpoint();
 		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty).unwrap();
@@ -2003,8 +1973,7 @@ mod tests {
 
 	#[test]
 	fn checkpoint_nested() {
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		let a = Address::zero();
 		state.checkpoint();
 		state.checkpoint();
@@ -2018,16 +1987,14 @@ mod tests {
 
 	#[test]
 	fn create_empty() {
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.commit().unwrap();
 		assert_eq!(state.root().hex(), "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
 	}
 
 	#[test]
 	fn should_not_panic_on_state_diff_with_storage() {
-		let state = get_temp_state();
-		let mut state = state.reference().clone();
+		let mut state = get_temp_state();
 
 		let a: Address = 0xa.into();
 		state.init_code(&a, b"abcdefg".to_vec()).unwrap();;
