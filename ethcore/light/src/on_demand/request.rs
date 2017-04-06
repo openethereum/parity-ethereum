@@ -29,12 +29,13 @@ use ethcore::transaction::SignedTransaction;
 use request::{self as net_request, IncompleteRequest, Output, OutputKind};
 
 use rlp::{RlpStream, UntrustedRlp};
-use util::{Address, Bytes, DBValue, HashDB, H256, U256};
+use util::{Address, Bytes, DBValue, HashDB, Mutex, H256, U256};
 use util::memorydb::MemoryDB;
 use util::sha3::Hashable;
 use util::trie::{Trie, TrieDB, TrieError};
 
 /// Core unit of the API: submit batches of these to be answered with `Response`s.
+#[derive(Clone)]
 pub enum Request {
 	/// A request for a header proof.
 	HeaderProof(HeaderProof),
@@ -227,27 +228,28 @@ impl IncompleteRequest for CheckedRequest {
 impl net_request::CheckedRequest for CheckedRequest {
 	type Extract = Response;
 	type Error = Error;
+	type Environment = Mutex<::cache::Cache>;
 
 	/// Check whether the response matches (beyond the type).
-	fn check_response(&self, response: &Self::Response) -> Result<Response, Error> {
+	fn check_response(&self, cache: &Mutex<::cache::Cache>, response: &Self::Response) -> Result<Response, Error> {
 		use ::request::Response as NetResponse;
 
 		// check response against contained prover.
 		match (self, response) {
 			(&CheckedRequest::HeaderProof(ref prover, _), &NetResponse::HeaderProof(ref res)) =>
-				prover.check_response(&res.proof).map(|(h, s)| Response::HeaderProof(h, s)),
+				prover.check_response(cache, &res.proof).map(|(h, s)| Response::HeaderProof(h, s)),
 			(&CheckedRequest::HeaderByHash(ref prover, _), &NetResponse::Headers(ref res)) =>
-				prover.check_response(&res.headers).map(Response::HeaderByHash),
+				prover.check_response(cache, &res.headers).map(Response::HeaderByHash),
 			(&CheckedRequest::Receipts(ref prover, _), &NetResponse::Receipts(ref res)) =>
-				prover.check_response(&res.receipts).map(Response::Receipts),
+				prover.check_response(cache, &res.receipts).map(Response::Receipts),
 			(&CheckedRequest::Body(ref prover, _), &NetResponse::Body(ref res)) =>
-				prover.check_response(&res.body).map(Response::Body),
+				prover.check_response(cache, &res.body).map(Response::Body),
 			(&CheckedRequest::Account(ref prover, _), &NetResponse::Account(ref res)) =>
-				prover.check_response(&res.proof).map(Response::Account),
+				prover.check_response(cache, &res.proof).map(Response::Account),
 			(&CheckedRequest::Code(ref prover, _), &NetResponse::Code(ref res)) =>
-				prover.check_response(&res.code).map(Response::Code),
+				prover.check_response(cache, &res.code).map(Response::Code),
 			(&CheckedRequest::Execution(ref prover, _), &NetResponse::Execution(ref res)) =>
-				Ok(Response::Execution(prover.check_response(&res.items))),
+				prover.check_response(cache, &res.items).map(Response::Execution),
 			_ => Err(Error::WrongKind),
 		}
 	 }
@@ -271,7 +273,7 @@ pub enum Response {
 	/// Response to a request for code.
 	Code(Vec<u8>),
 	/// Response to a request for proved execution.
-	Execution(ProvedExecution), // TODO: make into `Result`
+	Execution(super::ExecutionResult),
 }
 
 /// Errors in verification.
@@ -339,9 +341,15 @@ impl HeaderProof {
 	pub fn cht_root(&self) -> H256 { self.cht_root }
 
 	/// Check a response with a CHT proof, get a hash and total difficulty back.
-	pub fn check_response(&self, proof: &[Bytes]) -> Result<(H256, U256), Error> {
+	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, proof: &[Bytes]) -> Result<(H256, U256), Error> {
 		match ::cht::check_proof(proof, self.num, self.cht_root) {
-			Some((expected_hash, td)) => Ok((expected_hash, td)),
+			Some((expected_hash, td)) => {
+				let mut cache = cache.lock();
+				cache.insert_block_hash(self.num, expected_hash);
+				cache.insert_chain_score(expected_hash, td);
+
+				Ok((expected_hash, td))
+			}
 			None => Err(Error::BadProof),
 		}
 	}
@@ -353,11 +361,14 @@ pub struct HeaderByHash(pub H256);
 
 impl HeaderByHash {
 	/// Check a response for the header.
-	pub fn check_response(&self, headers: &[encoded::Header]) -> Result<encoded::Header, Error> {
+	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, headers: &[encoded::Header]) -> Result<encoded::Header, Error> {
 		let header = headers.get(0).ok_or(Error::Empty)?;
 		let hash = header.sha3();
 		match hash == self.0 {
-			true => Ok(header.clone()),
+			true => {
+				cache.lock().insert_block_header(hash, header.clone());
+				Ok(header.clone())
+			}
 			false => Err(Error::WrongHash(self.0, hash)),
 		}
 	}
@@ -383,7 +394,7 @@ impl Body {
 	}
 
 	/// Check a response for this block body.
-	pub fn check_response(&self, body: &encoded::Body) -> Result<encoded::Block, Error> {
+	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, body: &encoded::Body) -> Result<encoded::Block, Error> {
 		// check the integrity of the the body against the header
 		let tx_root = ::util::triehash::ordered_trie_root(body.rlp().at(0).iter().map(|r| r.as_raw().to_vec()));
 		if tx_root != self.header.transactions_root() {
@@ -401,6 +412,8 @@ impl Body {
 		stream.append_raw(body.rlp().at(0).as_raw(), 1);
 		stream.append_raw(body.rlp().at(1).as_raw(), 1);
 
+		cache.lock().insert_block_body(self.hash, body.clone());
+
 		Ok(encoded::Block::new(stream.out()))
 	}
 }
@@ -411,12 +424,15 @@ pub struct BlockReceipts(pub encoded::Header);
 
 impl BlockReceipts {
 	/// Check a response with receipts against the stored header.
-	pub fn check_response(&self, receipts: &[Receipt]) -> Result<Vec<Receipt>, Error> {
+	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, receipts: &[Receipt]) -> Result<Vec<Receipt>, Error> {
 		let receipts_root = self.0.receipts_root();
 		let found_root = ::util::triehash::ordered_trie_root(receipts.iter().map(|r| ::rlp::encode(r).to_vec()));
 
 		match receipts_root == found_root {
-			true => Ok(receipts.to_vec()),
+			true => {
+				cache.lock().insert_block_receipts(receipts_root, receipts.to_vec());
+				Ok(receipts.to_vec())
+			}
 			false => Err(Error::WrongTrieRoot(receipts_root, found_root)),
 		}
 	}
@@ -433,7 +449,7 @@ pub struct Account {
 
 impl Account {
 	/// Check a response with an account against the stored header.
-	pub fn check_response(&self, proof: &[Bytes]) -> Result<Option<BasicAccount>, Error> {
+	pub fn check_response(&self, _: &Mutex<::cache::Cache>, proof: &[Bytes]) -> Result<Option<BasicAccount>, Error> {
 		let state_root = self.header.state_root();
 
 		let mut db = MemoryDB::new();
@@ -465,7 +481,7 @@ pub struct Code {
 
 impl Code {
 	/// Check a response with code against the code hash.
-	pub fn check_response(&self, code: &[u8]) -> Result<Vec<u8>, Error> {
+	pub fn check_response(&self, _: &Mutex<::cache::Cache>, code: &[u8]) -> Result<Vec<u8>, Error> {
 		let found_hash = code.sha3();
 		if found_hash == self.code_hash {
 			Ok(code.to_vec())
@@ -490,23 +506,29 @@ pub struct TransactionProof {
 
 impl TransactionProof {
 	/// Check the proof, returning the proved execution or indicate that the proof was bad.
-	pub fn check_response(&self, state_items: &[DBValue]) -> ProvedExecution {
+	pub fn check_response(&self, _: &Mutex<::cache::Cache>, state_items: &[DBValue]) -> Result<super::ExecutionResult, Error> {
 		let root = self.header.state_root();
 
-		state::check_proof(
+		let proved_execution = state::check_proof(
 			state_items,
 			root,
 			&self.tx,
 			&*self.engine,
 			&self.env_info,
-		)
+		);
+
+		match proved_execution {
+			ProvedExecution::BadProof => Err(Error::BadProof),
+			ProvedExecution::Failed(e) => Ok(Err(e)),
+			ProvedExecution::Complete(e) => Ok(Ok(e)),
+		}
 	}
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use util::{MemoryDB, Address, H256};
+	use util::{MemoryDB, Address, Mutex, H256};
 	use util::trie::{Trie, TrieMut, SecTrieDB, SecTrieDBMut};
 	use util::trie::recorder::Recorder;
 
@@ -514,6 +536,10 @@ mod tests {
 	use ethcore::header::Header;
 	use ethcore::encoded;
 	use ethcore::receipt::Receipt;
+
+	fn make_cache() -> ::cache::Cache {
+		::cache::Cache::new(Default::default(), ::time::Duration::seconds(1))
+	}
 
 	#[test]
 	fn no_invalid_header_by_number() {
@@ -544,7 +570,8 @@ mod tests {
 		let proof = cht.prove(10_000, 0).unwrap().unwrap();
 		let req = HeaderProof::new(10_000, cht.root()).unwrap();
 
-		assert!(req.check_response(&proof[..]).is_ok());
+		let cache = Mutex::new(make_cache());
+		assert!(req.check_response(&cache, &proof[..]).is_ok());
 	}
 
 	#[test]
@@ -555,7 +582,8 @@ mod tests {
 		let hash = header.hash();
 		let raw_header = encoded::Header::new(::rlp::encode(&header).to_vec());
 
-		assert!(HeaderByHash(hash).check_response(&[raw_header]).is_ok())
+		let cache = Mutex::new(make_cache());
+		assert!(HeaderByHash(hash).check_response(&cache, &[raw_header]).is_ok())
 	}
 
 	#[test]
@@ -571,8 +599,9 @@ mod tests {
 			hash: header.hash(),
 		};
 
+		let cache = Mutex::new(make_cache());
 		let response = encoded::Body::new(body_stream.drain().to_vec());
-		assert!(req.check_response(&response).is_ok())
+		assert!(req.check_response(&cache, &response).is_ok())
 	}
 
 	#[test]
@@ -593,7 +622,8 @@ mod tests {
 
 		let req = BlockReceipts(encoded::Header::new(::rlp::encode(&header).to_vec()));
 
-		assert!(req.check_response(&receipts).is_ok())
+		let cache = Mutex::new(make_cache());
+		assert!(req.check_response(&cache, &receipts).is_ok())
 	}
 
 	#[test]
@@ -642,7 +672,8 @@ mod tests {
 			address: addr,
 		};
 
-		assert!(req.check_response(&proof[..]).is_ok());
+		let cache = Mutex::new(make_cache());
+		assert!(req.check_response(&cache, &proof[..]).is_ok());
 	}
 
 	#[test]
@@ -653,7 +684,8 @@ mod tests {
 			code_hash: ::util::Hashable::sha3(&code),
 		};
 
-		assert!(req.check_response(&code).is_ok());
-		assert!(req.check_response(&[]).is_err());
+		let cache = Mutex::new(make_cache());
+		assert!(req.check_response(&cache, &code).is_ok());
+		assert!(req.check_response(&cache, &[]).is_err());
 	}
 }

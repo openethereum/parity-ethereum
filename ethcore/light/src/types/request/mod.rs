@@ -382,8 +382,9 @@ impl IncompleteRequest for Request {
 impl CheckedRequest for Request {
 	type Extract = ();
 	type Error = WrongKind;
+	type Environment = ();
 
-	fn check_response(&self, response: &Response) -> Result<(), WrongKind> {
+	fn check_response(&self, _: &(), response: &Response) -> Result<(), WrongKind> {
 		if self.kind() == response.kind() {
 			Ok(())
 		} else {
@@ -566,9 +567,11 @@ pub trait CheckedRequest: IncompleteRequest {
 	type Extract;
 	/// Error encountered during the check.
 	type Error;
+	/// Environment passed to response check.
+	type Environment;
 
 	/// Check whether the response matches (beyond the type).
-	fn check_response(&self, _response: &Self::Response) -> Result<Self::Extract, Self::Error>;
+	fn check_response(&self, &Self::Environment, &Self::Response) -> Result<Self::Extract, Self::Error>;
 }
 
 /// A response-like object.

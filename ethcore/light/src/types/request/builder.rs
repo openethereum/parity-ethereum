@@ -118,7 +118,7 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 impl<T: super::CheckedRequest> Requests<T> {
 	/// Supply a response for the next request.
 	/// Fails on: wrong request kind, all requests answered already.
-	pub fn supply_response(&mut self, response: &T::Response)
+	pub fn supply_response(&mut self, env: &T::Environment, response: &T::Response)
 		-> Result<T::Extract, ResponseError<T::Error>>
 	{
 		let idx = self.answered;
@@ -126,7 +126,7 @@ impl<T: super::CheckedRequest> Requests<T> {
 		// check validity.
 		if idx == self.requests.len() { return Err(ResponseError::Unexpected) }
 		let extracted = self.requests[idx]
-			.check_response(&response).map_err(ResponseError::Validity)?;
+			.check_response(env, response).map_err(ResponseError::Validity)?;
 
 		let outputs = &mut self.outputs;
 		response.fill_outputs(|out_idx, output| {
@@ -157,7 +157,7 @@ impl Requests<super::Request> {
 		let mut responses = Vec::new();
 
 		while let Some(response) = self.next_complete().and_then(&responder) {
-			match self.supply_response(&response) {
+			match self.supply_response(&(), &response) {
 				Ok(()) => responses.push(response),
 				Err(e) => {
 					debug!(target: "pip", "produced bad response to request: {:?}", e);
