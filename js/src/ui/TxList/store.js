@@ -34,8 +34,10 @@ export default class Store {
     }
   }
 
-  @action setHashes = (hashes) => {
-    this.sortedHashes = hashes;
+  @action removeHash = (hash) => {
+    this.sortedHashes.remove(hash);
+    delete this.transactions[hash];
+    delete this.blocks[hash];
     this.sortHashes();
   }
 
@@ -70,16 +72,22 @@ export default class Store {
     if (Array.isArray(_txhashes) || this.sameHashList(_txhashes)) {
       return;
     }
-    // If there was a hash removed:
-    if (_txhashes.length < this.sortedHashes.length) {
-      this.setHashes(_txhashes);
-      return;
-    }
 
+    // Remove any tx that are edited/cancelled
+    this.sortedHashes
+      .forEach((hash) => {
+        if (!_txhashes.includes(hash)) {
+          this.removeHash(hash);
+        }
+      });
+
+    // Add any new tx
     _txhashes
       .forEach((txhash) => {
+        if (this.sortedHashes.includes(txhash)) return;
         eth.getTransactionByHash(txhash)
           .then((tx) => {
+            if (!tx) return;
             this.transactions[txhash] = tx;
             // If the tx has a blockHash, let's get the blockNumber, otherwise it's ready to be added
             if (tx.blockHash) {
