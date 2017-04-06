@@ -53,7 +53,7 @@ describe('modals/exportAccount/Store', () => {
     });
 
     it('insert accounts', () => {
-      expect(AccountStore._accounts).to.deep.equal(ACCOUNTS);
+      expect(AccountStore.accounts).to.deep.equal(ACCOUNTS);
     });
 
     it('newError created', () => {
@@ -98,8 +98,10 @@ describe('modals/exportAccount/Store', () => {
 
     describe('setPassword & getPassword', () => {
       it('First save the input of the selected account, than get the input.', () => {
-        // First set pass
-        AccountStore.setPassword(ADDRESS, 'abc');
+        // Set password
+        AccountStore.selectedAccount = ADDRESS;
+        // Set new pass
+        AccountStore.changePassword(null, 'abc');
         // getPassword
         const pass = AccountStore.getPassword(ADDRESS);
 
