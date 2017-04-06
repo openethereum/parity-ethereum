@@ -34,6 +34,8 @@ use util::memorydb::MemoryDB;
 use util::sha3::Hashable;
 use util::trie::{Trie, TrieDB, TrieError};
 
+const SUPPLIED_MATCHES: &'static str = "supplied responses always match produced requests; qed";
+
 /// Core unit of the API: submit batches of these to be answered with `Response`s.
 #[derive(Clone)]
 pub enum Request {
@@ -51,6 +53,124 @@ pub enum Request {
 	Code(Code),
 	/// A request for proof of execution.
 	Execution(TransactionProof),
+}
+
+/// A request argument.
+pub trait RequestArg {
+	/// the response type.
+    type Out;
+
+	/// Create the request type.
+	/// `extract` must not fail when presented with the corresponding
+	/// `Response`.
+    fn make(self) -> Request;
+
+	/// May not panic if the response corresponds with the request
+	/// from `make`.
+	/// Is free to panic otherwise.
+    fn extract(r: Response) -> Self::Out;
+}
+
+/// An adapter can be thought of as a grouping of request argument types.
+/// This is implemented for various tuples and convenient types.
+pub trait RequestAdapter {
+	/// The output type.
+    type Out;
+
+	/// Infallibly produce requests. When `extract_from` is presented
+	/// with the corresponding response vector, it may not fail.
+    fn make_requests(self) -> Vec<Request>;
+
+	/// Extract the output type from the given responses.
+	/// If they are the corresponding responses to the requests
+	/// made by `make_requests`, do not panic.
+    fn extract_from(Vec<Response>) -> Self::Out;
+}
+
+// helper to implement `RequestArg` and `From` for a single request kind.
+macro_rules! impl_single {
+	($variant: ident, $me: ty, $out: ty) => {
+		impl RequestArg for $me {
+			type Out = $out;
+
+			fn make(self) -> Request {
+				Request::$variant(self)
+			}
+
+			fn extract(r: Response) -> $out {
+				match r {
+					Response::$variant(x) => x,
+					_ => panic!(SUPPLIED_MATCHES),
+				}
+			}
+		}
+
+		impl From<$me> for Request {
+			fn from(me: $me) -> Request {
+				Request::$variant(me)
+			}
+		}
+	}
+}
+
+// implement traits for each kind of request.
+impl_single!(HeaderProof, HeaderProof, (H256, U256));
+impl_single!(HeaderByHash, HeaderByHash, encoded::Header);
+impl_single!(Receipts, BlockReceipts, Vec<Receipt>);
+impl_single!(Body, Body, encoded::Block);
+impl_single!(Account, Account, Option<BasicAccount>);
+impl_single!(Code, Code, Bytes);
+impl_single!(Execution, TransactionProof, super::ExecutionResult);
+
+macro_rules! impl_args {
+    () => {
+        impl<T: RequestArg> RequestAdapter for T {
+            type Out = T::Out;
+
+            fn make_requests(self) -> Vec<Request> {
+                vec![self.make()]
+            }
+
+            fn extract_from(mut responses: Vec<Response>) -> Self::Out {
+                T::extract(responses.pop().expect(SUPPLIED_MATCHES))
+            }
+        }
+    };
+    ($first: ident, $($next: ident,)*) => {
+        impl<
+            $first: RequestArg,
+            $($next: RequestArg,)*
+        >
+        RequestAdapter for ($first, $($next,)*) {
+            type Out = ($first::Out, $($next::Out,)*);
+
+            fn make_requests(self) -> Vec<Request> {
+                let ($first, $($next,)*) = self;
+
+                vec![
+                    $first.make(),
+                    $($next.make(),)*
+                ]
+            }
+
+            fn extract_from(responses: Vec<Response>) -> Self::Out {
+                let mut iter = responses.into_iter();
+                (
+                    $first::extract(iter.next().expect(SUPPLIED_MATCHES)),
+                    $($next::extract(iter.next().expect(SUPPLIED_MATCHES)),)*
+                )
+            }
+        }
+        impl_args!($($next,)*);
+    }
+}
+
+mod impls {
+    #![allow(non_snake_case)]
+
+    use super::{RequestAdapter, RequestArg, Request, Response, SUPPLIED_MATCHES};
+
+    impl_args!(A, B, C, D, E, F, G, H, I, J, K, L,);
 }
 
 /// Requests coupled with their required data for verification.
@@ -237,7 +357,7 @@ impl net_request::CheckedRequest for CheckedRequest {
 		// check response against contained prover.
 		match (self, response) {
 			(&CheckedRequest::HeaderProof(ref prover, _), &NetResponse::HeaderProof(ref res)) =>
-				prover.check_response(cache, &res.proof).map(|(h, s)| Response::HeaderProof(h, s)),
+				prover.check_response(cache, &res.proof).map(Response::HeaderProof),
 			(&CheckedRequest::HeaderByHash(ref prover, _), &NetResponse::Headers(ref res)) =>
 				prover.check_response(cache, &res.headers).map(Response::HeaderByHash),
 			(&CheckedRequest::Receipts(ref prover, _), &NetResponse::Receipts(ref res)) =>
@@ -260,7 +380,7 @@ impl net_request::CheckedRequest for CheckedRequest {
 pub enum Response {
 	/// Response to a header proof request.
 	/// Returns the hash and chain score.
-	HeaderProof(H256, U256),
+	HeaderProof((H256, U256)),
 	/// Response to a header-by-hash request.
 	HeaderByHash(encoded::Header),
 	/// Response to a receipts request.

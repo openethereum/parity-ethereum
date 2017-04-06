@@ -115,7 +115,6 @@ impl EthClient {
 			on_demand: self.on_demand.clone(),
 			sync: self.sync.clone(),
 			cache: self.cache.clone(),
-
 		}
 	}
 

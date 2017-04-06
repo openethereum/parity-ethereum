@@ -22,6 +22,7 @@
 #![allow(deprecated)]
 
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 use ethcore::basic_account::BasicAccount;
@@ -111,6 +112,22 @@ fn guess_capabilities(requests: &[CheckedRequest]) -> Capabilities {
 	caps
 }
 
+/// A future extracting the concrete output type of the generic adapter
+/// from a vector of responses.
+pub struct OnResponses<T: request::RequestAdapter> {
+	receiver: Receiver<Vec<Response>>,
+	_marker: PhantomData<T>,
+}
+
+impl<T: request::RequestAdapter> Future for OnResponses<T> {
+	type Item = T::Out;
+	type Error = Canceled;
+
+	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+		self.receiver.poll().map(|async| async.map(T::extract_from))
+	}
+}
+
 /// On demand request service. See module docs for more details.
 /// Accumulates info about all peers' capabilities and dispatches
 /// requests to them accordingly.
@@ -121,8 +138,6 @@ pub struct OnDemand {
 	in_transit: RwLock<HashMap<ReqId, Pending>>,
 	cache: Arc<Mutex<Cache>>,
 }
-
-const RESPONSES_MATCH: &'static str = "N requests always leads to N responses; qed";
 
 impl OnDemand {
 	/// Create a new `OnDemand` service with the given cache.
@@ -146,12 +161,9 @@ impl OnDemand {
 		match cached {
 			Some(hash) => future::ok(hash).boxed(),
 			None => {
-				self.make_requests(ctx, vec![Request::HeaderProof(req)])
+				self.request(ctx, req)
 					.expect("request given fully fleshed out; qed")
-					.map(|responses| match responses[0] {
-						Response::HeaderProof(ref hash, _) => *hash,
-						_ => panic!("header proof request leads to header proof response; qed")
-					})
+					.map(|(h, _)| h)
 					.boxed()
 			},
 		}
@@ -168,12 +180,9 @@ impl OnDemand {
 		match cached {
 			Some(score) => future::ok(score).boxed(),
 			None => {
-				self.make_requests(ctx, vec![Request::HeaderProof(req)])
+				self.request(ctx, req)
 					.expect("request given fully fleshed out; qed")
-					.map(|responses| match responses[0] {
-						Response::HeaderProof(_, ref score) => *score,
-						_ => panic!("header proof request leads to header proof response; qed")
-					})
+					.map(|(_, s)| s)
 					.boxed()
 			},
 		}
@@ -194,12 +203,8 @@ impl OnDemand {
 		match cached {
 			(Some(hash), Some(score)) => future::ok((hash, score)).boxed(),
 			_ => {
-				self.make_requests(ctx, vec![Request::HeaderProof(req)])
+				self.request(ctx, req)
 					.expect("request given fully fleshed out; qed")
-					.map(|responses| match responses[0] {
-						Response::HeaderProof(ref hash, ref score) => (*hash, *score),
-						_ => panic!("header proof request leads to header proof response; qed")
-					})
 					.boxed()
 			},
 		}
@@ -212,12 +217,8 @@ impl OnDemand {
 		match { self.cache.lock().block_header(&req.0) } {
 			Some(hdr) => future::ok(hdr).boxed(),
 			None => {
-				self.make_requests(ctx, vec![Request::HeaderByHash(req)])
+				self.request(ctx, req)
 					.expect("request given fully fleshed out; qed")
-					.map(|mut responses| match responses.pop().expect(RESPONSES_MATCH) {
-						Response::HeaderByHash(header) => header,
-						_ => panic!("header request leads to header response; qed")
-					})
 					.boxed()
 			},
 		}
@@ -247,12 +248,8 @@ impl OnDemand {
 					future::ok(encoded::Block::new(stream.out())).boxed()
 				}
 				None => {
-					self.make_requests(ctx, vec![Request::Body(req)])
+					self.request(ctx, req)
 						.expect("request given fully fleshed out; qed")
-						.map(|mut responses| match responses.pop().expect(RESPONSES_MATCH) {
-							Response::Body(body) => body,
-							_ => panic!("body request leads to body response; qed")
-						})
 						.boxed()
 				}
 			}
@@ -270,12 +267,8 @@ impl OnDemand {
 		match { self.cache.lock().block_receipts(&req.0.hash()) } {
 			Some(receipts) => future::ok(receipts).boxed(),
 			None => {
-				self.make_requests(ctx, vec![Request::Receipts(req)])
+				self.request(ctx, req)
 					.expect("request given fully fleshed out; qed")
-					.map(|mut responses| match responses.pop().expect(RESPONSES_MATCH) {
-						Response::Receipts(receipts) => receipts,
-						_ => panic!("receipts request leads to receipts response; qed")
-					})
 					.boxed()
 			},
 		}
@@ -285,12 +278,8 @@ impl OnDemand {
 	/// to verify against.
 	/// `None` here means that no account by the queried key exists in the queried state.
 	pub fn account(&self, ctx: &BasicContext, req: request::Account) -> BoxFuture<Option<BasicAccount>, Canceled> {
-		self.make_requests(ctx, vec![Request::Account(req)])
+		self.request(ctx, req)
 			.expect("request given fully fleshed out; qed")
-			.map(|mut responses| match responses.pop().expect(RESPONSES_MATCH) {
-				Response::Account(account) => account,
-				_ => panic!("account request leads to account response; qed")
-			})
 			.boxed()
 	}
 
@@ -300,32 +289,24 @@ impl OnDemand {
 		if req.code_hash == SHA3_EMPTY {
 			future::ok(Vec::new()).boxed()
 		} else {
-			self.make_requests(ctx, vec![Request::Code(req)])
+			self.request(ctx, req)
 				.expect("request given fully fleshed out; qed")
-				.map(|mut responses| match responses.pop().expect(RESPONSES_MATCH) {
-					Response::Code(code) => code,
-					_ => panic!("code request leads to code response; qed")
-				})
 				.boxed()
 		}
 	}
 
 	/// Request proof-of-execution for a transaction.
 	pub fn transaction_proof(&self, ctx: &BasicContext, req: request::TransactionProof) -> BoxFuture<ExecutionResult, Canceled> {
-		self.make_requests(ctx, vec![Request::Execution(req)])
+		self.request(ctx, req)
 			.expect("request given fully fleshed out; qed")
-			.map(|mut responses| match responses.pop().expect(RESPONSES_MATCH) {
-				Response::Execution(execution) => execution,
-				_ => panic!("execution request leads to execution response; qed")
-			})
 			.boxed()
 	}
 
-	/// Submit a batch of requests.
+	/// Submit a vector of requests to be processed together.
 	///
 	/// Fails if back-references are not coherent.
-	/// The returned vector of responses will match the requests exactly.
-	pub fn make_requests(&self, ctx: &BasicContext, requests: Vec<Request>)
+	/// The returned vector of responses will correspond to the requests exactly.
+	pub fn request_raw(&self, ctx: &BasicContext, requests: Vec<Request>)
 		-> Result<Receiver<Vec<Response>>, basic_request::NoSuchOutput>
 	{
 		let (sender, receiver) = oneshot::channel();
@@ -357,6 +338,18 @@ impl OnDemand {
 		self.dispatch_pending(ctx);
 
 		Ok(receiver)
+	}
+
+	/// Submit a strongly-typed batch of requests.
+	///
+	/// Fails if back-reference are not coherent.
+	pub fn request<T>(&self, ctx: &BasicContext, requests: T) -> Result<OnResponses<T>, basic_request::NoSuchOutput>
+		where T: request::RequestAdapter
+	{
+		self.request_raw(ctx, requests.make_requests()).map(|recv| OnResponses {
+			receiver: recv,
+			_marker: PhantomData,
+		})
 	}
 
 	// dispatch pending requests, and discard those for which the corresponding
