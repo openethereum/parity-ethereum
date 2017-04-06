@@ -110,7 +110,7 @@ pub use self::server::dapps_middleware;
 mod server {
 	use super::Dependencies;
 	use std::path::PathBuf;
-	use ethcore_rpc::{hyper, RequestMiddleware, RequestMiddlewareAction};
+	use parity_rpc::{hyper, RequestMiddleware, RequestMiddlewareAction};
 
 	pub struct Middleware;
 

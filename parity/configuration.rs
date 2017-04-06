@@ -29,8 +29,8 @@ use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning, StratumOptions};
 use ethcore::verification::queue::VerifierSettings;
 
-use rpc::{IpcConfiguration, HttpConfiguration};
-use ethcore_rpc::NetworkSettings;
+use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
+use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
@@ -112,6 +112,7 @@ impl Configuration {
 		};
 		let update_policy = self.update_policy()?;
 		let logger_config = self.logger_config();
+		let ws_conf = self.ws_config()?;
 		let http_conf = self.http_config()?;
 		let ipc_conf = self.ipc_config()?;
 		let net_conf = self.net_config()?;
@@ -350,6 +351,7 @@ impl Configuration {
 				daemon: daemon,
 				logger_config: logger_config.clone(),
 				miner_options: miner_options,
+				ws_conf: ws_conf,
 				http_conf: http_conf,
 				ipc_conf: ipc_conf,
 				net_conf: net_conf,
@@ -801,6 +803,19 @@ impl Configuration {
 		Ok(conf)
 	}
 
+	fn ws_config(&self) -> Result<WsConfiguration, String> {
+		let conf = WsConfiguration {
+			enabled: self.rpc_enabled(),
+			interface: self.rpc_interface(),
+			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port) + 1,
+			apis: self.rpc_apis().parse()?,
+			hosts: self.rpc_hosts(),
+			origins: self.rpc_cors()
+		};
+
+		Ok(conf)
+	}
+
 	fn network_settings(&self) -> NetworkSettings {
 		NetworkSettings {
 			name: self.args.flag_identity.clone(),
@@ -967,7 +982,7 @@ impl Configuration {
 mod tests {
 	use super::*;
 	use cli::Args;
-	use ethcore_rpc::NetworkSettings;
+	use parity_rpc::NetworkSettings;
 	use ethcore::client::{VMType, BlockId};
 	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
 	use helpers::{default_network_config};
@@ -1171,6 +1186,7 @@ mod tests {
 			daemon: None,
 			logger_config: Default::default(),
 			miner_options: Default::default(),
+			ws_conf: Default::default(),
 			http_conf: Default::default(),
 			ipc_conf: Default::default(),
 			net_conf: default_network_config(),

@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use hyper;
 
-use ethcore_rpc::{Metadata, Origin};
+use parity_rpc::{Metadata, Origin};
 use jsonrpc_core::{Middleware, MetaIoHandler};
 use jsonrpc_http_server::{self as http, AccessControlAllowOrigin, HttpMetaExtractor};
 use jsonrpc_http_server::tokio_core::reactor::Remote;
