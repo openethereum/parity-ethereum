@@ -170,6 +170,12 @@ export default class LocalAccountsMiddleware extends Middleware {
         account.decryptPrivateKey(password)
       ])
       .then(([nonce, privateKey]) => {
+        if (!privateKey) {
+          transactions.unlock(id);
+
+          throw new Error('Invalid password');
+        }
+
         const tx = new EthereumTx({
           nonce,
           to,

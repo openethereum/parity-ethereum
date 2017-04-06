@@ -68,6 +68,16 @@ class Transactions {
     state.status = LOCKED;
   }
 
+  unlock (id) {
+    const state = this._states[id];
+
+    if (!state || state.status !== LOCKED) {
+      throw new Error('Trying to unlock an invalid transaction');
+    }
+
+    state.status = AWAITING;
+  }
+
   hash (id) {
     const state = this._states[id];
 
