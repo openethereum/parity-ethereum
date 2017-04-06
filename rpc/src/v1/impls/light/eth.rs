@@ -655,12 +655,12 @@ impl Filterable for EthClient {
 		use util::H2048;
 
 		// early exit for "to" block before "from" block.
-		let best_number = self.client.chain_info().best_block_number();
+		let best_number = self.client.chain_info().best_block_number;
 		let block_number = |id| match id {
 			BlockId::Earliest => Some(0),
-			BlockId::Latest | BlockNumber::Pending => Some(best_number),
-			BlockId::Hash(h) => self.client.block_header(BlockId::Hash(h)).map(|hdr| hdr.number())
-			BlockId::Num(x) => Some(x),
+			BlockId::Latest | BlockId::Pending => Some(best_number),
+			BlockId::Hash(h) => self.client.block_header(BlockId::Hash(h)).map(|hdr| hdr.number()),
+			BlockId::Number(x) => Some(x),
 		};
 
 		if block_number(filter.to_block) < block_number(filter.from_block) {
