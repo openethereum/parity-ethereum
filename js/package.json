@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "1.7.43",
+  "version": "1.7.46",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -176,7 +176,7 @@
     "geopattern": "1.2.3",
     "isomorphic-fetch": "2.2.1",
     "js-sha3": "0.5.5",
-    "keythereum": "0.4.3",
+    "keythereum": "0.4.6",
     "lodash": "4.17.2",
     "loglevel": "1.4.1",
     "marked": "0.3.6",

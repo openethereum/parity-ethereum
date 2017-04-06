@@ -67,7 +67,7 @@ impl IoHandler<ClientIoMessage> for QueueCull {
 
 		let (sync, on_demand, txq) = (self.sync.clone(), self.on_demand.clone(), self.txq.clone());
 		let best_header = self.client.best_block_header();
-		let start_nonce = self.client.engine().account_start_nonce;
+		let start_nonce = self.client.engine().account_start_nonce();
 
 		info!(target: "cull", "Attempting to cull queued transactions from {} senders.", senders.len());
 		self.remote.spawn_with_timeout(move || {
@@ -77,7 +77,7 @@ impl IoHandler<ClientIoMessage> for QueueCull {
 					.map(|&address| request::Account { header: best_header.clone(), address: address })
 					.map(move |request| {
 						on_demand.account(ctx, request)
-							.map(move |maybe_acc| maybe_acc.map_or(start_nonce, |acc.nonce|))
+							.map(move |maybe_acc| maybe_acc.map_or(start_nonce, |acc| acc.nonce))
 					})
 					.zip(senders.iter())
 					.map(|(fut, &addr)| fut.map(move |nonce| (addr, nonce)));

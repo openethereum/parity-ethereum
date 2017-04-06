@@ -648,7 +648,9 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let signer_server = signer::start(cmd.signer_conf.clone(), signing_queue, signer_deps)?;
 
 	// secret store key server
-	let secretstore_deps = secretstore::Dependencies { };
+	let secretstore_deps = secretstore::Dependencies {
+		client: client.clone(),
+	};
 	let secretstore_key_server = secretstore::start(cmd.secretstore_conf.clone(), secretstore_deps);
 
 	// the ipfs server

@@ -24,9 +24,11 @@ const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
 
 const LIBRARY = process.env.LIBRARY;
+
 if (!LIBRARY) {
   process.exit(-1);
 }
+
 const SRC = LIBRARY.toLowerCase();
 const OUTPUT_PATH = path.join(__dirname, '../.npmjs', SRC);
 
@@ -63,12 +65,18 @@ module.exports = {
           'babel-loader?cacheDirectory=true'
         ],
         exclude: /node_modules/
+      },
+      {
+        test: /\.js$/,
+        include: /node_modules\/(ethereumjs-tx|@parity\/wordlist)/,
+        use: 'babel-loader'
       }
     ]
   },
 
   resolve: {
     alias: {
+      'secp256k1/js': path.resolve(__dirname, '../src/api/local/ethkey/dummy.js'),
       '~': path.resolve(__dirname, '../src')
     },
     modules: [
@@ -85,15 +93,12 @@ module.exports = {
         to: 'package.json',
         transform: function (content, path) {
           const json = JSON.parse(content.toString());
-          json.version = packageJson.version;
 
-          // Add tests dependencies to Dev Deps
           json.devDependencies.chai = packageJson.devDependencies.chai;
           json.devDependencies.mocha = packageJson.devDependencies.mocha;
           json.devDependencies.nock = packageJson.devDependencies.nock;
-
-          // Add test script
           json.scripts.test = 'mocha \'test/*.spec.js\'';
+          json.version = packageJson.version;
 
           return new Buffer(JSON.stringify(json, null, '  '), 'utf-8');
         }

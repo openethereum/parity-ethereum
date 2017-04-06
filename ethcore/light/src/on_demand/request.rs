@@ -509,6 +509,9 @@ impl TransactionProof {
 	pub fn check_response(&self, _: &Mutex<::cache::Cache>, state_items: &[DBValue]) -> Result<super::ExecutionResult, Error> {
 		let root = self.header.state_root();
 
+		let mut env_info = self.env_info.clone();
+		env_info.gas_limit = self.tx.gas.clone();
+
 		let proved_execution = state::check_proof(
 			state_items,
 			root,

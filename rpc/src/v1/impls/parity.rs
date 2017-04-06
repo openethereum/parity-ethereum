@@ -28,6 +28,7 @@ use crypto::ecies;
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
+use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
 use ethcore::client::{MiningBlockChainClient};
 use ethcore::mode::Mode;
@@ -47,7 +48,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
-	AccountInfo, HwAccountInfo,
+	AccountInfo, HwAccountInfo, Header, RichHeader
 };
 
 /// Parity implementation.
@@ -392,5 +393,39 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			availability: availability,
 			capability: Capability::Full,
 		})
+	}
+
+	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader, Error> {
+		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
+
+		let client = take_weakf!(self.client);
+		let id: BlockId = number.0.into();
+		let encoded = match client.block_header(id.clone()) {
+			Some(encoded) => encoded,
+			None => return future::err(errors::unknown_block()).boxed(),
+		};
+
+		future::ok(RichHeader {
+			inner: Header {
+				hash: Some(encoded.hash().into()),
+				size: Some(encoded.rlp().as_raw().len().into()),
+				parent_hash: encoded.parent_hash().into(),
+				uncles_hash: encoded.uncles_hash().into(),
+				author: encoded.author().into(),
+				miner: encoded.author().into(),
+				state_root: encoded.state_root().into(),
+				transactions_root: encoded.transactions_root().into(),
+				receipts_root: encoded.receipts_root().into(),
+				number: Some(encoded.number().into()),
+				gas_used: encoded.gas_used().into(),
+				gas_limit: encoded.gas_limit().into(),
+				logs_bloom: encoded.log_bloom().into(),
+				timestamp: encoded.timestamp().into(),
+				difficulty: encoded.difficulty().into(),
+				seal_fields: encoded.seal().into_iter().map(Into::into).collect(),
+				extra_data: Bytes::new(encoded.extra_data()),
+			},
+			extra_info: client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
+		}).boxed()
 	}
 }
