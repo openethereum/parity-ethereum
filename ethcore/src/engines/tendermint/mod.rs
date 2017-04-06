@@ -233,7 +233,6 @@ impl Tendermint {
 			},
 			Step::Commit => {
 				trace!(target: "engine", "to_step: Commit.");
-				self.to_next_height(self.height.load(AtomicOrdering::SeqCst));
 			},
 		}
 	}
@@ -352,6 +351,7 @@ impl Tendermint {
 						self.submit_seal(bh, seal);
 						self.votes.throw_out_old(&vote_step);
 					}
+					self.to_next_height(self.height.load(AtomicOrdering::SeqCst));
 					Some(Step::Commit)
 				},
 				Step::Precommit if self.has_enough_future_step_votes(&vote_step) => {
@@ -596,6 +596,7 @@ impl Engine for Tendermint {
 			// New Commit received, skip to next height.
 			trace!(target: "engine", "Received a commit: {:?}.", header.number());
 			self.to_next_height(header.number() as usize);
+			self.to_step(Step::Commit);
 			return false;
 		}
 		let proposal = ConsensusMessage::new_proposal(header).expect("block went through full verification; this Engine verifies new_proposal creation; qed");
