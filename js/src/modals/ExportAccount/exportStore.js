@@ -24,8 +24,8 @@ export default class ExportStore {
   @observable passwordInputs = {};
 
   constructor (api, accounts, newError, address) {
+    this.accounts = accounts;
     this._api = api;
-    this._accounts = accounts;
     this._newError = newError;
     if (address) {
       this.selectedAccounts[address] = true;
@@ -34,9 +34,7 @@ export default class ExportStore {
   }
 
   @action changePassword = (event, password) => {
-    const selectedAccount = this.selectedAccount;
-
-    this.setPassword(selectedAccount, password);
+    this.passwordInputs[this.selectedAccount] = password;
   }
 
   @action getPassword = (address) => {
@@ -52,11 +50,7 @@ export default class ExportStore {
   }
 
   @action setAccounts = (accounts) => {
-    this._accounts = accounts;
-  }
-
-  @action setPassword = (address, password) => {
-    this.passwordInputs[address] = password;
+    this.accounts = accounts;
   }
 
   @action setSelectedAccount = (addr) => {
@@ -92,7 +86,7 @@ export default class ExportStore {
         .then((content) => {
           const text = JSON.stringify(content, null, 4);
           const blob = new Blob([ text ], { type: 'application/json' });
-          const filename = this._accounts[address].uuid;
+          const filename = this.accounts[address].uuid;
 
           FileSaver.saveAs(blob, `${filename}.json`);
 
@@ -100,7 +94,7 @@ export default class ExportStore {
           if (event) { event(); }
         })
         .catch((err) => {
-          const { name, meta } = this._accounts[address];
+          const { name, meta } = this.accounts[address];
           const { passwordHint } = meta;
 
           this._newError({

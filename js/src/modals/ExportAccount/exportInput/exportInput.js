@@ -56,11 +56,6 @@ export default class ExportInput extends Component {
 
     event.stopPropagation();
 
-    // Stop the default event if text is selected
-    if (window.getSelection && window.getSelection().type === 'Range') {
-      return this.preventEvent(event);
-    }
-
     onClick && onClick(account.address);
   }
 }

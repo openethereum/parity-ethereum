@@ -80,7 +80,7 @@ class Account extends Component {
       this.setVisibleAccounts(nextProps);
     }
 
-    if (!Object.keys(this.exportStore._accounts).length) {
+    if (!Object.keys(this.exportStore.accounts).length) {
       this.exportStore.setAccounts(accounts);
     }
   }
