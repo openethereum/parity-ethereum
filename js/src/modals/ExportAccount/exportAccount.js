@@ -97,9 +97,7 @@ class ExportAccount extends Component {
     const { selectedAccounts } = this.exportStore;
 
     const accountList = Object.values(accounts)
-      .filter((account) => {
-        return account.uuid;
-      })
+      .filter((account) => account.uuid)
       .map((account) => {
         account.checked = !!(selectedAccounts[account.address]);
 
