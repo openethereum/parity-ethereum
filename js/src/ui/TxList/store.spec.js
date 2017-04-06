@@ -44,7 +44,7 @@ describe('ui/TxList/store', () => {
         }
       }
     };
-    store = new Store(api);
+    store = new Store(api, null, []);
   });
 
   describe('create', () => {
