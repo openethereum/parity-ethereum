@@ -23,9 +23,9 @@
 //! This is separate from the `BlockChain` for two reasons:
 //!   - It stores only headers (and a pruned subset of them)
 //!   - To allow for flexibility in the database layout once that's incorporated.
-// TODO: use DB instead of memory. DB Layout: just the contents of `candidates`/`headers`
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use cht;
 
@@ -34,7 +34,10 @@ use ethcore::error::BlockError;
 use ethcore::encoded;
 use ethcore::header::Header;
 use ethcore::ids::BlockId;
-use util::{H256, U256, HeapSizeOf, Mutex, RwLock};
+
+use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp};
+use util::{H256, U256, HeapSizeOf, RwLock};
+use util::kvdb::{DBTransaction, KeyValueDB};
 
 use smallvec::SmallVec;
 
@@ -42,6 +45,9 @@ use smallvec::SmallVec;
 /// Also functions as the delay for computing CHTs as they aren't
 /// relevant to any blocks we've got in memory.
 const HISTORY: u64 = 2048;
+
+/// The best block key. Maps to an RLP list: [best_era, last_era]
+const CURRENT_KEY: &'static [u8] = &*b"best_and_latest";
 
 /// Information about a block.
 #[derive(Debug, Clone)]
@@ -75,42 +81,142 @@ impl HeapSizeOf for Entry {
 	}
 }
 
+impl Encodable for Entry {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(self.candidates.len());
+
+		for candidate in &self.candidates {
+			s.begin_list(3)
+				.append(&candidate.hash)
+				.append(&candidate.parent_hash)
+				.append(&candidate.total_difficulty);
+		}
+	}
+}
+
+impl Decodable for Entry {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+
+		let mut candidates = SmallVec::<[Candidate; 3]>::new();
+
+		for item in rlp.iter() {
+			candidates.push(Candidate {
+				hash: item.val_at(0)?,
+				parent_hash: item.val_at(1)?,
+				total_difficulty: item.val_at(2)?,
+			})
+		}
+
+		if candidates.is_empty() { return Err(DecoderError::Custom("Empty candidates vector submitted.")) }
+
+		// rely on the invariant that the canonical entry is always first.
+		let canon_hash = candidates[0].hash;
+		Ok(Entry {
+			candidates: candidates,
+			canonical_hash: canon_hash,
+		})
+	}
+}
+
+fn cht_key(number: u64) -> String {
+	format!("{:08x}_canonical", number)
+}
+
+fn era_key(number: u64) -> String {
+	format!("candidates_{}", number)
+}
+
+/// Pending changes from `insert` to be applied after the database write has finished.
+pub struct PendingChanges {
+	best_block: Option<BlockDescriptor>, // new best block.
+}
+
 /// Header chain. See module docs for more details.
 pub struct HeaderChain {
 	genesis_header: encoded::Header, // special-case the genesis.
 	candidates: RwLock<BTreeMap<u64, Entry>>,
-	headers: RwLock<HashMap<H256, encoded::Header>>,
 	best_block: RwLock<BlockDescriptor>,
-	cht_roots: Mutex<Vec<H256>>,
+	db: Arc<KeyValueDB>,
+	col: Option<u32>,
 }
 
 impl HeaderChain {
-	/// Create a new header chain given this genesis block.
-	pub fn new(genesis: &[u8]) -> Self {
+	/// Create a new header chain given this genesis block and database to read from.
+	pub fn new(db: Arc<KeyValueDB>, col: Option<u32>, genesis: &[u8]) -> Result<Self, String> {
 		use ethcore::views::HeaderView;
 
-		let g_view = HeaderView::new(genesis);
+		let chain = if let Some(current) = db.get(col, CURRENT_KEY)? {
+			let (best_number, highest_number) = {
+				let rlp = Rlp::new(&current);
+				(rlp.val_at(0), rlp.val_at(1))
+			};
 
-		HeaderChain {
-			genesis_header: encoded::Header::new(genesis.to_owned()),
-			best_block: RwLock::new(BlockDescriptor {
-				hash: g_view.hash(),
-				number: 0,
-				total_difficulty: g_view.difficulty(),
-			}),
-			candidates: RwLock::new(BTreeMap::new()),
-			headers: RwLock::new(HashMap::new()),
-			cht_roots: Mutex::new(Vec::new()),
-		}
+			let mut cur_number = highest_number;
+			let mut candidates = BTreeMap::new();
+
+			// load all era entries and referenced headers within them.
+			while let Some(entry) = db.get(col, era_key(cur_number).as_bytes())? {
+				let entry: Entry = ::rlp::decode(&entry);
+				trace!(target: "chain", "loaded header chain entry for era {} with {} candidates",
+					cur_number, entry.candidates.len());
+
+				candidates.insert(cur_number, entry);
+
+				cur_number -= 1;
+			}
+
+			// fill best block block descriptor.
+			let best_block = {
+				let era = match candidates.get(&best_number) {
+					Some(era) => era,
+					None => return Err(format!("Database corrupt: highest block referenced but no data.")),
+				};
+
+				let best = &era.candidates[0];
+				BlockDescriptor {
+					hash: best.hash,
+					number: best_number,
+					total_difficulty: best.total_difficulty,
+				}
+			};
+
+			HeaderChain {
+				genesis_header: encoded::Header::new(genesis.to_owned()),
+				best_block: RwLock::new(best_block),
+				candidates: RwLock::new(candidates),
+				db: db,
+				col: col,
+			}
+		} else {
+			let g_view = HeaderView::new(genesis);
+			HeaderChain {
+				genesis_header: encoded::Header::new(genesis.to_owned()),
+				best_block: RwLock::new(BlockDescriptor {
+					hash: g_view.hash(),
+					number: 0,
+					total_difficulty: g_view.difficulty(),
+				}),
+				candidates: RwLock::new(BTreeMap::new()),
+				db: db,
+				col: col,
+			}
+		};
+
+		Ok(chain)
 	}
 
 	/// Insert a pre-verified header.
 	///
 	/// This blindly trusts that the data given to it is sensible.
-	pub fn insert(&self, header: Header) -> Result<(), BlockError> {
+	/// Returns a set of pending changes to be applied with `apply_pending`
+	/// before the next call to insert and after the transaction has been written.
+	pub fn insert(&self, transaction: &mut DBTransaction, header: Header) -> Result<PendingChanges, BlockError> {
 		let hash = header.hash();
 		let number = header.number();
 		let parent_hash = *header.parent_hash();
+		let mut pending = PendingChanges {
+			best_block: None,
+		};
 
 		// hold candidates the whole time to guard import order.
 		let mut candidates = self.candidates.write();
@@ -128,20 +234,41 @@ impl HeaderChain {
 
 		let total_difficulty = parent_td + *header.difficulty();
 
-		// insert headers and candidates entries.
-		candidates.entry(number).or_insert_with(|| Entry { candidates: SmallVec::new(), canonical_hash: hash })
-			.candidates.push(Candidate {
+		// insert headers and candidates entries and write era to disk.
+		{
+			let cur_era = candidates.entry(number)
+				.or_insert_with(|| Entry { candidates: SmallVec::new(), canonical_hash: hash });
+			cur_era.candidates.push(Candidate {
 				hash: hash,
 				parent_hash: parent_hash,
 				total_difficulty: total_difficulty,
-		});
+			});
 
-		let raw = ::rlp::encode(&header).to_vec();
-		self.headers.write().insert(hash, encoded::Header::new(raw));
+			// fix ordering of era before writing.
+			if total_difficulty > cur_era.candidates[0].total_difficulty {
+				let cur_pos = cur_era.candidates.len() - 1;
+				cur_era.candidates.swap(cur_pos, 0);
+				cur_era.canonical_hash = hash;
+			}
+
+			transaction.put(self.col, era_key(number).as_bytes(), &::rlp::encode(&*cur_era))
+		}
+
+		let raw = ::rlp::encode(&header);
+		transaction.put(self.col, &hash[..], &*raw);
+
+		let (best_num, is_new_best) = {
+			let cur_best = self.best_block.read();
+			if cur_best.total_difficulty < total_difficulty {
+				(number, true)
+			} else {
+				(cur_best.number, false)
+			}
+		};
 
 		// reorganize ancestors so canonical entries are first in their
 		// respective candidates vectors.
-		if self.best_block.read().total_difficulty < total_difficulty {
+		if is_new_best {
 			let mut canon_hash = hash;
 			for (&height, entry) in candidates.iter_mut().rev().skip_while(|&(height, _)| *height > number) {
 				if height != number && entry.canonical_hash == canon_hash { break; }
@@ -160,23 +287,26 @@ impl HeaderChain {
 				// what about reorgs > cht::SIZE + HISTORY?
 				// resetting to the last block of a given CHT should be possible.
 				canon_hash = entry.candidates[0].parent_hash;
+
+				// write altered era to disk
+				if height != number {
+					let rlp_era = ::rlp::encode(&*entry);
+					transaction.put(self.col, era_key(height).as_bytes(), &rlp_era);
+				}
 			}
 
 			trace!(target: "chain", "New best block: ({}, {}), TD {}", number, hash, total_difficulty);
-			*self.best_block.write() = BlockDescriptor {
+			pending.best_block = Some(BlockDescriptor {
 				hash: hash,
 				number: number,
 				total_difficulty: total_difficulty,
-			};
+			});
 
 			// produce next CHT root if it's time.
 			let earliest_era = *candidates.keys().next().expect("at least one era just created; qed");
 			if earliest_era + HISTORY + cht::SIZE <= number {
 				let cht_num = cht::block_to_cht_number(earliest_era)
 					.expect("fails only for number == 0; genesis never imported; qed");
-				debug_assert_eq!(cht_num as usize, self.cht_roots.lock().len());
-
-				let mut headers = self.headers.write();
 
 				let cht_root = {
 					let mut i = earliest_era;
@@ -186,10 +316,12 @@ impl HeaderChain {
 					let iter = || {
 						let era_entry = candidates.remove(&i)
 							.expect("all eras are sequential with no gaps; qed");
+						transaction.delete(self.col, era_key(i).as_bytes());
+
 						i += 1;
 
 						for ancient in &era_entry.candidates {
-							headers.remove(&ancient.hash);
+							transaction.delete(self.col, &ancient.hash);
 						}
 
 						let canon = &era_entry.candidates[0];
@@ -199,28 +331,56 @@ impl HeaderChain {
 						.expect("fails only when too few items; this is checked; qed")
 				};
 
+				// write the CHT root to the database.
 				debug!(target: "chain", "Produced CHT {} root: {:?}", cht_num, cht_root);
-
-				self.cht_roots.lock().push(cht_root);
+				transaction.put(self.col, cht_key(cht_num).as_bytes(), &::rlp::encode(&cht_root));
 			}
 		}
 
-		Ok(())
+		// write the best and latest eras to the database.
+		{
+			let latest_num = *candidates.iter().rev().next().expect("at least one era just inserted; qed").0;
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&best_num).append(&latest_num);
+			transaction.put(self.col, CURRENT_KEY, &stream.out())
+		}
+		Ok(pending)
+	}
+
+	/// Apply pending changes from a previous `insert` operation.
+	/// Must be done before the next `insert` call.
+	pub fn apply_pending(&self, pending: PendingChanges) {
+		if let Some(best_block) = pending.best_block {
+			*self.best_block.write() = best_block;
+		}
 	}
 
 	/// Get a block header. In the case of query by number, only canonical blocks
 	/// will be returned.
 	pub fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
+		let load_from_db = |hash: H256| {
+			match self.db.get(self.col, &hash) {
+				Ok(val) => val.map(|x| x.to_vec()).map(encoded::Header::new),
+				Err(e) => {
+					warn!(target: "chain", "Failed to read from database: {}", e);
+					None
+				}
+			}
+		};
+
 		match id {
 			BlockId::Earliest | BlockId::Number(0) => Some(self.genesis_header.clone()),
-			BlockId::Hash(hash) => self.headers.read().get(&hash).cloned(),
+			BlockId::Hash(hash) => load_from_db(hash),
 			BlockId::Number(num) => {
 				if self.best_block.read().number < num { return None }
 
 				self.candidates.read().get(&num).map(|entry| entry.canonical_hash)
-					.and_then(|hash| self.headers.read().get(&hash).cloned())
+					.and_then(load_from_db)
 			}
 			BlockId::Latest | BlockId::Pending => {
+				// hold candidates hear to prevent deletion of the header
+				// as we read it.
+				let _candidates = self.candidates.read();
 				let hash = {
 					let best = self.best_block.read();
 					if best.number == 0 {
@@ -230,7 +390,7 @@ impl HeaderChain {
 					best.hash
 				};
 
-				self.headers.read().get(&hash).cloned()
+				load_from_db(hash)
 			}
 		}
 	}
@@ -257,7 +417,13 @@ impl HeaderChain {
 	/// This is because it's assumed that the genesis hash is known,
 	/// so including it within a CHT would be redundant.
 	pub fn cht_root(&self, n: usize) -> Option<H256> {
-		self.cht_roots.lock().get(n).map(|h| h.clone())
+		match self.db.get(self.col, cht_key(n as u64).as_bytes()) {
+			Ok(val) => val.map(|x| ::rlp::decode(&x)),
+			Err(e) => {
+				warn!(target: "chain", "Error reading from database: {}", e);
+				None
+			}
+		}
 	}
 
 	/// Get the genesis hash.
@@ -287,7 +453,7 @@ impl HeaderChain {
 
 	/// Get block status.
 	pub fn status(&self, hash: &H256) -> BlockStatus {
-		match self.headers.read().contains_key(hash) {
+		match self.db.get(self.col, &*hash).ok().map_or(false, |x| x.is_some()) {
 			true => BlockStatus::InChain,
 			false => BlockStatus::Unknown,
 		}
@@ -296,9 +462,7 @@ impl HeaderChain {
 
 impl HeapSizeOf for HeaderChain {
 	fn heap_size_of_children(&self) -> usize {
-		self.candidates.read().heap_size_of_children() +
-			self.headers.read().heap_size_of_children() +
-			self.cht_roots.lock().heap_size_of_children()
+		self.candidates.read().heap_size_of_children()
 	}
 }
 
@@ -324,16 +488,23 @@ impl<'a> Iterator for AncestryIter<'a> {
 #[cfg(test)]
 mod tests {
 	use super::HeaderChain;
+	use std::sync::Arc;
+
 	use ethcore::ids::BlockId;
 	use ethcore::header::Header;
 	use ethcore::spec::Spec;
+
+	fn make_db() -> Arc<::util::KeyValueDB> {
+		Arc::new(::util::kvdb::in_memory(0))
+	}
 
 	#[test]
 	fn basic_chain() {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
+		let db = make_db();
 
-		let chain = HeaderChain::new(&::rlp::encode(&genesis_header));
+		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header)).unwrap();
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();
@@ -345,7 +516,10 @@ mod tests {
 			header.set_difficulty(*genesis_header.difficulty() * i.into());
 			parent_hash = header.hash();
 
-			chain.insert(header).unwrap();
+			let mut tx = db.transaction();
+			let pending = chain.insert(&mut tx, header).unwrap();
+			db.write(tx).unwrap();
+			chain.apply_pending(pending);
 
 			rolling_timestamp += 10;
 		}
@@ -361,7 +535,8 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 
-		let chain = HeaderChain::new(&::rlp::encode(&genesis_header));
+		let db = make_db();
+		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header)).unwrap();
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();
@@ -373,7 +548,10 @@ mod tests {
 			header.set_difficulty(*genesis_header.difficulty() * i.into());
 			parent_hash = header.hash();
 
-			chain.insert(header).unwrap();
+			let mut tx = db.transaction();
+			let pending = chain.insert(&mut tx, header).unwrap();
+			db.write(tx).unwrap();
+			chain.apply_pending(pending);
 
 			rolling_timestamp += 10;
 		}
@@ -389,7 +567,10 @@ mod tests {
 				header.set_difficulty(*genesis_header.difficulty() * i.into());
 				parent_hash = header.hash();
 
-				chain.insert(header).unwrap();
+				let mut tx = db.transaction();
+				let pending = chain.insert(&mut tx, header).unwrap();
+				db.write(tx).unwrap();
+				chain.apply_pending(pending);
 
 				rolling_timestamp += 10;
 			}
@@ -410,7 +591,10 @@ mod tests {
 				header.set_difficulty(*genesis_header.difficulty() * (i * i).into());
 				parent_hash = header.hash();
 
-				chain.insert(header).unwrap();
+				let mut tx = db.transaction();
+				let pending = chain.insert(&mut tx, header).unwrap();
+				db.write(tx).unwrap();
+				chain.apply_pending(pending);
 
 				rolling_timestamp += 11;
 			}
@@ -432,11 +616,101 @@ mod tests {
 	fn earliest_is_latest() {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
+		let db = make_db();
 
-		let chain = HeaderChain::new(&::rlp::encode(&genesis_header));
+		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header)).unwrap();
 
 		assert!(chain.block_header(BlockId::Earliest).is_some());
 		assert!(chain.block_header(BlockId::Latest).is_some());
 		assert!(chain.block_header(BlockId::Pending).is_some());
+	}
+
+	#[test]
+	fn restore_from_db() {
+		let spec = Spec::new_test();
+		let genesis_header = spec.genesis_header();
+		let db = make_db();
+
+		{
+			let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header)).unwrap();
+			let mut parent_hash = genesis_header.hash();
+			let mut rolling_timestamp = genesis_header.timestamp();
+			for i in 1..10000 {
+				let mut header = Header::new();
+				header.set_parent_hash(parent_hash);
+				header.set_number(i);
+				header.set_timestamp(rolling_timestamp);
+				header.set_difficulty(*genesis_header.difficulty() * i.into());
+				parent_hash = header.hash();
+
+				let mut tx = db.transaction();
+				let pending = chain.insert(&mut tx, header).unwrap();
+				db.write(tx).unwrap();
+				chain.apply_pending(pending);
+
+				rolling_timestamp += 10;
+			}
+		}
+
+		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header)).unwrap();
+		assert!(chain.block_header(BlockId::Number(10)).is_none());
+		assert!(chain.block_header(BlockId::Number(9000)).is_some());
+		assert!(chain.cht_root(2).is_some());
+		assert!(chain.cht_root(3).is_none());
+		assert_eq!(chain.block_header(BlockId::Latest).unwrap().number(), 9999);
+	}
+
+	#[test]
+	fn restore_higher_non_canonical() {
+		let spec = Spec::new_test();
+		let genesis_header = spec.genesis_header();
+		let db = make_db();
+
+		{
+			let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header)).unwrap();
+			let mut parent_hash = genesis_header.hash();
+			let mut rolling_timestamp = genesis_header.timestamp();
+
+			// push 100 low-difficulty blocks.
+			for i in 1..101 {
+				let mut header = Header::new();
+				header.set_parent_hash(parent_hash);
+				header.set_number(i);
+				header.set_timestamp(rolling_timestamp);
+				header.set_difficulty(*genesis_header.difficulty() * i.into());
+				parent_hash = header.hash();
+
+				let mut tx = db.transaction();
+				let pending = chain.insert(&mut tx, header).unwrap();
+				db.write(tx).unwrap();
+				chain.apply_pending(pending);
+
+				rolling_timestamp += 10;
+			}
+
+			// push fewer high-difficulty blocks.
+			for i in 1..11 {
+				let mut header = Header::new();
+				header.set_parent_hash(parent_hash);
+				header.set_number(i);
+				header.set_timestamp(rolling_timestamp);
+				header.set_difficulty(*genesis_header.difficulty() * i.into() * 1000.into());
+				parent_hash = header.hash();
+
+				let mut tx = db.transaction();
+				let pending = chain.insert(&mut tx, header).unwrap();
+				db.write(tx).unwrap();
+				chain.apply_pending(pending);
+
+				rolling_timestamp += 10;
+			}
+
+			assert_eq!(chain.block_header(BlockId::Latest).unwrap().number(), 10);
+		}
+
+		// after restoration, non-canonical eras should still be loaded.
+		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header)).unwrap();
+		assert_eq!(chain.block_header(BlockId::Latest).unwrap().number(), 10);
+		assert!(chain.candidates.read().get(&100).is_some())
 	}
 }

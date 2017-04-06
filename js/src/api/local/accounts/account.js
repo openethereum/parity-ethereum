@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { keythereum } from '../ethkey';
+import { createKeyObject, decryptPrivateKey } from '../ethkey';
 
 export default class Account {
   constructor (persist, data) {
@@ -31,12 +31,14 @@ export default class Account {
   }
 
   isValidPassword (password) {
-    try {
-      keythereum.recover(Buffer.from(password), this._keyObject);
-      return true;
-    } catch (e) {
-      return false;
-    }
+    return decryptPrivateKey(this._keyObject, password)
+      .then((privateKey) => {
+        if (!privateKey) {
+          return false;
+        }
+
+        return true;
+      });
   }
 
   get address () {
@@ -68,21 +70,23 @@ export default class Account {
   }
 
   decryptPrivateKey (password) {
-    return keythereum.recover(Buffer.from(password), this._keyObject);
+    return decryptPrivateKey(this._keyObject, password);
+  }
+
+  changePassword (key, password) {
+    return createKeyObject(key, password).then((keyObject) => {
+      this._keyObject = keyObject;
+
+      this._persist();
+    });
   }
 
   static fromPrivateKey (persist, key, password) {
-    const iv = keythereum.crypto.randomBytes(16);
-    const salt = keythereum.crypto.randomBytes(32);
+    return createKeyObject(key, password).then((keyObject) => {
+      const account = new Account(persist, { keyObject });
 
-    // Keythereum will fail if `password` is an empty string
-    password = Buffer.from(password);
-
-    const keyObject = keythereum.dump(password, key, salt, iv);
-
-    const account = new Account(persist, { keyObject });
-
-    return account;
+      return account;
+    });
   }
 
   toJSON () {
