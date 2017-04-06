@@ -365,11 +365,20 @@ impl HeaderChain {
 	/// will be returned.
 	pub fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		let load_from_db = |hash: H256| {
-			match self.db.get(self.col, &hash) {
-				Ok(val) => val.map(|x| x.to_vec()).map(encoded::Header::new),
-				Err(e) => {
-					warn!(target: "chain", "Failed to read from database: {}", e);
-					None
+			let cached = {
+				let mut cache = self.cache.lock();
+				cache.block_header(&hash)
+			};
+
+			if cached.is_some() {
+				return cached
+			} else {
+				match self.db.get(self.col, &hash) {
+					Ok(val) => val.map(|x| x.to_vec()).map(encoded::Header::new),
+					Err(e) => {
+						warn!(target: "chain", "Failed to read from database: {}", e);
+						None
+					}
 				}
 			}
 		};
