@@ -17,11 +17,13 @@
 //! Block header.
 
 use util::*;
-use basic_types::{LogBloom, Seal, ZERO_LOGBLOOM};
+use basic_types::{LogBloom, ZERO_LOGBLOOM};
 use time::get_time;
 use rlp::*;
 
 use std::cell::RefCell;
+
+pub use basic_types::Seal;
 
 /// Type for Block number
 pub type BlockNumber = u64;

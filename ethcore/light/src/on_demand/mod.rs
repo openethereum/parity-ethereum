@@ -40,10 +40,14 @@ use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY, SHA3_EMPTY_LIST_RLP};
 use net::{self, Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
 use cache::Cache;
 use request::{self as basic_request, Request as NetworkRequest};
+use self::request::CheckedRequest;
+
+pub use self::request::{Request, Response};
+
+#[cfg(test)]
+mod tests;
 
 pub mod request;
-
-pub use self::request::{CheckedRequest, Request, Response};
 
 /// The result of execution
 pub type ExecutionResult = Result<Executed, ExecutionError>;
@@ -137,6 +141,7 @@ pub struct OnDemand {
 	peers: RwLock<HashMap<PeerId, Peer>>,
 	in_transit: RwLock<HashMap<ReqId, Pending>>,
 	cache: Arc<Mutex<Cache>>,
+	no_immediate_dispatch: bool,
 }
 
 impl OnDemand {
@@ -147,7 +152,18 @@ impl OnDemand {
 			peers: RwLock::new(HashMap::new()),
 			in_transit: RwLock::new(HashMap::new()),
 			cache: cache,
+			no_immediate_dispatch: true,
 		}
+	}
+
+	// make a test version: this doesn't dispatch pending requests
+	// until you trigger it manually.
+	#[cfg(test)]
+	fn new_test(cache: Arc<Mutex<Cache>>) -> Self {
+		let mut me = OnDemand::new(cache);
+		me.no_immediate_dispatch = true;
+
+		me
 	}
 
 	/// Request a header's hash by block number and CHT root hash.
@@ -335,7 +351,7 @@ impl OnDemand {
 			sender: sender,
 		});
 
-		self.dispatch_pending(ctx);
+		self.attempt_dispatch(ctx);
 
 		Ok(receiver)
 	}
@@ -350,6 +366,14 @@ impl OnDemand {
 			receiver: recv,
 			_marker: PhantomData,
 		})
+	}
+
+	// maybe dispatch pending requests.
+	// sometimes
+	fn attempt_dispatch(&self, ctx: &BasicContext) {
+		if !self.no_immediate_dispatch {
+			self.dispatch_pending(ctx)
+		}
 	}
 
 	// dispatch pending requests, and discard those for which the corresponding
@@ -414,7 +438,7 @@ impl OnDemand {
 impl Handler for OnDemand {
 	fn on_connect(&self, ctx: &EventContext, status: &Status, capabilities: &Capabilities) {
 		self.peers.write().insert(ctx.peer(), Peer { status: status.clone(), capabilities: capabilities.clone() });
-		self.dispatch_pending(ctx.as_basic());
+		self.attempt_dispatch(ctx.as_basic());
 	}
 
 	fn on_disconnect(&self, ctx: &EventContext, unfulfilled: &[ReqId]) {
@@ -431,7 +455,7 @@ impl Handler for OnDemand {
 			}
 		}
 
-		self.dispatch_pending(ctx);
+		self.attempt_dispatch(ctx);
 	}
 
 	fn on_announcement(&self, ctx: &EventContext, announcement: &Announcement) {
@@ -443,7 +467,7 @@ impl Handler for OnDemand {
 			}
 		}
 
-		self.dispatch_pending(ctx.as_basic());
+		self.attempt_dispatch(ctx.as_basic());
 	}
 
 	fn on_responses(&self, ctx: &EventContext, req_id: ReqId, responses: &[basic_request::Response]) {
@@ -501,50 +525,10 @@ impl Handler for OnDemand {
 		pending.required_capabilities = capabilities;
 
 		self.pending.write().push(pending);
-		self.dispatch_pending(ctx.as_basic());
+		self.attempt_dispatch(ctx.as_basic());
 	}
 
 	fn tick(&self, ctx: &BasicContext) {
-		self.dispatch_pending(ctx)
-	}
-}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-
-	use std::sync::Arc;
-
-	use cache::Cache;
-	use net::{Announcement, BasicContext, ReqId, Error as LesError};
-	use request::NetworkRequests;
-
-	use network::{PeerId, NodeId};
-	use time::Duration;
-	use util::{H256, Mutex};
-
-	struct FakeContext;
-
-	impl BasicContext for FakeContext {
-		fn persistent_peer_id(&self, _: PeerId) -> Option<NodeId> { None }
-		fn request_from(&self, _: PeerId, _: NetworkRequests) -> Result<ReqId, LesError> {
-			unimplemented!()
-		}
-		fn make_announcement(&self, _: Announcement) { }
-		fn disconnect_peer(&self, _: PeerId) { }
-		fn disable_peer(&self, _: PeerId) { }
-	}
-
-	#[test]
-	fn detects_hangup() {
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
-		let on_demand = OnDemand::new(cache);
-		let result = on_demand.header_by_hash(&FakeContext, request::HeaderByHash(H256::default()));
-
-		assert!(on_demand.pending.read().len() == 1);
-		drop(result);
-
-		on_demand.dispatch_pending(&FakeContext);
-		assert!(on_demand.pending.read().is_empty());
+		self.attempt_dispatch(ctx)
 	}
 }
