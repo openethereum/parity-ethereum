@@ -113,8 +113,8 @@ pub enum ConfirmationPayload {
 	SendTransaction(FilledTransactionRequest),
 	/// Sign Transaction
 	SignTransaction(FilledTransactionRequest),
-	/// Sign request
-	Signature(Address, Bytes),
+	/// Sign complete transaction
+	PostSignTransaction(Address, Bytes),
 	/// Decrypt request
 	Decrypt(Address, Bytes),
 }
@@ -124,7 +124,7 @@ impl ConfirmationPayload {
 		match *self {
 			ConfirmationPayload::SendTransaction(ref request) => request.from,
 			ConfirmationPayload::SignTransaction(ref request) => request.from,
-			ConfirmationPayload::Signature(ref address, _) => *address,
+			ConfirmationPayload::PostSignTransaction(ref address, _) => *address,
 			ConfirmationPayload::Decrypt(ref address, _) => *address,
 		}
 	}

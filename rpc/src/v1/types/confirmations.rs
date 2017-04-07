@@ -57,7 +57,7 @@ impl fmt::Display for ConfirmationPayload {
 		match *self {
 			ConfirmationPayload::SendTransaction(ref transaction) => write!(f, "{}", transaction),
 			ConfirmationPayload::SignTransaction(ref transaction) => write!(f, "(Sign only) {}", transaction),
-			ConfirmationPayload::Signature(ref sign) => write!(f, "{}", sign),
+			ConfirmationPayload::PostSignTransaction(ref sign) => write!(f, "{}", sign),
 			ConfirmationPayload::Decrypt(ref decrypt) => write!(f, "{}", decrypt),
 		}
 	}
@@ -169,7 +169,7 @@ pub enum ConfirmationPayload {
 	SignTransaction(TransactionRequest),
 	/// Signature
 	#[serde(rename="sign")]
-	Signature(SignRequest),
+	PostSignTransaction(SignRequest),
 	/// Decryption
 	#[serde(rename="decrypt")]
 	Decrypt(DecryptRequest),
@@ -180,7 +180,7 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 		match c {
 			helpers::ConfirmationPayload::SendTransaction(t) => ConfirmationPayload::SendTransaction(t.into()),
 			helpers::ConfirmationPayload::SignTransaction(t) => ConfirmationPayload::SignTransaction(t.into()),
-			helpers::ConfirmationPayload::Signature(address, data) => ConfirmationPayload::Signature(SignRequest {
+			helpers::ConfirmationPayload::PostSignTransaction(address, data) => ConfirmationPayload::PostSignTransaction(SignRequest {
 				address: address.into(),
 				data: data.into(),
 			}),
@@ -255,7 +255,7 @@ mod tests {
 		// given
 		let request = helpers::ConfirmationRequest {
 			id: 15.into(),
-			payload: helpers::ConfirmationPayload::Signature(1.into(), vec![5].into()),
+			payload: helpers::ConfirmationPayload::PostSignTransaction(1.into(), vec![5].into()),
 			origin: Origin::Rpc("test service".into()),
 		};
 

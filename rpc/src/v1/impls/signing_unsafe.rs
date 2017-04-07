@@ -78,7 +78,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 	type Metadata = Metadata;
 
 	fn sign(&self, _: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
-		self.handle(RpcConfirmationPayload::Signature((address.clone(), data).into()), address.into())
+		self.handle(RpcConfirmationPayload::PostSignTransaction((address.clone(), data).into()), address.into())
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
 				Err(e) => Err(e),
@@ -121,7 +121,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningUnsafeClient<D> {
 			.boxed()
 	}
 
-	fn post_sign(&self, _: Metadata,  _: RpcH160, _: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
+	fn post_sign_transaction(&self, _: Metadata,  _: RpcH160, _: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		// We don't support this in non-signer mode.
 		future::err(errors::signer_disabled()).boxed()
 	}
