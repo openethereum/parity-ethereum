@@ -189,7 +189,7 @@ mod tests {
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network_with_single_node() {
 		//::util::log::init_log();
-		let key_servers = make_key_servers(6070, 3);
+		let key_servers = make_key_servers(6070, 1);
 
 		// generate document key
 		let threshold = 0;

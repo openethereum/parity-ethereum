@@ -784,7 +784,7 @@ mod tests {
 	}
 
 	#[test]
-	fn fails_to_construct_in_cluster_of_single_node() {
+	fn constructs_in_cluster_of_single_node() {
 		let mut nodes = BTreeMap::new();
 		let self_node_id = Random.generate().unwrap().public().clone();
 		nodes.insert(self_node_id, Random.generate().unwrap().secret().clone());
@@ -802,7 +802,7 @@ mod tests {
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 		}) {
-			Err(Error::InvalidNodesCount) => (),
+			Ok(_) => (),
 			_ => panic!("unexpected"),
 		}
 	}
