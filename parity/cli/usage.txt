@@ -145,8 +145,9 @@ API and Console Options:
                                  all (all interfaces) or local (default: {flag_jsonrpc_interface}).
   --jsonrpc-apis APIS            Specify the APIs available through the JSONRPC
                                  interface. APIS is a comma-delimited list of API
-                                 name. Possible name are web3, eth, net, personal,
+                                 name. Possible name are all, safe, web3, eth, net, personal,
                                  parity, parity_set, traces, rpc, parity_accounts.
+                                 You can also disable a specific API by putting '-' in the front: all,-personal
                                  (default: {flag_jsonrpc_apis}).
   --jsonrpc-cors URL             Specify CORS header for JSON-RPC API responses.
                                  (default: {flag_jsonrpc_cors:?})

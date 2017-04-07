@@ -122,10 +122,9 @@ fn get_code_from_prev_chunk() {
 		let mut db = MemoryDB::new();
 		AccountDBMut::from_hash(&mut db, hash).insert(&code[..]);
 
-		let fat_rlp = account::to_fat_rlps(&acc, &AccountDB::from_hash(&db, hash), &mut used_code, usize::max_value()).unwrap();
-
+		let fat_rlp = account::to_fat_rlps(&hash, &acc, &AccountDB::from_hash(&db, hash), &mut used_code, usize::max_value(), usize::max_value()).unwrap();
 		let mut stream = RlpStream::new_list(1);
-		stream.begin_list(2).append(&hash).append_raw(&fat_rlp[0], 1);
+		stream.append_raw(&fat_rlp[0], 1);
 		stream.out()
 	};
 
