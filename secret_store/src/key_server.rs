@@ -142,15 +142,31 @@ impl Drop for KeyServerCore {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 	use std::time;
 	use std::sync::Arc;
 	use ethcrypto;
 	use ethkey::{self, Random, Generator};
 	use acl_storage::tests::DummyAclStorage;
 	use key_storage::tests::DummyKeyStorage;
-	use types::all::{ClusterConfiguration, NodeAddress};
+	use types::all::{Error, ClusterConfiguration, NodeAddress, RequestSignature, DocumentAddress, DocumentEncryptedKey, DocumentEncryptedKeyShadow};
 	use super::{KeyServer, KeyServerImpl};
+
+	pub struct DummyKeyServer;
+
+	impl KeyServer for DummyKeyServer {
+		fn generate_document_key(&self, _signature: &RequestSignature, _document: &DocumentAddress, _threshold: usize) -> Result<DocumentEncryptedKey, Error> {
+			unimplemented!()
+		}
+
+		fn document_key(&self, _signature: &RequestSignature, _document: &DocumentAddress) -> Result<DocumentEncryptedKey, Error> {
+			unimplemented!()
+		}
+
+		fn document_key_shadow(&self, _signature: &RequestSignature, _document: &DocumentAddress) -> Result<DocumentEncryptedKeyShadow, Error> {
+			unimplemented!()
+		}
+	}
 
 	fn make_key_servers(start_port: u16, num_nodes: usize) -> Vec<KeyServerImpl> {
 		let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
@@ -188,7 +204,7 @@ mod tests {
 
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network_with_single_node() {
-		//::util::log::init_log();
+		//::logger::init_log();
 		let key_servers = make_key_servers(6070, 1);
 
 		// generate document key
@@ -208,9 +224,9 @@ mod tests {
 	}
 
 	#[test]
-	fn document_key_generation_and_retrievement_works_over_network() {
-		//::util::log::init_log();
-		let key_servers = make_key_servers(6060, 3);
+	fn document_key_generation_and_retrievement_works_over_network_with_3_nodes() {
+		//::logger::init_log();
+		let key_servers = make_key_servers(6080, 3);
 
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
