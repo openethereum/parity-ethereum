@@ -152,11 +152,7 @@ mod tests {
 	use types::all::{ClusterConfiguration, NodeAddress};
 	use super::{KeyServer, KeyServerImpl};
 
-	#[test]
-	fn document_key_generation_and_retrievement_works_over_network() {
-		//::util::log::init_log();
-
-		let num_nodes = 3;
+	fn make_key_servers(num_nodes: usize) -> Vec<KeyServerImpl> {
 		let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
 		let configs: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
 				threads: 1,
@@ -179,13 +175,46 @@ mod tests {
 		// wait until connections are established
 		let start = time::Instant::now();
 		loop {
-			if key_servers.iter().all(|ks| ks.cluster().cluster_state().connected.len() == num_nodes - 1) {
+			if key_servers.iter().all(|ks| {
+				println!("=== {:?}", ks.cluster().cluster_state().connected.len());
+				println!("=== {:?}", num_nodes - 1);
+				ks.cluster().cluster_state().connected.len() == num_nodes - 1
+			}) {
 				break;
 			}
-			if time::Instant::now() - start > time::Duration::from_millis(30000) {
-				panic!("connections are not established in 30000ms");
+			if time::Instant::now() - start > time::Duration::from_millis(1000) {
+				panic!("connections are not established in 1000ms");
 			}
 		}
+
+		key_servers
+	}
+
+	#[test]
+	fn document_key_generation_and_retrievement_works_over_network_with_single_node() {
+		//::util::log::init_log();
+		let key_servers = make_key_servers(3);
+
+		// generate document key
+		let threshold = 0;
+		let document = Random.generate().unwrap().secret().clone();
+		let secret = Random.generate().unwrap().secret().clone();
+		let signature = ethkey::sign(&secret, &document).unwrap();
+		let generated_key = key_servers[0].generate_document_key(&signature, &document, threshold).unwrap();
+		let generated_key = ethcrypto::ecies::decrypt_single_message(&secret, &generated_key).unwrap();
+
+		// now let's try to retrieve key back
+		for key_server in key_servers.iter() {
+			let retrieved_key = key_server.document_key(&signature, &document).unwrap();
+			let retrieved_key = ethcrypto::ecies::decrypt_single_message(&secret, &retrieved_key).unwrap();
+			assert_eq!(retrieved_key, generated_key);
+		}
+	}
+
+	#[test]
+	fn document_key_generation_and_retrievement_works_over_network() {
+		//::util::log::init_log();
+		let key_servers = make_key_servers(3);
 
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
