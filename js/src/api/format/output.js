@@ -216,8 +216,8 @@ export function outSignerRequest (request) {
           break;
 
         case 'payload':
-          request[key].decrypt = outTransaction(request[key].decrypt);
-          request[key].sign = outTransaction(request[key].sign);
+          request[key].decrypt = outSigning(request[key].decrypt);
+          request[key].sign = outSigning(request[key].sign);
           request[key].signTransaction = outTransaction(request[key].signTransaction);
           request[key].sendTransaction = outTransaction(request[key].sendTransaction);
           break;
@@ -292,7 +292,6 @@ export function outTransaction (tx) {
             : null;
           break;
 
-        case 'address':
         case 'creates':
         case 'from':
         case 'to':
@@ -303,6 +302,20 @@ export function outTransaction (tx) {
   }
 
   return tx;
+}
+
+export function outSigning (payload) {
+  if (payload) {
+    Object.keys(payload).forEach((key) => {
+      switch (key) {
+        case 'address':
+          payload[key] = outAddress(payload[key]);
+          break;
+      }
+    });
+  }
+
+  return payload;
 }
 
 export function outTrace (trace) {
