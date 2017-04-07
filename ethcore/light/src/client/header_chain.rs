@@ -517,18 +517,6 @@ mod tests {
 	use time::Duration;
 	use util::Mutex;
 
-  	#[test]
-  	fn basic_chain_with_cache() {
-    	let spec = Spec::new_test();
-    	let genesis_header = spec.genesis_header();
-		let db = make_db();
-
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
-		
-		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache);
-		
-  	}
-
 	fn make_db() -> Arc<::util::KeyValueDB> {
 		Arc::new(::util::kvdb::in_memory(0))
 	}
