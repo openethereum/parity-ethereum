@@ -32,6 +32,9 @@ use light::provider::LightProvider;
 use network::{NodeId, PeerId};
 use util::RwLock;
 
+use time::Duration;
+use light::cache::Cache;
+
 const NETWORK_ID: u64 = 0xcafebabe;
 
 struct TestIoContext<'a> {
