@@ -152,19 +152,19 @@ mod tests {
 	use types::all::{ClusterConfiguration, NodeAddress};
 	use super::{KeyServer, KeyServerImpl};
 
-	fn make_key_servers(num_nodes: usize) -> Vec<KeyServerImpl> {
+	fn make_key_servers(start_port: u16, num_nodes: usize) -> Vec<KeyServerImpl> {
 		let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
 		let configs: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
 				threads: 1,
 				self_private: (***key_pairs[i].secret()).into(),
 				listener_address: NodeAddress {
 					address: "127.0.0.1".into(),
-					port: 6060 + (i as u16),
+					port: start_port + (i as u16),
 				},
 				nodes: key_pairs.iter().enumerate().map(|(j, kp)| (kp.public().clone(),
 					NodeAddress {
 						address: "127.0.0.1".into(),
-						port: 6060 + (j as u16),
+						port: start_port + (j as u16),
 					})).collect(),
 				allow_connecting_to_higher_nodes: false,
 			}).collect();
@@ -175,11 +175,7 @@ mod tests {
 		// wait until connections are established
 		let start = time::Instant::now();
 		loop {
-			if key_servers.iter().all(|ks| {
-				println!("=== {:?}", ks.cluster().cluster_state().connected.len());
-				println!("=== {:?}", num_nodes - 1);
-				ks.cluster().cluster_state().connected.len() == num_nodes - 1
-			}) {
+			if key_servers.iter().all(|ks| ks.cluster().cluster_state().connected.len() == num_nodes - 1) {
 				break;
 			}
 			if time::Instant::now() - start > time::Duration::from_millis(1000) {
@@ -193,7 +189,7 @@ mod tests {
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network_with_single_node() {
 		//::util::log::init_log();
-		let key_servers = make_key_servers(3);
+		let key_servers = make_key_servers(6070, 3);
 
 		// generate document key
 		let threshold = 0;
@@ -214,7 +210,7 @@ mod tests {
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network() {
 		//::util::log::init_log();
-		let key_servers = make_key_servers(3);
+		let key_servers = make_key_servers(6060, 3);
 
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
