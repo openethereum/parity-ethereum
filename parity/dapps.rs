@@ -137,11 +137,10 @@ mod server {
 	use std::path::PathBuf;
 	use std::sync::Arc;
 
-	use hash_fetch::fetch::Client as FetchClient;
 	use parity_dapps;
 	use parity_reactor;
 
-	pub type Middleware = parity_dapps::Middleware<FetchClient>;
+	pub use parity_dapps::Middleware;
 	pub use parity_dapps::SyncStatus;
 
 	pub fn dapps_middleware(

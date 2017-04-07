@@ -98,13 +98,13 @@ impl<F> WebProxyTokens for F where F: Fn(String) -> bool + Send + Sync {
 }
 
 /// Dapps server as `jsonrpc-http-server` request middleware.
-pub struct Middleware<F: Fetch + Clone> {
-	router: router::Router<apps::fetcher::ContentFetcher<F>>,
+pub struct Middleware {
+	router: router::Router,
 }
 
-impl<F: Fetch + Clone> Middleware<F> {
+impl Middleware {
 	/// Creates new Dapps server middleware.
-	pub fn new(
+	pub fn new<F: Fetch + Clone>(
 		remote: Remote,
 		signer_address: Option<(String, u16)>,
 		dapps_path: PathBuf,
@@ -114,13 +114,13 @@ impl<F: Fetch + Clone> Middleware<F> {
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		fetch: F,
 	) -> Self {
-		let content_fetcher = apps::fetcher::ContentFetcher::new(
+		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
 			sync_status,
 			signer_address.clone(),
 			remote.clone(),
 			fetch.clone(),
-		);
+		));
 		let endpoints = apps::all_endpoints(
 			dapps_path,
 			extra_dapps,
@@ -138,7 +138,11 @@ impl<F: Fetch + Clone> Middleware<F> {
 			special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
 			special.insert(
 				router::SpecialEndpoint::Api,
-				Some(api::RestApi::new(cors_domains.clone(), &endpoints, content_fetcher.clone())),
+				Some(api::RestApi::new(
+					cors_domains.clone(),
+					&endpoints,
+					content_fetcher.clone()
+				)),
 			);
 			special
 		};
@@ -156,7 +160,7 @@ impl<F: Fetch + Clone> Middleware<F> {
 	}
 }
 
-impl<F: Fetch + Clone> http::RequestMiddleware for Middleware<F> {
+impl http::RequestMiddleware for Middleware {
 	fn on_request(&self, req: &hyper::server::Request<hyper::net::HttpStream>, control: &hyper::Control) -> http::RequestMiddlewareAction {
 		self.router.on_request(req, control)
 	}
