@@ -14,13 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Adds a seventh column for node information.
+//! Utilities and helpers for the light client.
 
-use util::migration::ChangeColumns;
+mod queue_cull;
 
-/// The migration from v10 to v11.
-pub const TO_V11: ChangeColumns = ChangeColumns {
-	pre_columns: Some(6),
-	post_columns: Some(7),
-	version: 11,
-};
+pub use self::queue_cull::QueueCull;

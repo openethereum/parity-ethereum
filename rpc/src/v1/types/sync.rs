@@ -83,8 +83,8 @@ pub struct PeerNetworkInfo {
 pub struct PeerProtocolsInfo {
 	/// Ethereum protocol information
 	pub eth: Option<EthProtocolInfo>,
-	/// LES protocol information.
-	pub les: Option<LesProtocolInfo>,
+	/// PIP protocol information.
+	pub pip: Option<PipProtocolInfo>,
 }
 
 /// Peer Ethereum protocol information
@@ -108,10 +108,10 @@ impl From<ethsync::EthProtocolInfo> for EthProtocolInfo {
 	}
 }
 
-/// Peer LES protocol information
+/// Peer PIP protocol information
 #[derive(Default, Debug, Serialize)]
-pub struct LesProtocolInfo {
-	/// Negotiated LES protocol version
+pub struct PipProtocolInfo {
+	/// Negotiated PIP protocol version
 	pub version: u32,
 	/// Peer total difficulty
 	pub difficulty: U256,
@@ -119,9 +119,9 @@ pub struct LesProtocolInfo {
 	pub head: String,
 }
 
-impl From<ethsync::LesProtocolInfo> for LesProtocolInfo {
-	fn from(info: ethsync::LesProtocolInfo) -> Self {
-		LesProtocolInfo {
+impl From<ethsync::PipProtocolInfo> for PipProtocolInfo {
+	fn from(info: ethsync::PipProtocolInfo) -> Self {
+		PipProtocolInfo {
 			version: info.version,
 			difficulty: info.difficulty.into(),
 			head: info.head.hex(),
@@ -171,7 +171,7 @@ impl From<SyncPeerInfo> for PeerInfo {
 			},
 			protocols: PeerProtocolsInfo {
 				eth: p.eth_info.map(Into::into),
-				les: p.les_info.map(Into::into),
+				pip: p.pip_info.map(Into::into),
 			},
 		}
 	}
