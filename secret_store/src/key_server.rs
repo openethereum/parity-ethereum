@@ -41,6 +41,9 @@ pub struct KeyServerCore {
 	cluster: Option<Arc<ClusterClient>>,
 }
 
+/// default MAC to use.
+pub const DEFAULT_MAC: [u8; 2] = [0, 0];
+
 impl KeyServerImpl {
 	/// Create new key server instance
 	pub fn new(config: &ClusterConfiguration, acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>) -> Result<Self, Error> {
@@ -70,7 +73,7 @@ impl KeyServer for KeyServerImpl {
 		let document_key = encryption_session.wait()?;
 
 		// encrypt document key with requestor public key
-		let document_key = ethcrypto::ecies::encrypt_single_message(&public, &document_key)
+		let document_key = ethcrypto::ecies::encrypt(&public, &DEFAULT_MAC, &document_key)
 			.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err)))?;
 		Ok(document_key)
 	}
@@ -87,7 +90,7 @@ impl KeyServer for KeyServerImpl {
 		let document_key = decryption_session.wait()?;
 
 		// encrypt document key with requestor public key
-		let document_key = ethcrypto::ecies::encrypt_single_message(&public, &document_key)
+		let document_key = ethcrypto::ecies::encrypt(&public, &DEFAULT_MAC, &document_key)
 			.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err)))?;
 		Ok(document_key)
 	}
@@ -118,7 +121,7 @@ impl KeyServerCore {
 					return;
 				},
 			};
-			
+
 			let cluster = ClusterCore::new(el.handle(), config);
 			let cluster_client = cluster.and_then(|c| c.run().map(|_| c.client()));
 			tx.send(cluster_client.map_err(Into::into)).expect("Rx is blocking upper thread.");
@@ -164,7 +167,7 @@ mod tests {
 
 	fn decrypt_document_key(secret: &str, document_key: DocumentEncryptedKey) -> DocumentKey {
 		let secret = secret.parse().unwrap();
-		ethcrypto::ecies::decrypt_single_message(&secret, &document_key).unwrap()
+		ethcrypto::ecies::decrypt(&secret, &DEFAULT_MAC, &document_key).unwrap()
 	}
 
 	#[test]

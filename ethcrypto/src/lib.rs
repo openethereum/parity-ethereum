@@ -249,12 +249,7 @@ pub mod ecies {
 
 		let z = ecdh::agree(r.secret(), public)?;
 		let mut key = [0u8; 32];
-		let mut mkey = [0u8; 32];
 		kdf(&z, &[0u8; 0], &mut key);
-		let mut hasher = Sha256::new();
-		let mkey_material = &key[16..32];
-		hasher.input(mkey_material);
-		hasher.result(&mut mkey);
 		let ekey = &key[0..16];
 
 		let mut msgd = vec![0u8; (64 + plain.len())];
@@ -322,11 +317,6 @@ pub mod ecies {
 		let mut key = [0u8; 32];
 		kdf(&z, &[0u8; 0], &mut key);
 		let ekey = &key[0..16];
-		let mkey_material = &key[16..32];
-		let mut hasher = Sha256::new();
-		let mut mkey = [0u8; 32];
-		hasher.input(mkey_material);
-		hasher.result(&mut mkey);
 
 		let clen = encrypted.len() - meta_len;
 		let cipher = &e[64..(64+clen)];
