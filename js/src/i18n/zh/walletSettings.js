@@ -16,54 +16,60 @@
 
 export default {
   addOwner: {
-    title: `Add Owner`
+    title: `添加持有人` // Add Owner
   },
   buttons: {
-    cancel: `Cancel`,
-    close: `Close`,
-    next: `Next`,
-    send: `Send`,
-    sending: `Sending...`
+    cancel: `取消`, // Cancel
+    close: `关闭`, // Close
+    next: `下一个`, // Next
+    send: `发送`, // Send
+    sending: `正在发送...` // Sending...
   },
   changes: {
-    modificationString: `For your modifications to be taken into account,
-              other owners have to send the same modifications. They can paste
-              this string to make it easier:`,
-    none: `No modifications have been made to the Wallet settings.`,
-    overview: `You are about to make the following modifications`
+    modificationString: `为了保证你做的修改会被执行，
+                        其他的账户持有人也需要发送相同的修改。
+                        他们可以通过粘贴以下字符串来简单的完成更改：`, 
+                        // For your modifications to be taken into account,
+              // other owners have to send the same modifications. They can paste
+              // this string to make it easier:
+    none: `钱包设置没有发生任何更改。`, // No modifications have been made to the Wallet settings.
+    overview: `你将会造成以下更改` // You are about to make the following modifications
   },
   edit: {
-    message: `In order to edit this contract's settings, at
-                  least {owners, number} {owners, plural, one {owner } other {owners }} have to
-                  send the very same modifications. You can paste a stringified version
-                  of the modifications here.`
+    message: `为了编辑这个合约的设置，至少{owners, number} 
+              {owners, plural, one {owner } other {owners }}必须发送完全相同的修改
+              你可以将字符串化的修改粘贴在这里。` 
+                  // In order to edit this contract's settings, at
+                  // least {owners, number} {owners, plural, one {owner } other {owners }} have to
+                  // send the very same modifications. You can paste a stringified version
+                  // of the modifications here.
   },
   modifications: {
     daylimit: {
-      hint: `amount of ETH spendable without confirmations`,
-      label: `wallet day limit`
+      hint: `不需要确认即可发送的ETH数量`, // amount of ETH spendable without confirmations
+      label: `钱包每日限额` //wallet day limit
     },
     fromString: {
-      label: `modifications`
+      label: `修改` // modifications
     },
     owners: {
-      label: `other wallet owners`
+      label: `其他钱包持有人` // other wallet owners
     },
     required: {
-      hint: `number of required owners to accept a transaction`,
-      label: `required owners`
+      hint: `确认交易所需的通过持有人人数`, // number of required owners to accept a transaction
+      label: `所需持有人` // required owners
     },
     sender: {
-      hint: `send modifications as this owner`,
-      label: `from account (wallet owner)`
+      hint: `作为此持有人发送修改`, // send modifications as this owner
+      label: `来自账户 (wallet owner)` // from account (wallet owner)
     }
   },
   ownersChange: {
-    details: `from {from} to {to}`,
-    title: `Change Required Owners`
+    details: `从 {from} 至 {to}`, // from {from} to {to}
+    title: `改变所需持有人`
   },
-  rejected: `The transaction #{txid} has been rejected`,
+  rejected: `交易#{txid}已经被拒绝`, // The transaction #{txid} has been rejected
   removeOwner: {
-    title: `Remove Owner`
+    title: `移除持有人` // Remove Owner
   }
 };
