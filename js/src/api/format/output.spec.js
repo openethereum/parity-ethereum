@@ -384,7 +384,7 @@ describe('api/format/output', () => {
       });
     });
 
-    ['blockNumber', 'gasPrice', 'gas', 'minBlock', 'nonce', 'transactionIndex', 'value'].forEach((input) => {
+    ['blockNumber', 'gasPrice', 'gas', 'nonce', 'transactionIndex', 'value'].forEach((input) => {
       it(`formats ${input} number as hexnumber`, () => {
         const block = {};
 
@@ -396,8 +396,8 @@ describe('api/format/output', () => {
       });
     });
 
-    it('passes minBlock as null when null', () => {
-      expect(outTransaction({ minBlock: null })).to.deep.equal({ minBlock: null });
+    it('passes condition as null when null', () => {
+      expect(outTransaction({ condition: null })).to.deep.equal({ condition: null });
     });
 
     it('ignores and passes through unknown keys', () => {
