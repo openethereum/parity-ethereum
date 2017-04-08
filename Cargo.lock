@@ -27,6 +27,7 @@ dependencies = [
  "ethsync 1.7.0",
  "evmbin 0.1.0",
  "fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "isatty 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -533,6 +534,7 @@ name = "ethcore-light"
 version = "1.7.0"
 dependencies = [
  "ethcore 1.7.0",
+ "ethcore-devtools 1.7.0",
  "ethcore-io 1.7.0",
  "ethcore-ipc 1.7.0",
  "ethcore-ipc-codegen 1.7.0",
@@ -1755,7 +1757,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/paritytech/js-precompiled.git#04143247380a7a9bce112c9467636684d8214973"
+source = "git+https://github.com/paritytech/js-precompiled.git#606f5bf9966b93fcc695e43d648bb9b9fe178c3f"
 dependencies = [
  "parity-dapps-glue 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

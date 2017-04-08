@@ -23,6 +23,7 @@ toml = "0.2"
 serde = "0.9"
 serde_json = "0.9"
 app_dirs = "1.1.1"
+futures = "0.1"
 fdlimit = "0.1"
 ws2_32-sys = "0.2"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }

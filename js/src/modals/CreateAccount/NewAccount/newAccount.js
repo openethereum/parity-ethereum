@@ -23,6 +23,7 @@ import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 import { Form, Input, IdentityIcon } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 import { RefreshIcon } from '~/ui/Icons';
+import Loading from '~/ui/Loading';
 
 import ChangeVault from '../ChangeVault';
 import styles from '../createAccount.css';
@@ -170,7 +171,9 @@ export default class CreateAccount extends Component {
     const { accounts } = this.state;
 
     if (!accounts) {
-      return null;
+      return (
+        <Loading className={ styles.selector } size={ 1 } />
+      );
     }
 
     const identities = Object
@@ -204,6 +207,14 @@ export default class CreateAccount extends Component {
 
   createIdentities = () => {
     const { createStore } = this.props;
+
+    this.setState({
+      accounts: null,
+      selectedAddress: ''
+    });
+
+    createStore.setAddress('');
+    createStore.setPhrase('');
 
     return createStore
       .createIdentities()

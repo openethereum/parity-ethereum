@@ -237,6 +237,6 @@ export function inDeriveIndex (derive) {
     return {
       index,
       type: inDeriveType(item)
-    }
+    };
   });
 }

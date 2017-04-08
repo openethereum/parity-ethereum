@@ -70,6 +70,11 @@ Operating Options:
   --keys-path PATH               Specify the path for JSON key files to be found
                                  (default: {flag_keys_path}).
   --identity NAME                Specify your node's name. (default: {flag_identity})
+  --light                        Experimental: run in light client mode. Light clients
+                                 synchronize a bare minimum of data and fetch necessary
+                                 data on-demand from the network. Much lower in storage,
+                                 potentially higher in bandwidth. Has no effect with
+                                 subcommands (default: {flag_light}).
 
 Account Options:
   --unlock ACCOUNTS              Unlock ACCOUNTS for the duration of the execution.
@@ -129,6 +134,7 @@ Networking Options:
   --max-pending-peers NUM        Allow up to NUM pending connections. (default: {flag_max_pending_peers})
   --no-ancient-blocks            Disable downloading old blocks after snapshot restoration
                                  or warp sync. (default: {flag_no_ancient_blocks})
+  --no-serve-light               Disable serving of light peers. (default: {flag_no_serve_light})
 
 API and Console Options:
   --no-jsonrpc                   Disable the JSON-RPC API server. (default: {flag_no_jsonrpc})
@@ -141,8 +147,9 @@ API and Console Options:
                                  (default: {flag_jsonrpc_cors:?})
   --jsonrpc-apis APIS            Specify the APIs available through the JSONRPC
                                  interface. APIS is a comma-delimited list of API
-                                 name. Possible name are web3, eth, net, personal,
+                                 name. Possible name are all, safe, web3, eth, net, personal,
                                  parity, parity_set, traces, rpc, parity_accounts.
+                                 You can also disable a specific API by putting '-' in the front: all,-personal
                                  (default: {flag_jsonrpc_apis}).
   --jsonrpc-hosts HOSTS          List of allowed Host header values. This option will
                                  validate the Host header sent by the browser, it

@@ -23,11 +23,11 @@ use traits::Encodable;
 struct ListInfo {
 	position: usize,
 	current: usize,
-	max: usize,
+	max: Option<usize>,
 }
 
 impl ListInfo {
-	fn new(position: usize, max: usize) -> ListInfo {
+	fn new(position: usize, max: Option<usize>) -> ListInfo {
 		ListInfo {
 			position: position,
 			current: 0,
@@ -133,10 +133,23 @@ impl RlpStream {
 				self.buffer.push(0);
 
 				let position = self.buffer.len();
-				self.unfinished_lists.push(ListInfo::new(position, len));
+				self.unfinished_lists.push(ListInfo::new(position, Some(len)));
 			},
 		}
 
+		// return chainable self
+		self
+	}
+
+
+	/// Declare appending the list of unknown size, chainable.
+	pub fn begin_unbounded_list(&mut self) -> &mut RlpStream {
+		self.finished_list = false;
+		// payload is longer than 1 byte only for lists > 55 bytes
+		// by pushing always this 1 byte we may avoid unnecessary shift of data
+		self.buffer.push(0);
+		let position = self.buffer.len();
+		self.unfinished_lists.push(ListInfo::new(position, None));
 		// return chainable self
 		self
 	}
@@ -175,6 +188,36 @@ impl RlpStream {
 
 		// return chainable self
 		self
+	}
+
+	/// Appends raw (pre-serialised) RLP data. Checks for size oveflow.
+	pub fn append_raw_checked<'a>(&'a mut self, bytes: &[u8], item_count: usize, max_size: usize) -> bool {
+		if self.estimate_size(bytes.len()) > max_size {
+			return false;
+		}
+		self.append_raw(bytes, item_count);
+		true
+	}
+
+	/// Calculate total RLP size for appended payload.
+	pub fn estimate_size<'a>(&'a self, add: usize) -> usize {
+		let total_size = self.buffer.len() + add;
+		let mut base_size = total_size;
+		for list in &self.unfinished_lists[..] {
+			let len = total_size - list.position;
+			if len > 55 {
+				let leading_empty_bytes = (len as u64).leading_zeros() as usize / 8;
+				let size_bytes = 8 - leading_empty_bytes;
+				base_size += size_bytes;
+			}
+		}
+		base_size
+	}
+
+
+	/// Returns current RLP size in bytes for the data pushed into the list.
+	pub fn len<'a>(&'a self) -> usize {
+		self.estimate_size(0)
 	}
 
 	/// Clear the output stream so far.
@@ -246,10 +289,11 @@ impl RlpStream {
 			None => false,
 			Some(ref mut x) => {
 				x.current += inserted_items;
-				if x.current > x.max {
-					panic!("You cannot append more items then you expect!");
+				match x.max {
+					Some(ref max) if x.current > *max => panic!("You cannot append more items then you expect!"),
+					Some(ref max) => x.current == *max,
+					_ => false,
 				}
-				x.current == x.max
 			}
 		};
 
@@ -272,6 +316,17 @@ impl RlpStream {
 			true => self.buffer,
 			false => panic!()
 		}
+	}
+
+	/// Finalize current ubnbound list. Panics if no unbounded list has been opened.
+	pub fn complete_unbounded_list(&mut self) {
+		let list = self.unfinished_lists.pop().expect("No open list.");
+		if list.max.is_some() {
+			panic!("List type mismatch.");
+		}
+		let len = self.buffer.len() - list.position;
+		self.encoder().insert_list_payload(len, list.position);
+		self.note_appended(1);
 	}
 }
 

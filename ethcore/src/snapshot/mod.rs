@@ -83,9 +83,6 @@ mod traits {
 // Try to have chunks be around 4MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;
 
-// Try to have chunks be around 4MB (before compression)
-const MAX_STORAGE_ENTRIES_PER_ACCOUNT_RECORD: usize = 80_000;
-
 // How many blocks to include in a snapshot, starting from the head of the chain.
 const SNAPSHOT_BLOCKS: u64 = 30000;
 
@@ -305,20 +302,9 @@ impl<'a> StateChunker<'a> {
 	//
 	// If the buffer is greater than the desired chunk size,
 	// this will write out the data to disk.
-	fn push(&mut self, account_hash: Bytes, data: Bytes, force_chunk: bool) -> Result<(), Error> {
-		let pair = {
-			let mut stream = RlpStream::new_list(2);
-			stream.append(&account_hash).append_raw(&data, 1);
-			stream.out()
-		};
-
-		if force_chunk || self.cur_size + pair.len() >= PREFERRED_CHUNK_SIZE {
-			self.write_chunk()?;
-		}
-
-		self.cur_size += pair.len();
-		self.rlps.push(pair);
-
+	fn push(&mut self, data: Bytes) -> Result<(), Error> {
+		self.cur_size += data.len();
+		self.rlps.push(data);
 		Ok(())
 	}
 
@@ -347,6 +333,11 @@ impl<'a> StateChunker<'a> {
 		self.cur_size = 0;
 
 		Ok(())
+	}
+
+	// Get current chunk size.
+	fn chunk_size(&self) -> usize {
+		self.cur_size
 	}
 }
 
@@ -377,9 +368,12 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
-		let fat_rlps = account::to_fat_rlps(&account, &account_db, &mut used_code, MAX_STORAGE_ENTRIES_PER_ACCOUNT_RECORD)?;
+		let fat_rlps = account::to_fat_rlps(&account_key_hash, &account, &account_db, &mut used_code, PREFERRED_CHUNK_SIZE - chunker.chunk_size(), PREFERRED_CHUNK_SIZE)?;
 		for (i, fat_rlp) in fat_rlps.into_iter().enumerate() {
-			chunker.push(account_key.clone(), fat_rlp, i > 0)?;
+			if i > 0 {
+				chunker.write_chunk()?;
+			}
+			chunker.push(fat_rlp)?;
 		}
 	}
 

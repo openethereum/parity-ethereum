@@ -94,6 +94,7 @@ usage! {
 		flag_chain: String = "foundation", or |c: &Config| otry!(c.parity).chain.clone(),
 		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
+		flag_light: bool = false, or |c: &Config| otry!(c.parity).light,
 
 		// -- Account Options
 		flag_unlock: Option<String> = None,
@@ -149,6 +150,8 @@ usage! {
 		flag_reserved_only: bool = false,
 			or |c: &Config| otry!(c.network).reserved_only.clone(),
 		flag_no_ancient_blocks: bool = false, or |_| None,
+		flag_no_serve_light: bool = false,
+			or |c: &Config| otry!(c.network).no_serve_light.clone(),
 
 		// -- API and Console Options
 		// RPC
@@ -379,6 +382,7 @@ struct Operating {
 	db_path: Option<String>,
 	keys_path: Option<String>,
 	identity: Option<String>,
+	light: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -414,6 +418,7 @@ struct Network {
 	node_key: Option<String>,
 	reserved_peers: Option<String>,
 	reserved_only: Option<bool>,
+	no_serve_light: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -639,6 +644,7 @@ mod tests {
 			flag_db_path: Some("$HOME/.parity/chains".into()),
 			flag_keys_path: "$HOME/.parity/keys".into(),
 			flag_identity: "".into(),
+			flag_light: false,
 
 			// -- Account Options
 			flag_unlock: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
@@ -669,6 +675,7 @@ mod tests {
 			flag_reserved_peers: Some("./path_to_file".into()),
 			flag_reserved_only: false,
 			flag_no_ancient_blocks: false,
+			flag_no_serve_light: false,
 
 			// -- API and Console Options
 			// RPC
@@ -844,6 +851,7 @@ mod tests {
 				db_path: None,
 				keys_path: None,
 				identity: None,
+				light: None,
 			}),
 			account: Some(Account {
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),
@@ -873,6 +881,7 @@ mod tests {
 				node_key: None,
 				reserved_peers: Some("./path/to/reserved_peers".into()),
 				reserved_only: Some(true),
+				no_serve_light: None,
 			}),
 			rpc: Some(Rpc {
 				disable: Some(true),

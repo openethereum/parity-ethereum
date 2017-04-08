@@ -58,12 +58,12 @@ describe('modals/CreateAccount/NewAccount', () => {
         return instance.componentWillMount();
       });
 
-      it('creates initial accounts', () => {
-        expect(Object.keys(instance.state.accounts).length).to.equal(7);
+      it('resets the accounts', () => {
+        expect(instance.state.accounts).to.be.null;
       });
 
-      it('sets the initial selected value', () => {
-        expect(instance.state.selectedAddress).to.equal(Object.keys(instance.state.accounts)[0]);
+      it('resets the initial selected value', () => {
+        expect(instance.state.selectedAddress).to.equal('');
       });
     });
   });
