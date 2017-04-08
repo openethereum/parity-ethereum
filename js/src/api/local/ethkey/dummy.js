@@ -14,13 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Adds a seventh column for node information.
-
-use util::migration::ChangeColumns;
-
-/// The migration from v10 to v11.
-pub const TO_V11: ChangeColumns = ChangeColumns {
-	pre_columns: Some(6),
-	post_columns: Some(7),
-	version: 11,
-};
+export default function () {
+  // empty file included while building parity.js (don't include local keygen)
+}

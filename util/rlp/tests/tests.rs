@@ -412,3 +412,25 @@ fn test_rlp_list_length_overflow() {
 	let as_val: Result<String, DecoderError> = rlp.val_at(0);
 	assert_eq!(Err(DecoderError::RlpIsTooShort), as_val);
 }
+
+#[test]
+fn test_rlp_stream_size_limit() {
+	for limit in 40 .. 270 {
+		let item = [0u8; 1];
+		let mut stream = RlpStream::new();
+		while stream.append_raw_checked(&item, 1, limit) {}
+		assert_eq!(stream.drain().len(), limit);
+	}
+}
+
+#[test]
+fn test_rlp_stream_unbounded_list() {
+	let mut stream = RlpStream::new();
+	stream.begin_unbounded_list();
+	stream.append(&40u32);
+	stream.append(&41u32);
+	assert!(!stream.is_finished());
+	stream.complete_unbounded_list();
+	assert!(stream.is_finished());
+}
+

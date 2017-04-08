@@ -284,12 +284,6 @@ export function outTransaction (tx) {
           tx[key] = outTransactionCondition(tx[key]);
           break;
 
-        case 'minBlock':
-          tx[key] = tx[key]
-            ? outNumber(tx[key])
-            : null;
-          break;
-
         case 'creates':
         case 'from':
         case 'to':

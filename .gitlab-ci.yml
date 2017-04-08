@@ -14,13 +14,14 @@ cache:
   untracked: true
 linux-stable:
   stage: build
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   only:
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup default stable
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - cargo build -j $(nproc) --release -p evmbin
     - cargo build -j $(nproc) --release -p ethstore
@@ -105,13 +106,14 @@ linux-stable-debian:
     name: "stable-x86_64-unknown-debian-gnu_parity"
 linux-beta:
   stage: build
-  image: ethcore/rust:beta
+  image: parity/rust:gitlab-ci
   only:
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup default beta
     - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
   tags:
@@ -124,13 +126,14 @@ linux-beta:
   allow_failure: true
 linux-nightly:
   stage: build
-  image: ethcore/rust:nightly
+  image: parity/rust:gitlab-ci
   only:
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup default nightly
     - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
   tags:
@@ -544,11 +547,12 @@ test-windows:
   allow_failure: true
 test-rust-stable:
   stage: test
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
+    - rustup show
     - export RUST_BACKTRACE=1
     - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
   tags:

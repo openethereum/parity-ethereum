@@ -67,6 +67,15 @@ impl Secret {
 		Ok(())
 	}
 
+	/// Inplace decrease secret key (scalar - 1)
+	pub fn dec(&mut self) -> Result<(), Error> {
+		let mut key_secret = self.to_secp256k1_secret()?;
+		key_secret.add_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
+
+		*self = key_secret.into();
+		Ok(())
+	}
+
 	/// Inplace multiply one secret key to another (scalar * scalar)
 	pub fn mul(&mut self, other: &Secret) -> Result<(), Error> {
 		let mut key_secret = self.to_secp256k1_secret()?;

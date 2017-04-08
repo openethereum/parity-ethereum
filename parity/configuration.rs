@@ -18,18 +18,20 @@ use std::time::Duration;
 use std::io::{Read, Write, stderr};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use std::collections::BTreeMap;
 use std::cmp::max;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
 use util::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
-use ethcore::ethstore::ethkey::Secret;
+use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning, StratumOptions};
 use ethcore::verification::queue::VerifierSettings;
 
 use rpc::{IpcConfiguration, HttpConfiguration};
+use rpc_apis::ApiSet;
 use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
@@ -132,11 +134,16 @@ impl Configuration {
 		let warp_sync = !self.args.flag_no_warp && fat_db != Switch::On && tracing != Switch::On && pruning != Pruning::Specific(Algorithm::Archive);
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
-		let dapps_conf = self.dapps_config();
+		let mut dapps_conf = self.dapps_config();
 		let ipfs_conf = self.ipfs_config();
 		let signer_conf = self.signer_config();
-		let secretstore_conf = self.secretstore_config();
+		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
+
+		if self.args.flag_jsonrpc_threads.is_some() && dapps_conf.enabled {
+			dapps_conf.enabled = false;
+			writeln!(&mut stderr(), "Warning: Disabling Dapps server because fast RPC server was enabled.").expect("Error writing to stderr.")
+		}
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -377,6 +384,8 @@ impl Configuration {
 				check_seal: !self.args.flag_no_seal_check,
 				download_old_blocks: !self.args.flag_no_ancient_blocks,
 				verifier_settings: verifier_settings,
+				serve_light: !self.args.flag_no_serve_light,
+				light: self.args.flag_light,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -554,29 +563,26 @@ impl Configuration {
 	fn dapps_config(&self) -> DappsConfiguration {
 		DappsConfiguration {
 			enabled: self.dapps_enabled(),
-			interface: self.dapps_interface(),
-			port: self.args.flag_dapps_port,
-			hosts: self.dapps_hosts(),
-			cors: self.dapps_cors(),
-			user: self.args.flag_dapps_user.clone(),
-			pass: self.args.flag_dapps_pass.clone(),
 			dapps_path: PathBuf::from(self.directories().dapps),
 			extra_dapps: if self.args.cmd_dapp {
 				self.args.arg_path.iter().map(|path| PathBuf::from(path)).collect()
 			} else {
 				vec![]
 			},
-			all_apis: self.args.flag_dapps_apis_all,
 		}
 	}
 
-	fn secretstore_config(&self) -> SecretStoreConfiguration {
-		SecretStoreConfiguration {
+	fn secretstore_config(&self) -> Result<SecretStoreConfiguration, String> {
+		Ok(SecretStoreConfiguration {
 			enabled: self.secretstore_enabled(),
+			self_secret: self.secretstore_self_secret()?,
+			nodes: self.secretstore_nodes()?,
 			interface: self.secretstore_interface(),
 			port: self.args.flag_secretstore_port,
+			http_interface: self.secretstore_http_interface(),
+			http_port: self.args.flag_secretstore_http_port,
 			data_path: self.directories().secretstore,
-		}
+		})
 	}
 
 	fn ipfs_config(&self) -> IpfsConfiguration {
@@ -718,16 +724,7 @@ impl Configuration {
 			.collect();
 
 		if self.args.flag_geth {
-			apis.push("personal");
-		}
-
-		if self.args.flag_public_node {
-			apis.retain(|api| {
-				match *api {
-					"eth" | "net" | "parity" | "rpc" | "web3" => true,
-					_ => false
-				}
-			});
+			apis.insert(0, "personal");
 		}
 
 		apis.join(",")
@@ -746,14 +743,10 @@ impl Configuration {
 		Self::cors(self.args.flag_ipfs_api_cors.as_ref())
 	}
 
-	fn dapps_cors(&self) -> Option<Vec<String>> {
-		Self::cors(self.args.flag_dapps_cors.as_ref())
-	}
-
 	fn hosts(hosts: &str) -> Option<Vec<String>> {
 		match hosts {
 			"none" => return Some(Vec::new()),
-			"all" => return None,
+			"*" | "all" | "any" => return None,
 			_ => {}
 		}
 		let hosts = hosts.split(',').map(Into::into).collect();
@@ -762,10 +755,6 @@ impl Configuration {
 
 	fn rpc_hosts(&self) -> Option<Vec<String>> {
 		Self::hosts(&self.args.flag_jsonrpc_hosts)
-	}
-
-	fn dapps_hosts(&self) -> Option<Vec<String>> {
-		Self::hosts(&self.args.flag_dapps_hosts)
 	}
 
 	fn ipfs_hosts(&self) -> Option<Vec<String>> {
@@ -793,12 +782,20 @@ impl Configuration {
 
 	fn http_config(&self) -> Result<HttpConfiguration, String> {
 		let conf = HttpConfiguration {
-			enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
+			enabled: self.rpc_enabled(),
 			interface: self.rpc_interface(),
 			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
-			apis: self.rpc_apis().parse()?,
+			apis: match self.args.flag_public_node {
+				false => self.rpc_apis().parse()?,
+				true => self.rpc_apis().parse::<ApiSet>()?.retain(ApiSet::PublicContext),
+			},
 			hosts: self.rpc_hosts(),
 			cors: self.rpc_cors(),
+			threads: match self.args.flag_jsonrpc_threads {
+				Some(threads) if threads > 0 => Some(threads),
+				None => None,
+				_ => return Err("--jsonrpc-threads number needs to be positive.".into()),
+			}
 		};
 
 		Ok(conf)
@@ -809,7 +806,7 @@ impl Configuration {
 			name: self.args.flag_identity.clone(),
 			chain: self.chain(),
 			network_port: self.args.flag_port,
-			rpc_enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
+			rpc_enabled: self.rpc_enabled(),
 			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
 			rpc_port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
 		}
@@ -916,30 +913,60 @@ impl Configuration {
 		Self::interface(&self.network_settings().rpc_interface)
 	}
 
-	fn dapps_interface(&self) -> String {
-		match self.args.flag_dapps_interface.as_str() {
-			"local" => "127.0.0.1",
-			x => x,
-		}.into()
-	}
-
 	fn ipfs_interface(&self) -> String {
 		Self::interface(&self.args.flag_ipfs_api_interface)
 	}
 
 	fn secretstore_interface(&self) -> String {
-		match self.args.flag_secretstore_interface.as_str() {
-			"local" => "127.0.0.1",
-			x => x,
-		}.into()
+		Self::interface(&self.args.flag_secretstore_interface)
+	}
+
+	fn secretstore_http_interface(&self) -> String {
+		Self::interface(&self.args.flag_secretstore_http_interface)
+	}
+
+	fn secretstore_self_secret(&self) -> Result<Option<Secret>, String> {
+		match self.args.flag_secretstore_secret {
+			Some(ref s) => Ok(Some(s.parse()
+				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?)),
+			None => Ok(None),
+		}
+	}
+
+	fn secretstore_nodes(&self) -> Result<BTreeMap<Public, (String, u16)>, String> {
+		let mut nodes = BTreeMap::new();
+		for node in self.args.flag_secretstore_nodes.split(',').filter(|n| n != &"") {
+			let public_and_addr: Vec<_> = node.split('@').collect();
+			if public_and_addr.len() != 2 {
+				return Err(format!("Invalid secret store node: {}", node));
+			}
+
+			let ip_and_port: Vec<_> = public_and_addr[1].split(':').collect();
+			if ip_and_port.len() != 2 {
+				return Err(format!("Invalid secret store node: {}", node));
+			}
+
+			let public = public_and_addr[0].parse()
+				.map_err(|e| format!("Invalid public key in secret store node: {}. Error: {:?}", public_and_addr[0], e))?;
+			let port = ip_and_port[1].parse()
+				.map_err(|e| format!("Invalid port in secret store node: {}. Error: {:?}", ip_and_port[1], e))?;
+
+			nodes.insert(public, (ip_and_port[0].into(), port));
+		}
+
+		Ok(nodes)
 	}
 
 	fn stratum_interface(&self) -> String {
 		Self::interface(&self.args.flag_stratum_interface)
 	}
 
+	fn rpc_enabled(&self) -> bool {
+		!self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc
+	}
+
 	fn dapps_enabled(&self) -> bool {
-		!self.args.flag_dapps_off && !self.args.flag_no_dapps && cfg!(feature = "dapps")
+		!self.args.flag_dapps_off && !self.args.flag_no_dapps && self.rpc_enabled() && cfg!(feature = "dapps")
 	}
 
 	fn secretstore_enabled(&self) -> bool {
@@ -1209,6 +1236,8 @@ mod tests {
 			check_seal: true,
 			download_old_blocks: true,
 			verifier_settings: Default::default(),
+			serve_light: true,
+			light: false,
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));
@@ -1315,23 +1344,6 @@ mod tests {
 		assert_eq!(conf1.rpc_hosts(), Some(Vec::new()));
 		assert_eq!(conf2.rpc_hosts(), None);
 		assert_eq!(conf3.rpc_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
-	}
-
-	#[test]
-	fn should_parse_dapps_hosts() {
-		// given
-
-		// when
-		let conf0 = parse(&["parity"]);
-		let conf1 = parse(&["parity", "--dapps-hosts", "none"]);
-		let conf2 = parse(&["parity", "--dapps-hosts", "all"]);
-		let conf3 = parse(&["parity", "--dapps-hosts", "ethcore.io,something.io"]);
-
-		// then
-		assert_eq!(conf0.dapps_hosts(), Some(Vec::new()));
-		assert_eq!(conf1.dapps_hosts(), Some(Vec::new()));
-		assert_eq!(conf2.dapps_hosts(), None);
-		assert_eq!(conf3.dapps_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
 	}
 
 	#[test]

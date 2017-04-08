@@ -24,7 +24,8 @@
             "0x00a0a24b9f0e5ec7aa4c7389b8302fd0123194de"
           ]
         },
-        "validateScoreTransition": 1000000
+        "validateScoreTransition": 1000000,
+        "eip155Transition": 1000000
       }
     }
   },
