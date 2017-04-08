@@ -214,10 +214,10 @@ mod derivation {
 	use rcrypto::sha2::Sha512;
 	use bigint::hash::{H512, H256};
 	use bigint::prelude::{U256, U512, Uint};
-	use secp256k1;
 	use secp256k1::key::{SecretKey, PublicKey};
 	use SECP256K1;
 	use keccak;
+	use math::curve_order;
 	use super::{Label, Derivation};
 
 	#[derive(Debug)]
@@ -233,7 +233,7 @@ mod derivation {
 	// For hardened derivation, pass u32 index at least 2^31 or custom Derivation::Hard(T) enum
 	//
 	// Can panic if passed `private_key` is not a valid secp256k1 private key
-	// (outside of (0..curve_n()]) field
+	// (outside of (0..curve_order()]) field
 	pub fn private<T>(private_key: H256, chain_code: H256, index: Derivation<T>) -> (H256, H256) where T: Label {
 		match index {
 			Derivation::Soft(index) => private_soft(private_key, chain_code, index),
@@ -260,7 +260,7 @@ mod derivation {
 	}
 
 	// Can panic if passed `private_key` is not a valid secp256k1 private key
-	// (outside of (0..curve_n()]) field
+	// (outside of (0..curve_order()]) field
 	fn private_soft<T>(private_key: H256, chain_code: H256, index: T) -> (H256, H256) where T: Label {
 		let mut data = vec![0u8; 33 + T::len()];
 
@@ -295,7 +295,7 @@ mod derivation {
 
 	fn private_add(k1: U256, k2: U256) -> U256 {
 		let sum = U512::from(k1) + U512::from(k2);
-		modulo(sum, curve_n())
+		modulo(sum, curve_order())
 	}
 
 	// todo: surely can be optimized
@@ -303,12 +303,6 @@ mod derivation {
 		let dv = u1 / U512::from(u2);
 		let md = u1 - (dv * U512::from(u2));
 		md.into()
-	}
-
-	// returns n (for mod(n)) for the secp256k1 elliptic curve
-	// todo: maybe lazy static
-	fn curve_n() -> U256 {
-		H256::from_slice(&secp256k1::constants::CURVE_ORDER).into()
 	}
 
 	pub fn public<T>(public_key: H512, chain_code: H256, derivation: Derivation<T>) -> Result<(H512, H256), Error> where T: Label {
@@ -339,7 +333,7 @@ mod derivation {
 		let new_chain_code = H256::from(&i_512[32..64]);
 
 		// Generated private key can (extremely rarely) be out of secp256k1 key field
-		if curve_n() <= new_private.clone().into() { return Err(Error::MissingIndex); }
+		if curve_order() <= new_private.clone().into() { return Err(Error::MissingIndex); }
 		let new_private_sec = SecretKey::from_slice(&SECP256K1, &*new_private)
 			.expect("Private key belongs to the field [0..CURVE_ORDER) (checked above); So initializing can never fail; qed");
 		let mut new_public = PublicKey::from_secret_key(&SECP256K1, &new_private_sec)

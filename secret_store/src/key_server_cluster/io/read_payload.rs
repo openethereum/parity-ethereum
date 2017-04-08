@@ -16,14 +16,15 @@
 
 use std::io;
 use futures::{Poll, Future};
-use tokio_core::io::{read_exact, ReadExact};
-use ethkey::Secret;
+use tokio_io::AsyncRead;
+use tokio_io::io::{read_exact, ReadExact};
+use ethkey::KeyPair;
 use key_server_cluster::Error;
 use key_server_cluster::message::Message;
 use key_server_cluster::io::message::{MessageHeader, deserialize_message, decrypt_message};
 
 /// Create future for read single message payload from the stream.
-pub fn read_payload<A>(a: A, header: MessageHeader) -> ReadPayload<A> where A: io::Read {
+pub fn read_payload<A>(a: A, header: MessageHeader) -> ReadPayload<A> where A: AsyncRead {
 	ReadPayload {
 		reader: read_exact(a, vec![0; header.size as usize]),
 		header: header,
@@ -32,7 +33,7 @@ pub fn read_payload<A>(a: A, header: MessageHeader) -> ReadPayload<A> where A: i
 }
 
 /// Create future for read single encrypted message payload from the stream.
-pub fn read_encrypted_payload<A>(a: A, header: MessageHeader, key: Secret) -> ReadPayload<A> where A: io::Read {
+pub fn read_encrypted_payload<A>(a: A, header: MessageHeader, key: KeyPair) -> ReadPayload<A> where A: AsyncRead {
 	ReadPayload {
 		reader: read_exact(a, vec![0; header.size as usize]),
 		header: header,
@@ -44,10 +45,10 @@ pub fn read_encrypted_payload<A>(a: A, header: MessageHeader, key: Secret) -> Re
 pub struct ReadPayload<A> {
 	reader: ReadExact<A, Vec<u8>>,
 	header: MessageHeader,
-	key: Option<Secret>,
+	key: Option<KeyPair>,
 }
 
-impl<A> Future for ReadPayload<A> where A: io::Read {
+impl<A> Future for ReadPayload<A> where A: AsyncRead {
 	type Item = (A, Result<Message, Error>);
 	type Error = io::Error;
 

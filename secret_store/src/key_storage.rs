@@ -43,6 +43,8 @@ pub trait KeyStorage: Send + Sync {
 	fn insert(&self, document: DocumentAddress, key: DocumentKeyShare) -> Result<(), Error>;
 	/// Get document encryption key
 	fn get(&self, document: &DocumentAddress) -> Result<DocumentKeyShare, Error>;
+	/// Check if storage contains document encryption key
+	fn contains(&self, document: &DocumentAddress) -> bool;
 }
 
 /// Persistent document encryption keys storage
@@ -95,6 +97,12 @@ impl KeyStorage for PersistentKeyStorage {
 			.and_then(|key| serde_json::from_slice::<SerializableDocumentKeyShare>(&key).map_err(|e| Error::Database(e.to_string())))
 			.map(Into::into)
 	}
+
+	fn contains(&self, document: &DocumentAddress) -> bool {
+		self.db.get(None, document)
+			.map(|k| k.is_some())
+			.unwrap_or(false)
+	}
 }
 
 impl From<DocumentKeyShare> for SerializableDocumentKeyShare {
@@ -145,6 +153,10 @@ pub mod tests {
 
 		fn get(&self, document: &DocumentAddress) -> Result<DocumentKeyShare, Error> {
 			self.keys.read().get(document).cloned().ok_or(Error::DocumentNotFound)
+		}
+
+		fn contains(&self, document: &DocumentAddress) -> bool {
+			self.keys.read().contains_key(document)
 		}
 	}
 
