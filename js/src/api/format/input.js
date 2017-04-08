@@ -211,6 +211,7 @@ export function inTraceType (whatTrace) {
 function inDeriveType (derive) {
   return derive && derive.type === 'hard' ? 'hard' : 'soft';
 }
+
 export function inDeriveHash (derive) {
   const hash = derive && derive.hash ? derive.hash : derive;
   const type = inDeriveType(derive);
@@ -232,6 +233,7 @@ export function inDeriveIndex (derive) {
 
   return derive.map(item => {
     const index = inNumber10(item && item.index ? item.index : item);
+
     return {
       index,
       type: inDeriveType(item)
