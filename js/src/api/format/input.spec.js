@@ -16,7 +16,11 @@
 
 import BigNumber from 'bignumber.js';
 
-import { inAddress, inBlockNumber, inData, inFilter, inHex, inNumber10, inNumber16, inOptions, inTraceType } from './input';
+import {
+  inAddress, inBlockNumber, inData, inFilter, inHex,
+  inNumber10, inNumber16, inOptions, inTraceType,
+  inDeriveHash, inDeriveIndex
+} from './input';
 import { isAddress } from '../../../test/types';
 
 describe('api/format/input', () => {
@@ -215,7 +219,7 @@ describe('api/format/input', () => {
       expect(formatted.to).to.equal('');
     });
 
-    ['gas', 'gasPrice', 'value', 'minBlock', 'nonce'].forEach((input) => {
+    ['gas', 'gasPrice', 'value', 'nonce'].forEach((input) => {
       it(`formats ${input} number as hexnumber`, () => {
         const block = {};
 
@@ -226,8 +230,8 @@ describe('api/format/input', () => {
       });
     });
 
-    it('passes minBlock as null when specified as such', () => {
-      expect(inOptions({ minBlock: null })).to.deep.equal({ minBlock: null });
+    it('passes condition as null when specified as such', () => {
+      expect(inOptions({ condition: null })).to.deep.equal({ condition: null });
     });
 
     it('ignores and passes through unknown keys', () => {
@@ -270,6 +274,68 @@ describe('api/format/input', () => {
       const type = 'vmTrace';
 
       expect(inTraceType(type)).to.deep.equal([type]);
+    });
+  });
+
+  describe('inDeriveHash', () => {
+    it('returns derive hash', () => {
+      expect(inDeriveHash(1)).to.deep.equal({
+        hash: '0x1',
+        type: 'soft'
+      });
+
+      expect(inDeriveHash(null)).to.deep.equal({
+        hash: '0x',
+        type: 'soft'
+      });
+
+      expect(inDeriveHash({
+        hash: 5
+      })).to.deep.equal({
+        hash: '0x5',
+        type: 'soft'
+      });
+
+      expect(inDeriveHash({
+        hash: 5,
+        type: 'hard'
+      })).to.deep.equal({
+        hash: '0x5',
+        type: 'hard'
+      });
+    });
+  });
+
+  describe('inDeriveIndex', () => {
+    it('returns derive hash', () => {
+      expect(inDeriveIndex(null)).to.deep.equal([]);
+      expect(inDeriveIndex([])).to.deep.equal([]);
+
+      expect(inDeriveIndex([1])).to.deep.equal([{
+        index: 1,
+        type: 'soft'
+      }]);
+
+      expect(inDeriveIndex({
+        index: 1
+      })).to.deep.equal([{
+        index: 1,
+        type: 'soft'
+      }]);
+
+      expect(inDeriveIndex([{
+        index: 1,
+        type: 'hard'
+      }, 5])).to.deep.equal([
+        {
+          index: 1,
+          type: 'hard'
+        },
+        {
+          index: 5,
+          type: 'soft'
+        }
+      ]);
     });
   });
 });
