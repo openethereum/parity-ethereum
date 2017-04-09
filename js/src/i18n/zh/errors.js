@@ -15,10 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  duplicateName: `the name already exists`,
-  invalidKey: `the raw key needs to be hex, 64 characters in length and contain the prefix "0x"`,
-  noFile: `select a valid wallet file to import`,
-  noKey: `you need to provide the raw private key`,
-  noMatchPassword: `the supplied passwords does not match`,
-  noName: `you need to specify a valid name`
+  duplicateName: `名称已存在`, // the name already exists
+  invalidKey: `原始私钥需要被16进制，64个字符长度并以"0x"开头`, // the raw key needs to be hex, 64 characters in length and contain the prefix "0x"
+  noFile: `选择一个可用的钱包文件来输入`, // select a valid wallet file to import
+  noKey: `你需要提供原始私钥`, // you need to provide the raw private key
+  noMatchPassword: `所提供的密码不正确`, // the supplied passwords does not match
+  noName: `你需要明确一个可用的名称` // you need to specify a valid name
 };
