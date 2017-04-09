@@ -17,92 +17,98 @@
 export default {
   accounts: {
     button: {
-      cancel: `Cancel`,
-      execute: `Set`
+      cancel: `取消`, // Cancel
+      execute: `设定` // Set
     },
-    empty: `There are no accounts in this vault`,
-    title: `Manage Vault Accounts`
+    empty: `此保险库中没有账户`, // There are no accounts in this vault
+    title: `管理保险库账户` // Manage Vault Accounts
   },
   button: {
-    accounts: `accounts`,
-    add: `create vault`,
-    close: `close`,
-    edit: `edit`,
-    open: `open`
+    accounts: `账户`, // accounts
+    add: `创建保险库`, // create vault
+    close: `关闭`, // close
+    edit: `编辑`, // edit
+    open: `打开` // open
   },
   confirmClose: {
-    info: `You are about to close a vault. Any accounts associated with the vault won't be visible after this operation concludes. To view the associated accounts, open the vault again.`,
-    title: `Close Vault`
+    info: `你即将关闭一个保险库。所有与这个保险库相关的账户在这个操作完成后都不再可见。如果想再见到关联账户，请重新打开保险库。`,
+    // You are about to close a vault. Any accounts associated with the vault won't be visible after this operation concludes. To view 
+    // the associated accounts, open the vault again.
+    title: `关闭保险库` // Close Vault
   },
   confirmOpen: {
-    info: `You are about to open a vault. After confirming your password, all accounts associated with this vault will be visible. Closing the vault will remove the accounts from view until the vault is opened again.`,
+    info: `你即将打开一个保险库。在确认了你的密码之后，所有与这个保险库关联的账户都会可见。关闭保险库会在界面中移除所有账户，直到保险库被再次打开。`,
+    // You are about to open a vault. After confirming your password, all accounts associated with this vault will be visible. Closing 
+    // the vault will remove the accounts from view until the vault is opened again.
     password: {
-      hint: `the password specified when creating the vault`,
-      label: `vault password`
+      hint: `创建保险库时设置的密码`, // the password specified when creating the vault
+      label: `保险库密码` // vault password
     },
-    title: `Open Vault`
+    title: `打开保险库` // Open Vault
   },
   create: {
     button: {
-      close: `close`,
-      vault: `create vault`
+      close: `关闭`, // close
+      vault: `创建保险库` // create valut
     },
     description: {
-      hint: `an extended description for the vault`
+      hint: `该保险库更详细的描述` // an extended description for the vault
     },
     descriptions: {
-      label: `(optional) description`
+      label: `（可选）描述` // (optional) description
     },
     hint: {
-      hint: `(optional) a hint to help with remembering the password`,
-      label: `password hint`
+      hint: `（可选）一个帮助记忆密码的提示`, // (optional) a hint to help with remembering the password
+      label: `密码提示` // password hint
     },
     name: {
-      hint: `a name for the vault`,
-      label: `vault name`
+      hint: `一个保险库的名字`, // a name for the vault
+      label: `保险库名称` // vault name
     },
     password: {
-      hint: `a strong, unique password`,
-      label: `password`
+      hint: `一个高强度且独一无二的密码`, // a strong, unique password
+      label: `密码` // password
     },
     password2: {
-      hint: `verify your password`,
-      label: `password (repeat)`
+      hint: `验证你的密码`, // verify your password
+      label: `密码（重复）` // password (repeat)
     },
-    title: `Create a new vault`
+    title: `创建一个新的保险库` // Create a new vault
   },
   editMeta: {
-    allowPassword: `Change vault password`,
+    allowPassword: `更改保险库密码`, // Change vault password
     button: {
-      close: `close`,
-      save: `save`
+      close: `关闭`, // close
+      save: `保存` // save
     },
     currentPassword: {
-      hint: `your current vault password`,
-      label: `current password`
+      hint: `保险库的原密码`, // your current vault password
+      label: `原密码` // current password
     },
     description: {
-      hint: `the description for this vault`,
-      label: `vault description`
+      hint: `此保险库的描述`, // the description for this vault
+      label: `保险库描述` // vault description
     },
     password: {
-      hint: `a strong, unique password`,
-      label: `new password`
+      hint: `一个高强度且独一无二的密码`, // a strong, unique password
+      label: `新密码` // new password
     },
     password2: {
-      hint: `verify your new password`,
-      label: `new password (repeat)`
+      hint: `验证你的新密码`, // verify your new password
+      label: `新密码（重复）` // new password (repeat)
     },
     passwordHint: {
-      hint: `your password hint for this vault`,
-      label: `password hint`
+      hint: `此保险库的密码提示`, // your password hint for this vault
+      label: `密码提示` // password hint
     },
-    title: `Edit Vault Metadata`
+    title: `编辑保险库元数据` // Edit Vault Metadata
   },
-  empty: `There are currently no vaults to display.`,
+  empty: `目前没有任何可显示的保险库`, // There are currently no vaults to display.
   selector: {
-    noneAvailable: `There are currently no vaults opened and available for selection. Create and open some first before attempting to select a vault for an account move.`,
-    title: `Select Account Vault`
+    noneAvailable: `目前没有任何打开、可选的保险库。请在移动账户之前创建并打开一个保险库。`,
+    // There are currently no vaults opened and available for selection. Create and open some first before attempting to select 
+    // a vault for an account move.
+    title: `选择账户保险库` // Select Account Vault
   },
-  title: `Vault Management`
+  title: `保险库管理` // Vault Management
 };
