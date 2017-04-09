@@ -16,43 +16,43 @@
 
 export default {
   busy: {
-    posted: `Your transaction has been posted to the network`,
-    title: `The function execution is in progress`,
-    waitAuth: `Waiting for authorization in the Parity Signer`
+    posted: `你的交易已被公布至网络`, // Your transaction has been posted to the network
+    title: `函数执行正在进行中`, // The function execution is in progress
+    waitAuth: `正在等待Parity Signer授权` // Waiting for authorization in the Parity Signer
   },
   button: {
-    cancel: `cancel`,
-    done: `done`,
-    next: `next`,
-    post: `post transaction`,
-    prev: `prev`
+    cancel: `取消`, // cancel
+    done: `完成`, // done
+    next: `下一步`, // next
+    post: `公布交易`, // post transaction
+    prev: `上一步` // prev
   },
   details: {
     address: {
-      hint: `from account`,
-      label: `the account to transact with`
+      hint: `来自账户`, // from account
+      label: `将要交易的账户` // the account to transact with
     },
     advancedCheck: {
-      label: `advanced sending options`
+      label: `高级发送选项` // advanced sending options
     },
     amount: {
-      hint: `the amount to send to with the transaction`,
-      label: `transaction value (in ETH)`
+      hint: `此交易将会发送的数量`, // the amount to send to with the transaction
+      label: `交易价值（ETH）` // transaction value (in ETH)
     },
     function: {
-      hint: `the function to call on the contract`,
-      label: `function to execute`
+      hint: `此合约将会调用的函数`, // the function to call on the contract
+      label: `将执行的函数` // function to execute
     }
   },
   rejected: {
-    state: `You can safely close this window, the function execution will not occur.`,
-    title: `The execution has been rejected`
+    state: `你可以安全的关闭此视窗，函数将不会被执行。`, // You can safely close this window, the function execution will not occur.
+    title: `执行失败` // The execution has been rejected
   },
   steps: {
-    advanced: `advanced options`,
-    complete: `complete`,
-    rejected: `rejected`,
-    sending: `sending`,
-    transfer: `function details`
+    advanced: `高级选项`, // advanced options
+    complete: `完成`, // complete
+    rejected: `失败`, // rejected
+    sending: `发送中`, // sending
+    transfer: `函数详情` // function details
   }
 };
