@@ -16,14 +16,14 @@
 
 export default {
   button: {
-    newAccount: `account账户`,
-    newWallet: `wallet钱包`,
-    vaults: `vaults保险库`
+    newAccount: `账户`,//account
+    newWallet: `钱包`,//wallet
+    vaults: `保险库`//vaults
   },
   summary: {
-    minedBlock: `Mined at block #{blockNumber}在第#{blockNumber}个区块被挖出`
+    minedBlock: `在第#{blockNumber}个区块被挖出`//Mined at block #{blockNumber}
   },
-  title: `Accounts Overview账户改观`,
+  title: `账户总览`,//Accounts Overview
   tooltip: {
     actions: `actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item`,
     overview: `your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account`
