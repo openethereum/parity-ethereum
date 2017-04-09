@@ -16,9 +16,9 @@
 
 export default {
   password: {
-    hint: `provide the account password to confirm the account deletion`,
-    label: `account password`
+    hint: `提供账户密码，确认删除账户`,//provide the account password to confirm the account deletion
+    label: `账户密码`//account password
   },
-  question: `Are you sure you want to permanently delete the following account?`,
-  title: `confirm removal`
+  question: `你确定你想永久地删除下面的账户？`,//Are you sure you want to permanently delete the following account?
+  title: `确认删除`//confirm removal
 };
