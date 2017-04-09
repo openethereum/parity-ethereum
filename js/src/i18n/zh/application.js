@@ -16,15 +16,15 @@
 
 export default {
   frame: {
-    error: `ERROR: This application cannot and should not be loaded in an embedded iFrame`
+    error: `错误：这个应用不能也不应该载入到内置框架中`//ERROR: This application cannot and should not be loaded in an embedded iFrame
   },
   status: {
     consensus: {
       capable: `Capable`,
       capableUntil: `Capable until #{blockNumber}`,
       incapableSince: `Incapable since #{blockNumber}`,
-      unknown: `Unknown capability`
+      unknown: `Unknown capability未知的`
     },
-    upgrade: `Upgrade`
+    upgrade: `Upgrade升级`
   }
 };
