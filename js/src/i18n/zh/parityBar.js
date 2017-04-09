@@ -16,14 +16,14 @@
 
 export default {
   button: {
-    close: `Close`
+    close: `关闭` // Close
   },
   label: {
-    parity: `Parity`,
-    signer: `Signer`
+    parity: `Parity`, // Parity
+    signer: `Signer` // Singer
   },
   title: {
-    accounts: `Default Account`,
-    signer: `Parity Signer: Pending`
+    accounts: `默认账户`, // Default Account
+    signer: `Parity Signer：待处理` // Parity Signer: Pending
   }
 };
