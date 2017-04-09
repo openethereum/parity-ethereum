@@ -16,13 +16,14 @@
 
 export default {
   buttons: {
-    close: `close`,
-    done: `close`,
-    request: `request`
+    close: `关闭`,//close
+    done: `关闭`,//close
+    request: `请求`//request
   },
   summary: {
-    done: `Your Kovan ETH has been requested from the faucet which responded with -`,
-    info: `To request a deposit of Kovan ETH to this address, you need to ensure that the address is sms-verified on the mainnet. Once executed the faucet will deposit Kovan ETH into the current account.`
+    done: `你已经向水龙头请求Kovan ETH测试币`,//Your Kovan ETH has been requested from the faucet which responded with -
+    info: `如果请求将Kovan ETH测试币存入这个地址，你需要确定这个地址在主网络上已经用短信验证过了。 一旦执行水龙头将向当前账户存入Kovan ETH测试币。`
+    //To request a deposit of Kovan ETH to this address, you need to ensure that the address is sms-verified on the mainnet.Once executed the faucet will deposit Kovan ETH into the current account.
   },
-  title: `Kovan ETH Faucet`
+  title: `Kovan ETH测试币水龙头`//Kovan ETH Faucet Kovan
 };
