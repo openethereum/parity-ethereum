@@ -16,12 +16,12 @@
 
 export default {
   buttons: {
-    cancel: `Cancel`,
-    save: `Save`
+    cancel: `取消`, // Cancel
+    save: `保存` // Save
   },
   name: {
-    hint: `choose a name for this contract`,
-    label: `contract name`
+    hint: `为此合约选择一个名称`, // choose a name for this contract
+    label: `合约名称` // contract name
   },
-  title: `save contract`
+  title: `保存合约` // save contract
 };
