@@ -33,6 +33,6 @@ export default {
   url: {
     none: `没有可用的近期URL历史`, // No recent URL history available
     title: `网页应用`, // Web Applications
-    visited: `已访问{when}` // visited {when}
+    visited: `已访问{when}` //  visited {when}
   }
 };
