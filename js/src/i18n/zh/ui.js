@@ -18,56 +18,56 @@ export default {
   actionbar: {
     export: {
       button: {
-        export: `export`
+        export: `export导出`
       }
     },
     import: {
       button: {
-        cancel: `Cancel`,
-        confirm: `Confirm`,
-        import: `import`
+        cancel: `Cancel取消`,
+        confirm: `Confirm确认`,
+        import: `import导入`
       },
-      confirm: `Confirm that this is what was intended to import.`,
-      error: `An error occured: {errorText}`,
+      confirm: `Confirm that this is what was intended to import.确认这是你想导入的`,
+      error: `An error occured: {errorText}发生错误：{errorText}`,
       step: {
-        error: `error`,
-        select: `select a file`,
-        validate: `validate`
+        error: `error错误`,
+        select: `select a file选择一个文件`,
+        validate: `validate确认`
       },
-      title: `Import from a file`
+      title: `Import from a file从一个文件导入`
     },
     search: {
-      hint: `Enter search input...`
+      hint: `Enter search input...输入搜索内容……`
     },
     sort: {
-      sortBy: `Sort by {label}`,
-      typeDefault: `Default`,
-      typeEth: `Sort by ETH`,
-      typeName: `Sort by name`,
-      typeTags: `Sort by tags`
+      sortBy: `Sort by {label}根据{label}排序`,
+      typeDefault: `Default默认`,
+      typeEth: `Sort by ETH根据以太币数额排序`,
+      typeName: `Sort by name根据账户名字排序`,
+      typeTags: `Sort by tags根据标签排序`
     }
   },
   balance: {
-    none: `No balances associated with this account`
+    none: `No balances associated with this account这个账户没有余额`
   },
   blockStatus: {
-    bestBlock: `{blockNumber} best block`,
+    bestBlock: `{blockNumber} best block最新区块{blockNumber}`,
     syncStatus: `{currentBlock}/{highestBlock} syncing`,
     warpRestore: `{percentage}% warp restore`,
     warpStatus: `, {percentage}% historic`
   },
   confirmDialog: {
-    no: `no`,
-    yes: `yes`
+    no: `no不是`,
+    yes: `yes是`
   },
   copyToClipboard: {
-    copied: `copied {data} to clipboard`
+    copied: `copied {data} to clipboard复制{data}到粘贴板`
   },
   errors: {
-    close: `close`
+    close: `close关闭`
   },
   fileSelect: {
-    defaultLabel: `Drop a file here, or click to select a file to upload`
+    defaultLabel: `Drop a file here, or click to select a file to upload拉一个文件到这里，或者选择一个文件上传`
   },
   gasPriceSelector: {
     customTooltip: {
@@ -75,8 +75,8 @@ export default {
     }
   },
   identityName: {
-    null: `NULL`,
-    unnamed: `UNNAMED`
+    null: `NULL空`,
+    unnamed: `UNNAMED未命名`
   },
   methodDecoding: {
     condition: {
@@ -92,12 +92,12 @@ export default {
     gasUsed: `({gas} gas used)`,
     gasValues: `{gas} gas ({gasPrice}M/{tag})`,
     input: {
-      data: `data`,
-      input: `input`,
+      data: `data数据`,
+      input: `input输入`,
       withInput: `with the {inputDesc} {inputValue}`
     },
     receive: {
-      contract: `the contract`,
+      contract: `the contract合约`,
       info: `{historic, select, true {Received} false {Will receive}} {valueEth} from {aContract}{address}`
     },
     signature: {
@@ -116,13 +116,13 @@ export default {
     }
   },
   passwordStrength: {
-    label: `password strength`
+    label: `password strength密码强度`
   },
   tooltips: {
     button: {
-      done: `Done`,
-      next: `Next`,
-      skip: `Skip`
+      done: `Done完成`,
+      next: `Next下一步`,
+      skip: `Skip跳过`
     }
   },
   txHash: {
@@ -138,26 +138,26 @@ export default {
   verification: {
     gatherData: {
       accountHasRequested: {
-        false: `You did not request verification from this account yet.`,
-        pending: `Checking if you requested verification…`,
+        false: `You did not request verification from this account yet.你还没有从这个账户请求确认。`,
+        pending: `Checking if you requested verification…检查一下你是否请求了验证……`,
         true: `You already requested verification from this account.`
       },
       accountIsVerified: {
-        false: `Your account is not verified yet.`,
-        pending: `Checking if your account is verified…`,
-        true: `Your account is already verified.`
+        false: `Your account is not verified yet.你的账户还没有被验证。`,
+        pending: `Checking if your account is verified…检查一下你的账户是否已经被验证……`,
+        true: `Your account is already verified.你的账户已经被验证。`
       },
-      fee: `The additional fee is {amount} ETH.`,
+      fee: `The additional fee is {amount} ETH.额外的费用是{amount}ETH`,
       isAbleToRequest: {
-        pending: `Validating your input…`
+        pending: `Validating your input…验证你的输入……`
       },
       isServerRunning: {
-        false: `The verification server is not running.`,
-        pending: `Checking if the verification server is running…`,
-        true: `The verification server is running.`
+        false: `The verification server is not running.验证服务器没有在运行。`,
+        pending: `Checking if the verification server is running…检查一下验证服务器是否在运行……`,
+        true: `The verification server is running.验证服务器正在运行。`
       },
-      nofee: `There is no additional fee.`,
-      termsOfService: `I agree to the terms and conditions below.`
+      nofee: `There is no additional fee.没有额外的费用。`,
+      termsOfService: `I agree to the terms and conditions below.我同意下面的条款和条件。`
     }
   }
 };
