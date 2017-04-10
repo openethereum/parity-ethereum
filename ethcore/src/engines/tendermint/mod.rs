@@ -468,12 +468,12 @@ impl Engine for Tendermint {
 		if !self.votes.is_old_or_known(&message) {
 			let sender = public_to_address(&recover(&message.signature.into(), &rlp.at(1)?.as_raw().sha3())?);
 			if !self.is_authority(&sender) {
-				return Err(From::from(EngineError::NotAuthorized(sender)));
+				return Err(EngineError::NotAuthorized(sender).into());
 			}
 			self.broadcast_message(rlp.as_raw().to_vec());
 			if self.votes.vote(message.clone(), &sender).is_some() {
 				self.validators.report_malicious(&sender);
-				return Err(From::from(EngineError::DoubleVote(sender)));
+				return Err(EngineError::DoubleVote(sender).into());
 			}
 			trace!(target: "engine", "Handling a valid {:?} from {}.", message, sender);
 			self.handle_valid_message(&message);
@@ -499,16 +499,16 @@ impl Engine for Tendermint {
 		if seal_length == self.seal_fields() {
 			// Either proposal or commit.
 			if (header.seal()[1] == ::rlp::NULL_RLP.to_vec())
-				^ (header.seal()[2] == ::rlp::EMPTY_LIST_RLP.to_vec()) {
+				!= (header.seal()[2] == ::rlp::EMPTY_LIST_RLP.to_vec()) {
 				Ok(())
 			} else {
 				warn!(target: "engine", "verify_block_basic: Block is neither a Commit nor Proposal.");
-				Err(From::from(BlockError::InvalidSeal))
+				Err(BlockError::InvalidSeal.into())
 			}
 		} else {
-			Err(From::from(BlockError::InvalidSealArity(
+			Err(BlockError::InvalidSealArity(
 				Mismatch { expected: self.seal_fields(), found: seal_length }
-			)))
+			).into())
 		}
 	}
 
@@ -519,13 +519,13 @@ impl Engine for Tendermint {
 	/// Verify validators and gas limit.
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		if header.number() == 0 {
-			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
+			return Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() }).into());
 		}
 
 		if let Ok(proposal) = ConsensusMessage::new_proposal(header) {
 			let proposer = proposal.verify()?;
 			if !self.is_authority(&proposer) {
-				return Err(From::from(EngineError::NotAuthorized(proposer)));
+				return Err(EngineError::NotAuthorized(proposer).into());
 			}
 			self.check_view_proposer(header.parent_hash(), proposal.vote_step.height, proposal.vote_step.view, &proposer)?;
 		} else {
@@ -544,12 +544,12 @@ impl Engine for Tendermint {
 					None => public_to_address(&recover(&precommit.signature.into(), &precommit_hash)?),
 				};
 				if !self.validators.contains(header.parent_hash(), &address) {
-					return Err(From::from(EngineError::NotAuthorized(address.to_owned())));
+					return Err(EngineError::NotAuthorized(address.to_owned()).into());
 				}
 
 				if !origins.insert(address) {
 					warn!(target: "engine", "verify_block_unordered: Duplicate signature from {} on the seal.", address);
-					return Err(From::from(BlockError::InvalidSeal));
+					return Err(BlockError::InvalidSeal.into());
 				}
 			}
 
@@ -561,7 +561,7 @@ impl Engine for Tendermint {
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
 			self.validators.report_malicious(header.author());
-			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
+			return Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() }).into());
 		}
 
 		Ok(())
