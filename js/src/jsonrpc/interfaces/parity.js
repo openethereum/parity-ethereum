@@ -726,34 +726,6 @@ export default {
     }
   },
 
-  removeTransaction: {
-    section: SECTION_ACCOUNTS,
-    desc: 'Cancel a pending transaction. If the transaction has already been pushed to the network, there is no guarantee that the transaction can be removed.',
-    params: [
-      {
-        type: Data,
-        desc: 'transactionId, 32-byte hex',
-        example: '0x1db2c0cf57505d0f4a3d589414f0a0025ca97421d2cd596a9486bc7e2cd2bf8b'
-      }
-    ],
-    returns: {
-      type: Object,
-      desc: 'the removed transaction if found, an error if not. There is no guarantee that the transaction can be removed.',
-      example: {
-        condition: {},
-        from: '0x00d0f4d320c54b44f9fe852af1215a528c99f1ab',
-        gas: '0x5208',
-        gasPrice: '0x2540be400',
-        hash: '0x9f771b70b3d33eae61064432f7398593d28d7bfa49004bc43004dfbe0777ab0e',
-        input: '0x',
-        networkId: 42,
-        nonce: '0x10',
-        to: '0x00a3755a680f9b906a4465923ea5ad3c960ddcec',
-        value: '0xde0b6b3a7640000'
-      }
-    }
-  },
-
   registryAddress: {
     section: SECTION_NET,
     desc: 'The address for the global registry.',
