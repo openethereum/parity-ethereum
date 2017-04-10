@@ -94,6 +94,7 @@ usage! {
 		flag_chain: String = "foundation", or |c: &Config| otry!(c.parity).chain.clone(),
 		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
+		flag_light: bool = false, or |c: &Config| otry!(c.parity).light,
 
 		// -- Account Options
 		flag_unlock: Option<String> = None,
@@ -149,6 +150,8 @@ usage! {
 		flag_reserved_only: bool = false,
 			or |c: &Config| otry!(c.network).reserved_only.clone(),
 		flag_no_ancient_blocks: bool = false, or |_| None,
+		flag_no_serve_light: bool = false,
+			or |c: &Config| otry!(c.network).no_serve_light.clone(),
 
 		// -- API and Console Options
 		// RPC
@@ -184,10 +187,18 @@ usage! {
 		// Secret Store
 		flag_no_secretstore: bool = false,
 			or |c: &Config| otry!(c.secretstore).disable.clone(),
-		flag_secretstore_port: u16 = 8082u16,
-			or |c: &Config| otry!(c.secretstore).port.clone(),
+		flag_secretstore_secret: Option<String> = None,
+			or |c: &Config| otry!(c.secretstore).self_secret.clone().map(Some),
+		flag_secretstore_nodes: String = "",
+			or |c: &Config| otry!(c.secretstore).nodes.as_ref().map(|vec| vec.join(",")),
 		flag_secretstore_interface: String = "local",
 			or |c: &Config| otry!(c.secretstore).interface.clone(),
+		flag_secretstore_port: u16 = 8083u16,
+			or |c: &Config| otry!(c.secretstore).port.clone(),
+		flag_secretstore_http_interface: String = "local",
+			or |c: &Config| otry!(c.secretstore).http_interface.clone(),
+		flag_secretstore_http_port: u16 = 8082u16,
+			or |c: &Config| otry!(c.secretstore).http_port.clone(),
 		flag_secretstore_path: String = "$BASE/secretstore",
 			or |c: &Config| otry!(c.secretstore).path.clone(),
 
@@ -379,6 +390,7 @@ struct Operating {
 	db_path: Option<String>,
 	keys_path: Option<String>,
 	identity: Option<String>,
+	light: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -414,6 +426,7 @@ struct Network {
 	node_key: Option<String>,
 	reserved_peers: Option<String>,
 	reserved_only: Option<bool>,
+	no_serve_light: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -449,8 +462,12 @@ struct Dapps {
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
 struct SecretStore {
 	disable: Option<bool>,
-	port: Option<u16>,
+	self_secret: Option<String>,
+	nodes: Option<Vec<String>>,
 	interface: Option<String>,
+	port: Option<u16>,
+	http_interface: Option<String>,
+	http_port: Option<u16>,
 	path: Option<String>,
 }
 
@@ -639,6 +656,7 @@ mod tests {
 			flag_db_path: Some("$HOME/.parity/chains".into()),
 			flag_keys_path: "$HOME/.parity/keys".into(),
 			flag_identity: "".into(),
+			flag_light: false,
 
 			// -- Account Options
 			flag_unlock: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
@@ -669,6 +687,7 @@ mod tests {
 			flag_reserved_peers: Some("./path_to_file".into()),
 			flag_reserved_only: false,
 			flag_no_ancient_blocks: false,
+			flag_no_serve_light: false,
 
 			// -- API and Console Options
 			// RPC
@@ -690,8 +709,12 @@ mod tests {
 			flag_no_dapps: false,
 
 			flag_no_secretstore: false,
-			flag_secretstore_port: 8082u16,
+			flag_secretstore_secret: None,
+			flag_secretstore_nodes: "".into(),
 			flag_secretstore_interface: "local".into(),
+			flag_secretstore_port: 8083u16,
+			flag_secretstore_http_interface: "local".into(),
+			flag_secretstore_http_port: 8082u16,
 			flag_secretstore_path: "$HOME/.parity/secretstore".into(),
 
 			// IPFS
@@ -844,6 +867,7 @@ mod tests {
 				db_path: None,
 				keys_path: None,
 				identity: None,
+				light: None,
 			}),
 			account: Some(Account {
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),
@@ -873,6 +897,7 @@ mod tests {
 				node_key: None,
 				reserved_peers: Some("./path/to/reserved_peers".into()),
 				reserved_only: Some(true),
+				no_serve_light: None,
 			}),
 			rpc: Some(Rpc {
 				disable: Some(true),
@@ -900,8 +925,12 @@ mod tests {
 			}),
 			secretstore: Some(SecretStore {
 				disable: None,
-				port: Some(8082),
+				self_secret: None,
+				nodes: None,
 				interface: None,
+				port: Some(8083),
+				http_interface: None,
+				http_port: Some(8082),
 				path: None,
 			}),
 			ipfs: Some(Ipfs {

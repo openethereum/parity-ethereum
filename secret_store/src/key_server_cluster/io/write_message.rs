@@ -16,13 +16,14 @@
 
 use std::io;
 use futures::{Future, Poll};
-use tokio_core::io::{WriteAll, write_all};
-use ethkey::Secret;
+use tokio_io::AsyncWrite;
+use tokio_io::io::{WriteAll, write_all};
+use ethkey::KeyPair;
 use key_server_cluster::message::Message;
 use key_server_cluster::io::{serialize_message, encrypt_message};
 
 /// Write plain message to the channel.
-pub fn write_message<A>(a: A, message: Message) -> WriteMessage<A> where A: io::Write {
+pub fn write_message<A>(a: A, message: Message) -> WriteMessage<A> where A: AsyncWrite {
 	let (error, future) = match serialize_message(message)
 		.map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string())) {
 		Ok(message) => (None, write_all(a, message.into())),
@@ -35,7 +36,7 @@ pub fn write_message<A>(a: A, message: Message) -> WriteMessage<A> where A: io::
 }
 
 /// Write encrypted message to the channel.
-pub fn write_encrypted_message<A>(a: A, key: &Secret, message: Message) -> WriteMessage<A> where A: io::Write {
+pub fn write_encrypted_message<A>(a: A, key: &KeyPair, message: Message) -> WriteMessage<A> where A: AsyncWrite {
 	let (error, future) = match serialize_message(message)
 		.and_then(|message| encrypt_message(key, message))
 		.map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string())) {
@@ -56,7 +57,7 @@ pub struct WriteMessage<A> {
 	future: WriteAll<A, Vec<u8>>,
 }
 
-impl<A> Future for WriteMessage<A> where A: io::Write {
+impl<A> Future for WriteMessage<A> where A: AsyncWrite {
 	type Item = (A, Vec<u8>);
 	type Error = io::Error;
 

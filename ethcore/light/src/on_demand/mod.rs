@@ -37,7 +37,7 @@ use rlp::RlpStream;
 use util::{Bytes, RwLock, Mutex, U256, H256};
 use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
 
-use net::{Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
+use net::{self, Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
 use cache::Cache;
 use request::{self as basic_request, Request as NetworkRequest, Response as NetworkResponse};
 
@@ -57,15 +57,15 @@ impl Peer {
 				self.capabilities.serve_headers && self.status.head_num > req.num(),
 			Pending::HeaderByHash(_, _) => self.capabilities.serve_headers,
 			Pending::Block(ref req, _) =>
-				self.capabilities.serve_chain_since.as_ref().map_or(false, |x| *x >= req.header.number()),
+				self.capabilities.serve_chain_since.as_ref().map_or(false, |x| *x <= req.header.number()),
 			Pending::BlockReceipts(ref req, _) =>
-				self.capabilities.serve_chain_since.as_ref().map_or(false, |x| *x >= req.0.number()),
+				self.capabilities.serve_chain_since.as_ref().map_or(false, |x| *x <= req.0.number()),
 			Pending::Account(ref req, _) =>
-				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= req.header.number()),
+				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x <= req.header.number()),
 			Pending::Code(ref req, _) =>
-				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= req.block_id.1),
+				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x <= req.block_id.1),
 			Pending::TxProof(ref req, _) =>
-				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= req.header.number()),
+				self.capabilities.serve_state_since.as_ref().map_or(false, |x| *x <= req.header.number()),
 		}
 	}
 }
@@ -210,7 +210,7 @@ impl OnDemand {
 	/// it as easily.
 	pub fn header_by_hash(&self, ctx: &BasicContext, req: request::HeaderByHash) -> Receiver<encoded::Header> {
 		let (sender, receiver) = oneshot::channel();
-		match self.cache.lock().block_header(&req.0) {
+		match { self.cache.lock().block_header(&req.0) } {
 			Some(hdr) => sender.send(hdr).expect(RECEIVER_IN_SCOPE),
 			None => self.dispatch(ctx, Pending::HeaderByHash(req, sender)),
 		}
@@ -232,11 +232,13 @@ impl OnDemand {
 
 			sender.send(encoded::Block::new(stream.out())).expect(RECEIVER_IN_SCOPE);
 		} else {
-			match self.cache.lock().block_body(&req.hash) {
+			match { self.cache.lock().block_body(&req.hash) } {
 				Some(body) => {
 					let mut stream = RlpStream::new_list(3);
+					let body = body.rlp();
 					stream.append_raw(&req.header.into_inner(), 1);
-					stream.append_raw(&body.into_inner(), 2);
+					stream.append_raw(&body.at(0).as_raw(), 1);
+					stream.append_raw(&body.at(1).as_raw(), 1);
 
 					sender.send(encoded::Block::new(stream.out())).expect(RECEIVER_IN_SCOPE);
 				}
@@ -255,7 +257,7 @@ impl OnDemand {
 		if req.0.receipts_root() == SHA3_NULL_RLP {
 			sender.send(Vec::new()).expect(RECEIVER_IN_SCOPE);
 		} else {
-			match self.cache.lock().block_receipts(&req.0.hash()) {
+			match { self.cache.lock().block_receipts(&req.0.hash()) } {
 				Some(receipts) => sender.send(receipts).expect(RECEIVER_IN_SCOPE),
 				None => self.dispatch(ctx, Pending::BlockReceipts(req, sender)),
 			}
@@ -303,23 +305,26 @@ impl OnDemand {
 
 		let complete = builder.build();
 
+		let kind = complete.requests()[0].kind();
 		for (id, peer) in self.peers.read().iter() {
 			if !peer.can_handle(&pending) { continue }
 			match ctx.request_from(*id, complete.clone()) {
 				Ok(req_id) => {
-					trace!(target: "on_demand", "Assigning request to peer {}", id);
+					trace!(target: "on_demand", "{}: Assigned {:?} to peer {}",
+						req_id, kind, id);
+
 					self.pending_requests.write().insert(
 						req_id,
 						pending,
 					);
 					return
 				}
+				Err(net::Error::NoCredits) => {}
 				Err(e) =>
 					trace!(target: "on_demand", "Failed to make request of peer {}: {:?}", id, e),
 			}
 		}
 
-		trace!(target: "on_demand", "No suitable peer for request");
 		self.orphaned_requests.write().push(pending);
 	}
 
@@ -353,6 +358,7 @@ impl OnDemand {
 
 		let to_dispatch = ::std::mem::replace(&mut *self.orphaned_requests.write(), Vec::new());
 
+		trace!(target: "on_demand", "Attempting to dispatch {} orphaned requests.", to_dispatch.len());
 		for mut orphaned in to_dispatch {
 			let hung_up = match orphaned {
 				Pending::HeaderProof(_, ref mut sender) => match *sender {
@@ -397,10 +403,12 @@ impl Handler for OnDemand {
 	}
 
 	fn on_announcement(&self, ctx: &EventContext, announcement: &Announcement) {
-		let mut peers = self.peers.write();
-		if let Some(ref mut peer) = peers.get_mut(&ctx.peer()) {
-			peer.status.update_from(&announcement);
-			peer.capabilities.update_from(&announcement);
+		{
+			let mut peers = self.peers.write();
+			if let Some(ref mut peer) = peers.get_mut(&ctx.peer()) {
+				peer.status.update_from(&announcement);
+				peer.capabilities.update_from(&announcement);
+			}
 		}
 
 		self.dispatch_orphaned(ctx.as_basic());
@@ -422,6 +430,8 @@ impl Handler for OnDemand {
 			}
 		};
 
+		trace!(target: "on_demand", "Handling response for request {}, kind={:?}", req_id, response.kind());
+
 		// handle the response appropriately for the request.
 		// all branches which do not return early lead to disabling of the peer
 		// due to misbehavior.
@@ -441,7 +451,7 @@ impl Handler for OnDemand {
 							}
 							return
 						}
-						Err(e) => warn!("Error handling response for header request: {:?}", e),
+						Err(e) => warn!(target: "on_demand", "Error handling response for header request: {:?}", e),
 					}
 				}
 			}
@@ -454,7 +464,7 @@ impl Handler for OnDemand {
 								let _ = sender.send(header);
 								return
 							}
-							Err(e) => warn!("Error handling response for header request: {:?}", e),
+							Err(e) => warn!(target: "on_demand", "Error handling response for header request: {:?}", e),
 						}
 					}
 				}
@@ -467,7 +477,7 @@ impl Handler for OnDemand {
 							let _ = sender.send(block);
 							return
 						}
-						Err(e) => warn!("Error handling response for block request: {:?}", e),
+						Err(e) => warn!(target: "on_demand", "Error handling response for block request: {:?}", e),
 					}
 				}
 			}
@@ -480,7 +490,7 @@ impl Handler for OnDemand {
 							let _ = sender.send(receipts);
 							return
 						}
-						Err(e) => warn!("Error handling response for receipts request: {:?}", e),
+						Err(e) => warn!(target: "on_demand", "Error handling response for receipts request: {:?}", e),
 					}
 				}
 			}
@@ -493,7 +503,7 @@ impl Handler for OnDemand {
 							let _ = sender.send(maybe_account);
 							return
 						}
-						Err(e) => warn!("Error handling response for state request: {:?}", e),
+						Err(e) => warn!(target: "on_demand", "Error handling response for state request: {:?}", e),
 					}
 				}
 			}
@@ -504,7 +514,7 @@ impl Handler for OnDemand {
 							let _ = sender.send(response.code.clone());
 							return
 						}
-						Err(e) => warn!("Error handling response for code request: {:?}", e),
+						Err(e) => warn!(target: "on_demand", "Error handling response for code request: {:?}", e),
 					}
 				}
 			}
@@ -519,7 +529,7 @@ impl Handler for OnDemand {
 							let _ = sender.send(Err(err));
 							return
 						}
-						ProvedExecution::BadProof => warn!("Error handling response for transaction proof request"),
+						ProvedExecution::BadProof => warn!(target: "on_demand", "Error handling response for transaction proof request"),
 					}
 				}
 			}
