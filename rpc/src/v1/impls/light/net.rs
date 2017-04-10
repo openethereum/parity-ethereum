@@ -15,39 +15,35 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Net rpc implementation.
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use jsonrpc_core::Error;
-use ethsync::SyncProvider;
+use ethsync::LightSyncProvider;
 use v1::traits::Net;
 
 /// Net rpc implementation.
 pub struct NetClient<S: ?Sized> {
-	sync: Weak<S>
+	sync: Arc<S>
 }
 
-impl<S: ?Sized> NetClient<S> where S: SyncProvider {
+impl<S: ?Sized> NetClient<S> where S: LightSyncProvider {
 	/// Creates new NetClient.
-	pub fn new(sync: &Arc<S>) -> Self {
+	pub fn new(sync: Arc<S>) -> Self {
 		NetClient {
-			sync: Arc::downgrade(sync)
+			sync: sync,
 		}
 	}
 }
 
-impl<S: ?Sized> Net for NetClient<S> where S: SyncProvider + 'static {
+impl<S: ?Sized + Sync + Send + 'static> Net for NetClient<S> where S: LightSyncProvider {
 	fn version(&self) -> Result<String, Error> {
-		Ok(format!("{}", take_weak!(self.sync).status().network_id).to_owned())
+		Ok(format!("{}", self.sync.network_id()).to_owned())
 	}
 
 	fn peer_count(&self) -> Result<String, Error> {
-		Ok(format!("0x{:x}", take_weak!(self.sync).status().num_peers as u64).to_owned())
+		Ok(format!("0x{:x}", self.sync.peer_numbers().connected as u64).to_owned())
 	}
 
 	fn is_listening(&self) -> Result<bool, Error> {
-		// right now (11 march 2016), we are always listening for incoming connections
-		//
-		// (this may not be true now -- 26 september 2016)
 		Ok(true)
 	}
-
 }

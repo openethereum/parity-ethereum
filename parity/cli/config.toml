@@ -38,7 +38,8 @@ user = "username"
 pass = "password"
 
 [secretstore]
-port = 8082
+http_port = 8082
+port = 8083
 
 [ipfs]
 enable = false

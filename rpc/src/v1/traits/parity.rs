@@ -198,5 +198,9 @@ build_rpc_trait! {
 		/// Get node kind info.
 		#[rpc(name = "parity_nodeKind")]
 		fn node_kind(&self) -> Result<::v1::types::NodeKind, Error>;
+
+		/// Get IPFS CIDv0 given protobuf encoded bytes.
+		#[rpc(name = "parity_cidV0")]
+		fn ipfs_cid(&self, Bytes) -> Result<String, Error>;
 	}
 }

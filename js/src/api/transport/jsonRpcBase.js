@@ -80,12 +80,16 @@ export default class JsonRpcBase extends EventEmitter {
         const res = middleware.handle(method, params);
 
         if (res != null) {
-          const result = this._wrapSuccessResult(res);
-          const json = this.encode(method, params);
+          // If `res` isn't a promise, we need to wrap it
+          return Promise.resolve(res)
+            .then((res) => {
+              const result = this._wrapSuccessResult(res);
+              const json = this.encode(method, params);
 
-          Logging.send(method, params, { json, result });
+              Logging.send(method, params, { json, result });
 
-          return res;
+              return res;
+            });
         }
       }
 
