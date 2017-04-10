@@ -37,6 +37,7 @@ export default class Store {
   @action removeHash = (hash) => {
     this.sortedHashes.remove(hash);
     let tx = this.transactions[hash];
+    
     if (tx) {
       delete this.transactions[hash];
       delete this.blocks[tx.blockNumber];
