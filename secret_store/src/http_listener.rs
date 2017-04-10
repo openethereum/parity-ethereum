@@ -21,11 +21,13 @@ use hyper::method::Method as HttpMethod;
 use hyper::status::StatusCode as HttpStatusCode;
 use hyper::server::{Server as HttpServer, Request as HttpRequest, Response as HttpResponse, Handler as HttpHandler,
 	Listening as HttpListening};
+use serde_json;
 use url::percent_encoding::percent_decode;
 
 use util::ToPretty;
 use traits::KeyServer;
-use types::all::{Error, ServiceConfiguration, RequestSignature, DocumentAddress, DocumentEncryptedKey};
+use serialization::SerializableDocumentEncryptedKeyShadow;
+use types::all::{Error, ServiceConfiguration, RequestSignature, DocumentAddress, DocumentEncryptedKey, DocumentEncryptedKeyShadow};
 
 /// Key server http-requests listener
 pub struct KeyServerHttpListener<T: KeyServer + 'static> {
@@ -42,6 +44,8 @@ enum Request {
 	GenerateDocumentKey(DocumentAddress, RequestSignature, usize),
 	/// Request encryption key of given document for given requestor.
 	GetDocumentKey(DocumentAddress, RequestSignature),
+	/// Request shadow of encryption key of given document for given requestor.
+	GetDocumentKeyShadow(DocumentAddress, RequestSignature),
 }
 
 /// Cloneable http handler
@@ -83,6 +87,10 @@ impl<T> KeyServer for KeyServerHttpListener<T> where T: KeyServer + 'static {
 	fn document_key(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKey, Error> {
 		self.handler.key_server.document_key(signature, document)
 	}
+
+	fn document_key_shadow(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKeyShadow, Error> {
+		self.handler.key_server.document_key_shadow(signature, document)
+	}
 }
 
 impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
@@ -111,6 +119,34 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 							err
 						}));
 				},
+				Request::GetDocumentKeyShadow(document, signature) => {
+					match self.handler.key_server.document_key_shadow(&signature, &document)
+						.map_err(|err| {
+							warn!(target: "secretstore", "GetDocumentKeyShadow request {} has failed with: {}", req_uri, err);
+							err
+						}) {
+						Ok(document_key_shadow) => {
+							let document_key_shadow = SerializableDocumentEncryptedKeyShadow {
+								decrypted_secret: document_key_shadow.decrypted_secret.into(),
+								common_point: document_key_shadow.common_point.expect("always filled when requesting document_key_shadow; qed").into(),
+								decrypt_shadows: document_key_shadow.decrypt_shadows.expect("always filled when requesting document_key_shadow; qed").into_iter().map(Into::into).collect(),
+							};
+							match serde_json::to_vec(&document_key_shadow) {
+								Ok(document_key) => {
+									res.headers_mut().set(header::ContentType::json());
+									if let Err(err) = res.send(&document_key) {
+										// nothing to do, but to log an error
+										warn!(target: "secretstore", "response to request {} has failed with: {}", req.uri, err);
+									}
+								},
+								Err(err) => {
+									warn!(target: "secretstore", "response to request {} has failed with: {}", req.uri, err);
+								}
+							}
+						},
+						Err(err) => return_error(res, err),
+					}
+				},
 				Request::Invalid => {
 					warn!(target: "secretstore", "Ignoring invalid {}-request {}", req_method, req_uri);
 					*res.status_mut() = HttpStatusCode::BadRequest;
@@ -134,11 +170,17 @@ fn return_document_key(req: HttpRequest, mut res: HttpResponse, document_key: Re
 				warn!(target: "secretstore", "response to request {} has failed with: {}", req.uri, err);
 			}
 		},
-		Err(Error::BadSignature) => *res.status_mut() = HttpStatusCode::BadRequest,
-		Err(Error::AccessDenied) => *res.status_mut() = HttpStatusCode::Forbidden,
-		Err(Error::DocumentNotFound) => *res.status_mut() = HttpStatusCode::NotFound,
-		Err(Error::Database(_)) => *res.status_mut() = HttpStatusCode::InternalServerError,
-		Err(Error::Internal(_)) => *res.status_mut() = HttpStatusCode::InternalServerError,
+		Err(err) => return_error(res, err),
+	}
+}
+
+fn return_error(mut res: HttpResponse, err: Error) {
+	match err {
+		Error::BadSignature => *res.status_mut() = HttpStatusCode::BadRequest,
+		Error::AccessDenied => *res.status_mut() = HttpStatusCode::Forbidden,
+		Error::DocumentNotFound => *res.status_mut() = HttpStatusCode::NotFound,
+		Error::Database(_) => *res.status_mut() = HttpStatusCode::InternalServerError,
+		Error::Internal(_) => *res.status_mut() = HttpStatusCode::InternalServerError,
 	}
 }
 
@@ -149,17 +191,27 @@ fn parse_request(method: &HttpMethod, uri_path: &str) -> Request {
 	};
 
 	let path: Vec<String> = uri_path.trim_left_matches('/').split('/').map(Into::into).collect();
-	if path.len() < 2 || path[0].is_empty() || path[1].is_empty() {
+	if path.len() == 0 {
+		return Request::Invalid;
+	}
+	let (args_prefix, args_offset) = if &path[0] == "shadow" {
+		("shadow", 1)
+	} else {
+		("", 0)
+	};
+
+	if path.len() < 2 + args_offset || path[args_offset].is_empty() || path[args_offset + 1].is_empty() {
 		return Request::Invalid;
 	}
 
 	let args_len = path.len();
-	let document = path[0].parse();
-	let signature = path[1].parse();
-	let threshold = (if args_len > 2 { &path[2] } else { "" }).parse();
-	match (args_len, method, document, signature, threshold) {
-		(3, &HttpMethod::Post, Ok(document), Ok(signature), Ok(threshold)) => Request::GenerateDocumentKey(document, signature, threshold),
-		(2, &HttpMethod::Get, Ok(document), Ok(signature), _) => Request::GetDocumentKey(document, signature),
+	let document = path[args_offset].parse();
+	let signature = path[args_offset + 1].parse();
+	let threshold = (if args_len > args_offset + 2 { &path[args_offset + 2] } else { "" }).parse();
+	match (args_prefix, args_len, method, document, signature, threshold) {
+		("",		3, &HttpMethod::Post, Ok(document), Ok(signature), Ok(threshold)) => Request::GenerateDocumentKey(document, signature, threshold),
+		("",		2, &HttpMethod::Get, Ok(document), Ok(signature), _) => Request::GetDocumentKey(document, signature),
+		("shadow",	3, &HttpMethod::Get, Ok(document), Ok(signature), _) => Request::GetDocumentKeyShadow(document, signature),
 		_ => Request::Invalid,
 	}
 }

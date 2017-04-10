@@ -20,7 +20,10 @@ use std::ops::Deref;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde_json;
 use ethcrypto::ecdh::agree;
-use ethkey::{Public, Secret};
+use ethcrypto::ecies::{encrypt_single_message, decrypt_single_message};
+use ethkey::{Public, Secret, KeyPair};
+use ethkey::math::curve_order;
+use util::{H256, U256};
 use key_server_cluster::Error;
 use key_server_cluster::message::{Message, ClusterMessage, EncryptionMessage, DecryptionMessage};
 
@@ -82,20 +85,11 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 	};
 
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;
-	let payload_len = payload.len();
-	if payload_len > u16::MAX as usize {
-		return Err(Error::InvalidMessage);
-	}
-
-	let header = MessageHeader {
+	build_serialized_message(MessageHeader {
 		kind: message_kind,
 		version: 1,
-		size: payload_len as u16,
-	};
-
-	let mut serialized_message = serialize_header(&header)?;
-	serialized_message.extend(payload);
-	Ok(SerializedMessage(serialized_message))
+		size: 0,
+	}, payload)
 }
 
 /// Deserialize message.
@@ -127,18 +121,30 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 }
 
 /// Encrypt serialized message.
-pub fn encrypt_message(_key: &Secret, message: SerializedMessage) -> Result<SerializedMessage, Error> {
-	Ok(message) // TODO: implement me
+pub fn encrypt_message(key: &KeyPair, message: SerializedMessage) -> Result<SerializedMessage, Error> {
+	let mut header: Vec<_> = message.into();
+	let payload = header.split_off(MESSAGE_HEADER_SIZE);
+	let encrypted_payload = encrypt_single_message(key.public(), &payload)?;
+
+	let header = deserialize_header(&header)?;
+	build_serialized_message(header, encrypted_payload)
 }
 
 /// Decrypt serialized message.
-pub fn decrypt_message(_key: &Secret, payload: Vec<u8>) -> Result<Vec<u8>, Error> {
-	Ok(payload) // TODO: implement me
+pub fn decrypt_message(key: &KeyPair, payload: Vec<u8>) -> Result<Vec<u8>, Error> {
+	Ok(decrypt_single_message(key.secret(), &payload)?)
 }
 
 /// Compute shared encryption key.
-pub fn compute_shared_key(self_secret: &Secret, other_public: &Public) -> Result<Secret, Error> {
-	Ok(agree(self_secret, other_public)?)
+pub fn compute_shared_key(self_secret: &Secret, other_public: &Public) -> Result<KeyPair, Error> {
+	// secret key created in agree function is invalid, as it is not calculated mod EC.field.n
+	// => let's do it manually
+	let shared_secret = agree(self_secret, other_public)?;
+	let shared_secret: H256 = (*shared_secret).into();
+	let shared_secret: U256 = shared_secret.into();
+	let shared_secret: H256 = (shared_secret % curve_order()).into();
+	let shared_key_pair = KeyPair::from_secret_slice(&*shared_secret)?;
+	Ok(shared_key_pair)
 }
 
 /// Serialize message header.
@@ -160,29 +166,44 @@ pub fn deserialize_header(data: &[u8]) -> Result<MessageHeader, Error> {
 	})
 }
 
+/// Build serialized message from header && payload
+fn build_serialized_message(mut header: MessageHeader, payload: Vec<u8>) -> Result<SerializedMessage, Error> {
+	let payload_len = payload.len();
+	if payload_len > u16::MAX as usize {
+		return Err(Error::InvalidMessage);
+	}
+	header.size = payload.len() as u16;
+
+	let mut message = serialize_header(&header)?;
+	message.extend(payload);
+	Ok(SerializedMessage(message))
+}
+
 #[cfg(test)]
 pub mod tests {
 	use std::io;
+	use futures::Poll;
+	use tokio_io::{AsyncRead, AsyncWrite};
 	use ethkey::{KeyPair, Public};
 	use key_server_cluster::message::Message;
-	use super::{MESSAGE_HEADER_SIZE, MessageHeader, serialize_message, serialize_header, deserialize_header};
+	use super::{MESSAGE_HEADER_SIZE, MessageHeader, compute_shared_key, encrypt_message, serialize_message,
+		serialize_header, deserialize_header};
 
 	pub struct TestIo {
 		self_key_pair: KeyPair,
 		peer_public: Public,
+		shared_key_pair: KeyPair,
 		input_buffer: io::Cursor<Vec<u8>>,
-		output_buffer: Vec<u8>,
-		expected_output_buffer: Vec<u8>,
 	}
 
 	impl TestIo {
 		pub fn new(self_key_pair: KeyPair, peer_public: Public) -> Self {
+			let shared_key_pair = compute_shared_key(self_key_pair.secret(), &peer_public).unwrap();
 			TestIo {
 				self_key_pair: self_key_pair,
 				peer_public: peer_public,
+				shared_key_pair: shared_key_pair,
 				input_buffer: io::Cursor::new(Vec::new()),
-				output_buffer: Vec::new(),
-				expected_output_buffer: Vec::new(),
 			}
 		}
 
@@ -203,14 +224,21 @@ pub mod tests {
 			}
 		}
 
-		pub fn add_output_message(&mut self, message: Message) {
-			let serialized_message = serialize_message(message).unwrap();
+		pub fn add_encrypted_input_message(&mut self, message: Message) {
+			let serialized_message = encrypt_message(&self.shared_key_pair, serialize_message(message).unwrap()).unwrap();
 			let serialized_message: Vec<_> = serialized_message.into();
-			self.expected_output_buffer.extend(serialized_message);
+			let input_buffer = self.input_buffer.get_mut();
+			for b in serialized_message {
+				input_buffer.push(b);
+			}
 		}
+	}
 
-		pub fn assert_output(&self) {
-			assert_eq!(self.output_buffer, self.expected_output_buffer);
+	impl AsyncRead for TestIo {}
+
+	impl AsyncWrite for TestIo {
+		fn shutdown(&mut self) -> Poll<(), io::Error> {
+			Ok(().into())
 		}
 	}
 
@@ -222,11 +250,11 @@ pub mod tests {
 
 	impl io::Write for TestIo {
 		fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-			io::Write::write(&mut self.output_buffer, buf)
+			Ok(buf.len())
 		}
 
 		fn flush(&mut self) -> io::Result<()> {
-			io::Write::flush(&mut self.output_buffer)
+			Ok(())
 		}
 	}
 

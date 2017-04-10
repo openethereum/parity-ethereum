@@ -27,6 +27,9 @@ extern crate serde;
 extern crate serde_json;
 extern crate time;
 extern crate transient_hashmap;
+extern crate cid;
+extern crate multihash;
+extern crate crypto as rust_crypto;
 
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server as http;

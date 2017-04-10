@@ -14,19 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::net;
-use ethkey::KeyPair;
-use key_server_cluster::NodeId;
-use key_server_cluster::io::SharedTcpStream;
+//! IPFS utility functions
 
-/// Established connection data
-pub struct Connection {
-	/// Peer address.
-	pub address: net::SocketAddr,
-	/// Connection stream.
-	pub stream: SharedTcpStream,
-	/// Peer node id.
-	pub node_id: NodeId,
-	/// Encryption key.
-	pub key: KeyPair,
+use multihash;
+use cid::{Cid, Codec, Version};
+use rust_crypto::sha2::Sha256;
+use rust_crypto::digest::Digest;
+use jsonrpc_core::Error;
+use v1::types::Bytes;
+use super::errors;
+
+/// Compute CIDv0 from protobuf encoded bytes.
+pub fn cid(content: Bytes) -> Result<String, Error> {
+	let mut hasher = Sha256::new();
+	hasher.input(&content.0);
+	let len = hasher.output_bytes();
+	let mut buf = Vec::with_capacity(len);
+	buf.resize(len, 0);
+	hasher.result(&mut buf);
+	let mh = multihash::encode(multihash::Hash::SHA2256, &buf).map_err(errors::encoding_error)?;
+	let cid = Cid::new(Codec::DagProtobuf, Version::V0, &mh);
+	Ok(cid.to_string().into())
 }

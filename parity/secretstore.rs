@@ -14,9 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use dir::default_data_path;
 use ethcore::client::Client;
+use ethkey::{Secret, Public};
 use helpers::replace_home;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -24,10 +26,18 @@ use helpers::replace_home;
 pub struct Configuration {
 	/// Is secret store functionality enabled?
 	pub enabled: bool,
+	/// This node secret.
+	pub self_secret: Option<Secret>,
+	/// Other nodes IDs + addresses.
+	pub nodes: BTreeMap<Public, (String, u16)>,
 	/// Interface to listen to
 	pub interface: String,
 	/// Port to listen to
 	pub port: u16,
+	/// Interface to listen to
+	pub http_interface: String,
+	/// Port to listen to
+	pub http_port: u16,
 	/// Data directory path for secret store
 	pub data_path: String,
 }
@@ -55,8 +65,8 @@ mod server {
 
 #[cfg(feature="secretstore")]
 mod server {
-	use ethkey;
 	use ethcore_secretstore;
+	use ethkey::KeyPair;
 	use super::{Configuration, Dependencies};
 
 	/// Key server
@@ -67,36 +77,34 @@ mod server {
 	impl KeyServer {
 		/// Create new key server
 		pub fn new(conf: Configuration, deps: Dependencies) -> Result<Self, String> {
-			let key_pairs = vec![
-				ethkey::KeyPair::from_secret("6c26a76e9b31048d170873a791401c7e799a11f0cefc0171cc31a49800967509".parse().unwrap()).unwrap(),
-				ethkey::KeyPair::from_secret("7e94018b3731afdb3b4e6f4c3e179475640166da12e1d1b0c7d80729b1a5b452".parse().unwrap()).unwrap(),
-				ethkey::KeyPair::from_secret("5ab6ed2a52c33142380032c39a03a86b12eacb3fa4b53bc16d84f51318156f8c".parse().unwrap()).unwrap(),
-			];
-			let conf = ethcore_secretstore::ServiceConfiguration {
+			let self_secret = conf.self_secret.ok_or("self secret is required when using secretstore")?;
+			let mut conf = ethcore_secretstore::ServiceConfiguration {
 				listener_address: ethcore_secretstore::NodeAddress {
-					address: conf.interface.clone(),
-					port: conf.port,
+					address: conf.http_interface.clone(),
+					port: conf.http_port,
 				},
 				data_path: conf.data_path.clone(),
-				// TODO: this is test configuration. how it will be configured in production?
 				cluster_config: ethcore_secretstore::ClusterConfiguration {
 					threads: 4,
-					self_private: (***key_pairs[(conf.port - 8082) as usize].secret()).into(),
+					self_private: (**self_secret).into(),
 					listener_address: ethcore_secretstore::NodeAddress {
 						address: conf.interface.clone(),
-						port: conf.port + 10,
+						port: conf.port,
 					},
-					nodes: key_pairs.iter().enumerate().map(|(i, kp)| (kp.public().clone(),
-						ethcore_secretstore::NodeAddress {
-							address: conf.interface.clone(),
-							port: 8082 + 10 + (i as u16),
-						})).collect(),
+					nodes: conf.nodes.into_iter().map(|(p, (ip, port))| (p, ethcore_secretstore::NodeAddress {
+						address: ip,
+						port: port,
+					})).collect(),
 					allow_connecting_to_higher_nodes: true,
 					encryption_config: ethcore_secretstore::EncryptionConfiguration {
 						key_check_timeout_ms: 1000,
 					},
-				}
+				},
 			};
+
+			let self_key_pair = KeyPair::from_secret(self_secret.clone())
+				.map_err(|e| format!("valid secret is required when using secretstore. Error: {}", e))?;
+			conf.cluster_config.nodes.insert(self_key_pair.public().clone(), conf.cluster_config.listener_address.clone());
 
 			let key_server = ethcore_secretstore::start(deps.client, conf)
 				.map_err(Into::<String>::into)?;
@@ -115,8 +123,12 @@ impl Default for Configuration {
 		let data_dir = default_data_path();
 		Configuration {
 			enabled: true,
+			self_secret: None,
+			nodes: BTreeMap::new(),
 			interface: "127.0.0.1".to_owned(),
-			port: 8082,
+			port: 8083,
+			http_interface: "127.0.0.1".to_owned(),
+			http_port: 8082,
 			data_path: replace_home(&data_dir, "$BASE/secretstore"),
 		}
 	}
