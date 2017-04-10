@@ -69,8 +69,11 @@ pass = "test_pass"
 
 [secretstore]
 disable = false
-port = 8082
+nodes = []
+http_interface = "local"
+http_port = 8082
 interface = "local"
+port = 8083
 path = "$HOME/.parity/secretstore"
 
 [ipfs]

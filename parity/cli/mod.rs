@@ -187,10 +187,18 @@ usage! {
 		// Secret Store
 		flag_no_secretstore: bool = false,
 			or |c: &Config| otry!(c.secretstore).disable.clone(),
-		flag_secretstore_port: u16 = 8082u16,
-			or |c: &Config| otry!(c.secretstore).port.clone(),
+		flag_secretstore_secret: Option<String> = None,
+			or |c: &Config| otry!(c.secretstore).self_secret.clone().map(Some),
+		flag_secretstore_nodes: String = "",
+			or |c: &Config| otry!(c.secretstore).nodes.as_ref().map(|vec| vec.join(",")),
 		flag_secretstore_interface: String = "local",
 			or |c: &Config| otry!(c.secretstore).interface.clone(),
+		flag_secretstore_port: u16 = 8083u16,
+			or |c: &Config| otry!(c.secretstore).port.clone(),
+		flag_secretstore_http_interface: String = "local",
+			or |c: &Config| otry!(c.secretstore).http_interface.clone(),
+		flag_secretstore_http_port: u16 = 8082u16,
+			or |c: &Config| otry!(c.secretstore).http_port.clone(),
 		flag_secretstore_path: String = "$BASE/secretstore",
 			or |c: &Config| otry!(c.secretstore).path.clone(),
 
@@ -454,8 +462,12 @@ struct Dapps {
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
 struct SecretStore {
 	disable: Option<bool>,
-	port: Option<u16>,
+	self_secret: Option<String>,
+	nodes: Option<Vec<String>>,
 	interface: Option<String>,
+	port: Option<u16>,
+	http_interface: Option<String>,
+	http_port: Option<u16>,
 	path: Option<String>,
 }
 
@@ -697,8 +709,12 @@ mod tests {
 			flag_no_dapps: false,
 
 			flag_no_secretstore: false,
-			flag_secretstore_port: 8082u16,
+			flag_secretstore_secret: None,
+			flag_secretstore_nodes: "".into(),
 			flag_secretstore_interface: "local".into(),
+			flag_secretstore_port: 8083u16,
+			flag_secretstore_http_interface: "local".into(),
+			flag_secretstore_http_port: 8082u16,
 			flag_secretstore_path: "$HOME/.parity/secretstore".into(),
 
 			// IPFS
@@ -909,8 +925,12 @@ mod tests {
 			}),
 			secretstore: Some(SecretStore {
 				disable: None,
-				port: Some(8082),
+				self_secret: None,
+				nodes: None,
 				interface: None,
+				port: Some(8083),
+				http_interface: None,
+				http_port: Some(8082),
 				path: None,
 			}),
 			ipfs: Some(Ipfs {

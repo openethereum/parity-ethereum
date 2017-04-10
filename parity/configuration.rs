@@ -18,18 +18,20 @@ use std::time::Duration;
 use std::io::{Read, Write, stderr};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use std::collections::BTreeMap;
 use std::cmp::max;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
 use util::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
-use ethcore::ethstore::ethkey::Secret;
+use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning, StratumOptions};
 use ethcore::verification::queue::VerifierSettings;
 
 use rpc::{IpcConfiguration, HttpConfiguration};
+use rpc_apis::ApiSet;
 use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
@@ -135,7 +137,7 @@ impl Configuration {
 		let mut dapps_conf = self.dapps_config();
 		let ipfs_conf = self.ipfs_config();
 		let signer_conf = self.signer_config();
-		let secretstore_conf = self.secretstore_config();
+		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
 
 		if self.args.flag_jsonrpc_threads.is_some() && dapps_conf.enabled {
@@ -570,13 +572,17 @@ impl Configuration {
 		}
 	}
 
-	fn secretstore_config(&self) -> SecretStoreConfiguration {
-		SecretStoreConfiguration {
+	fn secretstore_config(&self) -> Result<SecretStoreConfiguration, String> {
+		Ok(SecretStoreConfiguration {
 			enabled: self.secretstore_enabled(),
+			self_secret: self.secretstore_self_secret()?,
+			nodes: self.secretstore_nodes()?,
 			interface: self.secretstore_interface(),
 			port: self.args.flag_secretstore_port,
+			http_interface: self.secretstore_http_interface(),
+			http_port: self.args.flag_secretstore_http_port,
 			data_path: self.directories().secretstore,
-		}
+		})
 	}
 
 	fn ipfs_config(&self) -> IpfsConfiguration {
@@ -718,16 +724,7 @@ impl Configuration {
 			.collect();
 
 		if self.args.flag_geth {
-			apis.push("personal");
-		}
-
-		if self.args.flag_public_node {
-			apis.retain(|api| {
-				match *api {
-					"eth" | "net" | "parity" | "rpc" | "web3" => true,
-					_ => false
-				}
-			});
+			apis.insert(0, "personal");
 		}
 
 		apis.join(",")
@@ -788,7 +785,10 @@ impl Configuration {
 			enabled: self.rpc_enabled(),
 			interface: self.rpc_interface(),
 			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
-			apis: self.rpc_apis().parse()?,
+			apis: match self.args.flag_public_node {
+				false => self.rpc_apis().parse()?,
+				true => self.rpc_apis().parse::<ApiSet>()?.retain(ApiSet::PublicContext),
+			},
 			hosts: self.rpc_hosts(),
 			cors: self.rpc_cors(),
 			threads: match self.args.flag_jsonrpc_threads {
@@ -918,10 +918,43 @@ impl Configuration {
 	}
 
 	fn secretstore_interface(&self) -> String {
-		match self.args.flag_secretstore_interface.as_str() {
-			"local" => "127.0.0.1",
-			x => x,
-		}.into()
+		Self::interface(&self.args.flag_secretstore_interface)
+	}
+
+	fn secretstore_http_interface(&self) -> String {
+		Self::interface(&self.args.flag_secretstore_http_interface)
+	}
+
+	fn secretstore_self_secret(&self) -> Result<Option<Secret>, String> {
+		match self.args.flag_secretstore_secret {
+			Some(ref s) => Ok(Some(s.parse()
+				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?)),
+			None => Ok(None),
+		}
+	}
+
+	fn secretstore_nodes(&self) -> Result<BTreeMap<Public, (String, u16)>, String> {
+		let mut nodes = BTreeMap::new();
+		for node in self.args.flag_secretstore_nodes.split(',').filter(|n| n != &"") {
+			let public_and_addr: Vec<_> = node.split('@').collect();
+			if public_and_addr.len() != 2 {
+				return Err(format!("Invalid secret store node: {}", node));
+			}
+
+			let ip_and_port: Vec<_> = public_and_addr[1].split(':').collect();
+			if ip_and_port.len() != 2 {
+				return Err(format!("Invalid secret store node: {}", node));
+			}
+
+			let public = public_and_addr[0].parse()
+				.map_err(|e| format!("Invalid public key in secret store node: {}. Error: {:?}", public_and_addr[0], e))?;
+			let port = ip_and_port[1].parse()
+				.map_err(|e| format!("Invalid port in secret store node: {}. Error: {:?}", ip_and_port[1], e))?;
+
+			nodes.insert(public, (ip_and_port[0].into(), port));
+		}
+
+		Ok(nodes)
 	}
 
 	fn stratum_interface(&self) -> String {

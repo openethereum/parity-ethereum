@@ -24,6 +24,7 @@ pub mod fake_sign;
 pub mod light_fetch;
 pub mod informant;
 pub mod oneshot;
+pub mod ipfs;
 
 mod network_settings;
 mod poll_manager;

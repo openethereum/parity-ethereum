@@ -30,7 +30,7 @@ use ethcore::account_provider::AccountProvider;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
-use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
+use v1::helpers::{errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::{LightDispatcher, DEFAULT_MAC};
 use v1::helpers::light_fetch::LightFetch;
 use v1::metadata::Metadata;
@@ -386,5 +386,9 @@ impl Parity for ParityClient {
 		};
 
 		self.fetcher().header(number.0.into()).map(move |encoded| encoded.map(from_encoded)).boxed()
+	}
+
+	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
+		ipfs::cid(content)
 	}
 }

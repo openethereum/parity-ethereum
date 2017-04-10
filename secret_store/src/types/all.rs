@@ -50,7 +50,7 @@ pub enum Error {
 	Internal(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[binary]
 /// Secret store configuration
 pub struct NodeAddress {
@@ -97,6 +97,18 @@ pub struct ClusterConfiguration {
 pub struct EncryptionConfiguration {
 	/// Key check timeout.
 	pub key_check_timeout_ms: u64,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[binary]
+/// Shadow decryption result.
+pub struct DocumentEncryptedKeyShadow {
+	/// Decrypted secret point. It is partially decrypted if shadow decrpytion was requested.
+	pub decrypted_secret: ethkey::Public,
+	/// Shared common point.
+	pub common_point: Option<ethkey::Public>,
+	/// If shadow decryption was requested: shadow decryption coefficients, encrypted with requestor public.
+	pub decrypt_shadows: Option<Vec<Vec<u8>>>,
 }
 
 impl fmt::Display for Error {

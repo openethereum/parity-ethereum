@@ -37,7 +37,7 @@ use updater::{Service as UpdateService};
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
-use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
+use v1::helpers::{errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::accounts::unwrap_provider;
 use v1::helpers::dispatch::DEFAULT_MAC;
 use v1::metadata::Metadata;
@@ -427,5 +427,8 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			},
 			extra_info: client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
 		})).boxed()
+
+	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
+		ipfs::cid(content)
 	}
 }
