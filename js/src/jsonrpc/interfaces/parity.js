@@ -1178,28 +1178,6 @@ export default {
     }
   },
 
-  exportAccount: {
-    subdoc: SUBDOC_ACCOUNTS,
-    desc: 'Upon receiving an account address and password, returns the said account as a JSON object.',
-    params: [
-      {
-        type: Address,
-        desc: 'The account to export.',
-        example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
-      },
-      {
-        type: String,
-        desc: 'Account password.',
-        example: 'hunter2'
-      }
-    ],
-    returns: {
-      type: Object,
-      desc: 'returns an account as a JSON object. Otherwise, returns an error object with details.',
-      example: { address: '00718f933c0209330c0ce2bf68ac6f0982c69097', crypto: { }, id: '2689f0c9-bc0e-d75f-fe85-cfff2d8c81c4', meta: 'stringify\'d JSON', name: 'JOHN DOE', version: 3 }
-    }
-  },
-
   killAccount: {
     subdoc: SUBDOC_ACCOUNTS,
     desc: 'Deletes an account.',
