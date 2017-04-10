@@ -25,7 +25,7 @@ import styles from './transactionPendingForm.css';
 
 export default class TransactionPendingForm extends Component {
   static propTypes = {
-    account: PropTypes.object.isRequired,
+    account: PropTypes.object,
     address: PropTypes.string.isRequired,
     disabled: PropTypes.bool,
     isSending: PropTypes.bool.isRequired,
@@ -36,6 +36,7 @@ export default class TransactionPendingForm extends Component {
   };
 
   static defaultProps = {
+    account: {},
     focus: false
   };
 
