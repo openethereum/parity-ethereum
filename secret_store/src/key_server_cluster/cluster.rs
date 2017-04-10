@@ -672,6 +672,7 @@ impl ClusterSessions {
 		if self.key_storage.contains(&session_id) {
 			return Err(Error::DuplicateSessionId);
 		}
+
 		// communicating to all other nodes is crucial for encryption session
 		// => check that we have connections to all cluster nodes
 		if self.nodes.iter().any(|n| !cluster.is_connected(n)) {

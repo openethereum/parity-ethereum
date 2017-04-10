@@ -14,7 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inAddress, inAddresses, inData, inHex, inNumber16, inOptions, inBlockNumber } from '../../format/input';
+import {
+  inAddress, inAddresses, inData, inHex, inNumber16, inOptions, inBlockNumber, inDeriveHash, inDeriveIndex
+} from '../../format/input';
 import { outAccountInfo, outAddress, outAddresses, outChainStatus, outHistogram, outHwAccountInfo, outNodeKind, outNumber, outPeers, outRecentDapps, outTransaction, outVaultMeta } from '../../format/output';
 
 export default class Parity {
@@ -117,6 +119,18 @@ export default class Parity {
       .execute('parity_devLogsLevels');
   }
 
+  deriveAddressHash (address, password, hash, shouldSave) {
+    return this._transport
+      .execute('parity_deriveAddressHash', inAddress(address), password, inDeriveHash(hash), !!shouldSave)
+      .then(outAddress);
+  }
+
+  deriveAddressIndex (address, password, index, shouldSave) {
+    return this._transport
+      .execute('parity_deriveAddressIndex', inAddress(address), password, inDeriveIndex(index), !!shouldSave)
+      .then(outAddress);
+  }
+
   dropNonReservedPeers () {
     return this._transport
       .execute('parity_dropNonReservedPeers');
@@ -135,6 +149,11 @@ export default class Parity {
   executeUpgrade () {
     return this._transport
       .execute('parity_executeUpgrade');
+  }
+
+  exportAccount (address, password) {
+    return this._transport
+      .execute('parity_exportAccount', inAddress(address), password);
   }
 
   extraData () {
@@ -399,6 +418,12 @@ export default class Parity {
   removeReservedPeer (encode) {
     return this._transport
       .execute('parity_removeReservedPeer', encode);
+  }
+
+  removeTransaction (hash) {
+    return this._transport
+      .execute('parity_removeTransaction', inHex(hash))
+      .then(outTransaction);
   }
 
   rpcSettings () {

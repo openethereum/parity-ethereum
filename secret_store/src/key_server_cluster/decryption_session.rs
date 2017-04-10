@@ -955,6 +955,7 @@ mod tests {
 		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::Finished).count(), 5);
 		// 2) 1 session has decrypted key value
 		assert!(sessions.iter().skip(1).all(|s| s.decrypted_secret().is_none()));
+
 		assert_eq!(sessions[0].decrypted_secret(), Some(DocumentEncryptedKeyShadow {
 			decrypted_secret: SECRET_PLAIN.into(),
 			common_point: None,

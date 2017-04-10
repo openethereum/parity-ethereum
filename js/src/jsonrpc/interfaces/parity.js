@@ -379,7 +379,9 @@ export default {
             gasPrice: '0x2d20cff33',
             hash: '0x09e64eb1ae32bb9ac415ce4ddb3dbad860af72d9377bb5f073c9628ab413c532',
             input: '0x',
-            minBlock: null,
+            condition: {
+              block: 1
+            },
             networkId: null,
             nonce: '0x0',
             publicKey: '0x3fa8c08c65a83f6b4ea3e04e1cc70cbe3cd391499e3e05ab7dedf28aff9afc538200ff93e3f2b2cb5029f03c7ebee820d63a4c5a9541c83acebe293f54cacf0e',
@@ -435,21 +437,32 @@ export default {
           type: String,
           desc: 'Capability, either `full` or `light`.'
         }
+      },
+      example: {
+        availability: 'personal',
+        capability: 'light'
       }
-    },
-    example: {
-      availability: 'personal',
-      capability: 'light'
     }
   },
 
   netChain: {
     section: SECTION_NET,
-    desc: 'Returns the name of the connected chain.',
+    desc: 'Returns the name of the connected chain. DEPRECATED use `parity_chain` instead.',
     params: [],
     returns: {
       type: String,
       desc: 'chain name.',
+      example: 'homestead'
+    }
+  },
+
+  chain: {
+    section: SECTION_NET,
+    desc: 'Returns the name of the connected chain. ',
+    params: [],
+    returns: {
+      type: String,
+      desc: 'chain name, one of: "foundation", "kovan", &c. of a filename.',
       example: 'homestead'
     }
   },
@@ -589,7 +602,9 @@ export default {
           gasPrice: '0xba43b7400',
           hash: '0x160b3c30ab1cf5871083f97ee1cee3901cfba3b0a2258eb337dd20a7e816b36e',
           input: '0x095ea7b3000000000000000000000000bf4ed7b27f1d666546e30d74d50d173d20bca75400000000000000000000000000002643c948210b4bd99244ccd64d5555555555',
-          minBlock: null,
+          condition: {
+            block: 1
+          },
           networkId: 1,
           nonce: '0x5',
           publicKey: '0x96157302dade55a1178581333e57d60ffe6fdf5a99607890456a578b4e6b60e335037d61ed58aa4180f9fd747dc50d44a7924aa026acbfb988b5062b629d6c36',
@@ -609,6 +624,7 @@ export default {
   },
 
   pendingTransactionsStats: {
+    section: SECTION_NET,
     desc: 'Returns propagation stats for transactions in the queue.',
     params: [],
     returns: {
@@ -623,6 +639,49 @@ export default {
           }
         }
       }
+    }
+  },
+
+  removeTransaction: {
+    section: SECTION_NET,
+    desc: 'Removes transaction from local transaction pool. Scheduled transactions and not-propagated transactions are safe to remove, removal of other transactions may have no effect though.',
+    params: [{
+      type: Hash,
+      desc: 'Hash of transaction to remove.',
+      example: '0x2547ea3382099c7c76d33dd468063b32d41016aacb02cbd51ebc14ff5d2b6a43'
+    }],
+    returns: {
+      type: Object,
+      desc: 'Removed transaction or `null`.',
+      details: TransactionResponse.details,
+      example: [
+        {
+          blockHash: null,
+          blockNumber: null,
+          creates: null,
+          from: '0xee3ea02840129123d5397f91be0391283a25bc7d',
+          gas: '0x23b58',
+          gasPrice: '0xba43b7400',
+          hash: '0x160b3c30ab1cf5871083f97ee1cee3901cfba3b0a2258eb337dd20a7e816b36e',
+          input: '0x095ea7b3000000000000000000000000bf4ed7b27f1d666546e30d74d50d173d20bca75400000000000000000000000000002643c948210b4bd99244ccd64d5555555555',
+          condition: {
+            block: 1
+          },
+          networkId: 1,
+          nonce: '0x5',
+          publicKey: '0x96157302dade55a1178581333e57d60ffe6fdf5a99607890456a578b4e6b60e335037d61ed58aa4180f9fd747dc50d44a7924aa026acbfb988b5062b629d6c36',
+          r: '0x92e8beb19af2bad0511d516a86e77fa73004c0811b2173657a55797bdf8558e1',
+          raw: '0xf8aa05850ba43b740083023b5894bb9bc244d798123fde783fcc1c72d3bb8c18941380b844095ea7b3000000000000000000000000bf4ed7b27f1d666546e30d74d50d173d20bca75400000000000000000000000000002643c948210b4bd99244ccd64d555555555526a092e8beb19af2bad0511d516a86e77fa73004c0811b2173657a55797bdf8558e1a062b4d4d125bbcb9c162453bc36ca156537543bb4414d59d1805d37fb63b351b8',
+          s: '0x62b4d4d125bbcb9c162453bc36ca156537543bb4414d59d1805d37fb63b351b8',
+          standardV: '0x1',
+          to: '0xbb9bc244d798123fde783fcc1c72d3bb8c189413',
+          transactionIndex: null,
+          v: '0x26',
+          value: '0x0'
+        },
+        new Dummy('{ ... }'),
+        new Dummy('{ ... }')
+      ]
     }
   },
 
@@ -916,7 +975,9 @@ export default {
           v: '0x25',
           r: '0xb40c6967a7e8bbdfd99a25fd306b9ef23b80e719514aeb7ddd19e2303d6fc139',
           s: '0x6bf770ab08119e67dc29817e1412a0e3086f43da308c314db1b3bca9fb6d32bd',
-          minBlock: null
+          condition: {
+            block: 1
+          }
         },
         new Dummy('{ ... }, { ... }, ...')
       ]
@@ -1307,12 +1368,14 @@ export default {
     params: [
       {
         type: Array,
-        desc: 'List of the Geth addresses to import.'
+        desc: 'List of the Geth addresses to import.',
+        example: ['0x407d73d8a49eeb85d32cf465507dd71d507100c1']
       }
     ],
     returns: {
       type: Array,
-      desc: 'Array of the imported addresses.'
+      desc: 'Array of the imported addresses.',
+      example: ['0x407d73d8a49eeb85d32cf465507dd71d507100c1']
     }
   },
 
@@ -1322,7 +1385,114 @@ export default {
     params: [],
     returns: {
       type: Array,
-      desc: '20 Bytes addresses owned by the client.'
+      desc: '20 Bytes addresses owned by the client.',
+      example: ['0x407d73d8a49eeb85d32cf465507dd71d507100c1']
+    }
+  },
+
+  deriveAddressHash: {
+    subdoc: SUBDOC_ACCOUNTS,
+    desc: 'Derive new address from given account address using specific hash.',
+    params: [
+      {
+        type: Address,
+        desc: 'Account address to derive from.',
+        example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
+      },
+      {
+        type: String,
+        desc: 'Password to the account.',
+        example: 'hunter2'
+      },
+      {
+        type: Object,
+        desc: 'Derivation hash and type (`soft` or `hard`). E.g. `{ hash: "0x123..123", type: "hard" }`.',
+        example: {
+          hash: '0x2547ea3382099c7c76d33dd468063b32d41016aacb02cbd51ebc14ff5d2b6a43',
+          type: 'hard'
+        }
+      },
+      {
+        type: Boolean,
+        desc: 'Flag indicating if the account should be saved.',
+        example: false
+      }
+    ],
+    returns: {
+      type: Address,
+      desc: '20 Bytes new derived address.',
+      example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
+    }
+  },
+
+  deriveAddressIndex: {
+    subdoc: SUBDOC_ACCOUNTS,
+    desc: 'Derive new address from given account address using hierarchical derivation (sequence of 32-bit integer indices).',
+    params: [
+      {
+        type: Address,
+        desc: 'Account address to export.',
+        example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
+      },
+      {
+        type: String,
+        desc: 'Password to the account.',
+        example: 'hunter2'
+      },
+      {
+        type: Array,
+        desc: 'Hierarchical derivation sequence of index and type (`soft` or `hard`). E.g. `[{index:1,type:"hard"},{index:2,type:"soft"}]`.',
+        example: [
+          { index: 1, type: 'hard' },
+          { index: 2, type: 'soft' }
+        ]
+      },
+      {
+        type: Boolean,
+        desc: 'Flag indicating if the account should be saved.',
+        example: false
+      }
+    ],
+    returns: {
+      type: Address,
+      desc: '20 Bytes new derived address.',
+      example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
+    }
+  },
+
+  exportAccount: {
+    subdoc: SUBDOC_ACCOUNTS,
+    desc: 'Returns a standard wallet file for given account if password matches.',
+    params: [
+      {
+        type: Address,
+        desc: 'Account address to export.',
+        example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
+      },
+      {
+        type: String,
+        desc: 'Password to the account.',
+        example: 'hunter2'
+      }
+    ],
+    returns: {
+      type: Object,
+      desc: 'Standard wallet JSON.',
+      example: {
+        'address': '0042e5d2a662eeaca8a7e828c174f98f35d8925b',
+        'crypto': {
+          'cipher': 'aes-128-ctr',
+          'cipherparams': { 'iv': 'a1c6ff99070f8032ca1c4e8add006373' },
+          'ciphertext': 'df27e3db64aa18d984b6439443f73660643c2d119a6f0fa2fa9a6456fc802d75',
+          'kdf': 'pbkdf2',
+          'kdfparams': { 'c': 10240, 'dklen': 32, 'prf': 'hmac-sha256', 'salt': 'ddc325335cda5567a1719313e73b4842511f3e4a837c9658eeb78e51ebe8c815' },
+          'mac': '3dc888ae79cbb226ff9c455669f6cf2d79be72120f2298f6cb0d444fddc0aa3d'
+        },
+        'id': '6a186c80-7797-cff2-bc2e-7c1d6a6cc76e',
+        'meta': '{"passwordHint":"parity-export-test","timestamp":1490017814987}',
+        'name': 'parity-export-test',
+        'version': 3
+      }
     }
   },
 
@@ -1526,6 +1696,23 @@ export default {
       type: Hash,
       desc: 'The SHA-3 hash of the content.',
       example: '0x2547ea3382099c7c76d33dd468063b32d41016aacb02cbd51ebc14ff5d2b6a43'
+    }
+  },
+
+  setChain: {
+    subdoc: SUBDOC_SET,
+    desc: 'Sets the network spec file Parity is using.',
+    params: [
+      {
+        type: String,
+        desc: 'Chain spec name, one of: "foundation", "ropsten", "morden", "kovan", "olympic", "classic", "dev", "expanse" or a filename.',
+        example: 'foundation'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: '`true` if the call succeeded.',
+      example: true
     }
   },
 
