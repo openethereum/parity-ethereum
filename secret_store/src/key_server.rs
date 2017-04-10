@@ -64,7 +64,7 @@ impl KeyServer for KeyServerImpl {
 
 		// generate document key
 		let encryption_session = self.data.lock().cluster.new_encryption_session(document.clone(), threshold)?;
-		let document_key = encryption_session.wait()?;
+		let document_key = encryption_session.wait(None)?;
 
 		// encrypt document key with requestor public key
 		let document_key = ethcrypto::ecies::encrypt_single_message(&public, &document_key)
@@ -188,10 +188,26 @@ pub mod tests {
 			KeyServerImpl::new(&cfg, Arc::new(DummyAclStorage::default()), Arc::new(DummyKeyStorage::default())).unwrap()
 		).collect();
 
-		// wait until connections are established
+		// wait until connections are established. It is fast => do not bother with events here
 		let start = time::Instant::now();
+		let mut tried_reconnections = false;
 		loop {
 			if key_servers.iter().all(|ks| ks.cluster().cluster_state().connected.len() == num_nodes - 1) {
+				break;
+			}
+
+			let old_tried_reconnections = tried_reconnections;
+			let mut fully_connected = true;
+			for key_server in &key_servers {
+				if key_server.cluster().cluster_state().connected.len() != num_nodes - 1 {
+					fully_connected = false;
+					if !old_tried_reconnections {
+						tried_reconnections = true;
+						key_server.cluster().connect();
+					}
+				}
+			}
+			if fully_connected {
 				break;
 			}
 			if time::Instant::now() - start > time::Duration::from_millis(1000) {

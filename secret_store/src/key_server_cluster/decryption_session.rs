@@ -189,8 +189,8 @@ impl SessionImpl {
 
 	#[cfg(test)]
 	/// Get decrypted secret
-	pub fn decrypted_secret(&self) -> Option<DocumentEncryptedKeyShadow> {
-		self.data.lock().decrypted_secret.clone().and_then(|r| r.ok())
+	pub fn decrypted_secret(&self) -> Option<Result<DocumentEncryptedKeyShadow, Error>> {
+		self.data.lock().decrypted_secret.clone()
 	}
 
 	/// Initialize decryption session.
@@ -374,7 +374,7 @@ impl SessionImpl {
 			return Err(Error::InvalidStateForRequest);
 		}
 
-		if !data.confirmed_nodes.remove(&sender) {
+		if !data.shadow_requests.remove(&sender) {
 			return Err(Error::InvalidStateForRequest);
 		}
 		data.shadow_points.insert(sender, PartialDecryptionResult {
@@ -426,7 +426,7 @@ impl SessionImpl {
 	pub fn on_session_error(&self, sender: NodeId, message: &DecryptionSessionError) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
-		warn!("{}: decryption session failed with error: {:?} from {}", self.node(), message, sender);
+		warn!("{}: decryption session failed with error: {:?} from {}", self.node(), message.error, sender);
 
 		data.state = SessionState::Failed;
 		data.decrypted_secret = Some(Err(Error::Io(message.error.clone())));
@@ -498,7 +498,7 @@ impl SessionImpl {
 		warn!("{}: decryption session failed because {} connection has timeouted", self.node(), node);
 
 		data.state = SessionState::Failed;
-		data.decrypted_secret = Some(Err(Error::Io(format!("{} connection timeout", node))));
+		data.decrypted_secret = Some(Err(Error::NodeDisconnected));
 		self.completed.notify_all();
 	}
 
@@ -517,11 +517,9 @@ impl SessionImpl {
 				SessionState::WaitingForPartialDecryption => {
 					// we have requested partial decryption, but some nodes have failed to respond
 					// => mark these nodes as rejected && restart
-					let timeouted_nodes = data.shadow_points.keys().cloned().collect();
-					let timeouted_nodes: Vec<_> = data.shadow_requests.difference(&timeouted_nodes).cloned().collect();
-					for timeouted_node in timeouted_nodes {
+					for timeouted_node in data.shadow_requests.iter().cloned().collect::<Vec<_>>() {
 						data.confirmed_nodes.remove(&timeouted_node);
-						data.rejected_nodes.insert(timeouted_node.clone());
+						data.rejected_nodes.insert(timeouted_node);
 					}
 
 					// check if we still have enough nodes for decryption
@@ -540,7 +538,7 @@ impl SessionImpl {
 		warn!("{}: decryption session failed with timeout", self.node());
 
 		data.state = SessionState::Failed;
-		data.decrypted_secret = Some(Err(Error::Io("session timeout".into())));
+		data.decrypted_secret = Some(Err(Error::NodeDisconnected));
 		self.completed.notify_all();
 	}
 
@@ -940,6 +938,106 @@ mod tests {
 	}
 
 	#[test]
+	fn decryption_fails_on_session_timeout() {
+		let (_, _, sessions) = prepare_decryption_sessions();
+		assert!(sessions[0].decrypted_secret().is_none());
+		sessions[0].on_session_timeout();
+		assert!(sessions[0].decrypted_secret().unwrap().unwrap_err() == Error::NodeDisconnected);
+	}
+
+	#[test]
+	fn node_is_marked_rejected_when_timed_out_during_initialization_confirmation() {
+		let (_, _, sessions) = prepare_decryption_sessions();
+		sessions[0].initialize(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap(), false).unwrap();
+
+		// 1 node disconnects => we still can recover secret
+		sessions[0].on_node_timeout(sessions[1].node());
+		assert!(sessions[0].data.lock().rejected_nodes.contains(sessions[1].node()));
+		assert!(sessions[0].data.lock().state == SessionState::WaitingForInitializationConfirm);
+
+		// 2 node are disconnected => we can not recover secret
+		sessions[0].on_node_timeout(sessions[2].node());
+		assert!(sessions[0].data.lock().rejected_nodes.contains(sessions[2].node()));
+		assert!(sessions[0].data.lock().state == SessionState::Failed);
+	}
+
+	#[test]
+	fn session_does_not_fail_if_rejected_node_disconnects() {
+		let (clusters, acl_storages, sessions) = prepare_decryption_sessions();
+		let key_pair = Random.generate().unwrap();
+
+		acl_storages[1].prohibit(key_pair.public().clone(), SessionId::default());
+		sessions[0].initialize(ethkey::sign(key_pair.secret(), &SessionId::default()).unwrap(), false).unwrap();
+
+		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == SessionState::WaitingForPartialDecryption);
+
+		// 1st node disconnects => ignore this
+		sessions[0].on_node_timeout(sessions[1].node());
+		assert!(sessions[0].data.lock().state == SessionState::WaitingForPartialDecryption);
+	}
+
+	#[test]
+	fn session_does_not_fail_if_requested_node_disconnects() {
+		let (clusters, _, sessions) = prepare_decryption_sessions();
+		sessions[0].initialize(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap(), false).unwrap();
+
+		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == SessionState::WaitingForPartialDecryption);
+
+		// 1 node disconnects => we still can recover secret
+		sessions[0].on_node_timeout(sessions[1].node());
+		assert!(sessions[0].data.lock().state == SessionState::WaitingForPartialDecryption);
+
+		// 2 node are disconnected => we can not recover secret
+		sessions[0].on_node_timeout(sessions[2].node());
+		assert!(sessions[0].data.lock().state == SessionState::Failed);
+	}
+
+	#[test]
+	fn session_does_not_fail_if_node_with_shadow_point_disconnects() {
+		let (clusters, _, sessions) = prepare_decryption_sessions();
+		sessions[0].initialize(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap(), false).unwrap();
+
+		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == SessionState::WaitingForPartialDecryption
+			&& sessions[0].data.lock().shadow_points.len() == 2);
+
+		// disconnects from the node which has already sent us its own shadow point
+		let disconnected = sessions[0].data.lock().
+			shadow_points.keys()
+			.filter(|n| *n != sessions[0].node())
+			.cloned().nth(0).unwrap();
+		sessions[0].on_node_timeout(&disconnected);
+		assert!(sessions[0].data.lock().state == SessionState::WaitingForPartialDecryption);
+	}
+
+	#[test]
+	fn session_restarts_if_confirmed_node_disconnects() {
+		let (clusters, _, sessions) = prepare_decryption_sessions();
+		sessions[0].initialize(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap(), false).unwrap();
+
+		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == SessionState::WaitingForPartialDecryption);
+
+		// disconnects from the node which has already confirmed its participation
+		let disconnected = sessions[0].data.lock().shadow_requests.iter().cloned().nth(0).unwrap();
+		sessions[0].on_node_timeout(&disconnected);
+		assert!(sessions[0].data.lock().state == SessionState::WaitingForPartialDecryption);
+		assert!(sessions[0].data.lock().rejected_nodes.contains(&disconnected));
+		assert!(!sessions[0].data.lock().shadow_requests.contains(&disconnected));
+	}
+
+	#[test]
+	fn session_does_not_fail_if_non_master_node_disconnects_from_non_master_node() {
+		let (clusters, _, sessions) = prepare_decryption_sessions();
+		sessions[0].initialize(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap(), false).unwrap();
+
+		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == SessionState::WaitingForPartialDecryption);
+
+		// disconnects from the node which has already confirmed its participation
+		sessions[1].on_node_timeout(sessions[2].node());
+		assert!(sessions[0].data.lock().state == SessionState::WaitingForPartialDecryption);
+		assert!(sessions[1].data.lock().state == SessionState::WaitingForPartialDecryptionRequest);
+	}
+
+	#[test]
 	fn complete_dec_session() {
 		let (clusters, _, sessions) = prepare_decryption_sessions();
 
@@ -956,11 +1054,11 @@ mod tests {
 		// 2) 1 session has decrypted key value
 		assert!(sessions.iter().skip(1).all(|s| s.decrypted_secret().is_none()));
 
-		assert_eq!(sessions[0].decrypted_secret(), Some(DocumentEncryptedKeyShadow {
+		assert_eq!(sessions[0].decrypted_secret().unwrap().unwrap(), DocumentEncryptedKeyShadow {
 			decrypted_secret: SECRET_PLAIN.into(),
 			common_point: None,
 			decrypt_shadows: None,
-		}));
+		});
 	}
 
 	#[test]
@@ -980,7 +1078,7 @@ mod tests {
 		// 2) 1 session has decrypted key value
 		assert!(sessions.iter().skip(1).all(|s| s.decrypted_secret().is_none()));
 
-		let decrypted_secret = sessions[0].decrypted_secret().unwrap();
+		let decrypted_secret = sessions[0].decrypted_secret().unwrap().unwrap();
 		// check that decrypted_secret != SECRET_PLAIN
 		assert!(decrypted_secret.decrypted_secret != SECRET_PLAIN.into());
 		// check that common point && shadow coefficients are returned
@@ -1018,7 +1116,7 @@ mod tests {
 		// 2) 2 of 5 sessions are in WaitingForPartialDecryptionRequest state
 		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::WaitingForPartialDecryptionRequest).count(), 2);
 		// 3) 0 sessions have decrypted key value
-		assert!(sessions.iter().all(|s| s.decrypted_secret().is_none()));
+		assert!(sessions.iter().all(|s| s.decrypted_secret().is_none() || s.decrypted_secret().unwrap().is_err()));
 	}
 
 	#[test]
@@ -1041,11 +1139,11 @@ mod tests {
 		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::Finished).count(), 5);
 		// 2) 1 session has decrypted key value
 		assert!(sessions.iter().skip(1).all(|s| s.decrypted_secret().is_none()));
-		assert_eq!(sessions[0].decrypted_secret(), Some(DocumentEncryptedKeyShadow {
+		assert_eq!(sessions[0].decrypted_secret().unwrap().unwrap(), DocumentEncryptedKeyShadow {
 			decrypted_secret: SECRET_PLAIN.into(),
 			common_point: None,
 			decrypt_shadows: None,
-		}));
+		});
 	}
 
 	#[test]

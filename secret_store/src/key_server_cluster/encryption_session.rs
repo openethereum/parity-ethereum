@@ -16,6 +16,7 @@
 
 use std::collections::{BTreeSet, BTreeMap, VecDeque};
 use std::fmt::{Debug, Formatter, Error as FmtError};
+use std::time;
 use std::sync::Arc;
 use parking_lot::{Condvar, Mutex};
 use ethkey::{Public, Secret};
@@ -27,11 +28,14 @@ use key_server_cluster::message::{Message, EncryptionMessage, InitializeSession,
 
 /// Encryption session API.
 pub trait Session: Send + Sync + 'static {
+	/// Get encryption session state.
+	fn state(&self) -> SessionState;
+	/// Wait until session is completed. Returns distributely generated secret key.
+	fn wait(&self, timeout: Option<time::Duration>) -> Result<Public, Error>;
+
 	#[cfg(test)]
 	/// Get joint public key (if it is known).
-	fn joint_public_key(&self) -> Option<Public>;
-	/// Wait until session is completed. Returns distributely generated secret key.
-	fn wait(&self) -> Result<Public, Error>;
+	fn joint_public_key(&self) -> Option<Result<Public, Error>>;
 }
 
 /// Encryption (distributed key generation) session.
@@ -75,6 +79,8 @@ pub struct SessionParams {
 struct SessionData {
 	/// Current state of the session.
 	state: SessionState,
+	/// Simulate faulty behaviour?
+	simulate_faulty_behaviour: bool,
 
 	// === Values, filled when session initialization just starts ===
 	/// Reference to the node, which has started this session.
@@ -184,6 +190,7 @@ impl SessionImpl {
 			completed: Condvar::new(),
 			data: Mutex::new(SessionData {
 				state: SessionState::WaitingForInitialization,
+				simulate_faulty_behaviour: false,
 				master: None,
 				threshold: None,
 				derived_point: None,
@@ -201,15 +208,15 @@ impl SessionImpl {
 		&self.self_node_id
 	}
 
-	/// Get current session state.
-	pub fn state(&self) -> SessionState {
-		self.data.lock().state.clone()
-	}
-
 	#[cfg(test)]
 	/// Get derived point.
 	pub fn derived_point(&self) -> Option<Public> {
 		self.data.lock().derived_point.clone()
+	}
+
+	/// Simulate faulty encryption session behaviour.
+	pub fn simulate_faulty_behaviour(&self) {
+		self.data.lock().simulate_faulty_behaviour = true;
 	}
 
 	/// Start new session initialization. This must be called on master node.
@@ -355,6 +362,11 @@ impl SessionImpl {
 
 		let mut data = self.data.lock();
 
+		// simulate failure, if required
+		if data.simulate_faulty_behaviour {
+			return Err(Error::Io("simulated error".into()));
+		}
+
 		// check state
 		if data.state != SessionState::WaitingForKeysDissemination {
 			match data.state {
@@ -492,7 +504,7 @@ impl SessionImpl {
 	pub fn on_session_error(&self, sender: NodeId, message: &SessionError) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
-		warn!("{}: encryption session failed with error: {:?} from {}", self.node(), message, sender);
+		warn!("{}: encryption session failed with error: {} from {}", self.node(), message.error, sender);
 
 		data.state = SessionState::Failed;
 		data.joint_public = Some(Err(Error::Io(message.error.clone())));
@@ -511,8 +523,8 @@ impl SessionImpl {
 		warn!("{}: encryption session failed because {} connection has timeouted", self.node(), node);
 
 		data.state = SessionState::Failed;
-		data.joint_public = Some(Err(Error::Io(format!("{} connection timeout", node))));
-		data.secret_point = Some(Err(Error::Io(format!("{} connection timeout", node))));
+		data.joint_public = Some(Err(Error::NodeDisconnected));
+		data.secret_point = Some(Err(Error::NodeDisconnected));
 		self.completed.notify_all();
 	}
 
@@ -523,8 +535,8 @@ impl SessionImpl {
 		warn!("{}: encryption session failed with timeout", self.node());
 
 		data.state = SessionState::Failed;
-		data.joint_public = Some(Err(Error::Io("session timeout".into())));
-		data.secret_point = Some(Err(Error::Io("session timeout".into())));
+		data.joint_public = Some(Err(Error::NodeDisconnected));
+		data.secret_point = Some(Err(Error::NodeDisconnected));
 		self.completed.notify_all();
 	}
 
@@ -694,15 +706,21 @@ impl SessionImpl {
 
 impl Session for SessionImpl {
 	#[cfg(test)]
-	fn joint_public_key(&self) -> Option<Public> {
-		self.data.lock().joint_public.clone().and_then(|r| r.ok())
+	fn joint_public_key(&self) -> Option<Result<Public, Error>> {
+		self.data.lock().joint_public.clone()
 	}
 
+	fn state(&self) -> SessionState {
+		self.data.lock().state.clone()
+	}
 
-	fn wait(&self) -> Result<Public, Error> {
+	fn wait(&self, timeout: Option<time::Duration>) -> Result<Public, Error> {
 		let mut data = self.data.lock();
 		if !data.secret_point.is_some() {
-			self.completed.wait(&mut data);
+			match timeout {
+				None => self.completed.wait(&mut data),
+				Some(timeout) => { self.completed.wait_for(&mut data, timeout); },
+			}
 		}
 
 		data.secret_point.as_ref()
@@ -1136,6 +1154,23 @@ mod tests {
 		}).unwrap_err(), Error::InvalidMessage);
 	}
 
+
+	#[test]
+	fn encryption_fails_on_session_timeout() {
+		let (_, _, _, l) = make_simple_cluster(0, 2).unwrap();
+		assert!(l.master().joint_public_key().is_none());
+		l.master().on_session_timeout();
+		assert!(l.master().joint_public_key().unwrap().unwrap_err() == Error::NodeDisconnected);
+	}
+
+	#[test]
+	fn encryption_fails_on_node_timeout() {
+		let (_, _, _, l) = make_simple_cluster(0, 2).unwrap();
+		assert!(l.master().joint_public_key().is_none());
+		l.master().on_node_timeout(l.first_slave().node());
+		assert!(l.master().joint_public_key().unwrap().unwrap_err() == Error::NodeDisconnected);
+	}
+
 	#[test]
 	fn complete_enc_dec_session() {
 		let test_cases = [(0, 5), (2, 5), (3, 5)];
@@ -1150,11 +1185,11 @@ mod tests {
 			}
 
 			// check that all nodes has finished joint public generation
-			let joint_public_key = l.master().joint_public_key().unwrap();
+			let joint_public_key = l.master().joint_public_key().unwrap().unwrap();
 			for node in l.nodes.values() {
 				let state = node.session.state();
 				assert_eq!(state, SessionState::Finished);
-				assert_eq!(node.session.joint_public_key().as_ref(), Some(&joint_public_key));
+				assert_eq!(node.session.joint_public_key().as_ref(), Some(&Ok(joint_public_key)));
 			}
 
 			// now let's encrypt some secret (which is a point on EC)
@@ -1180,7 +1215,7 @@ mod tests {
 			let mut core = Core::new().unwrap();
 
 			// prepare cluster objects for each node
-			let clusters = make_clusters(&core, 6020, num_nodes);
+			let clusters = make_clusters(&core, 6022, num_nodes);
 			run_clusters(&clusters);
 
 			// establish connections
