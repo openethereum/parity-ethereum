@@ -1697,7 +1697,7 @@ export default {
   },
 
   signMessage: {
-    desc: 'Sign a hashed-message byt the given account.',
+    desc: 'Sign the hashed message bytes with the given account.',
     params: [
       {
         type: Address,
