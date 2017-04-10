@@ -241,7 +241,7 @@ impl Tendermint {
 		self.validators.contains(&*self.proposal_parent.read(), address)
 	}
 
-	fn is_above_threshold(&self, n: usize) -> Result<(), EngineError> {
+	fn check_above_threshold(&self, n: usize) -> Result<(), EngineError> {
 		let threshold = self.validators.count(&*self.proposal_parent.read()) * 2/3;
 		if n > threshold {
 			Ok(())
@@ -262,7 +262,7 @@ impl Tendermint {
 	}
 
 	/// Check if address is a proposer for given view.
-	fn is_view_proposer(&self, bh: &H256, height: Height, view: View, address: &Address) -> Result<(), EngineError> {
+	fn check_view_proposer(&self, bh: &H256, height: Height, view: View, address: &Address) -> Result<(), EngineError> {
 		let proposer = self.view_proposer(bh, height, view);
 		if proposer == *address {
 			Ok(())
@@ -298,13 +298,13 @@ impl Tendermint {
 
 	fn has_enough_any_votes(&self) -> bool {
 		let step_votes = self.votes.count_round_votes(&VoteStep::new(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst), *self.step.read()));
-		self.is_above_threshold(step_votes).is_ok()
+		self.check_above_threshold(step_votes).is_ok()
 	}
 
 	fn has_enough_future_step_votes(&self, vote_step: &VoteStep) -> bool {
 		if vote_step.view > self.view.load(AtomicOrdering::SeqCst) {
 			let step_votes = self.votes.count_round_votes(vote_step);
-			self.is_above_threshold(step_votes).is_ok()
+			self.check_above_threshold(step_votes).is_ok()
 		} else {
 			false
 		}
@@ -312,7 +312,7 @@ impl Tendermint {
 
 	fn has_enough_aligned_votes(&self, message: &ConsensusMessage) -> bool {
 		let aligned_count = self.votes.count_aligned_votes(&message);
-		self.is_above_threshold(aligned_count).is_ok()
+		self.check_above_threshold(aligned_count).is_ok()
 	}
 
 	fn handle_valid_message(&self, message: &ConsensusMessage) {
@@ -468,12 +468,12 @@ impl Engine for Tendermint {
 		if !self.votes.is_old_or_known(&message) {
 			let sender = public_to_address(&recover(&message.signature.into(), &rlp.at(1)?.as_raw().sha3())?);
 			if !self.is_authority(&sender) {
-				Err(EngineError::NotAuthorized(sender))?;
+				return Err(From::from(EngineError::NotAuthorized(sender)));
 			}
 			self.broadcast_message(rlp.as_raw().to_vec());
 			if self.votes.vote(message.clone(), &sender).is_some() {
 				self.validators.report_malicious(&sender);
-				Err(EngineError::DoubleVote(sender))?
+				return Err(From::from(EngineError::DoubleVote(sender)));
 			}
 			trace!(target: "engine", "Handling a valid {:?} from {}.", message, sender);
 			self.handle_valid_message(&message);
@@ -497,23 +497,19 @@ impl Engine for Tendermint {
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let seal_length = header.seal().len();
 		if seal_length == self.seal_fields() {
-			let proposal_len = header.seal()[1].len();
-			let signatures_len = header.seal()[2].len();
-			if (proposal_len == 1) ^ (signatures_len == 1) {
+			// Either proposal or commit.
+			if (header.seal()[1] == ::rlp::NULL_RLP.to_vec())
+				^ (header.seal()[2] == ::rlp::EMPTY_LIST_RLP.to_vec()) {
 				Ok(())
 			} else {
-				Err(From::from(EngineError::BadSealFieldSize(OutOfBounds {
-					min: Some(1),
-					max: Some(1),
-					found: proposal_len
-				})))
+				warn!(target: "engine", "verify_block_basic: Block is neither a Commit nor Proposal.");
+				Err(From::from(BlockError::InvalidSeal))
 			}
 		} else {
 			Err(From::from(BlockError::InvalidSealArity(
 				Mismatch { expected: self.seal_fields(), found: seal_length }
 			)))
 		}
-
 	}
 
 	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
@@ -523,20 +519,19 @@ impl Engine for Tendermint {
 	/// Verify validators and gas limit.
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		if header.number() == 0 {
-			Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() }))?;
+			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
 
 		if let Ok(proposal) = ConsensusMessage::new_proposal(header) {
 			let proposer = proposal.verify()?;
 			if !self.is_authority(&proposer) {
-				Err(EngineError::NotAuthorized(proposer))?
+				return Err(From::from(EngineError::NotAuthorized(proposer)));
 			}
-			self.is_view_proposer(header.parent_hash(), proposal.vote_step.height, proposal.vote_step.view, &proposer)?;
+			self.check_view_proposer(header.parent_hash(), proposal.vote_step.height, proposal.vote_step.view, &proposer)?;
 		} else {
 			let vote_step = VoteStep::new(header.number() as usize, consensus_view(header)?, Step::Precommit);
 			let precommit_hash = message_hash(vote_step.clone(), header.bare_hash());
-			let ref signatures_field = header.seal()[2];
-			let mut signature_count = 0;
+			let ref signatures_field = header.seal().get(2).expect("block went through verify_block_basic; block has .seal_fields() fields; qed");
 			let mut origins = HashSet::new();
 			for rlp in UntrustedRlp::new(signatures_field).iter() {
 				let precommit = ConsensusMessage {
@@ -549,18 +544,16 @@ impl Engine for Tendermint {
 					None => public_to_address(&recover(&precommit.signature.into(), &precommit_hash)?),
 				};
 				if !self.validators.contains(header.parent_hash(), &address) {
-					Err(EngineError::NotAuthorized(address.to_owned()))?
+					return Err(From::from(EngineError::NotAuthorized(address.to_owned())));
 				}
 
-				if origins.insert(address) {
-					signature_count += 1;
-				} else {
+				if !origins.insert(address) {
 					warn!(target: "engine", "verify_block_unordered: Duplicate signature from {} on the seal.", address);
-					Err(BlockError::InvalidSeal)?;
+					return Err(From::from(BlockError::InvalidSeal));
 				}
 			}
 
-			self.is_above_threshold(signature_count)?
+			self.check_above_threshold(origins.len())?
 		}
 
 		let gas_limit_divisor = self.gas_limit_bound_divisor;
@@ -568,7 +561,7 @@ impl Engine for Tendermint {
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
 			self.validators.report_malicious(header.author());
-			Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() }))?;
+			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
 		}
 
 		Ok(())
