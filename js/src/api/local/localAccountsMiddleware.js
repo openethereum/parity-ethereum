@@ -169,6 +169,12 @@ export default class LocalAccountsMiddleware extends Middleware {
         this.rpcRequest('parity_nextNonce', [from]),
         account.decryptPrivateKey(password)
       ])
+      .catch((err) => {
+        transactions.unlock(id);
+
+        // transaction got unlocked, can propagate rejection further
+        throw err;
+      })
       .then(([nonce, privateKey]) => {
         if (!privateKey) {
           transactions.unlock(id);
