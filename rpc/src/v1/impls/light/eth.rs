@@ -663,8 +663,10 @@ impl Filterable for EthClient {
 			BlockId::Number(x) => Some(x),
 		};
 
-		if block_number(filter.to_block) < block_number(filter.from_block) {
-			return future::ok(Vec::new()).boxed()
+		match (block_number(filter.to_block), block_number(filter.from_block)) {
+			(Some(to), Some(from)) if to < from => return future::ok(Vec::new()).boxed(),
+			(Some(_), Some(_)) => {},
+			_ => return future::err(errors::unknown_block()).boxed(),
 		}
 
 		let maybe_future = self.sync.with_context(move |ctx| {
