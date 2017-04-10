@@ -36,7 +36,7 @@ use light::on_demand::{OnDemand, request};
 use ethsync::LightSync;
 use util::{Address, Mutex, Uint, U256};
 
-use v1::helpers::{CallRequest as CRequest, errors, dispatch};
+use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest};
 
 /// Helper for fetching blockchain data either from the light client or the network
@@ -130,7 +130,7 @@ impl LightFetch {
 		const DEFAULT_GAS_PRICE: U256 = U256([0, 0, 0, 21_000_000]);
 
 		let (sync, on_demand, client) = (self.sync.clone(), self.on_demand.clone(), self.client.clone());
-		let req: CRequest = req.into();
+		let req: CallRequestHelper = req.into();
 		let id = num.0.into();
 
 		let from = req.from.unwrap_or(Address::zero());

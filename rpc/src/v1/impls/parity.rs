@@ -427,6 +427,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			},
 			extra_info: client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
 		})).boxed()
+	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
 		ipfs::cid(content)
