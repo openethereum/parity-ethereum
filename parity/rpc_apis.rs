@@ -85,9 +85,17 @@ impl FromStr for Api {
 
 #[derive(Debug, Clone)]
 pub enum ApiSet {
+	// Safe context (like token-protected WS interface)
 	SafeContext,
+	// Unsafe context (like jsonrpc over http)
 	UnsafeContext,
+	// Public context (like public jsonrpc over http)
+	PublicContext,
+	// All possible APIs
+	All,
+	// Local "unsafe" context and accounts access
 	IpcContext,
+	// Fixed list of APis
 	List(HashSet<Api>),
 }
 
@@ -107,10 +115,30 @@ impl FromStr for ApiSet {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		s.split(',')
-			.map(Api::from_str)
-			.collect::<Result<_, _>>()
-			.map(ApiSet::List)
+		let mut apis = HashSet::new();
+
+		for api in s.split(',') {
+			match api {
+				"all" => {
+					apis.extend(ApiSet::All.list_apis());
+				},
+				"safe" => {
+					// Safe APIs are those that are safe even in UnsafeContext.
+					apis.extend(ApiSet::UnsafeContext.list_apis());
+				},
+				// Remove the API
+				api if api.starts_with("-") => {
+					let api = api[1..].parse()?;
+					apis.remove(&api);
+				},
+				api => {
+					let api = api.parse()?;
+					apis.insert(api);
+				},
+			}
+		}
+
+		Ok(ApiSet::List(apis))
 	}
 }
 
@@ -402,21 +430,41 @@ impl Dependencies for LightDependencies {
 }
 
 impl ApiSet {
+	/// Retains only APIs in given set.
+	pub fn retain(self, set: Self) -> Self {
+		ApiSet::List(&self.list_apis() & &set.list_apis())
+	}
+
 	pub fn list_apis(&self) -> HashSet<Api> {
-		let mut safe_list = vec![Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc]
-			.into_iter().collect();
+		let mut public_list = vec![
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Rpc,
+		].into_iter().collect();
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
-			ApiSet::UnsafeContext => safe_list,
+			ApiSet::PublicContext => public_list,
+			ApiSet::UnsafeContext => {
+				public_list.insert(Api::Traces);
+				public_list
+			},
 			ApiSet::IpcContext => {
-				safe_list.insert(Api::ParityAccounts);
-				safe_list
+				public_list.insert(Api::Traces);
+				public_list.insert(Api::ParityAccounts);
+				public_list
 			},
 			ApiSet::SafeContext => {
-				safe_list.insert(Api::ParityAccounts);
-				safe_list.insert(Api::ParitySet);
-				safe_list.insert(Api::Signer);
-				safe_list
+				public_list.insert(Api::Traces);
+				public_list.insert(Api::ParityAccounts);
+				public_list.insert(Api::ParitySet);
+				public_list.insert(Api::Signer);
+				public_list
+			},
+			ApiSet::All => {
+				public_list.insert(Api::Traces);
+				public_list.insert(Api::ParityAccounts);
+				public_list.insert(Api::ParitySet);
+				public_list.insert(Api::Signer);
+				public_list.insert(Api::Personal);
+				public_list
 			},
 		}
 	}
@@ -491,5 +539,31 @@ mod test {
 			Api::ParitySet, Api::Signer,
 		].into_iter().collect();
 		assert_eq!(ApiSet::SafeContext.list_apis(), expected);
+	}
+
+	#[test]
+	fn test_all_apis() {
+		assert_eq!("all".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+			Api::ParityAccounts,
+			Api::ParitySet, Api::Signer,
+			Api::Personal
+		].into_iter().collect()));
+	}
+
+	#[test]
+	fn test_all_without_personal_apis() {
+		assert_eq!("personal,all,-personal".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+			Api::ParityAccounts,
+			Api::ParitySet, Api::Signer,
+		].into_iter().collect()));
+	}
+
+	#[test]
+	fn test_safe_parsing() {
+		assert_eq!("safe".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+		].into_iter().collect()));
 	}
 }

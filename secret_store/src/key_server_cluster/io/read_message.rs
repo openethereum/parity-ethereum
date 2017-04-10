@@ -16,13 +16,14 @@
 
 use std::io;
 use futures::{Poll, Future, Async};
-use ethkey::Secret;
+use tokio_io::AsyncRead;
+use ethkey::KeyPair;
 use key_server_cluster::Error;
 use key_server_cluster::message::Message;
 use key_server_cluster::io::{read_header, ReadHeader, read_payload, read_encrypted_payload, ReadPayload};
 
 /// Create future for read single message from the stream.
-pub fn read_message<A>(a: A) -> ReadMessage<A> where A: io::Read {
+pub fn read_message<A>(a: A) -> ReadMessage<A> where A: AsyncRead {
 	ReadMessage {
 		key: None,
 		state: ReadMessageState::ReadHeader(read_header(a)),
@@ -30,7 +31,7 @@ pub fn read_message<A>(a: A) -> ReadMessage<A> where A: io::Read {
 }
 
 /// Create future for read single encrypted message from the stream.
-pub fn read_encrypted_message<A>(a: A, key: Secret) -> ReadMessage<A> where A: io::Read {
+pub fn read_encrypted_message<A>(a: A, key: KeyPair) -> ReadMessage<A> where A: AsyncRead {
 	ReadMessage {
 		key: Some(key),
 		state: ReadMessageState::ReadHeader(read_header(a)),
@@ -45,11 +46,11 @@ enum ReadMessageState<A> {
 
 /// Future for read single message from the stream.
 pub struct ReadMessage<A> {
-	key: Option<Secret>,
+	key: Option<KeyPair>,
 	state: ReadMessageState<A>,
 }
 
-impl<A> Future for ReadMessage<A> where A: io::Read {
+impl<A> Future for ReadMessage<A> where A: AsyncRead {
 	type Item = (A, Result<Message, Error>);
 	type Error = io::Error;
 

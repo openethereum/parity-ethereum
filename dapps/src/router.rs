@@ -19,6 +19,7 @@
 
 use address;
 use std::cmp;
+use std::sync::Arc;
 use std::collections::HashMap;
 
 use url::{Url, Host};
@@ -40,14 +41,14 @@ pub enum SpecialEndpoint {
 	None,
 }
 
-pub struct Router<F> {
+pub struct Router {
 	signer_address: Option<(String, u16)>,
 	endpoints: Endpoints,
-	fetch: F,
+	fetch: Arc<Fetcher>,
 	special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
 }
 
-impl<F: Fetcher + 'static> http::RequestMiddleware for Router<F> {
+impl http::RequestMiddleware for Router {
 	fn on_request(&self, req: &server::Request<HttpStream>, control: &Control) -> http::RequestMiddlewareAction {
 		// Choose proper handler depending on path / domain
 		let url = handlers::extract_url(req);
@@ -146,10 +147,10 @@ impl<F: Fetcher + 'static> http::RequestMiddleware for Router<F> {
 	}
 }
 
-impl<F> Router<F> {
+impl Router {
 	pub fn new(
 		signer_address: Option<(String, u16)>,
-		content_fetcher: F,
+		content_fetcher: Arc<Fetcher>,
 		endpoints: Endpoints,
 		special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
 	) -> Self {

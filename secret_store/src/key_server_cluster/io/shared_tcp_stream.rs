@@ -15,7 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use std::net::Shutdown;
 use std::io::{Read, Write, Error};
+use futures::Poll;
+use tokio_io::{AsyncRead, AsyncWrite};
 use tokio_core::net::TcpStream;
 
 /// Read+Write implementation for Arc<TcpStream>.
@@ -34,6 +37,14 @@ impl SharedTcpStream {
 impl From<TcpStream> for SharedTcpStream {
 	fn from(a: TcpStream) -> Self {
 		SharedTcpStream::new(Arc::new(a))
+	}
+}
+
+impl AsyncRead for SharedTcpStream {}
+
+impl AsyncWrite for SharedTcpStream {
+	fn shutdown(&mut self) -> Poll<(), Error> {
+		self.io.shutdown(Shutdown::Both).map(Into::into)
 	}
 }
 

@@ -82,7 +82,7 @@ impl ContractClient for FullRegistrar {
 // TODO: light client implementation forwarding to OnDemand and waiting for future
 // to resolve.
 pub struct Dependencies {
-	pub sync_status: Arc<::parity_dapps::SyncStatus>,
+	pub sync_status: Arc<SyncStatus>,
 	pub contract_client: Arc<ContractClient>,
 	pub remote: parity_reactor::TokioRemote,
 	pub fetch: FetchClient,
@@ -103,8 +103,7 @@ pub fn new(configuration: Configuration, deps: Dependencies)
 	).map(Some)
 }
 
-pub use self::server::Middleware;
-pub use self::server::dapps_middleware;
+pub use self::server::{SyncStatus, Middleware, dapps_middleware};
 
 #[cfg(not(feature = "dapps"))]
 mod server {
@@ -112,11 +111,12 @@ mod server {
 	use std::path::PathBuf;
 	use ethcore_rpc::{hyper, RequestMiddleware, RequestMiddlewareAction};
 
-	pub struct Middleware;
+	pub type SyncStatus = Fn() -> bool;
 
+	pub struct Middleware;
 	impl RequestMiddleware for Middleware {
 		fn on_request(
-			&self, req: &hyper::server::Request<hyper::net::HttpStream>, control: &hyper::Control
+			&self, _req: &hyper::server::Request<hyper::net::HttpStream>, _control: &hyper::Control
 		) -> RequestMiddlewareAction {
 			unreachable!()
 		}
@@ -137,11 +137,11 @@ mod server {
 	use std::path::PathBuf;
 	use std::sync::Arc;
 
-	use hash_fetch::fetch::Client as FetchClient;
 	use parity_dapps;
 	use parity_reactor;
 
-	pub type Middleware = parity_dapps::Middleware<FetchClient>;
+	pub use parity_dapps::Middleware;
+	pub use parity_dapps::SyncStatus;
 
 	pub fn dapps_middleware(
 		deps: Dependencies,

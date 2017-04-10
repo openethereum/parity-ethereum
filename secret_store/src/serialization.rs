@@ -17,11 +17,62 @@
 use std::fmt;
 use std::cmp::{Ord, PartialOrd, Ordering};
 use std::ops::Deref;
-use rustc_serialize::hex::ToHex;
+use rustc_serialize::hex::{ToHex, FromHex};
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use serde::de::{Visitor, Error as SerdeError};
 use ethkey::{Public, Secret, Signature};
-use util::H256;
+use util::{H256, Bytes};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Serializable shadow decryption result.
+pub struct SerializableDocumentEncryptedKeyShadow {
+	/// Decrypted secret point. It is partially decrypted if shadow decrpytion was requested.
+	pub decrypted_secret: SerializablePublic,
+	/// Shared common point.
+	pub common_point: SerializablePublic,
+	/// If shadow decryption was requested: shadow decryption coefficients, encrypted with requestor public.
+	pub decrypt_shadows: Vec<SerializableBytes>,
+}
+
+#[derive(Clone, Debug)]
+/// Serializable Bytes.
+pub struct SerializableBytes(Bytes);
+
+impl<T> From<T> for SerializableBytes where Bytes: From<T> {
+	fn from(s: T) -> SerializableBytes {
+		SerializableBytes(s.into())
+	}
+}
+
+impl Into<Bytes> for SerializableBytes {
+	fn into(self) -> Bytes {
+		self.0
+	}
+}
+
+impl Deref for SerializableBytes {
+	type Target = Bytes;
+
+	fn deref(&self) -> &Bytes {
+		&self.0
+	}
+}
+
+impl Serialize for SerializableBytes {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+		serializer.serialize_str(&(*self.0).to_hex())
+	}
+}
+
+impl Deserialize for SerializableBytes {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+		where D: Deserializer
+	{
+		let s = String::deserialize(deserializer)?;
+		let data = s.from_hex().map_err(SerdeError::custom)?;
+		Ok(SerializableBytes(data))
+	}
+}
 
 #[derive(Clone, Debug)]
 /// Serializable Signature.
