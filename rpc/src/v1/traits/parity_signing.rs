@@ -28,7 +28,7 @@ build_rpc_trait! {
 		/// Posts sign request asynchronously.
 		/// Will return a confirmation ID for later use with check_transaction.
 		#[rpc(meta, name = "parity_postSign")]
-		fn post_sign_transaction(&self, Self::Metadata, H160, Bytes) -> BoxFuture<Either<U256, ConfirmationResponse>, Error>;
+		fn post_sign(&self, Self::Metadata, H160, Bytes) -> BoxFuture<Either<U256, ConfirmationResponse>, Error>;
 
 		/// Posts transaction asynchronously.
 		/// Will return a transaction ID for later use with check_transaction.

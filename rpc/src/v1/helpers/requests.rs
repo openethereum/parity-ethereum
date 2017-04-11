@@ -113,7 +113,7 @@ pub enum ConfirmationPayload {
 	SendTransaction(FilledTransactionRequest),
 	/// Sign Transaction
 	SignTransaction(FilledTransactionRequest),
-	/// Sign complete transaction
+	/// Sign a message with an Ethereum specific security prefix.
 	EthSignMessage(Address, Bytes),
 	/// Decrypt request
 	Decrypt(Address, Bytes),

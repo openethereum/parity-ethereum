@@ -137,7 +137,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 	type Metadata = Metadata;
 
-	fn post_sign_transaction(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
+	fn post_sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		let pending = self.pending.clone();
 		self.dispatch(
 			RpcConfirmationPayload::EthSignMessage((address.clone(), data).into()),
