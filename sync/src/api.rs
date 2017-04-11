@@ -43,7 +43,7 @@ pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
 /// Ethereum sync protocol
 pub const ETH_PROTOCOL: ProtocolId = *b"eth";
 /// Ethereum light protocol
-pub const LIGHT_PROTOCOL: ProtocolId = *b"plp";
+pub const LIGHT_PROTOCOL: ProtocolId = *b"pip";
 
 /// Sync configuration
 #[derive(Debug, Clone, Copy)]
@@ -126,7 +126,7 @@ pub struct PeerInfo {
 	/// Eth protocol info.
 	pub eth_info: Option<EthProtocolInfo>,
 	/// Light protocol info.
-	pub les_info: Option<LesProtocolInfo>,
+	pub pip_info: Option<PipProtocolInfo>,
 }
 
 /// Ethereum protocol info.
@@ -141,10 +141,10 @@ pub struct EthProtocolInfo {
 	pub difficulty: Option<U256>,
 }
 
-/// LES protocol info.
+/// PIP protocol info.
 #[derive(Debug)]
 #[cfg_attr(feature = "ipc", derive(Binary))]
-pub struct LesProtocolInfo {
+pub struct PipProtocolInfo {
 	/// Protocol version
 	pub version: u32,
 	/// SHA3 of peer best block hash
@@ -153,9 +153,9 @@ pub struct LesProtocolInfo {
 	pub difficulty: U256,
 }
 
-impl From<light_net::Status> for LesProtocolInfo {
+impl From<light_net::Status> for PipProtocolInfo {
 	fn from(status: light_net::Status) -> Self {
-		LesProtocolInfo {
+		PipProtocolInfo {
 			version: status.protocol_version,
 			head: status.head_hash,
 			difficulty: status.head_td,
@@ -184,7 +184,7 @@ pub struct EthSync {
 	network: NetworkService,
 	/// Main (eth/par) protocol handler
 	eth_handler: Arc<SyncProtocolHandler>,
-	/// Light (les) protocol handler
+	/// Light (pip) protocol handler
 	light_proto: Option<Arc<LightProtocol>>,
 	/// The main subprotocol name
 	subprotocol_name: [u8; 3],
@@ -264,7 +264,7 @@ impl SyncProvider for EthSync {
 					remote_address: session_info.remote_address,
 					local_address: session_info.local_address,
 					eth_info: eth_sync.peer_info(&peer_id),
-					les_info: light_proto.as_ref().and_then(|lp| lp.peer_status(&peer_id)).map(Into::into),
+					pip_info: light_proto.as_ref().and_then(|lp| lp.peer_status(&peer_id)).map(Into::into),
 				})
 			}).collect()
 		}).unwrap_or_else(Vec::new)
@@ -408,13 +408,13 @@ impl ChainNotify for EthSync {
 	}
 }
 
-/// LES event handler.
+/// PIP event handler.
 /// Simply queues transactions from light client peers.
 struct TxRelay(Arc<BlockChainClient>);
 
 impl LightHandler for TxRelay {
 	fn on_transactions(&self, ctx: &EventContext, relay: &[::ethcore::transaction::UnverifiedTransaction]) {
-		trace!(target: "les", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
+		trace!(target: "pip", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
 		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).to_vec()).collect(), ctx.peer())
 	}
 }
@@ -642,6 +642,9 @@ pub trait LightSyncProvider {
 	/// Get peers information
 	fn peers(&self) -> Vec<PeerInfo>;
 
+	/// Get network id.
+	fn network_id(&self) -> u64;
+
 	/// Get the enode if available.
 	fn enode(&self) -> Option<String>;
 
@@ -659,13 +662,17 @@ pub struct LightSyncParams<L> {
 	pub network_id: u64,
 	/// Subprotocol name.
 	pub subprotocol_name: [u8; 3],
+	/// Other handlers to attach.
+	pub handlers: Vec<Arc<LightHandler>>,
 }
 
 /// Service for light synchronization.
 pub struct LightSync {
 	proto: Arc<LightProtocol>,
+	sync: Arc<::light_sync::SyncInfo + Sync + Send>,
 	network: NetworkService,
 	subprotocol_name: [u8; 3],
+	network_id: u64,
 }
 
 impl LightSync {
@@ -676,7 +683,7 @@ impl LightSync {
 		use light_sync::LightSync as SyncHandler;
 
 		// initialize light protocol handler and attach sync module.
-		let light_proto = {
+		let (sync, light_proto) = {
 			let light_params = LightParams {
 				network_id: params.network_id,
 				flow_params: Default::default(), // or `None`?
@@ -689,18 +696,24 @@ impl LightSync {
 			};
 
 			let mut light_proto = LightProtocol::new(params.client.clone(), light_params);
-			let sync_handler = try!(SyncHandler::new(params.client.clone()));
-			light_proto.add_handler(Arc::new(sync_handler));
+			let sync_handler = Arc::new(try!(SyncHandler::new(params.client.clone())));
+			light_proto.add_handler(sync_handler.clone());
 
-			Arc::new(light_proto)
+			for handler in params.handlers {
+				light_proto.add_handler(handler);
+			}
+
+			(sync_handler, Arc::new(light_proto))
 		};
 
 		let service = try!(NetworkService::new(params.network_config));
 
 		Ok(LightSync {
 			proto: light_proto,
+			sync: sync,
 			network: service,
 			subprotocol_name: params.subprotocol_name,
+			network_id: params.network_id,
 		})
 	}
 
@@ -713,6 +726,12 @@ impl LightSync {
 			move |ctx| self.proto.with_context(ctx, f),
 		)
 	}
+}
+
+impl ::std::ops::Deref for LightSync {
+	type Target = ::light_sync::SyncInfo;
+
+	fn deref(&self) -> &Self::Target { &*self.sync }
 }
 
 impl ManageNetwork for LightSync {
@@ -786,7 +805,7 @@ impl LightSyncProvider for LightSync {
 					remote_address: session_info.remote_address,
 					local_address: session_info.local_address,
 					eth_info: None,
-					les_info: self.proto.peer_status(&peer_id).map(Into::into),
+					pip_info: self.proto.peer_status(&peer_id).map(Into::into),
 				})
 			}).collect()
 		}).unwrap_or_else(Vec::new)
@@ -794,6 +813,10 @@ impl LightSyncProvider for LightSync {
 
 	fn enode(&self) -> Option<String> {
 		self.network.external_url()
+	}
+
+	fn network_id(&self) -> u64 {
+		self.network_id
 	}
 
 	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats> {

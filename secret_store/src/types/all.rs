@@ -15,10 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
+use std::collections::BTreeMap;
 
 use ethkey;
 use util;
+use key_server_cluster;
 
+/// Node id.
+pub type NodeId = ethkey::Public;
 /// Document address type.
 pub type DocumentAddress = util::H256;
 /// Document key type.
@@ -49,13 +53,50 @@ pub enum Error {
 #[derive(Debug)]
 #[binary]
 /// Secret store configuration
+pub struct NodeAddress {
+	/// IP address.
+	pub address: String,
+	/// IP port.
+	pub port: u16,
+}
+
+#[derive(Debug)]
+#[binary]
+/// Secret store configuration
 pub struct ServiceConfiguration {
-	/// Interface to listen to
-	pub listener_addr: String,
-	/// Port to listen to
-	pub listener_port: u16,
+	/// HTTP listener address.
+	pub listener_address: NodeAddress,
 	/// Data directory path for secret store
 	pub data_path: String,
+	/// Cluster configuration.
+	pub cluster_config: ClusterConfiguration,
+}
+
+#[derive(Debug)]
+#[binary]
+/// Key server cluster configuration
+pub struct ClusterConfiguration {
+	/// Number of threads reserved by cluster.
+	pub threads: usize,
+	/// Private key this node holds.
+	pub self_private: Vec<u8>, // holds ethkey::Secret
+	/// This node address.
+	pub listener_address: NodeAddress,
+	/// All cluster nodes addresses.
+	pub nodes: BTreeMap<ethkey::Public, NodeAddress>,
+	/// Allow outbound connections to 'higher' nodes.
+	/// This is useful for tests, but slower a bit for production.
+	pub allow_connecting_to_higher_nodes: bool,
+	/// Encryption session configuration.
+	pub encryption_config: EncryptionConfiguration,
+}
+
+#[derive(Clone, Debug)]
+#[binary]
+/// Encryption parameters.
+pub struct EncryptionConfiguration {
+	/// Key check timeout.
+	pub key_check_timeout_ms: u64,
 }
 
 impl fmt::Display for Error {
@@ -66,6 +107,21 @@ impl fmt::Display for Error {
 			Error::DocumentNotFound => write!(f, "Document not found"),
 			Error::Database(ref msg) => write!(f, "Database error: {}", msg),
 			Error::Internal(ref msg) => write!(f, "Internal error: {}", msg),
+		}
+	}
+}
+
+impl From<ethkey::Error> for Error {
+	fn from(err: ethkey::Error) -> Self {
+		Error::Internal(err.into())
+	}
+}
+
+impl From<key_server_cluster::Error> for Error {
+	fn from(err: key_server_cluster::Error) -> Self {
+		match err {
+			key_server_cluster::Error::AccessDenied => Error::AccessDenied,
+			_ => Error::Internal(err.into()),
 		}
 	}
 }

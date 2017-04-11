@@ -92,12 +92,13 @@ pub enum URLHintResult {
 }
 
 /// URLHint Contract interface
-pub trait URLHint {
+pub trait URLHint: Send + Sync {
 	/// Resolves given id to registrar entry.
 	fn resolve(&self, id: Bytes) -> Option<URLHintResult>;
 }
 
 /// `URLHintContract` API
+#[derive(Clone)]
 pub struct URLHintContract {
 	urlhint: Contract,
 	registrar: Contract,

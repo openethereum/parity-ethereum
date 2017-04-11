@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
 use unicase::UniCase;
 use hyper::{server, net, Decoder, Encoder, Next, Control};
 use hyper::header;
@@ -26,48 +25,49 @@ use apps::fetcher::Fetcher;
 
 use handlers::extract_url;
 use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
-use jsonrpc_http_server;
-use jsonrpc_server_utils::cors;
+use jsonrpc_http_server::{self, AccessControlAllowOrigin};
 
 #[derive(Clone)]
-pub struct RestApi {
-	cors_domains: Option<Vec<cors::AccessControlAllowOrigin>>,
-	endpoints: Arc<Endpoints>,
-	fetcher: Arc<Fetcher>,
+pub struct RestApi<F> {
+	// TODO [ToDr] cors_domains should be handled by the server to avoid duplicated logic.
+	// RequestMiddleware should be able to tell that cors headers should be included.
+	cors_domains: Option<Vec<AccessControlAllowOrigin>>,
+	apps: Vec<App>,
+	fetcher: F,
 }
 
-impl RestApi {
-	pub fn new(cors_domains: Vec<cors::AccessControlAllowOrigin>, endpoints: Arc<Endpoints>, fetcher: Arc<Fetcher>) -> Box<Endpoint> {
+impl<F: Fetcher + Clone> RestApi<F> {
+	pub fn new(cors_domains: Vec<AccessControlAllowOrigin>, endpoints: &Endpoints, fetcher: F) -> Box<Endpoint> {
 		Box::new(RestApi {
 			cors_domains: Some(cors_domains),
-			endpoints: endpoints,
+			apps: Self::list_apps(endpoints),
 			fetcher: fetcher,
 		})
 	}
 
-	fn list_apps(&self) -> Vec<App> {
-		self.endpoints.iter().filter_map(|(ref k, ref e)| {
+	fn list_apps(endpoints: &Endpoints) -> Vec<App> {
+		endpoints.iter().filter_map(|(ref k, ref e)| {
 			e.info().map(|ref info| App::from_info(k, info))
 		}).collect()
 	}
 }
 
-impl Endpoint for RestApi {
+impl<F: Fetcher + Clone> Endpoint for RestApi<F> {
 	fn to_async_handler(&self, path: EndpointPath, control: Control) -> Box<Handler> {
-		Box::new(RestApiRouter::new(self.clone(), path, control))
+		Box::new(RestApiRouter::new((*self).clone(), path, control))
 	}
 }
 
-struct RestApiRouter {
-	api: RestApi,
+struct RestApiRouter<F> {
+	api: RestApi<F>,
 	cors_header: Option<header::AccessControlAllowOrigin>,
 	path: Option<EndpointPath>,
 	control: Option<Control>,
 	handler: Box<Handler>,
 }
 
-impl RestApiRouter {
-	fn new(api: RestApi, path: EndpointPath, control: Control) -> Self {
+impl<F: Fetcher> RestApiRouter<F> {
+	fn new(api: RestApi<F>, path: EndpointPath, control: Control) -> Self {
 		RestApiRouter {
 			path: Some(path),
 			cors_header: None,
@@ -114,7 +114,7 @@ impl RestApiRouter {
 	}
 }
 
-impl server::Handler<net::HttpStream> for RestApiRouter {
+impl<F: Fetcher> server::Handler<net::HttpStream> for RestApiRouter<F> {
 
 	fn on_request(&mut self, request: server::Request<net::HttpStream>) -> Next {
 		self.cors_header = jsonrpc_http_server::cors_header(&request, &self.api.cors_domains).into();
@@ -142,7 +142,7 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 		if let Some(ref hash) = hash { path.app_id = hash.clone().to_owned() }
 
 		let handler = endpoint.and_then(|v| match v {
-			"apps" => Some(response::as_json(&self.api.list_apps())),
+			"apps" => Some(response::as_json(&self.api.apps)),
 			"ping" => Some(response::ping()),
 			"content" => self.resolve_content(hash, path, control),
 			_ => None

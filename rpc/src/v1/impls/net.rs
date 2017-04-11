@@ -21,7 +21,7 @@ use ethsync::SyncProvider;
 use v1::traits::Net;
 
 /// Net rpc implementation.
-pub struct NetClient<S: ?Sized> where S: SyncProvider {
+pub struct NetClient<S: ?Sized> {
 	sync: Weak<S>
 }
 

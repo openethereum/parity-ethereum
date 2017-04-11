@@ -8,7 +8,10 @@ RUN apt-get update && \
         curl \
         git \
         file \
-        binutils
+        binutils \
+        libssl-dev \
+        pkg-config \
+        libudev-dev
 
 # install rustup
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
