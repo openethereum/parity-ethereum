@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::iter::repeat;
+use std::str;
 use ethkey::Secret;
 use {json, Error, crypto};
 use crypto::Keccak256;
@@ -46,14 +47,28 @@ impl From<json::Crypto> for Crypto {
 	}
 }
 
-impl Into<json::Crypto> for Crypto {
-	fn into(self) -> json::Crypto {
+impl From<Crypto> for json::Crypto {
+	fn from(c: Crypto) -> Self {
 		json::Crypto {
-			cipher: self.cipher.into(),
-			ciphertext: self.ciphertext.into(),
-			kdf: self.kdf.into(),
-			mac: self.mac.into(),
+			cipher: c.cipher.into(),
+			ciphertext: c.ciphertext.into(),
+			kdf: c.kdf.into(),
+			mac: c.mac.into(),
 		}
+	}
+}
+
+impl str::FromStr for Crypto {
+	type Err = <json::Crypto as str::FromStr>::Err;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		s.parse::<json::Crypto>().map(Into::into)
+	}
+}
+
+impl From<Crypto> for String {
+	fn from(c: Crypto) -> Self {
+		json::Crypto::from(c).into()
 	}
 }
 

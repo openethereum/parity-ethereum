@@ -54,7 +54,7 @@ mod presale;
 mod random;
 mod secret_store;
 
-pub use self::account::SafeAccount;
+pub use self::account::{SafeAccount, Crypto};
 pub use self::error::Error;
 pub use self::ethstore::{EthStore, EthMultiStore};
 pub use self::import::{import_accounts, read_geth_accounts};
