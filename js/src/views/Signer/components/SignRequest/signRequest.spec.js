@@ -50,7 +50,7 @@ function render () {
   signerStore = createSignerStore();
 
   component = shallow(
-    <SignRequest signerStore={ signerStore } />,
+    <SignRequest signerstore={ signerStore } />,
     {
       context: {
         store: reduxStore
