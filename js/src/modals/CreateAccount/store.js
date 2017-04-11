@@ -157,7 +157,9 @@ export default class Store {
     }
 
     // FIXME: Current native signer encoding is not 100% for EIP-55, lowercase for now
-    this.qrAddress = this._api.util.toChecksumAddress(qrAddress.toLowerCase());
+    this.qrAddress = this._api.util
+        ? this._api.util.toChecksumAddress(qrAddress.toLowerCase())
+        : qrAddress;
   }
 
   @action setVaultName = (vaultName) => {
