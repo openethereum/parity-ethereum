@@ -1133,7 +1133,7 @@ impl MinerService for Miner {
 				|b| &b.hash() == &block_hash
 			) {
 				trace!(target: "miner", "Submitted block {}={}={} with seal {:?}", block_hash, b.hash(), b.header().bare_hash(), seal);
-				b.lock().try_seal(&*self.engine, seal).or_else(|(e, _)| {
+				b.lock().try_seal(&*self.engine, seal, None).or_else(|(e, _)| {
 					warn!(target: "miner", "Mined solution rejected: {}", e);
 					Err(Error::PowInvalid)
 				})

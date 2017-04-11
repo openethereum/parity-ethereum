@@ -258,7 +258,7 @@ mod tests {
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
 		if let Seal::Regular(seal) = engine.generate_seal(b.block()) {
-			assert!(b.try_seal(engine, seal).is_ok());
+			assert!(b.try_seal(engine, seal, None).is_ok());
 		}
 	}
 

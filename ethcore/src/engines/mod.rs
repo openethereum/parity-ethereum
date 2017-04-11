@@ -33,18 +33,20 @@ pub use self::authority_round::AuthorityRound;
 pub use self::tendermint::Tendermint;
 
 use std::sync::Weak;
-use util::*;
-use ethkey::Signature;
+
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;
+use client::Client;
 use env_info::EnvInfo;
 use error::{Error, TransactionError};
-use spec::CommonParams;
 use evm::Schedule;
 use header::Header;
+use spec::CommonParams;
 use transaction::{UnverifiedTransaction, SignedTransaction};
-use client::Client;
+
+use ethkey::Signature;
+use util::*;
 
 /// Voting errors.
 #[derive(Debug)]
@@ -59,6 +61,8 @@ pub enum EngineError {
 	UnexpectedMessage,
 	/// Seal field has an unexpected size.
 	BadSealFieldSize(OutOfBounds<usize>),
+	/// Needs a validation proof for the given block hash before verification can continue.
+	NeedsValidationProof(H256),
 }
 
 impl fmt::Display for EngineError {
@@ -70,6 +74,7 @@ impl fmt::Display for EngineError {
 			NotAuthorized(ref address) => format!("Signer {} is not authorized.", address),
 			UnexpectedMessage => "This Engine should not be fed messages.".into(),
 			BadSealFieldSize(ref oob) => format!("Seal field has an unexpected length: {}", oob),
+			NeedsValidationProof(ref hash) => format!("Needs validation proof of block {} to verify seal.", hash),
 		};
 
 		f.write_fmt(format_args!("Engine error ({})", msg))
@@ -86,6 +91,12 @@ pub enum Seal {
 	/// Engine does generate seal for this block right now.
 	None,
 }
+
+/// A validation proof, required for validation of a block header.
+pub type ValidationProof = Vec<DBValue>;
+
+/// Type alias for a function we can make calls through synchronously.
+pub type Call = Fn(Address, Bytes) -> Result<Bytes, String>;
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -180,8 +191,23 @@ pub trait Engine : Sync + Send {
 	/// Verify the seal of a block. This is an auxilliary method that actually just calls other `verify_` methods
 	/// to get the job done. By default it must pass `verify_basic` and `verify_block_unordered`. If more or fewer
 	/// methods are needed for an Engine, this may be overridden.
-	fn verify_block_seal(&self, header: &Header) -> Result<(), Error> {
+	fn verify_block_seal(&self, header: &Header, _proof: Option<ValidationProof>) -> Result<(), Error> {
 		self.verify_block_basic(header, None).and_then(|_| self.verify_block_unordered(header, None))
+	}
+
+	/// Generate a validation proof for the given block header.
+	///
+	/// All values queried during execution of given  will go into the proof.
+	/// This may only be called for blocks indicated in "needs validation proof"
+	/// errors.
+	///
+	/// Engines which don't draw consensus information from the state (e.g. PoW)
+	/// don't need to change anything here.
+	///
+	/// Engines which do draw consensus information from the state may only do so
+	/// here.
+	fn generate_validation_proof(&self, _call: &Call) -> ValidationProof {
+		ValidationProof::default()
 	}
 
 	/// Populate a header's fields based on its parent's header.

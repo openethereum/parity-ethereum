@@ -567,7 +567,7 @@ pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &Engine, chain
 	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {
 		match chain.block_header(header.parent_hash()) {
 			Some(parent) => engine.verify_block_family(header, &parent, body),
-			None => engine.verify_block_seal(header),
+			None => engine.verify_block_seal(header, None), // TODO: fetch validation proof as necessary.
 		}
 	} else {
 		engine.verify_block_basic(header, body)
