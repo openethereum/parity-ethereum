@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use ethkey::{Address, Message, Signature, Secret, Public};
 use Error;
 use json::{Uuid, OpaqueKeyFile};
-use util::H256;
+use bigint::hash::H256;
 
 /// Key directory reference
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
