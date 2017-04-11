@@ -18,7 +18,7 @@ use std::{fs, io};
 use std::path::{PathBuf, Path};
 use parking_lot::Mutex;
 use {json, SafeAccount, Error};
-use util::sha3::Hashable;
+use crypto::Keccak256;
 use super::super::account::Crypto;
 use super::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
 use super::disk::{DiskDirectory, KeyFileManager};
@@ -234,7 +234,7 @@ fn check_vault_name(name: &str) -> bool {
 
 /// Vault can be empty, but still must be pluggable => we store vault password in separate file
 fn create_vault_file<P>(vault_dir_path: P, key: &VaultKey, meta: &str) -> Result<(), Error> where P: AsRef<Path> {
-	let password_hash = key.password.sha3();
+	let password_hash = key.password.keccak256();
 	let crypto = Crypto::with_plain(&password_hash, &key.password, key.iterations);
 
 	let mut vault_file_path: PathBuf = vault_dir_path.as_ref().into();
@@ -268,8 +268,8 @@ fn read_vault_file<P>(vault_dir_path: P, key: Option<&VaultKey>) -> Result<Strin
 
 	if let Some(key) = key {
 		let password_bytes = vault_file_crypto.decrypt(&key.password)?;
-		let password_hash = key.password.sha3();
-		if &*password_hash != password_bytes.as_slice() {
+		let password_hash = key.password.keccak256();
+		if password_hash != password_bytes.as_slice() {
 			return Err(Error::InvalidPassword);
 		}
 	}

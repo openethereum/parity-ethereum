@@ -627,7 +627,7 @@ mod tests {
 	use secret_store::{SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation};
 	use super::{EthStore, EthMultiStore};
 	use self::tempdir::TempDir;
-	use util::H256;
+	use bigint::hash::H256;
 
 	fn keypair() -> KeyPair {
 		Random.generate().unwrap()
