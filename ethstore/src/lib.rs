@@ -29,8 +29,8 @@ extern crate serde_json;
 extern crate smallvec;
 extern crate time;
 extern crate tiny_keccak;
+extern crate tempdir;
 
-extern crate ethcore_devtools as devtools;
 extern crate ethcore_util as util;
 extern crate ethcrypto as crypto;
 extern crate ethkey as _ethkey;
