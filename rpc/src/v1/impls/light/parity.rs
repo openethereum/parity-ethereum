@@ -27,11 +27,12 @@ use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
+use crypto::DEFAULT_MAC;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{errors, ipfs, SigningQueue, SignerService, NetworkSettings};
-use v1::helpers::dispatch::{LightDispatcher, DEFAULT_MAC};
+use v1::helpers::dispatch::LightDispatcher;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
