@@ -299,10 +299,10 @@ fn detokenize(name: &str, output_type: ParamType) -> String {
 		ParamType::Bool => format!("{}.to_bool()", name),
 		ParamType::String => format!("{}.to_string()", name),
 		ParamType::Array(kind) => {
-			let read_array = format!("x.into_iter().map(|a| {{ {} }}).collect::<Option<Vec<_>>()",
+			let read_array = format!("x.into_iter().map(|a| {{ {} }}).collect::<Option<Vec<_>>>()",
 				detokenize("a", *kind));
 
-			format!("{}.to_array().and_then(|x| {})",
+			format!("{}.to_array().and_then(|x| {{ {} }})",
 				name, read_array)
 		}
 		ParamType::FixedArray(_, _) => panic!("Fixed-length arrays not supported.")
