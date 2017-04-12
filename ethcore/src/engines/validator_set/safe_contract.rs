@@ -23,15 +23,24 @@ use native_contracts::ValidatorSet as Provider;
 use util::*;
 use util::cache::MemoryLruCache;
 
-use engines::Call;
-use types::ids::BlockId;
+use basic_types::LogBloom;
 use client::{Client, BlockChainClient};
+use engines::Call;
 use header::Header;
+use ids::BlockId;
+use log_entry::LogEntry;
 
 use super::ValidatorSet;
 use super::simple_list::SimpleList;
 
 const MEMOIZE_CAPACITY: usize = 500;
+
+// TODO: ethabi should be able to generate this.
+const EVENT_NAME: &'static [u8] = &*b"ValidatorsChanged(bytes32,uint256,address[])";
+
+lazy_static! {
+	static ref EVENT_NAME_HASH: H256 = EVENT_NAME.sha3();
+}
 
 /// The validator contract should have the following interface:
 pub struct ValidatorSafeContract {
@@ -39,6 +48,14 @@ pub struct ValidatorSafeContract {
 	validators: RwLock<MemoryLruCache<H256, SimpleList>>,
 	provider: Provider,
 	client: RwLock<Option<Weak<Client>>>, // TODO [keorn]: remove
+}
+
+fn encode_proof(nonce: U256, validators: &[Address]) -> Bytes {
+	use rlp::RlpStream;
+
+	let mut stream = RlpStream::new_list(2);
+	stream.append(&nonce).append_list(validators);
+	stream.drain().to_vec()
 }
 
 impl ValidatorSafeContract {
@@ -64,6 +81,40 @@ impl ValidatorSafeContract {
 			},
 		}
 	}
+
+	/// Queries for the current validator set transition nonce.
+	fn get_nonce(&self, caller: &Call) -> Option<::util::U256> {
+		match self.provider.transition_nonce(caller).wait() {
+			Ok(nonce) => Some(nonce),
+			Err(s) => {
+				debug!(target: "engine", "Unable to fetch transition nonce: {}", s);
+				None
+			}
+		}
+	}
+
+	// Whether the header matches the expected bloom.
+	//
+	// The expected log should have 3 topics:
+	//   1. ETHABI-encoded log name.
+	//   2. the block's parent hash.
+	//   3. the "nonce": n for the nth transition in history.
+	//
+	// We can only search for the first 2, since we don't have the third
+	// just yet.
+	//
+	// The parent hash is included to prevent
+	// malicious actors from brute forcing other logs that would
+	// produce the same bloom.
+	//
+	// The log data is an array of all new validator addresses.
+	fn expected_bloom(&self, header: &Header) -> LogBloom {
+		LogEntry {
+			address: self.address,
+			topics: vec![*EVENT_NAME_HASH, *header.parent_hash()],
+			data: Vec::new(), // irrelevant for bloom.
+		}.bloom()
+	}
 }
 
 impl ValidatorSet for ValidatorSafeContract {
@@ -75,17 +126,80 @@ impl ValidatorSet for ValidatorSafeContract {
 			.and_then(|c| c.call_contract(id, addr, data)))
 	}
 
-	fn proof_required(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+	fn proof_required(&self, header: &Header, _block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
 		-> ::engines::RequiresProof
 	{
-		// TODO: check blooms first and then logs for the
-		// ValidatorsChanged([parent_hash, nonce], new_validators) log event.
-		::engines::RequiresProof::No
+		let bloom = self.expected_bloom(header);
+		let header_bloom = header.log_bloom();
+
+		if &bloom & header_bloom != bloom { return ::engines::RequiresProof::No }
+
+		match receipts {
+			None => ::engines::RequiresProof::Unsure(::engines::Unsure::NeedsReceipts),
+			Some(receipts) => {
+				let check_log = |log: &LogEntry| {
+					log.address == self.address &&
+						log.topics.len() == 3 &&
+						log.topics[0] == *EVENT_NAME_HASH &&
+						log.topics[1] == *header.parent_hash()
+						// don't have anything to compare nonce to yet.
+				};
+
+				let event = Provider::contract(&self.provider)
+					.event("ValidatorsChanged".into())
+					.expect("Contract known ahead of time to have `ValidatorsChanged` event; qed");
+
+				let mut decoded_events = receipts.iter()
+					.filter(|r| &bloom & &r.log_bloom == bloom)
+					.flat_map(|r| r.logs.iter())
+					.filter(move |l| check_log(l))
+					.filter_map(|log| {
+						let topics = log.topics.iter().map(|x| x.0.clone()).collect();
+						match event.decode_log(topics, log.data.clone()) {
+							Ok(decoded) => Some(decoded),
+							Err(_) => None,
+						}
+					});
+
+
+				// TODO: are multiple transitions per block possible?
+				match decoded_events.next() {
+					None => ::engines::RequiresProof::No,
+					Some(matched_event) => {
+						// decode log manually until the native contract generator is
+						// good enough to do it for us.
+						let &(_, _, ref nonce_token) = &matched_event.params[2];
+						let &(_, _, ref validators_token) = &matched_event.params[3];
+
+						let nonce: Option<U256> = nonce_token.clone().to_uint()
+							.map(H256).map(Into::into);
+						let validators = validators_token.clone().to_array()
+							.and_then(|a| a.into_iter()
+								.map(|x| x.to_address().map(H160))
+								.collect::<Option<Vec<_>>>()
+							);
+
+						match (nonce, validators) {
+							(Some(nonce), Some(validators)) =>
+								::engines::RequiresProof::Yes(Some(encode_proof(nonce, &validators))),
+							_ => {
+								debug!(target: "engine", "Successfully decoded log turned out to be bad.");
+								::engines::RequiresProof::No
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
-	fn generate_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
-		self.get_list(caller).map(|list| ::rlp::encode_list(&list.into_inner()).to_vec())
-			.ok_or_else(|| "Caller insufficient to get validator list.".into())
+	// the proof we generate is an RLP list containing two parts.
+	//   (nonce, validators)
+	fn generate_proof(&self, _header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
+		match (self.get_nonce(caller), self.get_list(caller)) {
+			(Some(nonce), Some(list)) => Ok(encode_proof(nonce, &list.into_inner())),
+			_ => Err("Caller insufficient to generate validator proof.".into()),
+		}
 	}
 
 	fn contains_with_caller(&self, block_hash: &H256, address: &Address, caller: &Call) -> bool {

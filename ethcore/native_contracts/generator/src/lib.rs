@@ -47,7 +47,7 @@ pub fn generate_module(struct_name: &str, abi: &str) -> Result<String, Error> {
 	Ok(format!(r##"
 use byteorder::{{BigEndian, ByteOrder}};
 use futures::{{future, Future, IntoFuture, BoxFuture}};
-use ethabi::{{Contract, Interface, Token}};
+use ethabi::{{Contract, Interface, Token, Event}};
 use util::{{self, Uint}};
 
 pub struct {name} {{
@@ -68,6 +68,11 @@ impl {name} {{
 			contract: contract,
 			address: address,
 		}}
+	}}
+
+	/// Access the underlying `ethabi` contract.
+	pub fn contract(this: &Self) -> &Contract {{
+		&this.contract
 	}}
 
 	{functions}

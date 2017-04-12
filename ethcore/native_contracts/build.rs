@@ -27,7 +27,9 @@ const SERVICE_TRANSACTION_ABI: &'static str = r#"[{"constant":false,"inputs":[{"
 
 const SECRETSTORE_ACL_STORAGE_ABI: &'static str = r#"[{"constant":true,"inputs":[{"name":"user","type":"address"},{"name":"document","type":"bytes32"}],"name":"checkPermissions","outputs":[{"name":"","type":"bool"}],"payable":false,"type":"function"}]"#;
 
-const VALIDATOR_SET_ABI: &'static str = r#"[{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}]"#;
+// be very careful changing these: ensure `ethcore/engines` validator sets have corresponding
+// changes.
+const VALIDATOR_SET_ABI: &'static str = r#"[{"constant":true,"inputs":[],"name":"transitionNonce","outputs":[{"name":"nonce","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"validators","type":"address[]"}],"payable":false,"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_parent_hash","type":"bytes32"},{"indexed":true,"name":"_nonce","type":"uint256"},{"indexed":false,"name":"_new_set","type":"address[]"}],"name":"ValidatorsChanged","type":"event"}]"#;
 
 const VALIDATOR_REPORT_ABI: &'static str = r#"[{"constant":false,"inputs":[{"name":"validator","type":"address"}],"name":"reportMalicious","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"validator","type":"address"}],"name":"reportBenign","outputs":[],"payable":false,"type":"function"}]"#;
 
