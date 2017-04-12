@@ -34,6 +34,7 @@ use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::executed::{Executed, ExecutionError};
 use ethcore::ids::BlockId;
+use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransaction};
 use ethsync::LightSync;
 use rlp::UntrustedRlp;
@@ -43,7 +44,9 @@ use util::{RwLock, Mutex, Uint, U256};
 use futures::{future, Future, BoxFuture, IntoFuture};
 use futures::sync::oneshot;
 
+use v1::impls::eth_filter::Filterable;
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs, dispatch};
+use v1::helpers::{PollFilter, PollManager};
 use v1::helpers::block_import::is_major_importing;
 use v1::helpers::light_fetch::LightFetch;
 use v1::traits::Eth;
@@ -56,7 +59,7 @@ use v1::metadata::Metadata;
 
 use util::Address;
 
-/// Light client `ETH` RPC.
+/// Light client `ETH` (and filter) RPC.
 pub struct EthClient {
 	sync: Arc<LightSync>,
 	client: Arc<LightClient>,
@@ -64,6 +67,22 @@ pub struct EthClient {
 	transaction_queue: Arc<RwLock<TransactionQueue>>,
 	accounts: Arc<AccountProvider>,
 	cache: Arc<Mutex<LightDataCache>>,
+	polls: Mutex<PollManager<PollFilter>>,
+}
+
+impl Clone for EthClient {
+	fn clone(&self) -> Self {
+		// each instance should have its own poll manager.
+		EthClient {
+			sync: self.sync.clone(),
+			client: self.client.clone(),
+			on_demand: self.on_demand.clone(),
+			transaction_queue: self.transaction_queue.clone(),
+			accounts: self.accounts.clone(),
+			cache: self.cache.clone(),
+			polls: Mutex::new(PollManager::new()),
+		}
+	}
 }
 
 
@@ -85,6 +104,7 @@ impl EthClient {
 			transaction_queue: transaction_queue,
 			accounts: accounts,
 			cache: cache,
+			polls: Mutex::new(PollManager::new()),
 		}
 	}
 
@@ -97,6 +117,95 @@ impl EthClient {
 			cache: self.cache.clone(),
 
 		}
+	}
+
+	// get a "rich" block structure
+	fn rich_block(&self, id: BlockId, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
+		let (on_demand, sync) = (self.on_demand.clone(), self.sync.clone());
+		let (client, engine) = (self.client.clone(), self.client.engine().clone());
+
+		// helper for filling out a rich block once we've got a block and a score.
+		let fill_rich = move |block: encoded::Block, score: Option<U256>| {
+			let header = block.decode_header();
+			let extra_info = engine.extra_info(&header);
+			RichBlock {
+				inner: Block {
+					hash: Some(header.hash().into()),
+					size: Some(block.rlp().as_raw().len().into()),
+					parent_hash: header.parent_hash().clone().into(),
+					uncles_hash: header.uncles_hash().clone().into(),
+					author: header.author().clone().into(),
+					miner: header.author().clone().into(),
+					state_root: header.state_root().clone().into(),
+					transactions_root: header.transactions_root().clone().into(),
+					receipts_root: header.receipts_root().clone().into(),
+					number: Some(header.number().into()),
+					gas_used: header.gas_used().clone().into(),
+					gas_limit: header.gas_limit().clone().into(),
+					logs_bloom: header.log_bloom().clone().into(),
+					timestamp: header.timestamp().into(),
+					difficulty: header.difficulty().clone().into(),
+					total_difficulty: score.map(Into::into),
+					seal_fields: header.seal().into_iter().cloned().map(Into::into).collect(),
+					uncles: block.uncle_hashes().into_iter().map(Into::into).collect(),
+					transactions: match include_txs {
+						true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(Into::into).collect()),
+						false => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
+					},
+					extra_data: Bytes::new(header.extra_data().to_vec()),
+				},
+				extra_info: extra_info
+			}
+		};
+
+		// get the block itself.
+		self.fetcher().block(id).and_then(move |block| match block {
+			None => return future::ok(None).boxed(),
+			Some(block) => {
+				// then fetch the total difficulty (this is much easier after getting the block).
+				match client.score(id) {
+					Some(score) => future::ok(fill_rich(block, Some(score))).map(Some).boxed(),
+					None => {
+						// make a CHT request to fetch the chain score.
+						let req = cht::block_to_cht_number(block.number())
+							.and_then(|num| client.cht_root(num as usize))
+							.and_then(|root| request::HeaderProof::new(block.number(), root));
+
+
+						let req = match req {
+							Some(req) => req,
+							None => {
+								// somehow the genesis block slipped past other checks.
+								// return it now.
+								let score = client.block_header(BlockId::Number(0))
+									.expect("genesis always stored; qed")
+									.difficulty();
+
+								return future::ok(fill_rich(block, Some(score))).map(Some).boxed()
+							}
+						};
+
+						// three possible outcomes:
+						//   - network is down.
+						//   - we get a score, but our hash is non-canonical.
+						//   - we get ascore, and our hash is canonical.
+						let maybe_fut = sync.with_context(move |ctx| on_demand.hash_and_score_by_number(ctx, req));
+						match maybe_fut {
+							Some(fut) => fut.map(move |(hash, score)| {
+									let score = if hash == block.hash() {
+										Some(score)
+									} else {
+										None
+									};
+
+									Some(fill_rich(block, score))
+								}).map_err(errors::on_demand_cancel).boxed(),
+							None => return future::err(errors::network_disabled()).boxed(),
+						}
+					}
+				}
+			}
+		}).boxed()
 	}
 }
 
@@ -139,7 +248,10 @@ impl Eth for EthClient {
 	}
 
 	fn gas_price(&self) -> Result<RpcU256, Error> {
-		Ok(Default::default())
+		Ok(self.cache.lock().gas_price_corpus()
+			.and_then(|c| c.median().cloned())
+			.map(RpcU256::from)
+			.unwrap_or_else(Default::default))
 	}
 
 	fn accounts(&self, meta: Metadata) -> BoxFuture<Vec<RpcH160>, Error> {
@@ -168,11 +280,11 @@ impl Eth for EthClient {
 	}
 
 	fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
-		future::err(errors::unimplemented(None)).boxed()
+		self.rich_block(BlockId::Hash(hash.into()), include_txs)
 	}
 
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
-		future::err(errors::unimplemented(None)).boxed()
+		self.rich_block(num.into(), include_txs)
 	}
 
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
@@ -348,19 +460,101 @@ impl Eth for EthClient {
 		Err(errors::deprecated("Compilation of Solidity via RPC is deprecated".to_string()))
 	}
 
-	fn logs(&self, _filter: Filter) -> Result<Vec<Log>, Error> {
-		Err(errors::unimplemented(None))
+	fn logs(&self, filter: Filter) -> BoxFuture<Vec<Log>, Error> {
+		let limit = filter.limit;
+
+		Filterable::logs(self, filter.into())
+			.map(move|logs| limit_logs(logs, limit))
+			.boxed()
 	}
 
 	fn work(&self, _timeout: Trailing<u64>) -> Result<Work, Error> {
-		Err(errors::unimplemented(None))
+		Err(errors::light_unimplemented(None))
 	}
 
 	fn submit_work(&self, _nonce: RpcH64, _pow_hash: RpcH256, _mix_hash: RpcH256) -> Result<bool, Error> {
-		Err(errors::unimplemented(None))
+		Err(errors::light_unimplemented(None))
 	}
 
 	fn submit_hashrate(&self, _rate: RpcU256, _id: RpcH256) -> Result<bool, Error> {
-		Err(errors::unimplemented(None))
+		Err(errors::light_unimplemented(None))
+	}
+}
+
+// This trait implementation triggers a blanked impl of `EthFilter`.
+impl Filterable for EthClient {
+	fn best_block_number(&self) -> u64 { self.client.chain_info().best_block_number }
+
+	fn block_hash(&self, id: BlockId) -> Option<RpcH256> {
+		self.client.block_hash(id).map(Into::into)
+	}
+
+	fn pending_transactions_hashes(&self, _block_number: u64) -> Vec<::util::H256> {
+		Vec::new()
+	}
+
+	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>, Error> {
+		use std::collections::BTreeMap;
+
+		use futures::stream::{self, Stream};
+		use util::H2048;
+
+		// early exit for "to" block before "from" block.
+		let best_number = self.client.chain_info().best_block_number;
+		let block_number = |id| match id {
+			BlockId::Earliest => Some(0),
+			BlockId::Latest | BlockId::Pending => Some(best_number),
+			BlockId::Hash(h) => self.client.block_header(BlockId::Hash(h)).map(|hdr| hdr.number()),
+			BlockId::Number(x) => Some(x),
+		};
+
+		match (block_number(filter.to_block), block_number(filter.from_block)) {
+			(Some(to), Some(from)) if to < from => return future::ok(Vec::new()).boxed(),
+			(Some(_), Some(_)) => {},
+			_ => return future::err(errors::unknown_block()).boxed(),
+		}
+
+		let maybe_future = self.sync.with_context(move |ctx| {
+			// find all headers which match the filter, and fetch the receipts for each one.
+			// match them with their numbers for easy sorting later.
+			let bit_combos = filter.bloom_possibilities();
+			let receipts_futures: Vec<_> = self.client.ancestry_iter(filter.to_block)
+				.take_while(|ref hdr| BlockId::Number(hdr.number()) != filter.from_block)
+				.take_while(|ref hdr| BlockId::Hash(hdr.hash()) != filter.from_block)
+				.filter(|ref hdr| {
+					let hdr_bloom = hdr.log_bloom();
+					bit_combos.iter().find(|&bloom| hdr_bloom & *bloom == *bloom).is_some()
+				})
+				.map(|hdr| (hdr.number(), request::BlockReceipts(hdr)))
+				.map(|(num, req)| self.on_demand.block_receipts(ctx, req).map(move |x| (num, x)))
+				.collect();
+
+			// as the receipts come in, find logs within them which match the filter.
+			// insert them into a BTreeMap to maintain order by number and block index.
+			stream::futures_unordered(receipts_futures)
+				.fold(BTreeMap::new(), move |mut matches, (num, receipts)| {
+					for (block_index, log) in receipts.into_iter().flat_map(|r| r.logs).enumerate() {
+						if filter.matches(&log) {
+							matches.insert((num, block_index), log.into());
+						}
+					}
+					future::ok(matches)
+				}) // and then collect them into a vector.
+				.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
+				.map_err(errors::on_demand_cancel)
+		});
+
+		match maybe_future {
+			Some(fut) => fut.boxed(),
+			None => future::err(errors::network_disabled()).boxed(),
+		}
+	}
+
+	fn pending_logs(&self, _block_number: u64, _filter: &EthcoreFilter) -> Vec<Log> {
+		Vec::new() // light clients don't mine.
+	}
+
+	fn polls(&self) -> &Mutex<PollManager<PollFilter>> {
+		&self.polls
 	}
 }

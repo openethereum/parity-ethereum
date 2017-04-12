@@ -544,23 +544,23 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		Err(errors::deprecated("Compilation functionality is deprecated.".to_string()))
 	}
 
-	fn logs(&self, filter: Filter) -> Result<Vec<Log>, Error> {
+	fn logs(&self, filter: Filter) -> BoxFuture<Vec<Log>, Error> {
 		let include_pending = filter.to_block == Some(BlockNumber::Pending);
 		let filter: EthcoreFilter = filter.into();
-		let mut logs = take_weak!(self.client).logs(filter.clone())
+		let mut logs = take_weakf!(self.client).logs(filter.clone())
 			.into_iter()
 			.map(From::from)
 			.collect::<Vec<Log>>();
 
 		if include_pending {
-			let best_block = take_weak!(self.client).chain_info().best_block_number;
-			let pending = pending_logs(&*take_weak!(self.miner), best_block, &filter);
+			let best_block = take_weakf!(self.client).chain_info().best_block_number;
+			let pending = pending_logs(&*take_weakf!(self.miner), best_block, &filter);
 			logs.extend(pending);
 		}
 
 		let logs = limit_logs(logs, filter.limit);
 
-		Ok(logs)
+		future::ok(logs).boxed()
 	}
 
 	fn work(&self, no_new_work_timeout: Trailing<u64>) -> Result<Work, Error> {

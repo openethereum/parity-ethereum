@@ -119,7 +119,7 @@ impl LightFetch {
 			sync.with_context(|ctx| on_demand.account(ctx, request::Account {
 				header: header,
 				address: address,
-			}))
+			}).map(Some))
 				.map(|x| x.map_err(errors::on_demand_cancel).boxed())
 				.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
 		}).boxed()
@@ -193,6 +193,23 @@ impl LightFetch {
 
 			match proved_future {
 				Some(fut) => fut.boxed(),
+				None => future::err(errors::network_disabled()).boxed(),
+			}
+		}).boxed()
+	}
+
+	/// Get a block.
+	pub fn block(&self, id: BlockId) -> BoxFuture<Option<encoded::Block>, Error> {
+		let (on_demand, sync) = (self.on_demand.clone(), self.sync.clone());
+
+		self.header(id).and_then(move |hdr| {
+			let req = match hdr {
+				Some(hdr) => request::Body::new(hdr),
+				None => return future::ok(None).boxed(),
+			};
+
+			match sync.with_context(move |ctx| on_demand.block(ctx, req)) {
+				Some(fut) => fut.map_err(errors::on_demand_cancel).map(Some).boxed(),
 				None => future::err(errors::network_disabled()).boxed(),
 			}
 		}).boxed()

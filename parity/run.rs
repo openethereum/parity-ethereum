@@ -192,6 +192,10 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	info!("Starting {}", Colour::White.bold().paint(version()));
 	info!("Running in experimental {} mode.", Colour::Blue.bold().paint("Light Client"));
 
+	// TODO: configurable cache size.
+	let cache = LightDataCache::new(Default::default(), ::time::Duration::minutes(GAS_CORPUS_EXPIRATION_MINUTES));
+	let cache = Arc::new(::util::Mutex::new(cache));
+
 	// start client and create transaction queue.
 	let mut config = light_client::Config {
 		queue: Default::default(),
@@ -204,7 +208,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
 	config.queue.verifier_settings = cmd.verifier_settings;
 
-	let service = light_client::Service::start(config, &spec, &db_dirs.client_path(algorithm))
+	let service = light_client::Service::start(config, &spec, &db_dirs.client_path(algorithm), cache.clone())
 		.map_err(|e| format!("Error starting light client: {}", e))?;
 	let txq = Arc::new(RwLock::new(::light::transaction_queue::TransactionQueue::default()));
 	let provider = ::light::provider::LightProvider::new(service.client().clone(), txq.clone());
@@ -216,12 +220,9 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		net_conf.boot_nodes = spec.nodes.clone();
 	}
 
-	// TODO: configurable cache size.
-	let cache = LightDataCache::new(Default::default(), ::time::Duration::minutes(GAS_CORPUS_EXPIRATION_MINUTES));
-	let cache = Arc::new(::util::Mutex::new(cache));
-
 	// start on_demand service.
-	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
+	let account_start_nonce = service.client().engine().account_start_nonce();
+	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone(), account_start_nonce));
 
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
