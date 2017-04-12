@@ -69,7 +69,9 @@ const QR_SIZES = [
 export function calculateType (lengthBytes, errorLevel = 'M') {
   let type = 5;
 
-  while (type < 40 && lengthBytes > QR_SIZES[errorLevel][type - 1]) {
+  // subtract 3 from the capacities, since we need 2 bits for the mode and a
+  // bunch more for the length.
+  while (type < 40 && lengthBytes > QR_SIZES[errorLevel][type - 1] - 3) {
     type++;
   }
 
