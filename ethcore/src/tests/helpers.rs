@@ -42,7 +42,7 @@ pub enum ChainEra {
 	Frontier,
 	Homestead,
 	Eip150,
-	Eip161,
+	_Eip161,
 	TransitionTest,
 }
 
@@ -359,9 +359,20 @@ pub fn get_temp_state() -> GuardedTempResult<State<::state_db::StateDB>> {
 	}
 }
 
+pub fn get_temp_mem_state() -> State<::state_db::StateDB> {
+	let journal_db = get_temp_mem_state_db();
+	State::new(journal_db, U256::from(0), Default::default())
+}
+
 pub fn get_temp_state_db_in(path: &Path) -> StateDB {
 	let db = new_db(path.to_str().expect("Only valid utf8 paths for tests."));
 	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
+	StateDB::new(journal_db, 5 * 1024 * 1024)
+}
+
+pub fn get_temp_mem_state_db() -> StateDB {
+	let db = Arc::new(::util::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)));
+	let journal_db = journaldb::new(db, journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
 	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 
