@@ -218,6 +218,9 @@ pub struct InitializeDecryptionSession {
 	pub sub_session: SerializableSecret,
 	/// Requestor signature.
 	pub requestor_signature: SerializableSignature,
+	/// Is shadow decryption requested? When true, decryption result
+	/// will be visible to the owner of requestor public key only.
+	pub is_shadow_decryption: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -251,6 +254,8 @@ pub struct PartialDecryption {
 	pub sub_session: SerializableSecret,
 	/// Partially decrypted secret.
 	pub shadow_point: SerializablePublic,
+	/// Decrypt shadow coefficient (if requested), encrypted with requestor public.
+	pub decrypt_shadow: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

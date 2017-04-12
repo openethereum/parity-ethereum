@@ -27,6 +27,9 @@ use ethcore::spec::Spec;
 use io::{IoContext, IoError, IoHandler, IoService};
 use util::kvdb::{Database, DatabaseConfig};
 
+use cache::Cache;
+use util::Mutex;
+
 use super::{Client, Config as ClientConfig};
 
 /// Errors on service initialization.
@@ -55,7 +58,8 @@ pub struct Service {
 
 impl Service {
 	/// Start the service: initialize I/O workers and client itself.
-	pub fn start(config: ClientConfig, spec: &Spec, path: &Path) -> Result<Self, Error> {
+	pub fn start(config: ClientConfig, spec: &Spec, path: &Path, cache: Arc<Mutex<Cache>>) -> Result<Self, Error> {
+
 		// initialize database.
 		let mut db_config = DatabaseConfig::with_columns(db::NUM_COLUMNS);
 
@@ -78,6 +82,7 @@ impl Service {
 			db::COL_LIGHT_CHAIN,
 			spec,
 			io_service.channel(),
+			cache,
 		).map_err(Error::Database)?);
 		io_service.register_handler(Arc::new(ImportBlocks(client.clone()))).map_err(Error::Io)?;
 		Ok(Service {
@@ -112,11 +117,18 @@ mod tests {
 	use super::Service;
 	use devtools::RandomTempPath;
 	use ethcore::spec::Spec;
+	
+	use std::sync::Arc;
+	use cache::Cache;
+	use time::Duration;
+	use util::Mutex;
 
 	#[test]
 	fn it_works() {
 		let spec = Spec::new_test();
 		let temp_path = RandomTempPath::new();
-		Service::start(Default::default(), &spec, temp_path.as_path()).unwrap();
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+
+		Service::start(Default::default(), &spec, temp_path.as_path(), cache).unwrap();
 	}
 }

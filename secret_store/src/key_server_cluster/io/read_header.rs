@@ -16,12 +16,13 @@
 
 use std::io;
 use futures::{Future, Poll, Async};
-use tokio_core::io::{ReadExact, read_exact};
+use tokio_io::AsyncRead;
+use tokio_io::io::{ReadExact, read_exact};
 use key_server_cluster::Error;
 use key_server_cluster::io::message::{MESSAGE_HEADER_SIZE, MessageHeader, deserialize_header};
 
 /// Create future for read single message header from the stream.
-pub fn read_header<A>(a: A) -> ReadHeader<A> where A: io::Read {
+pub fn read_header<A>(a: A) -> ReadHeader<A> where A: AsyncRead {
 	ReadHeader {
 		reader: read_exact(a, [0; MESSAGE_HEADER_SIZE]),
 	}
@@ -32,7 +33,7 @@ pub struct ReadHeader<A> {
 	reader: ReadExact<A, [u8; MESSAGE_HEADER_SIZE]>,
 }
 
-impl<A> Future for ReadHeader<A> where A: io::Read {
+impl<A> Future for ReadHeader<A> where A: AsyncRead {
 	type Item = (A, Result<MessageHeader, Error>);
 	type Error = io::Error;
 

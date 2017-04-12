@@ -44,6 +44,7 @@ mod codes {
 	pub const REQUEST_REJECTED_LIMIT: i64 = -32041;
 	pub const REQUEST_NOT_FOUND: i64 = -32042;
 	pub const ENCRYPTION_ERROR: i64 = -32055;
+	pub const ENCODING_ERROR: i64 = -32058;
 	pub const FETCH_ERROR: i64 = -32060;
 	pub const NO_LIGHT_PEERS: i64 = -32065;
 	pub const DEPRECATED: i64 = -32070;
@@ -224,6 +225,14 @@ pub fn encryption_error<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
+pub fn encoding_error<T: fmt::Debug>(error: T) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::ENCODING_ERROR),
+		message: "Encoding error.".into(),
+		data: Some(Value::String(format!("{:?}", error))),
+	}
+}
+
 pub fn database_error<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::DATABASE_ERROR),
@@ -345,4 +354,9 @@ pub fn deprecated<T: Into<Option<String>>>(message: T) -> Error {
 		message: "Method deprecated".into(),
 		data: message.into().map(Value::String),
 	}
+}
+
+// on-demand sender cancelled.
+pub fn on_demand_cancel(_cancel: ::futures::sync::oneshot::Canceled) -> Error {
+	internal("on-demand sender cancelled", "")
 }

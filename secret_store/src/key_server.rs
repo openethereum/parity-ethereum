@@ -26,7 +26,7 @@ use super::acl_storage::AclStorage;
 use super::key_storage::KeyStorage;
 use key_server_cluster::ClusterCore;
 use traits::KeyServer;
-use types::all::{Error, RequestSignature, DocumentAddress, DocumentEncryptedKey, ClusterConfiguration};
+use types::all::{Error, RequestSignature, DocumentAddress, DocumentEncryptedKey, DocumentEncryptedKeyShadow, ClusterConfiguration};
 use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration};
 
 /// Secret store key server implementation
@@ -38,7 +38,7 @@ pub struct KeyServerImpl {
 pub struct KeyServerCore {
 	close: Option<futures::Complete<()>>,
 	handle: Option<thread::JoinHandle<()>>,
-	cluster: Option<Arc<ClusterClient>>,
+	cluster: Arc<ClusterClient>,
 }
 
 impl KeyServerImpl {
@@ -53,7 +53,6 @@ impl KeyServerImpl {
 	/// Get cluster client reference.
 	pub fn cluster(&self) -> Arc<ClusterClient> {
 		self.data.lock().cluster.clone()
-			.expect("cluster can be None in test cfg only; test cfg is for correct tests; qed")
 	}
 }
 
@@ -64,9 +63,7 @@ impl KeyServer for KeyServerImpl {
 			.map_err(|_| Error::BadSignature)?;
 
 		// generate document key
-		let data = self.data.lock();
-		let encryption_session = data.cluster.as_ref().expect("cluster can be None in test cfg only; test cfg is for correct tests; qed")
-			.new_encryption_session(document.clone(), threshold)?;
+		let encryption_session = self.data.lock().cluster.new_encryption_session(document.clone(), threshold)?;
 		let document_key = encryption_session.wait()?;
 
 		// encrypt document key with requestor public key
@@ -80,16 +77,20 @@ impl KeyServer for KeyServerImpl {
 		let public = ethkey::recover(signature, document)
 			.map_err(|_| Error::BadSignature)?;
 
+
 		// decrypt document key
-		let data = self.data.lock();
-		let decryption_session = data.cluster.as_ref().expect("cluster can be None in test cfg only; test cfg is for correct tests; qed")
-			.new_decryption_session(document.clone(), signature.clone())?;
-		let document_key = decryption_session.wait()?;
+		let decryption_session = self.data.lock().cluster.new_decryption_session(document.clone(), signature.clone(), false)?;
+		let document_key = decryption_session.wait()?.decrypted_secret;
 
 		// encrypt document key with requestor public key
 		let document_key = ethcrypto::ecies::encrypt_single_message(&public, &document_key)
 			.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err)))?;
 		Ok(document_key)
+	}
+
+	fn document_key_shadow(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKeyShadow, Error> {
+		let decryption_session = self.data.lock().cluster.new_decryption_session(document.clone(), signature.clone(), false)?;
+		decryption_session.wait().map_err(Into::into)
 	}
 }
 
@@ -129,7 +130,7 @@ impl KeyServerCore {
 		Ok(KeyServerCore {
 			close: Some(stop),
 			handle: Some(handle),
-			cluster: Some(cluster),
+			cluster: cluster,
 		})
 	}
 }
@@ -149,23 +150,8 @@ mod tests {
 	use ethkey::{self, Random, Generator};
 	use acl_storage::tests::DummyAclStorage;
 	use key_storage::tests::DummyKeyStorage;
-	use types::all::{ClusterConfiguration, NodeAddress, EncryptionConfiguration, DocumentEncryptedKey, DocumentKey};
-	use super::super::{RequestSignature, DocumentAddress};
+	use types::all::{ClusterConfiguration, NodeAddress, EncryptionConfiguration};
 	use super::{KeyServer, KeyServerImpl};
-
-	const DOCUMENT1: &'static str = "0000000000000000000000000000000000000000000000000000000000000001";
-	const PRIVATE1: &'static str = "03055e18a8434dcc9061cc1b81c4ef84dc7cf4574d755e52cdcf0c8898b25b11";
-
-	fn make_signature(secret: &str, document: &'static str) -> RequestSignature {
-		let secret = secret.parse().unwrap();
-		let document: DocumentAddress = document.into();
-		ethkey::sign(&secret, &document).unwrap()
-	}
-
-	fn decrypt_document_key(secret: &str, document_key: DocumentEncryptedKey) -> DocumentKey {
-		let secret = secret.parse().unwrap();
-		ethcrypto::ecies::decrypt_single_message(&secret, &document_key).unwrap()
-	}
 
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network() {
@@ -208,15 +194,16 @@ mod tests {
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
 			// generate document key
-			// TODO: it is an error that we can regenerate key for the same DOCUMENT
-			let signature = make_signature(PRIVATE1, DOCUMENT1);
-			let generated_key = key_servers[0].generate_document_key(&signature, &DOCUMENT1.into(), *threshold).unwrap();
-			let generated_key = decrypt_document_key(PRIVATE1, generated_key);
+			let document = Random.generate().unwrap().secret().clone();
+			let secret = Random.generate().unwrap().secret().clone();
+			let signature = ethkey::sign(&secret, &document).unwrap();
+			let generated_key = key_servers[0].generate_document_key(&signature, &document, *threshold).unwrap();
+			let generated_key = ethcrypto::ecies::decrypt_single_message(&secret, &generated_key).unwrap();
 
 			// now let's try to retrieve key back
 			for key_server in key_servers.iter() {
-				let retrieved_key = key_server.document_key(&signature, &DOCUMENT1.into()).unwrap();
-				let retrieved_key = decrypt_document_key(PRIVATE1, retrieved_key);
+				let retrieved_key = key_server.document_key(&signature, &document).unwrap();
+				let retrieved_key = ethcrypto::ecies::decrypt_single_message(&secret, &retrieved_key).unwrap();
 				assert_eq!(retrieved_key, generated_key);
 			}
 		}

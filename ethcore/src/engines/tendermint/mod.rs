@@ -97,6 +97,8 @@ pub struct Tendermint {
 	proposal: RwLock<Option<H256>>,
 	/// Hash of the proposal parent block.
 	proposal_parent: RwLock<H256>,
+	/// Last block proposed by this validator.
+	last_proposed: RwLock<H256>,
 	/// Set used to determine the current validators.
 	validators: Box<ValidatorSet>,
 }
@@ -122,6 +124,7 @@ impl Tendermint {
 				last_lock: AtomicUsize::new(0),
 				proposal: RwLock::new(None),
 				proposal_parent: Default::default(),
+				last_proposed: Default::default(),
 				validators: new_validator_set(our_params.validators),
 			});
 		let handler = TransitionHandler::new(Arc::downgrade(&engine) as Weak<Engine>, Box::new(our_params.timeouts));
@@ -196,6 +199,7 @@ impl Tendermint {
 		self.height.store(new_height, AtomicOrdering::SeqCst);
 		self.view.store(0, AtomicOrdering::SeqCst);
 		*self.lock_change.write() = None;
+		*self.proposal.write() = None;
 	}
 
 	/// Use via step_service to transition steps.
@@ -206,7 +210,6 @@ impl Tendermint {
 		*self.step.write() = step;
 		match step {
 			Step::Propose => {
-				*self.proposal.write() = None;
 				self.update_sealing()
 			},
 			Step::Prevote => {
@@ -230,28 +233,6 @@ impl Tendermint {
 			},
 			Step::Commit => {
 				trace!(target: "engine", "to_step: Commit.");
-				// Commit the block using a complete signature set.
-				let view = self.view.load(AtomicOrdering::SeqCst);
-				let height = self.height.load(AtomicOrdering::SeqCst);
-				if let Some(block_hash) = *self.proposal.read() {
-					// Generate seal and remove old votes.
-					if self.is_signer_proposer(&*self.proposal_parent.read()) {
-						let proposal_step = VoteStep::new(height, view, Step::Propose);
-						let precommit_step = VoteStep::new(proposal_step.height, proposal_step.view, Step::Precommit);
-						if let Some(seal) = self.votes.seal_signatures(proposal_step, precommit_step, &block_hash) {
-							trace!(target: "engine", "Collected seal: {:?}", seal);
-							let seal = vec![
-								::rlp::encode(&view).to_vec(),
-								::rlp::encode(&seal.proposal).to_vec(),
-								::rlp::encode_list(&seal.votes).to_vec()
-							];
-							self.submit_seal(block_hash, seal);
-							self.to_next_height(height);
-						} else {
-							warn!(target: "engine", "Not enough votes found!");
-						}
-					}
-				}
 			},
 		}
 	}
@@ -260,8 +241,17 @@ impl Tendermint {
 		self.validators.contains(&*self.proposal_parent.read(), address)
 	}
 
-	fn is_above_threshold(&self, n: usize) -> bool {
-		n > self.validators.count(&*self.proposal_parent.read()) * 2/3
+	fn check_above_threshold(&self, n: usize) -> Result<(), EngineError> {
+		let threshold = self.validators.count(&*self.proposal_parent.read()) * 2/3;
+		if n > threshold {
+			Ok(())
+		} else {
+			Err(EngineError::BadSealFieldSize(OutOfBounds {
+				min: Some(threshold),
+				max: None,
+				found: n
+			}))
+		}
 	}
 
 	/// Find the designated for the given view.
@@ -272,7 +262,7 @@ impl Tendermint {
 	}
 
 	/// Check if address is a proposer for given view.
-	fn is_view_proposer(&self, bh: &H256, height: Height, view: View, address: &Address) -> Result<(), EngineError> {
+	fn check_view_proposer(&self, bh: &H256, height: Height, view: View, address: &Address) -> Result<(), EngineError> {
 		let proposer = self.view_proposer(bh, height, view);
 		if proposer == *address {
 			Ok(())
@@ -308,13 +298,13 @@ impl Tendermint {
 
 	fn has_enough_any_votes(&self) -> bool {
 		let step_votes = self.votes.count_round_votes(&VoteStep::new(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst), *self.step.read()));
-		self.is_above_threshold(step_votes)
+		self.check_above_threshold(step_votes).is_ok()
 	}
 
 	fn has_enough_future_step_votes(&self, vote_step: &VoteStep) -> bool {
 		if vote_step.view > self.view.load(AtomicOrdering::SeqCst) {
 			let step_votes = self.votes.count_round_votes(vote_step);
-			self.is_above_threshold(step_votes)
+			self.check_above_threshold(step_votes).is_ok()
 		} else {
 			false
 		}
@@ -322,7 +312,7 @@ impl Tendermint {
 
 	fn has_enough_aligned_votes(&self, message: &ConsensusMessage) -> bool {
 		let aligned_count = self.votes.count_aligned_votes(&message);
-		self.is_above_threshold(aligned_count)
+		self.check_above_threshold(aligned_count).is_ok()
 	}
 
 	fn handle_valid_message(&self, message: &ConsensusMessage) {
@@ -337,18 +327,32 @@ impl Tendermint {
 			&& self.has_enough_aligned_votes(message);
 		if lock_change {
 			trace!(target: "engine", "handle_valid_message: Lock change.");
-			*self.lock_change.write()	= Some(message.clone());
+			*self.lock_change.write() = Some(message.clone());
 		}
 		// Check if it can affect the step transition.
 		if self.is_height(message) {
 			let next_step = match *self.step.read() {
+				Step::Precommit if message.block_hash.is_none() && self.has_enough_aligned_votes(message) => {
+					self.increment_view(1);
+					Some(Step::Propose)
+				},
 				Step::Precommit if self.has_enough_aligned_votes(message) => {
-					if message.block_hash.is_none() {
-						self.increment_view(1);
-						Some(Step::Propose)
-					} else {
-						Some(Step::Commit)
+					let bh = message.block_hash.expect("previous guard ensures is_some; qed");
+					if *self.last_proposed.read() == bh {
+						// Commit the block using a complete signature set.
+						// Generate seal and remove old votes.
+						let precommits = self.votes.round_signatures(vote_step, &bh);
+						trace!(target: "engine", "Collected seal: {:?}", precommits);
+						let seal = vec![
+							::rlp::encode(&vote_step.view).to_vec(),
+							::rlp::NULL_RLP.to_vec(),
+							::rlp::encode_list(&precommits).to_vec()
+						];
+						self.submit_seal(bh, seal);
+						self.votes.throw_out_old(&vote_step);
 					}
+					self.to_next_height(self.height.load(AtomicOrdering::SeqCst));
+					Some(Step::Commit)
 				},
 				Step::Precommit if self.has_enough_future_step_votes(&vote_step) => {
 					self.increment_view(vote_step.view - self.view.load(AtomicOrdering::SeqCst));
@@ -442,6 +446,8 @@ impl Engine for Tendermint {
 			// Insert Propose vote.
 			debug!(target: "engine", "Submitting proposal {} at height {} view {}.", header.bare_hash(), height, view);
 			self.votes.vote(ConsensusMessage::new(signature, height, view, Step::Propose, bh), author);
+			// Remember the owned block.
+			*self.last_proposed.write() = header.bare_hash();
 			// Remember proposal for later seal submission.
 			*self.proposal.write() = bh;
 			*self.proposal_parent.write() = header.parent_hash().clone();
@@ -462,12 +468,12 @@ impl Engine for Tendermint {
 		if !self.votes.is_old_or_known(&message) {
 			let sender = public_to_address(&recover(&message.signature.into(), &rlp.at(1)?.as_raw().sha3())?);
 			if !self.is_authority(&sender) {
-				Err(EngineError::NotAuthorized(sender))?;
+				return Err(EngineError::NotAuthorized(sender).into());
 			}
 			self.broadcast_message(rlp.as_raw().to_vec());
 			if self.votes.vote(message.clone(), &sender).is_some() {
 				self.validators.report_malicious(&sender);
-				Err(EngineError::DoubleVote(sender))?
+				return Err(EngineError::DoubleVote(sender).into());
 			}
 			trace!(target: "engine", "Handling a valid {:?} from {}.", message, sender);
 			self.handle_valid_message(&message);
@@ -491,22 +497,19 @@ impl Engine for Tendermint {
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let seal_length = header.seal().len();
 		if seal_length == self.seal_fields() {
-			let signatures_len = header.seal()[2].len();
-			if signatures_len >= 1 {
+			// Either proposal or commit.
+			if (header.seal()[1] == ::rlp::NULL_RLP.to_vec())
+				!= (header.seal()[2] == ::rlp::EMPTY_LIST_RLP.to_vec()) {
 				Ok(())
 			} else {
-				Err(From::from(EngineError::BadSealFieldSize(OutOfBounds {
-					min: Some(1),
-					max: None,
-					found: signatures_len
-				})))
+				warn!(target: "engine", "verify_block_basic: Block is neither a Commit nor Proposal.");
+				Err(BlockError::InvalidSeal.into())
 			}
 		} else {
-			Err(From::from(BlockError::InvalidSealArity(
+			Err(BlockError::InvalidSealArity(
 				Mismatch { expected: self.seal_fields(), found: seal_length }
-			)))
+			).into())
 		}
-
 	}
 
 	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
@@ -515,50 +518,42 @@ impl Engine for Tendermint {
 
 	/// Verify validators and gas limit.
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		let proposal = ConsensusMessage::new_proposal(header)?;
-		let proposer = proposal.verify()?;
-		if !self.is_authority(&proposer) {
-			Err(EngineError::NotAuthorized(proposer))?
-		}
-
-		let precommit_hash = proposal.precommit_hash();
-		let ref signatures_field = header.seal()[2];
-		let mut signature_count = 0;
-		let mut origins = HashSet::new();
-		for rlp in UntrustedRlp::new(signatures_field).iter() {
-			let precommit: ConsensusMessage = ConsensusMessage::new_commit(&proposal, rlp.as_val()?);
-			let address = match self.votes.get(&precommit) {
-				Some(a) => a,
-				None => public_to_address(&recover(&precommit.signature.into(), &precommit_hash)?),
-			};
-			if !self.validators.contains(header.parent_hash(), &address) {
-				Err(EngineError::NotAuthorized(address.to_owned()))?
-			}
-
-			if origins.insert(address) {
-				signature_count += 1;
-			} else {
-				warn!(target: "engine", "verify_block_unordered: Duplicate signature from {} on the seal.", address);
-				Err(BlockError::InvalidSeal)?;
-			}
-		}
-
-		// Check if its a proposal if there is not enough precommits.
-		if !self.is_above_threshold(signature_count) {
-			let signatures_len = signatures_field.len();
-			// Proposal has to have an empty signature list.
-			if signatures_len != 1 {
-				Err(EngineError::BadSealFieldSize(OutOfBounds {
-					min: Some(1),
-					max: Some(1),
-					found: signatures_len
-				}))?;
-			}
-			self.is_view_proposer(header.parent_hash(), proposal.vote_step.height, proposal.vote_step.view, &proposer)?;
-		}
-
 		if header.number() == 0 {
-			Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() }))?;
+			return Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() }).into());
+		}
+
+		if let Ok(proposal) = ConsensusMessage::new_proposal(header) {
+			let proposer = proposal.verify()?;
+			if !self.is_authority(&proposer) {
+				return Err(EngineError::NotAuthorized(proposer).into());
+			}
+			self.check_view_proposer(header.parent_hash(), proposal.vote_step.height, proposal.vote_step.view, &proposer)?;
+		} else {
+			let vote_step = VoteStep::new(header.number() as usize, consensus_view(header)?, Step::Precommit);
+			let precommit_hash = message_hash(vote_step.clone(), header.bare_hash());
+			let ref signatures_field = header.seal().get(2).expect("block went through verify_block_basic; block has .seal_fields() fields; qed");
+			let mut origins = HashSet::new();
+			for rlp in UntrustedRlp::new(signatures_field).iter() {
+				let precommit = ConsensusMessage {
+					signature: rlp.as_val()?,
+					block_hash: Some(header.bare_hash()),
+					vote_step: vote_step.clone(),
+				};
+				let address = match self.votes.get(&precommit) {
+					Some(a) => a,
+					None => public_to_address(&recover(&precommit.signature.into(), &precommit_hash)?),
+				};
+				if !self.validators.contains(header.parent_hash(), &address) {
+					return Err(EngineError::NotAuthorized(address.to_owned()).into());
+				}
+
+				if !origins.insert(address) {
+					warn!(target: "engine", "verify_block_unordered: Duplicate signature from {} on the seal.", address);
+					return Err(BlockError::InvalidSeal.into());
+				}
+			}
+
+			self.check_above_threshold(origins.len())?
 		}
 
 		let gas_limit_divisor = self.gas_limit_bound_divisor;
@@ -566,7 +561,7 @@ impl Engine for Tendermint {
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
 			self.validators.report_malicious(header.author());
-			Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() }))?;
+			return Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() }).into());
 		}
 
 		Ok(())
@@ -590,13 +585,14 @@ impl Engine for Tendermint {
 	fn is_proposal(&self, header: &Header) -> bool {
 		let signatures_len = header.seal()[2].len();
 		// Signatures have to be an empty list rlp.
-		let proposal = ConsensusMessage::new_proposal(header).expect("block went through full verification; this Engine verifies new_proposal creation; qed");
 		if signatures_len != 1 {
 			// New Commit received, skip to next height.
-			trace!(target: "engine", "Received a commit: {:?}.", proposal.vote_step);
-			self.to_next_height(proposal.vote_step.height);
+			trace!(target: "engine", "Received a commit: {:?}.", header.number());
+			self.to_next_height(header.number() as usize);
+			self.to_step(Step::Commit);
 			return false;
 		}
+		let proposal = ConsensusMessage::new_proposal(header).expect("block went through full verification; this Engine verifies new_proposal creation; qed");
 		let proposer = proposal.verify().expect("block went through full verification; this Engine tries verify; qed");
 		debug!(target: "engine", "Received a new proposal {:?} from {}.", proposal.vote_step, proposer);
 		if self.is_view(&proposal) {
@@ -647,6 +643,10 @@ impl Engine for Tendermint {
 	}
 
 	fn register_client(&self, client: Weak<Client>) {
+		use client::BlockChainClient;
+		if let Some(c) = client.upgrade() {
+			self.height.store(c.chain_info().best_block_number as usize + 1, AtomicOrdering::SeqCst);
+		}
 		*self.client.write() = Some(client.clone());
 		self.validators.register_contract(client);
 	}
@@ -825,6 +825,7 @@ mod tests {
 		let vote_info = message_info_rlp(&VoteStep::new(2, 0, Step::Precommit), Some(header.bare_hash()));
 		let signature1 = tap.sign(proposer, None, vote_info.sha3()).unwrap();
 
+		seal[1] = ::rlp::NULL_RLP.to_vec();
 		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone())]).to_vec();
 		header.set_seal(seal.clone());
 

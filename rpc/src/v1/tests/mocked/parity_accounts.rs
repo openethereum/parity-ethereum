@@ -500,3 +500,20 @@ fn should_export_account() {
 	println!("Response: {:?}", response);
 	assert_eq!(result, Some(response.into()));
 }
+
+#[test]
+fn should_sign_message() {
+	let tester = setup();
+	let hash = tester.accounts
+		.insert_account(
+			"0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a".parse().unwrap(),
+			"password1")
+		.expect("account should be inserted ok");
+
+	assert_eq!(hash, "c171033d5cbff7175f29dfd3a63dda3d6f8f385e".parse().unwrap());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_signMessage", "params": ["0xc171033d5cbff7175f29dfd3a63dda3d6f8f385e", "password1", "0xbc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a"], "id": 3}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x1d9e33a8cf8bfc089a172bca01da462f9e359c6cb1b0f29398bc884e4d18df4f78588aee4fb5cc067ca62d2abab995e0bba29527be6ac98105b0320020a2efaf00","id":3}"#;
+	let res = tester.io.handle_request_sync(&request);
+	assert_eq!(res, Some(response.into()));
+}

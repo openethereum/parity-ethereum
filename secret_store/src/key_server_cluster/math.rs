@@ -203,12 +203,24 @@ pub fn compute_node_shadow<'a, I>(node_number: &Secret, node_secret_share: &Secr
 }
 
 /// Compute shadow point for the node.
-pub fn compute_node_shadow_point(access_key: &Secret, common_point: &Public, node_shadow: &Secret) -> Result<Public, Error> {
-	let mut shadow_key = access_key.clone();
-	shadow_key.mul(node_shadow)?;
+pub fn compute_node_shadow_point(access_key: &Secret, common_point: &Public, node_shadow: &Secret, decrypt_shadow: Option<Secret>) -> Result<(Public, Option<Secret>), Error> {
+	let mut shadow_key = node_shadow.clone();
+	let decrypt_shadow = match decrypt_shadow {
+		None => None,
+		Some(mut decrypt_shadow) => {
+			// update shadow key
+			shadow_key.mul(&decrypt_shadow)?;
+			// now udate decrypt shadow itself
+			decrypt_shadow.dec()?;
+			decrypt_shadow.mul(node_shadow)?;
+			Some(decrypt_shadow)
+		}
+	};
+	shadow_key.mul(access_key)?;
+
 	let mut node_shadow_point = common_point.clone();
 	math::public_mul_secret(&mut node_shadow_point, &shadow_key)?;
-	Ok(node_shadow_point)
+	Ok((node_shadow_point, decrypt_shadow))
 }
 
 /// Compute joint shadow point.
@@ -252,6 +264,28 @@ pub fn decrypt_with_joint_shadow(threshold: usize, access_key: &Secret, encrypte
 	Ok(decrypted_point)
 }
 
+/// Prepare common point for shadow decryption.
+pub fn make_common_shadow_point(threshold: usize, mut common_point: Public) -> Result<Public, Error> {
+	if threshold % 2 != 1 {
+		Ok(common_point)
+	} else {
+		math::public_negate(&mut common_point)?;
+		Ok(common_point)
+	}
+}
+
+#[cfg(test)]
+/// Decrypt shadow-encrypted secret.
+pub fn decrypt_with_shadow_coefficients(mut decrypted_shadow: Public, mut common_shadow_point: Public, shadow_coefficients: Vec<Secret>) -> Result<Public, Error> {
+	let mut shadow_coefficients_sum = shadow_coefficients[0].clone();
+	for shadow_coefficient in shadow_coefficients.iter().skip(1) {
+		shadow_coefficients_sum.add(shadow_coefficient)?;
+	}
+	math::public_mul_secret(&mut common_shadow_point, &shadow_coefficients_sum)?;
+	math::public_add(&mut decrypted_shadow, &common_shadow_point)?;
+	Ok(decrypted_shadow)
+}
+
 #[cfg(test)]
 /// Decrypt data using joint secret (version for tests).
 pub fn decrypt_with_joint_secret(encrypted_point: &Public, common_point: &Public, joint_secret: &Secret) -> Result<Public, Error> {
@@ -287,7 +321,10 @@ pub mod tests {
 				.filter(|&(j, _)| j != i)
 				.take(t)
 				.map(|(_, id_number)| id_number)).unwrap()).collect();
-		let nodes_shadow_points: Vec<_> = nodes_shadows.iter().map(|s| compute_node_shadow_point(&access_key, &encrypted_secret.common_point, s).unwrap()).collect();
+		let nodes_shadow_points: Vec<_> = nodes_shadows.iter()
+			.map(|s| compute_node_shadow_point(&access_key, &encrypted_secret.common_point, s, None).unwrap())
+			.map(|sp| sp.0)
+			.collect();
 		assert_eq!(nodes_shadows.len(), t + 1);
 		assert_eq!(nodes_shadow_points.len(), t + 1);
 

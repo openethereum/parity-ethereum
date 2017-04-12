@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Quantity, Data, BlockNumber } from '../types';
+import { Quantity, Data } from '../types';
 import { fromDecimal, Dummy } from '../helpers';
 
 export default {
@@ -71,9 +71,9 @@ export default {
             desc: 'Gas provided by the sender in Wei.',
             optional: true
           },
-          minBlock: {
-            type: BlockNumber,
-            desc: 'Integer block number, or the string `\'latest\'`, `\'earliest\'` or `\'pending\'`. Request will not be propagated till the given block is reached.',
+          condition: {
+            type: Object,
+            desc: 'Condition for scheduled transaction. Can be either an integer block number `{ block: 1 }` or UTC timestamp (in seconds) `{ timestamp: 1491290692 }`.',
             optional: true
           }
         },
@@ -114,7 +114,7 @@ export default {
   },
 
   confirmRequestWithToken: {
-    desc: 'Confirm specific request with token.',
+    desc: 'Confirm specific request with rolling token.',
     params: [
       {
         type: Quantity,
@@ -135,9 +135,9 @@ export default {
             desc: 'Gas provided by the sender in Wei.',
             optional: true
           },
-          minBlock: {
-            type: BlockNumber,
-            desc: 'Integer block number, or the string `\'latest\'`, `\'earliest\'` or `\'pending\'`. Request will not be propagated till the given block is reached.',
+          condition: {
+            type: Object,
+            desc: 'Conditional submission of the transaction. Can be either an integer block number `{ block: 1 }` or UTC timestamp (in seconds) `{ time: 1491290692 }` or `null`.',
             optional: true
           }
         },
@@ -145,7 +145,7 @@ export default {
       },
       {
         type: String,
-        desc: 'Password.',
+        desc: 'Password (initially) or a token returned by the previous call.',
         example: 'hunter2'
       }
     ],
@@ -159,7 +159,7 @@ export default {
         },
         token: {
           type: String,
-          desc: 'Token used to authenticate the request.'
+          desc: 'Token used to authenticate the next request.'
         }
       },
       example: {

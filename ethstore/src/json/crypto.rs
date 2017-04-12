@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
+use std::{fmt, str};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::ser::SerializeStruct;
 use serde::de::{Visitor, MapVisitor, Error};
+use serde_json;
 use super::{Cipher, CipherSer, CipherSerParams, Kdf, KdfSer, KdfSerParams, H256, Bytes};
 
 pub type CipherText = Bytes;
@@ -28,6 +29,20 @@ pub struct Crypto {
 	pub ciphertext: CipherText,
 	pub kdf: Kdf,
 	pub mac: H256,
+}
+
+impl str::FromStr for Crypto {
+	type Err = serde_json::error::Error;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		serde_json::from_str(s)
+	}
+}
+
+impl From<Crypto> for String {
+	fn from(c: Crypto) -> Self {
+		serde_json::to_string(&c).expect("serialization cannot fail, cause all crypto keys are strings")
+	}
 }
 
 enum CryptoField {
