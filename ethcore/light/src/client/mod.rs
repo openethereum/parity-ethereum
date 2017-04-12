@@ -31,7 +31,7 @@ use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
 
-use util::{H256, Mutex, RwLock};
+use util::{H256, U256, Mutex, RwLock};
 use util::kvdb::{KeyValueDB, CompactionProfile};
 
 use self::header_chain::{AncestryIter, HeaderChain};
@@ -67,11 +67,17 @@ pub trait LightChainClient: Send + Sync {
 	/// parent queued prior.
 	fn queue_header(&self, header: Header) -> Result<H256, BlockImportError>;
 
+	/// Attempt to get a block hash by block id.
+	fn block_hash(&self, id: BlockId) -> Option<H256>;
+
 	/// Attempt to get block header by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 
 	/// Get the best block header.
 	fn best_block_header(&self) -> encoded::Header;
+
+	/// Get a block's chain score by ID.
+	fn score(&self, id: BlockId) -> Option<U256>;
 
 	/// Get an iterator over a block and its ancestry.
 	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a>;
@@ -183,6 +189,11 @@ impl Client {
 		self.queue.queue_info()
 	}
 
+	/// Attempt to get a block hash by block id.
+	pub fn block_hash(&self, id: BlockId) -> Option<H256> {
+		self.chain.block_hash(id)
+	}
+
 	/// Get a block header by Id.
 	pub fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		self.chain.block_header(id)
@@ -191,6 +202,11 @@ impl Client {
 	/// Get the best block header.
 	pub fn best_block_header(&self) -> encoded::Header {
 		self.chain.best_header()
+	}
+
+	/// Get a block's chain score.
+	pub fn score(&self, id: BlockId) -> Option<U256> {
+		self.chain.score(id)
 	}
 
 	/// Get an iterator over a block and its ancestry.
@@ -310,12 +326,20 @@ impl LightChainClient for Client {
 		self.import_header(header)
 	}
 
+	fn block_hash(&self, id: BlockId) -> Option<H256> {
+		Client::block_hash(self, id)
+	}
+
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		Client::block_header(self, id)
 	}
 
 	fn best_block_header(&self) -> encoded::Header {
 		Client::best_block_header(self)
+	}
+
+	fn score(&self, id: BlockId) -> Option<U256> {
+		Client::score(self, id)
 	}
 
 	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a> {

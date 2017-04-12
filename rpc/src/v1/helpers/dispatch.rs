@@ -268,7 +268,7 @@ impl LightDispatcher {
 
 		match nonce_future {
 			Some(x) =>
-				x.map(|acc| acc.map_or_else(Default::default, |acc| acc.nonce))
+				x.map(|acc| acc.nonce)
 					.map_err(|_| errors::no_light_peers())
 					.boxed(),
 			None =>  future::err(errors::network_disabled()).boxed()

@@ -90,7 +90,7 @@ impl EthTester {
 		let hashrates = Arc::new(Mutex::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
 		let eth = EthClient::new(&client, &snapshot, &sync, &opt_ap, &miner, &external_miner, options).to_delegate();
-		let filter = EthFilterClient::new(&client, &miner).to_delegate();
+		let filter = EthFilterClient::new(client.clone(), miner.clone()).to_delegate();
 
 		let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
 		let sign = SigningUnsafeClient::new(&opt_ap, dispatcher).to_delegate();
