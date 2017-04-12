@@ -474,7 +474,7 @@ pub fn execute<D: Dispatcher + 'static>(
 					.map(ConfirmationResponse::SignTransaction)
 				).boxed()
 		},
-		ConfirmationPayload::Signature(address, mut data) => {
+		ConfirmationPayload::EthSignMessage(address, mut data) => {
 			let mut message_data =
 				format!("\x19Ethereum Signed Message:\n{}", data.len())
 				.into_bytes();
@@ -574,8 +574,8 @@ pub fn from_rpc<D>(payload: RpcConfirmationPayload, default_account: Address, di
 		RpcConfirmationPayload::Decrypt(RpcDecryptRequest { address, msg }) => {
 			future::ok(ConfirmationPayload::Decrypt(address.into(), msg.into())).boxed()
 		},
-		RpcConfirmationPayload::Signature(RpcSignRequest { address, data }) => {
-			future::ok(ConfirmationPayload::Signature(address.into(), data.into())).boxed()
+		RpcConfirmationPayload::EthSignMessage(RpcSignRequest { address, data }) => {
+			future::ok(ConfirmationPayload::EthSignMessage(address.into(), data.into())).boxed()
 		},
 	}
 }
