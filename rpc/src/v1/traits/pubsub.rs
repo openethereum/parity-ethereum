@@ -14,33 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum rpc interfaces.
+//! Parity-specific PUB-SUB rpc interface.
 
-pub mod web3;
-pub mod eth;
-pub mod eth_signing;
-pub mod net;
-pub mod parity;
-pub mod parity_accounts;
-pub mod parity_set;
-pub mod parity_signing;
-pub mod personal;
-pub mod pubsub;
-pub mod signer;
-pub mod traces;
-pub mod rpc;
+use jsonrpc_core::{Error, Output, Params};
+use jsonrpc_pubsub::SubscriptionId;
+use jsonrpc_macros::pubsub::Subscriber;
+use futures::BoxFuture;
 
-pub use self::web3::Web3;
-pub use self::eth::{Eth, EthFilter};
-pub use self::eth_signing::EthSigning;
-pub use self::net::Net;
-pub use self::parity::Parity;
-pub use self::parity_accounts::ParityAccounts;
-pub use self::parity_set::ParitySet;
-pub use self::parity_signing::ParitySigning;
-pub use self::personal::Personal;
-pub use self::pubsub::PubSub;
-pub use self::signer::Signer;
-pub use self::traces::Traces;
-pub use self::rpc::Rpc;
+build_rpc_trait! {
+	/// Parity-specific PUB-SUB rpc interface.
+	pub trait PubSub {
+		type Metadata;
 
+		#[pubsub(name = "parity_subscription")] {
+			/// Subscribe to changes of any RPC method in Parity.
+			#[rpc(name = "parity_subscribe")]
+			fn parity_subscribe(&self, Self::Metadata, Subscriber<Output>, String, Params);
+
+			/// Unsubscribe from existing Parity subscription.
+			#[rpc(name = "parity_unsubscribe")]
+			fn parity_unsubscribe(&self, SubscriptionId) -> BoxFuture<bool, Error>;
+		}
+	}
+}
