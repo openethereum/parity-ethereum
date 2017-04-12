@@ -464,14 +464,14 @@ mod tests {
 
 		engine.set_signer(tap.clone(), addr1, "1".into());
 		if let Seal::Regular(seal) = engine.generate_seal(b1.block()) {
-			assert!(b1.clone().try_seal(engine, seal, None).is_ok());
+			assert!(b1.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
 			assert!(engine.generate_seal(b1.block()) == Seal::None);
 		}
 
 		engine.set_signer(tap, addr2, "2".into());
 		if let Seal::Regular(seal) = engine.generate_seal(b2.block()) {
-			assert!(b2.clone().try_seal(engine, seal, None).is_ok());
+			assert!(b2.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
 			assert!(engine.generate_seal(b2.block()) == Seal::None);
 		}

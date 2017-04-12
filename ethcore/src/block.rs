@@ -26,7 +26,7 @@ use util::error::{Mismatch, OutOfBounds};
 
 use basic_types::{LogBloom, Seal};
 use env_info::{EnvInfo, LastHashes};
-use engines::{Engine, ValidationProof};
+use engines::Engine;
 use error::{Error, BlockError, TransactionError};
 use factory::Factories;
 use header::Header;
@@ -488,11 +488,10 @@ impl LockedBlock {
 		self,
 		engine: &Engine,
 		seal: Vec<Bytes>,
-		proof: Option<ValidationProof>,
 	) -> Result<SealedBlock, (Error, LockedBlock)> {
 		let mut s = self;
 		s.block.header.set_seal(seal);
-		match engine.verify_block_seal(&s.block.header, proof) {
+		match engine.verify_block_seal(&s.block.header) {
 			Err(e) => Err((e, s)),
 			_ => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
 		}
