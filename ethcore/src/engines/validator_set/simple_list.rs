@@ -19,6 +19,7 @@
 use util::{H256, Address, HeapSizeOf};
 
 use engines::Call;
+use header::Header;
 use super::ValidatorSet;
 
 #[derive(Debug, PartialEq, Eq, Default)]
@@ -27,10 +28,16 @@ pub struct SimpleList {
 }
 
 impl SimpleList {
+	/// Create a new `SimpleList`.
 	pub fn new(validators: Vec<Address>) -> Self {
 		SimpleList {
 			validators: validators,
 		}
+	}
+
+	/// Convert into inner representation.
+	pub fn into_inner(self) -> Vec<Address> {
+		self.validators
 	}
 }
 
@@ -43,6 +50,16 @@ impl HeapSizeOf for SimpleList {
 impl ValidatorSet for SimpleList {
 	fn default_caller(&self, _block_id: ::ids::BlockId) -> Box<Call> {
 		Box::new(|_, _| Err("Simple list doesn't require calls.".into()))
+	}
+
+	fn proof_required(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[::receipt::Receipt]>)
+		-> ::engines::RequiresProof
+	{
+		::engines::RequiresProof::No
+	}
+
+	fn generate_proof(&self, _header: &Header, _caller: &Call) -> Result<Vec<u8>, String> {
+		Ok(Vec::new())
 	}
 
 	fn contains_with_caller(&self, _bh: &H256, address: &Address, _: &Call) -> bool {

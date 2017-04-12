@@ -25,7 +25,7 @@ use rlp::{UntrustedRlp, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
-use engines::{Engine, Seal, EngineError};
+use engines::{Call, Engine, Seal, EngineError};
 use header::Header;
 use error::{Error, TransactionError, BlockError};
 use evm::Schedule;
@@ -356,6 +356,18 @@ impl Engine for AuthorityRound {
 			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
 		}
 		Ok(())
+	}
+
+	// the proofs we need just allow us to get the full validator set.
+	fn prove_with_caller(&self, header: &Header, caller: &Call) -> Result<Bytes, Error> {
+		self.validators.generate_proof(header, caller)
+			.map_err(|e| EngineError::InsufficientProof(e).into())
+	}
+
+	fn proof_required(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> super::RequiresProof
+	{
+		self.validators.proof_required(header, block, receipts)
 	}
 
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> result::Result<(), Error> {

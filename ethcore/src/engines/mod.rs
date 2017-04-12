@@ -62,6 +62,8 @@ pub enum EngineError {
 	UnexpectedMessage,
 	/// Seal field has an unexpected size.
 	BadSealFieldSize(OutOfBounds<usize>),
+	/// Validation proof insufficient.
+	InsufficientProof(String),
 }
 
 impl fmt::Display for EngineError {
@@ -73,6 +75,7 @@ impl fmt::Display for EngineError {
 			NotAuthorized(ref address) => format!("Signer {} is not authorized.", address),
 			UnexpectedMessage => "This Engine should not be fed messages.".into(),
 			BadSealFieldSize(ref oob) => format!("Seal field has an unexpected length: {}", oob),
+			InsufficientProof(ref msg) => format!("Insufficient validation proof: {}", msg),
 		};
 
 		f.write_fmt(format_args!("Engine error ({})", msg))
@@ -99,8 +102,9 @@ pub enum RequiresProof {
 	Unsure(Unsure),
 	/// Validation proof not required.
 	No,
-	/// Validation proof required.
-	Yes,
+	/// Validation proof required, and the expected output
+	/// if it can be recovered.
+	Yes(Option<Bytes>),
 }
 
 /// More data required to determine if a validation proof is required.
@@ -213,12 +217,15 @@ pub trait Engine : Sync + Send {
 	/// Re-do all verification for a header with the given contract-calling interface
 	///
 	/// This will be used to generate proofs of validation as well as verify them.
-	fn verify_with_state(&self, _header: &Header, _call: &Call) -> Result<(), Error> {
-		Ok(())
+	/// Must be called on blocks that have already passed basic verification.
+	///
+	/// Return the "validation proof" generated.
+	fn prove_with_caller(&self, _header: &Header, _caller: &Call) -> Result<Bytes, Error> {
+		Ok(Vec::new())
 	}
 
 	/// Whether a proof is required for the given header.
-	fn proof_required(&self, _header: Header, _block: Option<&[u8]>, _receipts: Option<&[Receipt]>)
+	fn proof_required(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[Receipt]>)
 		-> RequiresProof
 	{
 		RequiresProof::No

@@ -23,7 +23,7 @@ use account_provider::AccountProvider;
 use block::*;
 use builtin::Builtin;
 use spec::CommonParams;
-use engines::{Engine, Seal};
+use engines::{Engine, EngineError, Seal, Call, RequiresProof};
 use env_info::EnvInfo;
 use error::{BlockError, Error};
 use evm::Schedule;
@@ -51,8 +51,7 @@ impl From<ethjson::spec::BasicAuthorityParams> for BasicAuthorityParams {
 	}
 }
 
-/// Engine using `BasicAuthority` proof-of-work consensus algorithm, suitable for Ethereum
-/// mainnet chains in the Olympic, Frontier and Homestead eras.
+/// Engine using `BasicAuthority`, trivial proof-of-authority consensus.
 pub struct BasicAuthority {
 	params: CommonParams,
 	gas_limit_bound_divisor: U256,
@@ -139,6 +138,7 @@ impl Engine for BasicAuthority {
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		use rlp::UntrustedRlp;
+
 		// Check if the signature belongs to a validator, can depend on parent state.
 		let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
 		let signer = public_to_address(&recover(&sig.into(), &header.bare_hash())?);
@@ -162,6 +162,18 @@ impl Engine for BasicAuthority {
 			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
 		}
 		Ok(())
+	}
+
+	// the proofs we need just allow us to get the full validator set.
+	fn prove_with_caller(&self, header: &Header, caller: &Call) -> Result<Bytes, Error> {
+		self.validators.generate_proof(header, caller)
+			.map_err(|e| EngineError::InsufficientProof(e).into())
+	}
+
+	fn proof_required(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> RequiresProof
+	{
+		self.validators.proof_required(header, block, receipts)
 	}
 
 	fn register_client(&self, client: Weak<Client>) {

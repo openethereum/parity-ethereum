@@ -25,6 +25,7 @@ use native_contracts::ValidatorReport as Provider;
 
 use client::{Client, BlockChainClient};
 use engines::Call;
+use header::Header;
 
 use super::ValidatorSet;
 use super::safe_contract::ValidatorSafeContract;
@@ -63,6 +64,16 @@ impl ValidatorContract {
 impl ValidatorSet for ValidatorContract {
 	fn default_caller(&self, id: ::ids::BlockId) -> Box<Call> {
 		self.validators.default_caller(id)
+	}
+
+	fn proof_required(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> ::engines::RequiresProof
+	{
+		self.validators.proof_required(header, block, receipts)
+	}
+
+	fn generate_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
+		self.validators.generate_proof(header, caller)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {

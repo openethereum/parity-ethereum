@@ -26,6 +26,7 @@ use util::cache::MemoryLruCache;
 use engines::Call;
 use types::ids::BlockId;
 use client::{Client, BlockChainClient};
+use header::Header;
 
 use super::ValidatorSet;
 use super::simple_list::SimpleList;
@@ -72,6 +73,19 @@ impl ValidatorSet for ValidatorSafeContract {
 			.and_then(Weak::upgrade)
 			.ok_or("No client!".into())
 			.and_then(|c| c.call_contract(id, addr, data)))
+	}
+
+	fn proof_required(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> ::engines::RequiresProof
+	{
+		// TODO: check blooms first and then logs for the
+		// ValidatorsChanged([parent_hash, nonce], new_validators) log event.
+		::engines::RequiresProof::No
+	}
+
+	fn generate_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
+		self.get_list(caller).map(|list| ::rlp::encode_list(&list.into_inner()).to_vec())
+			.ok_or_else(|| "Caller insufficient to get validator list.".into())
 	}
 
 	fn contains_with_caller(&self, block_hash: &H256, address: &Address, caller: &Call) -> bool {

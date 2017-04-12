@@ -26,6 +26,7 @@ use ids::BlockId;
 use util::{Address, H256};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::Client;
+use header::Header;
 
 use self::simple_list::SimpleList;
 use self::contract::ValidatorContract;
@@ -47,9 +48,10 @@ pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet> {
 }
 
 /// A validator set.
-// TODO [keorn]: remove internal callers.
 pub trait ValidatorSet: Send + Sync {
 	/// Get the default "Call" helper, for use in general operation.
+	// TODO [keorn]: this is a hack intended to migrate off of
+	// a strict dependency on state always being available.
 	fn default_caller(&self, block_id: BlockId) -> Box<Call>;
 
 	/// Checks if a given address is a validator,
@@ -63,11 +65,30 @@ pub trait ValidatorSet: Send + Sync {
 		let default = self.default_caller(BlockId::Hash(*parent));
 		self.get_with_caller(parent, nonce, &*default)
 	}
+
 	/// Returns the current number of validators.
 	fn count(&self, parent: &H256) -> usize {
 		let default = self.default_caller(BlockId::Hash(*parent));
 		self.count_with_caller(parent, &*default)
 	}
+
+	/// Whether a validation proof is required at the given block.
+	/// Usually indicates that the validator set changed at the given block.
+	///
+	/// Should not inspect state! This is used in situations where
+	/// state is not generally available.
+	///
+	/// Return `Ok` with a flag indicating whether it changed at the given header,
+	/// or `Unsure` indicating a need for more information.
+	///
+	/// This may or may not be called in a loop.
+	fn proof_required(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> super::RequiresProof;
+
+	/// Generate a validation proof at the given header.
+	/// Must interact with state only through the given caller!
+	/// Otherwise, generated proofs may be wrong.
+	fn generate_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String>;
 
 	/// Checks if a given address is a validator, with the given function
 	/// for executing synchronous calls to contracts.

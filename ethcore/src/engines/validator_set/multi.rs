@@ -18,10 +18,10 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
-use engines::Call;
+use engines::{Call, RequiresProof};
 use util::{H256, Address, RwLock};
 use ids::BlockId;
-use header::BlockNumber;
+use header::{BlockNumber, Header};
 use client::{Client, BlockChainClient};
 use super::ValidatorSet;
 
@@ -42,21 +42,9 @@ impl Multi {
 	}
 
 	fn correct_set(&self, id: BlockId) -> Option<&ValidatorSet> {
-		match self
-			.block_number
-			.read()(id)
-			.map(|parent_block| self
-					 .sets
-					 .iter()
-					 .rev()
-					 .find(|&(block, _)| *block <= parent_block + 1)
-					 .expect("constructor validation ensures that there is at least one validator set for block 0;
-									 block 0 is less than any uint;
-									 qed")
-				) {
-			Ok((block, set)) => {
-				trace!(target: "engine", "Multi ValidatorSet retrieved for block {}.", block);
-				Some(&**set)
+		match self.block_number.read()(id).map(|parent_block| self.correct_set_by_number(parent_block)) {
+			Ok(set) => {
+				Some(set)
 			},
 			Err(e) => {
 				debug!(target: "engine", "ValidatorSet could not be recovered: {}", e);
@@ -64,12 +52,34 @@ impl Multi {
 			},
 		}
 	}
+
+	fn correct_set_by_number(&self, parent_block: BlockNumber) -> &ValidatorSet {
+		let (block, set) = self.sets.iter()
+			.rev()
+			.find(|&(block, _)| *block <= parent_block + 1)
+			.expect("constructor validation ensures that there is at least one validator set for block 0;
+					 block 0 is less than any uint;
+					 qed");
+
+		trace!(target: "engine", "Multi ValidatorSet retrieved for block {}.", block);
+		&**set
+	}
 }
 
 impl ValidatorSet for Multi {
 	fn default_caller(&self, block_id: BlockId) -> Box<Call> {
 		self.correct_set(block_id).map(|set| set.default_caller(block_id))
 			.unwrap_or(Box::new(|_, _| Err("No validator set for given ID.".into())))
+	}
+
+	fn proof_required(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> RequiresProof
+	{
+		self.correct_set_by_number(header.number()).proof_required(header, block, receipts)
+	}
+
+	fn generate_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
+		self.correct_set_by_number(header.number()).generate_proof(header, caller)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {
