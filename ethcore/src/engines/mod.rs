@@ -206,7 +206,7 @@ pub trait Engine : Sync + Send {
 	///
 	/// Engines which do draw consensus information from the state may only do so
 	/// here.
-	fn generate_validation_proof(&self, _call: &Call) -> ValidationProof {
+	fn generate_validation_proof(&self, header: &Header, _call: &Call) -> ValidationProof {
 		ValidationProof::default()
 	}
 

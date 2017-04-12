@@ -22,13 +22,11 @@ use super::ValidatorSet;
 #[derive(Debug, PartialEq, Eq, Default)]
 pub struct SimpleList {
 	validators: Vec<Address>,
-	validator_n: usize,
 }
 
 impl SimpleList {
 	pub fn new(validators: Vec<Address>) -> Self {
 		SimpleList {
-			validator_n: validators.len(),
 			validators: validators,
 		}
 	}
@@ -36,7 +34,7 @@ impl SimpleList {
 
 impl HeapSizeOf for SimpleList {
 	fn heap_size_of_children(&self) -> usize {
-		self.validators.heap_size_of_children() + self.validator_n.heap_size_of_children()
+		self.validators.heap_size_of_children()
 	}
 }
 
@@ -46,11 +44,12 @@ impl ValidatorSet for SimpleList {
 	}
 
 	fn get(&self, _bh: &H256, nonce: usize) -> Address {
-		self.validators.get(nonce % self.validator_n).expect("There are validator_n authorities; taking number modulo validator_n gives number in validator_n range; qed").clone()
+		let validator_n = self.validators.len();
+		self.validators.get(nonce % validator_n).expect("There are validator_n authorities; taking number modulo validator_n gives number in validator_n range; qed").clone()
 	}
 
 	fn count(&self, _bh: &H256) -> usize {
-		self.validator_n
+		self.validators.len()
 	}
 }
 

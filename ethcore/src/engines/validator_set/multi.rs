@@ -40,7 +40,7 @@ impl Multi {
 		}
 	}
 
-	fn correct_set(&self, bh: &H256) -> Option<&Box<ValidatorSet>> {
+	fn correct_set(&self, bh: &H256) -> Option<&ValidatorSet> {
 		match self
 			.block_number
 			.read()(bh)
@@ -55,7 +55,7 @@ impl Multi {
 				) {
 			Ok((block, set)) => {
 				trace!(target: "engine", "Multi ValidatorSet retrieved for block {}.", block);
-				Some(set)
+				Some(&*set)
 			},
 			Err(e) => {
 				debug!(target: "engine", "ValidatorSet could not be recovered: {}", e);
@@ -66,6 +66,21 @@ impl Multi {
 }
 
 impl ValidatorSet for Multi {
+	fn has_possibly_changed(&self, header: &Header) -> bool {
+		// if the sets are the same for each header, compare those.
+		// otherwise, the sets have almost certainly changed.
+		match (self.correct_set(&header.hash()), self.correct_set(header.parent_hash())) {
+			(Some(a), Some(b)) if a as *const _ == b as *const _ => { a.has_possibly_changed(header) },
+			_ => true,
+		}
+	}
+
+	fn has_changed(&self, header: &Header, receipts: &[Receipt]) -> Option<Vec<Address>> {
+
+	}
+
+	fn fetch(&self) ->
+
 	fn contains(&self, bh: &H256, address: &Address) -> bool {
 		self.correct_set(bh).map_or(false, |set| set.contains(bh, address))
 	}
