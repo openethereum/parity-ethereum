@@ -17,24 +17,26 @@
 /// Validator set maintained in a contract, updated using `getValidators` method.
 
 use std::sync::Weak;
-use ethabi;
+use futures::Future;
+use native_contracts::ValidatorSet as Provider;
+
 use util::*;
 use util::cache::MemoryLruCache;
+
 use types::ids::BlockId;
 use client::{Client, BlockChainClient};
+
 use super::ValidatorSet;
 use super::simple_list::SimpleList;
 
 const MEMOIZE_CAPACITY: usize = 500;
-const CONTRACT_INTERFACE: &'static [u8] = b"[{\"constant\":true,\"inputs\":[],\"name\":\"getValidators\",\"outputs\":[{\"name\":\"\",\"type\":\"address[]\"}],\"payable\":false,\"type\":\"function\"}]";
-const GET_VALIDATORS: &'static str = "getValidators";
 
 /// The validator contract should have the following interface:
-/// [{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}]
 pub struct ValidatorSafeContract {
 	pub address: Address,
 	validators: RwLock<MemoryLruCache<H256, SimpleList>>,
-	provider: RwLock<Option<provider::Contract>>,
+	provider: Provider,
+	client: RwLock<Option<Weak<Client>>>, // TODO [keorn]: remove
 }
 
 impl ValidatorSafeContract {
@@ -42,26 +44,30 @@ impl ValidatorSafeContract {
 		ValidatorSafeContract {
 			address: contract_address,
 			validators: RwLock::new(MemoryLruCache::new(MEMOIZE_CAPACITY)),
-			provider: RwLock::new(None),
+			provider: Provider::new(contract_address),
+			client: RwLock::new(None),
 		}
+	}
+
+	fn do_call(&self, id: BlockId) -> Box<Fn(Address, Vec<u8>) -> Result<Vec<u8>, String>> {
+		let client = self.client.read().clone();
+		Box::new(move |addr, data| client.as_ref()
+			.and_then(Weak::upgrade)
+			.ok_or("No client!".into())
+			.and_then(|c| c.call_contract(id, addr, data)))
 	}
 
 	/// Queries the state and gets the set of validators.
 	fn get_list(&self, block_hash: H256) -> Option<SimpleList> {
-		if let Some(ref provider) = *self.provider.read() {
-			match provider.get_validators(BlockId::Hash(block_hash)) {
-				Ok(new) => {
-					debug!(target: "engine", "Set of validators obtained: {:?}", new);
-					Some(SimpleList::new(new))
-				},
-				Err(s) => {
-					debug!(target: "engine", "Set of validators could not be updated: {}", s);
-					None
-				},
-			}
-		} else {
-			warn!(target: "engine", "Set of validators could not be updated: no provider contract.");
-			None
+		match self.provider.get_validators(&*self.do_call(BlockId::Hash(block_hash))).wait() {
+			Ok(new) => {
+				debug!(target: "engine", "Set of validators obtained: {:?}", new);
+				Some(SimpleList::new(new))
+			},
+			Err(s) => {
+				debug!(target: "engine", "Set of validators could not be updated: {}", s);
+				None
+			},
 		}
 	}
 }
@@ -114,55 +120,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
 	fn register_contract(&self, client: Weak<Client>) {
 		trace!(target: "engine", "Setting up contract caller.");
-		let contract = ethabi::Contract::new(ethabi::Interface::load(CONTRACT_INTERFACE).expect("JSON interface is valid; qed"));
-		let call = contract.function(GET_VALIDATORS.into()).expect("Method name is valid; qed");
-		let data = call.encode_call(vec![]).expect("get_validators does not take any arguments; qed");
-		let contract_address = self.address.clone();
-		let do_call = move |id| client
-			.upgrade()
-			.ok_or("No client!".into())
-			.and_then(|c| c.call_contract(id, contract_address.clone(), data.clone()))
-			.map(|raw_output| call.decode_output(raw_output).expect("ethabi is correct; qed"));
-		*self.provider.write() = Some(provider::Contract::new(do_call));
-	}
-}
-
-mod provider {
-	use std::string::String;
-	use std::result::Result;
-	use {util, ethabi};
-	use types::ids::BlockId;
-
-	pub struct Contract {
-		do_call: Box<Fn(BlockId) -> Result<Vec<ethabi::Token>, String> + Send + Sync + 'static>,
-	}
-
-	impl Contract {
-		pub fn new<F>(do_call: F) -> Self where F: Fn(BlockId) -> Result<Vec<ethabi::Token>, String> + Send + Sync + 'static {
-			Contract {
-				do_call: Box::new(do_call),
-			}
-		}
-
-		/// Gets validators from contract with interface: `{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}`
-		pub fn get_validators(&self, id: BlockId) -> Result<Vec<util::Address>, String> {
-			Ok((self.do_call)(id)?
-				 .into_iter()
-				 .rev()
-				 .collect::<Vec<_>>()
-				 .pop()
-				 .expect("get_validators returns one argument; qed")
-				 .to_array()
-				 .and_then(|v| v
-					 .into_iter()
-					 .map(|a| a.to_address())
-					 .collect::<Option<Vec<[u8; 20]>>>())
-				 .expect("get_validators returns a list of addresses; qed")
-				 .into_iter()
-				 .map(util::Address::from)
-				 .collect::<Vec<_>>()
-			)
-		}
+		*self.client.write() = Some(client);
 	}
 }
 

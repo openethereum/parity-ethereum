@@ -46,7 +46,7 @@ pub fn generate_module(struct_name: &str, abi: &str) -> Result<String, Error> {
 
 	Ok(format!(r##"
 use byteorder::{{BigEndian, ByteOrder}};
-use futures::{{future, Future, BoxFuture}};
+use futures::{{future, Future, IntoFuture, BoxFuture}};
 use ethabi::{{Contract, Interface, Token}};
 use util::{{self, Uint}};
 
@@ -99,7 +99,10 @@ fn generate_functions(contract: &Contract) -> Result<String, Error> {
 /// Inputs: {abi_inputs:?}
 /// Outputs: {abi_outputs:?}
 pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, String>
-	where F: Fn(util::Address, Vec<u8>) -> U, U: Future<Item=Vec<u8>, Error=String> + Send + 'static
+	where
+	    F: Fn(util::Address, Vec<u8>) -> U,
+	    U: IntoFuture<Item=Vec<u8>, Error=String>,
+		U::Future: Send + 'static
 {{
 	let function = self.contract.function(r#"{abi_name}"#.to_string())
 		.expect("function existence checked at compile-time; qed");
@@ -111,6 +114,7 @@ pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, 
 	}};
 
 	call_future
+		.into_future()
 		.and_then(move |out| function.decode_output(out).map_err(|e| format!("{{:?}}", e)))
 		.map(::std::collections::VecDeque::from)
 		.and_then(|mut outputs| {decode_outputs})
