@@ -23,6 +23,7 @@ use native_contracts::ValidatorSet as Provider;
 use util::*;
 use util::cache::MemoryLruCache;
 
+use engines::Call;
 use types::ids::BlockId;
 use client::{Client, BlockChainClient};
 
@@ -49,17 +50,9 @@ impl ValidatorSafeContract {
 		}
 	}
 
-	fn do_call(&self, id: BlockId) -> Box<Fn(Address, Vec<u8>) -> Result<Vec<u8>, String>> {
-		let client = self.client.read().clone();
-		Box::new(move |addr, data| client.as_ref()
-			.and_then(Weak::upgrade)
-			.ok_or("No client!".into())
-			.and_then(|c| c.call_contract(id, addr, data)))
-	}
-
 	/// Queries the state and gets the set of validators.
-	fn get_list(&self, block_hash: H256) -> Option<SimpleList> {
-		match self.provider.get_validators(&*self.do_call(BlockId::Hash(block_hash))).wait() {
+	fn get_list(&self, caller: &Call) -> Option<SimpleList> {
+		match self.provider.get_validators(caller).wait() {
 			Ok(new) => {
 				debug!(target: "engine", "Set of validators obtained: {:?}", new);
 				Some(SimpleList::new(new))
@@ -73,14 +66,22 @@ impl ValidatorSafeContract {
 }
 
 impl ValidatorSet for ValidatorSafeContract {
-	fn contains(&self, block_hash: &H256, address: &Address) -> bool {
+	fn default_caller(&self, id: BlockId) -> Box<Call> {
+		let client = self.client.read().clone();
+		Box::new(move |addr, data| client.as_ref()
+			.and_then(Weak::upgrade)
+			.ok_or("No client!".into())
+			.and_then(|c| c.call_contract(id, addr, data)))
+	}
+
+	fn contains_with_caller(&self, block_hash: &H256, address: &Address, caller: &Call) -> bool {
 		let mut guard = self.validators.write();
 		let maybe_existing = guard
 			.get_mut(block_hash)
 			.map(|list| list.contains(block_hash, address));
 		maybe_existing
 			.unwrap_or_else(|| self
-				.get_list(block_hash.clone())
+				.get_list(caller)
 				.map_or(false, |list| {
 					let contains = list.contains(block_hash, address);
 					guard.insert(block_hash.clone(), list);
@@ -88,14 +89,14 @@ impl ValidatorSet for ValidatorSafeContract {
 				 }))
 	}
 
-	fn get(&self, block_hash: &H256, nonce: usize) -> Address {
+	fn get_with_caller(&self, block_hash: &H256, nonce: usize, caller: &Call) -> Address {
 		let mut guard = self.validators.write();
 		let maybe_existing = guard
 			.get_mut(block_hash)
 			.map(|list| list.get(block_hash, nonce));
 		maybe_existing
 			.unwrap_or_else(|| self
-				.get_list(block_hash.clone())
+				.get_list(caller)
 				.map_or_else(Default::default, |list| {
 					let address = list.get(block_hash, nonce);
 					guard.insert(block_hash.clone(), list);
@@ -103,14 +104,14 @@ impl ValidatorSet for ValidatorSafeContract {
 				 }))
 	}
 
-	fn count(&self, block_hash: &H256) -> usize {
+	fn count_with_caller(&self, block_hash: &H256, caller: &Call) -> usize {
 		let mut guard = self.validators.write();
 		let maybe_existing = guard
 			.get_mut(block_hash)
 			.map(|list| list.count(block_hash));
 		maybe_existing
 			.unwrap_or_else(|| self
-				.get_list(block_hash.clone())
+				.get_list(caller)
 				.map_or_else(usize::max_value, |list| {
 					let address = list.count(block_hash);
 					guard.insert(block_hash.clone(), list);

@@ -22,6 +22,7 @@ mod contract;
 mod multi;
 
 use std::sync::Weak;
+use ids::BlockId;
 use util::{Address, H256};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::Client;
@@ -30,6 +31,8 @@ use self::simple_list::SimpleList;
 use self::contract::ValidatorContract;
 use self::safe_contract::ValidatorSafeContract;
 use self::multi::Multi;
+
+use super::Call;
 
 /// Creates a validator set from spec.
 pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet> {
@@ -44,13 +47,39 @@ pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet> {
 }
 
 /// A validator set.
+// TODO [keorn]: remove internal callers.
 pub trait ValidatorSet: Send + Sync {
-	/// Checks if a given address is a validator.
-	fn contains(&self, parent_block_hash: &H256, address: &Address) -> bool;
+	/// Get the default "Call" helper, for use in general operation.
+	fn default_caller(&self, block_id: BlockId) -> Box<Call>;
+
+	/// Checks if a given address is a validator,
+	/// using underlying, default call mechanism.
+	fn contains(&self, parent: &H256, address: &Address) -> bool {
+		let default = self.default_caller(BlockId::Hash(*parent));
+		self.contains_with_caller(parent, address, &*default)
+	}
 	/// Draws an validator nonce modulo number of validators.
-	fn get(&self, parent_block_hash: &H256, nonce: usize) -> Address;
+	fn get(&self, parent: &H256, nonce: usize) -> Address {
+		let default = self.default_caller(BlockId::Hash(*parent));
+		self.get_with_caller(parent, nonce, &*default)
+	}
 	/// Returns the current number of validators.
-	fn count(&self, parent_block_hash: &H256) -> usize;
+	fn count(&self, parent: &H256) -> usize {
+		let default = self.default_caller(BlockId::Hash(*parent));
+		self.count_with_caller(parent, &*default)
+	}
+
+	/// Checks if a given address is a validator, with the given function
+	/// for executing synchronous calls to contracts.
+	fn contains_with_caller(&self, parent_block_hash: &H256, address: &Address, caller: &Call) -> bool;
+
+	/// Draws an validator nonce modulo number of validators.
+	///
+	fn get_with_caller(&self, parent_block_hash: &H256, nonce: usize, caller: &Call) -> Address;
+
+	/// Returns the current number of validators.
+	fn count_with_caller(&self, parent_block_hash: &H256, caller: &Call) -> usize;
+
 	/// Notifies about malicious behaviour.
 	fn report_malicious(&self, _validator: &Address) {}
 	/// Notifies about benign misbehaviour.

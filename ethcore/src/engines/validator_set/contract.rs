@@ -18,11 +18,13 @@
 /// It can also report validators for misbehaviour with two levels: `reportMalicious` and `reportBenign`.
 
 use std::sync::Weak;
-use futures::Future;
 use util::*;
-use client::{Client, BlockChainClient};
 
+use futures::Future;
 use native_contracts::ValidatorReport as Provider;
+
+use client::{Client, BlockChainClient};
+use engines::Call;
 
 use super::ValidatorSet;
 use super::safe_contract::ValidatorSafeContract;
@@ -48,7 +50,7 @@ impl ValidatorContract {
 	// could be `impl Trait`.
 	// note: dispatches transactions to network as well as execute.
 	// TODO [keorn]: Make more general.
-	fn transact(&self) -> Box<Fn(Address, Vec<u8>) -> Result<Vec<u8>, String>> {
+	fn transact(&self) -> Box<Call> {
 		let client = self.client.read().clone();
 		Box::new(move |a, d| client.as_ref()
 			.and_then(Weak::upgrade)
@@ -59,16 +61,20 @@ impl ValidatorContract {
 }
 
 impl ValidatorSet for ValidatorContract {
-	fn contains(&self, bh: &H256, address: &Address) -> bool {
-		self.validators.contains(bh, address)
+	fn default_caller(&self, id: ::ids::BlockId) -> Box<Call> {
+		self.validators.default_caller(id)
 	}
 
-	fn get(&self, bh: &H256, nonce: usize) -> Address {
-		self.validators.get(bh, nonce)
+	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {
+		self.validators.contains_with_caller(bh, address, caller)
 	}
 
-	fn count(&self, bh: &H256) -> usize {
-		self.validators.count(bh)
+	fn get_with_caller(&self, bh: &H256, nonce: usize, caller: &Call) -> Address {
+		self.validators.get_with_caller(bh, nonce, caller)
+	}
+
+	fn count_with_caller(&self, bh: &H256, caller: &Call) -> usize {
+		self.validators.count_with_caller(bh, caller)
 	}
 
 	fn report_malicious(&self, address: &Address) {

@@ -17,6 +17,8 @@
 /// Preconfigured validator list.
 
 use util::{H256, Address, HeapSizeOf};
+
+use engines::Call;
 use super::ValidatorSet;
 
 #[derive(Debug, PartialEq, Eq, Default)]
@@ -39,16 +41,20 @@ impl HeapSizeOf for SimpleList {
 }
 
 impl ValidatorSet for SimpleList {
-	fn contains(&self, _bh: &H256, address: &Address) -> bool {
+	fn default_caller(&self, _block_id: ::ids::BlockId) -> Box<Call> {
+		Box::new(|_, _| Err("Simple list doesn't require calls.".into()))
+	}
+
+	fn contains_with_caller(&self, _bh: &H256, address: &Address, _: &Call) -> bool {
 		self.validators.contains(address)
 	}
 
-	fn get(&self, _bh: &H256, nonce: usize) -> Address {
+	fn get_with_caller(&self, _bh: &H256, nonce: usize, _: &Call) -> Address {
 		let validator_n = self.validators.len();
 		self.validators.get(nonce % validator_n).expect("There are validator_n authorities; taking number modulo validator_n gives number in validator_n range; qed").clone()
 	}
 
-	fn count(&self, _bh: &H256) -> usize {
+	fn count_with_caller(&self, _bh: &H256, _: &Call) -> usize {
 		self.validators.len()
 	}
 }

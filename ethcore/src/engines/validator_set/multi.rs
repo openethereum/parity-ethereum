@@ -18,13 +18,14 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
+use engines::Call;
 use util::{H256, Address, RwLock};
 use ids::BlockId;
 use header::BlockNumber;
 use client::{Client, BlockChainClient};
 use super::ValidatorSet;
 
-type BlockNumberLookup = Box<Fn(&H256) -> Result<BlockNumber, String> + Send + Sync + 'static>;
+type BlockNumberLookup = Box<Fn(BlockId) -> Result<BlockNumber, String> + Send + Sync + 'static>;
 
 pub struct Multi {
 	sets: BTreeMap<BlockNumber, Box<ValidatorSet>>,
@@ -40,10 +41,10 @@ impl Multi {
 		}
 	}
 
-	fn correct_set(&self, bh: &H256) -> Option<&ValidatorSet> {
+	fn correct_set(&self, id: BlockId) -> Option<&ValidatorSet> {
 		match self
 			.block_number
-			.read()(bh)
+			.read()(id)
 			.map(|parent_block| self
 					 .sets
 					 .iter()
@@ -66,16 +67,24 @@ impl Multi {
 }
 
 impl ValidatorSet for Multi {
-	fn contains(&self, bh: &H256, address: &Address) -> bool {
-		self.correct_set(bh).map_or(false, |set| set.contains(bh, address))
+	fn default_caller(&self, block_id: BlockId) -> Box<Call> {
+		self.correct_set(block_id).map(|set| set.default_caller(block_id))
+			.unwrap_or(Box::new(|_, _| Err("No validator set for given ID.".into())))
 	}
 
-	fn get(&self, bh: &H256, nonce: usize) -> Address {
-		self.correct_set(bh).map_or_else(Default::default, |set| set.get(bh, nonce))
+	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {
+		self.correct_set(BlockId::Hash(*bh))
+			.map_or(false, |set| set.contains_with_caller(bh, address, caller))
 	}
 
-	fn count(&self, bh: &H256) -> usize {
-		self.correct_set(bh).map_or_else(usize::max_value, |set| set.count(bh))
+	fn get_with_caller(&self, bh: &H256, nonce: usize, caller: &Call) -> Address {
+		self.correct_set(BlockId::Hash(*bh))
+			.map_or_else(Default::default, |set| set.get_with_caller(bh, nonce, caller))
+	}
+
+	fn count_with_caller(&self, bh: &H256, caller: &Call) -> usize {
+		self.correct_set(BlockId::Hash(*bh))
+			.map_or_else(usize::max_value, |set| set.count_with_caller(bh, caller))
 	}
 
 	fn report_malicious(&self, validator: &Address) {
@@ -94,10 +103,10 @@ impl ValidatorSet for Multi {
 		for set in self.sets.values() {
 			set.register_contract(client.clone());
 		}
-		*self.block_number.write() = Box::new(move |hash| client
+		*self.block_number.write() = Box::new(move |id| client
 			.upgrade()
 			.ok_or("No client!".into())
-			.and_then(|c| c.block_number(BlockId::Hash(*hash)).ok_or("Unknown block".into())));
+			.and_then(|c| c.block_number(id).ok_or("Unknown block".into())));
 	}
 }
 
