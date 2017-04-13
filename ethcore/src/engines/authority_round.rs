@@ -37,7 +37,7 @@ use transaction::UnverifiedTransaction;
 use client::{Client, EngineClient};
 use state::CleanupMode;
 use super::signer::EngineSigner;
-use super::validator_set::{ValidatorSet, new_validator_set};
+use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 /// `AuthorityRound` params.
 #[derive(Debug, PartialEq)]
@@ -75,25 +75,74 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 	}
 }
 
-/// Engine using `AuthorityRound` proof-of-work consensus algorithm, suitable for Ethereum
-/// mainnet chains in the Olympic, Frontier and Homestead eras.
+// Helper for managing the step.
+#[derive(Debug)]
+struct Step {
+	calibrate: bool, // whether calibration is enabled.
+	inner: AtomicUsize,
+	duration: Duration,
+}
+
+impl Step {
+	fn load(&self) -> usize { self.inner.load(AtomicOrdering::SeqCst) }
+	fn duration_remaining(&self) -> Duration {
+		let now = unix_now();
+		let step_end = self.duration * (self.load() as u32 + 1);
+		if step_end > now {
+			step_end - now
+		} else {
+			Duration::from_secs(0)
+		}
+	}
+	fn increment(&self) {
+		self.inner.fetch_add(1, AtomicOrdering::SeqCst);
+	}
+	fn calibrate(&self) {
+		if self.calibrate {
+			let new_step = unix_now().as_secs() / self.duration.as_secs();
+			self.inner.store(new_step as usize, AtomicOrdering::SeqCst);
+		}
+	}
+	fn is_future(&self, given: usize) -> bool {
+		if given > self.load() + 1 {
+			// Make absolutely sure that the given step is correct.
+			self.calibrate();
+			given > self.load() + 1
+		} else {
+			false
+		}
+	}
+}
+
+/// Engine using `AuthorityRound` proof-of-authority BFT consensus.
 pub struct AuthorityRound {
 	params: CommonParams,
 	gas_limit_bound_divisor: U256,
 	block_reward: U256,
 	registrar: Address,
-	step_duration: Duration,
 	builtins: BTreeMap<Address, Builtin>,
 	transition_service: IoService<()>,
-	step: AtomicUsize,
+	step: Arc<Step>,
 	proposed: AtomicBool,
 	client: RwLock<Option<Weak<EngineClient>>>,
 	signer: EngineSigner,
 	validators: Box<ValidatorSet>,
-	/// Is this Engine just for testing (prevents step calibration).
-	calibrate_step: bool,
 	validate_score_transition: u64,
 	eip155_transition: u64,
+}
+
+// header-chain validator.
+struct ChainVerifier {
+	step: Arc<Step>,
+	subchain_validators: SimpleList,
+}
+
+impl super::ChainVerifier for ChainVerifier {
+	fn verify_light(&self, header: &Header) -> Result<(), Error> {
+		// always check the seal since it's fast.
+		// nothing heavier to do.
+		verify_external(header, &self.subchain_validators, &*self.step)
+	}
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
@@ -102,6 +151,26 @@ fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
 
 fn header_signature(header: &Header) -> Result<Signature, ::rlp::DecoderError> {
 	UntrustedRlp::new(&header.seal().get(1).expect("was checked with verify_block_basic; has 2 fields; qed")).as_val::<H520>().map(Into::into)
+}
+
+fn verify_external(header: &Header, validators: &ValidatorSet, step: &Step) -> Result<(), Error> {
+	let header_step = header_step(header)?;
+
+	// Give one step slack if step is lagging, double vote is still not possible.
+	if step.is_future(header_step) {
+		trace!(target: "engine", "verify_block_unordered: block from the future");
+		validators.report_benign(header.author());
+		Err(BlockError::InvalidSeal)?
+	} else {
+		let proposer_signature = header_signature(header)?;
+		let correct_proposer = validators.get(header.parent_hash(), header_step);
+		if !verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())? {
+			trace!(target: "engine", "verify_block_unordered: bad proposer for step: {}", header_step);
+			Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
+		} else {
+			Ok(())
+		}
+	}
 }
 
 trait AsMillis {
@@ -125,15 +194,17 @@ impl AuthorityRound {
 				gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
 				block_reward: our_params.block_reward,
 				registrar: our_params.registrar,
-				step_duration: our_params.step_duration,
 				builtins: builtins,
 				transition_service: IoService::<()>::start()?,
-				step: AtomicUsize::new(initial_step),
+				step: Arc::new(Step {
+					inner: AtomicUsize::new(initial_step),
+					calibrate: our_params.start_step.is_none(),
+					duration: our_params.step_duration,
+				}),
 				proposed: AtomicBool::new(false),
 				client: RwLock::new(None),
 				signer: Default::default(),
 				validators: new_validator_set(our_params.validators),
-				calibrate_step: our_params.start_step.is_none(),
 				validate_score_transition: our_params.validate_score_transition,
 				eip155_transition: our_params.eip155_transition,
 			});
@@ -145,38 +216,12 @@ impl AuthorityRound {
 		Ok(engine)
 	}
 
-	fn calibrate_step(&self) {
-		if self.calibrate_step {
-			self.step.store((unix_now().as_secs() / self.step_duration.as_secs()) as usize, AtomicOrdering::SeqCst);
-		}
-	}
-
-	fn remaining_step_duration(&self) -> Duration {
-		let now = unix_now();
-		let step_end = self.step_duration * (self.step.load(AtomicOrdering::SeqCst) as u32 + 1);
-		if step_end > now {
-			step_end - now
-		} else {
-			Duration::from_secs(0)
-		}
-	}
-
 	fn step_proposer(&self, bh: &H256, step: usize) -> Address {
 		self.validators.get(bh, step)
 	}
 
 	fn is_step_proposer(&self, bh: &H256, step: usize, address: &Address) -> bool {
 		self.step_proposer(bh, step) == *address
-	}
-
-	fn is_future_step(&self, step: usize) -> bool {
-		if step > self.step.load(AtomicOrdering::SeqCst) + 1 {
-			// Make absolutely sure that the step is correct.
-			self.calibrate_step();
-			step > self.step.load(AtomicOrdering::SeqCst) + 1
-		} else {
-			false
-		}
 	}
 }
 
@@ -193,7 +238,8 @@ const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 impl IoHandler<()> for TransitionHandler {
 	fn initialize(&self, io: &IoContext<()>) {
 		if let Some(engine) = self.engine.upgrade() {
-			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis())
+			let remaining = engine.step.duration_remaining();
+			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, remaining.as_millis())
 				.unwrap_or_else(|e| warn!(target: "engine", "Failed to start consensus step timer: {}.", e))
 		}
 	}
@@ -202,7 +248,8 @@ impl IoHandler<()> for TransitionHandler {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
 				engine.step();
-				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis())
+				let remaining = engine.step.duration_remaining();
+				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, remaining.as_millis())
 					.unwrap_or_else(|e| warn!(target: "engine", "Failed to restart consensus step timer: {}.", e))
 			}
 		}
@@ -224,7 +271,7 @@ impl Engine for AuthorityRound {
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
 
 	fn step(&self) {
-		self.step.fetch_add(1, AtomicOrdering::SeqCst);
+		self.step.increment();
 		self.proposed.store(false, AtomicOrdering::SeqCst);
 		if let Some(ref weak) = *self.client.read() {
 			if let Some(c) = weak.upgrade() {
@@ -247,7 +294,7 @@ impl Engine for AuthorityRound {
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - step
-		let new_difficulty = U256::from(U128::max_value()) + header_step(parent).expect("Header has been verified; qed").into() - self.step.load(AtomicOrdering::SeqCst).into();
+		let new_difficulty = U256::from(U128::max_value()) + header_step(parent).expect("Header has been verified; qed").into() - self.step.load().into();
 		header.set_difficulty(new_difficulty);
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
@@ -271,7 +318,7 @@ impl Engine for AuthorityRound {
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
 		if self.proposed.load(AtomicOrdering::SeqCst) { return Seal::None; }
 		let header = block.header();
-		let step = self.step.load(AtomicOrdering::SeqCst);
+		let step = self.step.load();
 		if self.is_step_proposer(header.parent_hash(), step, header.author()) {
 			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
@@ -319,32 +366,19 @@ impl Engine for AuthorityRound {
 		Ok(())
 	}
 
-	/// Do the validator and gas limit validation.
+	/// Do the step and gas limit validation.
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let step = header_step(header)?;
-		// Give one step slack if step is lagging, double vote is still not possible.
-		if self.is_future_step(step) {
-			trace!(target: "engine", "verify_block_unordered: block from the future");
-			self.validators.report_benign(header.author());
-			Err(BlockError::InvalidSeal)?
-		} else {
-			let proposer_signature = header_signature(header)?;
-			let correct_proposer = self.step_proposer(header.parent_hash(), step);
-			if !verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())? {
-				trace!(target: "engine", "verify_block_unordered: bad proposer for step: {}", step);
-				Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
-			}
-		}
 
 		// Do not calculate difficulty for genesis blocks.
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
 
-		// Check if parent is from a previous step.
+		// Ensure header is from the step after parent.
 		let parent_step = header_step(parent)?;
-		if step == parent_step {
-			trace!(target: "engine", "Multiple blocks proposed for step {}.", step);
+		if step <= parent_step {
+			trace!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
 			self.validators.report_malicious(header.author());
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
@@ -358,6 +392,11 @@ impl Engine for AuthorityRound {
 		Ok(())
 	}
 
+	// Check the validators.
+	fn verify_block_external(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+		verify_external(header, &*self.validators, &*self.step)
+	}
+
 	// the proofs we need just allow us to get the full validator set.
 	fn prove_with_caller(&self, header: &Header, caller: &Call) -> Result<Bytes, Error> {
 		self.validators.generate_proof(header, caller)
@@ -368,6 +407,16 @@ impl Engine for AuthorityRound {
 		-> super::RequiresProof
 	{
 		self.validators.proof_required(header, block, receipts)
+	}
+
+	fn chain_verifier(&self, header: &Header, proof: Bytes) -> Result<Box<super::ChainVerifier>, Error> {
+		// extract a simple list from the proof.
+		let simple_list = self.validators.chain_verifier(header, proof)?;
+
+		Ok(Box::new(ChainVerifier {
+			step: self.step.clone(),
+			subchain_validators: simple_list,
+		}))
 	}
 
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> result::Result<(), Error> {
@@ -453,7 +502,7 @@ mod tests {
 		let mut header: Header = Header::default();
 		header.set_seal(vec![encode(&H520::default()).to_vec()]);
 
-		let verify_result = engine.verify_block_family(&header, &Default::default(), None);
+		let verify_result = engine.verify_block_external(&header, None);
 		assert!(verify_result.is_err());
 	}
 
@@ -507,9 +556,11 @@ mod tests {
 		// Two validators.
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&2usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		assert!(engine.verify_block_family(&header, &parent_header, None).is_err());
+		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
+		assert!(engine.verify_block_external(&header, None).is_err());
 		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
+		assert!(engine.verify_block_external(&header, None).is_ok());
 	}
 
 	#[test]
@@ -532,7 +583,33 @@ mod tests {
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
+		assert!(engine.verify_block_external(&header, None).is_ok());
 		header.set_seal(vec![encode(&5usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
+		assert!(engine.verify_block_external(&header, None).is_err());
+	}
+
+	#[test]
+	fn rejects_step_backwards() {
+				let tap = AccountProvider::transient_provider();
+		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
+
+		let mut parent_header: Header = Header::default();
+		parent_header.set_seal(vec![encode(&4usize).to_vec()]);
+		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+		let mut header: Header = Header::default();
+		header.set_number(1);
+		header.set_gas_limit(U256::from_str("222222").unwrap());
+		header.set_author(addr);
+
+		let engine = Spec::new_test_round().engine;
+
+		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
+		// Two validators.
+		// Spec starts with step 2.
+		header.set_seal(vec![encode(&5usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
+		header.set_seal(vec![encode(&3usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header, None).is_err());
 	}
 }

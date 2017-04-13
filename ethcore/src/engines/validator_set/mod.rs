@@ -28,7 +28,7 @@ use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::Client;
 use header::Header;
 
-use self::simple_list::SimpleList;
+pub use self::simple_list::SimpleList;
 use self::contract::ValidatorContract;
 use self::safe_contract::ValidatorSafeContract;
 use self::multi::Multi;
@@ -89,6 +89,9 @@ pub trait ValidatorSet: Send + Sync {
 	/// Must interact with state only through the given caller!
 	/// Otherwise, generated proofs may be wrong.
 	fn generate_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String>;
+
+	/// Create a fully self-contained validator set from the given proof.
+	fn chain_verifier(&self, header: &Header, proof: Vec<u8>) -> Result<SimpleList, ::error::Error>;
 
 	/// Checks if a given address is a validator, with the given function
 	/// for executing synchronous calls to contracts.

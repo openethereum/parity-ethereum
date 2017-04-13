@@ -82,6 +82,10 @@ impl ValidatorSet for Multi {
 		self.correct_set_by_number(header.number()).generate_proof(header, caller)
 	}
 
+	fn chain_verifier(&self, header: &Header, proof: Vec<u8>) -> Result<super::SimpleList, ::error::Error> {
+		self.correct_set_by_number(header.number()).chain_verifier(header, proof)
+	}
+
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {
 		self.correct_set(BlockId::Hash(*bh))
 			.map_or(false, |set| set.contains_with_caller(bh, address, caller))

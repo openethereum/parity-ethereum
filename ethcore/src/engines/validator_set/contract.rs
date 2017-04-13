@@ -76,6 +76,10 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.generate_proof(header, caller)
 	}
 
+	fn chain_verifier(&self, header: &Header, proof: Vec<u8>) -> Result<super::SimpleList, ::error::Error> {
+		self.validators.chain_verifier(header, proof)
+	}
+
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {
 		self.validators.contains_with_caller(bh, address, caller)
 	}
@@ -153,7 +157,7 @@ mod tests {
 		header.set_parent_hash(client.chain_info().best_block_hash);
 
 		// `reportBenign` when the designated proposer releases block from the future (bad clock).
-		assert!(client.engine().verify_block_family(&header, &header, None).is_err());
+		assert!(client.engine().verify_block_external(&header, None).is_err());
 		// Seal a block.
 		client.engine().step();
 		assert_eq!(client.chain_info().best_block_number, 1);

@@ -22,7 +22,8 @@ use engines::Call;
 use header::Header;
 use super::ValidatorSet;
 
-#[derive(Debug, PartialEq, Eq, Default)]
+/// Validator set containing a known set of addresses.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct SimpleList {
 	validators: Vec<Address>,
 }
@@ -60,6 +61,10 @@ impl ValidatorSet for SimpleList {
 
 	fn generate_proof(&self, _header: &Header, _caller: &Call) -> Result<Vec<u8>, String> {
 		Ok(Vec::new())
+	}
+
+	fn chain_verifier(&self, _header: &Header, _: Vec<u8>) -> Result<SimpleList, ::error::Error> {
+		Ok(self.clone())
 	}
 
 	fn contains_with_caller(&self, _bh: &H256, address: &Address, _: &Call) -> bool {

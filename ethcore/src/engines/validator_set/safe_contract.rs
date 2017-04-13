@@ -202,6 +202,15 @@ impl ValidatorSet for ValidatorSafeContract {
 		}
 	}
 
+	fn chain_verifier(&self, _header: &Header, proof: Vec<u8>) -> Result<SimpleList, ::error::Error> {
+		use rlp::UntrustedRlp;
+
+		let rlp = UntrustedRlp::new(&proof);
+		let validators: Vec<Address> = rlp.list_at(1)?;
+
+		Ok(SimpleList::new(validators))
+	}
+
 	fn contains_with_caller(&self, block_hash: &H256, address: &Address, caller: &Call) -> bool {
 		let mut guard = self.validators.write();
 		let maybe_existing = guard

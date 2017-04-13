@@ -139,17 +139,24 @@ pub struct Ethash {
 
 impl Ethash {
 	/// Create a new instance of Ethash engine
-	pub fn new(params: CommonParams, ethash_params: EthashParams, builtins: BTreeMap<Address, Builtin>) -> Self {
-		Ethash {
+	pub fn new(params: CommonParams, ethash_params: EthashParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Self> {
+		Arc::new(Ethash {
 			params: params,
 			ethash_params: ethash_params,
 			builtins: builtins,
 			pow: EthashManager::new(),
-		}
+		})
 	}
 }
 
-impl Engine for Ethash {
+impl ::engines::ChainVerifier for Arc<Ethash> {
+	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
+		self.verify_block_unordered(header, None)
+	}
+}
+
+impl Engine for Arc<Ethash> {
 	fn name(&self) -> &str { "Ethash" }
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
 	// Two fields - mix
@@ -384,6 +391,10 @@ impl Engine for Ethash {
 		}
 
 		Ok(())
+	}
+
+	fn chain_verifier(&self, _header: &Header, _proof: Vec<u8>) -> Result<Box<::engines::ChainVerifier>, Error> {
+		Ok(Box::new(self.clone()))
 	}
 }
 

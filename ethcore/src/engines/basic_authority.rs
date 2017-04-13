@@ -31,7 +31,7 @@ use ethjson;
 use header::Header;
 use client::Client;
 use super::signer::EngineSigner;
-use super::validator_set::{ValidatorSet, new_validator_set};
+use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 /// `BasicAuthority` params.
 #[derive(Debug, PartialEq)]
@@ -48,6 +48,27 @@ impl From<ethjson::spec::BasicAuthorityParams> for BasicAuthorityParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			validators: p.validators,
 		}
+	}
+}
+
+struct ChainVerifier(SimpleList);
+
+impl super::ChainVerifier for ChainVerifier {
+	fn verify_light(&self, header: &Header) -> Result<(), Error> {
+		verify_external(header, &self.0)
+	}
+}
+
+fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Error> {
+	use rlp::UntrustedRlp;
+
+	// Check if the signature belongs to a validator, can depend on parent state.
+	let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
+	let signer = public_to_address(&recover(&sig.into(), &header.bare_hash())?);
+
+	match validators.contains(header.parent_hash(), &signer) {
+		false => Err(BlockError::InvalidSeal.into()),
+		true => Ok(())
 	}
 }
 
@@ -137,15 +158,6 @@ impl Engine for BasicAuthority {
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
-		use rlp::UntrustedRlp;
-
-		// Check if the signature belongs to a validator, can depend on parent state.
-		let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
-		let signer = public_to_address(&recover(&sig.into(), &header.bare_hash())?);
-		if !self.validators.contains(header.parent_hash(), &signer) {
-			return Err(BlockError::InvalidSeal)?;
-		}
-
 		// Do not calculate difficulty for genesis blocks.
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
@@ -164,6 +176,10 @@ impl Engine for BasicAuthority {
 		Ok(())
 	}
 
+	fn verify_block_external(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+		verify_external(header, &*self.validators)
+	}
+
 	// the proofs we need just allow us to get the full validator set.
 	fn prove_with_caller(&self, header: &Header, caller: &Call) -> Result<Bytes, Error> {
 		self.validators.generate_proof(header, caller)
@@ -174,6 +190,13 @@ impl Engine for BasicAuthority {
 		-> RequiresProof
 	{
 		self.validators.proof_required(header, block, receipts)
+	}
+
+	fn chain_verifier(&self, header: &Header, proof: Bytes) -> Result<Box<super::ChainVerifier>, Error> {
+		// extract a simple list from the proof.
+		let simple_list = self.validators.chain_verifier(header, proof)?;
+
+		Ok(Box::new(ChainVerifier(simple_list)))
 	}
 
 	fn register_client(&self, client: Weak<Client>) {

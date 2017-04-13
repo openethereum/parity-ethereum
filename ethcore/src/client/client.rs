@@ -569,10 +569,32 @@ impl Client {
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
 		let mut batch = DBTransaction::new();
+
+		// generate validation proof if the engine requires them.
+		// TODO: make conditional?
+		let generate_proof = {
+			use engines::RequiresProof;
+			match self.engine.proof_required(block.header(), Some(block_data), Some(&receipts)) {
+				RequiresProof::Yes(_) => true,
+				RequiresProof::No => false,
+				RequiresProof::Unsure(_) => {
+					warn!(target: "client", "Detected invalid engine implementation.");
+					warn!(target: "client", "Engine claims to require more block data, but everything provided.");
+					false
+				}
+			}
+		};
+
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
 		let mut state = block.drain();
+
+		if generate_proof {
+			debug!(target: "client", "Generating validation proof for block {}", hash);
+
+			// TODO
+		}
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
 		let route = chain.insert_block(&mut batch, block_data, receipts);
