@@ -170,6 +170,20 @@ usage! {
 		flag_jsonrpc_threads: Option<usize> = None,
 			or |c: &Config| otry!(c.rpc).threads.map(Some),
 
+		// WS
+		flag_no_ws: bool = false,
+			or |c: &Config| otry!(c.websockets).disable.clone(),
+		flag_ws_port: u16 = 8546u16,
+			or |c: &Config| otry!(c.websockets).port.clone(),
+		flag_ws_interface: String  = "local",
+			or |c: &Config| otry!(c.websockets).interface.clone(),
+		flag_ws_apis: String = "web3,eth,net,parity,traces,rpc",
+			or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
+		flag_ws_origins: String = "none",
+			or |c: &Config| otry!(c.websockets).origins.as_ref().map(|vec| vec.join(",")),
+		flag_ws_hosts: String = "none",
+			or |c: &Config| otry!(c.websockets).hosts.as_ref().map(|vec| vec.join(",")),
+
 		// IPC
 		flag_no_ipc: bool = false,
 			or |c: &Config| otry!(c.ipc).disable.clone(),
@@ -363,6 +377,7 @@ struct Config {
 	ui: Option<Ui>,
 	network: Option<Network>,
 	rpc: Option<Rpc>,
+	websockets: Option<Ws>,
 	ipc: Option<Ipc>,
 	dapps: Option<Dapps>,
 	secretstore: Option<SecretStore>,
@@ -438,6 +453,16 @@ struct Rpc {
 	apis: Option<Vec<String>>,
 	hosts: Option<Vec<String>>,
 	threads: Option<usize>,
+}
+
+#[derive(Default, Debug, PartialEq, RustcDecodable)]
+struct Ws {
+	disable: Option<bool>,
+	port: Option<u16>,
+	interface: Option<String>,
+	apis: Option<Vec<String>>,
+	origins: Option<Vec<String>>,
+	hosts: Option<Vec<String>>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -554,7 +579,7 @@ struct Misc {
 mod tests {
 	use super::{
 		Args, ArgsError,
-		Config, Operating, Account, Ui, Network, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
+		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
 		Snapshots, VM, Misc, SecretStore,
 	};
 	use toml;
@@ -698,6 +723,14 @@ mod tests {
 			flag_jsonrpc_apis: "web3,eth,net,parity,traces,rpc".into(),
 			flag_jsonrpc_hosts: "none".into(),
 			flag_jsonrpc_threads: None,
+
+			// WS
+			flag_no_ws: false,
+			flag_ws_port: 8546u16,
+			flag_ws_interface: "local".into(),
+			flag_ws_apis: "web3,eth,net,parity,traces,rpc".into(),
+			flag_ws_origins: "none".into(),
+			flag_ws_hosts: "none".into(),
 
 			// IPC
 			flag_no_ipc: false,
@@ -898,6 +931,14 @@ mod tests {
 				reserved_peers: Some("./path/to/reserved_peers".into()),
 				reserved_only: Some(true),
 				no_serve_light: None,
+			}),
+			websockets: Some(Ws {
+				disable: Some(true),
+				port: None,
+				interface: None,
+				apis: None,
+				origins: Some(vec!["none".into()]),
+				hosts: None,
 			}),
 			rpc: Some(Rpc {
 				disable: Some(true),

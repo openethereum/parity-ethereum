@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::net::{TcpListener};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
-use ethcore_rpc::{NetworkSettings, informant, is_major_importing};
+use parity_rpc::{NetworkSettings, informant, is_major_importing};
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, Mutex, Condvar};
 use io::{MayPanic, ForwardPanic, PanicHandler};
@@ -80,6 +80,7 @@ pub struct RunCmd {
 	pub daemon: Option<String>,
 	pub logger_config: LogConfig,
 	pub miner_options: MinerOptions,
+	pub ws_conf: rpc::WsConfiguration,
 	pub http_conf: rpc::HttpConfiguration,
 	pub ipc_conf: rpc::IpcConfiguration,
 	pub net_conf: NetworkConfiguration,
@@ -295,7 +296,8 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	};
 
 	// start rpc servers
-	let _http_server = rpc::new_http(cmd.http_conf, &dependencies, None)?;
+	let _ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
+	let _http_server = rpc::new_http(cmd.http_conf.clone(), &dependencies, None)?;
 	let _ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
 
 	// the signer server
@@ -636,6 +638,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps)?;
 
 	// start rpc servers
+	let ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
 	let http_server = rpc::new_http(cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
 	let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
 
@@ -716,7 +719,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let restart = wait_for_exit(panic_handler, Some(updater), Some(client), can_restart);
 
 	// drop this stuff as soon as exit detected.
-	drop((http_server, ipc_server, signer_server, secretstore_key_server, ipfs_server, event_loop));
+	drop((ws_server, http_server, ipc_server, signer_server, secretstore_key_server, ipfs_server, event_loop));
 
 	info!("Finishing work, please wait...");
 

@@ -51,18 +51,18 @@ extern crate ethcore_ipc_hypervisor as hypervisor;
 extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
-extern crate ethcore_rpc;
 extern crate ethcore_signer;
 extern crate ethcore_util as util;
 extern crate ethkey;
 extern crate ethsync;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_ipfs_api;
-extern crate parity_reactor;
-extern crate parity_updater as updater;
 extern crate parity_local_store as local_store;
-extern crate rpc_cli;
+extern crate parity_reactor;
+extern crate parity_rpc;
+extern crate parity_updater as updater;
 extern crate path;
+extern crate rpc_cli;
 
 #[macro_use]
 extern crate log as rlog;
