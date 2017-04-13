@@ -14,6 +14,7 @@ byteorder = "1.0"
 log = "0.3"
 parking_lot = "0.4"
 hyper = { version = "0.10", default-features = false }
+rand = "0.3"
 serde = "0.9"
 serde_json = "0.9"
 serde_derive = "0.9"

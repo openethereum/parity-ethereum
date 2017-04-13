@@ -186,6 +186,7 @@ fn return_error(mut res: HttpResponse, err: Error) {
 		Error::BadSignature => *res.status_mut() = HttpStatusCode::BadRequest,
 		Error::AccessDenied => *res.status_mut() = HttpStatusCode::Forbidden,
 		Error::DocumentNotFound => *res.status_mut() = HttpStatusCode::NotFound,
+		Error::Serde(_) => *res.status_mut() = HttpStatusCode::BadRequest,
 		Error::Database(_) => *res.status_mut() = HttpStatusCode::InternalServerError,
 		Error::Internal(_) => *res.status_mut() = HttpStatusCode::InternalServerError,
 	}

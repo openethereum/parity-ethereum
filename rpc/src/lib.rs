@@ -66,6 +66,9 @@ extern crate ethjson;
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
 
+#[cfg(feature="secretstore")]
+extern crate ethcore_secretstore;
+
 mod metadata;
 pub mod v1;
 

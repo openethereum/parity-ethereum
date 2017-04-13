@@ -94,7 +94,7 @@ evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
 final = ["ethcore-util/final"]
-secretstore = ["ethcore-secretstore"]
+secretstore = ["ethcore-secretstore", "ethcore-rpc/secretstore"]
 
 [[bin]]
 path = "parity/main.rs"

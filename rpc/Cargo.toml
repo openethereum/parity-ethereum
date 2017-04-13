@@ -49,5 +49,8 @@ stats = { path = "../util/stats" }
 
 clippy = { version = "0.0.103", optional = true}
 
+ethcore-secretstore = { path = "../secret_store", optional = true }
+
 [features]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]
+secretstore = ["ethcore-secretstore"]
