@@ -55,7 +55,7 @@ export default class Api extends EventEmitter {
         .nodeKind()
         .then((nodeKind) => {
           if (nodeKind.availability === 'public') {
-            return new LocalAccountsMiddleware(transport);
+            return LocalAccountsMiddleware;
           }
 
           return null;

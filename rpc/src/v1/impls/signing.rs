@@ -140,7 +140,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 	fn post_sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		let pending = self.pending.clone();
 		self.dispatch(
-			RpcConfirmationPayload::Signature((address.clone(), data).into()),
+			RpcConfirmationPayload::EthSignMessage((address.clone(), data).into()),
 			DefaultAccount::Provided(address.into()),
 			meta.origin
 		).map(move |result| match result {
@@ -216,7 +216,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 
 	fn sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
 		let res = self.dispatch(
-			RpcConfirmationPayload::Signature((address.clone(), data).into()),
+			RpcConfirmationPayload::EthSignMessage((address.clone(), data).into()),
 			address.into(),
 			meta.origin,
 		);

@@ -2132,7 +2132,7 @@ impl ChainSync {
 		let queue_info = io.chain().queue_info();
 		let is_syncing = self.status().is_syncing(queue_info);
 
-		if !is_syncing || !sealed.is_empty() {
+		if !is_syncing || !sealed.is_empty() || !proposed.is_empty() {
 			trace!(target: "sync", "Propagating blocks, state={:?}", self.state);
 			self.propagate_latest_blocks(io, sealed);
 			self.propagate_proposed_blocks(io, proposed);

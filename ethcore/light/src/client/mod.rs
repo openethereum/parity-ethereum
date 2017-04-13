@@ -36,6 +36,8 @@ use util::kvdb::{KeyValueDB, CompactionProfile};
 
 use self::header_chain::{AncestryIter, HeaderChain};
 
+use cache::Cache;
+
 pub use self::service::Service;
 
 mod header_chain;
@@ -133,13 +135,13 @@ pub struct Client {
 
 impl Client {
 	/// Create a new `Client`.
-	pub fn new(config: Config, db: Arc<KeyValueDB>, chain_col: Option<u32>, spec: &Spec, io_channel: IoChannel<ClientIoMessage>) -> Result<Self, String> {
+	pub fn new(config: Config, db: Arc<KeyValueDB>, chain_col: Option<u32>, spec: &Spec, io_channel: IoChannel<ClientIoMessage>, cache: Arc<Mutex<Cache>>) -> Result<Self, String> {
 		let gh = ::rlp::encode(&spec.genesis_header());
 
 		Ok(Client {
 			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, true),
 			engine: spec.engine.clone(),
-			chain: HeaderChain::new(db.clone(), chain_col, &gh)?,
+			chain: HeaderChain::new(db.clone(), chain_col, &gh, cache)?,
 			report: RwLock::new(ClientReport::default()),
 			import_lock: Mutex::new(()),
 			db: db,
@@ -148,10 +150,10 @@ impl Client {
 
 	/// Create a new `Client` backed purely in-memory.
 	/// This will ignore all database options in the configuration.
-	pub fn in_memory(config: Config, spec: &Spec, io_channel: IoChannel<ClientIoMessage>) -> Self {
+	pub fn in_memory(config: Config, spec: &Spec, io_channel: IoChannel<ClientIoMessage>, cache: Arc<Mutex<Cache>>) -> Self {
 		let db = ::util::kvdb::in_memory(0);
 
-		Client::new(config, Arc::new(db), None, spec, io_channel).expect("New DB creation infallible; qed")
+		Client::new(config, Arc::new(db), None, spec, io_channel, cache).expect("New DB creation infallible; qed")
 	}
 
 	/// Import a header to the queue for additional verification.

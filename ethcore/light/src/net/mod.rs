@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! PIP Protocol Version 1 implementation.
+//! PLP Protocol Version 1 implementation.
 //!
 //! This uses a "Provider" to answer requests.
 

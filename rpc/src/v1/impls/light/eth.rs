@@ -475,15 +475,18 @@ impl Filterable for EthClient {
 		use util::H2048;
 
 		// early exit for "to" block before "from" block.
-		match filter.from_block {
-			BlockId::Latest | BlockId::Pending => {
-				let best = self.client.best_block_header();
-				let chain_info = self.client.chain_info();
-				if best.number() != chain_info.best_block_number || best.hash() != chain_info.best_block_hash {
-					return future::ok(Vec::new()).boxed()
-				}
-			}
-			_ => {}
+		let best_number = self.client.chain_info().best_block_number;
+		let block_number = |id| match id {
+			BlockId::Earliest => Some(0),
+			BlockId::Latest | BlockId::Pending => Some(best_number),
+			BlockId::Hash(h) => self.client.block_header(BlockId::Hash(h)).map(|hdr| hdr.number()),
+			BlockId::Number(x) => Some(x),
+		};
+
+		match (block_number(filter.to_block), block_number(filter.from_block)) {
+			(Some(to), Some(from)) if to < from => return future::ok(Vec::new()).boxed(),
+			(Some(_), Some(_)) => {},
+			_ => return future::err(errors::unknown_block()).boxed(),
 		}
 
 		let maybe_future = self.sync.with_context(move |ctx| {
