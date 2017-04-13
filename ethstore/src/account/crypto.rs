@@ -73,10 +73,12 @@ impl From<Crypto> for String {
 }
 
 impl Crypto {
+	/// Encrypt account secret
 	pub fn with_secret(secret: &Secret, password: &str, iterations: u32) -> Self {
 		Crypto::with_plain(&*secret, password, iterations)
 	}
 
+	/// Encrypt custom plain data
 	pub fn with_plain(plain: &[u8], password: &str, iterations: u32) -> Self {
 		let salt: [u8; 32] = Random::random();
 		let iv: [u8; 16] = Random::random();
@@ -113,6 +115,7 @@ impl Crypto {
 		}
 	}
 
+	/// Try to decrypt and convert result to account secret
 	pub fn secret(&self, password: &str) -> Result<Secret, Error> {
 		if self.ciphertext.len() > 32 {
 			return Err(Error::InvalidSecret);
@@ -122,6 +125,7 @@ impl Crypto {
 		Ok(Secret::from_slice(&secret)?)
 	}
 
+	/// Try to decrypt and return result as is
 	pub fn decrypt(&self, password: &str) -> Result<Vec<u8>, Error> {
 		let expected_len = self.ciphertext.len();
 		self.do_decrypt(password, expected_len)
