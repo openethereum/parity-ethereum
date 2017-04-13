@@ -15,28 +15,31 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 // NOTE: Keep 'isTestnet' for backwards library compatibility
-export const url = (isTestnet = false, netVersion = '0') => {
-  let prefix = '';
-
-  switch (netVersion) {
-    case '2':
-    case '3':
-      prefix = 'testnet.';
-      break;
-
-    case '42':
-      prefix = 'kovan.';
-      break;
-
-    case '0':
-    default:
-      if (isTestnet) {
-        prefix = 'testnet.';
-      }
-      break;
+const getUrlPrefix = (isTestnet = false, netVersion = '0', defaultPrefix = '') => {
+  if (isTestnet) {
+    return 'ropsten.';
   }
 
-  return `https://${prefix}etherscan.io`;
+  switch (netVersion) {
+    case '1':
+      return defaultPrefix;
+
+    case '3':
+      return 'ropsten.';
+
+    case '4':
+      return 'rinkeby.';
+
+    case '42':
+      return 'kovan.';
+
+    default:
+      return 'testnet.';
+  }
+};
+
+export const url = (isTestnet = false, netVersion = '0', defaultPrefix = '') => {
+  return `https://${getUrlPrefix(isTestnet, netVersion, defaultPrefix)}etherscan.io`;
 };
 
 export const txLink = (hash, isTestnet = false, netVersion = '0') => {
@@ -45,4 +48,8 @@ export const txLink = (hash, isTestnet = false, netVersion = '0') => {
 
 export const addressLink = (address, isTestnet = false, netVersion = '0') => {
   return `${url(isTestnet, netVersion)}/address/${address}`;
+};
+
+export const apiLink = (query, isTestnet = false, netVersion = '0') => {
+  return `${url(isTestnet, netVersion, 'api.')}/api?${query}`;
 };
