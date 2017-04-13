@@ -34,4 +34,8 @@ impl Verifier for NoopVerifier {
 	fn verify_block_final(&self, _expected: &Header, _got: &Header) -> Result<(), Error> {
 		Ok(())
 	}
+
+	fn verify_block_external(&self, _header: &Header, _bytes: &[u8], _engine: &Engine) -> Result<(), Error> {
+		Ok(())
+	}
 }

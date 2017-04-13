@@ -380,6 +380,12 @@ impl Client {
 			return Err(());
 		};
 
+		let verify_external_result = self.verifier.verify_block_external(header, &block.bytes, engine);
+		if let Err(e) = verify_external_result {
+			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+			return Err(());
+		};
+
 		// Check if Parent is in chain
 		let chain_has_parent = chain.block_header(header.parent_hash());
 		if let Some(parent) = chain_has_parent {
