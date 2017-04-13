@@ -33,8 +33,15 @@ class WorkerContainer {
     return new Promise((resolve, reject) => {
       this._worker.postMessage({ action, payload });
       this._worker.onmessage = ({ data }) => {
+        const [err, result] = data;
+
         this.busy = false;
-        resolve(data);
+
+        if (err) {
+          reject(err);
+        } else {
+          resolve(result);
+        }
       };
     });
   }
