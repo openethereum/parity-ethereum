@@ -109,7 +109,7 @@ pub use self::server::{SyncStatus, Middleware, dapps_middleware};
 mod server {
 	use super::Dependencies;
 	use std::path::PathBuf;
-	use ethcore_rpc::{hyper, RequestMiddleware, RequestMiddlewareAction};
+	use parity_rpc::{hyper, RequestMiddleware, RequestMiddlewareAction};
 
 	pub type SyncStatus = Fn() -> bool;
 

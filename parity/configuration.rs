@@ -30,9 +30,9 @@ use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning, StratumOptions};
 use ethcore::verification::queue::VerifierSettings;
 
-use rpc::{IpcConfiguration, HttpConfiguration};
+use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
 use rpc_apis::ApiSet;
-use ethcore_rpc::NetworkSettings;
+use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
@@ -114,6 +114,7 @@ impl Configuration {
 		};
 		let update_policy = self.update_policy()?;
 		let logger_config = self.logger_config();
+		let ws_conf = self.ws_config()?;
 		let http_conf = self.http_config()?;
 		let ipc_conf = self.ipc_config()?;
 		let net_conf = self.net_config()?;
@@ -352,6 +353,7 @@ impl Configuration {
 				daemon: daemon,
 				logger_config: logger_config.clone(),
 				miner_options: miner_options,
+				ws_conf: ws_conf,
 				http_conf: http_conf,
 				ipc_conf: ipc_conf,
 				net_conf: net_conf,
@@ -757,6 +759,14 @@ impl Configuration {
 		Self::hosts(&self.args.flag_jsonrpc_hosts)
 	}
 
+	fn ws_hosts(&self) -> Option<Vec<String>> {
+		Self::hosts(&self.args.flag_ws_hosts)
+	}
+
+	fn ws_origins(&self) -> Option<Vec<String>> {
+		Self::hosts(&self.args.flag_ws_origins)
+	}
+
 	fn ipfs_hosts(&self) -> Option<Vec<String>> {
 		Self::hosts(&self.args.flag_ipfs_api_hosts)
 	}
@@ -796,6 +806,19 @@ impl Configuration {
 				None => None,
 				_ => return Err("--jsonrpc-threads number needs to be positive.".into()),
 			}
+		};
+
+		Ok(conf)
+	}
+
+	fn ws_config(&self) -> Result<WsConfiguration, String> {
+		let conf = WsConfiguration {
+			enabled: self.ws_enabled(),
+			interface: self.ws_interface(),
+			port: self.args.flag_ws_port,
+			apis: self.args.flag_ws_apis.parse()?,
+			hosts: self.ws_hosts(),
+			origins: self.ws_origins()
 		};
 
 		Ok(conf)
@@ -913,6 +936,10 @@ impl Configuration {
 		Self::interface(&self.network_settings().rpc_interface)
 	}
 
+	fn ws_interface(&self) -> String {
+		Self::interface(&self.args.flag_ws_interface)
+	}
+
 	fn ipfs_interface(&self) -> String {
 		Self::interface(&self.args.flag_ipfs_api_interface)
 	}
@@ -965,6 +992,10 @@ impl Configuration {
 		!self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc
 	}
 
+	fn ws_enabled(&self) -> bool {
+		!self.args.flag_no_ws
+	}
+
 	fn dapps_enabled(&self) -> bool {
 		!self.args.flag_dapps_off && !self.args.flag_no_dapps && self.rpc_enabled() && cfg!(feature = "dapps")
 	}
@@ -1000,7 +1031,7 @@ impl Configuration {
 mod tests {
 	use super::*;
 	use cli::Args;
-	use ethcore_rpc::NetworkSettings;
+	use parity_rpc::NetworkSettings;
 	use ethcore::client::{VMType, BlockId};
 	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
 	use helpers::{default_network_config};
@@ -1204,6 +1235,7 @@ mod tests {
 			daemon: None,
 			logger_config: Default::default(),
 			miner_options: Default::default(),
+			ws_conf: Default::default(),
 			http_conf: Default::default(),
 			ipc_conf: Default::default(),
 			net_conf: default_network_config(),

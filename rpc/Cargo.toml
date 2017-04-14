@@ -1,6 +1,6 @@
 [package]
-description = "Ethcore jsonrpc"
-name = "ethcore-rpc"
+description = "Parity JSON-RPC servers."
+name = "parity-rpc"
 version = "1.7.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
@@ -25,6 +25,7 @@ rust-crypto = "0.2.36"
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-minihttp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-ws-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-ipc-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 

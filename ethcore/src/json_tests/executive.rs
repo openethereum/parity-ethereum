@@ -215,8 +215,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 		}
 
 		let out_of_gas = vm.out_of_gas();
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.populate_from(From::from(vm.pre_state.clone()));
 		let info = From::from(vm.env);
 		let engine = TestEngine::new(1);

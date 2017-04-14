@@ -25,17 +25,21 @@ class MockTransport extends JsonRpcBase {
   }
 }
 
+class MockMiddleware extends Middleware {
+  constructor (transport) {
+    super(transport);
+
+    this.register('mock_rpc', ([num]) => num);
+    this.register('mock_null', () => null);
+  }
+}
+
 describe('api/transport/Middleware', () => {
-  let middleware;
   let transport;
 
   beforeEach(() => {
     transport = new MockTransport();
-    middleware = new Middleware(transport);
-
-    middleware.register('mock_rpc', ([num]) => num);
-    middleware.register('mock_null', () => null);
-    transport.addMiddleware(middleware);
+    transport.addMiddleware(MockMiddleware);
   });
 
   it('Routes requests to middleware', () => {

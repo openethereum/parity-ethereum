@@ -1413,19 +1413,18 @@ mod tests {
 	fn internal_seals_without_work() {
 		let miner = Miner::with_spec(&Spec::new_instant());
 
-		let c = generate_dummy_client(2);
-		let client = c.reference().as_ref();
+		let client = generate_dummy_client(2);
 
-		assert_eq!(miner.import_external_transactions(client, vec![transaction().into()]).pop().unwrap().unwrap(), TransactionImportResult::Current);
+		assert_eq!(miner.import_external_transactions(&*client, vec![transaction().into()]).pop().unwrap().unwrap(), TransactionImportResult::Current);
 
-		miner.update_sealing(client);
+		miner.update_sealing(&*client);
 		client.flush_queue();
 		assert!(miner.pending_block().is_none());
 		assert_eq!(client.chain_info().best_block_number, 3 as BlockNumber);
 
-		assert_eq!(miner.import_own_transaction(client, PendingTransaction::new(transaction().into(), None)).unwrap(), TransactionImportResult::Current);
+		assert_eq!(miner.import_own_transaction(&*client, PendingTransaction::new(transaction().into(), None)).unwrap(), TransactionImportResult::Current);
 
-		miner.update_sealing(client);
+		miner.update_sealing(&*client);
 		client.flush_queue();
 		assert!(miner.pending_block().is_none());
 		assert_eq!(client.chain_info().best_block_number, 4 as BlockNumber);

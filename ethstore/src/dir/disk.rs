@@ -225,8 +225,8 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 		Some(self)
 	}
 
-	fn unique_repr(&self) -> Result<u64, Error> { 
-		self.files_hash() 
+	fn unique_repr(&self) -> Result<u64, Error> {
+		self.files_hash()
 	}
 }
 
@@ -280,12 +280,14 @@ impl KeyFileManager for DiskKeyFileManager {
 
 #[cfg(test)]
 mod test {
+	extern crate tempdir;
+
 	use std::{env, fs};
 	use super::RootDiskDirectory;
 	use dir::{KeyDirectory, VaultKey};
 	use account::SafeAccount;
 	use ethkey::{Random, Generator};
-	use devtools::RandomTempPath;
+	use self::tempdir::TempDir;
 
 	#[test]
 	fn should_create_new_account() {
@@ -344,7 +346,7 @@ mod test {
 	#[test]
 	fn should_list_vaults() {
 		// given
-		let temp_path = RandomTempPath::new();
+		let temp_path = TempDir::new("").unwrap();
 		let directory = RootDiskDirectory::create(&temp_path).unwrap();
 		let vault_provider = directory.as_vault_provider().unwrap();
 		vault_provider.create("vault1", VaultKey::new("password1", 1)).unwrap();
@@ -359,11 +361,11 @@ mod test {
 
 	#[test]
 	fn hash_of_files() {
-		let temp_path = RandomTempPath::new();
+		let temp_path = TempDir::new("").unwrap();
 		let directory = RootDiskDirectory::create(&temp_path).unwrap();
 
-		let hash = directory.files_hash().expect("Files hash should be calculated ok"); 
-		assert_eq!( 
+		let hash = directory.files_hash().expect("Files hash should be calculated ok");
+		assert_eq!(
 			hash,
 			15130871412783076140
 		);
@@ -373,7 +375,7 @@ mod test {
 		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned());
 		directory.insert(account).expect("Account should be inserted ok");
 
-		let new_hash = directory.files_hash().expect("New files hash should be calculated ok"); 
+		let new_hash = directory.files_hash().expect("New files hash should be calculated ok");
 
 		assert!(new_hash != hash, "hash of the file list should change once directory content changed");
 	}

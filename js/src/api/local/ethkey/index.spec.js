@@ -18,8 +18,8 @@ import { randomPhrase } from '@parity/wordlist';
 import { phraseToAddress, phraseToWallet } from './';
 
 describe('api/local/ethkey', () => {
-  describe.skip('phraseToAddress', function () {
-    this.timeout(10000);
+  describe('phraseToAddress', function () {
+    this.timeout(30000);
 
     it('generates a valid address', () => {
       const phrase = randomPhrase(12);
@@ -37,8 +37,8 @@ describe('api/local/ethkey', () => {
     });
   });
 
-  describe.skip('phraseToWallet', function () {
-    this.timeout(10000);
+  describe('phraseToWallet', function () {
+    this.timeout(30000);
 
     it('generates a valid wallet object', () => {
       const phrase = randomPhrase(12);

@@ -14,6 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default function () {
-  // empty file included while building parity.js (don't include local keygen)
-}
+export default from './decryptRequest';
