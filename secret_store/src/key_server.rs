@@ -89,7 +89,7 @@ impl KeyServer for KeyServerImpl {
 	}
 
 	fn document_key_shadow(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKeyShadow, Error> {
-		let decryption_session = self.data.lock().cluster.new_decryption_session(document.clone(), signature.clone(), false)?;
+		let decryption_session = self.data.lock().cluster.new_decryption_session(document.clone(), signature.clone(), true)?;
 		decryption_session.wait().map_err(Into::into)
 	}
 }
