@@ -34,9 +34,9 @@ pub struct SerializableDocumentEncryptedKeyShadow {
 	pub decrypt_shadows: Vec<SerializableBytes>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 /// Serializable Bytes.
-pub struct SerializableBytes(Bytes);
+pub struct SerializableBytes(pub Bytes);
 
 impl<T> From<T> for SerializableBytes where Bytes: From<T> {
 	fn from(s: T) -> SerializableBytes {
@@ -60,7 +60,9 @@ impl Deref for SerializableBytes {
 
 impl Serialize for SerializableBytes {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		serializer.serialize_str(&(*self.0).to_hex())
+		let mut serialized = "0x".to_owned();
+		serialized.push_str(self.0.to_hex().as_ref());
+		serializer.serialize_str(serialized.as_ref())
 	}
 }
 
@@ -69,14 +71,18 @@ impl Deserialize for SerializableBytes {
 		where D: Deserializer
 	{
 		let s = String::deserialize(deserializer)?;
-		let data = s.from_hex().map_err(SerdeError::custom)?;
-		Ok(SerializableBytes(data))
+		if s.len() >= 2 && &s[0..2] == "0x" && s.len() & 1 == 0 {
+			let data = s[2..].from_hex().map_err(SerdeError::custom)?;
+			Ok(SerializableBytes(data))
+		} else {
+			Err(SerdeError::custom("invalid format"))
+		}
 	}
 }
 
 #[derive(Clone, Debug)]
 /// Serializable Signature.
-pub struct SerializableSignature(Signature);
+pub struct SerializableSignature(pub Signature);
 
 impl<T> From<T> for SerializableSignature where Signature: From<T> {
 	fn from(s: T) -> SerializableSignature {
@@ -100,7 +106,9 @@ impl Deref for SerializableSignature {
 
 impl Serialize for SerializableSignature {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		serializer.serialize_str(&(*self.0).to_hex())
+		let mut serialized = "0x".to_owned();
+		serialized.push_str(self.0.to_hex().as_ref());
+		serializer.serialize_str(serialized.as_ref())
 	}
 }
 
@@ -116,7 +124,11 @@ impl Deserialize for SerializableSignature {
 			}
 
 			fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
-				value.parse().map(|s| SerializableSignature(s)).map_err(SerdeError::custom)
+				if value.len() >= 2 && &value[0..2] == "0x" && value.len() & 1 == 0 {
+					value[2..].parse().map(|s| SerializableSignature(s)).map_err(SerdeError::custom)
+				} else {
+					Err(SerdeError::custom("invalid format"))
+				}
 			}
 
 			fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: SerdeError {
@@ -130,7 +142,7 @@ impl Deserialize for SerializableSignature {
 
 #[derive(Clone, Debug)]
 /// Serializable H256.
-pub struct SerializableH256(H256);
+pub struct SerializableH256(pub H256);
 
 impl<T> From<T> for SerializableH256 where H256: From<T> {
 	fn from(s: T) -> SerializableH256 {
@@ -154,7 +166,9 @@ impl Deref for SerializableH256 {
 
 impl Serialize for SerializableH256 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		serializer.serialize_str(&(*self.0).to_hex())
+		let mut serialized = "0x".to_owned();
+		serialized.push_str(self.0.to_hex().as_ref());
+		serializer.serialize_str(serialized.as_ref())
 	}
 }
 
@@ -170,7 +184,11 @@ impl Deserialize for SerializableH256 {
 			}
 
 			fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
-				value.parse().map(|s| SerializableH256(s)).map_err(SerdeError::custom)
+				if value.len() >= 2 && &value[0..2] == "0x" && value.len() & 1 == 0 {
+					value[2..].parse().map(|s| SerializableH256(s)).map_err(SerdeError::custom)
+				} else {
+					Err(SerdeError::custom("invalid format"))
+				}
 			}
 
 			fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: SerdeError {
@@ -184,7 +202,7 @@ impl Deserialize for SerializableH256 {
 
 #[derive(Clone, Debug)]
 /// Serializable EC scalar/secret key.
-pub struct SerializableSecret(Secret);
+pub struct SerializableSecret(pub Secret);
 
 impl<T> From<T> for SerializableSecret where Secret: From<T> {
 	fn from(s: T) -> SerializableSecret {
@@ -208,7 +226,9 @@ impl Deref for SerializableSecret {
 
 impl Serialize for SerializableSecret {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		serializer.serialize_str(&(*self.0).to_hex())
+		let mut serialized = "0x".to_owned();
+		serialized.push_str(self.0.to_hex().as_ref());
+		serializer.serialize_str(serialized.as_ref())
 	}
 }
 
@@ -224,7 +244,11 @@ impl Deserialize for SerializableSecret {
 			}
 
 			fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
-				value.parse().map(|s| SerializableSecret(s)).map_err(SerdeError::custom)
+				if value.len() >= 2 && &value[0..2] == "0x" && value.len() & 1 == 0 {
+					value[2..].parse().map(|s| SerializableSecret(s)).map_err(SerdeError::custom)
+				} else {
+					Err(SerdeError::custom("invalid format"))
+				}
 			}
 
 			fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: SerdeError {
@@ -238,7 +262,7 @@ impl Deserialize for SerializableSecret {
 
 #[derive(Clone, Debug)]
 /// Serializable EC point/public key.
-pub struct SerializablePublic(Public);
+pub struct SerializablePublic(pub Public);
 
 impl<T> From<T> for SerializablePublic where Public: From<T> {
 	fn from(p: T) -> SerializablePublic {
@@ -282,7 +306,9 @@ impl PartialOrd for SerializablePublic {
 
 impl Serialize for SerializablePublic {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		serializer.serialize_str(&(*self.0).to_hex())
+		let mut serialized = "0x".to_owned();
+		serialized.push_str(self.0.to_hex().as_ref());
+		serializer.serialize_str(serialized.as_ref())
 	}
 }
 
@@ -298,7 +324,11 @@ impl Deserialize for SerializablePublic {
 			}
 
 			fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
-				value.parse().map(|s| SerializablePublic(s)).map_err(SerdeError::custom)
+				if value.len() >= 2 && &value[0..2] == "0x" && value.len() & 1 == 0 {
+					value[2..].parse().map(|s| SerializablePublic(s)).map_err(SerdeError::custom)
+				} else {
+					Err(SerdeError::custom("invalid format"))
+				}
 			}
 
 			fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: SerdeError {
@@ -307,5 +337,29 @@ impl Deserialize for SerializablePublic {
 		}
 
 		deserializer.deserialize(HashVisitor)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use serde_json;
+	use super::{SerializableBytes, SerializablePublic};
+
+	#[test]
+	fn serialize_and_deserialize_bytes() {
+		let bytes = SerializableBytes(vec![1, 2, 3, 4]);
+		let bytes_serialized = serde_json::to_string(&bytes).unwrap();
+		assert_eq!(&bytes_serialized, r#""0x01020304""#);
+		let bytes_deserialized: SerializableBytes = serde_json::from_str(&bytes_serialized).unwrap();
+		assert_eq!(bytes_deserialized, bytes);
+	}
+
+	#[test]
+	fn serialize_and_deserialize_public() {
+		let public = SerializablePublic("cac6c205eb06c8308d65156ff6c862c62b000b8ead121a4455a8ddeff7248128d895692136f240d5d1614dc7cc4147b1bd584bd617e30560bb872064d09ea325".parse().unwrap());
+		let public_serialized = serde_json::to_string(&public).unwrap();
+		assert_eq!(&public_serialized, r#""0xcac6c205eb06c8308d65156ff6c862c62b000b8ead121a4455a8ddeff7248128d895692136f240d5d1614dc7cc4147b1bd584bd617e30560bb872064d09ea325""#);
+		let public_deserialized: SerializablePublic = serde_json::from_str(&public_serialized).unwrap();
+		assert_eq!(public_deserialized, public);
 	}
 }
