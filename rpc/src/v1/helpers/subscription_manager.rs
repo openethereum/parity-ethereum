@@ -20,9 +20,9 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use util::Mutex;
 
-use jsonrpc_core::futures::{Sink, Future, BoxFuture};
 use jsonrpc_core::futures::future::{self, Either};
 use jsonrpc_core::futures::sync::mpsc;
+use jsonrpc_core::futures::{Sink, Future, BoxFuture};
 use jsonrpc_core::{self as core, MetaIoHandler};
 
 use v1::metadata::Metadata;
@@ -32,7 +32,7 @@ struct Subscription {
 	metadata: Metadata,
 	method: String,
 	params: core::Params,
-	sink: mpsc::Sender<core::Output>,
+	sink: mpsc::Sender<Result<core::Value, core::Error>>,
 	last_result: Arc<Mutex<Option<core::Output>>>,
 }
 
@@ -57,7 +57,7 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 
 	/// Subscribes to update from polling given method.
 	pub fn subscribe(&mut self, metadata: Metadata, method: String, params: core::Params)
-		-> (usize, mpsc::Receiver<core::Output>)
+		-> (usize, mpsc::Receiver<Result<core::Value, core::Error>>)
 	{
 		let id = self.next_id;
 		self.next_id += 1;
@@ -102,9 +102,14 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 				let mut last_result = last_result.lock();
 				if *last_result != response && response.is_some() {
 					let output = response.expect("Existence proved by the condition.");
-					*last_result = Some(output.clone());
 					debug!(target: "pubsub", "Got new response, sending: {:?}", output);
-					Either::A(sender.send(output).map(|_| ()).map_err(|_| ()))
+					*last_result = Some(output.clone());
+
+					let send = match output {
+						core::Output::Success(core::Success { result, .. }) => Ok(result),
+						core::Output::Failure(core::Failure { error, .. }) => Err(error),
+					};
+					Either::A(sender.send(send).map(|_| ()).map_err(|_| ()))
 				} else {
 					trace!(target: "pubsub", "Response was not changed: {:?}", response);
 					Either::B(future::ok(()))
@@ -114,7 +119,57 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 			futures.push(result)
 		}
 
-		// return a future represeting all polls
+		// return a future represeting all the polls
 		future::join_all(futures).map(|_| ()).boxed()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::sync::atomic::{self, AtomicBool};
+
+	use jsonrpc_core::{MetaIoHandler, NoopMiddleware, Value, Params};
+	use jsonrpc_core::futures::{Future, Stream};
+	use http::tokio_core::reactor;
+
+	use super::GenericPollManager;
+
+	fn poll_manager() -> GenericPollManager<NoopMiddleware> {
+		let mut io = MetaIoHandler::default();
+		let called = AtomicBool::new(false);
+		io.add_method("hello", move |_| {
+			if !called.load(atomic::Ordering::SeqCst) {
+				called.store(true, atomic::Ordering::SeqCst);
+				Ok(Value::String("hello".into()))
+			} else {
+				Ok(Value::String("world".into()))
+			}
+		});
+		GenericPollManager::new(io)
+	}
+
+	#[test]
+	fn should_poll_subscribed_method() {
+		// given
+		let mut el = reactor::Core::new().unwrap();
+		let mut poll_manager = poll_manager();
+		let (id, rx) = poll_manager.subscribe(Default::default(), "hello".into(), Params::None);
+		assert_eq!(id, 1);
+
+		// then
+		poll_manager.tick().wait().unwrap();
+		let (res, rx) = el.run(rx.into_future()).unwrap();
+		assert_eq!(res, Some(Ok(Value::String("hello".into()))));
+
+		// retrieve second item
+		poll_manager.tick().wait().unwrap();
+		let (res, rx) = el.run(rx.into_future()).unwrap();
+		assert_eq!(res, Some(Ok(Value::String("world".into()))));
+
+		// and no more notifications
+		poll_manager.tick().wait().unwrap();
+		// we need to unsubscribe otherwise the future will never finish.
+		poll_manager.unsubscribe(1);
+		assert_eq!(el.run(rx.into_future()).unwrap().0, None);
 	}
 }

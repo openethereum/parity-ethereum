@@ -22,14 +22,14 @@ use util::RwLock;
 
 use futures::{self, BoxFuture, Future, Stream, Sink};
 use jsonrpc_core::{self as core, Error, MetaIoHandler};
-use jsonrpc_pubsub::SubscriptionId;
 use jsonrpc_macros::pubsub::Subscriber;
+use jsonrpc_pubsub::SubscriptionId;
 use tokio_timer;
 
+use parity_reactor::Remote;
 use v1::helpers::GenericPollManager;
 use v1::metadata::Metadata;
 use v1::traits::PubSub;
-use parity_reactor::Remote;
 
 /// Parity PubSub implementation.
 pub struct PubSubClient<S: core::Middleware<Metadata>> {
@@ -44,12 +44,10 @@ impl<S: core::Middleware<Metadata>> PubSubClient<S> {
 		let pm2 = poll_manager.clone();
 
 		let timer = tokio_timer::wheel()
-			.max_capacity(1)
-			.initial_capacity(1)
-			.tick_duration(Duration::from_millis(100))
+			.tick_duration(Duration::from_millis(500))
 			.build();
-		let interval = timer.interval(Duration::from_millis(1000));
 		// Start ticking
+		let interval = timer.interval(Duration::from_millis(1000));
 		remote.spawn(interval
 			.map_err(|e| warn!("Polling timer error: {:?}", e))
 			.for_each(move |_| pm2.read().tick())
@@ -65,7 +63,7 @@ impl<S: core::Middleware<Metadata>> PubSubClient<S> {
 impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 	type Metadata = Metadata;
 
-	fn parity_subscribe(&self, mut meta: Metadata, subscriber: Subscriber<core::Output>, method: String, params: core::Params) {
+	fn parity_subscribe(&self, mut meta: Metadata, subscriber: Subscriber<core::Value>, method: String, params: core::Params) {
 		// Make sure to get rid of PubSub session otherwise it will never be dropped.
 		meta.session = None;
 
@@ -73,9 +71,15 @@ impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 		let (id, receiver) = poll_manager.subscribe(meta, method, params);
 		match subscriber.assign_id(SubscriptionId::Number(id as u64)) {
 			Ok(sink) => {
-				self.remote.spawn(receiver.forward(sink.sink_map_err(|e| {
+				self.remote.spawn(receiver.map(|res| match res {
+					Ok(val) => val,
+					Err(error) => {
+						warn!(target: "pubsub", "Subscription error: {:?}", error);
+						core::Value::Null
+					},
+				}).forward(sink.sink_map_err(|e| {
 					warn!("Cannot send notification: {:?}", e);
-				})).map(|_| ()))
+				})).map(|_| ()));
 			},
 			Err(_) => {
 				poll_manager.unsubscribe(id);

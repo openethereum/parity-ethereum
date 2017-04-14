@@ -135,19 +135,15 @@ impl futures::Future for Sender {
 	fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
 		use self::futures::Stream;
 
-		println!("Sender::poll");
 		let item = self.1.poll()?;
 		match item {
 			futures::Async::NotReady => {
-				println!("Sender::NotReady.");
 				Ok(futures::Async::NotReady)
 			},
 			futures::Async::Ready(None) => {
-				println!("Sender::Done.");
 				Ok(futures::Async::Ready(()))
 			},
 			futures::Async::Ready(Some(val)) => {
-				println!("Sender::Send.");
 				if let Err(e) = self.0.send(val) {
 					warn!("Error sending a subscription update: {:?}", e);
 				}
@@ -163,7 +159,7 @@ struct WsRpcExtractor {
 
 impl WsRpcExtractor {
 	fn wrap_out(&self, out: rpc::ws::ws::Sender) -> futures::sync::mpsc::Sender<String> {
-		let (sender, receiver) = futures::sync::mpsc::channel(64);
+		let (sender, receiver) = futures::sync::mpsc::channel(8);
 		self.remote.spawn(move |_| Sender(out, receiver));
 		sender
 	}
