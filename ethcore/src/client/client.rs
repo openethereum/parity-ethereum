@@ -1717,7 +1717,7 @@ mod tests {
 			// Separate thread uncommited transaction
 			let go = Arc::new(AtomicBool::new(false));
 			let go_thread = go.clone();
-			let another_client = client.reference().clone();
+			let another_client = client.clone();
 			thread::spawn(move || {
 				let mut batch = DBTransaction::new();
 				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new());
