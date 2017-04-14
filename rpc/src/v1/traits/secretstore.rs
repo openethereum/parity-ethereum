@@ -18,7 +18,7 @@
 
 use jsonrpc_core::Error;
 
-use v1::types::{H160, Bytes};
+use v1::types::{H160, H512, Bytes};
 
 build_rpc_trait! {
 	/// Parity-specific rpc interface.
@@ -34,8 +34,8 @@ build_rpc_trait! {
 		fn decrypt(&self, H160, Bytes, Bytes) -> Result<Bytes, Error>;
 
 		/// Decrypt data with shadow key, received from secret store.
-		/// Arguments: `account`, `key`, `data`.
+		/// Arguments: `account`, `decrypted_secret`, `common_point`, `decrypt_shadows`, `data`.
 		#[rpc(name = "secretstore_shadowDecrypt")]
-		fn shadow_decrypt(&self, H160, Bytes, Bytes) -> Result<Bytes, Error>;
+		fn shadow_decrypt(&self, H160, H512, H512, Vec<Bytes>, Bytes) -> Result<Bytes, Error>;
 	}
 }

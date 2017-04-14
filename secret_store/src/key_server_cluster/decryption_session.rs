@@ -18,7 +18,8 @@ use std::cmp::{Ord, PartialOrd, Ordering};
 use std::collections::{BTreeSet, BTreeMap};
 use std::sync::Arc;
 use parking_lot::{Mutex, Condvar};
-use ethcrypto::ecies::encrypt_single_message;
+use ethcrypto::ecies::encrypt;
+use ethcrypto::DEFAULT_MAC;
 use ethkey::{self, Secret, Public, Signature};
 use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, DocumentEncryptedKeyShadow};
 use key_server_cluster::cluster::Cluster;
@@ -688,7 +689,7 @@ fn do_partial_decryption(node: &NodeId, requestor_public: &Public, is_shadow_dec
 		shadow_point: shadow_point,
 		decrypt_shadow: match decrypt_shadow {
 			None => None,
-			Some(decrypt_shadow) => Some(encrypt_single_message(requestor_public, &**decrypt_shadow)?),
+			Some(decrypt_shadow) => Some(encrypt(requestor_public, &DEFAULT_MAC, &**decrypt_shadow)?),
 		},
 	})
 }
@@ -1085,9 +1086,10 @@ mod tests {
 		assert!(decrypted_secret.common_point.is_some());
 		assert!(decrypted_secret.decrypt_shadows.is_some());
 		// check that KS client is able to restore original secret
-		use ethcrypto::ecies::decrypt_single_message;
+		use ethcrypto::DEFAULT_MAC;
+		use ethcrypto::ecies::decrypt;
 		let decrypt_shadows: Vec<_> = decrypted_secret.decrypt_shadows.unwrap().into_iter()
-			.map(|c| Secret::from_slice(&decrypt_single_message(key_pair.secret(), &c).unwrap()).unwrap())
+			.map(|c| Secret::from_slice(&decrypt(key_pair.secret(), &DEFAULT_MAC, &c).unwrap()).unwrap())
 			.collect();
 		let decrypted_secret = math::decrypt_with_shadow_coefficients(decrypted_secret.decrypted_secret, decrypted_secret.common_point.unwrap(), decrypt_shadows).unwrap();
 		assert_eq!(decrypted_secret, SECRET_PLAIN.into());

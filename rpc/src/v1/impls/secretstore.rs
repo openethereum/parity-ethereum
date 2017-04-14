@@ -19,13 +19,14 @@
 use std::sync::{Arc, Weak};
 
 use crypto::DEFAULT_MAC;
+use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 
 use jsonrpc_core::Error;
 use v1::helpers::errors;
 use v1::helpers::accounts::unwrap_provider;
 use v1::traits::SecretStore;
-use v1::types::{H160, Bytes};
+use v1::types::{H160, H512, Bytes};
 
 /// Parity implementation.
 pub struct SecretStoreClient {
@@ -46,11 +47,17 @@ impl SecretStoreClient {
 		unwrap_provider(&self.accounts)
 	}
 
-	/// Decrypt key using account' private key
+	/// Decrypt public key using account' private key
 	fn decrypt_key(&self, address: H160, key: Bytes) -> Result<Vec<u8>, Error> {
 		let store = self.account_provider()?;
 		store.decrypt(address.into(), None, &DEFAULT_MAC, &key.0)
 			.map_err(|e| errors::account("Could not decrypt key.", e))
+	}
+
+	/// Decrypt secret key using account' private key
+	fn decrypt_secret(&self, address: H160, key: Bytes) -> Result<Secret, Error> {
+		self.decrypt_key(address, key)
+			.and_then(|s| Secret::from_slice(&s).map_err(|e| errors::account("invalid secret", e)))
 	}
 }
 
@@ -65,14 +72,20 @@ impl SecretStore for SecretStoreClient {
 			.map(Into::into)
 	}
 
-	fn shadow_decrypt(&self, address: H160, key: Bytes, data: Bytes) -> Result<Bytes, Error> {
-		encryption::decrypt_document_with_shadow(self.decrypt_key(address, key)?, data.0)
+	fn shadow_decrypt(&self, address: H160, decrypted_secret: H512, common_point: H512, decrypt_shadows: Vec<Bytes>, data: Bytes) -> Result<Bytes, Error> {
+		let mut shadows = Vec::with_capacity(decrypt_shadows.len());
+		for decrypt_shadow in decrypt_shadows {
+			shadows.push(self.decrypt_secret(address.clone(), decrypt_shadow)?);
+		}
+
+		encryption::decrypt_document_with_shadow(decrypted_secret.into(), common_point.into(), shadows, data.0)
 			.map(Into::into)
 	}
 }
 
 #[cfg(not(feature="secretstore"))]
 mod encryption {
+	use ethkey::{Secret, Public};
 	use jsonrpc_core::Error;
 	use util::Bytes;
 	use v1::helpers::errors;
@@ -85,13 +98,14 @@ mod encryption {
 		Err(errors::secretstore_disabled())
 	}
 
-	pub fn decrypt_document_with_shadow(_key: Vec<u8>, _document: Bytes) -> Result<Bytes, Error> {
+	pub fn decrypt_document_with_shadow(_decrypted_secret: Public, _common_point: Public, _shadows: Vec<Secret>, _document: Bytes) -> Result<Bytes, Error> {
 		Err(errors::secretstore_disabled())
 	}
 }
 
 #[cfg(feature="secretstore")]
 mod encryption {
+	use ethkey::{Secret, Public};
 	use jsonrpc_core::Error;
 	use ethcore_secretstore;
 	use util::Bytes;
@@ -107,8 +121,8 @@ mod encryption {
 			.map_err(|e| errors::encryption_error(e))
 	}
 
-	pub fn decrypt_document_with_shadow(key: Vec<u8>, document: Bytes) -> Result<Bytes, Error> {
-		ethcore_secretstore::decrypt_document_with_shadow(key, document)
+	pub fn decrypt_document_with_shadow(decrypted_secret: Public, common_point: Public, shadows: Vec<Secret>, document: Bytes) -> Result<Bytes, Error> {
+		ethcore_secretstore::decrypt_document_with_shadow(decrypted_secret, common_point, shadows, document)
 			.map_err(|e| errors::encryption_error(e))
 	}
 }
