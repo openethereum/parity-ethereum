@@ -59,6 +59,8 @@ pub enum Api {
 	Traces,
 	/// Rpc (Safe)
 	Rpc,
+	/// SecretStore (Safe)
+	SecretStore,
 }
 
 impl FromStr for Api {
@@ -78,6 +80,7 @@ impl FromStr for Api {
 			"parity_set" => Ok(ParitySet),
 			"traces" => Ok(Traces),
 			"rpc" => Ok(Rpc),
+			"secretstore" => Ok(SecretStore),
 			api => Err(format!("Unknown api: {}", api))
 		}
 	}
@@ -156,6 +159,7 @@ fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
 			Api::ParitySet => ("parity_set", "1.0"),
 			Api::Traces => ("traces", "1.0"),
 			Api::Rpc => ("rpc", "1.0"),
+			Api::SecretStore => ("secretstore", "1.0"),
 		};
 		modules.insert(name.into(), version.into());
 	}
@@ -295,7 +299,10 @@ impl Dependencies for FullDependencies {
 				Api::Rpc => {
 					let modules = to_modules(&apis);
 					handler.extend_with(RpcClient::new(modules).to_delegate());
-				}
+				},
+				Api::SecretStore => {
+					handler.extend_with(SecretStoreClient::new(&self.secret_store).to_delegate());
+				},
 			}
 		}
 	}
@@ -424,7 +431,11 @@ impl Dependencies for LightDependencies {
 				Api::Rpc => {
 					let modules = to_modules(&apis);
 					handler.extend_with(RpcClient::new(modules).to_delegate());
-				}
+				},
+				Api::SecretStore => {
+					let secret_store = Some(self.secret_store.clone());
+					handler.extend_with(SecretStoreClient::new(&secret_store).to_delegate());
+				},
 			}
 		}
 	}
@@ -438,7 +449,7 @@ impl ApiSet {
 
 	pub fn list_apis(&self) -> HashSet<Api> {
 		let mut public_list = vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Rpc,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Rpc, Api::SecretStore,
 		].into_iter().collect();
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
@@ -496,6 +507,7 @@ mod test {
 		assert_eq!(Api::ParitySet, "parity_set".parse().unwrap());
 		assert_eq!(Api::Traces, "traces".parse().unwrap());
 		assert_eq!(Api::Rpc, "rpc".parse().unwrap());
+		assert_eq!(Api::SecretStore, "secretstore".parse().unwrap());
 		assert!("rp".parse::<Api>().is_err());
 	}
 
@@ -513,7 +525,7 @@ mod test {
 	fn test_api_set_unsafe_context() {
 		let expected = vec![
 			// make sure this list contains only SAFE methods
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore
 		].into_iter().collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}
@@ -522,7 +534,7 @@ mod test {
 	fn test_api_set_ipc_context() {
 		let expected = vec![
 			// safe
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 			// semi-safe
 			Api::ParityAccounts
 		].into_iter().collect();
@@ -533,7 +545,7 @@ mod test {
 	fn test_api_set_safe_context() {
 		let expected = vec![
 			// safe
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 			// semi-safe
 			Api::ParityAccounts,
 			// Unsafe
@@ -545,7 +557,7 @@ mod test {
 	#[test]
 	fn test_all_apis() {
 		assert_eq!("all".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 			Api::ParityAccounts,
 			Api::ParitySet, Api::Signer,
 			Api::Personal
@@ -555,7 +567,7 @@ mod test {
 	#[test]
 	fn test_all_without_personal_apis() {
 		assert_eq!("personal,all,-personal".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 			Api::ParityAccounts,
 			Api::ParitySet, Api::Signer,
 		].into_iter().collect()));
@@ -564,7 +576,7 @@ mod test {
 	#[test]
 	fn test_safe_parsing() {
 		assert_eq!("safe".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 		].into_iter().collect()));
 	}
 }
