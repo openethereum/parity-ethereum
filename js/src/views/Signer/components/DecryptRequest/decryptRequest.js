@@ -23,21 +23,10 @@ import Account from '../Account';
 import TransactionPendingForm from '../TransactionPendingForm';
 import RequestOrigin from '../RequestOrigin';
 
-import styles from './signRequest.css';
-
-function isAscii (data) {
-  for (var i = 2; i < data.length; i += 2) {
-    let n = parseInt(data.substr(i, 2), 16);
-
-    if (n < 32 || n >= 128) {
-      return false;
-    }
-  }
-  return true;
-}
+import styles from '../SignRequest/signRequest.css';
 
 @observer
-class SignRequest extends Component {
+class DecryptRequest extends Component {
   static contextTypes = {
     api: PropTypes.object
   };
@@ -85,27 +74,6 @@ class SignRequest extends Component {
     );
   }
 
-  renderAsciiDetails (ascii) {
-    return (
-      <div className={ styles.signData }>
-        <p>{ascii}</p>
-      </div>
-    );
-  }
-
-  renderBinaryDetails (data) {
-    return (
-      <div className={ styles.signData }>
-        <p>
-          <FormattedMessage
-            id='signer.signRequest.unknownBinary'
-            defaultMessage='(Unknown binary data)'
-          />
-        </p>
-      </div>
-    );
-  }
-
   renderDetails () {
     const { api } = this.context;
     const { address, data, netVersion, origin, signerStore } = this.props;
@@ -132,23 +100,14 @@ class SignRequest extends Component {
         <div className={ styles.info } title={ api.util.sha3(data) }>
           <p>
             <FormattedMessage
-              id='signer.signRequest.request'
-              defaultMessage='A request to sign data using your account:'
+              id='signer.decryptRequest.request'
+              defaultMessage='A request to decrypt data using your account:'
             />
           </p>
-          {
-            isAscii(data)
-              ? this.renderAsciiDetails(api.util.hexToAscii(data))
-              : this.renderBinaryDetails(data)
-          }
-          <p>
-            <strong>
-              <FormattedMessage
-                id='signer.signRequest.warning'
-                defaultMessage='WARNING: This consequences of doing this may be grave. Confirm the request only if you are sure.'
-              />
-            </strong>
-          </p>
+
+          <div className={ styles.signData }>
+            <p>{ data }</p>
+          </div>
         </div>
       </div>
     );
@@ -164,7 +123,7 @@ class SignRequest extends Component {
           <div className={ styles.actions }>
             <span className={ styles.isConfirmed }>
               <FormattedMessage
-                id='signer.signRequest.state.confirmed'
+                id='signer.decryptRequest.state.confirmed'
                 defaultMessage='Confirmed'
               />
             </span>
@@ -176,7 +135,7 @@ class SignRequest extends Component {
         <div className={ styles.actions }>
           <span className={ styles.isRejected }>
             <FormattedMessage
-              id='signer.signRequest.state.rejected'
+              id='signer.decryptRequest.state.rejected'
               defaultMessage='Rejected'
             />
           </span>
@@ -221,4 +180,4 @@ function mapStateToProps (state) {
 export default connect(
   mapStateToProps,
   null
-)(SignRequest);
+)(DecryptRequest);

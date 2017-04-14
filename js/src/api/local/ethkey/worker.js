@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import secp256k1 from 'secp256k1/js';
+import secp256k1 from 'secp256k1';
 import { keccak_256 as keccak256 } from 'js-sha3';
 import { bytesToHex } from '~/api/util/format';
 
@@ -28,11 +28,9 @@ if (!isWorker) {
 }
 
 // keythereum should never be used outside of the browser
-let keythereum = null;
+let keythereum = require('keythereum');
 
 if (isWorker) {
-  require('keythereum/dist/keythereum');
-
   keythereum = self.keythereum;
 }
 
@@ -109,9 +107,13 @@ const actions = {
 };
 
 self.onmessage = function ({ data }) {
-  const result = route(data);
+  try {
+    const result = route(data);
 
-  postMessage(result);
+    postMessage([null, result]);
+  } catch (err) {
+    postMessage([err, null]);
+  }
 };
 
 // Emulate a web worker in Node.js
@@ -119,9 +121,13 @@ class KeyWorker {
   postMessage (data) {
     // Force async
     setTimeout(() => {
-      const result = route(data);
+      try {
+        const result = route(data);
 
-      this.onmessage({ data: result });
+        this.onmessage({ data: [null, result] });
+      } catch (err) {
+        this.onmessage({ data: [err, null] });
+      }
     }, 0);
   }
 

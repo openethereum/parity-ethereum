@@ -65,4 +65,21 @@ describe('api/local/transactions', () => {
     expect(requests.length).to.be.equal(0);
     expect(() => transactions.hash(id)).to.throw(TransportError);
   });
+
+  it('can lock and confirm transactions', () => {
+    const id = transactions.add(DUMMY_TX);
+    const hash = '0x1111111111111111111111111111111111111111';
+
+    transactions.lock(id);
+
+    const requests = transactions.requestsToConfirm();
+
+    expect(requests.length).to.be.equal(0);
+    expect(transactions.get(id)).to.be.null;
+    expect(transactions.hash(id)).to.be.null;
+
+    transactions.confirm(id, hash);
+
+    expect(transactions.hash(id)).to.be.equal(hash);
+  });
 });

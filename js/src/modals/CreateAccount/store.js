@@ -96,6 +96,7 @@ export default class Store {
   }
 
   @computed get qrAddressValid () {
+    console.log('qrValid', this.qrAddress, this._api.util.isAddressValid(this.qrAddress));
     return this._api.util.isAddressValid(this.qrAddress);
   }
 
@@ -155,7 +156,10 @@ export default class Store {
       qrAddress = `0x${qrAddress}`;
     }
 
-    this.qrAddress = qrAddress;
+    // FIXME: Current native signer encoding is not 100% for EIP-55, lowercase for now
+    this.qrAddress = this._api.util
+        ? this._api.util.toChecksumAddress(qrAddress.toLowerCase())
+        : qrAddress;
   }
 
   @action setVaultName = (vaultName) => {

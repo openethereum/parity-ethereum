@@ -136,30 +136,14 @@ impl <M: Message + Default + Encodable + Debug> VoteCollector<M> {
 		*guard = new_collector;
 	}
 
-	/// Collects the signatures used to seal a block.
-	pub fn seal_signatures(&self, proposal_round: M::Round, commit_round: M::Round, block_hash: &H256) -> Option<SealSignatures> {
-		let ref bh = Some(*block_hash);
-		let maybe_seal = {
-			let guard = self.votes.read();
-			guard
-				.get(&proposal_round)
-				.and_then(|c| c.block_votes.get(bh))
-				.and_then(|proposals| proposals.keys().next())
-				.map(|proposal| SealSignatures {
-					proposal: proposal.clone(),
-					votes: guard
-						.get(&commit_round)
-						.and_then(|c| c.block_votes.get(bh))
-						.map(|precommits| precommits.keys().cloned().collect())
-						.unwrap_or_else(Vec::new),
-				})
-				.and_then(|seal| if seal.votes.is_empty() { None } else { Some(seal) })
-		};
-		if maybe_seal.is_some() {
-				// Remove messages that are no longer relevant.
-				self.throw_out_old(&commit_round);
-		}
-		maybe_seal
+	/// Collects the signatures for a given round and hash.
+	pub fn round_signatures(&self, round: &M::Round, block_hash: &H256) -> Vec<H520> {
+		let guard = self.votes.read();
+		guard
+			.get(round)
+			.and_then(|c| c.block_votes.get(&Some(*block_hash)))
+			.map(|votes| votes.keys().cloned().collect())
+			.unwrap_or_else(Vec::new)
 	}
 
 	/// Count votes which agree with the given message.
@@ -275,11 +259,9 @@ mod tests {
 		random_vote(&collector, signatures[1].clone(), commit_round.clone(), bh.clone());
 		// Wrong round, same signature.
 		random_vote(&collector, signatures[1].clone(), 7, bh.clone());
-		let seal = SealSignatures {
-			proposal: signatures[0],
-			votes: signatures[1..3].to_vec()
-		};
-		assert_eq!(seal, collector.seal_signatures(propose_round, commit_round, &bh.unwrap()).unwrap());
+
+		assert_eq!(signatures[0..1].to_vec(), collector.round_signatures(&propose_round, &bh.unwrap()));
+		assert_eq!(signatures[1..3].iter().collect::<HashSet<_>>(), collector.round_signatures(&commit_round, &bh.unwrap()).iter().collect::<HashSet<_>>());
 	}
 
 	#[test]

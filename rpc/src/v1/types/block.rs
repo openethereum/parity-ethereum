@@ -96,34 +96,90 @@ pub struct Block {
 	pub size: Option<U256>,
 }
 
-/// Block representation with additional info
+/// Block header representation.
+#[derive(Debug, Serialize)]
+pub struct Header {
+	/// Hash of the block
+	pub hash: Option<H256>,
+	/// Hash of the parent
+	#[serde(rename="parentHash")]
+	pub parent_hash: H256,
+	/// Hash of the uncles
+	#[serde(rename="sha3Uncles")]
+	pub uncles_hash: H256,
+	/// Authors address
+	pub author: H160,
+	// TODO: get rid of this one
+	/// ?
+	pub miner: H160,
+	/// State root hash
+	#[serde(rename="stateRoot")]
+	pub state_root: H256,
+	/// Transactions root hash
+	#[serde(rename="transactionsRoot")]
+	pub transactions_root: H256,
+	/// Transactions receipts root hash
+	#[serde(rename="receiptsRoot")]
+	pub receipts_root: H256,
+	/// Block number
+	pub number: Option<U256>,
+	/// Gas Used
+	#[serde(rename="gasUsed")]
+	pub gas_used: U256,
+	/// Gas Limit
+	#[serde(rename="gasLimit")]
+	pub gas_limit: U256,
+	/// Extra data
+	#[serde(rename="extraData")]
+	pub extra_data: Bytes,
+	/// Logs bloom
+	#[serde(rename="logsBloom")]
+	pub logs_bloom: H2048,
+	/// Timestamp
+	pub timestamp: U256,
+	/// Difficulty
+	pub difficulty: U256,
+	/// Seal fields
+	#[serde(rename="sealFields")]
+	pub seal_fields: Vec<Bytes>,
+	/// Size in bytes
+	pub size: Option<U256>,
+}
+
+/// Block representation with additional info.
+pub type RichBlock = Rich<Block>;
+
+/// Header representation with additional info.
+pub type RichHeader = Rich<Header>;
+
+/// Value representation with additional info
 #[derive(Debug)]
-pub struct RichBlock {
-	/// Standard block
-	pub block: Block,
+pub struct Rich<T> {
+	/// Standard value.
+	pub inner: T,
 	/// Engine-specific fields with additional description.
 	/// Should be included directly to serialized block object.
 	// TODO [ToDr] #[serde(skip_serializing)]
 	pub extra_info: BTreeMap<String, String>,
 }
 
-impl Deref for RichBlock {
-	type Target = Block;
+impl<T> Deref for Rich<T> {
+	type Target = T;
 	fn deref(&self) -> &Self::Target {
-		&self.block
+		&self.inner
 	}
 }
 
-impl Serialize for RichBlock {
+impl<T: Serialize> Serialize for Rich<T> {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
 		use serde_json::{to_value, Value};
 
-		let serialized = (to_value(&self.block), to_value(&self.extra_info));
-		if let (Ok(Value::Object(mut block)), Ok(Value::Object(extras))) = serialized {
+		let serialized = (to_value(&self.inner), to_value(&self.extra_info));
+		if let (Ok(Value::Object(mut value)), Ok(Value::Object(extras))) = serialized {
 			// join two objects
-			block.extend(extras);
+			value.extend(extras);
 			// and serialize
-			block.serialize(serializer)
+			value.serialize(serializer)
 		} else {
 			Err(S::Error::custom("Unserializable structures."))
 		}
@@ -135,7 +191,7 @@ mod tests {
 	use std::collections::BTreeMap;
 	use serde_json;
 	use v1::types::{Transaction, H64, H160, H256, H2048, Bytes, U256};
-	use super::{Block, RichBlock, BlockTransactions};
+	use super::{Block, RichBlock, BlockTransactions, Header, RichHeader};
 
 	#[test]
 	fn test_serialize_block_transactions() {
@@ -174,7 +230,7 @@ mod tests {
 		};
 		let serialized_block = serde_json::to_string(&block).unwrap();
 		let rich_block = RichBlock {
-			block: block,
+			inner: block,
 			extra_info: map![
 				"mixHash".into() => format!("0x{:?}", H256::default()),
 				"nonce".into() => format!("0x{:?}", H64::default())
@@ -212,7 +268,7 @@ mod tests {
 		};
 		let serialized_block = serde_json::to_string(&block).unwrap();
 		let rich_block = RichBlock {
-			block: block,
+			inner: block,
 			extra_info: map![
 				"mixHash".into() => format!("0x{:?}", H256::default()),
 				"nonce".into() => format!("0x{:?}", H64::default())
@@ -222,5 +278,40 @@ mod tests {
 
 		assert_eq!(serialized_block, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000","sha3Uncles":"0x0000000000000000000000000000000000000000000000000000000000000000","author":"0x0000000000000000000000000000000000000000","miner":"0x0000000000000000000000000000000000000000","stateRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionsRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","receiptsRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","number":"0x0","gasUsed":"0x0","gasLimit":"0x0","extraData":"0x","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","timestamp":"0x0","difficulty":"0x0","totalDifficulty":"0x0","sealFields":["0x","0x"],"uncles":[],"transactions":[],"size":null}"#);
 		assert_eq!(serialized_rich_block, r#"{"author":"0x0000000000000000000000000000000000000000","difficulty":"0x0","extraData":"0x","gasLimit":"0x0","gasUsed":"0x0","hash":"0x0000000000000000000000000000000000000000000000000000000000000000","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x0000000000000000000000000000000000000000","mixHash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0000000000000000","number":"0x0","parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000","receiptsRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","sealFields":["0x","0x"],"sha3Uncles":"0x0000000000000000000000000000000000000000000000000000000000000000","size":null,"stateRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","timestamp":"0x0","totalDifficulty":"0x0","transactions":[],"transactionsRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","uncles":[]}"#);
+	}
+
+	#[test]
+	fn test_serialize_header() {
+		let header = Header {
+			hash: Some(H256::default()),
+			parent_hash: H256::default(),
+			uncles_hash: H256::default(),
+			author: H160::default(),
+			miner: H160::default(),
+			state_root: H256::default(),
+			transactions_root: H256::default(),
+			receipts_root: H256::default(),
+			number: Some(U256::default()),
+			gas_used: U256::default(),
+			gas_limit: U256::default(),
+			extra_data: Bytes::default(),
+			logs_bloom: H2048::default(),
+			timestamp: U256::default(),
+			difficulty: U256::default(),
+			seal_fields: vec![Bytes::default(), Bytes::default()],
+			size: Some(69.into()),
+		};
+		let serialized_header = serde_json::to_string(&header).unwrap();
+		let rich_header = RichHeader {
+			inner: header,
+			extra_info: map![
+				"mixHash".into() => format!("0x{:?}", H256::default()),
+				"nonce".into() => format!("0x{:?}", H64::default())
+			],
+		};
+		let serialized_rich_header = serde_json::to_string(&rich_header).unwrap();
+
+		assert_eq!(serialized_header, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000","sha3Uncles":"0x0000000000000000000000000000000000000000000000000000000000000000","author":"0x0000000000000000000000000000000000000000","miner":"0x0000000000000000000000000000000000000000","stateRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionsRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","receiptsRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","number":"0x0","gasUsed":"0x0","gasLimit":"0x0","extraData":"0x","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","timestamp":"0x0","difficulty":"0x0","sealFields":["0x","0x"],"size":"0x45"}"#);
+		assert_eq!(serialized_rich_header, r#"{"author":"0x0000000000000000000000000000000000000000","difficulty":"0x0","extraData":"0x","gasLimit":"0x0","gasUsed":"0x0","hash":"0x0000000000000000000000000000000000000000000000000000000000000000","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x0000000000000000000000000000000000000000","mixHash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0000000000000000","number":"0x0","parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000","receiptsRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","sealFields":["0x","0x"],"sha3Uncles":"0x0000000000000000000000000000000000000000000000000000000000000000","size":"0x45","stateRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","timestamp":"0x0","transactionsRoot":"0x0000000000000000000000000000000000000000000000000000000000000000"}"#);
 	}
 }

@@ -1,17 +1,17 @@
 pub mod client;
 pub mod signer_client;
 
-extern crate ws;
 extern crate ethcore_signer;
-extern crate url;
-extern crate futures;
 extern crate ethcore_util as util;
-extern crate ethcore_rpc as rpc;
+extern crate futures;
+extern crate jsonrpc_core;
+extern crate parity_rpc as rpc;
+extern crate rand;
 extern crate serde;
 extern crate serde_json;
-extern crate rand;
 extern crate tempdir;
-extern crate jsonrpc_core;
+extern crate url;
+extern crate ws;
 
 #[macro_use]
 extern crate log;
