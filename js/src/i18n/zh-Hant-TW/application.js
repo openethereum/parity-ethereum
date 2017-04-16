@@ -15,25 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  button: {
-    delete: `刪除`,//delete
-    edit: `編輯`,//edit
-    faucet: `Kovan測試網路ETH`,//Kovan ETH 
-    password: `密碼`,//password
-    shapeshift: `shapeshift`,
-    transfer: `轉帳`,//transfer
-    verify: `確認`//verify
+  frame: {
+    error: `錯誤：這個應用不能也不應該載入到內建框架中`//ERROR: This application cannot and should not be loaded in an embedded iFrame
   },
-  hardware: {
-    confirmDelete: `你確定從你的帳戶列表中移除下面的硬體地址嗎？`
-  },//Are you sure you want to remove the following hardware address from your account list?
-  header: {
-    outgoingTransactions: `{count}筆正在發生的轉帳`,//{count} outgoing transactions
-    uuid: `uuid: {uuid}`
-  },
-  title: `帳戶管理`,//Account Management
-  transactions: {
-    poweredBy: `{etherscan}提供的交易列表`,
-    title: `交易`//transactions
+  status: {
+    consensus: {
+      capable: `可行`,//Capable
+      capableUntil: `到第 #{blockNumber} 區塊前可行`,//Capable until #{blockNumber}
+      incapableSince: `自第 #{blockNumber} 區塊後不可行`,//Incapable since #{blockNumber}
+      unknown: `未知能力`//Unknown capability
+    },
+    upgrade: `升級`//Upgrade
   }
 };

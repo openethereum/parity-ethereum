@@ -16,7 +16,7 @@
 
 export default {
   fromEmail: `使用郵箱{email}進行確認`,//Verified using email {email}
-  fromRegistry: `{name} (from registry)`,
+  fromRegistry: `{name}（來自注冊）`,//{name} (from registry)
   labels: {
     accounts: `帳戶`,//accounts
     contacts: `合約`,//contacts
