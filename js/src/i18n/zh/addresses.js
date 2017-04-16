@@ -16,7 +16,7 @@
 
 export default {
   buttons: {
-    add: `地址`//address
+    add: `地址` //address
   },
   errors: {
     invalidFile: `提供的文件是无效的`//The provided file is invalid...
