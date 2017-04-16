@@ -20,11 +20,11 @@ export default {
   },
   status: {
     consensus: {
-      capable: `Capable`,
-      capableUntil: `Capable until #{blockNumber}`,
-      incapableSince: `Incapable since #{blockNumber}`,
-      unknown: `Unknown capability未知的`
+      capable: `可行`,//Capable
+      capableUntil: `到第 #{blockNumber} 区块前可行`,//Capable until #{blockNumber}
+      incapableSince: `自第 #{blockNumber} 区块后不可行`,//Incapable since #{blockNumber}
+      unknown: `未知能力`//Unknown capability
     },
-    upgrade: `Upgrade升级`
+    upgrade: `升级`//Upgrade
   }
 };
