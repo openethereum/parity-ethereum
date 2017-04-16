@@ -22,7 +22,7 @@ export default {
   },
   delete: {
     confirmInfo: `你确定你想把下面的地址从你的地址簿中移除吗？`,//Are you sure you want to remove the following address from your addressbook?
-    title: `confirm removal确认移除`
+    title: `确认移除`//confirm removal
   },
-  title: `Address Information地址信息`
+  title: `地址信息`//Address Information
 };
