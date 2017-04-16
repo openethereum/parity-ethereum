@@ -18,7 +18,7 @@ export default {
   button: {
     delete: `删除`,//delete
     edit: `编辑`,//edit
-    faucet: `Kovan测试网络ETH`,//Kovan ETH 
+    faucet: `Kovan测试网络以太币`,//Kovan ETH 
     password: `密码`,//password
     shapeshift: `shapeshift`,
     transfer: `转账`,//transfer
