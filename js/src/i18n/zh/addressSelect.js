@@ -16,7 +16,7 @@
 
 export default {
   fromEmail: `使用邮箱{email}进行确认`,//Verified using email {email}
-  fromRegistry: `{name} (from registry)`,
+  fromRegistry: `{name}（来自注册）`,//{name} (from registry)
   labels: {
     accounts: `账户`,//accounts
     contacts: `合约`,//contacts
