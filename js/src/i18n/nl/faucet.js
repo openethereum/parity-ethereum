@@ -15,20 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  button: {
-    newAccount: `account`,
-    newWallet: `wallet`,
-    vaults: `kluizen`
+  buttons: {
+    close: `sluit`,
+    done: `klaar`,
+    request: `verzoek`
   },
   summary: {
-    minedBlock: `Opgenomen in blok #{blockNumber}`
+    done: `Jouw Kovan ETH is aangevraagd bij het faucet, wat reageerde met het volgende bericht -`,
+    info: `Om een hoeveelheid Kovan ETH aan te vragen voor dit adres, moet je ervoor zorgen dat het adres op het mainnet sms-geverifieerd is. Zodra je dit uitvoert, zal het faucet Kovan ETH naar je huidige account verzenden.`
   },
-  title: `Accounts Overzicht`,
-  tooltip: {
-    actions: `voor de huidige weergave zijn koppelingen beschikbaar op de werkbalk voor snelle toegang: het uitvoeren van acties of het creëren van een nieuw item`,
-    overview: `hier vind je een overzichtelijke weergave van je accounts, waarin je meta informatie kunt bewerken en transacties kunt uitvoeren en bekijken`
-  }
-  tooltips: {
-    owner: `{name} (eigenaar)`
-  }
+  title: `Kovan ETH Faucet`
 };

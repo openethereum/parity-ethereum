@@ -15,13 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  busy: `Parity wordt momenteel bijgewerkt naar versie {newversion}`,
+  busy: `Parity wordt momenteel bijgewerkt naar versie {newversion}. Wacht tot het proces is voltooid.`,
   button: {
     close: `sluiten`,
     done: `klaar`,
     upgrade: `werk nu bij`
   },
-  completed: `Het bijwerken naar Parity {newversion} is succesvol voltooid.`,
+  completed: `Het bijwerken naar Parity {newversion} is succesvol voltooid. Klik op "klaar" om het programma automatisch opnieuw op te starten.`,
   consensus: {
     capable: `Je huidige versie van Parity voldoet aan de netwerk vereisten.`,
     capableUntil: `Je huidige versie van Parity voldoet aan de netwerk vereisten tot aan blok {blockNumber}`,
@@ -30,7 +30,10 @@ export default {
   },
   failed: `Het bijwerken naar Parity {newversion} gaf een fout en is mislukt.`,
   info: {
-    upgrade: `Een nieuwe versie van Parity, version {newversion} is beschikbaar als upgrade vanaf je huidige versie {currentversion}`
+    currentVersion: `Je huidige versie is {currentversion}`,
+    next: `Klik op "werk nu bij" om het bijwerken van je Parity te starten.`,
+    upgrade: `Een nieuwe versie {newversion} is beschikbaar`,
+    welcome: `Welkom bij de Parity upgrade wizard, deze stelt je in staat om Parity op zeer eenvoudige wijze bij te werken naar de nieuwste versie.`
   },
   step: {
     completed: `bijwerken voltooid`,

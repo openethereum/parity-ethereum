@@ -15,20 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  button: {
-    newAccount: `account`,
-    newWallet: `wallet`,
-    vaults: `kluizen`
+  buttons: {
+    deploy: `publiceer`,
+    develop: `ontwikkel`,
+    watch: `bekijk`
   },
-  summary: {
-    minedBlock: `Opgenomen in blok #{blockNumber}`
+  sortOrder: {
+    date: `datum`,
+    minedBlock: `opgenomen blok`
   },
-  title: `Accounts Overzicht`,
-  tooltip: {
-    actions: `voor de huidige weergave zijn koppelingen beschikbaar op de werkbalk voor snelle toegang: het uitvoeren van acties of het creëren van een nieuw item`,
-    overview: `hier vind je een overzichtelijke weergave van je accounts, waarin je meta informatie kunt bewerken en transacties kunt uitvoeren en bekijken`
-  }
-  tooltips: {
-    owner: `{name} (eigenaar)`
-  }
+  title: `Contracten`
 };

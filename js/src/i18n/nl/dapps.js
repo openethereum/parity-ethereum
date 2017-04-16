@@ -40,7 +40,6 @@ export default {
   },
   label: `Gedecentraliseerde Applicaties`,
   permissions: {
-    description: `{activeIcon} account is beschikbaar voor applicaties, {defaultIcon} account is het standaard account`,
     label: `zichtbare dapp accounts`
   }
 };
