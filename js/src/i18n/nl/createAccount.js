@@ -61,7 +61,7 @@ export default {
     fromRaw: {
       description: `Importeer een eerder gemaakte prive sleutel (raw private key) met een nieuw wachtwoord`,
       label: `Prive sleutel`
-    }
+    },
     info: `Selecteer de manier waarop je je account wilt aanmaken. Maak een nieuw account aan met een naam en wachtwoord, of importeer/herstel een bestaand account vanuit verschillende bronnen zoals een herstel zin of een sleutelbestand. Met behulp van deze wizard word je door het proces begeleid om een account aan te maken.`
   },
   newAccount: {
