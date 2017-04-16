@@ -17,7 +17,7 @@
 export default {
   debug: {
     reverse: `Omgekeerde volgorde`,
-    stopped: `De live weergave van de Parity logboeken is momenteel gestopt via de UI, start het om de laatste updates te zien.`,
+    stopped: `De live weergave van de Parity logboeken is momenteel gestopt via de UI, start de live weergave om de laatste updates te zien.`,
     title: `Node Logboeken`
   },
   miningSettings: {
@@ -28,7 +28,7 @@ export default {
       },
       extradata: {
         hint: `extra data voor mined blokken`,
-        label: `extradata`
+        label: `extra data`
       },
       gasFloor: {
         hint: `het gas-floor doel voor mining`,
@@ -55,9 +55,9 @@ export default {
       yes: `ja`
     },
     title: {
-      bestBlock: `best block`,
+      bestBlock: `beste block`,
       hashRate: `hash rate`,
-      network: `network settings`,
+      network: `netwerk instellingen`,
       node: `Node`,
       peers: `peers`
     }

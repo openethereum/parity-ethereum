@@ -43,7 +43,7 @@ export default {
       sortBy: `Sorteer op {label}`,
       typeDefault: `Standaard`,
       typeEth: `Sorteer op ETH`,
-      typeName: `Sorteer op name`,
+      typeName: `Sorteer op naam`,
       typeTags: `Sorteer op tags`
     }
   },

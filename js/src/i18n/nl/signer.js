@@ -37,7 +37,7 @@ export default {
     unknownUrl: `onbekende URL`
   },
   requestsPage: {
-    noPending: `Er zijn geen verzoeken die je bevestiging vereisen.`,
+    noPending: `Er zijn geen verzoeken die je goedkeuring vereisen.`,
     pendingTitle: `Openstaande Verzoeken`,
     queueTitle: `Lokale Transacties`
   },

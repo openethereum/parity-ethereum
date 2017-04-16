@@ -94,7 +94,7 @@ export default {
   },
   type: {
     multisig: {
-      description: `Creëer/Maak een {link} Wallet aan`,
+      description: `Maak een {link} Wallet aan`,
       label: `Multi-Sig wallet`,
       link: `standaard multi-signature`
     },

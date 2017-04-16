@@ -43,7 +43,7 @@ export default {
       label: `Geth keystore`
     },
     fromJSON: {
-      description: `Importeer account uit een standaard opgeslagen JSON sleutelbestand met het originele wachtwoord`,
+      description: `Importeer account uit een JSON sleutelbestand met het originele wachtwoord`,
       label: `JSON bestand`
     },
     fromNew: {
@@ -55,14 +55,14 @@ export default {
       label: `Herstel zin`
     },
     fromPresale: {
-      description: `Importeer account van een Ethereum voor-verkoop (pre-sale) wallet bestand met het originele wachtwoord`,
-      label: `voor-verkoop (Pre-sale) wallet`
+      description: `Importeer een Ethereum voor-verkoop (pre-sale) wallet bestand met het originele wachtwoord`,
+      label: `voor-verkoop wallet`
     },
     fromRaw: {
       description: `Importeer een eerder gemaakte prive sleutel (raw private key) met een nieuw wachtwoord`,
       label: `Prive sleutel`
     },
-    info: `Selecteer de manier waarop je je account wilt aanmaken. Maak een nieuw account aan met een naam en wachtwoord, of importeer/herstel een bestaand account vanuit verschillende bronnen zoals een herstel zin of een sleutelbestand. Met behulp van deze wizard word je door het proces begeleid om een account aan te maken.`
+    info: `Selecteer de manier waarop je je account wilt aanmaken of importeren. Maak een nieuw account aan met een naam en wachtwoord, of importeer/herstel een bestaand account vanuit verschillende bronnen zoals een herstel zin of een sleutelbestand. Met behulp van deze wizard word je door het proces begeleid om een account aan te maken.`
   },
   newAccount: {
     hint: {

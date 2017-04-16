@@ -36,7 +36,7 @@ export default {
   },
   external: {
     accept: `Ik begrijp dat deze toepassingen niet bij Parity zijn aangesloten`,
-    warning: `Deze applicaties gepuliceerd door derde partijen zijn niet bij Parity aangesloten, noch worden ze gepubliceerd door Parity. Alle applicaties blijven in beheer van hun eigen auteur. Zorg ervoor dat je snapt wat het doel van een applicatie is voordat je ermee aan de slag gaat.`
+    warning: `Deze applicaties zijn gepuliceerd door derde partijen welke niet verwant zijn aan Parity en zijn dus ook niet door Parity uitgebracht. Alle applicaties blijven in beheer van hun eigen auteur. Zorg ervoor dat je snapt wat het doel van een applicatie is voordat je ermee aan de slag gaat.`
   },
   label: `Gedecentraliseerde Applicaties`,
   permissions: {

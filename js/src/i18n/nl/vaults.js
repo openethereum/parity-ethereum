@@ -18,7 +18,7 @@ export default {
   accounts: {
     button: {
       cancel: `Annuleer`,
-      execute: `Configureer`
+      execute: `Stel in`
     },
     empty: `Er zitten geen accounts in deze kluis`,
     title: `Beheer Kluis Accounts`
