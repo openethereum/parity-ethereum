@@ -22,7 +22,7 @@ export default {
     done: `完成`,//done
     upgrade: `現在升級`//upgrade now
   },
-  completed: `你升級到Parity最新版本{newversion}的操作已經完成。點選“完成”將自動重新載入這個應用程式。`,
+  completed: `你升級到Parity最新版本{newversion}的操作已經完成。點選“完成”將自動重新載入這個應用。`,
   //Your upgrade to Parity {newversion} has been successfully completed. Click "done" to automatically reload the application.
   consensus: {
     capable: `你當前的Parity版本能夠處理網路請求。`,

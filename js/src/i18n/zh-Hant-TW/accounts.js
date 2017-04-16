@@ -25,10 +25,12 @@ export default {
   },
   title: `帳戶總覽`,//Accounts Overview
   tooltip: {
-    actions: `actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item`,
-    overview: `your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account`
+    actions: `與當前視窗有關的操作可以在工具欄中快速被找到，不論是執行操作還是建立新項`,
+    //actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item
+    overview: `你的帳戶很容易使用，使你可以編輯元資訊、轉帳、檢視交易和向帳戶充值`
+    //your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account
   },
   tooltips: {
-    owner: `{name} (owner)`
+    owner: `{name}持有者`//{name} (owner)
   }
 };

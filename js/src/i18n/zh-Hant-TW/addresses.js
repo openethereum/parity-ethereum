@@ -15,16 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  frame: {
-    error: `錯誤：這個應用不能也不應該載入到內建框架中`//ERROR: This application cannot and should not be loaded in an embedded iFrame
+  buttons: {
+    add: `地址` //address
   },
-  status: {
-    consensus: {
-      capable: `Capable`,
-      capableUntil: `Capable until #{blockNumber}`,
-      incapableSince: `Incapable since #{blockNumber}`,
-      unknown: `Unknown capability未知的`
-    },
-    upgrade: `Upgrade升級`
-  }
+  errors: {
+    invalidFile: `提供的檔案是無效的`//The provided file is invalid...
+  },
+  title: `儲存的地址`//Saved Addresses
 };

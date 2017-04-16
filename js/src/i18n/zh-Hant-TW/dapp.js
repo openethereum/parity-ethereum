@@ -15,6 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  loading: `Loading正在載入`,//Loading
+  loading: `正在載入`,//Loading
   unavailable: `不能獲取這個dapp`//The dapp cannot be reached
 };

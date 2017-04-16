@@ -127,7 +127,7 @@ export default {
   },
   txHash: {
     confirmations: `{count} {value, plural, one {confirmation} other {confirmations}}`,
-    oog: `這筆交易肯呢個已經耗光了gas。請用更多的gas嘗試。`,//The transaction might have gone out of gas. Try again with more gas.
+    oog: `這筆交易已經耗光了gas。請用更多的gas嘗試。`,//The transaction might have gone out of gas. Try again with more gas.
     posted: `這筆交易已經被髮送到網路，附帶雜湊是{hashLink}`,//The transaction has been posted to the network with a hash of {hashLink}
     waiting: `等待確認`//waiting for confirmations
   },
