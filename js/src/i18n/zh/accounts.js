@@ -25,10 +25,12 @@ export default {
   },
   title: `账户总览`,//Accounts Overview
   tooltip: {
-    actions: `actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item`,
-    overview: `your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account`
+    actions: ``,
+    //actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item
+    overview: `你的账户很容易使用，使你可以编辑元信息、转账、查看交易和向账户充值`
+    //your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account
   },
   tooltips: {
-    owner: `{name} (owner)`
+    owner: `{name}持有者`//{name} (owner)
   }
 };
