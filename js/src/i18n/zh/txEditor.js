@@ -25,7 +25,7 @@ export default {
       hint: `在某日后发送`,//The minimum date to send from
       label: `交易发送日期`//Transaction send date
     },
-    datetime: `e在某日某时后发送`,//Send after Date & Tim
+    datetime: `在某日某时后发送`,//Send after Date & Tim
     label: `交易激活的条件`,//Condition where transaction activates
     none: `无条件`,//No conditions
     time: {
