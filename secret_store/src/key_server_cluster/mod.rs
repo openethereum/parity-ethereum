@@ -27,7 +27,6 @@ pub use super::serialization::{SerializableSignature, SerializableH256, Serializ
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
 pub use self::encryption_session::Session as EncryptionSession;
 pub use self::decryption_session::Session as DecryptionSession;
-pub use self::math::decrypt_with_shadow_coefficients;
 
 #[cfg(test)]
 pub use super::key_storage::tests::DummyKeyStorage;

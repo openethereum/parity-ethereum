@@ -25,7 +25,6 @@ mod parity_accounts;
 mod parity_set;
 mod personal;
 mod rpc;
-#[cfg(feature="secretstore")]
 mod secretstore;
 mod signer;
 mod signing;

@@ -25,6 +25,7 @@ use ethcore::account_provider::AccountProvider;
 use jsonrpc_core::Error;
 use v1::helpers::errors;
 use v1::helpers::accounts::unwrap_provider;
+use v1::helpers::secretstore::{encrypt_document, decrypt_document, decrypt_document_with_shadow};
 use v1::traits::SecretStore;
 use v1::types::{H160, H512, Bytes};
 
@@ -63,12 +64,12 @@ impl SecretStoreClient {
 
 impl SecretStore for SecretStoreClient {
 	fn encrypt(&self, address: H160, key: Bytes, data: Bytes) -> Result<Bytes, Error> {
-		encryption::encrypt_document(self.decrypt_key(address, key)?, data.0)
+		encrypt_document(self.decrypt_key(address, key)?, data.0)
 			.map(Into::into)
 	}
 
 	fn decrypt(&self, address: H160, key: Bytes, data: Bytes) -> Result<Bytes, Error> {
-		encryption::decrypt_document(self.decrypt_key(address, key)?, data.0)
+		decrypt_document(self.decrypt_key(address, key)?, data.0)
 			.map(Into::into)
 	}
 
@@ -78,51 +79,7 @@ impl SecretStore for SecretStoreClient {
 			shadows.push(self.decrypt_secret(address.clone(), decrypt_shadow)?);
 		}
 
-		encryption::decrypt_document_with_shadow(decrypted_secret.into(), common_point.into(), shadows, data.0)
+		decrypt_document_with_shadow(decrypted_secret.into(), common_point.into(), shadows, data.0)
 			.map(Into::into)
-	}
-}
-
-#[cfg(not(feature="secretstore"))]
-mod encryption {
-	use ethkey::{Secret, Public};
-	use jsonrpc_core::Error;
-	use util::Bytes;
-	use v1::helpers::errors;
-
-	pub fn encrypt_document(_key: Vec<u8>, _document: Bytes) -> Result<Bytes, Error> {
-		Err(errors::secretstore_disabled())
-	}
-
-	pub fn decrypt_document(_key: Vec<u8>, _document: Bytes) -> Result<Bytes, Error> {
-		Err(errors::secretstore_disabled())
-	}
-
-	pub fn decrypt_document_with_shadow(_decrypted_secret: Public, _common_point: Public, _shadows: Vec<Secret>, _document: Bytes) -> Result<Bytes, Error> {
-		Err(errors::secretstore_disabled())
-	}
-}
-
-#[cfg(feature="secretstore")]
-mod encryption {
-	use ethkey::{Secret, Public};
-	use jsonrpc_core::Error;
-	use ethcore_secretstore;
-	use util::Bytes;
-	use v1::helpers::errors;
-
-	pub fn encrypt_document(key: Vec<u8>, document: Bytes) -> Result<Bytes, Error> {
-		ethcore_secretstore::encrypt_document(key, document)
-			.map_err(|e| errors::encryption_error(e))
-	}
-
-	pub fn decrypt_document(key: Vec<u8>, document: Bytes) -> Result<Bytes, Error> {
-		ethcore_secretstore::decrypt_document(key, document)
-			.map_err(|e| errors::encryption_error(e))
-	}
-
-	pub fn decrypt_document_with_shadow(decrypted_secret: Public, common_point: Public, shadows: Vec<Secret>, document: Bytes) -> Result<Bytes, Error> {
-		ethcore_secretstore::decrypt_document_with_shadow(decrypted_secret, common_point, shadows, document)
-			.map_err(|e| errors::encryption_error(e))
 	}
 }

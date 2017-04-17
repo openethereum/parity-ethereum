@@ -209,15 +209,6 @@ pub fn dapps_disabled() -> Error {
 	}
 }
 
-#[cfg(not(feature="secretstore"))]
-pub fn secretstore_disabled() -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-		message: "Parity is built without secret store support. This API is not available.".into(),
-		data: None,
-	}
-}
-
 pub fn network_disabled() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),

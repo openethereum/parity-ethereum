@@ -274,6 +274,7 @@ pub fn make_common_shadow_point(threshold: usize, mut common_point: Public) -> R
 	}
 }
 
+#[cfg(test)]
 /// Decrypt shadow-encrypted secret.
 pub fn decrypt_with_shadow_coefficients(mut decrypted_shadow: Public, mut common_shadow_point: Public, shadow_coefficients: Vec<Secret>) -> Result<Public, Error> {
 	let mut shadow_coefficients_sum = shadow_coefficients[0].clone();

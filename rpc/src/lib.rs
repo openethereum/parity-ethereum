@@ -30,6 +30,7 @@ extern crate transient_hashmap;
 extern crate cid;
 extern crate multihash;
 extern crate crypto as rust_crypto;
+extern crate rand;
 
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server as http;
@@ -65,9 +66,6 @@ extern crate serde_derive;
 extern crate ethjson;
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
-
-#[cfg(feature="secretstore")]
-extern crate ethcore_secretstore;
 
 pub extern crate jsonrpc_ws_server as ws;
 

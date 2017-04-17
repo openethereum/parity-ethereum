@@ -16,11 +16,11 @@
 
 use std::iter::repeat;
 use rand::{Rng, OsRng};
-use ethkey::{Public, Secret};
-use ethcrypto;
+use ethkey::{Public, Secret, math};
+use crypto;
 use util::Bytes;
-use types::all::Error;
-use key_server_cluster::decrypt_with_shadow_coefficients;
+use jsonrpc_core::Error;
+use v1::helpers::errors;
 
 /// Encrypt document with distributely generated key.
 pub fn encrypt_document(key: Bytes, document: Bytes) -> Result<Bytes, Error> {
@@ -31,7 +31,7 @@ pub fn encrypt_document(key: Bytes, document: Bytes) -> Result<Bytes, Error> {
 	let iv = initialization_vector();
 	let mut encrypted_document = Vec::with_capacity(document.len() + iv.len());
 	encrypted_document.extend(repeat(0).take(document.len()));
-	ethcrypto::aes::encrypt(&key, &iv, &document, &mut encrypted_document);
+	crypto::aes::encrypt(&key, &iv, &document, &mut encrypted_document);
 	encrypted_document.extend_from_slice(&iv);
 
 	Ok(encrypted_document)
@@ -42,7 +42,7 @@ pub fn decrypt_document(key: Bytes, mut encrypted_document: Bytes) -> Result<Byt
 	// initialization vector takes 16 bytes
 	let encrypted_document_len = encrypted_document.len();
 	if encrypted_document_len < 16 {
-		return Err(Error::Serde("invalid encrypted data".into()));
+		return Err(errors::invalid_params("encrypted_document", "invalid encrypted data"));
 	}
 
 	// make document key
@@ -52,7 +52,7 @@ pub fn decrypt_document(key: Bytes, mut encrypted_document: Bytes) -> Result<Byt
 	let iv = encrypted_document.split_off(encrypted_document_len - 16);
 	let mut document = Vec::with_capacity(encrypted_document_len - 16);
 	document.extend(repeat(0).take(encrypted_document_len - 16));
-	ethcrypto::aes::decrypt(&key, &iv, &encrypted_document, &mut document);
+	crypto::aes::decrypt(&key, &iv, &encrypted_document, &mut document);
 
 	Ok(document)
 }
@@ -65,7 +65,7 @@ pub fn decrypt_document_with_shadow(decrypted_secret: Public, common_point: Publ
 fn into_document_key(key: Bytes) -> Result<Bytes, Error> {
 	// key is a previously distributely generated Public
 	if key.len() != 64 {
-		return Err(Error::Serde("invalid public key length".into()));
+		return Err(errors::invalid_params("key", "invalid public key length"));
 	}
 
 	// use x coordinate of distributely generated point as encryption key
@@ -77,6 +77,20 @@ fn initialization_vector() -> [u8; 16] {
 	let mut rng = OsRng::new().unwrap();
 	rng.fill_bytes(&mut result);
 	result
+}
+
+fn decrypt_with_shadow_coefficients(mut decrypted_shadow: Public, mut common_shadow_point: Public, shadow_coefficients: Vec<Secret>) -> Result<Public, Error> {
+	let mut shadow_coefficients_sum = shadow_coefficients[0].clone();
+	for shadow_coefficient in shadow_coefficients.iter().skip(1) {
+		shadow_coefficients_sum.add(shadow_coefficient)
+			.map_err(errors::encryption_error)?;
+	}
+
+	math::public_mul_secret(&mut common_shadow_point, &shadow_coefficients_sum)
+		.map_err(errors::encryption_error)?;
+	math::public_add(&mut decrypted_shadow, &common_shadow_point)
+		.map_err(errors::encryption_error)?;
+	Ok(decrypted_shadow)
 }
 
 #[cfg(test)]
@@ -99,11 +113,12 @@ mod tests {
 
 	#[test]
 	fn encrypt_and_shadow_decrypt_document() {
-		let document: Bytes = vec![0xd, 0xe, 0xa, 0xd, 0xb, 0xe, 0xe, 0xf];
-		let encrypted_document = vec![0x2d, 0xde, 0xc1, 0xf9, 0x62, 0x29, 0xef, 0xa2, 0x91, 0x69, 0x88, 0xd8, 0xb2, 0xa8, 0x2a, 0x47, 0xef, 0x36, 0xf7, 0x1c];
+		let document: Bytes = "deadbeef".from_hex().unwrap();
+		let encrypted_document = "2ddec1f96229efa2916988d8b2a82a47ef36f71c".from_hex().unwrap();
 		let decrypted_secret = "843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91".parse().unwrap();
 		let common_point = "07230e34ebfe41337d3ed53b186b3861751f2401ee74b988bba55694e2a6f60c757677e194be2e53c3523cc8548694e636e6acb35c4e8fdc5e29d28679b9b2f3".parse().unwrap();
 		let shadows = vec!["46f542416216f66a7d7881f5a283d2a1ab7a87b381cbc5f29d0b093c7c89ee31".parse().unwrap()];
 		let decrypted_document = decrypt_document_with_shadow(decrypted_secret, common_point, shadows, encrypted_document).unwrap();
+		assert_eq!(decrypted_document, document);
 	}
 }

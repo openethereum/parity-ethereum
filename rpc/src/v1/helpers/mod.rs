@@ -25,6 +25,7 @@ pub mod light_fetch;
 pub mod informant;
 pub mod oneshot;
 pub mod ipfs;
+pub mod secretstore;
 
 mod network_settings;
 mod poll_manager;
