@@ -22,6 +22,9 @@ use util::Bytes;
 use jsonrpc_core::Error;
 use v1::helpers::errors;
 
+/// Initialization vector length.
+const INIT_VEC_LEN: usize = 16;
+
 /// Encrypt document with distributely generated key.
 pub fn encrypt_document(key: Bytes, document: Bytes) -> Result<Bytes, Error> {
 	// make document key
@@ -39,9 +42,9 @@ pub fn encrypt_document(key: Bytes, document: Bytes) -> Result<Bytes, Error> {
 
 /// Decrypt document with distributely generated key.
 pub fn decrypt_document(key: Bytes, mut encrypted_document: Bytes) -> Result<Bytes, Error> {
-	// initialization vector takes 16 bytes
+	// initialization vector takes INIT_VEC_LEN bytes
 	let encrypted_document_len = encrypted_document.len();
-	if encrypted_document_len < 16 {
+	if encrypted_document_len < INIT_VEC_LEN {
 		return Err(errors::invalid_params("encrypted_document", "invalid encrypted data"));
 	}
 
@@ -49,9 +52,9 @@ pub fn decrypt_document(key: Bytes, mut encrypted_document: Bytes) -> Result<Byt
 	let key = into_document_key(key)?;
 
 	// use symmetric decryption to decrypt document
-	let iv = encrypted_document.split_off(encrypted_document_len - 16);
-	let mut document = Vec::with_capacity(encrypted_document_len - 16);
-	document.extend(repeat(0).take(encrypted_document_len - 16));
+	let iv = encrypted_document.split_off(encrypted_document_len - INIT_VEC_LEN);
+	let mut document = Vec::with_capacity(encrypted_document_len - INIT_VEC_LEN);
+	document.extend(repeat(0).take(encrypted_document_len - INIT_VEC_LEN));
 	crypto::aes::decrypt(&key, &iv, &encrypted_document, &mut document);
 
 	Ok(document)
@@ -69,11 +72,11 @@ fn into_document_key(key: Bytes) -> Result<Bytes, Error> {
 	}
 
 	// use x coordinate of distributely generated point as encryption key
-	Ok(key[..16].into())
+	Ok(key[..INIT_VEC_LEN].into())
 }
 
-fn initialization_vector() -> [u8; 16] {
-	let mut result = [0u8; 16];
+fn initialization_vector() -> [u8; INIT_VEC_LEN] {
+	let mut result = [0u8; INIT_VEC_LEN];
 	let mut rng = OsRng::new().unwrap();
 	rng.fill_bytes(&mut result);
 	result
