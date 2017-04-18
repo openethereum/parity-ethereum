@@ -24,7 +24,7 @@ use header::BlockNumber;
 use client::{Client, BlockChainClient};
 use super::ValidatorSet;
 
-type BlockNumberLookup = Box<Fn(&H256) -> Result<BlockNumber, String> + Send + Sync + 'static>;
+type BlockNumberLookup = Box<Fn(&H256) -> Result<BlockNumber, String> + Send + Sync>;
 
 pub struct Multi {
 	sets: BTreeMap<BlockNumber, Box<ValidatorSet>>,

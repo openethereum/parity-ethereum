@@ -1491,11 +1491,11 @@ impl BlockChainClient for Client {
 		self.registrar.lock().as_ref().map(|r| r.address)
 	}
 
-	fn registry_address(&self, name: String) -> Option<Address> {
+	fn registry_address(&self, block_id: BlockId, name: String) -> Option<Address> {
 		self.registrar.lock().as_ref()
 			.and_then(|r| {
 				let dispatch = move |reg_addr, data| {
-					future::done(self.call_contract(BlockId::Latest, reg_addr, data))
+					future::done(self.call_contract(block_id, reg_addr, data))
 				};
 				r.get_address(dispatch, name.as_bytes().sha3(), "A".to_string()).wait().ok()
 			})

@@ -18,7 +18,8 @@
 
 mod simple_list;
 mod safe_contract;
-mod contract;
+mod reporting_contract;
+mod registry_contract;
 mod multi;
 
 use std::sync::Weak;
@@ -26,16 +27,19 @@ use util::{Address, H256};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::Client;
 use self::simple_list::SimpleList;
-use self::contract::ValidatorContract;
-use self::safe_contract::ValidatorSafeContract;
+use self::reporting_contract::ReportingContract;
+use self::safe_contract::SafeContract;
+use self::registry_contract::RegistryContract;
 use self::multi::Multi;
 
 /// Creates a validator set from spec.
 pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet> {
 	match spec {
 		ValidatorSpec::List(list) => Box::new(SimpleList::new(list.into_iter().map(Into::into).collect())),
-		ValidatorSpec::SafeContract(address) => Box::new(ValidatorSafeContract::new(address.into())),
-		ValidatorSpec::Contract(address) => Box::new(ValidatorContract::new(address.into())),
+		ValidatorSpec::SafeContract(address) => Box::new(SafeContract::new(address.into())),
+		ValidatorSpec::Contract(address) => Box::new(ReportingContract::new(address.into())),
+		ValidatorSpec::ReportingContract(address) => Box::new(ReportingContract::new(address.into())),
+		ValidatorSpec::Registry(contract) => Box::new(RegistryContract::new(contract)),
 		ValidatorSpec::Multi(sequence) => Box::new(
 			Multi::new(sequence.into_iter().map(|(block, set)| (block.into(), new_validator_set(set))).collect())
 		),

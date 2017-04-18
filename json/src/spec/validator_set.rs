@@ -20,6 +20,15 @@ use std::collections::BTreeMap;
 use uint::Uint;
 use hash::Address;
 
+/// Contract validator set types.
+#[derive(Debug, PartialEq, Deserialize, Clone, Copy)]
+pub enum ValidatorContract {
+	#[serde(rename="reporting")]
+	Reporting,
+	#[serde(rename="safe")]
+	Safe,
+}
+
 /// Different ways of specifying validators.
 #[derive(Debug, PartialEq, Deserialize)]
 pub enum ValidatorSet {
@@ -30,11 +39,17 @@ pub enum ValidatorSet {
 	#[serde(rename="safeContract")]
 	SafeContract(Address),
 	/// Address of a contract that indicates the list of authorities and enables reporting of theor misbehaviour using transactions.
-	#[serde(rename="contract")]
-	Contract(Address),
+	#[serde(rename="reportingContract")]
+	ReportingContract(Address),
+	/// A validator set that can be found in a contract under "validator_set" in registry.
+	#[serde(rename="registry")]
+	Registry(ValidatorContract),
 	/// A map of starting blocks for each validator set.
 	#[serde(rename="multi")]
 	Multi(BTreeMap<Uint, ValidatorSet>),
+	/// Simple name for ReportingContract.
+	#[serde(rename="contract")]
+	Contract(Address),
 }
 
 #[cfg(test)]
@@ -56,6 +71,8 @@ mod tests {
 				"10": { "list": ["0xd6d9d2cd449a754c494264e1809c50e34d64562b"] },
 				"20": { "contract": "0xc6d9d2cd449a754c494264e1809c50e34d64562b" }
 			}
+		}, {
+			"registry": "reporting"
 		}]"#;
 
 		let _deserialized: Vec<ValidatorSet> = serde_json::from_str(s).unwrap();

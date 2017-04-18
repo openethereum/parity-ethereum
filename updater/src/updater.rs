@@ -244,7 +244,7 @@ impl Updater {
 		}
 
 		if self.operations.lock().is_none() {
-			if let Some(ops_addr) = self.client.upgrade().and_then(|c| c.registry_address("operations".into())) {
+			if let Some(ops_addr) = self.client.upgrade().and_then(|c| c.registry_address(BlockId::Latest, "operations".into())) {
 				trace!(target: "updater", "Found operations at {}", ops_addr);
 				let client = self.client.clone();
 				*self.operations.lock() = Some(Operations::new(ops_addr, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(BlockId::Latest, a, d))));
