@@ -818,7 +818,8 @@ impl Configuration {
 			port: self.args.flag_ws_port,
 			apis: self.args.flag_ws_apis.parse()?,
 			hosts: self.ws_hosts(),
-			origins: self.ws_origins()
+			origins: self.ws_origins(),
+			signer_path: self.directories().signer.into(),
 		};
 
 		Ok(conf)

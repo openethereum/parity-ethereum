@@ -35,7 +35,11 @@ pub enum Origin {
 	Ipc(H256),
 	/// WS server (includes session hash)
 	#[serde(rename="ws")]
-	Ws(H256),
+	Ws {
+		dapp: DappId,
+		session: H256,
+		authorization: Option<H256>,
+	},
 	/// Signer (includes session hash)
 	#[serde(rename="signer")]
 	Signer(H256),
@@ -56,7 +60,7 @@ impl fmt::Display for Origin {
 			Origin::Rpc(ref origin) => write!(f, "RPC (service: {})", origin),
 			Origin::Dapps(ref origin) => write!(f, "Dapp {}", origin),
 			Origin::Ipc(ref session) => write!(f, "IPC (session: {})", session),
-			Origin::Ws(ref session) => write!(f, "WebSocket (session: {})", session),
+			Origin::Ws { ref session, .. } => write!(f, "WebSocket (session: {})", session),
 			Origin::Signer(ref session) => write!(f, "UI (session: {})", session),
 			Origin::Unknown => write!(f, "unknown origin"),
 		}

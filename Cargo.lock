@@ -2725,7 +2725,7 @@ dependencies = [
 [[package]]
 name = "ws"
 version = "0.6.0"
-source = "git+https://github.com/tomusdrw/ws-rs#3259e7ca906c848beae109eb32e492871f8f397d"
+source = "git+https://github.com/tomusdrw/ws-rs#7f8e416b7f048880228005457e117128be38bf0f"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",

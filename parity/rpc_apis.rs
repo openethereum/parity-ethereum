@@ -27,11 +27,11 @@ use ethcore::client::Client;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::snapshot::SnapshotService;
 use parity_rpc::{Metadata, NetworkSettings};
-use parity_rpc::informant::{ActivityNotifier, Middleware, RpcStats, ClientNotifier};
+use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use ethsync::{ManageNetwork, SyncProvider, LightSync};
 use hash_fetch::fetch::Client as FetchClient;
-use jsonrpc_core::{MetaIoHandler};
+use jsonrpc_core::{self as core, MetaIoHandler};
 use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
 use updater::Updater;
 use util::{Mutex, RwLock};
@@ -170,7 +170,11 @@ pub trait Dependencies {
 	fn activity_notifier(&self) -> Self::Notifier;
 
 	/// Extend the given I/O handler with endpoints for each API.
-	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware<Self::Notifier>>, apis: &[Api]);
+	fn extend_with_set<S>(
+		&self,
+		handler: &mut MetaIoHandler<Metadata, S>,
+		apis: &[Api],
+	) where S: core::Middleware<Metadata>;
 }
 
 /// RPC dependencies for a full node.
@@ -202,7 +206,11 @@ impl Dependencies for FullDependencies {
 		}
 	}
 
-	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware>, apis: &[Api]) {
+	fn extend_with_set<S>(
+		&self,
+		handler: &mut MetaIoHandler<Metadata, S>,
+		apis: &[Api],
+	) where S: core::Middleware<Metadata> {
 		use parity_rpc::v1::*;
 
 		macro_rules! add_signing_methods {
@@ -330,7 +338,12 @@ impl Dependencies for LightDependencies {
 	type Notifier = LightClientNotifier;
 
 	fn activity_notifier(&self) -> Self::Notifier { LightClientNotifier }
-	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware<Self::Notifier>>, apis: &[Api]) {
+
+	fn extend_with_set<S>(
+		&self,
+		handler: &mut MetaIoHandler<Metadata, S>,
+		apis: &[Api],
+	) where S: core::Middleware<Metadata> {
 		use parity_rpc::v1::*;
 
 		let dispatcher = LightDispatcher::new(
@@ -468,15 +481,6 @@ impl ApiSet {
 			},
 		}
 	}
-}
-
-pub fn setup_rpc<D: Dependencies>(stats: Arc<RpcStats>, deps: &D, apis: ApiSet) -> MetaIoHandler<Metadata, Middleware<D::Notifier>> {
-	let mut handler = MetaIoHandler::with_middleware(Middleware::new(stats, deps.activity_notifier()));
-	// it's turned into vector, cause ont of the cases requires &[]
-	let apis = apis.list_apis().into_iter().collect::<Vec<_>>();
-	deps.extend_with_set(&mut handler, &apis[..]);
-
-	handler
 }
 
 #[cfg(test)]

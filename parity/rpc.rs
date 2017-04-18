@@ -16,15 +16,19 @@
 
 use std::io;
 use std::sync::Arc;
+use std::path::{Path, PathBuf};
 
 use dapps;
 use dir::default_data_path;
 use parity_rpc::informant::{RpcStats, Middleware};
 use parity_rpc::{self as rpc, HttpServerError, Metadata, Origin, DomainsValidation};
-use helpers::parity_ipc_path;
-use jsonrpc_core::MetaIoHandler;
+use helpers::{parity_ipc_path, replace_home};
+use jsonrpc_core::{self as core, MetaIoHandler};
 use parity_reactor::TokioRemote;
+use path::restrict_permissions_owner;
 use rpc_apis::{self, ApiSet};
+use ethcore_signer::AuthCodes;
+use util::H256;
 
 pub use parity_rpc::{IpcServer, HttpServer, RequestMiddleware};
 pub use parity_rpc::ws::Server as WsServer;
@@ -80,10 +84,12 @@ pub struct WsConfiguration {
 	pub apis: ApiSet,
 	pub origins: Option<Vec<String>>,
 	pub hosts: Option<Vec<String>>,
+	pub signer_path: PathBuf,
 }
 
 impl Default for WsConfiguration {
 	fn default() -> Self {
+		let data_dir = default_data_path();
 		WsConfiguration {
 			enabled: true,
 			interface: "127.0.0.1".into(),
@@ -91,6 +97,7 @@ impl Default for WsConfiguration {
 			apis: ApiSet::UnsafeContext,
 			origins: Some(Vec::new()),
 			hosts: Some(Vec::new()),
+			signer_path: replace_home(&data_dir, "$BASE/signer").into(),
 		}
 	}
 }
@@ -126,13 +133,72 @@ impl rpc::IpcMetaExtractor<Metadata> for RpcExtractor {
 	}
 }
 
-impl rpc::ws::MetaExtractor<Metadata> for RpcExtractor {
+pub struct WsExtractor {
+	authcodes_path: PathBuf,
+}
+impl rpc::ws::MetaExtractor<Metadata> for WsExtractor {
 	fn extract(&self, req: &rpc::ws::RequestContext) -> Metadata {
 		let mut metadata = Metadata::default();
 		let id = req.session_id as u64;
-		metadata.origin = Origin::Ws(id.into());
+		let authorization = req.protocols.get(0).and_then(|p| auth_token_hash(&self.authcodes_path, p));
+		metadata.origin = Origin::Ws {
+			dapp: "".into(),
+			session: id.into(),
+			authorization: authorization.map(Into::into),
+		};
 		metadata
 	}
+}
+
+impl rpc::ws::RequestMiddleware for WsExtractor {
+	fn process(&self, req: &rpc::ws::ws::Request) -> rpc::ws::MiddlewareAction {
+		// Reply with 200 Ok to HEAD requests.
+		if req.method() == "HEAD" {
+			return Some(rpc::ws::ws::Response::new(200, "Ok")).into();
+		}
+
+		// If protocol is provided it needs to be valid.
+		let protocols = req.protocols().ok().unwrap_or_else(Vec::new);
+		if protocols.len() == 1 {
+			let authorization = auth_token_hash(&self.authcodes_path, protocols[0]);
+			if authorization.is_none() {
+				return Some(rpc::ws::ws::Response::new(403, "Forbidden")).into();
+			}
+		}
+
+		// Otherwise just proceed.
+		rpc::ws::MiddlewareAction::Proceed
+	}
+}
+
+fn auth_token_hash(codes_path: &Path, protocol: &str) -> Option<H256> {
+	let mut split = protocol.split('_');
+	let auth = split.next().and_then(|v| v.parse().ok());
+	let time = split.next().and_then(|v| u64::from_str_radix(v, 10).ok());
+
+	if let (Some(auth), Some(time)) = (auth, time) {
+		// Check if the code is valid
+		return AuthCodes::from_file(codes_path)
+			.ok()
+			.and_then(|mut codes| {
+				// remove old tokens
+				codes.clear_garbage();
+
+				let res = codes.is_valid(&auth, time);
+				// make sure to save back authcodes - it might have been modified
+				if codes.to_file(codes_path).is_err() {
+					warn!(target: "signer", "Couldn't save authorization codes to file.");
+				}
+
+				if res {
+					Some(auth)
+				} else {
+					None
+				}
+			})
+	}
+
+	None
 }
 
 struct WsStats {
@@ -152,7 +218,42 @@ impl rpc::ws::SessionStats for WsStats {
 fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
 	where D: rpc_apis::Dependencies
 {
-	rpc_apis::setup_rpc(deps.stats.clone(), &*deps.apis, apis)
+	let mut handler = MetaIoHandler::with_middleware(
+		Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
+	);
+	let apis = apis.list_apis().into_iter().collect::<Vec<_>>();
+	deps.apis.extend_with_set(&mut handler, &apis);
+
+	handler
+}
+
+struct WsDispatcher<M: core::Middleware<Metadata>> {
+	full_handler: MetaIoHandler<Metadata, M>,
+}
+
+impl<M: core::Middleware<Metadata>> WsDispatcher<M> {
+	pub fn new(full_handler: MetaIoHandler<Metadata, M>) -> Self {
+		WsDispatcher {
+			full_handler: full_handler,
+		}
+	}
+}
+
+impl<M: core::Middleware<Metadata>> core::Middleware<Metadata> for WsDispatcher<M> {
+	fn on_request<F>(&self, request: core::Request, meta: Metadata, process: F) -> core::FutureResponse where
+		F: FnOnce(core::Request, Metadata) -> core::FutureResponse,
+	{
+		let use_full = match &meta.origin {
+			&Origin::Ws { ref authorization, .. } if authorization.is_some() => true,
+			_ => false,
+		};
+
+		if use_full {
+			self.full_handler.handle_rpc_request(request, meta)
+		} else {
+			process(request, meta)
+		}
+	}
 }
 
 pub fn new_ws<D: rpc_apis::Dependencies>(
@@ -165,10 +266,27 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 
 	let url = format!("{}:{}", conf.interface, conf.port);
 	let addr = url.parse().map_err(|_| format!("Invalid WebSockets listen host/port given: {}", url))?;
-	let handler = setup_apis(conf.apis, deps);
+
+
+	let full_handler = setup_apis(rpc_apis::ApiSet::SafeContext, deps);
+	let handler = {
+		let mut handler = MetaIoHandler::with_middleware((
+			WsDispatcher::new(full_handler),
+			Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
+		));
+		let apis = conf.apis.list_apis().into_iter().collect::<Vec<_>>();
+		deps.apis.extend_with_set(&mut handler, &apis);
+
+		handler
+	};
+
 	let remote = deps.remote.clone();
 	let allowed_origins = into_domains(conf.origins);
 	let allowed_hosts = into_domains(conf.hosts);
+
+	let mut path = conf.signer_path;
+	path.push(::signer::CODES_FILENAME);
+	let _ = restrict_permissions_owner(&path, true, false);
 
 	let start_result = rpc::start_ws(
 		&addr,
@@ -176,7 +294,12 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 		remote,
 		allowed_origins,
 		allowed_hosts,
-		RpcExtractor,
+		WsExtractor {
+			authcodes_path: path.clone(),
+		},
+		WsExtractor {
+			authcodes_path: path,
+		},
 		WsStats {
 			stats: deps.stats.clone(),
 		},

@@ -20,9 +20,10 @@ use std::sync::Arc;
 
 pub use ethcore_signer::Server as SignerServer;
 
+use jsonrpc_core::MetaIoHandler;
 use ansi_term::Colour;
 use dir::default_data_path;
-use parity_rpc::informant::RpcStats;
+use parity_rpc::informant::{Middleware, RpcStats};
 use parity_rpc::{self, ConfirmationsQueue};
 use ethcore_signer as signer;
 use helpers::replace_home;
@@ -31,7 +32,7 @@ use rpc_apis;
 use path::restrict_permissions_owner;
 use util::H256;
 
-const CODES_FILENAME: &'static str = "authcodes";
+pub const CODES_FILENAME: &'static str = "authcodes";
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
@@ -149,8 +150,12 @@ fn do_start<D: rpc_apis::Dependencies>(
 		}
 		let server = server.skip_origin_validation(conf.skip_origin_validation);
 		let server = server.stats(deps.rpc_stats.clone());
-		let handler = rpc_apis::setup_rpc(deps.rpc_stats, &*deps.apis, rpc_apis::ApiSet::SafeContext);
-		let remote = deps.remote.clone();
+		let remote = deps.remote;
+		let mut handler = MetaIoHandler::with_middleware(
+			Middleware::new(deps.rpc_stats, deps.apis.activity_notifier()
+		));
+		let apis = rpc_apis::ApiSet::SafeContext.list_apis().into_iter().collect::<Vec<_>>();
+		deps.apis.extend_with_set(&mut handler, &apis);
 		server.start_with_extractor(addr, handler, remote, StandardExtractor)
 	};
 

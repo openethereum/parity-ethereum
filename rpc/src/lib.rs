@@ -197,13 +197,14 @@ pub fn start_ipc<M, S, H, T>(
 }
 
 /// Start WS server and return `Server` handle.
-pub fn start_ws<M, S, H, T, U>(
+pub fn start_ws<M, S, H, T, U, V>(
 	addr: &SocketAddr,
 	handler: H,
 	remote: tokio_core::reactor::Remote,
 	allowed_origins: ws::DomainsValidation<ws::Origin>,
 	allowed_hosts: ws::DomainsValidation<ws::Host>,
 	extractor: T,
+	middleware: V,
 	stats: U,
 ) -> Result<ws::Server, ws::Error> where
 	M: jsonrpc_core::Metadata,
@@ -211,9 +212,11 @@ pub fn start_ws<M, S, H, T, U>(
 	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
 	T: ws::MetaExtractor<M>,
 	U: ws::SessionStats,
+	V: ws::RequestMiddleware,
 {
 	ws::ServerBuilder::new(handler)
 		.event_loop_remote(remote)
+		.request_middleware(middleware)
 		.allowed_origins(allowed_origins)
 		.allowed_hosts(allowed_hosts)
 		.session_meta_extractor(extractor)
