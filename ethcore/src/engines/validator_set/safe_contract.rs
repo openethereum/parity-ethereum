@@ -126,16 +126,16 @@ impl ValidatorSet for ValidatorSafeContract {
 			.and_then(|c| c.call_contract(id, addr, data)))
 	}
 
-	fn proof_required(&self, header: &Header, _block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> ::engines::RequiresProof
+	fn is_epoch_end(&self, header: &Header, _block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> ::engines::EpochChange
 	{
 		let bloom = self.expected_bloom(header);
 		let header_bloom = header.log_bloom();
 
-		if &bloom & header_bloom != bloom { return ::engines::RequiresProof::No }
+		if &bloom & header_bloom != bloom { return ::engines::EpochChange::No }
 
 		match receipts {
-			None => ::engines::RequiresProof::Unsure(::engines::Unsure::NeedsReceipts),
+			None => ::engines::EpochChange::Unsure(::engines::Unsure::NeedsReceipts),
 			Some(receipts) => {
 				let check_log = |log: &LogEntry| {
 					log.address == self.address &&
@@ -149,7 +149,11 @@ impl ValidatorSet for ValidatorSafeContract {
 					.event("ValidatorsChanged".into())
 					.expect("Contract known ahead of time to have `ValidatorsChanged` event; qed");
 
+				// iterate in reverse because only the _last_ change in a given
+				// block actually has any effect.
+				// the contract should only increment the nonce once.
 				let mut decoded_events = receipts.iter()
+					.rev()
 					.filter(|r| &bloom & &r.log_bloom == bloom)
 					.flat_map(|r| r.logs.iter())
 					.filter(move |l| check_log(l))
@@ -164,7 +168,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
 				// TODO: are multiple transitions per block possible?
 				match decoded_events.next() {
-					None => ::engines::RequiresProof::No,
+					None => ::engines::EpochChange::No,
 					Some(matched_event) => {
 						// decode log manually until the native contract generator is
 						// good enough to do it for us.
@@ -181,10 +185,10 @@ impl ValidatorSet for ValidatorSafeContract {
 
 						match (nonce, validators) {
 							(Some(nonce), Some(validators)) =>
-								::engines::RequiresProof::Yes(Some(encode_proof(nonce, &validators))),
+								::engines::EpochChange::Yes(encode_proof(nonce, &validators)),
 							_ => {
 								debug!(target: "engine", "Successfully decoded log turned out to be bad.");
-								::engines::RequiresProof::No
+								::engines::EpochChange::No
 							}
 						}
 					}
@@ -195,20 +199,21 @@ impl ValidatorSet for ValidatorSafeContract {
 
 	// the proof we generate is an RLP list containing two parts.
 	//   (nonce, validators)
-	fn generate_proof(&self, _header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
+	fn epoch_proof(&self, _header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
 		match (self.get_nonce(caller), self.get_list(caller)) {
 			(Some(nonce), Some(list)) => Ok(encode_proof(nonce, &list.into_inner())),
 			_ => Err("Caller insufficient to generate validator proof.".into()),
 		}
 	}
 
-	fn chain_verifier(&self, _header: &Header, proof: Vec<u8>) -> Result<SimpleList, ::error::Error> {
+	fn epoch_set(&self, _header: &Header, proof: &[u8]) -> Result<(U256, SimpleList), ::error::Error> {
 		use rlp::UntrustedRlp;
 
-		let rlp = UntrustedRlp::new(&proof);
+		let rlp = UntrustedRlp::new(proof);
+		let nonce: U256 = rlp.val_at(0)?;
 		let validators: Vec<Address> = rlp.list_at(1)?;
 
-		Ok(SimpleList::new(validators))
+		Ok((nonce, SimpleList::new(validators)))
 	}
 
 	fn contains_with_caller(&self, block_hash: &H256, address: &Address, caller: &Call) -> bool {

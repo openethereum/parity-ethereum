@@ -16,7 +16,7 @@
 
 /// Preconfigured validator list.
 
-use util::{H256, Address, HeapSizeOf};
+use util::{H256, Address, HeapSizeOf, U256};
 
 use engines::Call;
 use header::Header;
@@ -53,18 +53,18 @@ impl ValidatorSet for SimpleList {
 		Box::new(|_, _| Err("Simple list doesn't require calls.".into()))
 	}
 
-	fn proof_required(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[::receipt::Receipt]>)
-		-> ::engines::RequiresProof
+	fn is_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[::receipt::Receipt]>)
+		-> ::engines::EpochChange
 	{
-		::engines::RequiresProof::No
+		::engines::EpochChange::No
 	}
 
-	fn generate_proof(&self, _header: &Header, _caller: &Call) -> Result<Vec<u8>, String> {
+	fn epoch_proof(&self, _header: &Header, _caller: &Call) -> Result<Vec<u8>, String> {
 		Ok(Vec::new())
 	}
 
-	fn chain_verifier(&self, _header: &Header, _: Vec<u8>) -> Result<SimpleList, ::error::Error> {
-		Ok(self.clone())
+	fn epoch_set(&self, _header: &Header, _: &[u8]) -> Result<(U256, SimpleList), ::error::Error> {
+		Ok((0.into(), self.clone()))
 	}
 
 	fn contains_with_caller(&self, _bh: &H256, address: &Address, _: &Call) -> bool {

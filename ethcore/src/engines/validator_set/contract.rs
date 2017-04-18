@@ -66,18 +66,18 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.default_caller(id)
 	}
 
-	fn proof_required(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> ::engines::RequiresProof
+	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> ::engines::EpochChange
 	{
-		self.validators.proof_required(header, block, receipts)
+		self.validators.is_epoch_end(header, block, receipts)
 	}
 
-	fn generate_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
-		self.validators.generate_proof(header, caller)
+	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
+		self.validators.epoch_proof(header, caller)
 	}
 
-	fn chain_verifier(&self, header: &Header, proof: Vec<u8>) -> Result<super::SimpleList, ::error::Error> {
-		self.validators.chain_verifier(header, proof)
+	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(U256, super::SimpleList), ::error::Error> {
+		self.validators.epoch_set(header, proof)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {

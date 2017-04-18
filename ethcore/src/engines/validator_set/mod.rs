@@ -23,7 +23,7 @@ mod multi;
 
 use std::sync::Weak;
 use ids::BlockId;
-use util::{Address, H256};
+use util::{Address, H256, U256};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::Client;
 use header::Header;
@@ -72,26 +72,32 @@ pub trait ValidatorSet: Send + Sync {
 		self.count_with_caller(parent, &*default)
 	}
 
-	/// Whether a validation proof is required at the given block.
+	/// Whether this block is the last one in its epoch.
 	/// Usually indicates that the validator set changed at the given block.
 	///
 	/// Should not inspect state! This is used in situations where
 	/// state is not generally available.
 	///
-	/// Return `Ok` with a flag indicating whether it changed at the given header,
+	/// Return `Yes` or `No` indicating whether it changed at the given header,
 	/// or `Unsure` indicating a need for more information.
 	///
-	/// This may or may not be called in a loop.
-	fn proof_required(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> super::RequiresProof;
+	/// If block or receipts are provided, do not return `Unsure` indicating
+	/// need for them.
+	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> super::EpochChange;
 
-	/// Generate a validation proof at the given header.
+	/// Generate epoch proof.
 	/// Must interact with state only through the given caller!
 	/// Otherwise, generated proofs may be wrong.
-	fn generate_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String>;
+	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String>;
 
-	/// Create a fully self-contained validator set from the given proof.
-	fn chain_verifier(&self, header: &Header, proof: Vec<u8>) -> Result<SimpleList, ::error::Error>;
+	/// Recover the validator set for all
+	///
+	/// May fail if the given header doesn't kick off an epoch or
+	/// the proof is invalid.
+	///
+	/// Returns the epoch number and proof.
+	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(U256, SimpleList), ::error::Error>;
 
 	/// Checks if a given address is a validator, with the given function
 	/// for executing synchronous calls to contracts.

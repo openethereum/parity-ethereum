@@ -579,11 +579,11 @@ impl Client {
 		// generate validation proof if the engine requires them.
 		// TODO: make conditional?
 		let generate_proof = {
-			use engines::RequiresProof;
-			match self.engine.proof_required(block.header(), Some(block_data), Some(&receipts)) {
-				RequiresProof::Yes(_) => true,
-				RequiresProof::No => false,
-				RequiresProof::Unsure(_) => {
+			use engines::EpochChange;
+			match self.engine.is_epoch_end(block.header(), Some(block_data), Some(&receipts)) {
+				EpochChange::Yes(_) => true,
+				EpochChange::No => false,
+				EpochChange::Unsure(_) => {
 					warn!(target: "client", "Detected invalid engine implementation.");
 					warn!(target: "client", "Engine claims to require more block data, but everything provided.");
 					false

@@ -23,7 +23,7 @@ use account_provider::AccountProvider;
 use block::*;
 use builtin::Builtin;
 use spec::CommonParams;
-use engines::{Engine, EngineError, Seal, Call, RequiresProof};
+use engines::{Engine, EngineError, Seal, Call, EpochChange};
 use env_info::EnvInfo;
 use error::{BlockError, Error};
 use evm::Schedule;
@@ -51,11 +51,15 @@ impl From<ethjson::spec::BasicAuthorityParams> for BasicAuthorityParams {
 	}
 }
 
-struct ChainVerifier(SimpleList);
+struct EpochVerifier {
+	epoch_number: U256,
+	list: SimpleList,
+}
 
-impl super::ChainVerifier for ChainVerifier {
+impl super::EpochVerifier for EpochVerifier {
+	fn epoch_number(&self) -> U256 { self.epoch_number.clone() }
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
-		verify_external(header, &self.0)
+		verify_external(header, &self.list)
 	}
 }
 
@@ -181,22 +185,25 @@ impl Engine for BasicAuthority {
 	}
 
 	// the proofs we need just allow us to get the full validator set.
-	fn prove_with_caller(&self, header: &Header, caller: &Call) -> Result<Bytes, Error> {
-		self.validators.generate_proof(header, caller)
+	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Bytes, Error> {
+		self.validators.epoch_proof(header, caller)
 			.map_err(|e| EngineError::InsufficientProof(e).into())
 	}
 
-	fn proof_required(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> RequiresProof
+	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> EpochChange
 	{
-		self.validators.proof_required(header, block, receipts)
+		self.validators.is_epoch_end(header, block, receipts)
 	}
 
-	fn chain_verifier(&self, header: &Header, proof: Bytes) -> Result<Box<super::ChainVerifier>, Error> {
+	fn epoch_verifier(&self, header: &Header, proof: &[u8]) -> Result<Box<super::EpochVerifier>, Error> {
 		// extract a simple list from the proof.
-		let simple_list = self.validators.chain_verifier(header, proof)?;
+		let (num, simple_list) = self.validators.epoch_set(header, proof)?;
 
-		Ok(Box::new(ChainVerifier(simple_list)))
+		Ok(Box::new(EpochVerifier {
+			epoch_number: num,
+			list: simple_list,
+		}))
 	}
 
 	fn register_client(&self, client: Weak<Client>) {

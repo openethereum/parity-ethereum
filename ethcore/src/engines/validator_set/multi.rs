@@ -18,8 +18,8 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
-use engines::{Call, RequiresProof};
-use util::{H256, Address, RwLock};
+use engines::{Call, EpochChange};
+use util::{H256, Address, RwLock, U256};
 use ids::BlockId;
 use header::{BlockNumber, Header};
 use client::{Client, BlockChainClient};
@@ -43,9 +43,7 @@ impl Multi {
 
 	fn correct_set(&self, id: BlockId) -> Option<&ValidatorSet> {
 		match self.block_number.read()(id).map(|parent_block| self.correct_set_by_number(parent_block)) {
-			Ok(set) => {
-				Some(set)
-			},
+			Ok((_, set)) => Some(set),
 			Err(e) => {
 				debug!(target: "engine", "ValidatorSet could not be recovered: {}", e);
 				None
@@ -53,7 +51,9 @@ impl Multi {
 		}
 	}
 
-	fn correct_set_by_number(&self, parent_block: BlockNumber) -> &ValidatorSet {
+	// get correct set by block number, along with block number at which
+	// this set was activated.
+	fn correct_set_by_number(&self, parent_block: BlockNumber) -> (BlockNumber, &ValidatorSet) {
 		let (block, set) = self.sets.iter()
 			.rev()
 			.find(|&(block, _)| *block <= parent_block + 1)
@@ -62,7 +62,7 @@ impl Multi {
 					 qed");
 
 		trace!(target: "engine", "Multi ValidatorSet retrieved for block {}.", block);
-		&**set
+		(*block, &**set)
 	}
 }
 
@@ -72,18 +72,22 @@ impl ValidatorSet for Multi {
 			.unwrap_or(Box::new(|_, _| Err("No validator set for given ID.".into())))
 	}
 
-	fn proof_required(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> RequiresProof
+	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> EpochChange
 	{
-		self.correct_set_by_number(header.number()).proof_required(header, block, receipts)
+		self.correct_set_by_number(header.number()).1.is_epoch_end(header, block, receipts)
 	}
 
-	fn generate_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
-		self.correct_set_by_number(header.number()).generate_proof(header, caller)
+	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
+		self.correct_set_by_number(header.number()).1.epoch_proof(header, caller)
 	}
 
-	fn chain_verifier(&self, header: &Header, proof: Vec<u8>) -> Result<super::SimpleList, ::error::Error> {
-		self.correct_set_by_number(header.number()).chain_verifier(header, proof)
+	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(U256, super::SimpleList), ::error::Error> {
+		// "multi" epoch is the inner set's epoch plus the transition block to that set.
+		// ensures epoch increases monotonically.
+		let (set_block, set) = self.correct_set_by_number(header.number());
+		let (inner_epoch, list) = set.epoch_set(header, proof)?;
+		Ok((U256::from(set_block) + inner_epoch, list))
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {

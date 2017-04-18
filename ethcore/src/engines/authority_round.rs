@@ -132,12 +132,14 @@ pub struct AuthorityRound {
 }
 
 // header-chain validator.
-struct ChainVerifier {
+struct EpochVerifier {
+	epoch_number: U256,
 	step: Arc<Step>,
 	subchain_validators: SimpleList,
 }
 
-impl super::ChainVerifier for ChainVerifier {
+impl super::EpochVerifier for EpochVerifier {
+	fn epoch_number(&self) -> U256 { self.epoch_number.clone() }
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		// always check the seal since it's fast.
 		// nothing heavier to do.
@@ -398,22 +400,23 @@ impl Engine for AuthorityRound {
 	}
 
 	// the proofs we need just allow us to get the full validator set.
-	fn prove_with_caller(&self, header: &Header, caller: &Call) -> Result<Bytes, Error> {
-		self.validators.generate_proof(header, caller)
+	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Bytes, Error> {
+		self.validators.epoch_proof(header, caller)
 			.map_err(|e| EngineError::InsufficientProof(e).into())
 	}
 
-	fn proof_required(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> super::RequiresProof
+	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> super::EpochChange
 	{
-		self.validators.proof_required(header, block, receipts)
+		self.validators.is_epoch_end(header, block, receipts)
 	}
 
-	fn chain_verifier(&self, header: &Header, proof: Bytes) -> Result<Box<super::ChainVerifier>, Error> {
+	fn epoch_verifier(&self, header: &Header, proof: &[u8]) -> Result<Box<super::EpochVerifier>, Error> {
 		// extract a simple list from the proof.
-		let simple_list = self.validators.chain_verifier(header, proof)?;
+		let (num, simple_list) = self.validators.epoch_set(header, proof)?;
 
-		Ok(Box::new(ChainVerifier {
+		Ok(Box::new(EpochVerifier {
+			epoch_number: num,
 			step: self.step.clone(),
 			subchain_validators: simple_list,
 		}))

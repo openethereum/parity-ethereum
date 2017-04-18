@@ -149,7 +149,16 @@ impl Ethash {
 	}
 }
 
-impl ::engines::ChainVerifier for Arc<Ethash> {
+// TODO [rphmeier]
+//
+// for now, this is different than Ethash's own epochs, and signal
+// "consensus epochs".
+// in this sense, `Ethash` is epochless: the same `EpochVerifier` can be used
+// for any block in the chain.
+// in the future, we might move the Ethash epoch
+// caching onto this mechanism as well.
+impl ::engines::EpochVerifier for Arc<Ethash> {
+	fn epoch_number(&self) -> U256 { 0.into() }
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
 		self.verify_block_unordered(header, None)
@@ -393,7 +402,7 @@ impl Engine for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn chain_verifier(&self, _header: &Header, _proof: Vec<u8>) -> Result<Box<::engines::ChainVerifier>, Error> {
+	fn epoch_verifier(&self, _header: &Header, _proof: &[u8]) -> Result<Box<::engines::EpochVerifier>, Error> {
 		Ok(Box::new(self.clone()))
 	}
 }

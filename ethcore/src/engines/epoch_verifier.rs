@@ -14,18 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// Chain verifiers.
+// Epoch verifiers.
 
 use error::Error;
 use header::Header;
+use util::U256;
 
-/// Sequential chain verifier.
+/// Verifier for all blocks within an epoch without accessing
 ///
 /// See docs on `Engine` relating to proving functions for more details.
-/// Headers here will have already passed "basic" verification.
-pub trait ChainVerifier {
+pub trait EpochVerifier: Sync {
+	/// Get the epoch number.
+	fn epoch_number(&self) -> U256;
+
 	/// Lightly verify the next block header.
-	/// This may not be a header that requires a proof.
+	/// This may not be a header belonging to a different epoch.
 	fn verify_light(&self, header: &Header) -> Result<(), Error>;
 
 	/// Perform potentially heavier checks on the next block header.
@@ -34,9 +37,10 @@ pub trait ChainVerifier {
 	}
 }
 
-/// No-op chain verifier.
+/// Special "no-op" verifier for stateless, epoch-less engines.
 pub struct NoOp;
 
-impl ChainVerifier for NoOp {
+impl EpochVerifier for NoOp {
+	fn epoch_number(&self) -> U256 { 0.into() }
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 }
