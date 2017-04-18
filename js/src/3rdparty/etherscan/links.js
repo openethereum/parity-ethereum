@@ -21,7 +21,7 @@ export const url = (isTestnet = false, netVersion = '0') => {
   switch (netVersion) {
     case '2':
     case '3':
-      prefix = 'testnet.';
+      prefix = 'ropsten.';
       break;
 
     case '42':
@@ -31,7 +31,7 @@ export const url = (isTestnet = false, netVersion = '0') => {
     case '0':
     default:
       if (isTestnet) {
-        prefix = 'testnet.';
+        prefix = 'ropsten.';
       }
       break;
   }
