@@ -157,7 +157,12 @@ impl<T: SimpleMigration> Migration for T {
 	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
 		let mut batch = Batch::new(config, col);
 
-		for (key, value) in source.iter(col) {
+		let iter = match source.iter(col) {
+			Some(iter) => iter,
+			None => return Ok(()),
+		};
+
+		for (key, value) in iter {
 			if let Some((key, value)) = self.simple_migrate(key.to_vec(), value.to_vec()) {
 				batch.insert(key, value, dest)?;
 			}
