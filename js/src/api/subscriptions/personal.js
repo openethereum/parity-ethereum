@@ -42,7 +42,7 @@ export default class Personal {
 
   // FIXME: Because of the different API instances, the "wait for valid changes" approach
   // doesn't work. Since the defaultAccount is critical to operation, we poll in exactly
-  // same way we do in ../eth (ala same as eth_blockNumber) and update. This should be moved
+  // same way we do in ../eth (ala eth_blockNumber) and update. This should be moved
   // to pub-sub as it becomes available
   _defaultAccount = (timerDisabled = false) => {
     const nextTimeout = (timeout = 1000) => {
