@@ -8,7 +8,7 @@ use serde::de::{Error, Visitor};
 use serde::de::value::ValueDeserializer;
 
 /// Deserializer of empty string values into optionals.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum MaybeEmpty<T> {
 	/// Some.
 	Some(T),

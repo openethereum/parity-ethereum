@@ -92,6 +92,7 @@ pub struct Client<F: Fetch + 'static = FetchClient> {
 	contract: URLHintContract,
 	fetch: F,
 	remote: Remote,
+	random_path: Arc<Fn() -> PathBuf + Sync + Send>,
 }
 
 impl Client {
@@ -109,6 +110,7 @@ impl<F: Fetch + 'static> Client<F> {
 			contract: URLHintContract::new(contract),
 			fetch: fetch,
 			remote: remote,
+			random_path: Arc::new(random_temp_path),
 		}
 	}
 }
@@ -131,6 +133,7 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 		match url {
 			Err(err) => on_done(Err(err)),
 			Ok(url) => {
+				let random_path = self.random_path.clone();
 				let future = self.fetch.fetch(&url).then(move |result| {
 					fn validate_hash(path: PathBuf, hash: H256, result: Result<Response, FetchError>) -> Result<PathBuf, Error> {
 						let response = result?;
@@ -155,12 +158,12 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 					}
 
 					debug!(target: "fetch", "Content fetched, validating hash ({:?})", hash);
-					let path = random_temp_path();
+					let path = random_path();
 					let res = validate_hash(path.clone(), hash, result);
 					if let Err(ref err) = res {
 						trace!(target: "fetch", "Error: {:?}", err);
 						// Remove temporary file in case of error
-						let _ = fs::remove_dir_all(&path);
+						let _ = fs::remove_file(&path);
 					}
 					on_done(res);
 
@@ -192,7 +195,7 @@ mod tests {
 	use fetch::{self, Fetch};
 	use parity_reactor::Remote;
 	use urlhint::tests::{FakeRegistrar, URLHINT};
-	use super::{Error, Client, HashFetch};
+	use super::{Error, Client, HashFetch, random_temp_path};
 
 
 	#[derive(Clone)]
@@ -262,12 +265,16 @@ mod tests {
 		let result = rx.recv().unwrap();
 		assert_eq!(result.unwrap_err(), Error::InvalidStatus);
 	}
+
 	#[test]
 	fn should_return_hash_mismatch() {
 		// given
 		let registrar = Arc::new(registrar());
 		let fetch = FakeFetch { return_success: true };
-		let client = Client::with_fetch(registrar.clone(), fetch, Remote::new_sync());
+		let mut client = Client::with_fetch(registrar.clone(), fetch, Remote::new_sync());
+		let path = random_temp_path();
+		let path2 = path.clone();
+		client.random_path = Arc::new(move || path2.clone());
 
 		// when
 		let (tx, rx) = mpsc::channel();
@@ -279,6 +286,7 @@ mod tests {
 		let result = rx.recv().unwrap();
 		let hash = "0x06b0a4f426f6713234b2d4b2468640bc4e0bb72657a920ad24c5087153c593c8".into();
 		assert_eq!(result.unwrap_err(), Error::HashMismatch { expected: 2.into(), got: hash });
+		assert!(!path.exists(), "Temporary file should be removed.");
 	}
 
 	#[test]

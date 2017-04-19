@@ -620,13 +620,14 @@ impl SimpleSecretStore for EthMultiStore {
 
 #[cfg(test)]
 mod tests {
+	extern crate tempdir;
 
 	use dir::{KeyDirectory, MemoryDirectory, RootDiskDirectory};
 	use ethkey::{Random, Generator, KeyPair};
 	use secret_store::{SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation};
 	use super::{EthStore, EthMultiStore};
-	use devtools::RandomTempPath;
-	use util::H256;
+	use self::tempdir::TempDir;
+	use bigint::hash::H256;
 
 	fn keypair() -> KeyPair {
 		Random.generate().unwrap()
@@ -642,13 +643,13 @@ mod tests {
 
 	struct RootDiskDirectoryGuard {
 		pub key_dir: Option<Box<KeyDirectory>>,
-		_path: RandomTempPath,
+		_path: TempDir,
 	}
 
 	impl RootDiskDirectoryGuard {
 		pub fn new() -> Self {
-			let temp_path = RandomTempPath::new();
-			let disk_dir = Box::new(RootDiskDirectory::create(temp_path.as_path()).unwrap());
+			let temp_path = TempDir::new("").unwrap();
+			let disk_dir = Box::new(RootDiskDirectory::create(temp_path.path()).unwrap());
 
 			RootDiskDirectoryGuard {
 				key_dir: Some(disk_dir),

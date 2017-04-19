@@ -14,50 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import dictionary from './dictionary';
-import {
-  phraseToAddress,
-  phraseToWallet,
-  randomNumber,
-  randomWord,
-  randomPhrase
-} from './';
+import { randomPhrase } from '@parity/wordlist';
+import { phraseToAddress, phraseToWallet } from './';
 
 describe('api/local/ethkey', () => {
-  describe('randomNumber', () => {
-    it('generates numbers in range', () => {
-      for (let i = 0; i < 100; i++) {
-        const number = randomNumber(7777);
-
-        expect(number).to.be.at.least(0);
-        expect(number).to.be.below(7777);
-        expect(number % 1).to.be.equal(0);
-      }
-    });
-  });
-
-  describe('randomWord', () => {
-    it('generates a random word from the dictionary', () => {
-      const word = randomWord();
-
-      expect(dictionary.includes(word)).to.be.equal(true);
-    });
-  });
-
-  describe('randomPhrase', () => {
-    it('generates a random phrase from the dictionary', () => {
-      const phrase = randomPhrase(7).split(' ');
-
-      expect(phrase.length).to.be.equal(7);
-
-      phrase.forEach((word) => {
-        expect(dictionary.includes(word)).to.be.equal(true);
-      });
-    });
-  });
-
-  describe.skip('phraseToAddress', function () {
-    this.timeout(10000);
+  describe('phraseToAddress', function () {
+    this.timeout(30000);
 
     it('generates a valid address', () => {
       const phrase = randomPhrase(12);
@@ -75,8 +37,8 @@ describe('api/local/ethkey', () => {
     });
   });
 
-  describe.skip('phraseToWallet', function () {
-    this.timeout(10000);
+  describe('phraseToWallet', function () {
+    this.timeout(30000);
 
     it('generates a valid wallet object', () => {
       const phrase = randomPhrase(12);

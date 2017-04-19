@@ -102,9 +102,9 @@ export class TransactionRequest {
       desc: 'Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce.',
       optional: true
     },
-    minBlock: {
-      type: BlockNumber,
-      desc: 'Delay until this block if specified.',
+    condition: {
+      type: Object,
+      desc: 'Conditional submission of the transaction. Can be either an integer block number `{ block: 1 }` or UTC timestamp (in seconds) `{ time: 1491290692 }` or `null`.',
       optional: true
     }
   }

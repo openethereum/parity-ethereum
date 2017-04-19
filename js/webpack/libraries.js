@@ -41,7 +41,9 @@ module.exports = {
 
   resolve: {
     alias: {
-      '~': path.resolve(__dirname, '../src')
+      '~': path.resolve(__dirname, '../src'),
+      'secp256k1': path.resolve(__dirname, '../node_modules/secp256k1/js'),
+      'keythereum': path.resolve(__dirname, '../node_modules/keythereum/dist/keythereum')
     }
   },
 
@@ -58,7 +60,7 @@ module.exports = {
       },
       {
         test: /\.js$/,
-        include: /node_modules\/ethereumjs-tx/,
+        include: /node_modules\/(ethereumjs-tx|@parity\/wordlist)/,
         use: 'babel-loader'
       },
       {

@@ -19,7 +19,7 @@
 
 .container {
   display: flex;
-  padding: 1.5em 0 1em;
+  padding: 1.5em 1em 1.5em 0;
 }
 
 .actions, .signDetails {
@@ -28,35 +28,43 @@
 }
 
 .signData {
-    border: 0.25em solid red;
-    padding: 0.5em;
-    margin-left: -2em;
-    overflow: auto;
-    max-height: 6em;
+  border: 0.25em solid red;
+  margin-left: 2em;
+  padding: 0.5em;
+  overflow: auto;
+  max-height: 6em;
+  max-width: calc(100% - 2em);
 }
 
 .signData > p {
-    color: white;
+  color: white;
 }
 
 .signDetails {
-  flex: 10;
+  flex: 1;
+  overflow: auto;
+}
+
+.account img {
+  display: inline-block;
+  height: 50px;
+  margin: 5px;
+  width: 50px;
 }
 
 .address, .info {
   box-sizing: border-box;
   display: inline-block;
-  width: 50%;
+  vertical-align: top;
 }
 
 .address {
-  padding-right: $accountPadding;
+  width: 40%;
 }
 
 .info {
-  padding: 0 30px;
   color: #E53935;
-  vertical-align: top;
+  width: 60%;
 }
 
 .info p:first-child {
@@ -80,11 +88,4 @@
 .actions {
   display: inline-block;
   min-height: $finishedHeight;
-}
-
-.signDetails img {
-  display: inline-block;
-  width: 50px;
-  height: 50px;
-  margin: 5px;
 }

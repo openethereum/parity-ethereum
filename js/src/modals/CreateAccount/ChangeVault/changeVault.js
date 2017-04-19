@@ -22,13 +22,13 @@ import { VaultSelect } from '~/ui';
 @observer
 export default class ChangeVault extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired,
+    createStore: PropTypes.object.isRequired,
     vaultStore: PropTypes.object
   }
 
   render () {
-    const { store, vaultStore } = this.props;
-    const { vaultName } = store;
+    const { createStore, vaultStore } = this.props;
+    const { vaultName } = createStore;
 
     if (!vaultStore || vaultStore.vaultsOpened.length === 0) {
       return null;
@@ -44,8 +44,8 @@ export default class ChangeVault extends Component {
   }
 
   onSelect = (vaultName) => {
-    const { store } = this.props;
+    const { createStore } = this.props;
 
-    store.setVaultName(vaultName);
+    createStore.setVaultName(vaultName);
   }
 }

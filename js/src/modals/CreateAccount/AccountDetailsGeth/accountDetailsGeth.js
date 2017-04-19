@@ -26,11 +26,11 @@ import styles from '../createAccount.css';
 @observer
 export default class AccountDetailsGeth extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired
+    createStore: PropTypes.object.isRequired
   }
 
   render () {
-    const { gethAccountsAvailable, gethImported } = this.props.store;
+    const { gethAccountsAvailable, gethImported } = this.props.createStore;
 
     const accounts = gethAccountsAvailable.filter((account) => gethImported.includes(account.address));
 

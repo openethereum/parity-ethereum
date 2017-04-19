@@ -276,25 +276,31 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 			let cost = builtin.cost(data);
 			if cost <= params.gas {
-				builtin.execute(data, &mut output);
-				self.state.discard_checkpoint();
+				if let Err(e) = builtin.execute(data, &mut output) {
+					self.state.revert_to_checkpoint();
+					let evm_err: evm::evm::Error = e.into();
+					tracer.trace_failed_call(trace_info, vec![], evm_err.clone().into());
+					Err(evm_err)
+				} else {
+					self.state.discard_checkpoint();
 
-				// trace only top level calls to builtins to avoid DDoS attacks
-				if self.depth == 0 {
-					let mut trace_output = tracer.prepare_trace_output();
-					if let Some(mut out) = trace_output.as_mut() {
-						*out = output.to_owned();
+					// trace only top level calls to builtins to avoid DDoS attacks
+					if self.depth == 0 {
+						let mut trace_output = tracer.prepare_trace_output();
+						if let Some(mut out) = trace_output.as_mut() {
+							*out = output.to_owned();
+						}
+
+						tracer.trace_call(
+							trace_info,
+							cost,
+							trace_output,
+							vec![]
+						);
 					}
 
-					tracer.trace_call(
-						trace_info,
-						cost,
-						trace_output,
-						vec![]
-					);
+					Ok(params.gas - cost)
 				}
-
-				Ok(params.gas - cost)
 			} else {
 				// just drain the whole gas
 				self.state.revert_to_checkpoint();
@@ -497,6 +503,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				| Err(evm::Error::BadJumpDestination {..})
 				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
+				| Err(evm::Error::BuiltIn {..})
 				| Err(evm::Error::OutOfStack {..}) => {
 					self.state.revert_to_checkpoint();
 			},
@@ -547,8 +554,7 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(Arc::new("3331600055".from_hex().unwrap()));
 		params.value = ActionValue::Transfer(U256::from(0x7));
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(0x100u64), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
@@ -606,8 +612,7 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
@@ -665,8 +670,7 @@ mod tests {
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		params.call_type = CallType::Call;
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(5);
@@ -776,8 +780,7 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(100.into());
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(5);
@@ -864,8 +867,7 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
@@ -916,8 +918,7 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(1024);
@@ -974,8 +975,7 @@ mod tests {
 		params.code = Some(Arc::new(code_a.clone()));
 		params.value = ActionValue::Transfer(U256::from(100_000));
 
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.init_code(&address_a, code_a.clone()).unwrap();
 		state.init_code(&address_b, code_b.clone()).unwrap();
 		state.add_balance(&sender, &U256::from(100_000), CleanupMode::NoEmpty).unwrap();
@@ -1022,8 +1022,7 @@ mod tests {
 		params.address = address.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some(Arc::new(code.clone()));
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.init_code(&address, code).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
@@ -1055,8 +1054,7 @@ mod tests {
 		let sender = t.sender();
 		let contract = contract_address(&sender, &U256::zero());
 
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(18), CleanupMode::NoEmpty).unwrap();
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
@@ -1093,8 +1091,7 @@ mod tests {
 		}.sign(keypair.secret(), None);
 		let sender = t.sender();
 
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(17), CleanupMode::NoEmpty).unwrap();
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
@@ -1126,8 +1123,7 @@ mod tests {
 		}.sign(keypair.secret(), None);
 		let sender = t.sender();
 
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(17), CleanupMode::NoEmpty).unwrap();
 		let mut info = EnvInfo::default();
 		info.gas_used = U256::from(20_000);
@@ -1161,8 +1157,7 @@ mod tests {
 		}.sign(keypair.secret(), None);
 		let sender = t.sender();
 
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100_017), CleanupMode::NoEmpty).unwrap();
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
@@ -1196,8 +1191,7 @@ mod tests {
 		params.gas = U256::from(0x0186a0);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from_str("0de0b6b3a7640000").unwrap());
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap(), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);

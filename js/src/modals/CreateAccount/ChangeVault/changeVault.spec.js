@@ -45,7 +45,7 @@ function createVaultStore () {
 function render () {
   component = shallow(
     <ChangeVault
-      store={ createStore() }
+      createStore={ createStore() }
       vaultStore={ createVaultStore() }
     />
   );

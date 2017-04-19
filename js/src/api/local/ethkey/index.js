@@ -14,74 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import dictionary from './dictionary';
+import workerPool from './workerPool';
 
-// Allow a web worker in the browser, with a fallback for Node.js
-const hasWebWorkers = typeof Worker !== 'undefined';
-const KeyWorker = hasWebWorkers ? require('worker-loader!./worker')
-                                : require('./worker').KeyWorker;
+export function createKeyObject (key, password) {
+  return workerPool.getWorker().action('createKeyObject', { key, password })
+    .then((obj) => JSON.parse(obj));
+}
 
-// Local accounts should never be used outside of the browser
-export let keythereum = null;
+export function decryptPrivateKey (keyObject, password) {
+  return workerPool
+    .getWorker()
+    .action('decryptPrivateKey', { keyObject, password })
+    .then((privateKey) => {
+      if (privateKey) {
+        return Buffer.from(privateKey);
+      }
 
-if (hasWebWorkers) {
-  require('keythereum/dist/keythereum');
-
-  keythereum = window.keythereum;
+      return null;
+    });
 }
 
 export function phraseToAddress (phrase) {
-  return phraseToWallet(phrase).then((wallet) => wallet.address);
+  return phraseToWallet(phrase)
+    .then((wallet) => wallet.address);
 }
 
 export function phraseToWallet (phrase) {
-  return new Promise((resolve, reject) => {
-    const worker = new KeyWorker();
-
-    worker.postMessage(phrase);
-    worker.onmessage = ({ data }) => {
-      resolve(data);
-    };
-  });
+  return workerPool.getWorker().action('phraseToWallet', phrase);
 }
 
-export function randomBytes (length) {
-  if (keythereum) {
-    return keythereum.crypto.randomBytes(length);
-  }
-
-  const buf = Buffer.alloc(length);
-
-  for (let i = 0; i < length; i++) {
-    buf[i] = Math.random() * 255;
-  }
-
-  return buf;
-}
-
-export function randomNumber (max) {
-  // Use 24 bits to avoid the integer becoming signed via bitshifts
-  const rand = randomBytes(3);
-
-  const integer = (rand[0] << 16) | (rand[1] << 8) | rand[2];
-
-  // floor to integer value via bitor 0
-  return ((integer / 0xFFFFFF) * max) | 0;
-}
-
-export function randomWord () {
-  // TODO mh: use better entropy
-  const index = randomNumber(dictionary.length);
-
-  return dictionary[index];
-}
-
-export function randomPhrase (length) {
-  const words = [];
-
-  while (length--) {
-    words.push(randomWord());
-  }
-
-  return words.join(' ');
+export function verifySecret (secret) {
+  return workerPool.getWorker().action('verifySecret', secret);
 }

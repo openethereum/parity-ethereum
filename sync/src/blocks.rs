@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::hash_map::Entry;
+use smallvec::SmallVec;
 use util::*;
 use rlp::*;
 use network::NetworkError;
@@ -21,11 +23,14 @@ use ethcore::header::Header as BlockHeader;
 
 known_heap_size!(0, HeaderId);
 
+type SmallHashVec = SmallVec<[H256; 1]>;
+
 /// Block data with optional body.
 struct SyncBlock {
 	header: Bytes,
 	body: Option<Bytes>,
 	receipts: Option<Bytes>,
+	receipts_root: H256,
 }
 
 /// Block with optional receipt
@@ -64,15 +69,15 @@ pub struct BlockCollection {
 	parents: HashMap<H256, H256>,
 	/// Used to map body to header.
 	header_ids: HashMap<HeaderId, H256>,
-	/// Used to map receipts root to header.
-	receipt_ids: HashMap<H256, H256>,
+	/// Used to map receipts root to headers.
+	receipt_ids: HashMap<H256, SmallHashVec>,
 	/// First block in `blocks`.
 	head: Option<H256>,
 	/// Set of block header hashes being downloaded
 	downloading_headers: HashSet<H256>,
 	/// Set of block bodies being downloaded identified by block hash.
 	downloading_bodies: HashSet<H256>,
-	/// Set of block receipts being downloaded identified by block hash.
+	/// Set of block receipts being downloaded identified by receipt root.
 	downloading_receipts: HashSet<H256>,
 }
 
@@ -194,21 +199,24 @@ impl BlockCollection {
 			head = self.parents.get(&head.unwrap()).cloned();
 			if let Some(head) = head {
 				match self.blocks.get(&head) {
-					Some(block) if block.receipts.is_none() && !self.downloading_receipts.contains(&head) => {
-						self.downloading_receipts.insert(head.clone());
-						needed_receipts.push(head.clone());
+					Some(block) => {
+						if block.receipts.is_none() && !self.downloading_receipts.contains(&block.receipts_root) {
+							self.downloading_receipts.insert(block.receipts_root);
+							needed_receipts.push(head.clone());
+						}
 					}
 					_ => (),
 				}
 			}
 		}
-		for h in self.receipt_ids.values() {
+		// If there are multiple blocks per receipt, only request one of them.
+		for (root, h) in self.receipt_ids.iter().map(|(root, hashes)| (root, hashes[0])) {
 			if needed_receipts.len() >= count {
 				break;
 			}
-			if !self.downloading_receipts.contains(h) {
+			if !self.downloading_receipts.contains(root) {
 				needed_receipts.push(h.clone());
-				self.downloading_receipts.insert(h.clone());
+				self.downloading_receipts.insert(*root);
 			}
 		}
 		needed_receipts
@@ -245,7 +253,9 @@ impl BlockCollection {
 	/// Unmark block receipt as being downloaded.
 	pub fn clear_receipt_download(&mut self, hashes: &[H256]) {
 		for h in hashes {
-			self.downloading_receipts.remove(h);
+			if let Some(ref block) = self.blocks.get(h) {
+				self.downloading_receipts.remove(&block.receipts_root);
+			}
 		}
 	}
 
@@ -366,23 +376,24 @@ impl BlockCollection {
 			let receipts = UntrustedRlp::new(&r);
 			ordered_trie_root(receipts.iter().map(|r| r.as_raw().to_vec())) //TODO: get rid of vectors here
 		};
-		match self.receipt_ids.get(&receipt_root).cloned() {
-			Some(h) => {
-				self.receipt_ids.remove(&receipt_root);
-				self.downloading_receipts.remove(&h);
-				match self.blocks.get_mut(&h) {
-					Some(ref mut block) => {
-						trace!(target: "sync", "Got receipt {}", h);
-						block.receipts = Some(r);
-						Ok(())
-					},
-					None => {
-						warn!("Got receipt with no header {}", h);
-						Err(NetworkError::BadProtocol)
+		self.downloading_receipts.remove(&receipt_root);
+		match self.receipt_ids.entry(receipt_root) {
+			Entry::Occupied(entry) => {
+				for h in entry.remove() {
+					match self.blocks.get_mut(&h) {
+						Some(ref mut block) => {
+							trace!(target: "sync", "Got receipt {}", h);
+							block.receipts = Some(r.clone());
+						},
+						None => {
+							warn!("Got receipt with no header {}", h);
+							return Err(NetworkError::BadProtocol)
+						}
 					}
 				}
+				Ok(())
 			}
-			None => {
+			_ => {
 				trace!(target: "sync", "Ignored unknown/stale block receipt {:?}", receipt_root);
 				Err(NetworkError::BadProtocol)
 			}
@@ -407,6 +418,7 @@ impl BlockCollection {
 			header: header,
 			body: None,
 			receipts: None,
+			receipts_root: H256::new(),
 		};
 		let header_id = HeaderId {
 			transactions_root: info.transactions_root().clone(),
@@ -429,11 +441,9 @@ impl BlockCollection {
 				let receipts_stream = RlpStream::new_list(0);
 				block.receipts = Some(receipts_stream.out());
 			} else {
-				if self.receipt_ids.contains_key(&receipt_root) {
-					warn!(target: "sync", "Duplicate receipt root {:?}, block: {:?}", receipt_root, hash);
-				}
-				self.receipt_ids.insert(receipt_root, hash.clone());
+				self.receipt_ids.entry(receipt_root).or_insert_with(|| SmallHashVec::new()).push(hash.clone());
 			}
+			block.receipts_root = receipt_root;
 		}
 
 		self.parents.insert(info.parent_hash().clone(), hash.clone());

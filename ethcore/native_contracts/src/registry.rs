@@ -14,13 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Adds a seventh column for node information.
+#![allow(unused_mut, unused_variables, unused_imports)]
 
-use util::migration::ChangeColumns;
+//! Registrar contract: maps names to addresses and data.
+// TODO: testing.
 
-/// The migration from v10 to v11.
-pub const TO_V11: ChangeColumns = ChangeColumns {
-	pre_columns: Some(6),
-	post_columns: Some(7),
-	version: 11,
-};
+include!(concat!(env!("OUT_DIR"), "/registry.rs"));

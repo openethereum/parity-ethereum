@@ -16,8 +16,9 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import TransactionPending from '../TransactionPending';
+import DecryptRequest from '../DecryptRequest';
 import SignRequest from '../SignRequest';
+import TransactionPending from '../TransactionPending';
 
 export default class RequestPending extends Component {
   static propTypes = {
@@ -32,6 +33,7 @@ export default class RequestPending extends Component {
     onReject: PropTypes.func.isRequired,
     origin: PropTypes.object.isRequired,
     payload: PropTypes.oneOfType([
+      PropTypes.shape({ decrypt: PropTypes.object.isRequired }),
       PropTypes.shape({ sendTransaction: PropTypes.object.isRequired }),
       PropTypes.shape({ sign: PropTypes.object.isRequired }),
       PropTypes.shape({ signTransaction: PropTypes.object.isRequired })
@@ -56,6 +58,27 @@ export default class RequestPending extends Component {
           className={ className }
           focus={ focus }
           data={ sign.data }
+          id={ id }
+          isFinished={ false }
+          isSending={ isSending }
+          netVersion={ netVersion }
+          onConfirm={ this.onConfirm }
+          onReject={ onReject }
+          origin={ origin }
+          signerStore={ signerStore }
+        />
+      );
+    }
+
+    if (payload.decrypt) {
+      const { decrypt } = payload;
+
+      return (
+        <DecryptRequest
+          address={ decrypt.address }
+          className={ className }
+          focus={ focus }
+          data={ decrypt.msg }
           id={ id }
           isFinished={ false }
           isSending={ isSending }

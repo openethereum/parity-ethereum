@@ -67,7 +67,7 @@ module.exports = {
       },
       {
         test: /\.js$/,
-        include: /node_modules\/(material-chip-input|ethereumjs-tx)/,
+        include: /node_modules\/(material-chip-input|ethereumjs-tx|@parity\/wordlist)/,
         use: 'babel-loader'
       },
       {
@@ -138,7 +138,9 @@ module.exports = {
 
   resolve: {
     alias: {
-      '~': path.resolve(__dirname, '../src')
+      '~': path.resolve(__dirname, '../src'),
+      'secp256k1': path.resolve(__dirname, '../node_modules/secp256k1/js'),
+      'keythereum': path.resolve(__dirname, '../node_modules/keythereum/dist/keythereum')
     },
     modules: [
       path.join(__dirname, '../node_modules')
