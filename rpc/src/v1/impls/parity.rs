@@ -28,6 +28,7 @@ use crypto::ecies;
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
+use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
 use ethcore::client::{MiningBlockChainClient};
 use ethcore::mode::Mode;
@@ -47,7 +48,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
-	AccountInfo, HwAccountInfo,
+	AccountInfo, HwAccountInfo, Header, RichHeader
 };
 
 /// Parity implementation.
@@ -68,6 +69,7 @@ pub struct ParityClient<C, M, S: ?Sized, U> where
 	signer: Option<Arc<SignerService>>,
 	dapps_interface: Option<String>,
 	dapps_port: Option<u16>,
+	eip86_transition: u64,
 }
 
 impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
@@ -102,6 +104,7 @@ impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
 			signer: signer,
 			dapps_interface: dapps_interface,
 			dapps_port: dapps_port,
+			eip86_transition: client.eip86_transition(),
 		}
 	}
 
@@ -287,11 +290,13 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn pending_transactions(&self) -> Result<Vec<Transaction>, Error> {
-		Ok(take_weak!(self.miner).pending_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
+		let block_number = take_weak!(self.client).chain_info().best_block_number;
+		Ok(take_weak!(self.miner).pending_transactions().into_iter().map(|t| Transaction::from_pending(t, block_number, self.eip86_transition)).collect::<Vec<_>>())
 	}
 
 	fn future_transactions(&self) -> Result<Vec<Transaction>, Error> {
-		Ok(take_weak!(self.miner).future_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
+		let block_number = take_weak!(self.client).chain_info().best_block_number;
+		Ok(take_weak!(self.miner).future_transactions().into_iter().map(|t| Transaction::from_pending(t, block_number, self.eip86_transition)).collect::<Vec<_>>())
 	}
 
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>, Error> {
@@ -304,9 +309,10 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 
 	fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>, Error> {
 		let transactions = take_weak!(self.miner).local_transactions();
+		let block_number = take_weak!(self.client).chain_info().best_block_number;
 		Ok(transactions
 		   .into_iter()
-		   .map(|(hash, status)| (hash.into(), status.into()))
+		   .map(|(hash, status)| (hash.into(), LocalTransactionStatus::from(status, block_number, self.eip86_transition)))
 		   .collect()
 		)
 	}
@@ -392,6 +398,40 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			availability: availability,
 			capability: Capability::Full,
 		})
+	}
+
+	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<Option<RichHeader>, Error> {
+		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
+
+		let client = take_weakf!(self.client);
+		let id: BlockId = number.0.into();
+		let encoded = match client.block_header(id.clone()) {
+			Some(encoded) => encoded,
+			None => return future::ok(None).boxed(),
+		};
+
+		future::ok(Some(RichHeader {
+			inner: Header {
+				hash: Some(encoded.hash().into()),
+				size: Some(encoded.rlp().as_raw().len().into()),
+				parent_hash: encoded.parent_hash().into(),
+				uncles_hash: encoded.uncles_hash().into(),
+				author: encoded.author().into(),
+				miner: encoded.author().into(),
+				state_root: encoded.state_root().into(),
+				transactions_root: encoded.transactions_root().into(),
+				receipts_root: encoded.receipts_root().into(),
+				number: Some(encoded.number().into()),
+				gas_used: encoded.gas_used().into(),
+				gas_limit: encoded.gas_limit().into(),
+				logs_bloom: encoded.log_bloom().into(),
+				timestamp: encoded.timestamp().into(),
+				difficulty: encoded.difficulty().into(),
+				seal_fields: encoded.seal().into_iter().map(Into::into).collect(),
+				extra_data: Bytes::new(encoded.extra_data()),
+			},
+			extra_info: client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
+		})).boxed()
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {

@@ -16,6 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
 import { MenuItem } from 'material-ui';
 import { isEqual } from 'lodash';
 
@@ -24,7 +25,7 @@ import TokenImage from '~/ui/TokenImage';
 
 import styles from '../transfer.css';
 
-export default class TokenSelect extends Component {
+class TokenSelect extends Component {
   static contextTypes = {
     api: PropTypes.object
   };
@@ -32,7 +33,8 @@ export default class TokenSelect extends Component {
   static propTypes = {
     onChange: PropTypes.func.isRequired,
     balance: PropTypes.object.isRequired,
-    tag: PropTypes.string.isRequired
+    tokens: PropTypes.object.isRequired,
+    value: PropTypes.string.isRequired
   };
 
   componentWillMount () {
@@ -40,8 +42,10 @@ export default class TokenSelect extends Component {
   }
 
   componentWillReceiveProps (nextProps) {
-    const prevTokens = this.props.balance.tokens.map((t) => `${t.token.tag}_${t.value.toNumber()}`);
-    const nextTokens = nextProps.balance.tokens.map((t) => `${t.token.tag}_${t.value.toNumber()}`);
+    const prevTokens = Object.keys(this.props.balance)
+      .map((tokenId) => `${tokenId}_${this.props.balance[tokenId].toNumber()}`);
+    const nextTokens = Object.keys(nextProps.balance)
+      .map((tokenId) => `${tokenId}_${nextProps.balance[tokenId].toNumber()}`);
 
     if (!isEqual(prevTokens, nextTokens)) {
       this.computeTokens(nextProps);
@@ -50,23 +54,27 @@ export default class TokenSelect extends Component {
 
   computeTokens (props = this.props) {
     const { api } = this.context;
-    const { balance } = this.props;
+    const { balance, tokens } = this.props;
 
-    const items = balance.tokens
-      .filter((token, index) => !index || token.value.gt(0))
-      .map((balance, index) => {
-        const token = balance.token;
-        const isEth = index === 0;
+    const items = Object.keys(balance)
+      .map((tokenId) => {
+        const token = tokens[tokenId];
+        const tokenValue = balance[tokenId];
+        const isEth = token.native;
+
+        if (!isEth && tokenValue.eq(0)) {
+          return null;
+        }
 
         let value = 0;
 
         if (isEth) {
-          value = api.util.fromWei(balance.value).toFormat(3);
+          value = api.util.fromWei(tokenValue).toFormat(3);
         } else {
-          const format = balance.token.format || 1;
+          const format = token.format || 1;
           const decimals = format === 1 ? 0 : Math.min(3, Math.floor(format / 10));
 
-          value = new BigNumber(balance.value).div(format).toFormat(decimals);
+          value = new BigNumber(tokenValue).div(format).toFormat(decimals);
         }
 
         const label = (
@@ -83,20 +91,21 @@ export default class TokenSelect extends Component {
 
         return (
           <MenuItem
-            key={ `${index}_${token.tag}` }
-            value={ token.tag }
+            key={ tokenId }
+            value={ token.id }
             label={ label }
           >
             { label }
           </MenuItem>
         );
-      });
+      })
+      .filter((node) => node);
 
     this.setState({ items });
   }
 
   render () {
-    const { tag, onChange } = this.props;
+    const { onChange, value } = this.props;
     const { items } = this.state;
 
     return (
@@ -104,7 +113,7 @@ export default class TokenSelect extends Component {
         className={ styles.tokenSelect }
         label='type of token transfer'
         hint='type of token to transfer'
-        value={ tag }
+        value={ value }
         onChange={ onChange }
       >
         { items }
@@ -112,3 +121,11 @@ export default class TokenSelect extends Component {
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { tokens } = state;
+
+  return { tokens };
+}
+
+export default connect(mapStateToProps)(TokenSelect);

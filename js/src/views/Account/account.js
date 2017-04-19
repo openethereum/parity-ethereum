@@ -48,8 +48,7 @@ class Account extends Component {
     fetchCertifications: PropTypes.func.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired,
 
-    accounts: PropTypes.object,
-    balances: PropTypes.object,
+    account: PropTypes.object,
     certifications: PropTypes.object,
     netVersion: PropTypes.string.isRequired,
     newError: PropTypes.func,
@@ -98,11 +97,8 @@ class Account extends Component {
   }
 
   render () {
-    const { accounts, balances } = this.props;
+    const { account } = this.props;
     const { address } = this.props.params;
-
-    const account = (accounts || {})[address];
-    const balance = (balances || {})[address];
 
     if (!account) {
       return null;
@@ -118,17 +114,15 @@ class Account extends Component {
         { this.renderFaucetDialog() }
         { this.renderFundDialog() }
         { this.renderPasswordDialog(account) }
-        { this.renderTransferDialog(account, balance) }
+        { this.renderTransferDialog(account) }
         { this.renderVerificationDialog() }
-        { this.renderActionbar(account, balance) }
+        { this.renderActionbar(account) }
         <Page padded>
           <Header
             account={ account }
-            balance={ balance }
             disabled={ !isAvailable }
           />
           <Transactions
-            accounts={ accounts }
             address={ address }
           />
         </Page>
@@ -159,16 +153,14 @@ class Account extends Component {
     return certifications.length !== 0;
   }
 
-  renderActionbar (account, balance) {
+  renderActionbar (account) {
     const { certifications, netVersion } = this.props;
     const { address } = this.props.params;
-    const showTransferButton = !!(balance && balance.tokens);
     const isVerifiable = this.isMainnet(netVersion);
     const isFaucettable = this.isFaucettable(netVersion, certifications, address);
 
     const buttons = [
       <Button
-        disabled={ !showTransferButton }
         icon={ <SendIcon /> }
         key='transferFunds'
         label={
@@ -459,18 +451,14 @@ class Account extends Component {
     );
   }
 
-  renderTransferDialog (account, balance) {
+  renderTransferDialog (account) {
     if (!this.store.isTransferVisible) {
       return null;
     }
 
-    const { balances } = this.props;
-
     return (
       <Transfer
         account={ account }
-        balance={ balance }
-        balances={ balances }
         onClose={ this.store.toggleTransferDialog }
       />
     );
@@ -516,15 +504,17 @@ class Account extends Component {
   }
 }
 
-function mapStateToProps (state) {
+function mapStateToProps (state, props) {
+  const { address } = props.params;
+
   const { accounts } = state.personal;
-  const { balances } = state.balances;
   const certifications = state.certifications;
   const { netVersion } = state.nodeStatus;
 
+  const account = (accounts || {})[address];
+
   return {
-    accounts,
-    balances,
+    account,
     certifications,
     netVersion
   };

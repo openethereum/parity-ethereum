@@ -61,6 +61,7 @@ impl Default for CacheSizes {
 ///
 /// Note that almost all getter methods take `&mut self` due to the necessity to update
 /// the underlying LRU-caches on read.
+/// [LRU-cache](https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_Recently_Used_.28LRU.29)
 pub struct Cache {
 	headers: MemoryLruCache<H256, encoded::Header>,
 	canon_hashes: MemoryLruCache<BlockNumber, H256>,

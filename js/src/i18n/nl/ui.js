@@ -15,8 +15,40 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
+  actionbar: {
+    export: {
+      button: {
+        export: `exporteer`
+      }
+    },
+    import: {
+      button: {
+        cancel: `Annuleer`,
+        confirm: `Bevestig`,
+        import: `importeer`
+      },
+      confirm: `Bevestig dat dit is wat je wilt importeren.`,
+      error: `Er is een fout opgetreden: {errorText}`,
+      step: {
+        error: `fout`,
+        select: `selecteer een bestand`,
+        validate: `valideer`
+      },
+      title: `Importeer vanuit een bestand`
+    },
+    search: {
+      hint: `Voer zoekopdracht in...`
+    },
+    sort: {
+      sortBy: `Sorteer op {label}`,
+      typeDefault: `Standaard`,
+      typeEth: `Sorteer op ETH`,
+      typeName: `Sorteer op naam`,
+      typeTags: `Sorteer op tags`
+    }
+  },
   balance: {
-    none: `Er zijn geen tegoeden gekoppeld aan dit account`
+    none: `Geen tegoeden gekoppeld aan dit account`
   },
   blockStatus: {
     bestBlock: `{blockNumber} beste blok`,
@@ -28,9 +60,60 @@ export default {
     no: `nee`,
     yes: `ja`
   },
+  copyToClipboard: {
+    copied: `{data} is naar het klembord gekopierd`
+  },
+  errors: {
+    close: `sluit`
+  },
+  fileSelect: {
+    defaultLabel: `Sleep hier een bestand naartoe, of klik om een bestand te selecteren voor uploaden`
+  },
+  gasPriceSelector: {
+    customTooltip: {
+      transactions: `{number} {number, plural, one {transaction} other {transactions}} met een ingestelde gasprijs tussen de {minPrice} en {maxPrice}`
+    }
+  },
   identityName: {
     null: `NUL`,
     unnamed: `NAAMLOOS`
+  },
+  methodDecoding: {
+    condition: {
+      block: `, {historic, select, true {Submitted} false {Submission}} in blok {blockNumber}`,
+      time: `, {historic, select, true {Submitted} false {Submission}} op {timestamp}`
+    },
+    deploy: {
+      address: `Een contract aangemaakt op adres`,
+      params: `met de volgende parameters:`,
+      willDeploy: `Zal een contract aanmaken`,
+      withValue: `, verzenden van {value}`
+    },
+    gasUsed: `({gas} gas gebruikt)`,
+    gasValues: `{gas} gas ({gasPrice}M/{tag})`,
+    input: {
+      data: `data`,
+      input: `input`,
+      withInput: `met de {inputDesc} {inputValue}`
+    },
+    receive: {
+      contract: `het contract`,
+      info: `{historic, select, true {Received} false {Will receive}} {valueEth} van {aContract}{address}`
+    },
+    signature: {
+      info: `{historic, select, true {Executed} false {Will execute}} the {method} function on the contract {address} transferring {ethValue}{inputLength, plural, zero {,} other {passing the following {inputLength, plural, one {parameter} other {parameters}}}}`
+    },
+    token: {
+      transfer: `{historic, select, true {Transferred} false {Will transfer}} {value} naar {address}`
+    },
+    transfer: {
+      contract: `het contract`,
+      info: `{historic, select, true {Transferred} false {Will transfer}} {valueEth} naar {aContract}{address}`
+    },
+    txValues: `{historic, select, true {Provided} false {Provides}} {gasProvided}{gasUsed} voor een totale transactie waarde van {totalEthValue}`,
+    unknown: {
+      info: `{historic, select, true {Executed} false {Will execute}} the {method} on the contract {address} transferring {ethValue}.`
+    }
   },
   passwordStrength: {
     label: `wachtwoord sterkte`
@@ -48,6 +131,10 @@ export default {
     posted: `De transactie is op het netwerk geplaatst met hash {hashLink}`,
     waiting: `wachten op bevestigingen`
   },
+  vaultSelect: {
+    hint: `de kluis waaraan dit account gekoppeld is`,
+    label: `gekoppelde kluis`
+  },
   verification: {
     gatherData: {
       accountHasRequested: {
@@ -60,10 +147,6 @@ export default {
         pending: `Aan het controleren of je account is geverifieerd…`,
         true: `Je account is al geverifieerd.`
       },
-      email: {
-        hint: `de code zal naar dit adres worden verzonden`,
-        label: `e-mail adres`
-      },
       fee: `De extra vergoeding is {amount} ETH.`,
       isAbleToRequest: {
         pending: `Valideren van je invoer…`
@@ -74,10 +157,6 @@ export default {
         true: `De verificatie server is actief.`
       },
       nofee: `Er zijn geen extra kosten.`,
-      phoneNumber: {
-        hint: `De SMS zal naar dit nummer worden verstuurd`,
-        label: `telefoonnummer in internationaal formaat`
-      },
       termsOfService: `Ik ga akkoord met de voorwaarden en condities hieronder.`
     }
   }

@@ -1881,5 +1881,31 @@ export default {
       desc: 'Decrypted message.',
       example: withComment('0x68656c6c6f20776f726c64', 'hello world')
     }
+  },
+
+  signMessage: {
+    desc: 'Sign the hashed message bytes with the given account.',
+    params: [
+      {
+        type: Address,
+        desc: 'Account which signs the message.',
+        example: '0xc171033d5cbff7175f29dfd3a63dda3d6f8f385e'
+      },
+      {
+        type: String,
+        desc: 'Passphrase to unlock the account.',
+        example: 'password1'
+      },
+      {
+        type: Data,
+        desc: 'Hashed message.',
+        example: '0xbc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a'
+      }
+    ],
+    returns: {
+      type: Data,
+      desc: 'Message signature.',
+      example: '0x1d9e33a8cf8bfc089a172bca01da462f9e359c6cb1b0f29398bc884e4d18df4f78588aee4fb5cc067ca62d2abab995e0bba29527be6ac98105b0320020a2efaf00'
+    }
   }
 };

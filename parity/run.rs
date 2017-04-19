@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::net::{TcpListener};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
-use ethcore_rpc::{NetworkSettings, informant, is_major_importing};
+use parity_rpc::{NetworkSettings, informant, is_major_importing};
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, Mutex, Condvar};
 use io::{MayPanic, ForwardPanic, PanicHandler};
@@ -80,6 +80,7 @@ pub struct RunCmd {
 	pub daemon: Option<String>,
 	pub logger_config: LogConfig,
 	pub miner_options: MinerOptions,
+	pub ws_conf: rpc::WsConfiguration,
 	pub http_conf: rpc::HttpConfiguration,
 	pub ipc_conf: rpc::IpcConfiguration,
 	pub net_conf: NetworkConfiguration,
@@ -192,6 +193,10 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	info!("Starting {}", Colour::White.bold().paint(version()));
 	info!("Running in experimental {} mode.", Colour::Blue.bold().paint("Light Client"));
 
+	// TODO: configurable cache size.
+	let cache = LightDataCache::new(Default::default(), ::time::Duration::minutes(GAS_CORPUS_EXPIRATION_MINUTES));
+	let cache = Arc::new(::util::Mutex::new(cache));
+
 	// start client and create transaction queue.
 	let mut config = light_client::Config {
 		queue: Default::default(),
@@ -204,7 +209,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
 	config.queue.verifier_settings = cmd.verifier_settings;
 
-	let service = light_client::Service::start(config, &spec, &db_dirs.client_path(algorithm))
+	let service = light_client::Service::start(config, &spec, &db_dirs.client_path(algorithm), cache.clone())
 		.map_err(|e| format!("Error starting light client: {}", e))?;
 	let txq = Arc::new(RwLock::new(::light::transaction_queue::TransactionQueue::default()));
 	let provider = ::light::provider::LightProvider::new(service.client().clone(), txq.clone());
@@ -216,12 +221,9 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		net_conf.boot_nodes = spec.nodes.clone();
 	}
 
-	// TODO: configurable cache size.
-	let cache = LightDataCache::new(Default::default(), ::time::Duration::minutes(GAS_CORPUS_EXPIRATION_MINUTES));
-	let cache = Arc::new(::util::Mutex::new(cache));
-
 	// start on_demand service.
-	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
+	let account_start_nonce = service.client().engine().account_start_nonce();
+	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone(), account_start_nonce));
 
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
@@ -294,7 +296,8 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	};
 
 	// start rpc servers
-	let _http_server = rpc::new_http(cmd.http_conf, &dependencies, None)?;
+	let _ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
+	let _http_server = rpc::new_http(cmd.http_conf.clone(), &dependencies, None)?;
 	let _ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
 
 	// the signer server
@@ -635,6 +638,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps)?;
 
 	// start rpc servers
+	let ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
 	let http_server = rpc::new_http(cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
 	let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
 
@@ -715,7 +719,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let restart = wait_for_exit(panic_handler, Some(updater), Some(client), can_restart);
 
 	// drop this stuff as soon as exit detected.
-	drop((http_server, ipc_server, signer_server, secretstore_key_server, ipfs_server, event_loop));
+	drop((ws_server, http_server, ipc_server, signer_server, secretstore_key_server, ipfs_server, event_loop));
 
 	info!("Finishing work, please wait...");
 

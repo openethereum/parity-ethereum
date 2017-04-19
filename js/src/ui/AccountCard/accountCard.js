@@ -85,6 +85,7 @@ export default class AccountCard extends Component {
           </div>
 
           <Balance
+            address={ address }
             balance={ balance }
             className={ styles.balance }
             showOnlyEth

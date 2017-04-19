@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::iter::repeat;
+use std::str;
 use ethkey::Secret;
 use {json, Error, crypto};
 use crypto::Keccak256;
@@ -46,22 +47,38 @@ impl From<json::Crypto> for Crypto {
 	}
 }
 
-impl Into<json::Crypto> for Crypto {
-	fn into(self) -> json::Crypto {
+impl From<Crypto> for json::Crypto {
+	fn from(c: Crypto) -> Self {
 		json::Crypto {
-			cipher: self.cipher.into(),
-			ciphertext: self.ciphertext.into(),
-			kdf: self.kdf.into(),
-			mac: self.mac.into(),
+			cipher: c.cipher.into(),
+			ciphertext: c.ciphertext.into(),
+			kdf: c.kdf.into(),
+			mac: c.mac.into(),
 		}
 	}
 }
 
+impl str::FromStr for Crypto {
+	type Err = <json::Crypto as str::FromStr>::Err;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		s.parse::<json::Crypto>().map(Into::into)
+	}
+}
+
+impl From<Crypto> for String {
+	fn from(c: Crypto) -> Self {
+		json::Crypto::from(c).into()
+	}
+}
+
 impl Crypto {
+	/// Encrypt account secret
 	pub fn with_secret(secret: &Secret, password: &str, iterations: u32) -> Self {
 		Crypto::with_plain(&*secret, password, iterations)
 	}
 
+	/// Encrypt custom plain data
 	pub fn with_plain(plain: &[u8], password: &str, iterations: u32) -> Self {
 		let salt: [u8; 32] = Random::random();
 		let iv: [u8; 16] = Random::random();
@@ -98,6 +115,7 @@ impl Crypto {
 		}
 	}
 
+	/// Try to decrypt and convert result to account secret
 	pub fn secret(&self, password: &str) -> Result<Secret, Error> {
 		if self.ciphertext.len() > 32 {
 			return Err(Error::InvalidSecret);
@@ -107,6 +125,7 @@ impl Crypto {
 		Ok(Secret::from_slice(&secret)?)
 	}
 
+	/// Try to decrypt and return result as is
 	pub fn decrypt(&self, password: &str) -> Result<Vec<u8>, Error> {
 		let expected_len = self.ciphertext.len();
 		self.do_decrypt(password, expected_len)

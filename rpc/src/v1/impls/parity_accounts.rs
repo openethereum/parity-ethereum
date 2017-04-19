@@ -17,7 +17,7 @@
 //! Account management (personal) rpc implementation
 use std::sync::{Arc, Weak};
 use std::collections::BTreeMap;
-use util::{Address};
+use util::Address;
 
 use ethkey::{Brain, Generator, Secret};
 use ethstore::KeyFile;
@@ -27,7 +27,7 @@ use jsonrpc_core::Error;
 use v1::helpers::errors;
 use v1::helpers::accounts::unwrap_provider;
 use v1::traits::ParityAccounts;
-use v1::types::{H160 as RpcH160, H256 as RpcH256, DappId, Derive, DeriveHierarchical, DeriveHash};
+use v1::types::{H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, DappId, Derive, DeriveHierarchical, DeriveHash};
 
 /// Account management (personal) rpc implementation.
 pub struct ParityAccountsClient {
@@ -333,6 +333,17 @@ impl ParityAccounts for ParityAccountsClient {
 			)
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not export account.", e))
+	}
+
+	fn sign_message(&self, addr: RpcH160, password: String, message: RpcH256) -> Result<RpcH520, Error> {
+		self.account_provider()?
+			.sign(
+				addr.into(),
+				Some(password),
+				message.into()
+			)
+			.map(Into::into)
+			.map_err(|e| errors::account("Could not sign message.", e))
 	}
 }
 
