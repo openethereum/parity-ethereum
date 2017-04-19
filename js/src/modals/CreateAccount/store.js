@@ -69,7 +69,7 @@ export default class Store {
         return !(this.nameError || this.walletFileError);
 
       case 'fromNew':
-        return !(this.nameError || this.passwordRepeatError);
+        return !(this.nameError || this.passwordRepeatError) && this.hasAddress;
 
       case 'fromPhrase':
         return !(this.nameError || this.passwordRepeatError);
@@ -85,6 +85,10 @@ export default class Store {
     }
   }
 
+  @computed get hasAddress () {
+    return !!(this.address);
+  }
+
   @computed get passwordRepeatError () {
     return this.password === this.passwordRepeat
       ? null
@@ -92,6 +96,7 @@ export default class Store {
   }
 
   @computed get qrAddressValid () {
+    console.log('qrValid', this.qrAddress, this._api.util.isAddressValid(this.qrAddress));
     return this._api.util.isAddressValid(this.qrAddress);
   }
 
@@ -151,7 +156,10 @@ export default class Store {
       qrAddress = `0x${qrAddress}`;
     }
 
-    this.qrAddress = qrAddress;
+    // FIXME: Current native signer encoding is not 100% for EIP-55, lowercase for now
+    this.qrAddress = this._api.util
+        ? this._api.util.toChecksumAddress(qrAddress.toLowerCase())
+        : qrAddress;
   }
 
   @action setVaultName = (vaultName) => {

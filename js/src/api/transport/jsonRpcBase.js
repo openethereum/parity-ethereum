@@ -38,20 +38,20 @@ export default class JsonRpcBase extends EventEmitter {
     return json;
   }
 
-  addMiddleware (middleware) {
+  addMiddleware (Middleware) {
     this._middlewareList = Promise
       .all([
-        middleware,
+        Middleware,
         this._middlewareList
       ])
-      .then(([middleware, middlewareList]) => {
+      .then(([Middleware, middlewareList]) => {
         // Do nothing if `handlerPromise` resolves to a null-y value.
-        if (middleware == null) {
+        if (Middleware == null) {
           return middlewareList;
         }
 
         // don't mutate the original array
-        return middlewareList.concat([middleware]);
+        return middlewareList.concat([new Middleware(this)]);
       });
   }
 
@@ -80,12 +80,16 @@ export default class JsonRpcBase extends EventEmitter {
         const res = middleware.handle(method, params);
 
         if (res != null) {
-          const result = this._wrapSuccessResult(res);
-          const json = this.encode(method, params);
+          return Promise
+            .resolve(res)
+            .then((res) => {
+              const result = this._wrapSuccessResult(res);
+              const json = this.encode(method, params);
 
-          Logging.send(method, params, { json, result });
+              Logging.send(method, params, { json, result });
 
-          return res;
+              return res;
+            });
         }
       }
 

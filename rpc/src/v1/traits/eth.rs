@@ -162,8 +162,8 @@ build_rpc_trait! {
 		fn compile_serpent(&self, String) -> Result<Bytes, Error>;
 
 		/// Returns logs matching given filter object.
-		#[rpc(name = "eth_getLogs")]
-		fn logs(&self, Filter) -> Result<Vec<Log>, Error>;
+		#[rpc(async, name = "eth_getLogs")]
+		fn logs(&self, Filter) -> BoxFuture<Vec<Log>, Error>;
 
 		/// Returns the hash of the current block, the seedHash, and the boundary condition to be met.
 		#[rpc(name = "eth_getWork")]
@@ -196,12 +196,12 @@ build_rpc_trait! {
 		fn new_pending_transaction_filter(&self) -> Result<U256, Error>;
 
 		/// Returns filter changes since last poll.
-		#[rpc(name = "eth_getFilterChanges")]
-		fn filter_changes(&self, Index) -> Result<FilterChanges, Error>;
+		#[rpc(async, name = "eth_getFilterChanges")]
+		fn filter_changes(&self, Index) -> BoxFuture<FilterChanges, Error>;
 
 		/// Returns all logs matching given filter (in a range 'from' - 'to').
-		#[rpc(name = "eth_getFilterLogs")]
-		fn filter_logs(&self, Index) -> Result<Vec<Log>, Error>;
+		#[rpc(async, name = "eth_getFilterLogs")]
+		fn filter_logs(&self, Index) -> BoxFuture<Vec<Log>, Error>;
 
 		/// Uninstalls filter.
 		#[rpc(name = "eth_uninstallFilter")]

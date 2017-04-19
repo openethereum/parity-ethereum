@@ -171,13 +171,13 @@ function addProxies (app) {
   }));
 
   app.use('/api', proxy({
-    target: 'http://127.0.0.1:8080',
+    target: 'http://127.0.0.1:8545',
     changeOrigin: true,
     autoRewrite: true
   }));
 
   app.use('/app', proxy({
-    target: 'http://127.0.0.1:8080',
+    target: 'http://127.0.0.1:8545',
     changeOrigin: true,
     pathRewrite: {
       '^/app': ''
@@ -193,7 +193,7 @@ function addProxies (app) {
   }));
 
   app.use('/rpc', proxy({
-    target: 'http://127.0.0.1:8080',
+    target: 'http://127.0.0.1:8545',
     changeOrigin: true
   }));
 }

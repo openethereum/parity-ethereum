@@ -454,8 +454,8 @@ mod tests {
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
-		let db1 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
-		let db2 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
+		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b1 = b1.close_and_lock();

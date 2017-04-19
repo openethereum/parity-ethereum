@@ -608,7 +608,7 @@ class WriteContract extends Component {
           label={
             <FormattedMessage
               id='writeContract.input.abi'
-              defaultMessage='ABI Interface'
+              defaultMessage='ABI Definition'
             />
           }
           readOnly

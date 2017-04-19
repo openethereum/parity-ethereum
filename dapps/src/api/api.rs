@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+
 use unicase::UniCase;
 use hyper::{server, net, Decoder, Encoder, Next, Control};
 use hyper::header;
@@ -26,27 +27,28 @@ use apps::fetcher::Fetcher;
 
 use handlers::extract_url;
 use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
-use jsonrpc_http_server;
-use jsonrpc_server_utils::cors;
+use jsonrpc_http_server::{self, AccessControlAllowOrigin};
 
 #[derive(Clone)]
 pub struct RestApi {
-	cors_domains: Option<Vec<cors::AccessControlAllowOrigin>>,
-	endpoints: Arc<Endpoints>,
+	// TODO [ToDr] cors_domains should be handled by the server to avoid duplicated logic.
+	// RequestMiddleware should be able to tell that cors headers should be included.
+	cors_domains: Option<Vec<AccessControlAllowOrigin>>,
+	apps: Vec<App>,
 	fetcher: Arc<Fetcher>,
 }
 
 impl RestApi {
-	pub fn new(cors_domains: Vec<cors::AccessControlAllowOrigin>, endpoints: Arc<Endpoints>, fetcher: Arc<Fetcher>) -> Box<Endpoint> {
+	pub fn new(cors_domains: Vec<AccessControlAllowOrigin>, endpoints: &Endpoints, fetcher: Arc<Fetcher>) -> Box<Endpoint> {
 		Box::new(RestApi {
 			cors_domains: Some(cors_domains),
-			endpoints: endpoints,
+			apps: Self::list_apps(endpoints),
 			fetcher: fetcher,
 		})
 	}
 
-	fn list_apps(&self) -> Vec<App> {
-		self.endpoints.iter().filter_map(|(ref k, ref e)| {
+	fn list_apps(endpoints: &Endpoints) -> Vec<App> {
+		endpoints.iter().filter_map(|(ref k, ref e)| {
 			e.info().map(|ref info| App::from_info(k, info))
 		}).collect()
 	}
@@ -54,7 +56,7 @@ impl RestApi {
 
 impl Endpoint for RestApi {
 	fn to_async_handler(&self, path: EndpointPath, control: Control) -> Box<Handler> {
-		Box::new(RestApiRouter::new(self.clone(), path, control))
+		Box::new(RestApiRouter::new((*self).clone(), path, control))
 	}
 }
 
@@ -82,6 +84,7 @@ impl RestApiRouter {
 	}
 
 	fn resolve_content(&self, hash: Option<&str>, path: EndpointPath, control: Control) -> Option<Box<Handler>> {
+		trace!(target: "dapps", "Resolving content: {:?} from path: {:?}", hash, path);
 		match hash {
 			Some(hash) if self.api.fetcher.contains(hash) => {
 				Some(self.api.fetcher.to_async_handler(path, control))
@@ -115,7 +118,6 @@ impl RestApiRouter {
 }
 
 impl server::Handler<net::HttpStream> for RestApiRouter {
-
 	fn on_request(&mut self, request: server::Request<net::HttpStream>) -> Next {
 		self.cors_header = jsonrpc_http_server::cors_header(&request, &self.api.cors_domains).into();
 
@@ -142,7 +144,7 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 		if let Some(ref hash) = hash { path.app_id = hash.clone().to_owned() }
 
 		let handler = endpoint.and_then(|v| match v {
-			"apps" => Some(response::as_json(&self.api.list_apps())),
+			"apps" => Some(response::as_json(&self.api.apps)),
 			"ping" => Some(response::ping()),
 			"content" => self.resolve_content(hash, path, control),
 			_ => None
@@ -168,5 +170,4 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 	fn on_response_writable(&mut self, encoder: &mut Encoder<net::HttpStream>) -> Next {
 		self.handler.on_response_writable(encoder)
 	}
-
 }

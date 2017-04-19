@@ -28,9 +28,7 @@ export default class Middleware {
     const handler = this._handlers[method];
 
     if (handler != null) {
-      const response = handler(params);
-
-      return response;
+      return handler(params);
     }
 
     return null;

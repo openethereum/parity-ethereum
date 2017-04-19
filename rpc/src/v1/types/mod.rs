@@ -45,7 +45,7 @@ mod work;
 
 pub use self::account_info::{AccountInfo, HwAccountInfo};
 pub use self::bytes::Bytes;
-pub use self::block::{RichBlock, Block, BlockTransactions};
+pub use self::block::{RichBlock, Block, BlockTransactions, Header, RichHeader, Rich};
 pub use self::block_number::BlockNumber;
 pub use self::call_request::CallRequest;
 pub use self::confirmations::{
@@ -65,7 +65,7 @@ pub use self::receipt::Receipt;
 pub use self::rpc_settings::RpcSettings;
 pub use self::sync::{
 	SyncStatus, SyncInfo, Peers, PeerInfo, PeerNetworkInfo, PeerProtocolsInfo,
-	TransactionStats, ChainStatus, EthProtocolInfo, LesProtocolInfo,
+	TransactionStats, ChainStatus, EthProtocolInfo, PipProtocolInfo,
 };
 pub use self::trace::{LocalizedTrace, TraceResults};
 pub use self::trace_filter::TraceFilter;
