@@ -51,9 +51,11 @@ export default class Api extends EventEmitter {
     if (process.env.NODE_ENV !== 'test') {
       transport.addMiddleware(
         this.parity.nodeKind().then((nodeKind) => {
-          return nodeKind.availability === 'public'
-            ? new LocalAccountsMiddleware(transport)
-            : null;
+          if (nodeKind.availability === 'public') {
+            return new LocalAccountsMiddleware(transport);
+          }
+
+          return null;
         })
       );
     }
