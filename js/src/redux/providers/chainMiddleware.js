@@ -23,27 +23,33 @@ export default class ChainMiddleware {
         const { collection } = action;
 
         if (collection) {
+          const { nodeStatus } = store.getState();
+          const { netChain, nodeKind } = nodeStatus;
           const newChain = collection.netChain;
           const newNodeKind = collection.nodeKind;
+          let reloadChain = false;
+          let reloadType = false;
 
+          // force reload when chain has changed and is not initial value
           if (newChain) {
-            const { nodeStatus } = store.getState();
-            const { netChain, nodeKind } = nodeStatus;
+            const hasChainChanged = newChain !== netChain;
+            const isInitialChain = netChain === DEFAULT_NETCHAIN;
 
-            // force reload when chain has changed
-            let forceReload = newChain !== netChain && netChain !== DEFAULT_NETCHAIN;
+            reloadChain = !isInitialChain && hasChainChanged;
+          }
 
-            // force reload when nodeKind (availability/capability) has changed
-            if (!forceReload && collection.nodeKind !== null && nodeKind !== null) {
-              forceReload = nodeKind.availability !== newNodeKind.availability ||
-                nodeKind.capability !== newNodeKind.capability;
-            }
+          // force reload when nodeKind (availability or capability) has changed
+          if (newNodeKind && nodeKind) {
+            const hasAvailabilityChanged = nodeKind.availability !== newNodeKind.availability;
+            const hasCapabilityChanged = nodeKind.capability !== newNodeKind.capability;
 
-            if (forceReload) {
-              setTimeout(() => {
-                window.location.reload();
-              }, 0);
-            }
+            reloadType = hasAvailabilityChanged || hasCapabilityChanged;
+          }
+
+          if (reloadChain || reloadType) {
+            setTimeout(() => {
+              window.location.reload();
+            }, 0);
           }
         }
       }
