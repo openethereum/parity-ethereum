@@ -73,7 +73,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) { Some((n.into(), h.into())) } else { None },
 			eip98_transition: p.eip98_transition.map_or(0, Into::into),
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
-			eip86_transition: p.eip86_transition.map_or(0, Into::into),
+			eip86_transition: p.eip86_transition.map_or(BlockNumber::max_value(), Into::into),
 		}
 	}
 }
