@@ -16,26 +16,13 @@
 
 export default {
   buttons: {
-    close: `Sluit`,
-    details: `details`,
     edit: `bewerken`,
-    execute: `uitvoeren`,
-    forget: `vergeten`
+    forget: `vergeten`,
+    save: `opslaan`
   },
-  details: {
-    title: `contract details`
+  delete: {
+    confirmInfo: `Weet je zeker dat je het volgende adres uit je adresboek wilt verwijderen?`,
+    title: `bevestig verwijderen`
   },
-  events: {
-    eventPending: `pending`,
-    noEvents: `Er zijn vanuit dit contract nog geen events verzonden.`,
-    title: `events`
-  },
-  minedBlock: `Opgenomen in blok #{blockNumber}`,
-  queries: {
-    buttons: {
-      query: `Query`
-    },
-    title: `queries`
-  },
-  title: `Contract Informatie`
+  title: `Adres Informatie`
 };

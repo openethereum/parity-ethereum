@@ -16,26 +16,13 @@
 
 export default {
   buttons: {
-    close: `Sluit`,
-    details: `details`,
-    edit: `bewerken`,
-    execute: `uitvoeren`,
-    forget: `vergeten`
+    close: `sluit`,
+    done: `klaar`,
+    request: `verzoek`
   },
-  details: {
-    title: `contract details`
+  summary: {
+    done: `Jouw Kovan ETH is aangevraagd bij het faucet, wat reageerde met het volgende bericht -`,
+    info: `Om een hoeveelheid Kovan ETH aan te vragen voor dit adres, moet je ervoor zorgen dat het adres op het mainnet sms-geverifieerd is. Zodra je dit uitvoert, zal het faucet Kovan ETH naar je huidige account verzenden.`
   },
-  events: {
-    eventPending: `pending`,
-    noEvents: `Er zijn vanuit dit contract nog geen events verzonden.`,
-    title: `events`
-  },
-  minedBlock: `Opgenomen in blok #{blockNumber}`,
-  queries: {
-    buttons: {
-      query: `Query`
-    },
-    title: `queries`
-  },
-  title: `Contract Informatie`
+  title: `Kovan ETH Faucet`
 };

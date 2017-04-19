@@ -16,26 +16,10 @@
 
 export default {
   buttons: {
-    close: `Sluit`,
-    details: `details`,
-    edit: `bewerken`,
-    execute: `uitvoeren`,
-    forget: `vergeten`
+    add: `adres`
   },
-  details: {
-    title: `contract details`
+  errors: {
+    invalidFile: `Het opgegeven bestand is ongeldig...`
   },
-  events: {
-    eventPending: `pending`,
-    noEvents: `Er zijn vanuit dit contract nog geen events verzonden.`,
-    title: `events`
-  },
-  minedBlock: `Opgenomen in blok #{blockNumber}`,
-  queries: {
-    buttons: {
-      query: `Query`
-    },
-    title: `queries`
-  },
-  title: `Contract Informatie`
+  title: `Opgeslagen Adressen`
 };

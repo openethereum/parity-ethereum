@@ -16,26 +16,12 @@
 
 export default {
   buttons: {
-    close: `Sluit`,
-    details: `details`,
-    edit: `bewerken`,
-    execute: `uitvoeren`,
-    forget: `vergeten`
+    cancel: `Annuleer`,
+    save: `Opslaan`
   },
-  details: {
-    title: `contract details`
+  name: {
+    hint: `kies een naam voor dit contract`,
+    label: `contract naam`
   },
-  events: {
-    eventPending: `pending`,
-    noEvents: `Er zijn vanuit dit contract nog geen events verzonden.`,
-    title: `events`
-  },
-  minedBlock: `Opgenomen in blok #{blockNumber}`,
-  queries: {
-    buttons: {
-      query: `Query`
-    },
-    title: `queries`
-  },
-  title: `Contract Informatie`
+  title: `contract opslaan`
 };

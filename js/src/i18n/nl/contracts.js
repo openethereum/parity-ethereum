@@ -16,26 +16,13 @@
 
 export default {
   buttons: {
-    close: `Sluit`,
-    details: `details`,
-    edit: `bewerken`,
-    execute: `uitvoeren`,
-    forget: `vergeten`
+    deploy: `publiceer`,
+    develop: `ontwikkel`,
+    watch: `bekijk`
   },
-  details: {
-    title: `contract details`
+  sortOrder: {
+    date: `datum`,
+    minedBlock: `opgenomen blok`
   },
-  events: {
-    eventPending: `pending`,
-    noEvents: `Er zijn vanuit dit contract nog geen events verzonden.`,
-    title: `events`
-  },
-  minedBlock: `Opgenomen in blok #{blockNumber}`,
-  queries: {
-    buttons: {
-      query: `Query`
-    },
-    title: `queries`
-  },
-  title: `Contract Informatie`
+  title: `Contracten`
 };
