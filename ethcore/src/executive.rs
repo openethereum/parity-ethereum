@@ -46,7 +46,7 @@ pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address,
 			From::from(stream.as_raw().sha3())
 		},
 		CreateContractAddress::FromCodeHash => {
-			let mut buffer = [0u8; 20 + 32];
+			let mut buffer = [0xffu8; 20 + 32];
 			&mut buffer[20..].copy_from_slice(&code_hash[..]);
 			From::from((&buffer[..]).sha3())
 		},
