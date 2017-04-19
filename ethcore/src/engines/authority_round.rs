@@ -26,12 +26,11 @@ use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::{Call, Engine, Seal, EngineError};
-use header::Header;
+use header::{Header, BlockNumber};
 use error::{Error, TransactionError, BlockError};
 use evm::Schedule;
 use ethjson;
 use io::{IoContext, IoHandler, TimerToken, IoService};
-use env_info::EnvInfo;
 use builtin::Builtin;
 use transaction::UnverifiedTransaction;
 use client::{Client, EngineClient};
@@ -290,8 +289,9 @@ impl Engine for AuthorityRound {
 		]
 	}
 
-	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
-		Schedule::new_post_eip150(usize::max_value(), true, true, true)
+	fn schedule(&self, block_number: BlockNumber) -> Schedule {
+		let eip86 = block_number >= self.params.eip86_transition;
+		Schedule::new_post_eip150(usize::max_value(), true, true, true, eip86)
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
@@ -451,7 +451,6 @@ impl Engine for AuthorityRound {
 #[cfg(test)]
 mod tests {
 	use util::*;
-	use env_info::EnvInfo;
 	use header::Header;
 	use error::{Error, BlockError};
 	use ethkey::Secret;
@@ -472,15 +471,7 @@ mod tests {
 	#[test]
 	fn can_return_schedule() {
 		let engine = Spec::new_test_round().engine;
-		let schedule = engine.schedule(&EnvInfo {
-			number: 10000000,
-			author: 0.into(),
-			timestamp: 0,
-			difficulty: 0.into(),
-			last_hashes: Arc::new(vec![]),
-			gas_used: 0.into(),
-			gas_limit: 0.into(),
-		});
+		let schedule = engine.schedule(10000000);
 
 		assert!(schedule.stack_limit > 0);
 	}
@@ -518,8 +509,8 @@ mod tests {
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
-		let db1 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
-		let db2 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
+		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b1 = b1.close_and_lock();

@@ -36,7 +36,6 @@ class Summary extends Component {
   static propTypes = {
     account: PropTypes.object.isRequired,
     accountsInfo: PropTypes.object.isRequired,
-    balance: PropTypes.object,
     disabled: PropTypes.bool,
     link: PropTypes.string,
     name: PropTypes.string,
@@ -71,20 +70,6 @@ class Summary extends Component {
     };
 
     if (!isEqual(next, prev)) {
-      return true;
-    }
-
-    const prevTokens = this.props.balance.tokens || [];
-    const nextTokens = nextProps.balance.tokens || [];
-
-    if (prevTokens.length !== nextTokens.length) {
-      return true;
-    }
-
-    const prevValues = prevTokens.map((t) => ({ value: t.value.toNumber(), image: t.token.image }));
-    const nextValues = nextTokens.map((t) => ({ value: t.value.toNumber(), image: t.token.image }));
-
-    if (!isEqual(prevValues, nextValues)) {
       return true;
     }
 
@@ -249,15 +234,11 @@ class Summary extends Component {
   }
 
   renderBalance (onlyEth) {
-    const { balance } = this.props;
-
-    if (!balance) {
-      return null;
-    }
+    const { account } = this.props;
 
     return (
       <Balance
-        balance={ balance }
+        address={ account.address }
         className={
           onlyEth
             ? styles.ethBalances

@@ -30,9 +30,8 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
 use client::{Client, EngineClient};
 use error::{Error, BlockError};
-use header::Header;
+use header::{Header, BlockNumber};
 use builtin::Builtin;
-use env_info::EnvInfo;
 use rlp::UntrustedRlp;
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
@@ -405,8 +404,9 @@ impl Engine for Tendermint {
 		]
 	}
 
-	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
-		Schedule::new_post_eip150(usize::max_value(), true, true, true)
+	fn schedule(&self, block_number: BlockNumber) -> Schedule {
+		let eip86 = block_number >= self.params.eip86_transition;
+		Schedule::new_post_eip150(usize::max_value(), true, true, true, eip86)
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
@@ -658,7 +658,6 @@ mod tests {
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;
-	use env_info::EnvInfo;
 	use ethkey::Secret;
 	use client::chain_notify::ChainNotify;
 	use miner::MinerService;
@@ -676,8 +675,8 @@ mod tests {
 	}
 
 	fn propose_default(spec: &Spec, proposer: Address) -> (ClosedBlock, Vec<Bytes>) {
-		let mut db_result = get_temp_state_db();
-		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
+		let db = get_temp_state_db();
+		let db = spec.ensure_db_good(db, &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![]).unwrap();
@@ -740,15 +739,7 @@ mod tests {
 	#[test]
 	fn can_return_schedule() {
 		let engine = Spec::new_test_tendermint().engine;
-		let schedule = engine.schedule(&EnvInfo {
-			number: 10000000,
-			author: 0.into(),
-			timestamp: 0,
-			difficulty: 0.into(),
-			last_hashes: Arc::new(vec![]),
-			gas_used: 0.into(),
-			gas_limit: 0.into(),
-		});
+		let schedule = engine.schedule(10000000);
 
 		assert!(schedule.stack_limit > 0);
 	}

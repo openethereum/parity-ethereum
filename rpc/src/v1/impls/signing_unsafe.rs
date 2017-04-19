@@ -78,7 +78,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 	type Metadata = Metadata;
 
 	fn sign(&self, _: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
-		self.handle(RpcConfirmationPayload::Signature((address.clone(), data).into()), address.into())
+		self.handle(RpcConfirmationPayload::EthSignMessage((address.clone(), data).into()), address.into())
 			.then(|res| match res {
 				Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
 				Err(e) => Err(e),

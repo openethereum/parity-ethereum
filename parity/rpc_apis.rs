@@ -20,15 +20,15 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::Arc;
 
-pub use ethcore_rpc::SignerService;
+pub use parity_rpc::SignerService;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::snapshot::SnapshotService;
-use ethcore_rpc::{Metadata, NetworkSettings};
-use ethcore_rpc::informant::{ActivityNotifier, Middleware, RpcStats, ClientNotifier};
-use ethcore_rpc::dispatch::{FullDispatcher, LightDispatcher};
+use parity_rpc::{Metadata, NetworkSettings};
+use parity_rpc::informant::{ActivityNotifier, Middleware, RpcStats, ClientNotifier};
+use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use ethsync::{ManageNetwork, SyncProvider, LightSync};
 use hash_fetch::fetch::Client as FetchClient;
 use jsonrpc_core::{MetaIoHandler};
@@ -203,7 +203,7 @@ impl Dependencies for FullDependencies {
 	}
 
 	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware>, apis: &[Api]) {
-		use ethcore_rpc::v1::*;
+		use parity_rpc::v1::*;
 
 		macro_rules! add_signing_methods {
 			($namespace:ident, $handler:expr, $deps:expr) => {
@@ -244,7 +244,7 @@ impl Dependencies for FullDependencies {
 					);
 					handler.extend_with(client.to_delegate());
 
-					let filter_client = EthFilterClient::new(&self.client, &self.miner);
+					let filter_client = EthFilterClient::new(self.client.clone(), self.miner.clone());
 					handler.extend_with(filter_client.to_delegate());
 
 					add_signing_methods!(EthSigning, handler, self);
@@ -331,7 +331,7 @@ impl Dependencies for LightDependencies {
 
 	fn activity_notifier(&self) -> Self::Notifier { LightClientNotifier }
 	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware<Self::Notifier>>, apis: &[Api]) {
-		use ethcore_rpc::v1::*;
+		use parity_rpc::v1::*;
 
 		let dispatcher = LightDispatcher::new(
 			self.sync.clone(),
@@ -377,9 +377,8 @@ impl Dependencies for LightDependencies {
 						self.secret_store.clone(),
 						self.cache.clone(),
 					);
-					handler.extend_with(client.to_delegate());
-
-					// TODO: filters.
+					handler.extend_with(Eth::to_delegate(client.clone()));
+					handler.extend_with(EthFilter::to_delegate(client));
 					add_signing_methods!(EthSigning, handler, self);
 				},
 				Api::Personal => {
@@ -396,6 +395,7 @@ impl Dependencies for LightDependencies {
 						false => None,
 					};
 					handler.extend_with(light::ParityClient::new(
+						self.client.clone(),
 						Arc::new(dispatcher.clone()),
 						self.secret_store.clone(),
 						self.logger.clone(),

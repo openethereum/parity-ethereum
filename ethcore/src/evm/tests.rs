@@ -18,7 +18,7 @@ use util::*;
 use action_params::{ActionParams, ActionValue};
 use env_info::EnvInfo;
 use types::executed::CallType;
-use evm::{self, Ext, Schedule, Factory, GasLeft, VMType, ContractCreateResult, MessageCallResult};
+use evm::{self, Ext, Schedule, Factory, GasLeft, VMType, ContractCreateResult, MessageCallResult, CreateContractAddress};
 use std::fmt::Debug;
 
 pub struct FakeLogEntry {
@@ -111,7 +111,7 @@ impl Ext for FakeExt {
 		self.blockhashes.get(number).unwrap_or(&H256::new()).clone()
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], _address: CreateContractAddress) -> ContractCreateResult {
 		self.calls.insert(FakeCall {
 			call_type: FakeCallType::Create,
 			gas: *gas,

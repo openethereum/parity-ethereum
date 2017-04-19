@@ -41,6 +41,17 @@ pub enum MessageCallResult {
 	Failed
 }
 
+/// Specifies how an address is calculated for a new contract.
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum CreateContractAddress {
+	/// Address is calculated from nonce and sender. Pre EIP-86 (Metropolis)
+	FromSenderAndNonce,
+	/// Address is calculated from code hash. Default since EIP-86
+	FromCodeHash,
+	/// Address is calculated from code hash and sender. Used by CREATE_P2SH instruction.
+	FromSenderAndCodeHash,
+}
+
 /// Externalities interface for EVMs
 // TODO: [rob] associated error type instead of `trie::Result`. Not all EVMs are trie powered.
 pub trait Ext {
@@ -68,7 +79,7 @@ pub trait Ext {
 	/// Creates new contract.
 	///
 	/// Returns gas_left and contract address if contract creation was succesfull.
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult;
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address: CreateContractAddress) -> ContractCreateResult;
 
 	/// Message call.
 	///

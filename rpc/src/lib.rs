@@ -66,6 +66,8 @@ extern crate ethjson;
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
 
+pub extern crate jsonrpc_ws_server as ws;
+
 mod metadata;
 pub mod v1;
 
@@ -73,7 +75,7 @@ pub use ipc::{Server as IpcServer, MetaExtractor as IpcMetaExtractor, RequestCon
 pub use http::{
 	hyper,
 	RequestMiddleware, RequestMiddlewareAction,
-	AccessControlAllowOrigin, Host,
+	AccessControlAllowOrigin, Host, DomainsValidation
 };
 
 pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings, Metadata, Origin, informant, dispatch};
@@ -191,5 +193,30 @@ pub fn start_ipc<M, S, H, T>(
 	ipc::ServerBuilder::new(handler)
 		.event_loop_remote(remote)
 		.session_metadata_extractor(extractor)
+		.start(addr)
+}
+
+/// Start WS server and return `Server` handle.
+pub fn start_ws<M, S, H, T, U>(
+	addr: &SocketAddr,
+	handler: H,
+	remote: tokio_core::reactor::Remote,
+	allowed_origins: ws::DomainsValidation<ws::Origin>,
+	allowed_hosts: ws::DomainsValidation<ws::Host>,
+	extractor: T,
+	stats: U,
+) -> Result<ws::Server, ws::Error> where
+	M: jsonrpc_core::Metadata,
+	S: jsonrpc_core::Middleware<M>,
+	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
+	T: ws::MetaExtractor<M>,
+	U: ws::SessionStats,
+{
+	ws::ServerBuilder::new(handler)
+		.event_loop_remote(remote)
+		.allowed_origins(allowed_origins)
+		.allowed_hosts(allowed_hosts)
+		.session_meta_extractor(extractor)
+		.session_stats(stats)
 		.start(addr)
 }

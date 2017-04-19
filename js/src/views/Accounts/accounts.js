@@ -41,7 +41,6 @@ class Accounts extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     accountsInfo: PropTypes.object.isRequired,
-    balances: PropTypes.object,
     hasAccounts: PropTypes.bool.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired
   }
@@ -133,7 +132,7 @@ class Accounts extends Component {
   }
 
   renderAccounts () {
-    const { accounts, balances } = this.props;
+    const { accounts } = this.props;
     const _accounts = pickBy(accounts, (account) => account.uuid);
     const _hasAccounts = Object.keys(_accounts).length > 0;
 
@@ -147,7 +146,6 @@ class Accounts extends Component {
       <List
         search={ searchValues }
         accounts={ _accounts }
-        balances={ balances }
         empty={ !_hasAccounts }
         order={ sortOrder }
         handleAddSearchToken={ this.onAddSearchToken }
@@ -156,7 +154,7 @@ class Accounts extends Component {
   }
 
   renderWallets () {
-    const { accounts, balances } = this.props;
+    const { accounts } = this.props;
     const wallets = pickBy(accounts, (account) => account.wallet);
     const hasWallets = Object.keys(wallets).length > 0;
 
@@ -175,7 +173,6 @@ class Accounts extends Component {
         link='wallet'
         search={ searchValues }
         accounts={ wallets }
-        balances={ balances }
         order={ sortOrder }
         handleAddSearchToken={ this.onAddSearchToken }
       />
@@ -183,7 +180,7 @@ class Accounts extends Component {
   }
 
   renderExternalAccounts () {
-    const { accounts, balances } = this.props;
+    const { accounts } = this.props;
     const { wallets } = this.hwstore;
     const hardware = pickBy(accounts, (account) => account.hardware);
     const external = pickBy(accounts, (account) => account.external);
@@ -210,7 +207,6 @@ class Accounts extends Component {
       <List
         search={ searchValues }
         accounts={ all }
-        balances={ balances }
         disabled={ disabled }
         order={ sortOrder }
         handleAddSearchToken={ this.onAddSearchToken }
@@ -408,12 +404,10 @@ class Accounts extends Component {
 
 function mapStateToProps (state) {
   const { accounts, accountsInfo, hasAccounts } = state.personal;
-  const { balances } = state.balances;
 
   return {
     accounts,
     accountsInfo,
-    balances,
     hasAccounts
   };
 }

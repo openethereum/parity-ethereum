@@ -20,7 +20,7 @@ use builtin::Builtin;
 use engines::Engine;
 use spec::CommonParams;
 use evm::Schedule;
-use env_info::EnvInfo;
+use header::BlockNumber;
 
 /// An engine which does not provide any consensus mechanism and does not seal blocks.
 pub struct NullEngine {
@@ -57,7 +57,7 @@ impl Engine for NullEngine {
 		&self.builtins
 	}
 
-	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
+	fn schedule(&self, _block_number: BlockNumber) -> Schedule {
 		Schedule::new_homestead()
 	}
 

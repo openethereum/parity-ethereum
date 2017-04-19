@@ -31,7 +31,7 @@ use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
 
-use util::{H256, Mutex, RwLock};
+use util::{H256, U256, Mutex, RwLock};
 use util::kvdb::{KeyValueDB, CompactionProfile};
 
 use self::header_chain::{AncestryIter, HeaderChain};
@@ -67,17 +67,30 @@ pub trait LightChainClient: Send + Sync {
 	/// parent queued prior.
 	fn queue_header(&self, header: Header) -> Result<H256, BlockImportError>;
 
+	/// Attempt to get a block hash by block id.
+	fn block_hash(&self, id: BlockId) -> Option<H256>;
+
 	/// Attempt to get block header by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 
 	/// Get the best block header.
 	fn best_block_header(&self) -> encoded::Header;
 
+	/// Get a block's chain score by ID.
+	fn score(&self, id: BlockId) -> Option<U256>;
+
 	/// Get an iterator over a block and its ancestry.
 	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a>;
 
 	/// Get the signing network ID.
 	fn signing_network_id(&self) -> Option<u64>;
+
+	/// Get environment info for execution at a given block.
+	/// Fails if that block's header is not stored.
+	fn env_info(&self, id: BlockId) -> Option<EnvInfo>;
+
+	/// Get a handle to the consensus engine.
+	fn engine(&self) -> &Arc<Engine>;
 
 	/// Query whether a block is known.
 	fn is_known(&self, hash: &H256) -> bool;
@@ -93,6 +106,9 @@ pub trait LightChainClient: Send + Sync {
 
 	/// Get the `i`th CHT root.
 	fn cht_root(&self, i: usize) -> Option<H256>;
+
+	/// Get the EIP-86 transition block number.
+	fn eip86_transition(&self) -> u64;
 }
 
 /// Something which can be treated as a `LightChainClient`.
@@ -183,6 +199,11 @@ impl Client {
 		self.queue.queue_info()
 	}
 
+	/// Attempt to get a block hash by block id.
+	pub fn block_hash(&self, id: BlockId) -> Option<H256> {
+		self.chain.block_hash(id)
+	}
+
 	/// Get a block header by Id.
 	pub fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		self.chain.block_header(id)
@@ -191,6 +212,11 @@ impl Client {
 	/// Get the best block header.
 	pub fn best_block_header(&self) -> encoded::Header {
 		self.chain.best_header()
+	}
+
+	/// Get a block's chain score.
+	pub fn score(&self, id: BlockId) -> Option<U256> {
+		self.chain.score(id)
 	}
 
 	/// Get an iterator over a block and its ancestry.
@@ -310,6 +336,10 @@ impl LightChainClient for Client {
 		self.import_header(header)
 	}
 
+	fn block_hash(&self, id: BlockId) -> Option<H256> {
+		Client::block_hash(self, id)
+	}
+
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		Client::block_header(self, id)
 	}
@@ -318,12 +348,24 @@ impl LightChainClient for Client {
 		Client::best_block_header(self)
 	}
 
+	fn score(&self, id: BlockId) -> Option<U256> {
+		Client::score(self, id)
+	}
+
 	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a> {
 		Box::new(Client::ancestry_iter(self, start))
 	}
 
 	fn signing_network_id(&self) -> Option<u64> {
 		Client::signing_network_id(self)
+	}
+
+	fn env_info(&self, id: BlockId) -> Option<EnvInfo> {
+		Client::env_info(self, id)
+	}
+
+	fn engine(&self) -> &Arc<Engine> {
+		Client::engine(self)
 	}
 
 	fn is_known(&self, hash: &H256) -> bool {
@@ -344,5 +386,9 @@ impl LightChainClient for Client {
 
 	fn cht_root(&self, i: usize) -> Option<H256> {
 		Client::cht_root(self, i)
+	}
+
+	fn eip86_transition(&self) -> u64 {
+		self.engine().params().eip86_transition
 	}
 }

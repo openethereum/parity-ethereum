@@ -361,6 +361,22 @@ impl HeaderChain {
 		}
 	}
 
+	/// Get a block's hash by ID. In the case of query by number, only canonical results
+	/// will be returned.
+	pub fn block_hash(&self, id: BlockId) -> Option<H256> {
+		match id {
+			BlockId::Earliest => Some(self.genesis_hash()),
+			BlockId::Hash(hash) => Some(hash),
+			BlockId::Number(num) => {
+				if self.best_block.read().number < num { return None }
+				self.candidates.read().get(&num).map(|entry| entry.canonical_hash)
+			}
+			BlockId::Latest | BlockId::Pending => {
+				Some(self.best_block.read().hash)
+			}
+		}
+	}
+
 	/// Get a block header. In the case of query by number, only canonical blocks
 	/// will be returned.
 	pub fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
@@ -411,6 +427,28 @@ impl HeaderChain {
 
 				load_from_db(hash)
 			}
+		}
+	}
+
+	/// Get a block's chain score.
+	/// Returns nothing for non-canonical blocks.
+	pub fn score(&self, id: BlockId) -> Option<U256> {
+		let genesis_hash = self.genesis_hash();
+		match id {
+			BlockId::Earliest | BlockId::Number(0) => Some(self.genesis_header.difficulty()),
+			BlockId::Hash(hash) if hash == genesis_hash => Some(self.genesis_header.difficulty()),
+			BlockId::Hash(hash) => match self.block_header(BlockId::Hash(hash)) {
+				Some(header) => self.candidates.read().get(&header.number())
+					.and_then(|era| era.candidates.iter().find(|e| e.hash == hash))
+					.map(|c| c.total_difficulty),
+				None => None,
+			},
+			BlockId::Number(num) => {
+				let candidates = self.candidates.read();
+				if self.best_block.read().number < num { return None }
+				candidates.get(&num).map(|era| era.candidates[0].total_difficulty)
+			}
+			BlockId::Latest | BlockId::Pending => Some(self.best_block.read().total_difficulty)
 		}
 	}
 

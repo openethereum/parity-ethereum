@@ -24,11 +24,10 @@ use block::*;
 use builtin::Builtin;
 use spec::CommonParams;
 use engines::{Engine, EngineError, Seal, Call, EpochChange};
-use env_info::EnvInfo;
 use error::{BlockError, Error};
 use evm::Schedule;
 use ethjson;
-use header::Header;
+use header::{Header, BlockNumber};
 use client::Client;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -110,7 +109,7 @@ impl Engine for BasicAuthority {
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> BTreeMap<String, String> { map!["signature".to_owned() => "TODO".to_owned()] }
 
-	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
+	fn schedule(&self, _block_number: BlockNumber) -> Schedule {
 		Schedule::new_homestead()
 	}
 
@@ -223,7 +222,6 @@ impl Engine for BasicAuthority {
 mod tests {
 	use util::*;
 	use block::*;
-	use env_info::EnvInfo;
 	use error::{BlockError, Error};
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
@@ -248,16 +246,7 @@ mod tests {
 	#[test]
 	fn can_return_schedule() {
 		let engine = new_test_authority().engine;
-		let schedule = engine.schedule(&EnvInfo {
-			number: 10000000,
-			author: 0.into(),
-			timestamp: 0,
-			difficulty: 0.into(),
-			last_hashes: Arc::new(vec![]),
-			gas_used: 0.into(),
-			gas_limit: 0.into(),
-		});
-
+		let schedule = engine.schedule(10000000);
 		assert!(schedule.stack_limit > 0);
 	}
 
@@ -294,8 +283,7 @@ mod tests {
 		let engine = &*spec.engine;
 		engine.set_signer(Arc::new(tap), addr, "".into());
 		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_state_db();
-		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
+		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();

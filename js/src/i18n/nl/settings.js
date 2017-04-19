@@ -22,6 +22,18 @@ export default {
     label: `achtergrond`
   },
   parity: {
+    chains: {
+      chain_classic: `Parity synchroniseert met het Ethereum Classic netwerk`,
+      chain_dev: `Parity gebruikt een lokale ontwikkelaars chain`,
+      chain_expanse: `Parity synchroniseert met het Expanse netwerk`,
+      chain_foundation: `Parity synchroniseert met het Ethereum netwerk wat door de Ethereum Foundation is uitgebracht`,
+      chain_kovan: `Parity synchroniseert met het Kovan test netwerk`,
+      chain_olympic: `Parity synchroniseert met het Olympic test netwerk`,
+      chain_ropsten: `Parity synchroniseert met het Ropsten test netwerk`,
+      cmorden_kovan: `Parity synchroniseert met het Morden (Classic) test netwerk`,
+      hint: `de chain waarmee de Parity node synchroniseert`,
+      label: `te synchroniseren chain/netwerk`
+    },
     languages: {
       hint: `de taal waarin deze interface wordt weergegeven`,
       label: `Weergave taal`
@@ -35,7 +47,7 @@ export default {
       mode_offline: `Parity synchroniseert niet`,
       mode_passive: `Parity synchroniseert in het begin. Daarna slaapt Parity en wordt regelmatig wakker voor synchronisatie`
     },
-    overview_0: `Pas de Parity node instellingen aan en kies de synchronisatie modus in dit menu.`,
+    overview_0: `Pas de Parity node instellingen aan en kies de manier van synchroniseren in dit menu.`,
     label: `parity`
   },
   proxy: {
@@ -53,7 +65,7 @@ export default {
       label: `Accounts`
     },
     addresses: {
-      description: `Een overzicht van alle contacten en adresboek items die door deze Parity installatie worden beheerd. Monitor en volg accounts waarbij je transactie details met slechts een muisklik kunt weergeven.`,
+      description: `Een overzicht van alle door deze Parity installatie beheerde contacten en adresboek items. Monitor en volg accounts waarbij je transactie details met slechts een muisklik kunt weergeven.`,
       label: `Adresboek`
     },
     apps: {
@@ -64,10 +76,10 @@ export default {
       description: `Monitor, volg en maak gebruik van specifieke contracten die op het netwerk zijn gezet. Dit is een meer technisch gerichte omgeving, voornamelijk bedoeld voor geavanceerde gebruikers die de werking van bepaalde contracten goed begrijpen.`,
       label: `Contracten`
     },
-    overview_0: `Beheer de beschikbare weergaven van deze interface en selecteer enkel de delen van de applicatie die voor jou van belang zijn.`,
+    overview_0: `Beheer de beschikbare weergaven van deze interface, en selecteer enkel de delen van de applicatie die voor jou van belang zijn.`,
     overview_1: `Ben je een eind gebruiker? De standaard instellingen zijn geschikt voor zowel beginners als gevorderde gebruikers.`,
     overview_2: `Ben je een ontwikkelaar? Voeg enkele functies toe om je contracten te beheren en gebruik te maken van gedecentraliseerde applicaties.`,
-    overview_3: `Ben je een miner of run je een grootschalige node? Voeg enkele functies toe om je alle informatie te geven die je nodig hebt om je node te monitoren.`,
+    overview_3: `Ben je een miner of draai je een grootschalige node? Voeg enkele functies toe om je alle informatie te geven die je nodig hebt om je node te monitoren.`,
     settings: {
       description: `Deze weergave. Hiermee kun je Parity aan passen in termen van opties, bediening en look en feel.`,
       label: `Instellingen`

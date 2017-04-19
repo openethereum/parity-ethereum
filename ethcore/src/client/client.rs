@@ -1054,7 +1054,7 @@ impl BlockChainClient for Client {
 				return Err(err.into())
 			}
 		}
-		let lower = t.gas_required(&self.engine.schedule(&env_info)).into();
+		let lower = t.gas_required(&self.engine.schedule(env_info.number)).into();
 		if cond(lower)? {
 			trace!(target: "estimate_gas", "estimate_gas succeeded with {}", lower);
 			return Ok(lower)
@@ -1353,7 +1353,8 @@ impl BlockChainClient for Client {
 					.collect();
 				match (transaction, previous_receipts) {
 					(Some(transaction), Some(previous_receipts)) => {
-						Some(transaction_receipt(transaction, previous_receipts))
+						let schedule = self.engine().schedule(block_number);
+						Some(transaction_receipt(&schedule, transaction, previous_receipts))
 					},
 					_ => None,
 				}
@@ -1587,11 +1588,15 @@ impl BlockChainClient for Client {
 			})
 			.and_then(|a| if a.is_zero() { None } else { Some(a) })
 	}
+
+	fn eip86_transition(&self) -> u64 {
+		self.engine().params().eip86_transition
+	}
 }
 
 impl MiningBlockChainClient for Client {
 	fn latest_schedule(&self) -> Schedule {
-		self.engine.schedule(&self.latest_env_info())
+		self.engine.schedule(self.latest_env_info().number)
 	}
 
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
@@ -1742,7 +1747,7 @@ impl Drop for Client {
 
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
-fn transaction_receipt(mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
+fn transaction_receipt(schedule: &Schedule, mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
 	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
 
 	let sender = tx.sender();
@@ -1761,12 +1766,12 @@ fn transaction_receipt(mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>)
 		transaction_hash: transaction_hash,
 		transaction_index: transaction_index,
 		block_hash: block_hash,
-		block_number:block_number,
+		block_number: block_number,
 		cumulative_gas_used: receipt.gas_used,
 		gas_used: receipt.gas_used - prior_gas_used,
 		contract_address: match tx.action {
 			Action::Call(_) => None,
-			Action::Create => Some(contract_address(&sender, &tx.nonce))
+			Action::Create => Some(contract_address(schedule.create_address, &sender, &tx.nonce, &tx.data.sha3()))
 		},
 		logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
 			entry: log,
@@ -1804,7 +1809,7 @@ mod tests {
 			// Separate thread uncommited transaction
 			let go = Arc::new(AtomicBool::new(false));
 			let go_thread = go.clone();
-			let another_client = client.reference().clone();
+			let another_client = client.clone();
 			thread::spawn(move || {
 				let mut batch = DBTransaction::new();
 				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new());
@@ -1821,6 +1826,7 @@ mod tests {
 	#[test]
 	fn should_return_correct_log_index() {
 		use super::transaction_receipt;
+		use evm::schedule::Schedule;
 		use ethkey::KeyPair;
 		use log_entry::{LogEntry, LocalizedLogEntry};
 		use receipt::{Receipt, LocalizedReceipt};
@@ -1830,6 +1836,7 @@ mod tests {
 		// given
 		let key = KeyPair::from_secret_slice(&"test".sha3()).unwrap();
 		let secret = key.secret();
+		let schedule = Schedule::new_homestead();
 
 		let block_number = 1;
 		let block_hash = 5.into();
@@ -1873,7 +1880,7 @@ mod tests {
 		}];
 
 		// when
-		let receipt = transaction_receipt(transaction, receipts);
+		let receipt = transaction_receipt(&schedule, transaction, receipts);
 
 		// then
 		assert_eq!(receipt, LocalizedReceipt {

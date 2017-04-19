@@ -22,9 +22,12 @@ import { Balance, Certifications, Container, CopyToClipboard, ContainerTitle, Id
 import styles from './header.css';
 
 export default class Header extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     account: PropTypes.object,
-    balance: PropTypes.object,
     children: PropTypes.node,
     className: PropTypes.string,
     disabled: PropTypes.bool,
@@ -39,8 +42,49 @@ export default class Header extends Component {
     isContract: false
   };
 
+  state = {
+    txCount: null
+  };
+
+  txCountSubId = null;
+
+  componentWillMount () {
+    if (this.props.account && !this.props.isContract) {
+      this.subscribeTxCount();
+    }
+  }
+
+  componentWillUnmount () {
+    this.unsubscribeTxCount();
+  }
+
+  subscribeTxCount () {
+    const { api } = this.context;
+
+    api
+      .subscribe('eth_blockNumber', (error) => {
+        if (error) {
+          return console.error(error);
+        }
+
+        api.eth.getTransactionCount(this.props.account.address)
+          .then((txCount) => this.setState({ txCount }));
+      })
+      .then((subscriptionId) => {
+        this.txCountSubId = subscriptionId;
+      });
+  }
+
+  unsubscribeTxCount () {
+    if (!this.txCountSubId) {
+      return;
+    }
+
+    this.context.api.unsubscribe(this.txCountSubId);
+  }
+
   render () {
-    const { account, balance, children, className, disabled, hideName } = this.props;
+    const { account, children, className, disabled, hideName } = this.props;
 
     if (!account) {
       return null;
@@ -76,8 +120,7 @@ export default class Header extends Component {
             { this.renderTxCount() }
             <div className={ styles.balances }>
               <Balance
-                account={ account }
-                balance={ balance }
+                address={ address }
               />
               <Certifications address={ address } />
               { this.renderVault() }
@@ -115,15 +158,10 @@ export default class Header extends Component {
   }
 
   renderTxCount () {
-    const { balance, isContract } = this.props;
+    const { isContract } = this.props;
+    const { txCount } = this.state;
 
-    if (!balance || isContract) {
-      return null;
-    }
-
-    const { txCount } = balance;
-
-    if (!txCount) {
+    if (!txCount || isContract) {
       return null;
     }
 

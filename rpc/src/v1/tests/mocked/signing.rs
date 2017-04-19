@@ -304,7 +304,7 @@ fn should_add_sign_transaction_to_the_queue() {
 		r#""input":"0x","# +
 		&format!("\"networkId\":{},", t.network_id().map_or("null".to_owned(), |n| format!("{}", n))) +
 		r#""nonce":"0x1","# +
-		&format!("\"publicKey\":\"0x{:?}\",", t.public_key()) +
+		&format!("\"publicKey\":\"0x{:?}\",", t.public_key().unwrap()) +
 		&format!("\"r\":\"0x{}\",", U256::from(signature.r()).to_hex()) +
 		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
 		&format!("\"s\":\"0x{}\",", U256::from(signature.s()).to_hex()) +

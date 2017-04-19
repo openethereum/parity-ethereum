@@ -28,10 +28,13 @@ use ethstore::random_phrase;
 use ethsync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
 
+use light::client::LightChainClient;
+
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::{LightDispatcher, DEFAULT_MAC};
+use v1::helpers::light_fetch::LightFetch;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
@@ -40,7 +43,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
-	AccountInfo, HwAccountInfo,
+	AccountInfo, HwAccountInfo, Header, RichHeader,
 };
 
 /// Parity implementation for light client.
@@ -52,11 +55,13 @@ pub struct ParityClient {
 	signer: Option<Arc<SignerService>>,
 	dapps_interface: Option<String>,
 	dapps_port: Option<u16>,
+	eip86_transition: u64,
 }
 
 impl ParityClient {
 	/// Creates new `ParityClient`.
 	pub fn new(
+		client: Arc<LightChainClient>,
 		light_dispatch: Arc<LightDispatcher>,
 		accounts: Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
@@ -73,6 +78,17 @@ impl ParityClient {
 			signer: signer,
 			dapps_interface: dapps_interface,
 			dapps_port: dapps_port,
+			eip86_transition: client.eip86_transition(),
+		}
+	}
+
+	/// Create a light blockchain data fetcher.
+	fn fetcher(&self) -> LightFetch {
+		LightFetch {
+			client: self.light_dispatch.client.clone(),
+			on_demand: self.light_dispatch.on_demand.clone(),
+			sync: self.light_dispatch.sync.clone(),
+			cache: self.light_dispatch.cache.clone(),
 		}
 	}
 }
@@ -234,7 +250,7 @@ impl Parity for ParityClient {
 		Ok(
 			txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
-				.map(Into::into)
+				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
 				.collect::<Vec<_>>()
 		)
 	}
@@ -245,7 +261,7 @@ impl Parity for ParityClient {
 		Ok(
 			txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
-				.map(Into::into)
+				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
 				.collect::<Vec<_>>()
 		)
 	}
@@ -341,6 +357,40 @@ impl Parity for ParityClient {
 			availability: Availability::Personal,
 			capability: Capability::Light,
 		})
+	}
+
+	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<Option<RichHeader>, Error> {
+		use ethcore::encoded;
+
+		let engine = self.light_dispatch.client.engine().clone();
+		let from_encoded = move |encoded: encoded::Header| {
+			let header = encoded.decode();
+			let extra_info = engine.extra_info(&header);
+			RichHeader {
+				inner: Header {
+					hash: Some(header.hash().into()),
+					size: Some(encoded.rlp().as_raw().len().into()),
+					parent_hash: header.parent_hash().clone().into(),
+					uncles_hash: header.uncles_hash().clone().into(),
+					author: header.author().clone().into(),
+					miner: header.author().clone().into(),
+					state_root: header.state_root().clone().into(),
+					transactions_root: header.transactions_root().clone().into(),
+					receipts_root: header.receipts_root().clone().into(),
+					number: Some(header.number().into()),
+					gas_used: header.gas_used().clone().into(),
+					gas_limit: header.gas_limit().clone().into(),
+					logs_bloom: header.log_bloom().clone().into(),
+					timestamp: header.timestamp().into(),
+					difficulty: header.difficulty().clone().into(),
+					seal_fields: header.seal().iter().cloned().map(Into::into).collect(),
+					extra_data: Bytes::new(header.extra_data().clone()),
+				},
+				extra_info: extra_info,
+			}
+		};
+
+		self.fetcher().header(number.0.into()).map(move |encoded| encoded.map(from_encoded)).boxed()
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
