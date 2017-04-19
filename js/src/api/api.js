@@ -59,7 +59,8 @@ export default class Api extends EventEmitter {
           }
 
           return null;
-        });
+        })
+        .catch(() => null);
 
       transport.addMiddleware(middleware);
     }

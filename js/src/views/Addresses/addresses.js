@@ -24,7 +24,7 @@ import { uniq, isEqual } from 'lodash';
 import List from '../Accounts/List';
 import Summary from '../Accounts/Summary';
 import { AddAddress } from '~/modals';
-import { Actionbar, ActionbarExport, ActionbarImport, ActionbarSearch, ActionbarSort, Button, Page, Loading } from '~/ui';
+import { Actionbar, ActionbarExport, ActionbarImport, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import styles from './addresses.css';
@@ -37,7 +37,6 @@ class Addresses extends Component {
   static propTypes = {
     setVisibleAccounts: PropTypes.func.isRequired,
 
-    balances: PropTypes.object,
     contacts: PropTypes.object,
     hasContacts: PropTypes.bool
   }
@@ -86,21 +85,14 @@ class Addresses extends Component {
   }
 
   renderAccountsList () {
-    const { balances, contacts, hasContacts } = this.props;
+    const { contacts, hasContacts } = this.props;
     const { searchValues, sortOrder } = this.state;
-
-    if (hasContacts && Object.keys(balances).length === 0) {
-      return (
-        <Loading />
-      );
-    }
 
     return (
       <List
         link='addresses'
         search={ searchValues }
         accounts={ contacts }
-        balances={ balances }
         empty={ !hasContacts }
         order={ sortOrder }
         handleAddSearchToken={ this.onAddSearchToken }
@@ -282,11 +274,9 @@ class Addresses extends Component {
 }
 
 function mapStateToProps (state) {
-  const { balances } = state.balances;
   const { contacts, hasContacts } = state.personal;
 
   return {
-    balances,
     contacts,
     hasContacts
   };

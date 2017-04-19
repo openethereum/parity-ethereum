@@ -38,10 +38,9 @@ export default class Details extends Component {
     extras: PropTypes.bool,
     sender: PropTypes.string,
     senderError: PropTypes.string,
-    sendersBalances: PropTypes.object,
     recipient: PropTypes.string,
     recipientError: PropTypes.string,
-    tag: PropTypes.string,
+    token: PropTypes.object,
     total: PropTypes.string,
     totalError: PropTypes.string,
     value: PropTypes.string,
@@ -57,13 +56,13 @@ export default class Details extends Component {
   };
 
   render () {
-    const { all, extras, tag, total, totalError, value, valueError } = this.props;
+    const { all, extras, token, total, totalError, value, valueError } = this.props;
     const label = (
       <FormattedMessage
         id='transfer.details.amount.label'
         defaultMessage='amount to transfer (in {tag})'
         values={ {
-          tag
+          tag: token.tag
         } }
       />
     );
@@ -140,7 +139,7 @@ export default class Details extends Component {
   }
 
   renderFromAddress () {
-    const { sender, senderError, senders, sendersBalances } = this.props;
+    const { sender, senderError, senders } = this.props;
 
     if (!senders) {
       return null;
@@ -165,7 +164,6 @@ export default class Details extends Component {
           }
           value={ sender }
           onChange={ this.onEditSender }
-          balances={ sendersBalances }
         />
       </div>
     );
@@ -198,19 +196,19 @@ export default class Details extends Component {
   }
 
   renderTokenSelect () {
-    const { balance, tag } = this.props;
+    const { balance, token } = this.props;
 
     return (
       <TokenSelect
         balance={ balance }
-        tag={ tag }
         onChange={ this.onChangeToken }
+        value={ token.id }
       />
     );
   }
 
-  onChangeToken = (event, index, tag) => {
-    this.props.onChange('tag', tag);
+  onChangeToken = (event, index, tokenId) => {
+    this.props.onChange('token', tokenId);
   }
 
   onEditSender = (event, sender) => {
