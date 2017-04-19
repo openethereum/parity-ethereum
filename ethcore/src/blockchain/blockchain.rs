@@ -810,9 +810,11 @@ impl BlockChain {
 			}
 		};
 
-		transitions.candidates.push(transition);
-
-		batch.write(db::COL_EXTRA, &epoch_num, &transitions);
+		// ensure we don't write any duplicates.
+		if transitions.candidates.iter().find(|c| c.block_hash == transition.block_hash).is_none() {
+			transitions.candidates.push(transition);
+			batch.write(db::COL_EXTRA, &epoch_num, &transitions);
+		}
 	}
 
 	/// Add a child to a given block. Assumes that the block hash is in
