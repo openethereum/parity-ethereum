@@ -405,6 +405,10 @@ impl Engine for Arc<Ethash> {
 	fn epoch_verifier(&self, _header: &Header, _proof: &[u8]) -> Result<Box<::engines::EpochVerifier>, Error> {
 		Ok(Box::new(self.clone()))
 	}
+
+	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+		Some(Box::new(::snapshot::PowSnapshot))
+	}
 }
 
 // Try to round gas_limit a bit so that:

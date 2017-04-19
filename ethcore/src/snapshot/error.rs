@@ -57,6 +57,8 @@ pub enum Error {
 	VersionNotSupported(u64),
 	/// Max chunk size is to small to fit basic account data.
 	ChunkTooSmall,
+	/// Snapshots not supported by the consensus engine.
+	SnapshotsUnsupported,
 }
 
 impl fmt::Display for Error {
@@ -79,6 +81,7 @@ impl fmt::Display for Error {
 			Error::Trie(ref err) => err.fmt(f),
 			Error::VersionNotSupported(ref ver) => write!(f, "Snapshot version {} is not supprted.", ver),
 			Error::ChunkTooSmall => write!(f, "Chunk size is too small."),
+			Error::SnapshotsUnsupported => write!(f, "Snapshots unsupported by consensus engine."),
 		}
 	}
 }

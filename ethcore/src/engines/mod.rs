@@ -45,6 +45,7 @@ use error::{Error, TransactionError};
 use evm::Schedule;
 use header::Header;
 use spec::CommonParams;
+use snapshot::SnapshotComponents;
 use transaction::{UnverifiedTransaction, SignedTransaction};
 use receipt::Receipt;
 
@@ -294,4 +295,10 @@ pub trait Engine : Sync + Send {
 
 	/// Stops any services that the may hold the Engine and makes it safe to drop.
 	fn stop(&self) {}
+
+	/// Create a factory for building snapshot chunks and restoring from them.
+	/// Returning `None` indicates that this engine doesn't support snapshot creation.
+	fn snapshot_components(&self) -> Option<Box<SnapshotComponents>> {
+		None
+	}
 }

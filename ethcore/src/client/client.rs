@@ -894,7 +894,7 @@ impl Client {
 			},
 		};
 
-		snapshot::take_snapshot(&self.chain.read(), start_hash, db.as_hashdb(), writer, p)?;
+		snapshot::take_snapshot(&*self.engine, &self.chain.read(), start_hash, db.as_hashdb(), writer, p)?;
 
 		Ok(())
 	}
