@@ -21,9 +21,28 @@ import { ERROR_CODES } from '~/api/transport/error';
 export const LS_REQUESTS_KEY = '_parity::requests';
 
 export default class SavedRequests {
-  load (api) {
-    const requests = this._get();
+  network = null;
 
+  /**
+   * Load the network version, and then the related requests
+   */
+  load (api) {
+    return api.net.version()
+      .then((network) => {
+        this.network = network;
+        return this.loadRequests(api);
+      })
+      .catch((error) => {
+        console.error(error);
+        return [];
+      });
+  }
+
+  /**
+   * Load the requests of the current network
+   */
+  loadRequests (api) {
+    const requests = this._get();
     const promises = Object.values(requests).map((request) => {
       const { requestId, transactionHash } = request;
 
@@ -67,11 +86,21 @@ export default class SavedRequests {
   }
 
   _get () {
-    return store.get(LS_REQUESTS_KEY) || {};
+    const allRequests = store.get(LS_REQUESTS_KEY) || {};
+
+    return allRequests[this.network] || {};
   }
 
   _set (requests = {}) {
-    return store.set(LS_REQUESTS_KEY, requests);
+    const allRequests = store.get(LS_REQUESTS_KEY) || {};
+
+    if (Object.keys(requests).length > 0) {
+      allRequests[this.network] = requests;
+    } else {
+      delete allRequests[this.network];
+    }
+
+    return store.set(LS_REQUESTS_KEY, allRequests);
   }
 
   _requestExists (api, requestId) {
