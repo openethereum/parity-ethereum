@@ -585,7 +585,7 @@ mod tests {
 
 	#[test]
 	fn rejects_step_backwards() {
-				let tap = AccountProvider::transient_provider();
+		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
 
 		let mut parent_header: Header = Header::default();
