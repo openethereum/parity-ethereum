@@ -667,6 +667,7 @@ impl Client {
 			Ok(proof) =>
 				chain.insert_epoch_transition(batch, epoch_number, EpochTransition {
 					block_hash: hash.clone(),
+					block_number: header.number(),
 					proof: proof,
 					state_proof: read_values.into_inner().into_iter().collect(),
 				}),

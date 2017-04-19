@@ -142,12 +142,9 @@ pub const EPOCH_KEY_LEN: usize = DB_PREFIX_LEN + 16;
 
 /// epoch key prefix.
 /// used to iterate over all epoch transitions in order from genesis.
-pub fn epoch_key_prefix() -> [u8; DB_PREFIX_LEN] {
-	let mut arr = [0u8; DB_PREFIX_LEN];
-	arr[0] = ExtrasIndex::EpochTransitions as u8;
-
-	arr
-}
+pub const EPOCH_KEY_PREFIX: &'static [u8; DB_PREFIX_LEN] = &[
+	ExtrasIndex::EpochTransitions as u8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
 
 pub struct EpochTransitionsKey([u8; EPOCH_KEY_LEN]);
 impl Deref for EpochTransitionsKey {
@@ -161,7 +158,7 @@ impl Key<EpochTransitions> for u64 {
 
 	fn key(&self) -> Self::Target {
 		let mut arr = [0u8; EPOCH_KEY_LEN];
-		arr[..DB_PREFIX_LEN].copy_from_slice(&epoch_key_prefix()[..]);
+		arr[..DB_PREFIX_LEN].copy_from_slice(&EPOCH_KEY_PREFIX[..]);
 
 		write!(&mut arr[DB_PREFIX_LEN..], "{:016x}", self)
 			.expect("format arg is valid; no more than 16 chars will be written; qed");
@@ -302,14 +299,16 @@ impl Decodable for EpochTransitions {
 #[derive(Debug, Clone)]
 pub struct EpochTransition {
 	pub block_hash: H256, // block hash at which the transition occurred.
+	pub block_number: BlockNumber, // block number at which the tranition occurred.
 	pub proof: Vec<u8>, // "transition/epoch" proof from the engine.
 	pub state_proof: Vec<DBValue>, // state items necessary to regenerate proof.
 }
 
 impl Encodable for EpochTransition {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(3)
+		s.begin_list(4)
 			.append(&self.block_hash)
+			.append(&self.block_number)
 			.append(&self.proof)
 			.begin_list(self.state_proof.len());
 
@@ -323,8 +322,9 @@ impl Decodable for EpochTransition {
 	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		Ok(EpochTransition {
 			block_hash: rlp.val_at(0)?,
-			proof: rlp.val_at(1)?,
-			state_proof: rlp.at(2)?.iter().map(|x| {
+			block_number: rlp.val_at(1)?,
+			proof: rlp.val_at(2)?,
+			state_proof: rlp.at(3)?.iter().map(|x| {
 				Ok(DBValue::from_slice(x.data()?))
 			}).collect::<Result<Vec<_>, _>>()?,
 		})
