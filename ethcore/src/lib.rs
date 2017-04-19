@@ -170,3 +170,4 @@ mod json_tests;
 
 pub use types::*;
 pub use executive::contract_address;
+pub use evm::CreateContractAddress;

@@ -57,6 +57,8 @@ pub struct CommonParams {
 	pub eip98_transition: BlockNumber,
 	/// Validate block receipts root.
 	pub validate_receipts_transition: u64,
+	/// Number of first block where EIP-86 (Metropolis) rules begin.
+	pub eip86_transition: BlockNumber,
 }
 
 impl From<ethjson::spec::Params> for CommonParams {
@@ -71,6 +73,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) { Some((n.into(), h.into())) } else { None },
 			eip98_transition: p.eip98_transition.map_or(0, Into::into),
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
+			eip86_transition: p.eip86_transition.map_or(BlockNumber::max_value(), Into::into),
 		}
 	}
 }
@@ -306,6 +309,7 @@ impl Spec {
 				call_type: CallType::None,
 			};
 			let mut substate = Substate::new();
+			state.kill_account(address);
 			{
 				let mut exec = Executive::new(&mut state, &env_info, self.engine.as_ref(), &factories.vm);
 				if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
@@ -391,6 +395,7 @@ mod tests {
 
 	#[test]
 	fn genesis_constructor() {
+		::ethcore_logger::init_log();
 		let spec = Spec::new_test_constructor();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let state = State::from_existing(db.boxed_clone(), spec.state_root(), spec.engine.account_start_nonce(), Default::default()).unwrap();

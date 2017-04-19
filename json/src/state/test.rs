@@ -75,7 +75,7 @@ pub struct MultiTransaction {
 	pub nonce: Uint,
 	/// Secret key.
 	#[serde(rename="secretKey")]
-	pub secret: H256,
+	pub secret: Option<H256>,
 	/// To.
 	pub to: MaybeEmpty<Address>,
 	/// Value set.

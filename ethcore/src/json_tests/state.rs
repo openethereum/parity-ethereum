@@ -21,6 +21,8 @@ use ethereum;
 use spec::Spec;
 use ethjson;
 use ethjson::state::test::ForkSpec;
+use types::transaction::SignedTransaction;
+use env_info::EnvInfo;
 
 lazy_static! {
 	pub static ref FRONTIER: Spec = ethereum::new_frontier_test();
@@ -37,7 +39,7 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 	for (name, test) in tests.into_iter() {
 		{
 			let multitransaction = test.transaction;
-			let env = test.env.into();
+			let env: EnvInfo = test.env.into();
 			let pre: PodState = test.pre_state.into();
 
 			for (spec, states) in test.post_states {
@@ -54,12 +56,15 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 					let info = format!("   - {} | {:?} ({}/{}) ...", name, spec, i + 1, total);
 
 					let post_root: H256 = state.hash.into();
-					let transaction = multitransaction.select(&state.indexes).into();
-
+					let transaction: SignedTransaction = multitransaction.select(&state.indexes).into();
 					let mut state = get_temp_state();
 					state.populate_from(pre.clone());
-					state.commit().expect(&format!("State test {} failed due to internal error.", name));
-					let _res = state.apply(&env, &**engine, &transaction, false);
+					if transaction.verify_basic(true, None, env.number >= engine.params().eip86_transition).is_ok() {
+						state.commit().expect(&format!("State test {} failed due to internal error.", name));
+						let _res = state.apply(&env, &**engine, &transaction, false);
+					} else {
+						let _rest = state.commit();
+					}
 					if state.root() != &post_root {
 						println!("{} !!! State mismatch (got: {}, expect: {}", info, state.root(), post_root);
 						flushln!("{} fail", info);
@@ -73,7 +78,9 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 
 	}
 
-	println!("!!! {:?} tests from failed.", failed.len());
+	if !failed.is_empty() {
+		println!("!!! {:?} tests failed.", failed.len());
+	}
 	failed
 }
 

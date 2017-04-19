@@ -19,12 +19,15 @@
 use std::ops::Deref;
 use rlp::*;
 use util::sha3::Hashable;
-use util::{H256, Address, U256, Bytes, HeapSizeOf};
+use util::{H256, Address, U256, Bytes, HeapSizeOf, Uint};
 use ethkey::{Signature, Secret, Public, recover, public_to_address, Error as EthkeyError};
 use error::*;
 use evm::Schedule;
 use header::BlockNumber;
 use ethjson;
+
+/// Fake address for unsigned transactions as defined by EIP-86.
+pub const UNSIGNED_SENDER: Address = ::util::H160([0xff; 20]);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "ipc", binary)]
@@ -110,8 +113,8 @@ impl HeapSizeOf for Transaction {
 impl From<ethjson::state::Transaction> for SignedTransaction {
 	fn from(t: ethjson::state::Transaction) -> Self {
 		let to: Option<ethjson::hash::Address> = t.to.into();
-		let secret = Secret::from_slice(&t.secret.0).expect("Valid secret expected.");
-		Transaction {
+		let secret = t.secret.map(|s| Secret::from_slice(&s.0).expect("Valid secret expected."));
+		let tx = Transaction {
 			nonce: t.nonce.into(),
 			gas_price: t.gas_price.into(),
 			gas: t.gas_limit.into(),
@@ -121,7 +124,11 @@ impl From<ethjson::state::Transaction> for SignedTransaction {
 			},
 			value: t.value.into(),
 			data: t.data.into(),
-		}.sign(&secret, None)
+		};
+		match secret {
+			Some(s) => tx.sign(&s, None),
+			None => tx.null_sign(),
+		}
 	}
 }
 
@@ -180,8 +187,8 @@ impl Transaction {
 	pub fn invalid_sign(self) -> UnverifiedTransaction {
 		UnverifiedTransaction {
 			unsigned: self,
-			r: U256::default(),
-			s: U256::default(),
+			r: U256::one(),
+			s: U256::one(),
 			v: 0,
 			hash: 0.into(),
 		}.compute_hash()
@@ -192,13 +199,28 @@ impl Transaction {
 		SignedTransaction {
 			transaction: UnverifiedTransaction {
 				unsigned: self,
-				r: U256::default(),
-				s: U256::default(),
+				r: U256::one(),
+				s: U256::one(),
 				v: 0,
 				hash: 0.into(),
 			}.compute_hash(),
 			sender: from,
-			public: Public::default(),
+			public: None,
+		}
+	}
+
+	/// Add EIP-86 compatible empty signature.
+	pub fn null_sign(self) -> SignedTransaction {
+		SignedTransaction {
+			transaction: UnverifiedTransaction {
+				unsigned: self,
+				r: U256::zero(),
+				s: U256::zero(),
+				v: 0,
+				hash: 0.into(),
+			}.compute_hash(),
+			sender: UNSIGNED_SENDER,
+			public: None,
 		}
 	}
 
@@ -276,6 +298,11 @@ impl UnverifiedTransaction {
 		self
 	}
 
+	/// Checks is signature is empty.
+	pub fn is_unsigned(&self) -> bool {
+		self.r.is_zero() && self.s.is_zero()
+	}
+
 	/// Append object with a signature into RLP stream
 	fn rlp_append_sealed_transaction(&self, s: &mut RlpStream) {
 		s.begin_list(9);
@@ -307,6 +334,7 @@ impl UnverifiedTransaction {
 	/// The network ID, or `None` if this is a global transaction.
 	pub fn network_id(&self) -> Option<u64> {
 		match self.v {
+			v if self.is_unsigned() => Some(v),
 			v if v > 36 => Some((v - 35) / 2),
 			_ => None,
 		}
@@ -340,21 +368,33 @@ impl UnverifiedTransaction {
 	// TODO: consider use in block validation.
 	#[cfg(test)]
 	#[cfg(feature = "json-tests")]
-	pub fn validate(self, schedule: &Schedule, require_low: bool, allow_network_id_of_one: bool) -> Result<UnverifiedTransaction, Error> {
-		if require_low && !self.signature().is_low_s() {
+	pub fn validate(self, schedule: &Schedule, require_low: bool, allow_network_id_of_one: bool, allow_empty_signature: bool) -> Result<UnverifiedTransaction, Error> {
+		let chain_id = if allow_network_id_of_one { Some(1) } else { None };
+		self.verify_basic(require_low, chain_id, allow_empty_signature)?;
+		if !allow_empty_signature || !self.is_unsigned() {
+			self.recover_public()?;
+		}
+		if self.gas < U256::from(self.gas_required(&schedule)) {
+			return Err(TransactionError::InvalidGasLimit(::util::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
+		}
+		Ok(self)
+	}
+
+	/// Verify basic signature params. Does not attempt sender recovery.
+	pub fn verify_basic(&self, check_low_s: bool, chain_id: Option<u64>, allow_empty_signature: bool) -> Result<(), Error> {
+		if check_low_s && !(allow_empty_signature && self.is_unsigned()) {
+			self.check_low_s()?;
+		}
+		// EIP-86: Transactions of this form MUST have gasprice = 0, nonce = 0, value = 0, and do NOT increment the nonce of account 0.
+		if allow_empty_signature && self.is_unsigned() && !(self.gas_price.is_zero() && self.value.is_zero() && self.nonce.is_zero()) {
 			return Err(EthkeyError::InvalidSignature.into())
 		}
-		match self.network_id() {
-			None => {},
-			Some(1) if allow_network_id_of_one => {},
+		match (self.network_id(), chain_id) {
+			(None, _) => {},
+			(Some(n), Some(m)) if n == m => {},
 			_ => return Err(TransactionError::InvalidNetworkId.into()),
-		}
-		self.recover_public()?;
-		if self.gas < U256::from(self.gas_required(&schedule)) {
-			Err(TransactionError::InvalidGasLimit(::util::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
-		} else {
-			Ok(self)
-		}
+		};
+		Ok(())
 	}
 }
 
@@ -363,7 +403,7 @@ impl UnverifiedTransaction {
 pub struct SignedTransaction {
 	transaction: UnverifiedTransaction,
 	sender: Address,
-	public: Public,
+	public: Option<Public>,
 }
 
 impl HeapSizeOf for SignedTransaction {
@@ -392,13 +432,21 @@ impl From<SignedTransaction> for UnverifiedTransaction {
 impl SignedTransaction {
 	/// Try to verify transaction and recover sender.
 	pub fn new(transaction: UnverifiedTransaction) -> Result<Self, Error> {
-		let public = transaction.recover_public()?;
-		let sender = public_to_address(&public);
-		Ok(SignedTransaction {
-			transaction: transaction,
-			sender: sender,
-			public: public,
-		})
+		if transaction.is_unsigned() {
+			Ok(SignedTransaction {
+				transaction: transaction,
+				sender: UNSIGNED_SENDER,
+				public: None,
+			})
+		} else {
+			let public = transaction.recover_public()?;
+			let sender = public_to_address(&public);
+			Ok(SignedTransaction {
+				transaction: transaction,
+				sender: sender,
+				public: Some(public),
+			})
+		}
 	}
 
 	/// Returns transaction sender.
@@ -407,8 +455,13 @@ impl SignedTransaction {
 	}
 
 	/// Returns a public key of the sender.
-	pub fn public_key(&self) -> Public {
+	pub fn public_key(&self) -> Option<Public> {
 		self.public
+	}
+
+	/// Checks is signature is empty.
+	pub fn is_unsigned(&self) -> bool {
+		self.transaction.is_unsigned()
 	}
 }
 
@@ -434,6 +487,9 @@ impl LocalizedTransaction {
 	pub fn sender(&mut self) -> Address {
 		if let Some(sender) = self.cached_sender {
 			return sender;
+		}
+		if self.is_unsigned() {
+			return UNSIGNED_SENDER.clone();
 		}
 		let sender = public_to_address(&self.recover_public()
 			.expect("LocalizedTransaction is always constructed from transaction from blockchain; Blockchain only stores verified transactions; qed"));
