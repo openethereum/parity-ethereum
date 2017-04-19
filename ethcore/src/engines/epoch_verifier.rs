@@ -18,14 +18,13 @@
 
 use error::Error;
 use header::Header;
-use util::U256;
 
 /// Verifier for all blocks within an epoch without accessing
 ///
 /// See docs on `Engine` relating to proving functions for more details.
 pub trait EpochVerifier: Sync {
 	/// Get the epoch number.
-	fn epoch_number(&self) -> U256;
+	fn epoch_number(&self) -> u64;
 
 	/// Lightly verify the next block header.
 	/// This may not be a header belonging to a different epoch.
@@ -41,6 +40,6 @@ pub trait EpochVerifier: Sync {
 pub struct NoOp;
 
 impl EpochVerifier for NoOp {
-	fn epoch_number(&self) -> U256 { 0.into() }
+	fn epoch_number(&self) -> u64 { 0 }
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 }

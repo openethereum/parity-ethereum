@@ -19,7 +19,7 @@
 use std::collections::BTreeMap;
 use std::sync::Weak;
 use engines::{Call, EpochChange};
-use util::{H256, Address, RwLock, U256};
+use util::{H256, Address, RwLock};
 use ids::BlockId;
 use header::{BlockNumber, Header};
 use client::{Client, BlockChainClient};
@@ -75,19 +75,24 @@ impl ValidatorSet for Multi {
 	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
 		-> EpochChange
 	{
-		self.correct_set_by_number(header.number()).1.is_epoch_end(header, block, receipts)
+		let (set_block, set) = self.correct_set_by_number(header.number());
+
+		match set.is_epoch_end(header, block, receipts) {
+			EpochChange::Yes(num, proof) => EpochChange::Yes(set_block + num, proof),
+			other => other,
+		}
 	}
 
 	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
 		self.correct_set_by_number(header.number()).1.epoch_proof(header, caller)
 	}
 
-	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(U256, super::SimpleList), ::error::Error> {
+	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(u64, super::SimpleList), ::error::Error> {
 		// "multi" epoch is the inner set's epoch plus the transition block to that set.
 		// ensures epoch increases monotonically.
 		let (set_block, set) = self.correct_set_by_number(header.number());
 		let (inner_epoch, list) = set.epoch_set(header, proof)?;
-		Ok((U256::from(set_block) + inner_epoch, list))
+		Ok((set_block + inner_epoch, list))
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {

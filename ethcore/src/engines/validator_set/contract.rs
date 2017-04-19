@@ -76,7 +76,7 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.epoch_proof(header, caller)
 	}
 
-	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(U256, super::SimpleList), ::error::Error> {
+	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(u64, super::SimpleList), ::error::Error> {
 		self.validators.epoch_set(header, proof)
 	}
 

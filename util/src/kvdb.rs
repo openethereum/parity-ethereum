@@ -36,6 +36,9 @@ use std::fs::File;
 const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
 
+/// Required length of prefixes.
+pub const PREFIX_LEN: usize = 12;
+
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
 #[derive(Default, Clone, PartialEq)]
 pub struct DBTransaction {

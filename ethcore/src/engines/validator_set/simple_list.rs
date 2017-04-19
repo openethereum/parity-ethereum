@@ -16,7 +16,7 @@
 
 /// Preconfigured validator list.
 
-use util::{H256, Address, HeapSizeOf, U256};
+use util::{H256, Address, HeapSizeOf};
 
 use engines::Call;
 use header::Header;
@@ -63,8 +63,8 @@ impl ValidatorSet for SimpleList {
 		Ok(Vec::new())
 	}
 
-	fn epoch_set(&self, _header: &Header, _: &[u8]) -> Result<(U256, SimpleList), ::error::Error> {
-		Ok((0.into(), self.clone()))
+	fn epoch_set(&self, _header: &Header, _: &[u8]) -> Result<(u64, SimpleList), ::error::Error> {
+		Ok((0, self.clone()))
 	}
 
 	fn contains_with_caller(&self, _bh: &H256, address: &Address, _: &Call) -> bool {

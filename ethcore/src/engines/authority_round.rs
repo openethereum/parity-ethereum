@@ -133,13 +133,13 @@ pub struct AuthorityRound {
 
 // header-chain validator.
 struct EpochVerifier {
-	epoch_number: U256,
+	epoch_number: u64,
 	step: Arc<Step>,
 	subchain_validators: SimpleList,
 }
 
 impl super::EpochVerifier for EpochVerifier {
-	fn epoch_number(&self) -> U256 { self.epoch_number.clone() }
+	fn epoch_number(&self) -> u64 { self.epoch_number.clone() }
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		// always check the seal since it's fast.
 		// nothing heavier to do.

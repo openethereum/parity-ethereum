@@ -23,7 +23,7 @@ mod multi;
 
 use std::sync::Weak;
 use ids::BlockId;
-use util::{Address, H256, U256};
+use util::{Address, H256};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::Client;
 use header::Header;
@@ -97,7 +97,7 @@ pub trait ValidatorSet: Send + Sync {
 	/// the proof is invalid.
 	///
 	/// Returns the epoch number and proof.
-	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(U256, SimpleList), ::error::Error>;
+	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(u64, SimpleList), ::error::Error>;
 
 	/// Checks if a given address is a validator, with the given function
 	/// for executing synchronous calls to contracts.

@@ -367,7 +367,7 @@ fn transaction_proof() {
 		data: Vec::new(),
 	}.fake_sign(address);
 
-	let proof = client.prove_transaction(transaction.clone(), BlockId::Latest).unwrap();
+	let proof = client.prove_transaction(transaction.clone(), BlockId::Latest).unwrap().1;
 	let backend = state::backend::ProofCheck::new(&proof);
 
 	let mut factories = ::factory::Factories::default();

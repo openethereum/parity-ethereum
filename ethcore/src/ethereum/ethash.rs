@@ -158,7 +158,7 @@ impl Ethash {
 // in the future, we might move the Ethash epoch
 // caching onto this mechanism as well.
 impl ::engines::EpochVerifier for Arc<Ethash> {
-	fn epoch_number(&self) -> U256 { 0.into() }
+	fn epoch_number(&self) -> u64 { 0 }
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
 		self.verify_block_unordered(header, None)

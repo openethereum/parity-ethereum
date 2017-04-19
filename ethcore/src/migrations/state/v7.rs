@@ -238,7 +238,7 @@ impl Migration for OverlayRecentV7 {
 		}
 
 		let mut count = 0;
-		for (key, value) in source.iter(None) {
+		for (key, value) in source.iter(None).into_iter().flat_map(|inner| inner) {
 			count += 1;
 			if count == 100_000 {
 				count = 0;

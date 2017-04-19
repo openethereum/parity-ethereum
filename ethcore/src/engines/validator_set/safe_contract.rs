@@ -165,8 +165,6 @@ impl ValidatorSet for ValidatorSafeContract {
 						}
 					});
 
-
-				// TODO: are multiple transitions per block possible?
 				match decoded_events.next() {
 					None => ::engines::EpochChange::No,
 					Some(matched_event) => {
@@ -184,8 +182,11 @@ impl ValidatorSet for ValidatorSafeContract {
 							);
 
 						match (nonce, validators) {
-							(Some(nonce), Some(validators)) =>
-								::engines::EpochChange::Yes(encode_proof(nonce, &validators)),
+							(Some(nonce), Some(validators)) => {
+								let proof = encode_proof(nonce, &validators);
+								let new_epoch = nonce.low_u64();
+								::engines::EpochChange::Yes(new_epoch, proof)
+							}
 							_ => {
 								debug!(target: "engine", "Successfully decoded log turned out to be bad.");
 								::engines::EpochChange::No
@@ -206,11 +207,11 @@ impl ValidatorSet for ValidatorSafeContract {
 		}
 	}
 
-	fn epoch_set(&self, _header: &Header, proof: &[u8]) -> Result<(U256, SimpleList), ::error::Error> {
+	fn epoch_set(&self, _header: &Header, proof: &[u8]) -> Result<(u64, SimpleList), ::error::Error> {
 		use rlp::UntrustedRlp;
 
 		let rlp = UntrustedRlp::new(proof);
-		let nonce: U256 = rlp.val_at(0)?;
+		let nonce: u64 = rlp.val_at(0)?;
 		let validators: Vec<Address> = rlp.list_at(1)?;
 
 		Ok((nonce, SimpleList::new(validators)))

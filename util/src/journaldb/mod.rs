@@ -125,8 +125,8 @@ pub fn new(backing: Arc<::kvdb::KeyValueDB>, algorithm: Algorithm, col: Option<u
 }
 
 // all keys must be at least 12 bytes
-const DB_PREFIX_LEN : usize = 12;
-const LATEST_ERA_KEY : [u8; DB_PREFIX_LEN] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
+const DB_PREFIX_LEN : usize = ::kvdb::PREFIX_LEN;
+const LATEST_ERA_KEY : [u8; ::kvdb::PREFIX_LEN] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
 
 #[cfg(test)]
 mod tests {

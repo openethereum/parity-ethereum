@@ -797,6 +797,24 @@ impl BlockChain {
 		}
 	}
 
+	/// Insert an epoch transition. Provide an epoch number being transitioned to
+	/// and epoch transition object.
+	///
+	/// The block the transition occurred at should have already been inserted into the chain.
+	pub fn insert_epoch_transition(&self, batch: &mut DBTransaction, epoch_num: u64, transition: EpochTransition) {
+		let mut transitions = match self.db.read(db::COL_EXTRA, &epoch_num) {
+			Some(existing) => existing,
+			None => EpochTransitions {
+				number: epoch_num,
+				candidates: Vec::with_capacity(1),
+			}
+		};
+
+		transitions.candidates.push(transition);
+
+		batch.write(db::COL_EXTRA, &epoch_num, &transitions);
+	}
+
 	/// Add a child to a given block. Assumes that the block hash is in
 	/// the chain and the child's parent is this block.
 	///

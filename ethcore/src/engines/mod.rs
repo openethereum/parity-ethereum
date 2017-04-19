@@ -96,7 +96,7 @@ pub enum Seal {
 }
 
 /// Type alias for a function we can make calls through synchronously.
-pub type Call = Fn(Address, Bytes) -> Result<Bytes, String>;
+pub type Call<'a> = Fn(Address, Bytes) -> Result<Bytes, String> + 'a;
 
 /// Results of a query of whether an epoch change occurred at the given block.
 #[derive(Debug, Clone, PartialEq)]
@@ -105,8 +105,8 @@ pub enum EpochChange {
 	Unsure(Unsure),
 	/// No epoch change.
 	No,
-	/// Validation proof required, and the expected output
-	Yes(Bytes),
+	/// Validation proof required, and the new epoch number and expected proof.
+	Yes(u64, Bytes),
 }
 
 /// More data required to determine if an epoch change occurred at a given block.
