@@ -32,7 +32,6 @@ $HOME/.cargo,\
 $HOME/.multirust,\
 rocksdb,\
 secp256k1,\
-src/tests,\
 util/json-tests,\
 util/src/network/tests,\
 ethcore/src/evm/tests,\

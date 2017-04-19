@@ -220,7 +220,7 @@ class Account extends Component {
         }
         onClick={ this.store.toggleEditDialog }
       />,
-      !account.hardware && (
+      !(account.external || account.hardware) && (
         <Button
           icon={ <LockedIcon /> }
           key='passwordManager'
@@ -237,10 +237,19 @@ class Account extends Component {
         icon={ <DeleteIcon /> }
         key='delete'
         label={
-          <FormattedMessage
-            id='account.button.delete'
-            defaultMessage='delete'
-          />
+          account.external || account.hardware
+            ? (
+              <FormattedMessage
+                id='account.button.forget'
+                defaultMessage='forget'
+              />
+            )
+            : (
+              <FormattedMessage
+                id='account.button.delete'
+                defaultMessage='delete'
+              />
+            )
         }
         onClick={ this.store.toggleDeleteDialog }
       />
@@ -272,6 +281,23 @@ class Account extends Component {
             <FormattedMessage
               id='account.hardware.confirmDelete'
               defaultMessage='Are you sure you want to remove the following hardware address from your account list?'
+            />
+          }
+          visible
+          route='/accounts'
+          onClose={ this.store.toggleDeleteDialog }
+        />
+      );
+    }
+
+    if (account.external) {
+      return (
+        <DeleteAddress
+          account={ account }
+          confirmMessage={
+            <FormattedMessage
+              id='account.external.confirmDelete'
+              defaultMessage='Are you sure you want to remove the following external address from your account list?'
             />
           }
           visible

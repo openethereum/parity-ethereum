@@ -346,7 +346,6 @@ mod tests {
 	use evm::Ext;
 	use state::{State, Substate};
 	use tests::helpers::*;
-	use devtools::GuardedTempResult;
 	use super::*;
 	use trace::{NoopTracer, NoopVMTracer};
 	use types::executed::CallType;
@@ -373,7 +372,7 @@ mod tests {
 	}
 
 	struct TestSetup {
-		state: GuardedTempResult<State<::state_db::StateDB>>,
+		state: State<::state_db::StateDB>,
 		engine: Arc<Engine>,
 		sub_state: Substate,
 		env_info: EnvInfo
@@ -399,7 +398,7 @@ mod tests {
 	#[test]
 	fn can_be_created() {
 		let mut setup = TestSetup::new();
-		let state = setup.state.reference_mut();
+		let state = &mut setup.state;
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
@@ -412,7 +411,7 @@ mod tests {
 	#[test]
 	fn can_return_block_hash_no_env() {
 		let mut setup = TestSetup::new();
-		let state = setup.state.reference_mut();
+		let state = &mut setup.state;
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
@@ -437,7 +436,7 @@ mod tests {
 			last_hashes.push(test_hash.clone());
 			env_info.last_hashes = Arc::new(last_hashes);
 		}
-		let state = setup.state.reference_mut();
+		let state = &mut setup.state;
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
@@ -453,7 +452,7 @@ mod tests {
 	#[should_panic]
 	fn can_call_fail_empty() {
 		let mut setup = TestSetup::new();
-		let state = setup.state.reference_mut();
+		let state = &mut setup.state;
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
@@ -481,7 +480,7 @@ mod tests {
 		let log_topics = vec![H256::from("af0fa234a6af46afa23faf23bcbc1c1cb4bcb7bcbe7e7e7ee3ee2edddddddddd")];
 
 		let mut setup = TestSetup::new();
-		let state = setup.state.reference_mut();
+		let state = &mut setup.state;
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
@@ -499,7 +498,7 @@ mod tests {
 		let refund_account = &Address::new();
 
 		let mut setup = TestSetup::new();
-		let state = setup.state.reference_mut();
+		let state = &mut setup.state;
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 

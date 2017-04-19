@@ -123,6 +123,7 @@ class SignRequest extends Component {
           <Account
             address={ address }
             balance={ balance }
+            className={ styles.account }
             externalLink={ externalLink }
             netVersion={ netVersion }
           />
@@ -155,9 +156,7 @@ class SignRequest extends Component {
 
   renderActions () {
     const { accounts, address, focus, isFinished, status } = this.props;
-    const account = Object
-      .values(accounts)
-      .find((account) => address === account.address.toLowerCase());
+    const account = accounts[address];
 
     if (isFinished) {
       if (status === 'confirmed') {
@@ -191,6 +190,7 @@ class SignRequest extends Component {
         address={ address }
         focus={ focus }
         isSending={ this.props.isSending }
+        netVersion={ this.props.netVersion }
         onConfirm={ this.onConfirm }
         onReject={ this.onReject }
         className={ styles.actions }

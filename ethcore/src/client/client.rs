@@ -30,47 +30,48 @@ use util::trie::TrieSpec;
 use util::kvdb::*;
 
 // other
-use io::*;
-use views::BlockView;
-use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
-use header::BlockNumber;
-use state::{self, State, CleanupMode};
-use spec::Spec;
 use basic_types::Seal;
-use engines::Engine;
-use service::ClientIoMessage;
-use env_info::LastHashes;
-use verification;
-use verification::{PreverifiedBlock, Verifier};
 use block::*;
-use transaction::{LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
-use blockchain::extras::TransactionAddress;
-use types::filter::Filter;
-use types::mode::Mode as IpcMode;
-use log_entry::LocalizedLogEntry;
-use verification::queue::BlockQueue;
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
+use blockchain::extras::TransactionAddress;
+use client::Error as ClientError;
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, EngineClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, PruningInfo,
 };
-use client::Error as ClientError;
-use env_info::EnvInfo;
-use executive::{Executive, Executed, TransactOptions, contract_address};
-use receipt::{Receipt, LocalizedReceipt};
-use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
-use trace;
-use trace::FlatTransactionTraces;
-use evm::{Factory as EvmFactory, Schedule};
-use miner::{Miner, MinerService, TransactionImportResult};
-use snapshot::{self, io as snapshot_io};
-use factory::Factories;
-use rlp::UntrustedRlp;
-use state_db::StateDB;
-use rand::OsRng;
-use client::registry::Registry;
 use encoded;
+use engines::Engine;
+use env_info::EnvInfo;
+use env_info::LastHashes;
+use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
+use evm::{Factory as EvmFactory, Schedule};
+use executive::{Executive, Executed, TransactOptions, contract_address};
+use factory::Factories;
+use futures::{future, Future};
+use header::BlockNumber;
+use io::*;
+use log_entry::LocalizedLogEntry;
+use miner::{Miner, MinerService, TransactionImportResult};
+use native_contracts::Registry;
+use rand::OsRng;
+use receipt::{Receipt, LocalizedReceipt};
+use rlp::UntrustedRlp;
+use service::ClientIoMessage;
+use snapshot::{self, io as snapshot_io};
+use spec::Spec;
+use state_db::StateDB;
+use state::{self, State, CleanupMode};
+use trace;
+use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
+use trace::FlatTransactionTraces;
+use transaction::{LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
+use types::filter::Filter;
+use types::mode::Mode as IpcMode;
+use verification;
+use verification::{PreverifiedBlock, Verifier};
+use verification::queue::BlockQueue;
+use views::BlockView;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -254,8 +255,7 @@ impl Client {
 
 		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
 			trace!(target: "client", "Found registrar at {}", reg_addr);
-			let weak = Arc::downgrade(&client);
-			let registrar = Registry::new(reg_addr, move |a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(BlockId::Latest, a, d)));
+			let registrar = Registry::new(reg_addr);
 			*client.registrar.lock() = Some(registrar);
 		}
 		Ok(client)
@@ -388,12 +388,16 @@ impl Client {
 			let db = self.state_db.lock().boxed_clone_canon(header.parent_hash());
 
 			let enact_result = enact_verified(block, engine, self.tracedb.read().tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
-			let locked_block = enact_result.map_err(|e| {
+			let mut locked_block = enact_result.map_err(|e| {
 				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			})?;
 
+			if header.number() < self.engine().params().validate_receipts_transition && header.receipts_root() != locked_block.block().header().receipts_root() {
+				locked_block = locked_block.strip_receipts();
+			}
+
 			// Final Verification
-			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header(), self.engine().params().validate_receipts_transition) {
+			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
 				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				return Err(());
 			}
@@ -1484,12 +1488,17 @@ impl BlockChainClient for Client {
 	}
 
 	fn registrar_address(&self) -> Option<Address> {
-		self.registrar.lock().as_ref().map(|r| r.address.clone())
+		self.registrar.lock().as_ref().map(|r| r.address)
 	}
 
 	fn registry_address(&self, name: String) -> Option<Address> {
 		self.registrar.lock().as_ref()
-			.and_then(|r| r.get_address(&(name.as_bytes().sha3()), "A").ok())
+			.and_then(|r| {
+				let dispatch = move |reg_addr, data| {
+					future::done(self.call_contract(BlockId::Latest, reg_addr, data))
+				};
+				r.get_address(dispatch, name.as_bytes().sha3(), "A".to_string()).wait().ok()
+			})
 			.and_then(|a| if a.is_zero() { None } else { Some(a) })
 	}
 }
@@ -1618,10 +1627,12 @@ impl ::client::ProvingBlockChainClient for Client {
 	}
 
 	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<Vec<DBValue>> {
-		let (state, env_info) = match (self.state_at(id), self.env_info(id)) {
+		let (state, mut env_info) = match (self.state_at(id), self.env_info(id)) {
 			(Some(s), Some(e)) => (s, e),
 			_ => return None,
 		};
+
+		env_info.gas_limit = transaction.gas.clone();
 		let mut jdb = self.state_db.lock().journal_db().boxed_clone();
 		let backend = state::backend::Proving::new(jdb.as_hashdb_mut());
 
@@ -1706,7 +1717,7 @@ mod tests {
 			// Separate thread uncommited transaction
 			let go = Arc::new(AtomicBool::new(false));
 			let go_thread = go.clone();
-			let another_client = client.reference().clone();
+			let another_client = client.clone();
 			thread::spawn(move || {
 				let mut batch = DBTransaction::new();
 				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new());

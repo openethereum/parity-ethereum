@@ -41,6 +41,7 @@ export default class Store {
   @observable passwordHint = '';
   @observable passwordRepeat = '';
   @observable phrase = '';
+  @observable qrAddress = null;
   @observable rawKey = '';
   @observable rawKeyError = ERRORS.nokey;
   @observable stage = STAGE_SELECT_TYPE;
@@ -68,10 +69,13 @@ export default class Store {
         return !(this.nameError || this.walletFileError);
 
       case 'fromNew':
-        return !(this.nameError || this.passwordRepeatError);
+        return !(this.nameError || this.passwordRepeatError) && this.hasAddress;
 
       case 'fromPhrase':
         return !(this.nameError || this.passwordRepeatError);
+
+      case 'fromQr':
+        return this.qrAddressValid && !this.nameError;
 
       case 'fromRaw':
         return !(this.nameError || this.passwordRepeatError || this.rawKeyError);
@@ -81,19 +85,30 @@ export default class Store {
     }
   }
 
+  @computed get hasAddress () {
+    return !!(this.address);
+  }
+
   @computed get passwordRepeatError () {
     return this.password === this.passwordRepeat
       ? null
       : ERRORS.noMatchPassword;
   }
 
+  @computed get qrAddressValid () {
+    console.log('qrValid', this.qrAddress, this._api.util.isAddressValid(this.qrAddress));
+    return this._api.util.isAddressValid(this.qrAddress);
+  }
+
   @action clearErrors = () => {
     transaction(() => {
+      this.description = '';
       this.password = '';
       this.passwordRepeat = '';
       this.phrase = '';
       this.name = '';
       this.nameError = null;
+      this.qrAddress = null;
       this.rawKey = '';
       this.rawKeyError = null;
       this.vaultName = '';
@@ -134,6 +149,17 @@ export default class Store {
 
   @action setGethImported = (gethImported) => {
     this.gethImported = gethImported;
+  }
+
+  @action setQrAddress = (qrAddress) => {
+    if (qrAddress && qrAddress.substr(0, 2) !== '0x') {
+      qrAddress = `0x${qrAddress}`;
+    }
+
+    // FIXME: Current native signer encoding is not 100% for EIP-55, lowercase for now
+    this.qrAddress = this._api.util
+        ? this._api.util.toChecksumAddress(qrAddress.toLowerCase())
+        : qrAddress;
   }
 
   @action setVaultName = (vaultName) => {
@@ -260,6 +286,9 @@ export default class Store {
       case 'fromPhrase':
         return this.createAccountFromPhrase();
 
+      case 'fromQr':
+        return this.createAccountFromQr();
+
       case 'fromRaw':
         return this.createAccountFromRaw();
 
@@ -274,17 +303,13 @@ export default class Store {
       .then((gethImported) => {
         console.log('createAccountFromGeth', gethImported);
 
+        this.setName('Geth Import');
+        this.setDescription('Imported from Geth keystore');
         this.setGethImported(gethImported);
 
-        return Promise
-          .all(gethImported.map((address) => {
-            return this._api.parity.setAccountName(address, 'Geth Import');
-          }))
-          .then(() => {
-            return Promise.all(gethImported.map((address) => {
-              return this._api.parity.setAccountMeta(address, { timestamp });
-            }));
-          });
+        return Promise.all(gethImported.map((address) => {
+          return this.setupMeta(address, timestamp);
+        }));
       })
       .catch((error) => {
         console.error('createAccountFromGeth', error);
@@ -307,17 +332,18 @@ export default class Store {
       .then((address) => {
         this.setAddress(address);
 
-        return this._api.parity
-          .setAccountName(address, this.name)
-          .then(() => this._api.parity.setAccountMeta(address, {
-            passwordHint: this.passwordHint,
-            timestamp
-          }));
+        return this.setupMeta(address, timestamp);
       })
       .catch((error) => {
         console.error('createAccount', error);
         throw error;
       });
+  }
+
+  createAccountFromQr = (timestamp = Date.now()) => {
+    this.setAddress(this.qrAddress);
+
+    return this.setupMeta(this.qrAddress, timestamp, { external: true });
   }
 
   createAccountFromRaw = (timestamp = Date.now()) => {
@@ -326,12 +352,7 @@ export default class Store {
       .then((address) => {
         this.setAddress(address);
 
-        return this._api.parity
-          .setAccountName(address, this.name)
-          .then(() => this._api.parity.setAccountMeta(address, {
-            passwordHint: this.passwordHint,
-            timestamp
-          }));
+        return this.setupMeta(address, timestamp);
       })
       .catch((error) => {
         console.error('createAccount', error);
@@ -345,17 +366,24 @@ export default class Store {
       .then((address) => {
         this.setAddress(address);
 
-        return this._api.parity
-          .setAccountName(address, this.name)
-          .then(() => this._api.parity.setAccountMeta(address, {
-            passwordHint: this.passwordHint,
-            timestamp
-          }));
+        return this.setupMeta(address, timestamp);
       })
       .catch((error) => {
         console.error('createAccount', error);
         throw error;
       });
+  }
+
+  setupMeta = (address, timestamp = Date.now(), extra = {}) => {
+    const meta = Object.assign({}, extra, {
+      description: this.description,
+      passwordHint: this.passwordHint,
+      timestamp
+    });
+
+    return this._api.parity
+      .setAccountName(address, this.name)
+      .then(() => this._api.parity.setAccountMeta(address, meta));
   }
 
   createIdentities = () => {

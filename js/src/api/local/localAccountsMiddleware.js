@@ -19,19 +19,10 @@ import accounts from './accounts';
 import transactions from './transactions';
 import { Middleware } from '../transport';
 import { inNumber16 } from '../format/input';
-import { phraseToWallet, phraseToAddress } from './ethkey';
+import { phraseToWallet, phraseToAddress, verifySecret } from './ethkey';
 import { randomPhrase } from '@parity/wordlist';
 
 export default class LocalAccountsMiddleware extends Middleware {
-  // Maps transaction requests to transaction hashes.
-  // This allows the locally-signed transactions to emulate the signer.
-  transactionHashes = {};
-  transactions = {};
-
-  // Current transaction id. This doesn't need to be stored, as it's
-  // only relevant for the current the session.
-  transactionId = 1;
-
   constructor (transport) {
     super(transport);
 
@@ -55,6 +46,22 @@ export default class LocalAccountsMiddleware extends Middleware {
       return accounts.mapObject(({ name, meta, uuid }) => {
         return { name, meta, uuid };
       });
+    });
+
+    register('parity_changePassword', ([address, oldPassword, newPassword]) => {
+      const account = accounts.get(address);
+
+      return account
+        .decryptPrivateKey(oldPassword)
+        .then((privateKey) => {
+          if (!privateKey) {
+            return false;
+          }
+
+          account.changePassword(privateKey, newPassword);
+
+          return true;
+        });
     });
 
     register('parity_checkRequest', ([id]) => {
@@ -81,6 +88,17 @@ export default class LocalAccountsMiddleware extends Middleware {
       return phraseToWallet(phrase)
         .then((wallet) => {
           return accounts.create(wallet.secret, password);
+        });
+    });
+
+    register('parity_newAccountFromSecret', ([secret, password]) => {
+      return verifySecret(secret)
+        .then((isValid) => {
+          if (!isValid) {
+            throw new Error('Invalid secret key');
+          }
+
+          return accounts.create(secret, password);
         });
     });
 
@@ -127,6 +145,12 @@ export default class LocalAccountsMiddleware extends Middleware {
       return accounts.remove(address, password);
     });
 
+    register('parity_testPassword', ([address, password]) => {
+      const account = accounts.get(address);
+
+      return account.isValidPassword(password);
+    });
+
     register('signer_confirmRequest', ([id, modify, password]) => {
       const {
         gasPrice,
@@ -137,30 +161,47 @@ export default class LocalAccountsMiddleware extends Middleware {
         data
       } = Object.assign(transactions.get(id), modify);
 
-      return this
-        .rpcRequest('parity_nextNonce', [from])
-        .then((nonce) => {
-          const tx = new EthereumTx({
-            nonce,
-            to,
-            data,
-            gasLimit: inNumber16(gasLimit),
-            gasPrice: inNumber16(gasPrice),
-            value: inNumber16(value)
-          });
-          const account = accounts.get(from);
+      transactions.lock(id);
 
-          tx.sign(account.decryptPrivateKey(password));
+      const account = accounts.get(from);
 
-          const serializedTx = `0x${tx.serialize().toString('hex')}`;
+      return Promise.all([
+        this.rpcRequest('parity_nextNonce', [from]),
+        account.decryptPrivateKey(password)
+      ])
+      .catch((err) => {
+        transactions.unlock(id);
 
-          return this.rpcRequest('eth_sendRawTransaction', [serializedTx]);
-        })
-        .then((hash) => {
-          transactions.confirm(id, hash);
+        // transaction got unlocked, can propagate rejection further
+        throw err;
+      })
+      .then(([nonce, privateKey]) => {
+        if (!privateKey) {
+          transactions.unlock(id);
 
-          return {};
+          throw new Error('Invalid password');
+        }
+
+        const tx = new EthereumTx({
+          nonce,
+          to,
+          data,
+          gasLimit: inNumber16(gasLimit),
+          gasPrice: inNumber16(gasPrice),
+          value: inNumber16(value)
         });
+
+        tx.sign(privateKey);
+
+        const serializedTx = `0x${tx.serialize().toString('hex')}`;
+
+        return this.rpcRequest('eth_sendRawTransaction', [serializedTx]);
+      })
+      .then((hash) => {
+        transactions.confirm(id, hash);
+
+        return {};
+      });
     });
 
     register('signer_rejectRequest', ([id]) => {

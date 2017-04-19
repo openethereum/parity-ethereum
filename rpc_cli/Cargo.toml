@@ -10,6 +10,6 @@ version = "1.4.0"
 futures = "0.1"
 rpassword = "0.3.0"
 ethcore-bigint = { path = "../util/bigint" }
-ethcore-rpc = { path = "../rpc" }
+parity-rpc = { path = "../rpc" }
 parity-rpc-client = { path = "../rpc_client" }
 ethcore-util = { path = "../util" }

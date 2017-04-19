@@ -18,6 +18,7 @@ import * as actions from './signerActions';
 
 import { inHex } from '~/api/format/input';
 import HardwareStore from '~/mobx/hardwareStore';
+import { createSignedTx } from '~/util/qrscan';
 import { Signer } from '~/util/signer';
 
 export default class SignerMiddleware {
@@ -86,14 +87,25 @@ export default class SignerMiddleware {
         return this._hwstore.signLedger(transaction);
       })
       .then((rawTx) => {
-        const handlePromise = this._createConfirmPromiseHandler(store, id);
-
-        return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
+        return this.confirmRawTransaction(store, id, rawTx);
       });
   }
 
-  confirmWalletTransaction (store, id, transaction, wallet, password) {
+  confirmRawTransaction (store, id, rawTx) {
     const handlePromise = this._createConfirmPromiseHandler(store, id);
+
+    return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
+  }
+
+  confirmSignedTransaction (store, id, txSigned) {
+    const { netVersion } = store.getState().nodeStatus;
+    const { signature, tx } = txSigned;
+    const { rlp } = createSignedTx(netVersion, signature, tx);
+
+    return this.confirmRawTransaction(store, id, rlp);
+  }
+
+  confirmWalletTransaction (store, id, transaction, wallet, password) {
     const { worker } = store.getState().worker;
 
     const signerPromise = worker && worker._worker.state === 'activated'
@@ -126,7 +138,7 @@ export default class SignerMiddleware {
         return signer.signTransaction(txData);
       })
       .then((rawTx) => {
-        return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
+        return this.confirmRawTransaction(store, id, rawTx);
       })
       .catch((error) => {
         console.error(error.message);
@@ -135,7 +147,7 @@ export default class SignerMiddleware {
   }
 
   onConfirmStart = (store, action) => {
-    const { condition, gas = 0, gasPrice = 0, id, password, payload, wallet } = action.payload;
+    const { condition, gas = 0, gasPrice = 0, id, password, payload, txSigned, wallet } = action.payload;
     const handlePromise = this._createConfirmPromiseHandler(store, id);
     const transaction = payload.sendTransaction || payload.signTransaction;
 
@@ -144,6 +156,8 @@ export default class SignerMiddleware {
 
       if (wallet) {
         return this.confirmWalletTransaction(store, id, transaction, wallet, password);
+      } else if (txSigned) {
+        return this.confirmSignedTransaction(store, id, txSigned);
       } else if (hardwareAccount) {
         switch (hardwareAccount.via) {
           case 'ledger':
