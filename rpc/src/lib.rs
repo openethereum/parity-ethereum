@@ -66,6 +66,10 @@ extern crate ethjson;
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
 
+#[cfg(test)]
+#[macro_use]
+extern crate pretty_assertions;
+
 pub extern crate jsonrpc_ws_server as ws;
 
 mod metadata;

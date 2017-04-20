@@ -49,6 +49,7 @@ fetch = { path = "../util/fetch" }
 stats = { path = "../util/stats" }
 
 clippy = { version = "0.0.103", optional = true}
+pretty_assertions = "0.1"
 
 [features]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]

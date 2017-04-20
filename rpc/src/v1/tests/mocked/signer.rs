@@ -28,7 +28,7 @@ use jsonrpc_core::IoHandler;
 use v1::{SignerClient, Signer, Origin};
 use v1::metadata::Metadata;
 use v1::tests::helpers::TestMinerService;
-use v1::types::{H520, RichRawTransaction};
+use v1::types::H520;
 use v1::helpers::{SigningQueue, SignerService, FilledTransactionRequest, ConfirmationPayload};
 use v1::helpers::dispatch::{FullDispatcher, eth_data_hash};
 
@@ -443,9 +443,8 @@ fn should_confirm_sign_transaction_with_rlp() {
 		data: vec![]
 	};
 	let signature = tester.accounts.sign(address, Some("test".into()), t.hash(None)).unwrap();
-	let t = t.with_signature(signature, None);
+	let t = SignedTransaction::new(t.with_signature(signature.clone(), None)).unwrap();
 	let rlp = encode(&t);
-	let rich_transaction = RichRawTransaction::from(SignedTransaction::new(t).unwrap());
 
 	// when
 	let request = r#"{
@@ -454,7 +453,25 @@ fn should_confirm_sign_transaction_with_rlp() {
 		"params":["0x1", "0x"#.to_owned() + &rlp.to_hex() + r#""],
 		"id":1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"#.to_owned() + &serde_json::to_string(&rich_transaction).unwrap() + r#","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"#.to_owned() +
+		r#""raw":"0x"# + &rlp.to_hex() + r#"","# +
+		r#""tx":{"# +
+		r#""blockHash":null,"blockNumber":null,"condition":null,"creates":null,"# +
+		&format!("\"from\":\"0x{:?}\",", &address) +
+		r#""gas":"0x989680","gasPrice":"0x1000","# +
+		&format!("\"hash\":\"0x{:?}\",", t.hash()) +
+		r#""input":"0x","# +
+		&format!("\"networkId\":{},", t.network_id().map_or("null".to_owned(), |n| format!("{}", n))) +
+		r#""nonce":"0x0","# +
+		&format!("\"publicKey\":\"0x{:?}\",", t.public_key()) +
+		&format!("\"r\":\"0x{}\",", U256::from(signature.r()).to_hex()) +
+		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
+		&format!("\"s\":\"0x{}\",", U256::from(signature.s()).to_hex()) +
+		&format!("\"standardV\":\"0x{}\",", U256::from(t.standard_v()).to_hex()) +
+		r#""to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionIndex":null,"# +
+		&format!("\"v\":\"0x{}\",", U256::from(t.original_v()).to_hex()) +
+		r#""value":"0x1""# +
+		r#"}},"id":1}"#;
 
 	// then
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
