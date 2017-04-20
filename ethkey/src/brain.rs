@@ -57,8 +57,8 @@ mod tests {
 	#[test]
 	fn test_brain() {
 		let words = "this is sparta!".to_owned();
-		let first_keypair = Brain(words.clone()).generate().unwrap();
-		let second_keypair = Brain(words.clone()).generate().unwrap();
+		let first_keypair = Brain::new(words.clone()).generate().unwrap();
+		let second_keypair = Brain::new(words.clone()).generate().unwrap();
 		assert_eq!(first_keypair.secret(), second_keypair.secret());
 	}
 }
