@@ -165,7 +165,6 @@
     "@parity/wordlist": "1.0.1",
     "base32.js": "0.1.0",
     "bignumber.js": "3.0.1",
-    "blockies": "0.0.2",
     "brace": "0.9.0",
     "bytes": "2.4.0",
     "debounce": "1.0.0",

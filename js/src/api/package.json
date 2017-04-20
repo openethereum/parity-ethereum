@@ -29,6 +29,7 @@
     "@parity/abi": "file:../abi",
     "@parity/jsonrpc": "file:../jsonrpc",
     "bignumber.js": "3.0.1",
+    "blockies": "0.0.2",
     "ethereumjs-tx": "1.2.5",
     "eventemitter3": "2.0.2",
     "js-sha3": "0.5.5",
