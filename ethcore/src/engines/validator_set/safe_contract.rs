@@ -280,7 +280,7 @@ mod tests {
 	use miner::MinerService;
 	use tests::helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
 	use super::super::ValidatorSet;
-	use super::ValidatorSafeContract;
+	use super::{ValidatorSafeContract, EVENT_NAME_HASH};
 
 	#[test]
 	fn fetches_validators() {
@@ -357,5 +357,36 @@ mod tests {
 		}
 		sync_client.flush_queue();
 		assert_eq!(sync_client.chain_info().best_block_number, 3);
+	}
+
+	#[test]
+	fn detects_bloom() {
+		use header::Header;
+		use engines::{EpochChange, Unsure};
+		use log_entry::LogEntry;
+
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
+		let engine = client.engine().clone();
+		let validator_contract = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+
+		let last_hash = client.best_block_header().hash();
+		let mut new_header = Header::default();
+		new_header.set_parent_hash(last_hash);
+
+		// first, try without the parent hash.
+		let mut event = LogEntry {
+			address: validator_contract,
+			topics: vec![*EVENT_NAME_HASH],
+			data: Vec::new(),
+		};
+
+		new_header.set_log_bloom(event.bloom());
+		assert_eq!(engine.is_epoch_end(&new_header, None, None), EpochChange::No);
+
+		// with the last hash, it should need the receipts.
+		event.topics.push(last_hash);
+		new_header.set_log_bloom(event.bloom());
+		assert_eq!(engine.is_epoch_end(&new_header, None, None),
+			EpochChange::Unsure(Unsure::NeedsReceipts));
 	}
 }
