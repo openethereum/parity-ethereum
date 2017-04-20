@@ -23,7 +23,7 @@
   "devDependencies": {
   },
   "dependencies": {
-    "bignumber.js": "~2.3.0",
-    "js-sha3": "~0.5.2"
+    "bignumber.js": "3.0.1",
+    "js-sha3": "0.5.5"
   }
 }

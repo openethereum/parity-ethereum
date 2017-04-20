@@ -27,9 +27,12 @@
   "dependencies": {
     "@parity/abi": "file:../abi",
     "@parity/jsonrpc": "file:../jsonrpc",
-    "bignumber.js": "~2.3.0",
+    "bignumber.js": "3.0.1",
+    "ethereumjs-tx": "1.2.5",
     "eventemitter3": "2.0.2",
-    "js-sha3": "~0.5.2",
-    "node-fetch": "~1.6.3"
+    "js-sha3": "0.5.5",
+    "keythereum": "0.4.6",
+    "node-fetch": "1.6.3",
+    "secp256k1": "3.2.5"
   }
 }
