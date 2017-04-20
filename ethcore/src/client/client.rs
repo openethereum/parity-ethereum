@@ -1270,7 +1270,7 @@ impl BlockChainClient for Client {
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
 		let chain = self.chain.read();
 		match chain.is_known(from) && chain.is_known(to) {
-			true => Some(chain.tree_route(from.clone(), to.clone())),
+			true => chain.tree_route(from.clone(), to.clone()),
 			false => None
 		}
 	}
