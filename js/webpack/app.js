@@ -65,9 +65,15 @@ module.exports = {
         exclude: /(node_modules)/,
         use: [ 'happypack/loader?id=babel-js' ]
       },
+      // duplicated for clarity since the number of @parity modules will increase
       {
         test: /\.js$/,
-        include: /node_modules\/(material-chip-input|ethereumjs-tx|@parity\/wordlist)/,
+        include: /node_modules\/@parity\/(abi|api|wordlist)/,
+        use: 'babel-loader'
+      },
+      {
+        test: /\.js$/,
+        include: /node_modules\/(material-chip-input|ethereumjs-tx)/,
         use: 'babel-loader'
       },
       {

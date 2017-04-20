@@ -158,6 +158,8 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
+    "@parity/abi": "file:src/abi",
+    "@parity/api": "file:src/api",
     "@parity/wordlist": "1.0.1",
     "base32.js": "0.1.0",
     "bignumber.js": "3.0.1",

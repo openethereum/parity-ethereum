@@ -58,9 +58,15 @@ module.exports = {
           'babel-loader?cacheDirectory=true'
         ]
       },
+      // duplicated for clarity since the number of @parity modules will increase
       {
         test: /\.js$/,
-        include: /node_modules\/(ethereumjs-tx|@parity\/wordlist)/,
+        include: /node_modules\/@parity\/(abi|api|wordlist)/,
+        use: 'babel-loader'
+      },
+      {
+        test: /\.js$/,
+        include: /node_modules\/ethereumjs-tx/,
         use: 'babel-loader'
       },
       {
