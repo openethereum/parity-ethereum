@@ -18,6 +18,8 @@ const path = require('path');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const packageJson = require('../package.json');
 
+const rulesEs6 = require('./rules/es6');
+const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
 const ENV = process.env.NODE_ENV || 'development';
@@ -26,6 +28,7 @@ const isProd = ENV === 'production';
 const LIBRARY = process.env.LIBRARY;
 
 if (!LIBRARY) {
+  console.error('$LIBRARY environment variable not defined');
   process.exit(-1);
 }
 
@@ -57,6 +60,8 @@ module.exports = {
       /babel-polyfill/
     ],
     rules: [
+      rulesParity,
+      rulesEs6,
       {
         test: /(\.jsx|\.js)$/,
         // use: [ 'happypack/loader?id=js' ],
@@ -65,11 +70,6 @@ module.exports = {
           'babel-loader?cacheDirectory=true'
         ],
         exclude: /node_modules/
-      },
-      {
-        test: /\.js$/,
-        include: /node_modules\/(ethereumjs-tx|@parity\/wordlist)/,
-        use: 'babel-loader'
       }
     ]
   },

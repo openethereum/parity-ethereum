@@ -18,6 +18,8 @@
 
 const path = require('path');
 
+const rulesEs6 = require('./rules/es6');
+const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
 const DEST = process.env.BUILD_DEST || '.build';
@@ -49,6 +51,8 @@ module.exports = {
 
   module: {
     rules: [
+      rulesParity,
+      rulesEs6,
       {
         test: /\.js$/,
         exclude: /node_modules/,
@@ -57,17 +61,6 @@ module.exports = {
           // 'react-hot-loader',
           'babel-loader?cacheDirectory=true'
         ]
-      },
-      // duplicated for clarity since the number of @parity modules will increase
-      {
-        test: /\.js$/,
-        include: /node_modules\/@parity\/(abi|api|jsonrpc|wordlist)/,
-        use: 'babel-loader'
-      },
-      {
-        test: /\.js$/,
-        include: /node_modules\/ethereumjs-tx/,
-        use: 'babel-loader'
       },
       {
         test: /\.json$/,
