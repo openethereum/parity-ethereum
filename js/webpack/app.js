@@ -68,7 +68,7 @@ module.exports = {
       // duplicated for clarity since the number of @parity modules will increase
       {
         test: /\.js$/,
-        include: /node_modules\/@parity\/(abi|api|wordlist)/,
+        include: /node_modules\/@parity\/(abi|api|jsonrpc|wordlist)/,
         use: 'babel-loader'
       },
       {

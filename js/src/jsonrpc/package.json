@@ -1,6 +1,6 @@
 {
-  "name": "@parity/api",
-  "description": "The Parity Promise-based API library for interfacing with Ethereum over RPC",
+  "name": "@parity/jsonrpc",
+  "description": "JSON and JS interface defintions for RPC",
   "version": "0.0.0",
   "main": "index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -15,21 +15,13 @@
   },
   "keywords": [
     "Ethereum",
-    "API",
     "RPC",
-    "Parity",
-    "Promise"
+    "Parity"
   ],
   "scripts": {
   },
   "devDependencies": {
   },
   "dependencies": {
-    "@parity/abi": "file:../abi",
-    "@parity/jsonrpc": "file:../jsonrpc",
-    "bignumber.js": "~2.3.0",
-    "eventemitter3": "2.0.2",
-    "js-sha3": "~0.5.2",
-    "node-fetch": "~1.6.3"
   }
 }

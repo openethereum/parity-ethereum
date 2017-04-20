@@ -160,6 +160,7 @@
   "dependencies": {
     "@parity/abi": "file:src/abi",
     "@parity/api": "file:src/api",
+    "@parity/jsonrpc": "file:src/jsonrpc",
     "@parity/wordlist": "1.0.1",
     "base32.js": "0.1.0",
     "bignumber.js": "3.0.1",
