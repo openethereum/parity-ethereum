@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { pick } from 'lodash';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -58,7 +57,6 @@ class ExecuteContract extends Component {
 
   static propTypes = {
     accounts: PropTypes.object,
-    balances: PropTypes.object,
     contract: PropTypes.object.isRequired,
     fromAddress: PropTypes.string,
     gasLimit: PropTypes.object.isRequired,
@@ -199,14 +197,16 @@ class ExecuteContract extends Component {
   }
 
   renderStep () {
-    const { onFromAddressChange } = this.props;
+    const { accounts, contract, fromAddress, onFromAddressChange } = this.props;
     const { step } = this.state;
 
     if (step === STEP_DETAILS) {
       return (
         <DetailsStep
-          { ...this.props }
           { ...this.state }
+          accounts={ accounts }
+          contract={ contract }
+          fromAddress={ fromAddress }
           onAmountChange={ this.onAmountChange }
           onFromAddressChange={ onFromAddressChange }
           onFuncChange={ this.onFuncChange }
@@ -334,15 +334,10 @@ class ExecuteContract extends Component {
   }
 }
 
-function mapStateToProps (initState, initProps) {
-  const fromAddresses = Object.keys(initProps.accounts);
+function mapStateToProps (state) {
+  const { gasLimit } = state.nodeStatus;
 
-  return (state) => {
-    const balances = pick(state.balances.balances, fromAddresses);
-    const { gasLimit } = state.nodeStatus;
-
-    return { gasLimit, balances };
-  };
+  return { gasLimit };
 }
 
 export default connect(

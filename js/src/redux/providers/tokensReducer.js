@@ -16,12 +16,19 @@
 
 import { handleActions } from 'redux-actions';
 
-const initialState = {};
+import { ETH_TOKEN } from '~/util/tokens';
+
+const initialState = {
+  [ ETH_TOKEN.id ]: ETH_TOKEN
+};
 
 export default handleActions({
-  setBalances (state, action) {
-    const { balances } = action;
+  setTokens (state, action) {
+    const { tokens } = action;
 
-    return Object.assign({}, state, balances);
+    return {
+      ...state,
+      ...tokens
+    };
   }
 }, initialState);
