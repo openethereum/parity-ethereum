@@ -52,6 +52,7 @@ function render (address) {
       address={ address }
       onConfirm={ onConfirm }
       isSending={ false }
+      dataToSign={ {} }
     />
   );
   instance = component.instance();

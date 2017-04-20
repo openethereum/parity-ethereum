@@ -87,14 +87,20 @@ export default class SignerMiddleware {
         return this._hwstore.signLedger(transaction);
       })
       .then((rawTx) => {
-        return this.confirmRawTransaction(store, id, rawTx);
+        return this.confirmRawRequest(store, id, rawTx);
       });
   }
 
-  confirmRawTransaction (store, id, rawTx) {
+  confirmRawRequest (store, id, rawData) {
     const handlePromise = this._createConfirmPromiseHandler(store, id);
 
-    return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
+    return handlePromise(this._api.signer.confirmRequestRaw(id, rawData));
+  }
+
+  confirmSignedData (store, id, dataSigned) {
+    const { signature } = dataSigned;
+
+    return this.confirmRawRequest(store, id, signature);
   }
 
   confirmSignedTransaction (store, id, txSigned) {
@@ -102,7 +108,7 @@ export default class SignerMiddleware {
     const { signature, tx } = txSigned;
     const { rlp } = createSignedTx(netVersion, signature, tx);
 
-    return this.confirmRawTransaction(store, id, rlp);
+    return this.confirmRawRequest(store, id, rlp);
   }
 
   confirmWalletTransaction (store, id, transaction, wallet, password) {
@@ -138,7 +144,7 @@ export default class SignerMiddleware {
         return signer.signTransaction(txData);
       })
       .then((rawTx) => {
-        return this.confirmRawTransaction(store, id, rawTx);
+        return this.confirmRawRequest(store, id, rawTx);
       })
       .catch((error) => {
         console.error(error.message);
@@ -147,7 +153,7 @@ export default class SignerMiddleware {
   }
 
   onConfirmStart = (store, action) => {
-    const { condition, gas = 0, gasPrice = 0, id, password, payload, txSigned, wallet } = action.payload;
+    const { condition, gas = 0, gasPrice = 0, id, password, payload, txSigned, dataSigned, wallet } = action.payload;
     const handlePromise = this._createConfirmPromiseHandler(store, id);
     const transaction = payload.sendTransaction || payload.signTransaction;
 
@@ -168,6 +174,11 @@ export default class SignerMiddleware {
             break;
         }
       }
+    }
+
+    // TODO [ToDr] Support eth_sign for external wallet (wallet && !transction)
+    if (dataSigned) {
+      return this.confirmSignedData(store, id, dataSigned);
     }
 
     return handlePromise(this._api.signer.confirmRequest(id, { gas, gasPrice, condition }, password));

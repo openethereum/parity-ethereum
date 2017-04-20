@@ -22,7 +22,7 @@ import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
 
 import { Form, Input, IdentityIcon, QrCode, QrScan } from '~/ui';
-import { generateTxQr } from '~/util/qrscan';
+import { generateTxQr, generateDataQr } from '~/util/qrscan';
 
 import styles from './transactionPendingFormConfirm.css';
 
@@ -40,11 +40,10 @@ export default class TransactionPendingFormConfirm extends Component {
     address: PropTypes.string.isRequired,
     disabled: PropTypes.bool,
     focus: PropTypes.bool,
-    gasStore: PropTypes.object.isRequired,
     netVersion: PropTypes.string.isRequired,
     isSending: PropTypes.bool.isRequired,
     onConfirm: PropTypes.func.isRequired,
-    transaction: PropTypes.object.isRequired
+    dataToSign: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -406,7 +405,7 @@ export default class TransactionPendingFormConfirm extends Component {
   }
 
   onScanTx = (signature) => {
-    const { chainId, rlp, tx } = this.state.qr;
+    const { chainId, rlp, tx, data } = this.state.qr;
 
     if (signature && signature.substr(0, 2) !== '0x') {
       signature = `0x${signature}`;
@@ -414,12 +413,22 @@ export default class TransactionPendingFormConfirm extends Component {
 
     this.setState({ qrState: QR_COMPLETED });
 
+    if (tx) {
+      this.props.onConfirm({
+        txSigned: {
+          chainId,
+          rlp,
+          signature,
+          tx
+        }
+      });
+      return;
+    }
+
     this.props.onConfirm({
-      txSigned: {
-        chainId,
-        rlp,
-        signature,
-        tx
+      dataSigned: {
+        data,
+        signature
       }
     });
   }
@@ -487,13 +496,20 @@ export default class TransactionPendingFormConfirm extends Component {
     });
   }
 
-  generateTxQr = () => {
+  generateQr = () => {
     const { api } = this.context;
-    const { netVersion, gasStore, transaction } = this.props;
-
-    generateTxQr(api, netVersion, gasStore, transaction).then((qr) => {
+    const { netVersion, dataToSign } = this.props;
+    const { transaction, data } = dataToSign;
+    const setState = qr => {
       this.setState({ qr });
-    });
+    };
+
+    if (transaction) {
+      generateTxQr(api, netVersion, transaction).then(setState);
+      return;
+    }
+
+    generateDataQr(data).then(setState);
   }
 
   onKeyDown = (event) => {
@@ -528,19 +544,25 @@ export default class TransactionPendingFormConfirm extends Component {
 
   readNonce = () => {
     const { api } = this.context;
-    const { account } = this.props;
+    const { account, dataToSign } = this.props;
+    const { qr } = this.state;
 
-    if (!account || !account.external || !api.transport.isConnected) {
+    if (dataToSign.data && qr && !qr.value) {
+      this.generateQr();
+      return;
+    }
+
+    if (!account || !account.external || !api.transport.isConnected || !dataToSign.transaction) {
       return;
     }
 
     return api.parity
       .nextNonce(account.address)
-      .then((nonce) => {
-        const { qr } = this.state;
+      .then((newNonce) => {
+        const { nonce } = this.state.qr;
 
-        if (!qr.nonce || !nonce.eq(qr.nonce)) {
-          this.generateTxQr();
+        if (!nonce || !newNonce.eq(nonce)) {
+          this.generateQr();
         }
       });
   }

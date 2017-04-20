@@ -19,8 +19,8 @@ import Transaction from 'ethereumjs-tx';
 import { inAddress, inHex, inNumber10 } from '~/api/format/input';
 import { sha3 } from '~/api/util/sha3';
 
-export function createUnsignedTx (api, netVersion, gasStore, transaction) {
-  const { data, from, gas, gasPrice, to, value } = gasStore.overrideTransaction(transaction);
+export function createUnsignedTx (api, netVersion, transaction) {
+  const { data, from, gas, gasPrice, to, value } = transaction;
 
   return api.parity
     .nextNonce(from)
@@ -111,8 +111,18 @@ export function generateQr (from, tx, hash, rlp) {
   });
 }
 
-export function generateTxQr (api, netVersion, gasStore, transaction) {
-  return createUnsignedTx(api, netVersion, gasStore, transaction)
+export function generateDataQr (data) {
+  return Promise.resolve({
+    data,
+    value: JSON.stringify({
+      action: 'signData',
+      data
+    })
+  });
+}
+
+export function generateTxQr (api, netVersion, transaction) {
+  return createUnsignedTx(api, netVersion, transaction)
     .then((qr) => {
       qr.value = generateQr(transaction.from, qr.tx, qr.hash, qr.rlp);
 
