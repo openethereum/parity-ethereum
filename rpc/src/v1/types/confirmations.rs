@@ -129,7 +129,7 @@ pub enum ConfirmationResponse {
 	SendTransaction(H256),
 	/// Transaction RLP
 	SignTransaction(RichRawTransaction),
-	/// Signature
+	/// Signature (encoded as VRS)
 	Signature(H520),
 	/// Decrypted data
 	Decrypt(Bytes),
