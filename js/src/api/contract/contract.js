@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Abi from '~/abi';
+import Abi from '@parity/abi';
 
 let nextSubscriptionId = 0;
 
