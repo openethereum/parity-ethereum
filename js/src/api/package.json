@@ -5,7 +5,8 @@
   "main": "index.js",
   "author": "Parity Team <admin@parity.io>",
   "maintainers": [
-    "Jaco Greeff"
+    "Jaco Greeff",
+    "Nicolas Gotchac"
   ],
   "contributors": [],
   "license": "GPL-3.0",
