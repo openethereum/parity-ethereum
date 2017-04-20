@@ -59,6 +59,8 @@ pub enum Error {
 	ChunkTooSmall,
 	/// Snapshots not supported by the consensus engine.
 	SnapshotsUnsupported,
+	/// Bad epoch transition.
+	BadEpochProof(u64),
 }
 
 impl fmt::Display for Error {
@@ -82,6 +84,7 @@ impl fmt::Display for Error {
 			Error::VersionNotSupported(ref ver) => write!(f, "Snapshot version {} is not supprted.", ver),
 			Error::ChunkTooSmall => write!(f, "Chunk size is too small."),
 			Error::SnapshotsUnsupported => write!(f, "Snapshots unsupported by consensus engine."),
+			Error::BadEpochProof(i) => write!(f, "Bad epoch proof for transition to epoch {}", i),
 		}
 	}
 }
