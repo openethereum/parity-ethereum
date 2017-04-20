@@ -306,9 +306,7 @@ export default {
         example: fromDecimal(436)
       }
     ],
-    returns: {
-      returns: 'See [eth_getBlockByHash](#eth_getblockbyhash) (without transactions and uncles)'
-    }
+    returns: 'See [eth_getBlockByHash](#eth_getblockbyhash) (without transactions and uncles)'
   },
 
   getVaultMeta: {

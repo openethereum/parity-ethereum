@@ -43,7 +43,7 @@ export const subscribe = (name, from = 0, to = 'pending') =>
 
         events.forEach((e) => {
           Promise.all([
-            api.eth.getBlockByNumber(e.blockNumber),
+            api.parity.getBlockHeaderByNumber(e.blockNumber),
             api.eth.getTransactionByHash(e.transactionHash)
           ])
           .then(([block, tx]) => {

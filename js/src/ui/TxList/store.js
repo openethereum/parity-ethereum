@@ -147,7 +147,9 @@ export default class Store {
     }
 
     Promise
-      .all(blockNumbers.map((blockNumber) => this._api.eth.getBlockByNumber(blockNumber)))
+      .all(
+        blockNumbers.map((blockNumber) => this._api.parity.getBlockHeaderByNumber(blockNumber))
+      )
       .then((blocks) => {
         this.addBlocks(
           blocks.reduce((blocks, block, index) => {

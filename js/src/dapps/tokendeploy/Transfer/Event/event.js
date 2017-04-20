@@ -97,8 +97,8 @@ export default class Event extends Component {
       return;
     }
 
-    api.eth
-      .getBlockByNumber(event.blockNumber)
+    api.parity
+      .getBlockHeaderByNumber(event.blockNumber)
       .then((block) => {
         this.setState({ block });
       });

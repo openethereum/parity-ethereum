@@ -94,7 +94,7 @@ export default class Event extends Component {
 
     Promise
       .all([
-        api.eth.getBlockByNumber(event.blockNumber),
+        api.parity.getBlockHeaderByNumber(event.blockNumber),
         getCoin(event.params.tokenreg, event.params.coin)
       ])
       .then(([block, coin]) => {

@@ -158,7 +158,7 @@ export function attachEvents (contract, callback) {
 }
 
 export function getBlock (blockNumber) {
-  return api.eth.getBlockByNumber(blockNumber);
+  return api.parity.getBlockHeaderByNumber(blockNumber);
 }
 
 export function callRegister (instance, id, options = {}) {
