@@ -277,7 +277,7 @@ impl Rebuilder for PowRebuilder {
 	}
 
 	/// Glue together any disconnected chunks and check that the chain is complete.
-	fn finalize(&mut self) -> Result<(), Error> {
+	fn finalize(&mut self, _: ::state_db::StateDB, _: &Engine) -> Result<(), ::error::Error> {
 		let mut batch = self.db.transaction();
 
 		for (first_num, first_hash) in self.disconnected.drain(..) {

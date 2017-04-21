@@ -57,7 +57,9 @@ pub trait SnapshotComponents: Send {
 	/// order and then be finalized.
 	///
 	/// The manifest, a database, and fresh `BlockChain` are supplied.
-	// TODO: supply anything for state?
+	///
+	/// The engine passed to the `Rebuilder` methods will be the same instance
+	/// that created the `SnapshotComponents`.
 	fn rebuilder(
 		&self,
 		chain: BlockChain,
@@ -82,6 +84,10 @@ pub trait Rebuilder: Send {
 
 	/// Finalize the restoration. Will be done after all chunks have been
 	/// fed successfully.
-	/// This will apply the necessary "glue" between chunks.
-	fn finalize(&mut self) -> Result<(), Error>;
+	///
+	/// This should apply the necessary "glue" between chunks,
+	/// and verify against the restored state.
+	///
+	/// The database passed contains the state for the warp target block.
+	fn finalize(&mut self, db: ::state_db::StateDB, engine: &Engine) -> Result<(), ::error::Error>;
 }

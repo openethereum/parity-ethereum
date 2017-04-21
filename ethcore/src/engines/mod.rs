@@ -226,6 +226,9 @@ pub trait Engine : Sync + Send {
 	/// For example, for PoA chains the proof will be a validator set,
 	/// and the corresponding `EpochVerifier` can be used to correctly validate
 	/// all blocks produced under that `ValidatorSet`
+	///
+	/// It must be possible to generate an epoch proof for any block in an epoch,
+	/// and it should always be equivalent to the proof of the transition block.
 	fn epoch_proof(&self, _header: &Header, _caller: &Call)
 		-> Result<Vec<u8>, Error>
 	{

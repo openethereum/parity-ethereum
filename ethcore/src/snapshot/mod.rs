@@ -384,7 +384,7 @@ impl StateRebuilder {
 	/// Finalize the restoration. Check for accounts missing code and make a dummy
 	/// journal entry.
 	/// Once all chunks have been fed, there should be nothing missing.
-	pub fn finalize(mut self, era: u64, id: H256) -> Result<(), ::error::Error> {
+	pub fn finalize(mut self, era: u64, id: H256) -> Result<Box<JournalDB>, ::error::Error> {
 		let missing = self.missing_code.keys().cloned().collect::<Vec<_>>();
 		if !missing.is_empty() { return Err(Error::MissingCode(missing).into()) }
 
@@ -392,7 +392,7 @@ impl StateRebuilder {
 		self.db.journal_under(&mut batch, era, &id)?;
 		self.db.backing().write_buffered(batch);
 
-		Ok(())
+		Ok(self.db)
 	}
 
 	/// Get the state root of the rebuilder.

@@ -991,16 +991,9 @@ impl BlockChainClient for Client {
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-		let sender = t.sender();
-		let balance = state.balance(&sender).map_err(|_| CallError::StateCorrupt)?;
-		let needed_balance = t.value + t.gas * t.gas_price;
-		if balance < needed_balance {
-			// give the sender a sufficient balance
-			state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)
-				.map_err(|_| CallError::StateCorrupt)?;
-		}
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, options)?;
+		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
+			.transact_virtual(t, options)?;
 
 		// TODO gav move this into Executive.
 		if let Some(original) = original_state {
@@ -1022,7 +1015,6 @@ impl BlockChainClient for Client {
 		// that's just a copy of the state.
 		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender();
-		let balance = original_state.balance(&sender).map_err(ExecutionError::from)?;
 		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
 
 		let cond = |gas| {
@@ -1031,15 +1023,8 @@ impl BlockChainClient for Client {
 			let tx = tx.fake_sign(sender);
 
 			let mut state = original_state.clone();
-			let needed_balance = tx.value + tx.gas * tx.gas_price;
-			if balance < needed_balance {
-				// give the sender a sufficient balance
-				state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)
-					.map_err(ExecutionError::from)?;
-			}
-
 			Ok(Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
-				.transact(&tx, options.clone())
+				.transact_virtual(&tx, options.clone())
 				.map(|r| r.exception.is_none())
 				.unwrap_or(false))
 		};

@@ -27,13 +27,17 @@ use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockProvider, EpochTransition};
 use engines::{Engine, EpochVerifier};
+use env_info::EnvInfo;
 use ids::BlockId;
+use header::Header;
+use receipt::Receipt;
 use snapshot::{Error, ManifestData};
 use snapshot::block::AbridgedBlock;
-use receipt::Receipt;
+use state_db::StateDB;
 
+use itertools::{Position, Itertools};
 use rlp::{RlpStream, UntrustedRlp};
-use util::{Bytes, H256, KeyValueDB, DBValue};
+use util::{Address, Bytes, H256, KeyValueDB, DBValue};
 
 /// Snapshot creation and restoration for PoA chains.
 /// Chunk format:
@@ -47,7 +51,7 @@ use util::{Bytes, H256, KeyValueDB, DBValue};
 /// FLAG is a bool: true for last chunk, false otherwise.
 ///
 /// The last item of the last chunk will be a list containing data for the warp target block:
-/// [abridged_block, receipts, last_hashes].
+/// [block, receipts, last_hashes, parent_td].
 /// If this block is not a transition block, the epoch data should be the same as that
 /// for the last transition.
 pub struct PoaSnapshot;
@@ -135,7 +139,7 @@ impl SnapshotComponents for PoaSnapshot {
 		db: Arc<KeyValueDB>,
 		manifest: &ManifestData,
 	) -> Result<Box<Rebuilder>, ::error::Error> {
-		Ok(Box::new(ChunkRebuilder))
+		Ok(unimplemented!())
 	}
 }
 
@@ -156,15 +160,16 @@ fn write_chunk(last: bool, chunk_data: &mut Vec<Bytes>, sink: &mut ChunkSink) ->
 // transition header is verifiable from the epoch data of the one prior.
 struct ChunkRebuilder {
 	manifest: ManifestData,
-	warp_target: Option<(Bytes, Vec<Receipt>, Vec<H256>)>,
+	warp_target: Option<(Header, Vec<H256>)>,
 	chain: BlockChain,
 	db: Arc<KeyValueDB>,
+	genesis_epoch_data: Option<Bytes>,
 
 	// sorted vectors of unverified first blocks in a chunk
 	// and epoch data from last blocks in chunks.
 	// verification for these will be done at the end.
 	unverified_firsts: Vec<(u64, Header)>,
-	last_proofs: Vec<(u64, Bytes)>,
+	last_proofs: Vec<(u64, Header, Bytes)>,
 }
 
 // verified data.
@@ -174,10 +179,45 @@ struct Verified {
 	header: Header,
 }
 
-impl Rebuilder {
+// make a transaction and env info.
+// TODO: hardcoded 50M to match constants in client.
+// would be nice to extract magic numbers, or better yet
+// off-chain transaction execution, into its own module.
+fn make_tx_and_env(
+	engine: &Engine,
+	addr: Address,
+	data: Bytes,
+	header: &Header,
+	last_hashes: Arc<Vec<H256>>,
+) -> (::transaction::SignedTransaction, EnvInfo) {
+	use transaction::{Action, Transaction};
+
+	let transaction = Transaction {
+		nonce: engine.account_start_nonce(),
+		action: Action::Call(addr),
+		gas: 50_000_000.into(),
+		gas_price: 0.into(),
+		value: 0.into(),
+		data: data,
+	}.fake_sign(Default::default());
+
+	let env = EnvInfo {
+		number: header.number(),
+		author: *header.author(),
+		timestamp: header.timestamp(),
+		difficulty: *header.difficulty(),
+		gas_limit: 50_000_000.into(),
+		last_hashes: last_hashes,
+		gas_used: 0.into(),
+	};
+
+	(transaction, env)
+}
+
+impl ChunkRebuilder {
 	fn verify_transition(
 		&mut self,
-		last_verifier: &mut Option<EpochVerifier>,
+		last_verifier: &mut Option<Box<EpochVerifier>>,
 		transition_rlp: UntrustedRlp,
 		engine: &Engine,
 	) -> Result<Verified, ::error::Error> {
@@ -185,10 +225,10 @@ impl Rebuilder {
 		let header: Header = transition_rlp.val_at(0)?;
 		let epoch_number: u64 = transition_rlp.val_at(1)?;
 		let epoch_data: Bytes = transition_rlp.val_at(2)?;
-		let state_proof = transition_rlp.at(3)?
+		let state_proof: Vec<DBValue> = transition_rlp.at(3)?
 			.iter()
 			.map(|x| Ok(DBValue::from_slice(x.data()?)))
-			.collect::<Result<Vec<_>, _>>()?;
+			.collect::<Result<_, ::rlp::DecoderError>>()?;
 		let last_hashes: Vec<H256> = transition_rlp.list_at(4)?;
 		let last_hashes = Arc::new(last_hashes);
 
@@ -200,38 +240,23 @@ impl Rebuilder {
 		{
 			// check the provided state proof actually leads to the
 			// given epoch data.
-			//
-			// TODO: hardcoded 50M to match constants in client.
-			// would be nice to extract magic numbers, or better yet
-			// off-chain transaction execution, into its own module.
 			let caller = |addr, data| {
-				use env_info::EnvInfo;
 				use state::{check_proof, ProvedExecution};
-				use transaction::{Action, Transaction};
 
-				let transaction = Transaction {
-					nonce: engine.account_start_nonce(0,
-					action: Action::Call(addr),
-					gas: 50_000_000.into(),
-					gas_price: 0.into(),
-					value: 0.into(),
-					data: data,
-				}.fake_sign(Default::default());
+				let (transaction, env_info) = make_tx_and_env(
+					engine,
+					addr,
+					data,
+					&header,
+					last_hashes.clone(),
+				);
 
 				let result = check_proof(
 					&state_proof,
-					header.state_root(),
-					transaction,
+					header.state_root().clone(),
+					&transaction,
 					engine,
-					&EnvInfo {
-						number: header.number(),
-						author: header.author(),
-						timestamp: header.timestamp(),
-						difficulty: header.difficulty(),
-						gas_limit: 50_000_000.into(),
-						last_hashes: last_hashes.clone(),
-						gas_used: 0.into(),
-					}
+					&env_info,
 				);
 
 				match result {
@@ -240,7 +265,7 @@ impl Rebuilder {
 				}
 			};
 
-			let extracted_proof = engine.epoch_proof(&header, caller)
+			let extracted_proof = engine.epoch_proof(&header, &caller)
 				.map_err(|_| Error::BadEpochProof(epoch_number))?;
 
 			if extracted_proof != epoch_data {
@@ -252,14 +277,14 @@ impl Rebuilder {
 		*last_verifier = Some(engine.epoch_verifier(&header, &epoch_data)?);
 
 		Ok(Verified {
-			epoch_number: epoch_num,
+			epoch_number: epoch_number,
 			epoch_transition: EpochTransition {
 				block_hash: header.hash(),
 				block_number: header.number(),
 				state_proof: state_proof,
 				proof: epoch_data,
 			},
-			header: Header,
+			header: header,
 		})
 	}
 }
@@ -271,20 +296,20 @@ impl Rebuilder for ChunkRebuilder {
 		engine: &Engine,
 		abort_flag: &AtomicBool,
 	) -> Result<(), ::error::Error> {
-		use itertools::{Position, Itertools};
-
 		let rlp = UntrustedRlp::new(chunk);
 		let last_chunk: bool = rlp.val_at(0)?;
+		let num_items = rlp.item_count()?;
 
 		// number of transitions in the chunk.
 		let num_transitions = if last_chunk {
-			rlp.item_count() - 2
+			num_items - 2
 		} else {
-			rlp.item_count() - 1
+			num_items - 1
 		};
 
 		let mut last_verifier = None;
-		for transition_rlp in rlp.iter().skip(1).take(num_transitions) {
+		let mut last_number = None;
+		for transition_rlp in rlp.iter().skip(1).take(num_transitions).with_position() {
 			if !abort_flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
 
 			let (is_first, is_last) = match transition_rlp {
@@ -301,20 +326,38 @@ impl Rebuilder for ChunkRebuilder {
 				engine,
 			)?;
 
+			if last_number.map_or(false, |num| verified.header.number() <= num) {
+				return Err(Error::WrongChunkFormat("Later epoch transition in earlier or same block.".into()).into());
+			}
+
+			last_number = Some(verified.header.number());
+
 			// book-keep borders for verification later.
 			if is_first {
-				let idx = self.unverified_firsts
-					.binary_search_by_key(&verified.epoch_number, |&(a, _)| a)
-					.unwrap_or_else(|x| x);
+				// make sure the genesis transition was included,
+				// but it doesn't need verification later.
+				if verified.epoch_number == 0 && verified.header.number() == 1 {
+					self.genesis_epoch_data = Some(verified.epoch_transition.proof.clone());
+				} else {
+					let idx = self.unverified_firsts
+						.binary_search_by_key(&verified.epoch_number, |&(a, _)| a)
+						.unwrap_or_else(|x| x);
 
-				self.unverified_firsts.insert(idx, verified.header.clone());
+					let entry = (verified.epoch_number, verified.header.clone());
+					self.unverified_firsts.insert(idx, entry);
+				}
 			}
 			if is_last {
 				let idx = self.last_proofs
-					.binary_search_by_key(&verified.epoch_number, |&(a, _)| a)
+					.binary_search_by_key(&verified.epoch_number, |&(a, _, _)| a)
 					.unwrap_or_else(|x| x);
 
-				self.last_proofs.insert(idx, verified.epoch_transition.proof.clone());
+				let entry = (
+					verified.epoch_number,
+					verified.header.clone(),
+					verified.epoch_transition.proof.clone()
+				);
+				self.last_proofs.insert(idx, entry);
 			}
 
 			// write epoch transition into database.
@@ -322,27 +365,105 @@ impl Rebuilder for ChunkRebuilder {
 			self.chain.insert_epoch_transition(&mut batch, verified.epoch_number,
 				verified.epoch_transition);
 			self.db.write_buffered(batch);
+
+			trace!(target: "snapshot", "Verified epoch transition for epoch {}", verified.epoch_number);
 		}
 
 		if last_chunk {
-			let last_rlp = transition_rlp.at(transition_rlp.item_count() - 1)?;
-			let abridged_rlp = last_rlp.at(0)?.as_raw().to_owned();
-			let abridged_block = AbridgedBlock::from_raw(abridged_rlp);
+			let last_rlp = rlp.at(num_items - 1)?;
+			let block_data = rlp.at(0)?.as_raw();
+			let block: ::block::Block = rlp.val_at(0)?;
 			let receipts: Vec<Receipt> = last_rlp.list_at(1)?;
 
-			let receipts_root = ::util::triehash::ordered_trie_root(
-				last_rlp.at(1)?.iter().map(|r| r.as_raw().to_owned())
-			);
+			{
+				let hash = block.header.hash();
+				let best_hash = self.manifest.block_hash;
+				if hash != best_hash {
+					return Err(Error::WrongBlockHash(block.header.number(), best_hash, hash).into())
+				}
+			}
 
-			// TODO: validate best block hash.
+			let last_hashes: Vec<H256> = last_rlp.list_at(2)?;
+			let parent_td: ::util::U256 = last_rlp.val_at(3)?;
 
-			let last_hashes: Vec<H256> = last_rlp.last_at(2)?;
-			self.warp_target = Some((Vec::new(), receipts, last_hashes));
+			let mut batch = self.db.transaction();
+			self.chain.insert_unordered_block(&mut batch, block_data, receipts, Some(parent_td), true, false);
+			self.db.write_buffered(batch);
+
+			self.warp_target = Some((block.header, last_hashes));
 		}
+
+		Ok(())
 	}
 
-	fn finalize(&mut self) -> Result<(), Error> {
-		// TODO: use current state to get epoch data for latest header.
+	fn finalize(&mut self, db: StateDB, engine: &Engine) -> Result<(), ::error::Error> {
+		use state::State;
+
+		let genesis_data = match self.genesis_epoch_data.take() {
+			Some(d) => d,
+			None => return Err(Error::WrongChunkFormat("No genesis transition included.".into()).into()),
+		};
+
+		let (target_header, target_last_hashes) = match self.warp_target.take() {
+			Some(x) => x,
+			None => return Err(Error::WrongChunkFormat("Warp target block not included.".into()).into()),
+		};
+
+		// we store the last data even for the last chunk for easier verification
+		// of warp target, but we don't store genesis transition data.
+		// other than that, there should be a one-to-one correspondence of
+		// chunk ends to chunk beginnings.
+		if self.last_proofs.len() != self.unverified_firsts.len() + 1 {
+			return Err(Error::WrongChunkFormat("More than one 'last' chunk".into()).into());
+		}
+
+		// verify the first entries of chunks we couldn't before.
+		let lasts_iter = self.last_proofs.iter().map(|&(_, ref hdr, ref proof)| (hdr, &proof[..]));
+		let firsts_iter = self.unverified_firsts.iter().map(|&(_, ref hdr)| hdr);
+
+		for ((last_hdr, last_proof), first_hdr) in lasts_iter.zip(firsts_iter) {
+			let verifier = engine.epoch_verifier(&last_hdr, &last_proof)?;
+			verifier.verify_heavy(&first_hdr)?;
+		}
+
+		// verify that the validator set of the warp target is the same as that of the
+		// most recent transition. if the warp target was a transition itself,
+		// `last_data` will still be correct
+		let &(_, _, ref last_data) = self.last_proofs.last()
+			.expect("last_proofs known to have at least one element by the check above; qed");
+
+		let target_last_hashes = Arc::new(target_last_hashes);
+		let caller = |addr, data| {
+			use executive::{Executive, TransactOptions};
+
+			let factories = ::factory::Factories::default();
+			let mut state = State::from_existing(
+				db.boxed_clone(),
+				self.manifest.state_root.clone(),
+				engine.account_start_nonce(),
+				factories.clone(),
+			).map_err(|e| format!("State root mismatch: {}", e))?;
+
+			let (tx, env_info) = make_tx_and_env(
+				engine,
+				addr,
+				data,
+				&target_header,
+				target_last_hashes.clone(),
+			);
+
+			let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
+			Executive::new(&mut state, &env_info, engine, &factories.vm)
+				.transact_virtual(&tx, options)
+				.map(|e| e.output)
+				.map_err(|e| format!("Error executing: {}", e))
+		};
+
+		let data = engine.epoch_proof(&target_header, &caller)?;
+		if &data[..] != &last_data[..] {
+			return Err(Error::WrongChunkFormat("Warp target has different epoch data than epoch transition.".into()).into())
+		}
+
 		Ok(())
 	}
 }

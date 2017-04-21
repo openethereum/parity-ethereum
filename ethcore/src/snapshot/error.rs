@@ -61,6 +61,8 @@ pub enum Error {
 	SnapshotsUnsupported,
 	/// Bad epoch transition.
 	BadEpochProof(u64),
+	/// Wrong chunk format.
+	WrongChunkFormat(String),
 }
 
 impl fmt::Display for Error {
@@ -85,6 +87,7 @@ impl fmt::Display for Error {
 			Error::ChunkTooSmall => write!(f, "Chunk size is too small."),
 			Error::SnapshotsUnsupported => write!(f, "Snapshots unsupported by consensus engine."),
 			Error::BadEpochProof(i) => write!(f, "Bad epoch proof for transition to epoch {}", i),
+			Error::WrongChunkFormat(ref msg) => write!(f, "Wrong chunk format: {}", msg),
 		}
 	}
 }
