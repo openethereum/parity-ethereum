@@ -36,7 +36,8 @@ export function loadTokens (options = {}) {
   log.debug('loading tokens', Object.keys(options).length ? options : '');
 
   return (dispatch, getState) => {
-    const { tokenReg } = Contracts.get();
+    const { api } = getState();
+    const { tokenReg } = Contracts.get(api);
 
     tokenReg.getInstance()
       .then((tokenRegInstance) => {
@@ -54,7 +55,7 @@ export function fetchTokens (_tokenIndexes, options = {}) {
 
   return (dispatch, getState) => {
     const { api, images } = getState();
-    const { tokenReg } = Contracts.get();
+    const { tokenReg } = Contracts.get(api);
 
     return tokenReg.getInstance()
       .then((tokenRegInstance) => {

@@ -24,7 +24,6 @@ injectTapEventPlugin();
 import { api } from './parity';
 
 import { initStore } from '~/redux';
-import { setApi } from '~/redux/providers/apiActions';
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
 
@@ -36,9 +35,6 @@ import '~/../assets/fonts/RobotoMono/font.css';
 import './home.css';
 
 const store = initStore(api, hashHistory);
-
-store.dispatch({ type: 'initAll', api });
-store.dispatch(setApi(api));
 
 ReactDOM.render(
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>

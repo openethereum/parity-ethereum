@@ -89,8 +89,8 @@ export function subscribeToChanges (api, dappReg, callback) {
     });
 }
 
-export function fetchBuiltinApps () {
-  const { dappReg } = Contracts.get();
+export function fetchBuiltinApps (api) {
+  const { dappReg } = Contracts.get(api);
 
   return Promise
     .all(builtinApps.map((app) => dappReg.getImage(app.id)))
@@ -127,8 +127,8 @@ export function fetchLocalApps (api) {
     });
 }
 
-export function fetchRegistryAppIds () {
-  const { dappReg } = Contracts.get();
+export function fetchRegistryAppIds (api) {
+  const { dappReg } = Contracts.get(api);
 
   return dappReg
     .count()

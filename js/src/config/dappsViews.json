@@ -1,10 +1,21 @@
 [
   {
-    "id": "viewHome",
-    "url": "viewHome",
+    "id": "home",
+    "url": "home",
     "src": "Home",
     "name": "Home",
     "description": "Display a status of the node, recently accessed applications, accounts and news",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "2.0.0",
+    "visible": true,
+    "secure": true
+  },
+  {
+    "id": "status",
+    "url": "status",
+    "src": "Status",
+    "name": "Status",
+    "description": "Display an overview of the node including settings, logs and connections",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
     "visible": true,

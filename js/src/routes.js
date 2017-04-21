@@ -19,7 +19,7 @@ import {
   Accounts, Account, Addresses, Address, Application,
   Contract, Contracts, Dapp, Dapps,
   Settings, SettingsBackground, SettingsParity, SettingsProxy,
-  SettingsViews, Signer, Status,
+  SettingsViews, Signer,
   Vaults, Wallet, Web, WriteContract
 } from '~/views';
 import builtinDapps from '~/config/dappsBuiltin.json';
@@ -87,18 +87,14 @@ const settingsRoutes = [
   { path: 'parity', component: SettingsParity }
 ];
 
-const statusRoutes = [
-  { path: ':subpage', component: Status }
-];
-
 const routes = [
   // Backward Compatible routes
   { path: '/account/:address', onEnter: handleDeprecatedRoute },
   { path: '/address/:address', onEnter: handleDeprecatedRoute },
   { path: '/contract/:address', onEnter: handleDeprecatedRoute },
 
-  { path: '/', onEnter: redirectTo('/home') },
-  { path: '/auth', onEnter: redirectTo('/home') },
+  { path: '/', onEnter: redirectTo('/apps') },
+  { path: '/auth', onEnter: redirectTo('/apps') },
   { path: '/settings', onEnter: redirectTo('/settings/views') }
 ];
 
@@ -117,11 +113,6 @@ const childRoutes = [
     path: 'contracts',
     indexRoute: { component: Contracts },
     childRoutes: contractsRoutes
-  },
-  {
-    path: 'status',
-    indexRoute: { component: Status },
-    childRoutes: statusRoutes
   },
   {
     path: 'settings',

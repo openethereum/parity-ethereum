@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-module.exports = {
-  test: /\.js$/,
-  include: /node_modules\/@parity\/(abi|api|jsonrpc|ui|wordlist)/,
-  use: 'babel-loader'
+const api = window.parent.secureApi;
+
+export {
+  api
 };

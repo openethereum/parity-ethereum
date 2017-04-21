@@ -21,7 +21,7 @@ import subscribeToEvents from '~/util/subscribe-to-events';
 
 import registryABI from '~/contracts/abi/registry.json';
 
-import { setReverse, startCachingReverses } from './actions';
+import { setReverse } from './actions';
 
 const STORE_KEY = '_parity::reverses';
 
@@ -83,12 +83,6 @@ export default (api) => (store) => {
 
   return (next) => (action) => {
     switch (action.type) {
-      case 'initAll':
-        next(action);
-        store.dispatch(startCachingReverses());
-
-        break;
-
       case 'startCachingReverses':
         const { registry } = Contracts.get(api);
         const cached = read(store.getState().nodeStatus.netChain);
@@ -120,6 +114,7 @@ export default (api) => (store) => {
           });
 
         break;
+
       case 'stopCachingReverses':
         if (subscription) {
           subscription.unsubscribe();

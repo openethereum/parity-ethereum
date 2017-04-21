@@ -49,7 +49,7 @@ export default class MiningSettings extends Component {
       : '';
 
     return (
-      <div { ...this._testInherit() }>
+      <div>
         <ContainerTitle
           title={
             <FormattedMessage

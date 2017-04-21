@@ -278,7 +278,7 @@ export default class MethodDecodingStore {
       return Promise.resolve(this._methods[signature]);
     }
 
-    this._methods[signature] = Contracts.get()
+    this._methods[signature] = Contracts.get(this.api)
       .signatureReg
       .lookup(signature)
       .then((method) => {

@@ -37,7 +37,6 @@ import muiTheme from '~/ui/Theme';
 import MainApplication from './main';
 
 import { patchApi } from '~/util/tx';
-import { setApi } from '~/redux/providers/apiActions';
 
 import './environment';
 
@@ -69,9 +68,6 @@ patchApi(api);
 ContractInstances.get(api);
 
 const store = initStore(api, hashHistory);
-
-store.dispatch({ type: 'initAll', api });
-store.dispatch(setApi(api));
 
 window.secureApi = api;
 

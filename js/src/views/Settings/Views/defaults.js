@@ -16,7 +16,7 @@
 
 import React from 'react';
 
-import { AccountsIcon, AddressesIcon, AppsIcon, ContactsIcon, FingerprintIcon, SettingsIcon, StatusIcon } from '~/ui/Icons';
+import { AccountsIcon, AddressesIcon, AppsIcon, ContactsIcon, FingerprintIcon, SettingsIcon } from '~/ui/Icons';
 
 const defaultViews = {
   accounts: {
@@ -46,13 +46,6 @@ const defaultViews = {
     icon: <ContactsIcon />,
     route: '/contracts',
     value: 'contract'
-  },
-
-  status: {
-    active: false,
-    icon: <StatusIcon />,
-    route: '/status',
-    value: 'status'
   },
 
   signer: {

@@ -35,6 +35,7 @@ const DAPPS_BUILTIN = require('../src/config/dappsBuiltin.json').map((dapp) => {
 });
 const DAPPS_VIEWS = require('../src/config/dappsViews.json').map((dapp) => {
   dapp.srcPath = './views';
+  dapp.commons = true;
   return dapp;
 });
 
@@ -167,7 +168,7 @@ module.exports = {
           template: dapp.srcPath + '/index.ejs',
           favicon: FAVICON,
           secure: dapp.secure,
-          chunks: [ isProd ? null : 'commons', dapp.url ]
+          chunks: [ !isProd || dapp.commons ? 'commons' : null, dapp.url ]
         });
       });
 

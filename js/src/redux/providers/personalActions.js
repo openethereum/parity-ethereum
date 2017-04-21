@@ -63,6 +63,8 @@ export function personalAccountsInfo (accountsInfo) {
   return (dispatch, getState) => {
     const { api } = getState();
 
+    console.log('_fetchOwners', api);
+
     const _fetchOwners = Object
       .values(wallets)
       .map((wallet) => {
