@@ -28,7 +28,7 @@ let clock;
 
 const api = createWsApi();
 
-Contracts.create(api);
+Contracts.get(api);
 
 function stubGlobals () {
   clock = sinon.useFakeTimers();

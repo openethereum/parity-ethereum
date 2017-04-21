@@ -51,12 +51,12 @@ export default class VerificationStore {
   @observable confirmationTx = null;
 
   constructor (api, abi, certifierName, account, isTestnet) {
-    this.api = api;
+    this._api = api;
     this.account = account;
     this.isTestnet = isTestnet;
 
     this.step = LOADING;
-    Contracts.get().badgeReg.fetchCertifierByName(certifierName)
+    Contracts.get(this._api).badgeReg.fetchCertifierByName(certifierName)
       .then(({ address }) => {
         this.contract = new Contract(api, abi).at(address);
         this.load();

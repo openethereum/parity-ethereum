@@ -69,15 +69,11 @@ export default class Contracts {
     return verification;
   }
 
-  static create (api) {
-    if (instance) {
-      return instance;
+  static get (api) {
+    if (!instance) {
+      instance = new Contracts(api);
     }
 
-    return new Contracts(api);
-  }
-
-  static get () {
     return instance;
   }
 }

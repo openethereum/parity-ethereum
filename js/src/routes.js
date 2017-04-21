@@ -17,12 +17,15 @@
 import HistoryStore from '~/mobx/historyStore';
 import {
   Accounts, Account, Addresses, Address, Application,
-  Contract, Contracts, Dapp, Dapps, Home,
+  Contract, Contracts, Dapp, Dapps,
   Settings, SettingsBackground, SettingsParity, SettingsProxy,
   SettingsViews, Signer, Status,
   Vaults, Wallet, Web, WriteContract
 } from '~/views';
-import builtinDapps from '~/views/Dapps/builtin.json';
+import builtinDapps from '~/config/dappsBuiltin.json';
+import viewsDapps from '~/config/dappsViews.json';
+
+const dapps = [].concat(viewsDapps, builtinDapps);
 
 const accountsHistory = HistoryStore.get('accounts');
 const dappsHistory = HistoryStore.get('dapps');
@@ -129,13 +132,12 @@ const childRoutes = [
     path: 'app/:id',
     component: Dapp,
     onEnter: ({ params }) => {
-      if (!builtinDapps[params.id] || !builtinDapps[params.id].skipHistory) {
+      if (!dapps[params.id] || !dapps[params.id].skipHistory) {
         dappsHistory.add(params.id);
       }
     }
   },
   { path: 'apps', component: Dapps },
-  { path: 'home', component: Home },
   { path: 'web', component: Web },
   { path: 'web/:url', component: Web },
   { path: 'signer', component: Signer }

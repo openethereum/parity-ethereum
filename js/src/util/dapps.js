@@ -22,9 +22,10 @@ import { bytesToHex } from '@parity/api/util/format';
 import Contracts from '~/contracts';
 import { hashToImageUrl } from '~/redux/util';
 
-import builtinJson from '~/views/Dapps/builtin.json';
+import builtinJson from '~/config/dappsBuiltin.json';
+import viewsJson from '~/config/dappsViews.json';
 
-const builtinApps = builtinJson.filter((app) => app.id);
+const builtinApps = [].concat(viewsJson, builtinJson).filter((app) => app.id);
 
 function getHost (api) {
   const host = process.env.DAPPS_URL ||

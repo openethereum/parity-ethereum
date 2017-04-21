@@ -28,7 +28,15 @@ const ScriptExtHtmlWebpackPlugin = require('script-ext-html-webpack-plugin');
 const rulesEs6 = require('./rules/es6');
 const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
-const DAPPS = require('../src/views/Dapps/builtin.json');
+
+const DAPPS_BUILTIN = require('../src/config/dappsBuiltin.json').map((dapp) => {
+  dapp.srcPath = './dapps';
+  return dapp;
+});
+const DAPPS_VIEWS = require('../src/config/dappsViews.json').map((dapp) => {
+  dapp.srcPath = './views';
+  return dapp;
+});
 
 const FAVICON = path.resolve(__dirname, '../assets/images/parity-logo-black-no-text.png');
 
@@ -149,16 +157,19 @@ module.exports = {
   },
 
   plugins: (function () {
-    const DappsHTMLInjection = DAPPS.filter((dapp) => !dapp.skipBuild).map((dapp) => {
-      return new HtmlWebpackPlugin({
-        title: dapp.name,
-        filename: dapp.url + '.html',
-        template: './dapps/index.ejs',
-        favicon: FAVICON,
-        secure: dapp.secure,
-        chunks: [ isProd ? null : 'commons', dapp.url ]
+    const DappsHTMLInjection = []
+      .concat(DAPPS_BUILTIN, DAPPS_VIEWS)
+      .filter((dapp) => !dapp.skipBuild)
+      .map((dapp) => {
+        return new HtmlWebpackPlugin({
+          title: dapp.name,
+          filename: dapp.url + '.html',
+          template: dapp.srcPath + '/index.ejs',
+          favicon: FAVICON,
+          secure: dapp.secure,
+          chunks: [ isProd ? null : 'commons', dapp.url ]
+        });
       });
-    });
 
     let plugins = Shared.getPlugins().concat(
       new WebpackErrorNotificationPlugin()

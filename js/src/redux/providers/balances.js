@@ -270,7 +270,7 @@ export default class Balances {
   }
 
   getTokenRegistry () {
-    return Contracts.get().tokenReg.getContract();
+    return Contracts.get(this._api).tokenReg.getContract();
   }
 
   _loadTokens (options = {}) {

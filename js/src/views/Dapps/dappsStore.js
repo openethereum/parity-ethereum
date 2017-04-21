@@ -66,7 +66,7 @@ export default class DappsStore extends EventEmitter {
    * apps, else fetch from the node
    */
   loadApp (id) {
-    const { dappReg } = Contracts.get();
+    const { dappReg } = Contracts.get(this._api);
 
     return this
       .loadLocalApps()
@@ -94,7 +94,7 @@ export default class DappsStore extends EventEmitter {
   }
 
   loadAllApps () {
-    const { dappReg } = Contracts.get();
+    const { dappReg } = Contracts.get(this._api);
 
     return Promise
       .all([
@@ -105,7 +105,7 @@ export default class DappsStore extends EventEmitter {
   }
 
   subscribeToChanges () {
-    const { dappReg } = Contracts.get();
+    const { dappReg } = Contracts.get(this._api);
 
     // Unsubscribe from previous subscriptions, if any
     if (this._subscriptions.block) {

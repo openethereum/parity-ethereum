@@ -14,20 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import builtins from '~/config/dappsBuiltin.json';
-
-const id = 'tokendeploy';
-const app = builtins.find((app) => app.url === id);
-const hashId = app.id;
-const source = {
-  imageUrl: 'https://raw.githubusercontent.com/paritytech/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/dapps/interlock-64x64.png',
-  imageHash: '0xde104baf02aec783e0bffc624514ee267dbcb455382375e3ffa715790c1c939f'
-};
-const name = app.name;
+const api = window.parent.secureApi;
 
 export {
-  hashId,
-  id,
-  name,
-  source
+  api
 };

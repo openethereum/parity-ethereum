@@ -90,7 +90,7 @@ export default (api) => (store) => {
         break;
 
       case 'startCachingReverses':
-        const { registry } = Contracts.get();
+        const { registry } = Contracts.get(api);
         const cached = read(store.getState().nodeStatus.netChain);
 
         if (cached) {

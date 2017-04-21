@@ -59,9 +59,8 @@ const updatableFilter = (api, onFilter) => {
 };
 
 export default class CertificationsMiddleware {
-  toMiddleware () {
-    const api = Contracts.get()._api;
-    const badgeReg = Contracts.get().badgeReg;
+  toMiddleware (api) {
+    const badgeReg = Contracts.get(api).badgeReg;
 
     const contract = new Contract(api, CertifierABI);
     const Confirmed = contract.events.find((e) => e.name === 'Confirmed');

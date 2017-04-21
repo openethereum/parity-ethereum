@@ -44,7 +44,7 @@ export const fetchIsTestnet = () => (dispatch) =>
 export const setContract = (contract) => ({ type: 'set contract', contract });
 
 export const fetchContract = () => (dispatch) => {
-  return Contracts.create(api).registry
+  return Contracts.get(api).registry
     .fetchContract()
     .then((contract) => {
       dispatch(setContract(contract));

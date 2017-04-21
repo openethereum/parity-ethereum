@@ -20,7 +20,7 @@ import { flatten } from 'lodash';
 
 import * as abis from '~/contracts/abi';
 import Contracts from '~/contracts';
-import builtinJson from '~/views/Dapps/builtin.json';
+import builtinJson from '~/config/dappsBuiltin.json';
 
 import Dapp from './dappStore.js';
 import { deleteDapp, registerDapp, updateDapp } from './utils';
@@ -489,7 +489,7 @@ export default class DappsStore {
   }
 
   _loadRegistry () {
-    return Contracts.create(api).registry
+    return Contracts.get(api).registry
       .fetchContract()
       .then((contract) => {
         this._registry = contract.instance;
