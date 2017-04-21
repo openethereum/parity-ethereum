@@ -49,6 +49,10 @@ export default class Status {
     api.on('disconnected', this.stop, this);
 
     this.updateApiStatus();
+
+    if (api.isConnected) {
+      this.start();
+    }
   }
 
   static instantiate (store, api) {

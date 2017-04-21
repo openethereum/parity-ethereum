@@ -16,7 +16,7 @@
 
 import { handleActions } from 'redux-actions';
 
-const initialState = {};
+const initialState = null;
 
 export default handleActions({
   setApi (state, action) {

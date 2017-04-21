@@ -41,12 +41,12 @@ export default function (api, browserHistory, forEmbed = false) {
   const middleware = initMiddleware(api, browserHistory, forEmbed);
   const store = applyMiddleware(...middleware)(storeCreation)(reducers);
 
+  store.dispatch(setApi(api));
+
   BalancesProvider.instantiate(store, api);
   StatusProvider.instantiate(store, api);
   new PersonalProvider(store, api).start();
   new SignerProvider(store, api).start();
-
-  store.dispatch(setApi(api));
 
   store.dispatch(startCachingReverses());
   store.dispatch(loadWallet(api));
