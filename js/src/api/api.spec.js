@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import ethereumRpc from '@parity/jsonrpc';
+
 import { TEST_HTTP_URL, endpointTest } from '../../test/mockRpc';
 
 import util from './util';
 import Api from './api';
-
-import ethereumRpc from '../jsonrpc/';
 
 describe('api/Api', () => {
   describe('constructor', () => {

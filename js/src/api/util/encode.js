@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Abi from '~/abi';
-import Func from '~/abi/spec/function';
+import Abi from '@parity/abi';
+import Func from '@parity/abi/spec/function';
 
 import { abiDecode } from './decode';
 import { cleanupValue } from './format';

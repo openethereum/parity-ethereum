@@ -1,0 +1,28 @@
+{
+  "name": "@parity/jsonrpc",
+  "description": "JSON and JS interface defintions for RPC",
+  "version": "0.0.0",
+  "main": "index.js",
+  "author": "Parity Team <admin@parity.io>",
+  "maintainers": [
+    "Jaco Greeff",
+    "Maciej Hirsz"
+  ],
+  "contributors": [],
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paritytech/parity.git"
+  },
+  "keywords": [
+    "Ethereum",
+    "RPC",
+    "Parity"
+  ],
+  "scripts": {
+  },
+  "devDependencies": {
+  },
+  "dependencies": {
+  }
+}

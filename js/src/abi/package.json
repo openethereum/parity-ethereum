@@ -1,0 +1,30 @@
+{
+  "name": "@parity/abi",
+  "description": "The Parity ABI library",
+  "version": "0.0.0",
+  "main": "index.js",
+  "author": "Parity Team <admin@parity.io>",
+  "maintainers": [
+    "Jaco Greeff",
+    "Nicolas Gotchac"
+  ],
+  "contributors": [],
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paritytech/parity.git"
+  },
+  "keywords": [
+    "Ethereum",
+    "ABI",
+    "Parity"
+  ],
+  "scripts": {
+  },
+  "devDependencies": {
+  },
+  "dependencies": {
+    "bignumber.js": "3.0.1",
+    "js-sha3": "0.5.5"
+  }
+}

@@ -16,8 +16,8 @@
 
 import { isHex } from './types';
 
-import Func from '../../abi/spec/function';
-import { fromParamType, toParamType } from '../../abi/spec/paramType/format';
+import Func from '@parity/abi/spec/function';
+import { fromParamType, toParamType } from '@parity/abi/spec/paramType/format';
 
 export function decodeCallData (data) {
   if (!isHex(data)) {
