@@ -158,6 +158,7 @@ fn ethereum_builtin(name: &str) -> Box<Impl> {
 		"modexp" => Box::new(ModexpImpl) as Box<Impl>,
 		"bn128_add" => Box::new(Bn128AddImpl) as Box<Impl>,
 		"bn128_mul" => Box::new(Bn128MulImpl) as Box<Impl>,
+		"bn128_pairing" => Box::new(Bn128PairingImpl) as Box<Impl>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -190,6 +191,9 @@ struct Bn128AddImpl;
 
 #[derive(Debug)]
 struct Bn128MulImpl;
+
+#[derive(Debug)]
+struct Bn128PairingImpl;
 
 impl Impl for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
@@ -393,11 +397,109 @@ impl Impl for Bn128MulImpl {
 	}	
 }
 
+mod bn128_gen {
+	use bn::{AffineG1, AffineG2, Fq, Fq2, G1, G2, Gt, pairing};
+
+	lazy_static! {
+		pub static ref P1: G1 = G1::from(AffineG1::new(
+			Fq::from_str("1").expect("1 is a valid field element"),
+			Fq::from_str("2").expect("2 is a valid field element"),
+		).expect("Generator P1(1, 2) is a valid curve point"));
+	}
+
+	lazy_static! {
+		pub static ref P2: G2 = G2::from(AffineG2::new(
+			Fq2::new(
+				Fq::from_str("10857046999023057135944570762232829481370756359578518086990519993285655852781")
+					.expect("a valid field element"),
+				Fq::from_str("11559732032986387107991004021392285783925812861821192530917403151452391805634")
+					.expect("a valid field element"),
+			),
+			Fq2::new(
+				Fq::from_str("8495653923123431417604973247489272438418190587263600148770280649306958101930")
+					.expect("a valid field element"),
+				Fq::from_str("4082367875863433681332203403145435568316851327593401208105741076214120093531")
+					.expect("a valid field element"),
+			),			
+		).expect("the generator P2(10857046999023057135944570762232829481370756359578518086990519993285655852781 + 11559732032986387107991004021392285783925812861821192530917403151452391805634i, 8495653923123431417604973247489272438418190587263600148770280649306958101930 + 4082367875863433681332203403145435568316851327593401208105741076214120093531i) is a valid curve point"));
+	}	
+
+	lazy_static! {
+		pub static ref P1_P2_PAIRING: Gt = pairing(P1.clone(), P2.clone());
+	}		
+}
+
+impl Impl for Bn128PairingImpl {
+	/// Can fail if:
+	///     - input length is not a multiple of 192
+	///     - any of odd points does not belong to bn128 curve
+	///     - any of even points does not belong to the twisted bn128 curve over the field F_p^2 = F_p[i] / (i^2 + 1)
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2, Gt};
+
+		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
+		if input.len() % 192 != 0 { 
+			return Err("Invalid input length, must be multiple of 192 (3 * (32*2))".into()) 
+		}
+		let ret_val = if input.len() == 0 {
+			U256::one()
+		} else {
+			let mut vals = Vec::new();
+			for idx in 0..elements {
+				let a_x = Fq::from_slice(&input[idx*192..idx*192+32])
+					.map_err(|_| Error::from("Invalid a argument x coordinate"))?;
+
+				let a_y = Fq::from_slice(&input[idx*192+32..idx*192+64])
+					.map_err(|_| Error::from("Invalid a argument y coordinate"))?;
+
+				let b_b_x = Fq::from_slice(&input[idx*192+64..idx*192+96])
+					.map_err(|_| Error::from("Invalid b argument imaginary coeff x coordinate"))?;
+
+				let b_b_y = Fq::from_slice(&input[idx*192+96..idx*192+128])
+					.map_err(|_| Error::from("Invalid b argument imaginary coeff y coordinate"))?;
+
+				let b_a_x = Fq::from_slice(&input[idx*192+128..idx*192+160])
+					.map_err(|_| Error::from("Invalid b argument real coeff x coordinate"))?;					
+
+				let b_a_y = Fq::from_slice(&input[idx*192+160..idx*192+192])
+					.map_err(|_| Error::from("Invalid b argument real coeff y coordinate"))?;					
+				
+				vals.push((
+					G1::from(
+						AffineG1::new(a_x, a_y).map_err(|_| Error::from("Invalid a argument - not on curve"))?
+					),
+					G2::from(
+						AffineG2::new(
+							Fq2::new(b_a_x, b_a_y),
+							Fq2::new(b_b_x, b_b_y),
+						).map_err(|_| Error::from("Invalid b argument - not on curve"))?
+					),
+				));
+			};
+
+			let mul = vals.into_iter().fold(Gt::one(), |s, (a, b)| s * pairing(a, b));
+
+			if mul == *bn128_gen::P1_P2_PAIRING {
+				U256::one()
+			} else {
+				U256::zero()
+			}
+		};
+
+		let mut buf = [0u8; 32];
+		ret_val.to_big_endian(&mut buf);
+		output.write(0, &buf);
+
+		Ok(())
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::{Builtin, Linear, ethereum_builtin, Pricer, Modexp};
 	use ethjson;
 	use util::{U256, BytesRef};
+	use rustc_serialize::hex::FromHex;
 
 	#[test]
 	fn identity() {
@@ -713,7 +815,82 @@ mod tests {
 			assert!(res.is_err(), "There should be built-in error here");
 		}		
 	}
+
+	fn builtin_pairing() -> Builtin {
+		Builtin {
+			pricer: Box::new(Linear { base: 0, word: 0 }),
+			native: ethereum_builtin("bn128_pairing"),
+			activate_at: 0,
+		}
+	}
+
+	fn empty_test(f: Builtin, expected: Vec<u8>) {
+		let mut empty = [0u8; 0];
+		let input = BytesRef::Fixed(&mut empty);		
+
+		let mut output = vec![0u8; expected.len()];
+
+		f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
+		assert_eq!(output, expected);		
+	}
+
+	fn error_test(f: Builtin, input: &[u8], msg_contains: Option<&str>) {
+		let mut output = vec![0u8; 64];
+		let res = f.execute(input, &mut BytesRef::Fixed(&mut output[..]));
+		if let Some(msg) = msg_contains {
+			if let Err(e) = res {
+				if !e.0.contains(msg) {
+					panic!("There should be error containing '{}' here, but got: '{}'", msg, e.0);
+				}
+			}
+		} else {
+			assert!(res.is_err(), "There should be built-in error here");
+		}
+	}
+
+	fn bytes(s: &'static str) -> Vec<u8> {
+		FromHex::from_hex(s).expect("static str should contain valid hex bytes")
+	}
 	
+	#[test]
+	fn bn128_pairing_empty() {
+		// should not fail, because empty input is a valid input of 0 elements
+		empty_test(
+			builtin_pairing(), 
+			bytes("0000000000000000000000000000000000000000000000000000000000000001"),
+		);
+	}
+
+	#[test]
+	fn bn128_pairing_notcurve() {
+		// should fail - point not on curve
+		error_test(
+			builtin_pairing(),
+			&bytes("\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111"
+			),
+			Some("not on curve"),
+		);
+	}
+
+	#[test]
+	fn bn128_pairing_fragmented() {
+		// should fail - input length is invalid
+		error_test(
+			builtin_pairing(),
+			&bytes("\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				1111111111111111111111111111111111111111111111111111111111111111\
+				111111111111111111111111111111"
+			),
+			Some("Invalid input length"),
+		);
+	}	
 
 	#[test]
 	#[should_panic]
