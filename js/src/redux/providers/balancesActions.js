@@ -17,10 +17,11 @@
 import { uniq, isEqual } from 'lodash';
 import { push } from 'react-router-redux';
 
+import { sha3 } from '@parity/api/util/sha3';
+
 import { notifyTransaction } from '~/util/notifications';
 import { ETH_TOKEN, fetchAccountsBalances } from '~/util/tokens';
 import { LOG_KEYS, getLogger } from '~/config';
-import { sha3 } from '~/api/util/sha3';
 
 const TRANSFER_SIGNATURE = sha3('Transfer(address,address,uint256)');
 

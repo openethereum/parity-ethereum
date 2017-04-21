@@ -20,9 +20,10 @@ import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
 import { pick } from 'lodash';
 
+import { fromWei } from '@parity/api/util/wei';
+
 import { AddressSelect, Button, Form, TypedInput, Input, InputAddress, Portal } from '~/ui';
 import { CancelIcon, NextIcon } from '~/ui/Icons';
-import { fromWei } from '~/api/util/wei';
 
 import WalletSettingsStore from './walletSettingsStore.js';
 import styles from './walletSettings.css';

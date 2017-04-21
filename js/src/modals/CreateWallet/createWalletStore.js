@@ -19,13 +19,14 @@ import { observable, computed, action, transaction } from 'mobx';
 import React from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import Contract from '~/api/contract';
+import Contract from '@parity/api/contract';
+import { toWei } from '@parity/api/util/wei';
+
 import Contracts from '~/contracts';
 import { wallet as walletAbi } from '~/contracts/abi';
 import { wallet as walletCode, walletLibrary as walletLibraryCode, walletLibraryRegKey, fullWalletCode } from '~/contracts/code/wallet';
 
 import { validateUint, validateAddress, validateName } from '~/util/validation';
-import { toWei } from '~/api/util/wei';
 import { deploy } from '~/util/tx';
 import WalletsUtils from '~/util/wallets';
 

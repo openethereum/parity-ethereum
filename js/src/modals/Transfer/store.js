@@ -18,9 +18,10 @@ import { noop } from 'lodash';
 import { observable, computed, action, transaction } from 'mobx';
 import BigNumber from 'bignumber.js';
 
+import Contract from '@parity/api/contract';
+import { fromWei } from '@parity/api/util/wei';
+
 import { eip20 as tokenAbi, wallet as walletAbi } from '~/contracts/abi';
-import { fromWei } from '~/api/util/wei';
-import Contract from '~/api/contract';
 import ERRORS from './errors';
 import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
 import { ETH_TOKEN } from '~/util/tokens';

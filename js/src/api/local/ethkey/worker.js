@@ -16,7 +16,8 @@
 
 import secp256k1 from 'secp256k1';
 import { keccak_256 as keccak256 } from 'js-sha3';
-import { bytesToHex } from '~/api/util/format';
+
+import { bytesToHex } from '../../util/format';
 
 const isWorker = typeof self !== 'undefined';
 

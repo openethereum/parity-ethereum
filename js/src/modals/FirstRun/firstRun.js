@@ -20,8 +20,9 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import { createIdentityImg } from '@parity/api/util/identity';
+
 import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
-import { createIdentityImg } from '~/api/util/identity';
 import { newError } from '~/redux/actions';
 import { Button, Portal } from '~/ui';
 import { CheckIcon, DoneIcon, NextIcon, PrintIcon } from '~/ui/Icons';

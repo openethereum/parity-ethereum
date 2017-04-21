@@ -17,9 +17,10 @@
 import BigNumber from 'bignumber.js';
 import { pick, range, uniq } from 'lodash';
 
+import { bytesToHex } from '@parity/api/util/format';
+
 import Contracts from '~/contracts';
 import { hashToImageUrl } from '~/redux/util';
-import { bytesToHex } from '~/api/util/format';
 
 import builtinJson from '~/views/Dapps/builtin.json';
 

@@ -16,12 +16,13 @@
 
 import { uniq, range, debounce } from 'lodash';
 
-import { addCertification, removeCertification } from './actions';
+import Contract from '@parity/api/contract';
 
 import { getLogger, LOG_KEYS } from '~/config';
-import Contract from '~/api/contract';
 import Contracts from '~/contracts';
 import CertifierABI from '~/contracts/abi/certifier.json';
+
+import { addCertification, removeCertification } from './actions';
 
 const log = getLogger(LOG_KEYS.CertificationsMiddleware);
 
