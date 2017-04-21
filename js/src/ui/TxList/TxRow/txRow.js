@@ -201,11 +201,7 @@ class TxRow extends Component {
       return (
         <div className={ styles.pending }>
           <span>
-            <FormattedMessage
-              id='ui.txList.txRow.time'
-              defaultMessage='{ which }'
-              values={ { which: pendingStatus } }
-            />
+            { pendingStatus }
           </span>
           <div className={ styles.uppercase }>
             <FormattedMessage
@@ -230,6 +226,24 @@ class TxRow extends Component {
       );
     }
 
+    let which;
+
+    if (isCancelOpen) {
+      which = (
+        <FormattedMessage
+          id='ui.txList.txRow.verify.cancelEditCancel'
+          defaultMessage='Cancel'
+        />
+      );
+    } else {
+      which = (
+        <FormattedMessage
+          id='ui.txList.txRow.verify.cancelEditEdit'
+          defaultMessage='Edit'
+        />
+      );
+    }
+
     return (
       <div className={ styles.pending }>
         <div />
@@ -240,13 +254,7 @@ class TxRow extends Component {
           />
         </div>
         <a onClick={ (isCancelOpen) ? this.cancelTx : this.editTx }>
-          <FormattedMessage
-            id='ui.txList.txRow.verify.cancelEdit'
-            defaultMessage='{ which }'
-            values={ {
-              which: `${(isCancelOpen) ? 'Cancel' : 'Edit'}`
-            } }
-          />
+          { which }
         </a>
         <span>{' | '}</span>
         <a onClick={ this.revertEditCancel }>
@@ -289,15 +297,37 @@ class TxRow extends Component {
 
     if (time) {
       if ((time.getTime() - Date.now()) >= 0) {
-        return `${dateDifference(new Date(), time, { compact: true })} left`;
+        // return `${dateDifference(new Date(), time, { compact: true })} left`;
+        return (
+          <FormattedMessage
+            id='ui.txList.txRow.pendingStatus.time'
+            defaultMessage='{time} left'
+            values={ {
+              time: dateDifference(new Date(), time, { compact: true })
+            } }
+          />
+        );
       } else {
         return 'submitting';
       }
     } else if (blockNumber) {
       block = blockNumber.minus(block);
-      return (block.toNumber() < 0)
-        ? block.abs().toFormat(0) + ' blocks left'
-        : 'submitting';
+      // return (block.toNumber() < 0)
+      //   ? block.abs().toFormat(0) + ' blocks left'
+      //   : 'submitting';
+      if (block.toNumber() < 0) {
+        return (
+          <FormattedMessage
+            id='ui.txList.txRow.pendingStatus.blocksLeft'
+            defaultMessage='{blockNumber} blocks left'
+            values={ {
+              blockNumber: block.abs().toFormat(0)
+            } }
+          />
+        );
+      } else {
+        return 'submitting';
+      }
     }
   }
 
