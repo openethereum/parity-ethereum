@@ -816,7 +816,7 @@ mod tests {
 		}		
 	}
 
-	fn builitin_pairing() -> Builtin {
+	fn builtin_pairing() -> Builtin {
 		Builtin {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
 			native: ethereum_builtin("bn128_pairing"),
@@ -856,7 +856,7 @@ mod tests {
 	fn bn128_pairing_empty() {
 		// should not fail, because empty input is a valid input of 0 elements
 		empty_test(
-			builitin_pairing(), 
+			builtin_pairing(), 
 			bytes("0000000000000000000000000000000000000000000000000000000000000001"),
 		);
 	}
@@ -865,7 +865,7 @@ mod tests {
 	fn bn128_pairing_notcurve() {
 		// should fail - point not on curve
 		error_test(
-			builitin_pairing(),
+			builtin_pairing(),
 			&bytes("\
 				1111111111111111111111111111111111111111111111111111111111111111\
 				1111111111111111111111111111111111111111111111111111111111111111\
@@ -882,7 +882,7 @@ mod tests {
 	fn bn128_pairing_fragmented() {
 		// should fail - input length is invalid
 		error_test(
-			builitin_pairing(),
+			builtin_pairing(),
 			&bytes("\
 				1111111111111111111111111111111111111111111111111111111111111111\
 				1111111111111111111111111111111111111111111111111111111111111111\
