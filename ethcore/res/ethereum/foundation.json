@@ -147,7 +147,8 @@
 		"networkID" : "0x1",
 		"forkBlock": "0x1d4c00",
 		"forkCanonHash": "0x4985f5ca3d2afbec36529aa96f74de3cc10a2a4a6c44f2157a57d2c6059a11bb",
-		"eip98Transition": "0x7fffffffffffff"
+		"eip98Transition": "0x7fffffffffffff",
+		"eip86Transition": "0x7fffffffffffff"
 	},
 	"genesis": {
 		"seal": {
@@ -192,6 +193,7 @@
 		"0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": "0x7fffffffffffff", "pricing": { "modexp": { "divisor": 20 } } } },
 		"0000000000000000000000000000000000000006": { "builtin": { "name": "bn128_add", "activate_at": "0x7fffffffffffff", "pricing": { "linear": { "base": 999999, "word": 0 } } } },
 		"0000000000000000000000000000000000000007": { "builtin": { "name": "bn128_mul", "activate_at": "0x7fffffffffffff", "pricing": { "linear": { "base": 999999, "word": 0 } } } },
+		"0000000000000000000000000000000000000008": { "builtin": { "name": "bn128_pairing", "activate_at": "0x7fffffffffffff", "pricing": { "linear": { "base": 999999, "word": 0 } } } },
 		"3282791d6fd713f1e94f4bfd565eaa78b3a0599d": {
 			"balance": "1337000000000000000000"
 		},

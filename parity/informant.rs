@@ -30,8 +30,8 @@ use ethcore::service::ClientIoMessage;
 use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
 use number_prefix::{binary_prefix, Standalone, Prefixed};
-use ethcore_rpc::{is_major_importing};
-use ethcore_rpc::informant::RpcStats;
+use parity_rpc::{is_major_importing};
+use parity_rpc::informant::RpcStats;
 
 pub struct Informant {
 	report: RwLock<Option<ClientReport>>,

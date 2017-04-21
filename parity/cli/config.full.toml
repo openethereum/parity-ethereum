@@ -39,7 +39,7 @@ warp = true
 allow_ips = "all"
 snapshot_peers = 0
 max_pending_peers = 64
-serve_light = true
+no_serve_light = false
 
 reserved_only = false
 reserved_peers = "./path_to_file"
@@ -49,6 +49,14 @@ disable = false
 port = 8545
 interface = "local"
 cors = "null"
+apis = ["web3", "eth", "net", "parity", "traces", "rpc"]
+hosts = ["none"]
+
+[websockets]
+disable = false
+port = 8546
+interface = "local"
+origins = ["none"]
 apis = ["web3", "eth", "net", "parity", "traces", "rpc"]
 hosts = ["none"]
 
@@ -69,8 +77,11 @@ pass = "test_pass"
 
 [secretstore]
 disable = false
-port = 8082
+nodes = []
+http_interface = "local"
+http_port = 8082
 interface = "local"
+port = 8083
 path = "$HOME/.parity/secretstore"
 
 [ipfs]

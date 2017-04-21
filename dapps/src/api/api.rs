@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
+
 use unicase::UniCase;
 use hyper::{server, net, Decoder, Encoder, Next, Control};
 use hyper::header;
@@ -28,16 +30,16 @@ use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
 use jsonrpc_http_server::{self, AccessControlAllowOrigin};
 
 #[derive(Clone)]
-pub struct RestApi<F> {
+pub struct RestApi {
 	// TODO [ToDr] cors_domains should be handled by the server to avoid duplicated logic.
 	// RequestMiddleware should be able to tell that cors headers should be included.
 	cors_domains: Option<Vec<AccessControlAllowOrigin>>,
 	apps: Vec<App>,
-	fetcher: F,
+	fetcher: Arc<Fetcher>,
 }
 
-impl<F: Fetcher + Clone> RestApi<F> {
-	pub fn new(cors_domains: Vec<AccessControlAllowOrigin>, endpoints: &Endpoints, fetcher: F) -> Box<Endpoint> {
+impl RestApi {
+	pub fn new(cors_domains: Vec<AccessControlAllowOrigin>, endpoints: &Endpoints, fetcher: Arc<Fetcher>) -> Box<Endpoint> {
 		Box::new(RestApi {
 			cors_domains: Some(cors_domains),
 			apps: Self::list_apps(endpoints),
@@ -52,22 +54,22 @@ impl<F: Fetcher + Clone> RestApi<F> {
 	}
 }
 
-impl<F: Fetcher + Clone> Endpoint for RestApi<F> {
+impl Endpoint for RestApi {
 	fn to_async_handler(&self, path: EndpointPath, control: Control) -> Box<Handler> {
 		Box::new(RestApiRouter::new((*self).clone(), path, control))
 	}
 }
 
-struct RestApiRouter<F> {
-	api: RestApi<F>,
+struct RestApiRouter {
+	api: RestApi,
 	cors_header: Option<header::AccessControlAllowOrigin>,
 	path: Option<EndpointPath>,
 	control: Option<Control>,
 	handler: Box<Handler>,
 }
 
-impl<F: Fetcher> RestApiRouter<F> {
-	fn new(api: RestApi<F>, path: EndpointPath, control: Control) -> Self {
+impl RestApiRouter {
+	fn new(api: RestApi, path: EndpointPath, control: Control) -> Self {
 		RestApiRouter {
 			path: Some(path),
 			cors_header: None,
@@ -82,6 +84,7 @@ impl<F: Fetcher> RestApiRouter<F> {
 	}
 
 	fn resolve_content(&self, hash: Option<&str>, path: EndpointPath, control: Control) -> Option<Box<Handler>> {
+		trace!(target: "dapps", "Resolving content: {:?} from path: {:?}", hash, path);
 		match hash {
 			Some(hash) if self.api.fetcher.contains(hash) => {
 				Some(self.api.fetcher.to_async_handler(path, control))
@@ -114,8 +117,7 @@ impl<F: Fetcher> RestApiRouter<F> {
 	}
 }
 
-impl<F: Fetcher> server::Handler<net::HttpStream> for RestApiRouter<F> {
-
+impl server::Handler<net::HttpStream> for RestApiRouter {
 	fn on_request(&mut self, request: server::Request<net::HttpStream>) -> Next {
 		self.cors_header = jsonrpc_http_server::cors_header(&request, &self.api.cors_domains).into();
 
@@ -168,5 +170,4 @@ impl<F: Fetcher> server::Handler<net::HttpStream> for RestApiRouter<F> {
 	fn on_response_writable(&mut self, encoder: &mut Encoder<net::HttpStream>) -> Next {
 		self.handler.on_response_writable(encoder)
 	}
-
 }

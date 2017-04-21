@@ -48,7 +48,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 					ChainEra::Frontier => ethereum::new_frontier_test(),
 					ChainEra::Homestead => ethereum::new_homestead_test(),
 					ChainEra::Eip150 => ethereum::new_eip150_test(),
-					ChainEra::Eip161 => ethereum::new_eip161_test(),
+					ChainEra::_Eip161 => ethereum::new_eip161_test(),
 					ChainEra::TransitionTest => ethereum::new_transition_test(),
 				};
 				spec.set_genesis_state(state);

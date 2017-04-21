@@ -277,30 +277,31 @@ impl TestNet<EthPeer<EthcoreClient>> {
 			started: false,
 			disconnect_events: Vec::new(),
 		};
-
 		for _ in 0..n {
-			let spec = spec_factory();
-			let client = EthcoreClient::new(
-				ClientConfig::default(),
-				&spec,
-				Arc::new(::util::kvdb::in_memory(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
-				Arc::new(Miner::with_spec_and_accounts(&spec, accounts.clone())),
-				IoChannel::disconnected(),
-			).unwrap();
-
-			let ss = Arc::new(TestSnapshotService::new());
-			let sync = ChainSync::new(config.clone(), &*client);
-			let peer = Arc::new(EthPeer {
-				sync: RwLock::new(sync),
-				snapshot_service: ss,
-				chain: client,
-				queue: RwLock::new(VecDeque::new()),
-			});
-			peer.chain.add_notify(peer.clone());
-			net.peers.push(peer);
+			net.add_peer(config.clone(), spec_factory(), accounts.clone());
 		}
-
 		net
+	}
+
+	pub fn add_peer(&mut self, config: SyncConfig, spec: Spec, accounts: Option<Arc<AccountProvider>>) {
+		let client = EthcoreClient::new(
+			ClientConfig::default(),
+			&spec,
+			Arc::new(::util::kvdb::in_memory(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
+			Arc::new(Miner::with_spec_and_accounts(&spec, accounts)),
+			IoChannel::disconnected(),
+		).unwrap();
+
+		let ss = Arc::new(TestSnapshotService::new());
+		let sync = ChainSync::new(config, &*client);
+		let peer = Arc::new(EthPeer {
+			sync: RwLock::new(sync),
+			snapshot_service: ss,
+			chain: client,
+			queue: RwLock::new(VecDeque::new()),
+		});
+		peer.chain.add_notify(peer.clone());
+		self.peers.push(peer);
 	}
 }
 

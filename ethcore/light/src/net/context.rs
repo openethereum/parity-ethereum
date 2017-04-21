@@ -61,10 +61,12 @@ impl<'a> IoContext for NetworkContext<'a> {
 	}
 
 	fn disconnect_peer(&self, peer: PeerId) {
+		trace!(target: "pip", "Initiating disconnect of peer {}", peer);
 		NetworkContext::disconnect_peer(self, peer);
 	}
 
 	fn disable_peer(&self, peer: PeerId) {
+		trace!(target: "pip", "Initiating disable of peer {}", peer);
 		NetworkContext::disable_peer(self, peer);
 	}
 

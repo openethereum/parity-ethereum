@@ -14,9 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
+
+import { ETH_TOKEN } from '~/util/tokens';
 
 import AccountCard from './';
 
@@ -27,6 +30,21 @@ let component;
 let onClick;
 let onFocus;
 
+function reduxStore () {
+  const getState = () => ({
+    balances: {},
+    tokens: {
+      [ETH_TOKEN.id]: ETH_TOKEN
+    }
+  });
+
+  return {
+    getState,
+    dispatch: () => null,
+    subscribe: () => null
+  };
+}
+
 function render (props = {}) {
   if (!props.account) {
     props.account = {
@@ -36,6 +54,12 @@ function render (props = {}) {
       meta: {
         tags: [ 'tag 1', 'tag 2' ]
       }
+    };
+  }
+
+  if (!props.balance) {
+    props.balance = {
+      [ETH_TOKEN.id]: new BigNumber(10)
     };
   }
 
@@ -67,7 +91,9 @@ describe('ui/AccountCard', () => {
       let balance;
 
       beforeEach(() => {
-        balance = component.find('Balance');
+        balance = component.find('Connect(Balance)').shallow({
+          context: { store: reduxStore() }
+        });
       });
 
       it('renders the balance', () => {
