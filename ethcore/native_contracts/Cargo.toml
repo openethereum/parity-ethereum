@@ -13,3 +13,6 @@ ethcore-util = { path = "../../util" }
 
 [build-dependencies]
 native-contract-generator = { path = "generator" }
+
+[features]
+default = []

@@ -368,6 +368,12 @@ impl Spec {
 	/// Create a new Spec with BasicAuthority which uses multiple validator sets changing with height.
 	/// Account with secrets "0".sha3() is the validator for block 1 and with "1".sha3() onwards.
 	pub fn new_validator_multi() -> Self { load_bundled!("validator_multi") }
+
+	/// Contract code used here: https://gist.github.com/rphmeier/2de14fd365a969e3a9e10d77eb9a1e37
+	/// Accounts with secrets "0".sha3() and "1".sha3() are initially the validators.
+	/// Create a new Spec with BasicAuthority which uses a contract at address 5 to determine the current validators using `getValidators`.
+	/// `native_contracts::test_contracts::ValidatorSet` provides a native wrapper for the ABi.
+	pub fn new_test_validator_contract() -> Self { load_bundled!("test_validator_contract") }
 }
 
 #[cfg(test)]
