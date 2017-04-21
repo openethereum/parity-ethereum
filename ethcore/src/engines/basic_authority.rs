@@ -216,6 +216,10 @@ impl Engine for BasicAuthority {
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
 		self.signer.sign(hash).map_err(Into::into)
 	}
+
+	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+		Some(Box::new(::snapshot::PoaSnapshot))
+	}
 }
 
 #[cfg(test)]

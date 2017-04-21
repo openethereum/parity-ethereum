@@ -133,8 +133,6 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 	/// This will ensure the caller has enough balance to execute the desired transaction.
 	/// Used for extra-block executions for things like consensus contracts and RPCs
 	pub fn transact_virtual(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, ExecutionError> {
-		use executed::CallError;
-
 		let sender = t.sender();
 		let balance = self.state.balance(&sender)?;
 		let needed_balance = t.value + t.gas * t.gas_price;

@@ -21,7 +21,6 @@
 
 use super::{SnapshotComponents, Rebuilder, ChunkSink};
 
-use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -64,8 +63,6 @@ impl SnapshotComponents for PoaSnapshot {
 		sink: &mut ChunkSink,
 		preferred_size: usize,
 	) -> Result<(), Error> {
-		use basic_types::Seal;
-
 		let number = chain.block_number(&block_at)
 			.ok_or_else(|| Error::InvalidStartingBlock(BlockId::Hash(block_at)))?;
 
@@ -139,7 +136,15 @@ impl SnapshotComponents for PoaSnapshot {
 		db: Arc<KeyValueDB>,
 		manifest: &ManifestData,
 	) -> Result<Box<Rebuilder>, ::error::Error> {
-		Ok(unimplemented!())
+		Ok(Box::new(ChunkRebuilder {
+			manifest: manifest.clone(),
+			warp_target: None,
+			chain: chain,
+			db: db,
+			had_genesis: false,
+			unverified_firsts: Vec::new(),
+			last_proofs: Vec::new(),
+		}))
 	}
 }
 
@@ -163,7 +168,7 @@ struct ChunkRebuilder {
 	warp_target: Option<(Header, Vec<H256>)>,
 	chain: BlockChain,
 	db: Arc<KeyValueDB>,
-	genesis_epoch_data: Option<Bytes>,
+	had_genesis: bool,
 
 	// sorted vectors of unverified first blocks in a chunk
 	// and epoch data from last blocks in chunks.
@@ -337,7 +342,7 @@ impl Rebuilder for ChunkRebuilder {
 				// make sure the genesis transition was included,
 				// but it doesn't need verification later.
 				if verified.epoch_number == 0 && verified.header.number() == 1 {
-					self.genesis_epoch_data = Some(verified.epoch_transition.proof.clone());
+					self.had_genesis = true;
 				} else {
 					let idx = self.unverified_firsts
 						.binary_search_by_key(&verified.epoch_number, |&(a, _)| a)
@@ -399,10 +404,9 @@ impl Rebuilder for ChunkRebuilder {
 	fn finalize(&mut self, db: StateDB, engine: &Engine) -> Result<(), ::error::Error> {
 		use state::State;
 
-		let genesis_data = match self.genesis_epoch_data.take() {
-			Some(d) => d,
-			None => return Err(Error::WrongChunkFormat("No genesis transition included.".into()).into()),
-		};
+		if !self.had_genesis {
+			return Err(Error::WrongChunkFormat("No genesis transition included.".into()).into());
+		}
 
 		let (target_header, target_last_hashes) = match self.warp_target.take() {
 			Some(x) => x,

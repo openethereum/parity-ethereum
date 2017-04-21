@@ -61,7 +61,7 @@ use service::ClientIoMessage;
 use snapshot::{self, io as snapshot_io};
 use spec::Spec;
 use state_db::StateDB;
-use state::{self, State, CleanupMode};
+use state::{self, State};
 use trace;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace::FlatTransactionTraces;
