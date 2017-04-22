@@ -370,7 +370,8 @@ impl Spec {
 	pub fn new_validator_multi() -> Self { load_bundled!("validator_multi") }
 
 	/// Contract code used here: https://gist.github.com/rphmeier/2de14fd365a969e3a9e10d77eb9a1e37
-	/// Accounts with secrets "0".sha3() and "1".sha3() are initially the validators.
+	/// Account with secrets "1".sha3() is initially the validator.
+	/// Transitions to the contract at block 2, initially same validator set.
 	/// Create a new Spec with BasicAuthority which uses a contract at address 5 to determine the current validators using `getValidators`.
 	/// `native_contracts::test_contracts::ValidatorSet` provides a native wrapper for the ABi.
 	pub fn new_test_validator_contract() -> Self { load_bundled!("test_validator_contract") }

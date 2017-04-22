@@ -30,32 +30,38 @@ use native_contracts::test_contracts::ValidatorSet;
 use snapshot::{PoaSnapshot, StateRebuilder};
 use spec::Spec;
 use tests::helpers;
-use transaction::{Transaction, Action};
+use transaction::{Transaction, Action, SignedTransaction};
 
 use util::{Address, Hashable};
 
 const PASS: &'static str = "";
-const TRANSITION_BLOCK: usize = 100; // block at which the contract becomes activated.
+const TRANSITION_BLOCK: usize = 2; // block at which the contract becomes activated.
+
+macro_rules! secret {
+	($e: expr) => { Secret::from_slice(&$e.sha3()).expect(format!("sha3({}) not valid secret.", $e).as_str()) }
+}
 
 lazy_static! {
 	// contract address.
-	static ref CONTRACT_ADDR: Address = Address::from_str("0x0000000000000000000000000000000000000005").unwrap();
-	// secret: `sha3(0)`, and initial validator.
-	static ref RICH_ADDR: Address = Address::from_str("0x7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap();
+	static ref CONTRACT_ADDR: Address = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+	// secret: `sha3(1)`, and initial validator.
+	static ref RICH_ADDR: Address = Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap();
 	// rich address' secret.
-	static ref RICH_SECRET: Secret = Secret::from_slice(&"0".sha3()).unwrap();
+	static ref RICH_SECRET: Secret = secret!("1");
 }
 
 // creates an account provider, filling it with accounts from all the given
 // secrets and password `PASS`.
-fn make_account_provider(secrets: Vec<Secret>) -> AccountProvider {
+// returns addresses corresponding to secrets.
+fn make_accounts(secrets: &[Secret]) -> (Arc<AccountProvider>, Vec<Address>) {
 	let provider = AccountProvider::transient_provider();
 
-	for secret in secrets {
-		provider.insert_account(secret, PASS).unwrap();
-	}
+	let addrs = secrets.iter()
+		.cloned()
+		.map(|s| provider.insert_account(s, PASS).unwrap())
+		.collect();
 
-	provider
+	(Arc::new(provider), addrs)
 }
 
 // validator transition. block number and new validators. must be after `TRANSITION_BLOCK`.
@@ -63,31 +69,35 @@ fn make_account_provider(secrets: Vec<Secret>) -> AccountProvider {
 struct Transition(usize, Vec<Address>);
 
 // create a chain with the given transitions and some blocks beyond that transition.
-fn make_chain(secrets: Vec<Secret>, transitions: Vec<Transition>, blocks_beyond: usize) -> Arc<Client> {
-	let accounts = Arc::new(make_account_provider(secrets));
+fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions: Vec<Transition>) -> Arc<Client> {
 	let client = helpers::generate_dummy_client_with_spec_and_accounts(
 		Spec::new_test_validator_contract, Some(accounts.clone()));
 
-	let mut number = 1;
 	let mut cur_signers = vec![*RICH_ADDR];
+	{
+		let engine = client.engine();
+		engine.register_client(Arc::downgrade(&client));
+	}
 
 	{
 		// push a block with given number, signed by one of the signers, with given transactions.
-		let push_block = |signers: &[Address], n, txs| {
+		let push_block = |signers: &[Address], n, txs: Vec<SignedTransaction>| {
 			use block::IsBlock;
 
 			let engine = client.engine();
-			let idx = signers.len() % n as usize;
+			let idx = n as usize % signers.len();
 			engine.set_signer(accounts.clone(), signers[idx], PASS.to_owned());
+
+			trace!(target: "snapshot", "Pushing block #{}, {} txs, author={}", n, txs.len(), signers[idx]);
 
 			let mut open_block = client.prepare_open_block(signers[idx], (5_000_000.into(), 5_000_000.into()), Vec::new());
 			for tx in txs {
-				open_block.push_transaction(tx, None);
+				open_block.push_transaction(tx, None).unwrap();
 			}
 			let block = open_block.close_and_lock();
 			let seal = match engine.generate_seal(block.block()) {
 				Seal::Regular(seal) => seal,
-				_ => panic!("Unable to generate seal for dummy chain."),
+				_ => panic!("Unable to generate seal for dummy chain block #{}", n),
 			};
 			let block = block.seal(&*engine, seal).unwrap();
 
@@ -102,12 +112,12 @@ fn make_chain(secrets: Vec<Secret>, transitions: Vec<Transition>, blocks_beyond:
 				nonce: *nonce,
 				gas_price: 0.into(),
 				gas: 1_000_000.into(),
-				action: Action::Call(*CONTRACT_ADDR),
+				action: Action::Call(addr),
 				value: 0.into(),
 				data: data,
 			}.sign(&*RICH_SECRET, client.signing_network_id());
 
-			client.miner().import_own_transaction(&*client, transaction.into());
+			client.miner().import_own_transaction(&*client, transaction.into()).unwrap();
 
 			*nonce = *nonce + 1.into();
 			Ok(Vec::new())
@@ -121,26 +131,49 @@ fn make_chain(secrets: Vec<Secret>, transitions: Vec<Transition>, blocks_beyond:
 				panic!("Bad test: issued epoch change before transition to contract.");
 			}
 
-			while number < num - 1 {
+			for number in client.chain_info().best_block_number + 1 .. num as u64 {
 				push_block(&cur_signers, number, vec![]);
-				number += 1;
 			}
 
-			contract.set_validators(&exec, new_set.clone()).wait();
+			trace!(target: "snapshot", "applying set transition at block #{}", num);
+			contract.set_validators(&exec, new_set.clone()).wait().unwrap();
 			let pending: Vec<_> = client.ready_transactions()
 				.into_iter()
 				.map(|x| x.transaction)
 				.collect();
-			push_block(&cur_signers, number, pending);
-
-			number = num;
+			push_block(&cur_signers, num as u64, pending);
+			cur_signers = new_set;
 		}
 
 		// make blocks beyond.
-		for num in (number..).take(blocks_beyond) {
-			push_block(&cur_signers, num, vec![]);
+		for number in (client.chain_info().best_block_number..).take(blocks_beyond) {
+			push_block(&cur_signers, number + 1, vec![]);
 		}
 	}
 
 	client
+}
+
+#[test]
+fn make_transition_chain() {
+	::ethcore_logger::init_log();
+	let (provider, addrs) = make_accounts(&[
+		RICH_SECRET.clone(),
+		secret!("foo"),
+		secret!("bar"),
+		secret!("test"),
+		secret!("signer"),
+		secret!("crypto"),
+		secret!("wizard"),
+		secret!("dog42"),
+	]);
+
+	assert!(provider.has_account(*RICH_ADDR).unwrap());
+
+	let client = make_chain(provider, 0, vec![
+		Transition(5, vec![addrs[2], addrs[3], addrs[5], addrs[7]]),
+		Transition(9, vec![addrs[0], addrs[1], addrs[4], addrs[6]]),
+	]);
+
+	assert_eq!(client.chain_info().best_block_number, 9);
 }

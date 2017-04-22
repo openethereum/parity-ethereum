@@ -1,6 +1,3 @@
-// Test validator contract.
-// Code at https://gist.github.com/rphmeier/2de14fd365a969e3a9e10d77eb9a1e37
-
 {
 	"name": "TestValidatorContract",
 	"engine": {
@@ -10,8 +7,8 @@
 				"durationLimit": "0x0d",
 				"validators": {
 					"multi": {
-						"0": { "list": ["0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1"] },
-						"100": { "contract": "0x0000000000000000000000000000000000000005" }
+						"0": { "list": ["0x7d577a597b2742b498cb5cf0c26cdcd726d39e6e"] },
+						"2": { "contract": "0x0000000000000000000000000000000000000005" }
 					}
 				}
 			}
