@@ -170,8 +170,8 @@ impl ValidatorSet for ValidatorSafeContract {
 					Some(matched_event) => {
 						// decode log manually until the native contract generator is
 						// good enough to do it for us.
-						let &(_, _, ref nonce_token) = &matched_event.params[2];
-						let &(_, _, ref validators_token) = &matched_event.params[3];
+						let &(_, _, ref nonce_token) = &matched_event.params[1];
+						let &(_, _, ref validators_token) = &matched_event.params[2];
 
 						let nonce: Option<U256> = nonce_token.clone().to_uint()
 							.map(H256).map(Into::into);
