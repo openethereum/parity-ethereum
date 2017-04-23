@@ -15,5 +15,27 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  minedBlock: `Opgenomen in blok #{blockNumber}`
+  buttons: {
+    close: `Sluit`,
+    details: `details`,
+    edit: `bewerken`,
+    execute: `uitvoeren`,
+    forget: `vergeten`
+  },
+  details: {
+    title: `contract details`
+  },
+  events: {
+    eventPending: `pending`,
+    noEvents: `Er zijn vanuit dit contract nog geen events verzonden.`,
+    title: `events`
+  },
+  minedBlock: `Opgenomen in blok #{blockNumber}`,
+  queries: {
+    buttons: {
+      query: `Query`
+    },
+    title: `queries`
+  },
+  title: `Contract Informatie`
 };

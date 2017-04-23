@@ -14,21 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { pick } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { Container, SectionList } from '~/ui';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
+import { ETH_TOKEN } from '~/util/tokens';
 
 import Summary from '../Summary';
 import styles from './list.css';
 
 class List extends Component {
   static propTypes = {
-    accounts: PropTypes.object,
-    balances: PropTypes.object,
+    balances: PropTypes.object.isRequired,
     certifications: PropTypes.object.isRequired,
+    accounts: PropTypes.object,
     disabled: PropTypes.object,
     empty: PropTypes.bool,
     link: PropTypes.string,
@@ -51,7 +53,7 @@ class List extends Component {
   }
 
   render () {
-    const { accounts, balances, disabled, empty } = this.props;
+    const { accounts, disabled, empty } = this.props;
 
     if (empty) {
       return (
@@ -67,13 +69,11 @@ class List extends Component {
       .getAddresses()
       .map((address) => {
         const account = accounts[address] || {};
-        const balance = balances[address] || {};
         const isDisabled = disabled ? disabled[address] : false;
         const owners = account.owners || null;
 
         return {
           account,
-          balance,
           isDisabled,
           owners
         };
@@ -88,13 +88,12 @@ class List extends Component {
   }
 
   renderSummary = (item) => {
-    const { account, balance, isDisabled, owners } = item;
+    const { account, isDisabled, owners } = item;
     const { handleAddSearchToken, link } = this.props;
 
     return (
       <Summary
         account={ account }
-        balance={ balance }
         disabled={ isDisabled }
         handleAddSearchToken={ handleAddSearchToken }
         link={ link }
@@ -160,8 +159,8 @@ class List extends Component {
         return 1;
       }
 
-      const ethA = balanceA.tokens.find(token => token.token.tag.toLowerCase() === 'eth');
-      const ethB = balanceB.tokens.find(token => token.token.tag.toLowerCase() === 'eth');
+      const ethA = balanceA[ETH_TOKEN.id];
+      const ethB = balanceB[ETH_TOKEN.id];
 
       if (!ethA && !ethB) {
         return 0;
@@ -171,7 +170,7 @@ class List extends Component {
         return 1;
       }
 
-      return -1 * ethA.value.comparedTo(ethB.value);
+      return -1 * ethA.comparedTo(ethB);
     }
 
     if (key === 'tags') {
@@ -257,10 +256,12 @@ class List extends Component {
   }
 }
 
-function mapStateToProps (state) {
+function mapStateToProps (state, props) {
+  const addresses = Object.keys(props.accounts);
+  const balances = pick(state.balances, addresses);
   const { certifications } = state;
 
-  return { certifications };
+  return { balances, certifications };
 }
 
 function mapDispatchToProps (dispatch) {

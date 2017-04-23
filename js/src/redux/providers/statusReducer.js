@@ -31,6 +31,8 @@ const initialState = {
     peers: []
   },
   netVersion: '0',
+  nodeKind: null,
+  nodeKindFull: null,
   syncing: true,
   isConnected: false,
   isConnecting: false,

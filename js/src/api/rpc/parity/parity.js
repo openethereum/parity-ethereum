@@ -522,6 +522,11 @@ export default class Parity {
       .then(outNumber);
   }
 
+  signMessage (address, password, messageHash) {
+    return this._transport
+      .execute('parity_signMessage', inAddress(address), password, inHex(messageHash));
+  }
+
   testPassword (account, password) {
     return this._transport
       .execute('parity_testPassword', inAddress(account), password);

@@ -21,7 +21,41 @@ export default {
       label: `transactie data`
     }
   },
+  buttons: {
+    back: `Terug`,
+    cancel: `Annuleer`,
+    close: `Sluit`,
+    next: `Volgende`,
+    send: `Verzend`
+  },
+  details: {
+    advanced: {
+      label: `geavanceerde verzend opties`
+    },
+    amount: {
+      hint: `de naar de ontvanger te verzenden hoeveelheid`,
+      label: `te verzenden hoeveelheid (in {tag})`
+    },
+    fullBalance: {
+      label: `volledige account balans`
+    },
+    recipient: {
+      hint: `het ontvangende adres`,
+      label: `ontvanger adres`
+    },
+    sender: {
+      hint: `het verzendende adres`,
+      label: `Verzender adres`
+    },
+    total: {
+      label: `totale transactie hoeveelheid`
+    }
+  },
+  wallet: {
+    confirmation: `Deze transactie vereist bevestiging van andere eigenaren.`,
+    operationHash: `hash van deze bewerking`
+  },
   warning: {
-    wallet_spent_limit: `Deze transactie waarde is boven de toegestane dag limiet en zal moeten worden bevestigd door andere eigenaren.`
+    wallet_spent_limit: `De waarde van deze transactie is hoger dan de toegestane dag limiet en zal moeten worden bevestigd door andere eigenaren.`
   }
 };

@@ -61,6 +61,11 @@ pub fn consensus_view(header: &Header) -> Result<View, ::rlp::DecoderError> {
 	UntrustedRlp::new(view_rlp.as_slice()).as_val()
 }
 
+/// Proposal signature.
+pub fn proposal_signature(header: &Header) -> Result<H520, ::rlp::DecoderError> {
+	UntrustedRlp::new(header.seal().get(1).expect("seal passed basic verification; seal has 3 fields; qed").as_slice()).as_val()
+}
+
 impl Message for ConsensusMessage {
 	type Round = VoteStep;
 
@@ -84,20 +89,10 @@ impl ConsensusMessage {
 
 	pub fn new_proposal(header: &Header) -> Result<Self, ::rlp::DecoderError> {
 		Ok(ConsensusMessage {
+			signature: proposal_signature(header)?,
 			vote_step: VoteStep::new(header.number() as Height, consensus_view(header)?, Step::Propose),
-			signature: UntrustedRlp::new(header.seal().get(1).expect("seal passed basic verification; seal has 3 fields; qed").as_slice()).as_val()?,
 			block_hash: Some(header.bare_hash()),
 		})
-	}
-
-	pub fn new_commit(proposal: &ConsensusMessage, signature: H520) -> Self {
-		let mut vote_step = proposal.vote_step.clone();
-		vote_step.step = Step::Precommit;
-		ConsensusMessage {
-			vote_step: vote_step,
-			block_hash: proposal.block_hash,
-			signature: signature,
-		}
 	}
 
 	pub fn verify(&self) -> Result<Address, Error> {
@@ -105,12 +100,6 @@ impl ConsensusMessage {
 		let block_info = Rlp::new(&full_rlp).at(1);
 		let public_key = recover(&self.signature.into(), &block_info.as_raw().sha3())?;
 		Ok(public_to_address(&public_key))
-	}
-
-	pub fn precommit_hash(&self) -> H256 {
-		let mut vote_step = self.vote_step.clone();
-		vote_step.step = Step::Precommit;
-		message_info_rlp(&vote_step, self.block_hash).sha3()
 	}
 }
 
@@ -203,6 +192,10 @@ pub fn message_full_rlp(signature: &H520, vote_info: &Bytes) -> Bytes {
 	s.out()
 }
 
+pub fn message_hash(vote_step: VoteStep, block_hash: H256) -> H256 {
+	message_info_rlp(&vote_step, Some(block_hash)).sha3()
+}
+
 #[cfg(test)]
 mod tests {
 	use util::*;
@@ -292,19 +285,6 @@ mod tests {
 				block_hash: Some(header.bare_hash())
 			}
 		);
-	}
-
-	#[test]
-	fn message_info_from_header() {
-		let header = Header::default();
-		let pro = ConsensusMessage {
-			signature: Default::default(),
-			vote_step: VoteStep::new(0, 0, Step::Propose),
-			block_hash: Some(header.bare_hash())
-		};
-		let pre = message_info_rlp(&VoteStep::new(0, 0, Step::Precommit), Some(header.bare_hash()));
-
-		assert_eq!(pro.precommit_hash(), pre.sha3());
 	}
 
 	#[test]

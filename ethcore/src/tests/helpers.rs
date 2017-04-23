@@ -27,10 +27,8 @@ use builtin::Builtin;
 use state::*;
 use evm::Schedule;
 use engines::Engine;
-use env_info::EnvInfo;
 use ethereum;
 use ethereum::ethash::EthashParams;
-use devtools::*;
 use miner::Miner;
 use header::Header;
 use transaction::{Action, Transaction, SignedTransaction};
@@ -42,7 +40,7 @@ pub enum ChainEra {
 	Frontier,
 	Homestead,
 	Eip150,
-	Eip161,
+	_Eip161,
 	TransitionTest,
 }
 
@@ -73,7 +71,7 @@ impl Engine for TestEngine {
 		self.engine.builtins()
 	}
 
-	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
+	fn schedule(&self, _block_number: u64) -> Schedule {
 		let mut schedule = Schedule::new_frontier();
 		schedule.max_depth = self.max_depth;
 		schedule
@@ -133,28 +131,26 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 	rlp.out()
 }
 
-pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
+pub fn generate_dummy_client(block_number: u32) -> Arc<Client> {
 	generate_dummy_client_with_spec_and_data(Spec::new_test, block_number, 0, &[])
 }
 
-pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> GuardedTempResult<Arc<Client>> {
+pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> {
 	generate_dummy_client_with_spec_and_data(Spec::new_null, block_number, txs_per_block, tx_gas_prices)
 }
 
 
-pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> GuardedTempResult<Arc<Client>> where F: Fn()->Spec {
+pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where F: Fn()->Spec {
 	generate_dummy_client_with_spec_accounts_and_data(get_test_spec, None, block_number, txs_per_block, tx_gas_prices)
 }
 
-pub fn generate_dummy_client_with_spec_and_accounts<F>(get_test_spec: F, accounts: Option<Arc<AccountProvider>>) -> GuardedTempResult<Arc<Client>> where F: Fn()->Spec {
+pub fn generate_dummy_client_with_spec_and_accounts<F>(get_test_spec: F, accounts: Option<Arc<AccountProvider>>) -> Arc<Client> where F: Fn()->Spec {
 	generate_dummy_client_with_spec_accounts_and_data(get_test_spec, accounts, 0, 0, &[])
 }
 
-pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, accounts: Option<Arc<AccountProvider>>, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> GuardedTempResult<Arc<Client>> where F: Fn()->Spec {
-	let dir = RandomTempPath::new();
+pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, accounts: Option<Arc<AccountProvider>>, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where F: Fn()->Spec {
 	let test_spec = get_test_spec();
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
+	let client_db = new_db();
 
 	let client = Client::new(
 		ClientConfig::default(),
@@ -165,8 +161,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 	).unwrap();
 	let test_engine = &*test_spec.engine;
 
-	let mut db_result = get_temp_state_db();
-	let mut db = test_spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
+	let mut db = test_spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 	let genesis_header = test_spec.genesis_header();
 
 	let mut rolling_timestamp = 40;
@@ -205,7 +200,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 				action: Action::Create,
 				data: vec![],
 				value: U256::zero(),
-			}.sign(kp.secret(), None), None).unwrap();
+			}.sign(kp.secret(), Some(test_spec.network_id())), None).unwrap();
 			n += 1;
 		}
 
@@ -220,11 +215,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 	}
 	client.flush_queue();
 	client.import_verified_blocks();
-
-	GuardedTempResult::<Arc<Client>> {
-		_temp: dir,
-		result: Some(client)
-	}
+	client
 }
 
 pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting_number: usize, block_number: usize) {
@@ -256,11 +247,9 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 	}
 }
 
-pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<Client>> {
-	let dir = RandomTempPath::new();
+pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 	let test_spec = get_test_spec();
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
+	let client_db = new_db();
 
 	let client = Client::new(
 		ClientConfig::default(),
@@ -277,23 +266,15 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 	}
 	client.flush_queue();
 	client.import_verified_blocks();
-
-	GuardedTempResult::<Arc<Client>> {
-		_temp: dir,
-		result: Some(client)
-	}
+	client
 }
 
-fn new_db(path: &str) -> Arc<Database> {
-	Arc::new(
-		Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), path)
-		.expect("Opening database for tests should always work.")
-	)
+fn new_db() -> Arc<KeyValueDB> {
+	Arc::new(::util::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)))
 }
 
-pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockChain> {
-	let temp = RandomTempPath::new();
-	let db = new_db(temp.as_str());
+pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
+	let db = new_db();
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
 	let mut batch = db.transaction();
@@ -302,16 +283,11 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 		bc.commit();
 	}
 	db.write(batch).unwrap();
-
-	GuardedTempResult::<BlockChain> {
-		_temp: temp,
-		result: Some(bc)
-	}
+	bc
 }
 
-pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempResult<BlockChain> {
-	let temp = RandomTempPath::new();
-	let db = new_db(temp.as_str());
+pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
+	let db = new_db();
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
 
@@ -321,58 +297,29 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 		bc.commit();
 	}
 	db.write(batch).unwrap();
-
-	GuardedTempResult::<BlockChain> {
-		_temp: temp,
-		result: Some(bc)
-	}
+	bc
 }
 
-pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
-	let temp = RandomTempPath::new();
-	let db = new_db(temp.as_str());
+pub fn generate_dummy_empty_blockchain() -> BlockChain {
+	let db = new_db();
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
-
-	GuardedTempResult::<BlockChain> {
-		_temp: temp,
-		result: Some(bc)
-	}
+	bc
 }
 
-pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
-	let temp = RandomTempPath::new();
-	let journal_db = get_temp_state_db_in(temp.as_path());
-
-	GuardedTempResult {
-		_temp: temp,
-		result: Some(journal_db)
-	}
-}
-
-pub fn get_temp_state() -> GuardedTempResult<State<::state_db::StateDB>> {
-	let temp = RandomTempPath::new();
-	let journal_db = get_temp_state_db_in(temp.as_path());
-
-	GuardedTempResult {
-	    _temp: temp,
-		result: Some(State::new(journal_db, U256::from(0), Default::default())),
-	}
-}
-
-pub fn get_temp_state_db_in(path: &Path) -> StateDB {
-	let db = new_db(path.to_str().expect("Only valid utf8 paths for tests."));
-	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
-	StateDB::new(journal_db, 5 * 1024 * 1024)
-}
-
-pub fn get_temp_state_in(path: &Path) -> State<::state_db::StateDB> {
-	let journal_db = get_temp_state_db_in(path);
+pub fn get_temp_state() -> State<::state_db::StateDB> {
+	let journal_db = get_temp_state_db();
 	State::new(journal_db, U256::from(0), Default::default())
+}
+
+pub fn get_temp_state_db() -> StateDB {
+	let db = new_db();
+	let journal_db = journaldb::new(db, journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
+	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 
 pub fn get_good_dummy_block_seq(count: usize) -> Vec<Bytes> {
 	let test_spec = get_test_spec();
-  	get_good_dummy_block_fork_seq(1, count, &test_spec.genesis_header().hash())
+	get_good_dummy_block_fork_seq(1, count, &test_spec.genesis_header().hash())
 }
 
 pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_hash: &H256) -> Vec<Bytes> {
@@ -394,7 +341,6 @@ pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_h
 		rolling_timestamp = rolling_timestamp + 10;
 
 		r.push(create_test_block(&block_header));
-
 	}
 	r
 }

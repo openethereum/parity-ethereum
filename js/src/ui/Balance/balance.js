@@ -17,18 +17,21 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
 
 import TokenImage from '~/ui/TokenImage';
 
 import styles from './balance.css';
 
-export default class Balance extends Component {
+export class Balance extends Component {
   static contextTypes = {
     api: PropTypes.object
   };
 
   static propTypes = {
-    balance: PropTypes.object,
+    balance: PropTypes.object.isRequired,
+    tokens: PropTypes.object.isRequired,
+    address: PropTypes.string,
     className: PropTypes.string,
     showOnlyEth: PropTypes.bool,
     showZeroValues: PropTypes.bool
@@ -40,43 +43,37 @@ export default class Balance extends Component {
   };
 
   render () {
-    const { api } = this.context;
-    const { balance, className, showOnlyEth } = this.props;
+    const { balance, className, showOnlyEth, tokens } = this.props;
 
-    if (!balance || !balance.tokens) {
+    if (Object.keys(balance).length === 0) {
       return null;
     }
 
-    let body = balance.tokens
-      .filter((balance) => {
-        const isEthToken = (balance.token.tag || '').toLowerCase() === 'eth';
-        const hasBalance = new BigNumber(balance.value).gt(0);
+    let body = Object.keys(balance)
+      .map((tokenId) => {
+        const token = tokens[tokenId];
+        const balanceValue = balance[tokenId];
 
-        return hasBalance || isEthToken;
-      })
-      .map((balance, index) => {
-        const isFullToken = !showOnlyEth || (balance.token.tag || '').toLowerCase() === 'eth';
-        const token = balance.token;
+        const isEthToken = token.native;
+        const isFullToken = !showOnlyEth || isEthToken;
+        const hasBalance = balanceValue.gt(0);
 
-        let value;
-
-        if (token.format) {
-          const bnf = new BigNumber(token.format);
-
-          let decimals = 0;
-
-          if (bnf.gte(1000)) {
-            decimals = 3;
-          } else if (bnf.gte(100)) {
-            decimals = 2;
-          } else if (bnf.gte(10)) {
-            decimals = 1;
-          }
-
-          value = new BigNumber(balance.value).div(bnf).toFormat(decimals);
-        } else {
-          value = api.util.fromWei(balance.value).toFormat(3);
+        if (!hasBalance && !isEthToken) {
+          return null;
         }
+
+        const bnf = new BigNumber(token.format || 1);
+        let decimals = 0;
+
+        if (bnf.gte(1000)) {
+          decimals = 3;
+        } else if (bnf.gte(100)) {
+          decimals = 2;
+        } else if (bnf.gte(10)) {
+          decimals = 1;
+        }
+
+        const value = new BigNumber(balanceValue).div(bnf).toFormat(decimals);
 
         const classNames = [styles.balance];
         let details = null;
@@ -104,13 +101,14 @@ export default class Balance extends Component {
         return (
           <div
             className={ classNames.join(' ') }
-            key={ `${index}_${token.tag}` }
+            key={ tokenId }
           >
             <TokenImage token={ token } />
             { details }
           </div>
         );
-      });
+      })
+      .filter((node) => node);
 
     if (!body.length) {
       body = (
@@ -140,3 +138,15 @@ export default class Balance extends Component {
     );
   }
 }
+
+function mapStateToProps (state, props) {
+  const { balances, tokens } = state;
+  const { address } = props;
+
+  return {
+    balance: balances[address] || props.balance || {},
+    tokens
+  };
+}
+
+export default connect(mapStateToProps)(Balance);

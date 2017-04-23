@@ -90,7 +90,7 @@ fn should_return_list_of_items_to_confirm() {
 		nonce: None,
 		condition: None,
 	}), Origin::Dapps("http://parity.io".into())).unwrap();
-	tester.signer.add_request(ConfirmationPayload::Signature(1.into(), vec![5].into()), Origin::Unknown).unwrap();
+	tester.signer.add_request(ConfirmationPayload::EthSignMessage(1.into(), vec![5].into()), Origin::Unknown).unwrap();
 
 	// when
 	let request = r#"{"jsonrpc":"2.0","method":"signer_requestsToConfirm","params":[],"id":1}"#;
@@ -163,7 +163,7 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 fn should_not_remove_sign_if_password_is_invalid() {
 	// given
 	let tester = signer_tester();
-	tester.signer.add_request(ConfirmationPayload::Signature(0.into(), vec![5].into()), Origin::Unknown).unwrap();
+	tester.signer.add_request(ConfirmationPayload::EthSignMessage(0.into(), vec![5].into()), Origin::Unknown).unwrap();
 	assert_eq!(tester.signer.requests().len(), 1);
 
 	// when

@@ -35,7 +35,7 @@ use futures::sync::oneshot::{self, Sender, Receiver};
 use network::PeerId;
 use rlp::RlpStream;
 use util::{Bytes, RwLock, Mutex, U256, H256};
-use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
+use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY, SHA3_EMPTY_LIST_RLP};
 
 use net::{self, Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
 use cache::Cache;
@@ -83,7 +83,7 @@ enum Pending {
 	HeaderByHash(request::HeaderByHash, Sender<encoded::Header>),
 	Block(request::Body, Sender<encoded::Block>),
 	BlockReceipts(request::BlockReceipts, Sender<Vec<Receipt>>),
-	Account(request::Account, Sender<Option<BasicAccount>>),
+	Account(request::Account, Sender<BasicAccount>),
 	Code(request::Code, Sender<Bytes>),
 	TxProof(request::TransactionProof, Sender<Result<Executed, ExecutionError>>),
 }
@@ -136,18 +136,20 @@ pub struct OnDemand {
 	pending_requests: RwLock<HashMap<ReqId, Pending>>,
 	cache: Arc<Mutex<Cache>>,
 	orphaned_requests: RwLock<Vec<Pending>>,
+	start_nonce: U256,
 }
 
 const RECEIVER_IN_SCOPE: &'static str = "Receiver is still in scope, so it's not dropped; qed";
 
 impl OnDemand {
 	/// Create a new `OnDemand` service with the given cache.
-	pub fn new(cache: Arc<Mutex<Cache>>) -> Self {
+	pub fn new(cache: Arc<Mutex<Cache>>, account_start_nonce: U256) -> Self {
 		OnDemand {
 			peers: RwLock::new(HashMap::new()),
 			pending_requests: RwLock::new(HashMap::new()),
 			cache: cache,
 			orphaned_requests: RwLock::new(Vec::new()),
+			start_nonce: account_start_nonce,
 		}
 	}
 
@@ -268,7 +270,7 @@ impl OnDemand {
 
 	/// Request an account by address and block header -- which gives a hash to query and a state root
 	/// to verify against.
-	pub fn account(&self, ctx: &BasicContext, req: request::Account) -> Receiver<Option<BasicAccount>> {
+	pub fn account(&self, ctx: &BasicContext, req: request::Account) -> Receiver<BasicAccount> {
 		let (sender, receiver) = oneshot::channel();
 		self.dispatch(ctx, Pending::Account(req, sender));
 		receiver
@@ -279,7 +281,7 @@ impl OnDemand {
 		let (sender, receiver) = oneshot::channel();
 
 		// fast path for no code.
-		if req.code_hash == ::util::sha3::SHA3_EMPTY {
+		if req.code_hash == SHA3_EMPTY {
 			sender.send(Vec::new()).expect(RECEIVER_IN_SCOPE)
 		} else {
 			self.dispatch(ctx, Pending::Code(req, sender));
@@ -497,10 +499,19 @@ impl Handler for OnDemand {
 			Pending::Account(req, sender) => {
 				if let NetworkResponse::Account(ref response) = *response {
 					match req.check_response(&response.proof) {
-						Ok(maybe_account) => {
+						Ok(account) => {
+							let account = account.unwrap_or_else(|| {
+								BasicAccount {
+									balance: 0.into(),
+									nonce: self.start_nonce,
+									code_hash: SHA3_EMPTY,
+									storage_root: SHA3_NULL_RLP
+								}
+							});
+
 							// TODO: validate against request outputs.
 							// needs engine + env info as part of request.
-							let _ = sender.send(maybe_account);
+							let _ = sender.send(account);
 							return
 						}
 						Err(e) => warn!(target: "on_demand", "Error handling response for state request: {:?}", e),
@@ -572,7 +583,7 @@ mod tests {
 	#[test]
 	fn detects_hangup() {
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
-		let on_demand = OnDemand::new(cache);
+		let on_demand = OnDemand::new(cache, 0.into());
 		let result = on_demand.header_by_hash(&FakeContext, request::HeaderByHash(H256::default()));
 
 		assert!(on_demand.orphaned_requests.read().len() == 1);

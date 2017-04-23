@@ -18,10 +18,10 @@ import { combineReducers } from 'redux';
 import { routerReducer } from 'react-router-redux';
 
 import {
-  apiReducer, balancesReducer, blockchainReducer,
+  apiReducer, balancesReducer,
   workerReducer, imagesReducer, personalReducer, requestsReducer,
   signerReducer, statusReducer as nodeStatusReducer,
-  snackbarReducer, walletReducer
+  snackbarReducer, tokensReducer, walletReducer
 } from './providers';
 import certificationsReducer from './providers/certifications/reducer';
 import registryReducer from './providers/registry/reducer';
@@ -40,7 +40,6 @@ export default function () {
 
     balances: balancesReducer,
     certifications: certificationsReducer,
-    blockchain: blockchainReducer,
     images: imagesReducer,
     nodeStatus: nodeStatusReducer,
     personal: personalReducer,
@@ -48,6 +47,7 @@ export default function () {
     requests: requestsReducer,
     signer: signerReducer,
     snackbar: snackbarReducer,
+    tokens: tokensReducer,
     wallet: walletReducer,
     worker: workerReducer
   });

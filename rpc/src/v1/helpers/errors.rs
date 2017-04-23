@@ -355,3 +355,8 @@ pub fn deprecated<T: Into<Option<String>>>(message: T) -> Error {
 		data: message.into().map(Value::String),
 	}
 }
+
+// on-demand sender cancelled.
+pub fn on_demand_cancel(_cancel: ::futures::sync::oneshot::Canceled) -> Error {
+	internal("on-demand sender cancelled", "")
+}

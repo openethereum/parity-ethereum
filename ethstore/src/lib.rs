@@ -29,9 +29,9 @@ extern crate serde_json;
 extern crate smallvec;
 extern crate time;
 extern crate tiny_keccak;
+extern crate tempdir;
 
-extern crate ethcore_devtools as devtools;
-extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 extern crate ethcrypto as crypto;
 extern crate ethkey as _ethkey;
 extern crate parity_wordlist;
@@ -54,7 +54,7 @@ mod presale;
 mod random;
 mod secret_store;
 
-pub use self::account::SafeAccount;
+pub use self::account::{SafeAccount, Crypto};
 pub use self::error::Error;
 pub use self::ethstore::{EthStore, EthMultiStore};
 pub use self::import::{import_accounts, read_geth_accounts};

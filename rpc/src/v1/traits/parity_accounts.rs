@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 
 use jsonrpc_core::Error;
 use ethstore::KeyFile;
-use v1::types::{H160, H256, DappId, DeriveHash, DeriveHierarchical};
+use v1::types::{H160, H256, H520, DappId, DeriveHash, DeriveHierarchical};
 
 build_rpc_trait! {
 	/// Personal Parity rpc interface.
@@ -180,5 +180,9 @@ build_rpc_trait! {
 		/// Exports an account with given address if provided password matches.
 		#[rpc(name = "parity_exportAccount")]
 		fn export_account(&self, H160, String) -> Result<KeyFile, Error>;
+
+		/// Sign raw hash with the key corresponding to address and password.
+		#[rpc(name = "parity_signMessage")]
+		fn sign_message(&self, H160, String, H256) -> Result<H520, Error>;
 	}
 }

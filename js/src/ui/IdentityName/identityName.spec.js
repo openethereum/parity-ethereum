@@ -17,40 +17,19 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import sinon from 'sinon';
-
-import IdentityName from './identityName';
+import { IdentityName } from './identityName';
 
 const ADDR_A = '0x123456789abcdef0123456789A';
-const ADDR_B = '0x123456789abcdef0123456789B';
 const ADDR_C = '0x123456789abcdef0123456789C';
 const ADDR_NULL = '0x0000000000000000000000000000000000000000';
 const NAME_JIMMY = 'Jimmy Test';
-const STORE = {
-  dispatch: sinon.stub(),
-  subscribe: sinon.stub(),
-  getState: () => {
-    return {
-      balances: {
-        tokens: {}
-      },
-      personal: {
-        accountsInfo: {
-          [ADDR_A]: { name: 'testing' },
-          [ADDR_B]: {}
-        }
-      }
-    };
-  }
-};
 
 function render (props) {
   return shallow(
     <IdentityName
-      store={ STORE }
       { ...props }
     />
-  ).find('IdentityName').shallow();
+  );
 }
 
 describe('ui/IdentityName', () => {

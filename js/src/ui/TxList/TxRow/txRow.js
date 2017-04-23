@@ -23,9 +23,10 @@ import { Link } from 'react-router';
 
 import { txLink } from '~/3rdparty/etherscan/links';
 
-import IdentityIcon from '../../IdentityIcon';
-import IdentityName from '../../IdentityName';
-import MethodDecoding from '../../MethodDecoding';
+import IdentityIcon from '~/ui/IdentityIcon';
+import IdentityName from '~/ui/IdentityName';
+import MethodDecoding from '~/ui/MethodDecoding';
+import MethodDecodingStore from '~/ui/MethodDecoding/methodDecodingStore';
 
 import styles from '../txList.css';
 
@@ -57,8 +58,28 @@ class TxRow extends Component {
     isCancelOpen: false,
     isEditOpen: false,
     canceled: false,
-    editing: false
+    editing: false,
+    isContract: false,
+    isDeploy: false
   };
+
+  methodDecodingStore = MethodDecodingStore.get(this.context.api);
+
+  componentWillMount () {
+    const { address, tx } = this.props;
+
+    this
+      .methodDecodingStore
+      .lookup(address, tx)
+      .then((lookup) => {
+        const newState = {
+          isContract: lookup.contract,
+          isDeploy: lookup.deploy
+        };
+
+        this.setState(newState);
+      });
+  }
 
   render () {
     const { address, className, historic, netVersion, tx } = this.props;
@@ -129,9 +150,14 @@ class TxRow extends Component {
 
   renderEtherValue (_value) {
     const { api } = this.context;
+    const { isContract, isDeploy } = this.state;
+
+    // Always show the value if ETH transfer, ie. not
+    // a contract or a deployment
+    const fullValue = !(isContract || isDeploy);
     const value = api.util.fromWei(_value);
 
-    if (value.eq(0)) {
+    if (value.eq(0) && !fullValue) {
       return <div className={ styles.value }>{ ' ' }</div>;
     }
 

@@ -67,7 +67,6 @@ impl IoHandler<ClientIoMessage> for QueueCull {
 
 		let (sync, on_demand, txq) = (self.sync.clone(), self.on_demand.clone(), self.txq.clone());
 		let best_header = self.client.best_block_header();
-		let start_nonce = self.client.engine().account_start_nonce();
 
 		info!(target: "cull", "Attempting to cull queued transactions from {} senders.", senders.len());
 		self.remote.spawn_with_timeout(move || {
@@ -75,8 +74,7 @@ impl IoHandler<ClientIoMessage> for QueueCull {
 				// fetch the nonce of each sender in the queue.
 				let nonce_futures = senders.iter()
 					.map(|&address| request::Account { header: best_header.clone(), address: address })
-					.map(|request| on_demand.account(ctx, request))
-					.map(move |fut| fut.map(move |x| x.map(|acc| acc.nonce).unwrap_or(start_nonce)))
+					.map(|request| on_demand.account(ctx, request).map(|acc| acc.nonce))
 					.zip(senders.iter())
 					.map(|(fut, &addr)| fut.map(move |nonce| (addr, nonce)));
 
