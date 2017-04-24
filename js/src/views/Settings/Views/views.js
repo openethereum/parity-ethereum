@@ -69,28 +69,6 @@ class Views extends Component {
           </div>
           <div className={ layout.details }>
             {
-              this.renderView('accounts',
-                <FormattedMessage
-                  id='settings.views.accounts.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.accounts.description'
-                  defaultMessage='A list of all the accounts associated with and imported into this Parity instance. Send transactions, receive incoming values, manage your balances and fund your accounts.'
-                />
-              )
-            }
-            {
-              this.renderView('addresses',
-                <FormattedMessage
-                  id='settings.views.addresses.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.addresses.description'
-                  defaultMessage='A list of all contacts and address book entries managed by this Parity instance. Watch accounts and have the details available at the click of a button when transacting.'
-                />
-              )
-            }
-            {
               this.renderView('apps',
                 <FormattedMessage
                   id='settings.views.apps.label'
@@ -98,28 +76,6 @@ class Views extends Component {
                 <FormattedMessage
                   id='settings.views.apps.description'
                   defaultMessage='Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.'
-                />
-              )
-            }
-            {
-              this.renderView('contracts',
-                <FormattedMessage
-                  id='settings.views.contracts.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.contracts.description'
-                  defaultMessage='Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focused environment, specifically for advanced users that understand the inner working of certain contracts.'
-                />
-              )
-            }
-            {
-              this.renderView('signer',
-                <FormattedMessage
-                  id='settings.views.signer.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.signer.description'
-                  defaultMessage='The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.'
                 />
               )
             }

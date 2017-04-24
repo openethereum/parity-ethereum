@@ -71,9 +71,9 @@ const childRoutes = [
   { path: 'web/:url', component: Web }
 ];
 
-// TODO : use ES6 imports when supported
+// TODO: use ES6 imports when supported
 if (process.env.NODE_ENV !== 'production') {
-  const Playground = require('./playground').default;
+  const Playground = require('./views/Playground').default;
 
   childRoutes.push({
     path: 'playground',

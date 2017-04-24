@@ -17,12 +17,11 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Tab, Tabs } from 'material-ui';
-import ActionSettingsEthernet from 'material-ui/svg-icons/action/settings-ethernet';
-import ImageBlurOn from 'material-ui/svg-icons/image/blur-on';
-import ImageRemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
+
+import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
 
 import { Actionbar, Page } from '~/ui';
-import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
+import { BackgroundIcon, Ethernet, VisibleIcon } from '~/ui/Icons';
 
 import styles from './settings.css';
 
@@ -42,7 +41,7 @@ export default class Settings extends Component {
     let proxy = null;
 
     if (!isProxied) {
-      proxy = this.renderTab(hash, 'proxy', <ActionSettingsEthernet />);
+      proxy = this.renderTab(hash, 'proxy', <Ethernet />);
     }
 
     return (
@@ -54,8 +53,8 @@ export default class Settings extends Component {
           }
         >
           <Tabs className={ styles.tabs } value={ hash }>
-            { this.renderTab(hash, 'views', <ImageRemoveRedEye />) }
-            { this.renderTab(hash, 'background', <ImageBlurOn />) }
+            { this.renderTab(hash, 'views', <VisibleIcon />) }
+            { this.renderTab(hash, 'background', <BackgroundIcon />) }
             { proxy }
             { this.renderTab(hash, 'parity', <img src={ imagesEthcoreBlock } className={ styles.imageIcon } />) }
           </Tabs>
