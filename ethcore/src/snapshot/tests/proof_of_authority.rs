@@ -34,6 +34,7 @@ use tests::helpers;
 use transaction::{Transaction, Action, SignedTransaction};
 
 use util::{Address, Hashable};
+use util::kvdb::{self, KeyValueDB};
 
 const PASS: &'static str = "";
 const TRANSITION_BLOCK: usize = 2; // block at which the contract becomes activated.
@@ -156,7 +157,9 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 }
 
 #[test]
-fn make_transition_chain() {
+fn basic_snap_restore() {
+	//::ethcore_logger::init_log();
+
 	let (provider, addrs) = make_accounts(&[
 		RICH_SECRET.clone(),
 		secret!("foo"),
@@ -170,11 +173,16 @@ fn make_transition_chain() {
 
 	assert!(provider.has_account(*RICH_ADDR).unwrap());
 
-	let client = make_chain(provider, 10, vec![
+	let client = make_chain(provider, 2, vec![
 		Transition(5, vec![addrs[2], addrs[3], addrs[5], addrs[7]]),
 		Transition(9, vec![addrs[0], addrs[1], addrs[4], addrs[6]]),
 	]);
 
-	assert_eq!(client.chain_info().best_block_number, 19);
-	let _reader = snapshot_helpers::snap(&*client);
+	assert_eq!(client.chain_info().best_block_number, 11);
+	let reader = snapshot_helpers::snap(&*client);
+
+	let new_db = kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0));
+	let spec = Spec::new_test_validator_contract();
+
+	snapshot_helpers::restore(Arc::new(new_db), &*spec.engine, &**reader, &spec.genesis_block()).unwrap();
 }
