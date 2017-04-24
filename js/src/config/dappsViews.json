@@ -55,11 +55,11 @@
     "secure": true
   },
   {
-    "id": "home",
-    "url": "home",
-    "src": "Home",
-    "name": "Home",
-    "description": "Display the status of the node, recently accessed applications, accounts and news",
+    "id": "requests",
+    "url": "requests",
+    "src": "Signer",
+    "name": "Requests",
+    "description": "Display the current and historic Signer requests",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
     "visible": true,

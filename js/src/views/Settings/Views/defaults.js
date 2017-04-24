@@ -16,7 +16,7 @@
 
 import React from 'react';
 
-import { AppsIcon, FingerprintIcon } from '~/ui/Icons';
+import { AppsIcon } from '~/ui/Icons';
 
 const defaultViews = {
   apps: {
@@ -24,14 +24,6 @@ const defaultViews = {
     icon: <AppsIcon />,
     route: '/apps',
     value: 'app'
-  },
-
-  signer: {
-    active: true,
-    fixed: true,
-    icon: <FingerprintIcon />,
-    route: '/signer',
-    value: 'signer'
   }
 };
 

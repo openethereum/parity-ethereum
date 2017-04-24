@@ -14,10 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Embedded from './containers/Embedded';
+import ReactDOM from 'react-dom';
+import React from 'react';
+import { hashHistory } from 'react-router';
 
-export default from './signer';
+import injectTapEventPlugin from 'react-tap-event-plugin';
+injectTapEventPlugin();
 
-export {
-  Embedded
-};
+import { api } from './parity';
+
+import ContractInstances from '~/contracts';
+import { initStore } from '~/redux';
+import ContextProvider from '~/ui/ContextProvider';
+import muiTheme from '~/ui/Theme';
+
+import Signer from './signer';
+
+import '~/../assets/fonts/Roboto/font.css';
+import '~/../assets/fonts/RobotoMono/font.css';
+
+ContractInstances.get(api);
+
+const store = initStore(api, hashHistory);
+
+ReactDOM.render(
+  <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
+    <Signer />
+  </ContextProvider>,
+  document.querySelector('#container')
+);

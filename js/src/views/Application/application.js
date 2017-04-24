@@ -30,7 +30,6 @@ import Extension from './Extension';
 import FrameError from './FrameError';
 import Status from './Status';
 import Store from './store';
-import TabBar from './TabBar';
 import Requests from './Requests';
 
 import styles from './application.css';
@@ -86,7 +85,7 @@ class Application extends Component {
   }
 
   renderApp () {
-    const { blockNumber, children, pending } = this.props;
+    const { blockNumber, children } = this.props;
 
     return (
       <Container
@@ -94,7 +93,6 @@ class Application extends Component {
         onCloseFirstRun={ this.store.closeFirstrun }
         showFirstRun={ this.store.firstrunVisible }
       >
-        <TabBar pending={ pending } />
         <div className={ styles.content }>
           { children }
         </div>
@@ -123,12 +121,10 @@ class Application extends Component {
 function mapStateToProps (state) {
   const { blockNumber } = state.nodeStatus;
   const { hasAccounts } = state.personal;
-  const { pending } = state.signer;
 
   return {
     blockNumber,
-    hasAccounts,
-    pending
+    hasAccounts
   };
 }
 

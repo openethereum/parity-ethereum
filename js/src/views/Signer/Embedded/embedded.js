@@ -15,22 +15,20 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import Store from '../../store';
+import Store from '../store';
 import * as RequestsActions from '~/redux/providers/signerActions';
-import { Container, Page, TxList } from '~/ui';
+import { Container } from '~/ui';
 
-import RequestPending from '../../components/RequestPending';
+import RequestPending from '../components/RequestPending';
 
-import styles from './requestsPage.css';
+import styles from './embedded.css';
 
-@observer
-class RequestsPage extends Component {
+class Embedded extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
@@ -40,86 +38,48 @@ class RequestsPage extends Component {
       startConfirmRequest: PropTypes.func.isRequired,
       startRejectRequest: PropTypes.func.isRequired
     }).isRequired,
+    externalLink: PropTypes.string,
     gasLimit: PropTypes.object.isRequired,
     netVersion: PropTypes.string.isRequired,
     signer: PropTypes.shape({
-      pending: PropTypes.array.isRequired,
-      finished: PropTypes.array.isRequired
+      finished: PropTypes.array.isRequired,
+      pending: PropTypes.array.isRequired
     }).isRequired
   };
 
-  store = new Store(this.context.api, true);
-
-  componentWillUnmount () {
-    this.store.unsubscribe();
-  }
+  store = new Store(this.context.api, false, this.props.externalLink);
 
   render () {
     return (
-      <Page>
-        <div>{ this.renderPendingRequests() }</div>
-        <div>{ this.renderLocalQueue() }</div>
-      </Page>
-    );
-  }
-
-  _sortRequests = (a, b) => {
-    return new BigNumber(a.id).cmp(b.id);
-  }
-
-  renderLocalQueue () {
-    const { localHashes } = this.store;
-
-    if (!localHashes.length) {
-      return null;
-    }
-
-    return (
-      <Container
-        title={
-          <FormattedMessage
-            id='signer.requestsPage.queueTitle'
-            defaultMessage='Local Transactions'
-          />
-        }
-      >
-        <TxList
-          address=''
-          hashes={ localHashes }
-        />
+      <Container style={ { background: 'transparent' } }>
+        <div className={ styles.signer }>
+          { this.renderPendingRequests() }
+        </div>
       </Container>
     );
   }
 
   renderPendingRequests () {
-    const { pending } = this.props.signer;
+    const { signer } = this.props;
+    const { pending } = signer;
 
     if (!pending.length) {
       return (
-        <Container>
-          <div className={ styles.noRequestsMsg }>
-            <FormattedMessage
-              id='signer.requestsPage.noPending'
-              defaultMessage='There are no requests requiring your confirmation.'
-            />
-          </div>
-        </Container>
+        <div className={ styles.none }>
+          <FormattedMessage
+            id='signer.embedded.noPending'
+            defaultMessage='There are currently no pending requests awaiting your confirmation'
+          />
+        </div>
       );
     }
 
     const items = pending.sort(this._sortRequests).map(this.renderPending);
 
     return (
-      <Container
-        title={
-          <FormattedMessage
-            id='signer.requestsPage.pendingTitle'
-            defaultMessage='Pending Requests'
-          />
-        }
-      >
+      <div>
         { items }
-      </Container>
+      </div>
     );
   }
 
@@ -145,6 +105,10 @@ class RequestsPage extends Component {
       />
     );
   }
+
+  _sortRequests = (a, b) => {
+    return new BigNumber(a.id).cmp(b.id);
+  }
 }
 
 function mapStateToProps (state) {
@@ -168,4 +132,4 @@ function mapDispatchToProps (dispatch) {
 export default connect(
   mapStateToProps,
   mapDispatchToProps
-)(RequestsPage);
+)(Embedded);

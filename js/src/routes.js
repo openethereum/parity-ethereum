@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import HistoryStore from '~/mobx/historyStore';
-import { Application, Dapp, Dapps, Signer, Web } from '~/views';
+import { Application, Dapp, Dapps, Web } from '~/views';
 import builtinDapps from '~/config/dappsBuiltin.json';
 import viewsDapps from '~/config/dappsViews.json';
 
@@ -68,8 +68,7 @@ const childRoutes = [
   },
   { path: 'apps', component: Dapps },
   { path: 'web', component: Web },
-  { path: 'web/:url', component: Web },
-  { path: 'signer', component: Signer }
+  { path: 'web/:url', component: Web }
 ];
 
 // TODO : use ES6 imports when supported
