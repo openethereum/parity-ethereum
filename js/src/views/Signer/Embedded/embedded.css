@@ -15,7 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../../_layout.css';
+@import '../_layout.css';
 
 .info {
   padding: 1em 0;
