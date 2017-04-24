@@ -14,4 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './vaults';
+import ReactDOM from 'react-dom';
+import React from 'react';
+import { hashHistory } from 'react-router';
+
+import injectTapEventPlugin from 'react-tap-event-plugin';
+injectTapEventPlugin();
+
+import { api } from './parity';
+
+import ContractInstances from '~/contracts';
+import { initStore } from '~/redux';
+import ContextProvider from '~/ui/ContextProvider';
+import muiTheme from '~/ui/Theme';
+
+import Vaults from './vaults';
+
+import '~/../assets/fonts/Roboto/font.css';
+import '~/../assets/fonts/RobotoMono/font.css';
+
+import './vaults.css';
+
+ContractInstances.get(api);
+
+const store = initStore(api, hashHistory);
+
+ReactDOM.render(
+  <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
+    <Vaults />
+  </ContextProvider>,
+  document.querySelector('#container')
+);

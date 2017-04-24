@@ -20,7 +20,7 @@ import {
   Contract, Contracts, Dapp, Dapps,
   Settings, SettingsBackground, SettingsParity, SettingsProxy,
   SettingsViews, Signer,
-  Vaults, Wallet, Web, WriteContract
+  Wallet, Web, WriteContract
 } from '~/views';
 import builtinDapps from '~/config/dappsBuiltin.json';
 import viewsDapps from '~/config/dappsViews.json';
@@ -61,7 +61,6 @@ const accountsRoutes = [
       accountsHistory.add(params.address, 'account');
     }
   },
-  { path: '/vaults', component: Vaults },
   {
     path: '/wallet/:address',
     component: Wallet,
