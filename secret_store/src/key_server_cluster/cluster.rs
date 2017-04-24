@@ -37,11 +37,11 @@ use key_server_cluster::encryption_session::{SessionImpl as EncryptionSessionImp
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
 
-/// Maintain interval (seconds). Every MAINTAN_INTERVAL seconds node:
+/// Maintain interval (seconds). Every MAINTAIN_INTERVAL seconds node:
 /// 1) checks if connected nodes are responding to KeepAlive messages
 /// 2) tries to connect to disconnected nodes
 /// 3) checks if enc/dec sessions are time-outed
-const MAINTAN_INTERVAL: u64 = 10;
+const MAINTAIN_INTERVAL: u64 = 10;
 
 /// When no messages have been received from node within KEEP_ALIVE_SEND_INTERVAL seconds,
 /// we must send KeepAlive message to the node to check if it still responds to messages.
@@ -340,7 +340,7 @@ impl ClusterCore {
 	/// Schedule mainatain procedures.
 	fn schedule_maintain(handle: &Handle, data: Arc<ClusterData>) {
 		let d = data.clone();
-		let interval: BoxedEmptyFuture = Interval::new(time::Duration::new(MAINTAN_INTERVAL, 0), handle)
+		let interval: BoxedEmptyFuture = Interval::new(time::Duration::new(MAINTAIN_INTERVAL, 0), handle)
 			.expect("failed to create interval")
 			.and_then(move |_| Ok(ClusterCore::maintain(data.clone())))
 			.for_each(|_| Ok(()))
