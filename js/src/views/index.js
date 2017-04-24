@@ -17,7 +17,6 @@
 export Account from './Account';
 export Accounts from './Accounts';
 export Address from './Address';
-export Addresses from './Addresses';
 export Application from './Application';
 export Contract from './Contract';
 export Contracts from './Contracts';

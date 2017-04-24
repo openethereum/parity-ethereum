@@ -14,40 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
+const api = window.parent.secureApi;
 
-import { AccountsIcon, AppsIcon, ContactsIcon, FingerprintIcon } from '~/ui/Icons';
-
-const defaultViews = {
-  accounts: {
-    active: true,
-    fixed: true,
-    icon: <AccountsIcon />,
-    route: '/accounts',
-    value: 'account'
-  },
-
-  apps: {
-    active: true,
-    icon: <AppsIcon />,
-    route: '/apps',
-    value: 'app'
-  },
-
-  contracts: {
-    active: true,
-    icon: <ContactsIcon />,
-    route: '/contracts',
-    value: 'contract'
-  },
-
-  signer: {
-    active: true,
-    fixed: true,
-    icon: <FingerprintIcon />,
-    route: '/signer',
-    value: 'signer'
-  }
+export {
+  api
 };
-
-export default defaultViews;
