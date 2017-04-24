@@ -20,14 +20,13 @@ import { routerReducer } from 'react-router-redux';
 import {
   apiReducer, balancesReducer,
   workerReducer, imagesReducer, personalReducer, requestsReducer,
-  signerReducer, statusReducer as nodeStatusReducer,
+  settingsReducer, signerReducer, statusReducer as nodeStatusReducer,
   snackbarReducer, tokensReducer, walletReducer
 } from './providers';
 import certificationsReducer from './providers/certifications/reducer';
 import registryReducer from './providers/registry/reducer';
 
 import errorReducer from '~/ui/Errors/reducers';
-import settingsReducer from '~/views/Settings/reducers';
 import tooltipReducer from '~/ui/Tooltips/reducers';
 
 export default function () {

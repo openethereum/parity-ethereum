@@ -15,13 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import HistoryStore from '~/mobx/historyStore';
-import {
-  Accounts, Account, Addresses, Address, Application,
-  Contract, Contracts, Dapp, Dapps,
-  Settings, SettingsBackground, SettingsParity, SettingsProxy,
-  SettingsViews, Signer,
-  Wallet, Web, WriteContract
-} from '~/views';
+import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Signer, Wallet, Web, WriteContract } from '~/views';
 import builtinDapps from '~/config/dappsBuiltin.json';
 import viewsDapps from '~/config/dappsViews.json';
 
@@ -79,13 +73,6 @@ const contractsRoutes = [
   { path: ':address', component: Contract }
 ];
 
-const settingsRoutes = [
-  { path: 'background', component: SettingsBackground },
-  { path: 'proxy', component: SettingsProxy },
-  { path: 'views', component: SettingsViews },
-  { path: 'parity', component: SettingsParity }
-];
-
 const routes = [
   // Backward Compatible routes
   { path: '/account/:address', onEnter: handleDeprecatedRoute },
@@ -112,11 +99,6 @@ const childRoutes = [
     path: 'contracts',
     indexRoute: { component: Contracts },
     childRoutes: contractsRoutes
-  },
-  {
-    path: 'settings',
-    component: Settings,
-    childRoutes: settingsRoutes
   },
   {
     path: 'app/:id',

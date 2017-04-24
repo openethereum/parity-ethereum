@@ -17,7 +17,7 @@ import thunk from 'redux-thunk';
 import { routerMiddleware } from 'react-router-redux';
 
 import ErrorsMiddleware from '~/ui/Errors/middleware';
-import SettingsMiddleware from '~/views/Settings/middleware';
+import SettingsMiddleware from './providers/settings/middleware';
 import SignerMiddleware from './providers/signerMiddleware';
 
 import CertificationsMiddleware from './providers/certifications/middleware';

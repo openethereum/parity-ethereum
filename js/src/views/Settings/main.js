@@ -14,17 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Account from './Account';
-export Accounts from './Accounts';
-export Address from './Address';
-export Addresses from './Addresses';
-export Application from './Application';
-export Contract from './Contract';
-export Contracts from './Contracts';
-export Dapp from './Dapp';
-export Dapps from './Dapps';
-export ParityBar from './ParityBar';
-export Signer from './Signer';
-export Wallet from './Wallet';
-export Web from './Web';
-export WriteContract from './WriteContract';
+import React, { PropTypes } from 'react';
+import { hashHistory } from 'react-router';
+
+import { api } from './parity';
+
+import { initStore } from '~/redux';
+import ContextProvider from '~/ui/ContextProvider';
+import muiTheme from '~/ui/Theme';
+
+import Settings from './settings';
+
+const store = initStore(api, hashHistory);
+
+export default function Main ({ children }) {
+  return (
+    <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
+      <Settings>
+        { children }
+      </Settings>
+    </ContextProvider>
+  );
+}
+
+Main.propTypes = {
+  children: PropTypes.node
+};

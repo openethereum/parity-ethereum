@@ -14,27 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { handleActions } from 'redux-actions';
+const api = window.parent.secureApi;
 
-import views from './Views/defaults';
-
-const initialState = {
-  views,
-  backgroundSeed: `${Date.now()}`
+export {
+  api
 };
-
-export default handleActions({
-  toggleView (state, action) {
-    return Object.assign({}, state, { views });
-  },
-
-  toggleViews (state, action) {
-    return Object.assign({}, state, { views });
-  },
-
-  updateBackground (state, action) {
-    const { backgroundSeed } = action;
-
-    return Object.assign({}, state, { backgroundSeed });
-  }
-}, initialState);

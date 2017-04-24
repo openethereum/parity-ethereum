@@ -16,7 +16,7 @@
 
 import store from 'store';
 
-import defaultViews from './Views/defaults';
+import defaultViews from '~/views/Settings/Views/defaults';
 
 function initBackground (store, api) {
   const backgroundSeed = loadBackground() || api.util.sha3(`${Date.now()}`);

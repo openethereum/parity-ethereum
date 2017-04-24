@@ -15,10 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { newError } from '~/ui/Errors/actions';
+
 import { setAddressImage } from './providers/imagesActions';
 import { openSnackbar, showSnackbar } from './providers/snackbarActions';
 import { toggleStatusRefresh } from './providers/statusActions';
-import { toggleView } from '~/views/Settings/actions';
+import { toggleView } from './providers/settings/actions';
 
 export {
   newError,

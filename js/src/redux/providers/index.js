@@ -25,6 +25,7 @@ export workerReducer from './workerReducer';
 export imagesReducer from './imagesReducer';
 export personalReducer from './personalReducer';
 export requestsReducer from './requestsReducer';
+export settingsReducer from './settings/reducers';
 export signerReducer from './signerReducer';
 export snackbarReducer from './snackbarReducer';
 export statusReducer from './statusReducer';

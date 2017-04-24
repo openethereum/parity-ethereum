@@ -22,7 +22,7 @@ import NavigationRefresh from 'material-ui/svg-icons/navigation/refresh';
 
 import { Button, Container, ParityBackground } from '~/ui';
 
-import { updateBackground } from '../actions';
+import { updateBackground } from '~/redux/providers/settings/actions';
 
 import layout from '../layout.css';
 import styles from './background.css';

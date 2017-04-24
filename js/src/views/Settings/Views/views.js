@@ -22,7 +22,7 @@ import { Checkbox } from 'material-ui';
 
 import { Container } from '~/ui';
 
-import { toggleView } from '../actions';
+import { toggleView } from '~/redux/providers/settings/actions';
 
 import layout from '../layout.css';
 import styles from './views.css';
@@ -120,17 +120,6 @@ class Views extends Component {
                 <FormattedMessage
                   id='settings.views.signer.description'
                   defaultMessage='The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.'
-                />
-              )
-            }
-            {
-              this.renderView('settings',
-                <FormattedMessage
-                  id='settings.views.settings.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.settings.description'
-                  defaultMessage='This view. Allows you to customize the application in term of options, operation and look and feel.'
                 />
               )
             }
