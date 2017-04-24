@@ -21,26 +21,36 @@ import { IndexRedirect, Route, Router, hashHistory } from 'react-router';
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
 
+import { initStore } from '~/redux';
+import ContextProvider from '~/ui/ContextProvider';
+import muiTheme from '~/ui/Theme';
+
+import { api } from './parity';
+
 import SettingsBackground from './Background';
 import SettingsParity from './Node';
 import SettingsProxy from './Proxy';
 import SettingsViews from './Views';
-import Main from './main';
+import Settings from './settings';
 
 import '~/../assets/fonts/Roboto/font.css';
 import '~/../assets/fonts/RobotoMono/font.css';
 
 import './settings.css';
 
+const store = initStore(api, hashHistory);
+
 ReactDOM.render(
-  <Router history={ hashHistory }>
-    <Route path='/' component={ Main }>
-      <Route path='/background' component={ SettingsBackground } />
-      <Route path='/parity' component={ SettingsParity } />
-      <Route path='/proxy' component={ SettingsProxy } />
-      <Route path='/views' component={ SettingsViews } />
-      <IndexRedirect to='/views' />
-    </Route>
-  </Router>,
+  <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
+    <Router history={ hashHistory }>
+      <Route path='/' component={ Settings }>
+        <Route path='/background' component={ SettingsBackground } />
+        <Route path='/parity' component={ SettingsParity } />
+        <Route path='/proxy' component={ SettingsProxy } />
+        <Route path='/views' component={ SettingsViews } />
+        <IndexRedirect to='/views' />
+      </Route>
+    </Router>
+  </ContextProvider>,
   document.querySelector('#container')
 );

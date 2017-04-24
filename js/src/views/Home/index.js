@@ -16,7 +16,7 @@
 
 import ReactDOM from 'react-dom';
 import React from 'react';
-import { hashHistory } from 'react-router';
+import { Route, Router, hashHistory } from 'react-router';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
@@ -38,7 +38,9 @@ const store = initStore(api, hashHistory);
 
 ReactDOM.render(
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-    <Home />
+    <Router history={ hashHistory }>
+      <Route path='/' component={ Home } />
+    </Router>
   </ContextProvider>,
   document.querySelector('#container')
 );
