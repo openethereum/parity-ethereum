@@ -33,7 +33,7 @@ use util::{Bytes, Hashable, HashDB, DBValue, snappy, U256, Uint};
 use util::Mutex;
 use util::hash::{H256};
 use util::journaldb::{self, Algorithm, JournalDB};
-use util::kvdb::Database;
+use util::kvdb::KeyValueDB;
 use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 use util::sha3::SHA3_NULL_RLP;
 use rlp::{RlpStream, UntrustedRlp};
@@ -309,7 +309,7 @@ pub struct StateRebuilder {
 
 impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
-	pub fn new(db: Arc<Database>, pruning: Algorithm) -> Self {
+	pub fn new(db: Arc<KeyValueDB>, pruning: Algorithm) -> Self {
 		StateRebuilder {
 			db: journaldb::new(db.clone(), pruning, ::db::COL_STATE),
 			state_root: SHA3_NULL_RLP,
