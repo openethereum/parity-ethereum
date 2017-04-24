@@ -166,6 +166,7 @@ pub fn restore(
 	genesis: &[u8],
 ) -> Result<(), ::error::Error> {
 	use std::sync::atomic::AtomicBool;
+	use util::snappy;
 
 	let flag = AtomicBool::new(true);
 	let components = engine.snapshot_components().unwrap();
@@ -177,17 +178,21 @@ pub fn restore(
 		components.rebuilder(chain, db, manifest).unwrap()
 	};
 
+	let mut snappy_buffer = Vec::new();
+
 	trace!(target: "snapshot", "restoring state");
 	for state_chunk_hash in manifest.state_hashes.iter() {
 		trace!(target: "snapshot", "state chunk hash: {}", state_chunk_hash);
 		let chunk = reader.chunk(*state_chunk_hash).unwrap();
-		state.feed(&chunk, &flag)?;
+		let len = snappy::decompress_into(&chunk, &mut snappy_buffer).unwrap();
+		state.feed(&snappy_buffer[..len], &flag)?;
 	}
 
 	trace!(target: "snapshot", "restoring secondary");
 	for chunk_hash in manifest.block_hashes.iter() {
 		let chunk = reader.chunk(*chunk_hash).unwrap();
-		secondary.feed(&chunk, engine, &flag)?
+		let len = snappy::decompress_into(&chunk, &mut snappy_buffer).unwrap();
+		secondary.feed(&snappy_buffer[..len], engine, &flag)?;
 	}
 
 	let jdb = state.finalize(manifest.block_number, manifest.block_hash)?;
