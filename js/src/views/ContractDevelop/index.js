@@ -23,23 +23,22 @@ injectTapEventPlugin();
 
 import { api } from './parity';
 
-import ContractInstances from '~/contracts';
 import { initStore } from '~/redux';
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
 
-import Contracts from './contracts';
+import ContractDevelop from './contractDevelop';
 
 import '~/../assets/fonts/Roboto/font.css';
 import '~/../assets/fonts/RobotoMono/font.css';
 
-ContractInstances.get(api);
+import './contractDevelop.css';
 
 const store = initStore(api, hashHistory);
 
 ReactDOM.render(
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-    <Contracts />
+    <ContractDevelop />
   </ContextProvider>,
   document.querySelector('#container')
 );

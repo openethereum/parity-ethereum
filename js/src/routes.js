@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import HistoryStore from '~/mobx/historyStore';
-import { Application, Contract, Contracts, Dapp, Dapps, Signer, Web, WriteContract } from '~/views';
+import { Application, Dapp, Dapps, Signer, Web } from '~/views';
 import builtinDapps from '~/config/dappsBuiltin.json';
 import viewsDapps from '~/config/dappsViews.json';
 
@@ -23,23 +23,6 @@ const dapps = [].concat(viewsDapps, builtinDapps);
 
 // const accountsHistory = HistoryStore.get('accounts');
 const dappsHistory = HistoryStore.get('dapps');
-
-function handleDeprecatedRoute (nextState, replace) {
-  const { address } = nextState.params;
-  const redirectMap = {
-    account: 'accounts',
-    address: 'addresses',
-    contract: 'contracts'
-  };
-
-  const oldRoute = nextState.routes[0].path;
-  const newRoute = Object.keys(redirectMap).reduce((newRoute, key) => {
-    return newRoute.replace(new RegExp(`^/${key}`), '/' + redirectMap[key]);
-  }, oldRoute);
-
-  console.warn(`Route "${oldRoute}" is deprecated. Please use "${newRoute}"`);
-  replace(newRoute.replace(':address', address));
-}
 
 function redirectTo (path) {
   return (nextState, replace) => {
@@ -64,26 +47,16 @@ function redirectTo (path) {
 //   }
 // ];
 
-const contractsRoutes = [
-  { path: 'develop', component: WriteContract },
-  { path: ':address', component: Contract }
-];
+// const contractsRoutes = [
+//   { path: ':address', component: Contract }
+// ];
 
 const routes = [
-  // Backward Compatible routes
-  { path: '/contract/:address', onEnter: handleDeprecatedRoute },
-
   { path: '/', onEnter: redirectTo('/apps') },
-  { path: '/auth', onEnter: redirectTo('/apps') },
-  { path: '/settings', onEnter: redirectTo('/settings/views') }
+  { path: '/auth', onEnter: redirectTo('/apps') }
 ];
 
 const childRoutes = [
-  {
-    path: 'contracts',
-    indexRoute: { component: Contracts },
-    childRoutes: contractsRoutes
-  },
   {
     path: 'app/:id',
     component: Dapp,

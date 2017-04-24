@@ -28,18 +28,18 @@ import { CancelIcon, ListIcon, SaveIcon, SendIcon, SettingsIcon } from '~/ui/Ico
 import Editor from '~/ui/Editor';
 import { DeployContract, SaveContract, LoadContract } from '~/modals';
 
-import WriteContractStore from './writeContractStore';
-import styles from './writeContract.css';
+import ContractDevelopStore from './store';
+import styles from './contractDevelop.css';
 
 @observer
-class WriteContract extends Component {
+class ContractDevelop extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     worker: PropTypes.object,
     workerError: PropTypes.any
   };
 
-  store = WriteContractStore.get();
+  store = ContractDevelopStore.get();
 
   state = {
     resizing: false,
@@ -733,4 +733,4 @@ function mapStateToProps (state) {
 export default connect(
   mapStateToProps,
   null
-)(WriteContract);
+)(ContractDevelop);

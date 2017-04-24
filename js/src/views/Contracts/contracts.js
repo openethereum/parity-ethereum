@@ -16,7 +16,6 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { uniq, isEqual } from 'lodash';
@@ -24,7 +23,7 @@ import { uniq, isEqual } from 'lodash';
 import { AddContract, DeployContract } from '~/modals';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
-import { AddIcon, DevelopIcon } from '~/ui/Icons';
+import { AddIcon } from '~/ui/Icons';
 
 import List from '../Accounts/List';
 
@@ -171,21 +170,6 @@ class Contracts extends Component {
         }
         onClick={ this.onDeployContract }
       />,
-      <Link
-        to='/contracts/develop'
-        key='writeContract'
-      >
-        <Button
-          icon={ <DevelopIcon /> }
-          label={
-            <FormattedMessage
-              id='contracts.buttons.develop'
-              defaultMessage='develop'
-            />
-          }
-        />
-      </Link>,
-
       this.renderSearchButton(),
       this.renderSortButton()
     ];

@@ -74,9 +74,7 @@ window.secureApi = api;
 ReactDOM.render(
   <AppContainer>
     <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-      <MainApplication
-        routerHistory={ hashHistory }
-      />
+      <MainApplication routerHistory={ hashHistory } />
     </ContextProvider>
   </AppContainer>,
   document.querySelector('#container')
@@ -89,9 +87,7 @@ if (module.hot) {
     ReactDOM.render(
       <AppContainer>
         <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-          <MainApplication
-            routerHistory={ hashHistory }
-          />
+          <MainApplication routerHistory={ hashHistory } />
         </ContextProvider>
       </AppContainer>,
       document.querySelector('#container')
