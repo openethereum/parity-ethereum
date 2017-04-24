@@ -66,6 +66,15 @@ const childRoutes = [
       }
     }
   },
+  {
+    path: 'app/:id/:details',
+    component: Dapp,
+    onEnter: ({ params }) => {
+      if (!dapps[params.id] || !dapps[params.id].skipHistory) {
+        dappsHistory.add(params.id);
+      }
+    }
+  },
   { path: 'apps', component: Dapps },
   { path: 'web', component: Web },
   { path: 'web/:url', component: Web }

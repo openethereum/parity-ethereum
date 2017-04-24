@@ -123,7 +123,7 @@ export default class Dapp extends Component {
         className={ styles.frame }
         frameBorder={ 0 }
         name={ name }
-        sandbox='allow-forms allow-popups allow-same-origin allow-scripts'
+        sandbox='allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation'
         scrolling='auto'
         src={ src }
       />

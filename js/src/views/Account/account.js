@@ -56,6 +56,8 @@ class Account extends Component {
   hwstore = HardwareStore.get(this.context.api);
 
   componentDidMount () {
+    console.log('Account', 'componentDidMount');
+
     this.props.fetchCertifiers();
     this.setVisibleAccounts();
   }

@@ -78,7 +78,7 @@ export default class DappsStore extends EventEmitter {
   }
 
   @computed get visibleBuiltin () {
-    return this.visibleApps.filter((app) => app.type === 'builtin');
+    return this.visibleApps.filter((app) => !app.noselect && app.type === 'builtin');
   }
 
   @computed get visibleLocal () {
@@ -90,7 +90,7 @@ export default class DappsStore extends EventEmitter {
   }
 
   @computed get visibleViews () {
-    return this.visibleApps.filter((app) => app.type === 'view');
+    return this.visibleApps.filter((app) => !app.noselect && app.type === 'view');
   }
 
   /**

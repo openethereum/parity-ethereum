@@ -96,6 +96,7 @@ class Summary extends Component {
     return (
       <Container
         className={ styles.account }
+        dappLink
         hover={
           <div className={ styles.overlay }>
             { this.renderBalance(false) }
@@ -228,7 +229,7 @@ class Summary extends Component {
     const { address } = account;
     const baseLink = account.wallet
       ? 'wallet'
-      : link || 'accounts';
+      : link || 'account';
 
     return `/${baseLink}/${address}`;
   }

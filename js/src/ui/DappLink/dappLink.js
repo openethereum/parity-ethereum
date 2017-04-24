@@ -14,11 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Address from './Address';
-export Application from './Application';
-export Contract from './Contract';
-export Dapp from './Dapp';
-export Dapps from './Dapps';
-export ParityBar from './ParityBar';
-export Wallet from './Wallet';
-export Web from './Web';
+import React, { Component, PropTypes } from 'react';
+
+import { nodeOrStringProptype } from '~/util/proptypes';
+
+import styles from './dappLink.css';
+
+export default class DappLink extends Component {
+  static propTypes = {
+    children: nodeOrStringProptype().isRequired,
+    className: PropTypes.string,
+    to: PropTypes.string.isRequired
+  };
+
+  render () {
+    const { children, className } = this.props;
+
+    return (
+      <div
+        className={ [styles.link, className].join(' ') }
+        onClick={ this.onClick }
+      >
+        { children }
+      </div>
+    );
+  }
+
+  onClick = () => {
+    const { to } = this.props;
+
+    window.parent.location.hash = `/app${to}`;
+  }
+}

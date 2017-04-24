@@ -11,6 +11,18 @@
     "secure": true
   },
   {
+    "id": "account",
+    "url": "account",
+    "src": "Account",
+    "name": "Account",
+    "description": "Display a single account",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "2.0.0",
+    "visible": true,
+    "secure": true,
+    "noselect": true
+  },
+  {
     "id": "addresses",
     "url": "addresses",
     "src": "Addresses",

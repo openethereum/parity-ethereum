@@ -14,11 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Address from './Address';
-export Application from './Application';
-export Contract from './Contract';
-export Dapp from './Dapp';
-export Dapps from './Dapps';
-export ParityBar from './ParityBar';
-export Wallet from './Wallet';
-export Web from './Web';
+export default from './dappLink';

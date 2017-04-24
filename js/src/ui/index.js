@@ -28,6 +28,7 @@ export CopyToClipboard from './CopyToClipboard';
 export CurrencySymbol from './CurrencySymbol';
 export DappCard from './DappCard';
 export DappIcon from './DappIcon';
+export DappLink from './DappLink';
 export Errors from './Errors';
 export Features, { FEATURES, FeaturesStore } from './Features';
 export Form, { AddressSelect, DappUrlInput, FileSelect, FormWrap, Input, InputAddress, InputAddressSelect, InputChip, InputDate, InputInline, InputTime, Label, RadioButtons, Select, TypedInput, VaultSelect } from './Form';
