@@ -32,6 +32,10 @@ use rlp::{self, UntrustedRlp};
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
 
+/// Number of blocks in an ethash snapshot.
+// make dependent on difficulty incrment divisor?
+const SNAPSHOT_BLOCKS: u64 = 30000;
+
 /// Ethash params.
 #[derive(Debug, PartialEq)]
 pub struct EthashParams {
@@ -401,7 +405,7 @@ impl Engine for Arc<Ethash> {
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
-		Some(Box::new(::snapshot::PowSnapshot))
+		Some(Box::new(::snapshot::PowSnapshot(SNAPSHOT_BLOCKS)))
 	}
 }
 

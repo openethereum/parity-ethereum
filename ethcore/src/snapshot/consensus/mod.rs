@@ -36,9 +36,6 @@ use rlp::{RlpStream, UntrustedRlp};
 /// A sink for produced chunks.
 pub type ChunkSink<'a> = FnMut(&[u8]) -> io::Result<()> + 'a;
 
-// How many blocks to include in a snapshot, starting from the head of the chain.
-const SNAPSHOT_BLOCKS: u64 = 30000;
-
 /// Components necessary for snapshot creation and restoration.
 pub trait SnapshotComponents: Send {
 	/// Create secondary snapshot chunks; these corroborate the state data
@@ -92,7 +89,11 @@ pub trait Rebuilder: Send {
 /// Snapshot creation and restoration for PoW chains.
 /// This includes blocks from the head of the chain as a
 /// loose assurance that the chain is valid.
-pub struct PowSnapshot;
+///
+/// The field is the number of blocks from the head of the chain
+/// to include in the snapshot.
+#[derive(Clone, Copy, PartialEq)]
+pub struct PowSnapshot(pub u64);
 
 impl SnapshotComponents for PowSnapshot {
 	fn chunk_all(
@@ -108,7 +109,7 @@ impl SnapshotComponents for PowSnapshot {
 			current_hash: block_at,
 			writer: chunk_sink,
 			preferred_size: preferred_size,
-		}.chunk_all()
+		}.chunk_all(self.0)
 	}
 
 	fn rebuilder(
@@ -117,7 +118,7 @@ impl SnapshotComponents for PowSnapshot {
 		db: Arc<KeyValueDB>,
 		manifest: &ManifestData,
 	) -> Result<Box<Rebuilder>, ::error::Error> {
-		PowRebuilder::new(chain, db, manifest).map(|r| Box::new(r) as Box<_>)
+		PowRebuilder::new(chain, db, manifest, self.0).map(|r| Box::new(r) as Box<_>)
 	}
 }
 
@@ -134,13 +135,13 @@ struct PowWorker<'a> {
 impl<'a> PowWorker<'a> {
 	// Repeatedly fill the buffers and writes out chunks, moving backwards from starting block hash.
 	// Loops until we reach the first desired block, and writes out the remainder.
-	fn chunk_all(&mut self) -> Result<(), Error> {
+	fn chunk_all(&mut self, snapshot_blocks: u64) -> Result<(), Error> {
 		let mut loaded_size = 0;
 		let mut last = self.current_hash;
 
 		let genesis_hash = self.chain.genesis_hash();
 
-		for _ in 0..SNAPSHOT_BLOCKS {
+		for _ in 0..snapshot_blocks {
 			if self.current_hash == genesis_hash { break }
 
 			let (block, receipts) = self.chain.block(&self.current_hash)
@@ -229,11 +230,12 @@ pub struct PowRebuilder {
 	best_hash: H256,
 	best_root: H256,
 	fed_blocks: u64,
+	snapshot_blocks: u64,
 }
 
 impl PowRebuilder {
 	/// Create a new PowRebuilder.
-	fn new(chain: BlockChain, db: Arc<KeyValueDB>, manifest: &ManifestData) -> Result<Self, ::error::Error> {
+	fn new(chain: BlockChain, db: Arc<KeyValueDB>, manifest: &ManifestData, snapshot_blocks: u64) -> Result<Self, ::error::Error> {
 		Ok(PowRebuilder {
 			chain: chain,
 			db: db,
@@ -243,6 +245,7 @@ impl PowRebuilder {
 			best_hash: manifest.block_hash,
 			best_root: manifest.state_root,
 			fed_blocks: 0,
+			snapshot_blocks: snapshot_blocks,
 		})
 	}
 }
@@ -263,8 +266,8 @@ impl Rebuilder for PowRebuilder {
 
 		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 3);
 
-		if self.fed_blocks + num_blocks > SNAPSHOT_BLOCKS {
-			return Err(Error::TooManyBlocks(SNAPSHOT_BLOCKS, self.fed_blocks).into())
+		if self.fed_blocks + num_blocks > self.snapshot_blocks {
+			return Err(Error::TooManyBlocks(self.snapshot_blocks, self.fed_blocks).into())
 		}
 
 		// todo: assert here that these values are consistent with chunks being in order.

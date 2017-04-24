@@ -30,11 +30,12 @@ use util::kvdb::{self, KeyValueDB, DBTransaction};
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
+const SNAPSHOT_MODE: ::snapshot::PowSnapshot = ::snapshot::PowSnapshot(30000);
+
 fn chunk_and_restore(amount: u64) {
 	let mut canon_chain = ChainGenerator::default();
 	let mut finalizer = BlockFinalizer::default();
 	let genesis = canon_chain.generate(&mut finalizer).unwrap();
-	let components = ::snapshot::PowSnapshot;
 
 	let engine = Arc::new(::engines::NullEngine::default());
 	let new_path = RandomTempPath::create_dir();
@@ -59,7 +60,7 @@ fn chunk_and_restore(amount: u64) {
 	// snapshot it.
 	let writer = Mutex::new(PackedWriter::new(&snapshot_path).unwrap());
 	let block_hashes = chunk_secondary(
-		Box::new(::snapshot::PowSnapshot),
+		Box::new(SNAPSHOT_MODE),
 		&bc,
 		best_hash,
 		&writer,
@@ -80,7 +81,7 @@ fn chunk_and_restore(amount: u64) {
 	// restore it.
 	let new_db = Arc::new(kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)));
 	let new_chain = BlockChain::new(Default::default(), &genesis, new_db.clone());
-	let mut rebuilder = components.rebuilder(new_chain, new_db.clone(), &manifest).unwrap();
+	let mut rebuilder = SNAPSHOT_MODE.rebuilder(new_chain, new_db.clone(), &manifest).unwrap();
 
 	let reader = PackedReader::new(&snapshot_path).unwrap().unwrap();
 	let flag = AtomicBool::new(true);
@@ -138,7 +139,7 @@ fn checks_flag() {
 		block_hash: H256::default(),
 	};
 
-	let mut rebuilder = ::snapshot::PowSnapshot.rebuilder(chain, db.clone(), &manifest).unwrap();
+	let mut rebuilder = SNAPSHOT_MODE.rebuilder(chain, db.clone(), &manifest).unwrap();
 
 	match rebuilder.feed(&chunk, engine.as_ref(), &AtomicBool::new(false)) {
 		Err(Error::Snapshot(SnapshotError::RestorationAborted)) => {}
