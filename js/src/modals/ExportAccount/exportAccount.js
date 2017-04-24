@@ -155,7 +155,7 @@ class ExportAccount extends Component {
 }
 
 function mapStateToProps (state) {
-  const { balances } = state.balances;
+  const { balances } = state;
   const { accounts } = state.personal;
 
   return {
