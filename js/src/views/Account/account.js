@@ -44,6 +44,7 @@ class Account extends Component {
   };
 
   static propTypes = {
+    accounts: PropTypes.object.isRequired,
     fetchCertifiers: PropTypes.func.isRequired,
     fetchCertifications: PropTypes.func.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired,
@@ -515,6 +516,7 @@ function mapStateToProps (state, props) {
 
   return {
     account,
+    accounts,
     certifications,
     netVersion
   };
