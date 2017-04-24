@@ -16,17 +16,9 @@
 
 import React from 'react';
 
-import { AccountsIcon, AppsIcon, ContactsIcon, FingerprintIcon } from '~/ui/Icons';
+import { AppsIcon, ContactsIcon, FingerprintIcon } from '~/ui/Icons';
 
 const defaultViews = {
-  accounts: {
-    active: true,
-    fixed: true,
-    icon: <AccountsIcon />,
-    route: '/accounts',
-    value: 'account'
-  },
-
   apps: {
     active: true,
     icon: <AppsIcon />,

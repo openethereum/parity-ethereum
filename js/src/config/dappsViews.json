@@ -1,5 +1,16 @@
 [
   {
+    "id": "accounts",
+    "url": "accounts",
+    "src": "Accounts",
+    "name": "Accounts",
+    "description": "Display the accounts",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "2.0.0",
+    "visible": true,
+    "secure": true
+  },
+  {
     "id": "addresses",
     "url": "addresses",
     "src": "Addresses",

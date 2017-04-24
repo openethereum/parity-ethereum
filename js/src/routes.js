@@ -15,13 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import HistoryStore from '~/mobx/historyStore';
-import { Accounts, Account, Application, Contract, Contracts, Dapp, Dapps, Signer, Wallet, Web, WriteContract } from '~/views';
+import { Application, Contract, Contracts, Dapp, Dapps, Signer, Web, WriteContract } from '~/views';
 import builtinDapps from '~/config/dappsBuiltin.json';
 import viewsDapps from '~/config/dappsViews.json';
 
 const dapps = [].concat(viewsDapps, builtinDapps);
 
-const accountsHistory = HistoryStore.get('accounts');
+// const accountsHistory = HistoryStore.get('accounts');
 const dappsHistory = HistoryStore.get('dapps');
 
 function handleDeprecatedRoute (nextState, replace) {
@@ -47,22 +47,22 @@ function redirectTo (path) {
   };
 }
 
-const accountsRoutes = [
-  {
-    path: ':address',
-    component: Account,
-    onEnter: ({ params }) => {
-      accountsHistory.add(params.address, 'account');
-    }
-  },
-  {
-    path: '/wallet/:address',
-    component: Wallet,
-    onEnter: ({ params }) => {
-      accountsHistory.add(params.address, 'wallet');
-    }
-  }
-];
+// const accountsRoutes = [
+//   {
+//     path: ':address',
+//     component: Account,
+//     onEnter: ({ params }) => {
+//       accountsHistory.add(params.address, 'account');
+//     }
+//   },
+//   {
+//     path: '/wallet/:address',
+//     component: Wallet,
+//     onEnter: ({ params }) => {
+//       accountsHistory.add(params.address, 'wallet');
+//     }
+//   }
+// ];
 
 const contractsRoutes = [
   { path: 'develop', component: WriteContract },
@@ -71,7 +71,6 @@ const contractsRoutes = [
 
 const routes = [
   // Backward Compatible routes
-  { path: '/account/:address', onEnter: handleDeprecatedRoute },
   { path: '/contract/:address', onEnter: handleDeprecatedRoute },
 
   { path: '/', onEnter: redirectTo('/apps') },
@@ -80,11 +79,6 @@ const routes = [
 ];
 
 const childRoutes = [
-  {
-    path: 'accounts',
-    indexRoute: { component: Accounts },
-    childRoutes: accountsRoutes
-  },
   {
     path: 'contracts',
     indexRoute: { component: Contracts },
