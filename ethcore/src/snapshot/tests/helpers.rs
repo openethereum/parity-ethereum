@@ -19,7 +19,11 @@
 
 use basic_account::BasicAccount;
 use account_db::AccountDBMut;
+use client::{BlockChainClient, Client};
+use devtools::{RandomTempPath, GuardedTempResult};
 use rand::Rng;
+
+use snapshot::io::{SnapshotReader, SnapshotWriter, PackedWriter, PackedReader};
 
 use util::DBValue;
 use util::hash::H256;
@@ -123,5 +127,25 @@ pub fn compare_dbs(one: &HashDB, two: &HashDB) {
 
 	for key in keys.keys() {
 		assert_eq!(one.get(&key).unwrap(), two.get(&key).unwrap());
+	}
+}
+
+/// Take a snapshot from the given client into a temporary file.
+/// Return a snapshot reader for it.
+pub fn snap(client: &Client) -> GuardedTempResult<Box<SnapshotReader>> {
+	use ids::BlockId;
+
+	let dir = RandomTempPath::new();
+	let mut writer = PackedWriter::new(dir.as_path()).unwrap();
+	let progress = Default::default();
+
+	let hash = client.chain_info().best_block_hash;
+	client.take_snapshot(writer, BlockId::Hash(hash), &progress).unwrap();
+
+	let reader = PackedReader::new(dir.as_path()).unwrap().unwrap();
+
+	GuardedTempResult {
+		result: Some(Box::new(reader)),
+		_temp: dir,
 	}
 }

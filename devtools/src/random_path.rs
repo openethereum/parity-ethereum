@@ -96,7 +96,7 @@ impl Drop for RandomTempPath {
 
 pub struct GuardedTempResult<T> {
 	pub result: Option<T>,
-	pub _temp: RandomTempPath
+	pub _temp: RandomTempPath,
 }
 
 impl<T> GuardedTempResult<T> {

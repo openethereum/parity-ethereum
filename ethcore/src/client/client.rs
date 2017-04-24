@@ -881,8 +881,8 @@ impl Client {
 		let start_hash = match at {
 			BlockId::Latest => {
 				let start_num = match db.earliest_era() {
-					Some(era) => ::std::cmp::max(era, best_block_number - history),
-					None => best_block_number - history,
+					Some(era) => ::std::cmp::max(era, best_block_number.saturating_sub(history)),
+					None => best_block_number.saturating_sub(history),
 				};
 
 				match self.block_hash(BlockId::Number(start_num)) {

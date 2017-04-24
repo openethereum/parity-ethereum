@@ -28,6 +28,7 @@ use futures::Future;
 use miner::MinerService;
 use native_contracts::test_contracts::ValidatorSet;
 use snapshot::{PoaSnapshot, StateRebuilder};
+use snapshot::tests::helpers as snapshot_helpers;
 use spec::Spec;
 use tests::helpers;
 use transaction::{Transaction, Action, SignedTransaction};
@@ -156,7 +157,6 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 
 #[test]
 fn make_transition_chain() {
-	::ethcore_logger::init_log();
 	let (provider, addrs) = make_accounts(&[
 		RICH_SECRET.clone(),
 		secret!("foo"),
@@ -170,10 +170,11 @@ fn make_transition_chain() {
 
 	assert!(provider.has_account(*RICH_ADDR).unwrap());
 
-	let client = make_chain(provider, 0, vec![
+	let client = make_chain(provider, 10, vec![
 		Transition(5, vec![addrs[2], addrs[3], addrs[5], addrs[7]]),
 		Transition(9, vec![addrs[0], addrs[1], addrs[4], addrs[6]]),
 	]);
 
-	assert_eq!(client.chain_info().best_block_number, 9);
+	assert_eq!(client.chain_info().best_block_number, 19);
+	let _reader = snapshot_helpers::snap(&*client);
 }
