@@ -61,6 +61,38 @@ export default class DappsStore extends EventEmitter {
     return instance;
   }
 
+  @computed get sortedBuiltin () {
+    return this.apps.filter((app) => app.type === 'builtin');
+  }
+
+  @computed get sortedLocal () {
+    return this.apps.filter((app) => app.type === 'local');
+  }
+
+  @computed get sortedNetwork () {
+    return this.apps.filter((app) => app.type === 'network');
+  }
+
+  @computed get visibleApps () {
+    return this.apps.filter((app) => this.displayApps[app.id] && this.displayApps[app.id].visible);
+  }
+
+  @computed get visibleBuiltin () {
+    return this.visibleApps.filter((app) => app.type === 'builtin');
+  }
+
+  @computed get visibleLocal () {
+    return this.visibleApps.filter((app) => app.type === 'local');
+  }
+
+  @computed get visibleNetwork () {
+    return this.visibleApps.filter((app) => app.type === 'network');
+  }
+
+  @computed get visibleViews () {
+    return this.visibleApps.filter((app) => app.type === 'view');
+  }
+
   /**
    * Try to find the app from the local (local or builtin)
    * apps, else fetch from the node
@@ -197,34 +229,6 @@ export default class DappsStore extends EventEmitter {
 
         return Promise.all(promises);
       });
-  }
-
-  @computed get sortedBuiltin () {
-    return this.apps.filter((app) => app.type === 'builtin');
-  }
-
-  @computed get sortedLocal () {
-    return this.apps.filter((app) => app.type === 'local');
-  }
-
-  @computed get sortedNetwork () {
-    return this.apps.filter((app) => app.type === 'network');
-  }
-
-  @computed get visibleApps () {
-    return this.apps.filter((app) => this.displayApps[app.id] && this.displayApps[app.id].visible);
-  }
-
-  @computed get visibleBuiltin () {
-    return this.visibleApps.filter((app) => app.type === 'builtin');
-  }
-
-  @computed get visibleLocal () {
-    return this.visibleApps.filter((app) => app.type === 'local');
-  }
-
-  @computed get visibleNetwork () {
-    return this.visibleApps.filter((app) => app.type === 'network');
   }
 
   @action openModal = () => {

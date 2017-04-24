@@ -114,6 +114,7 @@ class Dapps extends Component {
           ] }
         />
         <Page>
+          <div>{ this.renderList(this.store.visibleViews) }</div>
           <div>{ this.renderList(this.store.visibleLocal) }</div>
           <div>{ this.renderList(this.store.visibleBuiltin) }</div>
           <div>{ this.renderList(this.store.visibleNetwork, externalOverlay) }</div>
