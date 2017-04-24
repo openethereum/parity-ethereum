@@ -41,7 +41,7 @@ use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
 use ipfs::Configuration as IpfsConfiguration;
-use signer::{Configuration as SignerConfiguration};
+use ui::{Configuration as UiConfiguration};
 use secretstore::Configuration as SecretStoreConfiguration;
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
@@ -59,7 +59,7 @@ pub enum Cmd {
 	Account(AccountCmd),
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
-	SignerToken(SignerConfiguration),
+	SignerToken(UiConfiguration),
 	SignerSign {
 		id: Option<usize>,
 		pwfile: Option<PathBuf>,
@@ -137,7 +137,7 @@ impl Configuration {
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let mut dapps_conf = self.dapps_config();
 		let ipfs_conf = self.ipfs_config();
-		let signer_conf = self.signer_config();
+		let ui_conf = self.ui_config();
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
 
@@ -149,11 +149,11 @@ impl Configuration {
 		let cmd = if self.args.flag_version {
 			Cmd::Version
 		} else if self.args.cmd_signer {
-			let mut authfile = PathBuf::from(signer_conf.signer_path.clone());
+			let mut authfile = PathBuf::from(ui_conf.signer_path.clone());
 			authfile.push(AUTHCODE_FILENAME);
 
 			if self.args.cmd_new_token {
-				Cmd::SignerToken(signer_conf)
+				Cmd::SignerToken(ui_conf)
 			} else if self.args.cmd_sign {
 				let pwfile = self.args.flag_password.get(0).map(|pwfile| {
 					PathBuf::from(pwfile)
@@ -161,18 +161,18 @@ impl Configuration {
 				Cmd::SignerSign {
 					id: self.args.arg_id,
 					pwfile: pwfile,
-					port: signer_conf.port,
+					port: ui_conf.port,
 					authfile: authfile,
 				}
 			} else if self.args.cmd_reject  {
 				Cmd::SignerReject {
 					id: self.args.arg_id,
-					port: signer_conf.port,
+					port: ui_conf.port,
 					authfile: authfile,
 				}
 			} else if self.args.cmd_list  {
 				Cmd::SignerList {
-					port: signer_conf.port,
+					port: ui_conf.port,
 					authfile: authfile,
 				}
 			} else {
@@ -376,7 +376,7 @@ impl Configuration {
 				net_settings: self.network_settings(),
 				dapps_conf: dapps_conf,
 				ipfs_conf: ipfs_conf,
-				signer_conf: signer_conf,
+				ui_conf: ui_conf,
 				secretstore_conf: secretstore_conf,
 				dapp: self.dapp_to_open()?,
 				ui: self.args.cmd_ui,
@@ -552,8 +552,8 @@ impl Configuration {
 		Ok(options)
 	}
 
-	fn signer_config(&self) -> SignerConfiguration {
-		SignerConfiguration {
+	fn ui_config(&self) -> UiConfiguration {
+		UiConfiguration {
 			enabled: self.ui_enabled(),
 			port: self.args.flag_ui_port,
 			interface: self.ui_interface(),
@@ -1038,7 +1038,7 @@ mod tests {
 	use helpers::{default_network_config};
 	use run::RunCmd;
 	use dir::{Directories, default_hypervisor_path};
-	use signer::{Configuration as SignerConfiguration};
+	use ui::{Configuration as UiConfiguration};
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat, ExportState};
 	use presale::ImportWallet;
 	use params::SpecType;
@@ -1213,7 +1213,7 @@ mod tests {
 		let args = vec!["parity", "signer", "new-token"];
 		let conf = parse(&args);
 		let expected = Directories::default().signer;
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::SignerToken(SignerConfiguration {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::SignerToken(UiConfiguration {
 			enabled: true,
 			signer_path: expected,
 			interface: "127.0.0.1".into(),
@@ -1446,28 +1446,28 @@ mod tests {
 		let conf3 = parse(&["parity", "--ui-path", "signer", "--ui-interface", "test"]);
 
 		// then
-		assert_eq!(conf0.signer_config(), SignerConfiguration {
+		assert_eq!(conf0.signer_config(), UiConfiguration {
 			enabled: true,
 			port: 8180,
 			interface: "127.0.0.1".into(),
 			signer_path: "signer".into(),
 			skip_origin_validation: false,
 		});
-		assert_eq!(conf1.signer_config(), SignerConfiguration {
+		assert_eq!(conf1.signer_config(), UiConfiguration {
 			enabled: true,
 			port: 8180,
 			interface: "127.0.0.1".into(),
 			signer_path: "signer".into(),
 			skip_origin_validation: true,
 		});
-		assert_eq!(conf2.signer_config(), SignerConfiguration {
+		assert_eq!(conf2.signer_config(), UiConfiguration {
 			enabled: true,
 			port: 3123,
 			interface: "127.0.0.1".into(),
 			signer_path: "signer".into(),
 			skip_origin_validation: false,
 		});
-		assert_eq!(conf3.signer_config(), SignerConfiguration {
+		assert_eq!(conf3.signer_config(), UiConfiguration {
 			enabled: true,
 			port: 8180,
 			interface: "test".into(),

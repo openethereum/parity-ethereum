@@ -7,7 +7,7 @@ export TARGETS="
 	-p ethcore-bigint\
 	-p parity-dapps \
 	-p parity-rpc \
-	-p ethcore-signer \
+	-p parity-ui-server \
 	-p ethcore-util \
 	-p ethcore-network \
 	-p ethcore-io \

@@ -52,10 +52,8 @@
 
 #[macro_use]
 extern crate log;
-extern crate env_logger;
 extern crate rand;
 
-extern crate ethcore_io as io;
 extern crate ethcore_util as util;
 extern crate jsonrpc_core;
 extern crate jsonrpc_server_utils;
@@ -70,4 +68,4 @@ mod ws_server;
 /// Exported tests for use in signer RPC client testing
 pub mod tests;
 pub use authcode_store::*;
-pub use ws_server::*;
+use ws_server::*;

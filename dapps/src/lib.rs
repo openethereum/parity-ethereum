@@ -40,6 +40,7 @@ extern crate fetch;
 extern crate parity_dapps_glue as parity_dapps;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_reactor;
+extern crate parity_ui;
 
 #[macro_use]
 extern crate log;
@@ -70,7 +71,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::collections::HashMap;
 
-use jsonrpc_http_server::{self as http, hyper, AccessControlAllowOrigin};
+use jsonrpc_http_server::{self as http, hyper};
 
 use fetch::Fetch;
 use parity_reactor::Remote;
@@ -103,8 +104,47 @@ pub struct Middleware {
 }
 
 impl Middleware {
+	pub fn ui<F: Fetch + Clone>(
+		remote: Remote,
+		registrar: Arc<ContractClient>,
+		sync_status: Arc<SyncStatus>,
+		fetch: F,
+	) -> Self {
+		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
+			hash_fetch::urlhint::URLHintContract::new(registrar),
+			sync_status,
+			None,
+			remote.clone(),
+			fetch.clone(),
+		));
+		let endpoints = Default::default();
+		let special = {
+			let mut special = HashMap::new();
+			special.insert(router::SpecialEndpoint::Rpc, None);
+			special.insert(router::SpecialEndpoint::Home, Some(apps::ui()));
+			special.insert(
+				router::SpecialEndpoint::Api,
+				Some(api::RestApi::new(
+					&endpoints,
+					content_fetcher.clone()
+				)),
+			);
+			special
+		};
+
+		let router = router::Router::new(
+			content_fetcher,
+			endpoints,
+			special,
+		);
+
+		Middleware {
+			router: router,
+		}
+	}
+
 	/// Creates new Dapps server middleware.
-	pub fn new<F: Fetch + Clone>(
+	pub fn dapps<F: Fetch + Clone>(
 		remote: Remote,
 		signer_address: Option<(String, u16)>,
 		dapps_path: PathBuf,
@@ -117,7 +157,7 @@ impl Middleware {
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
 			sync_status,
-			signer_address.clone(),
+			None,
 			remote.clone(),
 			fetch.clone(),
 		));
@@ -130,16 +170,14 @@ impl Middleware {
 			fetch.clone(),
 		);
 
-		let cors_domains = cors_domains(signer_address.clone());
-
 		let special = {
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, None);
+			special.insert(router::SpecialEndpoint::Home, Some(apps::ui_redirection(signer_address)));
 			special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
 			special.insert(
 				router::SpecialEndpoint::Api,
 				Some(api::RestApi::new(
-					cors_domains.clone(),
 					&endpoints,
 					content_fetcher.clone()
 				)),
@@ -148,7 +186,6 @@ impl Middleware {
 		};
 
 		let router = router::Router::new(
-			signer_address,
 			content_fetcher,
 			endpoints,
 			special,
@@ -166,23 +203,6 @@ impl http::RequestMiddleware for Middleware {
 	}
 }
 
-/// Returns a list of CORS domains for API endpoint.
-fn cors_domains(signer_address: Option<(String, u16)>) -> Vec<AccessControlAllowOrigin> {
-	use self::apps::{HOME_PAGE, DAPPS_DOMAIN};
-
-	match signer_address {
-		Some(signer_address) => [
-			format!("http://{}{}", HOME_PAGE, DAPPS_DOMAIN),
-			format!("http://{}{}:{}", HOME_PAGE, DAPPS_DOMAIN, signer_address.1),
-			format!("http://{}", address(&signer_address)),
-			format!("https://{}{}", HOME_PAGE, DAPPS_DOMAIN),
-			format!("https://{}{}:{}", HOME_PAGE, DAPPS_DOMAIN, signer_address.1),
-			format!("https://{}", address(&signer_address)),
-		].into_iter().map(|val| AccessControlAllowOrigin::Value(val.into())).collect(),
-		None => vec![],
-	}
-}
-
 fn address(address: &(String, u16)) -> String {
 	format!("{}:{}", address.0, address.1)
 }
@@ -192,30 +212,4 @@ fn random_filename() -> String {
 	use ::rand::Rng;
 	let mut rng = ::rand::OsRng::new().unwrap();
 	rng.gen_ascii_chars().take(12).collect()
-}
-
-#[cfg(test)]
-mod util_tests {
-	use super::cors_domains;
-	use jsonrpc_http_server::AccessControlAllowOrigin;
-
-	#[test]
-	fn should_return_cors_domains() {
-		// given
-
-		// when
-		let none = cors_domains(None);
-		let some = cors_domains(Some(("127.0.0.1".into(), 18180)));
-
-		// then
-		assert_eq!(none, Vec::<AccessControlAllowOrigin>::new());
-		assert_eq!(some, vec![
-			"http://parity.web3.site".into(),
-			"http://parity.web3.site:18180".into(),
-			"http://127.0.0.1:18180".into(),
-			"https://parity.web3.site".into(),
-			"https://parity.web3.site:18180".into(),
-			"https://127.0.0.1:18180".into(),
-		]);
-	}
 }

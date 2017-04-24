@@ -27,7 +27,7 @@ use jsonrpc_core::{self as core, MetaIoHandler};
 use parity_reactor::TokioRemote;
 use path::restrict_permissions_owner;
 use rpc_apis::{self, ApiSet};
-use ethcore_signer::AuthCodes;
+use parity_ui_server::AuthCodes;
 use util::H256;
 
 pub use parity_rpc::{IpcServer, HttpServer, RequestMiddleware};
@@ -152,9 +152,18 @@ impl rpc::ws::MetaExtractor<Metadata> for WsExtractor {
 
 impl rpc::ws::RequestMiddleware for WsExtractor {
 	fn process(&self, req: &rpc::ws::ws::Request) -> rpc::ws::MiddlewareAction {
+		use self::rpc::ws::ws::Response;
+
 		// Reply with 200 Ok to HEAD requests.
 		if req.method() == "HEAD" {
-			return Some(rpc::ws::ws::Response::new(200, "Ok")).into();
+			return Some(Response::new(200, "Ok")).into();
+		}
+
+		// Display WS info.
+		if req.header("sec-websocket-key").is_none() {
+			let mut response = Response::new(200, "Ok");
+			response.set_body("WebSocket interface is active. Use CONNECT to open WS connection.");
+			return Some(response).into()
 		}
 
 		// If protocol is provided it needs to be valid.
@@ -162,7 +171,8 @@ impl rpc::ws::RequestMiddleware for WsExtractor {
 		if protocols.len() == 1 {
 			let authorization = auth_token_hash(&self.authcodes_path, protocols[0]);
 			if authorization.is_none() {
-				return Some(rpc::ws::ws::Response::new(403, "Forbidden")).into();
+				warn!();
+				return Some(Response::new(403, "Forbidden")).into();
 			}
 		}
 
@@ -285,7 +295,7 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let allowed_hosts = into_domains(conf.hosts);
 
 	let mut path = conf.signer_path;
-	path.push(::signer::CODES_FILENAME);
+	path.push(::ui::CODES_FILENAME);
 	let _ = restrict_permissions_owner(&path, true, false);
 
 	let start_result = rpc::start_ws(
@@ -315,16 +325,18 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 }
 
 pub fn new_http<D: rpc_apis::Dependencies>(
+	id: &str,
+	options: &str,
 	conf: HttpConfiguration,
 	deps: &Dependencies<D>,
-	middleware: Option<dapps::Middleware>
+	middleware: Option<dapps::Middleware>,
 ) -> Result<Option<HttpServer>, String> {
 	if !conf.enabled {
 		return Ok(None);
 	}
 
 	let url = format!("{}:{}", conf.interface, conf.port);
-	let addr = url.parse().map_err(|_| format!("Invalid HTTP JSON-RPC listen host/port given: {}", url))?;
+	let addr = url.parse().map_err(|_| format!("Invalid {} listen host/port given: {}", id, url))?;
 	let handler = setup_apis(conf.apis, deps);
 	let remote = deps.remote.clone();
 
@@ -350,9 +362,9 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 	match start_result {
 		Ok(server) => Ok(Some(server)),
 		Err(HttpServerError::Io(ref err)) if err.kind() == io::ErrorKind::AddrInUse => Err(
-			format!("HTTP address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)
+			format!("{} address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --{}-port and --{}-interface options.", id, url, options, options)
 		),
-		Err(e) => Err(format!("HTTP error: {:?}", e)),
+		Err(e) => Err(format!("{} error: {:?}", id, e)),
 	}
 }
 

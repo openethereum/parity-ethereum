@@ -81,6 +81,7 @@ impl ContractClient for FullRegistrar {
 
 // TODO: light client implementation forwarding to OnDemand and waiting for future
 // to resolve.
+#[derive(Clone)]
 pub struct Dependencies {
 	pub sync_status: Arc<SyncStatus>,
 	pub contract_client: Arc<ContractClient>,
@@ -89,9 +90,7 @@ pub struct Dependencies {
 	pub signer: Arc<SignerService>,
 }
 
-pub fn new(configuration: Configuration, deps: Dependencies)
-	-> Result<Option<Middleware>, String>
-{
+pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Middleware>, String> {
 	if !configuration.enabled {
 		return Ok(None);
 	}
@@ -103,7 +102,18 @@ pub fn new(configuration: Configuration, deps: Dependencies)
 	).map(Some)
 }
 
-pub use self::server::{SyncStatus, Middleware, dapps_middleware};
+pub fn new_ui(enabled: bool, deps: Dependencies) -> Result<Option<Middleware>, String> {
+	if !enabled {
+		return Ok(None);
+	}
+
+	ui_middleware(
+		deps
+	).map(Some)
+}
+
+pub use self::server::{SyncStatus, Middleware, ui_middleware};
+use self::server::dapps_middleware;
 
 #[cfg(not(feature = "dapps"))]
 mod server {
@@ -129,6 +139,12 @@ mod server {
 	) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
 	}
+
+	pub fn ui_middleware(
+		_deps: Dependencies,
+	) -> Result<Middleware, String> {
+		Err("Your Parity version has been compiled without UI support.".into())
+	}
 }
 
 #[cfg(feature = "dapps")]
@@ -152,7 +168,7 @@ mod server {
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
 		let web_proxy_tokens = Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token));
 
-		Ok(parity_dapps::Middleware::new(
+		Ok(parity_dapps::Middleware::dapps(
 			parity_remote,
 			deps.signer.address(),
 			dapps_path,
@@ -160,7 +176,19 @@ mod server {
 			deps.contract_client,
 			deps.sync_status,
 			web_proxy_tokens,
-			deps.fetch.clone(),
+			deps.fetch,
+		))
+	}
+
+	pub fn ui_middleware(
+		deps: Dependencies,
+	) -> Result<Middleware, String> {
+		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
+		Ok(parity_dapps::Middleware::ui(
+			parity_remote,
+			deps.contract_client,
+			deps.sync_status,
+			deps.fetch,
 		))
 	}
 }

@@ -25,7 +25,6 @@ use std::sync::Arc;
 use std::thread;
 use std;
 
-use io::{PanicHandler, OnPanicListener, MayPanic};
 use jsonrpc_core::{Metadata, Middleware, MetaIoHandler};
 use jsonrpc_server_utils::tokio_core::reactor::Remote;
 use rpc::{ConfirmationsQueue};
@@ -77,19 +76,6 @@ impl ServerBuilder {
 		}
 	}
 
-	/// If set to `true` server will not verify Origin of incoming requests.
-	/// Not recommended. Use only for development.
-	pub fn skip_origin_validation(mut self, skip: bool) -> Self {
-		self.skip_origin_validation = skip;
-		self
-	}
-
-	/// Configure statistic collection
-	pub fn stats(mut self, stats: Arc<RpcStats>) -> Self {
-		self.stats = Some(stats);
-		self
-	}
-
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
 	pub fn start<M: Metadata, S: Middleware<M>, H: Into<MetaIoHandler<M, S>>>(
@@ -129,7 +115,6 @@ pub struct Server {
 	handle: Option<thread::JoinHandle<()>>,
 	broadcaster_handle: Option<thread::JoinHandle<()>>,
 	queue: Arc<ConfirmationsQueue>,
-	panic_handler: Arc<PanicHandler>,
 	addr: SocketAddr,
 }
 
@@ -167,42 +152,35 @@ impl Server {
 			session::Factory::new(handler, remote, origin, port, authcodes_path, skip_origin_validation, stats, meta_extractor)
 		)?;
 
-		let panic_handler = PanicHandler::new_in_arc();
-		let ph = panic_handler.clone();
 		let broadcaster = ws.broadcaster();
 
 		// Spawn a thread with event loop
 		let handle = thread::spawn(move || {
-			ph.catch_panic(move || {
-				match ws.listen(addr).map_err(ServerError::from) {
-					Err(ServerError::IoError(io)) => die(format!(
-						"Signer: Could not start listening on specified address. Make sure that no other instance is running on Signer's port. Details: {:?}",
-						io
-					)),
-					Err(any_error) => die(format!(
-						"Signer: Unknown error occurred when starting Signer. Details: {:?}",
-						any_error
-					)),
-					Ok(server) => server,
-				}
-			}).unwrap();
+			match ws.listen(addr).map_err(ServerError::from) {
+				Err(ServerError::IoError(io)) => die(format!(
+					"Signer: Could not start listening on specified address. Make sure that no other instance is running on Signer's port. Details: {:?}",
+					io
+				)),
+				Err(any_error) => die(format!(
+					"Signer: Unknown error occurred when starting Signer. Details: {:?}",
+					any_error
+				)),
+				Ok(server) => server,
+			};
 		});
 
 		// Spawn a thread for broadcasting
-		let ph = panic_handler.clone();
 		let q = queue.clone();
 		let broadcaster_handle = thread::spawn(move || {
-			ph.catch_panic(move || {
-				q.start_listening(|_message| {
-					// TODO [ToDr] Some better structure here for messages.
-					broadcaster.send("new_message").unwrap();
-				}).expect("It's the only place we are running start_listening. It shouldn't fail.");
-				let res = broadcaster.shutdown();
+			q.start_listening(|_message| {
+				// TODO [ToDr] Some better structure here for messages.
+				broadcaster.send("new_message").unwrap();
+			}).expect("It's the only place we are running start_listening. It shouldn't fail.");
+			let res = broadcaster.shutdown();
 
-				if let Err(e) = res {
-					warn!("Signer: Broadcaster was not closed cleanly. Details: {:?}", e);
-				}
-			}).unwrap()
+			if let Err(e) = res {
+				warn!("Signer: Broadcaster was not closed cleanly. Details: {:?}", e);
+			}
 		});
 
 		// Return a handle
@@ -210,15 +188,8 @@ impl Server {
 			handle: Some(handle),
 			broadcaster_handle: Some(broadcaster_handle),
 			queue: queue,
-			panic_handler: panic_handler,
 			addr: addr,
 		})
-	}
-}
-
-impl MayPanic for Server {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.panic_handler.on_panic(closure);
 	}
 }
 

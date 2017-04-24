@@ -23,14 +23,14 @@ use web::Web;
 use fetch::Fetch;
 use parity_dapps::WebApp;
 use parity_reactor::Remote;
+use parity_ui;
 use {WebProxyTokens};
 
 mod cache;
 mod fs;
+mod ui;
 pub mod fetcher;
 pub mod manifest;
-
-extern crate parity_ui;
 
 pub const HOME_PAGE: &'static str = "parity";
 pub const DAPPS_DOMAIN: &'static str = ".web3.site";
@@ -42,6 +42,14 @@ pub const URL_REFERER: &'static str = "__referer=";
 
 pub fn utils() -> Box<Endpoint> {
 	Box::new(PageEndpoint::with_prefix(parity_ui::App::default(), UTILS_PATH.to_owned()))
+}
+
+pub fn ui() -> Box<Endpoint> {
+	Box::new(PageEndpoint::new(parity_ui::App::default()))
+}
+
+pub fn ui_redirection(signer_address: Option<(String, u16)>) -> Box<Endpoint> {
+	Box::new(ui::Redirection::new(signer_address))
 }
 
 pub fn all_endpoints<F: Fetch>(

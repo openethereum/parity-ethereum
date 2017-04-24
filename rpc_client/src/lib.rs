@@ -1,7 +1,7 @@
 pub mod client;
 pub mod signer_client;
 
-extern crate ethcore_signer;
+extern crate parity_ui_server as ethcore_signer;
 extern crate ethcore_util as util;
 extern crate futures;
 extern crate jsonrpc_core;

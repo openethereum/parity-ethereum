@@ -17,20 +17,19 @@
 //! Router implementation
 //! Dispatch requests to proper application.
 
-use address;
 use std::cmp;
 use std::sync::Arc;
 use std::collections::HashMap;
 
 use url::{Url, Host};
-use hyper::{self, server, header, Control, StatusCode};
+use hyper::{self, server, header, Control};
 use hyper::net::HttpStream;
 use jsonrpc_http_server as http;
 
 use apps::{self, DAPPS_DOMAIN};
 use apps::fetcher::Fetcher;
 use endpoint::{Endpoint, Endpoints, EndpointPath, Handler};
-use handlers::{self, Redirection, ContentHandler};
+use handlers;
 
 /// Special endpoints are accessible on every domain (every dapp)
 #[derive(Debug, PartialEq, Hash, Eq)]
@@ -38,11 +37,11 @@ pub enum SpecialEndpoint {
 	Rpc,
 	Api,
 	Utils,
+	Home,
 	None,
 }
 
 pub struct Router {
-	signer_address: Option<(String, u16)>,
 	endpoints: Endpoints,
 	fetch: Arc<Fetcher>,
 	special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
@@ -58,6 +57,7 @@ impl http::RequestMiddleware for Router {
 		let is_dapps_domain = endpoint.0.as_ref().map(|endpoint| endpoint.using_dapps_domains).unwrap_or(false);
 		let is_origin_set = req.headers().get::<http::hyper::header::Origin>().is_some();
 		let is_get_request = *req.method() == hyper::Method::Get;
+		let is_head_request = *req.method() == hyper::Method::Head;
 
 		trace!(target: "dapps", "Routing request to {:?}. Details: {:?}", url, req);
 
@@ -75,7 +75,7 @@ impl http::RequestMiddleware for Router {
 				let len = cmp::min(referer_url.path.len(), 2); // /web/<encoded>/
 				let base = referer_url.path[..len].join("/");
 				let requested = url.map(|u| u.path.join("/")).unwrap_or_default();
-				Some(Redirection::boxed(&format!("/{}/{}", base, requested)))
+				Some(handlers::Redirection::boxed(&format!("/{}/{}", base, requested)))
 			},
 			// First check special endpoints
 			(ref path, ref endpoint, _) if self.special.contains_key(endpoint) => {
@@ -97,36 +97,12 @@ impl http::RequestMiddleware for Router {
 				trace!(target: "dapps", "Resolving to fetchable content.");
 				Some(self.fetch.to_async_handler(path.clone(), control))
 			},
-			// NOTE [todr] /home is redirected to home page since some users may have the redirection cached
-			// (in the past we used 301 instead of 302)
-			// It should be safe to remove it in (near) future.
-			//
-			// 404 for non-existent content
-			(Some(ref path), _, _) if is_get_request && path.app_id != "home" => {
-				trace!(target: "dapps", "Resolving to 404.");
-				Some(Box::new(ContentHandler::error(
-					StatusCode::NotFound,
-					"404 Not Found",
-					"Requested content was not found.",
-					None,
-					self.signer_address.clone(),
-				)))
-			},
-			// Redirect any other GET request to signer.
-			_ if is_get_request => {
-				if let Some(ref signer_address) = self.signer_address {
-					trace!(target: "dapps", "Redirecting to signer interface.");
-					Some(Redirection::boxed(&format!("http://{}", address(signer_address))))
-				} else {
-					trace!(target: "dapps", "Signer disabled, returning 404.");
-					Some(Box::new(ContentHandler::error(
-						StatusCode::NotFound,
-						"404 Not Found",
-						"Your homepage is not available when Trusted Signer is disabled.",
-						Some("You can still access dapps by writing a correct address, though. Re-enable Signer to get your homepage back."),
-						self.signer_address.clone(),
-					)))
-				}
+			// Any other GET|HEAD requests to home page.
+			_ if (is_get_request || is_head_request) && self.special.contains_key(&SpecialEndpoint::Home) => {
+				self.special.get(&SpecialEndpoint::Home)
+					.expect("special known to contain key; qed")
+					.as_ref()
+					.map(|special| special.to_async_handler(Default::default(), control))
 			},
 			// RPC by default
 			_ => {
@@ -149,13 +125,11 @@ impl http::RequestMiddleware for Router {
 
 impl Router {
 	pub fn new(
-		signer_address: Option<(String, u16)>,
 		content_fetcher: Arc<Fetcher>,
 		endpoints: Endpoints,
 		special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
 	) -> Self {
 		Router {
-			signer_address: signer_address,
 			endpoints: endpoints,
 			fetch: content_fetcher,
 			special: special,
