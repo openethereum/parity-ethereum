@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import { FirstRun, UpgradeParity } from '~/modals';
-import { Errors, ParityBackground, Tooltips } from '~/ui';
+import { Errors, Tooltips } from '~/ui';
 
 import styles from '../application.css';
 
@@ -33,19 +33,16 @@ export default class Container extends Component {
     const { children, onCloseFirstRun, showFirstRun, upgradeStore } = this.props;
 
     return (
-      <ParityBackground
-        attachDocument
-        className={ styles.container }
-      >
+      <div className={ styles.container }>
         <FirstRun
           onClose={ onCloseFirstRun }
           visible={ showFirstRun }
         />
         <Tooltips />
-        <UpgradeParity store={ upgradeStore } />
+        <UpgradeParity upgradeStore={ upgradeStore } />
         <Errors />
         { children }
-      </ParityBackground>
+      </div>
     );
   }
 }
