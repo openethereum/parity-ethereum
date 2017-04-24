@@ -19,7 +19,7 @@
 use error::Error;
 use header::Header;
 
-/// Verifier for all blocks within an epoch without accessing
+/// Verifier for all blocks within an epoch with self-contained state.
 ///
 /// See docs on `Engine` relating to proving functions for more details.
 pub trait EpochVerifier: Sync {
