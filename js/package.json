@@ -164,6 +164,7 @@
     "blockies": "0.0.2",
     "brace": "0.9.0",
     "bytes": "2.4.0",
+    "date-difference": "1.0.0",
     "debounce": "1.0.0",
     "es6-error": "4.0.0",
     "es6-promise": "4.0.5",

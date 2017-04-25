@@ -185,14 +185,16 @@ class MethodDecoding extends Component {
       );
 
       return (
-        <FormattedMessage
-          id='ui.methodDecoding.condition.block'
-          defaultMessage=', {historic, select, true {Submitted} false {Submission}} at block {blockNumber}'
-          values={ {
-            historic,
-            blockNumber
-          } }
-        />
+        <div>
+          <FormattedMessage
+            id='ui.methodDecoding.condition.block'
+            defaultMessage='{historic, select, true {Will be submitted} false {To be submitted}} at block {blockNumber}'
+            values={ {
+              historic,
+              blockNumber
+            } }
+          />
+        </div>
       );
     }
 
@@ -204,14 +206,16 @@ class MethodDecoding extends Component {
       );
 
       return (
-        <FormattedMessage
-          id='ui.methodDecoding.condition.time'
-          defaultMessage=', {historic, select, true {Submitted} false {Submission}} at {timestamp}'
-          values={ {
-            historic,
-            timestamp
-          } }
-        />
+        <div>
+          <FormattedMessage
+            id='ui.methodDecoding.condition.time'
+            defaultMessage='{historic, select, true {Will be submitted} false {To be submitted}} {timestamp}'
+            values={ {
+              historic,
+              timestamp
+            } }
+          />
+        </div>
       );
     }
 
