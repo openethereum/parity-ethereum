@@ -183,7 +183,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 		let schedule = ext.schedule();
 
 		if (instruction == instructions::DELEGATECALL && !schedule.have_delegate_call) ||
-			(instruction == instructions::CREATE_P2SH && !schedule.have_create_p2sh) {
+			(instruction == instructions::CREATE2 && !schedule.have_create2) {
 
 			return Err(evm::Error::BadInstruction {
 				instruction: instruction
@@ -268,12 +268,12 @@ impl<Cost: CostType> Interpreter<Cost> {
 			instructions::JUMPDEST => {
 				// ignore
 			},
-			instructions::CREATE | instructions::CREATE_P2SH => {
+			instructions::CREATE | instructions::CREATE2 => {
 				let endowment = stack.pop_back();
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
 
-				let address_scheme = if instruction == instructions::CREATE { ext.schedule().create_address } else { CreateContractAddress::FromSenderAndCodeHash };
+				let address_scheme = if instruction == instructions::CREATE { CreateContractAddress::FromSenderAndNonce } else { CreateContractAddress::FromSenderAndCodeHash };
 				let create_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
 
 				let contract_code = self.mem.read_slice(init_off, init_size);
