@@ -192,8 +192,8 @@ pub struct FullDependencies {
 	pub net_service: Arc<ManageNetwork>,
 	pub updater: Arc<Updater>,
 	pub geth_compatibility: bool,
-	pub dapps_interface: Option<String>,
-	pub dapps_port: Option<u16>,
+	pub dapps_address: Option<(String, u16)>,
+	pub ws_address: Option<(String, u16)>,
 	pub fetch: FetchClient,
 }
 
@@ -278,8 +278,8 @@ impl Dependencies for FullDependencies {
 						self.logger.clone(),
 						self.settings.clone(),
 						signer,
-						self.dapps_interface.clone(),
-						self.dapps_port,
+						self.dapps_address.clone(),
+						self.ws_address.clone(),
 					).to_delegate());
 
 					add_signing_methods!(EthSigning, handler, self);
@@ -328,8 +328,8 @@ pub struct LightDependencies {
 	pub on_demand: Arc<::light::on_demand::OnDemand>,
 	pub cache: Arc<Mutex<LightDataCache>>,
 	pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
-	pub dapps_interface: Option<String>,
-	pub dapps_port: Option<u16>,
+	pub dapps_address: Option<(String, u16)>,
+	pub ws_address: Option<(String, u16)>,
 	pub fetch: FetchClient,
 	pub geth_compatibility: bool,
 }
@@ -414,8 +414,8 @@ impl Dependencies for LightDependencies {
 						self.logger.clone(),
 						self.settings.clone(),
 						signer,
-						self.dapps_interface.clone(),
-						self.dapps_port,
+						self.dapps_address.clone(),
+						self.ws_address.clone(),
 					).to_delegate());
 
 					add_signing_methods!(EthSigning, handler, self);

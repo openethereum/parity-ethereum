@@ -45,3 +45,7 @@ pub use self::signing_queue::{
 	QUEUE_LIMIT as SIGNING_QUEUE_LIMIT,
 };
 pub use self::signer::SignerService;
+
+pub fn to_url(address: &Option<(String, u16)>) -> Option<String> {
+	address.as_ref().map(|&(ref iface, ref port)| format!("{}:{}", iface, port))
+}

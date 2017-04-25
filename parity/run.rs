@@ -48,11 +48,11 @@ use cache::CacheConfig;
 use user_defaults::UserDefaults;
 use dapps;
 use ipfs;
-use ui;
-use secretstore;
 use modules;
-use rpc_apis;
 use rpc;
+use rpc_apis;
+use secretstore;
+use signer;
 use url;
 
 // how often to take periodic snapshots.
@@ -98,11 +98,10 @@ pub struct RunCmd {
 	pub wal: bool,
 	pub vm_type: VMType,
 	pub geth_compatibility: bool,
-	pub ui_address: Option<(String, u16)>,
 	pub net_settings: NetworkSettings,
 	pub dapps_conf: dapps::Configuration,
 	pub ipfs_conf: ipfs::Configuration,
-	pub ui_conf: ui::Configuration,
+	pub ui_conf: rpc::UiConfiguration,
 	pub secretstore_conf: secretstore::Configuration,
 	pub dapp: Option<String>,
 	pub ui: bool,
@@ -117,12 +116,12 @@ pub struct RunCmd {
 	pub light: bool,
 }
 
-pub fn open_ui(ui_conf: &ui::Configuration) -> Result<(), String> {
+pub fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration) -> Result<(), String> {
 	if !ui_conf.enabled {
 		return Err("Cannot use UI command with UI turned off.".into())
 	}
 
-	let token = ui::generate_token_and_url(ui_conf)?;
+	let token = signer::generate_token_and_url(ws_conf, ui_conf)?;
 	// Open a browser
 	url::open(&token.url);
 	// Print a message
@@ -261,13 +260,10 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	// prepare account provider
 	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 	let rpc_stats = Arc::new(informant::RpcStats::default());
-	let signer_path = cmd.ui_conf.signer_path.clone();
 
 	// start RPCs
 	let deps_for_rpc_apis = Arc::new(rpc_apis::LightDependencies {
-		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
-			ui::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
-		}, cmd.ui_address)),
+		signer_service: Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf)),
 		client: service.client().clone(),
 		sync: light_sync.clone(),
 		net: light_sync.clone(),
@@ -277,14 +273,8 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		on_demand: on_demand,
 		cache: cache,
 		transaction_queue: txq,
-		dapps_interface: match cmd.dapps_conf.enabled {
-			true => Some(cmd.http_conf.interface.clone()),
-			false => None,
-		},
-		dapps_port: match cmd.dapps_conf.enabled {
-			true => Some(cmd.http_conf.port),
-			false => None,
-		},
+		dapps_address: cmd.dapps_conf.address(cmd.http_conf.address()),
+		ws_address: cmd.ws_conf.address(),
 		fetch: fetch,
 		geth_compatibility: cmd.geth_compatibility,
 	});
@@ -322,7 +312,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		// Check if Parity is already running
 		let addr = format!("{}:{}", cmd.ui_conf.interface, cmd.ui_conf.port);
 		if !TcpListener::bind(&addr as &str).is_ok() {
-			return open_ui(&cmd.ui_conf).map(|_| (false, None));
+			return open_ui(&cmd.ws_conf, &cmd.ui_conf).map(|_| (false, None));
 		}
 	}
 
@@ -577,16 +567,13 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// set up dependencies for rpc servers
 	let rpc_stats = Arc::new(informant::RpcStats::default());
-	let signer_path = cmd.ui_conf.signer_path.clone();
 	let secret_store = match cmd.public_node {
 		true => None,
 		false => Some(account_provider.clone())
 	};
 
 	let deps_for_rpc_apis = Arc::new(rpc_apis::FullDependencies {
-		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
-			ui::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
-		}, cmd.ui_address)),
+		signer_service: Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf)),
 		snapshot: snapshot_service.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
@@ -599,14 +586,8 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		net_service: manage_network.clone(),
 		updater: updater.clone(),
 		geth_compatibility: cmd.geth_compatibility,
-		dapps_interface: match cmd.dapps_conf.enabled {
-			true => Some(cmd.http_conf.interface.clone()),
-			false => None,
-		},
-		dapps_port: match cmd.dapps_conf.enabled {
-			true => Some(cmd.http_conf.port),
-			false => None,
-		},
+		dapps_address: cmd.dapps_conf.address(cmd.http_conf.address()),
+		ws_address: cmd.ws_conf.address(),
 		fetch: fetch.clone(),
 	});
 
@@ -627,13 +608,14 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
 			signer: deps_for_rpc_apis.signer_service.clone(),
+			ui_address: cmd.ui_conf.address(),
 		}
 	};
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
 	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, dapps_deps)?;
 
 	// start rpc servers
-	let ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
+	let ws_server = rpc::new_ws(cmd.ws_conf.clone(), &dependencies)?;
 	let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
 	let http_server = rpc::new_http("HTTP JSON-RPC", "jsonrpc", cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
 	// the ui server
@@ -696,7 +678,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// start ui
 	if cmd.ui {
-		open_ui(&cmd.ui_conf)?;
+		open_ui(&cmd.ws_conf, &cmd.ui_conf)?;
 	}
 
 	if let Some(dapp) = cmd.dapp {

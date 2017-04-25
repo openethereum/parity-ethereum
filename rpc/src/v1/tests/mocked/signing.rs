@@ -47,7 +47,7 @@ struct SigningTester {
 
 impl Default for SigningTester {
 	fn default() -> Self {
-		let signer = Arc::new(SignerService::new_test(None));
+		let signer = Arc::new(SignerService::new_test(false));
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());

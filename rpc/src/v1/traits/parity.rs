@@ -151,17 +151,13 @@ build_rpc_trait! {
 		#[rpc(name = "parity_localTransactions")]
 		fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>, Error>;
 
-		/// Returns current Trusted Signer port or an error if signer is disabled.
-		#[rpc(name = "parity_signerPort")]
-		fn signer_port(&self) -> Result<u16, Error>;
+		/// Returns current Dapps Server interface and port or an error if dapps server is disabled.
+		#[rpc(name = "parity_dappsUrl")]
+		fn dapps_url(&self) -> Result<String, Error>;
 
-		/// Returns current Dapps Server port or an error if dapps server is disabled.
-		#[rpc(name = "parity_dappsPort")]
-		fn dapps_port(&self) -> Result<u16, Error>;
-
-		/// Returns current Dapps Server interface address or an error if dapps server is disabled.
-		#[rpc(name = "parity_dappsInterface")]
-		fn dapps_interface(&self) -> Result<String, Error>;
+		/// Returns current WS Server interface and port or an error if ws server is disabled.
+		#[rpc(name = "parity_wsUrl")]
+		fn ws_url(&self) -> Result<String, Error>;
 
 		/// Returns next nonce for particular sender. Should include all transactions in the queue.
 		#[rpc(async, name = "parity_nextNonce")]

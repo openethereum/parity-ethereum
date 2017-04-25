@@ -25,7 +25,6 @@ use parity_rpc::{self as rpc, HttpServerError, Metadata, Origin, DomainsValidati
 use helpers::{parity_ipc_path, replace_home};
 use jsonrpc_core::{self as core, MetaIoHandler};
 use parity_reactor::TokioRemote;
-use path::restrict_permissions_owner;
 use rpc_apis::{self, ApiSet};
 use parity_ui_server::AuthCodes;
 use util::H256;
@@ -44,6 +43,15 @@ pub struct HttpConfiguration {
 	pub threads: Option<usize>,
 }
 
+impl HttpConfiguration {
+	pub fn address(&self) -> Option<(String, u16)> {
+		match self.enabled {
+			true => Some((self.interface.clone(), self.port)),
+			false => None,
+		}
+	}
+}
+
 impl Default for HttpConfiguration {
 	fn default() -> Self {
 		HttpConfiguration {
@@ -54,6 +62,48 @@ impl Default for HttpConfiguration {
 			cors: None,
 			hosts: Some(Vec::new()),
 			threads: None,
+		}
+	}
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct UiConfiguration {
+	pub enabled: bool,
+	pub interface: String,
+	pub port: u16,
+	pub hosts: Option<Vec<String>>,
+}
+
+impl UiConfiguration {
+	pub fn address(&self) -> Option<(String, u16)> {
+		match self.enabled {
+			true => Some((self.interface.clone(), self.port)),
+			false => None,
+		}
+	}
+}
+
+impl From<UiConfiguration> for HttpConfiguration {
+	fn from(conf: UiConfiguration) -> Self {
+		HttpConfiguration {
+			enabled: conf.enabled,
+			interface: conf.interface,
+			port: conf.port,
+			apis: rpc_apis::ApiSet::SafeContext,
+			cors: None,
+			hosts: conf.hosts,
+			threads: None,
+		}
+	}
+}
+
+impl Default for UiConfiguration {
+	fn default() -> Self {
+		UiConfiguration {
+			enabled: true,
+			port: 8180,
+			interface: "127.0.0.1".into(),
+			hosts: Some(vec![]),
 		}
 	}
 }
@@ -76,7 +126,7 @@ impl Default for IpcConfiguration {
 	}
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct WsConfiguration {
 	pub enabled: bool,
 	pub interface: String,
@@ -98,6 +148,15 @@ impl Default for WsConfiguration {
 			origins: Some(Vec::new()),
 			hosts: Some(Vec::new()),
 			signer_path: replace_home(&data_dir, "$BASE/signer").into(),
+		}
+	}
+}
+
+impl WsConfiguration {
+	pub fn address(&self) -> Option<(String, u16)> {
+		match self.enabled {
+			true => Some((self.interface.clone(), self.port)),
+			false => None,
 		}
 	}
 }
@@ -140,11 +199,12 @@ impl rpc::ws::MetaExtractor<Metadata> for WsExtractor {
 	fn extract(&self, req: &rpc::ws::RequestContext) -> Metadata {
 		let mut metadata = Metadata::default();
 		let id = req.session_id as u64;
+		// TODO [ToDr] Extract dapp from Origin
+		let dapp = "".into();
 		let authorization = req.protocols.get(0).and_then(|p| auth_token_hash(&self.authcodes_path, p));
-		metadata.origin = Origin::Ws {
-			dapp: "".into(),
-			session: id.into(),
-			authorization: authorization.map(Into::into),
+		metadata.origin = match authorization {
+			Some(id) => Origin::Signer { session: id.into(), dapp: dapp },
+			None => Origin::Ws { session: id.into(), dapp: dapp},
 		};
 		metadata
 	}
@@ -162,7 +222,8 @@ impl rpc::ws::RequestMiddleware for WsExtractor {
 		// Display WS info.
 		if req.header("sec-websocket-key").is_none() {
 			let mut response = Response::new(200, "Ok");
-			response.set_body("WebSocket interface is active. Use CONNECT to open WS connection.");
+			// TODO [ToDr] UI redirection?
+			response.set_body("WebSocket interface is active. Open WS connection to access RPC.");
 			return Some(response).into()
 		}
 
@@ -171,7 +232,10 @@ impl rpc::ws::RequestMiddleware for WsExtractor {
 		if protocols.len() == 1 {
 			let authorization = auth_token_hash(&self.authcodes_path, protocols[0]);
 			if authorization.is_none() {
-				warn!();
+				warn!(
+					"Blocked connection from {} using invalid token.",
+					req.header("origin").and_then(|e| ::std::str::from_utf8(e).ok()).unwrap_or("Unknown Origin")
+				);
 				return Some(Response::new(403, "Forbidden")).into();
 			}
 		}
@@ -254,7 +318,7 @@ impl<M: core::Middleware<Metadata>> core::Middleware<Metadata> for WsDispatcher<
 		F: FnOnce(core::Request, Metadata) -> core::FutureResponse,
 	{
 		let use_full = match &meta.origin {
-			&Origin::Ws { ref authorization, .. } if authorization.is_some() => true,
+			&Origin::Signer { .. } => true,
 			_ => false,
 		};
 
@@ -294,10 +358,7 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let allowed_origins = into_domains(conf.origins);
 	let allowed_hosts = into_domains(conf.hosts);
 
-	let mut path = conf.signer_path;
-	path.push(::ui::CODES_FILENAME);
-	let _ = restrict_permissions_owner(&path, true, false);
-
+	let path = ::signer::codes_path(&conf.signer_path);
 	let start_result = rpc::start_ws(
 		&addr,
 		handler,

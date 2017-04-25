@@ -45,6 +45,15 @@ impl Default for Configuration {
 	}
 }
 
+impl Configuration {
+	pub fn address(&self, address: Option<(String, u16)>) -> Option<(String, u16)> {
+		match self.enabled {
+			true => address,
+			false => None,
+		}
+	}
+}
+
 /// Registrar implementation of the full client.
 pub struct FullRegistrar {
 	/// Handle to the full client.
@@ -88,6 +97,7 @@ pub struct Dependencies {
 	pub remote: parity_reactor::TokioRemote,
 	pub fetch: FetchClient,
 	pub signer: Arc<SignerService>,
+	pub ui_address: Option<(String, u16)>,
 }
 
 pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Middleware>, String> {
@@ -164,13 +174,13 @@ mod server {
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 	) -> Result<Middleware, String> {
-		let signer = deps.signer.clone();
+		let signer = deps.signer;
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
 		let web_proxy_tokens = Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token));
 
 		Ok(parity_dapps::Middleware::dapps(
 			parity_remote,
-			deps.signer.address(),
+			deps.ui_address,
 			dapps_path,
 			extra_dapps,
 			deps.contract_client,

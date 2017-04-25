@@ -146,7 +146,7 @@ impl Middleware {
 	/// Creates new Dapps server middleware.
 	pub fn dapps<F: Fetch + Clone>(
 		remote: Remote,
-		signer_address: Option<(String, u16)>,
+		ui_address: Option<(String, u16)>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		registrar: Arc<ContractClient>,
@@ -164,7 +164,7 @@ impl Middleware {
 		let endpoints = apps::all_endpoints(
 			dapps_path,
 			extra_dapps,
-			signer_address.clone(),
+			ui_address.clone(),
 			web_proxy_tokens,
 			remote.clone(),
 			fetch.clone(),
@@ -173,7 +173,7 @@ impl Middleware {
 		let special = {
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, None);
-			special.insert(router::SpecialEndpoint::Home, Some(apps::ui_redirection(signer_address)));
+			special.insert(router::SpecialEndpoint::Home, Some(apps::ui_redirection(ui_address)));
 			special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
 			special.insert(
 				router::SpecialEndpoint::Api,

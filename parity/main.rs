@@ -115,8 +115,8 @@ mod rpc;
 mod rpc_apis;
 mod run;
 mod secretstore;
+mod signer;
 mod snapshot;
-mod ui;
 mod upgrade;
 mod url;
 mod user_defaults;
@@ -170,7 +170,7 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 		Cmd::Account(account_cmd) => account::execute(account_cmd).map(|s| PostExecutionAction::Print(s)),
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd).map(|s| PostExecutionAction::Print(s)),
 		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd).map(|_| PostExecutionAction::Quit),
-		Cmd::SignerToken(signer_cmd) => ui::execute(signer_cmd).map(|s| PostExecutionAction::Print(s)),
+		Cmd::SignerToken(ws_conf, ui_conf) => signer::execute(ws_conf, ui_conf).map(|s| PostExecutionAction::Print(s)),
 		Cmd::SignerSign { id, pwfile, port, authfile } => rpc_cli::signer_sign(id, pwfile, port, authfile).map(|s| PostExecutionAction::Print(s)),
 		Cmd::SignerList { port, authfile } => rpc_cli::signer_list(port, authfile).map(|s| PostExecutionAction::Print(s)),
 		Cmd::SignerReject { id, port, authfile } => rpc_cli::signer_reject(id, port, authfile).map(|s| PostExecutionAction::Print(s)),
