@@ -24,7 +24,6 @@ import { connect } from 'react-redux';
 import { DappPermissions, DappsVisible } from '~/modals';
 import PermissionStore from '~/modals/DappPermissions/store';
 import { Actionbar, Button, DappCard, Page, SectionList } from '~/ui';
-import { LockedIcon, VisibleIcon } from '~/ui/Icons';
 
 import DappsStore from './dappsStore';
 
