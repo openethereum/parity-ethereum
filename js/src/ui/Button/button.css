@@ -1,0 +1,55 @@
+.customButton {
+  position: relative;
+  color: rgba(255, 255, 255, 0.75);
+  min-width: 88px;
+  font-size: 16px;
+  box-sizing: border-box;
+  display: inline-block;
+  cursor: pointer;
+  border-radius: 3px;
+  height: 36px;
+  line-height: 36px;
+  vertical-align: middle;
+  transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms;
+  margin: 10px 0 10px 16px;
+}
+.customButton:hover {
+  background-color: rgba(153, 153, 153, 0.3);
+}
+
+#positionBefore {
+  height: 36px;
+  width: 36px;
+  padding: 10px 5px;
+}
+#positionBefore svg {
+  vertical-align: middle;
+  height: 36px;
+  width: 36px;
+}
+
+#content {
+  vertical-align: middle;
+  padding: 10px 5px;
+  height: 36px;
+  width: 36px;
+  pointer-events: none;
+}
+
+#content svg {
+  vertical-align: middle;
+  height: 36px;
+  width: 36px;
+}
+
+#positionAfter {
+  vertical-align: middle;
+  height: 36px;
+  width: 36px;
+  padding: 10px 5px;
+}
+#positionAfter svg {
+  vertical-align: middle;
+  height: 36px;
+  width: 36px;
+}
