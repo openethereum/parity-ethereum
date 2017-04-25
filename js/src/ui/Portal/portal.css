@@ -34,8 +34,11 @@ $popoverRight: $modalMargin;
 $popoverTop: 20vh;
 $popoverZ: 3600;
 
+$backgroundFade: rgba(255, 255, 255, 0.35);
+$backgroundOverlay: rgba(255, 255, 255, 0.95);
+
 .backOverlay {
-  background-color: rgba(255, 255, 255, 0.35);
+  background-color: $backgroundFade;
   position: fixed;
   top: 0;
   right: 0;
@@ -45,7 +48,8 @@ $popoverZ: 3600;
 }
 
 .overlay {
-  background-color: rgba(0, 0, 0, 1);
+  background-color: $backgroundOverlay;
+  border: 1px solid whitesmoke;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -94,13 +98,13 @@ $popoverZ: 3600;
     justify-content: flex-end;
     padding: $modalPadding 0 0 0;
 
-    button:not([disabled]) {
+    /*button:not([disabled]) {
       color: white !important;
 
       svg {
         fill: white !important;
       }
-    }
+    }*/
   }
 
   .childContainer {

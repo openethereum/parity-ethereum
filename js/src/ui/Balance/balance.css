@@ -15,6 +15,9 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+$tagColor: rgba(100, 100, 100, 0.25);
+$textColor: white;
+
 .balances {
   display: flex;
   flex-wrap: wrap;
@@ -49,7 +52,8 @@
   max-width: 100%;
 
   &.full {
-    background: rgba(255, 255, 255, 0.07);
+    background: $tagColor;
+    color: $textColor;
 
     img {
       margin-right: 1em;
