@@ -35,7 +35,7 @@ $popoverTop: 20vh;
 $popoverZ: 3600;
 
 $backgroundFade: rgba(255, 255, 255, 0.35);
-$backgroundOverlay: rgba(100, 100, 100, 1);
+$backgroundOverlay: rgba(255, 255, 255, 0.95);
 
 .backOverlay {
   background-color: $backgroundFade;
@@ -49,6 +49,7 @@ $backgroundOverlay: rgba(100, 100, 100, 1);
 
 .overlay {
   background-color: $backgroundOverlay;
+  border: 1px solid whitesmoke;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -97,13 +98,13 @@ $backgroundOverlay: rgba(100, 100, 100, 1);
     justify-content: flex-end;
     padding: $modalPadding 0 0 0;
 
-    button:not([disabled]) {
+    /*button:not([disabled]) {
       color: white !important;
 
       svg {
         fill: white !important;
       }
-    }
+    }*/
   }
 
   .childContainer {

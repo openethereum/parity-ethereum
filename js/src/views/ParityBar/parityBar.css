@@ -113,7 +113,7 @@ $modalZ: 10001;
     flex: 1;
     overflow: auto;
     display: flex;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(255, 255, 255, 0.95);
     max-width: calc(100vw - 2em);
   }
 }

@@ -16,6 +16,7 @@
 */
 
 $tagColor: rgba(100, 100, 100, 0.25);
+$textColor: white;
 
 .balances {
   display: flex;
@@ -52,6 +53,7 @@ $tagColor: rgba(100, 100, 100, 0.25);
 
   &.full {
     background: $tagColor;
+    color: $textColor;
 
     img {
       margin-right: 1em;
