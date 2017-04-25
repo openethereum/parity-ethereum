@@ -29,6 +29,9 @@ use ethjson;
 /// Fake address for unsigned transactions as defined by EIP-86.
 pub const UNSIGNED_SENDER: Address = ::util::H160([0xff; 20]);
 
+/// System sender address for internal state updates.
+pub const SYSTEM_ADDRESS: Address = ::util::H160([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xfe]);
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "ipc", binary)]
 /// Transaction action type.

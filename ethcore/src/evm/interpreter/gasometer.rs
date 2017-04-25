@@ -235,6 +235,9 @@ impl<Gas: CostType> Gasometer<Gas> {
 				let gas = Gas::from(schedule.exp_gas + schedule.exp_byte_gas * bytes);
 				Request::Gas(gas)
 			},
+			instructions::BLOCKHASH => {
+				Request::Gas(Gas::from(schedule.blockhash_gas))
+			},
 			_ => Request::Gas(default_gas),
 		};
 

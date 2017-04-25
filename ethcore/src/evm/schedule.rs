@@ -103,6 +103,8 @@ pub struct Schedule {
 	pub no_empty: bool,
 	/// Kill empty accounts if touched.
 	pub kill_empty: bool,
+	/// Blockhash instruction gas cost.
+	pub blockhash_gas: usize,
 }
 
 impl Schedule {
@@ -161,6 +163,7 @@ impl Schedule {
 			sub_gas_cap_divisor: Some(64),
 			no_empty: no_empty,
 			kill_empty: kill_empty,
+			blockhash_gas: if have_metropolis_instructions { 350 } else { 20 },
 		}
 	}
 
@@ -213,6 +216,7 @@ impl Schedule {
 			sub_gas_cap_divisor: None,
 			no_empty: false,
 			kill_empty: false,
+			blockhash_gas: 20,
 		}
 	}
 }

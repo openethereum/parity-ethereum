@@ -17,7 +17,8 @@
 //! Spec params deserialization.
 
 use uint::Uint;
-use hash::H256;
+use hash::{H256, Address};
+use bytes::Bytes;
 
 /// Spec params.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -62,6 +63,18 @@ pub struct Params {
 	/// See `CommonParams` docs.
 	#[serde(rename="eip140Transition")]
 	pub eip140_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip210Transition")]
+	pub eip210_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip210ContractAddress")]
+	pub eip210_contract_address: Option<Address>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip210ContractCode")]
+	pub eip210_contract_code: Option<Bytes>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip210ContractGas")]
+	pub eip210_contract_gas: Option<Uint>,
 }
 
 #[cfg(test)]

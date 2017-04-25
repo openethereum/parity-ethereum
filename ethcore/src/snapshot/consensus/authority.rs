@@ -470,7 +470,7 @@ impl Rebuilder for ChunkRebuilder {
 				db.boxed_clone(),
 				self.manifest.state_root.clone(),
 				engine.account_start_nonce(),
-				factories.clone(),
+				factories,
 			).map_err(|e| format!("State root mismatch: {}", e))?;
 
 			let (tx, env_info) = make_tx_and_env(
@@ -482,7 +482,7 @@ impl Rebuilder for ChunkRebuilder {
 			);
 
 			let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
-			Executive::new(&mut state, &env_info, engine, &factories.vm)
+			Executive::new(&mut state, &env_info, engine)
 				.transact_virtual(&tx, options)
 				.map(|e| e.output)
 				.map_err(|e| format!("Error executing: {}", e))

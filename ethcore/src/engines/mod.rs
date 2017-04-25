@@ -40,7 +40,7 @@ use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;
 use client::Client;
-use env_info::EnvInfo;
+use env_info::{EnvInfo, LastHashes};
 use error::Error;
 use evm::Schedule;
 use header::{Header, BlockNumber};
@@ -52,6 +52,9 @@ use evm::CreateContractAddress;
 
 use ethkey::Signature;
 use util::*;
+
+/// Default EIP-210 contrat code
+pub const DEFAULT_BLOCKHASH_CONTRACT: &'static str = "73fffffffffffffffffffffffffffffffffffffffe33141561007a57600143036020526000356101006020510755600061010060205107141561005057600035610100610100602051050761010001555b6000620100006020510714156100755760003561010062010000602051050761020001555b610161565b436000351215801561008c5780610095565b623567e0600035125b9050156100a757600060605260206060f35b610100600035430312156100ca57610100600035075460805260206080f3610160565b62010000600035430312156100e857600061010060003507146100eb565b60005b1561010d576101006101006000350507610100015460a052602060a0f361015f565b63010000006000354303121561012d576000620100006000350714610130565b60005b1561015357610100620100006000350507610200015460c052602060c0f361015e565b600060e052602060e0f35b5b5b5b5b";
 
 /// Voting errors.
 #[derive(Debug)]
@@ -159,9 +162,15 @@ pub trait Engine : Sync + Send {
 	fn account_start_nonce(&self) -> U256 { self.params().account_start_nonce }
 
 	/// Block transformation functions, before the transactions.
-	fn on_new_block(&self, _block: &mut ExecutedBlock) {}
+	fn on_new_block(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>) -> Result<(), Error> {
+		let parent_hash = block.fields().header.parent_hash().clone();
+		common::push_last_hash(block, last_hashes, self, &parent_hash)
+	}
+
 	/// Block transformation functions, after the transactions.
-	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
+	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
+		Ok(())
+	}
 
 	/// None means that it requires external input (e.g. PoW) to seal a block.
 	/// Some(true) means the engine is currently prime for seal generation (i.e. node is the current validator).
@@ -312,5 +321,66 @@ pub trait Engine : Sync + Send {
 	/// Returns new contract address generation scheme at given block number.
 	fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
 		if number >= self.params().eip86_transition { CreateContractAddress::FromCodeHash } else { CreateContractAddress::FromSenderAndNonce }
+	}
+}
+
+
+/// Common engine utilities
+pub mod common {
+	use block::ExecutedBlock;
+	use env_info::{EnvInfo, LastHashes};
+	use error::Error;
+	use transaction::SYSTEM_ADDRESS;
+	use executive::Executive;
+	use types::executed::CallType;
+	use action_params::{ActionParams, ActionValue};
+	use trace::{NoopTracer, NoopVMTracer};
+	use state::Substate;
+
+	use util::*;
+	use super::Engine;
+
+	/// Push last known block hash to the state.
+	pub fn push_last_hash<E: Engine + ?Sized>(block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>, engine: &E, hash: &H256) -> Result<(), Error> {
+		if block.fields().header.number() == engine.params().eip210_transition {
+			let state = block.fields_mut().state;
+			state.init_code(&engine.params().eip210_contract_address, engine.params().eip210_contract_code.clone())?;
+		}
+		if block.fields().header.number() >= engine.params().eip210_transition {
+			let env_info = {
+				let header = block.fields().header;
+				EnvInfo {
+					number: header.number(),
+					author: header.author().clone(),
+					timestamp: header.timestamp(),
+					difficulty: header.difficulty().clone(),
+					last_hashes: last_hashes,
+					gas_used: U256::zero(),
+					gas_limit: engine.params().eip210_contract_gas,
+				}
+			};
+			let mut state = block.fields_mut().state;
+			let contract_address = engine.params().eip210_contract_address;
+			let params = ActionParams {
+				code_address: contract_address.clone(),
+				address: contract_address.clone(),
+				sender: SYSTEM_ADDRESS.clone(),
+				origin: SYSTEM_ADDRESS.clone(),
+				gas: engine.params().eip210_contract_gas,
+				gas_price: 0.into(),
+				value: ActionValue::Transfer(0.into()),
+				code: state.code(&contract_address)?,
+				code_hash: state.code_hash(&contract_address)?,
+				data: Some(hash.to_vec()),
+				call_type: CallType::Call,
+			};
+			let mut ex = Executive::new(&mut state, &env_info, engine);
+			let mut substate = Substate::new();
+			let mut output = [];
+			if let Err(e) = ex.call(params, &mut substate, BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer) {
+				warn!("Encountered error on updating last hashes: {}", e);
+			}
+		}
+		Ok(())
 	}
 }
