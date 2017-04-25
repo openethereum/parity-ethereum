@@ -24,7 +24,7 @@ import { connect } from 'react-redux';
 import store from 'store';
 
 import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
-import { AccountCard, Badge, Button, ContainerTitle, IdentityIcon, ParityBackground, SelectionList } from '~/ui';
+import { AccountCard, Badge, Button, ContainerTitle, IdentityIcon, SelectionList } from '~/ui';
 import { CancelIcon, FingerprintIcon } from '~/ui/Icons';
 import DappsStore from '~/views/Dapps/dappsStore';
 import Signer from '~/views/Signer/Embedded';
@@ -191,7 +191,7 @@ class ParityBar extends Component {
         onMouseUp={ this.onMouseUp }
         ref={ this.onRef }
       >
-        <ParityBackground
+        <div
           className={ parityBgClassNames.join(' ') }
           ref='container'
           style={ parityBgStyle }
@@ -201,7 +201,7 @@ class ParityBar extends Component {
               ? this.renderExpanded()
               : this.renderBar()
           }
-        </ParityBackground>
+        </div>
       </div>
     );
   }

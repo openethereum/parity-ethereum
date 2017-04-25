@@ -68,10 +68,6 @@ describe('views/ParityBar', () => {
     expect(component).to.be.ok;
   });
 
-  it('includes the ParityBackground', () => {
-    expect(component.find('Connect(ParityBackground)')).to.have.length(1);
-  });
-
   describe('renderBar', () => {
     let bar;
 
