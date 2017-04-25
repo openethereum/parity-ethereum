@@ -18,7 +18,6 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import ContentAdd from 'material-ui/svg-icons/content/add';
 import { uniq, isEqual } from 'lodash';
 
 import List from '../Accounts/List';
@@ -135,7 +134,7 @@ class Addresses extends Component {
     const buttons = [
       <Button
         key='newAddress'
-        icon={ <ContentAdd /> }
+        icon='plus'
         label={
           <FormattedMessage
             id='addresses.buttons.add'

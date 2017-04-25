@@ -21,7 +21,6 @@ import { bindActionCreators } from 'redux';
 
 import { EditMeta, AddAddress } from '~/modals';
 import { Actionbar, Button, Page } from '~/ui';
-import { AddIcon, DeleteIcon, EditIcon } from '~/ui/Icons';
 
 import Header from '../Account/Header';
 import Transactions from '../Account/Transactions';
@@ -142,7 +141,7 @@ class Address extends Component {
     const buttons = [
       <Button
         key='editmeta'
-        icon={ <EditIcon /> }
+        icon='edit'
         label={
           <FormattedMessage
             id='address.buttons.edit'
@@ -153,7 +152,7 @@ class Address extends Component {
       />,
       <Button
         key='delete'
-        icon={ <DeleteIcon /> }
+        icon='trash'
         label={
           <FormattedMessage
             id='address.buttons.forget'
@@ -167,7 +166,7 @@ class Address extends Component {
     const addToBook = (
       <Button
         key='newAddress'
-        icon={ <AddIcon /> }
+        icon='add'
         label={
           <FormattedMessage
             id='address.buttons.save'

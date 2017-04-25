@@ -19,7 +19,6 @@ import { FormattedMessage } from 'react-intl';
 
 import Button from '../../Button';
 import InputChip from '../../Form/InputChip';
-import { SearchIcon } from '../../Icons';
 
 import styles from './search.css';
 
@@ -92,7 +91,7 @@ export default class ActionbarSearch extends Component {
 
         <Button
           className={ styles.searchButton }
-          icon={ <SearchIcon /> }
+          icon='search'
           label=''
           onClick={ this.handleSearchClick }
         />

@@ -90,7 +90,7 @@ class Dapps extends Component {
           }
           buttons={ [
             <Button
-              icon={ <VisibleIcon /> }
+              icon='low vision'
               key='edit'
               label={
                 <FormattedMessage
@@ -101,7 +101,7 @@ class Dapps extends Component {
               onClick={ this.store.openModal }
             />,
             <Button
-              icon={ <LockedIcon /> }
+              icon='unlock alternate'
               key='permissions'
               label={
                 <FormattedMessage

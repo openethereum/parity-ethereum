@@ -26,7 +26,6 @@ import { bindActionCreators } from 'redux';
 import HardwareStore from '~/mobx/hardwareStore';
 import { CreateAccount, CreateWallet } from '~/modals';
 import { Actionbar, ActionbarExport, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
-import { AddIcon, KeyIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import List from './List';
@@ -252,7 +251,7 @@ class Accounts extends Component {
         key='vaults'
       >
         <Button
-          icon={ <KeyIcon /> }
+          icon='unlock alternate'
           label={
             <FormattedMessage
               id='accounts.button.vaults'
@@ -264,7 +263,7 @@ class Accounts extends Component {
       </Link>,
       <Button
         key='newAccount'
-        icon={ <AddIcon /> }
+        icon='plus'
         label={
           <FormattedMessage
             id='accounts.button.newAccount'
@@ -275,7 +274,7 @@ class Accounts extends Component {
       />,
       <Button
         key='newWallet'
-        icon={ <AddIcon /> }
+        icon='plus'
         label={
           <FormattedMessage
             id='accounts.button.newWallet'
