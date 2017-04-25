@@ -66,6 +66,7 @@ export default class Dapp extends Component {
 
   render () {
     const { dappsUrl } = this.context.api;
+    const { params } = this.props;
     const { app, loading } = this.state;
 
     if (loading) {
@@ -118,6 +119,12 @@ export default class Dapp extends Component {
         break;
     }
 
+    let hash = '';
+
+    if (params.details) {
+      hash = `#/${params.details}`;
+    }
+
     return (
       <iframe
         className={ styles.frame }
@@ -125,7 +132,7 @@ export default class Dapp extends Component {
         name={ name }
         sandbox='allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation'
         scrolling='auto'
-        src={ src }
+        src={ `${src}${hash}` }
       />
     );
   }

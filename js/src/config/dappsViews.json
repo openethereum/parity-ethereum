@@ -34,6 +34,18 @@
     "secure": true
   },
   {
+    "id": "address",
+    "url": "address",
+    "src": "Address",
+    "name": "Address",
+    "description": "Display a single address",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "2.0.0",
+    "visible": true,
+    "secure": true,
+    "noselect": true
+  },
+  {
     "id": "contracts",
     "url": "contracts",
     "src": "Contracts",
@@ -43,6 +55,18 @@
     "version": "2.0.0",
     "visible": true,
     "secure": true
+  },
+  {
+    "id": "contract",
+    "url": "contract",
+    "src": "Contract",
+    "name": "Contract",
+    "description": "Display a single contract",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "2.0.0",
+    "visible": true,
+    "secure": true,
+    "noselect": true
   },
   {
     "id": "develop",
@@ -109,5 +133,17 @@
     "version": "2.0.0",
     "visible": true,
     "secure": true
+  },
+  {
+    "id": "wallet",
+    "url": "wallet",
+    "src": "Wallet",
+    "name": "Wallet",
+    "description": "Display a single wallet account",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "2.0.0",
+    "visible": true,
+    "secure": true,
+    "noselect": true
   }
 ]

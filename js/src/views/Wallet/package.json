@@ -1,6 +1,6 @@
 {
-  "name": "@parity/view-account",
-  "description": "Parity default account view",
+  "name": "@parity/view-wallet",
+  "description": "Parity default wallet view",
   "version": "0.0.0",
   "main": "index.js",
   "author": "Parity Team <admin@parity.io>",

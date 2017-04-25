@@ -40,7 +40,7 @@ const store = initStore(api, hashHistory);
 ReactDOM.render(
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
     <Router history={ hashHistory }>
-      <Route path='/' component={ Account } />
+      <Route path='/:address' component={ Account } />
     </Router>
   </ContextProvider>,
   document.querySelector('#container')

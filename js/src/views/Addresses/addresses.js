@@ -90,7 +90,7 @@ class Addresses extends Component {
 
     return (
       <List
-        link='addresses'
+        link='address'
         search={ searchValues }
         accounts={ contacts }
         empty={ !hasContacts }
