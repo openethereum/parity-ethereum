@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { FlatButton } from 'material-ui';
-import { Button as SemButton } from 'semantic-ui-react'
+import { Button as SemButton } from 'semantic-ui-react';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
