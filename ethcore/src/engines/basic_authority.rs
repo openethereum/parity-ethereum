@@ -23,14 +23,14 @@ use account_provider::AccountProvider;
 use block::*;
 use builtin::Builtin;
 use spec::CommonParams;
-use engines::{Engine, Seal};
+use engines::{Engine, EngineError, Seal, Call, EpochChange};
 use error::{BlockError, Error};
 use evm::Schedule;
 use ethjson;
 use header::{Header, BlockNumber};
 use client::Client;
 use super::signer::EngineSigner;
-use super::validator_set::{ValidatorSet, new_validator_set};
+use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 /// `BasicAuthority` params.
 #[derive(Debug, PartialEq)]
@@ -50,8 +50,32 @@ impl From<ethjson::spec::BasicAuthorityParams> for BasicAuthorityParams {
 	}
 }
 
-/// Engine using `BasicAuthority` proof-of-work consensus algorithm, suitable for Ethereum
-/// mainnet chains in the Olympic, Frontier and Homestead eras.
+struct EpochVerifier {
+	epoch_number: u64,
+	list: SimpleList,
+}
+
+impl super::EpochVerifier for EpochVerifier {
+	fn epoch_number(&self) -> u64 { self.epoch_number.clone() }
+	fn verify_light(&self, header: &Header) -> Result<(), Error> {
+		verify_external(header, &self.list)
+	}
+}
+
+fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Error> {
+	use rlp::UntrustedRlp;
+
+	// Check if the signature belongs to a validator, can depend on parent state.
+	let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
+	let signer = public_to_address(&recover(&sig.into(), &header.bare_hash())?);
+
+	match validators.contains(header.parent_hash(), &signer) {
+		false => Err(BlockError::InvalidSeal.into()),
+		true => Ok(())
+	}
+}
+
+/// Engine using `BasicAuthority`, trivial proof-of-authority consensus.
 pub struct BasicAuthority {
 	params: CommonParams,
 	gas_limit_bound_divisor: U256,
@@ -137,14 +161,6 @@ impl Engine for BasicAuthority {
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
-		use rlp::UntrustedRlp;
-		// Check if the signature belongs to a validator, can depend on parent state.
-		let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
-		let signer = public_to_address(&recover(&sig.into(), &header.bare_hash())?);
-		if !self.validators.contains(header.parent_hash(), &signer) {
-			return Err(BlockError::InvalidSeal)?;
-		}
-
 		// Do not calculate difficulty for genesis blocks.
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
@@ -161,6 +177,32 @@ impl Engine for BasicAuthority {
 			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
 		}
 		Ok(())
+	}
+
+	fn verify_block_external(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+		verify_external(header, &*self.validators)
+	}
+
+	// the proofs we need just allow us to get the full validator set.
+	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Bytes, Error> {
+		self.validators.epoch_proof(header, caller)
+			.map_err(|e| EngineError::InsufficientProof(e).into())
+	}
+
+	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> EpochChange
+	{
+		self.validators.is_epoch_end(header, block, receipts)
+	}
+
+	fn epoch_verifier(&self, header: &Header, proof: &[u8]) -> Result<Box<super::EpochVerifier>, Error> {
+		// extract a simple list from the proof.
+		let (num, simple_list) = self.validators.epoch_set(header, proof)?;
+
+		Ok(Box::new(EpochVerifier {
+			epoch_number: num,
+			list: simple_list,
+		}))
 	}
 
 	fn register_client(&self, client: Weak<Client>) {

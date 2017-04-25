@@ -16,35 +16,41 @@
 
 //! Consensus engine specification and basic implementations.
 
-mod transition;
-mod vote_collector;
-mod null_engine;
-mod instant_seal;
-mod basic_authority;
 mod authority_round;
-mod tendermint;
-mod validator_set;
+mod basic_authority;
+mod epoch_verifier;
+mod instant_seal;
+mod null_engine;
 mod signer;
+mod tendermint;
+mod transition;
+mod validator_set;
+mod vote_collector;
 
-pub use self::null_engine::NullEngine;
-pub use self::instant_seal::InstantSeal;
-pub use self::basic_authority::BasicAuthority;
 pub use self::authority_round::AuthorityRound;
+pub use self::basic_authority::BasicAuthority;
+pub use self::epoch_verifier::EpochVerifier;
+pub use self::instant_seal::InstantSeal;
+pub use self::null_engine::NullEngine;
 pub use self::tendermint::Tendermint;
 
 use std::sync::Weak;
-use util::*;
-use ethkey::Signature;
+
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;
+use client::Client;
 use env_info::EnvInfo;
 use error::Error;
-use spec::CommonParams;
 use evm::Schedule;
 use header::{Header, BlockNumber};
+use receipt::Receipt;
+use snapshot::SnapshotComponents;
+use spec::CommonParams;
 use transaction::{UnverifiedTransaction, SignedTransaction};
-use client::Client;
+
+use ethkey::Signature;
+use util::*;
 
 /// Voting errors.
 #[derive(Debug)]
@@ -59,6 +65,8 @@ pub enum EngineError {
 	UnexpectedMessage,
 	/// Seal field has an unexpected size.
 	BadSealFieldSize(OutOfBounds<usize>),
+	/// Validation proof insufficient.
+	InsufficientProof(String),
 }
 
 impl fmt::Display for EngineError {
@@ -70,6 +78,7 @@ impl fmt::Display for EngineError {
 			NotAuthorized(ref address) => format!("Signer {} is not authorized.", address),
 			UnexpectedMessage => "This Engine should not be fed messages.".into(),
 			BadSealFieldSize(ref oob) => format!("Seal field has an unexpected length: {}", oob),
+			InsufficientProof(ref msg) => format!("Insufficient validation proof: {}", msg),
 		};
 
 		f.write_fmt(format_args!("Engine error ({})", msg))
@@ -85,6 +94,31 @@ pub enum Seal {
 	Regular(Vec<Bytes>),
 	/// Engine does generate seal for this block right now.
 	None,
+}
+
+/// Type alias for a function we can make calls through synchronously.
+pub type Call<'a> = Fn(Address, Bytes) -> Result<Bytes, String> + 'a;
+
+/// Results of a query of whether an epoch change occurred at the given block.
+#[derive(Debug, Clone, PartialEq)]
+pub enum EpochChange {
+	/// Cannot determine until more data is passed.
+	Unsure(Unsure),
+	/// No epoch change.
+	No,
+	/// Validation proof required, and the new epoch number and expected proof.
+	Yes(u64, Bytes),
+}
+
+/// More data required to determine if an epoch change occurred at a given block.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Unsure {
+	/// Needs the body.
+	NeedsBody,
+	/// Needs the receipts.
+	NeedsReceipts,
+	/// Needs both body and receipts.
+	NeedsBoth,
 }
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
@@ -152,6 +186,9 @@ pub trait Engine : Sync + Send {
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
 	fn verify_block_family(&self, _header: &Header, _parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
 
+	/// Phase 4 verification. Verify block header against potentially external data.
+	fn verify_block_external(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.
 	// TODO: consider including State in the params.
@@ -175,6 +212,40 @@ pub trait Engine : Sync + Send {
 	/// methods are needed for an Engine, this may be overridden.
 	fn verify_block_seal(&self, header: &Header) -> Result<(), Error> {
 		self.verify_block_basic(header, None).and_then(|_| self.verify_block_unordered(header, None))
+	}
+
+	/// Generate epoch change proof.
+	///
+	/// This will be used to generate proofs of epoch change as well as verify them.
+	/// Must be called on blocks that have already passed basic verification.
+	///
+	/// Return the "epoch proof" generated.
+	/// This must be usable to generate a `EpochVerifier` for verifying all blocks
+	/// from the supplied header up to the next one where proof is required.
+	///
+	/// For example, for PoA chains the proof will be a validator set,
+	/// and the corresponding `EpochVerifier` can be used to correctly validate
+	/// all blocks produced under that `ValidatorSet`
+	fn epoch_proof(&self, _header: &Header, _caller: &Call)
+		-> Result<Vec<u8>, Error>
+	{
+		Ok(Vec::new())
+	}
+
+	/// Whether an epoch change occurred at the given header.
+	/// Should not interact with state.
+	fn is_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[Receipt]>)
+		-> EpochChange
+	{
+		EpochChange::No
+	}
+
+	/// Create an epoch verifier from validation proof.
+	///
+	/// The proof should be one generated by `epoch_proof`.
+	/// See docs of `epoch_proof` for description.
+	fn epoch_verifier(&self, _header: &Header, _proof: &[u8]) -> Result<Box<EpochVerifier>, Error> {
+		Ok(Box::new(self::epoch_verifier::NoOp))
 	}
 
 	/// Populate a header's fields based on its parent's header.
@@ -217,4 +288,10 @@ pub trait Engine : Sync + Send {
 
 	/// Stops any services that the may hold the Engine and makes it safe to drop.
 	fn stop(&self) {}
+
+	/// Create a factory for building snapshot chunks and restoring from them.
+	/// Returning `None` indicates that this engine doesn't support snapshot creation.
+	fn snapshot_components(&self) -> Option<Box<SnapshotComponents>> {
+		None
+	}
 }

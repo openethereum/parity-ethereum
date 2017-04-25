@@ -419,6 +419,45 @@ impl<'a> Iterator for AncestryIter<'a> {
 	}
 }
 
+/// An iterator which walks all epoch transitions.
+/// Returns epoch transitions.
+pub struct EpochTransitionIter<'a> {
+	chain: &'a BlockChain,
+	prefix_iter: Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>,
+}
+
+impl<'a> Iterator for EpochTransitionIter<'a> {
+	type Item = (u64, EpochTransition);
+
+	fn next(&mut self) -> Option<Self::Item> {
+		loop {
+			match self.prefix_iter.next() {
+				Some((key, val)) => {
+					// iterator may continue beyond values beginning with this
+					// prefix.
+					if !key.starts_with(&EPOCH_KEY_PREFIX[..]) { return None }
+
+					let transitions: EpochTransitions = ::rlp::decode(&val[..]);
+
+					// if there are multiple candidates, at most one will be on the
+					// canon chain.
+					for transition in transitions.candidates.into_iter() {
+						let is_in_canon_chain = self.chain.block_hash(transition.block_number)
+							.map_or(false, |hash| hash == transition.block_hash);
+
+						if is_in_canon_chain {
+							return Some((transitions.number, transition))
+						}
+					}
+
+					// some epochs never occurred on the main chain.
+				}
+				None => return None,
+			}
+		}
+	}
+}
+
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis.
 	pub fn new(config: Config, genesis: &[u8], db: Arc<KeyValueDB>) -> BlockChain {
@@ -801,6 +840,35 @@ impl BlockChain {
 				block: bytes,
 			}, is_best);
 			true
+		}
+	}
+
+	/// Insert an epoch transition. Provide an epoch number being transitioned to
+	/// and epoch transition object.
+	///
+	/// The block the transition occurred at should have already been inserted into the chain.
+	pub fn insert_epoch_transition(&self, batch: &mut DBTransaction, epoch_num: u64, transition: EpochTransition) {
+		let mut transitions = match self.db.read(db::COL_EXTRA, &epoch_num) {
+			Some(existing) => existing,
+			None => EpochTransitions {
+				number: epoch_num,
+				candidates: Vec::with_capacity(1),
+			}
+		};
+
+		// ensure we don't write any duplicates.
+		if transitions.candidates.iter().find(|c| c.block_hash == transition.block_hash).is_none() {
+			transitions.candidates.push(transition);
+			batch.write(db::COL_EXTRA, &epoch_num, &transitions);
+		}
+	}
+
+	/// Iterate over all epoch transitions.
+	pub fn epoch_transitions(&self) -> EpochTransitionIter {
+		let iter = self.db.iter_from_prefix(db::COL_EXTRA, &EPOCH_KEY_PREFIX[..]);
+		EpochTransitionIter {
+			chain: self,
+			prefix_iter: iter,
 		}
 	}
 
@@ -2113,5 +2181,59 @@ mod tests {
 
 		assert_eq!(bc.rewind(), Some(genesis_hash.clone()));
 		assert_eq!(bc.rewind(), None);
+	}
+
+	#[test]
+	fn epoch_transitions_iter() {
+		use blockchain::extras::EpochTransition;
+
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+
+		let db = new_db();
+		{
+			let bc = new_chain(&genesis, db.clone());
+			let uncle = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
+
+			let mut batch = db.transaction();
+			// create a longer fork
+			for i in 0..5 {
+				let canon_block = canon_chain.generate(&mut finalizer).unwrap();
+				let hash = BlockView::new(&canon_block).header_view().sha3();
+
+				bc.insert_block(&mut batch, &canon_block, vec![]);
+				bc.insert_epoch_transition(&mut batch, i, EpochTransition {
+					block_hash: hash,
+					block_number: i + 1,
+					proof: vec![],
+					state_proof: vec![],
+				});
+				bc.commit();
+			}
+
+			assert_eq!(bc.best_block_number(), 5);
+
+			let hash = BlockView::new(&uncle).header_view().sha3();
+			bc.insert_block(&mut batch, &uncle, vec![]);
+			bc.insert_epoch_transition(&mut batch, 999, EpochTransition {
+				block_hash: hash,
+				block_number: 1,
+				proof: vec![],
+				state_proof: vec![]
+			});
+
+			db.write(batch).unwrap();
+			bc.commit();
+
+			// epoch 999 not in canonical chain.
+			assert_eq!(bc.epoch_transitions().map(|(i, _)| i).collect::<Vec<_>>(), vec![0, 1, 2, 3, 4]);
+		}
+
+		// re-loading the blockchain should load the correct best block.
+		let bc = new_chain(&genesis, db);
+
+		assert_eq!(bc.best_block_number(), 5);
+		assert_eq!(bc.epoch_transitions().map(|(i, _)| i).collect::<Vec<_>>(), vec![0, 1, 2, 3, 4]);
 	}
 }
