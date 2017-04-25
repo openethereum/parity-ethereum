@@ -37,6 +37,13 @@ export default {
       hint: `het account wat eigenaar is van dit contract`,
       label: `van account (contract eigenaar)`
     },
+    advanced: {
+      label: `geavanceerde verzend opties`
+    },
+    amount: {
+      hint: `de naar het contract te verzenden hoeveelheid`,
+      label: `te verzenden hoeveelheid (in {tag})`
+    },
     code: {
       hint: `de gecompileerde code van het aan te maken contract`,
       label: `code`
@@ -65,6 +72,7 @@ export default {
   },
   state: {
     completed: `Het contract is succesvol aangemaakt`,
+    confirmationNeeded: `Deze actie vereist de bevestiging van de andere eigenaren van het contract`,
     preparing: `Transactie aan het voorbereiden om te verzenden op het netwerk`,
     validatingCode: `De contract code van het aangemaakte contract valideren`,
     waitReceipt: `Wachten tot het aanmaken van het contract bevestigd is`,
@@ -74,6 +82,7 @@ export default {
     completed: `voltooid`,
     deployment: `aangemaakt`,
     details: `contract details`,
+    extras: `extra informatie`,
     failed: `aanmaken mislukt`,
     parameters: `contract parameters`,
     rejected: `afgewezen`

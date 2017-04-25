@@ -24,11 +24,10 @@ use block::*;
 use builtin::Builtin;
 use spec::CommonParams;
 use engines::{Engine, Seal};
-use env_info::EnvInfo;
 use error::{BlockError, Error};
 use evm::Schedule;
 use ethjson;
-use header::Header;
+use header::{Header, BlockNumber};
 use client::Client;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, new_validator_set};
@@ -86,7 +85,7 @@ impl Engine for BasicAuthority {
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> BTreeMap<String, String> { map!["signature".to_owned() => "TODO".to_owned()] }
 
-	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
+	fn schedule(&self, _block_number: BlockNumber) -> Schedule {
 		Schedule::new_homestead()
 	}
 
@@ -181,7 +180,6 @@ impl Engine for BasicAuthority {
 mod tests {
 	use util::*;
 	use block::*;
-	use env_info::EnvInfo;
 	use error::{BlockError, Error};
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
@@ -206,16 +204,7 @@ mod tests {
 	#[test]
 	fn can_return_schedule() {
 		let engine = new_test_authority().engine;
-		let schedule = engine.schedule(&EnvInfo {
-			number: 10000000,
-			author: 0.into(),
-			timestamp: 0,
-			difficulty: 0.into(),
-			last_hashes: Arc::new(vec![]),
-			gas_used: 0.into(),
-			gas_limit: 0.into(),
-		});
-
+		let schedule = engine.schedule(10000000);
 		assert!(schedule.stack_limit > 0);
 	}
 

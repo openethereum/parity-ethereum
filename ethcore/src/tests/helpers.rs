@@ -27,7 +27,6 @@ use builtin::Builtin;
 use state::*;
 use evm::Schedule;
 use engines::Engine;
-use env_info::EnvInfo;
 use ethereum;
 use ethereum::ethash::EthashParams;
 use miner::Miner;
@@ -72,7 +71,7 @@ impl Engine for TestEngine {
 		self.engine.builtins()
 	}
 
-	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
+	fn schedule(&self, _block_number: u64) -> Schedule {
 		let mut schedule = Schedule::new_frontier();
 		schedule.max_depth = self.max_depth;
 		schedule
@@ -201,7 +200,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 				action: Action::Create,
 				data: vec![],
 				value: U256::zero(),
-			}.sign(kp.secret(), None), None).unwrap();
+			}.sign(kp.secret(), Some(test_spec.network_id())), None).unwrap();
 			n += 1;
 		}
 

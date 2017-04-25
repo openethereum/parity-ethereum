@@ -272,6 +272,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get the address of a particular blockchain service, if available.
 	fn registry_address(&self, name: String) -> Option<Address>;
+
+	/// Get the EIP-86 transition block number.
+	fn eip86_transition(&self) -> u64;
 }
 
 impl IpcConfig for BlockChainClient { }

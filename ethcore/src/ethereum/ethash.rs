@@ -19,8 +19,8 @@ use util::*;
 use block::*;
 use builtin::Builtin;
 use env_info::EnvInfo;
-use error::{BlockError, TransactionError, Error};
-use header::Header;
+use error::{BlockError, Error, TransactionError};
+use header::{Header, BlockNumber};
 use state::CleanupMode;
 use spec::CommonParams;
 use transaction::UnverifiedTransaction;
@@ -167,19 +167,20 @@ impl Engine for Ethash {
 		map!["nonce".to_owned() => format!("0x{}", header.nonce().hex()), "mixHash".to_owned() => format!("0x{}", header.mix_hash().hex())]
 	}
 
-	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
+	fn schedule(&self, block_number: BlockNumber) -> Schedule {
 		trace!(target: "client", "Creating schedule. fCML={}, bGCML={}", self.ethash_params.homestead_transition, self.ethash_params.eip150_transition);
 
-		if env_info.number < self.ethash_params.homestead_transition {
+		if block_number < self.ethash_params.homestead_transition {
 			Schedule::new_frontier()
-		} else if env_info.number < self.ethash_params.eip150_transition {
+		} else if block_number < self.ethash_params.eip150_transition {
 			Schedule::new_homestead()
 		} else {
 			Schedule::new_post_eip150(
 				self.ethash_params.max_code_size as usize,
-				env_info.number >= self.ethash_params.eip160_transition,
-				env_info.number >= self.ethash_params.eip161abc_transition,
-				env_info.number >= self.ethash_params.eip161d_transition
+				block_number >= self.ethash_params.eip160_transition,
+				block_number >= self.ethash_params.eip161abc_transition,
+				block_number >= self.ethash_params.eip161d_transition,
+				block_number >= self.params.eip86_transition
 			)
 		}
 	}
@@ -369,20 +370,13 @@ impl Engine for Ethash {
 	}
 
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> result::Result<(), Error> {
-		if header.number() >= self.ethash_params.homestead_transition {
-			t.check_low_s()?;
-		}
-
-		if let Some(n) = t.network_id() {
-			if header.number() < self.ethash_params.eip155_transition || n != self.params().chain_id {
-				return Err(TransactionError::InvalidNetworkId.into())
-			}
-		}
-
 		if header.number() >= self.ethash_params.min_gas_price_transition && t.gas_price < self.ethash_params.min_gas_price {
 			return Err(TransactionError::InsufficientGasPrice { minimal: self.ethash_params.min_gas_price, got: t.gas_price }.into());
 		}
 
+		let check_low_s = header.number() >= self.ethash_params.homestead_transition;
+		let network_id = if header.number() >= self.ethash_params.eip155_transition { Some(self.params().chain_id) } else { None };
+		t.verify_basic(check_low_s, network_id, false)?;
 		Ok(())
 	}
 }
@@ -512,7 +506,6 @@ mod tests {
 	use block::*;
 	use tests::helpers::*;
 	use engines::Engine;
-	use env_info::EnvInfo;
 	use error::{BlockError, Error};
 	use header::Header;
 	use super::super::{new_morden, new_homestead_test};
@@ -559,28 +552,10 @@ mod tests {
 	#[test]
 	fn can_return_schedule() {
 		let engine = new_morden().engine;
-		let schedule = engine.schedule(&EnvInfo {
-			number: 10000000,
-			author: 0.into(),
-			timestamp: 0,
-			difficulty: 0.into(),
-			last_hashes: Arc::new(vec![]),
-			gas_used: 0.into(),
-			gas_limit: 0.into(),
-		});
-
+		let schedule = engine.schedule(10000000);
 		assert!(schedule.stack_limit > 0);
 
-		let schedule = engine.schedule(&EnvInfo {
-			number: 100,
-			author: 0.into(),
-			timestamp: 0,
-			difficulty: 0.into(),
-			last_hashes: Arc::new(vec![]),
-			gas_used: 0.into(),
-			gas_limit: 0.into(),
-		});
-
+		let schedule = engine.schedule(100);
 		assert!(!schedule.have_delegate_call);
 	}
 

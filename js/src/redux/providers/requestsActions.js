@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
+
 import { outTransaction } from '~/api/format/output';
 import { trackRequest as trackRequestUtil, parseTransactionReceipt } from '~/util/tx';
 import SavedRequests from '~/views/Application/Requests/savedRequests';
@@ -29,7 +31,7 @@ export const init = (api) => (dispatch) => {
     dispatch(watchRequest(request));
   });
 
-  api.on('connected', () => {
+  api.once('connected', () => {
     savedRequests.load(api).then((requests) => {
       requests.forEach((request) => dispatch(watchRequest(request)));
     });
@@ -48,7 +50,9 @@ export const watchRequest = (request) => (dispatch, getState) => {
 export const trackRequest = (requestId, { transactionHash = null } = {}) => (dispatch, getState) => {
   const { api } = getState();
 
-  trackRequestUtil(api, { requestId, transactionHash }, (error, data) => {
+  trackRequestUtil(api, { requestId, transactionHash }, (error, _data = {}) => {
+    const data = { ..._data };
+
     if (error) {
       console.error(error);
       return dispatch(setRequest(requestId, { error }));
@@ -60,6 +64,9 @@ export const trackRequest = (requestId, { transactionHash = null } = {}) => (dis
       const { requests } = getState();
       const requestData = requests[requestId];
       let blockSubscriptionId = -1;
+
+      // Set the block height to 0 at the beggining
+      data.blockHeight = new BigNumber(0);
 
       // If the request was a contract deployment,
       // then add the contract with the saved metadata to the account
