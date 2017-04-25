@@ -34,6 +34,7 @@ use basic_types::Seal;
 use block::*;
 use blockchain::{BlockChain, BlockProvider, EpochTransition, TreeRoute, ImportRoute};
 use blockchain::extras::TransactionAddress;
+use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -152,6 +153,7 @@ pub struct Client {
 	factories: Factories,
 	history: u64,
 	rng: Mutex<OsRng>,
+	ancient_verifier: Mutex<Option<AncientVerifier>>,
 	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
 	registrar: Mutex<Option<Registry>>,
 	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
@@ -242,6 +244,7 @@ impl Client {
 			factories: factories,
 			history: history,
 			rng: Mutex::new(OsRng::new().map_err(::util::UtilError::StdIo)?),
+			ancient_verifier: Mutex::new(None),
 			on_user_defaults_change: Mutex::new(None),
 			registrar: Mutex::new(None),
 			exit_handler: Mutex::new(None),
@@ -541,25 +544,56 @@ impl Client {
 	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, ::error::Error> {
 		let block = BlockView::new(&block_bytes);
 		let header = block.header();
+		let receipts = ::rlp::decode_list(&receipts_bytes);
 		let hash = header.hash();
 		let _import_lock = self.import_lock.lock();
+
 		{
 			let _timer = PerfTimer::new("import_old_block");
-			let mut rng = self.rng.lock();
 			let chain = self.chain.read();
+			let mut ancient_verifier = self.ancient_verifier.lock();
 
-			// verify block.
-			::snapshot::verify_old_block(
-				&mut *rng,
-				&header,
-				&*self.engine,
-				&*chain,
-				Some(&block_bytes),
-				false,
-			)?;
+			{
+				// closure for verifying a block.
+				let verify_with = |verifier: &AncientVerifier| -> Result<(), ::error::Error> {
+					// verify the block, passing a closure used to load an epoch verifier
+					// by number.
+					verifier.verify(
+						&mut *self.rng.lock(),
+						&header,
+						&block_bytes,
+						&receipts,
+						|epoch_num| chain.epoch_transition(epoch_num)
+							.ok_or(BlockError::UnknownEpochTransition(epoch_num))
+							.map_err(Into::into)
+							.and_then(|t| self.engine.epoch_verifier(&header, &t.proof))
+					)
+				};
+
+				// initialize the ancient block verifier if we don't have one already.
+				match &mut *ancient_verifier {
+					&mut Some(ref verifier) => {
+						verify_with(verifier)?
+					}
+					x @ &mut None => {
+						// load most recent epoch.
+						trace!(target: "client", "Initializing ancient block restoration.");
+						let current_epoch_data = chain.epoch_transitions()
+							.take_while(|&(_, ref t)| t.block_number <= header.number())
+							.last()
+							.map(|(_, t)| t.proof)
+							.expect("At least one epoch entry (genesis) always stored; qed");
+
+						let current_verifier = self.engine.epoch_verifier(&header, &current_epoch_data)?;
+						let current_verifier = AncientVerifier::new(self.engine.clone(), current_verifier);
+
+						verify_with(&current_verifier)?;
+						*x = Some(current_verifier);
+					}
+				}
+			}
 
 			// Commit results
-			let receipts = ::rlp::decode_list(&receipts_bytes);
 			let mut batch = DBTransaction::new();
 			chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, false, true);
 			// Final commit to the DB

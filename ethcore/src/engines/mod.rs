@@ -236,6 +236,11 @@ pub trait Engine : Sync + Send {
 	}
 
 	/// Whether an epoch change occurred at the given header.
+	///
+	/// If the block or receipts are required, return `Unsure` and the function will be
+	/// called again with them.
+	/// Return `Yes` or `No` when the answer is definitively known.
+	///
 	/// Should not interact with state.
 	fn is_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[Receipt]>)
 		-> EpochChange

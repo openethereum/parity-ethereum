@@ -865,6 +865,18 @@ impl BlockChain {
 		}
 	}
 
+	/// Get a specific epoch transition by epoch number.
+	pub fn epoch_transition(&self, epoch_num: u64) -> Option<EpochTransition> {
+		self.db.read(db::COL_EXTRA, &epoch_num).and_then(|transitions: EpochTransitions| {
+			let is_in_canon_chain = |num, hash| {
+				self.block_hash(num) == Some(hash)
+			};
+
+			// ignore transitions not in the canonical chain.
+			transitions.candidates.into_iter().find(|c| is_in_canon_chain(c.block_number, c.block_hash))
+		})
+	}
+
 	/// Add a child to a given block. Assumes that the block hash is in
 	/// the chain and the child's parent is this block.
 	///
