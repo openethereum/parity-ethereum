@@ -67,8 +67,11 @@ pub trait SnapshotComponents: Send {
 		manifest: &ManifestData,
 	) -> Result<Box<Rebuilder>, ::error::Error>;
 
-	/// Secondary chunk format version number.
-	fn format_version(&self) -> u64;
+	/// Minimum supported snapshot version number.
+	fn min_supported_version(&self) -> u64;
+
+	/// Current version number
+	fn current_version(&self) -> u64;
 }
 
 

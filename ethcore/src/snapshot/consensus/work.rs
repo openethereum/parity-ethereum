@@ -69,7 +69,8 @@ impl SnapshotComponents for PowSnapshot {
 		PowRebuilder::new(chain, db, manifest, self.0).map(|r| Box::new(r) as Box<_>)
 	}
 
-	fn format_version(&self) -> u64 { 0 } // unchanged since before generalization.
+	fn min_supported_version(&self) -> u64 { ::snapshot::MIN_SUPPORTED_STATE_CHUNK_VERSION }
+	fn current_version(&self) -> u64 { ::snapshot::STATE_CHUNK_VERSION }
 }
 
 /// Used to build block chunks.

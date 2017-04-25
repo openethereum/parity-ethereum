@@ -140,7 +140,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 
 	let writer = Mutex::new(writer);
 	let chunker = engine.snapshot_components().ok_or(Error::SnapshotsUnsupported)?;
-	let secondary_chunk_version = chunker.format_version();
+	let snapshot_version = chunker.current_version();
 	let (state_hashes, block_hashes) = scope(|scope| {
 		let writer = &writer;
 		let block_guard = scope.spawn(move || chunk_secondary(chunker, chain, block_at, writer, p));
@@ -154,7 +154,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	info!("produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
 	let manifest_data = ManifestData {
-		version: STATE_CHUNK_VERSION + secondary_chunk_version,
+		version: snapshot_version,
 		state_hashes: state_hashes,
 		block_hashes: block_hashes,
 		state_root: *state_root,

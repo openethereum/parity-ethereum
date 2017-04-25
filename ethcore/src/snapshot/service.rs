@@ -561,7 +561,7 @@ impl SnapshotService for Service {
 
 	fn min_supported_version(&self) -> Option<u64> {
 		self.engine.snapshot_components()
-			.map(|c| c.format_version() + super::MIN_SUPPORTED_STATE_CHUNK_VERSION)
+			.map(|c| c.min_supported_version())
 	}
 
 	fn chunk(&self, hash: H256) -> Option<Bytes> {

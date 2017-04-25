@@ -157,7 +157,8 @@ impl SnapshotComponents for PoaSnapshot {
 		}))
 	}
 
-	fn format_version(&self) -> u64 { 1 } // some PoA chains used previous snapshot format already.
+	fn min_supported_version(&self) -> u64 { 3 }
+	fn current_version(&self) -> u64 { 3 }
 }
 
 // writes a chunk composed of the inner RLPs here.
