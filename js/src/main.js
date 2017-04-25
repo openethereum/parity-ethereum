@@ -19,6 +19,7 @@ import { Router } from 'react-router';
 
 import routes from './routes';
 import styles from './reset.css';
+import 'semantic-ui-css/semantic.min.css';
 
 export default class MainApplication extends Component {
   static propTypes = {

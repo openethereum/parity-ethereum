@@ -126,7 +126,7 @@ module.exports = {
         use: [ 'file-loader?&name=assets/[name].[hash:10].[ext]' ]
       },
       {
-        test: /\.(woff(2)|ttf|eot|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
+        test: /\.(woff|woff2|ttf|eot|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
         use: [ 'file-loader?name=fonts/[name][hash:10].[ext]' ]
       },
       {
