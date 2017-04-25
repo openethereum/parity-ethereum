@@ -30,10 +30,6 @@ function redirectTo (path) {
   };
 }
 
-// const contractsRoutes = [
-//   { path: ':address', component: Contract }
-// ];
-
 const routes = [
   { path: '/', onEnter: redirectTo('/apps') },
   { path: '/auth', onEnter: redirectTo('/apps') }
