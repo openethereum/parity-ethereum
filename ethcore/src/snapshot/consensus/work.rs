@@ -294,6 +294,14 @@ impl Rebuilder for PowRebuilder {
 				self.chain.add_child(&mut batch, parent_hash, first_hash);
 			}
 		}
+
+		let genesis_hash = self.chain.genesis_hash();
+		self.chain.insert_epoch_transition(&mut batch, 0, ::blockchain::EpochTransition {
+			block_number: 0,
+			block_hash: genesis_hash,
+			proof: vec![],
+			state_proof: vec![],
+		});
 		self.db.write_buffered(batch);
 		Ok(())
 	}
