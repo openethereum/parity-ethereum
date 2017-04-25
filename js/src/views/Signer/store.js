@@ -95,7 +95,11 @@ export default class SignerStore {
     this._api.parity
       .localTransactions()
       .then((localTransactions) => {
-        this.setLocalHashes(Object.keys(localTransactions));
+        const keys = Object
+          .keys(localTransactions)
+          .filter((key) => localTransactions[key].status !== 'canceled');
+
+        this.setLocalHashes(keys);
       })
       .then(nextTimeout)
       .catch(nextTimeout);

@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "1.7.58",
+  "version": "1.7.59",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -167,6 +167,7 @@
     "base32.js": "0.1.0",
     "bignumber.js": "3.0.1",
     "bytes": "2.4.0",
+    "date-difference": "1.0.0",
     "debounce": "1.0.0",
     "es6-error": "4.0.0",
     "es6-promise": "4.0.5",
