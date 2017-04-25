@@ -83,6 +83,11 @@ mod traits {
 // Try to have chunks be around 4MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;
 
+// Minimum supported state chunk version.
+const MIN_SUPPORTED_STATE_CHUNK_VERSION: u64 = 1;
+// current state chunk version.
+const STATE_CHUNK_VERSION: u64 = 2;
+
 /// A progress indicator for snapshots.
 #[derive(Debug, Default)]
 pub struct Progress {
@@ -135,6 +140,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 
 	let writer = Mutex::new(writer);
 	let chunker = engine.snapshot_components().ok_or(Error::SnapshotsUnsupported)?;
+	let secondary_chunk_version = chunker.format_version();
 	let (state_hashes, block_hashes) = scope(|scope| {
 		let writer = &writer;
 		let block_guard = scope.spawn(move || chunk_secondary(chunker, chain, block_at, writer, p));
@@ -148,7 +154,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	info!("produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
 	let manifest_data = ManifestData {
-		version: 2,
+		version: STATE_CHUNK_VERSION + secondary_chunk_version,
 		state_hashes: state_hashes,
 		block_hashes: block_hashes,
 		state_root: *state_root,

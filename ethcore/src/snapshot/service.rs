@@ -106,6 +106,7 @@ impl Restoration {
 		let secondary = components.rebuilder(chain, raw_db.clone(), &manifest)?;
 
 		let root = manifest.state_root.clone();
+
 		Ok(Restoration {
 			manifest: manifest,
 			state_chunks_left: state_chunks,
@@ -556,6 +557,11 @@ impl Service {
 impl SnapshotService for Service {
 	fn manifest(&self) -> Option<ManifestData> {
 		self.reader.read().as_ref().map(|r| r.manifest().clone())
+	}
+
+	fn min_supported_version(&self) -> Option<u64> {
+		self.engine.snapshot_components()
+			.map(|c| c.format_version() + super::MIN_SUPPORTED_STATE_CHUNK_VERSION)
 	}
 
 	fn chunk(&self, hash: H256) -> Option<Bytes> {

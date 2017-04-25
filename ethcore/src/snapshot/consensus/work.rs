@@ -68,6 +68,8 @@ impl SnapshotComponents for PowSnapshot {
 	) -> Result<Box<Rebuilder>, ::error::Error> {
 		PowRebuilder::new(chain, db, manifest, self.0).map(|r| Box::new(r) as Box<_>)
 	}
+
+	fn format_version(&self) -> u64 { 0 } // unchanged since before generalization.
 }
 
 /// Used to build block chunks.

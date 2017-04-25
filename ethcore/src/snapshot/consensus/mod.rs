@@ -66,6 +66,9 @@ pub trait SnapshotComponents: Send {
 		db: Arc<KeyValueDB>,
 		manifest: &ManifestData,
 	) -> Result<Box<Rebuilder>, ::error::Error>;
+
+	/// Secondary chunk format version number.
+	fn format_version(&self) -> u64;
 }
 
 

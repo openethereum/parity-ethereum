@@ -156,6 +156,8 @@ impl SnapshotComponents for PoaSnapshot {
 			last_proofs: Vec::new(),
 		}))
 	}
+
+	fn format_version(&self) -> u64 { 1 } // some PoA chains used previous snapshot format already.
 }
 
 // writes a chunk composed of the inner RLPs here.
