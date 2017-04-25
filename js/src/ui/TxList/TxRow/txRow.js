@@ -19,10 +19,10 @@ import dateDifference from 'date-difference';
 import { FormattedMessage } from 'react-intl';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { Link } from 'react-router';
 
 import { txLink } from '~/3rdparty/etherscan/links';
 
+import DappLink from '~/ui/DappLink';
 import IdentityIcon from '~/ui/IdentityIcon';
 import IdentityName from '~/ui/IdentityName';
 import MethodDecoding from '~/ui/MethodDecoding';
@@ -119,7 +119,7 @@ class TxRow extends Component {
 
     if (address && (!isDeploy || isKnownContract)) {
       esLink = (
-        <Link
+        <DappLink
           activeClassName={ styles.currentLink }
           className={ styles.link }
           to={ this.addressLink(address) }
@@ -128,7 +128,7 @@ class TxRow extends Component {
             address={ address }
             shorten
           />
-        </Link>
+        </DappLink>
       );
     }
 
@@ -307,14 +307,14 @@ class TxRow extends Component {
     const isContract = this.getIsKnownContract(address);
 
     if (isContract) {
-      return `/contracts/${address}`;
+      return `/contract/${address}`;
     }
 
     if (isAccount) {
-      return `/accounts/${address}`;
+      return `/account/${address}`;
     }
 
-    return `/addresses/${address}`;
+    return `/address/${address}`;
   }
 
   getCondition = () => {
