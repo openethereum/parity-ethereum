@@ -19,7 +19,7 @@ import React from 'react';
 import { shallow } from 'enzyme';
 import sinon from 'sinon';
 
-import Api from '~/api';
+import Api from '@parity/api';
 
 import TxRow from './txRow';
 

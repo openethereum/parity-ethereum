@@ -25,8 +25,19 @@ const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const ServiceWorkerWebpackPlugin = require('serviceworker-webpack-plugin');
 const ScriptExtHtmlWebpackPlugin = require('script-ext-html-webpack-plugin');
 
+const rulesEs6 = require('./rules/es6');
+const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
-const DAPPS = require('../src/views/Dapps/builtin.json');
+
+const DAPPS_BUILTIN = require('../src/config/dappsBuiltin.json').map((dapp) => {
+  dapp.srcPath = './dapps';
+  return dapp;
+});
+const DAPPS_VIEWS = require('../src/config/dappsViews.json').map((dapp) => {
+  dapp.srcPath = './views';
+  dapp.commons = true;
+  return dapp;
+});
 
 const FAVICON = path.resolve(__dirname, '../assets/images/parity-logo-black-no-text.png');
 
@@ -60,15 +71,12 @@ module.exports = {
 
   module: {
     rules: [
+      rulesParity,
+      rulesEs6,
       {
         test: /\.js$/,
         exclude: /(node_modules)/,
         use: [ 'happypack/loader?id=babel-js' ]
-      },
-      {
-        test: /\.js$/,
-        include: /node_modules\/(material-chip-input|ethereumjs-tx|@parity\/wordlist)/,
-        use: 'babel-loader'
       },
       {
         test: /\.json$/,
@@ -118,7 +126,7 @@ module.exports = {
         use: [ 'file-loader?&name=assets/[name].[hash:10].[ext]' ]
       },
       {
-        test: /\.(woff(2)|ttf|eot|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
+        test: /\.(woff|woff2|ttf|eot|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
         use: [ 'file-loader?name=fonts/[name][hash:10].[ext]' ]
       },
       {
@@ -150,16 +158,19 @@ module.exports = {
   },
 
   plugins: (function () {
-    const DappsHTMLInjection = DAPPS.filter((dapp) => !dapp.skipBuild).map((dapp) => {
-      return new HtmlWebpackPlugin({
-        title: dapp.name,
-        filename: dapp.url + '.html',
-        template: './dapps/index.ejs',
-        favicon: FAVICON,
-        secure: dapp.secure,
-        chunks: [ isProd ? null : 'commons', dapp.url ]
+    const DappsHTMLInjection = []
+      .concat(DAPPS_BUILTIN, DAPPS_VIEWS)
+      .filter((dapp) => !dapp.skipBuild)
+      .map((dapp) => {
+        return new HtmlWebpackPlugin({
+          title: dapp.name,
+          filename: dapp.url + '.html',
+          template: dapp.srcPath + '/index.ejs',
+          favicon: FAVICON,
+          secure: dapp.secure,
+          chunks: [ !isProd || dapp.commons ? 'commons' : null, dapp.url ]
+        });
       });
-    });
 
     let plugins = Shared.getPlugins().concat(
       new WebpackErrorNotificationPlugin()

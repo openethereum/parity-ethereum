@@ -18,7 +18,7 @@ import Contracts from '~/contracts';
 import Abi from '~/abi';
 import * as abis from '~/contracts/abi';
 
-import { decodeMethodInput } from '~/api/util/decode';
+import { decodeMethodInput } from '@parity/api/util/decode';
 
 const CONTRACT_CREATE = '0x60606040';
 
@@ -278,7 +278,7 @@ export default class MethodDecodingStore {
       return Promise.resolve(this._methods[signature]);
     }
 
-    this._methods[signature] = Contracts.get()
+    this._methods[signature] = Contracts.get(this.api)
       .signatureReg
       .lookup(signature)
       .then((method) => {

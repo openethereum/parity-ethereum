@@ -16,7 +16,8 @@
 
 import BigNumber from 'bignumber.js';
 
-import { outTransaction } from '~/api/format/output';
+import { outTransaction } from '@parity/api/format/output';
+
 import { trackRequest as trackRequestUtil, parseTransactionReceipt } from '~/util/tx';
 import SavedRequests from '~/views/Application/Requests/savedRequests';
 

@@ -17,7 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { bytesToHex } from '~/api/util/format';
+import { bytesToHex } from '@parity/api/util/format';
+
 import { Container } from '~/ui';
 import TxRow from '~/ui/TxList/TxRow';
 

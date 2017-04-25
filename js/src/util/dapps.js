@@ -17,13 +17,15 @@
 import BigNumber from 'bignumber.js';
 import { pick, range, uniq } from 'lodash';
 
+import { bytesToHex } from '@parity/api/util/format';
+
 import Contracts from '~/contracts';
 import { hashToImageUrl } from '~/redux/util';
-import { bytesToHex } from '~/api/util/format';
 
-import builtinJson from '~/views/Dapps/builtin.json';
+import builtinJson from '~/config/dappsBuiltin.json';
+import viewsJson from '~/config/dappsViews.json';
 
-const builtinApps = builtinJson.filter((app) => app.id);
+const builtinApps = [].concat(viewsJson, builtinJson).filter((app) => app.id);
 
 function getHost (api) {
   const host = process.env.DAPPS_URL ||
@@ -87,8 +89,8 @@ export function subscribeToChanges (api, dappReg, callback) {
     });
 }
 
-export function fetchBuiltinApps () {
-  const { dappReg } = Contracts.get();
+export function fetchBuiltinApps (api) {
+  const { dappReg } = Contracts.get(api);
 
   return Promise
     .all(builtinApps.map((app) => dappReg.getImage(app.id)))
@@ -125,8 +127,8 @@ export function fetchLocalApps (api) {
     });
 }
 
-export function fetchRegistryAppIds () {
-  const { dappReg } = Contracts.get();
+export function fetchRegistryAppIds (api) {
+  const { dappReg } = Contracts.get(api);
 
   return dappReg
     .count()

@@ -92,7 +92,7 @@ class FrameSecureApi extends SecureApi {
 const api = new FrameSecureApi(window.secureTransport || new FakeTransport());
 
 patchApi(api);
-ContractInstances.create(api);
+ContractInstances.get(api);
 
 const store = initStore(api, null, true);
 

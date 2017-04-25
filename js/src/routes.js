@@ -17,12 +17,15 @@
 import HistoryStore from '~/mobx/historyStore';
 import {
   Accounts, Account, Addresses, Address, Application,
-  Contract, Contracts, Dapp, Dapps, Home,
+  Contract, Contracts, Dapp, Dapps,
   Settings, SettingsBackground, SettingsParity, SettingsProxy,
-  SettingsViews, Signer, Status,
+  SettingsViews, Signer,
   Vaults, Wallet, Web, WriteContract
 } from '~/views';
-import builtinDapps from '~/views/Dapps/builtin.json';
+import builtinDapps from '~/config/dappsBuiltin.json';
+import viewsDapps from '~/config/dappsViews.json';
+
+const dapps = [].concat(viewsDapps, builtinDapps);
 
 const accountsHistory = HistoryStore.get('accounts');
 const dappsHistory = HistoryStore.get('dapps');
@@ -84,18 +87,14 @@ const settingsRoutes = [
   { path: 'parity', component: SettingsParity }
 ];
 
-const statusRoutes = [
-  { path: ':subpage', component: Status }
-];
-
 const routes = [
   // Backward Compatible routes
   { path: '/account/:address', onEnter: handleDeprecatedRoute },
   { path: '/address/:address', onEnter: handleDeprecatedRoute },
   { path: '/contract/:address', onEnter: handleDeprecatedRoute },
 
-  { path: '/', onEnter: redirectTo('/home') },
-  { path: '/auth', onEnter: redirectTo('/home') },
+  { path: '/', onEnter: redirectTo('/apps') },
+  { path: '/auth', onEnter: redirectTo('/apps') },
   { path: '/settings', onEnter: redirectTo('/settings/views') }
 ];
 
@@ -116,11 +115,6 @@ const childRoutes = [
     childRoutes: contractsRoutes
   },
   {
-    path: 'status',
-    indexRoute: { component: Status },
-    childRoutes: statusRoutes
-  },
-  {
     path: 'settings',
     component: Settings,
     childRoutes: settingsRoutes
@@ -129,13 +123,12 @@ const childRoutes = [
     path: 'app/:id',
     component: Dapp,
     onEnter: ({ params }) => {
-      if (!builtinDapps[params.id] || !builtinDapps[params.id].skipHistory) {
+      if (!dapps[params.id] || !dapps[params.id].skipHistory) {
         dappsHistory.add(params.id);
       }
     }
   },
   { path: 'apps', component: Dapps },
-  { path: 'home', component: Home },
   { path: 'web', component: Web },
   { path: 'web/:url', component: Web },
   { path: 'signer', component: Signer }

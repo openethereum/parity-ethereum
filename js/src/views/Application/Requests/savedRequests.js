@@ -16,7 +16,7 @@
 
 import store from 'store';
 
-import { ERROR_CODES } from '~/api/transport/error';
+import { ERROR_CODES } from '@parity/api/transport/error';
 
 export const LS_REQUESTS_KEY = '_parity::requests';
 

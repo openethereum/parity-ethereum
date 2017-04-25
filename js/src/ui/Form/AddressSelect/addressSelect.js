@@ -20,10 +20,10 @@ import { connect } from 'react-redux';
 import keycode, { codes } from 'keycode';
 import { FormattedMessage } from 'react-intl';
 import { observer } from 'mobx-react';
-
 import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
-import apiutil from '~/api/util';
+import apiutil from '@parity/api/util';
+
 import AccountCard from '~/ui/AccountCard';
 import CopyToClipboard from '~/ui/CopyToClipboard';
 import InputAddress from '~/ui/Form/InputAddress';

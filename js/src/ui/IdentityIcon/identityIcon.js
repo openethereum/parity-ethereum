@@ -17,7 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import { createIdentityImg } from '~/api/util/identity';
+import { createIdentityImg } from '@parity/api/util/identity';
+
 import { isNullAddress } from '~/util/validation';
 import { CancelIcon, ContractIcon } from '../Icons';
 

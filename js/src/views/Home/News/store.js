@@ -22,12 +22,16 @@ let instance = null;
 export default class Store {
   @observable newsItems = null;
 
+  constructor (api) {
+    this._api = api;
+  }
+
   @action setNewsItems = (newsItems) => {
     this.newsItems = newsItems;
   }
 
   retrieveNews (versionId) {
-    const contracts = Contracts.get();
+    const contracts = Contracts.get(this._api);
 
     return contracts.registry
       .lookupMeta('paritynews', 'CONTENT')
@@ -57,9 +61,9 @@ export default class Store {
       });
   }
 
-  static get () {
+  static get (api) {
     if (!instance) {
-      instance = new Store();
+      instance = new Store(api);
     }
 
     return instance;

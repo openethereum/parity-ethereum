@@ -25,7 +25,7 @@ export default class ContextProvider extends Component {
   static propTypes = {
     api: PropTypes.object.isRequired,
     muiTheme: PropTypes.object.isRequired,
-    store: PropTypes.object.isRequired,
+    store: PropTypes.object,
     children: PropTypes.node.isRequired
   }
 

@@ -18,9 +18,10 @@ import BigNumber from 'bignumber.js';
 import { intersection, range, uniq } from 'lodash';
 import store from 'store';
 
-import Abi from '~/abi';
-import Contract from '~/api/contract';
-import { bytesToHex, toHex } from '~/api/util/format';
+import Abi from '@parity/abi';
+import Contract from '@parity/api/contract';
+import { bytesToHex, toHex } from '@parity/api/util/format';
+
 import { validateAddress } from '~/util/validation';
 import WalletAbi from '~/contracts/abi/wallet.json';
 import OldWalletAbi from '~/contracts/abi/old-wallet.json';

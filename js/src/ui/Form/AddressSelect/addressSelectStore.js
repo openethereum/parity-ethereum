@@ -19,8 +19,9 @@ import { observable, action, transaction } from 'mobx';
 import { flatMap, uniqBy } from 'lodash';
 import { FormattedMessage } from 'react-intl';
 
+import { sha3 } from '@parity/api/util/sha3';
+
 import Contracts from '~/contracts';
-import { sha3 } from '~/api/util/sha3';
 
 const ZERO = /^(0x)?0*$/;
 
@@ -77,7 +78,7 @@ export default class AddressSelectStore {
   constructor (api) {
     this.api = api;
 
-    const { registry } = Contracts.create(api);
+    const { registry } = Contracts.get(api);
 
     registry
       .getContract('emailverification')

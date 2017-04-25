@@ -16,9 +16,10 @@
 
 import { throttle } from 'lodash';
 
+import { padRight } from '@parity/api/util/format';
+
 import { fetchBalances, fetchTokensBalances, queryTokensFilter } from './balancesActions';
 import { loadTokens, fetchTokens } from './tokensActions';
-import { padRight } from '~/api/util/format';
 
 import Contracts from '~/contracts';
 
@@ -269,7 +270,7 @@ export default class Balances {
   }
 
   getTokenRegistry () {
-    return Contracts.get().tokenReg.getContract();
+    return Contracts.get(this._api).tokenReg.getContract();
   }
 
   _loadTokens (options = {}) {

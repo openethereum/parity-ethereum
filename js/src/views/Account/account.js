@@ -26,7 +26,7 @@ import { DeleteAccount, EditMeta, Faucet, PasswordManager, Shapeshift, Transfer,
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 import { Actionbar, Button, Page } from '~/ui';
-import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon } from '~/ui/Icons';
+import { DialIcon, VerifyIcon } from '~/ui/Icons';
 
 import DeleteAddress from '../Address/Delete';
 
@@ -145,7 +145,7 @@ class Account extends Component {
 
     const buttons = [
       <Button
-        icon={ <SendIcon /> }
+        icon='send'
         key='transferFunds'
         label={
           <FormattedMessage
@@ -202,7 +202,7 @@ class Account extends Component {
         )
         : null,
       <Button
-        icon={ <EditIcon /> }
+        icon='edit'
         key='editmeta'
         label={
           <FormattedMessage
@@ -214,7 +214,7 @@ class Account extends Component {
       />,
       !(account.external || account.hardware) && (
         <Button
-          icon={ <LockedIcon /> }
+          icon='unlock alternate'
           key='passwordManager'
           label={
             <FormattedMessage
@@ -226,7 +226,7 @@ class Account extends Component {
         />
       ),
       <Button
-        icon={ <DeleteIcon /> }
+        icon='trash'
         key='delete'
         label={
           account.external || account.hardware

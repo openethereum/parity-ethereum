@@ -15,19 +15,25 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { FlatButton } from 'material-ui';
+import { Button as SemButton } from 'semantic-ui-react';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
 export default class Button extends Component {
   static propTypes = {
+    active: PropTypes.bool,
+    animated: PropTypes.bool,
+    basic: PropTypes.bool,
     backgroundColor: PropTypes.string,
     className: PropTypes.string,
+    color: PropTypes.string,
     disabled: PropTypes.bool,
     icon: PropTypes.node,
     label: nodeOrStringProptype(),
     onClick: PropTypes.func,
-    primary: PropTypes.bool
+    primary: PropTypes.bool,
+    size: PropTypes.string,
+    toggle: PropTypes.bool
   }
 
   static defaultProps = {
@@ -35,17 +41,35 @@ export default class Button extends Component {
   }
 
   render () {
-    const { className, backgroundColor, disabled, icon, label, primary, onClick } = this.props;
+    const {
+      active,
+      animated,
+      basic,
+      className,
+      color,
+      disabled,
+      icon,
+      label,
+      onClick,
+      primary,
+      size,
+      toggle
+    } = this.props;
 
     return (
-      <FlatButton
+      <SemButton
+        active={ active }
+        animated={ animated }
+        basic={ basic }
         className={ className }
-        backgroundColor={ backgroundColor }
+        color={ color }
         disabled={ disabled }
         icon={ icon }
-        label={ label }
+        content={ label }
+        onClick={ onClick }
         primary={ primary }
-        onTouchTap={ onClick }
+        size={ size }
+        toggle={ toggle }
       />
     );
   }

@@ -19,8 +19,10 @@ import { applyMiddleware, createStore } from 'redux';
 import initMiddleware from './middleware';
 import initReducers from './reducers';
 
-import { load as loadWallet } from './providers/walletActions';
+import { setApi } from './providers/apiActions';
+import { startCachingReverses } from './providers/registry/actions';
 import { init as initRequests } from './providers/requestsActions';
+import { load as loadWallet } from './providers/walletActions';
 import { setupWorker } from './providers/workerWrapper';
 
 import {
@@ -39,13 +41,17 @@ export default function (api, browserHistory, forEmbed = false) {
   const middleware = initMiddleware(api, browserHistory, forEmbed);
   const store = applyMiddleware(...middleware)(storeCreation)(reducers);
 
+  store.dispatch(setApi(api));
+
   BalancesProvider.instantiate(store, api);
   StatusProvider.instantiate(store, api);
   new PersonalProvider(store, api).start();
   new SignerProvider(store, api).start();
 
+  store.dispatch(startCachingReverses());
   store.dispatch(loadWallet(api));
   store.dispatch(initRequests(api));
+
   setupWorker(store);
 
   return store;
