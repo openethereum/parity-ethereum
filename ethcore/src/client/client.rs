@@ -591,7 +591,7 @@ impl Client {
 		let entering_new_epoch = {
 			use engines::EpochChange;
 			match self.engine.is_epoch_end(block.header(), Some(block_data), Some(&receipts)) {
-				EpochChange::Yes(e, _) => Some((block.header().clone(), e)),
+				EpochChange::Yes(e) => Some((block.header().clone(), e)),
 				EpochChange::No => None,
 				EpochChange::Unsure(_) => {
 					warn!(target: "client", "Detected invalid engine implementation.");

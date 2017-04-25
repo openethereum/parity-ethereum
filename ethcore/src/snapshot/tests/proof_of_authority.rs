@@ -23,33 +23,45 @@ use std::str::FromStr;
 use account_provider::AccountProvider;
 use client::{Client, BlockChainClient, MiningBlockChainClient};
 use ethkey::Secret;
-use engines::{Engine, Seal};
+use engines::Seal;
 use futures::Future;
 use miner::MinerService;
 use native_contracts::test_contracts::ValidatorSet;
-use snapshot::{PoaSnapshot, StateRebuilder};
 use snapshot::tests::helpers as snapshot_helpers;
 use spec::Spec;
 use tests::helpers;
 use transaction::{Transaction, Action, SignedTransaction};
 
 use util::{Address, Hashable};
-use util::kvdb::{self, KeyValueDB};
+use util::kvdb;
 
 const PASS: &'static str = "";
-const TRANSITION_BLOCK: usize = 2; // block at which the contract becomes activated.
+const TRANSITION_BLOCK_1: usize = 2; // block at which the contract becomes activated.
+const TRANSITION_BLOCK_2: usize = 6; // block at which the second contract activates.
 
 macro_rules! secret {
 	($e: expr) => { Secret::from_slice(&$e.sha3()).expect(format!("sha3({}) not valid secret.", $e).as_str()) }
 }
 
 lazy_static! {
-	// contract address.
-	static ref CONTRACT_ADDR: Address = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+	// contract addresses.
+	static ref CONTRACT_ADDR_1: Address = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+	static ref CONTRACT_ADDR_2: Address = Address::from_str("0000000000000000000000000000000000000006").unwrap();
 	// secret: `sha3(1)`, and initial validator.
 	static ref RICH_ADDR: Address = Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap();
 	// rich address' secret.
 	static ref RICH_SECRET: Secret = secret!("1");
+}
+
+
+/// Contract code used here: https://gist.github.com/rphmeier/2de14fd365a969e3a9e10d77eb9a1e37
+/// Account with secrets "1".sha3() is initially the validator.
+/// Transitions to the contract at block 2, initially same validator set.
+/// Create a new Spec with BasicAuthority which uses a contract at address 5 to determine the current validators using `getValidators`.
+/// `native_contracts::test_contracts::ValidatorSet` provides a native wrapper for the ABi.
+fn spec_fixed_to_contract() -> Spec {
+	let data = include_bytes!("test_validator_contract.json");
+	Spec::load(&data[..]).unwrap()
 }
 
 // creates an account provider, filling it with accounts from all the given
@@ -68,12 +80,17 @@ fn make_accounts(secrets: &[Secret]) -> (Arc<AccountProvider>, Vec<Address>) {
 
 // validator transition. block number and new validators. must be after `TRANSITION_BLOCK`.
 // all addresses in the set must be in the account provider.
-struct Transition(usize, Vec<Address>);
+enum Transition {
+	// manual transition via transaction
+	Manual(usize, Vec<Address>),
+	// implicit transition via multi-set
+	Implicit(usize, Vec<Address>),
+}
 
 // create a chain with the given transitions and some blocks beyond that transition.
 fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions: Vec<Transition>) -> Arc<Client> {
 	let client = helpers::generate_dummy_client_with_spec_and_accounts(
-		Spec::new_test_validator_contract, Some(accounts.clone()));
+		spec_fixed_to_contract, Some(accounts.clone()));
 
 	let mut cur_signers = vec![*RICH_ADDR];
 	{
@@ -125,11 +142,17 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 			Ok(Vec::new())
 		};
 
-		let contract = ValidatorSet::new(*CONTRACT_ADDR);
+		let contract_1 = ValidatorSet::new(*CONTRACT_ADDR_1);
+		let contract_2 = ValidatorSet::new(*CONTRACT_ADDR_2);
 
 		// apply all transitions.
-		for Transition(num, new_set) in transitions {
-			if num < TRANSITION_BLOCK {
+		for transition in transitions {
+			let (num, manual, new_set) = match transition {
+				Transition::Manual(num, new_set) => (num, true, new_set),
+				Transition::Implicit(num, new_set) => (num, false, new_set),
+			};
+
+			if num < TRANSITION_BLOCK_1 {
 				panic!("Bad test: issued epoch change before transition to contract.");
 			}
 
@@ -137,12 +160,22 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 				push_block(&cur_signers, number, vec![]);
 			}
 
-			trace!(target: "snapshot", "applying set transition at block #{}", num);
-			contract.set_validators(&exec, new_set.clone()).wait().unwrap();
-			let pending: Vec<_> = client.ready_transactions()
-				.into_iter()
-				.map(|x| x.transaction)
-				.collect();
+			let pending = if manual {
+				trace!(target: "snapshot", "applying set transition at block #{}", num);
+				let contract = match num >= TRANSITION_BLOCK_2 {
+					true => &contract_2,
+					false => &contract_1,
+				};
+
+				contract.set_validators(&exec, new_set.clone()).wait().unwrap();
+				client.ready_transactions()
+					.into_iter()
+					.map(|x| x.transaction)
+					.collect()
+			} else {
+				Vec::new()
+			};
+
 			push_block(&cur_signers, num as u64, pending);
 			cur_signers = new_set;
 		}
@@ -157,7 +190,7 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 }
 
 #[test]
-fn basic_snap_restore() {
+fn fixed_to_contract() {
 	//::ethcore_logger::init_log();
 
 	let (provider, addrs) = make_accounts(&[
@@ -173,16 +206,46 @@ fn basic_snap_restore() {
 
 	assert!(provider.has_account(*RICH_ADDR).unwrap());
 
-	let client = make_chain(provider, 2, vec![
-		Transition(5, vec![addrs[2], addrs[3], addrs[5], addrs[7]]),
-		Transition(9, vec![addrs[0], addrs[1], addrs[4], addrs[6]]),
+	let client = make_chain(provider, 1, vec![
+		Transition::Manual(3, vec![addrs[2], addrs[3], addrs[5], addrs[7]]),
+		Transition::Manual(4, vec![addrs[0], addrs[1], addrs[4], addrs[6]]),
 	]);
 
-	assert_eq!(client.chain_info().best_block_number, 11);
+	assert_eq!(client.chain_info().best_block_number, 5);
 	let reader = snapshot_helpers::snap(&*client);
 
 	let new_db = kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0));
-	let spec = Spec::new_test_validator_contract();
+	let spec = spec_fixed_to_contract();
+
+	snapshot_helpers::restore(Arc::new(new_db), &*spec.engine, &**reader, &spec.genesis_block()).unwrap();
+}
+
+#[test]
+fn fixed_to_contract_to_contract() {
+	let (provider, addrs) = make_accounts(&[
+		RICH_SECRET.clone(),
+		secret!("foo"),
+		secret!("bar"),
+		secret!("test"),
+		secret!("signer"),
+		secret!("crypto"),
+		secret!("wizard"),
+		secret!("dog42"),
+	]);
+
+	assert!(provider.has_account(*RICH_ADDR).unwrap());
+
+	let client = make_chain(provider, 2, vec![
+		Transition::Manual(3, vec![addrs[2], addrs[3], addrs[5], addrs[7]]),
+		Transition::Manual(4, vec![addrs[0], addrs[1], addrs[4], addrs[6]]),
+		Transition::Implicit(5, vec![addrs[0]]),
+		Transition::Manual(8, vec![addrs[2], addrs[4], addrs[6], addrs[7]]),
+	]);
+
+	assert_eq!(client.chain_info().best_block_number, 10);
+	let reader = snapshot_helpers::snap(&*client);
+	let new_db = kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0));
+	let spec = spec_fixed_to_contract();
 
 	snapshot_helpers::restore(Arc::new(new_db), &*spec.engine, &**reader, &spec.genesis_block()).unwrap();
 }

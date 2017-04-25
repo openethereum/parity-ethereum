@@ -106,8 +106,8 @@ pub enum EpochChange {
 	Unsure(Unsure),
 	/// No epoch change.
 	No,
-	/// Validation proof required, and the new epoch number and expected proof.
-	Yes(u64, Bytes),
+	/// Validation proof required, and the new epoch number.
+	Yes(u64),
 }
 
 /// More data required to determine if an epoch change occurred at a given block.

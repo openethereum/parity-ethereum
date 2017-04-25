@@ -182,10 +182,9 @@ impl ValidatorSet for ValidatorSafeContract {
 							);
 
 						match (nonce, validators) {
-							(Some(nonce), Some(validators)) => {
-								let proof = encode_proof(nonce, &validators);
+							(Some(nonce), Some(_)) => {
 								let new_epoch = nonce.low_u64();
-								::engines::EpochChange::Yes(new_epoch, proof)
+								::engines::EpochChange::Yes(new_epoch)
 							}
 							_ => {
 								debug!(target: "engine", "Successfully decoded log turned out to be bad.");

@@ -24,7 +24,7 @@ use basic_account::BasicAccount;
 use blockchain::BlockChain;
 use client::{BlockChainClient, Client};
 use engines::Engine;
-use snapshot::{StateRebuilder, SnapshotComponents, Rebuilder};
+use snapshot::{StateRebuilder};
 use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 use state_db::StateDB;
 
