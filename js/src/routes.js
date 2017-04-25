@@ -30,23 +30,6 @@ function redirectTo (path) {
   };
 }
 
-// const accountsRoutes = [
-//   {
-//     path: ':address',
-//     component: Account,
-//     onEnter: ({ params }) => {
-//       accountsHistory.add(params.address, 'account');
-//     }
-//   },
-//   {
-//     path: '/wallet/:address',
-//     component: Wallet,
-//     onEnter: ({ params }) => {
-//       accountsHistory.add(params.address, 'wallet');
-//     }
-//   }
-// ];
-
 // const contractsRoutes = [
 //   { path: ':address', component: Contract }
 // ];

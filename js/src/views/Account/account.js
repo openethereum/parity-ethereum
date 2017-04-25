@@ -22,6 +22,7 @@ import { bindActionCreators } from 'redux';
 
 import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
 import HardwareStore from '~/mobx/hardwareStore';
+import HistoryStore from '~/mobx/historyStore';
 import { DeleteAccount, EditMeta, Faucet, PasswordManager, Shapeshift, Transfer, Verification } from '~/modals';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
@@ -34,6 +35,8 @@ import Header from './Header';
 import Store from './store';
 import Transactions from './Transactions';
 import styles from './account.css';
+
+const accountsHistory = HistoryStore.get('accounts');
 
 @observer
 class Account extends Component {
@@ -56,7 +59,11 @@ class Account extends Component {
   hwstore = HardwareStore.get(this.context.api);
 
   componentDidMount () {
-    console.log('Account', 'componentDidMount');
+    const { params } = this.props;
+
+    if (params.address) {
+      accountsHistory.add(params.address, 'wallet');
+    }
 
     this.props.fetchCertifiers();
     this.setVisibleAccounts();
