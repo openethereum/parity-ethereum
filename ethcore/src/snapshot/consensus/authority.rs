@@ -31,7 +31,6 @@ use ids::BlockId;
 use header::Header;
 use receipt::Receipt;
 use snapshot::{Error, ManifestData};
-use snapshot::block::AbridgedBlock;
 use state_db::StateDB;
 
 use itertools::{Position, Itertools};
@@ -50,7 +49,7 @@ use util::{Address, Bytes, H256, KeyValueDB, DBValue};
 /// FLAG is a bool: true for last chunk, false otherwise.
 ///
 /// The last item of the last chunk will be a list containing data for the warp target block:
-/// [block, receipts, last_hashes, parent_td].
+/// [header, transactions, uncles, receipts, last_hashes, parent_td].
 /// If this block is not a transition block, the epoch data should be the same as that
 /// for the last transition.
 pub struct PoaSnapshot;
@@ -116,12 +115,23 @@ impl SnapshotComponents for PoaSnapshot {
 		let (block, receipts) = chain.block(&block_at)
 			.and_then(|b| chain.block_receipts(&block_at).map(|r| (b, r)))
 			.ok_or(Error::BlockNotFound(block_at))?;
-		let abridged_rlp = AbridgedBlock::from_block_view(&block.view()).into_inner();
-		let last_hashes = make_last_hashes(block.parent_hash());
+		let block = block.decode();
+
+		let parent_td = chain.block_details(block.header.parent_hash())
+			.map(|d| d.total_difficulty)
+			.ok_or(Error::BlockNotFound(block_at))?;
+
+		let last_hashes = make_last_hashes(*block.header.parent_hash());
 
 		rlps.push({
-			let mut stream = RlpStream::new_list(3);
-			stream.append_raw(&abridged_rlp, 1).append(&receipts).append_list(&last_hashes);
+			let mut stream = RlpStream::new_list(6);
+			stream
+				.append(&block.header)
+				.append_list(&block.transactions)
+				.append_list(&block.uncles)
+				.append(&receipts)
+				.append_list(&last_hashes)
+				.append(&parent_td);
 			stream.out()
 		});
 
@@ -302,11 +312,11 @@ impl Rebuilder for ChunkRebuilder {
 		abort_flag: &AtomicBool,
 	) -> Result<(), ::error::Error> {
 		let rlp = UntrustedRlp::new(chunk);
-		let last_chunk: bool = rlp.val_at(0)?;
+		let is_last_chunk: bool = rlp.val_at(0)?;
 		let num_items = rlp.item_count()?;
 
 		// number of transitions in the chunk.
-		let num_transitions = if last_chunk {
+		let num_transitions = if is_last_chunk {
 			num_items - 2
 		} else {
 			num_items - 1
@@ -341,7 +351,7 @@ impl Rebuilder for ChunkRebuilder {
 			if is_first {
 				// make sure the genesis transition was included,
 				// but it doesn't need verification later.
-				if verified.epoch_number == 0 && verified.header.number() == 1 {
+				if verified.epoch_number == 0 && verified.header.number() == 0 {
 					self.had_genesis = true;
 				} else {
 					let idx = self.unverified_firsts
@@ -374,11 +384,17 @@ impl Rebuilder for ChunkRebuilder {
 			trace!(target: "snapshot", "Verified epoch transition for epoch {}", verified.epoch_number);
 		}
 
-		if last_chunk {
+		if is_last_chunk {
+			use block::Block;
+
 			let last_rlp = rlp.at(num_items - 1)?;
-			let block_data = rlp.at(0)?.as_raw();
-			let block: ::block::Block = rlp.val_at(0)?;
-			let receipts: Vec<Receipt> = last_rlp.list_at(1)?;
+			let block = Block {
+				header: last_rlp.val_at(0)?,
+				transactions: last_rlp.list_at(1)?,
+				uncles: last_rlp.list_at(2)?,
+			};
+			let block_data = block.rlp_bytes(::basic_types::Seal::With);
+			let receipts: Vec<Receipt> = last_rlp.list_at(3)?;
 
 			{
 				let hash = block.header.hash();
@@ -388,11 +404,11 @@ impl Rebuilder for ChunkRebuilder {
 				}
 			}
 
-			let last_hashes: Vec<H256> = last_rlp.list_at(2)?;
-			let parent_td: ::util::U256 = last_rlp.val_at(3)?;
+			let last_hashes: Vec<H256> = last_rlp.list_at(4)?;
+			let parent_td: ::util::U256 = last_rlp.val_at(5)?;
 
 			let mut batch = self.db.transaction();
-			self.chain.insert_unordered_block(&mut batch, block_data, receipts, Some(parent_td), true, false);
+			self.chain.insert_unordered_block(&mut batch, &block_data, receipts, Some(parent_td), true, false);
 			self.db.write_buffered(batch);
 
 			self.warp_target = Some((block.header, last_hashes));
