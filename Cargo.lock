@@ -603,6 +603,7 @@ dependencies = [
  "ethcore-ipc 1.7.0",
  "ethcore-ipc-codegen 1.7.0",
  "ethcore-ipc-nano 1.7.0",
+ "ethcore-logger 1.7.0",
  "ethcore-util 1.7.0",
  "ethcrypto 0.1.0",
  "ethkey 0.2.0",
