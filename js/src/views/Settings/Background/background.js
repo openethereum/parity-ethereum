@@ -19,7 +19,8 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { Button, Container, ParityBackground } from '~/ui';
+import { Button, Container } from '~/ui';
+import ParityBackground from '~/ui/ParityBackground';
 import { RefreshIcon } from '~/ui/Icons';
 
 import { updateBackground } from '~/redux/providers/settings/actions';

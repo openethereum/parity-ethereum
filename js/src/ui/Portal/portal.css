@@ -44,16 +44,6 @@ $popoverZ: 3600;
   z-index: $modalBackZ;
 }
 
-.parityBackground {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  opacity: 0.25;
-  z-index: -1;
-}
-
 .overlay {
   background-color: rgba(0, 0, 0, 1);
   box-sizing: border-box;
