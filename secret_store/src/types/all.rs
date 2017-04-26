@@ -87,16 +87,6 @@ pub struct ClusterConfiguration {
 	/// Allow outbound connections to 'higher' nodes.
 	/// This is useful for tests, but slower a bit for production.
 	pub allow_connecting_to_higher_nodes: bool,
-	/// Encryption session configuration.
-	pub encryption_config: EncryptionConfiguration,
-}
-
-#[derive(Clone, Debug)]
-#[binary]
-/// Encryption parameters.
-pub struct EncryptionConfiguration {
-	/// Key check timeout.
-	pub key_check_timeout_ms: u64,
 }
 
 #[derive(Clone, Debug, PartialEq)]

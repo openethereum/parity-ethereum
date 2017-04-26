@@ -20,13 +20,16 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import { newError } from '~/redux/actions';
 import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
 import HardwareStore from '~/mobx/hardwareStore';
+import HistoryStore from '~/mobx/historyStore';
+import ExportStore from '~/modals/ExportAccount/exportStore';
 import { DeleteAccount, EditMeta, Faucet, PasswordManager, Shapeshift, Transfer, Verification } from '~/modals';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
-import { Actionbar, Button, Page } from '~/ui';
-import { DialIcon, VerifyIcon } from '~/ui/Icons';
+import { Actionbar, Button, ConfirmDialog, Input, Page, Portal } from '~/ui';
+import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon, FileDownloadIcon } from '~/ui/Icons';
 
 import DeleteAddress from '../Address/Delete';
 
@@ -35,6 +38,8 @@ import Store from './store';
 import Transactions from './Transactions';
 import styles from './account.css';
 
+const accountsHistory = HistoryStore.get('accounts');
+
 @observer
 class Account extends Component {
   static contextTypes = {
@@ -42,6 +47,7 @@ class Account extends Component {
   };
 
   static propTypes = {
+    accounts: PropTypes.object.isRequired,
     fetchCertifiers: PropTypes.func.isRequired,
     fetchCertifications: PropTypes.func.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired,
@@ -49,13 +55,27 @@ class Account extends Component {
     account: PropTypes.object,
     certifications: PropTypes.object,
     netVersion: PropTypes.string.isRequired,
+    newError: PropTypes.func,
     params: PropTypes.object
   }
 
   store = new Store();
   hwstore = HardwareStore.get(this.context.api);
 
+  componentWillMount () {
+    const { accounts, newError, params } = this.props;
+    const { address } = params;
+
+    this.exportStore = new ExportStore(this.context.api, accounts, newError, address);
+  }
+
   componentDidMount () {
+    const { params } = this.props;
+
+    if (params.address) {
+      accountsHistory.add(params.address, 'wallet');
+    }
+
     this.props.fetchCertifiers();
     this.setVisibleAccounts();
   }
@@ -63,9 +83,14 @@ class Account extends Component {
   componentWillReceiveProps (nextProps) {
     const prevAddress = this.props.params.address;
     const nextAddress = nextProps.params.address;
+    const { accounts } = nextProps;
 
     if (prevAddress !== nextAddress) {
       this.setVisibleAccounts(nextProps);
+    }
+
+    if (!Object.keys(this.exportStore.accounts).length) {
+      this.exportStore.setAccounts(accounts);
     }
   }
 
@@ -95,6 +120,7 @@ class Account extends Component {
       <div>
         { this.renderDeleteDialog(account) }
         { this.renderEditDialog(account) }
+        { this.renderExportDialog() }
         { this.renderFaucetDialog() }
         { this.renderFundDialog() }
         { this.renderPasswordDialog(account) }
@@ -212,6 +238,17 @@ class Account extends Component {
         }
         onClick={ this.store.toggleEditDialog }
       />,
+      <Button
+        icon={ <FileDownloadIcon /> }
+        key='exportmeta'
+        label={
+          <FormattedMessage
+            id='account.button.export'
+            defaultMessage='export'
+          />
+        }
+        onClick={ this.store.toggleExportDialog }
+      />,
       !(account.external || account.hardware) && (
         <Button
           icon='unlock alternate'
@@ -320,6 +357,64 @@ class Account extends Component {
     );
   }
 
+  renderExportDialog () {
+    const { changePassword, accountValue } = this.exportStore;
+
+    if (!this.store.isExportVisible) {
+      return null;
+    }
+
+    return (
+      <Portal
+        open
+        isSmallModal
+        onClose={ this.exportClose }
+      >
+        <ConfirmDialog
+          open
+          disabledConfirm={ false }
+          labelConfirm='Export'
+          labelDeny='Cancel'
+          onConfirm={ this.onExport }
+          onDeny={ this.exportClose }
+          title={
+            <FormattedMessage
+              id='export.account.title'
+              defaultMessage='Export Account'
+            />
+          }
+        >
+          <div className={ styles.textbox }>
+            <FormattedMessage
+              id='export.account.info'
+              defaultMessage='Export your account as a JSON file. Please enter the password linked with this account.'
+            />
+          </div>
+          <Input
+            className={ styles.textbox }
+            onKeyDown={ this.onEnter }
+            autoFocus
+            type='password'
+            hint={
+              <FormattedMessage
+                id='export.account.password.hint'
+                defaultMessage='The password specified when creating this account'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='export.account.password.label'
+                defaultMessage='Account password'
+              />
+            }
+            onChange={ changePassword }
+            value={ accountValue }
+          />
+        </ConfirmDialog>
+      </Portal>
+    );
+  }
+
   renderFaucetDialog () {
     const { netVersion } = this.props;
 
@@ -393,6 +488,30 @@ class Account extends Component {
       />
     );
   }
+
+  onEnter = (event) => {
+    if (event.key === 'Enter') {
+      this.onExport();
+    }
+  }
+
+  exportClose = () => {
+    const { toggleExportDialog } = this.store;
+    const { resetAccountValue } = this.exportStore;
+
+    resetAccountValue();
+    toggleExportDialog();
+  }
+
+  onExport = () => {
+    const { onExport } = this.exportStore;
+
+    onExport(this.hideExport);
+  }
+
+  hideExport = () => {
+    this.store.toggleExportDialog();
+  }
 }
 
 function mapStateToProps (state, props) {
@@ -406,6 +525,7 @@ function mapStateToProps (state, props) {
 
   return {
     account,
+    accounts,
     certifications,
     netVersion
   };
@@ -415,6 +535,7 @@ function mapDispatchToProps (dispatch) {
   return bindActionCreators({
     fetchCertifiers,
     fetchCertifications,
+    newError,
     setVisibleAccounts
   }, dispatch);
 }

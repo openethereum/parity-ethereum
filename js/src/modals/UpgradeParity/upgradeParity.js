@@ -31,19 +31,19 @@ export default class UpgradeParity extends Component {
   };
 
   static propTypes = {
-    store: PropTypes.object.isRequired
+    upgradeStore: PropTypes.object.isRequired
   }
 
   render () {
-    const { store } = this.props;
+    const { upgradeStore } = this.props;
 
-    if (!store.isVisible) {
+    if (!upgradeStore.isVisible) {
       return null;
     }
 
     return (
       <Portal
-        activeStep={ store.step }
+        activeStep={ upgradeStore.step }
         busySteps={ [ 1 ] }
         buttons={ this.renderActions() }
         onClose={ this.onClose }
@@ -59,7 +59,7 @@ export default class UpgradeParity extends Component {
             id='upgradeParity.step.updating'
             defaultMessage='upgrading parity'
           />,
-          store.error
+          upgradeStore.error
             ? <FormattedMessage
               id='upgradeParity.step.error'
               key='error'
@@ -78,7 +78,7 @@ export default class UpgradeParity extends Component {
   }
 
   renderActions () {
-    const { store } = this.props;
+    const { upgradeStore } = this.props;
 
     const closeButton =
       <Button
@@ -105,7 +105,7 @@ export default class UpgradeParity extends Component {
         onClick={ this.onDone }
       />;
 
-    switch (store.step) {
+    switch (upgradeStore.step) {
       case STEP_INFO:
         return [
           <Button
@@ -136,13 +136,13 @@ export default class UpgradeParity extends Component {
   }
 
   renderStep () {
-    const { store } = this.props;
-    const currentversion = this.formatVersion(store);
-    const newversion = store.upgrading
-      ? this.formatVersion(store.upgrading)
-      : this.formatVersion(store.available);
+    const { upgradeStore } = this.props;
+    const currentversion = this.formatVersion(upgradeStore);
+    const newversion = upgradeStore.upgrading
+      ? this.formatVersion(upgradeStore.upgrading)
+      : this.formatVersion(upgradeStore.available);
 
-    switch (store.step) {
+    switch (upgradeStore.step) {
       case STEP_INFO:
         return this.renderStepInfo(newversion, currentversion);
 
@@ -151,7 +151,7 @@ export default class UpgradeParity extends Component {
 
       case STEP_COMPLETED:
       case STEP_ERROR:
-        return store.error
+        return upgradeStore.error
           ? this.renderStepError(newversion)
           : this.renderStepCompleted(newversion);
     }
@@ -192,7 +192,7 @@ export default class UpgradeParity extends Component {
   }
 
   renderStepError (newversion) {
-    const { store } = this.props;
+    const { upgradeStore } = this.props;
 
     return (
       <div className={ styles.step }>
@@ -206,7 +206,7 @@ export default class UpgradeParity extends Component {
             } }
           />
           <div className={ styles.error }>
-            { store.error.message }
+            { upgradeStore.error.message }
           </div>
         </div>
       </div>
@@ -262,8 +262,8 @@ export default class UpgradeParity extends Component {
   }
 
   renderConsensusInfo () {
-    const { store } = this.props;
-    const { consensusCapability } = store;
+    const { upgradeStore } = this.props;
+    const { consensusCapability } = upgradeStore;
 
     if (consensusCapability) {
       if (consensusCapability === 'capable') {
@@ -320,11 +320,11 @@ export default class UpgradeParity extends Component {
   }
 
   onClose = () => {
-    this.props.store.closeModal();
+    this.props.upgradeStore.closeModal();
   }
 
   onDone = () => {
-    if (this.props.store.error) {
+    if (this.props.upgradeStore.error) {
       this.onClose();
     } else {
       window.location.reload();
@@ -332,6 +332,6 @@ export default class UpgradeParity extends Component {
   }
 
   onUpgrade = () => {
-    this.props.store.upgradeNow();
+    this.props.upgradeStore.upgradeNow();
   }
 }

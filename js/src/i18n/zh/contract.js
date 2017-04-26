@@ -16,26 +16,26 @@
 
 export default {
   buttons: {
-    close: `Close`,
-    details: `details`,
-    edit: `edit`,
-    execute: `execute`,
-    forget: `forget`
+    close: `关闭`, // close
+    details: `详细资料`, // details
+    edit: `编辑`, // edit
+    execute: `运行`, // execute
+    forget: `forget` // forget
   },
   details: {
-    title: `contract details`
+    title: `合约细节` // contract details
   },
   events: {
-    eventPending: `pending`,
-    noEvents: `No events has been sent from this contract.`,
-    title: `events`
+    eventPending: `待定中`, // pending
+    noEvents: `此合约没有发送过任何事件`, // No events has been sent from this contract.
+    title: `事件`  // events
   },
-  minedBlock: `Mined at block #{blockNumber}`,
+  minedBlock: `挖到了第{blockNumber}个区块`, // Mined at block #{blockNumber}
   queries: {
     buttons: {
-      query: `Query`
+      query: `查询` // Query
     },
-    title: `queries`
+    title: `查询` // queries
   },
-  title: `Contract Information`
+  title: `合约信息` // Contract Information
 };

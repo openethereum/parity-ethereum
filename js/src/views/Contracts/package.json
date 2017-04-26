@@ -1,0 +1,19 @@
+{
+  "name": "@parity/view-contracts",
+  "description": "Parity contracts views",
+  "version": "0.0.0",
+  "main": "index.js",
+  "author": "Parity Team <admin@parity.io>",
+  "maintainers": [],
+  "contributors": [],
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paritytech/parity.git"
+  },
+  "keywords": [],
+  "scripts": {},
+  "devDependencies": {},
+  "dependencies": {},
+  "peerDependencies": {}
+}

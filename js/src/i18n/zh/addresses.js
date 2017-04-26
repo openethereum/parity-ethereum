@@ -16,10 +16,10 @@
 
 export default {
   buttons: {
-    add: `address`
+    add: `地址` // address
   },
   errors: {
-    invalidFile: `The provided file is invalid...`
+    invalidFile: `提供的文件是无效的`// The provided file is invalid...
   },
-  title: `Saved Addresses`
+  title: `保存的地址`// Saved Addresses
 };

@@ -17,45 +17,46 @@
 export default {
   advanced: {
     data: {
-      hint: `the data to pass through with the transaction`,
-      label: `transaction data`
+      hint: `交易附带数据`, // the data to pass through with the transaction
+      label: `交易数据`// transaction data
     }
   },
   buttons: {
-    back: `Back`,
-    cancel: `Cancel`,
-    close: `Close`,
-    next: `Next`,
-    send: `Send`
+    back: `返回`, // Back
+    cancel: `取消`, // Cancel
+    close: `关闭`, // Close
+    next: `下一步`, // Next
+    send: `发送`// Send
   },
   details: {
     advanced: {
-      label: `advanced sending options`
+      label: `高级发送选项`// advanced sending options
     },
     amount: {
-      hint: `the amount to transfer to the recipient`,
-      label: `amount to transfer (in {tag})`
+      hint: `发送数额`, // the amount to transfer to the recipient
+      label: `发送数额{tag}`// amount to transfer (in {tag})
     },
     fullBalance: {
-      label: `full account balance`
+      label: `所有的余额`// full account balance
     },
     recipient: {
-      hint: `the recipient address`,
-      label: `recipient address`
+      hint: `收款人地址`, // the recipient address
+      label: `收款人地址`// recipient address
     },
     sender: {
-      hint: `the sender address`,
-      label: `sender address`
+      hint: `发送人地址`, // the sender address
+      label: `发送人地址`// sender address
     },
     total: {
-      label: `total transaction amount`
+      label: `发送数额`// total transaction amount
     }
   },
   wallet: {
-    confirmation: `This transaction needs confirmation from other owners.`,
-    operationHash: `operation hash`
+    confirmation: `这笔交易需要其他人的确认。`, // This transaction needs confirmation from other owners.
+    operationHash: `操作哈希`// operation hash
   },
   warning: {
-    wallet_spent_limit: `This transaction value is above the remaining daily limit. It will need to be confirmed by other owners.`
+    wallet_spent_limit: `这笔转账的数额超过了每日转账数额上限。此交易需要其他人的确认才可以发送成功。`
+    // This transaction value is above the remaining daily limit. It will need to be confirmed by other owners.
   }
 };

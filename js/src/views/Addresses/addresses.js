@@ -24,6 +24,7 @@ import List from '../Accounts/List';
 import Summary from '../Accounts/Summary';
 import { AddAddress } from '~/modals';
 import { Actionbar, ActionbarExport, ActionbarImport, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
+import { AddIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import styles from './addresses.css';
@@ -89,7 +90,7 @@ class Addresses extends Component {
 
     return (
       <List
-        link='addresses'
+        link='address'
         search={ searchValues }
         accounts={ contacts }
         empty={ !hasContacts }
@@ -134,7 +135,7 @@ class Addresses extends Component {
     const buttons = [
       <Button
         key='newAddress'
-        icon='plus'
+        icon={ <AddIcon /> }
         label={
           <FormattedMessage
             id='addresses.buttons.add'

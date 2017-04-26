@@ -32,6 +32,10 @@ use rlp::{self, UntrustedRlp};
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
 
+/// Number of blocks in an ethash snapshot.
+// make dependent on difficulty incrment divisor?
+const SNAPSHOT_BLOCKS: u64 = 30000;
+
 /// Ethash params.
 #[derive(Debug, PartialEq)]
 pub struct EthashParams {
@@ -139,17 +143,33 @@ pub struct Ethash {
 
 impl Ethash {
 	/// Create a new instance of Ethash engine
-	pub fn new(params: CommonParams, ethash_params: EthashParams, builtins: BTreeMap<Address, Builtin>) -> Self {
-		Ethash {
+	pub fn new(params: CommonParams, ethash_params: EthashParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Self> {
+		Arc::new(Ethash {
 			params: params,
 			ethash_params: ethash_params,
 			builtins: builtins,
 			pow: EthashManager::new(),
-		}
+		})
 	}
 }
 
-impl Engine for Ethash {
+// TODO [rphmeier]
+//
+// for now, this is different than Ethash's own epochs, and signal
+// "consensus epochs".
+// in this sense, `Ethash` is epochless: the same `EpochVerifier` can be used
+// for any block in the chain.
+// in the future, we might move the Ethash epoch
+// caching onto this mechanism as well.
+impl ::engines::EpochVerifier for Arc<Ethash> {
+	fn epoch_number(&self) -> u64 { 0 }
+	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
+		self.verify_block_unordered(header, None)
+	}
+}
+
+impl Engine for Arc<Ethash> {
 	fn name(&self) -> &str { "Ethash" }
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
 	// Two fields - mix
@@ -378,6 +398,14 @@ impl Engine for Ethash {
 		let network_id = if header.number() >= self.ethash_params.eip155_transition { Some(self.params().chain_id) } else { None };
 		t.verify_basic(check_low_s, network_id, false)?;
 		Ok(())
+	}
+
+	fn epoch_verifier(&self, _header: &Header, _proof: &[u8]) -> Result<Box<::engines::EpochVerifier>, Error> {
+		Ok(Box::new(self.clone()))
+	}
+
+	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+		Some(Box::new(::snapshot::PowSnapshot(SNAPSHOT_BLOCKS)))
 	}
 }
 
