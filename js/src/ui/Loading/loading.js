@@ -19,13 +19,11 @@ import CircularProgress from 'material-ui/CircularProgress';
 
 import styles from './loading.css';
 
-export function Loading ({ className, size, thickness }) {
-  const computedSize = size * 60;
-
+export default function Loading ({ className, size, thickness }) {
   return (
     <div className={ [ styles.loading, className ].join(' ') }>
       <CircularProgress
-        size={ computedSize }
+        size={ size * 60 }
         thickness={ thickness }
       />
     </div>
