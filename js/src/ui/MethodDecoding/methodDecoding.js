@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { CircularProgress } from 'material-ui';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
 import { TypedInput, InputAddress } from '../Form';
+import { Loading } from '../Loading';
 import MethodDecodingStore from './methodDecodingStore';
 
 import styles from './methodDecoding.css';
@@ -99,7 +99,7 @@ class MethodDecoding extends Component {
     if (isLoading) {
       return (
         <div className={ styles.loading }>
-          <CircularProgress size={ 60 } thickness={ 2 } />
+          <Loading size={ 1 } thickness={ 2 } />
         </div>
       );
     }
