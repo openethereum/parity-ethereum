@@ -28,7 +28,7 @@ export default {
   changes: {
     modificationString: `為了保證你做的修改會被執行，
                         其他的帳戶持有人也需要傳送相同的修改。
-                        他們可以通過貼上以下字串來簡單的完成更改：`, 
+                        他們可以通過貼上以下字串來簡單的完成更改：`,
                         // For your modifications to be taken into account,
               // other owners have to send the same modifications. They can paste
               // this string to make it easier:
@@ -38,7 +38,7 @@ export default {
   edit: {
     message: `為了編輯這個合約的設定，至少{owners, number} 
               {owners, plural, one {owner } other {owners }}必須傳送完全相同的修改
-              你可以將字串化的修改貼上在這裡。` 
+              你可以將字串化的修改貼上在這裡。`
                   // In order to edit this contract's settings, at
                   // least {owners, number} {owners, plural, one {owner } other {owners }} have to
                   // send the very same modifications. You can paste a stringified version
@@ -47,7 +47,7 @@ export default {
   modifications: {
     daylimit: {
       hint: `不需要確認即可傳送的ETH數量`, // amount of ETH spendable without confirmations
-      label: `錢包每日限額` //wallet day limit
+      label: `錢包每日限額` // wallet day limit
     },
     fromString: {
       label: `修改` // modifications

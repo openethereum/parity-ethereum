@@ -16,31 +16,31 @@
 
 export default {
   buttons: {
-    edit: `編輯`,//edit
+    edit: `編輯`, // edit
     forget: `forget`,
-    settings: `設定`,//settings
-    transfer: `轉帳`//transfer
+    settings: `設定`, // settings
+    transfer: `轉帳`// transfer
   },
   confirmations: {
     buttons: {
-      confirmAs: `確定為……`,//Confirm As...
-      revokeAs: `撤回為……`//Revoke As...
+      confirmAs: `確定為……`, // Confirm As...
+      revokeAs: `撤回為……`// Revoke As...
     },
-    none: `現在沒有交易需要確認。`,//No transactions needs confirmation right now.
+    none: `現在沒有交易需要確認。`, // No transactions needs confirmation right now.
     tooltip: {
-      confirmed: `被{number}/{required}所有人確認`//Confirmed by {number}/{required} owners
+      confirmed: `被{number}/{required}所有人確認`// Confirmed by {number}/{required} owners
     }
   },
   details: {
     requiredOwners: `這個錢包需要至少{owners}所有人驗證所有的操作（交易，修改）`,
-    //This wallet requires at least {owners} to validate any action (transactions, modifications).
+    // This wallet requires at least {owners} to validate any action (transactions, modifications).
     requiredOwnersNumber: `{number} {numberValue, plural, one {owner} other {owners}}`,
     spent: `{spent} has been spent today, out of {limit} set as the daily limit, which has been reset on {date}`,
-    title: `細節`//Details
+    title: `細節`// Details
   },
-  title: `錢包管理`,//Wallet Management
+  title: `錢包管理`, // Wallet Management
   transactions: {
-    none: `沒有交易被髮送。`,//No transactions has been sent.
-    title: `交易`//Transactions
+    none: `沒有交易被髮送。`, // No transactions has been sent.
+    title: `交易`// Transactions
   }
 };

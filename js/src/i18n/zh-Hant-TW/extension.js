@@ -16,7 +16,7 @@
 
 export default {
   install: `現在就安裝這個擴充套件`, // Install the extension now
-  intro: `Parity現在有一個Chrome的擴充套件，可以安全的瀏覽以太坊所支援的分散式應用。我們強烈推薦你安裝這個擴充套件來進一步提升你的Parity使用體驗。` 
-  // Parity now has an extension available for Chrome that allows safe browsing of Ethereum-enabled distributed applications. 
+  intro: `Parity現在有一個Chrome的擴充套件，可以安全的瀏覽以太坊所支援的分散式應用。我們強烈推薦你安裝這個擴充套件來進一步提升你的Parity使用體驗。`
+  // Parity now has an extension available for Chrome that allows safe browsing of Ethereum-enabled distributed applications.
   // It is highly recommended that you install this extension to further enhance your Parity experience.
 };
