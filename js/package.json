@@ -229,6 +229,7 @@
     "web3": "0.17.0-beta",
     "whatwg-fetch": "2.0.1",
     "worker-loader": "^0.8.0",
+    "yarn": "^0.21.3",
     "zxcvbn": "4.4.1"
   }
 }
