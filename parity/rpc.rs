@@ -16,18 +16,16 @@
 
 use std::io;
 use std::sync::Arc;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use dapps;
 use dir::default_data_path;
-use parity_rpc::informant::{RpcStats, Middleware};
-use parity_rpc::{self as rpc, HttpServerError, Metadata, Origin, DomainsValidation};
 use helpers::{parity_ipc_path, replace_home};
-use jsonrpc_core::{self as core, MetaIoHandler};
+use jsonrpc_core::MetaIoHandler;
 use parity_reactor::TokioRemote;
+use parity_rpc::informant::{RpcStats, Middleware};
+use parity_rpc::{self as rpc, Metadata, DomainsValidation};
 use rpc_apis::{self, ApiSet};
-use parity_ui_server::AuthCodes;
-use util::H256;
 
 pub use parity_rpc::{IpcServer, HttpServer, RequestMiddleware};
 pub use parity_rpc::ws::Server as WsServer;
@@ -167,169 +165,6 @@ pub struct Dependencies<D: rpc_apis::Dependencies> {
 	pub stats: Arc<RpcStats>,
 }
 
-pub struct RpcExtractor;
-impl rpc::HttpMetaExtractor for RpcExtractor {
-	type Metadata = Metadata;
-
-	fn read_metadata(&self, origin: String, dapps_origin: Option<String>) -> Metadata {
-		let mut metadata = Metadata::default();
-
-		metadata.origin = match (origin.as_str(), dapps_origin) {
-			("null", Some(dapp)) => Origin::Dapps(dapp.into()),
-			_ => Origin::Rpc(origin),
-		};
-
-		metadata
-	}
-}
-
-impl rpc::IpcMetaExtractor<Metadata> for RpcExtractor {
-	fn extract(&self, _req: &rpc::IpcRequestContext) -> Metadata {
-		let mut metadata = Metadata::default();
-		// TODO [ToDr] Extract proper session id when it's available in context.
-		metadata.origin = Origin::Ipc(1.into());
-		metadata
-	}
-}
-
-pub struct WsExtractor {
-	authcodes_path: PathBuf,
-}
-impl rpc::ws::MetaExtractor<Metadata> for WsExtractor {
-	fn extract(&self, req: &rpc::ws::RequestContext) -> Metadata {
-		let mut metadata = Metadata::default();
-		let id = req.session_id as u64;
-		// TODO [ToDr] Extract dapp from Origin
-		let dapp = "".into();
-		let authorization = req.protocols.get(0).and_then(|p| auth_token_hash(&self.authcodes_path, p));
-		metadata.origin = match authorization {
-			Some(id) => Origin::Signer { session: id.into(), dapp: dapp },
-			None => Origin::Ws { session: id.into(), dapp: dapp},
-		};
-		metadata
-	}
-}
-
-impl rpc::ws::RequestMiddleware for WsExtractor {
-	fn process(&self, req: &rpc::ws::ws::Request) -> rpc::ws::MiddlewareAction {
-		use self::rpc::ws::ws::Response;
-
-		// Reply with 200 Ok to HEAD requests.
-		if req.method() == "HEAD" {
-			return Some(Response::new(200, "Ok")).into();
-		}
-
-		// Display WS info.
-		if req.header("sec-websocket-key").is_none() {
-			let mut response = Response::new(200, "Ok");
-			// TODO [ToDr] UI redirection?
-			response.set_body("WebSocket interface is active. Open WS connection to access RPC.");
-			return Some(response).into()
-		}
-
-		// If protocol is provided it needs to be valid.
-		let protocols = req.protocols().ok().unwrap_or_else(Vec::new);
-		if protocols.len() == 1 {
-			let authorization = auth_token_hash(&self.authcodes_path, protocols[0]);
-			if authorization.is_none() {
-				warn!(
-					"Blocked connection from {} using invalid token.",
-					req.header("origin").and_then(|e| ::std::str::from_utf8(e).ok()).unwrap_or("Unknown Origin")
-				);
-				return Some(Response::new(403, "Forbidden")).into();
-			}
-		}
-
-		// Otherwise just proceed.
-		rpc::ws::MiddlewareAction::Proceed
-	}
-}
-
-fn auth_token_hash(codes_path: &Path, protocol: &str) -> Option<H256> {
-	let mut split = protocol.split('_');
-	let auth = split.next().and_then(|v| v.parse().ok());
-	let time = split.next().and_then(|v| u64::from_str_radix(v, 10).ok());
-
-	if let (Some(auth), Some(time)) = (auth, time) {
-		// Check if the code is valid
-		return AuthCodes::from_file(codes_path)
-			.ok()
-			.and_then(|mut codes| {
-				// remove old tokens
-				codes.clear_garbage();
-
-				let res = codes.is_valid(&auth, time);
-				// make sure to save back authcodes - it might have been modified
-				if codes.to_file(codes_path).is_err() {
-					warn!(target: "signer", "Couldn't save authorization codes to file.");
-				}
-
-				if res {
-					Some(auth)
-				} else {
-					None
-				}
-			})
-	}
-
-	None
-}
-
-struct WsStats {
-	stats: Arc<RpcStats>,
-}
-
-impl rpc::ws::SessionStats for WsStats {
-	fn open_session(&self, _id: rpc::ws::SessionId) {
-		self.stats.open_session()
-	}
-
-	fn close_session(&self, _id: rpc::ws::SessionId) {
-		self.stats.close_session()
-	}
-}
-
-fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
-	where D: rpc_apis::Dependencies
-{
-	let mut handler = MetaIoHandler::with_middleware(
-		Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
-	);
-	let apis = apis.list_apis().into_iter().collect::<Vec<_>>();
-	deps.apis.extend_with_set(&mut handler, &apis);
-
-	handler
-}
-
-struct WsDispatcher<M: core::Middleware<Metadata>> {
-	full_handler: MetaIoHandler<Metadata, M>,
-}
-
-impl<M: core::Middleware<Metadata>> WsDispatcher<M> {
-	pub fn new(full_handler: MetaIoHandler<Metadata, M>) -> Self {
-		WsDispatcher {
-			full_handler: full_handler,
-		}
-	}
-}
-
-impl<M: core::Middleware<Metadata>> core::Middleware<Metadata> for WsDispatcher<M> {
-	fn on_request<F>(&self, request: core::Request, meta: Metadata, process: F) -> core::FutureResponse where
-		F: FnOnce(core::Request, Metadata) -> core::FutureResponse,
-	{
-		let use_full = match &meta.origin {
-			&Origin::Signer { .. } => true,
-			_ => false,
-		};
-
-		if use_full {
-			self.full_handler.handle_rpc_request(request, meta)
-		} else {
-			process(request, meta)
-		}
-	}
-}
-
 pub fn new_ws<D: rpc_apis::Dependencies>(
 	conf: WsConfiguration,
 	deps: &Dependencies<D>,
@@ -345,7 +180,7 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let full_handler = setup_apis(rpc_apis::ApiSet::SafeContext, deps);
 	let handler = {
 		let mut handler = MetaIoHandler::with_middleware((
-			WsDispatcher::new(full_handler),
+			rpc::WsDispatcher::new(full_handler),
 			Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
 		));
 		let apis = conf.apis.list_apis().into_iter().collect::<Vec<_>>();
@@ -365,15 +200,10 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 		remote,
 		allowed_origins,
 		allowed_hosts,
-		WsExtractor {
-			authcodes_path: path.clone(),
-		},
-		WsExtractor {
-			authcodes_path: path,
-		},
-		WsStats {
-			stats: deps.stats.clone(),
-		},
+		// TODO [ToDr] Codes should be provided only if signer is enabled!
+		rpc::WsExtractor::new(Some(&path)),
+		rpc::WsExtractor::new(Some(&path)),
+		rpc::WsStats::new(deps.stats.clone()),
 	);
 
 	match start_result {
@@ -410,7 +240,7 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 		allowed_hosts,
 		handler,
 		remote,
-		RpcExtractor,
+		rpc::RpcExtractor,
 		match (conf.threads, middleware) {
 			(Some(threads), None) => rpc::HttpSettings::Threads(threads),
 			(None, middleware) => rpc::HttpSettings::Dapps(middleware),
@@ -422,15 +252,11 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 
 	match start_result {
 		Ok(server) => Ok(Some(server)),
-		Err(HttpServerError::Io(ref err)) if err.kind() == io::ErrorKind::AddrInUse => Err(
+		Err(rpc::HttpServerError::Io(ref err)) if err.kind() == io::ErrorKind::AddrInUse => Err(
 			format!("{} address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --{}-port and --{}-interface options.", id, url, options, options)
 		),
 		Err(e) => Err(format!("{} error: {:?}", id, e)),
 	}
-}
-
-fn into_domains<T: From<String>>(items: Option<Vec<String>>) -> DomainsValidation<T> {
-	items.map(|vals| vals.into_iter().map(T::from).collect()).into()
 }
 
 pub fn new_ipc<D: rpc_apis::Dependencies>(
@@ -443,41 +269,24 @@ pub fn new_ipc<D: rpc_apis::Dependencies>(
 
 	let handler = setup_apis(conf.apis, dependencies);
 	let remote = dependencies.remote.clone();
-	match rpc::start_ipc(&conf.socket_addr, handler, remote, RpcExtractor) {
+	match rpc::start_ipc(&conf.socket_addr, handler, remote, rpc::RpcExtractor) {
 		Ok(server) => Ok(Some(server)),
 		Err(io_error) => Err(format!("IPC error: {}", io_error)),
 	}
 }
 
-#[cfg(test)]
-mod tests {
-	use super::RpcExtractor;
-	use parity_rpc::{HttpMetaExtractor, Origin};
+fn into_domains<T: From<String>>(items: Option<Vec<String>>) -> DomainsValidation<T> {
+	items.map(|vals| vals.into_iter().map(T::from).collect()).into()
+}
 
-	#[test]
-	fn should_extract_rpc_origin() {
-		// given
-		let extractor = RpcExtractor;
+fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
+	where D: rpc_apis::Dependencies
+{
+	let mut handler = MetaIoHandler::with_middleware(
+		Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
+	);
+	let apis = apis.list_apis().into_iter().collect::<Vec<_>>();
+	deps.apis.extend_with_set(&mut handler, &apis);
 
-		// when
-		let meta = extractor.read_metadata("http://parity.io".into(), None);
-		let meta1 = extractor.read_metadata("http://parity.io".into(), Some("ignored".into()));
-
-		// then
-		assert_eq!(meta.origin, Origin::Rpc("http://parity.io".into()));
-		assert_eq!(meta1.origin, Origin::Rpc("http://parity.io".into()));
-	}
-
-	#[test]
-	fn should_dapps_origin() {
-		// given
-		let extractor = RpcExtractor;
-		let dapp = "https://wallet.ethereum.org".to_owned();
-
-		// when
-		let meta = extractor.read_metadata("null".into(), Some(dapp.clone()));
-
-		// then
-		assert_eq!(meta.origin, Origin::Dapps(dapp.into()));
-	}
+	handler
 }

@@ -14,29 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Parity RPC requests Metadata.
+use std::ops::{Deref, DerefMut};
+use devtools::RandomTempPath;
+use authcodes::AuthCodes;
 
-use jsonrpc_core;
-use v1::types::{DappId, Origin};
-
-/// RPC methods metadata.
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct Metadata {
-	/// Request origin
-	pub origin: Origin,
+/// Struct representing authcodes
+pub struct GuardedAuthCodes {
+	authcodes: AuthCodes,
+	/// The path to the mock authcodes
+	pub path: RandomTempPath,
 }
 
-impl Metadata {
-	/// Get
-	pub fn dapp_id(&self) -> DappId {
-		match self.origin {
-			Origin::Dapps(ref dapp) => dapp.clone(),
-			Origin::Ws { ref dapp, .. } => dapp.clone(),
-			Origin::Signer { ref dapp, .. } => dapp.clone(),
-			_ => DappId::default(),
+impl GuardedAuthCodes {
+	pub fn new() -> Self {
+		let mut path = RandomTempPath::new();
+		path.panic_on_drop_failure = false;
+
+		GuardedAuthCodes {
+			authcodes: AuthCodes::from_file(&path).unwrap(),
+			path: path,
 		}
 	}
 }
 
-impl jsonrpc_core::Metadata for Metadata {}
+impl Deref for GuardedAuthCodes {
+	type Target = AuthCodes;
+	fn deref(&self) -> &Self::Target {
+		&self.authcodes
+	}
+}
 
+impl DerefMut for GuardedAuthCodes {
+	fn deref_mut(&mut self) -> &mut AuthCodes {
+		&mut self.authcodes
+	}
+}

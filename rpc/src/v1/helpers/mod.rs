@@ -22,7 +22,6 @@ pub mod block_import;
 pub mod dispatch;
 pub mod fake_sign;
 pub mod light_fetch;
-pub mod informant;
 pub mod oneshot;
 pub mod ipfs;
 

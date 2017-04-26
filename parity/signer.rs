@@ -18,9 +18,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use ansi_term::Colour;
-use parity_ui_server as ui;
 use rpc;
 use rpc_apis;
+use parity_rpc;
 use path::restrict_permissions_owner;
 
 
@@ -73,7 +73,7 @@ Or use the generated token:
 
 fn generate_new_token(path: &Path) -> io::Result<String> {
 	let path = codes_path(path);
-	let mut codes = ui::AuthCodes::from_file(&path)?;
+	let mut codes = parity_rpc::AuthCodes::from_file(&path)?;
 	codes.clear_garbage();
 	let code = codes.generate_new()?;
 	codes.to_file(&path)?;

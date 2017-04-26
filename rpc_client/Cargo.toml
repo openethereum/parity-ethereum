@@ -17,5 +17,4 @@ url = "1.2.0"
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 ws = { git = "https://github.com/paritytech/ws-rs.git", branch = "parity-1.7" }
 parity-rpc = { path = "../rpc" }
-parity-ui-server = { path = "../ui" }
 ethcore-util = { path = "../util" }

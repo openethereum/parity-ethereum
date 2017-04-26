@@ -14,13 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore rpc.
+//! Parity RPC.
+
 #![warn(missing_docs)]
-#![cfg_attr(feature="nightly", feature(plugin))]
-#![cfg_attr(feature="nightly", plugin(clippy))]
+#![cfg_attr(feature="dev", feature(plugin))]
+#![cfg_attr(feature="dev", plugin(clippy))]
 
 extern crate futures;
 extern crate order_stat;
+extern crate rand;
 extern crate rustc_serialize;
 extern crate semver;
 extern crate serde;
@@ -68,8 +70,12 @@ extern crate ethcore_devtools as devtools;
 
 pub extern crate jsonrpc_ws_server as ws;
 
-mod metadata;
+mod authcodes;
+mod http_common;
 pub mod v1;
+
+#[cfg(test)]
+mod tests;
 
 pub use ipc::{Server as IpcServer, MetaExtractor as IpcMetaExtractor, RequestContext as IpcRequestContext};
 pub use http::{
@@ -78,8 +84,11 @@ pub use http::{
 	AccessControlAllowOrigin, Host, DomainsValidation
 };
 
-pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings, Metadata, Origin, informant, dispatch};
+pub use v1::{NetworkSettings, Metadata, Origin, informant, dispatch, signer};
 pub use v1::block_import::is_major_importing;
+pub use v1::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
+pub use authcodes::{AuthCodes, TimeProvider};
+pub use http_common::HttpMetaExtractor;
 
 use std::net::SocketAddr;
 use http::tokio_core;
@@ -120,14 +129,6 @@ impl From<minihttp::Error> for HttpServerError {
 	}
 }
 
-/// HTTP RPC server impl-independent metadata extractor
-pub trait HttpMetaExtractor: Send + Sync + 'static {
-	/// Type of Metadata
-	type Metadata: jsonrpc_core::Metadata;
-	/// Extracts metadata from given params.
-	fn read_metadata(&self, origin: String, dapps_origin: Option<String>) -> Self::Metadata;
-}
-
 /// HTTP server implementation-specific settings.
 pub enum HttpSettings<R: RequestMiddleware> {
 	/// Enable fast minihttp server with given number of threads.
@@ -156,7 +157,7 @@ pub fn start_http<M, S, H, T, R>(
 		HttpSettings::Dapps(middleware) => {
 			let mut builder = http::ServerBuilder::new(handler)
 				.event_loop_remote(remote)
-				.meta_extractor(metadata::HyperMetaExtractor::new(extractor))
+				.meta_extractor(http_common::HyperMetaExtractor::new(extractor))
 				.cors(cors_domains.into())
 				.allowed_hosts(allowed_hosts.into());
 
@@ -169,7 +170,7 @@ pub fn start_http<M, S, H, T, R>(
 		HttpSettings::Threads(threads) => {
 			minihttp::ServerBuilder::new(handler)
 				.threads(threads)
-				.meta_extractor(metadata::MiniMetaExtractor::new(extractor))
+				.meta_extractor(http_common::MiniMetaExtractor::new(extractor))
 				.cors(cors_domains.into())
 				.allowed_hosts(allowed_hosts.into())
 				.start_http(addr)

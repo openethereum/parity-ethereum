@@ -33,16 +33,20 @@ pub enum Origin {
 	/// IPC server (includes session hash)
 	#[serde(rename="ipc")]
 	Ipc(H256),
-	/// WS server (includes session hash)
+	/// WS server
 	#[serde(rename="ws")]
 	Ws {
+		/// Dapp id
 		dapp: DappId,
+		/// Session id
 		session: H256,
 	},
-	/// Signer (includes session hash)
+	/// Signer (authorized WS server)
 	#[serde(rename="signer")]
 	Signer {
+		/// Dapp id
 		dapp: DappId,
+		/// Session id
 		session: H256
 	},
 	/// Unknown

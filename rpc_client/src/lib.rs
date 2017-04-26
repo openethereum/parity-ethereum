@@ -1,7 +1,6 @@
 pub mod client;
 pub mod signer_client;
 
-extern crate parity_ui_server as ethcore_signer;
 extern crate ethcore_util as util;
 extern crate futures;
 extern crate jsonrpc_core;
@@ -24,11 +23,11 @@ mod tests {
 	use futures::Future;
 	use std::path::PathBuf;
 	use client::{Rpc, RpcError};
-	use ethcore_signer;
+	use rpc;
 
 	#[test]
 	fn test_connection_refused() {
-		let (_srv, port, mut authcodes) = ethcore_signer::tests::serve();
+		let (_srv, port, mut authcodes) = rpc::tests::serve();
 
 		let _ = authcodes.generate_new();
 		authcodes.to_file(&authcodes.path).unwrap();
@@ -43,7 +42,7 @@ mod tests {
 
 	#[test]
 	fn test_authcode_fail() {
-		let (_srv, port, _) = ethcore_signer::tests::serve();
+		let (_srv, port, _) = rpc::tests::serve();
 		let path = PathBuf::from("nonexist");
 
 		let connect = Rpc::connect(&format!("ws://127.0.0.1:{}", port), &path);
@@ -55,7 +54,7 @@ mod tests {
 
 	#[test]
 	fn test_authcode_correct() {
-		let (_srv, port, mut authcodes) = ethcore_signer::tests::serve();
+		let (_srv, port, mut authcodes) = rpc::tests::serve();
 
 		let _ = authcodes.generate_new();
 		authcodes.to_file(&authcodes.path).unwrap();

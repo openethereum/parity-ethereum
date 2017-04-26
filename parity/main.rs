@@ -59,7 +59,6 @@ extern crate parity_ipfs_api;
 extern crate parity_local_store as local_store;
 extern crate parity_reactor;
 extern crate parity_rpc;
-extern crate parity_ui_server;
 extern crate parity_updater as updater;
 extern crate path;
 extern crate rpc_cli;

@@ -20,7 +20,7 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::Arc;
 
-pub use parity_rpc::SignerService;
+pub use parity_rpc::signer::SignerService;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;

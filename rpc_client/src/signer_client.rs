@@ -1,5 +1,5 @@
 use client::{Rpc, RpcError};
-use rpc::v1::types::{ConfirmationRequest, TransactionModification, U256, TransactionCondition};
+use rpc::signer::{ConfirmationRequest, TransactionModification, U256, TransactionCondition};
 use serde;
 use serde_json::{Value as JsonValue, to_value};
 use std::path::PathBuf;

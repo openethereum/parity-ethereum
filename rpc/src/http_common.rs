@@ -14,11 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Transport-specific metadata extractors.
+
 use jsonrpc_core;
 use http;
 use hyper;
 use minihttp;
-use HttpMetaExtractor;
+
+/// HTTP RPC server impl-independent metadata extractor
+pub trait HttpMetaExtractor: Send + Sync + 'static {
+	/// Type of Metadata
+	type Metadata: jsonrpc_core::Metadata;
+	/// Extracts metadata from given params.
+	fn read_metadata(&self, origin: String, dapps_origin: Option<String>) -> Self::Metadata;
+}
 
 pub struct HyperMetaExtractor<T> {
 	extractor: T,

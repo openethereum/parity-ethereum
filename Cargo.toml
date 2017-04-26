@@ -49,7 +49,6 @@ parity-local-store = { path = "local-store" }
 parity-reactor = { path = "util/reactor" }
 parity-rpc = { path = "rpc" }
 parity-rpc-client = { path = "rpc_client" }
-parity-ui-server = { path = "ui" }
 parity-updater = { path = "updater" }
 path = { path = "util/path" }
 
@@ -75,17 +74,15 @@ default = ["ui-precompiled"]
 ui = [
 	"dapps",
 	"parity-dapps/ui",
-	"parity-ui-server/ui",
 ]
 ui-precompiled = [
 	"dapps",
-	"parity-ui-server/ui-precompiled",
 	"parity-dapps/ui-precompiled",
 ]
 dapps = ["parity-dapps"]
 ipc = ["ethcore/ipc", "ethsync/ipc"]
 jit = ["ethcore/jit"]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "parity-rpc/dev", "parity-dapps/dev", "parity-ui-server/dev"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "parity-rpc/dev", "parity-dapps/dev"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
 ethkey-cli = ["ethcore/ethkey-cli"]
