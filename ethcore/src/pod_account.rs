@@ -54,8 +54,6 @@ impl PodAccount {
 
 	/// Returns the RLP for this account.
 	pub fn rlp(&self) -> Bytes {
-		println!("creating RLP for account: {:?}", self);
-
 		let mut stream = RlpStream::new_list(4);
 		stream.append(&self.nonce);
 		stream.append(&self.balance);

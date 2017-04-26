@@ -185,22 +185,19 @@ impl Spec {
 
 		// basic accounts in spec.
 		{
+			let mut t = factories.trie.create(db.as_hashdb_mut(), &mut root);
+
 			for (address, account) in self.genesis_state.get().iter() {
-				let mut t = factories.trie.create(db.as_hashdb_mut(), &mut root);
 				t.insert(&**address, &account.rlp())?;
 			}
+		}
 
-			println!("root after writing accounts: {}", root);
-
-			for (address, account) in self.genesis_state.get().iter() {
-				db.note_non_null_account(address);
-				account.insert_additional(
-					&mut *factories.accountdb.create(db.as_hashdb_mut(), address.sha3()),
-					&factories.trie
-				);
-			}
-
-			println!("root after writing storage: {}", root);
+		for (address, account) in self.genesis_state.get().iter() {
+			db.note_non_null_account(address);
+			account.insert_additional(
+				&mut *factories.accountdb.create(db.as_hashdb_mut(), address.sha3()),
+				&factories.trie
+			);
 		}
 
 		let start_nonce = self.engine.account_start_nonce();
@@ -262,7 +259,6 @@ impl Spec {
 			state.drop()
 		};
 
-		println!("root after executing constructors: {}", root);
 		*self.state_root_memo.write() = root;
 		Ok(db)
 	}
@@ -352,8 +348,6 @@ impl Spec {
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good(&self, db: StateDB, factories: &Factories) -> Result<StateDB, Error> {
-		println!("calling ensure_db_good");
-
 		if db.as_hashdb().contains(&self.state_root()) {
 			return Ok(db)
 		}

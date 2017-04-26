@@ -449,7 +449,6 @@ impl state::Backend for StateDB {
 		trace!(target: "account_bloom", "Check account bloom: {:?}", address);
 		let bloom = self.account_bloom.lock();
 		let is_null = !bloom.check(&*address.sha3());
-		println!("is known null? {}", is_null);
 		is_null
 	}
 }
