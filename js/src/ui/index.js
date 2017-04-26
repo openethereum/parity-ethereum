@@ -47,6 +47,7 @@ export ModalBox from './ModalBox';
 export muiTheme from './Theme';
 export Page from './Page';
 export Portal from './Portal';
+export Progress from './Progress';
 export QrCode from './QrCode';
 export QrScan from './QrScan';
 export ScrollableText from './ScrollableText';

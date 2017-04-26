@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { LinearProgress, MenuItem, IconMenu } from 'material-ui';
+import { MenuItem, IconMenu } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
@@ -24,7 +24,7 @@ import { bindActionCreators } from 'redux';
 import { bytesToHex } from '@parity/api/util/format';
 
 import { confirmOperation, revokeOperation } from '~/redux/providers/walletActions';
-import { Container, InputAddress, Button, IdentityIcon } from '~/ui';
+import { Button, Container, InputAddress, IdentityIcon, Progress } from '~/ui';
 import TxRow from '~/ui/TxList/TxRow';
 
 import styles from '../wallet.css';
@@ -319,16 +319,15 @@ class WalletConfirmation extends Component {
             {
               pending
               ? (
-                <LinearProgress
+                <Progress
                   key={ `pending_${operation}` }
-                  mode='indeterminate'
                   style={ style }
                 />
               )
               : (
-                <LinearProgress
+                <Progress
                   key={ `unpending_${operation}` }
-                  mode='determinate'
+                  determinate
                   min={ 0 }
                   max={ require.toNumber() }
                   value={ confirmedBy.length }

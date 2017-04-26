@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { LinearProgress } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import ReactDOM from 'react-dom';
@@ -22,7 +21,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { hideRequest } from '~/redux/providers/requestsActions';
-import { MethodDecoding, IdentityIcon, ScrollableText, ShortenedHash } from '~/ui';
+import { MethodDecoding, IdentityIcon, Progress, ScrollableText, ShortenedHash } from '~/ui';
 
 import styles from './requests.css';
 
@@ -100,7 +99,7 @@ class Requests extends Component {
           state.type === ERROR_STATE
             ? null
             : (
-              <LinearProgress
+              <Progress
                 max={ 6 }
                 mode={ state.type === WAITING_STATE ? 'indeterminate' : 'determinate' }
                 value={ state.type === DONE_STATE ? request.blockHeight.toNumber() : 6 }

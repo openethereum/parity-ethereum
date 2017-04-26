@@ -114,7 +114,7 @@ describe('ui/TxHash', () => {
       });
 
       it('renders indeterminate progressbar', () => {
-        expect(child.find('LinearProgress[mode="indeterminate"]')).to.have.length(1);
+        expect(child.find('Progress')).to.have.length(1);
       });
 
       it('renders waiting text', () => {
@@ -132,7 +132,7 @@ describe('ui/TxHash', () => {
       });
 
       it('renders determinate progressbar', () => {
-        expect(child.find('LinearProgress[mode="determinate"]')).to.have.length(1);
+        expect(child.find('Progress[determinate]')).to.have.length(1);
       });
 
       it('renders confirmation text', () => {
