@@ -769,7 +769,7 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn prove_transaction(&self, _: SignedTransaction, _: BlockId) -> Option<Vec<DBValue>> {
+	fn prove_transaction(&self, _: SignedTransaction, _: BlockId) -> Option<(Bytes, Vec<DBValue>)> {
 		None
 	}
 }

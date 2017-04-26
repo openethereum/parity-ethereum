@@ -15,6 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  loading: `Loading`,
-  unavailable: `The dapp cannot be reached`
+  loading: `正在加载`, // Loading
+  unavailable: `不能获取这个dapp`// The dapp cannot be reached
 };

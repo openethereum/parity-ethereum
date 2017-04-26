@@ -16,13 +16,13 @@
 
 export default {
   buttons: {
-    deploy: `deploy`,
-    develop: `develop`,
-    watch: `watch`
+    deploy: `部署`, // deploy
+    develop: `开发`, // develop
+    watch: `观察` // watch
   },
   sortOrder: {
-    date: `date`,
-    minedBlock: `mined block`
+    date: `日期`, // date
+    minedBlock: `挖到的区块` // mined block
   },
-  title: `Contracts`
+  title: `合约` // Contracts
 };

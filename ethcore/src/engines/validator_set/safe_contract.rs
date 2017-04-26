@@ -17,24 +17,45 @@
 /// Validator set maintained in a contract, updated using `getValidators` method.
 
 use std::sync::Weak;
-use ethabi;
+use futures::Future;
+use native_contracts::ValidatorSet as Provider;
+
 use util::*;
 use util::cache::MemoryLruCache;
-use types::ids::BlockId;
+
+use basic_types::LogBloom;
 use client::{Client, BlockChainClient};
+use engines::Call;
+use header::Header;
+use ids::BlockId;
+use log_entry::LogEntry;
+
 use super::ValidatorSet;
 use super::simple_list::SimpleList;
 
 const MEMOIZE_CAPACITY: usize = 500;
-const CONTRACT_INTERFACE: &'static [u8] = b"[{\"constant\":true,\"inputs\":[],\"name\":\"getValidators\",\"outputs\":[{\"name\":\"\",\"type\":\"address[]\"}],\"payable\":false,\"type\":\"function\"}]";
-const GET_VALIDATORS: &'static str = "getValidators";
+
+// TODO: ethabi should be able to generate this.
+const EVENT_NAME: &'static [u8] = &*b"ValidatorsChanged(bytes32,uint256,address[])";
+
+lazy_static! {
+	static ref EVENT_NAME_HASH: H256 = EVENT_NAME.sha3();
+}
 
 /// The validator contract should have the following interface:
-/// [{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}]
 pub struct ValidatorSafeContract {
 	pub address: Address,
 	validators: RwLock<MemoryLruCache<H256, SimpleList>>,
-	provider: RwLock<Option<provider::Contract>>,
+	provider: Provider,
+	client: RwLock<Option<Weak<Client>>>, // TODO [keorn]: remove
+}
+
+fn encode_proof(nonce: U256, validators: &[Address]) -> Bytes {
+	use rlp::RlpStream;
+
+	let mut stream = RlpStream::new_list(2);
+	stream.append(&nonce).append_list(validators);
+	stream.drain().to_vec()
 }
 
 impl ValidatorSafeContract {
@@ -42,39 +63,168 @@ impl ValidatorSafeContract {
 		ValidatorSafeContract {
 			address: contract_address,
 			validators: RwLock::new(MemoryLruCache::new(MEMOIZE_CAPACITY)),
-			provider: RwLock::new(None),
+			provider: Provider::new(contract_address),
+			client: RwLock::new(None),
 		}
 	}
 
 	/// Queries the state and gets the set of validators.
-	fn get_list(&self, block_hash: H256) -> Option<SimpleList> {
-		if let Some(ref provider) = *self.provider.read() {
-			match provider.get_validators(BlockId::Hash(block_hash)) {
-				Ok(new) => {
-					debug!(target: "engine", "Set of validators obtained: {:?}", new);
-					Some(SimpleList::new(new))
-				},
-				Err(s) => {
-					debug!(target: "engine", "Set of validators could not be updated: {}", s);
-					None
-				},
-			}
-		} else {
-			warn!(target: "engine", "Set of validators could not be updated: no provider contract.");
-			None
+	fn get_list(&self, caller: &Call) -> Option<SimpleList> {
+		match self.provider.get_validators(caller).wait() {
+			Ok(new) => {
+				debug!(target: "engine", "Set of validators obtained: {:?}", new);
+				Some(SimpleList::new(new))
+			},
+			Err(s) => {
+				debug!(target: "engine", "Set of validators could not be updated: {}", s);
+				None
+			},
 		}
+	}
+
+	/// Queries for the current validator set transition nonce.
+	fn get_nonce(&self, caller: &Call) -> Option<::util::U256> {
+		match self.provider.transition_nonce(caller).wait() {
+			Ok(nonce) => Some(nonce),
+			Err(s) => {
+				debug!(target: "engine", "Unable to fetch transition nonce: {}", s);
+				None
+			}
+		}
+	}
+
+	// Whether the header matches the expected bloom.
+	//
+	// The expected log should have 3 topics:
+	//   1. ETHABI-encoded log name.
+	//   2. the block's parent hash.
+	//   3. the "nonce": n for the nth transition in history.
+	//
+	// We can only search for the first 2, since we don't have the third
+	// just yet.
+	//
+	// The parent hash is included to prevent
+	// malicious actors from brute forcing other logs that would
+	// produce the same bloom.
+	//
+	// The log data is an array of all new validator addresses.
+	fn expected_bloom(&self, header: &Header) -> LogBloom {
+		LogEntry {
+			address: self.address,
+			topics: vec![*EVENT_NAME_HASH, *header.parent_hash()],
+			data: Vec::new(), // irrelevant for bloom.
+		}.bloom()
 	}
 }
 
 impl ValidatorSet for ValidatorSafeContract {
-	fn contains(&self, block_hash: &H256, address: &Address) -> bool {
+	fn default_caller(&self, id: BlockId) -> Box<Call> {
+		let client = self.client.read().clone();
+		Box::new(move |addr, data| client.as_ref()
+			.and_then(Weak::upgrade)
+			.ok_or("No client!".into())
+			.and_then(|c| c.call_contract(id, addr, data)))
+	}
+
+	fn is_epoch_end(&self, header: &Header, _block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> ::engines::EpochChange
+	{
+		let bloom = self.expected_bloom(header);
+		let header_bloom = header.log_bloom();
+
+		if &bloom & header_bloom != bloom { return ::engines::EpochChange::No }
+
+		match receipts {
+			None => ::engines::EpochChange::Unsure(::engines::Unsure::NeedsReceipts),
+			Some(receipts) => {
+				let check_log = |log: &LogEntry| {
+					log.address == self.address &&
+						log.topics.len() == 3 &&
+						log.topics[0] == *EVENT_NAME_HASH &&
+						log.topics[1] == *header.parent_hash()
+						// don't have anything to compare nonce to yet.
+				};
+
+				let event = Provider::contract(&self.provider)
+					.event("ValidatorsChanged".into())
+					.expect("Contract known ahead of time to have `ValidatorsChanged` event; qed");
+
+				// iterate in reverse because only the _last_ change in a given
+				// block actually has any effect.
+				// the contract should only increment the nonce once.
+				let mut decoded_events = receipts.iter()
+					.rev()
+					.filter(|r| &bloom & &r.log_bloom == bloom)
+					.flat_map(|r| r.logs.iter())
+					.filter(move |l| check_log(l))
+					.filter_map(|log| {
+						let topics = log.topics.iter().map(|x| x.0.clone()).collect();
+						match event.decode_log(topics, log.data.clone()) {
+							Ok(decoded) => Some(decoded),
+							Err(_) => None,
+						}
+					});
+
+				match decoded_events.next() {
+					None => ::engines::EpochChange::No,
+					Some(matched_event) => {
+						// decode log manually until the native contract generator is
+						// good enough to do it for us.
+						let &(_, _, ref nonce_token) = &matched_event.params[1];
+						let &(_, _, ref validators_token) = &matched_event.params[2];
+
+						let nonce: Option<U256> = nonce_token.clone().to_uint()
+							.map(H256).map(Into::into);
+						let validators = validators_token.clone().to_array()
+							.and_then(|a| a.into_iter()
+								.map(|x| x.to_address().map(H160))
+								.collect::<Option<Vec<_>>>()
+							);
+
+						match (nonce, validators) {
+							(Some(nonce), Some(validators)) => {
+								let proof = encode_proof(nonce, &validators);
+								let new_epoch = nonce.low_u64();
+								::engines::EpochChange::Yes(new_epoch, proof)
+							}
+							_ => {
+								debug!(target: "engine", "Successfully decoded log turned out to be bad.");
+								::engines::EpochChange::No
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// the proof we generate is an RLP list containing two parts.
+	//   (nonce, validators)
+	fn epoch_proof(&self, _header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
+		match (self.get_nonce(caller), self.get_list(caller)) {
+			(Some(nonce), Some(list)) => Ok(encode_proof(nonce, &list.into_inner())),
+			_ => Err("Caller insufficient to generate validator proof.".into()),
+		}
+	}
+
+	fn epoch_set(&self, _header: &Header, proof: &[u8]) -> Result<(u64, SimpleList), ::error::Error> {
+		use rlp::UntrustedRlp;
+
+		let rlp = UntrustedRlp::new(proof);
+		let nonce: u64 = rlp.val_at(0)?;
+		let validators: Vec<Address> = rlp.list_at(1)?;
+
+		Ok((nonce, SimpleList::new(validators)))
+	}
+
+	fn contains_with_caller(&self, block_hash: &H256, address: &Address, caller: &Call) -> bool {
 		let mut guard = self.validators.write();
 		let maybe_existing = guard
 			.get_mut(block_hash)
 			.map(|list| list.contains(block_hash, address));
 		maybe_existing
 			.unwrap_or_else(|| self
-				.get_list(block_hash.clone())
+				.get_list(caller)
 				.map_or(false, |list| {
 					let contains = list.contains(block_hash, address);
 					guard.insert(block_hash.clone(), list);
@@ -82,14 +232,14 @@ impl ValidatorSet for ValidatorSafeContract {
 				 }))
 	}
 
-	fn get(&self, block_hash: &H256, nonce: usize) -> Address {
+	fn get_with_caller(&self, block_hash: &H256, nonce: usize, caller: &Call) -> Address {
 		let mut guard = self.validators.write();
 		let maybe_existing = guard
 			.get_mut(block_hash)
 			.map(|list| list.get(block_hash, nonce));
 		maybe_existing
 			.unwrap_or_else(|| self
-				.get_list(block_hash.clone())
+				.get_list(caller)
 				.map_or_else(Default::default, |list| {
 					let address = list.get(block_hash, nonce);
 					guard.insert(block_hash.clone(), list);
@@ -97,14 +247,14 @@ impl ValidatorSet for ValidatorSafeContract {
 				 }))
 	}
 
-	fn count(&self, block_hash: &H256) -> usize {
+	fn count_with_caller(&self, block_hash: &H256, caller: &Call) -> usize {
 		let mut guard = self.validators.write();
 		let maybe_existing = guard
 			.get_mut(block_hash)
 			.map(|list| list.count(block_hash));
 		maybe_existing
 			.unwrap_or_else(|| self
-				.get_list(block_hash.clone())
+				.get_list(caller)
 				.map_or_else(usize::max_value, |list| {
 					let address = list.count(block_hash);
 					guard.insert(block_hash.clone(), list);
@@ -114,55 +264,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
 	fn register_contract(&self, client: Weak<Client>) {
 		trace!(target: "engine", "Setting up contract caller.");
-		let contract = ethabi::Contract::new(ethabi::Interface::load(CONTRACT_INTERFACE).expect("JSON interface is valid; qed"));
-		let call = contract.function(GET_VALIDATORS.into()).expect("Method name is valid; qed");
-		let data = call.encode_call(vec![]).expect("get_validators does not take any arguments; qed");
-		let contract_address = self.address.clone();
-		let do_call = move |id| client
-			.upgrade()
-			.ok_or("No client!".into())
-			.and_then(|c| c.call_contract(id, contract_address.clone(), data.clone()))
-			.map(|raw_output| call.decode_output(raw_output).expect("ethabi is correct; qed"));
-		*self.provider.write() = Some(provider::Contract::new(do_call));
-	}
-}
-
-mod provider {
-	use std::string::String;
-	use std::result::Result;
-	use {util, ethabi};
-	use types::ids::BlockId;
-
-	pub struct Contract {
-		do_call: Box<Fn(BlockId) -> Result<Vec<ethabi::Token>, String> + Send + Sync + 'static>,
-	}
-
-	impl Contract {
-		pub fn new<F>(do_call: F) -> Self where F: Fn(BlockId) -> Result<Vec<ethabi::Token>, String> + Send + Sync + 'static {
-			Contract {
-				do_call: Box::new(do_call),
-			}
-		}
-
-		/// Gets validators from contract with interface: `{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}`
-		pub fn get_validators(&self, id: BlockId) -> Result<Vec<util::Address>, String> {
-			Ok((self.do_call)(id)?
-				 .into_iter()
-				 .rev()
-				 .collect::<Vec<_>>()
-				 .pop()
-				 .expect("get_validators returns one argument; qed")
-				 .to_array()
-				 .and_then(|v| v
-					 .into_iter()
-					 .map(|a| a.to_address())
-					 .collect::<Option<Vec<[u8; 20]>>>())
-				 .expect("get_validators returns a list of addresses; qed")
-				 .into_iter()
-				 .map(util::Address::from)
-				 .collect::<Vec<_>>()
-			)
-		}
+		*self.client.write() = Some(client);
 	}
 }
 
@@ -178,7 +280,7 @@ mod tests {
 	use miner::MinerService;
 	use tests::helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
 	use super::super::ValidatorSet;
-	use super::ValidatorSafeContract;
+	use super::{ValidatorSafeContract, EVENT_NAME_HASH};
 
 	#[test]
 	fn fetches_validators() {
@@ -255,5 +357,36 @@ mod tests {
 		}
 		sync_client.flush_queue();
 		assert_eq!(sync_client.chain_info().best_block_number, 3);
+	}
+
+	#[test]
+	fn detects_bloom() {
+		use header::Header;
+		use engines::{EpochChange, Unsure};
+		use log_entry::LogEntry;
+
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
+		let engine = client.engine().clone();
+		let validator_contract = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+
+		let last_hash = client.best_block_header().hash();
+		let mut new_header = Header::default();
+		new_header.set_parent_hash(last_hash);
+
+		// first, try without the parent hash.
+		let mut event = LogEntry {
+			address: validator_contract,
+			topics: vec![*EVENT_NAME_HASH],
+			data: Vec::new(),
+		};
+
+		new_header.set_log_bloom(event.bloom());
+		assert_eq!(engine.is_epoch_end(&new_header, None, None), EpochChange::No);
+
+		// with the last hash, it should need the receipts.
+		event.topics.push(last_hash);
+		new_header.set_log_bloom(event.bloom());
+		assert_eq!(engine.is_epoch_end(&new_header, None, None),
+			EpochChange::Unsure(Unsure::NeedsReceipts));
 	}
 }
