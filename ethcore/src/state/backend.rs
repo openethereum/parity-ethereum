@@ -206,7 +206,8 @@ impl<H: AsHashDB> Proving<H> {
 		}
 	}
 
-	/// Consume the backend, extracting the gathered proof.
+	/// Consume the backend, extracting the gathered proof in lexicographical order
+	/// by value.
 	pub fn extract_proof(self) -> Vec<DBValue> {
 		self.proof.into_inner().into_iter().collect()
 	}
@@ -220,4 +221,34 @@ impl<H: AsHashDB + Clone> Clone for Proving<H> {
 			proof: Mutex::new(self.proof.lock().clone()),
 		}
 	}
+}
+
+/// A basic backend. Just wraps the given database, directly inserting into and deleting from
+/// it. Doesn't cache anything.
+pub struct Basic<H>(pub H);
+
+impl<H: AsHashDB + Send + Sync> Backend for Basic<H> {
+	fn as_hashdb(&self) -> &HashDB {
+		self.0.as_hashdb()
+	}
+
+	fn as_hashdb_mut(&mut self) -> &mut HashDB {
+		self.0.as_hashdb_mut()
+	}
+
+	fn add_to_account_cache(&mut self, _: Address, _: Option<Account>, _: bool) { }
+
+	fn cache_code(&self, _: H256, _: Arc<Vec<u8>>) { }
+
+	fn get_cached_account(&self, _: &Address) -> Option<Option<Account>> { None }
+
+	fn get_cached<F, U>(&self, _: &Address, _: F) -> Option<U>
+		where F: FnOnce(Option<&mut Account>) -> U
+	{
+		None
+	}
+
+	fn get_cached_code(&self, _: &H256) -> Option<Arc<Vec<u8>>> { None }
+	fn note_non_null_account(&self, _: &Address) { }
+	fn is_known_null(&self, _: &Address) -> bool { false }
 }

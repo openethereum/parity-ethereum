@@ -19,6 +19,7 @@
 use util::*;
 use builtin::Builtin;
 use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint};
+use error::Error;
 use factory::Factories;
 use executive::Executive;
 use trace::{NoopTracer, NoopVMTracer};
@@ -27,7 +28,6 @@ use types::executed::CallType;
 use state::{Backend, State, Substate};
 use env_info::EnvInfo;
 use pod_state::*;
-use account_db::*;
 use header::{BlockNumber, Header};
 use state_db::StateDB;
 use super::genesis::Genesis;
@@ -119,39 +119,42 @@ pub struct Spec {
 	constructors: Vec<(Address, Bytes)>,
 
 	/// May be prepopulated if we know this in advance.
-	state_root_memo: RwLock<Option<H256>>,
+	state_root_memo: RwLock<H256>,
 
 	/// Genesis state as plain old data.
 	genesis_state: PodState,
 }
 
-impl From<ethjson::spec::Spec> for Spec {
-	fn from(s: ethjson::spec::Spec) -> Self {
-		let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
-		let g = Genesis::from(s.genesis);
-		let GenericSeal(seal_rlp) = g.seal.into();
-		let params = CommonParams::from(s.params);
-		Spec {
-			name: s.name.clone().into(),
-			params: params.clone(),
-			engine: Spec::engine(s.engine, params, builtins),
-			data_dir: s.data_dir.unwrap_or(s.name).into(),
-			nodes: s.nodes.unwrap_or_else(Vec::new),
-			parent_hash: g.parent_hash,
-			transactions_root: g.transactions_root,
-			receipts_root: g.receipts_root,
-			author: g.author,
-			difficulty: g.difficulty,
-			gas_limit: g.gas_limit,
-			gas_used: g.gas_used,
-			timestamp: g.timestamp,
-			extra_data: g.extra_data,
-			seal_rlp: seal_rlp,
-			constructors: s.accounts.constructors().into_iter().map(|(a, c)| (a.into(), c.into())).collect(),
-			state_root_memo: RwLock::new(g.state_root),
-			genesis_state: From::from(s.accounts),
-		}
-	}
+fn load_from(s: ethjson::spec::Spec) -> Result<Spec, Error> {
+	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
+	let g = Genesis::from(s.genesis);
+	let GenericSeal(seal_rlp) = g.seal.into();
+	let params = CommonParams::from(s.params);
+
+	let s = Spec {
+		name: s.name.clone().into(),
+		params: params.clone(),
+		engine: Spec::engine(s.engine, params, builtins),
+		data_dir: s.data_dir.unwrap_or(s.name).into(),
+		nodes: s.nodes.unwrap_or_else(Vec::new),
+		parent_hash: g.parent_hash,
+		transactions_root: g.transactions_root,
+		receipts_root: g.receipts_root,
+		author: g.author,
+		difficulty: g.difficulty,
+		gas_limit: g.gas_limit,
+		gas_used: g.gas_used,
+		timestamp: g.timestamp,
+		extra_data: g.extra_data,
+		seal_rlp: seal_rlp,
+		constructors: s.accounts.constructors().into_iter().map(|(a, c)| (a.into(), c.into())).collect(),
+		state_root_memo: RwLock::new(Default::default()), // will be overwritten right after.
+		genesis_state: s.accounts.into(),
+	};
+
+	s.run_constructors(&Default::default(), |_| {})?;
+
+	Ok(s)
 }
 
 macro_rules! load_bundled {
@@ -174,13 +177,97 @@ impl Spec {
 		}
 	}
 
+	// given a pre-constructor state, run all the given constructors and produce a new state and state root.
+	fn run_constructors<F>(&self, factories: &Factories, note_non_null: F) -> Result<MemoryDB, Error>
+		where F: Fn(&Address)
+	{
+		use state::backend::Basic as BasicBackend;
+
+		let mut root = SHA3_NULL_RLP;
+		let mut db = MemoryDB::new();
+
+		// basic accounts in spec.
+		{
+			for (address, account) in self.genesis_state.get().iter() {
+				let mut t = factories.trie.create(db.as_hashdb_mut(), &mut root);
+				t.insert(&**address, &account.rlp())?;
+			}
+
+			for (address, account) in self.genesis_state.get().iter() {
+				note_non_null(address);
+				account.insert_additional(
+					&mut *factories.accountdb.create(&mut db, address.sha3()),
+					&factories.trie
+				);
+			}
+		}
+
+		let start_nonce = self.engine.account_start_nonce();
+
+		let (root, BasicBackend(db)) = {
+			let mut state = State::from_existing(
+				BasicBackend(db),
+				root,
+				start_nonce,
+				factories.clone(),
+			)?;
+
+			// Execute contract constructors.
+			let env_info = EnvInfo {
+				number: 0,
+				author: self.author,
+				timestamp: self.timestamp,
+				difficulty: self.difficulty,
+				last_hashes: Default::default(),
+				gas_used: U256::zero(),
+				gas_limit: U256::max_value(),
+			};
+
+			let from = Address::default();
+			for &(ref address, ref constructor) in self.constructors.iter() {
+				trace!(target: "spec", "run_constructors: Creating a contract at {}.", address);
+				trace!(target: "spec", "  .. root before = {}", state.root());
+				let params = ActionParams {
+					code_address: address.clone(),
+					code_hash: constructor.sha3(),
+					address: address.clone(),
+					sender: from.clone(),
+					origin: from.clone(),
+					gas: U256::max_value(),
+					gas_price: Default::default(),
+					value: ActionValue::Transfer(Default::default()),
+					code: Some(Arc::new(constructor.clone())),
+					data: None,
+					call_type: CallType::None,
+				};
+
+				let mut substate = Substate::new();
+				state.kill_account(&address);
+
+				{
+					let mut exec = Executive::new(&mut state, &env_info, self.engine.as_ref(), &factories.vm);
+					if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
+						warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
+					}
+				}
+
+				if let Err(e) = state.commit() {
+					warn!(target: "spec", "Genesis constructor trie commit at {} failed: {}.", address, e);
+				}
+
+				trace!(target: "spec", "  .. root after = {}", state.root());
+			}
+
+			state.drop()
+		};
+
+		*self.state_root_memo.write() = root;
+		Ok(db)
+	}
+
 	/// Return the state root for the genesis state, memoising accordingly.
 	pub fn state_root(&self) -> H256 {
-		if self.state_root_memo.read().is_none() {
-			*self.state_root_memo.write() = Some(self.genesis_state.root());
-		}
-		self.state_root_memo.read().as_ref().cloned()
-			.expect("state root memo ensured to be set at this point; qed")
+		self.state_root_memo.read().clone()
 	}
 
 	/// Get the known knodes of the network in enode format.
@@ -243,95 +330,51 @@ impl Spec {
 		self.timestamp = g.timestamp;
 		self.extra_data = g.extra_data;
 		self.seal_rlp = seal_rlp;
-		self.state_root_memo = RwLock::new(g.state_root);
 	}
 
 	/// Alter the value of the genesis state.
-	pub fn set_genesis_state(&mut self, s: PodState) {
+	pub fn set_genesis_state(&mut self, s: PodState) -> Result<(), Error> {
 		self.genesis_state = s;
-		*self.state_root_memo.write() = None;
+		self.run_constructors(&Default::default(), |_| {})?;
+
+		Ok(())
 	}
 
 	/// Returns `false` if the memoized state root is invalid. `true` otherwise.
 	pub fn is_state_root_valid(&self) -> bool {
-		self.state_root_memo.read().clone().map_or(true, |sr| sr == self.genesis_state.root())
+		// TODO: get rid of this function and ensure state root always is valid.
+		// we're mostly there, but `self.genesis_state.root()` doesn't encompass
+		// post-constructor state.
+		*self.state_root_memo.read() == self.genesis_state.root()
 	}
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
-	pub fn ensure_db_good(&self, mut db: StateDB, factories: &Factories) -> Result<StateDB, Box<TrieError>> {
+	pub fn ensure_db_good(&self, mut db: StateDB, factories: &Factories) -> Result<StateDB, Error> {
 		if db.as_hashdb().contains(&self.state_root()) {
 			return Ok(db)
 		}
-		trace!(target: "spec", "ensure_db_good: Fresh database? Cannot find state root {}", self.state_root());
-		let mut root = H256::new();
 
-		{
-			let mut t = factories.trie.create(db.as_hashdb_mut(), &mut root);
-			for (address, account) in self.genesis_state.get().iter() {
-				t.insert(&**address, &account.rlp())?;
-			}
+		// TODO: could optimize so we don't re-run, but `ensure_db_good` is barely ever
+		// called anyway.
+		let mut cur_state = self.run_constructors(factories, |addr| db.note_non_null_account(addr))?;
+
+		// fill DB from spec accounts and constructors.
+		for (key, (item, rc)) in cur_state.drain() {
+			if rc > 0 { db.as_hashdb_mut().emplace(key, item) }
 		}
 
-		trace!(target: "spec", "ensure_db_good: Populated sec trie; root is {}", root);
-		for (address, account) in self.genesis_state.get().iter() {
-			db.note_non_null_account(address);
-			account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address), &factories.trie);
-		}
-
-		// Execute contract constructors.
-		let env_info = EnvInfo {
-			number: 0,
-			author: self.author,
-			timestamp: self.timestamp,
-			difficulty: self.difficulty,
-			last_hashes: Default::default(),
-			gas_used: U256::zero(),
-			gas_limit: U256::max_value(),
-		};
-		let from = Address::default();
-		let start_nonce = self.engine.account_start_nonce();
-
-		let mut state = State::from_existing(db, root, start_nonce, factories.clone())?;
-		// Mutate the state with each constructor.
-		for &(ref address, ref constructor) in self.constructors.iter() {
-			trace!(target: "spec", "ensure_db_good: Creating a contract at {}.", address);
-			let params = ActionParams {
-				code_address: address.clone(),
-				code_hash: constructor.sha3(),
-				address: address.clone(),
-				sender: from.clone(),
-				origin: from.clone(),
-				gas: U256::max_value(),
-				gas_price: Default::default(),
-				value: ActionValue::Transfer(Default::default()),
-				code: Some(Arc::new(constructor.clone())),
-				data: None,
-				call_type: CallType::None,
-			};
-			let mut substate = Substate::new();
-			state.kill_account(address);
-			{
-				let mut exec = Executive::new(&mut state, &env_info, self.engine.as_ref(), &factories.vm);
-				if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
-					warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
-				}
-			}
-			if let Err(e) = state.commit() {
-				warn!(target: "spec", "Genesis constructor trie commit at {} failed: {}.", address, e);
-			}
-		}
-		let (root, db) = state.drop();
-
-		*self.state_root_memo.write() = Some(root);
 		Ok(db)
 	}
 
-	/// Loads spec from json file.
+	/// Loads spec from json file. Provide factories for executing contracts and ensuring
+	/// storage goes to the right place.
 	pub fn load<R>(reader: R) -> Result<Self, String> where R: Read {
-		match ethjson::spec::Spec::load(reader) {
-			Ok(spec) => Ok(spec.into()),
-			Err(e) => Err(format!("Spec json is invalid: {}", e)),
+		fn fmt<F: ::std::fmt::Display>(f: F) -> String {
+			format!("Spec json is invalid: {}", f)
 		}
+
+		ethjson::spec::Spec::load(reader).map_err(fmt)
+			.and_then(|x| load_from(x).map_err(fmt))
 	}
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus.
