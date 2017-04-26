@@ -19,8 +19,8 @@ import { Icon } from 'semantic-ui-react';
 
 export const CancelIcon = () => <Icon name='cancel' />;
 export const DoneIcon = () => <Icon name='check' />;
-export const FileDownloadIcon = () => <Icon nme='download' />;
-export const FileUploadIcon = () => <Icon nme='upload' />;
+export const FileDownloadIcon = () => <Icon name='download' />;
+export const FileUploadIcon = () => <Icon name='upload' />;
 export const LockedIcon = () => <Icon name='unlock alternate' />;
 export const SearchIcon = () => <Icon name='search' />;
 export const VisibleIcon = () => <Icon name='eye' />;
