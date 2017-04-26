@@ -206,8 +206,6 @@
     "redux-thunk": "2.1.0",
     "rlp": "2.0.0",
     "scryptsy": "2.0.0",
-    "semantic-ui-css": "^2.2.10",
-    "semantic-ui-react": "^0.68.2",
     "solc": "ngotchac/solc-js",
     "store": "1.3.20",
     "sw-toolbox": "^3.6.0",
