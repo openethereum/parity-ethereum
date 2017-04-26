@@ -22,26 +22,29 @@ es6Promise.polyfill();
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
-import { hashHistory } from 'react-router';
+import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
 import qs from 'querystring';
 
-import SecureApi from './secureApi';
+import SecureApi from '~/secureApi';
 import ContractInstances from '~/contracts';
 
-import { initStore } from './redux';
+import { initStore } from '~/redux';
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
-import MainApplication from './main';
-
 import { patchApi } from '~/util/tx';
 
-import './environment';
+import Application from './Application';
+import Dapp from './Dapp';
+import Dapps from './Dapps';
 
-import '../assets/fonts/Roboto/font.css';
-import '../assets/fonts/RobotoMono/font.css';
+import styles from '~/reset.css';
+
+import '~/environment';
+
+import '~/../assets/fonts/Roboto/font.css';
+import '~/../assets/fonts/RobotoMono/font.css';
 
 injectTapEventPlugin();
 
@@ -71,26 +74,30 @@ const store = initStore(api, hashHistory);
 
 window.secureApi = api;
 
+import HistoryStore from '~/mobx/historyStore';
+import builtinDapps from '~/config/dappsBuiltin.json';
+import viewsDapps from '~/config/dappsViews.json';
+
+const dapps = [].concat(viewsDapps, builtinDapps);
+
+const dappsHistory = HistoryStore.get('dapps');
+
+function onEnterDapp ({ params }) {
+  if (!dapps[params.id] || !dapps[params.id].skipHistory) {
+    dappsHistory.add(params.id);
+  }
+}
+
 ReactDOM.render(
-  <AppContainer>
-    <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-      <MainApplication routerHistory={ hashHistory } />
-    </ContextProvider>
-  </AppContainer>,
+  <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
+    <Router className={ styles.reset } history={ hashHistory }>
+      <Route path='/' component={ Application }>
+        <Redirect from='/auth' to='/' />
+        <Route path='/:id' component={ Dapp } onEnter={ onEnterDapp } />
+        <Route path='/:id/:details' component={ Dapp } onEnter={ onEnterDapp } />
+        <IndexRoute component={ Dapps } />
+      </Route>
+    </Router>
+  </ContextProvider>,
   document.querySelector('#container')
 );
-
-if (module.hot) {
-  module.hot.accept('./main.js', () => {
-    require('./main.js');
-
-    ReactDOM.render(
-      <AppContainer>
-        <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-          <MainApplication routerHistory={ hashHistory } />
-        </ContextProvider>
-      </AppContainer>,
-      document.querySelector('#container')
-    );
-  });
-}

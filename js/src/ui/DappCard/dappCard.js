@@ -94,6 +94,6 @@ export default class DappCard extends Component {
 
     return app.url === 'web'
       ? '/web'
-      : `/app/${app.id}`;
+      : `/${app.id}`;
   }
 }

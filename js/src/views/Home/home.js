@@ -20,10 +20,10 @@ import { FormattedMessage } from 'react-intl';
 
 import HistoryStore from '~/mobx/historyStore';
 import { Page } from '~/ui';
+import WebStore from '~/views/Web/store';
 
-import DappsStore from '../Dapps/dappsStore';
-import ExtensionStore from '../Application/Extension/store';
-import WebStore from '../Web/store';
+import DappsStore from '~/shell/Dapps/dappsStore';
+import ExtensionStore from '~/shell/Application/Extension/store';
 
 import Accounts from './Accounts';
 import Dapps from './Dapps';

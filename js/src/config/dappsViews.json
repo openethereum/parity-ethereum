@@ -91,6 +91,18 @@
     "secure": true
   },
   {
+    "id": "playground",
+    "url": "playground",
+    "src": "Playground",
+    "name": "Playground",
+    "description": "Playground for Parity UI components",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "2.0.0",
+    "visible": true,
+    "secure": true,
+    "noselect": true
+  },
+  {
     "id": "requests",
     "url": "requests",
     "src": "Signer",
@@ -140,6 +152,18 @@
     "src": "Wallet",
     "name": "Wallet",
     "description": "Display a single wallet account",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "2.0.0",
+    "visible": true,
+    "secure": true,
+    "noselect": true
+  },
+  {
+    "id": "web",
+    "url": "web",
+    "src": "Web",
+    "name": "Web",
+    "description": "Embed dapps loaded from the web into the Parity shell",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
     "visible": true,

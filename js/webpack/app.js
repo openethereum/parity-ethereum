@@ -51,10 +51,10 @@ const isAnalize = process.env.WPANALIZE === '1';
 
 const entry = isEmbed
   ? {
-    embed: './embed.js'
+    embed: './shell/embed.js'
   }
   : Object.assign({}, Shared.dappsEntry, {
-    index: './index.js'
+    index: './shell/index.js'
   });
 
 module.exports = {
@@ -183,7 +183,7 @@ module.exports = {
         new HtmlWebpackPlugin({
           title: 'Parity',
           filename: 'index.html',
-          template: './index.ejs',
+          template: './shell/index.ejs',
           favicon: FAVICON,
           chunks: [
             isProd ? null : 'commons',
@@ -219,7 +219,7 @@ module.exports = {
         new HtmlWebpackPlugin({
           title: 'Parity Bar',
           filename: 'embed.html',
-          template: './index.ejs',
+          template: './shell/index.ejs',
           favicon: FAVICON,
           chunks: [
             isProd ? null : 'commons',
