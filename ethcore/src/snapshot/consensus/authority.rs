@@ -357,6 +357,10 @@ impl Rebuilder for ChunkRebuilder {
 				// make sure the genesis transition was included,
 				// but it doesn't need verification later.
 				if verified.epoch_number == 0 && verified.header.number() == 0 {
+					if verified.header.hash() != self.chain.genesis_hash() {
+						return Err(Error::WrongBlockHash(0, verified.header.hash(), self.chain.genesis_hash()).into());
+					}
+
 					self.had_genesis = true;
 				} else {
 					let idx = self.unverified_firsts
