@@ -25,7 +25,7 @@ import { bindActionCreators } from 'redux';
 import HardwareStore from '~/mobx/hardwareStore';
 import { CreateAccount, CreateWallet, ExportAccount } from '~/modals';
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
-import { AddIcon, FileDownloadIcon } from '~/ui/Icons';
+import { FileDownloadIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import List from './List';

@@ -29,7 +29,7 @@ import { DeleteAccount, EditMeta, Faucet, PasswordManager, Shapeshift, Transfer,
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 import { Actionbar, Button, ConfirmDialog, Input, Page, Portal } from '~/ui';
-import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon, FileDownloadIcon } from '~/ui/Icons';
+import { DialIcon, VerifyIcon, FileDownloadIcon } from '~/ui/Icons';
 
 import DeleteAddress from '../Address/Delete';
 
