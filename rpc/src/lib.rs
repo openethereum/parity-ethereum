@@ -101,6 +101,16 @@ pub enum HttpServer {
 	Hyper(http::Server),
 }
 
+impl HttpServer {
+	/// Returns current listening address.
+	pub fn address(&self) -> &SocketAddr {
+		match *self {
+			HttpServer::Mini(ref s) => s.address(),
+			HttpServer::Hyper(ref s) => &s.addrs()[0],
+		}
+	}
+}
+
 /// RPC HTTP Server error
 #[derive(Debug)]
 pub enum HttpServerError {

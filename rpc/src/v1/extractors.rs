@@ -35,12 +35,14 @@ pub struct RpcExtractor;
 impl HttpMetaExtractor for RpcExtractor {
 	type Metadata = Metadata;
 
-	fn read_metadata(&self, origin: String, dapps_origin: Option<String>) -> Metadata {
+	fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>, dapps_origin: Option<String>) -> Metadata {
 		let mut metadata = Metadata::default();
 
-		metadata.origin = match (origin.as_str(), dapps_origin) {
-			("null", Some(dapp)) => Origin::Dapps(dapp.into()),
-			_ => Origin::Rpc(origin),
+		metadata.origin = match (origin.as_ref().map(|s| s.as_str()), user_agent, dapps_origin) {
+			(Some("null"), _, Some(dapp)) => Origin::Dapps(dapp.into()),
+			(Some(dapp), _, _) => Origin::Dapps(dapp.to_owned().into()),
+			(None, Some(service), _) => Origin::Rpc(service.into()),
+			(None, _, _) => Origin::Rpc("unknown".into()),
 		};
 
 		metadata
@@ -234,12 +236,14 @@ mod tests {
 		let extractor = RpcExtractor;
 
 		// when
-		let meta = extractor.read_metadata("http://parity.io".into(), None);
-		let meta1 = extractor.read_metadata("http://parity.io".into(), Some("ignored".into()));
+		let meta1 = extractor.read_metadata(None, None, None);
+		let meta2 = extractor.read_metadata(None, Some("http://parity.io".to_owned()), None);
+		let meta3 = extractor.read_metadata(None, Some("http://parity.io".to_owned()), Some("ignored".into()));
 
 		// then
-		assert_eq!(meta.origin, Origin::Rpc("http://parity.io".into()));
-		assert_eq!(meta1.origin, Origin::Rpc("http://parity.io".into()));
+		assert_eq!(meta1.origin, Origin::Rpc("unknown".into()));
+		assert_eq!(meta2.origin, Origin::Rpc("http://parity.io".into()));
+		assert_eq!(meta3.origin, Origin::Rpc("http://parity.io".into()));
 	}
 
 	#[test]
@@ -249,7 +253,7 @@ mod tests {
 		let dapp = "https://wallet.ethereum.org".to_owned();
 
 		// when
-		let meta = extractor.read_metadata("null".into(), Some(dapp.clone()));
+		let meta = extractor.read_metadata(Some("null".into()), None, Some(dapp.clone()));
 
 		// then
 		assert_eq!(meta.origin, Origin::Dapps(dapp.into()));

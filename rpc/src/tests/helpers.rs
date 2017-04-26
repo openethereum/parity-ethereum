@@ -15,8 +15,41 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::ops::{Deref, DerefMut};
+
 use devtools::RandomTempPath;
+use parity_reactor::{EventLoop, TokioRemote};
+
 use authcodes::AuthCodes;
+
+/// Server with event loop
+pub struct Server<T> {
+	/// Server
+	pub server: T,
+	/// RPC Event Loop
+	pub event_loop: EventLoop,
+}
+
+impl<T> Server<T> {
+	pub fn new<F>(f: F) -> Server<T> where
+		F: FnOnce(TokioRemote) -> T,
+	{
+		let event_loop = EventLoop::spawn();
+		let remote = event_loop.raw_remote();
+
+		Server {
+			server: f(remote),
+			event_loop: event_loop,
+		}
+	}
+}
+
+impl<T> Deref for Server<T> {
+	type Target = T;
+
+	fn deref(&self) -> &Self::Target {
+		&self.server
+	}
+}
 
 /// Struct representing authcodes
 pub struct GuardedAuthCodes {

@@ -14,45 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::ops;
 use std::sync::Arc;
 
 use devtools::http_client;
 use jsonrpc_core::MetaIoHandler;
-use parity_reactor::EventLoop;
 use rand;
 use ws;
 
 use v1::{extractors, informant};
-use tests::helpers::GuardedAuthCodes;
-
-/// Server with event loop
-pub struct ServerLoop {
-	/// Signer Server
-	pub server: ws::Server,
-	/// RPC Event Loop
-	pub event_loop: EventLoop,
-}
-
-impl ops::Deref for ServerLoop {
-	type Target = ws::Server;
-
-	fn deref(&self) -> &Self::Target {
-		&self.server
-	}
-}
+use tests::helpers::{GuardedAuthCodes, Server};
 
 /// Setup a mock signer for tests
-pub fn serve() -> (ServerLoop, usize, GuardedAuthCodes) {
+pub fn serve() -> (Server<ws::Server>, usize, GuardedAuthCodes) {
 	let port = 35000 + rand::random::<usize>() % 10000;
 	let address = format!("127.0.0.1:{}", port).parse().unwrap();
 	let io = MetaIoHandler::default();
-	let event_loop = EventLoop::spawn();
-	let remote = event_loop.raw_remote();
 	let authcodes = GuardedAuthCodes::new();
 	let stats = Arc::new(informant::RpcStats::default());
 
-	let server = ::start_ws(
+	let res = Server::new(|remote| ::start_ws(
 		&address,
 		io,
 		remote,
@@ -61,18 +41,13 @@ pub fn serve() -> (ServerLoop, usize, GuardedAuthCodes) {
 		extractors::WsExtractor::new(Some(&authcodes.path)),
 		extractors::WsExtractor::new(Some(&authcodes.path)),
 		extractors::WsStats::new(stats),
-	).unwrap();
-
-	let res = ServerLoop {
-		server: server,
-		event_loop: event_loop,
-	};
+	).unwrap());
 
 	(res, port, authcodes)
 }
 
 /// Test a single request to running server
-pub fn request(server: ServerLoop, request: &str) -> http_client::Response {
+pub fn request(server: Server<ws::Server>, request: &str) -> http_client::Response {
 	http_client::request(server.server.addr(), request)
 }
 

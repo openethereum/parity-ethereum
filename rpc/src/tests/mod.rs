@@ -17,4 +17,5 @@
 //! RPC integration tests.
 
 mod helpers;
+mod rpc;
 mod ws;
