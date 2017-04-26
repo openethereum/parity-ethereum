@@ -19,3 +19,8 @@
   width: 24px;
   height: 24px;
 }
+
+.textbox {
+  line-height: 1.5em;
+  margin-bottom: 1.5em;
+}
