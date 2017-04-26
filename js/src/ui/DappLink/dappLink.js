@@ -41,8 +41,6 @@ export default class DappLink extends Component {
   }
 
   onClick = () => {
-    const { to } = this.props;
-
-    window.parent.location.hash = `/app${to}`;
+    window.parent.location.hash = this.props.to;
   }
 }
