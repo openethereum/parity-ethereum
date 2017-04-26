@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import 'babel-polyfill';
-import 'semantic-ui-css/semantic.min.css';
 import 'whatwg-fetch';
 
 import es6Promise from 'es6-promise';
@@ -27,6 +26,8 @@ import ReactDOM from 'react-dom';
 import injectTapEventPlugin from 'react-tap-event-plugin';
 import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
 import qs from 'querystring';
+
+import '@parity/ui';
 
 import SecureApi from '~/secureApi';
 import ContractInstances from '~/contracts';
