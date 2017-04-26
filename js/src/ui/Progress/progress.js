@@ -14,30 +14,37 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { LinearProgress } from 'material-ui';
 import React, { PropTypes } from 'react';
-import CircularProgress from 'material-ui/CircularProgress';
 
-import styles from './loading.css';
-
-export default function Loading ({ className, size, thickness }) {
+export default function Progress ({ className, color, determinate, max, min, style, value }) {
   return (
-    <div className={ [ styles.loading, className ].join(' ') }>
-      <CircularProgress
-        size={ size * 60 }
-        thickness={ thickness }
-      />
-    </div>
+    <LinearProgress
+      className={ className }
+      color={ color }
+      max={ max }
+      min={ min }
+      mode={
+        determinate
+          ? 'determinate'
+          : 'indeterminate'
+      }
+      style={ style }
+      value={ value }
+    />
   );
 }
 
-Loading.propTypes = {
+Progress.propTypes = {
   className: PropTypes.string,
-  size: PropTypes.number,
-  thickness: PropTypes.number
+  color: PropTypes.string,
+  determinate: PropTypes.bool,
+  max: PropTypes.number,
+  min: PropTypes.number,
+  style: PropTypes.object,
+  value: PropTypes.number
 };
 
-Loading.defaultProps = {
-  className: '',
-  size: 2,
-  thickness: 3.5
+Progress.defaultProps = {
+  determinate: false
 };

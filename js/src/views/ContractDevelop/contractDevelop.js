@@ -19,11 +19,10 @@ import { FormattedMessage } from 'react-intl';
 import { observer } from 'mobx-react';
 import { MenuItem, Toggle } from 'material-ui';
 import { connect } from 'react-redux';
-import CircularProgress from 'material-ui/CircularProgress';
 import moment from 'moment';
 import { throttle } from 'lodash';
 
-import { Actionbar, ActionbarExport, ActionbarImport, Button, Page, Select, Input } from '~/ui';
+import { Actionbar, ActionbarExport, ActionbarImport, Button, Input, Loading, Page, Select } from '~/ui';
 import { CancelIcon, ListIcon, SaveIcon, SendIcon, SettingsIcon } from '~/ui/Icons';
 import Editor from '~/ui/Editor';
 import { DeployContract, SaveContract, LoadContract } from '~/modals';
@@ -292,8 +291,8 @@ class ContractDevelop extends Component {
     if (selectedBuild < 0) {
       return (
         <div className={ `${styles.panel} ${styles.centeredMessage}` }>
-          <CircularProgress
-            size={ 80 }
+          <Loading
+            size={ 1.2 }
             thickness={ 5 }
           />
           <p>
@@ -312,8 +311,8 @@ class ContractDevelop extends Component {
       return (
         <div className={ styles.panel }>
           <div className={ styles.centeredMessage }>
-            <CircularProgress
-              size={ 80 }
+            <Loading
+              size={ 1.2 }
               thickness={ 5 }
             />
             <p>
@@ -495,8 +494,8 @@ class ContractDevelop extends Component {
     if (compiling) {
       return (
         <div className={ styles.centeredMessage }>
-          <CircularProgress
-            size={ 80 }
+          <Loading
+            size={ 1.2 }
             thickness={ 5 }
           />
           <p>

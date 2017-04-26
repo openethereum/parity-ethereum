@@ -17,9 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { keccak_256 } from 'js-sha3'; // eslint-disable-line camelcase
-import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
 
 import IdentityIcon from '../IdentityIcon';
+import { FingerprintIcon } from '../Icons';
 
 class SignerIcon extends Component {
   static propTypes = {
@@ -32,7 +32,7 @@ class SignerIcon extends Component {
 
     if (!secureToken) {
       return (
-        <ActionFingerprint />
+        <FingerprintIcon />
       );
     }
 

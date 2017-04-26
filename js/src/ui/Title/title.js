@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { LinearProgress } from 'material-ui';
 import { Step, Stepper, StepLabel } from 'material-ui/Stepper';
 import React, { Component, PropTypes } from 'react';
 
@@ -23,6 +22,7 @@ import React, { Component, PropTypes } from 'react';
 // h3 (title) can be pulled from there. (As it stands the duplication
 // between the 2 has been removed, but as a short-term DRY only)
 import { Title as ContainerTitle } from '~/ui/Container';
+import Progress from '~/ui/Progress';
 import { nodeOrStringProptype } from '~/util/proptypes';
 
 import styles from './title.css';
@@ -113,7 +113,7 @@ export default class Title extends Component {
 
     return (
       <div className={ styles.waiting }>
-        <LinearProgress />
+        <Progress />
       </div>
     );
   }

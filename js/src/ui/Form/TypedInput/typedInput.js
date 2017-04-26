@@ -20,8 +20,6 @@ import { range } from 'lodash';
 import BigNumber from 'bignumber.js';
 
 import IconButton from 'material-ui/IconButton';
-import AddIcon from 'material-ui/svg-icons/content/add';
-import RemoveIcon from 'material-ui/svg-icons/content/remove';
 
 import { fromWei, toWei } from '@parity/api/util/wei';
 import { bytesToHex } from '@parity/api/util/format';
@@ -29,6 +27,7 @@ import { bytesToHex } from '@parity/api/util/format';
 import Input from '~/ui/Form/Input';
 import InputAddressSelect from '~/ui/Form/InputAddressSelect';
 import Select from '~/ui/Form/Select';
+import { AddIcon, RemoveIcon } from '~/ui/Icons';
 import { ABI_TYPES, parseAbiType } from '~/util/abi';
 import { nodeOrStringProptype } from '~/util/proptypes';
 

@@ -82,8 +82,8 @@ describe('ui/Title', () => {
         waiting = shallow(instance.renderWaiting());
       });
 
-      it('renders the LinearProgress', () => {
-        expect(waiting.find('LinearProgress').get(0)).to.be.ok;
+      it('renders the Progress', () => {
+        expect(waiting.find('Progress').get(0)).to.be.ok;
       });
     });
   });
