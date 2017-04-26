@@ -41,7 +41,7 @@ export default {
   },
   requestsPage: {
     noPending: `沒有請求需要你的確認`, // There are no requests requiring your confirmation.
-    pendingTitle: `待處理請求`, //Pending Requests
+    pendingTitle: `待處理請求`, // Pending Requests
     queueTitle: `本地交易` // Local Transactions
   },
   sending: {

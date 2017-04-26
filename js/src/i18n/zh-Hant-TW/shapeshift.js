@@ -40,7 +40,7 @@ export default {
   },
   errorStep: {
     info: `通過{shapeshiftLink}進行的資金轉換因為一個交易的致命錯誤失敗了。交易提供的錯誤資訊如下：`
-    // The funds shifting via {shapeshiftLink} failed with a fatal error on the exchange. The error message received from the exchange 
+    // The funds shifting via {shapeshiftLink} failed with a fatal error on the exchange. The error message received from the exchange
     // is as follow:
   },
   optionsStep: {
@@ -52,7 +52,7 @@ export default {
     },
     terms: {
       label: `我理解ShapeShift.io是一個第三方服務，使用此服務發生的任何資訊/資金髮送是完全不受Parity控制的`
-      // I understand that ShapeShift.io is a 3rd-party service and by using the service any transfer of information and/or funds is 
+      // I understand that ShapeShift.io is a 3rd-party service and by using the service any transfer of information and/or funds is
       // completely out of the control of Parity
     },
     typeSelect: {

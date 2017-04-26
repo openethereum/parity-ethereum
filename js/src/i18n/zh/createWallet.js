@@ -46,7 +46,7 @@ export default {
     },
     name: {
       hint: `钱包本地名称`,  // the local name for this wallet
-      label: `钱包名称` // wallet name 
+      label: `钱包名称` // wallet name
     },
     nameMulti: {
       hint: `钱包本地名称`, // the local name for this wallet

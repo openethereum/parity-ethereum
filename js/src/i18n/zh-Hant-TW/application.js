@@ -16,15 +16,15 @@
 
 export default {
   frame: {
-    error: `錯誤：這個應用不能也不應該載入到內建框架中`//ERROR: This application cannot and should not be loaded in an embedded iFrame
+    error: `錯誤：這個應用不能也不應該載入到內建框架中`// ERROR: This application cannot and should not be loaded in an embedded iFrame
   },
   status: {
     consensus: {
-      capable: `可行`,//Capable
-      capableUntil: `到第 #{blockNumber} 區塊前可行`,//Capable until #{blockNumber}
-      incapableSince: `自第 #{blockNumber} 區塊後不可行`,//Incapable since #{blockNumber}
-      unknown: `未知能力`//Unknown capability
+      capable: `可行`, // Capable
+      capableUntil: `到第 #{blockNumber} 區塊前可行`, // Capable until #{blockNumber}
+      incapableSince: `自第 #{blockNumber} 區塊後不可行`, // Incapable since #{blockNumber}
+      unknown: `未知能力`// Unknown capability
     },
-    upgrade: `升級`//Upgrade
+    upgrade: `升級`// Upgrade
   }
 };

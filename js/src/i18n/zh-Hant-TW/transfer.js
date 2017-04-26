@@ -17,46 +17,46 @@
 export default {
   advanced: {
     data: {
-      hint: `交易附帶資料`,//the data to pass through with the transaction
-      label: `交易資料`//transaction data
+      hint: `交易附帶資料`, // the data to pass through with the transaction
+      label: `交易資料`// transaction data
     }
   },
   buttons: {
-    back: `返回`,//Back
-    cancel: `取消`,//Cancel
-    close: `關閉`,//Close
-    next: `下一步`,//Next
-    send: `傳送`//Send
+    back: `返回`, // Back
+    cancel: `取消`, // Cancel
+    close: `關閉`, // Close
+    next: `下一步`, // Next
+    send: `傳送`// Send
   },
   details: {
     advanced: {
-      label: `高階傳送選項`//advanced sending options
+      label: `高階傳送選項`// advanced sending options
     },
     amount: {
-      hint: `傳送數額`,//the amount to transfer to the recipient
-      label: `傳送數額{tag}`//amount to transfer (in {tag})
+      hint: `傳送數額`, // the amount to transfer to the recipient
+      label: `傳送數額{tag}`// amount to transfer (in {tag})
     },
     fullBalance: {
-      label: `所有的餘額`//full account balance
+      label: `所有的餘額`// full account balance
     },
     recipient: {
-      hint: `收款人地址`,//the recipient address
-      label: `收款人地址`//recipient address
+      hint: `收款人地址`, // the recipient address
+      label: `收款人地址`// recipient address
     },
     sender: {
-      hint: `傳送人地址`,//the sender address
-      label: `傳送人地址`//sender address
+      hint: `傳送人地址`, // the sender address
+      label: `傳送人地址`// sender address
     },
     total: {
-      label: `傳送數額`//total transaction amount
+      label: `傳送數額`// total transaction amount
     }
   },
   wallet: {
-    confirmation: `這筆交易需要其他人的確認。`,//This transaction needs confirmation from other owners.
-    operationHash: `操作雜湊`//operation hash
+    confirmation: `這筆交易需要其他人的確認。`, // This transaction needs confirmation from other owners.
+    operationHash: `操作雜湊`// operation hash
   },
   warning: {
     wallet_spent_limit: `這筆轉帳的數額超過了每日轉帳數額上限。此交易需要其他人的確認才可以傳送成功。`
-    //This transaction value is above the remaining daily limit. It will need to be confirmed by other owners.
+    // This transaction value is above the remaining daily limit. It will need to be confirmed by other owners.
   }
 };

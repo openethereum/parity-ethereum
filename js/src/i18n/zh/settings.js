@@ -18,10 +18,10 @@ export default {
   background: {
     button_more: `生成更多`, // generate more
     overview_0: `你现在所看到的背景图案在你的Parity安装中是独一无二的。每次创造一个新的Signer令牌都会改变一次图案。这也保证了去中性化应用不能伪装成可信的样子。`,
-    // The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new 
+    // The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new
     // Signer token. This is so that decentralized applications cannot pretend to be trustworthy.
-    overview_1: `选择一个你喜欢的图案并记住它的样子。这个图案从现在开始会经常出现，除非你清空了浏览器的缓存或者使用了新的Signer令牌。`, 
-    // Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or 
+    overview_1: `选择一个你喜欢的图案并记住它的样子。这个图案从现在开始会经常出现，除非你清空了浏览器的缓存或者使用了新的Signer令牌。`,
+    // Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or
     // use a new Signer token.
     label: `背景` // background
   },
@@ -56,9 +56,9 @@ export default {
   },
   proxy: {
     details_0: `除了通过IP地址和端口来访问Parity，你也能通过.parity子域名来使用Parity，访问 {homeProxy}。为了设置基于子域名的路由，你需要添加相关的代理记录至你的浏览器。`,
-    // Instead of accessing Parity via the IP address and port, you will be able to access it via the .parity subdomain, by visiting 
+    // Instead of accessing Parity via the IP address and port, you will be able to access it via the .parity subdomain, by visiting
     // {homeProxy}. To setup subdomain-based routing, you need to add the relevant proxy entries to your browser,
-    details_1: `如果想了解如何配置代理，教程已提供在{windowsLink}，{macOSLink}和{ubuntuLink}。`, 
+    details_1: `如果想了解如何配置代理，教程已提供在{windowsLink}，{macOSLink}和{ubuntuLink}。`,
     // To learn how to configure the proxy, instructions are provided for {windowsLink}, {macOSLink} or {ubuntuLink}.
     details_macos: `macOS`, // macOS
     details_ubuntu: `Ubuntu`, // Ubuntu
@@ -70,19 +70,19 @@ export default {
   views: {
     accounts: {
       description: `一个此Parity实例所关联和导入的所有账户的列表。发送交易、接收流入价值、管理你的账目和资助你的账户。`,
-      // A list of all the accounts associated with and imported into this Parity instance. Send transactions, receive incoming values, 
+      // A list of all the accounts associated with and imported into this Parity instance. Send transactions, receive incoming values,
       // manage your balances and fund your accounts.
       label: `账户` // Accounts
     },
     addresses: {
       description: `一个此Parity实例管理的所有联系人和地址簿记录的列表。只需点击一个按钮就可以观察账户并获得所有交易相关的信息。`,
-      // A list of all contacts and address book entries managed by this Parity instance. Watch accounts and have the details available 
+      // A list of all contacts and address book entries managed by this Parity instance. Watch accounts and have the details available
       // at the click of a button when transacting.
       label: `地址簿` // Addressbook
     },
     apps: {
       description: `与整个底层网络交流的分布式应用。添加应用，管理你的应用库和与网络上的其他应用进行交互。`,
-      // Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and 
+      // Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and
       // interact with application from around the network.
       label: `应用` // Applications
     },
@@ -106,14 +106,14 @@ export default {
       label: `设置` // Settings
     },
     signer: {
-      description: `这个应用安全交易管理区域，你可以通过任何从本应用和其他分布式应用发起的即将发送的交易`, 
-      // The secure transaction management area of the application where you can approve any outgoing transactions made 
+      description: `这个应用安全交易管理区域，你可以通过任何从本应用和其他分布式应用发起的即将发送的交易`,
+      // The secure transaction management area of the application where you can approve any outgoing transactions made
       // from the application as well as those placed into the queue by distributed applications.
       label: `Signer` // Signer
     },
     status: {
       description: `观察Parity节点现在的运行情况：网络连接数、实际运行实例的Logs和具体挖矿信息（如果已开启并设置）`,
-      // See how the Parity node is performing in terms of connections to the network, logs from the actual running instance 
+      // See how the Parity node is performing in terms of connections to the network, logs from the actual running instance
       // and details of mining (if enabled and configured).
       label: `状态` // Status
     },

@@ -32,13 +32,13 @@ export default {
   },
   confirmClose: {
     info: `你即将关闭一个保险库。所有与这个保险库相关的账户在这个操作完成后都不再可见。如果想再见到关联账户，请重新打开保险库。`,
-    // You are about to close a vault. Any accounts associated with the vault won't be visible after this operation concludes. To view 
+    // You are about to close a vault. Any accounts associated with the vault won't be visible after this operation concludes. To view
     // the associated accounts, open the vault again.
     title: `关闭保险库` // Close Vault
   },
   confirmOpen: {
     info: `你即将打开一个保险库。在确认了你的密码之后，所有与这个保险库关联的账户都会可见。关闭保险库会在界面中移除所有账户，直到保险库被再次打开。`,
-    // You are about to open a vault. After confirming your password, all accounts associated with this vault will be visible. Closing 
+    // You are about to open a vault. After confirming your password, all accounts associated with this vault will be visible. Closing
     // the vault will remove the accounts from view until the vault is opened again.
     password: {
       hint: `创建保险库时设置的密码`, // the password specified when creating the vault
@@ -106,7 +106,7 @@ export default {
   empty: `目前没有任何可显示的保险库`, // There are currently no vaults to display.
   selector: {
     noneAvailable: `目前没有任何打开、可选的保险库。请在移动账户之前创建并打开一个保险库。`,
-    // There are currently no vaults opened and available for selection. Create and open some first before attempting to select 
+    // There are currently no vaults opened and available for selection. Create and open some first before attempting to select
     // a vault for an account move.
     title: `选择账户保险库` // Select Account Vault
   },

@@ -20,8 +20,8 @@ export default {
     close: `取消` // Cancel
   },
   header: `如果想在地址簿中新增一條新的記錄，你需要擁有帳戶的網路地址並提供一個的描述（可選）。一旦新增，記錄就可以體現在你的地址簿中。`,
-  // To add a new entry to your addressbook, you need the network 
-  // address of the account and can supply an optional description. 
+  // To add a new entry to your addressbook, you need the network
+  // address of the account and can supply an optional description.
   // Once added it will reflect in your address book.
   input: {
     address: {
