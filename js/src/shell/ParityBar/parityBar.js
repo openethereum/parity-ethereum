@@ -26,8 +26,9 @@ import store from 'store';
 import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
 import { AccountCard, Badge, Button, ContainerTitle, IdentityIcon, SelectionList } from '~/ui';
 import { CancelIcon, FingerprintIcon } from '~/ui/Icons';
-import DappsStore from '~/views/Dapps/dappsStore';
-import Signer from '~/views/Signer/Embedded';
+
+import DappsStore from '~/shell/Dapps/dappsStore';
+import Signer from '~/shell/Signer/Embedded';
 
 import AccountStore from './accountStore';
 import styles from './parityBar.css';

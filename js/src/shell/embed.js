@@ -22,7 +22,6 @@ es6Promise.polyfill();
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 
@@ -34,16 +33,15 @@ import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
 
 import { patchApi } from '~/util/tx';
-import { setApi } from '~/redux/providers/apiActions';
 
 import '~/environment';
 
-import '../assets/fonts/Roboto/font.css';
-import '../assets/fonts/RobotoMono/font.css';
+import '~/../assets/fonts/Roboto/font.css';
+import '~/../assets/fonts/RobotoMono/font.css';
 
 injectTapEventPlugin();
 
-import ParityBar from '~/views/ParityBar';
+import ParityBar from '~/shell/ParityBar';
 
 // Test transport (std transport should be provided as global object)
 class FakeTransport {
@@ -96,25 +94,15 @@ ContractInstances.get(api);
 
 const store = initStore(api, null, true);
 
-store.dispatch({ type: 'initAll', api });
-store.dispatch(setApi(api));
-
 window.secureApi = api;
 
-const app = (
-  <ParityBar dapp externalLink={ 'http://127.0.0.1:8180' } />
-);
-const container = document.querySelector('#container');
-
 ReactDOM.render(
-  <AppContainer>
-    <ContextProvider
-      api={ api }
-      muiTheme={ muiTheme }
-      store={ store }
-    >
-      { app }
-    </ContextProvider>
-  </AppContainer>,
-  container
+  <ContextProvider
+    api={ api }
+    muiTheme={ muiTheme }
+    store={ store }
+  >
+    <ParityBar dapp externalLink={ 'http://127.0.0.1:8180' } />
+  </ContextProvider>,
+  document.querySelector('#container')
 );

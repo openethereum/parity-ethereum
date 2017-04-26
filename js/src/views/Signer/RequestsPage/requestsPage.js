@@ -21,12 +21,12 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import Store from '../store';
 import { newError } from '~/redux/actions';
 import { startConfirmRequest, startRejectRequest } from '~/redux/providers/signerActions';
 import { Container, Page, TxList } from '~/ui';
 
-import RequestPending from '../components/RequestPending';
+import Store from '~/shell/Signer/store';
+import RequestPending from '~/shell/Signer/components/RequestPending';
 
 import styles from './requestsPage.css';
 
