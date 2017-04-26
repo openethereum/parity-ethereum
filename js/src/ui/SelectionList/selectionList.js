@@ -29,7 +29,7 @@ export default class SelectionList extends Component {
     items: arrayOrObjectProptype().isRequired,
     noStretch: PropTypes.bool,
     onDefaultClick: PropTypes.func,
-    onSelectClick: PropTypes.func.isRequired,
+    onSelectClick: PropTypes.func,
     onSelectDoubleClick: PropTypes.func,
     renderItem: PropTypes.func.isRequired
   };
@@ -57,8 +57,10 @@ export default class SelectionList extends Component {
       : item.checked;
 
     const handleClick = () => {
-      onSelectClick(item);
-      return false;
+      if (onSelectClick) {
+        onSelectClick(item);
+        return false;
+      }
     };
     const handleDoubleClick = () => {
       onSelectDoubleClick(item);
