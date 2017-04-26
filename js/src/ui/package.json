@@ -6,7 +6,8 @@
   "author": "Parity Team <admin@parity.io>",
   "maintainers": [
     "Jaco Greeff",
-    "Nicolas Gotchac"
+    "Nicolas Gotchac",
+    "Craig O'Connor"
   ],
   "contributors": [],
   "license": "GPL-3.0",
@@ -35,6 +36,8 @@
     "react-portal": "3.0.0",
     "react-qr-reader": "1.0.3",
     "recharts": "0.15.2",
+    "semantic-ui-css": "2.2.10",
+    "semantic-ui-react": "0.68.2",
     "zxcvbn": "4.4.1"
   },
   "peerDependencies": {
