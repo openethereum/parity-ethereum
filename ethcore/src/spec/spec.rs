@@ -16,25 +16,27 @@
 
 //! Parameters for a block chain.
 
-use util::*;
-use builtin::Builtin;
-use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint};
-use error::Error;
-use factory::Factories;
-use executive::Executive;
-use trace::{NoopTracer, NoopVMTracer};
-use action_params::{ActionValue, ActionParams};
-use types::executed::CallType;
-use state::{Backend, State, Substate};
-use env_info::EnvInfo;
-use pod_state::*;
-use header::{BlockNumber, Header};
-use state_db::StateDB;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
+
+use action_params::{ActionValue, ActionParams};
+use builtin::Builtin;
+use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint};
+use env_info::EnvInfo;
+use error::Error;
 use ethereum;
 use ethjson;
+use executive::Executive;
+use factory::Factories;
+use header::{BlockNumber, Header};
+use pod_state::*;
 use rlp::{Rlp, RlpStream};
+use state_db::StateDB;
+use state::{Backend, State, Substate};
+use state::backend::Basic as BasicBackend;
+use trace::{NoopTracer, NoopVMTracer};
+use types::executed::CallType;
+use util::*;
 
 /// Parameters common to all engines.
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -152,7 +154,7 @@ fn load_from(s: ethjson::spec::Spec) -> Result<Spec, Error> {
 		genesis_state: s.accounts.into(),
 	};
 
-	s.run_constructors(&Default::default(), |_| {})?;
+	let _ = s.run_constructors(&Default::default(), BasicBackend(MemoryDB::new()))?;
 
 	Ok(s)
 }
@@ -178,13 +180,8 @@ impl Spec {
 	}
 
 	// given a pre-constructor state, run all the given constructors and produce a new state and state root.
-	fn run_constructors<F>(&self, factories: &Factories, note_non_null: F) -> Result<MemoryDB, Error>
-		where F: Fn(&Address)
-	{
-		use state::backend::Basic as BasicBackend;
-
+	fn run_constructors<T: Backend>(&self, factories: &Factories, mut db: T) -> Result<T, Error> {
 		let mut root = SHA3_NULL_RLP;
-		let mut db = MemoryDB::new();
 
 		// basic accounts in spec.
 		{
@@ -193,20 +190,24 @@ impl Spec {
 				t.insert(&**address, &account.rlp())?;
 			}
 
+			println!("root after writing accounts: {}", root);
+
 			for (address, account) in self.genesis_state.get().iter() {
-				note_non_null(address);
+				db.note_non_null_account(address);
 				account.insert_additional(
-					&mut *factories.accountdb.create(&mut db, address.sha3()),
+					&mut *factories.accountdb.create(db.as_hashdb_mut(), address.sha3()),
 					&factories.trie
 				);
 			}
+
+			println!("root after writing storage: {}", root);
 		}
 
 		let start_nonce = self.engine.account_start_nonce();
 
-		let (root, BasicBackend(db)) = {
+		let (root, db) = {
 			let mut state = State::from_existing(
-				BasicBackend(db),
+				db,
 				root,
 				start_nonce,
 				factories.clone(),
@@ -261,6 +262,7 @@ impl Spec {
 			state.drop()
 		};
 
+		println!("root after executing constructors: {}", root);
 		*self.state_root_memo.write() = root;
 		Ok(db)
 	}
@@ -335,7 +337,7 @@ impl Spec {
 	/// Alter the value of the genesis state.
 	pub fn set_genesis_state(&mut self, s: PodState) -> Result<(), Error> {
 		self.genesis_state = s;
-		self.run_constructors(&Default::default(), |_| {})?;
+		let _ = self.run_constructors(&Default::default(), BasicBackend(MemoryDB::new()))?;
 
 		Ok(())
 	}
@@ -349,19 +351,18 @@ impl Spec {
 	}
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
-	pub fn ensure_db_good(&self, mut db: StateDB, factories: &Factories) -> Result<StateDB, Error> {
+	pub fn ensure_db_good(&self, db: StateDB, factories: &Factories) -> Result<StateDB, Error> {
+		println!("calling ensure_db_good");
+
 		if db.as_hashdb().contains(&self.state_root()) {
 			return Ok(db)
 		}
 
 		// TODO: could optimize so we don't re-run, but `ensure_db_good` is barely ever
 		// called anyway.
-		let mut cur_state = self.run_constructors(factories, |addr| db.note_non_null_account(addr))?;
-
-		// fill DB from spec accounts and constructors.
-		for (key, (item, rc)) in cur_state.drain() {
-			if rc > 0 { db.as_hashdb_mut().emplace(key, item) }
-		}
+		//
+		// call with boxed_clone so things don't stick around in cache forever.
+		let db = self.run_constructors(factories, db)?;
 
 		Ok(db)
 	}
