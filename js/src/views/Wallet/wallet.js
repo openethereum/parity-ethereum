@@ -20,6 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import moment from 'moment';
 
+import HistoryStore from '~/mobx/historyStore';
 import { EditMeta, Transfer, WalletSettings } from '~/modals';
 import { Actionbar, Button, Page, Loading } from '~/ui';
 import { DeleteIcon, EditIcon, SendIcon, SettingsIcon } from '~/ui/Icons';
@@ -34,6 +35,8 @@ import WalletTransactions from './Transactions';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import styles from './wallet.css';
+
+const accountsHistory = HistoryStore.get('accounts');
 
 class WalletContainer extends Component {
   static propTypes = {
@@ -80,6 +83,10 @@ class Wallet extends Component {
   };
 
   componentDidMount () {
+    const { address } = this.props;
+
+    accountsHistory.add(address, 'wallet');
+
     this.setVisibleAccounts();
   }
 

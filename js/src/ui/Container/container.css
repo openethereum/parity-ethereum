@@ -15,9 +15,9 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$background: rgba(18, 18, 18, 0.85);
-$backgroundHover: rgba(18, 18, 18, 1);
-$transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
+$background: rgba(255, 255, 255, 0.85);
+$backgroundHover: rgba(249, 249, 249, 1);
+$backgroundLight: rgba(18, 18, 18, 0.5);
 
 .container {
   background: $background;
@@ -26,8 +26,6 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
   padding: 0em;
   max-width: 100%;
   position: relative;
-  /*transform: translateZ(0);
-  transition: $transitionAll;*/
   width: 100%;
 
   .hoverOverlay {
@@ -41,10 +39,7 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
     position: absolute;
     right: 0;
     top: 100%;
-    /*transition: $transitionAll;*/
     opacity: 0;
-    /*transform: scale(0.5, 0);
-    transform-origin: top center;*/
     z-index: 100;
   }
 
@@ -52,9 +47,11 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
     background: $backgroundHover;
 
     .hoverOverlay {
-      background: $backgroundHover;
+      background: $backgroundHover !important;
+      border: 1px solid whitesmoke;
+      border-top: 1px solid transparent;
+      box-shadow: none !important;
       display: block;
-      /*transform: scale(1, 1);*/
       opacity: 1;
     }
   }
@@ -64,6 +61,8 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
 .padded {
   background-color: transparent !important;
   border-radius: 0 !important;
+  border: 1px solid whitesmoke;
+  box-shadow: none !important;
   height: 100%;
   position: relative;
   overflow: auto;
@@ -79,7 +78,7 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
 
 .light .compact,
 .light .padded {
-  background: rgba(0, 0, 0, 0.5) !important;
+  background: $backgroundLight !important;
 }
 
 .link {

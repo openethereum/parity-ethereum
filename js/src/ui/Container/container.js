@@ -20,6 +20,7 @@ import { Card } from 'material-ui/Card';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
+import DappLink from '../DappLink';
 import Title from './Title';
 
 import styles from './container.css';
@@ -29,6 +30,7 @@ export default class Container extends Component {
     children: PropTypes.node,
     className: PropTypes.string,
     compact: PropTypes.bool,
+    dappLink: PropTypes.bool,
     hover: PropTypes.node,
     light: PropTypes.bool,
     link: PropTypes.string,
@@ -76,15 +78,7 @@ export default class Container extends Component {
       >
         {
           link
-            ? (
-              <Link
-                className={ styles.link }
-                to={ link }
-              >
-                { card }
-                { this.renderHover() }
-              </Link>
-            )
+            ? this.renderLink(link, card)
             : (
               <div>
                 { card }
@@ -93,6 +87,32 @@ export default class Container extends Component {
             )
         }
       </div>
+    );
+  }
+
+  renderLink (link, card) {
+    const { dappLink } = this.props;
+
+    if (dappLink) {
+      return (
+        <DappLink
+          className={ styles.link }
+          to={ link }
+        >
+          { card }
+          { this.renderHover() }
+        </DappLink>
+      );
+    }
+
+    return (
+      <Link
+        className={ styles.link }
+        to={ link }
+      >
+        { card }
+        { this.renderHover() }
+      </Link>
     );
   }
 

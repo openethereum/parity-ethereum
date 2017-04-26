@@ -25,7 +25,13 @@ import { hashToImageUrl } from '~/redux/util';
 import builtinJson from '~/config/dappsBuiltin.json';
 import viewsJson from '~/config/dappsViews.json';
 
-const builtinApps = [].concat(viewsJson, builtinJson).filter((app) => app.id);
+const builtinApps = [].concat(
+  viewsJson.map((app) => {
+    app.isView = true;
+    return app;
+  }),
+  builtinJson.filter((app) => app.id)
+);
 
 function getHost (api) {
   const host = process.env.DAPPS_URL ||
@@ -96,7 +102,9 @@ export function fetchBuiltinApps (api) {
     .all(builtinApps.map((app) => dappReg.getImage(app.id)))
     .then((imageIds) => {
       return builtinApps.map((app, index) => {
-        app.type = 'builtin';
+        app.type = app.isView
+          ? 'view'
+          : 'builtin';
         app.image = hashToImageUrl(imageIds[index]);
         return app;
       });

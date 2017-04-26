@@ -20,13 +20,12 @@ import { uniq, isEqual, pickBy } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
-import { Link } from 'react-router';
 import { bindActionCreators } from 'redux';
 
 import HardwareStore from '~/mobx/hardwareStore';
 import { CreateAccount, CreateWallet, ExportAccount } from '~/modals';
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
-import { AddIcon, KeyIcon, FileDownloadIcon } from '~/ui/Icons';
+import { AddIcon, FileDownloadIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import List from './List';
@@ -247,21 +246,6 @@ class Accounts extends Component {
 
   renderActionbar () {
     const buttons = [
-      <Link
-        to='/vaults'
-        key='vaults'
-      >
-        <Button
-          icon={ <KeyIcon /> }
-          label={
-            <FormattedMessage
-              id='accounts.button.vaults'
-              defaultMessage='vaults'
-            />
-          }
-          onClick={ this.onVaultsClick }
-        />
-      </Link>,
       <Button
         key='newAccount'
         icon={ <AddIcon /> }
