@@ -27,6 +27,8 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
 import qs from 'querystring';
 
+import '@parity/ui';
+
 import SecureApi from '~/secureApi';
 import ContractInstances from '~/contracts';
 

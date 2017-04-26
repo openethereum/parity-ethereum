@@ -19,7 +19,7 @@ import { connect } from 'react-redux';
 
 import { hashToImageUrl } from '~/redux/providers/imagesReducer';
 
-import defaultIcon from '../../../assets/images/certifications/unknown.svg';
+import defaultIcon from '~/../assets/images/certifications/unknown.svg';
 
 import styles from './certifications.css';
 
