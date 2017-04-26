@@ -19,27 +19,37 @@ import store from 'store';
 
 import SavedRequests, { LS_REQUESTS_KEY } from './savedRequests';
 
+const NETWORK_ID = 42;
 const DEFAULT_REQUEST = {
   requestId: '0x1',
   transaction: {}
 };
 
-const api = createApi();
+const api = createApi(NETWORK_ID);
+const api2 = createApi(1);
 const savedRequests = new SavedRequests();
 
-function createApi () {
+function createApi (networkVersion) {
   return {
     parity: {
       checkRequest: sinon.stub().resolves()
+    },
+    net: {
+      version: sinon.stub().resolves(networkVersion)
     }
   };
 }
 
 describe('views/Application/Requests/savedRequests', () => {
-  beforeEach(() => {
+  beforeEach((done) => {
     store.set(LS_REQUESTS_KEY, {
-      [DEFAULT_REQUEST.requestId]: DEFAULT_REQUEST
+      [NETWORK_ID]: {
+        [DEFAULT_REQUEST.requestId]: DEFAULT_REQUEST
+      }
     });
+
+    savedRequests.load(api)
+      .then(() => done());
   });
 
   afterEach(() => {
@@ -83,6 +93,13 @@ describe('views/Application/Requests/savedRequests', () => {
     return savedRequests.load(api)
       .then((requests) => {
         expect(requests[0]).to.deep.equal(DEFAULT_REQUEST);
+      });
+  });
+
+  it('loads requests from the right network', () => {
+    return savedRequests.load(api2)
+      .then((requests) => {
+        expect(requests).to.deep.equal([]);
       });
   });
 });

@@ -23,7 +23,8 @@
 		"maximumExtraDataSize": "0x0400",
 		"minGasLimit": "125000",
 		"networkID" : "0x0",
-		"eip98Transition": "0x7fffffffffffff"
+		"eip98Transition": "0x7fffffffffffff",
+		"eip86Transition": "0x7fffffffffffff"
 	},
 	"genesis": {
 		"seal": {

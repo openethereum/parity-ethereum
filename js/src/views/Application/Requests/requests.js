@@ -145,7 +145,7 @@ class Requests extends Component {
           />
           <div className={ styles.fill }>
             <ScrollableText
-              text={ error.text || error.message }
+              text={ error.text || error.message || error.toString() }
             />
           </div>
         </div>

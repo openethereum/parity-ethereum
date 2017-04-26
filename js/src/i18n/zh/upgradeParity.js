@@ -15,33 +15,41 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  busy: `Your upgrade to Parity {newversion} is currently in progress. Please wait until the process completes.`,
+  busy: `你正在升级到Parity最新版本{newversion}。请等待升级过程完成。`,
+  //Your upgrade to Parity {newversion} is currently in progress. Please wait until the process completes.
   button: {
-    close: `close`,
-    done: `done`,
-    upgrade: `upgrade now`
+    close: `关闭`,//close
+    done: `完成`,//done
+    upgrade: `现在升级`//upgrade now
   },
-  completed: `Your upgrade to Parity {newversion} has been successfully completed. Click "done" to automatically reload the application.`,
+  completed: `你升级到Parity最新版本{newversion}的操作已经完成。点击“完成”将自动重新加载这个应用。`,
+  //Your upgrade to Parity {newversion} has been successfully completed. Click "done" to automatically reload the application.
   consensus: {
-    capable: `Your current Parity version is capable of handling the network requirements.`,
-    capableUntil: `Your current Parity version is capable of handling the network requirements until block {blockNumber}`,
-    incapableSince: `Your current Parity version is incapable of handling the network requirements since block {blockNumber}`,
-    unknown: `Your current Parity version is capable of handling the network requirements.`
+    capable: `你当前的Parity版本能够处理网络请求。`,
+    //Your current Parity version is capable of handling the network requirements.
+    capableUntil: `你当前的Parity版本能够处理直到第{blockNumber}个区块的网络请求。`,
+    //Your current Parity version is capable of handling the network requirements until block {blockNumber}
+    incapableSince: `你当前的Parity版本能够处理第{blockNumber}个区块以后的网络请求。`,
+    //Your current Parity version is incapable of handling the network requirements since block {blockNumber}
+    unknown: `你当前的Parity版本能够处理网络请求。`
+    //Your current Parity version is capable of handling the network requirements.
   },
-  failed: `Your upgrade to Parity {newversion} has failed with an error.`,
+  failed: `升级到Parity最新版本{newversion}遇到错误，升级失败。`,
+  //Your upgrade to Parity {newversion} has failed with an error.
   info: {
-    currentVersion: `You are currently running {currentversion}`,
-    next: `Proceed with "upgrade now" to start your Parity upgrade.`,
-    upgrade: `An upgrade to version {newversion} is available`,
-    welcome: `Welcome to the Parity upgrade wizard, allowing you a completely seamless upgrade experience to the next version of Parity.`
+    currentVersion: `你现在正在运行{currentversion}版本。`,//You are currently running {currentversion}
+    next: `点击“现在升级”，开始Parity升级。`,//Proceed with "upgrade now" to start your Parity upgrade.
+    upgrade: `可以升级到最新版本{newversion}`,//An upgrade to version {newversion} is available
+    welcome: `迎来到Parity升级指南，让你享受无缝升级到Parity最新版本的体验。`
+    //Welcome to the Parity upgrade wizard, allowing you a completely seamless upgrade experience to the next version of Parity.欢
   },
   step: {
-    completed: `upgrade completed`,
-    error: `error`,
-    info: `upgrade available`,
-    updating: `upgrading parity`
+    completed: `升级完成`,//upgrade completed
+    error: `错误`,//error
+    info: `可以升级`,//upgrade available
+    updating: `升级Parity`//upgrading parity
   },
   version: {
-    unknown: `unknown`
+    unknown: `未知`//unknown
   }
 };

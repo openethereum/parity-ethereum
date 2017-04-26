@@ -94,7 +94,7 @@ impl Migration for AddsColumn {
 	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
 		let mut batch = Batch::new(config, col);
 
-		for (key, value) in source.iter(col) {
+		for (key, value) in source.iter(col).into_iter().flat_map(|inner| inner) {
 			batch.insert(key.to_vec(), value.to_vec(), dest)?;
 		}
 

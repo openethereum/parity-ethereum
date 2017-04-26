@@ -18,6 +18,7 @@
 
 use bloomchain;
 use util::*;
+use util::kvdb::PREFIX_LEN as DB_PREFIX_LEN;
 use rlp::*;
 use header::BlockNumber;
 use receipt::Receipt;
@@ -37,6 +38,8 @@ pub enum ExtrasIndex {
 	BlocksBlooms = 3,
 	/// Block receipts index
 	BlockReceipts = 4,
+	/// Epoch transition data index.
+	EpochTransitions = 5,
 }
 
 fn with_index(hash: &H256, i: ExtrasIndex) -> H264 {
@@ -134,6 +137,36 @@ impl Key<BlockReceipts> for H256 {
 	}
 }
 
+/// length of epoch keys.
+pub const EPOCH_KEY_LEN: usize = DB_PREFIX_LEN + 16;
+
+/// epoch key prefix.
+/// used to iterate over all epoch transitions in order from genesis.
+pub const EPOCH_KEY_PREFIX: &'static [u8; DB_PREFIX_LEN] = &[
+	ExtrasIndex::EpochTransitions as u8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
+
+pub struct EpochTransitionsKey([u8; EPOCH_KEY_LEN]);
+impl Deref for EpochTransitionsKey {
+	type Target = [u8];
+
+	fn deref(&self) -> &[u8] { &self.0[..] }
+}
+
+impl Key<EpochTransitions> for u64 {
+	type Target = EpochTransitionsKey;
+
+	fn key(&self) -> Self::Target {
+		let mut arr = [0u8; EPOCH_KEY_LEN];
+		arr[..DB_PREFIX_LEN].copy_from_slice(&EPOCH_KEY_PREFIX[..]);
+
+		write!(&mut arr[DB_PREFIX_LEN..], "{:016x}", self)
+			.expect("format arg is valid; no more than 16 chars will be written; qed");
+
+		EpochTransitionsKey(arr)
+	}
+}
+
 /// Familial details concerning a block
 #[derive(Debug, Clone)]
 pub struct BlockDetails {
@@ -144,7 +177,7 @@ pub struct BlockDetails {
 	/// Parent block hash
 	pub parent: H256,
 	/// List of children block hashes
-	pub children: Vec<H256>
+	pub children: Vec<H256>,
 }
 
 impl HeapSizeOf for BlockDetails {
@@ -238,6 +271,63 @@ impl Encodable for BlockReceipts {
 impl HeapSizeOf for BlockReceipts {
 	fn heap_size_of_children(&self) -> usize {
 		self.receipts.heap_size_of_children()
+	}
+}
+
+/// Candidate transitions to an epoch with specific number.
+#[derive(Clone)]
+pub struct EpochTransitions {
+	pub number: u64,
+	pub candidates: Vec<EpochTransition>,
+}
+
+impl Encodable for EpochTransitions {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2).append(&self.number).append_list(&self.candidates);
+	}
+}
+
+impl Decodable for EpochTransitions {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		Ok(EpochTransitions {
+			number: rlp.val_at(0)?,
+			candidates: rlp.list_at(1)?,
+		})
+	}
+}
+
+#[derive(Debug, Clone)]
+pub struct EpochTransition {
+	pub block_hash: H256, // block hash at which the transition occurred.
+	pub block_number: BlockNumber, // block number at which the tranition occurred.
+	pub proof: Vec<u8>, // "transition/epoch" proof from the engine.
+	pub state_proof: Vec<DBValue>, // state items necessary to regenerate proof.
+}
+
+impl Encodable for EpochTransition {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(4)
+			.append(&self.block_hash)
+			.append(&self.block_number)
+			.append(&self.proof)
+			.begin_list(self.state_proof.len());
+
+		for item in &self.state_proof {
+			s.append(&&**item);
+		}
+	}
+}
+
+impl Decodable for EpochTransition {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		Ok(EpochTransition {
+			block_hash: rlp.val_at(0)?,
+			block_number: rlp.val_at(1)?,
+			proof: rlp.val_at(2)?,
+			state_proof: rlp.at(3)?.iter().map(|x| {
+				Ok(DBValue::from_slice(x.data()?))
+			}).collect::<Result<Vec<_>, _>>()?,
+		})
 	}
 }
 

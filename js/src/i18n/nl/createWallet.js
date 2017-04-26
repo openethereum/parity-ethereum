@@ -53,7 +53,7 @@ export default {
       label: `wallet naam`
     },
     ownerMulti: {
-      hint: `het eigenaars account van dit contract`,
+      hint: `het account wat eigenaar is van dit contract`,
       label: `van account (contract eigenaar)`
     },
     ownersMulti: {
@@ -80,6 +80,7 @@ export default {
   },
   states: {
     completed: `Het contract is succesvol aangemaakt`,
+    confirmationNeeded: `Voor het aanmaken van dit contract is bevestiging door andere eigenaren van het Wallet vereist`,
     preparing: `Transactie aan het voorbereiden voor verzending op het netwerk`,
     validatingCode: `De contract code van het aangemaakte contract wordt gevalideerd`,
     waitingConfirm: `Wachten tot de transactie bevestigd is in de Parity Secure Signer`,
@@ -93,7 +94,7 @@ export default {
   },
   type: {
     multisig: {
-      description: `Creëer/Maak een {link} Wallet aan`,
+      description: `Maak een {link} Wallet aan`,
       label: `Multi-Sig wallet`,
       link: `standaard multi-signature`
     },
