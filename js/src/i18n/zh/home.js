@@ -16,23 +16,23 @@
 
 export default {
   account: {
-    visited: `accessed {when}`
+    visited: `已访问{when}` // accessed {when}
   },
   accounts: {
-    none: `No recent accounts history available`,
-    title: `Recent Accounts`
+    none: `没有可用的近期账户历史`, // No recent accounts history available
+    title: `近期账户` // Recent Accounts
   },
   dapp: {
-    visited: `accessed {when}`
+    visited: `已访问{when}` // accessed {when}
   },
   dapps: {
-    none: `No recent Applications history available`,
-    title: `Recent Dapps`
+    none: `没有可用的近期应用历史`, // No recent Applications history available
+    title: `近期Dapps` // Recent Dapps
   },
-  title: `Parity Home`,
+  title: `Parity首页`, // Parity Home
   url: {
-    none: `No recent URL history available`,
-    title: `Web Applications`,
-    visited: `visited {when}`
+    none: `没有可用的近期URL历史`, // No recent URL history available
+    title: `网页应用`, // Web Applications
+    visited: `已访问{when}` //  visited {when}
   }
 };

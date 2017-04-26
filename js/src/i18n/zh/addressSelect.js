@@ -15,12 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  fromEmail: `Verified using email {email}`,
-  fromRegistry: `{name} (from registry)`,
+  fromEmail: `使用邮箱{email}进行确认`,//Verified using email {email}
+  fromRegistry: `{name}（来自注册）`,//{name} (from registry)
   labels: {
-    accounts: `accounts`,
-    contacts: `contacts`,
-    contracts: `contracts`
+    accounts: `账户`,//accounts
+    contacts: `合约`,//contacts
+    contracts: `合约`//contracts
   },
-  noAccount: `No account matches this query...`
+  noAccount: `查不到这个账户`//No account matches this query...
 };
