@@ -14,6 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import React from 'react';
+import { Icon } from 'semantic-ui-react';
+
+export const LockedIcon = () => <Icon name='unlock alternate' />;
+export const VisibleIcon = () => <Icon name='low vision' />;
+
 export AccountsIcon from 'material-ui/svg-icons/action/account-balance-wallet';
 export AddressesIcon from 'material-ui/svg-icons/communication/contacts';
 export AddIcon from 'material-ui/svg-icons/content/add';
@@ -46,7 +52,7 @@ export KeyIcon from 'material-ui/svg-icons/communication/vpn-key';
 export KeyboardIcon from 'material-ui/svg-icons/hardware/keyboard';
 export LinkIcon from 'material-ui/svg-icons/content/link';
 export ListIcon from 'material-ui/svg-icons/action/view-list';
-export LockedIcon from 'material-ui/svg-icons/action/lock';
+// export LockedIcon from 'material-ui/svg-icons/action/lock';
 export MembershipIcon from 'material-ui/svg-icons/action/card-membership';
 export MoveIcon from 'material-ui/svg-icons/action/open-with';
 export NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
@@ -72,5 +78,5 @@ export UnlockedIcon from 'material-ui/svg-icons/action/lock-open';
 export UpdateIcon from 'material-ui/svg-icons/action/system-update-alt';
 export UpdateWaitIcon from 'material-ui/svg-icons/action/update';
 export VerifyIcon from 'material-ui/svg-icons/action/verified-user';
-export VisibleIcon from 'material-ui/svg-icons/image/remove-red-eye';
+// export VisibleIcon from 'material-ui/svg-icons/image/remove-red-eye';
 export VpnIcon from 'material-ui/svg-icons/notification/vpn-lock';

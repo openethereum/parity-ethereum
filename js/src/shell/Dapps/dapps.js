@@ -24,6 +24,7 @@ import { connect } from 'react-redux';
 import { DappPermissions, DappsVisible } from '~/modals';
 import PermissionStore from '~/modals/DappPermissions/store';
 import { Actionbar, Button, DappCard, Page, SectionList } from '~/ui';
+import { LockedIcon, VisibleIcon } from '~/ui/Icons';
 
 import DappsStore from './dappsStore';
 
@@ -89,7 +90,7 @@ class Dapps extends Component {
           }
           buttons={ [
             <Button
-              icon='low vision'
+              icon={ <VisibleIcon /> }
               key='edit'
               label={
                 <FormattedMessage
@@ -100,7 +101,7 @@ class Dapps extends Component {
               onClick={ this.store.openModal }
             />,
             <Button
-              icon='unlock alternate'
+              icon={ <LockedIcon /> }
               key='permissions'
               label={
                 <FormattedMessage
