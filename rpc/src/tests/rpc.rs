@@ -42,10 +42,11 @@ fn serve(handler: Option<MetaIoHandler<Metadata>>) -> Server<HttpServer> {
 }
 
 /// Test a single request to running server
-pub fn request(server: Server<HttpServer>, request: &str) -> http_client::Response {
+fn request(server: Server<HttpServer>, request: &str) -> http_client::Response {
 	http_client::request(server.server.address(), request)
 }
 
+#[cfg(test)]
 mod testsing {
 	use jsonrpc_core::{MetaIoHandler, Value};
 	use jsonrpc_core::futures::{Future, future};

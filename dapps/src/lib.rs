@@ -104,6 +104,7 @@ pub struct Middleware {
 }
 
 impl Middleware {
+	/// Creates new middleware for UI server.
 	pub fn ui<F: Fetch + Clone>(
 		remote: Remote,
 		registrar: Arc<ContractClient>,

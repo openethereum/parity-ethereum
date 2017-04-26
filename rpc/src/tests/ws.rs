@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! WebSockets server tests.
+
 use std::sync::Arc;
 
 use devtools::http_client;
@@ -51,6 +53,7 @@ pub fn request(server: Server<ws::Server>, request: &str) -> http_client::Respon
 	http_client::request(server.server.addr(), request)
 }
 
+#[cfg(test)]
 mod testing {
 	use std::time;
 	use util::Hashable;

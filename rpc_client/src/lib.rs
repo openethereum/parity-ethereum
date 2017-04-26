@@ -4,21 +4,24 @@ pub mod signer_client;
 extern crate ethcore_util as util;
 extern crate futures;
 extern crate jsonrpc_core;
+extern crate jsonrpc_ws_server as ws;
 extern crate parity_rpc as rpc;
 extern crate rand;
 extern crate serde;
 extern crate serde_json;
 extern crate tempdir;
 extern crate url;
-extern crate ws;
 
 #[macro_use]
 extern crate log;
 
 #[cfg(test)]
+#[macro_use]
+extern crate matches;
+
+
+#[cfg(test)]
 mod tests {
-	#[macro_use]
-	extern crate matches;
 
 	use futures::Future;
 	use std::path::PathBuf;
@@ -27,7 +30,7 @@ mod tests {
 
 	#[test]
 	fn test_connection_refused() {
-		let (_srv, port, mut authcodes) = rpc::tests::serve();
+		let (_srv, port, mut authcodes) = rpc::tests::ws::serve();
 
 		let _ = authcodes.generate_new();
 		authcodes.to_file(&authcodes.path).unwrap();
@@ -42,7 +45,7 @@ mod tests {
 
 	#[test]
 	fn test_authcode_fail() {
-		let (_srv, port, _) = rpc::tests::serve();
+		let (_srv, port, _) = rpc::tests::ws::serve();
 		let path = PathBuf::from("nonexist");
 
 		let connect = Rpc::connect(&format!("ws://127.0.0.1:{}", port), &path);
@@ -54,7 +57,7 @@ mod tests {
 
 	#[test]
 	fn test_authcode_correct() {
-		let (_srv, port, mut authcodes) = rpc::tests::serve();
+		let (_srv, port, mut authcodes) = rpc::tests::ws::serve();
 
 		let _ = authcodes.generate_new();
 		authcodes.to_file(&authcodes.path).unwrap();

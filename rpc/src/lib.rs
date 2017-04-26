@@ -40,6 +40,7 @@ extern crate jsonrpc_ipc_server as ipc;
 
 extern crate ethash;
 extern crate ethcore;
+extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_ipc;
 extern crate ethcore_light as light;
@@ -65,8 +66,6 @@ extern crate serde_derive;
 
 #[cfg(test)]
 extern crate ethjson;
-#[cfg(test)]
-extern crate ethcore_devtools as devtools;
 
 pub extern crate jsonrpc_ws_server as ws;
 
@@ -74,8 +73,7 @@ mod authcodes;
 mod http_common;
 pub mod v1;
 
-#[cfg(test)]
-mod tests;
+pub mod tests;
 
 pub use ipc::{Server as IpcServer, MetaExtractor as IpcMetaExtractor, RequestContext as IpcRequestContext};
 pub use http::{

@@ -13,7 +13,7 @@ use util::{Hashable, Mutex};
 use url::Url;
 use std::fs::File;
 
-use ws::{
+use ws::ws::{
 	self,
 	Request,
 	Handler,

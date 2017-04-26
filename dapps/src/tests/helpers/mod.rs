@@ -26,7 +26,7 @@ use jsonrpc_http_server::{self as http, Host, DomainsValidation};
 use devtools::http_client;
 use hash_fetch::urlhint::ContractClient;
 use fetch::{Fetch, Client as FetchClient};
-use parity_reactor::{EventLoop, Remote};
+use parity_reactor::Remote;
 
 use {Middleware, SyncStatus, WebProxyTokens};
 
@@ -244,7 +244,7 @@ impl Server {
 		remote: Remote,
 		fetch: F,
 	) -> Result<Server, http::Error> {
-		let middleware = Middleware::new(
+		let middleware = Middleware::dapps(
 			remote,
 			signer_address,
 			dapps_path,
