@@ -15,12 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  fromEmail: `使用郵箱{email}進行確認`,//Verified using email {email}
-  fromRegistry: `{name}（來自注冊）`,//{name} (from registry)
+  fromEmail: `使用郵箱{email}進行確認`, // Verified using email {email}
+  fromRegistry: `{name}（來自注冊）`, // {name} (from registry)
   labels: {
-    accounts: `帳戶`,//accounts
-    contacts: `合約`,//contacts
-    contracts: `合約`//contracts
+    accounts: `帳戶`, // accounts
+    contacts: `合約`, // contacts
+    contracts: `合約`// contracts
   },
-  noAccount: `查不到這個帳戶`//No account matches this query...
+  noAccount: `查不到這個帳戶`// No account matches this query...
 };

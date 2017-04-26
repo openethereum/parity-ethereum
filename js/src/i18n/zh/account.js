@@ -16,24 +16,24 @@
 
 export default {
   button: {
-    delete: `删除`,//delete
-    edit: `编辑`,//edit
-    faucet: `Kovan测试网络以太币`,//Kovan ETH 
-    password: `密码`,//password
+    delete: `删除`, // delete
+    edit: `编辑`, // edit
+    faucet: `Kovan测试网络以太币`, // Kovan ETH
+    password: `密码`, // password
     shapeshift: `shapeshift`,
-    transfer: `转账`,//transfer
-    verify: `确认`//verify
+    transfer: `转账`, // transfer
+    verify: `确认`// verify
   },
   hardware: {
     confirmDelete: `你确定从你的账户列表中移除下面的硬件地址吗？`
-  },//Are you sure you want to remove the following hardware address from your account list?
+  }, // Are you sure you want to remove the following hardware address from your account list?
   header: {
-    outgoingTransactions: `{count}笔正在发生的转账`,//{count} outgoing transactions
+    outgoingTransactions: `{count}笔正在发生的转账`, // {count} outgoing transactions
     uuid: `uuid: {uuid}`
   },
-  title: `账户管理`,//Account Management
+  title: `账户管理`, // Account Management
   transactions: {
     poweredBy: `Transaction list powered by {etherscan}提供的交易列表`,
-    title: `交易`//transactions
+    title: `交易`// transactions
   }
 };

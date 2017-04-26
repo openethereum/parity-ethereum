@@ -50,7 +50,7 @@ export default {
     new: `新建Solidity合約`, // New Solidity Contract
     parameters: `變數`, // Parameters
     saved: `已儲存 @ {timestamp}`, // saved @ {timestamp}
-    selectSolidity: `選擇Solidity版本`, //Select a Solidity version
+    selectSolidity: `選擇Solidity版本`, // Select a Solidity version
     solidity: `正在載入Solidity {version}` // Loading Solidity {version}
   },
   type: {

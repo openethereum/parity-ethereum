@@ -32,13 +32,13 @@ export default {
   },
   confirmClose: {
     info: `你即將關閉一個保險庫。所有與這個保險庫相關的帳戶在這個操作完成後都不再可見。如果想再見到關聯帳戶，請重新開啟保險庫。`,
-    // You are about to close a vault. Any accounts associated with the vault won't be visible after this operation concludes. To view 
+    // You are about to close a vault. Any accounts associated with the vault won't be visible after this operation concludes. To view
     // the associated accounts, open the vault again.
     title: `關閉保險庫` // Close Vault
   },
   confirmOpen: {
     info: `你即將開啟一個保險庫。在確認了你的密碼之後，所有與這個保險庫關聯的帳戶都會可見。關閉保險庫會在介面中移除所有帳戶，直到保險庫被再次開啟。`,
-    // You are about to open a vault. After confirming your password, all accounts associated with this vault will be visible. Closing 
+    // You are about to open a vault. After confirming your password, all accounts associated with this vault will be visible. Closing
     // the vault will remove the accounts from view until the vault is opened again.
     password: {
       hint: `建立保險庫時設定的密碼`, // the password specified when creating the vault
@@ -106,7 +106,7 @@ export default {
   empty: `目前沒有任何可顯示的保險庫`, // There are currently no vaults to display.
   selector: {
     noneAvailable: `目前沒有任何開啟、可選的保險庫。請在移動帳戶之前建立並開啟一個保險庫。`,
-    // There are currently no vaults opened and available for selection. Create and open some first before attempting to select 
+    // There are currently no vaults opened and available for selection. Create and open some first before attempting to select
     // a vault for an account move.
     title: `選擇帳戶保險庫` // Select Account Vault
   },
