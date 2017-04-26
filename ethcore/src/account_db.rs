@@ -78,6 +78,7 @@ pub struct AccountDB<'db> {
 
 impl<'db> AccountDB<'db> {
 	/// Create a new AccountDB from an address.
+	#[allow(dead_code)]
 	pub fn new(db: &'db HashDB, address: &Address) -> Self {
 		Self::from_hash(db, address.sha3())
 	}
@@ -131,6 +132,7 @@ pub struct AccountDBMut<'db> {
 
 impl<'db> AccountDBMut<'db> {
 	/// Create a new AccountDB from an address.
+	#[allow(dead_code)]
 	pub fn new(db: &'db mut HashDB, address: &Address) -> Self {
 		Self::from_hash(db, address.sha3())
 	}
