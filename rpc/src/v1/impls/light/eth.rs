@@ -25,7 +25,7 @@ use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 
 use light::cache::Cache as LightDataCache;
-use light::client::Client as LightClient;
+use light::client::{Client as LightClient, LightChainClient};
 use light::{cht, TransactionQueue};
 use light::on_demand::{request, OnDemand};
 
@@ -123,6 +123,7 @@ impl EthClient {
 	fn rich_block(&self, id: BlockId, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
 		let (on_demand, sync) = (self.on_demand.clone(), self.sync.clone());
 		let (client, engine) = (self.client.clone(), self.client.engine().clone());
+		let eip86_transition = self.client.eip86_transition();
 
 		// helper for filling out a rich block once we've got a block and a score.
 		let fill_rich = move |block: encoded::Block, score: Option<U256>| {
@@ -149,8 +150,8 @@ impl EthClient {
 					seal_fields: header.seal().into_iter().cloned().map(Into::into).collect(),
 					uncles: block.uncle_hashes().into_iter().map(Into::into).collect(),
 					transactions: match include_txs {
-						true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(Into::into).collect()),
-						false => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
+						true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(|t| Transaction::from_localized(t, eip86_transition)).collect()),
+						_ => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
 					},
 					extra_data: Bytes::new(header.extra_data().to_vec()),
 				},

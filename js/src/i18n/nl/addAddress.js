@@ -19,6 +19,7 @@ export default {
     add: `Adres Opslaan`,
     close: `Annuleer`
   },
+  header: `Om een nieuwe invoer aan je adresboek toe te voegen, heb je het netwerk adres van het account nodig en kun je optioneel een beschrijving toevoegen. Zodra de nieuwe invoer is toegevoegd, zal het in je adresboek verschijnen.`,
   input: {
     address: {
       hint: `het netwerk adres van het item`,
@@ -33,5 +34,5 @@ export default {
       label: `Adres Naam`
     }
   },
-  label: `voeg opgeslagen adres toe`
+  label: `voeg een opgeslagen adres toe`
 };

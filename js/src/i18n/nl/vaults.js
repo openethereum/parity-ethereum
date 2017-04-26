@@ -26,8 +26,9 @@ export default {
   button: {
     accounts: `accounts`,
     add: `Maak kluis`,
-    close: `sluit kluis`,
-    open: `open kluis`
+    close: `sluit`,
+    edit: `bewerk`,
+    open: `open`
   },
   confirmClose: {
     info: `Je staat op het punt op een kluis te sluiten. Alle aan deze kluis verbonden accounts zullen niet meer zichtbaar zijn na het voltooien van deze actie. Om deze accounts weer zichtbaar te maken dien je de kluis weer te openen.`,
@@ -70,6 +71,38 @@ export default {
     },
     title: `Maak een nieuwe kluis aan`
   },
+  editMeta: {
+    allowPassword: `Wijzig kluis wachtwoord`,
+    button: {
+      close: `sluit`,
+      save: `opslaan`
+    },
+    currentPassword: {
+      hint: `je huidige kluis wachtwoord`,
+      label: `huidige wachtwoord`
+    },
+    description: {
+      hint: `de  omschrijving van deze kluis`,
+      label: `kluis omschrijving`
+    },
+    password: {
+      hint: `een sterk, uniek wachtwoord`,
+      label: `nieuw wachtwoord`
+    },
+    password2: {
+      hint: `verifieer je nieuwe wachtwoord`,
+      label: `nieuw wachtwoord (herhaal)`
+    },
+    passwordHint: {
+      hint: `je wachtwoord hint voor deze kluis`,
+      label: `wachtwoord hint`
+    },
+    title: `Bewerk Kluis Metadata`
+  },
   empty: `Er zijn momenteel geen kluizen om weer tegeven.`,
+  selector: {
+    noneAvailable: `Er zijn momenteel geen kluizen geopend en beschikbaar voor selectie. Maak eerst een kluis aan en open deze, voordat je een kluis selecteert voor het verplaatsen van een account.`,
+    title: `Selecteer Account Kluis`
+  },
   title: `Kluis Beheer`
 };

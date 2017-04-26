@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { stringify } from 'qs';
+import { apiLink } from './links';
 
 const options = {
   method: 'GET',
@@ -24,31 +25,11 @@ const options = {
 };
 
 export function call (module, action, _params, test, netVersion) {
-  let prefix = 'api.';
-
-  switch (netVersion) {
-    case '2':
-    case '3':
-      prefix = 'testnet.';
-      break;
-
-    case '42':
-      prefix = 'kovan.';
-      break;
-
-    case '0':
-    default:
-      if (test) {
-        prefix = 'testnet.';
-      }
-      break;
-  }
-
   const query = stringify(Object.assign({
     module, action
   }, _params || {}));
 
-  return fetch(`https://${prefix}etherscan.io/api?${query}`, options)
+  return fetch(apiLink(query, test, netVersion), options)
     .then((response) => {
       if (!response.ok) {
         throw { code: response.status, message: response.statusText }; // eslint-disable-line

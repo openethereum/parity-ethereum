@@ -461,7 +461,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 	let at = cmd.at;
 	let mut i = 0usize;
 
-	out.write_fmt(format_args!("{{ \"state\": [", )).expect("Couldn't write to stream.");
+	out.write_fmt(format_args!("{{ \"state\": {{", )).expect("Couldn't write to stream.");
 	loop {
 		let accounts = client.list_accounts(at, last.as_ref(), 1000).ok_or("Specified block not found")?;
 		if accounts.is_empty() {
@@ -498,13 +498,11 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 							break;
 						}
 
-						let mut si = 0;
 						for key in keys.into_iter() {
-							if si != 0 {
+							if last_storage.is_some() {
 								out.write(b",").expect("Write error");
 							}
 							out.write_fmt(format_args!("\n\t\"0x{}\": \"0x{}\"", key.hex(), client.storage_at(&account, &key, at).unwrap_or_else(Default::default).hex())).expect("Write error");
-							si += 1;
 							last_storage = Some(key);
 						}
 					}
@@ -519,7 +517,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 			last = Some(account);
 		}
 	}
-	out.write_fmt(format_args!("\n]}}")).expect("Write error");
+	out.write_fmt(format_args!("\n}}}}")).expect("Write error");
 	info!("Export completed.");
 	Ok(())
 }

@@ -20,7 +20,7 @@ use ethkey;
 use ethcrypto;
 use super::types::all::DocumentAddress;
 
-pub use super::types::all::{NodeId, EncryptionConfiguration, DocumentEncryptedKeyShadow};
+pub use super::types::all::{NodeId, DocumentEncryptedKeyShadow};
 pub use super::acl_storage::AclStorage;
 pub use super::key_storage::{KeyStorage, DocumentKeyShare};
 pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic};

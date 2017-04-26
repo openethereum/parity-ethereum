@@ -35,6 +35,12 @@ export default class Personal {
           return;
         }
 
+        // Add the address to each accounts
+        Object.keys(accountsInfo)
+          .forEach((address) => {
+            accountsInfo[address].address = address;
+          });
+
         this._store.dispatch(personalAccountsInfo(accountsInfo));
       });
   }

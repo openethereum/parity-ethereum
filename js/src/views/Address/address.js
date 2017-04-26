@@ -38,7 +38,6 @@ class Address extends Component {
     setVisibleAccounts: PropTypes.func.isRequired,
 
     contacts: PropTypes.object,
-    balances: PropTypes.object,
     params: PropTypes.object
   };
 
@@ -73,7 +72,7 @@ class Address extends Component {
   }
 
   render () {
-    const { contacts, balances } = this.props;
+    const { contacts } = this.props;
     const { address } = this.props.params;
 
     if (Object.keys(contacts).length === 0) {
@@ -81,7 +80,6 @@ class Address extends Component {
     }
 
     const contact = (contacts || {})[address];
-    const balance = (balances || {})[address];
 
     return (
       <div>
@@ -92,7 +90,6 @@ class Address extends Component {
         <Page padded>
           <Header
             account={ contact || { address, meta: {} } }
-            balance={ balance }
             hideName={ !contact }
           />
           <Transactions
@@ -240,11 +237,9 @@ class Address extends Component {
 
 function mapStateToProps (state) {
   const { contacts } = state.personal;
-  const { balances } = state.balances;
 
   return {
-    contacts,
-    balances
+    contacts
   };
 }
 

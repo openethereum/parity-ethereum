@@ -17,14 +17,12 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { connect } from 'react-redux';
 
 import { AccountCard, Portal, SelectionList } from '~/ui';
 
 @observer
-class DappPermissions extends Component {
+export default class DappPermissions extends Component {
   static propTypes = {
-    balances: PropTypes.object,
     permissionStore: PropTypes.object.isRequired
   };
 
@@ -66,27 +64,10 @@ class DappPermissions extends Component {
   }
 
   renderAccount = (account) => {
-    const { balances } = this.props;
-    const balance = balances[account.address];
-
     return (
       <AccountCard
         account={ account }
-        balance={ balance }
       />
     );
   }
 }
-
-function mapStateToProps (state) {
-  const { balances } = state.balances;
-
-  return {
-    balances
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(DappPermissions);

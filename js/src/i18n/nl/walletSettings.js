@@ -15,6 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
+  addOwner: {
+    title: `Eigenaar toevoegen`
+  },
+  buttons: {
+    cancel: `Annuleer`,
+    close: `Sluit`,
+    next: `Volgende`,
+    send: `Verzend`,
+    sending: `Verzenden...`
+  },
   changes: {
     modificationString: `Om je wijzigingen door te voeren zullen
               andere eigenaren deze zelfde wijzigingen moeten verzenden. Om het
@@ -25,7 +35,8 @@ export default {
   edit: {
     message: `Om de instellingen van dit contract de wijzigen zullen
                   minimaal {owners, number} {owners, plural, one {owner } other {owners }} precies dezelfde
-                  wijzigingen moeten verzenden. Je kunt hier de wijzigingen in string-vorm plakken.`
+                  wijzigingen moeten verzenden. Je kunt de wijzigingen hier
+                  in string-vorm plakken.`
   },
   modifications: {
     daylimit: {
@@ -47,11 +58,12 @@ export default {
       label: `van account (wallet eigenaar)`
     }
   },
-  rejected: {
-    busyStep: {
-      state: `De wallet instellingen zullen niet worden gewijzigd. Je kunt dit venster veilig sluiten.`,
-      title: `De wijzigingen zijn afgewezen.`
-    },
-    title: `afgewezen`
+  ownersChange: {
+    details: `van {from} naar {to}`,
+    title: `Wijzig Vereiste Eigenaren`
+  },
+  rejected: `De transactie #{txid} is afgewezen`,
+  removeOwner: {
+    title: `Verwijder Eigenaar`
   }
 };

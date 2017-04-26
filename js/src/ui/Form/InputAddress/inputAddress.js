@@ -175,14 +175,12 @@ function mapStateToProps (state, props) {
 
   const lcValue = value.toLowerCase();
   const { accountsInfo } = state.personal;
-  const { tokens } = state.balances;
+  const { tokens } = state;
 
-  const accountsInfoAddress = Object.keys(accountsInfo).find((address) => address.toLowerCase() === lcValue);
-  const tokensAddress = Object.keys(tokens).find((address) => address.toLowerCase() === lcValue);
+  const accountInfo = Object.values(accountsInfo).find((account) => account.address.toLowerCase() === lcValue);
+  const token = Object.values(tokens).find((token) => token.address.toLowerCase() === lcValue);
 
-  const account = (accountsInfoAddress && accountsInfo[accountsInfoAddress]) ||
-    (tokensAddress && tokens[tokensAddress]) ||
-    null;
+  const account = accountInfo || token || null;
 
   return {
     account

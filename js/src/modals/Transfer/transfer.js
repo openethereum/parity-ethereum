@@ -45,12 +45,13 @@ class Transfer extends Component {
     newError: PropTypes.func.isRequired,
     gasLimit: PropTypes.object.isRequired,
 
-    senders: nullableProptype(PropTypes.object),
-    sendersBalances: nullableProptype(PropTypes.object),
     account: PropTypes.object,
     balance: PropTypes.object,
-    wallet: PropTypes.object,
-    onClose: PropTypes.func
+    onClose: PropTypes.func,
+    senders: nullableProptype(PropTypes.object),
+    sendersBalances: nullableProptype(PropTypes.object),
+    tokens: PropTypes.object,
+    wallet: PropTypes.object
   }
 
   store = new TransferStore(this.context.api, this.props);
@@ -144,8 +145,8 @@ class Transfer extends Component {
 
   renderDetailsPage () {
     const { account, balance, senders } = this.props;
-    const { recipient, recipientError, sender, senderError, sendersBalances } = this.store;
-    const { valueAll, extras, tag, total, totalError, value, valueError } = this.store;
+    const { recipient, recipientError, sender, senderError } = this.store;
+    const { valueAll, extras, token, total, totalError, value, valueError } = this.store;
 
     return (
       <Details
@@ -159,8 +160,7 @@ class Transfer extends Component {
         sender={ sender }
         senderError={ senderError }
         senders={ senders }
-        sendersBalances={ sendersBalances }
-        tag={ tag }
+        token={ token }
         total={ total }
         totalError={ totalError }
         value={ value }
@@ -272,6 +272,7 @@ class Transfer extends Component {
 }
 
 function mapStateToProps (initState, initProps) {
+  const { tokens } = initState;
   const { address } = initProps.account;
 
   const isWallet = initProps.account && initProps.account.wallet;
@@ -291,9 +292,12 @@ function mapStateToProps (initState, initProps) {
 
   return (state) => {
     const { gasLimit } = state.nodeStatus;
-    const sendersBalances = senders ? pick(state.balances.balances, Object.keys(senders)) : null;
+    const { balances } = state;
 
-    return { gasLimit, wallet, senders, sendersBalances };
+    const balance = balances[address];
+    const sendersBalances = senders ? pick(balances, Object.keys(senders)) : null;
+
+    return { balance, gasLimit, senders, sendersBalances, tokens, wallet };
   };
 }
 
