@@ -47,7 +47,6 @@ export default class DetailsStep extends Component {
     abiError: PropTypes.string,
     amount: PropTypes.string,
     amountError: PropTypes.string,
-    balances: PropTypes.object,
     code: PropTypes.string,
     codeError: PropTypes.string,
     description: PropTypes.string,
@@ -87,7 +86,6 @@ export default class DetailsStep extends Component {
   render () {
     const {
       accounts,
-      balances,
       readOnly,
 
       fromAddress, fromAddressError,
@@ -141,7 +139,6 @@ export default class DetailsStep extends Component {
 
         <AddressSelect
           accounts={ accounts }
-          balances={ balances }
           error={ fromAddressError }
           hint={
             <FormattedMessage

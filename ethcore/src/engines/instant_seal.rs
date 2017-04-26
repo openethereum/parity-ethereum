@@ -18,10 +18,10 @@ use std::collections::BTreeMap;
 use util::{Address, HashMap};
 use builtin::Builtin;
 use engines::{Engine, Seal};
-use env_info::EnvInfo;
 use spec::CommonParams;
 use evm::Schedule;
 use block::ExecutedBlock;
+use header::BlockNumber;
 
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
 pub struct InstantSeal {
@@ -58,8 +58,9 @@ impl Engine for InstantSeal {
 		&self.builtins
 	}
 
-	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
-		Schedule::new_post_eip150(usize::max_value(), true, true, true)
+	fn schedule(&self, block_number: BlockNumber) -> Schedule {
+		let eip86 = block_number >= self.params.eip86_transition;
+		Schedule::new_post_eip150(usize::max_value(), true, true, true, eip86)
 	}
 
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
@@ -82,8 +83,7 @@ mod tests {
 	fn instant_can_seal() {
 		let spec = Spec::new_instant();
 		let engine = &*spec.engine;
-		let mut db_result = get_temp_state_db();
-		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
+		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap();

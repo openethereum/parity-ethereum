@@ -21,7 +21,6 @@ export Status from './status';
 
 export apiReducer from './apiReducer';
 export balancesReducer from './balancesReducer';
-export blockchainReducer from './blockchainReducer';
 export workerReducer from './workerReducer';
 export imagesReducer from './imagesReducer';
 export personalReducer from './personalReducer';
@@ -29,4 +28,5 @@ export requestsReducer from './requestsReducer';
 export signerReducer from './signerReducer';
 export snackbarReducer from './snackbarReducer';
 export statusReducer from './statusReducer';
+export tokensReducer from './tokensReducer';
 export walletReducer from './walletReducer';

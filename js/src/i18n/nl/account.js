@@ -16,12 +16,16 @@
 
 export default {
   button: {
-    delete: `verwijder account`,
+    delete: `verwijder`,
     edit: `bewerk`,
+    faucet: `Kovan ETH`,
     password: `wachtwoord`,
     shapeshift: `shapeshift`,
     transfer: `verzend`,
     verify: `verifieer`
+  },
+  hardware: {
+    confirmDelete: `Weet je zeker dat je de volgende hardware adressen van je account lijst wilt verwijderen?`
   },
   header: {
     outgoingTransactions: `{count} uitgaande transacties`,

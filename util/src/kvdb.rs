@@ -36,6 +36,9 @@ use std::fs::File;
 const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
 
+/// Required length of prefixes.
+pub const PREFIX_LEN: usize = 12;
+
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
 #[derive(Default, Clone, PartialEq)]
 pub struct DBTransaction {
@@ -167,6 +170,10 @@ pub trait KeyValueDB: Sync + Send {
 	/// Iterate over flushed data for a given column.
 	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
 
+	/// Iterate over flushed data for a given column, starting from a given prefix.
+	fn iter_from_prefix<'a>(&'a self, col: Option<u32>, prefix: &'a [u8])
+		-> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
+
 	/// Attempt to replace this database with a new one located at the given path.
 	fn restore(&self, new_db: &str) -> Result<(), UtilError>;
 }
@@ -247,7 +254,21 @@ impl KeyValueDB for InMemory {
 					.into_iter()
 					.map(|(k, v)| (k.into_boxed_slice(), v.to_vec().into_boxed_slice()))
 			),
-			None => Box::new(None.into_iter())
+			None => Box::new(None.into_iter()),
+		}
+	}
+
+	fn iter_from_prefix<'a>(&'a self, col: Option<u32>, prefix: &'a [u8])
+		-> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>
+	{
+		match self.columns.read().get(&col) {
+			Some(map) => Box::new(
+				map.clone()
+					.into_iter()
+					.skip_while(move |&(ref k, _)| !k.starts_with(prefix))
+					.map(|(k, v)| (k.into_boxed_slice(), v.to_vec().into_boxed_slice()))
+			),
+			None => Box::new(None.into_iter()),
 		}
 	}
 
@@ -691,23 +712,17 @@ impl Database {
 	/// Get value by partial key. Prefix size should match configured prefix size. Only searches flushed values.
 	// TODO: support prefix seek for unflushed data
 	pub fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>> {
-		match *self.db.read() {
-			Some(DBAndColumns { ref db, ref cfs }) => {
-				let mut iter = col.map_or_else(|| db.iterator_opt(IteratorMode::From(prefix, Direction::Forward), &self.read_opts),
-					|c| db.iterator_cf_opt(cfs[c as usize], IteratorMode::From(prefix, Direction::Forward), &self.read_opts)
-						.expect("iterator params are valid; qed"));
-				match iter.next() {
-					// TODO: use prefix_same_as_start read option (not availabele in C API currently)
-					Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Some(v) } else { None },
-					_ => None
-				}
-			},
-			None => None,
-		}
+		self.iter_from_prefix(col, prefix).and_then(|mut iter| {
+			match iter.next() {
+				// TODO: use prefix_same_as_start read option (not availabele in C API currently)
+				Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Some(v) } else { None },
+				_ => None
+			}
+		})
 	}
 
 	/// Get database iterator for flushed data.
-	pub fn iter(&self, col: Option<u32>) -> DatabaseIterator {
+	pub fn iter(&self, col: Option<u32>) -> Option<DatabaseIterator> {
 		//TODO: iterate over overlay
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
@@ -717,12 +732,28 @@ impl Database {
 						.expect("iterator params are valid; qed")
 				);
 
-				DatabaseIterator {
+				Some(DatabaseIterator {
 					iter: iter,
 					_marker: PhantomData,
-				}
+				})
 			},
-			None => panic!("Not supported yet") //TODO: return an empty iterator or change return type
+			None => None,
+		}
+	}
+
+	fn iter_from_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<DatabaseIterator> {
+		match *self.db.read() {
+			Some(DBAndColumns { ref db, ref cfs }) => {
+				let iter = col.map_or_else(|| db.iterator_opt(IteratorMode::From(prefix, Direction::Forward), &self.read_opts),
+					|c| db.iterator_cf_opt(cfs[c as usize], IteratorMode::From(prefix, Direction::Forward), &self.read_opts)
+						.expect("iterator params are valid; qed"));
+
+				Some(DatabaseIterator {
+					iter: iter,
+					_marker: PhantomData,
+				})
+			},
+			None => None,
 		}
 	}
 
@@ -836,7 +867,14 @@ impl KeyValueDB for Database {
 
 	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a> {
 		let unboxed = Database::iter(self, col);
-		Box::new(unboxed)
+		Box::new(unboxed.into_iter().flat_map(|inner| inner))
+	}
+
+	fn iter_from_prefix<'a>(&'a self, col: Option<u32>, prefix: &'a [u8])
+		-> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>
+	{
+		let unboxed = Database::iter_from_prefix(self, col, prefix);
+		Box::new(unboxed.into_iter().flat_map(|inner| inner))
 	}
 
 	fn restore(&self, new_db: &str) -> Result<(), UtilError> {
@@ -872,7 +910,7 @@ mod tests {
 
 		assert_eq!(&*db.get(None, &key1).unwrap().unwrap(), b"cat");
 
-		let contents: Vec<_> = db.iter(None).collect();
+		let contents: Vec<_> = db.iter(None).into_iter().flat_map(|inner| inner).collect();
 		assert_eq!(contents.len(), 2);
 		assert_eq!(&*contents[0].0, &*key1);
 		assert_eq!(&*contents[0].1, b"cat");

@@ -24,10 +24,21 @@ import { createWsApi } from '~/../test/e2e/ethapi';
 let middleware;
 let next;
 let store;
+let clock;
 
 const api = createWsApi();
 
 Contracts.create(api);
+
+function stubGlobals () {
+  clock = sinon.useFakeTimers();
+  sinon.spy(window.location, 'reload');
+}
+
+function restoreGlobals () {
+  window.location.reload.restore();
+  clock.restore();
+}
 
 function createMiddleware (collection = {}) {
   middleware = new ChainMiddleware().toMiddleware();
@@ -46,10 +57,22 @@ function createMiddleware (collection = {}) {
 }
 
 function callMiddleware (action) {
-  return middleware(store)(next)(action);
+  const result = middleware(store)(next)(action);
+
+  clock.tick(100);
+
+  return result;
 }
 
 describe('reduxs/providers/ChainMiddleware', () => {
+  beforeEach(() => {
+    stubGlobals();
+  });
+
+  afterEach(() => {
+    restoreGlobals();
+  });
+
   describe('next action', () => {
     beforeEach(() => {
       createMiddleware();
@@ -69,25 +92,25 @@ describe('reduxs/providers/ChainMiddleware', () => {
   });
 
   describe('chain switching', () => {
-    it('does not dispatch when moving from the initial/unknown chain', () => {
+    it('does not reload when moving from the initial/unknown chain', () => {
       createMiddleware();
       callMiddleware({ type: 'statusCollection', collection: { netChain: 'homestead' } });
 
-      expect(store.dispatch).not.to.have.been.called;
+      expect(window.location.reload).not.to.have.been.called;
     });
 
-    it('does not dispatch when moving to the same chain', () => {
+    it('does not reload when moving to the same chain', () => {
       createMiddleware({ netChain: 'homestead' });
       callMiddleware({ type: 'statusCollection', collection: { netChain: 'homestead' } });
 
-      expect(store.dispatch).not.to.have.been.called;
+      expect(window.location.reload).not.to.have.been.called;
     });
 
-    it('does dispatch when moving between chains', () => {
+    it('does reload when moving between chains', () => {
       createMiddleware({ netChain: 'homestead' });
       callMiddleware({ type: 'statusCollection', collection: { netChain: 'ropsten' } });
 
-      expect(store.dispatch).to.have.been.called;
+      expect(window.location.reload).to.have.been.called;
     });
   });
 });

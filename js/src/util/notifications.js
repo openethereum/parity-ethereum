@@ -17,20 +17,12 @@
 import Push from 'push.js';
 import BigNumber from 'bignumber.js';
 
-import { fromWei } from '~/api/util/wei';
-
-import ethereumIcon from '~/../assets/images/contracts/ethereum-black-64x64.png';
 import unkownIcon from '~/../assets/images/contracts/unknown-64x64.png';
 
 export function notifyTransaction (account, token, _value, onClick) {
   const name = account.name || account.address;
-  const value = token.tag.toLowerCase() === 'eth'
-    ? fromWei(_value)
-    : _value.div(new BigNumber(token.format || 1));
-
-  const icon = token.tag.toLowerCase() === 'eth'
-    ? ethereumIcon
-    : (token.image || unkownIcon);
+  const value = _value.div(new BigNumber(token.format || 1));
+  const icon = token.image || unkownIcon;
 
   let _notification = null;
 

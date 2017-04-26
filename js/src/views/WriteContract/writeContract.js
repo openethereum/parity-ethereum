@@ -446,9 +446,9 @@ class WriteContract extends Component {
     return (
       <DeployContract
         abi={ contract.interface }
+        accounts={ this.props.accounts }
         code={ `0x${contract.bytecode}` }
         source={ sourcecode }
-        accounts={ this.props.accounts }
         onClose={ this.store.handleCloseDeployModal }
         readOnly
       />

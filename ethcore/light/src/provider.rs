@@ -258,7 +258,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		}.fake_sign(req.from);
 
 		self.prove_transaction(transaction, id)
-			.map(|proof| ::request::ExecutionResponse { items: proof })
+			.map(|(_, proof)| ::request::ExecutionResponse { items: proof })
 	}
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {

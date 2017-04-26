@@ -416,6 +416,7 @@ impl Dependencies for LightDependencies {
 						false => None,
 					};
 					handler.extend_with(light::ParityClient::new(
+						self.client.clone(),
 						Arc::new(dispatcher.clone()),
 						self.secret_store.clone(),
 						self.logger.clone(),

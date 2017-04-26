@@ -57,7 +57,6 @@ class Contracts extends Component {
   static propTypes = {
     setVisibleAccounts: PropTypes.func.isRequired,
 
-    balances: PropTypes.object,
     accounts: PropTypes.object,
     contracts: PropTypes.object,
     hasContracts: PropTypes.bool
@@ -96,7 +95,7 @@ class Contracts extends Component {
   }
 
   render () {
-    const { contracts, hasContracts, balances } = this.props;
+    const { contracts, hasContracts } = this.props;
     const { searchValues, sortOrder } = this.state;
 
     return (
@@ -109,7 +108,6 @@ class Contracts extends Component {
             link='contracts'
             search={ searchValues }
             accounts={ contracts }
-            balances={ balances }
             empty={ !hasContracts }
             order={ sortOrder }
             orderFallback='name'
@@ -267,13 +265,11 @@ class Contracts extends Component {
 
 function mapStateToProps (state) {
   const { accounts, contracts, hasContracts } = state.personal;
-  const { balances } = state.balances;
 
   return {
     accounts,
     contracts,
-    hasContracts,
-    balances
+    hasContracts
   };
 }
 

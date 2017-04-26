@@ -34,21 +34,19 @@ const defaultNameNull = (
   />
 );
 
-class IdentityName extends Component {
+export class IdentityName extends Component {
   static propTypes = {
-    accountsInfo: PropTypes.object,
+    account: PropTypes.object,
     address: PropTypes.string,
     className: PropTypes.string,
     empty: PropTypes.bool,
     name: PropTypes.string,
     shorten: PropTypes.bool,
-    tokens: PropTypes.object,
     unknown: PropTypes.bool
   }
 
   render () {
-    const { address, accountsInfo, className, empty, name, shorten, tokens, unknown } = this.props;
-    const account = accountsInfo[address] || tokens[address];
+    const { account, address, className, empty, name, shorten, unknown } = this.props;
 
     if (!account && empty) {
       return null;
@@ -76,13 +74,14 @@ class IdentityName extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  const { accountsInfo } = state.personal;
-  const { tokens } = state.balances;
+function mapStateToProps (state, props) {
+  const { address } = props;
+  const { personal, tokens } = state;
+
+  const account = personal.accountsInfo[address] || Object.values(tokens).find((token) => token.address === address);
 
   return {
-    accountsInfo,
-    tokens
+    account
   };
 }
 

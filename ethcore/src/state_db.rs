@@ -463,8 +463,7 @@ mod tests {
 	fn state_db_smoke() {
 		init_log();
 
-		let mut state_db_result = get_temp_state_db();
-		let state_db = state_db_result.take();
+		let state_db = get_temp_state_db();
 		let root_parent = H256::random();
 		let address = Address::random();
 		let h0 = H256::random();

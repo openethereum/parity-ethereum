@@ -39,9 +39,12 @@ pub struct ParitySetClient<C, M, U, F = fetch::Client> {
 	updater: Weak<U>,
 	net: Weak<ManageNetwork>,
 	fetch: F,
+	eip86_transition: u64,
 }
 
-impl<C, M, U, F> ParitySetClient<C, M, U, F> {
+impl<C, M, U, F> ParitySetClient<C, M, U, F>
+	where C: MiningBlockChainClient + 'static,
+{
 	/// Creates new `ParitySetClient` with given `Fetch`.
 	pub fn new(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>, fetch: F) -> Self {
 		ParitySetClient {
@@ -50,6 +53,7 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F> {
 			updater: Arc::downgrade(updater),
 			net: Arc::downgrade(net),
 			fetch: fetch,
+			eip86_transition: client.eip86_transition(),
 		}
 	}
 }
@@ -175,8 +179,9 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	fn remove_transaction(&self, hash: H256) -> Result<Option<Transaction>, Error> {
 		let miner = take_weak!(self.miner);
 		let client = take_weak!(self.client);
+		let block_number = take_weak!(self.client).chain_info().best_block_number;
 		let hash = hash.into();
 
-		Ok(miner.remove_pending_transaction(&*client, &hash).map(Into::into))
+		Ok(miner.remove_pending_transaction(&*client, &hash).map(|t| Transaction::from_pending(t, block_number, self.eip86_transition)))
 	}
 }
