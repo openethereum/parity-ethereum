@@ -20,7 +20,7 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
 import { TypedInput, InputAddress } from '../Form';
-import { Loading } from '../Loading';
+import Loading from '../Loading';
 import MethodDecodingStore from './methodDecodingStore';
 
 import styles from './methodDecoding.css';
