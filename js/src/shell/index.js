@@ -39,7 +39,7 @@ import Application from './Application';
 import Dapp from './Dapp';
 import Dapps from './Dapps';
 
-import styles from './reset.css';
+import styles from '~/reset.css';
 
 import '~/environment';
 
