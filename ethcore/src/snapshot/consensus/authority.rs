@@ -250,6 +250,8 @@ impl ChunkRebuilder {
 		let last_hashes: Vec<H256> = transition_rlp.list_at(4)?;
 		let last_hashes = Arc::new(last_hashes);
 
+		trace!(target: "snapshot", "verifying transition to epoch {}", epoch_number);
+
 		// check current transition against validators of last epoch.
 		if let Some(verifier) = last_verifier.as_ref() {
 			verifier.verify_heavy(&header)?;

@@ -260,7 +260,11 @@ impl Client {
 		// ensure genesis epoch proof in the DB.
 		{
 			let chain = client.chain.read();
-			client.generate_epoch_proof(&spec.genesis_header(), 0, &*chain);
+			let gh = spec.genesis_header();
+			if chain.epoch_transition(0, spec.genesis_header().hash()).is_none() {
+				trace!(target: "client", "No genesis transition found.");
+				client.generate_epoch_proof(&gh, 0, &*chain);
+			}
 		}
 
 		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
@@ -563,7 +567,7 @@ impl Client {
 						&header,
 						&block_bytes,
 						&receipts,
-						|epoch_num| chain.epoch_transition(epoch_num)
+						|epoch_num| chain.epoch_transition(epoch_num, hash)
 							.ok_or(BlockError::UnknownEpochTransition(epoch_num))
 							.map_err(Into::into)
 							.and_then(|t| self.engine.epoch_verifier(&header, &t.proof))
@@ -579,7 +583,7 @@ impl Client {
 						// load most recent epoch.
 						trace!(target: "client", "Initializing ancient block restoration.");
 						let current_epoch_data = chain.epoch_transitions()
-							.take_while(|&(_, ref t)| t.block_number <= header.number())
+							.take_while(|&(_, ref t)| t.block_number < header.number())
 							.last()
 							.map(|(_, t)| t.proof)
 							.expect("At least one epoch entry (genesis) always stored; qed");
@@ -676,7 +680,8 @@ impl Client {
 
 		let mut batch = DBTransaction::new();
 		let hash = header.hash();
-		debug!(target: "client", "Generating validation proof for block {}", hash);
+		debug!(target: "client", "Generating validation proof for epoch {} at block {}",
+			epoch_number, hash);
 
 		// proof is two-part. state items read in lexicographical order,
 		// and the secondary "proof" part.
