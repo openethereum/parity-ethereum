@@ -29,7 +29,7 @@ import { DeleteAccount, EditMeta, Faucet, PasswordManager, Shapeshift, Transfer,
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 import { Actionbar, Button, ConfirmDialog, Input, Page, Portal } from '~/ui';
-import { DialIcon, VerifyIcon, FileDownloadIcon } from '~/ui/Icons';
+import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon, FileDownloadIcon } from '~/ui/Icons';
 
 import DeleteAddress from '../Address/Delete';
 
@@ -171,7 +171,7 @@ class Account extends Component {
 
     const buttons = [
       <Button
-        icon='send'
+        icon={ <SendIcon /> }
         key='transferFunds'
         label={
           <FormattedMessage
@@ -228,7 +228,7 @@ class Account extends Component {
         )
         : null,
       <Button
-        icon='edit'
+        icon={ <EditIcon /> }
         key='editmeta'
         label={
           <FormattedMessage
@@ -251,7 +251,7 @@ class Account extends Component {
       />,
       !(account.external || account.hardware) && (
         <Button
-          icon='unlock alternate'
+          icon={ <LockedIcon /> }
           key='passwordManager'
           label={
             <FormattedMessage
@@ -263,7 +263,7 @@ class Account extends Component {
         />
       ),
       <Button
-        icon='trash'
+        icon={ <DeleteIcon /> }
         key='delete'
         label={
           account.external || account.hardware
