@@ -20,6 +20,7 @@ import { FormattedMessage } from 'react-intl';
 import FileSaver from 'file-saver';
 
 import Button from '../../Button';
+import { FileDownloadIcon } from '../../Icons';
 
 class ActionbarExport extends Component {
   static propTypes = {
@@ -37,7 +38,7 @@ class ActionbarExport extends Component {
     return (
       <Button
         className={ className }
-        icon='download'
+        icon={ <FileDownloadIcon /> }
         label={
           <FormattedMessage
             id='ui.actionbar.export.button.export'

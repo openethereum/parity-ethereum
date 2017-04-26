@@ -21,6 +21,7 @@ import { nodeOrStringProptype } from '~/util/proptypes';
 
 import Button from '../../Button';
 import FileSelect from '../../Form/FileSelect';
+import { CancelIcon, DoneIcon, FileUploadIcon } from '../../Icons';
 import Portal from '../../Portal';
 
 import styles from './import.css';
@@ -61,7 +62,7 @@ export default class ActionbarImport extends Component {
       <div>
         <Button
           className={ className }
-          icon='upload'
+          icon={ <FileUploadIcon /> }
           label={
             <FormattedMessage
               id='ui.actionbar.import.button.import'
@@ -123,7 +124,7 @@ export default class ActionbarImport extends Component {
 
     const cancelBtn = (
       <Button
-        icon='cancel'
+        icon={ <CancelIcon /> }
         key='cancel'
         label={
           <FormattedMessage
@@ -142,7 +143,7 @@ export default class ActionbarImport extends Component {
     if (validate) {
       const confirmBtn = (
         <Button
-          icon='check'
+          icon={ <DoneIcon /> }
           key='confirm'
           label={
             <FormattedMessage
