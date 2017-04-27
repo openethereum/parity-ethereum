@@ -60,6 +60,20 @@ linux-stable:
     - target/release/ethstore
     - target/release/ethkey
     name: "stable-x86_64-unknown-linux-gnu_parity"
+linux-snap:
+  stage: build
+  only:
+    - snap
+  script:
+    - git clone https://github.com/paritytech/parity
+    - git submodule update --init --recursive
+    - cd scripts
+    - snapcraft
+    - sudo snap install *.snap --dangerous
+    - parity -v
+  tags:
+    - snap
+  allow_failure: true
 linux-stable-debian:
   stage: build
   image: ethcore/rust-debian:latest
