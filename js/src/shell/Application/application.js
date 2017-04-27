@@ -54,7 +54,7 @@ class Application extends Component {
 
   render () {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
-    const isMinimized = root === 'app' || root === 'web';
+    const isMinimized = root !== '';
 
     if (process.env.NODE_ENV !== 'production' && root === 'playground') {
       return (
