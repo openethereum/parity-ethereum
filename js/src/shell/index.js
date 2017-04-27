@@ -39,8 +39,6 @@ import Application from './Application';
 import Dapp from './Dapp';
 import Dapps from './Dapps';
 
-import styles from '~/reset.css';
-
 import '~/environment';
 
 import '~/../assets/fonts/Roboto/font.css';
@@ -90,7 +88,7 @@ function onEnterDapp ({ params }) {
 
 ReactDOM.render(
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-    <Router className={ styles.reset } history={ hashHistory }>
+    <Router history={ hashHistory }>
       <Route path='/' component={ Application }>
         <Redirect from='/auth' to='/' />
         <Route path='/:id' component={ Dapp } onEnter={ onEnterDapp } />
