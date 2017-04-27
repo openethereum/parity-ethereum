@@ -62,17 +62,20 @@ linux-stable:
     name: "stable-x86_64-unknown-linux-gnu_parity"
 linux-snap:
   stage: build
+  image: ubuntu:latest
   only:
     - snap
+  before_script:
+    - apt install snapcraft
   script:
-    #- git clone https://github.com/paritytech/parity
     - git submodule update --init --recursive
     - cd scripts
     - snapcraft
     - sudo snap install *.snap --dangerous
     - parity -v
   tags:
-    - snap
+    - rust
+    - rust-stable
   allow_failure: true
 linux-stable-debian:
   stage: build
