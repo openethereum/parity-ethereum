@@ -78,8 +78,9 @@
 }
 
 .icon .svg {
-  width: 6em !important;
+  fill: white !important;
   height: 6em !important;
+  width: 6em !important;
 }
 
 .iconSmall .svg {
