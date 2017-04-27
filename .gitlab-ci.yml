@@ -65,7 +65,7 @@ linux-snap:
   only:
     - snap
   script:
-    - git clone https://github.com/paritytech/parity
+    #- git clone https://github.com/paritytech/parity
     - git submodule update --init --recursive
     - cd scripts
     - snapcraft
