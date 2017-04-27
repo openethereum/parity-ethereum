@@ -172,8 +172,9 @@ $modalZ: 10001;
 }
 
 .label {
-  position: relative;
   display: inline-block;
+  padding: 5px;
+  position: relative;
   vertical-align: top;
 }
 
@@ -202,11 +203,14 @@ $modalZ: 10001;
 .header,
 .corner {
   button {
-    color: white !important;
-  }
+    background-color: transparent !important;
+    margin: 0 !important;
+    padding: 0 0.5em !important;
 
-  svg {
-    fill: white !important;
+    i {
+      font-size: 24px !important;
+      height: 24px !important;
+    }
   }
 }
 
