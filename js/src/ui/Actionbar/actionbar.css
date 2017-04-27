@@ -31,5 +31,8 @@
   }
 
   .buttons {
+    div {
+      display: inline-block;
+    }
   }
 }
