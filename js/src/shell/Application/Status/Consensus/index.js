@@ -14,18 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-import { FormattedMessage } from 'react-intl';
-
-import styles from './frameError.css';
-
-export default function FrameError () {
-  return (
-    <div className={ styles.error }>
-      <FormattedMessage
-        id='application.frame.error'
-        defaultMessage='ERROR: This application cannot and should not be loaded in an embedded iFrame'
-      />
-    </div>
-  );
-}
+export default from './consensus';

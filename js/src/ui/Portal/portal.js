@@ -139,10 +139,12 @@ export default class Portal extends Component {
     }
 
     return (
-      <CloseIcon
+      <div
         className={ styles.closeIcon }
         onClick={ this.handleClose }
-      />
+      >
+        <CloseIcon />
+      </div>
     );
   }
 

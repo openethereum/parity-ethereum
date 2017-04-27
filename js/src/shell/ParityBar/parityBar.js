@@ -285,7 +285,7 @@ class ParityBar extends Component {
 
     if (!externalLink) {
       return (
-        <Link to='/apps'>
+        <Link to='/'>
           { button }
         </Link>
       );

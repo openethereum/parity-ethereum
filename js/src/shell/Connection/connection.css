@@ -77,14 +77,12 @@
 .iconName {
 }
 
-.icon .svg {
-  width: 6em !important;
-  height: 6em !important;
+.icon i {
+  font-size: 6em;
 }
 
-.iconSmall .svg {
-  width: 3em !important;
-  height: 3em !important;
+.iconSmall i {
+  font-size: 3em;
 }
 
 .console {

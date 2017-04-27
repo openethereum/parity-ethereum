@@ -21,7 +21,7 @@ import { Tab, Tabs } from 'material-ui';
 import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
 
 import { Actionbar, Page } from '~/ui';
-import { BackgroundIcon, Ethernet, VisibleIcon } from '~/ui/Icons';
+import { BackgroundIcon, EthernetIcon, VisibleIcon } from '~/ui/Icons';
 
 import styles from './settings.css';
 
@@ -41,7 +41,7 @@ export default class Settings extends Component {
     let proxy = null;
 
     if (!isProxied) {
-      proxy = this.renderTab(hash, 'proxy', <Ethernet />);
+      proxy = this.renderTab(hash, 'proxy', <EthernetIcon />);
     }
 
     return (

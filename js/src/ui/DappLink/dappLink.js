@@ -20,6 +20,10 @@ import { nodeOrStringProptype } from '~/util/proptypes';
 
 import styles from './dappLink.css';
 
+export function topNavigate (to) {
+  window.parent.location.hash = to;
+}
+
 export default class DappLink extends Component {
   static propTypes = {
     children: nodeOrStringProptype().isRequired,
@@ -41,6 +45,6 @@ export default class DappLink extends Component {
   }
 
   onClick = () => {
-    window.parent.location.hash = this.props.to;
+    topNavigate(this.props.to);
   }
 }

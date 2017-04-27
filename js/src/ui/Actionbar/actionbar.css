@@ -27,17 +27,6 @@
 }
 
 .toolbuttons {
+  padding: 0.5em 0;
   overflow: hidden;
-
-  button {
-    margin: 10px 0 10px 16px !important;
-
-    &:not([disabled]) {
-      color: white !important;
-
-      svg {
-        fill: white !important;
-      }
-    }
-  }
 }
