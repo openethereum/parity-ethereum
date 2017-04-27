@@ -98,12 +98,34 @@ impl<F> WebProxyTokens for F where F: Fn(String) -> bool + Send + Sync {
 	fn is_web_proxy_token_valid(&self, token: &str) -> bool { self(token.to_owned()) }
 }
 
+/// Current supported endpoints.
+pub struct Endpoints {
+	endpoints: endpoint::Endpoints,
+}
+
+impl Endpoints {
+	/// Returns a current list of app endpoints.
+	pub fn list(&self) -> Vec<apps::App> {
+		self.endpoints.iter().filter_map(|(ref k, ref e)| {
+			e.info().map(|ref info| apps::App::from_info(k, info))
+		}).collect()
+	}
+}
+
 /// Dapps server as `jsonrpc-http-server` request middleware.
 pub struct Middleware {
 	router: router::Router,
+	endpoints: endpoint::Endpoints,
 }
 
 impl Middleware {
+	/// Get local endpoints handle.
+	pub fn endpoints(&self) -> Endpoints {
+		Endpoints {
+			endpoints: self.endpoints.clone(),
+		}
+	}
+
 	/// Creates new middleware for UI server.
 	pub fn ui<F: Fetch + Clone>(
 		remote: Remote,
@@ -118,29 +140,24 @@ impl Middleware {
 			remote.clone(),
 			fetch.clone(),
 		));
-		let endpoints = Default::default();
+		let endpoints = endpoint::Endpoints::default();
 		let special = {
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, None);
 			special.insert(router::SpecialEndpoint::Home, Some(apps::ui()));
-			special.insert(
-				router::SpecialEndpoint::Api,
-				Some(api::RestApi::new(
-					&endpoints,
-					content_fetcher.clone()
-				)),
-			);
+			special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(content_fetcher.clone())));
 			special
 		};
 
 		let router = router::Router::new(
 			content_fetcher,
-			endpoints,
+			endpoints.clone(),
 			special,
 		);
 
 		Middleware {
 			router: router,
+			endpoints: endpoints,
 		}
 	}
 
@@ -176,24 +193,19 @@ impl Middleware {
 			special.insert(router::SpecialEndpoint::Rpc, None);
 			special.insert(router::SpecialEndpoint::Home, Some(apps::ui_redirection(ui_address)));
 			special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
-			special.insert(
-				router::SpecialEndpoint::Api,
-				Some(api::RestApi::new(
-					&endpoints,
-					content_fetcher.clone()
-				)),
-			);
+			special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(content_fetcher.clone())));
 			special
 		};
 
 		let router = router::Router::new(
 			content_fetcher,
-			endpoints,
+			endpoints.clone(),
 			special,
 		);
 
 		Middleware {
 			router: router,
+			endpoints: endpoints,
 		}
 	}
 }

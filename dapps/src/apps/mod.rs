@@ -14,8 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+
 use endpoint::{Endpoints, Endpoint};
 use page::PageEndpoint;
 use proxypac::ProxyPac;
@@ -26,11 +28,14 @@ use parity_reactor::Remote;
 use parity_ui;
 use {WebProxyTokens};
 
+mod app;
 mod cache;
 mod fs;
 mod ui;
 pub mod fetcher;
 pub mod manifest;
+
+pub use self::app::App;
 
 pub const HOME_PAGE: &'static str = "parity";
 pub const DAPPS_DOMAIN: &'static str = ".web3.site";
@@ -75,10 +80,10 @@ pub fn all_endpoints<F: Fetch>(
 	pages.insert("proxy".into(), ProxyPac::boxed(ui_address.clone()));
 	pages.insert(WEB_PATH.into(), Web::boxed(ui_address.clone(), web_proxy_tokens.clone(), remote.clone(), fetch.clone()));
 
-	pages
+	Arc::new(pages)
 }
 
-fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str, embed_at: Embeddable) {
+fn insert<T : WebApp + Default + 'static>(pages: &mut BTreeMap<String, Box<Endpoint>>, id: &str, embed_at: Embeddable) {
 	pages.insert(id.to_owned(), Box::new(match embed_at {
 		Embeddable::Yes(address) => PageEndpoint::new_safe_to_embed(T::default(), address),
 		Embeddable::No => PageEndpoint::new(T::default()),

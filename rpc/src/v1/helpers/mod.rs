@@ -19,6 +19,7 @@ pub mod errors;
 
 pub mod accounts;
 pub mod block_import;
+pub mod dapps;
 pub mod dispatch;
 pub mod fake_sign;
 pub mod light_fetch;

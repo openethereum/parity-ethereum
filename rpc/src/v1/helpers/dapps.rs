@@ -14,10 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! REST API
+//! Dapps Service
 
-mod api;
-mod response;
-mod types;
+use v1::types::LocalDapp;
 
-pub use self::api::RestApi;
+/// Dapps Server service.
+pub trait DappsService: Send + Sync + 'static {
+	/// List available local dapps.
+	fn list_dapps(&self) -> Vec<LocalDapp>;
+}
+
+impl<F> DappsService for F where
+	F: Fn() -> Vec<LocalDapp> + Send + Sync + 'static
+{
+	fn list_dapps(&self) -> Vec<LocalDapp> {
+		(*self)()
+	}
+}

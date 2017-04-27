@@ -261,7 +261,13 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 	let rpc_stats = Arc::new(informant::RpcStats::default());
 
+	// TODO [ToDr] Dapps
+	let dapps_middleware = None;
+	// TODO [ToDr] UI for Light client!
+	let ui_middleware = None;
+
 	// start RPCs
+	let dapps_service = dapps::service(&dapps_middleware);
 	let deps_for_rpc_apis = Arc::new(rpc_apis::LightDependencies {
 		signer_service: Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf)),
 		client: service.client().clone(),
@@ -273,6 +279,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		on_demand: on_demand,
 		cache: cache,
 		transaction_queue: txq,
+		dapps_service: dapps_service,
 		dapps_address: cmd.dapps_conf.address(cmd.http_conf.address()),
 		ws_address: cmd.ws_conf.address(),
 		fetch: fetch,
@@ -284,10 +291,6 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		remote: event_loop.raw_remote(),
 		stats: rpc_stats.clone(),
 	};
-	// TODO: Dapps
-	let dapps_middleware = None;
-	// TODO [ToDr] UI for Light client!
-	let ui_middleware = None;
 
 	// start rpc servers
 	let _ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
@@ -572,8 +575,28 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		false => Some(account_provider.clone())
 	};
 
+	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf));
+
+	// the dapps server
+	let dapps_deps = {
+		let (sync, client) = (sync_provider.clone(), client.clone());
+		let contract_client = Arc::new(::dapps::FullRegistrar { client: client.clone() });
+
+		dapps::Dependencies {
+			sync_status: Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())),
+			contract_client: contract_client,
+			remote: event_loop.raw_remote(),
+			fetch: fetch.clone(),
+			signer: signer_service.clone(),
+			ui_address: cmd.ui_conf.address(),
+		}
+	};
+	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
+	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, dapps_deps)?;
+
+	let dapps_service = dapps::service(&dapps_middleware);
 	let deps_for_rpc_apis = Arc::new(rpc_apis::FullDependencies {
-		signer_service: Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf)),
+		signer_service: signer_service,
 		snapshot: snapshot_service.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
@@ -586,6 +609,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		net_service: manage_network.clone(),
 		updater: updater.clone(),
 		geth_compatibility: cmd.geth_compatibility,
+		dapps_service: dapps_service,
 		dapps_address: cmd.dapps_conf.address(cmd.http_conf.address()),
 		ws_address: cmd.ws_conf.address(),
 		fetch: fetch.clone(),
@@ -596,23 +620,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		remote: event_loop.raw_remote(),
 		stats: rpc_stats.clone(),
 	};
-
-	// the dapps server
-	let dapps_deps = {
-		let (sync, client) = (sync_provider.clone(), client.clone());
-		let contract_client = Arc::new(::dapps::FullRegistrar { client: client.clone() });
-
-		dapps::Dependencies {
-			sync_status: Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())),
-			contract_client: contract_client,
-			remote: event_loop.raw_remote(),
-			fetch: fetch.clone(),
-			signer: deps_for_rpc_apis.signer_service.clone(),
-			ui_address: cmd.ui_conf.address(),
-		}
-	};
-	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
-	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, dapps_deps)?;
 
 	// start rpc servers
 	let ws_server = rpc::new_ws(cmd.ws_conf.clone(), &dependencies)?;

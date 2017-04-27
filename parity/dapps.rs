@@ -105,7 +105,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Mi
 		return Ok(None);
 	}
 
-	dapps_middleware(
+	server::dapps_middleware(
 		deps,
 		configuration.dapps_path,
 		configuration.extra_dapps,
@@ -117,19 +117,20 @@ pub fn new_ui(enabled: bool, deps: Dependencies) -> Result<Option<Middleware>, S
 		return Ok(None);
 	}
 
-	ui_middleware(
+	server::ui_middleware(
 		deps
 	).map(Some)
 }
 
-pub use self::server::{SyncStatus, Middleware, ui_middleware};
-use self::server::dapps_middleware;
+pub use self::server::{SyncStatus, Middleware, service};
 
 #[cfg(not(feature = "dapps"))]
 mod server {
 	use super::Dependencies;
+	use std::sync::Arc;
 	use std::path::PathBuf;
 	use parity_rpc::{hyper, RequestMiddleware, RequestMiddlewareAction};
+	use rpc_apis;
 
 	pub type SyncStatus = Fn() -> bool;
 
@@ -155,6 +156,10 @@ mod server {
 	) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without UI support.".into())
 	}
+
+	pub fn service(_: &Option<Middleware>) -> Option<Arc<rpc_apis::DappsService>> {
+		None
+	}
 }
 
 #[cfg(feature = "dapps")]
@@ -162,6 +167,7 @@ mod server {
 	use super::Dependencies;
 	use std::path::PathBuf;
 	use std::sync::Arc;
+	use rpc_apis;
 
 	use parity_dapps;
 	use parity_reactor;
@@ -200,5 +206,31 @@ mod server {
 			deps.sync_status,
 			deps.fetch,
 		))
+	}
+
+	pub fn service(middleware: &Option<Middleware>) -> Option<Arc<rpc_apis::DappsService>> {
+		middleware.as_ref().map(|m| Arc::new(DappsServiceWrapper {
+			endpoints: m.endpoints()
+		}) as Arc<rpc_apis::DappsService>)
+	}
+
+	pub struct DappsServiceWrapper {
+		endpoints: parity_dapps::Endpoints,
+	}
+
+	impl rpc_apis::DappsService for DappsServiceWrapper {
+		fn list_dapps(&self) -> Vec<rpc_apis::LocalDapp> {
+			self.endpoints.list()
+				.into_iter()
+				.map(|app| rpc_apis::LocalDapp {
+					id: app.id,
+					name: app.name,
+					description: app.description,
+					version: app.version,
+					author: app.author,
+					icon_url: app.icon_url,
+				})
+				.collect()
+		}
 	}
 }

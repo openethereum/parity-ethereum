@@ -21,6 +21,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 pub use parity_rpc::signer::SignerService;
+pub use parity_rpc::dapps::{DappsService, LocalDapp};
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
@@ -192,6 +193,7 @@ pub struct FullDependencies {
 	pub net_service: Arc<ManageNetwork>,
 	pub updater: Arc<Updater>,
 	pub geth_compatibility: bool,
+	pub dapps_service: Option<Arc<DappsService>>,
 	pub dapps_address: Option<(String, u16)>,
 	pub ws_address: Option<(String, u16)>,
 	pub fetch: FetchClient,
@@ -294,6 +296,7 @@ impl Dependencies for FullDependencies {
 						&self.miner,
 						&self.updater,
 						&self.net_service,
+						self.dapps_service.clone(),
 						self.fetch.clone(),
 					).to_delegate())
 				},
@@ -328,6 +331,7 @@ pub struct LightDependencies {
 	pub on_demand: Arc<::light::on_demand::OnDemand>,
 	pub cache: Arc<Mutex<LightDataCache>>,
 	pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
+	pub dapps_service: Option<Arc<DappsService>>,
 	pub dapps_address: Option<(String, u16)>,
 	pub ws_address: Option<(String, u16)>,
 	pub fetch: FetchClient,
@@ -428,6 +432,7 @@ impl Dependencies for LightDependencies {
 				Api::ParitySet => {
 					handler.extend_with(light::ParitySetClient::new(
 						self.sync.clone(),
+						self.dapps_service.clone(),
 						self.fetch.clone(),
 					).to_delegate())
 				},

@@ -14,10 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! REST API
+//! Test implementation of dapps service.
 
-mod api;
-mod response;
-mod types;
+use v1::types::LocalDapp;
+use v1::helpers::dapps::DappsService;
 
-pub use self::api::RestApi;
+/// Test implementation of dapps service. Will always return the same list of dapps.
+#[derive(Default, Clone)]
+pub struct TestDappsService;
+
+impl DappsService for TestDappsService {
+	fn list_dapps(&self) -> Vec<LocalDapp> {
+		vec![LocalDapp {
+			id: "skeleton".into(),
+			name: "Skeleton".into(),
+			description: "A skeleton dapp".into(),
+			version: "0.1".into(),
+			author: "Parity Technologies Ltd".into(),
+			icon_url: "title.png".into(),
+		}]
+	}
+}

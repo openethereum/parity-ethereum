@@ -68,8 +68,14 @@ pub use self::metadata::Metadata;
 pub use self::types::Origin;
 pub use self::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
 
-/// Signer utilities;
+/// Signer utilities
 pub mod signer {
 	pub use super::helpers::{SigningQueue, SignerService, ConfirmationsQueue};
 	pub use super::types::{ConfirmationRequest, TransactionModification, U256, TransactionCondition};
+}
+
+/// Dapps integration utilities
+pub mod dapps {
+	pub use super::helpers::dapps::DappsService;
+	pub use super::types::LocalDapp;
 }

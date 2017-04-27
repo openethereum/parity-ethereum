@@ -19,7 +19,7 @@ use std::sync::Arc;
 use hyper::{server, net, Decoder, Encoder, Next, Control};
 use hyper::method::Method;
 
-use api::types::{App, ApiError};
+use api::types::ApiError;
 use api::response;
 use apps::fetcher::Fetcher;
 
@@ -28,22 +28,14 @@ use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
 
 #[derive(Clone)]
 pub struct RestApi {
-	apps: Vec<App>,
 	fetcher: Arc<Fetcher>,
 }
 
 impl RestApi {
-	pub fn new(endpoints: &Endpoints, fetcher: Arc<Fetcher>) -> Box<Endpoint> {
+	pub fn new(fetcher: Arc<Fetcher>) -> Box<Endpoint> {
 		Box::new(RestApi {
-			apps: Self::list_apps(endpoints),
 			fetcher: fetcher,
 		})
-	}
-
-	fn list_apps(endpoints: &Endpoints) -> Vec<App> {
-		endpoints.iter().filter_map(|(ref k, ref e)| {
-			e.info().map(|ref info| App::from_info(k, info))
-		}).collect()
 	}
 }
 
@@ -110,7 +102,6 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 		if let Some(ref hash) = hash { path.app_id = hash.clone().to_owned() }
 
 		let handler = endpoint.and_then(|v| match v {
-			"apps" => Some(response::as_json(&self.api.apps)),
 			"ping" => Some(response::ping()),
 			"content" => self.resolve_content(hash, path, control),
 			_ => None
