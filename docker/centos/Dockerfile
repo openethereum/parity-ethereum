@@ -6,7 +6,7 @@ RUN yum -y update&& \
 # install rustup
 RUN curl -sSf https://static.rust-lang.org/rustup.sh -o rustup.sh &&\
 ls&&\
- sh rustup.sh -s -- --disable-sudo
+ sh rustup.sh --disable-sudo
 # show backtraces
 ENV RUST_BACKTRACE 1
 # set compiler
