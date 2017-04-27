@@ -117,15 +117,14 @@ $backgroundOverlay: rgba(255, 255, 255, 0.95);
   }
 
   .closeIcon {
-    font-size: 4em;
+    font-size: 3em;
     position: absolute;
     right: 1rem;
     top: 0.5rem;
     z-index: 100;
 
-    &, * {
-      height: 48px !important;
-      width: 48px !important;
+    i {
+      font-size: inherit;
     }
 
     &:hover {
