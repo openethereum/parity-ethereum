@@ -14,35 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 
 import { FirstRun, UpgradeParity } from '~/modals';
 import { Errors, Tooltips } from '~/ui';
 
 import styles from '../application.css';
 
-export default class Container extends Component {
-  static propTypes = {
-    children: PropTypes.node.isRequired,
-    onCloseFirstRun: PropTypes.func,
-    showFirstRun: PropTypes.bool,
-    upgradeStore: PropTypes.object.isRequired
-  };
-
-  render () {
-    const { children, onCloseFirstRun, showFirstRun, upgradeStore } = this.props;
-
-    return (
-      <div className={ styles.container }>
-        <FirstRun
-          onClose={ onCloseFirstRun }
-          visible={ showFirstRun }
-        />
-        <Tooltips />
-        <UpgradeParity upgradeStore={ upgradeStore } />
-        <Errors />
-        { children }
-      </div>
-    );
-  }
+export default function Container ({ children, onCloseFirstRun, showFirstRun, upgradeStore }) {
+  return (
+    <div className={ styles.container }>
+      <FirstRun
+        onClose={ onCloseFirstRun }
+        visible={ showFirstRun }
+      />
+      <Tooltips />
+      <UpgradeParity upgradeStore={ upgradeStore } />
+      <Errors />
+      { children }
+    </div>
+  );
 }
+
+Container.propTypes = {
+  children: PropTypes.node.isRequired,
+  onCloseFirstRun: PropTypes.func,
+  showFirstRun: PropTypes.bool,
+  upgradeStore: PropTypes.object.isRequired
+};
