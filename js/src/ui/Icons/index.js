@@ -14,13 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import React from 'react';
+import { Icon } from 'semantic-ui-react';
+
+export const AddIcon = () => <Icon name='plus' />;
+export const CancelIcon = () => <Icon name='cancel' />;
+export const DoneIcon = () => <Icon name='check' />;
+export const DeleteIcon = () => <Icon name='trash' />;
+export const EditIcon = () => <Icon name='edit' />;
+export const FileDownloadIcon = () => <Icon name='download' />;
+export const FileUploadIcon = () => <Icon name='upload' />;
+export const LockedIcon = () => <Icon name='unlock alternate' />;
+export const SearchIcon = () => <Icon name='search' />;
+export const SendIcon = () => <Icon name='send' />;
+export const VisibleIcon = () => <Icon name='eye' />;
+
 export AccountsIcon from 'material-ui/svg-icons/action/account-balance-wallet';
 export AddressesIcon from 'material-ui/svg-icons/communication/contacts';
-export AddIcon from 'material-ui/svg-icons/content/add';
 export AppsIcon from 'material-ui/svg-icons/navigation/apps';
 export AttachFileIcon from 'material-ui/svg-icons/editor/attach-file';
 export BackgroundIcon from 'material-ui/svg-icons/image/blur-on';
-export CancelIcon from 'material-ui/svg-icons/content/clear';
 export CheckIcon from 'material-ui/svg-icons/navigation/check';
 export CloseIcon from 'material-ui/svg-icons/navigation/close';
 export CompareIcon from 'material-ui/svg-icons/action/compare-arrows';
@@ -29,15 +42,10 @@ export ContactsIcon from 'material-ui/svg-icons/image/grid-on';
 export ContractIcon from 'material-ui/svg-icons/action/code';
 export CopyIcon from 'material-ui/svg-icons/content/content-copy';
 export DashboardIcon from 'material-ui/svg-icons/action/dashboard';
-export DeleteIcon from 'material-ui/svg-icons/action/delete';
 export DevelopIcon from 'material-ui/svg-icons/action/description';
-export DoneIcon from 'material-ui/svg-icons/action/done-all';
 export DialIcon from 'material-ui/svg-icons/communication/dialpad';
-export EditIcon from 'material-ui/svg-icons/content/create';
 export ErrorIcon from 'material-ui/svg-icons/alert/error';
 export Ethernet from 'material-ui/svg-icons/action/settings-ethernet';
-export FileDownloadIcon from 'material-ui/svg-icons/file/file-download';
-export FileUploadIcon from 'material-ui/svg-icons/file/file-upload';
 export FileIcon from 'material-ui/svg-icons/editor/insert-drive-file';
 export FingerprintIcon from 'material-ui/svg-icons/action/fingerprint';
 export GasIcon from 'material-ui/svg-icons/maps/local-gas-station';
@@ -46,7 +54,6 @@ export KeyIcon from 'material-ui/svg-icons/communication/vpn-key';
 export KeyboardIcon from 'material-ui/svg-icons/hardware/keyboard';
 export LinkIcon from 'material-ui/svg-icons/content/link';
 export ListIcon from 'material-ui/svg-icons/action/view-list';
-export LockedIcon from 'material-ui/svg-icons/action/lock';
 export MembershipIcon from 'material-ui/svg-icons/action/card-membership';
 export MoveIcon from 'material-ui/svg-icons/action/open-with';
 export NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
@@ -60,8 +67,6 @@ export RemoveIcon from 'material-ui/svg-icons/content/remove';
 export ReorderIcon from 'material-ui/svg-icons/action/reorder';
 export ReplayIcon from 'material-ui/svg-icons/av/replay';
 export SaveIcon from 'material-ui/svg-icons/content/save';
-export SearchIcon from 'material-ui/svg-icons/action/search';
-export SendIcon from 'material-ui/svg-icons/content/send';
 export SettingsIcon from 'material-ui/svg-icons/action/settings';
 export SnoozeIcon from 'material-ui/svg-icons/av/snooze';
 export SortIcon from 'material-ui/svg-icons/content/sort';
@@ -74,5 +79,4 @@ export UnlockedIcon from 'material-ui/svg-icons/action/lock-open';
 export UpdateIcon from 'material-ui/svg-icons/action/system-update-alt';
 export UpdateWaitIcon from 'material-ui/svg-icons/action/update';
 export VerifyIcon from 'material-ui/svg-icons/action/verified-user';
-export VisibleIcon from 'material-ui/svg-icons/image/remove-red-eye';
 export VpnIcon from 'material-ui/svg-icons/notification/vpn-lock';
