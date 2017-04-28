@@ -29,7 +29,7 @@ function renderShallow (permissionStore = {}) {
   return component;
 }
 
-describe('modals/DappPermissions', () => {
+describe('shell/DappPermissions', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
       expect(renderShallow()).to.be.ok;

@@ -16,8 +16,10 @@
 
 import React, { PropTypes } from 'react';
 
-import { FirstRun, UpgradeParity } from '~/modals';
 import { Errors, Tooltips } from '~/ui';
+
+import FirstRun from '../../FirstRun';
+import UpgradeParity from '../../UpgradeParity';
 
 import styles from '../application.css';
 

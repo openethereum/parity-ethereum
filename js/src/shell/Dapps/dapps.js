@@ -21,10 +21,12 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { DappPermissions, DappsVisible } from '~/modals';
-import PermissionStore from '~/modals/DappPermissions/store';
 import { Actionbar, Button, DappCard, Page, SectionList } from '~/ui';
 import { LockedIcon, VisibleIcon } from '~/ui/Icons';
+
+import DappsVisible from '../DappsVisible';
+import DappPermissions from '../DappPermissions';
+import PermissionStore from '../DappPermissions/store';
 
 import DappsStore from './dappsStore';
 

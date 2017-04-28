@@ -20,12 +20,13 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { uniq, isEqual } from 'lodash';
 
-import List from '../Accounts/List';
-import Summary from '../Accounts/Summary';
-import { AddAddress } from '~/modals';
 import { Actionbar, ActionbarExport, ActionbarImport, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
 import { AddIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
+
+import List from '../Accounts/List';
+import Summary from '../Accounts/Summary';
+import AddAddress from './AddAddress';
 
 import styles from './addresses.css';
 
