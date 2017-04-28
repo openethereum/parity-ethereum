@@ -35,17 +35,13 @@ class TxList extends Component {
       PropTypes.array,
       PropTypes.object
     ]).isRequired,
-    netVersion: PropTypes.string.isRequired
+    blockNumber: PropTypes.object,
+    netVersion: PropTypes.string.isRequired,
+    onNewError: PropTypes.func
   };
 
-  store = new Store(this.context.api);
-
   componentWillMount () {
-    this.store.loadTransactions(this.props.hashes);
-  }
-
-  componentWillUnmount () {
-    this.store.unsubscribe();
+    this.store = new Store(this.context.api, this.props.onNewError, this.props.hashes);
   }
 
   componentWillReceiveProps (newProps) {
@@ -63,20 +59,24 @@ class TxList extends Component {
   }
 
   renderRows () {
-    const { address, netVersion } = this.props;
+    const { address, netVersion, blockNumber } = this.props;
+    const { editTransaction, cancelTransaction } = this.store;
 
     return this.store.sortedHashes.map((txhash) => {
       const tx = this.store.transactions[txhash];
-      const blockNumber = tx.blockNumber.toNumber();
-      const block = this.store.blocks[blockNumber];
+      const txBlockNumber = tx.blockNumber.toNumber();
+      const block = this.store.blocks[txBlockNumber];
 
       return (
         <TxRow
           key={ tx.hash }
           tx={ tx }
           block={ block }
+          blockNumber={ blockNumber }
           address={ address }
           netVersion={ netVersion }
+          editTransaction={ editTransaction }
+          cancelTransaction={ cancelTransaction }
         />
       );
     });

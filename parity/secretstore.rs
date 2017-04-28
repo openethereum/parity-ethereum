@@ -96,9 +96,6 @@ mod server {
 						port: port,
 					})).collect(),
 					allow_connecting_to_higher_nodes: true,
-					encryption_config: ethcore_secretstore::EncryptionConfiguration {
-						key_check_timeout_ms: 1000,
-					},
 				},
 			};
 

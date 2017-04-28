@@ -19,6 +19,8 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
+import HardwareStore from '~/mobx/hardwareStore';
+
 import Account from '../Account';
 import TransactionPendingForm from '../TransactionPendingForm';
 import RequestOrigin from '../RequestOrigin';
@@ -67,6 +69,8 @@ class SignRequest extends Component {
       details: ''
     }
   };
+
+  hardwareStore = HardwareStore.get(this.context.api);
 
   componentWillMount () {
     const { address, signerStore } = this.props;
@@ -155,8 +159,9 @@ class SignRequest extends Component {
   }
 
   renderActions () {
-    const { accounts, address, focus, isFinished, status } = this.props;
-    const account = accounts[address];
+    const { accounts, address, focus, isFinished, status, data } = this.props;
+    const account = accounts[address] || {};
+    const disabled = account.hardware && !this.hardwareStore.isConnected(address);
 
     if (isFinished) {
       if (status === 'confirmed') {
@@ -188,21 +193,23 @@ class SignRequest extends Component {
       <TransactionPendingForm
         account={ account }
         address={ address }
+        disabled={ disabled }
         focus={ focus }
         isSending={ this.props.isSending }
         netVersion={ this.props.netVersion }
         onConfirm={ this.onConfirm }
         onReject={ this.onReject }
         className={ styles.actions }
+        dataToSign={ { data } }
       />
     );
   }
 
   onConfirm = (data) => {
     const { id } = this.props;
-    const { password } = data;
+    const { password, dataSigned, wallet } = data;
 
-    this.props.onConfirm({ id, password });
+    this.props.onConfirm({ id, password, dataSigned, wallet });
   }
 
   onReject = () => {

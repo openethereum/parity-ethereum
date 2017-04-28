@@ -21,12 +21,13 @@ use std::sync::{Arc, Weak};
 use rlp::UntrustedRlp;
 use ethcore::account_provider::AccountProvider;
 use ethcore::transaction::{SignedTransaction, PendingTransaction};
+use ethkey;
 use futures::{future, BoxFuture, Future, IntoFuture};
 
 use jsonrpc_core::Error;
-use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
-use v1::helpers::dispatch::{self, Dispatcher, WithToken};
 use v1::helpers::accounts::unwrap_provider;
+use v1::helpers::dispatch::{self, Dispatcher, WithToken, eth_data_hash};
+use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload, FilledTransactionRequest};
 use v1::traits::Signer;
 use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, U256, Bytes};
 
@@ -104,6 +105,37 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		})
 		.unwrap_or_else(|| future::err(errors::invalid_params("Unknown RequestID", id)).boxed())
 	}
+
+	fn verify_transaction<F>(bytes: Bytes, request: FilledTransactionRequest, process: F) -> Result<ConfirmationResponse, Error> where
+		F: FnOnce(PendingTransaction) -> Result<ConfirmationResponse, Error>,
+	{
+		let signed_transaction = UntrustedRlp::new(&bytes.0).as_val().map_err(errors::from_rlp_error)?;
+		let signed_transaction = SignedTransaction::new(signed_transaction).map_err(|e| errors::invalid_params("Invalid signature.", e))?;
+		let sender = signed_transaction.sender();
+
+		// Verification
+		let sender_matches = sender == request.from;
+		let data_matches = signed_transaction.data == request.data;
+		let value_matches = signed_transaction.value == request.value;
+		let nonce_matches = match request.nonce {
+			Some(nonce) => signed_transaction.nonce == nonce,
+			None => true,
+		};
+
+		// Dispatch if everything is ok
+		if sender_matches && data_matches && value_matches && nonce_matches {
+			let pending_transaction = PendingTransaction::new(signed_transaction, request.condition.map(Into::into));
+			process(pending_transaction)
+		} else {
+			let mut error = Vec::new();
+			if !sender_matches { error.push("from") }
+			if !data_matches { error.push("data") }
+			if !value_matches { error.push("value") }
+			if !nonce_matches { error.push("nonce") }
+
+			Err(errors::invalid_params("Sent transaction does not match the request.", error))
+		}
+	}
 }
 
 impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
@@ -149,38 +181,27 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 		signer.peek(&id).map(|confirmation| {
 			let result = match confirmation.payload {
 				ConfirmationPayload::SendTransaction(request) => {
-					let signed_transaction = UntrustedRlp::new(&bytes.0).as_val().map_err(errors::from_rlp_error)?;
-					let signed_transaction = SignedTransaction::new(signed_transaction).map_err(|e| errors::invalid_params("Invalid signature.", e))?;
-					let sender = signed_transaction.sender();
-
-					// Verification
-					let sender_matches = sender == request.from;
-					let data_matches = signed_transaction.data == request.data;
-					let value_matches = signed_transaction.value == request.value;
-					let nonce_matches = match request.nonce {
-						Some(nonce) => signed_transaction.nonce == nonce,
-						None => true,
-					};
-
-					// Dispatch if everything is ok
-					if sender_matches && data_matches && value_matches && nonce_matches {
-						let pending_transaction = PendingTransaction::new(signed_transaction, request.condition.map(Into::into));
+					Self::verify_transaction(bytes, request, |pending_transaction| {
 						self.dispatcher.dispatch_transaction(pending_transaction)
 							.map(Into::into)
 							.map(ConfirmationResponse::SendTransaction)
-					} else {
-						let mut error = Vec::new();
-						if !sender_matches { error.push("from") }
-						if !data_matches { error.push("data") }
-						if !value_matches { error.push("value") }
-						if !nonce_matches { error.push("nonce") }
-
-						Err(errors::invalid_params("Sent transaction does not match the request.", error))
+					})
+				},
+				ConfirmationPayload::SignTransaction(request) => {
+					Self::verify_transaction(bytes, request, |pending_transaction| {
+						Ok(ConfirmationResponse::SignTransaction(pending_transaction.transaction.into()))
+					})
+				},
+				ConfirmationPayload::EthSignMessage(address, data) => {
+					let expected_hash = eth_data_hash(data);
+					let signature = ethkey::Signature::from_vrs(&bytes.0);
+					match ethkey::verify_address(&address, &signature, &expected_hash) {
+						Ok(true) => Ok(ConfirmationResponse::Signature(bytes.0.as_slice().into())),
+						Ok(false) => Err(errors::invalid_params("Sender address does not match the signature.", ())),
+						Err(err) => Err(errors::invalid_params("Invalid signature received.", err)),
 					}
 				},
-				// TODO [ToDr]:
-				// 1. Sign - verify signature
-				// 2. Decrypt - pass through?
+				// TODO [ToDr]: Decrypt - pass through?
 				_ => Err(errors::unimplemented(Some("Non-transaction requests does not support RAW signing yet.".into()))),
 			};
 			if let Ok(ref response) = result {
