@@ -41,9 +41,6 @@ import Dapps from './Dapps';
 
 import '~/environment';
 
-import '~/../assets/fonts/Roboto/font.css';
-import '~/../assets/fonts/RobotoMono/font.css';
-
 injectTapEventPlugin();
 
 if (process.env.NODE_ENV === 'development') {

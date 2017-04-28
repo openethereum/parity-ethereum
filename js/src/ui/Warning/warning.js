@@ -14,28 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import React from 'react';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
 import styles from './warning.css';
 
-export default class Warning extends Component {
-  static propTypes = {
-    warning: nodeOrStringProptype()
-  };
-
-  render () {
-    const { warning } = this.props;
-
-    if (!warning) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.warning }>
-        { warning }
-      </div>
-    );
+export default function Warning ({ warning }) {
+  if (!warning) {
+    return null;
   }
+
+  return (
+    <div className={ styles.warning }>
+      { warning }
+    </div>
+  );
 }
+
+Warning.propTypes = {
+  warning: nodeOrStringProptype()
+};

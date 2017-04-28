@@ -16,17 +16,23 @@
 */
 
 .actionbar {
-  padding: 0 24px !important;
-  margin-bottom: 0;
-  height: auto !important;
-  background: transparent !important;
-}
+  background: transparent;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 0.5em 1.5em;
+  margin: 0;
 
-.tooltitle {
-  text-transform: uppercase;
-}
+  .title {
+    text-transform: uppercase;
+  }
 
-.toolbuttons {
-  padding: 0.5em 0;
-  overflow: hidden;
+  .children {
+  }
+
+  .buttons {
+    div {
+      display: inline-block;
+    }
+  }
 }

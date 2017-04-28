@@ -19,9 +19,14 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { VaultAccounts, VaultCreate, VaultLock, VaultMeta, VaultUnlock } from '~/modals';
 import { Button, Container, Page, SectionList, VaultCard } from '~/ui';
 import { AccountsIcon, AddIcon, EditIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
+
+import VaultAccounts from './VaultAccounts';
+import VaultCreate from './VaultCreate';
+import VaultLock from './VaultLock';
+import VaultMeta from './VaultMeta';
+import VaultUnlock from './VaultUnlock';
 
 import Store from './store';
 import styles from './vaults.css';

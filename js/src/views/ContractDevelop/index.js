@@ -29,11 +29,6 @@ import muiTheme from '~/ui/Theme';
 
 import ContractDevelop from './contractDevelop';
 
-import '~/../assets/fonts/Roboto/font.css';
-import '~/../assets/fonts/RobotoMono/font.css';
-
-import './contractDevelop.css';
-
 const store = initStore(api, hashHistory);
 
 ReactDOM.render(

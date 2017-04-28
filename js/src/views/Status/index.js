@@ -30,11 +30,6 @@ import muiTheme from '~/ui/Theme';
 
 import Status from './status';
 
-import '~/../assets/fonts/Roboto/font.css';
-import '~/../assets/fonts/RobotoMono/font.css';
-
-import './status.css';
-
 ContractInstances.get(api);
 
 const store = initStore(api, hashHistory);

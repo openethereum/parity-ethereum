@@ -29,11 +29,6 @@ import muiTheme from '~/ui/Theme';
 
 import Playground from './playground';
 
-import '~/../assets/fonts/Roboto/font.css';
-import '~/../assets/fonts/RobotoMono/font.css';
-
-import './playground.css';
-
 const store = initStore(api, hashHistory);
 
 ReactDOM.render(

@@ -20,10 +20,10 @@ import { FormattedMessage } from 'react-intl';
 
 import { DappCard, Portal, SelectionList } from '~/ui';
 
-import styles from './addDapps.css';
+import styles from './dappsVisible.css';
 
 @observer
-export default class AddDapps extends Component {
+export default class DappsVisible extends Component {
   static propTypes = {
     store: PropTypes.object.isRequired
   };

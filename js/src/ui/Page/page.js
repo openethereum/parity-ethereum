@@ -14,50 +14,46 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 
 import Actionbar from '../Actionbar';
 import { nodeOrStringProptype } from '~/util/proptypes';
 
 import styles from './page.css';
 
-export default class Page extends Component {
-  static propTypes = {
-    buttons: PropTypes.array,
-    className: PropTypes.string,
-    children: PropTypes.node,
-    padded: PropTypes.bool,
-    title: nodeOrStringProptype()
-  };
-
-  render () {
-    const { buttons, className, children, padded, title } = this.props;
-
-    return (
-      <div>
-        {
-          title || buttons
-            ? (
-              <Actionbar
-                buttons={ buttons }
-                title={ title }
-              />
-            )
-            : null
+export default function Page ({ buttons, className, children, padded, title }) {
+  return (
+    <div>
+      {
+        title || buttons
+          ? (
+            <Actionbar
+              buttons={ buttons }
+              title={ title }
+            />
+          )
+          : null
+      }
+      <div
+        className={
+          [
+            padded
+              ? styles.layoutPadded
+              : styles.layout,
+            className
+          ].join(' ')
         }
-        <div
-          className={
-            [
-              padded
-                ? styles.layoutPadded
-                : styles.layout,
-              className
-            ].join(' ')
-          }
-        >
-          { children }
-        </div>
+      >
+        { children }
       </div>
-    );
-  }
+    </div>
+  );
 }
+
+Page.propTypes = {
+  buttons: PropTypes.array,
+  className: PropTypes.string,
+  children: PropTypes.node,
+  padded: PropTypes.bool,
+  title: nodeOrStringProptype()
+};

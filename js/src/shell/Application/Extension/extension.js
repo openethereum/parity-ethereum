@@ -37,10 +37,12 @@ export default class Extension extends Component {
 
     return (
       <div className={ styles.body }>
-        <CloseIcon
+        <div
           className={ styles.close }
           onClick={ this.onClose }
-        />
+        >
+          <CloseIcon />
+        </div>
         <p>
           <FormattedMessage
             id='extension.intro'

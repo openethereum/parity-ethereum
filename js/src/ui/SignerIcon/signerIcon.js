@@ -14,39 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { keccak_256 } from 'js-sha3'; // eslint-disable-line camelcase
 
 import IdentityIcon from '../IdentityIcon';
 import { FingerprintIcon } from '../Icons';
 
-class SignerIcon extends Component {
-  static propTypes = {
-    className: PropTypes.string,
-    secureToken: PropTypes.string
-  }
-
-  render () {
-    const { className, secureToken } = this.props;
-
-    if (!secureToken) {
-      return (
-        <FingerprintIcon />
-      );
-    }
-
-    const signerSha = keccak_256(secureToken);
-
+function SignerIcon ({ className, secureToken }) {
+  if (!secureToken) {
     return (
-      <IdentityIcon
-        address={ signerSha }
-        center
-        className={ className }
-      />
+      <FingerprintIcon />
     );
   }
+
+  const signerSha = keccak_256(secureToken);
+
+  return (
+    <IdentityIcon
+      address={ signerSha }
+      center
+      className={ className }
+    />
+  );
 }
+
+SignerIcon.propTypes = {
+  className: PropTypes.string,
+  secureToken: PropTypes.string
+};
 
 function mapStateToProps (state) {
   const { secureToken } = state.nodeStatus;

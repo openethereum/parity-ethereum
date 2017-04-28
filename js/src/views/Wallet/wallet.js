@@ -21,16 +21,18 @@ import { bindActionCreators } from 'redux';
 import moment from 'moment';
 
 import HistoryStore from '~/mobx/historyStore';
-import { EditMeta, Transfer, WalletSettings } from '~/modals';
 import { Actionbar, Button, Page, Loading } from '~/ui';
 import { DeleteIcon, EditIcon, SendIcon, SettingsIcon } from '~/ui/Icons';
 import { nullableProptype } from '~/util/proptypes';
 
+import EditMeta from '../Account/EditMeta';
+import Transfer from '../Account/Transfer';
 import Delete from '../Address/Delete';
 import Header from '../Account/Header';
 import WalletDetails from './Details';
 import WalletConfirmations from './Confirmations';
 import WalletTransactions from './Transactions';
+import WalletSettings from './WalletSettings';
 
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 

@@ -16,26 +16,37 @@
 
 import React, { PropTypes } from 'react';
 
-import IdentityIcon from '~/ui/IdentityIcon';
+import Button from '~/ui/Button';
+import { LockedIcon, UnlockedIcon } from '~/ui/Icons';
 
-import styles from './vaultTag.css';
+import styles from '../vaultCard.css';
 
-export default function VaultTag ({ vault }) {
+export default function Buttons ({ buttons, hideButtons, vault }) {
+  const { isOpen } = vault;
+
+  if (hideButtons) {
+    return null;
+  }
+
   return (
-    <div className={ styles.vault }>
-      <div className={ styles.vaultBody }>
-        <IdentityIcon
-          address={ vault }
-          inline
-        />
-        <div className={ styles.text }>
-          { vault }
-        </div>
-      </div>
+    <div className={ styles.buttons }>
+      <Button
+        className={ styles.status }
+        disabled
+        icon={
+          isOpen
+            ? <UnlockedIcon />
+            : <LockedIcon />
+        }
+        key='status'
+      />
+      { buttons }
     </div>
   );
 }
 
-VaultTag.propTypes = {
-  vault: PropTypes.string.isRequired
+Buttons.propTypes = {
+  buttons: PropTypes.array,
+  hideButtons: PropTypes.bool,
+  vault: PropTypes.object.isRequired
 };
