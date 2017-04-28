@@ -35,13 +35,14 @@ export default class Container extends Component {
     light: PropTypes.bool,
     link: PropTypes.string,
     onClick: PropTypes.func,
+    onFocus: PropTypes.func,
     style: PropTypes.object,
     tabIndex: PropTypes.number,
     title: nodeOrStringProptype()
   }
 
   render () {
-    const { children, className, compact, light, link, onClick, style, tabIndex } = this.props;
+    const { children, className, compact, light, link, onClick, onFocus, style, tabIndex } = this.props;
     const props = {};
 
     if (Number.isInteger(tabIndex)) {
@@ -56,6 +57,7 @@ export default class Container extends Component {
             : styles.padded
         }
         onClick={ onClick }
+        onFocus={ onFocus }
       >
         { this.renderTitle() }
         { children }
