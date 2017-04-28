@@ -34,7 +34,7 @@ $popoverRight: $modalMargin;
 $popoverTop: 20vh;
 $popoverZ: 3600;
 
-$backgroundFade: rgba(255, 255, 255, 0.35);
+$backgroundFade: rgba(0, 0, 0, 0.35);
 $backgroundOverlay: rgba(255, 255, 255, 0.95);
 
 .backOverlay {
