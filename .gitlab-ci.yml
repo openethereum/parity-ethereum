@@ -74,8 +74,8 @@ linux-snap:
   artifacts:
     paths:
     - parity*.snap
+    name: "stable-x86_64-unknown-linux-gnu_parity-snap"
   allow_failure: true
-  name: "stable-x86_64-unknown-linux-gnu_parity-snap"
 linux-stable-debian:
   stage: build
   image: ethcore/rust-debian:latest
