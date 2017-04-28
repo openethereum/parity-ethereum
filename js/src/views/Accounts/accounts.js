@@ -24,9 +24,9 @@ import { Link } from 'react-router';
 import { bindActionCreators } from 'redux';
 
 import HardwareStore from '~/mobx/hardwareStore';
-import { CreateAccount, CreateWallet } from '~/modals';
-import { Actionbar, ActionbarExport, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
-import { AddIcon, KeyIcon } from '~/ui/Icons';
+import { CreateAccount, CreateWallet, ExportAccount } from '~/modals';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
+import { AddIcon, KeyIcon, FileDownloadIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import List from './List';
@@ -41,7 +41,6 @@ class Accounts extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     accountsInfo: PropTypes.object.isRequired,
-    balances: PropTypes.object,
     hasAccounts: PropTypes.bool.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired
   }
@@ -53,6 +52,7 @@ class Accounts extends Component {
     addressBook: false,
     newDialog: false,
     newWalletDialog: false,
+    newExportDialog: false,
     sortOrder: '',
     searchValues: [],
     searchTokens: [],
@@ -97,6 +97,7 @@ class Accounts extends Component {
       <div>
         { this.renderNewDialog() }
         { this.renderNewWalletDialog() }
+        { this.renderNewExportDialog() }
         { this.renderActionbar() }
 
         <Page>
@@ -133,7 +134,7 @@ class Accounts extends Component {
   }
 
   renderAccounts () {
-    const { accounts, balances } = this.props;
+    const { accounts } = this.props;
     const _accounts = pickBy(accounts, (account) => account.uuid);
     const _hasAccounts = Object.keys(_accounts).length > 0;
 
@@ -147,7 +148,6 @@ class Accounts extends Component {
       <List
         search={ searchValues }
         accounts={ _accounts }
-        balances={ balances }
         empty={ !_hasAccounts }
         order={ sortOrder }
         handleAddSearchToken={ this.onAddSearchToken }
@@ -156,7 +156,7 @@ class Accounts extends Component {
   }
 
   renderWallets () {
-    const { accounts, balances } = this.props;
+    const { accounts } = this.props;
     const wallets = pickBy(accounts, (account) => account.wallet);
     const hasWallets = Object.keys(wallets).length > 0;
 
@@ -175,7 +175,6 @@ class Accounts extends Component {
         link='wallet'
         search={ searchValues }
         accounts={ wallets }
-        balances={ balances }
         order={ sortOrder }
         handleAddSearchToken={ this.onAddSearchToken }
       />
@@ -183,7 +182,7 @@ class Accounts extends Component {
   }
 
   renderExternalAccounts () {
-    const { accounts, balances } = this.props;
+    const { accounts } = this.props;
     const { wallets } = this.hwstore;
     const hardware = pickBy(accounts, (account) => account.hardware);
     const external = pickBy(accounts, (account) => account.external);
@@ -210,7 +209,6 @@ class Accounts extends Component {
       <List
         search={ searchValues }
         accounts={ all }
-        balances={ balances }
         disabled={ disabled }
         order={ sortOrder }
         handleAddSearchToken={ this.onAddSearchToken }
@@ -248,8 +246,6 @@ class Accounts extends Component {
   }
 
   renderActionbar () {
-    const { accounts } = this.props;
-
     const buttons = [
       <Link
         to='/vaults'
@@ -288,10 +284,16 @@ class Accounts extends Component {
         }
         onClick={ this.onNewWalletClick }
       />,
-      <ActionbarExport
-        key='exportAccounts'
-        content={ accounts }
-        filename='accounts'
+      <Button
+        key='newExport'
+        icon={ <FileDownloadIcon /> }
+        label={
+          <FormattedMessage
+            id='accounts.button.export'
+            defaultMessage='export'
+          />
+        }
+        onClick={ this.onNewExportClick }
       />,
       this.renderSearchButton(),
       this.renderSortButton()
@@ -355,6 +357,20 @@ class Accounts extends Component {
     );
   }
 
+  renderNewExportDialog () {
+    const { newExportDialog } = this.state;
+
+    if (!newExportDialog) {
+      return null;
+    }
+
+    return (
+      <ExportAccount
+        onClose={ this.onNewExportClose }
+      />
+    );
+  }
+
   onAddSearchToken = (token) => {
     const { searchTokens } = this.state;
     const newSearchTokens = uniq([].concat(searchTokens, token));
@@ -374,6 +390,12 @@ class Accounts extends Component {
     });
   }
 
+  onNewExportClick = () => {
+    this.setState({
+      newExportDialog: true
+    });
+  }
+
   onNewAccountClose = () => {
     this.setState({
       newDialog: false
@@ -383,6 +405,12 @@ class Accounts extends Component {
   onNewWalletClose = () => {
     this.setState({
       newWalletDialog: false
+    });
+  }
+
+  onNewExportClose = () => {
+    this.setState({
+      newExportDialog: false
     });
   }
 
@@ -408,12 +436,10 @@ class Accounts extends Component {
 
 function mapStateToProps (state) {
   const { accounts, accountsInfo, hasAccounts } = state.personal;
-  const { balances } = state.balances;
 
   return {
     accounts,
     accountsInfo,
-    balances,
     hasAccounts
   };
 }

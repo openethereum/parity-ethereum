@@ -20,10 +20,6 @@ export default {
       hint: `Het netwerk adres van het account`,
       label: `adres`
     },
-    name: {
-      hint: `Een beschrijvende naam van het account`,
-      label: `account naam`
-    },
     phrase: {
       hint: `De account herstel zin`,
       label: `Eigenaar's herstel zin (houd deze woorden veilig en prive want hiermee kun je volledige, ongelimiteerde toegang tot het account verkrijgen).`
@@ -35,31 +31,38 @@ export default {
   button: {
     back: `Terug`,
     cancel: `Annuleer`,
-    close: `Sluit`,
     create: `Aanmaken`,
+    done: `Klaar`,
     import: `Importeer`,
     next: `Volgende`,
     print: `Herstel zin afdrukken`
   },
   creationType: {
     fromGeth: {
-      label: `Importeer accounts uit Geth keystore`
+      description: `Importeer accounts uit Geth keystore met het originele wachtwoord`,
+      label: `Geth keystore`
     },
     fromJSON: {
-      label: `Importeer account uit een opgeslagen JSON file`
+      description: `Importeer account uit een JSON sleutelbestand met het originele wachtwoord`,
+      label: `JSON bestand`
     },
     fromNew: {
-      label: `Handmatig account aanmaken`
+      description: `Selecteer je identiteits-icoon en kies je wachtwoord`,
+      label: `Nieuw Account`
     },
     fromPhrase: {
-      label: `Herstel account met een herstel zin`
+      description: `Herstel je account met een eerder bewaarde herstel zin en een nieuw wachtwoord`,
+      label: `Herstel zin`
     },
     fromPresale: {
-      label: `Importeer account van een Ethereum voor-verkoop (pre-sale) wallet`
+      description: `Importeer een Ethereum voor-verkoop (pre-sale) wallet bestand met het originele wachtwoord`,
+      label: `voor-verkoop wallet`
     },
     fromRaw: {
-      label: `Importeer een prive sleutel (raw private key)`
-    }
+      description: `Importeer een eerder gemaakte prive sleutel (raw private key) met een nieuw wachtwoord`,
+      label: `Prive sleutel`
+    },
+    info: `Selecteer de manier waarop je je account wilt aanmaken of importeren. Maak een nieuw account aan met een naam en wachtwoord, of importeer/herstel een bestaand account vanuit verschillende bronnen zoals een herstel zin of een sleutelbestand. Met behulp van deze wizard word je door het proces begeleid om een account aan te maken.`
   },
   newAccount: {
     hint: {
@@ -80,6 +83,7 @@ export default {
     }
   },
   newGeth: {
+    available: `Er zijn momenteel {count} importeerbare sleutels (keys) beschikbaar vanuit Geth keystore, welke nog niet in je Parity installatie beschikbaar zijn. Selecteer de accounts die je wilt importeren en ga verder naar de volgende stap om het importeren te voltooien.`,
     noKeys: `Er zijn momenteel geen importeerbare sleutels (keys) beschikbaar in de Geth keystore; of ze zijn al in je Parity installatie beschikbaar`
   },
   newImport: {

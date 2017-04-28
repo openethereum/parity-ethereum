@@ -640,7 +640,7 @@ impl Configuration {
 
 		info!(
 			"Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)",
-			Colour::White.bold().paint(format!("US${}", usd_per_eth)),
+			Colour::White.bold().paint(format!("US${:.2}", usd_per_eth)),
 			Colour::Yellow.bold().paint(format!("{}", wei_per_gas))
 		);
 

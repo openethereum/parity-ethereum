@@ -85,7 +85,7 @@ export default class RequestOrigin extends Component {
         <span>
           <FormattedMessage
             id='signer.requestOrigin.rpc'
-            defaultMessage='via RPC {rpc}'
+            defaultMessage='via RPC {url}'
             values={ {
               url: (
                 <span className={ styles.url }>

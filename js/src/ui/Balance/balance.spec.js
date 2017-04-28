@@ -14,19 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import { shallow } from 'enzyme';
 import React from 'react';
 
 import apiutil from '~/api/util';
 
-import Balance from './';
+import { Balance } from './balance';
+
+const TOKENS = {
+  'eth': { tag: 'ETH' },
+  'gav': { tag: 'GAV', format: 1 },
+  'tst': { tag: 'TST', format: 1 }
+};
 
 const BALANCE = {
-  tokens: [
-    { value: '122', token: { tag: 'ETH' } },
-    { value: '345', token: { tag: 'GAV', format: 1 } },
-    { value: '0', token: { tag: 'TST', format: 1 } }
-  ]
+  'eth': new BigNumber(122),
+  'gav': new BigNumber(345),
+  'tst': new BigNumber(0)
 };
 
 let api;
@@ -44,6 +49,10 @@ function createApi () {
 function render (props = {}) {
   if (!props.balance) {
     props.balance = BALANCE;
+  }
+
+  if (!props.tokens) {
+    props.tokens = TOKENS;
   }
 
   const api = createApi();

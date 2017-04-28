@@ -16,8 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import imagesEthereum from '~/../assets/images/contracts/ethereum-black-64x64.png';
 import { AccountCard } from '~/ui';
+import { ETH_TOKEN } from '~/util/tokens';
 
 export default class GethCard extends Component {
   static propTypes = {
@@ -36,14 +36,7 @@ export default class GethCard extends Component {
           name
         } }
         balance={ {
-          tokens: [ {
-            value: balance,
-            token: {
-              image: imagesEthereum,
-              native: true,
-              tag: 'ETH'
-            }
-          } ]
+          [ETH_TOKEN.id]: balance
         } }
       />
     );
