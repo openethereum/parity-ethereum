@@ -25,7 +25,10 @@ import { throttle } from 'lodash';
 import { Actionbar, ActionbarExport, ActionbarImport, Button, Input, Loading, Page, Select } from '~/ui';
 import { CancelIcon, ListIcon, SaveIcon, SendIcon, SettingsIcon } from '~/ui/Icons';
 import Editor from '~/ui/Editor';
-import { DeployContract, SaveContract, LoadContract } from '~/modals';
+
+import DeployContract from '../Contracts/DeployContract';
+import LoadContract from './LoadContract';
+import SaveContract from './SaveContract';
 
 import ContractDevelopStore from './store';
 import styles from './contractDevelop.css';

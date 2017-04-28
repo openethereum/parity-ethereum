@@ -17,9 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import VaultSelector from '~/modals/VaultSelector';
 import VaultStore from '~/views/Vaults/store';
 
+import VaultSelector from './VaultSelector';
 import InputAddress from '../InputAddress';
 
 export default class VaultSelect extends Component {

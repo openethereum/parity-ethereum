@@ -14,55 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
+import React, { PropTypes } from 'react';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
 import styles from './actionbar.css';
 
-export default class Actionbar extends Component {
-  static propTypes = {
-    title: nodeOrStringProptype(),
-    buttons: PropTypes.array,
-    children: PropTypes.node,
-    className: PropTypes.string
-  };
-
-  render () {
-    const { children, className } = this.props;
-    const classes = `${styles.actionbar} ${className}`;
-
-    return (
-      <Toolbar className={ classes }>
-        { this.renderTitle() }
-        { this.renderButtons() }
-        { children }
-      </Toolbar>
-    );
-  }
-
-  renderButtons () {
-    const { buttons } = this.props;
-
-    if (!buttons || !buttons.length) {
-      return null;
-    }
-
-    return (
-      <ToolbarGroup className={ styles.toolbuttons }>
-        { buttons }
-      </ToolbarGroup>
-    );
-  }
-
-  renderTitle () {
-    const { title } = this.props;
-
-    return (
-      <h3 className={ styles.tooltitle }>
+export default function Actionbar ({ buttons, children, className, title }) {
+  return (
+    <div className={ `${styles.actionbar} ${className}` }>
+      <h3 className={ styles.title }>
         { title }
       </h3>
-    );
-  }
+      <div className={ styles.children }>
+        { children }
+      </div>
+      <div className={ styles.buttons }>
+        { buttons }
+      </div>
+    </div>
+  );
 }
+
+Actionbar.propTypes = {
+  title: nodeOrStringProptype(),
+  buttons: PropTypes.array,
+  children: PropTypes.node,
+  className: PropTypes.string
+};

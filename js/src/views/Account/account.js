@@ -20,18 +20,25 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { newError } from '~/redux/actions';
 import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
+
+import { newError } from '~/redux/actions';
 import HardwareStore from '~/mobx/hardwareStore';
-import ExportStore from '~/modals/ExportAccount/exportStore';
 import HistoryStore from '~/mobx/historyStore';
-import { DeleteAccount, EditMeta, Faucet, PasswordManager, Shapeshift, Transfer, Verification } from '~/modals';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 import { Actionbar, Button, ConfirmDialog, Input, Page, Portal } from '~/ui';
 import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon, FileDownloadIcon } from '~/ui/Icons';
 
+import DeleteAccount from './DeleteAccount';
+import EditMeta from './EditMeta';
 import DeleteAddress from '../Address/Delete';
+import ExportStore from '../Accounts/ExportAccount/exportStore';
+import Faucet from './Faucet';
+import PasswordManager from './PasswordManager';
+import Shapeshift from './Shapeshift';
+import Transfer from './Transfer';
+import Verification from './Verification';
 
 import Header from './Header';
 import Store from './store';

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
@@ -23,121 +23,117 @@ import TokenImage from '~/ui/TokenImage';
 
 import styles from './balance.css';
 
-export class Balance extends Component {
-  static contextTypes = {
-    api: PropTypes.object
-  };
+function Balance ({ balance, className, showOnlyEth, tokens }) {
+  if (Object.keys(balance).length === 0) {
+    return null;
+  }
 
-  static propTypes = {
-    balance: PropTypes.object.isRequired,
-    tokens: PropTypes.object.isRequired,
-    address: PropTypes.string,
-    className: PropTypes.string,
-    showOnlyEth: PropTypes.bool,
-    showZeroValues: PropTypes.bool
-  };
+  let body = Object.keys(balance)
+    .map((tokenId) => {
+      const token = tokens[tokenId];
+      const balanceValue = balance[tokenId];
 
-  static defaultProps = {
-    showOnlyEth: false,
-    showZeroValues: false
-  };
+      const isEthToken = token.native;
+      const isFullToken = !showOnlyEth || isEthToken;
+      const hasBalance = balanceValue.gt(0);
 
-  render () {
-    const { balance, className, showOnlyEth, tokens } = this.props;
+      if (!hasBalance && !isEthToken) {
+        return null;
+      }
 
-    if (Object.keys(balance).length === 0) {
-      return null;
-    }
+      const bnf = new BigNumber(token.format || 1);
+      let decimals = 0;
 
-    let body = Object.keys(balance)
-      .map((tokenId) => {
-        const token = tokens[tokenId];
-        const balanceValue = balance[tokenId];
+      if (bnf.gte(1000)) {
+        decimals = 3;
+      } else if (bnf.gte(100)) {
+        decimals = 2;
+      } else if (bnf.gte(10)) {
+        decimals = 1;
+      }
 
-        const isEthToken = token.native;
-        const isFullToken = !showOnlyEth || isEthToken;
-        const hasBalance = balanceValue.gt(0);
+      const value = new BigNumber(balanceValue).div(bnf).toFormat(decimals);
 
-        if (!hasBalance && !isEthToken) {
-          return null;
-        }
+      const classNames = [styles.balance];
+      let details = null;
 
-        const bnf = new BigNumber(token.format || 1);
-        let decimals = 0;
-
-        if (bnf.gte(1000)) {
-          decimals = 3;
-        } else if (bnf.gte(100)) {
-          decimals = 2;
-        } else if (bnf.gte(10)) {
-          decimals = 1;
-        }
-
-        const value = new BigNumber(balanceValue).div(bnf).toFormat(decimals);
-
-        const classNames = [styles.balance];
-        let details = null;
-
-        if (isFullToken) {
-          classNames.push(styles.full);
-          details = [
-            <div
-              className={ styles.value }
-              key='value'
-            >
-              <span title={ value }>
-                { value }
-              </span>
-            </div>,
-            <div
-              className={ styles.tag }
-              key='tag'
-            >
-              { token.tag }
-            </div>
-          ];
-        }
-
-        return (
+      if (isFullToken) {
+        classNames.push(styles.full);
+        details = [
           <div
-            className={ classNames.join(' ') }
-            key={ tokenId }
+            className={ styles.value }
+            key='value'
           >
-            <TokenImage token={ token } />
-            { details }
+            <span title={ value }>
+              { value }
+            </span>
+          </div>,
+          <div
+            className={ styles.tag }
+            key='tag'
+          >
+            { token.tag }
           </div>
-        );
-      })
-      .filter((node) => node);
+        ];
+      }
 
-    if (!body.length) {
-      body = (
-        <div className={ styles.empty }>
-          <FormattedMessage
-            id='ui.balance.none'
-            defaultMessage='No balances associated with this account'
-          />
+      return (
+        <div
+          className={ classNames.join(' ') }
+          key={ tokenId }
+        >
+          <TokenImage token={ token } />
+          { details }
         </div>
       );
-    }
+    })
+    .filter((node) => node);
 
-    return (
-      <div
-        className={
-          [
-            styles.balances,
-            showOnlyEth
-              ? ''
-              : styles.full,
-            className
-          ].join(' ')
-        }
-      >
-        { body }
+  if (!body.length) {
+    body = (
+      <div className={ styles.empty }>
+        <FormattedMessage
+          id='ui.balance.none'
+          defaultMessage='No balances associated with this account'
+        />
       </div>
     );
   }
+
+  return (
+    <div
+      className={
+        [
+          styles.balances,
+          showOnlyEth
+            ? ''
+            : styles.full,
+          className
+        ].join(' ')
+      }
+    >
+      { body }
+    </div>
+  );
 }
+
+Balance.contextTypes = {
+  api: PropTypes.object.isRequired
+};
+
+Balance.propTypes = {
+  balance: PropTypes.object.isRequired,
+  tokens: PropTypes.object.isRequired,
+  address: PropTypes.string,
+  className: PropTypes.string,
+  showOnlyEth: PropTypes.bool,
+  showZeroValues: PropTypes.bool
+};
+
+Balance.defaultProps = {
+  showOnlyEth: false,
+  showZeroValues: false
+};
 
 function mapStateToProps (state, props) {
   const { balances, tokens } = state;
@@ -149,4 +145,7 @@ function mapStateToProps (state, props) {
   };
 }
 
-export default connect(mapStateToProps)(Balance);
+export default connect(
+  mapStateToProps,
+  null
+)(Balance);

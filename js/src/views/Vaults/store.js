@@ -18,7 +18,7 @@ import { action, computed, observable, transaction } from 'mobx';
 
 // TODO: We need to move this to a generic location, it should most probably be
 // merged with the other valitation errors. Import here better than duplication.
-import ERRORS from '~/modals/CreateAccount/errors';
+import ERRORS from '~/views/Accounts/CreateAccount/errors';
 
 let instance;
 
