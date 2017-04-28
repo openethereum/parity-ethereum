@@ -73,7 +73,7 @@ linux-snap:
     - rust-stable
   artifacts:
     paths:
-    - parity*.snap
+    - parity_master_amd64.snap
     name: "stable-x86_64-unknown-linux-gnu_parity-snap"
   allow_failure: true
 linux-stable-debian:
