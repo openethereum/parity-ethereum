@@ -30,9 +30,6 @@ import muiTheme from '~/ui/Theme';
 
 import Account from './account';
 
-import '~/../assets/fonts/Roboto/font.css';
-import '~/../assets/fonts/RobotoMono/font.css';
-
 ContractInstances.get(api);
 
 const store = initStore(api, hashHistory);

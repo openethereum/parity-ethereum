@@ -29,11 +29,6 @@ import muiTheme from '~/ui/Theme';
 
 import Home from './home';
 
-import '~/../assets/fonts/Roboto/font.css';
-import '~/../assets/fonts/RobotoMono/font.css';
-
-import './home.css';
-
 const store = initStore(api, hashHistory);
 
 ReactDOM.render(
