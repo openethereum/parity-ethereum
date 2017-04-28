@@ -16,22 +16,37 @@
 
 import React, { PropTypes } from 'react';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import Button from '~/ui/Button';
+import { LockedIcon, UnlockedIcon } from '~/ui/Icons';
 
-import styles from './busy.css';
+import styles from '../vaultCard.css';
 
-export default function Busy ({ children, state, title }) {
+export default function Buttons ({ buttons, hideButtons, vault }) {
+  const { isOpen } = vault;
+
+  if (hideButtons) {
+    return null;
+  }
+
   return (
-    <div className={ styles.center }>
-      <div className={ styles.title }>{ title }</div>
-      <div className={ styles.state }>{ state }</div>
-      { children }
+    <div className={ styles.buttons }>
+      <Button
+        className={ styles.status }
+        disabled
+        icon={
+          isOpen
+            ? <UnlockedIcon />
+            : <LockedIcon />
+        }
+        key='status'
+      />
+      { buttons }
     </div>
   );
 }
 
-Busy.propTypes = {
-  children: PropTypes.node,
-  state: nodeOrStringProptype(),
-  title: nodeOrStringProptype()
+Buttons.propTypes = {
+  buttons: PropTypes.array,
+  hideButtons: PropTypes.bool,
+  vault: PropTypes.object.isRequired
 };

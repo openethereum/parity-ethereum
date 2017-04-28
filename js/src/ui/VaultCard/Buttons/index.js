@@ -14,24 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { PropTypes } from 'react';
-
-import { nodeOrStringProptype } from '~/util/proptypes';
-
-import styles from './busy.css';
-
-export default function Busy ({ children, state, title }) {
-  return (
-    <div className={ styles.center }>
-      <div className={ styles.title }>{ title }</div>
-      <div className={ styles.state }>{ state }</div>
-      { children }
-    </div>
-  );
-}
-
-Busy.propTypes = {
-  children: PropTypes.node,
-  state: nodeOrStringProptype(),
-  title: nodeOrStringProptype()
-};
+export default from './buttons';
