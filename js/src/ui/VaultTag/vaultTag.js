@@ -14,32 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 
 import IdentityIcon from '~/ui/IdentityIcon';
 
 import styles from './vaultTag.css';
 
-export default class VaultTag extends Component {
-  static propTypes = {
-    vault: PropTypes.string.isRequired
-  };
-
-  render () {
-    const { vault } = this.props;
-
-    return (
-      <div className={ styles.vault }>
-        <div className={ styles.vaultBody }>
-          <IdentityIcon
-            address={ vault }
-            inline
-          />
-          <div className={ styles.text }>
-            { vault }
-          </div>
+export default function VaultTag ({ vault }) {
+  return (
+    <div className={ styles.vault }>
+      <div className={ styles.vaultBody }>
+        <IdentityIcon
+          address={ vault }
+          inline
+        />
+        <div className={ styles.text }>
+          { vault }
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 }
+
+VaultTag.propTypes = {
+  vault: PropTypes.string.isRequired
+};

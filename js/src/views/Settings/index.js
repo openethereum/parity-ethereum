@@ -33,11 +33,6 @@ import SettingsProxy from './Proxy';
 import SettingsViews from './Views';
 import Settings from './settings';
 
-import '~/../assets/fonts/Roboto/font.css';
-import '~/../assets/fonts/RobotoMono/font.css';
-
-import './settings.css';
-
 const store = initStore(api, hashHistory);
 
 ReactDOM.render(

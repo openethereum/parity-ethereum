@@ -18,19 +18,18 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import UpgradeStore from '~/modals/UpgradeParity/store';
-
 import Connection from '../Connection';
 import ParityBar from '../ParityBar';
+import UpgradeStore from '../UpgradeParity/store';
 
 import Snackbar from './Snackbar';
 import Container from './Container';
 import DappContainer from './DappContainer';
 import Extension from './Extension';
 import FrameError from './FrameError';
+import Requests from './Requests';
 import Status from './Status';
 import Store from './store';
-import Requests from './Requests';
 
 import styles from './application.css';
 
@@ -54,7 +53,7 @@ class Application extends Component {
 
   render () {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
-    const isMinimized = root === 'app' || root === 'web';
+    const isMinimized = root !== '';
 
     if (process.env.NODE_ENV !== 'production' && root === 'playground') {
       return (

@@ -17,13 +17,12 @@
 import { isEqual } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import LinearProgress from 'material-ui/LinearProgress';
 import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { Button, TypedInput } from '~/ui';
+import { Button, Progress, TypedInput } from '~/ui';
 import { arrayOrObjectProptype } from '~/util/proptypes';
 import { parseAbiType } from '~/util/abi';
 
@@ -126,7 +125,7 @@ class InputQuery extends Component {
 
     if (isLoading) {
       return (
-        <LinearProgress mode='indeterminate' />
+        <Progress />
       );
     }
 

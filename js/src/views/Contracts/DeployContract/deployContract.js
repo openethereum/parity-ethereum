@@ -29,7 +29,7 @@ import { setRequest } from '~/redux/providers/requestsActions';
 
 import DetailsStep from './DetailsStep';
 import ParametersStep from './ParametersStep';
-import Extras from '../Transfer/Extras';
+import Extras from '../../Account/Transfer/Extras';
 
 const STEPS = {
   CONTRACT_DETAILS: {

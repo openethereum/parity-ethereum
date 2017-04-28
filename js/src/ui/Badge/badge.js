@@ -14,25 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 
 import styles from './badge.css';
 
-export default class Badge extends Component {
-  static propTypes = {
-    className: PropTypes.string,
-    color: PropTypes.string,
-    value: PropTypes.any
-  };
-
-  render () {
-    const { className, color, value } = this.props;
-    const classes = `${styles.bubble} ${styles[color || 'default']} ${className}`;
-
-    return (
-      <div className={ classes }>
-        { value }
-      </div>
-    );
-  }
+export default function Badge ({ className, color, value }) {
+  return (
+    <div className={ `${styles.bubble} ${styles[color || 'default']} ${className}` }>
+      { value }
+    </div>
+  );
 }
+
+Badge.propTypes = {
+  className: PropTypes.string,
+  color: PropTypes.string,
+  value: PropTypes.any
+};

@@ -17,7 +17,7 @@
 import { isEqual } from 'lodash';
 
 import { LOG_KEYS, getLogger } from '~/config';
-import UpgradeStore from '~/modals/UpgradeParity/store';
+import UpgradeStore from '~/shell/UpgradeParity/store';
 
 import BalancesProvider from './balances';
 import { statusBlockNumber, statusCollection } from './statusActions';

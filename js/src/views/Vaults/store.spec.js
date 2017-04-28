@@ -18,7 +18,7 @@ import sinon from 'sinon';
 
 import Vaults from './';
 
-import ERRORS from '~/modals/CreateAccount/errors';
+import ERRORS from '~/views/Accounts/CreateAccount/errors';
 import { createApi, TEST_VAULTS_ALL, TEST_VAULTS_META, TEST_VAULTS_OPEN } from './vaults.test.js';
 
 let api;

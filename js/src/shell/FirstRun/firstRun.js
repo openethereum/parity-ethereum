@@ -27,10 +27,11 @@ import { newError } from '~/redux/actions';
 import { Button, Portal } from '~/ui';
 import { CheckIcon, DoneIcon, NextIcon, PrintIcon } from '~/ui/Icons';
 
-import { NewAccount, AccountDetails } from '../CreateAccount';
-import print from '../CreateAccount/print';
-import recoveryPage from '../CreateAccount/recoveryPage.ejs';
-import CreateStore from '../CreateAccount/store';
+// FIXME: These imports, while nice for re-using, breaks since the shell import
+import { NewAccount, AccountDetails } from '~/views/Accounts/CreateAccount';
+import print from '~/views/Accounts/CreateAccount/print';
+import recoveryPage from '~/views/Accounts/CreateAccount/recoveryPage.ejs';
+import CreateStore from '~/views/Accounts/CreateAccount/store';
 
 import Completed from './Completed';
 import TnC from './TnC';

@@ -20,16 +20,17 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import BigNumber from 'bignumber.js';
 
-import { EditMeta, ExecuteContract } from '~/modals';
 import { newError } from '~/redux/actions';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { Actionbar, Button, Page, Portal } from '~/ui';
 import { CancelIcon, DeleteIcon, EditIcon, PlayIcon, VisibleIcon } from '~/ui/Icons';
 import Editor from '~/ui/Editor';
 
+import EditMeta from '../Account/EditMeta';
 import Header from '../Account/Header';
 import Delete from '../Address/Delete';
 
+import ExecuteContract from './ExecuteContract';
 import Events from './Events';
 import Queries from './Queries';
 

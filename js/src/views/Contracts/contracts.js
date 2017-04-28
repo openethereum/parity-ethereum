@@ -20,12 +20,14 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { uniq, isEqual } from 'lodash';
 
-import { AddContract, DeployContract } from '~/modals';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
 import { AddIcon } from '~/ui/Icons';
 
 import List from '../Accounts/List';
+
+import AddContract from './AddContract';
+import DeployContract from './DeployContract';
 
 const META_SORT = [
   {

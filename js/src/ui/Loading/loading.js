@@ -14,30 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 import CircularProgress from 'material-ui/CircularProgress';
 
 import styles from './loading.css';
 
-export default class Loading extends Component {
-  static propTypes = {
-    className: PropTypes.string,
-    size: PropTypes.number
-  };
-
-  static defaultProps = {
-    className: '',
-    size: 2
-  };
-
-  render () {
-    const { className, size } = this.props;
-    const computedSize = size * 60;
-
-    return (
-      <div className={ [ styles.loading, className ].join(' ') }>
-        <CircularProgress size={ computedSize } />
-      </div>
-    );
-  }
+export default function Loading ({ className, size, thickness }) {
+  return (
+    <div className={ [ styles.loading, className ].join(' ') }>
+      <CircularProgress
+        size={ size * 60 }
+        thickness={ thickness }
+      />
+    </div>
+  );
 }
+
+Loading.propTypes = {
+  className: PropTypes.string,
+  size: PropTypes.number,
+  thickness: PropTypes.number
+};
+
+Loading.defaultProps = {
+  className: '',
+  size: 2,
+  thickness: 3.5
+};

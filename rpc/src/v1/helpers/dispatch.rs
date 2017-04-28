@@ -206,6 +206,17 @@ pub fn fetch_gas_price_corpus(
 	}
 }
 
+/// Returns a eth_sign-compatible hash of data to sign.
+/// The data is prepended with special message to prevent
+/// chosen-plaintext attacks.
+pub fn eth_data_hash(mut data: Bytes) -> H256 {
+	let mut message_data =
+		format!("\x19Ethereum Signed Message:\n{}", data.len())
+		.into_bytes();
+	message_data.append(&mut data);
+	message_data.sha3()
+}
+
 /// Dispatcher for light clients -- fetches default gas price, next nonce, etc. from network.
 #[derive(Clone)]
 pub struct LightDispatcher {
@@ -474,21 +485,11 @@ pub fn execute<D: Dispatcher + 'static>(
 					.map(ConfirmationResponse::SignTransaction)
 				).boxed()
 		},
-		ConfirmationPayload::EthSignMessage(address, mut data) => {
-			let mut message_data =
-				format!("\x19Ethereum Signed Message:\n{}", data.len())
-				.into_bytes();
-			message_data.append(&mut data);
-			let res = signature(&accounts, address, message_data.sha3(), pass)
+		ConfirmationPayload::EthSignMessage(address, data) => {
+			let hash = eth_data_hash(data);
+			let res = signature(&accounts, address, hash, pass)
 				.map(|result| result
-					.map(|rsv| {
-						let mut vrs = [0u8; 65];
-						let rsv = rsv.as_ref();
-						vrs[0] = rsv[64] + 27;
-						vrs[1..33].copy_from_slice(&rsv[0..32]);
-						vrs[33..65].copy_from_slice(&rsv[32..64]);
-						H520(vrs)
-					})
+					.map(|rsv| H520(rsv.into_vrs()))
 					.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
 				);

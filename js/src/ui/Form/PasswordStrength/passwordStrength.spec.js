@@ -36,25 +36,25 @@ describe('ui/Form/PasswordStrength', () => {
     });
 
     it('renders a linear progress', () => {
-      expect(render({ input: INPUT_A }).find('LinearProgress')).to.be.ok;
+      expect(render({ input: INPUT_A }).find('Progress')).to.be.ok;
     });
 
     describe('compute strength', () => {
       it('has low score with empty input', () => {
         expect(
-          render({ input: INPUT_NULL }).find('LinearProgress').props().value
+          render({ input: INPUT_NULL }).find('Progress').props().value
         ).to.equal(20);
       });
 
       it('has medium score', () => {
         expect(
-          render({ input: INPUT_A }).find('LinearProgress').props().value
+          render({ input: INPUT_A }).find('Progress').props().value
         ).to.equal(60);
       });
 
       it('has high score', () => {
         expect(
-          render({ input: INPUT_B }).find('LinearProgress').props().value
+          render({ input: INPUT_B }).find('Progress').props().value
         ).to.equal(100);
       });
     });
