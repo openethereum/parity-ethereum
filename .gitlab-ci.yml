@@ -66,6 +66,7 @@ linux-snap:
   only:
     - snap
   script:
+    - rm -rf *snap
     - cd scripts
     - snapcraft
   tags:
@@ -73,7 +74,7 @@ linux-snap:
     - rust-stable
   artifacts:
     paths:
-    - parity_master_amd64.snap
+    - scripts/parity_master_amd64.snap
     name: "stable-x86_64-unknown-linux-gnu_parity-snap"
   allow_failure: true
 linux-stable-debian:
