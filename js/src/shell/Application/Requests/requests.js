@@ -102,7 +102,7 @@ class Requests extends Component {
               <Progress
                 max={ 6 }
                 mode={ state.type === WAITING_STATE ? 'indeterminate' : 'determinate' }
-                value={ state.type === DONE_STATE ? request.blockHeight.toNumber() : 6 }
+                value={ state.type === DONE_STATE ? +request.blockHeight : 6 }
               />
             )
         }
@@ -157,8 +157,8 @@ class Requests extends Component {
           id='requests.status.transactionMined'
           defaultMessage='Transaction mined at block #{blockNumber} ({blockHeight} blocks ago)'
           values={ {
-            blockHeight: request.blockHeight.toNumber(),
-            blockNumber: transactionReceipt.blockNumber.toFormat()
+            blockHeight: +request.blockHeight,
+            blockNumber: +transactionReceipt.blockNumber
           } }
         />
       );
