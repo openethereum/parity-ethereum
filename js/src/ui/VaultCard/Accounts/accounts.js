@@ -16,8 +16,8 @@
 
 import React, { PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Link } from 'react-router';
 
+import DappLink from '~/ui/DappLink';
 import IdentityIcon from '~/ui/IdentityIcon';
 
 import styles from '../vaultCard.css';
@@ -43,7 +43,7 @@ export default function Accounts ({ accounts, hideAccounts }) {
       {
         accounts.map((address) => {
           return (
-            <Link
+            <DappLink
               key={ address }
               to={ `/accounts/${address}` }
             >
@@ -52,7 +52,7 @@ export default function Accounts ({ accounts, hideAccounts }) {
                 center
                 className={ styles.account }
               />
-            </Link>
+            </DappLink>
           );
         })
       }

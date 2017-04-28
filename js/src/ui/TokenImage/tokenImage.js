@@ -19,8 +19,8 @@ import { connect } from 'react-redux';
 
 import unknownImage from '~/../assets/images/contracts/unknown-64x64.png';
 
-function TokenImage ({ image, token }) {
-  const { api } = this.context;
+function TokenImage ({ image, token }, context) {
+  const { api } = context;
   const imageurl = token.image || image;
   let imagesrc = unknownImage;
 
