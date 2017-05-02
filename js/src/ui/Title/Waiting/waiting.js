@@ -16,28 +16,26 @@
 
 import React, { PropTypes } from 'react';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import Progress from '~/ui/Progress';
 
-import Byline from './Byline';
-import Description from './Description';
+import styles from '../title.css';
 
-import styles from './title.css';
+export default function Waiting ({ activeStep, busy, busySteps }) {
+  const isWaiting = busy || (busySteps || []).includes(activeStep);
 
-export default function Title ({ byline, className, description, title }) {
+  if (!isWaiting) {
+    return null;
+  }
+
   return (
-    <div className={ className }>
-      <h3 className={ styles.title }>
-        { title }
-      </h3>
-      <Byline byline={ byline } />
-      <Description description={ description } />
+    <div className={ styles.waiting }>
+      <Progress />
     </div>
   );
 }
 
-Title.propTypes = {
-  byline: nodeOrStringProptype(),
-  className: PropTypes.string,
-  description: nodeOrStringProptype(),
-  title: nodeOrStringProptype()
+Waiting.propTypes = {
+  activeStep: PropTypes.number,
+  busy: PropTypes.bool,
+  busySteps: PropTypes.array
 };
