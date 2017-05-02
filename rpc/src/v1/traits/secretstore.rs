@@ -26,16 +26,16 @@ build_rpc_trait! {
 		/// Encrypt data with key, received from secret store.
 		/// Arguments: `account`, `key`, `data`.
 		#[rpc(name = "secretstore_encrypt")]
-		fn encrypt(&self, H160, Bytes, Bytes) -> Result<Bytes, Error>;
+		fn encrypt(&self, H160, String, Bytes, Bytes) -> Result<Bytes, Error>;
 
 		/// Decrypt data with key, received from secret store.
 		/// Arguments: `account`, `key`, `data`.
 		#[rpc(name = "secretstore_decrypt")]
-		fn decrypt(&self, H160, Bytes, Bytes) -> Result<Bytes, Error>;
+		fn decrypt(&self, H160, String, Bytes, Bytes) -> Result<Bytes, Error>;
 
 		/// Decrypt data with shadow key, received from secret store.
 		/// Arguments: `account`, `decrypted_secret`, `common_point`, `decrypt_shadows`, `data`.
 		#[rpc(name = "secretstore_shadowDecrypt")]
-		fn shadow_decrypt(&self, H160, H512, H512, Vec<Bytes>, Bytes) -> Result<Bytes, Error>;
+		fn shadow_decrypt(&self, H160, String, H512, H512, Vec<Bytes>, Bytes) -> Result<Bytes, Error>;
 	}
 }
