@@ -1,4 +1,4 @@
-## Parity [v1.6.6](https://github.com/paritytech/parity/releases/tag/v1.6.6)
+## Parity [v1.6.6](https://github.com/paritytech/parity/releases/tag/v1.6.6) (2017-04-11)
 
 This release brings warp sync support for kovan network.
 
@@ -20,7 +20,7 @@ This release brings warp sync support for kovan network.
 - Default eip155 validation [#5350](https://github.com/paritytech/parity/pull/5350)
 - Backport syntax libs update [#5316](https://github.com/paritytech/parity/pull/5316)
 
-## Parity [v1.6.5](https://github.com/paritytech/parity/releases/tag/v1.6.5)
+## Parity [v1.6.5](https://github.com/paritytech/parity/releases/tag/v1.6.5) (2017-03-28)
 
 This release contains the following changes:
 
@@ -55,7 +55,7 @@ Full changes:
   - Nicer indent
   - Revert bound divisor
 
-## Parity [v1.5.12](https://github.com/paritytech/parity/releases/tag/v1.5.12)
+## Parity [v1.5.12](https://github.com/paritytech/parity/releases/tag/v1.5.12) (2017-03-27)
 
 Stable release that adds support for a new warp sync snapshot format.
 
@@ -63,7 +63,7 @@ Stable release that adds support for a new warp sync snapshot format.
   - Bump to v1.5.12
   - Fine grained snapshot chunking
 
-## Parity [v1.6.4](https://github.com/paritytech/parity/releases/tag/v1.6.4)
+## Parity [v1.6.4](https://github.com/paritytech/parity/releases/tag/v1.6.4) (2017-03-22)
 
 A number of issues fixed in this release:
 
@@ -96,7 +96,7 @@ Full Changes:
   - Fix Password Dialog forms style issue [#4968](https://github.com/paritytech/parity/pull/4968)
 
 
-## Parity [v1.6.3](https://github.com/paritytech/parity/releases/tag/v1.6.3)
+## Parity [v1.6.3](https://github.com/paritytech/parity/releases/tag/v1.6.3) (2017-03-14)
 
 This release fixes issue compatibility with Safari on MacOS.
 
@@ -104,7 +104,7 @@ This release fixes issue compatibility with Safari on MacOS.
   - Add intitial max-width to sections
   - Move background z-index to -1
 
-## Parity [v1.5.11](https://github.com/paritytech/parity/releases/tag/v1.5.11)
+## Parity [v1.5.11](https://github.com/paritytech/parity/releases/tag/v1.5.11) (2017-03-14)
 
 Parity 1.5.11 Includes a patch for a more comprehensive block verification.
 
@@ -113,7 +113,7 @@ Parity 1.5.11 Includes a patch for a more comprehensive block verification.
 - Recalculate receipt roots in close_and_lock
 - Bump to v1.5.10
 
-## Parity [v1.6.2](https://github.com/paritytech/parity/releases/tag/v1.6.2)
+## Parity [v1.6.2](https://github.com/paritytech/parity/releases/tag/v1.6.2) (2017-03-13)
 
 A major release introducing a few new features:
 
@@ -524,7 +524,7 @@ Full Changes:
 - Default to no auto-update. [#4092](https://github.com/paritytech/parity/pull/4092)
 - Don't remove out of date local transactions [#4094](https://github.com/paritytech/parity/pull/4094)
 
-## Parity [v1.5.9](https://github.com/paritytech/parity/releases/tag/v1.5.9)
+## Parity [v1.5.9](https://github.com/paritytech/parity/releases/tag/v1.5.9) (2017-03-11)
 
 First stable release of 1.5.x series. This release enables EIP-161 transaction replay protection for PoA networks.
 
@@ -542,7 +542,7 @@ First stable release of 1.5.x series. This release enables EIP-161 transaction r
 - Switch js branch to stable
 - Bump to v1.5.8
 
-## Parity [v1.5.7](https://github.com/paritytech/parity/releases/tag/v1.5.7)
+## Parity [v1.5.7](https://github.com/paritytech/parity/releases/tag/v1.5.7) (2017-03-07)
 
 This release resolves a single issue with failing auto-updates.
 
@@ -552,7 +552,7 @@ This release resolves a single issue with failing auto-updates.
   - Disable if files can't be moved.
   - Make updater avoid downloading earlier versions.
 
-## Parity [v1.5.6](https://github.com/paritytech/parity/releases/tag/v1.5.6)
+## Parity [v1.5.6](https://github.com/paritytech/parity/releases/tag/v1.5.6) (2017-03-06)
 
 This release among various stability fixes adds support for a new [Kovan](https://github.com/kovan-testnet/proposal) testnet.
 
@@ -624,7 +624,7 @@ See [full list of changes.](https://github.com/paritytech/parity/compare/v1.5.4.
 - Beta Adjust pruning history default to 64 [#4709](https://github.com/paritytech/parity/pull/4709)
 - Bump to v1.5.5
 
-## Parity [v1.5.4](https://github.com/paritytech/parity/releases/tag/v1.5.4)
+## Parity [v1.5.4](https://github.com/paritytech/parity/releases/tag/v1.5.4) (2017-02-23)
 
 A couple of issue fixed in this release:
 
@@ -643,7 +643,7 @@ Changes:
   - Fixed build and added a difficulty test
   - Bump to v1.5.4
 
-## Parity [v1.4.12](https://github.com/paritytech/parity/releases/tag/v1.4.12)
+## Parity [v1.4.12](https://github.com/paritytech/parity/releases/tag/v1.4.12) (2017-02-22)
 
 This stable release fixes an issue with block uncle validation. Parity now allows uncle headers to have timestamp set to arbitrary future value.
 
@@ -653,7 +653,7 @@ This stable release fixes an issue with block uncle validation. Parity now allow
   - Bump to v1.4.12
 - Add missing maxCodeSize [#4585](https://github.com/paritytech/parity/pull/4585)
 
-## Parity [v1.5.3](https://github.com/paritytech/parity/releases/tag/v1.5.3)
+## Parity [v1.5.3](https://github.com/paritytech/parity/releases/tag/v1.5.3) (2017-02-20)
 
 This is a maintenance release that fixes a number of stability issues. Notably this resolves an issue where Parity would allow a pre EIP-155 transaction into the sealed block.
 
@@ -689,7 +689,7 @@ See [full list of changes](https://github.com/paritytech/parity/compare/v1.5.2..
  - Skip OOG check for simple transfers [#4558](https://github.com/paritytech/parity/pull/4558)
  - Fix failing test
 
-## Parity [v1.4.11](https://github.com/paritytech/parity/releases/tag/v1.4.11)
+## Parity [v1.4.11](https://github.com/paritytech/parity/releases/tag/v1.4.11) (2017-02-17)
 
 This release corrects the Ropsten chain specification file.
 
@@ -700,7 +700,7 @@ This release corrects the Ropsten chain specification file.
 - Removed pdbs
 - Add missing maxCodeSize [#4585](https://github.com/paritytech/parity/pull/4585)
 
-## Parity [v1.5.2](https://github.com/paritytech/parity/releases/tag/v1.5.2)
+## Parity [v1.5.2](https://github.com/paritytech/parity/releases/tag/v1.5.2) (2017-02-08)
 
 This release brings a few stability fixes along with a feature that allows queuing transactions that are activated and send out on selected date or block number.
 - Debian packages have been updated to require `libssl1.0.0` for better compatibility.
@@ -856,7 +856,7 @@ See [full list of changes](https://github.com/paritytech/parity/compare/v1.5.0..
   - Addressing style issues
   - Supporting parity background
 
-## Parity [v1.5.0: "Nativity"](https://github.com/paritytech/parity/releases/tag/v1.5.0)
+## Parity [v1.5.0: "Nativity"](https://github.com/paritytech/parity/releases/tag/v1.5.0) (2017-01-19)
 
 Major feature release including _Tendermint_ consensus engine, _Multisig wallet_ support, _badge/certification_ UI integration and _automatic updates_.
 
@@ -1544,7 +1544,7 @@ Full changes:
 - Fixing possible race in ethcore_hashContent [#3191](https://github.com/paritytech/parity/pull/3191)
 - Bump package.json version (1.5 is master) [#3193](https://github.com/paritytech/parity/pull/3193)
 
-## Parity [v1.4.10](https://github.com/paritytech/parity/releases/tag/v1.4.10)
+## Parity [v1.4.10](https://github.com/paritytech/parity/releases/tag/v1.4.10) (2017-01-18)
 
 Parity 1.4.10 is a first stable release of 1.4.x series. It includes a few minor networking fixes.
 
@@ -1561,7 +1561,7 @@ Parity 1.4.10 is a first stable release of 1.4.x series. It includes a few minor
   - No reorg limit for ancient blocks
   - Update registration after every write
 
-## Parity [v1.4.9](https://github.com/paritytech/parity/releases/tag/v1.4.9)
+## Parity [v1.4.9](https://github.com/paritytech/parity/releases/tag/v1.4.9) (2017-01-09)
 
 This fixes an issue introduced in 1.4.8 that causes Parity to panic on propagating transactions in some cases.
 
@@ -1577,7 +1577,7 @@ This fixes an issue introduced in 1.4.8 that causes Parity to panic on propagati
   - simplify
   - Fixing 'simplify'
 
-## Parity [v1.4.8](https://github.com/paritytech/parity/releases/tag/v1.4.8)
+## Parity [v1.4.8](https://github.com/paritytech/parity/releases/tag/v1.4.8) (2017-01-06)
 
 Ethereum Classic Hard Fork ready release containing various bugfixes:
 
@@ -1593,7 +1593,7 @@ See [full list of changes](https://github.com/paritytech/parity/compare/v1.4.7..
 - [beta] Avoid re-broadcasting transactions on each block [#4047](https://github.com/paritytech/parity/pull/4047)
 - Beta Backports [#4012](https://github.com/paritytech/parity/pull/4012)
 
-## Parity [v1.4.7](https://github.com/paritytech/parity/releases/tag/v1.4.7)
+## Parity [v1.4.7](https://github.com/paritytech/parity/releases/tag/v1.4.7) (2016-12-27)
 
 This maintenance release fixes an issue with sync falling behind occasionally.
 
@@ -1601,20 +1601,20 @@ This maintenance release fixes an issue with sync falling behind occasionally.
 - [beta] enforce gas limit falls within engine bounds [#3816](https://github.com/paritytech/parity/pull/3816)
 
 
-## Parity [v1.3.15](https://github.com/paritytech/parity/releases/tag/v1.3.15)
+## Parity [v1.3.15](https://github.com/paritytech/parity/releases/tag/v1.3.15) (2016-12-10)
 
 This patch release fixes an issue with syncing on the Ropsten test network.
 
 - Backporting to stable [#3793](https://github.com/paritytech/parity/pull/3793)
 
-## Parity [v1.4.6](https://github.com/paritytech/parity/releases/tag/v1.4.6)
+## Parity [v1.4.6](https://github.com/paritytech/parity/releases/tag/v1.4.6) (2016-12-05)
 
 This patch release fixes an issue with syncing on the Ropsten test network.
 
 - Backporting to beta [#3718](https://github.com/paritytech/parity/pull/3718)
 - [beta] scrollable contract deploy & execute modals [#3656](https://github.com/paritytech/parity/pull/3656)
 
-## Parity [v1.4.5](https://github.com/paritytech/parity/releases/tag/v1.4.5)
+## Parity [v1.4.5](https://github.com/paritytech/parity/releases/tag/v1.4.5) (2016-11-26)
 
 1.4.5 release fixes a number of issues, notably:
 - High CPU usage when idle.
@@ -1631,13 +1631,13 @@ This patch release fixes an issue with syncing on the Ropsten test network.
 - Backporting to beta [#3623](https://github.com/paritytech/parity/pull/3623)
 - [beta] Ropsten chain for UI [#3622](https://github.com/paritytech/parity/pull/3622)
 
-## Parity [v1.3.14](https://github.com/paritytech/parity/releases/tag/v1.3.14)
+## Parity [v1.3.14](https://github.com/paritytech/parity/releases/tag/v1.3.14) (2016-11-25)
 
 Parity 1.3.14 fixes a few stability issues and adds support for the Ropsten testnet.
 
 - Backporting to stable [#3616](https://github.com/paritytech/parity/pull/3616)
 
-## Parity [v1.4.4](https://github.com/paritytech/parity/releases/tag/v1.4.4)
+## Parity [v1.4.4](https://github.com/paritytech/parity/releases/tag/v1.4.4) (2016-11-18)
 
 This is a maintenance release that fixes an issue with EIP-155 transactions being added to the transaction pool. It also improves syncing stability and resolved a number of UI issues.
 Full changelog is available [here.](https://github.com/paritytech/parity/commit/3e0d033eaf789cfdf517f4a97effc500f1f9263b)
@@ -1645,14 +1645,14 @@ Full changelog is available [here.](https://github.com/paritytech/parity/commit/
 - [beta] apps typo fix [#3533](https://github.com/paritytech/parity/pull/3533)
 - Backporting to beta [#3525](https://github.com/paritytech/parity/pull/3525)
 
-## Parity [v1.3.13](https://github.com/paritytech/parity/releases/tag/v1.3.13)
+## Parity [v1.3.13](https://github.com/paritytech/parity/releases/tag/v1.3.13) (2016-11-18)
 
 This release fixes an issue with EIP-155 transactions being allowed into the transaction pool.
 
 - [stable] Check tx signatures before adding to the queue. [#3521](https://github.com/paritytech/parity/pull/3521)
 - Fix Stable Docker Build [#3479](https://github.com/paritytech/parity/pull/3479)
 
-## Parity [v1.4.3](https://github.com/paritytech/parity/releases/tag/v1.4.3)
+## Parity [v1.4.3](https://github.com/paritytech/parity/releases/tag/v1.4.3) (2016-11-16)
 
 This release includes memory footprint optimization as well as a few fixes in the UI.
 EIP-155/160/161/170 hardfork is enabled at block 2675000 (1885000 for test network).
@@ -1664,14 +1664,14 @@ Full changelog is available [here.](https://github.com/paritytech/parity/compare
 - v1.4.3 in beta [#3424](https://github.com/paritytech/parity/pull/3424)
 
 
-## Parity [v1.3.12](https://github.com/paritytech/parity/releases/tag/v1.3.12)
+## Parity [v1.3.12](https://github.com/paritytech/parity/releases/tag/v1.3.12) (2016-11-16)
 
 This stable release enables EIP-155/160/161/170 hardfork at block 2675000 (1885000 for test network).
 
 - [stable] EIP-170 [#3462](https://github.com/paritytech/parity/pull/3462)
 - #3035 Backport to stable [#3441](https://github.com/paritytech/parity/pull/3441)
 
-## Parity [v1.3.11](https://github.com/paritytech/parity/releases/tag/v1.3.11)
+## Parity [v1.3.11](https://github.com/paritytech/parity/releases/tag/v1.3.11) (2016-11-11)
 
 This is a maintenance release for the stable series to delay the EIP-155/160/161 hard fork transition. **Update from 1.3.10 is mandatory**. It also deprecates and disables the old Parity UI.
 
@@ -1680,7 +1680,7 @@ This is a maintenance release for the stable series to delay the EIP-155/160/161
 - Backport EIP-150 to stable [#2672](https://github.com/paritytech/parity/pull/2672)
 - Create gitlab-ci.yml for stable [#2517](https://github.com/paritytech/parity/pull/2517)
 
-## Parity [v1.4.2](https://github.com/paritytech/parity/releases/tag/v1.4.2)
+## Parity [v1.4.2](https://github.com/paritytech/parity/releases/tag/v1.4.2) (2016-11-10)
 
 This release fixes a few additional issues:
 - Parity now correctly handles external `--dapps-interface` and  `--ui-interface` in the UI.
@@ -1693,7 +1693,7 @@ And some additional minor changes. Full changelog is [available](https://github.
 - Backporting to beta [#3344](https://github.com/paritytech/parity/pull/3344)
 - Backporting to beta [#3324](https://github.com/paritytech/parity/pull/3324)
 
-## Parity [v1.4.1](https://github.com/paritytech/parity/releases/tag/v1.4.1)
+## Parity [v1.4.1](https://github.com/paritytech/parity/releases/tag/v1.4.1) (2016-11-09)
 
 This is a hotfix release to address a couple of issues with 1.4.0:
 
@@ -1702,7 +1702,7 @@ This is a hotfix release to address a couple of issues with 1.4.0:
 
 - Backporting to beta [#3293](https://github.com/paritytech/parity/pull/3293)
 
-## Parity [v1.4.0](https://github.com/paritytech/parity/releases/tag/v1.4.0)
+## Parity [v1.4.0](https://github.com/paritytech/parity/releases/tag/v1.4.0) (2016-11-07)
 
 First beta release of the 1.4 series.
 
@@ -2304,7 +2304,7 @@ This includes the new Parity Wallet and Warp-Sync synchronisation as well as sev
 - Update gitlab-ci [#1929](https://github.com/paritytech/parity/pull/1929)
 - ethkey and ethstore use hash structures from bigint [#1851](https://github.com/paritytech/parity/pull/1851)
 
-## Parity [v1.3.10](https://github.com/paritytech/parity/releases/tag/v1.3.10)
+## Parity [v1.3.10](https://github.com/paritytech/parity/releases/tag/v1.3.10) (2016-11-04)
 
 The latest 1.3 series release, now considered stable.
 
@@ -2317,7 +2317,7 @@ This includes several additional optimisations and fixes together with provision
 - Bumping json-ipc-server [#2989](https://github.com/paritytech/parity/pull/2989)
 - Backports for 1.3.10 [#2987](https://github.com/paritytech/parity/pull/2987)
 
-## Parity [v1.3.9](https://github.com/paritytech/parity/releases/tag/v1.3.9)
+## Parity [v1.3.9](https://github.com/paritytech/parity/releases/tag/v1.3.9) (2016-10-21)
 
 This release enables EIP-150 hard fork for Ethereum Classic chain and resolves a few stability and performance issues, such as:
 - Interrupted syncing on the test network.
@@ -2332,7 +2332,7 @@ Full changes:
 - [beta] Bumping jsonrpc-http-server [#2715](https://github.com/paritytech/parity/pull/2715)
 - [beta] Fix migration system, better errors [#2661](https://github.com/paritytech/parity/pull/2661)
 
-## Parity [v1.3.8](https://github.com/paritytech/parity/releases/tag/v1.3.8)
+## Parity [v1.3.8](https://github.com/paritytech/parity/releases/tag/v1.3.8) (2016-10-15)
 
 Parity 1.3.8 is our EIP150 hard-fork compliant release.
 
@@ -2359,7 +2359,7 @@ The key related to homestead transition has been renamed from `frontierCompatibi
 - Bloom upgrade in beta [#2609](https://github.com/paritytech/parity/pull/2609)
 - Backports to beta [#2628](https://github.com/paritytech/parity/pull/2628)
 
-## Parity [v1.3.7](https://github.com/paritytech/parity/releases/tag/v1.3.7)
+## Parity [v1.3.7](https://github.com/paritytech/parity/releases/tag/v1.3.7) (2016-10-12)
 
 This release contains fixes to reduce memory usage under the DoS attack and improve transaction relay.
 
@@ -2367,7 +2367,7 @@ This release contains fixes to reduce memory usage under the DoS attack and impr
 - Backports to beta [#2592](https://github.com/paritytech/parity/pull/2592)
 
 
-## Parity [v1.3.6](https://github.com/paritytech/parity/releases/tag/v1.3.6)
+## Parity [v1.3.6](https://github.com/paritytech/parity/releases/tag/v1.3.6) (2016-10-11)
 
 Parity 1.3.6 is another hotfix release to address transaction spam and deal with stability issues. With this release transaction pool gas limit no longer applies to local transactions. Full list of changes is available here:
 
@@ -2375,14 +2375,14 @@ Parity 1.3.6 is another hotfix release to address transaction spam and deal with
 - Use global state cache when mining [#2529](https://github.com/paritytech/parity/pull/2529)
 - Transaction queue limited by gas [#2528](https://github.com/paritytech/parity/pull/2528)
 
-## Parity [v1.3.5](https://github.com/paritytech/parity/releases/tag/v1.3.5)
+## Parity [v1.3.5](https://github.com/paritytech/parity/releases/tag/v1.3.5) (2016-10-08)
 
 1.3.5 is a hotfix release for the transaction propagation issue. Transaction pool limit is now calculated based on the block gas limit.
 
 - Update appveyor rustc [beta] [#2521](https://github.com/paritytech/parity/pull/2521)
 - Increase size of transaction queue by default [#2519](https://github.com/paritytech/parity/pull/2519)
 
-## Parity [v1.3.4](https://github.com/paritytech/parity/releases/tag/v1.3.4)
+## Parity [v1.3.4](https://github.com/paritytech/parity/releases/tag/v1.3.4) (2016-10-07)
 
 Parity 1.3.4 release contains more optimizations to internal caching as well as stability improvements.
 
@@ -2404,7 +2404,7 @@ It also introduces an ability for miners to choose a transaction ordering strate
 - Beta backports [#2465](https://github.com/paritytech/parity/pull/2465)
 - IPC-library dependency fork & bump for beta [#2455](https://github.com/paritytech/parity/pull/2455)
 
-## Parity [v1.3.3](https://github.com/paritytech/parity/releases/tag/v1.3.3)
+## Parity [v1.3.3](https://github.com/paritytech/parity/releases/tag/v1.3.3) (2016-10-04)
 
 1.3.3 is another hotfix release for the DoS attack
 
@@ -2412,7 +2412,7 @@ It also introduces an ability for miners to choose a transaction ordering strate
 - fix broken beta compilation (backport to beta) [#2414](https://github.com/paritytech/parity/pull/2414)
 - Run inplace upgrades after version update [#2411](https://github.com/paritytech/parity/pull/2411)
 
-## Parity [v1.3.2](https://github.com/paritytech/parity/releases/tag/v1.3.2)
+## Parity [v1.3.2](https://github.com/paritytech/parity/releases/tag/v1.3.2) (2016-09-29)
 
 This is a hotfix release to address stability and performance issues uncovered during the network DoS attack. Full list of changes is available [here](https://github.com/paritytech/parity/compare/v1.3.1...v1.3.2)
 
@@ -2436,7 +2436,7 @@ This is a hotfix release to address stability and performance issues uncovered d
 - Avoid cloning clean stuff [beta backport] [#2173](https://github.com/paritytech/parity/pull/2173)
 - v1.3.2 in beta [#2200](https://github.com/paritytech/parity/pull/2200)
 
-## Parity [v1.3.1](https://github.com/paritytech/parity/releases/tag/v1.3.1)
+## Parity [v1.3.1](https://github.com/paritytech/parity/releases/tag/v1.3.1) (2016-09-11)
 
 1.3.1 includes many [bugfixes](https://github.com/paritytech/parity/commit/2a82fa0a47b00bedfec520a2fdd3cc31aa4ccd8c). Critical ones:
 - **Chain reorganisation fix** Transaction receipts / traces were sometimes linked with incorrect block hash. Fixed in https://github.com/paritytech/parity/commit/a9587f8965a32c84973c35ce1c8d51d07044143f
@@ -2447,7 +2447,7 @@ This is a hotfix release to address stability and performance issues uncovered d
 - Simplified db pruning detection in beta [#1924](https://github.com/paritytech/parity/pull/1924)
 - Backports to beta [#1919](https://github.com/paritytech/parity/pull/1919)
 
-## Parity [v1.3.0: "Acuity"](https://github.com/paritytech/parity/releases/tag/v1.3.0)
+## Parity [v1.3.0: "Acuity"](https://github.com/paritytech/parity/releases/tag/v1.3.0) (2016-08-12)
 
 As well as many bug fixes, 1.3.0 includes a number of important improvements including:
 - **Optimisations** Heavily optimised block/transaction processing core - up to 2x faster than 1.2 series.
@@ -2770,7 +2770,7 @@ Full changes:
 - Update Ubuntu-jit Dockerfile [#1427](https://github.com/paritytech/parity/pull/1427)
 - Update SF blocknumber to 1800000. [#1418](https://github.com/paritytech/parity/pull/1418)
 
-## Parity [v1.2.4](https://github.com/paritytech/parity/releases/tag/v1.2.4)
+## Parity [v1.2.4](https://github.com/paritytech/parity/releases/tag/v1.2.4) (2016-08-09)
 
 Parity 1.2.4 Is a maintenance release that fixes a [few](https://github.com/paritytech/parity/pull/1888/commits) issues related to mining and peer synchronization.
 This release is marked as stable.
@@ -2778,7 +2778,7 @@ This release is marked as stable.
 - Backports for beta [#1888](https://github.com/paritytech/parity/pull/1888)
 - BETA: fixed trace_transaction crash when block contained suicide [#1782](https://github.com/paritytech/parity/pull/1782)
 
-## Parity [v1.2.3](https://github.com/paritytech/parity/releases/tag/v1.2.3)
+## Parity [v1.2.3](https://github.com/paritytech/parity/releases/tag/v1.2.3) (2016-07-31)
 
 Parity 1.2.3 is a patch release that addresses network stability issues for both Ethereum HF and Ethereum classic chains and brings a few changes to the transaction tracing API.
 
@@ -2796,7 +2796,7 @@ Note that to continue using tracing features in this version you need to re-sync
 - [BETA] Removed DAO soft fork traces [#1640](https://github.com/paritytech/parity/pull/1640)
 
 
-## Parity [v1.2.2](https://github.com/paritytech/parity/releases/tag/v1.2.2)
+## Parity [v1.2.2](https://github.com/paritytech/parity/releases/tag/v1.2.2) (2016-07-16)
 
 #### New
 - DAO hard-fork.
@@ -2827,7 +2827,7 @@ Full changelog
 - Skipping transactions with invalid nonces when pushing to block. (#1545) [#1547](https://github.com/paritytech/parity/pull/1547)
 
 
-## Parity [v1.2.1](https://github.com/paritytech/parity/releases/tag/v1.2.1)
+## Parity [v1.2.1](https://github.com/paritytech/parity/releases/tag/v1.2.1) (2016-07-01)
 
 #### New
 - Options for more precise mining tuning (see below).
@@ -2859,7 +2859,7 @@ DAO soft-fork control options have been replaced by the single `--fork` option w
 - v1.2.1 in beta [#1492](https://github.com/paritytech/parity/pull/1492)
 - (BETA) add artifacts [#1420](https://github.com/paritytech/parity/pull/1420)
 
-## Parity [v1.2.0: "Security"](https://github.com/paritytech/parity/releases/tag/v1.2.0)
+## Parity [v1.2.0: "Security"](https://github.com/paritytech/parity/releases/tag/v1.2.0) (2016-06-24)
 
 [Blog post](https://blog.parity.io/announcing-parity-1-2/)
 
@@ -3145,7 +3145,7 @@ Full changes:
 - Version 1.2 [#1030](https://github.com/paritytech/parity/pull/1030)
 - Bumping status page [#1033](https://github.com/paritytech/parity/pull/1033)
 
-## Parity [v1.1.0](https://github.com/paritytech/parity/releases/tag/v1.1.0)
+## Parity [v1.1.0](https://github.com/paritytech/parity/releases/tag/v1.1.0) (2016-05-02)
 
 Parity 1.1.0 introduces:
 
@@ -3298,7 +3298,7 @@ Full Changes:
 - install-partiy runs brew reinstall parity on osx [#810](https://github.com/paritytech/parity/pull/810)
 - Fix mining from spinning [#807](https://github.com/paritytech/parity/pull/807)
 
-## Parity [v1.0.2](https://github.com/paritytech/parity/releases/tag/v1.0.2)
+## Parity [v1.0.2](https://github.com/paritytech/parity/releases/tag/v1.0.2) (2016-04-11)
 
 Parity 1.0.2 release improves Json RPC compatibility and fixes a number of stability issues.
 
@@ -3307,7 +3307,7 @@ Parity 1.0.2 release improves Json RPC compatibility and fixes a number of stabi
 - Master to beta v1.0.2 [#922](https://github.com/paritytech/parity/pull/922)
 - Master to beta 1.0.2 [#908](https://github.com/paritytech/parity/pull/908)
 
-## Parity [v1.0.1](https://github.com/paritytech/parity/releases/tag/v1.0.1)
+## Parity [v1.0.1](https://github.com/paritytech/parity/releases/tag/v1.0.1) (2016-03-28)
 
 Parity 1.0.1 update fixes a number of issues with Json RPC, transaction propagation and syncing.
 
@@ -3321,7 +3321,7 @@ Parity 1.0.1 update fixes a number of issues with Json RPC, transaction propagat
 - Fix mining from spinning [#806](https://github.com/paritytech/parity/pull/806)
 - Merge master to beta [#796](https://github.com/paritytech/parity/pull/796)
 
-## Parity [v1.0.0](https://github.com/paritytech/parity/releases/tag/v1.0.0)
+## Parity [v1.0.0](https://github.com/paritytech/parity/releases/tag/v1.0.0) (2016-03-24)
 
 Parity 1.0.0 release adds the following features:
 
@@ -3600,7 +3600,7 @@ Note that in this release the state database is in archive (full) mode by defaul
 - kcov uses travis_job_id instead of coveralls token [#370](https://github.com/paritytech/parity/pull/370)
 - Add parity-node-zero.ethcore.io to boot nodes. [#371](https://github.com/paritytech/parity/pull/371)
 
-## Parity [v1.0.0-rc1](https://github.com/paritytech/parity/releases/tag/v1.0.0-rc1)
+## Parity [v1.0.0-rc1](https://github.com/paritytech/parity/releases/tag/v1.0.0-rc1) (2016-03-15)
 
 First Parity 1.0.0 release candidate.
 
@@ -3614,7 +3614,7 @@ First Parity 1.0.0 release candidate.
 - (BETA) fix nightly - remerge [#454](https://github.com/paritytech/parity/pull/454)
 - (BETA) fixing nightly version for beta [#452](https://github.com/paritytech/parity/pull/452)
 
-## Parity [beta-0.9.1](https://github.com/paritytech/parity/releases/tag/beta-0.9.1)
+## Parity [beta-0.9.1](https://github.com/paritytech/parity/releases/tag/beta-0.9.1) (2016-02-16)
 
 Homestead transition block changed to 1100000.
 
@@ -3623,7 +3623,7 @@ Homestead transition block changed to 1100000.
 - (BETA) https link in the installer (?) [#392](https://github.com/paritytech/parity/pull/392)
 - beta: Check for handshake expiration before attempting replace [#377](https://github.com/paritytech/parity/pull/377)
 
-## Parity [beta-0.9](https://github.com/paritytech/parity/releases/tag/beta-0.9)
+## Parity [beta-0.9](https://github.com/paritytech/parity/releases/tag/beta-0.9) (2016-02-08)
 
 First Parity Beta 0.9 released.
 
