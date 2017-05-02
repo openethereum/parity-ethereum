@@ -1369,13 +1369,13 @@ mod tests {
 		let conf0 = parse(&["parity"]);
 		let conf1 = parse(&["parity", "--jsonrpc-hosts", "none"]);
 		let conf2 = parse(&["parity", "--jsonrpc-hosts", "all"]);
-		let conf3 = parse(&["parity", "--jsonrpc-hosts", "ethcore.io,something.io"]);
+		let conf3 = parse(&["parity", "--jsonrpc-hosts", "parity.io,something.io"]);
 
 		// then
 		assert_eq!(conf0.rpc_hosts(), Some(Vec::new()));
 		assert_eq!(conf1.rpc_hosts(), Some(Vec::new()));
 		assert_eq!(conf2.rpc_hosts(), None);
-		assert_eq!(conf3.rpc_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
+		assert_eq!(conf3.rpc_hosts(), Some(vec!["parity.io".into(), "something.io".into()]));
 	}
 
 	#[test]
@@ -1386,13 +1386,13 @@ mod tests {
 		let conf0 = parse(&["parity"]);
 		let conf1 = parse(&["parity", "--ipfs-api-hosts", "none"]);
 		let conf2 = parse(&["parity", "--ipfs-api-hosts", "all"]);
-		let conf3 = parse(&["parity", "--ipfs-api-hosts", "ethcore.io,something.io"]);
+		let conf3 = parse(&["parity", "--ipfs-api-hosts", "parity.io,something.io"]);
 
 		// then
 		assert_eq!(conf0.ipfs_hosts(), Some(Vec::new()));
 		assert_eq!(conf1.ipfs_hosts(), Some(Vec::new()));
 		assert_eq!(conf2.ipfs_hosts(), None);
-		assert_eq!(conf3.ipfs_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
+		assert_eq!(conf3.ipfs_hosts(), Some(vec!["parity.io".into(), "something.io".into()]));
 	}
 
 	#[test]
@@ -1402,12 +1402,12 @@ mod tests {
 		// when
 		let conf0 = parse(&["parity"]);
 		let conf1 = parse(&["parity", "--ipfs-api-cors", "*"]);
-		let conf2 = parse(&["parity", "--ipfs-api-cors", "http://ethcore.io,http://something.io"]);
+		let conf2 = parse(&["parity", "--ipfs-api-cors", "http://parity.io,http://something.io"]);
 
 		// then
 		assert_eq!(conf0.ipfs_cors(), None);
 		assert_eq!(conf1.ipfs_cors(), Some(vec!["*".into()]));
-		assert_eq!(conf2.ipfs_cors(), Some(vec!["http://ethcore.io".into(),"http://something.io".into()]));
+		assert_eq!(conf2.ipfs_cors(), Some(vec!["http://parity.io".into(),"http://something.io".into()]));
 	}
 
 	#[test]

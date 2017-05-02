@@ -1,7 +1,7 @@
 [package]
-authors = ["Ethcore <admin@ethcore.io>"]
+authors = ["Ethcore <admin@parity.io>"]
 description = "Parity Cli Tool"
-homepage = "http://ethcore.io"
+homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "rpc-cli"
 version = "1.4.0"
