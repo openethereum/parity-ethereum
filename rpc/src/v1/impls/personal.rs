@@ -115,7 +115,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 			Err(e) => return future::err(e).boxed(),
 		};
 
-		dispatcher.fill_optional_fields(request.into(), default)
+		dispatcher.fill_optional_fields(request.into(), default, false)
 			.and_then(move |filled| {
 				let condition = filled.condition.clone().map(Into::into);
 				dispatcher.sign(accounts, filled, SignWith::Password(password))
