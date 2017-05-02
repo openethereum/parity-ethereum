@@ -18,8 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import Paper from 'material-ui/Paper';
 import { RaisedButton, SelectField, MenuItem } from 'material-ui';
 
-import FindIcon from 'material-ui/svg-icons/action/find-in-page';
-import DeleteIcon from 'material-ui/svg-icons/action/delete';
+import { FindIcon, DeleteIcon } from '~/ui/Icons';
 
 import Loading from '../../Loading';
 import Chip from '../../Chip';

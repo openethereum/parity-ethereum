@@ -21,8 +21,8 @@ import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
 import DropDownMenu from 'material-ui/DropDownMenu';
 import MenuItem from 'material-ui/MenuItem';
-import RaisedButton from 'material-ui/RaisedButton';
-import CheckIcon from 'material-ui/svg-icons/navigation/check';
+import { Button } from '~/ui';
+import { CheckIcon } from '~/ui/Icons';
 
 import { nullableProptype } from '~/util/proptypes';
 import { fromWei } from '../parity.js';
@@ -124,13 +124,13 @@ class Names extends Component {
               <MenuItem value='reserve' primaryText='reserve this name' />
               <MenuItem value='drop' primaryText='drop this name' />
             </DropDownMenu>
-            <RaisedButton
+            <Button
               disabled={ pending }
               className={ styles.spacing }
               label={ action === 'reserve' ? 'Reserve' : 'Drop' }
               primary
               icon={ <CheckIcon /> }
-              onTouchTap={ this.onSubmitClick }
+              onClick={ this.onSubmitClick }
             />
           </div>
           { queue.length > 0

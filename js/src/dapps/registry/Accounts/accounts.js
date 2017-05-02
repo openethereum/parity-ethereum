@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import AccountIcon from 'material-ui/svg-icons/action/account-circle';
+import { AccountsIcon } from '~/ui/Icons';
 
 import { init } from './actions';
 import IdentityIcon from '../IdentityIcon';
@@ -42,7 +42,7 @@ class Accounts extends Component {
 
     if (!selected) {
       return (
-        <AccountIcon
+        <AccountsIcon
           className={ styles.icon }
           color='white'
         />

@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import { TextField } from 'material-ui';
-import CheckIcon from 'material-ui/svg-icons/navigation/check';
+import { CheckIcon } from '~/ui/Icons';
 import { green500 } from 'material-ui/styles/colors';
 
 import Loading from '../../Loading';

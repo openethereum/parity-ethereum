@@ -21,8 +21,8 @@ import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
 import DropDownMenu from 'material-ui/DropDownMenu';
 import MenuItem from 'material-ui/MenuItem';
-import RaisedButton from 'material-ui/RaisedButton';
-import SaveIcon from 'material-ui/svg-icons/content/save';
+import { Button } from '~/ui';
+import { SaveIcon } from '~/ui/Icons';
 
 import { nullableProptype } from '~/util/proptypes';
 import { clearError, update } from './actions';
@@ -76,13 +76,13 @@ class Records extends Component {
               onChange={ this.onValueChange }
             />
             <div className={ styles.button }>
-              <RaisedButton
+              <Button
                 disabled={ pending }
                 className={ styles.spacing }
                 label='Save'
                 primary
                 icon={ <SaveIcon /> }
-                onTouchTap={ this.onSaveClick }
+                onClick={ this.onSaveClick }
               />
             </div>
           </div>
