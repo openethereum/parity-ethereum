@@ -14,30 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { PropTypes } from 'react';
+import React from 'react';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
-import Byline from './Byline';
-import Description from './Description';
+import styles from '../title.css';
 
-import styles from './title.css';
+export default function Byline ({ byline }) {
+  if (!byline) {
+    return null;
+  }
 
-export default function Title ({ byline, className, description, title }) {
   return (
-    <div className={ className }>
-      <h3 className={ styles.title }>
-        { title }
-      </h3>
-      <Byline byline={ byline } />
-      <Description description={ description } />
+    <div className={ styles.byline }>
+      {
+        typeof byline === 'string'
+          ? (
+            <span title={ byline }>
+              { byline }
+            </span>
+          )
+          : byline
+      }
     </div>
   );
 }
 
-Title.propTypes = {
-  byline: nodeOrStringProptype(),
-  className: PropTypes.string,
-  description: nodeOrStringProptype(),
-  title: nodeOrStringProptype()
+Byline.propTypes = {
+  byline: nodeOrStringProptype()
 };
