@@ -37,7 +37,6 @@ $borderColor: rgba($baseColor, $baseColor, $baseColor, 0.25);
 .request {
   animation-fill-mode: forwards;
   animation-timing-function: cubic-bezier(0.7, 0, 0.3, 1);
-  background-color: rgba($baseColor, $baseColor, $baseColor, $baseOpacity);
   border: 4px solid $borderColor;
   cursor: pointer;
   margin-top: 0.25em;
@@ -62,10 +61,6 @@ $borderColor: rgba($baseColor, $baseColor, $baseColor, 0.25);
     display: flex;
     flex-direction: row;
     padding: 1em 1em 0.5em 1em;
-  }
-
-  &:hover .container {
-    background-color: rgba($baseColor, $baseColor, $baseColor, 1);
   }
 
   p {
