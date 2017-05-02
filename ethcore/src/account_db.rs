@@ -77,12 +77,6 @@ pub struct AccountDB<'db> {
 }
 
 impl<'db> AccountDB<'db> {
-	/// Create a new AccountDB from an address.
-	#[allow(dead_code)]
-	pub fn new(db: &'db HashDB, address: &Address) -> Self {
-		Self::from_hash(db, address.sha3())
-	}
-
 	/// Create a new AcountDB from an address' hash.
 	pub fn from_hash(db: &'db HashDB, address_hash: H256) -> Self {
 		AccountDB {
@@ -131,23 +125,12 @@ pub struct AccountDBMut<'db> {
 }
 
 impl<'db> AccountDBMut<'db> {
-	/// Create a new AccountDB from an address.
-	#[allow(dead_code)]
-	pub fn new(db: &'db mut HashDB, address: &Address) -> Self {
-		Self::from_hash(db, address.sha3())
-	}
-
 	/// Create a new AcountDB from an address' hash.
 	pub fn from_hash(db: &'db mut HashDB, address_hash: H256) -> Self {
 		AccountDBMut {
 			db: db,
 			address_hash: address_hash,
 		}
-	}
-
-	#[allow(dead_code)]
-	pub fn immutable(&'db self) -> AccountDB<'db> {
-		AccountDB { db: self.db, address_hash: self.address_hash.clone() }
 	}
 }
 
