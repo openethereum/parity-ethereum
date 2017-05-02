@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Checkbox, MenuItem } from 'material-ui';
+import { MenuItem } from 'material-ui';
+import { Checkbox } from 'semantic-ui-react';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -104,7 +105,7 @@ export default class OptionsStep extends Component {
                 defaultMessage='I understand that ShapeShift.io is a 3rd-party service and by using the service any transfer of information and/or funds is completely out of the control of Parity'
               />
             }
-            onCheck={ this.onToggleAcceptTerms }
+            onClick={ this.onToggleAcceptTerms }
           />
         </Form>
         <Warning warning={ WARNING_LABELS[warning] } />

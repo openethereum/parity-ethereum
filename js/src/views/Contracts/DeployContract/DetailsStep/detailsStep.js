@@ -16,7 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Checkbox, MenuItem } from 'material-ui';
+import { MenuItem } from 'material-ui';
+import { Checkbox } from 'semantic-ui-react';
 
 import { AddressSelect, Form, Input, Select } from '~/ui';
 import { validateAbi } from '~/util/validation';
@@ -207,7 +208,7 @@ export default class DetailsStep extends Component {
                 defaultMessage='advanced sending options'
               />
             }
-            onCheck={ this.onCheckExtras }
+            onClick={ this.onCheckExtras }
             style={ CHECK_STYLE }
           />
         </div>

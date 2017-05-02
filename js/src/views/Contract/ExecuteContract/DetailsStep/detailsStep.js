@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Checkbox, MenuItem } from 'material-ui';
+import { MenuItem } from 'material-ui';
+import { Checkbox } from 'semantic-ui-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
@@ -103,7 +104,7 @@ export default class DetailsStep extends Component {
                   defaultMessage='advanced sending options'
                 />
               }
-              onCheck={ onAdvancedClick }
+              onClick={ onAdvancedClick }
               style={ CHECK_STYLE }
             />
           </div>

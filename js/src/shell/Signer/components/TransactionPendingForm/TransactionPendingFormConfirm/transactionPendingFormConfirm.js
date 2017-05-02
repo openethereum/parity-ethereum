@@ -79,13 +79,6 @@ export default class TransactionPendingFormConfirm extends Component {
     }
   }
 
-  /**
-   * Properly focus on the input element when needed.
-   * This might be fixed some day in MaterialUI with
-   * an autoFocus prop.
-   *
-   * @see https://github.com/callemall/material-ui/issues/5632
-   */
   focus (props = this.props) {
     if (props.focus) {
       const textNode = ReactDOM.findDOMNode(this.refs.input);

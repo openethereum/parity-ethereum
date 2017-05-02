@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { FlatButton } from 'material-ui';
+import { Button } from '~/ui/Button';
 
 import { CancelIcon, DoneIcon, NextIcon } from '~/ui/Icons';
 import { nodeOrStringProptype } from '~/util/proptypes';
@@ -63,7 +63,7 @@ class Tooltip extends Component {
 
     const buttons = id !== maxId
       ? [
-        <FlatButton
+        <Button
           icon={ <CancelIcon /> }
           key='skipButton'
           label={
@@ -74,7 +74,7 @@ class Tooltip extends Component {
           }
           onTouchTap={ onCloseTooltips }
         />,
-        <FlatButton
+        <Button
           icon={ <NextIcon /> }
           key='nextButton'
           label={
@@ -86,7 +86,7 @@ class Tooltip extends Component {
           onTouchTap={ onNextTooltip }
         />
       ] : (
-        <FlatButton
+        <Button
           icon={ <DoneIcon /> }
           label={
             <FormattedMessage

@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { Checkbox } from 'material-ui';
+import { Checkbox } from 'semantic-ui-react';
 
 import { Container } from '~/ui';
 
@@ -116,7 +116,7 @@ class Views extends Component {
               </div>
             </div>
           }
-          onCheck={ toggle }
+          onClick={ toggle }
           checked={ view.active }
           value={ view.active }
         />
