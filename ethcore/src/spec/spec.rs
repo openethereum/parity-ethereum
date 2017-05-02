@@ -354,8 +354,6 @@ impl Spec {
 
 		// TODO: could optimize so we don't re-run, but `ensure_db_good` is barely ever
 		// called anyway.
-		//
-		// call with boxed_clone so things don't stick around in cache forever.
 		let db = self.run_constructors(factories, db)?;
 
 		Ok(db)
