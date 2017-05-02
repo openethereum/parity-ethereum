@@ -93,6 +93,14 @@ pub enum Field<T> {
 }
 
 impl<T> Field<T> {
+	/// map a scalar into some other item.
+	pub fn map<F, U>(self, f: F) -> Field<U> where F: FnOnce(T) -> U {
+		match self {
+			Field::Scalar(x) => Field::Scalar(f(x)),
+			Field::BackReference(req, idx) => Field::BackReference(req, idx),
+		}
+	}
+
 	// attempt conversion into scalar value.
 	fn into_scalar(self) -> Result<T, NoSuchOutput> {
 		match self {

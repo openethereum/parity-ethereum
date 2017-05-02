@@ -26,7 +26,7 @@ use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
 use ethcore::transaction::SignedTransaction;
 
-use request::{self as net_request, IncompleteRequest, Output, OutputKind};
+use request::{self as net_request, IncompleteRequest, Output, OutputKind, Field};
 
 use rlp::{RlpStream, UntrustedRlp};
 use util::{Address, Bytes, DBValue, HashDB, Mutex, H256, U256};
@@ -173,6 +173,49 @@ mod impls {
     impl_args!(A, B, C, D, E, F, G, H, I, J, K, L,);
 }
 
+/// A block header to be used for verification.
+/// May be stored or an unresolved output of a prior request.
+pub enum HeaderRef {
+	/// A stored header.
+	Stored(encoded::Header),
+	/// An unresolved header. The first item here is the index of the request which
+	/// will return the header. The second is a back-reference pointing to a block hash
+	/// which can be used to make requests until that header is resolved.
+	Unresolved(usize, Field<H256>),
+}
+
+impl HeaderRef {
+	// Attempt to inspect the header.
+	fn as_ref(&self) -> Result<&encoded::Header, Error> {
+		match *self {
+			HeaderRef::Stored(ref hdr) => Ok(hdr),
+			HeaderRef::Unresolved(idx, _) => Err(Error::UnresolvedHeader(idx)),
+		}
+	}
+
+	// get the blockhash field to be used in requests.
+	fn field(&self) -> Field<H256> {
+		match *self {
+			HeaderRef::Stored(ref hdr) => Field::Scalar(hdr.hash()),
+			HeaderRef::Unresolved(_, ref f) => f.clone(),
+		}
+	}
+
+	// yield the index of the request which will produce the header.
+	fn needs_header(&self) -> Option<usize> {
+		match *self {
+			HeaderRef::Stored(_) => None,
+			HeaderRef::Unresolved(idx, _) => Some(idx),
+		}
+	}
+}
+
+impl From<encoded::Header> for HeaderRef {
+	fn from(header: encoded::Header) -> Self {
+		HeaderRef::Stored(header)
+	}
+}
+
 /// Requests coupled with their required data for verification.
 /// This is used internally but not part of the public API.
 #[derive(Clone)]
@@ -192,7 +235,7 @@ impl From<Request> for CheckedRequest {
 		match req {
 			Request::HeaderByHash(req) => {
 				let net_req = net_request::IncompleteHeadersRequest {
-					start: net_request::HashOrNumber::Hash(req.0).into(),
+					start: req.0.map(Into::into),
 					skip: 0,
 					max: 1,
 					reverse: false,
@@ -207,19 +250,19 @@ impl From<Request> for CheckedRequest {
 			}
 			Request::Body(req) =>  {
 				let net_req = net_request::IncompleteBodyRequest {
-					hash: req.hash.into(),
+					hash: req.0.field(),
 				};
 				CheckedRequest::Body(req, net_req)
 			}
 			Request::Receipts(req) => {
 				let net_req = net_request::IncompleteReceiptsRequest {
-					hash: req.0.hash().into(),
+					hash: req.0.field(),
 				};
 				CheckedRequest::Receipts(req, net_req)
 			}
-			Request::Account(req) =>  {
+			Request::Account(req) => {
 				let net_req = net_request::IncompleteAccountRequest {
-					block_hash: req.header.hash().into(),
+					block_hash: req.header.field(),
 					address_hash: ::util::Hashable::sha3(&req.address).into(),
 				};
 				CheckedRequest::Account(req, net_req)
@@ -233,7 +276,7 @@ impl From<Request> for CheckedRequest {
 			}
 			Request::Execution(req) => {
 				let net_req = net_request::IncompleteExecutionRequest {
-					block_hash: req.header.hash().into(),
+					block_hash: req.header.field(),
 					from: req.tx.sender(),
 					gas: req.tx.gas,
 					gas_price: req.tx.gas_price,
@@ -262,16 +305,40 @@ impl CheckedRequest {
 			CheckedRequest::Execution(_, req) => NetRequest::Execution(req),
 		}
 	}
+
+	/// Whether this needs a header from a prior request.
+	/// Returns `Some` and the index of the request returning the header
+	/// if so, `None` otherwise.
+	pub fn needs_header(&self) -> Option<usize> {
+		match *self {
+			CheckedRequest::Receipts(ref x, _) => x.0.needs_header(),
+			CheckedRequest::Body(ref x, _) => x.0.needs_header(),
+			CheckedRequest::Account(ref x, _) => x.header.needs_header(),
+			CheckedRequest::Code(ref x, _) => x.header.needs_header(),
+			CheckedRequest::Execution(ref x, _) => x.header.needs_header(),
+			_ => None,
+		}
+	}
+
+	/// Provide a header where one was needed. Should only be called if `needs_header`
+	/// returns `Some`, and for correctness, only use the header yielded by the correct
+	/// request.
+	pub fn provide_header(&mut self, header: encoded::Header) {
+		match *self {
+			CheckedRequest::Receipts(ref mut x, _) => x.0 = HeaderRef::Stored(header),
+			CheckedRequest::Body(ref mut x, _) => x.0 = HeaderRef::Stored(header),
+			CheckedRequest::Account(ref mut x, _) => x.header = HeaderRef::Stored(header),
+			CheckedRequest::Code(ref mut x, _) => x.header = HeaderRef::Stored(header),
+			CheckedRequest::Execution(ref mut x, _) => x.header = HeaderRef::Stored(header),
+			_ => {},
+		}
+	}
 }
 
 impl IncompleteRequest for CheckedRequest {
 	type Complete = net_request::CompleteRequest;
 	type Response = net_request::Response;
 
-	/// Check prior outputs against the needed inputs.
-	///
-	/// This is called to ensure consistency of this request with
-	/// others in the same packet.
 	fn check_outputs<F>(&self, f: F) -> Result<(), net_request::NoSuchOutput>
 		where F: FnMut(usize, usize, OutputKind) -> Result<(), net_request::NoSuchOutput>
 	{
@@ -286,7 +353,6 @@ impl IncompleteRequest for CheckedRequest {
 		}
 	}
 
-	/// Note that this request will produce the following outputs.
 	fn note_outputs<F>(&self, f: F) where F: FnMut(usize, OutputKind) {
 		match *self {
 			CheckedRequest::HeaderProof(_, ref req) => req.note_outputs(f),
@@ -299,11 +365,6 @@ impl IncompleteRequest for CheckedRequest {
 		}
 	}
 
-	/// Fill fields of the request.
-	///
-	/// This function is provided an "output oracle" which allows fetching of
-	/// prior request outputs.
-	/// Only outputs previously checked with `check_outputs` may be available.
 	fn fill<F>(&mut self, f: F) where F: Fn(usize, usize) -> Result<Output, net_request::NoSuchOutput> {
 		match *self {
 			CheckedRequest::HeaderProof(_, ref mut req) => req.fill(f),
@@ -316,7 +377,6 @@ impl IncompleteRequest for CheckedRequest {
 		}
 	}
 
-	/// Will succeed if all fields have been filled, will fail otherwise.
 	fn complete(self) -> Result<Self::Complete, net_request::NoSuchOutput> {
 		use ::request::CompleteRequest;
 
@@ -407,6 +467,8 @@ pub enum Error {
 	Trie(TrieError),
 	/// Bad inclusion proof
 	BadProof,
+	/// Unresolved header reference.
+	UnresolvedHeader(usize),
 	/// Wrong header number.
 	WrongNumber(u64, u64),
 	/// Wrong hash.
@@ -477,7 +539,7 @@ impl HeaderProof {
 
 /// Request for a header by hash.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HeaderByHash(pub H256);
+pub struct HeaderByHash(pub Field<H256>);
 
 impl HeaderByHash {
 	/// Check a response for the header.
@@ -494,41 +556,28 @@ impl HeaderByHash {
 	}
 }
 
-/// Request for a block, with header and precomputed hash.
+/// Request for a block, with header for verification.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Body {
-	/// The block's header.
-	pub header: encoded::Header,
-	/// The block's hash.
-	pub hash: H256,
-}
+pub struct Body(pub HeaderRef);
 
 impl Body {
-	/// Create a request for a block body from a given header.
-	pub fn new(header: encoded::Header) -> Self {
-		let hash = header.hash();
-		Body {
-			header: header,
-			hash: hash,
-		}
-	}
-
 	/// Check a response for this block body.
 	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, body: &encoded::Body) -> Result<encoded::Block, Error> {
 		// check the integrity of the the body against the header
+		let header = self.0.as_ref()?;
 		let tx_root = ::util::triehash::ordered_trie_root(body.rlp().at(0).iter().map(|r| r.as_raw().to_vec()));
-		if tx_root != self.header.transactions_root() {
-			return Err(Error::WrongTrieRoot(self.header.transactions_root(), tx_root));
+		if tx_root != header.transactions_root() {
+			return Err(Error::WrongTrieRoot(header.transactions_root(), tx_root));
 		}
 
 		let uncles_hash = body.rlp().at(1).as_raw().sha3();
-		if uncles_hash != self.header.uncles_hash() {
-			return Err(Error::WrongHash(self.header.uncles_hash(), uncles_hash));
+		if uncles_hash != header.uncles_hash() {
+			return Err(Error::WrongHash(header.uncles_hash(), uncles_hash));
 		}
 
 		// concatenate the header and the body.
 		let mut stream = RlpStream::new_list(3);
-		stream.append_raw(self.header.rlp().as_raw(), 1);
+		stream.append_raw(header.rlp().as_raw(), 1);
 		stream.append_raw(body.rlp().at(0).as_raw(), 1);
 		stream.append_raw(body.rlp().at(1).as_raw(), 1);
 
@@ -540,12 +589,12 @@ impl Body {
 
 /// Request for a block's receipts with header for verification.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BlockReceipts(pub encoded::Header);
+pub struct BlockReceipts(pub HeaderRef);
 
 impl BlockReceipts {
 	/// Check a response with receipts against the stored header.
 	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, receipts: &[Receipt]) -> Result<Vec<Receipt>, Error> {
-		let receipts_root = self.0.receipts_root();
+		let receipts_root = self.0.as_ref()?.receipts_root();
 		let found_root = ::util::triehash::ordered_trie_root(receipts.iter().map(|r| ::rlp::encode(r).to_vec()));
 
 		match receipts_root == found_root {
@@ -562,7 +611,7 @@ impl BlockReceipts {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Account {
 	/// Header for verification.
-	pub header: encoded::Header,
+	pub header: HeaderRef,
 	/// Address requested.
 	pub address: Address,
 }
@@ -570,7 +619,8 @@ pub struct Account {
 impl Account {
 	/// Check a response with an account against the stored header.
 	pub fn check_response(&self, _: &Mutex<::cache::Cache>, proof: &[Bytes]) -> Result<Option<BasicAccount>, Error> {
-		let state_root = self.header.state_root();
+		let header = self.header.as_ref()?;
+		let state_root = header.state_root();
 
 		let mut db = MemoryDB::new();
 		for node in proof { db.insert(&node[..]); }
@@ -593,10 +643,10 @@ impl Account {
 /// Request for account code.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Code {
-	/// Block hash, number pair.
-	pub block_id: (H256, u64),
+	/// Header reference.
+	pub header: HeaderRef,
 	/// Account's code hash.
-	pub code_hash: H256,
+	pub code_hash: Field<H256>,
 }
 
 impl Code {
@@ -617,7 +667,7 @@ pub struct TransactionProof {
 	/// The transaction to request proof of.
 	pub tx: SignedTransaction,
 	/// Block header.
-	pub header: encoded::Header,
+	pub header: HeaderRef,
 	/// Transaction environment info.
 	pub env_info: EnvInfo,
 	/// Consensus engine.
@@ -627,7 +677,7 @@ pub struct TransactionProof {
 impl TransactionProof {
 	/// Check the proof, returning the proved execution or indicate that the proof was bad.
 	pub fn check_response(&self, _: &Mutex<::cache::Cache>, state_items: &[DBValue]) -> Result<super::ExecutionResult, Error> {
-		let root = self.header.state_root();
+		let root = self.header.as_ref()?.state_root();
 
 		let mut env_info = self.env_info.clone();
 		env_info.gas_limit = self.tx.gas.clone();

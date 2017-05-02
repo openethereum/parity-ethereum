@@ -19,6 +19,7 @@
 //! supplied as well.
 
 use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 use request::{
 	IncompleteRequest, OutputKind, Output, NoSuchOutput, ResponseError, ResponseLike,
 };
@@ -167,6 +168,20 @@ impl Requests<super::Request> {
 		}
 
 		responses
+	}
+}
+
+impl<T: IncompleteRequest> Deref for Requests<T> {
+	type Target = [T];
+
+	fn deref(&self) -> &[T] {
+		&self.requests[..]
+	}
+}
+
+impl<T: IncompleteRequest> DerefMut for Requests<T> {
+	fn deref_mut(&mut self) -> &mut [T] {
+		&mut self.requests[..]
 	}
 }
 

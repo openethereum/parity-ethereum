@@ -100,16 +100,21 @@ fn guess_capabilities(requests: &[CheckedRequest]) -> Capabilities {
 				caps.serve_headers = true,
 			CheckedRequest::HeaderByHash(_, _) =>
 				caps.serve_headers = true,
-			CheckedRequest::Body(ref req, _) =>
-				update_since(&mut caps.serve_chain_since, req.header.number()),
-			CheckedRequest::Receipts(ref req, _) =>
-				update_since(&mut caps.serve_chain_since, req.0.number()),
-			CheckedRequest::Account(ref req, _) =>
-				update_since(&mut caps.serve_state_since, req.header.number()),
-			CheckedRequest::Code(ref req, _) =>
-				update_since(&mut caps.serve_state_since, req.block_id.1),
-			CheckedRequest::Execution(ref req, _) =>
-				update_since(&mut caps.serve_state_since, req.header.number()),
+			CheckedRequest::Body(ref req, _) => if let Ok(ref hdr) = req.0.as_ref() {
+				update_since(&mut caps.serve_chain_since, hdr.number());
+			},
+			CheckedRequest::Receipts(ref req, _) => if let Ok(ref hdr) = req.0.as_ref() {
+				update_since(&mut caps.serve_chain_since, hdr.number());
+			},
+			CheckedRequest::Account(ref req, _) => if let Ok(ref hdr) = req.header.as_ref() {
+				update_since(&mut caps.serve_state_since, hdr.number());
+			},
+			CheckedRequest::Code(ref req, _) => if let Ok(ref hdr) = req.header.as_ref() {
+				update_since(&mut caps.serve_state_since, hdr.number());
+			},
+			CheckedRequest::Execution(ref req, _) => if let Ok(ref hdr) = req.header.as_ref() {
+				update_since(&mut caps.serve_state_since, hdr.number());
+			},
 		}
 	}
 
@@ -325,6 +330,8 @@ impl OnDemand {
 	pub fn request_raw(&self, ctx: &BasicContext, requests: Vec<Request>)
 		-> Result<Receiver<Vec<Response>>, basic_request::NoSuchOutput>
 	{
+		use std::collections::HashSet;
+
 		let (sender, receiver) = oneshot::channel();
 
 		if requests.is_empty() {
@@ -335,8 +342,20 @@ impl OnDemand {
 		let mut builder = basic_request::RequestBuilder::default();
 
 		let responses = Vec::with_capacity(requests.len());
-		for request in requests {
-			builder.push(CheckedRequest::from(request))?;
+
+		let mut header_producers = HashSet::new();
+		for (i, request) in requests.into_iter().enumerate() {
+			let request = CheckedRequest::from(request);
+
+			// ensure that all requests needing headers will get them.
+			if let Some(idx) = request.needs_header() {
+				if !header_producers.contains(&idx) { return Err(basic_request::NoSuchOutput) }
+			}
+			if let CheckedRequest::HeaderByHash(_, _) = request {
+				header_producers.insert(i);
+			}
+
+			builder.push(request)?;
 		}
 
 		let requests = builder.build();
@@ -479,13 +498,28 @@ impl Handler for OnDemand {
 		};
 
 		// for each incoming response
-		//   1. ensure verification data filled. (still TODO since on_demand doesn't use back-references yet)
+		//   1. ensure verification data filled.
 		//   2. pending.requests.supply_response
 		//   3. if extracted on-demand response
 		for response in responses {
 			match pending.requests.supply_response(&*self.cache, response) {
 				Ok(response) => {
-					pending.responses.push(response)
+					match response {
+						Response::HeaderByHash(ref hdr) => {
+							// fill the header for all requests waiting on this one.
+							// TODO: could be faster if we stored a map usize => Vec<usize>
+							// but typical use just has one header request that others
+							// depend on.
+							let num_answered = pending.requests.num_answered();
+							for r in pending.requests.requests.iter().skip(num_answered) {
+								if r.needs_header() == Some(num_answered - 1) {
+									r.provide_header(hdr.clone())
+								}
+							}
+						}
+						_
+					}
+					pending.responses.push(response);
 				}
 				Err(e) => {
 					let peer = ctx.peer();
