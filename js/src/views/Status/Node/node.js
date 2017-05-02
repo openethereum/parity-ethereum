@@ -25,9 +25,9 @@ import { Container, ContainerTitle, Input } from '~/ui';
 import MiningSettings from '../MiningSettings';
 import StatusStore from './store';
 
-import styles from './nodeStatus.css';
+import styles from './node.css';
 
-class NodeStatus extends Component {
+class Node extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
@@ -298,4 +298,4 @@ function mapStateToProps (state) {
 export default connect(
   mapStateToProps,
   null
-)(NodeStatus);
+)(Node);

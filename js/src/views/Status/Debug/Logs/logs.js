@@ -15,31 +15,32 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React from 'react';
-import { FormattedMessage } from 'react-intl';
 
-import { Page } from '~/ui';
+import { arrayOrObjectProptype } from '~/util/proptypes';
 
-import Debug from './Debug';
-import Node from './Node';
-import Peers from './Peers';
+import styles from '../debug.css';
 
-import styles from './status.css';
+export default function Logs ({ logs }) {
+  if (!logs || logs.length === 0) {
+    return null;
+  }
 
-export default function Status () {
   return (
-    <Page
-      title={
-        <FormattedMessage
-          id='status.title'
-          defaultMessage='Status'
-        />
+    <div className={ styles.logs }>
+      {
+        logs.map((log, index) => {
+          return (
+            <p key={ index } className={ styles.log }>
+              <span className={ styles.logDate }>[{ log.date.toLocaleString() }]</span>
+              <span className={ styles.logText }>{ log.log }</span>
+            </p>
+          );
+        })
       }
-    >
-      <div className={ styles.body }>
-        <Node />
-        <Peers />
-        <Debug />
-      </div>
-    </Page>
+    </div>
   );
 }
+
+Logs.propTypes = {
+  logs: arrayOrObjectProptype()
+};

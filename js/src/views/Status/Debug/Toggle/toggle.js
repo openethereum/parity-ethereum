@@ -14,4 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './nodeStatus';
+import React, { PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
+
+import styles from '../debug.css';
+
+export default function Toggle ({ logsEnabled }) {
+  if (logsEnabled) {
+    return null;
+  }
+
+  return (
+    <div className={ styles.stopped }>
+      <FormattedMessage
+        id='status.debug.stopped'
+        defaultMessage='Refresh and display of logs from Parity is currently stopped via the UI, start it to see the latest updates.'
+      />
+    </div>
+  );
+}
+
+Toggle.propTypes = {
+  logsEnabled: PropTypes.bool
+};
