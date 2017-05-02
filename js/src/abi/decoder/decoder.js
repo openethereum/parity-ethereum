@@ -23,6 +23,7 @@ import ParamType from '../spec/paramType/paramType';
 import { sliceData } from '../util/slice';
 import { asAddress, asBool, asI32, asU32 } from '../util/sliceAs';
 import { isArray, isInstanceOf } from '../util/types';
+import { hexToAscii } from '../../api/util/format';
 
 const NULL = '0000000000000000000000000000000000000000000000000000000000000000';
 
@@ -113,7 +114,15 @@ export default class Decoder {
 
         const str = taken.bytes.map((code) => String.fromCharCode(code)).join('');
 
-        return new DecodeResult(new Token(param.type, utf8.decode(str)), offset + 1);
+        let decoded;
+
+        try {
+          decoded = utf8.decode(str);
+        } catch (error) {
+          decoded = str;
+        }
+
+        return new DecodeResult(new Token(param.type, decoded), offset + 1);
 
       case 'array':
         lengthOffset = asU32(Decoder.peek(slices, offset)).div(32).toNumber();
