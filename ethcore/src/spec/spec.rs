@@ -133,7 +133,7 @@ fn load_from(s: ethjson::spec::Spec) -> Result<Spec, Error> {
 	let GenericSeal(seal_rlp) = g.seal.into();
 	let params = CommonParams::from(s.params);
 
-	let s = Spec {
+	let mut s = Spec {
 		name: s.name.clone().into(),
 		params: params.clone(),
 		engine: Spec::engine(s.engine, params, builtins),
@@ -154,7 +154,11 @@ fn load_from(s: ethjson::spec::Spec) -> Result<Spec, Error> {
 		genesis_state: s.accounts.into(),
 	};
 
-	let _ = s.run_constructors(&Default::default(), BasicBackend(MemoryDB::new()))?;
+	// use memoized state root if provided.
+	match g.state_root {
+		Some(root) => *s.state_root_memo.get_mut() = root,
+		None => { let _ = s.run_constructors(&Default::default(), BasicBackend(MemoryDB::new()))?; },
+	}
 
 	Ok(s)
 }
