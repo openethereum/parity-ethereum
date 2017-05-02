@@ -36,6 +36,7 @@ export Features, { FEATURES, FeaturesStore } from './Features';
 export Form, { AddressSelect, DappUrlInput, FileSelect, FormWrap, Input, InputAddress, InputAddressSelect, InputChip, InputDate, InputInline, InputTime, Label, RadioButtons, Select, TypedInput, VaultSelect } from './Form';
 export GasPriceEditor from './GasPriceEditor';
 export GasPriceSelector from './GasPriceSelector';
+export IconCache from './IconCache';
 export Icons from './Icons';
 export IdentityIcon from './IdentityIcon';
 export IdentityName from './IdentityName';

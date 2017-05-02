@@ -17,9 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import { hashToImageUrl } from '~/redux/providers/imagesReducer';
-
 import defaultIcon from '~/../assets/images/certifications/unknown.svg';
+import IconCache from '~/ui/IconCache';
 
 import styles from './certifications.css';
 
@@ -68,7 +67,7 @@ class Certifications extends Component {
           className={ styles.icon }
           src={
             icon
-              ? `${dappsUrl}${hashToImageUrl(icon)}`
+              ? `${dappsUrl}${IconCache.hashToImage(icon)}`
               : defaultIcon
           }
         />

@@ -20,7 +20,7 @@ import BigNumber from 'bignumber.js';
 import { sha3 } from '@parity/api/util/sha3';
 
 import imagesEthereum from '~/../assets/images/contracts/ethereum-black-64x64.png';
-import { hashToImageUrl } from '~/redux/util';
+import { IconCache } from '~/ui';
 
 const BALANCEOF_SIGNATURE = sha3('balanceOf(address)');
 const ADDRESS_PADDING = range(24).map(() => '0').join('');
@@ -57,7 +57,7 @@ export function fetchTokenInfo (api, tokenregInstace, tokenIndex) {
       const token = {
         format: format.toString(),
         index: tokenIndex,
-        image: hashToImageUrl(image),
+        image: IconCache.hashToImage(image),
         id: sha3(address + tokenIndex).slice(0, 10),
         address,
         name,
