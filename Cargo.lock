@@ -2044,7 +2044,7 @@ dependencies = [
 [[package]]
 name = "rocksdb"
 version = "0.4.5"
-source = "git+https://github.com/paritytech/rust-rocksdb#8579e896a98cdeff086392236d411dd4aa141774"
+source = "git+https://github.com/paritytech/rust-rocksdb#acd192f6ee017a3e8be704958617349d20ee783b"
 dependencies = [
  "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "rocksdb-sys 0.3.0 (git+https://github.com/paritytech/rust-rocksdb)",
@@ -2053,7 +2053,7 @@ dependencies = [
 [[package]]
 name = "rocksdb-sys"
 version = "0.3.0"
-source = "git+https://github.com/paritytech/rust-rocksdb#8579e896a98cdeff086392236d411dd4aa141774"
+source = "git+https://github.com/paritytech/rust-rocksdb#acd192f6ee017a3e8be704958617349d20ee783b"
 dependencies = [
  "gcc 0.3.43 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
