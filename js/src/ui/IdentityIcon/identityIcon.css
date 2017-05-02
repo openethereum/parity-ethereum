@@ -52,7 +52,7 @@
 
 .button {
   display: inline;
-  width: 24px;
-  height: 24px;
-  margin: 6px 0.25em 0 12px;
+  width: 1em;
+  height: 1em;
+  margin: 0 0.25em;
 }

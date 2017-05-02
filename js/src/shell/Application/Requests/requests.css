@@ -15,9 +15,9 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$baseColor: 18;
+$baseColor: 255;
 $baseOpacity: 0.95;
-$borderColor: rgba($baseColor, $baseColor, $baseColor, 0.25);
+$borderColor: rgba(0, 0, 0, 0.15);
 
 .requests {
   align-items: flex-end;

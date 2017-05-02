@@ -15,13 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
-import { connect } from 'react-redux';
 
 import unknownImage from '~/../assets/images/contracts/unknown-64x64.png';
+import IconCache from '~/ui/IconCache';
 
-function TokenImage ({ image, token }, context) {
+const iconCache = IconCache.get();
+
+export default function TokenImage ({ token }, context) {
   const { api } = context;
-  const imageurl = token.image || image;
+  const imageurl = token.image || iconCache.images[token.address];
   let imagesrc = unknownImage;
 
   if (imageurl) {
@@ -45,24 +47,8 @@ TokenImage.contextTypes = {
 };
 
 TokenImage.propTypes = {
-  image: PropTypes.string,
   token: PropTypes.shape({
     image: PropTypes.string,
     address: PropTypes.string
   }).isRequired
 };
-
-function mapStateToProps (iniState) {
-  const { images } = iniState;
-
-  return (_, props) => {
-    const { token } = props;
-
-    return { image: images[token.address] };
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(TokenImage);

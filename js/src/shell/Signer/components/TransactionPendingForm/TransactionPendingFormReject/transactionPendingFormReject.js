@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import RaisedButton from 'material-ui/RaisedButton';
+import { Button } from '~/ui';
 
 import styles from './transactionPendingFormReject.css';
 
@@ -45,8 +45,8 @@ export default class TransactionPendingFormReject extends Component {
             />
           </strong>
         </div>
-        <RaisedButton
-          onTouchTap={ onReject }
+        <Button
+          onClick={ onReject }
           className={ styles.rejectButton }
           fullWidth
           label={

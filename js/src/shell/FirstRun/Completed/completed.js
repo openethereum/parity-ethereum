@@ -14,28 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import React from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import styles from '../firstRun.css';
 
-export default class Completed extends Component {
-  render () {
-    return (
-      <div className={ styles.completed }>
-        <p>
-          <FormattedMessage
-            id='firstRun.completed.congrats'
-            defaultMessage='Congratulations! Your node setup has been completed successfully and you are ready to use the application.'
-          />
-        </p>
-        <p>
-          <FormattedMessage
-            id='firstRun.completed.next'
-            defaultMessage='Next you will receive a walk-through of the available functions and the general application interface to get you up and running in record time.'
-          />
-        </p>
-      </div>
-    );
-  }
+export default function Completed () {
+  return (
+    <div className={ styles.completed }>
+      <p>
+        <FormattedMessage
+          id='firstRun.completed.congrats'
+          defaultMessage='Congratulations! Your node setup has been completed successfully and you are ready to use the application.'
+        />
+      </p>
+      <p>
+        <FormattedMessage
+          id='firstRun.completed.next'
+          defaultMessage='Next you will receive a walk-through of the available functions and the general application interface to get you up and running in record time.'
+        />
+      </p>
+    </div>
+  );
 }

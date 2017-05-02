@@ -16,34 +16,21 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
-import sinon from 'sinon';
 
 import IdentityIcon from './';
+import IconCache from '../IconCache';
 
 const ADDRESS0 = '0x0000000000000000000000000000000000000000';
 const ADDRESS1 = '0x0123456789012345678901234567890123456789';
 const ADDRESS2 = '0x9876543210987654321098765432109876543210';
 
 let component;
+let iconCache;
 let instance;
 
 function createApi () {
   return {
     dappsUrl: 'dappsUrl/'
-  };
-}
-
-function createRedux () {
-  return {
-    dispatch: sinon.stub(),
-    subscribe: sinon.stub(),
-    getState: () => {
-      return {
-        images: {
-          [ADDRESS2]: 'reduxImage'
-        }
-      };
-    }
   };
 }
 
@@ -54,11 +41,14 @@ function render (props = {}) {
 
   component = shallow(
     <IdentityIcon { ...props } />,
-    { context: { store: createRedux() } }
-  ).find('IdentityIcon').shallow({ context: { api: createApi() } });
+    { context: { api: createApi() } }
+  );
 
   instance = component.instance();
   instance.componentDidMount();
+
+  iconCache = IconCache.get(true);
+  iconCache.add(ADDRESS2, 'cachedImage');
 
   return component;
 }
@@ -76,11 +66,11 @@ describe('ui/IdentityIcon', () => {
       expect(img.props().src).to.equal('test-createIdentityImg');
     });
 
-    it('renders an <img> with redux source when available', () => {
+    it('renders an <img> with cache source when available', () => {
       const img = render({ address: ADDRESS2 }).find('img');
 
       expect(img).to.have.length(1);
-      expect(img.props().src).to.equal('dappsUrl/reduxImage');
+      expect(img.props().src).to.equal('dappsUrl/cachedImage');
     });
 
     it('renders an <ContractIcon> with no address specified', () => {
