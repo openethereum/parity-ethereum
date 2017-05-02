@@ -23,7 +23,6 @@ import ParamType from '../spec/paramType/paramType';
 import { sliceData } from '../util/slice';
 import { asAddress, asBool, asI32, asU32 } from '../util/sliceAs';
 import { isArray, isInstanceOf } from '../util/types';
-import { hexToAscii } from '../../api/util/format';
 
 const NULL = '0000000000000000000000000000000000000000000000000000000000000000';
 
