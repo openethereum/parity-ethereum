@@ -15,39 +15,4 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../_colors.css';
-
-.container {
-  height: 100%;
-  position: relative;
-
-  &:not(:hover) {
-    .tags {
-      display: none;
-    }
-  }
-}
-
-.image {
-  left: 1.5em;
-  position: absolute;
-  top: 1.5em;
-}
-
-.author,
-.description {
-  margin-left: 72px;
-}
-
-.title {
-}
-
-.titleLink {
-  color: $linkColor;
-}
-
-.author {
-  font-size: 0.75em;
-  opacity: 0.5;
-  margin-top: 1em;
-}
+$linkColor: #4183C4;
