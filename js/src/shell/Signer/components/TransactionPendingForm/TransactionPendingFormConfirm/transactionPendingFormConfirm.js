@@ -15,13 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import keycode from 'keycode';
-import RaisedButton from 'material-ui/RaisedButton';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
 
-import { Form, Input, IdentityIcon, QrCode, QrScan } from '~/ui';
+import { Button, Form, Input, IdentityIcon, QrCode, QrScan } from '~/ui';
 import { generateTxQr, generateDataQr } from '~/util/qrscan';
 
 import styles from './transactionPendingFormConfirm.css';
@@ -131,7 +130,7 @@ export default class TransactionPendingFormConfirm extends Component {
           data-place='bottom'
           data-tip
         >
-          <RaisedButton
+          <Button
             className={ styles.confirmButton }
             disabled={ disabled || isSending || !isWalletOk }
             fullWidth
@@ -143,8 +142,7 @@ export default class TransactionPendingFormConfirm extends Component {
               />
             }
             label={ confirmText }
-            onTouchTap={ this.onConfirm }
-            primary
+            onClick={ this.onConfirm }
           />
         </div>
       )
