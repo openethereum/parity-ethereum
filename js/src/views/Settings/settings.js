@@ -16,11 +16,12 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Tab, Tabs } from 'material-ui';
+import { Menu } from 'semantic-ui-react';
+// import { Tab, Tabs } from 'material-ui';
 
 import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
 
-import { Actionbar, Page } from '~/ui';
+import { Page } from '~/ui';
 import { BackgroundIcon, EthernetIcon, VisibleIcon } from '~/ui/Icons';
 
 import styles from './settings.css';
@@ -46,19 +47,12 @@ export default class Settings extends Component {
 
     return (
       <div>
-        <Actionbar
-          className={ styles.bar }
-          title={
-            <FormattedMessage id='settings.label' />
-          }
-        >
-          <Tabs className={ styles.tabs } value={ hash }>
-            { this.renderTab(hash, 'views', <VisibleIcon />) }
-            { this.renderTab(hash, 'background', <BackgroundIcon />) }
-            { proxy }
-            { this.renderTab(hash, 'parity', <img src={ imagesEthcoreBlock } className={ styles.imageIcon } />) }
-          </Tabs>
-        </Actionbar>
+        <Menu className={ styles.tabs } name={ hash }>
+          { this.renderTab(hash, 'views', <VisibleIcon />) }
+          { this.renderTab(hash, 'background', <BackgroundIcon />) }
+          { proxy }
+          { this.renderTab(hash, 'parity', <img src={ imagesEthcoreBlock } className={ styles.imageIcon } />) }
+        </Menu>
         <Page>
           { children }
         </Page>
@@ -66,32 +60,32 @@ export default class Settings extends Component {
     );
   }
 
-  renderTab (hash, section, icon) {
+  renderTab (hash, name, icon) {
     return (
-      <Tab
+      <Menu.Item
         className={
-          hash === section
+          hash === name
             ? styles.tabactive
             : styles.tab
         }
         icon={ icon }
-        key={ section }
-        label={
+        key={ name }
+        content={
           <div className={ styles.menu }>
-            <FormattedMessage id={ `settings.${section}.label` } />
+            <FormattedMessage id={ `settings.${name}.label` } />
           </div>
         }
-        onActive={ this.onActivate(section) }
-        value={ section }
+        onClick={ this.onActivate(name) }
+        name={ name }
       />
     );
   }
 
-  onActivate = (section) => {
+  onActivate = (name) => {
     const { router } = this.context;
 
     return (event) => {
-      router.push(`/${section}`);
+      router.push(`/${name}`);
     };
   }
 }
