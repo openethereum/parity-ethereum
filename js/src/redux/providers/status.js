@@ -134,8 +134,8 @@ export default class Status {
 
         this._store.dispatch(statusBlockNumber(blockNumber));
 
-        this._api.eth
-          .getBlockByNumber(blockNumber)
+        this._api.parity
+          .getBlockHeaderByNumber(blockNumber)
           .then((block) => {
             if (!block) {
               return;
@@ -147,7 +147,7 @@ export default class Status {
             }));
           })
           .catch((error) => {
-            console.warn('status._subscribeBlockNumber', 'getBlockByNumber', error);
+            console.warn('status._subscribeBlockNumber', 'getBlockHeaderByNumber', error);
           });
       })
       .then((blockNumberSubscriptionId) => {
