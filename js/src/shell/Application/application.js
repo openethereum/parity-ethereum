@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { Errors, Tooltips } from '~/ui';
+import { Errors } from '~/ui';
 
 import Connection from '../Connection';
 import Extension from '../Extension';
@@ -92,7 +92,6 @@ class Application extends Component {
           visible={ this.store.firstrunVisible }
         />
         <Snackbar />
-        <Tooltips />
         <UpgradeParity upgradeStore={ this.upgradeStore } />
         <Errors />
         {

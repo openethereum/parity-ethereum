@@ -23,7 +23,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import HardwareStore from '~/mobx/hardwareStore';
-import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
 import { AddIcon, FileDownloadIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
@@ -102,16 +102,6 @@ class Accounts extends Component {
         { this.renderActionbar() }
 
         <Page>
-          <Tooltip
-            className={ styles.accountTooltip }
-            text={
-              <FormattedMessage
-                id='accounts.tooltip.overview'
-                defaultMessage='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account'
-              />
-            }
-          />
-
           { this.renderExternalAccounts() }
           { this.renderWallets() }
           { this.renderAccounts() }
@@ -295,18 +285,7 @@ class Accounts extends Component {
           />
         }
         buttons={ buttons }
-      >
-        <Tooltip
-          className={ styles.toolbarTooltip }
-          right
-          text={
-            <FormattedMessage
-              id='accounts.tooltip.actions'
-              defaultMessage='actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item'
-            />
-          }
-        />
-      </Actionbar>
+      />
     );
   }
 
