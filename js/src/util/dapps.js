@@ -20,10 +20,9 @@ import { pick, range, uniq } from 'lodash';
 import { bytesToHex } from '@parity/api/util/format';
 
 import Contracts from '~/contracts';
-import { hashToImageUrl } from '~/redux/util';
-
 import builtinJson from '~/config/dappsBuiltin.json';
 import viewsJson from '~/config/dappsViews.json';
+import { IconCache } from '~/ui';
 
 const builtinApps = [].concat(
   viewsJson.map((app) => {
@@ -105,7 +104,7 @@ export function fetchBuiltinApps (api) {
         app.type = app.isView
           ? 'view'
           : 'builtin';
-        app.image = hashToImageUrl(imageIds[index]);
+        app.image = IconCache.hashToImage(imageIds[index]);
         return app;
       });
     })
@@ -169,7 +168,7 @@ export function fetchRegistryApp (api, dappReg, appId) {
     .then(([ imageId, contentId, manifestId ]) => {
       const app = {
         id: appId,
-        image: hashToImageUrl(imageId),
+        image: IconCache.hashToImage(imageId),
         contentHash: bytesToHex(contentId).substr(2),
         manifestHash: bytesToHex(manifestId).substr(2),
         type: 'network',

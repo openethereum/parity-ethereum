@@ -15,9 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$background: rgba(255, 255, 255, 0.85);
-$backgroundHover: rgba(249, 249, 249, 1);
+$background: rgba(254, 254, 254, 1);
+$backgroundHover: rgba(250, 250, 250, 1);
 $backgroundLight: rgba(18, 18, 18, 0.5);
+$borderColor: rgba(242, 242, 242, 1);
 
 .container {
   background: $background;
@@ -48,7 +49,7 @@ $backgroundLight: rgba(18, 18, 18, 0.5);
 
     .hoverOverlay {
       background: $backgroundHover !important;
-      border: 1px solid whitesmoke;
+      border: 1px solid $borderColor;
       border-top: 1px solid transparent;
       box-shadow: none !important;
       display: block;
@@ -61,7 +62,7 @@ $backgroundLight: rgba(18, 18, 18, 0.5);
 .padded {
   background-color: transparent !important;
   border-radius: 0 !important;
-  border: 1px solid whitesmoke;
+  border: 1px solid $borderColor;
   box-shadow: none !important;
   height: 100%;
   position: relative;

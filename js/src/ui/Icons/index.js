@@ -60,7 +60,7 @@ export const PrintIcon = () => <Icon name='print' />;
 export const QrIcon = () => <Icon name='qrcode' />;
 export const RefreshIcon = () => <Icon name='refresh' />;
 export const RemoveIcon = () => <Icon name='remove' />;
-export const ReorderIcon = <Icon name='align justify' />;
+export const ReorderIcon = () => <Icon name='align justify' />;
 export const ReplayIcon = () => <Icon name='retweet' />;
 export const SaveIcon = () => <Icon name='save' />;
 export const SearchIcon = () => <Icon name='search' />;

@@ -34,7 +34,6 @@ function createRedux () {
             [ADDRESS]: {}
           }
         },
-        images: {},
         nodeStatus: {
           netVersion: '1',
           traceMode: false

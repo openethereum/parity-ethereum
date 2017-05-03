@@ -16,14 +16,12 @@
 
 import { newError } from '~/ui/Errors/actions';
 
-import { setAddressImage } from './providers/imagesActions';
 import { openSnackbar, showSnackbar } from './providers/snackbarActions';
 import { toggleStatusRefresh } from './providers/statusActions';
 import { toggleView } from './providers/settings/actions';
 
 export {
   newError,
-  setAddressImage,
   openSnackbar,
   showSnackbar,
   toggleStatusRefresh,

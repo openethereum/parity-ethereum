@@ -15,7 +15,9 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+@import '../_colors.css';
+
 .link {
-  color: rgb(0, 151, 167);
+  color: $linkColor;
   cursor: pointer;
 }
