@@ -113,7 +113,15 @@ export default class Decoder {
 
         const str = taken.bytes.map((code) => String.fromCharCode(code)).join('');
 
-        return new DecodeResult(new Token(param.type, utf8.decode(str)), offset + 1);
+        let decoded;
+
+        try {
+          decoded = utf8.decode(str);
+        } catch (error) {
+          decoded = str;
+        }
+
+        return new DecodeResult(new Token(param.type, decoded), offset + 1);
 
       case 'array':
         lengthOffset = asU32(Decoder.peek(slices, offset)).div(32).toNumber();
