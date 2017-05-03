@@ -60,4 +60,8 @@ impl Engine for NullEngine {
 	fn schedule(&self, _block_number: BlockNumber) -> Schedule {
 		Schedule::new_homestead()
 	}
+
+	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+		Some(Box::new(::snapshot::PowSnapshot(10000)))
+	}
 }

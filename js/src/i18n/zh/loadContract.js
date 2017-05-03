@@ -16,28 +16,28 @@
 
 export default {
   button: {
-    cancel: `Cancel`,
-    load: `Load`,
-    no: `No`,
-    yes: `Yes`
+    cancel: `取消`, // Cancel
+    load: `加载`, // Load
+    no: `否`, // No
+    yes: `是` // Yes
   },
   contract: {
-    savedAt: `Saved {when}`
+    savedAt: `已保存{when}` // Saved {when}
   },
   header: {
-    saved: `Saved Contracts`,
-    snippets: `Contract Snippets`
+    saved: `已保存的合约`, // Saved Contracts
+    snippets: `合约片段` // Contract Snippets
   },
   removal: {
-    confirm: `Are you sure you want to remove the following contract from your saved contracts?`,
-    savedAt: `Saved {when}`
+    confirm: `你确定要将以下合约从已保存的合约中删除吗？`, // Are you sure you want to remove the following contract from your saved contracts?
+    savedAt: `已保存{when}` // Saved {when}
   },
   tab: {
-    local: `Local`,
-    snippets: `Snippets`
+    local: `本地`, // Local
+    snippets: `片段` // Snippets
   },
   title: {
-    remove: `confirm removal`,
-    view: `view contracts`
+    remove: `确认删除`, // confirm removal
+    view: `查看合约` // view contracts
   }
 };

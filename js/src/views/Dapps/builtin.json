@@ -3,7 +3,7 @@
     "url": "chaindeploy",
     "name": "Chain Deployment",
     "description": "Deploy all basic contracts, names & applications to the network",
-    "author": "Parity Team <admin@ethcore.io>",
+    "author": "Parity Team <admin@parity.io>",
     "version": "1.0.0",
     "visible": false
   },
@@ -12,7 +12,7 @@
     "url": "tokendeploy",
     "name": "Token Deployment",
     "description": "Deploy new basic tokens that you are able to send around",
-    "author": "Parity Team <admin@ethcore.io>",
+    "author": "Parity Team <admin@parity.io>",
     "version": "1.0.0",
     "visible": true
   },
@@ -21,7 +21,7 @@
     "url": "registry",
     "name": "Registry",
     "description": "A global registry of addresses on the network",
-    "author": "Parity Team <admin@ethcore.io>",
+    "author": "Parity Team <admin@parity.io>",
     "version": "1.0.0",
     "visible": true
   },
@@ -30,7 +30,7 @@
     "url": "tokenreg",
     "name": "Token Registry",
     "description": "A registry of transactable tokens on the network",
-    "author": "Parity Team <admin@ethcore.io>",
+    "author": "Parity Team <admin@parity.io>",
     "version": "1.0.0",
     "visible": true,
     "secure": true
@@ -40,7 +40,7 @@
     "url": "signaturereg",
     "name": "Method Registry",
     "description": "A registry of method signatures for lookups on transactions",
-    "author": "Parity Team <admin@ethcore.io>",
+    "author": "Parity Team <admin@parity.io>",
     "version": "1.0.0",
     "visible": true
   },
@@ -49,7 +49,7 @@
     "url": "githubhint",
     "name": "GitHub Hint",
     "description": "A mapping of GitHub URLs to hashes for use in contracts as references",
-    "author": "Parity Team <admin@ethcore.io>",
+    "author": "Parity Team <admin@parity.io>",
     "version": "1.0.0",
     "visible": false,
     "secure": true
@@ -59,7 +59,7 @@
     "url": "localtx",
     "name": "TxQueue Viewer",
     "description": "Have a peek at the internals of your node's transaction queue",
-    "author": "Parity Team <admin@ethcore.io>",
+    "author": "Parity Team <admin@parity.io>",
     "version": "1.0.0",
     "visible": true,
     "secure": true
@@ -69,7 +69,7 @@
     "url": "dappreg",
     "name": "Dapp Registration",
     "description": "Enables the registration and content management of dapps on the network",
-    "author": "Parity Team <admin@ethcore.io>",
+    "author": "Parity Team <admin@parity.io>",
     "version": "1.0.0",
     "visible": false,
     "secure": true
@@ -79,7 +79,7 @@
     "url": "web",
     "name": "Browser",
     "description": "A Web 2.0 hosted pseudo-dapps browser",
-    "author": "Parity Team <admin@ethcore.io>",
+    "author": "Parity Team <admin@parity.io>",
     "version": "1.0.0",
     "visible": true,
     "skipBuild": true,
@@ -91,7 +91,7 @@
     "name": "Parity/Web3 console",
     "description": "A Javascript development console complete with web3 and parity objects",
     "version": "0.3",
-    "author": "Gav Wood <gavin@ethcore.io>",
+    "author": "Gav Wood <gavin@parity.io>",
     "position": "top-right",
     "visible": true,
     "secure": true,

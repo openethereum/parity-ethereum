@@ -25,6 +25,11 @@ build_rpc_trait! {
 	pub trait ParitySigning {
 		type Metadata;
 
+		/// Given partial transaction request produces transaction with all fields filled in.
+		/// Such transaction can be then signed externally.
+		#[rpc(meta, name = "parity_composeTransaction")]
+		fn compose_transaction(&self, Self::Metadata, TransactionRequest) -> BoxFuture<TransactionRequest, Error>;
+
 		/// Posts sign request asynchronously.
 		/// Will return a confirmation ID for later use with check_transaction.
 		#[rpc(meta, name = "parity_postSign")]

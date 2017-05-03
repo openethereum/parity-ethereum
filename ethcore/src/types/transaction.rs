@@ -127,7 +127,7 @@ impl From<ethjson::state::Transaction> for SignedTransaction {
 		};
 		match secret {
 			Some(s) => tx.sign(&s, None),
-			None => tx.null_sign(),
+			None => tx.null_sign(1),
 		}
 	}
 }
@@ -210,13 +210,13 @@ impl Transaction {
 	}
 
 	/// Add EIP-86 compatible empty signature.
-	pub fn null_sign(self) -> SignedTransaction {
+	pub fn null_sign(self, network_id: u64) -> SignedTransaction {
 		SignedTransaction {
 			transaction: UnverifiedTransaction {
 				unsigned: self,
 				r: U256::zero(),
 				s: U256::zero(),
-				v: 0,
+				v: network_id,
 				hash: 0.into(),
 			}.compute_hash(),
 			sender: UNSIGNED_SENDER,

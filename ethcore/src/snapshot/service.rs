@@ -16,14 +16,14 @@
 
 //! Snapshot network service implementation.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use super::{ManifestData, StateRebuilder, BlockRebuilder, RestorationStatus, SnapshotService};
+use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, SnapshotService};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::BlockChain;
@@ -69,12 +69,11 @@ struct Restoration {
 	state_chunks_left: HashSet<H256>,
 	block_chunks_left: HashSet<H256>,
 	state: StateRebuilder,
-	blocks: BlockRebuilder,
+	secondary: Box<Rebuilder>,
 	writer: Option<LooseWriter>,
 	snappy_buffer: Bytes,
 	final_state_root: H256,
 	guard: Guard,
-	canonical_hashes: HashMap<u64, H256>,
 	db: Arc<Database>,
 }
 
@@ -86,6 +85,7 @@ struct RestorationParams<'a> {
 	writer: Option<LooseWriter>, // writer for recovered snapshot.
 	genesis: &'a [u8], // genesis block of the chain.
 	guard: Guard, // guard for the restoration directory.
+	engine: &'a Engine,
 }
 
 impl Restoration {
@@ -100,7 +100,10 @@ impl Restoration {
 			.map_err(UtilError::SimpleString)?);
 
 		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone());
-		let blocks = BlockRebuilder::new(chain, raw_db.clone(), &manifest)?;
+		let components = params.engine.snapshot_components()
+			.ok_or_else(|| ::snapshot::Error::SnapshotsUnsupported)?;
+
+		let secondary = components.rebuilder(chain, raw_db.clone(), &manifest)?;
 
 		let root = manifest.state_root.clone();
 		Ok(Restoration {
@@ -108,12 +111,11 @@ impl Restoration {
 			state_chunks_left: state_chunks,
 			block_chunks_left: block_chunks,
 			state: StateRebuilder::new(raw_db.clone(), params.pruning),
-			blocks: blocks,
+			secondary: secondary,
 			writer: params.writer,
 			snappy_buffer: Vec::new(),
 			final_state_root: root,
 			guard: params.guard,
-			canonical_hashes: HashMap::new(),
 			db: raw_db,
 		})
 	}
@@ -138,7 +140,7 @@ impl Restoration {
 		if self.block_chunks_left.remove(&hash) {
 			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
-			self.blocks.feed(&self.snappy_buffer[..len], engine, flag)?;
+			self.secondary.feed(&self.snappy_buffer[..len], engine, flag)?;
 			if let Some(ref mut writer) = self.writer.as_mut() {
 				 writer.write_block_chunk(hash, chunk)?;
 			}
@@ -147,13 +149,8 @@ impl Restoration {
 		Ok(())
 	}
 
-	// note canonical hashes.
-	fn note_canonical(&mut self, hashes: &[(u64, H256)]) {
-		self.canonical_hashes.extend(hashes.iter().cloned());
-	}
-
 	// finish up restoration.
-	fn finalize(self) -> Result<(), Error> {
+	fn finalize(mut self) -> Result<(), Error> {
 		use util::trie::TrieError;
 
 		if !self.is_done() { return Ok(()) }
@@ -169,7 +166,7 @@ impl Restoration {
 		self.state.finalize(self.manifest.block_number, self.manifest.block_hash)?;
 
 		// connect out-of-order chunks and verify chain integrity.
-		self.blocks.finalize(self.canonical_hashes)?;
+		self.secondary.finalize()?;
 
 		if let Some(writer) = self.writer {
 			writer.finish(self.manifest)?;
@@ -425,6 +422,7 @@ impl Service {
 			writer: writer,
 			genesis: &self.genesis_block,
 			guard: Guard::new(rest_dir),
+			engine: &*self.engine,
 		};
 
 		let state_chunks = params.manifest.state_hashes.len();
@@ -591,14 +589,6 @@ impl SnapshotService for Service {
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes) {
 		if let Err(e) = self.io_channel.lock().send(ClientIoMessage::FeedBlockChunk(hash, chunk)) {
 			trace!("Error sending snapshot service message: {:?}", e);
-		}
-	}
-
-	fn provide_canon_hashes(&self, canonical: &[(u64, H256)]) {
-		let mut rest = self.restoration.lock();
-
-		if let Some(ref mut rest) = rest.as_mut() {
-			rest.note_canonical(canonical);
 		}
 	}
 }

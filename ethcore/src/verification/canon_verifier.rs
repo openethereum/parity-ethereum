@@ -34,4 +34,8 @@ impl Verifier for CanonVerifier {
 	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error> {
 		verification::verify_block_final(expected, got)
 	}
+
+	fn verify_block_external(&self, header: &Header, bytes: &[u8], engine: &Engine) -> Result<(), Error> {
+		engine.verify_block_external(header, Some(bytes))
+	}
 }

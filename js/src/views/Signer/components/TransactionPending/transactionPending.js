@@ -98,7 +98,9 @@ class TransactionPending extends Component {
   }
 
   renderTransaction () {
-    const { accounts, className, focus, id, isSending, netVersion, origin, signerStore, transaction } = this.props;
+    const transaction = this.gasStore.overrideTransaction(this.props.transaction);
+
+    const { accounts, className, focus, id, isSending, netVersion, origin, signerStore } = this.props;
     const { totalValue } = this.state;
     const { balances, externalLink } = signerStore;
     const { from, value } = transaction;
@@ -127,12 +129,11 @@ class TransactionPending extends Component {
           address={ from }
           disabled={ disabled }
           focus={ focus }
-          gasStore={ this.gasStore }
           isSending={ isSending }
           netVersion={ netVersion }
           onConfirm={ this.onConfirm }
           onReject={ this.onReject }
-          transaction={ transaction }
+          dataToSign={ { transaction } }
         />
       </div>
     );

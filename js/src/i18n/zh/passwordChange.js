@@ -16,39 +16,39 @@
 
 export default {
   button: {
-    cancel: `Cancel`,
-    change: `Change`,
-    test: `Test`,
-    wait: `Wait...`
+    cancel: `取消`, // Cancel
+    change: `更改`, // Change
+    test: `测试`, // Test
+    wait: `请等待...` // Wait...
   },
   currentPassword: {
-    hint: `your current password for this account`,
-    label: `current password`
+    hint: `此账户的原密码`, // your current password for this account
+    label: `原密码` // current password
   },
   newPassword: {
-    hint: `the new password for this account`,
-    label: `new password`
+    hint: `此账户的新密码`, // the new password for this account
+    label: `新密码` // new password
   },
   passwordHint: {
-    display: `Hint {hint}`,
-    hint: `hint for the new password`,
-    label: `(optional) new password hint`
+    display: `提示{hint}`, // Hint {hint}
+    hint: `新密码的提示`, // hint for the new password
+    label: `（可选）新的密码提示` // (optional) new password hint
   },
   repeatPassword: {
-    error: `the supplied passwords do not match`,
-    hint: `repeat the new password for this account`,
-    label: `repeat new password`
+    error: `所提供的密码不正确`, // the supplied passwords do not match
+    hint: `请重复此账户的新密码`, // repeat the new password for this account
+    label: `重复新密码` // repeat new password
   },
-  success: `Your password has been successfully changed`,
+  success: `你的密码已经成功更改`, // Your password has been successfully changed
   tabChange: {
-    label: `Change Password`
+    label: `更改密码` // Change Password
   },
   tabTest: {
-    label: `Test Password`
+    label: `测试密码` // Test Password
   },
   testPassword: {
-    hint: `your account password`,
-    label: `password`
+    hint: `你的账户密码`, // your account password
+    label: `密码` // password
   },
-  title: `Password Manager`
+  title: `密码管理器` // Password Manager
 };

@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import moment from 'moment';
+import dateDifference from 'date-difference';
+import { FormattedMessage } from 'react-intl';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
@@ -36,12 +38,15 @@ class TxRow extends Component {
   static propTypes = {
     accountAddresses: PropTypes.array.isRequired,
     address: PropTypes.string.isRequired,
+    blockNumber: PropTypes.object,
     contractAddresses: PropTypes.array.isRequired,
     netVersion: PropTypes.string.isRequired,
     tx: PropTypes.object.isRequired,
 
     block: PropTypes.object,
     className: PropTypes.string,
+    cancelTransaction: PropTypes.func,
+    editTransaction: PropTypes.func,
     historic: PropTypes.bool
   };
 
@@ -50,6 +55,10 @@ class TxRow extends Component {
   };
 
   state = {
+    isCancelOpen: false,
+    isEditOpen: false,
+    canceled: false,
+    editing: false,
     isContract: false,
     isDeploy: false
   };
@@ -166,8 +175,121 @@ class TxRow extends Component {
     return (
       <td className={ styles.timestamp }>
         <div>{ blockNumber && block ? moment(block.timestamp).fromNow() : null }</div>
-        <div>{ blockNumber ? _blockNumber.toFormat() : 'Pending' }</div>
+        <div>{ blockNumber ? _blockNumber.toFormat() : this.renderCancelToggle() }</div>
       </td>
+    );
+  }
+
+  renderCancelToggle () {
+    const { canceled, editing, isCancelOpen, isEditOpen } = this.state;
+
+    if (canceled) {
+      return (
+        <div className={ styles.pending }>
+          <FormattedMessage
+            lassName={ styles.uppercase }
+            id='ui.txList.txRow.canceled'
+            defaultMessage='Canceled'
+          />
+        </div>
+      );
+    }
+
+    if (editing) {
+      return (
+        <div className={ styles.pending }>
+          <div className={ styles.uppercase }>
+            <FormattedMessage
+              id='ui.txList.txRow.editing'
+              defaultMessage='Editing'
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (!isCancelOpen && !isEditOpen) {
+      const pendingStatus = this.getCondition();
+
+      if (pendingStatus === 'submitting') {
+        return (
+          <div className={ styles.pending }>
+            <div />
+            <div className={ styles.uppercase }>
+              <FormattedMessage
+                id='ui.txList.txRow.submitting'
+                defaultMessage='Submitting'
+              />
+            </div>
+          </div>
+        );
+      }
+      return (
+        <div className={ styles.pending }>
+          <span>
+            { pendingStatus }
+          </span>
+          <div className={ styles.uppercase }>
+            <FormattedMessage
+              id='ui.txList.txRow.scheduled'
+              defaultMessage='Scheduled'
+            />
+          </div>
+          <a onClick={ this.setEdit } className={ styles.uppercase }>
+            <FormattedMessage
+              id='ui.txList.txRow.edit'
+              defaultMessage='Edit'
+            />
+          </a>
+          <span>{' | '}</span>
+          <a onClick={ this.setCancel } className={ styles.uppercase }>
+            <FormattedMessage
+              id='ui.txList.txRow.cancel'
+              defaultMessage='Cancel'
+            />
+          </a>
+        </div>
+      );
+    }
+
+    let which;
+
+    if (isCancelOpen) {
+      which = (
+        <FormattedMessage
+          id='ui.txList.txRow.verify.cancelEditCancel'
+          defaultMessage='Cancel'
+        />
+      );
+    } else {
+      which = (
+        <FormattedMessage
+          id='ui.txList.txRow.verify.cancelEditEdit'
+          defaultMessage='Edit'
+        />
+      );
+    }
+
+    return (
+      <div className={ styles.pending }>
+        <div />
+        <div className={ styles.uppercase }>
+          <FormattedMessage
+            id='ui.txList.txRow.verify'
+            defaultMessage='Are you sure?'
+          />
+        </div>
+        <a onClick={ (isCancelOpen) ? this.cancelTx : this.editTx }>
+          { which }
+        </a>
+        <span>{' | '}</span>
+        <a onClick={ this.revertEditCancel }>
+          <FormattedMessage
+            id='ui.txList.txRow.verify.nevermind'
+            defaultMessage='Nevermind'
+          />
+        </a>
+      </div>
     );
   }
 
@@ -193,6 +315,70 @@ class TxRow extends Component {
     }
 
     return `/addresses/${address}`;
+  }
+
+  getCondition = () => {
+    const { blockNumber, tx } = this.props;
+    let { time, block } = tx.condition;
+
+    if (time) {
+      if ((time.getTime() - Date.now()) >= 0) {
+        // return `${dateDifference(new Date(), time, { compact: true })} left`;
+        return (
+          <FormattedMessage
+            id='ui.txList.txRow.pendingStatus.time'
+            defaultMessage='{time} left'
+            values={ {
+              time: dateDifference(new Date(), time, { compact: true })
+            } }
+          />
+        );
+      } else {
+        return 'submitting';
+      }
+    } else if (blockNumber) {
+      block = blockNumber.minus(block);
+      // return (block.toNumber() < 0)
+      //   ? block.abs().toFormat(0) + ' blocks left'
+      //   : 'submitting';
+      if (block.toNumber() < 0) {
+        return (
+          <FormattedMessage
+            id='ui.txList.txRow.pendingStatus.blocksLeft'
+            defaultMessage='{blockNumber} blocks left'
+            values={ {
+              blockNumber: block.abs().toFormat(0)
+            } }
+          />
+        );
+      } else {
+        return 'submitting';
+      }
+    }
+  }
+
+  cancelTx = () => {
+    const { cancelTransaction, tx } = this.props;
+
+    cancelTransaction(this, tx);
+  }
+
+  editTx = () => {
+    const { editTransaction, tx } = this.props;
+
+    editTransaction(this, tx);
+  }
+
+  setCancel = () => {
+    this.setState({ isCancelOpen: true });
+  }
+
+  setEdit = () => {
+    this.setState({ isEditOpen: true });
+  }
+
+  revertEditCancel = () => {
+    this.setState({ isCancelOpen: false, isEditOpen: false });
   }
 }
 
