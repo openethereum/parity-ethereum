@@ -14,7 +14,7 @@ cache:
   untracked: true
 linux-stable:
   stage: build
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   only:
     - beta
     - tags
@@ -41,7 +41,7 @@ linux-stable:
     - md5sum "parity_"$VER"_amd64.deb" > "parity_"$VER"_amd64.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable|nightly)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity.md5 --body parity.md5
@@ -59,9 +59,26 @@ linux-stable:
     - target/release/ethstore
     - target/release/ethkey
     name: "stable-x86_64-unknown-linux-gnu_parity"
+linux-snap:
+  stage: build
+  image: parity/snapcraft:gitlab-ci
+  only:
+    - beta
+  script:
+    - rm -rf *snap
+    - cd scripts
+    - snapcraft
+  tags:
+    - rust
+    - rust-stable
+  artifacts:
+    paths:
+    - scripts/parity_beta_amd64.snap
+    name: "stable-x86_64-unknown-linux-gnu_parity-snap"
+  allow_failure: true
 linux-stable-debian:
   stage: build
-  image: ethcore/rust-debian:latest
+  image: parity/rust-debian:gitlab-ci
   only:
     - beta
     - tags
@@ -88,7 +105,7 @@ linux-stable-debian:
     - md5sum "parity_"$VER"_amd64.deb" > "parity_"$VER"_amd64.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable|nightly)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/x86_64-unknown-debian-gnu
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-debian-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-debian-gnu/parity.md5 --body parity.md5
@@ -105,7 +122,7 @@ linux-stable-debian:
     name: "stable-x86_64-unknown-debian-gnu_parity"
 linux-beta:
   stage: build
-  image: ethcore/rust:beta
+  image: parity/rust:gitlab-ci
   only:
     - beta
     - tags
@@ -124,7 +141,7 @@ linux-beta:
   allow_failure: true
 linux-nightly:
   stage: build
-  image: ethcore/rust:nightly
+  image: parity/rust:gitlab-ci
   only:
     - beta
     - tags
@@ -143,7 +160,7 @@ linux-nightly:
   allow_failure: true
 linux-centos:
   stage: build
-  image: ethcore/rust-centos:latest
+  image: parity/rust-centos:gitlab-ci
   only:
     - beta
     - tags
@@ -159,7 +176,7 @@ linux-centos:
     - export SHA3=$(target/release/parity tools hash target/release/parity)
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable|nightly)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity.md5 --body parity.md5
@@ -174,7 +191,7 @@ linux-centos:
     name: "x86_64-unknown-centos-gnu_parity"
 linux-i686:
   stage: build
-  image: ethcore/rust-i686:latest
+  image: parity/rust-i686:gitlab-ci
   only:
     - beta
     - tags
@@ -196,7 +213,7 @@ linux-i686:
     - md5sum "parity_"$VER"_i386.deb" > "parity_"$VER"_i386.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable|nightly)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/$PLATFORM
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity --body target/$PLATFORM/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity.md5 --body parity.md5
@@ -214,7 +231,7 @@ linux-i686:
   allow_failure: true
 linux-armv7:
   stage: build
-  image: ethcore/rust-armv7:latest
+  image: parity/rust-armv7:gitlab-ci
   only:
     - beta
     - tags
@@ -242,7 +259,7 @@ linux-armv7:
     - md5sum "parity_"$VER"_armhf.deb" > "parity_"$VER"_armhf.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable|nightly)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/$PLATFORM
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity --body target/$PLATFORM/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity.md5 --body parity.md5
@@ -260,7 +277,7 @@ linux-armv7:
   allow_failure: true
 linux-arm:
   stage: build
-  image: ethcore/rust-arm:latest
+  image: parity/rust-arm:gitlab-ci
   only:
     - beta
     - tags
@@ -288,7 +305,7 @@ linux-arm:
     - md5sum "parity_"$VER"_armhf.deb" > "parity_"$VER"_armhf.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable|nightly)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/$PLATFORM
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity --body target/$PLATFORM/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity.md5 --body parity.md5
@@ -306,7 +323,7 @@ linux-arm:
   allow_failure: true
 linux-armv6:
   stage: build
-  image: ethcore/rust-armv6:latest
+  image: parity/rust-armv6:gitlab-ci
   only:
 #    - beta
 #    - tags
@@ -329,7 +346,7 @@ linux-armv6:
     - md5sum target/$PLATFORM/release/parity > parity.md5
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable|nightly)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/$PLATFORM
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity --body target/$PLATFORM/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity.md5 --body parity.md5
@@ -345,7 +362,7 @@ linux-armv6:
   allow_failure: true
 linux-aarch64:
   stage: build
-  image: ethcore/rust-aarch64:latest
+  image: parity/rust-arm64:latest
   only:
     - beta
     - tags
@@ -373,7 +390,7 @@ linux-aarch64:
     - md5sum "parity_"$VER"_arm64.deb" > "parity_"$VER"_arm64.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable|nightly)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/$PLATFORM
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity.md5 --body parity.md5
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/"parity_"$VER"_arm64.deb" --body "parity_"$VER"_arm64.deb"
@@ -413,7 +430,7 @@ darwin:
       md5sum "parity-"$VER"-osx-installer.pkg" >> "parity-"$VER"-osx-installer.pkg.md5"
       aws configure set aws_access_key_id $s3_key
       aws configure set aws_secret_access_key $s3_secret
-      if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
+      if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable|nightly)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
       aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/$PLATFORM
       aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity --body target/release/parity
       aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity.md5 --body parity.md5
@@ -467,9 +484,10 @@ windows:
     - aws configure set aws_access_key_id %s3_key%
     - aws configure set aws_secret_access_key %s3_secret%
     - echo %CI_BUILD_REF_NAME%
-    - echo %CI_BUILD_REF_NAME% | findstr /R "master" >nul 2>&1 && set S3_BUCKET=builds-parity-published || set S3_BUCKET=builds-parity
-    - echo %CI_BUILD_REF_NAME% | findstr /R "beta" >nul 2>&1 && set S3_BUCKET=builds-parity-published || set S3_BUCKET=builds-parity
-    - echo %CI_BUILD_REF_NAME% | findstr /R "stable" >nul 2>&1 && set S3_BUCKET=builds-parity-published || set S3_BUCKET=builds-parity
+    - echo %CI_BUILD_REF_NAME% | findstr /R "master" >nul 2>&1 && set S3_BUCKET=builds-parity-published|| set S3_BUCKET=builds-parity
+    - echo %CI_BUILD_REF_NAME% | findstr /R "beta" >nul 2>&1 && set S3_BUCKET=builds-parity-published|| set S3_BUCKET=builds-parity
+    - echo %CI_BUILD_REF_NAME% | findstr /R "stable" >nul 2>&1 && set S3_BUCKET=builds-parity-published|| set S3_BUCKET=builds-parity
+    - echo %CI_BUILD_REF_NAME% | findstr /R "nightly" >nul 2>&1 && set S3_BUCKET=builds-parity-published|| set S3_BUCKET=builds-parity
     - echo %S3_BUCKET%
     - aws s3 rm --recursive s3://%S3_BUCKET%/%CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc
     - aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.exe --body target\release\parity.exe
@@ -500,6 +518,10 @@ docker-build:
     - if [ "$CI_BUILD_REF_NAME" == "beta-release" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
     - docker login -u $Docker_Hub_User -p $Docker_Hub_Pass
     - sh scripts/docker-build.sh $DOCKER_TAG
+    - docker logout
+    - docker login -u $Docker_Hub_User_Parity -p $Docker_Hub_Pass_Parity
+    - sh scripts/docker-build.sh $DOCKER_TAG
+    - docker logout
   tags:
     - docker
 test-darwin:
@@ -529,7 +551,7 @@ test-windows:
   allow_failure: true
 test-rust-stable:
   stage: test
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
@@ -541,7 +563,7 @@ test-rust-stable:
     - rust-stable
 js-test:
   stage: test
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
@@ -555,11 +577,12 @@ test-rust-beta:
   stage: test
   only:
     - triggers
-  image: ethcore/rust:beta
+  image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
+    - rustup default beta
     - export RUST_BACKTRACE=1
     - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
   tags:
@@ -570,11 +593,12 @@ test-rust-nightly:
   stage: test
   only:
     - triggers
-  image: ethcore/rust:nightly
+  image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
+    - rustup default nightly
     - export RUST_BACKTRACE=1
     - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
   tags:
@@ -588,7 +612,7 @@ js-release:
     - beta
     - stable
     - tags
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   before_script:
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
     - echo $JS_FILES_MODIFIED
@@ -602,7 +626,7 @@ push-release:
   stage: push-release
   only:
     - tags
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   script:
     - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
     - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
