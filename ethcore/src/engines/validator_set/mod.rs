@@ -23,10 +23,10 @@ mod multi;
 
 use std::sync::Weak;
 use ids::BlockId;
-use util::{Address, H256};
+use util::{Bytes, Address, H256};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::Client;
-use header::Header;
+use header::{Header, BlockNumber};
 
 pub use self::simple_list::SimpleList;
 use self::contract::ValidatorContract;
@@ -111,9 +111,9 @@ pub trait ValidatorSet: Send + Sync {
 	fn count_with_caller(&self, parent_block_hash: &H256, caller: &Call) -> usize;
 
 	/// Notifies about malicious behaviour.
-	fn report_malicious(&self, _validator: &Address) {}
+	fn report_malicious(&self, _validator: &Address, _block: BlockNumber, _proof: Bytes) {}
 	/// Notifies about benign misbehaviour.
-	fn report_benign(&self, _validator: &Address) {}
+	fn report_benign(&self, _validator: &Address, _block: BlockNumber) {}
 	/// Allows blockchain state access.
 	fn register_contract(&self, _client: Weak<Client>) {}
 }

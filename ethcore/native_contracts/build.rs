@@ -31,7 +31,7 @@ const SECRETSTORE_ACL_STORAGE_ABI: &'static str = r#"[{"constant":true,"inputs":
 // changes.
 const VALIDATOR_SET_ABI: &'static str = r#"[{"constant":true,"inputs":[],"name":"transitionNonce","outputs":[{"name":"nonce","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"validators","type":"address[]"}],"payable":false,"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_parent_hash","type":"bytes32"},{"indexed":true,"name":"_nonce","type":"uint256"},{"indexed":false,"name":"_new_set","type":"address[]"}],"name":"ValidatorsChanged","type":"event"}]"#;
 
-const VALIDATOR_REPORT_ABI: &'static str = r#"[{"constant":false,"inputs":[{"name":"validator","type":"address"}],"name":"reportMalicious","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"validator","type":"address"}],"name":"reportBenign","outputs":[],"payable":false,"type":"function"}]"#;
+const VALIDATOR_REPORT_ABI: &'static str = r#"[{"constant":false,"inputs":[{"name":"validator","type":"address"},{"name":"blockNumber","type":"uint256"},{"name":"proof","type":"bytes"}],"name":"reportMalicious","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"validator","type":"address"},{"name":"blockNumber","type":"uint256"}],"name":"reportBenign","outputs":[],"payable":false,"type":"function"}]"#;
 
 fn build_file(name: &str, abi: &str, filename: &str) {
 	let code = ::native_contract_generator::generate_module(name, abi).unwrap();

@@ -25,7 +25,7 @@ use native_contracts::ValidatorReport as Provider;
 
 use client::{Client, BlockChainClient};
 use engines::Call;
-use header::Header;
+use header::{Header, BlockNumber};
 
 use super::ValidatorSet;
 use super::safe_contract::ValidatorSafeContract;
@@ -92,15 +92,15 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.count_with_caller(bh, caller)
 	}
 
-	fn report_malicious(&self, address: &Address) {
-		match self.provider.report_malicious(&*self.transact(), *address).wait() {
+	fn report_malicious(&self, address: &Address, block: BlockNumber, proof: Bytes) {
+		match self.provider.report_malicious(&*self.transact(), *address, block.into(), proof).wait() {
 			Ok(_) => warn!(target: "engine", "Reported malicious validator {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}
 	}
 
-	fn report_benign(&self, address: &Address) {
-		match self.provider.report_benign(&*self.transact(), *address).wait() {
+	fn report_benign(&self, address: &Address, block: BlockNumber) {
+		match self.provider.report_benign(&*self.transact(), *address, block.into()).wait() {
 			Ok(_) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}
