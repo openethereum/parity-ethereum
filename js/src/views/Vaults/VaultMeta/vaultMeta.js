@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Checkbox } from 'material-ui';
+import { Checkbox } from 'semantic-ui-react';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -124,14 +124,15 @@ class VaultMeta extends Component {
             </div>
             <div className={ styles.group }>
               <Checkbox
+                toggle
+                checked={ passwordEdit }
+                onClick={ this.onTogglePassword }
                 label={
                   <FormattedMessage
                     id='vaults.editMeta.allowPassword'
                     defaultMessage='Change vault password'
                   />
                 }
-                checked={ passwordEdit }
-                onCheck={ this.onTogglePassword }
               />
               <div className={ [styles.passwords, passwordEdit ? null : styles.disabled].join(' ') }>
                 <div className={ styles.password }>

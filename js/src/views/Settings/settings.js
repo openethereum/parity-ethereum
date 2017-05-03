@@ -17,7 +17,6 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Menu } from 'semantic-ui-react';
-// import { Tab, Tabs } from 'material-ui';
 
 import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
 

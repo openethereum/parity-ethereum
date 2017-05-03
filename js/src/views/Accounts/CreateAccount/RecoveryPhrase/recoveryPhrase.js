@@ -17,7 +17,7 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Checkbox } from 'material-ui';
+import { Checkbox } from 'semantic-ui-react';
 
 import { Form, Input } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
@@ -142,7 +142,7 @@ export default class RecoveryPhrase extends Component {
               defaultMessage='Key was created with Parity <1.4.5 on Windows'
             />
           }
-          onCheck={ this.onToggleWindowsPhrase }
+          onClick={ this.onToggleWindowsPhrase }
         />
       </Form>
     );

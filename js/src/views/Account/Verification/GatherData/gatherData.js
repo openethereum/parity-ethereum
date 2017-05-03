@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import BigNumber from 'bignumber.js';
-import { Checkbox } from 'material-ui';
+import { Checkbox } from 'semantic-ui-react';
 
 import { fromWei } from '@parity/api/util/wei';
 
@@ -67,7 +67,7 @@ export default class GatherData extends Component {
             />
           }
           disabled={ accountIsVerified }
-          onCheck={ this.consentOnChange }
+          onClick={ this.consentOnChange }
         />
         <div className={ styles.terms }>{ termsOfService }</div>
       </Form>

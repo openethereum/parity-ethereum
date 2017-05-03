@@ -19,14 +19,13 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { Snackbar as SnackbarMUI } from 'material-ui';
-import { darkBlack, grey800 } from 'material-ui/styles/colors';
 
 import { closeSnackbar } from '~/redux/providers/snackbarActions';
 
 const BODY_STYLE = {
-  backgroundColor: darkBlack,
+  backgroundColor: 'rgba(0, 0, 0, 0.87)',
   borderStyle: 'solid',
-  borderColor: grey800,
+  borderColor: '#424242',
   borderWidth: '1px 1px 0 1px'
 };
 

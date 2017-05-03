@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { omitBy } from 'lodash';
-import { Checkbox } from 'material-ui';
+import { Checkbox } from 'semantic-ui-react';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -71,7 +71,7 @@ class Dapps extends Component {
                 />
               }
               checked={ false }
-              onCheck={ this.onClickAcceptExternal }
+              onClick={ this.onClickAcceptExternal }
             />
           </div>
         </div>

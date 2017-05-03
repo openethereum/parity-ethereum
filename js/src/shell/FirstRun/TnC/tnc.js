@@ -16,7 +16,7 @@
 
 import React, { PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Checkbox } from 'material-ui';
+import { Checkbox } from 'semantic-ui-react';
 
 import styles from '../firstRun.css';
 
@@ -68,7 +68,7 @@ export default function TnC ({ hasAccepted, onAccept }) {
       <p>You agree that you are solely responsible for (and that EthCore has no responsibility to you or to any third party for) any breach of your obligations under these terms and for the consequences (including any loss or damage which EthCore may suffer) of any such breach.</p>
 
       <h3>Privacy and your personal information</h3>
-      <p>You agree to the use of your data (if any is gathered) in accordance with EthCore’s privacy policies: <a href='https://parity.io/legal.html' target='_blank'>https://parity.io/legal.html</a>. This policy explains how EthCore treats your personal information (if any is gathered), and protects your privacy, when you use EthCore’s Products.</p>
+      <p>You agree to the use of your data (if any is gathered) in accordance with EthCore’s privacy policies: <a href='https://ethcore.io/legal.html' target='_blank'>https://ethcore.io/legal.html</a>. This policy explains how EthCore treats your personal information (if any is gathered), and protects your privacy, when you use EthCore’s Products.</p>
 
       <h3>Content in Parity</h3>
       <p>You understand that all information and data (such as smart contracts, data files, written text, computer software, music, audio files or other sounds, photographs, videos or other images) which you may have access to as part of, or through your use of, EthCore’s Product are the sole responsibility of the person from which such content originated. All such information is referred to below as the “Content”.</p>
@@ -79,7 +79,7 @@ export default function TnC ({ hasAccepted, onAccept }) {
       <h3>Proprietary rights</h3>
       <p>You acknowledge and agree that EthCore own all legal right, title and interest in and to the Parity and EthCore’s Products, including any intellectual property rights which subsist in Parity and EthCore’s Products (whether those rights happen to be registered or not, and wherever in the world those rights may exist).</p>
       <p>Unless you have agreed otherwise in writing with EthCore, nothing in the Terms gives you a right to use any of EthCore’s trade names, trade marks, service marks, logos, domain names, and other distinctive brand features.</p>
-      <p>If you have been given an explicit right to use any of these brand features in a separate written agreement with EthCore, then you agree that your use of such features shall be in compliance with that agreement, any applicable provisions of these terms, and EthCore’s brand feature use guidelines as updated from time to time. These guidelines can be viewed online at <a href='https://parity.io/press.html' target='_blank'>https://parity.io/press.html</a>.</p>
+      <p>If you have been given an explicit right to use any of these brand features in a separate written agreement with EthCore, then you agree that your use of such features shall be in compliance with that agreement, any applicable provisions of these terms, and EthCore’s brand feature use guidelines as updated from time to time. These guidelines can be viewed online at <a href='https://ethcore.io/press.html' target='_blank'>https://ethcore.io/press.html</a>.</p>
       <p>EthCore acknowledges and agrees that it obtains no right, title or interest from you (or your licensors) under these terms in or to any content that you submit, post, transmit or display on, or through, Parity, including any intellectual property rights which subsist in that content (whether those rights happen to be registered or not, and wherever in the world those rights may exist). Unless you have agreed otherwise in writing with EthCore, you agree that you are responsible for protecting and enforcing those rights and that EthCore has no obligation to do so on your behalf.</p>
       <p>You agree that you shall not remove, obscure, or alter any proprietary rights notices (including copyright and trade mark notices) which may be affixed to or contained within Parity or EthCore’s Products.</p>
       <p>Unless you have been expressly authorized to do so in writing by EthCore, you agree that in using Parity, you will not use any trade mark, service mark, trade name, logo of any company or organization in a way that is likely or intended to cause confusion about the owner or authorized user of such marks, names or logos.</p>
@@ -137,7 +137,7 @@ export default function TnC ({ hasAccepted, onAccept }) {
       <p>You acknowledge and agree that EthCore is not liable for any loss or damage which may be incurred by you as a result of the availability of those external sites or resources, or as a result of any reliance placed by you on the completeness, accuracy or existence of any advertising, products or other materials on, or available from, such web sites or resources.</p>
 
       <h3>Changes to the Terms</h3>
-      <p>EthCore may make changes to these from time to time. When these changes are made, EthCore will make a new copy of these terms available at https://parity.io/legal.html and any new terms will be made available to you from within, or through, the affected EthCore’s Product.</p>
+      <p>EthCore may make changes to these from time to time. When these changes are made, EthCore will make a new copy of these terms available at https://ethcore.io/legal.html and any new terms will be made available to you from within, or through, the affected EthCore’s Product.</p>
       <p>You understand and agree that if you use Parity or EthCore’s Products after the date on which the Terms have changed, EthCore will treat your use as acceptance of the updated terms.</p>
 
       <h3>General legal terms</h3>
@@ -165,7 +165,7 @@ export default function TnC ({ hasAccepted, onAccept }) {
           />
         }
         checked={ hasAccepted }
-        onCheck={ onAccept }
+        onClick={ onAccept }
       />
     </div>
   );

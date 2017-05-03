@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Checkbox } from 'material-ui';
+import { Checkbox } from 'semantic-ui-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
@@ -97,7 +97,7 @@ export default class Details extends Component {
                   defaultMessage='full account balance'
                 />
               }
-              onCheck={ this.onCheckAll }
+              onClick={ this.onCheckAll }
               style={ CHECK_STYLE }
             />
           </div>
