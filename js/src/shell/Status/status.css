@@ -15,26 +15,28 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+$backgroundColor: rgba(0, 0, 0, 0.8);
+$textColor: #ccc;
+$networkLiveColor: rgb(0, 136, 0);
+$networkTestColor: rgb(136, 0, 0);
+
 .status {
   align-items: center;
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: $backgroundColor;
   bottom: 0;
-  color: #ccc;
+  color: $textColor;
   display: flex;
-  font-size: 0.75em;
   left: 0;
-  padding: .4em .5em;
+  padding: 0.4em 0.5em;
   position: fixed;
   right: 0;
   z-index: 1000;
 }
 
 .netinfo {
-  color: #ddd;
   flex-grow: 1;
   text-align: right;
   vertical-align: middle;
-  text-align: right;
 
   div {
     display: inline-block;
@@ -49,11 +51,11 @@
   text-transform: uppercase;
 
   &.live {
-    background: rgb(0, 136, 0);
+    background: $networkLiveColor;
   }
 
   &.test {
-    background: rgb(136, 0, 0);
+    background: $networkTestColor;
   }
 }
 

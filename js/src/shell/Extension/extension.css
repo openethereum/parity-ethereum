@@ -15,32 +15,27 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+$backgroundColor: #f80;
+$buttonColor: rgba(0, 0, 0, 0.5);
+$textColor: white;
+
 .body {
-  background: #f80;
+  background: $backgroundColor;
   color: white;
-  opacity: 1;
   max-width: 500px;
+  opacity: 1;
   padding: 1em 4em 1em 2em;
   position: fixed;
   right: 1.5em;
   top: 1.5em;
   z-index: 1000;
 
-  .button {
-    background: rgba(0, 0, 0, 0.5);
-    color: white !important;
-
-    svg {
-      fill: white !important;
-    }
-  }
-
   .buttonrow {
     text-align: right;
   }
 
   p {
-    color: white;
+    color: $textColor;
   }
 
   .close {

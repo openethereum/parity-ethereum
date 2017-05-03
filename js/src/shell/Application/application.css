@@ -24,3 +24,9 @@
 .content {
   padding-bottom: 1.25em;
 }
+
+.error {
+  padding: 2em;
+  background: red;
+  color: white;
+}
