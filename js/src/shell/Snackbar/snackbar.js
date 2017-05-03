@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
@@ -23,40 +23,31 @@ import { darkBlack, grey800 } from 'material-ui/styles/colors';
 
 import { closeSnackbar } from '~/redux/providers/snackbarActions';
 
-const bodyStyle = {
+const BODY_STYLE = {
   backgroundColor: darkBlack,
   borderStyle: 'solid',
   borderColor: grey800,
   borderWidth: '1px 1px 0 1px'
 };
 
-class Snackbar extends Component {
-  static propTypes = {
-    closeSnackbar: PropTypes.func.isRequired,
-
-    open: PropTypes.bool,
-    cooldown: PropTypes.number,
-    message: PropTypes.any
-  };
-
-  render () {
-    const { open, message, cooldown } = this.props;
-
-    return (
-      <SnackbarMUI
-        open={ open }
-        message={ message }
-        autoHideDuration={ cooldown }
-        bodyStyle={ bodyStyle }
-        onRequestClose={ this.handleClose }
-      />
-    );
-  }
-
-  handleClose = () => {
-    this.props.closeSnackbar();
-  }
+function Snackbar ({ closeSnackbar, cooldown, message, open }) {
+  return (
+    <SnackbarMUI
+      autoHideDuration={ cooldown }
+      bodyStyle={ BODY_STYLE }
+      message={ message }
+      open={ open }
+      onRequestClose={ closeSnackbar }
+    />
+  );
 }
+
+Snackbar.propTypes = {
+  closeSnackbar: PropTypes.func.isRequired,
+  cooldown: PropTypes.number,
+  message: PropTypes.any,
+  open: PropTypes.bool
+};
 
 function mapStateToProps (state) {
   const { open, message, cooldown } = state.snackbar;

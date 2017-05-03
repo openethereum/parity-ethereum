@@ -16,21 +16,22 @@
 
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
+import { Errors } from '~/ui';
+
 import Connection from '../Connection';
+import Extension from '../Extension';
+import FirstRun from '../FirstRun';
 import ParityBar from '../ParityBar';
+import Requests from '../Requests';
+import Snackbar from '../Snackbar';
+import Status from '../Status';
+import UpgradeParity from '../UpgradeParity';
 import UpgradeStore from '../UpgradeParity/store';
 
-import Snackbar from './Snackbar';
-import Container from './Container';
-import DappContainer from './DappContainer';
-import Extension from './Extension';
-import FrameError from './FrameError';
-import Requests from './Requests';
-import Status from './Status';
 import Store from './store';
-
 import styles from './application.css';
 
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
@@ -55,17 +56,14 @@ class Application extends Component {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
     const isMinimized = root !== '';
 
-    if (process.env.NODE_ENV !== 'production' && root === 'playground') {
-      return (
-        <div>
-          { this.props.children }
-        </div>
-      );
-    }
-
     if (inFrame) {
       return (
-        <FrameError />
+        <div className={ styles.error }>
+          <FormattedMessage
+            id='application.frame.error'
+            defaultMessage='ERROR: This application cannot and should not be loaded in an embedded iFrame'
+          />
+        </div>
       );
     }
 
@@ -87,22 +85,24 @@ class Application extends Component {
     const { blockNumber, children } = this.props;
 
     return (
-      <Container
-        upgradeStore={ this.upgradeStore }
-        onCloseFirstRun={ this.store.closeFirstrun }
-        showFirstRun={ this.store.firstrunVisible }
-      >
-        <div className={ styles.content }>
-          { children }
-        </div>
+      <div className={ styles.container }>
+        <Extension />
+        <FirstRun
+          onClose={ this.store.closeFirstrun }
+          visible={ this.store.firstrunVisible }
+        />
+        <Snackbar />
+        <UpgradeParity upgradeStore={ this.upgradeStore } />
+        <Errors />
         {
           blockNumber
             ? <Status upgradeStore={ this.upgradeStore } />
             : null
         }
-        <Extension />
-        <Snackbar />
-      </Container>
+        <div className={ styles.content }>
+          { children }
+        </div>
+      </div>
     );
   }
 
@@ -110,9 +110,10 @@ class Application extends Component {
     const { children } = this.props;
 
     return (
-      <DappContainer>
+      <div className={ styles.container }>
+        <Errors />
         { children }
-      </DappContainer>
+      </div>
     );
   }
 }

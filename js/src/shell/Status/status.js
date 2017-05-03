@@ -25,10 +25,13 @@ import Upgrade from './Upgrade';
 import styles from './status.css';
 
 function Status ({ clientVersion, isTest, netChain, netPeers, upgradeStore }) {
+  const [ clientName, , versionString, , ] = (clientVersion || '').split('/');
+  const [ versionNumber, versionType, , versionDate ] = (versionString || '').split('-');
+
   return (
     <div className={ styles.status }>
       <div className={ styles.version }>
-        { clientVersion }
+        { clientName } { versionNumber }-{ versionDate } { versionType }
       </div>
       <div className={ styles.upgrade }>
         <Consensus upgradeStore={ upgradeStore } />

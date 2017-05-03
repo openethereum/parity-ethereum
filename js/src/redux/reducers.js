@@ -27,13 +27,11 @@ import certificationsReducer from './providers/certifications/reducer';
 import registryReducer from './providers/registry/reducer';
 
 import errorReducer from '~/ui/Errors/reducers';
-import tooltipReducer from '~/ui/Tooltips/reducers';
 
 export default function () {
   return combineReducers({
     api: apiReducer,
     errors: errorReducer,
-    tooltip: tooltipReducer,
     routing: routerReducer,
     settings: settingsReducer,
 
