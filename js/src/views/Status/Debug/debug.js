@@ -21,6 +21,8 @@ import { FormattedMessage } from 'react-intl';
 import { Container } from '~/ui';
 import { PauseIcon, PlayIcon, ReorderIcon, ReplayIcon } from '~/ui/Icons';
 
+import Logs from './Logs';
+import Toggle from './Toggle';
 import DebugStore from './store';
 import styles from './debug.css';
 
@@ -37,7 +39,7 @@ export default class Debug extends Component {
   }
 
   render () {
-    const { logsLevels } = this.debugStore;
+    const { logs, logsEnabled, logsLevels } = this.debugStore;
 
     return (
       <Container
@@ -48,79 +50,35 @@ export default class Debug extends Component {
           />
         }
       >
-        { this.renderActions() }
+        <div className={ styles.actions }>
+          <a onClick={ this.toggle }>
+            {
+              logsEnabled
+                ? <PauseIcon />
+                : <PlayIcon />
+            }
+          </a>
+          <a onClick={ this.clear }>
+            <ReplayIcon />
+          </a>
+          <a
+            onClick={ this.reverse }
+            title={
+              <FormattedMessage
+                id='status.debug.reverse'
+                defaultMessage='Reverse Order'
+              />
+            }
+          >
+            <ReorderIcon />
+          </a>
+        </div>
         <h2 className={ styles.subheader }>
           { logsLevels || '-' }
         </h2>
-        { this.renderToggle() }
-        { this.renderLogs() }
+        <Toggle logsEnabled={ logsEnabled } />
+        <Logs logs={ logs } />
       </Container>
-    );
-  }
-
-  renderToggle () {
-    const { logsEnabled } = this.debugStore;
-
-    if (logsEnabled) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.stopped }>
-        <FormattedMessage
-          id='status.debug.stopped'
-          defaultMessage='Refresh and display of logs from Parity is currently stopped via the UI, start it to see the latest updates.'
-        />
-      </div>
-    );
-  }
-
-  renderLogs () {
-    const { logs } = this.debugStore;
-
-    if (logs.length === 0) {
-      return null;
-    }
-
-    const text = logs
-      .map((log, index) => {
-        return (
-          <p key={ index } className={ styles.log }>
-            <span className={ styles.logDate }>[{ log.date.toLocaleString() }]</span>
-            <span className={ styles.logText }>{ log.log }</span>
-          </p>
-        );
-      });
-
-    return (
-      <div className={ styles.logs }>
-        { text }
-      </div>
-    );
-  }
-
-  renderActions () {
-    const { logsEnabled } = this.debugStore;
-    const toggleButton = logsEnabled
-      ? <PauseIcon />
-      : <PlayIcon />;
-
-    return (
-      <div className={ styles.actions }>
-        <a onClick={ this.toggle }>{ toggleButton }</a>
-        <a onClick={ this.clear }><ReplayIcon /></a>
-        <a
-          onClick={ this.reverse }
-          title={
-            <FormattedMessage
-              id='status.debug.reverse'
-              defaultMessage='Reverse Order'
-            />
-          }
-        >
-          <ReorderIcon />
-        </a>
-      </div>
     );
   }
 

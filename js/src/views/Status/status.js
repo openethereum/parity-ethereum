@@ -20,8 +20,8 @@ import { FormattedMessage } from 'react-intl';
 import { Page } from '~/ui';
 
 import Debug from './Debug';
+import Node from './Node';
 import Peers from './Peers';
-import NodeStatus from './NodeStatus';
 
 import styles from './status.css';
 
@@ -36,7 +36,7 @@ export default function Status () {
       }
     >
       <div className={ styles.body }>
-        <NodeStatus />
+        <Node />
         <Peers />
         <Debug />
       </div>

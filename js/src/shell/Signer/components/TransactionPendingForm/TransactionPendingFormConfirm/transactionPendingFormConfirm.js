@@ -143,7 +143,6 @@ export default class TransactionPendingFormConfirm extends Component {
             }
             label={ confirmText }
             onClick={ this.onConfirm }
-            primary
           />
         </div>
       )

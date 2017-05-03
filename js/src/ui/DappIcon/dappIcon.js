@@ -14,36 +14,33 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 
 import styles from './dappIcon.css';
 
-export default class DappIcon extends Component {
-  static contextTypes = {
-    api: PropTypes.object.isRequired
-  };
+export default function DappIcon ({ app, className, small }, context) {
+  const { dappsUrl } = context.api;
 
-  static propTypes = {
-    app: PropTypes.object.isRequired,
-    className: PropTypes.string,
-    small: PropTypes.bool
-  };
-
-  render () {
-    const { dappsUrl } = this.context.api;
-    const { app, className, small } = this.props;
-
-    return (
-      <img
-        className={
-          [styles.icon, styles[small ? 'small' : 'normal'], className].join(' ')
-        }
-        src={
-          app.type === 'local'
-            ? `${dappsUrl}/${app.id}/${app.iconUrl}`
-            : `${dappsUrl}${app.image}`
-        }
-      />
-    );
-  }
+  return (
+    <img
+      className={
+        [styles.icon, styles[small ? 'small' : 'normal'], className].join(' ')
+      }
+      src={
+        app.type === 'local'
+          ? `${dappsUrl}/${app.id}/${app.iconUrl}`
+          : `${dappsUrl}${app.image}`
+      }
+    />
+  );
 }
+
+DappIcon.contextTypes = {
+  api: PropTypes.object.isRequired
+};
+
+DappIcon.propTypes = {
+  app: PropTypes.object.isRequired,
+  className: PropTypes.string,
+  small: PropTypes.bool
+};

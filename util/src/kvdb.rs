@@ -35,6 +35,7 @@ use std::fs::File;
 
 const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
+const DB_WRITE_BUFFER_SIZE: usize = 2048 * 1000;
 
 /// Required length of prefixes.
 pub const PREFIX_LEN: usize = 12;
@@ -440,6 +441,7 @@ fn col_config(col: u32, config: &DatabaseConfig) -> Options {
 	opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
 	opts.set_target_file_size_base(config.compaction.initial_file_size);
 	opts.set_target_file_size_multiplier(config.compaction.file_size_multiplier);
+	opts.set_db_write_buffer_size(DB_WRITE_BUFFER_SIZE);
 
 	let col_opt = config.columns.map(|_| col);
 
@@ -487,6 +489,7 @@ impl Database {
 		opts.set_max_open_files(config.max_open_files);
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
+		opts.set_db_write_buffer_size(DB_WRITE_BUFFER_SIZE);
 
 		opts.set_max_background_flushes(DB_BACKGROUND_FLUSHES);
 		opts.set_max_background_compactions(DB_BACKGROUND_COMPACTIONS);

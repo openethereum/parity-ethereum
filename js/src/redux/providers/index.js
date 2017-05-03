@@ -22,7 +22,6 @@ export Status from './status';
 export apiReducer from './apiReducer';
 export balancesReducer from './balancesReducer';
 export workerReducer from './workerReducer';
-export imagesReducer from './imagesReducer';
 export personalReducer from './personalReducer';
 export requestsReducer from './requestsReducer';
 export settingsReducer from './settings/reducers';
