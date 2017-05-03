@@ -14,22 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export AddressSelect from './AddressSelect';
-export Checkbox from './Checkbox';
-export DappUrlInput from './DappUrlInput';
-export FileSelect from './FileSelect';
-export FormWrap from './FormWrap';
-export Input from './Input';
-export InputAddress from './InputAddress';
-export InputAddressSelect from './InputAddressSelect';
-export InputChip from './InputChip';
-export InputDate from './InputDate';
-export InputInline from './InputInline';
-export InputTime from './InputTime';
-export Label from './Label';
-export RadioButtons from './RadioButtons';
-export Select from './Select';
-export TypedInput from './TypedInput';
-export VaultSelect from './VaultSelect';
+import React, { PropTypes } from 'react';
+import { Checkbox as SemCheckbox } from 'semantic-ui-react';
 
-export default from './form';
+import { nodeOrStringProptype } from '~/util/proptypes';
+
+export default function Checkbox ({ checked = false, className, label, onClick, style }) {
+  return (
+    <SemCheckbox
+      checked={ checked }
+      className={ className }
+      label={ <label>{ label }</label> }
+      onClick={ onClick }
+      style={ style }
+    />
+  );
+}
+
+Checkbox.propTypes = {
+  checked: PropTypes.bool,
+  className: PropTypes.string,
+  label: nodeOrStringProptype(),
+  onClick: PropTypes.func,
+  style: PropTypes.object
+};

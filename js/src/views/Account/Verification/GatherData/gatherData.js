@@ -17,11 +17,10 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import BigNumber from 'bignumber.js';
-import { Checkbox } from 'semantic-ui-react';
 
 import { fromWei } from '@parity/api/util/wei';
 
-import { Form, Input } from '~/ui';
+import { Checkbox, Form, Input } from '~/ui';
 import { DoneIcon, ErrorIcon, InfoIcon } from '~/ui/Icons';
 import { nullableProptype } from '~/util/proptypes';
 

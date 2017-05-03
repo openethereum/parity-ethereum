@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Checkbox } from 'semantic-ui-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import Form, { Input, InputAddressSelect, AddressSelect } from '~/ui/Form';
+import Form, { Input, InputAddressSelect, AddressSelect, Checkbox } from '~/ui/Form';
 import { nullableProptype } from '~/util/proptypes';
 
 import TokenSelect from './tokenSelect';
@@ -129,7 +128,7 @@ export default class Details extends Component {
                   defaultMessage='advanced sending options'
                 />
               }
-              onCheck={ this.onCheckExtras }
+              onClick={ this.onCheckExtras }
               style={ CHECK_STYLE }
             />
           </div>

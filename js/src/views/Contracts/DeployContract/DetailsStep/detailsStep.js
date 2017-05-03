@@ -17,9 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { MenuItem } from 'material-ui';
-import { Checkbox } from 'semantic-ui-react';
 
-import { AddressSelect, Form, Input, Select } from '~/ui';
+import { AddressSelect, Checkbox, Form, Input, Select } from '~/ui';
 import { validateAbi } from '~/util/validation';
 import { parseAbiType } from '~/util/abi';
 
