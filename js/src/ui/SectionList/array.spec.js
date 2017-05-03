@@ -14,22 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export function capitalize (str) {
-  return str[0].toUpperCase() + str.slice(1).toLowerCase();
-}
+import { chunkArray } from './array';
 
-export function identity (x) {
-  return x;
-}
+describe('ui/SectionList/array', () => {
+  describe('chunkArray', () => {
+    it('splits array into equal chunks', () => {
+      expect(chunkArray([1, 2, 3, 4], 2)).to.deep.equal([[1, 2], [3, 4]]);
+    });
 
-export function toPromise (fn) {
-  return new Promise((resolve, reject) => {
-    fn((err, res) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(res);
-      }
+    it('splits array into equal chunks (non-divisible)', () => {
+      expect(chunkArray([1, 2, 3, 4], 3)).to.deep.equal([[1, 2, 3], [4]]);
     });
   });
-}
+});

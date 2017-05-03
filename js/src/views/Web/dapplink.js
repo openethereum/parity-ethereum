@@ -16,7 +16,7 @@
 
 import base32 from 'base32.js';
 
-import { DOMAIN } from './constants';
+import { DOMAIN } from '~/util/constants';
 
 const BASE_URL = `.web${DOMAIN}`;
 const ENCODER_OPTS = { type: 'crockford' };

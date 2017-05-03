@@ -14,22 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export function toPromise (fn) {
-  return new Promise((resolve, reject) => {
-    fn((err, res) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(res);
-      }
-    });
-  });
-}
-
-export function identity (x) {
-  return x;
-}
-
-export function capitalize (str) {
-  return str[0].toUpperCase() + str.slice(1).toLowerCase();
-}
+export default from './overlay';

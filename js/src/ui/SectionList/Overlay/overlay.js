@@ -14,16 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { chunkArray } from './array';
+import React from 'react';
 
-describe('util/array', () => {
-  describe('chunkArray', () => {
-    it('splits array into equal chunks', () => {
-      expect(chunkArray([1, 2, 3, 4], 2)).to.deep.equal([[1, 2], [3, 4]]);
-    });
+import { nodeOrStringProptype } from '~/util/proptypes';
 
-    it('splits array into equal chunks (non-divisible)', () => {
-      expect(chunkArray([1, 2, 3, 4], 3)).to.deep.equal([[1, 2, 3], [4]]);
-    });
-  });
-});
+import styles from './overlay.css';
+
+export default function Overlay ({ overlay }) {
+  if (!overlay) {
+    return null;
+  }
+
+  return (
+    <div className={ styles.overlay }>
+      { overlay }
+    </div>
+  );
+}
+
+Overlay.propTypes = {
+  overlay: nodeOrStringProptype()
+};
