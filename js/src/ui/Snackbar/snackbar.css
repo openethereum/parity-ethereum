@@ -1,0 +1,19 @@
+.snacks {
+  color: white;
+  padding: 10px 20px;
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  height: 40px;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.75);
+  z-index: 3000;
+  transition: transform 0.75s;
+}
+
+#action {
+  padding-left: 20px;
+  font-weight: bold;
+  cursor: pointer;
+}

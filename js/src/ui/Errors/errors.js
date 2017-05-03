@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { Snackbar } from 'material-ui';
+import { Snackbar } from '~/ui/Snackbar';
 
 import { closeErrors } from './actions';
 
@@ -26,18 +26,6 @@ import styles from './errors.css';
 
 const ERROR_REGEX = /-(\d+): (.+)$/;
 const DURATION_OPEN = 60000;
-const STYLE_BODY = {
-  height: 'auto',
-  whiteSpace: 'pre-line'
-};
-const STYLE_CONTENT = {
-  alignItems: 'center',
-  display: 'flex',
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  lineHeight: '1.5em',
-  padding: '0.75em 0'
-};
 
 class Errors extends Component {
   static propTypes = {
@@ -48,7 +36,7 @@ class Errors extends Component {
   };
 
   render () {
-    const { message, visible, onCloseErrors } = this.props;
+    const { message, visible } = this.props;
 
     if (!message || !visible) {
       return null;
@@ -68,10 +56,7 @@ class Errors extends Component {
         }
         autoHideDuration={ DURATION_OPEN }
         message={ text }
-        onActionTouchTap={ onCloseErrors }
         onRequestClose={ this.onRequestClose }
-        bodyStyle={ STYLE_BODY }
-        contentStyle={ STYLE_CONTENT }
       />
     );
   }

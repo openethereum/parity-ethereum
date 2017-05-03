@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Paper from 'material-ui/Paper';
-import { Tabs, Tab } from 'material-ui/Tabs';
+import { Menu, Segment } from 'semantic-ui-react';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -37,15 +37,13 @@ const MSG_SUCCESS_STYLE = {
 const MSG_FAILURE_STYLE = {
   backgroundColor: 'rgba(229, 115, 115, 0.75)'
 };
-const TABS_INKBAR_STYLE = {
-  backgroundColor: 'rgb(0, 151, 167)' // 'rgba(255, 255, 255, 0.55)'
-};
-const TABS_ITEM_STYLE = {
-  backgroundColor: 'rgba(255, 255, 255, 0.05)'
-};
+
+let MENU_CONTENT = 'TEST';
 
 @observer
 class PasswordManager extends Component {
+  state = { activeItem: 'bio' };
+
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -136,35 +134,32 @@ class PasswordManager extends Component {
   }
 
   renderPage () {
+    const { activeItem } = this.state;
+
     return (
-      <Tabs
-        inkBarStyle={ TABS_INKBAR_STYLE }
-        tabItemContainerStyle={ TABS_ITEM_STYLE }
-      >
-        <Tab
-          label={
-            <FormattedMessage
-              id='passwordChange.tabTest.label'
-              defaultMessage='Test Password'
-            />
-          }
-          onActive={ this.onActivateTestTab }
-        >
-          { this.renderTabTest() }
-        </Tab>
-        <Tab
-          label={
-            <FormattedMessage
-              id='passwordChange.tabChange.label'
-              defaultMessage='Change Password'
-            />
-          }
-          onActive={ this.onActivateChangeTab }
-        >
-          { this.renderTabChange() }
-        </Tab>
-      </Tabs>
+      <div>
+        <Menu attached='top' tabular>
+          <Menu.Item name='Test Password' active={ activeItem === 'Test Password' } onClick={ this.itemTestPassword } />
+          <Menu.Item name='Change Password' active={ activeItem === 'Change Password' } onClick={ this.itemChangePassword } />
+        </Menu>
+
+        <Segment attached='bottom'>
+          { MENU_CONTENT === 'TEST' ? this.renderTabTest() : this.renderTabChange() }
+        </Segment>
+      </div>
     );
+  }
+
+  itemTestPassword = (e, name) => {
+    MENU_CONTENT = 'TEST';
+    this.onActivateTestTab();
+    this.setState({ activeItem: name });
+  }
+
+  itemChangePassword = (e, name) => {
+    MENU_CONTENT = 'CHANGE';
+    this.onActivateChangeTab();
+    this.setState({ activeItem: name });
   }
 
   renderTabTest () {
