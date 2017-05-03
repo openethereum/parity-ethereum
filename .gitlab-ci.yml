@@ -348,7 +348,7 @@ linux-armv6:
   allow_failure: true
 linux-aarch64:
   stage: build
-  image: parity/rust-arm64:latest
+  image: parity/rust-arm64:gitlab-ci
   only:
     - beta
     - tags
