@@ -62,7 +62,7 @@ linux-stable:
     name: "stable-x86_64-unknown-linux-gnu_parity"
 linux-stable-debian:
   stage: build
-  image: ethcore/rust-debian:latest
+  image: parity/rust-debian:gitlab-ci
   only:
     - beta
     - tags
@@ -146,7 +146,7 @@ linux-nightly:
   allow_failure: true
 linux-centos:
   stage: build
-  image: ethcore/rust-centos:latest
+  image: parity/rust-centos:gitlab-ci
   only:
     - beta
     - tags
@@ -177,7 +177,7 @@ linux-centos:
     name: "x86_64-unknown-centos-gnu_parity"
 linux-i686:
   stage: build
-  image: ethcore/rust-i686:latest
+  image: parity/rust-i686:gitlab-ci
   only:
     - beta
     - tags
@@ -217,7 +217,7 @@ linux-i686:
   allow_failure: true
 linux-armv7:
   stage: build
-  image: ethcore/rust-armv7:latest
+  image: parity/rust-armv7:gitlab-ci
   only:
     - beta
     - tags
@@ -263,7 +263,7 @@ linux-armv7:
   allow_failure: true
 linux-arm:
   stage: build
-  image: ethcore/rust-arm:latest
+  image: parity/rust-arm:gitlab-ci
   only:
     - beta
     - tags
@@ -348,7 +348,7 @@ linux-armv6:
   allow_failure: true
 linux-aarch64:
   stage: build
-  image: ethcore/rust-aarch64:latest
+  image: parity/rust-arm64:gitlab-ci
   only:
     - beta
     - tags
@@ -560,7 +560,7 @@ test-rust-stable:
     - rust-stable
 js-test:
   stage: test
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
@@ -574,11 +574,12 @@ test-rust-beta:
   stage: test
   only:
     - triggers
-  image: ethcore/rust:beta
+  image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
+    - rustup default beta
     - export RUST_BACKTRACE=1
     - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
   tags:
@@ -589,11 +590,12 @@ test-rust-nightly:
   stage: test
   only:
     - triggers
-  image: ethcore/rust:nightly
+  image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
+    - rustup default stable
     - export RUST_BACKTRACE=1
     - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
   tags:
@@ -607,12 +609,13 @@ js-release:
     - beta
     - stable
     - tags
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   before_script:
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
     - echo $JS_FILES_MODIFIED
     - if [ $JS_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
   script:
+    - rustup default stable
     - echo $JS_FILES_MODIFIED
     - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS rebuild since no JS files modified."; else ./js/scripts/build.sh && ./js/scripts/release.sh; fi
   tags:
@@ -621,8 +624,9 @@ push-release:
   stage: push-release
   only:
     - tags
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   script:
+    - rustup default stable
     - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
     - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
   tags:
