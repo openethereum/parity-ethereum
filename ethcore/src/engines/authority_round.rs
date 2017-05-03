@@ -160,7 +160,7 @@ fn verify_external(header: &Header, validators: &ValidatorSet, step: &Step) -> R
 	// Give one step slack if step is lagging, double vote is still not possible.
 	if step.is_future(header_step) {
 		trace!(target: "engine", "verify_block_unordered: block from the future");
-		validators.report_benign(header.author());
+		validators.report_benign(header.author(), header.number());
 		Err(BlockError::InvalidSeal)?
 	} else {
 		let proposer_signature = header_signature(header)?;
@@ -381,7 +381,7 @@ impl Engine for AuthorityRound {
 		let parent_step = header_step(parent)?;
 		if step <= parent_step {
 			trace!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
-			self.validators.report_malicious(header.author());
+			self.validators.report_malicious(header.author(), header.number(), Default::default());
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 

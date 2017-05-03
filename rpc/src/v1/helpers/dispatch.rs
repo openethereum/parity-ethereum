@@ -58,7 +58,7 @@ pub trait Dispatcher: Send + Sync + Clone {
 	// type Out<T>: IntoFuture<T, Error>
 
 	/// Fill optional fields of a transaction request, fetching gas price but not nonce.
-	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address)
+	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, force_nonce: bool)
 		-> BoxFuture<FilledTransactionRequest, Error>;
 
 	/// Sign the given transaction request without dispatching, fetching appropriate nonce.
@@ -96,17 +96,30 @@ impl<C, M> Clone for FullDispatcher<C, M> {
 	}
 }
 
+impl<C: MiningBlockChainClient, M: MinerService> FullDispatcher<C, M> {
+	fn fill_nonce(nonce: Option<U256>, from: &Address, miner: &M, client: &C) -> U256 {
+		nonce
+			.or_else(|| miner.last_nonce(from).map(|nonce| nonce + U256::one()))
+			.unwrap_or_else(|| client.latest_nonce(from))
+	}
+}
+
 impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C, M> {
-	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address)
+	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, force_nonce: bool)
 		-> BoxFuture<FilledTransactionRequest, Error>
 	{
 		let (client, miner) = (take_weakf!(self.client), take_weakf!(self.miner));
 		let request = request;
+		let from = request.from.unwrap_or(default_sender);
+		let nonce = match force_nonce {
+			false => request.nonce,
+			true => Some(Self::fill_nonce(request.nonce, &from, &miner, &client)),
+		};
 		future::ok(FilledTransactionRequest {
-			from: request.from.unwrap_or(default_sender),
+			from: from,
 			used_default_from: request.from.is_none(),
 			to: request.to,
-			nonce: request.nonce,
+			nonce: nonce,
 			gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(&*client, &*miner)),
 			gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
 			value: request.value.unwrap_or_else(|| 0.into()),
@@ -123,12 +136,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 		let address = filled.from;
 		future::done({
 			let t = Transaction {
-				nonce: filled.nonce
-					.or_else(|| miner
-						.last_nonce(&filled.from)
-						.map(|nonce| nonce + U256::one()))
-					.unwrap_or_else(|| client.latest_nonce(&filled.from)),
-
+				nonce: Self::fill_nonce(filled.nonce, &filled.from, &miner, &client),
 				action: filled.to.map_or(Action::Create, Action::Call),
 				gas: filled.gas,
 				gas_price: filled.gas_price,
@@ -288,18 +296,20 @@ impl LightDispatcher {
 }
 
 impl Dispatcher for LightDispatcher {
-	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address)
+	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, force_nonce: bool)
 		-> BoxFuture<FilledTransactionRequest, Error>
 	{
 		const DEFAULT_GAS_PRICE: U256 = U256([0, 0, 0, 21_000_000]);
 
 		let gas_limit = self.client.best_block_header().gas_limit();
 		let request_gas_price = request.gas_price.clone();
+		let request_nonce = request.nonce.clone();
+		let from = request.from.unwrap_or(default_sender);
 
 		let with_gas_price = move |gas_price| {
 			let request = request;
 			FilledTransactionRequest {
-				from: request.from.unwrap_or(default_sender),
+				from: from.clone(),
 				used_default_from: request.from.is_none(),
 				to: request.to,
 				nonce: request.nonce,
@@ -312,7 +322,7 @@ impl Dispatcher for LightDispatcher {
 		};
 
 		// fast path for known gas price.
-		match request_gas_price {
+		let gas_price = match request_gas_price {
 			Some(gas_price) => future::ok(with_gas_price(gas_price)).boxed(),
 			None => fetch_gas_price_corpus(
 				self.sync.clone(),
@@ -323,6 +333,20 @@ impl Dispatcher for LightDispatcher {
 				Some(median) => future::ok(*median),
 				None => future::ok(DEFAULT_GAS_PRICE), // fall back to default on error.
 			}).map(with_gas_price).boxed()
+		};
+
+		match (request_nonce, force_nonce) {
+			(_, false) | (Some(_), true) => gas_price,
+			(None, true) => {
+				let next_nonce = self.next_nonce(from);
+				gas_price.and_then(move |mut filled| next_nonce
+					.map_err(|_| errors::no_light_peers())
+					.map(move |nonce| {
+						filled.nonce = Some(nonce);
+						filled
+					})
+				).boxed()
+			},
 		}
 	}
 
@@ -563,12 +587,12 @@ pub fn from_rpc<D>(payload: RpcConfirmationPayload, default_account: Address, di
 {
 	match payload {
 		RpcConfirmationPayload::SendTransaction(request) => {
-			dispatcher.fill_optional_fields(request.into(), default_account)
+			dispatcher.fill_optional_fields(request.into(), default_account, false)
 				.map(ConfirmationPayload::SendTransaction)
 				.boxed()
 		},
 		RpcConfirmationPayload::SignTransaction(request) => {
-			dispatcher.fill_optional_fields(request.into(), default_account)
+			dispatcher.fill_optional_fields(request.into(), default_account, false)
 				.map(ConfirmationPayload::SignTransaction)
 				.boxed()
 		},
