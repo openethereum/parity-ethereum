@@ -24,17 +24,17 @@ build_rpc_trait! {
 	/// Parity-specific rpc interface.
 	pub trait SecretStore {
 		/// Encrypt data with key, received from secret store.
-		/// Arguments: `account`, `key`, `data`.
+		/// Arguments: `account`, `password`, `key`, `data`.
 		#[rpc(name = "secretstore_encrypt")]
 		fn encrypt(&self, H160, String, Bytes, Bytes) -> Result<Bytes, Error>;
 
 		/// Decrypt data with key, received from secret store.
-		/// Arguments: `account`, `key`, `data`.
+		/// Arguments: `account`, `password`, `key`, `data`.
 		#[rpc(name = "secretstore_decrypt")]
 		fn decrypt(&self, H160, String, Bytes, Bytes) -> Result<Bytes, Error>;
 
 		/// Decrypt data with shadow key, received from secret store.
-		/// Arguments: `account`, `decrypted_secret`, `common_point`, `decrypt_shadows`, `data`.
+		/// Arguments: `account`, `password`, `decrypted_secret`, `common_point`, `decrypt_shadows`, `data`.
 		#[rpc(name = "secretstore_shadowDecrypt")]
 		fn shadow_decrypt(&self, H160, String, H512, H512, Vec<Bytes>, Bytes) -> Result<Bytes, Error>;
 	}
