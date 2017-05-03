@@ -385,6 +385,12 @@ impl Engine for AuthorityRound {
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 
+		if step > parent_step + 1 {
+			let skipped_primary = self.step_proposer(&parent.hash(), parent_step + 1);
+			trace!(target: "engine", "Author {} did not build his block on top of the intermediate designated primary {}.", header.author(), skipped_primary);
+			self.validators.report_benign(&skipped_primary, header.number());
+		}
+
 		let gas_limit_divisor = self.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
