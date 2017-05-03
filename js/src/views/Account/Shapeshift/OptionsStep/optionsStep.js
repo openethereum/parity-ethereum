@@ -15,12 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { MenuItem } from 'material-ui';
-import { Checkbox } from 'semantic-ui-react';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Form, Input, Select, Warning } from '~/ui';
+import { Checkbox, Form, Input, Select, Warning } from '~/ui';
 
 import Price from '../Price';
 import { WARNING_NO_PRICE } from '../store';

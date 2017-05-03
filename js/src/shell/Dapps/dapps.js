@@ -15,13 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { omitBy } from 'lodash';
-import { Checkbox } from 'semantic-ui-react';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { Actionbar, Button, DappCard, Page, SectionList } from '~/ui';
+import { Actionbar, Button, Checkbox, DappCard, Page, SectionList } from '~/ui';
 import { LockedIcon, VisibleIcon } from '~/ui/Icons';
 
 import DappsVisible from '../DappsVisible';

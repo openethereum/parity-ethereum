@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Checkbox } from 'semantic-ui-react';
 import { observer } from 'mobx-react';
 import { List, ListItem } from 'material-ui/List';
 import React, { Component } from 'react';
+
+import Checkbox from '~/ui/Form/Checkbox';
 
 import defaults, { MODES } from './defaults';
 import Store from './store';
