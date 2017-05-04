@@ -24,7 +24,7 @@ use api::response;
 use apps::fetcher::Fetcher;
 
 use handlers::extract_url;
-use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
+use endpoint::{Endpoint, Handler, EndpointPath};
 
 #[derive(Clone)]
 pub struct RestApi {

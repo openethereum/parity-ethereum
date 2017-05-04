@@ -34,8 +34,8 @@ let store;
 
 function createApi () {
   api = {
-    dappsPort: 8080,
-    dappsUrl: 'http://home.web3.site:8080',
+    dappsPort: 8545,
+    dappsUrl: 'http://home.web3.site:8545',
     parity: {
       listRecentDapps: sinon.stub().resolves(TEST_HISTORY)
     },

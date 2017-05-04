@@ -133,6 +133,7 @@ pub struct WsConfiguration {
 	pub origins: Option<Vec<String>>,
 	pub hosts: Option<Vec<String>>,
 	pub signer_path: PathBuf,
+	pub ui_address: Option<(String, u16)>,
 }
 
 impl Default for WsConfiguration {
@@ -146,6 +147,7 @@ impl Default for WsConfiguration {
 			origins: Some(Vec::new()),
 			hosts: Some(Vec::new()),
 			signer_path: replace_home(&data_dir, "$BASE/signer").into(),
+			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
 		}
 	}
 }
@@ -190,19 +192,27 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	};
 
 	let remote = deps.remote.clone();
-	let allowed_origins = into_domains(conf.origins);
+	let ui_address = conf.ui_address.clone();
+	let origins = conf.origins.map(move |mut origins| {
+		if let Some((ui_host, ui_port)) = ui_address.clone() {
+			origins.push(format!("{}:{}", ui_host, ui_port))
+		}
+		origins
+	});
+	let allowed_origins = into_domains(origins);
 	let allowed_hosts = into_domains(conf.hosts);
 
-	let path = ::signer::codes_path(&conf.signer_path);
+	let signer_path = conf.signer_path;
+	let signer_path = conf.ui_address.map(move |_| ::signer::codes_path(&signer_path));
+	let path = signer_path.as_ref().map(|p| p.as_path());
 	let start_result = rpc::start_ws(
 		&addr,
 		handler,
 		remote,
 		allowed_origins,
 		allowed_hosts,
-		// TODO [ToDr] Codes should be provided only if signer is enabled!
-		rpc::WsExtractor::new(Some(&path)),
-		rpc::WsExtractor::new(Some(&path)),
+		rpc::WsExtractor::new(path.clone()),
+		rpc::WsExtractor::new(path.clone()),
 		rpc::WsStats::new(deps.stats.clone()),
 	);
 

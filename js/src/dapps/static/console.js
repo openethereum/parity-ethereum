@@ -20,11 +20,10 @@ if (typeof (window.parent.secureApi) === 'object') {
   window.api = window.parent.secureApi;
 
   if (typeof (window.Web3) === 'function') {
-    Promise.all([
-      window.api.parity.dappsInterface(),
-      window.api.parity.dappsPort()
-    ]).then(res => {
-      window.web3 = new window.Web3(new window.Web3.providers.HttpProvider(`http://${res.join(':')}/rpc/`));
+    window.api.parity.dappsUrl().then(url => {
+      window.web3 = new window.Web3(new window.Web3.providers.HttpProvider(
+        `${window.location.protocol}://${url}/rpc/`
+      ));
     });
   }
 } else if (typeof (window.parity) === 'object') {

@@ -814,6 +814,8 @@ impl Configuration {
 	}
 
 	fn ws_config(&self) -> Result<WsConfiguration, String> {
+		let ui = self.ui_config();
+
 		let conf = WsConfiguration {
 			enabled: self.ws_enabled(),
 			interface: self.ws_interface(),
@@ -822,6 +824,7 @@ impl Configuration {
 			hosts: self.ws_hosts(),
 			origins: self.ws_origins(),
 			signer_path: self.directories().signer.into(),
+			ui_address: ui.address(),
 		};
 
 		Ok(conf)
