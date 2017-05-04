@@ -18,24 +18,16 @@ import React, { PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { Snackbar as SnackbarMUI } from 'material-ui';
+import { Snackbar as SnackbarUI } from '~/ui';
 
 import { closeSnackbar } from '~/redux/providers/snackbarActions';
 
-const BODY_STYLE = {
-  backgroundColor: 'rgba(0, 0, 0, 0.87)',
-  borderStyle: 'solid',
-  borderColor: '#424242',
-  borderWidth: '1px 1px 0 1px'
-};
-
-function Snackbar ({ closeSnackbar, cooldown, message, open }) {
+function Snackbar ({ closeSnackbar, cooldown = 3500, message, open = false }) {
   return (
-    <SnackbarMUI
-      autoHideDuration={ cooldown }
-      bodyStyle={ BODY_STYLE }
-      message={ message }
+    <SnackbarUI
       open={ open }
+      message={ message }
+      autoHideDuration={ cooldown }
       onRequestClose={ closeSnackbar }
     />
   );
