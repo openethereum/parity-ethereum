@@ -296,6 +296,19 @@ export default {
     }
   },
 
+  getBlockHeaderByNumber: {
+    section: SECTION_NET,
+    desc: 'Returns block header information by number (same as eth_getBlockByNumber without transactions and uncles)',
+    params: [
+      {
+        type: BlockNumber,
+        desc: 'integer of a block number, or the string `\'earliest\'`, `\'latest\'` or `\'pending\'`, as in the [default block parameter](#the-default-block-parameter).',
+        example: fromDecimal(436)
+      }
+    ],
+    returns: 'See [eth_getBlockByHash](#eth_getblockbyhash) (without transactions and uncles)'
+  },
+
   getVaultMeta: {
     section: SECTION_VAULT,
     desc: 'Returns the metadata for a specific vault',

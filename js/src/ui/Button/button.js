@@ -19,18 +19,19 @@ import { Button as SemButton } from 'semantic-ui-react';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
-export default function Button ({ active, animated, basic, className, color, disabled, icon, label, onClick, primary, size, toggle }) {
+export default function Button ({ active, animated, basic, className, color, disabled, fullWidth, icon, label, onClick, primary, size, toggle }) {
   return (
     <SemButton
       active={ active }
       animated={ animated }
       basic={ basic }
       className={ className }
+      content={ label }
       color={ color }
       disabled={ disabled }
+      fluid={ fullWidth }
       icon={ icon }
-      content={ label }
-      onClick={ onClick }
+      onTouchTap={ onClick }
       primary={ primary }
       size={ size }
       toggle={ toggle }
@@ -46,6 +47,7 @@ Button.propTypes = {
   className: PropTypes.string,
   color: PropTypes.string,
   disabled: PropTypes.bool,
+  fullWidth: PropTypes.bool,
   icon: PropTypes.node,
   label: nodeOrStringProptype(),
   onClick: PropTypes.func,

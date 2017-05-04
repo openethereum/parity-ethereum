@@ -198,7 +198,7 @@ fn rpc_parity_set_hash_content() {
 	let mut io = IoHandler::new();
 	io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
 
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_hashContent", "params":["https://ethcore.io/assets/images/ethcore-black-horizontal.png"], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_hashContent", "params":["https://parity.io/assets/images/ethcore-black-horizontal.png"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e","id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));

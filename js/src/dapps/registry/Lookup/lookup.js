@@ -18,11 +18,11 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Card, CardHeader, CardText } from 'material-ui/Card';
+import RaisedButton from 'material-ui/RaisedButton';
+import SearchIcon from 'material-ui/svg-icons/action/search';
 import TextField from 'material-ui/TextField';
 import DropDownMenu from 'material-ui/DropDownMenu';
 import MenuItem from 'material-ui/MenuItem';
-import RaisedButton from 'material-ui/RaisedButton';
-import SearchIcon from 'material-ui/svg-icons/action/search';
 import keycode from 'keycode';
 
 import { nullableProptype } from '~/util/proptypes';

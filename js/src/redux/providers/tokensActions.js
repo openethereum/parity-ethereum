@@ -18,10 +18,10 @@ import { uniq } from 'lodash';
 
 import Contracts from '~/contracts';
 import { LOG_KEYS, getLogger } from '~/config';
+import { IconCache } from '~/ui';
 import { fetchTokenIds, fetchTokenInfo } from '~/util/tokens';
 
 import { updateTokensFilter } from './balancesActions';
-import { setAddressImage } from './imagesActions';
 
 const log = getLogger(LOG_KEYS.Balances);
 
@@ -54,8 +54,9 @@ export function fetchTokens (_tokenIndexes, options = {}) {
   const tokenIndexes = uniq(_tokenIndexes || []);
 
   return (dispatch, getState) => {
-    const { api, images } = getState();
+    const { api } = getState();
     const { tokenReg } = Contracts.get(api);
+    const iconCache = IconCache.get();
 
     return tokenReg.getInstance()
       .then((tokenRegInstance) => {
@@ -69,8 +70,8 @@ export function fetchTokens (_tokenIndexes, options = {}) {
             const { id, image, address } = token;
 
             // dispatch only the changed images
-            if (images[address] !== image) {
-              dispatch(setAddressImage(address, image, true));
+            if (iconCache.images[address] !== image) {
+              iconCache.add(address, image, true);
             }
 
             tokens[id] = token;

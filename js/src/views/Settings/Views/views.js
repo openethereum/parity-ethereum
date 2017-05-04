@@ -18,9 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { Checkbox } from 'semantic-ui-react';
 
-import { Container } from '~/ui';
+import { Checkbox, Container } from '~/ui';
 
 import { toggleView } from '~/redux/providers/settings/actions';
 

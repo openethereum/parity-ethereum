@@ -17,9 +17,8 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Checkbox } from 'semantic-ui-react';
 
-import { Form, Input } from '~/ui';
+import { Checkbox, Form, Input } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 
 import ChangeVault from '../ChangeVault';

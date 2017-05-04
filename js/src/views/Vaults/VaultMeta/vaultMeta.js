@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Checkbox } from 'semantic-ui-react';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -22,7 +21,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { Button, Form, Input, Portal, VaultCard } from '~/ui';
+import { Button, Checkbox, Form, Input, Portal, VaultCard } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 import { CheckIcon, CloseIcon } from '~/ui/Icons';
 

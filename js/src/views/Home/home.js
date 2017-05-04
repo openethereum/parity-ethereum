@@ -22,8 +22,9 @@ import HistoryStore from '~/mobx/historyStore';
 import { Page } from '~/ui';
 import WebStore from '~/views/Web/store';
 
+// FIXME: Don't really want to import from ~/shell
 import DappsStore from '~/shell/Dapps/dappsStore';
-import ExtensionStore from '~/shell/Application/Extension/store';
+import ExtensionStore from '~/shell/Extension/store';
 
 import Accounts from './Accounts';
 import Dapps from './Dapps';

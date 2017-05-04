@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export AddressSelect from './AddressSelect';
+export Checkbox from './Checkbox';
 export DappUrlInput from './DappUrlInput';
 export FileSelect from './FileSelect';
 export FormWrap from './FormWrap';
