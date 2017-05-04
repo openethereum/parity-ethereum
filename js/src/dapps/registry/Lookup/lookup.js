@@ -21,8 +21,8 @@ import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
 import DropDownMenu from 'material-ui/DropDownMenu';
 import MenuItem from 'material-ui/MenuItem';
-import { Button } from '~/ui';
-import { SearchIcon } from '~/ui/Icons';
+import RaisedButton from 'material-ui/RaisedButton';
+import SearchIcon from 'material-ui/svg-icons/action/search';
 import keycode from 'keycode';
 
 import { nullableProptype } from '~/util/proptypes';
@@ -71,11 +71,11 @@ class Lookup extends Component {
             <MenuItem value='reverse' primaryText='reverse – find a name for an address' />
             <MenuItem value='owner' primaryText='owner – find the owner' />
           </DropDownMenu>
-          <Button
+          <RaisedButton
             label='Lookup'
             primary
             icon={ <SearchIcon /> }
-            onClick={ this.onLookupClick }
+            onTouchTap={ this.onLookupClick }
           />
         </div>
         <CardText>

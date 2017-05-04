@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { Dialog, RaisedButton, FlatButton, SelectField, MenuItem } from 'material-ui';
-import { AddIcon } from '~/ui/Icons';
+import AddIcon from 'material-ui/svg-icons/content/add';
 
 import InputText from '../../Inputs/Text';
 import { ADDRESS_TYPE, URL_TYPE } from '../../Inputs/validation';

@@ -17,7 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 
 import { RaisedButton } from 'material-ui';
-import { SearchIcon, SendIcon } from '~/ui/Icons';
+import ActionSearchIcon from 'material-ui/svg-icons/action/search';
+import ContentSendIcon from 'material-ui/svg-icons/content/send';
 
 import Register from './Register';
 import Query from './Query';
@@ -57,7 +58,7 @@ export default class Actions extends Component {
       <div className={ styles.actions }>
         <RaisedButton
           className={ styles.button }
-          icon={ <SendIcon /> }
+          icon={ <ContentSendIcon /> }
           label='Register Token'
           primary
           onTouchTap={ this.onShowRegister }
@@ -65,7 +66,7 @@ export default class Actions extends Component {
 
         <RaisedButton
           className={ styles.button }
-          icon={ <SearchIcon /> }
+          icon={ <ActionSearchIcon /> }
           label='Search Token'
           primary
           onTouchTap={ this.onShowQuery }
