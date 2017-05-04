@@ -70,48 +70,52 @@ export default class Store {
   }
 
   loadTransactions (_txhashes) {
-    const { eth } = this._api;
-
     // Ignore special cases and if the contents of _txhashes && this.sortedHashes are the same
     if (Array.isArray(_txhashes) || this.sameHashList(_txhashes)) {
       return;
     }
 
     // Remove any tx that are edited/cancelled
-    this.sortedHashes
-      .forEach((hash) => {
-        if (!_txhashes.includes(hash)) {
-          this.removeHash(hash);
-        }
-      });
+    this.sortedHashes.forEach((hash) => {
+      if (!_txhashes.includes(hash)) {
+        this.removeHash(hash);
+      }
+    });
 
     // Add any new tx
-    _txhashes
-      .forEach((txhash) => {
-        if (this.sortedHashes.includes(txhash)) { return; }
-        eth.getTransactionByHash(txhash)
-          .then((tx) => {
-            if (!tx) { return; }
-            this.transactions[txhash] = tx;
-            // If the tx has a blockHash, let's get the blockNumber, otherwise it's ready to be added
-            if (tx.blockHash) {
-              eth.getBlockByNumber(tx.blockNumber)
-                .then((block) => {
-                  this.blocks[tx.blockNumber] = block;
-                  this.addHash(txhash);
-                });
-            } else {
-              this.addHash(txhash);
-            }
-          });
-      });
+    _txhashes.forEach((txhash) => {
+      if (this.sortedHashes.includes(txhash)) {
+        return;
+      }
+
+      this._api.eth
+        .getTransactionByHash(txhash)
+        .then((tx) => {
+          if (!tx) {
+            return;
+          }
+
+          this.transactions[txhash] = tx;
+
+          // If the tx has a blockHash, let's get the blockNumber, otherwise it's ready to be added
+          if (tx.blockHash) {
+            this._api.parity
+              .getBlockHeaderByNumber(tx.blockNumber)
+              .then((block) => {
+                this.blocks[tx.blockNumber] = block;
+                this.addHash(txhash);
+              });
+          } else {
+            this.addHash(txhash);
+          }
+        });
+    });
   }
 
   cancelTransaction = (txComponent, tx) => {
-    const { parity } = this._api;
     const { hash } = tx;
 
-    parity
+    this._api.parity
       .removeTransaction(hash)
       .then(() => {
         txComponent.setState({ canceled: true });
@@ -122,13 +126,12 @@ export default class Store {
   }
 
   editTransaction = (txComponent, tx) => {
-    const { parity } = this._api;
     const { hash, gas, gasPrice, to, from, value, input, condition } = tx;
 
-    parity
+    this._api.parity
       .removeTransaction(hash)
       .then(() => {
-        parity.postTransaction({
+        return this._api.parity.postTransaction({
           from,
           to,
           gas,

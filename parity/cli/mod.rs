@@ -95,6 +95,8 @@ usage! {
 		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
 		flag_light: bool = false, or |c: &Config| otry!(c.parity).light,
+		flag_no_persistent_txqueue: bool = false,
+			or |c: &Config| otry!(c.parity).no_persistent_txqueue,
 
 		// -- Account Options
 		flag_unlock: Option<String> = None,
@@ -345,7 +347,6 @@ usage! {
 		flag_no_color: bool = false,
 			or |c: &Config| otry!(c.misc).color.map(|c| !c).clone(),
 
-
 		// -- Legacy Options supported in configs
 		flag_dapps_port: Option<u16> = None,
 			or |c: &Config| otry!(c.dapps).port.clone().map(Some),
@@ -406,6 +407,7 @@ struct Operating {
 	keys_path: Option<String>,
 	identity: Option<String>,
 	light: Option<bool>,
+	no_persistent_txqueue: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -682,6 +684,7 @@ mod tests {
 			flag_keys_path: "$HOME/.parity/keys".into(),
 			flag_identity: "".into(),
 			flag_light: false,
+			flag_no_persistent_txqueue: false,
 
 			// -- Account Options
 			flag_unlock: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
@@ -901,6 +904,7 @@ mod tests {
 				keys_path: None,
 				identity: None,
 				light: None,
+				no_persistent_txqueue: None,
 			}),
 			account: Some(Account {
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),

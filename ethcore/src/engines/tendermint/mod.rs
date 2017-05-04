@@ -471,8 +471,8 @@ impl Engine for Tendermint {
 				return Err(EngineError::NotAuthorized(sender).into());
 			}
 			self.broadcast_message(rlp.as_raw().to_vec());
-			if self.votes.vote(message.clone(), &sender).is_some() {
-				self.validators.report_malicious(&sender);
+			if let Some(double) = self.votes.vote(message.clone(), &sender) {
+				self.validators.report_malicious(&sender, message.vote_step.height as BlockNumber, ::rlp::encode(&double).to_vec());
 				return Err(EngineError::DoubleVote(sender).into());
 			}
 			trace!(target: "engine", "Handling a valid {:?} from {}.", message, sender);
@@ -560,7 +560,7 @@ impl Engine for Tendermint {
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
-			self.validators.report_malicious(header.author());
+			self.validators.report_malicious(header.author(), header.number(), Default::default());
 			return Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() }).into());
 		}
 
@@ -610,8 +610,9 @@ impl Engine for Tendermint {
 				trace!(target: "engine", "Propose timeout.");
 				if self.proposal.read().is_none() {
 					// Report the proposer if no proposal was received.
-					let current_proposer = self.view_proposer(&*self.proposal_parent.read(), self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst));
-					self.validators.report_benign(&current_proposer);
+					let height = self.height.load(AtomicOrdering::SeqCst);
+					let current_proposer = self.view_proposer(&*self.proposal_parent.read(), height, self.view.load(AtomicOrdering::SeqCst));
+					self.validators.report_benign(&current_proposer, height as BlockNumber);
 				}
 				Step::Prevote
 			},
