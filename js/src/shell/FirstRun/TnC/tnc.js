@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Checkbox } from 'material-ui';
+import { Checkbox } from '~/ui';
 
 import styles from '../firstRun.css';
 

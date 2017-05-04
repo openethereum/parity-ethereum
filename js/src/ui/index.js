@@ -23,6 +23,7 @@ export Balance from './Balance';
 export BlockStatus from './BlockStatus';
 export Button from './Button';
 export Certifications from './Certifications';
+export Checkbox from './Checkbox';
 export ConfirmDialog from './ConfirmDialog';
 export Container, { Title as ContainerTitle } from './Container';
 export ContextProvider from './ContextProvider';

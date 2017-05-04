@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Checkbox, MenuItem } from 'material-ui';
+import { MenuItem } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { AddressSelect, Form, Input, Select, TypedInput } from '~/ui';
+import { AddressSelect, Checkbox, Form, Input, Select, TypedInput } from '~/ui';
 
 import styles from '../executeContract.css';
 

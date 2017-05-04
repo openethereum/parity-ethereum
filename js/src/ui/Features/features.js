@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Checkbox } from 'material-ui';
+import { Checkbox } from '~/ui/Checkbox';
 import { observer } from 'mobx-react';
 import { List, ListItem } from 'material-ui/List';
 import React, { Component } from 'react';
