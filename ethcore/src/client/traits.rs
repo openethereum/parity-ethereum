@@ -272,6 +272,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get the address of a particular blockchain service, if available.
 	fn registry_address(&self, name: String) -> Option<Address>;
+
+	/// Get the EIP-86 transition block number.
+	fn eip86_transition(&self) -> u64;
 }
 
 impl IpcConfig for BlockChainClient { }
@@ -324,5 +327,7 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 	fn prove_account(&self, key1: H256, id: BlockId) -> Option<(Vec<Bytes>, BasicAccount)>;
 
 	/// Prove execution of a transaction at the given block.
-	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<Vec<DBValue>>;
+	/// Returns the output of the call and a vector of database items necessary
+	/// to reproduce it.
+	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<(Bytes, Vec<DBValue>)>;
 }

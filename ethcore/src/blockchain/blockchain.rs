@@ -419,6 +419,45 @@ impl<'a> Iterator for AncestryIter<'a> {
 	}
 }
 
+/// An iterator which walks all epoch transitions.
+/// Returns epoch transitions.
+pub struct EpochTransitionIter<'a> {
+	chain: &'a BlockChain,
+	prefix_iter: Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>,
+}
+
+impl<'a> Iterator for EpochTransitionIter<'a> {
+	type Item = (u64, EpochTransition);
+
+	fn next(&mut self) -> Option<Self::Item> {
+		loop {
+			match self.prefix_iter.next() {
+				Some((key, val)) => {
+					// iterator may continue beyond values beginning with this
+					// prefix.
+					if !key.starts_with(&EPOCH_KEY_PREFIX[..]) { return None }
+
+					let transitions: EpochTransitions = ::rlp::decode(&val[..]);
+
+					// if there are multiple candidates, at most one will be on the
+					// canon chain.
+					for transition in transitions.candidates.into_iter() {
+						let is_in_canon_chain = self.chain.block_hash(transition.block_number)
+							.map_or(false, |hash| hash == transition.block_hash);
+
+						if is_in_canon_chain {
+							return Some((transitions.number, transition))
+						}
+					}
+
+					// some epochs never occurred on the main chain.
+				}
+				None => return None,
+			}
+		}
+	}
+}
+
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis.
 	pub fn new(config: Config, genesis: &[u8], db: Arc<KeyValueDB>) -> BlockChain {
@@ -650,12 +689,19 @@ impl BlockChain {
 	///   ```json
 	///   { blocks: [B4, B3, A3, A4], ancestor: A2, index: 2 }
 	///   ```
-	pub fn tree_route(&self, from: H256, to: H256) -> TreeRoute {
+	///
+	/// If the tree route verges into pruned or unknown blocks,
+	/// `None` is returned.
+	pub fn tree_route(&self, from: H256, to: H256) -> Option<TreeRoute> {
+		macro_rules! otry {
+			($e:expr) => { match $e { Some(x) => x, None => return None } }
+		}
+
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
 
-		let mut from_details = self.block_details(&from).unwrap_or_else(|| panic!("0. Expected to find details for block {:?}", from));
-		let mut to_details = self.block_details(&to).unwrap_or_else(|| panic!("1. Expected to find details for block {:?}", to));
+		let mut from_details = otry!(self.block_details(&from));
+		let mut to_details = otry!(self.block_details(&to));
 		let mut current_from = from;
 		let mut current_to = to;
 
@@ -663,13 +709,13 @@ impl BlockChain {
 		while from_details.number > to_details.number {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = self.block_details(&from_details.parent).unwrap_or_else(|| panic!("2. Expected to find details for block {:?}", from_details.parent));
+			from_details = otry!(self.block_details(&from_details.parent));
 		}
 
 		while to_details.number > from_details.number {
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = self.block_details(&to_details.parent).unwrap_or_else(|| panic!("3. Expected to find details for block {:?}", to_details.parent));
+			to_details = otry!(self.block_details(&to_details.parent));
 		}
 
 		assert_eq!(from_details.number, to_details.number);
@@ -678,22 +724,22 @@ impl BlockChain {
 		while current_from != current_to {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = self.block_details(&from_details.parent).unwrap_or_else(|| panic!("4. Expected to find details for block {:?}", from_details.parent));
+			from_details = otry!(self.block_details(&from_details.parent));
 
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = self.block_details(&to_details.parent).unwrap_or_else(|| panic!("5. Expected to find details for block {:?}", from_details.parent));
+			to_details = otry!(self.block_details(&to_details.parent));
 		}
 
 		let index = from_branch.len();
 
 		from_branch.extend(to_branch.into_iter().rev());
 
-		TreeRoute {
+		Some(TreeRoute {
 			blocks: from_branch,
 			ancestor: current_from,
 			index: index
-		}
+		})
 	}
 
 	/// Inserts a verified, known block from the canonical chain.
@@ -797,6 +843,35 @@ impl BlockChain {
 		}
 	}
 
+	/// Insert an epoch transition. Provide an epoch number being transitioned to
+	/// and epoch transition object.
+	///
+	/// The block the transition occurred at should have already been inserted into the chain.
+	pub fn insert_epoch_transition(&self, batch: &mut DBTransaction, epoch_num: u64, transition: EpochTransition) {
+		let mut transitions = match self.db.read(db::COL_EXTRA, &epoch_num) {
+			Some(existing) => existing,
+			None => EpochTransitions {
+				number: epoch_num,
+				candidates: Vec::with_capacity(1),
+			}
+		};
+
+		// ensure we don't write any duplicates.
+		if transitions.candidates.iter().find(|c| c.block_hash == transition.block_hash).is_none() {
+			transitions.candidates.push(transition);
+			batch.write(db::COL_EXTRA, &epoch_num, &transitions);
+		}
+	}
+
+	/// Iterate over all epoch transitions.
+	pub fn epoch_transitions(&self) -> EpochTransitionIter {
+		let iter = self.db.iter_from_prefix(db::COL_EXTRA, &EPOCH_KEY_PREFIX[..]);
+		EpochTransitionIter {
+			chain: self,
+			prefix_iter: iter,
+		}
+	}
+
 	/// Add a child to a given block. Assumes that the block hash is in
 	/// the chain and the child's parent is this block.
 	///
@@ -879,7 +954,8 @@ impl BlockChain {
 				// are moved to "canon chain"
 				// find the route between old best block and the new one
 				let best_hash = self.best_block_hash();
-				let route = self.tree_route(best_hash, parent_hash);
+				let route = self.tree_route(best_hash, parent_hash)
+					.expect("blocks being imported always within recent history; qed");
 
 				assert_eq!(number, parent_details.number + 1);
 
@@ -1711,52 +1787,52 @@ mod tests {
 		assert_eq!(bc.block_hash(3).unwrap(), b3a_hash);
 
 		// test trie route
-		let r0_1 = bc.tree_route(genesis_hash.clone(), b1_hash.clone());
+		let r0_1 = bc.tree_route(genesis_hash.clone(), b1_hash.clone()).unwrap();
 		assert_eq!(r0_1.ancestor, genesis_hash);
 		assert_eq!(r0_1.blocks, [b1_hash.clone()]);
 		assert_eq!(r0_1.index, 0);
 
-		let r0_2 = bc.tree_route(genesis_hash.clone(), b2_hash.clone());
+		let r0_2 = bc.tree_route(genesis_hash.clone(), b2_hash.clone()).unwrap();
 		assert_eq!(r0_2.ancestor, genesis_hash);
 		assert_eq!(r0_2.blocks, [b1_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r0_2.index, 0);
 
-		let r1_3a = bc.tree_route(b1_hash.clone(), b3a_hash.clone());
+		let r1_3a = bc.tree_route(b1_hash.clone(), b3a_hash.clone()).unwrap();
 		assert_eq!(r1_3a.ancestor, b1_hash);
 		assert_eq!(r1_3a.blocks, [b2_hash.clone(), b3a_hash.clone()]);
 		assert_eq!(r1_3a.index, 0);
 
-		let r1_3b = bc.tree_route(b1_hash.clone(), b3b_hash.clone());
+		let r1_3b = bc.tree_route(b1_hash.clone(), b3b_hash.clone()).unwrap();
 		assert_eq!(r1_3b.ancestor, b1_hash);
 		assert_eq!(r1_3b.blocks, [b2_hash.clone(), b3b_hash.clone()]);
 		assert_eq!(r1_3b.index, 0);
 
-		let r3a_3b = bc.tree_route(b3a_hash.clone(), b3b_hash.clone());
+		let r3a_3b = bc.tree_route(b3a_hash.clone(), b3b_hash.clone()).unwrap();
 		assert_eq!(r3a_3b.ancestor, b2_hash);
 		assert_eq!(r3a_3b.blocks, [b3a_hash.clone(), b3b_hash.clone()]);
 		assert_eq!(r3a_3b.index, 1);
 
-		let r1_0 = bc.tree_route(b1_hash.clone(), genesis_hash.clone());
+		let r1_0 = bc.tree_route(b1_hash.clone(), genesis_hash.clone()).unwrap();
 		assert_eq!(r1_0.ancestor, genesis_hash);
 		assert_eq!(r1_0.blocks, [b1_hash.clone()]);
 		assert_eq!(r1_0.index, 1);
 
-		let r2_0 = bc.tree_route(b2_hash.clone(), genesis_hash.clone());
+		let r2_0 = bc.tree_route(b2_hash.clone(), genesis_hash.clone()).unwrap();
 		assert_eq!(r2_0.ancestor, genesis_hash);
 		assert_eq!(r2_0.blocks, [b2_hash.clone(), b1_hash.clone()]);
 		assert_eq!(r2_0.index, 2);
 
-		let r3a_1 = bc.tree_route(b3a_hash.clone(), b1_hash.clone());
+		let r3a_1 = bc.tree_route(b3a_hash.clone(), b1_hash.clone()).unwrap();
 		assert_eq!(r3a_1.ancestor, b1_hash);
 		assert_eq!(r3a_1.blocks, [b3a_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r3a_1.index, 2);
 
-		let r3b_1 = bc.tree_route(b3b_hash.clone(), b1_hash.clone());
+		let r3b_1 = bc.tree_route(b3b_hash.clone(), b1_hash.clone()).unwrap();
 		assert_eq!(r3b_1.ancestor, b1_hash);
 		assert_eq!(r3b_1.blocks, [b3b_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r3b_1.index, 2);
 
-		let r3b_3a = bc.tree_route(b3b_hash.clone(), b3a_hash.clone());
+		let r3b_3a = bc.tree_route(b3b_hash.clone(), b3a_hash.clone()).unwrap();
 		assert_eq!(r3b_3a.ancestor, b2_hash);
 		assert_eq!(r3b_3a.blocks, [b3b_hash.clone(), b3a_hash.clone()]);
 		assert_eq!(r3b_3a.index, 1);
@@ -1791,15 +1867,13 @@ mod tests {
 
 	#[test]
 	fn can_contain_arbitrary_block_sequence() {
-		let bc_result = generate_dummy_blockchain(50);
-		let bc = bc_result.reference();
+		let bc = generate_dummy_blockchain(50);
 		assert_eq!(bc.best_block_number(), 49);
 	}
 
 	#[test]
 	fn can_collect_garbage() {
-		let bc_result = generate_dummy_blockchain(3000);
-		let bc = bc_result.reference();
+		let bc = generate_dummy_blockchain(3000);
 
 		assert_eq!(bc.best_block_number(), 2999);
 		let best_hash = bc.best_block_hash();
@@ -1818,15 +1892,13 @@ mod tests {
 
 	#[test]
 	fn can_contain_arbitrary_block_sequence_with_extra() {
-		let bc_result = generate_dummy_blockchain_with_extra(25);
-		let bc = bc_result.reference();
+		let bc = generate_dummy_blockchain_with_extra(25);
 		assert_eq!(bc.best_block_number(), 24);
 	}
 
 	#[test]
 	fn can_contain_only_genesis_block() {
-		let bc_result = generate_dummy_empty_blockchain();
-		let bc = bc_result.reference();
+		let bc = generate_dummy_empty_blockchain();
 		assert_eq!(bc.best_block_number(), 0);
 	}
 
@@ -2109,5 +2181,59 @@ mod tests {
 
 		assert_eq!(bc.rewind(), Some(genesis_hash.clone()));
 		assert_eq!(bc.rewind(), None);
+	}
+
+	#[test]
+	fn epoch_transitions_iter() {
+		use blockchain::extras::EpochTransition;
+
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+
+		let db = new_db();
+		{
+			let bc = new_chain(&genesis, db.clone());
+			let uncle = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
+
+			let mut batch = db.transaction();
+			// create a longer fork
+			for i in 0..5 {
+				let canon_block = canon_chain.generate(&mut finalizer).unwrap();
+				let hash = BlockView::new(&canon_block).header_view().sha3();
+
+				bc.insert_block(&mut batch, &canon_block, vec![]);
+				bc.insert_epoch_transition(&mut batch, i, EpochTransition {
+					block_hash: hash,
+					block_number: i + 1,
+					proof: vec![],
+					state_proof: vec![],
+				});
+				bc.commit();
+			}
+
+			assert_eq!(bc.best_block_number(), 5);
+
+			let hash = BlockView::new(&uncle).header_view().sha3();
+			bc.insert_block(&mut batch, &uncle, vec![]);
+			bc.insert_epoch_transition(&mut batch, 999, EpochTransition {
+				block_hash: hash,
+				block_number: 1,
+				proof: vec![],
+				state_proof: vec![]
+			});
+
+			db.write(batch).unwrap();
+			bc.commit();
+
+			// epoch 999 not in canonical chain.
+			assert_eq!(bc.epoch_transitions().map(|(i, _)| i).collect::<Vec<_>>(), vec![0, 1, 2, 3, 4]);
+		}
+
+		// re-loading the blockchain should load the correct best block.
+		let bc = new_chain(&genesis, db);
+
+		assert_eq!(bc.best_block_number(), 5);
+		assert_eq!(bc.epoch_transitions().map(|(i, _)| i).collect::<Vec<_>>(), vec![0, 1, 2, 3, 4]);
 	}
 }

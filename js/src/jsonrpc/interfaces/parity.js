@@ -296,6 +296,19 @@ export default {
     }
   },
 
+  getBlockHeaderByNumber: {
+    section: SECTION_NET,
+    desc: 'Returns block header information by number (same as eth_getBlockByNumber without transactions and uncles)',
+    params: [
+      {
+        type: BlockNumber,
+        desc: 'integer of a block number, or the string `\'earliest\'`, `\'latest\'` or `\'pending\'`, as in the [default block parameter](#the-default-block-parameter).',
+        example: fromDecimal(436)
+      }
+    ],
+    returns: 'See [eth_getBlockByHash](#eth_getblockbyhash) (without transactions and uncles)'
+  },
+
   getVaultMeta: {
     section: SECTION_VAULT,
     desc: 'Returns the metadata for a specific vault',
@@ -1833,7 +1846,14 @@ export default {
         example: {
           from: '0xb60e8dd61c5d32be8058bb8eb970870f07233155',
           to: '0xd46e8dd67c5d32be8058bb8eb970870f07244567',
-          value: fromDecimal(2441406250)
+          gas: fromDecimal(30400),
+          gasPrice: fromDecimal(10000000000000),
+          value: fromDecimal(2441406250),
+          data: '0xd46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675',
+          condition: {
+            block: 354221,
+            time: new Date()
+          }
         }
       }
     ],

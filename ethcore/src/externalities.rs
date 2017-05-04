@@ -21,8 +21,9 @@ use state::{Backend as StateBackend, State, Substate};
 use engines::Engine;
 use env_info::EnvInfo;
 use executive::*;
-use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory};
+use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory, CreateContractAddress};
 use types::executed::CallType;
+use types::transaction::UNSIGNED_SENDER;
 use trace::{Tracer, VMTracer};
 
 /// Policy for handling output data on `RETURN` opcode.
@@ -97,7 +98,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Externalities<'a, T, V, B>
 			depth: depth,
 			origin_info: origin_info,
 			substate: substate,
-			schedule: engine.schedule(env_info),
+			schedule: engine.schedule(env_info.number),
 			output: output,
 			tracer: tracer,
 			vm_tracer: vm_tracer,
@@ -147,10 +148,11 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		}
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address_scheme: CreateContractAddress) -> ContractCreateResult {
 		// create new contract address
+		let code_hash = code.sha3();
 		let address = match self.state.nonce(&self.origin_info.address) {
-			Ok(nonce) => contract_address(&self.origin_info.address, &nonce),
+			Ok(nonce) => contract_address(address_scheme, &self.origin_info.address, &nonce, &code_hash),
 			Err(e) => {
 				debug!(target: "ext", "Database corruption encountered: {:?}", e);
 				return ContractCreateResult::Failed
@@ -167,14 +169,16 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			gas_price: self.origin_info.gas_price,
 			value: ActionValue::Transfer(*value),
 			code: Some(Arc::new(code.to_vec())),
-			code_hash: code.sha3(),
+			code_hash: code_hash,
 			data: None,
 			call_type: CallType::None,
 		};
 
-		if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
-			debug!(target: "ext", "Database corruption encountered: {:?}", e);
-			return ContractCreateResult::Failed
+		if params.sender != UNSIGNED_SENDER {
+			if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
+				debug!(target: "ext", "Database corruption encountered: {:?}", e);
+				return ContractCreateResult::Failed
+			}
 		}
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.vm_factory, self.depth);
 
@@ -346,7 +350,6 @@ mod tests {
 	use evm::Ext;
 	use state::{State, Substate};
 	use tests::helpers::*;
-	use devtools::GuardedTempResult;
 	use super::*;
 	use trace::{NoopTracer, NoopVMTracer};
 	use types::executed::CallType;
@@ -373,7 +376,7 @@ mod tests {
 	}
 
 	struct TestSetup {
-		state: GuardedTempResult<State<::state_db::StateDB>>,
+		state: State<::state_db::StateDB>,
 		engine: Arc<Engine>,
 		sub_state: Substate,
 		env_info: EnvInfo
@@ -399,7 +402,7 @@ mod tests {
 	#[test]
 	fn can_be_created() {
 		let mut setup = TestSetup::new();
-		let state = setup.state.reference_mut();
+		let state = &mut setup.state;
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
@@ -412,7 +415,7 @@ mod tests {
 	#[test]
 	fn can_return_block_hash_no_env() {
 		let mut setup = TestSetup::new();
-		let state = setup.state.reference_mut();
+		let state = &mut setup.state;
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
@@ -437,7 +440,7 @@ mod tests {
 			last_hashes.push(test_hash.clone());
 			env_info.last_hashes = Arc::new(last_hashes);
 		}
-		let state = setup.state.reference_mut();
+		let state = &mut setup.state;
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
@@ -453,7 +456,7 @@ mod tests {
 	#[should_panic]
 	fn can_call_fail_empty() {
 		let mut setup = TestSetup::new();
-		let state = setup.state.reference_mut();
+		let state = &mut setup.state;
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
@@ -481,7 +484,7 @@ mod tests {
 		let log_topics = vec![H256::from("af0fa234a6af46afa23faf23bcbc1c1cb4bcb7bcbe7e7e7ee3ee2edddddddddd")];
 
 		let mut setup = TestSetup::new();
-		let state = setup.state.reference_mut();
+		let state = &mut setup.state;
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
@@ -499,7 +502,7 @@ mod tests {
 		let refund_account = &Address::new();
 
 		let mut setup = TestSetup::new();
-		let state = setup.state.reference_mut();
+		let state = &mut setup.state;
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 

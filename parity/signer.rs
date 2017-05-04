@@ -22,8 +22,8 @@ pub use ethcore_signer::Server as SignerServer;
 
 use ansi_term::Colour;
 use dir::default_data_path;
-use ethcore_rpc::informant::RpcStats;
-use ethcore_rpc::{self, ConfirmationsQueue};
+use parity_rpc::informant::RpcStats;
+use parity_rpc::{self, ConfirmationsQueue};
 use ethcore_signer as signer;
 use helpers::replace_home;
 use parity_reactor::TokioRemote;
@@ -69,10 +69,10 @@ pub struct NewToken {
 
 #[derive(Debug, Default, Clone)]
 pub struct StandardExtractor;
-impl signer::MetaExtractor<ethcore_rpc::Metadata> for StandardExtractor {
-	fn extract_metadata(&self, session: &H256) -> ethcore_rpc::Metadata {
-		let mut metadata = ethcore_rpc::Metadata::default();
-		metadata.origin = ethcore_rpc::Origin::Signer((*session).into());
+impl signer::MetaExtractor<parity_rpc::Metadata> for StandardExtractor {
+	fn extract_metadata(&self, session: &H256) -> parity_rpc::Metadata {
+		let mut metadata = parity_rpc::Metadata::default();
+		metadata.origin = parity_rpc::Origin::Signer((*session).into());
 		metadata
 	}
 }

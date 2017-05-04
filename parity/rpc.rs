@@ -14,19 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{io, fmt};
+use std::io;
 use std::sync::Arc;
 
 use dapps;
 use dir::default_data_path;
-use ethcore_rpc::informant::{RpcStats, Middleware};
-use ethcore_rpc::{self as rpc, HttpServerError, Metadata, Origin, AccessControlAllowOrigin, Host};
+use parity_rpc::informant::{RpcStats, Middleware};
+use parity_rpc::{self as rpc, HttpServerError, Metadata, Origin, DomainsValidation};
 use helpers::parity_ipc_path;
 use jsonrpc_core::MetaIoHandler;
 use parity_reactor::TokioRemote;
 use rpc_apis::{self, ApiSet};
 
-pub use ethcore_rpc::{IpcServer, HttpServer, RequestMiddleware};
+pub use parity_rpc::{IpcServer, HttpServer, RequestMiddleware};
+pub use parity_rpc::ws::Server as WsServer;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HttpConfiguration {
@@ -71,12 +72,25 @@ impl Default for IpcConfiguration {
 	}
 }
 
-impl fmt::Display for IpcConfiguration {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		if self.enabled {
-			write!(f, "endpoint address [{}], api list [{:?}]", self.socket_addr, self.apis)
-		} else {
-			write!(f, "disabled")
+#[derive(Debug, PartialEq)]
+pub struct WsConfiguration {
+	pub enabled: bool,
+	pub interface: String,
+	pub port: u16,
+	pub apis: ApiSet,
+	pub origins: Option<Vec<String>>,
+	pub hosts: Option<Vec<String>>,
+}
+
+impl Default for WsConfiguration {
+	fn default() -> Self {
+		WsConfiguration {
+			enabled: true,
+			interface: "127.0.0.1".into(),
+			port: 8546,
+			apis: ApiSet::UnsafeContext,
+			origins: Some(Vec::new()),
+			hosts: Some(Vec::new()),
 		}
 	}
 }
@@ -112,10 +126,69 @@ impl rpc::IpcMetaExtractor<Metadata> for RpcExtractor {
 	}
 }
 
+impl rpc::ws::MetaExtractor<Metadata> for RpcExtractor {
+	fn extract(&self, req: &rpc::ws::RequestContext) -> Metadata {
+		let mut metadata = Metadata::default();
+		let id = req.session_id as u64;
+		metadata.origin = Origin::Ws(id.into());
+		metadata
+	}
+}
+
+struct WsStats {
+	stats: Arc<RpcStats>,
+}
+
+impl rpc::ws::SessionStats for WsStats {
+	fn open_session(&self, _id: rpc::ws::SessionId) {
+		self.stats.open_session()
+	}
+
+	fn close_session(&self, _id: rpc::ws::SessionId) {
+		self.stats.close_session()
+	}
+}
+
 fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
 	where D: rpc_apis::Dependencies
 {
 	rpc_apis::setup_rpc(deps.stats.clone(), &*deps.apis, apis)
+}
+
+pub fn new_ws<D: rpc_apis::Dependencies>(
+	conf: WsConfiguration,
+	deps: &Dependencies<D>,
+) -> Result<Option<WsServer>, String> {
+	if !conf.enabled {
+		return Ok(None);
+	}
+
+	let url = format!("{}:{}", conf.interface, conf.port);
+	let addr = url.parse().map_err(|_| format!("Invalid WebSockets listen host/port given: {}", url))?;
+	let handler = setup_apis(conf.apis, deps);
+	let remote = deps.remote.clone();
+	let allowed_origins = into_domains(conf.origins);
+	let allowed_hosts = into_domains(conf.hosts);
+
+	let start_result = rpc::start_ws(
+		&addr,
+		handler,
+		remote,
+		allowed_origins,
+		allowed_hosts,
+		RpcExtractor,
+		WsStats {
+			stats: deps.stats.clone(),
+		},
+	);
+
+	match start_result {
+		Ok(server) => Ok(Some(server)),
+		Err(rpc::ws::Error::Io(ref err)) if err.kind() == io::ErrorKind::AddrInUse => Err(
+			format!("WebSockets address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --ws-port and --ws-interface options.", url)
+		),
+		Err(e) => Err(format!("WebSockets error: {:?}", e)),
+	}
 }
 
 pub fn new_http<D: rpc_apis::Dependencies>(
@@ -128,17 +201,17 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 	}
 
 	let url = format!("{}:{}", conf.interface, conf.port);
-	let addr = url.parse().map_err(|_| format!("Invalid JSONRPC listen host/port given: {}", url))?;
+	let addr = url.parse().map_err(|_| format!("Invalid HTTP JSON-RPC listen host/port given: {}", url))?;
 	let handler = setup_apis(conf.apis, deps);
 	let remote = deps.remote.clone();
 
-	let cors_domains: Option<Vec<_>> = conf.cors.map(|domains| domains.into_iter().map(AccessControlAllowOrigin::from).collect());
-	let allowed_hosts: Option<Vec<_>> = conf.hosts.map(|hosts| hosts.into_iter().map(Host::from).collect());
+	let cors_domains = into_domains(conf.cors);
+	let allowed_hosts = into_domains(conf.hosts);
 
 	let start_result = rpc::start_http(
 		&addr,
-		cors_domains.into(),
-		allowed_hosts.into(),
+		cors_domains,
+		allowed_hosts,
 		handler,
 		remote,
 		RpcExtractor,
@@ -153,14 +226,15 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 
 	match start_result {
 		Ok(server) => Ok(Some(server)),
-		Err(HttpServerError::Io(err)) => match err.kind() {
-			io::ErrorKind::AddrInUse => Err(
-				format!("RPC address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)
-			),
-			_ => Err(format!("RPC io error: {}", err)),
-		},
-		Err(e) => Err(format!("RPC error: {:?}", e)),
+		Err(HttpServerError::Io(ref err)) if err.kind() == io::ErrorKind::AddrInUse => Err(
+			format!("HTTP address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)
+		),
+		Err(e) => Err(format!("HTTP error: {:?}", e)),
 	}
+}
+
+fn into_domains<T: From<String>>(items: Option<Vec<String>>) -> DomainsValidation<T> {
+	items.map(|vals| vals.into_iter().map(T::from).collect()).into()
 }
 
 pub fn new_ipc<D: rpc_apis::Dependencies>(
@@ -170,18 +244,19 @@ pub fn new_ipc<D: rpc_apis::Dependencies>(
 	if !conf.enabled {
 		return Ok(None);
 	}
+
 	let handler = setup_apis(conf.apis, dependencies);
 	let remote = dependencies.remote.clone();
 	match rpc::start_ipc(&conf.socket_addr, handler, remote, RpcExtractor) {
 		Ok(server) => Ok(Some(server)),
-		Err(io_error) => Err(format!("RPC io error: {}", io_error)),
+		Err(io_error) => Err(format!("IPC error: {}", io_error)),
 	}
 }
 
 #[cfg(test)]
 mod tests {
 	use super::RpcExtractor;
-	use ethcore_rpc::{HttpMetaExtractor, Origin};
+	use parity_rpc::{HttpMetaExtractor, Origin};
 
 	#[test]
 	fn should_extract_rpc_origin() {

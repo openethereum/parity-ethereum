@@ -16,13 +16,13 @@
 
 extern crate ctrlc;
 extern crate docopt;
-extern crate rustc_serialize;
-extern crate serde_json;
-extern crate ethjson;
-extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethcore_devtools as devtools;
-extern crate ethcore_rpc as rpc;
+extern crate ethcore_util as util;
+extern crate ethjson;
+extern crate parity_rpc as rpc;
+extern crate rustc_serialize;
+extern crate serde_json;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, Condvar};

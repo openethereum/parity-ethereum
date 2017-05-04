@@ -7,6 +7,7 @@ release_track = "current"
 public_node = false
 no_download = false
 no_consensus = false
+no_persistent_txqueue = false
 
 chain = "homestead"
 base_path = "$HOME/.parity"
@@ -49,6 +50,14 @@ disable = false
 port = 8545
 interface = "local"
 cors = "null"
+apis = ["web3", "eth", "net", "parity", "traces", "rpc"]
+hosts = ["none"]
+
+[websockets]
+disable = false
+port = 8546
+interface = "local"
+origins = ["none"]
 apis = ["web3", "eth", "net", "parity", "traces", "rpc"]
 hosts = ["none"]
 

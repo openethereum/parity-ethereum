@@ -30,6 +30,7 @@ export default {
     label: `nieuw wachtwoord`
   },
   passwordHint: {
+    display: `Hint {hint}`,
     hint: `hint voor het nieuwe wachtwoord`,
     label: `(optioneel) nieuwe wachtwoord hint`
   },

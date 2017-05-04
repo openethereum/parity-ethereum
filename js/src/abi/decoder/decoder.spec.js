@@ -38,6 +38,7 @@ describe('abi/decoder/Decoder', () => {
   const int1 = '0111111111111111111111111111111111111111111111111111111111111111';
   const intn = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff85';
   const string1 = '6761766f66796f726b0000000000000000000000000000000000000000000000';
+  const string2 = '4665726ee16e64657a0000000000000000000000000000000000000000000000';
   const tokenAddress1 = new Token('address', `0x${address1.slice(-40)}`);
   const tokenAddress2 = new Token('address', `0x${address2.slice(-40)}`);
   const tokenAddress3 = new Token('address', `0x${address3.slice(-40)}`);
@@ -53,6 +54,7 @@ describe('abi/decoder/Decoder', () => {
   const tokenUint1 = new Token('uint', new BigNumber(int1, 16));
   const tokenUintn = new Token('uint', new BigNumber(intn, 16));
   const tokenString1 = new Token('string', 'gavofyork');
+  const tokenString2 = new Token('string', 'Fernández');
   const slices = [ address1, address2, address3, address4 ];
 
   describe('peek', () => {
@@ -158,6 +160,12 @@ describe('abi/decoder/Decoder', () => {
       expect(
         Decoder.decodeParam(new ParamType('string'), [padU32(0x20), padU32(9), string1], 0).token
       ).to.deep.equal(tokenString1);
+    });
+
+    it('decodes utf8-invalid string', () => {
+      expect(
+        Decoder.decodeParam(new ParamType('string'), [padU32(0x20), padU32(9), string2], 0).token
+      ).to.deep.equal(tokenString2);
     });
 
     it('decodes string (indexed)', () => {

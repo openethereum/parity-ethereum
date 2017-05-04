@@ -29,6 +29,7 @@ import deMessages from './de';
 import enMessages from './en';
 import nlMessages from './nl';
 import zhMessages from './zh';
+import zhHantTWMessages from './zh-Hant-TW';
 
 let instance = null;
 
@@ -37,7 +38,8 @@ const MESSAGES = {
   de: Object.assign(flatten(deMessages), LANGUAGES),
   en: Object.assign(flatten(enMessages), LANGUAGES),
   nl: Object.assign(flatten(nlMessages), LANGUAGES),
-  zh: Object.assign(flatten(zhMessages), LANGUAGES)
+  zh: Object.assign(flatten(zhMessages), LANGUAGES),
+  'zh-Hant-TW': Object.assign(flatten(zhHantTWMessages), LANGUAGES)
 };
 
 addLocaleData([...de, ...en, ...nl, ...zh]);

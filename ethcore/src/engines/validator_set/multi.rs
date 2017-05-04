@@ -18,13 +18,14 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
-use util::{H256, Address, RwLock};
+use engines::{Call, EpochChange};
+use util::{Bytes, H256, Address, RwLock};
 use ids::BlockId;
-use header::BlockNumber;
+use header::{BlockNumber, Header};
 use client::{Client, BlockChainClient};
 use super::ValidatorSet;
 
-type BlockNumberLookup = Box<Fn(&H256) -> Result<BlockNumber, String> + Send + Sync + 'static>;
+type BlockNumberLookup = Box<Fn(BlockId) -> Result<BlockNumber, String> + Send + Sync + 'static>;
 
 pub struct Multi {
 	sets: BTreeMap<BlockNumber, Box<ValidatorSet>>,
@@ -40,64 +41,91 @@ impl Multi {
 		}
 	}
 
-	fn correct_set(&self, bh: &H256) -> Option<&Box<ValidatorSet>> {
-		match self
-			.block_number
-			.read()(bh)
-			.map(|parent_block| self
-					 .sets
-					 .iter()
-					 .rev()
-					 .find(|&(block, _)| *block <= parent_block + 1)
-					 .expect("constructor validation ensures that there is at least one validator set for block 0;
-									 block 0 is less than any uint;
-									 qed")
-				) {
-			Ok((block, set)) => {
-				trace!(target: "engine", "Multi ValidatorSet retrieved for block {}.", block);
-				Some(set)
-			},
+	fn correct_set(&self, id: BlockId) -> Option<&ValidatorSet> {
+		match self.block_number.read()(id).map(|parent_block| self.correct_set_by_number(parent_block)) {
+			Ok((_, set)) => Some(set),
 			Err(e) => {
 				debug!(target: "engine", "ValidatorSet could not be recovered: {}", e);
 				None
 			},
 		}
 	}
+
+	// get correct set by block number, along with block number at which
+	// this set was activated.
+	fn correct_set_by_number(&self, parent_block: BlockNumber) -> (BlockNumber, &ValidatorSet) {
+		let (block, set) = self.sets.iter()
+			.rev()
+			.find(|&(block, _)| *block <= parent_block + 1)
+			.expect("constructor validation ensures that there is at least one validator set for block 0;
+					 block 0 is less than any uint;
+					 qed");
+
+		trace!(target: "engine", "Multi ValidatorSet retrieved for block {}.", block);
+		(*block, &**set)
+	}
 }
 
 impl ValidatorSet for Multi {
-	fn contains(&self, bh: &H256, address: &Address) -> bool {
-		self.correct_set(bh).map_or(false, |set| set.contains(bh, address))
+	fn default_caller(&self, block_id: BlockId) -> Box<Call> {
+		self.correct_set(block_id).map(|set| set.default_caller(block_id))
+			.unwrap_or(Box::new(|_, _| Err("No validator set for given ID.".into())))
 	}
 
-	fn get(&self, bh: &H256, nonce: usize) -> Address {
-		self.correct_set(bh).map_or_else(Default::default, |set| set.get(bh, nonce))
-	}
+	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> EpochChange
+	{
+		let (set_block, set) = self.correct_set_by_number(header.number());
 
-	fn count(&self, bh: &H256) -> usize {
-		self.correct_set(bh).map_or_else(usize::max_value, |set| set.count(bh))
-	}
-
-	fn report_malicious(&self, validator: &Address) {
-		for set in self.sets.values() {
-			set.report_malicious(validator);
+		match set.is_epoch_end(header, block, receipts) {
+			EpochChange::Yes(num, proof) => EpochChange::Yes(set_block + num, proof),
+			other => other,
 		}
 	}
 
-	fn report_benign(&self, validator: &Address) {
-		for set in self.sets.values() {
-			set.report_benign(validator);
-		}
+	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
+		self.correct_set_by_number(header.number()).1.epoch_proof(header, caller)
+	}
+
+	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(u64, super::SimpleList), ::error::Error> {
+		// "multi" epoch is the inner set's epoch plus the transition block to that set.
+		// ensures epoch increases monotonically.
+		let (set_block, set) = self.correct_set_by_number(header.number());
+		let (inner_epoch, list) = set.epoch_set(header, proof)?;
+		Ok((set_block + inner_epoch, list))
+	}
+
+	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {
+		self.correct_set(BlockId::Hash(*bh))
+			.map_or(false, |set| set.contains_with_caller(bh, address, caller))
+	}
+
+	fn get_with_caller(&self, bh: &H256, nonce: usize, caller: &Call) -> Address {
+		self.correct_set(BlockId::Hash(*bh))
+			.map_or_else(Default::default, |set| set.get_with_caller(bh, nonce, caller))
+	}
+
+	fn count_with_caller(&self, bh: &H256, caller: &Call) -> usize {
+		self.correct_set(BlockId::Hash(*bh))
+			.map_or_else(usize::max_value, |set| set.count_with_caller(bh, caller))
+	}
+
+	fn report_malicious(&self, validator: &Address, block: BlockNumber, proof: Bytes) {
+		self.correct_set_by_number(block).1.report_malicious(validator, block, proof);
+	}
+
+	fn report_benign(&self, validator: &Address, block: BlockNumber) {
+		self.correct_set_by_number(block).1.report_benign(validator, block);
 	}
 
 	fn register_contract(&self, client: Weak<Client>) {
 		for set in self.sets.values() {
 			set.register_contract(client.clone());
 		}
-		*self.block_number.write() = Box::new(move |hash| client
+		*self.block_number.write() = Box::new(move |id| client
 			.upgrade()
 			.ok_or("No client!".into())
-			.and_then(|c| c.block_number(BlockId::Hash(*hash)).ok_or("Unknown block".into())));
+			.and_then(|c| c.block_number(id).ok_or("Unknown block".into())));
 	}
 }
 

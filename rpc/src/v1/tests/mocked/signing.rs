@@ -304,7 +304,7 @@ fn should_add_sign_transaction_to_the_queue() {
 		r#""input":"0x","# +
 		&format!("\"networkId\":{},", t.network_id().map_or("null".to_owned(), |n| format!("{}", n))) +
 		r#""nonce":"0x1","# +
-		&format!("\"publicKey\":\"0x{:?}\",", t.public_key()) +
+		&format!("\"publicKey\":\"0x{:?}\",", t.public_key().unwrap()) +
 		&format!("\"r\":\"0x{}\",", U256::from(signature.r()).to_hex()) +
 		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
 		&format!("\"s\":\"0x{}\",", U256::from(signature.s()).to_hex()) +
@@ -437,5 +437,31 @@ fn should_add_decryption_to_the_queue() {
 
 	// check response: will deadlock if unsuccessful.
 	let res = promise.wait().unwrap();
+	assert_eq!(res, Some(response.to_owned()));
+}
+
+#[test]
+fn should_compose_transaction() {
+	// given
+	let tester = eth_signing();
+	let acc = Random.generate().unwrap();
+	assert_eq!(tester.signer.requests().len(), 0);
+	let from = format!("{:?}", acc.address());
+
+	// when
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "parity_composeTransaction",
+		"params": [{"from":"0x"#.to_owned() + &from + r#"","value":"0x5"}],
+		"id": 1
+	}"#;
+
+	let response = r#"{"jsonrpc":"2.0","result":{"condition":null,"data":"0x","from":"0x"#.to_owned()
+		+ &from
+		+ r#"","gas":"0x5208","gasPrice":"0x4a817c800","nonce":"0x0","to":null,"value":"0x5"},"id":1}"#;
+
+
+	// then
+	let res = tester.io.handle_request(&request).wait().unwrap();
 	assert_eq!(res, Some(response.to_owned()));
 }

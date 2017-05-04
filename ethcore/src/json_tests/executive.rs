@@ -21,7 +21,7 @@ use executive::*;
 use engines::Engine;
 use env_info::EnvInfo;
 use evm;
-use evm::{Schedule, Ext, Factory, Finalize, VMType, ContractCreateResult, MessageCallResult};
+use evm::{Schedule, Ext, Factory, Finalize, VMType, ContractCreateResult, MessageCallResult, CreateContractAddress};
 use externalities::*;
 use types::executed::CallType;
 use tests::helpers::*;
@@ -56,7 +56,8 @@ struct TestExt<'a, T: 'a, V: 'a, B: 'a>
 {
 	ext: Externalities<'a, T, V, B>,
 	callcreates: Vec<CallCreate>,
-	contract_address: Address
+	nonce: U256,
+	sender: Address,
 }
 
 impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
@@ -76,9 +77,10 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 		vm_tracer: &'a mut V,
 	) -> trie::Result<Self> {
 		Ok(TestExt {
-			contract_address: contract_address(&address, &state.nonce(&address)?),
+			nonce: state.nonce(&address)?,
 			ext: Externalities::new(state, info, engine, vm_factory, depth, origin_info, substate, output, tracer, vm_tracer),
-			callcreates: vec![]
+			callcreates: vec![],
+			sender: address,
 		})
 	}
 }
@@ -114,14 +116,15 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		self.ext.blockhash(number)
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address: CreateContractAddress) -> ContractCreateResult {
 		self.callcreates.push(CallCreate {
 			data: code.to_vec(),
 			destination: None,
 			gas_limit: *gas,
 			value: *value
 		});
-		ContractCreateResult::Created(self.contract_address.clone(), *gas)
+		let contract_address = contract_address(address, &self.sender, &self.nonce, &code.sha3());
+		ContractCreateResult::Created(contract_address, *gas)
 	}
 
 	fn call(&mut self,
@@ -215,8 +218,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 		}
 
 		let out_of_gas = vm.out_of_gas();
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
+		let mut state = get_temp_state();
 		state.populate_from(From::from(vm.pre_state.clone()));
 		let info = From::from(vm.env);
 		let engine = TestEngine::new(1);

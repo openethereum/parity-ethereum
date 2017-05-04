@@ -134,8 +134,8 @@ export default class Status {
 
         this._store.dispatch(statusBlockNumber(blockNumber));
 
-        this._api.eth
-          .getBlockByNumber(blockNumber)
+        this._api.parity
+          .getBlockHeaderByNumber(blockNumber)
           .then((block) => {
             if (!block) {
               return;
@@ -147,7 +147,7 @@ export default class Status {
             }));
           })
           .catch((error) => {
-            console.warn('status._subscribeBlockNumber', 'getBlockByNumber', error);
+            console.warn('status._subscribeBlockNumber', 'getBlockHeaderByNumber', error);
           });
       })
       .then((blockNumberSubscriptionId) => {
@@ -156,7 +156,8 @@ export default class Status {
   }
 
   _pollTraceMode = () => {
-    return this._api.trace.block()
+    return this._api.trace
+      .block()
       .then(blockTraces => {
         // Assumes not in Trace Mode if no transactions
         // in latest block...
@@ -168,14 +169,12 @@ export default class Status {
   getApiStatus = () => {
     const { isConnected, isConnecting, needsToken, secureToken } = this._api;
 
-    const apiStatus = {
+    return {
       isConnected,
       isConnecting,
       needsToken,
       secureToken
     };
-
-    return apiStatus;
   }
 
   _pollStatus = () => {
@@ -194,7 +193,10 @@ export default class Status {
       return Promise.resolve();
     }
 
-    const statusPromises = [ this._api.eth.syncing(), this._api.parity.netPeers() ];
+    const statusPromises = [
+      this._api.eth.syncing(),
+      this._api.parity.netPeers()
+    ];
 
     return Promise
       .all(statusPromises)
@@ -225,7 +227,10 @@ export default class Status {
       return Promise.resolve();
     }
 
-    const nextTimeout = (timeout = 30000) => {
+    const { nodeKindFull } = this._store.getState().nodeStatus;
+    const defaultTimeout = (nodeKindFull === false ? 240 : 30) * 1000;
+
+    const nextTimeout = (timeout = defaultTimeout) => {
       if (this._timeoutIds.longStatus) {
         clearTimeout(this._timeoutIds.longStatus);
       }
@@ -233,24 +238,34 @@ export default class Status {
       this._timeoutIds.longStatus = setTimeout(() => this._pollLongStatus(), timeout);
     };
 
+    const statusPromises = [
+      this._api.parity.nodeKind(),
+      this._api.parity.netPeers(),
+      this._api.web3.clientVersion(),
+      this._api.net.version(),
+      this._api.parity.netChain()
+    ];
+
+    if (nodeKindFull) {
+      statusPromises.push(this._upgradeStore.checkUpgrade());
+    }
+
     return Promise
-      .all([
-        this._api.parity.netPeers(),
-        this._api.web3.clientVersion(),
-        this._api.net.version(),
-        this._api.parity.netChain(),
-        this._upgradeStore.checkUpgrade()
-      ])
-      .then(([
-        netPeers, clientVersion, netVersion, netChain, upgradeStatus
-      ]) => {
+      .all(statusPromises)
+      .then(([nodeKind, netPeers, clientVersion, netVersion, netChain]) => {
         const isTest = [
           '2', // morden
           '3', // ropsten
           '42' // kovan
         ].includes(netVersion);
 
+        const nodeKindFull = nodeKind &&
+          nodeKind.availability === 'personal' &&
+          nodeKind.capability === 'full';
+
         const longStatus = {
+          nodeKind,
+          nodeKindFull,
           netPeers,
           clientVersion,
           netChain,

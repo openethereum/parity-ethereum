@@ -1,9 +1,9 @@
-# [Parity](https://ethcore.io/parity.html)
+# [Parity](https://parity.io/parity.html)
 ### Fast, light, and robust Ethereum implementation
 
 ### [Download latest release](https://github.com/paritytech/parity/releases)
 
-[![build status](https://gitlab.ethcore.io/parity/parity/badges/master/build.svg)](https://gitlab.ethcore.io/parity/parity/commits/master) [![Coverage Status][coveralls-image]][coveralls-url]  [![GPLv3][license-image]][license-url]
+[![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master) [![Coverage Status][coveralls-image]][coveralls-url]  [![GPLv3][license-image]][license-url]
 
 ### Join the chat!
 
@@ -33,7 +33,7 @@ Be sure to check out [our wiki][wiki-url] for more information.
 Parity's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity using the sophisticated and
 cutting-edge Rust programming language. Parity is licensed under the GPLv3, and can be used for all your Ethereum needs.
 
-Parity comes with a built-in wallet. To access [Parity Wallet](http://127.0.0.1:8080/) simply go to http://127.0.0.1:8080/. It
+Parity comes with a built-in wallet. To access [Parity Wallet](http://web3.site/) simply go to http://web3.site/ (if you don't have access to the internet, but still want to use the service, you can also use http://127.0.0.1:8180/). It
 includes various functionality allowing you to:
 - create and manage your Ethereum accounts;
 - manage your Ether and any Ethereum tokens;

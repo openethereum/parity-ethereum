@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { pick } from 'lodash';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -69,7 +68,6 @@ class DeployContract extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     abi: PropTypes.string,
-    balances: PropTypes.object,
     code: PropTypes.string,
     gasLimit: PropTypes.object.isRequired,
     onClose: PropTypes.func.isRequired,
@@ -282,7 +280,7 @@ class DeployContract extends Component {
   }
 
   renderStep () {
-    const { accounts, readOnly, balances } = this.props;
+    const { accounts, readOnly } = this.props;
     const { step } = this.state;
 
     switch (step) {
@@ -291,7 +289,6 @@ class DeployContract extends Component {
           <DetailsStep
             { ...this.state }
             accounts={ accounts }
-            balances={ balances }
             onAmountChange={ this.onAmountChange }
             onExtrasChange={ this.onExtrasChange }
             onFromAddressChange={ this.onFromAddressChange }
@@ -484,20 +481,11 @@ class DeployContract extends Component {
   }
 }
 
-function mapStateToProps (initState, initProps) {
-  const { accounts } = initProps;
+function mapStateToProps (state) {
+  const { gasLimit } = state.nodeStatus;
 
-  const fromAddresses = Object.keys(accounts);
-
-  return (state) => {
-    const balances = pick(state.balances.balances, fromAddresses);
-    const { gasLimit } = state.nodeStatus;
-
-    return {
-      accounts,
-      balances,
-      gasLimit
-    };
+  return {
+    gasLimit
   };
 }
 

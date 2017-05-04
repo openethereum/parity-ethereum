@@ -448,7 +448,8 @@ impl state::Backend for StateDB {
 	fn is_known_null(&self, address: &Address) -> bool {
 		trace!(target: "account_bloom", "Check account bloom: {:?}", address);
 		let bloom = self.account_bloom.lock();
-		!bloom.check(&*address.sha3())
+		let is_null = !bloom.check(&*address.sha3());
+		is_null
 	}
 }
 
@@ -463,8 +464,7 @@ mod tests {
 	fn state_db_smoke() {
 		init_log();
 
-		let mut state_db_result = get_temp_state_db();
-		let state_db = state_db_result.take();
+		let state_db = get_temp_state_db();
 		let root_parent = H256::random();
 		let address = Address::random();
 		let h0 = H256::random();

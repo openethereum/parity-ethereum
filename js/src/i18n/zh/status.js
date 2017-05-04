@@ -16,51 +16,52 @@
 
 export default {
   debug: {
-    reverse: `Reverse Order`,
-    stopped: `Refresh and display of logs from Parity is currently stopped via the UI, start it to see the latest updates.`,
-    title: `Node Logs`
+    reverse: `翻转订单`, // Reverse Order
+    stopped: `Parity的交互目前停止了刷新和显示Logs，请启动它来查看最新的更新。`,
+    // Refresh and display of logs from Parity is currently stopped via the UI, start it to see the latest updates.
+    title: `节点Logs` // Node Logs
   },
   miningSettings: {
     input: {
       author: {
-        hint: `the mining author`,
-        label: `author`
+        hint: `矿工名字`, // the mining author
+        label: `矿工` // author
       },
       extradata: {
-        hint: `extra data for mined blocks`,
-        label: `extradata`
+        hint: `提取挖到区块的数据`, // extra data for mined blocks
+        label: `提取数据` // extradata
       },
       gasFloor: {
-        hint: `the gas floor target for mining`,
-        label: `gas floor target`
+        hint: `挖矿的gas下限目标`, // the gas floor target for mining
+        label: `gas下限目标` // gas floor target
       },
       gasPrice: {
-        hint: `the minimum gas price for mining`,
-        label: `minimal gas price`
+        hint: `挖矿的最低gas价格`, // the minimum gas price for mining
+        label: `最低gas价格` // minimal gas price
       }
     },
-    title: `mining settings`
+    title: `挖矿设置` // mining settings
   },
   status: {
-    hashrate: `{hashrate} H/s`,
+    hashrate: `{hashrate} H/s`, // {hashrate} H/s
     input: {
-      chain: `chain`,
-      enode: `enode`,
-      no: `no`,
-      peers: `peers`,
-      port: `network port`,
-      rpcEnabled: `rpc enabled`,
-      rpcInterface: `rpc interface`,
-      rpcPort: `rpc port`,
-      yes: `yes`
+      chain: `链`, // chain
+      enode: `enode`, // enode
+      no: `否`, // no
+      peers: `同步节点`, // peers
+      port: `网络端口`, // network port
+      rpcEnabled: `rpc开启`, // rpc enabled
+      rpcInterface: `rpc交互`, // rpc interface
+      rpcPort: `rpc端口`, // rpc port
+      yes: `是` // yes
     },
     title: {
-      bestBlock: `best block`,
-      hashRate: `hash rate`,
-      network: `network settings`,
-      node: `Node`,
-      peers: `peers`
+      bestBlock: `最新区块`, // best block
+      hashRate: `哈希率`, // hash rate
+      network: `网络设置`, // network settings
+      node: `节点`, // Node
+      peers: `同步节点` // peers
     }
   },
-  title: `Status`
+  title: `状态` // Status
 };

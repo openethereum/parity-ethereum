@@ -103,7 +103,7 @@ class Requests extends Component {
               <LinearProgress
                 max={ 6 }
                 mode={ state.type === WAITING_STATE ? 'indeterminate' : 'determinate' }
-                value={ state.type === DONE_STATE ? request.blockHeight.toNumber() : 6 }
+                value={ state.type === DONE_STATE ? +request.blockHeight : 6 }
               />
             )
         }
@@ -145,7 +145,7 @@ class Requests extends Component {
           />
           <div className={ styles.fill }>
             <ScrollableText
-              text={ error.text || error.message }
+              text={ error.text || error.message || error.toString() }
             />
           </div>
         </div>
@@ -158,8 +158,8 @@ class Requests extends Component {
           id='requests.status.transactionMined'
           defaultMessage='Transaction mined at block #{blockNumber} ({blockHeight} blocks ago)'
           values={ {
-            blockHeight: request.blockHeight.toNumber(),
-            blockNumber: transactionReceipt.blockNumber.toFormat()
+            blockHeight: +request.blockHeight,
+            blockNumber: +transactionReceipt.blockNumber
           } }
         />
       );

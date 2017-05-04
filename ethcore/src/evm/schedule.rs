@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Cost schedule and other parameterisations for the EVM.
+use evm::CreateContractAddress;
 
 /// Definition of the cost schedule and other parameterisations for the EVM.
 pub struct Schedule {
@@ -22,6 +23,8 @@ pub struct Schedule {
 	pub exceptional_failed_code_deposit: bool,
 	/// Does it have a delegate cal
 	pub have_delegate_call: bool,
+	/// Does it have a CREATE_P2SH instruction
+	pub have_create_p2sh: bool,
 	/// VM stack limit
 	pub stack_limit: usize,
 	/// Max number of nested calls/creates
@@ -99,6 +102,8 @@ pub struct Schedule {
 	pub no_empty: bool,
 	/// Kill empty accounts if touched.
 	pub kill_empty: bool,
+	/// Contract address generation scheme
+	pub create_address: CreateContractAddress,
 }
 
 impl Schedule {
@@ -113,10 +118,11 @@ impl Schedule {
 	}
 
 	/// Schedule for the post-EIP-150-era of the Ethereum main net.
-	pub fn new_post_eip150(max_code_size: usize, fix_exp: bool, no_empty: bool, kill_empty: bool) -> Schedule {
+	pub fn new_post_eip150(max_code_size: usize, fix_exp: bool, no_empty: bool, kill_empty: bool, have_create_p2sh: bool) -> Schedule {
 		Schedule {
 			exceptional_failed_code_deposit: true,
 			have_delegate_call: true,
+			have_create_p2sh: have_create_p2sh,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -155,13 +161,20 @@ impl Schedule {
 			sub_gas_cap_divisor: Some(64),
 			no_empty: no_empty,
 			kill_empty: kill_empty,
+			create_address: if have_create_p2sh { CreateContractAddress::FromCodeHash } else { CreateContractAddress::FromSenderAndNonce },
 		}
+	}
+
+	/// Schedule for the Metropolis of the Ethereum main net.
+	pub fn new_metropolis() -> Schedule {
+		Self::new_post_eip150(24576, true, true, true, true)
 	}
 
 	fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
 		Schedule {
 			exceptional_failed_code_deposit: efcd,
 			have_delegate_call: hdc,
+			have_create_p2sh: false,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -200,6 +213,7 @@ impl Schedule {
 			sub_gas_cap_divisor: None,
 			no_empty: false,
 			kill_empty: false,
+			create_address: CreateContractAddress::FromSenderAndNonce,
 		}
 	}
 }

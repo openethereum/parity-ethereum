@@ -30,9 +30,9 @@ use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning, StratumOptions};
 use ethcore::verification::queue::VerifierSettings;
 
-use rpc::{IpcConfiguration, HttpConfiguration};
+use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
 use rpc_apis::ApiSet;
-use ethcore_rpc::NetworkSettings;
+use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
@@ -114,6 +114,7 @@ impl Configuration {
 		};
 		let update_policy = self.update_policy()?;
 		let logger_config = self.logger_config();
+		let ws_conf = self.ws_config()?;
 		let http_conf = self.http_config()?;
 		let ipc_conf = self.ipc_config()?;
 		let net_conf = self.net_config()?;
@@ -352,6 +353,7 @@ impl Configuration {
 				daemon: daemon,
 				logger_config: logger_config.clone(),
 				miner_options: miner_options,
+				ws_conf: ws_conf,
 				http_conf: http_conf,
 				ipc_conf: ipc_conf,
 				net_conf: net_conf,
@@ -386,6 +388,7 @@ impl Configuration {
 				verifier_settings: verifier_settings,
 				serve_light: !self.args.flag_no_serve_light,
 				light: self.args.flag_light,
+				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -638,7 +641,7 @@ impl Configuration {
 
 		info!(
 			"Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)",
-			Colour::White.bold().paint(format!("US${}", usd_per_eth)),
+			Colour::White.bold().paint(format!("US${:.2}", usd_per_eth)),
 			Colour::Yellow.bold().paint(format!("{}", wei_per_gas))
 		);
 
@@ -757,6 +760,14 @@ impl Configuration {
 		Self::hosts(&self.args.flag_jsonrpc_hosts)
 	}
 
+	fn ws_hosts(&self) -> Option<Vec<String>> {
+		Self::hosts(&self.args.flag_ws_hosts)
+	}
+
+	fn ws_origins(&self) -> Option<Vec<String>> {
+		Self::hosts(&self.args.flag_ws_origins)
+	}
+
 	fn ipfs_hosts(&self) -> Option<Vec<String>> {
 		Self::hosts(&self.args.flag_ipfs_api_hosts)
 	}
@@ -796,6 +807,19 @@ impl Configuration {
 				None => None,
 				_ => return Err("--jsonrpc-threads number needs to be positive.".into()),
 			}
+		};
+
+		Ok(conf)
+	}
+
+	fn ws_config(&self) -> Result<WsConfiguration, String> {
+		let conf = WsConfiguration {
+			enabled: self.ws_enabled(),
+			interface: self.ws_interface(),
+			port: self.args.flag_ws_port,
+			apis: self.args.flag_ws_apis.parse()?,
+			hosts: self.ws_hosts(),
+			origins: self.ws_origins()
 		};
 
 		Ok(conf)
@@ -913,6 +937,10 @@ impl Configuration {
 		Self::interface(&self.network_settings().rpc_interface)
 	}
 
+	fn ws_interface(&self) -> String {
+		Self::interface(&self.args.flag_ws_interface)
+	}
+
 	fn ipfs_interface(&self) -> String {
 		Self::interface(&self.args.flag_ipfs_api_interface)
 	}
@@ -965,6 +993,10 @@ impl Configuration {
 		!self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc
 	}
 
+	fn ws_enabled(&self) -> bool {
+		!self.args.flag_no_ws
+	}
+
 	fn dapps_enabled(&self) -> bool {
 		!self.args.flag_dapps_off && !self.args.flag_no_dapps && self.rpc_enabled() && cfg!(feature = "dapps")
 	}
@@ -1000,7 +1032,7 @@ impl Configuration {
 mod tests {
 	use super::*;
 	use cli::Args;
-	use ethcore_rpc::NetworkSettings;
+	use parity_rpc::NetworkSettings;
 	use ethcore::client::{VMType, BlockId};
 	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
 	use helpers::{default_network_config};
@@ -1093,7 +1125,7 @@ mod tests {
 			format: Default::default(),
 			pruning: Default::default(),
 			pruning_history: 64,
-			pruning_memory: 75,
+			pruning_memory: 32,
 			compaction: Default::default(),
 			wal: true,
 			tracing: Default::default(),
@@ -1116,7 +1148,7 @@ mod tests {
 			file_path: Some("blockchain.json".into()),
 			pruning: Default::default(),
 			pruning_history: 64,
-			pruning_memory: 75,
+			pruning_memory: 32,
 			format: Default::default(),
 			compaction: Default::default(),
 			wal: true,
@@ -1139,7 +1171,7 @@ mod tests {
 			file_path: Some("state.json".into()),
 			pruning: Default::default(),
 			pruning_history: 64,
-			pruning_memory: 75,
+			pruning_memory: 32,
 			format: Default::default(),
 			compaction: Default::default(),
 			wal: true,
@@ -1164,7 +1196,7 @@ mod tests {
 			file_path: Some("blockchain.json".into()),
 			pruning: Default::default(),
 			pruning_history: 64,
-			pruning_memory: 75,
+			pruning_memory: 32,
 			format: Some(DataFormat::Hex),
 			compaction: Default::default(),
 			wal: true,
@@ -1200,10 +1232,11 @@ mod tests {
 			spec: Default::default(),
 			pruning: Default::default(),
 			pruning_history: 64,
-			pruning_memory: 75,
+			pruning_memory: 32,
 			daemon: None,
 			logger_config: Default::default(),
 			miner_options: Default::default(),
+			ws_conf: Default::default(),
 			http_conf: Default::default(),
 			ipc_conf: Default::default(),
 			net_conf: default_network_config(),
@@ -1238,6 +1271,7 @@ mod tests {
 			verifier_settings: Default::default(),
 			serve_light: true,
 			light: false,
+			no_persistent_txqueue: false,
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));
@@ -1337,13 +1371,13 @@ mod tests {
 		let conf0 = parse(&["parity"]);
 		let conf1 = parse(&["parity", "--jsonrpc-hosts", "none"]);
 		let conf2 = parse(&["parity", "--jsonrpc-hosts", "all"]);
-		let conf3 = parse(&["parity", "--jsonrpc-hosts", "ethcore.io,something.io"]);
+		let conf3 = parse(&["parity", "--jsonrpc-hosts", "parity.io,something.io"]);
 
 		// then
 		assert_eq!(conf0.rpc_hosts(), Some(Vec::new()));
 		assert_eq!(conf1.rpc_hosts(), Some(Vec::new()));
 		assert_eq!(conf2.rpc_hosts(), None);
-		assert_eq!(conf3.rpc_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
+		assert_eq!(conf3.rpc_hosts(), Some(vec!["parity.io".into(), "something.io".into()]));
 	}
 
 	#[test]
@@ -1354,13 +1388,13 @@ mod tests {
 		let conf0 = parse(&["parity"]);
 		let conf1 = parse(&["parity", "--ipfs-api-hosts", "none"]);
 		let conf2 = parse(&["parity", "--ipfs-api-hosts", "all"]);
-		let conf3 = parse(&["parity", "--ipfs-api-hosts", "ethcore.io,something.io"]);
+		let conf3 = parse(&["parity", "--ipfs-api-hosts", "parity.io,something.io"]);
 
 		// then
 		assert_eq!(conf0.ipfs_hosts(), Some(Vec::new()));
 		assert_eq!(conf1.ipfs_hosts(), Some(Vec::new()));
 		assert_eq!(conf2.ipfs_hosts(), None);
-		assert_eq!(conf3.ipfs_hosts(), Some(vec!["ethcore.io".into(), "something.io".into()]));
+		assert_eq!(conf3.ipfs_hosts(), Some(vec!["parity.io".into(), "something.io".into()]));
 	}
 
 	#[test]
@@ -1370,12 +1404,12 @@ mod tests {
 		// when
 		let conf0 = parse(&["parity"]);
 		let conf1 = parse(&["parity", "--ipfs-api-cors", "*"]);
-		let conf2 = parse(&["parity", "--ipfs-api-cors", "http://ethcore.io,http://something.io"]);
+		let conf2 = parse(&["parity", "--ipfs-api-cors", "http://parity.io,http://something.io"]);
 
 		// then
 		assert_eq!(conf0.ipfs_cors(), None);
 		assert_eq!(conf1.ipfs_cors(), Some(vec!["*".into()]));
-		assert_eq!(conf2.ipfs_cors(), Some(vec!["http://ethcore.io".into(),"http://something.io".into()]));
+		assert_eq!(conf2.ipfs_cors(), Some(vec!["http://parity.io".into(),"http://something.io".into()]));
 	}
 
 	#[test]

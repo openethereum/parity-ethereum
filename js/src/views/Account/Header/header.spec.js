@@ -18,6 +18,8 @@ import BigNumber from 'bignumber.js';
 import { shallow } from 'enzyme';
 import React from 'react';
 
+import { ETH_TOKEN } from '~/util/tokens';
+
 import Header from './';
 
 const ACCOUNT = {
@@ -28,9 +30,35 @@ const ACCOUNT = {
   },
   uuid: '0xabcdef'
 };
+const subscriptions = {};
 
 let component;
 let instance;
+
+const api = {
+  subscribe: (method, callback) => {
+    subscriptions[method] = (subscriptions[method] || []).concat(callback);
+    return Promise.resolve(0);
+  },
+  eth: {
+    getTransactionCount: () => Promise.resolve(new BigNumber(1))
+  }
+};
+
+function reduxStore () {
+  const getState = () => ({
+    balances: {},
+    tokens: {
+      [ETH_TOKEN.id]: ETH_TOKEN
+    }
+  });
+
+  return {
+    getState,
+    dispatch: () => null,
+    subscribe: () => null
+  };
+}
 
 function render (props = {}) {
   if (props && !props.account) {
@@ -38,7 +66,8 @@ function render (props = {}) {
   }
 
   component = shallow(
-    <Header { ...props } />
+    <Header { ...props } />,
+    { context: { api } }
   );
   instance = component.instance();
 
@@ -72,8 +101,9 @@ describe('views/Account/Header', () => {
         let balance;
 
         beforeEach(() => {
-          render({ balance: { balance: 'testing' } });
-          balance = component.find('Balance');
+          render();
+          balance = component.find('Connect(Balance)')
+            .shallow({ context: { store: reduxStore() } });
         });
 
         it('renders', () => {
@@ -81,11 +111,7 @@ describe('views/Account/Header', () => {
         });
 
         it('passes the account', () => {
-          expect(balance.props().account).to.deep.equal(ACCOUNT);
-        });
-
-        it('passes the balance', () => {
-
+          expect(balance.props().address).to.deep.equal(ACCOUNT.address);
         });
       });
 
@@ -177,24 +203,33 @@ describe('views/Account/Header', () => {
   });
 
   describe('renderTxCount', () => {
-    it('renders null when contract', () => {
-      render({ balance: { txCount: new BigNumber(1) }, isContract: true });
-      expect(instance.renderTxCount()).to.be.null;
-    });
-
-    it('renders null when no balance', () => {
-      render({ balance: null, isContract: false });
-      expect(instance.renderTxCount()).to.be.null;
-    });
-
     it('renders null when txCount is null', () => {
-      render({ balance: { txCount: null }, isContract: false });
+      render();
       expect(instance.renderTxCount()).to.be.null;
+    });
+
+    it('renders null when contract', () => {
+      render({ isContract: true });
+
+      subscriptions['eth_blockNumber'].forEach((callback) => {
+        callback();
+
+        setTimeout(() => {
+          expect(instance.renderTxCount()).to.be.null;
+        });
+      });
     });
 
     it('renders the tx count', () => {
-      render({ balance: { txCount: new BigNumber(1) }, isContract: false });
-      expect(instance.renderTxCount()).not.to.be.null;
+      render();
+
+      subscriptions['eth_blockNumber'].forEach((callback) => {
+        callback();
+
+        setTimeout(() => {
+          expect(instance.renderTxCount()).not.to.be.null;
+        });
+      });
     });
   });
 

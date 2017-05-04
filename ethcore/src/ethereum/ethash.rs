@@ -19,8 +19,8 @@ use util::*;
 use block::*;
 use builtin::Builtin;
 use env_info::EnvInfo;
-use error::{BlockError, TransactionError, Error};
-use header::Header;
+use error::{BlockError, Error, TransactionError};
+use header::{Header, BlockNumber};
 use state::CleanupMode;
 use spec::CommonParams;
 use transaction::UnverifiedTransaction;
@@ -31,6 +31,10 @@ use rlp::{self, UntrustedRlp};
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
+
+/// Number of blocks in an ethash snapshot.
+// make dependent on difficulty incrment divisor?
+const SNAPSHOT_BLOCKS: u64 = 30000;
 
 /// Ethash params.
 #[derive(Debug, PartialEq)]
@@ -139,17 +143,33 @@ pub struct Ethash {
 
 impl Ethash {
 	/// Create a new instance of Ethash engine
-	pub fn new(params: CommonParams, ethash_params: EthashParams, builtins: BTreeMap<Address, Builtin>) -> Self {
-		Ethash {
+	pub fn new(params: CommonParams, ethash_params: EthashParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Self> {
+		Arc::new(Ethash {
 			params: params,
 			ethash_params: ethash_params,
 			builtins: builtins,
 			pow: EthashManager::new(),
-		}
+		})
 	}
 }
 
-impl Engine for Ethash {
+// TODO [rphmeier]
+//
+// for now, this is different than Ethash's own epochs, and signal
+// "consensus epochs".
+// in this sense, `Ethash` is epochless: the same `EpochVerifier` can be used
+// for any block in the chain.
+// in the future, we might move the Ethash epoch
+// caching onto this mechanism as well.
+impl ::engines::EpochVerifier for Arc<Ethash> {
+	fn epoch_number(&self) -> u64 { 0 }
+	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
+		self.verify_block_unordered(header, None)
+	}
+}
+
+impl Engine for Arc<Ethash> {
 	fn name(&self) -> &str { "Ethash" }
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
 	// Two fields - mix
@@ -167,19 +187,20 @@ impl Engine for Ethash {
 		map!["nonce".to_owned() => format!("0x{}", header.nonce().hex()), "mixHash".to_owned() => format!("0x{}", header.mix_hash().hex())]
 	}
 
-	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
+	fn schedule(&self, block_number: BlockNumber) -> Schedule {
 		trace!(target: "client", "Creating schedule. fCML={}, bGCML={}", self.ethash_params.homestead_transition, self.ethash_params.eip150_transition);
 
-		if env_info.number < self.ethash_params.homestead_transition {
+		if block_number < self.ethash_params.homestead_transition {
 			Schedule::new_frontier()
-		} else if env_info.number < self.ethash_params.eip150_transition {
+		} else if block_number < self.ethash_params.eip150_transition {
 			Schedule::new_homestead()
 		} else {
 			Schedule::new_post_eip150(
 				self.ethash_params.max_code_size as usize,
-				env_info.number >= self.ethash_params.eip160_transition,
-				env_info.number >= self.ethash_params.eip161abc_transition,
-				env_info.number >= self.ethash_params.eip161d_transition
+				block_number >= self.ethash_params.eip160_transition,
+				block_number >= self.ethash_params.eip161abc_transition,
+				block_number >= self.ethash_params.eip161d_transition,
+				block_number >= self.params.eip86_transition
 			)
 		}
 	}
@@ -369,21 +390,22 @@ impl Engine for Ethash {
 	}
 
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> result::Result<(), Error> {
-		if header.number() >= self.ethash_params.homestead_transition {
-			t.check_low_s()?;
-		}
-
-		if let Some(n) = t.network_id() {
-			if header.number() < self.ethash_params.eip155_transition || n != self.params().chain_id {
-				return Err(TransactionError::InvalidNetworkId.into())
-			}
-		}
-
 		if header.number() >= self.ethash_params.min_gas_price_transition && t.gas_price < self.ethash_params.min_gas_price {
 			return Err(TransactionError::InsufficientGasPrice { minimal: self.ethash_params.min_gas_price, got: t.gas_price }.into());
 		}
 
+		let check_low_s = header.number() >= self.ethash_params.homestead_transition;
+		let network_id = if header.number() >= self.ethash_params.eip155_transition { Some(self.params().chain_id) } else { None };
+		t.verify_basic(check_low_s, network_id, false)?;
 		Ok(())
+	}
+
+	fn epoch_verifier(&self, _header: &Header, _proof: &[u8]) -> Result<Box<::engines::EpochVerifier>, Error> {
+		Ok(Box::new(self.clone()))
+	}
+
+	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+		Some(Box::new(::snapshot::PowSnapshot(SNAPSHOT_BLOCKS)))
 	}
 }
 
@@ -512,7 +534,6 @@ mod tests {
 	use block::*;
 	use tests::helpers::*;
 	use engines::Engine;
-	use env_info::EnvInfo;
 	use error::{BlockError, Error};
 	use header::Header;
 	use super::super::{new_morden, new_homestead_test};
@@ -524,8 +545,7 @@ mod tests {
 		let spec = new_morden();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_state_db();
-		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
+		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close();
@@ -537,8 +557,7 @@ mod tests {
 		let spec = new_morden();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_state_db();
-		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
+		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let mut b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle = Header::new();
@@ -561,28 +580,10 @@ mod tests {
 	#[test]
 	fn can_return_schedule() {
 		let engine = new_morden().engine;
-		let schedule = engine.schedule(&EnvInfo {
-			number: 10000000,
-			author: 0.into(),
-			timestamp: 0,
-			difficulty: 0.into(),
-			last_hashes: Arc::new(vec![]),
-			gas_used: 0.into(),
-			gas_limit: 0.into(),
-		});
-
+		let schedule = engine.schedule(10000000);
 		assert!(schedule.stack_limit > 0);
 
-		let schedule = engine.schedule(&EnvInfo {
-			number: 100,
-			author: 0.into(),
-			timestamp: 0,
-			difficulty: 0.into(),
-			last_hashes: Arc::new(vec![]),
-			gas_used: 0.into(),
-			gas_limit: 0.into(),
-		});
-
+		let schedule = engine.schedule(100);
 		assert!(!schedule.have_delegate_call);
 	}
 
