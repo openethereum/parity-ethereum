@@ -30,20 +30,6 @@ pub struct Metadata {
 	pub session: Option<Arc<Session>>,
 }
 
-// impl cmp::PartialEq for Metadata {
-// 	fn eq(&self, other: &Metadata) -> bool {
-// 		if self.origin != other.origin {
-// 			return false;
-// 		}
-//
-// 		if self.session.is_some() != self.session.is_some() {
-// 			return false;
-// 		}
-//
-// 		true
-// 	}
-// }
-
 impl Metadata {
 	/// Returns dapp id if this request is coming from a Dapp or default `DappId` otherwise.
 	pub fn dapp_id(&self) -> DappId {

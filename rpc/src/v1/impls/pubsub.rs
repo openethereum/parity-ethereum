@@ -46,6 +46,7 @@ impl<S: core::Middleware<Metadata>> PubSubClient<S> {
 		let timer = tokio_timer::wheel()
 			.tick_duration(Duration::from_millis(500))
 			.build();
+
 		// Start ticking
 		let interval = timer.interval(Duration::from_millis(1000));
 		remote.spawn(interval
