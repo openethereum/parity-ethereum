@@ -97,10 +97,7 @@ class Connection extends Component {
           <div className={ styles.timestamp }>
             <FormattedMessage
               id='connection.timestamp'
-              defaultMessage='Ensure that both the Parity node and this machine connecting have computer clocks in-sync with each other and with a timestamp server, ensuring both sucessful token validation and block operations.'
-              values={ {
-                newToken: <span className={ styles.console }>parity signer new-token</span>
-              } }
+              defaultMessage='Ensure that both the Parity node and this machine connecting have computer clocks in-sync with each other and with a timestamp server, ensuring both successful token validation and block operations.'
             />
           </div>
           <div className={ styles.form }>
