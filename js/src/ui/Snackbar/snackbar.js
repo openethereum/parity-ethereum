@@ -76,7 +76,7 @@ export default class Snackbar extends Component {
   }
 
   render () {
-    const { message } = this.props;
+    const { bodyStyle, message } = this.props;
     const { snackStyle } = this.state;
     let { action } = this.props;
 
@@ -91,8 +91,10 @@ export default class Snackbar extends Component {
 
     return (
       <div className={ styles.snacks } style={ snackStyle }>
-        <span>{ message }</span>
-        <span id={ styles.action } onClick={ this.autoHide }>{ action }</span>
+        <div style={ bodyStyle }>
+          <span>{ message }</span>
+          <span id={ styles.action } onClick={ this.autoHide }>{ action }</span>
+        </div>
       </div>
     );
   }

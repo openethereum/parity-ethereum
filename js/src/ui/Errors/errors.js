@@ -27,6 +27,10 @@ import styles from './errors.css';
 const ERROR_REGEX = /-(\d+): (.+)$/;
 const DURATION_OPEN = 60000;
 
+const STYLE_CONTENT = {
+  backgroundColor: rgba(255, 71, 71, 0.75);
+};
+
 class Errors extends Component {
   static propTypes = {
     message: PropTypes.string,
@@ -57,6 +61,7 @@ class Errors extends Component {
         autoHideDuration={ DURATION_OPEN }
         message={ text }
         onRequestClose={ this.onRequestClose }
+        bodyStyle={ STYLE_CONTENT }
       />
     );
   }
