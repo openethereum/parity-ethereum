@@ -28,7 +28,7 @@ const ERROR_REGEX = /-(\d+): (.+)$/;
 const DURATION_OPEN = 60000;
 
 const STYLE_CONTENT = {
-  backgroundColor: rgba(255, 71, 71, 0.75);
+  backgroundColor: 'rgba(255, 71, 71, 0.75)'
 };
 
 class Errors extends Component {
