@@ -52,7 +52,7 @@ export default class SolidityUtils {
 
   static getCompiler (build) {
     const { longVersion, path } = build;
-    const URL = `https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/${path}`;
+    const URL = `https://rawgit.com/ethereum/solc-bin/gh-pages/bin/${path}`;
     const isWorker = typeof window !== 'object';
 
     if (isWorker) {

@@ -23,7 +23,7 @@ import store from 'store';
 import { sha3 } from '~/api/util/sha3';
 import SolidityUtils from '~/util/solidity';
 
-const SOLIDITY_LIST_URL = 'https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/list.json';
+const SOLIDITY_LIST_URL = 'https://rawgit.com/ethereum/solc-bin/gh-pages/bin/list.json';
 const WRITE_CONTRACT_STORE_KEY = '_parity::writeContractStore';
 
 const SNIPPETS = {
