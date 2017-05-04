@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::cmp;
 use std::sync::Arc;
 
 use jsonrpc_core;
@@ -31,19 +30,19 @@ pub struct Metadata {
 	pub session: Option<Arc<Session>>,
 }
 
-impl cmp::PartialEq for Metadata {
-	fn eq(&self, other: &Metadata) -> bool {
-		if self.origin != other.origin {
-			return false;
-		}
-
-		if self.session.is_some() != self.session.is_some() {
-			return false;
-		}
-
-		true
-	}
-}
+// impl cmp::PartialEq for Metadata {
+// 	fn eq(&self, other: &Metadata) -> bool {
+// 		if self.origin != other.origin {
+// 			return false;
+// 		}
+//
+// 		if self.session.is_some() != self.session.is_some() {
+// 			return false;
+// 		}
+//
+// 		true
+// 	}
+// }
 
 impl Metadata {
 	/// Returns dapp id if this request is coming from a Dapp or default `DappId` otherwise.
