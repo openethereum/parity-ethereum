@@ -319,6 +319,7 @@ export default class WriteContractStore {
     transaction(() => {
       this.compiled = false;
       this.compiling = true;
+      this.setWorkerError(null);
     });
 
     const build = this.builds[this.selectedBuild];
