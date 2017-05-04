@@ -16,9 +16,10 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { chunkArray } from '~/util/array';
 import { arrayOrObjectProptype, nodeOrStringProptype } from '~/util/proptypes';
 
+import { chunkArray } from './array';
+import Overlay from './Overlay';
 import styles from './sectionList.css';
 
 // TODO: We probably want this to be passed via props - additional work required in that case to
@@ -40,7 +41,7 @@ export default class SectionList extends Component {
   };
 
   render () {
-    const { className, items } = this.props;
+    const { className, items, overlay } = this.props;
 
     if (!items || !items.length) {
       return null;
@@ -56,23 +57,9 @@ export default class SectionList extends Component {
 
     return (
       <section className={ [styles.section, className].join(' ') }>
-        { this.renderOverlay() }
+        <Overlay overlay={ overlay } />
         { chunkArray(rendered, ITEMS_PER_ROW).map(this.renderRow) }
       </section>
-    );
-  }
-
-  renderOverlay () {
-    const { overlay } = this.props;
-
-    if (!overlay) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.overlay }>
-        { overlay }
-      </div>
     );
   }
 

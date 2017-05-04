@@ -19,8 +19,9 @@ import { FormattedMessage } from 'react-intl';
 
 import { PrevIcon } from '~/ui/Icons';
 
-import TransactionPendingFormConfirm from './TransactionPendingFormConfirm';
-import TransactionPendingFormReject from './TransactionPendingFormReject';
+import TransactionPendingFormConfirm from '../TransactionPendingFormConfirm';
+import TransactionPendingFormReject from '../TransactionPendingFormReject';
+
 import styles from './transactionPendingForm.css';
 
 export default class TransactionPendingForm extends Component {

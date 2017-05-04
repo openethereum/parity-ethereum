@@ -21,7 +21,7 @@ import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
 
 import { Button, Form, Input, IdentityIcon, QrCode, QrScan } from '~/ui';
-import { generateTxQr, generateDataQr } from '~/util/qrscan';
+import { generateTxQr, generateDataQr } from '~/shell/Signer/utils/qrscan';
 
 import styles from './transactionPendingFormConfirm.css';
 

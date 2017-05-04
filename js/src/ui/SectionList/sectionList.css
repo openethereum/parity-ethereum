@@ -24,17 +24,6 @@ $widthContracted: 29%;
   position: relative;
   width: 100%;
 
-  .overlay {
-    background: rgba(0, 0, 0, 0.85);
-    bottom: 0;
-    left: 0;
-    padding: 1.5em;
-    position: absolute;
-    right: 0;
-    top: 0;
-    z-index: 199;
-  }
-
   .row {
     display: flex;
     justify-content: center;
