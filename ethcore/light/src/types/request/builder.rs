@@ -116,7 +116,7 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 	}
 }
 
-impl<T: super::CheckedRequest> Requests<T> {
+impl<T: super::CheckedRequest + Clone> Requests<T> {
 	/// Supply a response for the next request.
 	/// Fails on: wrong request kind, all requests answered already.
 	pub fn supply_response(&mut self, env: &T::Environment, response: &T::Response)
@@ -126,8 +126,11 @@ impl<T: super::CheckedRequest> Requests<T> {
 
 		// check validity.
 		if idx == self.requests.len() { return Err(ResponseError::Unexpected) }
+		let completed = self.next_complete()
+			.expect("only fails when all requests have been answered; this just checked against; qed");
+
 		let extracted = self.requests[idx]
-			.check_response(env, response).map_err(ResponseError::Validity)?;
+			.check_response(&completed, env, response).map_err(ResponseError::Validity)?;
 
 		let outputs = &mut self.outputs;
 		response.fill_outputs(|out_idx, output| {

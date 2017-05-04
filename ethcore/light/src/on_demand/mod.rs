@@ -25,24 +25,19 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use ethcore::basic_account::BasicAccount;
-use ethcore::encoded;
-use ethcore::receipt::Receipt;
 use ethcore::executed::{Executed, ExecutionError};
 
-use futures::{future, Async, Poll, Future, BoxFuture};
+use futures::{Async, Poll, Future};
 use futures::sync::oneshot::{self, Sender, Receiver, Canceled};
 use network::PeerId;
-use rlp::RlpStream;
-use util::{Bytes, RwLock, Mutex, U256, H256};
-use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY, SHA3_EMPTY_LIST_RLP};
+use util::{RwLock, Mutex};
 
 use net::{self, Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
 use cache::Cache;
 use request::{self as basic_request, Request as NetworkRequest};
 use self::request::CheckedRequest;
 
-pub use self::request::{Request, Response};
+pub use self::request::{Request, Response, HeaderRef};
 
 #[cfg(test)]
 mod tests;
@@ -169,158 +164,6 @@ impl OnDemand {
 		me.no_immediate_dispatch = true;
 
 		me
-	}
-
-	/// Request a header's hash by block number and CHT root hash.
-	/// Returns the hash.
-	pub fn hash_by_number(&self, ctx: &BasicContext, req: request::HeaderProof) -> BoxFuture<H256, Canceled> {
-		let cached = {
-			let mut cache = self.cache.lock();
-			cache.block_hash(&req.num())
-		};
-
-		match cached {
-			Some(hash) => future::ok(hash).boxed(),
-			None => {
-				self.request(ctx, req)
-					.expect("request given fully fleshed out; qed")
-					.map(|(h, _)| h)
-					.boxed()
-			},
-		}
-	}
-
-	/// Request a canonical block's chain score.
-	/// Returns the chain score.
-	pub fn chain_score_by_number(&self, ctx: &BasicContext, req: request::HeaderProof) -> BoxFuture<U256, Canceled> {
-		let cached = {
-			let mut cache = self.cache.lock();
-			cache.block_hash(&req.num()).and_then(|hash| cache.chain_score(&hash))
-		};
-
-		match cached {
-			Some(score) => future::ok(score).boxed(),
-			None => {
-				self.request(ctx, req)
-					.expect("request given fully fleshed out; qed")
-					.map(|(_, s)| s)
-					.boxed()
-			},
-		}
-	}
-
-	/// Request a canonical block's hash and chain score by number.
-	/// Returns the hash and chain score.
-	pub fn hash_and_score_by_number(&self, ctx: &BasicContext, req: request::HeaderProof) -> BoxFuture<(H256, U256), Canceled> {
-		let cached = {
-			let mut cache = self.cache.lock();
-			let hash = cache.block_hash(&req.num());
-			(
-				hash.clone(),
-				hash.and_then(|hash| cache.chain_score(&hash)),
-			)
-		};
-
-		match cached {
-			(Some(hash), Some(score)) => future::ok((hash, score)).boxed(),
-			_ => {
-				self.request(ctx, req)
-					.expect("request given fully fleshed out; qed")
-					.boxed()
-			},
-		}
-	}
-
-	/// Request a header by hash. This is less accurate than by-number because we don't know
-	/// where in the chain this header lies, and therefore can't find a peer who is supposed to have
-	/// it as easily.
-	pub fn header_by_hash(&self, ctx: &BasicContext, req: request::HeaderByHash) -> BoxFuture<encoded::Header, Canceled> {
-		match { self.cache.lock().block_header(&req.0) } {
-			Some(hdr) => future::ok(hdr).boxed(),
-			None => {
-				self.request(ctx, req)
-					.expect("request given fully fleshed out; qed")
-					.boxed()
-			},
-		}
-	}
-
-	/// Request a block, given its header. Block bodies are requestable by hash only,
-	/// and the header is required anyway to verify and complete the block body
-	/// -- this just doesn't obscure the network query.
-	pub fn block(&self, ctx: &BasicContext, req: request::Body) -> BoxFuture<encoded::Block, Canceled> {
-		// fast path for empty body.
-		if req.header.transactions_root() == SHA3_NULL_RLP && req.header.uncles_hash() == SHA3_EMPTY_LIST_RLP {
-			let mut stream = RlpStream::new_list(3);
-			stream.append_raw(&req.header.into_inner(), 1);
-			stream.begin_list(0);
-			stream.begin_list(0);
-
-			future::ok(encoded::Block::new(stream.out())).boxed()
-		} else {
-			match { self.cache.lock().block_body(&req.hash) } {
-				Some(body) => {
-					let mut stream = RlpStream::new_list(3);
-					let body = body.rlp();
-					stream.append_raw(&req.header.into_inner(), 1);
-					stream.append_raw(&body.at(0).as_raw(), 1);
-					stream.append_raw(&body.at(1).as_raw(), 1);
-
-					future::ok(encoded::Block::new(stream.out())).boxed()
-				}
-				None => {
-					self.request(ctx, req)
-						.expect("request given fully fleshed out; qed")
-						.boxed()
-				}
-			}
-		}
-	}
-
-	/// Request the receipts for a block. The header serves two purposes:
-	/// provide the block hash to fetch receipts for, and for verification of the receipts root.
-	pub fn block_receipts(&self, ctx: &BasicContext, req: request::BlockReceipts) -> BoxFuture<Vec<Receipt>, Canceled> {
-		// fast path for empty receipts.
-		if req.0.receipts_root() == SHA3_NULL_RLP {
-			return future::ok(Vec::new()).boxed()
-		}
-
-		match { self.cache.lock().block_receipts(&req.0.hash()) } {
-			Some(receipts) => future::ok(receipts).boxed(),
-			None => {
-				self.request(ctx, req)
-					.expect("request given fully fleshed out; qed")
-					.boxed()
-			},
-		}
-	}
-
-	/// Request an account by address and block header -- which gives a hash to query and a state root
-	/// to verify against.
-	/// `None` here means that no account by the queried key exists in the queried state.
-	pub fn account(&self, ctx: &BasicContext, req: request::Account) -> BoxFuture<Option<BasicAccount>, Canceled> {
-		self.request(ctx, req)
-			.expect("request given fully fleshed out; qed")
-			.boxed()
-	}
-
-	/// Request code by address, known code hash, and block header.
-	pub fn code(&self, ctx: &BasicContext, req: request::Code) -> BoxFuture<Bytes, Canceled> {
-		// fast path for no code.
-		if req.code_hash == SHA3_EMPTY {
-			future::ok(Vec::new()).boxed()
-		} else {
-			self.request(ctx, req)
-				.expect("request given fully fleshed out; qed")
-				.boxed()
-		}
-	}
-
-	/// Request proof-of-execution for a transaction.
-	pub fn transaction_proof(&self, ctx: &BasicContext, req: request::TransactionProof) -> BoxFuture<ExecutionResult, Canceled> {
-		self.request(ctx, req)
-			.expect("request given fully fleshed out; qed")
-			.boxed()
 	}
 
 	/// Submit a vector of requests to be processed together.
@@ -511,13 +354,13 @@ impl Handler for OnDemand {
 							// but typical use just has one header request that others
 							// depend on.
 							let num_answered = pending.requests.num_answered();
-							for r in pending.requests.requests.iter().skip(num_answered) {
+							for r in pending.requests.iter_mut().skip(num_answered) {
 								if r.needs_header() == Some(num_answered - 1) {
 									r.provide_header(hdr.clone())
 								}
 							}
 						}
-						_
+						_ => {}, // no other responses produce headers.
 					}
 					pending.responses.push(response);
 				}
@@ -542,6 +385,7 @@ impl Handler for OnDemand {
 		let num_answered = pending.requests.num_answered();
 		let mut mapping = move |idx| idx - num_answered;
 
+		// TODO: attempt local responses.
 		for request in pending.requests.requests().iter().skip(num_answered) {
 			let mut net_req = request.clone().into_net_request();
 

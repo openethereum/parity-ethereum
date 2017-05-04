@@ -26,12 +26,12 @@ use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
 use ethcore::transaction::SignedTransaction;
 
-use request::{self as net_request, IncompleteRequest, Output, OutputKind, Field};
+use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
 
 use rlp::{RlpStream, UntrustedRlp};
 use util::{Address, Bytes, DBValue, HashDB, Mutex, H256, U256};
 use util::memorydb::MemoryDB;
-use util::sha3::Hashable;
+use util::sha3::{Hashable, SHA3_NULL_RLP, SHA3_EMPTY, SHA3_EMPTY_LIST_RLP};
 use util::trie::{Trie, TrieDB, TrieError};
 
 const SUPPLIED_MATCHES: &'static str = "supplied responses always match produced requests; qed";
@@ -175,18 +175,19 @@ mod impls {
 
 /// A block header to be used for verification.
 /// May be stored or an unresolved output of a prior request.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HeaderRef {
 	/// A stored header.
 	Stored(encoded::Header),
 	/// An unresolved header. The first item here is the index of the request which
 	/// will return the header. The second is a back-reference pointing to a block hash
 	/// which can be used to make requests until that header is resolved.
-	Unresolved(usize, Field<H256>),
+	Unresolved(usize, usize),
 }
 
 impl HeaderRef {
-	// Attempt to inspect the header.
-	fn as_ref(&self) -> Result<&encoded::Header, Error> {
+	/// Attempt to inspect the header.
+	pub fn as_ref(&self) -> Result<&encoded::Header, Error> {
 		match *self {
 			HeaderRef::Stored(ref hdr) => Ok(hdr),
 			HeaderRef::Unresolved(idx, _) => Err(Error::UnresolvedHeader(idx)),
@@ -197,7 +198,7 @@ impl HeaderRef {
 	fn field(&self) -> Field<H256> {
 		match *self {
 			HeaderRef::Stored(ref hdr) => Field::Scalar(hdr.hash()),
-			HeaderRef::Unresolved(_, ref f) => f.clone(),
+			HeaderRef::Unresolved(ref req, ref idx) => Field::BackReference(*req, *idx),
 		}
 	}
 
@@ -269,7 +270,7 @@ impl From<Request> for CheckedRequest {
 			}
 			Request::Code(req) => {
 				let net_req = net_request::IncompleteCodeRequest {
-					block_hash: req.block_id.0.into(),
+					block_hash: req.header.field(),
 					code_hash: req.code_hash.into(),
 				};
 				CheckedRequest::Code(req, net_req)
@@ -333,18 +334,110 @@ impl CheckedRequest {
 			_ => {},
 		}
 	}
+
+	/// Attempt to complete the request based on data in the cache.
+	pub fn respond_local(&self, cache: &Mutex<::cache::Cache>) -> Option<Response> {
+		match *self {
+			CheckedRequest::HeaderProof(ref check, _) => {
+				let mut cache = cache.lock();
+				cache.block_hash(&check.num)
+					.and_then(|h| cache.chain_score(&h).map(|s| (h, s)))
+					.map(|(h, s)| Response::HeaderProof((h, s)))
+			}
+			CheckedRequest::HeaderByHash(_, ref req) => {
+				if let Some(&net_request::HashOrNumber::Hash(ref h)) = req.start.as_ref() {
+					return cache.lock().block_header(h).map(Response::HeaderByHash);
+				}
+
+				None
+			}
+			CheckedRequest::Receipts(ref check, ref req) => {
+				// empty transactions -> no receipts
+				if check.0.as_ref().ok().map_or(false, |hdr| hdr.receipts_root() == SHA3_NULL_RLP) {
+					return Some(Response::Receipts(Vec::new()));
+				}
+
+				req.hash.as_ref()
+					.and_then(|hash| cache.lock().block_receipts(hash))
+					.map(Response::Receipts)
+			}
+			CheckedRequest::Body(ref check, ref req) => {
+				// check for empty body.
+				if let Some(hdr) = check.0.as_ref().ok() {
+					if hdr.transactions_root() == SHA3_NULL_RLP && hdr.uncles_hash() == SHA3_EMPTY_LIST_RLP {
+						let mut stream = RlpStream::new_list(3);
+						stream.append_raw(hdr.rlp().as_raw(), 1);
+						stream.begin_list(0);
+						stream.begin_list(0);
+
+						return Some(Response::Body(encoded::Block::new(stream.out())));
+					}
+				}
+
+				// otherwise, check for cached body and header.
+				let block_hash = req.hash.as_ref()
+					.cloned()
+					.or_else(|| check.0.as_ref().ok().map(|hdr| hdr.hash()));
+				let block_hash = match block_hash {
+					Some(hash) => hash,
+					None => return None,
+				};
+
+				let mut cache = cache.lock();
+				let cached_header;
+
+				// can't use as_ref here although it seems like you would be able to:
+				// it complains about uninitialized `cached_header`.
+				let block_header = match check.0.as_ref().ok() {
+					Some(hdr) => Some(hdr),
+					None => {
+						cached_header = cache.block_header(&block_hash);
+						cached_header.as_ref()
+					}
+				};
+
+				block_header
+					.and_then(|hdr| cache.block_body(&block_hash).map(|b| (hdr, b)))
+					.map(|(hdr, body)| {
+						let mut stream = RlpStream::new_list(3);
+						let body = body.rlp();
+						stream.append_raw(&hdr.rlp().as_raw(), 1);
+						stream.append_raw(&body.at(0).as_raw(), 1);
+						stream.append_raw(&body.at(1).as_raw(), 1);
+
+						Response::Body(encoded::Block::new(stream.out()))
+					})
+			}
+			CheckedRequest::Code(_, ref req) => {
+				if req.code_hash.as_ref().map_or(false, |&h| h == SHA3_EMPTY) {
+					Some(Response::Code(Vec::new()))
+				} else {
+					None
+				}
+			}
+			_ => None,
+		}
+	}
 }
 
 impl IncompleteRequest for CheckedRequest {
-	type Complete = net_request::CompleteRequest;
+	type Complete = CompleteRequest;
 	type Response = net_request::Response;
 
-	fn check_outputs<F>(&self, f: F) -> Result<(), net_request::NoSuchOutput>
+	fn check_outputs<F>(&self, mut f: F) -> Result<(), net_request::NoSuchOutput>
 		where F: FnMut(usize, usize, OutputKind) -> Result<(), net_request::NoSuchOutput>
 	{
 		match *self {
 			CheckedRequest::HeaderProof(_, ref req) => req.check_outputs(f),
-			CheckedRequest::HeaderByHash(_, ref req) => req.check_outputs(f),
+			CheckedRequest::HeaderByHash(ref check, ref req) => {
+				req.check_outputs(&mut f)?;
+
+				// make sure the output given is definitively a hash.
+				match check.0 {
+					Field::BackReference(r, idx) => f(r, idx, OutputKind::Hash),
+					_ => Ok(()),
+				}
+			}
 			CheckedRequest::Receipts(_, ref req) => req.check_outputs(f),
 			CheckedRequest::Body(_, ref req) => req.check_outputs(f),
 			CheckedRequest::Account(_, ref req) => req.check_outputs(f),
@@ -378,8 +471,6 @@ impl IncompleteRequest for CheckedRequest {
 	}
 
 	fn complete(self) -> Result<Self::Complete, net_request::NoSuchOutput> {
-		use ::request::CompleteRequest;
-
 		match self {
 			CheckedRequest::HeaderProof(_, req) => req.complete().map(CompleteRequest::HeaderProof),
 			CheckedRequest::HeaderByHash(_, req) => req.complete().map(CompleteRequest::Headers),
@@ -411,24 +502,24 @@ impl net_request::CheckedRequest for CheckedRequest {
 	type Environment = Mutex<::cache::Cache>;
 
 	/// Check whether the response matches (beyond the type).
-	fn check_response(&self, cache: &Mutex<::cache::Cache>, response: &Self::Response) -> Result<Response, Error> {
+	fn check_response(&self, complete: &Self::Complete, cache: &Mutex<::cache::Cache>, response: &Self::Response) -> Result<Response, Error> {
 		use ::request::Response as NetResponse;
 
 		// check response against contained prover.
-		match (self, response) {
-			(&CheckedRequest::HeaderProof(ref prover, _), &NetResponse::HeaderProof(ref res)) =>
+		match (self, complete, response) {
+			(&CheckedRequest::HeaderProof(ref prover, _), _, &NetResponse::HeaderProof(ref res)) =>
 				prover.check_response(cache, &res.proof).map(Response::HeaderProof),
-			(&CheckedRequest::HeaderByHash(ref prover, _), &NetResponse::Headers(ref res)) =>
-				prover.check_response(cache, &res.headers).map(Response::HeaderByHash),
-			(&CheckedRequest::Receipts(ref prover, _), &NetResponse::Receipts(ref res)) =>
+			(&CheckedRequest::HeaderByHash(ref prover, _), &CompleteRequest::Headers(ref req), &NetResponse::Headers(ref res)) =>
+				prover.check_response(cache, &req.start, &res.headers).map(Response::HeaderByHash),
+			(&CheckedRequest::Receipts(ref prover, _), _, &NetResponse::Receipts(ref res)) =>
 				prover.check_response(cache, &res.receipts).map(Response::Receipts),
-			(&CheckedRequest::Body(ref prover, _), &NetResponse::Body(ref res)) =>
+			(&CheckedRequest::Body(ref prover, _), _, &NetResponse::Body(ref res)) =>
 				prover.check_response(cache, &res.body).map(Response::Body),
-			(&CheckedRequest::Account(ref prover, _), &NetResponse::Account(ref res)) =>
+			(&CheckedRequest::Account(ref prover, _), _, &NetResponse::Account(ref res)) =>
 				prover.check_response(cache, &res.proof).map(Response::Account),
-			(&CheckedRequest::Code(ref prover, _), &NetResponse::Code(ref res)) =>
-				prover.check_response(cache, &res.code).map(Response::Code),
-			(&CheckedRequest::Execution(ref prover, _), &NetResponse::Execution(ref res)) =>
+			(&CheckedRequest::Code(ref prover, _), &CompleteRequest::Code(ref req), &NetResponse::Code(ref res)) =>
+				prover.check_response(cache, &req.code_hash, &res.code).map(Response::Code),
+			(&CheckedRequest::Execution(ref prover, _), _, &NetResponse::Execution(ref res)) =>
 				prover.check_response(cache, &res.items).map(Response::Execution),
 			_ => Err(Error::WrongKind),
 		}
@@ -467,6 +558,8 @@ pub enum Error {
 	Trie(TrieError),
 	/// Bad inclusion proof
 	BadProof,
+	/// Header by number instead of hash.
+	HeaderByNumber,
 	/// Unresolved header reference.
 	UnresolvedHeader(usize),
 	/// Wrong header number.
@@ -543,15 +636,29 @@ pub struct HeaderByHash(pub Field<H256>);
 
 impl HeaderByHash {
 	/// Check a response for the header.
-	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, headers: &[encoded::Header]) -> Result<encoded::Header, Error> {
+	pub fn check_response(
+		&self,
+		cache: &Mutex<::cache::Cache>,
+		start: &net_request::HashOrNumber,
+		headers: &[encoded::Header]
+	) -> Result<encoded::Header, Error> {
+		let expected_hash = match (self.0, start) {
+			(Field::Scalar(ref h), &net_request::HashOrNumber::Hash(ref h2)) => {
+				if h != h2 { return Err(Error::WrongHash(*h, *h2)) }
+				*h
+			}
+			(_, &net_request::HashOrNumber::Hash(h2)) => h2,
+			_ => return Err(Error::HeaderByNumber),
+		};
+
 		let header = headers.get(0).ok_or(Error::Empty)?;
 		let hash = header.sha3();
-		match hash == self.0 {
+		match hash == expected_hash {
 			true => {
 				cache.lock().insert_block_header(hash, header.clone());
 				Ok(header.clone())
 			}
-			false => Err(Error::WrongHash(self.0, hash)),
+			false => Err(Error::WrongHash(expected_hash, hash)),
 		}
 	}
 }
@@ -581,7 +688,7 @@ impl Body {
 		stream.append_raw(body.rlp().at(0).as_raw(), 1);
 		stream.append_raw(body.rlp().at(1).as_raw(), 1);
 
-		cache.lock().insert_block_body(self.hash, body.clone());
+		cache.lock().insert_block_body(header.hash(), body.clone());
 
 		Ok(encoded::Block::new(stream.out()))
 	}
@@ -651,12 +758,17 @@ pub struct Code {
 
 impl Code {
 	/// Check a response with code against the code hash.
-	pub fn check_response(&self, _: &Mutex<::cache::Cache>, code: &[u8]) -> Result<Vec<u8>, Error> {
+	pub fn check_response(
+		&self,
+		_: &Mutex<::cache::Cache>,
+		code_hash: &H256,
+		code: &[u8]
+	) -> Result<Vec<u8>, Error> {
 		let found_hash = code.sha3();
-		if found_hash == self.code_hash {
+		if &found_hash == code_hash {
 			Ok(code.to_vec())
 		} else {
-			Err(Error::WrongHash(self.code_hash, found_hash))
+			Err(Error::WrongHash(*code_hash, found_hash))
 		}
 	}
 }
@@ -669,6 +781,7 @@ pub struct TransactionProof {
 	/// Block header.
 	pub header: HeaderRef,
 	/// Transaction environment info.
+	// TODO: it's not really possible to provide this if the header is unknown.
 	pub env_info: EnvInfo,
 	/// Consensus engine.
 	pub engine: Arc<Engine>,
@@ -756,7 +869,7 @@ mod tests {
 		let raw_header = encoded::Header::new(::rlp::encode(&header).to_vec());
 
 		let cache = Mutex::new(make_cache());
-		assert!(HeaderByHash(hash).check_response(&cache, &[raw_header]).is_ok())
+		assert!(HeaderByHash(hash.into()).check_response(&cache, &hash.into(), &[raw_header]).is_ok())
 	}
 
 	#[test]
@@ -767,10 +880,7 @@ mod tests {
 		let mut body_stream = RlpStream::new_list(2);
 		body_stream.begin_list(0).begin_list(0);
 
-		let req = Body {
-			header: encoded::Header::new(::rlp::encode(&header).to_vec()),
-			hash: header.hash(),
-		};
+		let req = Body(encoded::Header::new(::rlp::encode(&header).to_vec()).into());
 
 		let cache = Mutex::new(make_cache());
 		let response = encoded::Body::new(body_stream.drain().to_vec());
@@ -793,7 +903,7 @@ mod tests {
 
 		header.set_receipts_root(receipts_root);
 
-		let req = BlockReceipts(encoded::Header::new(::rlp::encode(&header).to_vec()));
+		let req = BlockReceipts(encoded::Header::new(::rlp::encode(&header).to_vec()).into());
 
 		let cache = Mutex::new(make_cache());
 		assert!(req.check_response(&cache, &receipts).is_ok())
@@ -841,7 +951,7 @@ mod tests {
 		header.set_state_root(root.clone());
 
 		let req = Account {
-			header: encoded::Header::new(::rlp::encode(&header).to_vec()),
+			header: encoded::Header::new(::rlp::encode(&header).to_vec()).into(),
 			address: addr,
 		};
 
@@ -852,13 +962,15 @@ mod tests {
 	#[test]
 	fn check_code() {
 		let code = vec![1u8; 256];
+		let code_hash = ::util::Hashable::sha3(&code);
+		let header = Header::new();
 		let req = Code {
-			block_id: (Default::default(), 2),
-			code_hash: ::util::Hashable::sha3(&code),
+			header: encoded::Header::new(::rlp::encode(&header).to_vec()).into(),
+			code_hash: code_hash.into(),
 		};
 
 		let cache = Mutex::new(make_cache());
-		assert!(req.check_response(&cache, &code).is_ok());
-		assert!(req.check_response(&cache, &[]).is_err());
+		assert!(req.check_response(&cache, &code_hash, &code).is_ok());
+		assert!(req.check_response(&cache, &code_hash, &[]).is_err());
 	}
 }

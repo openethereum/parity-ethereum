@@ -83,7 +83,7 @@ pub enum ResponseError<T> {
 }
 
 /// An input to a request.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Field<T> {
 	/// A pre-specified input.
 	Scalar(T),
@@ -98,6 +98,14 @@ impl<T> Field<T> {
 		match self {
 			Field::Scalar(x) => Field::Scalar(f(x)),
 			Field::BackReference(req, idx) => Field::BackReference(req, idx),
+		}
+	}
+
+	/// Attempt to get a reference to the inner scalar.
+	pub fn as_ref(&self) -> Option<&T> {
+		match *self {
+			Field::Scalar(ref x) => Some(x),
+			Field::BackReference(_, _) => None,
 		}
 	}
 
@@ -392,7 +400,7 @@ impl CheckedRequest for Request {
 	type Error = WrongKind;
 	type Environment = ();
 
-	fn check_response(&self, _: &(), response: &Response) -> Result<(), WrongKind> {
+	fn check_response(&self, _: &Self::Complete, _: &(), response: &Response) -> Result<(), WrongKind> {
 		if self.kind() == response.kind() {
 			Ok(())
 		} else {
@@ -579,7 +587,7 @@ pub trait CheckedRequest: IncompleteRequest {
 	type Environment;
 
 	/// Check whether the response matches (beyond the type).
-	fn check_response(&self, &Self::Environment, &Self::Response) -> Result<Self::Extract, Self::Error>;
+	fn check_response(&self, &Self::Complete, &Self::Environment, &Self::Response) -> Result<Self::Extract, Self::Error>;
 }
 
 /// A response-like object.
