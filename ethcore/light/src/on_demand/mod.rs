@@ -101,7 +101,7 @@ impl Pending {
 				// but typical use just has one header request that others
 				// depend on.
 				for r in self.requests.iter_mut().skip(idx + 1) {
-					if r.needs_header() == Some(idx) {
+					if r.needs_header().map_or(false, |(i, _)| i == idx) {
 						r.provide_header(hdr.clone())
 					}
 				}
@@ -261,8 +261,6 @@ impl OnDemand {
 	pub fn request_raw(&self, ctx: &BasicContext, requests: Vec<Request>)
 		-> Result<Receiver<Vec<Response>>, basic_request::NoSuchOutput>
 	{
-		use std::collections::HashSet;
-
 		let (sender, receiver) = oneshot::channel();
 
 		if requests.is_empty() {
@@ -274,16 +272,22 @@ impl OnDemand {
 
 		let responses = Vec::with_capacity(requests.len());
 
-		let mut header_producers = HashSet::new();
+		let mut header_producers = HashMap::new();
 		for (i, request) in requests.into_iter().enumerate() {
 			let request = CheckedRequest::from(request);
 
 			// ensure that all requests needing headers will get them.
-			if let Some(idx) = request.needs_header() {
-				if !header_producers.contains(&idx) { return Err(basic_request::NoSuchOutput) }
+			if let Some((idx, field)) = request.needs_header() {
+				// a request chain with a header back-reference is valid only if it both
+				// points to a request that returns a header and has the same back-reference
+				// for the block hash.
+				match header_producers.get(&idx) {
+					Some(ref f) if &field == *f => {}
+					_ => return Err(basic_request::NoSuchOutput),
+				}
 			}
-			if let CheckedRequest::HeaderByHash(_, _) = request {
-				header_producers.insert(i);
+			if let CheckedRequest::HeaderByHash(ref req, _) = request {
+				header_producers.insert(i, req.0.clone());
 			}
 
 			builder.push(request)?;

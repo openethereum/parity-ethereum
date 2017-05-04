@@ -182,7 +182,7 @@ pub enum HeaderRef {
 	/// An unresolved header. The first item here is the index of the request which
 	/// will return the header. The second is a back-reference pointing to a block hash
 	/// which can be used to make requests until that header is resolved.
-	Unresolved(usize, usize),
+	Unresolved(usize, Field<H256>),
 }
 
 impl HeaderRef {
@@ -198,15 +198,15 @@ impl HeaderRef {
 	fn field(&self) -> Field<H256> {
 		match *self {
 			HeaderRef::Stored(ref hdr) => Field::Scalar(hdr.hash()),
-			HeaderRef::Unresolved(ref req, ref idx) => Field::BackReference(*req, *idx),
+			HeaderRef::Unresolved(_, ref field) => field.clone(),
 		}
 	}
 
 	// yield the index of the request which will produce the header.
-	fn needs_header(&self) -> Option<usize> {
+	fn needs_header(&self) -> Option<(usize, Field<H256>)> {
 		match *self {
 			HeaderRef::Stored(_) => None,
-			HeaderRef::Unresolved(idx, _) => Some(idx),
+			HeaderRef::Unresolved(idx, ref field) => Some((idx, field.clone())),
 		}
 	}
 }
@@ -308,9 +308,10 @@ impl CheckedRequest {
 	}
 
 	/// Whether this needs a header from a prior request.
-	/// Returns `Some` and the index of the request returning the header
+	/// Returns `Some` with the index of the request returning the header
+	/// and the field giving the hash
 	/// if so, `None` otherwise.
-	pub fn needs_header(&self) -> Option<usize> {
+	pub fn needs_header(&self) -> Option<(usize, Field<H256>)> {
 		match *self {
 			CheckedRequest::Receipts(ref x, _) => x.0.needs_header(),
 			CheckedRequest::Body(ref x, _) => x.0.needs_header(),
