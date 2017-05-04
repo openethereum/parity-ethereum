@@ -42,7 +42,7 @@ impl WebApp for App {
 		Info {
 			name: "Parity UI",
 			version: env!("CARGO_PKG_VERSION"),
-			author: "Ethcore <admin@ethcore.io>",
+			author: "Ethcore <admin@parity.io>",
 			description: "New UI for Parity.",
 			icon_url: "icon.png",
 		}

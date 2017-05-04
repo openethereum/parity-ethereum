@@ -19,7 +19,7 @@
 use std::collections::BTreeMap;
 use std::sync::Weak;
 use engines::{Call, EpochChange};
-use util::{H256, Address, RwLock};
+use util::{Bytes, H256, Address, RwLock};
 use ids::BlockId;
 use header::{BlockNumber, Header};
 use client::{Client, BlockChainClient};
@@ -110,16 +110,12 @@ impl ValidatorSet for Multi {
 			.map_or_else(usize::max_value, |set| set.count_with_caller(bh, caller))
 	}
 
-	fn report_malicious(&self, validator: &Address) {
-		for set in self.sets.values() {
-			set.report_malicious(validator);
-		}
+	fn report_malicious(&self, validator: &Address, block: BlockNumber, proof: Bytes) {
+		self.correct_set_by_number(block).1.report_malicious(validator, block, proof);
 	}
 
-	fn report_benign(&self, validator: &Address) {
-		for set in self.sets.values() {
-			set.report_benign(validator);
-		}
+	fn report_benign(&self, validator: &Address, block: BlockNumber) {
+		self.correct_set_by_number(block).1.report_benign(validator, block);
 	}
 
 	fn register_contract(&self, client: Weak<Client>) {
