@@ -370,6 +370,7 @@ impl Configuration {
 				check_seal: !self.args.flag_no_seal_check,
 				download_old_blocks: !self.args.flag_no_ancient_blocks,
 				verifier_settings: verifier_settings,
+				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -1184,6 +1185,7 @@ mod tests {
 			check_seal: true,
 			download_old_blocks: true,
 			verifier_settings: Default::default(),
+			no_persistent_txqueue: false,
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));

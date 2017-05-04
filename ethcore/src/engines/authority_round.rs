@@ -351,7 +351,7 @@ impl Engine for AuthorityRound {
 		if step == parent_step
 			|| (header.number() >= self.validate_step_transition && step <= parent_step) {
 			trace!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
-			self.validators.report_malicious(header.author(), header.number(), Default::default());
+			self.validators.report_malicious(header.author());
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 

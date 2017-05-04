@@ -6,6 +6,7 @@ auto_update = "none"
 release_track = "current"
 no_download = false
 no_consensus = false
+no_persistent_txqueue = false
 
 chain = "homestead"
 base_path = "$HOME/.parity"

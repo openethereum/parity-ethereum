@@ -173,14 +173,26 @@ impl<T: NodeInfo> LocalDataStore<T> {
 	pub fn update(&self) -> Result<(), Error> {
 		trace!(target: "local_store", "Updating local store entries.");
 
-		let mut batch = self.db.transaction();
-
 		let local_entries: Vec<TransactionEntry> = self.node.pending_transactions()
 			.into_iter()
 			.map(Into::into)
 			.collect();
 
-		let local_json = ::serde_json::to_value(&local_entries).map_err(Error::Json)?;
+		self.write_txs(&local_entries)
+	}
+
+	/// Clear data in this column.
+	pub fn clear(&self) -> Result<(), Error> {
+		trace!(target: "local_store", "Clearing local store entries.");
+
+		self.write_txs(&[])
+	}
+
+	// helper for writing a vector of transaction entries to disk.
+	fn write_txs(&self, txs: &[TransactionEntry]) -> Result<(), Error> {
+		let mut batch = self.db.transaction();
+
+		let local_json = ::serde_json::to_value(txs).map_err(Error::Json)?;
 		let json_str = format!("{}", local_json);
 
 		batch.put_vec(self.col, LOCAL_TRANSACTIONS_KEY, json_str.into_bytes());
