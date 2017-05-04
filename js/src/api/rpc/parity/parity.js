@@ -17,7 +17,7 @@
 import {
   inAddress, inAddresses, inData, inHex, inNumber16, inOptions, inBlockNumber, inDeriveHash, inDeriveIndex
 } from '../../format/input';
-import { outAccountInfo, outAddress, outAddresses, outChainStatus, outHistogram, outHwAccountInfo, outNodeKind, outNumber, outPeers, outRecentDapps, outTransaction, outVaultMeta } from '../../format/output';
+import { outAccountInfo, outAddress, outAddresses, outBlock, outChainStatus, outHistogram, outHwAccountInfo, outNodeKind, outNumber, outPeers, outRecentDapps, outTransaction, outVaultMeta } from '../../format/output';
 
 export default class Parity {
   constructor (transport) {
@@ -72,9 +72,19 @@ export default class Parity {
       .execute('parity_checkRequest', inNumber16(requestId));
   }
 
+  cidV0 (data) {
+    return this._transport
+      .execute('parity_cidV0', inData(data));
+  }
+
   closeVault (vaultName) {
     return this._transport
       .execute('parity_closeVault', vaultName);
+  }
+
+  composeTransaction (options) {
+    return this._transport
+      .execute('parity_composeTransaction', inOptions(options));
   }
 
   consensusCapability () {
@@ -187,6 +197,12 @@ export default class Parity {
   generateSecretPhrase () {
     return this._transport
       .execute('parity_generateSecretPhrase');
+  }
+
+  getBlockHeaderByNumber (blockNumber = 'latest') {
+    return this._transport
+      .execute('parity_getBlockHeaderByNumber', inBlockNumber(blockNumber))
+      .then(outBlock);
   }
 
   getDappAddresses (dappId) {
