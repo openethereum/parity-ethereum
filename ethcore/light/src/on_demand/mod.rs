@@ -73,6 +73,94 @@ struct Pending {
 	sender: oneshot::Sender<Vec<Response>>,
 }
 
+impl Pending {
+	// answer as many of the given requests from the supplied cache as possible.
+	// TODO: support re-shuffling.
+	fn answer_from_cache(&mut self, cache: &Mutex<Cache>) {
+		while !self.requests.is_complete() {
+			let idx = self.requests.num_answered();
+			match self.requests[idx].respond_local(cache) {
+				Some(response) => {
+					self.requests.supply_response_unchecked(&response);
+					self.update_header_refs(idx, &response);
+					self.responses.push(response);
+				}
+				None => break,
+			}
+		}
+	}
+
+	// update header refs if the given response contains a header future requests require for
+	// verification.
+	// `idx` is the index of the request the response corresponds to.
+	fn update_header_refs(&mut self, idx: usize, response: &Response) {
+		match *response {
+			Response::HeaderByHash(ref hdr) => {
+				// fill the header for all requests waiting on this one.
+				// TODO: could be faster if we stored a map usize => Vec<usize>
+				// but typical use just has one header request that others
+				// depend on.
+				for r in self.requests.iter_mut().skip(idx + 1) {
+					if r.needs_header() == Some(idx) {
+						r.provide_header(hdr.clone())
+					}
+				}
+			}
+			_ => {}, // no other responses produce headers.
+		}
+	}
+
+	// supply a response.
+	fn supply_response(&mut self, cache: &Mutex<Cache>, response: &basic_request::Response)
+		-> Result<(), basic_request::ResponseError<self::request::Error>>
+	{
+		match self.requests.supply_response(&cache, response) {
+			Ok(response) => {
+				let idx = self.responses.len();
+				self.update_header_refs(idx, &response);
+				self.responses.push(response);
+				Ok(())
+			}
+			Err(e) => Err(e),
+		}
+	}
+
+	// if the requests are complete, send the result and consume self.
+	fn try_complete(self) -> Option<Self> {
+		if self.requests.is_complete() {
+			let _ = self.sender.send(self.responses);
+			None
+		} else {
+			Some(self)
+		}
+	}
+
+	// update the cached network requests.
+	fn update_net_requests(&mut self) {
+		use request::IncompleteRequest;
+
+		let mut builder = basic_request::RequestBuilder::default();
+		let num_answered = self.requests.num_answered();
+		let mut mapping = move |idx| idx - num_answered;
+
+		for request in self.requests.iter().skip(num_answered) {
+			let mut net_req = request.clone().into_net_request();
+
+			// all back-references with request index less than `num_answered` have
+			// been filled by now. all remaining requests point to nothing earlier
+			// than the next unanswered request.
+			net_req.adjust_refs(&mut mapping);
+			builder.push(net_req)
+				.expect("all back-references to answered requests have been filled; qed");
+		}
+
+		// update pending fields.
+		let capabilities = guess_capabilities(&self.requests[num_answered..]);
+		self.net_requests = builder.build();
+		self.required_capabilities = capabilities;
+	}
+}
+
 // helper to guess capabilities required for a given batch of network requests.
 fn guess_capabilities(requests: &[CheckedRequest]) -> Capabilities {
 	let mut caps = Capabilities {
@@ -205,15 +293,13 @@ impl OnDemand {
 		let net_requests = requests.clone().map_requests(|req| req.into_net_request());
 		let capabilities = guess_capabilities(requests.requests());
 
-		self.pending.write().push(Pending {
+		self.submit_pending(ctx, Pending {
 			requests: requests,
 			net_requests: net_requests,
 			required_capabilities: capabilities,
 			responses: responses,
 			sender: sender,
 		});
-
-		self.attempt_dispatch(ctx);
 
 		Ok(receiver)
 	}
@@ -295,6 +381,19 @@ impl OnDemand {
 			})
 			.collect(); // `pending` now contains all requests we couldn't dispatch.
 	}
+
+	// submit a pending request set. attempts to answer from cache before
+	// going to the network. if complete, sends response and consumes the struct.
+	fn submit_pending(&self, ctx: &BasicContext, mut pending: Pending) {
+		// answer as many requests from cache as we can, and schedule for dispatch
+		// if incomplete.
+		pending.answer_from_cache(&*self.cache);
+		if let Some(mut pending) = pending.try_complete() {
+			pending.update_net_requests();
+			self.pending.write().push(pending);
+			self.attempt_dispatch(ctx);
+		}
+	}
 }
 
 impl Handler for OnDemand {
@@ -333,8 +432,6 @@ impl Handler for OnDemand {
 	}
 
 	fn on_responses(&self, ctx: &EventContext, req_id: ReqId, responses: &[basic_request::Response]) {
-		use request::IncompleteRequest;
-
 		let mut pending = match self.in_transit.write().remove(&req_id) {
 			Some(req) => req,
 			None => return,
@@ -345,65 +442,16 @@ impl Handler for OnDemand {
 		//   2. pending.requests.supply_response
 		//   3. if extracted on-demand response
 		for response in responses {
-			match pending.requests.supply_response(&*self.cache, response) {
-				Ok(response) => {
-					match response {
-						Response::HeaderByHash(ref hdr) => {
-							// fill the header for all requests waiting on this one.
-							// TODO: could be faster if we stored a map usize => Vec<usize>
-							// but typical use just has one header request that others
-							// depend on.
-							let num_answered = pending.requests.num_answered();
-							for r in pending.requests.iter_mut().skip(num_answered) {
-								if r.needs_header() == Some(num_answered - 1) {
-									r.provide_header(hdr.clone())
-								}
-							}
-						}
-						_ => {}, // no other responses produce headers.
-					}
-					pending.responses.push(response);
-				}
-				Err(e) => {
-					let peer = ctx.peer();
-					debug!(target: "on_demand", "Peer {} gave bad response: {:?}", peer, e);
-					ctx.disable_peer(peer);
+			if let Err(e) = pending.supply_response(&*self.cache, response) {
+				let peer = ctx.peer();
+				debug!(target: "on_demand", "Peer {} gave bad response: {:?}", peer, e);
+				ctx.disable_peer(peer);
 
-					break;
-				}
+				break;
 			}
 		}
 
-		if pending.requests.is_complete() {
-			let _ = pending.sender.send(pending.responses);
-
-			return;
-		}
-
-		// update network requests (unless we're done, in which case fulfill the future.)
-		let mut builder = basic_request::RequestBuilder::default();
-		let num_answered = pending.requests.num_answered();
-		let mut mapping = move |idx| idx - num_answered;
-
-		// TODO: attempt local responses.
-		for request in pending.requests.requests().iter().skip(num_answered) {
-			let mut net_req = request.clone().into_net_request();
-
-			// all back-references with request index less than `num_answered` have
-			// been filled by now. all remaining requests point to nothing earlier
-			// than the next unanswered request.
-			net_req.adjust_refs(&mut mapping);
-			builder.push(net_req)
-				.expect("all back-references to answered requests have been filled; qed");
-		}
-
-		// update pending fields and re-queue.
-		let capabilities = guess_capabilities(&pending.requests.requests()[num_answered..]);
-		pending.net_requests = builder.build();
-		pending.required_capabilities = capabilities;
-
-		self.pending.write().push(pending);
-		self.attempt_dispatch(ctx.as_basic());
+		self.submit_pending(ctx.as_basic(), pending);
 	}
 
 	fn tick(&self, ctx: &BasicContext) {

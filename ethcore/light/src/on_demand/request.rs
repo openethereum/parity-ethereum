@@ -547,6 +547,23 @@ pub enum Response {
 	Execution(super::ExecutionResult),
 }
 
+impl net_request::ResponseLike for Response {
+	fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
+		match *self {
+			Response::HeaderProof((ref hash, _)) => f(0, Output::Hash(*hash)),
+			Response::Account(None) => {
+				f(0, Output::Hash(SHA3_EMPTY)); // code hash
+				f(1, Output::Hash(SHA3_NULL_RLP)); // storage root.
+			}
+			Response::Account(Some(ref acc)) => {
+				f(0, Output::Hash(acc.code_hash));
+				f(1, Output::Hash(acc.storage_root));
+			}
+			_ => {}
+		}
+	}
+}
+
 /// Errors in verification.
 #[derive(Debug, PartialEq)]
 pub enum Error {

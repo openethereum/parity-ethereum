@@ -114,6 +114,28 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 			answered: self.answered,
 		}
 	}
+
+	/// Supply a response, asserting its correctness.
+	/// Fill outputs based upon it.
+	pub fn supply_response_unchecked<R: ResponseLike>(&mut self, response: &R) {
+		if self.is_complete() { return }
+
+		let outputs = &mut self.outputs;
+		let idx = self.answered;
+		response.fill_outputs(|out_idx, output| {
+			// we don't need to check output kinds here because all back-references
+			// are validated in the builder.
+			// TODO: optimization for only storing outputs we "care about"?
+			outputs.insert((idx, out_idx), output);
+		});
+
+		self.answered += 1;
+
+		// fill as much of each remaining request as we can.
+		for req in self.requests.iter_mut().skip(self.answered) {
+			req.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
+		}
+	}
 }
 
 impl<T: super::CheckedRequest + Clone> Requests<T> {
@@ -132,21 +154,7 @@ impl<T: super::CheckedRequest + Clone> Requests<T> {
 		let extracted = self.requests[idx]
 			.check_response(&completed, env, response).map_err(ResponseError::Validity)?;
 
-		let outputs = &mut self.outputs;
-		response.fill_outputs(|out_idx, output| {
-			// we don't need to check output kinds here because all back-references
-			// are validated in the builder.
-			// TODO: optimization for only storing outputs we "care about"?
-			outputs.insert((idx, out_idx), output);
-		});
-
-		self.answered += 1;
-
-		// fill as much of each remaining request as we can.
-		for req in self.requests.iter_mut().skip(self.answered) {
-			req.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
-		}
-
+		self.supply_response_unchecked(response);
 		Ok(extracted)
 	}
 }
