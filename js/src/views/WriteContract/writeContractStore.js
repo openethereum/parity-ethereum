@@ -197,6 +197,7 @@ export default class WriteContractStore {
         })
         .catch((error) => {
           this.setWorkerError(error);
+          throw error;
         });
     }
 
@@ -365,12 +366,16 @@ export default class WriteContractStore {
           annotations, contracts, errors
         } = data.result;
 
-        this.contract = contract;
-        this.contractIndex = contractIndex;
+        if (!contract && errors && errors.length > 0) {
+          this.setWorkerError(errors[0]);
+        } else {
+          this.contract = contract;
+          this.contractIndex = contractIndex;
 
-        this.annotations = annotations;
-        this.contracts = contracts;
-        this.errors = errors;
+          this.annotations = annotations;
+          this.contracts = contracts;
+          this.errors = errors;
+        }
       }
 
       this.compiled = true;

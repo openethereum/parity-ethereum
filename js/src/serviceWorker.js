@@ -16,8 +16,6 @@
 
 import toolbox from 'sw-toolbox';
 
-toolbox.precache(self.serviceWorkerOption.assets);
-
 /**
  * Cache the SOLC files : if not available, make a network request
  */
