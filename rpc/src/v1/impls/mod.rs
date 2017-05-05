@@ -24,7 +24,6 @@ mod parity_accounts;
 mod parity_set;
 mod personal;
 mod pubsub;
-mod rpc;
 mod signer;
 mod signing;
 mod signing_unsafe;
