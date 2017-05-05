@@ -17,29 +17,32 @@
 export default {
   add: {
     builtin: {
-      desc: `Experimental applications developed by the Parity team to show off dapp capabilities, integration, experimental features and to control certain network-wide client behaviour.`,
-      label: `Applications bundled with Parity`
+      desc: `Parity团队开发的实验性的，用以展示dapp的性能、集成、实验性特性和控制特定网络的的客户端行为`,
+      // Experimental applications developed by the Parity team to show off dapp capabilities, integration, experimental features and to control certain network-wide client behaviour.
+      label: `与Parity绑定的应用`// Applications bundled with Parity
     },
-    label: `visible applications`,
+    label: `visible applications可见的应用`, // visible applications
     local: {
       desc: `All applications installed locally on the machine by the user for access by the Parity client.`,
-      label: `Applications locally available`
+      label: `本地可用的应用`// Applications locally available
     },
     network: {
-      desc: `These applications are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each application before interacting.`,
-      label: `Applications on the global network`
+      desc: `这些应用与Parity没有关联，也不是Parity发布的。 它们是由各自的作者控制的。 在使用以前，请确保你理解每个应用的目标。`,
+      // These applications are not affiliated with Parity nor are they published by Parity.Each remain under the control of their respective authors.Please ensure that you understand the goals for each application before interacting.
+      label: `全球网络上的应用`// Applications on the global network
     }
   },
   button: {
-    edit: `edit`,
-    permissions: `permissions`
+    edit: `编辑`, // edit
+    permissions: `许可`// permissions
   },
   external: {
-    accept: `I understand that these applications are not affiliated with Parity`,
-    warning: `Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.`
+    accept: `我理解这些应用和Parity没有关联`, // I understand that these applications are not affiliated with Parity
+    warning: `第三方开发者开发的应用与Parity没有关联，也不是Parity发布的。 它们是由各自的作者控制的。 在使用以前，请确保你理解每个应用的目标。`
+    // Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.
   },
-  label: `Decentralized Applications`,
+  label: `去中心化应用`, // Decentralized Applications
   permissions: {
-    label: `visible dapp accounts`
+    label: `可见的dapp账户`// visible dapp accounts
   }
 };

@@ -17,23 +17,24 @@
 export default {
   condition: {
     block: {
-      hint: `The minimum block to send from`,
-      label: `Transaction send block`
+      hint: `在某个区块高度后发送`, // The minimum block to send from
+      label: `交易发送区块`// Transaction send block
     },
-    blocknumber: `Send after BlockNumber`,
+    blocknumber: `在某个区块后发送`, // Send after BlockNumber
     date: {
-      hint: `The minimum date to send from`,
-      label: `Transaction send date`
+      hint: `在某日后发送`, // The minimum date to send from
+      label: `交易发送日期`// Transaction send date
     },
-    datetime: `Send after Date & Time`,
-    label: `Condition where transaction activates`,
-    none: `No conditions`,
+    datetime: `在某日某时后发送`, // Send after Date & Tim
+    label: `交易激活的条件`, // Condition where transaction activates
+    none: `无条件`, // No conditions
     time: {
-      hint: `The minimum time to send from`,
-      label: `Transaction send time`
+      hint: `在某时间后发送`, // The minimum time to send from
+      label: `交易发送时间`// Transaction send time
     }
   },
   gas: {
-    info: `You can choose the gas price based on the distribution of recent included transaction gas prices. The lower the gas price is, the cheaper the transaction will be. The higher the gas price is, the faster it should get mined by the network.`
+    info: `你可以基于最近的交易gas价格的分布选择gas价格。 gas价格越低，交易费用越便宜。 gas 价格越高，交易被网络打包的速度越快。`
+    // You can choose the gas price based on the distribution of recent included transaction gas prices.The lower the gas price is, the cheaper the transaction will be.The higher the gas price is, the faster it should get mined by the network.
   }
 };

@@ -18,7 +18,7 @@
 
 use std::fmt::Debug;
 use util::*;
-use rlp::Encodable;
+use rlp::{Encodable, RlpStream};
 
 pub trait Message: Clone + PartialEq + Eq + Hash + Encodable + Debug {
 	type Round: Clone + PartialEq + Eq + Hash + Default + Debug + Ord;
@@ -40,25 +40,44 @@ pub struct VoteCollector<M: Message> {
 
 #[derive(Debug, Default)]
 struct StepCollector<M: Message> {
-	voted: HashSet<Address>,
+	voted: HashMap<Address, M>,
 	pub block_votes: HashMap<Option<H256>, HashMap<H520, Address>>,
 	messages: HashSet<M>,
 }
 
+#[derive(Debug)]
+pub struct DoubleVote<'a, M: Message> {
+	pub author: &'a Address,
+	vote_one: M,
+	vote_two: M,
+}
+
+impl<'a, M: Message> Encodable for DoubleVote<'a, M> {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2)
+			.append(&self.vote_one)
+			.append(&self.vote_two);
+	}
+}
+
 impl <M: Message> StepCollector<M> {
 	/// Returns Some(&Address) when validator is double voting.
-	fn insert<'a>(&mut self, message: M, address: &'a Address) -> Option<&'a Address> {
+	fn insert<'a>(&mut self, message: M, address: &'a Address) -> Option<DoubleVote<'a, M>> {
 		// Do nothing when message was seen.
 		if self.messages.insert(message.clone()) {
-			if self.voted.insert(address.clone()) {
+			if let Some(previous) = self.voted.insert(address.clone(), message.clone()) {
+				// Bad validator sent a different message.
+				return Some(DoubleVote {
+					author: address,
+					vote_one: previous,
+					vote_two: message
+				});
+			} else {
 				self
 					.block_votes
 					.entry(message.block_hash())
 					.or_insert_with(HashMap::new)
 					.insert(message.signature(), address.clone());
-			} else {
-				// Bad validator sent a different message.
-				return Some(address);
 			}
 		}
 		None
@@ -101,7 +120,7 @@ impl <M: Message + Default> Default for VoteCollector<M> {
 
 impl <M: Message + Default + Encodable + Debug> VoteCollector<M> {
 	/// Insert vote if it is newer than the oldest one.
-	pub fn vote<'a>(&self, message: M, voter: &'a Address) -> Option<&'a Address> {
+	pub fn vote<'a>(&self, message: M, voter: &'a Address) -> Option<DoubleVote<'a, M>> {
 		self
 			.votes
 			.write()
@@ -220,11 +239,11 @@ mod tests {
 	}
 
 	fn random_vote(collector: &VoteCollector<TestMessage>, signature: H520, step: TestStep, block_hash: Option<H256>) -> bool {
-		full_vote(collector, signature, step, block_hash, &H160::random()).is_none()
+		full_vote(collector, signature, step, block_hash, &H160::random())
 	}
 
-	fn full_vote<'a>(collector: &VoteCollector<TestMessage>, signature: H520, step: TestStep, block_hash: Option<H256>, address: &'a Address) -> Option<&'a Address> {
-		collector.vote(TestMessage { signature: signature, step: step, block_hash: block_hash }, address)
+	fn full_vote<'a>(collector: &VoteCollector<TestMessage>, signature: H520, step: TestStep, block_hash: Option<H256>, address: &'a Address) -> bool {
+		collector.vote(TestMessage { signature: signature, step: step, block_hash: block_hash }, address).is_none()
 	}
 
 	#[test]
@@ -319,9 +338,9 @@ mod tests {
 		let collector = VoteCollector::default();
 		let round = 3;
 		// Vote is inserted fine.
-		assert!(full_vote(&collector, H520::random(), round, Some("0".sha3()), &Address::default()).is_none());
+		assert!(full_vote(&collector, H520::random(), round, Some("0".sha3()), &Address::default()));
 		// Returns the double voting address.
-		full_vote(&collector, H520::random(), round, Some("1".sha3()), &Address::default()).unwrap();
+		assert!(!full_vote(&collector, H520::random(), round, Some("1".sha3()), &Address::default()));
 		assert_eq!(collector.count_round_votes(&round), 1);
 	}
 }
