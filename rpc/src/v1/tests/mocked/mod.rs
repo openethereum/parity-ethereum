@@ -25,6 +25,7 @@ mod parity_accounts;
 mod parity_set;
 mod personal;
 mod rpc;
+mod secretstore;
 mod signer;
 mod signing;
 mod traces;

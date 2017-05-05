@@ -30,6 +30,7 @@ extern crate transient_hashmap;
 extern crate cid;
 extern crate multihash;
 extern crate crypto as rust_crypto;
+extern crate rand;
 
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server as http;

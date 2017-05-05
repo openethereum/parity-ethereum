@@ -21,6 +21,7 @@ transient-hashmap = "0.4"
 cid = "0.2.1"
 multihash = "0.5"
 rust-crypto = "0.2.36"
+rand = "0.3"
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }

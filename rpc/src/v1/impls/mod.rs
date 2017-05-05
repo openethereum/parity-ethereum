@@ -27,6 +27,7 @@ mod signer;
 mod signing;
 mod signing_unsafe;
 mod rpc;
+mod secretstore;
 mod traces;
 mod web3;
 
@@ -45,3 +46,4 @@ pub use self::signing::SigningQueueClient;
 pub use self::signing_unsafe::SigningUnsafeClient;
 pub use self::traces::TracesClient;
 pub use self::rpc::RpcClient;
+pub use self::secretstore::SecretStoreClient;
