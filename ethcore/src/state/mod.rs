@@ -433,6 +433,11 @@ impl<B: Backend> State<B> {
 		self.ensure_cached(a, RequireCache::None, false, |a| a.map_or(false, |a| !a.is_null()))
 	}
 
+	/// Determine whether an account exists and has code.
+	pub fn exists_and_has_code(&self, a: &Address) -> trie::Result<bool> {
+		self.ensure_cached(a, RequireCache::CodeSize, false, |a| a.map_or(false, |a| a.code_size().map_or(false, |size| size != 0)))
+	}
+
 	/// Get the balance of account `a`.
 	pub fn balance(&self, a: &Address) -> trie::Result<U256> {
 		self.ensure_cached(a, RequireCache::None, true,
