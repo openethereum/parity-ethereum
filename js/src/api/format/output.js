@@ -92,6 +92,10 @@ export function outChainStatus (status) {
 }
 
 export function outDate (date) {
+  if (typeof date.toISOString === 'function') {
+    return date;
+  }
+
   return new Date(outNumber(date).toNumber() * 1000);
 }
 
