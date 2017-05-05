@@ -18,14 +18,14 @@ import { shallow } from 'enzyme';
 import React from 'react';
 
 import IdentityIcon from './';
-import IconCache from '../IconCache';
 
 const ADDRESS0 = '0x0000000000000000000000000000000000000000';
 const ADDRESS1 = '0x0123456789012345678901234567890123456789';
 const ADDRESS2 = '0x9876543210987654321098765432109876543210';
 
+IdentityIcon.iconCache.add(ADDRESS2, 'cachedImage', true);
+
 let component;
-let iconCache;
 let instance;
 
 function createApi () {
@@ -35,7 +35,7 @@ function createApi () {
 }
 
 function render (props = {}) {
-  if (props && props.address === undefined) {
+  if (props.address === undefined) {
     props.address = ADDRESS1;
   }
 
@@ -46,9 +46,6 @@ function render (props = {}) {
 
   instance = component.instance();
   instance.componentDidMount();
-
-  iconCache = IconCache.get(true);
-  iconCache.add(ADDRESS2, 'cachedImage');
 
   return component;
 }
@@ -74,11 +71,11 @@ describe('ui/IdentityIcon', () => {
     });
 
     it('renders an <ContractIcon> with no address specified', () => {
-      expect(render({ address: null }).find('ActionCode')).to.have.length(1);
+      expect(render({ address: null }).find('ContractIcon')).to.have.length(1);
     });
 
     it('renders an <CancelIcon> with 0x00..00 address specified', () => {
-      expect(render({ address: ADDRESS0 }).find('ContentClear')).to.have.length(1);
+      expect(render({ address: ADDRESS0 }).find('CancelIcon')).to.have.length(1);
     });
   });
 

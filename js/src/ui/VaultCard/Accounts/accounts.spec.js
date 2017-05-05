@@ -17,18 +17,13 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import Title from './';
+import Accounts from './';
 
 let component;
 
 function render (props = {}) {
   component = shallow(
-    <Title
-      activeStep={ 0 }
-      byline='testByline'
-      className='testClass'
-      description='testDescription'
-      title='testTitle'
+    <Accounts
       { ...props }
     />
   );
@@ -36,12 +31,32 @@ function render (props = {}) {
   return component;
 }
 
-describe('ui/Title', () => {
+describe('ui/VaultCard/Accounts', () => {
   beforeEach(() => {
     render();
   });
 
-  it('renders defaults', () => {
-    expect(component).to.be.ok;
+  it('renders empty when no accounts supplied', () => {
+    expect(
+      component.find('FormattedMessage').props().id
+    ).to.equal('vaults.accounts.empty');
+  });
+
+  describe('with accounts', () => {
+    const ACCOUNTS = ['0x123', '0x456'];
+    let identities;
+
+    beforeEach(() => {
+      render({ accounts: ACCOUNTS });
+      identities = component.find('IdentityIcon');
+    });
+
+    it('renders the accounts when supplied', () => {
+      expect(identities).to.have.length(2);
+    });
+
+    it('renders accounts with correct address', () => {
+      expect(identities.get(0).props.address).to.equal(ACCOUNTS[0]);
+    });
   });
 });

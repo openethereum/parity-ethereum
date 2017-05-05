@@ -117,10 +117,6 @@ function Balance ({ balance, className, showOnlyEth, tokens }) {
   );
 }
 
-Balance.contextTypes = {
-  api: PropTypes.object.isRequired
-};
-
 Balance.propTypes = {
   balance: PropTypes.object.isRequired,
   tokens: PropTypes.object.isRequired,

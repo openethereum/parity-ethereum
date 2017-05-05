@@ -17,18 +17,13 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import Title from './';
+import Waiting from './';
 
 let component;
 
 function render (props = {}) {
   component = shallow(
-    <Title
-      activeStep={ 0 }
-      byline='testByline'
-      className='testClass'
-      description='testDescription'
-      title='testTitle'
+    <Waiting
       { ...props }
     />
   );
@@ -36,12 +31,12 @@ function render (props = {}) {
   return component;
 }
 
-describe('ui/Title', () => {
+describe('ui/Title/Waiting', () => {
   beforeEach(() => {
-    render();
+    render({ busy: true });
   });
 
-  it('renders defaults', () => {
-    expect(component).to.be.ok;
+  it('renders the Progress', () => {
+    expect(component.find('Progress').get(0)).to.be.ok;
   });
 });
