@@ -38,7 +38,6 @@ function render (store) {
     <SyncWarning />,
     { context: { store: store || createRedux() } }
   ).find('SyncWarning').shallow();
-  instance = component.instance();
 
   return component;
 }
