@@ -156,18 +156,18 @@ impl Configuration {
 				Cmd::SignerSign {
 					id: self.args.arg_id,
 					pwfile: pwfile,
-					port: ui_conf.port,
+					port: ws_conf.port,
 					authfile: authfile,
 				}
 			} else if self.args.cmd_reject  {
 				Cmd::SignerReject {
 					id: self.args.arg_id,
-					port: ui_conf.port,
+					port: ws_conf.port,
 					authfile: authfile,
 				}
 			} else if self.args.cmd_list  {
 				Cmd::SignerList {
-					port: ui_conf.port,
+					port: ws_conf.port,
 					authfile: authfile,
 				}
 			} else {

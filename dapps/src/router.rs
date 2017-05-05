@@ -45,6 +45,7 @@ pub struct Router {
 	endpoints: Endpoints,
 	fetch: Arc<Fetcher>,
 	special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
+	embeddable_on: Option<(String, u16)>,
 }
 
 impl http::RequestMiddleware for Router {
@@ -55,7 +56,7 @@ impl http::RequestMiddleware for Router {
 		let referer = extract_referer_endpoint(req);
 		let is_utils = endpoint.1 == SpecialEndpoint::Utils;
 		let is_dapps_domain = endpoint.0.as_ref().map(|endpoint| endpoint.using_dapps_domains).unwrap_or(false);
-		let is_origin_set = req.headers().get::<http::hyper::header::Origin>().is_some();
+		let is_origin_set = req.headers().get::<header::Origin>().is_some();
 		let is_get_request = *req.method() == hyper::Method::Get;
 		let is_head_request = *req.method() == hyper::Method::Head;
 
@@ -97,6 +98,17 @@ impl http::RequestMiddleware for Router {
 				trace!(target: "dapps", "Resolving to fetchable content.");
 				Some(self.fetch.to_async_handler(path.clone(), control))
 			},
+			// 404 for non-existent content
+			(Some(_), _, _) if is_get_request || is_head_request => {
+				trace!(target: "dapps", "Resolving to 404.");
+				Some(Box::new(handlers::ContentHandler::error(
+					hyper::StatusCode::NotFound,
+					"404 Not Found",
+					"Requested content was not found.",
+					None,
+					self.embeddable_on.clone(),
+				)))
+			},
 			// Any other GET|HEAD requests to home page.
 			_ if (is_get_request || is_head_request) && self.special.contains_key(&SpecialEndpoint::Home) => {
 				self.special.get(&SpecialEndpoint::Home)
@@ -128,11 +140,13 @@ impl Router {
 		content_fetcher: Arc<Fetcher>,
 		endpoints: Endpoints,
 		special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
+		embeddable_on: Option<(String, u16)>,
 	) -> Self {
 		Router {
 			endpoints: endpoints,
 			fetch: content_fetcher,
 			special: special,
+			embeddable_on: embeddable_on,
 		}
 	}
 }

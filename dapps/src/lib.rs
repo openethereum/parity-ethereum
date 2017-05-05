@@ -153,6 +153,7 @@ impl Middleware {
 			content_fetcher,
 			endpoints.clone(),
 			special,
+			None,
 		);
 
 		Middleware {
@@ -175,7 +176,7 @@ impl Middleware {
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
 			sync_status,
-			None,
+			ui_address.clone(),
 			remote.clone(),
 			fetch.clone(),
 		));
@@ -191,7 +192,7 @@ impl Middleware {
 		let special = {
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, None);
-			special.insert(router::SpecialEndpoint::Home, Some(apps::ui_redirection(ui_address)));
+			special.insert(router::SpecialEndpoint::Home, Some(apps::ui_redirection(ui_address.clone())));
 			special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
 			special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(content_fetcher.clone())));
 			special
@@ -201,6 +202,7 @@ impl Middleware {
 			content_fetcher,
 			endpoints.clone(),
 			special,
+			ui_address,
 		);
 
 		Middleware {

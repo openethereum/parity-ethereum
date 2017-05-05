@@ -179,7 +179,7 @@ usage! {
 			or |c: &Config| otry!(c.websockets).interface.clone(),
 		flag_ws_apis: String = "web3,eth,net,parity,traces,rpc",
 			or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
-		flag_ws_origins: String = "none",
+		flag_ws_origins: String = "chrome-extension://*",
 			or |c: &Config| otry!(c.websockets).origins.as_ref().map(|vec| vec.join(",")),
 		flag_ws_hosts: String = "none",
 			or |c: &Config| otry!(c.websockets).hosts.as_ref().map(|vec| vec.join(",")),
