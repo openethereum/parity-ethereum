@@ -15,13 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
-import { Button as SemButton } from 'semantic-ui-react';
+import { Button as ButtonUI } from 'semantic-ui-react';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
 export default function Button ({ active, animated, basic, className, color, disabled, fullWidth, icon, label, onClick, primary, size, toggle }) {
   return (
-    <SemButton
+    <ButtonUI
       active={ active }
       animated={ animated }
       basic={ basic }
