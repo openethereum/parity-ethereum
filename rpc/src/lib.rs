@@ -67,6 +67,10 @@ extern crate serde_derive;
 #[cfg(test)]
 extern crate ethjson;
 
+#[cfg(test)]
+#[macro_use]
+extern crate pretty_assertions;
+
 pub extern crate jsonrpc_ws_server as ws;
 
 mod authcodes;

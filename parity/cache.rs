@@ -19,7 +19,7 @@ use std::cmp::max;
 const MIN_BC_CACHE_MB: u32 = 4;
 const MIN_DB_CACHE_MB: u32 = 2;
 const MIN_BLOCK_QUEUE_SIZE_LIMIT_MB: u32 = 16;
-const DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB: u32 = 50;
+const DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB: u32 = 40;
 const DEFAULT_TRACE_CACHE_SIZE: u32 = 20;
 const DEFAULT_STATE_CACHE_SIZE: u32 = 25;
 
@@ -41,7 +41,7 @@ pub struct CacheConfig {
 
 impl Default for CacheConfig {
 	fn default() -> Self {
-		CacheConfig::new(64, 8, DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB, DEFAULT_STATE_CACHE_SIZE)
+		CacheConfig::new(32, 8, DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB, DEFAULT_STATE_CACHE_SIZE)
 	}
 }
 
@@ -113,7 +113,7 @@ mod tests {
 		let config = CacheConfig::new_with_total_cache_size(200);
 		assert_eq!(config.db, 140);
 		assert_eq!(config.blockchain(), 20);
-		assert_eq!(config.queue(), 50);
+		assert_eq!(config.queue(), 40);
 		assert_eq!(config.state(), 30);
 		assert_eq!(config.jump_tables(), 10);
 	}
@@ -129,6 +129,6 @@ mod tests {
 	#[test]
 	fn test_cache_config_default() {
 		assert_eq!(CacheConfig::default(),
-			CacheConfig::new(64, 8, super::DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB, super::DEFAULT_STATE_CACHE_SIZE));
+			CacheConfig::new(32, 8, super::DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB, super::DEFAULT_STATE_CACHE_SIZE));
 	}
 }

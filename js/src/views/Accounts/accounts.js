@@ -24,9 +24,9 @@ import { Link } from 'react-router';
 import { bindActionCreators } from 'redux';
 
 import HardwareStore from '~/mobx/hardwareStore';
-import { CreateAccount, CreateWallet } from '~/modals';
-import { Actionbar, ActionbarExport, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
-import { AddIcon, KeyIcon } from '~/ui/Icons';
+import { CreateAccount, CreateWallet, ExportAccount } from '~/modals';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
+import { AddIcon, KeyIcon, FileDownloadIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import List from './List';
@@ -52,6 +52,7 @@ class Accounts extends Component {
     addressBook: false,
     newDialog: false,
     newWalletDialog: false,
+    newExportDialog: false,
     sortOrder: '',
     searchValues: [],
     searchTokens: [],
@@ -96,6 +97,7 @@ class Accounts extends Component {
       <div>
         { this.renderNewDialog() }
         { this.renderNewWalletDialog() }
+        { this.renderNewExportDialog() }
         { this.renderActionbar() }
 
         <Page>
@@ -244,8 +246,6 @@ class Accounts extends Component {
   }
 
   renderActionbar () {
-    const { accounts } = this.props;
-
     const buttons = [
       <Link
         to='/vaults'
@@ -284,10 +284,16 @@ class Accounts extends Component {
         }
         onClick={ this.onNewWalletClick }
       />,
-      <ActionbarExport
-        key='exportAccounts'
-        content={ accounts }
-        filename='accounts'
+      <Button
+        key='newExport'
+        icon={ <FileDownloadIcon /> }
+        label={
+          <FormattedMessage
+            id='accounts.button.export'
+            defaultMessage='export'
+          />
+        }
+        onClick={ this.onNewExportClick }
       />,
       this.renderSearchButton(),
       this.renderSortButton()
@@ -351,6 +357,20 @@ class Accounts extends Component {
     );
   }
 
+  renderNewExportDialog () {
+    const { newExportDialog } = this.state;
+
+    if (!newExportDialog) {
+      return null;
+    }
+
+    return (
+      <ExportAccount
+        onClose={ this.onNewExportClose }
+      />
+    );
+  }
+
   onAddSearchToken = (token) => {
     const { searchTokens } = this.state;
     const newSearchTokens = uniq([].concat(searchTokens, token));
@@ -370,6 +390,12 @@ class Accounts extends Component {
     });
   }
 
+  onNewExportClick = () => {
+    this.setState({
+      newExportDialog: true
+    });
+  }
+
   onNewAccountClose = () => {
     this.setState({
       newDialog: false
@@ -379,6 +405,12 @@ class Accounts extends Component {
   onNewWalletClose = () => {
     this.setState({
       newWalletDialog: false
+    });
+  }
+
+  onNewExportClose = () => {
+    this.setState({
+      newExportDialog: false
     });
   }
 

@@ -95,6 +95,8 @@ usage! {
 		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
 		flag_light: bool = false, or |c: &Config| otry!(c.parity).light,
+		flag_no_persistent_txqueue: bool = false,
+			or |c: &Config| otry!(c.parity).no_persistent_txqueue,
 
 		// -- Account Options
 		flag_unlock: Option<String> = None,
@@ -294,13 +296,13 @@ usage! {
 			or |c: &Config| otry!(c.footprint).pruning.clone(),
 		flag_pruning_history: u64 = 64u64,
 			or |c: &Config| otry!(c.footprint).pruning_history.clone(),
-		flag_pruning_memory: usize = 75usize,
+		flag_pruning_memory: usize = 32usize,
 			or |c: &Config| otry!(c.footprint).pruning_memory.clone(),
-		flag_cache_size_db: u32 = 64u32,
+		flag_cache_size_db: u32 = 32u32,
 			or |c: &Config| otry!(c.footprint).cache_size_db.clone(),
 		flag_cache_size_blocks: u32 = 8u32,
 			or |c: &Config| otry!(c.footprint).cache_size_blocks.clone(),
-		flag_cache_size_queue: u32 = 50u32,
+		flag_cache_size_queue: u32 = 40u32,
 			or |c: &Config| otry!(c.footprint).cache_size_queue.clone(),
 		flag_cache_size_state: u32 = 25u32,
 			or |c: &Config| otry!(c.footprint).cache_size_state.clone(),
@@ -344,7 +346,6 @@ usage! {
 			or |c: &Config| otry!(c.misc).log_file.clone().map(Some),
 		flag_no_color: bool = false,
 			or |c: &Config| otry!(c.misc).color.map(|c| !c).clone(),
-
 
 		// -- Legacy Options supported in configs
 		flag_dapps_port: Option<u16> = None,
@@ -406,6 +407,7 @@ struct Operating {
 	keys_path: Option<String>,
 	identity: Option<String>,
 	light: Option<bool>,
+	no_persistent_txqueue: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -682,6 +684,7 @@ mod tests {
 			flag_keys_path: "$HOME/.parity/keys".into(),
 			flag_identity: "".into(),
 			flag_light: false,
+			flag_no_persistent_txqueue: false,
 
 			// -- Account Options
 			flag_unlock: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
@@ -901,6 +904,7 @@ mod tests {
 				keys_path: None,
 				identity: None,
 				light: None,
+				no_persistent_txqueue: None,
 			}),
 			account: Some(Account {
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),

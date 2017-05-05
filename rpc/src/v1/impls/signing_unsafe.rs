@@ -111,6 +111,12 @@ impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 impl<D: Dispatcher + 'static> ParitySigning for SigningUnsafeClient<D> {
 	type Metadata = Metadata;
 
+	fn compose_transaction(&self, meta: Metadata, transaction: RpcTransactionRequest) -> BoxFuture<RpcTransactionRequest, Error> {
+		let accounts = try_bf!(self.account_provider());
+		let default_account = accounts.dapp_default_address(meta.dapp_id().into()).ok().unwrap_or_default();
+		self.dispatcher.fill_optional_fields(transaction.into(), default_account, true).map(Into::into).boxed()
+	}
+
 	fn decrypt_message(&self, _: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes, Error> {
 		self.handle(RpcConfirmationPayload::Decrypt((address.clone(), data).into()), address.into())
 			.then(|res| match res {

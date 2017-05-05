@@ -58,10 +58,6 @@ pub enum EncryptionMessage {
 	CompleteInitialization(CompleteInitialization),
 	/// Generated keys are sent to every node.
 	KeysDissemination(KeysDissemination),
-	/// Complaint against another node is broadcasted.
-	Complaint(Complaint),
-	/// Complaint response is broadcasted.
-	ComplaintResponse(ComplaintResponse),
 	/// Broadcast self public key portion.
 	PublicKeyShare(PublicKeyShare),
 	/// When session error has occured.
@@ -83,6 +79,8 @@ pub enum DecryptionMessage {
 	PartialDecryption(PartialDecryption),
 	/// When decryption session error has occured.
 	DecryptionSessionError(DecryptionSessionError),
+	/// When decryption session is completed.
+	DecryptionSessionCompleted(DecryptionSessionCompleted),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -158,26 +156,6 @@ pub struct KeysDissemination {
 	pub secret2: SerializableSecret,
 	/// Public values.
 	pub publics: Vec<SerializablePublic>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-/// Complaint against node is broadcasted.
-pub struct Complaint {
-	/// Session Id.
-	pub session: MessageSessionId,
-	/// Public values.
-	pub against: MessageNodeId,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-/// Node is responding to complaint.
-pub struct ComplaintResponse {
-	/// Session Id.
-	pub session: MessageSessionId,
-	/// Secret 1.
-	pub secret1: SerializableSecret,
-	/// Secret 2.
-	pub secret2: SerializableSecret,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -269,6 +247,15 @@ pub struct DecryptionSessionError {
 	pub error: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// When decryption session is completed.
+pub struct DecryptionSessionCompleted {
+	/// Encryption session Id.
+	pub session: MessageSessionId,
+	/// Decryption session Id.
+	pub sub_session: SerializableSecret,
+}
+
 impl EncryptionMessage {
 	pub fn session_id(&self) -> &SessionId {
 		match *self {
@@ -276,8 +263,6 @@ impl EncryptionMessage {
 			EncryptionMessage::ConfirmInitialization(ref msg) => &msg.session,
 			EncryptionMessage::CompleteInitialization(ref msg) => &msg.session,
 			EncryptionMessage::KeysDissemination(ref msg) => &msg.session,
-			EncryptionMessage::Complaint(ref msg) => &msg.session,
-			EncryptionMessage::ComplaintResponse(ref msg) => &msg.session,
 			EncryptionMessage::PublicKeyShare(ref msg) => &msg.session,
 			EncryptionMessage::SessionError(ref msg) => &msg.session,
 			EncryptionMessage::SessionCompleted(ref msg) => &msg.session,
@@ -293,6 +278,7 @@ impl DecryptionMessage {
 			DecryptionMessage::RequestPartialDecryption(ref msg) => &msg.session,
 			DecryptionMessage::PartialDecryption(ref msg) => &msg.session,
 			DecryptionMessage::DecryptionSessionError(ref msg) => &msg.session,
+			DecryptionMessage::DecryptionSessionCompleted(ref msg) => &msg.session,
 		}
 	}
 
@@ -303,6 +289,7 @@ impl DecryptionMessage {
 			DecryptionMessage::RequestPartialDecryption(ref msg) => &msg.sub_session,
 			DecryptionMessage::PartialDecryption(ref msg) => &msg.sub_session,
 			DecryptionMessage::DecryptionSessionError(ref msg) => &msg.sub_session,
+			DecryptionMessage::DecryptionSessionCompleted(ref msg) => &msg.sub_session,
 		}
 	}
 }
@@ -335,8 +322,6 @@ impl fmt::Display for EncryptionMessage {
 			EncryptionMessage::ConfirmInitialization(_) => write!(f, "ConfirmInitialization"),
 			EncryptionMessage::CompleteInitialization(_) => write!(f, "CompleteInitialization"),
 			EncryptionMessage::KeysDissemination(_) => write!(f, "KeysDissemination"),
-			EncryptionMessage::Complaint(_) => write!(f, "Complaint"),
-			EncryptionMessage::ComplaintResponse(_) => write!(f, "ComplaintResponse"),
 			EncryptionMessage::PublicKeyShare(_) => write!(f, "PublicKeyShare"),
 			EncryptionMessage::SessionError(ref msg) => write!(f, "SessionError({})", msg.error),
 			EncryptionMessage::SessionCompleted(_) => write!(f, "SessionCompleted"),
@@ -352,6 +337,7 @@ impl fmt::Display for DecryptionMessage {
 			DecryptionMessage::RequestPartialDecryption(_) => write!(f, "RequestPartialDecryption"),
 			DecryptionMessage::PartialDecryption(_) => write!(f, "PartialDecryption"),
 			DecryptionMessage::DecryptionSessionError(_) => write!(f, "DecryptionSessionError"),
+			DecryptionMessage::DecryptionSessionCompleted(_) => write!(f, "DecryptionSessionCompleted"),
 		}
 	}
 }

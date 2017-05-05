@@ -123,7 +123,7 @@ impl Light {
 			return Err(io::Error::new(io::ErrorKind::Other, "Cache file size mismatch"));
 		}
 		let num_nodes = cache_size / NODE_BYTES;
-		let mut nodes: Vec<Node> = Vec::new();
+		let mut nodes: Vec<Node> = Vec::with_capacity(num_nodes);
 		nodes.resize(num_nodes, unsafe { mem::uninitialized() });
 		let buf = unsafe { slice::from_raw_parts_mut(nodes.as_mut_ptr() as *mut u8, cache_size) };
 		file.read_exact(buf)?;
@@ -342,7 +342,6 @@ fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 }
 
 fn light_new(block_number: u64) -> Light {
-
 	let seed_compute = SeedHashCompute::new();
 	let seedhash = seed_compute.get_seedhash(block_number);
 	let cache_size = get_cache_size(block_number);

@@ -20,7 +20,7 @@ use util::{U256, Uint, Address, ToPretty};
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
-use ethcore::transaction::{Transaction, Action};
+use ethcore::transaction::{Transaction, Action, SignedTransaction};
 use rlp::encode;
 
 use serde_json;
@@ -28,8 +28,9 @@ use jsonrpc_core::IoHandler;
 use v1::{SignerClient, Signer, Origin};
 use v1::metadata::Metadata;
 use v1::tests::helpers::TestMinerService;
+use v1::types::H520;
 use v1::helpers::{SigningQueue, SignerService, FilledTransactionRequest, ConfirmationPayload};
-use v1::helpers::dispatch::FullDispatcher;
+use v1::helpers::dispatch::{FullDispatcher, eth_data_hash};
 
 struct SignerTester {
 	signer: Arc<SignerService>,
@@ -359,7 +360,6 @@ fn should_confirm_transaction_with_rlp() {
 		"params":["0x1", "0x"#.to_owned() + &rlp.to_hex() + r#""],
 		"id":1
 	}"#;
-println!("{:?}", request);
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
 	// then
@@ -413,6 +413,101 @@ fn should_return_error_when_sender_does_not_match() {
 	// then
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
 	assert_eq!(tester.signer.requests().len(), 1);
+}
+
+#[test]
+fn should_confirm_sign_transaction_with_rlp() {
+	// given
+	let tester = signer_tester();
+	let address = tester.accounts.new_account("test").unwrap();
+	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
+	tester.signer.add_request(ConfirmationPayload::SignTransaction(FilledTransactionRequest {
+		from: address,
+		used_default_from: false,
+		to: Some(recipient),
+		gas_price: U256::from(10_000),
+		gas: U256::from(10_000_000),
+		value: U256::from(1),
+		data: vec![],
+		nonce: None,
+		condition: None,
+	}), Origin::Unknown).unwrap();
+	assert_eq!(tester.signer.requests().len(), 1);
+
+	let t = Transaction {
+		nonce: U256::zero(),
+		gas_price: U256::from(0x1000),
+		gas: U256::from(10_000_000),
+		action: Action::Call(recipient),
+		value: U256::from(0x1),
+		data: vec![]
+	};
+	let signature = tester.accounts.sign(address, Some("test".into()), t.hash(None)).unwrap();
+	let t = SignedTransaction::new(t.with_signature(signature.clone(), None)).unwrap();
+	let rlp = encode(&t);
+
+	// when
+	let request = r#"{
+		"jsonrpc":"2.0",
+		"method":"signer_confirmRequestRaw",
+		"params":["0x1", "0x"#.to_owned() + &rlp.to_hex() + r#""],
+		"id":1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"#.to_owned() +
+		r#""raw":"0x"# + &rlp.to_hex() + r#"","# +
+		r#""tx":{"# +
+		r#""blockHash":null,"blockNumber":null,"condition":null,"creates":null,"# +
+		&format!("\"from\":\"0x{:?}\",", &address) +
+		r#""gas":"0x989680","gasPrice":"0x1000","# +
+		&format!("\"hash\":\"0x{:?}\",", t.hash()) +
+		r#""input":"0x","# +
+		&format!("\"networkId\":{},", t.network_id().map_or("null".to_owned(), |n| format!("{}", n))) +
+		r#""nonce":"0x0","# +
+		&format!("\"publicKey\":\"0x{:?}\",", t.public_key().unwrap()) +
+		&format!("\"r\":\"0x{}\",", U256::from(signature.r()).to_hex()) +
+		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
+		&format!("\"s\":\"0x{}\",", U256::from(signature.s()).to_hex()) +
+		&format!("\"standardV\":\"0x{}\",", U256::from(t.standard_v()).to_hex()) +
+		r#""to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionIndex":null,"# +
+		&format!("\"v\":\"0x{}\",", U256::from(t.original_v()).to_hex()) +
+		r#""value":"0x1""# +
+		r#"}},"id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
+	assert_eq!(tester.signer.requests().len(), 0);
+	assert_eq!(tester.miner.imported_transactions.lock().len(), 0);
+}
+
+
+#[test]
+fn should_confirm_data_sign_with_signature() {
+	// given
+	let tester = signer_tester();
+	let address = tester.accounts.new_account("test").unwrap();
+	tester.signer.add_request(ConfirmationPayload::EthSignMessage(
+		address,
+		vec![1, 2, 3, 4].into(),
+	), Origin::Unknown).unwrap();
+	assert_eq!(tester.signer.requests().len(), 1);
+
+	let data_hash = eth_data_hash(vec![1, 2, 3, 4].into());
+	let signature = H520(tester.accounts.sign(address, Some("test".into()), data_hash).unwrap().into_vrs());
+	let signature = format!("0x{:?}", signature);
+
+	// when
+	let request = r#"{
+		"jsonrpc":"2.0",
+		"method":"signer_confirmRequestRaw",
+		"params":["0x1", ""#.to_owned() + &signature + r#""],
+		"id":1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &signature + r#"","id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
+	assert_eq!(tester.signer.requests().len(), 0);
+	assert_eq!(tester.miner.imported_transactions.lock().len(), 0);
 }
 
 #[test]

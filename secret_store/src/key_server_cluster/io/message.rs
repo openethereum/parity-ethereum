@@ -71,17 +71,16 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::Encryption(EncryptionMessage::ConfirmInitialization(payload))				=> (51, serde_json::to_vec(&payload)),
 		Message::Encryption(EncryptionMessage::CompleteInitialization(payload))				=> (52, serde_json::to_vec(&payload)),
 		Message::Encryption(EncryptionMessage::KeysDissemination(payload))					=> (53, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::Complaint(payload))							=> (54, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::ComplaintResponse(payload))					=> (55, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::PublicKeyShare(payload))						=> (56, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::SessionError(payload))						=> (57, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::SessionCompleted(payload))					=> (58, serde_json::to_vec(&payload)),
+		Message::Encryption(EncryptionMessage::PublicKeyShare(payload))						=> (54, serde_json::to_vec(&payload)),
+		Message::Encryption(EncryptionMessage::SessionError(payload))						=> (55, serde_json::to_vec(&payload)),
+		Message::Encryption(EncryptionMessage::SessionCompleted(payload))					=> (56, serde_json::to_vec(&payload)),
 
 		Message::Decryption(DecryptionMessage::InitializeDecryptionSession(payload))		=> (100, serde_json::to_vec(&payload)),
 		Message::Decryption(DecryptionMessage::ConfirmDecryptionInitialization(payload))	=> (101, serde_json::to_vec(&payload)),
 		Message::Decryption(DecryptionMessage::RequestPartialDecryption(payload))			=> (102, serde_json::to_vec(&payload)),
 		Message::Decryption(DecryptionMessage::PartialDecryption(payload))					=> (103, serde_json::to_vec(&payload)),
 		Message::Decryption(DecryptionMessage::DecryptionSessionError(payload))				=> (104, serde_json::to_vec(&payload)),
+		Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(payload))			=> (105, serde_json::to_vec(&payload)),
 	};
 
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;
@@ -104,17 +103,16 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		51	=> Message::Encryption(EncryptionMessage::ConfirmInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		52	=> Message::Encryption(EncryptionMessage::CompleteInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		53	=> Message::Encryption(EncryptionMessage::KeysDissemination(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		54	=> Message::Encryption(EncryptionMessage::Complaint(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		55	=> Message::Encryption(EncryptionMessage::ComplaintResponse(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		56	=> Message::Encryption(EncryptionMessage::PublicKeyShare(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		57	=> Message::Encryption(EncryptionMessage::SessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		58	=> Message::Encryption(EncryptionMessage::SessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		54	=> Message::Encryption(EncryptionMessage::PublicKeyShare(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		55	=> Message::Encryption(EncryptionMessage::SessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		56	=> Message::Encryption(EncryptionMessage::SessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		100	=> Message::Decryption(DecryptionMessage::InitializeDecryptionSession(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		101	=> Message::Decryption(DecryptionMessage::ConfirmDecryptionInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		102	=> Message::Decryption(DecryptionMessage::RequestPartialDecryption(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		103	=> Message::Decryption(DecryptionMessage::PartialDecryption(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		104	=> Message::Decryption(DecryptionMessage::DecryptionSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		105	=> Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		_ => return Err(Error::Serde(format!("unknown message type {}", header.kind))),
 	})

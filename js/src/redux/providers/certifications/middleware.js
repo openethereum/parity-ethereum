@@ -128,7 +128,8 @@ export default class CertificationsMiddleware {
         return badgeReg.getContract()
           .then((badgeRegContract) => {
             logs = badgeRegContract.parseEventLogs(logs);
-            const ids = logs.map((log) => log.params.id.value.toNumber());
+
+            const ids = logs.map((log) => log.params && log.params.id.value.toNumber());
 
             return fetchCertifiers(uniq(ids));
           });

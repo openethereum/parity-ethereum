@@ -16,19 +16,19 @@
 
 export default {
   description: {
-    hint: `description for this address`,
-    label: `address description`
+    hint: `此地址的描述`, // description for this address
+    label: `地址描述` // address description
   },
   name: {
-    label: `name`
+    label: `名称` // name
   },
   passwordHint: {
-    hint: `a hint to allow password recovery`,
-    label: `(optional) password hint`
+    hint: `密码恢复提示`, // a hint to allow password recovery
+    label: `（可选）密码提示` // (optional) password hint
   },
   tags: {
-    hint: `press <Enter> to add a tag`,
-    label: `(optional) tags`
+    hint: `按<Enter>来添加一个标签`, // press <Enter> to add a tag
+    label: `（可选）标签` // (optional) tags
   },
-  title: `edit metadata`
+  title: `编辑元数据` // edit metadata
 };

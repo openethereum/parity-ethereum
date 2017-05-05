@@ -15,5 +15,5 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  requestToken: `Requesting access token...`
+  requestToken: `正在请求使用代币` // Requesting access token...
 };

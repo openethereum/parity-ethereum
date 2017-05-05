@@ -327,5 +327,7 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 	fn prove_account(&self, key1: H256, id: BlockId) -> Option<(Vec<Bytes>, BasicAccount)>;
 
 	/// Prove execution of a transaction at the given block.
-	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<Vec<DBValue>>;
+	/// Returns the output of the call and a vector of database items necessary
+	/// to reproduce it.
+	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<(Bytes, Vec<DBValue>)>;
 }

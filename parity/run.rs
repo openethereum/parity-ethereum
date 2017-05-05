@@ -114,6 +114,7 @@ pub struct RunCmd {
 	pub verifier_settings: VerifierSettings,
 	pub serve_light: bool,
 	pub light: bool,
+	pub no_persistent_txqueue: bool,
 }
 
 pub fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration) -> Result<(), String> {
@@ -141,15 +142,20 @@ pub fn open_dapp(dapps_conf: &dapps::Configuration, rpc_conf: &rpc::HttpConfigur
 
 // node info fetcher for the local store.
 struct FullNodeInfo {
-	miner: Arc<Miner>, // TODO: only TXQ needed, just use that after decoupling.
+	miner: Option<Arc<Miner>>, // TODO: only TXQ needed, just use that after decoupling.
 }
 
 impl ::local_store::NodeInfo for FullNodeInfo {
 	fn pending_transactions(&self) -> Vec<::ethcore::transaction::PendingTransaction> {
-		let local_txs = self.miner.local_transactions();
-		self.miner.pending_transactions()
+		let miner = match self.miner.as_ref() {
+			Some(m) => m,
+			None => return Vec::new(),
+		};
+
+		let local_txs = miner.local_transactions();
+		miner.pending_transactions()
 			.into_iter()
-			.chain(self.miner.future_transactions())
+			.chain(miner.future_transactions())
 			.filter(|tx| local_txs.contains_key(&tx.hash()))
 			.collect()
 	}
@@ -502,10 +508,21 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let store = {
 		let db = service.db();
 		let node_info = FullNodeInfo {
-			miner: miner.clone(),
+			miner: match cmd.no_persistent_txqueue {
+				true => None,
+				false => Some(miner.clone()),
+			}
 		};
 
 		let store = ::local_store::create(db, ::ethcore::db::COL_NODE_INFO, node_info);
+
+		if cmd.no_persistent_txqueue {
+			info!("Running without a persistent transaction queue.");
+
+			if let Err(e) = store.clear() {
+				warn!("Error clearing persistent transaction queue: {}", e);
+			}
+		}
 
 		// re-queue pending transactions.
 		match store.pending_transactions() {

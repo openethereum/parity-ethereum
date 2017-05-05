@@ -83,7 +83,7 @@ fn make_spec(chain: &BlockChain) -> Spec {
 	let genesis = Genesis::from(chain.genesis());
 	let mut spec = ethereum::new_frontier_test();
 	let state = chain.pre_state.clone().into();
-	spec.set_genesis_state(state);
+	spec.set_genesis_state(state).expect("unable to set genesis state");
 	spec.overwrite_genesis_params(genesis);
 	assert!(spec.is_state_root_valid());
 	spec

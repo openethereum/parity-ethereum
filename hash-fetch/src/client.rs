@@ -211,7 +211,7 @@ mod tests {
 		}
 
 		fn fetch_with_abort(&self, url: &str, _abort: fetch::Abort) -> Self::Result {
-			assert_eq!(url, "https://ethcore.io/assets/images/ethcore-black-horizontal.png");
+			assert_eq!(url, "https://parity.io/assets/images/ethcore-black-horizontal.png");
 			future::ok(if self.return_success {
 				let cursor = ::std::io::Cursor::new(b"result");
 				fetch::Response::from_reader(cursor)

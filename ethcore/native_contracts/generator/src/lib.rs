@@ -46,8 +46,8 @@ pub fn generate_module(struct_name: &str, abi: &str) -> Result<String, Error> {
 
 	Ok(format!(r##"
 use byteorder::{{BigEndian, ByteOrder}};
-use futures::{{future, Future, BoxFuture}};
-use ethabi::{{Contract, Interface, Token}};
+use futures::{{future, Future, IntoFuture, BoxFuture}};
+use ethabi::{{Contract, Interface, Token, Event}};
 use util::{{self, Uint}};
 
 pub struct {name} {{
@@ -68,6 +68,11 @@ impl {name} {{
 			contract: contract,
 			address: address,
 		}}
+	}}
+
+	/// Access the underlying `ethabi` contract.
+	pub fn contract(this: &Self) -> &Contract {{
+		&this.contract
 	}}
 
 	{functions}
@@ -99,7 +104,10 @@ fn generate_functions(contract: &Contract) -> Result<String, Error> {
 /// Inputs: {abi_inputs:?}
 /// Outputs: {abi_outputs:?}
 pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, String>
-	where F: Fn(util::Address, Vec<u8>) -> U, U: Future<Item=Vec<u8>, Error=String> + Send + 'static
+	where
+	    F: Fn(util::Address, Vec<u8>) -> U,
+	    U: IntoFuture<Item=Vec<u8>, Error=String>,
+		U::Future: Send + 'static
 {{
 	let function = self.contract.function(r#"{abi_name}"#.to_string())
 		.expect("function existence checked at compile-time; qed");
@@ -111,6 +119,7 @@ pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, 
 	}};
 
 	call_future
+		.into_future()
 		.and_then(move |out| function.decode_output(out).map_err(|e| format!("{{:?}}", e)))
 		.map(::std::collections::VecDeque::from)
 		.and_then(|mut outputs| {decode_outputs})
@@ -299,10 +308,10 @@ fn detokenize(name: &str, output_type: ParamType) -> String {
 		ParamType::Bool => format!("{}.to_bool()", name),
 		ParamType::String => format!("{}.to_string()", name),
 		ParamType::Array(kind) => {
-			let read_array = format!("x.into_iter().map(|a| {{ {} }}).collect::<Option<Vec<_>>()",
+			let read_array = format!("x.into_iter().map(|a| {{ {} }}).collect::<Option<Vec<_>>>()",
 				detokenize("a", *kind));
 
-			format!("{}.to_array().and_then(|x| {})",
+			format!("{}.to_array().and_then(|x| {{ {} }})",
 				name, read_array)
 		}
 		ParamType::FixedArray(_, _) => panic!("Fixed-length arrays not supported.")
