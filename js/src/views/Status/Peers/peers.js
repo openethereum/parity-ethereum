@@ -32,8 +32,8 @@ class Peers extends Component {
 
   static propTypes = {
     peers: PropTypes.array.isRequired,
-    newError: PropTypes.function,
-    showSnackbar: PropTypes.function
+    newError: PropTypes.func,
+    showSnackbar: PropTypes.func
   };
 
   state = {
@@ -45,6 +45,7 @@ class Peers extends Component {
   getActions () {
     return [
       <Button
+        key='btn_acceptNonReserved'
         label={
           <FormattedMessage
             id='peers.acceptNonReserved.label'
@@ -54,6 +55,7 @@ class Peers extends Component {
         onClick={ this.handleAcceptNonReserved }
       />,
       <Button
+        key='btn_dropNonReserved'
         label={
           <FormattedMessage
             id='peers.dropNonReserved.label'
@@ -63,6 +65,7 @@ class Peers extends Component {
         onClick={ this.handleDropNonReserved }
       />,
       <Button
+        key='btn_addReserved'
         label={
           <FormattedMessage
             id='peers.addReserved.label'
@@ -72,6 +75,7 @@ class Peers extends Component {
         onClick={ this.handleAddReserved }
       />,
       <Button
+        key='btn_removeReserved'
         label={
           <FormattedMessage
             id='peers.removeReserved.label'
