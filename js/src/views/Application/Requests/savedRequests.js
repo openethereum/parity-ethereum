@@ -100,8 +100,7 @@ export default class SavedRequests {
     return api.parity
       .checkRequest(requestId)
       .then(() => true)
-      .catch((error) => {
-        console.error(error);
+      .catch(() => {
         return false;
       });
   }
