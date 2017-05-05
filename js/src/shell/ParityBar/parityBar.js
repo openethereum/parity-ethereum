@@ -83,7 +83,10 @@ class ParityBar extends Component {
     dappsStore
       .on('loaded', (app) => {
         this.app = app;
-        this.loadPosition();
+
+        if (this.props.dapp) {
+          this.loadPosition();
+        }
       });
 
     if (this.props.dapp) {

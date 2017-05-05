@@ -24,7 +24,7 @@ import { sha3 } from '@parity/api/util/sha3';
 
 import SolidityUtils from '~/util/solidity';
 
-const SOLIDITY_LIST_URL = 'https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/list.json';
+const SOLIDITY_LIST_URL = 'https://rawgit.com/ethereum/solc-bin/gh-pages/bin/list.json';
 const WRITE_CONTRACT_STORE_KEY = '_parity::contractDevelop';
 
 const SNIPPETS = {
@@ -198,6 +198,7 @@ export default class ContractDevelopStore {
         })
         .catch((error) => {
           this.setWorkerError(error);
+          throw error;
         });
     }
 
@@ -319,6 +320,7 @@ export default class ContractDevelopStore {
     transaction(() => {
       this.compiled = false;
       this.compiling = true;
+      this.setWorkerError(null);
     });
 
     const build = this.builds[this.selectedBuild];
@@ -366,12 +368,16 @@ export default class ContractDevelopStore {
           annotations, contracts, errors
         } = data.result;
 
-        this.contract = contract;
-        this.contractIndex = contractIndex;
+        if (!contract && errors && errors.length > 0) {
+          this.setWorkerError(errors[0]);
+        } else {
+          this.contract = contract;
+          this.contractIndex = contractIndex;
 
-        this.annotations = annotations;
-        this.contracts = contracts;
-        this.errors = errors;
+          this.annotations = annotations;
+          this.contracts = contracts;
+          this.errors = errors;
+        }
       }
 
       this.compiled = true;

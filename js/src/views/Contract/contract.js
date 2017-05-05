@@ -102,8 +102,14 @@ class Contract extends Component {
     const { api } = this.context;
     const { subscriptionId, blockSubscriptionId, contract } = this.state;
 
-    api.unsubscribe(blockSubscriptionId);
-    contract.unsubscribe(subscriptionId);
+    if (blockSubscriptionId >= 0) {
+      api.unsubscribe(blockSubscriptionId);
+    }
+
+    if (subscriptionId >= 0) {
+      contract.unsubscribe(subscriptionId);
+    }
+
     this.props.setVisibleAccounts([]);
   }
 
