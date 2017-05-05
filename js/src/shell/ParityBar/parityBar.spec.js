@@ -87,7 +87,7 @@ describe('views/ParityBar', () => {
     it('renders the Account selector button', () => {
       const icon = bar.find('Button').first().props().icon;
 
-      expect(icon.type.displayName).to.equal('Connect(IdentityIcon)');
+      expect(icon.type.displayName).to.equal('IdentityIcon');
     });
 
     it('renders the Parity button', () => {

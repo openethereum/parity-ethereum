@@ -77,7 +77,7 @@ describe('ui/VaultCard', () => {
 
         beforeEach(() => {
           render({ accounts: ACCOUNTS });
-          identities = shallow(instance.renderAccounts()).find('Connect(IdentityIcon)');
+          identities = shallow(instance.renderAccounts()).find('IdentityIcon');
         });
 
         it('renders the accounts when supplied', () => {

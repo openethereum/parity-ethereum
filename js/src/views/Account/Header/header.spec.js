@@ -137,7 +137,7 @@ describe('views/Account/Header', () => {
 
         beforeEach(() => {
           render();
-          icon = component.find('Connect(IdentityIcon)');
+          icon = component.find('IdentityIcon');
         });
 
         it('renders', () => {

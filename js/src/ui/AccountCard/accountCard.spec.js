@@ -109,7 +109,7 @@ describe('ui/AccountCard', () => {
       let icon;
 
       beforeEach(() => {
-        icon = component.find('Connect(IdentityIcon)');
+        icon = component.find('IdentityIcon');
       });
 
       it('renders the icon', () => {
