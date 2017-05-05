@@ -14,50 +14,48 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import React from 'react';
 
 import PlaygroundExample from '~/views/Playground/playgroundExample';
 
 import QrCode from './';
 
-export default class QrCodeExample extends Component {
-  render () {
-    return (
-      <div>
-        <PlaygroundExample name='Simple QRCode'>
-          <QrCode
-            value='this is a test'
-          />
-        </PlaygroundExample>
+export default function QrCodeExample () {
+  return (
+    <div>
+      <PlaygroundExample name='Simple QRCode'>
+        <QrCode
+          value='this is a test'
+        />
+      </PlaygroundExample>
 
-        <PlaygroundExample name='Simple QRCode with margin'>
-          <QrCode
-            margin={ 10 }
-            value='this is a test'
-          />
-        </PlaygroundExample>
+      <PlaygroundExample name='Simple QRCode with margin'>
+        <QrCode
+          margin={ 10 }
+          value='this is a test'
+        />
+      </PlaygroundExample>
 
-        <PlaygroundExample name='Ethereum Address QRCode'>
-          <QrCode
-            margin={ 10 }
-            value='0x8c30393085C8C3fb4C1fB16165d9fBac5D86E1D9'
-          />
-        </PlaygroundExample>
+      <PlaygroundExample name='Ethereum Address QRCode'>
+        <QrCode
+          margin={ 10 }
+          value='0x8c30393085C8C3fb4C1fB16165d9fBac5D86E1D9'
+        />
+      </PlaygroundExample>
 
-        <PlaygroundExample name='Bitcoin Address QRCode'>
-          <QrCode
-            margin={ 10 }
-            value='3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy'
-          />
-        </PlaygroundExample>
+      <PlaygroundExample name='Bitcoin Address QRCode'>
+        <QrCode
+          margin={ 10 }
+          value='3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy'
+        />
+      </PlaygroundExample>
 
-        <PlaygroundExample name='Big QRCode'>
-          <QrCode
-            size={ 10 }
-            value='this is a test'
-          />
-        </PlaygroundExample>
-      </div>
-    );
-  }
+      <PlaygroundExample name='Big QRCode'>
+        <QrCode
+          size={ 10 }
+          value='this is a test'
+        />
+      </PlaygroundExample>
+    </div>
+  );
 }
