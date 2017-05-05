@@ -246,8 +246,6 @@ class WalletSettings extends Component {
   }
 
   renderChange (change) {
-    const { accountsInfo } = this.props;
-
     switch (change.type) {
       case 'dailylimit':
         return (
