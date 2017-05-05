@@ -16,7 +16,7 @@
 
 import sinon from 'sinon';
 
-import { createApi } from './parity.test.js';
+import { createApi } from './node.test.js';
 import Store from './store';
 
 let api;

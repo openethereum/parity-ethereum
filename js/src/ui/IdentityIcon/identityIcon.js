@@ -42,6 +42,8 @@ export default class IdentityIcon extends Component {
     tiny: PropTypes.bool
   }
 
+  static iconCache = iconCache;
+
   state = {
     iconsrc: ''
   }
@@ -62,8 +64,8 @@ export default class IdentityIcon extends Component {
     const { api } = this.context;
     const { button, inline, tiny } = this.props;
 
-    if (iconCache[_address]) {
-      this.setState({ iconsrc: `${api.dappsUrl}${iconCache[_address]}` });
+    if (iconCache.images[_address]) {
+      this.setState({ iconsrc: `${api.dappsUrl}${iconCache.images[_address]}` });
       return;
     }
 

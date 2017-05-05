@@ -80,7 +80,7 @@ function create () {
   return store;
 }
 
-describe('views/Dapps/DappStore', () => {
+describe('shell/Dapps/DappStore', () => {
   beforeEach(() => {
     stubGlobals();
   });

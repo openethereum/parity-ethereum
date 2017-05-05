@@ -40,7 +40,7 @@ function createApi (networkVersion) {
   };
 }
 
-describe('views/Application/Requests/savedRequests', () => {
+describe('shell/Requests/savedRequests', () => {
   beforeEach((done) => {
     store.set(LS_REQUESTS_KEY, {
       [NETWORK_ID]: {

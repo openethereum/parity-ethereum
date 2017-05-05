@@ -105,11 +105,6 @@ describe('ui/ConfirmDialog', () => {
         expect(buttons[1].props.label.props.id).to.equal('ui.confirmDialog.yes');
       });
 
-      it('renders default icons', () => {
-        expect(buttons[0].props.icon.type.displayName).to.equal('ContentClear');
-        expect(buttons[1].props.icon.type.displayName).to.equal('NavigationCheck');
-      });
-
       describe('overrides', () => {
         beforeEach(() => {
           render({

@@ -148,7 +148,7 @@
     "stylelint": "7.9.0",
     "stylelint-config-standard": "16.0.0",
     "to-source": "2.0.3",
-    "uglify-js": "2.8.16",
+    "uglify-js": "2.8.22",
     "url-loader": "0.5.7",
     "webpack": "2.2.1",
     "webpack-bundle-size-analyzer": "2.5.0",

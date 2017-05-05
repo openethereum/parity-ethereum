@@ -18,23 +18,24 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import { createApi } from './parity.test.js';
-import Parity from './';
+import { createApi } from './node.test.js';
+import Node from './';
 
 let component;
 let instance;
 
 function render (props = {}) {
   component = shallow(
-    <Parity { ...props } />,
+    <Node { ...props } />,
     { context: { api: createApi() } }
   );
   instance = component.instance();
+  // console.log(component.debug());
 
   return component;
 }
 
-describe('views/Settings/Parity', () => {
+describe('views/Settings/Node', () => {
   beforeEach(() => {
     render();
     sinon.spy(instance.store, 'loadMode');
@@ -83,7 +84,7 @@ describe('views/Settings/Parity', () => {
       let select;
 
       beforeEach(() => {
-        select = component.find('Select[id="parityModeSelect"]');
+        select = component.find('Menu[id="parityModeSelect"]');
         sinon.spy(instance.store, 'changeMode');
       });
 
@@ -94,18 +95,13 @@ describe('views/Settings/Parity', () => {
       it('renders a mode selector', () => {
         expect(select).to.have.length(1);
       });
-
-      it('changes the mode on the store when changed', () => {
-        select.simulate('change', { target: { value: 'dark' } });
-        expect(instance.store.changeMode).to.have.been.calledWith('dark');
-      });
     });
 
     describe('chain selector', () => {
       let select;
 
       beforeEach(() => {
-        select = component.find('Select[id="parityChainSelect"]');
+        select = component.find('Menu[id="parityChainSelect"]');
         sinon.spy(instance.store, 'changeChain');
       });
 
@@ -115,11 +111,6 @@ describe('views/Settings/Parity', () => {
 
       it('renders a chain selector', () => {
         expect(select).to.have.length(1);
-      });
-
-      it('changes the chain on the store when changed', () => {
-        select.simulate('change', { target: { value: 'dark' } });
-        expect(instance.store.changeChain).to.have.been.calledWith('dark');
       });
     });
   });

@@ -20,7 +20,7 @@ import { connect } from 'react-redux';
 
 import { Container } from '~/ui';
 
-import Peer from './peer';
+import Peer from './Peer';
 
 import styles from './peers.css';
 
