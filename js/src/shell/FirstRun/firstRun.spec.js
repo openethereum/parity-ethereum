@@ -62,7 +62,7 @@ function render (props = { visible: true }) {
   return component;
 }
 
-describe('modals/FirstRun', () => {
+describe('shell/FirstRun', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });

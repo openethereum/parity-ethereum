@@ -80,7 +80,8 @@ function render (props = {}) {
         store: createStore()
       }
     }
-  ).find('Balance');
+  ).find('Balance').shallow();
+  console.log(component.debug());
 
   return component;
 }
@@ -99,6 +100,6 @@ describe('ui/Balance', () => {
   });
 
   it('renders all the non-zero balances', () => {
-    expect(component.find('Connect(TokenImage)')).to.have.length(2);
+    expect(component.find('TokenImage')).to.have.length(2);
   });
 });
