@@ -18,7 +18,7 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import Accounts from './';
+import Accounts from './accounts';
 
 let api;
 let component;

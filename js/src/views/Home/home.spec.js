@@ -18,7 +18,7 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import Home from './';
+import Home from './home';
 
 const TEST_APP_HISTORY = [];
 
