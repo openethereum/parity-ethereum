@@ -278,9 +278,45 @@ class WalletSettings extends Component {
                 id='walletSettings.ownersChange.details'
                 defaultMessage=' from {from} to {to} '
                 values={ {
-                  from: <code>change.initial.toNumber()</code>,
-                  to: <code>change.value.toNumber()</code>
+                  from: <code>{ change.initial.toNumber() }</code>,
+                  to: <code>{ change.value.toNumber() }</code>
                 } }
+              />
+            </div>
+          </div>
+        );
+
+      case 'change_owner':
+        return (
+          <div className={ [ styles.change ].join(' ') }>
+            <div className={ styles.label }>
+              <FormattedMessage
+                id='walletSettings.changeOwner.title'
+                defaultMessage='Change Owner'
+              />
+            </div>
+            <div>
+              <InputAddress
+                disabled
+                label={
+                  <FormattedMessage
+                    id='walletSettings.changeOwner.labelFrom'
+                    defaultMessage='From'
+                  />
+                }
+                text
+                value={ change.value.from }
+              />
+              <InputAddress
+                disabled
+                label={
+                  <FormattedMessage
+                    id='walletSettings.changeOwner.labelTo'
+                    defaultMessage='To'
+                  />
+                }
+                text
+                value={ change.value.to }
               />
             </div>
           </div>
@@ -298,8 +334,8 @@ class WalletSettings extends Component {
             <div>
               <InputAddress
                 disabled
+                text
                 value={ change.value }
-                accounts={ accountsInfo }
               />
             </div>
           </div>
@@ -317,8 +353,8 @@ class WalletSettings extends Component {
             <div>
               <InputAddress
                 disabled
+                text
                 value={ change.value }
-                accounts={ accountsInfo }
               />
             </div>
           </div>
