@@ -166,8 +166,7 @@ impl Client {
 		db: Arc<KeyValueDB>,
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
-	) -> Result<Arc<Client>, ClientError> {
-
+	) -> Result<Arc<Client>, ::error::Error> {
 		let trie_spec = match config.fat_db {
 			true => TrieSpec::Fat,
 			false => TrieSpec::Secure,

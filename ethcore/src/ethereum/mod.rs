@@ -95,6 +95,7 @@ mod tests {
 		let engine = &spec.engine;
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+
 		let s = State::from_existing(db, genesis_header.state_root().clone(), engine.account_start_nonce(), Default::default()).unwrap();
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000001".into()).unwrap(), 1u64.into());
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000002".into()).unwrap(), 1u64.into());

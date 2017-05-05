@@ -27,7 +27,7 @@ use jsonrpc_core::Error;
 use v1::helpers::{
 	errors, oneshot,
 	DefaultAccount,
-	SIGNING_QUEUE_LIMIT, SigningQueue, ConfirmationPromise, ConfirmationResult, SignerService
+	SIGNING_QUEUE_LIMIT, SigningQueue, ConfirmationPromise, ConfirmationResult, SignerService,
 };
 use v1::helpers::dispatch::{self, Dispatcher};
 use v1::helpers::accounts::unwrap_provider;
@@ -136,6 +136,12 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 
 impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 	type Metadata = Metadata;
+
+	fn compose_transaction(&self, meta: Metadata, transaction: RpcTransactionRequest) -> BoxFuture<RpcTransactionRequest, Error> {
+		let accounts = try_bf!(self.account_provider());
+		let default_account = accounts.dapp_default_address(meta.dapp_id().into()).ok().unwrap_or_default();
+		self.dispatcher.fill_optional_fields(transaction.into(), default_account, true).map(Into::into).boxed()
+	}
 
 	fn post_sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		let pending = self.pending.clone();
