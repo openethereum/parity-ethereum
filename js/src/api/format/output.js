@@ -96,6 +96,12 @@ export function outDate (date) {
     return date;
   }
 
+  try {
+    if (typeof date === 'string' && (new Date(date)).toISOString() === date) {
+      return new Date(date);
+    }
+  } catch (error) {}
+
   return new Date(outNumber(date).toNumber() * 1000);
 }
 
