@@ -101,6 +101,7 @@ export default class SavedRequests {
       .checkRequest(requestId)
       .then(() => true)
       .catch((error) => {
+        console.error(error);
         return false;
       });
   }
