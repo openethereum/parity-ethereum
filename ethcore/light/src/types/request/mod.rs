@@ -93,6 +93,11 @@ pub enum Field<T> {
 }
 
 impl<T> Field<T> {
+	/// Helper for creating a new back-reference field.
+	pub fn back_ref(idx: usize, req: usize) -> Self {
+		Field::BackReference(idx, req)
+	}
+
 	/// map a scalar into some other item.
 	pub fn map<F, U>(self, f: F) -> Field<U> where F: FnOnce(T) -> U {
 		match self {
@@ -108,6 +113,8 @@ impl<T> Field<T> {
 			Field::BackReference(_, _) => None,
 		}
 	}
+
+
 
 	// attempt conversion into scalar value.
 	fn into_scalar(self) -> Result<T, NoSuchOutput> {

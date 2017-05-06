@@ -87,6 +87,18 @@ pub trait RequestAdapter {
     fn extract_from(Vec<Response>) -> Self::Out;
 }
 
+impl<T: RequestArg> RequestAdapter for Vec<T> {
+	type Out = Vec<T::Out>;
+
+	fn make_requests(self) -> Vec<Request> {
+		self.into_iter().map(RequestArg::make).collect()
+	}
+
+	fn extract_from(r: Vec<Response>) -> Self::Out {
+		r.into_iter().map(T::extract).collect()
+	}
+}
+
 // helper to implement `RequestArg` and `From` for a single request kind.
 macro_rules! impl_single {
 	($variant: ident, $me: ty, $out: ty) => {
