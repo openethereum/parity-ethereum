@@ -59,7 +59,7 @@ export default class OptionsStep extends Component {
     return (
       <div className={ styles.body }>
         <Form>
-          <div style={ { display: 'block', height: '22px', fontSize: '16px', position: 'relative', lineHeight: '22px', top: '38px', pointerEvents: 'none', userSelect: 'none', color: 'rgba(0, 0, 0, 0.298039)' } }>
+          <div style={ { display: 'block', paddingTop: '15px', paddingBottom: '5px', fontSize: '16px', pointerEvents: 'none', userSelect: 'none', color: 'rgba(0, 0, 0, 0.298039)' } }>
             <FormattedMessage
               id='shapeshift.optionsStep.typeSelect.label'
               defaultMessage='Fund account from'

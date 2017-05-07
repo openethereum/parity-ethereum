@@ -31,14 +31,18 @@
 import React, { PropTypes } from 'react';
 import { Dropdown as DropdownUI } from 'semantic-ui-react';
 
-export default function Dropdown ({ defaultValue, disabled, fluid, icon, name, onChange, onClick, onClose, onFocus, options, placeholder, scrolling, search, selection, text, value }) {
+import styles from './dropdown.css';
+
+export default function Dropdown ({ defaultValue, disabled, fluid, icon, name, onBlur, onChange, onClick, onClose, onFocus, options, placeholder, scrolling, search, selection, text, value }) {
   return (
     <DropdownUI
+      className={ styles.dropdown }
       defaultValue={ defaultValue }
       disabled={ disabled }
       fluid={ fluid }
       icon={ icon }
       name={ name }
+      onBlur={ onBlur }
       onChange={ onChange }
       onClick={ onClick }
       onClose={ onClose }
@@ -55,11 +59,12 @@ export default function Dropdown ({ defaultValue, disabled, fluid, icon, name, o
 }
 
 Dropdown.propTypes = {
-  defaultValue: PropTypes.number,    // Initial value via index
+  defaultValue: PropTypes.number,    // Initial value via index.
   disabled: PropTypes.bool,          // A disabled dropdown menu or item does not allow user interaction.
-  fluid: PropTypes.bool,             // A dropdown can take the full width of its parent
+  fluid: PropTypes.bool,             // A dropdown can take the full width of its parent.
   icon: PropTypes.any,               // Shorthand for Icon.
   name: PropTypes.func,              // Name of the hidden input which holds the value.
+  onBlur: PropTypes.func,            // Called on blur.
   onChange: PropTypes.func,          // Called when the user attempts to change the value.
   onClick: PropTypes.func,           // Called on click.
   onClose: PropTypes.func,           // Called on close.

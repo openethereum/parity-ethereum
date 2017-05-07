@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
-import { Card } from 'material-ui/Card';
+import { Card } from 'semantic-ui-react';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
@@ -58,6 +58,7 @@ export default class Container extends Component {
         }
         onClick={ onClick }
         onFocus={ onFocus }
+        fluid
       >
         { this.renderTitle() }
         { children }
