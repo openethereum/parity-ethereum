@@ -43,6 +43,7 @@ use self::id_guard::IdGuard;
 
 mod context;
 mod error;
+mod load_timer;
 mod status;
 mod request_set;
 
@@ -51,8 +52,9 @@ mod tests;
 
 pub mod request_credits;
 
-pub use self::error::Error;
 pub use self::context::{BasicContext, EventContext, IoContext};
+pub use self::error::Error;
+pub use self::load_timer::LoadTimerStore;
 pub use self::status::{Status, Capabilities, Announcement};
 
 const TIMEOUT: TimerToken = 0;

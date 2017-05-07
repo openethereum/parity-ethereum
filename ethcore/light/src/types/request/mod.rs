@@ -243,6 +243,22 @@ pub enum CompleteRequest {
 	Execution(CompleteExecutionRequest),
 }
 
+impl CompleteRequest {
+	/// Inspect the kind of this response.
+	pub fn kind(&self) -> Kind {
+		match *self {
+			CompleteRequest::Headers(_) => Kind::Headers,
+			CompleteRequest::HeaderProof(_) => Kind::HeaderProof,
+			CompleteRequest::Receipts(_) => Kind::Receipts,
+			CompleteRequest::Body(_) => Kind::Body,
+			CompleteRequest::Account(_) => Kind::Account,
+			CompleteRequest::Storage(_) => Kind::Storage,
+			CompleteRequest::Code(_) => Kind::Code,
+			CompleteRequest::Execution(_) => Kind::Execution,
+		}
+	}
+}
+
 impl Request {
 	/// Get the request kind.
 	pub fn kind(&self) -> Kind {
