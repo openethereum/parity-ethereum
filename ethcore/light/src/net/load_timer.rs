@@ -29,20 +29,46 @@ use std::collections::{HashMap, VecDeque};
 use request::{CompleteRequest, Kind};
 
 use time;
-use util::{U256, Uint, RwLock, Mutex};
+use util::{Uint, RwLock, Mutex};
 
 /// Number of time periods samples should be kept for.
 pub const MOVING_SAMPLE_SIZE: usize = 256;
 /// Length of time periods.
-pub const TIME_PERIOD_MS: isize = 60 * 60 * 1000;
+pub const TIME_PERIOD_MS: u64 = 60 * 60 * 1000;
 
-/// Something which stores load timer samples.
-pub trait SampleStore {
+/// Stores rolling load timer samples.
+// TODO: switch to bigint if possible (FP casts aren't available)
+pub trait SampleStore: Send + Sync {
 	/// Load the samples for a given request kind.
 	fn load(&self, kind: Kind) -> VecDeque<u64>;
 
 	/// Store the samples for a given request kind.
 	fn store(&self, kind: Kind, items: &VecDeque<u64>);
+}
+
+// get a hardcoded, arbitrarily determined (but intended overestimate)
+// of the time in nanoseconds to serve a request of the given kind.
+//
+// TODO: seed this with empirical data.
+fn hardcoded_serve_time(kind: Kind) -> u64 {
+	match kind {
+		Kind::Headers => 500_000,
+		Kind::HeaderProof => 500_000,
+		Kind::Receipts => 1_000_000,
+		Kind::Body => 1_000_000,
+		Kind::Account => 1_500_000,
+		Kind::Storage => 2_000_000,
+		Kind::Code => 1_500_000,
+		Kind::Execution => 250, // per gas.
+	}
+}
+
+/// A no-op store.
+pub struct NullStore;
+
+impl SampleStore for NullStore {
+	fn load(&self, _kind: Kind) -> VecDeque<u64> { Default::default() }
+	fn store(&self, _kind: Kind, _items: &VecDeque<u64>) { }
 }
 
 /// Request load distributions.
@@ -82,7 +108,7 @@ impl LoadDistribution {
 	}
 
 	/// Begin a timer.
-	pub fn begin<'a>(&'a self, req: &CompleteRequest) -> LoadTimer<'a> {
+	pub fn begin_timer<'a>(&'a self, req: &CompleteRequest) -> LoadTimer<'a> {
 		let kind = req.kind();
 		let n = match *req {
 			CompleteRequest::Headers(ref req) => req.max,
@@ -99,8 +125,9 @@ impl LoadDistribution {
 	}
 
 	/// Calculate EMA of load in nanoseconds for a specific request kind.
-	/// If there is no data for the given request kind, no EMA will be calculated.
-	pub fn moving_average(&self, kind: Kind) -> Option<u64> {
+	/// If there is no data for the given request kind, no EMA will be calculated,
+	/// but a hardcoded time will be returned.
+	pub fn expected_time_ns(&self, kind: Kind) -> u64 {
 		let samples = self.samples.read();
 		samples.get(&kind).and_then(|s| {
 			if s.len() == 0 { return None }
@@ -112,7 +139,7 @@ impl LoadDistribution {
 			});
 
 			Some(ema as u64)
-		})
+		}).unwrap_or_else(move || hardcoded_serve_time(kind))
 	}
 
 	/// End the current time period. Provide a store to
@@ -137,8 +164,8 @@ impl LoadDistribution {
 	fn update(&self, kind: Kind, elapsed: u64, n: u64) {
 		macro_rules! update_counters {
 			($counters: expr) => {
-				$counters.0.saturating_add(elapsed);
-				$counters.1.saturating_add(n);
+				$counters.0 = $counters.0.saturating_add(elapsed);
+				$counters.1 = $counters.1.saturating_add(n);
 			}
 		};
 
@@ -174,4 +201,13 @@ impl<'a> Drop for LoadTimer<'a> {
 		let elapsed = time::precise_time_ns() - self.start;
 		self.dist.update(self.kind, elapsed, self.n);
 	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use std::collections::VecDeque;
+	use request::Kind;
+
+	// what to test? whether the moving average calculation is any good?
 }

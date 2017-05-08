@@ -28,6 +28,7 @@
 
 use request::{self, Request};
 use super::error::Error;
+use super::load_timer::LoadDistribution;
 
 use rlp::*;
 use util::U256;
@@ -185,6 +186,52 @@ impl FlowParams {
 			costs: costs,
 			limit: limit,
 			recharge: recharge,
+		}
+	}
+
+	/// Create new flow parameters from request serve time distribution,
+	/// proportion of total capacity which should be given to a peer,
+	/// and number of seconds of stored capacity a peer can accumulate.
+	pub fn from_distributions(
+		dists: &LoadDistribution,
+		load_share: f64,
+		max_stored_seconds: u64
+	) -> Self {
+		use request::Kind;
+
+		let load_share = load_share.abs();
+
+		let recharge: u64 = 100_000_000;
+		let max = recharge.saturating_mul(max_stored_seconds);
+
+		let cost_for_kind = |kind| {
+			// how many requests we can handle per second
+			let ns = dists.expected_time_ns(kind);
+			let second_duration = ns as f64 / 1_000_000f64;
+
+			// scale by share of the load given to this peer.
+			let serve_per_second = second_duration * load_share;
+
+			// as a percentage of the recharge per second.
+			U256::from((recharge as f64 / serve_per_second) as u64)
+		};
+
+		let costs = CostTable {
+			base: 0.into(),
+			headers: cost_for_kind(Kind::Headers),
+			body: cost_for_kind(Kind::Body),
+			receipts: cost_for_kind(Kind::Receipts),
+			account: cost_for_kind(Kind::Account),
+			storage: cost_for_kind(Kind::Storage),
+			code: cost_for_kind(Kind::Code),
+			header_proof: cost_for_kind(Kind::HeaderProof),
+			transaction_proof: cost_for_kind(Kind::Execution),
+		};
+
+		FlowParams {
+			costs: costs,
+			limit: max.into(),
+			recharge: recharge.into(),
 		}
 	}
 

@@ -38,6 +38,7 @@ use request::{Request, Requests, Response};
 use self::request_credits::{Credits, FlowParams};
 use self::context::{Ctx, TickCtx};
 use self::error::Punishment;
+use self::load_timer::{LoadDistribution, NullStore};
 use self::request_set::RequestSet;
 use self::id_guard::IdGuard;
 
@@ -66,6 +67,8 @@ const TICK_TIMEOUT_INTERVAL_MS: u64 = 5000;
 const PROPAGATE_TIMEOUT: TimerToken = 2;
 const PROPAGATE_TIMEOUT_INTERVAL_MS: u64 = 5000;
 
+const TIMER_PERIOD_TIMEOUT: TimerToken = 3;
+
 // minimum interval between updates.
 const UPDATE_INTERVAL_MS: i64 = 5000;
 
@@ -90,14 +93,19 @@ mod packet {
 	pub const REQUEST: u8 = 0x02;
 	pub const RESPONSE: u8 = 0x03;
 
+	// request credits update and acknowledgement.
+	pub const UPDATE_CREDITS: u8 = 0x04;
+	pub const ACKNOWLEDGE_UPDATE: u8 = 0x05;
+
 	// relay transactions to peers.
-	pub const SEND_TRANSACTIONS: u8 = 0x04;
+	pub const SEND_TRANSACTIONS: u8 = 0x06;
 }
 
 // timeouts for different kinds of requests. all values are in milliseconds.
 mod timeout {
 	pub const HANDSHAKE: i64 = 2500;
 	pub const BASE: i64 = 1500; // base timeout for packet.
+	pub const ACKNOWLEDGE: i64 = 5000;
 
 	// timeouts per request within packet.
 	pub const HEADERS: i64 = 250; // per header?
@@ -181,6 +189,8 @@ pub struct Params {
 	pub flow_params: FlowParams,
 	/// Initial capabilities.
 	pub capabilities: Capabilities,
+	/// The sample store (`None` if data shouldn't persist between runs).
+	pub sample_store: Option<Box<SampleStore>>,
 }
 
 /// Type alias for convenience.
@@ -254,6 +264,8 @@ pub struct LightProtocol {
 	flow_params: FlowParams, // assumed static and same for every peer.
 	handlers: Vec<Arc<Handler>>,
 	req_id: AtomicUsize,
+	sample_store: Box<SampleStore>,
+	load_distribution: LoadDistribution,
 }
 
 impl LightProtocol {
@@ -262,6 +274,8 @@ impl LightProtocol {
 		debug!(target: "pip", "Initializing light protocol handler");
 
 		let genesis_hash = provider.chain_info().genesis_hash;
+		let sample_store = params.sample_store.unwrap_or_else(|| Box::new(NullStore));
+		let load_distribution = LoadDistribution::load(&*sample_store);
 		LightProtocol {
 			provider: provider,
 			genesis_hash: genesis_hash,
@@ -272,6 +286,8 @@ impl LightProtocol {
 			flow_params: params.flow_params,
 			handlers: Vec::new(),
 			req_id: AtomicUsize::new(0),
+			sample_store: sample_store,
+			load_distribution: load_distribution,
 		}
 	}
 
@@ -625,6 +641,20 @@ impl LightProtocol {
 			})
 		}
 	}
+
+	fn begin_new_cost_period(&self, _io: &IoContext) {
+		// TODO: base this on number of max peers.
+		const LOAD_SHARE: f64 = 1.0 / 25.0;
+		const MAX_ACCUMULATED: u64 = 60 * 5; // only charge for 5 minutes.
+
+		self.load_distribution.end_period(&*self.sample_store);
+
+		let _new_params = FlowParams::from_distributions(
+			&self.load_distribution,
+			LOAD_SHARE,
+			MAX_ACCUMULATED,
+		);
+	}
 }
 
 impl LightProtocol {
@@ -758,6 +788,7 @@ impl LightProtocol {
 
 		// respond to all requests until one fails.
 		let responses = requests.respond_to_all(|complete_req| {
+			let _timer = self.load_distribution.begin_timer(&complete_req);
 			match complete_req {
 				CompleteRequest::Headers(req) => self.provider.block_headers(req).map(Response::Headers),
 				CompleteRequest::HeaderProof(req) => self.provider.header_proof(req).map(Response::HeaderProof),
@@ -847,6 +878,8 @@ impl NetworkProtocolHandler for LightProtocol {
 			.expect("Error registering sync timer.");
 		io.register_timer(PROPAGATE_TIMEOUT, PROPAGATE_TIMEOUT_INTERVAL_MS)
 			.expect("Error registering sync timer.");
+		io.register_timer(TIMER_PERIOD_TIMEOUT, self::load_timer::TIME_PERIOD_MS)
+			.expect("Error registering request timer interval token.");
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
@@ -866,6 +899,7 @@ impl NetworkProtocolHandler for LightProtocol {
 			TIMEOUT => self.timeout_check(io),
 			TICK_TIMEOUT => self.tick_handlers(io),
 			PROPAGATE_TIMEOUT => self.propagate_transactions(io),
+			TIMER_PERIOD_TIMEOUT => self.begin_new_cost_period(io),
 			_ => warn!(target: "pip", "received timeout on unknown token {}", timer),
 		}
 	}
