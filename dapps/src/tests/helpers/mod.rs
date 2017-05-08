@@ -224,6 +224,7 @@ impl<T: Fetch> ServerBuilder<T> {
 	}
 }
 
+const DAPPS_DOMAIN: &'static str = "web3.site";
 
 /// Webapps HTTP server.
 pub struct Server {
@@ -249,6 +250,7 @@ impl Server {
 			signer_address,
 			dapps_path,
 			extra_dapps,
+			DAPPS_DOMAIN.into(),
 			registrar,
 			sync_status,
 			web_proxy_tokens,

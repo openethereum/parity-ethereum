@@ -242,11 +242,12 @@ fn extract_endpoint(url: &Option<Url>, dapps_domain: &str) -> (Option<EndpointPa
 
 #[test]
 fn should_extract_endpoint() {
-	assert_eq!(extract_endpoint(&None), (None, SpecialEndpoint::None));
+	let dapps_domain = ".web3.site";
+	assert_eq!(extract_endpoint(&None, dapps_domain), (None, SpecialEndpoint::None));
 
 	// With path prefix
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://localhost:8080/status/index.html").ok()),
+		extract_endpoint(&Url::parse("http://localhost:8080/status/index.html").ok(), dapps_domain),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
 			app_params: vec!["index.html".to_owned()],
@@ -258,7 +259,7 @@ fn should_extract_endpoint() {
 
 	// With path prefix
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://localhost:8080/rpc/").ok()),
+		extract_endpoint(&Url::parse("http://localhost:8080/rpc/").ok(), dapps_domain),
 		(Some(EndpointPath {
 			app_id: "rpc".to_owned(),
 			app_params: vec!["".to_owned()],
@@ -269,7 +270,7 @@ fn should_extract_endpoint() {
 	);
 
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.web3.site/parity-utils/inject.js").ok()),
+		extract_endpoint(&Url::parse("http://my.status.web3.site/parity-utils/inject.js").ok(), dapps_domain),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
 			app_params: vec!["my".to_owned(), "parity-utils".into(), "inject.js".into()],
@@ -281,7 +282,7 @@ fn should_extract_endpoint() {
 
 	// By Subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://status.web3.site/test.html").ok()),
+		extract_endpoint(&Url::parse("http://status.web3.site/test.html").ok(), dapps_domain),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
 			app_params: vec!["test.html".to_owned()],
@@ -293,7 +294,7 @@ fn should_extract_endpoint() {
 
 	// RPC by subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.web3.site/rpc/").ok()),
+		extract_endpoint(&Url::parse("http://my.status.web3.site/rpc/").ok(), dapps_domain),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
 			app_params: vec!["my".to_owned(), "rpc".into(), "".into()],
@@ -305,7 +306,7 @@ fn should_extract_endpoint() {
 
 	// API by subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.web3.site/api/").ok()),
+		extract_endpoint(&Url::parse("http://my.status.web3.site/api/").ok(), dapps_domain),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
 			app_params: vec!["my".to_owned(), "api".into(), "".into()],

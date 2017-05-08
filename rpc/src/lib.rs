@@ -227,7 +227,6 @@ pub fn start_ws<M, S, H, T, U, V>(
 	U: ws::SessionStats,
 	V: ws::RequestMiddleware,
 {
-	println!("Allowed origins: {:?}", allowed_origins);
 	ws::ServerBuilder::new(handler)
 		.event_loop_remote(remote)
 		.request_middleware(middleware)
