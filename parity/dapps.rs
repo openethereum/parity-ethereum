@@ -23,6 +23,7 @@ use ethcore::transaction::{Transaction, Action};
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
 use helpers::replace_home;
+use rpc;
 use rpc_apis::SignerService;
 use parity_reactor;
 use util::{Bytes, Address, U256};
@@ -109,6 +110,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Mi
 		deps,
 		configuration.dapps_path,
 		configuration.extra_dapps,
+		rpc::DAPPS_DOMAIN.into(),
 	).map(Some)
 }
 
@@ -118,7 +120,8 @@ pub fn new_ui(enabled: bool, deps: Dependencies) -> Result<Option<Middleware>, S
 	}
 
 	server::ui_middleware(
-		deps
+		deps,
+		rpc::DAPPS_DOMAIN.into(),
 	).map(Some)
 }
 
@@ -147,12 +150,14 @@ mod server {
 		_deps: Dependencies,
 		_dapps_path: PathBuf,
 		_extra_dapps: Vec<PathBuf>,
+		_dapps_domain: String,
 	) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
 	}
 
 	pub fn ui_middleware(
 		_deps: Dependencies,
+		_dapps_domain: String,
 	) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without UI support.".into())
 	}
@@ -179,6 +184,7 @@ mod server {
 		deps: Dependencies,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
+		dapps_domain: String,
 	) -> Result<Middleware, String> {
 		let signer = deps.signer;
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
@@ -189,6 +195,7 @@ mod server {
 			deps.ui_address,
 			dapps_path,
 			extra_dapps,
+			dapps_domain,
 			deps.contract_client,
 			deps.sync_status,
 			web_proxy_tokens,
@@ -198,6 +205,7 @@ mod server {
 
 	pub fn ui_middleware(
 		deps: Dependencies,
+		dapps_domain: String,
 	) -> Result<Middleware, String> {
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
 		Ok(parity_dapps::Middleware::ui(
@@ -205,6 +213,7 @@ mod server {
 			deps.contract_client,
 			deps.sync_status,
 			deps.fetch,
+			dapps_domain,
 		))
 	}
 

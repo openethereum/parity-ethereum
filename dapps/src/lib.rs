@@ -132,6 +132,7 @@ impl Middleware {
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
 		fetch: F,
+		dapps_domain: String,
 	) -> Self {
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
@@ -139,26 +140,24 @@ impl Middleware {
 			None,
 			remote.clone(),
 			fetch.clone(),
+			true,
 		));
-		let endpoints = endpoint::Endpoints::default();
 		let special = {
-			let mut special = HashMap::new();
-			special.insert(router::SpecialEndpoint::Rpc, None);
+			let mut special = special_endpoints(content_fetcher.clone());
 			special.insert(router::SpecialEndpoint::Home, Some(apps::ui()));
-			special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(content_fetcher.clone())));
 			special
 		};
-
 		let router = router::Router::new(
 			content_fetcher,
-			endpoints.clone(),
+			None,
 			special,
 			None,
+			dapps_domain,
 		);
 
 		Middleware {
 			router: router,
-			endpoints: endpoints,
+			endpoints: Default::default(),
 		}
 	}
 
@@ -168,6 +167,7 @@ impl Middleware {
 		ui_address: Option<(String, u16)>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
+		dapps_domain: String,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
 		web_proxy_tokens: Arc<WebProxyTokens>,
@@ -179,10 +179,12 @@ impl Middleware {
 			ui_address.clone(),
 			remote.clone(),
 			fetch.clone(),
+			false,
 		));
 		let endpoints = apps::all_endpoints(
 			dapps_path,
 			extra_dapps,
+			dapps_domain.clone(),
 			ui_address.clone(),
 			web_proxy_tokens,
 			remote.clone(),
@@ -190,19 +192,17 @@ impl Middleware {
 		);
 
 		let special = {
-			let mut special = HashMap::new();
-			special.insert(router::SpecialEndpoint::Rpc, None);
+			let mut special = special_endpoints(content_fetcher.clone());
 			special.insert(router::SpecialEndpoint::Home, Some(apps::ui_redirection(ui_address.clone())));
-			special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
-			special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(content_fetcher.clone())));
 			special
 		};
 
 		let router = router::Router::new(
 			content_fetcher,
-			endpoints.clone(),
+			Some(endpoints.clone()),
 			special,
 			ui_address,
+			dapps_domain,
 		);
 
 		Middleware {
@@ -216,6 +216,14 @@ impl http::RequestMiddleware for Middleware {
 	fn on_request(&self, req: &hyper::server::Request<hyper::net::HttpStream>, control: &hyper::Control) -> http::RequestMiddlewareAction {
 		self.router.on_request(req, control)
 	}
+}
+
+fn special_endpoints(content_fetcher: Arc<apps::fetcher::Fetcher>) -> HashMap<router::SpecialEndpoint, Option<Box<endpoint::Endpoint>>> {
+	let mut special = HashMap::new();
+	special.insert(router::SpecialEndpoint::Rpc, None);
+	special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
+	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(content_fetcher)));
+	special
 }
 
 fn address(address: &(String, u16)) -> String {

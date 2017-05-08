@@ -37,8 +37,7 @@ pub mod manifest;
 
 pub use self::app::App;
 
-pub const HOME_PAGE: &'static str = "parity";
-pub const DAPPS_DOMAIN: &'static str = ".web3.site";
+pub const HOME_PAGE: &'static str = "home";
 pub const RPC_PATH: &'static str =  "rpc";
 pub const API_PATH: &'static str =  "api";
 pub const UTILS_PATH: &'static str =  "parity-utils";
@@ -60,6 +59,7 @@ pub fn ui_redirection(ui_address: Option<(String, u16)>) -> Box<Endpoint> {
 pub fn all_endpoints<F: Fetch>(
 	dapps_path: PathBuf,
 	extra_dapps: Vec<PathBuf>,
+	dapps_domain: String,
 	ui_address: Option<(String, u16)>,
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	remote: Remote,
@@ -77,7 +77,7 @@ pub fn all_endpoints<F: Fetch>(
 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
 	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(ui_address.clone()));
-	pages.insert("proxy".into(), ProxyPac::boxed(ui_address.clone()));
+	pages.insert("proxy".into(), ProxyPac::boxed(ui_address.clone(), dapps_domain));
 	pages.insert(WEB_PATH.into(), Web::boxed(ui_address.clone(), web_proxy_tokens.clone(), remote.clone(), fetch.clone()));
 
 	Arc::new(pages)

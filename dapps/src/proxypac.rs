@@ -18,17 +18,19 @@
 
 use endpoint::{Endpoint, Handler, EndpointPath};
 use handlers::ContentHandler;
-use apps::{HOME_PAGE, DAPPS_DOMAIN};
+use apps::HOME_PAGE;
 use address;
 
 pub struct ProxyPac {
 	signer_address: Option<(String, u16)>,
+	dapps_domain: String,
 }
 
 impl ProxyPac {
-	pub fn boxed(signer_address: Option<(String, u16)>) -> Box<Endpoint> {
+	pub fn boxed(signer_address: Option<(String, u16)>, dapps_domain: String) -> Box<Endpoint> {
 		Box::new(ProxyPac {
-			signer_address: signer_address
+			signer_address: signer_address,
+			dapps_domain: dapps_domain,
 		})
 	}
 }
@@ -56,7 +58,7 @@ function FindProxyForURL(url, host) {{
 	return "DIRECT";
 }}
 "#,
-		HOME_PAGE, DAPPS_DOMAIN, path.host, path.port, signer);
+		HOME_PAGE, self.dapps_domain, path.host, path.port, signer);
 
 		Box::new(ContentHandler::ok(content, mime!(Application/Javascript)))
 	}

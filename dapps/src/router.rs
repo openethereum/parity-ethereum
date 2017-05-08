@@ -26,7 +26,7 @@ use hyper::{self, server, header, Control};
 use hyper::net::HttpStream;
 use jsonrpc_http_server as http;
 
-use apps::{self, DAPPS_DOMAIN};
+use apps;
 use apps::fetcher::Fetcher;
 use endpoint::{Endpoint, Endpoints, EndpointPath, Handler};
 use handlers;
@@ -42,20 +42,20 @@ pub enum SpecialEndpoint {
 }
 
 pub struct Router {
-	endpoints: Endpoints,
+	endpoints: Option<Endpoints>,
 	fetch: Arc<Fetcher>,
 	special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
 	embeddable_on: Option<(String, u16)>,
+	dapps_domain: String,
 }
 
 impl http::RequestMiddleware for Router {
 	fn on_request(&self, req: &server::Request<HttpStream>, control: &Control) -> http::RequestMiddlewareAction {
 		// Choose proper handler depending on path / domain
 		let url = handlers::extract_url(req);
-		let endpoint = extract_endpoint(&url);
-		let referer = extract_referer_endpoint(req);
+		let endpoint = extract_endpoint(&url, &self.dapps_domain);
+		let referer = extract_referer_endpoint(req, &self.dapps_domain);
 		let is_utils = endpoint.1 == SpecialEndpoint::Utils;
-		let is_dapps_domain = endpoint.0.as_ref().map(|endpoint| endpoint.using_dapps_domains).unwrap_or(false);
 		let is_origin_set = req.headers().get::<header::Origin>().is_some();
 		let is_get_request = *req.method() == hyper::Method::Get;
 		let is_head_request = *req.method() == hyper::Method::Head;
@@ -68,7 +68,7 @@ impl http::RequestMiddleware for Router {
 			// Handle invalid web requests that we can recover from
 			(ref path, SpecialEndpoint::None, Some((ref referer, ref referer_url)))
 				if referer.app_id == apps::WEB_PATH
-					&& self.endpoints.contains_key(apps::WEB_PATH)
+					&& self.endpoints.as_ref().map(|ep| ep.contains_key(apps::WEB_PATH)).unwrap_or(false)
 					&& !is_web_endpoint(path)
 				=>
 			{
@@ -87,9 +87,12 @@ impl http::RequestMiddleware for Router {
 					.map(|special| special.to_async_handler(path.clone().unwrap_or_default(), control))
 			},
 			// Then delegate to dapp
-			(Some(ref path), _, _) if self.endpoints.contains_key(&path.app_id) => {
+			(Some(ref path), _, _) if self.endpoints.as_ref().map(|ep| ep.contains_key(&path.app_id)).unwrap_or(false) => {
 				trace!(target: "dapps", "Resolving to local/builtin dapp.");
-				Some(self.endpoints.get(&path.app_id)
+				Some(self.endpoints
+					.as_ref()
+					.expect("endpoints known to be set; qed")
+					.get(&path.app_id)
 					.expect("endpoints known to contain key; qed")
 					.to_async_handler(path.clone(), control))
 			},
@@ -98,8 +101,8 @@ impl http::RequestMiddleware for Router {
 				trace!(target: "dapps", "Resolving to fetchable content.");
 				Some(self.fetch.to_async_handler(path.clone(), control))
 			},
-			// 404 for non-existent content
-			(Some(_), _, _) if is_get_request || is_head_request => {
+			// 404 for non-existent content (only if serving endpoints)
+			(Some(_), _, _) if (is_get_request || is_head_request) && self.endpoints.is_some() => {
 				trace!(target: "dapps", "Resolving to 404.");
 				Some(Box::new(handlers::ContentHandler::error(
 					hyper::StatusCode::NotFound,
@@ -125,7 +128,7 @@ impl http::RequestMiddleware for Router {
 
 		match handler {
 			Some(handler) => http::RequestMiddlewareAction::Respond {
-				should_validate_hosts: !(is_utils || is_dapps_domain),
+				should_validate_hosts: !is_utils,
 				handler: handler,
 			},
 			None => http::RequestMiddlewareAction::Proceed {
@@ -138,15 +141,17 @@ impl http::RequestMiddleware for Router {
 impl Router {
 	pub fn new(
 		content_fetcher: Arc<Fetcher>,
-		endpoints: Endpoints,
+		endpoints: Option<Endpoints>,
 		special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
 		embeddable_on: Option<(String, u16)>,
+		dapps_domain: String,
 	) -> Self {
 		Router {
 			endpoints: endpoints,
 			fetch: content_fetcher,
 			special: special,
 			embeddable_on: embeddable_on,
+			dapps_domain: format!(".{}", dapps_domain),
 		}
 	}
 }
@@ -158,19 +163,19 @@ fn is_web_endpoint(path: &Option<EndpointPath>) -> bool {
 	}
 }
 
-fn extract_referer_endpoint(req: &server::Request<HttpStream>) -> Option<(EndpointPath, Url)> {
+fn extract_referer_endpoint(req: &server::Request<HttpStream>, dapps_domain: &str) -> Option<(EndpointPath, Url)> {
 	let referer = req.headers().get::<header::Referer>();
 
 	let url = referer.and_then(|referer| Url::parse(&referer.0).ok());
 	url.and_then(|url| {
 		let option = Some(url);
-		extract_url_referer_endpoint(&option).or_else(|| {
-			extract_endpoint(&option).0.map(|endpoint| (endpoint, option.expect("Just wrapped; qed")))
+		extract_url_referer_endpoint(&option, dapps_domain).or_else(|| {
+			extract_endpoint(&option, dapps_domain).0.map(|endpoint| (endpoint, option.expect("Just wrapped; qed")))
 		})
 	})
 }
 
-fn extract_url_referer_endpoint(url: &Option<Url>) -> Option<(EndpointPath, Url)> {
+fn extract_url_referer_endpoint(url: &Option<Url>, dapps_domain: &str) -> Option<(EndpointPath, Url)> {
 	let query = url.as_ref().and_then(|url| url.query.as_ref());
 	match (url, query) {
 		(&Some(ref url), Some(ref query)) if query.starts_with(apps::URL_REFERER) => {
@@ -178,7 +183,7 @@ fn extract_url_referer_endpoint(url: &Option<Url>) -> Option<(EndpointPath, Url)
 			debug!(target: "dapps", "Recovering referer from query parameter: {}", referer_url);
 
 			let referer_url = Url::parse(&referer_url).ok();
-			extract_endpoint(&referer_url).0.map(|endpoint| {
+			extract_endpoint(&referer_url, dapps_domain).0.map(|endpoint| {
 				(endpoint, referer_url.expect("Endpoint returned only when url `is_some`").clone())
 			})
 		},
@@ -186,7 +191,7 @@ fn extract_url_referer_endpoint(url: &Option<Url>) -> Option<(EndpointPath, Url)
 	}
 }
 
-fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint) {
+fn extract_endpoint(url: &Option<Url>, dapps_domain: &str) -> (Option<EndpointPath>, SpecialEndpoint) {
 	fn special_endpoint(url: &Url) -> SpecialEndpoint {
 		if url.path.len() <= 1 {
 			return SpecialEndpoint::None;
@@ -202,8 +207,8 @@ fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint
 
 	match *url {
 		Some(ref url) => match url.host {
-			Host::Domain(ref domain) if domain.ends_with(DAPPS_DOMAIN) => {
-				let id = &domain[0..(domain.len() - DAPPS_DOMAIN.len())];
+			Host::Domain(ref domain) if domain.ends_with(dapps_domain) => {
+				let id = &domain[0..(domain.len() - dapps_domain.len())];
 				let (id, params) = if let Some(split) = id.rfind('.') {
 					let (params, id) = id.split_at(split);
 					(id[1..].to_owned(), [params.to_owned()].into_iter().chain(&url.path).cloned().collect())

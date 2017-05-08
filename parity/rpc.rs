@@ -17,6 +17,7 @@
 use std::io;
 use std::sync::Arc;
 use std::path::PathBuf;
+use std::collections::HashSet;
 
 use dapps;
 use dir::default_data_path;
@@ -29,6 +30,9 @@ use rpc_apis::{self, ApiSet};
 
 pub use parity_rpc::{IpcServer, HttpServer, RequestMiddleware};
 pub use parity_rpc::ws::Server as WsServer;
+
+
+pub const DAPPS_DOMAIN: &'static str = "web3.site";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HttpConfiguration {
@@ -175,7 +179,9 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 		return Ok(None);
 	}
 
-	let url = format!("{}:{}", conf.interface, conf.port);
+	let domain = DAPPS_DOMAIN;
+	let ws_address = (conf.interface, conf.port);
+	let url = format!("{}:{}", ws_address.0, ws_address.1);
 	let addr = url.parse().map_err(|_| format!("Invalid WebSockets listen host/port given: {}", url))?;
 
 
@@ -193,14 +199,8 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 
 	let remote = deps.remote.clone();
 	let ui_address = conf.ui_address.clone();
-	let origins = conf.origins.map(move |mut origins| {
-		if let Some((ui_host, ui_port)) = ui_address.clone() {
-			origins.push(format!("{}:{}", ui_host, ui_port))
-		}
-		origins
-	});
-	let allowed_origins = into_domains(origins);
-	let allowed_hosts = into_domains(conf.hosts);
+	let allowed_origins = into_domains(with_domain(conf.origins, domain, &[ui_address]));
+	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &[Some(ws_address)]));
 
 	let signer_path = conf.signer_path;
 	let signer_path = conf.ui_address.map(move |_| ::signer::codes_path(&signer_path));
@@ -236,13 +236,15 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 		return Ok(None);
 	}
 
-	let url = format!("{}:{}", conf.interface, conf.port);
+	let domain = DAPPS_DOMAIN;
+	let http_address = (conf.interface, conf.port);
+	let url = format!("{}:{}", http_address.0, http_address.1);
 	let addr = url.parse().map_err(|_| format!("Invalid {} listen host/port given: {}", id, url))?;
 	let handler = setup_apis(conf.apis, deps);
 	let remote = deps.remote.clone();
 
 	let cors_domains = into_domains(conf.cors);
-	let allowed_hosts = into_domains(conf.hosts);
+	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &[Some(http_address)]));
 
 	let start_result = rpc::start_http(
 		&addr,
@@ -287,6 +289,20 @@ pub fn new_ipc<D: rpc_apis::Dependencies>(
 
 fn into_domains<T: From<String>>(items: Option<Vec<String>>) -> DomainsValidation<T> {
 	items.map(|vals| vals.into_iter().map(T::from).collect()).into()
+}
+
+fn with_domain(items: Option<Vec<String>>, domain: &str, addresses: &[Option<(String, u16)>]) -> Option<Vec<String>> {
+	items.map(move |items| {
+		let mut items = items.into_iter().collect::<HashSet<_>>();
+		for address in addresses {
+			if let Some((host, port)) = address.clone() {
+				items.insert(format!("{}:{}", host, port));
+				items.insert(format!("{}:{}", host.replace("127.0.0.1", "localhost"), port));
+				items.insert(format!("http://*.{}:{}", domain, port));
+			}
+		}
+		items.into_iter().collect()
+	})
 }
 
 fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>

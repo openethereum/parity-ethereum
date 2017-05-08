@@ -55,6 +55,7 @@ pub struct ContentFetcher<F: Fetch = FetchClient, R: URLHint + 'static = URLHint
 	embeddable_on: Option<(String, u16)>,
 	remote: Remote,
 	fetch: F,
+	only_content: bool,
 }
 
 impl<R: URLHint + 'static, F: Fetch> Drop for ContentFetcher<F, R> {
@@ -66,7 +67,14 @@ impl<R: URLHint + 'static, F: Fetch> Drop for ContentFetcher<F, R> {
 
 impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 
-	pub fn new(resolver: R, sync_status: Arc<SyncStatus>, embeddable_on: Option<(String, u16)>, remote: Remote, fetch: F) -> Self {
+	pub fn new(
+		resolver: R,
+		sync_status: Arc<SyncStatus>,
+		embeddable_on: Option<(String, u16)>,
+		remote: Remote,
+		fetch: F,
+		only_content: bool,
+	) -> Self {
 		let mut dapps_path = env::temp_dir();
 		dapps_path.push(random_filename());
 
@@ -78,6 +86,7 @@ impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 			embeddable_on: embeddable_on,
 			remote: remote,
 			fetch: fetch,
+			only_content: only_content,
 		}
 	}
 
@@ -87,6 +96,16 @@ impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 			"Sync In Progress",
 			"Your node is still syncing. We cannot resolve any content before it's fully synced.",
 			Some("<a href=\"javascript:window.location.reload()\">Refresh</a>"),
+			address,
+		))
+	}
+
+	fn dapps_disabled(address: Option<(String, u16)>) -> Box<Handler> {
+		Box::new(ContentHandler::error(
+			StatusCode::ServiceUnavailable,
+			"Network Dapps Not Available",
+			"This interface doesn't support network dapps for security reasons.",
+			None,
 			address,
 		))
 	}
@@ -154,6 +173,9 @@ impl<R: URLHint + 'static, F: Fetch> Fetcher for ContentFetcher<F, R> {
 						// Don't serve dapps if we are still syncing (but serve content)
 						Some(URLHintResult::Dapp(_)) if self.sync.is_major_importing() => {
 							(None, Self::still_syncing(self.embeddable_on.clone()))
+						},
+						Some(URLHintResult::Dapp(_)) if self.only_content => {
+							(None, Self::dapps_disabled(self.embeddable_on.clone()))
 						},
 						Some(URLHintResult::Dapp(dapp)) => {
 							let handler = ContentFetcherHandler::new(

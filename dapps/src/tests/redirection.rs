@@ -37,6 +37,26 @@ fn should_redirect_to_home() {
 }
 
 #[test]
+fn should_redirect_to_home_with_domain() {
+	// given
+	let server = serve();
+
+	// when
+	let response = request(server,
+		"\
+			GET / HTTP/1.1\r\n\
+			Host: home.web3.site\r\n\
+			Connection: close\r\n\
+			\r\n\
+		"
+	);
+
+	// then
+	response.assert_status("HTTP/1.1 302 Found");
+	assert_eq!(response.headers.get(0).unwrap(), "Location: http://127.0.0.1:18180");
+}
+
+#[test]
 fn should_redirect_to_home_when_trailing_slash_is_missing() {
 	// given
 	let server = serve();
