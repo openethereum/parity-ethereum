@@ -19,32 +19,75 @@
 //! This uses empirical samples of the length of time taken to respond
 //! to requests in order to inform request credit costs.
 //!
-//! Distributions can be persisted and updated between runs.
+//! The average request time is determined by an exponential moving average
+//! of the mean request times during the last `MOVING_SAMPLE_SIZE` time periods of
+//! length `TIME_PERIOD_MS`, with the exception that time periods where no data is
+//! gathered are excluded.
+
+use std::collections::{HashMap, VecDeque};
 
 use request::{CompleteRequest, Kind};
 
 use time;
-use util::{U256, RwLock, Mutex};
+use util::{U256, Uint, RwLock, Mutex};
 
-const ROLLING_SAMPLE_SIZE: usize = 128;
+/// Number of time periods samples should be kept for.
+pub const MOVING_SAMPLE_SIZE: usize = 256;
+/// Length of time periods.
+pub const TIME_PERIOD_MS: isize = 60 * 60 * 1000;
 
 /// Something which stores load timer samples.
-pub trait LoadTimerStore {
+pub trait SampleStore {
+	/// Load the samples for a given request kind.
+	fn load(&self, kind: Kind) -> VecDeque<u64>;
+
+	/// Store the samples for a given request kind.
+	fn store(&self, kind: Kind, items: &VecDeque<u64>);
 }
 
-/// Request load distribution.
+/// Request load distributions.
 pub struct LoadDistribution {
-	active_set: RwLock<HashMap<Kind, Mutex<(U256, U256)>>>,
+	active_period: RwLock<HashMap<Kind, Mutex<(u64, u64)>>>,
+	samples: RwLock<HashMap<Kind, VecDeque<u64>>>,
 }
 
 impl LoadDistribution {
+	/// Load rolling samples from the given store.
+	pub fn load(store: &SampleStore) -> Self {
+		let mut samples = HashMap::new();
+		{
+			let mut load_for_kind = |kind| {
+				let mut kind_samples = store.load(kind);
+				while kind_samples.len() > MOVING_SAMPLE_SIZE {
+					kind_samples.pop_front();
+				}
+
+				samples.insert(kind, kind_samples);
+			};
+
+			load_for_kind(Kind::Headers);
+			load_for_kind(Kind::HeaderProof);
+			load_for_kind(Kind::Receipts);
+			load_for_kind(Kind::Body);
+			load_for_kind(Kind::Account);
+			load_for_kind(Kind::Storage);
+			load_for_kind(Kind::Code);
+			load_for_kind(Kind::Execution);
+		}
+
+		LoadDistribution {
+			active_period: RwLock::new(HashMap::new()),
+			samples: RwLock::new(samples),
+		}
+	}
+
 	/// Begin a timer.
 	pub fn begin<'a>(&'a self, req: &CompleteRequest) -> LoadTimer<'a> {
 		let kind = req.kind();
 		let n = match *req {
-			CompleteRequest::Headers(ref req) => req.max.into(),
-			CompleteRequest::Execution(ref req) => req.gas.clone(),
-			_ => 1.into(),
+			CompleteRequest::Headers(ref req) => req.max,
+			CompleteRequest::Execution(ref req) => req.gas.low_u64(),
+			_ => 1,
 		};
 
 		LoadTimer {
@@ -55,26 +98,65 @@ impl LoadDistribution {
 		}
 	}
 
-	fn update(&self, kind: Kind, elapsed: u64, n: U256) {
-		let update_counters = |&mut (ref mut c_e, ref mut c_n)| {
-			*c_e += elapsed.into();
-			*c_n += n;
+	/// Calculate EMA of load in nanoseconds for a specific request kind.
+	/// If there is no data for the given request kind, no EMA will be calculated.
+	pub fn moving_average(&self, kind: Kind) -> Option<u64> {
+		let samples = self.samples.read();
+		samples.get(&kind).and_then(|s| {
+			if s.len() == 0 { return None }
+
+			let alpha: f64 = 1f64 / s.len() as f64;
+			let start = s.front().expect("length known to be non-zero; qed").clone();
+			let ema = s.iter().skip(1).fold(start as f64, |a, &c| {
+				(alpha * c as f64) + ((1.0 - alpha) * a)
+			});
+
+			Some(ema as u64)
+		})
+	}
+
+	/// End the current time period. Provide a store to
+	pub fn end_period(&self, store: &SampleStore) {
+		let active_period = self.active_period.read();
+		let mut samples = self.samples.write();
+
+		for (&kind, set) in active_period.iter() {
+			let (elapsed, n) = ::std::mem::replace(&mut *set.lock(), (0, 0));
+			if n == 0 { continue }
+
+			let kind_samples = samples.entry(kind)
+				.or_insert_with(|| VecDeque::with_capacity(MOVING_SAMPLE_SIZE));
+
+			if kind_samples.len() == MOVING_SAMPLE_SIZE { kind_samples.pop_front(); }
+			kind_samples.push_back(elapsed / n);
+
+			store.store(kind, &kind_samples);
+		}
+	}
+
+	fn update(&self, kind: Kind, elapsed: u64, n: u64) {
+		macro_rules! update_counters {
+			($counters: expr) => {
+				$counters.0 += elapsed;
+				$counters.1 += n;
+			}
 		};
 
 		{
-			let set = self.active_set.read();
+			let set = self.active_period.read();
 			if let Some(counters) = set.get(&kind) {
-				update_counters(&mut *counters.lock());
+				let mut counters = counters.lock();
+				update_counters!(counters);
 				return;
 			}
 		}
 
-		let mut set = self.active_set.write();
+		let mut set = self.active_period.write();
 		let counters = set
 			.entry(kind)
-			.or_insert_with(|| Mutex::new((0.into(), 0.into())));
+			.or_insert_with(|| Mutex::new((0, 0)));
 
-		update_counters(counters.get_mut());
+		update_counters!(counters.get_mut());
 	}
 }
 
@@ -82,7 +164,7 @@ impl LoadDistribution {
 /// On drop, this will update the distribution.
 pub struct LoadTimer<'a> {
 	start: u64,
-	n: U256,
+	n: u64,
 	dist: &'a LoadDistribution,
 	kind: Kind,
 }

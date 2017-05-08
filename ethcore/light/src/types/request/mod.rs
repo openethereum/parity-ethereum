@@ -371,7 +371,7 @@ impl IncompleteRequest for Request {
 /// Kinds of requests.
 /// Doubles as the "ID" field of the request.
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Kind {
 	/// A request for headers.
 	Headers = 0,
