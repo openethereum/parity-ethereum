@@ -39,7 +39,6 @@ use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 /// `AuthorityRound` params.
-#[derive(Debug, PartialEq)]
 pub struct AuthorityRoundParams {
 	/// Gas limit divisor.
 	pub gas_limit_bound_divisor: U256,
@@ -52,7 +51,7 @@ pub struct AuthorityRoundParams {
 	/// Starting step,
 	pub start_step: Option<u64>,
 	/// Valid validators.
-	pub validators: ethjson::spec::ValidatorSet,
+	pub validators: Box<ValidatorSet>,
 	/// Chain score validation transition block.
 	pub validate_score_transition: u64,
 	/// Number of first block where EIP-155 rules are validated.
@@ -64,7 +63,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 		AuthorityRoundParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			step_duration: Duration::from_secs(p.step_duration.into()),
-			validators: p.validators,
+			validators: new_validator_set(p.validators),
 			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			start_step: p.start_step.map(Into::into),
@@ -205,7 +204,7 @@ impl AuthorityRound {
 				proposed: AtomicBool::new(false),
 				client: RwLock::new(None),
 				signer: Default::default(),
-				validators: new_validator_set(our_params.validators),
+				validators: our_params.validators,
 				validate_score_transition: our_params.validate_score_transition,
 				eip155_transition: our_params.eip155_transition,
 			});
@@ -456,6 +455,7 @@ impl Engine for AuthorityRound {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::atomic::AtomicUsize;
 	use util::*;
 	use header::Header;
 	use error::{Error, BlockError};
@@ -466,6 +466,8 @@ mod tests {
 	use account_provider::AccountProvider;
 	use spec::Spec;
 	use engines::Seal;
+	use engines::validator_set::TestSet;
+	use super::{AuthorityRoundParams, AuthorityRound};
 
 	#[test]
 	fn has_valid_metadata() {
@@ -591,6 +593,43 @@ mod tests {
 
 	#[test]
 	fn rejects_step_backwards() {
+		let tap = AccountProvider::transient_provider();
+		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
+
+		let mut parent_header: Header = Header::default();
+		parent_header.set_seal(vec![encode(&4usize).to_vec()]);
+		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+		let mut header: Header = Header::default();
+		header.set_number(1);
+		header.set_gas_limit(U256::from_str("222222").unwrap());
+		header.set_author(addr);
+
+		let engine = Spec::new_test_round().engine;
+
+		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
+		// Two validators.
+		// Spec starts with step 2.
+		header.set_seal(vec![encode(&5usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
+		header.set_seal(vec![encode(&3usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		assert!(engine.verify_block_family(&header, &parent_header, None).is_err());
+	}
+
+	#[test]
+	fn reports_skipped() {
+		let last_malicious = AtomicUsize::new(0);
+		let last_benign = AtomicUsize::new(0);
+		let params = AuthorityRoundParams {
+			gas_limit_bound_divisor: Default::default(),
+			step_duration: Default::default(),
+			block_reward: Default::default(),
+			registrar: Default::default(),
+			start_step: Some(1),
+			validators: Box::new(TestSet::new(last_malicious, last_benign)),
+			validate_score_transition: 0,
+			eip155_transition: 0,
+		};
+		let aura = AuthorityRound::new(Default::default(), params, Default::default());
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
 
