@@ -104,8 +104,8 @@ mod packet {
 // timeouts for different kinds of requests. all values are in milliseconds.
 mod timeout {
 	pub const HANDSHAKE: i64 = 2500;
+	pub const ACKNOWLEDGE_UPDATE: i64 = 5000;
 	pub const BASE: i64 = 1500; // base timeout for packet.
-	pub const ACKNOWLEDGE: i64 = 5000;
 
 	// timeouts per request within packet.
 	pub const HEADERS: i64 = 250; // per header?
@@ -146,6 +146,9 @@ pub struct Peer {
 	pending_requests: RequestSet,
 	failed_requests: Vec<ReqId>,
 	propagated_transactions: HashSet<H256>,
+	skip_update: bool,
+	local_flow: Arc<FlowParams>,
+	awaiting_acknowledge: Option<(SteadyTime, Arc<FlowParams>)>,
 }
 
 /// A light protocol event handler.
@@ -261,7 +264,7 @@ pub struct LightProtocol {
 	pending_peers: RwLock<HashMap<PeerId, PendingPeer>>,
 	peers: RwLock<PeerMap>,
 	capabilities: RwLock<Capabilities>,
-	flow_params: FlowParams, // assumed static and same for every peer.
+	flow_params: RwLock<Arc<FlowParams>>,
 	handlers: Vec<Arc<Handler>>,
 	req_id: AtomicUsize,
 	sample_store: Box<SampleStore>,
@@ -283,7 +286,7 @@ impl LightProtocol {
 			pending_peers: RwLock::new(HashMap::new()),
 			peers: RwLock::new(HashMap::new()),
 			capabilities: RwLock::new(params.capabilities),
-			flow_params: params.flow_params,
+			flow_params: RwLock::new(Arc::new(params.flow_params)),
 			handlers: Vec::new(),
 			req_id: AtomicUsize::new(0),
 			sample_store: sample_store,
@@ -435,8 +438,9 @@ impl LightProtocol {
 		let res = match peers.get(peer) {
 			Some(peer_info) => {
 				let mut peer_info = peer_info.lock();
+				let peer_info: &mut Peer = &mut *peer_info;
 				let req_info = peer_info.pending_requests.remove(&req_id, SteadyTime::now());
-				let cumulative_cost = peer_info.pending_requests.cumulative_cost();
+				let last_batched = peer_info.pending_requests.is_empty();
 				let flow_info = peer_info.remote_flow.as_mut();
 
 				match (req_info, flow_info) {
@@ -444,10 +448,13 @@ impl LightProtocol {
 						let &mut (ref mut c, ref mut flow) = flow_info;
 
 						// only update if the cumulative cost of the request set is zero.
-						if cumulative_cost == 0.into() {
+						// and this response wasn't from before request costs were updated.
+						if !peer_info.skip_update && last_batched {
 							let actual_credits = ::std::cmp::min(cur_credits, *flow.limit());
 							c.update_to(actual_credits);
 						}
+
+						if last_batched { peer_info.skip_update = false }
 
 						Ok(())
 					}
@@ -476,6 +483,9 @@ impl LightProtocol {
 
 			packet::REQUEST => self.request(peer, io, rlp),
 			packet::RESPONSE => self.response(peer, io, rlp),
+
+			packet::UPDATE_CREDITS => self.update_credits(peer, io, rlp),
+			packet::ACKNOWLEDGE_UPDATE => self.acknowledge_update(peer, io, rlp),
 
 			packet::SEND_TRANSACTIONS => self.relay_transactions(peer, io, rlp),
 
@@ -510,12 +520,21 @@ impl LightProtocol {
 			}
 		}
 
-		// request timeouts
+		// request and update ack timeouts
+		let ack_duration = Duration::milliseconds(timeout::ACKNOWLEDGE_UPDATE);
 		{
 			for (peer_id, peer) in self.peers.read().iter() {
-				if peer.lock().pending_requests.check_timeout(now) {
+				let mut peer = peer.lock();
+				if peer.pending_requests.check_timeout(now) {
 					debug!(target: "pip", "Peer {} request timeout", peer_id);
 					io.disconnect_peer(*peer_id);
+				}
+
+				if let Some((ref start, _)) = peer.awaiting_acknowledge {
+					if *start + ack_duration <= now {
+						debug!(target: "pip", "Peer {} update acknowledgement timeout", peer_id);
+						io.disconnect_peer(*peer_id);
+					}
 				}
 			}
 		}
@@ -587,7 +606,8 @@ impl LightProtocol {
 		};
 
 		let capabilities = self.capabilities.read().clone();
-		let status_packet = status::write_handshake(&status, &capabilities, Some(&self.flow_params));
+		let local_flow = self.flow_params.read();
+		let status_packet = status::write_handshake(&status, &capabilities, Some(&**local_flow));
 
 		self.pending_peers.write().insert(*peer, PendingPeer {
 			sent_head: chain_info.best_block_hash,
@@ -642,18 +662,37 @@ impl LightProtocol {
 		}
 	}
 
-	fn begin_new_cost_period(&self, _io: &IoContext) {
+	fn begin_new_cost_period(&self, io: &IoContext) {
 		// TODO: base this on number of max peers.
 		const LOAD_SHARE: f64 = 1.0 / 25.0;
 		const MAX_ACCUMULATED: u64 = 60 * 5; // only charge for 5 minutes.
 
 		self.load_distribution.end_period(&*self.sample_store);
 
-		let _new_params = FlowParams::from_distributions(
+		let new_params = Arc::new(FlowParams::from_distributions(
 			&self.load_distribution,
 			LOAD_SHARE,
 			MAX_ACCUMULATED,
-		);
+		));
+		*self.flow_params.write() = new_params.clone();
+
+		let peers = self.peers.read();
+		let now = SteadyTime::now();
+
+		let packet_body = {
+			let mut stream = RlpStream::new_list(3);
+			stream.append(new_params.limit())
+				.append(new_params.recharge_rate())
+				.append(new_params.cost_table());
+			stream.out()
+		};
+
+		for (peer_id, peer_info) in peers.iter() {
+			let mut peer_info = peer_info.lock();
+
+			io.send(*peer_id, packet::UPDATE_CREDITS, packet_body.clone());
+			peer_info.awaiting_acknowledge = Some((now.clone(), new_params.clone()));
+		}
 	}
 }
 
@@ -680,9 +719,10 @@ impl LightProtocol {
 		}
 
 		let remote_flow = flow_params.map(|params| (params.create_credits(), params));
+		let local_flow = self.flow_params.read().clone();
 
 		self.peers.write().insert(*peer, Mutex::new(Peer {
-			local_credits: self.flow_params.create_credits(),
+			local_credits: local_flow.create_credits(),
 			status: status.clone(),
 			capabilities: capabilities.clone(),
 			remote_flow: remote_flow,
@@ -691,6 +731,9 @@ impl LightProtocol {
 			pending_requests: RequestSet::default(),
 			failed_requests: Vec::new(),
 			propagated_transactions: HashSet::new(),
+			skip_update: false,
+			local_flow: local_flow,
+			awaiting_acknowledge: None,
 		}));
 
 		for handler in &self.handlers {
@@ -766,6 +809,7 @@ impl LightProtocol {
 			}
 		};
 		let mut peer = peer.lock();
+		let peer: &mut Peer = &mut *peer;
 
 		let req_id: u64 = raw.val_at(0)?;
 		let mut request_builder = RequestBuilder::default();
@@ -773,12 +817,13 @@ impl LightProtocol {
 		trace!(target: "pip", "Received requests (id: {}) from peer {}", req_id, peer_id);
 
 		// deserialize requests, check costs and request validity.
-		self.flow_params.recharge(&mut peer.local_credits);
+		peer.local_flow.recharge(&mut peer.local_credits);
 
-		peer.local_credits.deduct_cost(self.flow_params.base_cost())?;
+		peer.local_credits.deduct_cost(peer.local_flow.base_cost())?;
 		for request_rlp in raw.at(1)?.iter().take(MAX_REQUESTS) {
 			let request: Request = request_rlp.as_val()?;
-			peer.local_credits.deduct_cost(self.flow_params.compute_cost(&request))?;
+			let cost = peer.local_flow.compute_cost(&request);
+			peer.local_credits.deduct_cost(cost)?;
 			request_builder.push(request).map_err(|_| Error::BadBackReference)?;
 		}
 
@@ -829,6 +874,60 @@ impl LightProtocol {
 			}, req_id, &responses);
 		}
 
+		Ok(())
+	}
+
+	// handle an update of request credits parameters.
+	fn update_credits(&self, peer_id: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+		let peers = self.peers.read();
+
+		let peer = peers.get(peer_id).ok_or(Error::UnknownPeer)?;
+		let mut peer = peer.lock();
+
+		trace!(target: "pip", "Received an update to request credit params from peer {}", peer_id);
+
+		{
+			let &mut (ref mut credits, ref mut old_params) = peer.remote_flow.as_mut().ok_or(Error::NotServer)?;
+			old_params.recharge(credits);
+
+			let new_params = FlowParams::new(
+				raw.val_at(0)?, // limit
+				raw.val_at(2)?, // cost table
+				raw.val_at(1)?, // recharge.
+			);
+
+			// preserve ratio of current : limit when updating params.
+			credits.maintain_ratio(*old_params.limit(), *new_params.limit());
+			*old_params = new_params;
+		}
+
+		// set flag to true when there is an in-flight request
+		// corresponding to old flow params.
+		if !peer.pending_requests.is_empty() {
+			peer.skip_update = true;
+		}
+
+		// let peer know we've acknowledged the update.
+		io.respond(packet::ACKNOWLEDGE_UPDATE, Vec::new());
+		Ok(())
+	}
+
+	// handle an acknowledgement of request credits update.
+	fn acknowledge_update(&self, peer_id: &PeerId, io: &IoContext, _raw: UntrustedRlp) -> Result<(), Error> {
+		let peers = self.peers.read();
+		let peer = peers.get(peer_id).ok_or(Error::UnknownPeer)?;
+		let mut peer = peer.lock();
+
+		trace!(target: "pip", "Received an acknowledgement for new request credit params from peer {}", peer_id);
+
+		let (_, new_params) = match peer.awaiting_acknowledge.take() {
+			Some(x) => x,
+			None => return Err(Error::UnsolicitedResponse),
+		};
+
+		let old_limit = *peer.local_flow.limit();
+		peer.local_credits.maintain_ratio(old_limit, *new_params.limit());
+		peer.local_flow = new_params;
 		Ok(())
 	}
 

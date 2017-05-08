@@ -185,6 +185,7 @@ fn setup(flow_params: FlowParams, capabilities: Capabilities) -> (Arc<TestProvid
 		network_id: 2,
 		flow_params: flow_params,
 		capabilities: capabilities,
+		sample_store: None,
 	});
 
 	(provider, proto)
@@ -607,12 +608,15 @@ fn id_guard() {
 		local_credits: flow_params.create_credits(),
 		status: status(provider.client.chain_info()),
 		capabilities: capabilities.clone(),
-		remote_flow: Some((flow_params.create_credits(), flow_params)),
+		remote_flow: Some((flow_params.create_credits(), flow_params.clone())),
 		sent_head: provider.client.chain_info().best_block_hash,
 		last_update: ::time::SteadyTime::now(),
 		pending_requests: pending_requests,
 		failed_requests: Vec::new(),
 		propagated_transactions: Default::default(),
+		skip_update: false,
+		local_flow: Arc::new(flow_params),
+		awaiting_acknowledge: None,
 	}));
 
 	// first, malformed responses.

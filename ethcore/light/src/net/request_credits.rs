@@ -57,6 +57,11 @@ impl Credits {
 		self.recharge_point = SteadyTime::now();
 	}
 
+	/// Maintain ratio to current limit against an old limit.
+	pub fn maintain_ratio(&mut self, old_limit: U256, new_limit: U256) {
+		self.estimate = (new_limit * self.estimate) / old_limit;
+	}
+
 	/// Attempt to apply the given cost to the amount of credits.
 	///
 	/// If successful, the cost will be deducted successfully.
