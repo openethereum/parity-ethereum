@@ -137,8 +137,8 @@ impl LoadDistribution {
 	fn update(&self, kind: Kind, elapsed: u64, n: u64) {
 		macro_rules! update_counters {
 			($counters: expr) => {
-				$counters.0 += elapsed;
-				$counters.1 += n;
+				$counters.0.saturating_add(elapsed);
+				$counters.1.saturating_add(n);
 			}
 		};
 
