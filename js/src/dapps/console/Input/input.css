@@ -14,3 +14,29 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+textarea:focus, input:focus{
+  outline: none;
+}
+
+.type {
+  color: #59f;
+  font-weight: bold !important;
+  font-family: "Lucida Console", Monaco, monospace;
+  font-size: 11pt;
+  padding: 0 0.5em 0 0.25em;
+}
+
+.input {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  color: black;
+  font-weight: 1000;
+  font-family: "Lucida Console", Monaco, monospace;
+  font-size: 11pt;
+}
+
+.container {
+  padding: 0.25em;
+}

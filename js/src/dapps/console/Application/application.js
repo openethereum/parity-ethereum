@@ -16,6 +16,8 @@
 
 import React, { Component } from 'react';
 
+import { api } from '../parity';
+import ConsoleStore from '../consoleStore';
 import Eval from '../Eval';
 import Input from '../Input';
 import Status from '../Status';
@@ -23,12 +25,25 @@ import Status from '../Status';
 import styles from './application.css';
 
 export default class Application extends Component {
+  consoleStore = ConsoleStore.get();
+
+  componentWillMount () {
+    this.consoleStore.addWatch('time', () => new Date());
+    this.consoleStore.addWatch('blockNumber', api.eth.blockNumber, api);
+  }
+
   render () {
     return (
-      <div>
-        <Eval />
-        <Input />
-        <Status />
+      <div className={ styles.app }>
+        <div className={ styles.eval }>
+          <Eval />
+        </div>
+        <div className={ styles.input }>
+          <Input />
+        </div>
+        <div className={ styles.status }>
+          <Status />
+        </div>
       </div>
     );
   }

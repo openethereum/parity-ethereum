@@ -21,8 +21,12 @@ import styles from './input.css';
 export default class Input extends Component {
   render () {
     return (
-      <div>
-        Input
+      <div className={ styles.container }>
+        <span className={ styles.type }>&gt;</span>
+        <input
+          type='text'
+          className={ styles.input }
+        />
       </div>
     );
   }

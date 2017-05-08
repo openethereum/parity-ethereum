@@ -14,3 +14,31 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+.container {
+  background: #eee;
+  display: flex;
+  flex-direction: row;
+  padding: 0.25em;
+  font-family: "Lucida Console", Monaco, monospace;
+  font-size: 8pt;
+  color: #888;
+}
+
+.watch {
+  padding: 0 1em;
+
+  &:not(:first-child) {
+    border-left: 1px solid #ccc;
+  }
+
+  &.error .result {
+    color: red;
+  }
+
+  .result {
+    color: #00f;
+    font-weight: bold;
+    margin-left: 0.5em;
+  }
+}

@@ -20,7 +20,7 @@
   },
   {
     "id": "0xa635a9326814bded464190eddf0bdb90ce92d40ea2359cf553ea80e3c5a4076a",
-    "url": "console",
+    "url": "console2",
     "name": "Parity/Web3 console - Static",
     "description": "A Javascript development console complete with web3 and parity objects",
     "version": "0.3",

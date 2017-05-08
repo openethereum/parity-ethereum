@@ -14,3 +14,21 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+.app {
+  display: flex;
+  flex-direction: column;
+}
+
+.eval {
+  flex: 1;
+}
+
+.input {
+  border-top: 1px solid #eee;
+  flex: 0 0 auto;
+}
+
+.status {
+  flex: 0 0 auto;
+}

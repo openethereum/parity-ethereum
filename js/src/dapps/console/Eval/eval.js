@@ -16,7 +16,7 @@
 
 import React, { Component } from 'react';
 
-import styles from './eval.css';
+// import styles from './eval.css';
 
 export default class Eval extends Component {
   render () {
