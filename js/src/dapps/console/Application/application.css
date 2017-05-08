@@ -18,6 +18,8 @@
 .app {
   display: flex;
   flex-direction: column;
+  font-family: dejavu sans mono, monospace;
+  font-size: 11px;
 }
 
 .eval {

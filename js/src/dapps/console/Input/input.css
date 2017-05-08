@@ -15,20 +15,21 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-textarea:focus, input:focus{
+textarea:focus,
+input:focus {
   outline: none;
 }
 
 .type {
   color: #59f;
   font-weight: bold !important;
-  font-family: "Lucida Console", Monaco, monospace;
   font-size: 11pt;
   padding: 0 0.5em 0 0.25em;
 }
 
 .input {
   border: 0;
+  flex: 1;
   margin: 0;
   padding: 0;
   color: black;
@@ -38,5 +39,6 @@ textarea:focus, input:focus{
 }
 
 .container {
+  display: flex;
   padding: 0.25em;
 }

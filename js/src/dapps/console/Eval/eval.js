@@ -14,16 +14,80 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component } from 'react';
 
-// import styles from './eval.css';
+import EvalStore from '../evalStore';
 
+import styles from './eval.css';
+
+const ICONS = {
+  debug: '&nbsp;',
+  error: '✖',
+  info: 'ℹ',
+  input: '&gt;',
+  log: '&nbsp;',
+  result: '&lt;',
+  warn: '⚠'
+};
+
+@observer
 export default class Eval extends Component {
+  evalStore = EvalStore.get();
+
   render () {
     return (
       <div>
-        Eval
+        { this.renderResults() }
       </div>
     );
+  }
+
+  renderResults () {
+    const { logs } = this.evalStore;
+
+    return logs.map((data, index) => {
+      const { type, value, timestamp } = data;
+      const classes = [ styles.result, styles[type] ];
+      const valueStr = this.toString(value);
+
+      return (
+        <div
+          className={ classes.join(' ') }
+          key={ index }
+        >
+          <span
+            className={ styles.type }
+            dangerouslySetInnerHTML={ { __html: ICONS[type] || '' } }
+          />
+          <span className={ styles.time }>
+            { new Date(timestamp).toISOString().slice(11, 23) }
+          </span>
+          <span className={ styles.text }>
+            { valueStr }
+          </span>
+        </div>
+      );
+    });
+  }
+
+  renderType (type) {
+    if (type === 'input') {
+      return (
+        <span></span>
+      );
+    }
+
+    if (type === 'result') {
+      return (
+        <span></span>
+      );
+    }
+
+    return null;
+  }
+
+  toString (result) {
+    return result.toString();
   }
 }

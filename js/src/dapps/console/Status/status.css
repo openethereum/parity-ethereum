@@ -20,7 +20,6 @@
   display: flex;
   flex-direction: row;
   padding: 0.25em;
-  font-family: "Lucida Console", Monaco, monospace;
   font-size: 8pt;
   color: #888;
 }
