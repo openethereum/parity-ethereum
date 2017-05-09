@@ -162,6 +162,7 @@
     "@parity/abi": "file:src/abi",
     "@parity/api": "file:src/api",
     "@parity/jsonrpc": "file:src/jsonrpc",
+    "@parity/shared": "file:src/shared",
     "@parity/ui": "file:src/ui",
     "@parity/wordlist": "1.0.1",
     "base32.js": "0.1.0",

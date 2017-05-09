@@ -21,10 +21,11 @@ import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
 import { pick } from 'lodash';
 
+import { nullableProptype } from '@parity/shared/util/proptypes';
+
 import { Button, IdentityIcon, Portal, Warning } from '~/ui';
 import { newError } from '~/ui/Errors/actions';
 import { CancelIcon, NextIcon, PrevIcon } from '~/ui/Icons';
-import { nullableProptype } from '~/util/proptypes';
 
 import Details from './Details';
 import Extras from './Extras';

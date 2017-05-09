@@ -22,7 +22,7 @@ import { fromWei } from '@parity/api/util/wei';
 
 import { Checkbox, Form, Input } from '~/ui';
 import { DoneIcon, ErrorIcon, InfoIcon } from '~/ui/Icons';
-import { nullableProptype } from '~/util/proptypes';
+import { nullableProptype } from '@parity/shared/util/proptypes';
 
 import smsTermsOfService from '~/3rdparty/sms-verification/terms-of-service';
 import emailTermsOfService from '~/3rdparty/email-verification/terms-of-service';

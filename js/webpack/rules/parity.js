@@ -16,6 +16,6 @@
 
 module.exports = {
   test: /\.js$/,
-  include: /node_modules\/@parity\/(abi|api|jsonrpc|ui|wordlist)/,
+  include: /node_modules\/@parity\/(abi|api|jsonrpc|shared|ui|wordlist)/,
   use: 'babel-loader'
 };

@@ -20,7 +20,8 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { newError } from '~/redux/actions';
+import { newError } from '@parity/shared/redux/actions';
+
 import { Button, Form, Input, InputChip, Portal, VaultSelect } from '~/ui';
 import { CancelIcon, SaveIcon } from '~/ui/Icons';
 import VaultStore from '~/views/Vaults/store';

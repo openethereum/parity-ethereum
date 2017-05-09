@@ -20,8 +20,9 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import BigNumber from 'bignumber.js';
 
-import { newError } from '~/redux/actions';
-import { setVisibleAccounts } from '~/redux/providers/personalActions';
+import { newError } from '@parity/shared/redux/actions';
+import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
+
 import { Actionbar, Button, Page, Portal } from '~/ui';
 import { CancelIcon, DeleteIcon, EditIcon, PlayIcon, VisibleIcon } from '~/ui/Icons';
 import Editor from '~/ui/Editor';

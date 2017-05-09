@@ -18,7 +18,8 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import HistoryStore from '~/mobx/historyStore';
+import HistoryStore from '@parity/shared/mobx/historyStore';
+
 import { Page } from '~/ui';
 import WebStore from '~/views/Web/store';
 

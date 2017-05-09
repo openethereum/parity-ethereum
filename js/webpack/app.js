@@ -29,11 +29,11 @@ const rulesEs6 = require('./rules/es6');
 const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
-const DAPPS_BUILTIN = require('../src/config/dappsBuiltin.json').map((dapp) => {
+const DAPPS_BUILTIN = require('../src/shared/config/dappsBuiltin.json').map((dapp) => {
   dapp.srcPath = './dapps';
   return dapp;
 });
-const DAPPS_VIEWS = require('../src/config/dappsViews.json').map((dapp) => {
+const DAPPS_VIEWS = require('../src/shared/config/dappsViews.json').map((dapp) => {
   dapp.srcPath = './views';
   dapp.commons = true;
   return dapp;

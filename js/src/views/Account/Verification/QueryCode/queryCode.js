@@ -17,8 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+
 import { Form, Input } from '~/ui';
-import { nodeOrStringProptype } from '~/util/proptypes';
 
 export default class QueryCode extends Component {
   static propTypes = {

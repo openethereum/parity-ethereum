@@ -18,8 +18,8 @@ import { noop } from 'lodash';
 import { observable, computed, action, transaction } from 'mobx';
 import BigNumber from 'bignumber.js';
 
-import { validateUint, validateAddress } from '~/util/validation';
-import { DEFAULT_GAS, MAX_GAS_ESTIMATION } from '~/util/constants';
+import { validateUint, validateAddress } from '@parity/shared/util/validation';
+import { DEFAULT_GAS, MAX_GAS_ESTIMATION } from '@parity/shared/util/constants';
 
 const STEPS = {
   EDIT: { title: 'wallet settings' },

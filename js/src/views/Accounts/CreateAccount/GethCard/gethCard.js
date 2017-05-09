@@ -16,8 +16,9 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { ETH_TOKEN } from '@parity/shared/util/tokens';
+
 import { AccountCard } from '~/ui';
-import { ETH_TOKEN } from '~/util/tokens';
 
 export default class GethCard extends Component {
   static propTypes = {

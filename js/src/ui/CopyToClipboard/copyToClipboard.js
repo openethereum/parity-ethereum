@@ -21,7 +21,7 @@ import Clipboard from 'react-copy-to-clipboard';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { showSnackbar } from '~/redux/providers/snackbarActions';
+import { showSnackbar } from '@parity/shared/redux/providers/snackbarActions';
 
 import { CopyIcon } from '../Icons';
 import Theme from '../Theme';

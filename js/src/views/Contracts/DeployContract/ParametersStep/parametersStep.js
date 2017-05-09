@@ -32,8 +32,9 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
+import { parseAbiType } from '@parity/shared/util/abi';
+
 import { Form, TypedInput } from '~/ui';
-import { parseAbiType } from '~/util/abi';
 
 import styles from '../deployContract.css';
 

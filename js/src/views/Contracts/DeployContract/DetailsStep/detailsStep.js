@@ -18,9 +18,10 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { MenuItem } from 'material-ui';
 
+import { parseAbiType } from '@parity/shared/util/abi';
+import { validateAbi } from '@parity/shared/util/validation';
+
 import { AddressSelect, Checkbox, Form, Input, Select } from '~/ui';
-import { validateAbi } from '~/util/validation';
-import { parseAbiType } from '~/util/abi';
 
 const CHECK_STYLE = {
   marginTop: '1em'

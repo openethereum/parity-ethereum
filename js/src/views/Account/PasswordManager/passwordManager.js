@@ -22,7 +22,8 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { newError, openSnackbar } from '~/redux/actions';
+import { newError, openSnackbar } from '@parity/shared/redux/actions';
+
 import { Button, IdentityName, IdentityIcon, Portal } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 import Form, { Input } from '~/ui/Form';

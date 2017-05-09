@@ -19,9 +19,9 @@ import { TextField } from 'material-ui';
 import { noop } from 'lodash';
 import keycode from 'keycode';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-import CopyToClipboard from '../../CopyToClipboard';
+import CopyToClipboard from '~/ui/CopyToClipboard';
 
 import styles from './input.css';
 

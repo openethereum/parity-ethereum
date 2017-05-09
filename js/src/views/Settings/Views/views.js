@@ -19,9 +19,9 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { Checkbox, Container } from '~/ui';
+import { toggleView } from '@parity/shared/redux/providers/settings/actions';
 
-import { toggleView } from '~/redux/providers/settings/actions';
+import { Checkbox, Container } from '~/ui';
 
 import layout from '../layout.css';
 import styles from './views.css';
