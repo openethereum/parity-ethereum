@@ -383,11 +383,13 @@ impl Engine for AuthorityRound {
 			self.validators.report_malicious(header.author(), header.number(), Default::default());
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
-		// Report if a primary was skipped.
+		// Report skipped primaries.
 		if step > parent_step + 1 {
-			let skipped_primary = self.step_proposer(&parent.hash(), parent_step + 1);
-			trace!(target: "engine", "Author {} did not build his block on top of the intermediate designated primary {}.", header.author(), skipped_primary);
-			self.validators.report_benign(&skipped_primary, header.number());
+			for s in parent_step + 1..step {
+				let skipped_primary = self.step_proposer(&parent.hash(), s);
+				trace!(target: "engine", "Author {} did not build his block on top of the intermediate designated primary {}.", header.author(), skipped_primary);
+				self.validators.report_benign(&skipped_primary, header.number());
+			}
 		}
 
 		let gas_limit_divisor = self.gas_limit_bound_divisor;
