@@ -27,6 +27,7 @@
   background-color: rgba(0, 0, 0, 0.75);
   z-index: 3000;
   transition: transform 0.75s;
+  transform: translateX(-50%) translateY(0px);
 }
 
 #action {
