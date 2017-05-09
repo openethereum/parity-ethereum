@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { TextField } from 'material-ui';
+import { Input as InputUI } from 'semantic-ui-react';
 import { noop } from 'lodash';
 import keycode from 'keycode';
 
@@ -24,27 +24,6 @@ import { nodeOrStringProptype } from '~/util/proptypes';
 import CopyToClipboard from '../../CopyToClipboard';
 
 import styles from './input.css';
-
-// TODO: duplicated in Select
-const UNDERLINE_DISABLED = {
-  borderBottom: 'dotted 2px',
-  borderColor: 'rgba(255, 255, 255, 0.125)' // 'transparent' // 'rgba(255, 255, 255, 0.298039)'
-};
-
-const UNDERLINE_READONLY = {
-  ...UNDERLINE_DISABLED,
-  cursor: 'text'
-};
-
-const UNDERLINE_NORMAL = {
-  borderBottom: 'solid 2px'
-};
-
-const UNDERLINE_FOCUSED = {
-  transform: 'scaleX(1.0)'
-};
-
-const NAME_ID = ' ';
 
 export default class Input extends Component {
   static contextTypes = {
@@ -66,6 +45,7 @@ export default class Input extends Component {
       'default',
       'initial'
     ]),
+    fluid: PropTypes.bool,
     focused: PropTypes.bool,
     readOnly: PropTypes.bool,
     hint: nodeOrStringProptype(),
@@ -97,19 +77,29 @@ export default class Input extends Component {
   static defaultProps = {
     allowCopy: false,
     escape: 'initial',
+    fluid: true,
     hideUnderline: false,
     onBlur: noop,
     onFocus: noop,
     onChange: noop,
     readOnly: false,
     submitOnBlur: true,
-    style: {}
+    style: {},
+    type: 'text'
   }
 
   state = {
     value: typeof this.props.value === 'undefined'
       ? ''
       : this.props.value
+  }
+
+  componentDidMount () {
+    const { autoFocus } = this.props;
+
+    if (autoFocus) {
+      this.keyInput.focus();
+    }
   }
 
   componentWillReceiveProps (newProps) {
@@ -128,53 +118,32 @@ export default class Input extends Component {
 
   render () {
     const { value } = this.state;
-    const { autoFocus, children, className, defaultValue, hideUnderline, disabled, error } = this.props;
-    const { focused, label, hint, onClick, multiLine, rows, type, min, max, step, style, tabIndex } = this.props;
-
-    const readOnly = this.props.readOnly || disabled;
-
-    const inputStyle = { overflow: 'hidden' };
-    const textFieldStyle = {};
-
-    if (readOnly) {
-      inputStyle.cursor = 'text';
-    }
-
-    if (hideUnderline && !hint) {
-      textFieldStyle.height = 'initial';
-    }
-
-    const underlineStyle = readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL;
-    const underlineFocusStyle = focused
-      ? UNDERLINE_FOCUSED
-      : readOnly && typeof focused !== 'boolean' ? { display: 'none' } : null;
-
-    const textValue = typeof value !== 'string' && (value && value.props)
-      ? this.context.intl.formatMessage(
-          value.props,
-          value.props.values || {}
-        )
-      : value;
+    const {
+      children,
+      className,
+      defaultValue,
+      disabled,
+      error,
+      fluid,
+      focused,
+      label,
+      onClick,
+      style,
+      tabIndex,
+      type
+    } = this.props;
 
     return (
       <div className={ styles.container } style={ style }>
         { this.renderCopyButton() }
-        <TextField
-          autoComplete='off'
-          autoFocus={ autoFocus }
+        <InputUI
           className={ className }
-          defaultValue={ defaultValue }
-          errorText={ error }
-          floatingLabelFixed
-          floatingLabelText={ label }
-          fullWidth
-          hintText={ hint }
-          id={ NAME_ID }
-          inputStyle={ inputStyle }
-          max={ max }
-          min={ min }
-          multiLine={ multiLine }
-          name={ NAME_ID }
+          disabled={ disabled }
+          error={ error }
+          fluid={ fluid }
+          focus={ focused }
+          input={ value }
+          label={ label }
           onBlur={ this.onBlur }
           onChange={ this.onChange }
           onClick={ onClick }
@@ -182,21 +151,15 @@ export default class Input extends Component {
           onKeyUp={ this.onKeyUp }
           onFocus={ this.onFocus }
           onPaste={ this.onPaste }
-          readOnly={ readOnly }
-          ref='input'
-          rows={ rows }
-          step={ step }
-          style={ textFieldStyle }
+          placeholder={ defaultValue }
+          ref={ this.keyInput }
+          style={ style }
           tabIndex={ tabIndex }
-          type={ type || 'text' }
-          underlineDisabledStyle={ UNDERLINE_DISABLED }
-          underlineStyle={ underlineStyle }
-          underlineFocusStyle={ underlineFocusStyle }
-          underlineShow={ !hideUnderline }
-          value={ textValue }
+          type={ type }
         >
           { children }
-        </TextField>
+          <input />
+        </InputUI>
       </div>
     );
   }
