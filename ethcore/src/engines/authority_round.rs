@@ -376,14 +376,14 @@ impl Engine for AuthorityRound {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
 
-		// Ensure header is from the step after parent.
 		let parent_step = header_step(parent)?;
+		// Ensure header is from the step after parent.
 		if step <= parent_step {
 			trace!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
 			self.validators.report_malicious(header.author(), header.number(), Default::default());
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
-
+		// Report if a primary was skipped.
 		if step > parent_step + 1 {
 			let skipped_primary = self.step_proposer(&parent.hash(), parent_step + 1);
 			trace!(target: "engine", "Author {} did not build his block on top of the intermediate designated primary {}.", header.author(), skipped_primary);
@@ -455,7 +455,7 @@ impl Engine for AuthorityRound {
 
 #[cfg(test)]
 mod tests {
-	use std::sync::atomic::AtomicUsize;
+	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 	use util::*;
 	use header::Header;
 	use error::{Error, BlockError};
@@ -465,7 +465,7 @@ mod tests {
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
-	use engines::Seal;
+	use engines::{Seal, Engine};
 	use engines::validator_set::TestSet;
 	use super::{AuthorityRoundParams, AuthorityRound};
 
@@ -617,38 +617,32 @@ mod tests {
 
 	#[test]
 	fn reports_skipped() {
-		let last_malicious = AtomicUsize::new(0);
-		let last_benign = AtomicUsize::new(0);
+		let last_malicious = Arc::new(AtomicUsize::new(0));
+		let last_benign = Arc::new(AtomicUsize::new(0));
 		let params = AuthorityRoundParams {
-			gas_limit_bound_divisor: Default::default(),
+			gas_limit_bound_divisor: U256::from_str("400").unwrap(),
 			step_duration: Default::default(),
 			block_reward: Default::default(),
 			registrar: Default::default(),
 			start_step: Some(1),
-			validators: Box::new(TestSet::new(last_malicious, last_benign)),
+			validators: Box::new(TestSet::new(last_malicious.clone(), last_benign.clone())),
 			validate_score_transition: 0,
 			eip155_transition: 0,
 		};
-		let aura = AuthorityRound::new(Default::default(), params, Default::default());
+		let aura = AuthorityRound::new(Default::default(), params, Default::default()).unwrap();
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&4usize).to_vec()]);
+		parent_header.set_seal(vec![encode(&1usize).to_vec()]);
 		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
 		header.set_gas_limit(U256::from_str("222222").unwrap());
 		header.set_author(addr);
+		header.set_seal(vec![encode(&3usize).to_vec()]);
 
-		let engine = Spec::new_test_round().engine;
-
-		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		// Two validators.
-		// Spec starts with step 2.
-		header.set_seal(vec![encode(&5usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
-		header.set_seal(vec![encode(&3usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		assert!(engine.verify_block_family(&header, &parent_header, None).is_err());
+		assert!(aura.verify_block_family(&header, &parent_header, None).is_ok());
+		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 1);
 	}
 }

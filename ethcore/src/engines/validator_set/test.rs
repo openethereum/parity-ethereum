@@ -18,7 +18,7 @@
 
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-use util::{Bytes, H256, Address, HeapSizeOf};
+use util::{Arc, Bytes, H256, Address, HeapSizeOf};
 
 use engines::Call;
 use header::{Header, BlockNumber};
@@ -27,14 +27,14 @@ use super::{ValidatorSet, SimpleList};
 /// Set used for testing with a single validator.
 pub struct TestSet {
 	validator: SimpleList,
-	last_malicious: AtomicUsize,
-	last_benign: AtomicUsize,
+	last_malicious: Arc<AtomicUsize>,
+	last_benign: Arc<AtomicUsize>,
 }
 
 impl TestSet {
-	pub fn new(last_malicious: AtomicUsize, last_benign: AtomicUsize) -> Self {
+	pub fn new(last_malicious: Arc<AtomicUsize>, last_benign: Arc<AtomicUsize>) -> Self {
 		TestSet {
-			validator: SimpleList::new(vec![Address::from_str("0x7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()]),
+			validator: SimpleList::new(vec![Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()]),
 			last_malicious: last_malicious,
 			last_benign: last_benign,
 		}
@@ -83,6 +83,6 @@ impl ValidatorSet for TestSet {
 	}
 
 	fn report_benign(&self, _validator: &Address, block: BlockNumber) {
-		self.last_malicious.store(block as usize, AtomicOrdering::SeqCst)
+		self.last_benign.store(block as usize, AtomicOrdering::SeqCst)
 	}
 }
