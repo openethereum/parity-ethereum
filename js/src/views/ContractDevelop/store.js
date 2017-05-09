@@ -139,9 +139,10 @@ export default class ContractDevelopStore {
 
     this.worker = worker;
 
-    this
-      .fetchSolidityVersions()
-      .then(() => this.reloadContracts());
+    return Promise.all([
+      this.fetchSolidityVersions(),
+      this.reloadContracts(undefined, undefined, false)
+    ]);
   }
 
   fetchSolidityVersions () {
@@ -397,11 +398,10 @@ export default class ContractDevelopStore {
 
     const { errors = [] } = data;
     const errorAnnotations = this.parseErrors(errors);
-    const formalAnnotations = this.parseErrors(data.formal && data.formal.errors, true);
+    // const formalAnnotations = this.parseErrors(data.formal && data.formal.errors, true);
 
     const annotations = [].concat(
-      errorAnnotations,
-      formalAnnotations
+      errorAnnotations
     );
 
     const contractKeys = Object.keys(contracts || {});
@@ -493,7 +493,7 @@ export default class ContractDevelopStore {
     this.reloadContracts(cId);
   }
 
-  @action reloadContracts = (id, sourcecode) => {
+  @action reloadContracts = (id, sourcecode, recompile = true) => {
     const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
 
     this.savedContracts = localStore.saved || {};
@@ -513,7 +513,9 @@ export default class ContractDevelopStore {
 
     this.resizeEditor();
 
-    return this.handleCompile();
+    if (recompile) {
+      return this.handleCompile();
+    }
   }
 
   @action handleLoadContract = (contract) => {
