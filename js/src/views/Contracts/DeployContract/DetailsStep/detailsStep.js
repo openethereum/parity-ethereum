@@ -18,8 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { MenuItem } from 'material-ui';
 
+import { parseAbiType } from '@parity/shared/util/abi';
 import { validateAbi } from '@parity/shared/util/validation';
-import { parseAbiType } from '@parity/sharedutil/abi';
 
 import { AddressSelect, Checkbox, Form, Input, Select } from '~/ui';
 

@@ -36,7 +36,7 @@ const SNIPPETS = {
       />
     ),
     id: 'snippet0',
-    sourcecode: require('raw-loader!../../contracts/snippets/token.sol')
+    sourcecode: require('raw-loader!@parity/shared/contracts/snippets/token.sol')
   },
   snippet1: {
     name: 'StandardToken.sol',
@@ -47,7 +47,7 @@ const SNIPPETS = {
       />
     ),
     id: 'snippet1',
-    sourcecode: require('raw-loader!../../contracts/snippets/standard-token.sol')
+    sourcecode: require('raw-loader!@parity/shared/contracts/snippets/standard-token.sol')
   },
   snippet2: {
     name: 'HumanStandardToken.sol',
@@ -58,7 +58,7 @@ const SNIPPETS = {
       />
     ),
     id: 'snippet2',
-    sourcecode: require('raw-loader!../../contracts/snippets/human-standard-token.sol')
+    sourcecode: require('raw-loader!@parity/shared/contracts/snippets/human-standard-token.sol')
   },
   snippet3: {
     name: 'Wallet.sol',
@@ -69,7 +69,7 @@ const SNIPPETS = {
       />
     ),
     id: 'snippet3',
-    sourcecode: require('raw-loader!../../contracts/snippets/wallet.sol')
+    sourcecode: require('raw-loader!@parity/shared/contracts/snippets/wallet.sol')
   }
 };
 
