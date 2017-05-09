@@ -22,12 +22,12 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
 
 import ContractInstances from '@parity/shared/contracts';
+import { initStore } from '@parity/shared/redux';
 
-import { api } from './parity';
-
-import { initStore } from '~/redux';
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
+
+import { api } from './parity';
 
 import Accounts from './accounts';
 

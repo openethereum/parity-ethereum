@@ -26,11 +26,11 @@ import ReactDOM from 'react-dom';
 import injectTapEventPlugin from 'react-tap-event-plugin';
 
 import ContractInstances from '@parity/shared/contracts';
+import { initStore } from '@parity/shared/redux';
 import { patchApi } from '@parity/shared/util/tx';
 
 import SecureApi from '~/secureApi';
 
-import { initStore } from '~/redux';
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
 

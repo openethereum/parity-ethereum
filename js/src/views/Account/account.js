@@ -20,11 +20,11 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { newError } from '~/redux/actions';
 import HardwareStore from '@parity/shared/mobx/hardwareStore';
 import HistoryStore from '@parity/shared/mobx/historyStore';
-import { setVisibleAccounts } from '~/redux/providers/personalActions';
-import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
+import { newError } from '@parity/shared/redux/actions';
+import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
+import { fetchCertifiers, fetchCertifications } from '@parity/shared/redux/providers/certifications/actions';
 
 import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
 import { Actionbar, Button, ConfirmDialog, Input, Page, Portal } from '~/ui';

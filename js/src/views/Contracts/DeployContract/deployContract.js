@@ -21,12 +21,12 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import { setRequest } from '@parity/shared/redux/providers/requestsActions';
 import { ERRORS, validateAbi, validateCode, validateName, validatePositiveNumber } from '@parity/shared/util/validation';
 import { deploy, deployEstimateGas } from '@parity/shared/util/tx';
 
 import { Button, GasPriceEditor, IdentityIcon, Portal, Warning } from '~/ui';
 import { CancelIcon } from '~/ui/Icons';
-import { setRequest } from '~/redux/providers/requestsActions';
 
 import DetailsStep from './DetailsStep';
 import ParametersStep from './ParametersStep';

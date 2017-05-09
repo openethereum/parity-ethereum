@@ -31,13 +31,13 @@ import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
 import viewsDapps from '@parity/shared/config/dappsViews.json';
 import ContractInstances from '@parity/shared/contracts';
 import HistoryStore from '@parity/shared/mobx/historyStore';
+import { initStore } from '@parity/shared/redux';
 import { patchApi } from '@parity/shared/util/tx';
 
 import '@parity/shared/environment';
 
 import SecureApi from '~/secureApi';
 
-import { initStore } from '~/redux';
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
 

@@ -19,6 +19,8 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
+
 import { Actionbar, Button, Page } from '~/ui';
 import { AddIcon, DeleteIcon, EditIcon } from '~/ui/Icons';
 
@@ -27,7 +29,6 @@ import Header from '../Account/Header';
 import Transactions from '../Account/Transactions';
 import AddAddress from '../Addresses/AddAddress';
 import Delete from './Delete';
-import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 class Address extends Component {
   static contextTypes = {

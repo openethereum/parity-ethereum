@@ -21,8 +21,9 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { newError } from '~/redux/actions';
-import { startConfirmRequest, startRejectRequest } from '~/redux/providers/signerActions';
+import { newError } from '@parity/shared/redux/actions';
+import { startConfirmRequest, startRejectRequest } from '@parity/shared/redux/providers/signerActions';
+
 import { Container, Page, TxList } from '~/ui';
 
 import Store from '~/shell/Signer/store';

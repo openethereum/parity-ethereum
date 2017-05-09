@@ -20,7 +20,8 @@ import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { hideRequest } from '~/redux/providers/requestsActions';
+import { hideRequest } from '@parity/shared/redux/providers/requestsActions';
+
 import { MethodDecoding, IdentityIcon, Progress, ScrollableText, ShortenedHash } from '~/ui';
 
 import styles from './requests.css';

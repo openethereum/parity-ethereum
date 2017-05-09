@@ -22,8 +22,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { bytesToHex } from '@parity/api/util/format';
+import { confirmOperation, revokeOperation } from '@parity/shared/redux/providers/walletActions';
 
-import { confirmOperation, revokeOperation } from '~/redux/providers/walletActions';
 import { Button, Container, InputAddress, IdentityIcon, Progress } from '~/ui';
 import TxRow from '~/ui/TxList/TxRow';
 

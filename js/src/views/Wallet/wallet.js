@@ -21,6 +21,7 @@ import { bindActionCreators } from 'redux';
 import moment from 'moment';
 
 import HistoryStore from '@parity/shared/mobx/historyStore';
+import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
 import { nullableProptype } from '@parity/shared/util/proptypes';
 
 import { Actionbar, Button, Page, Loading } from '~/ui';
@@ -34,8 +35,6 @@ import WalletDetails from './Details';
 import WalletConfirmations from './Confirmations';
 import WalletTransactions from './Transactions';
 import WalletSettings from './WalletSettings';
-
-import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import styles from './wallet.css';
 
