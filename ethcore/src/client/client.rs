@@ -377,7 +377,7 @@ impl Client {
 		let chain = self.chain.read();
 		// Check the block isn't so old we won't be able to enact it.
 		let best_block_number = chain.best_block_number();
-		if best_block_number >= self.history && header.number() <= best_block_number - self.history {
+		if self.pruning_info().earliest_state > header.number() {
 			warn!(target: "client", "Block import failed for #{} ({})\nBlock is ancient (current best block: #{}).", header.number(), header.hash(), best_block_number);
 			return Err(());
 		}
@@ -770,7 +770,7 @@ impl Client {
 			let db = self.state_db.lock().boxed_clone();
 
 			// early exit for pruned blocks
-			if db.is_pruned() && self.chain.read().best_block_number() >= block_number + self.history {
+			if db.is_pruned() && self.pruning_info().earliest_state > block_number {
 				return None;
 			}
 
@@ -871,7 +871,7 @@ impl Client {
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at))?;
 
-		if best_block_number > self.history + block_number && db.is_pruned() {
+		if db.is_pruned() && self.pruning_info().earliest_state > block_number {
 			return Err(snapshot::Error::OldBlockPrunedDB.into());
 		}
 
@@ -1354,8 +1354,7 @@ impl BlockChainClient for Client {
 					.collect();
 				match (transaction, previous_receipts) {
 					(Some(transaction), Some(previous_receipts)) => {
-						let schedule = self.engine().schedule(block_number);
-						Some(transaction_receipt(&schedule, transaction, previous_receipts))
+						Some(transaction_receipt(self.engine(), transaction, previous_receipts))
 					},
 					_ => None,
 				}
@@ -1748,7 +1747,7 @@ impl Drop for Client {
 
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
-fn transaction_receipt(schedule: &Schedule, mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
+fn transaction_receipt(engine: &Engine, mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
 	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
 
 	let sender = tx.sender();
@@ -1772,7 +1771,7 @@ fn transaction_receipt(schedule: &Schedule, mut tx: LocalizedTransaction, mut re
 		gas_used: receipt.gas_used - prior_gas_used,
 		contract_address: match tx.action {
 			Action::Call(_) => None,
-			Action::Create => Some(contract_address(schedule.create_address, &sender, &tx.nonce, &tx.data.sha3()))
+			Action::Create => Some(contract_address(engine.create_address_scheme(block_number), &sender, &tx.nonce, &tx.data.sha3()))
 		},
 		logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
 			entry: log,
@@ -1827,17 +1826,17 @@ mod tests {
 	#[test]
 	fn should_return_correct_log_index() {
 		use super::transaction_receipt;
-		use evm::schedule::Schedule;
 		use ethkey::KeyPair;
 		use log_entry::{LogEntry, LocalizedLogEntry};
 		use receipt::{Receipt, LocalizedReceipt};
 		use transaction::{Transaction, LocalizedTransaction, Action};
 		use util::Hashable;
+		use tests::helpers::TestEngine;
 
 		// given
 		let key = KeyPair::from_secret_slice(&"test".sha3()).unwrap();
 		let secret = key.secret();
-		let schedule = Schedule::new_homestead();
+		let engine = TestEngine::new(0);
 
 		let block_number = 1;
 		let block_hash = 5.into();
@@ -1881,7 +1880,7 @@ mod tests {
 		}];
 
 		// when
-		let receipt = transaction_receipt(&schedule, transaction, receipts);
+		let receipt = transaction_receipt(&engine, transaction, receipts);
 
 		// then
 		assert_eq!(receipt, LocalizedReceipt {

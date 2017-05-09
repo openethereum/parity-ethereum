@@ -15,20 +15,26 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity RPC requests Metadata.
+use std::sync::Arc;
 
 use jsonrpc_core;
+use jsonrpc_pubsub::{Session, PubSubMetadata};
+
 use v1::types::{DappId, Origin};
 
 /// RPC methods metadata.
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug)]
 pub struct Metadata {
 	/// Request origin
 	pub origin: Origin,
+	/// Request PubSub Session
+	pub session: Option<Arc<Session>>,
 }
 
 impl Metadata {
-	/// Get
+	/// Returns dapp id if this request is coming from a Dapp or default `DappId` otherwise.
 	pub fn dapp_id(&self) -> DappId {
+		// TODO [ToDr] Extract dapp info from Ws connections.
 		match self.origin {
 			Origin::Dapps(ref dapp) => dapp.clone(),
 			Origin::Ws { ref dapp, .. } => dapp.clone(),
@@ -39,4 +45,8 @@ impl Metadata {
 }
 
 impl jsonrpc_core::Metadata for Metadata {}
-
+impl PubSubMetadata for Metadata {
+	fn session(&self) -> Option<Arc<Session>> {
+		self.session.clone()
+	}
+}

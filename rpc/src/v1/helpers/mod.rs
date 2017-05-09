@@ -25,6 +25,7 @@ pub mod fake_sign;
 pub mod light_fetch;
 pub mod oneshot;
 pub mod ipfs;
+pub mod secretstore;
 
 mod network_settings;
 mod poll_manager;
@@ -32,6 +33,7 @@ mod poll_filter;
 mod requests;
 mod signer;
 mod signing_queue;
+mod subscription_manager;
 
 pub use self::dispatch::{Dispatcher, FullDispatcher};
 pub use self::network_settings::NetworkSettings;
@@ -45,6 +47,7 @@ pub use self::signing_queue::{
 	QUEUE_LIMIT as SIGNING_QUEUE_LIMIT,
 };
 pub use self::signer::SignerService;
+pub use self::subscription_manager::GenericPollManager;
 
 pub fn to_url(address: &Option<(String, u16)>) -> Option<String> {
 	address.as_ref().map(|&(ref iface, ref port)| format!("{}:{}", iface, port))

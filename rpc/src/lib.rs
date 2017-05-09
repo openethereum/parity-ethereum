@@ -20,7 +20,10 @@
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 
+extern crate cid;
+extern crate crypto as rust_crypto;
 extern crate futures;
+extern crate multihash;
 extern crate order_stat;
 extern crate rand;
 extern crate rustc_serialize;
@@ -28,15 +31,14 @@ extern crate semver;
 extern crate serde;
 extern crate serde_json;
 extern crate time;
+extern crate tokio_timer;
 extern crate transient_hashmap;
-extern crate cid;
-extern crate multihash;
-extern crate crypto as rust_crypto;
 
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server as http;
-extern crate jsonrpc_minihttp_server as minihttp;
 extern crate jsonrpc_ipc_server as ipc;
+extern crate jsonrpc_minihttp_server as minihttp;
+extern crate jsonrpc_pubsub;
 
 extern crate ethash;
 extern crate ethcore;
@@ -79,6 +81,7 @@ pub mod v1;
 
 pub mod tests;
 
+pub use jsonrpc_pubsub::Session as PubSubSession;
 pub use ipc::{Server as IpcServer, MetaExtractor as IpcMetaExtractor, RequestContext as IpcRequestContext};
 pub use http::{
 	hyper,
