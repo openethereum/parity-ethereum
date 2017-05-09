@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import HardwareStore from '~/mobx/hardwareStore';
+import HardwareStore from '@parity/shared/mobx/hardwareStore';
 
 import Account from '../Account';
 import TransactionPendingForm from '../TransactionPendingForm';

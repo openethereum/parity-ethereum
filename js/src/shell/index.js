@@ -30,6 +30,7 @@ import qs from 'querystring';
 import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
 import viewsDapps from '@parity/shared/config/dappsViews.json';
 import ContractInstances from '@parity/shared/contracts';
+import HistoryStore from '@parity/shared/mobx/historyStore';
 import { patchApi } from '@parity/shared/util/tx';
 
 import '@parity/shared/environment';
@@ -71,8 +72,6 @@ ContractInstances.get(api);
 const store = initStore(api, hashHistory);
 
 window.secureApi = api;
-
-import HistoryStore from '~/mobx/historyStore';
 
 const dapps = [].concat(viewsDapps, builtinDapps);
 

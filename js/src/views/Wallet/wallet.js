@@ -20,9 +20,9 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import moment from 'moment';
 
+import HistoryStore from '@parity/shared/mobx/historyStore';
 import { nullableProptype } from '@parity/shared/util/proptypes';
 
-import HistoryStore from '~/mobx/historyStore';
 import { Actionbar, Button, Page, Loading } from '~/ui';
 import { DeleteIcon, EditIcon, SendIcon, SettingsIcon } from '~/ui/Icons';
 
