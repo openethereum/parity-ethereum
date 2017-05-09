@@ -139,9 +139,10 @@ export default class WriteContractStore {
 
     this.worker = worker;
 
-    this
-      .fetchSolidityVersions()
-      .then(() => this.reloadContracts());
+    return Promise.all([
+      this.fetchSolidityVersions(),
+      this.reloadContracts(undefined, undefined, false)
+    ]);
   }
 
   fetchSolidityVersions () {
@@ -492,7 +493,7 @@ export default class WriteContractStore {
     this.reloadContracts(cId);
   }
 
-  @action reloadContracts = (id, sourcecode) => {
+  @action reloadContracts = (id, sourcecode, recompile = true) => {
     const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
 
     this.savedContracts = localStore.saved || {};
@@ -512,7 +513,9 @@ export default class WriteContractStore {
 
     this.resizeEditor();
 
-    return this.handleCompile();
+    if (recompile) {
+      return this.handleCompile();
+    }
   }
 
   @action handleLoadContract = (contract) => {
