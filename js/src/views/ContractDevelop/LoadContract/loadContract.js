@@ -276,6 +276,7 @@ export default class LoadContract extends Component {
     return [
       <Button
         icon={ <CancelIcon /> }
+        key='cancel'
         label={
           <FormattedMessage
             id='loadContract.button.cancel'
@@ -287,6 +288,7 @@ export default class LoadContract extends Component {
       <Button
         disabled={ this.state.selected === -1 }
         icon={ <CheckIcon /> }
+        key='load'
         label={
           <FormattedMessage
             id='loadContract.button.load'
