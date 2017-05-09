@@ -299,6 +299,7 @@ fn with_domain(items: Option<Vec<String>>, domain: &str, addresses: &[Option<(St
 				items.insert(format!("{}:{}", host, port));
 				items.insert(format!("{}:{}", host.replace("127.0.0.1", "localhost"), port));
 				items.insert(format!("http://*.{}:{}", domain, port));
+				items.insert(format!("http://*.{}", domain)); //proxypac
 			}
 		}
 		items.into_iter().collect()

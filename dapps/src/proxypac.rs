@@ -45,12 +45,12 @@ impl Endpoint for ProxyPac {
 		let content = format!(
 r#"
 function FindProxyForURL(url, host) {{
-	if (shExpMatch(host, "{0}{1}"))
+	if (shExpMatch(host, "{0}.{1}"))
 	{{
 		return "PROXY {4}";
 	}}
 
-	if (shExpMatch(host, "*{1}"))
+	if (shExpMatch(host, "*.{1}"))
 	{{
 		return "PROXY {2}:{3}";
 	}}

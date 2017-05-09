@@ -256,9 +256,16 @@ impl Server {
 			web_proxy_tokens,
 			fetch,
 		);
+
+		let mut allowed_hosts: Option<Vec<Host>> = allowed_hosts.into();
+		allowed_hosts.as_mut().map(|mut hosts| {
+			hosts.push(format!("http://*.{}:*", DAPPS_DOMAIN).into());
+			hosts.push(format!("http://*.{}", DAPPS_DOMAIN).into());
+		});
+
 		http::ServerBuilder::new(io)
 			.request_middleware(middleware)
-			.allowed_hosts(allowed_hosts)
+			.allowed_hosts(allowed_hosts.into())
 			.cors(http::DomainsValidation::Disabled)
 			.start_http(addr)
 			.map(|server| Server {

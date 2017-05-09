@@ -101,8 +101,13 @@ impl http::RequestMiddleware for Router {
 				trace!(target: "dapps", "Resolving to fetchable content.");
 				Some(self.fetch.to_async_handler(path.clone(), control))
 			},
-			// 404 for non-existent content (only if serving endpoints)
-			(Some(_), _, _) if (is_get_request || is_head_request) && self.endpoints.is_some() => {
+			// 404 for non-existent content (only if serving endpoints and not homepage)
+			(Some(ref path), _, _)
+				if (is_get_request || is_head_request)
+					&& self.endpoints.is_some()
+					&& path.app_id != apps::HOME_PAGE
+				=>
+			{
 				trace!(target: "dapps", "Resolving to 404.");
 				Some(Box::new(handlers::ContentHandler::error(
 					hyper::StatusCode::NotFound,
@@ -201,6 +206,7 @@ fn extract_endpoint(url: &Option<Url>, dapps_domain: &str) -> (Option<EndpointPa
 			apps::RPC_PATH => SpecialEndpoint::Rpc,
 			apps::API_PATH => SpecialEndpoint::Api,
 			apps::UTILS_PATH => SpecialEndpoint::Utils,
+			apps::HOME_PAGE => SpecialEndpoint::Home,
 			_ => SpecialEndpoint::None,
 		}
 	}
