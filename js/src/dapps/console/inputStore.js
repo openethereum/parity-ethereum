@@ -41,13 +41,15 @@ export default class InputStore {
 
   setInputNode (node) {
     this.inputNode = node;
+    this.autocompleteStore.setInputNode(node);
   }
 
   @action
   updateInput (nextValue = '', updateAutocomplete = true) {
     this.input = nextValue;
+    const multilines = nextValue.split('\n').length > 1;
 
-    if (updateAutocomplete) {
+    if (updateAutocomplete && !multilines) {
       this.autocompleteStore.update(nextValue);
     }
   }
@@ -78,14 +80,6 @@ export default class InputStore {
     const nextInput = this.history[this.historyOffset];
 
     this.updateInput(nextInput, false);
-  }
-
-  focusOnInput () {
-    if (!this.inputNode) {
-      return;
-    }
-
-    this.inputNode.focus();
   }
 
   execute () {

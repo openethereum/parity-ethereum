@@ -16,6 +16,7 @@
 
 import { action, observable } from 'mobx';
 
+import AutocompleteStore from './autocompleteStore';
 import { evaluate } from './utils';
 
 let instance;
@@ -23,6 +24,7 @@ let instance;
 export default class EvalStore {
   @observable logs = [];
 
+  autocompleteStore = AutocompleteStore.get();
   logValues = [];
 
   constructor () {
@@ -94,5 +96,7 @@ export default class EvalStore {
     } else {
       this.logValues.push([ value ]);
     }
+
+    this.autocompleteStore.setPosition();
   }
 }

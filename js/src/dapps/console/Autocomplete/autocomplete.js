@@ -32,7 +32,10 @@ export default class Autocomplete extends Component {
     }
 
     return (
-      <div className={ styles.container }>
+      <div
+        className={ styles.container }
+        style={ this.autocompleteStore.position }
+      >
         { this.renderAutocompletes() }
       </div>
     );

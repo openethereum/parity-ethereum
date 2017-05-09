@@ -39,15 +39,18 @@ export default class Input extends Component {
       <div className={ styles.container }>
         <Autocomplete />
         <span className={ styles.type }>&gt;</span>
-        <input
-          autoFocus
-          className={ styles.input }
-          onChange={ this.handleChange }
-          onKeyDown={ this.handleKeyDown }
-          ref={ this.setRef }
-          type='text'
-          value={ input }
-        />
+        <div className={ styles.inputContainer }>
+          <textarea
+            autoFocus
+            className={ styles.input }
+            onChange={ this.handleChange }
+            onKeyDown={ this.handleKeyDown }
+            ref={ this.setRef }
+            rows={ input.split('\n').length }
+            type='text'
+            value={ input }
+          />
+        </div>
       </div>
     );
   }
@@ -61,6 +64,7 @@ export default class Input extends Component {
   handleKeyDown = (event) => {
     const { input } = this.inputStore;
     const codeName = keycode(event);
+    const multilines = input.split('\n').length > 1;
 
     // Clear console with CTRL+L
     if (codeName === 'l' && event.ctrlKey) {
@@ -75,7 +79,7 @@ export default class Input extends Component {
       return this.autocompleteStore.hide();
     }
 
-    if (codeName === 'enter') {
+    if (codeName === 'enter' && !event.shiftKey) {
       event.preventDefault();
       event.stopPropagation();
 
@@ -88,7 +92,7 @@ export default class Input extends Component {
       }
     }
 
-    if (codeName === 'up') {
+    if (codeName === 'up' && !multilines) {
       event.preventDefault();
       event.stopPropagation();
 
@@ -99,7 +103,7 @@ export default class Input extends Component {
       return this.inputStore.selectHistory(-1);
     }
 
-    if (codeName === 'down') {
+    if (codeName === 'down' && !multilines) {
       event.preventDefault();
       event.stopPropagation();
 

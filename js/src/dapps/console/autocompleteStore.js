@@ -22,10 +22,12 @@ let instance;
 
 export default class AutocompleteStore {
   @observable values = [];
-  @observable show = true;
+  @observable position = {};
+  @observable show = false;
   @observable selected = null;
 
   elements = {};
+  inputNode = null;
   lastObject = null;
   lastObjectPropertyNames = [];
 
@@ -69,6 +71,14 @@ export default class AutocompleteStore {
     element.scrollIntoView(offset === -1);
   }
 
+  focusOnInput () {
+    if (!this.inputNode) {
+      return;
+    }
+
+    this.inputNode.focus();
+  }
+
   @action
   hide () {
     this.show = false;
@@ -106,6 +116,7 @@ export default class AutocompleteStore {
     const nextInput = objects.join('.');
 
     this.hide();
+    this.focusOnInput();
     return inputStore.updateInput(nextInput, false);
   }
 
@@ -113,15 +124,46 @@ export default class AutocompleteStore {
     this.elements[index] = element;
   }
 
+  setInputNode (node) {
+    this.inputNode = node;
+  }
+
+  @action
+  setPosition () {
+    const inputBoundings = this.inputNode.getBoundingClientRect();
+    const bodyBoundings = document.body.getBoundingClientRect();
+
+    // display on bottom of input
+    if (inputBoundings.top < bodyBoundings.height / 2) {
+      const nextPosition = {
+        top: 20
+      };
+
+      this.position = nextPosition;
+      return;
+    }
+
+    // display on top of input
+    const nextPosition = {
+      bottom: inputBoundings.height
+    };
+
+    this.position = nextPosition;
+    return;
+  }
+
   @action
   setValues (values) {
-    this.show = values.length > 1;
     this.values = values;
-
     this.selected = null;
-    // if (this.show) {
-    //   this.selected = 0;
-    // }
+    const show = values.length > 1;
+
+    // Reveal autocomplete
+    if (!this.show && show) {
+      this.setPosition();
+    }
+
+    this.show = show;
   }
 
   update (input) {
