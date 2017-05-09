@@ -16,13 +16,20 @@
 
 /* eslint-disable no-eval */
 
-import { action, observable } from 'mobx';
+import { action, observable, transaction } from 'mobx';
 
 let instance;
 
 export default class EvalStore {
   @observable input = '';
+  @observable inputs = [];
   @observable logs = [];
+  @observable autocompletes = [];
+  @observable showAutocomplete = true;
+
+  lastObject = null;
+  lastObjectPropertyNames = [];
+  inputNode = null;
 
   constructor () {
     this.attachConsole();
@@ -36,20 +43,41 @@ export default class EvalStore {
     return instance;
   }
 
+  setInputNode (node) {
+    this.inputNode = node;
+  }
+
   attachConsole () {
     ['debug', 'error', 'info', 'log', 'warn'].forEach((level) => {
       const old = window.console[level].bind(window.console);
 
-      window.console[level] = (log) => {
-        old(log);
-        this.log({ type: level, value: log });
+      window.console[level] = (...args) => {
+        old(...args);
+        this.log({ type: level, value: args });
       };
     });
   }
 
   @action
-  updateInput (nextValue = '') {
-    this.input = nextValue;
+  clearLogs () {
+    this.logs = [];
+  }
+
+  @action
+  updateInput (nextValue = '', updateAutocomplete = true) {
+    transaction(() => {
+      this.input = nextValue;
+
+      if (updateAutocomplete) {
+        this.updateAutocomplete();
+      }
+    });
+  }
+
+  @action
+  setAutocomplete (autocompletes) {
+    this.showAutocomplete = true;
+    this.autocompletes = autocompletes;
   }
 
   @action
@@ -60,10 +88,85 @@ export default class EvalStore {
     });
   }
 
+  @action
+  logInput (input) {
+    transaction(() => {
+      this.inputs.push(input);
+      this.log({ type: 'input', value: input });
+    });
+  }
+
+  @action
+  hideAutocomplete () {
+    this.showAutocomplete = false;
+    this.focusOnInput();
+  }
+
+  focusOnInput () {
+    if (!this.inputNode) {
+      return;
+    }
+
+    setTimeout(() => {
+      this.inputNode.focus();
+    });
+  }
+
+  selectAutocomplete (autocomplete) {
+    const { name } = autocomplete;
+    const { input } = this;
+
+    if (!input || input.length === 0) {
+      this.hideAutocomplete();
+      return this.updateInput(name, false);
+    }
+
+    const objects = input.split('.');
+
+    objects.pop();
+    const nextInput = objects.concat(name).join('.');
+
+    this.hideAutocomplete();
+    return this.updateInput(nextInput, false);
+  }
+
+  updateAutocomplete () {
+    const { input } = this;
+
+    if (!input || input.length === 0) {
+      return this.setAutocomplete([]);
+    }
+
+    const objects = input.split('.');
+    const suffix = objects.pop().toLowerCase();
+    const prefix = objects.join('.');
+    const object = prefix.length > 0
+      ? prefix
+      : 'window';
+
+    if (object !== this.lastObject) {
+      const evalResult = evaluate(object);
+
+      if (evalResult.error) {
+        this.lastObjectProperties = [];
+      } else {
+        this.lastObjectProperties = getAllProperties(evalResult.result);
+      }
+
+      this.lastObject = object;
+    }
+
+    const autocompletes = this.lastObjectProperties.filter((property) => {
+      return property.name.toLowerCase().includes(suffix);
+    });
+
+    return this.setAutocomplete(autocompletes);
+  }
+
   evaluate () {
     const { input } = this;
 
-    this.log({ type: 'input', value: input });
+    this.logInput(input);
     this.updateInput('');
 
     setTimeout(() => {
@@ -90,6 +193,28 @@ export default class EvalStore {
       this.log({ type, value });
     });
   }
+}
+
+function getAllProperties (object) {
+  const propertyNames = {};
+
+  do {
+    const prototypeName = object && object.constructor && object.constructor.name || '';
+
+    Object.getOwnPropertyNames(object)
+      .sort()
+      .forEach((name) => {
+        if (Object.prototype.hasOwnProperty.call(propertyNames, name)) {
+          return;
+        }
+
+        propertyNames[name] = { name, prototypeName };
+      });
+
+    object = Object.getPrototypeOf(object);
+  } while (object);
+
+  return Object.values(propertyNames);
 }
 
 function evaluate (input) {

@@ -17,7 +17,9 @@
 import keycode from 'keycode';
 import { observer } from 'mobx-react';
 import React, { Component } from 'react';
+import ReactDOM from 'react-dom';
 
+import Autocomplete from '../Autocomplete';
 import EvalStore from '../evalStore';
 
 import styles from './input.css';
@@ -31,11 +33,14 @@ export default class Input extends Component {
 
     return (
       <div className={ styles.container }>
+        <Autocomplete />
         <span className={ styles.type }>&gt;</span>
         <input
+          autoFocus
           className={ styles.input }
           onChange={ this.handleChange }
-          onKeyUp={ this.handleKeyUp }
+          onKeyDown={ this.handleKeyDown }
+          ref={ this.setRef }
           type='text'
           value={ input }
         />
@@ -47,13 +52,27 @@ export default class Input extends Component {
     const { value } = event.target;
 
     this.evalStore.updateInput(value);
-  }
+  };
 
-  handleKeyUp = (event) => {
+  handleKeyDown = (event) => {
+    const { input } = this.evalStore;
     const codeName = keycode(event);
 
-    if (codeName === 'enter') {
-      this.evalStore.evaluate();
+    if (codeName === 'enter' && input && input.length > 0) {
+      event.preventDefault();
+      event.stopPropagation();
+      return this.evalStore.evaluate();
     }
-  }
+
+    // Clear console with CTRL+L
+    if (codeName === 'l' && event.ctrlKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      return this.evalStore.clearLogs();
+    }
+  };
+
+  setRef = (node) => {
+    this.evalStore.setInputNode(ReactDOM.findDOMNode(node));
+  };
 }

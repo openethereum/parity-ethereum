@@ -15,31 +15,33 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-textarea:focus,
-input:focus {
-  outline: none;
-}
-
-.type {
-  color: #59f;
-  font-weight: bold !important;
-  font-size: 11pt;
-  padding: 0 0.5em 0 0.25em;
-}
-
-.input {
-  border: 0;
-  flex: 1;
-  margin: 0;
-  padding: 0;
-  color: black;
-  font-weight: 1000;
-  font-family: "Lucida Console", Monaco, monospace;
-  font-size: 11pt;
-}
-
 .container {
+  background: #f8f8f8;
+  bottom: 30px;
+  box-shadow: 0 0.125em 0.25em rgba(0, 0, 0, 0.5);
+  left: 20px;
+  position: absolute;
+  max-height: 300px;
+  overflow: auto;
+}
+
+.item {
+  background-color: white;
+  padding: 0.25em 0.25em 0.25em 0.35em;
   display: flex;
-  padding: 0.25em;
-  position: relative;
+  justify-content: space-between;
+
+  &.selected {
+    background-color: #cdf;
+  }
+
+  &:hover {
+    background-color: #cdf;
+    cursor: default;
+  }
+
+  .proto {
+    color: gray;
+    margin-left: 1em;
+  }
 }

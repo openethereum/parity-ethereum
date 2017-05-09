@@ -17,7 +17,8 @@
 
 .result {
   border-bottom: 1px solid #eee;
-  padding: 0.5em 0.25em;
+  display: flex;
+  padding: 0.35em 0.25em;
 
   &.error {
     background-color: hsl(0, 100%, 97%);
@@ -27,7 +28,7 @@
     }
   }
 
-  &.warning {
+  &.warn {
     background-color: hsl(50, 100%, 95%);
   }
 }
