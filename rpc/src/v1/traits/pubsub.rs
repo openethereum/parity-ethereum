@@ -14,20 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! RPC mocked tests. Most of these test that the RPC server is serializing and forwarding
-//! method calls properly.
+//! Parity-specific PUB-SUB rpc interface.
 
-mod eth;
-mod manage_network;
-mod net;
-mod parity;
-mod parity_accounts;
-mod parity_set;
-mod personal;
-mod pubsub;
-mod rpc;
-mod secretstore;
-mod signer;
-mod signing;
-mod traces;
-mod web3;
+use jsonrpc_core::{Error, Value, Params};
+use jsonrpc_pubsub::SubscriptionId;
+use jsonrpc_macros::pubsub::Subscriber;
+use futures::BoxFuture;
+
+build_rpc_trait! {
+	/// Parity-specific PUB-SUB rpc interface.
+	pub trait PubSub {
+		type Metadata;
+
+		#[pubsub(name = "parity_subscription")] {
+			/// Subscribe to changes of any RPC method in Parity.
+			#[rpc(name = "parity_subscribe")]
+			fn parity_subscribe(&self, Self::Metadata, Subscriber<Value>, String, Params);
+
+			/// Unsubscribe from existing Parity subscription.
+			#[rpc(name = "parity_unsubscribe")]
+			fn parity_unsubscribe(&self, SubscriptionId) -> BoxFuture<bool, Error>;
+		}
+	}
+}

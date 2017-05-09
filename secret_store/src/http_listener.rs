@@ -24,9 +24,8 @@ use hyper::server::{Server as HttpServer, Request as HttpRequest, Response as Ht
 use serde_json;
 use url::percent_encoding::percent_decode;
 
-use util::ToPretty;
 use traits::KeyServer;
-use serialization::SerializableDocumentEncryptedKeyShadow;
+use serialization::{SerializableDocumentEncryptedKeyShadow, SerializableBytes};
 use types::all::{Error, NodeAddress, RequestSignature, DocumentAddress, DocumentEncryptedKey, DocumentEncryptedKeyShadow};
 
 /// Key server http-requests listener
@@ -168,9 +167,10 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 }
 
 fn return_document_key(req: HttpRequest, mut res: HttpResponse, document_key: Result<DocumentEncryptedKey, Error>) {
+	let document_key = document_key.
+		and_then(|k| serde_json::to_vec(&SerializableBytes(k)).map_err(|e| Error::Serde(e.to_string())));
 	match document_key {
 		Ok(document_key) => {
-			let document_key = document_key.to_hex().into_bytes();
 			res.headers_mut().set(header::ContentType::plaintext());
 			if let Err(err) = res.send(&document_key) {
 				// nothing to do, but to log an error
@@ -186,6 +186,7 @@ fn return_error(mut res: HttpResponse, err: Error) {
 		Error::BadSignature => *res.status_mut() = HttpStatusCode::BadRequest,
 		Error::AccessDenied => *res.status_mut() = HttpStatusCode::Forbidden,
 		Error::DocumentNotFound => *res.status_mut() = HttpStatusCode::NotFound,
+		Error::Serde(_) => *res.status_mut() = HttpStatusCode::BadRequest,
 		Error::Database(_) => *res.status_mut() = HttpStatusCode::InternalServerError,
 		Error::Internal(_) => *res.status_mut() = HttpStatusCode::InternalServerError,
 	}
