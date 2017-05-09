@@ -20,13 +20,13 @@ import BigNumber from 'bignumber.js';
 
 import Contract from '@parity/api/contract';
 import { fromWei } from '@parity/api/util/wei';
+import { getLogger, LOG_KEYS } from '@parity/shared/config';
 import { eip20 as tokenAbi, wallet as walletAbi } from '@parity/shared/contracts/abi';
 import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '@parity/shared/util/constants';
 import { ETH_TOKEN } from '@parity/shared/util/tokens';
 
 import ERRORS from './errors';
 import GasPriceStore from '~/ui/GasPriceEditor/store';
-import { getLogger, LOG_KEYS } from '~/config';
 
 const log = getLogger(LOG_KEYS.TransferModalStore);
 

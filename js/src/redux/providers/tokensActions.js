@@ -16,10 +16,10 @@
 
 import { uniq } from 'lodash';
 
+import { LOG_KEYS, getLogger } from '@parity/shared/config';
 import Contracts from '@parity/shared/contracts';
 import { fetchTokenIds, fetchTokenInfo } from '@parity/shared/util/tokens';
 
-import { LOG_KEYS, getLogger } from '~/config';
 import { IconCache } from '~/ui';
 
 import { updateTokensFilter } from './balancesActions';

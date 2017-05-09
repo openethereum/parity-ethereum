@@ -27,6 +27,8 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
 import qs from 'querystring';
 
+import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
+import viewsDapps from '@parity/shared/config/dappsViews.json';
 import ContractInstances from '@parity/shared/contracts';
 import { patchApi } from '@parity/shared/util/tx';
 
@@ -71,8 +73,6 @@ const store = initStore(api, hashHistory);
 window.secureApi = api;
 
 import HistoryStore from '~/mobx/historyStore';
-import builtinDapps from '~/config/dappsBuiltin.json';
-import viewsDapps from '~/config/dappsViews.json';
 
 const dapps = [].concat(viewsDapps, builtinDapps);
 

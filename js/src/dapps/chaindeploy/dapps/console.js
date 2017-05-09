@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import builtins from '~/config/dappsBuiltin.json';
+import builtins from '@parity/shared/config/dappsBuiltin.json';
 
 const id = 'console';
 const app = builtins.find((app) => app.url === id);

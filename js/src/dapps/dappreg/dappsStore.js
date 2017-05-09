@@ -20,8 +20,7 @@ import { flatten } from 'lodash';
 
 import * as abis from '@parity/shared/contracts/abi';
 import Contracts from '@parity/shared/contracts';
-
-import builtinJson from '~/config/dappsBuiltin.json';
+import builtinJson from '@parity/shared/config/dappsBuiltin.json';
 
 import Dapp from './dappStore.js';
 import { deleteDapp, registerDapp, updateDapp } from './utils';

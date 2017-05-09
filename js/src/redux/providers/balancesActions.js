@@ -19,10 +19,9 @@ import { push } from 'react-router-redux';
 
 import { sha3 } from '@parity/api/util/sha3';
 
+import { LOG_KEYS, getLogger } from '@parity/shared/config';
 import { notifyTransaction } from '@parity/shared/util/notifications';
 import { ETH_TOKEN, fetchAccountsBalances } from '@parity/shared/util/tokens';
-
-import { LOG_KEYS, getLogger } from '~/config';
 
 const TRANSFER_SIGNATURE = sha3('Transfer(address,address,uint256)');
 
