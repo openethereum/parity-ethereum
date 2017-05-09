@@ -617,7 +617,6 @@ mod tests {
 
 	#[test]
 	fn reports_skipped() {
-		let last_malicious = Arc::new(AtomicUsize::new(0));
 		let last_benign = Arc::new(AtomicUsize::new(0));
 		let params = AuthorityRoundParams {
 			gas_limit_bound_divisor: U256::from_str("400").unwrap(),
@@ -625,13 +624,11 @@ mod tests {
 			block_reward: Default::default(),
 			registrar: Default::default(),
 			start_step: Some(1),
-			validators: Box::new(TestSet::new(last_malicious.clone(), last_benign.clone())),
+			validators: Box::new(TestSet::new(Default::default(), last_benign.clone())),
 			validate_score_transition: 0,
 			eip155_transition: 0,
 		};
 		let aura = AuthorityRound::new(Default::default(), params, Default::default()).unwrap();
-		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&1usize).to_vec()]);
@@ -639,7 +636,6 @@ mod tests {
 		let mut header: Header = Header::default();
 		header.set_number(1);
 		header.set_gas_limit(U256::from_str("222222").unwrap());
-		header.set_author(addr);
 		header.set_seal(vec![encode(&3usize).to_vec()]);
 
 		assert!(aura.verify_block_family(&header, &parent_header, None).is_ok());
