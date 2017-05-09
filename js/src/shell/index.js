@@ -32,6 +32,8 @@ import viewsDapps from '@parity/shared/config/dappsViews.json';
 import ContractInstances from '@parity/shared/contracts';
 import { patchApi } from '@parity/shared/util/tx';
 
+import '@parity/shared/environment';
+
 import SecureApi from '~/secureApi';
 
 import { initStore } from '~/redux';
@@ -41,8 +43,6 @@ import muiTheme from '~/ui/Theme';
 import Application from './Application';
 import Dapp from './Dapp';
 import Dapps from './Dapps';
-
-import '~/environment';
 
 injectTapEventPlugin();
 

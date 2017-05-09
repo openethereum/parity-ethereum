@@ -16,7 +16,7 @@
 
 import React from 'react';
 
-import { parityNode } from '../../../environment';
+import { parityNode } from '@parity/shared/environment';
 
 const styles = {
   padding: '.5em',

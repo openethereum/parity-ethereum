@@ -34,7 +34,7 @@ import { initStore } from '~/redux';
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
 
-import '~/environment';
+import '@parity/shared/environment';
 
 import '~/../assets/fonts/Roboto/font.css';
 import '~/../assets/fonts/RobotoMono/font.css';
