@@ -71,23 +71,15 @@ export default class Eval extends Component {
     });
   }
 
-  renderType (type) {
-    if (type === 'input') {
-      return (
-        <span></span>
-      );
-    }
-
-    if (type === 'result') {
-      return (
-        <span></span>
-      );
-    }
-
-    return null;
-  }
-
   toString (result) {
+    if (result === undefined) {
+      return 'undefined';
+    }
+
+    if (result === null) {
+      return 'null';
+    }
+
     return result.toString();
   }
 }

@@ -24,6 +24,10 @@ export default class EvalStore {
   @observable input = '';
   @observable logs = [];
 
+  constructor () {
+    this.attachConsole();
+  }
+
   static get () {
     if (!instance) {
       instance = new EvalStore();
@@ -32,13 +36,24 @@ export default class EvalStore {
     return instance;
   }
 
+  attachConsole () {
+    ['debug', 'error', 'info', 'log', 'warn'].forEach((level) => {
+      const old = window.console[level].bind(window.console);
+
+      window.console[level] = (log) => {
+        old(log);
+        this.log({ type: level, value: log });
+      };
+    });
+  }
+
   @action
   updateInput (nextValue = '') {
     this.input = nextValue;
   }
 
   @action
-  log ({ type, value, error }) {
+  log ({ type, value }) {
     this.logs.push({
       type, value,
       timestamp: Date.now()
