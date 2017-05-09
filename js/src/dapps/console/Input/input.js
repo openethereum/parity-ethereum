@@ -20,16 +20,20 @@ import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 
 import Autocomplete from '../Autocomplete';
+import AutocompleteStore from '../autocompleteStore';
 import EvalStore from '../evalStore';
+import InputStore from '../inputStore';
 
 import styles from './input.css';
 
 @observer
 export default class Input extends Component {
+  autocompleteStore = AutocompleteStore.get();
   evalStore = EvalStore.get();
+  inputStore = InputStore.get();
 
   render () {
-    const { input } = this.evalStore;
+    const { input } = this.inputStore;
 
     return (
       <div className={ styles.container }>
@@ -51,28 +55,73 @@ export default class Input extends Component {
   handleChange = (event) => {
     const { value } = event.target;
 
-    this.evalStore.updateInput(value);
+    this.inputStore.updateInput(value);
   };
 
   handleKeyDown = (event) => {
-    const { input } = this.evalStore;
+    const { input } = this.inputStore;
     const codeName = keycode(event);
-
-    if (codeName === 'enter' && input && input.length > 0) {
-      event.preventDefault();
-      event.stopPropagation();
-      return this.evalStore.evaluate();
-    }
 
     // Clear console with CTRL+L
     if (codeName === 'l' && event.ctrlKey) {
       event.preventDefault();
       event.stopPropagation();
-      return this.evalStore.clearLogs();
+      return this.evalStore.clear();
+    }
+
+    if (codeName === 'esc') {
+      event.preventDefault();
+      event.stopPropagation();
+      return this.autocompleteStore.hide();
+    }
+
+    if (codeName === 'enter') {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (this.autocompleteStore.hasSelected) {
+        return this.autocompleteStore.select(this.inputStore);
+      }
+
+      if (input.length > 0) {
+        return this.inputStore.execute();
+      }
+    }
+
+    if (codeName === 'up') {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (this.autocompleteStore.show) {
+        return this.autocompleteStore.focus(-1);
+      }
+
+      return this.inputStore.selectHistory(-1);
+    }
+
+    if (codeName === 'down') {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (this.autocompleteStore.show) {
+        return this.autocompleteStore.focus(1);
+      }
+
+      return this.inputStore.selectHistory(1);
+    }
+
+    if (codeName === 'left' && this.autocompleteStore.show) {
+      return this.autocompleteStore.hide();
+    }
+
+    if (codeName === 'right' && this.autocompleteStore.show) {
+      event.preventDefault();
+      event.stopPropagation();
+      return this.autocompleteStore.select(this.inputStore);
     }
   };
 
   setRef = (node) => {
-    this.evalStore.setInputNode(ReactDOM.findDOMNode(node));
+    this.inputStore.setInputNode(ReactDOM.findDOMNode(node));
   };
 }

@@ -20,7 +20,7 @@ import { api } from './parity';
 
 let instance;
 
-export default class ConsoleStore {
+export default class WatchesStore {
   @observable watches = map();
 
   watchesFunctions = {};
@@ -33,7 +33,7 @@ export default class ConsoleStore {
 
   static get () {
     if (!instance) {
-      instance = new ConsoleStore();
+      instance = new WatchesStore();
     }
 
     return instance;

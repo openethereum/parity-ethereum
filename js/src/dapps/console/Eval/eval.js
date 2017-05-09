@@ -16,6 +16,7 @@
 
 import { observer } from 'mobx-react';
 import React, { Component } from 'react';
+import { ObjectInspector } from 'react-inspector';
 
 import EvalStore from '../evalStore';
 
@@ -47,9 +48,9 @@ export default class Eval extends Component {
     const { logs } = this.evalStore;
 
     return logs.map((data, index) => {
-      const { type, value, timestamp } = data;
+      const { type, timestamp } = data;
+      const values = this.evalStore.logValues[index];
       const classes = [ styles.result, styles[type] ];
-      const valueStr = this.toString(value);
 
       return (
         <div
@@ -64,22 +65,33 @@ export default class Eval extends Component {
             { new Date(timestamp).toISOString().slice(11, 23) }
           </span>
           <span className={ styles.text }>
-            { valueStr }
+            {
+              values.map((value, valueIndex) => (
+                <span
+                  className={ styles.token }
+                  key={ valueIndex }
+                >
+                  { this.toString(value) }
+                </span>
+              ))
+            }
           </span>
         </div>
       );
     });
   }
 
-  toString (result) {
-    if (result === undefined) {
-      return 'undefined';
+  toString (value) {
+    if (typeof value === 'string') {
+      return value;
     }
 
-    if (result === null) {
-      return 'null';
+    if (value instanceof Error) {
+      return value.toString();
     }
 
-    return result.toString();
+    return (
+      <ObjectInspector data={ value } />
+    );
   }
 }

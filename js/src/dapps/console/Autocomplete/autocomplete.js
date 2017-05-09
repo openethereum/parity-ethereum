@@ -16,17 +16,18 @@
 
 import { observer } from 'mobx-react';
 import React, { Component } from 'react';
+import ReactDOM from 'react-dom';
 
-import EvalStore from '../evalStore';
+import AutocompleteStore from '../autocompleteStore';
 
 import styles from './autocomplete.css';
 
 @observer
 export default class Autocomplete extends Component {
-  evalStore = EvalStore.get();
+  autocompleteStore = AutocompleteStore.get();
 
   render () {
-    if (!this.evalStore.showAutocomplete) {
+    if (!this.autocompleteStore.show) {
       return null;
     }
 
@@ -38,12 +39,13 @@ export default class Autocomplete extends Component {
   }
 
   renderAutocompletes () {
-    const { autocompletes } = this.evalStore;
+    const { selected, values } = this.autocompleteStore;
     const displayedProto = {};
 
-    return autocompletes.map((autocomplete, index) => {
+    return values.map((autocomplete, index) => {
       const { name, prototypeName } = autocomplete;
-      const onClick = () => this.handleClick(autocomplete);
+      const onClick = () => this.handleClick(index);
+      const setRef = (node) => this.setRef(index, node);
 
       const proto = !displayedProto[prototypeName]
         ? (
@@ -57,11 +59,18 @@ export default class Autocomplete extends Component {
         displayedProto[prototypeName] = true;
       }
 
+      const classes = [ styles.item ];
+
+      if (index === selected) {
+        classes.push(styles.selected);
+      }
+
       return (
         <div
-          className={ styles.item }
+          className={ classes.join(' ') }
           key={ index }
           onClick={ onClick }
+          ref={ setRef }
         >
           <span>
             { name }
@@ -72,7 +81,13 @@ export default class Autocomplete extends Component {
     });
   }
 
-  handleClick = (autocomplete) => {
-    this.evalStore.selectAutocomplete(autocomplete);
-  }
+  handleClick = (index) => {
+    this.autocompleteStore.select(index);
+  };
+
+  setRef = (index, node) => {
+    const element = ReactDOM.findDOMNode(node);
+
+    this.autocompleteStore.setElement(index, element);
+  };
 }

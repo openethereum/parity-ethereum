@@ -32,12 +32,20 @@
   justify-content: space-between;
 
   &.selected {
-    background-color: #cdf;
+    background-color: rgb(64, 115, 244);
+
+    &,
+    .proto {
+      color: white;
+    }
   }
 
   &:hover {
-    background-color: #cdf;
     cursor: default;
+  }
+
+  &:hover:not(.selected) {
+    background-color: rgb(230, 236, 255);
   }
 
   .proto {

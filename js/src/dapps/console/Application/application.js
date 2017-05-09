@@ -17,7 +17,7 @@
 import React, { Component } from 'react';
 
 import { api } from '../parity';
-import ConsoleStore from '../consoleStore';
+import WatchesStore from '../watchesStore';
 import Eval from '../Eval';
 import Input from '../Input';
 import Status from '../Status';
@@ -25,11 +25,11 @@ import Status from '../Status';
 import styles from './application.css';
 
 export default class Application extends Component {
-  consoleStore = ConsoleStore.get();
+  watchesStore = WatchesStore.get();
 
   componentWillMount () {
-    this.consoleStore.addWatch('time', () => new Date());
-    this.consoleStore.addWatch('blockNumber', api.eth.blockNumber, api);
+    this.watchesStore.addWatch('time', () => new Date());
+    this.watchesStore.addWatch('blockNumber', api.eth.blockNumber, api);
   }
 
   render () {

@@ -44,5 +44,6 @@
   padding: 0 1em 0 0.5em;
 }
 
-.text {
+.text .token:not(:first-child) {
+  margin-left: 0.5em;
 }

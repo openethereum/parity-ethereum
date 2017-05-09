@@ -17,13 +17,13 @@
 import { observer } from 'mobx-react';
 import React, { Component } from 'react';
 
-import ConsoleStore from '../consoleStore';
+import WatchesStore from '../watchesStore';
 
 import styles from './status.css';
 
 @observer
 export default class Status extends Component {
-  consoleStore = ConsoleStore.get();
+  watchesStore = WatchesStore.get();
 
   render () {
     return (
@@ -34,7 +34,7 @@ export default class Status extends Component {
   }
 
   renderWatches () {
-    const { watches } = this.consoleStore;
+    const { watches } = this.watchesStore;
     const names = watches.keys();
 
     return names.map((name) => {
