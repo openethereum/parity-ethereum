@@ -19,10 +19,11 @@ import { pick, range, uniq } from 'lodash';
 
 import { bytesToHex } from '@parity/api/util/format';
 
-import Contracts from '~/contracts';
 import builtinJson from '~/config/dappsBuiltin.json';
 import viewsJson from '~/config/dappsViews.json';
 import { IconCache } from '~/ui';
+
+import Contracts from '../contracts';
 
 const builtinApps = [].concat(
   viewsJson.map((app) => {

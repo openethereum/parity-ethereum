@@ -16,9 +16,9 @@
 
 import { uniq } from 'lodash';
 
+import Contracts from '@parity/shared/contracts';
 import { fetchTokenIds, fetchTokenInfo } from '@parity/shared/util/tokens';
 
-import Contracts from '~/contracts';
 import { LOG_KEYS, getLogger } from '~/config';
 import { IconCache } from '~/ui';
 

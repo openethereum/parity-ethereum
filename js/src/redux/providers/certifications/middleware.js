@@ -17,10 +17,10 @@
 import { uniq, range, debounce } from 'lodash';
 
 import Contract from '@parity/api/contract';
+import Contracts from '@parity/shared/contracts';
+import CertifierABI from '@parity/shared/contracts/abi/certifier.json';
 
 import { getLogger, LOG_KEYS } from '~/config';
-import Contracts from '~/contracts';
-import CertifierABI from '~/contracts/abi/certifier.json';
 
 import { addCertification, removeCertification } from './actions';
 

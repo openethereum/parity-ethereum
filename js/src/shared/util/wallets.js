@@ -22,9 +22,8 @@ import Abi from '@parity/abi';
 import Contract from '@parity/api/contract';
 import { bytesToHex, toHex } from '@parity/api/util/format';
 
-import WalletAbi from '~/contracts/abi/wallet.json';
-import OldWalletAbi from '~/contracts/abi/old-wallet.json';
-
+import WalletAbi from '../contracts/abi/wallet.json';
+import OldWalletAbi from '../contracts/abi/old-wallet.json';
 import { validateAddress } from './validation';
 
 const LS_PENDING_CONTRACTS_KEY = '_parity::wallets::pendingContracts';

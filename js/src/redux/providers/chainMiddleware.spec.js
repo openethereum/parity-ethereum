@@ -16,7 +16,8 @@
 
 import sinon from 'sinon';
 
-import Contracts from '~/contracts';
+import Contracts from '@parity/shared/contracts';
+
 import { initialState as defaultNodeStatusState } from './statusReducer';
 import ChainMiddleware from './chainMiddleware';
 import { createWsApi } from '~/../test/e2e/ethapi';

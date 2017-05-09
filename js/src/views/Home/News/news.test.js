@@ -16,7 +16,7 @@
 
 import sinon from 'sinon';
 
-import Contracts from '~/contracts';
+import Contracts from '@parity/shared/contracts';
 
 import { VERSION_ID } from './news';
 

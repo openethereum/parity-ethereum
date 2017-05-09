@@ -27,10 +27,10 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
 import qs from 'querystring';
 
+import ContractInstances from '@parity/shared/contracts';
 import { patchApi } from '@parity/shared/util/tx';
 
 import SecureApi from '~/secureApi';
-import ContractInstances from '~/contracts';
 
 import { initStore } from '~/redux';
 import ContextProvider from '~/ui/ContextProvider';

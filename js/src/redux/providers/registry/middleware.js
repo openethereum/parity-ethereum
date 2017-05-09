@@ -17,10 +17,9 @@
 import { debounce } from 'lodash';
 import store from 'store';
 
+import Contracts from '@parity/shared/contracts';
+import registryABI from '@parity/shared/contracts/abi/registry.json';
 import subscribeToEvents from '@parity/shared/util/subscribe-to-events';
-
-import Contracts from '~/contracts';
-import registryABI from '~/contracts/abi/registry.json';
 
 import { setReverse } from './actions';
 

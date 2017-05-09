@@ -25,10 +25,10 @@ import ReactDOM from 'react-dom';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 
+import ContractInstances from '@parity/shared/contracts';
 import { patchApi } from '@parity/shared/util/tx';
 
 import SecureApi from '~/secureApi';
-import ContractInstances from '~/contracts';
 
 import { initStore } from '~/redux';
 import ContextProvider from '~/ui/ContextProvider';
