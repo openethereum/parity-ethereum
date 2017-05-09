@@ -58,33 +58,33 @@ pub enum Request {
 /// A request argument.
 pub trait RequestArg {
 	/// the response type.
-    type Out;
+	type Out;
 
 	/// Create the request type.
 	/// `extract` must not fail when presented with the corresponding
 	/// `Response`.
-    fn make(self) -> Request;
+	fn make(self) -> Request;
 
 	/// May not panic if the response corresponds with the request
 	/// from `make`.
 	/// Is free to panic otherwise.
-    fn extract(r: Response) -> Self::Out;
+	fn extract(r: Response) -> Self::Out;
 }
 
 /// An adapter can be thought of as a grouping of request argument types.
 /// This is implemented for various tuples and convenient types.
 pub trait RequestAdapter {
 	/// The output type.
-    type Out;
+	type Out;
 
 	/// Infallibly produce requests. When `extract_from` is presented
 	/// with the corresponding response vector, it may not fail.
-    fn make_requests(self) -> Vec<Request>;
+	fn make_requests(self) -> Vec<Request>;
 
 	/// Extract the output type from the given responses.
 	/// If they are the corresponding responses to the requests
 	/// made by `make_requests`, do not panic.
-    fn extract_from(Vec<Response>) -> Self::Out;
+	fn extract_from(Vec<Response>) -> Self::Out;
 }
 
 // helper to implement `RequestArg` and `From` for a single request kind.
@@ -123,54 +123,54 @@ impl_single!(Code, Code, Bytes);
 impl_single!(Execution, TransactionProof, super::ExecutionResult);
 
 macro_rules! impl_args {
-    () => {
-        impl<T: RequestArg> RequestAdapter for T {
-            type Out = T::Out;
+	() => {
+		impl<T: RequestArg> RequestAdapter for T {
+			type Out = T::Out;
 
-            fn make_requests(self) -> Vec<Request> {
-                vec![self.make()]
-            }
+			fn make_requests(self) -> Vec<Request> {
+				vec![self.make()]
+			}
 
-            fn extract_from(mut responses: Vec<Response>) -> Self::Out {
-                T::extract(responses.pop().expect(SUPPLIED_MATCHES))
-            }
-        }
-    };
-    ($first: ident, $($next: ident,)*) => {
-        impl<
-            $first: RequestArg,
-            $($next: RequestArg,)*
-        >
-        RequestAdapter for ($first, $($next,)*) {
-            type Out = ($first::Out, $($next::Out,)*);
+			fn extract_from(mut responses: Vec<Response>) -> Self::Out {
+				T::extract(responses.pop().expect(SUPPLIED_MATCHES))
+			}
+		}
+	};
+	($first: ident, $($next: ident,)*) => {
+		impl<
+			$first: RequestArg,
+			$($next: RequestArg,)*
+		>
+		RequestAdapter for ($first, $($next,)*) {
+			type Out = ($first::Out, $($next::Out,)*);
 
-            fn make_requests(self) -> Vec<Request> {
-                let ($first, $($next,)*) = self;
+			fn make_requests(self) -> Vec<Request> {
+				let ($first, $($next,)*) = self;
 
-                vec![
-                    $first.make(),
-                    $($next.make(),)*
-                ]
-            }
+				vec![
+					$first.make(),
+					$($next.make(),)*
+				]
+			}
 
-            fn extract_from(responses: Vec<Response>) -> Self::Out {
-                let mut iter = responses.into_iter();
-                (
-                    $first::extract(iter.next().expect(SUPPLIED_MATCHES)),
-                    $($next::extract(iter.next().expect(SUPPLIED_MATCHES)),)*
-                )
-            }
-        }
-        impl_args!($($next,)*);
-    }
+			fn extract_from(responses: Vec<Response>) -> Self::Out {
+				let mut iter = responses.into_iter();
+				(
+					$first::extract(iter.next().expect(SUPPLIED_MATCHES)),
+					$($next::extract(iter.next().expect(SUPPLIED_MATCHES)),)*
+				)
+			}
+		}
+		impl_args!($($next,)*);
+	}
 }
 
 mod impls {
-    #![allow(non_snake_case)]
+	#![allow(non_snake_case)]
 
-    use super::{RequestAdapter, RequestArg, Request, Response, SUPPLIED_MATCHES};
+	use super::{RequestAdapter, RequestArg, Request, Response, SUPPLIED_MATCHES};
 
-    impl_args!(A, B, C, D, E, F, G, H, I, J, K, L,);
+	impl_args!(A, B, C, D, E, F, G, H, I, J, K, L,);
 }
 
 /// Requests coupled with their required data for verification.
