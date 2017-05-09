@@ -18,7 +18,7 @@ import Store from './store';
 
 let store;
 
-describe('modals/UpgradeParity/store', () => {
+describe('shell/UpgradeParity/store', () => {
   describe('@actions', () => {
     beforeEach(() => {
       store = new Store();

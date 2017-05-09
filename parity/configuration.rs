@@ -388,6 +388,7 @@ impl Configuration {
 				verifier_settings: verifier_settings,
 				serve_light: !self.args.flag_no_serve_light,
 				light: self.args.flag_light,
+				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -1270,6 +1271,7 @@ mod tests {
 			verifier_settings: Default::default(),
 			serve_light: true,
 			light: false,
+			no_persistent_txqueue: false,
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));

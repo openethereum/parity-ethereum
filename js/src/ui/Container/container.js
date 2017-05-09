@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 import { Card } from 'semantic-ui-react';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
 import DappLink from '../DappLink';
 import Title from './Title';

@@ -20,7 +20,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { uniq, isEqual } from 'lodash';
 
-import { setVisibleAccounts } from '~/redux/providers/personalActions';
+import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
+
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
 import { AddIcon } from '~/ui/Icons';
 

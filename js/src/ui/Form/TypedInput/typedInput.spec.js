@@ -18,7 +18,7 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import { ABI_TYPES } from '~/util/abi';
+import { ABI_TYPES } from '@parity/shared/util/abi';
 
 import TypedInput from './';
 

@@ -18,7 +18,7 @@ import BigNumber from 'bignumber.js';
 import sinon from 'sinon';
 import localStore from 'store';
 
-import Contracts from '~/contracts';
+import Contracts from '@parity/shared/contracts';
 
 import Store, { LS_KEY_DISPLAY } from './dappsStore';
 
@@ -80,7 +80,7 @@ function create () {
   return store;
 }
 
-describe('views/Dapps/DappStore', () => {
+describe('shell/Dapps/DappStore', () => {
   beforeEach(() => {
     stubGlobals();
   });

@@ -18,9 +18,9 @@ import BigNumber from 'bignumber.js';
 import { action, computed, observable, transaction } from 'mobx';
 import { flatten } from 'lodash';
 
-import * as abis from '~/contracts/abi';
-import Contracts from '~/contracts';
-import builtinJson from '~/config/dappsBuiltin.json';
+import * as abis from '@parity/shared/contracts/abi';
+import Contracts from '@parity/shared/contracts';
+import builtinJson from '@parity/shared/config/dappsBuiltin.json';
 
 import Dapp from './dappStore.js';
 import { deleteDapp, registerDapp, updateDapp } from './utils';

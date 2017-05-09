@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { nullableProptype } from '~/util/proptypes';
+import { nullableProptype } from '@parity/shared/util/proptypes';
 
 import Application from './Application';
 import * as actions from './actions';

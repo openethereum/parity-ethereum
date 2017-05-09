@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Contracts from '~/contracts';
-import Abi from '~/abi';
-import * as abis from '~/contracts/abi';
-
+import Abi from '@parity/abi';
 import { decodeMethodInput } from '@parity/api/util/decode';
+import Contracts from '@parity/shared/contracts';
+import * as abis from '@parity/shared/contracts/abi';
 
 const CONTRACT_CREATE = '0x60606040';
 

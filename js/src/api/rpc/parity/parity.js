@@ -70,9 +70,19 @@ export default class Parity {
       .execute('parity_checkRequest', inNumber16(requestId));
   }
 
+  cidV0 (data) {
+    return this._transport
+      .execute('parity_cidV0', inData(data));
+  }
+
   closeVault (vaultName) {
     return this._transport
       .execute('parity_closeVault', vaultName);
+  }
+
+  composeTransaction (options) {
+    return this._transport
+      .execute('parity_composeTransaction', inOptions(options));
   }
 
   consensusCapability () {

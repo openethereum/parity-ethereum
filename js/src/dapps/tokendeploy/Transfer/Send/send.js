@@ -17,7 +17,7 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
-import { eip20 } from '~/contracts/abi';
+import { eip20 } from '@parity/shared/contracts/abi';
 
 import { api } from '../../parity';
 import { loadBalances } from '../../services';

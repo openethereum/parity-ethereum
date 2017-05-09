@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { MenuItem, SelectField } from 'material-ui';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
 // TODO: duplicated in Input
 const UNDERLINE_DISABLED = {

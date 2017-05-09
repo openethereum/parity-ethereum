@@ -20,7 +20,7 @@ import { MenuItem, AutoComplete as MUIAutoComplete, Divider as MUIDivider } from
 import { PopoverAnimationVertical } from 'material-ui/Popover';
 import React, { Component, PropTypes } from 'react';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
 import styles from './autocomplete.css';
 

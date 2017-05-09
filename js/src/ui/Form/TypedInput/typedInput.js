@@ -23,13 +23,13 @@ import IconButton from 'material-ui/IconButton';
 
 import { fromWei, toWei } from '@parity/api/util/wei';
 import { bytesToHex } from '@parity/api/util/format';
+import { ABI_TYPES, parseAbiType } from '@parity/shared/util/abi';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
 import Input from '~/ui/Form/Input';
 import InputAddressSelect from '~/ui/Form/InputAddressSelect';
 import Select from '~/ui/Form/Select';
 import { AddIcon, RemoveIcon } from '~/ui/Icons';
-import { ABI_TYPES, parseAbiType } from '~/util/abi';
-import { nodeOrStringProptype } from '~/util/proptypes';
 
 import styles from './typedInput.css';
 

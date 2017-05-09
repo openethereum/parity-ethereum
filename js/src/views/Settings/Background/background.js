@@ -19,11 +19,11 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import { updateBackground } from '@parity/shared/redux/providers/settings/actions';
+
 import { Button, Container } from '~/ui';
 import ParityBackground from '~/ui/ParityBackground';
 import { RefreshIcon } from '~/ui/Icons';
-
-import { updateBackground } from '~/redux/providers/settings/actions';
 
 import layout from '../layout.css';
 import styles from './background.css';

@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { arrayOrObjectProptype, nodeOrStringProptype } from '~/util/proptypes';
+import { arrayOrObjectProptype, nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
 import { chunkArray } from './array';
 import Overlay from './Overlay';

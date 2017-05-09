@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Web3 from 'web3';
-import web3extensions from './util/web3.extensions';
+import web3extensions from './web3.extensions';
 
 import './dev.web3.html';
 

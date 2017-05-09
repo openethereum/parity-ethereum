@@ -17,7 +17,8 @@
 import BigNumber from 'bignumber.js';
 
 import { url as etherscanUrl } from '~/3rdparty/etherscan/links';
-import * as abis from '~/contracts/abi';
+import * as abis from '@parity/shared/contracts/abi';
+
 import { api } from './parity';
 
 let managerInstance;

@@ -26,6 +26,10 @@ import styles from './urls.css';
 
 @observer
 export default class Urls extends Component {
+  static contextTypes = {
+    router: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     extensionStore: PropTypes.object.isRequired,
     store: PropTypes.object.isRequired

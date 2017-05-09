@@ -21,7 +21,8 @@ import { IndexRedirect, Route, Router, hashHistory } from 'react-router';
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
 
-import { initStore } from '~/redux';
+import { initStore } from '@parity/shared/redux';
+
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
 

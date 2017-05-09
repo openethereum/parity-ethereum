@@ -17,10 +17,11 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
+import { ERRORS, validateName } from '@parity/shared/util/validation';
+
 import { Button, Form, Input, Portal } from '~/ui';
 import Editor from '~/ui/Editor';
 import { CancelIcon, SaveIcon } from '~/ui/Icons';
-import { ERRORS, validateName } from '~/util/validation';
 
 import styles from './saveContract.css';
 

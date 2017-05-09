@@ -16,13 +16,11 @@
 
 import toolbox from 'sw-toolbox';
 
-toolbox.precache(self.serviceWorkerOption.assets);
-
 /**
  * Cache the SOLC files : if not available, make a network request
  */
-toolbox.router.any(/raw.githubusercontent.com\/ethereum\/solc-bin(.+)list\.json$/, toolbox.cacheFirst);
-toolbox.router.any(/raw.githubusercontent.com\/ethereum\/solc-bin(.+)soljson(.+)\.js$/, toolbox.cacheFirst);
+toolbox.router.any(/rawgit.com\/ethereum\/solc-bin(.+)list\.json$/, toolbox.networkFirst);
+toolbox.router.any(/rawgit.com\/ethereum\/solc-bin(.+)soljson(.+)\.js$/, toolbox.cacheFirst);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());
