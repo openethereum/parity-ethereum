@@ -22,7 +22,7 @@ use std::collections::HashSet;
 use dapps;
 use dir::default_data_path;
 use helpers::{parity_ipc_path, replace_home};
-use jsonrpc_core::{futures, MetaIoHandler};
+use jsonrpc_core::MetaIoHandler;
 use parity_reactor::TokioRemote;
 use parity_rpc::informant::{RpcStats, Middleware};
 use parity_rpc::{self as rpc, Metadata, DomainsValidation};
@@ -171,105 +171,6 @@ pub struct Dependencies<D: rpc_apis::Dependencies> {
 	pub stats: Arc<RpcStats>,
 }
 
-<<<<<<< HEAD
-=======
-pub struct RpcExtractor;
-impl rpc::HttpMetaExtractor for RpcExtractor {
-	type Metadata = Metadata;
-
-	fn read_metadata(&self, origin: String, dapps_origin: Option<String>) -> Metadata {
-		let mut metadata = Metadata::default();
-
-		metadata.origin = match (origin.as_str(), dapps_origin) {
-			("null", Some(dapp)) => Origin::Dapps(dapp.into()),
-			_ => Origin::Rpc(origin),
-		};
-
-		metadata
-	}
-}
-
-impl rpc::IpcMetaExtractor<Metadata> for RpcExtractor {
-	fn extract(&self, _req: &rpc::IpcRequestContext) -> Metadata {
-		let mut metadata = Metadata::default();
-		// TODO [ToDr] Extract proper session id when it's available in context.
-		metadata.origin = Origin::Ipc(1.into());
-		metadata
-	}
-}
-
-struct Sender(rpc::ws::ws::Sender, futures::sync::mpsc::Receiver<String>);
-
-impl futures::Future for Sender {
-	type Item = ();
-	type Error = ();
-
-	fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
-		use self::futures::Stream;
-
-		let item = self.1.poll()?;
-		match item {
-			futures::Async::NotReady => {
-				Ok(futures::Async::NotReady)
-			},
-			futures::Async::Ready(None) => {
-				Ok(futures::Async::Ready(()))
-			},
-			futures::Async::Ready(Some(val)) => {
-				if let Err(e) = self.0.send(val) {
-					warn!("Error sending a subscription update: {:?}", e);
-				}
-				self.poll()
-			},
-		}
-	}
-}
-
-struct WsRpcExtractor {
-	remote: TokioRemote,
-}
-
-impl WsRpcExtractor {
-	fn wrap_out(&self, out: rpc::ws::ws::Sender) -> futures::sync::mpsc::Sender<String> {
-		let (sender, receiver) = futures::sync::mpsc::channel(8);
-		self.remote.spawn(move |_| Sender(out, receiver));
-		sender
-	}
-}
-
-impl rpc::ws::MetaExtractor<Metadata> for WsRpcExtractor {
-	fn extract(&self, req: &rpc::ws::RequestContext) -> Metadata {
-		let mut metadata = Metadata::default();
-		let id = req.session_id as u64;
-		metadata.origin = Origin::Ws(id.into());
-		metadata.session = Some(Arc::new(rpc::PubSubSession::new(
-			self.wrap_out(req.out.clone())
-		)));
-		metadata
-	}
-}
-
-struct WsStats {
-	stats: Arc<RpcStats>,
-}
-
-impl rpc::ws::SessionStats for WsStats {
-	fn open_session(&self, _id: rpc::ws::SessionId) {
-		self.stats.open_session()
-	}
-
-	fn close_session(&self, _id: rpc::ws::SessionId) {
-		self.stats.close_session()
-	}
-}
-
-fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
-	where D: rpc_apis::Dependencies
-{
-	rpc_apis::setup_rpc(deps.stats.clone(), &*deps.apis, apis)
-}
-
->>>>>>> master
 pub fn new_ws<D: rpc_apis::Dependencies>(
 	conf: WsConfiguration,
 	deps: &Dependencies<D>,
@@ -310,18 +211,9 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 		remote.clone(),
 		allowed_origins,
 		allowed_hosts,
-<<<<<<< HEAD
 		rpc::WsExtractor::new(path.clone()),
 		rpc::WsExtractor::new(path.clone()),
 		rpc::WsStats::new(deps.stats.clone()),
-=======
-		WsRpcExtractor {
-			remote: remote,
-		},
-		WsStats {
-			stats: deps.stats.clone(),
-		},
->>>>>>> master
 	);
 
 	match start_result {
@@ -389,18 +281,7 @@ pub fn new_ipc<D: rpc_apis::Dependencies>(
 
 	let handler = setup_apis(conf.apis, dependencies);
 	let remote = dependencies.remote.clone();
-<<<<<<< HEAD
 	match rpc::start_ipc(&conf.socket_addr, handler, remote, rpc::RpcExtractor) {
-=======
-	let ipc = rpc::start_ipc(
-		&conf.socket_addr,
-		handler,
-		remote,
-		RpcExtractor,
-	);
-
-	match ipc {
->>>>>>> master
 		Ok(server) => Ok(Some(server)),
 		Err(io_error) => Err(format!("IPC error: {}", io_error)),
 	}

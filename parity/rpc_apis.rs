@@ -331,7 +331,11 @@ impl Dependencies for FullDependencies {
 		}
 	}
 
-	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware<Self::Notifier>>, apis: &[Api]) {
+	fn extend_with_set<S>(
+		&self,
+		handler: &mut MetaIoHandler<Metadata, S>,
+		apis: &[Api],
+	) where S: core::Middleware<Metadata> {
 		self.extend_api(handler, apis, false)
 	}
 }

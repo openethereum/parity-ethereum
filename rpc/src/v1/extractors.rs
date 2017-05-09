@@ -23,6 +23,7 @@ use authcodes;
 use http_common::HttpMetaExtractor;
 use ipc;
 use jsonrpc_core as core;
+use jsonrpc_pubsub::Session;
 use ws;
 use util::H256;
 
@@ -88,6 +89,7 @@ impl ws::MetaExtractor<Metadata> for WsExtractor {
 			},
 			None => Origin::Ws { session: id.into(), dapp: dapp },
 		};
+		metadata.session = Some(Arc::new(Session::new(req.sender())));
 		metadata
 	}
 }
