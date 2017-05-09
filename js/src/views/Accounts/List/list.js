@@ -19,9 +19,10 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import { ETH_TOKEN } from '@parity/shared/util/tokens';
+
 import { Container, SectionList } from '~/ui';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
-import { ETH_TOKEN } from '~/util/tokens';
 
 import Summary from '../Summary';
 import styles from './list.css';

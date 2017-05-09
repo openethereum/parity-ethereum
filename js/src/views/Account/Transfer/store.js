@@ -20,11 +20,11 @@ import BigNumber from 'bignumber.js';
 
 import Contract from '@parity/api/contract';
 import { fromWei } from '@parity/api/util/wei';
+import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '@parity/shared/util/constants';
+import { ETH_TOKEN } from '@parity/shared/util/tokens';
 
 import { eip20 as tokenAbi, wallet as walletAbi } from '~/contracts/abi';
 import ERRORS from './errors';
-import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
-import { ETH_TOKEN } from '~/util/tokens';
 import GasPriceStore from '~/ui/GasPriceEditor/store';
 import { getLogger, LOG_KEYS } from '~/config';
 

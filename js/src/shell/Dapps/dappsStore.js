@@ -18,12 +18,13 @@ import EventEmitter from 'eventemitter3';
 import { action, computed, observable, transaction } from 'mobx';
 import store from 'store';
 
-import Contracts from '~/contracts';
 import {
   fetchBuiltinApps, fetchLocalApps,
   fetchRegistryAppIds, fetchRegistryApp,
   subscribeToChanges
-} from '~/util/dapps';
+} from '@parity/shared/util/dapps';
+
+import Contracts from '~/contracts';
 
 const LS_KEY_DISPLAY = 'displayApps';
 const LS_KEY_EXTERNAL_ACCEPT = 'acceptExternal';

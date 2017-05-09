@@ -25,10 +25,9 @@ import { toWei } from '@parity/api/util/wei';
 import Contracts from '~/contracts';
 import { wallet as walletAbi } from '~/contracts/abi';
 import { wallet as walletCode, walletLibrary as walletLibraryCode, walletLibraryRegKey, fullWalletCode } from '~/contracts/code/wallet';
-
-import { validateUint, validateAddress, validateName } from '~/util/validation';
-import { deploy } from '~/util/tx';
-import WalletsUtils from '~/util/wallets';
+import { validateUint, validateAddress, validateName } from '@parity/shared/util/validation';
+import { deploy } from '@parity/shared/util/tx';
+import WalletsUtils from '@parity/shared/util/wallets';
 
 const STEPS = {
   TYPE: {

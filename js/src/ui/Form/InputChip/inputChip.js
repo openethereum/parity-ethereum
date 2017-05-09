@@ -20,7 +20,7 @@ import ChipInput from 'material-ui-chip-input';
 import { blue300 } from 'material-ui/styles/colors';
 import { uniq } from 'lodash';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
 import styles from './inputChip.css';
 

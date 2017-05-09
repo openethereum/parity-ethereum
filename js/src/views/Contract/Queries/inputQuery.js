@@ -21,10 +21,11 @@ import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import { arrayOrObjectProptype } from '@parity/shared/util/proptypes';
+import { parseAbiType } from '@parity/shared/util/abi';
+
 import { newError } from '~/redux/actions';
 import { Button, Progress, TypedInput } from '~/ui';
-import { arrayOrObjectProptype } from '~/util/proptypes';
-import { parseAbiType } from '~/util/abi';
 
 import styles from './queries.css';
 

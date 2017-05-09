@@ -20,7 +20,8 @@ import ReactPortal from 'react-portal';
 import keycode from 'keycode';
 import { noop } from 'lodash';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+
 import { CloseIcon } from '~/ui/Icons';
 import StackEventListener from '~/ui/StackEventListener';
 import Title from '~/ui/Title';

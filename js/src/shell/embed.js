@@ -25,14 +25,14 @@ import ReactDOM from 'react-dom';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 
+import { patchApi } from '@parity/shared/util/tx';
+
 import SecureApi from '~/secureApi';
 import ContractInstances from '~/contracts';
 
 import { initStore } from '~/redux';
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
-
-import { patchApi } from '~/util/tx';
 
 import '~/environment';
 

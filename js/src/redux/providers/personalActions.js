@@ -17,13 +17,13 @@
 import { isEqual, intersection } from 'lodash';
 
 import Contract from '@parity/api/contract';
+import WalletsUtils from '@parity/shared/util/wallets';
 
 import BalancesProvider from './balances';
 import { updateTokensFilter } from './balancesActions';
 import { attachWallets } from './walletActions';
 
 import MethodDecodingStore from '~/ui/MethodDecoding/methodDecodingStore';
-import WalletsUtils from '~/util/wallets';
 import { wallet as WalletAbi } from '~/contracts/abi';
 
 export function personalAccountsInfo (accountsInfo) {

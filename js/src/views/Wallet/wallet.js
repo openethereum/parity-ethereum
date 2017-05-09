@@ -20,10 +20,11 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import moment from 'moment';
 
+import { nullableProptype } from '@parity/shared/util/proptypes';
+
 import HistoryStore from '~/mobx/historyStore';
 import { Actionbar, Button, Page, Loading } from '~/ui';
 import { DeleteIcon, EditIcon, SendIcon, SettingsIcon } from '~/ui/Icons';
-import { nullableProptype } from '~/util/proptypes';
 
 import EditMeta from '../Account/EditMeta';
 import Transfer from '../Account/Transfer';

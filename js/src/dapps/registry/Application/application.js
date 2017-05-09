@@ -22,7 +22,8 @@ const muiTheme = getMuiTheme(lightBaseTheme);
 import CircularProgress from 'material-ui/CircularProgress';
 import { Card, CardText } from 'material-ui/Card';
 
-import { nullableProptype } from '~/util/proptypes';
+import { nullableProptype } from '@parity/shared/util/proptypes';
+
 import { api } from '../parity';
 
 import styles from './application.css';

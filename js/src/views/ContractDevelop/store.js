@@ -21,8 +21,7 @@ import { FormattedMessage } from 'react-intl';
 import store from 'store';
 
 import { sha3 } from '@parity/api/util/sha3';
-
-import SolidityUtils from '~/util/solidity';
+import SolidityUtils from '@parity/shared/util/solidity';
 
 const SOLIDITY_LIST_URL = 'https://rawgit.com/ethereum/solc-bin/gh-pages/bin/list.json';
 const WRITE_CONTRACT_STORE_KEY = '_parity::contractDevelop';

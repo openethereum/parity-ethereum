@@ -17,7 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { nullableProptype } from '~/util/proptypes';
+import { nullableProptype } from '@parity/shared/util/proptypes';
+
 import TxHash from '~/ui/TxHash';
 import {
   POSTING_REQUEST, POSTED_REQUEST, REQUESTING_CODE

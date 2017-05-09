@@ -27,13 +27,14 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
 import qs from 'querystring';
 
+import { patchApi } from '@parity/shared/util/tx';
+
 import SecureApi from '~/secureApi';
 import ContractInstances from '~/contracts';
 
 import { initStore } from '~/redux';
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
-import { patchApi } from '~/util/tx';
 
 import Application from './Application';
 import Dapp from './Dapp';
