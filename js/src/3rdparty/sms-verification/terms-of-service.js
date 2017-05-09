@@ -22,6 +22,6 @@ export default (
     <li>We collect your phone number when you use this service. This is temporarily kept in memory, and then encrypted and stored in our EU servers. We only retain the cryptographic hash of the number to prevent duplicated accounts. You consent to this use.</li>
     <li>You pay a fee for the cost of this service using the account you want to verify.</li>
     <li>Your phone number is transmitted to a third party US SMS verification service Twilio for the sole purpose of the SMS verification. You consent to this use. Twilio’s privacy policy is here: <a href={ 'https://www.twilio.com/legal/privacy/developer' }>https://www.twilio.com/legal/privacy/developer</a>.</li>
-    <li><i>Parity Technology Limited</i> is registered in England and Wales under company number <code>09760015</code> and complies with the Data Protection Act 1998 (UK). You may contact us via email at <a href={ 'mailto:admin@parity.io' }>admin@parity.io</a>. Our general privacy policy can be found here: <a href={ 'https://ethcore.io/legal.html' }>https://ethcore.io/legal.html</a>.</li>
+    <li><i>Parity Technology Limited</i> is registered in England and Wales under company number <code>09760015</code> and complies with the Data Protection Act 1998 (UK). You may contact us via email at <a href={ 'mailto:admin@parity.io' }>admin@parity.io</a>. Our general privacy policy can be found here: <a href={ 'https://parity.io/legal.html' }>https://parity.io/legal.html</a>.</li>
   </ul>
 );

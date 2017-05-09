@@ -21,6 +21,7 @@
 
 # npm stuff
 npm-debug.log
+node_modules
 
 # gdb files
 .gdb_history

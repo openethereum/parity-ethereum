@@ -238,7 +238,7 @@ pub fn check_proof(
 /// Reverting a checkpoint with `revert_to_checkpoint` involves copying
 /// original values from the latest checkpoint back into `cache`. The code
 /// takes care not to overwrite cached storage while doing that.
-/// checkpoint can be discateded with `discard_checkpoint`. All of the orignal
+/// checkpoint can be discarded with `discard_checkpoint`. All of the orignal
 /// backed-up values are moved into a parent checkpoint (if any).
 ///
 pub struct State<B: Backend> {
@@ -431,6 +431,11 @@ impl<B: Backend> State<B> {
 	/// Determine whether an account exists and if not empty.
 	pub fn exists_and_not_null(&self, a: &Address) -> trie::Result<bool> {
 		self.ensure_cached(a, RequireCache::None, false, |a| a.map_or(false, |a| !a.is_null()))
+	}
+
+	/// Determine whether an account exists and has code.
+	pub fn exists_and_has_code(&self, a: &Address) -> trie::Result<bool> {
+		self.ensure_cached(a, RequireCache::CodeSize, false, |a| a.map_or(false, |a| a.code_size().map_or(false, |size| size != 0)))
 	}
 
 	/// Get the balance of account `a`.
