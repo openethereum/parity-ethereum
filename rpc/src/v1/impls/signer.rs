@@ -201,8 +201,10 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 						Err(err) => Err(errors::invalid_params("Invalid signature received.", err)),
 					}
 				},
-				// TODO [ToDr]: Decrypt - pass through?
-				_ => Err(errors::unimplemented(Some("Non-transaction requests does not support RAW signing yet.".into()))),
+				ConfirmationPayload::Decrypt(_address, _data) => {
+					// TODO [ToDr]: Decrypt can we verify if the answer is correct?
+					Ok(ConfirmationResponse::Decrypt(bytes))
+				},
 			};
 			if let Ok(ref response) = result {
 				signer.request_confirmed(id, Ok(response.clone()));
