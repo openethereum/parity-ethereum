@@ -17,10 +17,11 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
+import { nullableProptype } from '@parity/shared/util/proptypes';
+
 import Hash from './hash';
 import etherscanUrl from '../util/etherscan-url';
 import IdentityIcon from '../IdentityIcon';
-import { nullableProptype } from '~/util/proptypes';
 
 import styles from './address.css';
 

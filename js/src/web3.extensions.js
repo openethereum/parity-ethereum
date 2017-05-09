@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import parity from '~/jsonrpc/interfaces/parity';
-import signer from '~/jsonrpc/interfaces/signer';
-import trace from '~/jsonrpc/interfaces/trace';
+import parity from '@parity/jsonrpc/interfaces/parity';
+import signer from '@parity/jsonrpc/interfaces/signer';
+import trace from '@parity/jsonrpc/interfaces/trace';
 
 export default function web3extensions (web3) {
   const { Method } = web3._extend;

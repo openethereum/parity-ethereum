@@ -30,7 +30,7 @@ import styles from './token.css';
 import { metaDataKeys } from '../../constants';
 
 import { api } from '../../parity';
-import { parityNode } from '../../../../environment';
+import { parityNode } from '@parity/shared/environment';
 
 export default class Token extends Component {
   static propTypes = {

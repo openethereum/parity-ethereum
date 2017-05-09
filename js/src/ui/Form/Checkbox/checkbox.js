@@ -17,7 +17,7 @@
 import React, { PropTypes } from 'react';
 import { Checkbox as SemCheckbox } from 'semantic-ui-react';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
 export default function Checkbox ({ checked = false, className, label, onClick, style }) {
   return (

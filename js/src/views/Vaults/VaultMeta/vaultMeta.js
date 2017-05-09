@@ -20,7 +20,8 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { newError } from '~/redux/actions';
+import { newError } from '@parity/shared/redux/actions';
+
 import { Button, Checkbox, Form, Input, Portal, VaultCard } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 import { CheckIcon, CloseIcon } from '~/ui/Icons';

@@ -16,7 +16,8 @@
 
 import { isEqual } from 'lodash';
 
-import { LOG_KEYS, getLogger } from '~/config';
+import { LOG_KEYS, getLogger } from '@parity/shared/config';
+
 import UpgradeStore from '~/shell/UpgradeParity/store';
 
 import BalancesProvider from './balances';

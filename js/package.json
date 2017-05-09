@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "1.7.66",
+  "version": "1.7.69",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -162,6 +162,7 @@
     "@parity/abi": "file:src/abi",
     "@parity/api": "file:src/api",
     "@parity/jsonrpc": "file:src/jsonrpc",
+    "@parity/shared": "file:src/shared",
     "@parity/ui": "file:src/ui",
     "@parity/wordlist": "1.0.1",
     "base32.js": "0.1.0",

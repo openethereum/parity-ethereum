@@ -25,7 +25,7 @@ import DropDownMenu from 'material-ui/DropDownMenu';
 import MenuItem from 'material-ui/MenuItem';
 import keycode from 'keycode';
 
-import { nullableProptype } from '~/util/proptypes';
+import { nullableProptype } from '@parity/shared/util/proptypes';
 
 import Address from '../ui/address.js';
 import renderImage from '../ui/image.js';

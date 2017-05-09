@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import abi from '~/contracts/abi/badgereg';
+import abi from '@parity/shared/contracts/abi/badgereg';
+
 import { compiler, source as sourceUrl, output as byteCode } from './code/badgereg';
 
 const id = 'badgereg';

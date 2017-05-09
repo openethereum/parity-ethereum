@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { action, observable } from 'mobx';
-import Contracts from '~/contracts';
+
+import Contracts from '@parity/shared/contracts';
 
 let instance = null;
 

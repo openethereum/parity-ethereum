@@ -16,7 +16,7 @@
 
 import { action, computed, transaction, observable } from 'mobx';
 
-import { ERRORS, validateAddress, validateName } from '~/util/validation';
+import { ERRORS, validateAddress, validateName } from '@parity/shared/util/validation';
 
 export default class Store {
   @observable address = '';

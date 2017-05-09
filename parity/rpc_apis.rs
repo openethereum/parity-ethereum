@@ -31,11 +31,12 @@ use parity_rpc::informant::{ActivityNotifier, Middleware, RpcStats, ClientNotifi
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use ethsync::{ManageNetwork, SyncProvider, LightSync};
 use hash_fetch::fetch::Client as FetchClient;
-use jsonrpc_core::{MetaIoHandler};
+use jsonrpc_core::{self as core, MetaIoHandler};
 use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
 use updater::Updater;
 use util::{Mutex, RwLock};
 use ethcore_logger::RotatingLogger;
+use parity_reactor;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
@@ -59,6 +60,8 @@ pub enum Api {
 	Traces,
 	/// Rpc (Safe)
 	Rpc,
+	/// SecretStore (Safe)
+	SecretStore,
 }
 
 impl FromStr for Api {
@@ -78,6 +81,7 @@ impl FromStr for Api {
 			"parity_set" => Ok(ParitySet),
 			"traces" => Ok(Traces),
 			"rpc" => Ok(Rpc),
+			"secretstore" => Ok(SecretStore),
 			api => Err(format!("Unknown api: {}", api))
 		}
 	}
@@ -156,6 +160,7 @@ fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
 			Api::ParitySet => ("parity_set", "1.0"),
 			Api::Traces => ("traces", "1.0"),
 			Api::Rpc => ("rpc", "1.0"),
+			Api::SecretStore => ("secretstore", "1.0"),
 		};
 		modules.insert(name.into(), version.into());
 	}
@@ -191,18 +196,16 @@ pub struct FullDependencies {
 	pub dapps_interface: Option<String>,
 	pub dapps_port: Option<u16>,
 	pub fetch: FetchClient,
+	pub remote: parity_reactor::Remote,
 }
 
-impl Dependencies for FullDependencies {
-	type Notifier = ClientNotifier;
-
-	fn activity_notifier(&self) -> ClientNotifier {
-		ClientNotifier {
-			client: self.client.clone(),
-		}
-	}
-
-	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware>, apis: &[Api]) {
+impl FullDependencies {
+	fn extend_api<T: core::Middleware<Metadata>>(
+		&self,
+		handler: &mut MetaIoHandler<Metadata, T>,
+		apis: &[Api],
+		for_generic_pubsub: bool,
+	) {
 		use parity_rpc::v1::*;
 
 		macro_rules! add_signing_methods {
@@ -244,10 +247,12 @@ impl Dependencies for FullDependencies {
 					);
 					handler.extend_with(client.to_delegate());
 
-					let filter_client = EthFilterClient::new(self.client.clone(), self.miner.clone());
-					handler.extend_with(filter_client.to_delegate());
+					if !for_generic_pubsub {
+						let filter_client = EthFilterClient::new(self.client.clone(), self.miner.clone());
+						handler.extend_with(filter_client.to_delegate());
 
-					add_signing_methods!(EthSigning, handler, self);
+						add_signing_methods!(EthSigning, handler, self);
+					}
 				},
 				Api::Personal => {
 					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
@@ -274,8 +279,14 @@ impl Dependencies for FullDependencies {
 						self.dapps_port,
 					).to_delegate());
 
-					add_signing_methods!(EthSigning, handler, self);
-					add_signing_methods!(ParitySigning, handler, self);
+					if !for_generic_pubsub {
+						let mut rpc = MetaIoHandler::default();
+						self.extend_api(&mut rpc, apis, true);
+						handler.extend_with(PubSubClient::new(rpc, self.remote.clone()).to_delegate());
+
+						add_signing_methods!(EthSigning, handler, self);
+						add_signing_methods!(ParitySigning, handler, self);
+					}
 				},
 				Api::ParityAccounts => {
 					handler.extend_with(ParityAccountsClient::new(&self.secret_store).to_delegate());
@@ -295,9 +306,26 @@ impl Dependencies for FullDependencies {
 				Api::Rpc => {
 					let modules = to_modules(&apis);
 					handler.extend_with(RpcClient::new(modules).to_delegate());
-				}
+				},
+				Api::SecretStore => {
+					handler.extend_with(SecretStoreClient::new(&self.secret_store).to_delegate());
+				},
 			}
 		}
+	}
+}
+
+impl Dependencies for FullDependencies {
+	type Notifier = ClientNotifier;
+
+	fn activity_notifier(&self) -> ClientNotifier {
+		ClientNotifier {
+			client: self.client.clone(),
+		}
+	}
+
+	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware<Self::Notifier>>, apis: &[Api]) {
+		self.extend_api(handler, apis, false)
 	}
 }
 
@@ -424,7 +452,11 @@ impl Dependencies for LightDependencies {
 				Api::Rpc => {
 					let modules = to_modules(&apis);
 					handler.extend_with(RpcClient::new(modules).to_delegate());
-				}
+				},
+				Api::SecretStore => {
+					let secret_store = Some(self.secret_store.clone());
+					handler.extend_with(SecretStoreClient::new(&secret_store).to_delegate());
+				},
 			}
 		}
 	}
@@ -438,7 +470,7 @@ impl ApiSet {
 
 	pub fn list_apis(&self) -> HashSet<Api> {
 		let mut public_list = vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Rpc,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Rpc, Api::SecretStore,
 		].into_iter().collect();
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
@@ -496,6 +528,7 @@ mod test {
 		assert_eq!(Api::ParitySet, "parity_set".parse().unwrap());
 		assert_eq!(Api::Traces, "traces".parse().unwrap());
 		assert_eq!(Api::Rpc, "rpc".parse().unwrap());
+		assert_eq!(Api::SecretStore, "secretstore".parse().unwrap());
 		assert!("rp".parse::<Api>().is_err());
 	}
 
@@ -513,7 +546,7 @@ mod test {
 	fn test_api_set_unsafe_context() {
 		let expected = vec![
 			// make sure this list contains only SAFE methods
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore
 		].into_iter().collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}
@@ -522,7 +555,7 @@ mod test {
 	fn test_api_set_ipc_context() {
 		let expected = vec![
 			// safe
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 			// semi-safe
 			Api::ParityAccounts
 		].into_iter().collect();
@@ -533,7 +566,7 @@ mod test {
 	fn test_api_set_safe_context() {
 		let expected = vec![
 			// safe
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 			// semi-safe
 			Api::ParityAccounts,
 			// Unsafe
@@ -545,7 +578,7 @@ mod test {
 	#[test]
 	fn test_all_apis() {
 		assert_eq!("all".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 			Api::ParityAccounts,
 			Api::ParitySet, Api::Signer,
 			Api::Personal
@@ -555,7 +588,7 @@ mod test {
 	#[test]
 	fn test_all_without_personal_apis() {
 		assert_eq!("personal,all,-personal".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 			Api::ParityAccounts,
 			Api::ParitySet, Api::Signer,
 		].into_iter().collect()));
@@ -564,7 +597,7 @@ mod test {
 	#[test]
 	fn test_safe_parsing() {
 		assert_eq!("safe".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 		].into_iter().collect()));
 	}
 }

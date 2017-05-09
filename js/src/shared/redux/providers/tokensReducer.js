@@ -16,7 +16,7 @@
 
 import { handleActions } from 'redux-actions';
 
-import { ETH_TOKEN } from '~/util/tokens';
+import { ETH_TOKEN } from '@parity/shared/util/tokens';
 
 const initialState = {
   [ ETH_TOKEN.id ]: ETH_TOKEN

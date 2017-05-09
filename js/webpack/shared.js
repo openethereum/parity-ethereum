@@ -151,8 +151,8 @@ function getPlugins (_isProd = isProd) {
 }
 
 function getDappsEntry () {
-  const builtins = require('../src/config/dappsBuiltin.json');
-  const views = require('../src/config/dappsViews.json');
+  const builtins = require('../src/shared/config/dappsBuiltin.json');
+  const views = require('../src/shared/config/dappsViews.json');
 
   return Object.assign(
     builtins.filter((dapp) => !dapp.skipBuild).reduce((_entry, dapp) => {
