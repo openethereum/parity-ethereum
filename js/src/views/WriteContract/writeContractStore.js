@@ -397,11 +397,10 @@ export default class WriteContractStore {
 
     const { errors = [] } = data;
     const errorAnnotations = this.parseErrors(errors);
-    const formalAnnotations = this.parseErrors(data.formal && data.formal.errors, true);
+    // const formalAnnotations = this.parseErrors(data.formal && data.formal.errors, true);
 
     const annotations = [].concat(
-      errorAnnotations,
-      formalAnnotations
+      errorAnnotations
     );
 
     const contractKeys = Object.keys(contracts || {});
