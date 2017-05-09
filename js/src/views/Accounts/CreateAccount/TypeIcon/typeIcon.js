@@ -28,35 +28,45 @@ export default class TypeIcon extends Component {
   }
 
   render () {
-    const { className, createStore, type } = this.props;
+    const { className } = this.props;
+
+    return (
+      <div className={ className }>
+        { this.getIcon() }
+      </div>
+    );
+  }
+
+  getIcon () {
+    const { createStore, type } = this.props;
     const { createType, stage } = createStore;
 
     if (stage === STAGE_INFO) {
-      return <DoneIcon className={ className } />;
+      return <DoneIcon />;
     }
 
     switch (type || createType) {
       case 'fromGeth':
-        return <FileUploadIcon className={ className } />;
+        return <FileUploadIcon />;
 
       case 'fromJSON':
-        return <FileIcon className={ className } />;
+        return <FileIcon />;
 
       case 'fromPhrase':
-        return <KeyboardIcon className={ className } />;
+        return <KeyboardIcon />;
 
       case 'fromPresale':
-        return <MembershipIcon className={ className } />;
+        return <MembershipIcon />;
 
       case 'fromQr':
-        return <QrIcon className={ className } />;
+        return <QrIcon />;
 
       case 'fromRaw':
-        return <KeyIcon className={ className } />;
+        return <KeyIcon />;
 
       case 'fromNew':
       default:
-        return <AccountsIcon className={ className } />;
+        return <AccountsIcon />;
     }
   }
 }
