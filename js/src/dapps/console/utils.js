@@ -18,7 +18,7 @@
 
 export function evaluate (input) {
   try {
-    const result = eval.apply(window, [ input ]);
+    const result = eval.apply(window, [ `${input}` ]);
 
     return { result };
   } catch (err) {

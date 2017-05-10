@@ -45,7 +45,7 @@
 }
 
 .token {
-  white-space: pre-line;
+  white-space: pre-wrap;
 }
 
 .text .token:not(:first-child) {

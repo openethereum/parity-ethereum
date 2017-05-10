@@ -15,9 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { action, observable } from 'mobx';
+import store from 'store';
 
 import AutocompleteStore from './autocompleteStore';
 import EvalStore from './evalStore';
+
+const LS_HISTORY_KEY = '_console::history';
+const MAX_HISTORY_LINES = 5;
 
 let instance;
 
@@ -30,6 +34,10 @@ export default class InputStore {
   historyOffset = null;
   inputNode = null;
   lastInput = '';
+
+  constructor () {
+    this.loadHistory();
+  }
 
   static get () {
     if (!instance) {
@@ -85,14 +93,31 @@ export default class InputStore {
   execute () {
     const { input } = this;
 
+    this.pushToHistory(input);
+    this.evalStore.evaluate(input);
+    this.updateInput('');
+    this.historyOffset = null;
+  }
+
+  pushToHistory (input) {
     // Don't stack twice the same input in
     // history
     if (this.history[this.history.length - 1] !== input) {
       this.history.push(input);
     }
 
-    this.evalStore.evaluate(input);
-    this.updateInput('');
-    this.historyOffset = null;
+    this.saveHistory();
+  }
+
+  loadHistory () {
+    this.history = store.get(LS_HISTORY_KEY) || [];
+  }
+
+  saveHistory () {
+    if (this.history.length > MAX_HISTORY_LINES) {
+      this.history = this.history.slice(-1 * MAX_HISTORY_LINES);
+    }
+
+    store.set(LS_HISTORY_KEY, this.history.slice());
   }
 }
