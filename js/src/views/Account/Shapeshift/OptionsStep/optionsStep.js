@@ -41,7 +41,7 @@ const FUND_ACCCOUNT_FROM = {
   pointerEvents: 'none',
   userSelect: 'none',
   color: 'rgba(0, 0, 0, 0.298039)'
-}
+};
 
 @observer
 export default class OptionsStep extends Component {
