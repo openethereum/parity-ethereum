@@ -123,6 +123,7 @@ mod tests {
 
 	use jsonrpc_core::{MetaIoHandler, NoopMiddleware, Value, Params};
 	use jsonrpc_core::futures::{Future, Stream};
+	use jsonrpc_pubsub::SubscriptionId;
 	use http::tokio_core::reactor;
 
 	use super::GenericPollManager;
@@ -147,7 +148,7 @@ mod tests {
 		let mut el = reactor::Core::new().unwrap();
 		let mut poll_manager = poll_manager();
 		let (id, rx) = poll_manager.subscribe(Default::default(), "hello".into(), Params::None);
-		assert_eq!(id, 1);
+		assert_eq!(id, SubscriptionId::Number(1));
 
 		// then
 		poll_manager.tick().wait().unwrap();
@@ -162,7 +163,7 @@ mod tests {
 		// and no more notifications
 		poll_manager.tick().wait().unwrap();
 		// we need to unsubscribe otherwise the future will never finish.
-		poll_manager.unsubscribe(1);
+		poll_manager.unsubscribe(&id);
 		assert_eq!(el.run(rx.into_future()).unwrap().0, None);
 	}
 }
