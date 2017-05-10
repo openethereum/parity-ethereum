@@ -61,6 +61,7 @@ export default function Dropdown ({ defaultValue, disabled, fullWidth, fluid, hi
 Dropdown.propTypes = {
   defaultValue: PropTypes.number,    // Initial value via index.
   disabled: PropTypes.bool,          // A disabled dropdown menu or item does not allow user interaction.
+  fullWidth: PropTypes.bool,         // A dropdown can take the full width of its parent.
   fluid: PropTypes.bool,             // A dropdown can take the full width of its parent.
   icon: PropTypes.any,               // Shorthand for Icon.
   name: PropTypes.func,              // Name of the hidden input which holds the value.
@@ -70,6 +71,7 @@ Dropdown.propTypes = {
   onClose: PropTypes.func,           // Called on close.
   onFocus: PropTypes.func,           // Called on focus.
   options: PropTypes.any,            // Array of Dropdown.Item props e.g. `{ text: '', value: '' }`
+  hint: PropTypes.string,            // Placeholder text.
   placeholder: PropTypes.string,     // Placeholder text.
   scrolling: PropTypes.bool,         // A dropdown can have its menu scroll.
   search: PropTypes.bool,            // A selection dropdown can allow a user to search through a large list of choices.
