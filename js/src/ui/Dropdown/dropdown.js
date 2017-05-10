@@ -29,17 +29,17 @@
 **/
 
 import React, { PropTypes } from 'react';
-import { Dropdown as DropdownUI } from 'semantic-ui-react';
+import { Dropdown as SemanticDropdown } from 'semantic-ui-react';
 
 import styles from './dropdown.css';
 
-export default function Dropdown ({ defaultValue, disabled, fluid, icon, name, onBlur, onChange, onClick, onClose, onFocus, options, placeholder, scrolling, search, selection, text, value }) {
+export default function Dropdown ({ defaultValue, disabled, fullWidth, fluid, hint, icon, name, onBlur, onChange, onClick, onClose, onFocus, options, placeholder, scrolling, search, selection, text, value }) {
   return (
-    <DropdownUI
+    <SemanticDropdown
       className={ styles.dropdown }
       defaultValue={ defaultValue }
       disabled={ disabled }
-      fluid={ fluid }
+      fluid={ fullWidth | fluid }
       icon={ icon }
       name={ name }
       onBlur={ onBlur }
@@ -48,7 +48,7 @@ export default function Dropdown ({ defaultValue, disabled, fluid, icon, name, o
       onClose={ onClose }
       onFocus={ onFocus }
       options={ options }
-      placeholder={ placeholder }
+      placeholder={ hint | placeholder }
       scrolling={ scrolling }
       search={ search }
       selection={ selection }
@@ -79,5 +79,8 @@ Dropdown.propTypes = {
 };
 
 Dropdown.defaultProps = {
-  disabled: false
+  disabled: false,
+  fluid: true,
+  search: true,
+  selection: true
 };
