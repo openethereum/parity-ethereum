@@ -1,13 +1,14 @@
 [package]
 description = "Recursive-length prefix encoding, decoding, and compression"
-license = "GPL-3.0"
+repository = "https://github.com/paritytech/parity"
+license = "MIT/Apache-2.0"
 name = "rlp"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 elastic-array = "0.7.0"
-ethcore-bigint = { path = "../bigint" }
+ethcore-bigint = "0.1.2"
 lazy_static = "0.2"
 rustc-serialize = "0.3"
 byteorder = "1.0"
