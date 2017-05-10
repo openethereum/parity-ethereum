@@ -20,8 +20,9 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { newError } from '~/redux/actions';
-import { personalAccountsInfo } from '~/redux/providers/personalActions';
+import { newError } from '@parity/shared/redux/actions';
+import { personalAccountsInfo } from '@parity/shared/redux/providers/personalActions';
+
 import { AccountCard, Button, Portal, SelectionList } from '~/ui';
 import { CancelIcon, CheckIcon } from '~/ui/Icons';
 

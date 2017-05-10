@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import registerPromiseWorker from 'promise-worker/register';
-import { Signer } from '~/util/signer';
-import SolidityUtils from '~/util/solidity';
+
+import { Signer } from '@parity/shared/util/signer';
+import SolidityUtils from '@parity/shared/util/solidity';
 
 registerPromiseWorker((msg) => {
   return handleMessage(msg);

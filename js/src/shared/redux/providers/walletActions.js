@@ -19,10 +19,9 @@ import { isEqual, uniq } from 'lodash';
 import Contract from '@parity/api/contract';
 import { ERROR_CODES } from '@parity/api/transport/error';
 import { bytesToHex, toHex } from '@parity/api/util/format';
-
-import { wallet as WALLET_ABI } from '~/contracts/abi';
-import { MAX_GAS_ESTIMATION } from '~/util/constants';
-import WalletsUtils from '~/util/wallets';
+import { wallet as WALLET_ABI } from '@parity/shared/contracts/abi';
+import { MAX_GAS_ESTIMATION } from '@parity/shared/util/constants';
+import WalletsUtils from '@parity/shared/util/wallets';
 
 import { newError } from '~/ui/Errors/actions';
 

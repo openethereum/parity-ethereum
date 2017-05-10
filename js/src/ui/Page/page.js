@@ -17,7 +17,7 @@
 import React, { PropTypes } from 'react';
 
 import Actionbar from '../Actionbar';
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
 import styles from './page.css';
 

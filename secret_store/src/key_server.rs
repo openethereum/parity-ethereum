@@ -67,7 +67,7 @@ impl KeyServer for KeyServerImpl {
 		let document_key = encryption_session.wait(None)?;
 
 		// encrypt document key with requestor public key
-		let document_key = ethcrypto::ecies::encrypt_single_message(&public, &document_key)
+		let document_key = ethcrypto::ecies::encrypt(&public, &ethcrypto::DEFAULT_MAC, &document_key)
 			.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err)))?;
 		Ok(document_key)
 	}
@@ -83,13 +83,13 @@ impl KeyServer for KeyServerImpl {
 		let document_key = decryption_session.wait()?.decrypted_secret;
 
 		// encrypt document key with requestor public key
-		let document_key = ethcrypto::ecies::encrypt_single_message(&public, &document_key)
+		let document_key = ethcrypto::ecies::encrypt(&public, &ethcrypto::DEFAULT_MAC, &document_key)
 			.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err)))?;
 		Ok(document_key)
 	}
 
 	fn document_key_shadow(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKeyShadow, Error> {
-		let decryption_session = self.data.lock().cluster.new_decryption_session(document.clone(), signature.clone(), false)?;
+		let decryption_session = self.data.lock().cluster.new_decryption_session(document.clone(), signature.clone(), true)?;
 		decryption_session.wait().map_err(Into::into)
 	}
 }
@@ -118,7 +118,7 @@ impl KeyServerCore {
 					return;
 				},
 			};
-			
+
 			let cluster = ClusterCore::new(el.handle(), config);
 			let cluster_client = cluster.and_then(|c| c.run().map(|_| c.client()));
 			tx.send(cluster_client.map_err(Into::into)).expect("Rx is blocking upper thread.");
@@ -229,12 +229,12 @@ pub mod tests {
 		let secret = Random.generate().unwrap().secret().clone();
 		let signature = ethkey::sign(&secret, &document).unwrap();
 		let generated_key = key_servers[0].generate_document_key(&signature, &document, threshold).unwrap();
-		let generated_key = ethcrypto::ecies::decrypt_single_message(&secret, &generated_key).unwrap();
+		let generated_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &generated_key).unwrap();
 
 		// now let's try to retrieve key back
 		for key_server in key_servers.iter() {
 			let retrieved_key = key_server.document_key(&signature, &document).unwrap();
-			let retrieved_key = ethcrypto::ecies::decrypt_single_message(&secret, &retrieved_key).unwrap();
+			let retrieved_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &retrieved_key).unwrap();
 			assert_eq!(retrieved_key, generated_key);
 		}
 	}
@@ -251,12 +251,12 @@ pub mod tests {
 			let secret = Random.generate().unwrap().secret().clone();
 			let signature = ethkey::sign(&secret, &document).unwrap();
 			let generated_key = key_servers[0].generate_document_key(&signature, &document, *threshold).unwrap();
-			let generated_key = ethcrypto::ecies::decrypt_single_message(&secret, &generated_key).unwrap();
+			let generated_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &generated_key).unwrap();
 
 			// now let's try to retrieve key back
 			for key_server in key_servers.iter() {
 				let retrieved_key = key_server.document_key(&signature, &document).unwrap();
-				let retrieved_key = ethcrypto::ecies::decrypt_single_message(&secret, &retrieved_key).unwrap();
+				let retrieved_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &retrieved_key).unwrap();
 				assert_eq!(retrieved_key, generated_key);
 			}
 		}

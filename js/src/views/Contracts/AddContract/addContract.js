@@ -20,7 +20,8 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { newError } from '~/redux/actions';
+import { newError } from '@parity/shared/redux/actions';
+
 import { Button, Form, Input, InputAddress, Portal, RadioButtons } from '~/ui';
 import { AddIcon, CancelIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 

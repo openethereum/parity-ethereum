@@ -18,11 +18,12 @@ import BigNumber from 'bignumber.js';
 import { pick, range, uniq } from 'lodash';
 
 import { bytesToHex } from '@parity/api/util/format';
+import builtinJson from '@parity/shared/config/dappsBuiltin.json';
+import viewsJson from '@parity/shared/config/dappsViews.json';
 
-import Contracts from '~/contracts';
-import builtinJson from '~/config/dappsBuiltin.json';
-import viewsJson from '~/config/dappsViews.json';
 import { IconCache } from '~/ui';
+
+import Contracts from '../contracts';
 
 const builtinApps = [].concat(
   viewsJson.map((app) => {

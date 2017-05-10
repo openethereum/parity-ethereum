@@ -16,7 +16,7 @@
 
 import React from 'react';
 
-import { arrayOrObjectProptype } from '~/util/proptypes';
+import { arrayOrObjectProptype } from '@parity/shared/util/proptypes';
 
 import styles from '../debug.css';
 

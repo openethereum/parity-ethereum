@@ -112,11 +112,16 @@ export default class Event extends Component {
   }
 
   renderParam (name, param) {
+    // Don't add a label id the name is an index key (ie. a Number)
+    const label = parseInt(name).toString() === name.toString()
+      ? undefined
+      : name;
+
     return (
       <TypedInput
         allowCopy
         className={ styles.input }
-        label={ name }
+        label={ label }
         param={ param.type }
         readOnly
         value={ param.value }
