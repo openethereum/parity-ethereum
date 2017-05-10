@@ -124,6 +124,11 @@ export default class CreateWalletStore {
     this.validateWallet(this.wallet);
     this.onClose = onClose;
     this.onSetRequest = onSetRequest;
+
+    this.api.parity.getNewDappsDefaultAddress()
+      .then((defaultAccount) => {
+        this.onChange({ account: defaultAccount });
+      });
   }
 
   @action onTypeChange = (type) => {
