@@ -33,16 +33,6 @@ const WARNING_LABELS = {
   )
 };
 
-const FUND_ACCCOUNT_FROM = {
-  display: 'block',
-  paddingTop: '15px',
-  paddingBottom: '5px',
-  fontSize: '16px',
-  pointerEvents: 'none',
-  userSelect: 'none',
-  color: 'rgba(0, 0, 0, 0.298039)'
-};
-
 @observer
 export default class OptionsStep extends Component {
   static propTypes = {
@@ -69,17 +59,20 @@ export default class OptionsStep extends Component {
     return (
       <div className={ styles.body }>
         <Form>
-          <div style={ FUND_ACCCOUNT_FROM }>
-            <FormattedMessage
-              id='shapeshift.optionsStep.typeSelect.label'
-              defaultMessage='Fund account from'
-            />
-          </div>
           <Dropdown
-            placeholder='Choose a crypto-currency'
-            fluid
-            search
-            selection
+            className={ styles.coinselector }
+            hint={
+              <FormattedMessage
+                id='shapeshift.optionsStep.typeSelect.hint'
+                defaultMessage='the type of crypto conversion to do'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='shapeshift.optionsStep.typeSelect.label'
+                defaultMessage='Fund account from'
+              />
+            }
             options={ coins }
             onChange={ this.onSelectCoin }
             value={ coinSymbol }
@@ -126,9 +119,9 @@ export default class OptionsStep extends Component {
     const { image, name, symbol } = coin;
 
     return {
-      image: image,
-      value: symbol,
-      text: name
+      image,
+      text: name,
+      value: symbol
     };
   }
 

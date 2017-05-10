@@ -17,6 +17,7 @@
 export AddressSelect from './AddressSelect';
 export Checkbox from './Checkbox';
 export DappUrlInput from './DappUrlInput';
+export Dropdown from './Dropdown';
 export FileSelect from './FileSelect';
 export FormWrap from './FormWrap';
 export Input from './Input';
