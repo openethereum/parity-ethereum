@@ -20,9 +20,10 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import { setRequest } from '@parity/shared/redux/providers/requestsActions';
+
 import { Button, Portal } from '~/ui';
 import { CancelIcon, DoneIcon, NextIcon } from '~/ui/Icons';
-import { setRequest } from '~/redux/providers/requestsActions';
 
 import WalletType from './WalletType';
 import WalletDetails from './WalletDetails';

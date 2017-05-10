@@ -16,7 +16,7 @@
 
 import React, { PropTypes } from 'react';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
 import styles from './busy.css';
 

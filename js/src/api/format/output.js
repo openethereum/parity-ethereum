@@ -93,6 +93,16 @@ export function outChainStatus (status) {
 }
 
 export function outDate (date) {
+  if (typeof date.toISOString === 'function') {
+    return date;
+  }
+
+  try {
+    if (typeof date === 'string' && (new Date(date)).toISOString() === date) {
+      return new Date(date);
+    }
+  } catch (error) {}
+
   return new Date(outNumber(date).toNumber() * 1000);
 }
 

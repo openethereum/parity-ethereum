@@ -59,7 +59,7 @@ function render (props = {}, state = {}) {
   return component;
 }
 
-describe('views/ParityBar', () => {
+describe('shell/ParityBar', () => {
   beforeEach(() => {
     render({ dapp: true });
   });
@@ -82,12 +82,6 @@ describe('views/ParityBar', () => {
 
     it('renders when overlaying a dapp', () => {
       expect(bar.find('div')).not.to.have.length(0);
-    });
-
-    it('renders the Account selector button', () => {
-      const icon = bar.find('Button').first().props().icon;
-
-      expect(icon.type.displayName).to.equal('Connect(IdentityIcon)');
     });
 
     it('renders the Parity button', () => {
@@ -155,10 +149,6 @@ describe('views/ParityBar', () => {
     afterEach(() => {
       instance.renderBar.restore();
       instance.renderExpanded.restore();
-    });
-
-    it('renders the bar on with opened === false', () => {
-      expect(component.find('Link[to="/apps"]')).to.have.length(1);
     });
 
     it('renders expanded with opened === true', () => {

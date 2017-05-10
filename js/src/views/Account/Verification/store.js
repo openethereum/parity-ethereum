@@ -18,10 +18,9 @@ import { observable, autorun, action } from 'mobx';
 
 import Contract from '@parity/api/contract';
 import { sha3 } from '@parity/api/util/sha3';
-
-import Contracts from '~/contracts';
-import { checkIfVerified, findLastRequested, awaitPuzzle } from '~/contracts/verification';
-import { checkIfTxFailed, waitForConfirmations } from '~/util/tx';
+import Contracts from '@parity/shared/contracts';
+import { checkIfVerified, findLastRequested, awaitPuzzle } from '@parity/shared/contracts/verification';
+import { checkIfTxFailed, waitForConfirmations } from '@parity/shared/util/tx';
 
 export const LOADING = 'fetching-contract';
 export const QUERY_DATA = 'query-data';

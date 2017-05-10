@@ -20,7 +20,6 @@ import React from 'react';
 import Title from './';
 
 let component;
-let instance;
 
 function render (props = {}) {
   component = shallow(
@@ -33,7 +32,6 @@ function render (props = {}) {
       { ...props }
     />
   );
-  instance = component.instance();
 
   return component;
 }
@@ -45,46 +43,5 @@ describe('ui/Title', () => {
 
   it('renders defaults', () => {
     expect(component).to.be.ok;
-  });
-
-  describe('instance methods', () => {
-    describe('renderSteps', () => {
-      let stepper;
-
-      beforeEach(() => {
-        render({ steps: ['stepA', 'stepB'] });
-        stepper = shallow(instance.renderSteps());
-      });
-
-      it('renders the Stepper', () => {
-        expect(stepper.find('Stepper').get(0)).to.be.ok;
-      });
-    });
-
-    describe('renderTimeline', () => {
-      let steps;
-
-      beforeEach(() => {
-        render({ steps: ['stepA', 'StepB'] });
-        steps = instance.renderTimeline();
-      });
-
-      it('renders the Step', () => {
-        expect(steps.length).to.equal(2);
-      });
-    });
-
-    describe('renderWaiting', () => {
-      let waiting;
-
-      beforeEach(() => {
-        render({ busy: true });
-        waiting = shallow(instance.renderWaiting());
-      });
-
-      it('renders the Progress', () => {
-        expect(waiting.find('Progress').get(0)).to.be.ok;
-      });
-    });
   });
 });

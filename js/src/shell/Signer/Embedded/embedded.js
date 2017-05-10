@@ -20,9 +20,11 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import Store from '../store';
-import * as RequestsActions from '~/redux/providers/signerActions';
+import * as RequestsActions from '@parity/shared/redux/providers/signerActions';
+
 import { Container } from '~/ui';
+
+import Store from '../store';
 
 import RequestPending from '../components/RequestPending';
 

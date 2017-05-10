@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { walletCompiler as compiler, walletLibrary as byteCode, walletLibraryABI as abiJson, walletLibraryRegKey as id, walletSource as sourceUrl } from '~/contracts/code/wallet';
+import { walletCompiler as compiler, walletLibrary as byteCode, walletLibraryABI as abiJson, walletLibraryRegKey as id, walletSource as sourceUrl } from '@parity/shared/contracts/code/wallet';
 
 const abi = JSON.parse(abiJson);
 const deployParams = [];

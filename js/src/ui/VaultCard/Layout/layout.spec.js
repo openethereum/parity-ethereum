@@ -55,7 +55,7 @@ describe('ui/VaultCard/Layout', () => {
       let icon;
 
       beforeEach(() => {
-        icon = component.find('Connect(IdentityIcon)');
+        icon = component.find('IdentityIcon');
       });
 
       it('renders', () => {

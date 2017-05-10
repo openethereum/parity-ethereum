@@ -26,7 +26,7 @@ import Store, { LOGLEVEL_OPTIONS } from './store';
 import layout from '../layout.css';
 
 @observer
-export default class Parity extends Component {
+export default class Node extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
@@ -71,7 +71,7 @@ export default class Parity extends Component {
     return (
       <Dropdown.Item
         key={ name }
-        contenet={ label }
+        content={ label }
         name={ name }
         onClick={ func }
       >
@@ -139,10 +139,13 @@ export default class Parity extends Component {
         />
         <Menu
           vertical
-          className='parityModeSelect'
+          id='parityModeSelect'
           value={ mode }
         >
-          <Dropdown item text={ mode }>
+          <Dropdown
+            item
+            text={ mode }
+          >
             <Dropdown.Menu>
               {
                 this.renderItem('active', this.onChangeMode, (
@@ -194,7 +197,7 @@ export default class Parity extends Component {
         />
         <Menu
           vertical
-          className='parityChainSelect'
+          id='parityChainSelect'
           value={ chain }
         >
           <Dropdown item text={ chain }>

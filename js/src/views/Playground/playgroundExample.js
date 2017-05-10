@@ -14,42 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 import reactElementToJSXString from 'react-element-to-jsx-string';
 
 import styles from './playground.css';
 
-export default class PlaygroundExample extends Component {
-  static propTypes = {
-    children: PropTypes.node,
-    name: PropTypes.string
-  };
-
-  render () {
-    const { children, name } = this.props;
-
-    return (
-      <div className={ styles.exampleContainer }>
-        { this.renderName(name) }
-        <div className={ styles.example }>
-          <div className={ styles.code }>
-            <code>{ reactElementToJSXString(children) }</code>
-          </div>
-          <div className={ styles.component }>
-            { children }
-          </div>
+export default function PlaygroundExample ({ children, name }) {
+  return (
+    <div className={ styles.exampleContainer }>
+      {
+        name
+          ? <p>{ name }</p>
+          : null
+      }
+      <div className={ styles.example }>
+        <div className={ styles.code }>
+          <code>{ reactElementToJSXString(children) }</code>
+        </div>
+        <div className={ styles.component }>
+          { children }
         </div>
       </div>
-    );
-  }
-
-  renderName (name) {
-    if (!name) {
-      return null;
-    }
-
-    return (
-      <p>{ name }</p>
-    );
-  }
+    </div>
+  );
 }
+
+PlaygroundExample.propTypes = {
+  children: PropTypes.node,
+  name: PropTypes.string
+};

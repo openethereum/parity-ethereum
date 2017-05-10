@@ -20,7 +20,7 @@ import sinon from 'sinon';
 
 import { createApi, createReduxStore } from './vaults.test.js';
 
-import Vaults from './';
+import Vaults from './vaults';
 
 let api;
 let component;

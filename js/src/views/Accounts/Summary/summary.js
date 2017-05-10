@@ -22,9 +22,10 @@ import { isEqual } from 'lodash';
 import ReactTooltip from 'react-tooltip';
 import { FormattedMessage } from 'react-intl';
 
+import { arrayOrObjectProptype, nullableProptype } from '@parity/shared/util/proptypes';
+
 import { Balance, Container, ContainerTitle, CopyToClipboard, IdentityIcon, IdentityName, Tags, VaultTag } from '~/ui';
 import Certifications from '~/ui/Certifications';
-import { arrayOrObjectProptype, nullableProptype } from '~/util/proptypes';
 
 import styles from '../accounts.css';
 

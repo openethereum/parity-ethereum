@@ -16,8 +16,9 @@
 
 import React, { PropTypes } from 'react';
 
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+
 import { Title as ContainerTitle } from '~/ui/Container';
-import { nodeOrStringProptype } from '~/util/proptypes';
 
 import Steps from './Steps';
 import Waiting from './Waiting';

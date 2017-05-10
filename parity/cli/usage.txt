@@ -304,6 +304,9 @@ Sealing/Mining Options:
                                    execution time limit. Also number of offending actions
                                    have to reach the threshold within that time.
                                    (default: {flag_tx_queue_ban_time} seconds)
+  --no-persistent-txqueue          Don't save pending local transactions to disk to be
+                                   restored whenever the node restarts.
+                                   (default: {flag_no_persistent_txqueue}).
   --remove-solved                  Move solved blocks from the work package queue
                                    instead of cloning them. This gives a slightly
                                    faster import speed, but means that extra solutions

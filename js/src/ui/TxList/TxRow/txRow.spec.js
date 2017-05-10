@@ -90,7 +90,7 @@ describe('ui/TxList/TxRow', () => {
 
       const element = render({ address: '0x123', block, netVersion: '42', tx });
 
-      expect(element.find('Link').get(1).props.to).to.equal('/accounts/0x123');
+      expect(element.find('DappLink').get(1).props.to).to.equal('/account/0x123');
     });
 
     it('renders address links', () => {
@@ -107,7 +107,7 @@ describe('ui/TxList/TxRow', () => {
 
       const element = render({ address: '0x123', block, netVersion: '42', tx });
 
-      expect(element.find('Link').get(1).props.to).to.equal('/addresses/0x456');
+      expect(element.find('DappLink').get(1).props.to).to.equal('/address/0x456');
     });
 
     it('renders contract links', () => {
@@ -124,7 +124,7 @@ describe('ui/TxList/TxRow', () => {
 
       const element = render({ address: '0x123', block, netVersion: '42', tx });
 
-      expect(element.find('Link').get(1).props.to).to.equal('/contracts/0x999');
+      expect(element.find('DappLink').get(1).props.to).to.equal('/contract/0x999');
     });
   });
 });

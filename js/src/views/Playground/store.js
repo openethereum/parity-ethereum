@@ -14,12 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action } from 'mobx';
+import { action, computed, observable } from 'mobx';
 
 let instance = null;
 
 export default class PlaygroundStore {
-  components = [];
+  @observable components = [];
+  @observable selectedIndex = 0;
+
+  @computed get component () {
+    return this.components[this.selectedIndex];
+  }
+
+  @action add (component) {
+    this.components.push(component);
+  }
+
+  @action setSelectedIndex (selectedIndex) {
+    this.selectedIndex = selectedIndex;
+  }
 
   static get () {
     if (!instance) {
@@ -31,10 +44,5 @@ export default class PlaygroundStore {
 
   static register (component) {
     PlaygroundStore.get().add(component);
-  }
-
-  @action
-  add (component) {
-    this.components.push(component);
   }
 }

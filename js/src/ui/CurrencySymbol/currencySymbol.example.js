@@ -14,38 +14,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import React from 'react';
 
 import PlaygroundExample from '~/views/Playground/playgroundExample';
 
 import ConnectedCurrencySymbol, { CurrencySymbol } from './currencySymbol';
 
-export default class CurrencySymbolExample extends Component {
-  render () {
-    return (
-      <div>
-        <PlaygroundExample name='Connected Currency Symbol'>
-          <ConnectedCurrencySymbol />
-        </PlaygroundExample>
+export default function CurrencySymbolExample () {
+  return (
+    <div>
+      <PlaygroundExample name='Connected Currency Symbol'>
+        <ConnectedCurrencySymbol />
+      </PlaygroundExample>
 
-        <PlaygroundExample name='Simple Currency Symbol'>
-          <CurrencySymbol
-            netChain='testnet'
-          />
-        </PlaygroundExample>
+      <PlaygroundExample name='Simple Currency Symbol'>
+        <CurrencySymbol
+          netChain='testnet'
+        />
+      </PlaygroundExample>
 
-        <PlaygroundExample name='ETC Currency Symbol'>
-          <CurrencySymbol
-            netChain='classic'
-          />
-        </PlaygroundExample>
+      <PlaygroundExample name='ETC Currency Symbol'>
+        <CurrencySymbol
+          netChain='classic'
+        />
+      </PlaygroundExample>
 
-        <PlaygroundExample name='EXP Currency Symbol'>
-          <CurrencySymbol
-            netChain='expanse'
-          />
-        </PlaygroundExample>
-      </div>
-    );
-  }
+      <PlaygroundExample name='EXP Currency Symbol'>
+        <CurrencySymbol
+          netChain='expanse'
+        />
+      </PlaygroundExample>
+    </div>
+  );
 }

@@ -21,7 +21,8 @@ import {
   Card, CardHeader, CardText, TextField, DropDownMenu, MenuItem, RaisedButton
 } from 'material-ui';
 
-import { nullableProptype } from '~/util/proptypes';
+import { nullableProptype } from '@parity/shared/util/proptypes';
+
 import { AddIcon, CheckIcon } from '~/ui/Icons';
 import { clearError, confirm, propose } from './actions';
 import styles from './reverse.css';

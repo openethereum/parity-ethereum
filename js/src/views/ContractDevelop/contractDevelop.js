@@ -273,24 +273,6 @@ class ContractDevelop extends Component {
   renderParameters () {
     const { compiling, contract, selectedBuild, loading, workerError } = this.store;
 
-    if (workerError) {
-      return (
-        <div className={ styles.panel }>
-          <div className={ styles.centeredMessage }>
-            <p>
-              <FormattedMessage
-                id='writeContract.error.params'
-                defaultMessage='An error occurred with the following description'
-              />
-            </p>
-            <div className={ styles.error }>
-              { workerError.toString() }
-            </div>
-          </div>
-        </div>
-      );
-    }
-
     if (selectedBuild < 0) {
       return (
         <div className={ `${styles.panel} ${styles.centeredMessage}` }>
@@ -308,10 +290,28 @@ class ContractDevelop extends Component {
       );
     }
 
-    if (loading) {
+    let content;
+
+    if (workerError) {
+      content = (
+        <div className={ styles.panel }>
+          <div className={ styles.centeredMessage }>
+            <p>
+              <FormattedMessage
+                id='writeContract.error.params'
+                defaultMessage='An error occurred with the following description'
+              />
+            </p>
+            <div className={ styles.error }>
+              { workerError.toString() }
+            </div>
+          </div>
+        </div>
+      );
+    } else if (loading) {
       const { longVersion } = this.store.builds[selectedBuild];
 
-      return (
+      content = (
         <div className={ styles.panel }>
           <div className={ styles.centeredMessage }>
             <Loading
@@ -330,6 +330,8 @@ class ContractDevelop extends Component {
           </div>
         </div>
       );
+    } else {
+      content = this.renderCompilation();
     }
 
     return (
@@ -394,7 +396,7 @@ class ContractDevelop extends Component {
           </div>
         </div>
         { this.renderSolidityVersions() }
-        { this.renderCompilation() }
+        { content }
       </div>
     );
   }

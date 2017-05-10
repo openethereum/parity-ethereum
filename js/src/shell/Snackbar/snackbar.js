@@ -18,9 +18,9 @@ import React, { PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { Snackbar as SnackbarUI } from '~/ui';
+import { closeSnackbar } from '@parity/shared/redux/providers/snackbarActions';
 
-import { closeSnackbar } from '~/redux/providers/snackbarActions';
+import { Snackbar as SnackbarUI } from '~/ui';
 
 function Snackbar ({ closeSnackbar, cooldown = 3500, message, open = false }) {
   return (

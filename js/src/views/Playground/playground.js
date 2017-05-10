@@ -19,74 +19,61 @@ import React, { Component } from 'react';
 
 import AccountCard from '~/ui/AccountCard/accountCard.example';
 import CurrencySymbol from '~/ui/CurrencySymbol/currencySymbol.example';
+import Portal from '~/ui/Portal/portal.example';
 import QrCode from '~/ui/QrCode/qrCode.example';
 import SectionList from '~/ui/SectionList/sectionList.example';
-import Portal from '~/ui/Portal/portal.example';
 
 import PlaygroundStore from './store';
 import styles from './playground.css';
 
 PlaygroundStore.register(<AccountCard />);
 PlaygroundStore.register(<CurrencySymbol />);
+PlaygroundStore.register(<Portal />);
 PlaygroundStore.register(<QrCode />);
 PlaygroundStore.register(<SectionList />);
-PlaygroundStore.register(<Portal />);
 
 @observer
 export default class Playground extends Component {
-  state = {
-    selectedIndex: 0
-  };
-
   store = PlaygroundStore.get();
 
   render () {
+    const { component, components } = this.store;
+
     return (
       <div className={ styles.container }>
         <div className={ styles.title }>
-          <span>Playground > </span>
+          <span>Playground - </span>
           <select
             className={ styles.select }
             onChange={ this.handleChange }
           >
-            { this.renderOptions() }
+            {
+              components.map((element, index) => {
+                const name = element.type.displayName || element.type.name;
+
+                return (
+                  <option
+                    key={ `${name}_${index}` }
+                    value={ index }
+                  >
+                    { name }
+                  </option>
+                );
+              })
+            }
           </select>
         </div>
 
         <div className={ styles.examples }>
-          { this.renderComponent() }
+          { component }
         </div>
       </div>
     );
   }
 
-  renderOptions () {
-    const { components } = this.store;
-
-    return components.map((element, index) => {
-      const name = element.type.displayName || element.type.name;
-
-      return (
-        <option
-          key={ `${name}_${index}` }
-          value={ index }
-        >
-          { name }
-        </option>
-      );
-    });
-  }
-
-  renderComponent () {
-    const { components } = this.store;
-    const { selectedIndex } = this.state;
-
-    return components[selectedIndex];
-  }
-
   handleChange = (event) => {
     const { value } = event.target;
 
-    this.setState({ selectedIndex: value });
+    this.store.setSelectedIndex(value);
   }
 }

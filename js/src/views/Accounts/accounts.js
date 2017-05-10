@@ -22,10 +22,11 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import HardwareStore from '~/mobx/hardwareStore';
+import HardwareStore from '@parity/shared/mobx/hardwareStore';
+import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
+
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
 import { AddIcon, FileDownloadIcon } from '~/ui/Icons';
-import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import CreateWallet from './CreateWallet';
 import CreateAccount from './CreateAccount';

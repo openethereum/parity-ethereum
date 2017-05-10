@@ -25,16 +25,16 @@ import ReactDOM from 'react-dom';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 
-import SecureApi from '~/secureApi';
-import ContractInstances from '~/contracts';
+import ContractInstances from '@parity/shared/contracts';
+import { initStore } from '@parity/shared/redux';
+import { patchApi } from '@parity/shared/util/tx';
 
-import { initStore } from '~/redux';
+import SecureApi from '~/secureApi';
+
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
 
-import { patchApi } from '~/util/tx';
-
-import '~/environment';
+import '@parity/shared/environment';
 
 import '~/../assets/fonts/Roboto/font.css';
 import '~/../assets/fonts/RobotoMono/font.css';

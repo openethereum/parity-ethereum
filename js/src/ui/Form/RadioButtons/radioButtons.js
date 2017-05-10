@@ -17,7 +17,7 @@
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 import React, { Component, PropTypes } from 'react';
 
-import { arrayOrObjectProptype } from '~/util/proptypes';
+import { arrayOrObjectProptype } from '@parity/shared/util/proptypes';
 
 import Label from '../Label';
 import styles from './radioButtons.css';

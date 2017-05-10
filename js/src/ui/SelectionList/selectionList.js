@@ -17,9 +17,10 @@
 import { noop } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 
+import { arrayOrObjectProptype } from '@parity/shared/util/proptypes';
+
 import { StarIcon } from '~/ui/Icons';
 import SectionList from '~/ui/SectionList';
-import { arrayOrObjectProptype } from '~/util/proptypes';
 
 import styles from './selectionList.css';
 

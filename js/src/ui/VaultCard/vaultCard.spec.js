@@ -22,7 +22,6 @@ import VaultCard from './';
 const VAULT = { name: 'testing', isOpen: true };
 
 let component;
-let instance;
 
 function render (props = {}) {
   component = shallow(
@@ -31,7 +30,6 @@ function render (props = {}) {
       { ...props }
     />
   );
-  instance = component.instance();
 
   return component;
 }
@@ -59,35 +57,6 @@ describe('ui/VaultCard', () => {
 
       it('passes the vault', () => {
         expect(layout.props().vault).to.deep.equal(VAULT);
-      });
-    });
-  });
-
-  describe('instance methods', () => {
-    describe('renderAccounts', () => {
-      it('renders empty when no accounts supplied', () => {
-        expect(
-          shallow(instance.renderAccounts()).find('FormattedMessage').props().id
-        ).to.equal('vaults.accounts.empty');
-      });
-
-      describe('with accounts', () => {
-        const ACCOUNTS = ['0x123', '0x456'];
-        let identities;
-
-        beforeEach(() => {
-          render({ accounts: ACCOUNTS });
-          identities = shallow(instance.renderAccounts()).find('Connect(IdentityIcon)');
-        });
-
-        it('renders the accounts when supplied', () => {
-          expect(identities).to.have.length(2);
-        });
-
-        it('renders accounts with correct address', () => {
-          console.log(identities.get(0));
-          expect(identities.get(0).props.address).to.equal(ACCOUNTS[0]);
-        });
       });
     });
   });
