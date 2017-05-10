@@ -1035,7 +1035,7 @@ impl ClusterClient for ClusterClientImpl {
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.new_encryption_session(self.data.self_key_pair.public().clone(), session_id.clone(), cluster)?;
 		session.initialize(threshold, connected_nodes)?;
-		Ok(EncryptionSessionWrapper::new(&self.data, session_id, session))
+		Ok(EncryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
 	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
@@ -1046,7 +1046,7 @@ impl ClusterClient for ClusterClientImpl {
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.new_decryption_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), cluster)?;
 		session.initialize(requestor_signature, is_shadow_decryption)?;
-		Ok(DecryptionSessionWrapper::new(&self.data, session_id, access_key, session))
+		Ok(DecryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, access_key, session))
 	}
 
 	#[cfg(test)]
@@ -1066,11 +1066,11 @@ impl ClusterClient for ClusterClientImpl {
 }
 
 impl EncryptionSessionWrapper {
-	pub fn new(cluster: &Arc<ClusterData>, session_id: SessionId, session: Arc<EncryptionSession>) -> Arc<Self> {
+	pub fn new(cluster: Weak<ClusterData>, session_id: SessionId, session: Arc<EncryptionSession>) -> Arc<Self> {
 		Arc::new(EncryptionSessionWrapper {
 			session: session,
 			session_id: session_id,
-			cluster: Arc::downgrade(cluster),
+			cluster: cluster,
 		})
 	}
 }
@@ -1099,12 +1099,12 @@ impl Drop for EncryptionSessionWrapper {
 }
 
 impl DecryptionSessionWrapper {
-	pub fn new(cluster: &Arc<ClusterData>, session_id: SessionId, access_key: Secret, session: Arc<DecryptionSession>) -> Arc<Self> {
+	pub fn new(cluster: Weak<ClusterData>, session_id: SessionId, access_key: Secret, session: Arc<DecryptionSession>) -> Arc<Self> {
 		Arc::new(DecryptionSessionWrapper {
 			session: session,
 			session_id: session_id,
 			access_key: access_key,
-			cluster: Arc::downgrade(cluster),
+			cluster: cluster,
 		})
 	}
 }
