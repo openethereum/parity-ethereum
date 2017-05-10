@@ -68,7 +68,7 @@ class SyncWarning extends Component {
             <FormattedMessage
               id='syncWarning.message.line2'
               defaultMessage={ `
-                Some of the shown informations might be out-of-date.
+                Some of the shown information might be out-of-date.
               ` }
             />
 
