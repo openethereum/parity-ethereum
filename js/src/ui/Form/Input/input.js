@@ -62,6 +62,7 @@ export default class Input extends Component {
     onFocus: PropTypes.func,
     onKeyDown: PropTypes.func,
     onSubmit: PropTypes.func,
+    placeholder: nodeOrStringProptype(),
     rows: PropTypes.number,
     tabIndex: PropTypes.number,
     type: PropTypes.string,
@@ -131,6 +132,7 @@ export default class Input extends Component {
       hint,
       label,
       onClick,
+      placeholder,
       style,
       tabIndex,
       type
@@ -155,7 +157,7 @@ export default class Input extends Component {
           onKeyUp={ this.onKeyUp }
           onFocus={ this.onFocus }
           onPaste={ this.onPaste }
-          placeholder={ hint }
+          placeholder={ hint | placeholder }
           ref={ this.keyInput }
           style={ style }
           tabIndex={ tabIndex }
