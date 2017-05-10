@@ -18,15 +18,15 @@
 
 export function evaluate (input) {
   try {
-    const result = eval(input);
+    const result = eval.apply(window, [ input ]);
 
     return { result };
   } catch (err) {
     try {
-      const result = eval(`(function () {
+      const result = eval.apply(window, [ `(function () {
         var x = ${input};
         return x;
-      })()`);
+      })()` ]);
 
       return { result };
     } catch (error) {
