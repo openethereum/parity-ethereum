@@ -70,7 +70,7 @@ export default class OptionsStep extends Component {
             label={
               <FormattedMessage
                 id='shapeshift.optionsStep.typeSelect.label'
-                defaultMessage='Fund account from'
+                defaultMessage='fund account from'
               />
             }
             options={ coins }
