@@ -63,9 +63,10 @@ export default class CertificationsMiddleware {
   }
 
   toMiddleware () {
-    const badgeReg = Contracts.get(this._api).badgeReg;
+    const api = this._api;
+    const badgeReg = Contracts.get(api).badgeReg;
 
-    const contract = new Contract(this._api, CertifierABI);
+    const contract = new Contract(api, CertifierABI);
     const Confirmed = contract.events.find((e) => e.name === 'Confirmed');
     const Revoked = contract.events.find((e) => e.name === 'Revoked');
 
@@ -77,12 +78,12 @@ export default class CertificationsMiddleware {
       let badgeRegFilter = null;
       let fetchCertifiersPromise = null;
 
-      const updateFilter = updatableFilter(this._api, (filterId) => {
+      const updateFilter = updatableFilter(api, (filterId) => {
         filterChanged = true;
         filter = filterId;
       });
 
-      const badgeRegUpdateFilter = updatableFilter(this._api, (filterId) => {
+      const badgeRegUpdateFilter = updatableFilter(api, (filterId) => {
         filterChanged = true;
         badgeRegFilter = filterId;
       });
@@ -100,7 +101,7 @@ export default class CertificationsMiddleware {
         .then(() => {
           shortFetchChanges();
 
-          this._api.subscribe('eth_blockNumber', (err) => {
+          api.subscribe('eth_blockNumber', (err) => {
             if (err) {
               return;
             }
@@ -128,7 +129,8 @@ export default class CertificationsMiddleware {
       }
 
       function onBadgeRegLogs (logs) {
-        return badgeReg.getContract()
+        return badgeReg
+          .getContract()
           .then((badgeRegContract) => {
             logs = badgeRegContract.parseEventLogs(logs);
 
@@ -145,12 +147,12 @@ export default class CertificationsMiddleware {
 
         filterChanged = false;
 
-        this._api.eth[method](badgeRegFilter)
+        api.eth[method](badgeRegFilter)
           .then(onBadgeRegLogs)
           .catch((err) => {
             console.error('Failed to fetch badge reg events:', err);
           })
-          .then(() => this._api.eth[method](filter))
+          .then(() => api.eth[method](filter))
           .then(onLogs)
           .catch((err) => {
             console.error('Failed to fetch new certifier events:', err);

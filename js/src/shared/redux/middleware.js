@@ -17,6 +17,7 @@ import thunk from 'redux-thunk';
 import { routerMiddleware } from 'react-router-redux';
 
 import ErrorsMiddleware from '~/ui/Errors/middleware';
+
 import SettingsMiddleware from './providers/settings/middleware';
 import SignerMiddleware from './providers/signerMiddleware';
 
@@ -25,25 +26,24 @@ import ChainMiddleware from './providers/chainMiddleware';
 import RegistryMiddleware from './providers/registry/middleware';
 
 export default function (api, browserHistory, forEmbed = false) {
-  const errors = new ErrorsMiddleware();
-  const signer = new SignerMiddleware(api);
-  const settings = new SettingsMiddleware();
-  const chain = new ChainMiddleware();
   const middleware = [
-    settings.toMiddleware(),
-    signer.toMiddleware(),
-    errors.toMiddleware(),
-    chain.toMiddleware()
+    new SettingsMiddleware().toMiddleware(),
+    new SignerMiddleware(api).toMiddleware(),
+    new ErrorsMiddleware().toMiddleware(),
+    new ChainMiddleware().toMiddleware()
   ];
 
   if (!forEmbed) {
-    const certifications = new CertificationsMiddleware(api).toMiddleware();
-    const registry = new RegistryMiddleware(api).toMiddleware();
-
-    middleware.push(certifications, registry);
+    middleware.push(
+      new CertificationsMiddleware(api).toMiddleware(),
+      new RegistryMiddleware(api).toMiddleware()
+    );
   }
 
-  const routeMiddleware = browserHistory ? routerMiddleware(browserHistory) : [];
-
-  return middleware.concat(routeMiddleware, thunk);
+  return middleware.concat(
+    browserHistory
+      ? routerMiddleware(browserHistory)
+      : [],
+    thunk
+  );
 }

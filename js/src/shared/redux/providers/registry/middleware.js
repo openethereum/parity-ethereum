@@ -84,7 +84,7 @@ export default class RegistryMiddleware {
   }
 
   cacheReverses () {
-    const { registry } = Contracts.get();
+    const { registry } = Contracts.get(this._api);
     const cached = this.read(this.store.getState().nodeStatus.netChain);
 
     if (cached) {
