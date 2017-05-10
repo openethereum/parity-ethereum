@@ -15,43 +15,38 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.app {
+.container {
+  background-color: #f3f3f3;
+  border-bottom: 1px solid #ccc;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  padding: 0 0.5em;
+}
+
+.tabs {
   display: flex;
-  flex-direction: column;
-  font-family: dejavu sans mono, monospace;
-  font-size: 11px;
-  height: 100vh;
-  overflow: hidden;
 }
 
-textarea:focus,
-input:focus {
-  font-family: dejavu sans mono, monospace;
-  outline: none;
-}
-
-.header {
-  flex: 0 0 auto;
-}
-
-.view {
+.tab {
+  align-items: center;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  color: #333;
+  cursor: default;
   display: flex;
-  flex: 1;
-  flex-direction: column;
-}
+  height: 24px;
+  line-height: 15px;
+  margin-top: 2px;
+  padding: 2px 6px 2px 4px;
 
-.eval {
-  flex: 0 1 auto;
-  overflow: auto;
-}
+  &:hover,
+  &.active:hover {
+    background-color: #e5e5e5;
+  }
 
-.input {
-  border-top: 1px solid #eee;
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 50px;
-}
-
-.status {
-  flex: 0 0 auto;
+  &.active {
+    background-color: white;
+    border: 1px solid #ccc;
+    border-bottom: none;
+  }
 }

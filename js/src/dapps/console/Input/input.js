@@ -21,7 +21,7 @@ import ReactDOM from 'react-dom';
 
 import Autocomplete from '../Autocomplete';
 import AutocompleteStore from '../autocompleteStore';
-import EvalStore from '../evalStore';
+import ConsoleStore from '../consoleStore';
 import InputStore from '../inputStore';
 
 import styles from './input.css';
@@ -29,7 +29,7 @@ import styles from './input.css';
 @observer
 export default class Input extends Component {
   autocompleteStore = AutocompleteStore.get();
-  evalStore = EvalStore.get();
+  consoleStore = ConsoleStore.get();
   inputStore = InputStore.get();
 
   render () {
@@ -70,7 +70,7 @@ export default class Input extends Component {
     if (codeName === 'l' && event.ctrlKey) {
       event.preventDefault();
       event.stopPropagation();
-      return this.evalStore.clear();
+      return this.consoleStore.clear();
     }
 
     if (codeName === 'esc') {

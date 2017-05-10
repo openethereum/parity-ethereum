@@ -16,11 +16,12 @@
 
 import { observer } from 'mobx-react';
 import React, { Component } from 'react';
+import ReactDOM from 'react-dom';
 import { ObjectInspector } from 'react-inspector';
 
-import EvalStore from '../evalStore';
+import ConsoleStore from '../consoleStore';
 
-import styles from './eval.css';
+import styles from './console.css';
 
 const ICONS = {
   debug: '&nbsp;',
@@ -33,23 +34,23 @@ const ICONS = {
 };
 
 @observer
-export default class Eval extends Component {
-  evalStore = EvalStore.get();
+export default class Console extends Component {
+  consoleStore = ConsoleStore.get();
 
   render () {
     return (
-      <div>
+      <div ref={ this.setRef }>
         { this.renderResults() }
       </div>
     );
   }
 
   renderResults () {
-    const { logs } = this.evalStore;
+    const { logs } = this.consoleStore;
 
     return logs.map((data, index) => {
       const { type, timestamp } = data;
-      const values = this.evalStore.logValues[index];
+      const values = this.consoleStore.logValues[index];
       const classes = [ styles.result, styles[type] ];
 
       return (
@@ -80,6 +81,12 @@ export default class Eval extends Component {
       );
     });
   }
+
+  setRef = (node) => {
+    const element = ReactDOM.findDOMNode(node);
+
+    this.consoleStore.setNode(element);
+  };
 
   toString (value) {
     if (typeof value === 'string') {

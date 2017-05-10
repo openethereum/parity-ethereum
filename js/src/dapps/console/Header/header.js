@@ -17,64 +17,49 @@
 import { observer } from 'mobx-react';
 import React, { Component } from 'react';
 
-import { api } from '../parity';
-
-import Console from '../Console';
-import Header from '../Header';
-import Input from '../Input';
-import Status from '../Status';
-
 import ApplicationStore from '../applicationStore';
-import WatchesStore from '../watchesStore';
 
-import styles from './application.css';
+import styles from './header.css';
 
 @observer
-export default class Application extends Component {
+export default class Header extends Component {
   application = ApplicationStore.get();
-  watches = WatchesStore.get();
-
-  componentWillMount () {
-    this.watches.addWatch('time', () => new Date());
-    this.watches.addWatch('blockNumber', api.eth.blockNumber, api);
-  }
 
   render () {
     return (
-      <div className={ styles.app }>
-        <div className={ styles.header }>
-          <Header />
-        </div>
-
-        { this.renderView() }
-
-        <div className={ styles.status }>
-          <Status />
+      <div className={ styles.container }>
+        <div className={ styles.tabs }>
+          { this.renderTabs() }
         </div>
       </div>
     );
   }
 
-  renderView () {
+  renderTabs () {
     const { view } = this.application;
 
-    if (view === 'console') {
+    return this.application.views.map((tab) => {
+      const { label, id } = tab;
+      const classes = [ styles.tab ];
+      const onClick = () => this.handleClickTab(id);
+
+      if (id === view) {
+        classes.push(styles.active);
+      }
+
       return (
-        <div className={ styles.view }>
-          <div className={ styles.eval }>
-            <Console />
-          </div>
-          <div className={ styles.input }>
-            <Input />
-          </div>
+        <div
+          className={ classes.join(' ') }
+          key={ id }
+          onClick={ onClick }
+        >
+          { label }
         </div>
       );
-    }
-
-    return (
-      <div className={ styles.view }>
-        { view }
-      </div>
-    );
+    });
   }
+
+  handleClickTab = (id) => {
+    this.application.setView(id);
+  };
 }

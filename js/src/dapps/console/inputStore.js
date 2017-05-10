@@ -18,7 +18,7 @@ import { action, observable } from 'mobx';
 import store from 'store';
 
 import AutocompleteStore from './autocompleteStore';
-import EvalStore from './evalStore';
+import ConsoleStore from './consoleStore';
 
 const LS_HISTORY_KEY = '_console::history';
 const MAX_HISTORY_LINES = 5;
@@ -29,7 +29,7 @@ export default class InputStore {
   @observable input = '';
 
   autocompleteStore = AutocompleteStore.get();
-  evalStore = EvalStore.get();
+  consoleStore = ConsoleStore.get();
   history = [];
   historyOffset = null;
   inputNode = null;
@@ -94,7 +94,7 @@ export default class InputStore {
     const { input } = this;
 
     this.pushToHistory(input);
-    this.evalStore.evaluate(input);
+    this.consoleStore.evaluate(input);
     this.updateInput('');
     this.historyOffset = null;
   }

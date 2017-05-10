@@ -21,11 +21,12 @@ import { evaluate } from './utils';
 
 let instance;
 
-export default class EvalStore {
+export default class ConsoleStore {
   @observable logs = [];
 
   autocompleteStore = AutocompleteStore.get();
   logValues = [];
+  node = null;
 
   constructor () {
     this.attachConsole();
@@ -33,7 +34,7 @@ export default class EvalStore {
 
   static get () {
     if (!instance) {
-      instance = new EvalStore();
+      instance = new ConsoleStore();
     }
 
     return instance;
@@ -98,5 +99,20 @@ export default class EvalStore {
     }
 
     this.autocompleteStore.setPosition();
+    this.scroll();
+  }
+
+  setNode (node) {
+    this.node = node;
+  }
+
+  scroll () {
+    if (!this.node) {
+      return;
+    }
+
+    setTimeout(() => {
+      this.node.scrollIntoView(false);
+    }, 50);
   }
 }
