@@ -33,7 +33,7 @@ function render () {
   return component;
 }
 
-describe('modals/Shapeshift/AwaitingExchangeStep', () => {
+describe('views/Account/Shapeshift/AwaitingExchangeStep', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });

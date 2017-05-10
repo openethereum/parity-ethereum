@@ -35,24 +35,4 @@ describe('ui/Container', () => {
       expect(render({ className: 'testClass' })).to.have.className('testClass');
     });
   });
-
-  describe('sections', () => {
-    it('renders the default Card', () => {
-      expect(render().find('Card')).to.have.length(1);
-    });
-
-    it('renders Hover Card when available', () => {
-      const cards = render({ hover: <div>testingHover</div> }).find('Card');
-
-      expect(cards).to.have.length(2);
-      expect(cards.get(1).props.children.props.children).to.equal('testingHover');
-    });
-
-    it('renders the Title', () => {
-      const title = render({ title: 'title' }).find('Title');
-
-      expect(title).to.have.length(1);
-      expect(title.props().title).to.equal('title');
-    });
-  });
 });

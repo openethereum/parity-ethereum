@@ -34,7 +34,7 @@ function render () {
   return component;
 }
 
-describe('modals/Shapeshift/CompletedStep', () => {
+describe('views/Account/Shapeshift/CompletedStep', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });

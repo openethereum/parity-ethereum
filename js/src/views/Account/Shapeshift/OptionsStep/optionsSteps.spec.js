@@ -38,7 +38,7 @@ function render () {
   return component;
 }
 
-describe('modals/Shapeshift/OptionsStep', () => {
+describe('views/Account/Shapeshift/OptionsStep', () => {
   beforeEach(() => {
     render();
   });
@@ -103,7 +103,7 @@ describe('modals/Shapeshift/OptionsStep', () => {
       });
 
       it('sets the coinSymbol on the store', () => {
-        instance.onSelectCoin(null, 0, 'XMR');
+        instance.onSelectCoin(null, { value: 'XMR' });
         expect(store.setCoinSymbol).to.have.been.calledWith('XMR');
       });
     });
