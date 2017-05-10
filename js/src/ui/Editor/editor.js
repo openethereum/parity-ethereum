@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { PropTypes, Component } from 'react';
-
 import 'brace';
+import 'brace/theme/solarized_dark';
+import 'brace/mode/json';
+
+import React, { PropTypes, Component } from 'react';
 import AceEditor from 'react-ace';
 import { noop } from 'lodash';
 
-import 'brace/theme/solarized_dark';
-import 'brace/mode/json';
 import './mode-solidity';
 
 export default class Editor extends Component {
