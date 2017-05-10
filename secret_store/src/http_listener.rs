@@ -24,9 +24,10 @@ use hyper::server::{Server as HttpServer, Request as HttpRequest, Response as Ht
 use serde_json;
 use url::percent_encoding::percent_decode;
 
-use traits::KeyServer;
-use serialization::{SerializableDocumentEncryptedKeyShadow, SerializableBytes};
-use types::all::{Error, NodeAddress, RequestSignature, DocumentAddress, DocumentEncryptedKey, DocumentEncryptedKeyShadow};
+use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
+use serialization::{SerializableEncryptedDocumentKeyShadow, SerializableBytes};
+use types::all::{Error, Public, MessageData, NodeAddress, RequestSignature, ServerKeyId,
+	EncryptedDocumentKey, EncryptedDocumentKeyShadow};
 
 /// Key server http-requests listener
 pub struct KeyServerHttpListener<T: KeyServer + 'static> {
@@ -40,11 +41,11 @@ enum Request {
 	/// Invalid request
 	Invalid,
 	/// Generate encryption key.
-	GenerateDocumentKey(DocumentAddress, RequestSignature, usize),
+	GenerateDocumentKey(ServerKeyId, RequestSignature, usize),
 	/// Request encryption key of given document for given requestor.
-	GetDocumentKey(DocumentAddress, RequestSignature),
+	GetDocumentKey(ServerKeyId, RequestSignature),
 	/// Request shadow of encryption key of given document for given requestor.
-	GetDocumentKeyShadow(DocumentAddress, RequestSignature),
+	GetDocumentKeyShadow(ServerKeyId, RequestSignature),
 }
 
 /// Cloneable http handler
@@ -78,17 +79,35 @@ impl<T> KeyServerHttpListener<T> where T: KeyServer + 'static {
 	}
 }
 
-impl<T> KeyServer for KeyServerHttpListener<T> where T: KeyServer + 'static {
-	fn generate_document_key(&self, signature: &RequestSignature, document: &DocumentAddress, threshold: usize) -> Result<DocumentEncryptedKey, Error> {
-		self.handler.key_server.generate_document_key(signature, document, threshold)
+impl<T> KeyServer for KeyServerHttpListener<T> where T: KeyServer + 'static {}
+
+impl<T> ServerKeyGenerator for KeyServerHttpListener<T> where T: KeyServer + 'static {
+	fn generate_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _threshold: usize) -> Result<Public, Error> {
+		unimplemented!()
+	}
+}
+
+impl<T> DocumentKeyServer for KeyServerHttpListener<T> where T: KeyServer + 'static {
+	fn store_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _document_key: EncryptedDocumentKey) -> Result<(), Error> {
+		unimplemented!()
 	}
 
-	fn document_key(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKey, Error> {
-		self.handler.key_server.document_key(signature, document)
+	fn generate_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, threshold: usize) -> Result<EncryptedDocumentKey, Error> {
+		self.handler.key_server.generate_document_key(key_id, signature, threshold)
 	}
 
-	fn document_key_shadow(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKeyShadow, Error> {
-		self.handler.key_server.document_key_shadow(signature, document)
+	fn restore_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature) -> Result<EncryptedDocumentKey, Error> {
+		self.handler.key_server.restore_document_key(key_id, signature)
+	}
+
+	fn restore_document_key_shadow(&self, key_id: &ServerKeyId, signature: &RequestSignature) -> Result<EncryptedDocumentKeyShadow, Error> {
+		self.handler.key_server.restore_document_key_shadow(key_id, signature)
+	}
+}
+
+impl <T> MessageSigner for KeyServerHttpListener<T> where T: KeyServer + 'static {
+	fn sign_message(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _message: MessageData) -> Result<MessageData, Error> {
+		unimplemented!()
 	}
 }
 
@@ -112,27 +131,27 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 		match &req_uri {
 			&RequestUri::AbsolutePath(ref path) => match parse_request(&req_method, &path) {
 				Request::GenerateDocumentKey(document, signature, threshold) => {
-					return_document_key(req, res, self.handler.key_server.generate_document_key(&signature, &document, threshold)
+					return_document_key(req, res, self.handler.key_server.generate_document_key(&document, &signature, threshold)
 						.map_err(|err| {
 							warn!(target: "secretstore", "GenerateDocumentKey request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::GetDocumentKey(document, signature) => {
-					return_document_key(req, res, self.handler.key_server.document_key(&signature, &document)
+					return_document_key(req, res, self.handler.key_server.restore_document_key(&document, &signature)
 						.map_err(|err| {
 							warn!(target: "secretstore", "GetDocumentKey request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::GetDocumentKeyShadow(document, signature) => {
-					match self.handler.key_server.document_key_shadow(&signature, &document)
+					match self.handler.key_server.restore_document_key_shadow(&document, &signature)
 						.map_err(|err| {
 							warn!(target: "secretstore", "GetDocumentKeyShadow request {} has failed with: {}", req_uri, err);
 							err
 						}) {
 						Ok(document_key_shadow) => {
-							let document_key_shadow = SerializableDocumentEncryptedKeyShadow {
+							let document_key_shadow = SerializableEncryptedDocumentKeyShadow {
 								decrypted_secret: document_key_shadow.decrypted_secret.into(),
 								common_point: document_key_shadow.common_point.expect("always filled when requesting document_key_shadow; qed").into(),
 								decrypt_shadows: document_key_shadow.decrypt_shadows.expect("always filled when requesting document_key_shadow; qed").into_iter().map(Into::into).collect(),
@@ -166,7 +185,7 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 	}
 }
 
-fn return_document_key(req: HttpRequest, mut res: HttpResponse, document_key: Result<DocumentEncryptedKey, Error>) {
+fn return_document_key(req: HttpRequest, mut res: HttpResponse, document_key: Result<EncryptedDocumentKey, Error>) {
 	let document_key = document_key.
 		and_then(|k| serde_json::to_vec(&SerializableBytes(k)).map_err(|e| Error::Serde(e.to_string())));
 	match document_key {

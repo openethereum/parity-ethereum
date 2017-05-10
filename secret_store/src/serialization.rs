@@ -25,7 +25,7 @@ use util::{H256, Bytes};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 /// Serializable shadow decryption result.
-pub struct SerializableDocumentEncryptedKeyShadow {
+pub struct SerializableEncryptedDocumentKeyShadow {
 	/// Decrypted secret point. It is partially decrypted if shadow decrpytion was requested.
 	pub decrypted_secret: SerializablePublic,
 	/// Shared common point.

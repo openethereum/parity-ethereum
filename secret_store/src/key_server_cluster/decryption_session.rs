@@ -21,7 +21,7 @@ use parking_lot::{Mutex, Condvar};
 use ethcrypto::ecies::encrypt;
 use ethcrypto::DEFAULT_MAC;
 use ethkey::{self, Secret, Public, Signature};
-use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, DocumentEncryptedKeyShadow};
+use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, EncryptedDocumentKeyShadow};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::math;
 use key_server_cluster::message::{Message, DecryptionMessage, InitializeDecryptionSession, ConfirmDecryptionInitialization,
@@ -30,7 +30,7 @@ use key_server_cluster::message::{Message, DecryptionMessage, InitializeDecrypti
 /// Decryption session API.
 pub trait Session: Send + Sync + 'static {
 	/// Wait until session is completed. Returns distributely restored secret key.
-	fn wait(&self) -> Result<DocumentEncryptedKeyShadow, Error>;
+	fn wait(&self) -> Result<EncryptedDocumentKeyShadow, Error>;
 }
 
 /// Distributed decryption session.
@@ -124,7 +124,7 @@ struct SessionData {
 
 	/// === Values, filled during final decryption ===
 	/// Decrypted secret
-	decrypted_secret: Option<Result<DocumentEncryptedKeyShadow, Error>>,
+	decrypted_secret: Option<Result<EncryptedDocumentKeyShadow, Error>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -190,7 +190,7 @@ impl SessionImpl {
 
 	#[cfg(test)]
 	/// Get decrypted secret
-	pub fn decrypted_secret(&self) -> Option<Result<DocumentEncryptedKeyShadow, Error>> {
+	pub fn decrypted_secret(&self) -> Option<Result<EncryptedDocumentKeyShadow, Error>> {
 		self.data.lock().decrypted_secret.clone()
 	}
 
@@ -585,7 +585,7 @@ impl SessionImpl {
 		} else {
 			(None, None)
 		};
-		data.decrypted_secret = Some(Ok(DocumentEncryptedKeyShadow {
+		data.decrypted_secret = Some(Ok(EncryptedDocumentKeyShadow {
 			decrypted_secret: decrypted_secret,
 			common_point: common_point,
 			decrypt_shadows: decrypt_shadows,
@@ -599,7 +599,7 @@ impl SessionImpl {
 }
 
 impl Session for SessionImpl {
-	fn wait(&self) -> Result<DocumentEncryptedKeyShadow, Error> {
+	fn wait(&self) -> Result<EncryptedDocumentKeyShadow, Error> {
 		let mut data = self.data.lock();
 		if !data.decrypted_secret.is_some() {
 			self.completed.wait(&mut data);
@@ -700,7 +700,7 @@ mod tests {
 	use std::collections::BTreeMap;
 	use super::super::super::acl_storage::tests::DummyAclStorage;
 	use ethkey::{self, Random, Generator, Public, Secret};
-	use key_server_cluster::{NodeId, DocumentKeyShare, SessionId, Error, DocumentEncryptedKeyShadow};
+	use key_server_cluster::{NodeId, DocumentKeyShare, SessionId, Error, EncryptedDocumentKeyShadow};
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::decryption_session::{SessionImpl, SessionParams, SessionState};
 	use key_server_cluster::message::{self, Message, DecryptionMessage};
@@ -1055,7 +1055,7 @@ mod tests {
 		// 2) 1 session has decrypted key value
 		assert!(sessions.iter().skip(1).all(|s| s.decrypted_secret().is_none()));
 
-		assert_eq!(sessions[0].decrypted_secret().unwrap().unwrap(), DocumentEncryptedKeyShadow {
+		assert_eq!(sessions[0].decrypted_secret().unwrap().unwrap(), EncryptedDocumentKeyShadow {
 			decrypted_secret: SECRET_PLAIN.into(),
 			common_point: None,
 			decrypt_shadows: None,
@@ -1141,7 +1141,7 @@ mod tests {
 		assert_eq!(sessions.iter().filter(|s| s.state() == SessionState::Finished).count(), 5);
 		// 2) 1 session has decrypted key value
 		assert!(sessions.iter().skip(1).all(|s| s.decrypted_secret().is_none()));
-		assert_eq!(sessions[0].decrypted_secret().unwrap().unwrap(), DocumentEncryptedKeyShadow {
+		assert_eq!(sessions[0].decrypted_secret().unwrap().unwrap(), EncryptedDocumentKeyShadow {
 			decrypted_secret: SECRET_PLAIN.into(),
 			common_point: None,
 			decrypt_shadows: None,

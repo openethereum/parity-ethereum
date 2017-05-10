@@ -18,9 +18,9 @@ use std::fmt;
 use std::io::Error as IoError;
 use ethkey;
 use ethcrypto;
-use super::types::all::DocumentAddress;
+use super::types::all::ServerKeyId;
 
-pub use super::types::all::{NodeId, DocumentEncryptedKeyShadow};
+pub use super::types::all::{NodeId, EncryptedDocumentKeyShadow};
 pub use super::acl_storage::AclStorage;
 pub use super::key_storage::{KeyStorage, DocumentKeyShare};
 pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic};
@@ -33,7 +33,7 @@ pub use super::key_storage::tests::DummyKeyStorage;
 #[cfg(test)]
 pub use super::acl_storage::tests::DummyAclStorage;
 
-pub type SessionId = DocumentAddress;
+pub type SessionId = ServerKeyId;
 
 #[derive(Clone, Debug, PartialEq)]
 /// Errors which can occur during encryption/decryption session
