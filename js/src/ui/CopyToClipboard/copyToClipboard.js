@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { IconButton } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import Clipboard from 'react-copy-to-clipboard';
@@ -23,12 +22,9 @@ import { bindActionCreators } from 'redux';
 
 import { showSnackbar } from '@parity/shared/redux/providers/snackbarActions';
 
-import { CopyIcon } from '../Icons';
-import Theme from '../Theme';
+import { CopyIcon } from '~/ui/Icons';
 
 import styles from './copyToClipboard.css';
-
-const { textColor, disabledTextColor } = Theme.flatButton;
 
 class CopyToClipboard extends Component {
   static propTypes = {
@@ -62,7 +58,6 @@ class CopyToClipboard extends Component {
 
   render () {
     const { data, size } = this.props;
-    const { copied } = this.state;
 
     return (
       <Clipboard
@@ -70,29 +65,14 @@ class CopyToClipboard extends Component {
         text={ data }
       >
         <div
-          className={ styles.wrapper }
+          className={ styles.icon }
           onClick={ this.onClick }
+          style={ {
+            height: size,
+            width: size
+          } }
         >
-          <IconButton
-            disableTouchRipple
-            iconStyle={ {
-              height: size,
-              width: size
-            } }
-            style={ {
-              height: size,
-              padding: '0',
-              width: size
-            } }
-          >
-            <CopyIcon
-              color={
-                copied
-                  ? disabledTextColor
-                  : textColor
-              }
-            />
-          </IconButton>
+          <CopyIcon />
         </div>
       </Clipboard>
     );
