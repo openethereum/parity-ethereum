@@ -16,7 +16,6 @@
 
 use util::*;
 use state::Account;
-use account_db::AccountDBMut;
 use ethjson;
 use types::account_diff::*;
 use rlp::{self, RlpStream};
@@ -64,7 +63,7 @@ impl PodAccount {
 	}
 
 	/// Place additional data into given hash DB.
-	pub fn insert_additional(&self, db: &mut AccountDBMut, factory: &TrieFactory) {
+	pub fn insert_additional(&self, db: &mut HashDB, factory: &TrieFactory) {
 		match self.code {
 			Some(ref c) if !c.is_empty() => { db.insert(c); }
 			_ => {}

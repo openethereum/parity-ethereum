@@ -20,7 +20,7 @@ ws = { git = "https://github.com/paritytech/ws-rs.git", branch = "parity-1.7" }
 parity-dapps-glue = { version = "1.7", optional = true }
 ethcore-util = { path = "../util" }
 ethcore-io = { path = "../util/io" }
-ethcore-rpc = { path = "../rpc" }
+parity-rpc = { path = "../rpc" }
 ethcore-devtools = { path = "../devtools" }
 parity-ui = { path = "../dapps/ui", version = "1.4", optional = true }
 

@@ -34,6 +34,9 @@ pub const KEY_LENGTH: usize = 32;
 pub const KEY_ITERATIONS: usize = 10240;
 pub const KEY_LENGTH_AES: usize = KEY_LENGTH / 2;
 
+/// Default MAC to use (in RPC).
+pub const DEFAULT_MAC: [u8; 2] = [0, 0];
+
 #[derive(PartialEq, Debug)]
 pub enum ScryptError {
 	// log(N) < r / 16

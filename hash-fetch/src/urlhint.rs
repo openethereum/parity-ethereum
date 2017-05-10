@@ -370,7 +370,7 @@ pub mod tests {
 
 		// then
 		assert_eq!(res, Some(URLHintResult::Content(Content {
-			url: "https://ethcore.io/assets/images/ethcore-black-horizontal.png".into(),
+			url: "https://parity.io/assets/images/ethcore-black-horizontal.png".into(),
 			mime: mime!(Image/Png),
 			owner: Address::from_str("deadcafebeefbeefcafedeaddeedfeedffffffff").unwrap(),
 		})))
@@ -395,11 +395,11 @@ pub mod tests {
 
 	#[test]
 	fn should_guess_mime_type_from_url() {
-		let url1 = "https://ethcore.io/parity";
-		let url2 = "https://ethcore.io/parity#content-type=image/png";
-		let url3 = "https://ethcore.io/parity#something&content-type=image/png";
-		let url4 = "https://ethcore.io/parity.png#content-type=image/jpeg";
-		let url5 = "https://ethcore.io/parity.png";
+		let url1 = "https://parity.io/parity";
+		let url2 = "https://parity.io/parity#content-type=image/png";
+		let url3 = "https://parity.io/parity#something&content-type=image/png";
+		let url4 = "https://parity.io/parity.png#content-type=image/jpeg";
+		let url5 = "https://parity.io/parity.png";
 
 
 		assert_eq!(guess_mime_type(url1), None);

@@ -27,6 +27,7 @@ import styles from './accountCard.css';
 
 export default class AccountCard extends Component {
   static propTypes = {
+    children: PropTypes.node,
     account: PropTypes.object.isRequired,
     balance: PropTypes.object,
     className: PropTypes.string,
@@ -44,7 +45,7 @@ export default class AccountCard extends Component {
   };
 
   render () {
-    const { account, balance, className, onFocus } = this.props;
+    const { account, balance, className, onFocus, children } = this.props;
     const { copied } = this.state;
     const { address, description, meta = {}, name } = account;
     const { tags = [] } = meta;
@@ -84,10 +85,12 @@ export default class AccountCard extends Component {
           </div>
 
           <Balance
+            address={ address }
             balance={ balance }
             className={ styles.balance }
             showOnlyEth
           />
+          { children }
         </div>
 
         {

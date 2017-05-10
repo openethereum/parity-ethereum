@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BalancesProvider from './balances';
-import { showSnackbar } from './snackbarActions';
 import { DEFAULT_NETCHAIN } from './statusReducer';
 
 export default class ChainMiddleware {
@@ -24,20 +22,34 @@ export default class ChainMiddleware {
       if (action.type === 'statusCollection') {
         const { collection } = action;
 
-        if (collection && collection.netChain) {
-          const newChain = collection.netChain;
+        if (collection) {
           const { nodeStatus } = store.getState();
+          const { netChain, nodeKind } = nodeStatus;
+          const newChain = collection.netChain;
+          const newNodeKind = collection.nodeKind;
+          let reloadChain = false;
+          let reloadType = false;
 
-          if (newChain !== nodeStatus.netChain && nodeStatus.netChain !== DEFAULT_NETCHAIN) {
-            store.dispatch(showSnackbar(`Switched to ${newChain}. The UI will reload now...`));
+          // force reload when chain has changed and is not initial value
+          if (newChain) {
+            const hasChainChanged = newChain !== netChain;
+            const isInitialChain = netChain === DEFAULT_NETCHAIN;
+
+            reloadChain = !isInitialChain && hasChainChanged;
+          }
+
+          // force reload when nodeKind (availability or capability) has changed
+          if (newNodeKind && nodeKind) {
+            const hasAvailabilityChanged = nodeKind.availability !== newNodeKind.availability;
+            const hasCapabilityChanged = nodeKind.capability !== newNodeKind.capability;
+
+            reloadType = hasAvailabilityChanged || hasCapabilityChanged;
+          }
+
+          if (reloadChain || reloadType) {
             setTimeout(() => {
               window.location.reload();
             }, 0);
-
-            // Fetch the new balances without notifying the user of any change
-            BalancesProvider.get(store).fetchAllBalances({
-              changedNetwork: true
-            });
           }
         }
       }

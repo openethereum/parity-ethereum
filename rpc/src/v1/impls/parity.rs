@@ -34,12 +34,12 @@ use ethcore::client::{MiningBlockChainClient};
 use ethcore::mode::Mode;
 use ethcore::account_provider::AccountProvider;
 use updater::{Service as UpdateService};
+use crypto::DEFAULT_MAC;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::accounts::unwrap_provider;
-use v1::helpers::dispatch::DEFAULT_MAC;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
@@ -69,6 +69,7 @@ pub struct ParityClient<C, M, S: ?Sized, U> where
 	signer: Option<Arc<SignerService>>,
 	dapps_interface: Option<String>,
 	dapps_port: Option<u16>,
+	eip86_transition: u64,
 }
 
 impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
@@ -103,6 +104,7 @@ impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
 			signer: signer,
 			dapps_interface: dapps_interface,
 			dapps_port: dapps_port,
+			eip86_transition: client.eip86_transition(),
 		}
 	}
 
@@ -288,11 +290,13 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn pending_transactions(&self) -> Result<Vec<Transaction>, Error> {
-		Ok(take_weak!(self.miner).pending_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
+		let block_number = take_weak!(self.client).chain_info().best_block_number;
+		Ok(take_weak!(self.miner).pending_transactions().into_iter().map(|t| Transaction::from_pending(t, block_number, self.eip86_transition)).collect::<Vec<_>>())
 	}
 
 	fn future_transactions(&self) -> Result<Vec<Transaction>, Error> {
-		Ok(take_weak!(self.miner).future_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
+		let block_number = take_weak!(self.client).chain_info().best_block_number;
+		Ok(take_weak!(self.miner).future_transactions().into_iter().map(|t| Transaction::from_pending(t, block_number, self.eip86_transition)).collect::<Vec<_>>())
 	}
 
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>, Error> {
@@ -305,9 +309,10 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 
 	fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>, Error> {
 		let transactions = take_weak!(self.miner).local_transactions();
+		let block_number = take_weak!(self.client).chain_info().best_block_number;
 		Ok(transactions
 		   .into_iter()
-		   .map(|(hash, status)| (hash.into(), status.into()))
+		   .map(|(hash, status)| (hash.into(), LocalTransactionStatus::from(status, block_number, self.eip86_transition)))
 		   .collect()
 		)
 	}

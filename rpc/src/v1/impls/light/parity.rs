@@ -27,11 +27,14 @@ use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
+use crypto::DEFAULT_MAC;
+
+use light::client::LightChainClient;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{errors, ipfs, SigningQueue, SignerService, NetworkSettings};
-use v1::helpers::dispatch::{LightDispatcher, DEFAULT_MAC};
+use v1::helpers::dispatch::LightDispatcher;
 use v1::helpers::light_fetch::LightFetch;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
@@ -53,11 +56,13 @@ pub struct ParityClient {
 	signer: Option<Arc<SignerService>>,
 	dapps_interface: Option<String>,
 	dapps_port: Option<u16>,
+	eip86_transition: u64,
 }
 
 impl ParityClient {
 	/// Creates new `ParityClient`.
 	pub fn new(
+		client: Arc<LightChainClient>,
 		light_dispatch: Arc<LightDispatcher>,
 		accounts: Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
@@ -74,6 +79,7 @@ impl ParityClient {
 			signer: signer,
 			dapps_interface: dapps_interface,
 			dapps_port: dapps_port,
+			eip86_transition: client.eip86_transition(),
 		}
 	}
 
@@ -245,7 +251,7 @@ impl Parity for ParityClient {
 		Ok(
 			txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
-				.map(Into::into)
+				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
 				.collect::<Vec<_>>()
 		)
 	}
@@ -256,7 +262,7 @@ impl Parity for ParityClient {
 		Ok(
 			txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
 				.into_iter()
-				.map(Into::into)
+				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
 				.collect::<Vec<_>>()
 		)
 	}

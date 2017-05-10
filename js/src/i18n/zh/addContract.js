@@ -16,45 +16,45 @@
 
 export default {
   abi: {
-    hint: `the abi for the contract`,
-    label: `contract abi`
+    hint: `合约的ABI`, // the abi for the contract
+    label: `合约ABI` // contract abi
   },
   abiType: {
     custom: {
-      description: `Contract created from custom ABI`,
-      label: `Custom Contract`
+      description: `通过自定义ABI创造的合约`, // Contract created from custom ABI
+      label: `自定义合约` // Custom Contract
     },
     multisigWallet: {
-      description: `Ethereum Multisig contract {link}`,
-      label: `Multisig Wallet`,
-      link: `see contract code`
+      description: `以太坊多重签名合约{link}`, // Ethereum Multisig contract {link}
+      label: `多重签名钱包`, // Multisig Wallet
+      link: `参考合约代码` // see contract code
     },
     token: {
-      description: `A standard {erc20} token`,
-      erc20: `ERC 20`,
-      label: `Token`
+      description: `一个标准的{erc20}代币`, // A standard {erc20} token
+      erc20: `ERC 20`, // ERC 20
+      label: `代币` // Token
     }
   },
   address: {
-    hint: `the network address for the contract`,
-    label: `network address`
+    hint: `合约的网络地址`, // the network address for the contract
+    label: `网络地址` // network address
   },
   button: {
-    add: `Add Contract`,
-    cancel: `Cancel`,
-    next: `Next`,
-    prev: `Back`
+    add: `添加合约`, // Add Contract
+    cancel: `取消`, // Cancel
+    next: `下一步`, // Next
+    prev: `上一步` // Back
   },
   description: {
-    hint: `an expanded description for the entry`,
-    label: `(optional) contract description`
+    hint: `记录的详细描述`, // an expanded description for the entry
+    label: `（可选）合约描述` // (optional) contract description
   },
   name: {
-    hint: `a descriptive name for the contract`,
-    label: `contract name`
+    hint: `合约的描述性名称`, // a descriptive name for the contract
+    label: `合约名` // contract name
   },
   title: {
-    details: `enter contract details`,
-    type: `choose a contract type`
+    details: `输入合约细节`, // enter contract details
+    type: `选择合约种类` // choose a contract type
   }
 };

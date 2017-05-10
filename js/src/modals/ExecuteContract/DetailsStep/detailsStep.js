@@ -34,7 +34,6 @@ export default class DetailsStep extends Component {
     accounts: PropTypes.object.isRequired,
     amount: PropTypes.string,
     amountError: PropTypes.string,
-    balances: PropTypes.object,
     contract: PropTypes.object.isRequired,
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
@@ -51,13 +50,12 @@ export default class DetailsStep extends Component {
   }
 
   render () {
-    const { accounts, advancedOptions, amount, amountError, balances, fromAddress, fromAddressError, onAdvancedClick, onAmountChange, onFromAddressChange } = this.props;
+    const { accounts, advancedOptions, amount, amountError, fromAddress, fromAddressError, onAdvancedClick, onAmountChange, onFromAddressChange } = this.props;
 
     return (
       <Form>
         <AddressSelect
           accounts={ accounts }
-          balances={ balances }
           error={ fromAddressError }
           hint={
             <FormattedMessage

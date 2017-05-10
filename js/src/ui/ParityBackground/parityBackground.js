@@ -79,7 +79,7 @@ class ParityBackground extends Component {
     };
 
     if (attachDocument) {
-      document.documentElement.style.background = style.background;
+      document.documentElement.style.backgroundImage = style.background;
     }
 
     return (

@@ -59,7 +59,7 @@ impl Migration for ToV9 {
 	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
 		let mut batch = Batch::new(config, self.column);
 
-		for (key, value) in source.iter(col) {
+		for (key, value) in source.iter(col).into_iter().flat_map(|inner| inner) {
 			self.progress.tick();
 			match self.extract {
 				Extract::Header => {

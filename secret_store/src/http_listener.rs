@@ -24,10 +24,9 @@ use hyper::server::{Server as HttpServer, Request as HttpRequest, Response as Ht
 use serde_json;
 use url::percent_encoding::percent_decode;
 
-use util::ToPretty;
 use traits::KeyServer;
-use serialization::SerializableDocumentEncryptedKeyShadow;
-use types::all::{Error, ServiceConfiguration, RequestSignature, DocumentAddress, DocumentEncryptedKey, DocumentEncryptedKeyShadow};
+use serialization::{SerializableDocumentEncryptedKeyShadow, SerializableBytes};
+use types::all::{Error, NodeAddress, RequestSignature, DocumentAddress, DocumentEncryptedKey, DocumentEncryptedKeyShadow};
 
 /// Key server http-requests listener
 pub struct KeyServerHttpListener<T: KeyServer + 'static> {
@@ -60,7 +59,7 @@ struct KeyServerSharedHttpHandler<T: KeyServer + 'static> {
 
 impl<T> KeyServerHttpListener<T> where T: KeyServer + 'static {
 	/// Start KeyServer http listener
-	pub fn start(config: ServiceConfiguration, key_server: T) -> Result<Self, Error> {
+	pub fn start(listener_address: &NodeAddress, key_server: T) -> Result<Self, Error> {
 		let shared_handler = Arc::new(KeyServerSharedHttpHandler {
 			key_server: key_server,
 		});
@@ -68,7 +67,7 @@ impl<T> KeyServerHttpListener<T> where T: KeyServer + 'static {
 			handler: shared_handler.clone(),
 		};
 
-		let listener_addr: &str = &format!("{}:{}", config.listener_address.address, config.listener_address.port);
+		let listener_addr: &str = &format!("{}:{}", listener_address.address, listener_address.port);
 		let http_server = HttpServer::http(&listener_addr).expect("cannot start HttpServer");
 		let http_server = http_server.handle(handler).expect("cannot start HttpServer");
 		let listener = KeyServerHttpListener {
@@ -90,6 +89,13 @@ impl<T> KeyServer for KeyServerHttpListener<T> where T: KeyServer + 'static {
 
 	fn document_key_shadow(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKeyShadow, Error> {
 		self.handler.key_server.document_key_shadow(signature, document)
+	}
+}
+
+impl<T> Drop for KeyServerHttpListener<T> where T: KeyServer + 'static {
+	fn drop(&mut self) {
+		// ignore error as we are dropping anyway
+		let _ = self._http_server.close();
 	}
 }
 
@@ -161,9 +167,10 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 }
 
 fn return_document_key(req: HttpRequest, mut res: HttpResponse, document_key: Result<DocumentEncryptedKey, Error>) {
+	let document_key = document_key.
+		and_then(|k| serde_json::to_vec(&SerializableBytes(k)).map_err(|e| Error::Serde(e.to_string())));
 	match document_key {
 		Ok(document_key) => {
-			let document_key = document_key.to_hex().into_bytes();
 			res.headers_mut().set(header::ContentType::plaintext());
 			if let Err(err) = res.send(&document_key) {
 				// nothing to do, but to log an error
@@ -179,6 +186,7 @@ fn return_error(mut res: HttpResponse, err: Error) {
 		Error::BadSignature => *res.status_mut() = HttpStatusCode::BadRequest,
 		Error::AccessDenied => *res.status_mut() = HttpStatusCode::Forbidden,
 		Error::DocumentNotFound => *res.status_mut() = HttpStatusCode::NotFound,
+		Error::Serde(_) => *res.status_mut() = HttpStatusCode::BadRequest,
 		Error::Database(_) => *res.status_mut() = HttpStatusCode::InternalServerError,
 		Error::Internal(_) => *res.status_mut() = HttpStatusCode::InternalServerError,
 	}
@@ -219,7 +227,17 @@ fn parse_request(method: &HttpMethod, uri_path: &str) -> Request {
 #[cfg(test)]
 mod tests {
 	use hyper::method::Method as HttpMethod;
-	use super::{parse_request, Request};
+	use key_server::tests::DummyKeyServer;
+	use types::all::NodeAddress;
+	use super::{parse_request, Request, KeyServerHttpListener};
+
+	#[test]
+	fn http_listener_successfully_drops() {
+		let key_server = DummyKeyServer;
+		let address = NodeAddress { address: "127.0.0.1".into(), port: 9000 };
+		let listener = KeyServerHttpListener::start(&address, key_server).unwrap();
+		drop(listener);
+	}
 
 	#[test]
 	fn parse_request_successful() {

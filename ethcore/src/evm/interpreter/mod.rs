@@ -32,7 +32,7 @@ use std::marker::PhantomData;
 use action_params::{ActionParams, ActionValue};
 use types::executed::CallType;
 use evm::instructions::{self, Instruction, InstructionInfo};
-use evm::{self, MessageCallResult, ContractCreateResult, GasLeft, CostType};
+use evm::{self, MessageCallResult, ContractCreateResult, GasLeft, CostType, CreateContractAddress};
 use bit_set::BitSet;
 
 use util::*;
@@ -182,7 +182,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 	fn verify_instruction(&self, ext: &evm::Ext, instruction: Instruction, info: &InstructionInfo, stack: &Stack<U256>) -> evm::Result<()> {
 		let schedule = ext.schedule();
 
-		if !schedule.have_delegate_call && instruction == instructions::DELEGATECALL {
+		if (instruction == instructions::DELEGATECALL && !schedule.have_delegate_call) ||
+			(instruction == instructions::CREATE2 && !schedule.have_create2) {
+
 			return Err(evm::Error::BadInstruction {
 				instruction: instruction
 			});
@@ -266,10 +268,12 @@ impl<Cost: CostType> Interpreter<Cost> {
 			instructions::JUMPDEST => {
 				// ignore
 			},
-			instructions::CREATE => {
+			instructions::CREATE | instructions::CREATE2 => {
 				let endowment = stack.pop_back();
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
+
+				let address_scheme = if instruction == instructions::CREATE { CreateContractAddress::FromSenderAndNonce } else { CreateContractAddress::FromSenderAndCodeHash };
 				let create_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
 
 				let contract_code = self.mem.read_slice(init_off, init_size);
@@ -280,7 +284,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					return Ok(InstructionResult::UnusedGas(create_gas));
 				}
 
-				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code);
+				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, address_scheme);
 				return match create_result {
 					ContractCreateResult::Created(address, gas_left) => {
 						stack.push(address_to_u256(address));

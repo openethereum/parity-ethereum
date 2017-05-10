@@ -64,10 +64,10 @@ impl KeyServer for KeyServerImpl {
 
 		// generate document key
 		let encryption_session = self.data.lock().cluster.new_encryption_session(document.clone(), threshold)?;
-		let document_key = encryption_session.wait()?;
+		let document_key = encryption_session.wait(None)?;
 
 		// encrypt document key with requestor public key
-		let document_key = ethcrypto::ecies::encrypt_single_message(&public, &document_key)
+		let document_key = ethcrypto::ecies::encrypt(&public, &ethcrypto::DEFAULT_MAC, &document_key)
 			.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err)))?;
 		Ok(document_key)
 	}
@@ -83,13 +83,13 @@ impl KeyServer for KeyServerImpl {
 		let document_key = decryption_session.wait()?.decrypted_secret;
 
 		// encrypt document key with requestor public key
-		let document_key = ethcrypto::ecies::encrypt_single_message(&public, &document_key)
+		let document_key = ethcrypto::ecies::encrypt(&public, &ethcrypto::DEFAULT_MAC, &document_key)
 			.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err)))?;
 		Ok(document_key)
 	}
 
 	fn document_key_shadow(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKeyShadow, Error> {
-		let decryption_session = self.data.lock().cluster.new_decryption_session(document.clone(), signature.clone(), false)?;
+		let decryption_session = self.data.lock().cluster.new_decryption_session(document.clone(), signature.clone(), true)?;
 		decryption_session.wait().map_err(Into::into)
 	}
 }
@@ -104,7 +104,6 @@ impl KeyServerCore {
 				.map(|(node_id, node_address)| (node_id.clone(), (node_address.address.clone(), node_address.port)))
 				.collect(),
 			allow_connecting_to_higher_nodes: config.allow_connecting_to_higher_nodes,
-			encryption_config: config.encryption_config.clone(),
 			acl_storage: acl_storage,
 			key_storage: key_storage,
 		};
@@ -119,7 +118,7 @@ impl KeyServerCore {
 					return;
 				},
 			};
-			
+
 			let cluster = ClusterCore::new(el.handle(), config);
 			let cluster_client = cluster.and_then(|c| c.run().map(|_| c.client()));
 			tx.send(cluster_client.map_err(Into::into)).expect("Rx is blocking upper thread.");
@@ -143,53 +142,107 @@ impl Drop for KeyServerCore {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 	use std::time;
 	use std::sync::Arc;
 	use ethcrypto;
 	use ethkey::{self, Random, Generator};
 	use acl_storage::tests::DummyAclStorage;
 	use key_storage::tests::DummyKeyStorage;
-	use types::all::{ClusterConfiguration, NodeAddress, EncryptionConfiguration};
+	use types::all::{Error, ClusterConfiguration, NodeAddress, RequestSignature, DocumentAddress, DocumentEncryptedKey, DocumentEncryptedKeyShadow};
 	use super::{KeyServer, KeyServerImpl};
 
-	#[test]
-	fn document_key_generation_and_retrievement_works_over_network() {
-		//::util::log::init_log();
+	pub struct DummyKeyServer;
 
-		let num_nodes = 3;
+	impl KeyServer for DummyKeyServer {
+		fn generate_document_key(&self, _signature: &RequestSignature, _document: &DocumentAddress, _threshold: usize) -> Result<DocumentEncryptedKey, Error> {
+			unimplemented!()
+		}
+
+		fn document_key(&self, _signature: &RequestSignature, _document: &DocumentAddress) -> Result<DocumentEncryptedKey, Error> {
+			unimplemented!()
+		}
+
+		fn document_key_shadow(&self, _signature: &RequestSignature, _document: &DocumentAddress) -> Result<DocumentEncryptedKeyShadow, Error> {
+			unimplemented!()
+		}
+	}
+
+	fn make_key_servers(start_port: u16, num_nodes: usize) -> Vec<KeyServerImpl> {
 		let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
 		let configs: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
 				threads: 1,
 				self_private: (***key_pairs[i].secret()).into(),
 				listener_address: NodeAddress {
 					address: "127.0.0.1".into(),
-					port: 6060 + (i as u16),
+					port: start_port + (i as u16),
 				},
 				nodes: key_pairs.iter().enumerate().map(|(j, kp)| (kp.public().clone(),
 					NodeAddress {
 						address: "127.0.0.1".into(),
-						port: 6060 + (j as u16),
+						port: start_port + (j as u16),
 					})).collect(),
 				allow_connecting_to_higher_nodes: false,
-				encryption_config: EncryptionConfiguration {
-					key_check_timeout_ms: 10,
-				},
 			}).collect();
 		let key_servers: Vec<_> = configs.into_iter().map(|cfg|
 			KeyServerImpl::new(&cfg, Arc::new(DummyAclStorage::default()), Arc::new(DummyKeyStorage::default())).unwrap()
 		).collect();
 
-		// wait until connections are established
+		// wait until connections are established. It is fast => do not bother with events here
 		let start = time::Instant::now();
+		let mut tried_reconnections = false;
 		loop {
 			if key_servers.iter().all(|ks| ks.cluster().cluster_state().connected.len() == num_nodes - 1) {
 				break;
 			}
-			if time::Instant::now() - start > time::Duration::from_millis(30000) {
-				panic!("connections are not established in 30000ms");
+
+			let old_tried_reconnections = tried_reconnections;
+			let mut fully_connected = true;
+			for key_server in &key_servers {
+				if key_server.cluster().cluster_state().connected.len() != num_nodes - 1 {
+					fully_connected = false;
+					if !old_tried_reconnections {
+						tried_reconnections = true;
+						key_server.cluster().connect();
+					}
+				}
+			}
+			if fully_connected {
+				break;
+			}
+			if time::Instant::now() - start > time::Duration::from_millis(1000) {
+				panic!("connections are not established in 1000ms");
 			}
 		}
+
+		key_servers
+	}
+
+	#[test]
+	fn document_key_generation_and_retrievement_works_over_network_with_single_node() {
+		//::logger::init_log();
+		let key_servers = make_key_servers(6070, 1);
+
+		// generate document key
+		let threshold = 0;
+		let document = Random.generate().unwrap().secret().clone();
+		let secret = Random.generate().unwrap().secret().clone();
+		let signature = ethkey::sign(&secret, &document).unwrap();
+		let generated_key = key_servers[0].generate_document_key(&signature, &document, threshold).unwrap();
+		let generated_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &generated_key).unwrap();
+
+		// now let's try to retrieve key back
+		for key_server in key_servers.iter() {
+			let retrieved_key = key_server.document_key(&signature, &document).unwrap();
+			let retrieved_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &retrieved_key).unwrap();
+			assert_eq!(retrieved_key, generated_key);
+		}
+	}
+
+	#[test]
+	fn document_key_generation_and_retrievement_works_over_network_with_3_nodes() {
+		//::logger::init_log();
+		let key_servers = make_key_servers(6080, 3);
 
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
@@ -198,12 +251,12 @@ mod tests {
 			let secret = Random.generate().unwrap().secret().clone();
 			let signature = ethkey::sign(&secret, &document).unwrap();
 			let generated_key = key_servers[0].generate_document_key(&signature, &document, *threshold).unwrap();
-			let generated_key = ethcrypto::ecies::decrypt_single_message(&secret, &generated_key).unwrap();
+			let generated_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &generated_key).unwrap();
 
 			// now let's try to retrieve key back
 			for key_server in key_servers.iter() {
 				let retrieved_key = key_server.document_key(&signature, &document).unwrap();
-				let retrieved_key = ethcrypto::ecies::decrypt_single_message(&secret, &retrieved_key).unwrap();
+				let retrieved_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &retrieved_key).unwrap();
 				assert_eq!(retrieved_key, generated_key);
 			}
 		}

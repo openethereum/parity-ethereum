@@ -45,7 +45,6 @@ class Contract extends Component {
 
     accounts: PropTypes.object,
     accountsInfo: PropTypes.object,
-    balances: PropTypes.object,
     contracts: PropTypes.object,
     netVersion: PropTypes.string.isRequired,
     params: PropTypes.object
@@ -102,8 +101,14 @@ class Contract extends Component {
     const { api } = this.context;
     const { subscriptionId, blockSubscriptionId, contract } = this.state;
 
-    api.unsubscribe(blockSubscriptionId);
-    contract.unsubscribe(subscriptionId);
+    if (blockSubscriptionId >= 0) {
+      api.unsubscribe(blockSubscriptionId);
+    }
+
+    if (subscriptionId >= 0) {
+      contract.unsubscribe(subscriptionId);
+    }
+
     this.props.setVisibleAccounts([]);
   }
 
@@ -115,10 +120,9 @@ class Contract extends Component {
   }
 
   render () {
-    const { accountsInfo, balances, contracts, netVersion, params } = this.props;
+    const { accountsInfo, contracts, netVersion, params } = this.props;
     const { allEvents, contract, queryValues, loadingEvents } = this.state;
     const account = contracts[params.address];
-    const balance = balances[params.address];
 
     if (!account) {
       return null;
@@ -133,7 +137,6 @@ class Contract extends Component {
         <Page padded>
           <Header
             account={ account }
-            balance={ balance }
             isContract
           >
             { this.renderBlockNumber(account.meta) }
@@ -520,13 +523,11 @@ class Contract extends Component {
 
 function mapStateToProps (state) {
   const { accounts, accountsInfo, contracts } = state.personal;
-  const { balances } = state.balances;
   const { netVersion } = state.nodeStatus;
 
   return {
     accounts,
     accountsInfo,
-    balances,
     contracts,
     netVersion
   };

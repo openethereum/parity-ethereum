@@ -22,7 +22,10 @@ registerPromiseWorker((msg) => {
   return handleMessage(msg);
 });
 
-self.solc = {};
+self.compiler = {
+  version: null,
+  compiler: null
+};
 self.files = {};
 
 function handleMessage (message) {
@@ -57,7 +60,16 @@ function compile (data) {
 
   return getCompiler(build)
     .then((compiler) => {
+      console.warn('compiling');
       return SolidityUtils.compile(data, compiler);
+    })
+    .then((result) => {
+      console.warn('result in worker', result);
+      return result;
+    })
+    .catch((error) => {
+      console.error('error in worker', error);
+      throw error;
     });
 }
 
@@ -79,14 +91,18 @@ function setFiles (files) {
 function getCompiler (build) {
   const { longVersion } = build;
 
-  if (!self.solc[longVersion]) {
-    self.solc[longVersion] = SolidityUtils
+  if (self.compiler.version !== longVersion) {
+    self.compiler.version = longVersion;
+    self.compiler.compiler = SolidityUtils
       .getCompiler(build)
       .then((compiler) => {
-        self.solc[longVersion] = compiler;
+        if (self.compiler.version === longVersion) {
+          self.compiler.compiler = compiler;
+        }
+
         return compiler;
       });
   }
 
-  return Promise.resolve(self.solc[longVersion]);
+  return Promise.resolve(self.compiler.compiler);
 }

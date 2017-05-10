@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use util::{U256, H256, Address, Bytes, trie};
 use ethcore::client::EnvInfo;
-use ethcore::evm::{self, Ext, ContractCreateResult, MessageCallResult, Schedule, CallType};
+use ethcore::evm::{self, Ext, ContractCreateResult, MessageCallResult, Schedule, CallType, CreateContractAddress};
 
 pub struct FakeExt {
 	schedule: Schedule,
@@ -31,7 +31,7 @@ pub struct FakeExt {
 impl Default for FakeExt {
 	fn default() -> Self {
 		FakeExt {
-			schedule: Schedule::new_post_eip150(usize::max_value(), true, true, true),
+			schedule: Schedule::new_post_eip150(usize::max_value(), true, true, true, true),
 			store: HashMap::new(),
 			depth: 1,
 		}
@@ -68,7 +68,7 @@ impl Ext for FakeExt {
 		unimplemented!();
 	}
 
-	fn create(&mut self, _gas: &U256, _value: &U256, _code: &[u8]) -> ContractCreateResult {
+	fn create(&mut self, _gas: &U256, _value: &U256, _code: &[u8], _address: CreateContractAddress) -> ContractCreateResult {
 		unimplemented!();
 	}
 

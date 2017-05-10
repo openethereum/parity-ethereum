@@ -14,150 +14,138 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable, transaction } from 'mobx';
-import { uniq } from 'lodash';
+import { action, observable } from 'mobx';
 
 export default class Store {
   @observable blocks = {};
   @observable sortedHashes = [];
   @observable transactions = {};
 
-  constructor (api) {
+  constructor (api, onNewError, hashes) {
     this._api = api;
-    this._subscriptionId = 0;
-    this._pendingHashes = [];
-
-    this.subscribe();
+    this._onNewError = onNewError;
+    this.loadTransactions(hashes);
   }
 
-  @action addBlocks = (blocks) => {
-    this.blocks = Object.assign({}, this.blocks, blocks);
+  @action addHash = (hash) => {
+    if (!this.sortedHashes.includes(hash)) {
+      this.sortedHashes.push(hash);
+      this.sortHashes();
+    }
   }
 
-  @action addTransactions = (transactions) => {
-    transaction(() => {
-      this.transactions = Object.assign({}, this.transactions, transactions);
-      this.sortedHashes = Object
-        .keys(this.transactions)
-        .sort((ahash, bhash) => {
-          const bnA = this.transactions[ahash].blockNumber;
-          const bnB = this.transactions[bhash].blockNumber;
+  @action removeHash = (hash) => {
+    this.sortedHashes.remove(hash);
+    let tx = this.transactions[hash];
 
-          if (bnB.eq(0)) {
-            return bnB.eq(bnA) ? 0 : 1;
-          } else if (bnA.eq(0)) {
-            return -1;
-          }
+    if (tx) {
+      delete this.transactions[hash];
+      delete this.blocks[tx.blockNumber];
+    }
+    this.sortHashes();
+  }
 
-          return bnB.comparedTo(bnA);
-        });
+  containsAll = (arr1, arr2) => {
+    return arr2.every((arr2Item) => arr1.includes(arr2Item));
+  }
 
-      this._pendingHashes = this.sortedHashes.filter((hash) => this.transactions[hash].blockNumber.eq(0));
+  sameHashList = (transactions) => {
+    return this.containsAll(transactions, this.sortedHashes) && this.containsAll(this.sortedHashes, transactions);
+  }
+
+  sortHashes = () => {
+    this.sortedHashes = this.sortedHashes.sort((hashA, hashB) => {
+      const bnA = this.transactions[hashA].blockNumber;
+      const bnB = this.transactions[hashB].blockNumber;
+
+      // 0 is a special case (has not been added to the blockchain yet)
+      if (bnB.eq(0)) {
+        return bnB.eq(bnA) ? 0 : 1;
+      } else if (bnA.eq(0)) {
+        return -1;
+      }
+
+      return bnB.comparedTo(bnA);
     });
   }
 
-  @action clearPending () {
-    this._pendingHashes = [];
-  }
-
-  subscribe () {
-    this._api
-      .subscribe('eth_blockNumber', (error, blockNumber) => {
-        if (error) {
-          return;
-        }
-
-        if (this._pendingHashes.length) {
-          this.loadTransactions(this._pendingHashes);
-          this.clearPending();
-        }
-      })
-      .then((subscriptionId) => {
-        this._subscriptionId = subscriptionId;
-      });
-  }
-
-  unsubscribe () {
-    if (!this._subscriptionId) {
+  loadTransactions (_txhashes) {
+    // Ignore special cases and if the contents of _txhashes && this.sortedHashes are the same
+    if (Array.isArray(_txhashes) || this.sameHashList(_txhashes)) {
       return;
     }
 
-    this._api.unsubscribe(this._subscriptionId);
-    this._subscriptionId = 0;
+    // Remove any tx that are edited/cancelled
+    this.sortedHashes.forEach((hash) => {
+      if (!_txhashes.includes(hash)) {
+        this.removeHash(hash);
+      }
+    });
+
+    // Add any new tx
+    _txhashes.forEach((txhash) => {
+      if (this.sortedHashes.includes(txhash)) {
+        return;
+      }
+
+      this._api.eth
+        .getTransactionByHash(txhash)
+        .then((tx) => {
+          if (!tx) {
+            return;
+          }
+
+          this.transactions[txhash] = tx;
+
+          // If the tx has a blockHash, let's get the blockNumber, otherwise it's ready to be added
+          if (tx.blockHash) {
+            this._api.parity
+              .getBlockHeaderByNumber(tx.blockNumber)
+              .then((block) => {
+                this.blocks[tx.blockNumber] = block;
+                this.addHash(txhash);
+              });
+          } else {
+            this.addHash(txhash);
+          }
+        });
+    });
   }
 
-  loadTransactions (_txhashes = []) {
-    const promises = _txhashes
-      .filter((txhash) => !this.transactions[txhash] || this._pendingHashes.includes(txhash))
-      .map((txhash) => {
-        return Promise
-          .all([
-            this._api.eth.getTransactionByHash(txhash),
-            this._api.eth.getTransactionReceipt(txhash)
-          ])
-          .then(([
-            transaction = {},
-            transactionReceipt = {}
-          ]) => {
-            return {
-              ...transactionReceipt,
-              ...transaction
-            };
-          });
-      });
+  cancelTransaction = (txComponent, tx) => {
+    const { hash } = tx;
 
-    if (!promises.length) {
-      return;
-    }
-
-    Promise
-      .all(promises)
-      .then((_transactions) => {
-        const blockNumbers = [];
-        const transactions = _transactions
-          .filter((tx) => tx && tx.hash)
-          .reduce((txs, tx) => {
-            txs[tx.hash] = tx;
-
-            if (tx.blockNumber && tx.blockNumber.gt(0)) {
-              blockNumbers.push(tx.blockNumber.toNumber());
-            }
-
-            return txs;
-          }, {});
-
-        // No need to add transactions if there are none
-        if (Object.keys(transactions).length === 0) {
-          return false;
-        }
-
-        this.addTransactions(transactions);
-        this.loadBlocks(blockNumbers);
+    this._api.parity
+      .removeTransaction(hash)
+      .then(() => {
+        txComponent.setState({ canceled: true });
       })
-      .catch((error) => {
-        console.warn('loadTransactions', error);
+      .catch((err) => {
+        this._onNewError({ message: err });
       });
   }
 
-  loadBlocks (_blockNumbers) {
-    const blockNumbers = uniq(_blockNumbers).filter((bn) => !this.blocks[bn]);
+  editTransaction = (txComponent, tx) => {
+    const { hash, gas, gasPrice, to, from, value, input, condition } = tx;
 
-    if (!blockNumbers || !blockNumbers.length) {
-      return;
-    }
-
-    Promise
-      .all(blockNumbers.map((blockNumber) => this._api.eth.getBlockByNumber(blockNumber)))
-      .then((blocks) => {
-        this.addBlocks(
-          blocks.reduce((blocks, block, index) => {
-            blocks[blockNumbers[index]] = block;
-            return blocks;
-          }, {})
-        );
+    this._api.parity
+      .removeTransaction(hash)
+      .then(() => {
+        return this._api.parity.postTransaction({
+          from,
+          to,
+          gas,
+          gasPrice,
+          value,
+          condition,
+          data: input
+        });
       })
-      .catch((error) => {
-        console.warn('loadBlocks', error);
+      .then(() => {
+        txComponent.setState({ editing: true });
+      })
+      .catch((err) => {
+        this._onNewError({ message: err });
       });
   }
 }

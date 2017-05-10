@@ -95,6 +95,8 @@ usage! {
 		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
 		flag_light: bool = false, or |c: &Config| otry!(c.parity).light,
+		flag_no_persistent_txqueue: bool = false,
+			or |c: &Config| otry!(c.parity).no_persistent_txqueue,
 
 		// -- Account Options
 		flag_unlock: Option<String> = None,
@@ -163,19 +165,33 @@ usage! {
 			or |c: &Config| otry!(c.rpc).interface.clone(),
 		flag_jsonrpc_cors: Option<String> = None,
 			or |c: &Config| otry!(c.rpc).cors.clone().map(Some),
-		flag_jsonrpc_apis: String = "web3,eth,net,parity,traces,rpc",
+		flag_jsonrpc_apis: String = "web3,eth,net,parity,traces,rpc,secretstore",
 			or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.as_ref().map(|vec| vec.join(",")),
 		flag_jsonrpc_threads: Option<usize> = None,
 			or |c: &Config| otry!(c.rpc).threads.map(Some),
 
+		// WS
+		flag_no_ws: bool = false,
+			or |c: &Config| otry!(c.websockets).disable.clone(),
+		flag_ws_port: u16 = 8546u16,
+			or |c: &Config| otry!(c.websockets).port.clone(),
+		flag_ws_interface: String  = "local",
+			or |c: &Config| otry!(c.websockets).interface.clone(),
+		flag_ws_apis: String = "web3,eth,net,parity,traces,rpc,secretstore",
+			or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
+		flag_ws_origins: String = "none",
+			or |c: &Config| otry!(c.websockets).origins.as_ref().map(|vec| vec.join(",")),
+		flag_ws_hosts: String = "none",
+			or |c: &Config| otry!(c.websockets).hosts.as_ref().map(|vec| vec.join(",")),
+
 		// IPC
 		flag_no_ipc: bool = false,
 			or |c: &Config| otry!(c.ipc).disable.clone(),
 		flag_ipc_path: String = "$BASE/jsonrpc.ipc",
 			or |c: &Config| otry!(c.ipc).path.clone(),
-		flag_ipc_apis: String = "web3,eth,net,parity,parity_accounts,traces,rpc",
+		flag_ipc_apis: String = "web3,eth,net,parity,parity_accounts,traces,rpc,secretstore",
 			or |c: &Config| otry!(c.ipc).apis.as_ref().map(|vec| vec.join(",")),
 
 		// DAPPS
@@ -280,13 +296,13 @@ usage! {
 			or |c: &Config| otry!(c.footprint).pruning.clone(),
 		flag_pruning_history: u64 = 64u64,
 			or |c: &Config| otry!(c.footprint).pruning_history.clone(),
-		flag_pruning_memory: usize = 75usize,
+		flag_pruning_memory: usize = 32usize,
 			or |c: &Config| otry!(c.footprint).pruning_memory.clone(),
-		flag_cache_size_db: u32 = 64u32,
+		flag_cache_size_db: u32 = 32u32,
 			or |c: &Config| otry!(c.footprint).cache_size_db.clone(),
 		flag_cache_size_blocks: u32 = 8u32,
 			or |c: &Config| otry!(c.footprint).cache_size_blocks.clone(),
-		flag_cache_size_queue: u32 = 50u32,
+		flag_cache_size_queue: u32 = 40u32,
 			or |c: &Config| otry!(c.footprint).cache_size_queue.clone(),
 		flag_cache_size_state: u32 = 25u32,
 			or |c: &Config| otry!(c.footprint).cache_size_state.clone(),
@@ -331,7 +347,6 @@ usage! {
 		flag_no_color: bool = false,
 			or |c: &Config| otry!(c.misc).color.map(|c| !c).clone(),
 
-
 		// -- Legacy Options supported in configs
 		flag_dapps_port: Option<u16> = None,
 			or |c: &Config| otry!(c.dapps).port.clone().map(Some),
@@ -363,6 +378,7 @@ struct Config {
 	ui: Option<Ui>,
 	network: Option<Network>,
 	rpc: Option<Rpc>,
+	websockets: Option<Ws>,
 	ipc: Option<Ipc>,
 	dapps: Option<Dapps>,
 	secretstore: Option<SecretStore>,
@@ -391,6 +407,7 @@ struct Operating {
 	keys_path: Option<String>,
 	identity: Option<String>,
 	light: Option<bool>,
+	no_persistent_txqueue: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -438,6 +455,16 @@ struct Rpc {
 	apis: Option<Vec<String>>,
 	hosts: Option<Vec<String>>,
 	threads: Option<usize>,
+}
+
+#[derive(Default, Debug, PartialEq, RustcDecodable)]
+struct Ws {
+	disable: Option<bool>,
+	port: Option<u16>,
+	interface: Option<String>,
+	apis: Option<Vec<String>>,
+	origins: Option<Vec<String>>,
+	hosts: Option<Vec<String>>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -554,7 +581,7 @@ struct Misc {
 mod tests {
 	use super::{
 		Args, ArgsError,
-		Config, Operating, Account, Ui, Network, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
+		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
 		Snapshots, VM, Misc, SecretStore,
 	};
 	use toml;
@@ -657,6 +684,7 @@ mod tests {
 			flag_keys_path: "$HOME/.parity/keys".into(),
 			flag_identity: "".into(),
 			flag_light: false,
+			flag_no_persistent_txqueue: false,
 
 			// -- Account Options
 			flag_unlock: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
@@ -695,14 +723,22 @@ mod tests {
 			flag_jsonrpc_port: 8545u16,
 			flag_jsonrpc_interface: "local".into(),
 			flag_jsonrpc_cors: Some("null".into()),
-			flag_jsonrpc_apis: "web3,eth,net,parity,traces,rpc".into(),
+			flag_jsonrpc_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			flag_jsonrpc_hosts: "none".into(),
 			flag_jsonrpc_threads: None,
+
+			// WS
+			flag_no_ws: false,
+			flag_ws_port: 8546u16,
+			flag_ws_interface: "local".into(),
+			flag_ws_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
+			flag_ws_origins: "none".into(),
+			flag_ws_hosts: "none".into(),
 
 			// IPC
 			flag_no_ipc: false,
 			flag_ipc_path: "$HOME/.parity/jsonrpc.ipc".into(),
-			flag_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,rpc".into(),
+			flag_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,rpc,secretstore".into(),
 
 			// DAPPS
 			flag_dapps_path: "$HOME/.parity/dapps".into(),
@@ -868,6 +904,7 @@ mod tests {
 				keys_path: None,
 				identity: None,
 				light: None,
+				no_persistent_txqueue: None,
 			}),
 			account: Some(Account {
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),
@@ -898,6 +935,14 @@ mod tests {
 				reserved_peers: Some("./path/to/reserved_peers".into()),
 				reserved_only: Some(true),
 				no_serve_light: None,
+			}),
+			websockets: Some(Ws {
+				disable: Some(true),
+				port: None,
+				interface: None,
+				apis: None,
+				origins: Some(vec!["none".into()]),
+				hosts: None,
 			}),
 			rpc: Some(Rpc {
 				disable: Some(true),

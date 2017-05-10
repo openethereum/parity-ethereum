@@ -32,13 +32,13 @@
 //! extern crate jsonrpc_core;
 //! extern crate jsonrpc_server_utils;
 //! extern crate ethcore_signer;
-//! extern crate ethcore_rpc;
+//! extern crate parity_rpc;
 //!
 //! use std::sync::Arc;
 //! use jsonrpc_core::IoHandler;
 //! use jsonrpc_server_utils::reactor::RpcEventLoop;
 //! use ethcore_signer::ServerBuilder;
-//! use ethcore_rpc::ConfirmationsQueue;
+//! use parity_rpc::ConfirmationsQueue;
 //!
 //!	fn main() {
 //!	 let queue = Arc::new(ConfirmationsQueue::default());
@@ -55,11 +55,11 @@ extern crate log;
 extern crate env_logger;
 extern crate rand;
 
-extern crate ethcore_util as util;
-extern crate ethcore_rpc as rpc;
 extern crate ethcore_io as io;
+extern crate ethcore_util as util;
 extern crate jsonrpc_core;
 extern crate jsonrpc_server_utils;
+extern crate parity_rpc as rpc;
 extern crate ws;
 
 extern crate ethcore_devtools as devtools;

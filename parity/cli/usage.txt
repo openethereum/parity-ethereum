@@ -157,7 +157,28 @@ API and Console Options:
                                    vectors. Special options: "all", "none",
                                    (default: {flag_jsonrpc_hosts}).
   --jsonrpc-threads THREADS        Enables experimental faster implementation of JSON-RPC server.
-                                   Requires Dapps server to be disabled using --no-dapps. (default: {flag_jsonrpc_threads:?})
+                                   Requires Dapps server to be disabled
+                                   using --no-dapps. (default: {flag_jsonrpc_threads:?})
+
+  --no-ws                          Disable the WebSockets server. (default: {flag_no_ws})
+  --ws-port PORT                   Specify the port portion of the WebSockets server
+                                   (default: {flag_ws_port}).
+  --ws-interface IP                Specify the hostname portion of the WebSockets
+                                   server, IP should be an interface's IP address, or
+                                   all (all interfaces) or local (default: {flag_ws_interface}).
+  --ws-apis APIS                   Specify the APIs available through the WebSockets
+                                   interface. APIS is a comma-delimited list of API
+                                   name. Possible name are web3, eth, net, personal,
+                                   parity, parity_set, traces, rpc, parity_accounts.
+                                   (default: {flag_ws_apis}).
+  --ws-origins URL                 Specify Origin header values allowed to connect.
+                                   Special options: "all", "none".
+                                   (default: {flag_ws_origins})
+  --ws-hosts HOSTS                 List of allowed Host header values. This option will
+                                   validate the Host header sent by the browser, it
+                                   is additional security against some attack
+                                   vectors. Special options: "all", "none",
+                                   (default: {flag_ws_hosts}).
 
   --no-ipc                         Disable JSON-RPC over IPC service. (default: {flag_no_ipc})
   --ipc-path PATH                  Specify custom path for JSON-RPC over IPC service
@@ -283,6 +304,9 @@ Sealing/Mining Options:
                                    execution time limit. Also number of offending actions
                                    have to reach the threshold within that time.
                                    (default: {flag_tx_queue_ban_time} seconds)
+  --no-persistent-txqueue          Don't save pending local transactions to disk to be
+                                   restored whenever the node restarts.
+                                   (default: {flag_no_persistent_txqueue}).
   --remove-solved                  Move solved blocks from the work package queue
                                    instead of cloning them. This gives a slightly
                                    faster import speed, but means that extra solutions

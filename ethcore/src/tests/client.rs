@@ -72,8 +72,7 @@ fn should_return_registrar() {
 
 #[test]
 fn returns_state_root_basic() {
-	let client_result = generate_dummy_client(6);
-	let client = client_result.reference();
+	let client = generate_dummy_client(6);
 	let test_spec = get_test_spec();
 	let genesis_header = test_spec.genesis_header();
 
@@ -125,8 +124,7 @@ fn query_none_block() {
 
 #[test]
 fn query_bad_block() {
-	let client_result = get_test_client_with_blocks(vec![get_bad_state_dummy_block()]);
-	let client = client_result.reference();
+	let client = get_test_client_with_blocks(vec![get_bad_state_dummy_block()]);
 	let bad_block: Option<_> = client.block_header(BlockId::Number(1));
 
 	assert!(bad_block.is_none());
@@ -135,8 +133,7 @@ fn query_bad_block() {
 #[test]
 fn returns_chain_info() {
 	let dummy_block = get_good_dummy_block();
-	let client_result = get_test_client_with_blocks(vec![dummy_block.clone()]);
-	let client = client_result.reference();
+	let client = get_test_client_with_blocks(vec![dummy_block.clone()]);
 	let block = BlockView::new(&dummy_block);
 	let info = client.chain_info();
 	assert_eq!(info.best_block_hash, block.header().hash());
@@ -145,8 +142,7 @@ fn returns_chain_info() {
 #[test]
 fn returns_logs() {
 	let dummy_block = get_good_dummy_block();
-	let client_result = get_test_client_with_blocks(vec![dummy_block.clone()]);
-	let client = client_result.reference();
+	let client = get_test_client_with_blocks(vec![dummy_block.clone()]);
 	let logs = client.logs(Filter {
 		from_block: BlockId::Earliest,
 		to_block: BlockId::Latest,
@@ -160,14 +156,13 @@ fn returns_logs() {
 #[test]
 fn returns_logs_with_limit() {
 	let dummy_block = get_good_dummy_block();
-	let client_result = get_test_client_with_blocks(vec![dummy_block.clone()]);
-	let client = client_result.reference();
+	let client = get_test_client_with_blocks(vec![dummy_block.clone()]);
 	let logs = client.logs(Filter {
 		from_block: BlockId::Earliest,
 		to_block: BlockId::Latest,
 		address: None,
 		topics: vec![],
-		limit: Some(2),
+		limit: None,
 	});
 	assert_eq!(logs.len(), 0);
 }
@@ -175,8 +170,7 @@ fn returns_logs_with_limit() {
 #[test]
 fn returns_block_body() {
 	let dummy_block = get_good_dummy_block();
-	let client_result = get_test_client_with_blocks(vec![dummy_block.clone()]);
-	let client = client_result.reference();
+	let client = get_test_client_with_blocks(vec![dummy_block.clone()]);
 	let block = BlockView::new(&dummy_block);
 	let body = client.block_body(BlockId::Hash(block.header().hash())).unwrap();
 	let body = body.rlp();
@@ -187,8 +181,7 @@ fn returns_block_body() {
 
 #[test]
 fn imports_block_sequence() {
-	let client_result = generate_dummy_client(6);
-	let client = client_result.reference();
+	let client = generate_dummy_client(6);
 	let block = client.block_header(BlockId::Number(5)).unwrap();
 
 	assert!(!block.into_inner().is_empty());
@@ -196,8 +189,7 @@ fn imports_block_sequence() {
 
 #[test]
 fn can_collect_garbage() {
-	let client_result = generate_dummy_client(100);
-	let client = client_result.reference();
+	let client = generate_dummy_client(100);
 	client.tick();
 	assert!(client.blockchain_cache_info().blocks < 100 * 1024);
 }
@@ -205,19 +197,16 @@ fn can_collect_garbage() {
 
 #[test]
 fn can_generate_gas_price_median() {
-	let client_result = generate_dummy_client_with_data(3, 1, slice_into![1, 2, 3]);
-	let client = client_result.reference();
+	let client = generate_dummy_client_with_data(3, 1, slice_into![1, 2, 3]);
 	assert_eq!(Some(&U256::from(2)), client.gas_price_corpus(3).median());
 
-	let client_result = generate_dummy_client_with_data(4, 1, slice_into![1, 4, 3, 2]);
-	let client = client_result.reference();
+	let client = generate_dummy_client_with_data(4, 1, slice_into![1, 4, 3, 2]);
 	assert_eq!(Some(&U256::from(3)), client.gas_price_corpus(3).median());
 }
 
 #[test]
 fn can_generate_gas_price_histogram() {
-	let client_result = generate_dummy_client_with_data(20, 1, slice_into![6354,8593,6065,4842,7845,7002,689,4958,4250,6098,5804,4320,643,8895,2296,8589,7145,2000,2512,1408]);
-	let client = client_result.reference();
+	let client = generate_dummy_client_with_data(20, 1, slice_into![6354,8593,6065,4842,7845,7002,689,4958,4250,6098,5804,4320,643,8895,2296,8589,7145,2000,2512,1408]);
 
 	let hist = client.gas_price_corpus(20).histogram(5).unwrap();
 	let correct_hist = ::stats::Histogram { bucket_bounds: vec_into![643, 2294, 3945, 5596, 7247, 8898], counts: vec![4,2,4,6,4] };
@@ -226,32 +215,29 @@ fn can_generate_gas_price_histogram() {
 
 #[test]
 fn empty_gas_price_histogram() {
-	let client_result = generate_dummy_client_with_data(20, 0, slice_into![]);
-	let client = client_result.reference();
+	let client = generate_dummy_client_with_data(20, 0, slice_into![]);
 
 	assert!(client.gas_price_corpus(20).histogram(5).is_none());
 }
 
 #[test]
 fn corpus_is_sorted() {
-	let client_result = generate_dummy_client_with_data(2, 1, slice_into![U256::from_str("11426908979").unwrap(), U256::from_str("50426908979").unwrap()]);
-	let client = client_result.reference();
+	let client = generate_dummy_client_with_data(2, 1, slice_into![U256::from_str("11426908979").unwrap(), U256::from_str("50426908979").unwrap()]);
 	let corpus = client.gas_price_corpus(20);
 	assert!(corpus[0] < corpus[1]);
 }
 
 #[test]
 fn can_handle_long_fork() {
-	let client_result = generate_dummy_client(1200);
-	let client = client_result.reference();
+	let client = generate_dummy_client(1200);
 	for _ in 0..20 {
 		client.import_verified_blocks();
 	}
 	assert_eq!(1200, client.chain_info().best_block_number);
 
-	push_blocks_to_client(client, 45, 1201, 800);
-	push_blocks_to_client(client, 49, 1201, 800);
-	push_blocks_to_client(client, 53, 1201, 600);
+	push_blocks_to_client(&client, 45, 1201, 800);
+	push_blocks_to_client(&client, 49, 1201, 800);
+	push_blocks_to_client(&client, 53, 1201, 600);
 
 	for _ in 0..400 {
 		client.import_verified_blocks();
@@ -262,8 +248,7 @@ fn can_handle_long_fork() {
 #[test]
 fn can_mine() {
 	let dummy_blocks = get_good_dummy_block_seq(2);
-	let client_result = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
-	let client = client_result.reference();
+	let client = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
 
 	let b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).close();
 
@@ -329,14 +314,13 @@ fn does_not_propagate_delayed_transactions() {
 		value: 0.into(),
 		data: Vec::new(),
 	}.sign(secret, None), None);
-	let client_result = generate_dummy_client(1);
-	let client = client_result.reference();
+	let client = generate_dummy_client(1);
 
-	client.miner().import_own_transaction(&**client, tx0).unwrap();
-	client.miner().import_own_transaction(&**client, tx1).unwrap();
+	client.miner().import_own_transaction(&*client, tx0).unwrap();
+	client.miner().import_own_transaction(&*client, tx1).unwrap();
 	assert_eq!(0, client.ready_transactions().len());
 	assert_eq!(2, client.miner().pending_transactions().len());
-	push_blocks_to_client(client, 53, 2, 2);
+	push_blocks_to_client(&client, 53, 2, 2);
 	client.flush_queue();
 	assert_eq!(2, client.ready_transactions().len());
 	assert_eq!(2, client.miner().pending_transactions().len());
@@ -346,8 +330,7 @@ fn does_not_propagate_delayed_transactions() {
 fn transaction_proof() {
 	use ::client::ProvingBlockChainClient;
 
-	let client_result = generate_dummy_client(0);
-	let client = client_result.reference();
+	let client = generate_dummy_client(0);
 	let address = Address::random();
 	let test_spec = Spec::new_test();
 	for _ in 0..20 {
@@ -367,7 +350,7 @@ fn transaction_proof() {
 		data: Vec::new(),
 	}.fake_sign(address);
 
-	let proof = client.prove_transaction(transaction.clone(), BlockId::Latest).unwrap();
+	let proof = client.prove_transaction(transaction.clone(), BlockId::Latest).unwrap().1;
 	let backend = state::backend::ProofCheck::new(&proof);
 
 	let mut factories = ::factory::Factories::default();

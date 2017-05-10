@@ -33,7 +33,6 @@ ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethcore-io = { path = "util/io" }
 ethcore-devtools = { path = "devtools" }
-ethcore-rpc = { path = "rpc" }
 ethcore-signer = { path = "signer" }
 ethcore-ipc = { path = "ipc/rpc" }
 ethcore-ipc-nano = { path = "ipc/nano" }
@@ -45,12 +44,13 @@ ethkey = { path = "ethkey" }
 evmbin = { path = "evmbin" }
 rlp = { path = "util/rlp" }
 rpc-cli = { path = "rpc_cli" }
-parity-rpc-client = { path = "rpc_client" }
 parity-hash-fetch = { path = "hash-fetch" }
 parity-ipfs-api = { path = "ipfs" }
-parity-updater = { path = "updater" }
-parity-reactor = { path = "util/reactor" }
 parity-local-store = { path = "local-store" }
+parity-reactor = { path = "util/reactor" }
+parity-rpc = { path = "rpc" }
+parity-rpc-client = { path = "rpc_client" }
+parity-updater = { path = "updater" }
 path = { path = "util/path" }
 
 parity-dapps = { path = "dapps", optional = true }
@@ -85,7 +85,7 @@ ui-precompiled = [
 dapps = ["parity-dapps"]
 ipc = ["ethcore/ipc", "ethsync/ipc"]
 jit = ["ethcore/jit"]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "parity-dapps/dev", "ethcore-signer/dev"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "parity-rpc/dev", "parity-dapps/dev", "ethcore-signer/dev"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
 ethkey-cli = ["ethcore/ethkey-cli"]

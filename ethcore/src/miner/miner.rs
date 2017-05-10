@@ -163,7 +163,7 @@ impl GasPriceCalibrator {
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 				let gas_per_tx: f32 = 21000.0;
 				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
-				info!(target: "miner", "Updated conversion rate to Ξ1 = {} ({} wei/gas)", Colour::White.bold().paint(format!("US${}", usd_per_eth)), Colour::Yellow.bold().paint(format!("{}", wei_per_gas)));
+				info!(target: "miner", "Updated conversion rate to Ξ1 = {} ({} wei/gas)", Colour::White.bold().paint(format!("US${:.2}", usd_per_eth)), Colour::Yellow.bold().paint(format!("{}", wei_per_gas)));
 				set_price(U256::from(wei_per_gas as u64));
 			});
 
@@ -1048,7 +1048,7 @@ impl MinerService for Miner {
 								Action::Call(_) => None,
 								Action::Create => {
 									let sender = tx.sender();
-									Some(contract_address(&sender, &tx.nonce))
+									Some(contract_address(self.engine.create_address_scheme(pending.header().number()), &sender, &tx.nonce, &tx.data.sha3()))
 								}
 							},
 							logs: receipt.logs.clone(),
@@ -1327,6 +1327,10 @@ mod tests {
 	}
 
 	fn transaction() -> SignedTransaction {
+		transaction_with_network_id(2)
+	}
+
+	fn transaction_with_network_id(id: u64) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
 		Transaction {
 			action: Action::Create,
@@ -1335,7 +1339,7 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
 			nonce: U256::zero(),
-		}.sign(keypair.secret(), None)
+		}.sign(keypair.secret(), Some(id))
 	}
 
 	#[test]
@@ -1411,21 +1415,21 @@ mod tests {
 
 	#[test]
 	fn internal_seals_without_work() {
-		let miner = Miner::with_spec(&Spec::new_instant());
+		let spec = Spec::new_instant();
+		let miner = Miner::with_spec(&spec);
 
-		let c = generate_dummy_client(2);
-		let client = c.reference().as_ref();
+		let client = generate_dummy_client(2);
 
-		assert_eq!(miner.import_external_transactions(client, vec![transaction().into()]).pop().unwrap().unwrap(), TransactionImportResult::Current);
+		assert_eq!(miner.import_external_transactions(&*client, vec![transaction_with_network_id(spec.network_id()).into()]).pop().unwrap().unwrap(), TransactionImportResult::Current);
 
-		miner.update_sealing(client);
+		miner.update_sealing(&*client);
 		client.flush_queue();
 		assert!(miner.pending_block().is_none());
 		assert_eq!(client.chain_info().best_block_number, 3 as BlockNumber);
 
-		assert_eq!(miner.import_own_transaction(client, PendingTransaction::new(transaction().into(), None)).unwrap(), TransactionImportResult::Current);
+		assert_eq!(miner.import_own_transaction(&*client, PendingTransaction::new(transaction_with_network_id(spec.network_id()).into(), None)).unwrap(), TransactionImportResult::Current);
 
-		miner.update_sealing(client);
+		miner.update_sealing(&*client);
 		client.flush_queue();
 		assert!(miner.pending_block().is_none());
 		assert_eq!(client.chain_info().best_block_number, 4 as BlockNumber);

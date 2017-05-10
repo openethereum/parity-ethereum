@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "1.7.53",
+  "version": "1.7.70",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -48,7 +48,7 @@
     "ci:build:embed": "NODE_ENV=production EMBED=1 node webpack/embed",
     "start": "npm install && npm run build:lib && npm run build:dll && npm run start:app",
     "start:app": "node webpack/dev.server",
-    "clean": "rm -rf ./.build ./.coverage ./.happypack ./.npmjs ./build ./node_modules/.cache",
+    "clean": "rm -rf ./.build ./.coverage ./.happypack ./.npmjs ./build ./node_modules/.cache ./node_modules/@parity",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "npm run lint:css && npm run lint:js",
     "lint:cached": "npm run lint:css && npm run lint:js:cached",
@@ -164,6 +164,7 @@
     "blockies": "0.0.2",
     "brace": "0.9.0",
     "bytes": "2.4.0",
+    "date-difference": "1.0.0",
     "debounce": "1.0.0",
     "es6-error": "4.0.0",
     "es6-promise": "4.0.5",
@@ -228,6 +229,7 @@
     "web3": "0.17.0-beta",
     "whatwg-fetch": "2.0.1",
     "worker-loader": "^0.8.0",
+    "yarn": "^0.21.3",
     "zxcvbn": "4.4.1"
   }
 }

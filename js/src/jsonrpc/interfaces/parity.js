@@ -1833,7 +1833,14 @@ export default {
         example: {
           from: '0xb60e8dd61c5d32be8058bb8eb970870f07233155',
           to: '0xd46e8dd67c5d32be8058bb8eb970870f07244567',
-          value: fromDecimal(2441406250)
+          gas: fromDecimal(30400),
+          gasPrice: fromDecimal(10000000000000),
+          value: fromDecimal(2441406250),
+          data: '0xd46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675',
+          condition: {
+            block: 354221,
+            time: new Date()
+          }
         }
       }
     ],
@@ -1906,6 +1913,88 @@ export default {
       type: Data,
       desc: 'Message signature.',
       example: '0x1d9e33a8cf8bfc089a172bca01da462f9e359c6cb1b0f29398bc884e4d18df4f78588aee4fb5cc067ca62d2abab995e0bba29527be6ac98105b0320020a2efaf00'
+    }
+  },
+
+  composeTransaction: {
+    desc: 'Given partial transaction request produces transaction with all fields filled in. Such transaction can be then signed externally.',
+    params: [
+      {
+        type: TransactionRequest,
+        desc: 'see [`eth_sendTransaction`](JSONRPC-eth-module#eth_sendtransaction).',
+        format: 'inputCallFormatter',
+        example: {
+          from: '0xb60e8dd61c5d32be8058bb8eb970870f07233155',
+          to: '0xd46e8dd67c5d32be8058bb8eb970870f07244567',
+          value: fromDecimal(2441406250)
+        }
+      }
+    ],
+    returns: {
+      type: Object,
+      desc: 'Transaction object (same as the parameter) with missing optional fields filled in by defaults.',
+      example: {
+        condition: null,
+        data: '0x',
+        from: '0xb60e8dd61c5d32be8058bb8eb970870f07233155',
+        gas: '0xe57e0',
+        gasPrice: '0x4a817c800',
+        nonce: '0x0',
+        to: '0xd46e8dd67c5d32be8058bb8eb970870f07244567',
+        value: '0x9184e72a'
+      }
+    }
+  },
+
+  getBlockHeaderByNumber: {
+    desc: 'Get block header. Same as [`eth_getBlockByNumber`](JSONRPC-eth-module#eth_getblockbynumber) but without uncles and transactions.',
+    params: [
+      {
+        type: BlockNumber,
+        desc: 'integer of a block number, or the string `\'earliest\'`, `\'latest\'` or `\'pending\'`, as in the [default block parameter](#the-default-block-parameter).',
+        example: fromDecimal(436)
+      }
+    ],
+    returns: {
+      type: Object,
+      desc: 'Block header',
+      example: {
+        author: '0xbb7b8287f3f0a933474a79eae42cbca977791171',
+        difficulty: '0x4ea3f27bc',
+        extraData: '0x476574682f4c5649562f76312e302e302f6c696e75782f676f312e342e32',
+        gasLimit: '0x1388',
+        gasUsed: '0x0',
+        hash: '0xdc0818cf78f21a8e70579cb46a43643f78291264dda342ae31049421c82d21ae',
+        logsBloom: '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+        miner: '0xbb7b8287f3f0a933474a79eae42cbca977791171',
+        mixHash: '0x4fffe9ae21f1c9e15207b1f472d5bbdd68c9595d461666602f2be20daf5e7843',
+        nonce: '0x689056015818adbe',
+        number: '0x1b4',
+        parentHash: '0xe99e022112df268087ea7eafaf4790497fd21dbeeb6bd7a1721df161a6657a54',
+        receiptsRoot: '0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421',
+        sealFields: ['0xa04fffe9ae21f1c9e15207b1f472d5bbdd68c9595d461666602f2be20daf5e7843', '0x88689056015818adbe'],
+        sha3Uncles: '0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347',
+        size: '0x21b',
+        stateRoot: '0xddc8b0234c2e0cad087c8b389aa7ef01f7d79b2570bccb77ce48648aa61c904d',
+        timestamp: '0x55ba467c',
+        transactionsRoot: '0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421'
+      }
+    }
+  },
+
+  cidV0: {
+    desc: 'Compute a v0 IPFS Content ID from protobuf encoded bytes.',
+    params: [
+      {
+        type: Data,
+        desc: 'to encode.',
+        example: '0x666f6f626172'
+      }
+    ],
+    returns: {
+      type: String,
+      desc: 'Base58 encoded CID',
+      example: 'QmSbFjqjd6nFwNHqsBCC7SK8GShGcayLUEtysJjNGhZAnC'
     }
   }
 };

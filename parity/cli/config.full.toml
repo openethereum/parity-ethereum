@@ -7,6 +7,7 @@ release_track = "current"
 public_node = false
 no_download = false
 no_consensus = false
+no_persistent_txqueue = false
 
 chain = "homestead"
 base_path = "$HOME/.parity"
@@ -49,13 +50,21 @@ disable = false
 port = 8545
 interface = "local"
 cors = "null"
-apis = ["web3", "eth", "net", "parity", "traces", "rpc"]
+apis = ["web3", "eth", "net", "parity", "traces", "rpc", "secretstore"]
+hosts = ["none"]
+
+[websockets]
+disable = false
+port = 8546
+interface = "local"
+origins = ["none"]
+apis = ["web3", "eth", "net", "parity", "traces", "rpc", "secretstore"]
 hosts = ["none"]
 
 [ipc]
 disable = false
 path = "$HOME/.parity/jsonrpc.ipc"
-apis = ["web3", "eth", "net", "parity", "parity_accounts", "personal", "traces", "rpc"]
+apis = ["web3", "eth", "net", "parity", "parity_accounts", "personal", "traces", "rpc", "secretstore"]
 
 [dapps]
 disable = false
