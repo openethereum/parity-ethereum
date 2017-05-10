@@ -15,6 +15,11 @@
   "scripts": {},
   "devDependencies": {},
   "dependencies": {
+    "base32.js": "0.1.0",
+    "bytes": "2.4.0",
+    "format-number": "2.0.1",
+    "phoneformat.js": "1.0.3",
+    "react-element-to-jsx-string": "6.0.0",
     "react-markdown": "2.4.4",
     "rlp": "2.0.0"
   },

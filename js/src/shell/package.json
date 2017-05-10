@@ -15,6 +15,7 @@
   "scripts": {},
   "devDependencies": {},
   "dependencies": {
+    "qs": "6.3.0",
     "useragent.js": "0.5.6"
   },
   "peerDependencies": {}
