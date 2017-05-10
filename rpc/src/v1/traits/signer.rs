@@ -16,6 +16,8 @@
 
 //! Parity Signer-related rpc interface.
 use jsonrpc_core::Error;
+use jsonrpc_pubsub::SubscriptionId;
+use jsonrpc_macros::pubsub::Subscriber;
 use futures::BoxFuture;
 
 use v1::types::{U256, Bytes, TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken};
@@ -23,6 +25,7 @@ use v1::types::{U256, Bytes, TransactionModification, ConfirmationRequest, Confi
 build_rpc_trait! {
 	/// Signer extension for confirmations rpc interface.
 	pub trait Signer {
+		type Metadata;
 
 		/// Returns a list of items to confirm.
 		#[rpc(name = "signer_requestsToConfirm")]
@@ -51,5 +54,15 @@ build_rpc_trait! {
 		/// Generates new web proxy access token.
 		#[rpc(name = "signer_generateWebProxyAccessToken")]
 		fn generate_web_proxy_token(&self) -> Result<String, Error>;
+
+		#[pubsub(name = "signer_pending")] {
+			/// Subscribe to new pending requests on signer interface.
+			#[rpc(name = "signer_subscribePending")]
+			fn subscribe_pending(&self, Self::Metadata, Subscriber<Vec<ConfirmationRequest>>);
+
+			/// Unsubscribe from pending requests subscription.
+			#[rpc(name = "signer_unsubscribePending")]
+			fn unsubscribe_pending(&self, SubscriptionId) -> BoxFuture<bool, Error>;
+		}
 	}
 }
