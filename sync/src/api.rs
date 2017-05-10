@@ -208,6 +208,7 @@ impl EthSync {
 						serve_state_since: Some(pruning_info.earliest_state),
 						tx_relay: true,
 					},
+					sample_store: None,
 				};
 
 				let mut light_proto = LightProtocol::new(params.provider, light_params);
@@ -693,6 +694,7 @@ impl LightSync {
 					serve_state_since: None,
 					tx_relay: false,
 				},
+				sample_store: None,
 			};
 
 			let mut light_proto = LightProtocol::new(params.client.clone(), light_params);

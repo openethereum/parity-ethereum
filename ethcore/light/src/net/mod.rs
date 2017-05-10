@@ -524,7 +524,7 @@ impl LightProtocol {
 		let ack_duration = Duration::milliseconds(timeout::ACKNOWLEDGE_UPDATE);
 		{
 			for (peer_id, peer) in self.peers.read().iter() {
-				let mut peer = peer.lock();
+				let peer = peer.lock();
 				if peer.pending_requests.check_timeout(now) {
 					debug!(target: "pip", "Peer {} request timeout", peer_id);
 					io.disconnect_peer(*peer_id);
@@ -913,7 +913,7 @@ impl LightProtocol {
 	}
 
 	// handle an acknowledgement of request credits update.
-	fn acknowledge_update(&self, peer_id: &PeerId, io: &IoContext, _raw: UntrustedRlp) -> Result<(), Error> {
+	fn acknowledge_update(&self, peer_id: &PeerId, _io: &IoContext, _raw: UntrustedRlp) -> Result<(), Error> {
 		let peers = self.peers.read();
 		let peer = peers.get(peer_id).ok_or(Error::UnknownPeer)?;
 		let mut peer = peer.lock();
