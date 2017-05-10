@@ -241,7 +241,7 @@ export default class Balances {
 
     // If syncing, only retrieve balances once every
     // few seconds
-    if (syncing) {
+    if (syncing || syncing === null) {
       this.shortThrottledFetch.cancel();
       this.longThrottledFetch(skipNotifications);
 

@@ -58,10 +58,14 @@ const updatableFilter = (api, onFilter) => {
 };
 
 export default class CertificationsMiddleware {
-  toMiddleware (api) {
-    const badgeReg = Contracts.get(api).badgeReg;
+  constructor (api) {
+    this._api = api;
+  }
 
-    const contract = new Contract(api, CertifierABI);
+  toMiddleware () {
+    const badgeReg = Contracts.get(this._api).badgeReg;
+
+    const contract = new Contract(this._api, CertifierABI);
     const Confirmed = contract.events.find((e) => e.name === 'Confirmed');
     const Revoked = contract.events.find((e) => e.name === 'Revoked');
 
@@ -73,12 +77,12 @@ export default class CertificationsMiddleware {
       let badgeRegFilter = null;
       let fetchCertifiersPromise = null;
 
-      const updateFilter = updatableFilter(api, (filterId) => {
+      const updateFilter = updatableFilter(this._api, (filterId) => {
         filterChanged = true;
         filter = filterId;
       });
 
-      const badgeRegUpdateFilter = updatableFilter(api, (filterId) => {
+      const badgeRegUpdateFilter = updatableFilter(this._api, (filterId) => {
         filterChanged = true;
         badgeRegFilter = filterId;
       });
@@ -96,7 +100,7 @@ export default class CertificationsMiddleware {
         .then(() => {
           shortFetchChanges();
 
-          api.subscribe('eth_blockNumber', (err) => {
+          this._api.subscribe('eth_blockNumber', (err) => {
             if (err) {
               return;
             }
@@ -141,12 +145,12 @@ export default class CertificationsMiddleware {
 
         filterChanged = false;
 
-        api.eth[method](badgeRegFilter)
+        this._api.eth[method](badgeRegFilter)
           .then(onBadgeRegLogs)
           .catch((err) => {
             console.error('Failed to fetch badge reg events:', err);
           })
-          .then(() => api.eth[method](filter))
+          .then(() => this._api.eth[method](filter))
           .then(onLogs)
           .catch((err) => {
             console.error('Failed to fetch new certifier events:', err);

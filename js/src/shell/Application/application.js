@@ -30,11 +30,13 @@ import Snackbar from '../Snackbar';
 import Status from '../Status';
 import UpgradeParity from '../UpgradeParity';
 import UpgradeStore from '../UpgradeParity/store';
+import SyncWarning, { showSyncWarning } from '../SyncWarning';
 
 import Store from './store';
 import styles from './application.css';
 
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
+const doShowSyncWarning = showSyncWarning();
 
 @observer
 class Application extends Component {
@@ -73,6 +75,11 @@ class Application extends Component {
           isMinimized
             ? this.renderMinimized()
             : this.renderApp()
+        }
+        {
+          doShowSyncWarning
+            ? <SyncWarning />
+            : null
         }
         <Connection />
         <Requests />

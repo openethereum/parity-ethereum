@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { debounce } from 'lodash';
-import { action, observable, transaction } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
 import React from 'react';
 import { FormattedMessage } from 'react-intl';
 import store from 'store';
@@ -140,7 +140,7 @@ export default class ContractDevelopStore {
     this.worker = worker;
 
     return Promise.all([
-      this.fetchSolidityVersions(),
+      this.fetchSolidityVersions().then(() => this.handleCompile()),
       this.reloadContracts(undefined, undefined, false)
     ]);
   }
@@ -316,6 +316,18 @@ export default class ContractDevelopStore {
     });
   }
 
+  @computed get isPristine () {
+    return this.getHash() === this.lastCompilation.hash;
+  }
+
+  getHash () {
+    const build = this.builds[this.selectedBuild];
+    const version = build.longVersion;
+    const sourcecode = this.sourcecode.replace(/\s+/g, ' ');
+
+    return sha3(JSON.stringify({ version, sourcecode, optimize: this.optimize }));
+  }
+
   @action handleCompile = () => {
     transaction(() => {
       this.compiled = false;
@@ -324,9 +336,7 @@ export default class ContractDevelopStore {
     });
 
     const build = this.builds[this.selectedBuild];
-    const version = build.longVersion;
-    const sourcecode = this.sourcecode.replace(/\s+/g, ' ');
-    const hash = sha3(JSON.stringify({ version, sourcecode, optimize: this.optimize }));
+    const hash = this.getHash();
 
     let promise = Promise.resolve(null);
 

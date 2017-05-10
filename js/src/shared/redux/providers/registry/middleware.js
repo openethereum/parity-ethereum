@@ -15,131 +15,150 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { debounce } from 'lodash';
-import store from 'store';
+import lsstore from 'store';
 
-import Contracts from '@parity/shared/contracts';
-import registryABI from '@parity/shared/contracts/abi/registry.json';
-import subscribeToEvents from '@parity/shared/util/subscribe-to-events';
+import Contracts from '~/shared/contracts';
+import registryABI from '~/shared/contracts/abi/registry.json';
+import subscribeToEvents from '~/shared/util/subscribe-to-events';
 
-import { setReverse } from './actions';
+import { setReverse, startCachingReverses } from './actions';
 
 const STORE_KEY = '_parity::reverses';
 
-const read = (chain) => {
-  const reverses = store.get(`${STORE_KEY}::${chain}::data`);
-  const lastBlock = store.get(`${STORE_KEY}::${chain}::lastBlock`);
+export default class RegistryMiddleware {
+  contract;
+  interval;
+  store;
+  subscription;
+  timeout;
 
-  if (!reverses || !lastBlock) {
-    return null;
+  addressesToCheck = {};
+
+  constructor (api) {
+    this._api = api;
   }
-  return { reverses, lastBlock };
-};
 
-const write = debounce((getChain, getReverses, getLastBlock) => {
-  const chain = getChain();
-  const reverses = getReverses();
-  const lastBlock = getLastBlock();
+  toMiddleware () {
+    return (store) => {
+      this.store = store;
 
-  store.set(`${STORE_KEY}::${chain}::data`, reverses);
-  store.set(`${STORE_KEY}::${chain}::lastBlock`, lastBlock);
-}, 20000);
+      return (next) => (action) => {
+        switch (action.type) {
+          case 'initAll':
+            next(action);
+            store.dispatch(startCachingReverses());
+            break;
 
-export default (api) => (store) => {
-  let contract;
-  let subscription;
-  let timeout;
-  let interval;
+          case 'startCachingReverses':
+            this.cacheReverses();
+            break;
 
-  let addressesToCheck = {};
+          case 'stopCachingReverses':
+            if (this.subscription) {
+              this.subscription.unsubscribe();
+            }
+            if (this.interval) {
+              clearInterval(this.interval);
+            }
+            if (this.timeout) {
+              clearTimeout(this.timeout);
+            }
 
-  const onLog = (log) => {
-    switch (log.event) {
-      case 'ReverseConfirmed':
-        addressesToCheck[log.params.reverse.value] = true;
+            this.write.flush();
+            break;
 
-        break;
-      case 'ReverseRemoved':
-        delete addressesToCheck[log.params.reverse.value];
+          case 'setReverse':
+            this.write(
+              () => store.getState().nodeStatus.netChain,
+              () => store.getState().registry.reverse,
+              () => +store.getState().nodeStatus.blockNumber
+            );
+            next(action);
+            break;
 
-        break;
+          default:
+            next(action);
+        }
+      };
+    };
+  }
+
+  cacheReverses () {
+    const { registry } = Contracts.get();
+    const cached = this.read(this.store.getState().nodeStatus.netChain);
+
+    if (cached) {
+      Object
+        .entries(cached.reverses)
+        .forEach(([ address, reverse ]) => this.store.dispatch(setReverse(address, reverse)));
     }
-  };
 
-  const checkReverses = () => {
+    registry.getInstance()
+      .then((instance) => this._api.newContract(registryABI, instance.address))
+      .then((_contract) => {
+        this.contract = _contract;
+
+        this.subscription = subscribeToEvents(this.contract, [
+          'ReverseConfirmed', 'ReverseRemoved'
+        ], {
+          from: cached ? cached.lastBlock : 0
+        });
+        this.subscription.on('log', this.onLog);
+
+        this.timeout = setTimeout(this.checkReverses, 10000);
+        this.interval = setInterval(this.checkReverses, 20000);
+      })
+      .catch((err) => {
+        console.error('Failed to start caching reverses:', err);
+        throw err;
+      });
+  }
+
+  checkReverses = () => {
     Object
-      .keys(addressesToCheck)
+      .keys(this.addressesToCheck)
       .forEach((address) => {
-        contract
+        this.contract
           .instance
           .reverse
           .call({}, [ address ])
           .then((reverse) => {
-            store.dispatch(setReverse(address, reverse));
+            this.store.dispatch(setReverse(address, reverse));
           });
       });
 
-    addressesToCheck = {};
+    this.addressesToCheck = {};
   };
 
-  return (next) => (action) => {
-    switch (action.type) {
-      case 'startCachingReverses':
-        const { registry } = Contracts.get(api);
-        const cached = read(store.getState().nodeStatus.netChain);
-
-        if (cached) {
-          Object
-            .entries(cached.reverses)
-            .forEach(([ address, reverse ]) => store.dispatch(setReverse(address, reverse)));
-        }
-
-        registry.getInstance()
-          .then((instance) => api.newContract(registryABI, instance.address))
-          .then((_contract) => {
-            contract = _contract;
-
-            subscription = subscribeToEvents(_contract, [
-              'ReverseConfirmed', 'ReverseRemoved'
-            ], {
-              from: cached ? cached.lastBlock : 0
-            });
-            subscription.on('log', onLog);
-
-            timeout = setTimeout(checkReverses, 10000);
-            interval = setInterval(checkReverses, 20000);
-          })
-          .catch((err) => {
-            console.error('Failed to start caching reverses:', err);
-            throw err;
-          });
+  onLog = (log) => {
+    switch (log.event) {
+      case 'ReverseConfirmed':
+        this.addressesToCheck[log.params.reverse.value] = true;
 
         break;
+      case 'ReverseRemoved':
+        delete this.addressesToCheck[log.params.reverse.value];
 
-      case 'stopCachingReverses':
-        if (subscription) {
-          subscription.unsubscribe();
-        }
-        if (interval) {
-          clearInterval(interval);
-        }
-        if (timeout) {
-          clearTimeout(timeout);
-        }
-
-        write.flush();
         break;
-
-      case 'setReverse':
-        write(
-          () => store.getState().nodeStatus.netChain,
-          () => store.getState().registry.reverse,
-          () => +store.getState().nodeStatus.blockNumber
-        );
-        next(action);
-        break;
-
-      default:
-        next(action);
     }
   };
-};
+
+  read = (chain) => {
+    const reverses = lsstore.get(`${STORE_KEY}::${chain}::data`);
+    const lastBlock = lsstore.get(`${STORE_KEY}::${chain}::lastBlock`);
+
+    if (!reverses || !lastBlock) {
+      return null;
+    }
+    return { reverses, lastBlock };
+  };
+
+  write = debounce((getChain, getReverses, getLastBlock) => {
+    const chain = getChain();
+    const reverses = getReverses();
+    const lastBlock = getLastBlock();
+
+    lsstore.set(`${STORE_KEY}::${chain}::data`, reverses);
+    lsstore.set(`${STORE_KEY}::${chain}::lastBlock`, lastBlock);
+  }, 20000);
+}

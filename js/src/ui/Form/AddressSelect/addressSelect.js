@@ -24,6 +24,7 @@ import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
 import apiutil from '@parity/api/util';
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+import { toString } from '@parity/shared/util/messages';
 import { validateAddress } from '@parity/shared/util/validation';
 
 import AccountCard from '~/ui/AccountCard';
@@ -186,12 +187,7 @@ class AddressSelect extends Component {
     }
 
     const id = `addressSelect_${++currentId}`;
-    const ilHint = typeof hint === 'string' || !(hint && hint.props)
-      ? (hint || '')
-      : this.context.intl.formatMessage(
-        hint.props,
-        hint.props.values || {}
-      );
+    const ilHint = toString(this.context, hint);
 
     return (
       <Portal
