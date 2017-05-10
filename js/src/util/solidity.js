@@ -52,20 +52,8 @@ export default class SolidityUtils {
 
   static getCompiler (build) {
     const { longVersion, path } = build;
-    const URL = `https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/${path}`;
+    const URL = `https://cdn.rawgit.com/ethereum/solc-bin/gh-pages/bin/${path}`;
     const isWorker = typeof window !== 'object';
-
-    if (isWorker) {
-      return new Promise((resolve, reject) => {
-        self.importScripts(URL);
-
-        setTimeout(() => {
-          const compiler = solc(self.Module);
-
-          return resolve(compiler);
-        }, 50);
-      });
-    }
 
     return fetch(URL)
       .then((r) => r.text())

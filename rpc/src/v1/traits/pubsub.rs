@@ -14,18 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import toolbox from 'sw-toolbox';
+//! Parity-specific PUB-SUB rpc interface.
 
-/**
- * Cache the SOLC files : if not available, make a network request
- */
-toolbox.router.any(/rawgit.com\/ethereum\/solc-bin(.+)list\.json$/, toolbox.networkFirst);
-toolbox.router.any(/rawgit.com\/ethereum\/solc-bin(.+)soljson(.+)\.js$/, toolbox.cacheFirst);
+use jsonrpc_core::{Error, Value, Params};
+use jsonrpc_pubsub::SubscriptionId;
+use jsonrpc_macros::pubsub::Subscriber;
+use futures::BoxFuture;
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
-});
+build_rpc_trait! {
+	/// Parity-specific PUB-SUB rpc interface.
+	pub trait PubSub {
+		type Metadata;
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
-});
+		#[pubsub(name = "parity_subscription")] {
+			/// Subscribe to changes of any RPC method in Parity.
+			#[rpc(name = "parity_subscribe")]
+			fn parity_subscribe(&self, Self::Metadata, Subscriber<Value>, String, Params);
+
+			/// Unsubscribe from existing Parity subscription.
+			#[rpc(name = "parity_unsubscribe")]
+			fn parity_unsubscribe(&self, SubscriptionId) -> BoxFuture<bool, Error>;
+		}
+	}
+}

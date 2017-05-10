@@ -99,15 +99,15 @@ export default class Event {
     const namedTokens = {};
 
     topicParams.forEach((param, idx) => {
-      namedTokens[param.name] = topicTokens[idx];
+      namedTokens[param.name || idx] = topicTokens[idx];
     });
     dataParams.forEach((param, idx) => {
-      namedTokens[param.name] = dataTokens[idx];
+      namedTokens[param.name || idx] = dataTokens[idx];
     });
 
     const inputParamTypes = this.inputParamTypes();
     const decodedParams = this.inputParamNames()
-      .map((name, idx) => new DecodedLogParam(name, inputParamTypes[idx], namedTokens[name]));
+      .map((name, idx) => new DecodedLogParam(name, inputParamTypes[idx], namedTokens[name || idx]));
 
     return new DecodedLog(decodedParams, address);
   }
