@@ -25,7 +25,7 @@ $textColor: white;
   vertical-align: top;
 
   &:not(.full) {
-    height: 2.5em;
+    height: 40px;
     overflow: hidden;
   }
 }

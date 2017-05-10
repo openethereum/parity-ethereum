@@ -18,9 +18,9 @@ import React, { PropTypes } from 'react';
 
 import styles from './badge.css';
 
-export default function Badge ({ className, color, value }) {
+export default function Badge ({ className, color = 'default', value }) {
   return (
-    <div className={ `${styles.bubble} ${styles[color || 'default']} ${className}` }>
+    <div className={ `${styles.bubble} ${styles[color]} ${className}` }>
       { value }
     </div>
   );
