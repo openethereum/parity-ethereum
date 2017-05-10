@@ -16,11 +16,11 @@
     "url": "git+https://github.com/paritytech/parity.git"
   },
   "keywords": [],
-  "scripts": {},
   "devDependencies": {},
   "dependencies": {
     "bignumber.js": "3.0.1",
     "brace": "0.9.0",
+    "date-difference": "1.0.0",
     "file-saver": "1.3.3",
     "geopattern": "1.2.3",
     "js-sha3": "0.5.5",

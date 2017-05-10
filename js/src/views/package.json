@@ -1,5 +1,5 @@
 {
-  "name": "@parity/view",
+  "name": "@parity/views",
   "description": "Parity wallet dapps",
   "version": "0.0.0",
   "main": "index.js",
@@ -14,6 +14,14 @@
   "keywords": [],
   "scripts": {},
   "devDependencies": {},
-  "dependencies": {},
+  "dependencies": {
+    "base32.js": "0.1.0",
+    "bytes": "2.4.0",
+    "format-number": "2.0.1",
+    "phoneformat.js": "1.0.3",
+    "react-element-to-jsx-string": "6.0.0",
+    "react-markdown": "2.4.4",
+    "rlp": "2.0.0"
+  },
   "peerDependencies": {}
 }

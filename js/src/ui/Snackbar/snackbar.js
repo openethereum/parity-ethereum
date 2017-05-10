@@ -21,9 +21,7 @@ import styles from './snackbar.css';
 
 export default class Snackbar extends Component {
   state = {
-    snackStyle: {
-      transform: 'translateX(-50%) translateY(40px)'
-    }
+    opened: false
   };
 
   static propTypes = {
@@ -32,7 +30,7 @@ export default class Snackbar extends Component {
     message: PropTypes.string,
     autoHideDuration: PropTypes.number,
     bodyStyle: PropTypes.object,
-    onRequestClose: PropTypes.Func
+    onRequestClose: PropTypes.func
   };
 
   defaultProps = {
@@ -40,45 +38,25 @@ export default class Snackbar extends Component {
   };
 
   componentWillUpdate (nextProps) {
-    const self = this;
-
-    if (this.openStatus) {
+    if (this.state.opened) {
       return;
     }
 
     if (nextProps.open === true) {
-      this.openStatus = true;
+      this.show();
 
-      self.autoShow();
-
-      setTimeout(() => {
-        self.autoHide();
-      }, nextProps.autoHideDuration);
+      setTimeout(this.hide, nextProps.autoHideDuration);
     }
-  }
-
-  autoShow () {
-    this.setState({
-      snackStyle: {
-        transform: 'translateX(-50%) translateY(0px)'
-      }
-    });
-  }
-
-  autoHide () {
-    this.props.onRequestClose();
-    this.openStatus = false;
-    this.setState({
-      snackStyle: {
-        transform: 'translateX(-50%) translateY(40px)'
-      }
-    });
   }
 
   render () {
     const { bodyStyle, message } = this.props;
-    const { snackStyle } = this.state;
+    const { opened } = this.state;
     let { action } = this.props;
+
+    if (!opened) {
+      return false;
+    }
 
     if (action === null || action === 'undefined') {
       action = (
@@ -90,12 +68,25 @@ export default class Snackbar extends Component {
     }
 
     return (
-      <div className={ styles.snacks } style={ snackStyle }>
+      <div className={ styles.snacks }>
         <div style={ bodyStyle }>
           <span>{ message }</span>
           <span id={ styles.action } onClick={ this.autoHide }>{ action }</span>
         </div>
       </div>
     );
+  }
+
+  show = () => {
+    this.setState({
+      opened: true
+    });
+  }
+
+  hide = () => {
+    this.props.onRequestClose();
+    this.setState({
+      opened: false
+    });
   }
 }

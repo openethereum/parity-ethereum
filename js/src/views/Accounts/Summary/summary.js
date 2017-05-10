@@ -24,8 +24,7 @@ import { FormattedMessage } from 'react-intl';
 
 import { arrayOrObjectProptype, nullableProptype } from '@parity/shared/util/proptypes';
 
-import { Balance, Container, ContainerTitle, CopyToClipboard, IdentityIcon, IdentityName, Tags, VaultTag } from '~/ui';
-import Certifications from '~/ui/Certifications';
+import { Balance, Certifications, Container, ContainerTitle, CopyToClipboard, IdentityIcon, IdentityName, Tags, VaultTag } from '~/ui';
 
 import styles from '../accounts.css';
 
