@@ -345,12 +345,13 @@ class WriteContract extends Component {
             }
             onClick={ this.store.handleCompile }
             primary={ false }
-            disabled={ compiling }
+            disabled={ compiling || this.store.isPristine }
           />
           {
             contract
               ? (
                 <Button
+                  disabled={ compiling || !this.store.isPristine }
                   icon={ <SendIcon /> }
                   label={
                     <FormattedMessage
