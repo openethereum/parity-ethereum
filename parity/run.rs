@@ -631,6 +631,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 			false => None,
 		},
 		fetch: fetch.clone(),
+		remote: event_loop.remote(),
 	});
 
 	let dependencies = rpc::Dependencies {

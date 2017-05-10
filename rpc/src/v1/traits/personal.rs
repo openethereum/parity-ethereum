@@ -43,7 +43,7 @@ build_rpc_trait! {
 		#[rpc(meta, name = "personal_sendTransaction")]
 		fn send_transaction(&self, Self::Metadata, TransactionRequest, String) -> BoxFuture<H256, Error>;
 
-		/// Deprecated alias for `personal_sendTransaction`.
+		/// @deprecated alias for `personal_sendTransaction`.
 		#[rpc(meta, name = "personal_signAndSendTransaction")]
 		fn sign_and_send_transaction(&self, Self::Metadata, TransactionRequest, String) -> BoxFuture<H256, Error>;
 

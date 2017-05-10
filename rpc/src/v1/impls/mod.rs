@@ -23,6 +23,7 @@ mod parity;
 mod parity_accounts;
 mod parity_set;
 mod personal;
+mod pubsub;
 mod signer;
 mod signing;
 mod signing_unsafe;
@@ -33,7 +34,6 @@ mod web3;
 
 pub mod light;
 
-pub use self::web3::Web3Client;
 pub use self::eth::{EthClient, EthClientOptions};
 pub use self::eth_filter::EthFilterClient;
 pub use self::net::NetClient;
@@ -41,9 +41,11 @@ pub use self::parity::ParityClient;
 pub use self::parity_accounts::ParityAccountsClient;
 pub use self::parity_set::ParitySetClient;
 pub use self::personal::PersonalClient;
+pub use self::pubsub::PubSubClient;
 pub use self::signer::SignerClient;
 pub use self::signing::SigningQueueClient;
 pub use self::signing_unsafe::SigningUnsafeClient;
 pub use self::traces::TracesClient;
+pub use self::web3::Web3Client;
 pub use self::rpc::RpcClient;
 pub use self::secretstore::SecretStoreClient;

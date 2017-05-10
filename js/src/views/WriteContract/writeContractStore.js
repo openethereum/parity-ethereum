@@ -23,7 +23,7 @@ import store from 'store';
 import { sha3 } from '~/api/util/sha3';
 import SolidityUtils from '~/util/solidity';
 
-const SOLIDITY_LIST_URL = 'https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/list.json';
+const SOLIDITY_LIST_URL = 'https://rawgit.com/ethereum/solc-bin/gh-pages/bin/list.json';
 const WRITE_CONTRACT_STORE_KEY = '_parity::writeContractStore';
 
 const SNIPPETS = {
@@ -139,9 +139,10 @@ export default class WriteContractStore {
 
     this.worker = worker;
 
-    this
-      .fetchSolidityVersions()
-      .then(() => this.reloadContracts());
+    return Promise.all([
+      this.fetchSolidityVersions(),
+      this.reloadContracts(undefined, undefined, false)
+    ]);
   }
 
   fetchSolidityVersions () {
@@ -197,6 +198,7 @@ export default class WriteContractStore {
         })
         .catch((error) => {
           this.setWorkerError(error);
+          throw error;
         });
     }
 
@@ -318,6 +320,7 @@ export default class WriteContractStore {
     transaction(() => {
       this.compiled = false;
       this.compiling = true;
+      this.setWorkerError(null);
     });
 
     const build = this.builds[this.selectedBuild];
@@ -365,12 +368,16 @@ export default class WriteContractStore {
           annotations, contracts, errors
         } = data.result;
 
-        this.contract = contract;
-        this.contractIndex = contractIndex;
+        if (!contract && errors && errors.length > 0) {
+          this.setWorkerError(errors[0]);
+        } else {
+          this.contract = contract;
+          this.contractIndex = contractIndex;
 
-        this.annotations = annotations;
-        this.contracts = contracts;
-        this.errors = errors;
+          this.annotations = annotations;
+          this.contracts = contracts;
+          this.errors = errors;
+        }
       }
 
       this.compiled = true;
@@ -391,11 +398,10 @@ export default class WriteContractStore {
 
     const { errors = [] } = data;
     const errorAnnotations = this.parseErrors(errors);
-    const formalAnnotations = this.parseErrors(data.formal && data.formal.errors, true);
+    // const formalAnnotations = this.parseErrors(data.formal && data.formal.errors, true);
 
     const annotations = [].concat(
-      errorAnnotations,
-      formalAnnotations
+      errorAnnotations
     );
 
     const contractKeys = Object.keys(contracts || {});
@@ -487,7 +493,7 @@ export default class WriteContractStore {
     this.reloadContracts(cId);
   }
 
-  @action reloadContracts = (id, sourcecode) => {
+  @action reloadContracts = (id, sourcecode, recompile = true) => {
     const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
 
     this.savedContracts = localStore.saved || {};
@@ -507,7 +513,9 @@ export default class WriteContractStore {
 
     this.resizeEditor();
 
-    return this.handleCompile();
+    if (recompile) {
+      return this.handleCompile();
+    }
   }
 
   @action handleLoadContract = (contract) => {

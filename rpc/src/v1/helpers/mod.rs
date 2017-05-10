@@ -33,6 +33,7 @@ mod poll_filter;
 mod requests;
 mod signer;
 mod signing_queue;
+mod subscription_manager;
 
 pub use self::dispatch::{Dispatcher, FullDispatcher};
 pub use self::network_settings::NetworkSettings;
@@ -46,3 +47,4 @@ pub use self::signing_queue::{
 	QUEUE_LIMIT as SIGNING_QUEUE_LIMIT,
 };
 pub use self::signer::SignerService;
+pub use self::subscription_manager::GenericPollManager;

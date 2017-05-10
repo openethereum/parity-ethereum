@@ -31,11 +31,12 @@ use parity_rpc::informant::{ActivityNotifier, Middleware, RpcStats, ClientNotifi
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use ethsync::{ManageNetwork, SyncProvider, LightSync};
 use hash_fetch::fetch::Client as FetchClient;
-use jsonrpc_core::{MetaIoHandler};
+use jsonrpc_core::{self as core, MetaIoHandler};
 use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
 use updater::Updater;
 use util::{Mutex, RwLock};
 use ethcore_logger::RotatingLogger;
+use parity_reactor;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
@@ -195,18 +196,16 @@ pub struct FullDependencies {
 	pub dapps_interface: Option<String>,
 	pub dapps_port: Option<u16>,
 	pub fetch: FetchClient,
+	pub remote: parity_reactor::Remote,
 }
 
-impl Dependencies for FullDependencies {
-	type Notifier = ClientNotifier;
-
-	fn activity_notifier(&self) -> ClientNotifier {
-		ClientNotifier {
-			client: self.client.clone(),
-		}
-	}
-
-	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware>, apis: &[Api]) {
+impl FullDependencies {
+	fn extend_api<T: core::Middleware<Metadata>>(
+		&self,
+		handler: &mut MetaIoHandler<Metadata, T>,
+		apis: &[Api],
+		for_generic_pubsub: bool,
+	) {
 		use parity_rpc::v1::*;
 
 		macro_rules! add_signing_methods {
@@ -248,10 +247,12 @@ impl Dependencies for FullDependencies {
 					);
 					handler.extend_with(client.to_delegate());
 
-					let filter_client = EthFilterClient::new(self.client.clone(), self.miner.clone());
-					handler.extend_with(filter_client.to_delegate());
+					if !for_generic_pubsub {
+						let filter_client = EthFilterClient::new(self.client.clone(), self.miner.clone());
+						handler.extend_with(filter_client.to_delegate());
 
-					add_signing_methods!(EthSigning, handler, self);
+						add_signing_methods!(EthSigning, handler, self);
+					}
 				},
 				Api::Personal => {
 					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
@@ -278,8 +279,14 @@ impl Dependencies for FullDependencies {
 						self.dapps_port,
 					).to_delegate());
 
-					add_signing_methods!(EthSigning, handler, self);
-					add_signing_methods!(ParitySigning, handler, self);
+					if !for_generic_pubsub {
+						let mut rpc = MetaIoHandler::default();
+						self.extend_api(&mut rpc, apis, true);
+						handler.extend_with(PubSubClient::new(rpc, self.remote.clone()).to_delegate());
+
+						add_signing_methods!(EthSigning, handler, self);
+						add_signing_methods!(ParitySigning, handler, self);
+					}
 				},
 				Api::ParityAccounts => {
 					handler.extend_with(ParityAccountsClient::new(&self.secret_store).to_delegate());
@@ -305,6 +312,20 @@ impl Dependencies for FullDependencies {
 				},
 			}
 		}
+	}
+}
+
+impl Dependencies for FullDependencies {
+	type Notifier = ClientNotifier;
+
+	fn activity_notifier(&self) -> ClientNotifier {
+		ClientNotifier {
+			client: self.client.clone(),
+		}
+	}
+
+	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware<Self::Notifier>>, apis: &[Api]) {
+		self.extend_api(handler, apis, false)
 	}
 }
 

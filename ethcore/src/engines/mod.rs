@@ -48,6 +48,7 @@ use receipt::Receipt;
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use transaction::{UnverifiedTransaction, SignedTransaction};
+use evm::CreateContractAddress;
 
 use ethkey::Signature;
 use util::*;
@@ -293,5 +294,10 @@ pub trait Engine : Sync + Send {
 	/// Returning `None` indicates that this engine doesn't support snapshot creation.
 	fn snapshot_components(&self) -> Option<Box<SnapshotComponents>> {
 		None
+	}
+
+	/// Returns new contract address generation scheme at given block number.
+	fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
+		if number >= self.params().eip86_transition { CreateContractAddress::FromCodeHash } else { CreateContractAddress::FromSenderAndNonce }
 	}
 }
