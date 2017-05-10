@@ -191,8 +191,6 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 
 #[test]
 fn fixed_to_contract() {
-	//::ethcore_logger::init_log();
-
 	let (provider, addrs) = make_accounts(&[
 		RICH_SECRET.clone(),
 		secret!("foo"),
