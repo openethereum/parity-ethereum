@@ -19,10 +19,10 @@ import { FormattedMessage } from 'react-intl';
 
 import FileSaver from 'file-saver';
 
-import Button from '../../Button';
-import { FileDownloadIcon } from '../../Icons';
+import Button from '~/ui/Button';
+import { FileDownloadIcon } from '~/ui/Icons';
 
-class ActionbarExport extends Component {
+export default class ActionbarExport extends Component {
   static propTypes = {
     content: PropTypes.oneOfType([
       PropTypes.string,
@@ -58,5 +58,3 @@ class ActionbarExport extends Component {
     FileSaver.saveAs(blob, `${filename}.json`);
   }
 }
-
-export default ActionbarExport;
