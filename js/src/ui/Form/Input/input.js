@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Input as InputUI } from 'semantic-ui-react';
+import { Input as SemanticInput } from 'semantic-ui-react';
 import { noop } from 'lodash';
 import keycode from 'keycode';
 
@@ -45,6 +45,7 @@ export default class Input extends Component {
       'default',
       'initial'
     ]),
+    fullWidth: PropTypes.bool,
     fluid: PropTypes.bool,
     focused: PropTypes.bool,
     readOnly: PropTypes.bool,
@@ -136,11 +137,12 @@ export default class Input extends Component {
     return (
       <div className={ styles.container } style={ style }>
         { this.renderCopyButton() }
-        <InputUI
+        <SemanticInput
           className={ className }
+          defaultValue={ defaultValue }
           disabled={ disabled }
           error={ error }
-          fluid={ fluid }
+          fluid={ fullWidth | fluid }
           focus={ focused }
           input={ value }
           label={ label }
@@ -151,7 +153,7 @@ export default class Input extends Component {
           onKeyUp={ this.onKeyUp }
           onFocus={ this.onFocus }
           onPaste={ this.onPaste }
-          placeholder={ defaultValue }
+          placeholder={ hint }
           ref={ this.keyInput }
           style={ style }
           tabIndex={ tabIndex }
@@ -159,7 +161,7 @@ export default class Input extends Component {
         >
           { children }
           <input />
-        </InputUI>
+        </SemanticInput>
       </div>
     );
   }
