@@ -33,6 +33,16 @@ const WARNING_LABELS = {
   )
 };
 
+const FUND_ACCCOUNT_FROM = {
+  display: 'block',
+  paddingTop: '15px',
+  paddingBottom: '5px',
+  fontSize: '16px',
+  pointerEvents: 'none',
+  userSelect: 'none',
+  color: 'rgba(0, 0, 0, 0.298039)'
+}
+
 @observer
 export default class OptionsStep extends Component {
   static propTypes = {
@@ -59,7 +69,7 @@ export default class OptionsStep extends Component {
     return (
       <div className={ styles.body }>
         <Form>
-          <div style={ { display: 'block', paddingTop: '15px', paddingBottom: '5px', fontSize: '16px', pointerEvents: 'none', userSelect: 'none', color: 'rgba(0, 0, 0, 0.298039)' } }>
+          <div style={ FUND_ACCCOUNT_FROM }>
             <FormattedMessage
               id='shapeshift.optionsStep.typeSelect.label'
               defaultMessage='Fund account from'
