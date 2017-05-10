@@ -180,7 +180,7 @@ class MethodDecoding extends Component {
 
     const blockCondition = new BigNumber(condition.block || 0);
 
-    if (blockCondition) {
+    if (blockCondition.gt(0)) {
       const blockNumber = (
         <span className={ styles.highlight }>
           #{ blockCondition.toFormat(0) }
