@@ -34,6 +34,9 @@ export default class WatchesStore {
   static get () {
     if (!instance) {
       instance = new WatchesStore();
+
+      window.watch = instance.addWatch.bind(instance);
+      window.unwatch = instance.removeWatch.bind(instance);
     }
 
     return instance;

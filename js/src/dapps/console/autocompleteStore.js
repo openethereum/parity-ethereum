@@ -102,9 +102,13 @@ export default class AutocompleteStore {
     return true;
   }
 
-  select (inputStore, index = this.selected) {
+  select (inputStore, _index = this.selected) {
+    const index = _index === null
+      ? 0
+      : _index;
+
     if (!this.values[index]) {
-      console.warn(`selectValue has been called on AutocompleteStore with wrong value ${index}`);
+      console.warn(`autocomplete::select has been called on AutocompleteStore with wrong value ${index}`);
       return;
     }
 
@@ -156,7 +160,7 @@ export default class AutocompleteStore {
   setValues (values) {
     this.values = values;
     this.selected = null;
-    const show = values.length > 1;
+    const show = values.length > 0;
 
     // Reveal autocomplete
     if (!this.show && show) {

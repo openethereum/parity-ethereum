@@ -16,7 +16,7 @@
 */
 
 .result {
-  border-bottom: 1px solid #eee;
+  border-top: 1px solid #eee;
   display: flex;
   padding: 0.35em 0.25em;
 
@@ -42,6 +42,10 @@
 .time {
   color: gray;
   padding: 0 1em 0 0.5em;
+}
+
+.token {
+  white-space: pre-line;
 }
 
 .text .token:not(:first-child) {
