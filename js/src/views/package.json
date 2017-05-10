@@ -14,6 +14,9 @@
   "keywords": [],
   "scripts": {},
   "devDependencies": {},
-  "dependencies": {},
+  "dependencies": {
+    "react-markdown": "2.4.4",
+    "rlp": "2.0.0"
+  },
   "peerDependencies": {}
 }

@@ -16,7 +16,6 @@
     "url": "git+https://github.com/paritytech/parity.git"
   },
   "keywords": [],
-  "scripts": {},
   "devDependencies": {},
   "dependencies": {
     "bignumber.js": "3.0.1",
