@@ -345,7 +345,8 @@ class DeployContract extends Component {
       value: amountValue
     };
 
-    const contract = api.newContract(abiParsed);
+    const abiConstructor = abiParsed.filter((interf) => interf.type === 'constructor');
+    const contract = api.newContract(abiConstructor);
 
     deployEstimateGas(contract, options, params)
       .then(([gasEst, gas]) => {
@@ -465,7 +466,8 @@ class DeployContract extends Component {
       value: amountValue
     });
 
-    const contract = api.newContract(abiParsed);
+    const abiConstructor = abiParsed.filter((interf) => interf.type === 'constructor');
+    const contract = api.newContract(abiConstructor);
 
     this.onClose();
     deploy(contract, options, params, true)

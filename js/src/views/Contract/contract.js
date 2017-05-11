@@ -26,6 +26,7 @@ import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { Actionbar, Button, Page, Portal } from '~/ui';
 import { CancelIcon, DeleteIcon, EditIcon, PlayIcon, VisibleIcon } from '~/ui/Icons';
 import Editor from '~/ui/Editor';
+import { toValidAbi } from '~/util/abi';
 
 import Header from '../Account/Header';
 import Delete from '../Address/Delete';
@@ -247,18 +248,28 @@ class Contract extends Component {
   }
 
   renderActionbar (account) {
+    const showExecuteButton = this.state.contract.functions
+      .filter((func) => !func.constant)
+      .length > 0;
+
+    const executeButton = showExecuteButton
+      ? (
+        <Button
+          key='execute'
+          icon={ <PlayIcon /> }
+          label={
+            <FormattedMessage
+              id='contract.buttons.execute'
+              defaultMessage='execute'
+            />
+          }
+          onClick={ this.showExecuteDialog }
+        />
+      )
+      : null;
+
     const buttons = [
-      <Button
-        key='execute'
-        icon={ <PlayIcon /> }
-        label={
-          <FormattedMessage
-            id='contract.buttons.execute'
-            defaultMessage='execute'
-          />
-        }
-        onClick={ this.showExecuteDialog }
-      />,
+      executeButton,
       <Button
         key='editmeta'
         icon={ <EditIcon /> }
@@ -489,7 +500,8 @@ class Contract extends Component {
       return;
     }
 
-    const contract = api.newContract(account.meta.abi, params.address);
+    const validAbi = toValidAbi(account.meta.abi);
+    const contract = api.newContract(validAbi, params.address);
 
     contract
       .subscribe(null, { limit: 25, fromBlock: 0, toBlock: 'pending' }, this._receiveEvents)

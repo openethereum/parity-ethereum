@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { decodeMethodInput } from '~/api/util/decode';
 import Contracts from '~/contracts';
-import Abi from '~/abi';
 import * as abis from '~/contracts/abi';
 
-import { decodeMethodInput } from '~/api/util/decode';
+import { toValidAbi } from '~/util/abi';
 
 const CONTRACT_CREATE = '0x60606040';
 
@@ -54,17 +54,7 @@ export default class MethodDecodingStore {
   }
 
   loadFromAbi (_abi, contractAddress) {
-    let abi;
-
-    try {
-      abi = new Abi(_abi);
-    } catch (error) {
-      console.warn('loadFromAbi', error, _abi);
-    }
-
-    if (!abi) {
-      return;
-    }
+    const abi = toValidAbi(_abi);
 
     if (contractAddress) {
       this._contractsAbi[contractAddress] = abi;

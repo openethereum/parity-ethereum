@@ -16,6 +16,8 @@
 
 import { range } from 'lodash';
 
+import Abi from '~/abi';
+
 const ARRAY_TYPE = 'ARRAY_TYPE';
 const ADDRESS_TYPE = 'ADDRESS_TYPE';
 const STRING_TYPE = 'STRING_TYPE';
@@ -146,4 +148,32 @@ export function parseAbiType (type) {
 
   // If no matches, return null
   return null;
+}
+
+/**
+ * Returns a valid ABI by filter out interfaces
+ * with wrong typ
+ */
+export function toValidAbi (_abi = []) {
+  try {
+    return new Abi(_abi);
+  } catch (error) {
+    // If there is a wrong type, filter it out
+    if (/Cannot convert .+ valid ParamType/i.test(error.message)) {
+      const validInterfaces = [];
+
+      _abi.forEach((interf) => {
+        try {
+          Abi.parseABI([ interf ]);
+          validInterfaces.push(interf);
+        } catch (error) {
+        }
+      });
+
+      return toValidAbi(validInterfaces);
+    }
+
+    console.warn('toValidAbi', _abi, error);
+    return new Abi([]);
+  }
 }
