@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { MenuItem } from 'material-ui';
 import { range } from 'lodash';
 import BigNumber from 'bignumber.js';
 
@@ -26,9 +25,9 @@ import { bytesToHex } from '@parity/api/util/format';
 import { ABI_TYPES, parseAbiType } from '@parity/shared/util/abi';
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
+import Dropdown from '~/ui/Form/Dropdown';
 import Input from '~/ui/Form/Input';
 import InputAddressSelect from '~/ui/Form/InputAddressSelect';
-import Select from '~/ui/Form/Select';
 import Toggle from '~/ui/Form/Toggle';
 import { AddIcon, RemoveIcon } from '~/ui/Icons';
 
@@ -367,20 +366,8 @@ export default class TypedInput extends Component {
       return this.renderDefault();
     }
 
-    const boolitems = ['false', 'true'].map((bool) => {
-      return (
-        <MenuItem
-          key={ bool }
-          label={ bool }
-          value={ bool }
-        >
-          { bool }
-        </MenuItem>
-      );
-    });
-
     return (
-      <Select
+      <Dropdown
         allowCopy={ allowCopy }
         className={ className }
         error={ error }
@@ -392,9 +379,16 @@ export default class TypedInput extends Component {
             ? 'true'
             : 'false'
         }
-      >
-        { boolitems }
-      </Select>
+        options={
+          ['false', 'true'].map((bool) => {
+            return {
+              key: bool,
+              text: bool,
+              value: bool
+            };
+          })
+        }
+      />
     );
   }
 

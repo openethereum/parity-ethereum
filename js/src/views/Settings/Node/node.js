@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Dropdown, Menu } from 'semantic-ui-react';
+import { Menu } from 'semantic-ui-react';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Select, Container, LanguageSelector } from '~/ui';
+import { Container, Dropdown, LanguageSelector } from '~/ui';
 import Features, { FeaturesStore, FEATURES } from '~/ui/Features';
 
 import Store, { LOGLEVEL_OPTIONS } from './store';
@@ -68,16 +68,12 @@ export default class Node extends Component {
   }
 
   renderItem (name, func, label) {
-    return (
-      <Dropdown.Item
-        key={ name }
-        content={ label }
-        name={ name }
-        onClick={ func }
-      >
-        { label }
-      </Dropdown.Item>
-    );
+    return {
+      key: name,
+      text: name,
+      value: name,
+      content: label
+    };
   }
 
   renderLogsConfig () {
@@ -118,7 +114,7 @@ export default class Node extends Component {
         return (
           <div key={ key }>
             <p>{ desc }</p>
-            <Select
+            <Dropdown
               onChange={ onChange }
               value={ level }
               values={ LOGLEVEL_OPTIONS }
@@ -145,42 +141,33 @@ export default class Node extends Component {
           <Dropdown
             item
             text={ mode }
-          >
-            <Dropdown.Menu>
-              {
-                this.renderItem('active', this.onChangeMode, (
-                  <FormattedMessage
-                    id='settings.parity.modes.mode_active'
-                    defaultMessage='Continuously sync'
-                  />
-                ))
-              }
-              {
-                this.renderItem('passive', this.onChangeMode, (
-                  <FormattedMessage
-                    id='settings.parity.modes.mode_passive'
-                    defaultMessage='Sync on intervals'
-                  />
-                ))
-              }
-              {
-                this.renderItem('dark', this.onChangeMode, (
-                  <FormattedMessage
-                    id='settings.parity.modes.mode_dark'
-                    defaultMessage='Sync when RPC is active'
-                  />
-                ))
-              }
-              {
-                this.renderItem('offline', this.onChangeMode, (
-                  <FormattedMessage
-                    id='settings.parity.modes.mode_offline'
-                    defaultMessage='No Syncing'
-                  />
-                ))
-              }
-            </Dropdown.Menu>
-          </Dropdown>
+            options={ [
+              this.renderItem('active', this.onChangeMode, (
+                <FormattedMessage
+                  id='settings.parity.modes.mode_active'
+                  defaultMessage='Continuously sync'
+                />
+              )),
+              this.renderItem('passive', this.onChangeMode, (
+                <FormattedMessage
+                  id='settings.parity.modes.mode_passive'
+                  defaultMessage='Sync on intervals'
+                />
+              )),
+              this.renderItem('dark', this.onChangeMode, (
+                <FormattedMessage
+                  id='settings.parity.modes.mode_dark'
+                  defaultMessage='Sync when RPC is active'
+                />
+              )),
+              this.renderItem('offline', this.onChangeMode, (
+                <FormattedMessage
+                  id='settings.parity.modes.mode_offline'
+                  defaultMessage='No Syncing'
+                />
+              ))
+            ] }
+          />
         </Menu>
       </div>
     );
@@ -200,74 +187,59 @@ export default class Node extends Component {
           id='parityChainSelect'
           value={ chain }
         >
-          <Dropdown item text={ chain }>
-            <Dropdown.Menu>
-              {
-                this.renderItem('foundation', this.onChangeChain, (
-                  <FormattedMessage
-                    id='settings.parity.chains.chain_foundation'
-                    defaultMessage='Ethereum Foundation'
-                  />
-                ))
-              }
-              {
-                this.renderItem('kovan', this.onChangeChain, (
-                  <FormattedMessage
-                    id='settings.parity.chains.chain_kovan'
-                    defaultMessage='Kovan test network'
-                  />
-                ))
-              }
-              {
-                this.renderItem('olympic', this.onChangeChain, (
-                  <FormattedMessage
-                    id='settings.parity.chains.chain_olympic'
-                    defaultMessage='Olympic test network'
-                  />
-                ))
-              }
-              {
-                this.renderItem('morden', this.onChangeChain, (
-                  <FormattedMessage
-                    id='settings.parity.chains.cmorden_kovan'
-                    defaultMessage='Morden (Classic) test network'
-                  />
-                ))
-              }
-              {
-                this.renderItem('ropsten', this.onChangeChain, (
-                  <FormattedMessage
-                    id='settings.parity.chains.chain_ropsten'
-                    defaultMessage='Ropsten test network'
-                  />
-                ))
-              }
-              {
-                this.renderItem('classic', this.onChangeChain, (
-                  <FormattedMessage
-                    id='settings.parity.chains.chain_classic'
-                    defaultMessage='Ethereum Classic network'
-                  />
-                ))
-              }
-              {
-                this.renderItem('expanse', this.onChangeChain, (
-                  <FormattedMessage
-                    id='settings.parity.chains.chain_expanse'
-                    defaultMessage='Expanse network'
-                  />
-                ))
-              }
-              {
-                this.renderItem('dev', this.onChangeChain, (
-                  <FormattedMessage
-                    id='settings.parity.chains.chain_dev'
-                    defaultMessage='Local development chain'
-                  />
-                ))
-              }
-            </Dropdown.Menu>
-          </Dropdown>
+          <Dropdown
+            text={ chain }
+            options={ [
+              this.renderItem('foundation', this.onChangeChain, (
+                <FormattedMessage
+                  id='settings.parity.chains.chain_foundation'
+                  defaultMessage='Ethereum Foundation'
+                />
+              )),
+              this.renderItem('kovan', this.onChangeChain, (
+                <FormattedMessage
+                  id='settings.parity.chains.chain_kovan'
+                  defaultMessage='Kovan test network'
+                />
+              )),
+              this.renderItem('olympic', this.onChangeChain, (
+                <FormattedMessage
+                  id='settings.parity.chains.chain_olympic'
+                  defaultMessage='Olympic test network'
+                />
+              )),
+              this.renderItem('morden', this.onChangeChain, (
+                <FormattedMessage
+                  id='settings.parity.chains.cmorden_kovan'
+                  defaultMessage='Morden (Classic) test network'
+                />
+              )),
+              this.renderItem('ropsten', this.onChangeChain, (
+                <FormattedMessage
+                  id='settings.parity.chains.chain_ropsten'
+                  defaultMessage='Ropsten test network'
+                />
+              )),
+              this.renderItem('classic', this.onChangeChain, (
+                <FormattedMessage
+                  id='settings.parity.chains.chain_classic'
+                  defaultMessage='Ethereum Classic network'
+                />
+              )),
+              this.renderItem('expanse', this.onChangeChain, (
+                <FormattedMessage
+                  id='settings.parity.chains.chain_expanse'
+                  defaultMessage='Expanse network'
+                />
+              )),
+              this.renderItem('dev', this.onChangeChain, (
+                <FormattedMessage
+                  id='settings.parity.chains.chain_dev'
+                  defaultMessage='Local development chain'
+                />
+              ))
+            ] }
+          />
         </Menu>
       </div>
     );

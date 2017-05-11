@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { MenuItem } from 'material-ui';
 import { observer } from 'mobx-react';
 import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -22,7 +21,7 @@ import { FormattedMessage } from 'react-intl';
 import { LocaleStore } from '~/i18n';
 import { FeaturesStore, FEATURES } from '../Features';
 
-import Select from '../Form/Select';
+import Dropdown from '../Form/Dropdown';
 
 @observer
 export default class LanguageSelector extends Component {
@@ -35,7 +34,7 @@ export default class LanguageSelector extends Component {
     }
 
     return (
-      <Select
+      <Dropdown
         hint={
           <FormattedMessage
             id='settings.parity.languages.hint'
@@ -50,26 +49,18 @@ export default class LanguageSelector extends Component {
         }
         value={ this.store.locale }
         onChange={ this.onChange }
-      >
-        { this.renderOptions() }
-      </Select>
+        options={
+          this.store.locales.map((locale) => {
+            return {
+              key: locale,
+              value: locale,
+              text: locale,
+              content: <FormattedMessage id={ `languages.${locale}` } />
+            };
+          })
+        }
+      />
     );
-  }
-
-  renderOptions () {
-    return this.store.locales.map((locale) => {
-      const label = <FormattedMessage id={ `languages.${locale}` } />;
-
-      return (
-        <MenuItem
-          key={ locale }
-          value={ locale }
-          label={ label }
-        >
-          { label }
-        </MenuItem>
-      );
-    });
   }
 
   onChange = (event, index, locale) => {

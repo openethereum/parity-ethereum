@@ -16,12 +16,11 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { MenuItem } from 'material-ui';
 
 import { parseAbiType } from '@parity/shared/util/abi';
 import { validateAbi } from '@parity/shared/util/validation';
 
-import { AddressSelect, Checkbox, Form, Input, Select } from '~/ui';
+import { AddressSelect, Checkbox, Dropdown, Form, Input } from '~/ui';
 
 const CHECK_STYLE = {
   marginTop: '1em'
@@ -269,20 +268,9 @@ export default class DetailsStep extends Component {
     }
 
     const { selectedContractIndex } = this.state;
-    const contractsItems = Object
-      .keys(contracts)
-      .map((name, index) => (
-        <MenuItem
-          key={ index }
-          label={ name }
-          value={ index }
-        >
-          { name }
-        </MenuItem>
-      ));
 
     return (
-      <Select
+      <Dropdown
         label={
           <FormattedMessage
             id='deployContract.details.contract.label'
@@ -291,9 +279,18 @@ export default class DetailsStep extends Component {
         }
         onChange={ this.onContractChange }
         value={ selectedContractIndex }
-      >
-        { contractsItems }
-      </Select>
+        options={
+          Object
+            .keys(contracts)
+            .map((name, index) => {
+              return {
+                key: index,
+                text: name,
+                value: index
+              };
+            })
+        }
+      />
     );
   }
 
