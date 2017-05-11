@@ -1086,7 +1086,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "jsonrpc-core"
 version = "6.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.6#8a944ad441d6800c34374f1e45f4def190f98815"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.6#52062a2be5e45dfd7cece207fc3fd53fad434daf"
 dependencies = [
  "futures 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1099,7 +1099,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "6.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.6#8a944ad441d6800c34374f1e45f4def190f98815"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.6#52062a2be5e45dfd7cece207fc3fd53fad434daf"
 dependencies = [
  "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
  "jsonrpc-core 6.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.6)",
@@ -1111,7 +1111,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-ipc-server"
 version = "6.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.6#8a944ad441d6800c34374f1e45f4def190f98815"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.6#52062a2be5e45dfd7cece207fc3fd53fad434daf"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1127,7 +1127,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-macros"
 version = "6.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.6#8a944ad441d6800c34374f1e45f4def190f98815"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.6#52062a2be5e45dfd7cece207fc3fd53fad434daf"
 dependencies = [
  "jsonrpc-core 6.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.6)",
  "serde 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1136,7 +1136,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-tcp-server"
 version = "6.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.6#8a944ad441d6800c34374f1e45f4def190f98815"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.6#52062a2be5e45dfd7cece207fc3fd53fad434daf"
 dependencies = [
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 6.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.6)",
