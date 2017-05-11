@@ -60,6 +60,8 @@ pub struct AuthorityRound {
 
 #[cfg(test)]
 mod tests {
+	use uint::Uint;
+	use util::U256;
 	use serde_json;
 	use spec::authority_round::AuthorityRound;
 
@@ -79,6 +81,8 @@ mod tests {
 			}
 		}"#;
 
-		let _deserialized: AuthorityRound = serde_json::from_str(s).unwrap();
+		let deserialized: AuthorityRound = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized.params.gas_limit_bound_divisor, Uint(U256::from(0x0400)));
+		assert_eq!(deserialized.params.step_duration, Uint(U256::from(0x02)));
 	}
 }
