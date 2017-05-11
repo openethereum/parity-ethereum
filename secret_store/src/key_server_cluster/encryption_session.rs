@@ -22,6 +22,7 @@ use parking_lot::{Condvar, Mutex};
 use ethkey::{self, Public, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage, DocumentKeyShare};
 use key_server_cluster::cluster::Cluster;
+use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::message::{Message, EncryptionMessage, InitializeEncryptionSession,
 	ConfirmEncryptionInitialization, EncryptionSessionError};
 
@@ -251,9 +252,16 @@ impl SessionImpl {
 
 		Ok(())
 	}
+}
 
-	/// When connection to one of cluster nodes has timeouted.
-	pub fn on_node_timeout(&self, node: &NodeId) {
+impl ClusterSession for SessionImpl {
+	fn is_finished(&self) -> bool {
+		let data = self.data.lock();
+		data.state == SessionState::Failed
+			|| data.state == SessionState::Finished
+	}
+
+	fn on_node_timeout(&self, node: &NodeId) {
 		let mut data = self.data.lock();
 
 		warn!("{}: encryption session failed because {} connection has timeouted", self.node(), node);
@@ -263,8 +271,7 @@ impl SessionImpl {
 		self.completed.notify_all();
 	}
 
-	/// When session timeout has occured.
-	pub fn on_session_timeout(&self) {
+	fn on_session_timeout(&self) {
 		let mut data = self.data.lock();
 
 		warn!("{}: encryption session failed with timeout", self.node());

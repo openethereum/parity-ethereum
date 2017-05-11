@@ -23,6 +23,7 @@ use ethcrypto::DEFAULT_MAC;
 use ethkey::{self, Secret, Public, Signature};
 use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, EncryptedDocumentKeyShadow};
 use key_server_cluster::cluster::Cluster;
+use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::math;
 use key_server_cluster::message::{Message, DecryptionMessage, InitializeDecryptionSession, ConfirmDecryptionInitialization,
 	RequestPartialDecryption, PartialDecryption, DecryptionSessionError, DecryptionSessionCompleted};
@@ -436,8 +437,71 @@ impl SessionImpl {
 		Ok(())
 	}
 
-	/// When connection to one of cluster nodes has timeouted.
-	pub fn on_node_timeout(&self, node: &NodeId) {
+	fn start_waiting_for_partial_decryption(self_node_id: NodeId, session_id: SessionId, access_key: Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
+		let confirmed_nodes: BTreeSet<_> = data.confirmed_nodes.clone();
+		let confirmed_nodes: BTreeSet<_> = confirmed_nodes.difference(&data.rejected_nodes).cloned().collect();
+
+		data.shadow_requests.clear();
+		data.shadow_points.clear();
+		for node in confirmed_nodes.iter().filter(|n| n != &&self_node_id) {
+			data.shadow_requests.insert(node.clone());
+			cluster.send(node, Message::Decryption(DecryptionMessage::RequestPartialDecryption(RequestPartialDecryption {
+				session: session_id.clone().into(),
+				sub_session: access_key.clone().into(),
+				nodes: confirmed_nodes.iter().cloned().map(Into::into).collect(),
+			})))?;
+		}
+
+		if data.confirmed_nodes.remove(&self_node_id) {
+			let decryption_result = {
+				let requestor = data.requestor.as_ref().expect("requestor public is filled during initialization; WaitingForPartialDecryption follows initialization; qed");
+				let is_shadow_decryption = data.is_shadow_decryption.expect("is_shadow_decryption is filled during initialization; WaitingForPartialDecryption follows initialization; qed");
+				do_partial_decryption(&self_node_id, &requestor, is_shadow_decryption, &data.confirmed_nodes, &access_key, &encrypted_data)?
+			};
+			data.shadow_points.insert(self_node_id.clone(), decryption_result);
+		}
+
+		Ok(())
+	}
+
+	fn do_decryption(access_key: Secret, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
+		// decrypt the secret using shadow points
+		let joint_shadow_point = math::compute_joint_shadow_point(data.shadow_points.values().map(|s| &s.shadow_point))?;
+		let encrypted_point = encrypted_data.encrypted_point.as_ref().expect("checked at the beginning of the session; immutable; qed");
+		let common_point = encrypted_data.common_point.as_ref().expect("checked at the beginning of the session; immutable; qed");
+		let decrypted_secret = math::decrypt_with_joint_shadow(encrypted_data.threshold, &access_key, encrypted_point, &joint_shadow_point)?;
+		let is_shadow_decryption = data.is_shadow_decryption.expect("is_shadow_decryption is filled during initialization; decryption follows initialization; qed");
+		let (common_point, decrypt_shadows) = if is_shadow_decryption {
+			(
+				Some(math::make_common_shadow_point(encrypted_data.threshold, common_point.clone())?),
+				Some(data.shadow_points.values()
+					.map(|s| s.decrypt_shadow.as_ref().expect("decrypt_shadow is filled during partial decryption; decryption follows partial decryption; qed").clone())
+					.collect())
+			)
+		} else {
+			(None, None)
+		};
+		data.decrypted_secret = Some(Ok(EncryptedDocumentKeyShadow {
+			decrypted_secret: decrypted_secret,
+			common_point: common_point,
+			decrypt_shadows: decrypt_shadows,
+		}));
+
+		// switch to completed state
+		data.state = SessionState::Finished;
+
+		Ok(())
+	}
+}
+
+impl ClusterSession for SessionImpl {
+	fn is_finished(&self) -> bool {
+		let data = self.data.lock();
+		data.state == SessionState::Failed
+			|| data.state == SessionState::Finished
+	}
+
+	fn on_node_timeout(&self, node: &NodeId) {
 		let mut data = self.data.lock();
 
 		let is_self_master = data.master.as_ref() == Some(self.node());
@@ -503,8 +567,7 @@ impl SessionImpl {
 		self.completed.notify_all();
 	}
 
-	/// When session timeout has occured.
-	pub fn on_session_timeout(&self) {
+	fn on_session_timeout(&self) {
 		let mut data = self.data.lock();
 
 		let is_self_master = data.master.as_ref() == Some(self.node());
@@ -541,62 +604,6 @@ impl SessionImpl {
 		data.state = SessionState::Failed;
 		data.decrypted_secret = Some(Err(Error::NodeDisconnected));
 		self.completed.notify_all();
-	}
-
-	fn start_waiting_for_partial_decryption(self_node_id: NodeId, session_id: SessionId, access_key: Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
-		let confirmed_nodes: BTreeSet<_> = data.confirmed_nodes.clone();
-		let confirmed_nodes: BTreeSet<_> = confirmed_nodes.difference(&data.rejected_nodes).cloned().collect();
-
-		data.shadow_requests.clear();
-		data.shadow_points.clear();
-		for node in confirmed_nodes.iter().filter(|n| n != &&self_node_id) {
-			data.shadow_requests.insert(node.clone());
-			cluster.send(node, Message::Decryption(DecryptionMessage::RequestPartialDecryption(RequestPartialDecryption {
-				session: session_id.clone().into(),
-				sub_session: access_key.clone().into(),
-				nodes: confirmed_nodes.iter().cloned().map(Into::into).collect(),
-			})))?;
-		}
-
-		if data.confirmed_nodes.remove(&self_node_id) {
-			let decryption_result = {
-				let requestor = data.requestor.as_ref().expect("requestor public is filled during initialization; WaitingForPartialDecryption follows initialization; qed");
-				let is_shadow_decryption = data.is_shadow_decryption.expect("is_shadow_decryption is filled during initialization; WaitingForPartialDecryption follows initialization; qed");
-				do_partial_decryption(&self_node_id, &requestor, is_shadow_decryption, &data.confirmed_nodes, &access_key, &encrypted_data)?
-			};
-			data.shadow_points.insert(self_node_id.clone(), decryption_result);
-		}
-
-		Ok(())
-	}
-
-	fn do_decryption(access_key: Secret, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
-		// decrypt the secret using shadow points
-		let joint_shadow_point = math::compute_joint_shadow_point(data.shadow_points.values().map(|s| &s.shadow_point))?;
-		let encrypted_point = encrypted_data.encrypted_point.as_ref().expect("checked at the beginning of the session; immutable; qed");
-		let common_point = encrypted_data.common_point.as_ref().expect("checked at the beginning of the session; immutable; qed");
-		let decrypted_secret = math::decrypt_with_joint_shadow(encrypted_data.threshold, &access_key, encrypted_point, &joint_shadow_point)?;
-		let is_shadow_decryption = data.is_shadow_decryption.expect("is_shadow_decryption is filled during initialization; decryption follows initialization; qed");
-		let (common_point, decrypt_shadows) = if is_shadow_decryption {
-			(
-				Some(math::make_common_shadow_point(encrypted_data.threshold, common_point.clone())?),
-				Some(data.shadow_points.values()
-					.map(|s| s.decrypt_shadow.as_ref().expect("decrypt_shadow is filled during partial decryption; decryption follows partial decryption; qed").clone())
-					.collect())
-			)
-		} else {
-			(None, None)
-		};
-		data.decrypted_secret = Some(Ok(EncryptedDocumentKeyShadow {
-			decrypted_secret: decrypted_secret,
-			common_point: common_point,
-			decrypt_shadows: decrypt_shadows,
-		}));
-
-		// switch to completed state
-		data.state = SessionState::Finished;
-
-		Ok(())
 	}
 }
 
@@ -709,6 +716,7 @@ mod tests {
 	use ethkey::{self, Random, Generator, Public, Secret};
 	use key_server_cluster::{NodeId, DocumentKeyShare, SessionId, Error, EncryptedDocumentKeyShadow};
 	use key_server_cluster::cluster::tests::DummyCluster;
+	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::decryption_session::{SessionImpl, SessionParams, SessionState};
 	use key_server_cluster::message::{self, Message, DecryptionMessage};
 	use key_server_cluster::math;
