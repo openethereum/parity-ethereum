@@ -23,7 +23,7 @@
  *                                   element
  * @return {String}
  */
-export function toString (context, value) {
+export function parseI18NString (context, value) {
   if (!context.intl) {
     console.warn(`remember to add:
         static contextTypes = {

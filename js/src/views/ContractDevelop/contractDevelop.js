@@ -17,12 +17,11 @@
 import React, { PropTypes, Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { observer } from 'mobx-react';
-import { MenuItem, Toggle } from 'material-ui';
 import { connect } from 'react-redux';
 import moment from 'moment';
 import { throttle } from 'lodash';
 
-import { Actionbar, ActionbarExport, ActionbarImport, Button, Input, Loading, Page, Select } from '~/ui';
+import { Actionbar, ActionbarExport, ActionbarImport, Button, Dropdown, Input, Loading, Page, Toggle } from '~/ui';
 import { CancelIcon, ListIcon, SaveIcon, SendIcon, SettingsIcon } from '~/ui/Icons';
 import Editor from '~/ui/Editor';
 
@@ -405,27 +404,9 @@ class ContractDevelop extends Component {
   renderSolidityVersions () {
     const { builds, selectedBuild } = this.store;
 
-    const buildsList = builds.map((build, index) => (
-      <MenuItem
-        key={ index }
-        value={ index }
-        label={ build.release ? build.version : build.longVersion }
-      >
-        {
-          build.release
-            ? (
-              <span className={ styles.big }>
-                { build.version }
-              </span>
-            )
-            : build.longVersion
-        }
-      </MenuItem>
-    ));
-
     return (
       <div>
-        <Select
+        <Dropdown
           label={
             <FormattedMessage
               id='writeContract.title.selectSolidity'
@@ -434,9 +415,24 @@ class ContractDevelop extends Component {
           }
           value={ selectedBuild }
           onChange={ this.store.handleSelectBuild }
-        >
-          { buildsList }
-        </Select>
+          options={
+            builds.map((build, index) => {
+              return {
+                key: index,
+                text: build.release ? build.version : build.longVersion,
+                value: index,
+                content:
+                  build.release
+                    ? (
+                      <span className={ styles.big }>
+                        { build.version }
+                      </span>
+                    )
+                    : build.longVersion
+              };
+            })
+          }
+        />
       </div>
     );
   }
@@ -546,19 +542,9 @@ class ContractDevelop extends Component {
       );
     }
 
-    const contractsList = contractKeys.map((name, index) => (
-      <MenuItem
-        key={ index }
-        value={ index }
-        label={ name }
-      >
-        { name }
-      </MenuItem>
-    ));
-
     return (
       <div className={ styles.compilation }>
-        <Select
+        <Dropdown
           label={
             <FormattedMessage
               id='writeContract.title.contract'
@@ -567,9 +553,16 @@ class ContractDevelop extends Component {
           }
           value={ contractIndex }
           onChange={ this.store.handleSelectContract }
-        >
-          { contractsList }
-        </Select>
+          options={
+            contractKeys.map((name, index) => {
+              return {
+                key: index,
+                value: index,
+                text: name
+              };
+            })
+          }
+        />
         { this.renderContract(contract) }
         <h4 className={ styles.messagesHeader }>
           <FormattedMessage

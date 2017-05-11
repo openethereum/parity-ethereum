@@ -14,37 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { shallow } from 'enzyme';
-import React from 'react';
-import sinon from 'sinon';
+import React, { PropTypes } from 'react';
+import { Radio as SemanticRadio } from 'semantic-ui-react';
 
-import { ABI_TYPES } from '@parity/shared/util/abi';
+import LabelComponent from '../LabelComponent';
 
-import TypedInput from './';
-
-let component;
-let onChange;
-
-function render (props) {
-  onChange = sinon.stub();
-  component = shallow(
-    <TypedInput
-      { ...props }
-      onChange={ onChange }
-    />
+export default function Toggle ({ className, label, onToggle, style, toggled }) {
+  return (
+    <LabelComponent label={ label }>
+      <SemanticRadio
+        checked={ toggled }
+        className={ className }
+        onChange={ onToggle }
+        style={ style }
+        toggle
+      />
+    </LabelComponent>
   );
-
-  return component;
 }
 
-describe('ui/Form/TypedInput', () => {
-  describe('bool selection', () => {
-    beforeEach(() => {
-      render({ param: { type: ABI_TYPES.BOOL } });
-    });
-
-    it('renders', () => {
-      expect(component).to.be.ok;
-    });
-  });
-});
+Toggle.propTypes = {
+  className: PropTypes.string,
+  label: PropTypes.node,
+  onToggle: PropTypes.func,
+  style: PropTypes.object,
+  toggled: PropTypes.bool
+};

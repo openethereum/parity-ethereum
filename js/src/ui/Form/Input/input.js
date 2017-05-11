@@ -20,7 +20,7 @@ import { noop } from 'lodash';
 import keycode from 'keycode';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
-import { toString } from '@parity/shared/util/messages';
+import { parseI18NString } from '@parity/shared/util/messages';
 
 import CopyToClipboard from '~/ui/CopyToClipboard';
 
@@ -150,7 +150,7 @@ export default class Input extends Component {
       ? UNDERLINE_FOCUSED
       : readOnly && typeof focused !== 'boolean' ? { display: 'none' } : null;
 
-    const textValue = toString(this.context, value);
+    const textValue = parseI18NString(this.context, value);
 
     return (
       <div className={ styles.container } style={ style }>

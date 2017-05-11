@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Paper from 'material-ui/Paper';
 import { Menu, Segment } from 'semantic-ui-react';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
@@ -89,17 +88,16 @@ class PasswordManager extends Component {
     }
 
     return (
-      <Paper
-        className={ `${styles.message}` }
+      <div
+        className={ styles.message }
         style={
           infoMessage.success
             ? MSG_SUCCESS_STYLE
             : MSG_FAILURE_STYLE
         }
-        zDepth={ 1 }
       >
         { infoMessage.value }
-      </Paper>
+      </div>
     );
   }
 

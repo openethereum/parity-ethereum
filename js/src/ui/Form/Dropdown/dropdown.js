@@ -17,38 +17,58 @@
 import React, { PropTypes } from 'react';
 import { Dropdown as SemanticDropdown } from 'semantic-ui-react';
 
-import LabelComponent from '../labelComponent';
+import { parseI18NString } from '@parity/shared/util/messages';
+
+import LabelComponent from '../LabelComponent';
 
 import styles from './dropdown.css';
 
+const NAME_ID = ' ';
+
 // FIXME: Currently does not display the selected icon alongside
-export default function Dropdown ({ className, disabled = false, fullWidth = true, hint, label, onChange, options, value }) {
+export default function Dropdown ({ className, disabled = false, error, fullWidth = true, hint, label, onBlur, onChange, onKeyDown, options, text, value }, context) {
   return (
     <LabelComponent label={ label }>
       <SemanticDropdown
         className={ `${styles.dropdown} ${className}` }
         disabled={ disabled }
+        error={ !!error }
         fluid={ fullWidth }
+        id={ NAME_ID }
+        name={ NAME_ID }
+        onBlur={ onBlur }
         onChange={ onChange }
+        onKeyDown={ onKeyDown }
         options={ options }
-        placeholder={ hint }
+        placeholder={ parseI18NString(context, hint) }
         scrolling
         search
         selection
+        text={ parseI18NString(context, text) }
         value={ value }
       />
     </LabelComponent>
   );
 }
 
+Dropdown.contextTypes = {
+  intl: PropTypes.object.isRequired
+};
+
 Dropdown.propTypes = {
+  children: PropTypes.node,
   className: PropTypes.string,
   disabled: PropTypes.bool,          // A disabled dropdown menu or item does not allow user interaction.
+  error: PropTypes.any,
   fullWidth: PropTypes.bool,         // A dropdown can take the full width of its parent.
-  hint: PropTypes.string,            // Placeholder text.
+  hint: PropTypes.node,            // Placeholder text.
   label: PropTypes.node,
   name: PropTypes.func,              // Name of the hidden input which holds the value.
   onChange: PropTypes.func,          // Called when the user attempts to change the value.
+  onBlur: PropTypes.func,
+  onKeyDown: PropTypes.func,
   options: PropTypes.any,            // Array of Dropdown.Item props e.g. `{ text: '', value: '' }`
-  value: PropTypes.any               // Current value. Creates a controlled component.
+  text: PropTypes.any,
+  value: PropTypes.any,               // Current value. Creates a controlled component.
+  values: PropTypes.array
 };
