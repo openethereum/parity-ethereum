@@ -17,7 +17,7 @@
 import React, { PropTypes } from 'react';
 import { Radio as SemanticRadio } from 'semantic-ui-react';
 
-import LabelComponent from '../labelComponent';
+import LabelComponent from '../LabelComponent';
 
 export default function Toggle ({ className, label, onToggle, style, toggled }) {
   return (

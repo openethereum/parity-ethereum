@@ -19,7 +19,7 @@ import { Dropdown as SemanticDropdown } from 'semantic-ui-react';
 
 import { parseI18NString } from '@parity/shared/util/messages';
 
-import LabelComponent from '../labelComponent';
+import LabelComponent from '../LabelComponent';
 
 import styles from './dropdown.css';
 
