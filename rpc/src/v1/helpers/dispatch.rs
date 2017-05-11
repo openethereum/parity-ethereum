@@ -458,13 +458,10 @@ pub fn execute<D: Dispatcher + 'static>(
 			message_data.append(&mut data);
 			let res = signature(&accounts, address, message_data.sha3(), pass)
 				.map(|result| result
-					.map(|rsv| {
-						let mut vrs = [0u8; 65];
-						let rsv = rsv.as_ref();
-						vrs[0] = rsv[64] + 27;
-						vrs[1..33].copy_from_slice(&rsv[0..32]);
-						vrs[33..65].copy_from_slice(&rsv[32..64]);
-						H520(vrs)
+					.map(|mut rsv| {
+						// Convert to electrum notation.
+						rsv[64] += 27;
+						H520(rsv.into())
 					})
 					.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
