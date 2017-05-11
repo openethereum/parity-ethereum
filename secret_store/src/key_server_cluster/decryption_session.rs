@@ -573,11 +573,13 @@ impl SessionImpl {
 	fn do_decryption(access_key: Secret, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
 		// decrypt the secret using shadow points
 		let joint_shadow_point = math::compute_joint_shadow_point(data.shadow_points.values().map(|s| &s.shadow_point))?;
-		let decrypted_secret = math::decrypt_with_joint_shadow(encrypted_data.threshold, &access_key, &encrypted_data.encrypted_point, &joint_shadow_point)?;
+		let encrypted_point = encrypted_data.encrypted_point.as_ref().expect("checked at the beginning of the session; immutable; qed");
+		let common_point = encrypted_data.common_point.as_ref().expect("checked at the beginning of the session; immutable; qed");
+		let decrypted_secret = math::decrypt_with_joint_shadow(encrypted_data.threshold, &access_key, encrypted_point, &joint_shadow_point)?;
 		let is_shadow_decryption = data.is_shadow_decryption.expect("is_shadow_decryption is filled during initialization; decryption follows initialization; qed");
 		let (common_point, decrypt_shadows) = if is_shadow_decryption {
 			(
-				Some(math::make_common_shadow_point(encrypted_data.threshold, encrypted_data.common_point.clone())?),
+				Some(math::make_common_shadow_point(encrypted_data.threshold, common_point.clone())?),
 				Some(data.shadow_points.values()
 					.map(|s| s.decrypt_shadow.as_ref().expect("decrypt_shadow is filled during partial decryption; decryption follows partial decryption; qed").clone())
 					.collect())
@@ -639,14 +641,18 @@ impl Ord for DecryptionSessionId {
 
 
 fn check_encrypted_data(self_node_id: &Public, encrypted_data: &DocumentKeyShare) -> Result<(), Error> {
-	use key_server_cluster::encryption_session::{check_cluster_nodes, check_threshold};
+	use key_server_cluster::generation_session::{check_cluster_nodes, check_threshold};
+
+	// check that common_point and encrypted_point are already set
+	if encrypted_data.common_point.is_none() || encrypted_data.encrypted_point.is_none() {
+		return Err(Error::NotStartedSessionId);
+	}
 
 	let nodes = encrypted_data.id_numbers.keys().cloned().collect();
 	check_cluster_nodes(self_node_id, &nodes)?;
-	check_threshold(encrypted_data.threshold, &nodes)?;
-
-	Ok(())
+	check_threshold(encrypted_data.threshold, &nodes)
 }
+
 
 fn process_initialization_response(encrypted_data: &DocumentKeyShare, data: &mut SessionData, node: &NodeId, check_result: bool) -> Result<(), Error> {
 	if !data.requested_nodes.remove(node) {
@@ -684,7 +690,8 @@ fn do_partial_decryption(node: &NodeId, requestor_public: &Public, is_shadow_dec
 		.map(|id| &encrypted_data.id_numbers[id]);
 	let node_shadow = math::compute_node_shadow(node_id_number, node_secret_share, other_id_numbers)?;
 	let decrypt_shadow = if is_shadow_decryption { Some(math::generate_random_scalar()?) } else { None };
-	let (shadow_point, decrypt_shadow) = math::compute_node_shadow_point(access_key, &encrypted_data.common_point, &node_shadow, decrypt_shadow)?;
+	let common_point = encrypted_data.common_point.as_ref().expect("checked at the beginning of the session; immutable; qed");
+	let (shadow_point, decrypt_shadow) = math::compute_node_shadow_point(access_key, common_point, &node_shadow, decrypt_shadow)?;
 	Ok(PartialDecryptionResult {
 		shadow_point: shadow_point,
 		decrypt_shadow: match decrypt_shadow {
@@ -734,11 +741,12 @@ mod tests {
 		let common_point: Public = "6962be696e1bcbba8e64cc7fddf140f854835354b5804f3bb95ae5a2799130371b589a131bd39699ac7174ccb35fc4342dab05331202209582fc8f3a40916ab0".into();
 		let encrypted_point: Public = "b07031982bde9890e12eff154765f03c56c3ab646ad47431db5dd2d742a9297679c4c65b998557f8008469afd0c43d40b6c5f6c6a1c7354875da4115237ed87a".into();
 		let encrypted_datas: Vec<_> = (0..5).map(|i| DocumentKeyShare {
+			author: Public::default(),
 			threshold: 3,
 			id_numbers: id_numbers.clone().into_iter().collect(),
 			secret_share: secret_shares[i].clone(),
-			common_point: common_point.clone(),
-			encrypted_point: encrypted_point.clone(),
+			common_point: Some(common_point.clone()),
+			encrypted_point: Some(encrypted_point.clone()),
 		}).collect();
 		let acl_storages: Vec<_> = (0..5).map(|_| Arc::new(DummyAclStorage::default())).collect();
 		let clusters: Vec<_> = (0..5).map(|i| {
@@ -792,11 +800,12 @@ mod tests {
 			access_key: Random.generate().unwrap().secret().clone(),
 			self_node_id: self_node_id.clone(),
 			encrypted_data: DocumentKeyShare {
+				author: Public::default(),
 				threshold: 0,
 				id_numbers: nodes,
 				secret_share: Random.generate().unwrap().secret().clone(),
-				common_point: Random.generate().unwrap().public().clone(),
-				encrypted_point: Random.generate().unwrap().public().clone(),
+				common_point: Some(Random.generate().unwrap().public().clone()),
+				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 			},
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
@@ -817,11 +826,12 @@ mod tests {
 			access_key: Random.generate().unwrap().secret().clone(),
 			self_node_id: self_node_id.clone(),
 			encrypted_data: DocumentKeyShare {
+				author: Public::default(),
 				threshold: 0,
 				id_numbers: nodes,
 				secret_share: Random.generate().unwrap().secret().clone(),
-				common_point: Random.generate().unwrap().public().clone(),
-				encrypted_point: Random.generate().unwrap().public().clone(),
+				common_point: Some(Random.generate().unwrap().public().clone()),
+				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 			},
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
@@ -842,11 +852,12 @@ mod tests {
 			access_key: Random.generate().unwrap().secret().clone(),
 			self_node_id: self_node_id.clone(),
 			encrypted_data: DocumentKeyShare {
+				author: Public::default(),
 				threshold: 2,
 				id_numbers: nodes,
 				secret_share: Random.generate().unwrap().secret().clone(),
-				common_point: Random.generate().unwrap().public().clone(),
-				encrypted_point: Random.generate().unwrap().public().clone(),
+				common_point: Some(Random.generate().unwrap().public().clone()),
+				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 			},
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),

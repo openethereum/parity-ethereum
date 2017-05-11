@@ -82,14 +82,14 @@ impl<T> KeyServerHttpListener<T> where T: KeyServer + 'static {
 impl<T> KeyServer for KeyServerHttpListener<T> where T: KeyServer + 'static {}
 
 impl<T> ServerKeyGenerator for KeyServerHttpListener<T> where T: KeyServer + 'static {
-	fn generate_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _threshold: usize) -> Result<Public, Error> {
-		unimplemented!()
+	fn generate_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, threshold: usize) -> Result<Public, Error> {
+		self.handler.key_server.generate_key(key_id, signature, threshold)
 	}
 }
 
 impl<T> DocumentKeyServer for KeyServerHttpListener<T> where T: KeyServer + 'static {
-	fn store_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _document_key: EncryptedDocumentKey) -> Result<(), Error> {
-		unimplemented!()
+	fn store_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, common_point: Public, encrypted_document_key: Public) -> Result<(), Error> {
+		self.handler.key_server.store_document_key(key_id, signature, common_point, encrypted_document_key)
 	}
 
 	fn generate_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, threshold: usize) -> Result<EncryptedDocumentKey, Error> {

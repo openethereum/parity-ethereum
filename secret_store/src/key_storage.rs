@@ -25,6 +25,8 @@ use serialization::{SerializablePublic, SerializableSecret};
 #[derive(Debug, Clone, PartialEq)]
 /// Encrypted key share, stored by key storage on the single key server.
 pub struct DocumentKeyShare {
+	/// Author of the entry.
+	pub author: Public,
 	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
 	pub threshold: usize,
 	/// Nodes ids numbers.
@@ -32,15 +34,17 @@ pub struct DocumentKeyShare {
 	/// Node secret share.
 	pub secret_share: Secret,
 	/// Common (shared) encryption point.
-	pub common_point: Public,
+	pub common_point: Option<Public>,
 	/// Encrypted point.
-	pub encrypted_point: Public,
+	pub encrypted_point: Option<Public>,
 }
 
 /// Document encryption keys storage
 pub trait KeyStorage: Send + Sync {
 	/// Insert document encryption key
 	fn insert(&self, document: ServerKeyId, key: DocumentKeyShare) -> Result<(), Error>;
+	/// Update document encryption key
+	fn update(&self, document: ServerKeyId, key: DocumentKeyShare) -> Result<(), Error>;
 	/// Get document encryption key
 	fn get(&self, document: &ServerKeyId) -> Result<DocumentKeyShare, Error>;
 	/// Check if storage contains document encryption key
@@ -55,6 +59,8 @@ pub struct PersistentKeyStorage {
 #[derive(Serialize, Deserialize)]
 /// Encrypted key share, as it is stored by key storage on the single key server.
 struct SerializableDocumentKeyShare {
+	/// Authore of the entry.
+	pub author: SerializablePublic,
 	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
 	pub threshold: usize,
 	/// Nodes ids numbers.
@@ -89,6 +95,10 @@ impl KeyStorage for PersistentKeyStorage {
 		self.db.write(batch).map_err(Error::Database)
 	}
 
+	fn update(&self, document: ServerKeyId, key: DocumentKeyShare) -> Result<(), Error> {
+		self.insert(document, key)
+	}
+
 	fn get(&self, document: &ServerKeyId) -> Result<DocumentKeyShare, Error> {
 		self.db.get(None, document)
 			.map_err(Error::Database)?
@@ -108,11 +118,18 @@ impl KeyStorage for PersistentKeyStorage {
 impl From<DocumentKeyShare> for SerializableDocumentKeyShare {
 	fn from(key: DocumentKeyShare) -> Self {
 		SerializableDocumentKeyShare {
+			author: key.author.into(),
 			threshold: key.threshold,
 			id_numbers: key.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
 			secret_share: key.secret_share.into(),
-			common_point: key.common_point.into(),
-			encrypted_point: key.encrypted_point.into(),
+			common_point: match key.common_point {
+				Some(common_point) => common_point.into(),
+				None => Public::default().into(),
+			},
+			encrypted_point: match key.encrypted_point {
+				Some(encrypted_point) => encrypted_point.into(),
+				None => Public::default().into(),
+			},
 		}
 	}
 }
@@ -120,11 +137,26 @@ impl From<DocumentKeyShare> for SerializableDocumentKeyShare {
 impl From<SerializableDocumentKeyShare> for DocumentKeyShare {
 	fn from(key: SerializableDocumentKeyShare) -> Self {
 		DocumentKeyShare {
+			author: key.author.into(),
 			threshold: key.threshold,
 			id_numbers: key.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
 			secret_share: key.secret_share.into(),
-			common_point: key.common_point.into(),
-			encrypted_point: key.encrypted_point.into(),
+			common_point: {
+				let common_point = key.common_point.into();
+				if common_point == Public::default() {
+					None
+				} else {
+					Some(common_point)
+				}
+			},
+			encrypted_point: {
+				let encrypted_point = key.encrypted_point.into();
+				if encrypted_point == Public::default() {
+					None
+				} else {
+					Some(encrypted_point)
+				}
+			},
 		}
 	}
 }
@@ -134,7 +166,7 @@ pub mod tests {
 	use std::collections::{BTreeMap, HashMap};
 	use parking_lot::RwLock;
 	use devtools::RandomTempPath;
-	use ethkey::{Random, Generator};
+	use ethkey::{Random, Generator, Public};
 	use super::super::types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, ServerKeyId};
 	use super::{KeyStorage, PersistentKeyStorage, DocumentKeyShare};
 
@@ -146,6 +178,11 @@ pub mod tests {
 
 	impl KeyStorage for DummyKeyStorage {
 		fn insert(&self, document: ServerKeyId, key: DocumentKeyShare) -> Result<(), Error> {
+			self.keys.write().insert(document, key);
+			Ok(())
+		}
+
+		fn update(&self, document: ServerKeyId, key: DocumentKeyShare) -> Result<(), Error> {
 			self.keys.write().insert(document, key);
 			Ok(())
 		}
@@ -182,23 +219,25 @@ pub mod tests {
 		
 		let key1 = ServerKeyId::from(1);
 		let value1 = DocumentKeyShare {
+			author: Public::default(),
 			threshold: 100,
 			id_numbers: vec![
 				(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
 			].into_iter().collect(),
 			secret_share: Random.generate().unwrap().secret().clone(),
-			common_point: Random.generate().unwrap().public().clone(),
-			encrypted_point: Random.generate().unwrap().public().clone(),
+			common_point: Some(Random.generate().unwrap().public().clone()),
+			encrypted_point: Some(Random.generate().unwrap().public().clone()),
 		};
 		let key2 = ServerKeyId::from(2);
 		let value2 = DocumentKeyShare {
+			author: Public::default(),
 			threshold: 200,
 			id_numbers: vec![
 				(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
 			].into_iter().collect(),
 			secret_share: Random.generate().unwrap().secret().clone(),
-			common_point: Random.generate().unwrap().public().clone(),
-			encrypted_point: Random.generate().unwrap().public().clone(),
+			common_point: Some(Random.generate().unwrap().public().clone()),
+			encrypted_point: Some(Random.generate().unwrap().public().clone()),
 		};
 		let key3 = ServerKeyId::from(3);
 

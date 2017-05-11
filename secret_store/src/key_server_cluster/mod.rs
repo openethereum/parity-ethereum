@@ -25,6 +25,7 @@ pub use super::acl_storage::AclStorage;
 pub use super::key_storage::{KeyStorage, DocumentKeyShare};
 pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic};
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
+pub use self::generation_session::Session as GenerationSession;
 pub use self::encryption_session::Session as EncryptionSession;
 pub use self::decryption_session::Session as DecryptionSession;
 
@@ -44,6 +45,10 @@ pub enum Error {
 	InvalidNodeId,
 	/// Session with the given id already exists.
 	DuplicateSessionId,
+	/// Session with the same id already completed.
+	CompletedSessionId,
+	/// Session is not ready to start yet (required data is not ready).
+	NotStartedSessionId,
 	/// Session with the given id is unknown.
 	InvalidSessionId,
 	/// Invalid number of nodes.
@@ -102,6 +107,8 @@ impl fmt::Display for Error {
 			Error::InvalidNodeAddress => write!(f, "invalid node address has been passed"),
 			Error::InvalidNodeId => write!(f, "invalid node id has been passed"),
 			Error::DuplicateSessionId => write!(f, "session with the same id is already registered"),
+			Error::CompletedSessionId => write!(f, "session with the same id is already completed"),
+			Error::NotStartedSessionId => write!(f, "not enough data to start session with the given id"),
 			Error::InvalidSessionId => write!(f, "invalid session id has been passed"),
 			Error::InvalidNodesCount => write!(f, "invalid nodes count"),
 			Error::InvalidNodesConfiguration => write!(f, "invalid nodes configuration"),
@@ -128,7 +135,8 @@ impl Into<String> for Error {
 mod cluster;
 mod decryption_session;
 mod encryption_session;
+mod generation_session;
 mod io;
-mod math;
+pub mod math;
 mod message;
 mod net;

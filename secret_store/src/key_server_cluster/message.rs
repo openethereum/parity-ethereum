@@ -28,6 +28,8 @@ pub type MessageNodeId = SerializablePublic;
 pub enum Message {
 	/// Cluster message.
 	Cluster(ClusterMessage),
+	/// Key generation message.
+	Generation(GenerationMessage),
 	/// Encryption message.
 	Encryption(EncryptionMessage),
 	/// Decryption message.
@@ -48,8 +50,8 @@ pub enum ClusterMessage {
 }
 
 #[derive(Clone, Debug)]
-/// All possible messages that can be sent during encryption session.
-pub enum EncryptionMessage {
+/// All possible messages that can be sent during key generation session.
+pub enum GenerationMessage {
 	/// Initialize new DKG session.
 	InitializeSession(InitializeSession),
 	/// Confirm DKG session initialization.
@@ -64,6 +66,17 @@ pub enum EncryptionMessage {
 	SessionError(SessionError),
 	/// When session is completed.
 	SessionCompleted(SessionCompleted),
+}
+
+#[derive(Clone, Debug)]
+/// All possible messages that can be sent during encryption session.
+pub enum EncryptionMessage {
+	/// Initialize encryption session.
+	InitializeEncryptionSession(InitializeEncryptionSession),
+	/// Confirm/reject encryption session initialization.
+	ConfirmEncryptionInitialization(ConfirmEncryptionInitialization),
+	/// When encryption session error has occured.
+	EncryptionSessionError(EncryptionSessionError),
 }
 
 #[derive(Clone, Debug)]
@@ -115,6 +128,8 @@ pub struct KeepAliveResponse {
 pub struct InitializeSession {
 	/// Session Id.
 	pub session: MessageSessionId,
+	/// Session author.
+	pub author: SerializablePublic,
 	/// Derived generation point. Starting from originator, every node must multiply this
 	/// point by random scalar (unknown by other nodes). At the end of initialization
 	/// `point` will be some (k1 * k2 * ... * kn) * G = `point` where `(k1 * k2 * ... * kn)`
@@ -181,10 +196,35 @@ pub struct SessionError {
 pub struct SessionCompleted {
 	/// Session Id.
 	pub session: MessageSessionId,
-	/// Common (shared) encryption point.
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Node is requested to prepare for saving encrypted data.
+pub struct InitializeEncryptionSession {
+	/// Encryption session Id.
+	pub session: MessageSessionId,
+	/// Requestor signature.
+	pub requestor_signature: SerializableSignature,
+	/// Common point.
 	pub common_point: SerializablePublic,
-	/// Encrypted point.
+	/// Encrypted data.
 	pub encrypted_point: SerializablePublic,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Node is responding to encryption initialization request.
+pub struct ConfirmEncryptionInitialization {
+	/// Encryption session Id.
+	pub session: MessageSessionId,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// When encryption session error has occured.
+pub struct EncryptionSessionError {
+	/// Encryption session Id.
+	pub session: MessageSessionId,
+	/// Error message.
+	pub error: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -256,16 +296,26 @@ pub struct DecryptionSessionCompleted {
 	pub sub_session: SerializableSecret,
 }
 
+impl GenerationMessage {
+	pub fn session_id(&self) -> &SessionId {
+		match *self {
+			GenerationMessage::InitializeSession(ref msg) => &msg.session,
+			GenerationMessage::ConfirmInitialization(ref msg) => &msg.session,
+			GenerationMessage::CompleteInitialization(ref msg) => &msg.session,
+			GenerationMessage::KeysDissemination(ref msg) => &msg.session,
+			GenerationMessage::PublicKeyShare(ref msg) => &msg.session,
+			GenerationMessage::SessionError(ref msg) => &msg.session,
+			GenerationMessage::SessionCompleted(ref msg) => &msg.session,
+		}
+	}
+}
+
 impl EncryptionMessage {
 	pub fn session_id(&self) -> &SessionId {
 		match *self {
-			EncryptionMessage::InitializeSession(ref msg) => &msg.session,
-			EncryptionMessage::ConfirmInitialization(ref msg) => &msg.session,
-			EncryptionMessage::CompleteInitialization(ref msg) => &msg.session,
-			EncryptionMessage::KeysDissemination(ref msg) => &msg.session,
-			EncryptionMessage::PublicKeyShare(ref msg) => &msg.session,
-			EncryptionMessage::SessionError(ref msg) => &msg.session,
-			EncryptionMessage::SessionCompleted(ref msg) => &msg.session,
+			EncryptionMessage::InitializeEncryptionSession(ref msg) => &msg.session,
+			EncryptionMessage::ConfirmEncryptionInitialization(ref msg) => &msg.session,
+			EncryptionMessage::EncryptionSessionError(ref msg) => &msg.session,
 		}
 	}
 }
@@ -298,6 +348,7 @@ impl fmt::Display for Message {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			Message::Cluster(ref message) => write!(f, "Cluster.{}", message),
+			Message::Generation(ref message) => write!(f, "Generation.{}", message),
 			Message::Encryption(ref message) => write!(f, "Encryption.{}", message),
 			Message::Decryption(ref message) => write!(f, "Decryption.{}", message),
 		}
@@ -315,16 +366,26 @@ impl fmt::Display for ClusterMessage {
 	}
 }
 
+impl fmt::Display for GenerationMessage {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			GenerationMessage::InitializeSession(_) => write!(f, "InitializeSession"),
+			GenerationMessage::ConfirmInitialization(_) => write!(f, "ConfirmInitialization"),
+			GenerationMessage::CompleteInitialization(_) => write!(f, "CompleteInitialization"),
+			GenerationMessage::KeysDissemination(_) => write!(f, "KeysDissemination"),
+			GenerationMessage::PublicKeyShare(_) => write!(f, "PublicKeyShare"),
+			GenerationMessage::SessionError(ref msg) => write!(f, "SessionError({})", msg.error),
+			GenerationMessage::SessionCompleted(_) => write!(f, "SessionCompleted"),
+		}
+	}
+}
+
 impl fmt::Display for EncryptionMessage {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			EncryptionMessage::InitializeSession(_) => write!(f, "InitializeSession"),
-			EncryptionMessage::ConfirmInitialization(_) => write!(f, "ConfirmInitialization"),
-			EncryptionMessage::CompleteInitialization(_) => write!(f, "CompleteInitialization"),
-			EncryptionMessage::KeysDissemination(_) => write!(f, "KeysDissemination"),
-			EncryptionMessage::PublicKeyShare(_) => write!(f, "PublicKeyShare"),
-			EncryptionMessage::SessionError(ref msg) => write!(f, "SessionError({})", msg.error),
-			EncryptionMessage::SessionCompleted(_) => write!(f, "SessionCompleted"),
+			EncryptionMessage::InitializeEncryptionSession(_) => write!(f, "InitializeEncryptionSession"),
+			EncryptionMessage::ConfirmEncryptionInitialization(_) => write!(f, "ConfirmEncryptionInitialization"),
+			EncryptionMessage::EncryptionSessionError(ref msg) => write!(f, "EncryptionSessionError({})", msg.error),
 		}
 	}
 }

@@ -24,7 +24,7 @@ use ethcrypto;
 use ethkey;
 use super::acl_storage::AclStorage;
 use super::key_storage::KeyStorage;
-use key_server_cluster::ClusterCore;
+use key_server_cluster::{math, ClusterCore};
 use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
 use types::all::{Error, Public, RequestSignature, ServerKeyId, EncryptedDocumentKey, EncryptedDocumentKeyShadow,
 	ClusterConfiguration, MessageData};
@@ -60,24 +60,38 @@ impl KeyServerImpl {
 impl KeyServer for KeyServerImpl {}
 
 impl ServerKeyGenerator for KeyServerImpl {
-	fn generate_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _threshold: usize) -> Result<Public, Error> {
-		unimplemented!()
+	fn generate_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, threshold: usize) -> Result<Public, Error> {
+		// recover requestor' public key from signature
+		let public = ethkey::recover(signature, key_id)
+			.map_err(|_| Error::BadSignature)?;
+
+		// generate server key
+		let generation_session = self.data.lock().cluster.new_generation_session(key_id.clone(), public, threshold)?;
+		generation_session.wait(None).map_err(Into::into)
 	}
 }
 
 impl DocumentKeyServer for KeyServerImpl {
-	fn store_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _document_key: EncryptedDocumentKey) -> Result<(), Error> {
-		unimplemented!()
+	fn store_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, common_point: Public, encrypted_document_key: Public) -> Result<(), Error> {
+		// store encrypted key
+		let encryption_session = self.data.lock().cluster.new_encryption_session(key_id.clone(), signature.clone(), common_point, encrypted_document_key)?;
+		encryption_session.wait(None).map_err(Into::into)
 	}
-	
+
 	fn generate_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, threshold: usize) -> Result<EncryptedDocumentKey, Error> {
 		// recover requestor' public key from signature
 		let public = ethkey::recover(signature, key_id)
 			.map_err(|_| Error::BadSignature)?;
 
-		// generate document key
-		let encryption_session = self.data.lock().cluster.new_encryption_session(key_id.clone(), threshold)?;
-		let document_key = encryption_session.wait(None)?;
+		// generate server key
+		let server_key = self.generate_key(key_id, signature, threshold)?;
+
+		// generate random document key
+		let document_key = math::generate_random_point()?;
+		let encrypted_document_key = math::encrypt_secret(&document_key, &server_key)?;
+
+		// store document key in the storage
+		self.store_document_key(key_id, signature, encrypted_document_key.common_point, encrypted_document_key.encrypted_point)?;
 
 		// encrypt document key with requestor public key
 		let document_key = ethcrypto::ecies::encrypt(&public, &ethcrypto::DEFAULT_MAC, &document_key)
@@ -184,7 +198,7 @@ pub mod tests {
 	}
 
 	impl DocumentKeyServer for DummyKeyServer {
-		fn store_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _document_key: EncryptedDocumentKey) -> Result<(), Error> {
+		fn store_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _common_point: Public, _encrypted_document_key: Public) -> Result<(), Error> {
 			unimplemented!()
 		}
 
