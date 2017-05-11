@@ -209,5 +209,21 @@ mod tests {
 	use std::collections::VecDeque;
 	use request::Kind;
 
-	// what to test? whether the moving average calculation is any good?
+	#[test]
+	fn hardcoded_before_data() {
+		let dist = LoadDistribution::load(&NullStore);
+		assert_eq!(dist.expected_time_ns(Kind::Headers), hardcoded_serve_time(Kind::Headers));
+
+		dist.update(Kind::Headers, 100_000, 100);
+		dist.end_period(&NullStore);
+
+		assert_eq!(dist.expected_time_ns(Kind::Headers), 1000);
+	}
+
+	#[test]
+	fn moving_average() {
+		let dist = LoadDistribution::load(&NullStore);
+
+
+	}
 }
