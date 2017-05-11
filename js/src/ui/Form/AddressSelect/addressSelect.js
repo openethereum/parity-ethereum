@@ -31,6 +31,7 @@ import Loading from '~/ui/Loading';
 import Portal from '~/ui/Portal';
 import { nodeOrStringProptype } from '~/util/proptypes';
 import { validateAddress } from '~/util/validation';
+import { toString } from '~/util/messages';
 
 import AddressSelectStore from './addressSelectStore';
 import styles from './addressSelect.css';
@@ -186,12 +187,7 @@ class AddressSelect extends Component {
     }
 
     const id = `addressSelect_${++currentId}`;
-    const ilHint = typeof hint === 'string' || !(hint && hint.props)
-      ? (hint || '')
-      : this.context.intl.formatMessage(
-        hint.props,
-        hint.props.values || {}
-      );
+    const ilHint = toString(this.context, hint);
 
     return (
       <Portal
