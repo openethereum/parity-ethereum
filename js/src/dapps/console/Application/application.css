@@ -18,7 +18,7 @@
 .app {
   display: flex;
   flex-direction: column;
-  font-family: dejavu sans mono, monospace;
+  font-family: Arial, sans-serif;
   font-size: 11px;
   height: 100vh;
   overflow: hidden;
@@ -48,6 +48,7 @@ pre {
 
 .eval {
   flex: 0 1 auto;
+  font-family: dejavu sans mono, monospace;
   overflow: auto;
 }
 
@@ -60,4 +61,5 @@ pre {
 
 .status {
   flex: 0 0 auto;
+  font-family: dejavu sans mono, monospace;
 }

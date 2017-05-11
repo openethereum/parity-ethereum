@@ -16,36 +16,28 @@
 */
 
 .container {
-  background-color: #f3f3f3;
-  border-bottom: 1px solid #ccc;
-  font-size: 12px;
-  padding: 0 0.5em;
+  display: flex;
+  flex: 1;
+  flex-direction: row;
 }
 
-.tabs {
+.panel {
+  border-right: 1px solid lightgray;
   display: flex;
+  flex-direction: column;
 }
 
-.tab {
-  align-items: center;
-  box-sizing: border-box;
-  border: 1px solid transparent;
-  color: #333;
-  cursor: default;
+.add {
+  background-color: #fcfcfc;
+  border-bottom: 1px solid lightgray;
+  padding: 0.5em 1em;
+}
+
+.list {
   display: flex;
-  height: 24px;
-  line-height: 15px;
-  margin-top: 2px;
-  padding: 2px 6px 2px 4px;
+  flex-direction: column;
+}
 
-  &:hover,
-  &.active:hover {
-    background-color: #e5e5e5;
-  }
-
-  &.active {
-    background-color: white;
-    border: 1px solid #ccc;
-    border-bottom: none;
-  }
+.code {
+  flex: 1;
 }

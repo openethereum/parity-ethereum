@@ -46,8 +46,8 @@ export default class WatchesStore {
 
   @action
   add (name, func, context) {
-    if (typeof func !== 'function' && typeof func.then !== 'function') {
-      throw new Error(`cannot watch ${name} ; not a Function/Promise given`);
+    if (!func || (typeof func !== 'function' && typeof func.then !== 'function')) {
+      return console.error(Error(`cannot watch ${name} ; not a Function/Promise given`));
     }
 
     this.watchesFunctions[name] = { func, context };
@@ -63,7 +63,7 @@ export default class WatchesStore {
     const evaluatedFunction = evaluate(addFunction);
     const evaluatedContext = addContext
       ? evaluate(addContext)
-      : null;
+      : {};
 
     this.add(addName, evaluatedFunction.result, evaluatedContext.result);
   }

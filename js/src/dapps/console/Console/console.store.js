@@ -104,6 +104,7 @@ export default class ConsoleStore {
 
   setNode (node) {
     this.node = node;
+    this.scroll();
   }
 
   scroll () {

@@ -23,6 +23,7 @@ import Console from '../Console';
 import Header from '../Header';
 import Input from '../Input';
 import Settings from '../Settings';
+import Snippets from '../Snippets';
 import Watches from '../Watches';
 
 import ApplicationStore from './application.store';
@@ -80,10 +81,14 @@ export default class Application extends Component {
       );
     }
 
-    return (
-      <div className={ styles.view }>
-        { view }
-      </div>
-    );
+    if (view === 'snippets') {
+      return (
+        <div className={ styles.view }>
+          <Snippets />
+        </div>
+      );
+    }
+
+    return null;
   }
 }
