@@ -15,15 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
-import { ToggleMUI } from 'material-ui';
+import { Radio as SemanticRadio } from 'semantic-ui-react';
 
 export default function Toggle ({ className, onToggle, style, toggled }) {
   return (
-    <ToggleMUI
+    <SemanticRadio
+      checked={ toggled }
       className={ className }
-      toggled={ toggled }
-      onToggle={ onToggle }
+      onChange={ onToggle }
       style={ style }
+      toggle
     />
   );
 }
