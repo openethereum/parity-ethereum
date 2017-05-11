@@ -17,20 +17,25 @@
 import React, { PropTypes } from 'react';
 import { Radio as SemanticRadio } from 'semantic-ui-react';
 
-export default function Toggle ({ className, onToggle, style, toggled }) {
+import LabelComponent from '../labelComponent';
+
+export default function Toggle ({ className, label, onToggle, style, toggled }) {
   return (
-    <SemanticRadio
-      checked={ toggled }
-      className={ className }
-      onChange={ onToggle }
-      style={ style }
-      toggle
-    />
+    <LabelComponent label={ label }>
+      <SemanticRadio
+        checked={ toggled }
+        className={ className }
+        onChange={ onToggle }
+        style={ style }
+        toggle
+      />
+    </LabelComponent>
   );
 }
 
 Toggle.propTypes = {
   className: PropTypes.string,
+  label: PropTypes.node,
   onToggle: PropTypes.func,
   style: PropTypes.object,
   toggled: PropTypes.bool
