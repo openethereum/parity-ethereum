@@ -14,8 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import keycode from 'keycode';
 import { action, computed, map, observable, transaction } from 'mobx';
 import store from 'store';
+
+import { evaluate } from '../utils';
 
 const LS_SNIPPETS_KEY = '_console::snippets';
 
@@ -23,6 +26,8 @@ let instance;
 
 export default class SnippetsStore {
   @observable files = map();
+  @observable nextName = null;
+  @observable renaming = null;
   @observable selected = null;
 
   codeMirror = null;
@@ -48,6 +53,16 @@ export default class SnippetsStore {
     return this.files.get(this.selected).content;
   }
 
+  @action
+  cancelRename () {
+    if (!this.renaming || !this.nextName) {
+      return;
+    }
+
+    this.renaming = null;
+    this.nextName = null;
+  }
+
   clearCodeHistory () {
     if (this.codeMirror) {
       this.codeMirror.doc.clearHistory();
@@ -61,7 +76,6 @@ export default class SnippetsStore {
       content: '',
       isPristine: false,
       name: `Snippet #${id}`,
-      savedContent: '',
       id
     };
 
@@ -80,6 +94,22 @@ export default class SnippetsStore {
 
     file.content = value;
     this.updateFile(file);
+  }
+
+  evaluate () {
+    const code = this.code;
+
+    if (!code) {
+      return;
+    }
+
+    const { result, error } = evaluate(code);
+
+    if (error) {
+      console.error(error);
+    } else {
+      console.log(result);
+    }
   }
 
   getFromStorage () {
@@ -106,16 +136,35 @@ export default class SnippetsStore {
     });
   }
 
-  save () {
-    if (!this.selected) {
-      return false;
-    }
+  save (_file) {
+    let file;
 
-    const file = this.files.get(this.selected);
+    if (!_file) {
+      if (!this.selected) {
+        return false;
+      }
+
+      file = this.files.get(this.selected);
+    } else {
+      file = _file;
+    }
 
     file.savedContent = file.content;
     this.updateFile(file);
     this.saveToStorage(file);
+  }
+
+  saveName () {
+    if (!this.renaming || !this.nextName) {
+      return;
+    }
+
+    const file = this.files.get(this.renaming);
+
+    file.name = this.nextName;
+
+    this.save(file);
+    this.cancelRename();
   }
 
   saveToStorage (file) {
@@ -143,6 +192,29 @@ export default class SnippetsStore {
 
   setCodeMirror (codeMirror) {
     this.codeMirror = codeMirror;
+
+    if (!codeMirror) {
+      return;
+    }
+
+    this.codeMirror
+      .on('keydown', (_, event) => {
+        const codeName = keycode(event);
+
+        if (codeName === 'enter' && event.ctrlKey) {
+          this.evaluate();
+        }
+      });
+  }
+
+  @action
+  startRename (id) {
+    const file = this.files.get(id);
+
+    transaction(() => {
+      this.renaming = id;
+      this.nextName = file.name;
+    });
   }
 
   @action
@@ -150,5 +222,10 @@ export default class SnippetsStore {
     file.isPristine = (file.content === file.savedContent);
 
     this.files.set(file.id, file);
+  }
+
+  @action
+  updateName (value) {
+    this.nextName = value;
   }
 }

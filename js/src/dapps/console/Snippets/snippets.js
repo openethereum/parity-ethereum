@@ -20,6 +20,7 @@ import React, { Component } from 'react';
 import CodeMirror from 'react-codemirror';
 import EventListener from 'react-event-listener';
 
+import Console from '../Console';
 import SnippetsStore from './snippets.store';
 
 import styles from './snippets.css';
@@ -60,46 +61,85 @@ export default class Snippets extends Component {
             } }
             value={ code }
           />
+          <div className={ styles.console }>
+            <Console />
+          </div>
         </div>
       </div>
     );
   }
 
   renderFiles () {
-    const { files, selected } = this.snippetsStore;
+    const { files } = this.snippetsStore;
 
-    return files.values().map((file) => {
-      const { id, name } = file;
-      const classes = [ styles.file ];
-      const onClick = () => this.handleSelectFile(id);
+    return files.values().map((file) => this.renderFile(file));
+  }
 
-      if (selected === id) {
-        classes.push(styles.selected);
-      }
+  renderFile (file) {
+    const { nextName, renaming, selected } = this.snippetsStore;
+    const { id, name } = file;
+    const classes = [ styles.file ];
 
+    if (renaming === id) {
       return (
         <div
           className={ classes.join(' ') }
           key={ id }
-          onClick={ onClick }
         >
-          <span className={ styles.pristine }>
-            {
-              file.isPristine
-              ? null
-              : '*'
-            }
-          </span>
-          <span>
-            { name }
-          </span>
+          <EventListener
+            onClick={ this.handleSaveName }
+            target='window'
+          />
+          <div className={ styles.inputContainer }>
+            <input
+              autoFocus
+              className={ styles.input }
+              onClick={ this.stopPropagation }
+              onChange={ this.handleNameChange }
+              onKeyDown={ this.handleRenameKeyDown }
+              type='text'
+              value={ nextName }
+            />
+          </div>
         </div>
       );
-    });
+    }
+
+    const onClick = () => this.handleSelectFile(id);
+    const onDoubleClick = () => this.handleRenameFile(id);
+
+    if (selected === id) {
+      classes.push(styles.selected);
+    }
+
+    return (
+      <div
+        className={ classes.join(' ') }
+        key={ id }
+        onClick={ onClick }
+        onDoubleClick={ onDoubleClick }
+      >
+        <span className={ styles.pristine }>
+          {
+            file.isPristine
+            ? null
+            : '*'
+          }
+        </span>
+        <span>
+          { name }
+        </span>
+      </div>
+    );
   }
 
   handleAddFile = () => {
     this.snippetsStore.create();
+  };
+
+  handleSaveName = (event) => {
+    this.snippetsStore.saveName();
+    return event;
   };
 
   handleChange = (value) => {
@@ -117,6 +157,28 @@ export default class Snippets extends Component {
     }
   };
 
+  handleNameChange = (event) => {
+    const { value } = event.target;
+
+    this.snippetsStore.updateName(value);
+  };
+
+  handleRenameFile = (id) => {
+    this.snippetsStore.startRename(id);
+  };
+
+  handleRenameKeyDown = (event) => {
+    const codeName = keycode(event);
+
+    if (codeName === 'enter') {
+      return this.snippetsStore.saveName();
+    }
+
+    if (codeName === 'esc') {
+      return this.snippetsStore.cancelRename();
+    }
+  };
+
   handleSelectFile = (id) => {
     this.snippetsStore.select(id);
   };
@@ -127,5 +189,9 @@ export default class Snippets extends Component {
       : null;
 
     this.snippetsStore.setCodeMirror(codeMirror);
+  };
+
+  stopPropagation = (event) => {
+    event.stopPropagation();
   };
 }

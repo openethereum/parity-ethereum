@@ -56,6 +56,18 @@
 .code {
   display: flex;
   flex: 1;
+  flex-direction: column;
+
+  .console {
+    border-top: 1px solid lightgray;
+    height: 200px;
+    flex: 0 0 0;
+
+    > * {
+      overflow: auto;
+      height: 100%;
+    }
+  }
 
   > * {
     flex: 1;
@@ -85,4 +97,18 @@
     margin-right: 3px;
     height: 13px;
   }
+}
+
+.inputContainer {
+  background-color: white;
+  border: solid 1px #d8d8d8;
+  margin-right: 0.5em;
+  padding: 3px;
+  width: 100%;
+}
+
+.input {
+  border: none;
+  font: 11px Arial;
+  width: 100%;
 }

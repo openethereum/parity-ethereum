@@ -24,8 +24,8 @@
   overflow: hidden;
 }
 
-textarea:focus,
-input:focus {
+textarea,
+input {
   font-family: dejavu sans mono, monospace;
   outline: none;
 }

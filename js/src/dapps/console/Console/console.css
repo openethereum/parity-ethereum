@@ -18,6 +18,7 @@
 .result {
   border-top: 1px solid #eee;
   display: flex;
+  font-family: dejavu sans mono, monospace;
   padding: 0.35em 0.25em;
 
   &.error {

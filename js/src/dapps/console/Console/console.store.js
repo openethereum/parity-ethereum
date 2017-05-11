@@ -113,7 +113,14 @@ export default class ConsoleStore {
     }
 
     setTimeout(() => {
-      this.node.scrollIntoView(false);
+      if (this.node.children.length === 0) {
+        return;
+      }
+
+      // Scroll to the last child
+      this.node
+        .children[this.node.children.length - 1]
+        .scrollIntoView(false);
     }, 50);
   }
 }
