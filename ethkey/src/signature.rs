@@ -45,27 +45,23 @@ impl Signature {
 		self.0[64]
 	}
 
-	/// Encode the signature into VRS array (V altered to be in "Electrum" notation).
-	pub fn into_vrs(self) -> [u8; 65] {
-		let mut vrs = [0u8; 65];
-		vrs[0] = self.v() + 27;
-		vrs[1..33].copy_from_slice(self.r());
-		vrs[33..65].copy_from_slice(self.s());
-		vrs
+	/// Encode the signature into RSV array (V altered to be in "Electrum" notation).
+	pub fn into_electrum(mut self) -> [u8; 65] {
+		self.0[64] += 27;
+		self.0
 	}
 
-	/// Parse bytes as a signature encoded as VRS (V in "Electrum" notation).
+	/// Parse bytes as a signature encoded as RSV (V in "Electrum" notation).
 	/// May return empty (invalid) signature if given data has invalid length.
-	pub fn from_vrs(data: &[u8]) -> Self {
+	pub fn from_electrum(data: &[u8]) -> Self {
 		if data.len() != 65 || data[0] < 27 {
 			// fallback to empty (invalid) signature
 			return Signature::default();
 		}
 
 		let mut sig = [0u8; 65];
-		sig[0..32].copy_from_slice(&data[1..33]);
-		sig[32..64].copy_from_slice(&data[33..65]);
-		sig[64] = data[0] - 27;
+		sig.copy_from_slice(data);
+		sig[64] -= 27;
 		Signature(sig)
 	}
 
@@ -255,8 +251,8 @@ mod tests {
 		let signature = sign(keypair.secret(), &message).unwrap();
 
 		// when
-		let vrs = signature.clone().into_vrs();
-		let from_vrs = Signature::from_vrs(&vrs);
+		let vrs = signature.clone().into_electrum();
+		let from_vrs = Signature::from_electrum(&vrs);
 
 		// then
 		assert_eq!(signature, from_vrs);
