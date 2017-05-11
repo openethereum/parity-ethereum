@@ -90,7 +90,7 @@ class TokenSelect extends Component {
 
         return {
           key: tokenId,
-          text: label,
+          text: token.name,
           value: token.id,
           content: label
         };
