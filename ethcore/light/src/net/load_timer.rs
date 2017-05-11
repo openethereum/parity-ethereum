@@ -203,10 +203,16 @@ impl<'a> Drop for LoadTimer<'a> {
 	}
 }
 
+/// A store which writes directly to a file.
+pub struct FileStore(pub PathBuf);
+
+impl SampleStore for FileStore {
+
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::collections::VecDeque;
 	use request::Kind;
 
 	#[test]
@@ -224,6 +230,30 @@ mod tests {
 	fn moving_average() {
 		let dist = LoadDistribution::load(&NullStore);
 
+		let mut sum = 0;
 
+		for (i, x) in (0..10).map(|x| x * 10_000).enumerate() {
+			dist.update(Kind::Headers, x, 1);
+			dist.end_period(&NullStore);
+
+			sum += x;
+			if i == 0 { continue }
+
+			let moving_average = dist.expected_time_ns(Kind::Headers);
+
+			// should be weighted below the maximum entry.
+			let arith_average = (sum as f64 / (i + 1) as f64) as u64;
+			assert!(moving_average < x);
+
+			// when there are only 2 entries, they should be equal due to choice of
+			// ALPHA = 1/N.
+			// otherwise, the weight should be below the arithmetic mean because the much
+			// smaller previous values are discounted less.
+			if i == 1 {
+				assert_eq!(moving_average, arith_average);
+			} else {
+				assert!(moving_average < arith_average)
+			}
+		}
 	}
 }

@@ -28,7 +28,6 @@
 
 use request::{self, Request};
 use super::error::Error;
-use super::load_timer::LoadDistribution;
 
 use rlp::*;
 use util::U256;
@@ -194,11 +193,11 @@ impl FlowParams {
 		}
 	}
 
-	/// Create new flow parameters from request serve time distribution,
+	/// Create new flow parameters from ,
 	/// proportion of total capacity which should be given to a peer,
 	/// and number of seconds of stored capacity a peer can accumulate.
-	pub fn from_distributions(
-		dists: &LoadDistribution,
+	pub fn from_request_times<F: Fn(::request::Kind) -> u64>(
+		request_time_ns: F,
 		load_share: f64,
 		max_stored_seconds: u64
 	) -> Self {
@@ -211,11 +210,12 @@ impl FlowParams {
 
 		let cost_for_kind = |kind| {
 			// how many requests we can handle per second
-			let ns = dists.expected_time_ns(kind);
-			let second_duration = ns as f64 / 1_000_000f64;
+			let ns = request_time_ns(kind);
+			let second_duration = 1_000_000_000f64 / ns as f64;
 
 			// scale by share of the load given to this peer.
 			let serve_per_second = second_duration * load_share;
+			let serve_per_second = serve_per_second.max(1.0 / 10_000.0);
 
 			// as a percentage of the recharge per second.
 			U256::from((recharge as f64 / serve_per_second) as u64)
@@ -367,5 +367,29 @@ mod tests {
 		flow_params.recharge(&mut credits);
 
 		assert_eq!(credits.estimate, 100.into());
+	}
+
+	#[test]
+	fn scale_by_load_share_and_time() {
+		let flow_params = FlowParams::from_request_times(
+			|_| 10_000,
+			0.05,
+			60,
+		);
+
+		let flow_params2 = FlowParams::from_request_times(
+			|_| 10_000,
+			0.1,
+			60,
+		);
+
+		let flow_params3 = FlowParams::from_request_times(
+			|_| 5_000,
+			0.05,
+			60,
+		);
+
+		assert_eq!(flow_params2.costs, flow_params3.costs);
+		assert_eq!(flow_params.costs.headers, flow_params2.costs.headers * 2.into());
 	}
 }

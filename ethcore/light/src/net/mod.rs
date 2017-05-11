@@ -184,12 +184,32 @@ pub trait Handler: Send + Sync {
 	fn on_abort(&self) { }
 }
 
-/// Protocol parameters.
+/// Configuration.
+pub struct Config {
+	/// How many stored seconds of credits peers should be able to accumulate.
+	pub max_stored_seconds: u64,
+	/// How much of the total load capacity each peer should be allowed to take.
+	pub load_share: f64,
+}
+
+impl Default for Config {
+	fn default() -> Self {
+		const LOAD_SHARE: f64 = 1.0 / 25.0;
+		const MAX_ACCUMULATED: u64 = 60 * 5; // only charge for 5 minutes.
+
+		Config {
+			max_stored_seconds: MAX_ACCUMULATED,
+			load_share: LOAD_SHARE,
+		}
+	}
+}
+
+/// Protocol initialization parameters.
 pub struct Params {
 	/// Network id.
 	pub network_id: u64,
-	/// Request credits parameters.
-	pub flow_params: FlowParams,
+	/// Config.
+	pub config: Config,
 	/// Initial capabilities.
 	pub capabilities: Capabilities,
 	/// The sample store (`None` if data shouldn't persist between runs).
@@ -259,6 +279,7 @@ mod id_guard {
 //   on the peers, only one peer may be held at a time.
 pub struct LightProtocol {
 	provider: Arc<Provider>,
+	config: Config,
 	genesis_hash: H256,
 	network_id: u64,
 	pending_peers: RwLock<HashMap<PeerId, PendingPeer>>,
@@ -279,14 +300,21 @@ impl LightProtocol {
 		let genesis_hash = provider.chain_info().genesis_hash;
 		let sample_store = params.sample_store.unwrap_or_else(|| Box::new(NullStore));
 		let load_distribution = LoadDistribution::load(&*sample_store);
+		let flow_params = FlowParams::from_request_times(
+			|kind| load_distribution.expected_time_ns(kind),
+			params.config.load_share,
+			params.config.max_stored_seconds,
+		);
+
 		LightProtocol {
 			provider: provider,
+			config: params.config,
 			genesis_hash: genesis_hash,
 			network_id: params.network_id,
 			pending_peers: RwLock::new(HashMap::new()),
 			peers: RwLock::new(HashMap::new()),
 			capabilities: RwLock::new(params.capabilities),
-			flow_params: RwLock::new(Arc::new(params.flow_params)),
+			flow_params: RwLock::new(Arc::new(flow_params)),
 			handlers: Vec::new(),
 			req_id: AtomicUsize::new(0),
 			sample_store: sample_store,
@@ -663,16 +691,12 @@ impl LightProtocol {
 	}
 
 	fn begin_new_cost_period(&self, io: &IoContext) {
-		// TODO: base this on number of max peers.
-		const LOAD_SHARE: f64 = 1.0 / 25.0;
-		const MAX_ACCUMULATED: u64 = 60 * 5; // only charge for 5 minutes.
-
 		self.load_distribution.end_period(&*self.sample_store);
 
-		let new_params = Arc::new(FlowParams::from_distributions(
-			&self.load_distribution,
-			LOAD_SHARE,
-			MAX_ACCUMULATED,
+		let new_params = Arc::new(FlowParams::from_request_times(
+			|kind| self.load_distribution.expected_time_ns(kind),
+			self.config.load_share,
+			self.config.max_stored_seconds,
 		));
 		*self.flow_params.write() = new_params.clone();
 
