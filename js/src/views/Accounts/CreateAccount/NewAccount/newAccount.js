@@ -17,10 +17,9 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { IconButton } from 'material-ui';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
-import { Form, Input, IdentityIcon } from '~/ui';
+import { Button, Form, Input, IdentityIcon } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 import { RefreshIcon } from '~/ui/Icons';
 import Loading from '~/ui/Loading';
@@ -197,9 +196,16 @@ export default class CreateAccount extends Component {
       <div className={ styles.identities }>
         { identities }
         <div className={ styles.refresh }>
-          <IconButton onTouchTap={ this.createIdentities }>
-            <RefreshIcon color='rgb(0, 151, 167)' />
-          </IconButton>
+          <Button
+            onClick={ this.createIdentities }
+            icon={ <RefreshIcon /> }
+            label={
+              <FormattedMessage
+                id='createAccount.newAccount.buttons.refresh'
+                defaultMessage='refresh'
+              />
+            }
+          />
         </div>
       </div>
     );
