@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { MenuItem, Toggle } from 'material-ui';
+import { MenuItem } from 'material-ui';
 import { range } from 'lodash';
 import BigNumber from 'bignumber.js';
 
@@ -29,6 +29,7 @@ import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 import Input from '~/ui/Form/Input';
 import InputAddressSelect from '~/ui/Form/InputAddressSelect';
 import Select from '~/ui/Form/Select';
+import Toggle from '~/ui/Form/Toggle';
 import { AddIcon, RemoveIcon } from '~/ui/Icons';
 
 import styles from './typedInput.css';

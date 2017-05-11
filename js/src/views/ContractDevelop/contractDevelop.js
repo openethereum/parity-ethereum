@@ -17,12 +17,12 @@
 import React, { PropTypes, Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { observer } from 'mobx-react';
-import { MenuItem, Toggle } from 'material-ui';
+import { MenuItem } from 'material-ui';
 import { connect } from 'react-redux';
 import moment from 'moment';
 import { throttle } from 'lodash';
 
-import { Actionbar, ActionbarExport, ActionbarImport, Button, Input, Loading, Page, Select } from '~/ui';
+import { Actionbar, ActionbarExport, ActionbarImport, Button, Input, Loading, Page, Select, Toggle } from '~/ui';
 import { CancelIcon, ListIcon, SaveIcon, SendIcon, SettingsIcon } from '~/ui/Icons';
 import Editor from '~/ui/Editor';
 
