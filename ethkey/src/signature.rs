@@ -251,8 +251,8 @@ mod tests {
 		let signature = sign(keypair.secret(), &message).unwrap();
 
 		// when
-		let vrs = signature.clone().into_vrs();
-		let from_vrs = Signature::from_vrs(&vrs);
+		let vrs = signature.clone().into_electrum();
+		let from_vrs = Signature::from_electrum(&vrs);
 
 		// then
 		assert_eq!(signature, from_vrs);
