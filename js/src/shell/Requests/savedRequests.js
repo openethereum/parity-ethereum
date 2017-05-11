@@ -16,22 +16,11 @@
 
 import store from 'store';
 
-import { ERROR_CODES } from '@parity/api/transport/error';
-
 export const LS_REQUESTS_KEY = '_parity::requests';
 
 export default class SavedRequests {
-  network = null;
-
-  /**
-   * Load the network version, and then the related requests
-   */
   load (api) {
-    return api.net.version()
-      .then((network) => {
-        this.network = network;
-        return this.loadRequests(api);
-      })
+    return this.loadRequests(api)
       .catch((error) => {
         console.error(error);
         return [];
@@ -43,28 +32,38 @@ export default class SavedRequests {
    */
   loadRequests (api) {
     const requests = this._get();
-    const promises = Object.values(requests).map((request) => {
-      const { requestId, transactionHash } = request;
 
-      // The request hasn't been signed yet
-      if (transactionHash) {
-        return request;
-      }
+    return api.parity.localTransactions()
+      .then((localTransactions) => {
+        const promises = Object.values(requests).map((request) => {
+          const { requestId, transactionHash } = request;
 
-      return this._requestExists(api, requestId)
-        .then((exists) => {
-          if (!exists) {
-            return null;
+          if (transactionHash) {
+            // The transaction might be from an other
+            // chain
+            if (!localTransactions[transactionHash]) {
+              this.remove(requestId);
+              return null;
+            }
+
+            return request;
           }
 
-          return request;
-        })
-        .catch(() => {
-          this.remove(requestId);
-        });
-    });
+          // The request hasn't been signed yet
+          return this._requestExists(api, requestId)
+            .then((exists) => {
+              if (!exists) {
+                this.remove(requestId);
+                return null;
+              }
 
-    return Promise.all(promises).then((requests) => requests.filter((request) => request));
+              return request;
+            });
+        });
+
+        return Promise.all(promises);
+      })
+      .then((requests) => requests.filter((request) => request));
   }
 
   save (requestId, requestData) {
@@ -86,33 +85,23 @@ export default class SavedRequests {
   }
 
   _get () {
-    const allRequests = store.get(LS_REQUESTS_KEY) || {};
-
-    return allRequests[this.network] || {};
+    return store.get(LS_REQUESTS_KEY) || {};
   }
 
   _set (requests = {}) {
-    const allRequests = store.get(LS_REQUESTS_KEY) || {};
-
     if (Object.keys(requests).length > 0) {
-      allRequests[this.network] = requests;
-    } else {
-      delete allRequests[this.network];
+      return store.set(LS_REQUESTS_KEY, requests);
     }
 
-    return store.set(LS_REQUESTS_KEY, allRequests);
+    return store.remove(LS_REQUESTS_KEY);
   }
 
   _requestExists (api, requestId) {
     return api.parity
       .checkRequest(requestId)
       .then(() => true)
-      .catch((error) => {
-        if (error.code === ERROR_CODES.REQUEST_NOT_FOUND) {
-          return false;
-        }
-
-        throw error;
+      .catch(() => {
+        return false;
       });
   }
 }

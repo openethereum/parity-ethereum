@@ -19,23 +19,25 @@ import store from 'store';
 
 import SavedRequests, { LS_REQUESTS_KEY } from './savedRequests';
 
-const NETWORK_ID = 42;
 const DEFAULT_REQUEST = {
   requestId: '0x1',
   transaction: {}
 };
 
-const api = createApi(NETWORK_ID);
-const api2 = createApi(1);
+const SIGNED_REQUEST = {
+  requestId: '0x2',
+  transactionHash: '0xabcdef',
+  transaction: {}
+};
+
+const api = createApi();
 const savedRequests = new SavedRequests();
 
-function createApi (networkVersion) {
+function createApi () {
   return {
     parity: {
-      checkRequest: sinon.stub().resolves()
-    },
-    net: {
-      version: sinon.stub().resolves(networkVersion)
+      checkRequest: sinon.stub().resolves(),
+      localTransactions: sinon.stub().resolves([])
     }
   };
 }
@@ -43,9 +45,8 @@ function createApi (networkVersion) {
 describe('shell/Requests/savedRequests', () => {
   beforeEach((done) => {
     store.set(LS_REQUESTS_KEY, {
-      [NETWORK_ID]: {
-        [DEFAULT_REQUEST.requestId]: DEFAULT_REQUEST
-      }
+      [DEFAULT_REQUEST.requestId]: DEFAULT_REQUEST,
+      [SIGNED_REQUEST.requestId]: SIGNED_REQUEST
     });
 
     savedRequests.load(api)
@@ -75,7 +76,7 @@ describe('shell/Requests/savedRequests', () => {
 
     const requests = savedRequests._get();
 
-    expect(requests).to.deep.equal({});
+    expect(requests[DEFAULT_REQUEST.requestId]).to.be.undefined;
   });
 
   it('saves new requests', () => {
@@ -92,14 +93,7 @@ describe('shell/Requests/savedRequests', () => {
   it('loads requests', () => {
     return savedRequests.load(api)
       .then((requests) => {
-        expect(requests[0]).to.deep.equal(DEFAULT_REQUEST);
-      });
-  });
-
-  it('loads requests from the right network', () => {
-    return savedRequests.load(api2)
-      .then((requests) => {
-        expect(requests).to.deep.equal([]);
+        expect(requests).to.deep.equal([ DEFAULT_REQUEST ]);
       });
   });
 });
