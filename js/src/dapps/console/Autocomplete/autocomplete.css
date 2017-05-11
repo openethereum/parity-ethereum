@@ -18,6 +18,7 @@
 .container {
   background: #f8f8f8;
   box-shadow: 0 0.125em 0.25em rgba(0, 0, 0, 0.5);
+  font-family: dejavu sans mono, monospace;
   left: 20px;
   position: absolute;
   max-height: 300px;

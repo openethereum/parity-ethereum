@@ -18,8 +18,19 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { AppContainer } from 'react-hot-loader';
 
-import 'codemirror/mode/javascript/javascript';
+import 'codemirror/addon/dialog/dialog';
+import 'codemirror/addon/dialog/dialog.css';
+import 'codemirror/addon/hint/javascript-hint';
+import 'codemirror/addon/hint/show-hint';
+import 'codemirror/addon/hint/show-hint.css';
+import 'codemirror/addon/search/match-highlighter';
+import 'codemirror/addon/search/search';
+import 'codemirror/addon/search/searchcursor';
+import 'codemirror/keymap/sublime';
 import 'codemirror/lib/codemirror.css';
+import 'codemirror/mode/javascript/javascript';
+// Custom codemirror style
+import './console/codemirror.css';
 
 import Application from './console/Application';
 

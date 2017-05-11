@@ -15,32 +15,22 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.type {
-  color: #59f;
-  font-weight: bold !important;
-  font-size: 11px;
-  padding: 0 0.5em 0 0.25em;
-}
+:global {
+  .cm-matchhighlight {
+    background-color: rgba(255, 255, 0, 0.4);
+  }
 
-.inputContainer {
-  flex: 1;
-}
+  .CodeMirror-hints {
+    font-family: dejavu sans mono, monospace;
+    font-size: 11px;
+    border-radius: 0;
+    border: none;
+    padding: 0;
+  }
 
-.input {
-  border: 0;
-  margin: 0;
-  padding: 0;
-  color: black;
-  height: 100%;
-  font-size: 11px;
-  resize: none;
-  width: 100%;
-}
-
-.container {
-  border-top: 1px solid lightgray;
-  display: flex;
-  flex: 1;
-  padding: 0.25em;
-  position: relative;
+  .CodeMirror-hint {
+    border-radius: 0;
+    cursor: default;
+    padding: 0.25em 0.25em 0.25em 0.35em;
+  }
 }

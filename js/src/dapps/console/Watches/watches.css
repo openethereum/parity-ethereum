@@ -17,6 +17,7 @@
 
 .container {
   background: #eee;
+  border-top: 1px solid lightgray;
   display: flex;
   flex-direction: row;
   padding: 0.25em;
@@ -91,11 +92,9 @@
 }
 
 .remove {
-  color: red;
   cursor: default;
   display: inline-flex;
   font-size: 14px;
-  font-weight: bold !important;
   margin-right: 0.75em;
 
   * {

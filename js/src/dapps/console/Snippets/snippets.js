@@ -56,6 +56,14 @@ export default class Snippets extends Component {
             onChange={ this.handleChange }
             options={ {
               autofocus: true,
+              extraKeys: {
+                'Ctrl-Space': 'autocomplete'
+              },
+              keyMap: 'sublime',
+              highlightSelectionMatches: {
+                delay: 0,
+                showToken: false
+              },
               lineNumbers: true,
               mode: 'javascript'
             } }
@@ -72,7 +80,10 @@ export default class Snippets extends Component {
   renderFiles () {
     const { files } = this.snippetsStore;
 
-    return files.values().map((file) => this.renderFile(file));
+    return files
+      .values()
+      .sort((fa, fb) => fa.name.localeCompare(fb.name))
+      .map((file) => this.renderFile(file));
   }
 
   renderFile (file) {
@@ -107,6 +118,7 @@ export default class Snippets extends Component {
 
     const onClick = () => this.handleSelectFile(id);
     const onDoubleClick = () => this.handleRenameFile(id);
+    const onRemove = (event) => this.handleRemove(id, event);
 
     if (selected === id) {
       classes.push(styles.selected);
@@ -119,6 +131,13 @@ export default class Snippets extends Component {
         onClick={ onClick }
         onDoubleClick={ onDoubleClick }
       >
+        <span
+          className={ styles.remove }
+          onClick={ onRemove }
+          title={ `Remove ${name}` }
+        >
+          ✖
+        </span>
         <span className={ styles.pristine }>
           {
             file.isPristine
@@ -161,6 +180,11 @@ export default class Snippets extends Component {
     const { value } = event.target;
 
     this.snippetsStore.updateName(value);
+  };
+
+  handleRemove = (id, event) => {
+    this.snippetsStore.remove(id);
+    event.stopPropagation();
   };
 
   handleRenameFile = (id) => {

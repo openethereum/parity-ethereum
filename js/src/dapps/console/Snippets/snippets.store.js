@@ -136,6 +136,22 @@ export default class SnippetsStore {
     });
   }
 
+  @action
+  remove (id) {
+    transaction(() => {
+      if (id === this.selected) {
+        this.selected = null;
+      }
+
+      this.files.delete(id);
+
+      const files = this.getFromStorage()
+        .filter((f) => f.id !== id);
+
+      return store.set(LS_SNIPPETS_KEY, files);
+    });
+  }
+
   save (_file) {
     let file;
 
@@ -202,7 +218,9 @@ export default class SnippetsStore {
         const codeName = keycode(event);
 
         if (codeName === 'enter' && event.ctrlKey) {
-          this.evaluate();
+          event.preventDefault();
+          event.stopPropagation();
+          return this.evaluate();
         }
       });
   }

@@ -60,7 +60,7 @@
 
   .console {
     border-top: 1px solid lightgray;
-    height: 200px;
+    max-height: 200px;
     flex: 0 0 0;
 
     > * {
@@ -96,6 +96,14 @@
     font-size: 20px;
     margin-right: 3px;
     height: 13px;
+  }
+
+  .remove {
+    cursor: default;
+    display: inline-flex;
+    font-size: 14px;
+    margin-left: -0.25em;
+    margin-right: 0.25em;
   }
 }
 
