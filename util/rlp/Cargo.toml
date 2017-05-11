@@ -3,7 +3,7 @@ description = "Recursive-length prefix encoding, decoding, and compression"
 repository = "https://github.com/paritytech/parity"
 license = "MIT/Apache-2.0"
 name = "rlp"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
