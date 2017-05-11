@@ -392,9 +392,9 @@ export default class TypedInput extends Component {
     );
   }
 
-  onChangeBool = (event, _index, value) => {
-    // NOTE: event.target.value added for enzyme simulated event testing
-    this.props.onChange((value || event.target.value) === 'true');
+  onChangeBool = (event) => {
+    console.log('onChangeBool', event.target);
+    this.props.onChange(event.target.value === 'true');
   }
 
   onEthTypeChange = () => {

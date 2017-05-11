@@ -46,7 +46,7 @@ describe('LanguageSelector', () => {
       sinon.stub(localeStore, 'setLocale');
 
       render();
-      select = component.find('Select');
+      select = component.find('Dropdown');
     });
 
     afterEach(() => {
@@ -58,7 +58,7 @@ describe('LanguageSelector', () => {
     });
 
     it('has locale items', () => {
-      expect(select.find('MenuItem').length > 0).to.be.true;
+      expect(select.props().options.length > 0).to.be.true;
     });
 
     it('calls localeStore.setLocale when changed', () => {
