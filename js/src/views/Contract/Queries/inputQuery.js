@@ -17,7 +17,6 @@
 import { isEqual } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
@@ -25,7 +24,7 @@ import { newError } from '@parity/shared/redux/actions';
 import { arrayOrObjectProptype } from '@parity/shared/util/proptypes';
 import { parseAbiType } from '@parity/shared/util/abi';
 
-import { Button, Progress, TypedInput } from '~/ui';
+import { Button, Container, Progress, TypedInput } from '~/ui';
 
 import styles from './queries.css';
 
@@ -79,13 +78,10 @@ class InputQuery extends Component {
     const { name, className } = this.props;
 
     return (
-      <Card className={ className }>
-        <CardTitle
-          className={ styles.methodTitle }
-          title={ name }
-        />
+      <Container className={ className }>
+        <h3>{ name }</h3>
         { this.renderContent() }
-      </Card>
+      </Container>
     );
   }
 
@@ -98,13 +94,13 @@ class InputQuery extends Component {
 
     return (
       <div>
-        <CardText className={ styles.methodContent }>
+        <div className={ styles.methodContent }>
           <div className={ styles.methodResults }>
             { this.renderResults() }
           </div>
           { inputsFields }
-        </CardText>
-        <CardActions>
+        </div>
+        <div className={ styles.methodActions }>
           <Button
             label={
               <FormattedMessage
@@ -115,7 +111,7 @@ class InputQuery extends Component {
             disabled={ !isValid }
             onClick={ this.onClick }
           />
-        </CardActions>
+        </div>
       </div>
     );
   }
