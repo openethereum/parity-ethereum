@@ -646,7 +646,6 @@ impl Ord for DecryptionSessionId {
 	}
 }
 
-
 fn check_encrypted_data(self_node_id: &Public, encrypted_data: &DocumentKeyShare) -> Result<(), Error> {
 	use key_server_cluster::generation_session::{check_cluster_nodes, check_threshold};
 

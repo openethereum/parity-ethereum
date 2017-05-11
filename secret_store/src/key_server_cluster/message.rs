@@ -34,6 +34,8 @@ pub enum Message {
 	Encryption(EncryptionMessage),
 	/// Decryption message.
 	Decryption(DecryptionMessage),
+	/// Signing message.
+	Signing(SigningMessage),
 }
 
 #[derive(Clone, Debug)]
@@ -94,6 +96,11 @@ pub enum DecryptionMessage {
 	DecryptionSessionError(DecryptionSessionError),
 	/// When decryption session is completed.
 	DecryptionSessionCompleted(DecryptionSessionCompleted),
+}
+
+#[derive(Clone, Debug)]
+/// All possible messages that can be sent during signing session.
+pub enum SigningMessage {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -344,6 +351,16 @@ impl DecryptionMessage {
 	}
 }
 
+impl SigningMessage {
+	pub fn session_id(&self) -> &SessionId {
+		unimplemented!()
+	}
+
+	pub fn sub_session_id(&self) -> &Secret {
+		unimplemented!()
+	}
+}
+
 impl fmt::Display for Message {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
@@ -351,6 +368,7 @@ impl fmt::Display for Message {
 			Message::Generation(ref message) => write!(f, "Generation.{}", message),
 			Message::Encryption(ref message) => write!(f, "Encryption.{}", message),
 			Message::Decryption(ref message) => write!(f, "Decryption.{}", message),
+			Message::Signing(ref message) => write!(f, "Signing.{}", message),
 		}
 	}
 }
@@ -400,5 +418,11 @@ impl fmt::Display for DecryptionMessage {
 			DecryptionMessage::DecryptionSessionError(_) => write!(f, "DecryptionSessionError"),
 			DecryptionMessage::DecryptionSessionCompleted(_) => write!(f, "DecryptionSessionCompleted"),
 		}
+	}
+}
+
+impl fmt::Display for SigningMessage {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		unimplemented!()
 	}
 }

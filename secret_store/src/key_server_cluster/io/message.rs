@@ -85,6 +85,8 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::Decryption(DecryptionMessage::PartialDecryption(payload))					=> (153, serde_json::to_vec(&payload)),
 		Message::Decryption(DecryptionMessage::DecryptionSessionError(payload))				=> (154, serde_json::to_vec(&payload)),
 		Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(payload))			=> (155, serde_json::to_vec(&payload)),
+
+		Message::Signing(_)																	=> unreachable!(),
 	};
 
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;

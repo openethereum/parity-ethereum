@@ -140,4 +140,5 @@ mod generation_session;
 mod io;
 pub mod math;
 mod message;
+mod signing_session;
 mod net;

@@ -29,12 +29,13 @@ use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage};
 use key_server_cluster::cluster_sessions::ClusterSessions;
-use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage};
+use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage, SigningMessage};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
 #[cfg(test)]
 use key_server_cluster::generation_session::SessionImpl as GenerationSessionImpl;
 use key_server_cluster::decryption_session::{Session as DecryptionSession, SessionState as DecryptionSessionState, DecryptionSessionId};
 use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionState as EncryptionSessionState};
+use key_server_cluster::signing_session::{Session as SigningSession, SessionState as SigningSessionState, SigningSessionId};
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
 
@@ -387,6 +388,7 @@ impl ClusterCore {
 			Message::Generation(message) => ClusterCore::process_generation_message(data, connection, message),
 			Message::Encryption(message) => ClusterCore::process_encryption_message(data, connection, message),
 			Message::Decryption(message) => ClusterCore::process_decryption_message(data, connection, message),
+			Message::Signing(message) => ClusterCore::process_signing_message(data, connection, message),
 			Message::Cluster(message) => ClusterCore::process_cluster_message(data, connection, message),
 		}
 	}
@@ -612,6 +614,84 @@ impl ClusterCore {
 					break;
 				},
 			}
+		}
+	}
+
+	/// Process singlesigning message from the connection.
+	fn process_signing_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: SigningMessage) {
+		let session_id = message.session_id().clone();
+		let sub_session_id = message.sub_session_id().clone();
+		let decryption_session_id = SigningSessionId::new(session_id.clone(), sub_session_id.clone());
+		let mut sender = connection.node_id().clone();
+		let session = match message {
+/*			DecryptionMessage::InitializeDecryptionSession(_) => {
+				let mut connected_nodes = data.connections.connected_nodes();
+				connected_nodes.insert(data.self_key_pair.public().clone());
+
+				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes));
+				data.sessions.new_decryption_session(sender.clone(), session_id.clone(), sub_session_id.clone(), cluster)
+			},
+			_ => {
+				data.sessions.decryption_sessions.get(&decryption_session_id)
+					.ok_or(Error::InvalidSessionId)
+			},*/
+		};
+
+		let mut is_queued_message = false;
+		loop {
+/*			match session.clone().and_then(|session| match message {
+				DecryptionMessage::InitializeDecryptionSession(ref message) =>
+					session.on_initialize_session(sender.clone(), message),
+				DecryptionMessage::ConfirmDecryptionInitialization(ref message) =>
+					session.on_confirm_initialization(sender.clone(), message),
+				DecryptionMessage::RequestPartialDecryption(ref message) => 
+					session.on_partial_decryption_requested(sender.clone(), message),
+				DecryptionMessage::PartialDecryption(ref message) => 
+					session.on_partial_decryption(sender.clone(), message),
+				DecryptionMessage::DecryptionSessionError(ref message) => 
+					session.on_session_error(sender.clone(), message),
+				DecryptionMessage::DecryptionSessionCompleted(ref message) => 
+					session.on_session_completed(sender.clone(), message),
+			}) {
+				Ok(_) => {
+					// if session is completed => stop
+					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
+					let session_state = session.state();
+					if session_state == DecryptionSessionState::Finished {
+						info!(target: "secretstore_net", "{}: decryption session completed", data.self_key_pair.public());
+					}
+					if session_state == DecryptionSessionState::Finished || session_state == DecryptionSessionState::Failed {
+						data.sessions.decryption_sessions.remove(&decryption_session_id);
+						break;
+					}
+
+					// try to dequeue message
+					match data.sessions.decryption_sessions.dequeue_message(&decryption_session_id) {
+						Some((msg_sender, msg)) => {
+							is_queued_message = true;
+							sender = msg_sender;
+							message = msg;
+						},
+						None => break,
+					}
+				},
+				Err(Error::TooEarlyForRequest) => {
+					data.sessions.decryption_sessions.enqueue_message(&decryption_session_id, sender, message, is_queued_message);
+					break;
+				},
+				Err(err) => {
+					warn!(target: "secretstore_net", "{}: decryption session error {} when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
+					data.sessions.respond_with_decryption_error(&session_id, &sub_session_id, &sender, message::DecryptionSessionError {
+						session: session_id.clone().into(),
+						sub_session: sub_session_id.clone().into(),
+						error: format!("{:?}", err),
+					});
+					if err != Error::InvalidSessionId {
+						data.sessions.decryption_sessions.remove(&decryption_session_id);
+					}
+					break;
+				},
+			}*/
 		}
 	}
 
