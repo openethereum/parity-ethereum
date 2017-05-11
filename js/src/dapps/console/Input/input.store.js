@@ -17,8 +17,8 @@
 import { action, observable } from 'mobx';
 import store from 'store';
 
-import AutocompleteStore from './autocompleteStore';
-import ConsoleStore from './consoleStore';
+import AutocompleteStore from '../Autocomplete/autocomplete.store';
+import ConsoleStore from '../Console/console.store';
 
 const LS_HISTORY_KEY = '_console::history';
 const MAX_HISTORY_LINES = 5;

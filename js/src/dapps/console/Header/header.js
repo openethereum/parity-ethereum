@@ -17,7 +17,7 @@
 import { observer } from 'mobx-react';
 import React, { Component } from 'react';
 
-import ApplicationStore from '../applicationStore';
+import ApplicationStore from '../Application/application.store';
 
 import styles from './header.css';
 

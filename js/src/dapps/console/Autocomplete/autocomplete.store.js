@@ -16,7 +16,7 @@
 
 import { action, observable } from 'mobx';
 
-import { evaluate } from './utils';
+import { evaluate } from '../utils';
 
 let instance;
 

@@ -20,9 +20,10 @@ import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 
 import Autocomplete from '../Autocomplete';
-import AutocompleteStore from '../autocompleteStore';
-import ConsoleStore from '../consoleStore';
-import InputStore from '../inputStore';
+
+import AutocompleteStore from '../Autocomplete/autocomplete.store';
+import ConsoleStore from '../Console/console.store';
+import InputStore from './input.store';
 import SettingsStore from '../Settings/settings.store';
 
 import styles from './input.css';

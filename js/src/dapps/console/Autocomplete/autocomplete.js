@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 
-import AutocompleteStore from '../autocompleteStore';
+import AutocompleteStore from './autocomplete.store';
 
 import styles from './autocomplete.css';
 

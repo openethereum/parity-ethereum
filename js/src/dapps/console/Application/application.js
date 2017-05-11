@@ -23,10 +23,10 @@ import Console from '../Console';
 import Header from '../Header';
 import Input from '../Input';
 import Settings from '../Settings';
-import Status from '../Status';
+import Watches from '../Watches';
 
-import ApplicationStore from '../applicationStore';
-import WatchesStore from '../watchesStore';
+import ApplicationStore from './application.store';
+import WatchesStore from '../Watches/watches.store';
 
 import styles from './application.css';
 
@@ -36,8 +36,8 @@ export default class Application extends Component {
   watches = WatchesStore.get();
 
   componentWillMount () {
-    this.watches.addWatch('time', () => new Date());
-    this.watches.addWatch('blockNumber', api.eth.blockNumber, api);
+    this.watches.add('time', () => new Date());
+    this.watches.add('blockNumber', api.eth.blockNumber, api);
   }
 
   render () {
@@ -50,7 +50,7 @@ export default class Application extends Component {
         { this.renderView() }
 
         <div className={ styles.status }>
-          <Status />
+          <Watches />
         </div>
       </div>
     );

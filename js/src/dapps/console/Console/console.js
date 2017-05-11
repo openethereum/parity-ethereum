@@ -19,7 +19,7 @@ import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import { ObjectInspector } from 'react-inspector';
 
-import ConsoleStore from '../consoleStore';
+import ConsoleStore from './console.store';
 import SettingsStore from '../Settings/settings.store';
 
 import styles from './console.css';

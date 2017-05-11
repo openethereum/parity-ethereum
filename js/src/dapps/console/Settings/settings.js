@@ -23,10 +23,10 @@ import styles from './settings.css';
 
 @observer
 export default class Settings extends Component {
-  settings = SettingsStore.get();
+  settingsStore = SettingsStore.get();
 
   render () {
-    const { displayTimestamps, executeOnEnter } = this.settings;
+    const { displayTimestamps, executeOnEnter } = this.settingsStore;
 
     return (
       <div className={ styles.container }>
@@ -59,12 +59,12 @@ export default class Settings extends Component {
   handleDisplayTimestampsChange = (event) => {
     const { checked } = event.target;
 
-    this.settings.setDisplayTimestamps(checked);
+    this.settingsStore.setDisplayTimestamps(checked);
   };
 
   handleExecuteOnEnterChange = (event) => {
     const { checked } = event.target;
 
-    this.settings.setExecuteOnEnter(checked);
+    this.settingsStore.setExecuteOnEnter(checked);
   };
 }

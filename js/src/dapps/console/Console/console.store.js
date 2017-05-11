@@ -16,8 +16,8 @@
 
 import { action, observable } from 'mobx';
 
-import AutocompleteStore from './autocompleteStore';
-import { evaluate } from './utils';
+import AutocompleteStore from '../Autocomplete/autocomplete.store';
+import { evaluate } from '../utils';
 
 let instance;
 

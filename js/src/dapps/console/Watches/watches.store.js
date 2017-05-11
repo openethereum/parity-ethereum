@@ -16,11 +16,13 @@
 
 import { action, map, observable } from 'mobx';
 
-import { api } from './parity';
+import { api } from '../parity';
+import { evaluate } from '../utils';
 
 let instance;
 
 export default class WatchesStore {
+  @observable showAdd = false;
   @observable watches = map();
 
   watchesFunctions = {};
@@ -35,15 +37,15 @@ export default class WatchesStore {
     if (!instance) {
       instance = new WatchesStore();
 
-      window.watch = instance.addWatch.bind(instance);
-      window.unwatch = instance.removeWatch.bind(instance);
+      window.watch = instance.add.bind(instance);
+      window.unwatch = instance.remove.bind(instance);
     }
 
     return instance;
   }
 
   @action
-  addWatch (name, func, context) {
+  add (name, func, context) {
     if (typeof func !== 'function' && typeof func.then !== 'function') {
       throw new Error(`cannot watch ${name} ; not a Function/Promise given`);
     }
@@ -53,23 +55,25 @@ export default class WatchesStore {
     this.refreshWatches();
   }
 
-  @action
-  removeWatch (name) {
-    this.watches.delete(name);
-    delete this.watchesFunctions[name];
+  addWatch () {
+    this.toggleAdd();
+
+    const { addContext, addFunction, addName } = this;
+
+    const evaluatedFunction = evaluate(addFunction);
+    const evaluatedContext = addContext
+      ? evaluate(addContext)
+      : null;
+
+    this.add(addName, evaluatedFunction.result, evaluatedContext.result);
   }
 
-  @action
-  updateWatch (name, result, isError = false) {
-    const next = {};
+  get (name) {
+    return this.watches.get(name);
+  }
 
-    if (isError) {
-      next.error = result;
-    } else {
-      next.result = result;
-    }
-
-    this.watches.set(name, { ...next });
+  get names () {
+    return this.watches.keys();
   }
 
   refreshWatches () {
@@ -104,5 +108,41 @@ export default class WatchesStore {
       });
 
     return Promise.all(promises);
+  }
+
+  @action
+  remove (name) {
+    this.watches.delete(name);
+    delete this.watchesFunctions[name];
+  }
+
+  @action
+  toggleAdd () {
+    this.showAdd = !this.showAdd;
+  }
+
+  updateAddContext (value) {
+    this.addContext = value;
+  }
+
+  updateAddFunction (value) {
+    this.addFunction = value;
+  }
+
+  updateAddName (value) {
+    this.addName = value;
+  }
+
+  @action
+  updateWatch (name, result, isError = false) {
+    const next = {};
+
+    if (isError) {
+      next.error = result;
+    } else {
+      next.result = result;
+    }
+
+    this.watches.set(name, { ...next });
   }
 }
