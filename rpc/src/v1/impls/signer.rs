@@ -194,7 +194,7 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 				},
 				ConfirmationPayload::EthSignMessage(address, data) => {
 					let expected_hash = eth_data_hash(data);
-					let signature = ethkey::Signature::from_vrs(&bytes.0);
+					let signature = ethkey::Signature::from_electrum(&bytes.0);
 					match ethkey::verify_address(&address, &signature, &expected_hash) {
 						Ok(true) => Ok(ConfirmationResponse::Signature(bytes.0.as_slice().into())),
 						Ok(false) => Err(errors::invalid_params("Sender address does not match the signature.", ())),
