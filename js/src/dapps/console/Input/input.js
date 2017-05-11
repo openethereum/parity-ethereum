@@ -23,6 +23,7 @@ import Autocomplete from '../Autocomplete';
 import AutocompleteStore from '../autocompleteStore';
 import ConsoleStore from '../consoleStore';
 import InputStore from '../inputStore';
+import SettingsStore from '../Settings/settings.store';
 
 import styles from './input.css';
 
@@ -31,6 +32,7 @@ export default class Input extends Component {
   autocompleteStore = AutocompleteStore.get();
   consoleStore = ConsoleStore.get();
   inputStore = InputStore.get();
+  settingsStore = SettingsStore.get();
 
   render () {
     const { input } = this.inputStore;
@@ -62,6 +64,7 @@ export default class Input extends Component {
   };
 
   handleKeyDown = (event) => {
+    const { executeOnEnter } = this.settingsStore;
     const { input } = this.inputStore;
     const codeName = keycode(event);
     const multilines = input.split('\n').length > 1;
@@ -79,7 +82,17 @@ export default class Input extends Component {
       return this.autocompleteStore.hide();
     }
 
-    if (codeName === 'enter' && !event.shiftKey) {
+    if (codeName === 'enter') {
+      if (event.shiftKey) {
+        return;
+      }
+
+      // If not execute on enter: execute on
+      // enter + CTRL
+      if (!executeOnEnter && !event.ctrlKey) {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
 

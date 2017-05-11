@@ -20,6 +20,7 @@ import ReactDOM from 'react-dom';
 import { ObjectInspector } from 'react-inspector';
 
 import ConsoleStore from '../consoleStore';
+import SettingsStore from '../Settings/settings.store';
 
 import styles from './console.css';
 
@@ -36,6 +37,7 @@ const ICONS = {
 @observer
 export default class Console extends Component {
   consoleStore = ConsoleStore.get();
+  settingsStore = SettingsStore.get();
 
   render () {
     return (
@@ -62,9 +64,7 @@ export default class Console extends Component {
             className={ styles.type }
             dangerouslySetInnerHTML={ { __html: ICONS[type] || '' } }
           />
-          <span className={ styles.time }>
-            { new Date(timestamp).toISOString().slice(11, 23) }
-          </span>
+          { this.renderTimestamp(timestamp) }
           <span className={ styles.text }>
             {
               values.map((value, valueIndex) => (
@@ -80,6 +80,20 @@ export default class Console extends Component {
         </div>
       );
     });
+  }
+
+  renderTimestamp (timestamp) {
+    const { displayTimestamps } = this.settingsStore;
+
+    if (!displayTimestamps) {
+      return null;
+    }
+
+    return (
+      <span className={ styles.time }>
+        { new Date(timestamp).toISOString().slice(11, 23) }
+      </span>
+    );
   }
 
   setRef = (node) => {

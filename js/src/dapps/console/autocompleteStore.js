@@ -43,6 +43,11 @@ export default class AutocompleteStore {
     return this.selected !== null;
   }
 
+  clearCache () {
+    this.lastObject = null;
+    this.lastObjectPropertyNames = null;
+  }
+
   @action
   focus (offset = 1) {
     if (this.values.length === 0) {
@@ -134,6 +139,10 @@ export default class AutocompleteStore {
 
   @action
   setPosition () {
+    if (!this.inputNode) {
+      return;
+    }
+
     const inputBoundings = this.inputNode.getBoundingClientRect();
     const bodyBoundings = document.body.getBoundingClientRect();
 

@@ -30,6 +30,12 @@ input:focus {
   outline: none;
 }
 
+code,
+pre {
+  font-family: dejavu sans mono, monospace;
+  font-size: 11px;
+}
+
 .header {
   flex: 0 0 auto;
 }

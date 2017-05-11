@@ -97,6 +97,7 @@ export default class InputStore {
     this.consoleStore.evaluate(input);
     this.updateInput('');
     this.historyOffset = null;
+    this.autocompleteStore.clearCache();
   }
 
   pushToHistory (input) {

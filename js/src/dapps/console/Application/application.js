@@ -22,6 +22,7 @@ import { api } from '../parity';
 import Console from '../Console';
 import Header from '../Header';
 import Input from '../Input';
+import Settings from '../Settings';
 import Status from '../Status';
 
 import ApplicationStore from '../applicationStore';
@@ -67,6 +68,14 @@ export default class Application extends Component {
           <div className={ styles.input }>
             <Input />
           </div>
+        </div>
+      );
+    }
+
+    if (view === 'settings') {
+      return (
+        <div className={ styles.view }>
+          <Settings />
         </div>
       );
     }
