@@ -14,14 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable } from 'mobx';
+import { action, computed, map, observable, transaction } from 'mobx';
 import store from 'store';
 
-const LS_SETTINGS_KEY = '_console::snippets';
+const LS_SNIPPETS_KEY = '_console::snippets';
 
 let instance;
 
 export default class SnippetsStore {
+  @observable files = map();
+  @observable selected = null;
+
+  codeMirror = null;
+
   constructor () {
     this.load();
   }
@@ -34,9 +39,116 @@ export default class SnippetsStore {
     return instance;
   }
 
+  @computed
+  get code () {
+    if (!this.selected) {
+      return '';
+    }
+
+    return this.files.get(this.selected).content;
+  }
+
+  clearCodeHistory () {
+    if (this.codeMirror) {
+      this.codeMirror.doc.clearHistory();
+    }
+  }
+
+  @action
+  create () {
+    const id = this.getNewId();
+    const file = {
+      content: '',
+      isPristine: false,
+      name: `Snippet #${id}`,
+      savedContent: '',
+      id
+    };
+
+    transaction(() => {
+      this.files.set(id, file);
+      this.select(id);
+    });
+  }
+
+  edit (value) {
+    if (!this.selected) {
+      this.create();
+    }
+
+    const file = this.files.get(this.selected);
+
+    file.content = value;
+    this.updateFile(file);
+  }
+
+  getFromStorage () {
+    return store.get(LS_SNIPPETS_KEY) || [];
+  }
+
+  getNewId () {
+    if (this.files.size === 0) {
+      return 1;
+    }
+
+    const ids = this.files.values().map((file) => file.id);
+
+    return Math.max(...ids) + 1;
+  }
+
   load () {
+    const files = this.getFromStorage();
+
+    transaction(() => {
+      files.forEach((file) => {
+        this.files.set(file.id, file);
+      });
+    });
   }
 
   save () {
+    if (!this.selected) {
+      return false;
+    }
+
+    const file = this.files.get(this.selected);
+
+    file.savedContent = file.content;
+    this.updateFile(file);
+    this.saveToStorage(file);
+  }
+
+  saveToStorage (file) {
+    const files = this.getFromStorage();
+    const index = files.findIndex((f) => file.id === f.id);
+
+    if (index === -1) {
+      files.push(file);
+    } else {
+      files[index] = file;
+    }
+
+    return store.set(LS_SNIPPETS_KEY, files);
+  }
+
+  @action
+  select (id) {
+    this.selected = id;
+
+    // Wait for the file content to be loaded
+    setTimeout(() => {
+      this.clearCodeHistory();
+    }, 50);
+  }
+
+  setCodeMirror (codeMirror) {
+    this.codeMirror = codeMirror;
+  }
+
+  @action
+  updateFile (file) {
+    file.isPristine = (file.content === file.savedContent);
+
+    this.files.set(file.id, file);
   }
 }

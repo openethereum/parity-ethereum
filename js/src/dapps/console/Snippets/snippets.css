@@ -25,19 +25,64 @@
   border-right: 1px solid lightgray;
   display: flex;
   flex-direction: column;
+  min-width: 200px;
 }
 
 .add {
+  align-items: center;
   background-color: #fcfcfc;
   border-bottom: 1px solid lightgray;
+  cursor: default;
+  display: flex;
   padding: 0.5em 1em;
+
+  .plus {
+    font-size: 15px;
+    font-weight: bold !important;
+    margin-right: 5px;
+  }
+
+  &:hover {
+    background-color: #f0f0f0;
+  }
 }
 
 .list {
   display: flex;
   flex-direction: column;
+  margin-top: 3px;
 }
 
 .code {
+  display: flex;
   flex: 1;
+
+  > * {
+    flex: 1;
+  }
+
+  :global(.CodeMirror) {
+    height: 100%;
+  }
+}
+
+.file {
+  align-items: center;
+  cursor: default;
+  display: flex;
+  padding: 0.5em 0.5em 0.5em 1em;
+
+  &.selected {
+    background-color: #f0f0f0;
+  }
+
+  &:hover {
+    background-color: rgb(230, 236, 255);
+  }
+
+  .pristine {
+    font-size: 20px;
+    margin-right: 3px;
+    height: 13px;
+  }
 }

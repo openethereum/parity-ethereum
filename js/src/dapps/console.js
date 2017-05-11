@@ -18,6 +18,9 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { AppContainer } from 'react-hot-loader';
 
+import 'codemirror/mode/javascript/javascript';
+import 'codemirror/lib/codemirror.css';
+
 import Application from './console/Application';
 
 import '../../assets/fonts/Roboto/font.css';
