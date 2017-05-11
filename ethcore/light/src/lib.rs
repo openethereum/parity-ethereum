@@ -61,19 +61,24 @@ pub use self::transaction_queue::TransactionQueue;
 pub use types::request as request;
 
 #[macro_use]
+extern crate serde_derive;
+
+#[macro_use]
 extern crate log;
 
-extern crate ethcore;
-extern crate ethcore_util as util;
-extern crate ethcore_network as network;
+extern crate bincode;
 extern crate ethcore_io as io;
-extern crate rlp;
-extern crate smallvec;
-extern crate time;
+extern crate ethcore_network as network;
+extern crate ethcore_util as util;
+extern crate ethcore;
 extern crate futures;
-extern crate rand;
 extern crate itertools;
+extern crate rand;
+extern crate rlp;
+extern crate serde;
+extern crate smallvec;
 extern crate stats;
+extern crate time;
 
 #[cfg(feature = "ipc")]
 extern crate ethcore_ipc as ipc;

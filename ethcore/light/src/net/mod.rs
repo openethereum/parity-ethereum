@@ -55,7 +55,7 @@ pub mod request_credits;
 
 pub use self::context::{BasicContext, EventContext, IoContext};
 pub use self::error::Error;
-pub use self::load_timer::SampleStore;
+pub use self::load_timer::{SampleStore, FileStore};
 pub use self::status::{Status, Capabilities, Announcement};
 
 const TIMEOUT: TimerToken = 0;

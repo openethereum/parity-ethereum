@@ -25,9 +25,12 @@
 //! gathered are excluded.
 
 use std::collections::{HashMap, VecDeque};
+use std::fs::File;
+use std::path::PathBuf;
 
 use request::{CompleteRequest, Kind};
 
+use bincode;
 use time;
 use util::{Uint, RwLock, Mutex};
 
@@ -39,11 +42,11 @@ pub const TIME_PERIOD_MS: u64 = 60 * 60 * 1000;
 /// Stores rolling load timer samples.
 // TODO: switch to bigint if possible (FP casts aren't available)
 pub trait SampleStore: Send + Sync {
-	/// Load the samples for a given request kind.
-	fn load(&self, kind: Kind) -> VecDeque<u64>;
+	/// Load samples.
+	fn load(&self) -> HashMap<Kind, VecDeque<u64>>;
 
-	/// Store the samples for a given request kind.
-	fn store(&self, kind: Kind, items: &VecDeque<u64>);
+	/// Store all samples.
+	fn store(&self, samples: &HashMap<Kind, VecDeque<u64>>);
 }
 
 // get a hardcoded, arbitrarily determined (but intended overestimate)
@@ -67,8 +70,8 @@ fn hardcoded_serve_time(kind: Kind) -> u64 {
 pub struct NullStore;
 
 impl SampleStore for NullStore {
-	fn load(&self, _kind: Kind) -> VecDeque<u64> { Default::default() }
-	fn store(&self, _kind: Kind, _items: &VecDeque<u64>) { }
+	fn load(&self) -> HashMap<Kind, VecDeque<u64>> { HashMap::new() }
+	fn store(&self, _samples: &HashMap<Kind, VecDeque<u64>>) { }
 }
 
 /// Request load distributions.
@@ -80,25 +83,12 @@ pub struct LoadDistribution {
 impl LoadDistribution {
 	/// Load rolling samples from the given store.
 	pub fn load(store: &SampleStore) -> Self {
-		let mut samples = HashMap::new();
-		{
-			let mut load_for_kind = |kind| {
-				let mut kind_samples = store.load(kind);
-				while kind_samples.len() > MOVING_SAMPLE_SIZE {
-					kind_samples.pop_front();
-				}
+		let mut samples = store.load();
 
-				samples.insert(kind, kind_samples);
-			};
-
-			load_for_kind(Kind::Headers);
-			load_for_kind(Kind::HeaderProof);
-			load_for_kind(Kind::Receipts);
-			load_for_kind(Kind::Body);
-			load_for_kind(Kind::Account);
-			load_for_kind(Kind::Storage);
-			load_for_kind(Kind::Code);
-			load_for_kind(Kind::Execution);
+		for kind_samples in samples.values_mut() {
+			while kind_samples.len() > MOVING_SAMPLE_SIZE {
+				kind_samples.pop_front();
+			}
 		}
 
 		LoadDistribution {
@@ -156,9 +146,9 @@ impl LoadDistribution {
 
 			if kind_samples.len() == MOVING_SAMPLE_SIZE { kind_samples.pop_front(); }
 			kind_samples.push_back(elapsed / n);
-
-			store.store(kind, &kind_samples);
 		}
+
+		store.store(&*samples);
 	}
 
 	fn update(&self, kind: Kind, elapsed: u64, n: u64) {
@@ -207,7 +197,22 @@ impl<'a> Drop for LoadTimer<'a> {
 pub struct FileStore(pub PathBuf);
 
 impl SampleStore for FileStore {
+	fn load(&self) -> HashMap<Kind, VecDeque<u64>> {
+		File::open(&self.0)
+			.map_err(|e| Box::new(bincode::ErrorKind::IoError(e)))
+			.and_then(|mut file| bincode::deserialize_from(&mut file, bincode::Infinite))
+			.unwrap_or_else(|_| HashMap::new())
+	}
 
+	fn store(&self, samples: &HashMap<Kind, VecDeque<u64>>) {
+		let res = File::create(&self.0)
+			.map_err(|e| Box::new(bincode::ErrorKind::IoError(e)))
+			.and_then(|mut file| bincode::serialize_into(&mut file, samples, bincode::Infinite));
+
+		if let Err(e) = res {
+			warn!(target: "pip", "Error writing light request timing samples to file: {}", e);
+		}
+	}
 }
 
 #[cfg(test)]
@@ -255,5 +260,22 @@ mod tests {
 				assert!(moving_average < arith_average)
 			}
 		}
+	}
+
+	#[test]
+	fn file_store() {
+		let path = ::devtools::RandomTempPath::new();
+		let store = FileStore(path.as_path().clone());
+
+		let mut samples = store.load();
+		assert!(samples.is_empty());
+		samples.insert(Kind::Headers, vec![5, 2, 7, 2, 2, 4].into());
+		samples.insert(Kind::Execution, vec![1, 1, 100, 250].into());
+
+		store.store(&samples);
+
+		let dup = store.load();
+
+		assert_eq!(samples, dup);
 	}
 }
