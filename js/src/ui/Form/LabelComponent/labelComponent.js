@@ -16,23 +16,12 @@
 
 import React, { PropTypes } from 'react';
 
-import styles from './labelComponent.css';
+import Label from '../Label';
 
 export default function LabelComponent ({ children, label }) {
   return (
-    <div className={ styles.container }>
-      {
-        label
-          ? (
-            <label
-              className={ styles.label }
-              htmlFor=''
-            >
-              { label }
-            </label>
-          )
-          : null
-      }
+    <div>
+      <Label label={ label } />
       { children }
     </div>
   );

@@ -17,9 +17,8 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
-import { Button, Form, Input, IdentityIcon } from '~/ui';
+import { Button, Form, Input, IdentityIcon, RadioButtons } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 import { RefreshIcon } from '~/ui/Icons';
 import Loading from '~/ui/Loading';
@@ -142,27 +141,21 @@ export default class CreateAccount extends Component {
       return null;
     }
 
-    const buttons = Object
-      .keys(accounts)
-      .map((address) => {
-        return (
-          <RadioButton
-            className={ styles.button }
-            key={ address }
-            value={ address }
-          />
-        );
-      });
-
     return (
-      <RadioButtonGroup
+      <RadioButtons
         className={ styles.selector }
         name='identitySelector'
         onChange={ this.onChangeIdentity }
-        valueSelected={ selectedAddress }
-      >
-        { buttons }
-      </RadioButtonGroup>
+        value={ selectedAddress }
+        values={
+          Object.keys(accounts).map((address) => {
+            return {
+              key: address,
+              value: address
+            };
+          })
+        }
+      />
     );
   }
 
@@ -175,26 +168,26 @@ export default class CreateAccount extends Component {
       );
     }
 
-    const identities = Object
-      .keys(accounts)
-      .map((address) => {
-        return (
-          <div
-            className={ styles.identity }
-            key={ address }
-            onTouchTap={ this.onChangeIdentity }
-          >
-            <IdentityIcon
-              address={ address }
-              center
-            />
-          </div>
-        );
-      });
-
     return (
       <div className={ styles.identities }>
-        { identities }
+        {
+          Object
+            .keys(accounts)
+            .map((address) => {
+              return (
+                <div
+                  className={ styles.identity }
+                  key={ address }
+                  onTouchTap={ this.onChangeIdentity }
+                >
+                  <IdentityIcon
+                    address={ address }
+                    center
+                  />
+                </div>
+              );
+            })
+        }
         <div className={ styles.refresh }>
           <Button
             onClick={ this.createIdentities }

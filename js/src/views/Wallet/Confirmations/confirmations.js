@@ -54,12 +54,20 @@ class WalletConfirmations extends Component {
   render () {
     return (
       <div>
-        <Container title='Pending Confirmations'>
+        <Container
+          title={
+            <FormattedMessage
+              id='wallet.confirmations.title'
+              defaultMessage='Pending Confirmations'
+            />
+          }
+        >
           { this.renderConfirmations() }
         </Container>
       </div>
     );
   }
+
   renderConfirmations () {
     const { confirmations, ...others } = this.props;
     const realConfirmations = confirmations && confirmations
