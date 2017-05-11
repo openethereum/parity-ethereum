@@ -14,25 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-import { shallow } from 'enzyme';
+import React, { PropTypes } from 'react';
 
-import Container from './container';
+import styles from './labelComponent.css';
 
-function render (props) {
-  return shallow(
-    <Container { ...props } />
+export default function LabelComponent ({ children, label }) {
+  return (
+    <div className={ styles.container }>
+      {
+        label
+          ? (
+            <label
+              className={ styles.label }
+              htmlFor=''
+            >
+              { label }
+            </label>
+          )
+          : null
+      }
+      { children }
+    </div>
   );
 }
 
-describe('ui/Container', () => {
-  describe('rendering', () => {
-    it('renders defaults', () => {
-      expect(render()).to.be.ok;
-    });
-
-    it('renders with the specified className', () => {
-      expect(render({ className: 'testClass' })).to.have.className('testClass');
-    });
-  });
-});
+LabelComponent.propTypes = {
+  label: PropTypes.node,
+  children: PropTypes.node.isRequired
+};

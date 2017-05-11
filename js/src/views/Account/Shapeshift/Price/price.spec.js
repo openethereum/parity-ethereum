@@ -34,7 +34,7 @@ function render (props = {}) {
   return component;
 }
 
-describe('modals/Shapeshift/Price', () => {
+describe('views/Account/Shapeshift/Price', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });

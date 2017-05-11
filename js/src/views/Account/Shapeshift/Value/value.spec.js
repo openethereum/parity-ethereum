@@ -29,7 +29,7 @@ function render (props = {}) {
   return component;
 }
 
-describe('modals/Shapeshift/Value', () => {
+describe('views/Account/Shapeshift/Value', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });

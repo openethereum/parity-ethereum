@@ -33,7 +33,7 @@ function render () {
   return component;
 }
 
-describe('modals/Shapeshift/ErrorStep', () => {
+describe('views/Account/Shapeshift/ErrorStep', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });

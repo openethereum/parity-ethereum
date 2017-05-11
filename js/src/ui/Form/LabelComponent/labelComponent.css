@@ -14,20 +14,11 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.form {
-  width: 100%;
-}
 
-.autofill {
-  height: 0;
-  width: 1px;
-  position: absolute;
-  left: 0;
-  top: 0;
-  opacity: 0;
-}
-
-:root .form input:-webkit-autofill {
-  display: none;
-  opacity: 0;
+.container {
+  .label {
+    color: rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    user-select: none;
+  }
 }

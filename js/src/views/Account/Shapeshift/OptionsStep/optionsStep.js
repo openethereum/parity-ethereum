@@ -14,12 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { MenuItem } from 'material-ui';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Checkbox, Form, Input, Select, Warning } from '~/ui';
+import { Checkbox, Dropdown, Form, Input, Warning } from '~/ui';
 
 import Price from '../Price';
 import { WARNING_NO_PRICE } from '../store';
@@ -41,7 +40,8 @@ export default class OptionsStep extends Component {
   };
 
   render () {
-    const { coinSymbol, coins, hasAcceptedTerms, price, refundAddress, warning } = this.props.store;
+    const { coinSymbol, hasAcceptedTerms, price, refundAddress, warning } = this.props.store;
+    let { coins } = this.props.store;
 
     if (!coins.length) {
       return (
@@ -54,10 +54,12 @@ export default class OptionsStep extends Component {
       );
     }
 
+    coins = coins.map(this.renderCoinSelectItem);
+
     return (
       <div className={ styles.body }>
         <Form>
-          <Select
+          <Dropdown
             className={ styles.coinselector }
             hint={
               <FormattedMessage
@@ -71,13 +73,10 @@ export default class OptionsStep extends Component {
                 defaultMessage='fund account from'
               />
             }
+            options={ coins }
             onChange={ this.onSelectCoin }
             value={ coinSymbol }
-          >
-            {
-              coins.map(this.renderCoinSelectItem)
-            }
-          </Select>
+          />
           <Input
             hint={
               <FormattedMessage
@@ -119,40 +118,21 @@ export default class OptionsStep extends Component {
   renderCoinSelectItem = (coin) => {
     const { image, name, symbol } = coin;
 
-    const item = (
-      <div className={ styles.coinselect }>
-        <img
-          className={ styles.coinimage }
-          src={ image }
-        />
-        <div className={ styles.coindetails }>
-          <div className={ styles.coinsymbol }>
-            { symbol }
-          </div>
-          <div className={ styles.coinname }>
-            { name }
-          </div>
-        </div>
-      </div>
-    );
-
-    return (
-      <MenuItem
-        key={ symbol }
-        value={ symbol }
-        label={ item }
-      >
-        { item }
-      </MenuItem>
-    );
+    return {
+      image,
+      text: name,
+      value: symbol
+    };
   }
 
   onChangeRefundAddress = (event, refundAddress) => {
     this.props.store.setRefundAddress(refundAddress);
   }
 
-  onSelectCoin = (event, index, coinSymbol) => {
-    this.props.store.setCoinSymbol(coinSymbol);
+  onSelectCoin = (event, data) => {
+    const { value } = data;
+
+    this.props.store.setCoinSymbol(value);
   }
 
   onToggleAcceptTerms = () => {

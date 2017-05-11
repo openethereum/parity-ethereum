@@ -16,7 +16,6 @@
 
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
-import { Card } from 'material-ui/Card';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
@@ -50,7 +49,7 @@ export default class Container extends Component {
     }
 
     const card = (
-      <Card
+      <div
         className={
           compact
             ? styles.compact
@@ -61,7 +60,7 @@ export default class Container extends Component {
       >
         { this.renderTitle() }
         { children }
-      </Card>
+      </div>
     );
 
     return (
@@ -126,9 +125,9 @@ export default class Container extends Component {
     }
 
     return (
-      <Card className={ styles.hoverOverlay }>
+      <div className={ styles.hoverOverlay }>
         { hover }
-      </Card>
+      </div>
     );
   }
 
