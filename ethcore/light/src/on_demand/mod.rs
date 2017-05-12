@@ -481,7 +481,7 @@ impl Handler for OnDemand {
 		// for each incoming response
 		//   1. ensure verification data filled. (still TODO since on_demand doesn't use back-references yet)
 		//   2. pending.requests.supply_response
-		//   3. if extracted on-demand response
+		//   3. if extracted on-demand response, keep it for later.
 		for response in responses {
 			match pending.requests.supply_response(&*self.cache, response) {
 				Ok(response) => {
@@ -497,11 +497,13 @@ impl Handler for OnDemand {
 			}
 		}
 
+		pending.requests.fill_unanswered();
 		if pending.requests.is_complete() {
 			let _ = pending.sender.send(pending.responses);
 
 			return;
 		}
+
 
 		// update network requests (unless we're done, in which case fulfill the future.)
 		let mut builder = basic_request::RequestBuilder::default();

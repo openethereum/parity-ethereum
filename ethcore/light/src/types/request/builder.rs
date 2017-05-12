@@ -115,6 +115,15 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 				.expect("All outputs checked as invariant of `Requests` object; qed"))
 		}
 	}
+
+	/// Sweep through all unanswered requests, filling them as necessary.
+	pub fn fill_unanswered(&mut self) {
+		let outputs = &mut self.outputs;
+
+		for req in self.requests.iter_mut().skip(self.answered) {
+			req.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
+		}
+	}
 }
 
 impl<T: super::CheckedRequest> Requests<T> {
@@ -141,8 +150,8 @@ impl<T: super::CheckedRequest> Requests<T> {
 
 		self.answered += 1;
 
-		// fill as much of each remaining request as we can.
-		for req in self.requests.iter_mut().skip(self.answered) {
+		// fill as much of the next request as we can.
+		if let Some(ref mut req) = self.requests.get_mut(self.answered) {
 			req.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
 		}
 
