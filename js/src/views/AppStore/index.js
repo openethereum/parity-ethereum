@@ -45,35 +45,8 @@ import {
   Home
 } from './Components';
 
-/** Stylesheets **/
-import './index.css';
-
 /** Globals **/
 const store = initStore(api, hashHistory);
-
-// import ReactDOM from 'react-dom';
-// import React from 'react';
-// import { Route, Router, hashHistory } from 'react-router';
-//
-// import injectTapEventPlugin from 'react-tap-event-plugin';
-// injectTapEventPlugin();
-//
-// import ContractInstances from '@parity/shared/contracts';
-// import { initStore } from '@parity/shared/redux';
-//
-// import { api } from './parity';
-//
-// import ContextProvider from '~/ui/ContextProvider';
-// import muiTheme from '~/ui/Theme';
-//
-// import {
-//   Dapps,
-//   Home
-// } from './Components';
-//
-// ContractInstances.get(api);
-//
-// const store = initStore(api, hashHistory);
 
 ReactDOM.render(
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
