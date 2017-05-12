@@ -32,7 +32,7 @@ injectTapEventPlugin();
 // Will Turner: You knew my father.
 // Pintel: Old Bootstrap Bill? Aye, we knew 'im. Never sat well with ol' Bootstrap, what we did to Sparrow and all. That's why he sent a piece of the treasure off to you, as it were. He said that we deserved to be cursed... and remain cursed. A' course, that didnt sit too well with the captain.
 // Ragetti: No, that didn't sit to well with the cap'n at all... Tell 'im what Barbossa did.
-// Pintel: [angry] I'M TELLIN' THE STORY. So, what Barbossa did is, he tied a cannon to Bootstrap's bootstraps. 
+// Pintel: [angry] I'M TELLIN' THE STORY. So, what Barbossa did is, he tied a cannon to Bootstrap's bootstraps.
 // Ragetti: [snickering quietly] Bootstrap's bootstraps...
 // Pintel: And the last we saw of ol' Bill Turner, he was sinkin' into the crushing black oblivion of Davy Jones' Locker. Course, it was only after that we learned we needed his blood to lift the curse.
 // Ragetti: Now that's what you'd call ironic.
