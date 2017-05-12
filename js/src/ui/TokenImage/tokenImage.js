@@ -21,8 +21,7 @@ import IconCache from '~/ui/IconCache';
 
 const iconCache = IconCache.get();
 
-export default function TokenImage ({ token }, context) {
-  const { api } = context;
+export default function TokenImage ({ token }, { api }) {
   const imageurl = token.image || iconCache.images[token.address];
   let imagesrc = unknownImage;
 
