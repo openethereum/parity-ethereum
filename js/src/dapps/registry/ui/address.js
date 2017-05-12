@@ -15,20 +15,17 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
 
+import ApplicationStore from '../Application/application.store';
 import Hash from './hash';
 import etherscanUrl from '../util/etherscan-url';
 import IdentityIcon from '../IdentityIcon';
-import { nullableProptype } from '~/util/proptypes';
 
 import styles from './address.css';
 
-class Address extends Component {
+export default class Address extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
-    account: nullableProptype(PropTypes.object.isRequired),
-    netVersion: PropTypes.string.isRequired,
     big: PropTypes.bool,
     key: PropTypes.string,
     shortenHash: PropTypes.bool
@@ -39,6 +36,22 @@ class Address extends Component {
     key: 'address',
     shortenHash: true
   };
+
+  applicationStore = ApplicationStore.get();
+
+  state = {
+    account: null
+  };
+
+  componentWillMount () {
+    this.setAccount();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    if (this.props.address !== nextProps.address) {
+      this.setAccount(nextProps);
+    }
+  }
 
   render () {
     const { address, big, key } = this.props;
@@ -64,10 +77,11 @@ class Address extends Component {
   }
 
   renderCaption () {
-    const { address, account, netVersion, shortenHash } = this.props;
+    const { netVersion } = this.applicationStore;
+    const { address, shortenHash } = this.props;
 
-    if (account) {
-      const { name } = account;
+    if (this.state.account) {
+      const { name } = this.state.account;
 
       return (
         <a
@@ -96,33 +110,14 @@ class Address extends Component {
       </code>
     );
   }
+
+  setAccount (props = this.props) {
+    const { address } = props;
+    const lcAddress = address.toLowerCase();
+    const account = this.applicationStore.accounts.find((a) => a.address.toLowerCase() === lcAddress);
+
+    if (account) {
+      this.setState({ account });
+    }
+  }
 }
-
-function mapStateToProps (initState, initProps) {
-  const { accounts, contacts } = initState;
-
-  const allAccounts = Object.assign({}, accounts.all, contacts);
-
-  // Add lower case addresses to map
-  Object
-    .keys(allAccounts)
-    .forEach((address) => {
-      allAccounts[address.toLowerCase()] = allAccounts[address];
-    });
-
-  return (state, props) => {
-    const { netVersion } = state;
-    const { address = '' } = props;
-
-    const account = allAccounts[address] || null;
-
-    return {
-      account,
-      netVersion
-    };
-  };
-}
-
-export default connect(
-  mapStateToProps
-)(Address);

@@ -15,8 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import { Card, CardHeader, CardActions, CardText } from 'material-ui/Card';
 import Toggle from 'material-ui/Toggle';
 import moment from 'moment';
@@ -25,7 +23,6 @@ import { bytesToHex } from '../parity';
 import Hash from '../ui/hash';
 import Address from '../ui/address';
 
-import { subscribe, unsubscribe } from './actions';
 import styles from './events.css';
 
 const inlineButton = {
@@ -160,7 +157,7 @@ const eventTypes = {
   ReverseRemoved: renderReverse
 };
 
-class Events extends Component {
+export default class Events extends Component {
   static propTypes = {
     events: PropTypes.array.isRequired,
     pending: PropTypes.object.isRequired,
@@ -171,6 +168,12 @@ class Events extends Component {
   }
 
   render () {
+    return (
+      <div>
+        Events
+      </div>
+    );
+
     const { subscriptions, pending } = this.props;
 
     const eventsObject = this.props.events
@@ -308,8 +311,3 @@ class Events extends Component {
     }
   };
 }
-
-const mapStateToProps = (state) => state.events;
-const mapDispatchToProps = (dispatch) => bindActionCreators({ subscribe, unsubscribe }, dispatch);
-
-export default connect(mapStateToProps, mapDispatchToProps)(Events);

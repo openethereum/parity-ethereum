@@ -25,6 +25,7 @@ let instance;
 export default class ApplicationStore {
   @observable fee = null;
   @observable loading = false;
+  @observable netVersion = null;
   @observable owner = null;
 
   accounts = [];
@@ -34,6 +35,7 @@ export default class ApplicationStore {
   constructor () {
     this.fetchAccounts();
     this.fetchContract();
+    this.fetchNetVersion();
   }
 
   static get () {
@@ -95,6 +97,13 @@ export default class ApplicationStore {
       });
   }
 
+  fetchNetVersion () {
+    return this.api.net.version()
+      .then((netVersion) => {
+        this.setNetVersion(netVersion);
+      });
+  }
+
   fetchOwner () {
     if (!this.contract) {
       return;
@@ -119,6 +128,11 @@ export default class ApplicationStore {
   @action
   setLoading (loading) {
     this.loading = loading;
+  }
+
+  @action
+  setNetVersion (netVersion) {
+    this.netVersion = netVersion;
   }
 
   @action

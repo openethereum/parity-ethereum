@@ -18,37 +18,27 @@ import React, { Component, PropTypes } from 'react';
 
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
-const muiTheme = getMuiTheme(lightBaseTheme);
 
 import CircularProgress from 'material-ui/CircularProgress';
 
-import { api } from '../parity';
-
-import Accounts from '../Accounts';
+import ApplicationStore from './application.store';
 import Events from '../Events';
 import Lookup from '../Lookup';
-import Names from '../Names';
-import Records from '../Records';
-import Reverse from '../Reverse';
 import Prompt from '../Prompt';
-import ApplicationStore from './application.store';
 
 import styles from './application.css';
+
+const muiTheme = getMuiTheme(lightBaseTheme);
 
 @observer
 export default class Application extends Component {
   static childContextTypes = {
-    muiTheme: PropTypes.object.isRequired,
-    api: PropTypes.object.isRequired
+    muiTheme: PropTypes.object.isRequired
   };
 
   getChildContext () {
-    return { muiTheme, api };
+    return { muiTheme };
   }
-
-  static propTypes = {
-    accounts: PropTypes.object.isRequired
-  };
 
   state = {
     showWarning: true
@@ -70,7 +60,6 @@ export default class Application extends Component {
         <Prompt />
         <div className={ styles.header }>
           <h1>RΞgistry</h1>
-          <Accounts />
         </div>
         <div>
           <Lookup />
@@ -82,7 +71,7 @@ export default class Application extends Component {
   }
 
   renderWarning () {
-    const { fee } = this.applicationStore;
+    const { api, fee } = this.applicationStore;
     const { showWarning } = this.state;
 
     if (!showWarning) {
