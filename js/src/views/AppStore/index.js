@@ -16,18 +16,7 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-// import { Route, Router, hashHistory } from 'react-router';
-import { BrowserRouter as Router, Route } from 'react-router-dom';
-
-/** Application Initialization **/
-import injectTapEventPlugin from 'react-tap-event-plugin';
-import ContractInstances from '@parity/shared/contracts';
-import ContextProvider from '~/ui/ContextProvider';
-import { initStore } from '@parity/shared/redux';
-import muiTheme from '~/ui/Theme';
-import { api } from './parity';
-ContractInstances.get(api);
-injectTapEventPlugin();
+import { Route, Router, hashHistory } from 'react-router';
 
 /** Additional Frameworks **/
 // Will Turner: You knew my father.
@@ -40,21 +29,16 @@ injectTapEventPlugin();
 import 'bootstrap/dist/css/bootstrap.css';
 
 /** Components **/
-import App from './AppStore/App';
+// import App from './AppStore/App';
 import {
   Dapps,
   Home
 } from './Components';
 
-/** Globals **/
-// const store = initStore(api, hashHistory);
-
 ReactDOM.render(
-  <Router>
-    <App>
-      <Route exact path="/" component={Home} />
-      <Route path="/dapps/:appPath" component={Dapps} />
-    </App>
+  <Router history={ hashHistory }>
+    <Route path='/' component={ Home } />
+    <Route path='/dapps/:appPath' component={ Dapps } />
   </Router>,
   document.querySelector('#container')
 );
