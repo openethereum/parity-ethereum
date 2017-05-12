@@ -15,7 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
-import { Step } from 'semantic-ui-react';
+import { Step as SemanticStep } from 'semantic-ui-react';
+
+import Step from './Step';
 
 export default function Steps ({ activeStep, className, steps }) {
   if (!steps || steps.length < 2) {
@@ -24,24 +26,23 @@ export default function Steps ({ activeStep, className, steps }) {
 
   return (
     <div className={ className }>
-      <Step.Group ordered>
+      <SemanticStep.Group ordered>
         {
           steps.map((label, index) => (
             <Step
-              completed={ activeStep > index }
-              active={ activeStep === index }
+              isActive={ activeStep === index }
+              isCompleted={ activeStep > index }
               key={ label.key || index }
-            >
-              <Step.Content>
-                <Step.Title>{ label }</Step.Title>
-              </Step.Content>
-            </Step>
+              label={ label.label || label }
+            />
           ))
         }
-      </Step.Group>
+      </SemanticStep.Group>
     </div>
   );
 }
+
+Steps.Step = Step;
 
 Steps.propTypes = {
   activeStep: PropTypes.number,

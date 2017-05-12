@@ -14,26 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { List, ListItem, makeSelectable } from 'material-ui/List';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Portal, Tabs } from '@parity/ui';
+import { Button, List, Portal, Tabs } from '@parity/ui';
 import Editor from '@parity/ui/Editor';
 import { CancelIcon, CheckIcon, DeleteIcon } from '@parity/ui/Icons';
 
 import styles from './loadContract.css';
 
-const SelectableList = makeSelectable(List);
-
 const REMOVAL_STYLE = {
   backgroundColor: 'none',
   cursor: 'default'
 };
-const SELECTED_STYLE = {
-  backgroundColor: 'rgba(255, 255, 255, 0.1)'
-};
+
+// const SELECTED_STYLE = {
+//   backgroundColor: 'rgba(255, 255, 255, 0.1)'
+// };
 
 export default class LoadContract extends Component {
   static propTypes = {
@@ -114,26 +112,32 @@ export default class LoadContract extends Component {
         {
           this.state.activeTab === 0
             ? (
-              <SelectableList onChange={ this.onClickContract }>
-                <h4>
-                  <FormattedMessage
-                    id='loadContract.header.saved'
-                    defaultMessage='Saved Contracts'
-                  />
-                </h4>
-                { this.renderContracts(contracts) }
-              </SelectableList>
+              <List
+                label={
+                  <h4>
+                    <FormattedMessage
+                      id='loadContract.header.saved'
+                      defaultMessage='Saved Contracts'
+                    />
+                  </h4>
+                }
+                onChange={ this.onClickContract }
+                items={ this.renderContracts(contracts) }
+              />
             )
             : (
-              <SelectableList onChange={ this.onClickContract }>
-                <h4>
-                  <FormattedMessage
-                    id='loadContract.header.snippets'
-                    defaultMessage='Contract Snippets'
-                  />
-                </h4>
-                { this.renderContracts(snippets, false) }
-              </SelectableList>
+              <List
+                label={
+                  <h4>
+                    <FormattedMessage
+                      id='loadContract.header.snippets'
+                      defaultMessage='Contract Snippets'
+                    />
+                  </h4>
+                }
+                onClick={ this.onClickContract }
+                items={ this.renderContracts(snippets, false) }
+              />
             )
         }
       </div>
@@ -152,9 +156,9 @@ export default class LoadContract extends Component {
             defaultMessage='Are you sure you want to remove the following contract from your saved contracts?'
           />
         </p>
-        <ListItem
-          primaryText={ name }
-          secondaryText={
+        <List.Item
+          label={ name }
+          description={
             <FormattedMessage
               id='loadContract.removal.savedAt'
               defaultMessage='Saved {when}'
@@ -202,47 +206,31 @@ export default class LoadContract extends Component {
   }
 
   renderContracts (contracts, removable = true) {
-    const { selected } = this.state;
-
     return Object
       .values(contracts)
       .map((contract) => {
         const { id, name, timestamp, description } = contract;
         const onDelete = () => this.onDeleteRequest(id);
 
-        return (
-          <ListItem
-            key={ id }
-            primaryText={ name }
-            rightIconButton={
-              removable
-                ? (
-                  <Button
-                    icon={ <DeleteIcon /> }
-                    onClick={ onDelete }
-                  />
-                )
-                : null
-            }
-            secondaryText={
-              description || (
-                <FormattedMessage
-                  id='loadContract.contract.savedAt'
-                  defaultMessage='Saved {when}'
-                  values={ {
-                    when: moment(timestamp).fromNow()
-                  } }
-                />
-              )
-            }
-            style={
-              selected === id
-                ? SELECTED_STYLE
-                : null
-            }
-            value={ id }
-          />
-        );
+        return {
+          key: id,
+          label: name,
+          buttons: removable && (
+            <Button
+              icon={ <DeleteIcon /> }
+              onClick={ onDelete }
+            />
+          ),
+          description: description || (
+            <FormattedMessage
+              id='loadContract.contract.savedAt'
+              defaultMessage='Saved {when}'
+              values={ {
+                when: moment(timestamp).fromNow()
+              } }
+            />
+          )
+        };
       });
   }
 

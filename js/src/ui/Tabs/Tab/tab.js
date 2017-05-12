@@ -17,44 +17,25 @@
 import React, { PropTypes } from 'react';
 import { Menu } from 'semantic-ui-react';
 
-import Tab from './Tab';
-
-export default function Tabs ({ activeTab, className, tabs, onChange }) {
-  const onTabClick = (event, { index }) => onChange && onChange(event, index);
-
+export default function Tab ({ isActive, className, index, label, name, onClick, style }) {
   return (
-    <Menu
-      className={ className }
-      pointing
+    <Menu.Item
+      active={ isActive }
+      index={ index }
+      name={ name }
+      onClick={ onClick }
     >
-      {
-        tabs.map((tab, index) => {
-          if (!tab) {
-            return null;
-          }
-
-          const key = `tab_${index}`;
-
-          return (
-            <Tab
-              isActive={ activeTab === index }
-              index={ index }
-              key={ key }
-              label={ tab.label || tab }
-              onClick={ onTabClick }
-            />
-          );
-        })
-      }
-    </Menu>
+      { label }
+    </Menu.Item>
   );
 }
 
-Tabs.Tab = Tab;
-
-Tabs.propTypes = {
-  activeTab: PropTypes.number,
+Tab.propTypes = {
   className: PropTypes.string,
-  onChange: PropTypes.func,
-  tabs: PropTypes.array
+  index: PropTypes.number,
+  isActive: PropTypes.bool,
+  label: PropTypes.any,
+  name: PropTypes.string,
+  onClick: PropTypes.func,
+  style: PropTypes.object
 };

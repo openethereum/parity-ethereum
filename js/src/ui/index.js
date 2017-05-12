@@ -41,6 +41,7 @@ export Icons from './Icons';
 export IdentityIcon from './IdentityIcon';
 export IdentityName from './IdentityName';
 export LanguageSelector from './LanguageSelector';
+export List from './List';
 export Loading from './Loading';
 export MethodDecoding from './MethodDecoding';
 export { Busy as BusyStep, Completed as CompletedStep } from './Modal';

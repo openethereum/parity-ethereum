@@ -15,46 +15,27 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
-import { Menu } from 'semantic-ui-react';
+import { Step as SemanticStep } from 'semantic-ui-react';
 
-import Tab from './Tab';
-
-export default function Tabs ({ activeTab, className, tabs, onChange }) {
-  const onTabClick = (event, { index }) => onChange && onChange(event, index);
-
+export default function Step ({ className, isActive, isCompleted, label }) {
   return (
-    <Menu
+    <SemanticStep
       className={ className }
-      pointing
+      completed={ isCompleted }
+      active={ isActive }
     >
-      {
-        tabs.map((tab, index) => {
-          if (!tab) {
-            return null;
-          }
-
-          const key = `tab_${index}`;
-
-          return (
-            <Tab
-              isActive={ activeTab === index }
-              index={ index }
-              key={ key }
-              label={ tab.label || tab }
-              onClick={ onTabClick }
-            />
-          );
-        })
-      }
-    </Menu>
+      <SemanticStep.Content>
+        <SemanticStep.Title>
+          { label }
+        </SemanticStep.Title>
+      </SemanticStep.Content>
+    </SemanticStep>
   );
 }
 
-Tabs.Tab = Tab;
-
-Tabs.propTypes = {
-  activeTab: PropTypes.number,
+Step.propTypes = {
   className: PropTypes.string,
-  onChange: PropTypes.func,
-  tabs: PropTypes.array
+  isActive: PropTypes.bool,
+  isCompleted: PropTypes.bool,
+  label: PropTypes.node
 };
