@@ -83,7 +83,7 @@ export default class PasswordStrength extends Component {
         </label>
         <Progress
           color={ color }
-          determinate
+          isDeterminate
           style={ BAR_STYLE }
           value={ value }
         />

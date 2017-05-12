@@ -101,7 +101,7 @@ class Requests extends Component {
             : (
               <Progress
                 max={ 6 }
-                mode={ state.type === WAITING_STATE ? 'indeterminate' : 'determinate' }
+                isDeterminate={ state.type !== WAITING_STATE }
                 value={ state.type === DONE_STATE ? +request.blockHeight : 6 }
               />
             )
