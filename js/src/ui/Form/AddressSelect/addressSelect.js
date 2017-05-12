@@ -213,7 +213,14 @@ class AddressSelect extends Component {
                 onChange={ this.handleChange }
                 ref={ this.setInputRef }
               />
-              { this.renderLoader() }
+              {
+                this.store.loading && (
+                  <Loading
+                    className={ styles.loader }
+                    size='small'
+                  />
+                )
+              }
             </div>
 
             <div className={ styles.underline }>
@@ -231,19 +238,6 @@ class AddressSelect extends Component {
         { this.renderRegistryValues() }
         { this.renderAccounts() }
       </Portal>
-    );
-  }
-
-  renderLoader () {
-    if (!this.store.loading) {
-      return null;
-    }
-
-    return (
-      <Loading
-        className={ styles.loader }
-        size={ 0.5 }
-      />
     );
   }
 

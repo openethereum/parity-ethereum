@@ -100,7 +100,7 @@ class MethodDecoding extends Component {
     if (isLoading) {
       return (
         <div className={ styles.loading }>
-          <Loading size={ 1 } thickness={ 2 } />
+          <Loading />
         </div>
       );
     }

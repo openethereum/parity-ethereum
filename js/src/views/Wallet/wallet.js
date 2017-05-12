@@ -49,7 +49,7 @@ class WalletContainer extends Component {
 
     if (netVersion === '0') {
       return (
-        <Loading size={ 4 } />
+        <Loading size='large' />
       );
     }
 
@@ -193,7 +193,7 @@ class Wallet extends Component {
     if (!owners || !require) {
       return (
         <div style={ { marginTop: '4em' } }>
-          <Loading size={ 4 } />
+          <Loading size='large' />
         </div>
       );
     }

@@ -275,10 +275,7 @@ class ContractDevelop extends Component {
     if (selectedBuild < 0) {
       return (
         <div className={ `${styles.panel} ${styles.centeredMessage}` }>
-          <Loading
-            size={ 1.2 }
-            thickness={ 5 }
-          />
+          <Loading />
           <p>
             <FormattedMessage
               id='writeContract.title.loading'
@@ -313,10 +310,7 @@ class ContractDevelop extends Component {
       content = (
         <div className={ styles.panel }>
           <div className={ styles.centeredMessage }>
-            <Loading
-              size={ 1.2 }
-              thickness={ 5 }
-            />
+            <Loading />
             <p>
               <FormattedMessage
                 id='writeContract.title.solidity'
@@ -496,10 +490,7 @@ class ContractDevelop extends Component {
     if (compiling) {
       return (
         <div className={ styles.centeredMessage }>
-          <Loading
-            size={ 1.2 }
-            thickness={ 5 }
-          />
+          <Loading />
           <p>
             <FormattedMessage
               id='writeContract.compiling.busy'

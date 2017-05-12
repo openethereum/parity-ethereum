@@ -58,9 +58,7 @@ export default class Events extends Component {
     if (isLoading) {
       return (
         <Container title={ TITLE }>
-          <div>
-            <Loading size={ 2 } />
-          </div>
+          <Loading />
         </Container>
       );
     }

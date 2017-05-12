@@ -163,7 +163,7 @@ export default class CreateAccount extends Component {
 
     if (!accounts) {
       return (
-        <Loading className={ styles.selector } size={ 1 } />
+        <Loading className={ styles.selector } />
       );
     }
 
