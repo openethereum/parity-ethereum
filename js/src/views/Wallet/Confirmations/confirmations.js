@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { MenuItem, IconMenu } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
@@ -23,7 +22,7 @@ import { bindActionCreators } from 'redux';
 
 import { bytesToHex } from '@parity/api/util/format';
 import { confirmOperation, revokeOperation } from '@parity/shared/redux/providers/walletActions';
-import { Button, Container, InputAddress, IdentityIcon, Progress } from '@parity/ui';
+import { Container, Dropdown, InputAddress, IdentityIcon, Progress } from '@parity/ui';
 import TxRow from '@parity/ui/TxList/TxRow';
 
 import styles from '../wallet.css';
@@ -89,14 +88,13 @@ class WalletConfirmations extends Component {
       );
     }
 
-    return realConfirmations
-      .map((confirmation) => (
-        <WalletConfirmation
-          key={ confirmation.operation }
-          confirmation={ confirmation }
-          { ...others }
-        />
-      ));
+    return realConfirmations.map((confirmation) => (
+      <WalletConfirmation
+        key={ confirmation.operation }
+        confirmation={ confirmation }
+        { ...others }
+      />
+    ));
   }
 }
 
@@ -130,13 +128,9 @@ class WalletConfirmation extends Component {
     revokeOperation: PropTypes.func.isRequired
   };
 
-  state = {
-    openConfirm: false,
-    openRevoke: false
-  };
-
   render () {
     const { confirmation } = this.props;
+    const { pending } = confirmation;
     const confirmationsRows = [];
 
     const className = styles.light;
@@ -158,65 +152,30 @@ class WalletConfirmation extends Component {
             { confirmationsRows }
           </tbody>
         </table>
-        { this.renderPending() }
+        {
+          pending && (
+            <div className={ styles.pendingOverlay } />
+          )
+        }
       </div>
     );
   }
 
-  renderPending () {
-    const { pending } = this.props.confirmation;
-
-    if (!pending) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.pendingOverlay } />
-    );
-  }
-
-  handleOpenConfirm = () => {
-    this.setState({
-      openConfirm: true
-    });
-  }
-
-  handleCloseConfirm = () => {
-    this.setState({
-      openConfirm: false
-    });
-  }
-
-  handleOpenRevoke = () => {
-    this.setState({
-      openRevoke: true
-    });
-  }
-
-  handleCloseRevoke = () => {
-    this.setState({
-      openRevoke: false
-    });
-  }
-
-  handleConfirm = (e, item) => {
+  handleConfirm = (event, owner) => {
     const { confirmOperation, confirmation, address } = this.props;
-    const owner = item.props.value;
 
     confirmOperation(address, owner, confirmation.operation);
   }
 
-  handleRevoke = (e, item) => {
+  handleRevoke = (event, owner) => {
     const { revokeOperation, confirmation, address } = this.props;
-    const owner = item.props.value;
 
     revokeOperation(address, owner, confirmation.operation);
   }
 
   renderActions (confirmation, className) {
     const { owners, accounts } = this.props;
-    const { operation, confirmedBy, pending } = confirmation;
-    const { openConfirm, openRevoke } = this.state;
+    const { operation, confirmedBy } = confirmation;
 
     const addresses = Object.keys(accounts);
 
@@ -228,32 +187,6 @@ class WalletConfirmation extends Component {
       .filter((owner) => addresses.includes(owner))
       .filter((owner) => confirmedBy.includes(owner));
 
-    const confirmButton = (
-      <Button
-        onClick={ this.handleOpenConfirm }
-        label={
-          <FormattedMessage
-            id='wallet.confirmations.buttons.confirmAs'
-            defaultMessage='Confirm As...'
-          />
-        }
-        disabled={ pending || possibleConfirm.length === 0 }
-      />
-    );
-
-    const revokeButton = (
-      <Button
-        onClick={ this.handleOpenRevoke }
-        label={
-          <FormattedMessage
-            id='wallet.confirmations.buttons.revokeAs'
-            defaultMessage='Revoke As...'
-          />
-        }
-        disabled={ pending || possibleRevoke.length === 0 }
-      />
-    );
-
     return (
       <tr
         className={ className }
@@ -262,23 +195,30 @@ class WalletConfirmation extends Component {
         <td />
         <td colSpan={ 3 }>
           <div className={ styles.actions }>
-            <IconMenu
-              iconButtonElement={ confirmButton }
-              open={ openConfirm }
-              onRequestChange={ this.handleCloseConfirm }
-              onItemTouchTap={ this.handleConfirm }
-            >
-              { possibleConfirm.map((address) => this.renderAccountItem(address)) }
-            </IconMenu>
-
-            <IconMenu
-              iconButtonElement={ revokeButton }
-              open={ openRevoke }
-              onRequestChange={ this.handleCloseRevoke }
-              onItemTouchTap={ this.handleRevoke }
-            >
-              { possibleRevoke.map((address) => this.renderAccountItem(address)) }
-            </IconMenu>
+            <Dropdown
+              label={
+                <FormattedMessage
+                  id='wallet.confirmations.buttons.confirmAs'
+                  defaultMessage='Confirm As...'
+                />
+              }
+              onChange={ this.handleConfirm }
+              options={
+                possibleConfirm.map((address) => this.renderAccountItem(address))
+              }
+            />
+            <Dropdown
+              label={
+                <FormattedMessage
+                  id='wallet.confirmations.buttons.revokeAs'
+                  defaultMessage='Revoke As...'
+                />
+              }
+              onChange={ this.handleRevoke }
+              oprions={
+                possibleRevoke.map((address) => this.renderAccountItem(address))
+              }
+            />
           </div>
         </td>
         <td />
@@ -288,22 +228,22 @@ class WalletConfirmation extends Component {
 
   renderAccountItem (address) {
     const account = this.props.accounts[address];
+    const name = account.name.toUpperCase() || account.address;
 
-    return (
-      <MenuItem
-        key={ address }
-        value={ address }
-      >
+    return {
+      key: address,
+      label: (
         <div className={ styles.accountItem }>
           <IdentityIcon
             address={ address }
             center
             inline
           />
-          <span>{ account.name.toUpperCase() || account.address }</span>
+          <span>{ name }</span>
         </div>
-      </MenuItem>
-    );
+      ),
+      value: name
+    };
   }
 
   renderProgress (confirmation) {
@@ -398,18 +338,6 @@ class WalletConfirmation extends Component {
   renderConfirmedBy (confirmation, className) {
     const { operation, confirmedBy } = confirmation;
 
-    const confirmed = confirmedBy.map((owner) => (
-      <InputAddress
-        key={ owner }
-        value={ owner }
-        allowCopy={ false }
-        hideUnderline
-        disabled
-        small
-        text
-      />
-    ));
-
     return (
       <tr key={ `details_${operation}` } className={ className }>
         <td colSpan={ 5 } style={ { padding: 0 } }>
@@ -419,7 +347,19 @@ class WalletConfirmation extends Component {
             data-effect='solid'
             className={ styles.confirmed }
           >
-            { confirmed }
+            {
+              confirmedBy.map((owner) => (
+                <InputAddress
+                  key={ owner }
+                  value={ owner }
+                  allowCopy={ false }
+                  hideUnderline
+                  disabled
+                  small
+                  text
+                />
+              ))
+            }
           </div>
         </td>
       </tr>
