@@ -8,25 +8,25 @@ import Headlines from './Headlines/Headlines';
 import New from './New/New';
 
 /** Stylesheets **/
-import './Home.css';
+import styles from './Home.css';
 
 class Home extends Component {
   render () {
     return (
-      <div className='Home'>
+      <div className={ styles.Home }>
 
-        <div className='home-headlines col-md-12'>
+        <div className='col-md-12' id={ styles.homeHeadlines }>
           <div className='col-md-12'>
             <Headlines />
           </div>
         </div>
 
-        <div className='home-main col-md-12'>
-          <div className='home-catagories col-md-3'>
+        <div className='col-md-12' id={ styles.homeMain }>
+          <div className='col-md-3' id={ styles.homeCatagories }>
             <Catagories />
           </div>
 
-          <div className='home-featured-new col-md-9'>
+          <div className='col-md-9' id={ styles.homeFeaturedNew }>
             <Featured />
             <New />
           </div>

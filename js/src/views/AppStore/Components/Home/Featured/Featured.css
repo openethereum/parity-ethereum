@@ -9,7 +9,7 @@
   text-align: left;
 }
 
-.featured-text {
+.featuredText {
   font-size: 20px;
   background-color: #f7f7f5;
   margin-top: -15px;
@@ -17,4 +17,10 @@
   width: 100px;
   text-align: center;
   color: #999593;
+}
+
+.dappContent {
+  width: 100%;
+  overflow-x: scroll;
+  white-space: nowrap;
 }

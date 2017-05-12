@@ -1,39 +1,39 @@
 .FullApp {
-
+  text-align: center;
 }
 
-.top-margin {
+.topMargin {
   margin-top: 55px;
 }
 
-#app-icon {
+#appIcon {
   margin-top: 25px;
 }
 
-#app-icon svg {
+#appIcon svg {
   width: 128px;
   height: 128px;
 }
 
-#app-content-container {
+#appContentContainer {
   margin-top: 55px;
   padding-left: 20px;
   text-align: left;
   user-select: none;
 }
 
-#app-information-container {
+#appInformationContainer {
   margin-top: 55px;
   padding-right: 20px;
 }
 
-#app-header {
+#appHeader {
   font-size: 22px;
   user-select: none;
   pointer-events: none;
 }
 
-#app-content {
+#appContent {
   font-size: 16px;
   margin-top: 15px;
   pointer-events: none;
@@ -42,13 +42,13 @@
   overflow: auto;
 }
 
-#read-more-less {
+#readMoreLess {
   text-align: center;
   cursor: pointer;
   padding-top: 10px;
 }
 
-.right-side-border {
+.rightSideBorder {
   border-top: solid;
   border-width: 1px;
   border-color: #b9b4b2;
@@ -56,7 +56,7 @@
   user-select: none;
 }
 
-.right-side-border-top-margin {
+.rightSideBorderTopMargin {
   border-top: solid;
   border-width: 1px;
   border-color: #b9b4b2;
@@ -65,7 +65,7 @@
   user-select: none;
 }
 
-.right-side-header {
+.rightSideHeader {
   font-size: 22px;
   pointer-events: none;
   text-align: left;
@@ -78,25 +78,25 @@
   user-select: none;
 }
 
-.information-text {
+.informationText {
   padding: 3px 0;
   width: 250px;
   user-select: none;
 }
 
-.information-content {
+.informationContent {
   text-align: left;
   pointer-events: none;
   font-size: 14px;
   user-select: none;
 }
 
-#photo-container {
+#photoContainer {
   margin: 55px auto;
   user-select: none;
 }
 
-#photo-sized-container {
+#photoSizedContainer {
   position: relative;
   margin: 0px auto;
   padding-bottom: 75px;
@@ -111,18 +111,18 @@
   justify-content: center;
 }
 
-#photo-lg {
+#photoLg {
   width: 600px;
   height: 375px;
 }
 
-#photo-lg img {
+#photoLg img {
   width: 600px;
   height: 375px;
   border-radius: 10px;
 }
 
-#photo-gallery {
+#photoGallery {
   position: absolute;
   bottom: 0;
   width: 100%;
@@ -140,18 +140,10 @@
   margin: 0 15px;
 }
 
-.photo-border {
+.photoBorder {
   height: 100%;
   width: 1px;
   border-right: 1px solid rgba(0,0,0,0.2);
-}
-
-.photos-last {
-  position: relative;
-  height: 50px;
-  width: 75px;
-  margin: 0 15px;
-  border-right: none;
 }
 
 .photos img {
@@ -165,25 +157,25 @@
   width: 218px;
 }
 
-.mini-app {
+.miniApp {
   position: relative;
   width: 100%;
   height: 50px;
   margin: 10px 0;
 }
 
-.mini-app svg {
+.miniApp svg {
   width: 50px;
   height: 50px;
 }
 
-.mini-app-name {
+.miniAppName {
   position: absolute;
   left: 60px;
   top: 5px;
 }
 
-.mini-app-catagory {
+.miniAppCatagory {
   position: absolute;
   left: 60px;
   bottom: 5px;

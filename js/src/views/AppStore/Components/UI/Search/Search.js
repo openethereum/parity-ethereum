@@ -2,7 +2,7 @@
 import React, { Component } from 'react';
 
 /** Stylesheets **/
-import './Search.css';
+import styles from './Search.css';
 
 // type Props = {|
 //
@@ -19,7 +19,7 @@ class Search extends Component {
 
   render () {
     return (
-      <div className='Search' />
+      <div className={ styles.Search } />
     );
   }
 }

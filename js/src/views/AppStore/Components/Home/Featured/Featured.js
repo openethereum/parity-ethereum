@@ -5,18 +5,18 @@ import React, { Component } from 'react';
 import MedApp from '../../MedApp/MedApp';
 
 /** Stylesheets **/
-import './Featured.css';
+import styles from './Featured.css';
 
 class Featured extends Component {
   render () {
     return (
-      <div className='Featured'>
+      <div className={ styles.Featured }>
 
-        <div className='featured-text'>
+        <div className={ styles.featuredText }>
           Featured
         </div>
 
-        <div className='dapp-content'>
+        <div className={ styles.dappContent }>
           <MedApp hash='0x264D14eAbB717Ea34F1540757e364727fdC75eA4' />
           <MedApp hash='0x264D14eAbB717Ea34F1540757e364727fdC75eA4' />
           <MedApp hash='0x264D14eAbB717Ea34F1540757e364727fdC75eA4' />

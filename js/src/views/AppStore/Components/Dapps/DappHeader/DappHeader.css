@@ -1,4 +1,5 @@
 .DappHeader {
+  text-align: center;
   position: relative;
   background-color: white;
   background: linear-gradient(to bottom, #edebed 0%,#d6d4d6 100%);
@@ -10,20 +11,20 @@
   z-index: 1000;
 }
 
-.back-button {
+.backButton {
   position: absolute;
   left: 0px;
   top: 0px;
 }
 
-.back-button svg {
+.backButton svg {
   height: 47.5px;
   width: 47.5px;
   padding-left: 8px;
   cursor: pointer;
 }
 
-#back-name {
+#backName {
   position: absolute;
   left: 60px;
   top: -2px;
@@ -31,18 +32,18 @@
   font-weight: lighter;
 }
 
-.app-name {
+.appName {
   font-weight: lighter;
   font-size: 20px;
 }
 
-#dapp-header-search {
+#dappHeaderSearch {
   position: absolute;
   right: 10px;
   top: -2px;
 }
 
-#dapp-header-input {
+#dappHeaderInput {
   background: linear-gradient(to bottom, #FDFDFD 0%,#F1F1F1 100%);
   border-top: 1px solid #CECCCE;
   border-left: 1px solid #C7C6C7;
@@ -55,6 +56,6 @@
   padding-left: 30px;
 }
 
-#dapp-header-input:focus {
+#dappHeaderInput:focus {
   outline: none;
 }

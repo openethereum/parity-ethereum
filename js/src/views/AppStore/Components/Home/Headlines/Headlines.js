@@ -2,12 +2,12 @@
 import React, { Component } from 'react';
 
 /** Stylesheets **/
-import './Headlines.css';
+import styles from './Headlines.css';
 
 class Headlines extends Component {
   render () {
     return (
-      <div className='Headlines'>
+      <div className={ styles.Headlines }>
         Headlines
       </div>
     );

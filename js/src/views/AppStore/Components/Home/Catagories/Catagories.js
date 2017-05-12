@@ -2,12 +2,12 @@
 import React, { Component } from 'react';
 
 /** Stylesheets **/
-import './Catagories.css';
+import styles from './Catagories.css';
 
 class Catagories extends Component {
   render () {
     return (
-      <div className='Catagories'>
+      <div className={ styles.Catagories }>
         Catagories
       </div>
     );

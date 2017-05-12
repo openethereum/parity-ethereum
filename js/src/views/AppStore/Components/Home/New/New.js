@@ -5,18 +5,18 @@ import React, { Component } from 'react';
 import MedApp from '../../MedApp/MedApp';
 
 /** Stylesheets **/
-import './New.css';
+import styles from './New.css';
 
 class New extends Component {
   render () {
     return (
-      <div className='New'>
+      <div className={ styles.New }>
 
-        <div className='new-text'>
+        <div className={ styles.newText }>
           New
         </div>
 
-        <div className='dapp-content'>
+        <div className={ styles.dappContent }>
           <MedApp hash='0x264D14eAbB717Ea34F1540757e364727fdC75eA4' />
           <MedApp hash='0x264D14eAbB717Ea34F1540757e364727fdC75eA4' />
           <MedApp hash='0x264D14eAbB717Ea34F1540757e364727fdC75eA4' />

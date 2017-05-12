@@ -130,7 +130,7 @@ class FullApp extends Component {
                 <div className={ styles.photoBorder } />
                 <div className={ styles.photos } id={ styles.fourth }><img onClick={ () => { this.changePhoto(Photo4); } } src={ Photo4 } alt='Photo4' /></div>
                 <div className={ styles.photoBorder } />
-                <div className={ styles.photosLast } id={ styles.fifth } ><img onClick={ () => { this.changePhoto(Photo5); } } src={ Photo5 } alt='Photo5' /></div>
+                <div className={ styles.photos } id={ styles.fifth } ><img onClick={ () => { this.changePhoto(Photo5); } } src={ Photo5 } alt='Photo5' /></div>
                 {/* <div className={styles.photoBorder} /> */}
               </div>
             </div>

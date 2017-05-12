@@ -3,7 +3,7 @@ import React, { Component } from 'react';
 import { Link } from 'react-router';
 
 /** Stylesheets **/
-import './MedApp.css';
+import styles from './MedApp.css';
 
 type Props = {|
   hash: string
@@ -23,7 +23,7 @@ class MedApp extends Component {
 
     return (
       <Link to={ `/dapps/${hash}` }>
-        <div className='MedApp'>
+        <div className={ styles.MedApp }>
           MedApp
         </div>
       </Link>

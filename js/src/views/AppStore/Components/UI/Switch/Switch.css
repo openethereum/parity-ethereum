@@ -1,3 +1,20 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 .Switch {
   position: relative;
   margin: 15px auto;
@@ -9,7 +26,7 @@
   border: 1px solid rgba(0,0,0,0.07);
 }
 
-.switch-body-button {
+.switchBodyButton {
   position: absolute;
   left: 0;
   top: 0;
@@ -18,7 +35,7 @@
   transition: transform 600ms ease;
 }
 
-.switch-body {
+.switchBody {
   position: absolute;
   left: 0;
   top: 0;
@@ -29,7 +46,7 @@
   cursor: pointer;
 }
 
-#switch-button {
+#switchButton {
   position: absolute;
   left: 49px;
   top: -1px;
@@ -45,7 +62,7 @@
   z-index: 100;
 }
 
-#switch-center-button {
+#switchCenterButton {
   width: 15px;
   height: 15px;
   border-radius: 100%;
@@ -61,7 +78,7 @@
   transition: transform 600ms ease;
 }
 
-#switch-light {
+#switchLight {
   position: absolute;
   left: 11px;
   top: 10.5px;
@@ -72,7 +89,7 @@
   box-shadow: 0px 0px 5px 0px rgba(74,113,231,0.35);
 }
 
-#switch-right-button {
+#switchRightButton {
   position: absolute;
   left: 105px;
   top: 10.5px;

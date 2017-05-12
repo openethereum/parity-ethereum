@@ -1,17 +1,11 @@
 .Home {
-
+  text-align: center;
 }
 
-.home-headlines {
+#homeHeadlines {
   margin-bottom: 10px;
 }
 
-.home-main {
+#homeMain {
   margin: 10px 0px;
-}
-
-.dapp-content {
-  width: 100%;
-  overflow-x: scroll;
-  white-space: nowrap;
 }

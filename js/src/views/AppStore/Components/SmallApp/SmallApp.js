@@ -2,12 +2,12 @@
 import React, { Component } from 'react';
 
 /** Stylesheets **/
-import './SmallApp.css';
+import styles from './SmallApp.css';
 
 class SmallApp extends Component {
   render () {
     return (
-      <div className='SmallApp'>
+      <div className={styles.SmallApp }>
         SmallApp
       </div>
     );

@@ -10,7 +10,7 @@
   text-align: left;
 }
 
-.new-text {
+.newText {
   font-size: 20px;
   background-color: #f7f7f5;
   margin-top: -15px;
@@ -18,4 +18,10 @@
   width: 60px;
   text-align: center;
   color: #999593;
+}
+
+.dappContent {
+  width: 100%;
+  overflow-x: scroll;
+  white-space: nowrap;
 }
