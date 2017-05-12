@@ -17,9 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { arrayOrObjectProptype } from '@parity/shared//util/proptypes';
-
-import { ContainerTitle, SectionList } from '~/ui';
+import { arrayOrObjectProptype } from '@parity/shared/util/proptypes';
+import { ContainerTitle, SectionList } from '@parity/ui';
 
 import Dapp from './dapp';
 import styles from './dapps.css';

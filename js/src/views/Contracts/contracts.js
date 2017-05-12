@@ -21,9 +21,8 @@ import { bindActionCreators } from 'redux';
 import { uniq, isEqual } from 'lodash';
 
 import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
-
-import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
-import { AddIcon } from '~/ui/Icons';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '@parity/ui';
+import { AddIcon } from '@parity/ui/Icons';
 
 import List from '../Accounts/List';
 

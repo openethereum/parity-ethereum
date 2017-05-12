@@ -17,13 +17,10 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { IconButton } from 'material-ui';
-import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
-import { Form, Input, IdentityIcon } from '~/ui';
-import PasswordStrength from '~/ui/Form/PasswordStrength';
-import { RefreshIcon } from '~/ui/Icons';
-import Loading from '~/ui/Loading';
+import { Button, Form, Input, IdentityIcon, Loading, RadioButtons } from '@parity/ui';
+import PasswordStrength from '@parity/ui/Form/PasswordStrength';
+import { RefreshIcon } from '@parity/ui/Icons';
 
 import ChangeVault from '../ChangeVault';
 import styles from '../createAccount.css';
@@ -143,27 +140,21 @@ export default class CreateAccount extends Component {
       return null;
     }
 
-    const buttons = Object
-      .keys(accounts)
-      .map((address) => {
-        return (
-          <RadioButton
-            className={ styles.button }
-            key={ address }
-            value={ address }
-          />
-        );
-      });
-
     return (
-      <RadioButtonGroup
+      <RadioButtons
         className={ styles.selector }
         name='identitySelector'
         onChange={ this.onChangeIdentity }
-        valueSelected={ selectedAddress }
-      >
-        { buttons }
-      </RadioButtonGroup>
+        value={ selectedAddress }
+        values={
+          Object.keys(accounts).map((address) => {
+            return {
+              key: address,
+              label: address
+            };
+          })
+        }
+      />
     );
   }
 
@@ -176,30 +167,37 @@ export default class CreateAccount extends Component {
       );
     }
 
-    const identities = Object
-      .keys(accounts)
-      .map((address) => {
-        return (
-          <div
-            className={ styles.identity }
-            key={ address }
-            onTouchTap={ this.onChangeIdentity }
-          >
-            <IdentityIcon
-              address={ address }
-              center
-            />
-          </div>
-        );
-      });
-
     return (
       <div className={ styles.identities }>
-        { identities }
+        {
+          Object
+            .keys(accounts)
+            .map((address) => {
+              return (
+                <div
+                  className={ styles.identity }
+                  key={ address }
+                  onTouchTap={ this.onChangeIdentity }
+                >
+                  <IdentityIcon
+                    address={ address }
+                    center
+                  />
+                </div>
+              );
+            })
+        }
         <div className={ styles.refresh }>
-          <IconButton onTouchTap={ this.createIdentities }>
-            <RefreshIcon color='rgb(0, 151, 167)' />
-          </IconButton>
+          <Button
+            onClick={ this.createIdentities }
+            icon={ <RefreshIcon /> }
+            label={
+              <FormattedMessage
+                id='createAccount.newAccount.buttons.refresh'
+                defaultMessage='refresh'
+              />
+            }
+          />
         </div>
       </div>
     );
@@ -235,9 +233,8 @@ export default class CreateAccount extends Component {
       });
   }
 
-  onChangeIdentity = (event) => {
+  onChangeIdentity = (event, selectedAddress) => {
     const { createStore } = this.props;
-    const selectedAddress = event.target.value || event.target.getAttribute('value');
 
     if (!selectedAddress) {
       return;

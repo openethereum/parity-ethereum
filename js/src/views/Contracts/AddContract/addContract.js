@@ -21,9 +21,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '@parity/shared/redux/actions';
-
-import { Button, Form, Input, InputAddress, Portal, RadioButtons } from '~/ui';
-import { AddIcon, CancelIcon, NextIcon, PrevIcon } from '~/ui/Icons';
+import { Button, Form, Input, InputAddress, Portal, RadioButtons } from '@parity/ui';
+import { AddIcon, CancelIcon, NextIcon, PrevIcon } from '@parity/ui/Icons';
 
 import Store from './store';
 
@@ -81,12 +80,12 @@ class AddContract extends Component {
   }
 
   renderContractTypeSelector () {
-    const { abiTypeIndex, abiTypes } = this.store;
+    const { abiType, abiTypes } = this.store;
 
     return (
       <RadioButtons
         name='contractType'
-        value={ abiTypeIndex }
+        value={ abiType }
         values={ abiTypes }
         onChange={ this.onChangeABIType }
       />
@@ -242,8 +241,8 @@ class AddContract extends Component {
     this.store.prevStep();
   }
 
-  onChangeABIType = (value, index) => {
-    this.store.setAbiTypeIndex(index);
+  onChangeABIType = (event, abiType) => {
+    this.store.setAbiType(abiType);
   }
 
   onEditAbi = (abi) => {

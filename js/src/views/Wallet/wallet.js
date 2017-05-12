@@ -23,9 +23,8 @@ import moment from 'moment';
 import HistoryStore from '@parity/shared/mobx/historyStore';
 import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
 import { nullableProptype } from '@parity/shared/util/proptypes';
-
-import { Actionbar, Button, Page, Loading } from '~/ui';
-import { DeleteIcon, EditIcon, SendIcon, SettingsIcon } from '~/ui/Icons';
+import { Actionbar, Button, Page, Loading } from '@parity/ui';
+import { DeleteIcon, EditIcon, SendIcon, SettingsIcon } from '@parity/ui/Icons';
 
 import EditMeta from '../Account/EditMeta';
 import Transfer from '../Account/Transfer';

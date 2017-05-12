@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { CopyToClipboard, QrCode } from '~/ui';
+import { CopyToClipboard, QrCode } from '@parity/ui';
 
 import Value from '../Value';
 import styles from '../shapeshift.css';

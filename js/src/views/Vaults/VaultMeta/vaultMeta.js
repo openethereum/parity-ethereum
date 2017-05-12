@@ -21,10 +21,9 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '@parity/shared/redux/actions';
-
-import { Button, Checkbox, Form, Input, Portal, VaultCard } from '~/ui';
-import PasswordStrength from '~/ui/Form/PasswordStrength';
-import { CheckIcon, CloseIcon } from '~/ui/Icons';
+import { Button, Checkbox, Form, Input, Portal, VaultCard } from '@parity/ui';
+import PasswordStrength from '@parity/ui/Form/PasswordStrength';
+import { CheckIcon, CloseIcon } from '@parity/ui/Icons';
 
 import styles from '../VaultCreate/vaultCreate.css';
 

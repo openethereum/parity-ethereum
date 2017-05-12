@@ -25,10 +25,10 @@ import HistoryStore from '@parity/shared/mobx/historyStore';
 import { newError } from '@parity/shared/redux/actions';
 import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
 import { fetchCertifiers, fetchCertifications } from '@parity/shared/redux/providers/certifications/actions';
+import { Actionbar, Button, ConfirmDialog, Input, Page, Portal } from '@parity/ui';
+import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon, FileDownloadIcon } from '@parity/ui/Icons';
 
 import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
-import { Actionbar, Button, ConfirmDialog, Input, Page, Portal } from '~/ui';
-import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon, FileDownloadIcon } from '~/ui/Icons';
 
 import DeleteAccount from './DeleteAccount';
 import EditMeta from './EditMeta';

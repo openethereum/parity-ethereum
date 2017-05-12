@@ -22,9 +22,9 @@ import { bindActionCreators } from 'redux';
 
 import { newError } from '@parity/shared/redux/actions';
 import { personalAccountsInfo } from '@parity/shared/redux/providers/personalActions';
+import { AccountCard, Button, Portal, SelectionList } from '@parity/ui';
+import { CancelIcon, CheckIcon } from '@parity/ui/Icons';
 
-import { AccountCard, Button, Portal, SelectionList } from '~/ui';
-import { CancelIcon, CheckIcon } from '~/ui/Icons';
 import ExportInput from './exportInput';
 import ExportStore from './exportStore';
 

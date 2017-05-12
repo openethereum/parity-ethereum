@@ -17,8 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
+import { Container, TypedInput } from '@parity/ui';
+
 import InputQuery from './inputQuery';
-import { Container, TypedInput } from '~/ui';
 
 import styles from './queries.css';
 

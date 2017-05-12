@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { AddressSelect, Checkbox, Dropdown, Form, Input, TypedInput } from '~/ui';
+import { AddressSelect, Checkbox, Dropdown, Form, Input, TypedInput } from '@parity/ui';
 
 import styles from '../executeContract.css';
 

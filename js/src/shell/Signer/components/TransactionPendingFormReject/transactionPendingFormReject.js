@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button } from '~/ui';
+import { Button } from '@parity/ui';
 
 import styles from './transactionPendingFormReject.css';
 

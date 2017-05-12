@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Checkbox, Dropdown, Form, Input, Warning } from '~/ui';
+import { Checkbox, Dropdown, Form, Input, Warning } from '@parity/ui';
 
 import Price from '../Price';
 import { WARNING_NO_PRICE } from '../store';

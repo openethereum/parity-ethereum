@@ -18,11 +18,9 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { bytesToHex } from '@parity/api/util/format';
-
-import { Container } from '~/ui';
-import TxRow from '~/ui/TxList/TxRow';
-
-import txListStyles from '~/ui/TxList/txList.css';
+import { Container } from '@parity/ui';
+import TxRow from '@parity/ui/TxList/TxRow';
+import txListStyles from '@parity/ui/TxList/txList.css';
 
 export default class WalletTransactions extends Component {
   static propTypes = {

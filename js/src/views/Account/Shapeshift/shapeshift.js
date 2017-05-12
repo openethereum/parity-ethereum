@@ -18,9 +18,10 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
+import { Button, IdentityIcon, Portal } from '@parity/ui';
+import { CancelIcon, DoneIcon } from '@parity/ui/Icons';
+
 import shapeshiftLogo from '~/../assets/images/shapeshift-logo.png';
-import { Button, IdentityIcon, Portal } from '~/ui';
-import { CancelIcon, DoneIcon } from '~/ui/Icons';
 
 import AwaitingDepositStep from './AwaitingDepositStep';
 import AwaitingExchangeStep from './AwaitingExchangeStep';

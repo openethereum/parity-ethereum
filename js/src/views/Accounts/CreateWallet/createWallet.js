@@ -21,9 +21,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { setRequest } from '@parity/shared/redux/providers/requestsActions';
-
-import { Button, Portal } from '~/ui';
-import { CancelIcon, DoneIcon, NextIcon } from '~/ui/Icons';
+import { Button, Portal } from '@parity/ui';
+import { CancelIcon, DoneIcon, NextIcon } from '@parity/ui/Icons';
 
 import WalletType from './WalletType';
 import WalletDetails from './WalletDetails';

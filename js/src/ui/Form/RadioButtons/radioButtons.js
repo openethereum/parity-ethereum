@@ -14,101 +14,59 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
+import { Radio } from 'semantic-ui-react';
 
 import { arrayOrObjectProptype } from '@parity/shared/util/proptypes';
 
-import Label from '../Label';
+import LabelComponent from '../LabelComponent';
 import styles from './radioButtons.css';
 
-export default class RadioButtons extends Component {
-  static propTypes = {
-    className: PropTypes.string,
-    label: PropTypes.node,
-    name: PropTypes.string,
-    onChange: PropTypes.func.isRequired,
-    value: PropTypes.any,
-    values: arrayOrObjectProptype().isRequired
-  };
+export default function RadioButtons ({ className, label, name, onChange, value, values }) {
+  const _onChange = (event, { value }) => onChange(event, value);
 
-  static defaultProps = {
-    value: 0,
-    name: ''
-  };
-
-  render () {
-    const { className, label, value, values } = this.props;
-
-    const index = Number.isNaN(parseInt(value))
-      ? values.findIndex((_value) => _value.key === value)
-      : parseInt(value);
-    const selectedValue = typeof value !== 'object'
-      ? values[index]
-      : value;
-    const key = this.getKey(selectedValue, index);
-
-    return (
-      <div className={ [styles.container, className].join(' ') }>
-        <Label
-          className={ styles.label }
-          label={ label }
-        />
-        <RadioButtonGroup
-          name={ name }
-          onChange={ this.onChange }
-          valueSelected={ key }
-        >
-          { this.renderContent() }
-        </RadioButtonGroup>
-      </div>
-    );
-  }
-
-  renderContent () {
-    const { values } = this.props;
-
-    return values.map((value, index) => {
-      const label = typeof value === 'string'
-        ? value
-        : value.label || '';
-      const description = (typeof value !== 'string' && value.description) || null;
-      const key = this.getKey(value, index);
-
-      return (
-        <RadioButton
-          className={ styles.radioButton }
-          key={ index }
-          label={
-            <div className={ styles.radioLabel }>
-              <span>{ label }</span>
-              {
-                description
-                ? <span className={ styles.description }>{ description }</span>
-                : null
+  return (
+    <LabelComponent
+      className={ [styles.container, className].join(' ') }
+      label={ label }
+    >
+      {
+        values.map(({ description, key, label }) => (
+          <div
+            className={ styles.radioContainer }
+            key={ key }
+          >
+            <Radio
+              checked={ value === key }
+              className={ styles.radio }
+              label={
+                <label className={ styles.label }>
+                  <div className={ styles.name }>{ label }</div>
+                  {
+                    description && (
+                      <div className={ styles.description }>
+                        { description }
+                      </div>
+                    )
+                  }
+                </label>
               }
-            </div>
-          }
-          value={ key }
-        />
-      );
-    });
-  }
-
-  getKey (value, index) {
-    if (typeof value !== 'string') {
-      return typeof value.key === 'undefined'
-        ? index
-        : value.key;
-    }
-
-    return index;
-  }
-
-  onChange = (event, index) => {
-    const { onChange, values } = this.props;
-    const value = values[index] || values.find((value) => value.key === index);
-
-    onChange(value, index);
-  }
+              name={ name }
+              onChange={ _onChange }
+              value={ key }
+            />
+          </div>
+        ))
+      }
+    </LabelComponent>
+  );
 }
+
+RadioButtons.propTypes = {
+  className: PropTypes.string,
+  label: PropTypes.node,
+  name: PropTypes.string.isRequired,
+  onChange: PropTypes.func.isRequired,
+  value: PropTypes.any,
+  values: arrayOrObjectProptype().isRequired
+};

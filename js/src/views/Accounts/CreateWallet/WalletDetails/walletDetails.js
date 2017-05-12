@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Form, TypedInput, Input, AddressSelect, InputAddress } from '~/ui';
+import { Form, TypedInput, Input, AddressSelect, InputAddress } from '@parity/ui';
 
 import styles from '../createWallet.css';
 

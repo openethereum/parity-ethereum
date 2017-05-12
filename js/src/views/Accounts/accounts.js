@@ -24,9 +24,8 @@ import { bindActionCreators } from 'redux';
 
 import HardwareStore from '@parity/shared/mobx/hardwareStore';
 import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
-
-import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
-import { AddIcon, FileDownloadIcon } from '~/ui/Icons';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '@parity/ui';
+import { AddIcon, FileDownloadIcon } from '@parity/ui/Icons';
 
 import CreateWallet from './CreateWallet';
 import CreateAccount from './CreateAccount';

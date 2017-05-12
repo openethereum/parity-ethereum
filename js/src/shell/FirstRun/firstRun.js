@@ -22,10 +22,10 @@ import { bindActionCreators } from 'redux';
 
 import { createIdentityImg } from '@parity/api/util/identity';
 import { newError } from '@parity/shared/redux/actions';
+import { Button, Portal } from '@parity/ui';
+import { CheckIcon, DoneIcon, NextIcon, PrintIcon } from '@parity/ui/Icons';
 
 import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
-import { Button, Portal } from '~/ui';
-import { CheckIcon, DoneIcon, NextIcon, PrintIcon } from '~/ui/Icons';
 
 // FIXME: These imports, while nice for re-using, breaks since the shell import
 import { NewAccount, AccountDetails } from '~/views/Accounts/CreateAccount';
