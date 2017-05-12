@@ -17,8 +17,8 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 
-import { Button, DappUrlInput } from '~/ui';
-import { CloseIcon, RefreshIcon, GotoIcon } from '~/ui/Icons';
+import { Button, DappUrlInput } from '@parity/ui';
+import { CloseIcon, RefreshIcon, GotoIcon } from '@parity/ui/Icons';
 
 @observer
 export default class AddressBar extends Component {

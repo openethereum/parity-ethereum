@@ -23,12 +23,11 @@ import { bindActionCreators } from 'redux';
 
 import { bytesToHex } from '@parity/api/util/format';
 import { confirmOperation, revokeOperation } from '@parity/shared/redux/providers/walletActions';
-
-import { Button, Container, InputAddress, IdentityIcon, Progress } from '~/ui';
-import TxRow from '~/ui/TxList/TxRow';
+import { Button, Container, InputAddress, IdentityIcon, Progress } from '@parity/ui';
+import TxRow from '@parity/ui/TxList/TxRow';
 
 import styles from '../wallet.css';
-import txListStyles from '~/ui/TxList/txList.css';
+import txListStyles from '@parity/ui/TxList/txList.css';
 
 class WalletConfirmations extends Component {
   static contextTypes = {

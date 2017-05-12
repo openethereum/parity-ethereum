@@ -20,8 +20,8 @@ import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
 import { observable } from 'mobx';
 
-import { Button, IdentityIcon, Portal, RadioButtons } from '~/ui';
-import { CancelIcon, DoneIcon } from '~/ui/Icons';
+import { Button, IdentityIcon, Portal, RadioButtons } from '@parity/ui';
+import { CancelIcon, DoneIcon } from '@parity/ui/Icons';
 
 import SMSVerificationStore from './sms-store';
 import EmailVerificationStore from './email-store';

@@ -18,11 +18,9 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { nullableProptype } from '@parity/shared/util/proptypes';
+import TxHash from '@parity/ui/TxHash';
 
-import TxHash from '~/ui/TxHash';
-import {
-  POSTING_CONFIRMATION, POSTED_CONFIRMATION
-} from '../store';
+import { POSTING_CONFIRMATION, POSTED_CONFIRMATION } from '../store';
 
 import styles from './sendConfirmation.css';
 

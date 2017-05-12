@@ -18,10 +18,9 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Form, Input, IdentityIcon, RadioButtons } from '~/ui';
-import PasswordStrength from '~/ui/Form/PasswordStrength';
-import { RefreshIcon } from '~/ui/Icons';
-import Loading from '~/ui/Loading';
+import { Button, Form, Input, IdentityIcon, Loading, RadioButtons } from '@parity/ui';
+import PasswordStrength from '@parity/ui/Form/PasswordStrength';
+import { RefreshIcon } from '@parity/ui/Icons';
 
 import ChangeVault from '../ChangeVault';
 import styles from '../createAccount.css';

@@ -18,10 +18,9 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { ERRORS, validateName } from '@parity/shared/util/validation';
-
-import { Button, Form, Input, Portal } from '~/ui';
-import Editor from '~/ui/Editor';
-import { CancelIcon, SaveIcon } from '~/ui/Icons';
+import { Button, Form, Input, Portal } from '@parity/ui';
+import Editor from '@parity/ui/Editor';
+import { CancelIcon, SaveIcon } from '@parity/ui/Icons';
 
 import styles from './saveContract.css';
 

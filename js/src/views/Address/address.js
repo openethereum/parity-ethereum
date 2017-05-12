@@ -20,9 +20,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
-
-import { Actionbar, Button, Page } from '~/ui';
-import { AddIcon, DeleteIcon, EditIcon } from '~/ui/Icons';
+import { Actionbar, Button, Page } from '@parity/ui';
+import { AddIcon, DeleteIcon, EditIcon } from '@parity/ui/Icons';
 
 import EditMeta from '../Account/EditMeta';
 import Header from '../Account/Header';

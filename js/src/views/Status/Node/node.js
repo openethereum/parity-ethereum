@@ -20,7 +20,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { Container, ContainerTitle, Input } from '~/ui';
+import { Container, ContainerTitle, Input } from '@parity/ui';
 
 import MiningSettings from '../MiningSettings';
 import StatusStore from './store';

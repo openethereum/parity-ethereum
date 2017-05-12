@@ -20,10 +20,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { updateBackground } from '@parity/shared/redux/providers/settings/actions';
-
-import { Button, Container } from '~/ui';
-import ParityBackground from '~/ui/ParityBackground';
-import { RefreshIcon } from '~/ui/Icons';
+import { Button, Container, ParityBackground } from '@parity/ui';
+import { RefreshIcon } from '@parity/ui/Icons';
 
 import layout from '../layout.css';
 import styles from './background.css';

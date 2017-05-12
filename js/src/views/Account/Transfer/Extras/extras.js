@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { GasPriceEditor, Form, Input } from '~/ui';
+import { GasPriceEditor, Form, Input } from '@parity/ui';
 
 import styles from '../transfer.css';
 

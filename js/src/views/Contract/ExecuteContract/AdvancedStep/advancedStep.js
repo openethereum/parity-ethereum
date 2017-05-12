@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { GasPriceEditor } from '~/ui';
+import { GasPriceEditor } from '@parity/ui';
 
 import styles from '../executeContract.css';
 

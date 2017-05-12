@@ -23,9 +23,8 @@ import { toWei } from '@parity/api/util/wei';
 import { MAX_GAS_ESTIMATION } from '@parity/shared/util/constants';
 import { validateAddress, validateUint } from '@parity/shared/util/validation';
 import { parseAbiType } from '@parity/shared/util/abi';
-
-import { Button, GasPriceEditor, IdentityIcon, Portal, Warning } from '~/ui';
-import { CancelIcon, NextIcon, PrevIcon } from '~/ui/Icons';
+import { Button, GasPriceEditor, IdentityIcon, Portal, Warning } from '@parity/ui';
+import { CancelIcon, NextIcon, PrevIcon } from '@parity/ui/Icons';
 
 import AdvancedStep from './AdvancedStep';
 import DetailsStep from './DetailsStep';

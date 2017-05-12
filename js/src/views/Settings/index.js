@@ -22,9 +22,8 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
 
 import { initStore } from '@parity/shared/redux';
-
-import ContextProvider from '~/ui/ContextProvider';
-import muiTheme from '~/ui/Theme';
+import ContextProvider from '@parity/ui/ContextProvider';
+import muiTheme from '@parity/ui/Theme';
 
 import { api } from './parity';
 

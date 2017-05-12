@@ -21,9 +21,9 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '@parity/shared/redux/actions';
+import { Button, Form, Input, InputChip, Portal, VaultSelect } from '@parity/ui';
+import { CancelIcon, SaveIcon } from '@parity/ui/Icons';
 
-import { Button, Form, Input, InputChip, Portal, VaultSelect } from '~/ui';
-import { CancelIcon, SaveIcon } from '~/ui/Icons';
 import VaultStore from '~/views/Vaults/store';
 
 import Store from './store';

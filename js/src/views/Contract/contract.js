@@ -22,10 +22,9 @@ import BigNumber from 'bignumber.js';
 
 import { newError } from '@parity/shared/redux/actions';
 import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
-
-import { Actionbar, Button, Page, Portal } from '~/ui';
-import { CancelIcon, DeleteIcon, EditIcon, PlayIcon, VisibleIcon } from '~/ui/Icons';
-import Editor from '~/ui/Editor';
+import { Actionbar, Button, Page, Portal } from '@parity/ui';
+import { CancelIcon, DeleteIcon, EditIcon, PlayIcon, VisibleIcon } from '@parity/ui/Icons';
+import Editor from '@parity/ui/Editor';
 
 import EditMeta from '../Account/EditMeta';
 import Header from '../Account/Header';

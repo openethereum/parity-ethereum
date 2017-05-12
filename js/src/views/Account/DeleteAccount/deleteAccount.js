@@ -20,8 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '@parity/shared/redux/actions';
-
-import { ConfirmDialog, IdentityIcon, IdentityName, Input } from '~/ui';
+import { ConfirmDialog, IdentityIcon, IdentityName, Input } from '@parity/ui';
 
 import styles from './deleteAccount.css';
 

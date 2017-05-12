@@ -22,11 +22,10 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError, openSnackbar } from '@parity/shared/redux/actions';
-
-import { Button, IdentityName, IdentityIcon, Portal } from '~/ui';
-import PasswordStrength from '~/ui/Form/PasswordStrength';
-import Form, { Input } from '~/ui/Form';
-import { CancelIcon, CheckIcon, SendIcon } from '~/ui/Icons';
+import { Button, IdentityName, IdentityIcon, Portal } from '@parity/ui';
+import PasswordStrength from '@parity/ui/Form/PasswordStrength';
+import Form, { Input } from '@parity/ui/Form';
+import { CancelIcon, CheckIcon, SendIcon } from '@parity/ui/Icons';
 
 import Store, { CHANGE_ACTION, TEST_ACTION } from './store';
 import styles from './passwordManager.css';

@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { Container, TxList, Loading } from '~/ui';
+import { Container, TxList, Loading } from '@parity/ui';
 
 import Store from './store';
 import styles from './transactions.css';

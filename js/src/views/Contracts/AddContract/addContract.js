@@ -21,9 +21,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '@parity/shared/redux/actions';
-
-import { Button, Form, Input, InputAddress, Portal, RadioButtons } from '~/ui';
-import { AddIcon, CancelIcon, NextIcon, PrevIcon } from '~/ui/Icons';
+import { Button, Form, Input, InputAddress, Portal, RadioButtons } from '@parity/ui';
+import { AddIcon, CancelIcon, NextIcon, PrevIcon } from '@parity/ui/Icons';
 
 import Store from './store';
 

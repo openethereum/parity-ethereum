@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Form, FileSelect, Input } from '~/ui';
+import { Form, FileSelect, Input } from '@parity/ui';
 
 import ChangeVault from '../ChangeVault';
 import styles from '../createAccount.css';

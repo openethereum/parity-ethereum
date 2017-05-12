@@ -18,7 +18,8 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { SectionList } from '~/ui';
+import { SectionList } from '@parity/ui';
+
 import GethCard from '../GethCard';
 
 import styles from '../createAccount.css';

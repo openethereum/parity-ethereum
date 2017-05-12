@@ -19,8 +19,8 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Container, Dropdown, LanguageSelector } from '~/ui';
-import Features, { FeaturesStore, FEATURES } from '~/ui/Features';
+import { Container, Dropdown, LanguageSelector } from '@parity/ui';
+import Features, { FeaturesStore, FEATURES } from '@parity/ui/Features';
 
 import Store, { LOGLEVEL_OPTIONS } from './store';
 import layout from '../layout.css';
