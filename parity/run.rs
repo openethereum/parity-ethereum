@@ -20,7 +20,7 @@ use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use parity_rpc::{NetworkSettings, informant, is_major_importing};
 use ethsync::NetworkConfiguration;
-use util::{self, Colour, version, Mutex, Condvar};
+use util::{Colour, version, Mutex, Condvar};
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore::miner::{StratumOptions, Stratum};
@@ -811,7 +811,7 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 }
 
 fn insert_dev_account(account_provider: &AccountProvider) {
-	let secret = ethkey::Secret::from_slice(&util::H256::from("4d5db4107d237df6a3d58ee5f70ae63d73d7658d4026f2eefd2f204c81682cb7")).unwrap();
+	let secret: ethkey::Secret = "4d5db4107d237df6a3d58ee5f70ae63d73d7658d4026f2eefd2f204c81682cb7".into();
 	let dev_account = ethkey::KeyPair::from_secret(secret.clone()).expect("Valid secret produces valid key;qed");
 	if let Ok(false) = account_provider.has_account(dev_account.address()) {
 		match account_provider.insert_account(secret, "") {
