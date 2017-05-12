@@ -26,8 +26,8 @@ export default function Tabs ({ activeTab, className, tabs, onChange }) {
       pointing
     >
       {
-        tabs.map((label, index) => {
-          if (!label) {
+        tabs.map((tab, index) => {
+          if (!tab) {
             return null;
           }
 
@@ -41,7 +41,7 @@ export default function Tabs ({ activeTab, className, tabs, onChange }) {
               name={ key }
               onClick={ onTabClick }
             >
-              { label }
+              { tab.label || tab }
             </Menu.Item>
           );
         })
