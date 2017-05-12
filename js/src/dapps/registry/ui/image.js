@@ -82,4 +82,4 @@ export default class Image extends Component {
   handleError = () => {
     this.setState({ error: true });
   };
-};
+}
