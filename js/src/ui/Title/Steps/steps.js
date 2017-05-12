@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
-import { Step, Stepper, StepLabel } from 'material-ui/Stepper';
+import { Step } from 'semantic-ui-react';
 
 import styles from '../title.css';
 
@@ -26,19 +26,21 @@ export default function Steps ({ activeStep, steps }) {
 
   return (
     <div className={ styles.steps }>
-      <Stepper activeStep={ activeStep }>
+      <Step.Group ordered>
         {
-          steps.map((label, index) => {
-            return (
-              <Step key={ label.key || index }>
-                <StepLabel>
-                  { label }
-                </StepLabel>
-              </Step>
-            );
-          })
+          steps.map((label, index) => (
+            <Step
+              completed={ activeStep > index }
+              active={ activeStep === index }
+              key={ label.key || index }
+            >
+              <Step.Content>
+                <Step.Title>{ label }</Step.Title>
+              </Step.Content>
+            </Step>
+          ))
         }
-      </Stepper>
+      </Step.Group>
     </div>
   );
 }
