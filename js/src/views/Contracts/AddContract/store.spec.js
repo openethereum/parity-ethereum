@@ -41,7 +41,7 @@ describe('views/Contracts/AddContract/Store', () => {
     });
 
     it('defaults to custom ABI', () => {
-      expect(store.abiType.type).to.equal('custom');
+      expect(store.abiType).to.equal('custom');
     });
   });
 
@@ -113,12 +113,6 @@ describe('views/Contracts/AddContract/Store', () => {
   });
 
   describe('@computed', () => {
-    describe('abiType', () => {
-      it('matches the index', () => {
-        expect(store.abiType).to.deep.equal(store.abiTypes[2]);
-      });
-    });
-
     describe('hasError', () => {
       beforeEach(() => {
         store.setAddress(VALID_ADDR);

@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 import React, { PropTypes } from 'react';
+import { Radio } from 'semantic-ui-react';
 
 import { arrayOrObjectProptype } from '@parity/shared/util/proptypes';
 
@@ -23,36 +23,41 @@ import LabelComponent from '../LabelComponent';
 import styles from './radioButtons.css';
 
 export default function RadioButtons ({ className, label, name, onChange, value, values }) {
+  const _onChange = (event, { value }) => onChange(event, value);
+
   return (
     <LabelComponent
       className={ [styles.container, className].join(' ') }
       label={ label }
     >
-      <RadioButtonGroup
-        name={ name }
-        onChange={ onChange }
-        valueSelected={ value }
-      >
-        {
-          values.map(({ description, key, label }) => (
-            <RadioButton
-              className={ styles.radioButton }
-              key={ key }
+      {
+        values.map(({ description, key, label }) => (
+          <div
+            className={ styles.radioContainer }
+            key={ key }
+          >
+            <Radio
+              checked={ value === key }
+              className={ styles.radio }
               label={
-                <div className={ styles.radioLabel }>
-                  <span>{ label }</span>
+                <label className={ styles.label }>
+                  <div className={ styles.name }>{ label }</div>
                   {
-                    description
-                      ? <span className={ styles.description }>{ description }</span>
-                      : null
+                    description && (
+                      <div className={ styles.description }>
+                        { description }
+                      </div>
+                    )
                   }
-                </div>
+                </label>
               }
+              name={ name }
+              onChange={ _onChange }
               value={ key }
             />
-          ))
-        }
-      </RadioButtonGroup>
+          </div>
+        ))
+      }
     </LabelComponent>
   );
 }
