@@ -26,7 +26,7 @@ ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
 vergen = "0.1"
 target_info = "0.1"
-ethcore-bigint = { path = "bigint" }
+ethcore-bigint = "0.1.2"
 parking_lot = "0.4"
 using_queue = { path = "using_queue" }
 table = { path = "table" }
