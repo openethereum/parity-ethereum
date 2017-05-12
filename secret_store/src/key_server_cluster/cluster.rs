@@ -16,7 +16,7 @@
 
 use std::io;
 use std::time;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::collections::btree_map::Entry;
@@ -27,8 +27,8 @@ use parking_lot::{RwLock, Mutex};
 use tokio_io::IoFuture;
 use tokio_core::reactor::{Handle, Remote, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
-use ethkey::{Secret, KeyPair, Signature, Random, Generator};
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage};
+use ethkey::{Public, Secret, KeyPair, Signature, Random, Generator};
+use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, DocumentEncryptedKeyShadow};
 use key_server_cluster::message::{self, Message, ClusterMessage, EncryptionMessage, DecryptionMessage};
 use key_server_cluster::decryption_session::{SessionImpl as DecryptionSessionImpl, SessionState as DecryptionSessionState,
 	SessionParams as DecryptionSessionParams, Session as DecryptionSession, DecryptionSessionId};
@@ -234,6 +234,28 @@ pub struct Connection {
 	key: KeyPair,
 	/// Last message time.
 	last_message_time: Mutex<time::Instant>,
+}
+
+/// Encryption session implementation, which removes session from cluster on drop.
+struct EncryptionSessionWrapper {
+	/// Wrapped session.
+	session: Arc<EncryptionSession>,
+	/// Session Id.
+	session_id: SessionId,
+	/// Cluster data reference.
+	cluster: Weak<ClusterData>,
+}
+
+/// Decryption session implementation, which removes session from cluster on drop.
+struct DecryptionSessionWrapper {
+	/// Wrapped session.
+	session: Arc<DecryptionSession>,
+	/// Session Id.
+	session_id: SessionId,
+	/// Session sub id.
+	access_key: Secret,
+	/// Cluster data reference.
+	cluster: Weak<ClusterData>,
 }
 
 impl ClusterCore {
@@ -1011,9 +1033,9 @@ impl ClusterClient for ClusterClientImpl {
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.new_encryption_session(self.data.self_key_pair.public().clone(), session_id, cluster)?;
+		let session = self.data.sessions.new_encryption_session(self.data.self_key_pair.public().clone(), session_id.clone(), cluster)?;
 		session.initialize(threshold, connected_nodes)?;
-		Ok(session)
+		Ok(EncryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
 	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
@@ -1022,9 +1044,9 @@ impl ClusterClient for ClusterClientImpl {
 
 		let access_key = Random.generate()?.secret().clone();
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.new_decryption_session(self.data.self_key_pair.public().clone(), session_id, access_key, cluster)?;
+		let session = self.data.sessions.new_decryption_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), cluster)?;
 		session.initialize(requestor_signature, is_shadow_decryption)?;
-		Ok(session)
+		Ok(DecryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, access_key, session))
 	}
 
 	#[cfg(test)]
@@ -1040,6 +1062,64 @@ impl ClusterClient for ClusterClientImpl {
 	#[cfg(test)]
 	fn encryption_session(&self, session_id: &SessionId) -> Option<Arc<EncryptionSessionImpl>> {
 		self.data.sessions.encryption_session(session_id)
+	}
+}
+
+impl EncryptionSessionWrapper {
+	pub fn new(cluster: Weak<ClusterData>, session_id: SessionId, session: Arc<EncryptionSession>) -> Arc<Self> {
+		Arc::new(EncryptionSessionWrapper {
+			session: session,
+			session_id: session_id,
+			cluster: cluster,
+		})
+	}
+}
+
+impl EncryptionSession for EncryptionSessionWrapper {
+	fn state(&self) -> EncryptionSessionState {
+		self.session.state()
+	}
+
+	fn wait(&self, timeout: Option<time::Duration>) -> Result<Public, Error> {
+		self.session.wait(timeout)
+	}
+
+	#[cfg(test)]
+	fn joint_public_key(&self) -> Option<Result<Public, Error>> {
+		self.session.joint_public_key()
+	}
+}
+
+impl Drop for EncryptionSessionWrapper {
+	fn drop(&mut self) {
+		if let Some(cluster) = self.cluster.upgrade() {
+			cluster.sessions.remove_encryption_session(&self.session_id);
+		}
+	}
+}
+
+impl DecryptionSessionWrapper {
+	pub fn new(cluster: Weak<ClusterData>, session_id: SessionId, access_key: Secret, session: Arc<DecryptionSession>) -> Arc<Self> {
+		Arc::new(DecryptionSessionWrapper {
+			session: session,
+			session_id: session_id,
+			access_key: access_key,
+			cluster: cluster,
+		})
+	}
+}
+
+impl DecryptionSession for DecryptionSessionWrapper {
+	fn wait(&self) -> Result<DocumentEncryptedKeyShadow, Error> {
+		self.session.wait()
+	}
+}
+
+impl Drop for DecryptionSessionWrapper {
+	fn drop(&mut self) {
+		if let Some(cluster) = self.cluster.upgrade() {
+			cluster.sessions.remove_decryption_session(&self.session_id, &self.access_key);
+		}
 	}
 }
 
