@@ -20,38 +20,8 @@
 }
 
 .options {
-  margin: 0 .5em;
-}
-
-.reserved, .dropped, .dataChanged {
-}
-
-.reserved abbr, .dropped abbr {
-  cursor: help;
-}
-
-.pending {
-  opacity: .6;
-}
-
-.owner code {
-  display: inline-block;
-  vertical-align: top;
-  line-height: 32px;
-  word-wrap: break-word;
+  margin: 0 0.5em;
 }
 
 .eventsList {
-  width: 100%;
-  boder: none;
-}
-
-.eventsList td {
-  padding: 0.25em 0.5em;
-}
-
-.inline {
-  display: inline-block;
-  width: auto;
-  margin-right: 1em;
 }

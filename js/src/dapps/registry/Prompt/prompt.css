@@ -59,7 +59,6 @@
 .container {
   display: flex;
   flex-direction: column;
-  min-width: 20em;
-  max-width: 30em;
+  width: 30em;
   word-wrap: break-word;
 }

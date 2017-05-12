@@ -14,89 +14,148 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { api } from '../parity.js';
+import { action, map, observable } from 'mobx';
 
-export const start = (name, from, to) => ({ type: 'events subscribe start', name, from, to });
-export const fail = (name) => ({ type: 'events subscribe fail', name });
-export const success = (name, subscription) => ({ type: 'events subscribe success', name, subscription });
+import ApplicationStore from '../Application/application.store';
 
-export const event = (name, event) => ({ type: 'events event', name, event });
+let instance;
 
-export const subscribe = (name, from = 0, to = 'pending') =>
-  (dispatch, getState) => {
-    const { contract } = getState();
+export default class EventsStore {
+  @observable events = [];
+  @observable subscriptions = map();
 
-    if (!contract) {
-      return;
+  applicationStore = ApplicationStore.get();
+
+  static get () {
+    if (!instance) {
+      instance = new EventsStore();
     }
 
-    const opt = { fromBlock: from, toBlock: to, limit: 50 };
+    return instance;
+  }
 
-    dispatch(start(name, from, to));
+  @action
+  addEvents (_events) {
+    const ids = this.events.map((event) => event.id);
+    const events = _events
+      .filter((event) => event)
+      .filter((event) => !ids.includes(event.id));
 
-    contract
-      .subscribe(name, opt, (error, events) => {
+    this.events = this.events
+      .concat(events)
+      .sort((eventA, eventB) => {
+        const blockCompare = eventA.block.minus(eventB.block);
+
+        if (!blockCompare.eq(0)) {
+          return blockCompare.gt(0)
+            ? -1
+            : 1;
+        }
+
+        return eventA.index.minus(eventB.index).gt(0)
+          ? -1
+          : 1;
+      });
+  }
+
+  @action
+  removeEvents (type) {
+    this.events = this.events.filter((event) => event.type !== type);
+  }
+
+  @action
+  removeSubscription (name) {
+    this.subscriptions.delete(name);
+  }
+
+  @action
+  setSubscription (name, value) {
+    this.subscriptions.set(name, value);
+  }
+
+  subscribe (name, from = 0, to = 'pending') {
+    if (Array.isArray(name)) {
+      const promises = name.map((key) => this.subscribe(key));
+
+      return Promise.all(promises);
+    }
+
+    if (this.subscriptions.has(name)) {
+      return Promise.resolve();
+    }
+
+    const { api, contract } = this.applicationStore;
+    const options = { fromBlock: from, toBlock: to, limit: 50 };
+
+    return contract
+      .subscribe(name, options, (error, events) => {
         if (error) {
           console.error(`error receiving events for ${name}`, error);
           return;
         }
 
-        events.forEach((e) => {
-          Promise.all([
-            api.parity.getBlockHeaderByNumber(e.blockNumber),
-            api.eth.getTransactionByHash(e.transactionHash)
+        const promises = events.map((event) => {
+          return Promise.all([
+            api.parity.getBlockHeaderByNumber(event.blockNumber),
+            api.eth.getTransactionByHash(event.transactionHash)
           ])
-          .then(([block, tx]) => {
+          .then(([block, transaction]) => {
             const data = {
               type: name,
-              key: '' + e.transactionHash + e.logIndex,
-              state: e.type,
-              block: e.blockNumber,
-              index: e.logIndex,
-              transaction: e.transactionHash,
-              from: tx.from,
-              to: tx.to,
-              parameters: e.params,
+              id: `${event.transactionHash}_${event.logIndex}`,
+              state: event.type,
+              block: event.blockNumber,
+              index: event.logIndex,
+              transactionHash: event.transactionHash,
+              from: transaction.from,
+              to: transaction.to,
+              parameters: event.params,
               timestamp: block.timestamp
             };
 
-            dispatch(event(name, data));
+            return data;
           })
           .catch((err) => {
-            console.error(`could not fetch block ${e.blockNumber}.`);
-            console.error(err);
+            console.error(`could not fetch block ${event.blockNumber}.`, err);
+            return null;
           });
         });
+
+        Promise.all(promises)
+          .then((eventsData) => {
+            this.addEvents(eventsData);
+          });
       })
       .then((subscriptionId) => {
-        dispatch(success(name, subscriptionId));
+        this.setSubscription(name, subscriptionId);
       })
       .catch((error) => {
         console.error('event subscription failed', error);
-        dispatch(fail(name));
       });
-  };
+  }
 
-export const unsubscribe = (name) =>
-  (dispatch, getState) => {
-    const state = getState();
+  unsubscribe (name) {
+    if (Array.isArray(name)) {
+      const promises = name.map((key) => this.unsubscribe(key));
 
-    if (!state.contract) {
-      return;
+      return Promise.all(promises);
     }
 
-    const subscriptions = state.events.subscriptions;
+    const { contract } = this.applicationStore;
 
-    if (!(name in subscriptions) || subscriptions[name] === null) {
-      return;
+    this.removeEvents(name);
+
+    if (!this.subscriptions.has(name)) {
+      return Promise.resolve();
     }
 
-    state.contract
-      .unsubscribe(subscriptions[name])
-      .then(() => {
-        dispatch({ type: 'events unsubscribe', name });
-      })
+    return contract
+      .unsubscribe(this.subscriptions.get(name))
       .catch((error) => {
         console.error('event unsubscribe failed', error);
+      })
+      .then(() => {
+        this.removeSubscription(name);
       });
-  };
+  }
+}
