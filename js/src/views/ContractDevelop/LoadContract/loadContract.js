@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Subheader, IconButton } from 'material-ui';
 import { List, ListItem, makeSelectable } from 'material-ui/List';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
@@ -116,23 +115,23 @@ export default class LoadContract extends Component {
           this.state.activeTab === 0
             ? (
               <SelectableList onChange={ this.onClickContract }>
-                <Subheader>
+                <h4>
                   <FormattedMessage
                     id='loadContract.header.saved'
                     defaultMessage='Saved Contracts'
                   />
-                </Subheader>
+                </h4>
                 { this.renderContracts(contracts) }
               </SelectableList>
             )
             : (
               <SelectableList onChange={ this.onClickContract }>
-                <Subheader>
+                <h4>
                   <FormattedMessage
                     id='loadContract.header.snippets'
                     defaultMessage='Contract Snippets'
                   />
-                </Subheader>
+                </h4>
                 { this.renderContracts(snippets, false) }
               </SelectableList>
             )
@@ -218,9 +217,10 @@ export default class LoadContract extends Component {
             rightIconButton={
               removable
                 ? (
-                  <IconButton onTouchTap={ onDelete }>
-                    <DeleteIcon />
-                  </IconButton>
+                  <Button
+                    icon={ <DeleteIcon /> }
+                    onClick={ onDelete }
+                  />
                 )
                 : null
             }
