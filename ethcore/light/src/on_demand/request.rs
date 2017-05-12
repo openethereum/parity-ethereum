@@ -264,6 +264,20 @@ impl CheckedRequest {
 	}
 }
 
+macro_rules! match_me {
+	($me: expr, ($check: pat, $req: pat) => $e: expr) => {
+		match $me {
+			CheckedRequest::HeaderProof($check, $req) => $e,
+			CheckedRequest::HeaderByHash($check, $req) => $e,
+			CheckedRequest::Receipts($check, $req) => $e,
+			CheckedRequest::Body($check, $req) => $e,
+			CheckedRequest::Account($check, $req) => $e,
+			CheckedRequest::Code($check, $req) => $e,
+			CheckedRequest::Execution($check, $req) => $e,
+		}
+	}
+}
+
 impl IncompleteRequest for CheckedRequest {
 	type Complete = net_request::CompleteRequest;
 	type Response = net_request::Response;
@@ -275,28 +289,12 @@ impl IncompleteRequest for CheckedRequest {
 	fn check_outputs<F>(&self, f: F) -> Result<(), net_request::NoSuchOutput>
 		where F: FnMut(usize, usize, OutputKind) -> Result<(), net_request::NoSuchOutput>
 	{
-		match *self {
-			CheckedRequest::HeaderProof(_, ref req) => req.check_outputs(f),
-			CheckedRequest::HeaderByHash(_, ref req) => req.check_outputs(f),
-			CheckedRequest::Receipts(_, ref req) => req.check_outputs(f),
-			CheckedRequest::Body(_, ref req) => req.check_outputs(f),
-			CheckedRequest::Account(_, ref req) => req.check_outputs(f),
-			CheckedRequest::Code(_, ref req) => req.check_outputs(f),
-			CheckedRequest::Execution(_, ref req) => req.check_outputs(f),
-		}
+		match_me!(*self, (_, ref req) => req.check_outputs(f))
 	}
 
 	/// Note that this request will produce the following outputs.
 	fn note_outputs<F>(&self, f: F) where F: FnMut(usize, OutputKind) {
-		match *self {
-			CheckedRequest::HeaderProof(_, ref req) => req.note_outputs(f),
-			CheckedRequest::HeaderByHash(_, ref req) => req.note_outputs(f),
-			CheckedRequest::Receipts(_, ref req) => req.note_outputs(f),
-			CheckedRequest::Body(_, ref req) => req.note_outputs(f),
-			CheckedRequest::Account(_, ref req) => req.note_outputs(f),
-			CheckedRequest::Code(_, ref req) => req.note_outputs(f),
-			CheckedRequest::Execution(_, ref req) => req.note_outputs(f),
-		}
+		match_me!(*self, (_, ref req) => req.note_outputs(f))
 	}
 
 	/// Fill fields of the request.
@@ -305,15 +303,7 @@ impl IncompleteRequest for CheckedRequest {
 	/// prior request outputs.
 	/// Only outputs previously checked with `check_outputs` may be available.
 	fn fill<F>(&mut self, f: F) where F: Fn(usize, usize) -> Result<Output, net_request::NoSuchOutput> {
-		match *self {
-			CheckedRequest::HeaderProof(_, ref mut req) => req.fill(f),
-			CheckedRequest::HeaderByHash(_, ref mut req) => req.fill(f),
-			CheckedRequest::Receipts(_, ref mut req) => req.fill(f),
-			CheckedRequest::Body(_, ref mut req) => req.fill(f),
-			CheckedRequest::Account(_, ref mut req) => req.fill(f),
-			CheckedRequest::Code(_, ref mut req) => req.fill(f),
-			CheckedRequest::Execution(_, ref mut req) => req.fill(f),
-		}
+		match_me!(*self, (_, ref mut req) => req.fill(f))
 	}
 
 	/// Will succeed if all fields have been filled, will fail otherwise.
@@ -333,15 +323,7 @@ impl IncompleteRequest for CheckedRequest {
 
 
 	fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
-		match *self {
-			CheckedRequest::HeaderProof(_, ref mut req) => req.adjust_refs(mapping),
-			CheckedRequest::HeaderByHash(_, ref mut req) => req.adjust_refs(mapping),
-			CheckedRequest::Receipts(_, ref mut req) => req.adjust_refs(mapping),
-			CheckedRequest::Body(_, ref mut req) => req.adjust_refs(mapping),
-			CheckedRequest::Account(_, ref mut req) => req.adjust_refs(mapping),
-			CheckedRequest::Code(_, ref mut req) => req.adjust_refs(mapping),
-			CheckedRequest::Execution(_, ref mut req) => req.adjust_refs(mapping),
-		}
+		match_me!(*self, (_, ref mut req) => req.adjust_refs(mapping))
 	}
 }
 
