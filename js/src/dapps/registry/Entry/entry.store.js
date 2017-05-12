@@ -18,6 +18,7 @@ import { action, observable } from 'mobx';
 
 import ApplicationStore from '../Application/application.store';
 
+import { checkOwnerReverse } from '../util/registry';
 import { postTransaction } from '../util/transactions';
 
 export default class Entry {
@@ -34,7 +35,7 @@ export default class Entry {
   image = null;
   content = null;
 
-  constructor ({ name, owner, address, image, content }) {
+  constructor ({ name, owner, address, image, content, ownerReverseName }) {
     const { accounts } = this.applicationStore;
 
     this.name = name;
@@ -51,26 +52,15 @@ export default class Entry {
       this.isOwner = isOwner;
     }
 
-    this.checkOwnerReverse()
-      .then((ownerReverseName) => {
-        if (ownerReverseName === this.name) {
-          this.setReversed();
-        }
-      });
+    if (ownerReverseName === this.name) {
+      this.reversed = true;
+    }
   }
 
   checkOwnerReverse () {
     const { contract } = this.applicationStore;
 
-    return contract.instance.canReverse
-      .call({}, [ this.owner ])
-      .then((canReverse) => {
-        if (!canReverse) {
-          return null;
-        }
-
-        return contract.instance.reverse.call({}, [ this.owner ]);
-      });
+    return checkOwnerReverse(contract, this.owner);
   }
 
   drop () {
@@ -140,11 +130,6 @@ export default class Entry {
   @action
   setDropping (dropping) {
     this.dropping = dropping;
-  }
-
-  @action
-  setReversed () {
-    this.reversed = true;
   }
 
   @action

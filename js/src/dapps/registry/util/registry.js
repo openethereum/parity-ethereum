@@ -14,6 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+export function checkOwnerReverse (contract, owner) {
+  return contract.instance.canReverse
+    .call({}, [ owner ])
+    .then((canReverse) => {
+      if (!canReverse) {
+        return null;
+      }
+
+      return contract.instance.reverse.call({}, [ owner ]);
+    });
+}
+
 export function getOwner (contract, name) {
   const lcName = name.toLowerCase();
   const { address, api } = contract;
@@ -65,15 +77,12 @@ export function getInfo (contract, name) {
         name
       };
 
-      // if (content && !/^(0x)?0*$/.test(content)) {
-      //   result.content = content;
-      // }
+      return checkOwnerReverse(contract, owner)
+        .then((ownerReverseName) => {
+          result.ownerReverseName = ownerReverseName;
 
-      // if (image && !/^(0x)?0*$/.test(image)) {
-      //   result.image = image;
-      // }
-
-      return result;
+          return result;
+        });
     });
 }
 
