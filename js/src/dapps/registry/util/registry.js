@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export const getOwner = (contract, name) => {
+export function getOwner (contract, name) {
+  const lcName = name.toLowerCase();
   const { address, api } = contract;
 
-  const key = api.util.sha3.text(name) + '0000000000000000000000000000000000000000000000000000000000000001';
+  const key = api.util.sha3.text(lcName) + '0000000000000000000000000000000000000000000000000000000000000001';
   const position = api.util.sha3(key, { encoding: 'hex' });
 
   return api
@@ -30,8 +31,68 @@ export const getOwner = (contract, name) => {
 
       return '0x' + result.slice(-40);
     });
-};
+}
 
-export const isOwned = (contract, name) => {
+export function isOwned (contract, name) {
   return getOwner(contract, name).then((owner) => !!owner);
-};
+}
+
+export function reverse (contract, address) {
+  return contract.instance
+    .reverse
+    .call({}, [ address ]);
+}
+
+export function getInfo (contract, name) {
+  const ownerPromise = getOwner(contract, name);
+  const addressPromise = getMetadata(contract, name, 'A');
+  const contentPromise = getMetadata(contract, name, 'CONTENT');
+  const imagePromise = getMetadata(contract, name, 'IMG');
+
+  return Promise
+    .all([
+      ownerPromise,
+      addressPromise,
+      contentPromise,
+      imagePromise
+    ])
+    .then(([ owner, address, content, image ]) => {
+      const result = {
+        owner,
+        address,
+        content,
+        image,
+        name
+      };
+
+      // if (content && !/^(0x)?0*$/.test(content)) {
+      //   result.content = content;
+      // }
+
+      // if (image && !/^(0x)?0*$/.test(image)) {
+      //   result.image = image;
+      // }
+
+      return result;
+    });
+}
+
+export function getMetadata (contract, name, key) {
+  const lcName = name.toLowerCase();
+  const { api } = contract;
+
+  const isAddress = key === 'A';
+  const method = isAddress
+    ? contract.instance.getAddress
+    : contract.instance.getData;
+
+  return method.call({}, [ api.util.sha3.text(lcName), key ])
+    .then((_result) => {
+      const result = isAddress
+        ? _result
+        : api.util.bytesToHex(_result);
+
+      return result;
+    });
+}
+

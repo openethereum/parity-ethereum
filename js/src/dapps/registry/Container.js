@@ -18,8 +18,6 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { nullableProptype } from '~/util/proptypes';
-
 import Application from './Application';
 import * as actions from './actions';
 
@@ -28,18 +26,13 @@ class Container extends Component {
     actions: PropTypes.object.isRequired,
     accounts: PropTypes.object.isRequired,
     contacts: PropTypes.object.isRequired,
-    contract: nullableProptype(PropTypes.object.isRequired),
-    owner: nullableProptype(PropTypes.string.isRequired),
-    fee: nullableProptype(PropTypes.object.isRequired),
-    lookup: PropTypes.object.isRequired,
     events: PropTypes.object.isRequired
   };
 
   componentDidMount () {
     Promise.all([
       this.props.actions.fetchIsTestnet(),
-      this.props.actions.addresses.fetch(),
-      this.props.actions.fetchContract()
+      this.props.actions.addresses.fetch()
     ]).then(() => {
       this.props.actions.events.subscribe('Reserved');
     });
@@ -59,7 +52,6 @@ export default connect(
 
     bound.addresses = bindActionCreators(actions.addresses, dispatch);
     bound.accounts = bindActionCreators(actions.accounts, dispatch);
-    bound.lookup = bindActionCreators(actions.lookup, dispatch);
     bound.events = bindActionCreators(actions.events, dispatch);
     bound.names = bindActionCreators(actions.names, dispatch);
     bound.records = bindActionCreators(actions.records, dispatch);

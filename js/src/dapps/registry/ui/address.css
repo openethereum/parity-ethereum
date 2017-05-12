@@ -19,6 +19,23 @@
   display: inline-block;
   vertical-align: middle;
   line-height: 24px;
+
+  &.big {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+.big {
+  .icon {
+    margin-bottom: 0.5em;
+    margin-right: 0;
+  }
+
+  .address {
+    line-height: 20px;
+  }
 }
 
 .align {

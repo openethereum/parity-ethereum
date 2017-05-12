@@ -15,57 +15,51 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
-  margin: 1em;
-
-  > * {
-    display: flex;
-    justify-content: space-between;
-  }
-}
-
-.free,
-.reserving {
-  font-size: 1.35em;
-
-  code {
-    font-size: 0.9em;
-  }
-}
-
-.reserving {
+.prompt {
   align-items: center;
+  background-color: rgba(50, 50, 50, 0.85);
+  bottom: 0;
   display: flex;
+  justify-content: center;
+  flex-direction: column;
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 99999;
 
-  > * {
-    margin-right: 1em;
+  .label {
+    color: white;
+    font-size: 1.5em;
+    margin-bottom: 1em;
   }
-}
 
-.free {
-  cursor: pointer;
-}
+  .input {
+    border-bottom: 1px solid lightgray;
+    padding: 0.5em 0;
+  }
 
-.box {
-  display: flex;
-  margin: 0 1em;
-  align-items: baseline;
-}
-
-.inputContainer {
-  border-bottom: 1px solid lightgray;
-  margin: 1em;
-  padding: 0.5em 0.125em;
-}
-
-.input {
-  border: none;
-  color: #666;
-  font-size: 1.5em;
-  width: 100%;
-
-  &,
-  &:focus {
+  input,
+  input:focus {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.25em;
     outline: none;
+    width: 100%;
   }
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2em;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  min-width: 20em;
+  max-width: 30em;
+  word-wrap: break-word;
 }

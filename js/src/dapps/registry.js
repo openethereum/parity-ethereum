@@ -17,6 +17,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { Provider } from 'react-redux';
+import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
@@ -29,9 +30,11 @@ import '../../assets/fonts/RobotoMono/font.css';
 import './style.css';
 
 ReactDOM.render(
-  <Provider store={ store }>
-    <Container />
-  </Provider>,
+  <AppContainer>
+    <Provider store={ store }>
+      <Container />
+    </Provider>
+  </AppContainer>,
   document.querySelector('#container')
 );
 
@@ -40,9 +43,11 @@ if (module.hot) {
     require('./registry/Container');
 
     ReactDOM.render(
-      <Provider store={ store }>
-        <Container />
-      </Provider>,
+      <AppContainer>
+        <Provider store={ store }>
+          <Container />
+        </Provider>
+      </AppContainer>,
       document.querySelector('#container')
     );
   });

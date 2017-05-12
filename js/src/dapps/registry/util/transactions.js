@@ -14,17 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const postTx = (api, method, opt = {}, values = []) => {
-  opt = Object.assign({}, opt);
+export function postTransaction (api, method, opt = {}, values = []) {
+  const options = Object.assign({}, opt);
 
-  return method.estimateGas(opt, values)
-    .then((gas) => {
-      opt.gas = gas.mul(1.2).toFixed(0);
-      return method.postTransaction(opt, values);
-    })
+  return method.postTransaction(options, values)
     .then((reqId) => {
       return api.pollMethod('parity_checkRequest', reqId);
-    });
-};
+    })
+    .then((txhash) => {
+      return api.pollMethod('eth_getTransactionReceipt', txhash, (receipt) => {
+        if (!receipt || !receipt.blockNumber || receipt.blockNumber.eq(0)) {
+          return false;
+        }
 
-export default postTx;
+        return true;
+      });
+    });
+}

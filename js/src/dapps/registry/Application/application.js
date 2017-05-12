@@ -13,6 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
@@ -20,19 +21,21 @@ import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 const muiTheme = getMuiTheme(lightBaseTheme);
 
 import CircularProgress from 'material-ui/CircularProgress';
-import { Card, CardText } from 'material-ui/Card';
 
-import { nullableProptype } from '~/util/proptypes';
 import { api } from '../parity';
 
-import styles from './application.css';
 import Accounts from '../Accounts';
 import Events from '../Events';
 import Lookup from '../Lookup';
 import Names from '../Names';
 import Records from '../Records';
 import Reverse from '../Reverse';
+import Prompt from '../Prompt';
+import ApplicationStore from './application.store';
 
+import styles from './application.css';
+
+@observer
 export default class Application extends Component {
   static childContextTypes = {
     muiTheme: PropTypes.object.isRequired,
@@ -44,66 +47,43 @@ export default class Application extends Component {
   }
 
   static propTypes = {
-    accounts: PropTypes.object.isRequired,
-    contract: nullableProptype(PropTypes.object.isRequired),
-    fee: nullableProptype(PropTypes.object.isRequired)
+    accounts: PropTypes.object.isRequired
   };
 
   state = {
     showWarning: true
   };
 
+  applicationStore = ApplicationStore.get();
+
   render () {
-    const { contract, fee } = this.props;
-    let warning = null;
+    const { loading } = this.applicationStore;
 
-    return (
-      <div>
-        { warning }
-        <div className={ styles.header }>
-          <h1>RΞgistry</h1>
-          <Accounts />
-        </div>
-        { contract && fee ? (
-          <div>
-            <Lookup />
-            { this.renderActions() }
-            <Events />
-            { this.renderWarning() }
-          </div>
-        ) : (
-          <CircularProgress size={ 60 } />
-        ) }
-      </div>
-    );
-  }
-
-  renderActions () {
-    const hasAccount = !!this.props.accounts.selected;
-
-    if (!hasAccount) {
+    if (loading) {
       return (
-        <Card className={ styles.actions }>
-          <CardText>
-            Please select a valid account in order
-            to execute actions.
-          </CardText>
-        </Card>
+        <CircularProgress size={ 60 } />
       );
     }
 
     return (
       <div>
-        <Names />
-        <Records />
-        <Reverse />
+        <Prompt />
+        <div className={ styles.header }>
+          <h1>RΞgistry</h1>
+          <Accounts />
+        </div>
+        <div>
+          <Lookup />
+          <Events />
+          { this.renderWarning() }
+        </div>
       </div>
     );
   }
 
   renderWarning () {
+    const { fee } = this.applicationStore;
     const { showWarning } = this.state;
-    const { fee } = this.props;
 
     if (!showWarning) {
       return null;

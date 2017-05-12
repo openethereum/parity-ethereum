@@ -29,26 +29,34 @@ class Address extends Component {
     address: PropTypes.string.isRequired,
     account: nullableProptype(PropTypes.object.isRequired),
     netVersion: PropTypes.string.isRequired,
+    big: PropTypes.bool,
     key: PropTypes.string,
     shortenHash: PropTypes.bool
   };
 
   static defaultProps = {
+    big: false,
     key: 'address',
     shortenHash: true
   };
 
   render () {
-    const { address, key } = this.props;
+    const { address, big, key } = this.props;
+    const classes = [ styles.container ];
+
+    if (big) {
+      classes.push(styles.big);
+    }
 
     return (
       <div
         key={ key }
-        className={ styles.container }
+        className={ classes.join(' ') }
       >
         <IdentityIcon
           address={ address }
-          className={ styles.align }
+          big={ big }
+          className={ [ styles.icon, styles.align ].join(' ') }
         />
         { this.renderCaption() }
       </div>
@@ -69,7 +77,7 @@ class Address extends Component {
         >
           <abbr
             title={ address }
-            className={ styles.align }
+            className={ [ styles.address, styles.align ].join(' ') }
           >
             { name || address }
           </abbr>
@@ -78,7 +86,7 @@ class Address extends Component {
     }
 
     return (
-      <code className={ styles.align }>
+      <code className={ [ styles.address, styles.align ].join(' ') }>
         { shortenHash ? (
           <Hash
             hash={ address }
