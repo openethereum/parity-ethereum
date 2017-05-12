@@ -270,6 +270,7 @@ class Verification extends Component {
     if (phase === 0) {
       return (
         <RadioButtons
+          name='verificationType'
           onChange={ this.selectMethod }
           value={ method || 'sms' }
           values={ Object.values(METHODS) }

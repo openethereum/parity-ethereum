@@ -22,7 +22,7 @@ import { arrayOrObjectProptype } from '@parity/shared/util/proptypes';
 import LabelComponent from '../LabelComponent';
 import styles from './radioButtons.css';
 
-export default function RadioButtons ({ className, label, onChange, value, values }) {
+export default function RadioButtons ({ className, label, name, onChange, value, values }) {
   return (
     <LabelComponent
       className={ [styles.container, className].join(' ') }
@@ -60,7 +60,7 @@ export default function RadioButtons ({ className, label, onChange, value, value
 RadioButtons.propTypes = {
   className: PropTypes.string,
   label: PropTypes.node,
-  name: PropTypes.string,
+  name: PropTypes.string.isRequired,
   onChange: PropTypes.func.isRequired,
   value: PropTypes.any,
   values: arrayOrObjectProptype().isRequired

@@ -25,7 +25,7 @@ export default class Store {
   @observable abiError = ERRORS.invalidAbi;
   @observable abiParsed = null;
   @observable abiTypes = ABI_TYPES;
-  @observable abiTypeIndex = 0;
+  @observable abiType = 'custom';
   @observable address = '';
   @observable addressError = ERRORS.invalidAddress;
   @observable description = '';
@@ -36,12 +36,6 @@ export default class Store {
   constructor (api, contracts) {
     this._api = api;
     this._contracts = contracts;
-
-    this.setAbiType('custom');
-  }
-
-  @computed get abiType () {
-    return this.abiTypes[this.abiTypeIndex];
   }
 
   @computed get hasError () {
@@ -68,8 +62,8 @@ export default class Store {
 
   @action setAbiType = (abiType) => {
     transaction(() => {
-      this.abiTypeIndex = this.abiTypes.findIndex((abi) => abi.key === abiType);
-      this.setAbi(this.abiTypes[this.abiTypeIndex].value);
+      this.abiType = abiType;
+      this.setAbi(this.abiTypes.find((abi) => abi.key === abiType).value);
     });
   }
 

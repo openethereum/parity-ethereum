@@ -61,8 +61,8 @@ describe('views/Contracts/AddContract/Store', () => {
         store.setAbiType('multisig');
       });
 
-      it('changes the index', () => {
-        expect(store.abiTypeIndex).to.equal(1);
+      it('changes the type', () => {
+        expect(store.abiType).to.equal('multisig');
       });
 
       it('changes the abi', () => {

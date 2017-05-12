@@ -80,12 +80,12 @@ class AddContract extends Component {
   }
 
   renderContractTypeSelector () {
-    const { abiTypeIndex, abiTypes } = this.store;
+    const { abiType, abiTypes } = this.store;
 
     return (
       <RadioButtons
         name='contractType'
-        value={ abiTypeIndex }
+        value={ abiType }
         values={ abiTypes }
         onChange={ this.onChangeABIType }
       />
@@ -241,8 +241,8 @@ class AddContract extends Component {
     this.store.prevStep();
   }
 
-  onChangeABIType = (event, key) => {
-    this.store.setAbiType(key);
+  onChangeABIType = (event, abiType) => {
+    this.store.setAbiType(abiType);
   }
 
   onEditAbi = (abi) => {
