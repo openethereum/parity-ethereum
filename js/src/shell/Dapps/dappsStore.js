@@ -99,7 +99,13 @@ export default class DappsStore extends EventEmitter {
     return this
       .loadLocalApps()
       .then(() => {
-        const app = this.apps.find((app) => app.id === id);
+        const app = this.apps.find((app) => {
+          if (app.id === id) {
+            return true;
+          } else {
+            return false;
+          }
+        });
 
         if (app) {
           return app;

@@ -24,7 +24,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
-import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
+import { BrowserRouter as Router, Route } from 'react-router-dom';
 import qs from 'querystring';
 
 import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
@@ -69,7 +69,7 @@ const api = new SecureApi(`${urlScheme}${parityUrl}`, token);
 patchApi(api);
 ContractInstances.get(api);
 
-const store = initStore(api, hashHistory);
+const store = initStore(api);
 
 window.secureApi = api;
 
@@ -85,13 +85,12 @@ function onEnterDapp ({ params }) {
 
 ReactDOM.render(
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-    <Router history={ hashHistory }>
-      <Route path='/' component={ Application }>
-        <Redirect from='/auth' to='/' />
+    <Router>
+      <Application>
+        <Route path='/' component={ Dapps } />
         <Route path='/:id' component={ Dapp } onEnter={ onEnterDapp } />
         <Route path='/:id/:details' component={ Dapp } onEnter={ onEnterDapp } />
-        <IndexRoute component={ Dapps } />
-      </Route>
+      </Application>
     </Router>
   </ContextProvider>,
   document.querySelector('#container')

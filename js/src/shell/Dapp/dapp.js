@@ -40,9 +40,9 @@ export default class Dapp extends Component {
   store = DappsStore.get(this.context.api);
 
   componentWillMount () {
-    const { id } = this.props.params;
+    let { pathname } = this.props.location;
 
-    this.loadApp(id);
+    this.loadApp(pathname.substr(1));
   }
 
   componentWillReceiveProps (nextProps) {

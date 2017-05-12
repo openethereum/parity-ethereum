@@ -16,7 +16,7 @@
 
 import ReactDOM from 'react-dom';
 import React from 'react';
-import { Route, Router, hashHistory } from 'react-router';
+import { BrowserRouter as Router, Route } from 'react-router-dom';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
@@ -33,11 +33,11 @@ import Accounts from './accounts';
 
 ContractInstances.get(api);
 
-const store = initStore(api, hashHistory);
+const store = initStore(api);
 
 ReactDOM.render(
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-    <Router history={ hashHistory }>
+    <Router>
       <Route path='/' component={ Accounts } />
     </Router>
   </ContextProvider>,

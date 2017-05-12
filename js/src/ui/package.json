@@ -47,7 +47,7 @@
     "react-dom": "*",
     "react-intl": "*",
     "react-redux": "*",
-    "react-router": "*",
+    "react-router-dom": "next",
     "redux": "*"
   }
 }

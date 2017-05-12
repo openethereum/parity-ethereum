@@ -19,7 +19,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
-import { Link } from 'react-router';
+import { Link } from 'react-router-dom';
 import { connect } from 'react-redux';
 import store from 'store';
 
