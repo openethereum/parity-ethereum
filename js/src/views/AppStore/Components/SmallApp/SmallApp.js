@@ -24,7 +24,7 @@ import styles from './SmallApp.css';
 class SmallApp extends Component {
   render () {
     return (
-      <div className={styles.SmallApp }>
+      <div className={ styles.SmallApp }>
         SmallApp
       </div>
     );

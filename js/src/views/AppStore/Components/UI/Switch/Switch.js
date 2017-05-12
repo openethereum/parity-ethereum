@@ -71,14 +71,14 @@ class Switch extends Component {
 
         <div className={ styles.switchBodyButton } style={ position }>
           <div id={ styles.switchButton }>
-            <div id={styles.switchCenterButton} />
+            <div id={ styles.switchCenterButton } />
           </div>
         </div>
 
-        <div className={styles.switchBody} onClick={ this.switchClick }>
-          <div id={styles.clicker} style={ position }>
-            <div id={styles.switchLight} />
-            <div id={styles.switchRightButton} />
+        <div className={ styles.switchBody } onClick={ this.switchClick }>
+          <div id={ styles.clicker } style={ position }>
+            <div id={ styles.switchLight } />
+            <div id={ styles.switchRightButton } />
           </div>
         </div>
 
