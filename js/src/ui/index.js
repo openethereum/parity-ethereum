@@ -57,6 +57,7 @@ export SelectionList from './SelectionList';
 export ShortenedHash from './ShortenedHash';
 export SignerIcon from './SignerIcon';
 export Snackbar from './Snackbar';
+export Tabs from './Tabs';
 export Tags from './Tags';
 export Title from './Title';
 export TxHash from './TxHash';

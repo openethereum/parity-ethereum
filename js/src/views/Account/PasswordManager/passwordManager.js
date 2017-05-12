@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Menu, Segment } from 'semantic-ui-react';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -22,12 +21,12 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError, openSnackbar } from '@parity/shared/redux/actions';
-import { Button, IdentityName, IdentityIcon, Portal } from '@parity/ui';
+import { Button, IdentityName, IdentityIcon, Portal, Tabs } from '@parity/ui';
 import PasswordStrength from '@parity/ui/Form/PasswordStrength';
 import Form, { Input } from '@parity/ui/Form';
 import { CancelIcon, CheckIcon, SendIcon } from '@parity/ui/Icons';
 
-import Store, { CHANGE_ACTION, TEST_ACTION } from './store';
+import Store from './store';
 import styles from './passwordManager.css';
 
 const MSG_SUCCESS_STYLE = {
@@ -37,12 +36,8 @@ const MSG_FAILURE_STYLE = {
   backgroundColor: 'rgba(229, 115, 115, 0.75)'
 };
 
-let MENU_CONTENT = 'TEST';
-
 @observer
 class PasswordManager extends Component {
-  state = { activeItem: 'bio' };
-
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -132,40 +127,39 @@ class PasswordManager extends Component {
   }
 
   renderPage () {
-    const { activeItem } = this.state;
+    const { activeTab } = this.store;
 
     return (
       <div>
-        <Menu attached='top' tabular>
-          <Menu.Item name='Test Password' active={ activeItem === 'Test Password' } onClick={ this.itemTestPassword } />
-          <Menu.Item name='Change Password' active={ activeItem === 'Change Password' } onClick={ this.itemChangePassword } />
-        </Menu>
-
-        <Segment attached='bottom'>
-          { MENU_CONTENT === 'TEST' ? this.renderTabTest() : this.renderTabChange() }
-        </Segment>
+        <Tabs
+          activeTab={ activeTab }
+          tabs={ [
+            <FormattedMessage
+              id='passwordChange.tabChange'
+              defaultMessage='Change Password'
+            />,
+            <FormattedMessage
+              id='passwordChange.tabTest'
+              defaultMessage='TestPassword'
+            />
+          ] }
+          onChange={ this.onChangeTab }
+        />
+        {
+          activeTab === 1
+            ? this.renderTabTest()
+            : this.renderTabChange()
+        }
       </div>
     );
   }
 
-  itemTestPassword = (e, name) => {
-    MENU_CONTENT = 'TEST';
-    this.onActivateTestTab();
-    this.setState({ activeItem: name });
-  }
-
-  itemChangePassword = (e, name) => {
-    MENU_CONTENT = 'CHANGE';
-    this.onActivateChangeTab();
-    this.setState({ activeItem: name });
+  onChangeTab = (event, activeTab) => {
+    this.store.setActiveTab(activeTab);
   }
 
   renderTabTest () {
-    const { actionTab, busy } = this.store;
-
-    if (actionTab !== TEST_ACTION) {
-      return null;
-    }
+    const { busy } = this.store;
 
     return (
       <Form className={ styles.form }>
@@ -196,11 +190,7 @@ class PasswordManager extends Component {
   }
 
   renderTabChange () {
-    const { actionTab, busy, isRepeatValid, newPassword, passwordHint } = this.store;
-
-    if (actionTab !== CHANGE_ACTION) {
-      return null;
-    }
+    const { busy, isRepeatValid, newPassword, passwordHint } = this.store;
 
     return (
       <Form className={ styles.form }>
@@ -300,7 +290,7 @@ class PasswordManager extends Component {
   }
 
   renderDialogActions () {
-    const { actionTab, busy, isRepeatValid } = this.store;
+    const { activeTab, busy, isRepeatValid } = this.store;
 
     const cancelBtn = (
       <Button
@@ -332,7 +322,7 @@ class PasswordManager extends Component {
       ];
     }
 
-    if (actionTab === TEST_ACTION) {
+    if (activeTab === 1) {
       return [
         cancelBtn,
         <Button
@@ -364,14 +354,6 @@ class PasswordManager extends Component {
         onClick={ this.changePassword }
       />
     ];
-  }
-
-  onActivateChangeTab = () => {
-    this.store.setActionTab(CHANGE_ACTION);
-  }
-
-  onActivateTestTab = () => {
-    this.store.setActionTab(TEST_ACTION);
   }
 
   onEditCurrentPassword = (event, password) => {
