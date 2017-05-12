@@ -1,0 +1,16 @@
+.MedApp {
+  height: 150px;
+  width: 300px;
+  border: solid;
+  border-radius: 7px;
+  border-width: 1px;
+  border-color: #b9b4b2;
+  background-color: white;
+  margin-top: 15px;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  display: inline-block;
+}
+.MedApp:hover {
+  cursor: pointer;
+}

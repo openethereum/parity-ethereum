@@ -1,0 +1,20 @@
+.Featured {
+  width: 100%;
+  border-top: solid;
+  border-width: 1px;
+  border-color: #b9b4b2;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  overflow: visible;
+  text-align: left;
+}
+
+.featured-text {
+  font-size: 20px;
+  background-color: #f7f7f5;
+  margin-top: -15px;
+  margin-left: 10px;
+  width: 100px;
+  text-align: center;
+  color: #999593;
+}

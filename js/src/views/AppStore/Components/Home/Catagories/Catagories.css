@@ -1,0 +1,11 @@
+.Catagories {
+  width: 100%;
+  height: 420px;
+  border: solid;
+  border-radius: 7px;
+  border-width: 1px;
+  border-color: #b9b4b2;
+  margin-bottom: 10px;
+  overflow-x: scroll;
+  background-color: white;
+}

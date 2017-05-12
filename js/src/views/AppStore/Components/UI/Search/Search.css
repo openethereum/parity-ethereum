@@ -1,0 +1,11 @@
+.Search {
+  background: linear-gradient(to bottom, #FDFDFD 0%,#F1F1F1 100%);
+  border-top: 1px solid #CECCCE;
+  border-left: 1px solid #C7C6C7;
+  border-right: 1px solid #C7C6C7;
+  border-bottom: 1px solid #A5A4A5;
+  height: 30px;
+  width: 200px;
+  border-radius: 5px;
+  cursor: text;
+}

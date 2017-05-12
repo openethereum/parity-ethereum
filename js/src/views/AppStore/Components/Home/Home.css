@@ -1,0 +1,17 @@
+.Home {
+
+}
+
+.home-headlines {
+  margin-bottom: 10px;
+}
+
+.home-main {
+  margin: 10px 0px;
+}
+
+.dapp-content {
+  width: 100%;
+  overflow-x: scroll;
+  white-space: nowrap;
+}

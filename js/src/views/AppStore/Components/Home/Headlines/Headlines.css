@@ -1,0 +1,9 @@
+.Headlines {
+  width: 100%;
+  height: 200px;
+  border: solid;
+  border-radius: 7px;
+  border-width: 1px;
+  border-color: #b9b4b2;
+  background-color: white;
+}

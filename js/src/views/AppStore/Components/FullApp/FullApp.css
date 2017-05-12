@@ -1,0 +1,177 @@
+.FullApp {
+
+}
+
+.top-margin {
+  margin-top: 55px;
+}
+
+#app-icon {
+  margin-top: 25px;
+}
+
+#app-icon svg {
+  width: 128px;
+  height: 128px;
+}
+
+#app-content-container {
+  margin-top: 55px;
+  padding-left: 20px;
+  text-align: left;
+  user-select: none;
+}
+
+#app-information-container {
+  margin-top: 55px;
+  padding-right: 20px;
+}
+
+#app-header {
+  font-size: 22px;
+  user-select: none;
+  pointer-events: none;
+}
+
+#app-content {
+  font-size: 16px;
+  margin-top: 15px;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  height: 100px;
+  overflow: auto;
+}
+
+#read-more-less {
+  text-align: center;
+  cursor: pointer;
+  padding-top: 10px;
+}
+
+.right-side-border {
+  border-top: solid;
+  border-width: 1px;
+  border-color: #b9b4b2;
+  margin-right: 30px;
+  user-select: none;
+}
+
+.right-side-header {
+  font-size: 22px;
+  pointer-events: none;
+  text-align: left;
+  width: 100px;
+  margin-top: -17px;
+  margin-left: 25px;
+  width: 120px;
+  padding-left: 4px;
+  background-color: #ededed;
+  user-select: none;
+}
+
+.information-text {
+  padding: 3px 0;
+  width: 250px;
+  user-select: none;
+}
+
+.information-content {
+  text-align: left;
+  pointer-events: none;
+  font-size: 14px;
+  user-select: none;
+}
+
+#photo-container {
+  margin: 55px auto;
+  user-select: none;
+}
+
+#photo-sized-container {
+  position: relative;
+  margin: 0px auto;
+  padding-bottom: 75px;
+  width: 650px;
+  height: 500px;
+  border: 1px solid rgba(0,0,0,0.2);
+  border-radius: 20px;
+  background-color: #e5e5e5;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#photo-lg {
+  width: 600px;
+  height: 375px;
+}
+
+#photo-lg img {
+  width: 600px;
+  height: 375px;
+  border-radius: 10px;
+}
+
+#photo-gallery {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 75px;
+  border-top: 1px solid rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+.photos {
+  position: relative;
+  height: 50px;
+  width: 75px;
+  margin: 0 15px;
+}
+
+.photo-border {
+  height: 100%;
+  width: 1px;
+  border-right: 1px solid rgba(0,0,0,0.2);
+}
+
+.last {
+  border-right: none;
+}
+
+.photos img {
+  height: 50px;
+  width: 75px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+#author {
+  width: 218px;
+}
+
+.mini-app {
+  position: relative;
+  width: 100%;
+  height: 50px;
+  margin: 10px 0;
+}
+
+.mini-app svg {
+  width: 50px;
+  height: 50px;
+}
+
+.mini-app-name {
+  position: absolute;
+  left: 60px;
+  top: 5px;
+}
+
+.mini-app-catagory {
+  position: absolute;
+  left: 60px;
+  bottom: 5px;
+}
