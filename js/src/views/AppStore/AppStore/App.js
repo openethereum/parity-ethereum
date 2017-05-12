@@ -6,26 +6,25 @@ import Header       from './Header/Header';
 import HeaderLights from './Header/HeaderLights';
 
 /** Stylesheets **/
-import './App.css';
+import styles from './App.css';
 
-type Props = {|
-  children?: React.Element<*>,
-|}
+// type Props = {|
+//   children?: React.Element<*>,
+// |}
 
 // type State = {|
 //
 // |}
 
-// tslint:disable-next-line
 class App extends Component {
-  props: Props;
+  // props: Props;
   // state: State = {
   //
   // };
 
   render() {
     return (
-      <div className="App">
+      <div className={styles.App}>
         <Header />
         <HeaderLights />
         {this.props.children}

@@ -2,32 +2,32 @@
 import React, { Component } from 'react';
 
 /** Stylesheets **/
-import './Header.css';
+import styles from './Header.css';
 
-type Props = {|
-
-|}
+// type Props = {|
+//
+// |}
 
 // type State = {|
 //
 // |}
 
 class HeaderLights extends Component {
-  props: Props;
+  // props: Props;
   // state: State = {
   // };
 
   render() {
     return (
-      <div className="HeaderLights">
-        <div className="light-container">
-          <div className="light-bulb" />
+      <div className={styles.HeaderLights}>
+        <div className={styles.lightContainer}>
+          <div className={styles.lightBulb} />
         </div>
-        <div className="light-container">
-          <div className="light-bulb" />
+        <div className={styles.lightContainer}>
+          <div className={styles.lightBulb} />
         </div>
-        <div className="light-container">
-          <div className="light-bulb" />
+        <div className={styles.lightContainer}>
+          <div className={styles.lightBulb} />
         </div>
       </div>
     );

@@ -6,7 +6,7 @@ import FullApp from '../FullApp/FullApp';
 import DappHeader from './DappHeader/DappHeader';
 
 /** Stylesheets **/
-import './Dapps.css';
+import styles from './Dapps.css';
 
 // type Props = {|
 //   history: Object,
@@ -28,7 +28,7 @@ class Dapps extends Component {
     const { appPath } = params;
 
     return (
-      <div className="Dapps">
+      <div className={styles.Dapps}>
 
         <DappHeader history={'history'} />
         <FullApp appId={appPath} />

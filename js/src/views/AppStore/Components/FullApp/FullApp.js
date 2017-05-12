@@ -5,7 +5,7 @@ import React, { Component } from 'react';
 import Switch from '../UI/Switch/Switch';
 
 /** Stylesheets **/
-import './FullApp.css';
+import styles from './FullApp.css';
 
 /** Assets **/
 import Photo1 from '../../Assets/1.jpg';
@@ -27,7 +27,7 @@ import Photo5 from '../../Assets/5.jpg';
 const contentExample = `- Design 2017. Get this App now! -\n This is line wrap test \n\n Some more text... \n\n - One\n - Two\n - Three\n - Four \n\n Lots of text now, Sed rutrum, diam ac accumsan suscipit, lectus sem aliquet quam, nec scelerisque ligula arcu eu mi. Cras eget orci feugiat, sagittis purus vitae, ultricies purus. Integer aliquam vehicula dolor, nec malesuada urna aliquam ut. Vivamus quis tellus quis purus imperdiet lobortis vitae id lorem. Etiam cursus metus est, at suscipit dolor facilisis ac. Suspendisse pharetra rutrum massa et vehicula. Nullam vel sapien purus.`;
 
 const miniApp = (
-  <div className="mini-app">
+  <div className={styles.miniApp}>
     <svg x="0px" y="0px" width="512px" height="512px" viewBox="0 0 512 512">
       <linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="3.0005" y1="509" x2="508.9999" y2="3.0005">
         <stop offset="0" style={{stopColor:"#48E0CA"}}/>
@@ -46,8 +46,8 @@ const miniApp = (
       c0,110.223,89.352,199.565,199.571,199.565C366.221,455.565,455.568,366.223,455.568,256z M162.817,3v506 M256.002,3v506 M349.182,3
       v506 M3,162.814h506 M3,256h506 M3,349.184h506"/>
     </svg>
-    <div className="mini-app-name">App Name Goes Here</div>
-    <div className="mini-app-catagory">Catagory</div>
+    <div className={styles.miniAppName}>App Name Goes Here</div>
+    <div className={styles.miniAppCatagory}>Catagory</div>
   </div>
 );
 
@@ -86,9 +86,9 @@ class FullApp extends Component {
     const { readMoreLessStyle, readMoreLessText, photo } = this.state;
 
     return (
-      <div className="FullApp">
+      <div className={styles.FullApp}>
 
-        <div id="app-icon">
+        <div id={styles.appIcon}>
           <svg x="0px" y="0px" width="512px" height="512px" viewBox="0 0 512 512">
             <linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="3.0005" y1="509" x2="508.9999" y2="3.0005">
               <stop offset="0" style={{stopColor:"#48E0CA"}}/>
@@ -111,64 +111,64 @@ class FullApp extends Component {
 
         <Switch defaultValue={true} />
 
-        <div className="col-md-8" id="app-content-container">
-          <div id="app-header">
+        <div className="col-md-8" id={styles.appContentContainer}>
+          <div id={styles.appHeader}>
             App Header
           </div>
 
-          <div id="app-content" style={readMoreLessStyle}>
+          <div id={styles.appContent} style={readMoreLessStyle}>
             {contentExample.split("\n").map((text, i) => {
                 return <div key={i}>{text}&nbsp;</div>;
             })}
           </div>
 
-          <div id="read-more-less" style={readMoreLessStyle} onClick={this.readMoreLessToggle}>{readMoreLessText}</div>
+          <div id={styles.readMoreLess} style={readMoreLessStyle} onClick={this.readMoreLessToggle}>{readMoreLessText}</div>
 
-          <div id="photo-container">
-            <div id="photo-sized-container">
-              <div id="photo-lg"><img src={photo} alt="Photo1" /></div>
-              <div id="photo-gallery">
+          <div id={styles.photoContainer}>
+            <div id={styles.photoSizedContainer}>
+              <div id={styles.photoLg}><img src={photo} alt="Photo1" /></div>
+              <div id={styles.photoGallery}>
                 {/*<div className="photo-border" />*/}
-                <div className="photos"      id="first" ><img onClick={this.changePhoto.bind(this,Photo1)} src={Photo1} alt="Photo1" /></div>
-                <div className="photo-border" />
-                <div className="photos"      id="second"><img onClick={this.changePhoto.bind(this,Photo2)} src={Photo2} alt="Photo2" /></div>
-                <div className="photo-border" />
-                <div className="photos"      id="third" ><img onClick={this.changePhoto.bind(this,Photo3)} src={Photo3} alt="Photo3" /></div>
-                <div className="photo-border" />
-                <div className="photos"      id="fourth"><img onClick={this.changePhoto.bind(this,Photo4)} src={Photo4} alt="Photo4" /></div>
-                <div className="photo-border" />
-                <div className="photos last" id="fifth" ><img onClick={this.changePhoto.bind(this,Photo5)} src={Photo5} alt="Photo5" /></div>
-                {/*<div className="photo-border" />*/}
+                <div className={styles.photos}      id={styles.first} ><img onClick={this.changePhoto.bind(this,Photo1)} src={Photo1} alt="Photo1" /></div>
+                <div className={styles.photoBorder} />
+                <div className={styles.photos}      id={styles.second}><img onClick={this.changePhoto.bind(this,Photo2)} src={Photo2} alt="Photo2" /></div>
+                <div className={styles.photoBorder} />
+                <div className={styles.photos}      id={styles.third} ><img onClick={this.changePhoto.bind(this,Photo3)} src={Photo3} alt="Photo3" /></div>
+                <div className={styles.photoBorder} />
+                <div className={styles.photos}      id={styles.fourth}><img onClick={this.changePhoto.bind(this,Photo4)} src={Photo4} alt="Photo4" /></div>
+                <div className={styles.photoBorder} />
+                <div className={styles.photosLast}  id={styles.fifth} ><img onClick={this.changePhoto.bind(this,Photo5)} src={Photo5} alt="Photo5" /></div>
+                {/*<div className={styles.photoBorder} />*/}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="col-md-4" id="app-information-container">
+        <div className="col-md-4" id={styles.appInformationContainer}>
 
-          <div className="right-side-border" />
-          <div className="right-side-header" id="information-content">Information</div>
-          <div className="information-content">
-            <div className="information-text" id="information-catagory">
+          <div className={styles.rightSideBorder} />
+          <div className={styles.rightSideHeader} id={styles.informationContent}>Information</div>
+          <div className={styles.informationContent}>
+            <div className={styles.informationText} id={styles.informationCatagory}>
               Catagory: Productivity
             </div>
-            <div className="information-text" id="information-updated">
+            <div className={styles.informationText} id={styles.informationUpdated}>
               Updated: April 28, 2017
             </div>
-            <div className="information-text" id="information-version">
+            <div className={styles.informationText} id={styles.informationVersion}>
               Version: 2.8.3
             </div>
-            <div className="information-text" id="information-language">
+            <div className={styles.informationText} id={styles.informationLanguage}>
               Languages: English, Russian, German, Italian, Japanese
             </div>
-            <div className="information-text" id="information-owner">
+            <div className={styles.informationText} id={styles.informationOwner}>
               Owner: Booker Dewitt
             </div>
           </div>
 
-          <div className="right-side-border top-margin" />
-          <div className="right-side-header" id="author">More from the Author</div>
-          <div className="information-content">
+          <div className={styles.rightSideBorder styles.topMargin} />
+          <div className={styles.rightSideHeader} id={styles.author}>More from the Author</div>
+          <div className={styles.informationContent}>
             {miniApp}
             {miniApp}
             {miniApp}

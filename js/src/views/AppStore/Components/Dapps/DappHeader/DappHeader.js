@@ -2,7 +2,7 @@
 import React, { Component } from 'react';
 
 /** Stylesheets **/
-import './DappHeader.css';
+import styles from './DappHeader.css';
 
 // type Props = {|
 //   history: Object
@@ -26,9 +26,9 @@ class DappHeader extends Component {
   render() {
 
     return (
-      <div className="DappHeader">
+      <div className={styles.DappHeader}>
 
-        <div className="back-button">
+        <div className={styles.backButton}>
           <svg onClick={this.backClick} x="0px" y="0px" width="63px" height="50px" viewBox="0 0 63 50">
             <g>
             <g>
@@ -68,17 +68,17 @@ class DappHeader extends Component {
             </g>
             </g>
           </svg>
-          <div id="back-name">
+          <div id={styles.backName}>
             Featured
           </div>
         </div>
 
-        <div className="app-name">
+        <div className={styles.appName}>
           App Name
         </div>
 
-        <div id="dapp-header-search">
-          <input type="text" id="dapp-header-input"/>
+        <div id={styles.dappHeaderSearch}>
+          <input type="text" id={styles.dappHeaderInput}/>
         </div>
 
       </div>
