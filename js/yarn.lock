@@ -7311,7 +7311,7 @@ seek-bzip@^1.0.3:
   dependencies:
     commander "~2.8.1"
 
-semantic-ui-css@2.2.10:
+semantic-ui-css@2.2.10, semantic-ui-css@^2.2.10:
   version "2.2.10"
   resolved "https://registry.yarnpkg.com/semantic-ui-css/-/semantic-ui-css-2.2.10.tgz#f8f4470dbeffca0f0f3ff4fb71a35c71e88ad89c"
   dependencies:

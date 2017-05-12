@@ -87,7 +87,7 @@ ReactDOM.render(
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
     <Router>
       <Application>
-        <Route path='/' component={ Dapps } />
+        <Route path='/' exact component={ Dapps } />
         <Route path='/:id' component={ Dapp } onEnter={ onEnterDapp } />
         <Route path='/:id/:details' component={ Dapp } onEnter={ onEnterDapp } />
       </Application>
