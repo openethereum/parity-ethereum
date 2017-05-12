@@ -29,6 +29,9 @@ export default class Dapp extends Component {
   };
 
   static propTypes = {
+    location: {
+      pathname: PropTypes.string
+    },
     params: PropTypes.object
   };
 

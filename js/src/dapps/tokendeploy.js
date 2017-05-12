@@ -34,7 +34,7 @@ import './style.css';
 ReactDOM.render(
   <AppContainer>
     <Router>
-      {/*<Redirect from='/' to='/overview' />*/}
+      {/* <Redirect from='/' to='/overview' /> */}
       <Route exact path='/' component={ Application }>
         <Route path='deploy' component={ Deploy } />
         <Route path='overview' component={ Overview } />
@@ -53,8 +53,8 @@ if (module.hot) {
 
     ReactDOM.render(
       <AppContainer>
-        <Router history={ hashHistory }>
-          {/*<Redirect from='/' to='/overview' />*/}
+        <Router>
+          {/* <Redirect from='/' to='/overview' /> */}
           <Route exact path='/' component={ Application }>
             <Route path='deploy' component={ Deploy } />
             <Route path='overview' component={ Overview } />
