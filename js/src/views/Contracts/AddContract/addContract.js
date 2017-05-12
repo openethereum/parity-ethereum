@@ -242,8 +242,8 @@ class AddContract extends Component {
     this.store.prevStep();
   }
 
-  onChangeABIType = (value, index) => {
-    this.store.setAbiTypeIndex(index);
+  onChangeABIType = (event, key) => {
+    this.store.setAbiType(key);
   }
 
   onEditAbi = (abi) => {

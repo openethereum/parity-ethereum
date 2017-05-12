@@ -43,7 +43,7 @@ function render () {
   return component;
 }
 
-describe('modals/CreateAccount/NewAccount', () => {
+describe('views/Accounts/CreateAccount/NewAccount', () => {
   beforeEach(() => {
     render();
   });
@@ -77,7 +77,7 @@ describe('modals/CreateAccount/NewAccount', () => {
 
         sinon.spy(store, 'setAddress');
         sinon.spy(store, 'setPhrase');
-        instance.onChangeIdentity({ target: { value: address } });
+        instance.onChangeIdentity(null, address);
       });
 
       afterEach(() => {

@@ -151,7 +151,7 @@ export default class CreateAccount extends Component {
           Object.keys(accounts).map((address) => {
             return {
               key: address,
-              value: address
+              label: address
             };
           })
         }
@@ -234,9 +234,8 @@ export default class CreateAccount extends Component {
       });
   }
 
-  onChangeIdentity = (event) => {
+  onChangeIdentity = (event, selectedAddress) => {
     const { createStore } = this.props;
-    const selectedAddress = event.target.value || event.target.getAttribute('value');
 
     if (!selectedAddress) {
       return;

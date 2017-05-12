@@ -18,9 +18,9 @@ import React, { PropTypes } from 'react';
 
 import Label from '../Label';
 
-export default function LabelComponent ({ children, label }) {
+export default function LabelComponent ({ className, children, label }) {
   return (
-    <div>
+    <div className={ className }>
       <Label label={ label } />
       { children }
     </div>
@@ -28,6 +28,7 @@ export default function LabelComponent ({ children, label }) {
 }
 
 LabelComponent.propTypes = {
-  label: PropTypes.node,
-  children: PropTypes.node.isRequired
+  className: PropTypes.string,
+  children: PropTypes.node.isRequired,
+  label: PropTypes.node
 };

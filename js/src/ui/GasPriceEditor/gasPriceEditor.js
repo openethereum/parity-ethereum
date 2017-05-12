@@ -239,8 +239,8 @@ export default class GasPriceEditor extends Component {
     onChange && onChange('gasPrice', price);
   }
 
-  onChangeConditionType = (conditionType) => {
-    this.props.store.setConditionType(conditionType.key);
+  onChangeConditionType = (event, conditionType) => {
+    this.props.store.setConditionType(conditionType);
   }
 
   onChangeConditionBlock = (event, blockNumber) => {

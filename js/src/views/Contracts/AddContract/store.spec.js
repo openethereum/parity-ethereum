@@ -30,7 +30,7 @@ function createStore () {
   store = new Store(api, CONTRACTS);
 }
 
-describe('modals/AddContract/Store', () => {
+describe('views/Contracts/AddContract/Store', () => {
   beforeEach(() => {
     createStore();
   });
@@ -56,9 +56,9 @@ describe('modals/AddContract/Store', () => {
       });
     });
 
-    describe('setAbiTypeIndex', () => {
+    describe('setAbiType', () => {
       beforeEach(() => {
-        store.setAbiTypeIndex(1);
+        store.setAbiType('multisig');
       });
 
       it('changes the index', () => {

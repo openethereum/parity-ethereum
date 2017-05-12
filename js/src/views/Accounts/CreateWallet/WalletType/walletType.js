@@ -83,7 +83,7 @@ export default class WalletType extends Component {
     );
   }
 
-  onTypeChange = (type) => {
-    this.props.onChange(type.key);
+  onTypeChange = (event, key) => {
+    this.props.onChange(key);
   }
 }
