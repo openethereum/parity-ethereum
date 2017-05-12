@@ -67,7 +67,8 @@ const TICK_TIMEOUT_INTERVAL_MS: u64 = 5000;
 const PROPAGATE_TIMEOUT: TimerToken = 2;
 const PROPAGATE_TIMEOUT_INTERVAL_MS: u64 = 5000;
 
-const TIMER_PERIOD_TIMEOUT: TimerToken = 3;
+const RECALCULATE_COSTS_TIMEOUT: TimerToken = 3;
+const RECALCULATE_COSTS_INTERVAL_MS: u64 = 60 * 60 * 1000;
 
 // minimum interval between updates.
 const UPDATE_INTERVAL_MS: i64 = 5000;
@@ -1001,7 +1002,7 @@ impl NetworkProtocolHandler for LightProtocol {
 			.expect("Error registering sync timer.");
 		io.register_timer(PROPAGATE_TIMEOUT, PROPAGATE_TIMEOUT_INTERVAL_MS)
 			.expect("Error registering sync timer.");
-		io.register_timer(TIMER_PERIOD_TIMEOUT, self::load_timer::TIME_PERIOD_MS)
+		io.register_timer(RECALCULATE_COSTS_TIMEOUT, RECALCULATE_COSTS_INTERVAL_MS)
 			.expect("Error registering request timer interval token.");
 	}
 
@@ -1022,7 +1023,7 @@ impl NetworkProtocolHandler for LightProtocol {
 			TIMEOUT => self.timeout_check(io),
 			TICK_TIMEOUT => self.tick_handlers(io),
 			PROPAGATE_TIMEOUT => self.propagate_transactions(io),
-			TIMER_PERIOD_TIMEOUT => self.begin_new_cost_period(io),
+			RECALCULATE_COSTS_TIMEOUT => self.begin_new_cost_period(io),
 			_ => warn!(target: "pip", "received timeout on unknown token {}", timer),
 		}
 	}

@@ -36,8 +36,6 @@ use util::{Uint, RwLock, Mutex};
 
 /// Number of time periods samples should be kept for.
 pub const MOVING_SAMPLE_SIZE: usize = 256;
-/// Length of time periods.
-pub const TIME_PERIOD_MS: u64 = 60 * 60 * 1000;
 
 /// Stores rolling load timer samples.
 // TODO: switch to bigint if possible (FP casts aren't available)
