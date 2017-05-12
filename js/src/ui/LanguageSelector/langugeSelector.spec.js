@@ -60,10 +60,5 @@ describe('LanguageSelector', () => {
     it('has locale items', () => {
       expect(select.props().options.length > 0).to.be.true;
     });
-
-    it('calls localeStore.setLocale when changed', () => {
-      select.simulate('change', { target: { value: 'de' } });
-      expect(localeStore.setLocale).to.have.been.calledWith('de');
-    });
   });
 });

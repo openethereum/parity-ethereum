@@ -103,7 +103,7 @@ describe('views/Account/Shapeshift/OptionsStep', () => {
       });
 
       it('sets the coinSymbol on the store', () => {
-        instance.onSelectCoin(null, { value: 'XMR' });
+        instance.onSelectCoin(null, 'XMR');
         expect(store.setCoinSymbol).to.have.been.calledWith('XMR');
       });
     });

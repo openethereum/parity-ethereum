@@ -15,32 +15,46 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
+import { Menu } from 'semantic-ui-react';
 
-import styles from './dappIcon.css';
+import Tab from './Tab';
 
-export default function DappIcon ({ app, className, small }, { api }) {
-  const { dappsUrl } = api;
+export default function Tabs ({ activeTab, className, tabs, onChange }) {
+  const onTabClick = (event, { index }) => onChange && onChange(event, index);
 
   return (
-    <img
-      className={
-        [styles.icon, styles[small ? 'small' : 'normal'], className].join(' ')
+    <Menu
+      className={ className }
+      pointing
+    >
+      {
+        tabs.map((tab, index) => {
+          if (!tab) {
+            return null;
+          }
+
+          const key = `tab_${index}`;
+
+          return (
+            <Tab
+              isActive={ activeTab === index }
+              index={ index }
+              key={ key }
+              label={ tab.label || tab }
+              onClick={ onTabClick }
+            />
+          );
+        })
       }
-      src={
-        app.type === 'local'
-          ? `${dappsUrl}/${app.id}/${app.iconUrl}`
-          : `${dappsUrl}${app.image}`
-      }
-    />
+    </Menu>
   );
 }
 
-DappIcon.contextTypes = {
-  api: PropTypes.object.isRequired
-};
+Tabs.Tab = Tab;
 
-DappIcon.propTypes = {
-  app: PropTypes.object.isRequired,
+Tabs.propTypes = {
+  activeTab: PropTypes.number,
   className: PropTypes.string,
-  small: PropTypes.bool
+  onChange: PropTypes.func,
+  tabs: PropTypes.array
 };

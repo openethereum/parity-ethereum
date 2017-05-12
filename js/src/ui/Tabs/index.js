@@ -14,29 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { shallow } from 'enzyme';
-import React from 'react';
-
-import Steps from './';
-
-let component;
-
-function render (props = {}) {
-  component = shallow(
-    <Steps
-      { ...props }
-    />
-  );
-
-  return component;
-}
-
-describe('ui/Title/Steps', () => {
-  beforeEach(() => {
-    render({ steps: ['stepA', 'stepB'] });
-  });
-
-  it('renders the Stepper', () => {
-    expect(component.find('Stepper').get(0)).to.be.ok;
-  });
-});
+export default from './tabs';

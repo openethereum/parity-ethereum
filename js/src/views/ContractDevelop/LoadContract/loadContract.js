@@ -14,27 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Subheader, IconButton, Tabs, Tab } from 'material-ui';
-import { List, ListItem, makeSelectable } from 'material-ui/List';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Portal } from '@parity/ui';
+import { Button, List, Portal, Tabs } from '@parity/ui';
 import Editor from '@parity/ui/Editor';
 import { CancelIcon, CheckIcon, DeleteIcon } from '@parity/ui/Icons';
 
 import styles from './loadContract.css';
 
-const SelectableList = makeSelectable(List);
-
 const REMOVAL_STYLE = {
   backgroundColor: 'none',
   cursor: 'default'
 };
-const SELECTED_STYLE = {
-  backgroundColor: 'rgba(255, 255, 255, 0.1)'
-};
+
+// const SELECTED_STYLE = {
+//   backgroundColor: 'rgba(255, 255, 255, 0.1)'
+// };
 
 export default class LoadContract extends Component {
   static propTypes = {
@@ -46,6 +43,7 @@ export default class LoadContract extends Component {
   };
 
   state = {
+    activeTab: -1,
     selected: -1,
     deleteRequest: false,
     deleteId: -1
@@ -81,7 +79,9 @@ export default class LoadContract extends Component {
   }
 
   renderBody () {
-    if (this.state.deleteRequest) {
+    const { activeTab, deleteRequest } = this.state;
+
+    if (deleteRequest) {
       return this.renderConfirmRemoval();
     }
 
@@ -89,51 +89,57 @@ export default class LoadContract extends Component {
     const contractsTab = Object.keys(contracts).length === 0
       ? null
       : (
-        <Tab
-          label={
-            <FormattedMessage
-              id='loadContract.tab.local'
-              defaultMessage='Local'
-            />
-          }
-        >
-          { this.renderEditor() }
-          <SelectableList onChange={ this.onClickContract }>
-            <Subheader>
-              <FormattedMessage
-                id='loadContract.header.saved'
-                defaultMessage='Saved Contracts'
-              />
-            </Subheader>
-            { this.renderContracts(contracts) }
-          </SelectableList>
-        </Tab>
+        <FormattedMessage
+          id='loadContract.tab.local'
+          defaultMessage='Local'
+        />
       );
 
     return (
       <div className={ styles.loadContainer }>
-        <Tabs onChange={ this.handleChangeTab }>
-          { contractsTab }
-          <Tab
-            label={
-              <FormattedMessage
-                id='loadContract.tab.snippets'
-                defaultMessage='Snippets'
+        <Tabs
+          activeTab={ activeTab }
+          onChange={ this.handleChangeTab }
+          tabs={ [
+            contractsTab,
+            <FormattedMessage
+              id='loadContract.tab.snippets'
+              defaultMessage='Snippets'
+            />
+          ] }
+        />
+        { this.renderEditor() }
+        {
+          this.state.activeTab === 0
+            ? (
+              <List
+                label={
+                  <h4>
+                    <FormattedMessage
+                      id='loadContract.header.saved'
+                      defaultMessage='Saved Contracts'
+                    />
+                  </h4>
+                }
+                onChange={ this.onClickContract }
+                items={ this.renderContracts(contracts) }
               />
-            }
-          >
-            { this.renderEditor() }
-            <SelectableList onChange={ this.onClickContract }>
-              <Subheader>
-                <FormattedMessage
-                  id='loadContract.header.snippets'
-                  defaultMessage='Contract Snippets'
-                />
-              </Subheader>
-              { this.renderContracts(snippets, false) }
-            </SelectableList>
-          </Tab>
-        </Tabs>
+            )
+            : (
+              <List
+                label={
+                  <h4>
+                    <FormattedMessage
+                      id='loadContract.header.snippets'
+                      defaultMessage='Contract Snippets'
+                    />
+                  </h4>
+                }
+                onClick={ this.onClickContract }
+                items={ this.renderContracts(snippets, false) }
+              />
+            )
+        }
       </div>
     );
   }
@@ -150,9 +156,9 @@ export default class LoadContract extends Component {
             defaultMessage='Are you sure you want to remove the following contract from your saved contracts?'
           />
         </p>
-        <ListItem
-          primaryText={ name }
-          secondaryText={
+        <List.Item
+          label={ name }
+          description={
             <FormattedMessage
               id='loadContract.removal.savedAt'
               defaultMessage='Saved {when}'
@@ -200,46 +206,31 @@ export default class LoadContract extends Component {
   }
 
   renderContracts (contracts, removable = true) {
-    const { selected } = this.state;
-
     return Object
       .values(contracts)
       .map((contract) => {
         const { id, name, timestamp, description } = contract;
         const onDelete = () => this.onDeleteRequest(id);
 
-        return (
-          <ListItem
-            key={ id }
-            primaryText={ name }
-            rightIconButton={
-              removable
-                ? (
-                  <IconButton onTouchTap={ onDelete }>
-                    <DeleteIcon />
-                  </IconButton>
-                )
-                : null
-            }
-            secondaryText={
-              description || (
-                <FormattedMessage
-                  id='loadContract.contract.savedAt'
-                  defaultMessage='Saved {when}'
-                  values={ {
-                    when: moment(timestamp).fromNow()
-                  } }
-                />
-              )
-            }
-            style={
-              selected === id
-                ? SELECTED_STYLE
-                : null
-            }
-            value={ id }
-          />
-        );
+        return {
+          key: id,
+          label: name,
+          buttons: removable && (
+            <Button
+              icon={ <DeleteIcon /> }
+              onClick={ onDelete }
+            />
+          ),
+          description: description || (
+            <FormattedMessage
+              id='loadContract.contract.savedAt'
+              defaultMessage='Saved {when}'
+              values={ {
+                when: moment(timestamp).fromNow()
+              } }
+            />
+          )
+        };
       });
   }
 
@@ -300,8 +291,8 @@ export default class LoadContract extends Component {
     ];
   }
 
-  handleChangeTab = () => {
-    this.setState({ selected: -1 });
+  handleChangeTab = (event, activeTab) => {
+    this.setState({ activeTab, selected: -1 });
   }
 
   onClickContract = (event, selected) => {

@@ -15,26 +15,37 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
+import { Step as SemanticStep } from 'semantic-ui-react';
 
-import Progress from '~/ui/Progress';
+import Step from './Step';
 
-export default function Waiting ({ activeStep, busy, busySteps, className }) {
-  const isWaiting = busy || (busySteps || []).includes(activeStep);
-
-  if (!isWaiting) {
+export default function Steps ({ activeStep, className, steps }) {
+  if (!steps || steps.length < 2) {
     return null;
   }
 
   return (
     <div className={ className }>
-      <Progress />
+      <SemanticStep.Group ordered>
+        {
+          steps.map((label, index) => (
+            <Step
+              isActive={ activeStep === index }
+              isCompleted={ activeStep > index }
+              key={ label.key || index }
+              label={ label.label || label }
+            />
+          ))
+        }
+      </SemanticStep.Group>
     </div>
   );
 }
 
-Waiting.propTypes = {
+Steps.Step = Step;
+
+Steps.propTypes = {
   activeStep: PropTypes.number,
-  busy: PropTypes.bool,
-  busySteps: PropTypes.array,
-  className: PropTypes.string
+  className: PropTypes.string,
+  steps: PropTypes.array
 };

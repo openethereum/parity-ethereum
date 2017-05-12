@@ -16,14 +16,15 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Menu } from 'semantic-ui-react';
 
-import { Page } from '@parity/ui';
+import { Page, Tabs } from '@parity/ui';
 import { BackgroundIcon, EthernetIcon, VisibleIcon } from '@parity/ui/Icons';
 
 import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
 
 import styles from './settings.css';
+
+const TABS = ['views', 'background', 'proxy', 'parity'];
 
 export default class Settings extends Component {
   static contextTypes = {
@@ -36,22 +37,36 @@ export default class Settings extends Component {
 
   render () {
     const { children } = this.props;
-    const hash = (window.location.hash || '').split('?')[0].split('/')[2];
+    const hash = (window.location.hash || '').split('?')[0].split('/')[1];
     const isProxied = window.location.hostname.indexOf('.parity') !== -1;
-    let proxy = null;
-
-    if (!isProxied) {
-      proxy = this.renderTab(hash, 'proxy', <EthernetIcon />);
-    }
 
     return (
       <div>
-        <Menu className={ styles.tabs } name={ hash }>
-          { this.renderTab(hash, 'views', <VisibleIcon />) }
-          { this.renderTab(hash, 'background', <BackgroundIcon />) }
-          { proxy }
-          { this.renderTab(hash, 'parity', <img src={ imagesEthcoreBlock } className={ styles.imageIcon } />) }
-        </Menu>
+        <Tabs
+          activeTab={ TABS.indexOf(hash) }
+          className={ styles.tabs }
+          onChange={ this.onActivate }
+          tabs={ [
+            {
+              icon: <VisibleIcon />,
+              label: <FormattedMessage id='settings.views.label' />
+            },
+            {
+              icon: <BackgroundIcon />,
+              label: <FormattedMessage id='settings.background.label' />
+            },
+            isProxied
+              ? null
+              : {
+                icon: <EthernetIcon />,
+                label: <FormattedMessage id='settings.proxy.label' />
+              },
+            {
+              icon: <img src={ imagesEthcoreBlock } className={ styles.imageIcon } />,
+              label: <FormattedMessage id='settings.parity.label' />
+            }
+          ] }
+        />
         <Page>
           { children }
         </Page>
@@ -59,32 +74,9 @@ export default class Settings extends Component {
     );
   }
 
-  renderTab (hash, name, icon) {
-    return (
-      <Menu.Item
-        className={
-          hash === name
-            ? styles.tabactive
-            : styles.tab
-        }
-        icon={ icon }
-        key={ name }
-        content={
-          <div className={ styles.menu }>
-            <FormattedMessage id={ `settings.${name}.label` } />
-          </div>
-        }
-        onClick={ this.onActivate(name) }
-        name={ name }
-      />
-    );
-  }
-
-  onActivate = (name) => {
+  onActivate = (event, tabIndex) => {
     const { router } = this.context;
 
-    return (event) => {
-      router.push(`/${name}`);
-    };
+    router.push(`/${TABS[tabIndex]}`);
   }
 }

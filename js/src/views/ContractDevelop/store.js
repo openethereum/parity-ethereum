@@ -179,7 +179,7 @@ export default class ContractDevelopStore {
     this.reloadContracts(-1, sourcecode);
   }
 
-  @action handleSelectBuild = (_, index, value) => {
+  @action handleSelectBuild = (event, value) => {
     this.selectedBuild = value;
     return this
       .loadSolidityVersion(this.builds[value])
@@ -282,7 +282,7 @@ export default class ContractDevelopStore {
     this.showSaveModal = false;
   }
 
-  @action handleSelectContract = (_, index, value) => {
+  @action handleSelectContract = (event, value) => {
     this.contractIndex = value;
     this.contract = this.contracts[Object.keys(this.contracts)[value]];
   }

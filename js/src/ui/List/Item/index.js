@@ -14,27 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { PropTypes } from 'react';
-
-import Progress from '~/ui/Progress';
-
-export default function Waiting ({ activeStep, busy, busySteps, className }) {
-  const isWaiting = busy || (busySteps || []).includes(activeStep);
-
-  if (!isWaiting) {
-    return null;
-  }
-
-  return (
-    <div className={ className }>
-      <Progress />
-    </div>
-  );
-}
-
-Waiting.propTypes = {
-  activeStep: PropTypes.number,
-  busy: PropTypes.bool,
-  busySteps: PropTypes.array,
-  className: PropTypes.string
-};
+export default from './item';

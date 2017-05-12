@@ -392,9 +392,8 @@ export default class TypedInput extends Component {
     );
   }
 
-  onChangeBool = (event) => {
-    console.log('onChangeBool', event.target);
-    this.props.onChange(event.target.value === 'true');
+  onChangeBool = (event, value) => {
+    this.props.onChange(value === 'true');
   }
 
   onEthTypeChange = () => {

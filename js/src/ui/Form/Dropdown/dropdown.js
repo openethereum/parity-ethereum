@@ -26,7 +26,9 @@ import styles from './dropdown.css';
 const NAME_ID = ' ';
 
 // FIXME: Currently does not display the selected icon alongside
-export default function Dropdown ({ className, disabled = false, error, fullWidth = true, hint, label, onBlur, onChange, onKeyDown, options, text, value }, context) {
+export default function Dropdown ({ className, disabled = false, error, fullWidth = true, hint, label, onBlur, onChange, onKeyDown, options, text, value }, { intl }) {
+  const _onChange = (event, { value }) => onChange(event, value);
+
   return (
     <LabelComponent label={ label }>
       <SemanticDropdown
@@ -37,7 +39,7 @@ export default function Dropdown ({ className, disabled = false, error, fullWidt
         id={ NAME_ID }
         name={ NAME_ID }
         onBlur={ onBlur }
-        onChange={ onChange }
+        onChange={ _onChange }
         onKeyDown={ onKeyDown }
         options={ options }
         placeholder={ parseI18NString(context, hint) }

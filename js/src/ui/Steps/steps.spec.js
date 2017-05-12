@@ -14,27 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { PropTypes } from 'react';
+import { shallow } from 'enzyme';
+import React from 'react';
 
-import Progress from '~/ui/Progress';
+import Steps from './';
 
-export default function Waiting ({ activeStep, busy, busySteps, className }) {
-  const isWaiting = busy || (busySteps || []).includes(activeStep);
+let component;
 
-  if (!isWaiting) {
-    return null;
-  }
-
-  return (
-    <div className={ className }>
-      <Progress />
-    </div>
+function render (props = {}) {
+  component = shallow(
+    <Steps
+      { ...props }
+    />
   );
+
+  return component;
 }
 
-Waiting.propTypes = {
-  activeStep: PropTypes.number,
-  busy: PropTypes.bool,
-  busySteps: PropTypes.array,
-  className: PropTypes.string
-};
+describe('ui/Steps', () => {
+  beforeEach(() => {
+    render({ steps: ['stepA', 'stepB'] });
+  });
+
+  it('renders the defaults', () => {
+    expect(component).to.be.ok;
+  });
+});

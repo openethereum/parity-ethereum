@@ -178,7 +178,7 @@ export default class DetailsStep extends Component {
     }
 
     return (func.abi.inputs || []).map((input, index) => {
-      const onChange = (value) => onValueChange(null, index, value);
+      const onChange = (event, value) => onValueChange(null, index, value);
       const label = `${input.name}: ${input.type}`;
 
       return (
@@ -200,7 +200,7 @@ export default class DetailsStep extends Component {
     });
   }
 
-  onFuncChange = (event, index, signature) => {
+  onFuncChange = (event, signature) => {
     const { contract, onFuncChange } = this.props;
 
     onFuncChange(event, contract.functions.find((fn) => fn.signature === signature));

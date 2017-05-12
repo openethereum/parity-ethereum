@@ -207,8 +207,8 @@ export default class Details extends Component {
     );
   }
 
-  onChangeToken = (event, data) => {
-    this.props.onChange('token', data.value);
+  onChangeToken = (event, token) => {
+    this.props.onChange('token', token);
   }
 
   onEditSender = (event, sender) => {
