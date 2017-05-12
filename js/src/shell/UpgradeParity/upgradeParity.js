@@ -18,8 +18,8 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Portal } from '~/ui';
-import { CancelIcon, DoneIcon, ErrorIcon, NextIcon, UpdateIcon, UpdateWaitIcon } from '~/ui/Icons';
+import { Button, Portal } from '@parity/ui';
+import { CancelIcon, DoneIcon, ErrorIcon, NextIcon, UpdateIcon, UpdateWaitIcon } from '@parity/ui/Icons';
 
 import { STEP_COMPLETED, STEP_ERROR, STEP_INFO, STEP_UPDATING } from './store';
 import styles from './upgradeParity.css';

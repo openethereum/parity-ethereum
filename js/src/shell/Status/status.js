@@ -17,7 +17,7 @@
 import React, { PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import { BlockStatus } from '~/ui';
+import { BlockStatus } from '@parity/ui';
 
 import Consensus from './Consensus';
 import Upgrade from './Upgrade';

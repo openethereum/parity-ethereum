@@ -21,8 +21,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { hideRequest } from '@parity/shared/redux/providers/requestsActions';
-
-import { MethodDecoding, IdentityIcon, Progress, ScrollableText, ShortenedHash } from '~/ui';
+import { MethodDecoding, IdentityIcon, Progress, ScrollableText, ShortenedHash } from '@parity/ui';
 
 import styles from './requests.css';
 
