@@ -19,7 +19,7 @@ import { FormattedMessage } from 'react-intl';
 
 import { nullableProptype } from '@parity/shared/util/proptypes';
 
-import Form, { Input, InputAddressSelect, AddressSelect, Checkbox } from '~/ui/Form';
+import Form, { Input, InputAddressSelect, AddressSelect, Checkbox } from '@parity/ui/Form';
 
 import TokenSelect from './tokenSelect';
 import styles from '../transfer.css';
@@ -207,8 +207,8 @@ export default class Details extends Component {
     );
   }
 
-  onChangeToken = (event, index, tokenId) => {
-    this.props.onChange('token', tokenId);
+  onChangeToken = (event, data) => {
+    this.props.onChange('token', data.value);
   }
 
   onEditSender = (event, sender) => {

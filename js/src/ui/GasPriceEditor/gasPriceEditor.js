@@ -88,6 +88,7 @@ export default class GasPriceEditor extends Component {
               defaultMessage='Condition where transaction activates'
             />
           }
+          name='conditionType'
           onChange={ this.onChangeConditionType }
           value={ conditionType }
           values={ CONDITION_VALUES }
@@ -239,8 +240,8 @@ export default class GasPriceEditor extends Component {
     onChange && onChange('gasPrice', price);
   }
 
-  onChangeConditionType = (conditionType) => {
-    this.props.store.setConditionType(conditionType.key);
+  onChangeConditionType = (event, conditionType) => {
+    this.props.store.setConditionType(conditionType);
   }
 
   onChangeConditionBlock = (event, blockNumber) => {

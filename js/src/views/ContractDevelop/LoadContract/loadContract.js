@@ -20,9 +20,9 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Portal } from '~/ui';
-import Editor from '~/ui/Editor';
-import { CancelIcon, CheckIcon, DeleteIcon } from '~/ui/Icons';
+import { Button, Portal } from '@parity/ui';
+import Editor from '@parity/ui/Editor';
+import { CancelIcon, CheckIcon, DeleteIcon } from '@parity/ui/Icons';
 
 import styles from './loadContract.css';
 

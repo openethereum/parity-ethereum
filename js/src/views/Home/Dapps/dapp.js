@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
 
-import { Container, DappIcon } from '~/ui';
+import { Container, DappIcon } from '@parity/ui';
 
 import styles from './dapps.css';
 

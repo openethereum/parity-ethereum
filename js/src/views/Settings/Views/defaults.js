@@ -16,7 +16,7 @@
 
 import React from 'react';
 
-import { AppsIcon } from '~/ui/Icons';
+import { AppsIcon } from '@parity/ui/Icons';
 
 const defaultViews = {
   apps: {

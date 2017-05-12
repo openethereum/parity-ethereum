@@ -21,8 +21,7 @@ import { connect } from 'react-redux';
 import { Link } from 'react-router';
 
 import { arrayOrObjectProptype } from '@parity/shared/util/proptypes';
-
-import { Container, ContainerTitle, IdentityName, IdentityIcon, SectionList } from '~/ui';
+import { Container, ContainerTitle, IdentityName, IdentityIcon, SectionList } from '@parity/ui';
 
 import styles from './accounts.css';
 

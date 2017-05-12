@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { IdentityIcon, Input, QrCode, Title } from '~/ui';
+import { IdentityIcon, Input, QrCode, Title } from '@parity/ui';
 
 import styles from '../createAccount.css';
 

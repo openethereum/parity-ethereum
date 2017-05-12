@@ -24,9 +24,8 @@ import { bindActionCreators } from 'redux';
 import { setRequest } from '@parity/shared/redux/providers/requestsActions';
 import { ERRORS, validateAbi, validateCode, validateName, validatePositiveNumber } from '@parity/shared/util/validation';
 import { deploy, deployEstimateGas } from '@parity/shared/util/tx';
-
-import { Button, GasPriceEditor, IdentityIcon, Portal, Warning } from '~/ui';
-import { CancelIcon } from '~/ui/Icons';
+import { Button, GasPriceEditor, IdentityIcon, Portal, Warning } from '@parity/ui';
+import { CancelIcon } from '@parity/ui/Icons';
 
 import DetailsStep from './DetailsStep';
 import ParametersStep from './ParametersStep';

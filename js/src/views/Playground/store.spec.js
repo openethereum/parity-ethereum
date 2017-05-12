@@ -16,7 +16,7 @@
 
 import React from 'react';
 
-import QrCode from '~/ui/QrCode/qrCode.example';
+import QrCode from '@parity/ui/QrCode/qrCode.example';
 
 import PlaygroundStore from './store';
 

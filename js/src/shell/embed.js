@@ -28,11 +28,10 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 import ContractInstances from '@parity/shared/contracts';
 import { initStore } from '@parity/shared/redux';
 import { patchApi } from '@parity/shared/util/tx';
+import ContextProvider from '@parity/ui/ContextProvider';
+import muiTheme from '@parity/ui/Theme';
 
 import SecureApi from '~/secureApi';
-
-import ContextProvider from '~/ui/ContextProvider';
-import muiTheme from '~/ui/Theme';
 
 import '@parity/shared/environment';
 

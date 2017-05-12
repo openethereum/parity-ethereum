@@ -19,8 +19,7 @@ import { FormattedMessage } from 'react-intl';
 
 import { parseAbiType } from '@parity/shared/util/abi';
 import { validateAbi } from '@parity/shared/util/validation';
-
-import { AddressSelect, Checkbox, Dropdown, Form, Input } from '~/ui';
+import { AddressSelect, Checkbox, Dropdown, Form, Input } from '@parity/ui';
 
 const CHECK_STYLE = {
   marginTop: '1em'

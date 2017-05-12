@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { uniq } from 'lodash';
 
-import { Container, Loading } from '~/ui';
+import { Container, Loading } from '@parity/ui';
 
 import Event from './Event';
 import styles from '../contract.css';

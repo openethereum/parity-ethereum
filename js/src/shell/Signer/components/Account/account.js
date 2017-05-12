@@ -16,7 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { IdentityIcon, IdentityName } from '~/ui';
+import { IdentityIcon, IdentityName } from '@parity/ui';
+
 import AccountLink from './AccountLink';
 
 import styles from './account.css';

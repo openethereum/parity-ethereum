@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { Errors } from '~/ui';
+import { Errors } from '@parity/ui';
 
 import Connection from '../Connection';
 import Extension from '../Extension';

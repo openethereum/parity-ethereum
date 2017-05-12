@@ -15,10 +15,12 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$labelColor: rgba(255, 255, 255, 0.5);
+$labelColor: rgba(0, 0, 0, 0.3);
 $labelFontSize: 0.75rem;
 
 .label {
   color: $labelColor;
   font-size: $labelFontSize;
+  pointer-events: none;
+  user-select: none;
 }

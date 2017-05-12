@@ -18,7 +18,7 @@ import React, { PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { Container } from '~/ui';
+import { Container } from '@parity/ui';
 
 import Peer from './Peer';
 

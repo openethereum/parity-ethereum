@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Container, SelectionList, Title } from '~/ui';
+import { Container, SelectionList, Title } from '@parity/ui';
 
 import TypeIcon from '../TypeIcon';
 import styles from '../createAccount.css';

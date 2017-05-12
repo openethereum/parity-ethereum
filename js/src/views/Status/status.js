@@ -17,7 +17,7 @@
 import React from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Page } from '~/ui';
+import { Page } from '@parity/ui';
 
 import Debug from './Debug';
 import Node from './Node';

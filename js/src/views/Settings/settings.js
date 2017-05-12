@@ -18,10 +18,10 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Menu } from 'semantic-ui-react';
 
-import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
+import { Page } from '@parity/ui';
+import { BackgroundIcon, EthernetIcon, VisibleIcon } from '@parity/ui/Icons';
 
-import { Page } from '~/ui';
-import { BackgroundIcon, EthernetIcon, VisibleIcon } from '~/ui/Icons';
+import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
 
 import styles from './settings.css';
 

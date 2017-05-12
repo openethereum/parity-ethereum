@@ -21,9 +21,9 @@ import { connect } from 'react-redux';
 import moment from 'moment';
 import { throttle } from 'lodash';
 
-import { Actionbar, ActionbarExport, ActionbarImport, Button, Dropdown, Input, Loading, Page, Toggle } from '~/ui';
-import { CancelIcon, ListIcon, SaveIcon, SendIcon, SettingsIcon } from '~/ui/Icons';
-import Editor from '~/ui/Editor';
+import { Actionbar, ActionbarExport, ActionbarImport, Button, Dropdown, Input, Loading, Page, Toggle } from '@parity/ui';
+import { CancelIcon, ListIcon, SaveIcon, SendIcon, SettingsIcon } from '@parity/ui/Icons';
+import Editor from '@parity/ui/Editor';
 
 import DeployContract from '../Contracts/DeployContract';
 import LoadContract from './LoadContract';

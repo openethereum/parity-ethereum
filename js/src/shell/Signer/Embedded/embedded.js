@@ -21,8 +21,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import * as RequestsActions from '@parity/shared/redux/providers/signerActions';
-
-import { Container } from '~/ui';
+import { Container } from '@parity/ui';
 
 import Store from '../store';
 

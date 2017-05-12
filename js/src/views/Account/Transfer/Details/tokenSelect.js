@@ -19,8 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { isEqual } from 'lodash';
 
-import { Dropdown } from '~/ui/Form';
-import TokenImage from '~/ui/TokenImage';
+import { Dropdown, TokenImage } from '@parity/ui';
 
 import styles from '../transfer.css';
 
@@ -90,7 +89,7 @@ class TokenSelect extends Component {
 
         return {
           key: tokenId,
-          text: label,
+          text: token.name,
           value: token.id,
           content: label
         };

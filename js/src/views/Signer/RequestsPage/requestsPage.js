@@ -23,8 +23,7 @@ import { bindActionCreators } from 'redux';
 
 import { newError } from '@parity/shared/redux/actions';
 import { startConfirmRequest, startRejectRequest } from '@parity/shared/redux/providers/signerActions';
-
-import { Container, Page, TxList } from '~/ui';
+import { Container, Page, TxList } from '@parity/ui';
 
 import Store from '~/shell/Signer/store';
 import RequestPending from '~/shell/Signer/components/RequestPending';

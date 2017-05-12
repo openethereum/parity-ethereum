@@ -23,8 +23,7 @@ import { bindActionCreators } from 'redux';
 import { newError } from '@parity/shared/redux/actions';
 import { arrayOrObjectProptype } from '@parity/shared/util/proptypes';
 import { parseAbiType } from '@parity/shared/util/abi';
-
-import { Button, Container, Progress, TypedInput } from '~/ui';
+import { Button, Container, Progress, TypedInput } from '@parity/ui';
 
 import styles from './queries.css';
 

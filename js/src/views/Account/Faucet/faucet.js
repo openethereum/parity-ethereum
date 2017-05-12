@@ -19,8 +19,8 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { txLink } from '~/3rdparty/etherscan/links';
-import { Button, ModalBox, Portal, ShortenedHash } from '~/ui';
-import { CloseIcon, DialIcon, DoneIcon, ErrorIcon, SendIcon } from '~/ui/Icons';
+import { Button, ModalBox, Portal, ShortenedHash } from '@parity/ui';
+import { CloseIcon, DialIcon, DoneIcon, ErrorIcon, SendIcon } from '@parity/ui/Icons';
 
 import Store from './store';
 
