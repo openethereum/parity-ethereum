@@ -18,9 +18,6 @@
 //! The request service is implemented using Futures. Higher level request handlers
 //! will take the raw data received here and extract meaningful results from it.
 
-// TODO [ToDr] Suppressing deprecation warnings. Rob will fix the API anyway.
-#![allow(deprecated)]
-
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
