@@ -84,7 +84,7 @@ describe('views/Settings/Node', () => {
       let select;
 
       beforeEach(() => {
-        select = component.find('Menu[id="parityModeSelect"]');
+        select = component.find('Dropdown[id="parityModeSelect"]');
         sinon.spy(instance.store, 'changeMode');
       });
 
@@ -101,7 +101,7 @@ describe('views/Settings/Node', () => {
       let select;
 
       beforeEach(() => {
-        select = component.find('Menu[id="parityChainSelect"]');
+        select = component.find('Dropdown[id="parityChainSelect"]');
         sinon.spy(instance.store, 'changeChain');
       });
 

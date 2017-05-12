@@ -31,12 +31,12 @@ function render (props = {}) {
   return component;
 }
 
-describe('ui/Title/Steps', () => {
+describe('ui/Steps', () => {
   beforeEach(() => {
     render({ steps: ['stepA', 'stepB'] });
   });
 
-  it('renders the Stepper', () => {
-    expect(component.find('Stepper').get(0)).to.be.ok;
+  it('renders the defaults', () => {
+    expect(component).to.be.ok;
   });
 });

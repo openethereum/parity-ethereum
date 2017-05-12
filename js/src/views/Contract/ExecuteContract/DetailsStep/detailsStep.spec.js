@@ -58,23 +58,4 @@ describe('modals/ExecuteContract/DetailsStep', () => {
   it('renders', () => {
     expect(render({ accounts: {}, values: [ true ], valuesError: [ null ] })).to.be.ok;
   });
-
-  describe('parameter values', () => {
-    beforeEach(() => {
-      render({
-        accounts: {},
-        func: CONTRACT.functions[0],
-        values: [ false ],
-        valuesError: [ null ]
-      });
-    });
-
-    describe('bool parameters', () => {
-      it('toggles from false to true', () => {
-        component.find('TypedInput').last().shallow().simulate('change', { target: { value: 'true' } });
-
-        expect(onValueChange).to.have.been.calledWith(null, 0, true);
-      });
-    });
-  });
 });

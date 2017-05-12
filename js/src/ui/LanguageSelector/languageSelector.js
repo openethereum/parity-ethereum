@@ -63,7 +63,7 @@ export default class LanguageSelector extends Component {
     );
   }
 
-  onChange = (event, index, locale) => {
-    this.store.setLocale(locale || event.target.value);
+  onChange = (event, locale) => {
+    this.store.setLocale(locale);
   }
 }

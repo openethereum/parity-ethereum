@@ -129,9 +129,7 @@ export default class OptionsStep extends Component {
     this.props.store.setRefundAddress(refundAddress);
   }
 
-  onSelectCoin = (event, data) => {
-    const { value } = data;
-
+  onSelectCoin = (event, value) => {
     this.props.store.setCoinSymbol(value);
   }
 

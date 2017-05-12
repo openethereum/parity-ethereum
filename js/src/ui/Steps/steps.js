@@ -17,15 +17,13 @@
 import React, { PropTypes } from 'react';
 import { Step } from 'semantic-ui-react';
 
-import styles from '../title.css';
-
-export default function Steps ({ activeStep, steps }) {
+export default function Steps ({ activeStep, className, steps }) {
   if (!steps || steps.length < 2) {
     return null;
   }
 
   return (
-    <div className={ styles.steps }>
+    <div className={ className }>
       <Step.Group ordered>
         {
           steps.map((label, index) => (
@@ -47,5 +45,6 @@ export default function Steps ({ activeStep, steps }) {
 
 Steps.propTypes = {
   activeStep: PropTypes.number,
+  className: PropTypes.string,
   steps: PropTypes.array
 };
