@@ -17,17 +17,17 @@ class HeaderLights extends Component {
   // state: State = {
   // };
 
-  render() {
+  render () {
     return (
-      <div className={styles.HeaderLights}>
-        <div className={styles.lightContainer}>
-          <div className={styles.lightBulb} />
+      <div className={ styles.HeaderLights }>
+        <div className={ styles.lightContainer }>
+          <div className={ styles.lightBulb } />
         </div>
-        <div className={styles.lightContainer}>
-          <div className={styles.lightBulb} />
+        <div className={ styles.lightContainer }>
+          <div className={ styles.lightBulb } />
         </div>
-        <div className={styles.lightContainer}>
-          <div className={styles.lightBulb} />
+        <div className={ styles.lightContainer }>
+          <div className={ styles.lightBulb } />
         </div>
       </div>
     );

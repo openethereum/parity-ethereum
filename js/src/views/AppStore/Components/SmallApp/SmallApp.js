@@ -5,10 +5,9 @@ import React, { Component } from 'react';
 import './SmallApp.css';
 
 class SmallApp extends Component {
-
-  render() {
+  render () {
     return (
-      <div className="SmallApp">
+      <div className='SmallApp'>
         SmallApp
       </div>
     );

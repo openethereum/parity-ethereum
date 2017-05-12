@@ -17,11 +17,9 @@ class Search extends Component {
   // state: State = {
   // };
 
-  render() {
+  render () {
     return (
-      <div className="Search">
-
-      </div>
+      <div className='Search' />
     );
   }
 }

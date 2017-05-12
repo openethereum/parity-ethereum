@@ -8,30 +8,29 @@ import DappHeader from './DappHeader/DappHeader';
 /** Stylesheets **/
 import styles from './Dapps.css';
 
-// type Props = {|
-//   history: Object,
-//   location: Object,
-//   match: Object
-// |}
-//
+type Props = {|
+  params: {
+    appPath: string
+  }
+|}
+
 // // type State = {|
 // //
 // // |}
 
 class Dapps extends Component {
-  // props: Props;
+  props: Props;
   // state: State = {
   // };
 
-  render() {
-    const { params } = this.props;
-    const { appPath } = params;
+  render () {
+    const { appPath } = this.props.params;
 
     return (
-      <div className={styles.Dapps}>
+      <div className={ styles.Dapps }>
 
-        <DappHeader history={'history'} />
-        <FullApp appId={appPath} />
+        <DappHeader history={ 'history' } />
+        <FullApp appId={ appPath } />
 
       </div>
     );

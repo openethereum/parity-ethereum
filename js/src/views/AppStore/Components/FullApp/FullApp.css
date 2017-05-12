@@ -56,6 +56,15 @@
   user-select: none;
 }
 
+.right-side-border-top-margin {
+  border-top: solid;
+  border-width: 1px;
+  border-color: #b9b4b2;
+  margin-right: 30px;
+  margin-top: 55px;
+  user-select: none;
+}
+
 .right-side-header {
   font-size: 22px;
   pointer-events: none;

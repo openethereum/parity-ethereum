@@ -5,10 +5,9 @@ import React, { Component } from 'react';
 import './Catagories.css';
 
 class Catagories extends Component {
-
-  render() {
+  render () {
     return (
-      <div className="Catagories">
+      <div className='Catagories'>
         Catagories
       </div>
     );

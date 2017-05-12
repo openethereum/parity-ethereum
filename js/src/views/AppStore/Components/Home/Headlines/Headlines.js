@@ -5,10 +5,9 @@ import React, { Component } from 'react';
 import './Headlines.css';
 
 class Headlines extends Component {
-
-  render() {
+  render () {
     return (
-      <div className="Headlines">
+      <div className='Headlines'>
         Headlines
       </div>
     );

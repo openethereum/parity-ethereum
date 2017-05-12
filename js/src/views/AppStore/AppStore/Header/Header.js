@@ -20,13 +20,13 @@ class Header extends Component {
   // state: State = {
   // };
 
-  render() {
+  render () {
     return (
-      <div className={styles.Header}>
-        {/*<Home />
+      <div className={ styles.Header }>
+        {/* <Home />
         <Installed />
-        <History />*/}
-        <div id={styles.headerSearch}>
+        <History /> */}
+        <div id={ styles.headerSearch }>
           <Search />
         </div>
         Home
