@@ -27,6 +27,10 @@ export default function Tabs ({ activeTab, className, tabs, onChange }) {
     >
       {
         tabs.map((label, index) => {
+          if (!label) {
+            return null;
+          }
+
           const key = `tab_${index}`;
 
           return (

@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Subheader, IconButton, Tabs, Tab } from 'material-ui';
+import { Subheader, IconButton } from 'material-ui';
 import { List, ListItem, makeSelectable } from 'material-ui/List';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Portal } from '@parity/ui';
+import { Button, Portal, Tabs } from '@parity/ui';
 import Editor from '@parity/ui/Editor';
 import { CancelIcon, CheckIcon, DeleteIcon } from '@parity/ui/Icons';
 
@@ -46,6 +46,7 @@ export default class LoadContract extends Component {
   };
 
   state = {
+    activeTab: -1,
     selected: -1,
     deleteRequest: false,
     deleteId: -1
@@ -81,7 +82,9 @@ export default class LoadContract extends Component {
   }
 
   renderBody () {
-    if (this.state.deleteRequest) {
+    const { activeTab, deleteRequest } = this.state;
+
+    if (deleteRequest) {
       return this.renderConfirmRemoval();
     }
 
@@ -89,51 +92,51 @@ export default class LoadContract extends Component {
     const contractsTab = Object.keys(contracts).length === 0
       ? null
       : (
-        <Tab
-          label={
-            <FormattedMessage
-              id='loadContract.tab.local'
-              defaultMessage='Local'
-            />
-          }
-        >
-          { this.renderEditor() }
-          <SelectableList onChange={ this.onClickContract }>
-            <Subheader>
-              <FormattedMessage
-                id='loadContract.header.saved'
-                defaultMessage='Saved Contracts'
-              />
-            </Subheader>
-            { this.renderContracts(contracts) }
-          </SelectableList>
-        </Tab>
+        <FormattedMessage
+          id='loadContract.tab.local'
+          defaultMessage='Local'
+        />
       );
 
     return (
       <div className={ styles.loadContainer }>
-        <Tabs onChange={ this.handleChangeTab }>
-          { contractsTab }
-          <Tab
-            label={
-              <FormattedMessage
-                id='loadContract.tab.snippets'
-                defaultMessage='Snippets'
-              />
-            }
-          >
-            { this.renderEditor() }
-            <SelectableList onChange={ this.onClickContract }>
-              <Subheader>
-                <FormattedMessage
-                  id='loadContract.header.snippets'
-                  defaultMessage='Contract Snippets'
-                />
-              </Subheader>
-              { this.renderContracts(snippets, false) }
-            </SelectableList>
-          </Tab>
-        </Tabs>
+        <Tabs
+          activeTab={ activeTab }
+          onChange={ this.handleChangeTab }
+          tabs={ [
+            contractsTab,
+            <FormattedMessage
+              id='loadContract.tab.snippets'
+              defaultMessage='Snippets'
+            />
+          ] }
+        />
+        { this.renderEditor() }
+        {
+          this.state.activeTab === 0
+            ? (
+              <SelectableList onChange={ this.onClickContract }>
+                <Subheader>
+                  <FormattedMessage
+                    id='loadContract.header.saved'
+                    defaultMessage='Saved Contracts'
+                  />
+                </Subheader>
+                { this.renderContracts(contracts) }
+              </SelectableList>
+            )
+            : (
+              <SelectableList onChange={ this.onClickContract }>
+                <Subheader>
+                  <FormattedMessage
+                    id='loadContract.header.snippets'
+                    defaultMessage='Contract Snippets'
+                  />
+                </Subheader>
+                { this.renderContracts(snippets, false) }
+              </SelectableList>
+            )
+        }
       </div>
     );
   }
@@ -300,8 +303,8 @@ export default class LoadContract extends Component {
     ];
   }
 
-  handleChangeTab = () => {
-    this.setState({ selected: -1 });
+  handleChangeTab = (event, activeTab) => {
+    this.setState({ activeTab, selected: -1 });
   }
 
   onClickContract = (event, selected) => {
