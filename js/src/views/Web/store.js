@@ -18,7 +18,7 @@ import { action, computed, observable, transaction } from 'mobx';
 import localStore from 'store';
 import { parse as parseUrl } from 'url';
 
-import { encodePath, encodeUrl } from '~/util/dapplink';
+import { encodePath, encodeUrl } from './dapplink';
 
 const DEFAULT_URL = 'https://oasisdex.com';
 const LS_LAST_ADDRESS = '_parity::webLastAddress';

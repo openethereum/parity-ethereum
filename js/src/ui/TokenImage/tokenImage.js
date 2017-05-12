@@ -14,59 +14,41 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
+import React, { PropTypes } from 'react';
 
 import unknownImage from '~/../assets/images/contracts/unknown-64x64.png';
+import IconCache from '~/ui/IconCache';
 
-class TokenImage extends Component {
-  static contextTypes = {
-    api: PropTypes.object
-  };
+const iconCache = IconCache.get();
 
-  static propTypes = {
-    image: PropTypes.string,
-    token: PropTypes.shape({
-      image: PropTypes.string,
-      address: PropTypes.string
-    }).isRequired
-  };
+export default function TokenImage ({ token }, context) {
+  const { api } = context;
+  const imageurl = token.image || iconCache.images[token.address];
+  let imagesrc = unknownImage;
 
-  render () {
-    const { api } = this.context;
-    const { image, token } = this.props;
+  if (imageurl) {
+    const host = /^(\/)?api/.test(imageurl)
+      ? api.dappsUrl
+      : '';
 
-    const imageurl = token.image || image;
-    let imagesrc = unknownImage;
-
-    if (imageurl) {
-      const host = /^(\/)?api/.test(imageurl)
-        ? api.dappsUrl
-        : '';
-
-      imagesrc = `${host}${imageurl}`;
-    }
-
-    return (
-      <img
-        src={ imagesrc }
-        alt={ token.name }
-      />
-    );
+    imagesrc = `${host}${imageurl}`;
   }
+
+  return (
+    <img
+      src={ imagesrc }
+      alt={ token.name }
+    />
+  );
 }
 
-function mapStateToProps (iniState) {
-  const { images } = iniState;
+TokenImage.contextTypes = {
+  api: PropTypes.object
+};
 
-  return (_, props) => {
-    const { token } = props;
-
-    return { image: images[token.address] };
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(TokenImage);
+TokenImage.propTypes = {
+  token: PropTypes.shape({
+    image: PropTypes.string,
+    address: PropTypes.string
+  }).isRequired
+};

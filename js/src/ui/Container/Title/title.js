@@ -14,75 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+
+import Byline from './Byline';
+import Description from './Description';
 
 import styles from './title.css';
 
-export default class Title extends Component {
-  static propTypes = {
-    byline: nodeOrStringProptype(),
-    className: PropTypes.string,
-    description: nodeOrStringProptype(),
-    title: nodeOrStringProptype()
-  }
-
-  render () {
-    const { className, title } = this.props;
-
-    return (
-      <div className={ className }>
-        <h3 className={ styles.title }>
-          { title }
-        </h3>
-        { this.renderByline() }
-        { this.renderDescription() }
-      </div>
-    );
-  }
-
-  renderByline () {
-    const { byline } = this.props;
-
-    if (!byline) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.byline }>
-        {
-          typeof byline === 'string'
-            ? (
-              <span title={ byline }>
-                { byline }
-              </span>
-            )
-            : byline
-        }
-      </div>
-    );
-  }
-
-  renderDescription () {
-    const { description } = this.props;
-
-    if (!description) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.description }>
-        {
-          typeof description === 'string'
-            ? (
-              <span title={ description }>
-                { description }
-              </span>
-            )
-            : description
-        }
-      </div>
-    );
-  }
+export default function Title ({ byline, className, description, title }) {
+  return (
+    <div className={ className }>
+      <h3 className={ styles.title }>
+        { title }
+      </h3>
+      <Byline byline={ byline } />
+      <Description description={ description } />
+    </div>
+  );
 }
+
+Title.propTypes = {
+  byline: nodeOrStringProptype(),
+  className: PropTypes.string,
+  description: nodeOrStringProptype(),
+  title: nodeOrStringProptype()
+};

@@ -14,4 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './home';
+import ReactDOM from 'react-dom';
+import React from 'react';
+import { Route, Router, hashHistory } from 'react-router';
+
+import injectTapEventPlugin from 'react-tap-event-plugin';
+injectTapEventPlugin();
+
+import { initStore } from '@parity/shared/redux';
+
+import { api } from './parity';
+
+import ContextProvider from '~/ui/ContextProvider';
+import muiTheme from '~/ui/Theme';
+
+import Home from './home';
+
+const store = initStore(api, hashHistory);
+
+ReactDOM.render(
+  <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
+    <Router history={ hashHistory }>
+      <Route path='/' component={ Home } />
+    </Router>
+  </ContextProvider>,
+  document.querySelector('#container')
+);

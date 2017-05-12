@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Checkbox } from 'material-ui';
 import { observer } from 'mobx-react';
 import { List, ListItem } from 'material-ui/List';
 import React, { Component } from 'react';
+
+import Checkbox from '~/ui/Form/Checkbox';
 
 import defaults, { MODES } from './defaults';
 import Store from './store';
@@ -54,7 +55,7 @@ export default class Features extends Component {
         leftCheckbox={
           <Checkbox
             checked={ this.store.active[key] }
-            onCheck={ onCheck }
+            onClick={ onCheck }
           />
         }
         primaryText={ feature.name }

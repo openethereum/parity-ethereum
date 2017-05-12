@@ -15,7 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export AddressSelect from './AddressSelect';
+export Checkbox from './Checkbox';
 export DappUrlInput from './DappUrlInput';
+export Dropdown from './Dropdown';
 export FileSelect from './FileSelect';
 export FormWrap from './FormWrap';
 export Input from './Input';
@@ -27,7 +29,7 @@ export InputInline from './InputInline';
 export InputTime from './InputTime';
 export Label from './Label';
 export RadioButtons from './RadioButtons';
-export Select from './Select';
+export Toggle from './Toggle';
 export TypedInput from './TypedInput';
 export VaultSelect from './VaultSelect';
 

@@ -18,11 +18,12 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import NavigationRefresh from 'material-ui/svg-icons/navigation/refresh';
 
-import { Button, Container, ParityBackground } from '~/ui';
+import { updateBackground } from '@parity/shared/redux/providers/settings/actions';
 
-import { updateBackground } from '../actions';
+import { Button, Container } from '~/ui';
+import ParityBackground from '~/ui/ParityBackground';
+import { RefreshIcon } from '~/ui/Icons';
 
 import layout from '../layout.css';
 import styles from './background.css';
@@ -78,7 +79,7 @@ class Background extends Component {
             </div>
             <div>
               <Button
-                icon={ <NavigationRefresh /> }
+                icon={ <RefreshIcon /> }
                 label={
                   <FormattedMessage
                     id='settings.background.button_more'

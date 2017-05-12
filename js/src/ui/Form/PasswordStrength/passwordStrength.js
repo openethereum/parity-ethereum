@@ -16,9 +16,10 @@
 
 import React, { Component, PropTypes } from 'react';
 import { debounce } from 'lodash';
-import { LinearProgress } from 'material-ui';
 import { FormattedMessage } from 'react-intl';
 import zxcvbn from 'zxcvbn';
+
+import Progress from '~/ui/Progress';
 
 import styles from './passwordStrength.css';
 
@@ -80,9 +81,9 @@ export default class PasswordStrength extends Component {
             defaultMessage='password strength'
           />
         </label>
-        <LinearProgress
+        <Progress
           color={ color }
-          mode='determinate'
+          determinate
           style={ BAR_STYLE }
           value={ value }
         />

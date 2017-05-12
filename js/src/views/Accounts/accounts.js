@@ -20,15 +20,17 @@ import { uniq, isEqual, pickBy } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
-import { Link } from 'react-router';
 import { bindActionCreators } from 'redux';
 
-import HardwareStore from '~/mobx/hardwareStore';
-import { CreateAccount, CreateWallet, ExportAccount } from '~/modals';
-import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
-import { AddIcon, KeyIcon, FileDownloadIcon } from '~/ui/Icons';
-import { setVisibleAccounts } from '~/redux/providers/personalActions';
+import HardwareStore from '@parity/shared/mobx/hardwareStore';
+import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
 
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
+import { AddIcon, FileDownloadIcon } from '~/ui/Icons';
+
+import CreateWallet from './CreateWallet';
+import CreateAccount from './CreateAccount';
+import ExportAccount from './ExportAccount';
 import List from './List';
 import styles from './accounts.css';
 
@@ -101,16 +103,6 @@ class Accounts extends Component {
         { this.renderActionbar() }
 
         <Page>
-          <Tooltip
-            className={ styles.accountTooltip }
-            text={
-              <FormattedMessage
-                id='accounts.tooltip.overview'
-                defaultMessage='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account'
-              />
-            }
-          />
-
           { this.renderExternalAccounts() }
           { this.renderWallets() }
           { this.renderAccounts() }
@@ -247,21 +239,6 @@ class Accounts extends Component {
 
   renderActionbar () {
     const buttons = [
-      <Link
-        to='/vaults'
-        key='vaults'
-      >
-        <Button
-          icon={ <KeyIcon /> }
-          label={
-            <FormattedMessage
-              id='accounts.button.vaults'
-              defaultMessage='vaults'
-            />
-          }
-          onClick={ this.onVaultsClick }
-        />
-      </Link>,
       <Button
         key='newAccount'
         icon={ <AddIcon /> }
@@ -309,18 +286,7 @@ class Accounts extends Component {
           />
         }
         buttons={ buttons }
-      >
-        <Tooltip
-          className={ styles.toolbarTooltip }
-          right
-          text={
-            <FormattedMessage
-              id='accounts.tooltip.actions'
-              defaultMessage='actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item'
-            />
-          }
-        />
-      </Actionbar>
+      />
     );
   }
 

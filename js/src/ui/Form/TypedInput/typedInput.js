@@ -15,21 +15,21 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { MenuItem, Toggle } from 'material-ui';
 import { range } from 'lodash';
 import BigNumber from 'bignumber.js';
 
 import IconButton from 'material-ui/IconButton';
-import AddIcon from 'material-ui/svg-icons/content/add';
-import RemoveIcon from 'material-ui/svg-icons/content/remove';
 
-import { fromWei, toWei } from '~/api/util/wei';
-import { bytesToHex } from '~/api/util/format';
+import { fromWei, toWei } from '@parity/api/util/wei';
+import { bytesToHex } from '@parity/api/util/format';
+import { ABI_TYPES, parseAbiType } from '@parity/shared/util/abi';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+
+import Dropdown from '~/ui/Form/Dropdown';
 import Input from '~/ui/Form/Input';
 import InputAddressSelect from '~/ui/Form/InputAddressSelect';
-import Select from '~/ui/Form/Select';
-import { ABI_TYPES, parseAbiType } from '~/util/abi';
-import { nodeOrStringProptype } from '~/util/proptypes';
+import Toggle from '~/ui/Form/Toggle';
+import { AddIcon, RemoveIcon } from '~/ui/Icons';
 
 import styles from './typedInput.css';
 
@@ -366,20 +366,8 @@ export default class TypedInput extends Component {
       return this.renderDefault();
     }
 
-    const boolitems = ['false', 'true'].map((bool) => {
-      return (
-        <MenuItem
-          key={ bool }
-          label={ bool }
-          value={ bool }
-        >
-          { bool }
-        </MenuItem>
-      );
-    });
-
     return (
-      <Select
+      <Dropdown
         allowCopy={ allowCopy }
         className={ className }
         error={ error }
@@ -391,15 +379,22 @@ export default class TypedInput extends Component {
             ? 'true'
             : 'false'
         }
-      >
-        { boolitems }
-      </Select>
+        options={
+          ['false', 'true'].map((bool) => {
+            return {
+              key: bool,
+              text: bool,
+              value: bool
+            };
+          })
+        }
+      />
     );
   }
 
-  onChangeBool = (event, _index, value) => {
-    // NOTE: event.target.value added for enzyme simulated event testing
-    this.props.onChange((value || event.target.value) === 'true');
+  onChangeBool = (event) => {
+    console.log('onChangeBool', event.target);
+    this.props.onChange(event.target.value === 'true');
   }
 
   onEthTypeChange = () => {

@@ -40,7 +40,7 @@ describe('ui/Container/Title', () => {
     });
 
     it('renders the specified byline', () => {
-      expect(render({ byline: 'bylineText' })).to.contain.text('bylineText');
+      expect(render({ byline: 'bylineText' }).find('Byline').props().byline).to.equal('bylineText');
     });
   });
 });

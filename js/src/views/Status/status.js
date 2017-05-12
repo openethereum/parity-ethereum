@@ -20,24 +20,26 @@ import { FormattedMessage } from 'react-intl';
 import { Page } from '~/ui';
 
 import Debug from './Debug';
+import Node from './Node';
 import Peers from './Peers';
-import NodeStatus from './NodeStatus';
 
 import styles from './status.css';
 
-export default () => (
-  <Page
-    title={
-      <FormattedMessage
-        id='status.title'
-        defaultMessage='Status'
-      />
-    }
-  >
-    <div className={ styles.body }>
-      <NodeStatus />
-      <Peers />
-      <Debug />
-    </div>
-  </Page>
-);
+export default function Status () {
+  return (
+    <Page
+      title={
+        <FormattedMessage
+          id='status.title'
+          defaultMessage='Status'
+        />
+      }
+    >
+      <div className={ styles.body }>
+        <Node />
+        <Peers />
+        <Debug />
+      </div>
+    </Page>
+  );
+}

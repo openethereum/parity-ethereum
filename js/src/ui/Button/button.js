@@ -14,71 +14,48 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-import ReactTooltip from 'react-tooltip';
-import { FlatButton } from 'material-ui';
+import React, { PropTypes } from 'react';
+import { Button as SemanticButton } from 'semantic-ui-react';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-import styles from './button.css';
-
-let id = 0;
-
-export default class Button extends Component {
-  static propTypes = {
-    backgroundColor: PropTypes.string,
-    className: PropTypes.string,
-    disabled: PropTypes.bool,
-    icon: PropTypes.node,
-    label: nodeOrStringProptype(),
-    onClick: PropTypes.func,
-    primary: PropTypes.bool,
-    tooltip: PropTypes.bool
-  };
-
-  static defaultProps = {
-    primary: true,
-    tooltip: false
-  };
-
-  componentWillMount () {
-    this.id = id++;
-  }
-
-  render () {
-    const { className, backgroundColor, disabled, icon, label, primary, onClick, tooltip } = this.props;
-    const button = (
-      <FlatButton
-        backgroundColor={ backgroundColor }
-        className={ className }
-        disabled={ disabled }
-        icon={ icon }
-        label={ label }
-        onTouchTap={ onClick }
-        primary={ primary }
-      />
-    );
-
-    if (!tooltip) {
-      return button;
-    }
-
-    return (
-      <div>
-        <div
-          data-tip
-          data-for={ `button_${this.id}` }
-          data-effect='solid'
-          data-place='bottom'
-        >
-          { button }
-        </div>
-        <ReactTooltip id={ `button_${this.id}` }>
-          <div className={ styles.tooltip }>
-            { label }
-          </div>
-        </ReactTooltip>
-      </div>
-    );
-  }
+export default function Button ({ active, animated, basic, className, color, disabled, fullWidth, icon, label, onClick, primary, size, toggle }) {
+  return (
+    <SemanticButton
+      active={ active }
+      animated={ animated }
+      basic={ basic }
+      className={ className }
+      content={ label }
+      color={ color }
+      disabled={ disabled }
+      fluid={ fullWidth }
+      icon={ icon }
+      onTouchTap={ onClick }
+      primary={ primary }
+      size={ size }
+      toggle={ toggle }
+    />
+  );
 }
+
+Button.propTypes = {
+  active: PropTypes.bool,
+  animated: PropTypes.bool,
+  basic: PropTypes.bool,
+  backgroundColor: PropTypes.string,
+  className: PropTypes.string,
+  color: PropTypes.string,
+  disabled: PropTypes.bool,
+  fullWidth: PropTypes.bool,
+  icon: PropTypes.node,
+  label: nodeOrStringProptype(),
+  onClick: PropTypes.func,
+  primary: PropTypes.bool,
+  size: PropTypes.string,
+  toggle: PropTypes.bool
+};
+
+Button.defaultProps = {
+  primary: true
+};

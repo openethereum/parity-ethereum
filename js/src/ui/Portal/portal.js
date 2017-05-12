@@ -20,9 +20,9 @@ import ReactPortal from 'react-portal';
 import keycode from 'keycode';
 import { noop } from 'lodash';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+
 import { CloseIcon } from '~/ui/Icons';
-import ParityBackground from '~/ui/ParityBackground';
 import StackEventListener from '~/ui/StackEventListener';
 import Title from '~/ui/Title';
 
@@ -99,7 +99,6 @@ export default class Portal extends Component {
             onKeyDown={ this.handleKeyDown }
           >
             <StackEventListener onKeyUp={ this.handleKeyUp } />
-            <ParityBackground className={ styles.parityBackground } />
             { this.renderClose() }
             <Title
               activeStep={ activeStep }
@@ -141,10 +140,12 @@ export default class Portal extends Component {
     }
 
     return (
-      <CloseIcon
+      <div
         className={ styles.closeIcon }
         onClick={ this.handleClose }
-      />
+      >
+        <CloseIcon />
+      </div>
     );
   }
 

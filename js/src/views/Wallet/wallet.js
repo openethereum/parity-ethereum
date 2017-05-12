@@ -20,20 +20,25 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import moment from 'moment';
 
-import { EditMeta, Transfer, WalletSettings } from '~/modals';
+import HistoryStore from '@parity/shared/mobx/historyStore';
+import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
+import { nullableProptype } from '@parity/shared/util/proptypes';
+
 import { Actionbar, Button, Page, Loading } from '~/ui';
 import { DeleteIcon, EditIcon, SendIcon, SettingsIcon } from '~/ui/Icons';
-import { nullableProptype } from '~/util/proptypes';
 
+import EditMeta from '../Account/EditMeta';
+import Transfer from '../Account/Transfer';
 import Delete from '../Address/Delete';
 import Header from '../Account/Header';
 import WalletDetails from './Details';
 import WalletConfirmations from './Confirmations';
 import WalletTransactions from './Transactions';
-
-import { setVisibleAccounts } from '~/redux/providers/personalActions';
+import WalletSettings from './WalletSettings';
 
 import styles from './wallet.css';
+
+const accountsHistory = HistoryStore.get('accounts');
 
 class WalletContainer extends Component {
   static propTypes = {
@@ -80,6 +85,10 @@ class Wallet extends Component {
   };
 
   componentDidMount () {
+    const { address } = this.props;
+
+    accountsHistory.add(address, 'wallet');
+
     this.setVisibleAccounts();
   }
 

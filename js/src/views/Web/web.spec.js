@@ -18,7 +18,7 @@ import { shallow } from 'enzyme';
 import React from 'react';
 
 import { DEFAULT_URL } from './store';
-import Web from './';
+import Web from './web';
 
 let api;
 let component;

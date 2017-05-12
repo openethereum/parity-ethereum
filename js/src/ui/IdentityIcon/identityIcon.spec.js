@@ -16,13 +16,14 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
-import sinon from 'sinon';
 
 import IdentityIcon from './';
 
 const ADDRESS0 = '0x0000000000000000000000000000000000000000';
 const ADDRESS1 = '0x0123456789012345678901234567890123456789';
 const ADDRESS2 = '0x9876543210987654321098765432109876543210';
+
+IdentityIcon.iconCache.add(ADDRESS2, 'cachedImage', true);
 
 let component;
 let instance;
@@ -33,29 +34,15 @@ function createApi () {
   };
 }
 
-function createRedux () {
-  return {
-    dispatch: sinon.stub(),
-    subscribe: sinon.stub(),
-    getState: () => {
-      return {
-        images: {
-          [ADDRESS2]: 'reduxImage'
-        }
-      };
-    }
-  };
-}
-
 function render (props = {}) {
-  if (props && props.address === undefined) {
+  if (props.address === undefined) {
     props.address = ADDRESS1;
   }
 
   component = shallow(
     <IdentityIcon { ...props } />,
-    { context: { store: createRedux() } }
-  ).find('IdentityIcon').shallow({ context: { api: createApi() } });
+    { context: { api: createApi() } }
+  );
 
   instance = component.instance();
   instance.componentDidMount();
@@ -76,19 +63,19 @@ describe('ui/IdentityIcon', () => {
       expect(img.props().src).to.equal('test-createIdentityImg');
     });
 
-    it('renders an <img> with redux source when available', () => {
+    it('renders an <img> with cache source when available', () => {
       const img = render({ address: ADDRESS2 }).find('img');
 
       expect(img).to.have.length(1);
-      expect(img.props().src).to.equal('dappsUrl/reduxImage');
+      expect(img.props().src).to.equal('dappsUrl/cachedImage');
     });
 
     it('renders an <ContractIcon> with no address specified', () => {
-      expect(render({ address: null }).find('ActionCode')).to.have.length(1);
+      expect(render({ address: null }).find('ContractIcon')).to.have.length(1);
     });
 
     it('renders an <CancelIcon> with 0x00..00 address specified', () => {
-      expect(render({ address: ADDRESS0 }).find('ContentClear')).to.have.length(1);
+      expect(render({ address: ADDRESS0 }).find('CancelIcon')).to.have.length(1);
     });
   });
 

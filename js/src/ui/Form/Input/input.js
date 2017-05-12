@@ -19,10 +19,10 @@ import { TextField } from 'material-ui';
 import { noop } from 'lodash';
 import keycode from 'keycode';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
-import { toString } from '~/util/messages';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+import { parseI18NString } from '@parity/shared/util/messages';
 
-import CopyToClipboard from '../../CopyToClipboard';
+import CopyToClipboard from '~/ui/CopyToClipboard';
 
 import styles from './input.css';
 
@@ -150,7 +150,7 @@ export default class Input extends Component {
       ? UNDERLINE_FOCUSED
       : readOnly && typeof focused !== 'boolean' ? { display: 'none' } : null;
 
-    const textValue = toString(this.context, value);
+    const textValue = parseI18NString(this.context, value);
 
     return (
       <div className={ styles.container } style={ style }>

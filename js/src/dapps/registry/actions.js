@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Contracts from '~/contracts';
+import Contracts from '@parity/shared/contracts';
 
 import { api } from './parity.js';
 import * as addresses from './addresses/actions.js';
@@ -44,7 +44,7 @@ export const fetchIsTestnet = () => (dispatch) =>
 export const setContract = (contract) => ({ type: 'set contract', contract });
 
 export const fetchContract = () => (dispatch) => {
-  return Contracts.create(api).registry
+  return Contracts.get(api).registry
     .fetchContract()
     .then((contract) => {
       dispatch(setContract(contract));

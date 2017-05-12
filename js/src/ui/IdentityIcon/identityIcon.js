@@ -15,15 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
 
-import { createIdentityImg } from '~/api/util/identity';
-import { isNullAddress } from '~/util/validation';
-import { CancelIcon, ContractIcon } from '../Icons';
+import { createIdentityImg } from '@parity/api/util/identity';
+import { isNullAddress } from '@parity/shared/util/validation';
+
+import IconCache from '~/ui/IconCache';
+import { CancelIcon, ContractIcon } from '~/ui/Icons';
 
 import styles from './identityIcon.css';
 
-class IdentityIcon extends Component {
+const iconCache = IconCache.get();
+
+export default class IdentityIcon extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -34,37 +37,35 @@ class IdentityIcon extends Component {
     center: PropTypes.bool,
     className: PropTypes.string,
     disabled: PropTypes.bool,
-    images: PropTypes.object.isRequired,
     inline: PropTypes.bool,
     padded: PropTypes.bool,
     tiny: PropTypes.bool
   }
+
+  static iconCache = iconCache;
 
   state = {
     iconsrc: ''
   }
 
   componentDidMount () {
-    this.updateIcon(this.props.address, this.props.images);
+    this.updateIcon(this.props.address);
   }
 
   componentWillReceiveProps (newProps) {
-    const sameAddress = newProps.address === this.props.address;
-    const sameImages = Object.keys(newProps.images).length === Object.keys(this.props.images).length;
-
-    if (sameAddress && sameImages) {
+    if (newProps.address === this.props.address) {
       return;
     }
 
-    this.updateIcon(newProps.address, newProps.images);
+    this.updateIcon(newProps.address);
   }
 
-  updateIcon (_address, images) {
+  updateIcon (_address) {
     const { api } = this.context;
     const { button, inline, tiny } = this.props;
 
-    if (images[_address]) {
-      this.setState({ iconsrc: `${api.dappsUrl}${images[_address]}` });
+    if (iconCache.images[_address]) {
+      this.setState({ iconsrc: `${api.dappsUrl}${iconCache.images[_address]}` });
       return;
     }
 
@@ -144,14 +145,3 @@ class IdentityIcon extends Component {
     );
   }
 }
-
-function mapStateToProps (state) {
-  const { images } = state;
-
-  return { images };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(IdentityIcon);

@@ -44,6 +44,8 @@ let modules = [
   'recharts',
   'redux',
   'redux-thunk',
+  'semantic-ui-css',
+  'semantic-ui-react',
   'scryptsy',
   'zxcvbn'
 ];

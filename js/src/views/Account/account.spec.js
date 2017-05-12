@@ -19,7 +19,7 @@ import React from 'react';
 
 import { ACCOUNTS, ADDRESS, createRedux } from './account.test.js';
 
-import Account from './';
+import Account from './account';
 
 let component;
 let instance;

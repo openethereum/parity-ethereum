@@ -21,9 +21,8 @@ import { observer } from 'mobx-react';
 import IconMenu from 'material-ui/IconMenu';
 import MenuItem from 'material-ui/MenuItem';
 
-import SortIcon from 'material-ui/svg-icons/content/sort';
-
-import Button from '../../Button';
+import Button from '~/ui/Button';
+import { SortIcon } from '~/ui/Icons';
 
 import SortStore from './sortStore';
 import styles from './sort.css';

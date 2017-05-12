@@ -24,7 +24,8 @@ import MenuItem from 'material-ui/MenuItem';
 import RaisedButton from 'material-ui/RaisedButton';
 import CheckIcon from 'material-ui/svg-icons/navigation/check';
 
-import { nullableProptype } from '~/util/proptypes';
+import { nullableProptype } from '@parity/shared/util/proptypes';
+
 import { fromWei } from '../parity.js';
 
 import { clearError, reserve, drop } from './actions';

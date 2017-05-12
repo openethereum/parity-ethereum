@@ -18,11 +18,10 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { Checkbox } from 'material-ui';
 
-import { Container } from '~/ui';
+import { toggleView } from '@parity/shared/redux/providers/settings/actions';
 
-import { toggleView } from '../actions';
+import { Checkbox, Container } from '~/ui';
 
 import layout from '../layout.css';
 import styles from './views.css';
@@ -69,28 +68,6 @@ class Views extends Component {
           </div>
           <div className={ layout.details }>
             {
-              this.renderView('accounts',
-                <FormattedMessage
-                  id='settings.views.accounts.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.accounts.description'
-                  defaultMessage='A list of all the accounts associated with and imported into this Parity instance. Send transactions, receive incoming values, manage your balances and fund your accounts.'
-                />
-              )
-            }
-            {
-              this.renderView('addresses',
-                <FormattedMessage
-                  id='settings.views.addresses.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.addresses.description'
-                  defaultMessage='A list of all contacts and address book entries managed by this Parity instance. Watch accounts and have the details available at the click of a button when transacting.'
-                />
-              )
-            }
-            {
               this.renderView('apps',
                 <FormattedMessage
                   id='settings.views.apps.label'
@@ -98,50 +75,6 @@ class Views extends Component {
                 <FormattedMessage
                   id='settings.views.apps.description'
                   defaultMessage='Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.'
-                />
-              )
-            }
-            {
-              this.renderView('contracts',
-                <FormattedMessage
-                  id='settings.views.contracts.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.contracts.description'
-                  defaultMessage='Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focused environment, specifically for advanced users that understand the inner working of certain contracts.'
-                />
-              )
-            }
-            {
-              this.renderView('status',
-                <FormattedMessage
-                  id='settings.views.status.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.status.description'
-                  defaultMessage='See how the Parity node is performing in terms of connections to the network, logs from the actual running instance and details of mining (if enabled and configured).'
-                />
-              )
-            }
-            {
-              this.renderView('signer',
-                <FormattedMessage
-                  id='settings.views.signer.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.signer.description'
-                  defaultMessage='The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.'
-                />
-              )
-            }
-            {
-              this.renderView('settings',
-                <FormattedMessage
-                  id='settings.views.settings.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.settings.description'
-                  defaultMessage='This view. Allows you to customize the application in term of options, operation and look and feel.'
                 />
               )
             }
@@ -182,7 +115,7 @@ class Views extends Component {
               </div>
             </div>
           }
-          onCheck={ toggle }
+          onClick={ toggle }
           checked={ view.active }
           value={ view.active }
         />

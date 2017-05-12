@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { isNullAddress } from '~/util/validation';
-import ShortenedHash from '../ShortenedHash';
+import { isNullAddress } from '@parity/shared/util/validation';
+
+import ShortenedHash from '~/ui/ShortenedHash';
 
 const defaultName = (
   <FormattedMessage
@@ -34,45 +35,41 @@ const defaultNameNull = (
   />
 );
 
-export class IdentityName extends Component {
-  static propTypes = {
-    account: PropTypes.object,
-    address: PropTypes.string,
-    className: PropTypes.string,
-    empty: PropTypes.bool,
-    name: PropTypes.string,
-    shorten: PropTypes.bool,
-    unknown: PropTypes.bool
+export function IdentityName ({ account, address, className, empty, name, shorten, unknown }) {
+  if (!account && empty) {
+    return null;
   }
 
-  render () {
-    const { account, address, className, empty, name, shorten, unknown } = this.props;
-
-    if (!account && empty) {
-      return null;
-    }
-
-    const nullName = isNullAddress(address) ? defaultNameNull : null;
-    const addressFallback = nullName || (shorten ? (<ShortenedHash data={ address } />) : address);
-    const fallback = unknown ? defaultName : addressFallback;
-    const isUuid = account && account.name === account.uuid;
-    const displayName = (name && name.toUpperCase().trim()) ||
-      (account && !isUuid
-        ? account.name.toUpperCase().trim()
-        : fallback
-      );
-
-    return (
-      <span className={ className }>
-        {
-          displayName && displayName.length
-            ? displayName
-            : fallback
-        }
-      </span>
+  const nullName = isNullAddress(address) ? defaultNameNull : null;
+  const addressFallback = nullName || (shorten ? (<ShortenedHash data={ address } />) : address);
+  const fallback = unknown ? defaultName : addressFallback;
+  const isUuid = account && account.name === account.uuid;
+  const displayName = (name && name.toUpperCase().trim()) ||
+    (account && !isUuid
+      ? account.name.toUpperCase().trim()
+      : fallback
     );
-  }
+
+  return (
+    <span className={ className }>
+      {
+        displayName && displayName.length
+          ? displayName
+          : fallback
+      }
+    </span>
+  );
 }
+
+IdentityName.propTypes = {
+  account: PropTypes.object,
+  address: PropTypes.string,
+  className: PropTypes.string,
+  empty: PropTypes.bool,
+  name: PropTypes.string,
+  shorten: PropTypes.bool,
+  unknown: PropTypes.bool
+};
 
 function mapStateToProps (state, props) {
   const { address } = props;

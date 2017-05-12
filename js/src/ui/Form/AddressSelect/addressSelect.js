@@ -20,18 +20,18 @@ import { connect } from 'react-redux';
 import keycode, { codes } from 'keycode';
 import { FormattedMessage } from 'react-intl';
 import { observer } from 'mobx-react';
-
 import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
-import apiutil from '~/api/util';
+import apiutil from '@parity/api/util';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+import { parseI18NString } from '@parity/shared/util/messages';
+import { validateAddress } from '@parity/shared/util/validation';
+
 import AccountCard from '~/ui/AccountCard';
 import CopyToClipboard from '~/ui/CopyToClipboard';
 import InputAddress from '~/ui/Form/InputAddress';
 import Loading from '~/ui/Loading';
 import Portal from '~/ui/Portal';
-import { nodeOrStringProptype } from '~/util/proptypes';
-import { validateAddress } from '~/util/validation';
-import { toString } from '~/util/messages';
 
 import AddressSelectStore from './addressSelectStore';
 import styles from './addressSelect.css';
@@ -187,7 +187,7 @@ class AddressSelect extends Component {
     }
 
     const id = `addressSelect_${++currentId}`;
-    const ilHint = toString(this.context, hint);
+    const ilHint = parseI18NString(this.context, hint);
 
     return (
       <Portal

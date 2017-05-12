@@ -14,29 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 
 import styles from './shortenedHash.css';
 
-export default class ShortenedHash extends Component {
-  static propTypes = {
-    data: PropTypes.string.isRequired
+export default function ShortenedHash ({ data }) {
+  let shortened = data.toLowerCase();
+
+  if (shortened.slice(0, 2) === '0x') {
+    shortened = shortened.slice(2);
+  }
+  if (shortened.length > (6 + 6)) {
+    shortened = shortened.slice(0, 6) + '…' + shortened.slice(-6);
   }
 
-  render () {
-    const { data } = this.props;
-
-    let shortened = data.toLowerCase();
-
-    if (shortened.slice(0, 2) === '0x') {
-      shortened = shortened.slice(2);
-    }
-    if (shortened.length > (6 + 6)) {
-      shortened = shortened.slice(0, 6) + '…' + shortened.slice(-6);
-    }
-
-    return (
-      <abbr className={ styles.hash } title={ data }>{ shortened }</abbr>
-    );
-  }
+  return (
+    <abbr className={ styles.hash } title={ data }>{ shortened }</abbr>
+  );
 }
+
+ShortenedHash.propTypes = {
+  data: PropTypes.string.isRequired
+};
