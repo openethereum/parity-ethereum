@@ -354,23 +354,32 @@ impl net_request::CheckedRequest for CheckedRequest {
 	fn check_response(&self, cache: &Mutex<::cache::Cache>, response: &Self::Response) -> Result<Response, Error> {
 		use ::request::Response as NetResponse;
 
+		// helper for expecting a specific response for a given request.
+		macro_rules! expect {
+			($res: pat => $e: expr) => {
+				match *response {
+					$res => $e,
+					_ => Err(Error::WrongKind),
+				}
+			}
+		}
+
 		// check response against contained prover.
-		match (self, response) {
-			(&CheckedRequest::HeaderProof(ref prover, _), &NetResponse::HeaderProof(ref res)) =>
-				prover.check_response(cache, &res.proof).map(Response::HeaderProof),
-			(&CheckedRequest::HeaderByHash(ref prover, _), &NetResponse::Headers(ref res)) =>
-				prover.check_response(cache, &res.headers).map(Response::HeaderByHash),
-			(&CheckedRequest::Receipts(ref prover, _), &NetResponse::Receipts(ref res)) =>
-				prover.check_response(cache, &res.receipts).map(Response::Receipts),
-			(&CheckedRequest::Body(ref prover, _), &NetResponse::Body(ref res)) =>
-				prover.check_response(cache, &res.body).map(Response::Body),
-			(&CheckedRequest::Account(ref prover, _), &NetResponse::Account(ref res)) =>
-				prover.check_response(cache, &res.proof).map(Response::Account),
-			(&CheckedRequest::Code(ref prover, _), &NetResponse::Code(ref res)) =>
-				prover.check_response(cache, &res.code).map(Response::Code),
-			(&CheckedRequest::Execution(ref prover, _), &NetResponse::Execution(ref res)) =>
-				prover.check_response(cache, &res.items).map(Response::Execution),
-			_ => Err(Error::WrongKind),
+		match *self {
+			CheckedRequest::HeaderProof(ref prover, _) => expect!(NetResponse::HeaderProof(ref res) =>
+				prover.check_response(cache, &res.proof).map(Response::HeaderProof)),
+			CheckedRequest::HeaderByHash(ref prover, _) => expect!(NetResponse::Headers(ref res) =>
+				prover.check_response(cache, &res.headers).map(Response::HeaderByHash)),
+			CheckedRequest::Receipts(ref prover, _) => expect!(NetResponse::Receipts(ref res) =>
+				prover.check_response(cache, &res.receipts).map(Response::Receipts)),
+			CheckedRequest::Body(ref prover, _) => expect!(NetResponse::Body(ref res) =>
+				prover.check_response(cache, &res.body).map(Response::Body)),
+			CheckedRequest::Account(ref prover, _) => expect!(NetResponse::Account(ref res) =>
+				prover.check_response(cache, &res.proof).map(Response::Account)),
+			CheckedRequest::Code(ref prover, _) => expect!(NetResponse::Code(ref res) =>
+				prover.check_response(cache, &res.code).map(Response::Code)),
+			CheckedRequest::Execution(ref prover, _) => expect!(NetResponse::Execution(ref res) =>
+				prover.check_response(cache, &res.items).map(Response::Execution)),
 		}
 	 }
 }

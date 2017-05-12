@@ -185,7 +185,7 @@ impl EthClient {
 					// three possible outcomes:
 					//   - network is down.
 					//   - we get a score, but our hash is non-canonical.
-					//   - we get ascore, and our hash is canonical.
+					//   - we get a score, and our hash is canonical.
 					let maybe_fut = sync.with_context(move |ctx| on_demand.hash_and_score_by_number(ctx, req));
 					match maybe_fut {
 						Some(fut) => fut.map(move |(hash, score)| {

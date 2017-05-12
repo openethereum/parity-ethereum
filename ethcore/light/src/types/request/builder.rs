@@ -26,12 +26,12 @@ use request::{
 /// Build chained requests. Push them onto the series with `push`,
 /// and produce a `Requests` object with `build`. Outputs are checked for consistency.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RequestBuilder<T: IncompleteRequest> {
+pub struct RequestBuilder<T> {
 	output_kinds: HashMap<(usize, usize), OutputKind>,
 	requests: Vec<T>,
 }
 
-impl<T: IncompleteRequest> Default for RequestBuilder<T> {
+impl<T> Default for RequestBuilder<T> {
 	fn default() -> Self {
 		RequestBuilder {
 			output_kinds: HashMap::new(),
@@ -73,13 +73,13 @@ impl<T: IncompleteRequest> RequestBuilder<T> {
 
 /// Requests pending responses.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Requests<T: IncompleteRequest> {
+pub struct Requests<T> {
 	outputs: HashMap<(usize, usize), Output>,
 	requests: Vec<T>,
 	answered: usize,
 }
 
-impl<T: IncompleteRequest + Clone> Requests<T> {
+impl<T> Requests<T> {
 	/// Get access to the underlying slice of requests.
 	// TODO: unimplemented -> Vec<Request>, // do we _have to_ allocate?
 	pub fn requests(&self) -> &[T] { &self.requests }
@@ -90,17 +90,6 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 	/// Whether the batch is complete.
 	pub fn is_complete(&self) -> bool {
 		self.answered == self.requests.len()
-	}
-
-	/// Get the next request as a filled request. Returns `None` when all requests answered.
-	pub fn next_complete(&self) -> Option<T::Complete> {
-		if self.is_complete() {
-			None
-		} else {
-			Some(self.requests[self.answered].clone()
-				.complete()
-				.expect("All outputs checked as invariant of `Requests` object; qed"))
-		}
 	}
 
 	/// Map requests from one type into another.
@@ -115,6 +104,19 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 	}
 }
 
+impl<T: IncompleteRequest + Clone> Requests<T> {
+	/// Get the next request as a filled request. Returns `None` when all requests answered.
+	pub fn next_complete(&self) -> Option<T::Complete> {
+		if self.is_complete() {
+			None
+		} else {
+			Some(self.requests[self.answered].clone()
+				.complete()
+				.expect("All outputs checked as invariant of `Requests` object; qed"))
+		}
+	}
+}
+
 impl<T: super::CheckedRequest> Requests<T> {
 	/// Supply a response for the next request.
 	/// Fails on: wrong request kind, all requests answered already.
@@ -124,7 +126,8 @@ impl<T: super::CheckedRequest> Requests<T> {
 		let idx = self.answered;
 
 		// check validity.
-		if idx == self.requests.len() { return Err(ResponseError::Unexpected) }
+		if self.is_complete() { return Err(ResponseError::Unexpected) }
+
 		let extracted = self.requests[idx]
 			.check_response(env, response).map_err(ResponseError::Validity)?;
 
