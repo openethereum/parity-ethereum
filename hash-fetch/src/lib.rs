@@ -25,12 +25,14 @@ extern crate mime;
 
 extern crate ethabi;
 extern crate ethcore_util as util;
-pub extern crate fetch;
 extern crate futures;
 extern crate mime_guess;
+extern crate native_contracts;
+extern crate parity_reactor;
 extern crate rand;
 extern crate rustc_serialize;
-extern crate parity_reactor;
+
+pub extern crate fetch;
 
 mod client;
 
