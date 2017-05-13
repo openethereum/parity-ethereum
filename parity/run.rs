@@ -427,8 +427,9 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	} else {
 		sync_config.subprotocol_name.clone_from_slice(spec.subprotocol_name().as_bytes());
 	}
+
 	sync_config.fork_block = spec.fork_block();
-	sync_config.warp_sync = cmd.warp_sync;
+	sync_config.warp_sync = spec.engine.supports_warp() && cmd.warp_sync;
 	sync_config.download_old_blocks = cmd.download_old_blocks;
 	sync_config.serve_light = cmd.serve_light;
 
