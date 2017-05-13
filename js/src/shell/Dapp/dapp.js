@@ -31,7 +31,7 @@ export default class Dapp extends Component {
   static propTypes = {
     history: PropTypes.object,
     location: PropTypes.object,
-    match: PropTypes.object,
+    match: PropTypes.object
   };
 
   state = {

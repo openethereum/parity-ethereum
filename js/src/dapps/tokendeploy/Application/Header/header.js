@@ -35,6 +35,7 @@ export default class Header extends Component {
 
   render () {
     let { pathname } = this.context.router.route.location;
+
     if (!pathname || pathname === '/tokendeploy.html') {
       pathname = '/overview';
     }
