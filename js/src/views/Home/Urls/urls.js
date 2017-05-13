@@ -121,7 +121,7 @@ export default class Urls extends Component {
   }
 
   onGotoUrl = (url) => {
-    const { router } = this.context;
+    const { history } = this.context.router;
     const { extensionStore } = this.props;
 
     this.props.store.gotoUrl(url);
@@ -129,7 +129,7 @@ export default class Urls extends Component {
     if (extensionStore.hasExtension) {
       window.open(this.props.store.currentUrl, '_blank');
     } else {
-      router.push('/web');
+      history.push('/web');
     }
   }
 

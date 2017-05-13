@@ -116,7 +116,8 @@ class DeleteAccount extends Component {
   }
 
   onDeleteConfirmed = () => {
-    const { api, router } = this.context;
+    const { api } = this.context;
+    const { history } = this.context.router;
     const { account, newError } = this.props;
     const { password } = this.state;
 
@@ -128,7 +129,7 @@ class DeleteAccount extends Component {
         this.setState({ isBusy: true });
 
         if (result === true) {
-          router.push('/accounts');
+          history.push('/accounts');
           this.closeDeleteDialog();
         } else {
           newError(new Error('Deletion failed.'));

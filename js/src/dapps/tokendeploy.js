@@ -34,12 +34,11 @@ import './style.css';
 ReactDOM.render(
   <AppContainer>
     <Router>
-      {/* <Redirect from='/' to='/overview' /> */}
-      <Route exact path='/' component={ Application }>
-        <Route path='deploy' component={ Deploy } />
-        <Route path='overview' component={ Overview } />
-        <Route path='transfer' component={ Transfer } />
-      </Route>
+      <Application>
+        <Route path='/overview' exact component={ Overview } />
+        <Route path='/deploy' component={ Deploy } />
+        <Route path='/transfer' component={ Transfer } />
+      </Application>
     </Router>
   </AppContainer>,
   document.querySelector('#container')
@@ -54,12 +53,11 @@ if (module.hot) {
     ReactDOM.render(
       <AppContainer>
         <Router>
-          {/* <Redirect from='/' to='/overview' /> */}
-          <Route exact path='/' component={ Application }>
-            <Route path='deploy' component={ Deploy } />
-            <Route path='overview' component={ Overview } />
-            <Route path='transfer' component={ Transfer } />
-          </Route>
+          <Application>
+            <Route path='/overview' exact component={ Overview } />
+            <Route path='/deploy' component={ Deploy } />
+            <Route path='/transfer' component={ Transfer } />
+          </Application>
         </Router>
       </AppContainer>,
       document.querySelector('#container')

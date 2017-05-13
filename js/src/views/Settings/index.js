@@ -39,12 +39,12 @@ const store = initStore(api);
 ReactDOM.render(
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
     <Router>
-      <Route path='/' component={ Settings }>
+      <Settings>
+        <Route path='/views' component={ SettingsViews } />
         <Route path='/background' component={ SettingsBackground } />
         <Route path='/parity' component={ SettingsParity } />
         <Route path='/proxy' component={ SettingsProxy } />
-        <Route path='/views' component={ SettingsViews } />
-      </Route>
+      </Settings>
     </Router>
   </ContextProvider>,
   document.querySelector('#container')

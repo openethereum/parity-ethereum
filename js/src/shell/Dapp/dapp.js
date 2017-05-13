@@ -29,10 +29,9 @@ export default class Dapp extends Component {
   };
 
   static propTypes = {
-    location: {
-      pathname: PropTypes.string
-    },
-    params: PropTypes.object
+    history: PropTypes.object,
+    location: PropTypes.object,
+    match: PropTypes.object,
   };
 
   state = {
@@ -43,14 +42,14 @@ export default class Dapp extends Component {
   store = DappsStore.get(this.context.api);
 
   componentWillMount () {
-    let { pathname } = this.props.location;
+    let { id } = this.props.match.params;
 
-    this.loadApp(pathname.substr(1));
+    this.loadApp(id);
   }
 
   componentWillReceiveProps (nextProps) {
-    if (nextProps.location.pathname !== this.location.pathname) {
-      this.loadApp(nextProps.location.pathname.substr(1));
+    if (nextProps.match.params.id !== this.props.match.params.id) {
+      this.loadApp(nextProps.match.params.id);
     }
   }
 
