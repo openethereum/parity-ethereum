@@ -15,9 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { Slider } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
 import { Bar, BarChart, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts';
+
+import Slider from '~/ui/Form/Slider';
 
 import CustomBar from './CustomBar';
 import CustomCursor from './CustomCursor';
@@ -195,17 +196,12 @@ export default class GasPriceSelector extends Component {
     return (
       <div className={ styles.sliderRow }>
         <Slider
-          min={ 0 }
-          max={ 1 }
+          className={ styles.slider }
+          min={ 0.0 }
+          max={ 1.0 }
+          step={ 0.01 }
           value={ sliderValue }
           onChange={ this.onEditpriceSlider }
-          style={ {
-            flex: 1,
-            padding: '0 0.3em'
-          } }
-          sliderStyle={ {
-            marginBottom: 12
-          } }
         />
       </div>
     );

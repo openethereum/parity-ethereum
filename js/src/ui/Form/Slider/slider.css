@@ -15,20 +15,6 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.chart {
-  position: absolute;
-  width: 100%;
-}
-
-.chartRow, .sliderRow {
-  display: flex;
-  flex-wrap: wrap;
-  position: relative;
-}
-
-.chartRow {
-}
-
 .slider {
-  margin-bottom: 1em;
+  width: 100%;
 }
