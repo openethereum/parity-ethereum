@@ -18,7 +18,9 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { Card, CardText } from 'material-ui/Card';
 import CircularProgress from 'material-ui/CircularProgress';
+import FloatingActionButton from 'material-ui/FloatingActionButton';
 import RaisedButton from 'material-ui/RaisedButton';
+import DeleteIcon from 'material-ui/svg-icons/action/delete';
 
 import ApplicationStore from '../Application/application.store';
 import LookupStore from '../Lookup/lookup.store';
@@ -41,67 +43,74 @@ export default class Entry extends Component {
 
   render () {
     const { entry } = this.props;
-    const { owner, address, image, isOwner, content, reversed } = entry;
+    const { owner, address, image, isOwner, content, reversed, reversing } = entry;
 
     return (
       <Card className={ styles.container }>
-        <CardText>
-          <div className={ styles.infoContainer }>
-            <Info
-              label='Owner'
-              isOwner={ isOwner }
-              onUpdateMetadata={ this.handleModifyOwner }
-              onRefresh={ this.handleRefresh }
-            >
-              <div>
-                <Address
-                  address={ owner }
-                  big
-                  shortenHash={ false }
-                />
-                {
-                  reversed
-                  ? (
-                    <div className={ styles.reversed }>
-                      Reversed
-                    </div>
-                  )
-                  : null
-                }
-              </div>
-            </Info>
-
-            <Info
-              label='Address'
-              isOwner={ isOwner }
-              onUpdateMetadata={ this.handleModifyAddress }
-              onRefresh={ this.handleRefresh }
-            >
+        <CardText className={ styles.infoContainer }>
+          <Info
+            label='Owner'
+            isOwner={ isOwner }
+            onUpdateMetadata={ this.handleModifyOwner }
+            onRefresh={ this.handleRefresh }
+          >
+            <div>
               <Address
-                address={ address }
+                address={ owner }
                 big
                 shortenHash={ false }
               />
-            </Info>
+              {
+                reversed
+                ? (
+                  <div className={ styles.reversed }>
+                    Reversed
+                  </div>
+                )
+                : isOwner && (
+                  <RaisedButton
+                    className={ styles.reverseButton }
+                    disabled={ reversing }
+                    label='Reverse'
+                    icon={ this.renderLoadingIcon(reversing) }
+                    onClick={ this.handleReverse }
+                    primary
+                  />
+                )
+              }
+            </div>
+          </Info>
 
-            <Info
-              label='Content'
-              isOwner={ isOwner }
-              onUpdateMetadata={ this.handleModifyContent }
-              onRefresh={ this.handleRefresh }
-            >
-              <code>{ content }</code>
-            </Info>
+          <Info
+            label='Address'
+            isOwner={ isOwner }
+            onUpdateMetadata={ this.handleModifyAddress }
+            onRefresh={ this.handleRefresh }
+          >
+            <Address
+              address={ address }
+              big
+              shortenHash={ false }
+            />
+          </Info>
 
-            <Info
-              label='Image'
-              isOwner={ isOwner }
-              onUpdateMetadata={ this.handleModifyImage }
-              onRefresh={ this.handleRefresh }
-            >
-              <Image address={ image } />
-            </Info>
-          </div>
+          <Info
+            label='Content'
+            isOwner={ isOwner }
+            onUpdateMetadata={ this.handleModifyContent }
+            onRefresh={ this.handleRefresh }
+          >
+            <code>{ content }</code>
+          </Info>
+
+          <Info
+            label='Image'
+            isOwner={ isOwner }
+            onUpdateMetadata={ this.handleModifyImage }
+            onRefresh={ this.handleRefresh }
+          >
+            <Image address={ image } />
+          </Info>
         </CardText>
         { this.renderActions(isOwner) }
       </Card>
@@ -113,28 +122,19 @@ export default class Entry extends Component {
       return null;
     }
 
-    const { dropping, reversed, reversing } = this.props.entry;
-
-    const reverse = reversed
-      ? null
-      : (
-        <RaisedButton
-          disabled={ reversing }
-          label='Reverse & Confirm'
-          icon={ this.renderLoadingIcon(reversing) }
-          onClick={ this.handleReverse }
-        />
-      );
+    const { dropping } = this.props.entry;
 
     return (
       <div className={ styles.actions }>
-        <RaisedButton
+        <FloatingActionButton
           disabled={ dropping }
-          label='Drop'
-          icon={ this.renderLoadingIcon(dropping) }
-          onClick={ this.handleDrop }
-        />
-        { reverse }
+          mini
+          onTouchTap={ this.handleDrop }
+          secondary
+          title='Drop'
+        >
+          <DeleteIcon />
+        </FloatingActionButton>
       </div>
     );
   }

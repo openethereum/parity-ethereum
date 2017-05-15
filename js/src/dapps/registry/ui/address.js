@@ -117,8 +117,6 @@ export default class Address extends Component {
     const lcAddress = address.toLowerCase();
     const account = this.applicationStore.accounts.find((a) => a.address.toLowerCase() === lcAddress);
 
-    if (account) {
-      this.setState({ account });
-    }
+    this.setState({ account });
   }
 }
