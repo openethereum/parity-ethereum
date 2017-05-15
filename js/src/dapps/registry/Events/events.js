@@ -19,7 +19,7 @@ import React, { Component } from 'react';
 import { Card, CardHeader, CardActions, CardText } from 'material-ui/Card';
 import Toggle from 'material-ui/Toggle';
 
-import Event from './event';
+import Event from './Event';
 import EventsStore from './events.store';
 
 import styles from './events.css';
@@ -28,7 +28,7 @@ const TITLE_STYLE = {
   fontSize: '2em'
 };
 
-const inlineButton = {
+const INLINE_BUTTON_STYLE = {
   display: 'inline-block',
   width: 'auto',
   marginRight: '1em'
@@ -52,19 +52,19 @@ export default class Events extends Component {
             label='Reservations'
             toggled={ shown.has('reservations') }
             onToggle={ this.handleReservationsToggle }
-            style={ inlineButton }
+            style={ INLINE_BUTTON_STYLE }
           />
           <Toggle
             label='Metadata'
             toggled={ shown.has('metadata') }
             onToggle={ this.handleMetadataToggle }
-            style={ inlineButton }
+            style={ INLINE_BUTTON_STYLE }
           />
           <Toggle
             label='Reverses'
             toggled={ shown.has('reverses') }
             onToggle={ this.handleReversesToggle }
-            style={ inlineButton }
+            style={ INLINE_BUTTON_STYLE }
           />
         </CardActions>
         <CardText>

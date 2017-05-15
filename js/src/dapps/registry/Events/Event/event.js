@@ -17,9 +17,9 @@
 import moment from 'moment';
 import React, { PropTypes } from 'react';
 
-import Address from '../ui/address';
-import ApplicationStore from '../Application/application.store';
-import Hash from '../ui/hash';
+import Address from '../../ui/address';
+import ApplicationStore from '../../Application/application.store';
+import Hash from '../../ui/hash';
 
 import styles from './event.css';
 
