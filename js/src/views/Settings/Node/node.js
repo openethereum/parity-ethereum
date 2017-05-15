@@ -116,7 +116,7 @@ export default class Node extends Component {
             <Dropdown
               onChange={ onChange }
               value={ level }
-              values={ LOGLEVEL_OPTIONS }
+              options={ LOGLEVEL_OPTIONS }
             />
           </div>
         );
