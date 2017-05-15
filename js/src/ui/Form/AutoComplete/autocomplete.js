@@ -17,7 +17,6 @@
 import keycode from 'keycode';
 import { isEqual } from 'lodash';
 import { MenuItem, AutoComplete as MUIAutoComplete, Divider as MUIDivider } from 'material-ui';
-import { PopoverAnimationVertical } from 'material-ui/Popover';
 import React, { Component, PropTypes } from 'react';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
@@ -102,7 +101,6 @@ export default class AutoComplete extends Component {
         searchText={ value }
         onFocus={ this.onFocus }
         onClose={ this.onClose }
-        animation={ PopoverAnimationVertical }
         filter={ this.handleFilter }
         popoverProps={ { open } }
         openOnFocus
