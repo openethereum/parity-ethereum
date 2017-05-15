@@ -14,17 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, map, observable } from 'mobx';
+import { action, computed, map, observable } from 'mobx';
 
 import ApplicationStore from '../Application/application.store';
 
 let instance;
 
 export default class EventsStore {
-  @observable events = [];
-  @observable subscriptions = map();
+  @observable allEvents = [];
+  @observable shown = map();
 
   applicationStore = ApplicationStore.get();
+  subscriptionId = null;
+
+  constructor () {
+    this.subscribe();
+  }
 
   static get () {
     if (!instance) {
@@ -34,15 +39,33 @@ export default class EventsStore {
     return instance;
   }
 
+  @computed
+  get events () {
+    const types = this.shown.values().reduce((types, current) => {
+      return types.concat(current.slice());
+    }, []);
+
+    return this.allEvents.filter((event) => types.includes(event.type));
+  }
+
   @action
   addEvents (_events) {
-    const ids = this.events.map((event) => event.id);
+    const allEvents = this.allEvents.slice();
+    const ids = allEvents.map((event) => event.id);
     const events = _events
-      .filter((event) => event)
-      .filter((event) => !ids.includes(event.id));
+      .filter((event) => event);
 
-    this.events = this.events
-      .concat(events)
+    events.forEach((event) => {
+      const index = ids.indexOf(event.id);
+
+      if (index === -1) {
+        return allEvents.push(event);
+      }
+
+      allEvents[index] = event;
+    });
+
+    this.allEvents = allEvents.slice()
       .sort((eventA, eventB) => {
         const blockCompare = eventA.block.minus(eventB.block);
 
@@ -58,39 +81,14 @@ export default class EventsStore {
       });
   }
 
-  @action
-  removeEvents (type) {
-    this.events = this.events.filter((event) => event.type !== type);
-  }
-
-  @action
-  removeSubscription (name) {
-    this.subscriptions.delete(name);
-  }
-
-  @action
-  setSubscription (name, value) {
-    this.subscriptions.set(name, value);
-  }
-
-  subscribe (name, from = 0, to = 'pending') {
-    if (Array.isArray(name)) {
-      const promises = name.map((key) => this.subscribe(key));
-
-      return Promise.all(promises);
-    }
-
-    if (this.subscriptions.has(name)) {
-      return Promise.resolve();
-    }
-
+  subscribe (from = 0, to = 'pending') {
     const { api, contract } = this.applicationStore;
     const options = { fromBlock: from, toBlock: to, limit: 50 };
 
     return contract
-      .subscribe(name, options, (error, events) => {
+      .subscribe(null, options, (error, events) => {
         if (error) {
-          console.error(`error receiving events for ${name}`, error);
+          console.error(`error receiving events`, error);
           return;
         }
 
@@ -101,7 +99,7 @@ export default class EventsStore {
           ])
           .then(([block, transaction]) => {
             const data = {
-              type: name,
+              type: event.event,
               id: `${event.transactionHash}_${event.logIndex}`,
               state: event.type,
               block: event.blockNumber,
@@ -127,35 +125,43 @@ export default class EventsStore {
           });
       })
       .then((subscriptionId) => {
-        this.setSubscription(name, subscriptionId);
+        this.subscriptionId = subscriptionId;
       })
       .catch((error) => {
         console.error('event subscription failed', error);
       });
   }
 
-  unsubscribe (name) {
-    if (Array.isArray(name)) {
-      const promises = name.map((key) => this.unsubscribe(key));
-
-      return Promise.all(promises);
+  @action
+  toggle (key, toggled) {
+    if (!toggled) {
+      return this.shown.delete(key);
     }
 
+    if (key === 'reservations') {
+      return this.shown.set(key, [ 'Reserved', 'Transferred', 'Dropped' ]);
+    }
+
+    if (key === 'metadata') {
+      return this.shown.set(key, [ 'DataChanged' ]);
+    }
+
+    if (key === 'reverses') {
+      return this.shown.set(key, [ 'ReverseConfirmed', 'ReverseRemoved', 'ReverseProposed' ]);
+    }
+  }
+
+  unsubscribe () {
     const { contract } = this.applicationStore;
 
-    this.removeEvents(name);
-
-    if (!this.subscriptions.has(name)) {
+    if (!this.subscriptionId) {
       return Promise.resolve();
     }
 
     return contract
-      .unsubscribe(this.subscriptions.get(name))
+      .unsubscribe(this.subscriptionId)
       .catch((error) => {
         console.error('event unsubscribe failed', error);
-      })
-      .then(() => {
-        this.removeSubscription(name);
       });
   }
 }

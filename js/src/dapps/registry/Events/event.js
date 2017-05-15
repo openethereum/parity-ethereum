@@ -17,10 +17,84 @@
 import moment from 'moment';
 import React, { PropTypes } from 'react';
 
-const Event = ({ event }) => {
+import Address from '../ui/address';
+import ApplicationStore from '../Application/application.store';
+import Hash from '../ui/hash';
+
+import styles from './event.css';
+
+const { api } = ApplicationStore.get();
+
+const Param = ({ data, label }) => {
+  if (!data) {
+    return null;
+  }
+
+  const { value } = data;
+  const display = value && typeof value.peek === 'function'
+    ? api.util.bytesToHex(value.peek())
+    : value;
+
   return (
-    <div>
-      <div>{ moment(event.timestamp).fromNow() }</div>
+    <div className={ styles.param }>
+      <span className={ styles.label }>
+        { label }
+      </span>
+      <code>
+        { display }
+      </code>
+    </div>
+  );
+};
+
+const Event = ({ event }) => {
+  const { state, timestamp, transactionHash, type, parameters, from } = event;
+  const isPending = state === 'pending';
+
+  const { reverse, owner, name, plainKey } = parameters;
+  const sender = (reverse && reverse.value) ||
+    (owner && owner.value) ||
+    from;
+
+  const classes = [];
+
+  if (isPending) {
+    classes.push(styles.pending);
+  }
+
+  return (
+    <div className={ classes.join(' ') }>
+      <div className={ styles.date }>
+        {
+          isPending
+          ? '(pending)'
+          : moment(timestamp).fromNow()
+        }
+      </div>
+      <div className={ styles.infoContainer }>
+        <Address
+          address={ sender }
+          className={ styles.address }
+        />
+        <div className={ styles.transaction }>
+          <span className={ styles.event }>{ type }</span>
+          <span className={ styles.arrow }>→</span>
+          <Hash
+            hash={ transactionHash }
+            linked
+          />
+        </div>
+        <div className={ styles.params }>
+          <Param
+            data={ name }
+            label='Name'
+          />
+          <Param
+            data={ plainKey }
+            label='Key'
+          />
+        </div>
+      </div>
     </div>
   );
 };

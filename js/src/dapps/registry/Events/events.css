@@ -21,7 +21,15 @@
 
 .options {
   margin: 0 0.5em;
+  text-align: center;
+
+  > * {
+    margin: 0 2em !important;
+  }
 }
 
 .eventsList {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
 }

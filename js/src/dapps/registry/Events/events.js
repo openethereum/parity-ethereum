@@ -24,6 +24,10 @@ import EventsStore from './events.store';
 
 import styles from './events.css';
 
+const TITLE_STYLE = {
+  fontSize: '2em'
+}
+
 const inlineButton = {
   display: 'inline-block',
   width: 'auto',
@@ -35,36 +39,31 @@ export default class Events extends Component {
   eventsStore = EventsStore.get();
 
   render () {
-    const { subscriptions } = this.eventsStore;
-    const isReverseToggle = ['ReverseProposed', 'ReverseConfirmed', 'ReverseRemoved']
-      .findIndex((key) => !!subscriptions.has(key)) > -1;
+    const { shown } = this.eventsStore;
 
     return (
       <Card className={ styles.events }>
-        <CardHeader title='Event Log' />
+        <CardHeader
+          title='Events'
+          titleStyle={ TITLE_STYLE }
+        />
         <CardActions className={ styles.options }>
           <Toggle
-            label='Reserved'
-            toggled={ subscriptions.has('Reserved') }
-            onToggle={ this.handleReservedToggle }
+            label='Reservations'
+            toggled={ shown.has('reservations') }
+            onToggle={ this.handleReservationsToggle }
             style={ inlineButton }
           />
           <Toggle
-            label='Dropped'
-            toggled={ subscriptions.has('Dropped') }
-            onToggle={ this.handleDroppedToggle }
+            label='Metadata'
+            toggled={ shown.has('metadata') }
+            onToggle={ this.handleMetadataToggle }
             style={ inlineButton }
           />
           <Toggle
-            label='DataChanged'
-            toggled={ subscriptions.has('DataChanged') }
-            onToggle={ this.handleDataChangedToggle }
-            style={ inlineButton }
-          />
-          <Toggle
-            label='Reverse Lookup'
-            toggled={ isReverseToggle }
-            onToggle={ this.handleReverseToggle }
+            label='Reverses'
+            toggled={ shown.has('reverses') }
+            onToggle={ this.handleReversesToggle }
             style={ inlineButton }
           />
         </CardActions>
@@ -80,6 +79,14 @@ export default class Events extends Component {
   renderEvents () {
     const { events } = this.eventsStore;
 
+    if (events.length === 0) {
+      return (
+        <div>
+          No events to display
+        </div>
+      );
+    }
+
     return events.map((event) => {
       return (
         <Event
@@ -90,27 +97,15 @@ export default class Events extends Component {
     });
   }
 
-  toggleSubscriptions (key, isToggled) {
-    if (isToggled) {
-      this.eventsStore.subscribe(key);
-    } else {
-      this.eventsStore.unsubscribe(key);
-    }
-  }
-
-  handleReservedToggle = (e, isToggled) => {
-    return this.toggleSubscriptions('Reserved', isToggled);
+  handleReservationsToggle = (e, toggled) => {
+    return this.eventsStore.toggle('reservations', toggled);
   };
 
-  handleDroppedToggle = (e, isToggled) => {
-    return this.toggleSubscriptions('Dropped', isToggled);
+  handleMetadataToggle = (e, toggled) => {
+    return this.eventsStore.toggle('metadata', toggled);
   };
 
-  handleDataChangedToggle = (e, isToggled) => {
-    return this.toggleSubscriptions('DataChanged', isToggled);
-  };
-
-  handleReverseToggle = (e, isToggled) => {
-    return this.toggleSubscriptions(['ReverseProposed', 'ReverseConfirmed', 'ReverseRemoved'], isToggled);
+  handleReversesToggle = (e, toggled) => {
+    return this.eventsStore.toggle('reverses', toggled);
   };
 }

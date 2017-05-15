@@ -35,7 +35,7 @@ export default class IdentityIcon extends Component {
     const { address, big, className, style } = this.props;
     const size = big
       ? 7
-      : 3;
+      : 4;
     const classes = [ styles.icon, className ];
 
     if (big) {

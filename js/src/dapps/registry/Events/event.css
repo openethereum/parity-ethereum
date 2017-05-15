@@ -15,30 +15,65 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
-  display: inline-flex;
-  flex-direction: column;
+.infoContainer {
   align-items: center;
-}
+  display: flex;
+  margin: 1.25em 0 2em;
 
-.icon {
-  margin-bottom: 0.5em;
-  margin-right: 0;
+  > * {
+    margin-right: 1em;
+  }
+
+  * {
+    word-wrap: break-word;
+  }
 }
 
 .address {
-  line-height: 20px;
+  width: 10em;
+  text-align: center;
 }
 
-.link {
-  text-decoration: none;
-  color: inherit;
+.date {
+  color: gray;
+}
 
-  &:hover {
-    text-decoration: underline;
+.param {
+  display: flex;
+  flex-direction: column;
+  margin-right: 1em;
+  max-width: 20em;
+
+  .label {
+    font-size: 1.1em;
+    margin-bottom: 0.5em;
+  }
+}
+
+.params {
+  display: flex;
+}
+
+.pending {
+  opacity: 0.5;
+}
+
+.transaction {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  width: 13em;
+
+  > * {
+    display: inline-flex;
   }
 
-  & abbr {
-    text-decoration: inherit;
+  .arrow {
+    font-size: 3em;
+    line-height: 0.65em;
+  }
+
+  .event {
+    font-size: 1.25em;
   }
 }

@@ -27,6 +27,7 @@ export default class Address extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
     big: PropTypes.bool,
+    className: PropTypes.string,
     key: PropTypes.string,
     shortenHash: PropTypes.bool
   };
@@ -54,8 +55,8 @@ export default class Address extends Component {
   }
 
   render () {
-    const { address, big, key } = this.props;
-    const classes = [ styles.container ];
+    const { address, big, className, key } = this.props;
+    const classes = [ styles.container, className ];
 
     if (big) {
       classes.push(styles.big);
