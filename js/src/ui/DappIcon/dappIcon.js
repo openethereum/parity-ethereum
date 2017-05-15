@@ -18,8 +18,8 @@ import React, { PropTypes } from 'react';
 
 import styles from './dappIcon.css';
 
-export default function DappIcon ({ app, className, small }, context) {
-  const { dappsUrl } = context.api;
+export default function DappIcon ({ app, className, small }, { api }) {
+  const { dappsUrl } = api;
 
   return (
     <img

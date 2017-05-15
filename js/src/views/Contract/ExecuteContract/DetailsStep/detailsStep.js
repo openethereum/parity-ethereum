@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { MenuItem } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { AddressSelect, Checkbox, Form, Input, Select, TypedInput } from '~/ui';
+import { AddressSelect, Checkbox, Dropdown, Form, Input, TypedInput } from '@parity/ui';
 
 import styles from '../executeContract.css';
 
@@ -123,16 +122,15 @@ export default class DetailsStep extends Component {
       .filter((func) => !func.constant)
       .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
       .map((func) => {
-        const params = (func.abi.inputs || [])
-          .map((input, index) => {
-            return (
-              <span key={ input.name }>
-                <span>{ index ? ', ' : '' }</span>
-                <span className={ styles.paramname }>{ input.name }: </span>
-                <span>{ input.type }</span>
-              </span>
-            );
-          });
+        const params = (func.abi.inputs || []).map((input, index) => {
+          return (
+            <span key={ input.name }>
+              <span>{ index ? ', ' : '' }</span>
+              <span className={ styles.paramname }>{ input.name }: </span>
+              <span>{ input.type }</span>
+            </span>
+          );
+        });
         const name = (
           <div>
             <span>{ func.name }</span>
@@ -142,19 +140,16 @@ export default class DetailsStep extends Component {
           </div>
         );
 
-        return (
-          <MenuItem
-            key={ func.signature }
-            value={ func.signature }
-            label={ func.name || '()' }
-          >
-            { name }
-          </MenuItem>
-        );
+        return {
+          key: func.signature,
+          text: func.name || '()',
+          value: func.signature,
+          content: name
+        };
       });
 
     return (
-      <Select
+      <Dropdown
         error={ funcError }
         hint={
           <FormattedMessage
@@ -170,9 +165,8 @@ export default class DetailsStep extends Component {
         }
         onChange={ this.onFuncChange }
         value={ func.signature }
-      >
-        { functions }
-      </Select>
+        options={ functions }
+      />
     );
   }
 
@@ -184,7 +178,7 @@ export default class DetailsStep extends Component {
     }
 
     return (func.abi.inputs || []).map((input, index) => {
-      const onChange = (value) => onValueChange(null, index, value);
+      const onChange = (event, value) => onValueChange(null, index, value);
       const label = `${input.name}: ${input.type}`;
 
       return (
@@ -206,7 +200,7 @@ export default class DetailsStep extends Component {
     });
   }
 
-  onFuncChange = (event, index, signature) => {
+  onFuncChange = (event, signature) => {
     const { contract, onFuncChange } = this.props;
 
     onFuncChange(event, contract.functions.find((fn) => fn.signature === signature));

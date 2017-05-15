@@ -17,11 +17,9 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { MenuItem } from 'material-ui';
 import { isEqual } from 'lodash';
 
-import { Select } from '~/ui/Form';
-import TokenImage from '~/ui/TokenImage';
+import { Dropdown, TokenImage } from '@parity/ui';
 
 import styles from '../transfer.css';
 
@@ -89,15 +87,12 @@ class TokenSelect extends Component {
           </div>
         );
 
-        return (
-          <MenuItem
-            key={ tokenId }
-            value={ token.id }
-            label={ label }
-          >
-            { label }
-          </MenuItem>
-        );
+        return {
+          key: tokenId,
+          text: token.name,
+          value: token.id,
+          content: label
+        };
       })
       .filter((node) => node);
 
@@ -109,15 +104,14 @@ class TokenSelect extends Component {
     const { items } = this.state;
 
     return (
-      <Select
+      <Dropdown
         className={ styles.tokenSelect }
         label='type of token transfer'
         hint='type of token to transfer'
         value={ value }
         onChange={ onChange }
-      >
-        { items }
-      </Select>
+        options={ items }
+      />
     );
   }
 }

@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { SelectionList } from '~/ui';
+import { SelectionList } from '@parity/ui';
 
 import GethCard from '../GethCard';
 import styles from '../createAccount.css';

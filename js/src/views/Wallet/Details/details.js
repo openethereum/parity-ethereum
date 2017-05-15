@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Container, InputAddress } from '~/ui';
+import { Container, InputAddress } from '@parity/ui';
 
 import styles from '../wallet.css';
 

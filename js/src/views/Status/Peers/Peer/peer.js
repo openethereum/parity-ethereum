@@ -16,7 +16,7 @@
 
 import React, { PropTypes } from 'react';
 
-import { ScrollableText, ShortenedHash } from '~/ui';
+import { ScrollableText, ShortenedHash } from '@parity/ui';
 
 import styles from '../peers.css';
 

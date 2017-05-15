@@ -18,8 +18,8 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Container } from '~/ui';
-import { PauseIcon, PlayIcon, ReorderIcon, ReplayIcon } from '~/ui/Icons';
+import { Container } from '@parity/ui';
+import { PauseIcon, PlayIcon, ReorderIcon, ReplayIcon } from '@parity/ui/Icons';
 
 import Logs from './Logs';
 import Toggle from './Toggle';

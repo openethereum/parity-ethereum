@@ -16,11 +16,8 @@
 
 import { action, computed, observable, transaction } from 'mobx';
 
-const CHANGE_ACTION = 'CHANGE_ACTION';
-const TEST_ACTION = 'TEST_ACTION';
-
 export default class Store {
-  @observable actionTab = TEST_ACTION;
+  @observable activeTab = 0;
   @observable address = null;
   @observable busy = false;
   @observable infoMessage = null;
@@ -44,9 +41,9 @@ export default class Store {
     return this.newPasswordRepeat === this.newPassword;
   }
 
-  @action setActionTab = (actionTab) => {
+  @action setActiveTab = (activeTab) => {
     transaction(() => {
-      this.actionTab = actionTab;
+      this.activeTab = activeTab;
       this.setInfoMessage();
     });
   }
@@ -154,8 +151,3 @@ export default class Store {
       });
   }
 }
-
-export {
-  CHANGE_ACTION,
-  TEST_ACTION
-};

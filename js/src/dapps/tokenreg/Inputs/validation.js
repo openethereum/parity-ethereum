@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import isURL from 'validator/lib/isURL';
+import validator from 'validator';
 
 import { api } from '../parity';
 
@@ -211,7 +211,7 @@ const validateHex = (string) => {
 };
 
 const validateURL = (string) => {
-  if (!isURL(string.toString())) {
+  if (!validator.isURL(string.toString())) {
     return {
       error: ERRORS.invalidURL,
       valid: false

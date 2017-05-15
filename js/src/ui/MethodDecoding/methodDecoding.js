@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -177,10 +178,12 @@ class MethodDecoding extends Component {
       return null;
     }
 
-    if (condition.block && condition.block.gt(0)) {
+    const blockCondition = new BigNumber(condition.block || 0);
+
+    if (blockCondition.gt(0)) {
       const blockNumber = (
         <span className={ styles.highlight }>
-          #{ condition.block.toFormat(0) }
+          #{ blockCondition.toFormat(0) }
         </span>
       );
 

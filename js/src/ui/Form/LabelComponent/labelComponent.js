@@ -14,29 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { shallow } from 'enzyme';
-import React from 'react';
+import React, { PropTypes } from 'react';
 
-import Steps from './';
+import Label from '../Label';
 
-let component;
-
-function render (props = {}) {
-  component = shallow(
-    <Steps
-      { ...props }
-    />
+export default function LabelComponent ({ className, children, label }) {
+  return (
+    <div className={ className }>
+      <Label label={ label } />
+      { children }
+    </div>
   );
-
-  return component;
 }
 
-describe('ui/Title/Steps', () => {
-  beforeEach(() => {
-    render({ steps: ['stepA', 'stepB'] });
-  });
-
-  it('renders the Stepper', () => {
-    expect(component.find('Stepper').get(0)).to.be.ok;
-  });
-});
+LabelComponent.propTypes = {
+  className: PropTypes.string,
+  children: PropTypes.node.isRequired,
+  label: PropTypes.node
+};

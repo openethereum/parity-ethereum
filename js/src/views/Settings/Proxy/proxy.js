@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Container } from '~/ui';
+import { Container } from '@parity/ui';
 
 import layout from '../layout.css';
 import styles from './proxy.css';

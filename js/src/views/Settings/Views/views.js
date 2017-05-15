@@ -20,8 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { toggleView } from '@parity/shared/redux/providers/settings/actions';
-
-import { Checkbox, Container } from '~/ui';
+import { Checkbox, Container } from '@parity/ui';
 
 import layout from '../layout.css';
 import styles from './views.css';

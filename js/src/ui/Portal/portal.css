@@ -120,7 +120,7 @@ $backgroundOverlay: rgba(255, 255, 255, 0.95);
     font-size: 3em;
     position: absolute;
     right: 1rem;
-    top: 0.5rem;
+    top: 1.5rem;
     z-index: 100;
 
     i {

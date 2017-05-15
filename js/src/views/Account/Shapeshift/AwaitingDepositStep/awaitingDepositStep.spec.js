@@ -38,7 +38,7 @@ function render () {
   return component;
 }
 
-describe('modals/Shapeshift/AwaitingDepositStep', () => {
+describe('views/Account/Shapeshift/AwaitingDepositStep', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });

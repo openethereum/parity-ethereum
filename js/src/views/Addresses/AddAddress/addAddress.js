@@ -18,8 +18,8 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Form, Input, InputAddress, ModalBox, Portal } from '~/ui';
-import { AddIcon, AddressesIcon, CancelIcon } from '~/ui/Icons';
+import { Button, Form, Input, InputAddress, ModalBox, Portal } from '@parity/ui';
+import { AddIcon, AddressIcon, CancelIcon } from '@parity/ui/Icons';
 
 import Store from './store';
 
@@ -97,7 +97,7 @@ export default class AddAddress extends Component {
 
     return (
       <ModalBox
-        icon={ <AddressesIcon /> }
+        icon={ <AddressIcon /> }
         summary={
           <FormattedMessage
             id='addAddress.header'

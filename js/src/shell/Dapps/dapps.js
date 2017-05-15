@@ -20,8 +20,8 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { Actionbar, Button, Checkbox, DappCard, Page, SectionList } from '~/ui';
-import { LockedIcon, VisibleIcon } from '~/ui/Icons';
+import { Actionbar, Button, Checkbox, DappCard, Page, SectionList } from '@parity/ui';
+import { LockedIcon, VisibleIcon } from '@parity/ui/Icons';
 
 import DappsVisible from '../DappsVisible';
 import DappPermissions from '../DappPermissions';

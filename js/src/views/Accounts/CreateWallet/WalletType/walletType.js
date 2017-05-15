@@ -18,8 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { walletSourceURL } from '@parity/shared/contracts/code/wallet';
-
-import { RadioButtons } from '~/ui';
+import { RadioButtons } from '@parity/ui';
 
 const TYPES = [
   {
@@ -83,7 +82,7 @@ export default class WalletType extends Component {
     );
   }
 
-  onTypeChange = (type) => {
-    this.props.onChange(type.key);
+  onTypeChange = (event, type) => {
+    this.props.onChange(type);
   }
 }

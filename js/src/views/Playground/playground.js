@@ -17,11 +17,11 @@
 import { observer } from 'mobx-react';
 import React, { Component } from 'react';
 
-import AccountCard from '~/ui/AccountCard/accountCard.example';
-import CurrencySymbol from '~/ui/CurrencySymbol/currencySymbol.example';
-import Portal from '~/ui/Portal/portal.example';
-import QrCode from '~/ui/QrCode/qrCode.example';
-import SectionList from '~/ui/SectionList/sectionList.example';
+import AccountCard from '@parity/ui/AccountCard/accountCard.example';
+import CurrencySymbol from '@parity/ui/CurrencySymbol/currencySymbol.example';
+import Portal from '@parity/ui/Portal/portal.example';
+import QrCode from '@parity/ui/QrCode/qrCode.example';
+import SectionList from '@parity/ui/SectionList/sectionList.example';
 
 import PlaygroundStore from './store';
 import styles from './playground.css';

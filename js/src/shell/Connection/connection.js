@@ -18,8 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { Input } from '~/ui';
-import { CompareIcon, ComputerIcon, DashboardIcon, VpnIcon } from '~/ui/Icons';
+import { Input } from '@parity/ui';
+import { CompareIcon, ComputerIcon, DashboardIcon, VpnIcon } from '@parity/ui/Icons';
 
 import styles from './connection.css';
 

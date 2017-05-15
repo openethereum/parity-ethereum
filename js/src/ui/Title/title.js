@@ -19,8 +19,8 @@ import React, { PropTypes } from 'react';
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
 import { Title as ContainerTitle } from '~/ui/Container';
+import Steps from '~/ui/Steps';
 
-import Steps from './Steps';
 import Waiting from './Waiting';
 
 import styles from './title.css';
@@ -52,12 +52,14 @@ export default function Title ({ activeStep, busy, busySteps, byline, className,
       />
       <Steps
         activeStep={ activeStep }
+        className={ styles.steps }
         steps={ steps }
       />
       <Waiting
         activeStep={ activeStep }
         busy={ busy }
         busySteps={ busySteps }
+        className={ styles.waiting }
       />
     </div>
   );

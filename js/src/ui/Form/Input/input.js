@@ -16,10 +16,12 @@
 
 import React, { Component, PropTypes } from 'react';
 import { Input as SemanticInput } from 'semantic-ui-react';
+import LabelComponent from '../LabelComponent';
 import { noop } from 'lodash';
 import keycode from 'keycode';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+import { parseI18NString } from '@parity/shared/util/messages';
 
 import CopyToClipboard from '~/ui/CopyToClipboard';
 
@@ -51,6 +53,11 @@ export default class Input extends Component {
     readOnly: PropTypes.bool,
     hint: nodeOrStringProptype(),
     hideUnderline: PropTypes.bool,
+    input: PropTypes.oneOfType([
+      PropTypes.number,
+      PropTypes.string,
+      PropTypes.node
+    ]),
     label: nodeOrStringProptype(),
     max: PropTypes.any,
     min: PropTypes.any,
@@ -120,6 +127,7 @@ export default class Input extends Component {
 
   render () {
     const { value } = this.state;
+
     const {
       children,
       className,
@@ -130,6 +138,7 @@ export default class Input extends Component {
       fluid,
       focused,
       hint,
+      input,
       label,
       onClick,
       placeholder,
@@ -138,34 +147,41 @@ export default class Input extends Component {
       type
     } = this.props;
 
+    if (input) {
+      value = input;
+    }
+
+    const textValue = parseI18NString(this.context, value);
+
     return (
       <div className={ styles.container } style={ style }>
         { this.renderCopyButton() }
-        <SemanticInput
-          className={ className }
-          defaultValue={ defaultValue }
-          disabled={ disabled }
-          error={ error }
-          fluid={ fullWidth | fluid }
-          focus={ focused }
-          input={ value }
-          label={ label }
-          onBlur={ this.onBlur }
-          onChange={ this.onChange }
-          onClick={ onClick }
-          onKeyDown={ this.onKeyDown }
-          onKeyUp={ this.onKeyUp }
-          onFocus={ this.onFocus }
-          onPaste={ this.onPaste }
-          placeholder={ hint | placeholder }
-          ref={ this.keyInput }
-          style={ style }
-          tabIndex={ tabIndex }
-          type={ type }
-        >
-          { children }
-          <input />
-        </SemanticInput>
+        <LabelComponent label={ label }>
+          <SemanticInput
+            className={ className }
+            defaultValue={ defaultValue }
+            disabled={ disabled }
+            error={ error }
+            fluid={ fullWidth | fluid }
+            focus={ focused }
+            input={ textValue | value }
+            onBlur={ this.onBlur }
+            onChange={ this.onChange }
+            onClick={ onClick }
+            onKeyDown={ this.onKeyDown }
+            onKeyUp={ this.onKeyUp }
+            onFocus={ this.onFocus }
+            onPaste={ this.onPaste }
+            placeholder={ hint | placeholder }
+            ref={ this.keyInput }
+            style={ style }
+            tabIndex={ tabIndex }
+            type={ type }
+          >
+            { children }
+            <input />
+          </SemanticInput>
+        </LabelComponent>
       </div>
     );
   }

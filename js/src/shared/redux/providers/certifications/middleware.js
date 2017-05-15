@@ -58,7 +58,12 @@ const updatableFilter = (api, onFilter) => {
 };
 
 export default class CertificationsMiddleware {
-  toMiddleware (api) {
+  constructor (api) {
+    this._api = api;
+  }
+
+  toMiddleware () {
+    const api = this._api;
     const badgeReg = Contracts.get(api).badgeReg;
 
     const contract = new Contract(api, CertifierABI);
@@ -124,7 +129,8 @@ export default class CertificationsMiddleware {
       }
 
       function onBadgeRegLogs (logs) {
-        return badgeReg.getContract()
+        return badgeReg
+          .getContract()
           .then((badgeRegContract) => {
             logs = badgeRegContract.parseEventLogs(logs);
 

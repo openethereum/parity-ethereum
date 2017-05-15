@@ -33,7 +33,7 @@ const initialState = {
   netVersion: '0',
   nodeKind: null,
   nodeKindFull: null,
-  syncing: true,
+  syncing: null,
   isConnected: false,
   isConnecting: false,
   isTest: undefined,
