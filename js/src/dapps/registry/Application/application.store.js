@@ -34,7 +34,7 @@ export default class ApplicationStore {
 
   constructor () {
     this.fetchAccounts();
-    this.fetchContract();
+    this.fetchContracts();
     this.fetchNetVersion();
   }
 
@@ -64,13 +64,18 @@ export default class ApplicationStore {
       });
   }
 
-  fetchContract () {
-    this.setLoading(true);
+  fetchContracts () {
+    const contracts = Contracts.create(this.api);
 
-    return Contracts.create(this.api).registry
-      .fetchContract()
-      .then((contract) => {
-        this.setContract(contract);
+    this.setLoading(true);
+    return Promise
+      .all([
+        contracts.registry.fetchContract(),
+        contracts.githubHint.getContract()
+      ])
+      .then(([ registry, githubHint ]) => {
+        this.contract = registry;
+        this.githubHint = githubHint;
 
         const fee = this.fetchFee();
         const owner = this.fetchOwner();
@@ -97,6 +102,24 @@ export default class ApplicationStore {
       });
   }
 
+  getGHHLink (hash) {
+    const { api, githubHint } = this;
+
+    return githubHint.instance.entries.call({}, [ hash ])
+      .then(([ accountSlashRepo, commitBytes ]) => {
+        let ghhLink = accountSlashRepo;
+
+        if (commitBytes.find((byte) => byte !== 0)) {
+          const commitHex = api.util.bytesToHex(commitBytes);
+          const commit = api.util.hexToAscii(commitHex);
+
+          ghhLink = `https://github.com/${accountSlashRepo}/archive/${commit}.zip`;
+        }
+
+        return ghhLink;
+      });
+  }
+
   fetchNetVersion () {
     return this.api.net.version()
       .then((netVersion) => {
@@ -114,10 +137,6 @@ export default class ApplicationStore {
       .catch((error) => {
         console.error('could not fetch owner', error);
       });
-  }
-
-  setContract (contract) {
-    this.contract = contract;
   }
 
   @action

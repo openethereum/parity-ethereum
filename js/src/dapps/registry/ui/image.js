@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import ApplicationStore from '../Application/application.store';
 import brokenLinkImg from '../broken-link.svg';
 import { parityNode } from '../../../environment';
 import Hash from './hash';
@@ -27,18 +28,38 @@ export default class Image extends Component {
     address: PropTypes.string
   };
 
-  state = {
+  static initialState = {
+    ghhLink: null,
     error: false
   };
 
+  state = Image.initialState;
+
+  applicationStore = ApplicationStore.get();
+
+  componentWillMount () {
+    this.fetchGHH();
+  }
+
   componentWillReceiveProps (nextProps) {
     if (nextProps.address !== this.props.address) {
-      this.setState({ error: false });
+      this.fetchGHH(nextProps);
+      this.setState(Image.initialState);
     }
+  }
+
+  fetchGHH (props = this.props) {
+    const { address } = props;
+
+    return this.applicationStore.getGHHLink(address)
+      .then((ghhLink) => {
+        this.setState({ ghhLink });
+      });
   }
 
   render () {
     const { address } = this.props;
+    const { ghhLink } = this.state;
 
     if (!address || /^(0x)?0*$/.test(address)) {
       return (
@@ -52,13 +73,26 @@ export default class Image extends Component {
       return this.renderError();
     }
 
-    return (
+    const children = (
       <img
         alt={ address }
         className={ styles.image }
         onError={ this.handleError }
         src={ `${parityNode}/api/content/${address.replace(/^0x/, '')}` }
       />
+    );
+
+    if (!ghhLink) {
+      return children;
+    }
+
+    return (
+      <a
+        href={ ghhLink }
+        target='_blank'
+      >
+        { children }
+      </a>
     );
   }
 

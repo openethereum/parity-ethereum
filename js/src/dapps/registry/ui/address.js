@@ -19,7 +19,6 @@ import React, { Component, PropTypes } from 'react';
 import ApplicationStore from '../Application/application.store';
 import LookupStore from '../Lookup/lookup.store';
 import Hash from './hash';
-import etherscanUrl from '../util/etherscan-url';
 import IdentityIcon from '../IdentityIcon';
 
 import styles from './address.css';

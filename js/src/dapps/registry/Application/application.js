@@ -51,7 +51,9 @@ export default class Application extends Component {
 
     if (loading) {
       return (
-        <CircularProgress size={ 60 } />
+        <div className={ styles.container }>
+          <CircularProgress size={ 120 } />
+        </div>
       );
     }
 
