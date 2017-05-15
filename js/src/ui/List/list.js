@@ -31,11 +31,12 @@ export default function List ({ className, items, label, onClick, style }) {
     <LabelComponent label={ label }>
       <SemanticList className={ `${styles.list} ${className}` }>
         {
-          items.map(({ buttons, description, icon, key, label }, index) => (
+          items.filter((item) => item).map(({ buttons, description, icon, isActive, key, label }, index) => (
             <Item
               buttons={ buttons }
               description={ description }
               icon={ icon }
+              isActive={ isActive }
               key={ key || index }
               label={ label }
               onClick={ wrapOnClick(key || index) }

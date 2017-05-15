@@ -18,14 +18,12 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { observer } from 'mobx-react';
 
-import IconMenu from 'material-ui/IconMenu';
-import MenuItem from 'material-ui/MenuItem';
-
 import Button from '~/ui/Button';
 import { SortIcon } from '~/ui/Icons';
+import List from '~/ui/List';
+import Popup from '~/ui/Popup';
 
 import SortStore from './sortStore';
-import styles from './sort.css';
 
 @observer
 export default class ActionbarSort extends Component {
@@ -53,102 +51,73 @@ export default class ActionbarSort extends Component {
     const { showDefault } = this.props;
 
     return (
-      <IconMenu
-        iconButtonElement={
+      <Popup
+        isOpen={ this.store.menuOpen }
+        trigger={
           <Button
-            className={ styles.sortButton }
-            label=''
             icon={ <SortIcon /> }
             onClick={ this.store.handleMenuOpen }
           />
         }
-        open={ this.store.menuOpen }
-        onRequestChange={ this.store.handleMenuChange }
-        onItemTouchTap={ this.store.handleSortChange }
-        targetOrigin={ { horizontal: 'right', vertical: 'top' } }
-        anchorOrigin={ { horizontal: 'right', vertical: 'top' } }
-        touchTapCloseDelay={ 0 }
       >
-        {
-          showDefault
-            ? this.renderMenuItem('', (
+        <List
+          items={ [
+            showDefault && this.renderMenuItem('', (
               <FormattedMessage
                 id='ui.actionbar.sort.typeDefault'
                 defaultMessage='Default'
               />
+            )),
+            this.renderMenuItem('tags', (
+              <FormattedMessage
+                id='ui.actionbar.sort.typeTags'
+                defaultMessage='Sort by tags'
+              />
+            )),
+            this.renderMenuItem('name', (
+              <FormattedMessage
+                id='ui.actionbar.sort.typeName'
+                defaultMessage='Sort by name'
+              />
+            )),
+            this.renderMenuItem('eth', (
+              <FormattedMessage
+                id='ui.actionbar.sort.typeEth'
+                defaultMessage='Sort by ETH'
+              />
             ))
-            : null
-        }
-        {
-          this.renderMenuItem('tags', (
-            <FormattedMessage
-              id='ui.actionbar.sort.typeTags'
-              defaultMessage='Sort by tags'
-            />
-          ))
-        }
-        {
-          this.renderMenuItem('name', (
-            <FormattedMessage
-              id='ui.actionbar.sort.typeName'
-              defaultMessage='Sort by name'
-            />
-          ))
-        }
-        {
-          this.renderMenuItem('eth', (
-            <FormattedMessage
-              id='ui.actionbar.sort.typeEth'
-              defaultMessage='Sort by ETH'
-            />
-          ))
-        }
-
-        { this.renderSortByMetas() }
-      </IconMenu>
+          ].concat(this.renderSortByMetas()) }
+          onClick={ this.store.handleSortChange }
+        />
+      </Popup>
     );
   }
 
   renderSortByMetas () {
     const { metas } = this.props;
 
-    return metas
-      .map((meta, index) => {
-        const label = (
-          <FormattedMessage
-            id='ui.actionbar.sort.sortBy'
-            defaultMessage='Sort by {label}'
-            values={ {
-              label: meta.label
-            } }
-          />
-        );
+    return metas.map((meta) => {
+      const label = (
+        <FormattedMessage
+          id='ui.actionbar.sort.sortBy'
+          defaultMessage='Sort by {label}'
+          values={ {
+            label: meta.label
+          } }
+        />
+      );
 
-        return this.renderMenuItem(meta.key, label, index);
-      });
+      return this.renderMenuItem(meta.key, label);
+    });
   }
 
-  renderMenuItem (value, label, key = null) {
+  renderMenuItem (key, label) {
     const { order } = this.props;
 
-    const props = {};
-
-    if (key !== null) {
-      props.key = key;
-    }
-
-    const checked = order === value;
-
-    return (
-      <MenuItem
-        checked={ checked }
-        value={ value }
-        primaryText={ label }
-        innerDivStyle={ {
-          paddingLeft: checked ? 50 : 16
-        } }
-        { ...props }
-      />
-    );
+    return {
+      isActive: order === key,
+      key,
+      label
+    };
   }
 }

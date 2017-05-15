@@ -48,6 +48,7 @@ export { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 export ModalBox from './ModalBox';
 export muiTheme from './Theme';
 export Page from './Page';
+export Popup from './Popup';
 export Portal from './Portal';
 export Progress from './Progress';
 export QrCode from './QrCode';
