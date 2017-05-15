@@ -16,6 +16,7 @@
 
 import { observer } from 'mobx-react';
 import React, { Component } from 'react';
+import ReactDOM from 'react-dom';
 import { Card, CardText } from 'material-ui/Card';
 import CircularProgress from 'material-ui/CircularProgress';
 
@@ -35,7 +36,7 @@ export default class Lookup extends Component {
     const { inputValue } = this.lookupStore;
 
     return (
-      <div>
+      <div ref={ this.setRef }>
         <div className={ styles.inputContainer }>
           <input
             autoFocus
@@ -130,5 +131,9 @@ export default class Lookup extends Component {
 
   handleRegister = () => {
     this.lookupStore.register();
+  };
+
+  setRef = (node) => {
+    this.lookupStore.setLookupElement(ReactDOM.findDOMNode(node));
   };
 }

@@ -32,6 +32,7 @@ export default class LookupStore {
   @observable reserving = null;
 
   applicationStore = ApplicationStore.get();
+  lookupElement = null;
 
   static get () {
     if (!instance) {
@@ -141,6 +142,10 @@ export default class LookupStore {
     this.reserving = reserving;
   }
 
+  setLookupElement (element) {
+    this.lookupElement = element;
+  }
+
   @action
   setLookupValue (value) {
     this.lookupValue = value;
@@ -150,26 +155,32 @@ export default class LookupStore {
   updateInput (value) {
     const { api, contract } = this.applicationStore;
 
-    this.inputValue = value;
-
-    // The input is a Registry ID (32 bytes hash)
-    if (/^0x[a-f0-9]{64}$/i.test(value)) {
-      this.setLookupValue(value);
-      return this.lookup(value, null, true);
+    if (this.lookupElement) {
+      this.lookupElement.scrollIntoView();
     }
 
-    // The input is an address
-    if (/^0x[a-f0-9]{40}$/i.test(value)) {
-      return checkOwnerReverse(contract, value)
-        .then((ownerReverseName) => {
-          if (!ownerReverseName) {
-            this.setLookupValue(null);
-            return this.setResult(null);
-          }
+    this.inputValue = value;
 
-          this.setLookupValue(api.util.sha3.text(ownerReverseName.toLowerCase()));
-          return this.lookupByName(ownerReverseName);
-        });
+    if (/^0x[a-f0-9]+$/i.test(value)) {
+      // The input is an address
+      if (value.length === 42) {
+        return checkOwnerReverse(contract, value)
+          .then((ownerReverseName) => {
+            if (!ownerReverseName) {
+              this.setLookupValue(null);
+              return this.setResult(null);
+            }
+
+            this.setLookupValue(api.util.sha3.text(ownerReverseName.toLowerCase()));
+            return this.lookupByName(ownerReverseName);
+          });
+      }
+
+      // The input could be a Registry ID
+      const hash = value.slice(0, 66);
+
+      this.setLookupValue(hash);
+      return this.lookup(hash, null, true);
     }
 
     this.setLookupValue(api.util.sha3.text(value.toLowerCase()));
