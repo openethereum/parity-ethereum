@@ -20,7 +20,6 @@ import { connect } from 'react-redux';
 import keycode, { codes } from 'keycode';
 import { FormattedMessage } from 'react-intl';
 import { observer } from 'mobx-react';
-import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
 import apiutil from '@parity/api/util';
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
@@ -35,8 +34,6 @@ import Portal from '~/ui/Portal';
 
 import AddressSelectStore from './addressSelectStore';
 import styles from './addressSelect.css';
-
-const BOTTOM_BORDER_STYLE = { borderBottom: 'solid 3px' };
 
 // Current Form ID
 let currentId = 1;
@@ -178,9 +175,8 @@ class AddressSelect extends Component {
   }
 
   renderContent () {
-    const { muiTheme } = this.context;
     const { hint, disabled, label, readOnly } = this.props;
-    const { expanded, inputFocused } = this.state;
+    const { expanded } = this.state;
 
     if (disabled || readOnly) {
       return null;
@@ -221,15 +217,6 @@ class AddressSelect extends Component {
                   />
                 )
               }
-            </div>
-
-            <div className={ styles.underline }>
-              <TextFieldUnderline
-                focus={ inputFocused }
-                focusStyle={ BOTTOM_BORDER_STYLE }
-                muiTheme={ muiTheme }
-                style={ BOTTOM_BORDER_STYLE }
-              />
             </div>
           </div>
         }
