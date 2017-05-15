@@ -53,8 +53,6 @@ export default class InputChip extends Component {
     const { clearOnBlur, className, hint, label, tokens } = this.props;
     const { focused } = this.state;
 
-    const classes = `${className}`;
-
     const textFieldStyle = {
       height: 55
     };
@@ -65,7 +63,7 @@ export default class InputChip extends Component {
 
     return (
       <ChipInput
-        className={ classes }
+        className={ className }
         ref='chipInput'
 
         value={ tokens }
