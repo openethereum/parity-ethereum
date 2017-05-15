@@ -21,6 +21,10 @@ import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 import styles from './actionbar.css';
 
 export default function Actionbar ({ buttons, children, className, title }) {
+  if (!buttons && !title) {
+    return null;
+  }
+
   return (
     <div className={ `${styles.actionbar} ${className}` }>
       <h3 className={ styles.title }>
