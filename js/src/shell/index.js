@@ -33,17 +33,17 @@ import ContractInstances from '@parity/shared/contracts';
 import HistoryStore from '@parity/shared/mobx/historyStore';
 import { initStore } from '@parity/shared/redux';
 import { patchApi } from '@parity/shared/util/tx';
+import ContextProvider from '@parity/ui/ContextProvider';
+import muiTheme from '@parity/ui/Theme';
 
 import '@parity/shared/environment';
 
 import SecureApi from '~/secureApi';
 
-import ContextProvider from '~/ui/ContextProvider';
-import muiTheme from '~/ui/Theme';
-
 import Application from './Application';
 import Dapp from './Dapp';
 import Dapps from './Dapps';
+import Fail404 from './404';
 
 injectTapEventPlugin();
 
@@ -90,6 +90,7 @@ ReactDOM.render(
         <Route path='/' exact component={ Dapps } />
         <Route path='/:id' component={ Dapp } onEnter={ onEnterDapp } />
         <Route path='/:id/:details' component={ Dapp } onEnter={ onEnterDapp } />
+        <Router path='*' component={ Fail404 } />
       </Application>
     </Router>
   </ContextProvider>,

@@ -179,7 +179,7 @@
     "react": "15.4.2",
     "react-dom": "15.4.2",
     "react-intl": "2.1.5",
-    "react-router-dom": "next",
+    "react-router-dom": "^4.1.1",
     "react-router-redux": "4.0.7",
     "react-tap-event-plugin": "2.0.1",
     "react-tooltip": "3.2.2",
