@@ -18,8 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { nullableProptype } from '@parity/shared/util/proptypes';
-
-import Form, { Input, InputAddressSelect, AddressSelect, Checkbox } from '@parity/ui/Form';
+import Form, { AddressSelect, Checkbox, Input, InputAddressSelect } from '@parity/ui/Form';
 
 import TokenSelect from './tokenSelect';
 import styles from '../transfer.css';

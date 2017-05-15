@@ -61,6 +61,7 @@ export Snackbar from './Snackbar';
 export Tabs from './Tabs';
 export Tags from './Tags';
 export Title from './Title';
+export TokenImage from './TokenImage';
 export TxHash from './TxHash';
 export TxList from './TxList';
 export VaultCard from './VaultCard';
