@@ -296,6 +296,11 @@ pub trait Engine : Sync + Send {
 		None
 	}
 
+	/// Whether this engine supports warp sync.
+	fn supports_warp(&self) -> bool {
+		self.snapshot_components().is_some()
+	}
+
 	/// Returns new contract address generation scheme at given block number.
 	fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
 		if number >= self.params().eip86_transition { CreateContractAddress::FromCodeHash } else { CreateContractAddress::FromSenderAndNonce }
