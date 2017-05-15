@@ -38,6 +38,10 @@
   color: gray;
 }
 
+.key {
+  margin-bottom: 0.5em;
+}
+
 .param {
   display: flex;
   flex-direction: column;

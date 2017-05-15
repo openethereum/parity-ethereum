@@ -26,11 +26,10 @@ export function checkOwnerReverse (contract, owner) {
     });
 }
 
-export function getOwner (contract, name) {
-  const lcName = name.toLowerCase();
+export function getOwner (contract, hash) {
   const { address, api } = contract;
 
-  const key = api.util.sha3.text(lcName) + '0000000000000000000000000000000000000000000000000000000000000001';
+  const key = hash + '0000000000000000000000000000000000000000000000000000000000000001';
   const position = api.util.sha3(key, { encoding: 'hex' });
 
   return api
@@ -45,8 +44,8 @@ export function getOwner (contract, name) {
     });
 }
 
-export function isOwned (contract, name) {
-  return getOwner(contract, name).then((owner) => !!owner);
+export function isOwned (contract, hash) {
+  return getOwner(contract, hash).then((owner) => !!owner);
 }
 
 export function reverse (contract, address) {
@@ -86,8 +85,7 @@ export function getInfo (contract, name) {
     });
 }
 
-export function getMetadata (contract, name, key) {
-  const lcName = name.toLowerCase();
+export function getMetadata (contract, hash, key) {
   const { api } = contract;
 
   const isAddress = key === 'A';
@@ -95,7 +93,7 @@ export function getMetadata (contract, name, key) {
     ? contract.instance.getAddress
     : contract.instance.getData;
 
-  return method.call({}, [ api.util.sha3.text(lcName), key ])
+  return method.call({}, [ hash, key ])
     .then((_result) => {
       const result = isAddress
         ? _result

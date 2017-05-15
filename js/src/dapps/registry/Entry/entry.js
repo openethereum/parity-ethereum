@@ -49,6 +49,12 @@ export default class Entry extends Component {
       <Card className={ styles.container }>
         <CardText className={ styles.infoContainer }>
           <Info
+            ask={ {
+              defaultValue: owner,
+              placeholder: 'Entry owner',
+              showInput: true,
+              title: 'Enter the new owner of this entry'
+            } }
             label='Owner'
             isOwner={ isOwner }
             onUpdateMetadata={ this.handleModifyOwner }
@@ -82,6 +88,12 @@ export default class Entry extends Component {
           </Info>
 
           <Info
+            ask={ {
+              defaultValue: address,
+              placeholder: 'Address',
+              showInput: true,
+              title: 'Enter the new address'
+            } }
             label='Address'
             isOwner={ isOwner }
             onUpdateMetadata={ this.handleModifyAddress }
@@ -95,6 +107,12 @@ export default class Entry extends Component {
           </Info>
 
           <Info
+            ask={ {
+              defaultValue: content,
+              placeholder: 'Content hash',
+              showInput: true,
+              title: 'Enter the new content hash'
+            } }
             label='Content'
             isOwner={ isOwner }
             onUpdateMetadata={ this.handleModifyContent }
@@ -104,6 +122,12 @@ export default class Entry extends Component {
           </Info>
 
           <Info
+            ask={ {
+              defaultValue: image,
+              placeholder: 'Image hash',
+              showInput: true,
+              title: 'Enter the new image hash'
+            } }
             label='Image'
             isOwner={ isOwner }
             onUpdateMetadata={ this.handleModifyImage }
@@ -204,73 +228,34 @@ export default class Entry extends Component {
     this.lookupStore.refresh();
   };
 
-  handleModifyOwner = () => {
+  handleModifyOwner = (value) => {
     const { entry } = this.props;
-    const { owner } = entry;
 
-    return this.promptStore
-      .ask({
-        defaultValue: owner,
-        placeholder: 'Entry owner',
-        showInput: true,
-        title: 'Enter the new owner of this entry'
-      })
-      .then((value) => {
-        return entry.modifyOwner(value);
-      });
+    return entry.modifyOwner(value);
   };
 
-  handleModifyAddress = () => {
+  handleModifyAddress = (value) => {
     const { entry } = this.props;
-    const { address } = entry;
 
-    return this.promptStore
-      .ask({
-        defaultValue: address,
-        placeholder: 'Address',
-        showInput: true,
-        title: 'Enter the new address'
-      })
-      .then((value) => {
-        return entry.modifyMetadata('A', value);
-      });
+    return entry.modifyMetadata('A', value);
   };
 
-  handleModifyContent = () => {
+  handleModifyContent = (value) => {
     const { entry } = this.props;
-    const { content } = entry;
 
-    return this.promptStore
-      .ask({
-        defaultValue: content,
-        placeholder: 'Content hash',
-        showInput: true,
-        title: 'Enter the new content hash'
-      })
-      .then((value) => {
-        return entry.modifyMetadata('CONTENT', value);
-      });
+    return entry.modifyMetadata('CONTENT', value);
   };
 
-  handleModifyImage = () => {
+  handleModifyImage = (value) => {
     const { entry } = this.props;
-    const { image } = entry;
 
-    return this.promptStore
-      .ask({
-        defaultValue: image,
-        placeholder: 'Image hash',
-        showInput: true,
-        title: 'Enter the new image hash'
-      })
-      .then((value) => {
-        return entry.modifyMetadata('IMG', value);
-      });
+    return entry.modifyMetadata('IMG', value);
   };
 }
 
 class Info extends Component {
   static propTypes = {
+    ask: PropTypes.object.isRequired,
     children: PropTypes.node.isRequired,
     label: PropTypes.string.isRequired,
     onRefresh: PropTypes.func.isRequired,
@@ -285,6 +270,8 @@ class Info extends Component {
   state = {
     loading: false
   };
+
+  promptStore = PromptStore.get();
 
   render () {
     const { loading } = this.state;
@@ -325,11 +312,18 @@ class Info extends Component {
   }
 
   handleUpdateMetadata = (event) => {
+    const { ask } = this.props;
+
     event.preventDefault();
     event.stopPropagation();
 
-    this.setState({ loading: true });
-    this.props.onUpdateMetadata()
+    return this.promptStore
+      .ask(ask)
+      .then((value) => {
+        this.setState({ loading: true });
+
+        return this.props.onUpdateMetadata(value);
+      })
       .catch((error) => {
         console.error('updating metadata', error);
       })

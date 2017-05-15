@@ -85,7 +85,7 @@ const Event = ({ event }) => {
           {
             plainKey
             ? (
-              <span>
+              <span className={ styles.key }>
                 <code>{ plainKey.value }</code>
               </span>
             )

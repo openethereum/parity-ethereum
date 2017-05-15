@@ -28,12 +28,12 @@ import styles from './lookup.css';
 
 @observer
 export default class Lookup extends Component {
-  input = '';
-
   applicationStore = ApplicationStore.get();
   lookupStore = LookupStore.get();
 
   render () {
+    const { inputValue } = this.lookupStore;
+
     return (
       <div>
         <div className={ styles.inputContainer }>
@@ -42,6 +42,7 @@ export default class Lookup extends Component {
             className={ styles.input }
             placeholder='Type a name'
             onChange={ this.handleInputChange }
+            value={ inputValue }
           />
         </div>
         { this.renderOutput() }
@@ -65,13 +66,13 @@ export default class Lookup extends Component {
   }
 
   renderOutput () {
-    const { result, reserving } = this.lookupStore;
+    const { inputValue, result, reserving } = this.lookupStore;
 
     if (reserving) {
       return this.renderReserving(reserving);
     }
 
-    if (!result || !this.input) {
+    if (!result || !inputValue) {
       return null;
     }
 
@@ -106,13 +107,7 @@ export default class Lookup extends Component {
   handleInputChange = (e) => {
     const { value } = e.target;
 
-    // No input change
-    if (value === this.input) {
-      return;
-    }
-
-    this.input = value;
-    return this.lookupStore.lookup(value);
+    return this.lookupStore.updateInput(value);
   };
 
   handleRegister = () => {

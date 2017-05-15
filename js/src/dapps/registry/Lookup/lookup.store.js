@@ -25,11 +25,13 @@ import { postTransaction } from '../util/transactions';
 let instance;
 
 export default class LookupStore {
+  @observable inputValue = '';
   @observable loading = false;
   @observable result = null;
   @observable reserving = null;
 
   applicationStore = ApplicationStore.get();
+  lookupValue = '';
 
   static get () {
     if (!instance) {
@@ -39,7 +41,7 @@ export default class LookupStore {
     return instance;
   }
 
-  lookup (name) {
+  lookup (hash, name = null) {
     const { contract } = this.applicationStore;
 
     // Show loading if request takes more than
@@ -48,22 +50,29 @@ export default class LookupStore {
       this.setLoading(true);
     }, 50);
 
-    return isOwned(contract, name)
+    return isOwned(contract, hash)
       .then((reserved) => {
         if (!reserved) {
-          return { name, free: true };
+          return {
+            hash,
+            name,
+            free: true
+          };
         }
 
-        return getInfo(contract, name)
+        return getInfo(contract, hash)
           .then((data) => {
-            return new EntryStore(data);
+            return new EntryStore({
+              ...data,
+              name
+            });
           });
       })
       .then((result) => {
         this.setResult(result);
       })
       .catch((error) => {
-        console.error(`could not lookup ${name}`, error);
+        console.error(`could not lookup ${hash}`, error);
         this.setResult(null);
       })
       .then(() => {
@@ -72,12 +81,19 @@ export default class LookupStore {
       });
   }
 
+  lookupByName (name) {
+    const { api } = this.applicationStore;
+    const hash = api.util.sha3.text(name.toLowerCase());
+
+    return this.lookup(hash, name);
+  }
+
   refresh () {
     if (!this.result || !this.result.name) {
       return;
     }
 
-    return this.lookup(this.result.name);
+    return this.lookupByName(this.result.name);
   }
 
   register () {
@@ -95,7 +111,7 @@ export default class LookupStore {
     this.setReserving(name);
     return postTransaction(api, contract.instance.reserve, options, values)
       .then(() => {
-        this.lookup(name);
+        this.lookupByName(name);
       })
       .catch((error) => {
         console.error(`reserving ${name}`, error);
@@ -118,5 +134,14 @@ export default class LookupStore {
   @action
   setReserving (reserving) {
     this.reserving = reserving;
+  }
+
+  @action
+  updateInput (value) {
+    const { api } = this.applicationStore;
+
+    this.inputValue = value;
+    this.lookupValue = api.util.sha3.text(value.toLowerCase());
+    this.lookupByName(value);
   }
 }
