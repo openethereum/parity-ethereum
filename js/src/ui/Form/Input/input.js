@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { TextField } from 'material-ui';
+import { Input as SemanticInput } from 'semantic-ui-react';
+import LabelComponent from '../LabelComponent';
 import { noop } from 'lodash';
 import keycode from 'keycode';
 
@@ -25,27 +26,6 @@ import { parseI18NString } from '@parity/shared/util/messages';
 import CopyToClipboard from '~/ui/CopyToClipboard';
 
 import styles from './input.css';
-
-// TODO: duplicated in Select
-const UNDERLINE_DISABLED = {
-  borderBottom: 'dotted 2px',
-  borderColor: 'rgba(255, 255, 255, 0.125)' // 'transparent' // 'rgba(255, 255, 255, 0.298039)'
-};
-
-const UNDERLINE_READONLY = {
-  ...UNDERLINE_DISABLED,
-  cursor: 'text'
-};
-
-const UNDERLINE_NORMAL = {
-  borderBottom: 'solid 2px'
-};
-
-const UNDERLINE_FOCUSED = {
-  transform: 'scaleX(1.0)'
-};
-
-const NAME_ID = ' ';
 
 export default class Input extends Component {
   static contextTypes = {
@@ -67,10 +47,17 @@ export default class Input extends Component {
       'default',
       'initial'
     ]),
+    fullWidth: PropTypes.bool,
+    fluid: PropTypes.bool,
     focused: PropTypes.bool,
     readOnly: PropTypes.bool,
     hint: nodeOrStringProptype(),
     hideUnderline: PropTypes.bool,
+    input: PropTypes.oneOfType([
+      PropTypes.number,
+      PropTypes.string,
+      PropTypes.node
+    ]),
     label: nodeOrStringProptype(),
     max: PropTypes.any,
     min: PropTypes.any,
@@ -82,6 +69,7 @@ export default class Input extends Component {
     onFocus: PropTypes.func,
     onKeyDown: PropTypes.func,
     onSubmit: PropTypes.func,
+    placeholder: nodeOrStringProptype(),
     rows: PropTypes.number,
     tabIndex: PropTypes.number,
     type: PropTypes.string,
@@ -98,19 +86,29 @@ export default class Input extends Component {
   static defaultProps = {
     allowCopy: false,
     escape: 'initial',
+    fluid: true,
     hideUnderline: false,
     onBlur: noop,
     onFocus: noop,
     onChange: noop,
     readOnly: false,
     submitOnBlur: true,
-    style: {}
+    style: {},
+    type: 'text'
   }
 
   state = {
     value: typeof this.props.value === 'undefined'
       ? ''
       : this.props.value
+  }
+
+  componentDidMount () {
+    const { autoFocus } = this.props;
+
+    if (autoFocus) {
+      this.keyInput.focus();
+    }
   }
 
   componentWillReceiveProps (newProps) {
@@ -129,70 +127,62 @@ export default class Input extends Component {
 
   render () {
     const { value } = this.state;
-    const { autoFocus, children, className, defaultValue, hideUnderline, disabled, error } = this.props;
-    const { focused, label, hint, onClick, multiLine, rows, type, min, max, step, style, tabIndex } = this.props;
 
-    const readOnly = this.props.readOnly || disabled;
+    const {
+      children,
+      className,
+      defaultValue,
+      disabled,
+      error,
+      fullWidth,
+      fluid,
+      focused,
+      hint,
+      label,
+      onClick,
+      placeholder,
+      style,
+      tabIndex,
+      type
+    } = this.props;
 
-    const inputStyle = { overflow: 'hidden' };
-    const textFieldStyle = {};
+    let { input } = this.props;
 
-    if (readOnly) {
-      inputStyle.cursor = 'text';
+    if (value) {
+      input = value;
     }
 
-    if (hideUnderline && !hint) {
-      textFieldStyle.height = 'initial';
-    }
-
-    const underlineStyle = readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL;
-    const underlineFocusStyle = focused
-      ? UNDERLINE_FOCUSED
-      : readOnly && typeof focused !== 'boolean' ? { display: 'none' } : null;
-
-    const textValue = parseI18NString(this.context, value);
+    const textValue = parseI18NString(this.context, input);
 
     return (
       <div className={ styles.container } style={ style }>
         { this.renderCopyButton() }
-        <TextField
-          autoComplete='off'
-          autoFocus={ autoFocus }
-          className={ className }
-          defaultValue={ defaultValue }
-          errorText={ error }
-          floatingLabelFixed
-          floatingLabelText={ label }
-          fullWidth
-          hintText={ hint }
-          id={ NAME_ID }
-          inputStyle={ inputStyle }
-          max={ max }
-          min={ min }
-          multiLine={ multiLine }
-          name={ NAME_ID }
-          onBlur={ this.onBlur }
-          onChange={ this.onChange }
-          onClick={ onClick }
-          onKeyDown={ this.onKeyDown }
-          onKeyUp={ this.onKeyUp }
-          onFocus={ this.onFocus }
-          onPaste={ this.onPaste }
-          readOnly={ readOnly }
-          ref='input'
-          rows={ rows }
-          step={ step }
-          style={ textFieldStyle }
-          tabIndex={ tabIndex }
-          type={ type || 'text' }
-          underlineDisabledStyle={ UNDERLINE_DISABLED }
-          underlineStyle={ underlineStyle }
-          underlineFocusStyle={ underlineFocusStyle }
-          underlineShow={ !hideUnderline }
-          value={ textValue }
-        >
-          { children }
-        </TextField>
+        <LabelComponent label={ label }>
+          <SemanticInput
+            className={ className }
+            defaultValue={ defaultValue }
+            disabled={ disabled }
+            error={ error }
+            fluid={ fullWidth | fluid }
+            focus={ focused }
+            input={ textValue | value }
+            onBlur={ this.onBlur }
+            onChange={ this.onChange }
+            onClick={ onClick }
+            onKeyDown={ this.onKeyDown }
+            onKeyUp={ this.onKeyUp }
+            onFocus={ this.onFocus }
+            onPaste={ this.onPaste }
+            placeholder={ hint | placeholder }
+            ref={ this.keyInput }
+            style={ style }
+            tabIndex={ tabIndex }
+            type={ type }
+          >
+            { children }
+            <input />
+          </SemanticInput>
+        </LabelComponent>
       </div>
     );
   }
