@@ -205,7 +205,6 @@ class TxHash extends Component {
       <div className={ styles.confirm }>
         <Progress
           className={ styles.progressbar }
-          min={ 0 }
           max={ maxConfirmations }
           value={ value }
           isDeterminate

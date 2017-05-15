@@ -17,17 +17,19 @@
 import React, { PropTypes } from 'react';
 import { Progress as SemanticProgress } from 'semantic-ui-react';
 
-export default function Progress ({ className, color, isDeterminate, max, min, style, value }) {
+export default function Progress ({ className, color, isDeterminate, max, style, value }) {
   return (
     <SemanticProgress
       className={ className }
       color={ color }
       indicating={ !isDeterminate }
-      percent={ !isDeterminate && 100 }
+      percent={
+        isDeterminate
+          ? 100 * value / max
+          : 100
+      }
       size='small'
       style={ style }
-      total={ max }
-      value={ value }
     />
   );
 }
@@ -37,7 +39,6 @@ Progress.propTypes = {
   color: PropTypes.string,
   isDeterminate: PropTypes.bool,
   max: PropTypes.number,
-  min: PropTypes.number,
   style: PropTypes.object,
   value: PropTypes.number
 };
