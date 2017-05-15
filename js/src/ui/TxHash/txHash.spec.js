@@ -132,7 +132,7 @@ describe('ui/TxHash', () => {
       });
 
       it('renders determinate progressbar', () => {
-        expect(child.find('Progress[determinate]')).to.have.length(1);
+        expect(child.find('Progress[isDeterminate]')).to.have.length(1);
       });
 
       it('renders confirmation text', () => {
