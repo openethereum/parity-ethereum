@@ -147,7 +147,7 @@ export default class Entry extends Component {
     return (
       <CircularProgress
         size={ 25 }
-        style={ { transform: 'scale(0.5)', marginLeft: '-15px' } }
+        style={ { transform: 'scale(0.5)' } }
         thickness={ 2 }
       />
     );

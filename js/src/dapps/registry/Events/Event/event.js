@@ -82,6 +82,15 @@ const Event = ({ event }) => {
           className={ styles.address }
         />
         <div className={ styles.transaction }>
+          {
+            plainKey
+            ? (
+              <span>
+                <code>{ plainKey.value }</code>
+              </span>
+            )
+            : null
+          }
           <span className={ styles.event }>{ type }</span>
           <span className={ styles.arrow }>→</span>
           <Hash
@@ -93,10 +102,6 @@ const Event = ({ event }) => {
           <Param
             data={ name }
             label='Name'
-          />
-          <Param
-            data={ plainKey }
-            label='Key'
           />
         </div>
       </div>
