@@ -16,18 +16,18 @@
 
 //! Parity micro-service helpers
 
-use nanoipc;
-use ipc;
-use std;
-use std::sync::Arc;
+use ctrlc::CtrlC;
+use docopt::Docopt;
+use ethcore_logger::{Config as LogConfig, setup_log};
 use hypervisor::HypervisorServiceClient;
 use hypervisor::service::IpcModuleId;
-use ctrlc::CtrlC;
-use std::sync::atomic::{AtomicBool, Ordering};
-use nanoipc::{IpcInterface, GuardedSocket, NanoSocket};
+use ipc;
 use ipc::WithSocket;
-use ethcore_logger::{Config as LogConfig, setup_log};
-use docopt::Docopt;
+use nanoipc;
+use nanoipc::{IpcInterface, GuardedSocket, NanoSocket};
+use std;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[derive(Debug)]
 pub enum BootError {
@@ -36,16 +36,18 @@ pub enum BootError {
 	DependencyConnect(nanoipc::SocketError),
 }
 
-pub fn host_service<T: ?Sized + Send + Sync + 'static>(addr: &str, stop_guard: Arc<AtomicBool>, service: Arc<T>) where T: IpcInterface {
+pub fn host_service<T: ?Sized + Send + Sync + 'static>(addr: &str, stop_guard: Arc<AtomicBool>, service: Arc<T>)
+	where T: IpcInterface
+{
 	let socket_url = addr.to_owned();
 	std::thread::spawn(move || {
-		let mut worker = nanoipc::Worker::<T>::new(&service);
-		worker.add_reqrep(&socket_url).unwrap();
+		                   let mut worker = nanoipc::Worker::<T>::new(&service);
+		                   worker.add_reqrep(&socket_url).unwrap();
 
-		while !stop_guard.load(Ordering::SeqCst) {
-			worker.poll();
-		}
-	});
+		                   while !stop_guard.load(Ordering::SeqCst) {
+			                   worker.poll();
+			                  }
+		                  });
 }
 
 pub fn payload<B: ipc::BinaryConvertable>() -> Result<B, BootError> {
@@ -58,7 +60,7 @@ pub fn payload<B: ipc::BinaryConvertable>() -> Result<B, BootError> {
 	ipc::binary::deserialize::<B>(&buffer).map_err(BootError::DecodeArgs)
 }
 
-pub fn register(hv_url: &str, control_url: &str, module_id: IpcModuleId) -> GuardedSocket<HypervisorServiceClient<NanoSocket>>{
+pub fn register(hv_url: &str, control_url: &str, module_id: IpcModuleId) -> GuardedSocket<HypervisorServiceClient<NanoSocket>> {
 	let hypervisor_client = nanoipc::fast_client::<HypervisorServiceClient<_>>(hv_url).unwrap();
 	hypervisor_client.handshake().unwrap();
 	hypervisor_client.module_ready(module_id, control_url.to_owned());
@@ -66,18 +68,14 @@ pub fn register(hv_url: &str, control_url: &str, module_id: IpcModuleId) -> Guar
 	hypervisor_client
 }
 
-pub fn dependency<C: WithSocket<NanoSocket>>(url: &str)
-	-> Result<GuardedSocket<C>, BootError>
-{
+pub fn dependency<C: WithSocket<NanoSocket>>(url: &str) -> Result<GuardedSocket<C>, BootError> {
 	nanoipc::generic_client::<C>(url).map_err(BootError::DependencyConnect)
 }
 
 pub fn main_thread() -> Arc<AtomicBool> {
 	let stop = Arc::new(AtomicBool::new(false));
 	let ctrc_stop = stop.clone();
-	CtrlC::set_handler(move || {
-		ctrc_stop.store(true, Ordering::Relaxed);
-	});
+	CtrlC::set_handler(move || { ctrc_stop.store(true, Ordering::Relaxed); });
 	stop
 }
 
@@ -93,7 +91,9 @@ Usage:
   --log-file FILENAME      Specify a filename into which logging should be
                            directed.
   --no-color               Don't use terminal color codes in output.
-", svc_name, svc_name);
+",
+	                    svc_name,
+	                    svc_name);
 
 	#[derive(Debug, RustcDecodable)]
 	struct Args {
@@ -112,8 +112,6 @@ Usage:
 		}
 	}
 
-	let args: Args = Docopt::new(usage)
-		.and_then(|d| d.decode())
-		.unwrap_or_else(|e| e.exit());
+	let args: Args = Docopt::new(usage).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit());
 	setup_log(&args.log_settings()).expect("Log initialization failure");
 }

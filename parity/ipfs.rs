@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
+use ethcore::client::BlockChainClient;
 use parity_ipfs_api::{self, AccessControlAllowOrigin, Host, Listening};
 use parity_ipfs_api::error::ServerError;
-use ethcore::client::BlockChainClient;
+use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
@@ -48,11 +48,5 @@ pub fn start_server(conf: Configuration, client: Arc<BlockChainClient>) -> Resul
 	let cors = conf.cors.map(|cors| cors.into_iter().map(AccessControlAllowOrigin::from).collect());
 	let hosts = conf.hosts.map(|hosts| hosts.into_iter().map(Host::from).collect());
 
-	parity_ipfs_api::start_server(
-		conf.port,
-		conf.interface,
-		cors.into(),
-		hosts.into(),
-		client
-	).map(Some)
+	parity_ipfs_api::start_server(conf.port, conf.interface, cors.into(), hosts.into(), client).map(Some)
 }

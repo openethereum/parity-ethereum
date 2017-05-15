@@ -16,17 +16,17 @@
 
 //! Parity sync service
 
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-use hypervisor::{SYNC_MODULE_ID, HYPERVISOR_IPC_URL, ControlService};
+use boot;
 use ethcore::client::ChainNotify;
 use ethcore::client::remote::RemoteClient;
 use ethcore::snapshot::remote::RemoteSnapshotService;
-use light::remote::LightProviderClient;
 use ethsync::{SyncProvider, EthSync, ManageNetwork, ServiceConfiguration};
+use hypervisor::{SYNC_MODULE_ID, HYPERVISOR_IPC_URL, ControlService};
+use light::remote::LightProviderClient;
 use modules::service_urls;
-use boot;
 use nanoipc;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 #[derive(Default)]
 struct SyncControlService {
@@ -44,53 +44,36 @@ impl ControlService for SyncControlService {
 pub fn main() {
 	boot::setup_cli_logger("sync");
 
-	let service_config: ServiceConfiguration = boot::payload()
-		.unwrap_or_else(|e| panic!("Fatal: error reading boot arguments ({:?})", e));
+	let service_config: ServiceConfiguration = boot::payload().unwrap_or_else(|e| panic!("Fatal: error reading boot arguments ({:?})", e));
 
 	let remote_client = dependency!(RemoteClient, &service_urls::with_base(&service_config.io_path, service_urls::CLIENT));
 	let remote_snapshot = dependency!(RemoteSnapshotService, &service_urls::with_base(&service_config.io_path, service_urls::SNAPSHOT));
 	let remote_provider = dependency!(LightProviderClient, &service_urls::with_base(&service_config.io_path, service_urls::LIGHT_PROVIDER));
 
 	let sync = EthSync::new(Params {
-		config: service_config.sync, 
-		chain: remote_client.service().clone(), 
-		snapshot_service: remote_snapshot.service().clone(), 
-		provider: remote_provider.service().clone(),
-		network_config: service_config.net
-	}).unwrap();
+	                            config: service_config.sync,
+	                            chain: remote_client.service().clone(),
+	                            snapshot_service: remote_snapshot.service().clone(),
+	                            provider: remote_provider.service().clone(),
+	                            network_config: service_config.net,
+	                        })
+		.unwrap();
 
 	let _ = boot::main_thread();
 	let service_stop = Arc::new(AtomicBool::new(false));
 
-	let hypervisor = boot::register(
-		&service_urls::with_base(&service_config.io_path, HYPERVISOR_IPC_URL),
-		&service_urls::with_base(&service_config.io_path, service_urls::SYNC_CONTROL),
-		SYNC_MODULE_ID
-	);
+	let hypervisor = boot::register(&service_urls::with_base(&service_config.io_path, HYPERVISOR_IPC_URL), &service_urls::with_base(&service_config.io_path, service_urls::SYNC_CONTROL), SYNC_MODULE_ID);
 
-	boot::host_service(
-		&service_urls::with_base(&service_config.io_path, service_urls::SYNC),
-		service_stop.clone(),
-		sync.clone() as Arc<SyncProvider>
-	);
-	boot::host_service(
-		&service_urls::with_base(&service_config.io_path, service_urls::NETWORK_MANAGER),
-		service_stop.clone(),
-		sync.clone() as Arc<ManageNetwork>
-	);
-	boot::host_service(
-		&service_urls::with_base(&service_config.io_path, service_urls::SYNC_NOTIFY),
-		service_stop.clone(),
-		sync.clone() as Arc<ChainNotify>
-	);
+	boot::host_service(&service_urls::with_base(&service_config.io_path, service_urls::SYNC), service_stop.clone(), sync.clone() as Arc<SyncProvider>);
+	boot::host_service(&service_urls::with_base(&service_config.io_path, service_urls::NETWORK_MANAGER), service_stop.clone(), sync.clone() as Arc<ManageNetwork>);
+	boot::host_service(&service_urls::with_base(&service_config.io_path, service_urls::SYNC_NOTIFY), service_stop.clone(), sync.clone() as Arc<ChainNotify>);
 
 	let control_service = Arc::new(SyncControlService::default());
 	let as_control = control_service.clone() as Arc<ControlService>;
 	let mut worker = nanoipc::Worker::<ControlService>::new(&as_control);
 	let thread_stop = control_service.stop.clone();
-	worker.add_reqrep(
-		&service_urls::with_base(&service_config.io_path, service_urls::SYNC_CONTROL)
-	).unwrap();
+	worker.add_reqrep(&service_urls::with_base(&service_config.io_path, service_urls::SYNC_CONTROL))
+	      .unwrap();
 
 	while !thread_stop.load(::std::sync::atomic::Ordering::SeqCst) {
 		worker.poll();

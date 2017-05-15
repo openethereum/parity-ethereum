@@ -80,8 +80,10 @@ extern crate parity_dapps;
 #[macro_use]
 extern crate pretty_assertions;
 
-#[cfg(windows)] extern crate ws2_32;
-#[cfg(windows)] extern crate winapi;
+#[cfg(windows)]
+extern crate ws2_32;
+#[cfg(windows)]
+extern crate winapi;
 
 macro_rules! dependency {
 	($dep_ty:ident, $url:expr) => {
@@ -129,17 +131,17 @@ mod sync;
 #[cfg(feature="stratum")]
 mod stratum;
 
-use std::{process, env};
-use std::collections::HashMap;
-use std::io::{self as stdio, BufReader, Read, Write};
-use std::fs::{remove_file, metadata, File, create_dir_all};
-use std::path::PathBuf;
-use util::sha3::sha3;
 use cli::Args;
 use configuration::{Cmd, Execute, Configuration};
 use deprecated::find_deprecated;
-use ethcore_logger::setup_log;
 use dir::default_hypervisor_path;
+use ethcore_logger::setup_log;
+use std::{process, env};
+use std::collections::HashMap;
+use std::fs::{remove_file, metadata, File, create_dir_all};
+use std::io::{self as stdio, BufReader, Read, Write};
+use std::path::PathBuf;
+use util::sha3::sha3;
 
 fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {
@@ -164,7 +166,7 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 		Cmd::Run(run_cmd) => {
 			let (restart, spec_name) = run::execute(run_cmd, can_restart, logger)?;
 			Ok(if restart { PostExecutionAction::Restart(spec_name) } else { PostExecutionAction::Quit })
-		},
+		}
 		Cmd::Version => Ok(PostExecutionAction::Print(Args::print_version())),
 		Cmd::Hash(maybe_file) => print_hash_of(maybe_file).map(|s| PostExecutionAction::Print(s)),
 		Cmd::Account(account_cmd) => account::execute(account_cmd).map(|s| PostExecutionAction::Print(s)),
@@ -214,23 +216,28 @@ fn updates_path(name: &str) -> PathBuf {
 }
 
 fn latest_exe_path() -> Option<PathBuf> {
-	File::open(updates_path("latest")).ok()
-		.and_then(|mut f| { let mut exe = String::new(); f.read_to_string(&mut exe).ok().map(|_| updates_path(&exe)) })
+	File::open(updates_path("latest"))
+		.ok()
+		.and_then(|mut f| {
+			          let mut exe = String::new();
+			          f.read_to_string(&mut exe).ok().map(|_| updates_path(&exe))
+			         })
 }
 
 fn set_spec_name_override(spec_name: String) {
-	if let Err(e) = create_dir_all(default_hypervisor_path())
-		.and_then(|_| File::create(updates_path("spec_name_overide"))
-		.and_then(|mut f| f.write_all(spec_name.as_bytes())))
-	{
+	if let Err(e) = create_dir_all(default_hypervisor_path()).and_then(|_| File::create(updates_path("spec_name_overide")).and_then(|mut f| f.write_all(spec_name.as_bytes()))) {
 		warn!("Couldn't override chain spec: {} at {:?}", e, updates_path("spec_name_overide"));
 	}
 }
 
 fn take_spec_name_override() -> Option<String> {
 	let p = updates_path("spec_name_overide");
-	let r = File::open(p.clone()).ok()
-		.and_then(|mut f| { let mut spec_name = String::new(); f.read_to_string(&mut spec_name).ok().map(|_| spec_name) });
+	let r = File::open(p.clone())
+		.ok()
+		.and_then(|mut f| {
+			          let mut spec_name = String::new();
+			          f.read_to_string(&mut spec_name).ok().map(|_| spec_name)
+			         });
 	let _ = remove_file(p);
 	r
 }
@@ -240,8 +247,10 @@ fn global_cleanup() {
 	// We need to cleanup all sockets before spawning another Parity process. This makes shure everything is cleaned up.
 	// The loop is required because of internal refernce counter for winsock dll. We don't know how many crates we use do
 	// initialize it. There's at least 2 now.
-	for _ in 0.. 10 {
-		unsafe { ::ws2_32::WSACleanup(); }
+	for _ in 0..10 {
+		unsafe {
+			::ws2_32::WSACleanup();
+		}
 	}
 }
 
@@ -264,14 +273,16 @@ fn global_cleanup() {}
 // Starts ~/.parity-updates/parity and returns the code it exits with.
 fn run_parity() -> Option<i32> {
 	global_init();
-	use ::std::ffi::OsString;
-	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct")];
-	let res = latest_exe_path().and_then(|exe| process::Command::new(exe)
-		.args(&(env::args_os().skip(1).chain(prefix.into_iter()).collect::<Vec<_>>()))
-		.status()
-		.map(|es| es.code().unwrap_or(128))
-		.ok()
-	);
+	use std::ffi::OsString;
+	let prefix = vec![OsString::from("--can-restart"),
+	                  OsString::from("--force-direct")];
+	let res = latest_exe_path().and_then(|exe| {
+		                                     process::Command::new(exe)
+		                                         .args(&(env::args_os().skip(1).chain(prefix.into_iter()).collect::<Vec<_>>()))
+		                                         .status()
+		                                         .map(|es| es.code().unwrap_or(128))
+		                                         .ok()
+		                                    });
 	global_cleanup();
 	res
 }
@@ -291,19 +302,22 @@ fn main_direct(can_restart: bool) -> i32 {
 	} else {
 		match start(can_restart) {
 			Ok(result) => match result {
-				PostExecutionAction::Print(s) => { println!("{}", s); 0 },
+				PostExecutionAction::Print(s) => {
+					println!("{}", s);
+					0
+				}
 				PostExecutionAction::Restart(spec_name_override) => {
 					if let Some(spec_name) = spec_name_override {
 						set_spec_name_override(spec_name);
 					}
 					PLEASE_RESTART_EXIT_CODE
-				},
+				}
 				PostExecutionAction::Quit => 0,
 			},
 			Err(err) => {
 				writeln!(&mut stdio::stderr(), "{}", err).expect("StdErr available; qed");
 				1
-			},
+			}
 		}
 	};
 	global_cleanup();
@@ -330,8 +344,12 @@ fn main() {
 	// if argv[0] == "parity" and this executable != ~/.parity-updates/parity, run that instead.
 	let force_direct = std::env::args().any(|arg| arg == "--force-direct");
 	let exe = std::env::current_exe().ok();
-	let development = exe.as_ref().and_then(|p| p.parent().and_then(|p| p.parent()).and_then(|p| p.file_name()).map(|n| n == "target")).unwrap_or(false);
-	let same_name = exe.as_ref().map(|p| p.file_stem().map_or(false, |s| s == "parity") && p.extension().map_or(true, |x| x == "exe")).unwrap_or(false);
+	let development = exe.as_ref()
+	                     .and_then(|p| p.parent().and_then(|p| p.parent()).and_then(|p| p.file_name()).map(|n| n == "target"))
+	                     .unwrap_or(false);
+	let same_name = exe.as_ref()
+	                   .map(|p| p.file_stem().map_or(false, |s| s == "parity") && p.extension().map_or(true, |x| x == "exe"))
+	                   .unwrap_or(false);
 	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name);
 	if !force_direct && !development && same_name {
 		// looks like we're not running ~/.parity-updates/parity when the user is expecting otherwise.
@@ -340,22 +358,22 @@ fn main() {
 			// If we fail to run the updated parity then fallback to local version.
 			let latest_exe = latest_exe_path();
 			let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
-			let is_non_updated_current = exe.as_ref().map_or(false, |exe| latest_exe.as_ref().map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
-			let update_is_newer = match (
-				latest_exe.as_ref()
-					.and_then(|p| metadata(p.as_path()).ok())
-					.and_then(|m| m.modified().ok()),
-				exe.as_ref()
-					.and_then(|p| metadata(p.as_path()).ok())
-					.and_then(|m| m.modified().ok())
-			) {
+			let is_non_updated_current = exe.as_ref()
+			                                .map_or(false, |exe| latest_exe.as_ref().map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
+			let update_is_newer = match (latest_exe.as_ref().and_then(|p| metadata(p.as_path()).ok()).and_then(|m| m.modified().ok()), exe.as_ref().and_then(|p| metadata(p.as_path()).ok()).and_then(|m| m.modified().ok())) {
 				(Some(latest_exe_time), Some(this_exe_time)) if latest_exe_time > this_exe_time => true,
 				_ => false,
 			};
 			trace_main!("Starting... (have-update: {}, non-updated-current: {}, update-is-newer: {})", have_update, is_non_updated_current, update_is_newer);
 			let exit_code = if have_update && is_non_updated_current && update_is_newer {
-				trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
-				run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct(true) })
+				trace_main!("Attempting to run latest update ({})...",
+				            latest_exe.as_ref()
+				                      .expect("guarded by have_update; latest_exe must exist for have_update; qed")
+				                      .display());
+				run_parity().unwrap_or_else(|| {
+					                            trace_main!("Falling back to local...");
+					                            main_direct(true)
+					                           })
 			} else {
 				trace_main!("No latest update. Attempting to direct...");
 				main_direct(true)

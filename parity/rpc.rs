@@ -14,20 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::io;
-use std::sync::Arc;
 
 use dapps;
 use dir::default_data_path;
-use parity_rpc::informant::{RpcStats, Middleware};
-use parity_rpc::{self as rpc, HttpServerError, Metadata, Origin, DomainsValidation};
 use helpers::parity_ipc_path;
 use jsonrpc_core::{futures, MetaIoHandler};
 use parity_reactor::TokioRemote;
-use rpc_apis::{self, ApiSet};
+use parity_rpc::{self as rpc, HttpServerError, Metadata, Origin, DomainsValidation};
 
 pub use parity_rpc::{IpcServer, HttpServer, RequestMiddleware};
+use parity_rpc::informant::{RpcStats, Middleware};
 pub use parity_rpc::ws::Server as WsServer;
+use rpc_apis::{self, ApiSet};
+use std::io;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HttpConfiguration {
@@ -139,16 +139,16 @@ impl futures::Future for Sender {
 		match item {
 			futures::Async::NotReady => {
 				Ok(futures::Async::NotReady)
-			},
+			}
 			futures::Async::Ready(None) => {
 				Ok(futures::Async::Ready(()))
-			},
+			}
 			futures::Async::Ready(Some(val)) => {
 				if let Err(e) = self.0.send(val) {
 					warn!("Error sending a subscription update: {:?}", e);
 				}
 				self.poll()
-			},
+			}
 		}
 	}
 }
@@ -170,9 +170,7 @@ impl rpc::ws::MetaExtractor<Metadata> for WsRpcExtractor {
 		let mut metadata = Metadata::default();
 		let id = req.session_id as u64;
 		metadata.origin = Origin::Ws(id.into());
-		metadata.session = Some(Arc::new(rpc::PubSubSession::new(
-			self.wrap_out(req.out.clone())
-		)));
+		metadata.session = Some(Arc::new(rpc::PubSubSession::new(self.wrap_out(req.out.clone()))));
 		metadata
 	}
 }
@@ -197,10 +195,7 @@ fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata
 	rpc_apis::setup_rpc(deps.stats.clone(), &*deps.apis, apis)
 }
 
-pub fn new_ws<D: rpc_apis::Dependencies>(
-	conf: WsConfiguration,
-	deps: &Dependencies<D>,
-) -> Result<Option<WsServer>, String> {
+pub fn new_ws<D: rpc_apis::Dependencies>(conf: WsConfiguration, deps: &Dependencies<D>) -> Result<Option<WsServer>, String> {
 	if !conf.enabled {
 		return Ok(None);
 	}
@@ -212,34 +207,16 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let allowed_origins = into_domains(conf.origins);
 	let allowed_hosts = into_domains(conf.hosts);
 
-	let start_result = rpc::start_ws(
-		&addr,
-		handler,
-		remote.clone(),
-		allowed_origins,
-		allowed_hosts,
-		WsRpcExtractor {
-			remote: remote,
-		},
-		WsStats {
-			stats: deps.stats.clone(),
-		},
-	);
+	let start_result = rpc::start_ws(&addr, handler, remote.clone(), allowed_origins, allowed_hosts, WsRpcExtractor { remote: remote }, WsStats { stats: deps.stats.clone() });
 
 	match start_result {
 		Ok(server) => Ok(Some(server)),
-		Err(rpc::ws::Error::Io(ref err)) if err.kind() == io::ErrorKind::AddrInUse => Err(
-			format!("WebSockets address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --ws-port and --ws-interface options.", url)
-		),
+		Err(rpc::ws::Error::Io(ref err)) if err.kind() == io::ErrorKind::AddrInUse => Err(format!("WebSockets address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --ws-port and --ws-interface options.", url)),
 		Err(e) => Err(format!("WebSockets error: {:?}", e)),
 	}
 }
 
-pub fn new_http<D: rpc_apis::Dependencies>(
-	conf: HttpConfiguration,
-	deps: &Dependencies<D>,
-	middleware: Option<dapps::Middleware>
-) -> Result<Option<HttpServer>, String> {
+pub fn new_http<D: rpc_apis::Dependencies>(conf: HttpConfiguration, deps: &Dependencies<D>, middleware: Option<dapps::Middleware>) -> Result<Option<HttpServer>, String> {
 	if !conf.enabled {
 		return Ok(None);
 	}
@@ -252,27 +229,23 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 	let cors_domains = into_domains(conf.cors);
 	let allowed_hosts = into_domains(conf.hosts);
 
-	let start_result = rpc::start_http(
-		&addr,
-		cors_domains,
-		allowed_hosts,
-		handler,
-		remote,
-		RpcExtractor,
-		match (conf.threads, middleware) {
-			(Some(threads), None) => rpc::HttpSettings::Threads(threads),
-			(None, middleware) => rpc::HttpSettings::Dapps(middleware),
-			(Some(_), Some(_)) => {
-				return Err("Dapps and fast multi-threaded RPC server cannot be enabled at the same time.".into())
-			},
-		}
-	);
+	let start_result = rpc::start_http(&addr,
+	                                   cors_domains,
+	                                   allowed_hosts,
+	                                   handler,
+	                                   remote,
+	                                   RpcExtractor,
+	                                   match (conf.threads, middleware) {
+	                                       (Some(threads), None) => rpc::HttpSettings::Threads(threads),
+	                                       (None, middleware) => rpc::HttpSettings::Dapps(middleware),
+	                                       (Some(_), Some(_)) => {
+		return Err("Dapps and fast multi-threaded RPC server cannot be enabled at the same time.".into());
+	}
+	                                   });
 
 	match start_result {
 		Ok(server) => Ok(Some(server)),
-		Err(HttpServerError::Io(ref err)) if err.kind() == io::ErrorKind::AddrInUse => Err(
-			format!("HTTP address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)
-		),
+		Err(HttpServerError::Io(ref err)) if err.kind() == io::ErrorKind::AddrInUse => Err(format!("HTTP address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)),
 		Err(e) => Err(format!("HTTP error: {:?}", e)),
 	}
 }
@@ -281,22 +254,14 @@ fn into_domains<T: From<String>>(items: Option<Vec<String>>) -> DomainsValidatio
 	items.map(|vals| vals.into_iter().map(T::from).collect()).into()
 }
 
-pub fn new_ipc<D: rpc_apis::Dependencies>(
-	conf: IpcConfiguration,
-	dependencies: &Dependencies<D>
-) -> Result<Option<IpcServer>, String> {
+pub fn new_ipc<D: rpc_apis::Dependencies>(conf: IpcConfiguration, dependencies: &Dependencies<D>) -> Result<Option<IpcServer>, String> {
 	if !conf.enabled {
 		return Ok(None);
 	}
 
 	let handler = setup_apis(conf.apis, dependencies);
 	let remote = dependencies.remote.clone();
-	let ipc = rpc::start_ipc(
-		&conf.socket_addr,
-		handler,
-		remote,
-		RpcExtractor,
-	);
+	let ipc = rpc::start_ipc(&conf.socket_addr, handler, remote, RpcExtractor);
 
 	match ipc {
 		Ok(server) => Ok(Some(server)),

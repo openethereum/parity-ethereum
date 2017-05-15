@@ -16,15 +16,15 @@
 
 //! Parity upgrade logic
 
+use dir::{DatabaseDirectories, default_data_path};
+use helpers::replace_home;
 use semver::Version;
 use std::collections::*;
-use std::fs::{self, File, create_dir_all};
 use std::env;
+use std::fs::{self, File, create_dir_all};
 use std::io;
 use std::io::{Read, Write};
 use std::path::{PathBuf, Path};
-use dir::{DatabaseDirectories, default_data_path};
-use helpers::replace_home;
 use util::journaldb::Algorithm;
 
 #[cfg_attr(feature="dev", allow(enum_variant_names))]
@@ -71,12 +71,13 @@ fn dummy_upgrade() -> Result<(), Error> {
 	Ok(())
 }
 
-fn push_upgrades(upgrades: &mut UpgradeList)
-{
+fn push_upgrades(upgrades: &mut UpgradeList) {
 	// dummy upgrade (remove when the first one is in)
-	upgrades.insert(
-		UpgradeKey { old_version: Version::parse("0.9.0").unwrap(), new_version: Version::parse("1.0.0").unwrap() },
-		dummy_upgrade);
+	upgrades.insert(UpgradeKey {
+	                    old_version: Version::parse("0.9.0").unwrap(),
+	                    new_version: Version::parse("1.0.0").unwrap(),
+	                },
+	                dummy_upgrade);
 }
 
 fn upgrade_from_version(previous_version: &Version) -> Result<usize, Error> {
@@ -100,35 +101,33 @@ fn with_locked_version<F>(db_path: Option<&str>, script: F) -> Result<usize, Err
 	where F: Fn(&Version) -> Result<usize, Error>
 {
 	let mut path = db_path.map_or({
-		let mut path = env::home_dir().expect("Applications should have a home dir");
-		path.push(".parity");
-		path
-	}, PathBuf::from);
+		                              let mut path = env::home_dir().expect("Applications should have a home dir");
+		                              path.push(".parity");
+		                              path
+		                             },
+	                              PathBuf::from);
 	create_dir_all(&path).map_err(|_| Error::CannotCreateConfigPath)?;
 	path.push("ver.lock");
 
-	let version =
-		File::open(&path).ok().and_then(|ref mut file|
-			{
-				let mut version_string = String::new();
-				file.read_to_string(&mut version_string)
-					.ok()
-					.and_then(|_| Version::parse(&version_string).ok())
-			})
-			.unwrap_or_else(|| Version::parse("0.9.0").unwrap());
+	let version = File::open(&path)
+		.ok()
+		.and_then(|ref mut file| {
+			          let mut version_string = String::new();
+			          file.read_to_string(&mut version_string).ok().and_then(|_| Version::parse(&version_string).ok())
+			         })
+		.unwrap_or_else(|| Version::parse("0.9.0").unwrap());
 
 	let mut lock = File::create(&path).map_err(|_| Error::CannotWriteVersionFile)?;
 	let result = script(&version);
 
 	let written_version = Version::parse(CURRENT_VERSION).unwrap();
-	lock.write_all(written_version.to_string().as_bytes()).map_err(|_| Error::CannotUpdateVersionFile)?;
+	lock.write_all(written_version.to_string().as_bytes())
+	    .map_err(|_| Error::CannotUpdateVersionFile)?;
 	result
 }
 
 pub fn upgrade(db_path: Option<&str>) -> Result<usize, Error> {
-	with_locked_version(db_path, |ver| {
-		upgrade_from_version(ver)
-	})
+	with_locked_version(db_path, |ver| upgrade_from_version(ver))
 }
 
 fn file_exists(path: &Path) -> bool {

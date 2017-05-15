@@ -14,21 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::io;
-use std::path::PathBuf;
-use std::sync::Arc;
-
-pub use ethcore_signer::Server as SignerServer;
 
 use ansi_term::Colour;
 use dir::default_data_path;
-use parity_rpc::informant::RpcStats;
-use parity_rpc::{self, ConfirmationsQueue};
 use ethcore_signer as signer;
+
+pub use ethcore_signer::Server as SignerServer;
 use helpers::replace_home;
 use parity_reactor::TokioRemote;
-use rpc_apis;
+use parity_rpc::{self, ConfirmationsQueue};
+use parity_rpc::informant::RpcStats;
 use path::restrict_permissions_owner;
+use rpc_apis;
+use std::io;
+use std::path::PathBuf;
+use std::sync::Arc;
 use util::H256;
 
 const CODES_FILENAME: &'static str = "authcodes";
@@ -77,16 +77,8 @@ impl signer::MetaExtractor<parity_rpc::Metadata> for StandardExtractor {
 	}
 }
 
-pub fn start<D: rpc_apis::Dependencies>(
-	conf: Configuration,
-	queue: Arc<ConfirmationsQueue>,
-	deps: Dependencies<D>,
-) -> Result<Option<SignerServer>, String> {
-	if !conf.enabled {
-		Ok(None)
-	} else {
-		Ok(Some(do_start(conf, queue, deps)?))
-	}
+pub fn start<D: rpc_apis::Dependencies>(conf: Configuration, queue: Arc<ConfirmationsQueue>, deps: Dependencies<D>) -> Result<Option<SignerServer>, String> {
+	if !conf.enabled { Ok(None) } else { Ok(Some(do_start(conf, queue, deps)?)) }
 }
 
 fn codes_path(path: String) -> PathBuf {
@@ -101,22 +93,21 @@ pub fn execute(cmd: Configuration) -> Result<String, String> {
 }
 
 pub fn generate_token_and_url(conf: &Configuration) -> Result<NewToken, String> {
-	let code = generate_new_token(conf.signer_path.clone()).map_err(|err| format!("Error generating token: {:?}", err))?;
+	let code = generate_new_token(conf.signer_path.clone())
+		.map_err(|err| format!("Error generating token: {:?}", err))?;
 	let auth_url = format!("http://{}:{}/#/auth?token={}", conf.interface, conf.port, code);
 	// And print in to the console
 	Ok(NewToken {
-		token: code.clone(),
-		url: auth_url.clone(),
-		message: format!(
-			r#"
+	       token: code.clone(),
+	       url: auth_url.clone(),
+	       message: format!(r#"
 Open: {}
 to authorize your browser.
 Or use the generated token:
 {}"#,
-			Colour::White.bold().paint(auth_url),
-			code
-		)
-	})
+	                        Colour::White.bold().paint(auth_url),
+	                        code),
+	   })
 }
 
 pub fn generate_new_token(path: String) -> io::Result<String> {
@@ -129,20 +120,13 @@ pub fn generate_new_token(path: String) -> io::Result<String> {
 	Ok(code)
 }
 
-fn do_start<D: rpc_apis::Dependencies>(
-	conf: Configuration,
-	queue: Arc<ConfirmationsQueue>,
-	deps: Dependencies<D>
-) -> Result<SignerServer, String> {
+fn do_start<D: rpc_apis::Dependencies>(conf: Configuration, queue: Arc<ConfirmationsQueue>, deps: Dependencies<D>) -> Result<SignerServer, String> {
 	let addr = format!("{}:{}", conf.interface, conf.port)
 		.parse()
 		.map_err(|_| format!("Invalid port specified: {}", conf.port))?;
 
 	let start_result = {
-		let server = signer::ServerBuilder::new(
-			queue,
-			codes_path(conf.signer_path),
-		);
+		let server = signer::ServerBuilder::new(queue, codes_path(conf.signer_path));
 		if conf.skip_origin_validation {
 			warn!("{}", Colour::Red.bold().paint("*** INSECURE *** Running Trusted Signer with no origin validation."));
 			info!("If you do not intend this, exit now.");
@@ -163,5 +147,3 @@ fn do_start<D: rpc_apis::Dependencies>(
 		Ok(server) => Ok(server),
 	}
 }
-
-

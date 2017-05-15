@@ -16,18 +16,18 @@
 
 //! Parity sync service
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use ethcore_stratum::{Stratum as StratumServer, PushWorkHandler, RemoteJobDispatcher, ServiceConfiguration};
-use modules::service_urls;
 use boot;
-use hypervisor::service::IpcModuleId;
+use ethcore::miner::stratum::{STRATUM_SOCKET_NAME, JOB_DISPATCHER_SOCKET_NAME};
+use ethcore_stratum::{Stratum as StratumServer, PushWorkHandler, RemoteJobDispatcher, ServiceConfiguration};
 use hypervisor::{HYPERVISOR_IPC_URL, ControlService};
+use hypervisor::service::IpcModuleId;
+use modules::service_urls;
+use nanoipc;
 use std::net::{SocketAddr, IpAddr};
 use std::str::FromStr;
-use nanoipc;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
-use ethcore::miner::stratum::{STRATUM_SOCKET_NAME, JOB_DISPATCHER_SOCKET_NAME};
 
 pub const MODULE_ID: IpcModuleId = 8000;
 
@@ -47,67 +47,47 @@ impl ControlService for StratumControlService {
 pub fn main() {
 	boot::setup_cli_logger("stratum");
 
-	let service_config: ServiceConfiguration = boot::payload()
-		.unwrap_or_else(|e| {
-			println!("Fatal: error reading boot arguments ({:?})", e);
-			std::process::exit(1)
-		});
+	let service_config: ServiceConfiguration = boot::payload().unwrap_or_else(|e| {
+		                                                                          println!("Fatal: error reading boot arguments ({:?})", e);
+		                                                                          std::process::exit(1)
+		                                                                         });
 
-	let job_dispatcher = dependency!(
-		RemoteJobDispatcher,
-		&service_urls::with_base(&service_config.io_path, JOB_DISPATCHER_SOCKET_NAME)
-	);
+	let job_dispatcher = dependency!(RemoteJobDispatcher, &service_urls::with_base(&service_config.io_path, JOB_DISPATCHER_SOCKET_NAME));
 
 	let _ = boot::main_thread();
 	let service_stop = Arc::new(AtomicBool::new(false));
 
-	let server =
-		StratumServer::start(
-			&SocketAddr::new(
-				IpAddr::from_str(&service_config.listen_addr)
-					.unwrap_or_else(|e|
-						println!("Fatal: invalid listen address: '{}' ({:?})", &service_config.listen_addr, e);
-						std::process::exit(1)
-					),
-				service_config.port,
-			),
-			job_dispatcher.service().clone(),
-			service_config.secret
-		).unwrap_or_else(
-			|e| {
-				println!("Fatal: cannot start stratum server({:?})", e);
-				std::process::exit(1)
-			}
-		);
+	let server = StratumServer::start(&SocketAddr::new(IpAddr::from_str(&service_config.listen_addr).unwrap_or_else(|e| {
+		                                                                                                                println!("Fatal: invalid listen address: '{}' ({:?})", &service_config.listen_addr, e);
+		                                                                                                                std::process::exit(1)
+		                                                                                                               }),
+	                                                   service_config.port),
+	                                  job_dispatcher.service().clone(),
+	                                  service_config.secret)
+		.unwrap_or_else(|e| {
+		                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     println!("Fatal: cannot start stratum server({:?})", e);
+		                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     std::process::exit(1)
+		                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    });
 
-	boot::host_service(
-		&service_urls::with_base(&service_config.io_path, STRATUM_SOCKET_NAME),
-		service_stop.clone(),
-		server.clone() as Arc<PushWorkHandler>
-	);
+	boot::host_service(&service_urls::with_base(&service_config.io_path, STRATUM_SOCKET_NAME), service_stop.clone(), server.clone() as Arc<PushWorkHandler>);
 
-	let hypervisor = boot::register(
-		&service_urls::with_base(&service_config.io_path, HYPERVISOR_IPC_URL),
-		&service_urls::with_base(&service_config.io_path, service_urls::STRATUM_CONTROL),
-		MODULE_ID
-	);
+	let hypervisor = boot::register(&service_urls::with_base(&service_config.io_path, HYPERVISOR_IPC_URL), &service_urls::with_base(&service_config.io_path, service_urls::STRATUM_CONTROL), MODULE_ID);
 
 	let timer_svc = server.clone();
 	let timer_stop = service_stop.clone();
 	thread::spawn(move || {
-		while !timer_stop.load(Ordering::SeqCst) {
-			thread::park_timeout(::std::time::Duration::from_millis(2000));
-			// It almost always not doing anything, only greets new peers with a job
-			timer_svc.maintain();
-		}
-	});
+		              while !timer_stop.load(Ordering::SeqCst) {
+			              thread::park_timeout(::std::time::Duration::from_millis(2000));
+			              // It almost always not doing anything, only greets new peers with a job
+			              timer_svc.maintain();
+			             }
+		             });
 
 	let control_service = Arc::new(StratumControlService::default());
 	let as_control = control_service.clone() as Arc<ControlService>;
 	let mut worker = nanoipc::Worker::<ControlService>::new(&as_control);
-	worker.add_reqrep(
-		&service_urls::with_base(&service_config.io_path, service_urls::STRATUM_CONTROL)
-	).unwrap();
+	worker.add_reqrep(&service_urls::with_base(&service_config.io_path, service_urls::STRATUM_CONTROL))
+	      .unwrap();
 
 	while !control_service.stop.load(Ordering::SeqCst) {
 		worker.poll();

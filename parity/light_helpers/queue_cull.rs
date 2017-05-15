@@ -16,20 +16,20 @@
 
 //! Service for culling the light client's transaction queue.
 
-use std::sync::Arc;
-use std::time::Duration;
 
 use ethcore::service::ClientIoMessage;
 use ethsync::LightSync;
+
+use futures::{future, stream, Future, Stream};
 use io::{IoContext, IoHandler, TimerToken};
+use light::TransactionQueue;
 
 use light::client::Client;
 use light::on_demand::{request, OnDemand};
-use light::TransactionQueue;
-
-use futures::{future, stream, Future, Stream};
 
 use parity_reactor::Remote;
+use std::sync::Arc;
+use std::time::Duration;
 
 use util::RwLock;
 
@@ -60,23 +60,33 @@ impl IoHandler<ClientIoMessage> for QueueCull {
 	}
 
 	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
-		if timer != TOKEN { return }
+		if timer != TOKEN {
+			return;
+		}
 
 		let senders = self.txq.read().queued_senders();
-		if senders.is_empty() { return }
+		if senders.is_empty() {
+			return;
+		}
 
 		let (sync, on_demand, txq) = (self.sync.clone(), self.on_demand.clone(), self.txq.clone());
 		let best_header = self.client.best_block_header();
 
 		info!(target: "cull", "Attempting to cull queued transactions from {} senders.", senders.len());
-		self.remote.spawn_with_timeout(move || {
+		self.remote
+		    .spawn_with_timeout(move || {
 			let maybe_fetching = sync.with_context(move |ctx| {
 				// fetch the nonce of each sender in the queue.
 				let nonce_futures = senders.iter()
-					.map(|&address| request::Account { header: best_header.clone(), address: address })
-					.map(|request| on_demand.account(ctx, request).map(|acc| acc.nonce))
-					.zip(senders.iter())
-					.map(|(fut, &addr)| fut.map(move |nonce| (addr, nonce)));
+				                           .map(|&address| {
+					                                request::Account {
+					                                    header: best_header.clone(),
+					                                    address: address,
+					                                }
+					                               })
+				                           .map(|request| on_demand.account(ctx, request).map(|acc| acc.nonce))
+				                           .zip(senders.iter())
+				                           .map(|(fut, &addr)| fut.map(move |nonce| (addr, nonce)));
 
 				// as they come in, update each sender to the new nonce.
 				stream::futures_unordered(nonce_futures)
@@ -92,6 +102,8 @@ impl IoHandler<ClientIoMessage> for QueueCull {
 				Some(fut) => fut.boxed(),
 				None => future::ok(()).boxed(),
 			}
-		}, Duration::from_millis(PURGE_TIMEOUT_MS), || {})
+		},
+		                        Duration::from_millis(PURGE_TIMEOUT_MS),
+		                        || {})
 	}
 }

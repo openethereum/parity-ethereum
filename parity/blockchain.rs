@@ -14,28 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::str::{FromStr, from_utf8};
-use std::{io, fs};
-use std::io::{BufReader, BufRead};
-use std::time::{Instant, Duration};
-use std::thread::sleep;
-use std::sync::Arc;
-use rustc_serialize::hex::FromHex;
-use io::{PanicHandler, ForwardPanic};
-use util::{ToPretty, Uint, U256, H256, Address, Hashable};
-use rlp::PayloadInfo;
-use ethcore::service::ClientService;
+use cache::CacheConfig;
+use dir::Directories;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockId};
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
+use ethcore::service::ClientService;
 use ethcore::verification::queue::VerifierSettings;
-use cache::CacheConfig;
-use informant::{Informant, MillisecondDuration};
-use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
-use helpers::{to_client_config, execute_upgrades};
-use dir::Directories;
-use user_defaults::UserDefaults;
 use fdlimit;
+use helpers::{to_client_config, execute_upgrades};
+use informant::{Informant, MillisecondDuration};
+use io::{PanicHandler, ForwardPanic};
+use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
+use rlp::PayloadInfo;
+use rustc_serialize::hex::FromHex;
+use std::{io, fs};
+use std::io::{BufReader, BufRead};
+use std::str::{FromStr, from_utf8};
+use std::sync::Arc;
+use std::thread::sleep;
+use std::time::{Instant, Duration};
+use user_defaults::UserDefaults;
+use util::{ToPretty, Uint, U256, H256, Address, Hashable};
 
 #[derive(Debug, PartialEq)]
 pub enum DataFormat {
@@ -56,7 +56,7 @@ impl FromStr for DataFormat {
 		match s {
 			"binary" | "bin" => Ok(DataFormat::Binary),
 			"hex" => Ok(DataFormat::Hex),
-			x => Err(format!("Invalid format: {}", x))
+			x => Err(format!("Invalid format: {}", x)),
 		}
 	}
 }
@@ -188,33 +188,13 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	cmd.dirs.create_dirs(false, false, false)?;
 
 	// prepare client config
-	let mut client_config = to_client_config(
-		&cmd.cache_config,
-		spec.name.to_lowercase(),
-		Mode::Active,
-		tracing,
-		fat_db,
-		cmd.compaction,
-		cmd.wal,
-		cmd.vm_type,
-		"".into(),
-		algorithm,
-		cmd.pruning_history,
-		cmd.pruning_memory,
-		cmd.check_seal
-	);
+	let mut client_config = to_client_config(&cmd.cache_config, spec.name.to_lowercase(), Mode::Active, tracing, fat_db, cmd.compaction, cmd.wal, cmd.vm_type, "".into(), algorithm, cmd.pruning_history, cmd.pruning_memory, cmd.check_seal);
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
 
 	// build client
-	let service = ClientService::start(
-		client_config,
-		&spec,
-		&client_path,
-		&snapshot_path,
-		&cmd.dirs.ipc_path(),
-		Arc::new(Miner::with_spec(&spec)),
-	).map_err(|e| format!("Client service error: {:?}", e))?;
+	let service = ClientService::start(client_config, &spec, &client_path, &snapshot_path, &cmd.dirs.ipc_path(), Arc::new(Miner::with_spec(&spec)))
+		.map_err(|e| format!("Client service error: {:?}", e))?;
 
 	// free up the spec in memory.
 	drop(spec);
@@ -244,18 +224,21 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	};
 
 	let informant = Arc::new(Informant::new(client.clone(), None, None, None, None, cmd.with_color));
-	service.register_io_handler(informant).map_err(|_| "Unable to register informant handler".to_owned())?;
+	service.register_io_handler(informant)
+	       .map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	let do_import = |bytes| {
-		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
+		while client.queue_info().is_full() {
+			sleep(Duration::from_secs(1));
+		}
 		match client.import_block(bytes) {
 			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => {
 				trace!("Skipping block already in chain.");
 			}
 			Err(e) => {
 				return Err(format!("Cannot import block: {:?}", e));
-			},
-			Ok(_) => {},
+			}
+			Ok(_) => {}
 		}
 		Ok(())
 	};
@@ -263,15 +246,19 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	match format {
 		DataFormat::Binary => {
 			loop {
-				let mut bytes = if first_read > 0 {first_bytes.clone()} else {vec![0; READAHEAD_BYTES]};
+				let mut bytes = if first_read > 0 { first_bytes.clone() } else { vec![0; READAHEAD_BYTES] };
 				let n = if first_read > 0 {
 					first_read
 				} else {
 					instream.read(&mut bytes).map_err(|_| "Error reading from the file/stream.")?
 				};
-				if n == 0 { break; }
+				if n == 0 {
+					break;
+				}
 				first_read = 0;
-				let s = PayloadInfo::from(&bytes).map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))?.total();
+				let s = PayloadInfo::from(&bytes)
+					.map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))?
+					.total();
 				bytes.resize(s, 0);
 				instream.read_exact(&mut bytes[n..]).map_err(|_| "Error reading from the file/stream.")?;
 				do_import(bytes)?;
@@ -280,7 +267,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		DataFormat::Hex => {
 			for line in BufReader::new(instream).lines() {
 				let s = line.map_err(|_| "Error reading from the file/stream.")?;
-				let s = if first_read > 0 {from_utf8(&first_bytes).unwrap().to_owned() + &(s[..])} else {s};
+				let s = if first_read > 0 { from_utf8(&first_bytes).unwrap().to_owned() + &(s[..]) } else { s };
 				first_read = 0;
 				let bytes = s.from_hex().map_err(|_| "Invalid hex in file/stream.")?;
 				do_import(bytes)?;
@@ -310,18 +297,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	Ok(())
 }
 
-fn start_client(
-	dirs: Directories,
-	spec: SpecType,
-	pruning: Pruning,
-	pruning_history: u64,
-	pruning_memory: usize,
-	tracing: Switch,
-	fat_db: Switch,
-	compaction: DatabaseCompactionProfile,
-	wal: bool,
-	cache_config: CacheConfig
-) -> Result<ClientService, String> {
+fn start_client(dirs: Directories, spec: SpecType, pruning: Pruning, pruning_history: u64, pruning_memory: usize, tracing: Switch, fat_db: Switch, compaction: DatabaseCompactionProfile, wal: bool, cache_config: CacheConfig) -> Result<ClientService, String> {
 
 	// load spec file
 	let spec = spec.spec()?;
@@ -360,30 +336,10 @@ fn start_client(
 	dirs.create_dirs(false, false, false)?;
 
 	// prepare client config
-	let client_config = to_client_config(
-		&cache_config,
-		spec.name.to_lowercase(),
-		Mode::Active,
-		tracing,
-		fat_db,
-		compaction,
-		wal,
-		VMType::default(),
-		"".into(),
-		algorithm,
-		pruning_history,
-		pruning_memory,
-		true,
-	);
+	let client_config = to_client_config(&cache_config, spec.name.to_lowercase(), Mode::Active, tracing, fat_db, compaction, wal, VMType::default(), "".into(), algorithm, pruning_history, pruning_memory, true);
 
-	let service = ClientService::start(
-		client_config,
-		&spec,
-		&client_path,
-		&snapshot_path,
-		&dirs.ipc_path(),
-		Arc::new(Miner::with_spec(&spec)),
-	).map_err(|e| format!("Client service error: {:?}", e))?;
+	let service = ClientService::start(client_config, &spec, &client_path, &snapshot_path, &dirs.ipc_path(), Arc::new(Miner::with_spec(&spec)))
+		.map_err(|e| format!("Client service error: {:?}", e))?;
 
 	drop(spec);
 	Ok(service)
@@ -391,18 +347,7 @@ fn start_client(
 
 fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 	// Setup panic handler
-	let service = start_client(
-		cmd.dirs,
-		cmd.spec,
-		cmd.pruning,
-		cmd.pruning_history,
-		cmd.pruning_memory,
-		cmd.tracing,
-		cmd.fat_db,
-		cmd.compaction,
-		cmd.wal,
-		cmd.cache_config
-	)?;
+	let service = start_client(cmd.dirs, cmd.spec, cmd.pruning, cmd.pruning_history, cmd.pruning_memory, cmd.tracing, cmd.fat_db, cmd.compaction, cmd.wal, cmd.cache_config)?;
 	let panic_handler = PanicHandler::new_in_arc();
 	let format = cmd.format.unwrap_or_default();
 
@@ -423,8 +368,12 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 		}
 		let b = client.block(BlockId::Number(i)).ok_or("Error exporting incomplete chain")?.into_inner();
 		match format {
-			DataFormat::Binary => { out.write(&b).expect("Couldn't write to stream."); }
-			DataFormat::Hex => { out.write_fmt(format_args!("{}", b.pretty())).expect("Couldn't write to stream."); }
+			DataFormat::Binary => {
+				out.write(&b).expect("Couldn't write to stream.");
+			}
+			DataFormat::Hex => {
+				out.write_fmt(format_args!("{}", b.pretty())).expect("Couldn't write to stream.");
+			}
 		}
 	}
 
@@ -434,18 +383,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 
 fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 	// Setup panic handler
-	let service = start_client(
-		cmd.dirs,
-		cmd.spec,
-		cmd.pruning,
-		cmd.pruning_history,
-		cmd.pruning_memory,
-		cmd.tracing,
-		cmd.fat_db,
-		cmd.compaction,
-		cmd.wal,
-		cmd.cache_config
-	)?;
+	let service = start_client(cmd.dirs, cmd.spec, cmd.pruning, cmd.pruning_history, cmd.pruning_memory, cmd.tracing, cmd.fat_db, cmd.compaction, cmd.wal, cmd.cache_config)?;
 
 	let panic_handler = PanicHandler::new_in_arc();
 
@@ -478,7 +416,8 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 			if i != 0 {
 				out.write(b",").expect("Write error");
 			}
-			out.write_fmt(format_args!("\n\"0x{}\": {{\"balance\": \"{:x}\", \"nonce\": \"{:x}\"", account.hex(), balance, client.nonce(&account, at).unwrap_or_else(U256::zero))).expect("Write error");
+			out.write_fmt(format_args!("\n\"0x{}\": {{\"balance\": \"{:x}\", \"nonce\": \"{:x}\"", account.hex(), balance, client.nonce(&account, at).unwrap_or_else(U256::zero)))
+			   .expect("Write error");
 			let code = client.code(&account, at).unwrap_or(None).unwrap_or_else(Vec::new);
 			if !code.is_empty() {
 				out.write_fmt(format_args!(", \"code_hash\": \"0x{}\"", code.sha3().hex())).expect("Write error");
@@ -488,12 +427,14 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 			}
 			let storage_root = client.storage_root(&account, at).unwrap_or(::util::SHA3_NULL_RLP);
 			if storage_root != ::util::SHA3_NULL_RLP {
-				out.write_fmt(format_args!(", \"storage_root\": \"0x{}\"", storage_root.hex())).expect("Write error");
+				out.write_fmt(format_args!(", \"storage_root\": \"0x{}\"", storage_root.hex()))
+				   .expect("Write error");
 				if cmd.storage {
 					out.write_fmt(format_args!(", \"storage\": {{")).expect("Write error");
 					let mut last_storage: Option<H256> = None;
 					loop {
-						let keys = client.list_storage(at, &account, last_storage.as_ref(), 1000).ok_or("Specified block not found")?;
+						let keys = client.list_storage(at, &account, last_storage.as_ref(), 1000)
+						                 .ok_or("Specified block not found")?;
 						if keys.is_empty() {
 							break;
 						}
@@ -502,7 +443,8 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 							if last_storage.is_some() {
 								out.write(b",").expect("Write error");
 							}
-							out.write_fmt(format_args!("\n\t\"0x{}\": \"0x{}\"", key.hex(), client.storage_at(&account, &key, at).unwrap_or_else(Default::default).hex())).expect("Write error");
+							out.write_fmt(format_args!("\n\t\"0x{}\": \"0x{}\"", key.hex(), client.storage_at(&account, &key, at).unwrap_or_else(Default::default).hex()))
+							   .expect("Write error");
 							last_storage = Some(key);
 						}
 					}

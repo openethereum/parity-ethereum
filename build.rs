@@ -21,7 +21,8 @@ const MIN_RUSTC_VERSION: &'static str = "1.15.1";
 fn main() {
 	let is = rustc_version::version().unwrap();
 	let required = MIN_RUSTC_VERSION.parse().unwrap();
-	assert!(is >= required, format!("
+	assert!(is >= required,
+	        format!("
 
 It looks like you are compiling Parity with an old rustc compiler {}.
 Parity requires version {}. Please update your compiler.
@@ -31,5 +32,7 @@ If you use rustup, try this:
 
 and try building Parity again.
 
-", is, required));
+",
+	                is,
+	                required));
 }

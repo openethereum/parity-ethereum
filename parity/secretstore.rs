@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::BTreeMap;
-use std::sync::Arc;
 use dir::default_data_path;
 use ethcore::client::Client;
 use ethkey::{Secret, Public};
 use helpers::replace_home;
+use std::collections::BTreeMap;
+use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Clone)]
 /// Secret store configuration
@@ -65,9 +65,9 @@ mod server {
 
 #[cfg(feature="secretstore")]
 mod server {
+	use super::{Configuration, Dependencies};
 	use ethcore_secretstore;
 	use ethkey::KeyPair;
-	use super::{Configuration, Dependencies};
 
 	/// Key server
 	pub struct KeyServer {
@@ -91,24 +91,23 @@ mod server {
 						address: conf.interface.clone(),
 						port: conf.port,
 					},
-					nodes: conf.nodes.into_iter().map(|(p, (ip, port))| (p, ethcore_secretstore::NodeAddress {
-						address: ip,
-						port: port,
-					})).collect(),
+					nodes: conf.nodes
+					           .into_iter()
+					           .map(|(p, (ip, port))| (p, ethcore_secretstore::NodeAddress { address: ip, port: port }))
+					           .collect(),
 					allow_connecting_to_higher_nodes: true,
 				},
 			};
 
 			let self_key_pair = KeyPair::from_secret(self_secret.clone())
 				.map_err(|e| format!("valid secret is required when using secretstore. Error: {}", e))?;
-			conf.cluster_config.nodes.insert(self_key_pair.public().clone(), conf.cluster_config.listener_address.clone());
+			conf.cluster_config
+			    .nodes
+			    .insert(self_key_pair.public().clone(), conf.cluster_config.listener_address.clone());
 
-			let key_server = ethcore_secretstore::start(deps.client, conf)
-				.map_err(Into::<String>::into)?;
+			let key_server = ethcore_secretstore::start(deps.client, conf).map_err(Into::<String>::into)?;
 
-			Ok(KeyServer {
-				_key_server: key_server,
-			})
+			Ok(KeyServer { _key_server: key_server })
 		}
 	}
 }
@@ -137,6 +136,5 @@ pub fn start(conf: Configuration, deps: Dependencies) -> Result<Option<KeyServer
 		return Ok(None);
 	}
 
-	KeyServer::new(conf, deps)
-		.map(|s| Some(s))
+	KeyServer::new(conf, deps).map(|s| Some(s))
 }
