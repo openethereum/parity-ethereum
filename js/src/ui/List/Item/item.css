@@ -16,6 +16,13 @@
 */
 
 .item {
+  &.active {
+    background: rgba(0, 0, 255, 0.25);
+  }
+
+  &.inactive {
+  }
+
   .description {
   }
 

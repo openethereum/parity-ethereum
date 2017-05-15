@@ -181,10 +181,7 @@ class TxHash extends Component {
     if (!(transactionReceipt && transactionReceipt.blockNumber && transactionReceipt.blockNumber.gt(0))) {
       return (
         <div className={ styles.confirm }>
-          <Progress
-            className={ styles.progressbar }
-            color='white'
-          />
+          <Progress className={ styles.progressbar } />
           <div className={ styles.progressinfo }>
             <FormattedMessage
               id='ui.txHash.waiting'
@@ -208,11 +205,9 @@ class TxHash extends Component {
       <div className={ styles.confirm }>
         <Progress
           className={ styles.progressbar }
-          min={ 0 }
           max={ maxConfirmations }
           value={ value }
-          color='white'
-          determinate
+          isDeterminate
         />
         <div className={ styles.progressinfo }>
           <abbr title={ `block #${blockNumber.toFormat(0)}` }>

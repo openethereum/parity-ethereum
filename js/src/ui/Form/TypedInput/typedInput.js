@@ -18,13 +18,12 @@ import React, { Component, PropTypes } from 'react';
 import { range } from 'lodash';
 import BigNumber from 'bignumber.js';
 
-import IconButton from 'material-ui/IconButton';
-
 import { fromWei, toWei } from '@parity/api/util/wei';
 import { bytesToHex } from '@parity/api/util/format';
 import { ABI_TYPES, parseAbiType } from '@parity/shared/util/abi';
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
+import Button from '~/ui/Button';
 import Dropdown from '~/ui/Form/Dropdown';
 import Input from '~/ui/Form/Input';
 import InputAddressSelect from '~/ui/Form/InputAddressSelect';
@@ -142,40 +141,16 @@ export default class TypedInput extends Component {
   }
 
   renderLength () {
-    const iconStyle = {
-      width: 16,
-      height: 16
-    };
-
-    const style = {
-      width: 24,
-      height: 24,
-      padding: 0
-    };
-
-    const plusStyle = {
-      ...style,
-      backgroundColor: 'rgba(255, 255, 255, 0.25)',
-      borderRadius: '50%'
-    };
-
     return (
       <div style={ { marginTop: '0.75em' } }>
-        <IconButton
-          iconStyle={ iconStyle }
-          style={ plusStyle }
-          onTouchTap={ this.onAddField }
-        >
-          <AddIcon />
-        </IconButton>
-
-        <IconButton
-          iconStyle={ iconStyle }
-          style={ style }
-          onTouchTap={ this.onRemoveField }
-        >
-          <RemoveIcon />
-        </IconButton>
+        <Button
+          icon={ <AddIcon /> }
+          onClick={ this.onAddField }
+        />
+        <Button
+          icon={ <RemoveIcon /> }
+          onClick={ this.onRemoveField }
+        />
       </div>
     );
   }

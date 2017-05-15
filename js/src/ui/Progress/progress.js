@@ -14,23 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { LinearProgress } from 'material-ui';
 import React, { PropTypes } from 'react';
+import { Progress as SemanticProgress } from 'semantic-ui-react';
 
-export default function Progress ({ className, color, determinate, max, min, style, value }) {
+export default function Progress ({ className, color, isDeterminate, max, style, value }) {
   return (
-    <LinearProgress
+    <SemanticProgress
       className={ className }
       color={ color }
-      max={ max }
-      min={ min }
-      mode={
-        determinate
-          ? 'determinate'
-          : 'indeterminate'
+      indicating={ !isDeterminate }
+      percent={
+        isDeterminate
+          ? 100 * value / max
+          : 100
       }
+      size='small'
       style={ style }
-      value={ value }
     />
   );
 }
@@ -38,13 +37,8 @@ export default function Progress ({ className, color, determinate, max, min, sty
 Progress.propTypes = {
   className: PropTypes.string,
   color: PropTypes.string,
-  determinate: PropTypes.bool,
+  isDeterminate: PropTypes.bool,
   max: PropTypes.number,
-  min: PropTypes.number,
   style: PropTypes.object,
   value: PropTypes.number
-};
-
-Progress.defaultProps = {
-  determinate: false
 };

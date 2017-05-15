@@ -33,7 +33,7 @@ function render (props = { visible: true }) {
   return component;
 }
 
-describe('views/Settings/Features', () => {
+describe('ui/Features', () => {
   beforeEach(() => {
     render();
   });
@@ -79,10 +79,6 @@ describe('views/Settings/Features', () => {
 
       it('renders an item', () => {
         expect(item).not.to.be.null;
-      });
-
-      it('displays the correct name', () => {
-        expect(item.props.primaryText).to.equal(defaults[key].name);
       });
     });
   });

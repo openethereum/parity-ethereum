@@ -55,12 +55,10 @@ export default class Settings extends Component {
               icon: <BackgroundIcon />,
               label: <FormattedMessage id='settings.background.label' />
             },
-            isProxied
-              ? null
-              : {
-                icon: <EthernetIcon />,
-                label: <FormattedMessage id='settings.proxy.label' />
-              },
+            !isProxied && {
+              icon: <EthernetIcon />,
+              label: <FormattedMessage id='settings.proxy.label' />
+            },
             {
               icon: <img src={ imagesEthcoreBlock } className={ styles.imageIcon } />,
               label: <FormattedMessage id='settings.parity.label' />

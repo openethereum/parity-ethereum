@@ -54,7 +54,8 @@ class TokenSelect extends Component {
     const { api } = this.context;
     const { balance, tokens } = this.props;
 
-    const items = Object.keys(balance)
+    const items = Object
+      .keys(balance)
       .map((tokenId) => {
         const token = tokens[tokenId];
         const tokenValue = balance[tokenId];
@@ -122,4 +123,7 @@ function mapStateToProps (state) {
   return { tokens };
 }
 
-export default connect(mapStateToProps)(TokenSelect);
+export default connect(
+  mapStateToProps,
+  null
+)(TokenSelect);

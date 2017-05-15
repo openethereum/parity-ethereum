@@ -26,7 +26,7 @@ import styles from './dropdown.css';
 const NAME_ID = ' ';
 
 // FIXME: Currently does not display the selected icon alongside
-export default function Dropdown ({ className, disabled = false, error, fullWidth = true, hint, label, onBlur, onChange, onKeyDown, options, text, value }, { intl }) {
+export default function Dropdown ({ className, disabled = false, error, fullWidth = true, hint, label, onBlur, onChange, onKeyDown, options, text, value }, context) {
   const _onChange = (event, { value }) => onChange(event, value);
 
   return (

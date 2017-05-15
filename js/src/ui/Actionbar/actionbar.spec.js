@@ -21,7 +21,10 @@ import Actionbar from './actionbar';
 
 function renderShallow (props) {
   return shallow(
-    <Actionbar { ...props } />
+    <Actionbar
+      title='title'
+      { ...props }
+    />
   );
 }
 

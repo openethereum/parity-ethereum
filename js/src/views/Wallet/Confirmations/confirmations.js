@@ -266,16 +266,11 @@ class WalletConfirmation extends Component {
             {
               pending
               ? (
-                <Progress
-                  key={ `pending_${operation}` }
-                  style={ style }
-                />
+                <Progress style={ style } />
               )
               : (
                 <Progress
-                  key={ `unpending_${operation}` }
-                  determinate
-                  min={ 0 }
+                  isDeterminate
                   max={ require.toNumber() }
                   value={ confirmedBy.length }
                   style={ style }

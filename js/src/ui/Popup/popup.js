@@ -14,24 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
+import React, { PropTypes } from 'react';
+import { Popup as SemanticPopup } from 'semantic-ui-react';
 
-import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
-
-import styles from './modalBox.css';
-
-export default function Summary ({ summary }) {
-  if (!summary) {
-    return null;
-  }
-
+export default function Popup ({ children, className, isOpen, trigger, triggerOn }) {
   return (
-    <div className={ styles.summary }>
-      { summary }
-    </div>
+    <SemanticPopup
+      className={ className }
+      on={ triggerOn }
+      open={ isOpen }
+      trigger={ trigger }
+    >
+      { children }
+    </SemanticPopup>
   );
 }
 
-Summary.propTypes = {
-  summary: nodeOrStringProptype()
+Popup.propTypes = {
+  children: PropTypes.node.isRequired,
+  className: PropTypes.string,
+  isOpen: PropTypes.bool,
+  trigger: PropTypes.node,
+  triggerOn: PropTypes.string
 };

@@ -19,10 +19,10 @@ import { List as SemanticList } from 'semantic-ui-react';
 
 import styles from './item.css';
 
-export default function Item ({ buttons, className, description, icon, label, onClick, style }) {
+export default function Item ({ buttons, className, description, icon, isActive, label, onClick, style }) {
   return (
     <SemanticList.Item
-      className={ styles.item }
+      className={ `${styles.item} ${isActive ? styles.active : styles.inactive} ${className}` }
       onClick={ onClick }
       style={ style }
     >
@@ -52,8 +52,8 @@ Item.propTypes = {
   buttons: PropTypes.any,
   className: PropTypes.string,
   description: PropTypes.node,
-  key: PropTypes.any,
   icon: PropTypes.node,
+  isActive: PropTypes.bool,
   label: PropTypes.node,
   onClick: PropTypes.func,
   style: PropTypes.object
