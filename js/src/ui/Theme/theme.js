@@ -16,26 +16,9 @@
 
 import GeoPattern from 'geopattern';
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
-import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 
-const muiTheme = getMuiTheme(lightBaseTheme);
+const muiTheme = getMuiTheme();
 
-// muiTheme.inkBar.backgroundColor = 'transparent';
-// muiTheme.paper.backgroundColor = 'rgb(18, 18, 18)';
-// muiTheme.raisedButton.primaryTextColor = 'white';
-// muiTheme.snackbar.backgroundColor = 'rgba(255, 30, 30, 0.9)';
-// muiTheme.snackbar.textColor = 'rgba(255, 255, 255, 0.75)';
-// muiTheme.stepper.textColor = '#eee';
-// muiTheme.stepper.disabledTextColor = '#777';
-// muiTheme.tabs = lightTheme.tabs;
-// muiTheme.tabs.backgroundColor = 'transparent';
-// muiTheme.tabs.selectedTextColor = 'white';
-// muiTheme.tabs.textColor = 'rgba(255, 255, 255, 0.5)';
-// muiTheme.textField.floatingLabelColor = 'rgba(255, 255, 255, 0.5)';
-// muiTheme.textField.hintColor = 'rgba(255, 255, 255, 0.5)';
-// muiTheme.textField.disabledTextColor = muiTheme.textField.textColor;
-// muiTheme.toolbar = lightTheme.toolbar;
-// muiTheme.toolbar.backgroundColor = 'transparent';
 muiTheme.zIndex.layer = 4000;
 muiTheme.zIndex.popover = 4100;
 
