@@ -72,8 +72,22 @@ export default class Lookup extends Component {
       return this.renderReserving(reserving);
     }
 
-    if (!result || !inputValue) {
+    if (!inputValue) {
       return null;
+    }
+
+    if (!result) {
+      return (
+        <Card className={ styles.container }>
+          <CardText>
+            <div className={ styles.reserving }>
+              <div>
+                No entries found for <code>{ inputValue }</code>
+              </div>
+            </div>
+          </CardText>
+        </Card>
+      );
     }
 
     if (result.free) {

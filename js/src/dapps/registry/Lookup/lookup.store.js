@@ -41,7 +41,7 @@ export default class LookupStore {
     return instance;
   }
 
-  lookup (hash, name = null) {
+  lookup (hash, name = null, nullable = false) {
     const { contract } = this.applicationStore;
 
     // Show loading if request takes more than
@@ -53,6 +53,10 @@ export default class LookupStore {
     return isOwned(contract, hash)
       .then((reserved) => {
         if (!reserved) {
+          if (nullable) {
+            return null;
+          }
+
           return {
             hash,
             name,
@@ -151,7 +155,7 @@ export default class LookupStore {
     // The input is a Registry ID (32 bytes hash)
     if (/^0x[a-f0-9]{64}$/i.test(value)) {
       this.setLookupValue(value);
-      return this.lookup(value);
+      return this.lookup(value, null, true);
     }
 
     // The input is an address
@@ -159,8 +163,8 @@ export default class LookupStore {
       return checkOwnerReverse(contract, value)
         .then((ownerReverseName) => {
           if (!ownerReverseName) {
-            this.setLookupValue(api.util.sha3.text(value.toLowerCase()));
-            return this.lookupByName(value);
+            this.setLookupValue(null);
+            return this.setResult(null);
           }
 
           this.setLookupValue(api.util.sha3.text(ownerReverseName.toLowerCase()));

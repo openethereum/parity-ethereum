@@ -72,7 +72,7 @@ export default class Entry {
 
     const method = contract.instance.drop;
     const options = { from: this.owner };
-    const values = [ api.util.sha3.text(this.name.toLowerCase()) ];
+    const values = [ this.hash ];
 
     this.setDropping(true);
     return postTransaction(api, method, options, values)
