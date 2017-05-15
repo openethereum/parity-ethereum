@@ -16,7 +16,26 @@
 */
 
 .chip {
-  & > svg {
+  align-items: center;
+  float: left;
+  margin: 0.5em 0.5em 0 0 !important;
+
+  &.focus {
+    background-color: rgba(50, 50, 200, 0.7) !important;
+  }
+
+  &:not(.focus) {
+    background-color: rgba(50, 50, 50, 0.7) !important;
+  }
+
+  &>span {
+    padding-ight: 0.5em;
+    color: white !important;
+    font-size: 0.9rem;
+    line-height: initial;
+  }
+
+  &>svg {
     width: 1rem !important;
     height: 1rem !important;
     margin: initial !important;

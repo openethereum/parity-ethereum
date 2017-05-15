@@ -15,14 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Chip } from 'material-ui';
 import ChipInput from 'material-ui-chip-input';
-import { blue300 } from 'material-ui/styles/colors';
 import { uniq } from 'lodash';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-import styles from './inputChip.css';
+import Chip from './Chip';
 
 export default class InputChip extends Component {
   static propTypes = {
@@ -100,25 +98,14 @@ export default class InputChip extends Component {
   }
 
   chipRenderer = (state, key) => {
-    const { value, isFocused, isDisabled, handleClick, handleRequestDelete } = state;
+    const { isDisabled, isFocused, handleClick, handleRequestDelete, value } = state;
 
     return (
       <Chip
+        isDisabled={ isDisabled }
+        isFocused={ isFocused }
         key={ key }
-        className={ styles.chip }
-        style={ {
-          margin: '15px 8px 0 0',
-          float: 'left',
-          pointerEvents: isDisabled ? 'none' : undefined,
-          alignItems: 'center'
-        } }
-        labelStyle={ {
-          paddingRight: 6,
-          fontSize: '0.9rem',
-          lineHeight: 'initial'
-        } }
-        backgroundColor={ isFocused ? blue300 : 'rgba(50, 50, 50, 0.73)' }
-        onTouchTap={ handleClick }
+        onClick={ handleClick }
         onRequestDelete={ handleRequestDelete }
       >
         { value }
