@@ -191,7 +191,7 @@ class Account extends Component {
       <Button
         icon={
           <img
-            className={ styles.btnicon }
+            className='icon'
             src={ shapeshiftBtn }
           />
         }
