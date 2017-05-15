@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Form, Input, InputAddress, QrScan } from '~/ui';
+import { Form, Input, InputAddress, QrScan } from '@parity/ui';
 
 import ChangeVault from '../ChangeVault';
 

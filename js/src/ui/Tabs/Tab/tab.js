@@ -15,35 +15,27 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
-import { Step, Stepper, StepLabel } from 'material-ui/Stepper';
+import { Menu } from 'semantic-ui-react';
 
-import styles from '../title.css';
-
-export default function Steps ({ activeStep, steps }) {
-  if (!steps || steps.length < 2) {
-    return null;
-  }
-
+export default function Tab ({ isActive, className, index, label, name, onClick, style }) {
   return (
-    <div className={ styles.steps }>
-      <Stepper activeStep={ activeStep }>
-        {
-          steps.map((label, index) => {
-            return (
-              <Step key={ label.key || index }>
-                <StepLabel>
-                  { label }
-                </StepLabel>
-              </Step>
-            );
-          })
-        }
-      </Stepper>
-    </div>
+    <Menu.Item
+      active={ isActive }
+      index={ index }
+      name={ name }
+      onClick={ onClick }
+    >
+      { label }
+    </Menu.Item>
   );
 }
 
-Steps.propTypes = {
-  activeStep: PropTypes.number,
-  steps: PropTypes.array
+Tab.propTypes = {
+  className: PropTypes.string,
+  index: PropTypes.number,
+  isActive: PropTypes.bool,
+  label: PropTypes.any,
+  name: PropTypes.string,
+  onClick: PropTypes.func,
+  style: PropTypes.object
 };

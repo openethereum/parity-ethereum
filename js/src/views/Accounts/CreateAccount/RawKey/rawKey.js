@@ -18,8 +18,8 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Form, Input } from '~/ui';
-import PasswordStrength from '~/ui/Form/PasswordStrength';
+import { Form, Input } from '@parity/ui';
+import PasswordStrength from '@parity/ui/Form/PasswordStrength';
 
 import ChangeVault from '../ChangeVault';
 import styles from '../createAccount.css';

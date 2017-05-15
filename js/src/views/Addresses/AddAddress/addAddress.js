@@ -18,8 +18,8 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Form, Input, InputAddress, ModalBox, Portal } from '~/ui';
-import { AddIcon, AddressIcon, CancelIcon } from '~/ui/Icons';
+import { Button, Form, Input, InputAddress, ModalBox, Portal } from '@parity/ui';
+import { AddIcon, AddressIcon, CancelIcon } from '@parity/ui/Icons';
 
 import Store from './store';
 

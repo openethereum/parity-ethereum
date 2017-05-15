@@ -43,7 +43,7 @@ function render (props) {
   return component;
 }
 
-describe('modals/ExecuteContract', () => {
+describe('views/Contract/ExecuteContract', () => {
   it('renders', () => {
     expect(render({ accounts: {} })).to.be.ok;
   });

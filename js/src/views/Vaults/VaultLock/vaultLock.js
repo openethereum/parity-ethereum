@@ -21,8 +21,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '@parity/shared/redux/actions';
-
-import { ConfirmDialog, VaultCard } from '~/ui';
+import { ConfirmDialog, VaultCard } from '@parity/ui';
 
 import styles from '../VaultUnlock/vaultUnlock.css';
 

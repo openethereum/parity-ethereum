@@ -24,9 +24,9 @@ import { getLogger, LOG_KEYS } from '@parity/shared/config';
 import { eip20 as tokenAbi, wallet as walletAbi } from '@parity/shared/contracts/abi';
 import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '@parity/shared/util/constants';
 import { ETH_TOKEN } from '@parity/shared/util/tokens';
+import GasPriceStore from '@parity/ui/GasPriceEditor/store';
 
 import ERRORS from './errors';
-import GasPriceStore from '~/ui/GasPriceEditor/store';
 
 const log = getLogger(LOG_KEYS.TransferModalStore);
 

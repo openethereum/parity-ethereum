@@ -14,24 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-
-import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
-
-import styles from './modalBox.css';
-
-export default function Summary ({ summary }) {
-  if (!summary) {
-    return null;
-  }
-
-  return (
-    <div className={ styles.summary }>
-      { summary }
-    </div>
-  );
-}
-
-Summary.propTypes = {
-  summary: nodeOrStringProptype()
-};
+export default from './tabs';

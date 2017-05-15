@@ -18,9 +18,7 @@ import React, { PropTypes } from 'react';
 
 import Progress from '~/ui/Progress';
 
-import styles from '../title.css';
-
-export default function Waiting ({ activeStep, busy, busySteps }) {
+export default function Waiting ({ activeStep, busy, busySteps, className }) {
   const isWaiting = busy || (busySteps || []).includes(activeStep);
 
   if (!isWaiting) {
@@ -28,7 +26,7 @@ export default function Waiting ({ activeStep, busy, busySteps }) {
   }
 
   return (
-    <div className={ styles.waiting }>
+    <div className={ className }>
       <Progress />
     </div>
   );
@@ -37,5 +35,6 @@ export default function Waiting ({ activeStep, busy, busySteps }) {
 Waiting.propTypes = {
   activeStep: PropTypes.number,
   busy: PropTypes.bool,
-  busySteps: PropTypes.array
+  busySteps: PropTypes.array,
+  className: PropTypes.string
 };

@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { DappCard, Portal, SelectionList } from '~/ui';
+import { DappCard, Portal, SelectionList } from '@parity/ui';
 
 import styles from './dappsVisible.css';
 

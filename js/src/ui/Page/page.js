@@ -24,16 +24,10 @@ import styles from './page.css';
 export default function Page ({ buttons, className, children, padded, title }) {
   return (
     <div>
-      {
-        title || buttons
-          ? (
-            <Actionbar
-              buttons={ buttons }
-              title={ title }
-            />
-          )
-          : null
-      }
+      <Actionbar
+        buttons={ buttons }
+        title={ title }
+      />
       <div
         className={
           [

@@ -14,29 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { shallow } from 'enzyme';
-import React from 'react';
+import React, { PropTypes } from 'react';
+import { Popup as SemanticPopup } from 'semantic-ui-react';
 
-import Steps from './';
-
-let component;
-
-function render (props = {}) {
-  component = shallow(
-    <Steps
-      { ...props }
-    />
+export default function Popup ({ children, className, isOpen, trigger, triggerOn }) {
+  return (
+    <SemanticPopup
+      className={ className }
+      on={ triggerOn }
+      open={ isOpen }
+      trigger={ trigger }
+    >
+      { children }
+    </SemanticPopup>
   );
-
-  return component;
 }
 
-describe('ui/Title/Steps', () => {
-  beforeEach(() => {
-    render({ steps: ['stepA', 'stepB'] });
-  });
-
-  it('renders the Stepper', () => {
-    expect(component.find('Stepper').get(0)).to.be.ok;
-  });
-});
+Popup.propTypes = {
+  children: PropTypes.node.isRequired,
+  className: PropTypes.string,
+  isOpen: PropTypes.bool,
+  trigger: PropTypes.node,
+  triggerOn: PropTypes.string
+};

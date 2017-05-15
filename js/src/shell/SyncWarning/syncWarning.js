@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Checkbox } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import store from 'store';
 
-import { Button } from '~/ui';
+import { Button, Checkbox } from '@parity/ui';
 
 import styles from './syncWarning.css';
 

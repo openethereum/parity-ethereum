@@ -37,9 +37,8 @@ export default class SortStore {
     this.menuOpen = open;
   }
 
-  @action handleSortChange = (event, child) => {
-    const order = child.props.value;
-
+  @action handleSortChange = (event, order) => {
+    this.handleMenuChange(false);
     this.onChange(order);
     this.saveOrder(order);
   }

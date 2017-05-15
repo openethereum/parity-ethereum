@@ -20,9 +20,8 @@ import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
 import { observable } from 'mobx';
 
-import { Button, IdentityIcon, Portal } from '~/ui';
-import RadioButtons from '~/ui/Form/RadioButtons';
-import { CancelIcon, DoneIcon } from '~/ui/Icons';
+import { Button, IdentityIcon, Portal, RadioButtons } from '@parity/ui';
+import { CancelIcon, DoneIcon } from '@parity/ui/Icons';
 
 import SMSVerificationStore from './sms-store';
 import EmailVerificationStore from './email-store';
@@ -37,7 +36,7 @@ const METHODS = {
         defaultMessage='SMS Verification'
       />
     ),
-    key: 0,
+    key: 'sms',
     value: 'sms',
     description: (
       <p className={ styles.noSpacing }>
@@ -55,7 +54,7 @@ const METHODS = {
         defaultMessage='E-mail Verification'
       />
     ),
-    key: 1,
+    key: 'email',
     value: 'email',
     description: (
       <p className={ styles.noSpacing }>
@@ -269,14 +268,12 @@ class Verification extends Component {
     const { method } = this.state;
 
     if (phase === 0) {
-      const values = Object.values(METHODS);
-      const value = values.findIndex((v) => v.value === method);
-
       return (
         <RadioButtons
+          name='verificationType'
           onChange={ this.selectMethod }
-          value={ value < 0 ? 0 : value }
-          values={ values }
+          value={ method || 'sms' }
+          values={ Object.values(METHODS) }
         />
       );
     }
@@ -436,8 +433,8 @@ class Verification extends Component {
     }
   }
 
-  selectMethod = (choice, i) => {
-    this.setState({ method: choice.value });
+  selectMethod = (event, method) => {
+    this.setState({ method });
   }
 }
 

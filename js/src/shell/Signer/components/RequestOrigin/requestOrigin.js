@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import IdentityIcon from '~/ui/IdentityIcon';
+import IdentityIcon from '@parity/ui/IdentityIcon';
 
 import styles from './requestOrigin.css';
 

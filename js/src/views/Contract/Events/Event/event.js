@@ -19,8 +19,8 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { IdentityIcon, IdentityName, TypedInput } from '~/ui';
-import ShortenedHash from '~/ui/ShortenedHash';
+import { IdentityIcon, IdentityName, ShortenedHash, TypedInput } from '@parity/ui';
+
 import { txLink } from '~/3rdparty/etherscan/links';
 
 import styles from '../../contract.css';

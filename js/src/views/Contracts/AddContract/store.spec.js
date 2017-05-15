@@ -30,7 +30,7 @@ function createStore () {
   store = new Store(api, CONTRACTS);
 }
 
-describe('modals/AddContract/Store', () => {
+describe('views/Contracts/AddContract/Store', () => {
   beforeEach(() => {
     createStore();
   });
@@ -41,7 +41,7 @@ describe('modals/AddContract/Store', () => {
     });
 
     it('defaults to custom ABI', () => {
-      expect(store.abiType.type).to.equal('custom');
+      expect(store.abiType).to.equal('custom');
     });
   });
 
@@ -56,13 +56,13 @@ describe('modals/AddContract/Store', () => {
       });
     });
 
-    describe('setAbiTypeIndex', () => {
+    describe('setAbiType', () => {
       beforeEach(() => {
-        store.setAbiTypeIndex(1);
+        store.setAbiType('multisig');
       });
 
-      it('changes the index', () => {
-        expect(store.abiTypeIndex).to.equal(1);
+      it('changes the type', () => {
+        expect(store.abiType).to.equal('multisig');
       });
 
       it('changes the abi', () => {
@@ -113,12 +113,6 @@ describe('modals/AddContract/Store', () => {
   });
 
   describe('@computed', () => {
-    describe('abiType', () => {
-      it('matches the index', () => {
-        expect(store.abiType).to.deep.equal(store.abiTypes[2]);
-      });
-    });
-
     describe('hasError', () => {
       beforeEach(() => {
         store.setAddress(VALID_ADDR);

@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Balance, Certifications, Container, CopyToClipboard, ContainerTitle, IdentityIcon, IdentityName, QrCode, Tags, VaultTag } from '~/ui';
+import { Balance, Certifications, Container, CopyToClipboard, ContainerTitle, IdentityIcon, IdentityName, QrCode, Tags, VaultTag } from '@parity/ui';
 
 import styles from './header.css';
 

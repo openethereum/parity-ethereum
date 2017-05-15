@@ -23,12 +23,6 @@ import Progress from '~/ui/Progress';
 
 import styles from './passwordStrength.css';
 
-const BAR_STYLE = {
-  borderRadius: 1,
-  height: 7,
-  marginTop: '0.5em'
-};
-
 export default class PasswordStrength extends Component {
   static propTypes = {
     input: PropTypes.string.isRequired
@@ -69,10 +63,6 @@ export default class PasswordStrength extends Component {
 
     const { score, feedback } = strength;
 
-    // Score is between 0 and 4
-    const value = score * 100 / 5 + 20;
-    const color = this.getStrengthBarColor(score);
-
     return (
       <div className={ styles.strength }>
         <label className={ styles.label }>
@@ -82,10 +72,10 @@ export default class PasswordStrength extends Component {
           />
         </label>
         <Progress
-          color={ color }
-          determinate
-          style={ BAR_STYLE }
-          value={ value }
+          color={ this.getStrengthBarColor(score) }
+          isDeterminate
+          max={ 100 }
+          value={ score * 100 / 5 + 20 }
         />
         <div className={ styles.feedback }>
           { this.renderFeedback(feedback) }
@@ -111,8 +101,10 @@ export default class PasswordStrength extends Component {
   getStrengthBarColor (score) {
     switch (score) {
       case 4:
+        return 'green';
+
       case 3:
-        return 'lightgreen';
+        return 'blue';
 
       case 2:
         return 'yellow';

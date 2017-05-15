@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-import { SectionList } from '~/ui';
+import { SectionList } from '@parity/ui';
 
 import { createRenderers } from './renderers';
 import Store from './store';

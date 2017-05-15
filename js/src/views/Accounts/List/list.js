@@ -21,8 +21,7 @@ import { bindActionCreators } from 'redux';
 
 import { ETH_TOKEN } from '@parity/shared/util/tokens';
 import { fetchCertifiers, fetchCertifications } from '@parity/shared/redux/providers/certifications/actions';
-
-import { Container, SectionList } from '~/ui';
+import { Container, SectionList } from '@parity/ui';
 
 import Summary from '../Summary';
 import styles from './list.css';

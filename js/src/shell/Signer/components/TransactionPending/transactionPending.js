@@ -20,8 +20,7 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
 import HardwareStore from '@parity/shared/mobx/hardwareStore';
-
-import { Button, GasPriceEditor } from '~/ui';
+import { Button, GasPriceEditor } from '@parity/ui';
 
 import TransactionMainDetails from '../TransactionMainDetails';
 import TransactionPendingForm from '../TransactionPendingForm';

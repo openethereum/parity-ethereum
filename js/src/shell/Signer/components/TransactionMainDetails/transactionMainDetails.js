@@ -18,8 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
 
-import { Button, MethodDecoding } from '~/ui';
-import { GasIcon } from '~/ui/Icons';
+import { Button, MethodDecoding } from '@parity/ui';
+import { GasIcon } from '@parity/ui/Icons';
 
 import * as tUtil from '../util/transaction';
 import Account from '../Account';

@@ -80,16 +80,16 @@
 }
 
 .identities,
-.selector {
+.selector>div {
   display: flex;
 }
 
-.selector {
+.selector>div {
   margin-top: 1.5em;
 }
 
 .identities .identity,
-.selector .button {
+.selector>div>div {
   flex: 0 1 12.5%;
   width: 12.5% !important;
   text-align: center;

@@ -15,29 +15,19 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
-import CircularProgress from 'material-ui/CircularProgress';
+import { Loader as SemanticLoader } from 'semantic-ui-react';
 
 import styles from './loading.css';
 
-export default function Loading ({ className, size, thickness }) {
+export default function Loading ({ className, size = 'medium' }) {
   return (
-    <div className={ [ styles.loading, className ].join(' ') }>
-      <CircularProgress
-        size={ size * 60 }
-        thickness={ thickness }
-      />
+    <div className={ `${styles.loading} ${className}` }>
+      <SemanticLoader />
     </div>
   );
 }
 
 Loading.propTypes = {
   className: PropTypes.string,
-  size: PropTypes.number,
-  thickness: PropTypes.number
-};
-
-Loading.defaultProps = {
-  className: '',
-  size: 2,
-  thickness: 3.5
+  size: PropTypes.string
 };

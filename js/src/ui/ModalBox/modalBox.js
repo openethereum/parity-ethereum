@@ -18,8 +18,6 @@ import React, { PropTypes } from 'react';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-import Body from './body';
-import Summary from './summary';
 import styles from './modalBox.css';
 
 export default function ModalBox ({ children, icon, summary }) {
@@ -29,8 +27,20 @@ export default function ModalBox ({ children, icon, summary }) {
         { icon }
       </div>
       <div className={ styles.content }>
-        <Summary summary={ summary } />
-        <Body children={ children } />
+        {
+          summary && (
+            <div className={ styles.summary }>
+              { summary }
+            </div>
+          )
+        }
+        {
+          children && (
+            <div className={ styles.body }>
+              { children }
+            </div>
+          )
+        }
       </div>
     </div>
   );

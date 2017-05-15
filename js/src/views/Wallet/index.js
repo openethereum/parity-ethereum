@@ -23,12 +23,10 @@ injectTapEventPlugin();
 
 import ContractInstances from '@parity/shared/contracts';
 import { initStore } from '@parity/shared/redux';
+import ContextProvider from '@parity/ui/ContextProvider';
+import muiTheme from '@parity/ui/Theme';
 
 import { api } from './parity';
-
-import ContextProvider from '~/ui/ContextProvider';
-import muiTheme from '~/ui/Theme';
-
 import Wallet from './wallet';
 
 ContractInstances.get(api);

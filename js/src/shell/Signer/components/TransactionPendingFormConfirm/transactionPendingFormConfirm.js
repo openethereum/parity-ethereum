@@ -20,7 +20,8 @@ import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
 
-import { Button, Form, Input, IdentityIcon, QrCode, QrScan } from '~/ui';
+import { Button, Form, Input, IdentityIcon, QrCode, QrScan } from '@parity/ui';
+
 import { generateTxQr, generateDataQr } from '~/shell/Signer/utils/qrscan';
 
 import styles from './transactionPendingFormConfirm.css';

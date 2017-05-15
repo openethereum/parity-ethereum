@@ -15,10 +15,17 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
+.item {
+  &.active {
+    background: rgba(0, 0, 255, 0.25);
+  }
+
+  &.inactive {
+  }
+
+  .description {
+  }
+
   .label {
-    color: rgba(0, 0, 0, 0.3);
-    pointer-events: none;
-    user-select: none;
   }
 }

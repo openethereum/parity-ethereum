@@ -17,7 +17,8 @@
 import React from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Actionbar } from '~/ui';
+import { Actionbar } from '@parity/ui';
+
 import RequestsPage from './RequestsPage';
 
 export default function Signer () {

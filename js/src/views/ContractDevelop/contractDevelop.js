@@ -21,9 +21,9 @@ import { connect } from 'react-redux';
 import moment from 'moment';
 import { throttle } from 'lodash';
 
-import { Actionbar, ActionbarExport, ActionbarImport, Button, Dropdown, Input, Loading, Page, Toggle } from '~/ui';
-import { CancelIcon, ListIcon, SaveIcon, SendIcon, SettingsIcon } from '~/ui/Icons';
-import Editor from '~/ui/Editor';
+import { Actionbar, ActionbarExport, ActionbarImport, Button, Dropdown, Input, Loading, Page, Toggle } from '@parity/ui';
+import { CancelIcon, ListIcon, SaveIcon, SendIcon, SettingsIcon } from '@parity/ui/Icons';
+import Editor from '@parity/ui/Editor';
 
 import DeployContract from '../Contracts/DeployContract';
 import LoadContract from './LoadContract';
@@ -275,10 +275,7 @@ class ContractDevelop extends Component {
     if (selectedBuild < 0) {
       return (
         <div className={ `${styles.panel} ${styles.centeredMessage}` }>
-          <Loading
-            size={ 1.2 }
-            thickness={ 5 }
-          />
+          <Loading />
           <p>
             <FormattedMessage
               id='writeContract.title.loading'
@@ -313,10 +310,7 @@ class ContractDevelop extends Component {
       content = (
         <div className={ styles.panel }>
           <div className={ styles.centeredMessage }>
-            <Loading
-              size={ 1.2 }
-              thickness={ 5 }
-            />
+            <Loading />
             <p>
               <FormattedMessage
                 id='writeContract.title.solidity'
@@ -496,10 +490,7 @@ class ContractDevelop extends Component {
     if (compiling) {
       return (
         <div className={ styles.centeredMessage }>
-          <Loading
-            size={ 1.2 }
-            thickness={ 5 }
-          />
+          <Loading />
           <p>
             <FormattedMessage
               id='writeContract.compiling.busy'

@@ -17,7 +17,7 @@
 import React, { PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Checkbox } from '~/ui';
+import { Checkbox } from '@parity/ui';
 
 import styles from '../firstRun.css';
 

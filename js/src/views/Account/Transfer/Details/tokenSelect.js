@@ -19,8 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { isEqual } from 'lodash';
 
-import { Dropdown } from '~/ui/Form';
-import TokenImage from '~/ui/TokenImage';
+import { Dropdown, TokenImage } from '@parity/ui';
 
 import styles from '../transfer.css';
 
@@ -55,7 +54,8 @@ class TokenSelect extends Component {
     const { api } = this.context;
     const { balance, tokens } = this.props;
 
-    const items = Object.keys(balance)
+    const items = Object
+      .keys(balance)
       .map((tokenId) => {
         const token = tokens[tokenId];
         const tokenValue = balance[tokenId];
@@ -90,7 +90,7 @@ class TokenSelect extends Component {
 
         return {
           key: tokenId,
-          text: label,
+          text: token.name,
           value: token.id,
           content: label
         };
@@ -123,4 +123,7 @@ function mapStateToProps (state) {
   return { tokens };
 }
 
-export default connect(mapStateToProps)(TokenSelect);
+export default connect(
+  mapStateToProps,
+  null
+)(TokenSelect);

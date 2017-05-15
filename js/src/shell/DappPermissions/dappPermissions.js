@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { AccountCard, Portal, SelectionList } from '~/ui';
+import { AccountCard, Portal, SelectionList } from '@parity/ui';
 
 @observer
 export default class DappPermissions extends Component {

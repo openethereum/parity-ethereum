@@ -44,6 +44,7 @@ const ABI_TYPES = [
       />
     ),
     readOnly: true,
+    key: 'token',
     type: 'token',
     value: JSON.stringify(eip20)
   },
@@ -71,6 +72,7 @@ const ABI_TYPES = [
       />
     ),
     readOnly: true,
+    key: 'multisig',
     type: 'multisig',
     value: JSON.stringify(wallet)
   },
@@ -87,6 +89,7 @@ const ABI_TYPES = [
         defaultMessage='Custom Contract'
       />
     ),
+    key: 'custom',
     type: 'custom',
     value: ''
   }

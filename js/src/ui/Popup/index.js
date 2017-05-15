@@ -14,22 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { PropTypes } from 'react';
-
-import styles from './modalBox.css';
-
-export default function Body ({ children }) {
-  if (!children) {
-    return null;
-  }
-
-  return (
-    <div className={ styles.body }>
-      { children }
-    </div>
-  );
-}
-
-Body.propTypes = {
-  children: PropTypes.node
-};
+export default from './popup';

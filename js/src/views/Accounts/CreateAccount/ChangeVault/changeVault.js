@@ -17,7 +17,7 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 
-import { VaultSelect } from '~/ui';
+import { VaultSelect } from '@parity/ui';
 
 @observer
 export default class ChangeVault extends Component {
