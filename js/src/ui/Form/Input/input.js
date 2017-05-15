@@ -138,7 +138,6 @@ export default class Input extends Component {
       fluid,
       focused,
       hint,
-      input,
       label,
       onClick,
       placeholder,
@@ -147,11 +146,13 @@ export default class Input extends Component {
       type
     } = this.props;
 
-    if (input) {
-      value = input;
+    let { input } = this.props;
+
+    if (value) {
+      input = value;
     }
 
-    const textValue = parseI18NString(this.context, value);
+    const textValue = parseI18NString(this.context, input);
 
     return (
       <div className={ styles.container } style={ style }>
