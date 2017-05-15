@@ -8,6 +8,7 @@ fn_call_style="Visual"
 single_line_if_else_max_width=100
 trailing_comma="Vertical"
 chain_indent="Visual"
+chain_one_line_max=100
 reorder_imports=true
 format_strings=false
 hard_tabs=true
