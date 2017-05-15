@@ -15,42 +15,63 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import moment from 'moment';
-import React, { PropTypes } from 'react';
+import { observer } from 'mobx-react';
+import React, { Component, PropTypes } from 'react';
 
 import Address from '../../ui/address';
 import ApplicationStore from '../../Application/application.store';
 import Hash from '../../ui/hash';
+import LookupStore from '../../Lookup/lookup.store';
 
 import styles from './event.css';
 
 const { api } = ApplicationStore.get();
 
-const Param = ({ data, label }) => {
-  if (!data) {
-    return null;
+@observer
+class Param extends Component {
+  static propTypes = {
+    data: PropTypes.object
+  };
+
+  lookupStore = LookupStore.get();
+
+  render () {
+    const { data } = this.props;
+
+    if (!data) {
+      return null;
+    }
+
+    const { value } = data;
+    const { lookupValue } = this.lookupStore;
+    const hash = value && typeof value.peek === 'function'
+      ? api.util.bytesToHex(value.peek())
+      : value;
+
+    const classes = [ styles.param ];
+
+    if (lookupValue !== hash) {
+      classes.push(styles.clickable);
+    }
+
+    const onClick = () => this.handleHashLookup(hash);
+
+    return (
+      <div
+        className={ classes.join(' ') }
+        onClick={ onClick }
+      >
+        <code>
+          { hash }
+        </code>
+      </div>
+    );
   }
 
-  const { value } = data;
-  const display = value && typeof value.peek === 'function'
-    ? api.util.bytesToHex(value.peek())
-    : value;
-
-  return (
-    <div className={ styles.param }>
-      <span className={ styles.label }>
-        { label }
-      </span>
-      <code>
-        { display }
-      </code>
-    </div>
-  );
-};
-
-Param.propTypes = {
-  label: PropTypes.string.isRequired,
-  data: PropTypes.object
-};
+  handleHashLookup = (hash) => {
+    this.lookupStore.updateInput(hash);
+  };
+}
 
 const Event = ({ event }) => {
   const { state, timestamp, transactionHash, type, parameters, from } = event;
@@ -101,7 +122,6 @@ const Event = ({ event }) => {
         <div className={ styles.params }>
           <Param
             data={ name }
-            label='Name'
           />
         </div>
       </div>

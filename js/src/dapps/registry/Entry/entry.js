@@ -43,7 +43,7 @@ export default class Entry extends Component {
 
   render () {
     const { entry } = this.props;
-    const { owner, address, image, isOwner, content, reversed, reversing } = entry;
+    const { owner, address, image, isOwner, content, reversed, reversing, reversedName } = entry;
 
     return (
       <Card className={ styles.container }>
@@ -70,10 +70,10 @@ export default class Entry extends Component {
                 reversed
                 ? (
                   <div className={ styles.reversed }>
-                    Reversed
+                    Reversed ({ reversedName })
                   </div>
                 )
-                : isOwner && (
+                : isOwner && entry.name && (
                   <RaisedButton
                     className={ styles.reverseButton }
                     disabled={ reversing }

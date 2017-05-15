@@ -28,21 +28,25 @@ export default class Entry {
 
   applicationStore = ApplicationStore.get();
 
+  hash = null;
   isOwner = null;
   name = null;
   owner = null;
   address = null;
   image = null;
   content = null;
+  reversedName = null;
 
-  constructor ({ name, owner, address, image, content, ownerReverseName }) {
+  constructor ({ hash, name, owner, address, image, content, ownerReverseName, reversedName }) {
     const { accounts } = this.applicationStore;
 
+    this.hash = hash;
     this.name = name;
     this.owner = owner;
     this.address = address;
     this.image = image;
     this.content = content;
+    this.reversedName = reversedName;
 
     if (owner) {
       const lcOwner = owner.toLowerCase();
@@ -52,7 +56,7 @@ export default class Entry {
       this.isOwner = isOwner;
     }
 
-    if (ownerReverseName === this.name) {
+    if ((this.name && ownerReverseName === this.name) || this.reversedName) {
       this.reversed = true;
     }
   }
@@ -89,7 +93,7 @@ export default class Entry {
       : contract.instance.setData;
 
     const options = { from: this.owner };
-    const values = [ api.util.sha3.text(this.name.toLowerCase()), key, newValue ];
+    const values = [ this.hash, key, newValue ];
 
     return postTransaction(api, method, options, values);
   }
@@ -99,7 +103,7 @@ export default class Entry {
 
     const method = contract.instance.transfer;
     const options = { from: this.owner };
-    const values = [ api.util.sha3.text(this.name.toLowerCase()), newOwner ];
+    const values = [ this.hash, newOwner ];
 
     return postTransaction(api, method, options, values);
   }

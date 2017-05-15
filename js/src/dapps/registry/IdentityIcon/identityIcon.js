@@ -24,15 +24,17 @@ export default class IdentityIcon extends Component {
     address: PropTypes.string.isRequired,
     big: PropTypes.bool,
     className: PropTypes.string,
+    onClick: PropTypes.func,
     style: PropTypes.object
   };
 
   static defaultProps = {
-    big: false
+    big: false,
+    onClick: () => {}
   };
 
   render () {
-    const { address, big, className, style } = this.props;
+    const { address, big, className, onClick, style } = this.props;
     const size = big
       ? 7
       : 4;
@@ -45,6 +47,7 @@ export default class IdentityIcon extends Component {
     return (
       <img
         className={ classes.join(' ') }
+        onClick={ onClick }
         style={ style }
         src={ api.util.createIdentityImg(address, size) }
       />

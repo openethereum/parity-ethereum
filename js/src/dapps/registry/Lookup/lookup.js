@@ -40,7 +40,7 @@ export default class Lookup extends Component {
           <input
             autoFocus
             className={ styles.input }
-            placeholder='Type a name'
+            placeholder='Type a name, an address or a hash'
             onChange={ this.handleInputChange }
             value={ inputValue }
           />
@@ -77,7 +77,11 @@ export default class Lookup extends Component {
     }
 
     if (result.free) {
-      return this.renderFreeName(result.name);
+      if (result.name) {
+        return this.renderFreeName(result.name);
+      }
+
+      return null;
     }
 
     return (

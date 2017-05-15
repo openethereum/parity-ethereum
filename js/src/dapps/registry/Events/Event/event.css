@@ -48,6 +48,11 @@
   margin-right: 1em;
   max-width: 20em;
 
+  &.clickable {
+    color: rgba(52, 152, 219, 1);
+    cursor: pointer;
+  }
+
   .label {
     font-size: 1.1em;
     margin-bottom: 0.5em;

@@ -19,7 +19,7 @@ import { action, observable } from 'mobx';
 import ApplicationStore from '../Application/application.store';
 import EntryStore from '../Entry/entry.store';
 
-import { getInfo, isOwned } from '../util/registry';
+import { checkOwnerReverse, getInfo, isOwned } from '../util/registry';
 import { postTransaction } from '../util/transactions';
 
 let instance;
@@ -27,11 +27,11 @@ let instance;
 export default class LookupStore {
   @observable inputValue = '';
   @observable loading = false;
+  @observable lookupValue = '';
   @observable result = null;
   @observable reserving = null;
 
   applicationStore = ApplicationStore.get();
-  lookupValue = '';
 
   static get () {
     if (!instance) {
@@ -64,7 +64,8 @@ export default class LookupStore {
           .then((data) => {
             return new EntryStore({
               ...data,
-              name
+              name,
+              hash
             });
           });
       })
@@ -89,11 +90,11 @@ export default class LookupStore {
   }
 
   refresh () {
-    if (!this.result || !this.result.name) {
+    if (!this.result || !this.result.hash) {
       return;
     }
 
-    return this.lookupByName(this.result.name);
+    return this.lookup(this.result.hash, this.result.name);
   }
 
   register () {
@@ -137,11 +138,37 @@ export default class LookupStore {
   }
 
   @action
+  setLookupValue (value) {
+    this.lookupValue = value;
+  }
+
+  @action
   updateInput (value) {
-    const { api } = this.applicationStore;
+    const { api, contract } = this.applicationStore;
 
     this.inputValue = value;
-    this.lookupValue = api.util.sha3.text(value.toLowerCase());
+
+    // The input is a Registry ID (32 bytes hash)
+    if (/^0x[a-f0-9]{64}$/i.test(value)) {
+      this.setLookupValue(value);
+      return this.lookup(value);
+    }
+
+    // The input is an address
+    if (/^0x[a-f0-9]{40}$/i.test(value)) {
+      return checkOwnerReverse(contract, value)
+        .then((ownerReverseName) => {
+          if (!ownerReverseName) {
+            this.setLookupValue(api.util.sha3.text(value.toLowerCase()));
+            return this.lookupByName(value);
+          }
+
+          this.setLookupValue(api.util.sha3.text(ownerReverseName.toLowerCase()));
+          return this.lookupByName(ownerReverseName);
+        });
+    }
+
+    this.setLookupValue(api.util.sha3.text(value.toLowerCase()));
     this.lookupByName(value);
   }
 }

@@ -14,6 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+export function getReverseName (contract, hash) {
+  return contract.instance.hasReverse
+    .call({}, [ hash ])
+    .then((hasReverse) => {
+      if (!hasReverse) {
+        return null;
+      }
+
+      return contract.instance.getReverse
+        .call({}, [ hash ])
+        .then((address) => {
+          return contract.instance.reverse.call({}, [ address ]);
+        });
+    });
+}
+
 export function checkOwnerReverse (contract, owner) {
   return contract.instance.canReverse
     .call({}, [ owner ])
@@ -54,26 +70,29 @@ export function reverse (contract, address) {
     .call({}, [ address ]);
 }
 
-export function getInfo (contract, name) {
-  const ownerPromise = getOwner(contract, name);
-  const addressPromise = getMetadata(contract, name, 'A');
-  const contentPromise = getMetadata(contract, name, 'CONTENT');
-  const imagePromise = getMetadata(contract, name, 'IMG');
+export function getInfo (contract, hash) {
+  const ownerPromise = getOwner(contract, hash);
+  const reverseNamePromise = getReverseName(contract, hash);
+  const addressPromise = getMetadata(contract, hash, 'A');
+  const contentPromise = getMetadata(contract, hash, 'CONTENT');
+  const imagePromise = getMetadata(contract, hash, 'IMG');
 
   return Promise
     .all([
       ownerPromise,
       addressPromise,
       contentPromise,
-      imagePromise
+      imagePromise,
+      reverseNamePromise
     ])
-    .then(([ owner, address, content, image ]) => {
+    .then(([ owner, address, content, image, reversedName ]) => {
       const result = {
         owner,
         address,
         content,
         image,
-        name
+        hash,
+        reversedName
       };
 
       return checkOwnerReverse(contract, owner)

@@ -17,6 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import ApplicationStore from '../Application/application.store';
+import LookupStore from '../Lookup/lookup.store';
 import Hash from './hash';
 import etherscanUrl from '../util/etherscan-url';
 import IdentityIcon from '../IdentityIcon';
@@ -39,6 +40,7 @@ export default class Address extends Component {
   };
 
   applicationStore = ApplicationStore.get();
+  lookupStore = LookupStore.get();
 
   state = {
     account: null
@@ -71,6 +73,7 @@ export default class Address extends Component {
           address={ address }
           big={ big }
           className={ [ styles.icon, styles.align ].join(' ') }
+          onClick={ this.handleClick }
         />
         { this.renderCaption() }
       </div>
@@ -78,25 +81,20 @@ export default class Address extends Component {
   }
 
   renderCaption () {
-    const { netVersion } = this.applicationStore;
     const { address, shortenHash } = this.props;
 
     if (this.state.account) {
       const { name } = this.state.account;
 
       return (
-        <a
-          className={ styles.link }
-          href={ etherscanUrl(address, false, netVersion) }
-          target='_blank'
-        >
+        <div>
           <abbr
             title={ address }
             className={ [ styles.address, styles.align ].join(' ') }
           >
             { name || address }
           </abbr>
-        </a>
+        </div>
       );
     }
 
@@ -105,7 +103,6 @@ export default class Address extends Component {
         { shortenHash ? (
           <Hash
             hash={ address }
-            linked
           />
         ) : address }
       </code>
@@ -119,4 +116,8 @@ export default class Address extends Component {
 
     this.setState({ account });
   }
+
+  handleClick = () => {
+    this.lookupStore.updateInput(this.props.address);
+  };
 }
