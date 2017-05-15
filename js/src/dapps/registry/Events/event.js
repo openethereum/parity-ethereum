@@ -47,6 +47,11 @@ const Param = ({ data, label }) => {
   );
 };
 
+Param.propTypes = {
+  label: PropTypes.string.isRequired,
+  data: PropTypes.object
+};
+
 const Event = ({ event }) => {
   const { state, timestamp, transactionHash, type, parameters, from } = event;
   const isPending = state === 'pending';

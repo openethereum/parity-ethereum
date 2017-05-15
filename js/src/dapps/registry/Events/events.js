@@ -26,7 +26,7 @@ import styles from './events.css';
 
 const TITLE_STYLE = {
   fontSize: '2em'
-}
+};
 
 const inlineButton = {
   display: 'inline-block',
