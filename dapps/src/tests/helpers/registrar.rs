@@ -64,9 +64,10 @@ impl ContractClient for FakeRegistrar {
 		Ok(REGISTRAR.parse().unwrap())
 	}
 
-	fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
+	fn call(&self, address: Address, data: Bytes) -> ::futures::BoxFuture<Bytes, String> {
 		let call = (address.to_hex(), data.to_hex());
 		self.calls.lock().push(call.clone());
-		self.responses.lock().get(&call).cloned().expect(&format!("No response for call: {:?}", call))
+		let res = self.responses.lock().get(&call).cloned().expect(&format!("No response for call: {:?}", call));
+		Box::new(::futures::future::done(res))
 	}
 }
