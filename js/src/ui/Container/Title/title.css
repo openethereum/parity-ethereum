@@ -21,6 +21,15 @@ $bylineMaxHeight: 2.4rem;
 $titleLineHeight: 2rem;
 $smallFontSize: 0.75rem;
 
+.container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.actions {
+}
+
 .byline,
 .description {
   color: $bylineColor;

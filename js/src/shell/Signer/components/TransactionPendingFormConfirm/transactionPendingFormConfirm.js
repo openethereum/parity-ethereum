@@ -22,7 +22,7 @@ import ReactTooltip from 'react-tooltip';
 
 import { Button, Form, Input, IdentityIcon, QrCode, QrScan } from '@parity/ui';
 
-import { generateTxQr, generateDataQr } from '~/shell/Signer/utils/qrscan';
+import { generateTxQr, generateDecryptQr, generateDataQr } from '~/shell/Signer/utils/qrscan';
 
 import styles from './transactionPendingFormConfirm.css';
 
@@ -344,7 +344,7 @@ export default class TransactionPendingFormConfirm extends Component {
     return (
       <QrScan
         className={ styles.camera }
-        onScan={ this.onScanTx }
+        onScan={ this.onScan }
       />
     );
   }
@@ -396,8 +396,8 @@ export default class TransactionPendingFormConfirm extends Component {
     );
   }
 
-  onScanTx = (signature) => {
-    const { chainId, rlp, tx, data } = this.state.qr;
+  onScan = (signature) => {
+    const { chainId, rlp, tx, data, decrypt } = this.state.qr;
 
     if (signature && signature.substr(0, 2) !== '0x') {
       signature = `0x${signature}`;
@@ -412,6 +412,16 @@ export default class TransactionPendingFormConfirm extends Component {
           rlp,
           signature,
           tx
+        }
+      });
+      return;
+    }
+
+    if (decrypt) {
+      this.props.onConfirm({
+        decrypted: {
+          decrypt,
+          msg: signature
         }
       });
       return;
@@ -491,13 +501,18 @@ export default class TransactionPendingFormConfirm extends Component {
   generateQr = () => {
     const { api } = this.context;
     const { netVersion, dataToSign } = this.props;
-    const { transaction, data } = dataToSign;
+    const { transaction, data, decrypt } = dataToSign;
     const setState = qr => {
       this.setState({ qr });
     };
 
     if (transaction) {
       generateTxQr(api, netVersion, transaction).then(setState);
+      return;
+    }
+
+    if (decrypt) {
+      generateDecryptQr(decrypt).then(setState);
       return;
     }
 
@@ -539,7 +554,7 @@ export default class TransactionPendingFormConfirm extends Component {
     const { account, dataToSign } = this.props;
     const { qr } = this.state;
 
-    if (dataToSign.data && qr && !qr.value) {
+    if ((dataToSign.data || dataToSign.decrypt) && qr && !qr.value) {
       this.generateQr();
       return;
     }
