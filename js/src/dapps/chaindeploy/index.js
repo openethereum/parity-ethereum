@@ -14,20 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import ReactDOM from 'react-dom';
+import React from 'react';
 
-import styles from './formWrap.css';
+import Application from './Application';
 
-export default class FormWrap extends Component {
-  static propTypes = {
-    children: PropTypes.node
-  }
+import '@parity/shared/assets/fonts/Roboto/font.css';
+import '@parity/shared/assets/fonts/RobotoMono/font.css';
+import '../style.css';
 
-  render () {
-    return (
-      <div className={ styles.stretch }>
-        { this.props.children }
-      </div>
-    );
-  }
-}
+ReactDOM.render(
+  <Application />,
+  document.querySelector('#container')
+);

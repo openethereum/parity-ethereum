@@ -14,50 +14,46 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 import { connect } from 'react-redux';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
 import AddressSelect from '../AddressSelect';
 
-class InputAddressSelect extends Component {
-  static propTypes = {
-    accounts: PropTypes.object.isRequired,
-    contacts: PropTypes.object.isRequired,
-    contracts: PropTypes.object.isRequired,
-
-    allowCopy: PropTypes.bool,
-    className: PropTypes.string,
-    error: nodeOrStringProptype(),
-    hint: nodeOrStringProptype(),
-    label: nodeOrStringProptype(),
-    onChange: PropTypes.func,
-    readOnly: PropTypes.bool,
-    value: PropTypes.string
-  };
-
-  render () {
-    const { accounts, allowCopy, className, contacts, contracts, label, hint, error, value, onChange, readOnly } = this.props;
-
-    return (
-      <AddressSelect
-        allowCopy={ allowCopy }
-        allowInput
-        accounts={ accounts }
-        className={ className }
-        contacts={ contacts }
-        contracts={ contracts }
-        error={ error }
-        hint={ hint }
-        label={ label }
-        onChange={ onChange }
-        readOnly={ readOnly }
-        value={ value }
-      />
-    );
-  }
+function InputAddressSelect ({ accounts, allowCopy, className, contacts, contracts, label, hint, error, value, onChange, readOnly }) {
+  return (
+    <AddressSelect
+      allowCopy={ allowCopy }
+      allowInput
+      accounts={ accounts }
+      className={ className }
+      contacts={ contacts }
+      contracts={ contracts }
+      error={ error }
+      hint={ hint }
+      label={ label }
+      onChange={ onChange }
+      readOnly={ readOnly }
+      value={ value }
+    />
+  );
 }
+
+InputAddressSelect.propTypes = {
+  accounts: PropTypes.object.isRequired,
+  contacts: PropTypes.object.isRequired,
+  contracts: PropTypes.object.isRequired,
+
+  allowCopy: PropTypes.bool,
+  className: PropTypes.string,
+  error: nodeOrStringProptype(),
+  hint: nodeOrStringProptype(),
+  label: nodeOrStringProptype(),
+  onChange: PropTypes.func,
+  readOnly: PropTypes.bool,
+  value: PropTypes.string
+};
 
 function mapStateToProps (state) {
   const { accounts, contacts, contracts } = state.personal;

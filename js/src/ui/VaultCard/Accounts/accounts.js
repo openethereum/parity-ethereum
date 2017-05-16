@@ -41,20 +41,18 @@ export default function Accounts ({ accounts, hideAccounts }) {
   return (
     <div className={ styles.accounts }>
       {
-        accounts.map((address) => {
-          return (
-            <DappLink
-              key={ address }
-              to={ `/accounts/${address}` }
-            >
-              <IdentityIcon
-                address={ address }
-                center
-                className={ styles.account }
-              />
-            </DappLink>
-          );
-        })
+        accounts.map((address) => (
+          <DappLink
+            key={ address }
+            to={ `/accounts/${address}` }
+          >
+            <IdentityIcon
+              address={ address }
+              center
+              className={ styles.account }
+            />
+          </DappLink>
+        ))
       }
     </div>
   );

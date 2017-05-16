@@ -28,7 +28,7 @@ import { fetchCertifiers, fetchCertifications } from '@parity/shared/redux/provi
 import { Actionbar, Button, ConfirmDialog, Input, Page, Portal } from '@parity/ui';
 import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon, FileDownloadIcon } from '@parity/ui/Icons';
 
-import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
+import shapeshiftBtn from '@parity/shared/assets/images/shapeshift-btn.png';
 
 import DeleteAccount from './DeleteAccount';
 import EditMeta from './EditMeta';

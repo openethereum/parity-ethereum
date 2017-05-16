@@ -20,7 +20,7 @@ import { FormattedMessage } from 'react-intl';
 import { Page, Tabs } from '@parity/ui';
 import { BackgroundIcon, EthernetIcon, VisibleIcon } from '@parity/ui/Icons';
 
-import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
+import imagesEthcoreBlock from '@parity/shared/assets/images/parity-logo-white-no-text.svg';
 
 import styles from './settings.css';
 

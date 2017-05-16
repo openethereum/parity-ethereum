@@ -21,7 +21,7 @@ import { FormattedMessage } from 'react-intl';
 import { Button, IdentityIcon, Portal } from '@parity/ui';
 import { CancelIcon, DoneIcon } from '@parity/ui/Icons';
 
-import shapeshiftLogo from '~/../assets/images/shapeshift-logo.png';
+import shapeshiftLogo from '@parity/shared/assets/images/shapeshift-logo.png';
 
 import AwaitingDepositStep from './AwaitingDepositStep';
 import AwaitingExchangeStep from './AwaitingExchangeStep';

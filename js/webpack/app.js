@@ -39,7 +39,7 @@ const DAPPS_VIEWS = require('../src/shared/config/dappsViews.json').map((dapp) =
   return dapp;
 });
 
-const FAVICON = path.resolve(__dirname, '../assets/images/parity-logo-black-no-text.png');
+const FAVICON = path.resolve(__dirname, '../src/shared/assets/images/parity-logo-black-no-text.png');
 
 const DEST = process.env.BUILD_DEST || '.build';
 const ENV = process.env.NODE_ENV || 'development';

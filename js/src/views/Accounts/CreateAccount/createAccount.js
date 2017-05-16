@@ -25,7 +25,7 @@ import { newError } from '@parity/shared/redux/actions';
 import { Button, ModalBox, Portal } from '@parity/ui';
 import { CancelIcon, CheckIcon, DoneIcon, NextIcon, PrevIcon, PrintIcon } from '@parity/ui/Icons';
 
-import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
+import ParityLogo from '@parity/shared/assets/images/parity-logo-black-no-text.svg';
 import VaultStore from '~/views/Vaults/store';
 
 import AccountDetails from './AccountDetails';

@@ -22,14 +22,14 @@ import { AppContainer } from 'react-hot-loader';
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
 
-import Deploy from './tokendeploy/Deploy';
-import Application from './tokendeploy/Application';
-import Overview from './tokendeploy/Overview';
-import Transfer from './tokendeploy/Transfer';
+import Deploy from './Deploy';
+import Application from './Application';
+import Overview from './Overview';
+import Transfer from './Transfer';
 
-import '../../assets/fonts/Roboto/font.css';
-import '../../assets/fonts/RobotoMono/font.css';
-import './style.css';
+import '@parity/shared/assets/fonts/Roboto/font.css';
+import '@parity/shared/assets/fonts/RobotoMono/font.css';
+import '../style.css';
 
 ReactDOM.render(
   <AppContainer>
@@ -46,10 +46,10 @@ ReactDOM.render(
 );
 
 if (module.hot) {
-  module.hot.accept('./tokendeploy/Application/index.js', () => {
-    require('./tokendeploy/Application/index.js');
-    require('./tokendeploy/Overview/index.js');
-    require('./tokendeploy/Transfer/index.js');
+  module.hot.accept('./Application/index.js', () => {
+    require('./Application/index.js');
+    require('./Overview/index.js');
+    require('./Transfer/index.js');
 
     ReactDOM.render(
       <AppContainer>

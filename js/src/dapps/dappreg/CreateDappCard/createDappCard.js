@@ -20,7 +20,7 @@ import DappsStore from '../dappsStore';
 import Card from '../Card';
 import ModalRegister from '../ModalRegister';
 
-import PlusImage from '~/../assets/images/dapps/plus.svg';
+import PlusImage from '@parity/shared/assets/images/dapps/plus.svg';
 
 export default class CreateDappCard extends Component {
   state = {

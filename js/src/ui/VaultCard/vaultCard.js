@@ -31,14 +31,12 @@ export default function VaultCard ({ accounts, buttons, children, hideAccounts, 
     <Container
       className={ styles.container }
       hover={
-        isOpen
-          ? (
-            <Accounts
-              accounts={ accounts }
-              hideAccounts={ hideAccounts }
-            />
-          )
-          : null
+        isOpen && (
+          <Accounts
+            accounts={ accounts }
+            hideAccounts={ hideAccounts }
+          />
+        )
       }
     >
       <Buttons
