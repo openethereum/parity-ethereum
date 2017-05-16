@@ -24,7 +24,6 @@ injectTapEventPlugin();
 import ContractInstances from '@parity/shared/contracts';
 import { initStore } from '@parity/shared/redux';
 import ContextProvider from '@parity/ui/ContextProvider';
-import muiTheme from '@parity/ui/Theme';
 
 import { api } from './parity';
 import Contracts from './contracts';
@@ -34,7 +33,7 @@ ContractInstances.get(api);
 const store = initStore(api, hashHistory);
 
 ReactDOM.render(
-  <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
+  <ContextProvider api={ api } store={ store }>
     <Router history={ hashHistory }>
       <Route path='/' component={ Contracts } />
     </Router>
