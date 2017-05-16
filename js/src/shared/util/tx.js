@@ -16,6 +16,38 @@
 
 import WalletsUtils from './wallets';
 
+/**
+ * The sender is by default (when the UI loads) the
+ * default dapp address. It can then be modified when
+ * sending transactions....
+ */
+let currentSender = '';
+let hasCurrentSenderChanged = false;
+
+export function getSender () {
+  currentSender;
+}
+
+export function loadSender (api) {
+  // If the current sender has been changed
+  // then don't bother checking changes of the
+  // default sender
+  if (hasCurrentSenderChanged) {
+    return Promise.resolve(currentSender);
+  }
+
+  return api.parity.getNewDappsDefaultAddress()
+    .then((defaultAccount) => {
+      currentSender = defaultAccount;
+      return defaultAccount;
+    });
+}
+
+export function setSender (sender) {
+  currentSender = sender;
+  hasCurrentSenderChanged = true;
+}
+
 export function trackRequest (api, options, statusCallback) {
   const { requestId, transactionHash } = options;
   const txHashPromise = transactionHash
