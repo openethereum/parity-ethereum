@@ -22,6 +22,7 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethkey;
 use futures::{future, BoxFuture, Future, IntoFuture};
+use parity_reactor::Remote;
 use rlp::UntrustedRlp;
 use util::Mutex;
 
@@ -49,19 +50,21 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		store: &Option<Arc<AccountProvider>>,
 		dispatcher: D,
 		signer: &Arc<SignerService>,
+		remote: Remote,
 	) -> Self {
 		let subscribers = Arc::new(Mutex::new(Subscribers::default()));
 		let subs = Arc::downgrade(&subscribers);
 		let s = Arc::downgrade(signer);
 		signer.queue().on_event(move |_event| {
 			if let (Some(s), Some(subs)) = (s.upgrade(), subs.upgrade()) {
+				let requests = s.requests().into_iter().map(Into::into).collect::<Vec<ConfirmationRequest>>();
 				for subscription in subs.lock().values() {
 					let subscription: &Sink<_> = subscription;
-					let _ = subscription.notify(s.requests()
-					   .into_iter()
-					   .map(Into::into)
-					   .collect()
-					).wait();
+					remote.spawn(subscription
+						.notify(requests.clone())
+						.map(|_| ())
+						.map_err(|e| warn!(target: "rpc", "Unable to send notification: {}", e))
+					);
 				}
 			}
 		});
