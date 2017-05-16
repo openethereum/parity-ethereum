@@ -1,0 +1,199 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.FullApp {
+  text-align: center;
+}
+
+.topMargin {
+  margin-top: 55px;
+}
+
+#appIcon {
+  margin-top: 25px;
+}
+
+#appIcon svg {
+  width: 128px;
+  height: 128px;
+}
+
+#appContentContainer {
+  margin-top: 55px;
+  padding-left: 20px;
+  text-align: left;
+  user-select: none;
+}
+
+#appInformationContainer {
+  margin-top: 55px;
+  padding-right: 20px;
+}
+
+#appHeader {
+  font-size: 22px;
+  user-select: none;
+  pointer-events: none;
+}
+
+#appContent {
+  font-size: 16px;
+  margin-top: 15px;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  height: 100px;
+  overflow: auto;
+}
+
+#readMoreLess {
+  text-align: center;
+  cursor: pointer;
+  padding-top: 10px;
+}
+
+.rightSideBorder {
+  border-top: solid;
+  border-width: 1px;
+  border-color: #b9b4b2;
+  margin-right: 30px;
+  user-select: none;
+}
+
+.rightSideBorderTopMargin {
+  border-top: solid;
+  border-width: 1px;
+  border-color: #b9b4b2;
+  margin-right: 30px;
+  margin-top: 55px;
+  user-select: none;
+}
+
+.rightSideHeader {
+  font-size: 22px;
+  pointer-events: none;
+  text-align: left;
+  width: 100px;
+  margin-top: -17px;
+  margin-left: 25px;
+  width: 120px;
+  padding-left: 4px;
+  background-color: #ededed;
+  user-select: none;
+}
+
+.informationText {
+  padding: 3px 0;
+  width: 250px;
+  user-select: none;
+}
+
+.informationContent {
+  text-align: left;
+  pointer-events: none;
+  font-size: 14px;
+  user-select: none;
+}
+
+#photoContainer {
+  margin: 55px auto;
+  user-select: none;
+}
+
+#photoSizedContainer {
+  position: relative;
+  margin: 0px auto;
+  padding-bottom: 75px;
+  width: 650px;
+  height: 500px;
+  border: 1px solid rgba(0,0,0,0.2);
+  border-radius: 20px;
+  background-color: #e5e5e5;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#photoLg {
+  width: 600px;
+  height: 375px;
+}
+
+#photoLg img {
+  width: 600px;
+  height: 375px;
+  border-radius: 10px;
+}
+
+#photoGallery {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 75px;
+  border-top: 1px solid rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+.photos {
+  position: relative;
+  height: 50px;
+  width: 75px;
+  margin: 0 15px;
+}
+
+.photoBorder {
+  height: 100%;
+  width: 1px;
+  border-right: 1px solid rgba(0,0,0,0.2);
+}
+
+.photos img {
+  height: 50px;
+  width: 75px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+#author {
+  width: 218px;
+}
+
+.miniApp {
+  position: relative;
+  width: 100%;
+  height: 50px;
+  margin: 10px 0;
+}
+
+.miniApp svg {
+  width: 50px;
+  height: 50px;
+}
+
+.miniAppName {
+  position: absolute;
+  left: 60px;
+  top: 5px;
+}
+
+.miniAppCatagory {
+  position: absolute;
+  left: 60px;
+  bottom: 5px;
+}

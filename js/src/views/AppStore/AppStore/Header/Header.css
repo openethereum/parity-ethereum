@@ -1,0 +1,65 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.Header {
+  position: relative;
+  font-size: 35px;
+  color: #f7f7f5;
+  height: 80px;
+  line-height: 80px;
+  background: url('../../Assets/linen-app-store.png');
+  background-repeat: repeat-x;
+  border-bottom-right-radius: 7px;
+  border-bottom-left-radius: 7px;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  box-shadow: 0px -3px 68px 0px rgba(0,0,0,0.75);
+}
+
+
+/* Header Lights */
+
+
+.HeaderLights {
+  position: relative;
+  height: 40px;
+  width: 100vw;
+  display: flex;
+  justify-content: space-around;
+}
+
+.lightContainer {
+  position: relative;
+  margin-top: 3px;
+  width: 200px;
+  height: 50px;
+  overflow: hidden;
+  /*z-index: 1000;*/
+}
+
+.lightBulb {
+  width: 200px;
+  height: 50px;
+  background: url('../../Assets/light-bulb.png');
+}
+
+#headersearch {
+  position: absolute;
+  right: 26px;
+  top: 26px;
+}

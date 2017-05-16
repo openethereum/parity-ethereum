@@ -1,0 +1,100 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.Switch {
+  position: relative;
+  margin: 15px auto;
+  background: linear-gradient(to bottom, #ffffff 0%,#f4f4f4 100%);
+  width: 85px;
+  height: 35px;
+  border-radius: 35px;
+  box-shadow: inset 2px 3px 30px -17px rgba(0,0,0,0.75);
+  border: 1px solid rgba(0,0,0,0.07);
+}
+
+.switchBodyButton {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 135px;
+  height: 35px;
+  transition: transform 600ms ease;
+}
+
+.switchBody {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 82.5px;
+  height: 35px;
+  border-radius: 35px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+#switchButton {
+  position: absolute;
+  left: 49px;
+  top: -1px;
+  width: 35px;
+  height: 35px;
+  border-radius: 100%;
+  background: linear-gradient(to bottom, #ffffff 0%,#f0f0f0 100%);
+  border: 1px solid rgba(230,230,230,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0px 6px 25px -10px rgba(0,0,0,0.75);
+  z-index: 100;
+}
+
+#switchCenterButton {
+  width: 15px;
+  height: 15px;
+  border-radius: 100%;
+  background: linear-gradient(to bottom, #f1f1f1 0%,#ffffff 100%);
+}
+
+#clicker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 135px;
+  height: 35px;
+  transition: transform 600ms ease;
+}
+
+#switchLight {
+  position: absolute;
+  left: 11px;
+  top: 10.5px;
+  width: 12px;
+  height: 12.5px;
+  border-radius: 100%;
+  background: linear-gradient(to bottom, #95b4f4 0%,#688fed 100%);
+  box-shadow: 0px 0px 5px 0px rgba(74,113,231,0.35);
+}
+
+#switchRightButton {
+  position: absolute;
+  left: 105px;
+  top: 10.5px;
+  width: 12px;
+  height: 12.5px;
+  border-radius: 100%;
+  background: linear-gradient(to bottom, #ededed 0%,#ffffff 80%);
+}

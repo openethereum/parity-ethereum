@@ -46,6 +46,17 @@
     "noselect": true
   },
   {
+    "id": "store",
+    "url": "store",
+    "src": "AppStore",
+    "name": "App Store",
+    "description": "Search for the app you desire",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "0.1.0",
+    "visible": true,
+    "secure": true
+  },
+  {
     "id": "contracts",
     "url": "contracts",
     "src": "Contracts",
