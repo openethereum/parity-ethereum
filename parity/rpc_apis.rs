@@ -18,7 +18,7 @@ use std::cmp::PartialEq;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 pub use parity_rpc::SignerService;
 
@@ -361,6 +361,7 @@ pub struct LightDependencies {
 	pub dapps_port: Option<u16>,
 	pub fetch: FetchClient,
 	pub geth_compatibility: bool,
+	pub remote: parity_reactor::Remote,
 }
 
 impl Dependencies for LightDependencies {
@@ -419,7 +420,11 @@ impl Dependencies for LightDependencies {
 					add_signing_methods!(EthSigning, handler, self);
 				},
 				Api::EthPubSub => {
-					// TODO [ToDr] Light client pubsub?
+					let client = EthPubSubClient::new(self.client.clone(), self.remote.clone());
+					self.client.add_listener(
+						Arc::downgrade(&client.handler()) as Weak<::light::client::LightChainNotify>
+					);
+					handler.extend_with(EthPubSub::to_delegate(client));
 				},
 				Api::Personal => {
 					let secret_store = Some(self.secret_store.clone());

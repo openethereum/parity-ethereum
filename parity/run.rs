@@ -293,6 +293,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		},
 		fetch: fetch,
 		geth_compatibility: cmd.geth_compatibility,
+		remote: event_loop.remote(),
 	});
 
 	let dependencies = rpc::Dependencies {

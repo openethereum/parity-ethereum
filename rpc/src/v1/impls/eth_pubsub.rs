@@ -17,6 +17,7 @@
 //! Eth PUB-SUB rpc implementation.
 
 use std::sync::Arc;
+use std::collections::BTreeMap;
 
 use futures::{self, BoxFuture, Future};
 use jsonrpc_core::Error;
@@ -29,7 +30,9 @@ use v1::metadata::Metadata;
 use v1::traits::EthPubSub;
 use v1::types::{pubsub, RichHeader};
 
+use ethcore::encoded;
 use ethcore::client::{BlockChainClient, ChainNotify, BlockId};
+use light::client::{LightChainClient, LightChainNotify};
 use parity_reactor::Remote;
 use util::{Mutex, H256, Bytes};
 
@@ -66,6 +69,38 @@ pub struct ChainNotificationHandler<C> {
 	heads_subscribers: Arc<Mutex<Subscribers<Sink<pubsub::Result>>>>,
 }
 
+impl<C> ChainNotificationHandler<C> {
+	fn notify(&self, blocks: Vec<(encoded::Header, BTreeMap<String, String>)>) {
+		for subscriber in self.heads_subscribers.lock().values() {
+			for &(ref block, ref extra_info) in &blocks {
+				self.remote.spawn(subscriber
+					.notify(pubsub::Result::Header(RichHeader {
+						inner: block.into(),
+						extra_info: extra_info.clone(),
+					}))
+					.map(|_| ())
+					.map_err(|e| warn!(target: "rpc", "Unable to send notification: {}", e))
+				);
+			}
+		}
+	}
+}
+
+impl<C: LightChainClient> LightChainNotify for ChainNotificationHandler<C> {
+	fn new_headers(
+		&self,
+		headers: &[H256],
+	) {
+		let blocks = headers
+			.iter()
+			.filter_map(|hash| self.client.block_header(BlockId::Hash(*hash)))
+			.map(|header| (header, Default::default()))
+			.collect();
+
+		self.notify(blocks);
+	}
+}
+
 impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 	fn new_blocks(
 		&self,
@@ -86,19 +121,8 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 				let hash = header.hash();
 				(header, self.client.block_extra_info(BlockId::Hash(hash)).expect(EXTRA_INFO_PROOF))
 			})
-			.collect::<Vec<_>>();
-		for subscriber in self.heads_subscribers.lock().values() {
-			for &(ref block, ref extra_info) in &blocks {
-				self.remote.spawn(subscriber
-					.notify(pubsub::Result::Header(RichHeader {
-						inner: block.into(),
-						extra_info: extra_info.clone(),
-					}))
-					.map(|_| ())
-					.map_err(|e| warn!(target: "rpc", "Unable to send notification: {}", e))
-				);
-			}
-		}
+			.collect();
+		self.notify(blocks);
 	}
 }
 
