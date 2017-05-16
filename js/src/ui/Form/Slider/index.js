@@ -14,8 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-module.exports = {
-  test: /\.js$/,
-  include: /node_modules\/(get-own-enumerable-property-symbols|ethereumjs-tx|stringify-object)/,
-  use: 'babel-loader'
-};
+export default from './slider';

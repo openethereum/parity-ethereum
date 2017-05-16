@@ -15,12 +15,6 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.chip {
-  & > svg {
-    width: 1rem !important;
-    height: 1rem !important;
-    margin: initial !important;
-    margin-right: 4px !important;
-    padding: 2px 0 !important;
-  }
+.slider {
+  width: 100%;
 }

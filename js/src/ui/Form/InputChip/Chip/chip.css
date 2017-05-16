@@ -15,15 +15,35 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
-}
+$bgNormal: rgba(50, 50, 50, 0.7);
+$bgFocus: rgba(50, 50, 200, 0.7);
+$bgDisabled: rgba(150, 150, 150, 0.7);
 
-.copy {
-  margin-right: 0.5em;
-}
+.chip {
+  background: $bgNormal;
+  border-radius: 1em;
+  color: white;
+  cursor: pointer;
+  display: inline-block;
+  margin: 0.5em 0.25em 0 0;
+  padding: 0.125em 0.25em;
 
-.input {
-  input[readonly] {
-    cursor: text;
+  &.disabled {
+    background: $bgDisabled;
+  }
+
+  &.focus {
+    background: $bgFocus;
+  }
+
+  .label {
+    display: inline-block;
+    padding: 0 1em;
+    font-size: 0.75em;
+  }
+
+  .delete {
+    border-radius: 1em;
+    font-size: 0.75em;
   }
 }

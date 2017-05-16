@@ -15,35 +15,17 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { TextField } from 'material-ui';
 import { noop } from 'lodash';
 import keycode from 'keycode';
+import { Input as SemanticInput } from 'semantic-ui-react';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 import { parseI18NString } from '@parity/shared/util/messages';
 
 import CopyToClipboard from '~/ui/CopyToClipboard';
+import LabelComponent from '~/ui/Form/LabelComponent';
 
 import styles from './input.css';
-
-// TODO: duplicated in Select
-const UNDERLINE_DISABLED = {
-  borderBottom: 'dotted 2px',
-  borderColor: 'rgba(255, 255, 255, 0.125)' // 'transparent' // 'rgba(255, 255, 255, 0.298039)'
-};
-
-const UNDERLINE_READONLY = {
-  ...UNDERLINE_DISABLED,
-  cursor: 'text'
-};
-
-const UNDERLINE_NORMAL = {
-  borderBottom: 'solid 2px'
-};
-
-const UNDERLINE_FOCUSED = {
-  transform: 'scaleX(1.0)'
-};
 
 const NAME_ID = ' ';
 
@@ -54,8 +36,8 @@ export default class Input extends Component {
 
   static propTypes = {
     allowCopy: PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.bool
+      PropTypes.bool,
+      PropTypes.string
     ]),
     autoFocus: PropTypes.bool,
     children: PropTypes.node,
@@ -70,11 +52,9 @@ export default class Input extends Component {
     focused: PropTypes.bool,
     readOnly: PropTypes.bool,
     hint: nodeOrStringProptype(),
-    hideUnderline: PropTypes.bool,
     label: nodeOrStringProptype(),
     max: PropTypes.any,
     min: PropTypes.any,
-    multiLine: PropTypes.bool,
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
     onClick: PropTypes.func,
@@ -82,12 +62,11 @@ export default class Input extends Component {
     onFocus: PropTypes.func,
     onKeyDown: PropTypes.func,
     onSubmit: PropTypes.func,
-    rows: PropTypes.number,
-    tabIndex: PropTypes.number,
-    type: PropTypes.string,
     submitOnBlur: PropTypes.bool,
     step: PropTypes.number,
     style: PropTypes.object,
+    tabIndex: PropTypes.number,
+    type: PropTypes.string,
     value: PropTypes.oneOfType([
       PropTypes.number,
       PropTypes.string,
@@ -98,13 +77,13 @@ export default class Input extends Component {
   static defaultProps = {
     allowCopy: false,
     escape: 'initial',
-    hideUnderline: false,
     onBlur: noop,
     onFocus: noop,
     onChange: noop,
     readOnly: false,
     submitOnBlur: true,
-    style: {}
+    style: {},
+    type: 'text'
   }
 
   state = {
@@ -127,49 +106,25 @@ export default class Input extends Component {
     }
   }
 
+  // TODO: autoFocus not being used (yet)
+  // TODO: multiLine not part of the implementation (need TextArea input)
   render () {
+    const { children, className, defaultValue, disabled, error, hint, label, max, min, onClick, readOnly, step, style, tabIndex, type } = this.props;
     const { value } = this.state;
-    const { autoFocus, children, className, defaultValue, hideUnderline, disabled, error } = this.props;
-    const { focused, label, hint, onClick, multiLine, rows, type, min, max, step, style, tabIndex } = this.props;
-
-    const readOnly = this.props.readOnly || disabled;
-
-    const inputStyle = { overflow: 'hidden' };
-    const textFieldStyle = {};
-
-    if (readOnly) {
-      inputStyle.cursor = 'text';
-    }
-
-    if (hideUnderline && !hint) {
-      textFieldStyle.height = 'initial';
-    }
-
-    const underlineStyle = readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL;
-    const underlineFocusStyle = focused
-      ? UNDERLINE_FOCUSED
-      : readOnly && typeof focused !== 'boolean' ? { display: 'none' } : null;
-
-    const textValue = parseI18NString(this.context, value);
 
     return (
-      <div className={ styles.container } style={ style }>
-        { this.renderCopyButton() }
-        <TextField
-          autoComplete='off'
-          autoFocus={ autoFocus }
-          className={ className }
-          defaultValue={ defaultValue }
-          errorText={ error }
-          floatingLabelFixed
-          floatingLabelText={ label }
-          fullWidth
-          hintText={ hint }
+      <LabelComponent
+        className={ styles.container }
+        label={ label }
+      >
+        <SemanticInput
+          className={ `${styles.input} ${className}` }
+          disabled={ disabled }
+          error={ !!error }
+          fluid
           id={ NAME_ID }
-          inputStyle={ inputStyle }
           max={ max }
           min={ min }
-          multiLine={ multiLine }
           name={ NAME_ID }
           onBlur={ this.onBlur }
           onChange={ this.onChange }
@@ -178,27 +133,25 @@ export default class Input extends Component {
           onKeyUp={ this.onKeyUp }
           onFocus={ this.onFocus }
           onPaste={ this.onPaste }
+          placeholder={ parseI18NString(this.context, hint) }
           readOnly={ readOnly }
           ref='input'
-          rows={ rows }
           step={ step }
-          style={ textFieldStyle }
+          style={ style }
           tabIndex={ tabIndex }
-          type={ type || 'text' }
-          underlineDisabledStyle={ UNDERLINE_DISABLED }
-          underlineStyle={ underlineStyle }
-          underlineFocusStyle={ underlineFocusStyle }
-          underlineShow={ !hideUnderline }
-          value={ textValue }
+          type={ type }
+          value={ parseI18NString(this.context, value || defaultValue) }
         >
+          { this.renderCopyButton() }
+          <input />
           { children }
-        </TextField>
-      </div>
+        </SemanticInput>
+      </LabelComponent>
     );
   }
 
   renderCopyButton () {
-    const { allowCopy, hideUnderline } = this.props;
+    const { allowCopy } = this.props;
     const { value } = this.state;
 
     if (!allowCopy) {
@@ -209,18 +162,14 @@ export default class Input extends Component {
       ? allowCopy
       : value.toString();
 
-    const style = hideUnderline
-      ? {}
-      : { position: 'relative', top: '2px' };
-
     return (
-      <div className={ styles.copy } style={ style }>
+      <div className={ styles.copy }>
         <CopyToClipboard data={ text } />
       </div>
     );
   }
 
-  onChange = (event, value) => {
+  onChange = (event, { value }) => {
     event.persist();
 
     this.setValue(value, () => {

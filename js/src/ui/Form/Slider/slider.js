@@ -14,8 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-module.exports = {
-  test: /\.js$/,
-  include: /node_modules\/(get-own-enumerable-property-symbols|ethereumjs-tx|stringify-object)/,
-  use: 'babel-loader'
+import React, { PropTypes } from 'react';
+
+import styles from './slider.css';
+
+export default function Slider ({ className, max, min = 0, onChange, step = 1, value }) {
+  const _onChange = (event) => onChange && onChange(event, event.target.value);
+
+  return (
+    <input
+      className={ `${styles.slider} ${className}` }
+      max={ max }
+      min={ min }
+      onChange={ _onChange }
+      step={ step }
+      type='range'
+      value={ value }
+    />
+  );
+}
+
+Slider.propTypes = {
+  className: PropTypes.string,
+  max: PropTypes.number,
+  min: PropTypes.number,
+  onChange: PropTypes.func,
+  step: PropTypes.number,
+  value: PropTypes.number
 };

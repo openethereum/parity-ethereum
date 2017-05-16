@@ -15,16 +15,22 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Chip } from 'material-ui';
-import ChipInput from 'material-ui-chip-input';
-import { blue300 } from 'material-ui/styles/colors';
+import keycode from 'keycode';
 import { uniq } from 'lodash';
+import { Input as SemanticInput } from 'semantic-ui-react';
 
-import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+import { parseI18NString } from '@parity/shared/util/messages';
+import { arrayOrObjectProptype, nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-import styles from './inputChip.css';
+import LabelComponent from '~/ui/Form/LabelComponent';
+
+import Chip from './Chip';
 
 export default class InputChip extends Component {
+  static contextTypes = {
+    intl: PropTypes.object
+  };
+
   static propTypes = {
     addOnBlur: PropTypes.bool,
     clearOnBlur: PropTypes.bool,
@@ -32,175 +38,125 @@ export default class InputChip extends Component {
     hint: nodeOrStringProptype(),
     label: nodeOrStringProptype(),
     onTokensChange: PropTypes.func,
-    onInputChange: PropTypes.func,
     onBlur: PropTypes.func,
-    tokens: PropTypes.oneOfType([
-      PropTypes.array,
-      PropTypes.object
-    ]).isRequired
-  }
+    tokens: arrayOrObjectProptype().isRequired
+  };
 
   static defaultProps = {
     clearOnBlur: false,
     addOnBlur: false
-  }
+  };
 
   state = {
-    focused: false
-  }
+    textValue: ''
+  };
 
   render () {
-    const { clearOnBlur, className, hint, label, tokens } = this.props;
-    const { focused } = this.state;
-
-    const textFieldStyle = {
-      height: 55
-    };
-
-    if (!focused) {
-      textFieldStyle.width = 0;
-    }
+    const { className, hint, label, tokens } = this.props;
+    const { textValue } = this.state;
 
     return (
-      <ChipInput
+      <LabelComponent
         className={ className }
-        ref='chipInput'
+        label={ label }
+      >
+        <SemanticInput
+          fluid
+          onBlur={ this.onBlur }
+          onChange={ this.onChange }
+          onKeyDown={ this.onKeyDown }
+          placeholder={ parseI18NString(this.context, hint) }
+          ref='chipInput'
+          value={ textValue }
+        >
+          <input />
+        </SemanticInput>
+        <div>
+          { tokens.map(this.renderChip) }
+        </div>
+      </LabelComponent>
+    );
+  }
 
-        value={ tokens }
-        clearOnBlur={ clearOnBlur }
-        floatingLabelText={ label }
-        hintText={ hint }
+  renderChip = (chip) => {
+    const onDelete = (event) => this.handleTokenDelete(chip);
 
-        chipRenderer={ this.chipRenderer }
-
-        onFocus={ this.handleFocus }
-        onBlur={ this.handleBlur }
-        onRequestAdd={ this.handleTokenAdd }
-        onRequestDelete={ this.handleTokenDelete }
-        onUpdateInput={ this.handleInputChange }
-
-        floatingLabelFixed
-        fullWidth
-
-        hintStyle={ {
-          bottom: 13,
-          left: 0,
-          transition: 'none'
-        } }
-        inputStyle={ {
-          marginBottom: 18,
-          width: 'initial'
-        } }
-        textFieldStyle={ textFieldStyle }
-        underlineStyle={ {
-          borderWidth: 2
-        } }
+    return (
+      <Chip
+        key={ chip }
+        label={ chip }
+        onDelete={ onDelete }
       />
     );
   }
 
   chipRenderer = (state, key) => {
-    const { value, isFocused, isDisabled, handleClick, handleRequestDelete } = state;
+    const { isDisabled, isFocused, handleClick, handleRequestDelete, value } = state;
 
     return (
       <Chip
+        isDisabled={ isDisabled }
+        isFocused={ isFocused }
         key={ key }
-        className={ styles.chip }
-        style={ {
-          margin: '15px 8px 0 0',
-          float: 'left',
-          pointerEvents: isDisabled ? 'none' : undefined,
-          alignItems: 'center'
-        } }
-        labelStyle={ {
-          paddingRight: 6,
-          fontSize: '0.9rem',
-          lineHeight: 'initial'
-        } }
-        backgroundColor={ isFocused ? blue300 : 'rgba(50, 50, 50, 0.73)' }
-        onTouchTap={ handleClick }
-        onRequestDelete={ handleRequestDelete }
-      >
-        { value }
-      </Chip>
+        label={ value }
+        onClick={ handleClick }
+        onDelete={ handleRequestDelete }
+      />
     );
   }
 
-  handleFocus = () => {
-    this.setState({ focused: true });
-  }
-
-  handleBlur = () => {
-    const { onBlur, addOnBlur } = this.props;
-
-    this.setState({ focused: false });
-
-    if (addOnBlur) {
-      const { inputValue } = this.refs.chipInput.state;
-
-      this.handleTokenAdd(inputValue);
-    }
-
-    if (typeof onBlur === 'function') {
-      onBlur();
-    }
-  }
-
   handleTokenAdd = (value) => {
-    const { tokens, onInputChange } = this.props;
-
+    const { tokens } = this.props;
     const newTokens = uniq([].concat(tokens, value));
 
     this.handleTokensChange(newTokens);
-
-    if (value === this.refs.chipInput.state.inputValue) {
-      if (typeof onInputChange === 'function') {
-        onInputChange('');
-      }
-      this.refs.chipInput.setState({ inputValue: '' });
-    }
+    this.setState({ textValue: '' });
   }
 
   handleTokenDelete = (value) => {
     const { tokens } = this.props;
 
-    const newTokens = uniq([]
-      .concat(tokens)
-      .filter(v => v !== value));
+    this.handleTokensChange(
+      uniq(
+        []
+          .concat(tokens)
+          .filter((token) => token !== value)
+      )
+    );
 
-    this.handleTokensChange(newTokens);
-    this.focus();
-  }
-
-  focus = () => {
     this.refs.chipInput.focus();
-  }
-
-  handleInputChange = (value) => {
-    const { onInputChange } = this.props;
-
-    const splitTokens = value.split(/[\s,;]/);
-
-    const inputValue = (splitTokens.length <= 1)
-      ? value
-      : splitTokens.slice(-1)[0].trim();
-
-    this.refs.chipInput.setState({ inputValue });
-
-    if (splitTokens.length > 1) {
-      const tokensToAdd = splitTokens.slice(0, -1);
-
-      tokensToAdd.forEach(token => this.handleTokenAdd(token));
-    }
-
-    if (typeof onInputChange === 'function') {
-      onInputChange(inputValue);
-    }
   }
 
   handleTokensChange = (tokens) => {
     const { onTokensChange } = this.props;
 
-    onTokensChange(tokens.filter(token => token && token.length > 0));
+    onTokensChange(tokens.filter((token) => token && token.length > 0));
+  }
+
+  onBlur = () => {
+    const { onBlur, addOnBlur } = this.props;
+
+    if (addOnBlur) {
+      const { textValue } = this.state;
+
+      this.handleTokenAdd(textValue);
+    }
+
+    onBlur && onBlur();
+  }
+
+  onChange = (event, data) => {
+    this.setState({ textValue: data.value.trim() });
+  }
+
+  onKeyDown = (event, data) => {
+    const { textValue } = this.state;
+
+    switch (keycode(event)) {
+      case 'enter':
+      case 'space':
+        this.handleTokenAdd(textValue);
+        break;
+    }
   }
 }

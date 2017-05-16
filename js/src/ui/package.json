@@ -27,7 +27,6 @@
     "keycode": "2.1.8",
     "lodash": "4.17.2",
     "material-ui": "0.16.5",
-    "material-ui-chip-input": "0.11.1",
     "moment": "2.17.0",
     "react-ace": "4.1.0",
     "react-copy-to-clipboard": "4.2.3",
