@@ -552,7 +552,7 @@ The following options are possible for the \`defaultBlock\` parameter:
         blockNumber: fromDecimal(5599),
         transactionIndex: fromDecimal(1),
         from: '0x407d73d8a49eeb85d32cf465507dd71d507100c1',
-        to: '0x85h43d8a49eeb85d32cf465507dd71d507100c1',
+        to: '0x853f43d8a49eeb85d32cf465507dd71d507100c1',
         value: fromDecimal(520464),
         gas: fromDecimal(520464),
         gasPrice: '0x09184e72a000',
@@ -969,24 +969,24 @@ The following options are possible for the \`defaultBlock\` parameter:
   },
 
   sign: {
-    desc: 'Signs transaction hash with a given address.',
+    desc: 'The sign method calculates an Ethereum specific signature with: `sign(keccak256("\x19Ethereum Signed Message:\n" + len(message) + message)))`.',
     params: [
       {
         type: Address,
         desc: '20 Bytes - address.',
         format: 'inputAddressFormatter',
-        example: '0xd1ade25ccd3d550a7eb532ac759cac7be09c2719'
+        example: '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826'
       },
       {
         type: Data,
-        desc: 'Transaction hash to sign.',
+        desc: 'Data which hash to sign.',
         example: withComment('0x5363686f6f6c627573', 'Schoolbus')
       }
     ],
     returns: {
       type: Data,
       desc: 'Signed data.',
-      example: '0x2ac19db245478a06032e69cdbd2b54e648b78431d0a47bd1fbab18f79f820ba407466e37adbe9e84541cab97ab7d290f4a64a5825c876d22109f3bf813254e8628'
+      example: '0xb1092cb5b23c2aa55e5b5787729c6be812509376de99a52bea2b41e5a5f8601c5641e74d01e4493c17bf1ef8b179c49362b2c721222128d58422a539310c6ecd1b'
     }
   },
 
@@ -1068,7 +1068,7 @@ The following options are possible for the \`defaultBlock\` parameter:
           blockNumber: fromDecimal(5599),
           transactionIndex: fromDecimal(1),
           from: '0x407d73d8a49eeb85d32cf465507dd71d507100c1',
-          to: '0x85h43d8a49eeb85d32cf465507dd71d507100c1',
+          to: '0x853f43d8a49eeb85d32cf465507dd71d507100c1',
           value: fromDecimal(520464),
           gas: fromDecimal(520464),
           gasPrice: '0x09184e72a000',
