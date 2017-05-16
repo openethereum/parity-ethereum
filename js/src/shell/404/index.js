@@ -14,28 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import ReactDOM from 'react-dom';
-import React from 'react';
-import { BrowserRouter as Router, Route } from 'react-router-dom';
-
-import injectTapEventPlugin from 'react-tap-event-plugin';
-injectTapEventPlugin();
-
-import { initStore } from '@parity/shared/redux';
-import ContextProvider from '@parity/ui/ContextProvider';
-import muiTheme from '@parity/ui/Theme';
-
-import { api } from './parity';
-
-import ContractDevelop from './contractDevelop';
-
-const store = initStore(api);
-
-ReactDOM.render(
-  <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-    <Router>
-      <Route path='/' component={ ContractDevelop } />
-    </Router>
-  </ContextProvider>,
-  document.querySelector('#container')
-);
+export default from './404';

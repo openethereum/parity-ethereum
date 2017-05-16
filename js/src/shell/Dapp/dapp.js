@@ -29,7 +29,9 @@ export default class Dapp extends Component {
   };
 
   static propTypes = {
-    params: PropTypes.object
+    history: PropTypes.object,
+    location: PropTypes.object,
+    match: PropTypes.object
   };
 
   state = {
@@ -40,14 +42,14 @@ export default class Dapp extends Component {
   store = DappsStore.get(this.context.api);
 
   componentWillMount () {
-    const { id } = this.props.params;
+    let { id } = this.props.match.params;
 
     this.loadApp(id);
   }
 
   componentWillReceiveProps (nextProps) {
-    if (nextProps.params.id !== this.props.params.id) {
-      this.loadApp(nextProps.params.id);
+    if (nextProps.match.params.id !== this.props.match.params.id) {
+      this.loadApp(nextProps.match.params.id);
     }
   }
 
@@ -66,7 +68,6 @@ export default class Dapp extends Component {
 
   render () {
     const { dappsUrl } = this.context.api;
-    const { params } = this.props;
     const { app, loading } = this.state;
 
     if (loading) {
@@ -120,10 +121,6 @@ export default class Dapp extends Component {
     }
 
     let hash = '';
-
-    if (params.details) {
-      hash = `#/${params.details}`;
-    }
 
     return (
       <iframe

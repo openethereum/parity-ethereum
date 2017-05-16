@@ -24,7 +24,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
-import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
+import { BrowserRouter as Router, Route, Redirect } from 'react-router-dom';
 import qs from 'querystring';
 
 import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
@@ -43,6 +43,7 @@ import SecureApi from '~/secureApi';
 import Application from './Application';
 import Dapp from './Dapp';
 import Dapps from './Dapps';
+import Fail404 from './404';
 
 injectTapEventPlugin();
 
@@ -68,7 +69,7 @@ const api = new SecureApi(`${urlScheme}${parityUrl}`, token);
 patchApi(api);
 ContractInstances.get(api);
 
-const store = initStore(api, hashHistory);
+const store = initStore(api);
 
 window.secureApi = api;
 
@@ -84,13 +85,14 @@ function onEnterDapp ({ params }) {
 
 ReactDOM.render(
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-    <Router history={ hashHistory }>
-      <Route path='/' component={ Application }>
+    <Router>
+      <Application>
         <Redirect from='/auth' to='/' />
+        <Route path='/' exact component={ Dapps } />
         <Route path='/:id' component={ Dapp } onEnter={ onEnterDapp } />
         <Route path='/:id/:details' component={ Dapp } onEnter={ onEnterDapp } />
-        <IndexRoute component={ Dapps } />
-      </Route>
+        <Router component={ Fail404 } />
+      </Application>
     </Router>
   </ContextProvider>,
   document.querySelector('#container')

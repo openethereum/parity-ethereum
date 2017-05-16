@@ -35,6 +35,12 @@ export default class Settings extends Component {
     children: PropTypes.object.isRequired
   }
 
+  componentDidMount () {
+    const { push } = this.context.router.history;
+
+    push('/views');
+  }
+
   render () {
     const { children } = this.props;
     const hash = (window.location.hash || '').split('?')[0].split('/')[1];
@@ -72,9 +78,11 @@ export default class Settings extends Component {
     );
   }
 
-  onActivate = (event, tabIndex) => {
-    const { router } = this.context;
+  onActivate = (name) => {
+    const { history } = this.context.router;
 
-    router.push(`/${TABS[tabIndex]}`);
+    return (event) => {
+      history.push(`/${name}`);
+    };
   }
 }

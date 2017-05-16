@@ -16,7 +16,7 @@
 
 import ReactDOM from 'react-dom';
 import React from 'react';
-import { Redirect, Router, Route, hashHistory } from 'react-router';
+import { BrowserRouter as Router, Route } from 'react-router-dom';
 import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
@@ -33,13 +33,12 @@ import './style.css';
 
 ReactDOM.render(
   <AppContainer>
-    <Router history={ hashHistory }>
-      <Redirect from='/' to='/overview' />
-      <Route path='/' component={ Application }>
-        <Route path='deploy' component={ Deploy } />
-        <Route path='overview' component={ Overview } />
-        <Route path='transfer' component={ Transfer } />
-      </Route>
+    <Router>
+      <Application>
+        <Route path='/overview' exact component={ Overview } />
+        <Route path='/deploy' component={ Deploy } />
+        <Route path='/transfer' component={ Transfer } />
+      </Application>
     </Router>
   </AppContainer>,
   document.querySelector('#container')
@@ -53,13 +52,12 @@ if (module.hot) {
 
     ReactDOM.render(
       <AppContainer>
-        <Router history={ hashHistory }>
-          <Redirect from='/' to='/overview' />
-          <Route path='/' component={ Application }>
-            <Route path='deploy' component={ Deploy } />
-            <Route path='overview' component={ Overview } />
-            <Route path='transfer' component={ Transfer } />
-          </Route>
+        <Router>
+          <Application>
+            <Route path='/overview' exact component={ Overview } />
+            <Route path='/deploy' component={ Deploy } />
+            <Route path='/transfer' component={ Transfer } />
+          </Application>
         </Router>
       </AppContainer>,
       document.querySelector('#container')

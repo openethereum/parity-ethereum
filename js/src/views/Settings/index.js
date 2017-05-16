@@ -16,7 +16,7 @@
 
 import ReactDOM from 'react-dom';
 import React from 'react';
-import { IndexRedirect, Route, Router, hashHistory } from 'react-router';
+import { BrowserRouter as Router, Route } from 'react-router-dom';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
@@ -33,18 +33,17 @@ import SettingsProxy from './Proxy';
 import SettingsViews from './Views';
 import Settings from './settings';
 
-const store = initStore(api, hashHistory);
+const store = initStore(api);
 
 ReactDOM.render(
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-    <Router history={ hashHistory }>
-      <Route path='/' component={ Settings }>
+    <Router>
+      <Settings>
+        <Route path='/views' component={ SettingsViews } />
         <Route path='/background' component={ SettingsBackground } />
         <Route path='/parity' component={ SettingsParity } />
         <Route path='/proxy' component={ SettingsProxy } />
-        <Route path='/views' component={ SettingsViews } />
-        <IndexRedirect to='/views' />
-      </Route>
+      </Settings>
     </Router>
   </ContextProvider>,
   document.querySelector('#container')

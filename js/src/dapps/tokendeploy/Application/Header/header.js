@@ -24,9 +24,22 @@ export default class Header extends Component {
     router: PropTypes.object.isRequired
   }
 
+  componentDidMount () {
+    const { pathname } = this.context.router.route.location;
+    const { history } = this.context.router;
+
+    if (pathname === '/tokendeploy.html') {
+      history.push('/overview');
+    }
+  }
+
   render () {
-    const path = (window.location.hash || '').split('?')[0].split('/')[1];
-    const offset = PAGES.findIndex((header) => header.path === path);
+    let { pathname } = this.context.router.route.location;
+
+    if (!pathname || pathname === '/tokendeploy.html') {
+      pathname = '/overview';
+    }
+    const offset = PAGES.findIndex((header) => header.path === pathname.substr(1));
 
     return (
       <div className={ styles.header }>
@@ -72,10 +85,10 @@ export default class Header extends Component {
   }
 
   onNavigate = (route) => {
-    const { router } = this.context;
+    const { history } = this.context.router;
 
     return (event) => {
-      router.push(`/${route}`);
+      history.push(`/${route}`);
     };
   }
 }
