@@ -15,31 +15,36 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+$bgNormal: rgba(50, 50, 50, 0.7);
+$bgFocus: rgba(50, 50, 200, 0.7);
+$bgDisabled: rgba(150, 150, 150, 0.7);
+
 .chip {
-  align-items: center;
+  background: $bgNormal;
+  border-radius: 1em;
+  color: white;
+  cursor: pointer;
   float: left;
-  margin: 0.5em 0.5em 0 0 !important;
+  margin: 0.5em 0.25em 0 0;
+  padding: 0.25em 0.25em 0.25em 0;
+
+  &.disabled {
+    background: $bgDisabled;
+  }
 
   &.focus {
-    background-color: rgba(50, 50, 200, 0.7) !important;
+    background: $bgFocus;
   }
 
-  &:not(.focus) {
-    background-color: rgba(50, 50, 50, 0.7) !important;
-  }
-
-  &>span {
-    padding-ight: 0.5em;
-    color: white !important;
-    font-size: 0.9rem;
+  .label {
+    display: inline-block;
+    padding: 0 0.75em;
+    font-size: 0.75em;
     line-height: initial;
   }
 
-  &>svg {
-    width: 1rem !important;
-    height: 1rem !important;
-    margin: initial !important;
-    margin-right: 4px !important;
-    padding: 2px 0 !important;
+  .delete {
+    border-radius: 1em;
+    font-size: 0.75em;
   }
 }

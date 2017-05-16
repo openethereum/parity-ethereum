@@ -105,11 +105,10 @@ export default class InputChip extends Component {
         isDisabled={ isDisabled }
         isFocused={ isFocused }
         key={ key }
+        label={ value }
         onClick={ handleClick }
-        onRequestDelete={ handleRequestDelete }
-      >
-        { value }
-      </Chip>
+        onDelete={ handleRequestDelete }
+      />
     );
   }
 

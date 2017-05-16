@@ -15,28 +15,35 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
-import { Chip as ChipMUI } from 'material-ui';
+
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+
+import { CloseIcon } from '~/ui/Icons';
 
 import styles from './chip.css';
 
-export default function Chip ({ children, className, isDisabled, isFocused, onClick, onRequestDelete, style }) {
+export default function Chip ({ className, isDisabled, isFocused, label, onClick, onDelete }) {
   return (
-    <ChipMUI
-      className={ `${styles.chip} ${isFocused && styles.focus} ${className}` }
+    <div
+      className={ `${styles.chip} ${isDisabled && styles.disabled} ${isFocused && styles.focus} ${className}` }
       onTouchTap={ onClick }
-      onRequestDelete={ onRequestDelete }
     >
-      { children }
-    </ChipMUI>
+      <div className={ styles.label }>
+        { label }
+      </div>
+      <CloseIcon
+        className={ styles.delete }
+        onTouchTap={ onDelete }
+      />
+    </div>
   );
 }
 
 Chip.propTypes = {
   className: PropTypes.string,
-  children: PropTypes.node,
   isDisabled: PropTypes.bool,
   isFocused: PropTypes.bool,
+  label: nodeOrStringProptype(),
   onClick: PropTypes.func,
-  onRequestDelete: PropTypes.func,
-  style: PropTypes.object
+  onDelete: PropTypes.func
 };
