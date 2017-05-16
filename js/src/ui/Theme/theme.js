@@ -15,13 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import GeoPattern from 'geopattern';
-import getMuiTheme from 'material-ui/styles/getMuiTheme';
 
-const muiTheme = getMuiTheme();
-
-muiTheme.zIndex.layer = 4000;
-muiTheme.zIndex.popover = 4100;
-
+const muiTheme = {};
 const imageCache = {};
 
 muiTheme.parity = {
