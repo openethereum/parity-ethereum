@@ -23,7 +23,6 @@ injectTapEventPlugin();
 
 import { initStore } from '@parity/shared/redux';
 import ContextProvider from '@parity/ui/ContextProvider';
-import muiTheme from '@parity/ui/Theme';
 
 import { api } from './parity';
 import Web from './web';
@@ -31,7 +30,7 @@ import Web from './web';
 const store = initStore(api, hashHistory);
 
 ReactDOM.render(
-  <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
+  <ContextProvider api={ api } store={ store }>
     <Router history={ hashHistory }>
       <Route path='/' component={ Web } />
     </Router>

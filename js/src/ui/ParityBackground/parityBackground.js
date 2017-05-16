@@ -14,14 +14,33 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import GeoPattern from 'geopattern';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-class ParityBackground extends Component {
-  static contextTypes = {
-    muiTheme: PropTypes.object.isRequired
-  };
+const imageCache = {};
 
+function getBackgroundStyle (_gradient, _seed) {
+  const gradient = _gradient || 'rgba(255, 255, 255, 0.25)';
+  const seed = _seed || '0';
+  let url;
+
+  if (_seed) {
+    url = GeoPattern.generate(_seed).toDataUrl();
+  } else if (imageCache[seed] && imageCache[seed][gradient]) {
+    url = imageCache[seed][gradient];
+  } else {
+    url = GeoPattern.generate(seed).toDataUrl();
+    imageCache[seed] = imageCache[seed] || {};
+    imageCache[seed][gradient] = url;
+  }
+
+  return {
+    background: `linear-gradient(${gradient}, ${gradient}), ${url}`
+  };
+}
+
+class ParityBackground extends Component {
   static propTypes = {
     attachDocument: PropTypes.bool,
     backgroundSeed: PropTypes.string,
@@ -63,9 +82,7 @@ class ParityBackground extends Component {
       return;
     }
 
-    const { muiTheme } = this.context;
-
-    const style = muiTheme.parity.getBackgroundStyle(gradient, _seed);
+    const style = getBackgroundStyle(gradient, _seed);
 
     this.setState({ style });
   }
@@ -105,5 +122,6 @@ function mapStateToProps (state) {
 }
 
 export default connect(
-  mapStateToProps
+  mapStateToProps,
+  null
 )(ParityBackground);

@@ -29,7 +29,6 @@ import ContractInstances from '@parity/shared/contracts';
 import { initStore } from '@parity/shared/redux';
 import { patchApi } from '@parity/shared/util/tx';
 import ContextProvider from '@parity/ui/ContextProvider';
-import muiTheme from '@parity/ui/Theme';
 
 import SecureApi from '~/secureApi';
 
@@ -98,7 +97,6 @@ window.secureApi = api;
 ReactDOM.render(
   <ContextProvider
     api={ api }
-    muiTheme={ muiTheme }
     store={ store }
   >
     <ParityBar dapp externalLink={ 'http://127.0.0.1:8180' } />
