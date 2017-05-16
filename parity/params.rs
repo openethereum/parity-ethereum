@@ -14,15 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use ethcore::client::Mode;
+use ethcore::ethereum;
+use ethcore::miner::{GasPricer, GasPriceCalibratorOptions};
+use ethcore::spec::Spec;
 use std::{str, fs, fmt};
 use std::time::Duration;
+use user_defaults::UserDefaults;
 use util::{Address, U256, version_data};
 use util::journaldb::Algorithm;
-use ethcore::spec::Spec;
-use ethcore::ethereum;
-use ethcore::client::Mode;
-use ethcore::miner::{GasPricer, GasPriceCalibratorOptions};
-use user_defaults::UserDefaults;
 
 #[derive(Debug, PartialEq)]
 pub enum SpecType {
@@ -49,8 +49,11 @@ impl str::FromStr for SpecType {
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let spec = match s {
 			"foundation" | "frontier" | "homestead" | "mainnet" => SpecType::Foundation,
-			"frontier-dogmatic" | "homestead-dogmatic" | "classic" => SpecType::Classic,
-			"morden" | "classic-testnet" => SpecType::Morden,
+			"frontier-dogmatic" |
+			"homestead-dogmatic" |
+			"classic" => SpecType::Classic,
+			"morden" |
+			"classic-testnet" => SpecType::Morden,
 			"ropsten" => SpecType::Ropsten,
 			"kovan" | "testnet" => SpecType::Kovan,
 			"olympic" => SpecType::Olympic,
@@ -65,16 +68,16 @@ impl str::FromStr for SpecType {
 impl fmt::Display for SpecType {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.write_str(match *self {
-			SpecType::Foundation => "foundation",
-			SpecType::Morden => "morden",
-			SpecType::Ropsten => "ropsten",
-			SpecType::Olympic => "olympic",
-			SpecType::Classic => "classic",
-			SpecType::Expanse => "expanse",
-			SpecType::Kovan => "kovan",
-			SpecType::Dev => "dev",
-			SpecType::Custom(ref custom) => custom,
-		})
+		                SpecType::Foundation => "foundation",
+		                SpecType::Morden => "morden",
+		                SpecType::Ropsten => "ropsten",
+		                SpecType::Olympic => "olympic",
+		                SpecType::Classic => "classic",
+		                SpecType::Expanse => "expanse",
+		                SpecType::Kovan => "kovan",
+		                SpecType::Dev => "dev",
+		                SpecType::Custom(ref custom) => custom,
+		            })
 	}
 }
 
@@ -145,10 +148,7 @@ pub struct ResealPolicy {
 
 impl Default for ResealPolicy {
 	fn default() -> Self {
-		ResealPolicy {
-			own: true,
-			external: true,
-		}
+		ResealPolicy { own: true, external: true }
 	}
 }
 
@@ -164,10 +164,7 @@ impl str::FromStr for ResealPolicy {
 			x => return Err(format!("Invalid reseal value: {}", x)),
 		};
 
-		let reseal = ResealPolicy {
-			own: own,
-			external: external,
-		};
+		let reseal = ResealPolicy { own: own, external: external };
 
 		Ok(reseal)
 	}
@@ -201,7 +198,7 @@ pub enum GasPricerConfig {
 		initial_minimum: U256,
 		usd_per_tx: f32,
 		recalibration_period: Duration,
-	}
+	},
 }
 
 impl GasPricerConfig {
@@ -229,9 +226,9 @@ impl Into<GasPricer> for GasPricerConfig {
 			GasPricerConfig::Fixed(u) => GasPricer::Fixed(u),
 			GasPricerConfig::Calibrated { usd_per_tx, recalibration_period, .. } => {
 				GasPricer::new_calibrated(GasPriceCalibratorOptions {
-					usd_per_tx: usd_per_tx,
-					recalibration_period: recalibration_period,
-				})
+				                              usd_per_tx: usd_per_tx,
+				                              recalibration_period: recalibration_period,
+				                          })
 			}
 		}
 	}
@@ -285,7 +282,7 @@ impl str::FromStr for Switch {
 			"on" => Ok(Switch::On),
 			"off" => Ok(Switch::Off),
 			"auto" => Ok(Switch::Auto),
-			other => Err(format!("Invalid switch value: {}", other))
+			other => Err(format!("Invalid switch value: {}", other)),
 		}
 	}
 }
@@ -315,9 +312,9 @@ pub fn mode_switch_to_bool(switch: Option<Mode>, user_defaults: &UserDefaults) -
 
 #[cfg(test)]
 mod tests {
-	use util::journaldb::Algorithm;
-	use user_defaults::UserDefaults;
 	use super::{SpecType, Pruning, ResealPolicy, Switch, tracing_switch_to_bool};
+	use user_defaults::UserDefaults;
+	use util::journaldb::Algorithm;
 
 	#[test]
 	fn test_spec_type_parsing() {

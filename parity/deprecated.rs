@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
 use cli::Args;
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum Deprecated {
@@ -29,7 +29,7 @@ impl fmt::Display for Deprecated {
 		match *self {
 			Deprecated::DoesNothing(s) => write!(f, "Option '{}' does nothing. It's on by default.", s),
 			Deprecated::Replaced(old, new) => write!(f, "Option '{}' is deprecated. Please use '{}' instead.", old, new),
-			Deprecated::Removed(s) => write!(f, "Option '{}' has been removed and is no longer supported.", s)
+			Deprecated::Removed(s) => write!(f, "Option '{}' has been removed and is no longer supported.", s),
 		}
 	}
 }
@@ -109,49 +109,47 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 
 #[cfg(test)]
 mod tests {
-	use cli::Args;
 	use super::{Deprecated, find_deprecated};
+	use cli::Args;
 
 	#[test]
 	fn test_find_deprecated() {
 		assert_eq!(find_deprecated(&Args::default()), vec![]);
 		assert_eq!(find_deprecated(&{
-			let mut args = Args::default();
-			args.flag_jsonrpc = true;
-			args.flag_rpc = true;
-			args.flag_jsonrpc_off = true;
-			args.flag_webapp = true;
-			args.flag_dapps_off = true;
-			args.flag_ipcdisable = true;
-			args.flag_ipc_off = true;
-			args.flag_etherbase = Some(Default::default());
-			args.flag_extradata = Some(Default::default());
-			args.flag_dapps_port = Some(Default::default());
-			args.flag_dapps_interface = Some(Default::default());
-			args.flag_dapps_hosts = Some(Default::default());
-			args.flag_dapps_cors = Some(Default::default());
-			args.flag_dapps_user = Some(Default::default());
-			args.flag_dapps_pass = Some(Default::default());
-			args.flag_dapps_apis_all = Some(Default::default());
-			args
-		}), vec![
-			Deprecated::DoesNothing("--jsonrpc"),
-			Deprecated::DoesNothing("--rpc"),
-			Deprecated::Replaced("--jsonrpc-off", "--no-jsonrpc"),
-			Deprecated::DoesNothing("--webapp"),
-			Deprecated::Replaced("--dapps-off", "--no-dapps"),
-			Deprecated::Replaced("--ipcdisable", "--no-ipc"),
-			Deprecated::Replaced("--ipc-off", "--no-ipc"),
-			Deprecated::Replaced("--etherbase", "--author"),
-			Deprecated::Replaced("--extradata", "--extra-data"),
-			Deprecated::Replaced("--dapps-port", "--jsonrpc-port"),
-			Deprecated::Replaced("--dapps-interface", "--jsonrpc-interface"),
-			Deprecated::Replaced("--dapps-hosts", "--jsonrpc-hosts"),
-			Deprecated::Replaced("--dapps-cors", "--jsonrpc-cors"),
-			Deprecated::Removed("--dapps-user"),
-			Deprecated::Removed("--dapps-pass"),
-			Deprecated::Replaced("--dapps-apis-all", "--jsonrpc-apis"),
-		]);
+			                            let mut args = Args::default();
+			                            args.flag_jsonrpc = true;
+			                            args.flag_rpc = true;
+			                            args.flag_jsonrpc_off = true;
+			                            args.flag_webapp = true;
+			                            args.flag_dapps_off = true;
+			                            args.flag_ipcdisable = true;
+			                            args.flag_ipc_off = true;
+			                            args.flag_etherbase = Some(Default::default());
+			                            args.flag_extradata = Some(Default::default());
+			                            args.flag_dapps_port = Some(Default::default());
+			                            args.flag_dapps_interface = Some(Default::default());
+			                            args.flag_dapps_hosts = Some(Default::default());
+			                            args.flag_dapps_cors = Some(Default::default());
+			                            args.flag_dapps_user = Some(Default::default());
+			                            args.flag_dapps_pass = Some(Default::default());
+			                            args.flag_dapps_apis_all = Some(Default::default());
+			                            args
+			                           }),
+		           vec![Deprecated::DoesNothing("--jsonrpc"),
+		                Deprecated::DoesNothing("--rpc"),
+		                Deprecated::Replaced("--jsonrpc-off", "--no-jsonrpc"),
+		                Deprecated::DoesNothing("--webapp"),
+		                Deprecated::Replaced("--dapps-off", "--no-dapps"),
+		                Deprecated::Replaced("--ipcdisable", "--no-ipc"),
+		                Deprecated::Replaced("--ipc-off", "--no-ipc"),
+		                Deprecated::Replaced("--etherbase", "--author"),
+		                Deprecated::Replaced("--extradata", "--extra-data"),
+		                Deprecated::Replaced("--dapps-port", "--jsonrpc-port"),
+		                Deprecated::Replaced("--dapps-interface", "--jsonrpc-interface"),
+		                Deprecated::Replaced("--dapps-hosts", "--jsonrpc-hosts"),
+		                Deprecated::Replaced("--dapps-cors", "--jsonrpc-cors"),
+		                Deprecated::Removed("--dapps-user"),
+		                Deprecated::Removed("--dapps-pass"),
+		                Deprecated::Replaced("--dapps-apis-all", "--jsonrpc-apis")]);
 	}
 }
-

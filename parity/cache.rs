@@ -128,7 +128,6 @@ mod tests {
 
 	#[test]
 	fn test_cache_config_default() {
-		assert_eq!(CacheConfig::default(),
-			CacheConfig::new(32, 8, super::DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB, super::DEFAULT_STATE_CACHE_SIZE));
+		assert_eq!(CacheConfig::default(), CacheConfig::new(32, 8, super::DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB, super::DEFAULT_STATE_CACHE_SIZE));
 	}
 }

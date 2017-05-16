@@ -14,41 +14,40 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::time::Duration;
-use std::io::{Read, Write, stderr};
-use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
-use std::collections::BTreeMap;
-use std::cmp::max;
+use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
+use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
+use cache::CacheConfig;
 use cli::{Args, ArgsError};
-use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
-use util::journaldb::Algorithm;
-use util::Colour;
-use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
+use dapps::Configuration as DappsConfiguration;
+use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
+use ethcore::client::VMType;
 use ethcore::ethstore::ethkey::{Secret, Public};
-use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning, StratumOptions};
 use ethcore::verification::queue::VerifierSettings;
+use ethcore_logger::Config as LogConfig;
+use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db, geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
+use ipfs::Configuration as IpfsConfiguration;
+use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
+use parity_rpc::NetworkSettings;
+use presale::ImportWallet;
 
 use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
 use rpc_apis::ApiSet;
-use parity_rpc::NetworkSettings;
-use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
-geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
-use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
-use ethcore_logger::Config as LogConfig;
-use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
-use dapps::Configuration as DappsConfiguration;
-use ipfs::Configuration as IpfsConfiguration;
-use signer::{Configuration as SignerConfiguration};
-use secretstore::Configuration as SecretStoreConfiguration;
-use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
-use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
-use presale::ImportWallet;
-use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
+use secretstore::Configuration as SecretStoreConfiguration;
+use signer::Configuration as SignerConfiguration;
 use snapshot::{self, SnapshotCommand};
+use std::cmp::max;
+use std::collections::BTreeMap;
+use std::io::{Read, Write, stderr};
+use std::net::SocketAddr;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
+use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
+use util::Colour;
+use util::journaldb::Algorithm;
 
 const AUTHCODE_FILENAME: &'static str = "authcodes";
 
@@ -66,14 +65,11 @@ pub enum Cmd {
 		port: u16,
 		authfile: PathBuf,
 	},
-	SignerList {
-		port: u16,
-		authfile: PathBuf
-	},
+	SignerList { port: u16, authfile: PathBuf },
 	SignerReject {
 		id: Option<usize>,
 		port: u16,
-		authfile: PathBuf
+		authfile: PathBuf,
 	},
 	Snapshot(SnapshotCommand),
 	Hash(Option<String>),
@@ -129,7 +125,7 @@ impl Configuration {
 			Some(true) if fat_db == Switch::On => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because Fat DB is turned on").expect("Error writing to stderr"),
 			Some(true) if tracing == Switch::On => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because tracing is turned on").expect("Error writing to stderr"),
 			Some(true) if pruning == Pruning::Specific(Algorithm::Archive) => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because pruning mode is set to archive").expect("Error writing to stderr"),
-			_ => {},
+			_ => {}
 		};
 		let public_node = self.args.flag_public_node;
 		let warp_sync = !self.args.flag_no_warp && fat_db != Switch::On && tracing != Switch::On && pruning != Pruning::Specific(Algorithm::Archive);
@@ -155,22 +151,20 @@ impl Configuration {
 			if self.args.cmd_new_token {
 				Cmd::SignerToken(signer_conf)
 			} else if self.args.cmd_sign {
-				let pwfile = self.args.flag_password.get(0).map(|pwfile| {
-					PathBuf::from(pwfile)
-				});
+				let pwfile = self.args.flag_password.get(0).map(|pwfile| PathBuf::from(pwfile));
 				Cmd::SignerSign {
 					id: self.args.arg_id,
 					pwfile: pwfile,
 					port: signer_conf.port,
 					authfile: authfile,
 				}
-			} else if self.args.cmd_reject  {
+			} else if self.args.cmd_reject {
 				Cmd::SignerReject {
 					id: self.args.arg_id,
 					port: signer_conf.port,
 					authfile: authfile,
 				}
-			} else if self.args.cmd_list  {
+			} else if self.args.cmd_list {
 				Cmd::SignerList {
 					port: signer_conf.port,
 					authfile: authfile,
@@ -182,10 +176,10 @@ impl Configuration {
 			Cmd::Hash(self.args.arg_file)
 		} else if self.args.cmd_db && self.args.cmd_kill {
 			Cmd::Blockchain(BlockchainCmd::Kill(KillBlockchain {
-				spec: spec,
-				dirs: dirs,
-				pruning: pruning,
-			}))
+			                                        spec: spec,
+			                                        dirs: dirs,
+			                                        pruning: pruning,
+			                                    }))
 		} else if self.args.cmd_account {
 			let account_cmd = if self.args.cmd_new {
 				let new_acc = NewAccount {
@@ -196,10 +190,7 @@ impl Configuration {
 				};
 				AccountCmd::New(new_acc)
 			} else if self.args.cmd_list {
-				let list_acc = ListAccounts {
-					path: dirs.keys,
-					spec: spec,
-				};
+				let list_acc = ListAccounts { path: dirs.keys, spec: spec };
 				AccountCmd::List(list_acc)
 			} else if self.args.cmd_import {
 				let import_acc = ImportAccounts {
@@ -213,13 +204,11 @@ impl Configuration {
 			};
 			Cmd::Account(account_cmd)
 		} else if self.args.flag_import_geth_keys {
-        	let account_cmd = AccountCmd::ImportFromGeth(
-				ImportFromGethAccounts {
-					spec: spec,
-					to: dirs.keys,
-					testnet: self.args.flag_testnet
-				}
-			);
+			let account_cmd = AccountCmd::ImportFromGeth(ImportFromGethAccounts {
+			                                                 spec: spec,
+			                                                 to: dirs.keys,
+			                                                 testnet: self.args.flag_testnet,
+			                                             });
 			Cmd::Account(account_cmd)
 		} else if self.args.cmd_wallet {
 			let presale_cmd = ImportWallet {
@@ -329,11 +318,7 @@ impl Configuration {
 			};
 			Cmd::Snapshot(restore_cmd)
 		} else {
-			let daemon = if self.args.cmd_daemon {
-				Some(self.args.arg_pid_file.clone())
-			} else {
-				None
-			};
+			let daemon = if self.args.cmd_daemon { Some(self.args.arg_pid_file.clone()) } else { None };
 
 			let verifier_settings = self.verifier_settings();
 
@@ -393,10 +378,7 @@ impl Configuration {
 			Cmd::Run(run_cmd)
 		};
 
-		Ok(Execute {
-			logger: logger_config,
-			cmd: cmd,
-		})
+		Ok(Execute { logger: logger_config, cmd: cmd })
 	}
 
 	fn vm_type(&self) -> Result<VMType, String> {
@@ -438,12 +420,7 @@ impl Configuration {
 	fn cache_config(&self) -> CacheConfig {
 		match self.args.flag_cache_size.or(self.args.flag_cache) {
 			Some(size) => CacheConfig::new_with_total_cache_size(size),
-			None => CacheConfig::new(
-				self.args.flag_cache_size_db,
-				self.args.flag_cache_size_blocks,
-				self.args.flag_cache_size_queue,
-				self.args.flag_cache_size_state,
-			),
+			None => CacheConfig::new(self.args.flag_cache_size_db, self.args.flag_cache_size_blocks, self.args.flag_cache_size_queue, self.args.flag_cache_size_state),
 		}
 	}
 
@@ -458,8 +435,7 @@ impl Configuration {
 	fn chain(&self) -> String {
 		if let Some(ref s) = self.spec_name_override {
 			s.clone()
-		}
-		else if self.args.flag_testnet {
+		} else if self.args.flag_testnet {
 			"testnet".to_owned()
 		} else {
 			self.args.flag_chain.clone()
@@ -493,7 +469,10 @@ impl Configuration {
 	}
 
 	fn work_notify(&self) -> Vec<String> {
-		self.args.flag_notify_work.as_ref().map_or_else(Vec::new, |s| s.split(',').map(|s| s.to_owned()).collect())
+		self.args
+		    .flag_notify_work
+		    .as_ref()
+		    .map_or_else(Vec::new, |s| s.split(',').map(|s| s.to_owned()).collect())
 	}
 
 	fn accounts_config(&self) -> Result<AccountsConfig, String> {
@@ -511,12 +490,14 @@ impl Configuration {
 	fn stratum_options(&self) -> Result<Option<StratumOptions>, String> {
 		if self.args.flag_stratum {
 			Ok(Some(StratumOptions {
-				io_path: self.directories().db,
-				listen_addr: self.stratum_interface(),
-				port: self.args.flag_stratum_port,
-				secret: self.args.flag_stratum_secret.as_ref().map(|s| s.parse::<H256>().unwrap_or_else(|_| s.sha3())),
-			}))
-		} else { Ok(None) }
+			            io_path: self.directories().db,
+			            listen_addr: self.stratum_interface(),
+			            port: self.args.flag_stratum_port,
+			            secret: self.args.flag_stratum_secret.as_ref().map(|s| s.parse::<H256>().unwrap_or_else(|_| s.sha3())),
+			        }))
+		} else {
+			Ok(None)
+		}
 	}
 
 	fn miner_options(&self, reseal_min_period: u64) -> Result<MinerOptions, String> {
@@ -577,15 +558,15 @@ impl Configuration {
 
 	fn secretstore_config(&self) -> Result<SecretStoreConfiguration, String> {
 		Ok(SecretStoreConfiguration {
-			enabled: self.secretstore_enabled(),
-			self_secret: self.secretstore_self_secret()?,
-			nodes: self.secretstore_nodes()?,
-			interface: self.secretstore_interface(),
-			port: self.args.flag_secretstore_port,
-			http_interface: self.secretstore_http_interface(),
-			http_port: self.args.flag_secretstore_http_port,
-			data_path: self.directories().secretstore,
-		})
+		       enabled: self.secretstore_enabled(),
+		       self_secret: self.secretstore_self_secret()?,
+		       nodes: self.secretstore_nodes()?,
+		       interface: self.secretstore_interface(),
+		       port: self.args.flag_secretstore_port,
+		       http_interface: self.secretstore_http_interface(),
+		       http_port: self.args.flag_secretstore_http_port,
+		       data_path: self.directories().secretstore,
+		   })
 	}
 
 	fn ipfs_config(&self) -> IpfsConfiguration {
@@ -603,11 +584,10 @@ impl Configuration {
 			return Ok(None);
 		}
 		let path = self.args.arg_path.get(0).map(String::as_str).unwrap_or(".");
-		let path = Path::new(path).canonicalize()
-			.map_err(|e| format!("Invalid path: {}. Error: {:?}", path, e))?;
+		let path = Path::new(path).canonicalize().map_err(|e| format!("Invalid path: {}. Error: {:?}", path, e))?;
 		let name = path.file_name()
-			.and_then(|name| name.to_str())
-			.ok_or_else(|| "Root path is not supported.".to_owned())?;
+		               .and_then(|name| name.to_str())
+		               .ok_or_else(|| "Root path is not supported.".to_owned())?;
 		Ok(Some(name.into()))
 	}
 
@@ -630,20 +610,16 @@ impl Configuration {
 			// if user does not want it.
 			let last_known_usd_per_eth = 10.0;
 			return Ok(GasPricerConfig::Calibrated {
-				initial_minimum: wei_per_gas(usd_per_tx, last_known_usd_per_eth),
-				usd_per_tx: usd_per_tx,
-				recalibration_period: to_duration(self.args.flag_price_update_period.as_str())?,
-			});
+			              initial_minimum: wei_per_gas(usd_per_tx, last_known_usd_per_eth),
+			              usd_per_tx: usd_per_tx,
+			              recalibration_period: to_duration(self.args.flag_price_update_period.as_str())?,
+			          });
 		}
 
 		let usd_per_eth = to_price(&self.args.flag_usd_per_eth)?;
 		let wei_per_gas = wei_per_gas(usd_per_tx, usd_per_eth);
 
-		info!(
-			"Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)",
-			Colour::White.bold().paint(format!("US${:.2}", usd_per_eth)),
-			Colour::Yellow.bold().paint(format!("{}", wei_per_gas))
-		);
+		info!("Using a fixed conversion rate of Ξ1 = {} ({} wei/gas)", Colour::White.bold().paint(format!("US${:.2}", usd_per_eth)), Colour::Yellow.bold().paint(format!("{}", wei_per_gas)));
 
 		Ok(GasPricerConfig::Fixed(wei_per_gas))
 	}
@@ -669,8 +645,8 @@ impl Configuration {
 					return Err(format!("Invalid node address format given for a boot node: {}", invalid));
 				}
 				Ok(lines)
-			},
-			None => Ok(Vec::new())
+			}
+			None => Ok(Vec::new()),
 		}
 	}
 
@@ -694,9 +670,14 @@ impl Configuration {
 		let (listen, public) = self.net_addresses()?;
 		ret.listen_address = listen.map(|l| format!("{}", l));
 		ret.public_address = public.map(|p| format!("{}", p));
-		ret.use_secret = match self.args.flag_node_key.as_ref()
-			.map(|s| s.parse::<Secret>().or_else(|_| Secret::from_slice(&s.sha3())).map_err(|e| format!("Invalid key: {:?}", e))
-			) {
+		ret.use_secret = match self.args
+		                           .flag_node_key
+		                           .as_ref()
+		                           .map(|s| {
+			                                s.parse::<Secret>()
+			                                 .or_else(|_| Secret::from_slice(&s.sha3()))
+			                                 .map_err(|e| format!("Invalid key: {:?}", e))
+			                               }) {
 			None => None,
 			Some(Ok(key)) => Some(key),
 			Some(Err(err)) => return Err(err),
@@ -720,11 +701,7 @@ impl Configuration {
 	}
 
 	fn rpc_apis(&self) -> String {
-		let mut apis: Vec<&str> = self.args.flag_rpcapi
-			.as_ref()
-			.unwrap_or(&self.args.flag_jsonrpc_apis)
-			.split(",")
-			.collect();
+		let mut apis: Vec<&str> = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis).split(",").collect();
 
 		if self.args.flag_geth {
 			apis.insert(0, "personal");
@@ -780,8 +757,8 @@ impl Configuration {
 				let mut apis = self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone());
 				if self.args.flag_geth {
 					if !apis.is_empty() {
- 						apis.push_str(",");
- 					}
+						apis.push_str(",");
+					}
 					apis.push_str("personal");
 				}
 				apis.parse()?
@@ -806,7 +783,7 @@ impl Configuration {
 				Some(threads) if threads > 0 => Some(threads),
 				None => None,
 				_ => return Err("--jsonrpc-threads number needs to be positive.".into()),
-			}
+			},
 		};
 
 		Ok(conf)
@@ -819,7 +796,7 @@ impl Configuration {
 			port: self.args.flag_ws_port,
 			apis: self.args.flag_ws_apis.parse()?,
 			hosts: self.ws_hosts(),
-			origins: self.ws_origins()
+			origins: self.ws_origins(),
 		};
 
 		Ok(conf)
@@ -838,24 +815,24 @@ impl Configuration {
 
 	fn update_policy(&self) -> Result<UpdatePolicy, String> {
 		Ok(UpdatePolicy {
-			enable_downloading: !self.args.flag_no_download,
-			require_consensus: !self.args.flag_no_consensus,
-			filter: match self.args.flag_auto_update.as_ref() {
-				"none" => UpdateFilter::None,
-				"critical" => UpdateFilter::Critical,
-				"all" => UpdateFilter::All,
-				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()),
-			},
-			track: match self.args.flag_release_track.as_ref() {
-				"stable" => ReleaseTrack::Stable,
-				"beta" => ReleaseTrack::Beta,
-				"nightly" => ReleaseTrack::Nightly,
-				"testing" => ReleaseTrack::Testing,
-				"current" => ReleaseTrack::Unknown,
-				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()),
-			},
-			path: default_hypervisor_path(),
-		})
+		       enable_downloading: !self.args.flag_no_download,
+		       require_consensus: !self.args.flag_no_consensus,
+		       filter: match self.args.flag_auto_update.as_ref() {
+		           "none" => UpdateFilter::None,
+		           "critical" => UpdateFilter::Critical,
+		           "all" => UpdateFilter::All,
+		           _ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()),
+		       },
+		       track: match self.args.flag_release_track.as_ref() {
+		           "stable" => ReleaseTrack::Stable,
+		           "beta" => ReleaseTrack::Beta,
+		           "nightly" => ReleaseTrack::Nightly,
+		           "testing" => ReleaseTrack::Testing,
+		           "current" => ReleaseTrack::Unknown,
+		           _ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()),
+		       },
+		       path: default_hypervisor_path(),
+		   })
 	}
 
 	fn directories(&self) -> Directories {
@@ -878,18 +855,19 @@ impl Configuration {
 		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
 
 		if self.args.flag_geth && !cfg!(windows) {
-			let geth_root  = if self.chain() == "testnet".to_owned() { path::ethereum::test() } else {  path::ethereum::default() };
-			::std::fs::create_dir_all(geth_root.as_path()).unwrap_or_else(
-				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_root.to_str().unwrap(), e));
+			let geth_root = if self.chain() == "testnet".to_owned() {
+				path::ethereum::test()
+			} else {
+				path::ethereum::default()
+			};
+			::std::fs::create_dir_all(geth_root.as_path()).unwrap_or_else(|e| warn!("Failed to create '{}' for geth mode: {}", &geth_root.to_str().unwrap(), e));
 		}
 
 		if cfg!(feature = "ipc") && !cfg!(feature = "windows") {
 			let mut path_buf = PathBuf::from(data_path.clone());
 			path_buf.push("ipc");
 			let ipc_path = path_buf.to_str().unwrap();
-			::std::fs::create_dir_all(ipc_path).unwrap_or_else(
-				|e| warn!("Failed to directory '{}' for ipc sockets: {}", ipc_path, e)
-			);
+			::std::fs::create_dir_all(ipc_path).unwrap_or_else(|e| warn!("Failed to directory '{}' for ipc sockets: {}", ipc_path, e));
 		}
 
 		Directories {
@@ -911,18 +889,15 @@ impl Configuration {
 	}
 
 	fn ui_port(&self) -> Option<u16> {
-		if !self.ui_enabled() {
-			None
-		} else {
-			Some(self.args.flag_ui_port)
-		}
+		if !self.ui_enabled() { None } else { Some(self.args.flag_ui_port) }
 	}
 
 	fn ui_interface(&self) -> String {
 		match self.args.flag_ui_interface.as_str() {
 			"local" => "127.0.0.1",
 			x => x,
-		}.into()
+		}
+		.into()
 	}
 
 	fn interface(interface: &str) -> String {
@@ -930,7 +905,8 @@ impl Configuration {
 			"all" => "0.0.0.0",
 			"local" => "127.0.0.1",
 			x => x,
-		}.into()
+		}
+		.into()
 	}
 
 	fn rpc_interface(&self) -> String {
@@ -955,8 +931,7 @@ impl Configuration {
 
 	fn secretstore_self_secret(&self) -> Result<Option<Secret>, String> {
 		match self.args.flag_secretstore_secret {
-			Some(ref s) => Ok(Some(s.parse()
-				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?)),
+			Some(ref s) => Ok(Some(s.parse().map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?)),
 			None => Ok(None),
 		}
 	}
@@ -974,9 +949,11 @@ impl Configuration {
 				return Err(format!("Invalid secret store node: {}", node));
 			}
 
-			let public = public_and_addr[0].parse()
+			let public = public_and_addr[0]
+				.parse()
 				.map_err(|e| format!("Invalid public key in secret store node: {}. Error: {:?}", public_and_addr[0], e))?;
-			let port = ip_and_port[1].parse()
+			let port = ip_and_port[1]
+				.parse()
 				.map_err(|e| format!("Invalid port in secret store node: {}. Error: {:?}", ip_and_port[1], e))?;
 
 			nodes.insert(public, (ip_and_port[0].into(), port));
@@ -1010,9 +987,7 @@ impl Configuration {
 			return true;
 		}
 
-		let ui_disabled = self.args.flag_unlock.is_some() ||
-			self.args.flag_geth ||
-			self.args.flag_no_ui;
+		let ui_disabled = self.args.flag_unlock.is_some() || self.args.flag_geth || self.args.flag_no_ui;
 
 		!ui_disabled
 	}
@@ -1031,22 +1006,22 @@ impl Configuration {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use account::{AccountCmd, NewAccount, ImportAccounts, ListAccounts};
+	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat, ExportState};
 	use cli::Args;
-	use parity_rpc::NetworkSettings;
+	use devtools::RandomTempPath;
+	use dir::{Directories, default_hypervisor_path};
 	use ethcore::client::{VMType, BlockId};
 	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
-	use helpers::{default_network_config};
-	use run::RunCmd;
-	use dir::{Directories, default_hypervisor_path};
-	use signer::{Configuration as SignerConfiguration};
-	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat, ExportState};
-	use presale::ImportWallet;
+	use helpers::default_network_config;
 	use params::SpecType;
-	use account::{AccountCmd, NewAccount, ImportAccounts, ListAccounts};
-	use devtools::{RandomTempPath};
-	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
-	use std::io::Write;
+	use parity_rpc::NetworkSettings;
+	use presale::ImportWallet;
+	use run::RunCmd;
+	use signer::Configuration as SignerConfiguration;
 	use std::fs::{File, create_dir};
+	use std::io::Write;
+	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 
 	#[derive(Debug, PartialEq)]
 	struct TestPasswordReader(&'static str);
@@ -1069,143 +1044,159 @@ mod tests {
 	fn test_command_account_new() {
 		let args = vec!["parity", "account", "new"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::New(NewAccount {
-			iterations: 10240,
-			path: Directories::default().keys,
-			password_file: None,
-			spec: SpecType::default(),
-		})));
+		assert_eq!(conf.into_command().unwrap().cmd,
+		           Cmd::Account(AccountCmd::New(NewAccount {
+		                                            iterations: 10240,
+		                                            path: Directories::default().keys,
+		                                            password_file: None,
+		                                            spec: SpecType::default(),
+		                                        })));
 	}
 
 	#[test]
 	fn test_command_account_list() {
 		let args = vec!["parity", "account", "list"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(
-			AccountCmd::List(ListAccounts {
-				path: Directories::default().keys,
-				spec: SpecType::default(),
-			})
-		));
+		assert_eq!(conf.into_command().unwrap().cmd,
+		           Cmd::Account(AccountCmd::List(ListAccounts {
+		                                             path: Directories::default().keys,
+		                                             spec: SpecType::default(),
+		                                         })));
 	}
 
 	#[test]
 	fn test_command_account_import() {
 		let args = vec!["parity", "account", "import", "my_dir", "another_dir"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::Import(ImportAccounts {
-			from: vec!["my_dir".into(), "another_dir".into()],
-			to: Directories::default().keys,
-			spec: SpecType::default(),
-		})));
+		assert_eq!(conf.into_command().unwrap().cmd,
+		           Cmd::Account(AccountCmd::Import(ImportAccounts {
+		                                               from: vec!["my_dir".into(), "another_dir".into()],
+		                                               to: Directories::default().keys,
+		                                               spec: SpecType::default(),
+		                                           })));
 	}
 
 	#[test]
 	fn test_command_wallet_import() {
-		let args = vec!["parity", "wallet", "import", "my_wallet.json", "--password", "pwd"];
+		let args = vec!["parity",
+		                "wallet",
+		                "import",
+		                "my_wallet.json",
+		                "--password",
+		                "pwd"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::ImportPresaleWallet(ImportWallet {
-			iterations: 10240,
-			path: Directories::default().keys,
-			wallet_path: "my_wallet.json".into(),
-			password_file: Some("pwd".into()),
-			spec: SpecType::default(),
-		}));
+		assert_eq!(conf.into_command().unwrap().cmd,
+		           Cmd::ImportPresaleWallet(ImportWallet {
+		                                        iterations: 10240,
+		                                        path: Directories::default().keys,
+		                                        wallet_path: "my_wallet.json".into(),
+		                                        password_file: Some("pwd".into()),
+		                                        spec: SpecType::default(),
+		                                    }));
 	}
 
 	#[test]
 	fn test_command_blockchain_import() {
 		let args = vec!["parity", "import", "blockchain.json"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Import(ImportBlockchain {
-			spec: Default::default(),
-			cache_config: Default::default(),
-			dirs: Default::default(),
-			file_path: Some("blockchain.json".into()),
-			format: Default::default(),
-			pruning: Default::default(),
-			pruning_history: 64,
-			pruning_memory: 32,
-			compaction: Default::default(),
-			wal: true,
-			tracing: Default::default(),
-			fat_db: Default::default(),
-			vm_type: VMType::Interpreter,
-			check_seal: true,
-			with_color: !cfg!(windows),
-			verifier_settings: Default::default(),
-		})));
+		assert_eq!(conf.into_command().unwrap().cmd,
+		           Cmd::Blockchain(BlockchainCmd::Import(ImportBlockchain {
+		                                                     spec: Default::default(),
+		                                                     cache_config: Default::default(),
+		                                                     dirs: Default::default(),
+		                                                     file_path: Some("blockchain.json".into()),
+		                                                     format: Default::default(),
+		                                                     pruning: Default::default(),
+		                                                     pruning_history: 64,
+		                                                     pruning_memory: 32,
+		                                                     compaction: Default::default(),
+		                                                     wal: true,
+		                                                     tracing: Default::default(),
+		                                                     fat_db: Default::default(),
+		                                                     vm_type: VMType::Interpreter,
+		                                                     check_seal: true,
+		                                                     with_color: !cfg!(windows),
+		                                                     verifier_settings: Default::default(),
+		                                                 })));
 	}
 
 	#[test]
 	fn test_command_blockchain_export() {
 		let args = vec!["parity", "export", "blocks", "blockchain.json"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
-			spec: Default::default(),
-			cache_config: Default::default(),
-			dirs: Default::default(),
-			file_path: Some("blockchain.json".into()),
-			pruning: Default::default(),
-			pruning_history: 64,
-			pruning_memory: 32,
-			format: Default::default(),
-			compaction: Default::default(),
-			wal: true,
-			tracing: Default::default(),
-			fat_db: Default::default(),
-			from_block: BlockId::Number(1),
-			to_block: BlockId::Latest,
-			check_seal: true,
-		})));
+		assert_eq!(conf.into_command().unwrap().cmd,
+		           Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
+		                                                     spec: Default::default(),
+		                                                     cache_config: Default::default(),
+		                                                     dirs: Default::default(),
+		                                                     file_path: Some("blockchain.json".into()),
+		                                                     pruning: Default::default(),
+		                                                     pruning_history: 64,
+		                                                     pruning_memory: 32,
+		                                                     format: Default::default(),
+		                                                     compaction: Default::default(),
+		                                                     wal: true,
+		                                                     tracing: Default::default(),
+		                                                     fat_db: Default::default(),
+		                                                     from_block: BlockId::Number(1),
+		                                                     to_block: BlockId::Latest,
+		                                                     check_seal: true,
+		                                                 })));
 	}
 
 	#[test]
 	fn test_command_state_export() {
 		let args = vec!["parity", "export", "state", "state.json"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::ExportState(ExportState {
-			spec: Default::default(),
-			cache_config: Default::default(),
-			dirs: Default::default(),
-			file_path: Some("state.json".into()),
-			pruning: Default::default(),
-			pruning_history: 64,
-			pruning_memory: 32,
-			format: Default::default(),
-			compaction: Default::default(),
-			wal: true,
-			tracing: Default::default(),
-			fat_db: Default::default(),
-			at: BlockId::Latest,
-			storage: true,
-			code: true,
-			min_balance: None,
-			max_balance: None,
-		})));
+		assert_eq!(conf.into_command().unwrap().cmd,
+		           Cmd::Blockchain(BlockchainCmd::ExportState(ExportState {
+		                                                          spec: Default::default(),
+		                                                          cache_config: Default::default(),
+		                                                          dirs: Default::default(),
+		                                                          file_path: Some("state.json".into()),
+		                                                          pruning: Default::default(),
+		                                                          pruning_history: 64,
+		                                                          pruning_memory: 32,
+		                                                          format: Default::default(),
+		                                                          compaction: Default::default(),
+		                                                          wal: true,
+		                                                          tracing: Default::default(),
+		                                                          fat_db: Default::default(),
+		                                                          at: BlockId::Latest,
+		                                                          storage: true,
+		                                                          code: true,
+		                                                          min_balance: None,
+		                                                          max_balance: None,
+		                                                      })));
 	}
 
 	#[test]
 	fn test_command_blockchain_export_with_custom_format() {
-		let args = vec!["parity", "export", "blocks", "--format", "hex", "blockchain.json"];
+		let args = vec!["parity",
+		                "export",
+		                "blocks",
+		                "--format",
+		                "hex",
+		                "blockchain.json"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
-			spec: Default::default(),
-			cache_config: Default::default(),
-			dirs: Default::default(),
-			file_path: Some("blockchain.json".into()),
-			pruning: Default::default(),
-			pruning_history: 64,
-			pruning_memory: 32,
-			format: Some(DataFormat::Hex),
-			compaction: Default::default(),
-			wal: true,
-			tracing: Default::default(),
-			fat_db: Default::default(),
-			from_block: BlockId::Number(1),
-			to_block: BlockId::Latest,
-			check_seal: true,
-		})));
+		assert_eq!(conf.into_command().unwrap().cmd,
+		           Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
+		                                                     spec: Default::default(),
+		                                                     cache_config: Default::default(),
+		                                                     dirs: Default::default(),
+		                                                     file_path: Some("blockchain.json".into()),
+		                                                     pruning: Default::default(),
+		                                                     pruning_history: 64,
+		                                                     pruning_memory: 32,
+		                                                     format: Some(DataFormat::Hex),
+		                                                     compaction: Default::default(),
+		                                                     wal: true,
+		                                                     tracing: Default::default(),
+		                                                     fat_db: Default::default(),
+		                                                     from_block: BlockId::Number(1),
+		                                                     to_block: BlockId::Latest,
+		                                                     check_seal: true,
+		                                                 })));
 	}
 
 	#[test]
@@ -1213,13 +1204,14 @@ mod tests {
 		let args = vec!["parity", "signer", "new-token"];
 		let conf = parse(&args);
 		let expected = Directories::default().signer;
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::SignerToken(SignerConfiguration {
-			enabled: true,
-			signer_path: expected,
-			interface: "127.0.0.1".into(),
-			port: 8180,
-			skip_origin_validation: false,
-		}));
+		assert_eq!(conf.into_command().unwrap().cmd,
+		           Cmd::SignerToken(SignerConfiguration {
+		                                enabled: true,
+		                                signer_path: expected,
+		                                interface: "127.0.0.1".into(),
+		                                port: 8180,
+		                                skip_origin_validation: false,
+		                            }));
 	}
 
 	#[test]
@@ -1246,7 +1238,13 @@ mod tests {
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),
-			update_policy: UpdatePolicy { enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Unknown, path: default_hypervisor_path() },
+			update_policy: UpdatePolicy {
+				enable_downloading: true,
+				require_consensus: true,
+				filter: UpdateFilter::Critical,
+				track: ReleaseTrack::Unknown,
+				path: default_hypervisor_path(),
+			},
 			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),
@@ -1304,13 +1302,37 @@ mod tests {
 		// when
 		let conf0 = parse(&["parity", "--release-track=testing"]);
 		let conf1 = parse(&["parity", "--auto-update", "all", "--no-consensus"]);
-		let conf2 = parse(&["parity", "--no-download", "--auto-update=all", "--release-track=beta"]);
+		let conf2 = parse(&["parity",
+		                    "--no-download",
+		                    "--auto-update=all",
+		                    "--release-track=beta"]);
 		let conf3 = parse(&["parity", "--auto-update=xxx"]);
 
 		// then
-		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Testing, path: default_hypervisor_path()});
-		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: false, filter: UpdateFilter::All, track: ReleaseTrack::Unknown, path: default_hypervisor_path()});
-		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, require_consensus: true, filter: UpdateFilter::All, track: ReleaseTrack::Beta, path: default_hypervisor_path()});
+		assert_eq!(conf0.update_policy().unwrap(),
+		           UpdatePolicy {
+		               enable_downloading: true,
+		               require_consensus: true,
+		               filter: UpdateFilter::Critical,
+		               track: ReleaseTrack::Testing,
+		               path: default_hypervisor_path(),
+		           });
+		assert_eq!(conf1.update_policy().unwrap(),
+		           UpdatePolicy {
+		               enable_downloading: true,
+		               require_consensus: false,
+		               filter: UpdateFilter::All,
+		               track: ReleaseTrack::Unknown,
+		               path: default_hypervisor_path(),
+		           });
+		assert_eq!(conf2.update_policy().unwrap(),
+		           UpdatePolicy {
+		               enable_downloading: false,
+		               require_consensus: true,
+		               filter: UpdateFilter::All,
+		               track: ReleaseTrack::Beta,
+		               path: default_hypervisor_path(),
+		           });
 		assert!(conf3.update_policy().is_err());
 	}
 
@@ -1322,14 +1344,15 @@ mod tests {
 		let conf = parse(&["parity", "--testnet", "--identity", "testname"]);
 
 		// then
-		assert_eq!(conf.network_settings(), NetworkSettings {
-			name: "testname".to_owned(),
-			chain: "testnet".to_owned(),
-			network_port: 30303,
-			rpc_enabled: true,
-			rpc_interface: "local".to_owned(),
-			rpc_port: 8545,
-		});
+		assert_eq!(conf.network_settings(),
+		           NetworkSettings {
+		               name: "testname".to_owned(),
+		               chain: "testnet".to_owned(),
+		               network_port: 30303,
+		               rpc_enabled: true,
+		               rpc_interface: "local".to_owned(),
+		               rpc_port: 8545,
+		           });
 	}
 
 	#[test]
@@ -1345,18 +1368,26 @@ mod tests {
 		}
 
 		// when
-		let conf1 = parse(&["parity", "-j",
-						 "--jsonrpc-port", "8000",
-						 "--jsonrpc-interface", "all",
-						 "--jsonrpc-cors", "*",
-						 "--jsonrpc-apis", "web3,eth"
-						 ]);
-		let conf2 = parse(&["parity", "--rpc",
-						  "--rpcport", "8000",
-						  "--rpcaddr", "all",
-						  "--rpccorsdomain", "*",
-						  "--rpcapi", "web3,eth"
-						  ]);
+		let conf1 = parse(&["parity",
+		                    "-j",
+		                    "--jsonrpc-port",
+		                    "8000",
+		                    "--jsonrpc-interface",
+		                    "all",
+		                    "--jsonrpc-cors",
+		                    "*",
+		                    "--jsonrpc-apis",
+		                    "web3,eth"]);
+		let conf2 = parse(&["parity",
+		                    "--rpc",
+		                    "--rpcport",
+		                    "8000",
+		                    "--rpcaddr",
+		                    "all",
+		                    "--rpccorsdomain",
+		                    "*",
+		                    "--rpcapi",
+		                    "web3,eth"]);
 
 		// then
 		assert(conf1);
@@ -1404,12 +1435,14 @@ mod tests {
 		// when
 		let conf0 = parse(&["parity"]);
 		let conf1 = parse(&["parity", "--ipfs-api-cors", "*"]);
-		let conf2 = parse(&["parity", "--ipfs-api-cors", "http://parity.io,http://something.io"]);
+		let conf2 = parse(&["parity",
+		                    "--ipfs-api-cors",
+		                    "http://parity.io,http://something.io"]);
 
 		// then
 		assert_eq!(conf0.ipfs_cors(), None);
 		assert_eq!(conf1.ipfs_cors(), Some(vec!["*".into()]));
-		assert_eq!(conf2.ipfs_cors(), Some(vec!["http://parity.io".into(),"http://something.io".into()]));
+		assert_eq!(conf2.ipfs_cors(), Some(vec!["http://parity.io".into(), "http://something.io".into()]));
 	}
 
 	#[test]
@@ -1447,34 +1480,38 @@ mod tests {
 		let conf3 = parse(&["parity", "--ui-path", "signer", "--ui-interface", "test"]);
 
 		// then
-		assert_eq!(conf0.signer_config(), SignerConfiguration {
-			enabled: true,
-			port: 8180,
-			interface: "127.0.0.1".into(),
-			signer_path: "signer".into(),
-			skip_origin_validation: false,
-		});
-		assert_eq!(conf1.signer_config(), SignerConfiguration {
-			enabled: true,
-			port: 8180,
-			interface: "127.0.0.1".into(),
-			signer_path: "signer".into(),
-			skip_origin_validation: true,
-		});
-		assert_eq!(conf2.signer_config(), SignerConfiguration {
-			enabled: true,
-			port: 3123,
-			interface: "127.0.0.1".into(),
-			signer_path: "signer".into(),
-			skip_origin_validation: false,
-		});
-		assert_eq!(conf3.signer_config(), SignerConfiguration {
-			enabled: true,
-			port: 8180,
-			interface: "test".into(),
-			signer_path: "signer".into(),
-			skip_origin_validation: false,
-		});
+		assert_eq!(conf0.signer_config(),
+		           SignerConfiguration {
+		               enabled: true,
+		               port: 8180,
+		               interface: "127.0.0.1".into(),
+		               signer_path: "signer".into(),
+		               skip_origin_validation: false,
+		           });
+		assert_eq!(conf1.signer_config(),
+		           SignerConfiguration {
+		               enabled: true,
+		               port: 8180,
+		               interface: "127.0.0.1".into(),
+		               signer_path: "signer".into(),
+		               skip_origin_validation: true,
+		           });
+		assert_eq!(conf2.signer_config(),
+		           SignerConfiguration {
+		               enabled: true,
+		               port: 3123,
+		               interface: "127.0.0.1".into(),
+		               signer_path: "signer".into(),
+		               skip_origin_validation: false,
+		           });
+		assert_eq!(conf3.signer_config(),
+		           SignerConfiguration {
+		               enabled: true,
+		               port: 8180,
+		               interface: "test".into(),
+		               signer_path: "signer".into(),
+		               skip_origin_validation: false,
+		           });
 	}
 
 	#[test]
@@ -1512,7 +1549,7 @@ mod tests {
 			Cmd::Run(c) => {
 				assert_eq!(c.gas_pricer, GasPricerConfig::Fixed(0.into()));
 				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
-			},
+			}
 			_ => panic!("Should be Cmd::Run"),
 		}
 	}

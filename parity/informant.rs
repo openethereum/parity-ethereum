@@ -17,21 +17,21 @@
 extern crate ansi_term;
 use self::ansi_term::Colour::{White, Yellow, Green, Cyan, Blue};
 use self::ansi_term::Style;
-
-use std::sync::{Arc};
-use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
-use std::time::{Instant, Duration};
-use io::{TimerToken, IoContext, IoHandler};
-use isatty::{stdout_isatty};
-use ethsync::{SyncProvider, ManageNetwork};
-use util::{Uint, RwLock, Mutex, H256, Colour, Bytes};
 use ethcore::client::*;
 use ethcore::service::ClientIoMessage;
-use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
+use ethcore::snapshot::service::Service as SnapshotService;
+use ethsync::{SyncProvider, ManageNetwork};
+use io::{TimerToken, IoContext, IoHandler};
+use isatty::stdout_isatty;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
-use parity_rpc::{is_major_importing};
 use parity_rpc::informant::RpcStats;
+use parity_rpc::is_major_importing;
+
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
+use std::time::{Instant, Duration};
+use util::{Uint, RwLock, Mutex, H256, Colour, Bytes};
 
 pub struct Informant {
 	report: RwLock<Option<ClientReport>>,
@@ -51,7 +51,7 @@ pub struct Informant {
 /// Format byte counts to standard denominations.
 pub fn format_bytes(b: usize) -> String {
 	match binary_prefix(b as f64) {
-		Standalone(bytes)   => format!("{} bytes", bytes),
+		Standalone(bytes) => format!("{} bytes", bytes),
 		Prefixed(prefix, n) => format!("{:.0} {}B", n, prefix),
 	}
 }
@@ -70,14 +70,7 @@ impl MillisecondDuration for Duration {
 
 impl Informant {
 	/// Make a new instance potentially `with_color` output.
-	pub fn new(
-		client: Arc<Client>,
-		sync: Option<Arc<SyncProvider>>,
-		net: Option<Arc<ManageNetwork>>,
-		snapshot: Option<Arc<SnapshotService>>,
-		rpc_stats: Option<Arc<RpcStats>>,
-		with_color: bool,
-	) -> Self {
+	pub fn new(client: Arc<Client>, sync: Option<Arc<SyncProvider>>, net: Option<Arc<ManageNetwork>>, snapshot: Option<Arc<SnapshotService>>, rpc_stats: Option<Arc<RpcStats>>, with_color: bool) -> Self {
 		Informant {
 			report: RwLock::new(None),
 			last_tick: RwLock::new(Instant::now()),
@@ -114,13 +107,17 @@ impl Informant {
 		let rpc_stats = self.rpc_stats.as_ref();
 
 		let importing = is_major_importing(sync_status.map(|s| s.state), self.client.queue_info());
-		let (snapshot_sync, snapshot_current, snapshot_total) = self.snapshot.as_ref().map_or((false, 0, 0), |s|
-			match s.status() {
-				RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } =>
-					(true, state_chunks_done + block_chunks_done, state_chunks + block_chunks),
-				_ => (false, 0, 0),
-			}
-		);
+		let (snapshot_sync, snapshot_current, snapshot_total) = self.snapshot
+		                                                            .as_ref()
+		                                                            .map_or((false, 0, 0), |s| match s.status() {
+			RestorationStatus::Ongoing {
+				state_chunks,
+				block_chunks,
+				state_chunks_done,
+				block_chunks_done,
+			} => (true, state_chunks_done + block_chunks_done, state_chunks + block_chunks),
+			_ => (false, 0, 0),
+		});
 
 		if !importing && !snapshot_sync && elapsed < Duration::from_secs(30) {
 			return;
@@ -203,10 +200,10 @@ impl ChainNotify for Informant {
 		let importing = is_major_importing(sync_state, self.client.queue_info());
 		let ripe = Instant::now() > *last_import + Duration::from_secs(1) && !importing;
 		let txs_imported = imported.iter()
-			.take(imported.len().saturating_sub(if ripe { 1 } else { 0 }))
-			.filter_map(|h| self.client.block(BlockId::Hash(*h)))
-			.map(|b| b.transactions_count())
-			.sum();
+		                           .take(imported.len().saturating_sub(if ripe { 1 } else { 0 }))
+		                           .filter_map(|h| self.client.block(BlockId::Hash(*h)))
+		                           .map(|b| b.transactions_count())
+		                           .sum();
 
 		if ripe {
 			if let Some(block) = imported.last().and_then(|h| self.client.block(BlockId::Hash(*h))) {

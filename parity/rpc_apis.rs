@@ -14,29 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::cmp::PartialEq;
-use std::collections::BTreeMap;
-use std::collections::HashSet;
-use std::str::FromStr;
-use std::sync::Arc;
-
-pub use parity_rpc::SignerService;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::snapshot::SnapshotService;
-use parity_rpc::{Metadata, NetworkSettings};
-use parity_rpc::informant::{ActivityNotifier, Middleware, RpcStats, ClientNotifier};
-use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
+use ethcore_logger::RotatingLogger;
 use ethsync::{ManageNetwork, SyncProvider, LightSync};
 use hash_fetch::fetch::Client as FetchClient;
 use jsonrpc_core::{self as core, MetaIoHandler};
 use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
+use parity_reactor;
+use parity_rpc::{Metadata, NetworkSettings};
+
+pub use parity_rpc::SignerService;
+use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
+use parity_rpc::informant::{ActivityNotifier, Middleware, RpcStats, ClientNotifier};
+use std::cmp::PartialEq;
+use std::collections::BTreeMap;
+use std::collections::HashSet;
+use std::str::FromStr;
+use std::sync::Arc;
 use updater::Updater;
 use util::{Mutex, RwLock};
-use ethcore_logger::RotatingLogger;
-use parity_reactor;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
@@ -82,7 +82,7 @@ impl FromStr for Api {
 			"traces" => Ok(Traces),
 			"rpc" => Ok(Rpc),
 			"secretstore" => Ok(SecretStore),
-			api => Err(format!("Unknown api: {}", api))
+			api => Err(format!("Unknown api: {}", api)),
 		}
 	}
 }
@@ -125,20 +125,20 @@ impl FromStr for ApiSet {
 			match api {
 				"all" => {
 					apis.extend(ApiSet::All.list_apis());
-				},
+				}
 				"safe" => {
 					// Safe APIs are those that are safe even in UnsafeContext.
 					apis.extend(ApiSet::UnsafeContext.list_apis());
-				},
+				}
 				// Remove the API
 				api if api.starts_with("-") => {
 					let api = api[1..].parse()?;
 					apis.remove(&api);
-				},
+				}
 				api => {
 					let api = api.parse()?;
 					apis.insert(api);
-				},
+				}
 			}
 		}
 
@@ -200,12 +200,7 @@ pub struct FullDependencies {
 }
 
 impl FullDependencies {
-	fn extend_api<T: core::Middleware<Metadata>>(
-		&self,
-		handler: &mut MetaIoHandler<Metadata, T>,
-		apis: &[Api],
-		for_generic_pubsub: bool,
-	) {
+	fn extend_api<T: core::Middleware<Metadata>>(&self, handler: &mut MetaIoHandler<Metadata, T>, apis: &[Api], for_generic_pubsub: bool) {
 		use parity_rpc::v1::*;
 
 		macro_rules! add_signing_methods {
@@ -227,24 +222,22 @@ impl FullDependencies {
 			match *api {
 				Api::Web3 => {
 					handler.extend_with(Web3Client::new().to_delegate());
-				},
+				}
 				Api::Net => {
 					handler.extend_with(NetClient::new(&self.sync).to_delegate());
-				},
+				}
 				Api::Eth => {
-					let client = EthClient::new(
-						&self.client,
-						&self.snapshot,
-						&self.sync,
-						&self.secret_store,
-						&self.miner,
-						&self.external_miner,
-						EthClientOptions {
-							pending_nonce_from_queue: self.geth_compatibility,
-							allow_pending_receipt_query: !self.geth_compatibility,
-							send_block_number_in_get_work: !self.geth_compatibility,
-						}
-					);
+					let client = EthClient::new(&self.client,
+					                            &self.snapshot,
+					                            &self.sync,
+					                            &self.secret_store,
+					                            &self.miner,
+					                            &self.external_miner,
+					                            EthClientOptions {
+					                                pending_nonce_from_queue: self.geth_compatibility,
+					                                allow_pending_receipt_query: !self.geth_compatibility,
+					                                send_block_number_in_get_work: !self.geth_compatibility,
+					                            });
 					handler.extend_with(client.to_delegate());
 
 					if !for_generic_pubsub {
@@ -253,31 +246,19 @@ impl FullDependencies {
 
 						add_signing_methods!(EthSigning, handler, self);
 					}
-				},
+				}
 				Api::Personal => {
 					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
-				},
+				}
 				Api::Signer => {
 					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service).to_delegate());
-				},
+				}
 				Api::Parity => {
 					let signer = match self.signer_service.is_enabled() {
 						true => Some(self.signer_service.clone()),
 						false => None,
 					};
-					handler.extend_with(ParityClient::new(
-						&self.client,
-						&self.miner,
-						&self.sync,
-						&self.updater,
-						&self.net_service,
-						&self.secret_store,
-						self.logger.clone(),
-						self.settings.clone(),
-						signer,
-						self.dapps_interface.clone(),
-						self.dapps_port,
-					).to_delegate());
+					handler.extend_with(ParityClient::new(&self.client, &self.miner, &self.sync, &self.updater, &self.net_service, &self.secret_store, self.logger.clone(), self.settings.clone(), signer, self.dapps_interface.clone(), self.dapps_port).to_delegate());
 
 					if !for_generic_pubsub {
 						let mut rpc = MetaIoHandler::default();
@@ -287,29 +268,23 @@ impl FullDependencies {
 						add_signing_methods!(EthSigning, handler, self);
 						add_signing_methods!(ParitySigning, handler, self);
 					}
-				},
+				}
 				Api::ParityAccounts => {
 					handler.extend_with(ParityAccountsClient::new(&self.secret_store).to_delegate());
-				},
+				}
 				Api::ParitySet => {
-					handler.extend_with(ParitySetClient::new(
-						&self.client,
-						&self.miner,
-						&self.updater,
-						&self.net_service,
-						self.fetch.clone(),
-					).to_delegate())
-				},
+					handler.extend_with(ParitySetClient::new(&self.client, &self.miner, &self.updater, &self.net_service, self.fetch.clone()).to_delegate())
+				}
 				Api::Traces => {
 					handler.extend_with(TracesClient::new(&self.client, &self.miner).to_delegate())
-				},
+				}
 				Api::Rpc => {
 					let modules = to_modules(&apis);
 					handler.extend_with(RpcClient::new(modules).to_delegate());
-				},
+				}
 				Api::SecretStore => {
 					handler.extend_with(SecretStoreClient::new(&self.secret_store).to_delegate());
-				},
+				}
 			}
 		}
 	}
@@ -319,9 +294,7 @@ impl Dependencies for FullDependencies {
 	type Notifier = ClientNotifier;
 
 	fn activity_notifier(&self) -> ClientNotifier {
-		ClientNotifier {
-			client: self.client.clone(),
-		}
+		ClientNotifier { client: self.client.clone() }
 	}
 
 	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware<Self::Notifier>>, apis: &[Api]) {
@@ -357,17 +330,13 @@ pub struct LightDependencies {
 impl Dependencies for LightDependencies {
 	type Notifier = LightClientNotifier;
 
-	fn activity_notifier(&self) -> Self::Notifier { LightClientNotifier }
+	fn activity_notifier(&self) -> Self::Notifier {
+		LightClientNotifier
+	}
 	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware<Self::Notifier>>, apis: &[Api]) {
 		use parity_rpc::v1::*;
 
-		let dispatcher = LightDispatcher::new(
-			self.sync.clone(),
-			self.client.clone(),
-			self.on_demand.clone(),
-			self.cache.clone(),
-			self.transaction_queue.clone(),
-		);
+		let dispatcher = LightDispatcher::new(self.sync.clone(), self.client.clone(), self.on_demand.clone(), self.cache.clone(), self.transaction_queue.clone());
 
 		macro_rules! add_signing_methods {
 			($namespace:ident, $handler:expr, $deps:expr) => {
@@ -392,71 +361,52 @@ impl Dependencies for LightDependencies {
 			match *api {
 				Api::Web3 => {
 					handler.extend_with(Web3Client::new().to_delegate());
-				},
+				}
 				Api::Net => {
 					handler.extend_with(light::NetClient::new(self.sync.clone()).to_delegate());
-				},
+				}
 				Api::Eth => {
-					let client = light::EthClient::new(
-						self.sync.clone(),
-						self.client.clone(),
-						self.on_demand.clone(),
-						self.transaction_queue.clone(),
-						self.secret_store.clone(),
-						self.cache.clone(),
-					);
+					let client = light::EthClient::new(self.sync.clone(), self.client.clone(), self.on_demand.clone(), self.transaction_queue.clone(), self.secret_store.clone(), self.cache.clone());
 					handler.extend_with(Eth::to_delegate(client.clone()));
 					handler.extend_with(EthFilter::to_delegate(client));
 					add_signing_methods!(EthSigning, handler, self);
-				},
+				}
 				Api::Personal => {
 					let secret_store = Some(self.secret_store.clone());
 					handler.extend_with(PersonalClient::new(&secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
-				},
+				}
 				Api::Signer => {
 					let secret_store = Some(self.secret_store.clone());
 					handler.extend_with(SignerClient::new(&secret_store, dispatcher.clone(), &self.signer_service).to_delegate());
-				},
+				}
 				Api::Parity => {
 					let signer = match self.signer_service.is_enabled() {
 						true => Some(self.signer_service.clone()),
 						false => None,
 					};
-					handler.extend_with(light::ParityClient::new(
-						self.client.clone(),
-						Arc::new(dispatcher.clone()),
-						self.secret_store.clone(),
-						self.logger.clone(),
-						self.settings.clone(),
-						signer,
-						self.dapps_interface.clone(),
-						self.dapps_port,
-					).to_delegate());
+					handler.extend_with(light::ParityClient::new(self.client.clone(), Arc::new(dispatcher.clone()), self.secret_store.clone(), self.logger.clone(), self.settings.clone(), signer, self.dapps_interface.clone(), self.dapps_port).to_delegate());
 
 					add_signing_methods!(EthSigning, handler, self);
 					add_signing_methods!(ParitySigning, handler, self);
-				},
+				}
 				Api::ParityAccounts => {
 					let secret_store = Some(self.secret_store.clone());
 					handler.extend_with(ParityAccountsClient::new(&secret_store).to_delegate());
-				},
+				}
 				Api::ParitySet => {
-					handler.extend_with(light::ParitySetClient::new(
-						self.sync.clone(),
-						self.fetch.clone(),
-					).to_delegate())
-				},
+					handler.extend_with(light::ParitySetClient::new(self.sync.clone(), self.fetch.clone()).to_delegate())
+				}
 				Api::Traces => {
 					handler.extend_with(light::TracesClient.to_delegate())
-				},
+				}
 				Api::Rpc => {
 					let modules = to_modules(&apis);
 					handler.extend_with(RpcClient::new(modules).to_delegate());
-				},
+				}
 				Api::SecretStore => {
 					let secret_store = Some(self.secret_store.clone());
 					handler.extend_with(SecretStoreClient::new(&secret_store).to_delegate());
-				},
+				}
 			}
 		}
 	}
@@ -469,28 +419,33 @@ impl ApiSet {
 	}
 
 	pub fn list_apis(&self) -> HashSet<Api> {
-		let mut public_list = vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Rpc, Api::SecretStore,
-		].into_iter().collect();
+		let mut public_list = vec![Api::Web3,
+		                           Api::Net,
+		                           Api::Eth,
+		                           Api::Parity,
+		                           Api::Rpc,
+		                           Api::SecretStore]
+			.into_iter()
+			.collect();
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
 			ApiSet::PublicContext => public_list,
 			ApiSet::UnsafeContext => {
 				public_list.insert(Api::Traces);
 				public_list
-			},
+			}
 			ApiSet::IpcContext => {
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityAccounts);
 				public_list
-			},
+			}
 			ApiSet::SafeContext => {
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityAccounts);
 				public_list.insert(Api::ParitySet);
 				public_list.insert(Api::Signer);
 				public_list
-			},
+			}
 			ApiSet::All => {
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityAccounts);
@@ -498,7 +453,7 @@ impl ApiSet {
 				public_list.insert(Api::Signer);
 				public_list.insert(Api::Personal);
 				public_list
-			},
+			}
 		}
 	}
 }
@@ -544,60 +499,102 @@ mod test {
 
 	#[test]
 	fn test_api_set_unsafe_context() {
-		let expected = vec![
-			// make sure this list contains only SAFE methods
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore
-		].into_iter().collect();
+		let expected = vec![// make sure this list contains only SAFE methods
+		                    Api::Web3,
+		                    Api::Net,
+		                    Api::Eth,
+		                    Api::Parity,
+		                    Api::Traces,
+		                    Api::Rpc,
+		                    Api::SecretStore]
+			.into_iter()
+			.collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}
 
 	#[test]
 	fn test_api_set_ipc_context() {
-		let expected = vec![
-			// safe
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
-			// semi-safe
-			Api::ParityAccounts
-		].into_iter().collect();
+		let expected = vec![// safe
+		                    Api::Web3,
+		                    Api::Net,
+		                    Api::Eth,
+		                    Api::Parity,
+		                    Api::Traces,
+		                    Api::Rpc,
+		                    Api::SecretStore,
+		                    // semi-safe
+		                    Api::ParityAccounts]
+			.into_iter()
+			.collect();
 		assert_eq!(ApiSet::IpcContext.list_apis(), expected);
 	}
 
 	#[test]
 	fn test_api_set_safe_context() {
-		let expected = vec![
-			// safe
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
-			// semi-safe
-			Api::ParityAccounts,
-			// Unsafe
-			Api::ParitySet, Api::Signer,
-		].into_iter().collect();
+		let expected = vec![// safe
+		                    Api::Web3,
+		                    Api::Net,
+		                    Api::Eth,
+		                    Api::Parity,
+		                    Api::Traces,
+		                    Api::Rpc,
+		                    Api::SecretStore,
+		                    // semi-safe
+		                    Api::ParityAccounts,
+		                    // Unsafe
+		                    Api::ParitySet,
+		                    Api::Signer]
+			.into_iter()
+			.collect();
 		assert_eq!(ApiSet::SafeContext.list_apis(), expected);
 	}
 
 	#[test]
 	fn test_all_apis() {
-		assert_eq!("all".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
-			Api::ParityAccounts,
-			Api::ParitySet, Api::Signer,
-			Api::Personal
-		].into_iter().collect()));
+		assert_eq!("all".parse::<ApiSet>().unwrap(),
+		           ApiSet::List(vec![Api::Web3,
+		                             Api::Net,
+		                             Api::Eth,
+		                             Api::Parity,
+		                             Api::Traces,
+		                             Api::Rpc,
+		                             Api::SecretStore,
+		                             Api::ParityAccounts,
+		                             Api::ParitySet,
+		                             Api::Signer,
+		                             Api::Personal]
+		                            .into_iter()
+		                            .collect()));
 	}
 
 	#[test]
 	fn test_all_without_personal_apis() {
-		assert_eq!("personal,all,-personal".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
-			Api::ParityAccounts,
-			Api::ParitySet, Api::Signer,
-		].into_iter().collect()));
+		assert_eq!("personal,all,-personal".parse::<ApiSet>().unwrap(),
+		           ApiSet::List(vec![Api::Web3,
+		                             Api::Net,
+		                             Api::Eth,
+		                             Api::Parity,
+		                             Api::Traces,
+		                             Api::Rpc,
+		                             Api::SecretStore,
+		                             Api::ParityAccounts,
+		                             Api::ParitySet,
+		                             Api::Signer]
+		                            .into_iter()
+		                            .collect()));
 	}
 
 	#[test]
 	fn test_safe_parsing() {
-		assert_eq!("safe".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
-		].into_iter().collect()));
+		assert_eq!("safe".parse::<ApiSet>().unwrap(),
+		           ApiSet::List(vec![Api::Web3,
+		                             Api::Net,
+		                             Api::Eth,
+		                             Api::Parity,
+		                             Api::Traces,
+		                             Api::Rpc,
+		                             Api::SecretStore]
+		                            .into_iter()
+		                            .collect()));
 	}
 }

@@ -16,26 +16,26 @@
 
 //! Snapshot and restoration commands.
 
-use std::time::Duration;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+
+use cache::CacheConfig;
+use dir::Directories;
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType};
+use ethcore::ids::BlockId;
+use ethcore::miner::Miner;
+use ethcore::service::ClientService;
 
 use ethcore::snapshot::{Progress, RestorationStatus, SnapshotService as SS};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::snapshot::service::Service as SnapshotService;
-use ethcore::service::ClientService;
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType};
-use ethcore::miner::Miner;
-use ethcore::ids::BlockId;
-
-use cache::CacheConfig;
-use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
-use helpers::{to_client_config, execute_upgrades};
-use dir::Directories;
-use user_defaults::UserDefaults;
 use fdlimit;
+use helpers::{to_client_config, execute_upgrades};
 
 use io::PanicHandler;
+use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::Duration;
+use user_defaults::UserDefaults;
 
 /// Kinds of snapshot commands.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -43,7 +43,7 @@ pub enum Kind {
 	/// Take a snapshot.
 	Take,
 	/// Restore a snapshot.
-	Restore
+	Restore,
 }
 
 /// Command for snapshot creation or restoration.
@@ -73,37 +73,37 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 
 	info!("Restoring to block #{} (0x{:?})", manifest.block_number, manifest.block_hash);
 
-	snapshot.init_restore(manifest.clone(), recover).map_err(|e| {
-		format!("Failed to begin restoration: {}", e)
-	})?;
+	snapshot.init_restore(manifest.clone(), recover)
+	        .map_err(|e| format!("Failed to begin restoration: {}", e))?;
 
 	let (num_state, num_blocks) = (manifest.state_hashes.len(), manifest.block_hashes.len());
 
 	let informant_handle = snapshot.clone();
-	::std::thread::spawn(move || {
- 		while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } = informant_handle.status() {
- 			info!("Processed {}/{} state chunks and {}/{} block chunks.",
- 				state_chunks_done, num_state, block_chunks_done, num_blocks);
- 			::std::thread::sleep(Duration::from_secs(5));
- 		}
- 	});
+	::std::thread::spawn(move || while let RestorationStatus::Ongoing {
+	                                   state_chunks_done,
+	                                   block_chunks_done,
+	                                   ..
+	                               } = informant_handle.status() {
+		                     info!("Processed {}/{} state chunks and {}/{} block chunks.", state_chunks_done, num_state, block_chunks_done, num_blocks);
+		                     ::std::thread::sleep(Duration::from_secs(5));
+		                    });
 
- 	info!("Restoring state");
- 	for &state_hash in &manifest.state_hashes {
- 		if snapshot.status() == RestorationStatus::Failed {
- 			return Err("Restoration failed".into());
- 		}
+	info!("Restoring state");
+	for &state_hash in &manifest.state_hashes {
+		if snapshot.status() == RestorationStatus::Failed {
+			return Err("Restoration failed".into());
+		}
 
- 		let chunk = reader.chunk(state_hash)
-			.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", state_hash, e))?;
+		let chunk = reader.chunk(state_hash)
+		                  .map_err(|e| format!("Encountered error while reading chunk {:?}: {}", state_hash, e))?;
 
 		let hash = chunk.sha3();
 		if hash != state_hash {
 			return Err(format!("Mismatched chunk hash. Expected {:?}, got {:?}", state_hash, hash));
 		}
 
- 		snapshot.feed_state_chunk(state_hash, &chunk);
- 	}
+		snapshot.feed_state_chunk(state_hash, &chunk);
+	}
 
 	info!("Restoring blocks");
 	for &block_hash in &manifest.block_hashes {
@@ -111,8 +111,8 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 			return Err("Restoration failed".into());
 		}
 
- 		let chunk = reader.chunk(block_hash)
-			.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", block_hash, e))?;
+		let chunk = reader.chunk(block_hash)
+		                  .map_err(|e| format!("Encountered error while reading chunk {:?}: {}", block_hash, e))?;
 
 		let hash = chunk.sha3();
 		if hash != block_hash {
@@ -171,30 +171,10 @@ impl SnapshotCommand {
 		execute_upgrades(&self.dirs.base, &db_dirs, algorithm, self.compaction.compaction_profile(db_dirs.db_root_path().as_path()))?;
 
 		// prepare client config
-		let client_config = to_client_config(
-			&self.cache_config,
-			spec.name.to_lowercase(),
-			Mode::Active,
-			tracing,
-			fat_db,
-			self.compaction,
-			self.wal,
-			VMType::default(),
-			"".into(),
-			algorithm,
-			self.pruning_history,
-			self.pruning_memory,
-			true
-		);
+		let client_config = to_client_config(&self.cache_config, spec.name.to_lowercase(), Mode::Active, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm, self.pruning_history, self.pruning_memory, true);
 
-		let service = ClientService::start(
-			client_config,
-			&spec,
-			&client_path,
-			&snapshot_path,
-			&self.dirs.ipc_path(),
-			Arc::new(Miner::with_spec(&spec))
-		).map_err(|e| format!("Client service error: {:?}", e))?;
+		let service = ClientService::start(client_config, &spec, &client_path, &snapshot_path, &self.dirs.ipc_path(), Arc::new(Miner::with_spec(&spec)))
+			.map_err(|e| format!("Client service error: {:?}", e))?;
 
 		Ok((service, panic_handler))
 	}
@@ -240,8 +220,7 @@ impl SnapshotCommand {
 
 		warn!("Snapshots are currently experimental. File formats may be subject to change.");
 
-		let writer = PackedWriter::new(&file_path)
-			.map_err(|e| format!("Failed to open snapshot writer: {}", e))?;
+		let writer = PackedWriter::new(&file_path).map_err(|e| format!("Failed to open snapshot writer: {}", e))?;
 
 		let progress = Arc::new(Progress::default());
 		let p = progress.clone();
@@ -259,7 +238,7 @@ impl SnapshotCommand {
 
 				::std::thread::sleep(Duration::from_secs(5));
 			}
- 		});
+		});
 
 		if let Err(e) = service.client().take_snapshot(writer, block_at, &*progress) {
 			let _ = ::std::fs::remove_file(&file_path);

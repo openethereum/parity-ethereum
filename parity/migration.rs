@@ -14,18 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use ethcore::db;
+use ethcore::migrations;
+use ethcore::migrations::Extract;
+use std::fmt::{Display, Formatter, Error as FmtError};
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::{Path, PathBuf};
-use std::fmt::{Display, Formatter, Error as FmtError};
 use std::sync::Arc;
 use util::journaldb::Algorithm;
-use util::migration::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError, Migration};
 use util::kvdb::{CompactionProfile, Database, DatabaseConfig};
-use ethcore::migrations;
-use ethcore::db;
-use ethcore::migrations::Extract;
+use util::migration::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError, Migration};
 
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
@@ -106,7 +106,7 @@ fn current_version(path: &Path) -> Result<u32, Error> {
 			let mut s = String::new();
 			file.read_to_string(&mut s).map_err(|_| Error::UnknownDatabaseVersion)?;
 			u32::from_str_radix(&s, 10).map_err(|_| Error::UnknownDatabaseVersion)
-		},
+		}
 	}
 }
 
@@ -152,12 +152,7 @@ fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> R
 }
 
 /// Consolidates legacy databases into single one.
-fn consolidate_database(
-	old_db_path: PathBuf,
-	new_db_path: PathBuf,
-	column: Option<u32>,
-	extract: Extract,
-	compaction_profile: &CompactionProfile) -> Result<(), Error> {
+fn consolidate_database(old_db_path: PathBuf, new_db_path: PathBuf, column: Option<u32>, extract: Extract, compaction_profile: &CompactionProfile) -> Result<(), Error> {
 	fn db_error(e: String) -> Error {
 		warn!("Cannot open Database for consolidation: {:?}", e);
 		Error::MigrationFailed
@@ -192,7 +187,7 @@ fn consolidate_database(
 fn migrate_database(version: u32, db_path: PathBuf, mut migrations: MigrationManager) -> Result<(), Error> {
 	// check if migration is needed
 	if !migrations.is_needed(version) {
-		return Ok(())
+		return Ok(());
 	}
 
 	let backup_path = backup_database_path(&db_path);
@@ -204,7 +199,9 @@ fn migrate_database(version: u32, db_path: PathBuf, mut migrations: MigrationMan
 
 	// completely in-place migration leads to the paths being equal.
 	// in that case, no need to shuffle directories.
-	if temp_path == db_path { return Ok(()) }
+	if temp_path == db_path {
+		return Ok(());
+	}
 
 	// create backup
 	fs::rename(&db_path, &backup_path)?;
@@ -237,7 +234,7 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 
 	// We are in the latest version, yay!
 	if version == CURRENT_VERSION {
-		return Ok(())
+		return Ok(());
 	}
 
 	// Perform pre-consolidation migrations
@@ -280,11 +277,11 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 /// Old migrations utilities
 mod legacy {
 	use super::*;
+	use ethcore::migrations;
 	use std::path::{Path, PathBuf};
 	use util::journaldb::Algorithm;
-	use util::migration::{Manager as MigrationManager};
 	use util::kvdb::CompactionProfile;
-	use ethcore::migrations;
+	use util::migration::Manager as MigrationManager;
 
 	/// Blocks database path.
 	pub fn blocks_database_path(path: &Path) -> PathBuf {
@@ -317,7 +314,8 @@ mod legacy {
 	/// Migrations on the blocks database.
 	pub fn blocks_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
 		let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
-		manager.add_migration(migrations::blocks::V8::default()).map_err(|_| Error::MigrationImpossible)?;
+		manager.add_migration(migrations::blocks::V8::default())
+		       .map_err(|_| Error::MigrationImpossible)?;
 		Ok(manager)
 	}
 

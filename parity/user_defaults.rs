@@ -14,20 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
-use std::collections::BTreeMap;
-use std::time::Duration;
+use ethcore::client::Mode;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::de::{Error, Visitor, MapVisitor};
 use serde::de::impls::BTreeMapVisitor;
 use serde_json::Value;
 use serde_json::de::from_reader;
 use serde_json::ser::to_string;
+use std::collections::BTreeMap;
+use std::fmt;
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
+use std::time::Duration;
 use util::journaldb::Algorithm;
-use ethcore::client::Mode;
 
 pub struct UserDefaults {
 	pub is_first_launch: bool,
@@ -39,7 +39,8 @@ pub struct UserDefaults {
 
 impl Serialize for UserDefaults {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-	where S: Serializer {
+		where S: Serializer
+	{
 		let mut map: BTreeMap<String, Value> = BTreeMap::new();
 		map.insert("pruning".into(), Value::String(self.pruning.as_str().into()));
 		map.insert("tracing".into(), Value::Bool(self.tracing));
@@ -49,12 +50,12 @@ impl Serialize for UserDefaults {
 			Mode::Dark(timeout) => {
 				map.insert("mode.timeout".into(), Value::Number(timeout.as_secs().into()));
 				"dark"
-			},
+			}
 			Mode::Passive(timeout, alarm) => {
 				map.insert("mode.timeout".into(), Value::Number(timeout.as_secs().into()));
 				map.insert("mode.alarm".into(), Value::Number(alarm.as_secs().into()));
 				"passive"
-			},
+			}
 			Mode::Active => "active",
 		};
 		map.insert("mode".into(), Value::String(mode_str.into()));
@@ -67,7 +68,8 @@ struct UserDefaultsVisitor;
 
 impl Deserialize for UserDefaults {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where D: Deserializer {
+		where D: Deserializer
+	{
 		deserializer.deserialize(UserDefaultsVisitor)
 	}
 }
@@ -79,7 +81,9 @@ impl Visitor for UserDefaultsVisitor {
 		write!(formatter, "a valid UserDefaults object")
 	}
 
-	fn visit_map<V>(self, visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
+	fn visit_map<V>(self, visitor: V) -> Result<Self::Value, V::Error>
+		where V: MapVisitor
+	{
 		let mut map: BTreeMap<String, Value> = BTreeMapVisitor::new().visit_map(visitor)?;
 		let pruning: Value = map.remove("pruning").ok_or_else(|| Error::custom("missing pruning"))?;
 		let pruning = pruning.as_str().ok_or_else(|| Error::custom("invalid pruning value"))?;
@@ -93,16 +97,24 @@ impl Visitor for UserDefaultsVisitor {
 		let mode = match mode.as_str().ok_or_else(|| Error::custom("invalid mode value"))? {
 			"offline" => Mode::Off,
 			"dark" => {
-				let timeout = map.remove("mode.timeout").and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.timeout value"))?;
+				let timeout = map.remove("mode.timeout")
+				                 .and_then(|v| v.as_u64())
+				                 .ok_or_else(|| Error::custom("invalid/missing mode.timeout value"))?;
 				Mode::Dark(Duration::from_secs(timeout))
-			},
+			}
 			"passive" => {
-				let timeout = map.remove("mode.timeout").and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.timeout value"))?;
-				let alarm = map.remove("mode.alarm").and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.alarm value"))?;
+				let timeout = map.remove("mode.timeout")
+				                 .and_then(|v| v.as_u64())
+				                 .ok_or_else(|| Error::custom("invalid/missing mode.timeout value"))?;
+				let alarm = map.remove("mode.alarm")
+				               .and_then(|v| v.as_u64())
+				               .ok_or_else(|| Error::custom("invalid/missing mode.alarm value"))?;
 				Mode::Passive(Duration::from_secs(timeout), Duration::from_secs(alarm))
-			},
+			}
 			"active" => Mode::Active,
-			_ => { return Err(Error::custom("invalid mode value")); },
+			_ => {
+				return Err(Error::custom("invalid mode value"));
+			}
 		};
 
 		let user_defaults = UserDefaults {
@@ -130,21 +142,26 @@ impl Default for UserDefaults {
 }
 
 impl UserDefaults {
-	pub fn load<P>(path: P) -> Result<Self, String> where P: AsRef<Path> {
+	pub fn load<P>(path: P) -> Result<Self, String>
+		where P: AsRef<Path>
+	{
 		match File::open(path) {
 			Ok(file) => match from_reader(file) {
 				Ok(defaults) => Ok(defaults),
 				Err(e) => {
 					warn!("Error loading user defaults file: {:?}", e);
 					Ok(UserDefaults::default())
-				},
+				}
 			},
 			_ => Ok(UserDefaults::default()),
 		}
 	}
 
-	pub fn save<P>(&self, path: P) -> Result<(), String> where P: AsRef<Path> {
+	pub fn save<P>(&self, path: P) -> Result<(), String>
+		where P: AsRef<Path>
+	{
 		let mut file: File = File::create(path).map_err(|_| "Cannot create user defaults file".to_owned())?;
-		file.write_all(to_string(&self).unwrap().as_bytes()).map_err(|_| "Failed to save user defaults".to_owned())
+		file.write_all(to_string(&self).unwrap().as_bytes())
+		    .map_err(|_| "Failed to save user defaults".to_owned())
 	}
 }

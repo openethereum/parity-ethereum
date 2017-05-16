@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::path::PathBuf;
-use std::sync::Arc;
 
 use dir::default_data_path;
 use ethcore::client::{Client, BlockChainClient, BlockId};
@@ -23,8 +21,10 @@ use ethcore::transaction::{Transaction, Action};
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
 use helpers::replace_home;
-use rpc_apis::SignerService;
 use parity_reactor;
+use rpc_apis::SignerService;
+use std::path::PathBuf;
+use std::sync::Arc;
 use util::{Bytes, Address, U256};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -53,29 +53,29 @@ pub struct FullRegistrar {
 
 impl ContractClient for FullRegistrar {
 	fn registrar(&self) -> Result<Address, String> {
-		self.client.additional_params().get("registrar")
-			 .ok_or_else(|| "Registrar not defined.".into())
-			 .and_then(|registrar| {
-				 registrar.parse().map_err(|e| format!("Invalid registrar address: {:?}", e))
-			 })
+		self.client
+		    .additional_params()
+		    .get("registrar")
+		    .ok_or_else(|| "Registrar not defined.".into())
+		    .and_then(|registrar| registrar.parse().map_err(|e| format!("Invalid registrar address: {:?}", e)))
 	}
 
 	fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
 		let from = Address::default();
 		let transaction = Transaction {
-			nonce: self.client.latest_nonce(&from),
-			action: Action::Call(address),
-			gas: U256::from(50_000_000),
-			gas_price: U256::default(),
-			value: U256::default(),
-			data: data,
-		}.fake_sign(from);
+		                      nonce: self.client.latest_nonce(&from),
+		                      action: Action::Call(address),
+		                      gas: U256::from(50_000_000),
+		                      gas_price: U256::default(),
+		                      value: U256::default(),
+		                      data: data,
+		                  }
+		                  .fake_sign(from);
 
-		self.client.call(&transaction, BlockId::Latest, Default::default())
-			.map_err(|e| format!("{:?}", e))
-			.map(|executed| {
-				executed.output
-			})
+		self.client
+		    .call(&transaction, BlockId::Latest, Default::default())
+		    .map_err(|e| format!("{:?}", e))
+		    .map(|executed| executed.output)
 	}
 }
 
@@ -89,18 +89,12 @@ pub struct Dependencies {
 	pub signer: Arc<SignerService>,
 }
 
-pub fn new(configuration: Configuration, deps: Dependencies)
-	-> Result<Option<Middleware>, String>
-{
+pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Middleware>, String> {
 	if !configuration.enabled {
 		return Ok(None);
 	}
 
-	dapps_middleware(
-		deps,
-		configuration.dapps_path,
-		configuration.extra_dapps,
-	).map(Some)
+	dapps_middleware(deps, configuration.dapps_path, configuration.extra_dapps).map(Some)
 }
 
 pub use self::server::{SyncStatus, Middleware, dapps_middleware};
@@ -108,25 +102,19 @@ pub use self::server::{SyncStatus, Middleware, dapps_middleware};
 #[cfg(not(feature = "dapps"))]
 mod server {
 	use super::Dependencies;
-	use std::path::PathBuf;
 	use parity_rpc::{hyper, RequestMiddleware, RequestMiddlewareAction};
+	use std::path::PathBuf;
 
 	pub type SyncStatus = Fn() -> bool;
 
 	pub struct Middleware;
 	impl RequestMiddleware for Middleware {
-		fn on_request(
-			&self, _req: &hyper::server::Request<hyper::net::HttpStream>, _control: &hyper::Control
-		) -> RequestMiddlewareAction {
+		fn on_request(&self, _req: &hyper::server::Request<hyper::net::HttpStream>, _control: &hyper::Control) -> RequestMiddlewareAction {
 			unreachable!()
 		}
 	}
 
-	pub fn dapps_middleware(
-		_deps: Dependencies,
-		_dapps_path: PathBuf,
-		_extra_dapps: Vec<PathBuf>,
-	) -> Result<Middleware, String> {
+	pub fn dapps_middleware(_deps: Dependencies, _dapps_path: PathBuf, _extra_dapps: Vec<PathBuf>) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
 	}
 }
@@ -134,33 +122,20 @@ mod server {
 #[cfg(feature = "dapps")]
 mod server {
 	use super::Dependencies;
-	use std::path::PathBuf;
-	use std::sync::Arc;
 
 	use parity_dapps;
-	use parity_reactor;
 
 	pub use parity_dapps::Middleware;
 	pub use parity_dapps::SyncStatus;
+	use parity_reactor;
+	use std::path::PathBuf;
+	use std::sync::Arc;
 
-	pub fn dapps_middleware(
-		deps: Dependencies,
-		dapps_path: PathBuf,
-		extra_dapps: Vec<PathBuf>,
-	) -> Result<Middleware, String> {
+	pub fn dapps_middleware(deps: Dependencies, dapps_path: PathBuf, extra_dapps: Vec<PathBuf>) -> Result<Middleware, String> {
 		let signer = deps.signer.clone();
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
 		let web_proxy_tokens = Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token));
 
-		Ok(parity_dapps::Middleware::new(
-			parity_remote,
-			deps.signer.address(),
-			dapps_path,
-			extra_dapps,
-			deps.contract_client,
-			deps.sync_status,
-			web_proxy_tokens,
-			deps.fetch.clone(),
-		))
+		Ok(parity_dapps::Middleware::new(parity_remote, deps.signer.address(), dapps_path, extra_dapps, deps.contract_client, deps.sync_status, web_proxy_tokens, deps.fetch.clone()))
 	}
 }

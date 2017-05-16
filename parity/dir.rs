@@ -14,25 +14,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use app_dirs::{AppInfo, get_app_root, AppDataType};
+use helpers::{replace_home, replace_home_for_db};
 use std::fs;
 use std::path::{PathBuf, Path};
 use util::{H64, H256};
 use util::journaldb::Algorithm;
-use helpers::{replace_home, replace_home_for_db};
-use app_dirs::{AppInfo, get_app_root, AppDataType};
 
-#[cfg(target_os = "macos")] const AUTHOR: &'static str = "Parity";
-#[cfg(target_os = "macos")] const PRODUCT: &'static str = "io.parity.ethereum";
-#[cfg(target_os = "macos")] const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
-#[cfg(target_os = "windows")] const AUTHOR: &'static str = "Parity";
-#[cfg(target_os = "windows")] const PRODUCT: &'static str = "Ethereum";
-#[cfg(target_os = "windows")] const PRODUCT_HYPERVISOR: &'static str = "EthereumUpdates";
-#[cfg(not(any(target_os = "windows", target_os = "macos")))] const AUTHOR: &'static str = "parity";
-#[cfg(not(any(target_os = "windows", target_os = "macos")))] const PRODUCT: &'static str = "io.parity.ethereum";
-#[cfg(not(any(target_os = "windows", target_os = "macos")))] const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
+#[cfg(target_os = "macos")]
+const AUTHOR: &'static str = "Parity";
+#[cfg(target_os = "macos")]
+const PRODUCT: &'static str = "io.parity.ethereum";
+#[cfg(target_os = "macos")]
+const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
+#[cfg(target_os = "windows")]
+const AUTHOR: &'static str = "Parity";
+#[cfg(target_os = "windows")]
+const PRODUCT: &'static str = "Ethereum";
+#[cfg(target_os = "windows")]
+const PRODUCT_HYPERVISOR: &'static str = "EthereumUpdates";
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+const AUTHOR: &'static str = "parity";
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+const PRODUCT: &'static str = "io.parity.ethereum";
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
 
-#[cfg(target_os = "windows")] pub const CHAINS_PATH: &'static str = "$LOCAL/chains";
-#[cfg(not(target_os = "windows"))] pub const CHAINS_PATH: &'static str = "$BASE/chains";
+#[cfg(target_os = "windows")]
+pub const CHAINS_PATH: &'static str = "$LOCAL/chains";
+#[cfg(not(target_os = "windows"))]
+pub const CHAINS_PATH: &'static str = "$BASE/chains";
 
 // this const is irrelevent cause we do have migrations now,
 // but we still use it for backwards compatibility
@@ -215,17 +226,26 @@ impl DatabaseDirectories {
 
 pub fn default_data_path() -> String {
 	let app_info = AppInfo { name: PRODUCT, author: AUTHOR };
-	get_app_root(AppDataType::UserData, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity".to_owned())
+	get_app_root(AppDataType::UserData, &app_info)
+		.map(|p| p.to_string_lossy().into_owned())
+		.unwrap_or_else(|_| "$HOME/.parity".to_owned())
 }
 
 pub fn default_local_path() -> String {
 	let app_info = AppInfo { name: PRODUCT, author: AUTHOR };
-	get_app_root(AppDataType::UserCache, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity".to_owned())
+	get_app_root(AppDataType::UserCache, &app_info)
+		.map(|p| p.to_string_lossy().into_owned())
+		.unwrap_or_else(|_| "$HOME/.parity".to_owned())
 }
 
 pub fn default_hypervisor_path() -> String {
-	let app_info = AppInfo { name: PRODUCT_HYPERVISOR, author: AUTHOR };
-	get_app_root(AppDataType::UserData, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity-hypervisor".to_owned())
+	let app_info = AppInfo {
+		name: PRODUCT_HYPERVISOR,
+		author: AUTHOR,
+	};
+	get_app_root(AppDataType::UserData, &app_info)
+		.map(|p| p.to_string_lossy().into_owned())
+		.unwrap_or_else(|_| "$HOME/.parity-hypervisor".to_owned())
 }
 
 #[cfg(test)]
@@ -239,10 +259,7 @@ mod tests {
 		let local_dir = super::default_local_path();
 		let expected = Directories {
 			base: replace_home(&data_dir, "$BASE"),
-			db: replace_home_for_db(&data_dir, &local_dir,
-				if cfg!(target_os = "windows") { "$LOCAL/chains" }
-				else { "$BASE/chains" }
-			),
+			db: replace_home_for_db(&data_dir, &local_dir, if cfg!(target_os = "windows") { "$LOCAL/chains" } else { "$BASE/chains" }),
 			keys: replace_home(&data_dir, "$BASE/keys"),
 			signer: replace_home(&data_dir, "$BASE/signer"),
 			dapps: replace_home(&data_dir, "$BASE/dapps"),
