@@ -34,7 +34,7 @@ use util::memorydb::MemoryDB;
 use util::sha3::Hashable;
 use util::trie::{Trie, TrieDB, TrieError};
 
-const SUPPLIED_MATCHES: &'static str = "supplied responses always match produced requests; qed";
+const SUPPLIED_MATCHES: &'static str = "supplied responses always match produced requests; enforced by `check_response`; qed";
 
 /// Core unit of the API: submit batches of these to be answered with `Response`s.
 #[derive(Clone)]
