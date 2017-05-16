@@ -24,7 +24,7 @@ $bgDisabled: rgba(150, 150, 150, 0.7);
   border-radius: 1em;
   color: white;
   cursor: pointer;
-  float: left;
+  display: inline-block;
   margin: 0.5em 0.25em 0 0;
   padding: 0.125em 0.25em;
 
@@ -40,7 +40,6 @@ $bgDisabled: rgba(150, 150, 150, 0.7);
     display: inline-block;
     padding: 0 1em;
     font-size: 0.75em;
-    line-height: initial;
   }
 
   .delete {
