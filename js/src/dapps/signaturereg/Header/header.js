@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import styles from './header.css';
-import blocks from '~/../assets/images/dapps/blocks-350.jpg';
+import blocks from '@parity/shared/assets/images/dapps/blocks-350.jpg';
 
 export default class Header extends Component {
   static propTypes = {

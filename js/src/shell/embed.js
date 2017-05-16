@@ -34,8 +34,8 @@ import SecureApi from '~/secureApi';
 
 import '@parity/shared/environment';
 
-import '~/../assets/fonts/Roboto/font.css';
-import '~/../assets/fonts/RobotoMono/font.css';
+import '@parity/shared/assets/fonts/Roboto/font.css';
+import '@parity/shared/assets/fonts/RobotoMono/font.css';
 
 injectTapEventPlugin();
 

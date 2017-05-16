@@ -21,7 +21,7 @@ import ReactDOM from 'react-dom';
 import Button from '../Button';
 
 import styles from './modal.css';
-import CloseImage from '~/../assets/images/dapps/close.svg';
+import CloseImage from '@parity/shared/assets/images/dapps/close.svg';
 
 export default class Modal extends Component {
   static propTypes = {

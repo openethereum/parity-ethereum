@@ -27,8 +27,8 @@ import Application from './Application';
 import Overview from './Overview';
 import Transfer from './Transfer';
 
-import '~/../assets/fonts/Roboto/font.css';
-import '~/../assets/fonts/RobotoMono/font.css';
+import '@parity/shared/assets/fonts/Roboto/font.css';
+import '@parity/shared/assets/fonts/RobotoMono/font.css';
 import '../style.css';
 
 ReactDOM.render(
