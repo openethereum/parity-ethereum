@@ -43,21 +43,8 @@ export default class InputChip extends Component {
     addOnBlur: false
   }
 
-  state = {
-    focused: false
-  }
-
   render () {
     const { clearOnBlur, className, hint, label, tokens } = this.props;
-    const { focused } = this.state;
-
-    const textFieldStyle = {
-      height: 55
-    };
-
-    if (!focused) {
-      textFieldStyle.width = 0;
-    }
 
     return (
       <ChipInput
@@ -71,7 +58,6 @@ export default class InputChip extends Component {
 
         chipRenderer={ this.chipRenderer }
 
-        onFocus={ this.handleFocus }
         onBlur={ this.handleBlur }
         onRequestAdd={ this.handleTokenAdd }
         onRequestDelete={ this.handleTokenDelete }
@@ -89,7 +75,6 @@ export default class InputChip extends Component {
           marginBottom: 18,
           width: 'initial'
         } }
-        textFieldStyle={ textFieldStyle }
         underlineStyle={ {
           borderWidth: 2
         } }
@@ -112,14 +97,8 @@ export default class InputChip extends Component {
     );
   }
 
-  handleFocus = () => {
-    this.setState({ focused: true });
-  }
-
   handleBlur = () => {
     const { onBlur, addOnBlur } = this.props;
-
-    this.setState({ focused: false });
 
     if (addOnBlur) {
       const { inputValue } = this.refs.chipInput.state;
@@ -134,7 +113,6 @@ export default class InputChip extends Component {
 
   handleTokenAdd = (value) => {
     const { tokens, onInputChange } = this.props;
-
     const newTokens = uniq([].concat(tokens, value));
 
     this.handleTokensChange(newTokens);
@@ -164,9 +142,7 @@ export default class InputChip extends Component {
 
   handleInputChange = (value) => {
     const { onInputChange } = this.props;
-
     const splitTokens = value.split(/[\s,;]/);
-
     const inputValue = (splitTokens.length <= 1)
       ? value
       : splitTokens.slice(-1)[0].trim();
