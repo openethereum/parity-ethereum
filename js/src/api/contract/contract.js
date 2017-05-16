@@ -29,7 +29,9 @@ export default class Contract {
     }
 
     this._api = api;
-    this._abi = new Abi(abi);
+    this._abi = abi instanceof Abi
+      ? abi
+      : new Abi(abi);
 
     this._subscriptions = {};
     this._constructors = this._abi.constructors.map(this._bindFunction);
