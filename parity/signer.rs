@@ -101,7 +101,7 @@ pub fn execute(cmd: Configuration) -> Result<String, String> {
 }
 
 pub fn generate_token_and_url(conf: &Configuration) -> Result<NewToken, String> {
-	let code = generate_new_token(conf.signer_path.clone()).map_err(|err| format!("Error generating token: {:?}", err))?;
+	let code = generate_new_token(conf.signer_path.clone()).map_err(|err| format!("Error generating token: {}", err))?;
 	let auth_url = format!("http://{}:{}/#/auth?token={}", conf.interface, conf.port, code);
 	// And print in to the console
 	Ok(NewToken {

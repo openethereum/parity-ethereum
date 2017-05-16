@@ -43,6 +43,8 @@ mod transaction_condition;
 mod uint;
 mod work;
 
+pub mod pubsub;
+
 pub use self::account_info::{AccountInfo, HwAccountInfo};
 pub use self::bytes::Bytes;
 pub use self::block::{RichBlock, Block, BlockTransactions, Header, RichHeader, Rich};
