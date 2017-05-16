@@ -74,6 +74,7 @@ export default class ActionbarSearch extends Component {
         <div className={ inputContainerClasses.join(' ') }>
           <InputChip
             addOnBlur
+            autoFocus
             className={ styles.input }
             hint={
               <FormattedMessage
@@ -81,7 +82,6 @@ export default class ActionbarSearch extends Component {
                 defaultMessage='Enter search input...'
               />
             }
-            ref='inputChip'
             tokens={ tokens }
 
             onBlur={ this.handleSearchBlur }
@@ -125,10 +125,6 @@ export default class ActionbarSearch extends Component {
 
   handleSearchClick = () => {
     const { showSearch } = this.state;
-
-    if (!showSearch) {
-      this.refs.inputChip.focus();
-    }
 
     this.handleOpenSearch(!showSearch);
   }

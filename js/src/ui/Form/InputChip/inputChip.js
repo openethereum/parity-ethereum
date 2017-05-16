@@ -32,6 +32,7 @@ export default class InputChip extends Component {
   };
 
   static propTypes = {
+    autoFocus: PropTypes.bool,
     addOnBlur: PropTypes.bool,
     clearOnBlur: PropTypes.bool,
     className: PropTypes.string,
@@ -51,6 +52,7 @@ export default class InputChip extends Component {
     textValue: ''
   };
 
+  // TODO: autoFocus to be implemented (same as with Form/Input)
   render () {
     const { className, hint, label, tokens } = this.props;
     const { textValue } = this.state;
