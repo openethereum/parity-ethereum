@@ -21,11 +21,11 @@ import { AppContainer } from 'react-hot-loader';
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
 
-import Application from './signaturereg/Application';
+import Application from './Application';
 
-import '../../assets/fonts/Roboto/font.css';
-import '../../assets/fonts/RobotoMono/font.css';
-import './style.css';
+import '~/../assets/fonts/Roboto/font.css';
+import '~/../assets/fonts/RobotoMono/font.css';
+import '../style.css';
 
 ReactDOM.render(
   <AppContainer>
@@ -35,8 +35,8 @@ ReactDOM.render(
 );
 
 if (module.hot) {
-  module.hot.accept('./signaturereg/Application/index.js', () => {
-    require('./signaturereg/Application/index.js');
+  module.hot.accept('./Application/index.js', () => {
+    require('./Application/index.js');
 
     ReactDOM.render(
       <AppContainer>

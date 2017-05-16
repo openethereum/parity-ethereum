@@ -14,36 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
 import ReactDOM from 'react-dom';
-import { Provider } from 'react-redux';
+import React from 'react';
 
-import injectTapEventPlugin from 'react-tap-event-plugin';
-injectTapEventPlugin();
+import Application from './Application';
 
-import store from './registry/store';
-import Container from './registry/Container';
-
-import '../../assets/fonts/Roboto/font.css';
-import '../../assets/fonts/RobotoMono/font.css';
-import './style.css';
+import '~/../assets/fonts/Roboto/font.css';
+import '~/../assets/fonts/RobotoMono/font.css';
+import '../style.css';
 
 ReactDOM.render(
-  <Provider store={ store }>
-    <Container />
-  </Provider>,
+  <Application />,
   document.querySelector('#container')
 );
-
-if (module.hot) {
-  module.hot.accept('./registry/Container', () => {
-    require('./registry/Container');
-
-    ReactDOM.render(
-      <Provider store={ store }>
-        <Container />
-      </Provider>,
-      document.querySelector('#container')
-    );
-  });
-}

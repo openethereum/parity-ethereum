@@ -156,7 +156,7 @@ function getDappsEntry () {
 
   return Object.assign(
     builtins.filter((dapp) => !dapp.skipBuild).reduce((_entry, dapp) => {
-      _entry[dapp.url] = './dapps/' + dapp.url + '.js';
+      _entry[dapp.url] = './dapps/' + dapp.url + '/index.js';
       return _entry;
     }, {}),
     views.reduce((_entry, dapp) => {
