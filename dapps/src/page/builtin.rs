@@ -27,6 +27,7 @@ pub struct PageEndpoint<T : WebApp + 'static> {
 	/// Safe to be loaded in frame by other origin. (use wisely!)
 	safe_to_embed_on: Option<(String, u16)>,
 	info: EndpointInfo,
+	html5_routing: bool,
 }
 
 impl<T: WebApp + 'static> PageEndpoint<T> {
@@ -38,6 +39,20 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 			prefix: None,
 			safe_to_embed_on: None,
 			info: EndpointInfo::from(info),
+			html5_routing: false,
+		}
+	}
+
+	/// Creates a new `PageEndpoint` for builtin (compile time) Dapp.
+	/// Instead of returning 404 this endpoint will always server index.html.
+	pub fn with_fallback(app: T) -> Self {
+		let info = app.info();
+		PageEndpoint {
+			app: Arc::new(app),
+			prefix: None,
+			safe_to_embed_on: None,
+			info: EndpointInfo::from(info),
+			html5_routing: true,
 		}
 	}
 
@@ -51,6 +66,7 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 			prefix: Some(prefix),
 			safe_to_embed_on: None,
 			info: EndpointInfo::from(info),
+			html5_routing: false,
 		}
 	}
 
@@ -64,6 +80,7 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 			prefix: None,
 			safe_to_embed_on: address,
 			info: EndpointInfo::from(info),
+			html5_routing: false,
 		}
 	}
 }
@@ -76,7 +93,7 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 
 	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
 		Box::new(handler::PageHandler {
-			app: BuiltinDapp::new(self.app.clone()),
+			app: BuiltinDapp::new(self.app.clone(), self.html5_routing),
 			prefix: self.prefix.clone(),
 			path: path,
 			file: handler::ServedFile::new(self.safe_to_embed_on.clone()),
@@ -100,12 +117,14 @@ impl From<Info> for EndpointInfo {
 
 struct BuiltinDapp<T: WebApp + 'static> {
 	app: Arc<T>,
+	html5_routing: bool,
 }
 
 impl<T: WebApp + 'static> BuiltinDapp<T> {
-	fn new(app: Arc<T>) -> Self {
+	fn new(app: Arc<T>, html5_routing: bool) -> Self {
 		BuiltinDapp {
 			app: app,
+			html5_routing: html5_routing,
 		}
 	}
 }
@@ -114,13 +133,19 @@ impl<T: WebApp + 'static> handler::Dapp for BuiltinDapp<T> {
 	type DappFile = BuiltinDappFile<T>;
 
 	fn file(&self, path: &str) -> Option<Self::DappFile> {
-		self.app.file(path).map(|_| {
+		let file = |path| self.app.file(path).map(|_| {
 			BuiltinDappFile {
 				app: self.app.clone(),
 				path: path.into(),
 				write_pos: 0,
 			}
-		})
+		});
+		let res = file(path);
+		if self.html5_routing {
+			res.or_else(|| file("index.html"))
+		} else {
+			res
+		}
 	}
 }
 

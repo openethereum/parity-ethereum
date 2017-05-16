@@ -49,7 +49,7 @@ pub fn utils() -> Box<Endpoint> {
 }
 
 pub fn ui() -> Box<Endpoint> {
-	Box::new(PageEndpoint::new(parity_ui::App::default()))
+	Box::new(PageEndpoint::with_fallback(parity_ui::App::default()))
 }
 
 pub fn ui_redirection(ui_address: Option<(String, u16)>) -> Box<Endpoint> {
