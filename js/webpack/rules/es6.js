@@ -16,6 +16,6 @@
 
 module.exports = {
   test: /\.js$/,
-  include: /node_modules\/(get-own-enumerable-property-symbols|material-chip-input|ethereumjs-tx|stringify-object)/,
+  include: /node_modules\/(get-own-enumerable-property-symbols|ethereumjs-tx|stringify-object)/,
   use: 'babel-loader'
 };

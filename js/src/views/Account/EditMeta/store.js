@@ -43,7 +43,7 @@ export default class Store {
 
       this.description = this.meta.description || '';
       this.passwordHint = this.meta.passwordHint || '';
-      this.tags = this.meta.tags && this.meta.tags.peek() || [];
+      this.tags = this.meta.tags && this.meta.tags.slice() || [];
       this.vaultName = this.meta.vault;
     });
   }

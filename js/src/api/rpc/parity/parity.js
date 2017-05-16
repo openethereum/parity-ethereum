@@ -39,9 +39,9 @@ export default class Parity {
       .then(outAccountInfo);
   }
 
-  addReservedPeer (encode) {
+  addReservedPeer (enode) {
     return this._transport
-      .execute('parity_addReservedPeer', encode);
+      .execute('parity_addReservedPeer', enode);
   }
 
   chainStatus () {
@@ -429,9 +429,9 @@ export default class Parity {
       .execute('parity_releasesInfo');
   }
 
-  removeReservedPeer (encode) {
+  removeReservedPeer (enode) {
     return this._transport
-      .execute('parity_removeReservedPeer', encode);
+      .execute('parity_removeReservedPeer', enode);
   }
 
   removeTransaction (hash) {

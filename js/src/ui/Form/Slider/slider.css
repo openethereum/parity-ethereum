@@ -15,8 +15,6 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
-  .input {
-    width: 100%;
-  }
+.slider {
+  width: 100%;
 }

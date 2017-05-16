@@ -16,12 +16,14 @@
 */
 
 .container {
-  display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  position: relative;
 }
 
 .copy {
   margin-right: 0.5em;
+}
+
+.input {
+  input[readonly] {
+    cursor: text;
+  }
 }

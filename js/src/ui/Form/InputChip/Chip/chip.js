@@ -16,25 +16,34 @@
 
 import React, { PropTypes } from 'react';
 
-import styles from './form.css';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-export default function Form ({ children, className }) {
-  // HACK: hidden inputs to disable Chrome's autocomplete
+import { CloseIcon } from '~/ui/Icons';
+
+import styles from './chip.css';
+
+export default function Chip ({ className, isDisabled, isFocused, label, onClick, onDelete }) {
   return (
-    <form
-      autoComplete='new-password'
-      className={ `${styles.form} ${className}` }
+    <div
+      className={ `${styles.chip} ${isDisabled && styles.disabled} ${isFocused && styles.focus} ${className}` }
+      onTouchTap={ onClick }
     >
-      <div className={ styles.autofill }>
-        <input type='text' name='fakeusernameremembered' />
-        <input type='password' name='fakepasswordremembered' />
+      <div className={ styles.label }>
+        { label }
       </div>
-      { children }
-    </form>
+      <CloseIcon
+        className={ styles.delete }
+        onTouchTap={ onDelete }
+      />
+    </div>
   );
 }
 
-Form.propTypes = {
-  children: PropTypes.node,
-  className: PropTypes.string
+Chip.propTypes = {
+  className: PropTypes.string,
+  isDisabled: PropTypes.bool,
+  isFocused: PropTypes.bool,
+  label: nodeOrStringProptype(),
+  onClick: PropTypes.func,
+  onDelete: PropTypes.func
 };

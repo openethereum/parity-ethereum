@@ -42,8 +42,7 @@ let currentId = 1;
 class AddressSelect extends Component {
   static contextTypes = {
     intl: React.PropTypes.object.isRequired,
-    api: PropTypes.object.isRequired,
-    muiTheme: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   };
 
   static propTypes = {

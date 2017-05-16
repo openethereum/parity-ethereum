@@ -31,7 +31,6 @@ let modules = [
   'ethereumjs-tx',
   'lodash',
   'material-ui',
-  'material-ui-chip-input',
   'mobx',
   'mobx-react',
   'moment',

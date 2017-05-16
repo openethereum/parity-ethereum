@@ -19,7 +19,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Input, InputDate, InputTime, RadioButtons } from '../Form';
+import { Input, InputDateTime, RadioButtons } from '../Form';
 import GasPriceSelector from '../GasPriceSelector';
 
 import Store, { CONDITIONS } from './store';
@@ -187,35 +187,17 @@ export default class GasPriceEditor extends Component {
     return (
       <div className={ styles.conditionContainer }>
         <div className={ styles.input }>
-          <InputDate
+          <InputDateTime
             hint={
               <FormattedMessage
                 id='txEditor.condition.date.hint'
-                defaultMessage='The minimum date to send from'
+                defaultMessage='The minimum date and time to send from'
               />
             }
             label={
               <FormattedMessage
                 id='txEditor.condition.date.label'
-                defaultMessage='Transaction send date'
-              />
-            }
-            onChange={ this.onChangeConditionDateTime }
-            value={ condition.time }
-          />
-        </div>
-        <div className={ styles.input }>
-          <InputTime
-            hint={
-              <FormattedMessage
-                id='txEditor.condition.time.hint'
-                defaultMessage='The minimum time to send from'
-              />
-            }
-            label={
-              <FormattedMessage
-                id='txEditor.condition.time.label'
-                defaultMessage='Transaction send time'
+                defaultMessage='Transaction send date and time'
               />
             }
             onChange={ this.onChangeConditionDateTime }

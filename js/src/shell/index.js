@@ -34,7 +34,6 @@ import HistoryStore from '@parity/shared/mobx/historyStore';
 import { initStore } from '@parity/shared/redux';
 import { patchApi } from '@parity/shared/util/tx';
 import ContextProvider from '@parity/ui/ContextProvider';
-import muiTheme from '@parity/ui/Theme';
 
 import '@parity/shared/environment';
 
@@ -84,7 +83,7 @@ function onEnterDapp ({ params }) {
 }
 
 ReactDOM.render(
-  <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
+  <ContextProvider api={ api } store={ store }>
     <Router>
       <Application>
         <Redirect from='/auth' to='/' />

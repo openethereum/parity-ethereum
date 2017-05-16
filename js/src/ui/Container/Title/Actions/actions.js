@@ -14,4 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './theme';
+import React, { PropTypes } from 'react';
+
+import styles from '../title.css';
+
+export default function Actions ({ actions }) {
+  if (!actions || !actions.length) {
+    return null;
+  }
+
+  return (
+    <div className={ styles.actions }>
+      { actions }
+    </div>
+  );
+}
+
+Actions.propTypes = {
+  actions: PropTypes.array
+};

@@ -14,22 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export AddressSelect from './AddressSelect';
-export Checkbox from './Checkbox';
-export DappUrlInput from './DappUrlInput';
-export Dropdown from './Dropdown';
-export FileSelect from './FileSelect';
-export FormWrap from './FormWrap';
-export Input from './Input';
-export InputAddress from './InputAddress';
-export InputAddressSelect from './InputAddressSelect';
-export InputChip from './InputChip';
-export InputDateTime from './InputDateTime';
-export InputInline from './InputInline';
-export Label from './Label';
-export RadioButtons from './RadioButtons';
-export Toggle from './Toggle';
-export TypedInput from './TypedInput';
-export VaultSelect from './VaultSelect';
-
-export default from './form';
+export default from './slider';

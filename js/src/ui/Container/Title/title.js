@@ -18,24 +18,29 @@ import React, { PropTypes } from 'react';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
+import Actions from './Actions';
 import Byline from './Byline';
 import Description from './Description';
 
 import styles from './title.css';
 
-export default function Title ({ byline, className, description, title }) {
+export default function Title ({ actions, byline, className, description, title }) {
   return (
     <div className={ className }>
-      <h3 className={ styles.title }>
-        { title }
-      </h3>
-      <Byline byline={ byline } />
-      <Description description={ description } />
+      <div>
+        <h3 className={ styles.title }>
+          { title }
+        </h3>
+        <Byline byline={ byline } />
+        <Description description={ description } />
+      </div>
+      <Actions actions={ actions } />
     </div>
   );
 }
 
 Title.propTypes = {
+  actions: PropTypes.array,
   byline: nodeOrStringProptype(),
   className: PropTypes.string,
   description: nodeOrStringProptype(),

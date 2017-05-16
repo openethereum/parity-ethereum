@@ -104,6 +104,12 @@ export default class SignerMiddleware {
     return this.confirmRawRequest(store, id, signature);
   }
 
+  confirmDecryptedMsg (store, id, decrypted) {
+    const { msg } = decrypted;
+
+    return this.confirmRawRequest(store, id, msg);
+  }
+
   confirmSignedTransaction (store, id, txSigned) {
     const { netVersion } = store.getState().nodeStatus;
     const { signature, tx } = txSigned;
@@ -154,7 +160,7 @@ export default class SignerMiddleware {
   }
 
   onConfirmStart = (store, action) => {
-    const { condition, gas = 0, gasPrice = 0, id, password, payload, txSigned, dataSigned, wallet } = action.payload;
+    const { condition, gas = 0, gasPrice = 0, id, password, payload, txSigned, dataSigned, decrypted, wallet } = action.payload;
     const handlePromise = this._createConfirmPromiseHandler(store, id);
     const transaction = payload.sendTransaction || payload.signTransaction;
 
@@ -177,9 +183,13 @@ export default class SignerMiddleware {
       }
     }
 
-    // TODO [ToDr] Support eth_sign for external wallet (wallet && !transction)
+    // TODO [ToDr] Support eth_sign for external wallet (wallet && dataSigned)
     if (dataSigned) {
       return this.confirmSignedData(store, id, dataSigned);
+    }
+    // TODO [ToDr] Support parity_decrypt for external wallet (wallet && decrypted)
+    if (decrypted) {
+      return this.confirmDecryptedMsg(store, id, decrypted);
     }
 
     return handlePromise(this._api.signer.confirmRequest(id, { gas, gasPrice, condition }, password));
