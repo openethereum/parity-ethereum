@@ -17,7 +17,7 @@
 import React, { PropTypes } from 'react';
 import { List as SemanticList } from 'semantic-ui-react';
 
-import LabelComponent from '../Form/LabelComponent';
+import LabelWrapper from '../Form/LabelWrapper';
 import Item from './Item';
 
 import styles from './list.css';
@@ -28,7 +28,7 @@ export default function List ({ className, items, label, onClick, style }) {
   };
 
   return (
-    <LabelComponent label={ label }>
+    <LabelWrapper label={ label }>
       <SemanticList className={ `${styles.list} ${className}` }>
         {
           items.filter((item) => item).map(({ buttons, description, icon, isActive, key, label }, index) => (
@@ -44,7 +44,7 @@ export default function List ({ className, items, label, onClick, style }) {
           ))
         }
       </SemanticList>
-    </LabelComponent>
+    </LabelWrapper>
   );
 }
 

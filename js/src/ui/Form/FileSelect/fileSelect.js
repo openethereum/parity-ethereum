@@ -46,14 +46,7 @@ export default class FileSelect extends Component {
       <Dropzone
         onDrop={ this.onDrop }
         multiple={ false }
-        className={
-          [
-            styles.dropzone,
-            error
-              ? styles.error
-              : '',
-            className
-          ].join(' ') }
+        className={ `${styles.dropzone} ${error && styles.error} ${className}` }
       >
         <div className={ styles.label }>
           { error || label }

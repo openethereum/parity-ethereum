@@ -16,6 +16,8 @@
 
 import React, { PropTypes } from 'react';
 
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+
 import styles from './label.css';
 
 export default function Label ({ className, label }) {
@@ -24,7 +26,7 @@ export default function Label ({ className, label }) {
   }
 
   return (
-    <label className={ [styles.label, className].join(' ') }>
+    <label className={ `${styles.label} ${className}` }>
       { label }
     </label>
   );
@@ -32,5 +34,5 @@ export default function Label ({ className, label }) {
 
 Label.propTypes = {
   className: PropTypes.string,
-  label: PropTypes.node
+  label: nodeOrStringProptype()
 };

@@ -16,9 +16,11 @@
 
 import React, { PropTypes } from 'react';
 
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+
 import Label from '../Label';
 
-export default function LabelComponent ({ className, children, label }) {
+export default function LabelWrapper ({ className, children, label }) {
   return (
     <div className={ className }>
       <Label label={ label } />
@@ -27,8 +29,8 @@ export default function LabelComponent ({ className, children, label }) {
   );
 }
 
-LabelComponent.propTypes = {
+LabelWrapper.propTypes = {
   className: PropTypes.string,
-  children: PropTypes.node.isRequired,
-  label: PropTypes.node
+  children: PropTypes.node,
+  label: nodeOrStringProptype()
 };

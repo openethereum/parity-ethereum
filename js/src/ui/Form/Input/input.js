@@ -23,7 +23,7 @@ import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 import { parseI18NString } from '@parity/shared/util/messages';
 
 import CopyToClipboard from '~/ui/CopyToClipboard';
-import LabelComponent from '~/ui/Form/LabelComponent';
+import LabelWrapper from '~/ui/Form/LabelWrapper';
 
 import styles from './input.css';
 
@@ -113,7 +113,7 @@ export default class Input extends Component {
     const { value } = this.state;
 
     return (
-      <LabelComponent
+      <LabelWrapper
         className={ styles.container }
         label={ label }
       >
@@ -146,7 +146,7 @@ export default class Input extends Component {
           <input />
           { children }
         </SemanticInput>
-      </LabelComponent>
+      </LabelWrapper>
     );
   }
 

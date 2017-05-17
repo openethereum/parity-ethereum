@@ -19,14 +19,14 @@ import { Radio } from 'semantic-ui-react';
 
 import { arrayOrObjectProptype } from '@parity/shared/util/proptypes';
 
-import LabelComponent from '../LabelComponent';
+import LabelWrapper from '../LabelWrapper';
 import styles from './radioButtons.css';
 
 export default function RadioButtons ({ className, label, name, onChange, value, values }) {
   const _onChange = (event, { value }) => onChange(event, value);
 
   return (
-    <LabelComponent
+    <LabelWrapper
       className={ [styles.container, className].join(' ') }
       label={ label }
     >
@@ -58,7 +58,7 @@ export default function RadioButtons ({ className, label, name, onChange, value,
           </div>
         ))
       }
-    </LabelComponent>
+    </LabelWrapper>
   );
 }
 

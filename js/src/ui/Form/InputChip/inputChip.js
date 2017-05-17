@@ -22,7 +22,7 @@ import { Input as SemanticInput } from 'semantic-ui-react';
 import { parseI18NString } from '@parity/shared/util/messages';
 import { arrayOrObjectProptype, nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-import LabelComponent from '~/ui/Form/LabelComponent';
+import LabelWrapper from '~/ui/Form/LabelWrapper';
 
 import Chip from './Chip';
 
@@ -58,7 +58,7 @@ export default class InputChip extends Component {
     const { textValue } = this.state;
 
     return (
-      <LabelComponent
+      <LabelWrapper
         className={ className }
         label={ label }
       >
@@ -76,7 +76,7 @@ export default class InputChip extends Component {
         <div>
           { tokens.map(this.renderChip) }
         </div>
-      </LabelComponent>
+      </LabelWrapper>
     );
   }
 
