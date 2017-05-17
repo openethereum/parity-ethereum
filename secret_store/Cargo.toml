@@ -25,7 +25,7 @@ tokio-io = "0.1.0"
 tokio-service = "0.1"
 tokio-proto = "0.1"
 url = "1.0"
-ethabi = "1.0.0"
+ethabi = "1.0"
 ethcore = { path = "../ethcore" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-util = { path = "../util" }

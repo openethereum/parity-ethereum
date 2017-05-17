@@ -19,8 +19,9 @@ serde_json = "0.9"
 time = "0.1"
 tokio-timer = "0.1"
 transient-hashmap = "0.4"
-cid = "0.2.1"
-multihash = "0.5"
+# cid = "0.2.1"
+cid = { git = "https://github.com/tomusdrw/rust-cid.git" }
+multihash = "0.6"
 rust-crypto = "0.2.36"
 rand = "0.3"
 
