@@ -15,18 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
-import { Menu } from 'semantic-ui-react';
+import { Menu as SemanticMenu } from 'semantic-ui-react';
 
 export default function Tab ({ isActive, className, index, label, name, onClick, style }) {
   return (
-    <Menu.Item
+    <SemanticMenu.Item
       active={ isActive }
       index={ index }
       name={ name }
       onClick={ onClick }
     >
       { label }
-    </Menu.Item>
+    </SemanticMenu.Item>
   );
 }
 

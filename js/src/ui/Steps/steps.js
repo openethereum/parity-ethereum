@@ -28,12 +28,12 @@ export default function Steps ({ activeStep, className, steps }) {
     <div className={ className }>
       <SemanticStep.Group ordered>
         {
-          steps.map((label, index) => (
+          steps.filter((step) => step).map((step, index) => (
             <Step
               isActive={ activeStep === index }
               isCompleted={ activeStep > index }
-              key={ label.key || index }
-              label={ label.label || label }
+              key={ step.key || index }
+              label={ step.label || step }
             />
           ))
         }

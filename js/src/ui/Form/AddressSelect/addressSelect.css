@@ -90,11 +90,6 @@
   position: relative;
 }
 
-.label {
-  margin: 1rem 0.5rem 0.25em;
-  color: rgba(255, 255, 255, 0.498039);
-}
-
 .underline {
   position: relative;
   margin: 0 0.5rem 0 0.5rem;

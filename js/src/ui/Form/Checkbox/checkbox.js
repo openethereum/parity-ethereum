@@ -15,16 +15,20 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
-import { Checkbox as SemCheckbox } from 'semantic-ui-react';
+import { Checkbox as SemanticCheckbox } from 'semantic-ui-react';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
+import LabelWrapper from '../LabelWrapper';
+
 export default function Checkbox ({ checked = false, className, label, onClick, style }) {
   return (
-    <SemCheckbox
+    <SemanticCheckbox
       checked={ checked }
       className={ className }
-      label={ <label>{ label }</label> }
+      label={
+        <LabelWrapper label={ label } />
+      }
       onClick={ onClick }
       style={ style }
     />

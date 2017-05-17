@@ -29,6 +29,7 @@ import { validateAddress } from '@parity/shared/util/validation';
 import AccountCard from '~/ui/AccountCard';
 import CopyToClipboard from '~/ui/CopyToClipboard';
 import InputAddress from '~/ui/Form/InputAddress';
+import LabelWrapper from '~/ui/Form/LabelWrapper';
 import Loading from '~/ui/Loading';
 import Portal from '~/ui/Portal';
 
@@ -193,10 +194,11 @@ class AddressSelect extends Component {
         onKeyDown={ this.handleKeyDown }
         open={ expanded }
         title={
-          <div className={ styles.title }>
-            <label className={ styles.label } htmlFor={ id }>
-              { label }
-            </label>
+          <LabelWrapper
+            className={ styles.title }
+            htmlFor={ id }
+            label={ label }
+          >
             <div className={ styles.outerInput }>
               <input
                 id={ id }
@@ -217,7 +219,7 @@ class AddressSelect extends Component {
                 )
               }
             </div>
-          </div>
+          </LabelWrapper>
         }
       >
         { this.renderCurrentInput() }
