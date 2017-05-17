@@ -27,12 +27,12 @@ use request::{
 /// Build chained requests. Push them onto the series with `push`,
 /// and produce a `Requests` object with `build`. Outputs are checked for consistency.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RequestBuilder<T: IncompleteRequest> {
+pub struct RequestBuilder<T> {
 	output_kinds: HashMap<(usize, usize), OutputKind>,
 	requests: Vec<T>,
 }
 
-impl<T: IncompleteRequest> Default for RequestBuilder<T> {
+impl<T> Default for RequestBuilder<T> {
 	fn default() -> Self {
 		RequestBuilder {
 			output_kinds: HashMap::new(),
@@ -74,13 +74,13 @@ impl<T: IncompleteRequest> RequestBuilder<T> {
 
 /// Requests pending responses.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Requests<T: IncompleteRequest> {
+pub struct Requests<T> {
 	outputs: HashMap<(usize, usize), Output>,
 	requests: Vec<T>,
 	answered: usize,
 }
 
-impl<T: IncompleteRequest + Clone> Requests<T> {
+impl<T> Requests<T> {
 	/// Get access to the underlying slice of requests.
 	// TODO: unimplemented -> Vec<Request>, // do we _have to_ allocate?
 	pub fn requests(&self) -> &[T] { &self.requests }
@@ -93,6 +93,19 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 		self.answered == self.requests.len()
 	}
 
+	/// Map requests from one type into another.
+	pub fn map_requests<F, U>(self, f: F) -> Requests<U>
+		where F: FnMut(T) -> U, U: IncompleteRequest
+	{
+		Requests {
+			outputs: self.outputs,
+			requests: self.requests.into_iter().map(f).collect(),
+			answered: self.answered,
+		}
+	}
+}
+
+impl<T: IncompleteRequest + Clone> Requests<T> {
 	/// Get the next request as a filled request. Returns `None` when all requests answered.
 	pub fn next_complete(&self) -> Option<T::Complete> {
 		if self.is_complete() {
@@ -104,14 +117,12 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 		}
 	}
 
-	/// Map requests from one type into another.
-	pub fn map_requests<F, U>(self, f: F) -> Requests<U>
-		where F: FnMut(T) -> U, U: IncompleteRequest
-	{
-		Requests {
-			outputs: self.outputs,
-			requests: self.requests.into_iter().map(f).collect(),
-			answered: self.answered,
+	/// Sweep through all unanswered requests, filling them as necessary.
+	pub fn fill_unanswered(&mut self) {
+		let outputs = &mut self.outputs;
+
+		for req in self.requests.iter_mut().skip(self.answered) {
+			req.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
 		}
 	}
 
@@ -131,8 +142,8 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 
 		self.answered += 1;
 
-		// fill as much of each remaining request as we can.
-		for req in self.requests.iter_mut().skip(self.answered) {
+		// fill as much of the next request as we can.
+		if let Some(ref mut req) = self.requests.get_mut(self.answered) {
 			req.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
 		}
 	}

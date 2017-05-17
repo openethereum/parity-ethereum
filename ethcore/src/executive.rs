@@ -185,7 +185,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let (gas_left, output) = match t.action {
 			Action::Create => {
 				let code_hash = t.data.sha3();
-				let new_address = contract_address(schedule.create_address, &sender, &nonce, &code_hash);
+				let new_address = contract_address(self.engine.create_address_scheme(self.info.number), &sender, &nonce, &code_hash);
 				let params = ActionParams {
 					code_address: new_address.clone(),
 					code_hash: code_hash,
@@ -386,8 +386,8 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		vm_tracer: &mut V,
 	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
 
-		let schedule = self.engine.schedule(self.info.number);
-		if schedule.create_address != CreateContractAddress::FromSenderAndNonce && self.state.exists(&params.address)? {
+		let scheme = self.engine.create_address_scheme(self.info.number);
+		if scheme != CreateContractAddress::FromSenderAndNonce && self.state.exists_and_has_code(&params.address)? {
 			return Err(evm::Error::OutOfGas);
 		}
 
@@ -398,6 +398,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let mut unconfirmed_substate = Substate::new();
 
 		// create contract and transfer value to it if necessary
+		let schedule = self.engine.schedule(self.info.number);
 		let nonce_offset = if schedule.no_empty {1} else {0}.into();
 		let prev_bal = self.state.balance(&params.address)?;
 		if let ActionValue::Transfer(val) = params.value {

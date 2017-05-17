@@ -18,7 +18,7 @@ echo "Version: $version" >> $control
 echo "Source: parity" >> $control
 echo "Section: science" >> $control
 echo "Priority: extra" >> $control
-echo "Maintainer: Ethcore <devops@parity.io>" >> $control
+echo "Maintainer: Parity Technologies <devops@parity.io>" >> $control
 echo "Build-Depends: debhelper (>=9)" >> $control
 echo "Standards-Version: 3.9.5" >> $control
 echo "Homepage: https://parity.io" >> $control
@@ -26,7 +26,7 @@ echo "Vcs-Git: git://github.com/paritytech/parity.git" >> $control
 echo "Vcs-Browser: https://github.com/paritytech/parity" >> $control
 echo "Architecture: $1" >> $control
 echo "Depends: libssl1.0.0 (>=1.0.0)" >> $control
-echo "Description: Ethereum network client by Ethcore" >> $control
+echo "Description: Ethereum network client by Parity Technologies" >> $control
 #build .deb package
 
 exit

@@ -18,9 +18,6 @@
 //! The request service is implemented using Futures. Higher level request handlers
 //! will take the raw data received here and extract meaningful results from it.
 
-// TODO [ToDr] Suppressing deprecation warnings. Rob will fix the API anyway.
-#![allow(deprecated)]
-
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -133,6 +130,10 @@ impl Pending {
 		} else {
 			Some(self)
 		}
+	}
+
+	fn fill_unanswered(&mut self) {
+		self.requests.fill_unanswered();
 	}
 
 	// update the cached network requests.
@@ -444,7 +445,7 @@ impl Handler for OnDemand {
 		// for each incoming response
 		//   1. ensure verification data filled.
 		//   2. pending.requests.supply_response
-		//   3. if extracted on-demand response
+		//   3. if extracted on-demand response, keep it for later.
 		for response in responses {
 			if let Err(e) = pending.supply_response(&*self.cache, response) {
 				let peer = ctx.peer();
@@ -455,6 +456,7 @@ impl Handler for OnDemand {
 			}
 		}
 
+		pending.fill_unanswered();
 		self.submit_pending(ctx.as_basic(), pending);
 	}
 

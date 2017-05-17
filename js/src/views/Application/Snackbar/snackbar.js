@@ -27,7 +27,8 @@ const bodyStyle = {
   backgroundColor: darkBlack,
   borderStyle: 'solid',
   borderColor: grey800,
-  borderWidth: '1px 1px 0 1px'
+  borderWidth: '1px 1px 0 1px',
+  minWidth: 0
 };
 
 class Snackbar extends Component {

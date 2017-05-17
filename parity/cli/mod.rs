@@ -165,7 +165,7 @@ usage! {
 			or |c: &Config| otry!(c.rpc).interface.clone(),
 		flag_jsonrpc_cors: Option<String> = None,
 			or |c: &Config| otry!(c.rpc).cors.clone().map(Some),
-		flag_jsonrpc_apis: String = "web3,eth,net,parity,traces,rpc",
+		flag_jsonrpc_apis: String = "web3,eth,net,parity,traces,rpc,secretstore",
 			or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.as_ref().map(|vec| vec.join(",")),
@@ -179,7 +179,7 @@ usage! {
 			or |c: &Config| otry!(c.websockets).port.clone(),
 		flag_ws_interface: String  = "local",
 			or |c: &Config| otry!(c.websockets).interface.clone(),
-		flag_ws_apis: String = "web3,eth,net,parity,traces,rpc",
+		flag_ws_apis: String = "web3,eth,net,parity,traces,rpc,secretstore",
 			or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
 		flag_ws_origins: String = "none",
 			or |c: &Config| otry!(c.websockets).origins.as_ref().map(|vec| vec.join(",")),
@@ -191,7 +191,7 @@ usage! {
 			or |c: &Config| otry!(c.ipc).disable.clone(),
 		flag_ipc_path: String = "$BASE/jsonrpc.ipc",
 			or |c: &Config| otry!(c.ipc).path.clone(),
-		flag_ipc_apis: String = "web3,eth,net,parity,parity_accounts,traces,rpc",
+		flag_ipc_apis: String = "web3,eth,net,parity,parity_accounts,traces,rpc,secretstore",
 			or |c: &Config| otry!(c.ipc).apis.as_ref().map(|vec| vec.join(",")),
 
 		// DAPPS
@@ -723,7 +723,7 @@ mod tests {
 			flag_jsonrpc_port: 8545u16,
 			flag_jsonrpc_interface: "local".into(),
 			flag_jsonrpc_cors: Some("null".into()),
-			flag_jsonrpc_apis: "web3,eth,net,parity,traces,rpc".into(),
+			flag_jsonrpc_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			flag_jsonrpc_hosts: "none".into(),
 			flag_jsonrpc_threads: None,
 
@@ -731,14 +731,14 @@ mod tests {
 			flag_no_ws: false,
 			flag_ws_port: 8546u16,
 			flag_ws_interface: "local".into(),
-			flag_ws_apis: "web3,eth,net,parity,traces,rpc".into(),
+			flag_ws_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			flag_ws_origins: "none".into(),
 			flag_ws_hosts: "none".into(),
 
 			// IPC
 			flag_no_ipc: false,
 			flag_ipc_path: "$HOME/.parity/jsonrpc.ipc".into(),
-			flag_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,rpc".into(),
+			flag_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,rpc,secretstore".into(),
 
 			// DAPPS
 			flag_dapps_path: "$HOME/.parity/dapps".into(),

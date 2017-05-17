@@ -410,7 +410,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	);
 	info!("Operating mode: {}", Colour::White.bold().paint(format!("{}", mode)));
 
-	// display warning about using experimental journaldb alorithm
+	// display warning about using experimental journaldb algorithm
 	if !algorithm.is_stable() {
 		warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", Colour::Red.bold().paint("unstable"));
 	}
@@ -426,8 +426,9 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	} else {
 		sync_config.subprotocol_name.clone_from_slice(spec.subprotocol_name().as_bytes());
 	}
+
 	sync_config.fork_block = spec.fork_block();
-	sync_config.warp_sync = cmd.warp_sync;
+	sync_config.warp_sync = spec.engine.supports_warp() && cmd.warp_sync;
 	sync_config.download_old_blocks = cmd.download_old_blocks;
 	sync_config.serve_light = cmd.serve_light;
 
@@ -630,6 +631,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 			false => None,
 		},
 		fetch: fetch.clone(),
+		remote: event_loop.remote(),
 	});
 
 	let dependencies = rpc::Dependencies {

@@ -24,7 +24,7 @@ import { bindActionCreators } from 'redux';
 import { Button, GasPriceEditor, IdentityIcon, Portal, Warning } from '~/ui';
 import { CancelIcon } from '~/ui/Icons';
 import { ERRORS, validateAbi, validateCode, validateName, validatePositiveNumber } from '~/util/validation';
-import { deploy, deployEstimateGas } from '~/util/tx';
+import { deploy, deployEstimateGas, getSender, loadSender, setSender } from '~/util/tx';
 import { setRequest } from '~/redux/providers/requestsActions';
 
 import DetailsStep from './DetailsStep';
@@ -94,7 +94,7 @@ class DeployContract extends Component {
     description: '',
     descriptionError: null,
     extras: false,
-    fromAddress: Object.keys(this.props.accounts)[0],
+    fromAddress: getSender() || Object.keys(this.props.accounts)[0],
     fromAddressError: null,
     name: '',
     nameError: ERRORS.invalidName,
@@ -110,6 +110,13 @@ class DeployContract extends Component {
     if (abi && code) {
       this.setState({ abi, code });
     }
+
+    loadSender(this.context.api)
+      .then((defaultAccount) => {
+        if (defaultAccount !== this.state.fromAddress) {
+          this.setState({ fromAddress: defaultAccount });
+        }
+      });
   }
 
   componentWillReceiveProps (nextProps) {
@@ -467,6 +474,7 @@ class DeployContract extends Component {
 
     const contract = api.newContract(abiParsed);
 
+    setSender(fromAddress);
     this.onClose();
     deploy(contract, options, params, true)
       .then((requestId) => {

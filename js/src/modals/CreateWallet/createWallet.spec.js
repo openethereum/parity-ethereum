@@ -27,7 +27,11 @@ let component;
 let onClose;
 
 function createApi () {
-  api = {};
+  api = {
+    parity: {
+      getNewDappsDefaultAddress: sinon.stub().resolves('')
+    }
+  };
 
   return api;
 }

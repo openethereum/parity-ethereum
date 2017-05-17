@@ -57,6 +57,8 @@ pub struct AuthorityRoundParams {
 	pub validate_score_transition: u64,
 	/// Number of first block where EIP-155 rules are validated.
 	pub eip155_transition: u64,
+	/// Monotonic step validation transition block.
+	pub validate_step_transition: u64,
 }
 
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
@@ -70,6 +72,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			start_step: p.start_step.map(Into::into),
 			validate_score_transition: p.validate_score_transition.map_or(0, Into::into),
 			eip155_transition: p.eip155_transition.map_or(0, Into::into),
+			validate_step_transition: p.validate_step_transition.map_or(0, Into::into),
 		}
 	}
 }
@@ -128,6 +131,7 @@ pub struct AuthorityRound {
 	validators: Box<ValidatorSet>,
 	validate_score_transition: u64,
 	eip155_transition: u64,
+	validate_step_transition: u64,
 }
 
 // header-chain validator.
@@ -208,6 +212,7 @@ impl AuthorityRound {
 				validators: new_validator_set(our_params.validators),
 				validate_score_transition: our_params.validate_score_transition,
 				eip155_transition: our_params.eip155_transition,
+				validate_step_transition: our_params.validate_step_transition,
 			});
 		// Do not initialize timeouts for tests.
 		if should_timeout {
@@ -379,7 +384,8 @@ impl Engine for AuthorityRound {
 
 		// Ensure header is from the step after parent.
 		let parent_step = header_step(parent)?;
-		if step <= parent_step {
+		if step == parent_step
+			|| (header.number() >= self.validate_step_transition && step <= parent_step) {
 			trace!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
 			self.validators.report_malicious(header.author(), header.number(), Default::default());
 			Err(EngineError::DoubleVote(header.author().clone()))?;

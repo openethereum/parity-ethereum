@@ -78,12 +78,16 @@ export default class WalletSettingsStore {
       const changes = data.map((datum) => {
         const [ type, valueStr ] = datum.split(';');
 
-        let value = valueStr;
+        let value;
 
-        // Only addresses start with `0x`, the others
-        // are BigNumbers
-        if (!/^0x/.test(valueStr)) {
-          value = new BigNumber(valueStr, 16);
+        if (/^#BN#/.test(valueStr)) {
+          value = new BigNumber(valueStr.replace(/^#BN#/, ''), 16);
+        } else {
+          try {
+            value = JSON.parse(valueStr);
+          } catch (e) {
+            value = valueStr;
+          }
         }
 
         return { type, value };
@@ -104,8 +108,8 @@ export default class WalletSettingsStore {
       const { type, value } = change;
 
       const valueStr = (value && typeof value.plus === 'function')
-        ? value.toString(16)
-        : value;
+        ? '#BN#' + value.toString(16)
+        : JSON.stringify(value);
 
       return [
         type,
@@ -147,14 +151,26 @@ export default class WalletSettingsStore {
     const ownersToRemove = prevOwners.filter((owner) => !nextOwners.includes(owner));
     const ownersToAdd = nextOwners.filter((owner) => !prevOwners.includes(owner));
 
-    ownersToRemove.forEach((owner) => {
+    const ownersChangeCount = Math.min(ownersToRemove.length, ownersToAdd.length);
+
+    for (let i = 0; i < ownersChangeCount; i++) {
+      changes.push({
+        type: 'change_owner',
+        value: {
+          from: ownersToRemove[i],
+          to: ownersToAdd[i]
+        }
+      });
+    }
+
+    ownersToRemove.slice(ownersChangeCount).forEach((owner) => {
       changes.push({
         type: 'remove_owner',
         value: owner
       });
     });
 
-    ownersToAdd.forEach((owner) => {
+    ownersToAdd.slice(ownersChangeCount).forEach((owner) => {
       changes.push({
         type: 'add_owner',
         value: owner
@@ -180,6 +196,12 @@ export default class WalletSettingsStore {
 
           case 'require':
             this.wallet.require = value;
+            break;
+
+          case 'change_owner':
+            this.wallet.owners = this.wallet.owners
+              .filter((owner) => owner !== value.from)
+              .concat(value.to);
             break;
 
           case 'remove_owner':
@@ -306,6 +328,13 @@ export default class WalletSettingsStore {
       return {
         method: walletInstance.addOwner,
         values: [ change.value ]
+      };
+    }
+
+    if (change.type === 'change_owner') {
+      return {
+        method: walletInstance.changeOwner,
+        values: [ change.value.from, change.value.to ]
       };
     }
 

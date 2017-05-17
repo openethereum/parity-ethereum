@@ -37,6 +37,7 @@ use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{Action, SignedTransaction, PendingTransaction, Transaction};
 use ethcore::account_provider::AccountProvider;
+use crypto::DEFAULT_MAC;
 
 use jsonrpc_core::Error;
 use v1::helpers::{errors, TransactionRequest, FilledTransactionRequest, ConfirmationPayload};
@@ -404,9 +405,6 @@ impl Dispatcher for LightDispatcher {
 	}
 }
 
-/// default MAC to use.
-pub const DEFAULT_MAC: [u8; 2] = [0, 0];
-
 /// Single-use account token.
 pub type AccountToken = String;
 
@@ -517,7 +515,7 @@ pub fn execute<D: Dispatcher + 'static>(
 			let hash = eth_data_hash(data);
 			let res = signature(&accounts, address, hash, pass)
 				.map(|result| result
-					.map(|rsv| H520(rsv.into_vrs()))
+					.map(|rsv| H520(rsv.into_electrum()))
 					.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
 				);

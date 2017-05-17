@@ -34,12 +34,12 @@ use ethcore::client::{MiningBlockChainClient};
 use ethcore::mode::Mode;
 use ethcore::account_provider::AccountProvider;
 use updater::{Service as UpdateService};
+use crypto::DEFAULT_MAC;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::accounts::unwrap_provider;
-use v1::helpers::dispatch::DEFAULT_MAC;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{

@@ -45,3 +45,16 @@
     white-space: nowrap;
   }
 }
+
+.form {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  float: right;
+  width: 40em;
+
+  .input {
+    flex: 1;
+    margin-right: 1em;
+  }
+}

@@ -40,6 +40,12 @@ const PAYLOAD_SIGN = {
 const PAYLOAD_SIGNTX = {
   signTransaction: TRANSACTION
 };
+const PAYLOAD_DECRYPT = {
+  decrypt: {
+    address: ADDRESS,
+    msg: 'testing'
+  }
+};
 
 let component;
 let onConfirm;
@@ -107,6 +113,20 @@ describe('views/Signer/RequestPending', () => {
 
     it('renders TransactionPending component', () => {
       expect(component.find('Connect(TransactionPending)')).to.have.length(1);
+    });
+  });
+
+  describe('decrypt', () => {
+    beforeEach(() => {
+      render(PAYLOAD_DECRYPT);
+    });
+
+    it('renders defaults', () => {
+      expect(component).to.be.ok;
+    });
+
+    it('renders DecryptRequest component', () => {
+      expect(component.find('Connect(DecryptRequest)')).to.have.length(1);
     });
   });
 });
