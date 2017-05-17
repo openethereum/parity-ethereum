@@ -31,6 +31,7 @@ export default class ApplicationStore {
   accounts = [];
   api = api;
   contract = null;
+  githubHint = null;
 
   constructor () {
     this.fetchAccounts();

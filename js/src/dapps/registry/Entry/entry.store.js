@@ -18,7 +18,7 @@ import { action, observable } from 'mobx';
 
 import ApplicationStore from '../Application/application.store';
 
-import { checkOwnerReverse } from '../util/registry';
+import { checkOwnerReverse, modifyMetadata } from '../util/registry';
 import { postTransaction } from '../util/transactions';
 
 export default class Entry {
@@ -84,18 +84,10 @@ export default class Entry {
       });
   }
 
-  modifyMetadata (key, newValue) {
-    const { api, contract } = this.applicationStore;
+  modifyMetadata (key, value) {
+    const { api, contract, githubHint } = this.applicationStore;
 
-    const isAddress = key === 'A';
-    const method = isAddress
-      ? contract.instance.setAddress
-      : contract.instance.setData;
-
-    const options = { from: this.owner };
-    const values = [ this.hash, key, newValue ];
-
-    return postTransaction(api, method, options, values);
+    return modifyMetadata(api, contract, githubHint, this.owner, this.hash, key, value);
   }
 
   modifyOwner (newOwner) {

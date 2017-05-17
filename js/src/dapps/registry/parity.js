@@ -14,10 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const api = window.parity.api;
-const { bytesToHex, sha3, toWei, fromWei } = window.parity.api.util;
+const api = window.parent.secureApi;
 
 export {
-  api,
-  bytesToHex, sha3, toWei, fromWei
+  api
 };

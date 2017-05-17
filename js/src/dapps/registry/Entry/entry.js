@@ -124,9 +124,9 @@ export default class Entry extends Component {
           <Info
             ask={ {
               defaultValue: image,
-              placeholder: 'Image hash',
+              placeholder: 'Image hash or URL',
               showInput: true,
-              title: 'Enter the new image hash'
+              title: 'Enter the new image hash or URL'
             } }
             label='Image'
             isOwner={ isOwner }

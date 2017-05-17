@@ -14,21 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export function getReverseName (contract, hash) {
-  return contract.instance.hasReverse
-    .call({}, [ hash ])
-    .then((hasReverse) => {
-      if (!hasReverse) {
-        return null;
-      }
-
-      return contract.instance.getReverse
-        .call({}, [ hash ])
-        .then((address) => {
-          return contract.instance.reverse.call({}, [ address ]);
-        });
-    });
-}
+import { postTransaction } from './transactions';
 
 export function checkOwnerReverse (contract, owner) {
   return contract.instance.canReverse
@@ -40,34 +26,6 @@ export function checkOwnerReverse (contract, owner) {
 
       return contract.instance.reverse.call({}, [ owner ]);
     });
-}
-
-export function getOwner (contract, hash) {
-  const { address, api } = contract;
-
-  const key = hash + '0000000000000000000000000000000000000000000000000000000000000001';
-  const position = api.util.sha3(key, { encoding: 'hex' });
-
-  return api
-    .eth
-    .getStorageAt(address, position)
-    .then((result) => {
-      if (/^(0x)?0*$/.test(result)) {
-        return '';
-      }
-
-      return '0x' + result.slice(-40);
-    });
-}
-
-export function isOwned (contract, hash) {
-  return getOwner(contract, hash).then((owner) => !!owner);
-}
-
-export function reverse (contract, address) {
-  return contract.instance
-    .reverse
-    .call({}, [ address ]);
 }
 
 export function getInfo (contract, hash) {
@@ -122,3 +80,83 @@ export function getMetadata (contract, hash, key) {
     });
 }
 
+export function getOwner (contract, hash) {
+  const { address, api } = contract;
+
+  const key = hash + '0000000000000000000000000000000000000000000000000000000000000001';
+  const position = api.util.sha3(key, { encoding: 'hex' });
+
+  return api
+    .eth
+    .getStorageAt(address, position)
+    .then((result) => {
+      if (/^(0x)?0*$/.test(result)) {
+        return '';
+      }
+
+      return '0x' + result.slice(-40);
+    });
+}
+
+export function getReverseName (contract, hash) {
+  return contract.instance.hasReverse
+    .call({}, [ hash ])
+    .then((hasReverse) => {
+      if (!hasReverse) {
+        return null;
+      }
+
+      return contract.instance.getReverse
+        .call({}, [ hash ])
+        .then((address) => {
+          return contract.instance.reverse.call({}, [ address ]);
+        });
+    });
+}
+
+export function isOwned (contract, hash) {
+  return getOwner(contract, hash).then((owner) => !!owner);
+}
+
+export function modifyMetadata (api, registry, githubHint, owner, hash, key, value) {
+  const isAddress = key === 'A';
+  const method = isAddress
+    ? registry.instance.setAddress
+    : registry.instance.setData;
+
+  let nextValuePromise;
+  const options = { from: owner };
+
+  // The value is already a hash
+  if (/^0x[0-9a-f]+$/i.test(value) || isAddress) {
+    nextValuePromise = Promise.resolve(value);
+  } else {
+    nextValuePromise = api.parity.hashContent(value)
+      .then((hashedValue) => {
+        return githubHint.instance.entries
+          .call({}, [ hashedValue ])
+          .then(([ accountSlashRepo, commit, owner ]) => {
+            // Not an entry, thus register this entry in GHH contract
+            if (/^(0x)0*$/.test(owner)) {
+              return postTransaction(api, githubHint.instance.hintURL, options, [ hashedValue, value ]);
+            }
+          })
+          .then(() => {
+            return hashedValue;
+          });
+      });
+  }
+
+  return nextValuePromise
+    .then((nextValue) => {
+      const values = [ hash, key, nextValue ];
+
+      return postTransaction(api, method, options, values);
+    });
+}
+
+export function reverse (contract, address) {
+  return contract.instance
+    .reverse
+    .call({}, [ address ]);
+}
