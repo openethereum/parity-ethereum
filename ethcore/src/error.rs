@@ -169,6 +169,8 @@ pub enum BlockError {
 	UnknownParent(H256),
 	/// Uncle parent given is unknown.
 	UnknownUncleParent(H256),
+	/// No transition to epoch number.
+	UnknownEpochTransition(u64),
 }
 
 impl fmt::Display for BlockError {
@@ -202,6 +204,7 @@ impl fmt::Display for BlockError {
 			RidiculousNumber(ref oob) => format!("Implausible block number. {}", oob),
 			UnknownParent(ref hash) => format!("Unknown parent: {}", hash),
 			UnknownUncleParent(ref hash) => format!("Unknown uncle parent: {}", hash),
+			UnknownEpochTransition(ref num) => format!("Unknown transition to epoch number: {}", num),
 		};
 
 		f.write_fmt(format_args!("Block error ({})", msg))

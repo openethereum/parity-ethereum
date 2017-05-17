@@ -106,6 +106,7 @@ impl Restoration {
 		let secondary = components.rebuilder(chain, raw_db.clone(), &manifest)?;
 
 		let root = manifest.state_root.clone();
+
 		Ok(Restoration {
 			manifest: manifest,
 			state_chunks_left: state_chunks,
@@ -150,7 +151,7 @@ impl Restoration {
 	}
 
 	// finish up restoration.
-	fn finalize(mut self) -> Result<(), Error> {
+	fn finalize(mut self, engine: &Engine) -> Result<(), Error> {
 		use util::trie::TrieError;
 
 		if !self.is_done() { return Ok(()) }
@@ -163,10 +164,11 @@ impl Restoration {
 		}
 
 		// check for missing code.
-		self.state.finalize(self.manifest.block_number, self.manifest.block_hash)?;
+		let db = self.state.finalize(self.manifest.block_number, self.manifest.block_hash)?;
+		let db = ::state_db::StateDB::new(db, 0);
 
 		// connect out-of-order chunks and verify chain integrity.
-		self.secondary.finalize()?;
+		self.secondary.finalize(db, engine)?;
 
 		if let Some(writer) = self.writer {
 			writer.finish(self.manifest)?;
@@ -450,7 +452,10 @@ impl Service {
 		let recover = rest.as_ref().map_or(false, |rest| rest.writer.is_some());
 
 		// destroy the restoration before replacing databases and snapshot.
-		rest.take().map(Restoration::finalize).unwrap_or(Ok(()))?;
+		rest.take()
+			.map(|r| r.finalize(&*self.engine))
+			.unwrap_or(Ok(()))?;
+
 		self.replace_client_db()?;
 
 		if recover {
@@ -552,6 +557,11 @@ impl Service {
 impl SnapshotService for Service {
 	fn manifest(&self) -> Option<ManifestData> {
 		self.reader.read().as_ref().map(|r| r.manifest().clone())
+	}
+
+	fn min_supported_version(&self) -> Option<u64> {
+		self.engine.snapshot_components()
+			.map(|c| c.min_supported_version())
 	}
 
 	fn chunk(&self, hash: H256) -> Option<Bytes> {
