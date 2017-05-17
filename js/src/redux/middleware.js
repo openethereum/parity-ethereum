@@ -38,7 +38,7 @@ export default function (api, browserHistory, forEmbed = false) {
 
   if (!forEmbed) {
     const certifications = new CertificationsMiddleware().toMiddleware();
-    const registry = new RegistryMiddleware(api);
+    const registry = new RegistryMiddleware(api).toMiddleware();
 
     middleware.push(certifications, registry);
   }

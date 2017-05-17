@@ -34,6 +34,7 @@ use basic_types::Seal;
 use block::*;
 use blockchain::{BlockChain, BlockProvider, EpochTransition, TreeRoute, ImportRoute};
 use blockchain::extras::TransactionAddress;
+use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -61,7 +62,7 @@ use service::ClientIoMessage;
 use snapshot::{self, io as snapshot_io};
 use spec::Spec;
 use state_db::StateDB;
-use state::{self, State, CleanupMode};
+use state::{self, State};
 use trace;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace::FlatTransactionTraces;
@@ -152,6 +153,7 @@ pub struct Client {
 	factories: Factories,
 	history: u64,
 	rng: Mutex<OsRng>,
+	ancient_verifier: Mutex<Option<AncientVerifier>>,
 	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
 	registrar: Mutex<Option<Registry>>,
 	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
@@ -241,6 +243,7 @@ impl Client {
 			factories: factories,
 			history: history,
 			rng: Mutex::new(OsRng::new().map_err(::util::UtilError::StdIo)?),
+			ancient_verifier: Mutex::new(None),
 			on_user_defaults_change: Mutex::new(None),
 			registrar: Mutex::new(None),
 			exit_handler: Mutex::new(None),
@@ -256,7 +259,11 @@ impl Client {
 		// ensure genesis epoch proof in the DB.
 		{
 			let chain = client.chain.read();
-			client.generate_epoch_proof(&spec.genesis_header(), 0, &*chain);
+			let gh = spec.genesis_header();
+			if chain.epoch_transition(0, spec.genesis_header().hash()).is_none() {
+				trace!(target: "client", "No genesis transition found.");
+				client.generate_epoch_proof(&gh, 0, &*chain);
+			}
 		}
 
 		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
@@ -377,7 +384,7 @@ impl Client {
 		let chain = self.chain.read();
 		// Check the block isn't so old we won't be able to enact it.
 		let best_block_number = chain.best_block_number();
-		if best_block_number >= self.history && header.number() <= best_block_number - self.history {
+		if self.pruning_info().earliest_state > header.number() {
 			warn!(target: "client", "Block import failed for #{} ({})\nBlock is ancient (current best block: #{}).", header.number(), header.hash(), best_block_number);
 			return Err(());
 		}
@@ -540,25 +547,56 @@ impl Client {
 	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, ::error::Error> {
 		let block = BlockView::new(&block_bytes);
 		let header = block.header();
+		let receipts = ::rlp::decode_list(&receipts_bytes);
 		let hash = header.hash();
 		let _import_lock = self.import_lock.lock();
+
 		{
 			let _timer = PerfTimer::new("import_old_block");
-			let mut rng = self.rng.lock();
 			let chain = self.chain.read();
+			let mut ancient_verifier = self.ancient_verifier.lock();
 
-			// verify block.
-			::snapshot::verify_old_block(
-				&mut *rng,
-				&header,
-				&*self.engine,
-				&*chain,
-				Some(&block_bytes),
-				false,
-			)?;
+			{
+				// closure for verifying a block.
+				let verify_with = |verifier: &AncientVerifier| -> Result<(), ::error::Error> {
+					// verify the block, passing a closure used to load an epoch verifier
+					// by number.
+					verifier.verify(
+						&mut *self.rng.lock(),
+						&header,
+						&block_bytes,
+						&receipts,
+						|epoch_num| chain.epoch_transition(epoch_num, hash)
+							.ok_or(BlockError::UnknownEpochTransition(epoch_num))
+							.map_err(Into::into)
+							.and_then(|t| self.engine.epoch_verifier(&header, &t.proof))
+					)
+				};
+
+				// initialize the ancient block verifier if we don't have one already.
+				match &mut *ancient_verifier {
+					&mut Some(ref verifier) => {
+						verify_with(verifier)?
+					}
+					x @ &mut None => {
+						// load most recent epoch.
+						trace!(target: "client", "Initializing ancient block restoration.");
+						let current_epoch_data = chain.epoch_transitions()
+							.take_while(|&(_, ref t)| t.block_number < header.number())
+							.last()
+							.map(|(_, t)| t.proof)
+							.expect("At least one epoch entry (genesis) always stored; qed");
+
+						let current_verifier = self.engine.epoch_verifier(&header, &current_epoch_data)?;
+						let current_verifier = AncientVerifier::new(self.engine.clone(), current_verifier);
+
+						verify_with(&current_verifier)?;
+						*x = Some(current_verifier);
+					}
+				}
+			}
 
 			// Commit results
-			let receipts = ::rlp::decode_list(&receipts_bytes);
 			let mut batch = DBTransaction::new();
 			chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, false, true);
 			// Final commit to the DB
@@ -590,7 +628,7 @@ impl Client {
 		let entering_new_epoch = {
 			use engines::EpochChange;
 			match self.engine.is_epoch_end(block.header(), Some(block_data), Some(&receipts)) {
-				EpochChange::Yes(e, _) => Some((block.header().clone(), e)),
+				EpochChange::Yes(e) => Some((block.header().clone(), e)),
 				EpochChange::No => None,
 				EpochChange::Unsure(_) => {
 					warn!(target: "client", "Detected invalid engine implementation.");
@@ -641,7 +679,8 @@ impl Client {
 
 		let mut batch = DBTransaction::new();
 		let hash = header.hash();
-		debug!(target: "client", "Generating validation proof for block {}", hash);
+		debug!(target: "client", "Generating validation proof for epoch {} at block {}",
+			epoch_number, hash);
 
 		// proof is two-part. state items read in lexicographical order,
 		// and the secondary "proof" part.
@@ -770,7 +809,7 @@ impl Client {
 			let db = self.state_db.lock().boxed_clone();
 
 			// early exit for pruned blocks
-			if db.is_pruned() && self.chain.read().best_block_number() >= block_number + self.history {
+			if db.is_pruned() && self.pruning_info().earliest_state > block_number {
 				return None;
 			}
 
@@ -871,7 +910,7 @@ impl Client {
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at))?;
 
-		if best_block_number > self.history + block_number && db.is_pruned() {
+		if db.is_pruned() && self.pruning_info().earliest_state > block_number {
 			return Err(snapshot::Error::OldBlockPrunedDB.into());
 		}
 
@@ -880,8 +919,8 @@ impl Client {
 		let start_hash = match at {
 			BlockId::Latest => {
 				let start_num = match db.earliest_era() {
-					Some(era) => ::std::cmp::max(era, best_block_number - history),
-					None => best_block_number - history,
+					Some(era) => ::std::cmp::max(era, best_block_number.saturating_sub(history)),
+					None => best_block_number.saturating_sub(history),
 				};
 
 				match self.block_hash(BlockId::Number(start_num)) {
@@ -992,16 +1031,9 @@ impl BlockChainClient for Client {
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-		let sender = t.sender();
-		let balance = state.balance(&sender).map_err(|_| CallError::StateCorrupt)?;
-		let needed_balance = t.value + t.gas * t.gas_price;
-		if balance < needed_balance {
-			// give the sender a sufficient balance
-			state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)
-				.map_err(|_| CallError::StateCorrupt)?;
-		}
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, options)?;
+		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
+			.transact_virtual(t, options)?;
 
 		// TODO gav move this into Executive.
 		if let Some(original) = original_state {
@@ -1023,7 +1055,6 @@ impl BlockChainClient for Client {
 		// that's just a copy of the state.
 		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender();
-		let balance = original_state.balance(&sender).map_err(ExecutionError::from)?;
 		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
 
 		let cond = |gas| {
@@ -1032,15 +1063,8 @@ impl BlockChainClient for Client {
 			let tx = tx.fake_sign(sender);
 
 			let mut state = original_state.clone();
-			let needed_balance = tx.value + tx.gas * tx.gas_price;
-			if balance < needed_balance {
-				// give the sender a sufficient balance
-				state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)
-					.map_err(ExecutionError::from)?;
-			}
-
 			Ok(Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
-				.transact(&tx, options.clone())
+				.transact_virtual(&tx, options.clone())
 				.map(|r| r.exception.is_none())
 				.unwrap_or(false))
 		};
@@ -1354,8 +1378,7 @@ impl BlockChainClient for Client {
 					.collect();
 				match (transaction, previous_receipts) {
 					(Some(transaction), Some(previous_receipts)) => {
-						let schedule = self.engine().schedule(block_number);
-						Some(transaction_receipt(&schedule, transaction, previous_receipts))
+						Some(transaction_receipt(self.engine(), transaction, previous_receipts))
 					},
 					_ => None,
 				}
@@ -1748,7 +1771,7 @@ impl Drop for Client {
 
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
-fn transaction_receipt(schedule: &Schedule, mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
+fn transaction_receipt(engine: &Engine, mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
 	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
 
 	let sender = tx.sender();
@@ -1772,7 +1795,7 @@ fn transaction_receipt(schedule: &Schedule, mut tx: LocalizedTransaction, mut re
 		gas_used: receipt.gas_used - prior_gas_used,
 		contract_address: match tx.action {
 			Action::Call(_) => None,
-			Action::Create => Some(contract_address(schedule.create_address, &sender, &tx.nonce, &tx.data.sha3()))
+			Action::Create => Some(contract_address(engine.create_address_scheme(block_number), &sender, &tx.nonce, &tx.data.sha3()))
 		},
 		logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
 			entry: log,
@@ -1827,17 +1850,17 @@ mod tests {
 	#[test]
 	fn should_return_correct_log_index() {
 		use super::transaction_receipt;
-		use evm::schedule::Schedule;
 		use ethkey::KeyPair;
 		use log_entry::{LogEntry, LocalizedLogEntry};
 		use receipt::{Receipt, LocalizedReceipt};
 		use transaction::{Transaction, LocalizedTransaction, Action};
 		use util::Hashable;
+		use tests::helpers::TestEngine;
 
 		// given
 		let key = KeyPair::from_secret_slice(&"test".sha3()).unwrap();
 		let secret = key.secret();
-		let schedule = Schedule::new_homestead();
+		let engine = TestEngine::new(0);
 
 		let block_number = 1;
 		let block_hash = 5.into();
@@ -1881,7 +1904,7 @@ mod tests {
 		}];
 
 		// when
-		let receipt = transaction_receipt(&schedule, transaction, receipts);
+		let receipt = transaction_receipt(&engine, transaction, receipts);
 
 		// then
 		assert_eq!(receipt, LocalizedReceipt {

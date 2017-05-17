@@ -115,6 +115,7 @@ pub struct RunCmd {
 	pub verifier_settings: VerifierSettings,
 	pub serve_light: bool,
 	pub light: bool,
+	pub no_persistent_txqueue: bool,
 }
 
 pub fn open_ui(signer_conf: &signer::Configuration) -> Result<(), String> {
@@ -142,15 +143,20 @@ pub fn open_dapp(dapps_conf: &dapps::Configuration, rpc_conf: &rpc::HttpConfigur
 
 // node info fetcher for the local store.
 struct FullNodeInfo {
-	miner: Arc<Miner>, // TODO: only TXQ needed, just use that after decoupling.
+	miner: Option<Arc<Miner>>, // TODO: only TXQ needed, just use that after decoupling.
 }
 
 impl ::local_store::NodeInfo for FullNodeInfo {
 	fn pending_transactions(&self) -> Vec<::ethcore::transaction::PendingTransaction> {
-		let local_txs = self.miner.local_transactions();
-		self.miner.pending_transactions()
+		let miner = match self.miner.as_ref() {
+			Some(m) => m,
+			None => return Vec::new(),
+		};
+
+		let local_txs = miner.local_transactions();
+		miner.pending_transactions()
 			.into_iter()
-			.chain(self.miner.future_transactions())
+			.chain(miner.future_transactions())
 			.filter(|tx| local_txs.contains_key(&tx.hash()))
 			.collect()
 	}
@@ -222,8 +228,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	}
 
 	// start on_demand service.
-	let account_start_nonce = service.client().engine().account_start_nonce();
-	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone(), account_start_nonce));
+	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
 
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
@@ -405,7 +410,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	);
 	info!("Operating mode: {}", Colour::White.bold().paint(format!("{}", mode)));
 
-	// display warning about using experimental journaldb alorithm
+	// display warning about using experimental journaldb algorithm
 	if !algorithm.is_stable() {
 		warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", Colour::Red.bold().paint("unstable"));
 	}
@@ -421,8 +426,9 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	} else {
 		sync_config.subprotocol_name.clone_from_slice(spec.subprotocol_name().as_bytes());
 	}
+
 	sync_config.fork_block = spec.fork_block();
-	sync_config.warp_sync = cmd.warp_sync;
+	sync_config.warp_sync = spec.engine.supports_warp() && cmd.warp_sync;
 	sync_config.download_old_blocks = cmd.download_old_blocks;
 	sync_config.serve_light = cmd.serve_light;
 
@@ -515,10 +521,21 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let store = {
 		let db = service.db();
 		let node_info = FullNodeInfo {
-			miner: miner.clone(),
+			miner: match cmd.no_persistent_txqueue {
+				true => None,
+				false => Some(miner.clone()),
+			}
 		};
 
 		let store = ::local_store::create(db, ::ethcore::db::COL_NODE_INFO, node_info);
+
+		if cmd.no_persistent_txqueue {
+			info!("Running without a persistent transaction queue.");
+
+			if let Err(e) = store.clear() {
+				warn!("Error clearing persistent transaction queue: {}", e);
+			}
+		}
 
 		// re-queue pending transactions.
 		match store.pending_transactions() {
@@ -614,6 +631,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 			false => None,
 		},
 		fetch: fetch.clone(),
+		remote: event_loop.remote(),
 	});
 
 	let dependencies = rpc::Dependencies {

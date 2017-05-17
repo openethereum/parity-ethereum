@@ -189,7 +189,7 @@ pub fn check_proof(
 		Err(_) => return ProvedExecution::BadProof,
 	};
 
-	match state.execute(env_info, engine, transaction, false) {
+	match state.execute(env_info, engine, transaction, false, true) {
 		Ok(executed) => ProvedExecution::Complete(executed),
 		Err(ExecutionError::Internal(_)) => ProvedExecution::BadProof,
 		Err(e) => ProvedExecution::Failed(e),
@@ -238,7 +238,7 @@ pub fn check_proof(
 /// Reverting a checkpoint with `revert_to_checkpoint` involves copying
 /// original values from the latest checkpoint back into `cache`. The code
 /// takes care not to overwrite cached storage while doing that.
-/// checkpoint can be discateded with `discard_checkpoint`. All of the orignal
+/// checkpoint can be discarded with `discard_checkpoint`. All of the orignal
 /// backed-up values are moved into a parent checkpoint (if any).
 ///
 pub struct State<B: Backend> {
@@ -433,6 +433,11 @@ impl<B: Backend> State<B> {
 		self.ensure_cached(a, RequireCache::None, false, |a| a.map_or(false, |a| !a.is_null()))
 	}
 
+	/// Determine whether an account exists and has code.
+	pub fn exists_and_has_code(&self, a: &Address) -> trie::Result<bool> {
+		self.ensure_cached(a, RequireCache::CodeSize, false, |a| a.map_or(false, |a| a.code_size().map_or(false, |size| size != 0)))
+	}
+
 	/// Get the balance of account `a`.
 	pub fn balance(&self, a: &Address) -> trie::Result<U256> {
 		self.ensure_cached(a, RequireCache::None, true,
@@ -599,7 +604,7 @@ impl<B: Backend> State<B> {
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> ApplyResult {
 //		let old = self.to_pod();
 
-		let e = self.execute(env_info, engine, t, tracing)?;
+		let e = self.execute(env_info, engine, t, tracing, false)?;
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
 		let state_root = if env_info.number < engine.params().eip98_transition || env_info.number < engine.params().validate_receipts_transition {
 			self.commit()?;
@@ -612,12 +617,22 @@ impl<B: Backend> State<B> {
 		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
 	}
 
-	// Execute a given transaction.
-	fn execute(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> Result<Executed, ExecutionError> {
+	// Execute a given transaction without committing changes.
+	//
+	// `virt` signals that we are executing outside of a block set and restrictions like
+	// gas limits and gas costs should be lifted.
+	fn execute(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool, virt: bool)
+		-> Result<Executed, ExecutionError>
+	{
 		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
 		let vm_factory = self.factories.vm.clone();
 
-		Executive::new(self, env_info, engine, &vm_factory).transact(t, options)
+		let mut e = Executive::new(self, env_info, engine, &vm_factory);
+
+		match virt {
+			true => e.transact_virtual(t, options),
+			false => e.transact(t, options),
+		}
 	}
 
 

@@ -34,12 +34,12 @@ use ethcore::client::{MiningBlockChainClient};
 use ethcore::mode::Mode;
 use ethcore::account_provider::AccountProvider;
 use updater::{Service as UpdateService};
+use crypto::DEFAULT_MAC;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::accounts::unwrap_provider;
-use v1::helpers::dispatch::DEFAULT_MAC;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
@@ -400,17 +400,17 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		})
 	}
 
-	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<Option<RichHeader>, Error> {
+	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader, Error> {
 		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
 
 		let client = take_weakf!(self.client);
 		let id: BlockId = number.0.into();
 		let encoded = match client.block_header(id.clone()) {
 			Some(encoded) => encoded,
-			None => return future::ok(None).boxed(),
+			None => return future::err(errors::unknown_block()).boxed(),
 		};
 
-		future::ok(Some(RichHeader {
+		future::ok(RichHeader {
 			inner: Header {
 				hash: Some(encoded.hash().into()),
 				size: Some(encoded.rlp().as_raw().len().into()),
@@ -431,7 +431,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 				extra_data: Bytes::new(encoded.extra_data()),
 			},
 			extra_info: client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
-		})).boxed()
+		}).boxed()
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {

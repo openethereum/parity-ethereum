@@ -17,10 +17,12 @@ serde = "0.9"
 serde_derive = "0.9"
 serde_json = "0.9"
 time = "0.1"
+tokio-timer = "0.1"
 transient-hashmap = "0.4"
 cid = "0.2.1"
 multihash = "0.5"
 rust-crypto = "0.2.36"
+rand = "0.3"
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
@@ -28,6 +30,7 @@ jsonrpc-minihttp-server = { git = "https://github.com/paritytech/jsonrpc.git", b
 jsonrpc-ws-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-ipc-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 
 ethcore-io = { path = "../util/io" }
 ethcore-ipc = { path = "../ipc/rpc" }

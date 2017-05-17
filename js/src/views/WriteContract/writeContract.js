@@ -271,24 +271,6 @@ class WriteContract extends Component {
   renderParameters () {
     const { compiling, contract, selectedBuild, loading, workerError } = this.store;
 
-    if (workerError) {
-      return (
-        <div className={ styles.panel }>
-          <div className={ styles.centeredMessage }>
-            <p>
-              <FormattedMessage
-                id='writeContract.error.params'
-                defaultMessage='An error occurred with the following description'
-              />
-            </p>
-            <div className={ styles.error }>
-              { workerError.toString() }
-            </div>
-          </div>
-        </div>
-      );
-    }
-
     if (selectedBuild < 0) {
       return (
         <div className={ `${styles.panel} ${styles.centeredMessage}` }>
@@ -306,10 +288,28 @@ class WriteContract extends Component {
       );
     }
 
-    if (loading) {
+    let content;
+
+    if (workerError) {
+      content = (
+        <div className={ styles.panel }>
+          <div className={ styles.centeredMessage }>
+            <p>
+              <FormattedMessage
+                id='writeContract.error.params'
+                defaultMessage='An error occurred with the following description'
+              />
+            </p>
+            <div className={ styles.error }>
+              { workerError.toString() }
+            </div>
+          </div>
+        </div>
+      );
+    } else if (loading) {
       const { longVersion } = this.store.builds[selectedBuild];
 
-      return (
+      content = (
         <div className={ styles.panel }>
           <div className={ styles.centeredMessage }>
             <CircularProgress
@@ -328,6 +328,8 @@ class WriteContract extends Component {
           </div>
         </div>
       );
+    } else {
+      content = this.renderCompilation();
     }
 
     return (
@@ -343,12 +345,13 @@ class WriteContract extends Component {
             }
             onClick={ this.store.handleCompile }
             primary={ false }
-            disabled={ compiling }
+            disabled={ compiling || this.store.isPristine }
           />
           {
             contract
               ? (
                 <Button
+                  disabled={ compiling || !this.store.isPristine }
                   icon={ <SendIcon /> }
                   label={
                     <FormattedMessage
@@ -392,7 +395,7 @@ class WriteContract extends Component {
           </div>
         </div>
         { this.renderSolidityVersions() }
-        { this.renderCompilation() }
+        { content }
       </div>
     );
   }

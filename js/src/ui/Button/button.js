@@ -15,9 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import ReactTooltip from 'react-tooltip';
 import { FlatButton } from 'material-ui';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
+
+import styles from './button.css';
+
+let id = 0;
 
 export default class Button extends Component {
   static propTypes = {
@@ -27,26 +32,53 @@ export default class Button extends Component {
     icon: PropTypes.node,
     label: nodeOrStringProptype(),
     onClick: PropTypes.func,
-    primary: PropTypes.bool
-  }
+    primary: PropTypes.bool,
+    tooltip: PropTypes.bool
+  };
 
   static defaultProps = {
-    primary: true
+    primary: true,
+    tooltip: false
+  };
+
+  componentWillMount () {
+    this.id = id++;
   }
 
   render () {
-    const { className, backgroundColor, disabled, icon, label, primary, onClick } = this.props;
-
-    return (
+    const { className, backgroundColor, disabled, icon, label, primary, onClick, tooltip } = this.props;
+    const button = (
       <FlatButton
-        className={ className }
         backgroundColor={ backgroundColor }
+        className={ className }
         disabled={ disabled }
         icon={ icon }
         label={ label }
-        primary={ primary }
         onTouchTap={ onClick }
+        primary={ primary }
       />
+    );
+
+    if (!tooltip) {
+      return button;
+    }
+
+    return (
+      <div>
+        <div
+          data-tip
+          data-for={ `button_${this.id}` }
+          data-effect='solid'
+          data-place='bottom'
+        >
+          { button }
+        </div>
+        <ReactTooltip id={ `button_${this.id}` }>
+          <div className={ styles.tooltip }>
+            { label }
+          </div>
+        </ReactTooltip>
+      </div>
     );
   }
 }

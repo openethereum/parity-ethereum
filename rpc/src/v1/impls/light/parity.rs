@@ -27,13 +27,14 @@ use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
+use crypto::DEFAULT_MAC;
 
 use light::client::LightChainClient;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{errors, ipfs, SigningQueue, SignerService, NetworkSettings};
-use v1::helpers::dispatch::{LightDispatcher, DEFAULT_MAC};
+use v1::helpers::dispatch::LightDispatcher;
 use v1::helpers::light_fetch::LightFetch;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
@@ -359,7 +360,7 @@ impl Parity for ParityClient {
 		})
 	}
 
-	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<Option<RichHeader>, Error> {
+	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader, Error> {
 		use ethcore::encoded;
 
 		let engine = self.light_dispatch.client.engine().clone();
@@ -390,7 +391,7 @@ impl Parity for ParityClient {
 			}
 		};
 
-		self.fetcher().header(number.0.into()).map(move |encoded| encoded.map(from_encoded)).boxed()
+		self.fetcher().header(number.0.into()).map(from_encoded).boxed()
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {

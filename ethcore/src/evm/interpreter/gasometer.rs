@@ -223,7 +223,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 
 				Request::GasMemProvide(gas, mem, Some(requested))
 			},
-			instructions::CREATE | instructions::CREATE_P2SH => {
+			instructions::CREATE | instructions::CREATE2 => {
 				let gas = Gas::from(schedule.create_gas);
 				let mem = mem_needed(stack.peek(1), stack.peek(2))?;
 

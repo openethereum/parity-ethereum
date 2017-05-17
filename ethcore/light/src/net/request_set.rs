@@ -25,7 +25,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::iter::FromIterator;
 
 use request::Request;
-use request::Requests;
+use request::NetworkRequests as Requests;
 use net::{timeout, ReqId};
 use util::U256;
 

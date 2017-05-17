@@ -121,6 +121,16 @@ export function generateDataQr (data) {
   });
 }
 
+export function generateDecryptQr (data) {
+  return Promise.resolve({
+    decrypt: data,
+    value: JSON.stringify({
+      action: 'decrypt',
+      data
+    })
+  });
+}
+
 export function generateTxQr (api, netVersion, transaction) {
   return createUnsignedTx(api, netVersion, transaction)
     .then((qr) => {
