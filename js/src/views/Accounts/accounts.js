@@ -26,7 +26,7 @@ import { bindActionCreators } from 'redux';
 import HardwareStore from '~/mobx/hardwareStore';
 import { CreateAccount, CreateWallet, ExportAccount } from '~/modals';
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
-import { AddIcon, KeyIcon, FileDownloadIcon, RestoreIcon } from '~/ui/Icons';
+import { AddIcon, KeyIcon, FileDownloadIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import List from './List';
@@ -288,7 +288,7 @@ class Accounts extends Component {
       />,
       <Button
         key='restoreAccount'
-        icon={ <RestoreIcon /> }
+        icon={ <AddIcon /> }
         label={
           <FormattedMessage
             id='accounts.button.restoreAccount'
