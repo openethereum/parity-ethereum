@@ -341,12 +341,11 @@ impl fetch::urlhint::ContractClient for Updater {
 	}
 
 	fn call(&self, address: Address, data: Bytes) -> BoxFuture<Bytes, String> {
-		let res = (move || {
-			self.client.upgrade().ok_or_else(|| "Client not available".to_owned())?
-				.call_contract(BlockId::Latest, address, data)
-		})();
-
-		future::done(res).boxed()
+		future::done(
+			self.client.upgrade()
+				.ok_or_else(|| "Client not available".into())
+				.and_then(move |c| c.call_contract(BlockId::Latest, address, data))
+		).boxed()
 	}
 }
 
