@@ -72,6 +72,7 @@
 .iconSmall {
   display: inline-block;
   padding: 1em;
+  padding-bottom: 1em;
   vertical-align: middle;
 }
 
@@ -84,6 +85,7 @@
 
 .iconSmall i {
   font-size: 3em;
+  margin-bottom: 1em;
 }
 
 .console {
@@ -110,4 +112,16 @@
   animation-name: pulse;
   animation-duration: 1.5s;
   animation-iteration-count: infinite;
+}
+
+.inputLabel {
+  color: rgb(208, 208, 208);
+}
+
+.formInput input {
+  background: rgba(0, 0, 0, 0.25) !important;
+}
+
+.formInput input:focus {
+  background: rgba(0, 0, 0, 0.25) !important;
 }
