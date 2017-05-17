@@ -44,8 +44,8 @@ class Param extends Component {
 
     const { value } = data;
     const { lookupValue } = this.lookupStore;
-    const hash = value && typeof value.peek === 'function'
-      ? api.util.bytesToHex(value.peek())
+    const hash = value && typeof value.map === 'function'
+      ? api.util.bytesToHex(value.slice())
       : value;
 
     const classes = [ styles.param ];

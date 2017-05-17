@@ -118,7 +118,11 @@ export default class Entry extends Component {
             onUpdateMetadata={ this.handleModifyContent }
             onRefresh={ this.handleRefresh }
           >
-            <code>{ content }</code>
+            <code>{
+              !content || /^(0x)?0*$/.test(content)
+              ? 'No content'
+              : content
+            }</code>
           </Info>
 
           <Info
