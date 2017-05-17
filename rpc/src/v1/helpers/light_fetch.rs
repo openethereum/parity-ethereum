@@ -57,16 +57,16 @@ pub type ExecutionResult = Result<Executed, ExecutionError>;
 
 impl LightFetch {
 	/// Get a block header from the on demand service or client, or error.
-	pub fn header(&self, id: BlockId) -> BoxFuture<Option<encoded::Header>, Error> {
+	pub fn header(&self, id: BlockId) -> BoxFuture<encoded::Header, Error> {
 		if let Some(h) = self.client.block_header(id) {
-			return future::ok(Some(h)).boxed()
+			return future::ok(h).boxed()
 		}
 
 		let maybe_future = match id {
 			BlockId::Number(n) => {
 				let cht_root = cht::block_to_cht_number(n).and_then(|cn| self.client.cht_root(cn as usize));
 				match cht_root {
-					None => return future::ok(None).boxed(),
+					None => return future::err(errors::unknown_block()).boxed(),
 					Some(root) => {
 						let req = request::HeaderProof::new(n, root)
 							.expect("only fails for 0; client always stores genesis; client already queried; qed");
@@ -82,7 +82,7 @@ impl LightFetch {
 									Some(fut) => fut.map_err(errors::on_demand_cancel).boxed(),
 									None => future::err(errors::network_disabled()).boxed(),
 								}
-							}).map(Some).boxed()
+							}).boxed()
 						})
 					}
 				}
@@ -91,7 +91,7 @@ impl LightFetch {
 				self.sync.with_context(|ctx|
 					self.on_demand.header_by_hash(ctx, request::HeaderByHash(h))
 						.then(|res| future::done(match res {
-							Ok(h) => Ok(Some(h)),
+							Ok(h) => Ok(h),
 							Err(e) => Err(errors::on_demand_cancel(e)),
 						}))
 						.boxed()
@@ -106,22 +106,21 @@ impl LightFetch {
 		}
 	}
 
-	// Get account info at a given block. `None` signifies no such account existing.
+	/// helper for getting account info at a given block.
+	/// `None` indicates the account doesn't exist at the given block.
 	pub fn account(&self, address: Address, id: BlockId) -> BoxFuture<Option<BasicAccount>, Error> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
 		self.header(id).and_then(move |header| {
-			let header = match header {
-				None => return future::ok(None).boxed(),
-				Some(hdr) => hdr,
-			};
-
-			sync.with_context(|ctx| on_demand.account(ctx, request::Account {
+			let maybe_fut = sync.with_context(|ctx| on_demand.account(ctx, request::Account {
 				header: header,
 				address: address,
-			}).map(Some))
-				.map(|x| x.map_err(errors::on_demand_cancel).boxed())
-				.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
+			}));
+
+			match maybe_fut {
+				Some(fut) => fut.map_err(errors::on_demand_cancel).boxed(),
+				None => future::err(errors::network_disabled()).boxed(),
+			}
 		}).boxed()
 	}
 
@@ -176,10 +175,11 @@ impl LightFetch {
 		}).join(header_fut).and_then(move |(tx, hdr)| {
 			// then request proved execution.
 			// TODO: get last-hashes from network.
-			let (env_info, hdr) = match (client.env_info(id), hdr) {
-				(Some(env_info), Some(hdr)) => (env_info, hdr),
+			let env_info = match client.env_info(id) {
+				Some(env_info) => env_info,
 				_ => return future::err(errors::unknown_block()).boxed(),
 			};
+
 			let request = request::TransactionProof {
 				tx: tx,
 				header: hdr,
@@ -198,18 +198,13 @@ impl LightFetch {
 		}).boxed()
 	}
 
-	/// Get a block.
-	pub fn block(&self, id: BlockId) -> BoxFuture<Option<encoded::Block>, Error> {
+	/// get a block itself. fails on unknown block ID.
+	pub fn block(&self, id: BlockId) -> BoxFuture<encoded::Block, Error> {
 		let (on_demand, sync) = (self.on_demand.clone(), self.sync.clone());
 
-		self.header(id).and_then(move |hdr| {
-			let req = match hdr {
-				Some(hdr) => request::Body::new(hdr),
-				None => return future::ok(None).boxed(),
-			};
-
+		self.header(id).map(request::Body::new).and_then(move |req| {
 			match sync.with_context(move |ctx| on_demand.block(ctx, req)) {
-				Some(fut) => fut.map_err(errors::on_demand_cancel).map(Some).boxed(),
+				Some(fut) => fut.map_err(errors::on_demand_cancel).boxed(),
 				None => future::err(errors::network_disabled()).boxed(),
 			}
 		}).boxed()

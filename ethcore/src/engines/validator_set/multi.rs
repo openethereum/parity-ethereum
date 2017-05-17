@@ -76,23 +76,45 @@ impl ValidatorSet for Multi {
 		-> EpochChange
 	{
 		let (set_block, set) = self.correct_set_by_number(header.number());
+		let (next_set_block, _) = self.correct_set_by_number(header.number() + 1);
+
+		// multi-set transitions require epoch changes.
+		if next_set_block != set_block {
+			return EpochChange::Yes(next_set_block);
+		}
 
 		match set.is_epoch_end(header, block, receipts) {
-			EpochChange::Yes(num, proof) => EpochChange::Yes(set_block + num, proof),
+			EpochChange::Yes(num) => EpochChange::Yes(set_block + num),
 			other => other,
 		}
 	}
 
 	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
-		self.correct_set_by_number(header.number()).1.epoch_proof(header, caller)
+		let (set_block, set) = self.correct_set_by_number(header.number());
+		let (next_set_block, next_set) = self.correct_set_by_number(header.number() + 1);
+
+		if next_set_block != set_block {
+			return next_set.epoch_proof(header, caller);
+		}
+
+		set.epoch_proof(header, caller)
 	}
 
 	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(u64, super::SimpleList), ::error::Error> {
 		// "multi" epoch is the inner set's epoch plus the transition block to that set.
 		// ensures epoch increases monotonically.
 		let (set_block, set) = self.correct_set_by_number(header.number());
-		let (inner_epoch, list) = set.epoch_set(header, proof)?;
-		Ok((set_block + inner_epoch, list))
+		let (next_set_block, next_set) = self.correct_set_by_number(header.number() + 1);
+
+		// this block kicks off a new validator set -- get the validator set
+		// starting there.
+		if next_set_block != set_block {
+			let (inner_epoch, list) = next_set.epoch_set(header, proof)?;
+			Ok((next_set_block + inner_epoch, list))
+		} else {
+			let (inner_epoch, list) = set.epoch_set(header, proof)?;
+			Ok((set_block + inner_epoch, list))
+		}
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {
