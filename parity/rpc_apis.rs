@@ -564,7 +564,7 @@ mod test {
 	fn test_api_set_unsafe_context() {
 		let expected = vec![
 			// make sure this list contains only SAFE methods
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore
 		].into_iter().collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}
@@ -573,7 +573,7 @@ mod test {
 	fn test_api_set_ipc_context() {
 		let expected = vec![
 			// safe
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 			// semi-safe
 			Api::ParityAccounts
 		].into_iter().collect();
@@ -584,7 +584,7 @@ mod test {
 	fn test_api_set_safe_context() {
 		let expected = vec![
 			// safe
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 			// semi-safe
 			Api::ParityAccounts,
 			// Unsafe
@@ -596,7 +596,7 @@ mod test {
 	#[test]
 	fn test_all_apis() {
 		assert_eq!("all".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 			Api::ParityAccounts,
 			Api::ParitySet, Api::Signer,
 			Api::Personal
@@ -606,7 +606,7 @@ mod test {
 	#[test]
 	fn test_all_without_personal_apis() {
 		assert_eq!("personal,all,-personal".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 			Api::ParityAccounts,
 			Api::ParitySet, Api::Signer,
 		].into_iter().collect()));
@@ -615,7 +615,7 @@ mod test {
 	#[test]
 	fn test_safe_parsing() {
 		assert_eq!("safe".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::EthPubSub, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
 		].into_iter().collect()));
 	}
 }

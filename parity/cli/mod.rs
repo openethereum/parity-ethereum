@@ -165,7 +165,7 @@ usage! {
 			or |c: &Config| otry!(c.rpc).interface.clone(),
 		flag_jsonrpc_cors: Option<String> = None,
 			or |c: &Config| otry!(c.rpc).cors.clone().map(Some),
-		flag_jsonrpc_apis: String = "web3,eth,net,parity,traces,rpc,secretstore",
+		flag_jsonrpc_apis: String = "web3,eth,pubsub,net,parity,traces,rpc,secretstore",
 			or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.as_ref().map(|vec| vec.join(",")),
@@ -191,7 +191,7 @@ usage! {
 			or |c: &Config| otry!(c.ipc).disable.clone(),
 		flag_ipc_path: String = "$BASE/jsonrpc.ipc",
 			or |c: &Config| otry!(c.ipc).path.clone(),
-		flag_ipc_apis: String = "web3,eth,net,parity,parity_accounts,traces,rpc,secretstore",
+		flag_ipc_apis: String = "web3,eth,pubsub,net,parity,parity_accounts,traces,rpc,secretstore",
 			or |c: &Config| otry!(c.ipc).apis.as_ref().map(|vec| vec.join(",")),
 
 		// DAPPS
