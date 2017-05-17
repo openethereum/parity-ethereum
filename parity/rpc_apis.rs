@@ -18,7 +18,7 @@ use std::cmp::PartialEq;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 pub use parity_rpc::SignerService;
 
@@ -46,6 +46,8 @@ pub enum Api {
 	Net,
 	/// Eth (Safe)
 	Eth,
+	/// Eth Pub-Sub (Safe)
+	EthPubSub,
 	/// Geth-compatible "personal" API (DEPRECATED; only used in `--geth` mode.)
 	Personal,
 	/// Signer - Confirm transactions in Signer (UNSAFE: Passwords, List of transactions)
@@ -74,6 +76,7 @@ impl FromStr for Api {
 			"web3" => Ok(Web3),
 			"net" => Ok(Net),
 			"eth" => Ok(Eth),
+			"pubsub" => Ok(EthPubSub),
 			"personal" => Ok(Personal),
 			"signer" => Ok(Signer),
 			"parity" => Ok(Parity),
@@ -153,6 +156,7 @@ fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
 			Api::Web3 => ("web3", "1.0"),
 			Api::Net => ("net", "1.0"),
 			Api::Eth => ("eth", "1.0"),
+			Api::EthPubSub => ("pubsub", "1.0"),
 			Api::Personal => ("personal", "1.0"),
 			Api::Signer => ("signer", "1.0"),
 			Api::Parity => ("parity", "1.0"),
@@ -254,6 +258,11 @@ impl FullDependencies {
 						add_signing_methods!(EthSigning, handler, self);
 					}
 				},
+				Api::EthPubSub => {
+					let client = EthPubSubClient::new(self.client.clone(), self.remote.clone());
+					self.client.add_notify(client.handler());
+					handler.extend_with(client.to_delegate());
+				},
 				Api::Personal => {
 					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
 				},
@@ -352,6 +361,7 @@ pub struct LightDependencies {
 	pub dapps_port: Option<u16>,
 	pub fetch: FetchClient,
 	pub geth_compatibility: bool,
+	pub remote: parity_reactor::Remote,
 }
 
 impl Dependencies for LightDependencies {
@@ -408,6 +418,13 @@ impl Dependencies for LightDependencies {
 					handler.extend_with(Eth::to_delegate(client.clone()));
 					handler.extend_with(EthFilter::to_delegate(client));
 					add_signing_methods!(EthSigning, handler, self);
+				},
+				Api::EthPubSub => {
+					let client = EthPubSubClient::new(self.client.clone(), self.remote.clone());
+					self.client.add_listener(
+						Arc::downgrade(&client.handler()) as Weak<::light::client::LightChainNotify>
+					);
+					handler.extend_with(EthPubSub::to_delegate(client));
 				},
 				Api::Personal => {
 					let secret_store = Some(self.secret_store.clone());
@@ -470,7 +487,7 @@ impl ApiSet {
 
 	pub fn list_apis(&self) -> HashSet<Api> {
 		let mut public_list = vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::Rpc, Api::SecretStore,
 		].into_iter().collect();
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
@@ -521,6 +538,7 @@ mod test {
 		assert_eq!(Api::Web3, "web3".parse().unwrap());
 		assert_eq!(Api::Net, "net".parse().unwrap());
 		assert_eq!(Api::Eth, "eth".parse().unwrap());
+		assert_eq!(Api::EthPubSub, "pubsub".parse().unwrap());
 		assert_eq!(Api::Personal, "personal".parse().unwrap());
 		assert_eq!(Api::Signer, "signer".parse().unwrap());
 		assert_eq!(Api::Parity, "parity".parse().unwrap());
