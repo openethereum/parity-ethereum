@@ -15,32 +15,9 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.bgcontainer {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-}
-
-.bgflex {
-  flex-basis: 25%;
-  box-sizing: border-box;
-  display: inline-block;
-  padding: 0 0.5em 1em 0.5em;
-}
-
-.bgseed {
-  background: black;
-  border-radius: 4px;
-}
-
-.seed,
-.seedactive {
-  height: 10em;
-  border-radius: 4px;
-  cursor: pointer;
-  border: 2px solid rgba(255, 255, 255, 1);
-}
-
-.seed {
-  opacity: 0.5;
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f7f7f5;
+  color: #424242;
 }

@@ -15,74 +15,21 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { FormattedMessage } from 'react-intl';
+// import { FormattedMessage } from 'react-intl';
 
-import { Page, Tabs } from '@parity/ui';
-import { BackgroundIcon, EthernetIcon, VisibleIcon } from '@parity/ui/Icons';
-
-import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
-
+/** Stylesheets **/
 import styles from './settings.css';
 
-const TABS = ['views', 'background', 'proxy', 'parity'];
-
 export default class Settings extends Component {
-  static contextTypes = {
-    router: PropTypes.object.isRequired
-  }
-
   static propTypes = {
-    children: PropTypes.object.isRequired
-  }
-
-  componentDidMount () {
-    const { push } = this.context.router.history;
-
-    push('/views');
+    children: PropTypes.array.isRequired
   }
 
   render () {
-    const { children } = this.props;
-    const hash = (window.location.hash || '').split('?')[0].split('/')[1];
-    const isProxied = window.location.hostname.indexOf('.parity') !== -1;
-
     return (
-      <div>
-        <Tabs
-          activeTab={ TABS.indexOf(hash) }
-          className={ styles.tabs }
-          onChange={ this.onActivate }
-          tabs={ [
-            {
-              icon: <VisibleIcon />,
-              label: <FormattedMessage id='settings.views.label' />
-            },
-            {
-              icon: <BackgroundIcon />,
-              label: <FormattedMessage id='settings.background.label' />
-            },
-            !isProxied && {
-              icon: <EthernetIcon />,
-              label: <FormattedMessage id='settings.proxy.label' />
-            },
-            {
-              icon: <img src={ imagesEthcoreBlock } className={ styles.imageIcon } />,
-              label: <FormattedMessage id='settings.parity.label' />
-            }
-          ] }
-        />
-        <Page>
-          { children }
-        </Page>
+      <div className={ styles.Settings }>
+        { this.props.children }
       </div>
     );
-  }
-
-  onActivate = (name) => {
-    const { history } = this.context.router;
-
-    return (event) => {
-      history.push(`/${name}`);
-    };
   }
 }

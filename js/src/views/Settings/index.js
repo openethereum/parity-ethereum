@@ -16,30 +16,35 @@
 
 import ReactDOM from 'react-dom';
 import React from 'react';
-import { BrowserRouter as Router, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Redirect, Route } from 'react-router-dom';
 
+/** Additional Frameworks **/
+import 'bootstrap/dist/css/bootstrap.css';
+
+/** Initialization **/
 import injectTapEventPlugin from 'react-tap-event-plugin';
+import ContextProvider from '@parity/ui/ContextProvider';
+import { initStore } from '@parity/shared/redux';
+import { api } from './parity';
+const store = initStore(api);
+
 injectTapEventPlugin();
 
-import { initStore } from '@parity/shared/redux';
-import ContextProvider from '@parity/ui/ContextProvider';
-
-import { api } from './parity';
-
-import SettingsBackground from './Background';
+/** Components **/
+import SettingsHome from './Home';
 import SettingsParity from './Node';
 import SettingsProxy from './Proxy';
-import SettingsViews from './Views';
 import Settings from './settings';
 
-const store = initStore(api);
+/** Stylesheets **/
+import './index.css';
 
 ReactDOM.render(
   <ContextProvider api={ api } store={ store }>
     <Router>
       <Settings>
-        <Route path='/views' component={ SettingsViews } />
-        <Route path='/background' component={ SettingsBackground } />
+        <Redirect from='/settings.html' to='/home' />
+        <Route path='/home' component={ SettingsHome } />
         <Route path='/parity' component={ SettingsParity } />
         <Route path='/proxy' component={ SettingsProxy } />
       </Settings>

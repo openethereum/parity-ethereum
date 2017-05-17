@@ -1,0 +1,137 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.home {
+  width: 100%;
+  min-height: 100vh;
+  height: auto;
+  background-color: #f7f7f5;
+  text-align: center;
+  color: #5C6878;
+}
+
+.homeCard {
+  display: flex;
+  justify-content: center;
+}
+
+.homeContainer {
+  height: auto;
+  /*min-height: 500px;*/
+  width: 600px;
+  border-radius: 12.5px;
+  background-color: white;
+  border: 1px solid rgba(0,0,0,0.15);
+  box-shadow: 2px 3px 30px -17px rgba(0,0,0,0.95);
+}
+
+.homeSpacer {
+  width: 100vw;
+  height: 75px;
+}
+
+.settingsText {
+  padding: 15px 15px;
+  font-size: 28px;
+}
+
+.settingsTablature {
+  width: 100%;
+  height: auto;
+  padding-top: 15px;
+  padding-bottom: 25px;
+}
+
+.table {
+  height: 60px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1 1 auto;
+  font-size: 22px;
+  font-weight: lighter;
+}
+
+.clickableTable {
+  height: 60px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1 1 auto;
+  font-size: 22px;
+  font-weight: lighter;
+  cursor: pointer;
+}
+.clickableTable:hover {
+  background-color: rgba(0,0,0,0.05);
+}
+
+.tableLeft {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  text-align: left;
+}
+
+.tableIcon img {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  margin-left: 15px;
+}
+
+.tableName {
+  color: #5C6878;
+  margin-left: 15px;
+}
+
+.tableDetail {
+  font-size: 20px;
+  margin-right: 10px;
+  color: #c2c7cc;
+}
+
+.tableArrow {
+  border: solid #b0bfd1;
+  border-width: 0 2px 2px 0;
+  display: inline-block;
+  padding: 3px;
+  transform: rotate(-45deg);
+  margin-right: 15px;
+}
+
+
+/* CURRENCY */
+.currency {
+
+}
+
+.currencySemantic {
+  height: 25px !important;
+  min-height: 25px !important;
+  line-height: 2.5px !important;
+  width: 150px !important;
+  min-width: 150px !important;
+}
+
+.currencySemantic i {
+  padding: 0.38em .78571429em 0em .78571429em !important;
+}

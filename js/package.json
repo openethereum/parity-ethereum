@@ -168,6 +168,7 @@
     "@parity/ui": "file:src/ui",
     "@parity/views": "file:src/views",
     "@parity/wordlist": "1.0.1",
+    "bootstrap": "^3.3.7",
     "es6-promise": "4.0.5",
     "flat": "2.0.1",
     "isomorphic-fetch": "2.2.1",
