@@ -20,6 +20,7 @@
 #![cfg_attr(feature="nightly", plugin(clippy))]
 
 extern crate futures;
+extern crate futures_cpupool;
 extern crate order_stat;
 extern crate rustc_serialize;
 extern crate semver;

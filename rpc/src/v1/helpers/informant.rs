@@ -21,6 +21,7 @@ use std::sync::Arc;
 use std::sync::atomic::{self, AtomicUsize};
 use std::time;
 use futures::Future;
+use futures_cpupool as pool;
 use jsonrpc_core as rpc;
 use order_stat;
 use util::RwLock;
@@ -184,6 +185,7 @@ pub trait ActivityNotifier: Send + Sync + 'static {
 pub struct Middleware<T: ActivityNotifier = ClientNotifier> {
 	stats: Arc<RpcStats>,
 	notifier: T,
+	pool: pool::CpuPool,
 }
 
 impl<T: ActivityNotifier> Middleware<T> {
@@ -192,6 +194,7 @@ impl<T: ActivityNotifier> Middleware<T> {
 		Middleware {
 			stats: stats,
 			notifier: notifier,
+			pool: pool::CpuPool::new(4),
 		}
 	}
 
@@ -210,10 +213,10 @@ impl<M: rpc::Metadata, T: ActivityNotifier> rpc::Middleware<M> for Middleware<T>
 		self.notifier.active();
 		let stats = self.stats.clone();
 		stats.count_request();
-		response.map(move |res| {
+		self.pool.spawn(response.map(move |res| {
 			stats.add_roundtrip(Self::as_micro(start.elapsed()));
 			res
-		}).boxed()
+		})).boxed()
 	}
 }
 
