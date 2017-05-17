@@ -14,36 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 
 import styles from './form.css';
 
-export default class Form extends Component {
-  static propTypes = {
-    children: PropTypes.node,
-    className: PropTypes.string
-  }
-
-  render () {
-    const { className } = this.props;
-    const classes = [ styles.form ];
-
-    if (className) {
-      classes.push(className);
-    }
-
-    // HACK: hidden inputs to disable Chrome's autocomplete
-    return (
-      <form
-        autoComplete='new-password'
-        className={ classes.join(' ') }
-      >
-        <div className={ styles.autofill }>
-          <input type='text' name='fakeusernameremembered' />
-          <input type='password' name='fakepasswordremembered' />
-        </div>
-        { this.props.children }
-      </form>
-    );
-  }
+export default function Form ({ children, className }) {
+  // HACK: hidden inputs to disable Chrome's autocomplete
+  return (
+    <form
+      autoComplete='new-password'
+      className={ `${styles.form} ${className}` }
+    >
+      <div className={ styles.autofill }>
+        <input type='text' name='fakeusernameremembered' />
+        <input type='password' name='fakepasswordremembered' />
+      </div>
+      { children }
+    </form>
+  );
 }
+
+Form.propTypes = {
+  children: PropTypes.node,
+  className: PropTypes.string
+};

@@ -16,17 +16,12 @@
 
 import React, { Component, PropTypes } from 'react';
 import { debounce } from 'lodash';
-import { LinearProgress } from 'material-ui';
 import { FormattedMessage } from 'react-intl';
 import zxcvbn from 'zxcvbn';
 
-import styles from './passwordStrength.css';
+import Progress from '~/ui/Progress';
 
-const BAR_STYLE = {
-  borderRadius: 1,
-  height: 7,
-  marginTop: '0.5em'
-};
+import styles from './passwordStrength.css';
 
 export default class PasswordStrength extends Component {
   static propTypes = {
@@ -68,10 +63,6 @@ export default class PasswordStrength extends Component {
 
     const { score, feedback } = strength;
 
-    // Score is between 0 and 4
-    const value = score * 100 / 5 + 20;
-    const color = this.getStrengthBarColor(score);
-
     return (
       <div className={ styles.strength }>
         <label className={ styles.label }>
@@ -80,11 +71,11 @@ export default class PasswordStrength extends Component {
             defaultMessage='password strength'
           />
         </label>
-        <LinearProgress
-          color={ color }
-          mode='determinate'
-          style={ BAR_STYLE }
-          value={ value }
+        <Progress
+          color={ this.getStrengthBarColor(score) }
+          isDeterminate
+          max={ 100 }
+          value={ score * 100 / 5 + 20 }
         />
         <div className={ styles.feedback }>
           { this.renderFeedback(feedback) }
@@ -110,8 +101,10 @@ export default class PasswordStrength extends Component {
   getStrengthBarColor (score) {
     switch (score) {
       case 4:
+        return 'green';
+
       case 3:
-        return 'lightgreen';
+        return 'blue';
 
       case 2:
         return 'yellow';

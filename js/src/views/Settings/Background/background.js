@@ -18,11 +18,10 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import NavigationRefresh from 'material-ui/svg-icons/navigation/refresh';
 
-import { Button, Container, ParityBackground } from '~/ui';
-
-import { updateBackground } from '../actions';
+import { updateBackground } from '@parity/shared/redux/providers/settings/actions';
+import { Button, Container, ParityBackground } from '@parity/ui';
+import { RefreshIcon } from '@parity/ui/Icons';
 
 import layout from '../layout.css';
 import styles from './background.css';
@@ -31,8 +30,7 @@ let counter = 0;
 
 class Background extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    muiTheme: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
@@ -78,7 +76,7 @@ class Background extends Component {
             </div>
             <div>
               <Button
-                icon={ <NavigationRefresh /> }
+                icon={ <RefreshIcon /> }
                 label={
                   <FormattedMessage
                     id='settings.background.button_more'
@@ -119,11 +117,9 @@ class Background extends Component {
   }
 
   onSelect = (seed) => {
-    const { muiTheme } = this.context;
     const { updateBackground } = this.props;
 
     return (event) => {
-      muiTheme.parity.setBackgroundSeed(seed);
       updateBackground(seed);
     };
   }
@@ -146,9 +142,9 @@ class Background extends Component {
   }
 
   generateSeed () {
-    const { api, muiTheme } = this.context;
+    const { api } = this.context;
 
-    return api.util.sha3.text(`${muiTheme.backgroundSeed}${Math.random()}${counter++}`);
+    return api.util.sha3.text(`${Math.random()}${counter++}`);
   }
 }
 

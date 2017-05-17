@@ -17,12 +17,12 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import util from '~/api/util';
-import { nodeOrStringProptype } from '~/util/proptypes';
-import { isNullAddress } from '~/util/validation';
+import util from '@parity/api/util';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+import { isNullAddress } from '@parity/shared/util/validation';
 
-import IdentityIcon from '../../IdentityIcon';
-import Input from '../Input';
+import IdentityIcon from '~/ui/IdentityIcon';
+import Input from '~/ui/Form/Input';
 
 import styles from './inputAddress.css';
 

@@ -19,6 +19,7 @@ import ReactDOM from 'react-dom';
 import keycode from 'keycode';
 
 import Balance from '~/ui/Balance';
+import Container from '~/ui/Container';
 import IdentityIcon from '~/ui/IdentityIcon';
 import IdentityName from '~/ui/IdentityName';
 import Tags from '~/ui/Tags';
@@ -60,7 +61,7 @@ export default class AccountCard extends Component {
       : {};
 
     return (
-      <div
+      <Container
         key={ address }
         className={ classes.join(' ') }
         onClick={ this.onClick }
@@ -108,7 +109,7 @@ export default class AccountCard extends Component {
           ) : null
         }
 
-      </div>
+      </Container>
     );
   }
 

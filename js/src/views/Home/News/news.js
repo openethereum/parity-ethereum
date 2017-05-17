@@ -15,10 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observer } from 'mobx-react';
-import React, { Component } from 'react';
+import React, { Component, PropTypes } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-import { SectionList } from '~/ui';
+import { SectionList } from '@parity/ui';
 
 import { createRenderers } from './renderers';
 import Store from './store';
@@ -28,7 +28,11 @@ const VERSION_ID = '1';
 
 @observer
 export default class News extends Component {
-  store = Store.get();
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
+  store = Store.get(this.context.api);
 
   componentWillMount () {
     return this.store.retrieveNews(VERSION_ID);

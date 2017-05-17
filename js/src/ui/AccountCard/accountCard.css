@@ -17,7 +17,6 @@
 
 .account {
   align-items: stretch;
-  background-color: rgba(0, 0, 0, 0.8);
   display: flex;
   flex-direction: row;
   height: 100%;
@@ -32,7 +31,6 @@
 
   &:focus {
     transform: scale(0.99);
-    background-color: rgba(0, 0, 0, 0.6);
   }
 
   &:first-child {
@@ -45,7 +43,6 @@
 
   &:hover {
     cursor: pointer;
-    background-color: rgba(0, 0, 0, 0.4);
   }
 }
 

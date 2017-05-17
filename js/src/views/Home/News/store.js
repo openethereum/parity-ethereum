@@ -15,19 +15,24 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { action, observable } from 'mobx';
-import Contracts from '~/contracts';
+
+import Contracts from '@parity/shared/contracts';
 
 let instance = null;
 
 export default class Store {
   @observable newsItems = null;
 
+  constructor (api) {
+    this._api = api;
+  }
+
   @action setNewsItems = (newsItems) => {
     this.newsItems = newsItems;
   }
 
   retrieveNews (versionId) {
-    const contracts = Contracts.get();
+    const contracts = Contracts.get(this._api);
 
     return contracts.registry
       .lookupMeta('paritynews', 'CONTENT')
@@ -57,9 +62,9 @@ export default class Store {
       });
   }
 
-  static get () {
+  static get (api) {
     if (!instance) {
-      instance = new Store();
+      instance = new Store(api);
     }
 
     return instance;

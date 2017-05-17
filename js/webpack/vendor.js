@@ -31,7 +31,6 @@ let modules = [
   'ethereumjs-tx',
   'lodash',
   'material-ui',
-  'material-ui-chip-input',
   'mobx',
   'mobx-react',
   'moment',
@@ -44,6 +43,8 @@ let modules = [
   'recharts',
   'redux',
   'redux-thunk',
+  'semantic-ui-css',
+  'semantic-ui-react',
   'scryptsy',
   'zxcvbn'
 ];

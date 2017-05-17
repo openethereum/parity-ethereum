@@ -14,10 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Embedded from './containers/Embedded';
+import ReactDOM from 'react-dom';
+import React from 'react';
+import { Route, Router, hashHistory } from 'react-router';
 
-export default from './signer';
+import injectTapEventPlugin from 'react-tap-event-plugin';
+injectTapEventPlugin();
 
-export {
-  Embedded
-};
+import ContractInstances from '@parity/shared/contracts';
+import { initStore } from '@parity/shared/redux';
+import ContextProvider from '@parity/ui/ContextProvider';
+
+import { api } from './parity';
+
+import Signer from './signer';
+
+ContractInstances.get(api);
+
+const store = initStore(api, hashHistory);
+
+ReactDOM.render(
+  <ContextProvider api={ api } store={ store }>
+    <Router history={ hashHistory }>
+      <Route path='/' component={ Signer } />
+    </Router>
+  </ContextProvider>,
+  document.querySelector('#container')
+);

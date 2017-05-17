@@ -52,11 +52,11 @@ describe('ui/ModalBox', () => {
 
   describe('components', () => {
     it('adds the Body as supplied', () => {
-      expect(component.find('Body').props().children).to.deep.equal(CHILDREN);
+      expect(component.find('#testChild').text()).to.equal('testChild');
     });
 
     it('adds the Summary as supplied', () => {
-      expect(component.find('Summary').props().summary).to.deep.equal(SUMMARY);
+      expect(component.find('#testSummary').text()).to.equal('testSummary');
     });
   });
 });

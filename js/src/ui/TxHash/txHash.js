@@ -15,16 +15,17 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { LinearProgress } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
+import { DEFAULT_GAS } from '@parity/shared/util/constants';
+
 import { txLink } from '~/3rdparty/etherscan/links';
 import Warning from '~/ui/Warning';
-import { DEFAULT_GAS } from '~/util/constants';
+import Progress from '~/ui/Progress';
+import ShortenedHash from '~/ui/ShortenedHash';
 
-import ShortenedHash from '../ShortenedHash';
 import styles from './txHash.css';
 
 class TxHash extends Component {
@@ -180,11 +181,7 @@ class TxHash extends Component {
     if (!(transactionReceipt && transactionReceipt.blockNumber && transactionReceipt.blockNumber.gt(0))) {
       return (
         <div className={ styles.confirm }>
-          <LinearProgress
-            className={ styles.progressbar }
-            color='white'
-            mode='indeterminate'
-          />
+          <Progress className={ styles.progressbar } />
           <div className={ styles.progressinfo }>
             <FormattedMessage
               id='ui.txHash.waiting'
@@ -206,13 +203,11 @@ class TxHash extends Component {
 
     return (
       <div className={ styles.confirm }>
-        <LinearProgress
+        <Progress
           className={ styles.progressbar }
-          min={ 0 }
           max={ maxConfirmations }
           value={ value }
-          color='white'
-          mode='determinate'
+          isDeterminate
         />
         <div className={ styles.progressinfo }>
           <abbr title={ `block #${blockNumber.toFormat(0)}` }>

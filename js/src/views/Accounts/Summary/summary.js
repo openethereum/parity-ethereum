@@ -22,9 +22,8 @@ import { isEqual } from 'lodash';
 import ReactTooltip from 'react-tooltip';
 import { FormattedMessage } from 'react-intl';
 
-import { Balance, Container, ContainerTitle, CopyToClipboard, IdentityIcon, IdentityName, Tags, VaultTag } from '~/ui';
-import Certifications from '~/ui/Certifications';
-import { arrayOrObjectProptype, nullableProptype } from '~/util/proptypes';
+import { arrayOrObjectProptype, nullableProptype } from '@parity/shared/util/proptypes';
+import { Balance, Certifications, Container, ContainerTitle, CopyToClipboard, IdentityIcon, IdentityName, Tags, VaultTag } from '@parity/ui';
 
 import styles from '../accounts.css';
 
@@ -96,6 +95,7 @@ class Summary extends Component {
     return (
       <Container
         className={ styles.account }
+        dappLink
         hover={
           <div className={ styles.overlay }>
             { this.renderBalance(false) }
@@ -228,7 +228,7 @@ class Summary extends Component {
     const { address } = account;
     const baseLink = account.wallet
       ? 'wallet'
-      : link || 'accounts';
+      : link || 'account';
 
     return `/${baseLink}/${address}`;
   }

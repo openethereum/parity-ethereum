@@ -16,10 +16,10 @@
 
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
-import { Card } from 'material-ui/Card';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
+import DappLink from '../DappLink';
 import Title from './Title';
 
 import styles from './container.css';
@@ -29,17 +29,19 @@ export default class Container extends Component {
     children: PropTypes.node,
     className: PropTypes.string,
     compact: PropTypes.bool,
+    dappLink: PropTypes.bool,
     hover: PropTypes.node,
     light: PropTypes.bool,
     link: PropTypes.string,
     onClick: PropTypes.func,
+    onFocus: PropTypes.func,
     style: PropTypes.object,
     tabIndex: PropTypes.number,
     title: nodeOrStringProptype()
   }
 
   render () {
-    const { children, className, compact, light, link, onClick, style, tabIndex } = this.props;
+    const { children, className, compact, light, link, onClick, onFocus, style, tabIndex } = this.props;
     const props = {};
 
     if (Number.isInteger(tabIndex)) {
@@ -47,17 +49,18 @@ export default class Container extends Component {
     }
 
     const card = (
-      <Card
+      <div
         className={
           compact
             ? styles.compact
             : styles.padded
         }
         onClick={ onClick }
+        onFocus={ onFocus }
       >
         { this.renderTitle() }
         { children }
-      </Card>
+      </div>
     );
 
     return (
@@ -76,15 +79,7 @@ export default class Container extends Component {
       >
         {
           link
-            ? (
-              <Link
-                className={ styles.link }
-                to={ link }
-              >
-                { card }
-                { this.renderHover() }
-              </Link>
-            )
+            ? this.renderLink(link, card)
             : (
               <div>
                 { card }
@@ -96,6 +91,32 @@ export default class Container extends Component {
     );
   }
 
+  renderLink (link, card) {
+    const { dappLink } = this.props;
+
+    if (dappLink) {
+      return (
+        <DappLink
+          className={ styles.link }
+          to={ link }
+        >
+          { card }
+          { this.renderHover() }
+        </DappLink>
+      );
+    }
+
+    return (
+      <Link
+        className={ styles.link }
+        to={ link }
+      >
+        { card }
+        { this.renderHover() }
+      </Link>
+    );
+  }
+
   renderHover () {
     const { hover } = this.props;
 
@@ -104,9 +125,9 @@ export default class Container extends Component {
     }
 
     return (
-      <Card className={ styles.hoverOverlay }>
+      <div className={ styles.hoverOverlay }>
         { hover }
-      </Card>
+      </div>
     );
   }
 

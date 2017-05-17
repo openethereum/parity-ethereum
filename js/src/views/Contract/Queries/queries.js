@@ -16,10 +16,10 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Card, CardTitle, CardText } from 'material-ui/Card';
+
+import { Container, TypedInput } from '@parity/ui';
 
 import InputQuery from './inputQuery';
-import { Container, TypedInput } from '~/ui';
 
 import styles from './queries.css';
 
@@ -120,21 +120,18 @@ export default class Queries extends Component {
     }
 
     return (
-      <div className={ styles.container } key={ fn.signature }>
-        <Card className={ styles.method }>
-          <CardTitle
-            className={ styles.methodTitle }
-            title={ fn.name }
-          />
-          <CardText
-            className={ styles.methodContent }
-          >
+      <div
+        className={ styles.container }
+        key={ fn.signature }
+      >
+        <Container className={ styles.method }>
+          <h3>{ fn.name }</h3>
+          <div className={ styles.methodContent }>
             {
-              abi.outputs
-                .map((output, index) => this.renderValue(values[index], output, index))
+              abi.outputs.map((output, index) => this.renderValue(values[index], output, index))
             }
-          </CardText>
-        </Card>
+          </div>
+        </Container>
       </div>
     );
   }

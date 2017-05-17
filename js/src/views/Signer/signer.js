@@ -14,26 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import React from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Actionbar } from '~/ui';
-import RequestsPage from './containers/RequestsPage';
+import { Actionbar } from '@parity/ui';
 
-export default class Signer extends Component {
-  render () {
-    return (
-      <div>
-        <Actionbar
-          title={
-            <FormattedMessage
-              id='signer.title'
-              defaultMessage='Trusted Signer'
-            />
-          }
-        />
-        <RequestsPage />
-      </div>
-    );
-  }
+import RequestsPage from './RequestsPage';
+
+export default function Signer () {
+  return (
+    <div>
+      <Actionbar
+        title={
+          <FormattedMessage
+            id='signer.title'
+            defaultMessage='Trusted Signer'
+          />
+        }
+      />
+      <RequestsPage />
+    </div>
+  );
 }

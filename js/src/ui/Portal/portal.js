@@ -14,15 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+// TODO: semantic-ui-react exposes Portal component, use that
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import ReactPortal from 'react-portal';
 import keycode from 'keycode';
 import { noop } from 'lodash';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+
 import { CloseIcon } from '~/ui/Icons';
-import ParityBackground from '~/ui/ParityBackground';
 import StackEventListener from '~/ui/StackEventListener';
 import Title from '~/ui/Title';
 
@@ -70,7 +71,7 @@ export default class Portal extends Component {
   }
 
   render () {
-    const { activeStep, busy, busySteps, children, className, isChildModal, isSmallModal, open, steps, title } = this.props;
+    const { activeStep, busy, busySteps, buttons, children, className, hideClose, isChildModal, isSmallModal, open, steps, title } = this.props;
 
     if (!open) {
       return null;
@@ -99,8 +100,16 @@ export default class Portal extends Component {
             onKeyDown={ this.handleKeyDown }
           >
             <StackEventListener onKeyUp={ this.handleKeyUp } />
-            <ParityBackground className={ styles.parityBackground } />
-            { this.renderClose() }
+            {
+              !hideClose && (
+                <div
+                  className={ styles.closeIcon }
+                  onClick={ this.handleClose }
+                >
+                  <CloseIcon />
+                </div>
+              )
+            }
             <Title
               activeStep={ activeStep }
               busy={ busy }
@@ -112,39 +121,16 @@ export default class Portal extends Component {
             <div className={ styles.childContainer }>
               { children }
             </div>
-            { this.renderButtons() }
+            {
+              buttons && (
+                <div className={ styles.buttonRow }>
+                  { buttons }
+                </div>
+              )
+            }
           </div>
         </div>
       </ReactPortal>
-    );
-  }
-
-  renderButtons () {
-    const { buttons } = this.props;
-
-    if (!buttons) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.buttonRow }>
-        { buttons }
-      </div>
-    );
-  }
-
-  renderClose () {
-    const { hideClose } = this.props;
-
-    if (hideClose) {
-      return null;
-    }
-
-    return (
-      <CloseIcon
-        className={ styles.closeIcon }
-        onClick={ this.handleClose }
-      />
     );
   }
 

@@ -511,7 +511,7 @@ pub fn execute<D: Dispatcher + 'static>(
 			let hash = eth_data_hash(data);
 			let res = signature(&accounts, address, hash, pass)
 				.map(|result| result
-					.map(|rsv| H520(rsv.into_vrs()))
+					.map(|rsv| H520(rsv.into_electrum()))
 					.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
 				);

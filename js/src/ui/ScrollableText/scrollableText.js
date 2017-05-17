@@ -18,16 +18,10 @@ import React, { PropTypes } from 'react';
 
 import styles from './scrollableText.css';
 
-export default function ScrollableText ({ small = false, text }) {
-  const classes = [ styles.input ];
-
-  if (small) {
-    classes.push(styles.small);
-  }
-
+export default function ScrollableText ({ small, text }) {
   return (
     <input
-      className={ classes.join(' ') }
+      className={ `${styles.input} ${small && styles.small}` }
       readOnly
       value={ text }
     />

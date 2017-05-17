@@ -25,10 +25,21 @@ const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const ServiceWorkerWebpackPlugin = require('serviceworker-webpack-plugin');
 const ScriptExtHtmlWebpackPlugin = require('script-ext-html-webpack-plugin');
 
+const rulesEs6 = require('./rules/es6');
+const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
-const DAPPS = require('../src/views/Dapps/builtin.json');
 
-const FAVICON = path.resolve(__dirname, '../assets/images/parity-logo-black-no-text.png');
+const DAPPS_BUILTIN = require('../src/shared/config/dappsBuiltin.json').map((dapp) => {
+  dapp.srcPath = './dapps';
+  return dapp;
+});
+const DAPPS_VIEWS = require('../src/shared/config/dappsViews.json').map((dapp) => {
+  dapp.srcPath = './views';
+  dapp.commons = true;
+  return dapp;
+});
+
+const FAVICON = path.resolve(__dirname, '../src/shared/assets/images/parity-logo-black-no-text.png');
 
 const DEST = process.env.BUILD_DEST || '.build';
 const ENV = process.env.NODE_ENV || 'development';
@@ -40,10 +51,10 @@ const isAnalize = process.env.WPANALIZE === '1';
 
 const entry = isEmbed
   ? {
-    embed: './embed.js'
+    embed: './shell/embed.js'
   }
   : Object.assign({}, Shared.dappsEntry, {
-    index: './index.js'
+    index: './shell/index.js'
   });
 
 module.exports = {
@@ -60,15 +71,12 @@ module.exports = {
 
   module: {
     rules: [
+      rulesParity,
+      rulesEs6,
       {
         test: /\.js$/,
         exclude: /(node_modules)/,
         use: [ 'happypack/loader?id=babel-js' ]
-      },
-      {
-        test: /\.js$/,
-        include: /node_modules\/(material-chip-input|ethereumjs-tx|@parity\/wordlist)/,
-        use: 'babel-loader'
       },
       {
         test: /\.json$/,
@@ -118,7 +126,7 @@ module.exports = {
         use: [ 'file-loader?&name=assets/[name].[hash:10].[ext]' ]
       },
       {
-        test: /\.(woff(2)|ttf|eot|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
+        test: /\.(woff|woff2|ttf|eot|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
         use: [ 'file-loader?name=fonts/[name][hash:10].[ext]' ]
       },
       {
@@ -139,6 +147,8 @@ module.exports = {
   resolve: {
     alias: {
       '~': path.resolve(__dirname, '../src'),
+      '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
+      '@parity': path.resolve(__dirname, '../src'),
       'secp256k1': path.resolve(__dirname, '../node_modules/secp256k1/js'),
       'keythereum': path.resolve(__dirname, '../node_modules/keythereum/dist/keythereum')
     },
@@ -150,16 +160,19 @@ module.exports = {
   },
 
   plugins: (function () {
-    const DappsHTMLInjection = DAPPS.filter((dapp) => !dapp.skipBuild).map((dapp) => {
-      return new HtmlWebpackPlugin({
-        title: dapp.name,
-        filename: dapp.url + '.html',
-        template: './dapps/index.ejs',
-        favicon: FAVICON,
-        secure: dapp.secure,
-        chunks: [ isProd ? null : 'commons', dapp.url ]
+    const DappsHTMLInjection = []
+      .concat(DAPPS_BUILTIN, DAPPS_VIEWS)
+      .filter((dapp) => !dapp.skipBuild)
+      .map((dapp) => {
+        return new HtmlWebpackPlugin({
+          title: dapp.name,
+          filename: dapp.url + '.html',
+          template: dapp.srcPath + '/index.ejs',
+          favicon: FAVICON,
+          secure: dapp.secure,
+          chunks: [ !isProd || dapp.commons ? 'commons' : null, dapp.url ]
+        });
       });
-    });
 
     let plugins = Shared.getPlugins().concat(
       new WebpackErrorNotificationPlugin()
@@ -172,7 +185,7 @@ module.exports = {
         new HtmlWebpackPlugin({
           title: 'Parity',
           filename: 'index.html',
-          template: './index.ejs',
+          template: './shell/index.ejs',
           favicon: FAVICON,
           chunks: [
             isProd ? null : 'commons',
@@ -208,7 +221,7 @@ module.exports = {
         new HtmlWebpackPlugin({
           title: 'Parity Bar',
           filename: 'embed.html',
-          template: './index.ejs',
+          template: './shell/index.ejs',
           favicon: FAVICON,
           chunks: [
             isProd ? null : 'commons',

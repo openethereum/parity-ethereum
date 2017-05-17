@@ -16,15 +16,15 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Tab, Tabs } from 'material-ui';
-import ActionSettingsEthernet from 'material-ui/svg-icons/action/settings-ethernet';
-import ImageBlurOn from 'material-ui/svg-icons/image/blur-on';
-import ImageRemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
 
-import { Actionbar, Page } from '~/ui';
-import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text.svg';
+import { Page, Tabs } from '@parity/ui';
+import { BackgroundIcon, EthernetIcon, VisibleIcon } from '@parity/ui/Icons';
+
+import imagesEthcoreBlock from '@parity/shared/assets/images/parity-logo-white-no-text.svg';
 
 import styles from './settings.css';
+
+const TABS = ['views', 'background', 'proxy', 'parity'];
 
 export default class Settings extends Component {
   static contextTypes = {
@@ -37,29 +37,34 @@ export default class Settings extends Component {
 
   render () {
     const { children } = this.props;
-    const hash = (window.location.hash || '').split('?')[0].split('/')[2];
+    const hash = (window.location.hash || '').split('?')[0].split('/')[1];
     const isProxied = window.location.hostname.indexOf('.parity') !== -1;
-    let proxy = null;
-
-    if (!isProxied) {
-      proxy = this.renderTab(hash, 'proxy', <ActionSettingsEthernet />);
-    }
 
     return (
       <div>
-        <Actionbar
-          className={ styles.bar }
-          title={
-            <FormattedMessage id='settings.label' />
-          }
-        >
-          <Tabs className={ styles.tabs } value={ hash }>
-            { this.renderTab(hash, 'views', <ImageRemoveRedEye />) }
-            { this.renderTab(hash, 'background', <ImageBlurOn />) }
-            { proxy }
-            { this.renderTab(hash, 'parity', <img src={ imagesEthcoreBlock } className={ styles.imageIcon } />) }
-          </Tabs>
-        </Actionbar>
+        <Tabs
+          activeTab={ TABS.indexOf(hash) }
+          className={ styles.tabs }
+          onChange={ this.onActivate }
+          tabs={ [
+            {
+              icon: <VisibleIcon />,
+              label: <FormattedMessage id='settings.views.label' />
+            },
+            {
+              icon: <BackgroundIcon />,
+              label: <FormattedMessage id='settings.background.label' />
+            },
+            !isProxied && {
+              icon: <EthernetIcon />,
+              label: <FormattedMessage id='settings.proxy.label' />
+            },
+            {
+              icon: <img src={ imagesEthcoreBlock } className={ styles.imageIcon } />,
+              label: <FormattedMessage id='settings.parity.label' />
+            }
+          ] }
+        />
         <Page>
           { children }
         </Page>
@@ -67,32 +72,9 @@ export default class Settings extends Component {
     );
   }
 
-  renderTab (hash, section, icon) {
-    return (
-      <Tab
-        className={
-          hash === section
-            ? styles.tabactive
-            : styles.tab
-        }
-        icon={ icon }
-        key={ section }
-        label={
-          <div className={ styles.menu }>
-            <FormattedMessage id={ `settings.${section}.label` } />
-          </div>
-        }
-        onActive={ this.onActivate(section) }
-        value={ section }
-      />
-    );
-  }
-
-  onActivate = (section) => {
+  onActivate = (event, tabIndex) => {
     const { router } = this.context;
 
-    return (event) => {
-      router.push(`/settings/${section}`);
-    };
+    router.push(`/${TABS[tabIndex]}`);
   }
 }

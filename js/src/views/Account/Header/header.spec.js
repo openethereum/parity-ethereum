@@ -18,7 +18,7 @@ import BigNumber from 'bignumber.js';
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import { ETH_TOKEN } from '~/util/tokens';
+import { ETH_TOKEN } from '@parity/shared/util/tokens';
 
 import Header from './';
 
@@ -137,7 +137,7 @@ describe('views/Account/Header', () => {
 
         beforeEach(() => {
           render();
-          icon = component.find('Connect(IdentityIcon)');
+          icon = component.find('IdentityIcon');
         });
 
         it('renders', () => {

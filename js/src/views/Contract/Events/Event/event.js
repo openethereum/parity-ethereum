@@ -19,8 +19,8 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { IdentityIcon, IdentityName, TypedInput } from '~/ui';
-import ShortenedHash from '~/ui/ShortenedHash';
+import { IdentityIcon, IdentityName, ShortenedHash, TypedInput } from '@parity/ui';
+
 import { txLink } from '~/3rdparty/etherscan/links';
 
 import styles from '../../contract.css';
@@ -112,11 +112,16 @@ export default class Event extends Component {
   }
 
   renderParam (name, param) {
+    // Don't add a label id the name is an index key (ie. a Number)
+    const label = parseInt(name).toString() === name.toString()
+      ? undefined
+      : name;
+
     return (
       <TypedInput
         allowCopy
         className={ styles.input }
-        label={ name }
+        label={ label }
         param={ param.type }
         readOnly
         value={ param.value }

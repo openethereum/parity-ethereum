@@ -18,20 +18,18 @@ import React, { Component, PropTypes } from 'react';
 import { IntlProvider } from 'react-intl';
 import { observer } from 'mobx-react';
 
-import { LocaleStore } from '../../i18n';
+import { LocaleStore } from '~/i18n';
 
 @observer
 export default class ContextProvider extends Component {
   static propTypes = {
     api: PropTypes.object.isRequired,
-    muiTheme: PropTypes.object.isRequired,
-    store: PropTypes.object.isRequired,
+    store: PropTypes.object,
     children: PropTypes.node.isRequired
   }
 
   static childContextTypes = {
     api: PropTypes.object,
-    muiTheme: PropTypes.object,
     store: PropTypes.object
   }
 
@@ -49,11 +47,10 @@ export default class ContextProvider extends Component {
   }
 
   getChildContext () {
-    const { api, muiTheme, store } = this.props;
+    const { api, store } = this.props;
 
     return {
       api,
-      muiTheme,
       store
     };
   }

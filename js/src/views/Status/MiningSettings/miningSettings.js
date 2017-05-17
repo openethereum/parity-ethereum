@@ -18,7 +18,7 @@ import formatNumber from 'format-number';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { ContainerTitle, Input, TypedInput } from '~/ui';
+import { ContainerTitle, Input, TypedInput } from '@parity/ui';
 
 import { numberFromString } from './numberFromString';
 import { decodeExtraData } from './decodeExtraData';
@@ -49,7 +49,7 @@ export default class MiningSettings extends Component {
       : '';
 
     return (
-      <div { ...this._testInherit() }>
+      <div>
         <ContainerTitle
           title={
             <FormattedMessage

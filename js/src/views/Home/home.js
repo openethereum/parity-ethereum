@@ -18,12 +18,14 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import HistoryStore from '~/mobx/historyStore';
-import { Page } from '~/ui';
+import HistoryStore from '@parity/shared/mobx/historyStore';
+import { Page } from '@parity/ui';
 
-import DappsStore from '../Dapps/dappsStore';
-import ExtensionStore from '../Application/Extension/store';
-import WebStore from '../Web/store';
+import WebStore from '~/views/Web/store';
+
+// FIXME: Don't really want to import from ~/shell
+import DappsStore from '~/shell/Dapps/dappsStore';
+import ExtensionStore from '~/shell/Extension/store';
 
 import Accounts from './Accounts';
 import Dapps from './Dapps';

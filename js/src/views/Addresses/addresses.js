@@ -18,14 +18,15 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import ContentAdd from 'material-ui/svg-icons/content/add';
 import { uniq, isEqual } from 'lodash';
+
+import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
+import { Actionbar, ActionbarExport, ActionbarImport, ActionbarSearch, ActionbarSort, Button, Page } from '@parity/ui';
+import { AddIcon } from '@parity/ui/Icons';
 
 import List from '../Accounts/List';
 import Summary from '../Accounts/Summary';
-import { AddAddress } from '~/modals';
-import { Actionbar, ActionbarExport, ActionbarImport, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
-import { setVisibleAccounts } from '~/redux/providers/personalActions';
+import AddAddress from './AddAddress';
 
 import styles from './addresses.css';
 
@@ -90,7 +91,7 @@ class Addresses extends Component {
 
     return (
       <List
-        link='addresses'
+        link='address'
         search={ searchValues }
         accounts={ contacts }
         empty={ !hasContacts }
@@ -135,7 +136,7 @@ class Addresses extends Component {
     const buttons = [
       <Button
         key='newAddress'
-        icon={ <ContentAdd /> }
+        icon={ <AddIcon /> }
         label={
           <FormattedMessage
             id='addresses.buttons.add'

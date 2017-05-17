@@ -55,6 +55,10 @@
   padding-bottom: 8px !important;
 }
 
+.methodActions {
+  text-align: right;
+}
+
 .methodResults {
 }
 

@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Contracts from '~/contracts';
-import Abi from '~/abi';
-import * as abis from '~/contracts/abi';
-
-import { decodeMethodInput } from '~/api/util/decode';
+import Abi from '@parity/abi';
+import { decodeMethodInput } from '@parity/api/util/decode';
+import Contracts from '@parity/shared/contracts';
+import * as abis from '@parity/shared/contracts/abi';
 
 const CONTRACT_CREATE = '0x60606040';
 
@@ -278,7 +277,7 @@ export default class MethodDecodingStore {
       return Promise.resolve(this._methods[signature]);
     }
 
-    this._methods[signature] = Contracts.get()
+    this._methods[signature] = Contracts.get(this.api)
       .signatureReg
       .lookup(signature)
       .then((method) => {

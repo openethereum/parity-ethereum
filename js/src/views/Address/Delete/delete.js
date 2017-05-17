@@ -19,8 +19,8 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { ConfirmDialog, IdentityIcon, IdentityName } from '~/ui';
-import { newError } from '~/redux/actions';
+import { newError } from '@parity/shared/redux/actions';
+import { ConfirmDialog, IdentityIcon, IdentityName } from '@parity/ui';
 
 import styles from '../address.css';
 

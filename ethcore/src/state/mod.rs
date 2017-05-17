@@ -238,7 +238,7 @@ pub fn check_proof(
 /// Reverting a checkpoint with `revert_to_checkpoint` involves copying
 /// original values from the latest checkpoint back into `cache`. The code
 /// takes care not to overwrite cached storage while doing that.
-/// checkpoint can be discateded with `discard_checkpoint`. All of the orignal
+/// checkpoint can be discarded with `discard_checkpoint`. All of the orignal
 /// backed-up values are moved into a parent checkpoint (if any).
 ///
 pub struct State<B: Backend> {

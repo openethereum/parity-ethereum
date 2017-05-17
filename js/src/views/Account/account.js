@@ -20,22 +20,32 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { newError } from '~/redux/actions';
-import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
-import HardwareStore from '~/mobx/hardwareStore';
-import ExportStore from '~/modals/ExportAccount/exportStore';
-import { DeleteAccount, EditMeta, Faucet, PasswordManager, Shapeshift, Transfer, Verification } from '~/modals';
-import { setVisibleAccounts } from '~/redux/providers/personalActions';
-import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
-import { Actionbar, Button, ConfirmDialog, Input, Page, Portal } from '~/ui';
-import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon, FileDownloadIcon } from '~/ui/Icons';
+import HardwareStore from '@parity/shared/mobx/hardwareStore';
+import HistoryStore from '@parity/shared/mobx/historyStore';
+import { newError } from '@parity/shared/redux/actions';
+import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
+import { fetchCertifiers, fetchCertifications } from '@parity/shared/redux/providers/certifications/actions';
+import { Actionbar, Button, ConfirmDialog, Input, Page, Portal } from '@parity/ui';
+import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon, FileDownloadIcon } from '@parity/ui/Icons';
 
+import shapeshiftBtn from '@parity/shared/assets/images/shapeshift-btn.png';
+
+import DeleteAccount from './DeleteAccount';
+import EditMeta from './EditMeta';
 import DeleteAddress from '../Address/Delete';
+import ExportStore from '../Accounts/ExportAccount/exportStore';
+import Faucet from './Faucet';
+import PasswordManager from './PasswordManager';
+import Shapeshift from './Shapeshift';
+import Transfer from './Transfer';
+import Verification from './Verification';
 
 import Header from './Header';
 import Store from './store';
 import Transactions from './Transactions';
 import styles from './account.css';
+
+const accountsHistory = HistoryStore.get('accounts');
 
 @observer
 class Account extends Component {
@@ -67,6 +77,12 @@ class Account extends Component {
   }
 
   componentDidMount () {
+    const { params } = this.props;
+
+    if (params.address) {
+      accountsHistory.add(params.address, 'wallet');
+    }
+
     this.props.fetchCertifiers();
     this.setVisibleAccounts();
   }
@@ -175,7 +191,7 @@ class Account extends Component {
       <Button
         icon={
           <img
-            className={ styles.btnicon }
+            className='icon'
             src={ shapeshiftBtn }
           />
         }

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Abi from '~/abi';
+import Abi from '@parity/abi';
 
 let nextSubscriptionId = 0;
 
@@ -182,10 +182,11 @@ export default class Contract {
         log.params = {};
         log.event = event.name;
 
-        decoded.params.forEach((param) => {
+        decoded.params.forEach((param, index) => {
           const { type, value } = param.token;
+          const key = param.name || index;
 
-          log.params[param.name] = { type, value };
+          log.params[key] = { type, value };
         });
 
         return log;

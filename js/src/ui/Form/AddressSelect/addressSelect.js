@@ -21,21 +21,19 @@ import keycode, { codes } from 'keycode';
 import { FormattedMessage } from 'react-intl';
 import { observer } from 'mobx-react';
 
-import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
+import apiutil from '@parity/api/util';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+import { parseI18NString } from '@parity/shared/util/messages';
+import { validateAddress } from '@parity/shared/util/validation';
 
-import apiutil from '~/api/util';
 import AccountCard from '~/ui/AccountCard';
 import CopyToClipboard from '~/ui/CopyToClipboard';
 import InputAddress from '~/ui/Form/InputAddress';
 import Loading from '~/ui/Loading';
 import Portal from '~/ui/Portal';
-import { nodeOrStringProptype } from '~/util/proptypes';
-import { validateAddress } from '~/util/validation';
 
 import AddressSelectStore from './addressSelectStore';
 import styles from './addressSelect.css';
-
-const BOTTOM_BORDER_STYLE = { borderBottom: 'solid 3px' };
 
 // Current Form ID
 let currentId = 1;
@@ -44,8 +42,7 @@ let currentId = 1;
 class AddressSelect extends Component {
   static contextTypes = {
     intl: React.PropTypes.object.isRequired,
-    api: PropTypes.object.isRequired,
-    muiTheme: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   };
 
   static propTypes = {
@@ -177,21 +174,15 @@ class AddressSelect extends Component {
   }
 
   renderContent () {
-    const { muiTheme } = this.context;
     const { hint, disabled, label, readOnly } = this.props;
-    const { expanded, inputFocused } = this.state;
+    const { expanded } = this.state;
 
     if (disabled || readOnly) {
       return null;
     }
 
     const id = `addressSelect_${++currentId}`;
-    const ilHint = typeof hint === 'string' || !(hint && hint.props)
-      ? (hint || '')
-      : this.context.intl.formatMessage(
-        hint.props,
-        hint.props.values || {}
-      );
+    const ilHint = parseI18NString(this.context, hint);
 
     return (
       <Portal
@@ -217,16 +208,14 @@ class AddressSelect extends Component {
                 onChange={ this.handleChange }
                 ref={ this.setInputRef }
               />
-              { this.renderLoader() }
-            </div>
-
-            <div className={ styles.underline }>
-              <TextFieldUnderline
-                focus={ inputFocused }
-                focusStyle={ BOTTOM_BORDER_STYLE }
-                muiTheme={ muiTheme }
-                style={ BOTTOM_BORDER_STYLE }
-              />
+              {
+                this.store.loading && (
+                  <Loading
+                    className={ styles.loader }
+                    size='small'
+                  />
+                )
+              }
             </div>
           </div>
         }
@@ -235,19 +224,6 @@ class AddressSelect extends Component {
         { this.renderRegistryValues() }
         { this.renderAccounts() }
       </Portal>
-    );
-  }
-
-  renderLoader () {
-    if (!this.store.loading) {
-      return null;
-    }
-
-    return (
-      <Loading
-        className={ styles.loader }
-        size={ 0.5 }
-      />
     );
   }
 

@@ -16,10 +16,9 @@
 
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
-import Subdirectory from 'material-ui/svg-icons/navigation/subdirectory-arrow-left';
 
-import { Button, DappUrlInput } from '~/ui';
-import { CloseIcon, RefreshIcon } from '~/ui/Icons';
+import { Button, DappUrlInput } from '@parity/ui';
+import { CloseIcon, RefreshIcon, GotoIcon } from '@parity/ui/Icons';
 
 @observer
 export default class AddressBar extends Component {
@@ -51,7 +50,7 @@ export default class AddressBar extends Component {
         <Button
           disabled={ isPristine }
           onClick={ this.onGotoUrl }
-          icon={ <Subdirectory /> }
+          icon={ <GotoIcon /> }
         />
       </div>
     );

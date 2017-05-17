@@ -16,22 +16,19 @@
 */
 
 .container {
-  .label {
-  }
+  display: flex;
+  flex-direction: column;
 
-  .radioButton {
+  .radioContainer {
     margin: 0.25em 0;
-  }
 
-  .radioLabel {
-    display: flex;
-    flex-direction: column;
-
-    .description {
-      font-size: 0.8em;
-      margin-bottom: 0.5em;
-      color: #ccc;
-      z-index: 2;
+    .label {
+      .description {
+        font-size: 0.75em;
+        margin-bottom: 0.5em;
+        color: #ccc;
+        z-index: 2;
+      }
     }
   }
 }

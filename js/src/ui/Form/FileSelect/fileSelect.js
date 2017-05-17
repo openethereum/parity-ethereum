@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import Dropzone from 'react-dropzone';
 import { FormattedMessage } from 'react-intl';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
 import styles from './fileSelect.css';
 

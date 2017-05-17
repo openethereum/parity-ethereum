@@ -14,39 +14,48 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-import { FlatButton } from 'material-ui';
+import React, { PropTypes } from 'react';
+import { Button as SemanticButton } from 'semantic-ui-react';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-export default class Button extends Component {
-  static propTypes = {
-    backgroundColor: PropTypes.string,
-    className: PropTypes.string,
-    disabled: PropTypes.bool,
-    icon: PropTypes.node,
-    label: nodeOrStringProptype(),
-    onClick: PropTypes.func,
-    primary: PropTypes.bool
-  }
-
-  static defaultProps = {
-    primary: true
-  }
-
-  render () {
-    const { className, backgroundColor, disabled, icon, label, primary, onClick } = this.props;
-
-    return (
-      <FlatButton
-        className={ className }
-        backgroundColor={ backgroundColor }
-        disabled={ disabled }
-        icon={ icon }
-        label={ label }
-        primary={ primary }
-        onTouchTap={ onClick }
-      />
-    );
-  }
+export default function Button ({ active, animated, basic, className, color, disabled, fullWidth, icon, label, onClick, primary, size, toggle }) {
+  return (
+    <SemanticButton
+      active={ active }
+      animated={ animated }
+      basic={ basic }
+      className={ className }
+      content={ label }
+      color={ color }
+      disabled={ disabled }
+      fluid={ fullWidth }
+      icon={ icon }
+      onTouchTap={ onClick }
+      primary={ primary }
+      size={ size }
+      toggle={ toggle }
+    />
+  );
 }
+
+Button.propTypes = {
+  active: PropTypes.bool,
+  animated: PropTypes.bool,
+  basic: PropTypes.bool,
+  backgroundColor: PropTypes.string,
+  className: PropTypes.string,
+  color: PropTypes.string,
+  disabled: PropTypes.bool,
+  fullWidth: PropTypes.bool,
+  icon: PropTypes.node,
+  label: nodeOrStringProptype(),
+  onClick: PropTypes.func,
+  primary: PropTypes.bool,
+  size: PropTypes.string,
+  toggle: PropTypes.bool
+};
+
+Button.defaultProps = {
+  primary: true
+};

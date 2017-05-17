@@ -18,12 +18,11 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import { ABI_TYPES } from '~/util/abi';
+import { ABI_TYPES } from '@parity/shared/util/abi';
 
 import TypedInput from './';
 
 let component;
-let select;
 let onChange;
 
 function render (props) {
@@ -34,7 +33,6 @@ function render (props) {
       onChange={ onChange }
     />
   );
-  select = component.find('Select');
 
   return component;
 }
@@ -47,24 +45,6 @@ describe('ui/Form/TypedInput', () => {
 
     it('renders', () => {
       expect(component).to.be.ok;
-    });
-
-    it('calls onChange when value changes', () => {
-      select.shallow().simulate('change', { target: { value: 'true' } });
-
-      expect(onChange).to.have.been.called;
-    });
-
-    it("calls onChange(true) when value changes to 'true'", () => {
-      select.shallow().simulate('change', { target: { value: 'true' } });
-
-      expect(onChange).to.have.been.calledWith(true);
-    });
-
-    it("calls onChange(false) when value changes to 'false'", () => {
-      select.shallow().simulate('change', { target: { value: 'false' } });
-
-      expect(onChange).to.have.been.calledWith(false);
     });
   });
 });
