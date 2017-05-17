@@ -694,7 +694,7 @@ fn do_partial_decryption(node: &NodeId, requestor_public: &Public, is_shadow_dec
 	let other_id_numbers = participants.iter()
 		.filter(|id| *id != node)
 		.map(|id| &encrypted_data.id_numbers[id]);
-	let node_shadow = math::compute_node_shadow(node_id_number, node_secret_share, other_id_numbers)?;
+	let node_shadow = math::compute_node_shadow(node_secret_share, node_id_number, other_id_numbers)?;
 	let decrypt_shadow = if is_shadow_decryption { Some(math::generate_random_scalar()?) } else { None };
 	let common_point = encrypted_data.common_point.as_ref().expect("checked at the beginning of the session; immutable; qed");
 	let (shadow_point, decrypt_shadow) = math::compute_node_shadow_point(access_key, common_point, &node_shadow, decrypt_shadow)?;

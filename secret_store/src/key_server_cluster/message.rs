@@ -90,7 +90,7 @@ pub enum DecryptionMessage {
 	ConfirmDecryptionInitialization(ConfirmDecryptionInitialization),
 	/// Request partial decryption from node.
 	RequestPartialDecryption(RequestPartialDecryption),
-	/// Partial decryption is completed
+	/// Partial decryption is completed.
 	PartialDecryption(PartialDecryption),
 	/// When decryption session error has occured.
 	DecryptionSessionError(DecryptionSessionError),
@@ -101,6 +101,20 @@ pub enum DecryptionMessage {
 #[derive(Clone, Debug)]
 /// All possible messages that can be sent during signing session.
 pub enum SigningMessage {
+	/*/// Initialize signing session.
+	InitializeSigningSession(InitializeSigningSession),
+	/// Confirm/reject signing session initialization.
+	ConfirmSigningInitialization(ConfirmSigningInitialization),
+	/// Nonce generation message.
+	SigningNonceGeneration(SigningNonceGeneration),
+	/// Request partial signature from node.
+	RequestPartialSignature(RequestPartialSignature),
+	/// Partial signature is generated.
+	PartialDecryption(PartialDecryption),
+	/// When signature session error has occured.
+	SignatureSessionError(SignatureSessionError),
+	/// When signature session is completed.
+	SignatureSessionCompleted(SignatureSessionCompleted),*/
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
