@@ -33,6 +33,8 @@ const VALIDATOR_SET_ABI: &'static str = r#"[{"constant":true,"inputs":[],"name":
 
 const VALIDATOR_REPORT_ABI: &'static str = r#"[{"constant":false,"inputs":[{"name":"validator","type":"address"},{"name":"blockNumber","type":"uint256"},{"name":"proof","type":"bytes"}],"name":"reportMalicious","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"validator","type":"address"},{"name":"blockNumber","type":"uint256"}],"name":"reportBenign","outputs":[],"payable":false,"type":"function"}]"#;
 
+const TEST_VALIDATOR_SET_ABI: &'static str = r#"[{"constant":true,"inputs":[],"name":"transitionNonce","outputs":[{"name":"n","type":"uint256"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"newValidators","type":"address[]"}],"name":"setValidators","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"vals","type":"address[]"}],"payable":false,"type":"function"},{"inputs":[],"payable":false,"type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_parent_hash","type":"bytes32"},{"indexed":true,"name":"_nonce","type":"uint256"},{"indexed":false,"name":"_new_set","type":"address[]"}],"name":"ValidatorsChanged","type":"event"}]"#;
+
 fn build_file(name: &str, abi: &str, filename: &str) {
 	let code = ::native_contract_generator::generate_module(name, abi).unwrap();
 
@@ -43,10 +45,16 @@ fn build_file(name: &str, abi: &str, filename: &str) {
 	f.write_all(code.as_bytes()).unwrap();
 }
 
+fn build_test_contracts() {
+	build_file("ValidatorSet", TEST_VALIDATOR_SET_ABI, "test_validator_set.rs");
+}
+
 fn main() {
 	build_file("Registry", REGISTRY_ABI, "registry.rs");
 	build_file("ServiceTransactionChecker", SERVICE_TRANSACTION_ABI, "service_transaction.rs");
 	build_file("SecretStoreAclStorage", SECRETSTORE_ACL_STORAGE_ABI, "secretstore_acl_storage.rs");
 	build_file("ValidatorSet", VALIDATOR_SET_ABI, "validator_set.rs");
 	build_file("ValidatorReport", VALIDATOR_REPORT_ABI, "validator_report.rs");
+
+	build_test_contracts();
 }
