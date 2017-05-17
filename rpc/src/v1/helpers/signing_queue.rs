@@ -16,7 +16,7 @@
 
 use std::mem;
 use std::cell::RefCell;
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 use std::collections::BTreeMap;
 use jsonrpc_core;
 use util::{Mutex, RwLock, U256, Address};
@@ -26,7 +26,6 @@ use v1::types::{ConfirmationResponse, H160 as RpcH160, Origin, DappId as RpcDapp
 
 /// Result that can be returned from JSON RPC.
 pub type RpcResult = Result<ConfirmationResponse, jsonrpc_core::Error>;
-
 
 /// Type of default account
 pub enum DefaultAccount {
@@ -49,7 +48,7 @@ impl From<RpcH160> for DefaultAccount {
 }
 
 /// Possible events happening in the queue that can be listened to.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum QueueEvent {
 	/// Receiver should stop work upon receiving `Finish` message.
 	Finish,
@@ -59,15 +58,6 @@ pub enum QueueEvent {
 	RequestRejected(U256),
 	/// Request resolved.
 	RequestConfirmed(U256),
-}
-
-/// Defines possible errors returned from queue receiving method.
-#[derive(Debug, PartialEq)]
-pub enum QueueError {
-	/// Returned when method has been already used (no receiver available).
-	AlreadyUsed,
-	/// Returned when receiver encounters an error.
-	ReceiverError(mpsc::RecvError),
 }
 
 /// Defines possible errors when inserting to queue
@@ -184,59 +174,31 @@ impl ConfirmationPromise {
 
 
 /// Queue for all unconfirmed requests.
+#[derive(Default)]
 pub struct ConfirmationsQueue {
 	id: Mutex<U256>,
 	queue: RwLock<BTreeMap<U256, ConfirmationToken>>,
-	sender: Mutex<mpsc::Sender<QueueEvent>>,
-	receiver: Mutex<Option<mpsc::Receiver<QueueEvent>>>,
-}
-
-impl Default for ConfirmationsQueue {
-	fn default() -> Self {
-		let (send, recv) = mpsc::channel();
-
-		ConfirmationsQueue {
-			id: Mutex::new(U256::from(0)),
-			queue: RwLock::new(BTreeMap::new()),
-			sender: Mutex::new(send),
-			receiver: Mutex::new(Some(recv)),
-		}
-	}
+	on_event: RwLock<Vec<Box<Fn(QueueEvent) -> () + Send + Sync>>>,
 }
 
 impl ConfirmationsQueue {
-
-	/// Blocks the thread and starts listening for notifications regarding all actions in the queue.
-	/// For each event, `listener` callback will be invoked.
-	/// This method can be used only once (only single consumer of events can exist).
-	pub fn start_listening<F>(&self, listener: F) -> Result<(), QueueError>
-		where F: Fn(QueueEvent) -> () {
-		let recv = self.receiver.lock().take();
-		if let None = recv {
-			return Err(QueueError::AlreadyUsed);
-		}
-		let recv = recv.expect("Check for none is done earlier.");
-
-		loop {
-			let message = recv.recv().map_err(|e| QueueError::ReceiverError(e))?;
-			if let QueueEvent::Finish = message {
-				return Ok(());
-			}
-
-			listener(message);
-		}
+	/// Adds a queue listener. For each event, `listener` callback will be invoked.
+	pub fn on_event<F: Fn(QueueEvent) -> () + Send + Sync + 'static>(&self, listener: F) {
+		self.on_event.write().push(Box::new(listener));
 	}
 
 	/// Notifies consumer that the communcation is over.
 	/// No more events will be sent after this function is invoked.
 	pub fn finish(&self) {
 		self.notify(QueueEvent::Finish);
+		self.on_event.write().clear();
 	}
 
 	/// Notifies receiver about the event happening in this queue.
 	fn notify(&self, message: QueueEvent) {
-		// We don't really care about the result
-		let _ = self.sender.lock().send(message);
+		for listener in &*self.on_event.read() {
+			listener(message.clone())
+		}
 	}
 
 	/// Removes requests from this queue and notifies `ConfirmationPromise` holders about the result.
@@ -384,26 +346,23 @@ mod test {
 	#[test]
 	fn should_receive_notification() {
 		// given
-		let received = Arc::new(Mutex::new(None));
+		let received = Arc::new(Mutex::new(vec![]));
 		let queue = Arc::new(ConfirmationsQueue::default());
 		let request = request();
 
 		// when
-		let q = queue.clone();
 		let r = received.clone();
-		let handle = thread::spawn(move || {
-			q.start_listening(move |notification| {
-				let mut v = r.lock();
-				*v = Some(notification);
-			}).expect("Should be closed nicely.")
+		queue.on_event(move |notification| {
+			r.lock().push(notification);
 		});
 		queue.add_request(request, Default::default()).unwrap();
 		queue.finish();
 
 		// then
-		handle.join().expect("Thread should finish nicely");
-		let r = received.lock().take();
-		assert_eq!(r, Some(QueueEvent::NewRequest(U256::from(1))));
+		let r = received.lock();
+		assert_eq!(r[0], QueueEvent::NewRequest(U256::from(1)));
+		assert_eq!(r[1], QueueEvent::Finish);
+		assert_eq!(r.len(), 2);
 	}
 
 	#[test]
