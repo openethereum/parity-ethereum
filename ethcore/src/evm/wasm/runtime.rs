@@ -14,26 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum virtual machine.
+//! Wasm evm program runtime intstance
 
-pub mod ext;
-pub mod evm;
-pub mod interpreter;
-#[macro_use]
-pub mod factory;
-pub mod schedule;
-mod instructions;
-#[cfg(feature = "jit" )]
-mod jit;
-mod wasm;
-
-#[cfg(test)]
-mod tests;
-#[cfg(all(feature="benches", test))]
-mod benches;
-
-pub use self::evm::{Evm, Error, Finalize, GasLeft, Result, CostType};
-pub use self::ext::{Ext, ContractCreateResult, MessageCallResult, CreateContractAddress};
-pub use self::factory::{Factory, VMType};
-pub use self::schedule::Schedule;
-pub use types::executed::CallType;
+struct Runtime {
+    gas
+}

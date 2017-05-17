@@ -426,6 +426,7 @@ dependencies = [
  "native-contracts 0.1.0",
  "num 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-wasm 0.5.0 (git+http://github.com/nikvolf/parity-wasm)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1807,6 +1808,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "parity-wasm"
+version = "0.5.0"
+source = "git+http://github.com/nikvolf/parity-wasm#3fb35f29b2236e4314236e55f99a99f8056bf59f"
+dependencies = [
+ "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "parity-wordlist"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2918,6 +2928,7 @@ dependencies = [
 "checksum parity-dapps-glue 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e1d06f6ee0fda786df3784a96ee3f0629f529b91cbfb7d142f6410e6bcd1ce2c"
 "checksum parity-tokio-ipc 0.1.5 (git+https://github.com/nikvolf/parity-tokio-ipc)" = "<none>"
 "checksum parity-ui-precompiled 1.4.0 (git+https://github.com/paritytech/js-precompiled.git)" = "<none>"
+"checksum parity-wasm 0.5.0 (git+http://github.com/nikvolf/parity-wasm)" = "<none>"
 "checksum parity-wordlist 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "07779ab11d958acbee30fcf644c99d3fae132d8fcb41282a25e1ee284097bdd2"
 "checksum parking_lot 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "aebb68eebde2c99f89592d925288600fde220177e46b5c9a91ca218d245aeedf"
 "checksum parking_lot_core 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fb1b97670a2ffadce7c397fb80a3d687c4f3060140b885621ef1653d0e5d5068"

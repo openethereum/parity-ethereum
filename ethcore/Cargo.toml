@@ -51,6 +51,7 @@ semver = "0.6"
 stats = { path = "../util/stats" }
 time = "0.1"
 transient-hashmap = "0.4"
+parity-wasm = { git = "http://github.com/nikvolf/parity-wasm" }
 
 [features]
 jit = ["evmjit"]
