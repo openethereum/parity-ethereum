@@ -225,16 +225,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cid"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "integer-encoding 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "multibase 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "multihash 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "clippy"
 version = "0.0.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1368,15 +1358,6 @@ dependencies = [
 
 [[package]]
 name = "multihash"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "ring 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "tiny-keccak 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "multihash"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
@@ -1668,12 +1649,12 @@ dependencies = [
 name = "parity-ipfs-api"
 version = "1.7.0"
 dependencies = [
- "cid 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cid 0.2.1 (git+https://github.com/tomusdrw/rust-cid.git)",
  "ethcore 1.7.0",
  "ethcore-util 1.7.0",
  "jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "multihash 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "multihash 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
 ]
 
@@ -2062,16 +2043,6 @@ dependencies = [
  "serde_json 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_urlencoded 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "ring"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
- "untrusted 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2709,11 +2680,6 @@ dependencies = [
 
 [[package]]
 name = "untrusted"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "untrusted"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
@@ -2873,7 +2839,6 @@ dependencies = [
 "checksum bytes 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)" = "f9edb851115d67d1f18680f9326901768a91d37875b87015518357c6ce22b553"
 "checksum cfg-if 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "de1e760d7b6535af4241fca8bd8adf68e2e7edacc6b29f5d399050c5e48cf88c"
 "checksum cid 0.2.1 (git+https://github.com/tomusdrw/rust-cid.git)" = "<none>"
-"checksum cid 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e53e6cdfa5ca294863e8c8a32a7cdb4dc0a442c8971d47a0e75b6c27ea268a6a"
 "checksum clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)" = "5b4fabf979ddf6419a313c1c0ada4a5b95cfd2049c56e8418d622d27b4b6ff32"
 "checksum clippy_lints 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)" = "ce96ec05bfe018a0d5d43da115e54850ea2217981ff0f2e462780ab9d594651a"
 "checksum cookie 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d53b80dde876f47f03cda35303e368a79b91c70b0d65ecba5fd5280944a08591"
@@ -2949,7 +2914,6 @@ dependencies = [
 "checksum miow 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8c1f2f3b1cf331de6896aabf6e9d55dca90356cc9960cca7eaaf408a355ae919"
 "checksum msdos_time 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "c04b68cc63a8480fb2550343695f7be72effdec953a9d4508161c3e69041c7d8"
 "checksum multibase 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b9c35dac080fd6e16a99924c8dfdef0af89d797dd851adab25feaffacf7850d6"
-"checksum multihash 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6dbe639454cd2de278e7121936a3b103c5100c8734914a76d84440a276231b99"
 "checksum multihash 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d14363c7695e2e5adbbb8fe139d806a19b8b13f02b9b1fb770fab0c12edaff58"
 "checksum nanomsg 0.5.1 (git+https://github.com/paritytech/nanomsg.rs.git?branch=parity-1.7)" = "<none>"
 "checksum nanomsg-sys 0.5.0 (git+https://github.com/paritytech/nanomsg.rs.git?branch=parity-1.7)" = "<none>"
@@ -3004,7 +2968,6 @@ dependencies = [
 "checksum regex-syntax 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "841591b1e05609a643e3b4d0045fce04f701daba7151ddcd3ad47b080693d5a9"
 "checksum regex-syntax 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "2f9191b1f57603095f105d317e375d19b1c9c5c3185ea9633a99a6dcbed04457"
 "checksum reqwest 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3bef9ed8fdfcc30947d6b774938dc0c3f369a474efe440df2c7f278180b2d2e6"
-"checksum ring 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)" = "595afba2db7545b940ec900dc59b5281f719d327fc0674eeadc9953617e55357"
 "checksum ring 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)" = "873ec7c2b7c9bf58024eb8f1bbc40a6499cd23c1adc59532f4af9e355f1de0f3"
 "checksum rocksdb 0.4.5 (git+https://github.com/paritytech/rust-rocksdb)" = "<none>"
 "checksum rocksdb-sys 0.3.0 (git+https://github.com/paritytech/rust-rocksdb)" = "<none>"
@@ -3075,7 +3038,6 @@ dependencies = [
 "checksum unicode-segmentation 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "18127285758f0e2c6cf325bb3f3d138a12fee27de4f23e146cd6a179f26c2cf3"
 "checksum unicode-xid 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "8c1f860d7d29cf02cb2f3f359fd35991af3d30bac52c57d265a3c461074cb4dc"
 "checksum unreachable 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1f2ae5ddb18e1c92664717616dd9549dde73f539f01bd7b77c2edb2446bdff91"
-"checksum untrusted 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "193df64312e3515fd983ded55ad5bcaa7647a035804828ed757e832ce6029ef3"
 "checksum untrusted 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6b65243989ef6aacd9c0d6bd2b822765c3361d8ed352185a6f3a41f3a718c673"
 "checksum url 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "afe9ec54bc4db14bc8744b7fed060d785ac756791450959b2248443319d5b119"
 "checksum user32-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "4ef4711d107b21b410a3a974b1204d9accc8b10dad75d8324b5d755de1617d47"
