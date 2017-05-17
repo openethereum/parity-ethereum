@@ -92,21 +92,6 @@ export default class InputChip extends Component {
     );
   }
 
-  chipRenderer = (state, key) => {
-    const { isDisabled, isFocused, handleClick, handleRequestDelete, value } = state;
-
-    return (
-      <Chip
-        isDisabled={ isDisabled }
-        isFocused={ isFocused }
-        key={ key }
-        label={ value }
-        onClick={ handleClick }
-        onDelete={ handleRequestDelete }
-      />
-    );
-  }
-
   handleTokenAdd = (value) => {
     const { tokens } = this.props;
     const newTokens = uniq([].concat(tokens, value));
