@@ -107,8 +107,8 @@ pub enum EpochChange {
 	Unsure(Unsure),
 	/// No epoch change.
 	No,
-	/// Validation proof required, and the new epoch number and expected proof.
-	Yes(u64, Bytes),
+	/// Validation proof required, and the new epoch number.
+	Yes(u64),
 }
 
 /// More data required to determine if an epoch change occurred at a given block.
@@ -227,6 +227,9 @@ pub trait Engine : Sync + Send {
 	/// For example, for PoA chains the proof will be a validator set,
 	/// and the corresponding `EpochVerifier` can be used to correctly validate
 	/// all blocks produced under that `ValidatorSet`
+	///
+	/// It must be possible to generate an epoch proof for any block in an epoch,
+	/// and it should always be equivalent to the proof of the transition block.
 	fn epoch_proof(&self, _header: &Header, _caller: &Call)
 		-> Result<Vec<u8>, Error>
 	{
@@ -234,6 +237,11 @@ pub trait Engine : Sync + Send {
 	}
 
 	/// Whether an epoch change occurred at the given header.
+	///
+	/// If the block or receipts are required, return `Unsure` and the function will be
+	/// called again with them.
+	/// Return `Yes` or `No` when the answer is definitively known.
+	///
 	/// Should not interact with state.
 	fn is_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[Receipt]>)
 		-> EpochChange

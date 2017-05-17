@@ -360,7 +360,7 @@ impl Parity for ParityClient {
 		})
 	}
 
-	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<Option<RichHeader>, Error> {
+	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader, Error> {
 		use ethcore::encoded;
 
 		let engine = self.light_dispatch.client.engine().clone();
@@ -391,7 +391,7 @@ impl Parity for ParityClient {
 			}
 		};
 
-		self.fetcher().header(number.0.into()).map(move |encoded| encoded.map(from_encoded)).boxed()
+		self.fetcher().header(number.0.into()).map(from_encoded).boxed()
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {

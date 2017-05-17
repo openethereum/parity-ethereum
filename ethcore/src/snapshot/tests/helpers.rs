@@ -17,13 +17,24 @@
 //! Snapshot test helpers. These are used to build blockchains and state tries
 //! which can be queried before and after a full snapshot/restore cycle.
 
-use basic_account::BasicAccount;
+use std::sync::Arc;
+
 use account_db::AccountDBMut;
+use basic_account::BasicAccount;
+use blockchain::BlockChain;
+use client::{BlockChainClient, Client};
+use engines::Engine;
+use snapshot::{StateRebuilder};
+use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
+use state_db::StateDB;
+
+use devtools::{RandomTempPath, GuardedTempResult};
 use rand::Rng;
 
-use util::DBValue;
+use util::{DBValue, KeyValueDB};
 use util::hash::H256;
 use util::hashdb::HashDB;
+use util::journaldb;
 use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
 use util::trie::{TrieDB, TrieDBMut, Trie};
 use util::sha3::SHA3_NULL_RLP;
@@ -124,4 +135,68 @@ pub fn compare_dbs(one: &HashDB, two: &HashDB) {
 	for key in keys.keys() {
 		assert_eq!(one.get(&key).unwrap(), two.get(&key).unwrap());
 	}
+}
+
+/// Take a snapshot from the given client into a temporary file.
+/// Return a snapshot reader for it.
+pub fn snap(client: &Client) -> GuardedTempResult<Box<SnapshotReader>> {
+	use ids::BlockId;
+
+	let dir = RandomTempPath::new();
+	let writer = PackedWriter::new(dir.as_path()).unwrap();
+	let progress = Default::default();
+
+	let hash = client.chain_info().best_block_hash;
+	client.take_snapshot(writer, BlockId::Hash(hash), &progress).unwrap();
+
+	let reader = PackedReader::new(dir.as_path()).unwrap().unwrap();
+
+	GuardedTempResult {
+		result: Some(Box::new(reader)),
+		_temp: dir,
+	}
+}
+
+/// Restore a snapshot into a given database. This will read chunks from the given reader
+/// write into the given database.
+pub fn restore(
+	db: Arc<KeyValueDB>,
+	engine: &Engine,
+	reader: &SnapshotReader,
+	genesis: &[u8],
+) -> Result<(), ::error::Error> {
+	use std::sync::atomic::AtomicBool;
+	use util::snappy;
+
+	let flag = AtomicBool::new(true);
+	let components = engine.snapshot_components().unwrap();
+	let manifest = reader.manifest();
+
+	let mut state = StateRebuilder::new(db.clone(), journaldb::Algorithm::Archive);
+	let mut secondary = {
+		let chain = BlockChain::new(Default::default(), genesis, db.clone());
+		components.rebuilder(chain, db, manifest).unwrap()
+	};
+
+	let mut snappy_buffer = Vec::new();
+
+	trace!(target: "snapshot", "restoring state");
+	for state_chunk_hash in manifest.state_hashes.iter() {
+		trace!(target: "snapshot", "state chunk hash: {}", state_chunk_hash);
+		let chunk = reader.chunk(*state_chunk_hash).unwrap();
+		let len = snappy::decompress_into(&chunk, &mut snappy_buffer).unwrap();
+		state.feed(&snappy_buffer[..len], &flag)?;
+	}
+
+	trace!(target: "snapshot", "restoring secondary");
+	for chunk_hash in manifest.block_hashes.iter() {
+		let chunk = reader.chunk(*chunk_hash).unwrap();
+		let len = snappy::decompress_into(&chunk, &mut snappy_buffer).unwrap();
+		secondary.feed(&snappy_buffer[..len], engine, &flag)?;
+	}
+
+	let jdb = state.finalize(manifest.block_number, manifest.block_hash)?;
+	let state_db = StateDB::new(jdb, 0);
+
+	secondary.finalize(state_db, engine)
 }
