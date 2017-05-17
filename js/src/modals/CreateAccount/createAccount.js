@@ -93,6 +93,7 @@ class CreateAccount extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
+    isTest: PropTypes.bool.isRequired,
     newError: PropTypes.func.isRequired,
     onClose: PropTypes.func,
     onUpdate: PropTypes.func,
@@ -103,7 +104,7 @@ class CreateAccount extends Component {
     restore: false
   };
 
-  createStore = new Store(this.context.api, this.props.accounts);
+  createStore = new Store(this.context.api, this.props.accounts, this.props.isTest);
   vaultStore = VaultStore.get(this.context.api);
 
   componentWillMount () {
@@ -361,6 +362,12 @@ class CreateAccount extends Component {
   }
 }
 
+function mapStateToProps (state) {
+  const { isTest } = state.nodeStatus;
+
+  return { isTest };
+}
+
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
     newError
@@ -368,6 +375,6 @@ function mapDispatchToProps (dispatch) {
 }
 
 export default connect(
-  null,
+  mapStateToProps,
   mapDispatchToProps
 )(CreateAccount);
