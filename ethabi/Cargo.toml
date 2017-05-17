@@ -1,6 +1,6 @@
 [package]
 name = "ethabi"
-version = "1.0.4"
+version = "1.0.5"
 authors = ["Parity Technologies <admin@parity.io>"]
 homepage = "https://github.com/paritytech/ethabi"
 license = "MIT"
@@ -12,7 +12,7 @@ rustc-serialize = "0.3"
 serde = "0.9"
 serde_json = "0.9"
 serde_derive = "0.9"
-tiny-keccak = "1.0"
+tiny-keccak = "1.2"
 clippy = { version = "0.0.63", optional = true }
 docopt = { version = "0.6", optional = true }
 
