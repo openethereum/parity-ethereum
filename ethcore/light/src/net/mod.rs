@@ -33,7 +33,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use provider::Provider;
-use request::{Request, Requests, Response};
+use request::{Request, NetworkRequests as Requests, Response};
 
 use self::request_credits::{Credits, FlowParams};
 use self::context::{Ctx, TickCtx};
@@ -108,8 +108,13 @@ mod timeout {
 }
 
 /// A request id.
+#[cfg(not(test))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct ReqId(usize);
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
+pub struct ReqId(pub usize);
 
 impl fmt::Display for ReqId {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

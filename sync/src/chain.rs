@@ -158,8 +158,6 @@ pub const SNAPSHOT_SYNC_PACKET_COUNT: u8 = 0x16;
 
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
-const MIN_SUPPORTED_SNAPSHOT_MANIFEST_VERSION: u64 = 1;
-
 const WAIT_PEERS_TIMEOUT_SEC: u64 = 5;
 const STATUS_TIMEOUT_SEC: u64 = 5;
 const HEADERS_TIMEOUT_SEC: u64 = 15;
@@ -504,7 +502,7 @@ impl ChainSync {
 	}
 
 	fn maybe_start_snapshot_sync(&mut self, io: &mut SyncIo) {
-		if !self.enable_warp_sync {
+		if !self.enable_warp_sync || io.snapshot_service().min_supported_version().is_none() {
 			return;
 		}
 		if self.state != SyncState::WaitingPeers && self.state != SyncState::Blocks && self.state != SyncState::Waiting {
@@ -1042,7 +1040,11 @@ impl ChainSync {
 			}
 			Ok(manifest) => manifest,
 		};
-		if manifest.version < MIN_SUPPORTED_SNAPSHOT_MANIFEST_VERSION {
+
+		let is_supported_version = io.snapshot_service().min_supported_version()
+			.map_or(false, |v| manifest.version >= v);
+
+		if !is_supported_version {
 			trace!(target: "sync", "{}: Snapshot manifest version too low: {}", peer_id, manifest.version);
 			io.disable_peer(peer_id);
 			self.continue_sync(io);
