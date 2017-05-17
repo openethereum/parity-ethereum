@@ -20,22 +20,30 @@
 
 use std::collections::HashMap;
 use request::{
-	IncompleteRequest, CompleteRequest, Request,
-	OutputKind, Output, NoSuchOutput, Response, ResponseError,
+	IncompleteRequest, OutputKind, Output, NoSuchOutput, ResponseError, ResponseLike,
 };
 
 /// Build chained requests. Push them onto the series with `push`,
 /// and produce a `Requests` object with `build`. Outputs are checked for consistency.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct RequestBuilder {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RequestBuilder<T> {
 	output_kinds: HashMap<(usize, usize), OutputKind>,
-	requests: Vec<Request>,
+	requests: Vec<T>,
 }
 
-impl RequestBuilder {
+impl<T> Default for RequestBuilder<T> {
+	fn default() -> Self {
+		RequestBuilder {
+			output_kinds: HashMap::new(),
+			requests: Vec::new(),
+		}
+	}
+}
+
+impl<T: IncompleteRequest> RequestBuilder<T> {
 	/// Attempt to push a request onto the request chain. Fails if the request
 	/// references a non-existent output of a prior request.
-	pub fn push(&mut self, request: Request) -> Result<(), NoSuchOutput> {
+	pub fn push(&mut self, request: T) -> Result<(), NoSuchOutput> {
 		request.check_outputs(|req, idx, kind| {
 			match self.output_kinds.get(&(req, idx)) {
 				Some(k) if k == &kind => Ok(()),
@@ -54,7 +62,7 @@ impl RequestBuilder {
 	}
 
 	/// Convert this into a "requests" object.
-	pub fn build(self) -> Requests {
+	pub fn build(self) -> Requests<T> {
 		Requests {
 			outputs: HashMap::new(),
 			requests: self.requests,
@@ -65,44 +73,41 @@ impl RequestBuilder {
 
 /// Requests pending responses.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Requests {
+pub struct Requests<T> {
 	outputs: HashMap<(usize, usize), Output>,
-	requests: Vec<Request>,
+	requests: Vec<T>,
 	answered: usize,
 }
 
-impl Requests {
-	/// For each request, produce responses for each.
-	/// The responses vector produced goes up to the point where the responder
-	/// first returns `None`, an invalid response, or until all requests have been responded to.
-	pub fn respond_to_all<F>(mut self, responder: F) -> Vec<Response>
-		where F: Fn(CompleteRequest) -> Option<Response>
-	{
-		let mut responses = Vec::new();
-
-		while let Some(response) = self.next_complete().and_then(&responder) {
-			match self.supply_response(&response) {
-				Ok(()) => responses.push(response),
-				Err(e) => {
-					debug!(target: "pip", "produced bad response to request: {:?}", e);
-					return responses;
-				}
-			}
-		}
-
-		responses
-	}
-
+impl<T> Requests<T> {
 	/// Get access to the underlying slice of requests.
 	// TODO: unimplemented -> Vec<Request>, // do we _have to_ allocate?
-	pub fn requests(&self) -> &[Request] { &self.requests }
+	pub fn requests(&self) -> &[T] { &self.requests }
 
 	/// Get the number of answered requests.
 	pub fn num_answered(&self) -> usize { self.answered }
 
+	/// Whether the batch is complete.
+	pub fn is_complete(&self) -> bool {
+		self.answered == self.requests.len()
+	}
+
+	/// Map requests from one type into another.
+	pub fn map_requests<F, U>(self, f: F) -> Requests<U>
+		where F: FnMut(T) -> U, U: IncompleteRequest
+	{
+		Requests {
+			outputs: self.outputs,
+			requests: self.requests.into_iter().map(f).collect(),
+			answered: self.answered,
+		}
+	}
+}
+
+impl<T: IncompleteRequest + Clone> Requests<T> {
 	/// Get the next request as a filled request. Returns `None` when all requests answered.
-	pub fn next_complete(&self) -> Option<CompleteRequest> {
-		if self.answered == self.requests.len() {
+	pub fn next_complete(&self) -> Option<T::Complete> {
+		if self.is_complete() {
 			None
 		} else {
 			Some(self.requests[self.answered].clone()
@@ -111,14 +116,29 @@ impl Requests {
 		}
 	}
 
+	/// Sweep through all unanswered requests, filling them as necessary.
+	pub fn fill_unanswered(&mut self) {
+		let outputs = &mut self.outputs;
+
+		for req in self.requests.iter_mut().skip(self.answered) {
+			req.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
+		}
+	}
+}
+
+impl<T: super::CheckedRequest> Requests<T> {
 	/// Supply a response for the next request.
 	/// Fails on: wrong request kind, all requests answered already.
-	pub fn supply_response(&mut self, response: &Response) -> Result<(), ResponseError> {
+	pub fn supply_response(&mut self, env: &T::Environment, response: &T::Response)
+		-> Result<T::Extract, ResponseError<T::Error>>
+	{
 		let idx = self.answered;
 
 		// check validity.
-		if idx == self.requests.len() { return Err(ResponseError::Unexpected) }
-		if self.requests[idx].kind() != response.kind() { return Err(ResponseError::WrongKind) }
+		if self.is_complete() { return Err(ResponseError::Unexpected) }
+
+		let extracted = self.requests[idx]
+			.check_response(env, response).map_err(ResponseError::Validity)?;
 
 		let outputs = &mut self.outputs;
 		response.fill_outputs(|out_idx, output| {
@@ -135,7 +155,30 @@ impl Requests {
 			req.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
 		}
 
-		Ok(())
+		Ok(extracted)
+	}
+}
+
+impl Requests<super::Request> {
+	/// For each request, produce a response.
+	/// The responses vector produced goes up to the point where the responder
+	/// first returns `None`, an invalid response, or until all requests have been responded to.
+	pub fn respond_to_all<F>(mut self, responder: F) -> Vec<super::Response>
+		where F: Fn(super::CompleteRequest) -> Option<super::Response>
+	{
+		let mut responses = Vec::new();
+
+		while let Some(response) = self.next_complete().and_then(&responder) {
+			match self.supply_response(&(), &response) {
+				Ok(()) => responses.push(response),
+				Err(e) => {
+					debug!(target: "pip", "produced bad response to request: {:?}", e);
+					return responses;
+				}
+			}
+		}
+
+		responses
 	}
 }
 

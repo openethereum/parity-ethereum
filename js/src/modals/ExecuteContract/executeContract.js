@@ -25,6 +25,7 @@ import { CancelIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 import { MAX_GAS_ESTIMATION } from '~/util/constants';
 import { validateAddress, validateUint } from '~/util/validation';
 import { parseAbiType } from '~/util/abi';
+import { setSender } from '~/util/tx';
 
 import AdvancedStep from './AdvancedStep';
 import DetailsStep from './DetailsStep';
@@ -307,6 +308,7 @@ class ExecuteContract extends Component {
       value: api.util.toWei(amount || 0)
     });
 
+    setSender(fromAddress);
     func.postTransaction(options, values);
     this.onClose();
   }
