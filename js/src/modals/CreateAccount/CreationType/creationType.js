@@ -42,21 +42,6 @@ const TYPES = [
   {
     description: (
       <FormattedMessage
-        id='createAccount.creationType.fromPhrase.description'
-        defaultMessage='Recover using a previously stored recovery phrase and new password'
-      />
-    ),
-    label: (
-      <FormattedMessage
-        id='createAccount.creationType.fromPhrase.label'
-        defaultMessage='Recovery phrase'
-      />
-    ),
-    key: 'fromPhrase'
-  },
-  {
-    description: (
-      <FormattedMessage
         id='createAccount.creationType.fromQr.description'
         defaultMessage='Attach an externally managed account via QR code'
       />
