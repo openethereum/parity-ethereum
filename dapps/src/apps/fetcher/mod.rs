@@ -70,10 +70,8 @@ impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 	pub fn new(
 		resolver: R,
 		sync_status: Arc<SyncStatus>,
-		embeddable_on: Option<(String, u16)>,
 		remote: Remote,
 		fetch: F,
-		only_content: bool,
 	) -> Self {
 		let mut dapps_path = env::temp_dir();
 		dapps_path.push(random_filename());
@@ -83,11 +81,21 @@ impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 			resolver: resolver,
 			sync: sync_status,
 			cache: Arc::new(Mutex::new(ContentCache::default())),
-			embeddable_on: embeddable_on,
+			embeddable_on: None,
 			remote: remote,
 			fetch: fetch,
-			only_content: only_content,
+			only_content: true,
 		}
+	}
+
+	pub fn allow_dapps(mut self, dapps: bool) -> Self {
+		self.only_content = !dapps;
+		self
+	}
+
+	pub fn embeddable_on(mut self, embeddable_on: Option<(String, u16)>) -> Self {
+		self.embeddable_on = embeddable_on;
+		self
 	}
 
 	fn still_syncing(address: Option<(String, u16)>) -> Box<Handler> {
@@ -267,7 +275,8 @@ mod tests {
 	fn should_true_if_contains_the_app() {
 		// given
 		let path = env::temp_dir();
-		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(|| false), None, Remote::new_sync(), Client::new().unwrap(), false);
+		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(|| false), Remote::new_sync(), Client::new().unwrap())
+			.allow_dapps(true);
 		let handler = LocalPageEndpoint::new(path, EndpointInfo {
 			name: "fake".into(),
 			description: "".into(),

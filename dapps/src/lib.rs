@@ -137,11 +137,9 @@ impl Middleware {
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
 			sync_status,
-			None,
 			remote.clone(),
 			fetch.clone(),
-			true,
-		));
+		).embeddable_on(None).allow_dapps(false));
 		let special = {
 			let mut special = special_endpoints(content_fetcher.clone());
 			special.insert(router::SpecialEndpoint::Home, Some(apps::ui()));
@@ -176,11 +174,9 @@ impl Middleware {
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
 			sync_status,
-			ui_address.clone(),
 			remote.clone(),
 			fetch.clone(),
-			false,
-		));
+		).embeddable_on(ui_address.clone()).allow_dapps(true));
 		let endpoints = apps::all_endpoints(
 			dapps_path,
 			extra_dapps,
