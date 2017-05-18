@@ -355,7 +355,7 @@ impl Client {
 		let chain = self.chain.read();
 		// Check the block isn't so old we won't be able to enact it.
 		let best_block_number = chain.best_block_number();
-		if best_block_number >= self.history && header.number() <= best_block_number - self.history {
+		if self.pruning_info().earliest_state > header.number() {
 			warn!(target: "client", "Block import failed for #{} ({})\nBlock is ancient (current best block: #{}).", header.number(), header.hash(), best_block_number);
 			return Err(());
 		}
@@ -677,7 +677,7 @@ impl Client {
 			let db = self.state_db.lock().boxed_clone();
 
 			// early exit for pruned blocks
-			if db.is_pruned() && self.chain.read().best_block_number() >= block_number + self.history {
+			if db.is_pruned() && self.pruning_info().earliest_state > block_number {
 				return None;
 			}
 
@@ -778,7 +778,7 @@ impl Client {
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at))?;
 
-		if best_block_number > self.history + block_number && db.is_pruned() {
+		if db.is_pruned() && self.pruning_info().earliest_state > block_number {
 			return Err(snapshot::Error::OldBlockPrunedDB.into());
 		}
 
