@@ -15,19 +15,21 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
-import { Radio } from 'semantic-ui-react';
+import { Radio as SemanticRadio } from 'semantic-ui-react';
 
 import { arrayOrObjectProptype } from '@parity/shared/util/proptypes';
 
-import LabelComponent from '../LabelComponent';
+import LabelWrapper from '../LabelWrapper';
+import Label from '../Label';
+
 import styles from './radioButtons.css';
 
 export default function RadioButtons ({ className, label, name, onChange, value, values }) {
   const _onChange = (event, { value }) => onChange(event, value);
 
   return (
-    <LabelComponent
-      className={ [styles.container, className].join(' ') }
+    <LabelWrapper
+      className={ `${styles.container} ${className}` }
       label={ label }
     >
       {
@@ -36,12 +38,14 @@ export default function RadioButtons ({ className, label, name, onChange, value,
             className={ styles.radioContainer }
             key={ key }
           >
-            <Radio
+            <SemanticRadio
               checked={ value === key }
               className={ styles.radio }
               label={
-                <label className={ styles.label }>
-                  <div className={ styles.name }>{ label }</div>
+                <Label className={ styles.label }>
+                  <div className={ styles.name }>
+                    { label }
+                  </div>
                   {
                     description && (
                       <div className={ styles.description }>
@@ -49,7 +53,7 @@ export default function RadioButtons ({ className, label, name, onChange, value,
                       </div>
                     )
                   }
-                </label>
+                </Label>
               }
               name={ name }
               onChange={ _onChange }
@@ -58,7 +62,7 @@ export default function RadioButtons ({ className, label, name, onChange, value,
           </div>
         ))
       }
-    </LabelComponent>
+    </LabelWrapper>
   );
 }
 

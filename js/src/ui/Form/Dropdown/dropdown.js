@@ -19,7 +19,7 @@ import { Dropdown as SemanticDropdown } from 'semantic-ui-react';
 
 import { parseI18NString } from '@parity/shared/util/messages';
 
-import LabelComponent from '../LabelComponent';
+import LabelWrapper from '../LabelWrapper';
 
 import styles from './dropdown.css';
 
@@ -30,7 +30,7 @@ export default function Dropdown ({ className, disabled = false, error, fullWidt
   const _onChange = (event, { value }) => onChange(event, value);
 
   return (
-    <LabelComponent label={ label }>
+    <LabelWrapper label={ label }>
       <SemanticDropdown
         className={ `${styles.dropdown} ${className}` }
         disabled={ disabled }
@@ -49,7 +49,7 @@ export default function Dropdown ({ className, disabled = false, error, fullWidt
         text={ parseI18NString(context, text) }
         value={ value }
       />
-    </LabelComponent>
+    </LabelWrapper>
   );
 }
 

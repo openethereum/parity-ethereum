@@ -22,7 +22,7 @@ import { Input as SemanticInput } from 'semantic-ui-react';
 import { parseI18NString } from '@parity/shared/util/messages';
 import { arrayOrObjectProptype, nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-import LabelComponent from '~/ui/Form/LabelComponent';
+import LabelWrapper from '~/ui/Form/LabelWrapper';
 
 import Chip from './Chip';
 
@@ -32,6 +32,7 @@ export default class InputChip extends Component {
   };
 
   static propTypes = {
+    autoFocus: PropTypes.bool,
     addOnBlur: PropTypes.bool,
     clearOnBlur: PropTypes.bool,
     className: PropTypes.string,
@@ -51,12 +52,13 @@ export default class InputChip extends Component {
     textValue: ''
   };
 
+  // TODO: autoFocus to be implemented (same as with Form/Input)
   render () {
     const { className, hint, label, tokens } = this.props;
     const { textValue } = this.state;
 
     return (
-      <LabelComponent
+      <LabelWrapper
         className={ className }
         label={ label }
       >
@@ -74,7 +76,7 @@ export default class InputChip extends Component {
         <div>
           { tokens.map(this.renderChip) }
         </div>
-      </LabelComponent>
+      </LabelWrapper>
     );
   }
 
@@ -86,21 +88,6 @@ export default class InputChip extends Component {
         key={ chip }
         label={ chip }
         onDelete={ onDelete }
-      />
-    );
-  }
-
-  chipRenderer = (state, key) => {
-    const { isDisabled, isFocused, handleClick, handleRequestDelete, value } = state;
-
-    return (
-      <Chip
-        isDisabled={ isDisabled }
-        isFocused={ isFocused }
-        key={ key }
-        label={ value }
-        onClick={ handleClick }
-        onDelete={ handleRequestDelete }
       />
     );
   }

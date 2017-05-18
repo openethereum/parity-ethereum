@@ -16,21 +16,29 @@
 
 import React, { PropTypes } from 'react';
 
+import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
+
 import styles from './label.css';
 
-export default function Label ({ className, label }) {
-  if (!label) {
+export default function Label ({ className, children, htmlFor, label }) {
+  if (!label && !children) {
     return null;
   }
 
   return (
-    <label className={ [styles.label, className].join(' ') }>
+    <label
+      className={ `${styles.label} ${className}` }
+      htmlFor={ htmlFor }
+    >
       { label }
+      { children }
     </label>
   );
 }
 
 Label.propTypes = {
   className: PropTypes.string,
-  label: PropTypes.node
+  children: PropTypes.node,
+  htmlFor: PropTypes.string,
+  label: nodeOrStringProptype()
 };

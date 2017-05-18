@@ -27,6 +27,7 @@ import Button from '~/ui/Button';
 import Dropdown from '~/ui/Form/Dropdown';
 import Input from '~/ui/Form/Input';
 import InputAddressSelect from '~/ui/Form/InputAddressSelect';
+import LabelWrapper from '~/ui/Form/LabelWrapper';
 import Toggle from '~/ui/Form/Toggle';
 import { AddIcon, RemoveIcon } from '~/ui/Icons';
 
@@ -125,11 +126,13 @@ export default class TypedInput extends Component {
       });
 
       return (
-        <div className={ styles.inputs }>
-          <label>{ label }</label>
+        <LabelWrapper
+          className={ styles.inputs }
+          label={ label }
+        >
           { fixedLength || readOnly ? null : this.renderLength() }
           { inputs }
-        </div>
+        </LabelWrapper>
       );
     }
 

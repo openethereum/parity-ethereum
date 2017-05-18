@@ -17,11 +17,11 @@
 import React, { PropTypes } from 'react';
 import { Radio as SemanticRadio } from 'semantic-ui-react';
 
-import LabelComponent from '../LabelComponent';
+import LabelWrapper from '../LabelWrapper';
 
 export default function Toggle ({ className, label, onToggle, style, toggled }) {
   return (
-    <LabelComponent label={ label }>
+    <LabelWrapper label={ label }>
       <SemanticRadio
         checked={ toggled }
         className={ className }
@@ -29,7 +29,7 @@ export default function Toggle ({ className, label, onToggle, style, toggled }) 
         style={ style }
         toggle
       />
-    </LabelComponent>
+    </LabelWrapper>
   );
 }
 

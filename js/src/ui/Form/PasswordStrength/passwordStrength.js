@@ -19,6 +19,7 @@ import { debounce } from 'lodash';
 import { FormattedMessage } from 'react-intl';
 import zxcvbn from 'zxcvbn';
 
+import LabelWrapper from '~/ui/Form/LabelWrapper';
 import Progress from '~/ui/Progress';
 
 import styles from './passwordStrength.css';
@@ -64,13 +65,15 @@ export default class PasswordStrength extends Component {
     const { score, feedback } = strength;
 
     return (
-      <div className={ styles.strength }>
-        <label className={ styles.label }>
+      <LabelWrapper
+        className={ styles.strength }
+        label={
           <FormattedMessage
             id='ui.passwordStrength.label'
             defaultMessage='password strength'
           />
-        </label>
+        }
+      >
         <Progress
           color={ this.getStrengthBarColor(score) }
           isDeterminate
@@ -80,7 +83,7 @@ export default class PasswordStrength extends Component {
         <div className={ styles.feedback }>
           { this.renderFeedback(feedback) }
         </div>
-      </div>
+      </LabelWrapper>
     );
   }
 

@@ -19,7 +19,7 @@ import DateTime from 'react-datetime';
 
 import { parseI18NString } from '@parity/shared/util/messages';
 
-import LabelComponent from '~/ui/Form/LabelComponent';
+import LabelWrapper from '~/ui/Form/LabelWrapper';
 
 import styles from './inputDateTime.css';
 
@@ -29,7 +29,7 @@ export default function InputDateTime ({ className, hint, label, onChange, value
   const _onChange = (value) => onChange && onChange(null, value);
 
   return (
-    <LabelComponent
+    <LabelWrapper
       className={ `${styles.container} ${className}` }
       label={ label }
     >
@@ -43,7 +43,7 @@ export default function InputDateTime ({ className, hint, label, onChange, value
           value={ value }
         />
       </div>
-    </LabelComponent>
+    </LabelWrapper>
   );
 }
 
