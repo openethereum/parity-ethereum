@@ -22,22 +22,44 @@ import styles from './title.css';
 
 export default class Title extends Component {
   static propTypes = {
+    actions: PropTypes.array,
     byline: nodeOrStringProptype(),
     className: PropTypes.string,
     description: nodeOrStringProptype(),
     title: nodeOrStringProptype()
-  }
+  };
+
+  static defaultProps = {
+    actions: []
+  };
 
   render () {
     const { className, title } = this.props;
 
     return (
-      <div className={ className }>
-        <h3 className={ styles.title }>
-          { title }
-        </h3>
-        { this.renderByline() }
-        { this.renderDescription() }
+      <div className={ [ className, styles.container ].join(' ') }>
+        <div>
+          <h3 className={ styles.title }>
+            { title }
+          </h3>
+          { this.renderByline() }
+          { this.renderDescription() }
+        </div>
+        { this.renderActions() }
+      </div>
+    );
+  }
+
+  renderActions () {
+    const { actions } = this.props;
+
+    if (actions.length === 0) {
+      return null;
+    }
+
+    return (
+      <div>
+        { actions }
       </div>
     );
   }

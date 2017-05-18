@@ -195,11 +195,6 @@ export default class Ws extends JsonRpcBase {
   }
 
   _onMessage = (event) => {
-    // Event sent by Signer Broadcaster
-    if (event.data === 'new_message') {
-      return false;
-    }
-
     try {
       const result = JSON.parse(event.data);
       const { method, params, json, resolve, reject } = this._messages[result.id];

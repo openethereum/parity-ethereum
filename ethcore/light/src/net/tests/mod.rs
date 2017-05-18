@@ -39,14 +39,14 @@ use std::sync::Arc;
 
 // helper for encoding a single request into a packet.
 // panics on bad backreference.
-fn encode_single(request: Request) -> Requests {
+fn encode_single(request: Request) -> NetworkRequests {
 	let mut builder = RequestBuilder::default();
 	builder.push(request).unwrap();
 	builder.build()
 }
 
 // helper for making a packet out of `Requests`.
-fn make_packet(req_id: usize, requests: &Requests) -> Vec<u8> {
+fn make_packet(req_id: usize, requests: &NetworkRequests) -> Vec<u8> {
 	let mut stream = RlpStream::new_list(2);
 	stream.append(&req_id).append_list(&requests.requests());
 	stream.out()

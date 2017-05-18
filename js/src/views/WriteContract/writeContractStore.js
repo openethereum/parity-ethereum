@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { debounce } from 'lodash';
-import { action, observable, transaction } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
 import React from 'react';
 import { FormattedMessage } from 'react-intl';
 import store from 'store';
@@ -139,9 +139,10 @@ export default class WriteContractStore {
 
     this.worker = worker;
 
-    this
-      .fetchSolidityVersions()
-      .then(() => this.reloadContracts());
+    return Promise.all([
+      this.fetchSolidityVersions().then(() => this.handleCompile()),
+      this.reloadContracts(undefined, undefined, false)
+    ]);
   }
 
   fetchSolidityVersions () {
@@ -315,6 +316,18 @@ export default class WriteContractStore {
     });
   }
 
+  @computed get isPristine () {
+    return this.getHash() === this.lastCompilation.hash;
+  }
+
+  getHash () {
+    const build = this.builds[this.selectedBuild];
+    const version = build.longVersion;
+    const sourcecode = this.sourcecode.replace(/\s+/g, ' ');
+
+    return sha3(JSON.stringify({ version, sourcecode, optimize: this.optimize }));
+  }
+
   @action handleCompile = () => {
     transaction(() => {
       this.compiled = false;
@@ -323,9 +336,7 @@ export default class WriteContractStore {
     });
 
     const build = this.builds[this.selectedBuild];
-    const version = build.longVersion;
-    const sourcecode = this.sourcecode.replace(/\s+/g, ' ');
-    const hash = sha3(JSON.stringify({ version, sourcecode, optimize: this.optimize }));
+    const hash = this.getHash();
 
     let promise = Promise.resolve(null);
 
@@ -397,11 +408,10 @@ export default class WriteContractStore {
 
     const { errors = [] } = data;
     const errorAnnotations = this.parseErrors(errors);
-    const formalAnnotations = this.parseErrors(data.formal && data.formal.errors, true);
+    // const formalAnnotations = this.parseErrors(data.formal && data.formal.errors, true);
 
     const annotations = [].concat(
-      errorAnnotations,
-      formalAnnotations
+      errorAnnotations
     );
 
     const contractKeys = Object.keys(contracts || {});
@@ -493,7 +503,7 @@ export default class WriteContractStore {
     this.reloadContracts(cId);
   }
 
-  @action reloadContracts = (id, sourcecode) => {
+  @action reloadContracts = (id, sourcecode, recompile = true) => {
     const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
 
     this.savedContracts = localStore.saved || {};
@@ -513,7 +523,9 @@ export default class WriteContractStore {
 
     this.resizeEditor();
 
-    return this.handleCompile();
+    if (recompile) {
+      return this.handleCompile();
+    }
   }
 
   @action handleLoadContract = (contract) => {

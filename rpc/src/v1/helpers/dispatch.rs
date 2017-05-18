@@ -281,6 +281,7 @@ impl LightDispatcher {
 		}
 
 		let best_header = self.client.best_block_header();
+		let account_start_nonce = self.client.engine().account_start_nonce();
 		let nonce_future = self.sync.with_context(|ctx| self.on_demand.account(ctx, request::Account {
 			header: best_header,
 			address: addr,
@@ -288,7 +289,7 @@ impl LightDispatcher {
 
 		match nonce_future {
 			Some(x) =>
-				x.map(|acc| acc.nonce)
+				x.map(move |acc| acc.map_or(account_start_nonce, |acc| acc.nonce))
 					.map_err(|_| errors::no_light_peers())
 					.boxed(),
 			None =>  future::err(errors::network_disabled()).boxed()
@@ -511,7 +512,7 @@ pub fn execute<D: Dispatcher + 'static>(
 			let hash = eth_data_hash(data);
 			let res = signature(&accounts, address, hash, pass)
 				.map(|result| result
-					.map(|rsv| H520(rsv.into_vrs()))
+					.map(|rsv| H520(rsv.into_electrum()))
 					.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
 				);

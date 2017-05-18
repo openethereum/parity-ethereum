@@ -129,6 +129,21 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		}
 	}
 
+	/// Execute a transaction in a "virtual" context.
+	/// This will ensure the caller has enough balance to execute the desired transaction.
+	/// Used for extra-block executions for things like consensus contracts and RPCs
+	pub fn transact_virtual(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, ExecutionError> {
+		let sender = t.sender();
+		let balance = self.state.balance(&sender)?;
+		let needed_balance = t.value + t.gas * t.gas_price;
+		if balance < needed_balance {
+			// give the sender a sufficient balance
+			self.state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)?;
+		}
+
+		self.transact(t, options)
+	}
+
 	/// Execute transaction/call with tracing enabled
 	pub fn transact_with_tracer<T, V>(
 		&'a mut self,

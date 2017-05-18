@@ -227,8 +227,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	}
 
 	// start on_demand service.
-	let account_start_nonce = service.client().engine().account_start_nonce();
-	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone(), account_start_nonce));
+	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
 
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
@@ -290,6 +289,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		ws_address: cmd.ws_conf.address(),
 		fetch: fetch,
 		geth_compatibility: cmd.geth_compatibility,
+		remote: event_loop.remote(),
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -398,7 +398,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	);
 	info!("Operating mode: {}", Colour::White.bold().paint(format!("{}", mode)));
 
-	// display warning about using experimental journaldb alorithm
+	// display warning about using experimental journaldb algorithm
 	if !algorithm.is_stable() {
 		warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", Colour::Red.bold().paint("unstable"));
 	}
@@ -414,8 +414,9 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	} else {
 		sync_config.subprotocol_name.clone_from_slice(spec.subprotocol_name().as_bytes());
 	}
+
 	sync_config.fork_block = spec.fork_block();
-	sync_config.warp_sync = cmd.warp_sync;
+	sync_config.warp_sync = spec.engine.supports_warp() && cmd.warp_sync;
 	sync_config.download_old_blocks = cmd.download_old_blocks;
 	sync_config.serve_light = cmd.serve_light;
 
