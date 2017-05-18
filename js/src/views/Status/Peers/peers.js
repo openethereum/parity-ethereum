@@ -16,16 +16,76 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
-import { Container, ContainerTitle, ScrollableText, ShortenedHash } from '~/ui';
+import { Button, Container, ContainerTitle, Input, ScrollableText, ShortenedHash } from '~/ui';
+import { showSnackbar } from '~/redux/providers/snackbarActions';
+import { newError } from '~/redux/actions';
 
 import styles from './peers.css';
 
 class Peers extends Component {
-  static propTypes = {
-    peers: PropTypes.array.isRequired
+  static contextTypes = {
+    api: PropTypes.object
   };
+
+  static propTypes = {
+    peers: PropTypes.array.isRequired,
+    newError: PropTypes.func,
+    showSnackbar: PropTypes.func
+  };
+
+  state = {
+    action: '',
+    formInput: '',
+    showForm: false
+  };
+
+  getActions () {
+    return [
+      <Button
+        key='btn_acceptNonReserved'
+        label={
+          <FormattedMessage
+            id='peers.acceptNonReserved.label'
+            defaultMessage='Accept non-reserved'
+          />
+        }
+        onClick={ this.handleAcceptNonReserved }
+      />,
+      <Button
+        key='btn_dropNonReserved'
+        label={
+          <FormattedMessage
+            id='peers.dropNonReserved.label'
+            defaultMessage='Drop non-reserved'
+          />
+        }
+        onClick={ this.handleDropNonReserved }
+      />,
+      <Button
+        key='btn_addReserved'
+        label={
+          <FormattedMessage
+            id='peers.addReserved.label'
+            defaultMessage='Add reserved'
+          />
+        }
+        onClick={ this.handleAddReserved }
+      />,
+      <Button
+        key='btn_removeReserved'
+        label={
+          <FormattedMessage
+            id='peers.removeReserved.label'
+            defaultMessage='Remove reserved'
+          />
+        }
+        onClick={ this.handleRemoveReserved }
+      />
+    ];
+  }
 
   render () {
     const { peers } = this.props;
@@ -33,6 +93,7 @@ class Peers extends Component {
     return (
       <Container>
         <ContainerTitle
+          actions={ this.getActions() }
           title={
             <FormattedMessage
               id='status.peers.title'
@@ -40,6 +101,7 @@ class Peers extends Component {
             />
           }
         />
+        { this.renderForm() }
         <div className={ styles.peers }>
           <table>
             <thead>
@@ -92,6 +154,52 @@ class Peers extends Component {
     );
   }
 
+  renderForm () {
+    const { action, showForm } = this.state;
+
+    if (!showForm) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.form }>
+        <div className={ styles.input }>
+          <Input
+            label={
+              <FormattedMessage
+                id='peers.form.label'
+                defaultMessage='Peer enode URL'
+              />
+            }
+            onChange={ this.handleInputChange }
+          />
+        </div>
+        <Button
+          label={
+            <FormattedMessage
+              id='peers.form.action.label'
+              defaultMessage='{add, select, true {Add} false {}}{remove, select, true {Remove} false {}}'
+              values={ {
+                add: action === 'add',
+                remove: action === 'remove'
+              } }
+            />
+          }
+          onClick={ this.handleConfirmForm }
+        />
+        <Button
+          label={
+            <FormattedMessage
+              id='peers.form.cancel.label'
+              defaultMessage='Cancel'
+            />
+          }
+          onClick={ this.handleCancelForm }
+        />
+      </div>
+    );
+  }
+
   renderPeers (peers) {
     return peers.map((peer, index) => this.renderPeer(peer, index));
   }
@@ -140,6 +248,92 @@ class Peers extends Component {
       </tr>
     );
   }
+
+  handleAcceptNonReserved = () => {
+    return this.context.api.parity.acceptNonReservedPeers()
+      .then(() => {
+        const message = (
+          <FormattedMessage
+            id='peers.acceptNonReservedPeers.success'
+            defaultMessage='Accepting non-reserved peers'
+          />
+        );
+
+        this.props.showSnackbar(message, 3000);
+      })
+      .catch((error) => {
+        this.props.newError(error);
+      });
+  };
+
+  handleDropNonReserved = () => {
+    return this.context.api.parity.dropNonReservedPeers()
+      .then(() => {
+        const message = (
+          <FormattedMessage
+            id='peers.dropNonReservedPeers.success'
+            defaultMessage='Dropping non-reserved peers'
+          />
+        );
+
+        this.props.showSnackbar(message, 3000);
+      })
+      .catch((error) => {
+        this.props.newError(error);
+      });
+  };
+
+  handleAddReserved = () => {
+    this.setState({ showForm: true, action: 'add' });
+  };
+
+  handleRemoveReserved = () => {
+    this.setState({ showForm: true, action: 'remove' });
+  };
+
+  handleInputChange = (event, value) => {
+    this.setState({ formInput: value });
+  };
+
+  handleCancelForm = () => {
+    this.setState({ showForm: false, action: '', formInput: '' });
+  };
+
+  handleConfirmForm = () => {
+    const { action, formInput } = this.state;
+    let method;
+
+    if (action === 'add') {
+      method = 'addReservedPeer';
+    } else if (action === 'remove') {
+      method = 'removeReservedPeer';
+    }
+
+    this.setState({ showForm: false, action: '', formInput: '' });
+
+    if (!method) {
+      return;
+    }
+
+    this.context.api.parity[method](formInput)
+      .then(() => {
+        const message = (
+          <FormattedMessage
+            id='peers.form.action.success'
+            defaultMessage='Successfully {add, select, true {added} false {}}{remove, select, true {removed} false {}} a reserved peer'
+            values={ {
+              add: action === 'add',
+              remove: action === 'remove'
+            } }
+          />
+        );
+
+        this.props.showSnackbar(message, 3000);
+      })
+      .catch((error) => {
+        this.props.newError(error);
+      });
+  };
 }
 
 function mapStateToProps (state) {
@@ -160,4 +354,11 @@ function mapStateToProps (state) {
   return { peers: realPeers };
 }
 
-export default connect(mapStateToProps)(Peers);
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    newError,
+    showSnackbar
+  }, dispatch);
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(Peers);

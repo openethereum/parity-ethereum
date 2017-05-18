@@ -90,9 +90,9 @@ Account Options:
 
 UI Options:
   --force-ui                       Enable Trusted UI WebSocket endpoint,
-                                   even when --unlock is in use. (default: ${flag_force_ui})
+                                   even when --unlock is in use. (default: {flag_force_ui})
   --no-ui                          Disable Trusted UI WebSocket endpoint.
-                                   (default: ${flag_no_ui})
+                                   (default: {flag_no_ui})
   --ui-port PORT                   Specify the port of Trusted UI server
                                    (default: {flag_ui_port}).
   --ui-interface IP                Specify the hostname portion of the Trusted UI

@@ -16,7 +16,8 @@
 
 //! Snapshot tests.
 
-mod blocks;
+mod proof_of_work;
+mod proof_of_authority;
 mod state;
 mod service;
 

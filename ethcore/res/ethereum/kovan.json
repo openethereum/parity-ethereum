@@ -25,7 +25,8 @@
           ]
         },
         "validateScoreTransition": 1000000,
-        "eip155Transition": 1000000
+        "eip155Transition": 1000000,
+        "validateStepTransition": 1500000
       }
     }
   },

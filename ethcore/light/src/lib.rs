@@ -44,13 +44,13 @@ pub mod provider;
 
 #[cfg(feature = "ipc")]
 pub mod provider {
-    #![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
+	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
 	include!(concat!(env!("OUT_DIR"), "/provider.rs"));
 }
 
 #[cfg(feature = "ipc")]
 pub mod remote {
-    pub use provider::LightProviderClient;
+	pub use provider::LightProviderClient;
 }
 
 mod types;

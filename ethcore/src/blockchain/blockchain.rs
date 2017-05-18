@@ -445,7 +445,12 @@ impl<'a> Iterator for EpochTransitionIter<'a> {
 						let is_in_canon_chain = self.chain.block_hash(transition.block_number)
 							.map_or(false, |hash| hash == transition.block_hash);
 
-						if is_in_canon_chain {
+						// if the transition is within the block gap, there will only be
+						// one candidate, and it will be from a snapshot restored from.
+						let is_ancient = self.chain.first_block_number()
+							.map_or(false, |first| first > transition.block_number);
+
+						if is_ancient || is_in_canon_chain {
 							return Some((transitions.number, transition))
 						}
 					}
@@ -864,12 +869,23 @@ impl BlockChain {
 	}
 
 	/// Iterate over all epoch transitions.
+	/// This will only return transitions within the canonical chain.
 	pub fn epoch_transitions(&self) -> EpochTransitionIter {
 		let iter = self.db.iter_from_prefix(db::COL_EXTRA, &EPOCH_KEY_PREFIX[..]);
 		EpochTransitionIter {
 			chain: self,
 			prefix_iter: iter,
 		}
+	}
+
+	/// Get a specific epoch transition by epoch number and provided block hash.
+	pub fn epoch_transition(&self, epoch_num: u64, block_hash: H256) -> Option<EpochTransition> {
+		trace!(target: "blockchain", "Loading epoch {} transition at block {}",
+			epoch_num, block_hash);
+
+		self.db.read(db::COL_EXTRA, &epoch_num).and_then(|transitions: EpochTransitions| {
+			transitions.candidates.into_iter().find(|c| c.block_hash == block_hash)
+		})
 	}
 
 	/// Add a child to a given block. Assumes that the block hash is in

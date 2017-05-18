@@ -40,6 +40,9 @@ export default class TransactionPendingForm extends Component {
       }),
       PropTypes.shape({
         data: PropTypes.string.isRequired
+      }),
+      PropTypes.shape({
+        decrypt: PropTypes.string.isRequired
       })
     ]).isRequired
   };

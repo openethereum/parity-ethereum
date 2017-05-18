@@ -228,8 +228,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	}
 
 	// start on_demand service.
-	let account_start_nonce = service.client().engine().account_start_nonce();
-	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone(), account_start_nonce));
+	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
 
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
@@ -280,7 +279,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		secret_store: account_provider,
 		logger: logger,
 		settings: Arc::new(cmd.net_settings),
-		on_demand: on_demand,
+		on_demand: on_demand.clone(),
 		cache: cache,
 		transaction_queue: txq,
 		dapps_interface: match cmd.dapps_conf.enabled {
@@ -291,8 +290,9 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 			true => Some(cmd.http_conf.port),
 			false => None,
 		},
-		fetch: fetch,
+		fetch: fetch.clone(),
 		geth_compatibility: cmd.geth_compatibility,
+		remote: event_loop.remote(),
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -301,9 +301,29 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		stats: rpc_stats.clone(),
 	};
 
+	// the dapps server
+	let dapps_deps = {
+		let contract_client = Arc::new(::dapps::LightRegistrar {
+			client: service.client().clone(),
+			sync: light_sync.clone(),
+			on_demand: on_demand,
+		});
+
+		let sync = light_sync.clone();
+		dapps::Dependencies {
+			sync_status: Arc::new(move || sync.is_major_importing()),
+			contract_client: contract_client,
+			remote: event_loop.raw_remote(),
+			fetch: fetch,
+			signer: deps_for_rpc_apis.signer_service.clone(),
+		}
+	};
+
+	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps)?;
+
 	// start rpc servers
 	let _ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
-	let _http_server = rpc::new_http(cmd.http_conf.clone(), &dependencies, None)?;
+	let _http_server = rpc::new_http(cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
 	let _ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
 
 	// the signer server
@@ -314,8 +334,6 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	};
 	let signing_queue = deps_for_rpc_apis.signer_service.queue();
 	let _signer_server = signer::start(cmd.signer_conf.clone(), signing_queue, signer_deps)?;
-
-	// TODO: Dapps
 
 	// minimal informant thread. Just prints block number every 5 seconds.
 	// TODO: integrate with informant.rs
@@ -411,7 +429,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	);
 	info!("Operating mode: {}", Colour::White.bold().paint(format!("{}", mode)));
 
-	// display warning about using experimental journaldb alorithm
+	// display warning about using experimental journaldb algorithm
 	if !algorithm.is_stable() {
 		warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", Colour::Red.bold().paint("unstable"));
 	}

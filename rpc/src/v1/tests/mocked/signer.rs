@@ -21,6 +21,7 @@ use util::{U256, Uint, Address, ToPretty};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action, SignedTransaction};
+use parity_reactor::EventLoop;
 use rlp::encode;
 
 use serde_json;
@@ -28,7 +29,7 @@ use jsonrpc_core::IoHandler;
 use v1::{SignerClient, Signer, Origin};
 use v1::metadata::Metadata;
 use v1::tests::helpers::TestMinerService;
-use v1::types::H520;
+use v1::types::{Bytes as RpcBytes, H520};
 use v1::helpers::{SigningQueue, SignerService, FilledTransactionRequest, ConfirmationPayload};
 use v1::helpers::dispatch::{FullDispatcher, eth_data_hash};
 
@@ -40,6 +41,7 @@ struct SignerTester {
 	// these unused fields are necessary to keep the data alive
 	// as the handler has only weak pointers.
 	_client: Arc<TestBlockChainClient>,
+	_event_loop: EventLoop,
 }
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
@@ -61,10 +63,11 @@ fn signer_tester() -> SignerTester {
 	let opt_accounts = Some(accounts.clone());
 	let client = blockchain_client();
 	let miner = miner_service();
+	let event_loop = EventLoop::spawn();
 
 	let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
 	let mut io = IoHandler::default();
-	io.extend_with(SignerClient::new(&opt_accounts, dispatcher, &signer).to_delegate());
+	io.extend_with(SignerClient::new(&opt_accounts, dispatcher, &signer, event_loop.remote()).to_delegate());
 
 	SignerTester {
 		signer: signer,
@@ -72,6 +75,7 @@ fn signer_tester() -> SignerTester {
 		io: io,
 		miner: miner,
 		_client: client,
+		_event_loop: event_loop,
 	}
 }
 
@@ -479,7 +483,6 @@ fn should_confirm_sign_transaction_with_rlp() {
 	assert_eq!(tester.miner.imported_transactions.lock().len(), 0);
 }
 
-
 #[test]
 fn should_confirm_data_sign_with_signature() {
 	// given
@@ -503,6 +506,34 @@ fn should_confirm_data_sign_with_signature() {
 		"id":1
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &signature + r#"","id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
+	assert_eq!(tester.signer.requests().len(), 0);
+	assert_eq!(tester.miner.imported_transactions.lock().len(), 0);
+}
+
+#[test]
+fn should_confirm_decrypt_with_phrase() {
+	// given
+	let tester = signer_tester();
+	let address = tester.accounts.new_account("test").unwrap();
+	tester.signer.add_request(ConfirmationPayload::Decrypt(
+		address,
+		vec![1, 2, 3, 4].into(),
+	), Origin::Unknown).unwrap();
+	assert_eq!(tester.signer.requests().len(), 1);
+
+	let decrypted = serde_json::to_string(&RpcBytes::new(b"phrase".to_vec())).unwrap();
+
+	// when
+	let request = r#"{
+		"jsonrpc":"2.0",
+		"method":"signer_confirmRequestRaw",
+		"params":["0x1", "#.to_owned() + &decrypted + r#"],
+		"id":1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"#.to_owned() + &decrypted + r#","id":1}"#;
 
 	// then
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
