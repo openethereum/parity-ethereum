@@ -229,7 +229,7 @@ class CreateAccount extends Component {
               defaultMessage='Back'
             />
           }
-          onClick={ this.createStore.prevStage }
+          onClick={ this.store.prevStage }
         />
       );
 
