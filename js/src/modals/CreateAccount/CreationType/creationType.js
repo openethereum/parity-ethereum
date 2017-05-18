@@ -42,21 +42,6 @@ const TYPES = [
   {
     description: (
       <FormattedMessage
-        id='createAccount.creationType.fromPhrase.description'
-        defaultMessage='Recover using a previously stored recovery phrase and new password'
-      />
-    ),
-    label: (
-      <FormattedMessage
-        id='createAccount.creationType.fromPhrase.label'
-        defaultMessage='Recovery phrase'
-      />
-    ),
-    key: 'fromPhrase'
-  },
-  {
-    description: (
-      <FormattedMessage
         id='createAccount.creationType.fromGeth.description'
         defaultMessage='Import accounts from the Geth keystore with the original password'
       />

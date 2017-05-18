@@ -54,7 +54,11 @@ function createRedux () {
     dispatch: sinon.stub(),
     subscribe: sinon.stub(),
     getState: () => {
-      return {};
+      return {
+        nodeStatus: {
+          isTest: true
+        }
+      };
     }
   };
 }
