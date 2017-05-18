@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ethcore = { path = "../ethcore" }
 ethcore-util = { path = "../util" }
-jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "macros-trailing-1.7" }
+jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 rlp = { path = "../util/rlp" }
 mime = "0.2"
 cid = "0.2.1"

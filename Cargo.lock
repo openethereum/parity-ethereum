@@ -28,7 +28,7 @@ dependencies = [
  "fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "isatty 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "number_prefix 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -635,15 +635,15 @@ dependencies = [
  "ethcore-devtools 1.7.0",
  "ethcore-io 1.7.0",
  "ethcore-util 1.7.0",
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-dapps-glue 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-rpc 1.7.0",
  "parity-ui 1.7.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "ws 0.5.3 (git+https://github.com/paritytech/ws-rs.git?branch=macros-trailing-1.7)",
+ "ws 0.5.3 (git+https://github.com/paritytech/ws-rs.git?branch=parity-1.7)",
 ]
 
 [[package]]
@@ -658,9 +658,9 @@ dependencies = [
  "ethcore-logger 1.7.0",
  "ethcore-util 1.7.0",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-macros 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-tcp-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-macros 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-tcp-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1057,7 +1057,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "jsonrpc-core"
 version = "7.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7#c63cb5c2bf09f87f115236d2b4dd93f93985e1a6"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#900b528213ffd1aaaefd29e2b99dfab892b15ab4"
 dependencies = [
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1069,11 +1069,11 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "7.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7#c63cb5c2bf09f87f115236d2b4dd93f93985e1a6"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#900b528213ffd1aaaefd29e2b99dfab892b15ab4"
 dependencies = [
  "hyper 0.10.0-a.0 (git+https://github.com/paritytech/hyper)",
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1082,11 +1082,11 @@ dependencies = [
 [[package]]
 name = "jsonrpc-ipc-server"
 version = "7.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7#c63cb5c2bf09f87f115236d2b4dd93f93985e1a6"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#900b528213ffd1aaaefd29e2b99dfab892b15ab4"
 dependencies = [
  "bytes 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-tokio-ipc 0.1.5 (git+https://github.com/nikvolf/parity-tokio-ipc)",
  "tokio-service 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1095,20 +1095,20 @@ dependencies = [
 [[package]]
 name = "jsonrpc-macros"
 version = "7.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7#c63cb5c2bf09f87f115236d2b4dd93f93985e1a6"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#900b528213ffd1aaaefd29e2b99dfab892b15ab4"
 dependencies = [
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-pubsub 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-pubsub 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "serde 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "jsonrpc-minihttp-server"
 version = "7.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7#c63cb5c2bf09f87f115236d2b4dd93f93985e1a6"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#900b528213ffd1aaaefd29e2b99dfab892b15ab4"
 dependencies = [
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-minihttp 0.1.0 (git+https://github.com/tomusdrw/tokio-minihttp)",
@@ -1119,9 +1119,9 @@ dependencies = [
 [[package]]
 name = "jsonrpc-pubsub"
 version = "7.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7#c63cb5c2bf09f87f115236d2b4dd93f93985e1a6"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#900b528213ffd1aaaefd29e2b99dfab892b15ab4"
 dependencies = [
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1129,10 +1129,10 @@ dependencies = [
 [[package]]
 name = "jsonrpc-server-utils"
 version = "7.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7#c63cb5c2bf09f87f115236d2b4dd93f93985e1a6"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#900b528213ffd1aaaefd29e2b99dfab892b15ab4"
 dependencies = [
  "globset 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-core 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-io 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1141,11 +1141,11 @@ dependencies = [
 [[package]]
 name = "jsonrpc-tcp-server"
 version = "7.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7#c63cb5c2bf09f87f115236d2b4dd93f93985e1a6"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#900b528213ffd1aaaefd29e2b99dfab892b15ab4"
 dependencies = [
  "bytes 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1155,10 +1155,10 @@ dependencies = [
 [[package]]
 name = "jsonrpc-ws-server"
 version = "7.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7#c63cb5c2bf09f87f115236d2b4dd93f93985e1a6"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7#900b528213ffd1aaaefd29e2b99dfab892b15ab4"
 dependencies = [
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "ws 0.6.0 (git+https://github.com/tomusdrw/ws-rs)",
 ]
@@ -1612,8 +1612,8 @@ dependencies = [
  "ethcore-util 1.7.0",
  "fetch 0.1.0",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1670,7 +1670,7 @@ dependencies = [
  "cid 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.7.0",
  "ethcore-util 1.7.0",
- "jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "multihash 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
@@ -1720,13 +1720,13 @@ dependencies = [
  "ethsync 1.7.0",
  "fetch 0.1.0",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-ipc-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-macros 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-minihttp-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-pubsub 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
- "jsonrpc-ws-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-ipc-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-macros 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-minihttp-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-pubsub 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-ws-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "multihash 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "order-stat 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1754,7 +1754,7 @@ dependencies = [
  "ethcore-signer 1.7.0",
  "ethcore-util 1.7.0",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)",
+ "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-rpc 1.7.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1762,7 +1762,7 @@ dependencies = [
  "serde_json 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ws 0.5.3 (git+https://github.com/paritytech/ws-rs.git?branch=macros-trailing-1.7)",
+ "ws 0.5.3 (git+https://github.com/paritytech/ws-rs.git?branch=parity-1.7)",
 ]
 
 [[package]]
@@ -2742,7 +2742,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "ws"
 version = "0.5.3"
-source = "git+https://github.com/paritytech/ws-rs.git?branch=macros-trailing-1.7#30415c17f1bec53b2dcabae5b8b887df75dcbe34"
+source = "git+https://github.com/paritytech/ws-rs.git?branch=parity-1.7#30415c17f1bec53b2dcabae5b8b887df75dcbe34"
 dependencies = [
  "bytes 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2878,15 +2878,15 @@ dependencies = [
 "checksum isatty 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7408a548dc0e406b7912d9f84c261cc533c1866e047644a811c133c56041ac0c"
 "checksum itertools 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)" = "d95557e7ba6b71377b0f2c3b3ae96c53f1b75a926a6901a500f557a370af730a"
 "checksum itoa 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "91fd9dc2c587067de817fec4ad355e3818c3d893a78cab32a0a474c7a15bb8d5"
-"checksum jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)" = "<none>"
-"checksum jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)" = "<none>"
-"checksum jsonrpc-ipc-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)" = "<none>"
-"checksum jsonrpc-macros 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)" = "<none>"
-"checksum jsonrpc-minihttp-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)" = "<none>"
-"checksum jsonrpc-pubsub 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)" = "<none>"
-"checksum jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)" = "<none>"
-"checksum jsonrpc-tcp-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)" = "<none>"
-"checksum jsonrpc-ws-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=macros-trailing-1.7)" = "<none>"
+"checksum jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
+"checksum jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
+"checksum jsonrpc-ipc-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
+"checksum jsonrpc-macros 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
+"checksum jsonrpc-minihttp-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
+"checksum jsonrpc-pubsub 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
+"checksum jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
+"checksum jsonrpc-tcp-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
+"checksum jsonrpc-ws-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)" = "<none>"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 "checksum language-tags 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a91d884b6667cd606bb5a69aa0c99ba811a115fc68915e7056ec08a46e93199a"
 "checksum lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "49247ec2a285bb3dcb23cbd9c35193c025e7251bfce77c1d5da97e6362dffe7f"
@@ -3043,7 +3043,7 @@ dependencies = [
 "checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 "checksum winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
 "checksum winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
-"checksum ws 0.5.3 (git+https://github.com/paritytech/ws-rs.git?branch=macros-trailing-1.7)" = "<none>"
+"checksum ws 0.5.3 (git+https://github.com/paritytech/ws-rs.git?branch=parity-1.7)" = "<none>"
 "checksum ws 0.6.0 (git+https://github.com/tomusdrw/ws-rs)" = "<none>"
 "checksum ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
 "checksum xdg 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "77b831a5ba77110f438f0ac5583aafeb087f70432998ba6b7dcb1d32185db453"
