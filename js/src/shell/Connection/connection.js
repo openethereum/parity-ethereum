@@ -88,14 +88,15 @@ class Connection extends Component {
           <div>
             <FormattedMessage
               id='connection.noConnection'
-              defaultMessage='Unable to make a connection to the Parity Secure API. To update your secure token or to generate a new one, run {newToken} and paste the generated token into the space below.'
+              defaultMessage='Unable to make a connection to the Parity Secure API. To update your secure token or to generate a new one, run: {newToken} and paste the generated token into the space below.'
               values={ {
-                newToken: <span className={ styles.console }>parity signer new-token</span>
+                newToken: <div className={ styles.console }>parity signer new-token</div>
               } }
             />
           </div>
           <div className={ styles.form }>
             <Input
+              className={ styles.formInput }
               disabled={ loading }
               error={
                 validToken || (!token || !token.length)
@@ -110,13 +111,7 @@ class Connection extends Component {
               hint={
                 <FormattedMessage
                   id='connection.token.hint'
-                  defaultMessage='a generated token from Parity'
-                />
-              }
-              label={
-                <FormattedMessage
-                  id='connection.token.label'
-                  defaultMessage='secure token'
+                  defaultMessage='Insert the generated token here'
                 />
               }
               onChange={ this.onChangeToken }
