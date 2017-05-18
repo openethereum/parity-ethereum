@@ -1784,7 +1784,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/paritytech/js-precompiled.git#1ee6d83e2c212bd9333a2ec894e61274d6ddb8bd"
+source = "git+https://github.com/paritytech/js-precompiled.git#69ff5bc9fa4c64a0657308a64a45a95b3d984950"
 dependencies = [
  "parity-dapps-glue 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
