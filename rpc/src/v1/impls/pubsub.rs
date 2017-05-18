@@ -70,7 +70,7 @@ impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 
 		let mut poll_manager = self.poll_manager.write();
 		let (id, receiver) = poll_manager.subscribe(meta, method, params);
-		match subscriber.assign_id(SubscriptionId::Number(id as u64)) {
+		match subscriber.assign_id(id.clone()) {
 			Ok(sink) => {
 				self.remote.spawn(receiver.map(|res| match res {
 					Ok(val) => val,
@@ -83,18 +83,13 @@ impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 				})).map(|_| ()));
 			},
 			Err(_) => {
-				poll_manager.unsubscribe(id);
+				poll_manager.unsubscribe(&id);
 			},
 		}
 	}
 
 	fn parity_unsubscribe(&self, id: SubscriptionId) -> BoxFuture<bool, Error> {
-		let res = if let SubscriptionId::Number(id) = id {
-			self.poll_manager.write().unsubscribe(id as usize)
-		} else {
-			false
-		};
-
+		let res = self.poll_manager.write().unsubscribe(&id);
 		futures::future::ok(res).boxed()
 	}
 }
