@@ -44,7 +44,7 @@ describe('ui/TxList/store', () => {
         }
       }
     };
-    store = new Store(api);
+    store = new Store(api, null, []);
   });
 
   describe('create', () => {
@@ -53,16 +53,14 @@ describe('ui/TxList/store', () => {
       expect(store.sortedHashes.peek()).to.deep.equal([]);
       expect(store.transactions).to.deep.equal({});
     });
-
-    it('subscribes to eth_blockNumber', () => {
-      expect(api.subscribe).to.have.been.calledWith('eth_blockNumber');
-      expect(store._subscriptionId).to.equal(SUBID);
-    });
   });
 
   describe('addBlocks', () => {
     beforeEach(() => {
-      store.addBlocks(BLOCKS);
+      Object.keys(BLOCKS)
+        .forEach((blockNumber) => {
+          store.blocks[blockNumber] = BLOCKS[blockNumber];
+        });
     });
 
     it('adds the blocks to the list', () => {
@@ -72,7 +70,12 @@ describe('ui/TxList/store', () => {
 
   describe('addTransactions', () => {
     beforeEach(() => {
-      store.addTransactions(TRANSACTIONS);
+      Object.keys(TRANSACTIONS)
+        .forEach((hash) => {
+          store.transactions[hash] = TRANSACTIONS[hash];
+          store.addHash(hash);
+        });
+      store.sortHashes();
     });
 
     it('adds all transactions to the list', () => {
@@ -81,10 +84,6 @@ describe('ui/TxList/store', () => {
 
     it('sorts transactions based on blockNumber', () => {
       expect(store.sortedHashes.peek()).to.deep.equal(['0x234', '0x456', '0x345', '0x123']);
-    });
-
-    it('adds pending transactions to the pending queue', () => {
-      expect(store._pendingHashes).to.deep.equal(['0x234', '0x456']);
     });
   });
 });

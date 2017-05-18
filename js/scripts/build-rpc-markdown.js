@@ -37,7 +37,11 @@ Object.keys(rustMethods).forEach((group) => {
   });
 });
 
-function printType (type) {
+function printType (type, obj) {
+  if (!type) {
+    throw new Error(`Invalid type in ${JSON.stringify(obj)}`);
+  }
+
   return type.print || `\`${type.name}\``;
 }
 
@@ -45,7 +49,7 @@ function formatDescription (obj, prefix = '', indent = '') {
   const optional = obj.optional ? '(optional) ' : '';
   const defaults = obj.default ? `(default: \`${obj.default}\`) ` : '';
 
-  return `${indent}${prefix}${printType(obj.type)} - ${optional}${defaults}${obj.desc}`;
+  return `${indent}${prefix}${printType(obj.type, obj)} - ${optional}${defaults}${obj.desc}`;
 }
 
 function formatType (obj) {

@@ -93,6 +93,8 @@ usage! {
 		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
 		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
+		flag_no_persistent_txqueue: bool = false,
+			or |c: &Config| otry!(c.parity).no_persistent_txqueue,
 
 		// -- Account Options
 		flag_unlock: Option<String> = None,
@@ -370,6 +372,7 @@ struct Operating {
 	db_path: Option<String>,
 	keys_path: Option<String>,
 	identity: Option<String>,
+	no_persistent_txqueue: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -627,6 +630,7 @@ mod tests {
 			flag_db_path: Some("$HOME/.parity/chains".into()),
 			flag_keys_path: "$HOME/.parity/keys".into(),
 			flag_identity: "".into(),
+			flag_no_persistent_txqueue: false,
 
 			// -- Account Options
 			flag_unlock: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
@@ -828,6 +832,7 @@ mod tests {
 				db_path: None,
 				keys_path: None,
 				identity: None,
+				no_persistent_txqueue: None,
 			}),
 			account: Some(Account {
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),
