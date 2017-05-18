@@ -18,16 +18,21 @@
 
 use std::sync::{Arc, Weak};
 
-use rlp::UntrustedRlp;
 use ethcore::account_provider::AccountProvider;
 use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethkey;
 use futures::{future, BoxFuture, Future, IntoFuture};
+use parity_reactor::Remote;
+use rlp::UntrustedRlp;
+use util::Mutex;
 
-use jsonrpc_core::Error;
+use jsonrpc_core::{futures, Error};
+use jsonrpc_pubsub::SubscriptionId;
+use jsonrpc_macros::pubsub::{Sink, Subscriber};
 use v1::helpers::accounts::unwrap_provider;
 use v1::helpers::dispatch::{self, Dispatcher, WithToken, eth_data_hash};
-use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload, FilledTransactionRequest};
+use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload, FilledTransactionRequest, Subscribers};
+use v1::metadata::Metadata;
 use v1::traits::Signer;
 use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, U256, Bytes};
 
@@ -35,21 +40,40 @@ use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationRespon
 pub struct SignerClient<D: Dispatcher> {
 	signer: Weak<SignerService>,
 	accounts: Option<Weak<AccountProvider>>,
-	dispatcher: D
+	dispatcher: D,
+	subscribers: Arc<Mutex<Subscribers<Sink<Vec<ConfirmationRequest>>>>>,
 }
 
 impl<D: Dispatcher + 'static> SignerClient<D> {
-
 	/// Create new instance of signer client.
 	pub fn new(
 		store: &Option<Arc<AccountProvider>>,
 		dispatcher: D,
 		signer: &Arc<SignerService>,
+		remote: Remote,
 	) -> Self {
+		let subscribers = Arc::new(Mutex::new(Subscribers::default()));
+		let subs = Arc::downgrade(&subscribers);
+		let s = Arc::downgrade(signer);
+		signer.queue().on_event(move |_event| {
+			if let (Some(s), Some(subs)) = (s.upgrade(), subs.upgrade()) {
+				let requests = s.requests().into_iter().map(Into::into).collect::<Vec<ConfirmationRequest>>();
+				for subscription in subs.lock().values() {
+					let subscription: &Sink<_> = subscription;
+					remote.spawn(subscription
+						.notify(requests.clone())
+						.map(|_| ())
+						.map_err(|e| warn!(target: "rpc", "Unable to send notification: {}", e))
+					);
+				}
+			}
+		});
+
 		SignerClient {
 			signer: Arc::downgrade(signer),
 			accounts: store.as_ref().map(Arc::downgrade),
 			dispatcher: dispatcher,
+			subscribers: subscribers,
 		}
 	}
 
@@ -139,10 +163,10 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 }
 
 impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
+	type Metadata = Metadata;
 
 	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>, Error> {
 		let signer = take_weak!(self.signer);
-
 		Ok(signer.requests()
 			.into_iter()
 			.map(Into::into)
@@ -214,23 +238,26 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	}
 
 	fn reject_request(&self, id: U256) -> Result<bool, Error> {
-		let signer = take_weak!(self.signer);
-
-		let res = signer.request_rejected(id.into());
+		let res = take_weak!(self.signer).request_rejected(id.into());
 		Ok(res.is_some())
 	}
 
 	fn generate_token(&self) -> Result<String, Error> {
-		let signer = take_weak!(self.signer);
-
-		signer.generate_token()
+		take_weak!(self.signer).generate_token()
 			.map_err(|e| errors::token(e))
 	}
 
 	fn generate_web_proxy_token(&self) -> Result<String, Error> {
-		let signer = take_weak!(self.signer);
+		Ok(take_weak!(self.signer).generate_web_proxy_access_token())
+	}
 
-		Ok(signer.generate_web_proxy_access_token())
+	fn subscribe_pending(&self, _meta: Self::Metadata, sub: Subscriber<Vec<ConfirmationRequest>>) {
+		self.subscribers.lock().push(sub)
+	}
+
+	fn unsubscribe_pending(&self, id: SubscriptionId) -> BoxFuture<bool, Error> {
+		let res = self.subscribers.lock().remove(&id).is_some();
+		futures::future::ok(res).boxed()
 	}
 }
 

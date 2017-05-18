@@ -127,7 +127,7 @@ impl ServerBuilder {
 /// `WebSockets` server implementation.
 pub struct Server {
 	handle: Option<thread::JoinHandle<()>>,
-	broadcaster_handle: Option<thread::JoinHandle<()>>,
+	broadcaster: ws::Sender,
 	queue: Arc<ConfirmationsQueue>,
 	panic_handler: Arc<PanicHandler>,
 	addr: SocketAddr,
@@ -188,27 +188,10 @@ impl Server {
 			}).unwrap();
 		});
 
-		// Spawn a thread for broadcasting
-		let ph = panic_handler.clone();
-		let q = queue.clone();
-		let broadcaster_handle = thread::spawn(move || {
-			ph.catch_panic(move || {
-				q.start_listening(|_message| {
-					// TODO [ToDr] Some better structure here for messages.
-					broadcaster.send("new_message").unwrap();
-				}).expect("It's the only place we are running start_listening. It shouldn't fail.");
-				let res = broadcaster.shutdown();
-
-				if let Err(e) = res {
-					warn!("Signer: Broadcaster was not closed cleanly. Details: {:?}", e);
-				}
-			}).unwrap()
-		});
-
 		// Return a handle
 		Ok(Server {
 			handle: Some(handle),
-			broadcaster_handle: Some(broadcaster_handle),
+			broadcaster: broadcaster,
 			queue: queue,
 			panic_handler: panic_handler,
 			addr: addr,
@@ -225,7 +208,7 @@ impl MayPanic for Server {
 impl Drop for Server {
 	fn drop(&mut self) {
 		self.queue.finish();
-		self.broadcaster_handle.take().unwrap().join().unwrap();
+		self.broadcaster.shutdown().unwrap();
 		self.handle.take().unwrap().join().unwrap();
 	}
 }
