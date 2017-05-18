@@ -33,7 +33,7 @@ use util::{Bytes, Hashable, HashDB, DBValue, snappy, U256, Uint};
 use util::Mutex;
 use util::hash::{H256};
 use util::journaldb::{self, Algorithm, JournalDB};
-use util::kvdb::Database;
+use util::kvdb::KeyValueDB;
 use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 use util::sha3::SHA3_NULL_RLP;
 use rlp::{RlpStream, UntrustedRlp};
@@ -82,6 +82,11 @@ mod traits {
 
 // Try to have chunks be around 4MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;
+
+// Minimum supported state chunk version.
+const MIN_SUPPORTED_STATE_CHUNK_VERSION: u64 = 1;
+// current state chunk version.
+const STATE_CHUNK_VERSION: u64 = 2;
 
 /// A progress indicator for snapshots.
 #[derive(Debug, Default)]
@@ -135,6 +140,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 
 	let writer = Mutex::new(writer);
 	let chunker = engine.snapshot_components().ok_or(Error::SnapshotsUnsupported)?;
+	let snapshot_version = chunker.current_version();
 	let (state_hashes, block_hashes) = scope(|scope| {
 		let writer = &writer;
 		let block_guard = scope.spawn(move || chunk_secondary(chunker, chain, block_at, writer, p));
@@ -148,7 +154,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	info!("produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
 	let manifest_data = ManifestData {
-		version: 2,
+		version: snapshot_version,
 		state_hashes: state_hashes,
 		block_hashes: block_hashes,
 		state_root: *state_root,
@@ -309,7 +315,7 @@ pub struct StateRebuilder {
 
 impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
-	pub fn new(db: Arc<Database>, pruning: Algorithm) -> Self {
+	pub fn new(db: Arc<KeyValueDB>, pruning: Algorithm) -> Self {
 		StateRebuilder {
 			db: journaldb::new(db.clone(), pruning, ::db::COL_STATE),
 			state_root: SHA3_NULL_RLP,
@@ -384,7 +390,7 @@ impl StateRebuilder {
 	/// Finalize the restoration. Check for accounts missing code and make a dummy
 	/// journal entry.
 	/// Once all chunks have been fed, there should be nothing missing.
-	pub fn finalize(mut self, era: u64, id: H256) -> Result<(), ::error::Error> {
+	pub fn finalize(mut self, era: u64, id: H256) -> Result<Box<JournalDB>, ::error::Error> {
 		let missing = self.missing_code.keys().cloned().collect::<Vec<_>>();
 		if !missing.is_empty() { return Err(Error::MissingCode(missing).into()) }
 
@@ -392,7 +398,7 @@ impl StateRebuilder {
 		self.db.journal_under(&mut batch, era, &id)?;
 		self.db.backing().write_buffered(batch);
 
-		Ok(())
+		Ok(self.db)
 	}
 
 	/// Get the state root of the rebuilder.
