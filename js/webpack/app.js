@@ -25,6 +25,8 @@ const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const ServiceWorkerWebpackPlugin = require('serviceworker-webpack-plugin');
 const ScriptExtHtmlWebpackPlugin = require('script-ext-html-webpack-plugin');
 
+const rulesEs6 = require('./rules/es6');
+const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 const DAPPS = require('../src/views/Dapps/builtin.json');
 
@@ -60,15 +62,12 @@ module.exports = {
 
   module: {
     rules: [
+      rulesParity,
+      rulesEs6,
       {
         test: /\.js$/,
         exclude: /(node_modules)/,
         use: [ 'happypack/loader?id=babel-js' ]
-      },
-      {
-        test: /\.js$/,
-        include: /node_modules\/(material-chip-input|ethereumjs-tx|@parity\/wordlist)/,
-        use: 'babel-loader'
       },
       {
         test: /\.json$/,
