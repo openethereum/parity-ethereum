@@ -3,15 +3,15 @@ use serde::{Deserialize, Deserializer};
 use serde::de::{Error as SerdeError, Visitor};
 use super::{ParamType, Reader};
 
-impl Deserialize for ParamType {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
-		deserializer.deserialize(ParamTypeVisitor)
+impl<'a> Deserialize<'a> for ParamType {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'a> {
+		deserializer.deserialize_identifier(ParamTypeVisitor)
 	}
 }
 
 struct ParamTypeVisitor;
 
-impl Visitor for ParamTypeVisitor {
+impl<'a> Visitor<'a> for ParamTypeVisitor {
 	type Value = ParamType;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
