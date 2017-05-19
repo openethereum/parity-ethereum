@@ -32,6 +32,8 @@ pub enum Message {
 	Generation(GenerationMessage),
 	/// Encryption message.
 	Encryption(EncryptionMessage),
+	/// Consensus message.
+	Consensus(ConsensusMessage),
 	/// Decryption message.
 	Decryption(DecryptionMessage),
 	/// Signing message.
@@ -82,6 +84,15 @@ pub enum EncryptionMessage {
 }
 
 #[derive(Clone, Debug)]
+/// All possible messages that can be sent during consensus establishing.
+pub enum ConsensusMessage {
+	/// Initialize consensus session.
+	InitializeConsensusSession(InitializeConsensusSession),
+	/// Confirm/reject consensus session initialization.
+	ConfirmConsensusInitialization(ConfirmConsensusInitialization),
+}
+
+#[derive(Clone, Debug)]
 /// All possible messages that can be sent during decryption session.
 pub enum DecryptionMessage {
 	/// Initialize decryption session.
@@ -101,7 +112,7 @@ pub enum DecryptionMessage {
 #[derive(Clone, Debug)]
 /// All possible messages that can be sent during signing session.
 pub enum SigningMessage {
-	/*/// Initialize signing session.
+/*	/// Initialize signing session.
 	InitializeSigningSession(InitializeSigningSession),
 	/// Confirm/reject signing session initialization.
 	ConfirmSigningInitialization(ConfirmSigningInitialization),
@@ -249,6 +260,20 @@ pub struct EncryptionSessionError {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+/// Node is asked to be part of consensus group.
+pub struct InitializeConsensusSession {
+	/// Requestor signature.
+	pub requestor_signature: SerializableSignature,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Node is responding to consensus initialization request.
+pub struct ConfirmConsensusInitialization {
+	/// Is node confirmed consensus participation.
+	pub is_confirmed: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Node is requested to decrypt data, encrypted in given session.
 pub struct InitializeDecryptionSession {
 	/// Encryption session Id.
@@ -381,6 +406,7 @@ impl fmt::Display for Message {
 			Message::Cluster(ref message) => write!(f, "Cluster.{}", message),
 			Message::Generation(ref message) => write!(f, "Generation.{}", message),
 			Message::Encryption(ref message) => write!(f, "Encryption.{}", message),
+			Message::Consensus(ref message) => write!(f, "Consensus.{}", message),
 			Message::Decryption(ref message) => write!(f, "Decryption.{}", message),
 			Message::Signing(ref message) => write!(f, "Signing.{}", message),
 		}
@@ -418,6 +444,15 @@ impl fmt::Display for EncryptionMessage {
 			EncryptionMessage::InitializeEncryptionSession(_) => write!(f, "InitializeEncryptionSession"),
 			EncryptionMessage::ConfirmEncryptionInitialization(_) => write!(f, "ConfirmEncryptionInitialization"),
 			EncryptionMessage::EncryptionSessionError(ref msg) => write!(f, "EncryptionSessionError({})", msg.error),
+		}
+	}
+}
+
+impl fmt::Display for ConsensusMessage {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			ConsensusMessage::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
+			ConsensusMessage::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
 		}
 	}
 }

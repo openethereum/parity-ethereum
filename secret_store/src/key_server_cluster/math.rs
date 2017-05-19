@@ -352,18 +352,6 @@ pub fn compute_signature<'a, I>(self_share: &'a Secret, other_shares: I) -> Resu
 #[cfg(test)]
 /// Locally compute Schnorr signature as described in https://en.wikipedia.org/wiki/Schnorr_signature#Signing.
 pub fn local_compute_signature(nonce: &Secret, secret: &Secret, message_hash: &Secret) -> Result<(Secret, Secret), Error> {
-/*
-					let mut R = math::generation_point();
-					math::public_mul_secret(&mut R, &k).unwrap();
-println!("schnorr_R = {:?}", R);
-					let h = combine_message_hash_with_public(&m, &R).unwrap();
-					let mut s_right = h.clone();
-					s_right.mul(&s).unwrap();
-					let mut s = k.clone();
-					s.sub(&s_right).unwrap();
-					(h, s)
-*/
-
 	let mut nonce_public = math::generation_point();
 	math::public_mul_secret(&mut nonce_public, &nonce).unwrap();
 
