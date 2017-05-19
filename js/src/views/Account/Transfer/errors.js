@@ -15,14 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 const ERRORS = {
-  requireSender: 'a valid sender is required for the transaction',
-  requireRecipient: 'a recipient network address is required for the transaction',
-  invalidAddress: 'the supplied address is an invalid network address',
-  invalidAmount: 'the supplied amount should be a valid positive number',
-  invalidDecimals: 'the supplied amount exceeds the allowed decimals',
-  largeAmount: 'the transaction total is higher than the available balance',
-  gasException: 'the transaction will throw an exception with the current values',
-  gasBlockLimit: 'the transaction execution will exceed the block gas limit'
+  requireSender: 'A valid sender is required for the transaction',
+  requireRecipient: 'A recipient network address is required for the transaction',
+  invalidAddress: 'The supplied address is an invalid network address',
+  invalidAmount: 'The supplied amount should be a valid positive number',
+  invalidDecimals: 'The supplied amount exceeds the allowed decimals',
+  largeAmount: 'The transaction total is higher than the available balance',
+  gasException: 'The transaction will throw an exception with the current values',
+  gasBlockLimit: 'The transaction execution will exceed the block gas limit'
 };
 
 export default ERRORS;

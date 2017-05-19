@@ -82,6 +82,11 @@ $borderColor: rgba(242, 242, 242, 1);
   background: $backgroundLight !important;
 }
 
+.cardContainer {
+  width: 100%;
+  height: 100%;
+}
+
 .link {
   width: 100%;
   height: 100%;

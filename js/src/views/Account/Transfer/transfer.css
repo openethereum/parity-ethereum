@@ -139,8 +139,20 @@
   font-size: 0.75em;
 }
 
-.inputoverride {
-  padding-top: 24px !important;
+.inputContainer {
+  padding-top: 10px;
+}
+
+.totalAmount {
+  padding-top: 6px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.totalTx {
+  padding-top: 10px;
 }
 
 .contentTitle {

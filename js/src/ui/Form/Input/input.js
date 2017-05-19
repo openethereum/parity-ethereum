@@ -114,11 +114,11 @@ export default class Input extends Component {
 
     return (
       <LabelWrapper
-        className={ styles.container }
+        className={ `${styles.container} ${className}` }
         label={ label }
       >
         <SemanticInput
-          className={ `${styles.input} ${className}` }
+          className={ styles.input }
           disabled={ disabled }
           error={ !!error }
           fluid

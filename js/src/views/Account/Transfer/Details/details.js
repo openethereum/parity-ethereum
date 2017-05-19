@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { nullableProptype } from '@parity/shared/util/proptypes';
-import Form, { AddressSelect, Checkbox, Input, InputAddressSelect } from '@parity/ui/Form';
+import Form, { AddressSelect, Checkbox, Input, InputAddressSelect, Label } from '@parity/ui/Form';
 
 import TokenSelect from './tokenSelect';
 import styles from '../transfer.css';
@@ -59,12 +59,18 @@ export default class Details extends Component {
     const label = (
       <FormattedMessage
         id='transfer.details.amount.label'
-        defaultMessage='amount to transfer (in {tag})'
+        defaultMessage='Amount to transfer (in {tag})'
         values={ {
           tag: token.tag
         } }
       />
     );
+
+    let totalAmountStyle = { color: 'rgba(0,0,0,.87)' };
+
+    if (totalError) {
+      totalAmountStyle = { color: '#9F3A38' };
+    }
 
     return (
       <Form>
@@ -74,12 +80,13 @@ export default class Details extends Component {
         <div className={ styles.columns }>
           <div>
             <Input
+              className={ styles.inputContainer }
               disabled={ all }
               label={ label }
               hint={
                 <FormattedMessage
                   id='transfer.details.amount.hint'
-                  defaultMessage='the amount to transfer to the recipient'
+                  defaultMessage='The amount to transfer to the recipient'
                 />
               }
               value={ value }
@@ -93,7 +100,7 @@ export default class Details extends Component {
               label={
                 <FormattedMessage
                   id='transfer.details.fullBalance.label'
-                  defaultMessage='full account balance'
+                  defaultMessage='Full account balance'
                 />
               }
               onClick={ this.onCheckAll }
@@ -102,21 +109,17 @@ export default class Details extends Component {
           </div>
         </div>
         <div className={ styles.columns }>
-          <div>
-            <Input
-              disabled
-              label={
-                <FormattedMessage
-                  id='transfer.details.total.label'
-                  defaultMessage='total transaction amount'
-                />
-              }
-              error={ totalError }
-            >
-              <div className={ styles.inputoverride }>
-                { total }<small> ETH</small>
-              </div>
-            </Input>
+          <div className={ styles.totalTx }>
+            <Label className={ styles.transferLabel }>
+              <FormattedMessage
+                id='transfer.details.total.label'
+                defaultMessage='Total transaction amount'
+              />
+            </Label>
+            <div className={ styles.totalAmount } style={ totalAmountStyle }>
+              <div>{ total }<small> ETH</small></div>
+              <div>{ totalError }</div>
+            </div>
           </div>
 
           <div>
@@ -125,7 +128,7 @@ export default class Details extends Component {
               label={
                 <FormattedMessage
                   id='transfer.details.advanced.label'
-                  defaultMessage='advanced sending options'
+                  defaultMessage='Advanced sending options'
                 />
               }
               onClick={ this.onCheckExtras }
@@ -152,13 +155,13 @@ export default class Details extends Component {
           label={
             <FormattedMessage
               id='transfer.details.sender.label'
-              defaultMessage='sender address'
+              defaultMessage='Sender address'
             />
           }
           hint={
             <FormattedMessage
               id='transfer.details.sender.hint'
-              defaultMessage='the sender address'
+              defaultMessage='The sender address'
             />
           }
           value={ sender }
@@ -174,16 +177,17 @@ export default class Details extends Component {
     return (
       <div className={ styles.address }>
         <InputAddressSelect
+          className={ styles.inputContainer }
           label={
             <FormattedMessage
               id='transfer.details.recipient.label'
-              defaultMessage='recipient address'
+              defaultMessage='Recipient address'
             />
           }
           hint={
             <FormattedMessage
               id='transfer.details.recipient.hint'
-              defaultMessage='the recipient address'
+              defaultMessage='The recipient address'
             />
           }
           error={ recipientError }
