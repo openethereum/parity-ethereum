@@ -50,6 +50,8 @@ use futures::{{future, Future, IntoFuture, BoxFuture}};
 use ethabi::{{Contract, Interface, Token, Event}};
 use util::{{self, Uint}};
 
+/// Generated Rust bindings to an Ethereum contract.
+#[derive(Clone, Debug)]
 pub struct {name} {{
 	contract: Contract,
 	/// Address to make calls to.
@@ -101,6 +103,7 @@ fn generate_functions(contract: &Contract) -> Result<String, Error> {
 
 		functions.push_str(&format!(r##"
 /// Call the function "{abi_name}" on the contract.
+///
 /// Inputs: {abi_inputs:?}
 /// Outputs: {abi_outputs:?}
 pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, String>
@@ -121,7 +124,7 @@ pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, 
 	call_future
 		.into_future()
 		.and_then(move |out| function.decode_output(out).map_err(|e| format!("{{:?}}", e)))
-		.map(::std::collections::VecDeque::from)
+		.map(Vec::into_iter)
 		.and_then(|mut outputs| {decode_outputs})
 		.boxed()
 }}
@@ -174,7 +177,7 @@ fn input_params_codegen(inputs: &[ParamType]) -> Result<(String, String), ParamT
 // as a tuple, and the second gives code to get that tuple from a deque of tokens.
 //
 // produce output type of the form (type_1, type_2, ...) without trailing comma.
-// produce code for getting this output type from `outputs: VecDeque<Token>`, where
+// produce code for getting this output type from `outputs: Vec<Token>::IntoIter`, where
 // an `Err(String)` can be returned.
 //
 // returns any unsupported param type encountered.
@@ -190,7 +193,7 @@ fn output_params_codegen(outputs: &[ParamType]) -> Result<(String, String), Para
 		decode_outputs.push_str(&format!(
 			r#"
 				outputs
-					.pop_front()
+					.next()
 					.and_then(|output| {{ {} }})
 					.ok_or_else(|| "Wrong output type".to_string())?
 			"#,

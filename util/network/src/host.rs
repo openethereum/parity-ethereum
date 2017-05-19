@@ -1242,7 +1242,7 @@ fn load_key(path: &Path) -> Option<Secret> {
 fn key_save_load() {
 	use ::devtools::RandomTempPath;
 	let temp_path = RandomTempPath::create_dir();
-	let key = Secret::from_slice(&H256::random()).unwrap();
+	let key = H256::random().into();
 	save_key(temp_path.as_path(), &key);
 	let r = load_key(temp_path.as_path());
 	assert_eq!(key, r.unwrap());

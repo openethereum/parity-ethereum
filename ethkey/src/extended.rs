@@ -99,8 +99,7 @@ impl ExtendedSecret {
 	pub fn derive<T>(&self, index: Derivation<T>) -> ExtendedSecret where T: Label {
 		let (derived_key, next_chain_code) = derivation::private(*self.secret, self.chain_code, index);
 
-		let derived_secret = Secret::from_slice(&*derived_key)
-			.expect("Derivation always produced a valid private key; qed");
+		let derived_secret = Secret::from_slice(&*derived_key);
 
 		ExtendedSecret::with_code(derived_secret, next_chain_code)
 	}
@@ -181,7 +180,7 @@ impl ExtendedKeyPair {
 	pub fn with_seed(seed: &[u8]) -> Result<ExtendedKeyPair, DerivationError> {
 		let (master_key, chain_code) = derivation::seed_pair(seed);
 		Ok(ExtendedKeyPair::with_secret(
-			Secret::from_slice(&*master_key).map_err(|_| DerivationError::InvalidSeed)?,
+			Secret::from_unsafe_slice(&*master_key).map_err(|_| DerivationError::InvalidSeed)?,
 			chain_code,
 		))
 	}
@@ -402,7 +401,7 @@ mod tests {
 
 	fn test_extended<F>(f: F, test_private: H256) where F: Fn(ExtendedSecret) -> ExtendedSecret {
 		let (private_seed, chain_code) = master_chain_basic();
-		let extended_secret = ExtendedSecret::with_code(Secret::from_slice(&*private_seed).unwrap(), chain_code);
+		let extended_secret = ExtendedSecret::with_code(Secret::from_slice(&*private_seed), chain_code);
 		let derived = f(extended_secret);
 		assert_eq!(**derived.as_raw(), test_private);
 	}

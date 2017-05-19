@@ -63,8 +63,14 @@ const TITLES = {
   ),
   import: (
     <FormattedMessage
-      id='createAccount.title.importWallet'
-      defaultMessage='import wallet'
+      id='createAccount.title.importAccount'
+      defaultMessage='import account'
+    />
+  ),
+  restore: (
+    <FormattedMessage
+      id='createAccount.title.restoreAccount'
+      defaultMessage='restore account'
     />
   ),
   qr: (
@@ -76,25 +82,37 @@ const TITLES = {
 };
 const STAGE_NAMES = [TITLES.type, TITLES.create, TITLES.info];
 const STAGE_IMPORT = [TITLES.type, TITLES.import, TITLES.info];
+const STAGE_RESTORE = [TITLES.restore, TITLES.info];
 const STAGE_QR = [TITLES.type, TITLES.qr, TITLES.info];
 
 @observer
 class CreateAccount extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
+    isTest: PropTypes.bool.isRequired,
     newError: PropTypes.func.isRequired,
     onClose: PropTypes.func,
-    onUpdate: PropTypes.func
-  }
+    onUpdate: PropTypes.func,
+    restore: PropTypes.bool
+  };
 
-  createStore = new Store(this.context.api, this.props.accounts);
+  static defaultProps = {
+    restore: false
+  };
+
+  createStore = new Store(this.context.api, this.props.accounts, this.props.isTest);
   vaultStore = VaultStore.get(this.context.api);
 
   componentWillMount () {
+    if (this.props.restore) {
+      this.createStore.setCreateType('fromPhrase');
+      this.createStore.nextStage();
+    }
+
     return this.vaultStore.loadVaults();
   }
 
@@ -107,6 +125,8 @@ class CreateAccount extends Component {
       steps = STAGE_NAMES;
     } else if (createType === 'fromQr') {
       steps = STAGE_QR;
+    } else if (createType === 'fromPhrase') {
+      steps = STAGE_RESTORE;
     }
 
     return (
@@ -199,6 +219,7 @@ class CreateAccount extends Component {
   }
 
   renderDialogActions () {
+    const { restore } = this.props;
     const { createType, canCreate, isBusy, stage } = this.createStore;
 
     const cancelBtn = (
@@ -214,6 +235,22 @@ class CreateAccount extends Component {
         onClick={ this.onClose }
       />
     );
+
+    const backBtn = restore
+      ? null
+      : (
+        <Button
+          icon={ <PrevIcon /> }
+          key='back'
+          label={
+            <FormattedMessage
+              id='createAccount.button.back'
+              defaultMessage='Back'
+            />
+          }
+          onClick={ this.createStore.prevStage }
+        />
+      );
 
     switch (stage) {
       case STAGE_SELECT_TYPE:
@@ -235,17 +272,7 @@ class CreateAccount extends Component {
       case STAGE_CREATE:
         return [
           cancelBtn,
-          <Button
-            icon={ <PrevIcon /> }
-            key='back'
-            label={
-              <FormattedMessage
-                id='createAccount.button.back'
-                defaultMessage='Back'
-              />
-            }
-            onClick={ this.createStore.prevStage }
-          />,
+          backBtn,
           <Button
             disabled={ !canCreate || isBusy }
             icon={ <CheckIcon /> }
@@ -335,6 +362,12 @@ class CreateAccount extends Component {
   }
 }
 
+function mapStateToProps (state) {
+  const { isTest } = state.nodeStatus;
+
+  return { isTest };
+}
+
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
     newError
@@ -342,6 +375,6 @@ function mapDispatchToProps (dispatch) {
 }
 
 export default connect(
-  null,
+  mapStateToProps,
   mapDispatchToProps
 )(CreateAccount);

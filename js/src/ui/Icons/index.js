@@ -56,6 +56,7 @@ export PrintIcon from 'material-ui/svg-icons/action/print';
 export RefreshIcon from 'material-ui/svg-icons/action/autorenew';
 export ReorderIcon from 'material-ui/svg-icons/action/reorder';
 export ReplayIcon from 'material-ui/svg-icons/av/replay';
+export RestoreIcon from 'material-ui/svg-icons/action/restore';
 export SaveIcon from 'material-ui/svg-icons/content/save';
 export SearchIcon from 'material-ui/svg-icons/action/search';
 export SendIcon from 'material-ui/svg-icons/content/send';

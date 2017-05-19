@@ -60,7 +60,7 @@ fn should_return_503_when_syncing_but_should_make_the_calls() {
 
 	// then
 	response.assert_status("HTTP/1.1 503 Service Unavailable");
-	assert_eq!(registrar.calls.lock().len(), 4);
+	assert_eq!(registrar.calls.lock().len(), 2);
 	assert_security_headers_for_embed(&response.headers);
 }
 

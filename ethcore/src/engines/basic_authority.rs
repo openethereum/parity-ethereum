@@ -229,7 +229,6 @@ mod tests {
 	use error::{BlockError, Error};
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
-	use ethkey::Secret;
 	use header::Header;
 	use spec::Spec;
 	use engines::Seal;
@@ -281,7 +280,7 @@ mod tests {
 	#[test]
 	fn can_generate_seal() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account(Secret::from_slice(&"".sha3()).unwrap(), "").unwrap();
+		let addr = tap.insert_account("".sha3().into(), "").unwrap();
 
 		let spec = new_test_authority();
 		let engine = &*spec.engine;
@@ -299,7 +298,7 @@ mod tests {
 	#[test]
 	fn seals_internally() {
 		let tap = AccountProvider::transient_provider();
-		let authority = tap.insert_account(Secret::from_slice(&"".sha3()).unwrap(), "").unwrap();
+		let authority = tap.insert_account("".sha3().into(), "").unwrap();
 
 		let engine = new_test_authority().engine;
 		assert!(!engine.seals_internally().unwrap());

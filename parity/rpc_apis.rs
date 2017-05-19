@@ -258,7 +258,7 @@ impl FullDependencies {
 					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
 				},
 				Api::Signer => {
-					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service).to_delegate());
+					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service, self.remote.clone()).to_delegate());
 				},
 				Api::Parity => {
 					let signer = match self.signer_service.is_enabled() {
@@ -352,6 +352,7 @@ pub struct LightDependencies {
 	pub dapps_port: Option<u16>,
 	pub fetch: FetchClient,
 	pub geth_compatibility: bool,
+	pub remote: parity_reactor::Remote,
 }
 
 impl Dependencies for LightDependencies {
@@ -415,7 +416,7 @@ impl Dependencies for LightDependencies {
 				},
 				Api::Signer => {
 					let secret_store = Some(self.secret_store.clone());
-					handler.extend_with(SignerClient::new(&secret_store, dispatcher.clone(), &self.signer_service).to_delegate());
+					handler.extend_with(SignerClient::new(&secret_store, dispatcher.clone(), &self.signer_service, self.remote.clone()).to_delegate());
 				},
 				Api::Parity => {
 					let signer = match self.signer_service.is_enabled() {

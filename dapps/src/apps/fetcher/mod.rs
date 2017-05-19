@@ -95,6 +95,16 @@ impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 	fn set_status(&self, content_id: &str, status: ContentStatus) {
 		self.cache.lock().insert(content_id.to_owned(), status);
 	}
+
+	// resolve contract call synchronously.
+	// TODO: port to futures-based hyper and make it all async.
+	fn resolve(&self, content_id: Vec<u8>) -> Option<URLHintResult> {
+		use futures::Future;
+
+		self.resolver.resolve(content_id)
+			.wait()
+			.unwrap_or_else(|e| { warn!("Error resolving content-id: {}", e); None })
+	}
 }
 
 impl<R: URLHint + 'static, F: Fetch> Fetcher for ContentFetcher<F, R> {
@@ -108,10 +118,8 @@ impl<R: URLHint + 'static, F: Fetch> Fetcher for ContentFetcher<F, R> {
 		}
 		// fallback to resolver
 		if let Ok(content_id) = content_id.from_hex() {
-			// else try to resolve the app_id
-			let has_content = self.resolver.resolve(content_id).is_some();
 			// if there is content or we are syncing return true
-			has_content || self.sync.is_major_importing()
+			self.sync.is_major_importing() || self.resolve(content_id).is_some()
 		} else {
 			false
 		}
@@ -137,7 +145,7 @@ impl<R: URLHint + 'static, F: Fetch> Fetcher for ContentFetcher<F, R> {
 				_ => {
 					trace!(target: "dapps", "Content unavailable. Fetching... {:?}", content_id);
 					let content_hex = content_id.from_hex().expect("to_handler is called only when `contains` returns true.");
-					let content = self.resolver.resolve(content_hex);
+					let content = self.resolve(content_hex);
 
 					let cache = self.cache.clone();
 					let id = content_id.clone();
@@ -225,6 +233,7 @@ mod tests {
 	use std::sync::Arc;
 	use util::Bytes;
 	use fetch::{Fetch, Client};
+	use futures::{future, Future, BoxFuture};
 	use hash_fetch::urlhint::{URLHint, URLHintResult};
 	use parity_reactor::Remote;
 
@@ -236,8 +245,8 @@ mod tests {
 	#[derive(Clone)]
 	struct FakeResolver;
 	impl URLHint for FakeResolver {
-		fn resolve(&self, _id: Bytes) -> Option<URLHintResult> {
-			None
+		fn resolve(&self, _id: Bytes) -> BoxFuture<Option<URLHintResult>, String> {
+			future::ok(None).boxed()
 		}
 	}
 

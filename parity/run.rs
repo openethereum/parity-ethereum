@@ -30,6 +30,7 @@ use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::snapshot;
 use ethcore::verification::queue::VerifierSettings;
+use ethcore::ethstore::ethkey;
 use light::Cache as LightDataCache;
 use ethsync::SyncConfig;
 use informant::Informant;
@@ -279,7 +280,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		secret_store: account_provider,
 		logger: logger,
 		settings: Arc::new(cmd.net_settings),
-		on_demand: on_demand,
+		on_demand: on_demand.clone(),
 		cache: cache,
 		transaction_queue: txq,
 		dapps_interface: match cmd.dapps_conf.enabled {
@@ -290,8 +291,9 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 			true => Some(cmd.http_conf.port),
 			false => None,
 		},
-		fetch: fetch,
+		fetch: fetch.clone(),
 		geth_compatibility: cmd.geth_compatibility,
+		remote: event_loop.remote(),
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -300,9 +302,29 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		stats: rpc_stats.clone(),
 	};
 
+	// the dapps server
+	let dapps_deps = {
+		let contract_client = Arc::new(::dapps::LightRegistrar {
+			client: service.client().clone(),
+			sync: light_sync.clone(),
+			on_demand: on_demand,
+		});
+
+		let sync = light_sync.clone();
+		dapps::Dependencies {
+			sync_status: Arc::new(move || sync.is_major_importing()),
+			contract_client: contract_client,
+			remote: event_loop.raw_remote(),
+			fetch: fetch,
+			signer: deps_for_rpc_apis.signer_service.clone(),
+		}
+	};
+
+	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps)?;
+
 	// start rpc servers
 	let _ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
-	let _http_server = rpc::new_http(cmd.http_conf.clone(), &dependencies, None)?;
+	let _http_server = rpc::new_http(cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
 	let _ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
 
 	// the signer server
@@ -313,8 +335,6 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	};
 	let signing_queue = deps_for_rpc_apis.signer_service.queue();
 	let _signer_server = signer::start(cmd.signer_conf.clone(), signing_queue, signer_deps)?;
-
-	// TODO: Dapps
 
 	// minimal informant thread. Just prints block number every 5 seconds.
 	// TODO: integrate with informant.rs
@@ -801,7 +821,29 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 		}
 	}
 
+	// Add development account if running dev chain:
+	if let SpecType::Dev = *spec {
+		insert_dev_account(&account_provider);
+	}
+
 	Ok(account_provider)
+}
+
+fn insert_dev_account(account_provider: &AccountProvider) {
+	let secret: ethkey::Secret = "4d5db4107d237df6a3d58ee5f70ae63d73d7658d4026f2eefd2f204c81682cb7".into();
+	let dev_account = ethkey::KeyPair::from_secret(secret.clone()).expect("Valid secret produces valid key;qed");
+	if let Ok(false) = account_provider.has_account(dev_account.address()) {
+		match account_provider.insert_account(secret, "") {
+			Err(e) => warn!("Unable to add development account: {}", e),
+			Ok(address) => {
+				let _ = account_provider.set_account_name(address.clone(), "Development Account".into());
+				let _ = account_provider.set_account_meta(address, ::serde_json::to_string(&(vec![
+					("description", "Never use this account outside of develoopment chain!"),
+					("passwordHint","Password is empty string"),
+				].into_iter().collect::<::std::collections::HashMap<_,_>>())).expect("Serialization of hashmap does not fail."));
+			},
+		}
+	}
 }
 
 // Construct an error `String` with an adaptive hint on how to create an account.

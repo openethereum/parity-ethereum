@@ -86,10 +86,7 @@ impl Memory for Vec<u8> {
 	fn write_slice(&mut self, offset: U256, slice: &[u8]) {
 		let off = offset.low_u64() as usize;
 
-		// TODO [todr] Optimize?
-		for pos in off..off+slice.len() {
-			self[pos] = slice[pos - off];
-		}
+		self[off..off+slice.len()].copy_from_slice(slice);
 	}
 
 	fn write(&mut self, offset: U256, value: U256) {
@@ -114,31 +111,57 @@ impl Memory for Vec<u8> {
 	}
 }
 
+#[cfg(test)]
+mod tests {
+	use util::U256;
+	use super::Memory;
 
-#[test]
-fn test_memory_read_and_write() {
-	// given
-	let mem: &mut Memory = &mut vec![];
-	mem.resize(0x80 + 32);
+	#[test]
+	fn test_memory_read_and_write() {
+		// given
+		let mem: &mut Memory = &mut vec![];
+		mem.resize(0x80 + 32);
 
-	// when
-	mem.write(U256::from(0x80), U256::from(0xabcdef));
+		// when
+		mem.write(U256::from(0x80), U256::from(0xabcdef));
 
-	// then
-	assert_eq!(mem.read(U256::from(0x80)), U256::from(0xabcdef));
-}
+		// then
+		assert_eq!(mem.read(U256::from(0x80)), U256::from(0xabcdef));
+	}
 
-#[test]
-fn test_memory_read_and_write_byte() {
-	// given
-	let mem: &mut Memory = &mut vec![];
-	mem.resize(32);
+	#[test]
+	fn test_memory_read_and_write_byte() {
+		// given
+		let mem: &mut Memory = &mut vec![];
+		mem.resize(32);
 
-	// when
-	mem.write_byte(U256::from(0x1d), U256::from(0xab));
-	mem.write_byte(U256::from(0x1e), U256::from(0xcd));
-	mem.write_byte(U256::from(0x1f), U256::from(0xef));
+		// when
+		mem.write_byte(U256::from(0x1d), U256::from(0xab));
+		mem.write_byte(U256::from(0x1e), U256::from(0xcd));
+		mem.write_byte(U256::from(0x1f), U256::from(0xef));
 
-	// then
-	assert_eq!(mem.read(U256::from(0x00)), U256::from(0xabcdef));
+		// then
+		assert_eq!(mem.read(U256::from(0x00)), U256::from(0xabcdef));
+	}
+
+	#[test]
+	fn test_memory_read_slice_and_write_slice() {
+		let mem: &mut Memory = &mut vec![];
+		mem.resize(32);
+
+		{
+			let slice = "abcdefghijklmnopqrstuvwxyz012345".as_bytes();
+			mem.write_slice(U256::from(0), slice);
+
+			assert_eq!(mem.read_slice(U256::from(0), U256::from(32)), slice);
+		}
+
+		// write again
+		{
+			let slice = "67890".as_bytes();
+			mem.write_slice(U256::from(0x1), slice);
+
+			assert_eq!(mem.read_slice(U256::from(0), U256::from(7)), "a67890g".as_bytes());
+		}
+	}
 }
