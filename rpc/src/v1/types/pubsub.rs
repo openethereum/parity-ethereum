@@ -80,7 +80,7 @@ mod tests {
 	fn should_deserialize_kind() {
 		assert_eq!(serde_json::from_str::<Kind>(r#""newHeads""#).unwrap(), Kind::NewHeads);
 		assert_eq!(serde_json::from_str::<Kind>(r#""logs""#).unwrap(), Kind::Logs);
-		assert_eq!(serde_json::from_str::<Kind>(r#""newPendingTransaction""#).unwrap(), Kind::NewPendingTransactions);
+		assert_eq!(serde_json::from_str::<Kind>(r#""newPendingTransactions""#).unwrap(), Kind::NewPendingTransactions);
 		assert_eq!(serde_json::from_str::<Kind>(r#""syncing""#).unwrap(), Kind::Syncing);
 	}
 
