@@ -15,34 +15,41 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-:root,
-:root body {
-  background: #fff;
-  border: 0;
-  color: #333;
-  font-size: 16px;
-  font-family: 'Roboto', sans-serif;
-  font-weight: 300;
-  margin: 0;
-  padding: 0;
-  vertical-align: top;
+.container {
+  background: #f8f8f8;
+  box-shadow: 0 0.125em 0.25em rgba(0, 0, 0, 0.5);
+  font-family: dejavu sans mono, monospace;
+  left: 20px;
+  position: absolute;
+  max-height: 300px;
+  overflow: auto;
 }
 
-:root,
-:root body,
-:root :global(#container) {
-  min-height: 100%;
-  width: 100%;
+.item {
+  background-color: white;
+  padding: 0.25em 0.25em 0.25em 0.35em;
   display: flex;
-  flex: 1;
-  flex-direction: column;
-}
+  justify-content: space-between;
 
-:root * {
-  font-weight: 300;
-}
+  &.selected {
+    background-color: rgb(64, 115, 244);
 
-:root :global(#container) > div {
-  flex: 1;
-  flex-direction: column;
+    &,
+    .proto {
+      color: white;
+    }
+  }
+
+  &:hover {
+    cursor: default;
+  }
+
+  &:hover:not(.selected) {
+    background-color: rgb(230, 236, 255);
+  }
+
+  .proto {
+    color: gray;
+    margin-left: 1em;
+  }
 }

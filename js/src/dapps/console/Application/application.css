@@ -15,34 +15,51 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-:root,
-:root body {
-  background: #fff;
-  border: 0;
-  color: #333;
-  font-size: 16px;
-  font-family: 'Roboto', sans-serif;
-  font-weight: 300;
-  margin: 0;
-  padding: 0;
-  vertical-align: top;
+.app {
+  display: flex;
+  flex-direction: column;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  height: 100vh;
+  overflow: hidden;
 }
 
-:root,
-:root body,
-:root :global(#container) {
-  min-height: 100%;
-  width: 100%;
+textarea,
+input {
+  font-family: dejavu sans mono, monospace;
+  outline: none;
+}
+
+code,
+pre {
+  font-family: dejavu sans mono, monospace;
+  font-size: 11px;
+}
+
+.header {
+  flex: 0 0 auto;
+}
+
+.view {
   display: flex;
   flex: 1;
   flex-direction: column;
 }
 
-:root * {
-  font-weight: 300;
+.eval {
+  flex: 0 1 auto;
+  font-family: dejavu sans mono, monospace;
+  overflow: auto;
 }
 
-:root :global(#container) > div {
-  flex: 1;
-  flex-direction: column;
+.input {
+  border-top: 1px solid #eee;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 50px;
+}
+
+.status {
+  flex: 0 0 auto;
+  font-family: dejavu sans mono, monospace;
 }

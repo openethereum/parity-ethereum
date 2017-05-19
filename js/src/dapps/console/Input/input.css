@@ -15,34 +15,32 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-:root,
-:root body {
-  background: #fff;
+.type {
+  color: #59f;
+  font-weight: bold !important;
+  font-size: 11px;
+  padding: 0 0.5em 0 0.25em;
+}
+
+.inputContainer {
+  flex: 1;
+}
+
+.input {
   border: 0;
-  color: #333;
-  font-size: 16px;
-  font-family: 'Roboto', sans-serif;
-  font-weight: 300;
   margin: 0;
   padding: 0;
-  vertical-align: top;
+  color: black;
+  height: 100%;
+  font-size: 11px;
+  resize: none;
+  width: 100%;
 }
 
-:root,
-:root body,
-:root :global(#container) {
-  min-height: 100%;
-  width: 100%;
+.container {
+  border-top: 1px solid lightgray;
   display: flex;
   flex: 1;
-  flex-direction: column;
-}
-
-:root * {
-  font-weight: 300;
-}
-
-:root :global(#container) > div {
-  flex: 1;
-  flex-direction: column;
+  padding: 0.25em;
+  position: relative;
 }
