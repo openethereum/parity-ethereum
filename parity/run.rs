@@ -266,15 +266,33 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 	let rpc_stats = Arc::new(informant::RpcStats::default());
 
-	// TODO [ToDr] Dapps
-	let dapps_middleware = None;
-	// TODO [ToDr] UI for Light client!
-	let ui_middleware = None;
+	// the dapps server
+	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf));
+	let dapps_deps = {
+		let contract_client = Arc::new(::dapps::LightRegistrar {
+			client: service.client().clone(),
+			sync: light_sync.clone(),
+			on_demand: on_demand.clone(),
+		});
+
+		let sync = light_sync.clone();
+		dapps::Dependencies {
+			sync_status: Arc::new(move || sync.is_major_importing()),
+			contract_client: contract_client,
+			remote: event_loop.raw_remote(),
+			fetch: fetch.clone(),
+			signer: signer_service.clone(),
+			ui_address: cmd.ui_conf.address(),
+		}
+	};
+
+	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
+	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, dapps_deps)?;
 
 	// start RPCs
 	let dapps_service = dapps::service(&dapps_middleware);
 	let deps_for_rpc_apis = Arc::new(rpc_apis::LightDependencies {
-		signer_service: Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf)),
+		signer_service: signer_service,
 		client: service.client().clone(),
 		sync: light_sync.clone(),
 		net: light_sync.clone(),
@@ -302,7 +320,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	let _ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
 	let _http_server = rpc::new_http("HTTP JSON-RPC", "jsonrpc", cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
 	let _ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
-	let _ui_server = rpc::new_http("UI WALLET", "ui", cmd.ui_conf.clone().into(), &dependencies, ui_middleware)?;
+	let _ui_server = rpc::new_http("Parity Wallet (UI)", "ui", cmd.ui_conf.clone().into(), &dependencies, ui_middleware)?;
 
 	// minimal informant thread. Just prints block number every 5 seconds.
 	// TODO: integrate with informant.rs

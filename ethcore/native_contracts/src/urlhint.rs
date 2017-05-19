@@ -14,28 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Hash-addressed content resolver & fetcher.
+#![allow(unused_mut, unused_variables, unused_imports)]
 
-#![warn(missing_docs)]
+//! Registrar contract: maps names to arbitrary URL.
+// TODO: testing.
 
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate mime;
-
-extern crate ethabi;
-extern crate ethcore_util as util;
-extern crate futures;
-extern crate mime_guess;
-extern crate native_contracts;
-extern crate parity_reactor;
-extern crate rand;
-extern crate rustc_serialize;
-
-pub extern crate fetch;
-
-mod client;
-
-pub mod urlhint;
-
-pub use client::{HashFetch, Client, Error};
+include!(concat!(env!("OUT_DIR"), "/urlhint.rs"));
