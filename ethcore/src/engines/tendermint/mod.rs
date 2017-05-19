@@ -659,7 +659,6 @@ mod tests {
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;
-	use ethkey::Secret;
 	use client::chain_notify::ChainNotify;
 	use miner::MinerService;
 	use tests::helpers::*;
@@ -708,7 +707,7 @@ mod tests {
 	}
 
 	fn insert_and_unlock(tap: &Arc<AccountProvider>, acc: &str) -> Address {
-		let addr = tap.insert_account(Secret::from_slice(&acc.sha3()).unwrap(), acc).unwrap();
+		let addr = tap.insert_account(acc.sha3().into(), acc).unwrap();
 		tap.unlock_account_permanently(addr, acc.into()).unwrap();
 		addr
 	}

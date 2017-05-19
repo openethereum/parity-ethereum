@@ -166,9 +166,9 @@ mod tests {
 	fn uses_current_set() {
 		::env_logger::init().unwrap();
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let s0 = Secret::from_slice(&"0".sha3()).unwrap();
+		let s0: Secret = "0".sha3().into();
 		let v0 = tap.insert_account(s0.clone(), "").unwrap();
-		let v1 = tap.insert_account(Secret::from_slice(&"1".sha3()).unwrap(), "").unwrap();
+		let v1 = tap.insert_account("1".sha3().into(), "").unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_multi, Some(tap));
 		client.engine().register_client(Arc::downgrade(&client));
 
