@@ -21,13 +21,13 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
 import IdentityIcon from '~/ui/IdentityIcon';
-import { TypedInput, InputAddress, Label } from '../Form';
+import { TypedInput, Label } from '../Form';
 import Loading from '../Loading';
 import MethodDecodingStore from './methodDecodingStore';
 
 import styles from './methodDecoding.css';
 
-// const ASCII_INPUT = /^[a-z0-9\s,?;.:/!()-_@'"#]+$/i;
+const ASCII_INPUT = /^[a-z0-9\s,?;.:/!()-_@'"#]+$/i;
 const TOKEN_METHODS = {
   '0xa9059cbb': 'transfer(to,value)'
 };
