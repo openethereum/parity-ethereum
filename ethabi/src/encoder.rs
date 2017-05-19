@@ -169,7 +169,7 @@ impl Encoder {
 
 #[cfg(test)]
 mod tests {
-	use rustc_serialize::hex::FromHex;
+	use hex::FromHex;
 	use token::Token;
 	use super::Encoder;
 	use util::pad_u32;

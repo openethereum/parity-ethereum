@@ -1,4 +1,5 @@
 extern crate docopt;
+extern crate rustc_hex as hex;
 extern crate rustc_serialize;
 extern crate ethabi;
 
@@ -8,7 +9,7 @@ use std::fs::File;
 use std::io::Read;
 use std::env;
 use docopt::Docopt;
-use rustc_serialize::hex::{ToHex, FromHex};
+use hex::{ToHex, FromHex};
 use ethabi::spec::param_type::{ParamType, Reader};
 use ethabi::token::{Token, Tokenizer, StrictTokenizer, LenientTokenizer, TokenFromHex};
 use ethabi::{Encoder, Decoder, Contract, Function, Event, Interface};

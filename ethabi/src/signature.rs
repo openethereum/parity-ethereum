@@ -19,7 +19,7 @@ pub fn signature(name: &str, params: &[ParamType]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-	use rustc_serialize::hex::FromHex;
+	use hex::FromHex;
 	use spec::ParamType;
 	use super::signature;
 

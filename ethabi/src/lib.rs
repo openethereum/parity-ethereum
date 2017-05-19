@@ -1,10 +1,8 @@
 //! Ethereum ABI encoding decoding library.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature="nightly", feature(plugin))]
-#![cfg_attr(feature="nightly", plugin(clippy))]
 
-extern crate rustc_serialize;
+extern crate rustc_hex as hex;
 extern crate serde;
 extern crate serde_json;
 extern crate tiny_keccak;

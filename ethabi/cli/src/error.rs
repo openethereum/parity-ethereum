@@ -1,5 +1,5 @@
 use std::io::Error as IoError;
-use rustc_serialize::hex::FromHexError;
+use hex::FromHexError;
 use ethabi::spec::Error as SpecError;
 use ethabi::spec::param_type::Error as ParamError;
 use ethabi::token::Error as TokenizerError;

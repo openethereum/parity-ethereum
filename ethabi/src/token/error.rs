@@ -1,5 +1,5 @@
 use std::num::ParseIntError;
-use rustc_serialize::hex::FromHexError;
+use hex::FromHexError;
 
 /// Called when tokenizing fails.
 #[derive(Debug)]

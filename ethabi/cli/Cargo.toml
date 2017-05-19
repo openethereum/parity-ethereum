@@ -1,0 +1,18 @@
+[package]
+name = "ethabi-cli"
+version = "1.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+keywords = ["ethereum", "eth", "abi", "solidity", "cli"]
+description = "Easy to use cli for conversion of ethereum contract calls to bytecode."
+homepage = "https://github.com/paritytech/ethabi"
+license = "MIT"
+
+[dependencies]
+rustc-hex = "1.0"
+rustc-serialize = "0.3"
+docopt = "0.7"
+ethabi = { version = "1.1", path = ".." }
+
+[[bin]]
+name = "ethabi"
+path = "src/main.rs"
