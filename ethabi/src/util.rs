@@ -45,7 +45,7 @@ pub fn pad_i32(value: i32) -> [u8; 32] {
 
 #[cfg(test)]
 mod tests {
-	use rustc_serialize::hex::FromHex;
+	use hex::FromHex;
 	use super::pad_i32;
 
 	#[test]

@@ -52,7 +52,7 @@ impl Function {
 
 #[cfg(test)]
 mod tests {
-	use rustc_serialize::hex::FromHex;
+	use hex::FromHex;
 	use spec::{Function as FunctionInterface, ParamType, Param};
 	use token::Token;
 	use super::Function;

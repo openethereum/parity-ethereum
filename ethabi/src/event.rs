@@ -102,7 +102,7 @@ impl Event {
 
 #[cfg(test)]
 mod tests {
-	use rustc_serialize::hex::FromHex;
+	use hex::FromHex;
 	use spec::{Event as EventInterface, EventParam, ParamType};
 	use super::{Event, DecodedLog};
 	use token::{Token, TokenFromHex};

@@ -1,6 +1,6 @@
 //! Creates fixed size token from bytes.
 
-use rustc_serialize::hex::FromHex;
+use hex::FromHex;
 use super::Error;
 
 /// Creates fixed size token from bytes.
