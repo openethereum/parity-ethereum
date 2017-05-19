@@ -13,16 +13,6 @@ serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
 tiny-keccak = "1.2"
-clippy = { version = "0.0.63", optional = true }
-docopt = { version = "0.6", optional = true }
 
-[features]
-cli = ["docopt"]
-
-[lib]
-
-[[bin]]
-name = "ethabi"
-path = "src/bin/main.rs"
-doc = false
-
+[workspace]
+members = ["cli"]

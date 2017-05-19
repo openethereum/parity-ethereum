@@ -1,4 +1,5 @@
 extern crate docopt;
+extern crate rustc_hex as hex;
 extern crate rustc_serialize;
 extern crate ethabi;
 
