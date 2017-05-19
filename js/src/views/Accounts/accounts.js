@@ -54,6 +54,7 @@ class Accounts extends Component {
     newDialog: false,
     newWalletDialog: false,
     newExportDialog: false,
+    restoreDialog: false,
     sortOrder: '',
     searchValues: [],
     searchTokens: [],
@@ -97,6 +98,7 @@ class Accounts extends Component {
     return (
       <div>
         { this.renderNewDialog() }
+        { this.renderRestoreDialog() }
         { this.renderNewWalletDialog() }
         { this.renderNewExportDialog() }
         { this.renderActionbar() }
@@ -261,6 +263,17 @@ class Accounts extends Component {
         onClick={ this.onNewWalletClick }
       />,
       <Button
+        key='restoreAccount'
+        icon={ <AddIcon /> }
+        label={
+          <FormattedMessage
+            id='accounts.button.restoreAccount'
+            defaultMessage='restore'
+          />
+        }
+        onClick={ this.onRestoreAccountClick }
+      />,
+      <Button
         key='newExport'
         icon={ <FileDownloadIcon /> }
         label={
@@ -301,7 +314,23 @@ class Accounts extends Component {
       <CreateAccount
         accounts={ accounts }
         onClose={ this.onNewAccountClose }
-        onUpdate={ this.onNewAccountUpdate }
+      />
+    );
+  }
+
+  renderRestoreDialog () {
+    const { accounts } = this.props;
+    const { restoreDialog } = this.state;
+
+    if (!restoreDialog) {
+      return null;
+    }
+
+    return (
+      <CreateAccount
+        accounts={ accounts }
+        onClose={ this.onRestoreAccountClose }
+        restore
       />
     );
   }
@@ -349,6 +378,12 @@ class Accounts extends Component {
     });
   }
 
+  onRestoreAccountClick = () => {
+    this.setState({
+      restoreDialog: true
+    });
+  }
+
   onNewWalletClick = () => {
     this.setState({
       newWalletDialog: true
@@ -367,6 +402,12 @@ class Accounts extends Component {
     });
   }
 
+  onRestoreAccountClose = () => {
+    this.setState({
+      restoreDialog: false
+    });
+  }
+
   onNewWalletClose = () => {
     this.setState({
       newWalletDialog: false
@@ -377,9 +418,6 @@ class Accounts extends Component {
     this.setState({
       newExportDialog: false
     });
-  }
-
-  onNewAccountUpdate = () => {
   }
 
   onHardwareChange = () => {

@@ -79,7 +79,7 @@ class FirstRun extends Component {
     visible: PropTypes.bool.isRequired
   }
 
-  createStore = new CreateStore(this.context.api, {}, false);
+  createStore = new CreateStore(this.context.api, {}, true, false);
 
   state = {
     stage: 0,
