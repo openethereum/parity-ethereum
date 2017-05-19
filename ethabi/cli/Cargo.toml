@@ -7,7 +7,7 @@ authors = ["debris <marek.kotewicz@gmail.com>"]
 rustc-hex = "1.0"
 rustc-serialize = "0.3"
 docopt = "0.6"
-ethabi = { version = "1.0", path = ".." }
+ethabi = { version = "1.1", path = ".." }
 
 [[bin]]
 name = "ethabi"

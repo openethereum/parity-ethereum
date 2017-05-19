@@ -3,7 +3,7 @@ name = "ethabi-cli"
 version = "0.1.0"
 dependencies = [
  "docopt 0.6.86 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 1.0.5",
+ "ethabi 1.1.0",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -34,7 +34,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "ethabi"
-version = "1.0.5"
+version = "1.1.0"
 dependencies = [
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
