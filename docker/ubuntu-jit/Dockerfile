@@ -1,5 +1,7 @@
 FROM ubuntu:14.04
 WORKDIR /build
+ADD . /build/parity
+
 # install tools and dependencies
 RUN apt-get update && \
         apt-get install -y \
@@ -45,10 +47,7 @@ gcc -v &&\
 g++ -v
 
 # build parity
-RUN git clone https://github.com/paritytech/parity && \
-        cd parity && \
-        git checkout beta && \
-        git pull && \
+RUN cd parity && \
         cargo build --release --features ethcore/jit --verbose && \
         ls /build/parity/target/release/parity &&       \
         strip /build/parity/target/release/parity

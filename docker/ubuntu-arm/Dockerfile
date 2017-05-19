@@ -1,5 +1,7 @@
 FROM ubuntu:14.04
 WORKDIR /build
+ADD . /build/parity
+
 # install tools and dependencies
 RUN apt-get -y update && \
         apt-get install -y --force-yes --no-install-recommends \
@@ -23,16 +25,11 @@ RUN rustup target add armv7-unknown-linux-gnueabihf
 # show backtraces
 ENV RUST_BACKTRACE 1
 
-
 # show tools
- RUN rustc -vV && \
- cargo -V
+RUN rustc -vV && cargo -V
 
 # build parity
-RUN git clone https://github.com/paritytech/parity && \
-        cd parity && \
-        git checkout beta && \
-        git pull && \
+RUN cd parity && \
         mkdir -p .cargo && \
         echo '[target.armv7-unknown-linux-gnueabihf]\n\
         linker = "arm-linux-gnueabihf-gcc"\n'\
