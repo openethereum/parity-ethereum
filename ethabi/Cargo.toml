@@ -9,9 +9,9 @@ description = "Easy to use conversion of ethereum contract calls to bytecode."
 
 [dependencies]
 rustc-serialize = "0.3"
-serde = "0.9"
-serde_json = "0.9"
-serde_derive = "0.9"
+serde = "1.0"
+serde_json = "1.0"
+serde_derive = "1.0"
 tiny-keccak = "1.2"
 clippy = { version = "0.0.63", optional = true }
 docopt = { version = "0.6", optional = true }
