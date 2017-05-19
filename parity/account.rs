@@ -80,7 +80,7 @@ fn keys_dir(path: String, spec: SpecType) -> Result<RootDiskDirectory, String> {
 fn secret_store(dir: Box<RootDiskDirectory>, iterations: Option<u32>) -> Result<EthStore, String> {
 	match iterations {
 		Some(i) => EthStore::open_with_iterations(dir, i),
-		_ => EthStore::open(dir) 
+		_ => EthStore::open(dir)
 	}.map_err(|e| format!("Could not open keys store: {}", e))
 }
 
