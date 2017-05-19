@@ -36,7 +36,6 @@ pub fn import_account(path: &Path, dst: &KeyDirectory) -> Result<Address, Error>
 		dst.insert(account)?;
 	}
 	Ok(address)
-
 }
 
 /// Import all accounts from one directory to the other.
