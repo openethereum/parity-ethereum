@@ -14,21 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod runtime;
-mod ptr;
+//! Wasm bound-checked ptr
 
 use parity_wasm::interpreter;
 
-use evm::{self, GasLeft};
-use action_params::{ActionParams, ActionValue};
+pub struct WasmPtr(u32);
 
-pub struct WasmInterpreter;
+/// Error in bound check
+pub enum Error {
+    AccessViolation,
+}
 
-impl evm::Evm for WasmInterpreter {
-
-    fn exec(&mut self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result<GasLeft> {      
-
-		Ok(GasLeft::Known(0.into()))
+impl WasmPtr {
+    // todo: use memory view when they are on
+    pub fn slice(&self, len: u32, mem: &interpreter::MemoryInstance) -> Result<Vec<u8>, Error> {
+        mem.get(self.0, len as usize).map_err(|_| Error::AccessViolation)
     }
 
+    // todo: maybe 2gb limit can be enhanced
+    pub fn from_i32(raw_ptr: i32) -> Result<Self, Error> {
+        if raw_ptr < 0 { return Err(Error::AccessViolation); }
+        Ok(WasmPtr(raw_ptr as u32))
+    }
 }

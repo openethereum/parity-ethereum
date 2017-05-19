@@ -1810,7 +1810,7 @@ dependencies = [
 [[package]]
 name = "parity-wasm"
 version = "0.5.0"
-source = "git+http://github.com/nikvolf/parity-wasm#3fb35f29b2236e4314236e55f99a99f8056bf59f"
+source = "git+http://github.com/nikvolf/parity-wasm#533c3a0c502e4ad7b5c56677d07172928098f9fc"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
