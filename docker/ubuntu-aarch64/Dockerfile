@@ -1,6 +1,5 @@
 FROM ubuntu:14.04
 WORKDIR /build
-ADD . /build/parity
 
 # install tools and dependencies
 RUN apt-get -y update && \
@@ -29,6 +28,7 @@ ENV RUST_BACKTRACE 1
 RUN rustc -vV && cargo -V
 
 # build parity
+ADD . /build/parity
 RUN cd parity && \
         mkdir -p .cargo && \
         echo '[target.aarch64-unknown-linux-gnu]\n\

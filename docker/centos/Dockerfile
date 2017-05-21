@@ -1,6 +1,5 @@
 FROM centos:latest
 WORKDIR /build
-ADD . /build/parity
 
 # install tools and dependencies
 RUN yum -y update&& \
@@ -25,6 +24,7 @@ gcc -v &&\
 g++ -v
 
 # build parity
+ADD . /build/parity
 RUN cd parity&&\
     cargo build --release --verbose && \
 	ls /build/parity/target/release/parity &&	\
