@@ -21,6 +21,7 @@ use util::{U128, U256, U512, Uint, trie};
 use action_params::ActionParams;
 use evm::Ext;
 use builtin;
+use super::wasm;
 
 /// Evm errors.
 #[derive(Debug, Clone, PartialEq)]
@@ -81,6 +82,12 @@ impl From<builtin::Error> for Error {
 	}	
 }
 
+impl From<wasm::RuntimeError> for Error {
+	fn from(err: wasm::RuntimeError) -> Self {
+		Error::Wasm("Runtime error")
+	}
+}
+
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use self::Error::*;
@@ -91,7 +98,7 @@ impl fmt::Display for Error {
 			StackUnderflow { .. } => "Stack underflow",
 			OutOfStack { .. } => "Out of stack",
 			BuiltIn { .. } => "Built-in failed",
-			Wasm { .. } => "Wasm fail",
+			Wasm { .. } => "Wasm error",
 			Internal(ref msg) => msg,
 		};
 		message.fmt(f)

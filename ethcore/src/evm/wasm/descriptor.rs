@@ -17,33 +17,33 @@
 //! Wasm evm call descriptor
 
 use types::executed::CallType;
-use util::{U256, H256, Uint};
+use util::{U256, H256, H160, Uint};
 
 pub struct CallDescriptor {
     // address of code executed
     // zero if it's a create
-    pub address: [u8; 32],
+    pub address: [u8; 20],
 
     // sender of the transaction
-    pub sender: [u8; 32],
+    pub sender: [u8; 20],
 
     // transfer value
     pub value: [u8; 32],
 
     // reserved space / alignment to 256 bytes
-    _reserved: [u8; 160],
+    _reserved: [u8; 184],
 
     // call/create params
     pub data: Vec<u8>,
 }
 
 impl CallDescriptor {
-    pub fn new(address: H256, sender: H256, value: U256, data: Vec<u8>) -> Self {
+    pub fn new(address: H160, sender: H160, value: U256, data: Vec<u8>) -> Self {
         let mut descriptor = CallDescriptor {
-            address: [0u8; 32],
-            sender: [0u8; 32],
+            address: [0u8; 20],
+            sender: [0u8; 20],
             value: [0u8; 32],
-            _reserved: [0u8; 160],
+            _reserved: [0u8; 184],
             data: data,
         };
 

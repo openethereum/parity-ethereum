@@ -30,6 +30,7 @@ use super::descriptor::CallDescriptor;
 pub enum Error {
     Storage,
     Allocator,
+	InvalidGasState,
 	Interpreter(interpreter::Error),
 }
 
@@ -144,17 +145,22 @@ impl<'a> Runtime<'a> {
 		Ok(None)
 	}
 
-	fn write_descriptor(&mut self, descriptor: CallDescriptor) -> Result<WasmPtr, Error> {
+	pub fn write_descriptor(&mut self, descriptor: CallDescriptor) -> Result<WasmPtr, Error> {
 		let descriptor_length = descriptor.len();
 		let descriptor_ptr = self.alloc(descriptor_length)?;
 
 		// write descriptor data to memory
 		self.memory.set(descriptor_ptr, &descriptor.address)?;
-		self.memory.set(descriptor_ptr+32, &descriptor.sender)?;
-		self.memory.set(descriptor_ptr+64, &descriptor.value)?;
+		self.memory.set(descriptor_ptr+20, &descriptor.sender)?;
+		self.memory.set(descriptor_ptr+40, &descriptor.value)?;
 		self.memory.set(descriptor_ptr+256, &descriptor.data)?;
 		
 		Ok(descriptor_ptr.into())
+	}
+
+	pub fn gas_left(&self) -> Result<u64, Error> {
+		if self.gas_counter > self.gas_limit { return Err(Error::InvalidGasState); }
+		Ok(self.gas_limit - self.gas_counter)
 	}
 }
 
