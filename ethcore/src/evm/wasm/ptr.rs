@@ -26,6 +26,12 @@ pub enum Error {
     AccessViolation,
 }
 
+impl From<u32> for WasmPtr {
+    fn from(raw: u32) -> Self { 
+        WasmPtr(raw)
+    }
+}
+
 impl WasmPtr {
     // todo: use memory view when they are on
     pub fn slice(&self, len: u32, mem: &interpreter::MemoryInstance) -> Result<Vec<u8>, Error> {
@@ -37,4 +43,6 @@ impl WasmPtr {
         if raw_ptr < 0 { return Err(Error::AccessViolation); }
         Ok(WasmPtr(raw_ptr as u32))
     }
+
+    pub fn as_raw(&self) -> u32 { self.0 }
 }

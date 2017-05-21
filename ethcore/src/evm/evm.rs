@@ -65,6 +65,8 @@ pub enum Error {
 	/// Returned on evm internal error. Should never be ignored during development.
 	/// Likely to cause consensus issues.
 	Internal(String),
+	/// Wasm runtime error
+	Wasm(&'static str),
 }
 
 impl From<Box<trie::TrieError>> for Error {
@@ -89,6 +91,7 @@ impl fmt::Display for Error {
 			StackUnderflow { .. } => "Stack underflow",
 			OutOfStack { .. } => "Out of stack",
 			BuiltIn { .. } => "Built-in failed",
+			Wasm { .. } => "Wasm fail",
 			Internal(ref msg) => msg,
 		};
 		message.fmt(f)

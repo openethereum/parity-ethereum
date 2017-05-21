@@ -53,5 +53,8 @@ impl CallDescriptor {
 
         descriptor
     }
-}
 
+    pub fn len(&self) -> u32 {
+        self.data.len() as u32 + 256
+    }
+}

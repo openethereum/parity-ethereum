@@ -543,7 +543,8 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::BuiltIn {..})
-				| Err(evm::Error::OutOfStack {..}) => {
+				| Err(evm::Error::OutOfStack {..}) 
+				| Err(evm::Error::Wasm {..}) => {
 					self.state.revert_to_checkpoint();
 			},
 			Ok(_) | Err(evm::Error::Internal(_)) => {

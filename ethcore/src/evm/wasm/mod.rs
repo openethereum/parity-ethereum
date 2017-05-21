@@ -18,18 +18,57 @@ mod runtime;
 mod ptr;
 mod descriptor;
 
-use parity_wasm::interpreter;
+use std::sync::Arc;
+
+const DEFAULT_STACK_SPACE: u32 = 5 * 1024 * 1024;
+
+use parity_wasm::{interpreter, elements};
+use parity_wasm::elements::Deserialize;
 
 use evm::{self, GasLeft};
 use action_params::{ActionParams, ActionValue};
+use self::runtime::{Runtime, Error as RuntimeError};
 
-pub struct WasmInterpreter;
+pub struct WasmInterpreter {
+	program: interpreter::ProgramInstance,
+}
+
+impl WasmInterpreter {
+
+	fn new() -> Result<WasmInterpreter, RuntimeError> {
+		Ok(WasmInterpreter {
+			program: interpreter::ProgramInstance::new()?,
+		})
+	}
+
+}
 
 impl evm::Evm for WasmInterpreter {
 
-    fn exec(&mut self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result<GasLeft> {      
+	fn exec(&mut self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result<GasLeft> {
+
+		let env_instance = self.program.module("env")
+			.ok_or(evm::Error::Wasm("Env module somehow does not exist in wasm runner runtime"))?;
+
+		let env_memory = env_instance.memory(interpreter::ItemIndex::Internal(0))
+			.map_err(|_| evm::Error::Wasm("Linear memory somehow does not exist in wasm runner runtime"))?;
+		
+		let runtime = Runtime::with_params(
+			ext,
+			env_memory,
+			DEFAULT_STACK_SPACE,
+			65546,
+		);
+
+		let code = params.code.expect("exec is only called on contract with code; qed");
+		let mut cursor = ::std::io::Cursor::new(&*code);
+		let contract_module = elements::Module::deserialize(
+			&mut cursor
+		).map_err(|e| {
+			warn!("Error deserializing contract code as wasm module: {:?}", e);
+			evm::Error::Wasm("Error deserializing contract code")
+		})?;
 
 		Ok(GasLeft::Known(0.into()))
-    }
-
+	}
 }

@@ -30,6 +30,13 @@ use super::descriptor::CallDescriptor;
 pub enum Error {
     Storage,
     Allocator,
+	Interpreter(interpreter::Error),
+}
+
+impl From<interpreter::Error> for Error {
+	fn from(err: interpreter::Error) -> Self {
+		Error::Interpreter(err)
+	}
 }
 
 pub struct Runtime<'a> {
@@ -137,8 +144,17 @@ impl<'a> Runtime<'a> {
 		Ok(None)
 	}
 
-	fn push_descriptor(&mut self, descriptor: CallDescriptor) -> Result<WasmPtr, interpreter::Error> {
-		Ok(WasmPtr::from_i32(0).unwrap())
+	fn write_descriptor(&mut self, descriptor: CallDescriptor) -> Result<WasmPtr, Error> {
+		let descriptor_length = descriptor.len();
+		let descriptor_ptr = self.alloc(descriptor_length)?;
+
+		// write descriptor data to memory
+		self.memory.set(descriptor_ptr, &descriptor.address)?;
+		self.memory.set(descriptor_ptr+32, &descriptor.sender)?;
+		self.memory.set(descriptor_ptr+64, &descriptor.value)?;
+		self.memory.set(descriptor_ptr+256, &descriptor.data)?;
+		
+		Ok(descriptor_ptr.into())
 	}
 }
 
@@ -165,6 +181,7 @@ impl<'a> interpreter::UserFunctionExecutor for Runtime<'a> {
 				self.gas(context)
 			},
 			_ => {
+				trace!("Unknown env func: '{}'", name);
 				self.user_trap(context)
 			}
 		}

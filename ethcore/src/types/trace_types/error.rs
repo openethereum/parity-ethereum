@@ -40,6 +40,8 @@ pub enum Error {
 	/// Returned on evm internal error. Should never be ignored during development.
 	/// Likely to cause consensus issues.
 	Internal,
+	/// Wasm error
+	Wasm,
 }
 
 impl<'a> From<&'a EvmError> for Error {
@@ -51,6 +53,7 @@ impl<'a> From<&'a EvmError> for Error {
 			EvmError::StackUnderflow { .. } => Error::StackUnderflow,
 			EvmError::OutOfStack { .. } => Error::OutOfStack,
 			EvmError::BuiltIn { .. } => Error::BuiltIn,
+			EvmError::Wasm { .. } => Error::Wasm,
 			EvmError::Internal(_) => Error::Internal,
 		}
 	}
@@ -72,6 +75,7 @@ impl fmt::Display for Error {
 			StackUnderflow => "Stack underflow",
 			OutOfStack => "Out of stack",
 			BuiltIn => "Built-in failed",
+			Wasm => "Wasm runtime error",
 			Internal => "Internal error",
 		};
 		message.fmt(f)
@@ -89,6 +93,7 @@ impl Encodable for Error {
 			OutOfStack => 4,
 			Internal => 5,
 			BuiltIn => 6,
+			Wasm => 7,
 		};
 
 		s.append_internal(&value);
