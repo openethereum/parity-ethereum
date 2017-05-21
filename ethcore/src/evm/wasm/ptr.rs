@@ -21,6 +21,7 @@ use parity_wasm::interpreter;
 pub struct WasmPtr(u32);
 
 /// Error in bound check
+#[derive(Debug)]
 pub enum Error {
     AccessViolation,
 }

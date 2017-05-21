@@ -16,6 +16,7 @@
 
 mod runtime;
 mod ptr;
+mod descriptor;
 
 use parity_wasm::interpreter;
 

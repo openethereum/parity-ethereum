@@ -24,6 +24,7 @@ use parity_wasm::interpreter;
 use util::{U256, H256};
 
 use super::ptr::WasmPtr;
+use super::descriptor::CallDescriptor;
 
 #[derive(Debug)]
 pub enum Error {
@@ -55,18 +56,6 @@ impl<'a> Runtime<'a> {
 		}
 	}
 
-	fn h256_at(&self, ptr: WasmPtr) -> Result<H256, interpreter::Error> {
-		Ok(H256::from_slice(&ptr.slice(32, &*self.memory)
-			.map_err(|_| interpreter::Error::Trap("Memory access violation".to_owned()))?
-		))	
-	}
-
-	fn pop_h256(&self, context: &mut interpreter::CallerContext) -> Result<H256, interpreter::Error> {
-		let ptr = WasmPtr::from_i32(context.value_stack.pop_as::<i32>()?)
-				.map_err(|_| interpreter::Error::Trap("Memory access violation".to_owned()))?;
-		self.h256_at(ptr)
-	}
-
 	pub fn storage_write(&mut self, context: interpreter::CallerContext) 
 		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
 	{
@@ -74,7 +63,8 @@ impl<'a> Runtime<'a> {
 		let val = self.pop_h256(&mut context)?;
 		let key = self.pop_h256(&mut context)?;
 
-        self.ext.set_storage(key, val);
+        self.ext.set_storage(key, val)
+			.map_err(|_| interpreter::Error::Trap("Storage update error".to_owned()))?;
 
 		Ok(Some(0i32.into()))
 	}
@@ -82,18 +72,14 @@ impl<'a> Runtime<'a> {
 	pub fn storage_read(&mut self, context: interpreter::CallerContext) 
 		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
 	{
-		// arguments passed are in backward order (since it is stack)
-		// let val_ptr = context.value_stack.pop_as::<i32>()?;
-		// let key_ptr = context.value_stack.pop_as::<i32>()?;
+		let mut context = context;
+		let val_ptr = context.value_stack.pop_as::<i32>()?;
+		let key = self.pop_h256(&mut context)?;		
 
-		// let key = StorageKey::from_mem(self.memory.get(key_ptr as u32, 32)?)
-		// 	.map_err(|_| interpreter::Error::Trap("Memory access violation".to_owned()))?;
-		// let empty = StorageValue([0u8; 32]);
-		// let val = self.storage.get(&key).unwrap_or(&empty);
+		let val = self.ext.storage_at(&key)
+			.map_err(|_| interpreter::Error::Trap("Storage update error".to_owned()))?;
 
-		// self.memory.set(val_ptr as u32, val.as_slice())?;
-
-		// println!("read storage {:?} (evaluated as {:?})", key, val);
+		self.memory.set(val_ptr as u32, &*val)?;
 
 		Ok(Some(0.into()))
 	}
@@ -127,6 +113,18 @@ impl<'a> Runtime<'a> {
 		}
 	}
 
+	fn h256_at(&self, ptr: WasmPtr) -> Result<H256, interpreter::Error> {
+		Ok(H256::from_slice(&ptr.slice(32, &*self.memory)
+			.map_err(|_| interpreter::Error::Trap("Memory access violation".to_owned()))?
+		))	
+	}
+
+	fn pop_h256(&self, context: &mut interpreter::CallerContext) -> Result<H256, interpreter::Error> {
+		let ptr = WasmPtr::from_i32(context.value_stack.pop_as::<i32>()?)
+			.map_err(|_| interpreter::Error::Trap("Memory access violation".to_owned()))?;
+		self.h256_at(ptr)
+	}
+
 	fn user_trap(&mut self, _context: interpreter::CallerContext) 
 		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error> 
 	{
@@ -137,7 +135,11 @@ impl<'a> Runtime<'a> {
 		_context: interpreter::CallerContext
 	) -> Result<Option<interpreter::RuntimeValue>, interpreter::Error> {
 		Ok(None)
-	}    
+	}
+
+	fn push_descriptor(&mut self, descriptor: CallDescriptor) -> Result<WasmPtr, interpreter::Error> {
+		Ok(WasmPtr::from_i32(0).unwrap())
+	}
 }
 
 impl<'a> interpreter::UserFunctionExecutor for Runtime<'a> {
