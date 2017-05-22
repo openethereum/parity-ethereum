@@ -83,7 +83,7 @@ Convenience Options:
                                    Includes network port and all servers (RPC, WebSockets, UI, IPFS, SecretStore).
                                    (default: {flag_ports_shift})
   --unsafe-expose                  All servers will listen on external interfaces and will
-                                   be remotely accessible. It's equivallent with setting
+                                   be remotely accessible. It's equivalent with setting
                                    the following: --{{ws,jsonrpc,ui,ipfs,secret_store,stratum}}-interface=all --*-hosts=all
                                    This option is UNSAFE and should be used with great care!
                                    (default: {flag_unsafe_expose})
