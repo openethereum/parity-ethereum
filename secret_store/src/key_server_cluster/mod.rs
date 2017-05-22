@@ -14,6 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+#![allow(unused_mut)] // TODO: remove me
+#![allow(dead_code)] // TODO: remove me
+#![allow(unused_imports)] // TODO: remove me
+#![allow(unused_variables)] // TODO: remove me
+#![allow(unreachable_code)] // TODO: remove me
+
 use std::fmt;
 use std::io::Error as IoError;
 use ethkey;

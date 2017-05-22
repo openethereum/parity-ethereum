@@ -828,7 +828,7 @@ pub fn check_threshold(threshold: usize, nodes: &BTreeSet<NodeId>) -> Result<(),
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 	use std::time;
 	use std::sync::Arc;
 	use std::collections::{BTreeSet, BTreeMap, VecDeque};
@@ -842,14 +842,13 @@ mod tests {
 	use key_server_cluster::math;
 	use key_server_cluster::math::tests::do_encryption_and_decryption;
 
-	#[derive(Debug)]
-	struct Node {
+	pub struct Node {
 		pub cluster: Arc<DummyCluster>,
+		pub key_storage: Arc<DummyKeyStorage>,
 		pub session: SessionImpl,
 	}
 
-	#[derive(Debug)]
-	struct MessageLoop {
+	pub struct MessageLoop {
 		pub session_id: SessionId,
 		pub nodes: BTreeMap<NodeId, Node>,
 		pub queue: VecDeque<(NodeId, NodeId, Message)>,
@@ -863,13 +862,14 @@ mod tests {
 				let key_pair = Random.generate().unwrap();
 				let node_id = key_pair.public().clone();
 				let cluster = Arc::new(DummyCluster::new(node_id.clone()));
+				let key_storage = Arc::new(DummyKeyStorage::default());
 				let session = SessionImpl::new(SessionParams {
 					id: session_id.clone(),
 					self_node_id: node_id.clone(),
-					key_storage: Some(Arc::new(DummyKeyStorage::default())),
+					key_storage: Some(key_storage.clone()),
 					cluster: cluster.clone(),
 				});
-				nodes.insert(node_id, Node { cluster: cluster, session: session });
+				nodes.insert(node_id, Node { cluster: cluster, key_storage: key_storage, session: session });
 			}
 
 			let nodes_ids: Vec<_> = nodes.keys().cloned().collect();
@@ -964,7 +964,10 @@ mod tests {
 
 	#[test]
 	fn fails_to_initialize_if_threshold_is_wrong() {
-		assert_eq!(make_simple_cluster(2, 2).unwrap_err(), Error::InvalidThreshold);
+		match make_simple_cluster(2, 2) {
+			Err(Error::InvalidThreshold) => (),
+			_ => panic!("unexpected"),
+		}
 	}
 
 	#[test]

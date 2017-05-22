@@ -646,3 +646,130 @@ fn check_encrypted_data(self_node_id: &Public, encrypted_data: &DocumentKeyShare
 	check_cluster_nodes(self_node_id, &nodes)?;
 	check_threshold(encrypted_data.threshold, &nodes)
 }
+
+#[cfg(test)]
+mod tests {
+	use std::sync::Arc;
+	use std::collections::{BTreeMap, VecDeque};
+	use ethkey::{Random, Generator, Public, Signature, sign};
+	use util::H256;
+	use super::super::super::acl_storage::tests::DummyAclStorage;
+	use key_server_cluster::{NodeId, SessionId, Error, DummyKeyStorage, KeyStorage};
+	use key_server_cluster::cluster::tests::{DummyCluster, make_clusters, run_clusters, loop_until, all_connections_established};
+	use key_server_cluster::generation_session::tests::MessageLoop as KeyGenerationMessageLoop;
+	use key_server_cluster::message::{Message, SigningMessage};
+	use key_server_cluster::signing_session::{Session, SessionImpl, SessionState, SessionParams};
+
+	struct Node {
+		pub cluster: Arc<DummyCluster>,
+		pub session: SessionImpl,
+	}
+
+	struct MessageLoop {
+		pub session_id: SessionId,
+		pub nodes: BTreeMap<NodeId, Node>,
+		pub queue: VecDeque<(NodeId, NodeId, Message)>,
+	}
+
+	impl MessageLoop {
+		pub fn new(gl: &KeyGenerationMessageLoop) -> Self {
+			let mut nodes = BTreeMap::new();
+			let session_id = gl.session_id.clone();
+			for (gl_node_id, gl_node) in &gl.nodes {
+				let acl_storage = Arc::new(DummyAclStorage::default());
+				let cluster = Arc::new(DummyCluster::new(gl_node_id.clone()));
+				let session = SessionImpl::new(SessionParams {
+					id: session_id.clone(),
+					access_key: Random.generate().unwrap().secret().clone(),
+					self_node_id: gl_node_id.clone(),
+					encrypted_data: gl_node.key_storage.get(&session_id).unwrap(),
+					acl_storage: acl_storage,
+					cluster: cluster.clone(),
+				}).unwrap();
+				nodes.insert(gl_node_id.clone(), Node { cluster: cluster, session: session });
+			}
+
+			let nodes_ids: Vec<_> = nodes.keys().cloned().collect();
+			for node in nodes.values() {
+				for node_id in &nodes_ids {
+					node.cluster.add_node(node_id.clone());
+				}
+			}
+
+			MessageLoop {
+				session_id: session_id,
+				nodes: nodes,
+				queue: VecDeque::new(),
+			}
+		}
+
+		pub fn master(&self) -> &SessionImpl {
+			&self.nodes.values().nth(0).unwrap().session
+		}
+
+		pub fn first_slave(&self) -> &SessionImpl {
+			&self.nodes.values().nth(1).unwrap().session
+		}
+
+		pub fn second_slave(&self) -> &SessionImpl {
+			&self.nodes.values().nth(2).unwrap().session
+		}
+
+		pub fn take_message(&mut self) -> Option<(NodeId, NodeId, Message)> {
+			self.nodes.values()
+				.filter_map(|n| n.cluster.take_message().map(|m| (n.session.node().clone(), m.0, m.1)))
+				.nth(0)
+				.or_else(|| self.queue.pop_front())
+		}
+
+		pub fn process_message(&mut self, msg: (NodeId, NodeId, Message)) -> Result<(), Error> {
+println!("=== MESSAGE {:?}", msg);
+			match {
+				match msg.2 {
+					Message::Signing(SigningMessage::SigningConsensusMessage(ref message)) => self.nodes[&msg.1].session.on_consensus_message(msg.0.clone(), &message),
+					Message::Signing(SigningMessage::SigningGenerationMessage(ref message)) => self.nodes[&msg.1].session.on_generation_message(msg.0.clone(), &message),
+					Message::Signing(SigningMessage::RequestPartialSignature(ref message)) => self.nodes[&msg.1].session.on_partial_signature_requested(msg.0.clone(), &message),
+					Message::Signing(SigningMessage::PartialSignature(ref message)) => self.nodes[&msg.1].session.on_partial_signature(msg.0.clone(), &message),
+					//Message::Signing(SigningMessage::SigningSessionCompleted(ref message)) => self.nodes[&msg.1].session.on_session_completed(msg.0.clone(), &message),
+					Message::Signing(SigningMessage::SigningSessionCompleted(ref message)) => unimplemented!(),
+					_ => panic!("unexpected"),
+				}
+			} {
+				Ok(_) => Ok(()),
+				Err(Error::TooEarlyForRequest) => {
+					self.queue.push_back(msg);
+					Ok(())
+				},
+				Err(err) => Err(err),
+			}
+		}
+
+		pub fn take_and_process_message(&mut self) -> Result<(), Error> {
+			let msg = self.take_message().unwrap();
+			self.process_message(msg)
+		}
+	}
+
+	#[test]
+	fn complete_gen_sign_session() {
+		let test_cases = [(1, 3)];
+		for &(threshold, num_nodes) in &test_cases {
+			// run key generation sessions
+			let mut gl = KeyGenerationMessageLoop::new(num_nodes);
+			gl.master().initialize(Public::default(), threshold, gl.nodes.keys().cloned().collect()).unwrap();
+			while let Some((from, to, message)) = gl.take_message() {
+				gl.process_message((from, to, message)).unwrap();
+			}
+
+			// run signing session
+			let requestor_pair = Random.generate().unwrap();
+			let requestor_signature = sign(&requestor_pair.secret(), &SessionId::default()).unwrap();
+			let message_hash = H256::from(777);
+			let mut sl = MessageLoop::new(&gl);
+			sl.master().initialize(requestor_signature, message_hash).unwrap();
+			while let Some((from, to, message)) = sl.take_message() {
+				sl.process_message((from, to, message)).unwrap();
+			}
+		}
+	}
+}
