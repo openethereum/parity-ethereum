@@ -28,7 +28,7 @@ use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::consensus_session::{ConsensusSession, Consensus, SessionParams as ConsensusSessionParams,
 	SessionState as ConsensusSessionState, SessionAction as ConsensusSessionAction};
 use key_server_cluster::generation_session::{SessionImpl as GenerationSession, SessionParams as GenerationSessionParams,
-	SessionState as GenerationSessionState};
+	SessionState as GenerationSessionState, Session as GenerationSessionApi};
 use key_server_cluster::math;
 use key_server_cluster::message::{Message, SigningMessage, SigningConsensusMessage, SigningGenerationMessage,
 	RequestPartialSignature, GenerationMessage, ConsensusMessage};
@@ -110,8 +110,10 @@ struct SessionData {
 	generation_cluster: Option<Arc<SigningCluster>>,
 	/// Session key generation session.
 	generation_session: Option<GenerationSession>,
-	/// Generated session key.
-	session_key: Option<DocumentKeyShare>,
+	/// Generated session public key.
+	session_joint_public: Option<Public>,
+	/// Generated session secret coefficient.
+	session_secret_coeff: Option<Secret>,
 
 	// === Values, filled when partial signatures are generating ===
 	/// Nodes which have agreed to make partial signatures.
@@ -185,7 +187,8 @@ impl SessionImpl {
 				consensus: None,
 				generation_cluster: None,
 				generation_session: None,
-				session_key: None,
+				session_joint_public: None,
+				session_secret_coeff: None,
 				confirmed_nodes: BTreeSet::new(),
 				partial_requests: BTreeSet::new(),
 				partial_signatures: VecDeque::new(),
@@ -331,12 +334,12 @@ impl SessionImpl {
 		SessionImpl::process_generation_session_action(&self.id, &self.access_key, &self.completed, &mut *data)?;
 
 		// if session key generated is not yet completed => continue
-		if data.state == SessionState::Failed || !data.session_key.is_some() {
+		if data.state == SessionState::Failed || !data.session_joint_public.is_some() {
 			return Ok(());
 		}
 
 		// else ask other nodes to generate partial signatures
-		SessionImpl::start_waiting_for_partial_decryption(self.node().clone(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data)
+		SessionImpl::start_waiting_for_partial_decryption(self.node(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data)
 	}
 
 	fn process_consensus_session_action(id: &SessionId, access_key: &Secret, cluster: &Arc<Cluster>, completed: &Condvar, data: &mut SessionData, action: ConsensusSessionAction) -> Result<(), Error> {
@@ -384,9 +387,10 @@ impl SessionImpl {
 			}
 		}
 
-		match data.generation_session.as_ref().expect("TODO").key_share() {
-			Some(Ok(key_share)) => {
-				data.session_key = Some(key_share);
+		match data.generation_session.as_ref().expect("TODO").joint_public_key() {
+			Some(Ok(session_joint_public)) => {
+				data.session_joint_public = Some(session_joint_public);
+				data.session_secret_coeff = Some(data.generation_session.as_ref().expect("TODO").secret_coeff().expect("TODO").expect("TODO"));
 				Ok(())
 			},
 			Some(Err(err)) => {
@@ -421,7 +425,7 @@ impl SessionImpl {
 		Ok(())
 	}
 
-	fn start_waiting_for_partial_decryption(self_node_id: NodeId, session_id: SessionId, access_key: Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
+	fn start_waiting_for_partial_decryption(self_node_id: &NodeId, session_id: SessionId, access_key: Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
 		// nodes which have formed consensus group
 		let confirmed_nodes: BTreeSet<_> = data.consensus.as_ref().expect("TODO").confirmed_nodes.clone();
 		let confirmed_nodes: BTreeSet<_> = confirmed_nodes.difference(&data.consensus.as_ref().expect("TODO").rejected_nodes).cloned().collect();
@@ -429,7 +433,7 @@ impl SessionImpl {
 		// send requests
 		data.partial_requests.clear();
 		data.partial_signatures.clear();
-		for node in confirmed_nodes.iter().filter(|n| n != &&self_node_id) {
+		for node in confirmed_nodes.iter().filter(|n| n != &self_node_id) {
 			data.partial_requests.insert(node.clone());
 			cluster.send(node, Message::Signing(SigningMessage::RequestPartialSignature(RequestPartialSignature {
 				session: session_id.clone().into(),
@@ -442,9 +446,12 @@ impl SessionImpl {
 		data.confirmed_nodes = confirmed_nodes;
 		if data.confirmed_nodes.remove(&self_node_id) {
 			let signing_result = {
+				let message_hash = data.message_hash.as_ref().expect("TODO");
+				let session_joint_public = data.session_joint_public.as_ref().expect("TODO");
+				let session_secret_coeff = data.session_secret_coeff.as_ref().expect("TODO");
 				//let requestor = data.requestor.as_ref().expect("TODO");
 				//do_partial_signing(&self_node_id, &requestor, &data.confirmed_nodes, &access_key, &encrypted_data)?
-				SessionImpl::do_partial_signing()?
+				SessionImpl::do_partial_signing(self_node_id, message_hash, encrypted_data, &data.confirmed_nodes, session_joint_public, session_secret_coeff)?
 			};
 			data.partial_signatures.push_back(signing_result);
 		}
@@ -452,8 +459,18 @@ impl SessionImpl {
 		Ok(())
 	}
 
-	fn do_partial_signing() -> Result<Secret, Error> {
-		unimplemented!()
+	fn do_partial_signing(self_node_id: &NodeId, message_hash: &H256, encrypted_data: &DocumentKeyShare, session_nodes: &BTreeSet<NodeId>, session_joint_public: &Public, session_secret_coeff: &Secret) -> Result<Secret, Error> {
+		debug_assert!(!session_nodes.contains(self_node_id));
+		debug_assert!(session_nodes.len() == encrypted_data.threshold);
+
+		let combined_hash = math::combine_message_hash_with_public(&message_hash, &session_joint_public)?;
+		math::compute_signature_share(
+			&combined_hash,
+			&session_secret_coeff,
+			&encrypted_data.secret_share,
+			&encrypted_data.id_numbers[self_node_id],
+			session_nodes.iter().map(|n| &encrypted_data.id_numbers[n])
+		)
 	}
 }
 
