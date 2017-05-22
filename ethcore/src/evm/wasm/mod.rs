@@ -24,6 +24,7 @@ const DEFAULT_STACK_SPACE: u32 = 5 * 1024 * 1024;
 
 use parity_wasm::{interpreter, elements};
 use parity_wasm::interpreter::ModuleInstanceInterface;
+use wasm_utils;
 
 use evm::{self, GasLeft};
 use action_params::{ActionParams, ActionValue};
@@ -67,12 +68,14 @@ impl evm::Evm for WasmInterpreter {
 		let mut cursor = ::std::io::Cursor::new(&*code);
 
 		// todo: prefer panic?
-		let contract_module = elements::Module::deserialize(
-			&mut cursor
-		).map_err(|e| {
-			warn!("Error deserializing contract code as wasm module: {:?}", e);
-			evm::Error::Wasm("Error deserializing contract code")
-		})?;
+		let contract_module = wasm_utils::inject_gas_counter(
+			elements::Module::deserialize(
+				&mut cursor
+			).map_err(|e| {
+				warn!("Error deserializing contract code as wasm module: {:?}", e);
+				evm::Error::Wasm("Error deserializing contract code")
+			})?
+		);
 
 		let d_ptr = runtime.write_descriptor(
 			call_args::CallArgs::new(

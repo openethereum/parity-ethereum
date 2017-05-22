@@ -435,6 +435,7 @@ dependencies = [
  "stats 0.1.0",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasm-utils 0.1.0 (git+http://github.com/nikvolf/wasm-tools)",
 ]
 
 [[package]]
@@ -2724,6 +2725,17 @@ version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "wasm-utils"
+version = "0.1.0"
+source = "git+http://github.com/nikvolf/wasm-tools#a2922a6fb05fc1ee2d1399b6cda51f6432f0cd5d"
+dependencies = [
+ "env_logger 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-wasm 0.5.0 (git+http://github.com/nikvolf/parity-wasm)",
+]
+
+[[package]]
 name = "winapi"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3034,6 +3046,7 @@ dependencies = [
 "checksum vecio 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0795a11576d29ae80525a3fda315bf7b534f8feb9d34101e5fe63fb95bb2fd24"
 "checksum vergen 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "56b639f935488eb40f06d17c3e3bcc3054f6f75d264e187b1107c8d1cba8d31c"
 "checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
+"checksum wasm-utils 0.1.0 (git+http://github.com/nikvolf/wasm-tools)" = "<none>"
 "checksum winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
 "checksum winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
 "checksum ws 0.5.3 (git+https://github.com/paritytech/ws-rs.git?branch=parity-1.7)" = "<none>"

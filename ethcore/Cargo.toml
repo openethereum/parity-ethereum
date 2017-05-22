@@ -52,6 +52,7 @@ stats = { path = "../util/stats" }
 time = "0.1"
 transient-hashmap = "0.4"
 parity-wasm = { git = "http://github.com/nikvolf/parity-wasm" }
+wasm-utils = { git = "http://github.com/nikvolf/wasm-tools" }
 
 [dev-dependencies]
 native-contracts = { path = "native_contracts", features = ["test_contracts"] }
