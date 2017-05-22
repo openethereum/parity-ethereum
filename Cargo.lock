@@ -1658,6 +1658,7 @@ dependencies = [
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime_guess 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "native-contracts 0.1.0",
  "parity-reactor 0.1.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1801,7 +1802,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/paritytech/js-precompiled.git#bc28cda725b0bfe655b807611091389e9fcdaac8"
+source = "git+https://github.com/paritytech/js-precompiled.git#6597fc70499226546fdcb35e7c09f9347f4f3c07"
 dependencies = [
  "parity-dapps-glue 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1816,6 +1817,7 @@ dependencies = [
  "ethcore-ipc-codegen 1.7.0",
  "ethcore-util 1.7.0",
  "ethsync 1.7.0",
+ "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "ipc-common-types 1.7.0",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-hash-fetch 1.7.0",

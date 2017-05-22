@@ -50,9 +50,10 @@ export default class Store {
   @observable walletFileError = ERRORS.noFile;
   @observable walletJson = '';
 
-  constructor (api, accounts, loadGeth = true) {
+  constructor (api, accounts, isTest, loadGeth = true) {
     this._api = api;
     this.accounts = Object.assign({}, accounts);
+    this.isTest = isTest;
 
     if (loadGeth) {
       this.loadAvailableGethAccounts();
@@ -72,7 +73,7 @@ export default class Store {
         return !(this.nameError || this.passwordRepeatError) && this.hasAddress;
 
       case 'fromPhrase':
-        return !(this.nameError || this.passwordRepeatError);
+        return !(this.nameError || this.passwordRepeatError || this.passPhraseError);
 
       case 'fromQr':
         return this.qrAddressValid && !this.nameError;
@@ -83,6 +84,10 @@ export default class Store {
       default:
         return false;
     }
+  }
+
+  @computed get passPhraseError () {
+    return !this.isTest && this.phrase.length === 0;
   }
 
   @computed get hasAddress () {

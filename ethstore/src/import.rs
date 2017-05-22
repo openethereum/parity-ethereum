@@ -15,9 +15,28 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashSet;
+use std::path::Path;
+use std::fs;
+
 use ethkey::Address;
-use dir::{paths, KeyDirectory, RootDiskDirectory};
+use dir::{paths, KeyDirectory, RootDiskDirectory, DiskKeyFileManager, KeyFileManager};
 use Error;
+
+/// Import an account from a file.
+pub fn import_account(path: &Path, dst: &KeyDirectory) -> Result<Address, Error> {
+	let key_manager = DiskKeyFileManager;
+	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
+	let filename = path.file_name().and_then(|n| n.to_str()).map(|f| f.to_owned());
+	let account = fs::File::open(&path)
+		.map_err(Into::into)
+		.and_then(|file| key_manager.read(filename, file))?;
+
+	let address = account.address.clone();
+	if !existing_accounts.contains(&address) {
+		dst.insert(account)?;
+	}
+	Ok(address)
+}
 
 /// Import all accounts from one directory to the other.
 pub fn import_accounts(src: &KeyDirectory, dst: &KeyDirectory) -> Result<Vec<Address>, Error> {

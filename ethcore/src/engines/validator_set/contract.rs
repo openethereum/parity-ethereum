@@ -116,7 +116,6 @@ impl ValidatorSet for ValidatorContract {
 mod tests {
 	use util::*;
 	use rlp::encode;
-	use ethkey::Secret;
 	use spec::Spec;
 	use header::Header;
 	use account_provider::AccountProvider;
@@ -140,7 +139,7 @@ mod tests {
 	#[test]
 	fn reports_validators() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let v1 = tap.insert_account(Secret::from_slice(&"1".sha3()).unwrap(), "").unwrap();
+		let v1 = tap.insert_account("1".sha3().into(), "").unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, Some(tap.clone()));
 		client.engine().register_client(Arc::downgrade(&client));
 		let validator_contract = Address::from_str("0000000000000000000000000000000000000005").unwrap();

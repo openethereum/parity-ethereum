@@ -695,7 +695,7 @@ impl Configuration {
 		ret.listen_address = listen.map(|l| format!("{}", l));
 		ret.public_address = public.map(|p| format!("{}", p));
 		ret.use_secret = match self.args.flag_node_key.as_ref()
-			.map(|s| s.parse::<Secret>().or_else(|_| Secret::from_slice(&s.sha3())).map_err(|e| format!("Invalid key: {:?}", e))
+			.map(|s| s.parse::<Secret>().or_else(|_| Secret::from_unsafe_slice(&s.sha3())).map_err(|e| format!("Invalid key: {:?}", e))
 			) {
 			None => None,
 			Some(Ok(key)) => Some(key),

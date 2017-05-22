@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Checkbox } from 'material-ui';
 
-import { Form, Input } from '~/ui';
+import { Form, Input, Warning } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 
 import ChangeVault from '../ChangeVault';
@@ -33,119 +33,187 @@ export default class RecoveryPhrase extends Component {
   }
 
   render () {
-    const { isWindowsPhrase, name, nameError, password, passwordRepeat, passwordRepeatError, passwordHint, phrase } = this.props.createStore;
+    const { isWindowsPhrase, name, nameError, passPhraseError, password, passwordRepeat, passwordRepeatError, passwordHint, phrase } = this.props.createStore;
 
     return (
-      <Form>
-        <Input
-          autoFocus
-          hint={
-            <FormattedMessage
-              id='createAccount.recoveryPhrase.phrase.hint'
-              defaultMessage='the account recovery phrase'
-            />
-          }
-          label={
-            <FormattedMessage
-              id='createAccount.recoveryPhrase.phrase.label'
-              defaultMessage='account recovery phrase'
-            />
-          }
-          onChange={ this.onEditPhrase }
-          value={ phrase }
-        />
-        <Input
-          error={ nameError }
-          hint={
-            <FormattedMessage
-              id='createAccount.recoveryPhrase.name.hint'
-              defaultMessage='a descriptive name for the account'
-            />
-          }
-          label={
-            <FormattedMessage
-              id='createAccount.recoveryPhrase.name.label'
-              defaultMessage='account name'
-            />
-          }
-          onChange={ this.onEditName }
-          value={ name }
-        />
-        <Input
-          hint={
-            <FormattedMessage
-              id='createAccount.recoveryPhrase.hint.hint'
-              defaultMessage='(optional) a hint to help with remembering the password'
-            />
-          }
-          label={
-            <FormattedMessage
-              id='createAccount.recoveryPhrase.hint.label'
-              defaultMessage='password hint'
-            />
-          }
-          onChange={ this.onEditPasswordHint }
-          value={ passwordHint }
-        />
-        <div className={ styles.passwords }>
-          <div className={ styles.password }>
-            <Input
-              hint={
+      <div className={ styles.details }>
+        { this.renderWarning() }
+        <Form>
+          <Input
+            autoFocus
+            error={
+              passPhraseError
+              ? (
                 <FormattedMessage
-                  id='createAccount.recoveryPhrase.password.hint'
-                  defaultMessage='a strong, unique password'
+                  id='createAccount.recoveryPhrase.passPhrase.error'
+                  defaultMessage='enter a recovery phrase'
                 />
-              }
-              label={
-                <FormattedMessage
-                  id='createAccount.recoveryPhrase.password.label'
-                  defaultMessage='password'
-                />
-              }
-              onChange={ this.onEditPassword }
-              type='password'
-              value={ password }
-            />
+              )
+              : null
+            }
+            hint={
+              <FormattedMessage
+                id='createAccount.recoveryPhrase.phrase.hint'
+                defaultMessage='the account recovery phrase'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='createAccount.recoveryPhrase.phrase.label'
+                defaultMessage='account recovery phrase'
+              />
+            }
+            onChange={ this.onEditPhrase }
+            value={ phrase }
+          />
+          <Input
+            error={ nameError }
+            hint={
+              <FormattedMessage
+                id='createAccount.recoveryPhrase.name.hint'
+                defaultMessage='a descriptive name for the account'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='createAccount.recoveryPhrase.name.label'
+                defaultMessage='account name'
+              />
+            }
+            onChange={ this.onEditName }
+            value={ name }
+          />
+          <Input
+            hint={
+              <FormattedMessage
+                id='createAccount.recoveryPhrase.hint.hint'
+                defaultMessage='(optional) a hint to help with remembering the password'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='createAccount.recoveryPhrase.hint.label'
+                defaultMessage='password hint'
+              />
+            }
+            onChange={ this.onEditPasswordHint }
+            value={ passwordHint }
+          />
+          <div className={ styles.passwords }>
+            <div className={ styles.password }>
+              <Input
+                hint={
+                  <FormattedMessage
+                    id='createAccount.recoveryPhrase.password.hint'
+                    defaultMessage='a strong, unique password'
+                  />
+                }
+                label={
+                  <FormattedMessage
+                    id='createAccount.recoveryPhrase.password.label'
+                    defaultMessage='password'
+                  />
+                }
+                onChange={ this.onEditPassword }
+                type='password'
+                value={ password }
+              />
+            </div>
+            <div className={ styles.password }>
+              <Input
+                error={ passwordRepeatError }
+                hint={
+                  <FormattedMessage
+                    id='createAccount.recoveryPhrase.password2.hint'
+                    defaultMessage='verify your password'
+                  />
+                }
+                label={
+                  <FormattedMessage
+                    id='createAccount.recoveryPhrase.password2.label'
+                    defaultMessage='password (repeat)'
+                  />
+                }
+                onChange={ this.onEditPasswordRepeat }
+                type='password'
+                value={ passwordRepeat }
+              />
+            </div>
           </div>
-          <div className={ styles.password }>
-            <Input
-              error={ passwordRepeatError }
-              hint={
-                <FormattedMessage
-                  id='createAccount.recoveryPhrase.password2.hint'
-                  defaultMessage='verify your password'
-                />
-              }
-              label={
-                <FormattedMessage
-                  id='createAccount.recoveryPhrase.password2.label'
-                  defaultMessage='password (repeat)'
-                />
-              }
-              onChange={ this.onEditPasswordRepeat }
-              type='password'
-              value={ passwordRepeat }
-            />
-          </div>
-        </div>
-        <PasswordStrength input={ password } />
-        <ChangeVault
-          createStore={ this.props.createStore }
-          vaultStore={ this.props.vaultStore }
-        />
-        <Checkbox
-          checked={ isWindowsPhrase }
-          className={ styles.checkbox }
-          label={
-            <FormattedMessage
-              id='createAccount.recoveryPhrase.windowsKey.label'
-              defaultMessage='Key was created with Parity <1.4.5 on Windows'
-            />
-          }
-          onCheck={ this.onToggleWindowsPhrase }
-        />
-      </Form>
+          <PasswordStrength input={ password } />
+          <ChangeVault
+            createStore={ this.props.createStore }
+            vaultStore={ this.props.vaultStore }
+          />
+          <Checkbox
+            checked={ isWindowsPhrase }
+            className={ styles.checkbox }
+            label={
+              <FormattedMessage
+                id='createAccount.recoveryPhrase.windowsKey.label'
+                defaultMessage='Key was created with Parity <1.4.5 on Windows'
+              />
+            }
+            onCheck={ this.onToggleWindowsPhrase }
+          />
+        </Form>
+      </div>
     );
+  }
+
+  renderWarning () {
+    const { isTest, phrase } = this.props.createStore;
+
+    if (!isTest && phrase.length === 0) {
+      return (
+        <Warning
+          warning={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.warning.emptyPhrase'
+              defaultMessage={ `The recovery phrase is empty.
+                This account can be recovered by anyone.
+              ` }
+            />
+          }
+        />
+      );
+    }
+
+    if (phrase.length === 0) {
+      return (
+        <Warning
+          warning={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.warning.testnetEmptyPhrase'
+              defaultMessage={ `The recovery phrase is empty.
+                This account can be recovered by anyone.
+                Proceed with caution.
+              ` }
+            />
+          }
+        />
+      );
+    }
+
+    const words = phrase.split(' ');
+
+    if (words.length < 11) {
+      return (
+        <Warning
+          warning={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.warning.shortPhrase'
+              defaultMessage={ `The recovery phrase is less than 11 words.
+                This account has not been generated by Parity and might be insecure.
+                Proceed with caution.
+              ` }
+            />
+          }
+        />
+      );
+    }
+
+    return null;
   }
 
   onToggleWindowsPhrase = (event) => {

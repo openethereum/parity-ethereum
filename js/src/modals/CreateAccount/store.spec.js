@@ -37,7 +37,7 @@ function createStore (loadGeth) {
   createVaultStore();
 
   api = createApi();
-  store = new Store(api, ACCOUNTS, loadGeth);
+  store = new Store(api, ACCOUNTS, true, loadGeth);
 
   return store;
 }
