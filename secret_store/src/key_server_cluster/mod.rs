@@ -66,6 +66,8 @@ pub enum Error {
 	/// Current state of encryption/decryption session does not allow to proceed request.
 	/// This means that either there is some comm-failure or node is misbehaving/cheating.
 	InvalidStateForRequest,
+	/// TODO
+	InvalidNodeForRequest,
 	/// Message or some data in the message was recognized as invalid.
 	/// This means that node is misbehaving/cheating.
 	InvalidMessage,
@@ -79,6 +81,8 @@ pub enum Error {
 	Serde(String),
 	/// Key storage error.
 	KeyStorage(String),
+	/// Consensus is unreachable.
+	ConsensusUnreachable,
 	/// Acl storage error.
 	AccessDenied,
 }
@@ -115,12 +119,14 @@ impl fmt::Display for Error {
 			Error::InvalidThreshold => write!(f, "invalid threshold value has been passed"),
 			Error::TooEarlyForRequest => write!(f, "session is not yet ready to process this request"),
 			Error::InvalidStateForRequest => write!(f, "session is in invalid state for processing this request"),
+			Error::InvalidNodeForRequest => write!(f, "node cannot respond to this request"),
 			Error::InvalidMessage => write!(f, "invalid message is received"),
 			Error::NodeDisconnected => write!(f, "node required for this operation is currently disconnected"),
 			Error::EthKey(ref e) => write!(f, "cryptographic error {}", e),
 			Error::Io(ref e) => write!(f, "i/o error {}", e),
 			Error::Serde(ref e) => write!(f, "serde error {}", e),
 			Error::KeyStorage(ref e) => write!(f, "key storage error {}", e),
+			Error::ConsensusUnreachable => write!(f, "Consensus unreachable"),
 			Error::AccessDenied => write!(f, "Access denied"),
 		}
 	}
@@ -134,6 +140,7 @@ impl Into<String> for Error {
 
 mod cluster;
 mod cluster_sessions;
+mod consensus;
 mod consensus_session;
 mod decryption_session;
 mod encryption_session;

@@ -22,43 +22,48 @@ use util;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, DocumentKeyShare};
 use key_server_cluster::cluster::{Cluster};
 use key_server_cluster::cluster_sessions::ClusterSession;
+use key_server_cluster::consensus::Consensus;
 use key_server_cluster::message::{ConsensusMessage, InitializeConsensusSession, ConfirmConsensusInitialization};
 
-#[derive(Default, Debug, Clone)]
-/// Consensus data. TODO: also move restart logic here (it is in signing + decryption)
-pub struct Consensus {
-	/// Nodes, which have been requested for signing initialization.
-	pub requested_nodes: BTreeSet<NodeId>,
-	/// Nodes, which have responded with reject to initialization request.
-	pub rejected_nodes: BTreeSet<NodeId>,
-	/// Nodes, which have responded with confirm to initialization request.
-	pub confirmed_nodes: BTreeSet<NodeId>,
+/// Consenus checker.
+pub trait ConsensusChecker {
+	/// Check if we want to accept offer to join consensus group. Consensus is about revealing key `key` to requestor `requestor`.
+	fn check_offer(&self, key: &SessionId, requestor: &Public) -> bool;
 }
 
-/// Signing session.
-pub struct ConsensusSession {
+/// Consensus establishing session.
+pub struct ConsensusSession<C: ConsensusChecker> {
 	/// Key generation session id.
 	id: SessionId,
 	/// Public identifier of this node.
 	self_node_id: NodeId,
-	/// Key generation data.
-	encrypted_data: DocumentKeyShare,
-	/// ACL storate to check access to the resource.
-	acl_storage: Arc<AclStorage>,
+	/// Master node id.
+	master_node_id: Public,
+	/// Consensus checker.
+	consensus_checker: C,
 	/// Mutable session data.
-	data: Mutex<SessionData>,
+	data: SessionData,
 }
 
+/// ACL checker for consensus establishing session.
+pub struct AclConsensusChecker {
+	/// ACL storate to check access to the resource.
+	acl_storage: Arc<AclStorage>,
+}
+
+/// Always accept checker for consensus establishing session.
+pub struct TrueConsensusChecker;
+
 /// SessionImpl creation parameters
-pub struct SessionParams {
+pub struct SessionParams<C: ConsensusChecker> {
 	/// Key generation session id.
 	pub id: SessionId,
 	/// Id of node, on which this session is running.
 	pub self_node_id: Public,
-	/// Encrypted data (result of running encryption_session::SessionImpl).
-	pub encrypted_data: DocumentKeyShare,
-	/// Key storage.
-	pub acl_storage: Arc<AclStorage>,
+	/// Master node id.
+	pub master_node_id: Public,
+	/// Consensus checker.
+	pub consensus_checker: C,
 }
 
 #[derive(Debug)]
@@ -66,9 +71,7 @@ pub struct SessionParams {
 struct SessionData {
 	/// Current state of the session.
 	state: SessionState,
-	/// Consensus data.
-	consensus: Consensus,
-	/// Consensus result.
+	/// Consensus establishing result.
 	result: Option<Result<(), Error>>,
 }
 
@@ -82,9 +85,9 @@ pub enum SessionState {
 	WaitingForInitializationConfirm,
 
 	// === Final states of the session ===
-	/// Signing is completed.
+	/// Consensus group is established.
 	Finished,
-	/// Signing is failed.
+	/// Consensus establish has failed.
 	Failed,
 }
 
@@ -99,143 +102,133 @@ pub enum SessionAction {
 	SendMessage(NodeId, ConsensusMessage),
 }
 
-impl ConsensusSession {
+impl<C> ConsensusSession<C> where C: ConsensusChecker {
 	/// Create new signing session.
-	pub fn new(params: SessionParams) -> Result<Self, Error> {
+	pub fn new(params: SessionParams<C>) -> Result<Self, Error> {
 		Ok(ConsensusSession {
 			id: params.id,
 			self_node_id: params.self_node_id,
-			encrypted_data: params.encrypted_data,
-			acl_storage: params.acl_storage,
-			data: Mutex::new(SessionData {
+			master_node_id: params.master_node_id,
+			consensus_checker: params.consensus_checker,
+			data: SessionData {
 				state: SessionState::WaitingForInitialization,
-				consensus: Consensus::default(),
 				result: None,
-			})
+			}
 		})
-	}
-
-	/// Get this node Id.
-	pub fn node(&self) -> &NodeId {
-		&self.self_node_id
 	}
 
 	/// Get current session state.
 	pub fn state(&self) -> SessionState {
-		self.data.lock().state.clone()
-	}
-
-	/// Get result of consensus.
-	pub fn consensus(&self) -> Option<Result<Consensus, Error>> {
-		let data = self.data.lock();
-		data.result.clone().map(|r| r.map(|_| data.consensus.clone()))
+		self.data.state.clone()
 	}
 
 	/// Initialize consensus session.
-	pub fn initialize(&self, requestor_signature: Signature) -> Result<SessionAction, Error> {
-		let mut data = self.data.lock();
+	pub fn initialize<T>(&mut self, requestor_signature: Signature, consensus: &mut Consensus<T>) -> Result<SessionAction, Error> {
+		debug_assert_eq!(self.self_node_id, self.master_node_id);
 
 		// check state
-		if data.state != SessionState::WaitingForInitialization {
+		if self.data.state != SessionState::WaitingForInitialization {
 			return Err(Error::InvalidStateForRequest);
 		}
 
-		// recover requestor signature
-		let requestor_public = ethkey::recover(&requestor_signature, &self.id)?;
+		// recover requestor public
+		let requestor = ethkey::recover(&requestor_signature, &self.id)?;
 
 		// update state
-		data.state = SessionState::WaitingForInitializationConfirm;
-		data.consensus.requested_nodes.extend(self.encrypted_data.id_numbers.keys().cloned());
+		self.data.state = SessionState::WaitingForInitializationConfirm;
 
 		// ..and finally check access on our's own
-		let is_permitted = self.acl_storage.check(&requestor_public, &self.id).unwrap_or(false);
-		process_initialization_response(&self.encrypted_data, &mut *data, self.node(), is_permitted)?;
-
-		// check if we have enough nodes to sign message
-		match data.state {
-			// not enough nodes => pass initialization message to all other nodes
-			SessionState::WaitingForInitializationConfirm =>
-				Ok(SessionAction::BroadcastMessage(ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
-					requestor_signature: requestor_signature.clone().into(),
-				}))),
-			// else state must be checked
-			_ => Ok(SessionAction::CheckStatus),
+		let self_node_id = self.self_node_id.clone();
+		let is_confirmed = self.consensus_checker.check_offer(&self.id, &requestor);
+		self.process_initialization_response(&self_node_id, is_confirmed, consensus)?;
+		if self.data.state != SessionState::Finished {
+			Ok(SessionAction::BroadcastMessage(ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
+				requestor_signature: requestor_signature.into(),
+			})))
+		} else {
+			Ok(SessionAction::CheckStatus)
 		}
 	}
 
 	/// When session initialization message is received.
-	pub fn on_initialize_session(&self, sender: NodeId, message: &InitializeConsensusSession) -> Result<SessionAction, Error> {
-		debug_assert!(&sender != self.node());
+	pub fn on_initialize_session(&mut self, sender: NodeId, message: &InitializeConsensusSession) -> Result<SessionAction, Error> {
+		debug_assert!(sender != self.self_node_id);
 
-		let mut data = self.data.lock();
-
+		// check message
+		if self.master_node_id != sender {
+			return Err(Error::InvalidMessage);
+		}
 		// check state
-		if data.state != SessionState::WaitingForInitialization {
+		if self.data.state != SessionState::WaitingForInitialization {
 			return Err(Error::InvalidStateForRequest);
 		}
 
-		// recover requestor signature
+		// recover requestor public
 		let requestor_public = ethkey::recover(&message.requestor_signature, &self.id)?;
 
 		// check access
-		let is_permitted = self.acl_storage.check(&requestor_public, &self.id).unwrap_or(false);
-		data.state = if is_permitted { SessionState::Finished } else { SessionState::Failed };
+		let is_confirmed = self.consensus_checker.check_offer(&self.id, &requestor_public);
+
+		// update state
+		self.data.state = if is_confirmed { SessionState::Finished } else { SessionState::Failed };
 
 		// respond to sender
 		Ok(SessionAction::SendMessage(sender, ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
-			is_confirmed: is_permitted,
+			is_confirmed: is_confirmed,
 		})))
 	}
 
 	/// When session initialization confirmation message is reeived.
-	pub fn on_confirm_initialization(&self, sender: NodeId, message: &ConfirmConsensusInitialization) -> Result<SessionAction, Error> {
-		debug_assert!(&sender != self.node());
-
-		let mut data = self.data.lock();
+	pub fn on_confirm_initialization<T>(&mut self, sender: NodeId, message: &ConfirmConsensusInitialization, consensus: &mut Consensus<T>) -> Result<SessionAction, Error> {
+		debug_assert!(sender != self.self_node_id);
 
 		// check state
-		if data.state != SessionState::WaitingForInitializationConfirm {
+		if self.self_node_id != self.master_node_id {
+			return Err(Error::InvalidMessage);
+		}
+		if self.data.state != SessionState::WaitingForInitializationConfirm && self.data.state != SessionState::Finished {
 			return Err(Error::InvalidStateForRequest);
 		}
 
 		// update state
-		process_initialization_response(&self.encrypted_data, &mut *data, &sender, message.is_confirmed)?;
+		self.process_initialization_response(&sender, message.is_confirmed, consensus)
+	}
 
-		// check if we have enough nodes for consensus
-		match data.state {
-			// we do not yet have enough nodes for consensus
-			SessionState::WaitingForInitializationConfirm => Ok(SessionAction::CheckStatus),
-			// else state must be checked
-			_ => Ok(SessionAction::CheckStatus),
+	/// Process initialization response from given node.
+	fn process_initialization_response<T>(&mut self, node: &NodeId, is_confirmed: bool, consensus: &mut Consensus<T>) -> Result<SessionAction, Error> {
+		match consensus.offer_response(node, is_confirmed) {
+			Ok(_) if consensus.is_established() => {
+				self.data.result = Some(Ok(()));
+				self.data.state = SessionState::Finished;
+				Ok(SessionAction::CheckStatus)
+			}
+			Ok(_) => Ok(SessionAction::CheckStatus),
+			Err(err) => {
+				self.data.result = Some(Err(err.clone()));
+				self.data.state = SessionState::Failed;
+				Err(err)
+			},
 		}
 	}
 }
 
-fn process_initialization_response(encrypted_data: &DocumentKeyShare, data: &mut SessionData, node: &NodeId, is_permitted: bool) -> Result<(), Error> {
-	if !data.consensus.requested_nodes.remove(node) {
-		return Err(Error::InvalidMessage);
+impl AclConsensusChecker {
+	/// Create new ACL-consensus checker.
+	pub fn new(acl_storage: Arc<AclStorage>) -> Self {
+		AclConsensusChecker {
+			acl_storage: acl_storage,
+		}
 	}
+}
 
-	match is_permitted {
-		true => {
-			data.consensus.confirmed_nodes.insert(node.clone());
-
-			// check if we have enough nodes for consensus?
-			if data.consensus.confirmed_nodes.len() == encrypted_data.threshold + 1 {
-				data.result = Some(Ok(()));
-				data.state = SessionState::Finished;
-			}
-		},
-		false => {
-			data.consensus.rejected_nodes.insert(node.clone());
-
-			// check if we still can receive enough confirmations for consensus?
-			if encrypted_data.id_numbers.len() - data.consensus.rejected_nodes.len() < encrypted_data.threshold + 1 {
-				data.result = Some(Err(Error::AccessDenied));
-				data.state = SessionState::Failed;
-			}
-		},
+impl ConsensusChecker for AclConsensusChecker {
+	fn check_offer(&self, key: &SessionId, requestor: &Public) -> bool {
+		self.acl_storage.check(requestor, key).unwrap_or(false)
 	}
+}
 
-	Ok(())
+impl ConsensusChecker for TrueConsensusChecker {
+	fn check_offer(&self, _key: &SessionId, _requestor: &Public) -> bool {
+		true
+	}
 }

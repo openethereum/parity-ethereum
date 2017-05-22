@@ -17,6 +17,7 @@
 use std::collections::{BTreeSet, VecDeque};
 use std::mem::swap;
 use std::cmp::{Ordering, Ord, PartialOrd};
+use std::ops::DerefMut;
 use std::sync::Arc;
 use std::time;
 use parking_lot::{Mutex, Condvar};
@@ -25,7 +26,8 @@ use util::{self, H256};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, DocumentKeyShare};
 use key_server_cluster::cluster::{Cluster};
 use key_server_cluster::cluster_sessions::ClusterSession;
-use key_server_cluster::consensus_session::{ConsensusSession, Consensus, SessionParams as ConsensusSessionParams,
+use key_server_cluster::consensus::Consensus;
+use key_server_cluster::consensus_session::{ConsensusSession, AclConsensusChecker, SessionParams as ConsensusSessionParams,
 	SessionState as ConsensusSessionState, SessionAction as ConsensusSessionAction};
 use key_server_cluster::generation_session::{SessionImpl as GenerationSession, SessionParams as GenerationSessionParams,
 	SessionState as GenerationSessionState, Session as GenerationSessionApi};
@@ -98,12 +100,12 @@ struct SessionData {
 	requestor: Option<Public>,
 	/// Hash of the message to sign.
 	message_hash: Option<H256>,
+	/// Signing consensus group.
+	consensus: Option<Consensus<Secret>>,
 
 	// === Values, filled when consensus is establishing ===
 	/// Consensus session.
-	consensus_session: Option<ConsensusSession>,
-	/// Consensus params.
-	consensus: Option<Consensus>,
+	consensus_session: Option<ConsensusSession<AclConsensusChecker>>,
 
 	// === Values, filled when session key is generating ===
 	/// Signing cluster subgroup.
@@ -221,17 +223,18 @@ impl SessionImpl {
 		data.master = Some(self.node().clone());
 		//data.requestor = Some(requestor_public.clone());
 		data.message_hash = Some(message_hash);
+		data.consensus = Some(Consensus::new(self.encrypted_data.threshold, self.encrypted_data.id_numbers.keys().cloned().collect())?);
 
 		// create consensus session
-		let consensus_session = ConsensusSession::new(ConsensusSessionParams {
+		let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
 			id: self.id.clone(),
 			self_node_id: self.self_node_id.clone(),
-			encrypted_data: self.encrypted_data.clone(),
-			acl_storage: self.acl_storage.clone(),
+			master_node_id: self.self_node_id.clone(),
+			consensus_checker: AclConsensusChecker::new(self.acl_storage.clone()),
 		})?;
 
 		// start consensus session
-		let consensus_action = consensus_session.initialize(requestor_signature)?;
+		let consensus_action = consensus_session.initialize(requestor_signature, data.consensus.as_mut().expect("TODO"))?;
 		data.consensus_session = Some(consensus_session);
 		SessionImpl::process_consensus_session_action(&self.id, &self.access_key, &self.cluster, &self.completed, &mut *data, consensus_action)?;
 
@@ -249,17 +252,19 @@ impl SessionImpl {
 	/// When consensus-related message is received.
 	pub fn on_consensus_message(&self, sender: NodeId, message: &SigningConsensusMessage) -> Result<(), Error> {
 		let mut data = self.data.lock();
+		let mut data = data.deref_mut();
 
 		// if we are waiting for initialization
 		if data.state == SessionState::WaitingForInitialization {
 			data.master = Some(sender.clone());
 			//data.requestor = Some(requestor_public);
 			data.state = SessionState::EstablishingConsensus;
+			data.consensus = Some(Consensus::new(self.encrypted_data.threshold, self.encrypted_data.id_numbers.keys().cloned().collect())?);
 			data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
 				id: self.id.clone(),
 				self_node_id: self.self_node_id.clone(),
-				encrypted_data: self.encrypted_data.clone(),
-				acl_storage: self.acl_storage.clone(),
+				master_node_id: sender.clone(),
+				consensus_checker: AclConsensusChecker::new(self.acl_storage.clone()),
 			})?);
 		}
 
@@ -272,9 +277,9 @@ impl SessionImpl {
 		// process message
 		let consensus_action = match message.message {
 			ConsensusMessage::InitializeConsensusSession(ref message) =>
-				data.consensus_session.as_ref().expect("TODO").on_initialize_session(sender, &message)?,
+				data.consensus_session.as_mut().expect("TODO").on_initialize_session(sender, &message)?,
 			ConsensusMessage::ConfirmConsensusInitialization(ref message) =>
-				data.consensus_session.as_ref().expect("TODO").on_confirm_initialization(sender, &message)?,
+				data.consensus_session.as_mut().expect("TODO").on_confirm_initialization(sender, &message, data.consensus.as_mut().expect("TODO"))?,
 		};
 		SessionImpl::process_consensus_session_action(&self.id, &self.access_key, &self.cluster, &self.completed, &mut *data, consensus_action)?;
 
@@ -434,19 +439,7 @@ impl SessionImpl {
 					message: message,
 				})))
 			},
-			ConsensusSessionAction::CheckStatus => match data.consensus_session.as_ref().expect("TODO").consensus() {
-				Some(Ok(consensus)) => {
-					data.consensus = Some(consensus.clone());
-					Ok(())
-				},
-				Some(Err(err)) => {
-					data.state = SessionState::Failed;
-					data.signed_message = Some(Err(err));
-					completed.notify_all();
-					Ok(())
-				},
-				None => Ok(()),
-			},
+			_ => Ok(()),
 		}
 	}
 
@@ -481,11 +474,11 @@ impl SessionImpl {
 
 	fn start_generating_session_key(self_node_id: NodeId, encrypted_data: &DocumentKeyShare, cluster: &Arc<Cluster>, data: &mut SessionData) -> Result<(), Error> {
 		// select nodes to make signature
-		let confirmed_nodes: BTreeSet<_> = data.consensus.as_ref().expect("TODO").confirmed_nodes.clone();
-		let confirmed_nodes: BTreeSet<_> = confirmed_nodes.difference(&data.consensus.as_ref().expect("TODO").rejected_nodes).cloned().collect();
+		data.consensus.as_mut().expect("TODO").activate()?;
+		let selected_nodes = data.consensus.as_mut().expect("TODO").select_nodes()?;
 
 		// create generation session
-		let generation_cluster = Arc::new(SigningCluster::new(cluster.clone(), confirmed_nodes.clone()));
+		let generation_cluster = Arc::new(SigningCluster::new(cluster.clone(), selected_nodes.clone()));
 		let generation_session = GenerationSession::new(GenerationSessionParams {
 			id: H256::default(), // doesn't matter
 			self_node_id: self_node_id.clone(),
@@ -494,7 +487,7 @@ impl SessionImpl {
 		});
 
 		// start generation session
-		let result = generation_session.initialize(data.requestor.as_ref().expect("TODO").clone(), encrypted_data.threshold, confirmed_nodes)?;
+		let result = generation_session.initialize(data.requestor.as_ref().expect("TODO").clone(), encrypted_data.threshold, selected_nodes.clone())?;
 		data.generation_cluster = Some(generation_cluster);
 		data.generation_session = Some(generation_session);
 
@@ -503,8 +496,7 @@ impl SessionImpl {
 
 	fn start_waiting_for_partial_signing(self_node_id: &NodeId, session_id: SessionId, access_key: Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
 		// nodes which have formed consensus group
-		let confirmed_nodes: BTreeSet<_> = data.consensus.as_ref().expect("TODO").confirmed_nodes.clone();
-		let confirmed_nodes: BTreeSet<_> = confirmed_nodes.difference(&data.consensus.as_ref().expect("TODO").rejected_nodes).cloned().collect();
+		let confirmed_nodes: BTreeSet<_> = data.consensus.as_ref().expect("TODO").selected_nodes()?.clone();
 
 		// send requests
 		data.partial_requests.clear();

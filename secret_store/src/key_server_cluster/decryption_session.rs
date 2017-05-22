@@ -518,7 +518,7 @@ impl ClusterSession for SessionImpl {
 					if self.encrypted_data.id_numbers.len() - data.rejected_nodes.len() >= self.encrypted_data.threshold + 1 {
 						return;
 					}
-				}
+				},
 				SessionState::WaitingForPartialDecryption => {
 					if data.rejected_nodes.contains(node) {
 						// already rejected => does not affect session
@@ -549,7 +549,7 @@ impl ClusterSession for SessionImpl {
 						}
 						// not enough nodes
 					}
-				}
+				},
 				_ => (), // all other states lead to failures
 			}
 		} else if !is_other_master {
