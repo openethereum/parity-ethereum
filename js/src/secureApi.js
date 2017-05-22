@@ -32,6 +32,7 @@ export default class SecureApi extends Api {
 
   static getTransport (url, sysuiToken, protocol) {
     const proto = protocol() === 'https:' ? 'wss:' : 'ws:';
+
     return new Api.Transport.Ws(`${proto}//${url}`, sysuiToken, false);
   }
 
@@ -68,6 +69,7 @@ export default class SecureApi extends Api {
     }
 
     const [host, port] = this._dappsUrl.split(':');
+
     return {
       host,
       port: parseInt(port, 10)
@@ -79,7 +81,8 @@ export default class SecureApi extends Api {
   }
 
   get dappsUrl () {
-    const { port } = this._dappsAddress
+    const { port } = this._dappsAddress;
+
     return `${this.protocol()}//${this.hostname}:${port}`;
   }
 
@@ -316,7 +319,7 @@ export default class SecureApi extends Api {
     return Promise
       .all([
         this.parity.dappsUrl(),
-        this.parity.wsUrl(),
+        this.parity.wsUrl()
       ])
       .then(([dappsUrl, wsUrl]) => {
         this._dappsUrl = dappsUrl;

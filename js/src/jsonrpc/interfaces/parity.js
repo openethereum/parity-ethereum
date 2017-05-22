@@ -151,7 +151,14 @@ export default {
       type: Array,
       desc: 'The list of dapps',
       example: [
-        {"author":"Parity Technologies Ltd","description":"A skeleton dapp","iconUrl":"title.png","id":"skeleton","name":"Skeleton","version":"0.1"}
+        {
+          author: 'Parity Technologies Ltd',
+          description: 'A skeleton dapp',
+          iconUrl: 'title.png',
+          id: 'skeleton',
+          name: 'Skeleton',
+          version: '0.1'
+        }
       ]
     }
   },
