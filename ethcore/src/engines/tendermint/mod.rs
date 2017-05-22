@@ -42,7 +42,7 @@ use evm::Schedule;
 use state::CleanupMode;
 use io::IoService;
 use super::signer::EngineSigner;
-use super::validator_set::{ValidatorSet, new_validator_set};
+use super::validator_set::ValidatorSet;
 use super::transition::TransitionHandler;
 use super::vote_collector::VoteCollector;
 use self::message::*;
@@ -124,7 +124,7 @@ impl Tendermint {
 				proposal: RwLock::new(None),
 				proposal_parent: Default::default(),
 				last_proposed: Default::default(),
-				validators: new_validator_set(our_params.validators),
+				validators: our_params.validators,
 			});
 		let handler = TransitionHandler::new(Arc::downgrade(&engine) as Weak<Engine>, Box::new(our_params.timeouts));
 		engine.step_service.register_handler(Arc::new(handler))?;
@@ -659,7 +659,6 @@ mod tests {
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;
-	use ethkey::Secret;
 	use client::chain_notify::ChainNotify;
 	use miner::MinerService;
 	use tests::helpers::*;
@@ -708,7 +707,7 @@ mod tests {
 	}
 
 	fn insert_and_unlock(tap: &Arc<AccountProvider>, acc: &str) -> Address {
-		let addr = tap.insert_account(Secret::from_slice(&acc.sha3()).unwrap(), acc).unwrap();
+		let addr = tap.insert_account(acc.sha3().into(), acc).unwrap();
 		tap.unlock_account_permanently(addr, acc.into()).unwrap();
 		addr
 	}

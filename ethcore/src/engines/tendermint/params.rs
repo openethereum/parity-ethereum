@@ -19,16 +19,16 @@
 use ethjson;
 use util::{U256, Uint, Address};
 use time::Duration;
+use super::super::validator_set::{ValidatorSet, new_validator_set};
 use super::super::transition::Timeouts;
 use super::Step;
 
 /// `Tendermint` params.
-#[derive(Debug)]
 pub struct TendermintParams {
 	/// Gas limit divisor.
 	pub gas_limit_bound_divisor: U256,
 	/// List of validators.
-	pub validators: ethjson::spec::ValidatorSet,
+	pub validators: Box<ValidatorSet>,
 	/// Timeout durations for different steps.
 	pub timeouts: TendermintTimeouts,
 	/// Block reward.
@@ -82,7 +82,7 @@ impl From<ethjson::spec::TendermintParams> for TendermintParams {
 		let dt = TendermintTimeouts::default();
 		TendermintParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			validators: p.validators,
+			validators: new_validator_set(p.validators),
 			timeouts: TendermintTimeouts {
 				propose: p.timeout_propose.map_or(dt.propose, to_duration),
 				prevote: p.timeout_prevote.map_or(dt.prevote, to_duration),

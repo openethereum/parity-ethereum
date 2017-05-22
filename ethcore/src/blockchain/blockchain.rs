@@ -1564,7 +1564,7 @@ mod tests {
 	}
 
 	fn secret() -> Secret {
-		Secret::from_slice(&"".sha3()).unwrap()
+		"".sha3().into()
 	}
 
 	#[test]
