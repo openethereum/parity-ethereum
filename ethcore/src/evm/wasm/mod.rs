@@ -16,7 +16,7 @@
 
 mod runtime;
 mod ptr;
-mod descriptor;
+mod call_args;
 
 use std::sync::Arc;
 
@@ -48,9 +48,11 @@ impl evm::Evm for WasmInterpreter {
 	fn exec(&mut self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result<GasLeft> {
 		use parity_wasm::elements::Deserialize;
 
+		// todo: prefer panic?
 		let env_instance = self.program.module("env")
 			.ok_or(evm::Error::Wasm("Env module somehow does not exist in wasm runner runtime"))?;
 
+		// todo: prefer panic?
 		let env_memory = env_instance.memory(interpreter::ItemIndex::Internal(0))
 			.map_err(|_| evm::Error::Wasm("Linear memory somehow does not exist in wasm runner runtime"))?;
 		
@@ -63,6 +65,8 @@ impl evm::Evm for WasmInterpreter {
 
 		let code = params.code.expect("exec is only called on contract with code; qed");
 		let mut cursor = ::std::io::Cursor::new(&*code);
+
+		// todo: prefer panic?
 		let contract_module = elements::Module::deserialize(
 			&mut cursor
 		).map_err(|e| {
@@ -71,7 +75,7 @@ impl evm::Evm for WasmInterpreter {
 		})?;
 
 		let d_ptr = runtime.write_descriptor(
-			descriptor::CallDescriptor::new(
+			call_args::CallArgs::new(
 				params.address,
 				params.sender,
 				params.value.value(),
@@ -140,4 +144,9 @@ fn native_bindings<'a>(runtime: &'a mut Runtime) -> interpreter::UserFunctions<'
 			},
 		],
 	}
+}
+
+#[cfg(test)]
+mod tests {
+	
 }

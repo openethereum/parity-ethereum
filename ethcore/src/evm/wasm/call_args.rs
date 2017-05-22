@@ -19,9 +19,8 @@
 use types::executed::CallType;
 use util::{U256, H256, H160, Uint};
 
-pub struct CallDescriptor {
+pub struct CallArgs {
     // address of code executed
-    // zero if it's a create
     pub address: [u8; 20],
 
     // sender of the transaction
@@ -37,9 +36,9 @@ pub struct CallDescriptor {
     pub data: Vec<u8>,
 }
 
-impl CallDescriptor {
+impl CallArgs {
     pub fn new(address: H160, sender: H160, value: U256, data: Vec<u8>) -> Self {
-        let mut descriptor = CallDescriptor {
+        let mut descriptor = CallArgs {
             address: [0u8; 20],
             sender: [0u8; 20],
             value: [0u8; 32],

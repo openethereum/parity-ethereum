@@ -18,13 +18,15 @@
 
 use std::sync::Arc;
 
+use byteorder::{LittleEndian, ByteOrder};
+
 use evm;
 
 use parity_wasm::interpreter;
 use util::{U256, H256};
 
 use super::ptr::WasmPtr;
-use super::descriptor::CallDescriptor;
+use super::call_args::CallArgs;
 
 #[derive(Debug)]
 pub enum Error {
@@ -145,17 +147,25 @@ impl<'a> Runtime<'a> {
 		Ok(None)
 	}
 
-	pub fn write_descriptor(&mut self, descriptor: CallDescriptor) -> Result<WasmPtr, Error> {
-		let descriptor_length = descriptor.len();
-		let descriptor_ptr = self.alloc(descriptor_length)?;
+	pub fn write_descriptor(&mut self, call_args: CallArgs) -> Result<WasmPtr, Error> {
+		let d_ptr = self.alloc(16)?;
 
-		// write descriptor data to memory
-		self.memory.set(descriptor_ptr, &descriptor.address)?;
-		self.memory.set(descriptor_ptr+20, &descriptor.sender)?;
-		self.memory.set(descriptor_ptr+40, &descriptor.value)?;
-		self.memory.set(descriptor_ptr+256, &descriptor.data)?;
+		let args_len = call_args.len();
+		let args_ptr = self.alloc(args_len)?;
+
+		// write call descriptor
+		let mut d_buf = [0u8; 8];
+		LittleEndian::write_u32(&mut d_buf[0..4], args_ptr);
+		LittleEndian::write_u32(&mut d_buf[4..8], args_len);
+		self.memory.set(d_ptr, &d_buf)?;
+
+		// write call args to memory
+		self.memory.set(args_ptr, &call_args.address)?;
+		self.memory.set(args_ptr+20, &call_args.sender)?;
+		self.memory.set(args_ptr+40, &call_args.value)?;
+		self.memory.set(args_ptr+256, &call_args.data)?;
 		
-		Ok(descriptor_ptr.into())
+		Ok(d_ptr.into())
 	}
 
 	pub fn gas_left(&self) -> Result<u64, Error> {
