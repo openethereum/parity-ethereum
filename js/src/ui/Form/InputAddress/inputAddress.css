@@ -27,10 +27,6 @@
   }
 }
 
-.inputEmpty input {
-  padding-left: 0 !important;
-}
-
 .small {
   .input input {
     padding-left: 40px !important;
@@ -48,7 +44,7 @@
 .icon,
 .iconDisabled {
   position: absolute;
-  top: 35px;
+  top: 33px;
 
   &.noLabel {
     top: 10px;

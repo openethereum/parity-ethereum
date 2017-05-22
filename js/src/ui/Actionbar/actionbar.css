@@ -19,12 +19,14 @@
   background: transparent;
   display: flex;
   flex-direction: row;
+  align-items: center;
   justify-content: space-between;
   padding: 0.5em 1.5em;
   margin: 0;
 
   .title {
     text-transform: uppercase;
+    margin: 0;
   }
 
   .children {

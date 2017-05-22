@@ -20,7 +20,8 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { TypedInput, InputAddress } from '../Form';
+import IdentityIcon from '~/ui/IdentityIcon';
+import { TypedInput, Label } from '../Form';
 import Loading from '../Loading';
 import MethodDecodingStore from './methodDecodingStore';
 
@@ -622,12 +623,12 @@ class MethodDecoding extends Component {
   renderAddressName (address, withName = true) {
     return (
       <div className={ styles.addressContainer }>
-        <InputAddress
-          disabled
-          className={ styles.address }
-          value={ address }
-          text={ withName }
+        <IdentityIcon
+          address={ address }
+          center
+          inline
         />
+        <Label>{address}</Label>
       </div>
     );
   }

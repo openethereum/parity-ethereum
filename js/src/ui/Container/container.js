@@ -81,7 +81,7 @@ export default class Container extends Component {
           link
             ? this.renderLink(link, card)
             : (
-              <div>
+              <div className={ styles.cardContainer }>
                 { card }
                 { this.renderHover() }
               </div>

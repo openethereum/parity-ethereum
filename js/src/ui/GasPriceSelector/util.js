@@ -15,12 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 const COLORS = {
-  default: 'rgba(255, 99, 132, 0.2)',
-  selected: 'rgba(255, 99, 132, 0.5)',
-  hover: 'rgba(255, 99, 132, 0.15)',
-  grid: 'rgba(255, 99, 132, 0.5)',
-  line: 'rgb(255, 99, 132)',
-  intersection: '#fff'
+  default: 'rgba(33, 133, 208, 0.4)',
+  selected: 'rgba(33, 133, 208, 0.9)',
+  hover: 'rgba(33, 133, 208, 1)',
+  grid: 'rgba(33, 133, 208, 0.6)',
+  line: 'rgba(0, 0, 0, 0.4)',
+  intersection: '#81BEE2'
 };
 
 const countModifier = (count) => {

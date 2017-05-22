@@ -38,7 +38,7 @@ export default class CustomBar extends Component {
       : COLORS.default;
 
     const borderWidth = 0.5;
-    const borderColor = 'rgba(255, 255, 255, 0.5)';
+    const borderColor = 'rgba(0, 0, 0, 0)';
 
     return (
       <g>
