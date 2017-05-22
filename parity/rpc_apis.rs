@@ -52,6 +52,8 @@ pub enum Api {
 	Signer,
 	/// Parity - Custom extensions (Safe)
 	Parity,
+	/// Parity PubSub - Generic Publish-Subscriber (Safety depends on other APIs exposed).
+	ParityPubSub,
 	/// Parity Accounts extensions (UNSAFE: Passwords, Side Effects (new account))
 	ParityAccounts,
 	/// Parity - Set methods (UNSAFE: Side Effects affecting node operation)
@@ -77,6 +79,7 @@ impl FromStr for Api {
 			"personal" => Ok(Personal),
 			"signer" => Ok(Signer),
 			"parity" => Ok(Parity),
+			"parity_pubsub" => Ok(ParityPubSub),
 			"parity_accounts" => Ok(ParityAccounts),
 			"parity_set" => Ok(ParitySet),
 			"traces" => Ok(Traces),
@@ -157,6 +160,7 @@ fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
 			Api::Signer => ("signer", "1.0"),
 			Api::Parity => ("parity", "1.0"),
 			Api::ParityAccounts => ("parity_accounts", "1.0"),
+			Api::ParityPubSub => ("parity_pubsub", "1.0"),
 			Api::ParitySet => ("parity_set", "1.0"),
 			Api::Traces => ("traces", "1.0"),
 			Api::Rpc => ("rpc", "1.0"),
@@ -280,12 +284,14 @@ impl FullDependencies {
 					).to_delegate());
 
 					if !for_generic_pubsub {
+						add_signing_methods!(ParitySigning, handler, self);
+					}
+				},
+				Api::ParityPubSub => {
+					if !for_generic_pubsub {
 						let mut rpc = MetaIoHandler::default();
 						self.extend_api(&mut rpc, apis, true);
 						handler.extend_with(PubSubClient::new(rpc, self.remote.clone()).to_delegate());
-
-						add_signing_methods!(EthSigning, handler, self);
-						add_signing_methods!(ParitySigning, handler, self);
 					}
 				},
 				Api::ParityAccounts => {
@@ -355,11 +361,13 @@ pub struct LightDependencies {
 	pub remote: parity_reactor::Remote,
 }
 
-impl Dependencies for LightDependencies {
-	type Notifier = LightClientNotifier;
-
-	fn activity_notifier(&self) -> Self::Notifier { LightClientNotifier }
-	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware<Self::Notifier>>, apis: &[Api]) {
+impl LightDependencies {
+	fn extend_api<T: core::Middleware<Metadata>>(
+		&self,
+		handler: &mut MetaIoHandler<Metadata, T>,
+		apis: &[Api],
+		for_generic_pubsub: bool,
+	) {
 		use parity_rpc::v1::*;
 
 		let dispatcher = LightDispatcher::new(
@@ -407,8 +415,11 @@ impl Dependencies for LightDependencies {
 						self.cache.clone(),
 					);
 					handler.extend_with(Eth::to_delegate(client.clone()));
-					handler.extend_with(EthFilter::to_delegate(client));
-					add_signing_methods!(EthSigning, handler, self);
+
+					if !for_generic_pubsub {
+						handler.extend_with(EthFilter::to_delegate(client));
+						add_signing_methods!(EthSigning, handler, self);
+					}
 				},
 				Api::Personal => {
 					let secret_store = Some(self.secret_store.clone());
@@ -434,8 +445,16 @@ impl Dependencies for LightDependencies {
 						self.dapps_port,
 					).to_delegate());
 
-					add_signing_methods!(EthSigning, handler, self);
-					add_signing_methods!(ParitySigning, handler, self);
+					if !for_generic_pubsub {
+						add_signing_methods!(ParitySigning, handler, self);
+					}
+				},
+				Api::ParityPubSub => {
+					if !for_generic_pubsub {
+						let mut rpc = MetaIoHandler::default();
+						self.extend_api(&mut rpc, apis, true);
+						handler.extend_with(PubSubClient::new(rpc, self.remote.clone()).to_delegate());
+					}
 				},
 				Api::ParityAccounts => {
 					let secret_store = Some(self.secret_store.clone());
@@ -463,6 +482,15 @@ impl Dependencies for LightDependencies {
 	}
 }
 
+impl Dependencies for LightDependencies {
+	type Notifier = LightClientNotifier;
+
+	fn activity_notifier(&self) -> Self::Notifier { LightClientNotifier }
+	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware<Self::Notifier>>, apis: &[Api]) {
+		self.extend_api(handler, apis, false)
+	}
+}
+
 impl ApiSet {
 	/// Retains only APIs in given set.
 	pub fn retain(self, set: Self) -> Self {
@@ -478,15 +506,18 @@ impl ApiSet {
 			ApiSet::PublicContext => public_list,
 			ApiSet::UnsafeContext => {
 				public_list.insert(Api::Traces);
+				public_list.insert(Api::ParityPubSub);
 				public_list
 			},
 			ApiSet::IpcContext => {
 				public_list.insert(Api::Traces);
+				public_list.insert(Api::ParityPubSub);
 				public_list.insert(Api::ParityAccounts);
 				public_list
 			},
 			ApiSet::SafeContext => {
 				public_list.insert(Api::Traces);
+				public_list.insert(Api::ParityPubSub);
 				public_list.insert(Api::ParityAccounts);
 				public_list.insert(Api::ParitySet);
 				public_list.insert(Api::Signer);
@@ -494,6 +525,7 @@ impl ApiSet {
 			},
 			ApiSet::All => {
 				public_list.insert(Api::Traces);
+				public_list.insert(Api::ParityPubSub);
 				public_list.insert(Api::ParityAccounts);
 				public_list.insert(Api::ParitySet);
 				public_list.insert(Api::Signer);
@@ -547,7 +579,7 @@ mod test {
 	fn test_api_set_unsafe_context() {
 		let expected = vec![
 			// make sure this list contains only SAFE methods
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore
 		].into_iter().collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}
@@ -556,7 +588,7 @@ mod test {
 	fn test_api_set_ipc_context() {
 		let expected = vec![
 			// safe
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore,
 			// semi-safe
 			Api::ParityAccounts
 		].into_iter().collect();
@@ -567,7 +599,7 @@ mod test {
 	fn test_api_set_safe_context() {
 		let expected = vec![
 			// safe
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore,
 			// semi-safe
 			Api::ParityAccounts,
 			// Unsafe
@@ -579,7 +611,7 @@ mod test {
 	#[test]
 	fn test_all_apis() {
 		assert_eq!("all".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore,
 			Api::ParityAccounts,
 			Api::ParitySet, Api::Signer,
 			Api::Personal
@@ -589,7 +621,7 @@ mod test {
 	#[test]
 	fn test_all_without_personal_apis() {
 		assert_eq!("personal,all,-personal".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore,
 			Api::ParityAccounts,
 			Api::ParitySet, Api::Signer,
 		].into_iter().collect()));
@@ -598,7 +630,7 @@ mod test {
 	#[test]
 	fn test_safe_parsing() {
 		assert_eq!("safe".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore,
 		].into_iter().collect()));
 	}
 }
