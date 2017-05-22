@@ -746,11 +746,19 @@ impl Configuration {
 		Self::cors(self.args.flag_ipfs_api_cors.as_ref())
 	}
 
-	fn hosts(&self, hosts: &str) -> Option<Vec<String>> {
+	fn hosts(&self, hosts: &str, interface: &str) -> Option<Vec<String>> {
 		if self.args.flag_unsafe_expose {
 			return None;
 		}
 
+		if interface == "0.0.0.0" && hosts == "none" {
+			return None;
+		}
+
+		Self::parse_hosts(hosts)
+	}
+
+	fn parse_hosts(hosts: &str) -> Option<Vec<String>> {
 		match hosts {
 			"none" => return Some(Vec::new()),
 			"*" | "all" | "any" => return None,
@@ -761,19 +769,19 @@ impl Configuration {
 	}
 
 	fn rpc_hosts(&self) -> Option<Vec<String>> {
-		self.hosts(&self.args.flag_jsonrpc_hosts)
+		self.hosts(&self.args.flag_jsonrpc_hosts, &self.rpc_interface())
 	}
 
 	fn ws_hosts(&self) -> Option<Vec<String>> {
-		self.hosts(&self.args.flag_ws_hosts)
+		self.hosts(&self.args.flag_ws_hosts, &self.ws_interface())
 	}
 
 	fn ws_origins(&self) -> Option<Vec<String>> {
-		self.hosts(&self.args.flag_ws_origins)
+		Self::parse_hosts(&self.args.flag_ws_origins)
 	}
 
 	fn ipfs_hosts(&self) -> Option<Vec<String>> {
-		self.hosts(&self.args.flag_ipfs_api_hosts)
+		self.hosts(&self.args.flag_ipfs_api_hosts, &self.ipfs_interface())
 	}
 
 	fn ipc_config(&self) -> Result<IpcConfiguration, String> {
