@@ -125,6 +125,12 @@ impl ConsensusSession {
 		self.data.lock().state.clone()
 	}
 
+	/// Get result of consensus.
+	pub fn consensus(&self) -> Option<Result<Consensus, Error>> {
+		let data = self.data.lock();
+		data.result.clone().map(|r| r.map(|_| data.consensus.clone()))
+	}
+
 	/// Initialize consensus session.
 	pub fn initialize(&self, requestor_signature: Signature) -> Result<SessionAction, Error> {
 		let mut data = self.data.lock();

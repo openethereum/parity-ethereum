@@ -625,6 +625,7 @@ impl ClusterCore {
 		let decryption_session_id = SigningSessionId::new(session_id.clone(), sub_session_id.clone());
 		let mut sender = connection.node_id().clone();
 		let session = match message {
+			_ => unimplemented!(),
 /*			DecryptionMessage::InitializeDecryptionSession(_) => {
 				let mut connected_nodes = data.connections.connected_nodes();
 				connected_nodes.insert(data.self_key_pair.public().clone());

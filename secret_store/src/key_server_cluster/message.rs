@@ -83,7 +83,7 @@ pub enum EncryptionMessage {
 	EncryptionSessionError(EncryptionSessionError),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 /// All possible messages that can be sent during consensus establishing.
 pub enum ConsensusMessage {
 	/// Initialize consensus session.
@@ -112,6 +112,8 @@ pub enum DecryptionMessage {
 #[derive(Clone, Debug)]
 /// All possible messages that can be sent during signing session.
 pub enum SigningMessage {
+	/// Consensus establishing message.
+	SigningConsensusMessage(SigningConsensusMessage),
 /*	/// Initialize signing session.
 	InitializeSigningSession(InitializeSigningSession),
 	/// Confirm/reject signing session initialization.
@@ -271,6 +273,17 @@ pub struct InitializeConsensusSession {
 pub struct ConfirmConsensusInitialization {
 	/// Is node confirmed consensus participation.
 	pub is_confirmed: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Consensus-related signing message.
+pub struct SigningConsensusMessage {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
+	/// Consensus message.
+	pub message: ConsensusMessage,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
