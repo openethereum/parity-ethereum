@@ -42,7 +42,7 @@ use evm::Schedule;
 use state::CleanupMode;
 use io::IoService;
 use super::signer::EngineSigner;
-use super::validator_set::{ValidatorSet, new_validator_set};
+use super::validator_set::ValidatorSet;
 use super::transition::TransitionHandler;
 use super::vote_collector::VoteCollector;
 use self::message::*;
@@ -124,7 +124,7 @@ impl Tendermint {
 				proposal: RwLock::new(None),
 				proposal_parent: Default::default(),
 				last_proposed: Default::default(),
-				validators: new_validator_set(our_params.validators),
+				validators: our_params.validators,
 			});
 		let handler = TransitionHandler::new(Arc::downgrade(&engine) as Weak<Engine>, Box::new(our_params.timeouts));
 		engine.step_service.register_handler(Arc::new(handler))?;
