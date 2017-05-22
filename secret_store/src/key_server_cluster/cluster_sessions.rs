@@ -128,7 +128,7 @@ impl ClusterSessions {
 		let session = self.generation_sessions.insert(master, session_id, cluster.clone(), GenerationSessionImpl::new(GenerationSessionParams {
 			id: session_id.clone(),
 			self_node_id: self.self_node_id.clone(),
-			key_storage: self.key_storage.clone(),
+			key_storage: Some(self.key_storage.clone()),
 			cluster: cluster,
 		}));
 		if self.make_faulty_generation_sessions.load(Ordering::Relaxed) {

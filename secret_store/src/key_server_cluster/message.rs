@@ -18,7 +18,7 @@ use std::fmt;
 use std::collections::{BTreeSet, BTreeMap};
 use ethkey::Secret;
 use key_server_cluster::SessionId;
-use super::{SerializableH256, SerializablePublic, SerializableSecret, SerializableSignature};
+use super::{SerializableH256, SerializablePublic, SerializableSecret, SerializableSignature, SerializableMessageHash};
 
 pub type MessageSessionId = SerializableH256;
 pub type MessageNodeId = SerializablePublic;
@@ -53,7 +53,7 @@ pub enum ClusterMessage {
 	KeepAliveResponse(KeepAliveResponse),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 /// All possible messages that can be sent during key generation session.
 pub enum GenerationMessage {
 	/// Initialize new DKG session.
@@ -114,14 +114,16 @@ pub enum DecryptionMessage {
 pub enum SigningMessage {
 	/// Consensus establishing message.
 	SigningConsensusMessage(SigningConsensusMessage),
+	/// Session key generation message.
+	SigningGenerationMessage(SigningGenerationMessage),
+	/// Request partial signature from node.
+	RequestPartialSignature(RequestPartialSignature),
 /*	/// Initialize signing session.
 	InitializeSigningSession(InitializeSigningSession),
 	/// Confirm/reject signing session initialization.
 	ConfirmSigningInitialization(ConfirmSigningInitialization),
 	/// Nonce generation message.
 	SigningNonceGeneration(SigningNonceGeneration),
-	/// Request partial signature from node.
-	RequestPartialSignature(RequestPartialSignature),
 	/// Partial signature is generated.
 	PartialDecryption(PartialDecryption),
 	/// When signature session error has occured.
@@ -164,6 +166,11 @@ pub struct InitializeSession {
 	pub session: MessageSessionId,
 	/// Session author.
 	pub author: SerializablePublic,
+	/// All session participants along with their identification numbers.
+	pub nodes: BTreeMap<MessageNodeId, SerializableSecret>,
+	/// Decryption threshold. During decryption threshold-of-route.len() nodes must came to
+	/// consensus to successfully decrypt message.
+	pub threshold: usize,
 	/// Derived generation point. Starting from originator, every node must multiply this
 	/// point by random scalar (unknown by other nodes). At the end of initialization
 	/// `point` will be some (k1 * k2 * ... * kn) * G = `point` where `(k1 * k2 * ... * kn)`
@@ -185,11 +192,6 @@ pub struct ConfirmInitialization {
 pub struct CompleteInitialization {
 	/// Session Id.
 	pub session: MessageSessionId,
-	/// All session participants along with their identification numbers.
-	pub nodes: BTreeMap<MessageNodeId, SerializableSecret>,
-	/// Decryption threshold. During decryption threshold-of-route.len() nodes must came to
-	/// consensus to successfully decrypt message.
-	pub threshold: usize,
 	/// Derived generation point.
 	pub derived_point: SerializablePublic,
 }
@@ -284,6 +286,28 @@ pub struct SigningConsensusMessage {
 	pub sub_session: SerializableSecret,
 	/// Consensus message.
 	pub message: ConsensusMessage,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Session key generation message.
+pub struct SigningGenerationMessage {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
+	/// Generation message.
+	pub message: GenerationMessage,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Request partial signature.
+pub struct RequestPartialSignature {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
+	/// Message hash.
+	pub message_hash: SerializableMessageHash,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

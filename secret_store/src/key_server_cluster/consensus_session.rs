@@ -28,11 +28,11 @@ use key_server_cluster::message::{ConsensusMessage, InitializeConsensusSession, 
 /// Consensus data.
 pub struct Consensus {
 	/// Nodes, which have been requested for signing initialization.
-	requested_nodes: BTreeSet<NodeId>,
+	pub requested_nodes: BTreeSet<NodeId>,
 	/// Nodes, which have responded with reject to initialization request.
-	rejected_nodes: BTreeSet<NodeId>,
+	pub rejected_nodes: BTreeSet<NodeId>,
 	/// Nodes, which have responded with confirm to initialization request.
-	confirmed_nodes: BTreeSet<NodeId>,
+	pub confirmed_nodes: BTreeSet<NodeId>,
 }
 
 /// Signing session.

@@ -14,18 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::{BTreeSet, VecDeque};
+use std::mem::swap;
 use std::cmp::{Ordering, Ord, PartialOrd};
 use std::sync::Arc;
 use std::time;
 use parking_lot::{Mutex, Condvar};
 use ethkey::{self, Public, Secret, Signature};
-use util;
+use util::{self, H256};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, DocumentKeyShare};
 use key_server_cluster::cluster::{Cluster};
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::consensus_session::{ConsensusSession, Consensus, SessionParams as ConsensusSessionParams,
 	SessionState as ConsensusSessionState, SessionAction as ConsensusSessionAction};
-use key_server_cluster::message::{Message, SigningMessage, SigningConsensusMessage, ConsensusMessage};
+use key_server_cluster::generation_session::{SessionImpl as GenerationSession, SessionParams as GenerationSessionParams,
+	SessionState as GenerationSessionState};
+use key_server_cluster::math;
+use key_server_cluster::message::{Message, SigningMessage, SigningConsensusMessage, SigningGenerationMessage,
+	RequestPartialSignature, GenerationMessage, ConsensusMessage};
 
 /// Signing session API.
 pub trait Session: Send + Sync + 'static {
@@ -90,12 +96,30 @@ struct SessionData {
 	master: Option<NodeId>,
 	/// Public key of requestor.
 	requestor: Option<Public>,
+	/// Hash of the message to sign.
+	message_hash: Option<H256>,
 
 	// === Values, filled when consensus is establishing ===
 	/// Consensus session.
 	consensus_session: Option<ConsensusSession>,
 	/// Consensus params.
 	consensus: Option<Consensus>,
+
+	// === Values, filled when session key is generating ===
+	/// Signing cluster subgroup.
+	generation_cluster: Option<Arc<SigningCluster>>,
+	/// Session key generation session.
+	generation_session: Option<GenerationSession>,
+	/// Generated session key.
+	session_key: Option<DocumentKeyShare>,
+
+	// === Values, filled when partial signatures are generating ===
+	/// Nodes which have agreed to make partial signatures.
+	confirmed_nodes: BTreeSet<NodeId>,
+	/// Active partial requests.
+	partial_requests: BTreeSet<NodeId>,
+	/// Partial signatures.
+	partial_signatures: VecDeque<Secret>,
 
 	/// === Values, filled during final decryption ===
 	/// Decrypted secret
@@ -118,11 +142,25 @@ pub enum SessionState {
 	/// Establishing consensus.
 	EstablishingConsensus,
 
+	// === Intermediate states ===
+	/// Generating one-time key.
+	SessionKeyGeneration,
+
 	// === Final states of the session ===
 	/// Signing is completed.
 	Finished,
 	/// Signing is failed.
 	Failed,
+}
+
+/// Signing group of cluster nodes.
+struct SigningCluster {
+	/// Original cluster reference.
+	cluster: Arc<Cluster>,
+	/// Signing group.
+	nodes: BTreeSet<NodeId>,
+	/// Generation session messages.
+	messages: Mutex<VecDeque<(NodeId, Message)>>,
 }
 
 impl SessionImpl {
@@ -142,8 +180,15 @@ impl SessionImpl {
 				state: SessionState::WaitingForInitialization,
 				master: None,
 				requestor: None,
+				message_hash: None,
 				consensus_session: None,
 				consensus: None,
+				generation_cluster: None,
+				generation_session: None,
+				session_key: None,
+				confirmed_nodes: BTreeSet::new(),
+				partial_requests: BTreeSet::new(),
+				partial_signatures: VecDeque::new(),
 				signed_message: None,
 			})
 		})
@@ -155,7 +200,7 @@ impl SessionImpl {
 	}
 
 	/// Initialize signing session.
-	pub fn initialize(&self, requestor_signature: Signature) -> Result<(), Error> {
+	pub fn initialize(&self, requestor_signature: Signature, message_hash: H256) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
 		// check state
@@ -167,9 +212,10 @@ impl SessionImpl {
 		let requestor_public = ethkey::recover(&requestor_signature, &self.id)?;
 
 		// update state
+		data.state = SessionState::EstablishingConsensus;
 		data.master = Some(self.node().clone());
 		//data.requestor = Some(requestor_public.clone());
-		data.state = SessionState::EstablishingConsensus;
+		data.message_hash = Some(message_hash);
 
 		// create consensus session
 		let consensus_session = ConsensusSession::new(ConsensusSessionParams {
@@ -182,7 +228,7 @@ impl SessionImpl {
 		// start consensus session
 		let consensus_action = consensus_session.initialize(requestor_signature)?;
 		data.consensus_session = Some(consensus_session);
-		process_consensus_session_action(&self.id, &self.access_key, &self.cluster, &self.completed, &mut *data, consensus_action)?;
+		SessionImpl::process_consensus_session_action(&self.id, &self.access_key, &self.cluster, &self.completed, &mut *data, consensus_action)?;
 
 		// if single node is required to sign message, proceed
 		if data.state != SessionState::Failed && data.consensus.is_some() {
@@ -216,37 +262,131 @@ impl SessionImpl {
 		if data.state != SessionState::EstablishingConsensus {
 			return Err(Error::InvalidStateForRequest);
 		}
+		// TODO: check master node + etc
 
+		// process message
 		let consensus_action = match message.message {
 			ConsensusMessage::InitializeConsensusSession(ref message) =>
 				data.consensus_session.as_ref().expect("TODO").on_initialize_session(sender, &message)?,
 			ConsensusMessage::ConfirmConsensusInitialization(ref message) =>
 				data.consensus_session.as_ref().expect("TODO").on_confirm_initialization(sender, &message)?,
 		};
+		SessionImpl::process_consensus_session_action(&self.id, &self.access_key, &self.cluster, &self.completed, &mut *data, consensus_action)?;
 
-		process_consensus_session_action(&self.id, &self.access_key, &self.cluster, &self.completed, &mut *data, consensus_action)
+		// if consensus is reached, start generating session key
+		if data.state == SessionState::Failed || data.consensus.is_some() {
+			return Ok(());
+		}
+		SessionImpl::start_generating_session_key(self.self_node_id.clone(), &self.encrypted_data, &self.cluster, &mut *data)?;
+		SessionImpl::process_generation_session_action(&self.id, &self.access_key, &self.completed, &mut *data)
 	}
-}
 
-fn process_consensus_session_action(id: &SessionId, access_key: &Secret, cluster: &Arc<Cluster>, completed: &Condvar, data: &mut SessionData, action: ConsensusSessionAction) -> Result<(), Error> {
-	match action {
-		ConsensusSessionAction::BroadcastMessage(message) => {
-			cluster.broadcast(Message::Signing(SigningMessage::SigningConsensusMessage(SigningConsensusMessage {
-				session: id.clone().into(),
-				sub_session: access_key.clone().into(),
-				message: message,
-			})))
-		},
-		ConsensusSessionAction::SendMessage(to, message) => {
-			cluster.send(&to, Message::Signing(SigningMessage::SigningConsensusMessage(SigningConsensusMessage {
-				session: id.clone().into(),
-				sub_session: access_key.clone().into(),
-				message: message,
-			})))
-		},
-		ConsensusSessionAction::CheckStatus => match data.consensus_session.as_ref().expect("TODO").consensus() {
-			Some(Ok(consensus)) => {
-				data.consensus = Some(consensus.clone());
+	/// When session key related message is received.
+	pub fn on_generation_message(&self, sender: NodeId, message: &SigningGenerationMessage) -> Result<(), Error> {
+		let mut data = self.data.lock();
+
+		// check state
+		if data.state != SessionState::EstablishingConsensus {
+			return Err(Error::InvalidStateForRequest);
+		}
+		// TODO: check master node + etc
+
+		// process message
+		match message.message {
+			GenerationMessage::InitializeSession(ref message) => {
+				// if we are NOT part of consensus
+				if data.consensus_session.as_ref().expect("TODO").state() != ConsensusSessionState::Finished {
+					return Err(Error::InvalidStateForRequest);
+				}
+
+				// update state
+				data.state = SessionState::SessionKeyGeneration;
+
+				// create generation session
+				let generation_cluster = Arc::new(SigningCluster::new(self.cluster.clone(), message.nodes.keys().cloned().map(Into::into).collect()));
+				data.generation_cluster = Some(generation_cluster.clone());
+				data.generation_session = Some(GenerationSession::new(GenerationSessionParams {
+					id: message.session.clone().into(),
+					self_node_id: self.self_node_id.clone(),
+					key_storage: None,
+					cluster: generation_cluster,
+				}));
+
+				// process initialization message
+				data.generation_session.as_ref().expect("TODO").on_initialize_session(sender, &message)?
+			},
+			GenerationMessage::ConfirmInitialization(ref message) =>
+				data.generation_session.as_ref().expect("TODO").on_confirm_initialization(sender, &message)?,
+			GenerationMessage::CompleteInitialization(ref message) =>
+				data.generation_session.as_ref().expect("TODO").on_complete_initialization(sender, &message)?,
+			GenerationMessage::KeysDissemination(ref message) =>
+				data.generation_session.as_ref().expect("TODO").on_keys_dissemination(sender, &message)?,
+			GenerationMessage::PublicKeyShare(ref message) =>
+				data.generation_session.as_ref().expect("TODO").on_public_key_share(sender, &message)?,
+			GenerationMessage::SessionError(ref message) =>
+				data.generation_session.as_ref().expect("TODO").on_session_error(sender, &message)?,
+			GenerationMessage::SessionCompleted(ref message) =>
+				data.generation_session.as_ref().expect("TODO").on_session_completed(sender, &message)?,
+		};
+		SessionImpl::process_generation_session_action(&self.id, &self.access_key, &self.completed, &mut *data)?;
+
+		// if session key generated is not yet completed => continue
+		if data.state == SessionState::Failed || !data.session_key.is_some() {
+			return Ok(());
+		}
+
+		// else ask other nodes to generate partial signatures
+		SessionImpl::start_waiting_for_partial_decryption(self.node().clone(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data)
+	}
+
+	fn process_consensus_session_action(id: &SessionId, access_key: &Secret, cluster: &Arc<Cluster>, completed: &Condvar, data: &mut SessionData, action: ConsensusSessionAction) -> Result<(), Error> {
+		match action {
+			ConsensusSessionAction::BroadcastMessage(message) => {
+				cluster.broadcast(Message::Signing(SigningMessage::SigningConsensusMessage(SigningConsensusMessage {
+					session: id.clone().into(),
+					sub_session: access_key.clone().into(),
+					message: message,
+				})))
+			},
+			ConsensusSessionAction::SendMessage(to, message) => {
+				cluster.send(&to, Message::Signing(SigningMessage::SigningConsensusMessage(SigningConsensusMessage {
+					session: id.clone().into(),
+					sub_session: access_key.clone().into(),
+					message: message,
+				})))
+			},
+			ConsensusSessionAction::CheckStatus => match data.consensus_session.as_ref().expect("TODO").consensus() {
+				Some(Ok(consensus)) => {
+					data.consensus = Some(consensus.clone());
+					Ok(())
+				},
+				Some(Err(err)) => {
+					data.state = SessionState::Failed;
+					data.signed_message = Some(Err(err));
+					completed.notify_all();
+					Ok(())
+				},
+				None => Ok(()),
+			},
+		}
+	}
+
+	fn process_generation_session_action(id: &SessionId, access_key: &Secret, completed: &Condvar, data: &mut SessionData) -> Result<(), Error> {
+		let generation_cluster = data.generation_cluster.as_ref().expect("TODO").clone();
+		for (to, message) in generation_cluster.messages() {
+			match message {
+				Message::Generation(message) => generation_cluster.cluster().send(&to, Message::Signing(SigningMessage::SigningGenerationMessage(SigningGenerationMessage {
+					session: id.clone().into(),
+					sub_session: access_key.clone().into(),
+					message: message,
+				})))?,
+				_ => unreachable!("generation session only sends generation messages"),
+			}
+		}
+
+		match data.generation_session.as_ref().expect("TODO").key_share() {
+			Some(Ok(key_share)) => {
+				data.session_key = Some(key_share);
 				Ok(())
 			},
 			Some(Err(err)) => {
@@ -256,7 +396,64 @@ fn process_consensus_session_action(id: &SessionId, access_key: &Secret, cluster
 				Ok(())
 			},
 			None => Ok(()),
-		},
+		}
+	}
+
+	fn start_generating_session_key(self_node_id: NodeId, encrypted_data: &DocumentKeyShare, cluster: &Arc<Cluster>, data: &mut SessionData) -> Result<(), Error> {
+		// select nodes to make signature
+		let confirmed_nodes: BTreeSet<_> = data.consensus.as_ref().expect("TODO").confirmed_nodes.clone();
+		let confirmed_nodes: BTreeSet<_> = confirmed_nodes.difference(&data.consensus.as_ref().expect("TODO").rejected_nodes).cloned().collect();
+
+		// create generation session
+		let generation_cluster = Arc::new(SigningCluster::new(cluster.clone(), confirmed_nodes.clone()));
+		let generation_session = GenerationSession::new(GenerationSessionParams {
+			id: H256::default(), // doesn't matter
+			self_node_id: self_node_id.clone(),
+			key_storage: None,
+			cluster: generation_cluster.clone(),
+		});
+
+		// start generation session
+		let result = generation_session.initialize(data.requestor.as_ref().expect("TODO").clone(), encrypted_data.threshold, confirmed_nodes)?;
+		data.generation_cluster = Some(generation_cluster);
+		data.generation_session = Some(generation_session);
+
+		Ok(())
+	}
+
+	fn start_waiting_for_partial_decryption(self_node_id: NodeId, session_id: SessionId, access_key: Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
+		// nodes which have formed consensus group
+		let confirmed_nodes: BTreeSet<_> = data.consensus.as_ref().expect("TODO").confirmed_nodes.clone();
+		let confirmed_nodes: BTreeSet<_> = confirmed_nodes.difference(&data.consensus.as_ref().expect("TODO").rejected_nodes).cloned().collect();
+
+		// send requests
+		data.partial_requests.clear();
+		data.partial_signatures.clear();
+		for node in confirmed_nodes.iter().filter(|n| n != &&self_node_id) {
+			data.partial_requests.insert(node.clone());
+			cluster.send(node, Message::Signing(SigningMessage::RequestPartialSignature(RequestPartialSignature {
+				session: session_id.clone().into(),
+				sub_session: access_key.clone().into(),
+				message_hash: data.message_hash.as_ref().expect("TODO").clone().into(),
+			})))?;
+		}
+
+		// confirmation from this node
+		data.confirmed_nodes = confirmed_nodes;
+		if data.confirmed_nodes.remove(&self_node_id) {
+			let signing_result = {
+				//let requestor = data.requestor.as_ref().expect("TODO");
+				//do_partial_signing(&self_node_id, &requestor, &data.confirmed_nodes, &access_key, &encrypted_data)?
+				SessionImpl::do_partial_signing()?
+			};
+			data.partial_signatures.push_back(signing_result);
+		}
+
+		Ok(())
+	}
+
+	fn do_partial_signing() -> Result<Secret, Error> {
+		unimplemented!()
 	}
 }
 
@@ -271,6 +468,42 @@ impl ClusterSession for SessionImpl {
 
 	fn on_node_timeout(&self, node_id: &NodeId) {
 		unimplemented!()
+	}
+}
+
+impl SigningCluster {
+	pub fn new(cluster: Arc<Cluster>, subset: BTreeSet<NodeId>) -> Self {
+		SigningCluster {
+			cluster: cluster,
+			nodes: subset,
+			messages: Mutex::new(VecDeque::new()),
+		}
+	}
+
+	pub fn cluster(&self) -> &Arc<Cluster> {
+		&self.cluster
+	}
+
+	pub fn messages(&self) -> VecDeque<(NodeId, Message)> {
+		let mut lock = self.messages.lock();
+		let mut messages = VecDeque::new();
+		swap(&mut messages, &mut *lock);
+		messages
+	}
+}
+
+impl Cluster for SigningCluster {
+	fn broadcast(&self, message: Message) -> Result<(), Error> {
+		let mut messages = self.messages.lock();
+		for node in &self.nodes {
+			messages.push_back((node.clone(), message.clone()));
+		}
+		Ok(())
+	}
+
+	fn send(&self, to: &NodeId, message: Message) -> Result<(), Error> {
+		self.messages.lock().push_back((to.clone(), message.clone()));
+		Ok(())
 	}
 }
 

@@ -23,6 +23,9 @@ use serde::de::{Visitor, Error as SerdeError};
 use ethkey::{Public, Secret, Signature};
 use util::{H256, Bytes};
 
+/// Serializable message hash.
+pub type SerializableMessageHash = SerializableH256;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 /// Serializable shadow decryption result.
 pub struct SerializableEncryptedDocumentKeyShadow {
