@@ -77,7 +77,7 @@ impl DBTransaction {
 		}
 	}
 
-	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
+	/// Insert a key-value pair in the transaction. Any existing value will be overwritten upon write.
 	pub fn put(&mut self, col: Option<u32>, key: &[u8], value: &[u8]) {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
@@ -88,7 +88,7 @@ impl DBTransaction {
 		});
 	}
 
-	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
+	/// Insert a key-value pair in the transaction. Any existing value will be overwritten upon write.
 	pub fn put_vec(&mut self, col: Option<u32>, key: &[u8], value: Bytes) {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
@@ -99,7 +99,7 @@ impl DBTransaction {
 		});
 	}
 
-	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
+	/// Insert a key-value pair in the transaction. Any existing value will be overwritten upon write.
 	/// Value will be RLP-compressed on flush
 	pub fn put_compressed(&mut self, col: Option<u32>, key: &[u8], value: Bytes) {
 		let mut ekey = ElasticArray32::new();

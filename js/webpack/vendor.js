@@ -23,7 +23,6 @@ const ENV = process.env.NODE_ENV || 'development';
 const DEST = process.env.BUILD_DEST || '.build';
 
 let modules = [
-  'babel-polyfill',
   'bignumber.js',
   'blockies',
   'brace',

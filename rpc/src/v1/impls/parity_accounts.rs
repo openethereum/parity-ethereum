@@ -93,7 +93,7 @@ impl ParityAccounts for ParityAccountsClient {
 	fn new_account_from_secret(&self, secret: RpcH256, pass: String) -> Result<RpcH160, Error> {
 		let store = self.account_provider()?;
 
-		let secret = Secret::from_slice(&secret.0)
+		let secret = Secret::from_unsafe_slice(&secret.0)
 			.map_err(|e| errors::account("Could not create account.", e))?;
 		store.insert_account(secret, &pass)
 			.map(Into::into)

@@ -56,9 +56,6 @@ module.exports = {
     'node-fetch': 'node-fetch'
   },
   module: {
-    noParse: [
-      /babel-polyfill/
-    ],
     rules: [
       rulesParity,
       rulesEs6,

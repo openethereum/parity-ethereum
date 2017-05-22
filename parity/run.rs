@@ -30,6 +30,7 @@ use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::snapshot;
 use ethcore::verification::queue::VerifierSettings;
+use ethcore::ethstore::ethkey;
 use light::Cache as LightDataCache;
 use ethsync::SyncConfig;
 use informant::Informant;
@@ -820,7 +821,29 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 		}
 	}
 
+	// Add development account if running dev chain:
+	if let SpecType::Dev = *spec {
+		insert_dev_account(&account_provider);
+	}
+
 	Ok(account_provider)
+}
+
+fn insert_dev_account(account_provider: &AccountProvider) {
+	let secret: ethkey::Secret = "4d5db4107d237df6a3d58ee5f70ae63d73d7658d4026f2eefd2f204c81682cb7".into();
+	let dev_account = ethkey::KeyPair::from_secret(secret.clone()).expect("Valid secret produces valid key;qed");
+	if let Ok(false) = account_provider.has_account(dev_account.address()) {
+		match account_provider.insert_account(secret, "") {
+			Err(e) => warn!("Unable to add development account: {}", e),
+			Ok(address) => {
+				let _ = account_provider.set_account_name(address.clone(), "Development Account".into());
+				let _ = account_provider.set_account_meta(address, ::serde_json::to_string(&(vec![
+					("description", "Never use this account outside of develoopment chain!"),
+					("passwordHint","Password is empty string"),
+				].into_iter().collect::<::std::collections::HashMap<_,_>>())).expect("Serialization of hashmap does not fail."));
+			},
+		}
+	}
 }
 
 // Construct an error `String` with an adaptive hint on how to create an account.
