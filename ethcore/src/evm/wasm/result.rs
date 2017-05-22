@@ -24,23 +24,23 @@ use super::ptr::WasmPtr;
 use super::runtime::Error as RuntimeError;
 
 pub struct WasmResult {
-    ptr: WasmPtr,
+	ptr: WasmPtr,
 }
 
 impl WasmResult {
-    pub fn new(descriptor_ptr: WasmPtr) -> WasmResult {
-        WasmResult { ptr: descriptor_ptr }
-    }
+	pub fn new(descriptor_ptr: WasmPtr) -> WasmResult {
+		WasmResult { ptr: descriptor_ptr }
+	}
 
-    pub fn peek_empty(&self, mem: &interpreter::MemoryInstance) -> Result<bool, RuntimeError> {
-        let result_ptr = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[8..12]);
-        Ok(result_ptr != 0)
-    }
+	pub fn peek_empty(&self, mem: &interpreter::MemoryInstance) -> Result<bool, RuntimeError> {
+		let result_ptr = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[8..12]);
+		Ok(result_ptr != 0)
+	}
 
-    pub fn pop(self, mem: &interpreter::MemoryInstance) -> Result<Vec<u8>, RuntimeError> {
-        let result_ptr = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[8..12]);
-        let result_len = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[12..16]);
+	pub fn pop(self, mem: &interpreter::MemoryInstance) -> Result<Vec<u8>, RuntimeError> {
+		let result_ptr = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[8..12]);
+		let result_len = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[12..16]);
 
-        Ok(mem.get(result_ptr, result_len as usize)?)
-    }
+		Ok(mem.get(result_ptr, result_len as usize)?)
+	}
 }

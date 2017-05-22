@@ -30,8 +30,8 @@ use super::call_args::CallArgs;
 
 #[derive(Debug)]
 pub enum Error {
-    Storage,
-    Allocator,
+	Storage,
+	Allocator,
 	InvalidGasState,
 	AccessViolation,
 	Interpreter(interpreter::Error),
@@ -82,7 +82,7 @@ impl<'a> Runtime<'a> {
 		let val = self.pop_h256(&mut context)?;
 		let key = self.pop_h256(&mut context)?;
 
-        self.ext.set_storage(key, val)
+		self.ext.set_storage(key, val)
 			.map_err(|_| interpreter::Error::Trap("Storage update error".to_owned()))?;
 
 		Ok(Some(0i32.into()))
