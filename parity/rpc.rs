@@ -18,7 +18,6 @@ use std::io;
 use std::sync::Arc;
 
 use dapps;
-use dir::default_data_path;
 use parity_rpc::informant::{RpcStats, Middleware};
 use parity_rpc::{self as rpc, HttpServerError, Metadata, Origin, DomainsValidation};
 use helpers::parity_ipc_path;
@@ -63,10 +62,14 @@ pub struct IpcConfiguration {
 
 impl Default for IpcConfiguration {
 	fn default() -> Self {
-		let data_dir = default_data_path();
 		IpcConfiguration {
 			enabled: true,
-			socket_addr: parity_ipc_path(&data_dir, "$BASE/jsonrpc.ipc"),
+			socket_addr: if cfg!(windows) {
+				r"\\.\pipe\jsonrpc.ipc".into()
+			} else {
+				let data_dir = ::dir::default_data_path();
+				parity_ipc_path(&data_dir, "$BASE/jsonrpc.ipc", 0)
+			},
 			apis: ApiSet::IpcContext,
 		}
 	}

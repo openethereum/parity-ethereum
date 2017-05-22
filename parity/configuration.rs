@@ -912,7 +912,11 @@ impl Configuration {
 		if self.args.flag_geth {
 			geth_ipc_path(self.args.flag_testnet)
 		} else {
-			parity_ipc_path(&self.directories().base, &self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
+			parity_ipc_path(
+				&self.directories().base,
+				&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()),
+				self.args.flag_ports_shift,
+			)
 		}
 	}
 
