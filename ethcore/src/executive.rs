@@ -22,7 +22,7 @@ use engines::Engine;
 use types::executed::CallType;
 use env_info::EnvInfo;
 use error::ExecutionError;
-use evm::{self, Ext, Factory, Finalize, CreateContractAddress};
+use evm::{self, wasm, Ext, Factory, Finalize, CreateContractAddress};
 use externalities::*;
 use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
 use transaction::{Action, SignedTransaction};
@@ -68,6 +68,18 @@ pub struct TransactOptions {
 	pub vm_tracing: bool,
 	/// Check transaction nonce before execution.
 	pub check_nonce: bool,
+}
+
+pub fn executor(engine: &Engine, vm_factory: &Factory, params: &ActionParams) -> Box<evm::Evm> {
+	if engine.supports_wasm() && params.code.as_ref().map_or(false, |code| &code[0..4] == b"wasm") {
+		Box::new(
+			wasm::WasmInterpreter::new()
+				// prefer to fail fast
+				.expect("Failed to create wasm runtime")
+		)
+	} else {
+		vm_factory.create(params.gas)
+	}
 }
 
 /// Transaction executor.
@@ -255,7 +267,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			let vm_factory = self.vm_factory;
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
-			return vm_factory.create(params.gas).exec(params, &mut ext).finalize(ext);
+			return executor(self.engine, vm_factory, &params).exec(params, &mut ext).finalize(ext);
 		}
 
 		// Start in new thread to reset stack
@@ -263,10 +275,11 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		// https://github.com/aturon/crossbeam/issues/16
 		crossbeam::scope(|scope| {
 			let vm_factory = self.vm_factory;
+			let engine = self.engine;
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
 
 			scope.spawn(move || {
-				vm_factory.create(params.gas).exec(params, &mut ext).finalize(ext)
+				executor(engine, vm_factory, &params).exec(params, &mut ext).finalize(ext)
 			})
 		}).join()
 	}

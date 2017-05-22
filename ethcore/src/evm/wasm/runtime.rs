@@ -25,7 +25,7 @@ use evm;
 use parity_wasm::interpreter;
 use util::{U256, H256};
 
-use super::ptr::WasmPtr;
+use super::ptr::{WasmPtr, Error as PtrError};
 use super::call_args::CallArgs;
 
 #[derive(Debug)]
@@ -33,12 +33,21 @@ pub enum Error {
     Storage,
     Allocator,
 	InvalidGasState,
+	AccessViolation,
 	Interpreter(interpreter::Error),
 }
 
 impl From<interpreter::Error> for Error {
 	fn from(err: interpreter::Error) -> Self {
 		Error::Interpreter(err)
+	}
+}
+
+impl From<PtrError> for Error {
+	fn from(err: PtrError) -> Self {
+		match err {
+			PtrError::AccessViolation => Error::AccessViolation,
+		}
 	}
 }
 
@@ -154,7 +163,9 @@ impl<'a> Runtime<'a> {
 		let args_ptr = self.alloc(args_len)?;
 
 		// write call descriptor
-		let mut d_buf = [0u8; 8];
+		// call descriptor is [args_ptr, args_len, return_ptr, return_len]
+		//   all are 4 byte length, last 2 are zeroed
+		let mut d_buf = [0u8; 16];
 		LittleEndian::write_u32(&mut d_buf[0..4], args_ptr);
 		LittleEndian::write_u32(&mut d_buf[4..8], args_len);
 		self.memory.set(d_ptr, &d_buf)?;
@@ -171,6 +182,10 @@ impl<'a> Runtime<'a> {
 	pub fn gas_left(&self) -> Result<u64, Error> {
 		if self.gas_counter > self.gas_limit { return Err(Error::InvalidGasState); }
 		Ok(self.gas_limit - self.gas_counter)
+	}
+
+	pub fn memory(&self) -> &interpreter::MemoryInstance {
+		&*self.memory
 	}
 }
 

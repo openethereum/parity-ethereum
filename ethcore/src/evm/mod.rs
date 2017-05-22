@@ -22,10 +22,10 @@ pub mod interpreter;
 #[macro_use]
 pub mod factory;
 pub mod schedule;
+pub mod wasm;
 mod instructions;
 #[cfg(feature = "jit" )]
 mod jit;
-mod wasm;
 
 #[cfg(test)]
 mod tests;

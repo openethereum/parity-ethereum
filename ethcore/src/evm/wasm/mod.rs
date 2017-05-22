@@ -17,6 +17,7 @@
 mod runtime;
 mod ptr;
 mod call_args;
+mod result;
 
 use std::sync::Arc;
 
@@ -29,17 +30,22 @@ use wasm_utils;
 use evm::{self, GasLeft};
 use action_params::{ActionParams, ActionValue};
 use self::runtime::Runtime;
+use util::Uint;
 
 pub use self::runtime::Error as RuntimeError;
 
+const DEFAULT_RESULT_BUFFER: usize = 1024;
+
 pub struct WasmInterpreter {
 	program: interpreter::ProgramInstance,
+	result: Vec<u8>,
 }
 
 impl WasmInterpreter {
-	fn new() -> Result<WasmInterpreter, RuntimeError> {
+	pub fn new() -> Result<WasmInterpreter, RuntimeError> {
 		Ok(WasmInterpreter {
 			program: interpreter::ProgramInstance::new()?,
+			result: Vec::with_capacity(DEFAULT_RESULT_BUFFER),
 		})
 	}
 }
@@ -56,22 +62,27 @@ impl evm::Evm for WasmInterpreter {
 		// todo: prefer panic?
 		let env_memory = env_instance.memory(interpreter::ItemIndex::Internal(0))
 			.map_err(|_| evm::Error::Wasm("Linear memory somehow does not exist in wasm runner runtime"))?;
+
+		if params.gas > ::std::u64::MAX.into() {
+			// todo: prefer panic?
+			return Err(evm::Error::Wasm("Wasm interpreter cannot run contracts with gas > 2^64"));
+		}
 		
 		let mut runtime = Runtime::with_params(
 			ext,
 			env_memory,
 			DEFAULT_STACK_SPACE,
-			65536,
+			params.gas.low_u64(),
 		);
 
 		let code = params.code.expect("exec is only called on contract with code; qed");
 		let mut cursor = ::std::io::Cursor::new(&*code);
 
-		// todo: prefer panic?
 		let contract_module = wasm_utils::inject_gas_counter(
 			elements::Module::deserialize(
 				&mut cursor
 			).map_err(|e| {
+				// todo: prefer panic?
 				warn!("Error deserializing contract code as wasm module: {:?}", e);
 				evm::Error::Wasm("Error deserializing contract code")
 			})?
@@ -112,7 +123,16 @@ impl evm::Evm for WasmInterpreter {
 				})?;
 		}
 
-		Ok(GasLeft::Known(runtime.gas_left()?.into()))
+		let result = result::WasmResult::new(d_ptr);
+		if result.peek_empty(&*runtime.memory())? {
+			Ok(GasLeft::Known(runtime.gas_left()?.into()))
+		} else {
+			self.result.clear();
+			// todo: use memory views to avoid copy
+			self.result.extend(result.pop(&*runtime.memory())?);
+			Ok(GasLeft::NeedsReturn(runtime.gas_left()?.into(), &self.result[..]))
+		}
+
 	}
 }
 
