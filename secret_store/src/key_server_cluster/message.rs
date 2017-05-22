@@ -118,18 +118,20 @@ pub enum SigningMessage {
 	SigningGenerationMessage(SigningGenerationMessage),
 	/// Request partial signature from node.
 	RequestPartialSignature(RequestPartialSignature),
+	/// Partial signature is generated.
+	PartialSignature(PartialSignature),
+	/// Partial signature is generated.
+	SigningSessionCompleted(SigningSessionCompleted),
 /*	/// Initialize signing session.
 	InitializeSigningSession(InitializeSigningSession),
 	/// Confirm/reject signing session initialization.
 	ConfirmSigningInitialization(ConfirmSigningInitialization),
 	/// Nonce generation message.
 	SigningNonceGeneration(SigningNonceGeneration),
-	/// Partial signature is generated.
-	PartialDecryption(PartialDecryption),
 	/// When signature session error has occured.
 	SignatureSessionError(SignatureSessionError),
 	/// When signature session is completed.
-	SignatureSessionCompleted(SignatureSessionCompleted),*/
+	,*/
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -308,6 +310,26 @@ pub struct RequestPartialSignature {
 	pub sub_session: SerializableSecret,
 	/// Message hash.
 	pub message_hash: SerializableMessageHash,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Partial signature.
+pub struct PartialSignature {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
+	/// S part of signature.
+	pub partial_signature: SerializableSecret,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Signing session completed.
+pub struct SigningSessionCompleted {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

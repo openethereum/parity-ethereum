@@ -25,7 +25,7 @@ use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::message::{ConsensusMessage, InitializeConsensusSession, ConfirmConsensusInitialization};
 
 #[derive(Default, Debug, Clone)]
-/// Consensus data.
+/// Consensus data. TODO: also move restart logic here (it is in signing + decryption)
 pub struct Consensus {
 	/// Nodes, which have been requested for signing initialization.
 	pub requested_nodes: BTreeSet<NodeId>,
