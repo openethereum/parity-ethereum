@@ -59,6 +59,9 @@ pub struct Params {
 	/// See `CommonParams` docs.
 	#[serde(rename="eip86Transition")]
 	pub eip86_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip140Transition")]
+	pub eip140_transition: Option<Uint>,
 }
 
 #[cfg(test)]

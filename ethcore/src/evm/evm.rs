@@ -104,8 +104,25 @@ pub type Result<T> = ::std::result::Result<T, Error>;
 pub enum GasLeft<'a> {
 	/// Known gas left
 	Known(U256),
-	/// Return instruction must be processed.
-	NeedsReturn(U256, &'a [u8]),
+	/// Return or Revert instruction must be processed.
+	NeedsReturn {
+		/// Amount of gas left.
+		gas_left: U256,
+		/// Return data buffer.
+		data: &'a [u8],
+		/// Apply or revert state changes on revert.
+		apply_state: bool
+	},
+}
+
+/// Finalization result. Gas Left: either it is a known value, or it needs to be computed by processing
+/// a return instruction.
+#[derive(Debug)]
+pub struct FinalizationResult {
+	/// Final amount of gas left.
+	pub gas_left: U256,
+	/// Apply execution state changes or revert them.
+	pub apply_state: bool,
 }
 
 /// Types that can be "finalized" using an EVM.
@@ -113,15 +130,18 @@ pub enum GasLeft<'a> {
 /// In practice, this is just used to define an inherent impl on
 /// `Reult<GasLeft<'a>>`.
 pub trait Finalize {
-	/// Consume the externalities, call return if necessary, and produce a final amount of gas left.
-	fn finalize<E: Ext>(self, ext: E) -> Result<U256>;
+	/// Consume the externalities, call return if necessary, and produce call result.
+	fn finalize<E: Ext>(self, ext: E) -> Result<FinalizationResult>;
 }
 
 impl<'a> Finalize for Result<GasLeft<'a>> {
-	fn finalize<E: Ext>(self, ext: E) -> Result<U256> {
+	fn finalize<E: Ext>(self, ext: E) -> Result<FinalizationResult> {
 		match self {
-			Ok(GasLeft::Known(gas)) => Ok(gas),
-			Ok(GasLeft::NeedsReturn(gas, ret_code)) => ext.ret(&gas, ret_code),
+			Ok(GasLeft::Known(gas_left)) => Ok(FinalizationResult { gas_left: gas_left, apply_state: true }),
+			Ok(GasLeft::NeedsReturn {gas_left, data, apply_state}) => ext.ret(&gas_left, data).map(|gas_left| FinalizationResult {
+				gas_left: gas_left,
+				apply_state: apply_state,
+			}),
 			Err(err) => Err(err),
 		}
 	}
