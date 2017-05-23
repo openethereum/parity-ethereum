@@ -367,7 +367,7 @@ impl Configuration {
 				warp_sync: warp_sync,
 				public_node: public_node,
 				geth_compatibility: geth_compatibility,
-				net_settings: self.network_settings(),
+				net_settings: self.network_settings()?,
 				dapps_conf: dapps_conf,
 				ipfs_conf: ipfs_conf,
 				ui_conf: ui_conf,
@@ -507,7 +507,7 @@ impl Configuration {
 			Ok(Some(StratumOptions {
 				io_path: self.directories().db,
 				listen_addr: self.stratum_interface(),
-				port: self.args.flag_stratum_port,
+				port: self.args.flag_ports_shift + self.args.flag_stratum_port,
 				secret: self.args.flag_stratum_secret.as_ref().map(|s| s.parse::<H256>().unwrap_or_else(|_| s.sha3())),
 			}))
 		} else { Ok(None) }
@@ -551,7 +551,7 @@ impl Configuration {
 		UiConfiguration {
 			enabled: self.ui_enabled(),
 			interface: self.ui_interface(),
-			port: self.args.flag_ui_port,
+			port: self.args.flag_ports_shift + self.args.flag_ui_port,
 			hosts: self.ui_hosts(),
 		}
 	}
@@ -574,9 +574,9 @@ impl Configuration {
 			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
 			interface: self.secretstore_interface(),
-			port: self.args.flag_secretstore_port,
+			port: self.args.flag_ports_shift + self.args.flag_secretstore_port,
 			http_interface: self.secretstore_http_interface(),
-			http_port: self.args.flag_secretstore_http_port,
+			http_port: self.args.flag_ports_shift + self.args.flag_secretstore_http_port,
 			data_path: self.directories().secretstore,
 		})
 	}
@@ -584,7 +584,7 @@ impl Configuration {
 	fn ipfs_config(&self) -> IpfsConfiguration {
 		IpfsConfiguration {
 			enabled: self.args.flag_ipfs_api,
-			port: self.args.flag_ipfs_api_port,
+			port: self.args.flag_ports_shift + self.args.flag_ipfs_api_port,
 			interface: self.ipfs_interface(),
 			cors: self.ipfs_cors(),
 			hosts: self.ipfs_hosts(),
@@ -667,9 +667,9 @@ impl Configuration {
 		}
 	}
 
-	fn net_addresses(&self) -> Result<(Option<SocketAddr>, Option<SocketAddr>), String> {
-		let port = self.args.flag_port;
-		let listen_address = Some(SocketAddr::new("0.0.0.0".parse().unwrap(), port));
+	fn net_addresses(&self) -> Result<(SocketAddr, Option<SocketAddr>), String> {
+		let port = self.args.flag_ports_shift + self.args.flag_port;
+		let listen_address = SocketAddr::new("0.0.0.0".parse().unwrap(), port);
 		let public_address = if self.args.flag_nat.starts_with("extip:") {
 			let host = &self.args.flag_nat[6..];
 			let host = host.parse().map_err(|_| format!("Invalid host given with `--nat extip:{}`", host))?;
@@ -685,7 +685,7 @@ impl Configuration {
 		ret.nat_enabled = self.args.flag_nat == "any" || self.args.flag_nat == "upnp";
 		ret.boot_nodes = to_bootnodes(&self.args.flag_bootnodes)?;
 		let (listen, public) = self.net_addresses()?;
-		ret.listen_address = listen.map(|l| format!("{}", l));
+		ret.listen_address = Some(format!("{}", listen));
 		ret.public_address = public.map(|p| format!("{}", p));
 		ret.use_secret = match self.args.flag_node_key.as_ref()
 			.map(|s| s.parse::<Secret>().or_else(|_| Secret::from_unsafe_slice(&s.sha3())).map_err(|e| format!("Invalid key: {:?}", e))
@@ -739,7 +739,19 @@ impl Configuration {
 		Self::cors(self.args.flag_ipfs_api_cors.as_ref())
 	}
 
-	fn hosts(hosts: &str) -> Option<Vec<String>> {
+	fn hosts(&self, hosts: &str, interface: &str) -> Option<Vec<String>> {
+		if self.args.flag_unsafe_expose {
+			return None;
+		}
+
+		if interface == "0.0.0.0" && hosts == "none" {
+			return None;
+		}
+
+		Self::parse_hosts(hosts)
+	}
+
+	fn parse_hosts(hosts: &str) -> Option<Vec<String>> {
 		match hosts {
 			"none" => return Some(Vec::new()),
 			"*" | "all" | "any" => return None,
@@ -759,19 +771,19 @@ impl Configuration {
 	}
 
 	fn rpc_hosts(&self) -> Option<Vec<String>> {
-		Self::hosts(&self.args.flag_jsonrpc_hosts)
+		self.hosts(&self.args.flag_jsonrpc_hosts, &self.rpc_interface())
 	}
 
 	fn ws_hosts(&self) -> Option<Vec<String>> {
-		Self::hosts(&self.args.flag_ws_hosts)
+		self.hosts(&self.args.flag_ws_hosts, &self.ws_interface())
 	}
 
 	fn ws_origins(&self) -> Option<Vec<String>> {
-		Self::hosts(&self.args.flag_ws_origins)
+		Self::parse_hosts(&self.args.flag_ws_origins)
 	}
 
 	fn ipfs_hosts(&self) -> Option<Vec<String>> {
-		Self::hosts(&self.args.flag_ipfs_api_hosts)
+		self.hosts(&self.args.flag_ipfs_api_hosts, &self.ipfs_interface())
 	}
 
 	fn ipc_config(&self) -> Result<IpcConfiguration, String> {
@@ -797,7 +809,7 @@ impl Configuration {
 		let conf = HttpConfiguration {
 			enabled: self.rpc_enabled(),
 			interface: self.rpc_interface(),
-			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
+			port: self.args.flag_ports_shift + self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
 			apis: match self.args.flag_public_node {
 				false => self.rpc_apis().parse()?,
 				true => self.rpc_apis().parse::<ApiSet>()?.retain(ApiSet::PublicContext),
@@ -820,7 +832,7 @@ impl Configuration {
 		let conf = WsConfiguration {
 			enabled: self.ws_enabled(),
 			interface: self.ws_interface(),
-			port: self.args.flag_ws_port,
+			port: self.args.flag_ports_shift + self.args.flag_ws_port,
 			apis: self.args.flag_ws_apis.parse()?,
 			hosts: self.ws_hosts(),
 			origins: self.ws_origins(),
@@ -831,15 +843,17 @@ impl Configuration {
 		Ok(conf)
 	}
 
-	fn network_settings(&self) -> NetworkSettings {
-		NetworkSettings {
+	fn network_settings(&self) -> Result<NetworkSettings, String> {
+		let http_conf = self.http_config()?;
+		let net_addresses = self.net_addresses()?;
+		Ok(NetworkSettings {
 			name: self.args.flag_identity.clone(),
 			chain: self.chain(),
-			network_port: self.args.flag_port,
-			rpc_enabled: self.rpc_enabled(),
-			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
-			rpc_port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
-		}
+			network_port: net_addresses.0.port(),
+			rpc_enabled: http_conf.enabled,
+			rpc_interface: http_conf.interface,
+			rpc_port: http_conf.port,
+		})
 	}
 
 	fn update_policy(&self) -> Result<UpdatePolicy, String> {
@@ -912,11 +926,19 @@ impl Configuration {
 		if self.args.flag_geth {
 			geth_ipc_path(self.args.flag_testnet)
 		} else {
-			parity_ipc_path(&self.directories().base, &self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
+			parity_ipc_path(
+				&self.directories().base,
+				&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()),
+				self.args.flag_ports_shift,
+			)
 		}
 	}
 
-	fn interface(interface: &str) -> String {
+	fn interface(&self, interface: &str) -> String {
+		if self.args.flag_unsafe_expose {
+			return "0.0.0.0".into();
+		}
+
 		match interface {
 			"all" => "0.0.0.0",
 			"local" => "127.0.0.1",
@@ -924,28 +946,30 @@ impl Configuration {
 		}.into()
 	}
 
+
 	fn ui_interface(&self) -> String {
-		Self::interface(&self.args.flag_ui_interface)
+		self.interface(&self.args.flag_ui_interface)
 	}
 
 	fn rpc_interface(&self) -> String {
-		Self::interface(&self.network_settings().rpc_interface)
+		let rpc_interface = self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone());
+		self.interface(&rpc_interface)
 	}
 
 	fn ws_interface(&self) -> String {
-		Self::interface(&self.args.flag_ws_interface)
+		self.interface(&self.args.flag_ws_interface)
 	}
 
 	fn ipfs_interface(&self) -> String {
-		Self::interface(&self.args.flag_ipfs_api_interface)
+		self.interface(&self.args.flag_ipfs_api_interface)
 	}
 
 	fn secretstore_interface(&self) -> String {
-		Self::interface(&self.args.flag_secretstore_interface)
+		self.interface(&self.args.flag_secretstore_interface)
 	}
 
 	fn secretstore_http_interface(&self) -> String {
-		Self::interface(&self.args.flag_secretstore_http_interface)
+		self.interface(&self.args.flag_secretstore_http_interface)
 	}
 
 	fn secretstore_self_secret(&self) -> Result<Option<Secret>, String> {
@@ -981,7 +1005,7 @@ impl Configuration {
 	}
 
 	fn stratum_interface(&self) -> String {
-		Self::interface(&self.args.flag_stratum_interface)
+		self.interface(&self.args.flag_stratum_interface)
 	}
 
 	fn rpc_enabled(&self) -> bool {
@@ -1327,23 +1351,23 @@ mod tests {
 		let conf = parse(&["parity", "--testnet", "--identity", "testname"]);
 
 		// then
-		assert_eq!(conf.network_settings(), NetworkSettings {
+		assert_eq!(conf.network_settings(), Ok(NetworkSettings {
 			name: "testname".to_owned(),
 			chain: "testnet".to_owned(),
 			network_port: 30303,
 			rpc_enabled: true,
-			rpc_interface: "local".to_owned(),
+			rpc_interface: "127.0.0.1".to_owned(),
 			rpc_port: 8545,
-		});
+		}));
 	}
 
 	#[test]
 	fn should_parse_rpc_settings_with_geth_compatiblity() {
 		// given
 		fn assert(conf: Configuration) {
-			let net = conf.network_settings();
+			let net = conf.network_settings().unwrap();
 			assert_eq!(net.rpc_enabled, true);
-			assert_eq!(net.rpc_interface, "all".to_owned());
+			assert_eq!(net.rpc_interface, "0.0.0.0".to_owned());
 			assert_eq!(net.rpc_port, 8000);
 			assert_eq!(conf.rpc_cors(), Some(vec!["*".to_owned()]));
 			assert_eq!(conf.rpc_apis(), "web3,eth".to_owned());
@@ -1520,5 +1544,58 @@ mod tests {
 			},
 			_ => panic!("Should be Cmd::Run"),
 		}
+	}
+
+	#[test]
+	fn should_apply_ports_shift() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity", "--ports-shift", "1", "--stratum"]);
+		let conf1 = parse(&["parity", "--ports-shift", "1", "--jsonrpc-port", "8544"]);
+
+		// then
+		assert_eq!(conf0.net_addresses().unwrap().0.port(), 30304);
+		assert_eq!(conf0.network_settings().unwrap().network_port, 30304);
+		assert_eq!(conf0.network_settings().unwrap().rpc_port, 8546);
+		assert_eq!(conf0.http_config().unwrap().port, 8546);
+		assert_eq!(conf0.ws_config().unwrap().port, 8547);
+		assert_eq!(conf0.ui_config().port, 8181);
+		assert_eq!(conf0.secretstore_config().unwrap().port, 8084);
+		assert_eq!(conf0.secretstore_config().unwrap().http_port, 8083);
+		assert_eq!(conf0.ipfs_config().port, 5002);
+		assert_eq!(conf0.stratum_options().unwrap().unwrap().port, 8009);
+
+
+		assert_eq!(conf1.net_addresses().unwrap().0.port(), 30304);
+		assert_eq!(conf1.network_settings().unwrap().network_port, 30304);
+		assert_eq!(conf1.network_settings().unwrap().rpc_port, 8545);
+		assert_eq!(conf1.http_config().unwrap().port, 8545);
+		assert_eq!(conf1.ws_config().unwrap().port, 8547);
+		assert_eq!(conf1.ui_config().port, 8181);
+		assert_eq!(conf1.secretstore_config().unwrap().port, 8084);
+		assert_eq!(conf1.secretstore_config().unwrap().http_port, 8083);
+		assert_eq!(conf1.ipfs_config().port, 5002);
+	}
+
+	#[test]
+	fn should_expose_all_servers() {
+		// given
+
+		// when
+		let conf0 = parse(&["parity", "--unsafe-expose"]);
+
+		// then
+		assert_eq!(&conf0.network_settings().unwrap().rpc_interface, "0.0.0.0");
+		assert_eq!(&conf0.http_config().unwrap().interface, "0.0.0.0");
+		assert_eq!(conf0.http_config().unwrap().hosts, None);
+		assert_eq!(&conf0.ws_config().unwrap().interface, "0.0.0.0");
+		assert_eq!(conf0.ws_config().unwrap().hosts, None);
+		assert_eq!(&conf0.ui_config().interface, "0.0.0.0");
+		assert_eq!(conf0.ui_config().hosts, None);
+		assert_eq!(&conf0.secretstore_config().unwrap().interface, "0.0.0.0");
+		assert_eq!(&conf0.secretstore_config().unwrap().http_interface, "0.0.0.0");
+		assert_eq!(&conf0.ipfs_config().interface, "0.0.0.0");
+		assert_eq!(conf0.ipfs_config().hosts, None);
 	}
 }

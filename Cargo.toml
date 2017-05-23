@@ -101,3 +101,5 @@ name = "parity"
 debug = false
 lto = false
 panic = "abort"
+
+[workspace]
