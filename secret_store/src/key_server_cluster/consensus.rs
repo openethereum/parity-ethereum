@@ -165,7 +165,7 @@ impl<T> Consensus<T> where T: Debug + Clone {
 		let active_consensus = match *self {
 			Consensus::Established(ref established_consensus) => ActiveConsensus::new(established_consensus.clone()),
 			Consensus::Active(ref active_consensus) => ActiveConsensus::new(active_consensus.core.clone()),
-			_ => { println!("=== c"); return Err(Error::InvalidStateForRequest) },
+			_ => { panic!("=== c"); println!("=== c: {:?}", self); return Err(Error::InvalidStateForRequest) },
 		};
 
 		*self = Consensus::Active(active_consensus);

@@ -289,8 +289,8 @@ impl SessionImpl {
 		};
 		SessionImpl::process_consensus_session_action(&self.id, &self.access_key, &self.cluster, &self.completed, &mut *data, consensus_action)?;
 
-		// if consensus is established, start generating session key
-		if data.state != SessionState::EstablishedConsensus {
+		// if consensus is established, start generating session key on master
+		if data.state != SessionState::EstablishedConsensus || data.master.as_ref() != Some(&self.self_node_id) {
 			return Ok(());
 		}
 
@@ -491,34 +491,38 @@ impl SessionImpl {
 					session: id.clone().into(),
 					sub_session: access_key.clone().into(),
 					message: message,
-				})))
+				})))?
 			},
 			ConsensusSessionAction::SendMessage(to, message) => {
 				cluster.send(&to, Message::Signing(SigningMessage::SigningConsensusMessage(SigningConsensusMessage {
 					session: id.clone().into(),
 					sub_session: access_key.clone().into(),
 					message: message,
-				})))
+				})))?
 			},
-			ConsensusSessionAction::CheckStatus => {
-				match data.consensus_session.as_ref()
-					.expect("we are processing consensus session action; action is a result of processing message by session; qed")
-					.state() {
-					ConsensusSessionState::Finished => data.state = SessionState::EstablishedConsensus,
-					ConsensusSessionState::Failed => {
-						data.state = SessionState::Failed;
-						data.signed_message = Some(Err(Error::ConsensusUnreachable));
-						completed.notify_all();
-					},
-					_ => (),
-				}
-				Ok(())
-			},
+			ConsensusSessionAction::CheckStatus => (),
 		}
+
+		match data.consensus_session.as_ref()
+			.expect("we are processing consensus session action; action is a result of processing message by session; qed")
+			.state() {
+			ConsensusSessionState::Finished => data.state = SessionState::EstablishedConsensus,
+			ConsensusSessionState::Failed => {
+				data.state = SessionState::Failed;
+				data.signed_message = Some(Err(Error::ConsensusUnreachable));
+				completed.notify_all();
+			},
+			_ => (),
+		}
+
+		Ok(())
 	}
 
 	/// Start generating one-time session key.
 	fn start_generating_session_key(self_node_id: NodeId, encrypted_data: &DocumentKeyShare, cluster: &Arc<Cluster>, data: &mut SessionData) -> Result<(), Error> {
+		// update state
+		data.state = SessionState::SessionKeyGeneration;
+
 		// select nodes to make signature
 		let mut consensus = data.consensus.as_mut().expect("consensus is filled during initialization phase; key generation phase follows initialization; qed");
 		consensus.activate()?;
@@ -538,9 +542,6 @@ impl SessionImpl {
 			encrypted_data.threshold, selected_nodes.clone())?;
 		data.generation_cluster = Some(generation_cluster);
 		data.generation_session = Some(generation_session);
-
-		// update state
-		data.state = SessionState::SessionKeyGeneration;
 
 		Ok(())
 	}

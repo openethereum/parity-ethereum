@@ -422,30 +422,31 @@ println!("=== 4");
 					session: id.clone().into(),
 					sub_session: access_key.clone().into(),
 					message: message,
-				})))
+				})))?
 			},
 			ConsensusSessionAction::SendMessage(to, message) => {
 				cluster.send(&to, Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(DecryptionConsensusMessage {
 					session: id.clone().into(),
 					sub_session: access_key.clone().into(),
 					message: message,
-				})))
+				})))?
 			},
-			ConsensusSessionAction::CheckStatus => {
-				match data.consensus_session.as_ref()
-					.expect("we are processing consensus session action; action is a result of processing message by session; qed")
-					.state() {
-					ConsensusSessionState::Finished => data.state = SessionState::EstablishedConsensus,
-					ConsensusSessionState::Failed => {
-						data.state = SessionState::Failed;
-						data.decrypted_secret = Some(Err(Error::ConsensusUnreachable));
-						completed.notify_all();
-					},
-					_ => (),
-				}
-				Ok(())
-			},
+			ConsensusSessionAction::CheckStatus => (),
 		}
+
+		match data.consensus_session.as_ref()
+			.expect("we are processing consensus session action; action is a result of processing message by session; qed")
+			.state() {
+			ConsensusSessionState::Finished => data.state = SessionState::EstablishedConsensus,
+			ConsensusSessionState::Failed => {
+				data.state = SessionState::Failed;
+				data.decrypted_secret = Some(Err(Error::ConsensusUnreachable));
+				completed.notify_all();
+			},
+			_ => (),
+		}
+
+		Ok(())
 	}
 
 	fn start_waiting_for_partial_decryption(self_node_id: &NodeId, session_id: SessionId, access_key: Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
@@ -844,7 +845,7 @@ mod tests {
 				message: message::ConsensusMessage::InitializeConsensusSession(message::InitializeConsensusSession {
 					requestor_signature: ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
 				}),
-			}).unwrap_err(), Error::InvalidStateForRequest);
+			}).unwrap_err(), Error::InvalidMessage);
 	}
 
 	#[test]
@@ -934,7 +935,7 @@ mod tests {
 
 		// 2 node are disconnected => we can not recover secret
 		sessions[0].on_node_timeout(sessions[2].node());
-		assert!(sessions[0].data.lock().consensus.as_ref().unwrap().core().unwrap().rejected_nodes().contains(sessions[2].node()));
+		assert!(sessions[0].data.lock().consensus.as_ref().unwrap().core().is_none());
 		assert!(sessions[0].data.lock().state == SessionState::Failed);
 	}
 
