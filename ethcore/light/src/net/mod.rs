@@ -38,11 +38,13 @@ use request::{Request, NetworkRequests as Requests, Response};
 use self::request_credits::{Credits, FlowParams};
 use self::context::{Ctx, TickCtx};
 use self::error::Punishment;
+use self::load_timer::{LoadDistribution, NullStore};
 use self::request_set::RequestSet;
 use self::id_guard::IdGuard;
 
 mod context;
 mod error;
+mod load_timer;
 mod status;
 mod request_set;
 
@@ -51,8 +53,9 @@ mod tests;
 
 pub mod request_credits;
 
-pub use self::error::Error;
 pub use self::context::{BasicContext, EventContext, IoContext};
+pub use self::error::Error;
+pub use self::load_timer::{SampleStore, FileStore};
 pub use self::status::{Status, Capabilities, Announcement};
 
 const TIMEOUT: TimerToken = 0;
@@ -63,6 +66,9 @@ const TICK_TIMEOUT_INTERVAL_MS: u64 = 5000;
 
 const PROPAGATE_TIMEOUT: TimerToken = 2;
 const PROPAGATE_TIMEOUT_INTERVAL_MS: u64 = 5000;
+
+const RECALCULATE_COSTS_TIMEOUT: TimerToken = 3;
+const RECALCULATE_COSTS_INTERVAL_MS: u64 = 60 * 60 * 1000;
 
 // minimum interval between updates.
 const UPDATE_INTERVAL_MS: i64 = 5000;
@@ -88,13 +94,18 @@ mod packet {
 	pub const REQUEST: u8 = 0x02;
 	pub const RESPONSE: u8 = 0x03;
 
+	// request credits update and acknowledgement.
+	pub const UPDATE_CREDITS: u8 = 0x04;
+	pub const ACKNOWLEDGE_UPDATE: u8 = 0x05;
+
 	// relay transactions to peers.
-	pub const SEND_TRANSACTIONS: u8 = 0x04;
+	pub const SEND_TRANSACTIONS: u8 = 0x06;
 }
 
 // timeouts for different kinds of requests. all values are in milliseconds.
 mod timeout {
 	pub const HANDSHAKE: i64 = 2500;
+	pub const ACKNOWLEDGE_UPDATE: i64 = 5000;
 	pub const BASE: i64 = 1500; // base timeout for packet.
 
 	// timeouts per request within packet.
@@ -141,6 +152,9 @@ pub struct Peer {
 	pending_requests: RequestSet,
 	failed_requests: Vec<ReqId>,
 	propagated_transactions: HashSet<H256>,
+	skip_update: bool,
+	local_flow: Arc<FlowParams>,
+	awaiting_acknowledge: Option<(SteadyTime, Arc<FlowParams>)>,
 }
 
 /// A light protocol event handler.
@@ -176,14 +190,36 @@ pub trait Handler: Send + Sync {
 	fn on_abort(&self) { }
 }
 
-/// Protocol parameters.
+/// Configuration.
+pub struct Config {
+	/// How many stored seconds of credits peers should be able to accumulate.
+	pub max_stored_seconds: u64,
+	/// How much of the total load capacity each peer should be allowed to take.
+	pub load_share: f64,
+}
+
+impl Default for Config {
+	fn default() -> Self {
+		const LOAD_SHARE: f64 = 1.0 / 25.0;
+		const MAX_ACCUMULATED: u64 = 60 * 5; // only charge for 5 minutes.
+
+		Config {
+			max_stored_seconds: MAX_ACCUMULATED,
+			load_share: LOAD_SHARE,
+		}
+	}
+}
+
+/// Protocol initialization parameters.
 pub struct Params {
 	/// Network id.
 	pub network_id: u64,
-	/// Request credits parameters.
-	pub flow_params: FlowParams,
+	/// Config.
+	pub config: Config,
 	/// Initial capabilities.
 	pub capabilities: Capabilities,
+	/// The sample store (`None` if data shouldn't persist between runs).
+	pub sample_store: Option<Box<SampleStore>>,
 }
 
 /// Type alias for convenience.
@@ -249,14 +285,17 @@ mod id_guard {
 //   on the peers, only one peer may be held at a time.
 pub struct LightProtocol {
 	provider: Arc<Provider>,
+	config: Config,
 	genesis_hash: H256,
 	network_id: u64,
 	pending_peers: RwLock<HashMap<PeerId, PendingPeer>>,
 	peers: RwLock<PeerMap>,
 	capabilities: RwLock<Capabilities>,
-	flow_params: FlowParams, // assumed static and same for every peer.
+	flow_params: RwLock<Arc<FlowParams>>,
 	handlers: Vec<Arc<Handler>>,
 	req_id: AtomicUsize,
+	sample_store: Box<SampleStore>,
+	load_distribution: LoadDistribution,
 }
 
 impl LightProtocol {
@@ -265,16 +304,27 @@ impl LightProtocol {
 		debug!(target: "pip", "Initializing light protocol handler");
 
 		let genesis_hash = provider.chain_info().genesis_hash;
+		let sample_store = params.sample_store.unwrap_or_else(|| Box::new(NullStore));
+		let load_distribution = LoadDistribution::load(&*sample_store);
+		let flow_params = FlowParams::from_request_times(
+			|kind| load_distribution.expected_time_ns(kind),
+			params.config.load_share,
+			params.config.max_stored_seconds,
+		);
+
 		LightProtocol {
 			provider: provider,
+			config: params.config,
 			genesis_hash: genesis_hash,
 			network_id: params.network_id,
 			pending_peers: RwLock::new(HashMap::new()),
 			peers: RwLock::new(HashMap::new()),
 			capabilities: RwLock::new(params.capabilities),
-			flow_params: params.flow_params,
+			flow_params: RwLock::new(Arc::new(flow_params)),
 			handlers: Vec::new(),
 			req_id: AtomicUsize::new(0),
+			sample_store: sample_store,
+			load_distribution: load_distribution,
 		}
 	}
 
@@ -422,8 +472,9 @@ impl LightProtocol {
 		let res = match peers.get(peer) {
 			Some(peer_info) => {
 				let mut peer_info = peer_info.lock();
+				let peer_info: &mut Peer = &mut *peer_info;
 				let req_info = peer_info.pending_requests.remove(&req_id, SteadyTime::now());
-				let cumulative_cost = peer_info.pending_requests.cumulative_cost();
+				let last_batched = peer_info.pending_requests.is_empty();
 				let flow_info = peer_info.remote_flow.as_mut();
 
 				match (req_info, flow_info) {
@@ -431,10 +482,13 @@ impl LightProtocol {
 						let &mut (ref mut c, ref mut flow) = flow_info;
 
 						// only update if the cumulative cost of the request set is zero.
-						if cumulative_cost == 0.into() {
+						// and this response wasn't from before request costs were updated.
+						if !peer_info.skip_update && last_batched {
 							let actual_credits = ::std::cmp::min(cur_credits, *flow.limit());
 							c.update_to(actual_credits);
 						}
+
+						if last_batched { peer_info.skip_update = false }
 
 						Ok(())
 					}
@@ -463,6 +517,9 @@ impl LightProtocol {
 
 			packet::REQUEST => self.request(peer, io, rlp),
 			packet::RESPONSE => self.response(peer, io, rlp),
+
+			packet::UPDATE_CREDITS => self.update_credits(peer, io, rlp),
+			packet::ACKNOWLEDGE_UPDATE => self.acknowledge_update(peer, io, rlp),
 
 			packet::SEND_TRANSACTIONS => self.relay_transactions(peer, io, rlp),
 
@@ -497,12 +554,21 @@ impl LightProtocol {
 			}
 		}
 
-		// request timeouts
+		// request and update ack timeouts
+		let ack_duration = Duration::milliseconds(timeout::ACKNOWLEDGE_UPDATE);
 		{
 			for (peer_id, peer) in self.peers.read().iter() {
-				if peer.lock().pending_requests.check_timeout(now) {
+				let peer = peer.lock();
+				if peer.pending_requests.check_timeout(now) {
 					debug!(target: "pip", "Peer {} request timeout", peer_id);
 					io.disconnect_peer(*peer_id);
+				}
+
+				if let Some((ref start, _)) = peer.awaiting_acknowledge {
+					if *start + ack_duration <= now {
+						debug!(target: "pip", "Peer {} update acknowledgement timeout", peer_id);
+						io.disconnect_peer(*peer_id);
+					}
 				}
 			}
 		}
@@ -574,7 +640,8 @@ impl LightProtocol {
 		};
 
 		let capabilities = self.capabilities.read().clone();
-		let status_packet = status::write_handshake(&status, &capabilities, Some(&self.flow_params));
+		let local_flow = self.flow_params.read();
+		let status_packet = status::write_handshake(&status, &capabilities, Some(&**local_flow));
 
 		self.pending_peers.write().insert(*peer, PendingPeer {
 			sent_head: chain_info.best_block_hash,
@@ -628,6 +695,35 @@ impl LightProtocol {
 			})
 		}
 	}
+
+	fn begin_new_cost_period(&self, io: &IoContext) {
+		self.load_distribution.end_period(&*self.sample_store);
+
+		let new_params = Arc::new(FlowParams::from_request_times(
+			|kind| self.load_distribution.expected_time_ns(kind),
+			self.config.load_share,
+			self.config.max_stored_seconds,
+		));
+		*self.flow_params.write() = new_params.clone();
+
+		let peers = self.peers.read();
+		let now = SteadyTime::now();
+
+		let packet_body = {
+			let mut stream = RlpStream::new_list(3);
+			stream.append(new_params.limit())
+				.append(new_params.recharge_rate())
+				.append(new_params.cost_table());
+			stream.out()
+		};
+
+		for (peer_id, peer_info) in peers.iter() {
+			let mut peer_info = peer_info.lock();
+
+			io.send(*peer_id, packet::UPDATE_CREDITS, packet_body.clone());
+			peer_info.awaiting_acknowledge = Some((now.clone(), new_params.clone()));
+		}
+	}
 }
 
 impl LightProtocol {
@@ -653,9 +749,10 @@ impl LightProtocol {
 		}
 
 		let remote_flow = flow_params.map(|params| (params.create_credits(), params));
+		let local_flow = self.flow_params.read().clone();
 
 		self.peers.write().insert(*peer, Mutex::new(Peer {
-			local_credits: self.flow_params.create_credits(),
+			local_credits: local_flow.create_credits(),
 			status: status.clone(),
 			capabilities: capabilities.clone(),
 			remote_flow: remote_flow,
@@ -664,6 +761,9 @@ impl LightProtocol {
 			pending_requests: RequestSet::default(),
 			failed_requests: Vec::new(),
 			propagated_transactions: HashSet::new(),
+			skip_update: false,
+			local_flow: local_flow,
+			awaiting_acknowledge: None,
 		}));
 
 		for handler in &self.handlers {
@@ -739,6 +839,7 @@ impl LightProtocol {
 			}
 		};
 		let mut peer = peer.lock();
+		let peer: &mut Peer = &mut *peer;
 
 		let req_id: u64 = raw.val_at(0)?;
 		let mut request_builder = RequestBuilder::default();
@@ -746,12 +847,13 @@ impl LightProtocol {
 		trace!(target: "pip", "Received requests (id: {}) from peer {}", req_id, peer_id);
 
 		// deserialize requests, check costs and request validity.
-		self.flow_params.recharge(&mut peer.local_credits);
+		peer.local_flow.recharge(&mut peer.local_credits);
 
-		peer.local_credits.deduct_cost(self.flow_params.base_cost())?;
+		peer.local_credits.deduct_cost(peer.local_flow.base_cost())?;
 		for request_rlp in raw.at(1)?.iter().take(MAX_REQUESTS) {
 			let request: Request = request_rlp.as_val()?;
-			peer.local_credits.deduct_cost(self.flow_params.compute_cost(&request))?;
+			let cost = peer.local_flow.compute_cost(&request);
+			peer.local_credits.deduct_cost(cost)?;
 			request_builder.push(request).map_err(|_| Error::BadBackReference)?;
 		}
 
@@ -761,6 +863,7 @@ impl LightProtocol {
 
 		// respond to all requests until one fails.
 		let responses = requests.respond_to_all(|complete_req| {
+			let _timer = self.load_distribution.begin_timer(&complete_req);
 			match complete_req {
 				CompleteRequest::Headers(req) => self.provider.block_headers(req).map(Response::Headers),
 				CompleteRequest::HeaderProof(req) => self.provider.header_proof(req).map(Response::HeaderProof),
@@ -801,6 +904,60 @@ impl LightProtocol {
 			}, req_id, &responses);
 		}
 
+		Ok(())
+	}
+
+	// handle an update of request credits parameters.
+	fn update_credits(&self, peer_id: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+		let peers = self.peers.read();
+
+		let peer = peers.get(peer_id).ok_or(Error::UnknownPeer)?;
+		let mut peer = peer.lock();
+
+		trace!(target: "pip", "Received an update to request credit params from peer {}", peer_id);
+
+		{
+			let &mut (ref mut credits, ref mut old_params) = peer.remote_flow.as_mut().ok_or(Error::NotServer)?;
+			old_params.recharge(credits);
+
+			let new_params = FlowParams::new(
+				raw.val_at(0)?, // limit
+				raw.val_at(2)?, // cost table
+				raw.val_at(1)?, // recharge.
+			);
+
+			// preserve ratio of current : limit when updating params.
+			credits.maintain_ratio(*old_params.limit(), *new_params.limit());
+			*old_params = new_params;
+		}
+
+		// set flag to true when there is an in-flight request
+		// corresponding to old flow params.
+		if !peer.pending_requests.is_empty() {
+			peer.skip_update = true;
+		}
+
+		// let peer know we've acknowledged the update.
+		io.respond(packet::ACKNOWLEDGE_UPDATE, Vec::new());
+		Ok(())
+	}
+
+	// handle an acknowledgement of request credits update.
+	fn acknowledge_update(&self, peer_id: &PeerId, _io: &IoContext, _raw: UntrustedRlp) -> Result<(), Error> {
+		let peers = self.peers.read();
+		let peer = peers.get(peer_id).ok_or(Error::UnknownPeer)?;
+		let mut peer = peer.lock();
+
+		trace!(target: "pip", "Received an acknowledgement for new request credit params from peer {}", peer_id);
+
+		let (_, new_params) = match peer.awaiting_acknowledge.take() {
+			Some(x) => x,
+			None => return Err(Error::UnsolicitedResponse),
+		};
+
+		let old_limit = *peer.local_flow.limit();
+		peer.local_credits.maintain_ratio(old_limit, *new_params.limit());
+		peer.local_flow = new_params;
 		Ok(())
 	}
 
@@ -850,6 +1007,8 @@ impl NetworkProtocolHandler for LightProtocol {
 			.expect("Error registering sync timer.");
 		io.register_timer(PROPAGATE_TIMEOUT, PROPAGATE_TIMEOUT_INTERVAL_MS)
 			.expect("Error registering sync timer.");
+		io.register_timer(RECALCULATE_COSTS_TIMEOUT, RECALCULATE_COSTS_INTERVAL_MS)
+			.expect("Error registering request timer interval token.");
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
@@ -869,6 +1028,7 @@ impl NetworkProtocolHandler for LightProtocol {
 			TIMEOUT => self.timeout_check(io),
 			TICK_TIMEOUT => self.tick_handlers(io),
 			PROPAGATE_TIMEOUT => self.propagate_transactions(io),
+			RECALCULATE_COSTS_TIMEOUT => self.begin_new_cost_period(io),
 			_ => warn!(target: "pip", "received timeout on unknown token {}", timer),
 		}
 	}
