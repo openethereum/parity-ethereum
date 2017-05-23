@@ -20,7 +20,7 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::{Arc, Weak};
 
-use futures::{future, stream, Future, Stream, BoxFuture};
+use futures::{future, Future, BoxFuture};
 use light::cache::Cache as LightDataCache;
 use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
@@ -185,25 +185,28 @@ pub fn fetch_gas_price_corpus(
 	let eventual_corpus = sync.with_context(|ctx| {
 		// get some recent headers with gas used,
 		// and request each of the blocks from the network.
-		let block_futures = client.ancestry_iter(BlockId::Latest)
+		let block_requests = client.ancestry_iter(BlockId::Latest)
 			.filter(|hdr| hdr.gas_used() != U256::default())
 			.take(GAS_PRICE_SAMPLE_SIZE)
-			.map(request::Body::new)
-			.map(|req| on_demand.block(ctx, req));
+			.map(|hdr| request::Body(hdr.into()))
+			.collect::<Vec<_>>();
 
-		// as the blocks come in, collect gas prices into a vector
-		stream::futures_unordered(block_futures)
-			.fold(Vec::new(), |mut v, block| {
-				for t in block.transaction_views().iter() {
-					v.push(t.gas_price())
-				}
+		// when the blocks come in, collect gas prices into a vector
+		on_demand.request(ctx, block_requests)
+			.expect("no back-references; therefore all back-references are valid; qed")
+			.map(|bodies| {
+				bodies.into_iter().fold(Vec::new(), |mut v, block| {
+					for t in block.transaction_views().iter() {
+						v.push(t.gas_price())
+					}
 
-				future::ok(v)
+					v
+				})
 			})
-			.map(move |v| {
+			.map(move |prices| {
 				// produce a corpus from the vector, cache it, and return
 				// the median as the intended gas price.
-				let corpus: ::stats::Corpus<_> = v.into();
+				let corpus: ::stats::Corpus<_> = prices.into();
 				cache.lock().set_gas_price_corpus(corpus.clone());
 				corpus
 			})
@@ -282,10 +285,10 @@ impl LightDispatcher {
 
 		let best_header = self.client.best_block_header();
 		let account_start_nonce = self.client.engine().account_start_nonce();
-		let nonce_future = self.sync.with_context(|ctx| self.on_demand.account(ctx, request::Account {
-			header: best_header,
+		let nonce_future = self.sync.with_context(|ctx| self.on_demand.request(ctx, request::Account {
+			header: best_header.into(),
 			address: addr,
-		}));
+		}).expect("no back-references; therefore all back-references valid; qed"));
 
 		match nonce_future {
 			Some(x) =>
