@@ -14,11 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt::Debug;
 use std::collections::{BTreeSet, BTreeMap, VecDeque};
 use key_server_cluster::{Error, NodeId};
 
+#[derive(Debug, Clone)]
 /// Consensus.
-pub enum Consensus<T> {
+pub enum Consensus<T: Debug> {
 	/// Consensus is currently establishing.
 	Establishing(ConsensusCore),
 	/// Consensus is established.
@@ -46,7 +48,7 @@ pub struct ConsensusCore {
 
 #[derive(Debug, Clone)]
 /// Active consensus (i.e. consensus with sent requests).
-pub struct ActiveConsensus<T> {
+pub struct ActiveConsensus<T: Debug> {
 	/// Consensus core data.
 	pub core: ConsensusCore,
 	/// Selected nodes.
@@ -57,7 +59,7 @@ pub struct ActiveConsensus<T> {
 	pub responses: BTreeMap<NodeId, T>,
 }
 
-impl<T> Consensus<T> {
+impl<T> Consensus<T> where T: Debug {
 	/// Create new consensus.
 	pub fn new(threshold: usize, nodes: BTreeSet<NodeId>) -> Result<Self, Error> {
 		if nodes.len() < threshold + 1 {
@@ -75,7 +77,7 @@ impl<T> Consensus<T> {
 	/// Is consenus established.
 	pub fn is_established(&self) -> bool {
 		match *self {
-			Consensus::Established(_) | Consensus::Active(_) => true,
+			Consensus::Established(_) => true,
 			_ => false,
 		}
 	}
@@ -269,7 +271,7 @@ impl ConsensusCore {
 	}
 }
 
-impl<T> ActiveConsensus<T> {
+impl<T> ActiveConsensus<T> where T: Debug {
 	/// Create new active consensus.
 	pub fn new(core: ConsensusCore) -> Self {
 		ActiveConsensus {

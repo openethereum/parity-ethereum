@@ -321,6 +321,7 @@ impl SessionImpl {
 	pub fn on_confirm_initialization(&self, sender: NodeId, message: &ConfirmInitialization) -> Result<(), Error> {
 		debug_assert!(self.id == *message.session);
 		debug_assert!(&sender != self.node());
+println!("=== 1212121212121212121212");
 
 		let mut data = self.data.lock();
 		debug_assert!(data.nodes.contains_key(&sender));
@@ -329,12 +330,15 @@ impl SessionImpl {
 		let next_receiver = match data.state {
 			SessionState::WaitingForInitializationConfirm(ref mut visit_policy) => {
 				if !visit_policy.mark_visited(&sender) {
+println!("=== 55555555555555555555555555555");
 					return Err(Error::InvalidStateForRequest);
 				}
 
 				visit_policy.next_node()
 			},
-			_ => return Err(Error::InvalidStateForRequest),
+			_ => {
+println!("=== 66666666666666666666666666666");
+				return Err(Error::InvalidStateForRequest) },
 		};
 
 		// proceed message
@@ -434,7 +438,10 @@ impl SessionImpl {
 			match data.state {
 				SessionState::WaitingForInitializationComplete |
 					SessionState::WaitingForKeysDissemination => return Err(Error::TooEarlyForRequest),
-				_ => return Err(Error::InvalidStateForRequest),
+				_ => {
+println!("on_public_key_share: bad status {:?}", data.state);
+					return Err(Error::InvalidStateForRequest)
+				},
 			}
 		}
 

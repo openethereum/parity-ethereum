@@ -366,7 +366,7 @@ pub fn local_compute_signature(nonce: &Secret, secret: &Secret, message_hash: &S
 }
 
 /// Verify signature as described in https://en.wikipedia.org/wiki/Schnorr_signature#Verifying.
-pub fn verify_signature(public: &Public, signature: &(Secret, Secret), message_hash: &Secret) -> Result<bool, Error> {
+pub fn verify_signature(public: &Public, signature: &(Secret, Secret), message_hash: &H256) -> Result<bool, Error> {
 	let mut addendum = math::generation_point();
 	math::public_mul_secret(&mut addendum, &signature.1)?;
 	let mut nonce_public = public.clone();

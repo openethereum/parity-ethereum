@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use std::fmt::Debug;
 use std::collections::BTreeSet;
 use parking_lot::Mutex;
 use ethkey::{self, Public, Secret, Signature};
@@ -123,7 +124,7 @@ impl<C> ConsensusSession<C> where C: ConsensusChecker {
 	}
 
 	/// Initialize consensus session.
-	pub fn initialize<T>(&mut self, requestor_signature: Signature, consensus: &mut Consensus<T>) -> Result<SessionAction, Error> {
+	pub fn initialize<T: Debug>(&mut self, requestor_signature: Signature, consensus: &mut Consensus<T>) -> Result<SessionAction, Error> {
 		debug_assert_eq!(self.self_node_id, self.master_node_id);
 
 		// check state
@@ -151,7 +152,7 @@ impl<C> ConsensusSession<C> where C: ConsensusChecker {
 	}
 
 	/// When session initialization message is received.
-	pub fn on_initialize_session(&mut self, sender: NodeId, message: &InitializeConsensusSession) -> Result<SessionAction, Error> {
+	pub fn on_initialize_session(&mut self, sender: NodeId, requestor: &Public) -> Result<SessionAction, Error> {
 		debug_assert!(sender != self.self_node_id);
 
 		// check message
@@ -163,11 +164,8 @@ impl<C> ConsensusSession<C> where C: ConsensusChecker {
 			return Err(Error::InvalidStateForRequest);
 		}
 
-		// recover requestor public
-		let requestor_public = ethkey::recover(&message.requestor_signature, &self.id)?;
-
 		// check access
-		let is_confirmed = self.consensus_checker.check_offer(&self.id, &requestor_public);
+		let is_confirmed = self.consensus_checker.check_offer(&self.id, &requestor);
 
 		// update state
 		self.data.state = if is_confirmed { SessionState::Finished } else { SessionState::Failed };
@@ -179,7 +177,7 @@ impl<C> ConsensusSession<C> where C: ConsensusChecker {
 	}
 
 	/// When session initialization confirmation message is reeived.
-	pub fn on_confirm_initialization<T>(&mut self, sender: NodeId, message: &ConfirmConsensusInitialization, consensus: &mut Consensus<T>) -> Result<SessionAction, Error> {
+	pub fn on_confirm_initialization<T: Debug>(&mut self, sender: NodeId, is_confirmed: bool, consensus: &mut Consensus<T>) -> Result<SessionAction, Error> {
 		debug_assert!(sender != self.self_node_id);
 
 		// check state
@@ -191,11 +189,11 @@ impl<C> ConsensusSession<C> where C: ConsensusChecker {
 		}
 
 		// update state
-		self.process_initialization_response(&sender, message.is_confirmed, consensus)
+		self.process_initialization_response(&sender, is_confirmed, consensus)
 	}
 
 	/// Process initialization response from given node.
-	fn process_initialization_response<T>(&mut self, node: &NodeId, is_confirmed: bool, consensus: &mut Consensus<T>) -> Result<SessionAction, Error> {
+	fn process_initialization_response<T: Debug>(&mut self, node: &NodeId, is_confirmed: bool, consensus: &mut Consensus<T>) -> Result<SessionAction, Error> {
 		match consensus.offer_response(node, is_confirmed) {
 			Ok(_) if consensus.is_established() => {
 				self.data.result = Some(Ok(()));
