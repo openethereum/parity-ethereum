@@ -24,7 +24,3 @@ ethcore-ipc-nano = { path = "../ipc/nano" }
 futures = "0.1"
 tokio-core = "0.1"
 ethcore-logger = { path = "../logger" }
-
-[profile.release]
-debug = true
-lto = false

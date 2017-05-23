@@ -18,6 +18,7 @@
 
 mod eth;
 mod eth_filter;
+mod eth_pubsub;
 mod net;
 mod parity;
 mod parity_accounts;
@@ -36,6 +37,7 @@ pub mod light;
 
 pub use self::eth::{EthClient, EthClientOptions};
 pub use self::eth_filter::EthFilterClient;
+pub use self::eth_pubsub::EthPubSubClient;
 pub use self::net::NetClient;
 pub use self::parity::ParityClient;
 pub use self::parity_accounts::ParityAccountsClient;

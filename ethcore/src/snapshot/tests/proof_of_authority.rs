@@ -40,7 +40,7 @@ const TRANSITION_BLOCK_1: usize = 2; // block at which the contract becomes acti
 const TRANSITION_BLOCK_2: usize = 6; // block at which the second contract activates.
 
 macro_rules! secret {
-	($e: expr) => { Secret::from_slice(&$e.sha3()).expect(format!("sha3({}) not valid secret.", $e).as_str()) }
+	($e: expr) => { Secret::from_slice(&$e.sha3()) }
 }
 
 lazy_static! {

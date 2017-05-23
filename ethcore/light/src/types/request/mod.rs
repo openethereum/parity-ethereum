@@ -83,7 +83,7 @@ pub enum ResponseError<T> {
 }
 
 /// An input to a request.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Field<T> {
 	/// A pre-specified input.
 	Scalar(T),
@@ -93,6 +93,29 @@ pub enum Field<T> {
 }
 
 impl<T> Field<T> {
+	/// Helper for creating a new back-reference field.
+	pub fn back_ref(idx: usize, req: usize) -> Self {
+		Field::BackReference(idx, req)
+	}
+
+	/// map a scalar into some other item.
+	pub fn map<F, U>(self, f: F) -> Field<U> where F: FnOnce(T) -> U {
+		match self {
+			Field::Scalar(x) => Field::Scalar(f(x)),
+			Field::BackReference(req, idx) => Field::BackReference(req, idx),
+		}
+	}
+
+	/// Attempt to get a reference to the inner scalar.
+	pub fn as_ref(&self) -> Option<&T> {
+		match *self {
+			Field::Scalar(ref x) => Some(x),
+			Field::BackReference(_, _) => None,
+		}
+	}
+
+
+
 	// attempt conversion into scalar value.
 	fn into_scalar(self) -> Result<T, NoSuchOutput> {
 		match self {
@@ -256,6 +279,22 @@ pub enum CompleteRequest {
 	Execution(CompleteExecutionRequest),
 }
 
+impl CompleteRequest {
+	/// Inspect the kind of this response.
+	pub fn kind(&self) -> Kind {
+		match *self {
+			CompleteRequest::Headers(_) => Kind::Headers,
+			CompleteRequest::HeaderProof(_) => Kind::HeaderProof,
+			CompleteRequest::Receipts(_) => Kind::Receipts,
+			CompleteRequest::Body(_) => Kind::Body,
+			CompleteRequest::Account(_) => Kind::Account,
+			CompleteRequest::Storage(_) => Kind::Storage,
+			CompleteRequest::Code(_) => Kind::Code,
+			CompleteRequest::Execution(_) => Kind::Execution,
+		}
+	}
+}
+
 impl Request {
 	/// Get the request kind.
 	pub fn kind(&self) -> Kind {
@@ -384,7 +423,7 @@ impl CheckedRequest for Request {
 	type Error = WrongKind;
 	type Environment = ();
 
-	fn check_response(&self, _: &(), response: &Response) -> Result<(), WrongKind> {
+	fn check_response(&self, _: &Self::Complete, _: &(), response: &Response) -> Result<(), WrongKind> {
 		if self.kind() == response.kind() {
 			Ok(())
 		} else {
@@ -396,7 +435,7 @@ impl CheckedRequest for Request {
 /// Kinds of requests.
 /// Doubles as the "ID" field of the request.
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Kind {
 	/// A request for headers.
 	Headers = 0,
@@ -571,7 +610,7 @@ pub trait CheckedRequest: IncompleteRequest {
 	type Environment;
 
 	/// Check whether the response matches (beyond the type).
-	fn check_response(&self, &Self::Environment, &Self::Response) -> Result<Self::Extract, Self::Error>;
+	fn check_response(&self, &Self::Complete, &Self::Environment, &Self::Response) -> Result<Self::Extract, Self::Error>;
 }
 
 /// A response-like object.

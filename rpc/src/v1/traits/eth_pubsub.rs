@@ -13,34 +13,30 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-//! Structure to hold network settings configured from CLI
 
-/// Networking & RPC settings
-#[derive(Debug, PartialEq, Clone)]
-pub struct NetworkSettings {
-	/// Node name
-	pub name: String,
-	/// Name of the chain we are connected to
-	pub chain: String,
-	/// Networking port
-	pub network_port: u16,
-	/// Is JSON-RPC server enabled?
-	pub rpc_enabled: bool,
-	/// Interface that JSON-RPC listens on
-	pub rpc_interface: String,
-	/// Port for JSON-RPC server
-	pub rpc_port: u16,
-}
+//! Eth PUB-SUB rpc interface.
 
-impl Default for NetworkSettings {
-	fn default() -> Self {
-		NetworkSettings {
-			name: "".into(),
-			chain: "foundation".into(),
-			network_port: 30303,
-			rpc_enabled: true,
-			rpc_interface: "127.0.0.1".into(),
-			rpc_port: 8545
+use jsonrpc_core::Error;
+use jsonrpc_macros::Trailing;
+use jsonrpc_macros::pubsub::Subscriber;
+use jsonrpc_pubsub::SubscriptionId;
+use futures::BoxFuture;
+
+use v1::types::pubsub;
+
+build_rpc_trait! {
+	/// Eth PUB-SUB rpc interface.
+	pub trait EthPubSub {
+		type Metadata;
+
+		#[pubsub(name = "eth_subscription")] {
+			/// Subscribe to Eth subscription.
+			#[rpc(name = "eth_subscribe")]
+			fn subscribe(&self, Self::Metadata, Subscriber<pubsub::Result>, pubsub::Kind, Trailing<pubsub::Params>);
+
+			/// Unsubscribe from existing Eth subscription.
+			#[rpc(name = "eth_unsubscribe")]
+			fn unsubscribe(&self, SubscriptionId) -> BoxFuture<bool, Error>;
 		}
 	}
 }
