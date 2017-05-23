@@ -196,6 +196,14 @@ impl<T> Consensus<T> where T: Debug + Clone {
 		Ok(())
 	}
 
+	/// Return job responses.
+	pub fn job_responses(&self) -> Result<&BTreeMap<NodeId, T>, Error> {
+		match *self {
+			Consensus::Completed(ref consensus) => consensus.job_responses(),
+			_ => Err(Error::InvalidStateForRequest),
+		}
+	}
+
 	/// When node is timeouted. Returns true if consensus restarted (i.e. caller must resend job requests).
 	pub fn node_timeouted(&mut self, node: &NodeId) -> Result<bool, Error> {
 		match *self {
@@ -342,6 +350,11 @@ impl<T> ActiveConsensus<T> where T: Debug + Clone {
 
 		self.responses.insert(node.clone(), response);
 		Ok(())
+	}
+
+	/// Return job responses.
+	pub fn job_responses(&self) -> Result<&BTreeMap<NodeId, T>, Error> {
+		Ok(&self.responses)
 	}
 
 	/// Restart jobs.

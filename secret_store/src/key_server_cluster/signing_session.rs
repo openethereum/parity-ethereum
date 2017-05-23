@@ -117,24 +117,9 @@ struct SessionData {
 	/// Generated session secret coefficient.
 	session_secret_coeff: Option<Secret>,
 
-	// === Values, filled when partial signatures are generating ===
-	/// Nodes which have agreed to make partial signatures.
-	confirmed_nodes: BTreeSet<NodeId>,
-	/// Active partial requests.
-	partial_requests: BTreeSet<NodeId>,
-	/// Partial signatures.
-	partial_signatures: VecDeque<Secret>,
-
 	/// === Values, filled during final decryption ===
 	/// Decrypted secret
 	signed_message: Option<Result<(Secret, Secret), Error>>,
-}
-
-#[derive(Debug, Clone)]
-/// Mutable node-specific data.
-struct NodeData {
-	/// Random unique scalar. Persistent.
-	pub id_number: Secret,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -145,10 +130,16 @@ pub enum SessionState {
 	WaitingForInitialization,
 	/// Establishing consensus.
 	EstablishingConsensus,
+	/// Consensus established
+	EstablishedConsensus,
 
-	// === Intermediate states ===
+	/// === One-time key genration states ===
 	/// Generating one-time key.
 	SessionKeyGeneration,
+	/// One-time key generated.
+	SessionKeyGenerated,
+
+	// === Signature generation states ===
 	/// Waiting for partial signatures.
 	WaitingForPartialSignature,
 
@@ -195,9 +186,6 @@ impl SessionImpl {
 				generation_session: None,
 				session_joint_public: None,
 				session_secret_coeff: None,
-				confirmed_nodes: BTreeSet::new(),
-				partial_requests: BTreeSet::new(),
-				partial_signatures: VecDeque::new(),
 				signed_message: None,
 			})
 		})
@@ -414,19 +402,12 @@ impl SessionImpl {
 			return Err(Error::InvalidStateForRequest);
 		}
 
-		if !data.partial_requests.remove(&sender) {
-			return Err(Error::InvalidStateForRequest);
-		}
-		data.partial_signatures.push_back(message.partial_signature.clone().into());
 		data.consensus.as_mut().expect("TODO").job_response_received(&sender, message.partial_signature.clone().into())?;
 
 		// check if we have enough shadow points to decrypt the secret
 		if !data.consensus.as_ref().expect("TODO").is_completed() {
 			return Ok(());
 		}
-		//if data.partial_signatures.len() != self.encrypted_data.threshold + 1 {
-		//	return Ok(());
-		//}
 
 		// notify all other nodes about session completion
 		self.cluster.broadcast(Message::Signing(SigningMessage::SigningSessionCompleted(SigningSessionCompleted {
@@ -558,14 +539,10 @@ impl SessionImpl {
 
 		// nodes which have formed consensus group
 		data.consensus.as_mut().expect("TODO").activate()?;
-		data.consensus.as_mut().expect("TODO").select_nodes()?;
-		let confirmed_nodes: BTreeSet<_> = data.consensus.as_ref().expect("TODO").selected_nodes()?.clone();
+		let mut confirmed_nodes = data.consensus.as_mut().expect("TODO").select_nodes()?.clone();
 
 		// send requests
-		data.partial_requests.clear();
-		data.partial_signatures.clear();
 		for node in confirmed_nodes.iter().filter(|n| n != &self_node_id) {
-			data.partial_requests.insert(node.clone());
 			data.consensus.as_mut().expect("TODO").job_request_sent(node)?;
 			cluster.send(node, Message::Signing(SigningMessage::RequestPartialSignature(RequestPartialSignature {
 				session: session_id.clone().into(),
@@ -576,15 +553,13 @@ impl SessionImpl {
 		}
 
 		// confirmation from this node
-		data.confirmed_nodes = confirmed_nodes;
-		if data.confirmed_nodes.remove(&self_node_id) {
+		if confirmed_nodes.remove(self_node_id) {
 			let signing_result = {
 				let message_hash = data.message_hash.as_ref().expect("TODO");
 				let session_joint_public = data.session_joint_public.as_ref().expect("TODO");
 				let session_secret_coeff = data.session_secret_coeff.as_ref().expect("TODO");
-				SessionImpl::do_partial_signing(self_node_id, message_hash, encrypted_data, &data.confirmed_nodes, session_joint_public, session_secret_coeff)?
+				SessionImpl::do_partial_signing(self_node_id, message_hash, encrypted_data, &confirmed_nodes, session_joint_public, session_secret_coeff)?
 			};
-			data.partial_signatures.push_back(signing_result.clone());
 			data.consensus.as_mut().expect("TODO").job_request_sent(&self_node_id)?;
 			data.consensus.as_mut().expect("TODO").job_response_received(&self_node_id, signing_result)?;
 		}
@@ -611,7 +586,7 @@ impl SessionImpl {
 		let session_joint_public = data.session_joint_public.as_ref().expect("TODO");
 		
 		let signature_c = math::combine_message_hash_with_public(message_hash, session_joint_public)?;
-		let signature_s = math::compute_signature(data.partial_signatures.iter())?;
+		let signature_s = math::compute_signature(data.consensus.as_ref().expect("TODO").job_responses()?.values())?;
 	
 		data.signed_message = Some(Ok((signature_c, signature_s)));
 
