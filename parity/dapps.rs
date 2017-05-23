@@ -118,7 +118,7 @@ impl ContractClient for LightRegistrar {
 					env_info: env_info,
 					engine: self.client.engine().clone(),
 				})
-				.expect("no back-references; therefore all back-refs valid; qed")
+				.expect("No back-references; therefore all back-refs valid; qed")
 				.then(|res| match res {
 					Ok(Ok(executed)) => Ok(executed.output),
 					Ok(Err(e)) => Err(format!("Failed to execute transaction: {}", e)),

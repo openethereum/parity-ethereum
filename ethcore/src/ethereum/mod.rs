@@ -75,6 +75,9 @@ pub fn new_transition_test() -> Spec { load(include_bytes!("../../res/ethereum/t
 /// Create a new Foundation Mainnet chain spec without genesis accounts.
 pub fn new_mainnet_like() -> Spec { load(include_bytes!("../../res/ethereum/frontier_like_test.json")) }
 
+/// Create a new Foundation Metropolis era spec.
+pub fn new_metropolis_test() -> Spec { load(include_bytes!("../../res/ethereum/metropolis_test.json")) }
+
 /// Create a new Foundation Ropsten chain spec.
 pub fn new_ropsten() -> Spec { load(include_bytes!("../../res/ethereum/ropsten.json")) }
 

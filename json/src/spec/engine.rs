@@ -58,7 +58,11 @@ mod tests {
 			"instantSeal": { "params": {} }
 		}"#;
 
-		let _deserialized: Engine = serde_json::from_str(s).unwrap();
+		let deserialized: Engine = serde_json::from_str(s).unwrap();
+		match deserialized {
+			Engine::InstantSeal(_) => {},	// instant seal is unit tested in its own file.
+			_ => assert!(false),
+		};
 
 		let s = r#"{
 			"Ethash": {
@@ -77,7 +81,66 @@ mod tests {
 			}
 		}"#;
 
-		let _deserialized: Engine = serde_json::from_str(s).unwrap();
+		let deserialized: Engine = serde_json::from_str(s).unwrap();
+		match deserialized {
+			Engine::Ethash(_) => {},	// ethash is unit tested in its own file.
+			_ => assert!(false),
+		};
+
+		let s = r#"{
+			"basicAuthority": {
+				"params": {
+					"gasLimitBoundDivisor": "0x0400",
+					"durationLimit": "0x0d",
+					"validators" : {
+						"list": ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
+					}
+				}
+			}
+		}"#;
+		let deserialized: Engine = serde_json::from_str(s).unwrap();
+		match deserialized {
+			Engine::BasicAuthority(_) => {}, // basicAuthority is unit tested in its own file.
+			_ => assert!(false),
+		};
+
+		let s = r#"{
+			"authorityRound": {
+				"params": {
+					"gasLimitBoundDivisor": "0x0400",
+					"stepDuration": "0x02",
+					"validators": {
+						"list" : ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
+					},
+					"blockReward": "0x50",
+					"startStep" : 24,
+					"eip155Transition": "0x42",
+					"validateStepTransition": 150
+				}
+			}
+		}"#;
+		let deserialized: Engine = serde_json::from_str(s).unwrap();
+		match deserialized {
+			Engine::AuthorityRound(_) => {}, // AuthorityRound is unit tested in its own file.
+			_ => assert!(false),
+		};
+
+		let s = r#"{
+			"tendermint": {
+				"params": {
+					"gasLimitBoundDivisor": "0x0400",
+					"validators": {
+						"list": ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
+					},
+					"blockReward": "0x50"
+				}
+			}
+		}"#;
+		let deserialized: Engine = serde_json::from_str(s).unwrap();
+		match deserialized {
+			Engine::Tendermint(_) => {}, // Tendermint is unit tested in its own file.
+			_ => assert!(false),
+		};
 	}
 }
 
