@@ -23,6 +23,7 @@ use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
+use heapsize::HeapSizeOf;
 
 #[derive(Clone, PartialEq, Eq)]
 struct RefInfo {

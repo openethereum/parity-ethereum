@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
 use std::cmp::max;
 use cli::{Args, ArgsError};
-use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
+use util::{Hashable, H256, U256, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
 use util::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};

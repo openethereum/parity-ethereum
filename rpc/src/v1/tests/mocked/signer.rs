@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use util::{U256, Uint, Address, ToPretty};
+use util::{U256, Address, ToPretty};
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
