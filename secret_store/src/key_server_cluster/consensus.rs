@@ -76,6 +76,15 @@ impl<T> Consensus<T> where T: Debug + Clone {
 		}))
 	}
 
+	/// Return consensus core reference.
+	pub fn core(&self) -> Option<&ConsensusCore> {
+		match *self {
+			Consensus::Establishing(ref consensus) | Consensus::Established(ref consensus) => Some(&consensus),
+			Consensus::Active(ref consensus) | Consensus::Completed(ref consensus) => Some(&consensus.core),
+			Consensus::Unreachable => None,
+		}
+	}
+
 	/// Is consenus established.
 	pub fn is_established(&self) -> bool {
 		match *self {
@@ -88,6 +97,14 @@ impl<T> Consensus<T> where T: Debug + Clone {
 	pub fn is_completed(&self) -> bool {
 		match *self {
 			Consensus::Completed(_) => true,
+			_ => false,
+		}
+	}
+
+	/// Is consensus unreachable.
+	pub fn is_unreachable(&self) -> bool {
+		match *self {
+			Consensus::Unreachable => true,
 			_ => false,
 		}
 	}
@@ -115,7 +132,7 @@ impl<T> Consensus<T> where T: Debug + Clone {
 			Consensus::Established(ref mut consensus) => return consensus.accept_offer(node),
 			Consensus::Active(ref mut consensus) | Consensus::Completed(ref mut consensus) =>
 				return consensus.core.accept_offer(node),
-			Consensus::Unreachable => return Err(Error::InvalidStateForRequest),
+			Consensus::Unreachable => { println!("=== a"); return Err(Error::InvalidStateForRequest) },
 		};
 
 		*self = Consensus::Established(established_consensus);
@@ -136,11 +153,11 @@ impl<T> Consensus<T> where T: Debug + Clone {
 			Consensus::Established(ref mut consensus) => return consensus.reject_offer(node),
 			Consensus::Active(ref mut consensus) | Consensus::Completed(ref mut consensus) =>
 				return consensus.core.reject_offer(node),
-			_ => return Err(Error::InvalidStateForRequest),
+			_ => {println!("=== b"); return Err(Error::InvalidStateForRequest) },
 		}
 
 		*self = Consensus::Unreachable;
-		Err(Error::ConsensusUnreachable)
+		Ok(())
 	}
 
 	/// When starting/restarting requesting consensus nodes to do their job.
@@ -148,7 +165,7 @@ impl<T> Consensus<T> where T: Debug + Clone {
 		let active_consensus = match *self {
 			Consensus::Established(ref established_consensus) => ActiveConsensus::new(established_consensus.clone()),
 			Consensus::Active(ref active_consensus) => ActiveConsensus::new(active_consensus.core.clone()),
-			_ => return Err(Error::InvalidStateForRequest),
+			_ => { println!("=== c"); return Err(Error::InvalidStateForRequest) },
 		};
 
 		*self = Consensus::Active(active_consensus);
@@ -159,7 +176,7 @@ impl<T> Consensus<T> where T: Debug + Clone {
 	pub fn select_nodes(&mut self) -> Result<&BTreeSet<NodeId>, Error> {
 		match *self {
 			Consensus::Active(ref mut consensus) => consensus.select_nodes(),
-			_ => Err(Error::InvalidStateForRequest),
+			_ => {println!("=== d"); Err(Error::InvalidStateForRequest) },
 		}
 	}
 
@@ -167,7 +184,7 @@ impl<T> Consensus<T> where T: Debug + Clone {
 	pub fn selected_nodes(&self) -> Result<&BTreeSet<NodeId>, Error> {
 		match *self {
 			Consensus::Active(ref consensus) => consensus.selected_nodes(),
-			_ => Err(Error::InvalidStateForRequest),
+			_ => {println!("=== e"); Err(Error::InvalidStateForRequest) },
 		}
 	}
 
@@ -175,7 +192,7 @@ impl<T> Consensus<T> where T: Debug + Clone {
 	pub fn job_request_sent(&mut self, node: &NodeId) -> Result<(), Error> {
 		match *self {
 			Consensus::Active(ref mut consensus) => consensus.job_request_sent(node),
-			_ => Err(Error::InvalidStateForRequest),
+			_ => {println!("=== f"); Err(Error::InvalidStateForRequest) },
 		}
 	}
 
@@ -192,18 +209,27 @@ impl<T> Consensus<T> where T: Debug + Clone {
 				// else fall through
 				consensus.clone()
 			},
-			_ => return Err(Error::InvalidStateForRequest),
+			_ => {println!("=== g"); return Err(Error::InvalidStateForRequest) },
 		};
 
 		*self = Consensus::Completed(completed_consensus);
 		Ok(())
 	}
 
+	/// Return job reqeuests.
+	pub fn job_requests(&self) -> Result<&BTreeSet<NodeId>, Error> {
+		match *self {
+			Consensus::Active(ref consensus) => consensus.job_requests(),
+			_ => {println!("=== h");  Err(Error::InvalidStateForRequest) },
+		}
+	}
+
 	/// Return job responses.
 	pub fn job_responses(&self) -> Result<&BTreeMap<NodeId, T>, Error> {
 		match *self {
+			Consensus::Active(ref consensus) => consensus.job_responses(),
 			Consensus::Completed(ref consensus) => consensus.job_responses(),
-			_ => Err(Error::InvalidStateForRequest),
+			_ => {println!("=== i"); Err(Error::InvalidStateForRequest)},
 		}
 	}
 
@@ -241,7 +267,7 @@ impl<T> Consensus<T> where T: Debug + Clone {
 				// else fall through
 			},
 			Consensus::Completed(_) => return Ok(false),
-			_ => return Err(Error::InvalidStateForRequest),
+			_ => {println!("=== j"); return Err(Error::InvalidStateForRequest) },
 		}
 
 		*self = Consensus::Unreachable;
@@ -261,8 +287,7 @@ impl<T> Consensus<T> where T: Debug + Clone {
 
 				// else fall through
 			},
-			Consensus::Completed(_) => return Ok(()),
-			Consensus::Unreachable => return Err(Error::ConsensusUnreachable),
+			Consensus::Completed(_) | Consensus::Unreachable => return Ok(()),
 		}
 
 		*self = Consensus::Unreachable;
@@ -271,9 +296,15 @@ impl<T> Consensus<T> where T: Debug + Clone {
 }
 
 impl ConsensusCore {
+	/// Return rejected nodes list.
+	pub fn rejected_nodes(&self) -> &BTreeSet<NodeId> {
+		&self.rejected_nodes
+	}
+
 	/// When node has accepted join offer.
 	pub fn accept_offer(&mut self, node: &NodeId) -> Result<(), Error> {
 		if !self.requested_nodes.remove(node) {
+println!("=== k"); 
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -284,6 +315,7 @@ impl ConsensusCore {
 	/// When node has rejected join offer.
 	pub fn reject_offer(&mut self, node: &NodeId) -> Result<(), Error> {
 		if !self.requested_nodes.remove(node) {
+println!("=== l"); 
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -314,6 +346,7 @@ impl<T> ActiveConsensus<T> where T: Debug + Clone {
 	/// Select nodes to make job.
 	pub fn select_nodes(&mut self) -> Result<&BTreeSet<NodeId>, Error> {
 		if !self.selected_nodes.is_empty() {
+println!("=== m"); 
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -324,6 +357,7 @@ impl<T> ActiveConsensus<T> where T: Debug + Clone {
 	/// Get nodes, selected nodes to make their job.
 	pub fn selected_nodes(&self) -> Result<&BTreeSet<NodeId>, Error> {
 		if self.selected_nodes.is_empty() {
+println!("=== n"); 
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -349,11 +383,17 @@ impl<T> ActiveConsensus<T> where T: Debug + Clone {
 	/// When job response is received from the node.
 	pub fn job_response_received(&mut self, node: &NodeId, response: T) -> Result<(), Error> {
 		if !self.active_requests.remove(node) {
+println!("=== o"); 
 			return Err(Error::InvalidStateForRequest);
 		}
 
 		self.responses.insert(node.clone(), response);
 		Ok(())
+	}
+
+	/// Return job requests.
+	pub fn job_requests(&self) -> Result<&BTreeSet<NodeId>, Error> {
+		Ok(&self.active_requests)
 	}
 
 	/// Return job responses.

@@ -95,10 +95,8 @@ pub enum ConsensusMessage {
 #[derive(Clone, Debug)]
 /// All possible messages that can be sent during decryption session.
 pub enum DecryptionMessage {
-	/// Initialize decryption session.
-	InitializeDecryptionSession(InitializeDecryptionSession),
-	/// Confirm/reject decryption session initialization.
-	ConfirmDecryptionInitialization(ConfirmDecryptionInitialization),
+	/// Consensus establishing message.
+	DecryptionConsensusMessage(DecryptionConsensusMessage),
 	/// Request partial decryption from node.
 	RequestPartialDecryption(RequestPartialDecryption),
 	/// Partial decryption is completed.
@@ -338,28 +336,14 @@ pub struct SigningSessionCompleted {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-/// Node is requested to decrypt data, encrypted in given session.
-pub struct InitializeDecryptionSession {
-	/// Encryption session Id.
+/// Consensus-related decryption message.
+pub struct DecryptionConsensusMessage {
+	/// Generation session Id.
 	pub session: MessageSessionId,
-	/// Decryption session Id.
+	/// Signing session Id.
 	pub sub_session: SerializableSecret,
-	/// Requestor signature.
-	pub requestor_signature: SerializableSignature,
-	/// Is shadow decryption requested? When true, decryption result
-	/// will be visible to the owner of requestor public key only.
-	pub is_shadow_decryption: bool,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-/// Node is responding to decryption request.
-pub struct ConfirmDecryptionInitialization {
-	/// Encryption session Id.
-	pub session: MessageSessionId,
-	/// Decryption session Id.
-	pub sub_session: SerializableSecret,
-	/// Is node confirmed to make a decryption?.
-	pub is_confirmed: bool,
+	/// Consensus message.
+	pub message: ConsensusMessage,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -369,6 +353,9 @@ pub struct RequestPartialDecryption {
 	pub session: MessageSessionId,
 	/// Decryption session Id.
 	pub sub_session: SerializableSecret,
+	/// Is shadow decryption requested? When true, decryption result
+	/// will be visible to the owner of requestor public key only.
+	pub is_shadow_decryption: bool,
 	/// Nodes that are agreed to do a decryption.
 	pub nodes: BTreeSet<MessageNodeId>,
 }
@@ -433,8 +420,7 @@ impl EncryptionMessage {
 impl DecryptionMessage {
 	pub fn session_id(&self) -> &SessionId {
 		match *self {
-			DecryptionMessage::InitializeDecryptionSession(ref msg) => &msg.session,
-			DecryptionMessage::ConfirmDecryptionInitialization(ref msg) => &msg.session,
+			DecryptionMessage::DecryptionConsensusMessage(ref msg) => &msg.session,
 			DecryptionMessage::RequestPartialDecryption(ref msg) => &msg.session,
 			DecryptionMessage::PartialDecryption(ref msg) => &msg.session,
 			DecryptionMessage::DecryptionSessionError(ref msg) => &msg.session,
@@ -444,8 +430,7 @@ impl DecryptionMessage {
 
 	pub fn sub_session_id(&self) -> &Secret {
 		match *self {
-			DecryptionMessage::InitializeDecryptionSession(ref msg) => &msg.sub_session,
-			DecryptionMessage::ConfirmDecryptionInitialization(ref msg) => &msg.sub_session,
+			DecryptionMessage::DecryptionConsensusMessage(ref msg) => &msg.sub_session,
 			DecryptionMessage::RequestPartialDecryption(ref msg) => &msg.sub_session,
 			DecryptionMessage::PartialDecryption(ref msg) => &msg.sub_session,
 			DecryptionMessage::DecryptionSessionError(ref msg) => &msg.sub_session,
@@ -524,8 +509,7 @@ impl fmt::Display for ConsensusMessage {
 impl fmt::Display for DecryptionMessage {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			DecryptionMessage::InitializeDecryptionSession(_) => write!(f, "InitializeDecryptionSession"),
-			DecryptionMessage::ConfirmDecryptionInitialization(_) => write!(f, "ConfirmDecryptionInitialization"),
+			DecryptionMessage::DecryptionConsensusMessage(_) => write!(f, "DecryptionConsensusMessage"),
 			DecryptionMessage::RequestPartialDecryption(_) => write!(f, "RequestPartialDecryption"),
 			DecryptionMessage::PartialDecryption(_) => write!(f, "PartialDecryption"),
 			DecryptionMessage::DecryptionSessionError(_) => write!(f, "DecryptionSessionError"),

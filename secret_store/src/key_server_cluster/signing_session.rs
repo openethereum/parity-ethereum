@@ -142,6 +142,8 @@ pub enum SessionState {
 	// === Signature generation states ===
 	/// Waiting for partial signatures.
 	WaitingForPartialSignature,
+	/// Waiting for partial signature request.
+	WaitingForPartialSignatureRequest,
 
 	// === Final states of the session ===
 	/// Signing is completed.
@@ -383,7 +385,7 @@ impl SessionImpl {
 		if data.master != Some(sender) {
 			return Err(Error::InvalidMessage);
 		}
-		if data.state != SessionState::SessionKeyGenerated {
+		if data.state != SessionState::WaitingForPartialSignatureRequest {
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -588,9 +590,9 @@ impl SessionImpl {
 
 	/// Start waiting for partial signatures/partial signatures requests.
 	fn start_waiting_for_partial_signing(self_node_id: &NodeId, session_id: SessionId, access_key: Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
-		data.state = SessionState::SessionKeyGenerated;
 		if data.master.as_ref() != Some(self_node_id) {
 			// if we are on the slave node, wait for partial signature requests
+			data.state = SessionState::WaitingForPartialSignatureRequest;
 			return Ok(());
 		}
 
@@ -719,8 +721,7 @@ impl ClusterSession for SessionImpl {
 			}
 		}
 
-		// no more nodes left for decryption => fail
-		warn!("{}: decryption session failed with timeout", self.node());
+		warn!("{}: signing session failed with timeout", self.node());
 
 		data.state = SessionState::Failed;
 		data.signed_message = Some(Err(Error::NodeDisconnected));

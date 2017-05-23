@@ -29,7 +29,8 @@ use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage};
 use key_server_cluster::cluster_sessions::ClusterSessions;
-use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage, SigningMessage};
+use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
+	SigningMessage, ConsensusMessage};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
 #[cfg(test)]
 use key_server_cluster::generation_session::SessionImpl as GenerationSessionImpl;
@@ -547,7 +548,10 @@ impl ClusterCore {
 		let decryption_session_id = DecryptionSessionId::new(session_id.clone(), sub_session_id.clone());
 		let mut sender = connection.node_id().clone();
 		let session = match message {
-			DecryptionMessage::InitializeDecryptionSession(_) => {
+			DecryptionMessage::DecryptionConsensusMessage(ref message) if match message.message {
+				ConsensusMessage::InitializeConsensusSession(_) => true,
+				_ => false,
+			} => {
 				let mut connected_nodes = data.connections.connected_nodes();
 				connected_nodes.insert(data.self_key_pair.public().clone());
 
@@ -563,10 +567,8 @@ impl ClusterCore {
 		let mut is_queued_message = false;
 		loop {
 			match session.clone().and_then(|session| match message {
-				DecryptionMessage::InitializeDecryptionSession(ref message) =>
-					session.on_initialize_session(sender.clone(), message),
-				DecryptionMessage::ConfirmDecryptionInitialization(ref message) =>
-					session.on_confirm_initialization(sender.clone(), message),
+				DecryptionMessage::DecryptionConsensusMessage(ref message) =>
+					session.on_consensus_message(sender.clone(), message),
 				DecryptionMessage::RequestPartialDecryption(ref message) => 
 					session.on_partial_decryption_requested(sender.clone(), message),
 				DecryptionMessage::PartialDecryption(ref message) => 

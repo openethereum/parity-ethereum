@@ -199,7 +199,12 @@ impl<C> ConsensusSession<C> where C: ConsensusChecker {
 				self.data.result = Some(Ok(()));
 				self.data.state = SessionState::Finished;
 				Ok(SessionAction::CheckStatus)
-			}
+			},
+			Ok(_) if consensus.is_unreachable() => {
+				self.data.result = Some(Err(Error::ConsensusUnreachable));
+				self.data.state = SessionState::Failed;
+				Ok(SessionAction::CheckStatus)
+			},
 			Ok(_) => Ok(SessionAction::CheckStatus),
 			Err(err) => {
 				self.data.result = Some(Err(err.clone()));
