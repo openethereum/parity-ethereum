@@ -755,6 +755,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "evmbin"
+version = "0.1.0"
+dependencies = [
+ "docopt 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore 1.7.0",
+ "ethcore-util 1.7.0",
+ "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "evmjit"
 version = "1.7.0"
 dependencies = [
@@ -1582,6 +1592,7 @@ dependencies = [
  "ethcore-util 1.7.0",
  "ethkey 0.2.0",
  "ethsync 1.7.0",
+ "evmbin 0.1.0",
  "fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "isatty 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",

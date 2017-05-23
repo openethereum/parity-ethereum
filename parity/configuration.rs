@@ -762,12 +762,11 @@ impl Configuration {
 	}
 
 	fn ui_hosts(&self) -> Option<Vec<String>> {
-		// TODO [ToDr] Separate CLI flag
 		if self.args.flag_ui_no_validation {
-			None
-		} else {
-			Some(vec![])
+			return None;
 		}
+
+		self.hosts(&self.args.flag_ui_hosts, &self.ui_interface())
 	}
 
 	fn rpc_hosts(&self) -> Option<Vec<String>> {
