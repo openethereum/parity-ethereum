@@ -95,7 +95,7 @@ impl ContractClient for LightRegistrar {
 
 		let maybe_future = self.sync.with_context(move |ctx| {
 			self.on_demand
-				.transaction_proof(ctx, on_demand::request::TransactionProof {
+				.request(ctx, on_demand::request::TransactionProof {
 					tx: Transaction {
 						nonce: self.client.engine().account_start_nonce(),
 						action: Action::Call(address),
@@ -104,10 +104,11 @@ impl ContractClient for LightRegistrar {
 						value: 0.into(),
 						data: data,
 					}.fake_sign(Address::default()),
-					header: header,
+					header: on_demand::request::HeaderRef::Stored(header),
 					env_info: env_info,
 					engine: self.client.engine().clone(),
 				})
+				.expect("todo: handle error")
 				.then(|res| match res {
 					Ok(Ok(executed)) => Ok(executed.output),
 					Ok(Err(e)) => Err(format!("Failed to execute transaction: {}", e)),
