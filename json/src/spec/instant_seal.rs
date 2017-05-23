@@ -35,6 +35,8 @@ pub struct InstantSeal {
 #[cfg(test)]
 mod tests {
 	use serde_json;
+	use hash::Address;
+	use util::hash::H160;
 	use spec::instant_seal::InstantSeal;
 
 	#[test]
@@ -45,6 +47,7 @@ mod tests {
 			}
 		}"#;
 
-		let _deserialized: InstantSeal = serde_json::from_str(s).unwrap();
+		let deserialized: InstantSeal = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized.params.registrar, Some(Address(H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562b"))));
 	}
 }
