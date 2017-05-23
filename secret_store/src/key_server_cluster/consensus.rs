@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+// TODO: when job requests sent && we restart, we could receive previous responses => there should be some kind of control (random secret in each group of jobs)
+
 use std::fmt::Debug;
 use std::collections::{BTreeSet, BTreeMap, VecDeque};
 use key_server_cluster::{Error, NodeId};
@@ -185,6 +187,7 @@ impl<T> Consensus<T> where T: Debug + Clone {
 				if consensus.responses.len() != consensus.core.threshold + 1 {
 					return Ok(());
 				}
+				debug_assert!(consensus.active_requests.is_empty());
 
 				// else fall through
 				consensus.clone()
@@ -339,6 +342,7 @@ impl<T> ActiveConsensus<T> where T: Debug + Clone {
 			return Err(Error::InvalidNodeForRequest);
 		}
 
+		debug_assert!(self.active_requests.len() <= self.core.threshold + 1);
 		Ok(())
 	}
 

@@ -34,7 +34,7 @@ pub trait Session: Send + Sync + 'static {
 	/// Wait until session is completed. Returns public portion of generated server key.
 	fn wait(&self, timeout: Option<time::Duration>) -> Result<Public, Error>;
 	/// Get joint public key (if it is known).
-	fn joint_public_key(&self) -> Option<Result<Public, Error>>;
+	fn joint_public_and_secret(&self) -> Option<Result<(Public, Secret), Error>>;
 }
 
 /// Distributed key generation session.
@@ -107,9 +107,7 @@ struct SessionData {
 	/// Key share.
 	key_share: Option<Result<DocumentKeyShare, Error>>,
 	/// Jointly generated public key, which can be used to encrypt secret. Public.
-	joint_public: Option<Result<Public, Error>>,
-	/// Secret coefficient (should not be stored anywhere!!!).
-	secret_coeff_result: Option<Result<Secret, Error>>,
+	joint_public_and_secret: Option<Result<(Public, Secret), Error>>,
 }
 
 #[derive(Debug, Clone)]
@@ -201,8 +199,7 @@ impl SessionImpl {
 				secret_coeff: None,
 				secret_share: None,
 				key_share: None,
-				joint_public: None,
-				secret_coeff_result: None,
+				joint_public_and_secret: None,
 			}),
 		}
 	}
@@ -221,11 +218,6 @@ impl SessionImpl {
 	/// Get key share.
 	pub fn key_share(&self) -> Option<Result<DocumentKeyShare, Error>> {
 		self.data.lock().key_share.clone()
-	}
-
-	/// Get secret polynom coefficient.
-	pub fn secret_coeff(&self) -> Option<Result<Secret, Error>> {
-		self.data.lock().secret_coeff_result.clone()
 	}
 
 	/// Simulate faulty generation session behaviour.
@@ -532,8 +524,7 @@ impl SessionImpl {
 
 		data.state = SessionState::Failed;
 		data.key_share = Some(Err(Error::Io(message.error.clone())));
-		data.joint_public = Some(Err(Error::Io(message.error.clone())));
-		data.secret_coeff_result = Some(Err(Error::Io(message.error.clone())));
+		data.joint_public_and_secret = Some(Err(Error::Io(message.error.clone())));
 		self.completed.notify_all();
 
 		Ok(())
@@ -668,10 +659,10 @@ impl SessionImpl {
 		};
 
 		// if we are at the slave node - wait for session completion
+		let secret_coeff = data.secret_coeff.as_ref().expect("secret coeff is selected on initialization phase; current phase follows initialization; qed").clone();
 		if data.master.as_ref() != Some(self.node()) {
 			data.key_share = Some(Ok(encrypted_data));
-			data.joint_public = Some(Ok(joint_public));
-			data.secret_coeff_result = Some(Ok(data.secret_coeff.as_ref().expect("TODO").clone()));
+			data.joint_public_and_secret = Some(Ok((joint_public, secret_coeff)));
 			data.state = SessionState::WaitingForGenerationConfirmation;
 			return Ok(());
 		}
@@ -693,8 +684,7 @@ impl SessionImpl {
 			self_node.completion_confirmed = true;
 		}
 		data.key_share = Some(Ok(encrypted_data));
-		data.joint_public = Some(Ok(joint_public));
-		data.secret_coeff_result = Some(Ok(data.secret_coeff.as_ref().expect("TODO").clone()));
+		data.joint_public_and_secret = Some(Ok((joint_public, secret_coeff)));
 		data.state = SessionState::WaitingForGenerationConfirmation;
 
 		Ok(())
@@ -717,8 +707,7 @@ impl ClusterSession for SessionImpl {
 
 		data.state = SessionState::Failed;
 		data.key_share = Some(Err(Error::NodeDisconnected));
-		data.joint_public = Some(Err(Error::NodeDisconnected));
-		data.secret_coeff_result = Some(Err(Error::NodeDisconnected));
+		data.joint_public_and_secret = Some(Err(Error::NodeDisconnected));
 		self.completed.notify_all();
 	}
 
@@ -729,8 +718,7 @@ impl ClusterSession for SessionImpl {
 
 		data.state = SessionState::Failed;
 		data.key_share = Some(Err(Error::NodeDisconnected));
-		data.joint_public = Some(Err(Error::NodeDisconnected));
-		data.secret_coeff_result = Some(Err(Error::NodeDisconnected));
+		data.joint_public_and_secret = Some(Err(Error::NodeDisconnected));
 		self.completed.notify_all();
 	}
 }
@@ -742,20 +730,20 @@ impl Session for SessionImpl {
 
 	fn wait(&self, timeout: Option<time::Duration>) -> Result<Public, Error> {
 		let mut data = self.data.lock();
-		if !data.joint_public.is_some() {
+		if !data.joint_public_and_secret.is_some() {
 			match timeout {
 				None => self.completed.wait(&mut data),
 				Some(timeout) => { self.completed.wait_for(&mut data, timeout); },
 			}
 		}
 
-		data.joint_public.as_ref()
+		data.joint_public_and_secret.clone()
 			.expect("checked above or waited for completed; completed is only signaled when joint_public.is_some(); qed")
-			.clone()
+			.map(|p| p.0)
 	}
 
-	fn joint_public_key(&self) -> Option<Result<Public, Error>> {
-		self.data.lock().joint_public.clone()
+	fn joint_public_and_secret(&self) -> Option<Result<(Public, Secret), Error>> {
+		self.data.lock().joint_public_and_secret.clone()
 	}
 }
 
@@ -1181,17 +1169,17 @@ pub mod tests {
 	#[test]
 	fn encryption_fails_on_session_timeout() {
 		let (_, _, _, l) = make_simple_cluster(0, 2).unwrap();
-		assert!(l.master().joint_public_key().is_none());
+		assert!(l.master().joint_public_and_secret().is_none());
 		l.master().on_session_timeout();
-		assert!(l.master().joint_public_key().unwrap().unwrap_err() == Error::NodeDisconnected);
+		assert!(l.master().joint_public_and_secret().unwrap().unwrap_err() == Error::NodeDisconnected);
 	}
 
 	#[test]
 	fn encryption_fails_on_node_timeout() {
 		let (_, _, _, l) = make_simple_cluster(0, 2).unwrap();
-		assert!(l.master().joint_public_key().is_none());
+		assert!(l.master().joint_public_and_secret().is_none());
 		l.master().on_node_timeout(l.first_slave().node());
-		assert!(l.master().joint_public_key().unwrap().unwrap_err() == Error::NodeDisconnected);
+		assert!(l.master().joint_public_and_secret().unwrap().unwrap_err() == Error::NodeDisconnected);
 	}
 
 	#[test]
@@ -1208,11 +1196,11 @@ pub mod tests {
 			}
 
 			// check that all nodes has finished joint public generation
-			let joint_public_key = l.master().joint_public_key().unwrap().unwrap();
+			let joint_public_key = l.master().joint_public_and_secret().unwrap().unwrap().0;
 			for node in l.nodes.values() {
 				let state = node.session.state();
 				assert_eq!(state, SessionState::Finished);
-				assert_eq!(node.session.joint_public_key().as_ref(), Some(&Ok(joint_public_key)));
+				assert_eq!(node.session.joint_public_and_secret().map(|p| p.map(|p| p.0)), Some(Ok(joint_public_key)));
 			}
 
 			// now let's encrypt some secret (which is a point on EC)
@@ -1247,7 +1235,7 @@ pub mod tests {
 			// run session to completion
 			let session_id = SessionId::default();
 			let session = clusters[0].client().new_generation_session(session_id, Public::default(), threshold).unwrap();
-			loop_until(&mut core, time::Duration::from_millis(1000), || session.joint_public_key().is_some());
+			loop_until(&mut core, time::Duration::from_millis(1000), || session.joint_public_and_secret().is_some());
 		}
 	}
 }

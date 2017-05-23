@@ -124,16 +124,6 @@ pub enum SigningMessage {
 	SigningSessionError(SigningSessionError),
 	/// Signing session completed.
 	SigningSessionCompleted(SigningSessionCompleted),
-/*	/// Initialize signing session.
-	InitializeSigningSession(InitializeSigningSession),
-	/// Confirm/reject signing session initialization.
-	ConfirmSigningInitialization(ConfirmSigningInitialization),
-	/// Nonce generation message.
-	SigningNonceGeneration(SigningNonceGeneration),
-	/// When signature session error has occured.
-	SignatureSessionError(SignatureSessionError),
-	/// When signature session is completed.
-	,*/
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
