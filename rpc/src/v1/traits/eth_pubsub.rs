@@ -14,21 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! RPC mocked tests. Most of these test that the RPC server is serializing and forwarding
-//! method calls properly.
+//! Eth PUB-SUB rpc interface.
 
-mod eth;
-mod eth_pubsub;
-mod manage_network;
-mod net;
-mod parity;
-mod parity_accounts;
-mod parity_set;
-mod personal;
-mod pubsub;
-mod rpc;
-mod secretstore;
-mod signer;
-mod signing;
-mod traces;
-mod web3;
+use jsonrpc_core::Error;
+use jsonrpc_macros::Trailing;
+use jsonrpc_macros::pubsub::Subscriber;
+use jsonrpc_pubsub::SubscriptionId;
+use futures::BoxFuture;
+
+use v1::types::pubsub;
+
+build_rpc_trait! {
+	/// Eth PUB-SUB rpc interface.
+	pub trait EthPubSub {
+		type Metadata;
+
+		#[pubsub(name = "eth_subscription")] {
+			/// Subscribe to Eth subscription.
+			#[rpc(name = "eth_subscribe")]
+			fn subscribe(&self, Self::Metadata, Subscriber<pubsub::Result>, pubsub::Kind, Trailing<pubsub::Params>);
+
+			/// Unsubscribe from existing Eth subscription.
+			#[rpc(name = "eth_unsubscribe")]
+			fn unsubscribe(&self, SubscriptionId) -> BoxFuture<bool, Error>;
+		}
+	}
+}

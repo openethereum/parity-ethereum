@@ -21,7 +21,7 @@ use dapps;
 use parity_rpc::informant::{RpcStats, Middleware};
 use parity_rpc::{self as rpc, HttpServerError, Metadata, Origin, DomainsValidation};
 use helpers::parity_ipc_path;
-use jsonrpc_core::{futures, MetaIoHandler};
+use jsonrpc_core::MetaIoHandler;
 use parity_reactor::TokioRemote;
 use rpc_apis::{self, ApiSet};
 
@@ -129,53 +129,13 @@ impl rpc::IpcMetaExtractor<Metadata> for RpcExtractor {
 	}
 }
 
-struct Sender(rpc::ws::ws::Sender, futures::sync::mpsc::Receiver<String>);
-
-impl futures::Future for Sender {
-	type Item = ();
-	type Error = ();
-
-	fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
-		use self::futures::Stream;
-
-		let item = self.1.poll()?;
-		match item {
-			futures::Async::NotReady => {
-				Ok(futures::Async::NotReady)
-			},
-			futures::Async::Ready(None) => {
-				Ok(futures::Async::Ready(()))
-			},
-			futures::Async::Ready(Some(val)) => {
-				if let Err(e) = self.0.send(val) {
-					warn!("Error sending a subscription update: {:?}", e);
-				}
-				self.poll()
-			},
-		}
-	}
-}
-
-struct WsRpcExtractor {
-	remote: TokioRemote,
-}
-
-impl WsRpcExtractor {
-	fn wrap_out(&self, out: rpc::ws::ws::Sender) -> futures::sync::mpsc::Sender<String> {
-		let (sender, receiver) = futures::sync::mpsc::channel(8);
-		self.remote.spawn(move |_| Sender(out, receiver));
-		sender
-	}
-}
-
+struct WsRpcExtractor;
 impl rpc::ws::MetaExtractor<Metadata> for WsRpcExtractor {
 	fn extract(&self, req: &rpc::ws::RequestContext) -> Metadata {
 		let mut metadata = Metadata::default();
 		let id = req.session_id as u64;
 		metadata.origin = Origin::Ws(id.into());
-		metadata.session = Some(Arc::new(rpc::PubSubSession::new(
-			self.wrap_out(req.out.clone())
-		)));
+		metadata.session = Some(Arc::new(rpc::PubSubSession::new(req.sender())));
 		metadata
 	}
 }
@@ -221,9 +181,7 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 		remote.clone(),
 		allowed_origins,
 		allowed_hosts,
-		WsRpcExtractor {
-			remote: remote,
-		},
+		WsRpcExtractor,
 		WsStats {
 			stats: deps.stats.clone(),
 		},

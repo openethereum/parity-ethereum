@@ -180,7 +180,7 @@ API and Console Options:
                                    all (all interfaces) or local (default: {flag_ws_interface}).
   --ws-apis APIS                   Specify the APIs available through the WebSockets
                                    interface. APIS is a comma-delimited list of API
-                                   name. Possible name are web3, eth, net, personal,
+                                   name. Possible name are web3, eth, pubsub, net, personal,
                                    parity, parity_set, traces, rpc, parity_accounts.
                                    (default: {flag_ws_apis}).
   --ws-origins URL                 Specify Origin header values allowed to connect.
