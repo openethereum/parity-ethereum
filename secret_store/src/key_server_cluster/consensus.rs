@@ -20,7 +20,7 @@ use key_server_cluster::{Error, NodeId};
 
 #[derive(Debug, Clone)]
 /// Consensus.
-pub enum Consensus<T: Debug> {
+pub enum Consensus<T: Debug + Clone> {
 	/// Consensus is currently establishing.
 	Establishing(ConsensusCore),
 	/// Consensus is established.
@@ -37,29 +37,29 @@ pub enum Consensus<T: Debug> {
 /// Consensus core data.
 pub struct ConsensusCore {
 	/// Consensus threshold.
-	pub threshold: usize,
+	threshold: usize,
 	/// Nodes, which have been requested for participatining in consensus, but not yet responded.
-	pub requested_nodes: BTreeSet<NodeId>,
+	requested_nodes: BTreeSet<NodeId>,
 	/// Nodes, which have responded with reject to participation request.
-	pub rejected_nodes: BTreeSet<NodeId>,
+	rejected_nodes: BTreeSet<NodeId>,
 	/// Nodes, which have responded with confirm to participation request.
-	pub confirmed_nodes: BTreeSet<NodeId>,
+	confirmed_nodes: BTreeSet<NodeId>,
 }
 
 #[derive(Debug, Clone)]
 /// Active consensus (i.e. consensus with sent requests).
-pub struct ActiveConsensus<T: Debug> {
+pub struct ActiveConsensus<T: Debug + Clone> {
 	/// Consensus core data.
-	pub core: ConsensusCore,
+	core: ConsensusCore,
 	/// Selected nodes.
-	pub selected_nodes: BTreeSet<NodeId>,
+	selected_nodes: BTreeSet<NodeId>,
 	/// Active job requests to confirmed nodes.
-	pub active_requests: BTreeSet<NodeId>,
+	active_requests: BTreeSet<NodeId>,
 	/// Confirmed nodes responses.
-	pub responses: BTreeMap<NodeId, T>,
+	responses: BTreeMap<NodeId, T>,
 }
 
-impl<T> Consensus<T> where T: Debug {
+impl<T> Consensus<T> where T: Debug + Clone {
 	/// Create new consensus.
 	pub fn new(threshold: usize, nodes: BTreeSet<NodeId>) -> Result<Self, Error> {
 		if nodes.len() < threshold + 1 {
@@ -78,6 +78,14 @@ impl<T> Consensus<T> where T: Debug {
 	pub fn is_established(&self) -> bool {
 		match *self {
 			Consensus::Established(_) => true,
+			_ => false,
+		}
+	}
+
+	/// Are consenus jobs completed.
+	pub fn is_completed(&self) -> bool {
+		match *self {
+			Consensus::Completed(_) => true,
 			_ => false,
 		}
 	}
@@ -171,11 +179,21 @@ impl<T> Consensus<T> where T: Debug {
 
 	/// When job response is received from the node.
 	pub fn job_response_received(&mut self, node: &NodeId, response: T) -> Result<(), Error> {
-		match *self {
-			Consensus::Active(ref mut consensus) | Consensus::Completed(ref mut consensus) =>
-				consensus.job_response_received(node, response),
-			_ => Err(Error::InvalidStateForRequest),
-		}
+		let completed_consensus = match *self {
+			Consensus::Active(ref mut consensus) => {
+				consensus.job_response_received(node, response)?;
+				if consensus.responses.len() != consensus.core.threshold + 1 {
+					return Ok(());
+				}
+
+				// else fall through
+				consensus.clone()
+			},
+			_ => return Err(Error::InvalidStateForRequest),
+		};
+
+		*self = Consensus::Completed(completed_consensus);
+		Ok(())
 	}
 
 	/// When node is timeouted. Returns true if consensus restarted (i.e. caller must resend job requests).
@@ -271,7 +289,7 @@ impl ConsensusCore {
 	}
 }
 
-impl<T> ActiveConsensus<T> where T: Debug {
+impl<T> ActiveConsensus<T> where T: Debug + Clone {
 	/// Create new active consensus.
 	pub fn new(core: ConsensusCore) -> Self {
 		ActiveConsensus {
@@ -346,5 +364,17 @@ impl<T> ActiveConsensus<T> where T: Debug {
 			self.core.node_timeouted(timeouted_node)?;
 		}
 		self.restart()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::collections::BTreeSet;
+	use key_server_cluster::Error;
+	use super::Consensus;
+
+	#[test]
+	fn consensus_is_not_created_when_not_enough_nodes() {
+		assert_eq!(Consensus::<i32>::new(0, vec![].into_iter().collect()).unwrap_err(), Error::InvalidThreshold);
 	}
 }

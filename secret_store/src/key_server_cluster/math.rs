@@ -345,8 +345,8 @@ pub fn check_signature_share<'a, I>(combined_hash: &Secret, signature_share: &Se
 }
 
 /// Compute signature.
-pub fn compute_signature<'a, I>(self_share: &'a Secret, other_shares: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
-	compute_secret_sum(other_shares.chain(once(self_share)))
+pub fn compute_signature<'a, I>(signature_shares: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+	compute_secret_sum(signature_shares)
 }
 
 #[cfg(test)]
@@ -561,7 +561,7 @@ pub mod tests {
 
 			// step 5: compute signature
 			let signatures: Vec<_> = (0..n)
-				.map(|i| (combined_hash.clone(), compute_signature(&partial_signatures[i], received_signatures[i].iter()).unwrap()))
+				.map(|i| (combined_hash.clone(), compute_signature(received_signatures[i].iter().chain(once(&partial_signatures[i]))).unwrap()))
 				.collect();
 
 			// === verify signature ===

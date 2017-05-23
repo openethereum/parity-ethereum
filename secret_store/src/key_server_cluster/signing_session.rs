@@ -33,7 +33,7 @@ use key_server_cluster::generation_session::{SessionImpl as GenerationSession, S
 	SessionState as GenerationSessionState, Session as GenerationSessionApi};
 use key_server_cluster::math;
 use key_server_cluster::message::{Message, SigningMessage, SigningConsensusMessage, SigningGenerationMessage,
-	RequestPartialSignature, PartialSignature, SigningSessionCompleted, GenerationMessage, ConsensusMessage};
+	RequestPartialSignature, PartialSignature, SigningSessionCompleted, GenerationMessage, ConsensusMessage, SigningSessionError};
 
 /// Signing session API.
 pub trait Session: Send + Sync + 'static {
@@ -300,14 +300,12 @@ impl SessionImpl {
 	/// When session key related message is received.
 	pub fn on_generation_message(&self, sender: NodeId, message: &SigningGenerationMessage) -> Result<(), Error> {
 		let mut data = self.data.lock();
-println!("=== on_generation_message: {:?}", data.state);
 		// check state
 		if data.state == SessionState::EstablishingConsensus {
 			match message.message {
 				GenerationMessage::InitializeSession(ref message) => {
 					// if we are NOT part of consensus
 					if data.consensus_session.as_ref().expect("TODO").state() != ConsensusSessionState::Finished {
-println!("=== 11111111111111111111111");
 						return Err(Error::InvalidStateForRequest);
 					}
 
@@ -328,11 +326,9 @@ println!("=== 11111111111111111111111");
 			}
 		}
 		if data.state != SessionState::SessionKeyGeneration {
-println!("=== 2222222222222222222222");
 			return Err(Error::InvalidStateForRequest);
 		}
 		// TODO: check master node + etc
-println!("=== 3333333333333333333333");
 
 		// process message
 		match message.message {
@@ -358,7 +354,7 @@ println!("=== 3333333333333333333333");
 		if data.state == SessionState::Failed || data.generation_session.as_ref().expect("TODO").state() != GenerationSessionState::Finished {
 			return Ok(());
 		}
-println!("=== before start_waiting_for_partial_signing");
+
 		// else ask other nodes to generate partial signatures
 		SessionImpl::start_waiting_for_partial_signing(self.node(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data)
 	}
@@ -422,11 +418,15 @@ println!("=== before start_waiting_for_partial_signing");
 			return Err(Error::InvalidStateForRequest);
 		}
 		data.partial_signatures.push_back(message.partial_signature.clone().into());
+		data.consensus.as_mut().expect("TODO").job_response_received(&sender, message.partial_signature.clone().into())?;
 
 		// check if we have enough shadow points to decrypt the secret
-		if data.partial_signatures.len() != self.encrypted_data.threshold + 1 {
+		if !data.consensus.as_ref().expect("TODO").is_completed() {
 			return Ok(());
 		}
+		//if data.partial_signatures.len() != self.encrypted_data.threshold + 1 {
+		//	return Ok(());
+		//}
 
 		// notify all other nodes about session completion
 		self.cluster.broadcast(Message::Signing(SigningMessage::SigningSessionCompleted(SigningSessionCompleted {
@@ -459,6 +459,19 @@ println!("=== before start_waiting_for_partial_signing");
 
 		// update state
 		data.state = SessionState::Finished;
+
+		Ok(())
+	}
+
+	/// When error has occured on another node.
+	pub fn on_session_error(&self, sender: NodeId, message: &SigningSessionError) -> Result<(), Error> {
+		let mut data = self.data.lock();
+
+		warn!("{}: signing session failed with error: {:?} from {}", self.node(), message.error, sender);
+
+		data.state = SessionState::Failed;
+		data.signed_message = Some(Err(Error::Io(message.error.clone())));
+		self.completed.notify_all();
 
 		Ok(())
 	}
@@ -516,7 +529,7 @@ println!("=== before start_waiting_for_partial_signing");
 		// select nodes to make signature
 		data.consensus.as_mut().expect("TODO").activate()?;
 		let selected_nodes = data.consensus.as_mut().expect("TODO").select_nodes()?;
-println!("start_generating_session_key.selected_nodes = {:?}", selected_nodes);
+
 		// create generation session
 		let generation_cluster = Arc::new(SigningCluster::new(cluster.clone(), self_node_id.clone(), selected_nodes.clone()));
 		let generation_session = GenerationSession::new(GenerationSessionParams {
@@ -543,17 +556,17 @@ println!("start_generating_session_key.selected_nodes = {:?}", selected_nodes);
 			return Ok(());
 		}
 
-println!("=== start_waiting_for_partial_signing: {:?}", data.consensus.as_ref().expect("TODO"));
 		// nodes which have formed consensus group
 		data.consensus.as_mut().expect("TODO").activate()?;
 		data.consensus.as_mut().expect("TODO").select_nodes()?;
 		let confirmed_nodes: BTreeSet<_> = data.consensus.as_ref().expect("TODO").selected_nodes()?.clone();
-println!("=== start_waiting_for_partial_signing. confirmed_nodes = {:?}", confirmed_nodes);
+
 		// send requests
 		data.partial_requests.clear();
 		data.partial_signatures.clear();
 		for node in confirmed_nodes.iter().filter(|n| n != &self_node_id) {
 			data.partial_requests.insert(node.clone());
+			data.consensus.as_mut().expect("TODO").job_request_sent(node)?;
 			cluster.send(node, Message::Signing(SigningMessage::RequestPartialSignature(RequestPartialSignature {
 				session: session_id.clone().into(),
 				sub_session: access_key.clone().into(),
@@ -571,7 +584,9 @@ println!("=== start_waiting_for_partial_signing. confirmed_nodes = {:?}", confir
 				let session_secret_coeff = data.session_secret_coeff.as_ref().expect("TODO");
 				SessionImpl::do_partial_signing(self_node_id, message_hash, encrypted_data, &data.confirmed_nodes, session_joint_public, session_secret_coeff)?
 			};
-			data.partial_signatures.push_back(signing_result);
+			data.partial_signatures.push_back(signing_result.clone());
+			data.consensus.as_mut().expect("TODO").job_request_sent(&self_node_id)?;
+			data.consensus.as_mut().expect("TODO").job_response_received(&self_node_id, signing_result)?;
 		}
 
 		Ok(())
@@ -579,7 +594,6 @@ println!("=== start_waiting_for_partial_signing. confirmed_nodes = {:?}", confir
 
 	fn do_partial_signing(self_node_id: &NodeId, message_hash: &H256, encrypted_data: &DocumentKeyShare, session_nodes: &BTreeSet<NodeId>, session_joint_public: &Public, session_secret_coeff: &Secret) -> Result<Secret, Error> {
 		debug_assert!(!session_nodes.contains(self_node_id));
-println!("nodes.len() = {} threshold = {}", session_nodes.len(), encrypted_data.threshold);
 		debug_assert!(session_nodes.len() == encrypted_data.threshold);
 
 		let combined_hash = math::combine_message_hash_with_public(&message_hash, &session_joint_public)?;
@@ -597,7 +611,7 @@ println!("nodes.len() = {} threshold = {}", session_nodes.len(), encrypted_data.
 		let session_joint_public = data.session_joint_public.as_ref().expect("TODO");
 		
 		let signature_c = math::combine_message_hash_with_public(message_hash, session_joint_public)?;
-		let signature_s = math::compute_signature(&data.partial_signatures[0], data.partial_signatures.iter().skip(1))?;
+		let signature_s = math::compute_signature(data.partial_signatures.iter())?;
 	
 		data.signed_message = Some(Ok((signature_c, signature_s)));
 
@@ -607,15 +621,71 @@ println!("nodes.len() = {} threshold = {}", session_nodes.len(), encrypted_data.
 
 impl ClusterSession for SessionImpl {
 	fn is_finished(&self) -> bool {
-		unimplemented!()
+		let data = self.data.lock();
+		data.state == SessionState::Failed
+			|| data.state == SessionState::Finished
+	}
+
+	fn on_node_timeout(&self, node: &NodeId) {
+		let mut data = self.data.lock();
+
+		let is_self_master = data.master.as_ref() == Some(self.node());
+		let is_other_master = data.master.as_ref() == Some(node);
+		// if this is master node, we might have to restart
+		if is_self_master {
+			let is_restart_required = match data.consensus.as_mut() {
+				None => false,
+				Some(consensus) => match consensus.node_timeouted(node) {
+					Ok(false) => return,
+					Ok(true) => true,
+					Err(_) => false, //fall through
+				},
+			};
+			if is_restart_required {
+				if SessionImpl::start_waiting_for_partial_signing(self.node(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data).is_ok() {
+					return;
+				}
+			}
+		} else if !is_other_master {
+			// disconnected from non-master node on non-master node
+			// => this does not affect this session
+			return;
+		}
+		// else: disconnecting from master node means failure
+
+		warn!("{}: signing session failed because {} connection has timeouted", self.node(), node);
+
+		data.state = SessionState::Failed;
+		data.signed_message = Some(Err(Error::NodeDisconnected));
+		self.completed.notify_all();
 	}
 
 	fn on_session_timeout(&self) {
-		unimplemented!()
-	}
+		let mut data = self.data.lock();
 
-	fn on_node_timeout(&self, node_id: &NodeId) {
-		unimplemented!()
+		let is_self_master = data.master.as_ref() == Some(self.node());
+		// if this is master node, we might have to restart
+		if is_self_master {
+			let is_restart_required = match data.consensus.as_mut() {
+				None => false,
+				Some(consensus) => match consensus.session_timeouted() {
+					Ok(_) => true,
+					Err(_) => false,
+				},
+			};
+			if is_restart_required {
+				if SessionImpl::start_waiting_for_partial_signing(self.node(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data).is_ok() {
+					return;
+				}
+			}
+		}
+
+		// no more nodes left for decryption => fail
+		warn!("{}: decryption session failed with timeout", self.node());
+
+		data.state = SessionState::Failed;
+		data.signed_message = Some(Err(Error::NodeDisconnected));
+		self.completed.notify_all();
 	}
 }
 
@@ -787,7 +857,6 @@ mod tests {
 		}
 
 		pub fn process_message(&mut self, msg: (NodeId, NodeId, Message)) -> Result<(), Error> {
-println!("=== MESSAGE {:?}", msg);
 			match {
 				match msg.2 {
 					Message::Signing(SigningMessage::SigningConsensusMessage(ref message)) => self.nodes[&msg.1].session.on_consensus_message(msg.0.clone(), &message),

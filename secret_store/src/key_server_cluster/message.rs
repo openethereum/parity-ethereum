@@ -120,7 +120,9 @@ pub enum SigningMessage {
 	RequestPartialSignature(RequestPartialSignature),
 	/// Partial signature is generated.
 	PartialSignature(PartialSignature),
-	/// Partial signature is generated.
+	/// Signing error occured.
+	SigningSessionError(SigningSessionError),
+	/// Signing session completed.
 	SigningSessionCompleted(SigningSessionCompleted),
 /*	/// Initialize signing session.
 	InitializeSigningSession(InitializeSigningSession),
@@ -323,6 +325,17 @@ pub struct PartialSignature {
 	pub sub_session: SerializableSecret,
 	/// S part of signature.
 	pub partial_signature: SerializableSecret,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// When signing session error has occured.
+pub struct SigningSessionError {
+	/// Encryption session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
+	/// Error description.
+	pub error: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
