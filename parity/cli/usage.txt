@@ -76,6 +76,18 @@ Operating Options:
                                    potentially higher in bandwidth. Has no effect with
                                    subcommands (default: {flag_light}).
 
+Convenience Options:
+  -c --config CONFIG               Specify a filename containing a configuration file.
+                                   (default: {flag_config})
+  --ports-shift SHIFT              Add SHIFT to all port numbers Parity is listening on.
+                                   Includes network port and all servers (RPC, WebSockets, UI, IPFS, SecretStore).
+                                   (default: {flag_ports_shift})
+  --unsafe-expose                  All servers will listen on external interfaces and will
+                                   be remotely accessible. It's equivalent with setting
+                                   the following: --{{ws,jsonrpc,ui,ipfs,secret_store,stratum}}-interface=all --*-hosts=all
+                                   This option is UNSAFE and should be used with great care!
+                                   (default: {flag_unsafe_expose})
+
 Account Options:
   --unlock ACCOUNTS                Unlock ACCOUNTS for the duration of the execution.
                                    ACCOUNTS is a comma-delimited list of addresses.
@@ -441,8 +453,6 @@ Internal Options:
   --can-restart                    Executable will auto-restart if exiting with 69.
 
 Miscellaneous Options:
-  -c --config CONFIG               Specify a filename containing a configuration file.
-                                   (default: {flag_config})
   -l --logging LOGGING             Specify the logging level. Must conform to the same
                                    format as RUST_LOG. (default: {flag_logging:?})
   --log-file FILENAME              Specify a filename into which logging should be
