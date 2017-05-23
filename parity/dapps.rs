@@ -104,11 +104,11 @@ impl ContractClient for LightRegistrar {
 						value: 0.into(),
 						data: data,
 					}.fake_sign(Address::default()),
-					header: on_demand::request::HeaderRef::Stored(header),
+					header: header.into(),
 					env_info: env_info,
 					engine: self.client.engine().clone(),
 				})
-				.expect("todo: handle error")
+				.expect("No back-references; therefore all back-refs valid; qed")
 				.then(|res| match res {
 					Ok(Ok(executed)) => Ok(executed.output),
 					Ok(Err(e)) => Err(format!("Failed to execute transaction: {}", e)),
