@@ -27,7 +27,6 @@ use ethcore::spec::Spec;
 use io::IoChannel;
 use light::client::Client as LightClient;
 use light::net::{LightProtocol, IoContext, Capabilities, Params as LightParams};
-use light::net::request_credits::FlowParams;
 use light::provider::LightProvider;
 use network::{NodeId, PeerId};
 use util::RwLock;
@@ -88,13 +87,14 @@ impl Peer {
 	pub fn new_full(chain: Arc<TestBlockChainClient>) -> Self {
 		let params = LightParams {
 			network_id: NETWORK_ID,
-			flow_params: FlowParams::free(),
+			config: Default::default(),
 			capabilities: Capabilities {
 				serve_headers: true,
 				serve_chain_since: None,
 				serve_state_since: None,
 				tx_relay: true,
 			},
+			sample_store: None,
 		};
 
 		let proto = LightProtocol::new(chain.clone(), params);
@@ -110,13 +110,14 @@ impl Peer {
 		let sync = Arc::new(LightSync::new(chain.clone()).unwrap());
 		let params = LightParams {
 			network_id: NETWORK_ID,
-			flow_params: FlowParams::default(),
+			config: Default::default(),
 			capabilities: Capabilities {
 				serve_headers: false,
 				serve_chain_since: None,
 				serve_state_since: None,
 				tx_relay: false,
 			},
+			sample_store: None,
 		};
 
 		let provider = LightProvider::new(chain.clone(), Arc::new(RwLock::new(Default::default())));

@@ -48,7 +48,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
-	AccountInfo, HwAccountInfo, Header, RichHeader
+	AccountInfo, HwAccountInfo, RichHeader
 };
 
 /// Parity implementation.
@@ -411,25 +411,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		};
 
 		future::ok(RichHeader {
-			inner: Header {
-				hash: Some(encoded.hash().into()),
-				size: Some(encoded.rlp().as_raw().len().into()),
-				parent_hash: encoded.parent_hash().into(),
-				uncles_hash: encoded.uncles_hash().into(),
-				author: encoded.author().into(),
-				miner: encoded.author().into(),
-				state_root: encoded.state_root().into(),
-				transactions_root: encoded.transactions_root().into(),
-				receipts_root: encoded.receipts_root().into(),
-				number: Some(encoded.number().into()),
-				gas_used: encoded.gas_used().into(),
-				gas_limit: encoded.gas_limit().into(),
-				logs_bloom: encoded.log_bloom().into(),
-				timestamp: encoded.timestamp().into(),
-				difficulty: encoded.difficulty().into(),
-				seal_fields: encoded.seal().into_iter().map(Into::into).collect(),
-				extra_data: Bytes::new(encoded.extra_data()),
-			},
+			inner: encoded.into(),
 			extra_info: client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
 		}).boxed()
 	}
