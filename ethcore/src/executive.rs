@@ -557,7 +557,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::BuiltIn {..})
 				| Err(evm::Error::OutOfStack {..}) 
-				| Err(evm::Error::Wasm {..}) => {
+				| Err(evm::Error::Wasm {..})
 				| Ok(FinalizationResult { apply_state: false, .. }) => {
 					self.state.revert_to_checkpoint();
 			},

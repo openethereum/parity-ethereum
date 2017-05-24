@@ -130,9 +130,12 @@ impl evm::Evm for WasmInterpreter {
 			self.result.clear();
 			// todo: use memory views to avoid copy
 			self.result.extend(result.pop(&*runtime.memory())?);
-			Ok(GasLeft::NeedsReturn(runtime.gas_left()?.into(), &self.result[..]))
+			Ok(GasLeft::NeedsReturn { 
+				gas_left: runtime.gas_left()?.into(), 
+				data: &self.result[..],
+				apply_state: true,
+			})
 		}
-
 	}
 }
 
