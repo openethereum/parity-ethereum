@@ -95,6 +95,7 @@ cargo install --git https://github.com/paritytech/parity.git parity
 # download Parity code
 $ git clone https://github.com/paritytech/parity
 $ cd parity
+$ git submodule update --init
 
 # build in release mode
 $ cargo build --release
