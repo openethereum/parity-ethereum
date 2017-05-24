@@ -35,15 +35,23 @@ use key_server_cluster::math;
 use key_server_cluster::message::{Message, SigningMessage, SigningConsensusMessage, SigningGenerationMessage,
 	RequestPartialSignature, PartialSignature, SigningSessionCompleted, GenerationMessage, ConsensusMessage, SigningSessionError};
 
+pub use key_server_cluster::decryption_session::DecryptionSessionId as SigningSessionId;
+
 /// Signing session API.
 pub trait Session: Send + Sync + 'static {
-	/// Get generation session state.
+	/// Get session state.
 	fn state(&self) -> SessionState;
 	/// Wait until session is completed. Returns signed message.
-	fn wait(&self, timeout: Option<time::Duration>) -> Result<(Secret, Secret), Error>;
+	fn wait(&self) -> Result<(Secret, Secret), Error>;
 }
 
-/// Signing session.
+/// Distributed signing session.
+/// Based on "Efficient Multi-Party Digital Signature using Adaptive Secret Sharing for Low-Power Devices in Wireless Network" paper.
+/// Brief overview:
+/// 1) initialization: master node (which has received request for signing the message) requests all other nodes to sign the message
+/// 2) ACL check: all nodes which have received the request are querying ACL-contract to check if requestor has access to the private key
+/// 3) partial signing: every node which has succussfully checked access for the requestor do a partial signing
+/// 4) signing: master node receives all partial signatures of the secret and computes the signature
 pub struct SessionImpl {
 	/// Key generation session id.
 	id: SessionId,
@@ -61,15 +69,6 @@ pub struct SessionImpl {
 	completed: Condvar,
 	/// Mutable session data.
 	data: Mutex<SessionData>,
-}
-
-/// Signing session Id.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SigningSessionId {
-	/// Encryption session id.
-	pub id: SessionId,
-	/// Signing session access key.
-	pub access_key: Secret,
 }
 
 /// SessionImpl creation parameters
@@ -374,7 +373,8 @@ impl SessionImpl {
 		SessionImpl::start_waiting_for_partial_signing(self.node(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data)
 	}
 
-	fn on_partial_signature_requested(&self, sender: NodeId, message: &RequestPartialSignature) -> Result<(), Error> {
+	/// When partial signature is requested.
+	pub fn on_partial_signature_requested(&self, sender: NodeId, message: &RequestPartialSignature) -> Result<(), Error> {
 		debug_assert!(self.id == *message.session);
 		debug_assert!(self.access_key == *message.sub_session);
 		debug_assert!(&sender != self.node());
@@ -774,7 +774,7 @@ impl Session for SessionImpl {
 		self.data.lock().state.clone()
 	}
 
-	fn wait(&self, timeout: Option<time::Duration>) -> Result<(Secret, Secret), Error> {
+	fn wait(&self) -> Result<(Secret, Secret), Error> {
 		let mut data = self.data.lock();
 		if !data.signed_message.is_some() {
 			self.completed.wait(&mut data);
@@ -783,32 +783,6 @@ impl Session for SessionImpl {
 		data.signed_message.as_ref()
 			.expect("checked above or waited for completed; completed is only signaled when signed_message.is_some(); qed")
 			.clone()
-	}
-}
-
-impl SigningSessionId {
-	/// Create new decryption session Id.
-	pub fn new(session_id: SessionId, sub_session_id: Secret) -> Self {
-		SigningSessionId {
-			id: session_id,
-			access_key: sub_session_id,
-		}
-	}
-}
-
-impl PartialOrd for SigningSessionId {
-	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-		Some(self.cmp(other))
-	}
-}
-
-
-impl Ord for SigningSessionId {
-	fn cmp(&self, other: &Self) -> Ordering {
-		match self.id.cmp(&other.id) {
-			Ordering::Equal => self.access_key.cmp(&other.access_key),
-			r @ _ => r,
-		}
 	}
 }
 
@@ -947,7 +921,7 @@ mod tests {
 
 			// verify signature
 			let public = gl.master().joint_public_and_secret().unwrap().unwrap().0;
-			let signature = sl.master().wait(None).unwrap();
+			let signature = sl.master().wait().unwrap();
 			assert!(math::verify_signature(&public, &signature, &message_hash).unwrap());
 		}
 	}

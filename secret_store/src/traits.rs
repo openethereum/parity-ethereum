@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use types::all::{Error, Public, ServerKeyId, MessageData, RequestSignature, EncryptedDocumentKey,
+use types::all::{Error, Public, ServerKeyId, MessageHash, MessageSignature, RequestSignature, EncryptedDocumentKey,
 	EncryptedDocumentKeyShadow};
 
 /// Server key (SK) generator.
@@ -66,7 +66,7 @@ pub trait MessageSigner: ServerKeyGenerator {
 	/// `signature` is `key_id`, signed with caller public key.
 	/// `message` is the message to be signed.
 	/// Result is a signed message.
-	fn sign_message(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageData) -> Result<MessageData, Error>;
+	fn sign_message(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<MessageSignature, Error>;
 }
 
 

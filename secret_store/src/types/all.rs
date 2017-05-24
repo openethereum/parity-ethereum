@@ -28,8 +28,10 @@ pub type NodeId = ethkey::Public;
 pub type ServerKeyId = util::H256;
 /// Encrypted document key type.
 pub type EncryptedDocumentKey = util::Bytes;
-/// Message data.
-pub type MessageData = util::Bytes;
+/// Message hash.
+pub type MessageHash = util::H256;
+/// Message signature.
+pub type MessageSignature = util::Bytes;
 /// Request signature type.
 pub type RequestSignature = ethkey::Signature;
 /// Public key type.

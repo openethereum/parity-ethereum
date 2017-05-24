@@ -230,11 +230,56 @@ impl ClusterSessions {
 			});
 	}
 
+	/// Create new signing session.
+	pub fn new_signing_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, cluster: Arc<ClusterView>) -> Result<Arc<SigningSessionImpl>, Error> {
+		let session_id = SigningSessionId::new(session_id, sub_session_id);
+		if self.signing_sessions.contains(&session_id) {
+			return Err(Error::DuplicateSessionId);
+		}
+
+		// some of nodes, which were encrypting secret may be down
+		// => do not use these in signing session
+		let mut encrypted_data = self.key_storage.get(&session_id.id).map_err(|e| Error::KeyStorage(e.into()))?;
+		let disconnected_nodes: BTreeSet<_> = encrypted_data.id_numbers.keys().cloned().collect();
+		let disconnected_nodes: BTreeSet<_> = disconnected_nodes.difference(&cluster.nodes()).cloned().collect();
+		for disconnected_node in disconnected_nodes {
+			encrypted_data.id_numbers.remove(&disconnected_node);
+		}
+
+		Ok(self.signing_sessions.insert(master, session_id.clone(), cluster.clone(), SigningSessionImpl::new(SigningSessionParams {
+			id: session_id.id,
+			access_key: session_id.access_key,
+			self_node_id: self.self_node_id.clone(),
+			encrypted_data: encrypted_data,
+			acl_storage: self.acl_storage.clone(),
+			cluster: cluster,
+		})?))
+	}
+
+	/// Send signing session error.
+	pub fn respond_with_signing_error(&self, session_id: &SessionId, sub_session_id: &Secret, to: &NodeId, error: message::SigningSessionError) {
+		let session_id = SigningSessionId::new(session_id.clone(), sub_session_id.clone());
+		self.signing_sessions.sessions.read().get(&session_id)
+			.map(|s| {
+				// error in signing session is non-fatal, if occurs on slave node
+				// => either respond with error
+				// => or broadcast error
+
+				// do not bother processing send error, as we already processing error
+				if &s.master == s.session.node() {
+					let _ = s.cluster_view.broadcast(Message::Signing(SigningMessage::SigningSessionError(error)));
+				} else {
+					let _ = s.cluster_view.send(to, Message::Signing(SigningMessage::SigningSessionError(error)));
+				}
+			});
+	}
+
 	/// Stop sessions that are stalling.
 	pub fn stop_stalled_sessions(&self) {
 		self.generation_sessions.stop_stalled_sessions();
 		self.encryption_sessions.stop_stalled_sessions();
 		self.decryption_sessions.stop_stalled_sessions();
+		self.signing_sessions.stop_stalled_sessions();
 	}
 
 	/// When connection to node is lost.
@@ -242,6 +287,7 @@ impl ClusterSessions {
 		self.generation_sessions.on_connection_timeout(node_id);
 		self.encryption_sessions.on_connection_timeout(node_id);
 		self.decryption_sessions.on_connection_timeout(node_id);
+		self.signing_sessions.on_connection_timeout(node_id);
 	}
 }
 

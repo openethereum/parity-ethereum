@@ -27,7 +27,7 @@ use super::key_storage::KeyStorage;
 use key_server_cluster::{math, ClusterCore};
 use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
 use types::all::{Error, Public, RequestSignature, ServerKeyId, EncryptedDocumentKey, EncryptedDocumentKeyShadow,
-	ClusterConfiguration, MessageData};
+	ClusterConfiguration, MessageHash, MessageSignature};
 use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration};
 
 /// Secret store key server implementation
@@ -104,7 +104,6 @@ impl DocumentKeyServer for KeyServerImpl {
 		let public = ethkey::recover(signature, key_id)
 			.map_err(|_| Error::BadSignature)?;
 
-
 		// decrypt document key
 		let decryption_session = self.data.lock().cluster.new_decryption_session(key_id.clone(), signature.clone(), false)?;
 		let document_key = decryption_session.wait()?.decrypted_secret;
@@ -122,8 +121,16 @@ impl DocumentKeyServer for KeyServerImpl {
 }
 
 impl MessageSigner for KeyServerImpl {
-	fn sign_message(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _message: MessageData) -> Result<MessageData, Error> {
-		unimplemented!()
+	fn sign_message(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<MessageSignature, Error> {
+		// sign message
+		let signing_session = self.data.lock().cluster.new_signing_session(key_id.clone(), signature.clone(), message)?;
+		let message_signature = signing_session.wait()?;
+
+		// compose two message signature components into single
+		let mut composed_signature: Vec<u8> = Vec::with_capacity(64);
+		composed_signature.extend_from_slice(&**message_signature.0);
+		composed_signature.extend_from_slice(&**message_signature.1);
+		Ok(composed_signature.into())
 	}
 }
 
@@ -183,7 +190,7 @@ pub mod tests {
 	use acl_storage::tests::DummyAclStorage;
 	use key_storage::tests::DummyKeyStorage;
 	use types::all::{Error, Public, ClusterConfiguration, NodeAddress, RequestSignature, ServerKeyId,
-		EncryptedDocumentKey, EncryptedDocumentKeyShadow, MessageData};
+		EncryptedDocumentKey, EncryptedDocumentKeyShadow, MessageHash, MessageSignature};
 	use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
 	use super::KeyServerImpl;
 
@@ -216,7 +223,7 @@ pub mod tests {
 	}
 
 	impl MessageSigner for DummyKeyServer {
-		fn sign_message(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _message: MessageData) -> Result<MessageData, Error> {
+		fn sign_message(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _message: MessageHash) -> Result<MessageSignature, Error> {
 			unimplemented!()
 		}
 	}

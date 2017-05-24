@@ -27,6 +27,7 @@ use tokio_io::IoFuture;
 use tokio_core::reactor::{Handle, Remote, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::{Public, KeyPair, Signature, Random, Generator};
+use util::H256;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage};
 use key_server_cluster::cluster_sessions::ClusterSessions;
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
@@ -67,6 +68,8 @@ pub trait ClusterClient: Send + Sync {
 	fn new_encryption_session(&self, session_id: SessionId, requestor_signature: Signature, common_point: Public, encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error>;
 	/// Start new decryption session.
 	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error>;
+	/// Start new signing session.
+	fn new_signing_session(&self, session_id: SessionId, requestor_signature: Signature, message_hash: H256) -> Result<Arc<SigningSession>, Error>;
 
 	#[cfg(test)]
 	/// Ask node to make 'faulty' generation sessions.
@@ -79,7 +82,7 @@ pub trait ClusterClient: Send + Sync {
 	fn connect(&self);
 }
 
-/// Cluster access for single encryption/decryption participant.
+/// Cluster access for single encryption/decryption/signing participant.
 pub trait Cluster: Send + Sync {
 	/// Broadcast message to all other nodes.
 	fn broadcast(&self, message: Message) -> Result<(), Error>;
@@ -564,7 +567,6 @@ impl ClusterCore {
 			},
 		};
 
-		let mut is_queued_message = false;
 		loop {
 			match session.clone().and_then(|session| match message {
 				DecryptionMessage::DecryptionConsensusMessage(ref message) =>
@@ -593,16 +595,11 @@ impl ClusterCore {
 					// try to dequeue message
 					match data.sessions.decryption_sessions.dequeue_message(&decryption_session_id) {
 						Some((msg_sender, msg)) => {
-							is_queued_message = true;
 							sender = msg_sender;
 							message = msg;
 						},
 						None => break,
 					}
-				},
-				Err(Error::TooEarlyForRequest) => {
-					data.sessions.decryption_sessions.enqueue_message(&decryption_session_id, sender, message, is_queued_message);
-					break;
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: decryption session error {} when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
@@ -624,78 +621,74 @@ impl ClusterCore {
 	fn process_signing_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: SigningMessage) {
 		let session_id = message.session_id().clone();
 		let sub_session_id = message.sub_session_id().clone();
-		let decryption_session_id = SigningSessionId::new(session_id.clone(), sub_session_id.clone());
+		let signing_session_id = SigningSessionId::new(session_id.clone(), sub_session_id.clone());
 		let mut sender = connection.node_id().clone();
 		let session = match message {
-			_ => unimplemented!(),
-/*			DecryptionMessage::InitializeDecryptionSession(_) => {
+			SigningMessage::SigningConsensusMessage(ref message) if match message.message {
+				ConsensusMessage::InitializeConsensusSession(_) => true,
+				_ => false,
+			} => {
 				let mut connected_nodes = data.connections.connected_nodes();
 				connected_nodes.insert(data.self_key_pair.public().clone());
 
 				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes));
-				data.sessions.new_decryption_session(sender.clone(), session_id.clone(), sub_session_id.clone(), cluster)
+				data.sessions.new_signing_session(sender.clone(), session_id.clone(), sub_session_id.clone(), cluster)
 			},
 			_ => {
-				data.sessions.decryption_sessions.get(&decryption_session_id)
+				data.sessions.signing_sessions.get(&signing_session_id)
 					.ok_or(Error::InvalidSessionId)
-			},*/
+			},
 		};
 
-		let mut is_queued_message = false;
 		loop {
-/*			match session.clone().and_then(|session| match message {
-				DecryptionMessage::InitializeDecryptionSession(ref message) =>
-					session.on_initialize_session(sender.clone(), message),
-				DecryptionMessage::ConfirmDecryptionInitialization(ref message) =>
-					session.on_confirm_initialization(sender.clone(), message),
-				DecryptionMessage::RequestPartialDecryption(ref message) => 
-					session.on_partial_decryption_requested(sender.clone(), message),
-				DecryptionMessage::PartialDecryption(ref message) => 
-					session.on_partial_decryption(sender.clone(), message),
-				DecryptionMessage::DecryptionSessionError(ref message) => 
+			match session.clone().and_then(|session| match message {
+				SigningMessage::SigningConsensusMessage(ref message) =>
+					session.on_consensus_message(sender.clone(), message),
+				SigningMessage::SigningGenerationMessage(ref message) =>
+					session.on_generation_message(sender.clone(), message),
+				SigningMessage::RequestPartialSignature(ref message) => 
+					session.on_partial_signature_requested(sender.clone(), message),
+				SigningMessage::PartialSignature(ref message) => 
+					session.on_partial_signature(sender.clone(), message),
+				SigningMessage::SigningSessionError(ref message) => 
 					session.on_session_error(sender.clone(), message),
-				DecryptionMessage::DecryptionSessionCompleted(ref message) => 
+				SigningMessage::SigningSessionCompleted(ref message) => 
 					session.on_session_completed(sender.clone(), message),
 			}) {
 				Ok(_) => {
 					// if session is completed => stop
 					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
 					let session_state = session.state();
-					if session_state == DecryptionSessionState::Finished {
-						info!(target: "secretstore_net", "{}: decryption session completed", data.self_key_pair.public());
+					if session_state == SigningSessionState::Finished {
+						info!(target: "secretstore_net", "{}: signing session completed", data.self_key_pair.public());
 					}
-					if session_state == DecryptionSessionState::Finished || session_state == DecryptionSessionState::Failed {
-						data.sessions.decryption_sessions.remove(&decryption_session_id);
+					if session_state == SigningSessionState::Finished || session_state == SigningSessionState::Failed {
+						data.sessions.signing_sessions.remove(&signing_session_id);
 						break;
 					}
 
 					// try to dequeue message
-					match data.sessions.decryption_sessions.dequeue_message(&decryption_session_id) {
+					match data.sessions.signing_sessions.dequeue_message(&signing_session_id) {
 						Some((msg_sender, msg)) => {
-							is_queued_message = true;
 							sender = msg_sender;
 							message = msg;
 						},
 						None => break,
 					}
 				},
-				Err(Error::TooEarlyForRequest) => {
-					data.sessions.decryption_sessions.enqueue_message(&decryption_session_id, sender, message, is_queued_message);
-					break;
-				},
 				Err(err) => {
-					warn!(target: "secretstore_net", "{}: decryption session error {} when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					data.sessions.respond_with_decryption_error(&session_id, &sub_session_id, &sender, message::DecryptionSessionError {
+					warn!(target: "secretstore_net", "{}: signing session error {} when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
+					data.sessions.respond_with_signing_error(&session_id, &sub_session_id, &sender, message::SigningSessionError {
 						session: session_id.clone().into(),
 						sub_session: sub_session_id.clone().into(),
 						error: format!("{:?}", err),
 					});
 					if err != Error::InvalidSessionId {
-						data.sessions.decryption_sessions.remove(&decryption_session_id);
+						data.sessions.signing_sessions.remove(&signing_session_id);
 					}
 					break;
 				},
-			}*/
+			}
 		}
 	}
 
@@ -927,6 +920,17 @@ impl ClusterClient for ClusterClientImpl {
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.new_decryption_session(self.data.self_key_pair.public().clone(), session_id, access_key, cluster)?;
 		session.initialize(requestor_signature, is_shadow_decryption)?;
+		Ok(session)
+	}
+
+	fn new_signing_session(&self, session_id: SessionId, requestor_signature: Signature, message_hash: H256) -> Result<Arc<SigningSession>, Error> {
+		let mut connected_nodes = self.data.connections.connected_nodes();
+		connected_nodes.insert(self.data.self_key_pair.public().clone());
+
+		let access_key = Random.generate()?.secret().clone();
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
+		let session = self.data.sessions.new_signing_session(self.data.self_key_pair.public().clone(), session_id, access_key, cluster)?;
+		session.initialize(requestor_signature, message_hash)?;
 		Ok(session)
 	}
 
