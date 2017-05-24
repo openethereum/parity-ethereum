@@ -14,21 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use serde::Serialize;
-use serde_json;
-use endpoint::Handler;
-use handlers::{ContentHandler, EchoHandler};
+//! RPC integration tests.
 
-pub fn empty() -> Box<Handler> {
-	Box::new(ContentHandler::ok("".into(), mime!(Text/Plain)))
-}
-
-pub fn as_json_error<T: Serialize>(val: &T) -> Box<Handler> {
-	let json = serde_json::to_string(val)
-		.expect("serialization to string is infallible; qed");
-	Box::new(ContentHandler::not_found(json, mime!(Application/Json)))
-}
-
-pub fn ping() -> Box<Handler> {
-	Box::new(EchoHandler::default())
-}
+mod helpers;
+#[cfg(test)] mod rpc;
+pub mod ws;

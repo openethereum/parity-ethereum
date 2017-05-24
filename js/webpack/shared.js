@@ -162,16 +162,8 @@ function getDappsEntry () {
 function addProxies (app) {
   const proxy = require('http-proxy-middleware');
 
-  app.use(proxy((pathname, req) => {
-    return pathname === '/' && req.method === 'HEAD';
-  }, {
-    target: 'http://127.0.0.1:8180',
-    changeOrigin: true,
-    autoRewrite: true
-  }));
-
   app.use('/api', proxy({
-    target: 'http://127.0.0.1:8545',
+    target: 'http://127.0.0.1:8180',
     changeOrigin: true,
     autoRewrite: true
   }));

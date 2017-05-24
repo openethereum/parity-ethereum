@@ -143,25 +143,34 @@ export default {
     }
   },
 
-  dappsPort: {
-    section: SECTION_NODE,
-    desc: 'Returns the port the dapps are running on, error if not enabled.',
+  dappsList: {
+    subdoc: SUBDOC_SET,
+    desc: 'Returns a list of available local dapps.',
     params: [],
     returns: {
-      type: Quantity,
-      desc: 'The port number',
-      example: 8080
+      type: Array,
+      desc: 'The list of dapps',
+      example: [
+        {
+          author: 'Parity Technologies Ltd',
+          description: 'A skeleton dapp',
+          iconUrl: 'title.png',
+          id: 'skeleton',
+          name: 'Skeleton',
+          version: '0.1'
+        }
+      ]
     }
   },
 
-  dappsInterface: {
+  dappsUrl: {
     section: SECTION_NODE,
-    desc: 'Returns the interface the dapps are running on, error if not enabled.',
+    desc: 'Returns the hostname and the port of dapps/rpc server, error if not enabled.',
     params: [],
     returns: {
       type: String,
-      desc: 'The interface',
-      example: '127.0.0.1'
+      desc: 'The hostname and port number',
+      example: 'localhost:8545'
     }
   },
 
@@ -785,17 +794,6 @@ export default {
       type: Boolean,
       desc: 'The boolean call result, true on success',
       example: true
-    }
-  },
-
-  signerPort: {
-    section: SECTION_NODE,
-    desc: 'Returns the port the signer is running on, error if not enabled',
-    params: [],
-    returns: {
-      type: Quantity,
-      desc: 'The port number',
-      example: 8180
     }
   },
 
@@ -1916,6 +1914,17 @@ export default {
     }
   },
 
+  wsUrl: {
+    section: SECTION_NODE,
+    desc: 'Returns the hostname and the port of WebSockets/Signer server, error if not enabled.',
+    params: [],
+    returns: {
+      type: String,
+      desc: 'The hostname and port number',
+      example: 'localhost:8546'
+    }
+  },
+
   composeTransaction: {
     desc: 'Given partial transaction request produces transaction with all fields filled in. Such transaction can be then signed externally.',
     params: [
@@ -1997,4 +2006,5 @@ export default {
       example: 'QmSbFjqjd6nFwNHqsBCC7SK8GShGcayLUEtysJjNGhZAnC'
     }
   }
+
 };

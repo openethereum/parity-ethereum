@@ -110,6 +110,11 @@ UI Options:
   --ui-interface IP                Specify the hostname portion of the Trusted UI
                                    server, IP should be an interface's IP address,
                                    or local (default: {flag_ui_interface}).
+  --ui-hosts HOSTS                 List of allowed Host header values. This option will
+                                   validate the Host header sent by the browser, it
+                                   is additional security against some attack
+                                   vectors. Special options: "all", "none",
+                                   (default: {flag_ui_hosts}).
   --ui-path PATH                   Specify directory where Trusted UIs tokens should
                                    be stored. (default: {flag_ui_path})
   --ui-no-validation               Disable Origin and Host headers validation for

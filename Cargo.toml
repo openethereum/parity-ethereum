@@ -33,7 +33,6 @@ ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethcore-io = { path = "util/io" }
 ethcore-devtools = { path = "devtools" }
-ethcore-signer = { path = "signer" }
 ethcore-ipc = { path = "ipc/rpc" }
 ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
@@ -75,17 +74,15 @@ default = ["ui-precompiled"]
 ui = [
 	"dapps",
 	"parity-dapps/ui",
-	"ethcore-signer/ui",
 ]
 ui-precompiled = [
 	"dapps",
-	"ethcore-signer/ui-precompiled",
 	"parity-dapps/ui-precompiled",
 ]
 dapps = ["parity-dapps"]
 ipc = ["ethcore/ipc", "ethsync/ipc"]
 jit = ["ethcore/jit"]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "parity-rpc/dev", "parity-dapps/dev", "ethcore-signer/dev"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "parity-rpc/dev", "parity-dapps/dev"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
 ethkey-cli = ["ethcore/ethkey-cli"]

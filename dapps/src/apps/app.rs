@@ -14,42 +14,42 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! URL Endpoint traits
+use endpoint::EndpointInfo;
 
-use std::sync::Arc;
-use std::collections::BTreeMap;
-
-use hyper::{self, server, net};
-
-#[derive(Debug, PartialEq, Default, Clone)]
-pub struct EndpointPath {
-	pub app_id: String,
-	pub app_params: Vec<String>,
-	pub host: String,
-	pub port: u16,
-	pub using_dapps_domains: bool,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct EndpointInfo {
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct App {
+	pub id: String,
 	pub name: String,
 	pub description: String,
 	pub version: String,
 	pub author: String,
+	#[serde(rename="iconUrl")]
 	pub icon_url: String,
 }
 
-pub type Endpoints = Arc<BTreeMap<String, Box<Endpoint>>>;
-pub type Handler = server::Handler<net::HttpStream> + Send;
-
-pub trait Endpoint : Send + Sync {
-	fn info(&self) -> Option<&EndpointInfo> { None }
-
-	fn to_handler(&self, _path: EndpointPath) -> Box<Handler> {
-		panic!("This Endpoint is asynchronous and requires Control object.");
+impl App {
+	/// Creates `App` instance from `EndpointInfo` and `id`.
+	pub fn from_info(id: &str, info: &EndpointInfo) -> Self {
+		App {
+			id: id.to_owned(),
+			name: info.name.to_owned(),
+			description: info.description.to_owned(),
+			version: info.version.to_owned(),
+			author: info.author.to_owned(),
+			icon_url: info.icon_url.to_owned(),
+		}
 	}
+}
 
-	fn to_async_handler(&self, path: EndpointPath, _control: hyper::Control) -> Box<Handler> {
-		self.to_handler(path)
+impl Into<EndpointInfo> for App {
+	fn into(self) -> EndpointInfo {
+		EndpointInfo {
+			name: self.name,
+			description: self.description,
+			version: self.version,
+			author: self.author,
+			icon_url: self.icon_url,
+		}
 	}
 }

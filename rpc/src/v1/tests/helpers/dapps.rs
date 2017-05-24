@@ -14,21 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use serde::Serialize;
-use serde_json;
-use endpoint::Handler;
-use handlers::{ContentHandler, EchoHandler};
+//! Test implementation of dapps service.
 
-pub fn empty() -> Box<Handler> {
-	Box::new(ContentHandler::ok("".into(), mime!(Text/Plain)))
-}
+use v1::types::LocalDapp;
+use v1::helpers::dapps::DappsService;
 
-pub fn as_json_error<T: Serialize>(val: &T) -> Box<Handler> {
-	let json = serde_json::to_string(val)
-		.expect("serialization to string is infallible; qed");
-	Box::new(ContentHandler::not_found(json, mime!(Application/Json)))
-}
+/// Test implementation of dapps service. Will always return the same list of dapps.
+#[derive(Default, Clone)]
+pub struct TestDappsService;
 
-pub fn ping() -> Box<Handler> {
-	Box::new(EchoHandler::default())
+impl DappsService for TestDappsService {
+	fn list_dapps(&self) -> Vec<LocalDapp> {
+		vec![LocalDapp {
+			id: "skeleton".into(),
+			name: "Skeleton".into(),
+			description: "A skeleton dapp".into(),
+			version: "0.1".into(),
+			author: "Parity Technologies Ltd".into(),
+			icon_url: "title.png".into(),
+		}]
+	}
 }

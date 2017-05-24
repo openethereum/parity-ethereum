@@ -15,51 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io;
-use std::path::PathBuf;
-use std::sync::Arc;
-
-pub use ethcore_signer::Server as SignerServer;
+use std::path::{Path, PathBuf};
 
 use ansi_term::Colour;
-use dir::default_data_path;
-use parity_rpc::informant::RpcStats;
-use parity_rpc::{self, ConfirmationsQueue};
-use ethcore_signer as signer;
-use helpers::replace_home;
-use parity_reactor::TokioRemote;
+use rpc;
 use rpc_apis;
+use parity_rpc;
 use path::restrict_permissions_owner;
-use util::H256;
 
-const CODES_FILENAME: &'static str = "authcodes";
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct Configuration {
-	pub enabled: bool,
-	pub port: u16,
-	pub interface: String,
-	pub signer_path: String,
-	pub skip_origin_validation: bool,
-}
-
-impl Default for Configuration {
-	fn default() -> Self {
-		let data_dir = default_data_path();
-		Configuration {
-			enabled: true,
-			port: 8180,
-			interface: "127.0.0.1".into(),
-			signer_path: replace_home(&data_dir, "$BASE/signer"),
-			skip_origin_validation: false,
-		}
-	}
-}
-
-pub struct Dependencies<D: rpc_apis::Dependencies> {
-	pub apis: Arc<D>,
-	pub remote: TokioRemote,
-	pub rpc_stats: Arc<RpcStats>,
-}
+pub const CODES_FILENAME: &'static str = "authcodes";
 
 pub struct NewToken {
 	pub token: String,
@@ -67,42 +32,29 @@ pub struct NewToken {
 	pub message: String,
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct StandardExtractor;
-impl signer::MetaExtractor<parity_rpc::Metadata> for StandardExtractor {
-	fn extract_metadata(&self, session: &H256) -> parity_rpc::Metadata {
-		let mut metadata = parity_rpc::Metadata::default();
-		metadata.origin = parity_rpc::Origin::Signer((*session).into());
-		metadata
-	}
+pub fn new_service(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration) -> rpc_apis::SignerService {
+	let signer_path = ws_conf.signer_path.clone();
+	let signer_enabled = ui_conf.enabled;
+
+	rpc_apis::SignerService::new(move || {
+		generate_new_token(&signer_path).map_err(|e| format!("{:?}", e))
+	}, signer_enabled)
 }
 
-pub fn start<D: rpc_apis::Dependencies>(
-	conf: Configuration,
-	queue: Arc<ConfirmationsQueue>,
-	deps: Dependencies<D>,
-) -> Result<Option<SignerServer>, String> {
-	if !conf.enabled {
-		Ok(None)
-	} else {
-		Ok(Some(do_start(conf, queue, deps)?))
-	}
-}
-
-fn codes_path(path: String) -> PathBuf {
-	let mut p = PathBuf::from(path);
+pub fn codes_path(path: &Path) -> PathBuf {
+	let mut p = path.to_owned();
 	p.push(CODES_FILENAME);
 	let _ = restrict_permissions_owner(&p, true, false);
 	p
 }
 
-pub fn execute(cmd: Configuration) -> Result<String, String> {
-	Ok(generate_token_and_url(&cmd)?.message)
+pub fn execute(ws_conf: rpc::WsConfiguration, ui_conf: rpc::UiConfiguration) -> Result<String, String> {
+	Ok(generate_token_and_url(&ws_conf, &ui_conf)?.message)
 }
 
-pub fn generate_token_and_url(conf: &Configuration) -> Result<NewToken, String> {
-	let code = generate_new_token(conf.signer_path.clone()).map_err(|err| format!("Error generating token: {}", err))?;
-	let auth_url = format!("http://{}:{}/#/auth?token={}", conf.interface, conf.port, code);
+pub fn generate_token_and_url(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration) -> Result<NewToken, String> {
+	let code = generate_new_token(&ws_conf.signer_path).map_err(|err| format!("Error generating token: {:?}", err))?;
+	let auth_url = format!("http://{}:{}/#/auth?token={}", ui_conf.interface, ui_conf.port, code);
 	// And print in to the console
 	Ok(NewToken {
 		token: code.clone(),
@@ -119,49 +71,12 @@ Or use the generated token:
 	})
 }
 
-pub fn generate_new_token(path: String) -> io::Result<String> {
+fn generate_new_token(path: &Path) -> io::Result<String> {
 	let path = codes_path(path);
-	let mut codes = signer::AuthCodes::from_file(&path)?;
+	let mut codes = parity_rpc::AuthCodes::from_file(&path)?;
 	codes.clear_garbage();
 	let code = codes.generate_new()?;
 	codes.to_file(&path)?;
 	trace!("New key code created: {}", Colour::White.bold().paint(&code[..]));
 	Ok(code)
 }
-
-fn do_start<D: rpc_apis::Dependencies>(
-	conf: Configuration,
-	queue: Arc<ConfirmationsQueue>,
-	deps: Dependencies<D>
-) -> Result<SignerServer, String> {
-	let addr = format!("{}:{}", conf.interface, conf.port)
-		.parse()
-		.map_err(|_| format!("Invalid port specified: {}", conf.port))?;
-
-	let start_result = {
-		let server = signer::ServerBuilder::new(
-			queue,
-			codes_path(conf.signer_path),
-		);
-		if conf.skip_origin_validation {
-			warn!("{}", Colour::Red.bold().paint("*** INSECURE *** Running Trusted Signer with no origin validation."));
-			info!("If you do not intend this, exit now.");
-		}
-		let server = server.skip_origin_validation(conf.skip_origin_validation);
-		let server = server.stats(deps.rpc_stats.clone());
-		let handler = rpc_apis::setup_rpc(deps.rpc_stats, &*deps.apis, rpc_apis::ApiSet::SafeContext);
-		let remote = deps.remote.clone();
-		server.start_with_extractor(addr, handler, remote, StandardExtractor)
-	};
-
-	match start_result {
-		Err(signer::ServerError::IoError(err)) => match err.kind() {
-			io::ErrorKind::AddrInUse => Err(format!("Trusted UI address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --ui-port and --ui-interface options.", addr)),
-			_ => Err(format!("Trusted Signer io error: {}", err)),
-		},
-		Err(e) => Err(format!("Trusted Signer Error: {:?}", e)),
-		Ok(server) => Ok(server),
-	}
-}
-
-

@@ -610,26 +610,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ethcore-signer"
-version = "1.7.0"
-dependencies = [
- "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
- "env_logger 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-devtools 1.7.0",
- "ethcore-io 1.7.0",
- "ethcore-util 1.7.0",
- "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
- "jsonrpc-server-utils 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
- "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-dapps-glue 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-rpc 1.7.0",
- "parity-ui 1.7.0",
- "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "ws 0.5.3 (git+https://github.com/paritytech/ws-rs.git?branch=parity-1.7)",
-]
-
-[[package]]
 name = "ethcore-stratum"
 version = "1.7.0"
 dependencies = [
@@ -1608,7 +1588,6 @@ dependencies = [
  "ethcore-light 1.7.0",
  "ethcore-logger 1.7.0",
  "ethcore-secretstore 1.0.0",
- "ethcore-signer 1.7.0",
  "ethcore-stratum 1.7.0",
  "ethcore-util 1.7.0",
  "ethkey 0.2.0",
@@ -1797,18 +1776,18 @@ dependencies = [
 name = "parity-rpc-client"
 version = "1.4.0"
 dependencies = [
- "ethcore-signer 1.7.0",
  "ethcore-util 1.7.0",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
+ "jsonrpc-ws-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-rpc 1.7.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ws 0.5.3 (git+https://github.com/paritytech/ws-rs.git?branch=parity-1.7)",
 ]
 
 [[package]]
@@ -2388,11 +2367,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "slab"
 version = "0.2.0"
-source = "git+https://github.com/carllerche/slab?rev=5476efcafb#5476efcafbc5ef4d7315b1bea3f756d8a1fe975e"
-
-[[package]]
-name = "slab"
-version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -2825,23 +2799,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "ws"
-version = "0.5.3"
-source = "git+https://github.com/paritytech/ws-rs.git?branch=parity-1.7#30415c17f1bec53b2dcabae5b8b887df75dcbe34"
-dependencies = [
- "bytes 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.6.1 (git+https://github.com/paritytech/mio)",
- "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "sha1 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "slab 0.2.0 (git+https://github.com/carllerche/slab?rev=5476efcafb)",
- "url 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "ws"
 version = "0.6.0"
-source = "git+https://github.com/tomusdrw/ws-rs#3259e7ca906c848beae109eb32e492871f8f397d"
+source = "git+https://github.com/tomusdrw/ws-rs#7f8e416b7f048880228005457e117128be38bf0f"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3082,7 +3041,6 @@ dependencies = [
 "checksum sha1 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "cc30b1e1e8c40c121ca33b86c23308a090d19974ef001b4bf6e61fd1a0fb095c"
 "checksum shell32-sys 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "72f20b8f3c060374edb8046591ba28f62448c369ccbdc7b02075103fb3a9e38d"
 "checksum siphasher 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "5c44e42fa187b5a8782489cf7740cc27c3125806be2bf33563cf5e02e9533fcd"
-"checksum slab 0.2.0 (git+https://github.com/carllerche/slab?rev=5476efcafb)" = "<none>"
 "checksum slab 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6dbdd334bd28d328dad1c41b0ea662517883d8880d8533895ef96c8003dec9c4"
 "checksum slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "17b4fcaed89ab08ef143da37bc52adbcc04d4a69014f4c1208d6b51f0c47bc23"
 "checksum smallvec 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "fcc8d19212aacecf95e4a7a2179b26f7aeb9732a915cf01f05b0d3e044865410"
@@ -3135,7 +3093,6 @@ dependencies = [
 "checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 "checksum winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
 "checksum winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
-"checksum ws 0.5.3 (git+https://github.com/paritytech/ws-rs.git?branch=parity-1.7)" = "<none>"
 "checksum ws 0.6.0 (git+https://github.com/tomusdrw/ws-rs)" = "<none>"
 "checksum ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
 "checksum xdg 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "77b831a5ba77110f438f0ac5583aafeb087f70432998ba6b7dcb1d32185db453"
