@@ -61,7 +61,7 @@ fn signer_tester() -> SignerTester {
 	let miner = miner_service();
 	let event_loop = EventLoop::spawn();
 
-	let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
+	let dispatcher = FullDispatcher::new(client, miner);
 	let mut io = IoHandler::default();
 	io.extend_with(SignerClient::new(&opt_accounts, dispatcher, &signer, event_loop.remote()).to_delegate());
 
