@@ -254,9 +254,9 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 
 		match res {
 			Err(_) => fail_unless(out_of_gas, "didn't expect to run out of gas."),
-			Ok(gas_left) => {
+			Ok(res) => {
 				fail_unless(!out_of_gas, "expected to run out of gas.");
-				fail_unless(Some(gas_left) == vm.gas_left.map(Into::into), "gas_left is incorrect");
+				fail_unless(Some(res.gas_left) == vm.gas_left.map(Into::into), "gas_left is incorrect");
 				let vm_output: Option<Vec<u8>> = vm.output.map(Into::into);
 				fail_unless(Some(output) == vm_output, "output is incorrect");
 

@@ -48,7 +48,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
-	AccountInfo, HwAccountInfo, Header, RichHeader
+	AccountInfo, HwAccountInfo, RichHeader
 };
 
 /// Parity implementation.
@@ -404,6 +404,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		};
 
 		future::ok(RichHeader {
+<<<<<<< HEAD
 			inner: Header {
 				hash: Some(encoded.hash().into()),
 				size: Some(encoded.rlp().as_raw().len().into()),
@@ -424,6 +425,10 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 				extra_data: Bytes::new(encoded.extra_data()),
 			},
 			extra_info: self.client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
+=======
+			inner: encoded.into(),
+			extra_info: client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
+>>>>>>> 18c3e90dbf00ed86e6565669e6b52681b8054c53
 		}).boxed()
 	}
 
