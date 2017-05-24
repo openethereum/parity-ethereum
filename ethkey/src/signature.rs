@@ -54,7 +54,7 @@ impl Signature {
 	/// Parse bytes as a signature encoded as RSV (V in "Electrum" notation).
 	/// May return empty (invalid) signature if given data has invalid length.
 	pub fn from_electrum(data: &[u8]) -> Self {
-		if data.len() != 65 || data[0] < 27 {
+		if data.len() != 65 || data[64] < 27 {
 			// fallback to empty (invalid) signature
 			return Signature::default();
 		}
