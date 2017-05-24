@@ -93,12 +93,12 @@ impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
 		dapps_port: Option<u16>,
 	) -> Self {
 		ParityClient {
-			client: Arc::downgrade(client),
-			miner: Arc::downgrade(miner),
-			sync: Arc::downgrade(sync),
-			updater: Arc::downgrade(updater),
-			net: Arc::downgrade(net),
-			accounts: store.as_ref().map(Arc::downgrade),
+			client: *client,
+			miner: *miner,
+			sync: *sync,
+			updater: *updater,
+			net: *net,
+			accounts: *store,
 			logger: logger,
 			settings: settings,
 			signer: signer,

@@ -124,11 +124,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 		options: EthClientOptions
 	) -> Self {
 		EthClient {
-			client: Arc::downgrade(client),
-			snapshot: Arc::downgrade(snapshot),
-			sync: Arc::downgrade(sync),
-			miner: Arc::downgrade(miner),
-			accounts: accounts.as_ref().map(Arc::downgrade),
+			client: *client,
+			snapshot: *snapshot,
+			sync: *sync,
+			miner: *miner,
+			accounts: *accounts,
 			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::new()),
 			options: options,

@@ -29,7 +29,7 @@ impl<S: ?Sized> NetClient<S> where S: SyncProvider {
 	/// Creates new NetClient.
 	pub fn new(sync: &Arc<S>) -> Self {
 		NetClient {
-			sync: Arc::downgrade(sync)
+			sync: *sync,
 		}
 	}
 }

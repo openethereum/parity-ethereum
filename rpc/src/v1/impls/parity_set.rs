@@ -48,10 +48,10 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 	/// Creates new `ParitySetClient` with given `Fetch`.
 	pub fn new(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>, fetch: F) -> Self {
 		ParitySetClient {
-			client: Arc::downgrade(client),
-			miner: Arc::downgrade(miner),
-			updater: Arc::downgrade(updater),
-			net: Arc::downgrade(net),
+			client: *client,
+			miner: *miner,
+			updater: *updater,
+			net: *net,
 			fetch: fetch,
 			eip86_transition: client.eip86_transition(),
 		}

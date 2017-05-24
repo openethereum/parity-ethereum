@@ -70,8 +70,8 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		});
 
 		SignerClient {
-			signer: Arc::downgrade(signer),
-			accounts: store.as_ref().map(Arc::downgrade),
+			signer: *signer,
+			accounts: *store,
 			dispatcher: dispatcher,
 			subscribers: subscribers,
 		}

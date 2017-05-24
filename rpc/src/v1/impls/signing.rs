@@ -94,8 +94,8 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 	/// Creates a new signing queue client given shared signing queue.
 	pub fn new(signer: &Arc<SignerService>, dispatcher: D, accounts: &Option<Arc<AccountProvider>>) -> Self {
 		SigningQueueClient {
-			signer: signer,
-			accounts: accounts.as_ref().map(Arc::downgrade),
+			signer: *signer,
+			accounts: *accounts,
 			dispatcher: dispatcher,
 			pending: Arc::new(Mutex::new(TransientHashMap::new(MAX_PENDING_DURATION_SEC))),
 		}
