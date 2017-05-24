@@ -404,7 +404,6 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		};
 
 		future::ok(RichHeader {
-<<<<<<< HEAD
 			inner: Header {
 				hash: Some(encoded.hash().into()),
 				size: Some(encoded.rlp().as_raw().len().into()),
