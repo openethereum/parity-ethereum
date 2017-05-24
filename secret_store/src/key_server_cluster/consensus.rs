@@ -309,7 +309,7 @@ impl ConsensusCore {
 	/// When node has accepted join offer.
 	pub fn accept_offer(&mut self, node: &NodeId) -> Result<(), Error> {
 		if !self.requested_nodes.remove(node) {
-			return Err(Error::InvalidStateForRequest);
+			return Err(Error::InvalidNodeForRequest);
 		}
 
 		self.confirmed_nodes.insert(node.clone());
@@ -319,7 +319,7 @@ impl ConsensusCore {
 	/// When node has rejected join offer.
 	pub fn reject_offer(&mut self, node: &NodeId) -> Result<(), Error> {
 		if !self.requested_nodes.remove(node) {
-			return Err(Error::InvalidStateForRequest);
+			return Err(Error::InvalidNodeForRequest);
 		}
 
 		self.rejected_nodes.insert(node.clone());
@@ -443,10 +443,91 @@ impl<T> ActiveConsensus<T> where T: Debug + Clone {
 #[cfg(test)]
 mod tests {
 	use key_server_cluster::Error;
+	use key_server_cluster::math;
 	use super::Consensus;
 
 	#[test]
 	fn consensus_is_not_created_when_not_enough_nodes() {
 		assert_eq!(Consensus::<i32>::new(0, vec![].into_iter().collect()).unwrap_err(), Error::InvalidThreshold);
+	}
+
+	#[test]
+	fn consensus_establishing_state() {
+		let consensus = Consensus::<i32>::new(0, vec![math::generate_random_point().unwrap()].into_iter().collect()).unwrap();
+		assert!(consensus.core().is_some());
+		assert!(!consensus.is_established());
+		assert!(!consensus.is_completed());
+		assert!(!consensus.is_unreachable());
+	}
+
+	#[test]
+	fn consensus_establishing_2_of_3_succeeded() {
+		let nodes: Vec<_> = (0..3).map(|_| math::generate_random_point().unwrap()).collect();
+		let mut consensus = Consensus::<i32>::new(1, nodes.iter().cloned().collect()).unwrap();
+		consensus.offer_response(&nodes[0], true).unwrap();
+		assert!(!consensus.is_established());
+		consensus.offer_response(&nodes[1], true).unwrap();
+		assert!(consensus.is_established());
+		consensus.offer_response(&nodes[2], true).unwrap();
+		assert!(consensus.is_established());
+	}
+
+	#[test]
+	fn consensus_establishing_2_of_3_failed() {
+		let nodes: Vec<_> = (0..3).map(|_| math::generate_random_point().unwrap()).collect();
+		let mut consensus = Consensus::<i32>::new(1, nodes.iter().cloned().collect()).unwrap();
+		consensus.offer_response(&nodes[0], false).unwrap();
+		assert!(!consensus.is_established());
+		assert!(!consensus.is_unreachable());
+		consensus.offer_response(&nodes[1], false).unwrap();
+		assert!(!consensus.is_established());
+		assert!(consensus.is_unreachable());
+	}
+
+	#[test]
+	fn consensus_completion_2_of_3() {
+		let nodes: Vec<_> = (0..3).map(|_| math::generate_random_point().unwrap()).collect();
+		let mut consensus = Consensus::<i32>::new(1, nodes.iter().cloned().collect()).unwrap();
+		nodes.iter().map(|n| consensus.accept_offer(n).unwrap()).collect::<Vec<_>>();
+		assert!(consensus.is_established());
+
+		consensus.activate().unwrap();
+		let (key, selected_nodes) = consensus.select_nodes(&nodes[0]).map(|(k, n)| (k.clone(), n.iter().cloned().collect::<Vec<_>>())).unwrap();
+
+		assert!(selected_nodes.contains(&nodes[0]));
+		consensus.job_request_sent(&selected_nodes[0]).unwrap();
+		consensus.job_request_sent(&selected_nodes[1]).unwrap();
+
+		consensus.job_response_received(&selected_nodes[0], &key, 1).unwrap();
+		consensus.job_response_received(&selected_nodes[1], &key, 2).unwrap();
+
+		assert_eq!(consensus.job_responses().unwrap().values().fold(0, |i1, i2| i1 + i2), 3);
+	}
+
+	#[test]
+	fn consensus_restarts_after_node_timeout() {
+		let nodes: Vec<_> = (0..4).map(|_| math::generate_random_point().unwrap()).collect();
+		let mut consensus = Consensus::<i32>::new(1, nodes.iter().cloned().collect()).unwrap();
+		nodes.iter().map(|n| consensus.accept_offer(n).unwrap()).collect::<Vec<_>>();
+		assert!(consensus.is_established());
+
+		consensus.activate().unwrap();
+		let (_, selected_nodes) = consensus.select_nodes(&nodes[0]).map(|(k, n)| (k.clone(), n.iter().cloned().collect::<Vec<_>>())).unwrap();
+		let unselected_nodes: Vec<_> = nodes.iter().filter(|n| !selected_nodes.contains(n)).collect();
+		assert!(selected_nodes.contains(&nodes[0]));
+
+		// when non-selected node timeouted => nothing happens
+		selected_nodes.iter().map(|n| consensus.job_request_sent(n)).collect::<Vec<_>>();
+		assert_eq!(consensus.node_timeouted(&unselected_nodes[0]), Ok(false));
+		let (_, selected_nodes) = consensus.selected_nodes().map(|(k, n)| (k.clone(), n.iter().cloned().collect::<Vec<_>>())).unwrap();
+
+		// when selected node timeouted => restarts
+		selected_nodes.iter().map(|n| consensus.job_request_sent(n)).collect::<Vec<_>>();
+		assert_eq!(consensus.node_timeouted(&selected_nodes[0]), Ok(true));
+		let (_, selected_nodes) = consensus.select_nodes(&nodes[0]).map(|(k, n)| (k.clone(), n.iter().cloned().collect::<Vec<_>>())).unwrap();
+
+		// when selected node timeouted && there are not enough nodes for consensus => fail
+		selected_nodes.iter().map(|n| consensus.job_request_sent(n)).collect::<Vec<_>>();
+		assert_eq!(consensus.node_timeouted(&selected_nodes[0]), Err(Error::ConsensusUnreachable));
 	}
 }
