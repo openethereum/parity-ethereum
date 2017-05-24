@@ -399,6 +399,7 @@ impl SessionImpl {
 		self.cluster.send(&sender, Message::Signing(SigningMessage::PartialSignature(PartialSignature {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
+			request_id: message.request_id.clone(),
 			partial_signature: partial_signature.into(),
 		})))?;
 
@@ -424,7 +425,7 @@ impl SessionImpl {
 		// remember partial signature
 		{
 			let consensus = data.consensus.as_mut().ok_or(Error::InvalidStateForRequest)?;
-			consensus.job_response_received(&sender, message.partial_signature.clone().into())?;
+			consensus.job_response_received(&sender, &message.request_id.clone().into(), message.partial_signature.clone().into())?;
 
 			// check if we have enough shadow points to decrypt the secret
 			if !consensus.is_completed() {
@@ -524,7 +525,7 @@ impl SessionImpl {
 		// select nodes to make signature
 		let mut consensus = data.consensus.as_mut().expect("consensus is filled during initialization phase; key generation phase follows initialization; qed");
 		consensus.activate()?;
-		let selected_nodes = consensus.select_nodes()?;
+		let (_, selected_nodes) = consensus.select_nodes()?;
 
 		// create generation session
 		let generation_cluster = Arc::new(SigningCluster::new(cluster.clone(), self_node_id.clone(), selected_nodes.clone()));
@@ -600,7 +601,7 @@ impl SessionImpl {
 
 		// send jobs to all selected nodes
 		let consensus = data.consensus.as_mut().expect("consensus is created on initialization phase; partial signing phase follows initialization; qed");
-		let mut confirmed_nodes = consensus.selected_nodes()?.clone();
+		let (request_id, mut confirmed_nodes) = consensus.selected_nodes().map(|(r, n)| (r.clone(), n.clone()))?;
 
 		// send requests
 		let message_hash = data.message_hash.as_ref().expect("message_hash on master is filled in initialization phase; this is master node; qed");
@@ -609,6 +610,7 @@ impl SessionImpl {
 			cluster.send(node, Message::Signing(SigningMessage::RequestPartialSignature(RequestPartialSignature {
 				session: session_id.clone().into(),
 				sub_session: access_key.clone().into(),
+				request_id: request_id.clone().into(),
 				message_hash: message_hash.clone().into(),
 				nodes: confirmed_nodes.iter().cloned().map(Into::into).collect(),
 			})))?;
@@ -623,7 +625,7 @@ impl SessionImpl {
 			};
 
 			consensus.job_request_sent(&self_node_id)?;
-			consensus.job_response_received(&self_node_id, signing_result)?;
+			consensus.job_response_received(&self_node_id, &request_id, signing_result)?;
 		}
 
 		Ok(())

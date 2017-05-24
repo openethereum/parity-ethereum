@@ -296,6 +296,8 @@ pub struct RequestPartialSignature {
 	pub session: MessageSessionId,
 	/// Signing session Id.
 	pub sub_session: SerializableSecret,
+	/// Request id.
+	pub request_id: SerializableSecret,
 	/// Message hash.
 	pub message_hash: SerializableMessageHash,
 	/// Selected nodes.
@@ -309,6 +311,8 @@ pub struct PartialSignature {
 	pub session: MessageSessionId,
 	/// Signing session Id.
 	pub sub_session: SerializableSecret,
+	/// Request id.
+	pub request_id: SerializableSecret,
 	/// S part of signature.
 	pub partial_signature: SerializableSecret,
 }
@@ -351,6 +355,8 @@ pub struct RequestPartialDecryption {
 	pub session: MessageSessionId,
 	/// Decryption session Id.
 	pub sub_session: SerializableSecret,
+	/// Request id.
+	pub request_id: SerializableSecret,
 	/// Is shadow decryption requested? When true, decryption result
 	/// will be visible to the owner of requestor public key only.
 	pub is_shadow_decryption: bool,
@@ -365,6 +371,8 @@ pub struct PartialDecryption {
 	pub session: MessageSessionId,
 	/// Decryption session Id.
 	pub sub_session: SerializableSecret,
+	/// Request id.
+	pub request_id: SerializableSecret,
 	/// Partially decrypted secret.
 	pub shadow_point: SerializablePublic,
 	/// Decrypt shadow coefficient (if requested), encrypted with requestor public.

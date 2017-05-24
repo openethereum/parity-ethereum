@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// TODO: when job requests sent && we restart, we could receive previous responses => there should be some kind of control (random secret in each group of jobs)
-
 use std::fmt::Debug;
 use std::collections::{BTreeSet, BTreeMap};
+use ethkey::Secret;
 use key_server_cluster::{Error, NodeId};
+use key_server_cluster::math;
 
 #[derive(Debug, Clone)]
 /// Consensus.
@@ -53,6 +53,8 @@ pub struct ConsensusCore {
 pub struct ActiveConsensus<T: Debug + Clone> {
 	/// Consensus core data.
 	core: ConsensusCore,
+	/// Selection key.
+	selection_key: Option<Secret>,
 	/// Selected nodes.
 	selected_nodes: BTreeSet<NodeId>,
 	/// Active job requests to confirmed nodes.
@@ -174,7 +176,7 @@ impl<T> Consensus<T> where T: Debug + Clone {
 	}
 
 	/// Select nodes for completing their jobs.
-	pub fn select_nodes(&mut self) -> Result<&BTreeSet<NodeId>, Error> {
+	pub fn select_nodes(&mut self) -> Result<(&Secret, &BTreeSet<NodeId>), Error> {
 		match *self {
 			Consensus::Active(ref mut consensus) => consensus.select_nodes(),
 			_ => Err(Error::InvalidStateForRequest),
@@ -182,7 +184,7 @@ impl<T> Consensus<T> where T: Debug + Clone {
 	}
 
 	/// Get nodes, select nodes for completing their jobs.
-	pub fn selected_nodes(&self) -> Result<&BTreeSet<NodeId>, Error> {
+	pub fn selected_nodes(&self) -> Result<(&Secret, &BTreeSet<NodeId>), Error> {
 		match *self {
 			Consensus::Active(ref consensus) => consensus.selected_nodes(),
 			_ => Err(Error::InvalidStateForRequest),
@@ -198,10 +200,10 @@ impl<T> Consensus<T> where T: Debug + Clone {
 	}
 
 	/// When job response is received from the node.
-	pub fn job_response_received(&mut self, node: &NodeId, response: T) -> Result<(), Error> {
+	pub fn job_response_received(&mut self, node: &NodeId, selection_key: &Secret, response: T) -> Result<(), Error> {
 		let completed_consensus = match *self {
 			Consensus::Active(ref mut consensus) => {
-				consensus.job_response_received(node, response)?;
+				consensus.job_response_received(node, selection_key, response)?;
 				if consensus.responses.len() != consensus.core.threshold + 1 {
 					return Ok(());
 				}
@@ -338,6 +340,7 @@ impl<T> ActiveConsensus<T> where T: Debug + Clone {
 	pub fn new(core: ConsensusCore) -> Self {
 		ActiveConsensus {
 			core: core,
+			selection_key: None,
 			selected_nodes: BTreeSet::new(),
 			active_requests: BTreeSet::new(),
 			responses: BTreeMap::new(),
@@ -345,22 +348,24 @@ impl<T> ActiveConsensus<T> where T: Debug + Clone {
 	}
 
 	/// Select nodes to make job.
-	pub fn select_nodes(&mut self) -> Result<&BTreeSet<NodeId>, Error> {
+	pub fn select_nodes(&mut self) -> Result<(&Secret, &BTreeSet<NodeId>), Error> {
 		if !self.selected_nodes.is_empty() {
 			return Err(Error::InvalidStateForRequest);
 		}
 
+		// TODO: possibly optimize by including this node in selected_nodes list
+		self.selection_key = Some(math::generate_random_scalar()?);
 		self.selected_nodes = self.core.confirmed_nodes.iter().cloned().take(self.core.threshold + 1).collect();
-		Ok(&self.selected_nodes)
+		Ok((self.selection_key.as_ref().expect("filled couple of lines above"), &self.selected_nodes))
 	}
 
 	/// Get nodes, selected nodes to make their job.
-	pub fn selected_nodes(&self) -> Result<&BTreeSet<NodeId>, Error> {
-		if self.selected_nodes.is_empty() {
+	pub fn selected_nodes(&self) -> Result<(&Secret, &BTreeSet<NodeId>), Error> {
+		if self.selection_key.is_none() || self.selected_nodes.is_empty() {
 			return Err(Error::InvalidStateForRequest);
 		}
 
-		Ok(&self.selected_nodes)
+		Ok((self.selection_key.as_ref().expect("checked couple of lines above"), &self.selected_nodes))
 	}
 
 	/// When job request is sent to the node.
@@ -380,7 +385,11 @@ impl<T> ActiveConsensus<T> where T: Debug + Clone {
 	}
 
 	/// When job response is received from the node.
-	pub fn job_response_received(&mut self, node: &NodeId, response: T) -> Result<(), Error> {
+	pub fn job_response_received(&mut self, node: &NodeId, selection_key: &Secret, response: T) -> Result<(), Error> {
+		if self.selection_key.as_ref() != Some(selection_key) {
+			// response from previous request => ignore
+			return Ok(());
+		}
 		if !self.active_requests.remove(node) {
 			return Err(Error::InvalidStateForRequest);
 		}

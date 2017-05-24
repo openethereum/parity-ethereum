@@ -323,6 +323,7 @@ impl SessionImpl {
 		self.cluster.send(&sender, Message::Decryption(DecryptionMessage::PartialDecryption(PartialDecryption {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
+			request_id: message.request_id.clone(),
 			shadow_point: decryption_result.shadow_point.into(),
 			decrypt_shadow: decryption_result.decrypt_shadow,
 		})))?;
@@ -349,7 +350,7 @@ impl SessionImpl {
 		// remember partial signature
 		{
 			let consensus = data.consensus.as_mut().ok_or(Error::InvalidStateForRequest)?;
-			consensus.job_response_received(&sender, PartialDecryptionResult {
+			consensus.job_response_received(&sender, &message.request_id.clone().into(), PartialDecryptionResult {
 				shadow_point: message.shadow_point.clone().into(),
 				decrypt_shadow: message.decrypt_shadow.clone(),
 			})?;
@@ -457,7 +458,7 @@ impl SessionImpl {
 		// send jobs to all selected nodes
 		let consensus = data.consensus.as_mut().expect("consensus is created on initialization phase; partial decryption phase follows initialization; qed");
 		consensus.activate()?;
-		let mut confirmed_nodes = consensus.select_nodes()?.clone();
+		let (request_id, mut confirmed_nodes) = consensus.select_nodes().map(|(r, n)| (r.clone(), n.clone()))?;
 
 		// send requests
 		for node in confirmed_nodes.iter().filter(|n| n != &self_node_id) {
@@ -465,6 +466,7 @@ impl SessionImpl {
 			cluster.send(node, Message::Decryption(DecryptionMessage::RequestPartialDecryption(RequestPartialDecryption {
 				session: session_id.clone().into(),
 				sub_session: access_key.clone().into(),
+				request_id: request_id.clone().into(),
 				is_shadow_decryption: data.is_shadow_decryption.expect("is_shadow_decryption on master node is filled in initialization; we are on master node; qed"),
 				nodes: confirmed_nodes.iter().cloned().map(Into::into).collect(),
 			})))?;
@@ -479,7 +481,7 @@ impl SessionImpl {
 			};
 
 			consensus.job_request_sent(self_node_id)?;
-			consensus.job_response_received(self_node_id, decryption_result)?;
+			consensus.job_response_received(self_node_id, &request_id, decryption_result)?;
 		}
 
 		Ok(())
@@ -858,6 +860,7 @@ mod tests {
 		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[2].node().clone(), &message::RequestPartialDecryption {
 			session: SessionId::default().into(),
 			sub_session: sessions[0].access_key().clone().into(),
+			request_id: Random.generate().unwrap().secret().clone().into(),
 			is_shadow_decryption: false,
 			nodes: sessions.iter().map(|s| s.node().clone().into()).take(4).collect(),
 		}).unwrap_err(), Error::InvalidMessage);
@@ -876,6 +879,7 @@ mod tests {
 		assert_eq!(sessions[1].on_partial_decryption_requested(sessions[0].node().clone(), &message::RequestPartialDecryption {
 			session: SessionId::default().into(),
 			sub_session: sessions[0].access_key().clone().into(),
+			request_id: Random.generate().unwrap().secret().clone().into(),
 			is_shadow_decryption: false,
 			nodes: sessions.iter().map(|s| s.node().clone().into()).take(2).collect(),
 		}).unwrap_err(), Error::InvalidMessage);
@@ -887,6 +891,7 @@ mod tests {
 		assert_eq!(sessions[0].on_partial_decryption(sessions[1].node().clone(), &message::PartialDecryption {
 			session: SessionId::default().into(),
 			sub_session: sessions[0].access_key().clone().into(),
+			request_id: Random.generate().unwrap().secret().clone().into(),
 			shadow_point: Random.generate().unwrap().public().clone().into(),
 			decrypt_shadow: None,
 		}).unwrap_err(), Error::InvalidStateForRequest);
