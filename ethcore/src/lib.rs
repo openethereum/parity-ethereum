@@ -49,33 +49,25 @@
 //!
 //!   ```bash
 //!
-//!   # install multirust
-//!   curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
-//!
-//!   # export rust LIBRARY_PATH
-//!   export LIBRARY_PATH=/usr/local/lib
+//!   # install rustup
+//!   curl https://sh.rustup.rs -sSf | sh
 //!
 //!   # download and build parity
 //!   git clone https://github.com/paritytech/parity
 //!   cd parity
-//!   multirust override beta
 //!   cargo build --release
 //!   ```
 //!
 //! - OSX:
 //!
 //!   ```bash
-//!   # install rocksdb && multirust
+//!   # install rocksdb && rustup
 //!   brew update
-//!   brew install multirust
-//!
-//!   # export rust LIBRARY_PATH
-//!   export LIBRARY_PATH=/usr/local/lib
+//!   curl https://sh.rustup.rs -sSf | sh
 //!
 //!   # download and build parity
 //!   git clone https://github.com/paritytech/parity
 //!   cd parity
-//!   multirust override beta
 //!   cargo build --release
 //!   ```
 

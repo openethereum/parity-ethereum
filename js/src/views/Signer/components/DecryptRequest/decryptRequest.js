@@ -114,7 +114,7 @@ class DecryptRequest extends Component {
   }
 
   renderActions () {
-    const { accounts, address, focus, isFinished, status } = this.props;
+    const { accounts, address, focus, isFinished, status, data } = this.props;
     const account = accounts[address];
 
     if (isFinished) {
@@ -153,15 +153,16 @@ class DecryptRequest extends Component {
         onConfirm={ this.onConfirm }
         onReject={ this.onReject }
         className={ styles.actions }
+        dataToSign={ { decrypt: data } }
       />
     );
   }
 
   onConfirm = (data) => {
     const { id } = this.props;
-    const { password } = data;
+    const { password, decrypted, wallet } = data;
 
-    this.props.onConfirm({ id, password });
+    this.props.onConfirm({ id, password, decrypted, wallet });
   }
 
   onReject = () => {

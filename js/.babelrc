@@ -7,6 +7,8 @@
     "transform-decorators-legacy",
     "transform-class-properties",
     "transform-object-rest-spread",
+    "transform-es2015-modules-commonjs",
+    "transform-runtime",
     "lodash",
     "recharts"
   ],
@@ -25,7 +27,6 @@
     },
     "test": {
       "plugins": [
-        "transform-runtime",
         [ "babel-plugin-webpack-alias", { "config": "webpack/test.js" } ]
       ]
     }

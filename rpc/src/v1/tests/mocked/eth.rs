@@ -302,7 +302,7 @@ fn rpc_eth_submit_hashrate() {
 fn rpc_eth_sign() {
 	let tester = EthTester::default();
 
-	let account = tester.accounts_provider.insert_account(Secret::from_slice(&[69u8; 32]).unwrap(), "abcd").unwrap();
+	let account = tester.accounts_provider.insert_account(Secret::from_slice(&[69u8; 32]), "abcd").unwrap();
 	tester.accounts_provider.unlock_account_permanently(account, "abcd".into()).unwrap();
 	let _message = "0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f".from_hex().unwrap();
 
@@ -315,7 +315,7 @@ fn rpc_eth_sign() {
 		],
 		"id": 1
 	}"#;
-	let res = r#"{"jsonrpc":"2.0","result":"0x1ba2870db1d0c26ef93c7b72d2a0830fa6b841e0593f7186bc6c7cc317af8cf3a42fda03bd589a49949aa05db83300cdb553116274518dbe9d90c65d0213f4af49","id":1}"#;
+	let res = r#"{"jsonrpc":"2.0","result":"0xa2870db1d0c26ef93c7b72d2a0830fa6b841e0593f7186bc6c7cc317af8cf3a42fda03bd589a49949aa05db83300cdb553116274518dbe9d90c65d0213f4af491b","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(&req), Some(res.into()));
 }

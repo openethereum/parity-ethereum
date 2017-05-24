@@ -8,6 +8,17 @@
     "visible": false
   },
   {
+    "id": "0xa635a9326814bded464190eddf0bdb90ce92d40ea2359cf553ea80e3c5a4076c",
+    "url": "console",
+    "name": "Parity/Web3 console",
+    "description": "A Javascript development console complete with web3 and parity objects",
+    "version": "0.3",
+    "author": "Gav Wood <gavin@parity.io>",
+    "position": "top-right",
+    "visible": true,
+    "secure": true
+  },
+  {
     "id": "0xf9f2d620c2e08f83e45555247146c62185e4ab7cf82a4b9002a265a0d020348f",
     "url": "tokendeploy",
     "name": "Token Deployment",
@@ -84,17 +95,5 @@
     "visible": true,
     "skipBuild": true,
     "skipHistory": true
-  },
-  {
-    "id": "0xa635a9326814bded464190eddf0bdb90ce92d40ea2359cf553ea80e3c5a4076c",
-    "url": "console",
-    "name": "Parity/Web3 console",
-    "description": "A Javascript development console complete with web3 and parity objects",
-    "version": "0.3",
-    "author": "Gav Wood <gavin@parity.io>",
-    "position": "top-right",
-    "visible": true,
-    "secure": true,
-    "skipBuild": true
   }
 ]

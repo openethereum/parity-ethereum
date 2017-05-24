@@ -22,6 +22,7 @@ import UpgradeStore from '~/modals/UpgradeParity/store';
 
 import Connection from '../Connection';
 import ParityBar from '../ParityBar';
+import SyncWarning, { showSyncWarning } from '../SyncWarning';
 
 import Snackbar from './Snackbar';
 import Container from './Container';
@@ -36,6 +37,7 @@ import Requests from './Requests';
 import styles from './application.css';
 
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
+const doShowSyncWarning = showSyncWarning();
 
 @observer
 class Application extends Component {
@@ -77,6 +79,11 @@ class Application extends Component {
           isMinimized
             ? this.renderMinimized()
             : this.renderApp()
+        }
+        {
+          doShowSyncWarning
+          ? (<SyncWarning />)
+          : null
         }
         <Connection />
         <Requests />

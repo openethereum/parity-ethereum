@@ -75,12 +75,12 @@ pub fn run_vm(params: ActionParams) -> Result<Success, Failure> {
 	let mut ext = ext::FakeExt::default();
 
 	let start = Instant::now();
-	let gas_left = vm.exec(params, &mut ext).finalize(ext);
+	let res = vm.exec(params, &mut ext).finalize(ext);
 	let duration = start.elapsed();
 
-	match gas_left {
-		Ok(gas_left) => Ok(Success {
-			gas_used: initial_gas - gas_left,
+	match res {
+		Ok(res) => Ok(Success {
+			gas_used: initial_gas - res.gas_left,
 			// TODO [ToDr] get output from ext
 			output: Vec::new(),
 			time: duration,

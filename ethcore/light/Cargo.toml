@@ -24,6 +24,9 @@ smallvec = "0.3.1"
 futures = "0.1"
 rand = "0.3"
 itertools = "0.5"
+bincode = "0.8.0"
+serde = "1.0"
+serde_derive = "1.0"
 stats = { path = "../../util/stats" }
 
 [features]

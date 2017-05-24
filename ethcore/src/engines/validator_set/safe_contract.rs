@@ -182,10 +182,9 @@ impl ValidatorSet for ValidatorSafeContract {
 							);
 
 						match (nonce, validators) {
-							(Some(nonce), Some(validators)) => {
-								let proof = encode_proof(nonce, &validators);
+							(Some(nonce), Some(_)) => {
 								let new_epoch = nonce.low_u64();
-								::engines::EpochChange::Yes(new_epoch, proof)
+								::engines::EpochChange::Yes(new_epoch)
 							}
 							_ => {
 								debug!(target: "engine", "Successfully decoded log turned out to be bad.");
@@ -295,9 +294,9 @@ mod tests {
 	#[test]
 	fn knows_validators() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let s0 = Secret::from_slice(&"1".sha3()).unwrap();
+		let s0: Secret = "1".sha3().into();
 		let v0 = tap.insert_account(s0.clone(), "").unwrap();
-		let v1 = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "").unwrap();
+		let v1 = tap.insert_account("0".sha3().into(), "").unwrap();
 		let network_id = Spec::new_validator_safe_contract().network_id();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, Some(tap));
 		client.engine().register_client(Arc::downgrade(&client));

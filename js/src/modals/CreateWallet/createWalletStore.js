@@ -26,7 +26,7 @@ import { wallet as walletCode, walletLibrary as walletLibraryCode, walletLibrary
 
 import { validateUint, validateAddress, validateName } from '~/util/validation';
 import { toWei } from '~/api/util/wei';
-import { deploy } from '~/util/tx';
+import { deploy, getSender, loadSender, setSender } from '~/util/tx';
 import WalletsUtils from '~/util/wallets';
 
 const STEPS = {
@@ -120,10 +120,17 @@ export default class CreateWalletStore {
     this.api = api;
 
     this.step = this.stepsKeys[0];
-    this.wallet.account = Object.values(accounts)[0].address;
+    this.wallet.account = getSender() || Object.values(accounts)[0].address;
     this.validateWallet(this.wallet);
     this.onClose = onClose;
     this.onSetRequest = onSetRequest;
+
+    loadSender(this.api)
+      .then((defaultAccount) => {
+        if (defaultAccount !== this.wallet.account) {
+          this.onChange({ account: defaultAccount });
+        }
+      });
   }
 
   @action onTypeChange = (type) => {
@@ -221,6 +228,7 @@ export default class CreateWalletStore {
 
         const contract = this.api.newContract(walletAbi);
 
+        setSender(account);
         this.wallet = this.getWalletWithMeta(this.wallet);
         this.onClose();
         return deploy(contract, options, [ owners, required, daylimit ])

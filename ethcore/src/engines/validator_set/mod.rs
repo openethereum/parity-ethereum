@@ -16,6 +16,8 @@
 
 /// Validator lists.
 
+#[cfg(test)]
+mod test;
 mod simple_list;
 mod safe_contract;
 mod contract;
@@ -28,6 +30,8 @@ use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::Client;
 use header::{Header, BlockNumber};
 
+#[cfg(test)]
+pub use self::test::TestSet;
 pub use self::simple_list::SimpleList;
 use self::contract::ValidatorContract;
 use self::safe_contract::ValidatorSafeContract;

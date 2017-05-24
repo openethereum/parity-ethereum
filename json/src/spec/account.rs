@@ -39,7 +39,7 @@ pub struct Account {
 }
 
 impl Account {
-	/// Returns true if account does not have nonce and balance.
+	/// Returns true if account does not have nonce, balance, code and storage.
 	pub fn is_empty(&self) -> bool {
 		self.balance.is_none() && self.nonce.is_none() && self.code.is_none() && self.storage.is_none()
 	}
@@ -55,6 +55,59 @@ mod tests {
 	use bytes::Bytes;
 
 	#[test]
+	fn account_balance_missing_not_empty() {
+		let s = r#"{
+			"nonce": "0",
+			"code": "1234",
+			"storage": { "0x7fffffffffffffff7fffffffffffffff": "0x1" }
+		}"#;
+		let deserialized: Account = serde_json::from_str(s).unwrap();
+		assert!(!deserialized.is_empty());
+	}
+
+	#[test]
+	fn account_nonce_missing_not_empty() {
+		let s = r#"{
+			"balance": "1",
+			"code": "1234",
+			"storage": { "0x7fffffffffffffff7fffffffffffffff": "0x1" }
+		}"#;
+		let deserialized: Account = serde_json::from_str(s).unwrap();
+		assert!(!deserialized.is_empty());
+	}
+
+	#[test]
+	fn account_code_missing_not_empty() {
+		let s = r#"{
+			"balance": "1",
+			"nonce": "0",
+			"storage": { "0x7fffffffffffffff7fffffffffffffff": "0x1" }
+		}"#;
+		let deserialized: Account = serde_json::from_str(s).unwrap();
+		assert!(!deserialized.is_empty());
+	}
+
+	#[test]
+	fn account_storage_missing_not_empty() {
+		let s = r#"{
+			"balance": "1",
+			"nonce": "0",
+			"code": "1234"
+		}"#;
+		let deserialized: Account = serde_json::from_str(s).unwrap();
+		assert!(!deserialized.is_empty());
+	}
+
+	#[test]
+	fn account_empty() {
+		let s = r#"{
+			"builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } }
+		}"#;
+		let deserialized: Account = serde_json::from_str(s).unwrap();
+		assert!(deserialized.is_empty());
+	}
+
+	#[test]
 	fn account_deserialization() {
 		let s = r#"{
 			"balance": "1",
@@ -63,6 +116,7 @@ mod tests {
 			"code": "1234"
 		}"#;
 		let deserialized: Account = serde_json::from_str(s).unwrap();
+		assert!(!deserialized.is_empty());
 		assert_eq!(deserialized.balance.unwrap(), Uint(U256::from(1)));
 		assert_eq!(deserialized.nonce.unwrap(), Uint(U256::from(0)));
 		assert_eq!(deserialized.code.unwrap(), Bytes::new(vec![0x12, 0x34]));
@@ -78,6 +132,7 @@ mod tests {
 			"storage": { "0x7fffffffffffffff7fffffffffffffff": "0x1" }
 		}"#;
 		let deserialized: Account = serde_json::from_str(s).unwrap();
+		assert!(!deserialized.is_empty());
 		assert_eq!(deserialized.balance.unwrap(), Uint(U256::from(1)));
 		assert_eq!(deserialized.nonce.unwrap(), Uint(U256::from(0)));
 		assert_eq!(deserialized.code.unwrap(), Bytes::new(vec![0x12, 0x34]));

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::path::PathBuf;
-use ethcore::ethstore::{EthStore, SecretStore, import_accounts, read_geth_accounts};
+use ethcore::ethstore::{EthStore, SecretStore, import_account, import_accounts, read_geth_accounts};
 use ethcore::ethstore::dir::RootDiskDirectory;
 use ethcore::ethstore::SecretVaultRef;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
@@ -51,10 +51,10 @@ pub struct ImportAccounts {
 	pub spec: SpecType,
 }
 
-/// Parameters for geth accounts' import 
+/// Parameters for geth accounts' import
 #[derive(Debug, PartialEq)]
 pub struct ImportFromGethAccounts {
-	/// import mainnet (false) or testnet (true) accounts 
+	/// import mainnet (false) or testnet (true) accounts
 	pub testnet: bool,
 	/// directory to import accounts to
 	pub to: String,
@@ -80,7 +80,7 @@ fn keys_dir(path: String, spec: SpecType) -> Result<RootDiskDirectory, String> {
 fn secret_store(dir: Box<RootDiskDirectory>, iterations: Option<u32>) -> Result<EthStore, String> {
 	match iterations {
 		Some(i) => EthStore::open_with_iterations(dir, i),
-		_ => EthStore::open(dir) 
+		_ => EthStore::open(dir)
 	}.map_err(|e| format!("Could not open keys store: {}", e))
 }
 
@@ -94,16 +94,16 @@ fn new(n: NewAccount) -> Result<String, String> {
 	let secret_store = Box::new(secret_store(dir, Some(n.iterations))?);
 	let acc_provider = AccountProvider::new(secret_store, AccountProviderSettings::default());
 	let new_account = acc_provider.new_account(&password).map_err(|e| format!("Could not create new account: {}", e))?;
-	Ok(format!("{:?}", new_account))
+	Ok(format!("0x{:?}", new_account))
 }
 
 fn list(list_cmd: ListAccounts) -> Result<String, String> {
 	let dir = Box::new(keys_dir(list_cmd.path, list_cmd.spec)?);
 	let secret_store = Box::new(secret_store(dir, None)?);
 	let acc_provider = AccountProvider::new(secret_store, AccountProviderSettings::default());
-	let accounts = acc_provider.accounts();
+	let accounts = acc_provider.accounts().map_err(|e| format!("{}", e))?;
 	let result = accounts.into_iter()
-		.map(|a| format!("{:?}", a))
+		.map(|a| format!("0x{:?}", a))
 		.collect::<Vec<String>>()
 		.join("\n");
 
@@ -113,10 +113,18 @@ fn list(list_cmd: ListAccounts) -> Result<String, String> {
 fn import(i: ImportAccounts) -> Result<String, String> {
 	let to = keys_dir(i.to, i.spec)?;
 	let mut imported = 0;
+
 	for path in &i.from {
-		let from = RootDiskDirectory::at(path);
-		imported += import_accounts(&from, &to).map_err(|_| "Importing accounts failed.")?.len();
+		let path = PathBuf::from(path);
+		if path.is_dir() {
+			let from = RootDiskDirectory::at(&path);
+			imported += import_accounts(&from, &to).map_err(|e| format!("Importing accounts from {:?} failed: {}", path, e))?.len();
+		} else if path.is_file() {
+			import_account(&path, &to).map_err(|e| format!("Importing account from {:?} failed: {}", path, e))?;
+			imported += 1;
+		}
 	}
+
 	Ok(format!("{} account(s) imported", imported))
 }
 

@@ -42,7 +42,12 @@ pub struct BasicAuthority {
 #[cfg(test)]
 mod tests {
 	use serde_json;
+	use uint::Uint;
+	use util::U256;
+	use hash::Address;
+	use util::hash::H160;
 	use spec::basic_authority::BasicAuthority;
+	use spec::validator_set::ValidatorSet;
 
 	#[test]
 	fn basic_authority_deserialization() {
@@ -56,6 +61,11 @@ mod tests {
 			}
 		}"#;
 
-		let _deserialized: BasicAuthority = serde_json::from_str(s).unwrap();
+		let deserialized: BasicAuthority = serde_json::from_str(s).unwrap();
+
+		assert_eq!(deserialized.params.gas_limit_bound_divisor, Uint(U256::from(0x0400)));
+		assert_eq!(deserialized.params.duration_limit, Uint(U256::from(0x0d)));
+		let vs = ValidatorSet::List(vec![Address(H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562b"))]);
+		assert_eq!(deserialized.params.validators, vs);
 	}
 }
