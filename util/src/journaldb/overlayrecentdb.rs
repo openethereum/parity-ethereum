@@ -23,7 +23,6 @@ use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use kvdb::{KeyValueDB, DBTransaction};
 use super::JournalDB;
-use heapsize::HeapSizeOf;
 
 /// Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
 /// and, possibly, latent-removal semantics.
