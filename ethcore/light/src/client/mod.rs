@@ -16,7 +16,7 @@
 
 //! Light client implementation. Stores data from light sync
 
-use std::sync::Arc;
+use std::sync::{Weak, Arc};
 
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
@@ -111,6 +111,12 @@ pub trait LightChainClient: Send + Sync {
 	fn eip86_transition(&self) -> u64;
 }
 
+/// An actor listening to light chain events.
+pub trait LightChainNotify: Send + Sync {
+	/// Notifies about imported headers.
+	fn new_headers(&self, good: &[H256]);
+}
+
 /// Something which can be treated as a `LightChainClient`.
 pub trait AsLightClient {
 	/// The kind of light client this can be treated as.
@@ -134,6 +140,7 @@ pub struct Client {
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
 	db: Arc<KeyValueDB>,
+	listeners: RwLock<Vec<Weak<LightChainNotify>>>,
 }
 
 impl Client {
@@ -148,7 +155,13 @@ impl Client {
 			report: RwLock::new(ClientReport::default()),
 			import_lock: Mutex::new(()),
 			db: db,
+			listeners: RwLock::new(vec![]),
 		})
+	}
+
+	/// Adds a new `LightChainNotify` listener.
+	pub fn add_listener(&self, listener: Weak<LightChainNotify>) {
+		self.listeners.write().push(listener);
 	}
 
 	/// Create a new `Client` backed purely in-memory.
@@ -272,6 +285,8 @@ impl Client {
 
 		self.queue.mark_as_bad(&bad);
 		self.queue.mark_as_good(&good);
+
+		self.notify(|listener| listener.new_headers(&good));
 	}
 
 	/// Get a report about blocks imported.
@@ -326,6 +341,14 @@ impl Client {
 		}
 
 		Arc::new(v)
+	}
+
+	fn notify<F: Fn(&LightChainNotify)>(&self, f: F) {
+		for listener in &*self.listeners.read() {
+			if let Some(listener) = listener.upgrade() {
+				f(&*listener)
+			}
+		}
 	}
 }
 

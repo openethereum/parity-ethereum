@@ -120,6 +120,8 @@ impl RequestSet {
 	pub fn is_empty(&self) -> bool { self.len() == 0 }
 
 	/// The cumulative cost of all requests in the set.
+	// this may be useful later for load balancing.
+	#[allow(dead_code)]
 	pub fn cumulative_cost(&self) -> U256 { self.cumulative_cost }
 }
 

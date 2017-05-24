@@ -98,6 +98,13 @@ usage! {
 		flag_no_persistent_txqueue: bool = false,
 			or |c: &Config| otry!(c.parity).no_persistent_txqueue,
 
+		// -- Convenience Options
+		flag_config: String = "$BASE/config.toml", or |_| None,
+		flag_ports_shift: u16 = 0u16,
+			or |c: &Config| otry!(c.misc).ports_shift,
+		flag_unsafe_expose: bool = false,
+			or |c: &Config| otry!(c.misc).unsafe_expose,
+
 		// -- Account Options
 		flag_unlock: Option<String> = None,
 			or |c: &Config| otry!(c.account).unlock.as_ref().map(|vec| Some(vec.join(","))),
@@ -117,6 +124,8 @@ usage! {
 			or |c: &Config| otry!(c.ui).port.clone(),
 		flag_ui_interface: String = "local",
 			or |c: &Config| otry!(c.ui).interface.clone(),
+		flag_ui_hosts: String = "none",
+			or |c: &Config| otry!(c.ui).hosts.as_ref().map(|vec| vec.join(",")),
 		flag_ui_path: String = "$BASE/signer",
 			or |c: &Config| otry!(c.ui).path.clone(),
 		// NOTE [todr] For security reasons don't put this to config files
@@ -165,7 +174,7 @@ usage! {
 			or |c: &Config| otry!(c.rpc).interface.clone(),
 		flag_jsonrpc_cors: Option<String> = None,
 			or |c: &Config| otry!(c.rpc).cors.clone().map(Some),
-		flag_jsonrpc_apis: String = "web3,eth,net,parity,traces,rpc,secretstore",
+		flag_jsonrpc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore",
 			or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.as_ref().map(|vec| vec.join(",")),
@@ -179,9 +188,9 @@ usage! {
 			or |c: &Config| otry!(c.websockets).port.clone(),
 		flag_ws_interface: String  = "local",
 			or |c: &Config| otry!(c.websockets).interface.clone(),
-		flag_ws_apis: String = "web3,eth,net,parity,traces,rpc,secretstore",
+		flag_ws_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore",
 			or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
-		flag_ws_origins: String = "none",
+		flag_ws_origins: String = "chrome-extension://*",
 			or |c: &Config| otry!(c.websockets).origins.as_ref().map(|vec| vec.join(",")),
 		flag_ws_hosts: String = "none",
 			or |c: &Config| otry!(c.websockets).hosts.as_ref().map(|vec| vec.join(",")),
@@ -189,9 +198,9 @@ usage! {
 		// IPC
 		flag_no_ipc: bool = false,
 			or |c: &Config| otry!(c.ipc).disable.clone(),
-		flag_ipc_path: String = "$BASE/jsonrpc.ipc",
+		flag_ipc_path: String = if cfg!(windows) { r"\\.\pipe\jsonrpc.ipc" } else { "$BASE/jsonrpc.ipc" },
 			or |c: &Config| otry!(c.ipc).path.clone(),
-		flag_ipc_apis: String = "web3,eth,net,parity,parity_accounts,traces,rpc,secretstore",
+		flag_ipc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,secretstore",
 			or |c: &Config| otry!(c.ipc).apis.as_ref().map(|vec| vec.join(",")),
 
 		// DAPPS
@@ -339,7 +348,6 @@ usage! {
 			or |c: &Config| otry!(c.vm).jit.clone(),
 
 		// -- Miscellaneous Options
-		flag_config: String = "$BASE/config.toml", or |_| None,
 		flag_logging: Option<String> = None,
 			or |c: &Config| otry!(c.misc).logging.clone().map(Some),
 		flag_log_file: Option<String> = None,
@@ -424,6 +432,7 @@ struct Ui {
 	disable: Option<bool>,
 	port: Option<u16>,
 	interface: Option<String>,
+	hosts: Option<Vec<String>>,
 	path: Option<String>,
 }
 
@@ -575,6 +584,8 @@ struct Misc {
 	logging: Option<String>,
 	log_file: Option<String>,
 	color: Option<bool>,
+	ports_shift: Option<u16>,
+	unsafe_expose: Option<bool>,
 }
 
 #[cfg(test)]
@@ -686,6 +697,11 @@ mod tests {
 			flag_light: false,
 			flag_no_persistent_txqueue: false,
 
+			// -- Convenience Options
+			flag_config: "$BASE/config.toml".into(),
+			flag_ports_shift: 0,
+			flag_unsafe_expose: false,
+
 			// -- Account Options
 			flag_unlock: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			flag_password: vec!["~/.safe/password.file".into()],
@@ -696,6 +712,7 @@ mod tests {
 			flag_no_ui: false,
 			flag_ui_port: 8180u16,
 			flag_ui_interface: "127.0.0.1".into(),
+			flag_ui_hosts: "none".into(),
 			flag_ui_path: "$HOME/.parity/signer".into(),
 			flag_ui_no_validation: false,
 
@@ -862,7 +879,6 @@ mod tests {
 
 			// -- Miscellaneous Options
 			flag_version: false,
-			flag_config: "$BASE/config.toml".into(),
 			flag_logging: Some("own_tx=trace".into()),
 			flag_log_file: Some("/var/log/parity.log".into()),
 			flag_no_color: false,
@@ -917,6 +933,7 @@ mod tests {
 				disable: Some(true),
 				port: None,
 				interface: None,
+				hosts: None,
 				path: None,
 			}),
 			network: Some(Network {
@@ -1037,6 +1054,8 @@ mod tests {
 				logging: Some("own_tx=trace".into()),
 				log_file: Some("/var/log/parity.log".into()),
 				color: Some(true),
+				ports_shift: Some(0),
+				unsafe_expose: Some(false),
 			}),
 			stratum: None,
 		});

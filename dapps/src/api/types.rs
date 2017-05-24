@@ -14,46 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use endpoint::EndpointInfo;
-
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct App {
-	pub id: String,
-	pub name: String,
-	pub description: String,
-	pub version: String,
-	pub author: String,
-	#[serde(rename="iconUrl")]
-	pub icon_url: String,
-}
-
-impl App {
-	/// Creates `App` instance from `EndpointInfo` and `id`.
-	pub fn from_info(id: &str, info: &EndpointInfo) -> Self {
-		App {
-			id: id.to_owned(),
-			name: info.name.to_owned(),
-			description: info.description.to_owned(),
-			version: info.version.to_owned(),
-			author: info.author.to_owned(),
-			icon_url: info.icon_url.to_owned(),
-		}
-	}
-}
-
-impl Into<EndpointInfo> for App {
-	fn into(self) -> EndpointInfo {
-		EndpointInfo {
-			name: self.name,
-			description: self.description,
-			version: self.version,
-			author: self.author,
-			icon_url: self.icon_url,
-		}
-	}
-}
-
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ApiError {

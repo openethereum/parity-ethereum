@@ -109,9 +109,9 @@ contract.at('0xa9280...7347b');
 find & call a function
 
 ```javascript
-contract.named
-  .callMe
-  .call({ gas: 21000 }, [true, 'someString']) // or estimateGas or sendTransaction
+contract.instance
+  .myContractMethodName
+  .call({}, [myContractMethodParameter]) // or estimateGas or sendTransaction
   .then((result) => {
     console.log(`the result was ${result}`);
   });

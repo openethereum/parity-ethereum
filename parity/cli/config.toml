@@ -81,3 +81,5 @@ jit = false
 logging = "own_tx=trace"
 log_file = "/var/log/parity.log"
 color = true
+ports_shift = 0
+unsafe_expose = false

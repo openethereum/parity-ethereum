@@ -22,7 +22,3 @@ ipc-common-types = { path = "../ipc-common-types" }
 ethcore-ipc = { path = "../ipc/rpc" }
 parity-reactor = { path = "../util/reactor" }
 path = { path = "../util/path" }
-
-[profile.release]
-debug = true
-lto = false

@@ -19,7 +19,7 @@
 use std::cmp::*;
 use std::fmt;
 use std::collections::BTreeMap;
-use util::{U256, H256, Uint, Bytes};
+use util::{U256, H256, Bytes};
 use ipc::binary::BinaryConvertable;
 
 #[derive(Debug, PartialEq, Eq, Clone)]

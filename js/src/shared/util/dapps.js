@@ -33,21 +33,6 @@ const builtinApps = [].concat(
   builtinJson.filter((app) => app.id)
 );
 
-function getHost (api) {
-  const host = process.env.DAPPS_URL ||
-    (
-      process.env.NODE_ENV === 'production'
-      ? api.dappsUrl
-      : ''
-    );
-
-  if (host === '/') {
-    return '';
-  }
-
-  return host;
-}
-
 export function subscribeToChanges (api, dappReg, callback) {
   return dappReg
     .getContract()
@@ -115,12 +100,7 @@ export function fetchBuiltinApps (api) {
 }
 
 export function fetchLocalApps (api) {
-  return fetch(`${getHost(api)}/api/apps`)
-    .then((response) => {
-      return response.ok
-        ? response.json()
-        : [];
-    })
+  return api.parity.dappsList()
     .then((apps) => {
       return apps
         .map((app) => {
@@ -205,7 +185,7 @@ export function fetchManifest (api, manifestHash) {
   }
 
   return fetch(
-      `${getHost(api)}/api/content/${manifestHash}/`,
+      `/api/content/${manifestHash}/`,
       { redirect: 'follow', mode: 'cors' }
     )
     .then((response) => {

@@ -27,7 +27,7 @@ extern crate test;
 extern crate ethcore_util;
 
 use test::{Bencher, black_box};
-use ethcore_util::{U256, U512, Uint, U128};
+use ethcore_util::{U256, U512, U128};
 
 #[bench]
 fn u256_add(b: &mut Bencher) {

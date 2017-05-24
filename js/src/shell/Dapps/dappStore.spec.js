@@ -26,17 +26,11 @@ const APPID_DAPPREG = '0x7bbc4f1a27628781b96213e781a1b8eec6982c1db8fac739af6e4c5
 const APPID_GHH = '0x058740ee9a5a3fb9f1cfa10752baec87e09cc45cd7027fd54708271aca300c75';
 const APPID_LOCALTX = '0xae74ad174b95cdbd01c88ac5b73a296d33e9088fc2a200e76bcedf3a94a7815d';
 const APPID_TOKENDEPLOY = '0xf9f2d620c2e08f83e45555247146c62185e4ab7cf82a4b9002a265a0d020348f';
-const FETCH_OK = {
-  ok: true,
-  status: 200
-};
 
 let globalContractsGet;
-let globalFetch;
 
 function stubGlobals () {
   globalContractsGet = Contracts.get;
-  globalFetch = global.fetch;
 
   Contracts.get = () => {
     return {
@@ -50,31 +44,21 @@ function stubGlobals () {
       }
     };
   };
-
-  global.fetch = (url) => {
-    switch (url) {
-      case '/api/apps':
-        return Promise.resolve(Object.assign({}, FETCH_OK, {
-          json: sinon.stub().resolves([]) // TODO: Local stubs in here
-        }));
-
-      default:
-        console.log('Unknown fetch stub endpoint', url);
-        return Promise.reject();
-    }
-  };
 }
 
 function restoreGlobals () {
   Contracts.get = globalContractsGet;
-  global.fetch = globalFetch;
 }
 
 let api;
 let store;
 
 function create () {
-  api = {};
+  api = {
+    parity: {
+      dappsList: () => Promise.resolve([])
+    }
+  };
   store = new Store(api);
 
   return store;

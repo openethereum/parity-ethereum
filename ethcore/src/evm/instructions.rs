@@ -279,6 +279,7 @@ lazy_static! {
 		arr[DELEGATECALL as usize] =	InstructionInfo::new("DELEGATECALL",	0, 6, 1, true, GasPriceTier::Special);
 		arr[SUICIDE as usize] = 		InstructionInfo::new("SUICIDE",			0, 1, 0, true, GasPriceTier::Special);
 		arr[CREATE2 as usize] = 		InstructionInfo::new("CREATE2",			0, 3, 1, true, GasPriceTier::Special);
+		arr[REVERT as usize] =			InstructionInfo::new("REVERT",			0, 2, 0, true, GasPriceTier::Zero);
 		arr
 	};
 }
@@ -556,6 +557,8 @@ pub const RETURN: Instruction = 0xf3;
 pub const DELEGATECALL: Instruction = 0xf4;
 /// create a new account and set creation address to sha3(sender + sha3(init code)) % 2**160
 pub const CREATE2: Instruction = 0xfb;
+/// stop execution and revert state changes. Return output data.
+pub const REVERT: Instruction = 0xfd;
 /// halt execution and register account for later deletion
 pub const SUICIDE: Instruction = 0xff;
 

@@ -1,5 +1,6 @@
 FROM ubuntu:14.04
 WORKDIR /build
+
 # install tools and dependencies
 RUN apt-get -y update && \
         apt-get install -y --force-yes --no-install-recommends \
@@ -24,14 +25,11 @@ RUN rustup target add aarch64-unknown-linux-gnu
 ENV RUST_BACKTRACE 1
 
 # show tools
- RUN rustc -vV && \
- cargo -V
+RUN rustc -vV && cargo -V
 
 # build parity
-RUN git clone https://github.com/paritytech/parity && \
-        cd parity && \
-        git checkout beta && \
-        git pull && \
+ADD . /build/parity
+RUN cd parity && \
         mkdir -p .cargo && \
         echo '[target.aarch64-unknown-linux-gnu]\n\
         linker = "aarch64-linux-gnu-gcc"\n'\

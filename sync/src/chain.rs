@@ -2194,7 +2194,7 @@ mod tests {
 	use network::PeerId;
 	use tests::helpers::*;
 	use tests::snapshot::TestSnapshotService;
-	use util::{Uint, U256, Address, RwLock};
+	use util::{U256, Address, RwLock};
 	use util::sha3::Hashable;
 	use util::hash::H256;
 	use util::bytes::Bytes;

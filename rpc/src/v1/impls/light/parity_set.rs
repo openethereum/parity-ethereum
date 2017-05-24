@@ -26,21 +26,24 @@ use futures::{BoxFuture, Future};
 use util::sha3;
 
 use jsonrpc_core::Error;
+use v1::helpers::dapps::DappsService;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
-use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
+use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction, LocalDapp};
 
 /// Parity-specific rpc interface for operations altering the settings.
 pub struct ParitySetClient<F> {
 	net: Arc<ManageNetwork>,
+	dapps: Option<Arc<DappsService>>,
 	fetch: F,
 }
 
 impl<F: Fetch> ParitySetClient<F> {
 	/// Creates new `ParitySetClient` with given `Fetch`.
-	pub fn new(net: Arc<ManageNetwork>, fetch: F) -> Self {
+	pub fn new(net: Arc<ManageNetwork>, dapps: Option<Arc<DappsService>>, fetch: F) -> Self {
 		ParitySetClient {
 			net: net,
+			dapps: dapps,
 			fetch: fetch,
 		}
 	}
@@ -130,6 +133,10 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 				})
 				.map(Into::into)
 		}))
+	}
+
+	fn dapps_list(&self) -> Result<Vec<LocalDapp>, Error> {
+		self.dapps.as_ref().map(|dapps| dapps.list_dapps()).ok_or_else(errors::dapps_disabled)
 	}
 
 	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>, Error> {

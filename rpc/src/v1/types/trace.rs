@@ -23,7 +23,6 @@ use ethcore::state_diff;
 use ethcore::account_diff;
 use ethcore::executed;
 use ethcore::client::Executed;
-use util::Uint;
 use v1::types::{Bytes, H160, H256, U256};
 
 #[derive(Debug, Serialize)]
