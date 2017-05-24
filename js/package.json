@@ -174,7 +174,6 @@
     "flow": "^0.2.3",
     "format-json": "1.0.3",
     "format-number": "2.0.1",
-    "geopattern": "1.2.3",
     "isomorphic-fetch": "2.2.1",
     "lodash": "4.17.2",
     "loglevel": "1.4.1",
