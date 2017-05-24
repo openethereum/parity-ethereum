@@ -52,7 +52,7 @@ fn setup() -> PersonalTester {
 	let client = blockchain_client();
 	let miner = miner_service();
 
-	let dispatcher = FullDispatcher::new(client, miner);
+	let dispatcher = FullDispatcher::new(client, miner.clone());
 	let personal = PersonalClient::new(&opt_accounts, dispatcher, false);
 
 	let mut io = IoHandler::default();
