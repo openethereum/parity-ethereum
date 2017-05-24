@@ -16,7 +16,7 @@
 
 //! Transactions Confirmations rpc implementation
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::transaction::{SignedTransaction, PendingTransaction};
@@ -38,8 +38,8 @@ use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationRespon
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<D: Dispatcher> {
-	signer: Weak<SignerService>,
-	accounts: Option<Weak<AccountProvider>>,
+	signer: Arc<SignerService>,
+	accounts: Option<Arc<AccountProvider>>,
 	dispatcher: D,
 	subscribers: Arc<Mutex<Subscribers<Sink<Vec<ConfirmationRequest>>>>>,
 }
@@ -90,7 +90,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		let dispatcher = self.dispatcher.clone();
 
 		let setup = || {
-			Ok((self.account_provider()?, take_weak!(self.signer)))
+			Ok((self.account_provider()?, self.signer))
 		};
 
 		let (accounts, signer) = match setup() {
@@ -166,8 +166,7 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	type Metadata = Metadata;
 
 	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>, Error> {
-		let signer = take_weak!(self.signer);
-		Ok(signer.requests()
+		Ok(self.signer.requests()
 			.into_iter()
 			.map(Into::into)
 			.collect()
@@ -200,7 +199,7 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse, Error> {
 		let id = id.into();
-		let signer = take_weak!(self.signer);
+		let signer = self.signer;
 
 		signer.peek(&id).map(|confirmation| {
 			let result = match confirmation.payload {
@@ -238,17 +237,17 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	}
 
 	fn reject_request(&self, id: U256) -> Result<bool, Error> {
-		let res = take_weak!(self.signer).request_rejected(id.into());
+		let res = self.signer.request_rejected(id.into());
 		Ok(res.is_some())
 	}
 
 	fn generate_token(&self) -> Result<String, Error> {
-		take_weak!(self.signer).generate_token()
+		self.signer.generate_token()
 			.map_err(|e| errors::token(e))
 	}
 
 	fn generate_web_proxy_token(&self) -> Result<String, Error> {
-		Ok(take_weak!(self.signer).generate_web_proxy_access_token())
+		Ok(self.signer.generate_web_proxy_access_token())
 	}
 
 	fn subscribe_pending(&self, _meta: Self::Metadata, sub: Subscriber<Vec<ConfirmationRequest>>) {
@@ -260,4 +259,3 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 		futures::future::ok(res).boxed()
 	}
 }
-
