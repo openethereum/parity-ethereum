@@ -31,9 +31,6 @@ struct PersonalTester {
 	accounts: Arc<AccountProvider>,
 	io: IoHandler<Metadata>,
 	miner: Arc<TestMinerService>,
-	// these unused fields are necessary to keep the data alive
-	// as the handler has only weak pointers.
-	_client: Arc<TestBlockChainClient>,
 }
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
@@ -65,7 +62,6 @@ fn setup() -> PersonalTester {
 		accounts: accounts,
 		io: io,
 		miner: miner,
-		_client: client,
 	};
 
 	tester
@@ -220,4 +216,3 @@ fn should_unlock_account_permanently() {
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
 	assert!(tester.accounts.sign(address, None, Default::default()).is_ok(), "Should unlock account.");
 }
-
