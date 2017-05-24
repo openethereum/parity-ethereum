@@ -37,8 +37,6 @@ pub use key_server_cluster::decryption_session::DecryptionSessionId as SigningSe
 
 /// Signing session API.
 pub trait Session: Send + Sync + 'static {
-	/// Get session state.
-	fn state(&self) -> SessionState;
 	/// Wait until session is completed. Returns signed message.
 	fn wait(&self) -> Result<(Secret, Secret), Error>;
 }
@@ -190,9 +188,9 @@ impl SessionImpl {
 		})
 	}
 
-	/// Get this node Id.
-	pub fn node(&self) -> &NodeId {
-		&self.self_node_id
+	/// Get current session state.
+	pub fn state(&self) -> SessionState {
+		self.data.lock().state.clone()
 	}
 
 	/// Initialize signing session.
@@ -209,8 +207,8 @@ impl SessionImpl {
 
 		// update state
 		data.state = SessionState::EstablishingConsensus;
-		data.master = Some(self.node().clone());
-		data.requestor = Some(requestor_public.clone());
+		data.master = Some(self.self_node_id.clone());
+		data.requestor = Some(requestor_public);
 		data.message_hash = Some(message_hash);
 
 		// create consensus session
@@ -232,9 +230,9 @@ impl SessionImpl {
 
 		// if single node is required to sign message, proceed
 		if data.state == SessionState::EstablishedConsensus {
-			SessionImpl::start_generating_session_key(self.self_node_id.clone(), &self.encrypted_data, &self.cluster, &mut *data)?;
+			SessionImpl::start_generating_session_key(&self.self_node_id, &self.encrypted_data, &self.cluster, &mut *data)?;
 			SessionImpl::process_generation_session_action(&self.id, &self.access_key, &self.completed, &mut *data)?;
-			SessionImpl::start_waiting_for_partial_signing(self.node(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data)?;
+			SessionImpl::start_waiting_for_partial_signing(&self.self_node_id, &self.id, &self.access_key, &self.cluster, &self.encrypted_data, &mut *data)?;
 			SessionImpl::do_signing(&mut *data)?;
 			self.completed.notify_all();
 		}
@@ -275,8 +273,9 @@ impl SessionImpl {
 			match message.message {
 				ConsensusMessage::InitializeConsensusSession(ref message) => {
 					let requestor = ethkey::recover(&message.requestor_signature, &self.id)?;
-					data.requestor = Some(requestor.clone());
-					consensus_session.on_initialize_session(sender, &requestor)?
+					let consensus_action = consensus_session.on_initialize_session(sender, &requestor)?;
+					data.requestor = Some(requestor);
+					consensus_action
 				},
 				ConsensusMessage::ConfirmConsensusInitialization(ref message) => {
 					let consensus = data.consensus.as_mut().ok_or(Error::InvalidStateForRequest)?;
@@ -291,7 +290,7 @@ impl SessionImpl {
 			return Ok(());
 		}
 
-		SessionImpl::start_generating_session_key(self.self_node_id.clone(), &self.encrypted_data, &self.cluster, &mut *data)?;
+		SessionImpl::start_generating_session_key(&self.self_node_id, &self.encrypted_data, &self.cluster, &mut *data)?;
 		SessionImpl::process_generation_session_action(&self.id, &self.access_key, &self.completed, &mut *data)
 	}
 
@@ -368,14 +367,14 @@ impl SessionImpl {
 			return Ok(());
 		}
 
-		SessionImpl::start_waiting_for_partial_signing(self.node(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data)
+		SessionImpl::start_waiting_for_partial_signing(&self.self_node_id, &self.id, &self.access_key, &self.cluster, &self.encrypted_data, &mut *data)
 	}
 
 	/// When partial signature is requested.
 	pub fn on_partial_signature_requested(&self, sender: NodeId, message: &RequestPartialSignature) -> Result<(), Error> {
 		debug_assert!(self.id == *message.session);
 		debug_assert!(self.access_key == *message.sub_session);
-		debug_assert!(&sender != self.node());
+		debug_assert!(sender != self.self_node_id);
 
 		let mut data = self.data.lock();
 
@@ -399,7 +398,7 @@ impl SessionImpl {
 		self.cluster.send(&sender, Message::Signing(SigningMessage::PartialSignature(PartialSignature {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
-			request_id: message.request_id.clone(),
+			request_id: message.request_id.clone().into(),
 			partial_signature: partial_signature.into(),
 		})))?;
 
@@ -413,7 +412,7 @@ impl SessionImpl {
 	pub fn on_partial_signature(&self, sender: NodeId, message: &PartialSignature) -> Result<(), Error> {
 		debug_assert!(self.id == *message.session);
 		debug_assert!(self.access_key == *message.sub_session);
-		debug_assert!(&sender != self.node());
+		debug_assert!(sender != self.self_node_id);
 
 		let mut data = self.data.lock();
 
@@ -453,7 +452,7 @@ impl SessionImpl {
 	pub fn on_session_completed(&self, sender: NodeId, message: &SigningSessionCompleted) -> Result<(), Error> {
 		debug_assert!(self.id == *message.session);
 		debug_assert!(self.access_key == *message.sub_session);
-		debug_assert!(&sender != self.node());
+		debug_assert!(sender != self.self_node_id);
 
 		let mut data = self.data.lock();
 
@@ -476,7 +475,7 @@ impl SessionImpl {
 	pub fn on_session_error(&self, sender: NodeId, message: &SigningSessionError) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
-		warn!("{}: signing session failed with error: {:?} from {}", self.node(), message.error, sender);
+		warn!("{}: signing session failed with error: {:?} from {}", self.self_node_id, message.error, sender);
 
 		data.state = SessionState::Failed;
 		data.signed_message = Some(Err(Error::Io(message.error.clone())));
@@ -521,14 +520,14 @@ impl SessionImpl {
 	}
 
 	/// Start generating one-time session key.
-	fn start_generating_session_key(self_node_id: NodeId, encrypted_data: &DocumentKeyShare, cluster: &Arc<Cluster>, data: &mut SessionData) -> Result<(), Error> {
+	fn start_generating_session_key(self_node_id: &NodeId, encrypted_data: &DocumentKeyShare, cluster: &Arc<Cluster>, data: &mut SessionData) -> Result<(), Error> {
 		// update state
 		data.state = SessionState::SessionKeyGeneration;
 
 		// select nodes to make signature
 		let mut consensus = data.consensus.as_mut().expect("consensus is filled during initialization phase; key generation phase follows initialization; qed");
 		consensus.activate()?;
-		let (_, selected_nodes) = consensus.select_nodes(&self_node_id)?;
+		let (_, selected_nodes) = consensus.select_nodes(self_node_id)?;
 
 		// create generation session
 		let generation_cluster = Arc::new(SigningCluster::new(cluster.clone(), self_node_id.clone(), selected_nodes.clone()));
@@ -592,7 +591,7 @@ impl SessionImpl {
 	}
 
 	/// Start waiting for partial signatures/partial signatures requests.
-	fn start_waiting_for_partial_signing(self_node_id: &NodeId, session_id: SessionId, access_key: Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
+	fn start_waiting_for_partial_signing(self_node_id: &NodeId, session_id: &SessionId, access_key: &Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
 		if data.master.as_ref() != Some(self_node_id) {
 			// if we are on the slave node, wait for partial signature requests
 			data.state = SessionState::WaitingForPartialSignatureRequest;
@@ -674,7 +673,7 @@ impl ClusterSession for SessionImpl {
 	fn on_node_timeout(&self, node: &NodeId) {
 		let mut data = self.data.lock();
 
-		let is_self_master = data.master.as_ref() == Some(self.node());
+		let is_self_master = data.master.as_ref() == Some(&self.self_node_id);
 		let is_other_master = data.master.as_ref() == Some(node);
 		// if this is master node, we might have to restart
 		if is_self_master {
@@ -687,7 +686,7 @@ impl ClusterSession for SessionImpl {
 				},
 			};
 			if is_restart_required {
-				if SessionImpl::start_waiting_for_partial_signing(self.node(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data).is_ok() {
+				if SessionImpl::start_waiting_for_partial_signing(&self.self_node_id, &self.id, &self.access_key, &self.cluster, &self.encrypted_data, &mut *data).is_ok() {
 					return;
 				}
 			}
@@ -698,7 +697,7 @@ impl ClusterSession for SessionImpl {
 		}
 		// else: disconnecting from master node means failure
 
-		warn!("{}: signing session failed because {} connection has timeouted", self.node(), node);
+		warn!("{}: signing session failed because {} connection has timeouted", self.self_node_id, node);
 
 		data.state = SessionState::Failed;
 		data.signed_message = Some(Err(Error::NodeDisconnected));
@@ -708,7 +707,7 @@ impl ClusterSession for SessionImpl {
 	fn on_session_timeout(&self) {
 		let mut data = self.data.lock();
 
-		let is_self_master = data.master.as_ref() == Some(self.node());
+		let is_self_master = data.master.as_ref() == Some(&self.self_node_id);
 		// if this is master node, we might have to restart
 		if is_self_master {
 			let is_restart_required = match data.consensus.as_mut() {
@@ -719,13 +718,13 @@ impl ClusterSession for SessionImpl {
 				},
 			};
 			if is_restart_required {
-				if SessionImpl::start_waiting_for_partial_signing(self.node(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data).is_ok() {
+				if SessionImpl::start_waiting_for_partial_signing(&self.self_node_id, &self.id, &self.access_key, &self.cluster, &self.encrypted_data, &mut *data).is_ok() {
 					return;
 				}
 			}
 		}
 
-		warn!("{}: signing session failed with timeout", self.node());
+		warn!("{}: signing session failed with timeout", self.self_node_id);
 
 		data.state = SessionState::Failed;
 		data.signed_message = Some(Err(Error::NodeDisconnected));
@@ -767,16 +766,12 @@ impl Cluster for SigningCluster {
 	}
 
 	fn send(&self, to: &NodeId, message: Message) -> Result<(), Error> {
-		self.messages.lock().push_back((to.clone(), message.clone()));
+		self.messages.lock().push_back((to.clone(), message));
 		Ok(())
 	}
 }
 
 impl Session for SessionImpl {
-	fn state(&self) -> SessionState {
-		self.data.lock().state.clone()
-	}
-
 	fn wait(&self) -> Result<(Secret, Secret), Error> {
 		let mut data = self.data.lock();
 		if !data.signed_message.is_some() {
@@ -813,6 +808,7 @@ mod tests {
 	use key_server_cluster::signing_session::{Session, SessionImpl, SessionParams};
 
 	struct Node {
+		pub node_id: NodeId,
 		pub cluster: Arc<DummyCluster>,
 		pub session: SessionImpl,
 	}
@@ -838,7 +834,7 @@ mod tests {
 					acl_storage: acl_storage,
 					cluster: cluster.clone(),
 				}).unwrap();
-				nodes.insert(gl_node_id.clone(), Node { cluster: cluster, session: session });
+				nodes.insert(gl_node_id.clone(), Node { node_id: gl_node_id.clone(), cluster: cluster, session: session });
 			}
 
 			let nodes_ids: Vec<_> = nodes.keys().cloned().collect();
@@ -861,7 +857,7 @@ mod tests {
 
 		pub fn take_message(&mut self) -> Option<(NodeId, NodeId, Message)> {
 			self.nodes.values()
-				.filter_map(|n| n.cluster.take_message().map(|m| (n.session.node().clone(), m.0, m.1)))
+				.filter_map(|n| n.cluster.take_message().map(|m| (n.node_id.clone(), m.0, m.1)))
 				.nth(0)
 				.or_else(|| self.queue.pop_front())
 		}

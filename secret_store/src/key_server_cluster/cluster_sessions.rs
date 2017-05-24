@@ -30,7 +30,7 @@ use key_server_cluster::decryption_session::{Session as DecryptionSession, Sessi
 use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionImpl as EncryptionSessionImpl,
 	SessionParams as EncryptionSessionParams, SessionState as EncryptionSessionState};
 use key_server_cluster::signing_session::{Session as SigningSession, SessionImpl as SigningSessionImpl,
-	SigningSessionId, SessionParams as SigningSessionParams, SessionState as SigningSessionState};
+	SigningSessionId, SessionParams as SigningSessionParams};
 
 /// When there are no session-related messages for SESSION_TIMEOUT_INTERVAL seconds,
 /// we must treat this session as stalled && finish it with an error.
@@ -256,7 +256,7 @@ impl ClusterSessions {
 				// => or broadcast error
 
 				// do not bother processing send error, as we already processing error
-				if &s.master == s.session.node() {
+				if s.master == self.self_node_id {
 					let _ = s.cluster_view.broadcast(Message::Decryption(DecryptionMessage::DecryptionSessionError(error)));
 				} else {
 					let _ = s.cluster_view.send(to, Message::Decryption(DecryptionMessage::DecryptionSessionError(error)));
@@ -296,7 +296,7 @@ impl ClusterSessions {
 				// => or broadcast error
 
 				// do not bother processing send error, as we already processing error
-				if &s.master == s.session.node() {
+				if s.master == self.self_node_id {
 					let _ = s.cluster_view.broadcast(Message::Signing(SigningMessage::SigningSessionError(error)));
 				} else {
 					let _ = s.cluster_view.send(to, Message::Signing(SigningMessage::SigningSessionError(error)));
@@ -494,10 +494,6 @@ impl SigningSessionWrapper {
 }
 
 impl SigningSession for SigningSessionWrapper {
-	fn state(&self) -> SigningSessionState {
-		self.session.state()
-	}
-
 	fn wait(&self) -> Result<(Secret, Secret), Error> {
 		self.session.wait()
 	}
