@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Weak;
+use std::sync::Arc;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
 use ethcore::transaction::{Transaction, SignedTransaction, Action};
@@ -24,12 +24,10 @@ use v1::helpers::CallRequest;
 use v1::helpers::dispatch::default_gas_price;
 
 pub fn sign_call<B: MiningBlockChainClient, M: MinerService>(
-	client: &Weak<B>,
-	miner: &Weak<M>,
+	client: &Arc<B>,
+	miner: &Arc<M>,
 	request: CallRequest,
 ) -> Result<SignedTransaction, Error> {
-	let client = take_weak!(client);
-	let miner = take_weak!(miner);
 	let from = request.from.unwrap_or(0.into());
 
 	Ok(Transaction {
