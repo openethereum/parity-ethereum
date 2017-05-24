@@ -47,8 +47,8 @@ impl<C, M> TracesClient<C, M> {
 	/// Creates new Traces client.
 	pub fn new(client: &Arc<C>, miner: &Arc<M>) -> Self {
 		TracesClient {
-			client: Arc::downgrade(client),
-			miner: Arc::downgrade(miner),
+			client: *client,
+			miner: *miner,
 		}
 	}
 }
