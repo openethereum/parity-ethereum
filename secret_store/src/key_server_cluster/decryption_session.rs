@@ -200,7 +200,6 @@ impl SessionImpl {
 
 		// check state
 		if data.state != SessionState::WaitingForInitialization {
-println!("=== 0");
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -269,7 +268,7 @@ println!("=== 0");
 		// process message
 		let consensus_action = {
 			let mut data = data.deref_mut();
-			let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidStateForRequest).map_err(|e| { println!("=== 1");e })?;
+			let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidStateForRequest)?;
 			match message.message {
 				ConsensusMessage::InitializeConsensusSession(ref message) => {
 					let requestor = ethkey::recover(&message.requestor_signature, &self.id)?;
@@ -277,7 +276,7 @@ println!("=== 0");
 					consensus_session.on_initialize_session(sender, &requestor)?
 				},
 				ConsensusMessage::ConfirmConsensusInitialization(ref message) => {
-					let consensus = data.consensus.as_mut().ok_or(Error::InvalidStateForRequest).map_err(|e| { println!("=== 2"); e })?;
+					let consensus = data.consensus.as_mut().ok_or(Error::InvalidStateForRequest)?;
 					consensus_session.on_confirm_initialization(sender, message.is_confirmed, consensus)?
 				},
 			}
@@ -285,11 +284,9 @@ println!("=== 0");
 		SessionImpl::process_consensus_session_action(&self.id, &self.access_key, &self.cluster, &self.completed, &mut *data, consensus_action)?;
 
 		// if consensus is established and we are on master node => ask for partial decryption
-println!("====================== before state check: {:?}", data.state);
 		if data.state != SessionState::EstablishedConsensus {
 			return Ok(());
 		}
-println!("====================== before start_waiting_for_partial_decryption");
 		SessionImpl::start_waiting_for_partial_decryption(self.node(), self.id.clone(), self.access_key.clone(), &self.cluster, &self.encrypted_data, &mut *data)
 	}
 
@@ -314,7 +311,6 @@ println!("====================== before start_waiting_for_partial_decryption");
 			data.state = SessionState::WaitingForPartialDecryptionRequest;
 		}
 		if data.state != SessionState::WaitingForPartialDecryptionRequest {
-println!("=== 3: {:?}", data.state);
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -347,13 +343,12 @@ println!("=== 3: {:?}", data.state);
 
 		// check state
 		if data.state != SessionState::WaitingForPartialDecryption {
-println!("=== 4");
 			return Err(Error::InvalidStateForRequest);
 		}
 
 		// remember partial signature
 		{
-			let consensus = data.consensus.as_mut().ok_or(Error::InvalidStateForRequest).map_err(|e| { println!("=== 5"); e })?;
+			let consensus = data.consensus.as_mut().ok_or(Error::InvalidStateForRequest)?;
 			consensus.job_response_received(&sender, PartialDecryptionResult {
 				shadow_point: message.shadow_point.clone().into(),
 				decrypt_shadow: message.decrypt_shadow.clone(),

@@ -15,20 +15,22 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::{VecDeque, BTreeSet, BTreeMap};
 use parking_lot::RwLock;
-use ethkey::Secret;
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage};
-use key_server_cluster::cluster::{Cluster, ClusterView, ClusterConfiguration};
+use ethkey::{Public, Secret};
+use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, EncryptedDocumentKeyShadow};
+use key_server_cluster::cluster::{Cluster, ClusterData, ClusterView, ClusterConfiguration};
 use key_server_cluster::message::{self, Message, GenerationMessage, EncryptionMessage, DecryptionMessage, SigningMessage};
-use key_server_cluster::generation_session::{SessionImpl as GenerationSessionImpl, SessionParams as GenerationSessionParams};
-use key_server_cluster::decryption_session::{SessionImpl as DecryptionSessionImpl, DecryptionSessionId,
-	SessionParams as DecryptionSessionParams};
-use key_server_cluster::encryption_session::{SessionImpl as EncryptionSessionImpl, SessionParams as EncryptionSessionParams};
-use key_server_cluster::signing_session::{SessionImpl as SigningSessionImpl, SigningSessionId,
-	SessionParams as SigningSessionParams};
+use key_server_cluster::generation_session::{Session as GenerationSession, SessionImpl as GenerationSessionImpl,
+	SessionParams as GenerationSessionParams, SessionState as GenerationSessionState};
+use key_server_cluster::decryption_session::{Session as DecryptionSession, SessionImpl as DecryptionSessionImpl,
+	DecryptionSessionId, SessionParams as DecryptionSessionParams};
+use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionImpl as EncryptionSessionImpl,
+	SessionParams as EncryptionSessionParams, SessionState as EncryptionSessionState};
+use key_server_cluster::signing_session::{Session as SigningSession, SessionImpl as SigningSessionImpl,
+	SigningSessionId, SessionParams as SigningSessionParams, SessionState as SigningSessionState};
 
 /// When there are no session-related messages for SESSION_TIMEOUT_INTERVAL seconds,
 /// we must treat this session as stalled && finish it with an error.
@@ -45,6 +47,7 @@ pub trait ClusterSession {
 	/// When it takes too much time to receive response from the node.
 	fn on_node_timeout(&self, node_id: &NodeId);
 }
+
 /// Active sessions on this cluster.
 pub struct ClusterSessions {
 	/// Key generation sessions.
@@ -85,6 +88,46 @@ pub struct QueuedSession<V, M> {
 	pub session: Arc<V>,
 	/// Messages queue.
 	pub queue: VecDeque<(NodeId, M)>,
+}
+
+/// Generation session implementation, which removes session from cluster on drop.
+pub struct GenerationSessionWrapper {
+	/// Wrapped session.
+	session: Arc<GenerationSession>,
+	/// Session Id.
+	session_id: SessionId,
+	/// Cluster data reference.
+	cluster: Weak<ClusterData>,
+}
+
+/// Encryption session implementation, which removes session from cluster on drop.
+pub struct EncryptionSessionWrapper {
+	/// Wrapped session.
+	session: Arc<EncryptionSession>,
+	/// Session Id.
+	session_id: SessionId,
+	/// Cluster data reference.
+	cluster: Weak<ClusterData>,
+}
+
+/// Decryption session implementation, which removes session from cluster on drop.
+pub struct DecryptionSessionWrapper {
+	/// Wrapped session.
+	session: Arc<DecryptionSession>,
+	/// Session Id.
+	session_id: DecryptionSessionId,
+	/// Cluster data reference.
+	cluster: Weak<ClusterData>,
+}
+
+/// Signing session implementation, which removes session from cluster on drop.
+pub struct SigningSessionWrapper {
+	/// Wrapped session.
+	session: Arc<SigningSession>,
+	/// Session Id.
+	session_id: SigningSessionId,
+	/// Cluster data reference.
+	cluster: Weak<ClusterData>,
 }
 
 impl ClusterSessions {
@@ -364,6 +407,118 @@ impl<K, V, M> ClusterSessionsContainer<K, V, M> where K: Clone + Ord, V: Cluster
 			if remove_session {
 				sessions.remove(&sid);
 			}
+		}
+	}
+}
+
+impl GenerationSessionWrapper {
+	pub fn new(cluster: Weak<ClusterData>, session_id: SessionId, session: Arc<GenerationSession>) -> Arc<Self> {
+		Arc::new(GenerationSessionWrapper {
+			session: session,
+			session_id: session_id,
+			cluster: cluster,
+		})
+	}
+}
+
+impl GenerationSession for GenerationSessionWrapper {
+	fn state(&self) -> GenerationSessionState {
+		self.session.state()
+	}
+
+	fn wait(&self, timeout: Option<time::Duration>) -> Result<Public, Error> {
+		self.session.wait(timeout)
+	}
+
+	fn joint_public_and_secret(&self) -> Option<Result<(Public, Secret), Error>> {
+		self.session.joint_public_and_secret()
+	}
+}
+
+impl Drop for GenerationSessionWrapper {
+	fn drop(&mut self) {
+		if let Some(cluster) = self.cluster.upgrade() {
+			cluster.sessions().generation_sessions.remove(&self.session_id);
+		}
+	}
+}
+
+impl EncryptionSessionWrapper {
+	pub fn new(cluster: Weak<ClusterData>, session_id: SessionId, session: Arc<EncryptionSession>) -> Arc<Self> {
+		Arc::new(EncryptionSessionWrapper {
+			session: session,
+			session_id: session_id,
+			cluster: cluster,
+		})
+	}
+}
+
+impl EncryptionSession for EncryptionSessionWrapper {
+	fn state(&self) -> EncryptionSessionState {
+		self.session.state()
+	}
+
+	fn wait(&self, timeout: Option<time::Duration>) -> Result<(), Error> {
+		self.session.wait(timeout)
+	}
+}
+
+impl Drop for EncryptionSessionWrapper {
+	fn drop(&mut self) {
+		if let Some(cluster) = self.cluster.upgrade() {
+			cluster.sessions().encryption_sessions.remove(&self.session_id);
+		}
+	}
+}
+
+impl DecryptionSessionWrapper {
+	pub fn new(cluster: Weak<ClusterData>, session_id: DecryptionSessionId, session: Arc<DecryptionSession>) -> Arc<Self> {
+		Arc::new(DecryptionSessionWrapper {
+			session: session,
+			session_id: session_id,
+			cluster: cluster,
+		})
+	}
+}
+
+impl DecryptionSession for DecryptionSessionWrapper {
+	fn wait(&self) -> Result<EncryptedDocumentKeyShadow, Error> {
+		self.session.wait()
+	}
+}
+
+impl Drop for DecryptionSessionWrapper {
+	fn drop(&mut self) {
+		if let Some(cluster) = self.cluster.upgrade() {
+			cluster.sessions().decryption_sessions.remove(&self.session_id);
+		}
+	}
+}
+
+impl SigningSessionWrapper {
+	pub fn new(cluster: Weak<ClusterData>, session_id: SigningSessionId, session: Arc<SigningSession>) -> Arc<Self> {
+		Arc::new(SigningSessionWrapper {
+			session: session,
+			session_id: session_id,
+			cluster: cluster,
+		})
+	}
+}
+
+impl SigningSession for SigningSessionWrapper {
+	fn state(&self) -> SigningSessionState {
+		self.session.state()
+	}
+
+	fn wait(&self) -> Result<(Secret, Secret), Error> {
+		self.session.wait()
+	}
+}
+
+impl Drop for SigningSessionWrapper {
+	fn drop(&mut self) {
+		if let Some(cluster) = self.cluster.upgrade() {
+			cluster.sessions().signing_sessions.remove(&self.session_id);
 		}
 	}
 }

@@ -371,8 +371,8 @@ pub mod tests {
 			// sign message
 			let message_hash = H256::from(42);
 			let combined_signature = key_servers[0].sign_message(&server_key_id, &signature, message_hash.clone()).unwrap();
-			let signature_c = Secret::from_slice(&combined_signature[..32]).unwrap();
-			let signature_s = Secret::from_slice(&combined_signature[32..]).unwrap();
+			let signature_c = Secret::from_slice(&combined_signature[..32]);
+			let signature_s = Secret::from_slice(&combined_signature[32..]);
 
 			// check signature
 			assert_eq!(math::verify_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));

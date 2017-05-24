@@ -26,10 +26,11 @@ use parking_lot::{RwLock, Mutex};
 use tokio_io::IoFuture;
 use tokio_core::reactor::{Handle, Remote, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
-use ethkey::{Public, KeyPair, Signature, Random, Generator};
+use ethkey::{Public, Secret, KeyPair, Signature, Random, Generator};
 use util::H256;
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage};
-use key_server_cluster::cluster_sessions::ClusterSessions;
+use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, EncryptedDocumentKeyShadow};
+use key_server_cluster::cluster_sessions::{ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
+	DecryptionSessionWrapper, SigningSessionWrapper};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
 	SigningMessage, ConsensusMessage};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
@@ -184,28 +185,6 @@ pub struct Connection {
 	key: KeyPair,
 	/// Last message time.
 	last_message_time: Mutex<time::Instant>,
-}
-
-/// Encryption session implementation, which removes session from cluster on drop.
-struct EncryptionSessionWrapper {
-	/// Wrapped session.
-	session: Arc<EncryptionSession>,
-	/// Session Id.
-	session_id: SessionId,
-	/// Cluster data reference.
-	cluster: Weak<ClusterData>,
-}
-
-/// Decryption session implementation, which removes session from cluster on drop.
-struct DecryptionSessionWrapper {
-	/// Wrapped session.
-	session: Arc<DecryptionSession>,
-	/// Session Id.
-	session_id: SessionId,
-	/// Session sub id.
-	access_key: Secret,
-	/// Cluster data reference.
-	cluster: Weak<ClusterData>,
 }
 
 impl ClusterCore {
@@ -812,6 +791,11 @@ impl ClusterData {
 		self.connections.get(node)
 	}
 
+	/// Get sessions reference.
+	pub fn sessions(&self) -> &ClusterSessions {
+		&self.sessions
+	}
+
 	/// Spawns a future using thread pool and schedules execution of it with event loop handle.
 	pub fn spawn<F>(&self, f: F) where F: Future + Send + 'static, F::Item: Send + 'static, F::Error: Send + 'static {
 		let pool_work = self.pool.spawn(f);
@@ -921,7 +905,7 @@ impl ClusterClient for ClusterClientImpl {
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.new_generation_session(self.data.self_key_pair.public().clone(), session_id, cluster)?;
 		session.initialize(author, threshold, connected_nodes)?;
-		Ok(session)
+		Ok(GenerationSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
 	fn new_encryption_session(&self, session_id: SessionId, requestor_signature: Signature, common_point: Public, encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error> {
@@ -942,7 +926,7 @@ impl ClusterClient for ClusterClientImpl {
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.new_decryption_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), cluster)?;
 		session.initialize(requestor_signature, is_shadow_decryption)?;
-		Ok(DecryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, access_key, session))
+		Ok(DecryptionSessionWrapper::new(Arc::downgrade(&self.data), DecryptionSessionId::new(session_id, access_key), session))
 	}
 
 	fn new_signing_session(&self, session_id: SessionId, requestor_signature: Signature, message_hash: H256) -> Result<Arc<SigningSession>, Error> {
@@ -951,9 +935,9 @@ impl ClusterClient for ClusterClientImpl {
 
 		let access_key = Random.generate()?.secret().clone();
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.new_signing_session(self.data.self_key_pair.public().clone(), session_id, access_key, cluster)?;
+		let session = self.data.sessions.new_signing_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), cluster)?;
 		session.initialize(requestor_signature, message_hash)?;
-		Ok(session)
+		Ok(SigningSessionWrapper::new(Arc::downgrade(&self.data), SigningSessionId::new(session_id, access_key), session))
 	}
 
 	#[cfg(test)]
@@ -969,64 +953,6 @@ impl ClusterClient for ClusterClientImpl {
 	#[cfg(test)]
 	fn generation_session(&self, session_id: &SessionId) -> Option<Arc<GenerationSessionImpl>> {
 		self.data.sessions.generation_sessions.get(session_id)
-	}
-}
-
-impl EncryptionSessionWrapper {
-	pub fn new(cluster: Weak<ClusterData>, session_id: SessionId, session: Arc<EncryptionSession>) -> Arc<Self> {
-		Arc::new(EncryptionSessionWrapper {
-			session: session,
-			session_id: session_id,
-			cluster: cluster,
-		})
-	}
-}
-
-impl EncryptionSession for EncryptionSessionWrapper {
-	fn state(&self) -> EncryptionSessionState {
-		self.session.state()
-	}
-
-	fn wait(&self, timeout: Option<time::Duration>) -> Result<Public, Error> {
-		self.session.wait(timeout)
-	}
-
-	#[cfg(test)]
-	fn joint_public_key(&self) -> Option<Result<Public, Error>> {
-		self.session.joint_public_key()
-	}
-}
-
-impl Drop for EncryptionSessionWrapper {
-	fn drop(&mut self) {
-		if let Some(cluster) = self.cluster.upgrade() {
-			cluster.sessions.remove_encryption_session(&self.session_id);
-		}
-	}
-}
-
-impl DecryptionSessionWrapper {
-	pub fn new(cluster: Weak<ClusterData>, session_id: SessionId, access_key: Secret, session: Arc<DecryptionSession>) -> Arc<Self> {
-		Arc::new(DecryptionSessionWrapper {
-			session: session,
-			session_id: session_id,
-			access_key: access_key,
-			cluster: cluster,
-		})
-	}
-}
-
-impl DecryptionSession for DecryptionSessionWrapper {
-	fn wait(&self) -> Result<DocumentEncryptedKeyShadow, Error> {
-		self.session.wait()
-	}
-}
-
-impl Drop for DecryptionSessionWrapper {
-	fn drop(&mut self) {
-		if let Some(cluster) = self.cluster.upgrade() {
-			cluster.sessions.remove_decryption_session(&self.session_id, &self.access_key);
-		}
 	}
 }
 

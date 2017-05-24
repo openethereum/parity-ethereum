@@ -312,7 +312,8 @@ pub fn combine_message_hash_with_public(message_hash: &H256, public: &Public) ->
 	// map hash to EC finite field value
 	let hash: U256 = hash.into();
 	let hash: H256 = (hash % math::curve_order()).into();
-	let hash = Secret::from_slice(&*hash)?;
+	let hash = Secret::from_slice(&*hash);
+	hash.check_validity()?;
 
 	Ok(hash)
 }
