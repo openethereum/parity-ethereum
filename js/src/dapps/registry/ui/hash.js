@@ -15,27 +15,29 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
 
+import ApplicationStore from '../Application/application.store';
 import etherscanUrl from '../util/etherscan-url';
 
 import styles from './hash.css';
 
 const leading0x = /^0x/;
 
-class Hash extends Component {
+export default class Hash extends Component {
   static propTypes = {
     hash: PropTypes.string.isRequired,
-    netVersion: PropTypes.string.isRequired,
     linked: PropTypes.bool
-  }
+  };
 
   static defaultProps = {
     linked: false
-  }
+  };
+
+  applicationStore = ApplicationStore.get();
 
   render () {
-    const { hash, netVersion, linked } = this.props;
+    const { netVersion } = this.applicationStore;
+    const { hash, linked } = this.props;
 
     let shortened = hash.toLowerCase().replace(leading0x, '');
 
@@ -58,10 +60,3 @@ class Hash extends Component {
     return (<abbr title={ hash }>{ shortened }</abbr>);
   }
 }
-
-export default connect(
-  (state) => ({ // mapStateToProps
-    netVersion: state.netVersion
-  }),
-  null // mapDispatchToProps
-)(Hash);

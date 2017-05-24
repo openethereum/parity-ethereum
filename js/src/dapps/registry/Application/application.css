@@ -15,6 +15,12 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+.container {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
+
 .header {
   align-items: center;
   display: flex;

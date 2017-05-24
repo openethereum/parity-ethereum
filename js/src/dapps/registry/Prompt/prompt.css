@@ -15,32 +15,50 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.names {
-  margin: 1em;
-}
-
-.box {
+.prompt {
+  align-items: center;
+  background-color: rgba(50, 50, 50, 0.85);
+  bottom: 0;
   display: flex;
-  align-items: baseline;
-}
+  justify-content: center;
+  flex-direction: column;
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 99999;
 
-.spacing {
-  margin-left: 1em;
-}
+  .label {
+    color: white;
+    font-size: 1.5em;
+    margin-bottom: 1em;
+  }
 
-.noSpacing {
-  margin-top: 0;
-}
+  .input {
+    border-bottom: 1px solid lightgray;
+    padding: 0.5em 0;
+  }
 
-.link {
-  color: #00BCD4;
-  text-decoration: none;
-
-  &:hover {
-    text-decoration: underline;
+  input,
+  input:focus {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.25em;
+    outline: none;
+    width: 100%;
   }
 }
 
-.error {
-  color: red;
+.actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2em;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  width: 30em;
+  word-wrap: break-word;
 }

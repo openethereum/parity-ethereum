@@ -14,302 +14,98 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
+import { observer } from 'mobx-react';
+import React, { Component } from 'react';
 import { Card, CardHeader, CardActions, CardText } from 'material-ui/Card';
 import Toggle from 'material-ui/Toggle';
-import moment from 'moment';
 
-import { bytesToHex } from '../parity';
-import Hash from '../ui/hash';
-import Address from '../ui/address';
+import Event from './Event';
+import EventsStore from './events.store';
 
-import { subscribe, unsubscribe } from './actions';
 import styles from './events.css';
 
-const inlineButton = {
+const TITLE_STYLE = {
+  fontSize: '2em'
+};
+
+const INLINE_BUTTON_STYLE = {
   display: 'inline-block',
   width: 'auto',
   marginRight: '1em'
 };
 
-const renderStatus = (timestamp, isPending) => {
-  timestamp = moment(timestamp);
-  if (isPending) {
-    return (<abbr title='This transaction has not been synced with the network yet.'>pending</abbr>);
-  }
-  return (
-    <time dateTime={ timestamp.toISOString() }>
-      <abbr title={ timestamp.format('MMMM Do YYYY, h:mm:ss a') }>{ timestamp.fromNow() }</abbr>
-    </time>
-  );
-};
-
-const renderEvent = (classNames, verb) => (e) => {
-  const classes = e.state === 'pending'
-    ? classNames + ' ' + styles.pending : classNames;
-
-  return (
-    <tr key={ e.key } className={ classes }>
-      <td>
-        <Address
-          address={
-            e.parameters.owner
-              ? e.parameters.owner.value
-              : e.from
-          }
-        />
-      </td>
-      <td>
-        <abbr title={ e.transaction }>{ verb }</abbr>
-      </td>
-      <td>
-        <code>
-          <Hash hash={ bytesToHex(e.parameters.name.value) } />
-        </code>
-      </td>
-      <td>
-        { renderStatus(e.timestamp, e.state === 'pending') }
-      </td>
-    </tr>
-  );
-};
-
-const renderDataChanged = (e) => {
-  let classNames = styles.dataChanged;
-
-  if (e.state === 'pending') {
-    classNames += ' ' + styles.pending;
-  }
-
-  return (
-    <tr key={ e.key } className={ classNames }>
-      <td>
-        <Address
-          address={
-            e.parameters.owner
-              ? e.parameters.owner.value
-              : e.from
-          }
-        />
-      </td>
-      <td>
-        <abbr title={ e.transaction }>updated</abbr>
-      </td>
-      <td>
-        key&nbsp;
-        <code>
-          { new Buffer(e.parameters.plainKey.value).toString('utf8') }
-        </code>
-        &nbsp;of&nbsp;
-        <code>
-          <Hash hash={ bytesToHex(e.parameters.name.value) } />
-        </code>
-      </td>
-      <td>
-        { renderStatus(e.timestamp, e.state === 'pending') }
-      </td>
-    </tr>
-  );
-};
-
-const renderReverse = (e) => {
-  const verb = ({
-    ReverseProposed: 'proposed',
-    ReverseConfirmed: 'confirmed',
-    ReverseRemoved: 'removed'
-  })[e.type];
-
-  if (!verb) {
-    return null;
-  }
-
-  const classes = [ styles.reverse ];
-
-  if (e.state === 'pending') {
-    classes.push(styles.pending);
-  }
-
-  // TODO: `name` is an indexed param, cannot display as plain text
-  return (
-    <tr key={ e.key } className={ classes.join(' ') }>
-      <td>
-        <Address address={ e.from } />
-      </td>
-      <td>{ verb }</td>
-      <td>
-        { 'name ' }
-        <code key='name'>{ bytesToHex(e.parameters.name.value) }</code>
-        { ' for ' }
-        <Address key='reverse' address={ e.parameters.reverse.value } />
-      </td>
-      <td>
-        { renderStatus(e.timestamp, e.state === 'pending') }
-      </td>
-    </tr>
-  );
-};
-
-const eventTypes = {
-  Reserved: renderEvent(styles.reserved, 'reserved'),
-  Dropped: renderEvent(styles.dropped, 'dropped'),
-  DataChanged: renderDataChanged,
-  ReverseProposed: renderReverse,
-  ReverseConfirmed: renderReverse,
-  ReverseRemoved: renderReverse
-};
-
-class Events extends Component {
-  static propTypes = {
-    events: PropTypes.array.isRequired,
-    pending: PropTypes.object.isRequired,
-    subscriptions: PropTypes.object.isRequired,
-
-    subscribe: PropTypes.func.isRequired,
-    unsubscribe: PropTypes.func.isRequired
-  }
+@observer
+export default class Events extends Component {
+  eventsStore = EventsStore.get();
 
   render () {
-    const { subscriptions, pending } = this.props;
-
-    const eventsObject = this.props.events
-      .filter((e) => eventTypes[e.type])
-      .reduce((eventsObject, event) => {
-        const txHash = event.transaction;
-
-        if (
-          (eventsObject[txHash] && eventsObject[txHash].state === 'pending') ||
-          !eventsObject[txHash]
-        ) {
-          eventsObject[txHash] = event;
-        }
-
-        return eventsObject;
-      }, {});
-
-    const events = Object
-      .values(eventsObject)
-      .sort((evA, evB) => {
-        if (evA.state === 'pending') {
-          return -1;
-        }
-
-        if (evB.state === 'pending') {
-          return 1;
-        }
-
-        return evB.timestamp - evA.timestamp;
-      })
-      .map((e) => eventTypes[e.type](e));
-
-    const reverseToggled =
-      subscriptions.ReverseProposed !== null &&
-      subscriptions.ReverseConfirmed !== null &&
-      subscriptions.ReverseRemoved !== null;
-    const reverseDisabled =
-      pending.ReverseProposed ||
-      pending.ReverseConfirmed ||
-      pending.ReverseRemoved;
+    const { shown } = this.eventsStore;
 
     return (
       <Card className={ styles.events }>
-        <CardHeader title='Event Log' />
+        <CardHeader
+          title='Events'
+          titleStyle={ TITLE_STYLE }
+        />
         <CardActions className={ styles.options }>
           <Toggle
-            label='Reserved'
-            toggled={ subscriptions.Reserved !== null }
-            disabled={ pending.Reserved }
-            onToggle={ this.onReservedToggle }
-            style={ inlineButton }
+            label='Reservations'
+            toggled={ shown.has('reservations') }
+            onToggle={ this.handleReservationsToggle }
+            style={ INLINE_BUTTON_STYLE }
           />
           <Toggle
-            label='Dropped'
-            toggled={ subscriptions.Dropped !== null }
-            disabled={ pending.Dropped }
-            onToggle={ this.onDroppedToggle }
-            style={ inlineButton }
+            label='Metadata'
+            toggled={ shown.has('metadata') }
+            onToggle={ this.handleMetadataToggle }
+            style={ INLINE_BUTTON_STYLE }
           />
           <Toggle
-            label='DataChanged'
-            toggled={ subscriptions.DataChanged !== null }
-            disabled={ pending.DataChanged }
-            onToggle={ this.onDataChangedToggle }
-            style={ inlineButton }
-          />
-          <Toggle
-            label='Reverse Lookup'
-            toggled={ reverseToggled }
-            disabled={ reverseDisabled }
-            onToggle={ this.onReverseToggle }
-            style={ inlineButton }
+            label='Reverses'
+            toggled={ shown.has('reverses') }
+            onToggle={ this.handleReversesToggle }
+            style={ INLINE_BUTTON_STYLE }
           />
         </CardActions>
         <CardText>
-          <table className={ styles.eventsList }>
-            <tbody>
-              { events }
-            </tbody>
-          </table>
+          <div className={ styles.eventsList }>
+            { this.renderEvents() }
+          </div>
         </CardText>
       </Card>
     );
   }
 
-  onReservedToggle = (e, isToggled) => {
-    const { pending, subscriptions, subscribe, unsubscribe } = this.props;
+  renderEvents () {
+    const { events } = this.eventsStore;
 
-    if (!pending.Reserved) {
-      if (isToggled && subscriptions.Reserved === null) {
-        subscribe('Reserved');
-      } else if (!isToggled && subscriptions.Reserved !== null) {
-        unsubscribe('Reserved');
-      }
+    if (events.length === 0) {
+      return (
+        <div>
+          No events to display
+        </div>
+      );
     }
+
+    return events.map((event) => {
+      return (
+        <Event
+          event={ event }
+          key={ event.id }
+        />
+      );
+    });
+  }
+
+  handleReservationsToggle = (e, toggled) => {
+    return this.eventsStore.toggle('reservations', toggled);
   };
 
-  onDroppedToggle = (e, isToggled) => {
-    const { pending, subscriptions, subscribe, unsubscribe } = this.props;
-
-    if (!pending.Dropped) {
-      if (isToggled && subscriptions.Dropped === null) {
-        subscribe('Dropped');
-      } else if (!isToggled && subscriptions.Dropped !== null) {
-        unsubscribe('Dropped');
-      }
-    }
+  handleMetadataToggle = (e, toggled) => {
+    return this.eventsStore.toggle('metadata', toggled);
   };
 
-  onDataChangedToggle = (e, isToggled) => {
-    const { pending, subscriptions, subscribe, unsubscribe } = this.props;
-
-    if (!pending.DataChanged) {
-      if (isToggled && subscriptions.DataChanged === null) {
-        subscribe('DataChanged');
-      } else if (!isToggled && subscriptions.DataChanged !== null) {
-        unsubscribe('DataChanged');
-      }
-    }
-  };
-
-  onReverseToggle = (e, isToggled) => {
-    const { pending, subscriptions, subscribe, unsubscribe } = this.props;
-
-    for (let e of ['ReverseProposed', 'ReverseConfirmed', 'ReverseRemoved']) {
-      if (pending[e]) {
-        continue;
-      }
-
-      if (isToggled && subscriptions[e] === null) {
-        subscribe(e);
-      } else if (!isToggled && subscriptions[e] !== null) {
-        unsubscribe(e);
-      }
-    }
+  handleReversesToggle = (e, toggled) => {
+    return this.eventsStore.toggle('reverses', toggled);
   };
 }
-
-const mapStateToProps = (state) => state.events;
-const mapDispatchToProps = (dispatch) => bindActionCreators({ subscribe, unsubscribe }, dispatch);
-
-export default connect(mapStateToProps, mapDispatchToProps)(Events);

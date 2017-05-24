@@ -15,57 +15,74 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
-  margin: 1em;
-
-  > * {
-    display: flex;
-    justify-content: space-between;
-  }
-}
-
-.free,
-.reserving {
-  font-size: 1.35em;
-
-  code {
-    font-size: 0.9em;
-  }
-}
-
-.reserving {
+.infoContainer {
   align-items: center;
   display: flex;
+  margin: 1.25em 0 2em;
 
   > * {
     margin-right: 1em;
   }
+
+  * {
+    word-wrap: break-word;
+  }
 }
 
-.free {
-  cursor: pointer;
+.address {
+  width: 10em;
+  text-align: center;
 }
 
-.box {
+.date {
+  color: gray;
+}
+
+.key {
+  margin-bottom: 0.5em;
+}
+
+.param {
   display: flex;
-  margin: 0 1em;
-  align-items: baseline;
+  flex-direction: column;
+  margin-right: 1em;
+  max-width: 20em;
+
+  &.clickable {
+    color: rgba(52, 152, 219, 1);
+    cursor: pointer;
+  }
+
+  .label {
+    font-size: 1.1em;
+    margin-bottom: 0.5em;
+  }
 }
 
-.inputContainer {
-  border-bottom: 1px solid lightgray;
-  margin: 1em;
-  padding: 0.5em 0.125em;
+.params {
+  display: flex;
 }
 
-.input {
-  border: none;
-  color: #666;
-  font-size: 1.5em;
-  width: 100%;
+.pending {
+  opacity: 0.5;
+}
 
-  &,
-  &:focus {
-    outline: none;
+.transaction {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  width: 13em;
+
+  > * {
+    display: inline-flex;
+  }
+
+  .arrow {
+    font-size: 3em;
+    line-height: 0.65em;
+  }
+
+  .event {
+    font-size: 1.25em;
   }
 }

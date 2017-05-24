@@ -22,18 +22,34 @@ import styles from './identityIcon.css';
 export default class IdentityIcon extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
+    big: PropTypes.bool,
     className: PropTypes.string,
+    onClick: PropTypes.func,
     style: PropTypes.object
-  }
+  };
+
+  static defaultProps = {
+    big: false,
+    onClick: () => {}
+  };
 
   render () {
-    const { address, className, style } = this.props;
+    const { address, big, className, onClick, style } = this.props;
+    const size = big
+      ? 7
+      : 4;
+    const classes = [ styles.icon, className ];
+
+    if (big) {
+      classes.push(styles.big);
+    }
 
     return (
       <img
-        className={ styles.icon + ' ' + className }
+        className={ classes.join(' ') }
+        onClick={ onClick }
         style={ style }
-        src={ api.util.createIdentityImg(address, 3) }
+        src={ api.util.createIdentityImg(address, size) }
       />
     );
   }

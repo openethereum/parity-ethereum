@@ -17,6 +17,7 @@
 
 .container {
   margin: 1em;
+  position: relative;
 
   > * {
     display: flex;
@@ -24,48 +25,50 @@
   }
 }
 
-.free,
-.reserving {
-  font-size: 1.35em;
-
-  code {
-    font-size: 0.9em;
-  }
+.actions {
+  position: absolute;
+  right: 1em;
+  top: 1em;
 }
 
-.reserving {
-  align-items: center;
-  display: flex;
-
-  > * {
-    margin-right: 1em;
-  }
-}
-
-.free {
-  cursor: pointer;
-}
-
-.box {
-  display: flex;
-  margin: 0 1em;
-  align-items: baseline;
-}
-
-.inputContainer {
-  border-bottom: 1px solid lightgray;
-  margin: 1em;
-  padding: 0.5em 0.125em;
-}
-
-.input {
-  border: none;
-  color: #666;
-  font-size: 1.5em;
+.infoContainer {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  padding: 1em 5em !important;
   width: 100%;
+}
 
-  &,
-  &:focus {
-    outline: none;
+.info {
+  align-items: center;
+  display: inline-flex;
+  flex-direction: column;
+  margin: 1em 2.5em;
+  width: 15em;
+
+  * {
+    word-wrap: break-word;
+    max-width: 100%;
+    text-align: center;
   }
+
+  .title {
+    font-size: 1.25em;
+    margin-bottom: 0.75em;
+  }
+
+  a.title {
+    color: rgba(52, 152, 219, 1);
+    text-decoration: none;
+  }
+}
+
+.reversed {
+  margin-top: 1em;
+  font-size: 1.25em;
+}
+
+.reverseButton {
+  margin-top: 0.5em;
 }

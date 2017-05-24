@@ -34,7 +34,8 @@
     "description": "A global registry of addresses on the network",
     "author": "Parity Team <admin@parity.io>",
     "version": "1.0.0",
-    "visible": true
+    "visible": true,
+    "secure": true
   },
   {
     "id": "0x0a8048117e51e964628d0f2d26342b3cd915248b59bcce2721e1d05f5cfa2208",

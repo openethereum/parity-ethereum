@@ -14,25 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { api } from '../parity';
+export function postTransaction (api, method, opt = {}, values = []) {
+  const options = Object.assign({}, opt);
 
-export const set = (addresses) => ({ type: 'addresses set', addresses });
-
-export const fetch = () => (dispatch) => {
-  return api.parity
-    .accountsInfo()
-    .then((accountsInfo) => {
-      const addresses = Object
-        .keys(accountsInfo)
-        .map((address) => ({
-          ...accountsInfo[address],
-          address,
-          isAccount: true
-        }));
-
-      dispatch(set(addresses));
+  return method.postTransaction(options, values)
+    .then((reqId) => {
+      return api.pollMethod('parity_checkRequest', reqId);
     })
-    .catch((error) => {
-      console.error('could not fetch addresses', error);
+    .then((txhash) => {
+      return api.pollMethod('eth_getTransactionReceipt', txhash, (receipt) => {
+        if (!receipt || !receipt.blockNumber || receipt.blockNumber.eq(0)) {
+          return false;
+        }
+
+        return true;
+      });
     });
-};
+}

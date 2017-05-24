@@ -16,33 +16,32 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { Provider } from 'react-redux';
+import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
 
-import store from './registry/store';
-import Container from './registry/Container';
+import Application from './registry/Application';
 
 import '../../assets/fonts/Roboto/font.css';
 import '../../assets/fonts/RobotoMono/font.css';
 import './style.css';
 
 ReactDOM.render(
-  <Provider store={ store }>
-    <Container />
-  </Provider>,
+  <AppContainer>
+    <Application />
+  </AppContainer>,
   document.querySelector('#container')
 );
 
 if (module.hot) {
-  module.hot.accept('./registry/Container', () => {
-    require('./registry/Container');
+  module.hot.accept('./registry/Application', () => {
+    require('./registry/Application');
 
     ReactDOM.render(
-      <Provider store={ store }>
-        <Container />
-      </Provider>,
+      <AppContainer>
+        <Application />
+      </AppContainer>,
       document.querySelector('#container')
     );
   });

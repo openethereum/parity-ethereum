@@ -15,28 +15,19 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.records {
-  margin: 1em;
-}
-
-.noSpacing {
-  margin-top: 0;
-}
-
-.box {
-  display: flex;
-  align-items: baseline;
-}
-
-.spacing {
-  margin-left: 1em;
-}
-
-.button {
-  flex-grow: 0;
-  flex-shrink: 0;
+.image {
+  height: auto;
+  padding: 0.5em;
+  width: 75px;
 }
 
 .error {
-  color: red;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+
+  .image {
+    margin-bottom: 0.25em;
+    width: 40px;
+  }
 }
