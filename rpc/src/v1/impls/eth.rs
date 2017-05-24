@@ -340,8 +340,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn gas_price(&self) -> Result<RpcU256, Error> {
-		let (client, miner) = (self.client, self.miner);
-		Ok(RpcU256::from(default_gas_price(&*client, &*miner)))
+		Ok(RpcU256::from(default_gas_price(&*self.client, &*self.miner)))
 	}
 
 	fn accounts(&self, meta: Metadata) -> BoxFuture<Vec<RpcH160>, Error> {
