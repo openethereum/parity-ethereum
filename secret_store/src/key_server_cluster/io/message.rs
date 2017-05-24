@@ -92,8 +92,6 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::Signing(SigningMessage::PartialSignature(payload))							=> (203, serde_json::to_vec(&payload)),
 		Message::Signing(SigningMessage::SigningSessionError(payload))						=> (204, serde_json::to_vec(&payload)),
 		Message::Signing(SigningMessage::SigningSessionCompleted(payload))					=> (205, serde_json::to_vec(&payload)),
-
-		Message::Consensus(_)																=> unreachable!("always wrapped"),
 	};
 
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;

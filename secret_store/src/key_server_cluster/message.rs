@@ -32,8 +32,6 @@ pub enum Message {
 	Generation(GenerationMessage),
 	/// Encryption message.
 	Encryption(EncryptionMessage),
-	/// Consensus message.
-	Consensus(ConsensusMessage),
 	/// Decryption message.
 	Decryption(DecryptionMessage),
 	/// Signing message.
@@ -469,7 +467,6 @@ impl fmt::Display for Message {
 			Message::Cluster(ref message) => write!(f, "Cluster.{}", message),
 			Message::Generation(ref message) => write!(f, "Generation.{}", message),
 			Message::Encryption(ref message) => write!(f, "Encryption.{}", message),
-			Message::Consensus(ref message) => write!(f, "Consensus.{}", message),
 			Message::Decryption(ref message) => write!(f, "Decryption.{}", message),
 			Message::Signing(ref message) => write!(f, "Signing.{}", message),
 		}
@@ -523,7 +520,7 @@ impl fmt::Display for ConsensusMessage {
 impl fmt::Display for DecryptionMessage {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			DecryptionMessage::DecryptionConsensusMessage(_) => write!(f, "DecryptionConsensusMessage"),
+			DecryptionMessage::DecryptionConsensusMessage(ref m) => write!(f, "DecryptionConsensusMessage.{}", m.message),
 			DecryptionMessage::RequestPartialDecryption(_) => write!(f, "RequestPartialDecryption"),
 			DecryptionMessage::PartialDecryption(_) => write!(f, "PartialDecryption"),
 			DecryptionMessage::DecryptionSessionError(_) => write!(f, "DecryptionSessionError"),
@@ -534,6 +531,13 @@ impl fmt::Display for DecryptionMessage {
 
 impl fmt::Display for SigningMessage {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		unimplemented!()
+		match *self {
+			SigningMessage::SigningConsensusMessage(ref m) => write!(f, "SigningConsensusMessage.{}", m.message),
+			SigningMessage::SigningGenerationMessage(ref m) => write!(f, "SigningGenerationMessage.{}", m.message),
+			SigningMessage::RequestPartialSignature(_) => write!(f, "RequestPartialSignature"),
+			SigningMessage::PartialSignature(_) => write!(f, "PartialSignature"),
+			SigningMessage::SigningSessionError(_) => write!(f, "SigningSessionError"),
+			SigningMessage::SigningSessionCompleted(_) => write!(f, "SigningSessionCompleted"),
+		}
 	}
 }

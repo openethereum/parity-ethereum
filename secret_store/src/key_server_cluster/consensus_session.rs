@@ -16,13 +16,8 @@
 
 use std::sync::Arc;
 use std::fmt::Debug;
-use std::collections::BTreeSet;
-use parking_lot::Mutex;
-use ethkey::{self, Public, Secret, Signature};
-use util;
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, DocumentKeyShare};
-use key_server_cluster::cluster::{Cluster};
-use key_server_cluster::cluster_sessions::ClusterSession;
+use ethkey::{self, Public, Signature};
+use key_server_cluster::{Error, NodeId, SessionId, AclStorage};
 use key_server_cluster::consensus::Consensus;
 use key_server_cluster::message::{ConsensusMessage, InitializeConsensusSession, ConfirmConsensusInitialization};
 
@@ -51,9 +46,6 @@ pub struct AclConsensusChecker {
 	/// ACL storate to check access to the resource.
 	acl_storage: Arc<AclStorage>,
 }
-
-/// Always accept checker for consensus establishing session.
-pub struct TrueConsensusChecker;
 
 /// SessionImpl creation parameters
 pub struct SessionParams<C: ConsensusChecker> {
@@ -227,11 +219,5 @@ impl AclConsensusChecker {
 impl ConsensusChecker for AclConsensusChecker {
 	fn check_offer(&self, key: &SessionId, requestor: &Public) -> bool {
 		self.acl_storage.check(requestor, key).unwrap_or(false)
-	}
-}
-
-impl ConsensusChecker for TrueConsensusChecker {
-	fn check_offer(&self, _key: &SessionId, _requestor: &Public) -> bool {
-		true
 	}
 }

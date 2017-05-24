@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp::{Ord, PartialOrd, Ordering};
-use std::collections::{BTreeSet, BTreeMap};
+use std::collections::BTreeSet;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use parking_lot::{Mutex, Condvar};

@@ -215,11 +215,6 @@ impl SessionImpl {
 		self.data.lock().derived_point.clone()
 	}
 
-	/// Get key share.
-	pub fn key_share(&self) -> Option<Result<DocumentKeyShare, Error>> {
-		self.data.lock().key_share.clone()
-	}
-
 	/// Simulate faulty generation session behaviour.
 	pub fn simulate_faulty_behaviour(&self) {
 		self.data.lock().simulate_faulty_behaviour = true;
@@ -966,7 +961,7 @@ pub mod tests {
 
 	#[test]
 	fn fails_to_accept_initialization_when_already_initialized() {
-		let (sid, m, _, mut l) = make_simple_cluster(0, 2).unwrap();
+		let (_, _, _, mut l) = make_simple_cluster(0, 2).unwrap();
 		let message = l.take_message().unwrap();
 		l.process_message(message.clone()).unwrap();
 		assert_eq!(l.process_message(message.clone()).unwrap_err(), Error::InvalidStateForRequest);
@@ -1061,7 +1056,7 @@ pub mod tests {
 
 	#[test]
 	fn fails_to_complete_initialization_if_not_waiting_for_it() {
-		let (sid, m, s, l) = make_simple_cluster(0, 2).unwrap();
+		let (sid, m, _, l) = make_simple_cluster(0, 2).unwrap();
 		assert_eq!(l.first_slave().on_complete_initialization(m, &message::CompleteInitialization {
 			session: sid.into(),
 			derived_point: math::generate_random_point().unwrap().into(),
@@ -1070,7 +1065,7 @@ pub mod tests {
 
 	#[test]
 	fn fails_to_complete_initialization_from_non_master_node() {
-		let (sid, m, s, mut l) = make_simple_cluster(0, 3).unwrap();
+		let (sid, _, _, mut l) = make_simple_cluster(0, 3).unwrap();
 		l.take_and_process_message().unwrap();
 		l.take_and_process_message().unwrap();
 		l.take_and_process_message().unwrap();

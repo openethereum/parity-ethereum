@@ -17,7 +17,7 @@
 // TODO: when job requests sent && we restart, we could receive previous responses => there should be some kind of control (random secret in each group of jobs)
 
 use std::fmt::Debug;
-use std::collections::{BTreeSet, BTreeMap, VecDeque};
+use std::collections::{BTreeSet, BTreeMap};
 use key_server_cluster::{Error, NodeId};
 
 #[derive(Debug, Clone)]
@@ -76,6 +76,7 @@ impl<T> Consensus<T> where T: Debug + Clone {
 		}))
 	}
 
+	#[cfg(test)]
 	/// Return consensus core reference.
 	pub fn core(&self) -> Option<&ConsensusCore> {
 		match *self {
@@ -216,6 +217,7 @@ impl<T> Consensus<T> where T: Debug + Clone {
 		Ok(())
 	}
 
+	#[cfg(test)]
 	/// Return job reqeuests.
 	pub fn job_requests(&self) -> Result<&BTreeSet<NodeId>, Error> {
 		match *self {
@@ -296,6 +298,7 @@ impl<T> Consensus<T> where T: Debug + Clone {
 }
 
 impl ConsensusCore {
+	#[cfg(test)]
 	/// Return rejected nodes list.
 	pub fn rejected_nodes(&self) -> &BTreeSet<NodeId> {
 		&self.rejected_nodes
@@ -386,6 +389,7 @@ impl<T> ActiveConsensus<T> where T: Debug + Clone {
 		Ok(())
 	}
 
+	#[cfg(test)]
 	/// Return job requests.
 	pub fn job_requests(&self) -> Result<&BTreeSet<NodeId>, Error> {
 		Ok(&self.active_requests)
@@ -421,7 +425,6 @@ impl<T> ActiveConsensus<T> where T: Debug + Clone {
 
 #[cfg(test)]
 mod tests {
-	use std::collections::BTreeSet;
 	use key_server_cluster::Error;
 	use super::Consensus;
 

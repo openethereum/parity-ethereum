@@ -14,9 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::iter::once;
-use ethkey::{Public, Secret, Random, Generator, Signature, recover, math};
-use util::{U256, H256, Bytes, sha3, Hashable};
+use ethkey::{Public, Secret, Random, Generator, math};
+use util::{U256, H256, Hashable};
 use key_server_cluster::Error;
 
 #[derive(Debug)]
@@ -166,7 +165,7 @@ pub fn keys_verification(threshold: usize, derived_point: &Public, number_id: &S
 }
 
 /// Compute secret share.
-pub fn compute_secret_share<'a, I>(mut secret_values: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+pub fn compute_secret_share<'a, I>(secret_values: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	compute_secret_sum(secret_values)
 }
 
@@ -178,13 +177,13 @@ pub fn compute_public_share(self_secret_value: &Secret) -> Result<Public, Error>
 }
 
 /// Compute joint public key.
-pub fn compute_joint_public<'a, I>(mut public_shares: I) -> Result<Public, Error> where I: Iterator<Item=&'a Public> {
+pub fn compute_joint_public<'a, I>(public_shares: I) -> Result<Public, Error> where I: Iterator<Item=&'a Public> {
 	compute_public_sum(public_shares)
 }
 
 #[cfg(test)]
 /// Compute joint secret key.
-pub fn compute_joint_secret<'a, I>(mut secret_coeffs: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+pub fn compute_joint_secret<'a, I>(secret_coeffs: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	compute_secret_sum(secret_coeffs)
 }
 
@@ -209,7 +208,7 @@ pub fn encrypt_secret(secret: &Public, joint_public: &Public) -> Result<Encrypte
 }
 
 /// Compute shadow for the node.
-pub fn compute_node_shadow<'a, I>(node_secret_share: &Secret, node_number: &Secret, mut other_nodes_numbers: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+pub fn compute_node_shadow<'a, I>(node_secret_share: &Secret, node_number: &Secret, other_nodes_numbers: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	compute_shadow_mul(node_secret_share, node_number, other_nodes_numbers)
 }
 
@@ -235,13 +234,13 @@ pub fn compute_node_shadow_point(access_key: &Secret, common_point: &Public, nod
 }
 
 /// Compute joint shadow point.
-pub fn compute_joint_shadow_point<'a, I>(mut nodes_shadow_points: I) -> Result<Public, Error> where I: Iterator<Item=&'a Public> {
+pub fn compute_joint_shadow_point<'a, I>(nodes_shadow_points: I) -> Result<Public, Error> where I: Iterator<Item=&'a Public> {
 	compute_public_sum(nodes_shadow_points)
 }
 
 #[cfg(test)]
 /// Compute joint shadow point (version for tests).
-pub fn compute_joint_shadow_point_test<'a, I>(access_key: &Secret, common_point: &Public, mut nodes_shadows: I) -> Result<Public, Error> where I: Iterator<Item=&'a Secret> {
+pub fn compute_joint_shadow_point_test<'a, I>(access_key: &Secret, common_point: &Public, nodes_shadows: I) -> Result<Public, Error> where I: Iterator<Item=&'a Secret> {
 	let mut joint_shadow = compute_secret_sum(nodes_shadows)?;
 	joint_shadow.mul(access_key)?;
 
@@ -319,7 +318,7 @@ pub fn combine_message_hash_with_public(message_hash: &H256, public: &Public) ->
 }
 
 /// Compute signature share.
-pub fn compute_signature_share<'a, I>(combined_hash: &Secret, one_time_secret_coeff: &Secret, node_secret_share: &Secret, node_number: &Secret, mut other_nodes_numbers: I)
+pub fn compute_signature_share<'a, I>(combined_hash: &Secret, one_time_secret_coeff: &Secret, node_secret_share: &Secret, node_number: &Secret, other_nodes_numbers: I)
 	-> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	let mut sum = one_time_secret_coeff.clone();
 	let mut addendum = compute_shadow_mul(node_secret_share, node_number, other_nodes_numbers)?;
@@ -329,7 +328,7 @@ pub fn compute_signature_share<'a, I>(combined_hash: &Secret, one_time_secret_co
 }
 
 /// Check signature share.
-pub fn check_signature_share<'a, I>(combined_hash: &Secret, signature_share: &Secret, public_share: &Public, one_time_public_share: &Public, node_number: &Secret, mut other_nodes_numbers: I)
+pub fn check_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: &Secret, _public_share: &Public, _one_time_public_share: &Public, _node_number: &Secret, _other_nodes_numbers: I)
 	-> Result<bool, Error> where I: Iterator<Item=&'a Secret> {
 	Ok(true)
 	/* TODO: fix with odd-of-N
@@ -366,6 +365,7 @@ pub fn local_compute_signature(nonce: &Secret, secret: &Secret, message_hash: &S
 	Ok((combined_hash, sig))
 }
 
+#[cfg(test)]
 /// Verify signature as described in https://en.wikipedia.org/wiki/Schnorr_signature#Verifying.
 pub fn verify_signature(public: &Public, signature: &(Secret, Secret), message_hash: &H256) -> Result<bool, Error> {
 	let mut addendum = math::generation_point();
@@ -380,6 +380,7 @@ pub fn verify_signature(public: &Public, signature: &(Secret, Secret), message_h
 
 #[cfg(test)]
 pub mod tests {
+	use std::iter::once;
 	use ethkey::KeyPair;
 	use super::*;
 

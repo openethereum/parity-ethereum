@@ -16,7 +16,7 @@
 
 use std::io;
 use std::time;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet};
 use std::collections::btree_map::Entry;
 use std::net::{SocketAddr, IpAddr};
@@ -26,9 +26,9 @@ use parking_lot::{RwLock, Mutex};
 use tokio_io::IoFuture;
 use tokio_core::reactor::{Handle, Remote, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
-use ethkey::{Public, Secret, KeyPair, Signature, Random, Generator};
+use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use util::H256;
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, EncryptedDocumentKeyShadow};
+use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage};
 use key_server_cluster::cluster_sessions::{ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
 	DecryptionSessionWrapper, SigningSessionWrapper};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
@@ -395,7 +395,6 @@ impl ClusterCore {
 			Message::Decryption(message) => ClusterCore::process_decryption_message(data, connection, message),
 			Message::Signing(message) => ClusterCore::process_signing_message(data, connection, message),
 			Message::Cluster(message) => ClusterCore::process_cluster_message(data, connection, message),
-			Message::Consensus(_) => (), // consensus messages are always wrapped into other messages
 		}
 	}
 

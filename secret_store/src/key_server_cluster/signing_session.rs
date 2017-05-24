@@ -16,13 +16,11 @@
 
 use std::collections::{BTreeSet, VecDeque};
 use std::mem::swap;
-use std::cmp::{Ordering, Ord, PartialOrd};
 use std::ops::DerefMut;
 use std::sync::Arc;
-use std::time;
 use parking_lot::{Mutex, Condvar};
 use ethkey::{self, Public, Secret, Signature};
-use util::{self, H256};
+use util::H256;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, DocumentKeyShare};
 use key_server_cluster::cluster::{Cluster};
 use key_server_cluster::cluster_sessions::ClusterSession;
@@ -30,7 +28,7 @@ use key_server_cluster::consensus::Consensus;
 use key_server_cluster::consensus_session::{ConsensusSession, AclConsensusChecker, SessionParams as ConsensusSessionParams,
 	SessionState as ConsensusSessionState, SessionAction as ConsensusSessionAction};
 use key_server_cluster::generation_session::{SessionImpl as GenerationSession, SessionParams as GenerationSessionParams,
-	SessionState as GenerationSessionState, Session as GenerationSessionApi};
+	Session as GenerationSessionApi};
 use key_server_cluster::math;
 use key_server_cluster::message::{Message, SigningMessage, SigningConsensusMessage, SigningGenerationMessage,
 	RequestPartialSignature, PartialSignature, SigningSessionCompleted, GenerationMessage, ConsensusMessage, SigningSessionError};
@@ -395,7 +393,7 @@ impl SessionImpl {
 		// calculate partial signature
 		let session_joint_public = data.session_joint_public.as_ref().expect("we are in SessionKeyGenerated state; public is generated during SessionKeyGenerating; qed");
 		let session_secret_coeff = data.session_secret_coeff.as_ref().expect("we are in SessionKeyGenerated state; coeff is generated during SessionKeyGenerating; qed");
-		let mut nodes: BTreeSet<_> = message.nodes.iter().cloned().map(Into::into).filter(|n| n != &self.self_node_id).collect();
+		let nodes: BTreeSet<_> = message.nodes.iter().cloned().map(Into::into).filter(|n| n != &self.self_node_id).collect();
 		let partial_signature = SessionImpl::do_partial_signing(&self.self_node_id, &message.message_hash.clone().into(), &self.encrypted_data, &nodes, session_joint_public, session_secret_coeff)?;
 
 		self.cluster.send(&sender, Message::Signing(SigningMessage::PartialSignature(PartialSignature {
@@ -538,7 +536,7 @@ impl SessionImpl {
 		});
 
 		// start generation session
-		let result = generation_session.initialize(Public::default(), // doesn't matter
+		generation_session.initialize(Public::default(), // doesn't matter
 			encrypted_data.threshold, selected_nodes.clone())?;
 		data.generation_cluster = Some(generation_cluster);
 		data.generation_session = Some(generation_session);
@@ -798,16 +796,16 @@ fn check_encrypted_data(self_node_id: &Public, encrypted_data: &DocumentKeyShare
 mod tests {
 	use std::sync::Arc;
 	use std::collections::{BTreeMap, VecDeque};
-	use ethkey::{Random, Generator, Public, Signature, sign};
+	use ethkey::{Random, Generator, Public, sign};
 	use util::H256;
 	use super::super::super::acl_storage::tests::DummyAclStorage;
-	use key_server_cluster::{NodeId, SessionId, Error, DummyKeyStorage, KeyStorage};
-	use key_server_cluster::cluster::tests::{DummyCluster, make_clusters, run_clusters, loop_until, all_connections_established};
+	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage};
+	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::generation_session::{Session as GenerationSession};
 	use key_server_cluster::generation_session::tests::MessageLoop as KeyGenerationMessageLoop;
 	use key_server_cluster::math;
 	use key_server_cluster::message::{Message, SigningMessage};
-	use key_server_cluster::signing_session::{Session, SessionImpl, SessionState, SessionParams};
+	use key_server_cluster::signing_session::{Session, SessionImpl, SessionParams};
 
 	struct Node {
 		pub cluster: Arc<DummyCluster>,
@@ -856,14 +854,6 @@ mod tests {
 			&self.nodes.values().nth(0).unwrap().session
 		}
 
-		pub fn first_slave(&self) -> &SessionImpl {
-			&self.nodes.values().nth(1).unwrap().session
-		}
-
-		pub fn second_slave(&self) -> &SessionImpl {
-			&self.nodes.values().nth(2).unwrap().session
-		}
-
 		pub fn take_message(&mut self) -> Option<(NodeId, NodeId, Message)> {
 			self.nodes.values()
 				.filter_map(|n| n.cluster.take_message().map(|m| (n.session.node().clone(), m.0, m.1)))
@@ -889,11 +879,6 @@ mod tests {
 				},
 				Err(err) => Err(err),
 			}
-		}
-
-		pub fn take_and_process_message(&mut self) -> Result<(), Error> {
-			let msg = self.take_message().unwrap();
-			self.process_message(msg)
 		}
 	}
 
