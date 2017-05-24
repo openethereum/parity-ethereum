@@ -424,11 +424,8 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 				seal_fields: encoded.seal().into_iter().map(Into::into).collect(),
 				extra_data: Bytes::new(encoded.extra_data()),
 			},
-			extra_info: self.client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
-=======
 			inner: encoded.into(),
-			extra_info: client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
->>>>>>> 18c3e90dbf00ed86e6565669e6b52681b8054c53
+			extra_info: self.client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
 		}).boxed()
 	}
 
