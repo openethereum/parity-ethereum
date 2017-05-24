@@ -28,7 +28,7 @@ use v1::types::ConfirmationResponse;
 use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
-use util::{Address, Uint, U256, ToPretty};
+use util::{Address, U256, ToPretty};
 use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
@@ -420,7 +420,6 @@ fn should_add_decryption_to_the_queue() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x0102","id":1}"#;
 
-
 	// then
 	let promise = tester.io.handle_request(&request);
 
@@ -432,7 +431,7 @@ fn should_add_decryption_to_the_queue() {
 			signer.request_confirmed(1.into(), Ok(ConfirmationResponse::Decrypt(vec![0x1, 0x2].into())));
 			break
 		}
-		::std::thread::sleep(Duration::from_millis(100))
+		::std::thread::sleep(Duration::from_millis(10))
 	});
 
 	// check response: will deadlock if unsuccessful.

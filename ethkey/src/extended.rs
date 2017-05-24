@@ -212,7 +212,7 @@ mod derivation {
 	use rcrypto::mac::Mac;
 	use rcrypto::sha2::Sha512;
 	use bigint::hash::{H512, H256};
-	use bigint::prelude::{U256, U512, Uint};
+	use bigint::prelude::{U256, U512};
 	use secp256k1::key::{SecretKey, PublicKey};
 	use SECP256K1;
 	use keccak;

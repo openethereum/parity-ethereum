@@ -39,7 +39,7 @@ use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransact
 use ethsync::LightSync;
 use rlp::UntrustedRlp;
 use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
-use util::{RwLock, Mutex, Uint, U256};
+use util::{RwLock, Mutex, U256};
 
 use futures::{future, Future, BoxFuture, IntoFuture};
 use futures::sync::oneshot;

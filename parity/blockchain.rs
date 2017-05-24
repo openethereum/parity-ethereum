@@ -22,7 +22,7 @@ use std::thread::sleep;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use io::{PanicHandler, ForwardPanic};
-use util::{ToPretty, Uint, U256, H256, Address, Hashable};
+use util::{ToPretty, U256, H256, Address, Hashable};
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockId};

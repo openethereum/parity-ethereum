@@ -2,7 +2,7 @@ extern crate futures;
 extern crate rpassword;
 
 extern crate ethcore_util as util;
-extern crate ethcore_bigint as bigint;
+extern crate bigint;
 
 extern crate parity_rpc as rpc;
 extern crate parity_rpc_client as client;
