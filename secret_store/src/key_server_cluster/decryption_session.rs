@@ -465,7 +465,7 @@ impl SessionImpl {
 			cluster.send(node, Message::Decryption(DecryptionMessage::RequestPartialDecryption(RequestPartialDecryption {
 				session: session_id.clone().into(),
 				sub_session: access_key.clone().into(),
-				is_shadow_decryption: data.is_shadow_decryption.expect("TODO"),
+				is_shadow_decryption: data.is_shadow_decryption.expect("is_shadow_decryption on master node is filled in initialization; we are on master node; qed"),
 				nodes: confirmed_nodes.iter().cloned().map(Into::into).collect(),
 			})))?;
 		}
@@ -487,7 +487,9 @@ impl SessionImpl {
 
 	fn do_decryption(access_key: Secret, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
 		// decrypt the secret using shadow points
-		let job_responses = data.consensus.as_ref().expect("TODO").job_responses()?;
+		let job_responses = data.consensus.as_ref()
+			.expect("consesus is filled in initialization phase; decryption phase follows initialization phase")
+			.job_responses()?;
 		let joint_shadow_point = math::compute_joint_shadow_point(job_responses.values().map(|s| &s.shadow_point))?;
 		let encrypted_point = encrypted_data.encrypted_point.as_ref().expect("checked at the beginning of the session; immutable; qed");
 		let common_point = encrypted_data.common_point.as_ref().expect("checked at the beginning of the session; immutable; qed");

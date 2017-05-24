@@ -153,32 +153,30 @@ impl ClusterSessions {
 
 	/// Create new generation session.
 	pub fn new_generation_session(&self, master: NodeId, session_id: SessionId, cluster: Arc<ClusterView>) -> Result<Arc<GenerationSessionImpl>, Error> {
-		// check that there's no active encryption session with the same id
-		if self.generation_sessions.contains(&session_id) { // TODO: possible race here and below
-			return Err(Error::DuplicateSessionId);
-		}
 		// check that there's no finished encryption session with the same id
 		if self.key_storage.contains(&session_id) {
 			return Err(Error::DuplicateSessionId);
 		}
-
 		// communicating to all other nodes is crucial for encryption session
 		// => check that we have connections to all cluster nodes
 		if self.nodes.iter().any(|n| !cluster.is_connected(n)) {
 			return Err(Error::NodeDisconnected);
 		}
 
-		let session = self.generation_sessions.insert(master, session_id, cluster.clone(), GenerationSessionImpl::new(GenerationSessionParams {
-			id: session_id.clone(),
-			self_node_id: self.self_node_id.clone(),
-			key_storage: Some(self.key_storage.clone()),
-			cluster: cluster,
-		}));
-		if self.make_faulty_generation_sessions.load(Ordering::Relaxed) {
-			session.simulate_faulty_behaviour();
-		}
-
-		Ok(session)
+		// check that there's no active encryption session with the same id
+		self.generation_sessions.insert(master, session_id, cluster.clone(), move ||
+			Ok(GenerationSessionImpl::new(GenerationSessionParams {
+				id: session_id.clone(),
+				self_node_id: self.self_node_id.clone(),
+				key_storage: Some(self.key_storage.clone()),
+				cluster: cluster,
+			})))
+			.map(|session| {
+				if self.make_faulty_generation_sessions.load(Ordering::Relaxed) {
+					session.simulate_faulty_behaviour();
+				}
+				session
+			})
 	}
 
 	/// Send generation session error.
@@ -195,10 +193,6 @@ impl ClusterSessions {
 
 	/// Create new encryption session.
 	pub fn new_encryption_session(&self, master: NodeId, session_id: SessionId, cluster: Arc<ClusterView>) -> Result<Arc<EncryptionSessionImpl>, Error> {
-		if self.encryption_sessions.contains(&session_id) {
-			return Err(Error::DuplicateSessionId);
-		}
-
 		// some of nodes, which were generating the key may be down
 		// => do not use these in encryption session
 		let mut encrypted_data = self.key_storage.get(&session_id).map_err(|e| Error::KeyStorage(e.into()))?;
@@ -208,13 +202,13 @@ impl ClusterSessions {
 			encrypted_data.id_numbers.remove(&disconnected_node);
 		}
 
-		Ok(self.encryption_sessions.insert(master, session_id, cluster.clone(), EncryptionSessionImpl::new(EncryptionSessionParams {
+		self.encryption_sessions.insert(master, session_id, cluster.clone(), move || EncryptionSessionImpl::new(EncryptionSessionParams {
 			id: session_id.clone(),
 			self_node_id: self.self_node_id.clone(),
 			encrypted_data: encrypted_data,
 			key_storage: self.key_storage.clone(),
 			cluster: cluster,
-		})?))
+		}))
 	}
 
 	/// Send encryption session error.
@@ -232,9 +226,6 @@ impl ClusterSessions {
 	/// Create new decryption session.
 	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, cluster: Arc<ClusterView>) -> Result<Arc<DecryptionSessionImpl>, Error> {
 		let session_id = DecryptionSessionId::new(session_id, sub_session_id);
-		if self.decryption_sessions.contains(&session_id) {
-			return Err(Error::DuplicateSessionId);
-		}
 
 		// some of nodes, which were encrypting secret may be down
 		// => do not use these in decryption session
@@ -245,14 +236,14 @@ impl ClusterSessions {
 			encrypted_data.id_numbers.remove(&disconnected_node);
 		}
 
-		Ok(self.decryption_sessions.insert(master, session_id.clone(), cluster.clone(), DecryptionSessionImpl::new(DecryptionSessionParams {
+		self.decryption_sessions.insert(master, session_id.clone(), cluster.clone(), move || DecryptionSessionImpl::new(DecryptionSessionParams {
 			id: session_id.id,
 			access_key: session_id.access_key,
 			self_node_id: self.self_node_id.clone(),
 			encrypted_data: encrypted_data,
 			acl_storage: self.acl_storage.clone(),
 			cluster: cluster,
-		})?))
+		}))
 	}
 
 	/// Send decryption session error.
@@ -276,10 +267,6 @@ impl ClusterSessions {
 	/// Create new signing session.
 	pub fn new_signing_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, cluster: Arc<ClusterView>) -> Result<Arc<SigningSessionImpl>, Error> {
 		let session_id = SigningSessionId::new(session_id, sub_session_id);
-		if self.signing_sessions.contains(&session_id) {
-			return Err(Error::DuplicateSessionId);
-		}
-
 		// some of nodes, which were encrypting secret may be down
 		// => do not use these in signing session
 		let mut encrypted_data = self.key_storage.get(&session_id.id).map_err(|e| Error::KeyStorage(e.into()))?;
@@ -289,14 +276,14 @@ impl ClusterSessions {
 			encrypted_data.id_numbers.remove(&disconnected_node);
 		}
 
-		Ok(self.signing_sessions.insert(master, session_id.clone(), cluster.clone(), SigningSessionImpl::new(SigningSessionParams {
+		self.signing_sessions.insert(master, session_id.clone(), cluster.clone(), move || SigningSessionImpl::new(SigningSessionParams {
 			id: session_id.id,
 			access_key: session_id.access_key,
 			self_node_id: self.self_node_id.clone(),
 			encrypted_data: encrypted_data,
 			acl_storage: self.acl_storage.clone(),
 			cluster: cluster,
-		})?))
+		}))
 	}
 
 	/// Send signing session error.
@@ -341,16 +328,17 @@ impl<K, V, M> ClusterSessionsContainer<K, V, M> where K: Clone + Ord, V: Cluster
 		}
 	}
 
-	pub fn contains(&self, session_id: &K) -> bool {
-		self.sessions.read().contains_key(session_id)
-	}
-
 	pub fn get(&self, session_id: &K) -> Option<Arc<V>> {
 		self.sessions.read().get(session_id).map(|s| s.session.clone())
 	}
 
-	pub fn insert(&self, master: NodeId, session_id: K, cluster: Arc<ClusterView>, session: V) -> Arc<V> {
-		let session = Arc::new(session);
+	pub fn insert<F: FnOnce() -> Result<V, Error>>(&self, master: NodeId, session_id: K, cluster: Arc<ClusterView>, session: F) -> Result<Arc<V>, Error> {
+		let mut sessions = self.sessions.write();
+		if sessions.contains_key(&session_id) {
+			return Err(Error::DuplicateSessionId);
+		}
+
+		let session = Arc::new(session()?);
 		let queued_session = QueuedSession {
 			master: master,
 			cluster_view: cluster,
@@ -358,8 +346,8 @@ impl<K, V, M> ClusterSessionsContainer<K, V, M> where K: Clone + Ord, V: Cluster
 			session: session.clone(),
 			queue: VecDeque::new(),
 		};
-		self.sessions.write().insert(session_id, queued_session);
-		session
+		sessions.insert(session_id, queued_session);
+		Ok(session)
 	}
 
 	pub fn remove(&self, session_id: &K) {

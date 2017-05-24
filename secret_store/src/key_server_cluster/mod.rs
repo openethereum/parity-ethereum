@@ -66,7 +66,7 @@ pub enum Error {
 	/// Current state of encryption/decryption session does not allow to proceed request.
 	/// This means that either there is some comm-failure or node is misbehaving/cheating.
 	InvalidStateForRequest,
-	/// TODO
+	/// Request cannot be sent/received from this node.
 	InvalidNodeForRequest,
 	/// Message or some data in the message was recognized as invalid.
 	/// This means that node is misbehaving/cheating.
@@ -119,7 +119,7 @@ impl fmt::Display for Error {
 			Error::InvalidThreshold => write!(f, "invalid threshold value has been passed"),
 			Error::TooEarlyForRequest => write!(f, "session is not yet ready to process this request"),
 			Error::InvalidStateForRequest => write!(f, "session is in invalid state for processing this request"),
-			Error::InvalidNodeForRequest => write!(f, "node cannot respond to this request"),
+			Error::InvalidNodeForRequest => write!(f, "invalid node for this request"),
 			Error::InvalidMessage => write!(f, "invalid message is received"),
 			Error::NodeDisconnected => write!(f, "node required for this operation is currently disconnected"),
 			Error::EthKey(ref e) => write!(f, "cryptographic error {}", e),

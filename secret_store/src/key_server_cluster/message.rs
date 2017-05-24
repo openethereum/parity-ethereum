@@ -298,7 +298,7 @@ pub struct RequestPartialSignature {
 	pub sub_session: SerializableSecret,
 	/// Message hash.
 	pub message_hash: SerializableMessageHash,
-	/// Selected nodes. TODO: this information is known from generation session - reuse
+	/// Selected nodes.
 	pub nodes: BTreeSet<MessageNodeId>,
 }
 
