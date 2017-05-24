@@ -82,8 +82,8 @@ impl<C, M> FullDispatcher<C, M> {
 	/// Create a `FullDispatcher` from Arc references to a client and miner.
 	pub fn new(client: Arc<C>, miner: Arc<M>) -> Self {
 		FullDispatcher {
-			client: client,
-			miner: miner,
+			client,
+			miner,
 		}
 	}
 }
@@ -109,7 +109,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, force_nonce: bool)
 		-> BoxFuture<FilledTransactionRequest, Error>
 	{
-		let (client, miner) = (self.client, self.miner);
+		let (client, miner) = (self.client.clone(), self.miner.clone());
 		let request = request;
 		let from = request.from.unwrap_or(default_sender);
 		let nonce = match force_nonce {
@@ -132,7 +132,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
 		-> BoxFuture<WithToken<SignedTransaction>, Error>
 	{
-		let (client, miner) = (self.client, self.miner);
+		let (client, miner) = (self.client.clone(), self.miner.clone());
 		let network_id = client.signing_network_id();
 		let address = filled.from;
 		future::done({

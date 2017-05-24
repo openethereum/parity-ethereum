@@ -47,7 +47,7 @@ impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 	/// Creates new SigningUnsafeClient.
 	pub fn new(accounts: &Option<Arc<AccountProvider>>, dispatcher: D) -> Self {
 		SigningUnsafeClient {
-			accounts: *accounts,
+			accounts: accounts.clone(),
 			dispatcher: dispatcher,
 		}
 	}

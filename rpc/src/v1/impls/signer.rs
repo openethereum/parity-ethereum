@@ -70,8 +70,8 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		});
 
 		SignerClient {
-			signer: *signer,
-			accounts: *store,
+			signer: signer.clone(),
+			accounts: store.clone(),
 			dispatcher: dispatcher,
 			subscribers: subscribers,
 		}
@@ -90,7 +90,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		let dispatcher = self.dispatcher.clone();
 
 		let setup = || {
-			Ok((self.account_provider()?, self.signer))
+			Ok((self.account_provider()?, self.signer.clone()))
 		};
 
 		let (accounts, signer) = match setup() {
@@ -199,9 +199,8 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse, Error> {
 		let id = id.into();
-		let signer = self.signer;
 
-		signer.peek(&id).map(|confirmation| {
+		self.signer.peek(&id).map(|confirmation| {
 			let result = match confirmation.payload {
 				ConfirmationPayload::SendTransaction(request) => {
 					Self::verify_transaction(bytes, request, |pending_transaction| {
@@ -230,7 +229,7 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 				},
 			};
 			if let Ok(ref response) = result {
-				signer.request_confirmed(id, Ok(response.clone()));
+				self.signer.request_confirmed(id, Ok(response.clone()));
 			}
 			result
 		}).unwrap_or_else(|| Err(errors::invalid_params("Unknown RequestID", id)))

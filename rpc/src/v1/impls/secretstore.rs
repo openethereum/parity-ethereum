@@ -38,7 +38,7 @@ impl SecretStoreClient {
 	/// Creates new SecretStoreClient
 	pub fn new(store: &Option<Arc<AccountProvider>>) -> Self {
 		SecretStoreClient {
-			accounts: *store,
+			accounts: store.clone(),
 		}
 	}
 

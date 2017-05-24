@@ -94,8 +94,8 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 	/// Creates a new signing queue client given shared signing queue.
 	pub fn new(signer: &Arc<SignerService>, dispatcher: D, accounts: &Option<Arc<AccountProvider>>) -> Self {
 		SigningQueueClient {
-			signer: *signer,
-			accounts: *accounts,
+			signer: signer.clone(),
+			accounts: accounts.clone(),
 			dispatcher: dispatcher,
 			pending: Arc::new(Mutex::new(TransientHashMap::new(MAX_PENDING_DURATION_SEC))),
 		}
@@ -113,7 +113,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 		};
 
 		let dispatcher = self.dispatcher.clone();
-		let signer = self.signer;
+		let signer = self.signer.clone();
 		dispatch::from_rpc(payload, default_account, &dispatcher)
 			.and_then(move |payload| {
 				let sender = payload.sender();

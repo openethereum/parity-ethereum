@@ -21,7 +21,7 @@ use v1::helpers::errors;
 
 pub fn unwrap_provider(provider: &Option<Arc<AccountProvider>>) -> Result<Arc<AccountProvider>, Error> {
 	match *provider {
-		Some(p) => Ok(p),
+		Some(ref arc) => Ok(arc.clone()),
 		None => Err(errors::public_unsupported(None)),
 	}
 }

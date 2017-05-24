@@ -48,10 +48,10 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 	/// Creates new `ParitySetClient` with given `Fetch`.
 	pub fn new(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>, fetch: F) -> Self {
 		ParitySetClient {
-			client: *client,
-			miner: *miner,
-			updater: *updater,
-			net: *net,
+			client: client.clone(),
+			miner: miner.clone(),
+			updater: updater.clone(),
+			net: net.clone(),
 			fetch: fetch,
 			eip86_transition: client.eip86_transition(),
 		}
@@ -167,21 +167,17 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>, Error> {
-		let updater = self.updater;
-		Ok(updater.upgrade_ready().map(Into::into))
+		Ok(self.updater.upgrade_ready().map(Into::into))
 	}
 
 	fn execute_upgrade(&self) -> Result<bool, Error> {
-		let updater = self.updater;
-		Ok(updater.execute_upgrade())
+		Ok(self.updater.execute_upgrade())
 	}
 
 	fn remove_transaction(&self, hash: H256) -> Result<Option<Transaction>, Error> {
-		let miner = self.miner;
-		let client = self.client;
 		let block_number = self.client.chain_info().best_block_number;
 		let hash = hash.into();
 
-		Ok(miner.remove_pending_transaction(&*client, &hash).map(|t| Transaction::from_pending(t, block_number, self.eip86_transition)))
+		Ok(self.miner.remove_pending_transaction(&*self.client, &hash).map(|t| Transaction::from_pending(t, block_number, self.eip86_transition)))
 	}
 }

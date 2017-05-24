@@ -42,7 +42,7 @@ impl<D: Dispatcher> PersonalClient<D> {
 	/// Creates new PersonalClient
 	pub fn new(store: &Option<Arc<AccountProvider>>, dispatcher: D, allow_perm_unlock: bool) -> Self {
 		PersonalClient {
-			accounts: *store,
+			accounts: store.clone(),
 			dispatcher: dispatcher,
 			allow_perm_unlock: allow_perm_unlock,
 		}

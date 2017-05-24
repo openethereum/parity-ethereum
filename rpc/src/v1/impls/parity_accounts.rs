@@ -38,7 +38,7 @@ impl ParityAccountsClient {
 	/// Creates new PersonalClient
 	pub fn new(store: &Option<Arc<AccountProvider>>) -> Self {
 		ParityAccountsClient {
-			accounts: *store,
+			accounts: store.clone(),
 		}
 	}
 

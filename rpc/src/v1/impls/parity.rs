@@ -93,12 +93,12 @@ impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
 		dapps_port: Option<u16>,
 	) -> Self {
 		ParityClient {
-			client: *client,
-			miner: *miner,
-			sync: *sync,
-			updater: *updater,
-			net: *net,
-			accounts: *store,
+			client: client.clone(),
+			miner: miner.clone(),
+			sync: sync.clone(),
+			updater: updater.clone(),
+			net: net.clone(),
+			accounts: store.clone(),
 			logger: logger,
 			settings: settings,
 			signer: signer,
@@ -358,18 +358,15 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn consensus_capability(&self) -> Result<ConsensusCapability, Error> {
-		let updater = self.updater;
-		Ok(updater.capability().into())
+		Ok(self.updater.capability().into())
 	}
 
 	fn version_info(&self) -> Result<VersionInfo, Error> {
-		let updater = self.updater;
-		Ok(updater.version_info().into())
+		Ok(self.updater.version_info().into())
 	}
 
 	fn releases_info(&self) -> Result<Option<OperationsInfo>, Error> {
-		let updater = self.updater;
-		Ok(updater.info().map(Into::into))
+		Ok(self.updater.info().map(Into::into))
 	}
 
 	fn chain_status(&self) -> Result<ChainStatus, Error> {
