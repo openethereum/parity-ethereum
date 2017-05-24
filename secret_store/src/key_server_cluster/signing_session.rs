@@ -525,7 +525,7 @@ impl SessionImpl {
 		// select nodes to make signature
 		let mut consensus = data.consensus.as_mut().expect("consensus is filled during initialization phase; key generation phase follows initialization; qed");
 		consensus.activate()?;
-		let (_, selected_nodes) = consensus.select_nodes()?;
+		let (_, selected_nodes) = consensus.select_nodes(&self_node_id)?;
 
 		// create generation session
 		let generation_cluster = Arc::new(SigningCluster::new(cluster.clone(), self_node_id.clone(), selected_nodes.clone()));

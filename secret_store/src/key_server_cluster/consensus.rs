@@ -176,9 +176,9 @@ impl<T> Consensus<T> where T: Debug + Clone {
 	}
 
 	/// Select nodes for completing their jobs.
-	pub fn select_nodes(&mut self) -> Result<(&Secret, &BTreeSet<NodeId>), Error> {
+	pub fn select_nodes(&mut self, self_node_id: &NodeId) -> Result<(&Secret, &BTreeSet<NodeId>), Error> {
 		match *self {
-			Consensus::Active(ref mut consensus) => consensus.select_nodes(),
+			Consensus::Active(ref mut consensus) => consensus.select_nodes(self_node_id),
 			_ => Err(Error::InvalidStateForRequest),
 		}
 	}
@@ -348,14 +348,22 @@ impl<T> ActiveConsensus<T> where T: Debug + Clone {
 	}
 
 	/// Select nodes to make job.
-	pub fn select_nodes(&mut self) -> Result<(&Secret, &BTreeSet<NodeId>), Error> {
+	pub fn select_nodes(&mut self, self_node_id: &NodeId) -> Result<(&Secret, &BTreeSet<NodeId>), Error> {
 		if !self.selected_nodes.is_empty() {
 			return Err(Error::InvalidStateForRequest);
 		}
 
-		// TODO: possibly optimize by including this node in selected_nodes list
 		self.selection_key = Some(math::generate_random_scalar()?);
-		self.selected_nodes = self.core.confirmed_nodes.iter().cloned().take(self.core.threshold + 1).collect();
+		self.selected_nodes.clear();
+		if self.core.confirmed_nodes.contains(self_node_id) {
+			self.selected_nodes.insert(self_node_id.clone());
+		}
+		for confirmed_node in &self.core.confirmed_nodes {
+			self.selected_nodes.insert(confirmed_node.clone());
+			if self.selected_nodes.len() == self.core.threshold + 1 {
+				break;
+			}
+		}
 		Ok((self.selection_key.as_ref().expect("filled couple of lines above"), &self.selected_nodes))
 	}
 

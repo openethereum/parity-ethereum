@@ -458,7 +458,7 @@ impl SessionImpl {
 		// send jobs to all selected nodes
 		let consensus = data.consensus.as_mut().expect("consensus is created on initialization phase; partial decryption phase follows initialization; qed");
 		consensus.activate()?;
-		let (request_id, mut confirmed_nodes) = consensus.select_nodes().map(|(r, n)| (r.clone(), n.clone()))?;
+		let (request_id, mut confirmed_nodes) = consensus.select_nodes(self_node_id).map(|(r, n)| (r.clone(), n.clone()))?;
 
 		// send requests
 		for node in confirmed_nodes.iter().filter(|n| n != &self_node_id) {
