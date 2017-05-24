@@ -29,14 +29,15 @@ import 'codemirror/addon/search/searchcursor';
 import 'codemirror/keymap/sublime';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/mode/javascript/javascript';
+
 // Custom codemirror style
-import './console/codemirror.css';
+import './codemirror.css';
 
-import Application from './console/Application';
+import Application from './Application';
 
-import '../../assets/fonts/Roboto/font.css';
-import '../../assets/fonts/RobotoMono/font.css';
-import './style.css';
+import '@parity/shared/assets/fonts/Roboto/font.css';
+import '@parity/shared/assets/fonts/RobotoMono/font.css';
+import '../style.css';
 
 ReactDOM.render(
   <AppContainer>
@@ -46,8 +47,8 @@ ReactDOM.render(
 );
 
 if (module.hot) {
-  module.hot.accept('./console/Application/index.js', () => {
-    require('./console/Application/index.js');
+  module.hot.accept('./Application/index.js', () => {
+    require('./Application/index.js');
 
     ReactDOM.render(
       <AppContainer>
