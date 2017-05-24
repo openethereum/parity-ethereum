@@ -441,11 +441,25 @@ impl DecryptionMessage {
 
 impl SigningMessage {
 	pub fn session_id(&self) -> &SessionId {
-		unimplemented!()
+		match *self {
+			SigningMessage::SigningConsensusMessage(ref msg) => &msg.session,
+			SigningMessage::SigningGenerationMessage(ref msg) => &msg.session,
+			SigningMessage::RequestPartialSignature(ref msg) => &msg.session,
+			SigningMessage::PartialSignature(ref msg) => &msg.session,
+			SigningMessage::SigningSessionError(ref msg) => &msg.session,
+			SigningMessage::SigningSessionCompleted(ref msg) => &msg.session,
+		}
 	}
 
 	pub fn sub_session_id(&self) -> &Secret {
-		unimplemented!()
+		match *self {
+			SigningMessage::SigningConsensusMessage(ref msg) => &msg.sub_session,
+			SigningMessage::SigningGenerationMessage(ref msg) => &msg.sub_session,
+			SigningMessage::RequestPartialSignature(ref msg) => &msg.sub_session,
+			SigningMessage::PartialSignature(ref msg) => &msg.sub_session,
+			SigningMessage::SigningSessionError(ref msg) => &msg.sub_session,
+			SigningMessage::SigningSessionCompleted(ref msg) => &msg.sub_session,
+		}
 	}
 }
 

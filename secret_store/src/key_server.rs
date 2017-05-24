@@ -126,11 +126,11 @@ impl MessageSigner for KeyServerImpl {
 		let signing_session = self.data.lock().cluster.new_signing_session(key_id.clone(), signature.clone(), message)?;
 		let message_signature = signing_session.wait()?;
 
-		// compose two message signature components into single
-		let mut composed_signature: Vec<u8> = Vec::with_capacity(64);
-		composed_signature.extend_from_slice(&**message_signature.0);
-		composed_signature.extend_from_slice(&**message_signature.1);
-		Ok(composed_signature.into())
+		// compose two message signature components into single one
+		let mut combined_signature: Vec<u8> = Vec::with_capacity(64);
+		combined_signature.extend_from_slice(&**message_signature.0);
+		combined_signature.extend_from_slice(&**message_signature.1);
+		Ok(combined_signature.into())
 	}
 }
 
@@ -186,9 +186,11 @@ pub mod tests {
 	use std::time;
 	use std::sync::Arc;
 	use ethcrypto;
-	use ethkey::{self, Random, Generator};
+	use ethkey::{self, Secret, Random, Generator};
 	use acl_storage::tests::DummyAclStorage;
 	use key_storage::tests::DummyKeyStorage;
+	use key_server_cluster::math;
+	use util::H256;
 	use types::all::{Error, Public, ClusterConfiguration, NodeAddress, RequestSignature, ServerKeyId,
 		EncryptedDocumentKey, EncryptedDocumentKeyShadow, MessageHash, MessageSignature};
 	use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
@@ -319,6 +321,61 @@ pub mod tests {
 				let retrieved_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &retrieved_key).unwrap();
 				assert_eq!(retrieved_key, generated_key);
 			}
+		}
+	}
+
+	#[test]
+	fn server_key_generation_and_storing_document_key_works_over_network_with_3_nodes() {
+		//::logger::init_log();
+		let key_servers = make_key_servers(6090, 3);
+
+		let test_cases = [0, 1, 2];
+		for threshold in &test_cases {
+			// generate server key
+			let server_key_id = Random.generate().unwrap().secret().clone();
+			let requestor_secret = Random.generate().unwrap().secret().clone();
+			let signature = ethkey::sign(&requestor_secret, &server_key_id).unwrap();
+			let server_public = key_servers[0].generate_key(&server_key_id, &signature, *threshold).unwrap();
+
+			// generate document key (this is done by KS client so that document key is unknown to any KS)
+			let generated_key = Random.generate().unwrap().public().clone();
+			let encrypted_document_key = math::encrypt_secret(&generated_key, &server_public).unwrap();
+
+			// store document key
+			key_servers[0].store_document_key(&server_key_id, &signature, encrypted_document_key.common_point, encrypted_document_key.encrypted_point).unwrap();
+
+			// now let's try to retrieve key back
+			for key_server in key_servers.iter() {
+				let retrieved_key = key_server.restore_document_key(&server_key_id, &signature).unwrap();
+				let retrieved_key = ethcrypto::ecies::decrypt(&requestor_secret, &ethcrypto::DEFAULT_MAC, &retrieved_key).unwrap();
+				let retrieved_key = Public::from_slice(&retrieved_key);
+				assert_eq!(retrieved_key, generated_key);
+			}
+		}
+	}
+
+	#[test]
+	fn server_key_generation_and_message_signing_works_over_network_with_3_nodes() {
+		//::logger::init_log();
+		let key_servers = make_key_servers(6100, 3);
+
+		//let test_cases = [0, 1, 2];
+		let test_cases = [1];
+		for threshold in &test_cases {
+			// generate server key
+			let server_key_id = Random.generate().unwrap().secret().clone();
+			let requestor_secret = Random.generate().unwrap().secret().clone();
+			let signature = ethkey::sign(&requestor_secret, &server_key_id).unwrap();
+			let server_public = key_servers[0].generate_key(&server_key_id, &signature, *threshold).unwrap();
+
+			// sign message
+			let message_hash = H256::from(42);
+			let combined_signature = key_servers[0].sign_message(&server_key_id, &signature, message_hash.clone()).unwrap();
+			let signature_c = Secret::from_slice(&combined_signature[..32]).unwrap();
+			let signature_s = Secret::from_slice(&combined_signature[32..]).unwrap();
+
+			// check signature
+			assert_eq!(math::verify_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
 		}
 	}
 }
