@@ -422,6 +422,9 @@ impl SessionImpl {
 			return Err(Error::InvalidStateForRequest);
 		}
 
+		// check partial signature
+		// TODO: check_signature_share()
+
 		// remember partial signature
 		{
 			let consensus = data.consensus.as_mut().ok_or(Error::InvalidStateForRequest)?;

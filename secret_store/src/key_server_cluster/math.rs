@@ -328,7 +328,7 @@ pub fn compute_signature_share<'a, I>(combined_hash: &Secret, one_time_secret_co
 }
 
 /// Check signature share.
-pub fn check_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: &Secret, _public_share: &Public, _one_time_public_share: &Public, _node_number: &Secret, _other_nodes_numbers: I)
+pub fn _check_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: &Secret, _public_share: &Public, _one_time_public_share: &Public, _node_number: &Secret, _other_nodes_numbers: I)
 	-> Result<bool, Error> where I: Iterator<Item=&'a Secret> {
 	Ok(true)
 	/* TODO: fix with odd-of-N
@@ -546,7 +546,7 @@ pub mod tests {
 					.filter(|j| i != *j)
 					.map(|j| {
 						let signature_share = partial_signatures[j].clone();
-						assert!(check_signature_share(&combined_hash,
+						assert!(_check_signature_share(&combined_hash,
 							&signature_share,
 							&artifacts.public_shares[j],
 							&one_time_artifacts.public_shares[j],
