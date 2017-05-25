@@ -16,18 +16,23 @@
 
 use std::io;
 use std::sync::Arc;
+use std::path::PathBuf;
+use std::collections::HashSet;
 
 use dapps;
 use dir::default_data_path;
-use parity_rpc::informant::{RpcStats, Middleware};
-use parity_rpc::{self as rpc, HttpServerError, Metadata, Origin, DomainsValidation};
-use helpers::parity_ipc_path;
-use jsonrpc_core::{futures, MetaIoHandler};
+use helpers::{parity_ipc_path, replace_home};
+use jsonrpc_core::MetaIoHandler;
 use parity_reactor::TokioRemote;
+use parity_rpc::informant::{RpcStats, Middleware};
+use parity_rpc::{self as rpc, Metadata, DomainsValidation};
 use rpc_apis::{self, ApiSet};
 
 pub use parity_rpc::{IpcServer, HttpServer, RequestMiddleware};
 pub use parity_rpc::ws::Server as WsServer;
+
+
+pub const DAPPS_DOMAIN: &'static str = "web3.site";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HttpConfiguration {
@@ -38,6 +43,15 @@ pub struct HttpConfiguration {
 	pub cors: Option<Vec<String>>,
 	pub hosts: Option<Vec<String>>,
 	pub threads: Option<usize>,
+}
+
+impl HttpConfiguration {
+	pub fn address(&self) -> Option<(String, u16)> {
+		match self.enabled {
+			true => Some((self.interface.clone(), self.port)),
+			false => None,
+		}
+	}
 }
 
 impl Default for HttpConfiguration {
@@ -54,6 +68,48 @@ impl Default for HttpConfiguration {
 	}
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct UiConfiguration {
+	pub enabled: bool,
+	pub interface: String,
+	pub port: u16,
+	pub hosts: Option<Vec<String>>,
+}
+
+impl UiConfiguration {
+	pub fn address(&self) -> Option<(String, u16)> {
+		match self.enabled {
+			true => Some((self.interface.clone(), self.port)),
+			false => None,
+		}
+	}
+}
+
+impl From<UiConfiguration> for HttpConfiguration {
+	fn from(conf: UiConfiguration) -> Self {
+		HttpConfiguration {
+			enabled: conf.enabled,
+			interface: conf.interface,
+			port: conf.port,
+			apis: rpc_apis::ApiSet::SafeContext,
+			cors: None,
+			hosts: conf.hosts,
+			threads: None,
+		}
+	}
+}
+
+impl Default for UiConfiguration {
+	fn default() -> Self {
+		UiConfiguration {
+			enabled: true,
+			port: 8180,
+			interface: "127.0.0.1".into(),
+			hosts: Some(vec![]),
+		}
+	}
+}
+
 #[derive(Debug, PartialEq)]
 pub struct IpcConfiguration {
 	pub enabled: bool,
@@ -63,16 +119,20 @@ pub struct IpcConfiguration {
 
 impl Default for IpcConfiguration {
 	fn default() -> Self {
-		let data_dir = default_data_path();
 		IpcConfiguration {
 			enabled: true,
-			socket_addr: parity_ipc_path(&data_dir, "$BASE/jsonrpc.ipc"),
+			socket_addr: if cfg!(windows) {
+				r"\\.\pipe\jsonrpc.ipc".into()
+			} else {
+				let data_dir = ::dir::default_data_path();
+				parity_ipc_path(&data_dir, "$BASE/jsonrpc.ipc", 0)
+			},
 			apis: ApiSet::IpcContext,
 		}
 	}
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct WsConfiguration {
 	pub enabled: bool,
 	pub interface: String,
@@ -80,17 +140,32 @@ pub struct WsConfiguration {
 	pub apis: ApiSet,
 	pub origins: Option<Vec<String>>,
 	pub hosts: Option<Vec<String>>,
+	pub signer_path: PathBuf,
+	pub ui_address: Option<(String, u16)>,
 }
 
 impl Default for WsConfiguration {
 	fn default() -> Self {
+		let data_dir = default_data_path();
 		WsConfiguration {
 			enabled: true,
 			interface: "127.0.0.1".into(),
 			port: 8546,
 			apis: ApiSet::UnsafeContext,
-			origins: Some(Vec::new()),
+			origins: Some(vec!["chrome-extension://*".into()]),
 			hosts: Some(Vec::new()),
+			signer_path: replace_home(&data_dir, "$BASE/signer").into(),
+			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
+		}
+	}
+}
+
+
+impl WsConfiguration {
+	pub fn address(&self) -> Option<(String, u16)> {
+		match self.enabled {
+			true => Some((self.interface.clone(), self.port)),
+			false => None,
 		}
 	}
 }
@@ -101,102 +176,6 @@ pub struct Dependencies<D: rpc_apis::Dependencies> {
 	pub stats: Arc<RpcStats>,
 }
 
-pub struct RpcExtractor;
-impl rpc::HttpMetaExtractor for RpcExtractor {
-	type Metadata = Metadata;
-
-	fn read_metadata(&self, origin: String, dapps_origin: Option<String>) -> Metadata {
-		let mut metadata = Metadata::default();
-
-		metadata.origin = match (origin.as_str(), dapps_origin) {
-			("null", Some(dapp)) => Origin::Dapps(dapp.into()),
-			_ => Origin::Rpc(origin),
-		};
-
-		metadata
-	}
-}
-
-impl rpc::IpcMetaExtractor<Metadata> for RpcExtractor {
-	fn extract(&self, _req: &rpc::IpcRequestContext) -> Metadata {
-		let mut metadata = Metadata::default();
-		// TODO [ToDr] Extract proper session id when it's available in context.
-		metadata.origin = Origin::Ipc(1.into());
-		metadata
-	}
-}
-
-struct Sender(rpc::ws::ws::Sender, futures::sync::mpsc::Receiver<String>);
-
-impl futures::Future for Sender {
-	type Item = ();
-	type Error = ();
-
-	fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
-		use self::futures::Stream;
-
-		let item = self.1.poll()?;
-		match item {
-			futures::Async::NotReady => {
-				Ok(futures::Async::NotReady)
-			},
-			futures::Async::Ready(None) => {
-				Ok(futures::Async::Ready(()))
-			},
-			futures::Async::Ready(Some(val)) => {
-				if let Err(e) = self.0.send(val) {
-					warn!("Error sending a subscription update: {:?}", e);
-				}
-				self.poll()
-			},
-		}
-	}
-}
-
-struct WsRpcExtractor {
-	remote: TokioRemote,
-}
-
-impl WsRpcExtractor {
-	fn wrap_out(&self, out: rpc::ws::ws::Sender) -> futures::sync::mpsc::Sender<String> {
-		let (sender, receiver) = futures::sync::mpsc::channel(8);
-		self.remote.spawn(move |_| Sender(out, receiver));
-		sender
-	}
-}
-
-impl rpc::ws::MetaExtractor<Metadata> for WsRpcExtractor {
-	fn extract(&self, req: &rpc::ws::RequestContext) -> Metadata {
-		let mut metadata = Metadata::default();
-		let id = req.session_id as u64;
-		metadata.origin = Origin::Ws(id.into());
-		metadata.session = Some(Arc::new(rpc::PubSubSession::new(
-			self.wrap_out(req.out.clone())
-		)));
-		metadata
-	}
-}
-
-struct WsStats {
-	stats: Arc<RpcStats>,
-}
-
-impl rpc::ws::SessionStats for WsStats {
-	fn open_session(&self, _id: rpc::ws::SessionId) {
-		self.stats.open_session()
-	}
-
-	fn close_session(&self, _id: rpc::ws::SessionId) {
-		self.stats.close_session()
-	}
-}
-
-fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
-	where D: rpc_apis::Dependencies
-{
-	rpc_apis::setup_rpc(deps.stats.clone(), &*deps.apis, apis)
-}
-
 pub fn new_ws<D: rpc_apis::Dependencies>(
 	conf: WsConfiguration,
 	deps: &Dependencies<D>,
@@ -205,25 +184,41 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 		return Ok(None);
 	}
 
-	let url = format!("{}:{}", conf.interface, conf.port);
+	let domain = DAPPS_DOMAIN;
+	let ws_address = (conf.interface, conf.port);
+	let url = format!("{}:{}", ws_address.0, ws_address.1);
 	let addr = url.parse().map_err(|_| format!("Invalid WebSockets listen host/port given: {}", url))?;
-	let handler = setup_apis(conf.apis, deps);
-	let remote = deps.remote.clone();
-	let allowed_origins = into_domains(conf.origins);
-	let allowed_hosts = into_domains(conf.hosts);
 
+
+	let full_handler = setup_apis(rpc_apis::ApiSet::SafeContext, deps);
+	let handler = {
+		let mut handler = MetaIoHandler::with_middleware((
+			rpc::WsDispatcher::new(full_handler),
+			Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
+		));
+		let apis = conf.apis.list_apis().into_iter().collect::<Vec<_>>();
+		deps.apis.extend_with_set(&mut handler, &apis);
+
+		handler
+	};
+
+	let remote = deps.remote.clone();
+	let ui_address = conf.ui_address.clone();
+	let allowed_origins = into_domains(with_domain(conf.origins, domain, &[ui_address]));
+	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &[Some(ws_address)]));
+
+	let signer_path = conf.signer_path;
+	let signer_path = conf.ui_address.map(move |_| ::signer::codes_path(&signer_path));
+	let path = signer_path.as_ref().map(|p| p.as_path());
 	let start_result = rpc::start_ws(
 		&addr,
 		handler,
 		remote.clone(),
 		allowed_origins,
 		allowed_hosts,
-		WsRpcExtractor {
-			remote: remote,
-		},
-		WsStats {
-			stats: deps.stats.clone(),
-		},
+		rpc::WsExtractor::new(path.clone()),
+		rpc::WsExtractor::new(path.clone()),
+		rpc::WsStats::new(deps.stats.clone()),
 	);
 
 	match start_result {
@@ -236,21 +231,25 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 }
 
 pub fn new_http<D: rpc_apis::Dependencies>(
+	id: &str,
+	options: &str,
 	conf: HttpConfiguration,
 	deps: &Dependencies<D>,
-	middleware: Option<dapps::Middleware>
+	middleware: Option<dapps::Middleware>,
 ) -> Result<Option<HttpServer>, String> {
 	if !conf.enabled {
 		return Ok(None);
 	}
 
-	let url = format!("{}:{}", conf.interface, conf.port);
-	let addr = url.parse().map_err(|_| format!("Invalid HTTP JSON-RPC listen host/port given: {}", url))?;
+	let domain = DAPPS_DOMAIN;
+	let http_address = (conf.interface, conf.port);
+	let url = format!("{}:{}", http_address.0, http_address.1);
+	let addr = url.parse().map_err(|_| format!("Invalid {} listen host/port given: {}", id, url))?;
 	let handler = setup_apis(conf.apis, deps);
 	let remote = deps.remote.clone();
 
 	let cors_domains = into_domains(conf.cors);
-	let allowed_hosts = into_domains(conf.hosts);
+	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &[Some(http_address)]));
 
 	let start_result = rpc::start_http(
 		&addr,
@@ -258,7 +257,7 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 		allowed_hosts,
 		handler,
 		remote,
-		RpcExtractor,
+		rpc::RpcExtractor,
 		match (conf.threads, middleware) {
 			(Some(threads), None) => rpc::HttpSettings::Threads(threads),
 			(None, middleware) => rpc::HttpSettings::Dapps(middleware),
@@ -270,15 +269,11 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 
 	match start_result {
 		Ok(server) => Ok(Some(server)),
-		Err(HttpServerError::Io(ref err)) if err.kind() == io::ErrorKind::AddrInUse => Err(
-			format!("HTTP address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)
+		Err(rpc::HttpServerError::Io(ref err)) if err.kind() == io::ErrorKind::AddrInUse => Err(
+			format!("{} address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --{}-port and --{}-interface options.", id, url, options, options)
 		),
-		Err(e) => Err(format!("HTTP error: {:?}", e)),
+		Err(e) => Err(format!("{} error: {:?}", id, e)),
 	}
-}
-
-fn into_domains<T: From<String>>(items: Option<Vec<String>>) -> DomainsValidation<T> {
-	items.map(|vals| vals.into_iter().map(T::from).collect()).into()
 }
 
 pub fn new_ipc<D: rpc_apis::Dependencies>(
@@ -291,48 +286,39 @@ pub fn new_ipc<D: rpc_apis::Dependencies>(
 
 	let handler = setup_apis(conf.apis, dependencies);
 	let remote = dependencies.remote.clone();
-	let ipc = rpc::start_ipc(
-		&conf.socket_addr,
-		handler,
-		remote,
-		RpcExtractor,
-	);
-
-	match ipc {
+	match rpc::start_ipc(&conf.socket_addr, handler, remote, rpc::RpcExtractor) {
 		Ok(server) => Ok(Some(server)),
 		Err(io_error) => Err(format!("IPC error: {}", io_error)),
 	}
 }
 
-#[cfg(test)]
-mod tests {
-	use super::RpcExtractor;
-	use parity_rpc::{HttpMetaExtractor, Origin};
+fn into_domains<T: From<String>>(items: Option<Vec<String>>) -> DomainsValidation<T> {
+	items.map(|vals| vals.into_iter().map(T::from).collect()).into()
+}
 
-	#[test]
-	fn should_extract_rpc_origin() {
-		// given
-		let extractor = RpcExtractor;
+fn with_domain(items: Option<Vec<String>>, domain: &str, addresses: &[Option<(String, u16)>]) -> Option<Vec<String>> {
+	items.map(move |items| {
+		let mut items = items.into_iter().collect::<HashSet<_>>();
+		for address in addresses {
+			if let Some((host, port)) = address.clone() {
+				items.insert(format!("{}:{}", host, port));
+				items.insert(format!("{}:{}", host.replace("127.0.0.1", "localhost"), port));
+				items.insert(format!("http://*.{}:{}", domain, port));
+				items.insert(format!("http://*.{}", domain)); //proxypac
+			}
+		}
+		items.into_iter().collect()
+	})
+}
 
-		// when
-		let meta = extractor.read_metadata("http://parity.io".into(), None);
-		let meta1 = extractor.read_metadata("http://parity.io".into(), Some("ignored".into()));
+fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
+	where D: rpc_apis::Dependencies
+{
+	let mut handler = MetaIoHandler::with_middleware(
+		Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
+	);
+	let apis = apis.list_apis().into_iter().collect::<Vec<_>>();
+	deps.apis.extend_with_set(&mut handler, &apis);
 
-		// then
-		assert_eq!(meta.origin, Origin::Rpc("http://parity.io".into()));
-		assert_eq!(meta1.origin, Origin::Rpc("http://parity.io".into()));
-	}
-
-	#[test]
-	fn should_dapps_origin() {
-		// given
-		let extractor = RpcExtractor;
-		let dapp = "https://wallet.ethereum.org".to_owned();
-
-		// when
-		let meta = extractor.read_metadata("null".into(), Some(dapp.clone()));
-
-		// then
-		assert_eq!(meta.origin, Origin::Dapps(dapp.into()));
-	}
+	handler
 }

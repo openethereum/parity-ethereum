@@ -38,7 +38,7 @@ use crypto::DEFAULT_MAC;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
-use v1::helpers::{errors, ipfs, SigningQueue, SignerService, NetworkSettings};
+use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::accounts::unwrap_provider;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
@@ -48,7 +48,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
-	AccountInfo, HwAccountInfo, Header, RichHeader
+	AccountInfo, HwAccountInfo, RichHeader
 };
 
 /// Parity implementation.
@@ -67,8 +67,8 @@ pub struct ParityClient<C, M, S: ?Sized, U> where
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
-	dapps_interface: Option<String>,
-	dapps_port: Option<u16>,
+	dapps_address: Option<(String, u16)>,
+	ws_address: Option<(String, u16)>,
 	eip86_transition: u64,
 }
 
@@ -89,8 +89,8 @@ impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
-		dapps_interface: Option<String>,
-		dapps_port: Option<u16>,
+		dapps_address: Option<(String, u16)>,
+		ws_address: Option<(String, u16)>,
 	) -> Self {
 		ParityClient {
 			client: Arc::downgrade(client),
@@ -102,8 +102,8 @@ impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
 			logger: logger,
 			settings: settings,
 			signer: signer,
-			dapps_interface: dapps_interface,
-			dapps_port: dapps_port,
+			dapps_address: dapps_address,
+			ws_address: ws_address,
 			eip86_transition: client.eip86_transition(),
 		}
 	}
@@ -317,22 +317,14 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		)
 	}
 
-	fn signer_port(&self) -> Result<u16, Error> {
-		self.signer
-			.clone()
-			.and_then(|signer| signer.address())
-			.map(|address| address.1)
-			.ok_or_else(|| errors::signer_disabled())
-	}
-
-	fn dapps_port(&self) -> Result<u16, Error> {
-		self.dapps_port
+	fn dapps_url(&self) -> Result<String, Error> {
+		helpers::to_url(&self.dapps_address)
 			.ok_or_else(|| errors::dapps_disabled())
 	}
 
-	fn dapps_interface(&self) -> Result<String, Error> {
-		self.dapps_interface.clone()
-			.ok_or_else(|| errors::dapps_disabled())
+	fn ws_url(&self) -> Result<String, Error> {
+		helpers::to_url(&self.ws_address)
+			.ok_or_else(|| errors::ws_disabled())
 	}
 
 	fn next_nonce(&self, address: H160) -> BoxFuture<U256, Error> {
@@ -411,25 +403,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		};
 
 		future::ok(RichHeader {
-			inner: Header {
-				hash: Some(encoded.hash().into()),
-				size: Some(encoded.rlp().as_raw().len().into()),
-				parent_hash: encoded.parent_hash().into(),
-				uncles_hash: encoded.uncles_hash().into(),
-				author: encoded.author().into(),
-				miner: encoded.author().into(),
-				state_root: encoded.state_root().into(),
-				transactions_root: encoded.transactions_root().into(),
-				receipts_root: encoded.receipts_root().into(),
-				number: Some(encoded.number().into()),
-				gas_used: encoded.gas_used().into(),
-				gas_limit: encoded.gas_limit().into(),
-				logs_bloom: encoded.log_bloom().into(),
-				timestamp: encoded.timestamp().into(),
-				difficulty: encoded.difficulty().into(),
-				seal_fields: encoded.seal().into_iter().map(Into::into).collect(),
-				extra_data: Bytes::new(encoded.extra_data()),
-			},
+			inner: encoded.into(),
 			extra_info: client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
 		}).boxed()
 	}

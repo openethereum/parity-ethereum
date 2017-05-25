@@ -21,7 +21,8 @@ use util::{H256, Bytes};
 #[ipc]
 pub trait ChainNotify : Send + Sync {
 	/// fires when chain has new blocks.
-	fn new_blocks(&self,
+	fn new_blocks(
+		&self,
 		_imported: Vec<H256>,
 		_invalid: Vec<H256>,
 		_enacted: Vec<H256>,
@@ -29,7 +30,8 @@ pub trait ChainNotify : Send + Sync {
 		_sealed: Vec<H256>,
 		// Block bytes.
 		_proposed: Vec<Bytes>,
-		_duration: u64) {
+		_duration: u64,
+	) {
 		// does nothing by default
 	}
 

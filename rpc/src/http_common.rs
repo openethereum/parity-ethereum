@@ -14,11 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Transport-specific metadata extractors.
+
 use jsonrpc_core;
 use http;
 use hyper;
 use minihttp;
-use HttpMetaExtractor;
+
+/// HTTP RPC server impl-independent metadata extractor
+pub trait HttpMetaExtractor: Send + Sync + 'static {
+	/// Type of Metadata
+	type Metadata: jsonrpc_core::Metadata;
+	/// Extracts metadata from given params.
+	fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>, dapps_origin: Option<String>) -> Self::Metadata;
+}
 
 pub struct HyperMetaExtractor<T> {
 	extractor: T,
@@ -37,13 +46,14 @@ impl<M, T> http::MetaExtractor<M> for HyperMetaExtractor<T> where
 	M: jsonrpc_core::Metadata,
 {
 	fn read_metadata(&self, req: &hyper::server::Request<hyper::net::HttpStream>) -> M {
-		let origin = req.headers().get::<hyper::header::Origin>()
-			.map(|origin| format!("{}://{}", origin.scheme, origin.host))
-			.unwrap_or_else(|| "unknown".into());
-		let dapps_origin = req.headers().get_raw("x-parity-origin")
+		let as_string = |header: Option<&http::request_response::header::Raw>| header
 			.and_then(|raw| raw.one())
 			.map(|raw| String::from_utf8_lossy(raw).into_owned());
-		self.extractor.read_metadata(origin, dapps_origin)
+
+		let origin = as_string(req.headers().get_raw("origin"));
+		let user_agent = as_string(req.headers().get_raw("user-agent"));
+		let dapps_origin = as_string(req.headers().get_raw("x-parity-origin"));
+		self.extractor.read_metadata(origin, user_agent, dapps_origin)
 	}
 }
 
@@ -64,11 +74,10 @@ impl<M, T> minihttp::MetaExtractor<M> for MiniMetaExtractor<T> where
 	M: jsonrpc_core::Metadata,
 {
 	fn read_metadata(&self, req: &minihttp::Req) -> M {
-		let origin = req.header("origin")
-			.unwrap_or_else(|| "unknown")
-			.to_owned();
+		let origin = req.header("origin").map(|h| h.to_owned());
+		let user_agent = req.header("user-agent").map(|h| h.to_owned());
 		let dapps_origin = req.header("x-parity-origin").map(|h| h.to_owned());
 
-		self.extractor.read_metadata(origin, dapps_origin)
+		self.extractor.read_metadata(origin, user_agent, dapps_origin)
 	}
 }

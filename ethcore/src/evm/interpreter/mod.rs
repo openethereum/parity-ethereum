@@ -84,8 +84,16 @@ enum InstructionResult<Gas> {
 	Ok,
 	UnusedGas(Gas),
 	JumpToPosition(U256),
-	// gas left, init_orf, init_size
-	StopExecutionNeedsReturn(Gas, U256, U256),
+	StopExecutionNeedsReturn {
+		/// Gas left.
+		gas: Gas,
+		/// Return data offset.
+		init_off: U256,
+		/// Return data size.
+		init_size: U256,
+		/// Apply or revert state changes.
+		apply: bool,
+	},
 	StopExecution,
 }
 
@@ -156,9 +164,13 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 					let pos = self.verify_jump(position, &valid_jump_destinations)?;
 					reader.position = pos;
 				},
-				InstructionResult::StopExecutionNeedsReturn(gas, off, size) => {
+				InstructionResult::StopExecutionNeedsReturn {gas, init_off, init_size, apply} => {
 					informant.done();
-					return Ok(GasLeft::NeedsReturn(gas.as_u256(), self.mem.read_slice(off, size)));
+					return Ok(GasLeft::NeedsReturn {
+						gas_left: gas.as_u256(),
+						data: self.mem.read_slice(init_off, init_size),
+						apply_state: apply
+					});
 				},
 				InstructionResult::StopExecution => break,
 				_ => {},
@@ -183,7 +195,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 		let schedule = ext.schedule();
 
 		if (instruction == instructions::DELEGATECALL && !schedule.have_delegate_call) ||
-			(instruction == instructions::CREATE2 && !schedule.have_create2) {
+			(instruction == instructions::CREATE2 && !schedule.have_create2) ||
+			(instruction == instructions::REVERT && !schedule.have_revert) {
 
 			return Err(evm::Error::BadInstruction {
 				instruction: instruction
@@ -363,7 +376,13 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
 
-				return Ok(InstructionResult::StopExecutionNeedsReturn(gas, init_off, init_size))
+				return Ok(InstructionResult::StopExecutionNeedsReturn {gas: gas, init_off: init_off, init_size: init_size, apply: true})
+			},
+			instructions::REVERT => {
+				let init_off = stack.pop_back();
+				let init_size = stack.pop_back();
+
+				return Ok(InstructionResult::StopExecutionNeedsReturn {gas: gas, init_off: init_off, init_size: init_size, apply: false})
 			},
 			instructions::STOP => {
 				return Ok(InstructionResult::StopExecution);

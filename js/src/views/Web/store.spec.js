@@ -34,8 +34,8 @@ let store;
 
 function createApi () {
   api = {
-    dappsPort: 8080,
-    dappsUrl: 'http://home.web3.site:8080',
+    dappsPort: 8545,
+    dappsUrl: 'http://home.web3.site:8545',
     parity: {
       listRecentDapps: sinon.stub().resolves(TEST_HISTORY)
     },
@@ -159,7 +159,7 @@ describe('views/Web/Store', () => {
         it('encodes current', () => {
           store.setCurrentUrl(TEST_URL1);
           expect(store.encodedPath).to.match(
-            /http:\/\/home\.web3\.site:8080\/web\/DSTPRV1BD1T78W1T5WQQ6VVDCMQ78SBKEGQ68VVDC5MPWBK3DXPG\?t=[0-9]*$/
+            /http:\/\/home\.web3\.site:8545\/web\/DSTPRV1BD1T78W1T5WQQ6VVDCMQ78SBKEGQ68VVDC5MPWBK3DXPG\?t=[0-9]*$/
           );
         });
       });
@@ -167,7 +167,7 @@ describe('views/Web/Store', () => {
       it('encodes current', () => {
         store.setCurrentUrl(TEST_URL1);
         expect(store.encodedUrl).to.match(
-          /^http:\/\/DSTPRV1BD1T78W1T5WQQ6VVDCMQ78SBKEGQ68VVDC5MPWBK3DXPG\.web\.web3\.site:8080\?t=[0-9]*$/
+          /^http:\/\/DSTPRV1BD1T78W1T5WQQ6VVDCMQ78SBKEGQ68VVDC5MPWBK3DXPG\.web\.web3\.site:8545\?t=[0-9]*$/
         );
       });
     });

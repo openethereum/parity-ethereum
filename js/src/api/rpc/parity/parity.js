@@ -90,15 +90,14 @@ export default class Parity {
       .execute('parity_consensusCapability');
   }
 
-  dappsPort () {
+  dappsList () {
     return this._transport
-      .execute('parity_dappsPort')
-      .then(outNumber);
+      .execute('parity_dappsList');
   }
 
-  dappsInterface () {
+  dappsUrl () {
     return this._transport
-      .execute('parity_dappsInterface');
+      .execute('parity_dappsUrl');
   }
 
   decryptMessage (address, data) {
@@ -530,12 +529,6 @@ export default class Parity {
       .execute('parity_setVaultMeta', vaultName, JSON.stringify(meta));
   }
 
-  signerPort () {
-    return this._transport
-      .execute('parity_signerPort')
-      .then(outNumber);
-  }
-
   signMessage (address, password, messageHash) {
     return this._transport
       .execute('parity_signMessage', inAddress(address), password, inHex(messageHash));
@@ -566,5 +559,10 @@ export default class Parity {
   versionInfo () {
     return this._transport
       .execute('parity_versionInfo');
+  }
+
+  wsUrl () {
+    return this._transport
+      .execute('parity_wsUrl');
   }
 }

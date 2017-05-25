@@ -16,9 +16,9 @@ time = "0.1.34"
 rocksdb = { git = "https://github.com/paritytech/rust-rocksdb" }
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
 rust-crypto = "0.2.34"
-elastic-array = "0.7.0"
+elastic-array = "0.8"
 rlp = { path = "rlp" }
-heapsize = { version = "0.3", features = ["unstable"] }
+heapsize = "0.4"
 itertools = "0.5"
 sha3 = { path = "sha3" }
 clippy = { version = "0.0.103", optional = true}
@@ -26,7 +26,7 @@ ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
 vergen = "0.1"
 target_info = "0.1"
-ethcore-bigint = "0.1.2"
+ethcore-bigint = { path = "bigint" }
 parking_lot = "0.4"
 using_queue = { path = "using_queue" }
 table = { path = "table" }

@@ -164,7 +164,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 			instructions::MSTORE8 => {
 				Request::GasMem(default_gas, mem_needed_const(stack.peek(0), 1)?)
 			},
-			instructions::RETURN => {
+			instructions::RETURN | instructions::REVERT => {
 				Request::GasMem(default_gas, mem_needed(stack.peek(0), stack.peek(1))?)
 			},
 			instructions::SHA3 => {

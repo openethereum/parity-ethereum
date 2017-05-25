@@ -21,4 +21,3 @@ mod response;
 mod types;
 
 pub use self::api::RestApi;
-pub use self::types::App;

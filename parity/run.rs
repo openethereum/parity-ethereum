@@ -49,11 +49,11 @@ use cache::CacheConfig;
 use user_defaults::UserDefaults;
 use dapps;
 use ipfs;
-use signer;
-use secretstore;
 use modules;
-use rpc_apis;
 use rpc;
+use rpc_apis;
+use secretstore;
+use signer;
 use url;
 
 // how often to take periodic snapshots.
@@ -99,11 +99,10 @@ pub struct RunCmd {
 	pub wal: bool,
 	pub vm_type: VMType,
 	pub geth_compatibility: bool,
-	pub ui_address: Option<(String, u16)>,
 	pub net_settings: NetworkSettings,
 	pub dapps_conf: dapps::Configuration,
 	pub ipfs_conf: ipfs::Configuration,
-	pub signer_conf: signer::Configuration,
+	pub ui_conf: rpc::UiConfiguration,
 	pub secretstore_conf: secretstore::Configuration,
 	pub dapp: Option<String>,
 	pub ui: bool,
@@ -119,12 +118,12 @@ pub struct RunCmd {
 	pub no_persistent_txqueue: bool,
 }
 
-pub fn open_ui(signer_conf: &signer::Configuration) -> Result<(), String> {
-	if !signer_conf.enabled {
+pub fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration) -> Result<(), String> {
+	if !ui_conf.enabled {
 		return Err("Cannot use UI command with UI turned off.".into())
 	}
 
-	let token = signer::generate_token_and_url(signer_conf)?;
+	let token = signer::generate_token_and_url(ws_conf, ui_conf)?;
 	// Open a browser
 	url::open(&token.url);
 	// Print a message
@@ -195,7 +194,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, compaction.clone())?;
 
 	// create dirs used by parity
-	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled, cmd.secretstore_conf.enabled)?;
+	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.ui_conf.enabled, cmd.secretstore_conf.enabled)?;
 
 	info!("Starting {}", Colour::White.bold().paint(version()));
 	info!("Running in experimental {} mode.", Colour::Blue.bold().paint("Light Client"));
@@ -267,31 +266,47 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	// prepare account provider
 	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 	let rpc_stats = Arc::new(informant::RpcStats::default());
-	let signer_path = cmd.signer_conf.signer_path.clone();
+
+	// the dapps server
+	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf));
+	let dapps_deps = {
+		let contract_client = Arc::new(::dapps::LightRegistrar {
+			client: service.client().clone(),
+			sync: light_sync.clone(),
+			on_demand: on_demand.clone(),
+		});
+
+		let sync = light_sync.clone();
+		dapps::Dependencies {
+			sync_status: Arc::new(move || sync.is_major_importing()),
+			contract_client: contract_client,
+			remote: event_loop.raw_remote(),
+			fetch: fetch.clone(),
+			signer: signer_service.clone(),
+			ui_address: cmd.ui_conf.address(),
+		}
+	};
+
+	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
+	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, dapps_deps)?;
 
 	// start RPCs
+	let dapps_service = dapps::service(&dapps_middleware);
 	let deps_for_rpc_apis = Arc::new(rpc_apis::LightDependencies {
-		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
-			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
-		}, cmd.ui_address)),
+		signer_service: signer_service,
 		client: service.client().clone(),
 		sync: light_sync.clone(),
 		net: light_sync.clone(),
 		secret_store: account_provider,
 		logger: logger,
 		settings: Arc::new(cmd.net_settings),
-		on_demand: on_demand.clone(),
+		on_demand: on_demand,
 		cache: cache,
 		transaction_queue: txq,
-		dapps_interface: match cmd.dapps_conf.enabled {
-			true => Some(cmd.http_conf.interface.clone()),
-			false => None,
-		},
-		dapps_port: match cmd.dapps_conf.enabled {
-			true => Some(cmd.http_conf.port),
-			false => None,
-		},
-		fetch: fetch.clone(),
+		dapps_service: dapps_service,
+		dapps_address: cmd.dapps_conf.address(cmd.http_conf.address()),
+		ws_address: cmd.ws_conf.address(),
+		fetch: fetch,
 		geth_compatibility: cmd.geth_compatibility,
 		remote: event_loop.remote(),
 	});
@@ -302,39 +317,11 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		stats: rpc_stats.clone(),
 	};
 
-	// the dapps server
-	let dapps_deps = {
-		let contract_client = Arc::new(::dapps::LightRegistrar {
-			client: service.client().clone(),
-			sync: light_sync.clone(),
-			on_demand: on_demand,
-		});
-
-		let sync = light_sync.clone();
-		dapps::Dependencies {
-			sync_status: Arc::new(move || sync.is_major_importing()),
-			contract_client: contract_client,
-			remote: event_loop.raw_remote(),
-			fetch: fetch,
-			signer: deps_for_rpc_apis.signer_service.clone(),
-		}
-	};
-
-	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps)?;
-
 	// start rpc servers
 	let _ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
-	let _http_server = rpc::new_http(cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
+	let _http_server = rpc::new_http("HTTP JSON-RPC", "jsonrpc", cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
 	let _ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
-
-	// the signer server
-	let signer_deps = signer::Dependencies {
-		apis: deps_for_rpc_apis.clone(),
-		remote: event_loop.raw_remote(),
-		rpc_stats: rpc_stats.clone(),
-	};
-	let signing_queue = deps_for_rpc_apis.signer_service.queue();
-	let _signer_server = signer::start(cmd.signer_conf.clone(), signing_queue, signer_deps)?;
+	let _ui_server = rpc::new_http("Parity Wallet (UI)", "ui", cmd.ui_conf.clone().into(), &dependencies, ui_middleware)?;
 
 	// minimal informant thread. Just prints block number every 5 seconds.
 	// TODO: integrate with informant.rs
@@ -351,9 +338,9 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
 		// Check if Parity is already running
-		let addr = format!("{}:{}", cmd.signer_conf.interface, cmd.signer_conf.port);
+		let addr = format!("{}:{}", cmd.ui_conf.interface, cmd.ui_conf.port);
 		if !TcpListener::bind(&addr as &str).is_ok() {
-			return open_ui(&cmd.signer_conf).map(|_| (false, None));
+			return open_ui(&cmd.ws_conf, &cmd.ui_conf).map(|_| (false, None));
 		}
 	}
 
@@ -408,7 +395,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path()))?;
 
 	// create dirs used by parity
-	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled, cmd.secretstore_conf.enabled)?;
+	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.ui_conf.enabled, cmd.secretstore_conf.enabled)?;
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -620,16 +607,33 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// set up dependencies for rpc servers
 	let rpc_stats = Arc::new(informant::RpcStats::default());
-	let signer_path = cmd.signer_conf.signer_path.clone();
 	let secret_store = match cmd.public_node {
 		true => None,
 		false => Some(account_provider.clone())
 	};
 
+	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf));
+
+	// the dapps server
+	let dapps_deps = {
+		let (sync, client) = (sync_provider.clone(), client.clone());
+		let contract_client = Arc::new(::dapps::FullRegistrar { client: client.clone() });
+
+		dapps::Dependencies {
+			sync_status: Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())),
+			contract_client: contract_client,
+			remote: event_loop.raw_remote(),
+			fetch: fetch.clone(),
+			signer: signer_service.clone(),
+			ui_address: cmd.ui_conf.address(),
+		}
+	};
+	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
+	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, dapps_deps)?;
+
+	let dapps_service = dapps::service(&dapps_middleware);
 	let deps_for_rpc_apis = Arc::new(rpc_apis::FullDependencies {
-		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
-			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
-		}, cmd.ui_address)),
+		signer_service: signer_service,
 		snapshot: snapshot_service.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
@@ -642,14 +646,9 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		net_service: manage_network.clone(),
 		updater: updater.clone(),
 		geth_compatibility: cmd.geth_compatibility,
-		dapps_interface: match cmd.dapps_conf.enabled {
-			true => Some(cmd.http_conf.interface.clone()),
-			false => None,
-		},
-		dapps_port: match cmd.dapps_conf.enabled {
-			true => Some(cmd.http_conf.port),
-			false => None,
-		},
+		dapps_service: dapps_service,
+		dapps_address: cmd.dapps_conf.address(cmd.http_conf.address()),
+		ws_address: cmd.ws_conf.address(),
 		fetch: fetch.clone(),
 		remote: event_loop.remote(),
 	});
@@ -660,34 +659,12 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		stats: rpc_stats.clone(),
 	};
 
-	// the dapps server
-	let dapps_deps = {
-		let (sync, client) = (sync_provider.clone(), client.clone());
-		let contract_client = Arc::new(::dapps::FullRegistrar { client: client.clone() });
-
-		dapps::Dependencies {
-			sync_status: Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())),
-			contract_client: contract_client,
-			remote: event_loop.raw_remote(),
-			fetch: fetch.clone(),
-			signer: deps_for_rpc_apis.signer_service.clone(),
-		}
-	};
-	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps)?;
-
 	// start rpc servers
-	let ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
-	let http_server = rpc::new_http(cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
+	let ws_server = rpc::new_ws(cmd.ws_conf.clone(), &dependencies)?;
 	let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
-
-	// the signer server
-	let signer_deps = signer::Dependencies {
-		apis: deps_for_rpc_apis.clone(),
-		remote: event_loop.raw_remote(),
-		rpc_stats: rpc_stats.clone(),
-	};
-	let signing_queue = deps_for_rpc_apis.signer_service.queue();
-	let signer_server = signer::start(cmd.signer_conf.clone(), signing_queue, signer_deps)?;
+	let http_server = rpc::new_http("HTTP JSON-RPC", "jsonrpc", cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
+	// the ui server
+	let ui_server = rpc::new_http("UI WALLET", "ui", cmd.ui_conf.clone().into(), &dependencies, ui_middleware)?;
 
 	// secret store key server
 	let secretstore_deps = secretstore::Dependencies {
@@ -746,7 +723,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// start ui
 	if cmd.ui {
-		open_ui(&cmd.signer_conf)?;
+		open_ui(&cmd.ws_conf, &cmd.ui_conf)?;
 	}
 
 	if let Some(dapp) = cmd.dapp {
@@ -756,10 +733,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// Handle exit
 	let restart = wait_for_exit(panic_handler, Some(updater), Some(client), can_restart);
 
-	// drop this stuff as soon as exit detected.
-	drop((ws_server, http_server, ipc_server, signer_server, secretstore_key_server, ipfs_server, event_loop));
-
 	info!("Finishing work, please wait...");
+
+	// drop this stuff as soon as exit detected.
+	drop((ws_server, http_server, ipc_server, ui_server, secretstore_key_server, ipfs_server, event_loop));
 
 	// to make sure timer does not spawn requests while shutdown is in progress
 	informant.shutdown();

@@ -20,7 +20,7 @@ extern crate parking_lot;
 extern crate hidapi;
 extern crate libusb;
 extern crate ethkey;
-extern crate ethcore_bigint;
+extern crate ethcore_bigint as bigint;
 #[macro_use] extern crate log;
 #[cfg(test)] extern crate rustc_serialize;
 

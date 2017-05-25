@@ -20,7 +20,7 @@
 use std::fmt;
 use std::sync::Arc;
 use evm::Evm;
-use util::{U256, Uint};
+use util::U256;
 use super::interpreter::SharedCache;
 
 #[derive(Debug, PartialEq, Clone)]

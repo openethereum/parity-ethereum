@@ -17,7 +17,7 @@
 //! VM Output display utils.
 
 use std::time::Duration;
-use util::{Uint, U256};
+use util::U256;
 
 pub mod json;
 pub mod simple;

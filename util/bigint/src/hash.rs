@@ -17,7 +17,7 @@ use std::str::FromStr;
 use rand::Rng;
 use rand::os::OsRng;
 use rustc_serialize::hex::{FromHex, FromHexError};
-use bigint::{Uint, U256};
+use bigint::U256;
 use libc::{c_void, memcmp};
 
 /// Return `s` without the `0x` at the beginning of it, if any.

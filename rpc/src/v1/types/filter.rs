@@ -22,7 +22,7 @@ use ethcore::client::BlockId;
 use v1::types::{BlockNumber, H160, H256, Log};
 
 /// Variadic value
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum VariadicValue<T> where T: Deserialize {
 	/// Single
 	Single(T),
@@ -53,7 +53,7 @@ pub type FilterAddress = VariadicValue<H160>;
 pub type Topic = VariadicValue<H256>;
 
 /// Filter
-#[derive(Debug, PartialEq, Clone, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Eq, Hash)]
 #[serde(deny_unknown_fields)]
 pub struct Filter {
 	/// From Block

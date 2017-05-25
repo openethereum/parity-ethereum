@@ -16,6 +16,7 @@
 
 //! URL Endpoint traits
 
+use std::sync::Arc;
 use std::collections::BTreeMap;
 
 use hyper::{self, server, net};
@@ -38,7 +39,7 @@ pub struct EndpointInfo {
 	pub icon_url: String,
 }
 
-pub type Endpoints = BTreeMap<String, Box<Endpoint>>;
+pub type Endpoints = Arc<BTreeMap<String, Box<Endpoint>>>;
 pub type Handler = server::Handler<net::HttpStream> + Send;
 
 pub trait Endpoint : Send + Sync {

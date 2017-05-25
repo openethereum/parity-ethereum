@@ -549,7 +549,7 @@ test-darwin:
     - triggers
   before_script:
     - git submodule update --init --recursive
-    - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
+    - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e "^js/" -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
     - export RUST_BACKTRACE=1
     - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
@@ -564,7 +564,7 @@ test-windows:
     - git submodule update --init --recursive
   script:
     - set RUST_BACKTRACE=1
-    - echo cargo test --features json-tests -p rlp -p ethash -p ethcore -p ethcore-bigint -p ethcore-dapps -p parity-rpc -p ethcore-signer -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity %CARGOFLAGS% --verbose --release
+    - echo cargo test --features json-tests -p rlp -p ethash -p ethcore -p ethcore-bigint -p parity-dapps -p parity-rpc -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity-rpc-client -p parity %CARGOFLAGS% --verbose --release
   tags:
     - rust-windows
   allow_failure: true

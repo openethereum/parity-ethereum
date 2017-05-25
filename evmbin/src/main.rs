@@ -26,7 +26,7 @@ extern crate ethcore_util as util;
 use std::sync::Arc;
 use std::{fmt, fs};
 use docopt::Docopt;
-use util::{U256, FromHex, Uint, Bytes, Address};
+use util::{U256, FromHex, Bytes, Address};
 use ethcore::spec;
 use ethcore::action_params::ActionParams;
 
