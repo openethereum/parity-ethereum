@@ -251,6 +251,13 @@ fn return_error(mut res: HttpResponse, err: Error) {
 		Error::Database(_) => *res.status_mut() = HttpStatusCode::InternalServerError,
 		Error::Internal(_) => *res.status_mut() = HttpStatusCode::InternalServerError,
 	}
+
+	// return error text. ignore errors when returning error
+	let error_text = format!("\"{}\"", err);
+	if let Ok(error_text) = serde_json::to_vec(&error_text) {
+		res.headers_mut().set(header::ContentType::json());
+		let _ = res.send(&error_text);
+	}
 }
 
 fn parse_request(method: &HttpMethod, uri_path: &str) -> Request {
