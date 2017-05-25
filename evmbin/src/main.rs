@@ -30,7 +30,7 @@ use std::time::{Instant, Duration};
 use std::fmt;
 use std::str::FromStr;
 use docopt::Docopt;
-use util::{U256, FromHex, Uint, Bytes};
+use util::{U256, FromHex, Bytes};
 use ethcore::evm::{self, Factory, VMType, Finalize};
 use ethcore::action_params::ActionParams;
 

@@ -20,7 +20,7 @@ use types::ids::BlockId;
 
 use futures::{future, Future};
 use native_contracts::ServiceTransactionChecker as Contract;
-use util::{U256, Uint, Mutex};
+use util::{U256, Mutex};
 
 const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";
 

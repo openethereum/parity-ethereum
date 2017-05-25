@@ -19,8 +19,8 @@ time = "0.1.34"
 itertools = "0.5"
 parking_lot = "0.4"
 ethcrypto = { path = "../ethcrypto" }
-ethcore-bigint = "0.1.2"
-smallvec = "0.3.1"
+ethcore-bigint = { path = "../util/bigint" }
+smallvec = "0.4"
 parity-wordlist = "1.0"
 tempdir = "0.3"
 

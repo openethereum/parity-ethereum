@@ -24,7 +24,7 @@ use transient_hashmap::TransientHashMap;
 use miner::{TransactionQueue, TransactionQueueDetailsProvider, TransactionImportResult, TransactionOrigin};
 use miner::transaction_queue::QueuingInstant;
 use error::{Error, TransactionError};
-use util::{Uint, U256, H256, Address, Hashable};
+use util::{U256, H256, Address, Hashable};
 
 type Count = u16;
 
@@ -215,7 +215,7 @@ mod tests {
 	use error::{Error, TransactionError};
 	use client::TransactionImportResult;
 	use miner::{TransactionQueue, TransactionOrigin};
-	use util::{Uint, U256, Address, FromHex, Hashable};
+	use util::{U256, Address, FromHex, Hashable};
 	use miner::transaction_queue::test::DummyTransactionDetailsProvider;
 
 	fn queue() -> BanningTransactionQueue {

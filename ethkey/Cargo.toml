@@ -10,7 +10,7 @@ tiny-keccak = "1.0"
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
 rustc-serialize = "0.3"
 docopt = { version = "0.7", optional = true }
-ethcore-bigint = "0.1.2"
+ethcore-bigint = { path = "../util/bigint" }
 rust-crypto = "0.2"
 byteorder = "1.0"
 

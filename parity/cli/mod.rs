@@ -124,6 +124,8 @@ usage! {
 			or |c: &Config| otry!(c.ui).port.clone(),
 		flag_ui_interface: String = "local",
 			or |c: &Config| otry!(c.ui).interface.clone(),
+		flag_ui_hosts: String = "none",
+			or |c: &Config| otry!(c.ui).hosts.as_ref().map(|vec| vec.join(",")),
 		flag_ui_path: String = "$BASE/signer",
 			or |c: &Config| otry!(c.ui).path.clone(),
 		// NOTE [todr] For security reasons don't put this to config files
@@ -188,7 +190,7 @@ usage! {
 			or |c: &Config| otry!(c.websockets).interface.clone(),
 		flag_ws_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore",
 			or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
-		flag_ws_origins: String = "none",
+		flag_ws_origins: String = "chrome-extension://*",
 			or |c: &Config| otry!(c.websockets).origins.as_ref().map(|vec| vec.join(",")),
 		flag_ws_hosts: String = "none",
 			or |c: &Config| otry!(c.websockets).hosts.as_ref().map(|vec| vec.join(",")),
@@ -430,6 +432,7 @@ struct Ui {
 	disable: Option<bool>,
 	port: Option<u16>,
 	interface: Option<String>,
+	hosts: Option<Vec<String>>,
 	path: Option<String>,
 }
 
@@ -709,6 +712,7 @@ mod tests {
 			flag_no_ui: false,
 			flag_ui_port: 8180u16,
 			flag_ui_interface: "127.0.0.1".into(),
+			flag_ui_hosts: "none".into(),
 			flag_ui_path: "$HOME/.parity/signer".into(),
 			flag_ui_no_validation: false,
 
@@ -929,6 +933,7 @@ mod tests {
 				disable: Some(true),
 				port: None,
 				interface: None,
+				hosts: None,
 				path: None,
 			}),
 			network: Some(Network {

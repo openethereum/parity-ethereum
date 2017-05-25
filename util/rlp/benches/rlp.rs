@@ -15,7 +15,7 @@
 #![feature(test)]
 
 extern crate test;
-extern crate ethcore_bigint as bigint;
+extern crate bigint;
 extern crate rlp;
 
 use test::Bencher;

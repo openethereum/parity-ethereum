@@ -209,6 +209,14 @@ pub fn dapps_disabled() -> Error {
 	}
 }
 
+pub fn ws_disabled() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: "WebSockets Server is disabled. This API is not available.".into(),
+		data: None,
+	}
+}
+
 pub fn network_disabled() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),

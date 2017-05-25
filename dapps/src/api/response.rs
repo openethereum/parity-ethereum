@@ -23,12 +23,6 @@ pub fn empty() -> Box<Handler> {
 	Box::new(ContentHandler::ok("".into(), mime!(Text/Plain)))
 }
 
-pub fn as_json<T: Serialize>(val: &T) -> Box<Handler> {
-	let json = serde_json::to_string(val)
-		.expect("serialization to string is infallible; qed");
-	Box::new(ContentHandler::ok(json, mime!(Application/Json)))
-}
-
 pub fn as_json_error<T: Serialize>(val: &T) -> Box<Handler> {
 	let json = serde_json::to_string(val)
 		.expect("serialization to string is infallible; qed");

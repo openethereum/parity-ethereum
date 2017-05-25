@@ -29,7 +29,7 @@
 //! extern crate ethkey;
 //! extern crate rustc_serialize;
 //!
-//! use util::{Uint, U256, Address};
+//! use util::{U256, Address};
 //! use ethkey::{Random, Generator};
 //!	use ethcore::miner::{TransactionQueue, RemovalReason, TransactionQueueDetailsProvider, AccountDetails, TransactionOrigin};
 //!	use ethcore::transaction::*;
@@ -105,7 +105,7 @@ use std::cmp::Ordering;
 use std::cmp;
 use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap};
 use linked_hash_map::LinkedHashMap;
-use util::{Address, H256, Uint, U256};
+use util::{Address, H256, U256};
 use util::table::Table;
 use transaction::*;
 use error::{Error, TransactionError};

@@ -32,7 +32,6 @@ use std::string::String;
 use std::result::Result;
 use std::fmt;
 use {util, ethabi};
-use util::Uint;
 
 ${convertContract(name, json, prefs)}
 `;

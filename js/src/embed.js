@@ -55,6 +55,9 @@ class FakeTransport {
     return Promise.reject('not connected');
   }
 
+  addMiddleware () {
+  }
+
   on () {
   }
 }

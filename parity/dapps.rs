@@ -27,6 +27,7 @@ use hash_fetch::urlhint::ContractClient;
 use helpers::replace_home;
 use light::client::Client as LightClient;
 use light::on_demand::{self, OnDemand};
+use rpc;
 use rpc_apis::SignerService;
 use parity_reactor;
 use util::{Bytes, Address};
@@ -45,6 +46,15 @@ impl Default for Configuration {
 			enabled: true,
 			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
 			extra_dapps: vec![],
+		}
+	}
+}
+
+impl Configuration {
+	pub fn address(&self, address: Option<(String, u16)>) -> Option<(String, u16)> {
+		match self.enabled {
+			true => address,
+			false => None,
 		}
 	}
 }
@@ -125,35 +135,49 @@ impl ContractClient for LightRegistrar {
 
 // TODO: light client implementation forwarding to OnDemand and waiting for future
 // to resolve.
+#[derive(Clone)]
 pub struct Dependencies {
 	pub sync_status: Arc<SyncStatus>,
 	pub contract_client: Arc<ContractClient>,
 	pub remote: parity_reactor::TokioRemote,
 	pub fetch: FetchClient,
 	pub signer: Arc<SignerService>,
+	pub ui_address: Option<(String, u16)>,
 }
 
-pub fn new(configuration: Configuration, deps: Dependencies)
-	-> Result<Option<Middleware>, String>
-{
+pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Middleware>, String> {
 	if !configuration.enabled {
 		return Ok(None);
 	}
 
-	dapps_middleware(
+	server::dapps_middleware(
 		deps,
 		configuration.dapps_path,
 		configuration.extra_dapps,
+		rpc::DAPPS_DOMAIN.into(),
 	).map(Some)
 }
 
-pub use self::server::{SyncStatus, Middleware, dapps_middleware};
+pub fn new_ui(enabled: bool, deps: Dependencies) -> Result<Option<Middleware>, String> {
+	if !enabled {
+		return Ok(None);
+	}
+
+	server::ui_middleware(
+		deps,
+		rpc::DAPPS_DOMAIN.into(),
+	).map(Some)
+}
+
+pub use self::server::{SyncStatus, Middleware, service};
 
 #[cfg(not(feature = "dapps"))]
 mod server {
 	use super::Dependencies;
+	use std::sync::Arc;
 	use std::path::PathBuf;
 	use parity_rpc::{hyper, RequestMiddleware, RequestMiddlewareAction};
+	use rpc_apis;
 
 	pub type SyncStatus = Fn() -> bool;
 
@@ -170,8 +194,20 @@ mod server {
 		_deps: Dependencies,
 		_dapps_path: PathBuf,
 		_extra_dapps: Vec<PathBuf>,
+		_dapps_domain: String,
 	) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
+	}
+
+	pub fn ui_middleware(
+		_deps: Dependencies,
+		_dapps_domain: String,
+	) -> Result<Middleware, String> {
+		Err("Your Parity version has been compiled without UI support.".into())
+	}
+
+	pub fn service(_: &Option<Middleware>) -> Option<Arc<rpc_apis::DappsService>> {
+		None
 	}
 }
 
@@ -180,6 +216,7 @@ mod server {
 	use super::Dependencies;
 	use std::path::PathBuf;
 	use std::sync::Arc;
+	use rpc_apis;
 
 	use parity_dapps;
 	use parity_reactor;
@@ -191,20 +228,62 @@ mod server {
 		deps: Dependencies,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
+		dapps_domain: String,
 	) -> Result<Middleware, String> {
-		let signer = deps.signer.clone();
+		let signer = deps.signer;
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
 		let web_proxy_tokens = Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token));
 
-		Ok(parity_dapps::Middleware::new(
+		Ok(parity_dapps::Middleware::dapps(
 			parity_remote,
-			deps.signer.address(),
+			deps.ui_address,
 			dapps_path,
 			extra_dapps,
+			dapps_domain,
 			deps.contract_client,
 			deps.sync_status,
 			web_proxy_tokens,
-			deps.fetch.clone(),
+			deps.fetch,
 		))
+	}
+
+	pub fn ui_middleware(
+		deps: Dependencies,
+		dapps_domain: String,
+	) -> Result<Middleware, String> {
+		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
+		Ok(parity_dapps::Middleware::ui(
+			parity_remote,
+			deps.contract_client,
+			deps.sync_status,
+			deps.fetch,
+			dapps_domain,
+		))
+	}
+
+	pub fn service(middleware: &Option<Middleware>) -> Option<Arc<rpc_apis::DappsService>> {
+		middleware.as_ref().map(|m| Arc::new(DappsServiceWrapper {
+			endpoints: m.endpoints()
+		}) as Arc<rpc_apis::DappsService>)
+	}
+
+	pub struct DappsServiceWrapper {
+		endpoints: parity_dapps::Endpoints,
+	}
+
+	impl rpc_apis::DappsService for DappsServiceWrapper {
+		fn list_dapps(&self) -> Vec<rpc_apis::LocalDapp> {
+			self.endpoints.list()
+				.into_iter()
+				.map(|app| rpc_apis::LocalDapp {
+					id: app.id,
+					name: app.name,
+					description: app.description,
+					version: app.version,
+					author: app.author,
+					icon_url: app.icon_url,
+				})
+				.collect()
+		}
 	}
 }
