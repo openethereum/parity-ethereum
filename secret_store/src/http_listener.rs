@@ -27,7 +27,7 @@ use url::percent_encoding::percent_decode;
 
 use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
 use serialization::{SerializableEncryptedDocumentKeyShadow, SerializableBytes, SerializablePublic};
-use types::all::{Error, Public, MessageHash, MessageSignature, NodeAddress, RequestSignature, ServerKeyId,
+use types::all::{Error, Public, MessageHash, EncryptedMessageSignature, NodeAddress, RequestSignature, ServerKeyId,
 	EncryptedDocumentKey, EncryptedDocumentKeyShadow};
 
 /// Key server http-requests listener. Available requests:
@@ -120,7 +120,7 @@ impl<T> DocumentKeyServer for KeyServerHttpListener<T> where T: KeyServer + 'sta
 }
 
 impl <T> MessageSigner for KeyServerHttpListener<T> where T: KeyServer + 'static {
-	fn sign_message(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<MessageSignature, Error> {
+	fn sign_message(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
 		self.handler.key_server.sign_message(key_id, signature, message)
 	}
 }
@@ -180,8 +180,7 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 						}));
 				},
 				Request::SignMessage(document, signature, message_hash) => {
-					return_bytes(req, res, self.handler.key_server.sign_message(&document, &signature, message_hash)
-						.map(|s| Some(SerializableBytes(s)))
+					return_message_signature(req, res, self.handler.key_server.sign_message(&document, &signature, message_hash)
 						.map_err(|err| {
 							warn!(target: "secretstore", "SignMessage request {} has failed with: {}", req_uri, err);
 							err
@@ -206,6 +205,10 @@ fn return_empty(req: HttpRequest, res: HttpResponse, empty: Result<(), Error>) {
 
 fn return_server_pubic_key(req: HttpRequest, res: HttpResponse, server_public: Result<Public, Error>) {
 	return_bytes(req, res, server_public.map(|k| Some(SerializablePublic(k))))
+}
+
+fn return_message_signature(req: HttpRequest, res: HttpResponse, signature: Result<EncryptedDocumentKey, Error>) {
+	return_bytes(req, res, signature.map(|s| Some(SerializableBytes(s))))
 }
 
 fn return_document_key(req: HttpRequest, res: HttpResponse, document_key: Result<EncryptedDocumentKey, Error>) {

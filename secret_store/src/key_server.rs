@@ -27,7 +27,7 @@ use super::key_storage::KeyStorage;
 use key_server_cluster::{math, ClusterCore};
 use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
 use types::all::{Error, Public, RequestSignature, ServerKeyId, EncryptedDocumentKey, EncryptedDocumentKeyShadow,
-	ClusterConfiguration, MessageHash, MessageSignature};
+	ClusterConfiguration, MessageHash, EncryptedMessageSignature};
 use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration};
 
 /// Secret store key server implementation
@@ -121,7 +121,11 @@ impl DocumentKeyServer for KeyServerImpl {
 }
 
 impl MessageSigner for KeyServerImpl {
-	fn sign_message(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<MessageSignature, Error> {
+	fn sign_message(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
+		// recover requestor' public key from signature
+		let public = ethkey::recover(signature, key_id)
+			.map_err(|_| Error::BadSignature)?;
+
 		// sign message
 		let signing_session = self.data.lock().cluster.new_signing_session(key_id.clone(), signature.clone(), message)?;
 		let message_signature = signing_session.wait()?;
@@ -130,7 +134,11 @@ impl MessageSigner for KeyServerImpl {
 		let mut combined_signature: Vec<u8> = Vec::with_capacity(64);
 		combined_signature.extend_from_slice(&**message_signature.0);
 		combined_signature.extend_from_slice(&**message_signature.1);
-		Ok(combined_signature.into())
+
+		// encrypt combined signature with requestor public key
+		let message_signature = ethcrypto::ecies::encrypt(&public, &ethcrypto::DEFAULT_MAC, &combined_signature)
+			.map_err(|err| Error::Internal(format!("Error encrypting message signature: {}", err)))?;
+		Ok(message_signature)
 	}
 }
 
@@ -192,7 +200,7 @@ pub mod tests {
 	use key_server_cluster::math;
 	use util::H256;
 	use types::all::{Error, Public, ClusterConfiguration, NodeAddress, RequestSignature, ServerKeyId,
-		EncryptedDocumentKey, EncryptedDocumentKeyShadow, MessageHash, MessageSignature};
+		EncryptedDocumentKey, EncryptedDocumentKeyShadow, MessageHash, EncryptedMessageSignature};
 	use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
 	use super::KeyServerImpl;
 
@@ -225,7 +233,7 @@ pub mod tests {
 	}
 
 	impl MessageSigner for DummyKeyServer {
-		fn sign_message(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _message: MessageHash) -> Result<MessageSignature, Error> {
+		fn sign_message(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
 			unimplemented!()
 		}
 	}
@@ -371,6 +379,7 @@ pub mod tests {
 			// sign message
 			let message_hash = H256::from(42);
 			let combined_signature = key_servers[0].sign_message(&server_key_id, &signature, message_hash.clone()).unwrap();
+			let combined_signature = ethcrypto::ecies::decrypt(&requestor_secret, &ethcrypto::DEFAULT_MAC, &combined_signature).unwrap();
 			let signature_c = Secret::from_slice(&combined_signature[..32]);
 			let signature_s = Secret::from_slice(&combined_signature[32..]);
 

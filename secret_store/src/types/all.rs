@@ -31,7 +31,7 @@ pub type EncryptedDocumentKey = util::Bytes;
 /// Message hash.
 pub type MessageHash = util::H256;
 /// Message signature.
-pub type MessageSignature = util::Bytes;
+pub type EncryptedMessageSignature = util::Bytes;
 /// Request signature type.
 pub type RequestSignature = ethkey::Signature;
 /// Public key type.
