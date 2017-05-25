@@ -45,10 +45,10 @@ Usage:
     evmbin [-h | --help]
 
 Transaction options:
-    --code CODE        Contract code as hex (without 0x)
-	--from ADDRESS     Sender address (without 0x)
-    --input DATA       Input data as hex (without 0x)
-    --gas GAS          Supplied gas as hex (without 0x)
+    --code CODE        Contract code as hex (without 0x).
+    --from ADDRESS     Sender address (without 0x).
+    --input DATA       Input data as hex (without 0x).
+    --gas GAS          Supplied gas as hex (without 0x).
 
 General options:
     --json             Display verbose results in JSON.
