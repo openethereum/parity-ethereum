@@ -26,7 +26,7 @@ use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
 use light::TransactionQueue as LightTransactionQueue;
 use rlp;
-use util::{Address, H520, H256, U256, Uint, Bytes, Mutex, RwLock};
+use util::{Address, H520, H256, U256, Bytes, Mutex, RwLock};
 use util::sha3::Hashable;
 use stats::Corpus;
 

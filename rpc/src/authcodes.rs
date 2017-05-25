@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use rand::Rng;
-use rand::os::OsRng;
 use std::io::{self, Read, Write};
 use std::path::Path;
 use std::{fs, time, mem};
+
+use rand::Rng;
+use rand::os::OsRng;
 use util::{H256, Hashable, Itertools};
 
 /// Providing current time in seconds
@@ -347,5 +348,3 @@ mod tests {
 	}
 
 }
-
-

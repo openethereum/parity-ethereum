@@ -8,9 +8,13 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
+cid = "0.2"
 futures = "0.1"
 log = "0.3"
+multihash = "0.5"
 order-stat = "0.1"
+rand = "0.3"
+rust-crypto = "0.2"
 rustc-serialize = "0.3"
 semver = "0.6"
 serde = "0.9"
@@ -19,10 +23,6 @@ serde_json = "0.9"
 time = "0.1"
 tokio-timer = "0.1"
 transient-hashmap = "0.4"
-cid = "0.2.1"
-multihash = "0.5"
-rust-crypto = "0.2.36"
-rand = "0.3"
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }

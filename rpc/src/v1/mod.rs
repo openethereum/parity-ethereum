@@ -52,14 +52,30 @@ macro_rules! try_bf {
 #[macro_use]
 mod helpers;
 mod impls;
-mod metadata;
+mod types;
+#[cfg(test)]
+mod tests;
 
+pub mod extractors;
+pub mod informant;
+pub mod metadata;
 pub mod traits;
-pub mod tests;
-pub mod types;
 
 pub use self::traits::{Web3, Eth, EthFilter, EthPubSub, EthSigning, Net, Parity, ParityAccounts, ParitySet, ParitySigning, PubSub, Signer, Personal, Traces, Rpc, SecretStore};
 pub use self::impls::*;
-pub use self::helpers::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings, block_import, informant, dispatch};
+pub use self::helpers::{NetworkSettings, block_import, dispatch};
 pub use self::metadata::Metadata;
 pub use self::types::Origin;
+pub use self::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
+
+/// Signer utilities
+pub mod signer {
+	pub use super::helpers::{SigningQueue, SignerService, ConfirmationsQueue};
+	pub use super::types::{ConfirmationRequest, TransactionModification, U256, TransactionCondition};
+}
+
+/// Dapps integration utilities
+pub mod dapps {
+	pub use super::helpers::dapps::DappsService;
+	pub use super::types::LocalDapp;
+}

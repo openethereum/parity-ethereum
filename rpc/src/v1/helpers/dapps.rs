@@ -14,12 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_version;
+//! Dapps Service
 
-use rustc_version::{version_meta, Channel};
+use v1::types::LocalDapp;
 
-fn main() {
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=nightly");
+/// Dapps Server service.
+pub trait DappsService: Send + Sync + 'static {
+	/// List available local dapps.
+	fn list_dapps(&self) -> Vec<LocalDapp>;
+}
+
+impl<F> DappsService for F where
+	F: Fn() -> Vec<LocalDapp> + Send + Sync + 'static
+{
+	fn list_dapps(&self) -> Vec<LocalDapp> {
+		(*self)()
 	}
 }

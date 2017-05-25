@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
 use std::io;
 use std::io::Read;
 use std::fs;
 use std::path::{Path, PathBuf};
 use page::{LocalPageEndpoint, PageCache};
-use endpoint::{Endpoints, EndpointInfo};
+use endpoint::{Endpoint, EndpointInfo};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest};
 
 struct LocalDapp {
@@ -85,8 +86,8 @@ fn local_dapp(name: String, path: PathBuf) -> LocalDapp {
 
 /// Returns endpoints for Local Dapps found for given filesystem path.
 /// Scans the directory and collects `LocalPageEndpoints`.
-pub fn local_endpoints<P: AsRef<Path>>(dapps_path: P, signer_address: Option<(String, u16)>) -> Endpoints {
-	let mut pages = Endpoints::new();
+pub fn local_endpoints<P: AsRef<Path>>(dapps_path: P, signer_address: Option<(String, u16)>) -> BTreeMap<String, Box<Endpoint>> {
+	let mut pages = BTreeMap::<String, Box<Endpoint>>::new();
 	for dapp in local_dapps(dapps_path.as_ref()) {
 		pages.insert(
 			dapp.id,

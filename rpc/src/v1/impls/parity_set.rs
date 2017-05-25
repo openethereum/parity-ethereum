@@ -28,9 +28,10 @@ use util::sha3;
 use updater::{Service as UpdateService};
 
 use jsonrpc_core::Error;
+use v1::helpers::dapps::DappsService;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
-use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
+use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction, LocalDapp};
 
 /// Parity-specific rpc interface for operations altering the settings.
 pub struct ParitySetClient<C, M, U, F = fetch::Client> {
@@ -38,6 +39,7 @@ pub struct ParitySetClient<C, M, U, F = fetch::Client> {
 	miner: Weak<M>,
 	updater: Weak<U>,
 	net: Weak<ManageNetwork>,
+	dapps: Option<Arc<DappsService>>,
 	fetch: F,
 	eip86_transition: u64,
 }
@@ -46,12 +48,20 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 	where C: MiningBlockChainClient + 'static,
 {
 	/// Creates new `ParitySetClient` with given `Fetch`.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>, fetch: F) -> Self {
+	pub fn new(
+		client: &Arc<C>,
+		miner: &Arc<M>,
+		updater: &Arc<U>,
+		net: &Arc<ManageNetwork>,
+		dapps: Option<Arc<DappsService>>,
+		fetch: F,
+	) -> Self {
 		ParitySetClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			updater: Arc::downgrade(updater),
 			net: Arc::downgrade(net),
+			dapps: dapps,
 			fetch: fetch,
 			eip86_transition: client.eip86_transition(),
 		}
@@ -164,6 +174,10 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 				})
 				.map(Into::into)
 		}))
+	}
+
+	fn dapps_list(&self) -> Result<Vec<LocalDapp>, Error> {
+		self.dapps.as_ref().map(|dapps| dapps.list_dapps()).ok_or_else(errors::dapps_disabled)
 	}
 
 	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>, Error> {

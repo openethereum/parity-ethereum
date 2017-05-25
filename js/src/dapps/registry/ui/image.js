@@ -16,8 +16,6 @@
 
 import React from 'react';
 
-import { parityNode } from '../../../environment';
-
 const styles = {
   padding: '.5em',
   border: '1px solid #777'
@@ -34,7 +32,7 @@ export default (address) => {
 
   return (
     <img
-      src={ `${parityNode}/api/content/${address.replace(/^0x/, '')}` }
+      src={ `/api/content/${address.replace(/^0x/, '')}` }
       alt={ address }
       style={ styles }
     />

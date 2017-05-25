@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use util::{U256, Uint, Address, ToPretty};
+use util::{U256, Address, ToPretty};
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
@@ -58,7 +58,7 @@ fn miner_service() -> Arc<TestMinerService> {
 }
 
 fn signer_tester() -> SignerTester {
-	let signer = Arc::new(SignerService::new_test(None));
+	let signer = Arc::new(SignerService::new_test(false));
 	let accounts = accounts_provider();
 	let opt_accounts = Some(accounts.clone());
 	let client = blockchain_client();
