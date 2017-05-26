@@ -47,9 +47,9 @@ pub struct FakeCall {
 /// Can't do recursive calls.
 #[derive(Default)]
 pub struct FakeExt {
+	pub store: HashMap<H256, H256>,
 	sstore_clears: usize,
 	depth: usize,
-	store: HashMap<H256, H256>,
 	blockhashes: HashMap<U256, H256>,
 	codes: HashMap<Address, Arc<Bytes>>,
 	logs: Vec<FakeLogEntry>,

@@ -87,6 +87,7 @@ impl<'a> Runtime<'a> {
 		let mut context = context;
 		let val = self.pop_h256(&mut context)?;
 		let key = self.pop_h256(&mut context)?;
+		trace!(target: "wasm", "storage_write: value {} at @{}", &val, &key);
 
 		self.ext.set_storage(key, val)
 			.map_err(|_| interpreter::Error::Trap("Storage update error".to_owned()))?;

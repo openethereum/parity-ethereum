@@ -39,6 +39,16 @@ impl ActionValue {
 			ActionValue::Transfer(x) | ActionValue::Apparent(x) => x
 		}
 	}
+
+	/// Returns the transfer action value of the U256-convertable raw value
+	pub fn transfer<T: Into<U256>>(transfer_value: T) -> ActionValue {
+		ActionValue::Transfer(transfer_value.into())
+	}
+
+	/// Returns the apparent action value of the U256-convertable raw value
+	pub fn apparent<T: Into<U256>>(apparent_value: T) -> ActionValue {
+		ActionValue::Apparent(apparent_value.into())		
+	}
 }
 
 // TODO: should be a trait, possible to avoid cloning everything from a Transaction(/View).
