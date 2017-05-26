@@ -34,12 +34,13 @@ impl WasmResult {
 
 	pub fn peek_empty(&self, mem: &interpreter::MemoryInstance) -> Result<bool, RuntimeError> {
 		let result_ptr = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[8..12]);
-		Ok(result_ptr != 0)
+		Ok(result_ptr == 0)
 	}
 
 	pub fn pop(self, mem: &interpreter::MemoryInstance) -> Result<Vec<u8>, RuntimeError> {
 		let result_ptr = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[8..12]);
 		let result_len = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[12..16]);
+		trace!(target: "wasm", "contract result: {} bytes at @{}", result_len, result_ptr);
 
 		Ok(mem.get(result_ptr, result_len as usize)?)
 	}

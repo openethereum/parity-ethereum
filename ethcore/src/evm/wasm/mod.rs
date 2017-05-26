@@ -18,6 +18,8 @@ mod runtime;
 mod ptr;
 mod call_args;
 mod result;
+#[cfg(test)]
+mod tests;
 
 use std::sync::Arc;
 
@@ -30,7 +32,6 @@ use wasm_utils;
 use evm::{self, GasLeft};
 use action_params::{ActionParams, ActionValue};
 use self::runtime::Runtime;
-use util::Uint;
 
 pub use self::runtime::Error as RuntimeError;
 
@@ -164,15 +165,15 @@ fn native_bindings<'a>(runtime: &'a mut Runtime) -> interpreter::UserFunctions<'
 				result: None,
 			},
 			interpreter::UserFunction {
+				name: "_debug".to_owned(),
+				params: vec![elements::ValueType::I32, elements::ValueType::I32],
+				result: None,
+			},
+			interpreter::UserFunction {
 				name: "_free".to_owned(),
 				params: vec![elements::ValueType::I32],
 				result: None,
 			},
 		],
 	}
-}
-
-#[cfg(test)]
-mod tests {
-	
 }

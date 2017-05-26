@@ -179,6 +179,20 @@ impl<'a> Runtime<'a> {
 		Ok(d_ptr.into())
 	}
 
+	fn debug_log(&mut self, context: interpreter::CallerContext) 
+			-> Result<Option<interpreter::RuntimeValue>, interpreter::Error> 
+	{
+		let msg_len = context.value_stack.pop_as::<i32>()? as u32;
+		let msg_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		
+		let msg = String::from_utf8(self.memory.get(msg_ptr, msg_len as usize)?)
+			.map_err(|_| interpreter::Error::Trap("Debug log utf-8 decoding error".to_owned()))?;
+
+		trace!(target: "wasm", "Contract debug message: {}", msg);
+
+		Ok(None)
+	}
+
 	pub fn gas_left(&self) -> Result<u64, Error> {
 		if self.gas_counter > self.gas_limit { return Err(Error::InvalidGasState); }
 		Ok(self.gas_limit - self.gas_counter)
@@ -207,6 +221,9 @@ impl<'a> interpreter::UserFunctionExecutor for Runtime<'a> {
 			},
 			"_storage_write" => {
 				self.storage_write(context)
+			},
+			"_debug" => {
+				self.debug_log(context)
 			},
 			"gas" => {
 				self.gas(context)

@@ -17,7 +17,7 @@
 //! Wasm evm call arguments helper
 
 use types::executed::CallType;
-use util::{U256, H256, H160, Uint};
+use util::{U256, H256, H160};
 
 pub struct CallArgs {
     // address of code executed
