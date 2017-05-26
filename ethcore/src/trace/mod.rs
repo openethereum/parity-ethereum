@@ -89,7 +89,7 @@ pub trait Tracer: Send {
 pub trait VMTracer: Send {
 	/// Trace the preparation to execute a single instruction.
 	/// @returns true if `trace_executed` should be called.
-	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: &U256) -> bool { false }
+	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _stack_pop: usize, _gas_cost: &U256) -> bool { false }
 
 	/// Trace the finalised execution of a single instruction.
 	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
@@ -97,7 +97,7 @@ pub trait VMTracer: Send {
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn prepare_subtrace(&self, code: &[u8]) -> Self where Self: Sized;
 
-	/// Spawn subtracer which will be used to trace deeper levels of execution.
+	/// Finalize subtracer.
 	fn done_subtrace(&mut self, sub: Self) where Self: Sized;
 
 	/// Consumes self and returns the VM trace.

@@ -129,7 +129,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			// Calculate gas cost
 			let requirements = gasometer.requirements(ext, instruction, info, &stack, self.mem.size())?;
 			// TODO: make compile-time removable if too much of a performance hit.
-			let trace_executed = ext.trace_prepare_execute(reader.position - 1, instruction, &requirements.gas_cost.as_u256());
+			let trace_executed = ext.trace_prepare_execute(reader.position - 1, instruction, info.args, &requirements.gas_cost.as_u256());
 
 			gasometer.verify_gas(&requirements.gas_cost)?;
 			self.mem.expand(requirements.memory_required_size);
