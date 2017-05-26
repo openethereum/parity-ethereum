@@ -319,7 +319,7 @@ class TxRow extends Component {
 
   getCondition = () => {
     const { blockNumber, tx } = this.props;
-    let { time, block } = tx.condition;
+    let { time, block } = tx.condition || {};
 
     if (time) {
       if ((time.getTime() - Date.now()) >= 0) {
@@ -336,7 +336,7 @@ class TxRow extends Component {
       } else {
         return 'submitting';
       }
-    } else if (blockNumber) {
+    } else if (blockNumber && block) {
       block = blockNumber.minus(block);
       // return (block.toNumber() < 0)
       //   ? block.abs().toFormat(0) + ' blocks left'
