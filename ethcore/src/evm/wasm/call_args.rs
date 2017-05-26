@@ -18,35 +18,41 @@
 
 use util::{U256, H160};
 
+/// Input part of the wasm call descriptor
 pub struct CallArgs {
-    // address of code executed
+    /// Receiver of the transaction
     pub address: [u8; 20],
 
-    // sender of the transaction
+    /// Sender of the transaction
     pub sender: [u8; 20],
 
-    // transfer value
+    /// Original transaction initiator
+    pub origin: [u8; 20],
+
+    /// Transfer value
     pub value: [u8; 32],
 
-    // reserved space / alignment to 256 bytes
-    _reserved: [u8; 184],
+    /// Reserved space / alignment to 256 bytes
+    _reserved: [u8; 164],
 
-    // call/create params
+    /// call/create params
     pub data: Vec<u8>,
 }
 
 impl CallArgs {
-    pub fn new(address: H160, sender: H160, value: U256, data: Vec<u8>) -> Self {
+    pub fn new(address: H160, sender: H160, origin: H160, value: U256, data: Vec<u8>) -> Self {
         let mut descriptor = CallArgs {
             address: [0u8; 20],
             sender: [0u8; 20],
+            origin: [0u8; 20],
             value: [0u8; 32],
-            _reserved: [0u8; 184],
+            _reserved: [0u8; 164],
             data: data,
         };
 
         descriptor.address.copy_from_slice(&*address);
         descriptor.sender.copy_from_slice(&*sender);
+        descriptor.origin.copy_from_slice(&*origin);
         value.to_big_endian(&mut descriptor.value);
 
         descriptor
