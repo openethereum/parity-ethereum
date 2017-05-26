@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Wasm Interpreter
+
 mod runtime;
 mod ptr;
 mod call_args;
@@ -30,19 +32,21 @@ use parity_wasm::interpreter::ModuleInstanceInterface;
 use wasm_utils;
 
 use evm::{self, GasLeft};
-use action_params::{ActionParams, ActionValue};
+use action_params::ActionParams;
 use self::runtime::Runtime;
 
 pub use self::runtime::Error as RuntimeError;
 
 const DEFAULT_RESULT_BUFFER: usize = 1024;
 
+/// Wasm interpreter instance
 pub struct WasmInterpreter {
 	program: interpreter::ProgramInstance,
 	result: Vec<u8>,
 }
 
 impl WasmInterpreter {
+	/// New wasm interpreter instance
 	pub fn new() -> Result<WasmInterpreter, RuntimeError> {
 		Ok(WasmInterpreter {
 			program: interpreter::ProgramInstance::new()?,

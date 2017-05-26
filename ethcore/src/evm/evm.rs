@@ -83,7 +83,7 @@ impl From<builtin::Error> for Error {
 }
 
 impl From<wasm::RuntimeError> for Error {
-	fn from(err: wasm::RuntimeError) -> Self {
+	fn from(_err: wasm::RuntimeError) -> Self {
 		Error::Wasm("Runtime error")
 	}
 }

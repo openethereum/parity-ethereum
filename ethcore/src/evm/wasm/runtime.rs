@@ -23,17 +23,23 @@ use byteorder::{LittleEndian, ByteOrder};
 use evm;
 
 use parity_wasm::interpreter;
-use util::{U256, H256};
+use util::H256;
 
 use super::ptr::{WasmPtr, Error as PtrError};
 use super::call_args::CallArgs;
 
+/// Wasm runtime error
 #[derive(Debug)]
 pub enum Error {
+	/// Storage error
 	Storage,
+	/// Allocator error
 	Allocator,
+	/// Invalid gas state during the call
 	InvalidGasState,
+	/// Memory access violation
 	AccessViolation,
+	/// Interpreter runtime error
 	Interpreter(interpreter::Error),
 }
 
