@@ -23,16 +23,17 @@ extern crate rustc_serialize;
 extern crate docopt;
 extern crate ethcore_util as util;
 
-mod ext;
-
 use std::sync::Arc;
-use std::time::{Instant, Duration};
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt, fs};
 use docopt::Docopt;
-use util::{U256, FromHex, Bytes};
-use ethcore::evm::{self, Factory, VMType, Finalize};
+use util::{U256, FromHex, Bytes, Address};
+use ethcore::spec;
 use ethcore::action_params::ActionParams;
+
+mod vm;
+mod display;
+
+use vm::Informant;
 
 const USAGE: &'static str = r#"
 EVM implementation for Parity.
@@ -40,14 +41,18 @@ EVM implementation for Parity.
 
 Usage:
     evmbin stats [options]
+    evmbin [options]
     evmbin [-h | --help]
 
 Transaction options:
-    --code CODE        Contract code as hex (without 0x)
-    --input DATA       Input data as hex (without 0x)
-    --gas GAS          Supplied gas as hex (without 0x)
+    --code CODE        Contract code as hex (without 0x).
+    --from ADDRESS     Sender address (without 0x).
+    --input DATA       Input data as hex (without 0x).
+    --gas GAS          Supplied gas as hex (without 0x).
 
 General options:
+    --json             Display verbose results in JSON.
+    --chain CHAIN      Chain spec file path.
     -h, --help         Display this message and exit.
 "#;
 
@@ -55,107 +60,93 @@ General options:
 fn main() {
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit());
 
+	if args.flag_json {
+		run(args, display::json::Informant::default())
+	} else {
+		run(args, display::simple::Informant::default())
+	}
+}
+
+fn run<T: Informant>(args: Args, mut informant: T) {
+	let from = arg(args.from(), "--from");
+	let code = arg(args.code(), "--code");
+	let spec = arg(args.spec(), "--chain");
+	let gas = arg(args.gas(), "--gas");
+	let data = arg(args.data(), "--input");
+
 	let mut params = ActionParams::default();
-	params.gas = args.gas();
-	params.code = Some(Arc::new(args.code()));
-	params.data = args.data();
+	params.sender = from;
+	params.origin = from;
+	params.gas = gas;
+	params.code = Some(Arc::new(code));
+	params.data = data;
 
-	let result = run_vm(params);
-	match result {
-		Ok(success) => println!("{}", success),
-		Err(failure) => println!("{}", failure),
-	}
-}
-
-/// Execute VM with given `ActionParams`
-pub fn run_vm(params: ActionParams) -> Result<Success, Failure> {
-	let initial_gas = params.gas;
-	let factory = Factory::new(VMType::Interpreter, 1024);
-	let mut vm = factory.create(params.gas);
-	let mut ext = ext::FakeExt::default();
-
-	let start = Instant::now();
-	let res = vm.exec(params, &mut ext).finalize(ext);
-	let duration = start.elapsed();
-
-	match res {
-		Ok(res) => Ok(Success {
-			gas_used: initial_gas - res.gas_left,
-			// TODO [ToDr] get output from ext
-			output: Vec::new(),
-			time: duration,
-		}),
-		Err(e) => Err(Failure {
-			error: e,
-			time: duration,
-		}),
-	}
-}
-
-/// Execution finished correctly
-pub struct Success {
-	/// Used gas
-	gas_used: U256,
-	/// Output as bytes
-	output: Vec<u8>,
-	/// Time Taken
-	time: Duration,
-}
-impl fmt::Display for Success {
-	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		writeln!(f, "Gas used: {:?}", self.gas_used)?;
-		writeln!(f, "Output: {:?}", self.output)?;
-		writeln!(f, "Time: {}.{:.9}s", self.time.as_secs(), self.time.subsec_nanos())?;
-		Ok(())
-	}
-}
-
-/// Execution failed
-pub struct Failure {
-	/// Internal error
-	error: evm::Error,
-	/// Duration
-	time: Duration,
-}
-impl fmt::Display for Failure {
-	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		writeln!(f, "Error: {:?}", self.error)?;
-		writeln!(f, "Time: {}.{:.9}s", self.time.as_secs(), self.time.subsec_nanos())?;
-		Ok(())
-	}
+	let result = vm::run(&mut informant, spec, params);
+	informant.finish(result);
 }
 
 #[derive(Debug, RustcDecodable)]
 struct Args {
 	cmd_stats: bool,
+	flag_from: Option<String>,
 	flag_code: Option<String>,
 	flag_gas: Option<String>,
 	flag_input: Option<String>,
+	flag_spec: Option<String>,
+	flag_json: bool,
 }
 
 impl Args {
-	pub fn gas(&self) -> U256 {
-		self.flag_gas
-			.clone()
-			.and_then(|g| U256::from_str(&g).ok())
-			.unwrap_or_else(|| !U256::zero())
+	pub fn gas(&self) -> Result<U256, String> {
+		match self.flag_gas {
+			Some(ref gas) => gas.parse().map_err(to_string),
+			None => Ok(!U256::zero()),
+		}
 	}
 
-	pub fn code(&self) -> Bytes {
-		self.flag_code
-			.clone()
-			.and_then(|c| c.from_hex().ok())
-			.unwrap_or_else(|| die("Code is required."))
+	pub fn from(&self) -> Result<Address, String> {
+		match self.flag_from {
+			Some(ref from) => from.parse().map_err(to_string),
+			None => Ok(Address::default()),
+		}
 	}
 
-	pub fn data(&self) -> Option<Bytes> {
-		self.flag_input
-			.clone()
-			.and_then(|d| d.from_hex().ok())
+	pub fn code(&self) -> Result<Bytes, String> {
+		match self.flag_code {
+			Some(ref code) => code.from_hex().map_err(to_string),
+			None => Err("Code is required!".into()),
+		}
+	}
+
+	pub fn data(&self) -> Result<Option<Bytes>, String> {
+		match self.flag_input {
+			Some(ref input) => input.from_hex().map_err(to_string).map(Some),
+			None => Ok(None),
+		}
+	}
+
+	pub fn spec(&self) -> Result<spec::Spec, String> {
+		Ok(match self.flag_spec {
+			Some(ref filename) =>  {
+				let file = fs::File::open(filename).map_err(|e| format!("{}", e))?;
+				spec::Spec::load(file)?
+			},
+			None => {
+				spec::Spec::new_instant()
+			},
+		})
 	}
 }
 
-fn die(msg: &'static str) -> ! {
+fn arg<T>(v: Result<T, String>, param: &str) -> T {
+	v.unwrap_or_else(|e| die(format!("Invalid {}: {}", param, e)))
+}
+
+fn to_string<T: fmt::Display>(msg: T) -> String {
+	format!("{}", msg)
+}
+
+fn die<T: fmt::Display>(msg: T) -> ! {
 	println!("{}", msg);
 	::std::process::exit(-1)
 }
