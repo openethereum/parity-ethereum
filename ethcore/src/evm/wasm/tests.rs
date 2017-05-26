@@ -31,6 +31,7 @@ fn wasm_interpreter() -> WasmInterpreter {
 	WasmInterpreter::new().expect("wasm interpreter to create without errors")
 }
 
+/// Empty contract does almost nothing except producing 1 (one) local node debug log message
 #[test]
 fn empty() {
 	init_log();
@@ -52,6 +53,9 @@ fn empty() {
 	assert_eq!(gas_left, U256::from(99_996));
 }
 
+// This test checks if the contract deserializes payload header properly.
+//   Contract is provided with receiver(address), sender, origin and transaction value
+//   logger.wasm writes all these provided fixed header fields to some arbitrary storage keys.
 #[test]
 fn logger() {
 	let code = load_sample("logger.wasm");
@@ -99,6 +103,11 @@ fn logger() {
 	);
 }
 
+// This test checks if the contract can allocate memory and pass pointer to the result stream properly.
+//   1. Contract is being provided with the call descriptor ptr
+//   2. Descriptor ptr is 16 byte length
+//   3. The last 8 bytes of call descriptor is the space for the contract to fill [result_ptr[4], result_len[4]]
+//      if it has any result.
 #[test]
 fn identity() {
 	init_log();
