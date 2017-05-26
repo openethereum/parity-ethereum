@@ -138,3 +138,38 @@ fn identity() {
 		"Idenity test contract does not return the sender passed"
 	);
 }
+
+// Dispersion test sends byte array and expect the contract to 'disperse' the original elements with
+// their modulo 19 dopant. 
+// The result is always twice as long as the input.
+// This also tests byte-perfect memory allocation and in/out ptr lifecycle. 
+#[test]
+fn dispersion() {
+	init_log();
+
+	let code = load_sample("dispersion.wasm");
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+	params.data = Some(vec![
+		0u8, 125, 197, 255, 19
+	]);
+	let mut ext = FakeExt::new();
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+			GasLeft::Known(_) => { panic!("Dispersion routine should return payload"); },
+			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	assert_eq!(gas_left, U256::from(99_419));
+
+	assert_eq!(
+		result,
+		vec![0u8, 0, 125, 11, 197, 7, 255, 8, 19, 0]
+	);
+}
