@@ -98,3 +98,34 @@ fn logger() {
 		"Logger sets 0x04 key to the trasferred value"
 	);
 }
+
+#[test]
+fn identity() {
+	init_log();
+
+	let code = load_sample("identity.wasm");
+	let sender: Address = "01030507090b0d0f11131517191b1d1f21232527".parse().unwrap();
+
+	let mut params = ActionParams::default();
+	params.sender = sender.clone();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+	let mut ext = FakeExt::new();
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+			GasLeft::Known(_) => { panic!("Identity contract should return payload"); },
+			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	assert_eq!(gas_left, U256::from(99_753));
+
+	assert_eq!(
+		Address::from_slice(&result),
+		sender,
+		"Idenity test contract does not return the sender passed"
+	);
+}
