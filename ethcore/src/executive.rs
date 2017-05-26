@@ -71,7 +71,7 @@ pub struct TransactOptions {
 }
 
 pub fn executor(engine: &Engine, vm_factory: &Factory, params: &ActionParams) -> Box<evm::Evm> {
-	if engine.supports_wasm() && params.code.as_ref().map_or(false, |code| &code[0..4] == b"wasm") {
+	if engine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == b"wasm") {
 		Box::new(
 			wasm::WasmInterpreter::new()
 				// prefer to fail fast
