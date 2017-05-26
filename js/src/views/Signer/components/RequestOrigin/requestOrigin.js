@@ -128,7 +128,9 @@ export default class RequestOrigin extends Component {
     }
 
     if (origin.type === 'signer') {
-      return this.renderSigner(origin.details.session);
+      const session = origin.details && origin.details.session || origin.details;
+
+      return this.renderSigner(session);
     }
   }
 
