@@ -19,6 +19,7 @@
 pub mod ext;
 pub mod evm;
 pub mod interpreter;
+mod vmtype;
 #[macro_use]
 pub mod factory;
 pub mod schedule;
@@ -33,6 +34,7 @@ mod benches;
 
 pub use self::evm::{Evm, Error, Finalize, FinalizationResult, GasLeft, Result, CostType};
 pub use self::ext::{Ext, ContractCreateResult, MessageCallResult, CreateContractAddress};
-pub use self::factory::{Factory, VMType};
+pub use self::vmtype::VMType;
+pub use self::factory::Factory;
 pub use self::schedule::Schedule;
 pub use types::executed::CallType;
