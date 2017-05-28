@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use serde_json;
-pub use api::App as Manifest;
+pub use apps::App as Manifest;
 
 pub const MANIFEST_FILENAME: &'static str = "manifest.json";
 

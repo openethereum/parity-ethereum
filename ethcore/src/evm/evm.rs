@@ -17,7 +17,7 @@
 //! Evm interface.
 
 use std::{ops, cmp, fmt};
-use util::{U128, U256, U512, Uint, trie};
+use util::{U128, U256, U512, trie};
 use action_params::ActionParams;
 use evm::Ext;
 use builtin;
@@ -181,11 +181,11 @@ impl CostType for U256 {
 	}
 
 	fn overflow_add(self, other: Self) -> (Self, bool) {
-		Uint::overflowing_add(self, other)
+		self.overflowing_add(other)
 	}
 
 	fn overflow_mul(self, other: Self) -> (Self, bool) {
-		Uint::overflowing_mul(self, other)
+		self.overflowing_mul(other)
 	}
 
 	fn overflow_mul_shr(self, other: Self, shr: usize) -> (Self, bool) {
@@ -250,7 +250,7 @@ pub trait Evm {
 
 #[cfg(test)]
 mod tests {
-	use util::{U256, Uint};
+	use util::U256;
 	use super::CostType;
 
 	#[test]

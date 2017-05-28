@@ -32,7 +32,7 @@ use request::{CompleteRequest, Kind};
 
 use bincode;
 use time;
-use util::{Uint, RwLock, Mutex};
+use util::{RwLock, Mutex};
 
 /// Number of time periods samples should be kept for.
 pub const MOVING_SAMPLE_SIZE: usize = 256;

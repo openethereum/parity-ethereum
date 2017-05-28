@@ -19,7 +19,7 @@
 use std::ops::Deref;
 use rlp::*;
 use util::sha3::Hashable;
-use util::{H256, Address, U256, Bytes, HeapSizeOf, Uint};
+use util::{H256, Address, U256, Bytes, HeapSizeOf};
 use ethkey::{Signature, Secret, Public, recover, public_to_address, Error as EthkeyError};
 use error::*;
 use evm::Schedule;

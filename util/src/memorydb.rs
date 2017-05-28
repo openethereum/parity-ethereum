@@ -28,7 +28,7 @@ use std::collections::hash_map::Entry;
 /// Reference-counted memory-based `HashDB` implementation.
 ///
 /// Use `new()` to create a new database. Insert items with `insert()`, remove items
-/// with `remove()`, check for existence with `containce()` and lookup a hash to derive
+/// with `remove()`, check for existence with `contains()` and lookup a hash to derive
 /// the data with `get()`. Clear with `clear()` and purge the portions of the data
 /// that have no references with `purge()`.
 ///

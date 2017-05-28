@@ -20,14 +20,15 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
-pub use parity_rpc::SignerService;
+pub use parity_rpc::signer::SignerService;
+pub use parity_rpc::dapps::{DappsService, LocalDapp};
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::snapshot::SnapshotService;
 use parity_rpc::{Metadata, NetworkSettings};
-use parity_rpc::informant::{ActivityNotifier, Middleware, RpcStats, ClientNotifier};
+use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use ethsync::{ManageNetwork, SyncProvider, LightSync};
 use hash_fetch::fetch::Client as FetchClient;
@@ -183,7 +184,11 @@ pub trait Dependencies {
 	fn activity_notifier(&self) -> Self::Notifier;
 
 	/// Extend the given I/O handler with endpoints for each API.
-	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware<Self::Notifier>>, apis: &[Api]);
+	fn extend_with_set<S>(
+		&self,
+		handler: &mut MetaIoHandler<Metadata, S>,
+		apis: &[Api],
+	) where S: core::Middleware<Metadata>;
 }
 
 /// RPC dependencies for a full node.
@@ -201,19 +206,20 @@ pub struct FullDependencies {
 	pub net_service: Arc<ManageNetwork>,
 	pub updater: Arc<Updater>,
 	pub geth_compatibility: bool,
-	pub dapps_interface: Option<String>,
-	pub dapps_port: Option<u16>,
+	pub dapps_service: Option<Arc<DappsService>>,
+	pub dapps_address: Option<(String, u16)>,
+	pub ws_address: Option<(String, u16)>,
 	pub fetch: FetchClient,
 	pub remote: parity_reactor::Remote,
 }
 
 impl FullDependencies {
-	fn extend_api<T: core::Middleware<Metadata>>(
+	fn extend_api<S>(
 		&self,
-		handler: &mut MetaIoHandler<Metadata, T>,
+		handler: &mut MetaIoHandler<Metadata, S>,
 		apis: &[Api],
 		for_generic_pubsub: bool,
-	) {
+	) where S: core::Middleware<Metadata> {
 		use parity_rpc::v1::*;
 
 		macro_rules! add_signing_methods {
@@ -288,8 +294,8 @@ impl FullDependencies {
 						self.logger.clone(),
 						self.settings.clone(),
 						signer,
-						self.dapps_interface.clone(),
-						self.dapps_port,
+						self.dapps_address.clone(),
+						self.ws_address.clone(),
 					).to_delegate());
 
 					if !for_generic_pubsub {
@@ -312,6 +318,7 @@ impl FullDependencies {
 						&self.miner,
 						&self.updater,
 						&self.net_service,
+						self.dapps_service.clone(),
 						self.fetch.clone(),
 					).to_delegate())
 				},
@@ -339,7 +346,11 @@ impl Dependencies for FullDependencies {
 		}
 	}
 
-	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware<Self::Notifier>>, apis: &[Api]) {
+	fn extend_with_set<S>(
+		&self,
+		handler: &mut MetaIoHandler<Metadata, S>,
+		apis: &[Api],
+	) where S: core::Middleware<Metadata> {
 		self.extend_api(handler, apis, false)
 	}
 }
@@ -363,8 +374,9 @@ pub struct LightDependencies {
 	pub on_demand: Arc<::light::on_demand::OnDemand>,
 	pub cache: Arc<Mutex<LightDataCache>>,
 	pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
-	pub dapps_interface: Option<String>,
-	pub dapps_port: Option<u16>,
+	pub dapps_service: Option<Arc<DappsService>>,
+	pub dapps_address: Option<(String, u16)>,
+	pub ws_address: Option<(String, u16)>,
 	pub fetch: FetchClient,
 	pub geth_compatibility: bool,
 	pub remote: parity_reactor::Remote,
@@ -457,8 +469,8 @@ impl LightDependencies {
 						self.logger.clone(),
 						self.settings.clone(),
 						signer,
-						self.dapps_interface.clone(),
-						self.dapps_port,
+						self.dapps_address.clone(),
+						self.ws_address.clone(),
 					).to_delegate());
 
 					if !for_generic_pubsub {
@@ -479,6 +491,7 @@ impl LightDependencies {
 				Api::ParitySet => {
 					handler.extend_with(light::ParitySetClient::new(
 						self.sync.clone(),
+						self.dapps_service.clone(),
 						self.fetch.clone(),
 					).to_delegate())
 				},
@@ -502,7 +515,12 @@ impl Dependencies for LightDependencies {
 	type Notifier = LightClientNotifier;
 
 	fn activity_notifier(&self) -> Self::Notifier { LightClientNotifier }
-	fn extend_with_set(&self, handler: &mut MetaIoHandler<Metadata, Middleware<Self::Notifier>>, apis: &[Api]) {
+
+	fn extend_with_set<S>(
+		&self,
+		handler: &mut MetaIoHandler<Metadata, S>,
+		apis: &[Api],
+	) where S: core::Middleware<Metadata> {
 		self.extend_api(handler, apis, false)
 	}
 }
@@ -550,15 +568,6 @@ impl ApiSet {
 			},
 		}
 	}
-}
-
-pub fn setup_rpc<D: Dependencies>(stats: Arc<RpcStats>, deps: &D, apis: ApiSet) -> MetaIoHandler<Metadata, Middleware<D::Notifier>> {
-	let mut handler = MetaIoHandler::with_middleware(Middleware::new(stats, deps.activity_notifier()));
-	// it's turned into vector, cause ont of the cases requires &[]
-	let apis = apis.list_apis().into_iter().collect::<Vec<_>>();
-	deps.extend_with_set(&mut handler, &apis[..]);
-
-	handler
 }
 
 #[cfg(test)]

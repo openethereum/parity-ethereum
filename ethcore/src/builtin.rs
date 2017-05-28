@@ -23,7 +23,7 @@ use crypto::ripemd160::Ripemd160 as Ripemd160Digest;
 use crypto::digest::Digest;
 use num::{BigUint, Zero, One};
 
-use util::{U256, H256, Uint, Hashable, BytesRef};
+use util::{U256, H256, Hashable, BytesRef};
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 

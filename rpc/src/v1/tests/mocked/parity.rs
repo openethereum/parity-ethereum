@@ -41,8 +41,8 @@ pub struct Dependencies {
 	pub settings: Arc<NetworkSettings>,
 	pub network: Arc<ManageNetwork>,
 	pub accounts: Arc<AccountProvider>,
-	pub dapps_interface: Option<String>,
-	pub dapps_port: Option<u16>,
+	pub dapps_address: Option<(String, u16)>,
+	pub ws_address: Option<(String, u16)>,
 }
 
 impl Dependencies {
@@ -66,8 +66,8 @@ impl Dependencies {
 			}),
 			network: Arc::new(TestManageNetwork),
 			accounts: Arc::new(AccountProvider::transient_provider()),
-			dapps_interface: Some("127.0.0.1".into()),
-			dapps_port: Some(18080),
+			dapps_address: Some(("127.0.0.1".into(), 18080)),
+			ws_address: Some(("127.0.0.1".into(), 18546)),
 		}
 	}
 
@@ -84,8 +84,8 @@ impl Dependencies {
 			self.logger.clone(),
 			self.settings.clone(),
 			signer,
-			self.dapps_interface.clone(),
-			self.dapps_port,
+			self.dapps_address.clone(),
+			self.ws_address.clone(),
 		)
 	}
 
@@ -345,7 +345,7 @@ fn rpc_parity_node_name() {
 #[test]
 fn rpc_parity_unsigned_transactions_count() {
 	let deps = Dependencies::new();
-	let io = deps.with_signer(SignerService::new_test(Some(("127.0.0.1".into(), 18180))));
+	let io = deps.with_signer(SignerService::new_test(true));
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_unsignedTransactionsCount", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":0,"id":1}"#;
@@ -386,16 +386,17 @@ fn rpc_parity_encrypt() {
 }
 
 #[test]
-fn rpc_parity_signer_port() {
+fn rpc_parity_ws_address() {
 	// given
-	let deps = Dependencies::new();
-	let io1 = deps.with_signer(SignerService::new_test(Some(("127.0.0.1".into(), 18180))));
+	let mut deps = Dependencies::new();
+	let io1 = deps.default_client();
+	deps.ws_address = None;
 	let io2 = deps.default_client();
 
 	// when
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_signerPort", "params": [], "id": 1}"#;
-	let response1 = r#"{"jsonrpc":"2.0","result":18180,"id":1}"#;
-	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Trusted Signer is disabled. This API is not available."},"id":1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_wsUrl", "params": [], "id": 1}"#;
+	let response1 = r#"{"jsonrpc":"2.0","result":"127.0.0.1:18546","id":1}"#;
+	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"WebSockets Server is disabled. This API is not available."},"id":1}"#;
 
 	// then
 	assert_eq!(io1.handle_request_sync(request), Some(response1.to_owned()));
@@ -403,34 +404,16 @@ fn rpc_parity_signer_port() {
 }
 
 #[test]
-fn rpc_parity_dapps_port() {
+fn rpc_parity_dapps_address() {
 	// given
 	let mut deps = Dependencies::new();
 	let io1 = deps.default_client();
-	deps.dapps_port = None;
+	deps.dapps_address = None;
 	let io2 = deps.default_client();
 
 	// when
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_dappsPort", "params": [], "id": 1}"#;
-	let response1 = r#"{"jsonrpc":"2.0","result":18080,"id":1}"#;
-	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Dapps Server is disabled. This API is not available."},"id":1}"#;
-
-	// then
-	assert_eq!(io1.handle_request_sync(request), Some(response1.to_owned()));
-	assert_eq!(io2.handle_request_sync(request), Some(response2.to_owned()));
-}
-
-#[test]
-fn rpc_parity_dapps_interface() {
-	// given
-	let mut deps = Dependencies::new();
-	let io1 = deps.default_client();
-	deps.dapps_interface = None;
-	let io2 = deps.default_client();
-
-	// when
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_dappsInterface", "params": [], "id": 1}"#;
-	let response1 = r#"{"jsonrpc":"2.0","result":"127.0.0.1","id":1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_dappsUrl", "params": [], "id": 1}"#;
+	let response1 = r#"{"jsonrpc":"2.0","result":"127.0.0.1:18080","id":1}"#;
 	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Dapps Server is disabled. This API is not available."},"id":1}"#;
 
 	// then

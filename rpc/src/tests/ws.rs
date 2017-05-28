@@ -14,79 +14,42 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::ops::{Deref, DerefMut};
+//! WebSockets server tests.
+
 use std::sync::Arc;
 
 use devtools::http_client;
-use devtools::RandomTempPath;
-
-use rpc::ConfirmationsQueue;
-use jsonrpc_core::IoHandler;
-use jsonrpc_server_utils::reactor::RpcEventLoop;
+use jsonrpc_core::MetaIoHandler;
 use rand;
+use ws;
 
-use ServerBuilder;
-use Server;
-use AuthCodes;
-
-/// Struct representing authcodes
-pub struct GuardedAuthCodes {
-	authcodes: AuthCodes,
-	/// The path to the mock authcodes
-	pub path: RandomTempPath,
-}
-impl Deref for GuardedAuthCodes {
-	type Target = AuthCodes;
-	fn deref(&self) -> &Self::Target {
-		&self.authcodes
-	}
-}
-impl DerefMut for GuardedAuthCodes {
-	fn deref_mut(&mut self) -> &mut AuthCodes {
-		&mut self.authcodes
-	}
-}
-
-/// Server with event loop
-pub struct ServerLoop {
-	/// Signer Server
-	pub server: Server,
-	/// RPC Event Loop
-	pub event_loop: RpcEventLoop,
-}
-
-impl Deref for ServerLoop {
-	type Target = Server;
-
-	fn deref(&self) -> &Self::Target {
-		&self.server
-	}
-}
+use v1::{extractors, informant};
+use tests::helpers::{GuardedAuthCodes, Server};
 
 /// Setup a mock signer for tests
-pub fn serve() -> (ServerLoop, usize, GuardedAuthCodes) {
-	let mut path = RandomTempPath::new();
-	path.panic_on_drop_failure = false;
-	let queue = Arc::new(ConfirmationsQueue::default());
-	let builder = ServerBuilder::new(queue, path.to_path_buf());
+pub fn serve() -> (Server<ws::Server>, usize, GuardedAuthCodes) {
 	let port = 35000 + rand::random::<usize>() % 10000;
-	let event_loop = RpcEventLoop::spawn().unwrap();
-	let io = IoHandler::default();
-	let remote = event_loop.remote();
-	let server = builder.start(format!("127.0.0.1:{}", port).parse().unwrap(), io, remote).unwrap();
-	let res = ServerLoop {
-		server: server,
-		event_loop: event_loop,
-	};
+	let address = format!("127.0.0.1:{}", port).parse().unwrap();
+	let io = MetaIoHandler::default();
+	let authcodes = GuardedAuthCodes::new();
+	let stats = Arc::new(informant::RpcStats::default());
 
-	(res, port, GuardedAuthCodes {
-		authcodes: AuthCodes::from_file(&path).unwrap(),
-		path: path,
-	})
+	let res = Server::new(|remote| ::start_ws(
+		&address,
+		io,
+		remote,
+		ws::DomainsValidation::Disabled,
+		ws::DomainsValidation::Disabled,
+		extractors::WsExtractor::new(Some(&authcodes.path)),
+		extractors::WsExtractor::new(Some(&authcodes.path)),
+		extractors::WsStats::new(stats),
+	).unwrap());
+
+	(res, port, authcodes)
 }
 
 /// Test a single request to running server
-pub fn request(server: ServerLoop, request: &str) -> http_client::Response {
+pub fn request(server: Server<ws::Server>, request: &str) -> http_client::Response {
 	http_client::request(server.server.addr(), request)
 }
 
@@ -96,49 +59,6 @@ mod testing {
 	use util::Hashable;
 	use devtools::http_client;
 	use super::{serve, request};
-
-	#[test]
-	fn should_reject_invalid_host() {
-		// given
-		let server = serve().0;
-
-		// when
-		let response = request(server,
-			"\
-				GET / HTTP/1.1\r\n\
-				Host: test:8180\r\n\
-				Connection: close\r\n\
-				\r\n\
-				{}
-			"
-		);
-
-		// then
-		assert_eq!(response.status, "HTTP/1.1 403 FORBIDDEN".to_owned());
-		assert!(response.body.contains("URL Blocked"));
-		http_client::assert_security_headers_present(&response.headers, None);
-	}
-
-	#[test]
-	fn should_allow_home_parity_host() {
-		// given
-		let server = serve().0;
-
-		// when
-		let response = request(server,
-			"\
-				GET http://parity.web3.site/ HTTP/1.1\r\n\
-				Host: parity.web3.site\r\n\
-				Connection: close\r\n\
-				\r\n\
-				{}
-			"
-		);
-
-		// then
-		assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-		http_client::assert_security_headers_present(&response.headers, None);
-	}
 
 	#[test]
 	fn should_not_redirect_to_parity_host() {
@@ -157,48 +77,7 @@ mod testing {
 		);
 
 		// then
-		assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	}
-
-	#[test]
-	fn should_serve_styles_even_on_disallowed_domain() {
-		// given
-		let server = serve().0;
-
-		// when
-		let response = request(server,
-			"\
-				GET /styles.css HTTP/1.1\r\n\
-				Host: test:8180\r\n\
-				Connection: close\r\n\
-				\r\n\
-				{}
-			"
-		);
-
-		// then
-		assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-		http_client::assert_security_headers_present(&response.headers, None);
-	}
-
-	#[test]
-	fn should_return_200_ok_for_connect_requests() {
-		// given
-		let server = serve().0;
-
-		// when
-		let response = request(server,
-			"\
-				CONNECT parity.web3.site:8080 HTTP/1.1\r\n\
-				Host: parity.web3.site\r\n\
-				Connection: close\r\n\
-				\r\n\
-				{}
-			"
-		);
-
-		// then
-		assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
+		assert_eq!(response.status, "HTTP/1.1 200 Ok".to_owned());
 	}
 
 	#[test]
@@ -221,7 +100,7 @@ mod testing {
 		);
 
 		// then
-		assert_eq!(response.status, "HTTP/1.1 403 FORBIDDEN".to_owned());
+		assert_eq!(response.status, "HTTP/1.1 403 Forbidden".to_owned());
 		http_client::assert_security_headers_present(&response.headers, None);
 	}
 
@@ -300,7 +179,7 @@ mod testing {
 
 		// then
 		assert_eq!(response1.status, "HTTP/1.1 101 Switching Protocols".to_owned());
-		assert_eq!(response2.status, "HTTP/1.1 403 FORBIDDEN".to_owned());
+		assert_eq!(response2.status, "HTTP/1.1 403 Forbidden".to_owned());
 		http_client::assert_security_headers_present(&response2.headers, None);
 	}
 }

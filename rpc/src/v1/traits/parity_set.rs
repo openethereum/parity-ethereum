@@ -19,7 +19,7 @@
 use jsonrpc_core::Error;
 use futures::BoxFuture;
 
-use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
+use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction, LocalDapp};
 
 build_rpc_trait! {
 	/// Parity-specific rpc interface for operations altering the settings.
@@ -95,6 +95,10 @@ build_rpc_trait! {
 		/// Hash a file content under given URL.
 		#[rpc(async, name = "parity_hashContent")]
 		fn hash_content(&self, String) -> BoxFuture<H256, Error>;
+
+		/// Returns a list of local dapps
+		#[rpc(name = "parity_dappsList")]
+		fn dapps_list(&self) -> Result<Vec<LocalDapp>, Error>;
 
 		/// Is there a release ready for install?
 		#[rpc(name = "parity_upgradeReady")]

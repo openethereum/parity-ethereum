@@ -14,12 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_version;
+//! VM Output display utils.
 
-use rustc_version::{version_meta, Channel};
+use std::time::Duration;
+use util::U256;
 
-fn main() {
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=nightly");
+pub mod json;
+pub mod simple;
+
+/// Formats duration into human readable format.
+pub fn format_time(time: &Duration) -> String {
+	format!("{}.{:.9}s", time.as_secs(), time.subsec_nanos())
+}
+
+/// Converts U256 into string.
+/// TODO Overcomes: https://github.com/paritytech/bigint/issues/13
+pub fn u256_as_str(v: &U256) -> String {
+	if v.is_zero() {
+		"\"0x0\"".into()
+	} else {
+		format!("\"{:x}\"", v)
 	}
 }
