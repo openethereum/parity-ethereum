@@ -226,7 +226,7 @@ impl FullDependencies {
 			($namespace:ident, $handler:expr, $deps:expr) => {
 				{
 					let deps = &$deps;
-					let dispatcher = FullDispatcher::new(Arc::downgrade(&deps.client), Arc::downgrade(&deps.miner));
+					let dispatcher = FullDispatcher::new(deps.client.clone(), deps.miner.clone());
 					if deps.signer_service.is_enabled() {
 						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, &deps.secret_store)))
 					} else {
@@ -236,7 +236,7 @@ impl FullDependencies {
 			}
 		}
 
-		let dispatcher = FullDispatcher::new(Arc::downgrade(&self.client), Arc::downgrade(&self.miner));
+		let dispatcher = FullDispatcher::new(self.client.clone(), self.miner.clone());
 		for api in apis {
 			match *api {
 				Api::Web3 => {

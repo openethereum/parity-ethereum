@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Account management (personal) rpc implementation
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::transaction::PendingTransaction;
@@ -33,7 +33,7 @@ use v1::metadata::Metadata;
 
 /// Account management (personal) rpc implementation.
 pub struct PersonalClient<D: Dispatcher> {
-	accounts: Option<Weak<AccountProvider>>,
+	accounts: Option<Arc<AccountProvider>>,
 	dispatcher: D,
 	allow_perm_unlock: bool,
 }
@@ -42,7 +42,7 @@ impl<D: Dispatcher> PersonalClient<D> {
 	/// Creates new PersonalClient
 	pub fn new(store: &Option<Arc<AccountProvider>>, dispatcher: D, allow_perm_unlock: bool) -> Self {
 		PersonalClient {
-			accounts: store.as_ref().map(Arc::downgrade),
+			accounts: store.clone(),
 			dispatcher: dispatcher,
 			allow_perm_unlock: allow_perm_unlock,
 		}
