@@ -233,7 +233,7 @@ impl SessionImpl {
 			SessionImpl::start_generating_session_key(&self.self_node_id, &self.encrypted_data, &self.cluster, &mut *data)?;
 			SessionImpl::process_generation_session_action(&self.id, &self.access_key, &self.completed, &mut *data)?;
 			SessionImpl::start_waiting_for_partial_signing(&self.self_node_id, &self.id, &self.access_key, &self.cluster, &self.encrypted_data, &mut *data)?;
-			SessionImpl::do_signing(&mut *data)?;
+			SessionImpl::do_signing(&self.encrypted_data, &mut *data)?;
 			self.completed.notify_all();
 		}
 
@@ -442,7 +442,7 @@ impl SessionImpl {
 		})))?;
 
 		// do signing
-		SessionImpl::do_signing(&mut *data)?;
+		SessionImpl::do_signing(&self.encrypted_data, &mut *data)?;
 		self.completed.notify_all();
 
 		Ok(())
@@ -638,7 +638,7 @@ impl SessionImpl {
 		debug_assert!(!session_nodes.contains(self_node_id));
 		debug_assert!(session_nodes.len() == encrypted_data.threshold);
 
-		let combined_hash = math::combine_message_hash_with_public(&message_hash, &session_joint_public)?;
+		let combined_hash = math::combine_message_hash_with_public(encrypted_data.threshold, &message_hash, &session_joint_public)?;
 		math::compute_signature_share(
 			&combined_hash,
 			&session_secret_coeff,
@@ -649,12 +649,12 @@ impl SessionImpl {
 	}
 
 	/// Compute signature
-	fn do_signing(data: &mut SessionData) -> Result<(), Error> {
+	fn do_signing(encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
 		let message_hash = data.message_hash.as_ref().expect("message_hash on master is filled in initialization phase; this is master node; qed");
 		let session_joint_public = data.session_joint_public.as_ref().expect("session key is generated on key generation phase; signing phase follows initialization; qed");
 		let partial_signatures = data.consensus.as_ref().expect("consensus on master is filled in initialization phase; this is master node; qed").job_responses()?.values();
 
-		let signature_c = math::combine_message_hash_with_public(message_hash, session_joint_public)?;
+		let signature_c = math::combine_message_hash_with_public(encrypted_data.threshold, message_hash, session_joint_public)?;
 		let signature_s = math::compute_signature(partial_signatures)?;
 	
 		data.signed_message = Some(Ok((signature_c, signature_s)));
@@ -908,7 +908,7 @@ mod tests {
 			// verify signature
 			let public = gl.master().joint_public_and_secret().unwrap().unwrap().0;
 			let signature = sl.master().wait().unwrap();
-			assert!(math::verify_signature(&public, &signature, &message_hash).unwrap());
+			assert!(math::verify_signature(threshold, &public, &signature, &message_hash).unwrap());
 		}
 	}
 }

@@ -92,6 +92,15 @@ impl Secret {
 		Ok(())
 	}
 
+	/// Inplace negate secret key (-scalar)
+	pub fn neg(&mut self) -> Result<(), Error> {
+		let mut key_secret = self.to_secp256k1_secret()?;
+		key_secret.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
+
+		*self = key_secret.into();
+		Ok(())
+	}
+
 	/// Inplace inverse secret key (1 / scalar)
 	pub fn inv(&mut self) -> Result<(), Error> {
 		let mut key_secret = self.to_secp256k1_secret()?;

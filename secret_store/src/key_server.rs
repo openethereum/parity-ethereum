@@ -384,7 +384,7 @@ pub mod tests {
 			let signature_s = Secret::from_slice(&combined_signature[32..]);
 
 			// check signature
-			assert_eq!(math::verify_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
+			assert_eq!(math::verify_signature(*threshold, &server_public, &(signature_c, signature_s), &message_hash), Ok(true));
 		}
 	}
 }
