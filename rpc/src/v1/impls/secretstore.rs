@@ -16,7 +16,7 @@
 
 //! SecretStore-specific rpc implementation.
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use crypto::DEFAULT_MAC;
 use ethkey::Secret;
@@ -31,19 +31,19 @@ use v1::types::{H160, H512, Bytes};
 
 /// Parity implementation.
 pub struct SecretStoreClient {
-	accounts: Option<Weak<AccountProvider>>,
+	accounts: Option<Arc<AccountProvider>>,
 }
 
 impl SecretStoreClient {
 	/// Creates new SecretStoreClient
 	pub fn new(store: &Option<Arc<AccountProvider>>) -> Self {
 		SecretStoreClient {
-			accounts: store.as_ref().map(Arc::downgrade),
+			accounts: store.clone(),
 		}
 	}
 
 	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
-	/// set, or if upgrading the weak reference failed.
+	/// set.
 	fn account_provider(&self) -> Result<Arc<AccountProvider>, Error> {
 		unwrap_provider(&self.accounts)
 	}

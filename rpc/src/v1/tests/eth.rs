@@ -141,7 +141,7 @@ impl EthTester {
 			Default::default(),
 		);
 
-		let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner_service));
+		let dispatcher = FullDispatcher::new(client.clone(), miner_service.clone());
 		let eth_sign = SigningUnsafeClient::new(
 			&opt_account_provider,
 			dispatcher,
