@@ -16,3 +16,4 @@ native-contract-generator = { path = "generator" }
 
 [features]
 default = []
+test_contracts = []

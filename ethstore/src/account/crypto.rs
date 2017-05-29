@@ -122,7 +122,7 @@ impl Crypto {
 		}
 
 		let secret = self.do_decrypt(password, 32)?;
-		Ok(Secret::from_slice(&secret)?)
+		Ok(Secret::from_unsafe_slice(&secret)?)
 	}
 
 	/// Try to decrypt and return result as is

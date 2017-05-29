@@ -19,6 +19,7 @@
 //! supplied as well.
 
 use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 use request::{
 	IncompleteRequest, OutputKind, Output, NoSuchOutput, ResponseError, ResponseLike,
 };
@@ -124,23 +125,14 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 			req.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
 		}
 	}
-}
 
-impl<T: super::CheckedRequest> Requests<T> {
-	/// Supply a response for the next request.
-	/// Fails on: wrong request kind, all requests answered already.
-	pub fn supply_response(&mut self, env: &T::Environment, response: &T::Response)
-		-> Result<T::Extract, ResponseError<T::Error>>
-	{
-		let idx = self.answered;
-
-		// check validity.
-		if self.is_complete() { return Err(ResponseError::Unexpected) }
-
-		let extracted = self.requests[idx]
-			.check_response(env, response).map_err(ResponseError::Validity)?;
+	/// Supply a response, asserting its correctness.
+	/// Fill outputs based upon it.
+	pub fn supply_response_unchecked<R: ResponseLike>(&mut self, response: &R) {
+		if self.is_complete() { return }
 
 		let outputs = &mut self.outputs;
+		let idx = self.answered;
 		response.fill_outputs(|out_idx, output| {
 			// we don't need to check output kinds here because all back-references
 			// are validated in the builder.
@@ -154,7 +146,26 @@ impl<T: super::CheckedRequest> Requests<T> {
 		if let Some(ref mut req) = self.requests.get_mut(self.answered) {
 			req.fill(|req_idx, out_idx| outputs.get(&(req_idx, out_idx)).cloned().ok_or(NoSuchOutput))
 		}
+	}
+}
 
+impl<T: super::CheckedRequest + Clone> Requests<T> {
+	/// Supply a response for the next request.
+	/// Fails on: wrong request kind, all requests answered already.
+	pub fn supply_response(&mut self, env: &T::Environment, response: &T::Response)
+		-> Result<T::Extract, ResponseError<T::Error>>
+	{
+		let idx = self.answered;
+
+		// check validity.
+		if idx == self.requests.len() { return Err(ResponseError::Unexpected) }
+		let completed = self.next_complete()
+			.expect("only fails when all requests have been answered; this just checked against; qed");
+
+		let extracted = self.requests[idx]
+			.check_response(&completed, env, response).map_err(ResponseError::Validity)?;
+
+		self.supply_response_unchecked(response);
 		Ok(extracted)
 	}
 }
@@ -179,6 +190,20 @@ impl Requests<super::Request> {
 		}
 
 		responses
+	}
+}
+
+impl<T: IncompleteRequest> Deref for Requests<T> {
+	type Target = [T];
+
+	fn deref(&self) -> &[T] {
+		&self.requests[..]
+	}
+}
+
+impl<T: IncompleteRequest> DerefMut for Requests<T> {
+	fn deref_mut(&mut self) -> &mut [T] {
+		&mut self.requests[..]
 	}
 }
 

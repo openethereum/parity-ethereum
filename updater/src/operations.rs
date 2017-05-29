@@ -4,7 +4,7 @@ use std::string::String;
 use std::result::Result;
 use std::fmt;
 use ethabi;
-use util::{self, Uint};
+use util;
 
 pub struct Operations {
 	contract: ethabi::Contract,

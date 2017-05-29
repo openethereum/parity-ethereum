@@ -22,7 +22,7 @@ use engines::Engine;
 use types::executed::CallType;
 use env_info::EnvInfo;
 use error::ExecutionError;
-use evm::{self, Ext, Factory, Finalize, CreateContractAddress};
+use evm::{self, Ext, Factory, Finalize, CreateContractAddress, FinalizationResult};
 use externalities::*;
 use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
 use transaction::{Action, SignedTransaction};
@@ -246,7 +246,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		output_policy: OutputPolicy,
 		tracer: &mut T,
 		vm_tracer: &mut V
-	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
+	) -> evm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
 
 		let depth_threshold = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get() / STACK_SIZE_PER_DEPTH);
 
@@ -366,9 +366,9 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 				let traces = subtracer.traces();
 				match res {
-					Ok(ref gas_left) => tracer.trace_call(
+					Ok(ref res) => tracer.trace_call(
 						trace_info,
-						gas - *gas_left,
+						gas - res.gas_left,
 						trace_output,
 						traces
 					),
@@ -379,7 +379,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 				self.enact_result(&res, substate, unconfirmed_substate);
 				trace!(target: "executive", "enacted: substate={:?}\n", substate);
-				res
+				res.map(|r| r.gas_left)
 			} else {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
 				self.state.discard_checkpoint();
@@ -438,9 +438,9 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		vm_tracer.done_subtrace(subvmtracer);
 
 		match res {
-			Ok(ref gas_left) => tracer.trace_create(
+			Ok(ref res) => tracer.trace_create(
 				trace_info,
-				gas - *gas_left,
+				gas - res.gas_left,
 				trace_output,
 				created,
 				subtracer.traces()
@@ -449,7 +449,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		};
 
 		self.enact_result(&res, substate, unconfirmed_substate);
-		res
+		res.map(|r| r.gas_left)
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
@@ -536,14 +536,15 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		}
 	}
 
-	fn enact_result(&mut self, result: &evm::Result<U256>, substate: &mut Substate, un_substate: Substate) {
+	fn enact_result(&mut self, result: &evm::Result<FinalizationResult>, substate: &mut Substate, un_substate: Substate) {
 		match *result {
 			Err(evm::Error::OutOfGas)
 				| Err(evm::Error::BadJumpDestination {..})
 				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::BuiltIn {..})
-				| Err(evm::Error::OutOfStack {..}) => {
+				| Err(evm::Error::OutOfStack {..})
+				| Ok(FinalizationResult { apply_state: false, .. }) => {
 					self.state.revert_to_checkpoint();
 			},
 			Ok(_) | Err(evm::Error::Internal(_)) => {
@@ -560,7 +561,7 @@ mod tests {
 	use std::sync::Arc;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use util::{H256, U256, U512, Address, Uint, FromHex, FromStr};
+	use util::{H256, U256, U512, Address, FromHex, FromStr};
 	use util::bytes::BytesRef;
 	use action_params::{ActionParams, ActionValue};
 	use env_info::EnvInfo;
@@ -1242,11 +1243,43 @@ mod tests {
 		};
 
 		match result {
-			Err(_) => {
-			},
-			_ => {
-				panic!("Expected OutOfGas");
-			}
+			Err(_) => {},
+			_ => panic!("Expected OutOfGas"),
 		}
+	}
+
+	evm_test!{test_revert: test_revert_jit, test_revert_int}
+	fn test_revert(factory: Factory) {
+		let contract_address = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		// EIP-140 test case
+		let code = "6c726576657274656420646174616000557f726576657274206d657373616765000000000000000000000000000000000000600052600e6000fd".from_hex().unwrap();
+		let returns = "726576657274206d657373616765".from_hex().unwrap();
+		let mut state = get_temp_state();
+		state.add_balance(&sender, &U256::from_str("152d02c7e14af68000000").unwrap(), CleanupMode::NoEmpty).unwrap();
+		state.commit().unwrap();
+
+		let mut params = ActionParams::default();
+		params.address = contract_address.clone();
+		params.sender = sender.clone();
+		params.origin = sender.clone();
+		params.gas = U256::from(20025);
+		params.code = Some(Arc::new(code));
+		params.value = ActionValue::Transfer(U256::zero());
+		let mut state = get_temp_state();
+		state.add_balance(&sender, &U256::from_str("152d02c7e14af68000000").unwrap(), CleanupMode::NoEmpty).unwrap();
+		let info = EnvInfo::default();
+		let engine = TestEngine::new_metropolis();
+		let mut substate = Substate::new();
+
+		let mut output = [0u8; 14];
+		let result = {
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
+			ex.call(params, &mut substate, BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
+		};
+
+		assert_eq!(result, U256::from(1));
+		assert_eq!(output[..], returns[..]);
+		assert_eq!(state.storage_at(&contract_address, &H256::from(&U256::zero())).unwrap(), H256::from(&U256::from(0)));
 	}
 }

@@ -64,7 +64,7 @@ pub struct FakeExt {
 fn test_finalize(res: Result<GasLeft, evm::Error>) -> Result<U256, evm::Error> {
 	match res {
 		Ok(GasLeft::Known(gas)) => Ok(gas),
-		Ok(GasLeft::NeedsReturn(_, _)) => unimplemented!(), // since ret is unimplemented.
+		Ok(GasLeft::NeedsReturn{..}) => unimplemented!(), // since ret is unimplemented.
 		Err(e) => Err(e),
 	}
 }

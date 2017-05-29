@@ -16,7 +16,7 @@
 
 //! Unsafe Signing RPC implementation.
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use ethcore::account_provider::AccountProvider;
 
@@ -39,7 +39,7 @@ use v1::types::{
 
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct SigningUnsafeClient<D> {
-	accounts: Option<Weak<AccountProvider>>,
+	accounts: Option<Arc<AccountProvider>>,
 	dispatcher: D,
 }
 
@@ -47,7 +47,7 @@ impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 	/// Creates new SigningUnsafeClient.
 	pub fn new(accounts: &Option<Arc<AccountProvider>>, dispatcher: D) -> Self {
 		SigningUnsafeClient {
-			accounts: accounts.as_ref().map(Arc::downgrade),
+			accounts: accounts.clone(),
 			dispatcher: dispatcher,
 		}
 	}

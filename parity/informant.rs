@@ -24,7 +24,7 @@ use std::time::{Instant, Duration};
 use io::{TimerToken, IoContext, IoHandler};
 use isatty::{stdout_isatty};
 use ethsync::{SyncProvider, ManageNetwork};
-use util::{Uint, RwLock, Mutex, H256, Colour, Bytes};
+use util::{RwLock, Mutex, H256, Colour, Bytes};
 use ethcore::client::*;
 use ethcore::service::ClientIoMessage;
 use ethcore::snapshot::service::Service as SnapshotService;

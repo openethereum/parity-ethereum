@@ -12,7 +12,7 @@ parking_lot = "0.4"
 hidapi = { git = "https://github.com/paritytech/hidapi-rs" }
 libusb = { git = "https://github.com/paritytech/libusb-rs" }
 ethkey = { path = "../ethkey" }
-ethcore-bigint = "0.1.2"
+ethcore-bigint = { path = "../util/bigint" }
 
 [dev-dependencies]
 rustc-serialize = "0.3"

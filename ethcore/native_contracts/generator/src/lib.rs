@@ -48,7 +48,7 @@ pub fn generate_module(struct_name: &str, abi: &str) -> Result<String, Error> {
 use byteorder::{{BigEndian, ByteOrder}};
 use futures::{{future, Future, IntoFuture, BoxFuture}};
 use ethabi::{{Contract, Interface, Token, Event}};
-use util::{{self, Uint}};
+use util;
 
 /// Generated Rust bindings to an Ethereum contract.
 #[derive(Clone, Debug)]

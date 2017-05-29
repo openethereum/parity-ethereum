@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import 'babel-polyfill';
 import 'whatwg-fetch';
 
 import es6Promise from 'es6-promise';
@@ -54,8 +53,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 const AUTH_HASH = '#/auth?';
-const parityUrl = process.env.PARITY_URL || window.location.host;
-const urlScheme = window.location.href.match(/^https/) ? 'wss://' : 'ws://';
+const parityUrl = process.env.PARITY_URL || '127.0.0.1:8546';
 
 let token = null;
 
@@ -63,7 +61,7 @@ if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
   token = qs.parse(window.location.hash.substr(AUTH_HASH.length)).token;
 }
 
-const api = new SecureApi(`${urlScheme}${parityUrl}`, token);
+const api = new SecureApi(parityUrl, token);
 
 patchApi(api);
 loadSender(api);

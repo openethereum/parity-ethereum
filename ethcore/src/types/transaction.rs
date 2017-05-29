@@ -19,7 +19,7 @@
 use std::ops::Deref;
 use rlp::*;
 use util::sha3::Hashable;
-use util::{H256, Address, U256, Bytes, HeapSizeOf, Uint};
+use util::{H256, Address, U256, Bytes, HeapSizeOf};
 use ethkey::{Signature, Secret, Public, recover, public_to_address, Error as EthkeyError};
 use error::*;
 use evm::Schedule;
@@ -113,7 +113,7 @@ impl HeapSizeOf for Transaction {
 impl From<ethjson::state::Transaction> for SignedTransaction {
 	fn from(t: ethjson::state::Transaction) -> Self {
 		let to: Option<ethjson::hash::Address> = t.to.into();
-		let secret = t.secret.map(|s| Secret::from_slice(&s.0).expect("Valid secret expected."));
+		let secret = t.secret.map(|s| Secret::from_slice(&s.0));
 		let tx = Transaction {
 			nonce: t.nonce.into(),
 			gas_price: t.gas_price.into(),
