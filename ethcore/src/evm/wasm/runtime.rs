@@ -92,7 +92,6 @@ impl<'a> Runtime<'a> {
 		let key = self.pop_h256(&mut context)?;
 		trace!(target: "wasm", "storage_write: value {} at @{}", &val, &key);
 
-		// todo: return a runtime error contract can handle or as it is now - general failure?
 		self.ext.set_storage(key, val)
 			.map_err(|_| interpreter::Error::Trap("Storage update error".to_owned()))?;
 
@@ -107,7 +106,6 @@ impl<'a> Runtime<'a> {
 		let val_ptr = context.value_stack.pop_as::<i32>()?;
 		let key = self.pop_h256(&mut context)?;		
 
-		// todo: return a runtime error contract can handle or as it is now - general failure?
 		let val = self.ext.storage_at(&key)
 			.map_err(|_| interpreter::Error::Trap("Storage read error".to_owned()))?;
 

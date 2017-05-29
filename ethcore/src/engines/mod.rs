@@ -311,7 +311,7 @@ pub trait Engine : Sync + Send {
 
 	/// If this engine supports wasm contracts.
 	fn supports_wasm(&self) -> bool {
-		false
+		self.params().wasm
 	}
 
 	/// Returns new contract address generation scheme at given block number.

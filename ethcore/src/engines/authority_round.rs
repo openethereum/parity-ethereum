@@ -463,10 +463,6 @@ impl Engine for AuthorityRound {
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		Some(Box::new(::snapshot::PoaSnapshot))
 	}
-
-	fn supports_wasm(&self) -> bool {
-		self.params().wasm
-	}
 }
 
 #[cfg(test)]
