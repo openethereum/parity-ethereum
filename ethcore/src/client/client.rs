@@ -262,7 +262,7 @@ impl Client {
 			let gh = spec.genesis_header();
 			if chain.epoch_transition(0, spec.genesis_header().hash()).is_none() {
 				trace!(target: "client", "No genesis transition found.");
-				client.generate_epoch_proof(&gh, 0, &*chain);
+				client.generate_epoch_proof(&gh, &*chain, None);
 			}
 		}
 
@@ -559,18 +559,9 @@ impl Client {
 			{
 				// closure for verifying a block.
 				let verify_with = |verifier: &AncientVerifier| -> Result<(), ::error::Error> {
-					// verify the block, passing a closure used to load an epoch verifier
-					// by number.
-					verifier.verify(
-						&mut *self.rng.lock(),
-						&header,
-						&block_bytes,
-						&receipts,
-						|epoch_num| chain.epoch_transition(epoch_num, hash)
-							.ok_or(BlockError::UnknownEpochTransition(epoch_num))
-							.map_err(Into::into)
-							.and_then(|t| self.engine.epoch_verifier(&header, &t.proof))
-					)
+					// verify the block, passing the chain for updating the epoch
+					// verifier.
+					verifier.verify(&mut *self.rng.lock(), &header, &chain)
 				};
 
 				// initialize the ancient block verifier if we don't have one already.
@@ -627,15 +618,26 @@ impl Client {
 		// TODO: make conditional?
 		let entering_new_epoch = {
 			use engines::EpochChange;
-			match self.engine.is_epoch_end(block.header(), Some(block_data), Some(&receipts)) {
-				EpochChange::Yes(e) => Some((block.header().clone(), e)),
-				EpochChange::No => None,
+			match self.engine.signals_epoch_end(block.header(), Some(block_data), Some(&receipts)) {
+				EpochChange::Yes => {
+					// write pending transition to DB.
+					unimplemented!()
+				},
+				EpochChange::No => {},
 				EpochChange::Unsure(_) => {
 					warn!(target: "client", "Detected invalid engine implementation.");
 					warn!(target: "client", "Engine claims to require more block data, but everything provided.");
-					None
 				}
 			}
+
+			let transition_store = unimplemented!();
+			let is_epoch_end = self.engine.is_epoch_end(
+				block.header(),
+				|hash| chain.block_header(hash),
+				&transition_store,
+			);
+
+			is_epoch_end.map(|finality_proof| (block.header().clone(), finality_proof))
 		};
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
@@ -665,25 +667,23 @@ impl Client {
 			warn!("Failed to prune ancient state data: {}", e);
 		}
 
-		if let Some((header, epoch)) = entering_new_epoch {
-			self.generate_epoch_proof(&header, epoch, &chain);
+		if let Some(header, finality) = entering_new_epoch {
+			self.generate_epoch_proof(&header, &chain, finality);
 		}
 
 		route
 	}
 
-	// generate an epoch transition proof at the given block, and write it into the given blockchain.
-	fn generate_epoch_proof(&self, header: &Header, epoch_number: u64, chain: &BlockChain) {
+	// generate an epoch transition proof at the given block. Provide finality proof if necessary.
+	fn generate_epoch_proof(&self, header: &Header, chain: &BlockChain, finality: Option<Vec<u8>>) {
 		use std::cell::RefCell;
 		use std::collections::BTreeSet;
 
 		let mut batch = DBTransaction::new();
 		let hash = header.hash();
-		debug!(target: "client", "Generating validation proof for epoch {} at block {}",
-			epoch_number, hash);
+		debug!(target: "client", "Generating validation proof for new epoch at block {}", hash);
 
-		// proof is two-part. state items read in lexicographical order,
-		// and the secondary "proof" part.
+		// proof is two-part: engine-specific data and optional finality proof.
 		let read_values = RefCell::new(BTreeSet::new());
 		let block_id = BlockId::Hash(hash.clone());
 		let proof = {
@@ -692,8 +692,8 @@ impl Client {
 				let (result, items) = self.prove_transaction(tx, block_id)
 					.ok_or_else(|| format!("Unable to make call to generate epoch proof."))?;
 
-				read_values.borrow_mut().extend(items);
-				Ok(result)
+				let items = items.into_iter().map(|x| x.to_vec()).collect();
+				Ok((result, items))
 			};
 
 			self.engine.epoch_proof(&header, &call)
@@ -702,11 +702,10 @@ impl Client {
 		// insert into database, using the generated proof.
 		match proof {
 			Ok(proof) => {
-				chain.insert_epoch_transition(&mut batch, epoch_number, EpochTransition {
+				chain.insert_epoch_transition(&mut batch, header.number(), EpochTransition {
 					block_hash: hash.clone(),
-					block_number: header.number(),
 					proof: proof,
-					state_proof: read_values.into_inner().into_iter().collect(),
+					finality_proof: finality,
 				});
 
 				self.db.read().write_buffered(batch);

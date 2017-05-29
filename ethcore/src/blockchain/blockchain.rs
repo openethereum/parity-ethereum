@@ -35,7 +35,7 @@ use blockchain::{CacheSize, ImportRoute, Config};
 use db::{self, Writable, Readable, CacheUpdatePolicy};
 use cache_manager::CacheManager;
 use encoded;
-use engines::epoch::{Transition as EpochTransition};
+use engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
@@ -879,14 +879,29 @@ impl BlockChain {
 		}
 	}
 
-	/// Get a specific epoch transition by epoch number and provided block hash.
-	pub fn epoch_transition(&self, epoch_num: u64, block_hash: H256) -> Option<EpochTransition> {
-		trace!(target: "blockchain", "Loading epoch {} transition at block {}",
-			epoch_num, block_hash);
+	/// Get a specific epoch transition by block number and provided block hash.
+	pub fn epoch_transition(&self, block_num: u64, block_hash: H256) -> Option<EpochTransition> {
+		trace!(target: "blockchain", "Loading epoch transition at block {}, {}",
+			block_num, block_hash);
 
-		self.db.read(db::COL_EXTRA, &epoch_num).and_then(|transitions: EpochTransitions| {
+		self.db.read(db::COL_EXTRA, &block_num).and_then(|transitions: EpochTransitions| {
 			transitions.candidates.into_iter().find(|c| c.block_hash == block_hash)
 		})
+	}
+
+	/// Write a pending epoch transition by block hash.
+	pub fn insert_pending_transition(&self, batch: &mut DBTransaction, hash: H256, t: PendingTransition) {
+		batch.write(db::COL_EXTRA, &hash, &t);
+	}
+
+	/// Remove a pending epoch transition by block hash.
+	pub fn remove_pending_transition(&self, batch: &mut DBTransaction, hash: H256) -> Option<PendingTransition> {
+		let val: Option<PendingEpochTransition> = self.db.read(db::COL_EXTRA, key: &hash);
+		if val.is_some() {
+			batch.delete::<PendingEpochTransition, _>(db::COL_EXTRA, &hash);
+		}
+
+		val
 	}
 
 	/// Add a child to a given block. Assumes that the block hash is in

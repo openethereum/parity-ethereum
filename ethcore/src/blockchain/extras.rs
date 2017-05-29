@@ -43,6 +43,8 @@ pub enum ExtrasIndex {
 	BlockReceipts = 4,
 	/// Epoch transition data index.
 	EpochTransitions = 5,
+	/// Pending epoch transition data index.
+	PendingEpochTransition = 6,
 }
 
 fn with_index(hash: &H256, i: ExtrasIndex) -> H264 {
@@ -137,6 +139,14 @@ impl Key<BlockReceipts> for H256 {
 
 	fn key(&self) -> H264 {
 		with_index(self, ExtrasIndex::BlockReceipts)
+	}
+}
+
+impl Key<::engines::epoch::PendingTransition> for H256 {
+	type Target = H264;
+
+	fn key(&self) -> H264 {
+		with_index(self, ExtrasIndex::PendingEpochTransition)
 	}
 }
 

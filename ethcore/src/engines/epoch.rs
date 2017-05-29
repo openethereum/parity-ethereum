@@ -27,8 +27,6 @@ use util::H256;
 pub struct Transition {
 	/// Block hash at which the transition occurred.
 	pub block_hash: H256,
-	/// Block number at which the transition occurred.
-	pub block_number: BlockNumber,
 	/// "transition/epoch" proof from the engine.
 	pub proof: Vec<u8>,
 	/// Finality proof, if necessary.
@@ -37,9 +35,8 @@ pub struct Transition {
 
 impl Encodable for Transition {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(4)
+		s.begin_list(3)
 			.append(&self.block_hash)
-			.append(&self.block_number)
 			.append(&self.proof)
 			.append(&self.finality_proof)
 	}
@@ -49,35 +46,29 @@ impl Decodable for Transition {
 	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		Ok(Transition {
 			block_hash: rlp.val_at(0)?,
-			block_number: rlp.val_at(1)?,
-			proof: rlp.val_at(2)?,
-			finality_proof: rlp.val_at(3)?,
+			proof: rlp.val_at(1)?,
+			finality_proof: rlp.val_at(2)?,
 		})
 	}
 }
 
 /// An epoch transition pending a finality proof.
-/// Not all transitions need this
+/// Not all transitions need one.
 pub struct PendingTransition {
-	/// Block hash at which the transition occurred.
-	pub block_hash: H256,
 	/// "transition/epoch" proof from the engine.
 	pub proof: Vec<u8>,
 }
 
 impl Encodable for PendingTransition {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(2)
-			.append(&self.block_hash)
-			.append(&self.proof)
+		s.append(&self.proof)
 	}
 }
 
 impl Decodable for PendingTransition {
 	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		Ok(PendingTransition {
-			block_hash: rlp.val_at(0)?,
-			proof: rlp.val_at(1)?,
+			proof: rlp.as_val()?,
 		})
 	}
 }
@@ -115,9 +106,10 @@ impl EpochVerifier for NoOp {
 /// Stores pending transitions.
 pub trait PendingTransitionStore {
 	/// Insert a pending transition by block hash.
-	fn insert(&self, H256, PendingTransition);
+	fn insert(&mut self, H256, PendingTransition);
 
 	/// Remove a pending transition by block hash. Should only be called when
-	/// that block reaches finality.
-	fn remove(&self, H256) -> Option<PendingTransition>;
+	/// that block reaches finality. Once a transition has been removed
+	/// it cannot be removed again.
+	fn remove(&mut self, H256) -> Option<PendingTransition>;
 }

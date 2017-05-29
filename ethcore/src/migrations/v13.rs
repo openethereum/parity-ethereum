@@ -31,6 +31,7 @@ const COL_EXTRA: Option<u32> = Some(3);
 
 // block details extras key index.
 const DETAILS_KEY_INDEX: u8 = 0;
+const TRANSITION_KEY_INDEX: u8 = 5;
 const KEY_LEN: usize = 264;
 
 // migrate details to new details.
@@ -75,7 +76,10 @@ impl Migration for ToV13 {
 				value = migrate_details(&value);
 			}
 
-			batch.insert(key.to_vec(), value, dest)?
+			// don't migrate over any transition entries from the old format.
+			if col != COL_EXTRA || key[0] != TRANSITION_KEY_INDEX {
+				batch.insert(key.to_vec(), value, dest)?
+			}
 		}
 
 		batch.commit(dest)
