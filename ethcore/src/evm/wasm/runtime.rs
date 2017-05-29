@@ -23,7 +23,7 @@ use byteorder::{LittleEndian, ByteOrder};
 use evm;
 
 use parity_wasm::interpreter;
-use util::H256;
+use util::{H256, Address};
 
 use super::ptr::{WasmPtr, Error as PtrError};
 use super::call_args::CallArgs;
@@ -89,6 +89,7 @@ impl<'a> Runtime<'a> {
 		let key = self.pop_h256(&mut context)?;
 		trace!(target: "wasm", "storage_write: value {} at @{}", &val, &key);
 
+		// todo: return a runtime error contract can handle or as it is now - general failure?
 		self.ext.set_storage(key, val)
 			.map_err(|_| interpreter::Error::Trap("Storage update error".to_owned()))?;
 
@@ -102,12 +103,25 @@ impl<'a> Runtime<'a> {
 		let val_ptr = context.value_stack.pop_as::<i32>()?;
 		let key = self.pop_h256(&mut context)?;		
 
+		// todo: return a runtime error contract can handle or as it is now - general failure?
 		let val = self.ext.storage_at(&key)
-			.map_err(|_| interpreter::Error::Trap("Storage update error".to_owned()))?;
+			.map_err(|_| interpreter::Error::Trap("Storage read error".to_owned()))?;
 
 		self.memory.set(val_ptr as u32, &*val)?;
 
 		Ok(Some(0.into()))
+	}
+
+	pub fn suicide(&mut self, context: interpreter::CallerContext) 
+		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
+	{
+		let mut context = context;
+		let refund_address = self.pop_address(&mut context)?;	
+
+		self.ext.suicide(&refund_address)
+			.map_err(|_| interpreter::Error::Trap("Suicide error".to_owned()))?;
+
+		Ok(None)
 	}
 
 	pub fn malloc(&mut self, context: interpreter::CallerContext) 
@@ -149,6 +163,18 @@ impl<'a> Runtime<'a> {
 		let ptr = WasmPtr::from_i32(context.value_stack.pop_as::<i32>()?)
 			.map_err(|_| interpreter::Error::Trap("Memory access violation".to_owned()))?;
 		self.h256_at(ptr)
+	}
+
+	fn address_at(&self, ptr: WasmPtr) -> Result<Address, interpreter::Error> {
+		Ok(Address::from_slice(&ptr.slice(20, &*self.memory)
+			.map_err(|_| interpreter::Error::Trap("Memory access violation".to_owned()))?
+		))	
+	}
+
+	fn pop_address(&self, context: &mut interpreter::CallerContext) -> Result<Address, interpreter::Error> {
+		let ptr = WasmPtr::from_i32(context.value_stack.pop_as::<i32>()?)
+			.map_err(|_| interpreter::Error::Trap("Memory access violation".to_owned()))?;
+		self.address_at(ptr)
 	}
 
 	fn user_trap(&mut self, _context: interpreter::CallerContext) 
@@ -229,6 +255,9 @@ impl<'a> interpreter::UserFunctionExecutor for Runtime<'a> {
 			},
 			"_storage_write" => {
 				self.storage_write(context)
+			},
+			"_suicide" => {
+				self.suicide(context)
 			},
 			"_debug" => {
 				self.debug_log(context)

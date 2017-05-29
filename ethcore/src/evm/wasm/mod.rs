@@ -179,6 +179,11 @@ fn native_bindings<'a>(runtime: &'a mut Runtime) -> interpreter::UserFunctions<'
 				params: vec![elements::ValueType::I32],
 				result: None,
 			},
+			interpreter::UserFunction {
+				name: "_suicide".to_owned(),
+				params: vec![elements::ValueType::I32],
+				result: None,
+			},
 		],
 	}
 }

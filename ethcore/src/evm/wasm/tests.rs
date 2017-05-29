@@ -173,3 +173,66 @@ fn dispersion() {
 		vec![0u8, 0, 125, 11, 197, 7, 255, 8, 19, 0]
 	);
 }
+
+#[test]
+fn suicide_not() {
+	init_log();
+
+	let code = load_sample("suicidal.wasm");
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+	params.data = Some(vec![
+		0u8
+	]);
+	let mut ext = FakeExt::new();
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+			GasLeft::Known(_) => { panic!("Suicidal contract should return payload when had not actualy killed himself"); },
+			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	assert_eq!(gas_left, U256::from(99_767));
+
+	assert_eq!(
+		result,
+		vec![0u8]
+	);	
+}
+
+#[test]
+fn suicide() {
+	init_log();
+
+	let code = load_sample("suicidal.wasm");
+
+	let refund: Address = "01030507090b0d0f11131517191b1d1f21232527".parse().unwrap();
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+
+	let mut args = vec![127u8];
+	args.extend(refund.to_vec());
+	params.data = Some(args);
+
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+			GasLeft::Known(gas) => gas,
+			GasLeft::NeedsReturn { .. } => {
+				panic!("Suicidal contract should not return anything when had killed itself");
+			},
+		}
+	};
+
+	assert_eq!(gas_left, U256::from(99_790));
+	assert!(ext.suicides.contains(&refund));
+}

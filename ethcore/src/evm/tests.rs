@@ -48,12 +48,12 @@ pub struct FakeCall {
 #[derive(Default)]
 pub struct FakeExt {
 	pub store: HashMap<H256, H256>,
+	pub suicides: HashSet<Address>,
 	sstore_clears: usize,
 	depth: usize,
 	blockhashes: HashMap<U256, H256>,
 	codes: HashMap<Address, Arc<Bytes>>,
 	logs: Vec<FakeLogEntry>,
-	_suicides: HashSet<Address>,
 	info: EnvInfo,
 	schedule: Schedule,
 	balances: HashMap<Address, U256>,
@@ -166,8 +166,9 @@ impl Ext for FakeExt {
 		unimplemented!();
 	}
 
-	fn suicide(&mut self, _refund_address: &Address) -> trie::Result<()> {
-		unimplemented!();
+	fn suicide(&mut self, refund_address: &Address) -> trie::Result<()> {
+		self.suicides.insert(refund_address.clone());
+		Ok(())
 	}
 
 	fn schedule(&self) -> &Schedule {
