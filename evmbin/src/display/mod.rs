@@ -14,14 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
-use ethcore::account_provider::AccountProvider;
-use jsonrpc_core::Error;
-use v1::helpers::errors;
+//! VM Output display utils.
 
-pub fn unwrap_provider(provider: &Option<Arc<AccountProvider>>) -> Result<Arc<AccountProvider>, Error> {
-	match *provider {
-		Some(ref arc) => Ok(arc.clone()),
-		None => Err(errors::public_unsupported(None)),
+use std::time::Duration;
+use util::U256;
+
+pub mod json;
+pub mod simple;
+
+/// Formats duration into human readable format.
+pub fn format_time(time: &Duration) -> String {
+	format!("{}.{:.9}s", time.as_secs(), time.subsec_nanos())
+}
+
+/// Converts U256 into string.
+/// TODO Overcomes: https://github.com/paritytech/bigint/issues/13
+pub fn u256_as_str(v: &U256) -> String {
+	if v.is_zero() {
+		"\"0x0\"".into()
+	} else {
+		format!("\"{:x}\"", v)
 	}
 }

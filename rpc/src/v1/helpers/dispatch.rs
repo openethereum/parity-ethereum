@@ -18,7 +18,7 @@
 
 use std::fmt::Debug;
 use std::ops::Deref;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use futures::{future, Future, BoxFuture};
 use light::cache::Cache as LightDataCache;
@@ -74,16 +74,16 @@ pub trait Dispatcher: Send + Sync + Clone {
 /// requests locally.
 #[derive(Debug)]
 pub struct FullDispatcher<C, M> {
-	client: Weak<C>,
-	miner: Weak<M>,
+	client: Arc<C>,
+	miner: Arc<M>,
 }
 
 impl<C, M> FullDispatcher<C, M> {
-	/// Create a `FullDispatcher` from weak references to a client and miner.
-	pub fn new(client: Weak<C>, miner: Weak<M>) -> Self {
+	/// Create a `FullDispatcher` from Arc references to a client and miner.
+	pub fn new(client: Arc<C>, miner: Arc<M>) -> Self {
 		FullDispatcher {
-			client: client,
-			miner: miner,
+			client,
+			miner,
 		}
 	}
 }
@@ -109,7 +109,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, force_nonce: bool)
 		-> BoxFuture<FilledTransactionRequest, Error>
 	{
-		let (client, miner) = (take_weakf!(self.client), take_weakf!(self.miner));
+		let (client, miner) = (self.client.clone(), self.miner.clone());
 		let request = request;
 		let from = request.from.unwrap_or(default_sender);
 		let nonce = match force_nonce {
@@ -132,7 +132,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
 		-> BoxFuture<WithToken<SignedTransaction>, Error>
 	{
-		let (client, miner) = (take_weakf!(self.client), take_weakf!(self.miner));
+		let (client, miner) = (self.client.clone(), self.miner.clone());
 		let network_id = client.signing_network_id();
 		let address = filled.from;
 		future::done({
@@ -161,7 +161,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error> {
 		let hash = signed_transaction.transaction.hash();
 
-		take_weak!(self.miner).import_own_transaction(&*take_weak!(self.client), signed_transaction)
+		self.miner.import_own_transaction(&*self.client, signed_transaction)
 			.map_err(errors::from_transaction_error)
 			.map(|_| hash)
 	}

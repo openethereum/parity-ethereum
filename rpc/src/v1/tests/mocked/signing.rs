@@ -54,7 +54,7 @@ impl Default for SigningTester {
 		let opt_accounts = Some(accounts.clone());
 		let mut io = IoHandler::default();
 
-		let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
+		let dispatcher = FullDispatcher::new(client.clone(), miner.clone());
 
 		let rpc = SigningQueueClient::new(&signer, dispatcher.clone(), &opt_accounts);
 		io.extend_with(EthSigning::to_delegate(rpc));

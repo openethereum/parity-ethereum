@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Account management (personal) rpc implementation
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::collections::BTreeMap;
 use util::Address;
 
@@ -31,19 +31,19 @@ use v1::types::{H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, DappId, Deriv
 
 /// Account management (personal) rpc implementation.
 pub struct ParityAccountsClient {
-	accounts: Option<Weak<AccountProvider>>,
+	accounts: Option<Arc<AccountProvider>>,
 }
 
 impl ParityAccountsClient {
 	/// Creates new PersonalClient
 	pub fn new(store: &Option<Arc<AccountProvider>>) -> Self {
 		ParityAccountsClient {
-			accounts: store.as_ref().map(Arc::downgrade),
+			accounts: store.clone(),
 		}
 	}
 
 	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
-	/// set, or if upgrading the weak reference failed.
+	/// set.
 	fn account_provider(&self) -> Result<Arc<AccountProvider>, Error> {
 		unwrap_provider(&self.accounts)
 	}

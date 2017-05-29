@@ -38,10 +38,6 @@ struct SignerTester {
 	accounts: Arc<AccountProvider>,
 	io: IoHandler<Metadata>,
 	miner: Arc<TestMinerService>,
-	// these unused fields are necessary to keep the data alive
-	// as the handler has only weak pointers.
-	_client: Arc<TestBlockChainClient>,
-	_event_loop: EventLoop,
 }
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
@@ -65,7 +61,7 @@ fn signer_tester() -> SignerTester {
 	let miner = miner_service();
 	let event_loop = EventLoop::spawn();
 
-	let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
+	let dispatcher = FullDispatcher::new(client, miner.clone());
 	let mut io = IoHandler::default();
 	io.extend_with(SignerClient::new(&opt_accounts, dispatcher, &signer, event_loop.remote()).to_delegate());
 
@@ -74,8 +70,6 @@ fn signer_tester() -> SignerTester {
 		accounts: accounts,
 		io: io,
 		miner: miner,
-		_client: client,
-		_event_loop: event_loop,
 	}
 }
 
