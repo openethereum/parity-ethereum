@@ -309,7 +309,7 @@ pub trait Engine : Sync + Send {
 		self.snapshot_components().is_some()
 	}
 
-	/// Wheather this engine supports wasm contracts.
+	/// If this engine supports wasm contracts.
 	fn supports_wasm(&self) -> bool {
 		false
 	}
