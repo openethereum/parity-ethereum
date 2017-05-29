@@ -63,6 +63,8 @@ pub struct CommonParams {
 	pub eip86_transition: BlockNumber,
 	/// Number of first block where EIP-140 (Metropolis: REVERT opcode) rules begin.
 	pub eip140_transition: BlockNumber,
+	/// Wasm support
+	pub wasm: bool,
 }
 
 impl From<ethjson::spec::Params> for CommonParams {
@@ -79,6 +81,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
 			eip86_transition: p.eip86_transition.map_or(BlockNumber::max_value(), Into::into),
 			eip140_transition: p.eip140_transition.map_or(BlockNumber::max_value(), Into::into),
+			wasm: p.wasm.unwrap_or(false),
 		}
 	}
 }

@@ -62,6 +62,8 @@ pub struct Params {
 	/// See `CommonParams` docs.
 	#[serde(rename="eip140Transition")]
 	pub eip140_transition: Option<Uint>,
+	/// Wasm support flag
+	pub wasm: Option<bool>,
 }
 
 #[cfg(test)]
