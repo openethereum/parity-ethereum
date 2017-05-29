@@ -58,6 +58,8 @@ pub struct AuthorityRoundParams {
 	pub eip155_transition: u64,
 	/// Monotonic step validation transition block.
 	pub validate_step_transition: u64,
+	/// If wasm contracts are supported.
+	pub wasm: bool,
 }
 
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
@@ -72,6 +74,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			validate_score_transition: p.validate_score_transition.map_or(0, Into::into),
 			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_step_transition: p.validate_step_transition.map_or(0, Into::into),
+			wasm: p.wasm.unwrap_or(false),
 		}
 	}
 }
@@ -131,6 +134,7 @@ pub struct AuthorityRound {
 	validate_score_transition: u64,
 	eip155_transition: u64,
 	validate_step_transition: u64,
+	wasm: bool,
 }
 
 // header-chain validator.
@@ -212,6 +216,7 @@ impl AuthorityRound {
 				validate_score_transition: our_params.validate_score_transition,
 				eip155_transition: our_params.eip155_transition,
 				validate_step_transition: our_params.validate_step_transition,
+				wasm: our_params.wasm,
 			});
 		// Do not initialize timeouts for tests.
 		if should_timeout {
@@ -463,6 +468,10 @@ impl Engine for AuthorityRound {
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		Some(Box::new(::snapshot::PoaSnapshot))
 	}
+
+	fn supports_wasm(&self) -> bool {
+		self.wasm
+	}
 }
 
 #[cfg(test)]
@@ -639,6 +648,7 @@ mod tests {
 			validate_score_transition: 0,
 			validate_step_transition: 0,
 			eip155_transition: 0,
+			wasm: false,
 		};
 		let aura = AuthorityRound::new(Default::default(), params, Default::default()).unwrap();
 

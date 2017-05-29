@@ -49,6 +49,8 @@ pub struct AuthorityRoundParams {
 	/// Block from which monotonic steps start.
 	#[serde(rename="validateStepTransition")]
 	pub validate_step_transition: Option<Uint>,
+	/// Wasm support.
+	pub wasm: Option<bool>,
 }
 
 /// Authority engine deserialization.
