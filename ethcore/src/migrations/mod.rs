@@ -29,6 +29,9 @@ pub use self::v9::Extract;
 mod v10;
 pub use self::v10::ToV10;
 
+mod v13;
+pub use self::v10::ToV13;
+
 /// The migration from v10 to v11.
 /// Adds a column for node info.
 pub const TO_V11: ChangeColumns = ChangeColumns {
