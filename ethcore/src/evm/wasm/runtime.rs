@@ -208,7 +208,7 @@ impl<'a> Runtime<'a> {
 		self.memory.set(args_ptr+20, &call_args.sender)?;
 		self.memory.set(args_ptr+40, &call_args.origin)?;
 		self.memory.set(args_ptr+60, &call_args.value)?;
-		self.memory.set(args_ptr+256, &call_args.data)?;
+		self.memory.set(args_ptr+92, &call_args.data)?;
 		
 		Ok(d_ptr.into())
 	}

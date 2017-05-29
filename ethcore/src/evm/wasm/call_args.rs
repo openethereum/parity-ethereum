@@ -32,9 +32,6 @@ pub struct CallArgs {
     /// Transfer value
     pub value: [u8; 32],
 
-    /// Reserved space / alignment to 256 bytes
-    _reserved: [u8; 164],
-
     /// call/create params
     pub data: Vec<u8>,
 }
@@ -46,7 +43,6 @@ impl CallArgs {
             sender: [0u8; 20],
             origin: [0u8; 20],
             value: [0u8; 32],
-            _reserved: [0u8; 164],
             data: data,
         };
 
@@ -59,6 +55,6 @@ impl CallArgs {
     }
 
     pub fn len(&self) -> u32 {
-        self.data.len() as u32 + 256
+        self.data.len() as u32 + 92
     }
 }
