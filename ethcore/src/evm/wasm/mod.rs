@@ -60,17 +60,16 @@ impl evm::Evm for WasmInterpreter {
 	fn exec(&mut self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result<GasLeft> {
 		use parity_wasm::elements::Deserialize;
 
-		// todo: prefer panic?
 		let env_instance = self.program.module("env")
-			.ok_or(evm::Error::Wasm("Env module somehow does not exist in wasm runner runtime"))?;
+			// prefer explicit panic here
+			.expect("Wasm program to contain env module");
 
-		// todo: prefer panic?
 		let env_memory = env_instance.memory(interpreter::ItemIndex::Internal(0))
-			.map_err(|_| evm::Error::Wasm("Linear memory somehow does not exist in wasm runner runtime"))?;
+			// prefer explicit panic here
+			.expect("Linear memory to exist in wasm runtime");
 
 		if params.gas > ::std::u64::MAX.into() {
-			// todo: prefer panic?
-			return Err(evm::Error::Wasm("Wasm interpreter cannot run contracts with gas >= 2^64"));
+			return Err(evm::Error::Wasm("Wasm interpreter cannot run contracts with gas >= 2^64".to_owned()));
 		}
 		
 		let mut runtime = Runtime::with_params(
@@ -86,10 +85,8 @@ impl evm::Evm for WasmInterpreter {
 		let contract_module = wasm_utils::inject_gas_counter(
 			elements::Module::deserialize(
 				&mut cursor
-			).map_err(|e| {
-				// todo: prefer panic?
-				warn!("Error deserializing contract code as wasm module: {:?}", e);
-				evm::Error::Wasm("Error deserializing contract code")
+			).map_err(|err| {
+				evm::Error::Wasm(format!("Error deserializing contract code ({:?})", err))
 			})?
 		);
 
@@ -109,24 +106,18 @@ impl evm::Evm for WasmInterpreter {
 				Arc::new(
 					interpreter::env_native_module(env_instance, native_bindings(&mut runtime))
 						.map_err(|err| {
-							warn!("Error instantiating native bindings: {:?}", err);
-							evm::Error::Wasm("Error instantiating native bindings")
+							// todo: prefer explicit panic here also?
+							evm::Error::Wasm(format!("Error instantiating native bindings: {:?}", err))
 						})?
 				)
 			).add_argument(interpreter::RuntimeValue::I32(d_ptr.as_raw() as i32));
 
 		
 			let module_instance = self.program.add_module("contract", contract_module)
-				.map_err(|err| {
-					warn!("Runtime error instantiating contract module: {:?}", err);
-					evm::Error::Wasm("Runtime-error")				
-				})?;
+				.map_err(|err| evm::Error::from(RuntimeError::Interpreter(err)))?;
 
 			module_instance.execute_export("_call", execution_params)
-				.map_err(|err| {
-					warn!("Runtime error running contract: {:?}", err);
-					evm::Error::Wasm("Runtime-error")				
-				})?;
+				.map_err(|err| evm::Error::from(RuntimeError::Interpreter(err)))?;
 		}
 
 		let result = result::WasmResult::new(d_ptr);

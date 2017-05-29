@@ -67,7 +67,7 @@ pub enum Error {
 	/// Likely to cause consensus issues.
 	Internal(String),
 	/// Wasm runtime error
-	Wasm(&'static str),
+	Wasm(String),
 }
 
 impl From<Box<trie::TrieError>> for Error {
@@ -83,8 +83,8 @@ impl From<builtin::Error> for Error {
 }
 
 impl From<wasm::RuntimeError> for Error {
-	fn from(_err: wasm::RuntimeError) -> Self {
-		Error::Wasm("Runtime error")
+	fn from(err: wasm::RuntimeError) -> Self {
+		Error::Wasm(format!("Runtime error: {:?}", err))
 	}
 }
 
@@ -98,8 +98,8 @@ impl fmt::Display for Error {
 			StackUnderflow { .. } => "Stack underflow",
 			OutOfStack { .. } => "Out of stack",
 			BuiltIn { .. } => "Built-in failed",
-			Wasm { .. } => "Wasm error",
 			Internal(ref msg) => msg,
+			Wasm(ref msg) => msg,
 		};
 		message.fmt(f)
 	}
