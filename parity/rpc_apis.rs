@@ -443,7 +443,13 @@ impl LightDependencies {
 					}
 				},
 				Api::EthPubSub => {
-					let client = EthPubSubClient::new(self.client.clone(), self.remote.clone());
+					let client = EthPubSubClient::light(
+						self.client.clone(),
+						self.on_demand.clone(),
+						self.sync.clone(),
+						self.cache.clone(),
+						self.remote.clone(),
+					);
 					self.client.add_listener(
 						Arc::downgrade(&client.handler()) as Weak<::light::client::LightChainNotify>
 					);

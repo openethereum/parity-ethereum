@@ -61,7 +61,7 @@ impl<T> Subscribers<T> {
 	}
 }
 
-impl <T> Subscribers<Sink<T>> {
+impl<T> Subscribers<Sink<T>> {
 	/// Assigns id and adds a subscriber to the list.
 	pub fn push(&mut self, sub: Subscriber<T>) {
 		let id = self.next_id();
@@ -69,6 +69,22 @@ impl <T> Subscribers<Sink<T>> {
 			Ok(sink) => {
 				debug!(target: "pubsub", "Adding subscription id={:?}", id);
 				self.subscriptions.insert(id, sink);
+			},
+			Err(_) => {
+				self.next_id -= 1;
+			},
+		}
+	}
+}
+
+impl<T, V> Subscribers<(Sink<T>, V)> {
+	/// Assigns id and adds a subscriber to the list.
+	pub fn push(&mut self, sub: Subscriber<T>, val: V) {
+		let id = self.next_id();
+		match sub.assign_id(SubscriptionId::Number(id)) {
+			Ok(sink) => {
+				debug!(target: "pubsub", "Adding subscription id={:?}", id);
+				self.subscriptions.insert(id, (sink, val));
 			},
 			Err(_) => {
 				self.next_id -= 1;

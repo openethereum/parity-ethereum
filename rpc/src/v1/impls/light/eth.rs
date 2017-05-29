@@ -477,60 +477,7 @@ impl Filterable for EthClient {
 	}
 
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>, Error> {
-		use std::collections::BTreeMap;
-
-		use futures::stream::{self, Stream};
-		use util::H2048;
-
-		// early exit for "to" block before "from" block.
-		let best_number = self.client.chain_info().best_block_number;
-		let block_number = |id| match id {
-			BlockId::Earliest => Some(0),
-			BlockId::Latest | BlockId::Pending => Some(best_number),
-			BlockId::Hash(h) => self.client.block_header(BlockId::Hash(h)).map(|hdr| hdr.number()),
-			BlockId::Number(x) => Some(x),
-		};
-
-		match (block_number(filter.to_block), block_number(filter.from_block)) {
-			(Some(to), Some(from)) if to < from => return future::ok(Vec::new()).boxed(),
-			(Some(_), Some(_)) => {},
-			_ => return future::err(errors::unknown_block()).boxed(),
-		}
-
-		let maybe_future = self.sync.with_context(move |ctx| {
-			// find all headers which match the filter, and fetch the receipts for each one.
-			// match them with their numbers for easy sorting later.
-			let bit_combos = filter.bloom_possibilities();
-			let receipts_futures: Vec<_> = self.client.ancestry_iter(filter.to_block)
-				.take_while(|ref hdr| BlockId::Number(hdr.number()) != filter.from_block)
-				.take_while(|ref hdr| BlockId::Hash(hdr.hash()) != filter.from_block)
-				.filter(|ref hdr| {
-					let hdr_bloom = hdr.log_bloom();
-					bit_combos.iter().find(|&bloom| hdr_bloom & *bloom == *bloom).is_some()
-				})
-				.map(|hdr| (hdr.number(), request::BlockReceipts(hdr.into())))
-				.map(|(num, req)| self.on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS).map(move |x| (num, x)))
-				.collect();
-
-			// as the receipts come in, find logs within them which match the filter.
-			// insert them into a BTreeMap to maintain order by number and block index.
-			stream::futures_unordered(receipts_futures)
-				.fold(BTreeMap::new(), move |mut matches, (num, receipts)| {
-					for (block_index, log) in receipts.into_iter().flat_map(|r| r.logs).enumerate() {
-						if filter.matches(&log) {
-							matches.insert((num, block_index), log.into());
-						}
-					}
-					future::ok(matches)
-				}) // and then collect them into a vector.
-				.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
-				.map_err(errors::on_demand_cancel)
-		});
-
-		match maybe_future {
-			Some(fut) => fut.boxed(),
-			None => future::err(errors::network_disabled()).boxed(),
-		}
+		self.fetcher().logs(filter)
 	}
 
 	fn pending_logs(&self, _block_number: u64, _filter: &EthcoreFilter) -> Vec<Log> {

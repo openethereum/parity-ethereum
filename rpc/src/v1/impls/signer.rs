@@ -61,7 +61,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 				for subscription in subs.lock().values() {
 					let subscription: &Sink<_> = subscription;
 					remote.spawn(subscription
-						.notify(requests.clone())
+						.notify(Ok(requests.clone()))
 						.map(|_| ())
 						.map_err(|e| warn!(target: "rpc", "Unable to send notification: {}", e))
 					);
