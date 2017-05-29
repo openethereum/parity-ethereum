@@ -57,6 +57,7 @@ impl From<PtrError> for Error {
 	}
 }
 
+/// Runtime enviroment data for wasm contract execution
 pub struct Runtime<'a> {
 	gas_counter: u64,
 	gas_limit: u64,
@@ -66,6 +67,7 @@ pub struct Runtime<'a> {
 }
 
 impl<'a> Runtime<'a> {
+	/// New runtime for wasm contract with specified params
 	pub fn with_params<'b>(
 		ext: &'b mut evm::Ext,
 		memory: Arc<interpreter::MemoryInstance>, 
@@ -81,6 +83,7 @@ impl<'a> Runtime<'a> {
 		}
 	}
 
+	/// Write to the storage from wasm memory
 	pub fn storage_write(&mut self, context: interpreter::CallerContext) 
 		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
 	{
@@ -96,6 +99,7 @@ impl<'a> Runtime<'a> {
 		Ok(Some(0i32.into()))
 	}
 
+	/// Read from the storage to wasm memory
 	pub fn storage_read(&mut self, context: interpreter::CallerContext) 
 		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
 	{
@@ -112,6 +116,7 @@ impl<'a> Runtime<'a> {
 		Ok(Some(0.into()))
 	}
 
+	/// Pass suicide to state runtime
 	pub fn suicide(&mut self, context: interpreter::CallerContext) 
 		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
 	{
@@ -124,6 +129,7 @@ impl<'a> Runtime<'a> {
 		Ok(None)
 	}
 
+	/// Allocate memory using the wasm stack params
 	pub fn malloc(&mut self, context: interpreter::CallerContext) 
 		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
 	{
@@ -133,12 +139,14 @@ impl<'a> Runtime<'a> {
 		Ok(Some((previous_top as i32).into()))
 	}
 
+	/// Allocate memory in wasm memory instance
 	pub fn alloc(&mut self, amount: u32) -> Result<u32, Error> {
 		let previous_top = self.dynamic_top;
 		self.dynamic_top = previous_top + amount;
 		Ok(previous_top.into())
 	}
 
+	/// Report gas cost with the params passed in wasm stack
 	fn gas(&mut self, context: interpreter::CallerContext) 
 		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error> 
 	{
@@ -189,6 +197,7 @@ impl<'a> Runtime<'a> {
 		Ok(None)
 	}
 
+	/// Write call descriptor to wasm memory
 	pub fn write_descriptor(&mut self, call_args: CallArgs) -> Result<WasmPtr, Error> {
 		let d_ptr = self.alloc(16)?;
 
@@ -227,11 +236,13 @@ impl<'a> Runtime<'a> {
 		Ok(None)
 	}
 
+	/// Query current gas left for execution
 	pub fn gas_left(&self) -> Result<u64, Error> {
 		if self.gas_counter > self.gas_limit { return Err(Error::InvalidGasState); }
 		Ok(self.gas_limit - self.gas_counter)
 	}
 
+	/// Shared memory reference
 	pub fn memory(&self) -> &interpreter::MemoryInstance {
 		&*self.memory
 	}

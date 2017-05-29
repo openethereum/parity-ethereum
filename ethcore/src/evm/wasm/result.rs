@@ -23,20 +23,24 @@ use parity_wasm::interpreter;
 use super::ptr::WasmPtr;
 use super::runtime::Error as RuntimeError;
 
+/// Wrapper for wasm contract call result
 pub struct WasmResult {
 	ptr: WasmPtr,
 }
 
 impl WasmResult {
+	/// New call result from given ptr
 	pub fn new(descriptor_ptr: WasmPtr) -> WasmResult {
 		WasmResult { ptr: descriptor_ptr }
 	}
 
+	/// Check if the result contains any data
 	pub fn peek_empty(&self, mem: &interpreter::MemoryInstance) -> Result<bool, RuntimeError> {
 		let result_ptr = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[8..12]);
 		Ok(result_ptr == 0)
 	}
 
+	/// Consume the result ptr and return the actual data from wasm linear memory
 	pub fn pop(self, mem: &interpreter::MemoryInstance) -> Result<Vec<u8>, RuntimeError> {
 		let result_ptr = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[8..12]);
 		let result_len = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[12..16]);

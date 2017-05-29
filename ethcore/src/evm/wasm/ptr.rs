@@ -18,6 +18,7 @@
 
 use parity_wasm::interpreter;
 
+/// Bound-checked wrapper for webassembly memory 
 pub struct WasmPtr(u32);
 
 /// Error in bound check
@@ -34,15 +35,18 @@ impl From<u32> for WasmPtr {
 
 impl WasmPtr {
 	// todo: use memory view when they are on
+	/// Check memory range and return data with given length starting from the current pointer value
 	pub fn slice(&self, len: u32, mem: &interpreter::MemoryInstance) -> Result<Vec<u8>, Error> {
 		mem.get(self.0, len as usize).map_err(|_| Error::AccessViolation)
 	}
 
 	// todo: maybe 2gb limit can be enhanced
+	/// Convert i32 from wasm stack to the wrapped pointer
 	pub fn from_i32(raw_ptr: i32) -> Result<Self, Error> {
 		if raw_ptr < 0 { return Err(Error::AccessViolation); }
 		Ok(WasmPtr(raw_ptr as u32))
 	}
 
+	/// Return pointer raw value
 	pub fn as_raw(&self) -> u32 { self.0 }
 }

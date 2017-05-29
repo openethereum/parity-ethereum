@@ -37,6 +37,7 @@ pub struct CallArgs {
 }
 
 impl CallArgs {
+    /// New contract call payload with known parameters
     pub fn new(address: H160, sender: H160, origin: H160, value: U256, data: Vec<u8>) -> Self {
         let mut descriptor = CallArgs {
             address: [0u8; 20],
@@ -54,6 +55,7 @@ impl CallArgs {
         descriptor
     }
 
+    /// Total call payload length in linear memory
     pub fn len(&self) -> u32 {
         self.data.len() as u32 + 92
     }
