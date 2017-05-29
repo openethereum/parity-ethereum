@@ -367,8 +367,7 @@ pub mod tests {
 		//::logger::init_log();
 		let key_servers = make_key_servers(6100, 3);
 
-		//let test_cases = [0, 1, 2];
-		let test_cases = [1];
+		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
 			// generate server key
 			let server_key_id = Random.generate().unwrap().secret().clone();
@@ -384,7 +383,7 @@ pub mod tests {
 			let signature_s = Secret::from_slice(&combined_signature[32..]);
 
 			// check signature
-			assert_eq!(math::verify_signature(*threshold, &server_public, &(signature_c, signature_s), &message_hash), Ok(true));
+			assert_eq!(math::verify_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
 		}
 	}
 }

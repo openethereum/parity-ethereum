@@ -640,6 +640,7 @@ impl ClusterCore {
 			},
 		};
 
+		let mut is_queued_message = false;
 		loop {
 			match session.clone().and_then(|session| match message {
 				SigningMessage::SigningConsensusMessage(ref message) =>
@@ -670,11 +671,16 @@ impl ClusterCore {
 					// try to dequeue message
 					match data.sessions.signing_sessions.dequeue_message(&signing_session_id) {
 						Some((msg_sender, msg)) => {
+							is_queued_message = true;
 							sender = msg_sender;
 							message = msg;
 						},
 						None => break,
 					}
+				},
+				Err(Error::TooEarlyForRequest) => {
+					data.sessions.signing_sessions.enqueue_message(&signing_session_id, sender, message, is_queued_message);
+					break;
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: signing session error {} when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);

@@ -299,7 +299,7 @@ pub fn decrypt_with_joint_secret(encrypted_point: &Public, common_point: &Public
 }
 
 /// Combine message hash with public key X coordinate.
-pub fn combine_message_hash_with_public(threshold: usize, message_hash: &H256, public: &Public) -> Result<Secret, Error> {
+pub fn combine_message_hash_with_public(message_hash: &H256, public: &Public) -> Result<Secret, Error> {
 	// buffer is just [message_hash | public.x]
 	let mut buffer = [0; 64];
 	buffer[0..32].copy_from_slice(&message_hash[0..32]);
@@ -311,29 +311,28 @@ pub fn combine_message_hash_with_public(threshold: usize, message_hash: &H256, p
 	// map hash to EC finite field value
 	let hash: U256 = hash.into();
 	let hash: H256 = (hash % math::curve_order()).into();
-	let mut hash = Secret::from_slice(&*hash);
+	let hash = Secret::from_slice(&*hash);
 	hash.check_validity()?;
-
-	// fix for even threshold
-	if threshold % 2 == 0 {
-		hash.neg()?;
-	}
 
 	Ok(hash)
 }
 
 /// Compute signature share.
-pub fn compute_signature_share<'a, I>(combined_hash: &Secret, one_time_secret_coeff: &Secret, node_secret_share: &Secret, node_number: &Secret, other_nodes_numbers: I)
+pub fn compute_signature_share<'a, I>(threshold: usize, combined_hash: &Secret, one_time_secret_coeff: &Secret, node_secret_share: &Secret, node_number: &Secret, other_nodes_numbers: I)
 	-> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	let mut sum = one_time_secret_coeff.clone();
 	let mut subtrahend = compute_shadow_mul(combined_hash, node_number, other_nodes_numbers)?;
 	subtrahend.mul(node_secret_share)?;
-	sum.sub(&subtrahend)?;
+	if threshold % 2 == 0 {
+		sum.sub(&subtrahend)?;
+	} else {
+		sum.add(&subtrahend)?;
+	}
 	Ok(sum)
 }
 
 /// Check signature share.
-pub fn check_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: &Secret, _public_share: &Public, _one_time_public_share: &Public, _node_number: &Secret, _other_nodes_numbers: I)
+pub fn _check_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: &Secret, _public_share: &Public, _one_time_public_share: &Public, _node_numbers: I)
 	-> Result<bool, Error> where I: Iterator<Item=&'a Secret> {
 	// TODO: in paper partial signature is checked using comparison:
 	//    sig[i] * T                                  = r[i] - c * lagrange_coeff(i) * y[i]
@@ -348,6 +347,7 @@ pub fn check_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: &
 	// => -c * y = c * (lagrange_coeff(0) * s[0] + lagrange_coeff(1) * s[1]) * T
 	// => -y = (lagrange_coeff(0) * s[0] + lagrange_coeff(1) * s[1]) * T
 	// => y[i] != s[i] * T
+	// => some other way is required
 	Ok(true)
 }
 
@@ -362,7 +362,7 @@ pub fn local_compute_signature(nonce: &Secret, secret: &Secret, message_hash: &S
 	let mut nonce_public = math::generation_point();
 	math::public_mul_secret(&mut nonce_public, &nonce).unwrap();
 
-	let combined_hash = combine_message_hash_with_public(0, message_hash, &nonce_public)?;
+	let combined_hash = combine_message_hash_with_public(message_hash, &nonce_public)?;
 
 	let mut sig_subtrahend = combined_hash.clone();
 	sig_subtrahend.mul(secret)?;
@@ -374,19 +374,14 @@ pub fn local_compute_signature(nonce: &Secret, secret: &Secret, message_hash: &S
 
 #[cfg(test)]
 /// Verify signature as described in https://en.wikipedia.org/wiki/Schnorr_signature#Verifying.
-pub fn verify_signature(threshold: usize, public: &Public, signature: &(Secret, Secret), message_hash: &H256) -> Result<bool, Error> {
+pub fn verify_signature(public: &Public, signature: &(Secret, Secret), message_hash: &H256) -> Result<bool, Error> {
 	let mut addendum = math::generation_point();
 	math::public_mul_secret(&mut addendum, &signature.1)?;
 	let mut nonce_public = public.clone();
-	let mut nonce_public_coeff = signature.0.clone();
-	// fix for even threshold
-	if threshold % 2 != 0 {
-		nonce_public_coeff.neg()?;
-	}
-	math::public_mul_secret(&mut nonce_public, &nonce_public_coeff)?;
+	math::public_mul_secret(&mut nonce_public, &signature.0)?;
 	math::public_add(&mut nonce_public, &addendum)?;
 
-	let combined_hash = combine_message_hash_with_public(threshold, message_hash, &nonce_public)?;
+	let combined_hash = combine_message_hash_with_public(message_hash, &nonce_public)?;
 	Ok(combined_hash == signature.0)
 }
 
@@ -510,12 +505,13 @@ pub mod tests {
 		let message_hash = "0000000000000000000000000000000000000000000000000000000000000042".parse().unwrap();
 		let nonce = generate_random_scalar().unwrap();
 		let signature = local_compute_signature(&nonce, key_pair.secret(), &message_hash).unwrap();
-		assert_eq!(verify_signature(0, key_pair.public(), &signature, &message_hash), Ok(true));
+		assert_eq!(verify_signature(key_pair.public(), &signature, &message_hash), Ok(true));
 	}
 
 	#[test]
 	fn full_signature_math_session() {
-		let test_cases = [(1, 4), (2, 4)];
+		let test_cases = [(0, 1), (0, 2), (1, 2), (1, 3), (2, 3), (1, 4), (2, 4), (3, 4), (1, 5), (2, 5), (3, 5), (4, 5),
+			(1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10)];
 		for &(t, n) in &test_cases {
 			// hash of the message to be signed
 			let message_hash: Secret = "0000000000000000000000000000000000000000000000000000000000000042".parse().unwrap();
@@ -536,11 +532,12 @@ pub mod tests {
 			let one_time_artifacts = run_key_generation(t, n, Some(id_numbers));
 
 			// step 2: message hash && x coordinate of one-time public value are combined
-			let combined_hash = combine_message_hash_with_public(t, &message_hash, &one_time_artifacts.joint_public).unwrap();
+			let combined_hash = combine_message_hash_with_public(&message_hash, &one_time_artifacts.joint_public).unwrap();
 
 			// step 3: compute signature shares
 			let partial_signatures: Vec<_> = (0..n)
 				.map(|i| compute_signature_share(
+					t,
 					&combined_hash,
 					&one_time_artifacts.polynoms1[i][0],
 					&artifacts.secret_shares[i],
@@ -559,16 +556,11 @@ pub mod tests {
 					.filter(|j| i != *j)
 					.map(|j| {
 						let signature_share = partial_signatures[j].clone();
-						assert!(check_signature_share(&combined_hash,
+						assert!(_check_signature_share(&combined_hash,
 							&signature_share,
 							&artifacts.public_shares[j],
 							&one_time_artifacts.public_shares[j],
-							&artifacts.id_numbers[j],
-							artifacts.id_numbers.iter()
-								.enumerate()
-								.filter(|&(k, _)| j != k)
-								.map(|(_, n)| n)
-								.take(t)).unwrap_or(false));
+							artifacts.id_numbers.iter().take(t)).unwrap_or(false));
 						signature_share
 					})
 					.collect())
@@ -584,8 +576,8 @@ pub mod tests {
 			let nonce = compute_joint_secret(one_time_artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
 			let local_signature = local_compute_signature(&nonce, &master_secret, &message_hash).unwrap();
 			for signature in &signatures {
-				//assert_eq!(signature, &local_signature);
-				assert_eq!(verify_signature(t, &artifacts.joint_public, signature, &message_hash), Ok(true));
+				assert_eq!(signature, &local_signature);
+				assert_eq!(verify_signature(&artifacts.joint_public, signature, &message_hash), Ok(true));
 			}
 		}
 	}
