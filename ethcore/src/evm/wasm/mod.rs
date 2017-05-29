@@ -70,7 +70,7 @@ impl evm::Evm for WasmInterpreter {
 
 		if params.gas > ::std::u64::MAX.into() {
 			// todo: prefer panic?
-			return Err(evm::Error::Wasm("Wasm interpreter cannot run contracts with gas > 2^64"));
+			return Err(evm::Error::Wasm("Wasm interpreter cannot run contracts with gas >= 2^64"));
 		}
 		
 		let mut runtime = Runtime::with_params(
