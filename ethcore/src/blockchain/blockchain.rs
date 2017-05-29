@@ -146,6 +146,10 @@ pub trait BlockProvider {
 		where F: Fn(&LogEntry) -> bool, Self: Sized;
 }
 
+macro_rules! otry {
+	($e:expr) => { match $e { Some(x) => x, None => return None } }
+}
+
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 enum CacheId {
 	BlockHeader(H256),
@@ -509,7 +513,8 @@ impl BlockChain {
 					number: header.number(),
 					total_difficulty: header.difficulty(),
 					parent: header.parent_hash(),
-					children: vec![]
+					children: vec![],
+					epoch_delta: 0, // genesis transitions to its own epoch.
 				};
 
 				let mut batch = DBTransaction::new();
@@ -699,10 +704,6 @@ impl BlockChain {
 	/// If the tree route verges into pruned or unknown blocks,
 	/// `None` is returned.
 	pub fn tree_route(&self, from: H256, to: H256) -> Option<TreeRoute> {
-		macro_rules! otry {
-			($e:expr) => { match $e { Some(x) => x, None => return None } }
-		}
-
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
 
@@ -887,6 +888,36 @@ impl BlockChain {
 		self.db.read(db::COL_EXTRA, &block_num).and_then(|transitions: EpochTransitions| {
 			transitions.candidates.into_iter().find(|c| c.block_hash == block_hash)
 		})
+	}
+
+	/// Get the transition to the epoch the given block hash is part of.
+	pub fn epoch_transition_for(&self, block_hash: H256) -> Option<EpochTransition> {
+		let details = otry!(self.block_details(&hash));
+
+		let target_num = details.number - details.epoch_delta;
+		let mut cur_hash = block_hash;
+
+		// loop back header by header until we find a canonical block.
+		// if we find one, we can use the canonical `block_hash`.
+		for i in 0..details.epoch_delta {
+			let number = details.number - i;
+
+			let canon_hash = otry!(self.block_hash(number));
+
+			if canon_hash == cur_hash {
+				// epoch transition was a canonical ancestor.
+				let target_hash = otry!(self.block_hash(target_number));
+
+				return self.epoch_transition(target_num, target_hash);
+			}
+
+			// update cur_hash
+			cur_hash = otry!(self.block_details(cur_hash)).parent;
+		}
+
+		// the loop has concluded but we found no canonical ancestors.
+		// use cur_hash and target num.
+		self.epoch_transition(target_num, cur_hash)
 	}
 
 	/// Write a pending epoch transition by block hash.
@@ -1181,12 +1212,19 @@ impl BlockChain {
 		let mut parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 		parent_details.children.push(info.hash.clone());
 
-		// create current block details
+		// create current block details.
+		// epoch delta == number of ancestors ago the transition to current epoch was.
+		// only 0 for genesis because no other transition blocks are verified under the epoch
+		// they transition to.
 		let details = BlockDetails {
 			number: header.number(),
 			total_difficulty: info.total_difficulty,
 			parent: parent_hash.clone(),
-			children: vec![]
+			children: vec![],
+			epoch_delta: match self.epoch_transition(header.number().saturating_sub(1), parent_hash) {
+				Some(_) => 1,
+				None => parent_details.epoch_delta + 1,
+			},
 		};
 
 		// write to batch

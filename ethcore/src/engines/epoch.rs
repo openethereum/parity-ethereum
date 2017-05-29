@@ -27,6 +27,8 @@ use util::H256;
 pub struct Transition {
 	/// Block hash at which the transition occurred.
 	pub block_hash: H256,
+	/// Block number at which the transition occurred.
+	pub block_number: u64,
 	/// "transition/epoch" proof from the engine.
 	pub proof: Vec<u8>,
 	/// Finality proof, if necessary.
@@ -35,8 +37,9 @@ pub struct Transition {
 
 impl Encodable for Transition {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(3)
+		s.begin_list(4)
 			.append(&self.block_hash)
+			.append(&self.block_number)
 			.append(&self.proof)
 			.append(&self.finality_proof)
 	}
@@ -46,8 +49,9 @@ impl Decodable for Transition {
 	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		Ok(Transition {
 			block_hash: rlp.val_at(0)?,
-			proof: rlp.val_at(1)?,
-			finality_proof: rlp.val_at(2)?,
+			block_number: rlp.val_at(1)?,
+			proof: rlp.val_at(2)?,
+			finality_proof: rlp.val_at(3)?,
 		})
 	}
 }

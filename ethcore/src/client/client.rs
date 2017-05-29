@@ -704,6 +704,7 @@ impl Client {
 			Ok(proof) => {
 				chain.insert_epoch_transition(&mut batch, header.number(), EpochTransition {
 					block_hash: hash.clone(),
+					block_number: header.number(),
 					proof: proof,
 					finality_proof: finality,
 				});
