@@ -23,6 +23,13 @@ pub fn is_push(i: Instruction) -> bool {
 	i >= PUSH1 && i <= PUSH32
 }
 
+#[test]
+fn test_is_push() {
+	assert!(is_push(PUSH1));
+	assert!(is_push(PUSH32));
+	assert!(!is_push(DUP1));
+}
+
 /// Returns number of bytes to read for `PUSHN` instruction
 /// PUSH1 -> 1
 pub fn get_push_bytes(i: Instruction) -> usize {

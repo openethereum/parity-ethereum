@@ -22,6 +22,8 @@ pub mod interpreter;
 #[macro_use]
 pub mod factory;
 pub mod schedule;
+
+mod vmtype;
 mod instructions;
 #[cfg(feature = "jit" )]
 mod jit;
@@ -33,6 +35,7 @@ mod benches;
 
 pub use self::evm::{Evm, Error, Finalize, FinalizationResult, GasLeft, Result, CostType};
 pub use self::ext::{Ext, ContractCreateResult, MessageCallResult, CreateContractAddress};
-pub use self::factory::{Factory, VMType};
+pub use self::vmtype::VMType;
+pub use self::factory::Factory;
 pub use self::schedule::Schedule;
 pub use types::executed::CallType;
