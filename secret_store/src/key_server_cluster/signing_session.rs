@@ -260,18 +260,16 @@ impl SessionImpl {
 			})?);
 		}
 
-		// check state
-		if data.state != SessionState::EstablishingConsensus {
-			// consensus is already established => mark node as confirmed (for restart case) and ignore
-			return data.consensus.as_mut().map(|consensus| consensus.accept_offer(&sender)).unwrap_or(Ok(()));
-		}
-
 		// process message
 		let consensus_action = {
 			let mut data = data.deref_mut();
 			let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidStateForRequest)?;
 			match message.message {
 				ConsensusMessage::InitializeConsensusSession(ref message) => {
+					// check state
+					if data.state != SessionState::EstablishingConsensus {
+						return Err(Error::InvalidStateForRequest);
+					}
 					let requestor = ethkey::recover(&message.requestor_signature, &self.id)?;
 					let consensus_action = consensus_session.on_initialize_session(sender, &requestor)?;
 					data.requestor = Some(requestor);
@@ -279,6 +277,10 @@ impl SessionImpl {
 				},
 				ConsensusMessage::ConfirmConsensusInitialization(ref message) => {
 					let consensus = data.consensus.as_mut().ok_or(Error::InvalidStateForRequest)?;
+					if data.state != SessionState::EstablishingConsensus {
+						// consensus is already established => mark node as confirmed (for restart case) and ignore
+						return consensus.offer_response(&sender, message.is_confirmed);
+					}
 					consensus_session.on_confirm_initialization(sender, message.is_confirmed, consensus)?
 				},
 			}
