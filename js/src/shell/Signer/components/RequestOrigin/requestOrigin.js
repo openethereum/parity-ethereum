@@ -29,7 +29,10 @@ export default class RequestOrigin extends Component {
   static propTypes = {
     origin: PropTypes.shape({
       type: PropTypes.oneOf(['unknown', 'dapp', 'rpc', 'ipc', 'signer']),
-      details: PropTypes.string.isRequired
+      details: PropTypes.shape({
+        dapp: PropTypes.string,
+        session: PropTypes.string
+      }).isRequired
     }).isRequired
   };
 
@@ -126,7 +129,7 @@ export default class RequestOrigin extends Component {
     }
 
     if (origin.type === 'signer') {
-      return this.renderSigner(origin.details);
+      return this.renderSigner(origin.details.session || origin.details);
     }
   }
 
