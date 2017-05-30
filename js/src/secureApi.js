@@ -34,11 +34,13 @@ export default class SecureApi extends Api {
 
   static getTransport (url, sysuiToken, protocol) {
     const transportUrl = SecureApi.transportUrl(url, protocol);
+
     return new Api.Transport.Ws(transportUrl, sysuiToken, false);
   }
 
   static transportUrl (url, protocol) {
     const proto = protocol() === 'https:' ? 'wss:' : 'ws:';
+
     return `${proto}//${url}`;
   }
 
@@ -137,7 +139,6 @@ export default class SecureApi extends Api {
 
     // Reset the tested Tokens
     this._resetTokens();
-
 
     // Try to connect
     return this._connect()

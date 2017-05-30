@@ -93,6 +93,7 @@ class FrameSecureApi extends SecureApi {
 
 const transport = window.secureTransport || new FakeTransport();
 const uiUrl = transport.uiUrl || 'http://127.0.0.1:8180';
+
 transport.uiUrl = uiUrl.replace('http://', '').replace('https://', '');
 const api = new FrameSecureApi(transport);
 
