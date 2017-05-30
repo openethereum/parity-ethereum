@@ -21,7 +21,7 @@ use executive::*;
 use engines::Engine;
 use env_info::EnvInfo;
 use evm;
-use evm::{Schedule, Ext, Factory, Finalize, VMType, ContractCreateResult, MessageCallResult, CreateContractAddress};
+use evm::{Schedule, Ext, Finalize, VMType, ContractCreateResult, MessageCallResult, CreateContractAddress};
 use externalities::*;
 use types::executed::CallType;
 use tests::helpers::*;
@@ -51,23 +51,22 @@ impl From<ethjson::vm::Call> for CallCreate {
 
 /// Tiny wrapper around executive externalities.
 /// Stores callcreates.
-struct TestExt<'a, T: 'a, V: 'a, B: 'a>
-	where T: Tracer, V: VMTracer, B: StateBackend
+struct TestExt<'a, T: 'a, V: 'a, B: 'a, E: 'a>
+	where T: Tracer, V: VMTracer, B: StateBackend, E: Engine + ?Sized
 {
-	ext: Externalities<'a, T, V, B>,
+	ext: Externalities<'a, T, V, B, E>,
 	callcreates: Vec<CallCreate>,
 	nonce: U256,
 	sender: Address,
 }
 
-impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
-	where T: Tracer, V: VMTracer, B: StateBackend
+impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> TestExt<'a, T, V, B, E>
+	where T: Tracer, V: VMTracer, B: StateBackend, E: Engine + ?Sized
 {
 	fn new(
 		state: &'a mut State<B>,
 		info: &'a EnvInfo,
-		engine: &'a Engine,
-		vm_factory: &'a Factory,
+		engine: &'a E,
 		depth: usize,
 		origin_info: OriginInfo,
 		substate: &'a mut Substate,
@@ -78,15 +77,15 @@ impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
 	) -> trie::Result<Self> {
 		Ok(TestExt {
 			nonce: state.nonce(&address)?,
-			ext: Externalities::new(state, info, engine, vm_factory, depth, origin_info, substate, output, tracer, vm_tracer),
+			ext: Externalities::new(state, info, engine, depth, origin_info, substate, output, tracer, vm_tracer),
 			callcreates: vec![],
 			sender: address,
 		})
 	}
 }
 
-impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
-	where T: Tracer, V: VMTracer, B: StateBackend
+impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for TestExt<'a, T, V, B, E>
+	where T: Tracer, V: VMTracer, B: StateBackend, E: Engine + ?Sized
 {
 	fn storage_at(&self, key: &H256) -> trie::Result<H256> {
 		self.ext.storage_at(key)
@@ -112,7 +111,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		self.ext.origin_balance()
 	}
 
-	fn blockhash(&self, number: &U256) -> H256 {
+	fn blockhash(&mut self, number: &U256) -> H256 {
 		self.ext.blockhash(number)
 	}
 
@@ -222,13 +221,13 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 		state.populate_from(From::from(vm.pre_state.clone()));
 		let info = From::from(vm.env);
 		let engine = TestEngine::new(1);
-		let vm_factory = Factory::new(vm_type.clone(), 1024 * 32);
 		let params = ActionParams::from(vm.transaction);
 
 		let mut substate = Substate::new();
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 		let mut output = vec![];
+		let vm_factory = state.vm_factory();
 
 		// execute
 		let (res, callcreates) = {
@@ -236,7 +235,6 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				&mut state,
 				&info,
 				&engine,
-				&vm_factory,
 				0,
 				OriginInfo::from(&params),
 				&mut substate,
