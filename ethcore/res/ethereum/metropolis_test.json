@@ -11,7 +11,7 @@
 				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 				"homesteadTransition": "0x0",
 				"eip150Transition": "0x0",
-				"eip155Transition": "0x7fffffffffffffff",
+				"eip155Transition": "0x0",
 				"eip160Transition": "0x0",
 				"eip161abcTransition": "0x0",
 				"eip161dTransition": "0x0",
@@ -24,9 +24,10 @@
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
 		"networkID" : "0x1",
-		"eip98Transition": "0x7fffffffffffffff",
+		"eip98Transition": "0x0",
 		"eip86Transition": "0x0",
-		"eip140Transition": "0x0"
+		"eip140Transition": "0x0",
+		"eip210Transition": "0x0"
 	},
 	"genesis": {
 		"seal": {

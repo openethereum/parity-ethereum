@@ -21,7 +21,7 @@ use super::seal::Generic as GenericSeal;
 
 use action_params::{ActionValue, ActionParams};
 use builtin::Builtin;
-use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint};
+use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint, DEFAULT_BLOCKHASH_CONTRACT};
 use env_info::EnvInfo;
 use error::Error;
 use ethereum;
@@ -39,7 +39,8 @@ use types::executed::CallType;
 use util::*;
 
 /// Parameters common to all engines.
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Default)]
+#[cfg_attr(test, derive(Clone))]
 pub struct CommonParams {
 	/// Account start nonce.
 	pub account_start_nonce: U256,
@@ -63,6 +64,14 @@ pub struct CommonParams {
 	pub eip86_transition: BlockNumber,
 	/// Number of first block where EIP-140 (Metropolis: REVERT opcode) rules begin.
 	pub eip140_transition: BlockNumber,
+	/// Number of first block where EIP-210 (Metropolis: BLOCKHASH changes) rules begin.
+	pub eip210_transition: BlockNumber,
+	/// EIP-210 Blockhash contract address.
+	pub eip210_contract_address: Address,
+	/// EIP-210 Blockhash contract code.
+	pub eip210_contract_code: Bytes,
+	/// Gas allocated for EIP-210 blockhash update.
+	pub eip210_contract_gas: U256,
 }
 
 impl From<ethjson::spec::Params> for CommonParams {
@@ -79,6 +88,12 @@ impl From<ethjson::spec::Params> for CommonParams {
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
 			eip86_transition: p.eip86_transition.map_or(BlockNumber::max_value(), Into::into),
 			eip140_transition: p.eip140_transition.map_or(BlockNumber::max_value(), Into::into),
+			eip210_transition: p.eip210_transition.map_or(BlockNumber::max_value(), Into::into),
+			eip210_contract_address: p.eip210_contract_address.map_or(0xf0.into(), Into::into),
+			eip210_contract_code: p.eip210_contract_code.map_or_else(
+				|| DEFAULT_BLOCKHASH_CONTRACT.from_hex().expect("Default BLOCKHASH contract is valid"),
+				Into::into),
+			eip210_contract_gas: p.eip210_contract_gas.map_or(1000000.into(), Into::into),
 		}
 	}
 }
@@ -95,9 +110,6 @@ pub struct Spec {
 
 	/// Known nodes on the network in enode format.
 	pub nodes: Vec<String>,
-
-	/// Parameters common to all engines.
-	pub params: CommonParams,
 
 	/// The genesis block's parent hash field.
 	pub parent_hash: H256,
@@ -138,7 +150,6 @@ fn load_from(s: ethjson::spec::Spec) -> Result<Spec, Error> {
 
 	let mut s = Spec {
 		name: s.name.clone().into(),
-		params: params.clone(),
 		engine: Spec::engine(s.engine, params, builtins),
 		data_dir: s.data_dir.unwrap_or(s.name).into(),
 		nodes: s.nodes.unwrap_or_else(Vec::new),
@@ -250,7 +261,7 @@ impl Spec {
 				state.kill_account(&address);
 
 				{
-					let mut exec = Executive::new(&mut state, &env_info, self.engine.as_ref(), &factories.vm);
+					let mut exec = Executive::new(&mut state, &env_info, self.engine.as_ref());
 					if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
 						warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
 					}
@@ -275,17 +286,20 @@ impl Spec {
 		self.state_root_memo.read().clone()
 	}
 
+	/// Get common blockchain parameters.
+	pub fn params(&self) -> &CommonParams { &self.engine.params() }
+
 	/// Get the known knodes of the network in enode format.
 	pub fn nodes(&self) -> &[String] { &self.nodes }
 
 	/// Get the configured Network ID.
-	pub fn network_id(&self) -> u64 { self.params.network_id }
+	pub fn network_id(&self) -> u64 { self.params().network_id }
 
 	/// Get the configured subprotocol name.
-	pub fn subprotocol_name(&self) -> String { self.params.subprotocol_name.clone() }
+	pub fn subprotocol_name(&self) -> String { self.params().subprotocol_name.clone() }
 
 	/// Get the configured network fork block.
-	pub fn fork_block(&self) -> Option<(BlockNumber, H256)> { self.params.fork_block }
+	pub fn fork_block(&self) -> Option<(BlockNumber, H256)> { self.params().fork_block }
 
 	/// Get the header of the genesis block.
 	pub fn genesis_header(&self) -> Header {
@@ -362,7 +376,6 @@ impl Spec {
 		// TODO: could optimize so we don't re-run, but `ensure_db_good` is barely ever
 		// called anyway.
 		let db = self.run_constructors(factories, db)?;
-
 		Ok(db)
 	}
 
