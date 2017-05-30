@@ -290,11 +290,17 @@ mod tests {
 		let insert_key = other.insert(b"arf");
 		main.emplace(insert_key, DBValue::from_slice(b"arf"));
 
+		let negative_remove_key = other.insert(b"negative");
+		other.remove(&negative_remove_key);	// ref cnt: 0
+		other.remove(&negative_remove_key);	// ref cnt: -1
+		main.remove(&negative_remove_key);	// ref cnt: -1
+
 		main.consolidate(other);
 
 		let overlay = main.drain();
 
 		assert_eq!(overlay.get(&remove_key).unwrap(), &(DBValue::from_slice(b"doggo"), 0));
 		assert_eq!(overlay.get(&insert_key).unwrap(), &(DBValue::from_slice(b"arf"), 2));
+		assert_eq!(overlay.get(&negative_remove_key).unwrap(), &(DBValue::from_slice(b"negative"), -2));
 	}
 }
