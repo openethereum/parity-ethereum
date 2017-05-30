@@ -385,7 +385,10 @@ impl SessionImpl {
 			return Err(Error::InvalidMessage);
 		}
 		if data.state != SessionState::WaitingForPartialSignatureRequest {
-			return Err(Error::InvalidStateForRequest);
+			match data.state {
+				SessionState::SessionKeyGeneration => return Err(Error::TooEarlyForRequest),
+				_ => return Err(Error::InvalidStateForRequest),
+			}
 		}
 
 		// update data
@@ -642,6 +645,7 @@ impl SessionImpl {
 
 		let combined_hash = math::combine_message_hash_with_public(&message_hash, &session_joint_public)?;
 		math::compute_signature_share(
+			encrypted_data.threshold,
 			&combined_hash,
 			&session_secret_coeff,
 			&encrypted_data.secret_share,
@@ -864,31 +868,44 @@ mod tests {
 				.or_else(|| self.queue.pop_front())
 		}
 
-		pub fn process_message(&mut self, msg: (NodeId, NodeId, Message)) -> Result<(), Error> {
-			match {
-				match msg.2 {
-					Message::Signing(SigningMessage::SigningConsensusMessage(ref message)) => self.nodes[&msg.1].session.on_consensus_message(msg.0.clone(), &message),
-					Message::Signing(SigningMessage::SigningGenerationMessage(ref message)) => self.nodes[&msg.1].session.on_generation_message(msg.0.clone(), &message),
-					Message::Signing(SigningMessage::RequestPartialSignature(ref message)) => self.nodes[&msg.1].session.on_partial_signature_requested(msg.0.clone(), &message),
-					Message::Signing(SigningMessage::PartialSignature(ref message)) => self.nodes[&msg.1].session.on_partial_signature(msg.0.clone(), &message),
-					Message::Signing(SigningMessage::SigningSessionCompleted(ref message)) => self.nodes[&msg.1].session.on_session_completed(msg.0.clone(), &message),
-					_ => panic!("unexpected"),
+		pub fn process_message(&mut self, mut msg: (NodeId, NodeId, Message)) -> Result<(), Error> {
+			let mut is_queued_message = false;
+			loop {
+				match {
+					match msg.2 {
+						Message::Signing(SigningMessage::SigningConsensusMessage(ref message)) => self.nodes[&msg.1].session.on_consensus_message(msg.0.clone(), &message),
+						Message::Signing(SigningMessage::SigningGenerationMessage(ref message)) => self.nodes[&msg.1].session.on_generation_message(msg.0.clone(), &message),
+						Message::Signing(SigningMessage::RequestPartialSignature(ref message)) => self.nodes[&msg.1].session.on_partial_signature_requested(msg.0.clone(), &message),
+						Message::Signing(SigningMessage::PartialSignature(ref message)) => self.nodes[&msg.1].session.on_partial_signature(msg.0.clone(), &message),
+						Message::Signing(SigningMessage::SigningSessionCompleted(ref message)) => self.nodes[&msg.1].session.on_session_completed(msg.0.clone(), &message),
+						_ => panic!("unexpected"),
+					}
+				} {
+					Ok(_) => {
+						if let Some(message) = self.queue.pop_front() {
+							msg = message;
+							is_queued_message = true;
+							continue;
+						}
+						return Ok(());
+					},
+					Err(Error::TooEarlyForRequest) => {
+						if is_queued_message {
+							self.queue.push_front(msg);
+						} else {
+							self.queue.push_back(msg);
+						}
+						return Ok(());
+					},
+					Err(err) => return Err(err),
 				}
-			} {
-				Ok(_) => Ok(()),
-				Err(Error::TooEarlyForRequest) => {
-					self.queue.push_back(msg);
-					Ok(())
-				},
-				Err(err) => Err(err),
 			}
 		}
 	}
 
 	#[test]
 	fn complete_gen_sign_session() {
-		//let test_cases = [(0, 1)];
-		let test_cases = [(1, 3)];
+		let test_cases = [(0, 1), (0, 5), (2, 5), (3, 5)];
 		for &(threshold, num_nodes) in &test_cases {
 			// run key generation sessions
 			let mut gl = KeyGenerationMessageLoop::new(num_nodes);

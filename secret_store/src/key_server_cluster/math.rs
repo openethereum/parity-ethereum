@@ -318,30 +318,37 @@ pub fn combine_message_hash_with_public(message_hash: &H256, public: &Public) ->
 }
 
 /// Compute signature share.
-pub fn compute_signature_share<'a, I>(combined_hash: &Secret, one_time_secret_coeff: &Secret, node_secret_share: &Secret, node_number: &Secret, other_nodes_numbers: I)
+pub fn compute_signature_share<'a, I>(threshold: usize, combined_hash: &Secret, one_time_secret_coeff: &Secret, node_secret_share: &Secret, node_number: &Secret, other_nodes_numbers: I)
 	-> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	let mut sum = one_time_secret_coeff.clone();
-	let mut addendum = compute_shadow_mul(node_secret_share, node_number, other_nodes_numbers)?;
-	addendum.mul(combined_hash)?;
-	sum.add(&addendum)?;
+	let mut subtrahend = compute_shadow_mul(combined_hash, node_number, other_nodes_numbers)?;
+	subtrahend.mul(node_secret_share)?;
+	if threshold % 2 == 0 {
+		sum.sub(&subtrahend)?;
+	} else {
+		sum.add(&subtrahend)?;
+	}
 	Ok(sum)
 }
 
 /// Check signature share.
-pub fn _check_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: &Secret, _public_share: &Public, _one_time_public_share: &Public, _node_number: &Secret, _other_nodes_numbers: I)
+pub fn _check_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: &Secret, _public_share: &Public, _one_time_public_share: &Public, _node_numbers: I)
 	-> Result<bool, Error> where I: Iterator<Item=&'a Secret> {
+	// TODO: in paper partial signature is checked using comparison:
+	//    sig[i] * T                                  = r[i] - c * lagrange_coeff(i) * y[i]
+	// => (k[i] - c * lagrange_coeff(i) * s[i]) * T   = r[i] - c * lagrange_coeff(i) * y[i]
+	// => k[i] * T - c * lagrange_coeff(i) * s[i] * T = k[i] * T - c * lagrange_coeff(i) * y[i]
+	// => this means that y[i] = s[i] * T
+	// but when verifying signature (for t = 1), nonce public (r) is restored using following expression:
+	// r = (sig[0] + sig[1]) * T - c * y
+	// r = (k[0] - c * lagrange_coeff(0) * s[0] + k[1] - c * lagrange_coeff(1) * s[1]) * T - c * y
+	// r = (k[0] + k[1]) * T - c * (lagrange_coeff(0) * s[0] + lagrange_coeff(1) * s[1]) * T - c * y
+	// r = r - c * (lagrange_coeff(0) * s[0] + lagrange_coeff(1) * s[1]) * T - c * y
+	// => -c * y = c * (lagrange_coeff(0) * s[0] + lagrange_coeff(1) * s[1]) * T
+	// => -y = (lagrange_coeff(0) * s[0] + lagrange_coeff(1) * s[1]) * T
+	// => y[i] != s[i] * T
+	// => some other way is required
 	Ok(true)
-	/* TODO: fix with odd-of-N
-	let mut left = math::generation_point();
-	math::public_mul_secret(&mut left, signature_share)?;
-
-	let right_coeff = compute_shadow_mul(hash, node_number, other_nodes_numbers)?;
-	let mut right_subtrahend = public_share.clone();
-	math::public_mul_secret(&mut right_subtrahend, &right_coeff)?;
-	let mut right = one_time_public_share.clone();
-	math::public_sub(&mut right, &right_subtrahend)?;
-
-	Ok(left == right)*/
 }
 
 /// Compute signature.
@@ -503,7 +510,8 @@ pub mod tests {
 
 	#[test]
 	fn full_signature_math_session() {
-		let test_cases = [(1, 4)];
+		let test_cases = [(0, 1), (0, 2), (1, 2), (1, 3), (2, 3), (1, 4), (2, 4), (3, 4), (1, 5), (2, 5), (3, 5), (4, 5),
+			(1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10)];
 		for &(t, n) in &test_cases {
 			// hash of the message to be signed
 			let message_hash: Secret = "0000000000000000000000000000000000000000000000000000000000000042".parse().unwrap();
@@ -520,7 +528,8 @@ pub mod tests {
 			let n = t + 1;
 
 			// step 1: run DKG to generate one-time secret key (nonce)
-			let one_time_artifacts = run_key_generation(t, n, Some(artifacts.id_numbers.clone()));
+			let id_numbers = artifacts.id_numbers.iter().cloned().take(n).collect();
+			let one_time_artifacts = run_key_generation(t, n, Some(id_numbers));
 
 			// step 2: message hash && x coordinate of one-time public value are combined
 			let combined_hash = combine_message_hash_with_public(&message_hash, &one_time_artifacts.joint_public).unwrap();
@@ -528,6 +537,7 @@ pub mod tests {
 			// step 3: compute signature shares
 			let partial_signatures: Vec<_> = (0..n)
 				.map(|i| compute_signature_share(
+					t,
 					&combined_hash,
 					&one_time_artifacts.polynoms1[i][0],
 					&artifacts.secret_shares[i],
@@ -550,12 +560,7 @@ pub mod tests {
 							&signature_share,
 							&artifacts.public_shares[j],
 							&one_time_artifacts.public_shares[j],
-							&artifacts.id_numbers[j],
-							artifacts.id_numbers.iter()
-								.enumerate()
-								.filter(|&(k, _)| j != k)
-								.map(|(_, n)| n)
-								.take(t)).unwrap_or(false));
+							artifacts.id_numbers.iter().take(t)).unwrap_or(false));
 						signature_share
 					})
 					.collect())
