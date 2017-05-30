@@ -16,8 +16,8 @@
 
 use std::fmt;
 
-#[derive(Debug, PartialEq, Clone)]
 /// Type of EVM to use.
+#[derive(Debug, PartialEq, Clone)]
 pub enum VMType {
 	/// JIT EVM
 	#[cfg(feature = "jit")]

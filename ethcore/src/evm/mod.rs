@@ -19,10 +19,11 @@
 pub mod ext;
 pub mod evm;
 pub mod interpreter;
-mod vmtype;
 #[macro_use]
 pub mod factory;
 pub mod schedule;
+
+mod vmtype;
 mod instructions;
 #[cfg(feature = "jit" )]
 mod jit;
