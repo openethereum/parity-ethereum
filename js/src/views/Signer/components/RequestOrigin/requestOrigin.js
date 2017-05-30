@@ -29,9 +29,12 @@ export default class RequestOrigin extends Component {
   static propTypes = {
     origin: PropTypes.shape({
       type: PropTypes.oneOf(['unknown', 'dapp', 'rpc', 'ipc', 'signer']),
-      details: PropTypes.shape({
-        session: PropTypes.string.isRequired
-      }).isRequired
+      details: PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.shape({
+          session: PropTypes.string.isRequired
+        })
+      ]).isRequired
     }).isRequired
   };
 
