@@ -75,12 +75,13 @@ class ParityBar extends Component {
 
     this.accountStore = new AccountStore(api);
 
-    // Hook to the dapp loaded event to position the
-    // Parity Bar accordingly
-    const dappsStore = DappsStore.get(api);
+    if (this.props.dapp) {
+      // Hook to the dapp loaded event to position the
+      // Parity Bar accordingly
+      const dappsStore = DappsStore.get(api);
 
-    dappsStore
-      .on('loaded', (app) => {
+      dappsStore.on('loaded', (app) => {
+        console.log('loaded', app);
         this.app = app;
 
         if (this.props.dapp) {
@@ -88,7 +89,6 @@ class ParityBar extends Component {
         }
       });
 
-    if (this.props.dapp) {
       this.loadPosition();
     }
   }
