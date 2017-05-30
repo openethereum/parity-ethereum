@@ -903,8 +903,7 @@ mod tests {
 
 	#[test]
 	fn complete_gen_sign_session() {
-		//let test_cases = [(0, 1), (0, 5), (2, 5), (3, 5)];
-		let test_cases = [/*(0, 1), (0, 5), */(2, 3)];
+		let test_cases = [(0, 1), (0, 5), (2, 5), (3, 5)];
 		for &(threshold, num_nodes) in &test_cases {
 			// run key generation sessions
 			let mut gl = KeyGenerationMessageLoop::new(num_nodes);
