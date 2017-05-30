@@ -116,17 +116,18 @@ impl Memory for Vec<u8> {
 	}
 
 	fn into_return_data(mut self, offset: U256, size: U256) -> ReturnData {
-		let offset = offset.low_u64() as usize;
+		let mut offset = offset.low_u64() as usize;
 		let size = size.low_u64() as usize;
 		if !is_valid_range(offset, size) {
 			return ReturnData::empty()
 		}
 		if self.len() - size > MAX_RETURN_WASTE_BYTES {
-			let mem = self.drain(offset..).take(size).collect();
-			ReturnData::new(mem, 0, size)
-		} else {
-			ReturnData::new(self, offset, size)
+			{ let _ =  self.drain(..offset); }
+			self.truncate(size);
+			self.shrink_to_fit();
+			offset = 0;
 		}
+		ReturnData::new(self, offset, size)
 	}
 }
 
