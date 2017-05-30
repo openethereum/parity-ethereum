@@ -18,49 +18,49 @@ import { inBlockNumber, inData, inHex, inNumber16, inOptions, inTraceFilter, inT
 import { outTraces, outTraceReplay } from '../../format/output';
 
 export default class Trace {
-  constructor (transport) {
-    this._transport = transport;
+  constructor (provider) {
+    this._provider = provider;
   }
 
   block (blockNumber = 'latest') {
-    return this._transport
-      .execute('trace_block', inBlockNumber(blockNumber))
+    return this._provider
+      .send('trace_block', inBlockNumber(blockNumber))
       .then(outTraces);
   }
 
   call (options, blockNumber = 'latest', whatTrace = ['trace']) {
-    return this._transport
-      .execute('trace_call', inOptions(options), inBlockNumber(blockNumber), inTraceType(whatTrace))
+    return this._provider
+      .send('trace_call', inOptions(options), inBlockNumber(blockNumber), inTraceType(whatTrace))
       .then(outTraceReplay);
   }
 
   filter (filterObj) {
-    return this._transport
-      .execute('trace_filter', inTraceFilter(filterObj))
+    return this._provider
+      .send('trace_filter', inTraceFilter(filterObj))
       .then(outTraces);
   }
 
   get (txHash, position) {
-    return this._transport
-      .execute('trace_get', inHex(txHash), inNumber16(position))
+    return this._provider
+      .send('trace_get', inHex(txHash), inNumber16(position))
       .then(outTraces);
   }
 
   rawTransaction (data, whatTrace = ['trace']) {
-    return this._transport
-      .execute('trace_rawTransaction', inData(data), inTraceType(whatTrace))
+    return this._provider
+      .send('trace_rawTransaction', inData(data), inTraceType(whatTrace))
       .then(outTraceReplay);
   }
 
   replayTransaction (txHash, whatTrace = ['trace']) {
-    return this._transport
-      .execute('trace_replayTransaction', txHash, inTraceType(whatTrace))
+    return this._provider
+      .send('trace_replayTransaction', txHash, inTraceType(whatTrace))
       .then(outTraceReplay);
   }
 
   transaction (txHash) {
-    return this._transport
-      .execute('trace_transaction', inHex(txHash))
+    return this._provider
+      .send('trace_transaction', inHex(txHash))
       .then(outTraces);
   }
 }

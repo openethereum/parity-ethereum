@@ -16,7 +16,7 @@
 
 import { Http as Transport } from '../transport';
 
-export class Http extends Transport {
+export default class Http extends Transport {
   send = (method, params, callback) => {
     this
       ._execute(method, params)

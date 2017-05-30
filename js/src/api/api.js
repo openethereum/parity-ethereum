@@ -31,11 +31,11 @@ export default class Api extends EventEmitter {
     super();
 
     if (!provider || (!isFunction(provider.send) && !isFunction(provider.execute))) {
-      throw new Error('EthApi needs provider with send() function defined');
+      throw new Error('Api needs provider with send() function');
     }
 
     if (!isFunction(provider.send)) {
-      console.warn('EthApi needs provider with send() function defined, old-style Transport found instead');
+      console.warn(new Error('deprecated: Api needs provider with send() function, old-style Transport found instead'));
     }
 
     this._provider = new PromiseWrapper(provider);
@@ -89,6 +89,10 @@ export default class Api extends EventEmitter {
 
   get personal () {
     return this._personal;
+  }
+
+  get provider () {
+    return this._provider;
   }
 
   get shh () {

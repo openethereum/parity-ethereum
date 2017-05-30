@@ -60,7 +60,7 @@ describe('api/transport/Ws', () => {
       transport = new Ws(TEST_WS_URL);
 
       return transport
-        .execute('test_anyCall', 1, 2, 3)
+        .execute('test_anyCall', [1, 2, 3])
         .then((_result) => {
           result = _result;
         });

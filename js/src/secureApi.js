@@ -33,7 +33,7 @@ export default class SecureApi extends Api {
   static getTransport (url, sysuiToken, protocol) {
     const proto = protocol() === 'https:' ? 'wss:' : 'ws:';
 
-    return new Api.Transport.Ws(`${proto}//${url}`, sysuiToken, false);
+    return new Api.Provider.Ws(`${proto}//${url}`, sysuiToken, false);
   }
 
   // Returns a protocol with `:` at the end.

@@ -43,7 +43,7 @@ describe('api/local/LocalAccountsMiddleware', function () {
 
     // Same as `parity_newAccountFromPhrase` with empty phrase
     return transport
-      .execute('parity_newAccountFromSecret', SECRET, PASSWORD)
+      .execute('parity_newAccountFromSecret', [SECRET, PASSWORD])
       .catch((_err) => {
         // Ignore the error - all instances of LocalAccountsMiddleware
         // share account storage
@@ -91,7 +91,7 @@ describe('api/local/LocalAccountsMiddleware', function () {
 
   it('allows non-registered methods through', () => {
     return transport
-      .execute('eth_getBalance', '0x407d73d8a49eeb85d32cf465507dd71d507100c1')
+      .execute('eth_getBalance', ['0x407d73d8a49eeb85d32cf465507dd71d507100c1'])
       .then((result) => {
         expect(result).to.be.equal(RPC_RESPONSE);
       });
@@ -116,11 +116,11 @@ describe('api/local/LocalAccountsMiddleware', function () {
 
   it('can handle `parity_phraseToAddress`', () => {
     return transport
-      .execute('parity_phraseToAddress', '')
+      .execute('parity_phraseToAddress', [''])
       .then((address) => {
         expect(address).to.be.equal(ADDRESS);
 
-        return transport.execute('parity_phraseToAddress', FOO_PHRASE);
+        return transport.execute('parity_phraseToAddress', [FOO_PHRASE]);
       })
       .then((address) => {
         expect(address).to.be.equal(FOO_ADDRESS);
@@ -129,7 +129,7 @@ describe('api/local/LocalAccountsMiddleware', function () {
 
   it('can create and kill an account', () => {
     return transport
-      .execute('parity_newAccountFromPhrase', FOO_PHRASE, FOO_PASSWORD)
+      .execute('parity_newAccountFromPhrase', [FOO_PHRASE, FOO_PASSWORD])
       .then((address) => {
         expect(address).to.be.equal(FOO_ADDRESS);
 
@@ -139,7 +139,7 @@ describe('api/local/LocalAccountsMiddleware', function () {
         expect(accounts.length).to.be.equal(2);
         expect(accounts.includes(FOO_ADDRESS)).to.be.true;
 
-        return transport.execute('parity_killAccount', FOO_ADDRESS, FOO_PASSWORD);
+        return transport.execute('parity_killAccount', [FOO_ADDRESS, FOO_PASSWORD]);
       })
       .then((result) => {
         expect(result).to.be.true;

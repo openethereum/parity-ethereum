@@ -23,7 +23,7 @@ import Api from '@parity/api';
 
 import TxRow from './txRow';
 
-const api = new Api({ execute: sinon.stub() });
+const api = new Api({ send: sinon.stub() });
 
 const STORE = {
   dispatch: sinon.stub(),

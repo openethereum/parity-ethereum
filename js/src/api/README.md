@@ -28,8 +28,8 @@ Install the package with `npm install --save ethapi-js` from the [npm registry e
 import EthApi from 'ethapi-js';
 
 // do the setup
-const transport = new EthApi.Transport.Http('http://localhost:8545');  // or .Ws('ws://localhost:8546')
-const ethapi = new EthApi(transport);
+const provider = new EthApi.Provider.Http('http://localhost:8545');  // or .Ws('ws://localhost:8546')
+const ethapi = new EthApi(provider);
 ```
 
 You will require native Promises and fetch support (latest browsers only), they can be utilised by

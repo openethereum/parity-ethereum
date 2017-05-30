@@ -43,19 +43,19 @@ describe('api/transport/Middleware', () => {
   });
 
   it('Routes requests to middleware', () => {
-    return transport.execute('mock_rpc', 100).then((num) => {
+    return transport.execute('mock_rpc', [100]).then((num) => {
       expect(num).to.be.equal(100);
     });
   });
 
   it('Passes non-mocked requests through', () => {
-    return transport.execute('not_moced', 200).then((result) => {
+    return transport.execute('not_moced', [200]).then((result) => {
       expect(result).to.be.equal(MOCKED);
     });
   });
 
   it('Passes mocked requests through, if middleware returns null', () => {
-    return transport.execute('mock_null', 300).then((result) => {
+    return transport.execute('mock_null', [300]).then((result) => {
       expect(result).to.be.equal(MOCKED);
     });
   });

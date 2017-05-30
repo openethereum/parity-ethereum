@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default class PromiseProvider {
+export default class PromiseWrapper {
   constructor (provider) {
     this.provider = provider;
   }
 
-  send = (method, params) => {
+  send = (method, ...params) => {
     if (!this.provider.send) {
       // old-style transport interface for backwards compatibility
       return this.provider.execute(method, params);

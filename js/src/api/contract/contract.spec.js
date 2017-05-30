@@ -27,8 +27,8 @@ import Api from '../api';
 import Contract from './contract';
 import { isInstanceOf, isFunction } from '../util/types';
 
-const transport = new Api.Transport.Http(TEST_HTTP_URL, -1);
-const eth = new Api(transport);
+const provider = new Api.Provider.Http(TEST_HTTP_URL, -1);
+const eth = new Api(provider);
 
 describe('api/contract/Contract', () => {
   const ADDR = '0x0123456789';

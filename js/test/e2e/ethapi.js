@@ -25,9 +25,9 @@ function createApi (transport) {
 }
 
 export function createHttpApi () {
-  return createApi(new Api.Transport.Http('http://localhost:8545'));
+  return createApi(new Api.Provider.Http('http://localhost:8545'));
 }
 
 export function createWsApi () {
-  return createApi(new Api.Transport.Ws('ws://localhost:8546'));
+  return createApi(new Api.Provider.Ws('ws://localhost:8546'));
 }
