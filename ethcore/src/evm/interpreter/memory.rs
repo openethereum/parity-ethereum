@@ -16,7 +16,8 @@
 
 use util::U256;
 use evm::ReturnData;
-use std::cmp::min;
+
+const MAX_RETURN_WASTE_BYTES: usize = 16384;
 
 pub trait Memory {
 	/// Retrieve current size of the memory
@@ -39,7 +40,7 @@ pub trait Memory {
 	fn writeable_slice(&mut self, offset: U256, size: U256) -> &mut[u8];
 	fn dump(&self);
 	/// Convert memory into return data.
-	fn into_return_data(self, offset: usize, size: usize) -> ReturnData;
+	fn into_return_data(self, offset: U256, size: U256) -> ReturnData;
 }
 
 /// Checks whether offset and size is valid memory range
@@ -114,10 +115,18 @@ impl Memory for Vec<u8> {
 		}
 	}
 
-	fn into_return_data(self, offset: usize, size: usize) -> ReturnData {
-		let offset = min(offset, self.len());
-		let size = min(size, self.len() - offset);
-		ReturnData::new(self, offset, size)
+	fn into_return_data(mut self, offset: U256, size: U256) -> ReturnData {
+		let offset = offset.low_u64() as usize;
+		let size = size.low_u64() as usize;
+		if !is_valid_range(offset, size) {
+			return ReturnData::empty()
+		}
+		if self.len() - size > MAX_RETURN_WASTE_BYTES {
+			let mem = self.drain(offset..).take(size).collect();
+			ReturnData::new(mem, 0, size)
+		} else {
+			ReturnData::new(self, offset, size)
+		}
 	}
 }
 

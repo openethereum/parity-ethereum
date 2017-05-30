@@ -170,7 +170,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 					let mem = mem::replace(&mut self.mem, Vec::new());
 					return Ok(GasLeft::NeedsReturn {
 						gas_left: gas.as_u256(),
-						data: mem.into_return_data(usize::from_u256(init_off)?, usize::from_u256(init_size)?),
+						data: mem.into_return_data(init_off, init_size),
 						apply_state: apply
 					});
 				},
@@ -498,6 +498,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::CODESIZE => {
 				stack.push(U256::from(code.len()));
+			},
+			instructions::RETURNDATASIZE => {
+				stack.push(U256::from(self.return_data.len()))
 			},
 			instructions::EXTCODESIZE => {
 				let address = u256_to_address(&stack.pop_back());
