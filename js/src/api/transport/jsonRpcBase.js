@@ -74,7 +74,7 @@ export default class JsonRpcBase extends EventEmitter {
     };
   }
 
-  execute (method, ...params) {
+  execute (method, params) {
     return this._middlewareList.then((middlewareList) => {
       for (const middleware of middlewareList) {
         const res = middleware.handle(method, params);
