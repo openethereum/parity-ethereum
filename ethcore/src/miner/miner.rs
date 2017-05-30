@@ -728,7 +728,7 @@ impl MinerService for Miner {
 						.map_err(ExecutionError::from)?;
 				}
 				let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-				let mut ret = Executive::new(&mut state, &env_info, &*self.engine, client.vm_factory()).transact(t, options)?;
+				let mut ret = Executive::new(&mut state, &env_info, &*self.engine).transact(t, options)?;
 
 				// TODO gav move this into Executive.
 				if let Some(original) = original_state {

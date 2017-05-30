@@ -25,7 +25,8 @@ use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use builtin::Builtin;
 use state::*;
-use evm::Schedule;
+use evm::{Schedule, Factory as EvmFactory};
+use factory::Factories;
 use engines::Engine;
 use ethereum;
 use ethereum::ethash::EthashParams;
@@ -316,6 +317,13 @@ pub fn generate_dummy_empty_blockchain() -> BlockChain {
 pub fn get_temp_state() -> State<::state_db::StateDB> {
 	let journal_db = get_temp_state_db();
 	State::new(journal_db, U256::from(0), Default::default())
+}
+
+pub fn get_temp_state_with_factory(factory: EvmFactory) -> State<::state_db::StateDB> {
+	let journal_db = get_temp_state_db();
+	let mut factories = Factories::default();
+	factories.vm = factory;
+	State::new(journal_db, U256::from(0), factories)
 }
 
 pub fn get_temp_state_db() -> StateDB {

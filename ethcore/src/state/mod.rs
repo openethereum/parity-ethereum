@@ -36,6 +36,7 @@ use types::executed::{Executed, ExecutionError};
 use types::state_diff::StateDiff;
 use transaction::SignedTransaction;
 use state_db::StateDB;
+use evm::{Factory as EvmFactory};
 
 use util::*;
 
@@ -310,6 +311,11 @@ impl<B: Backend> State<B> {
 		Ok(state)
 	}
 
+	/// Get a VM factory that can execute on this state.
+	pub fn vm_factory(&self) -> EvmFactory {
+		self.factories.vm.clone()
+	}
+
 	/// Swap the current backend for another.
 	// TODO: [rob] find a less hacky way to avoid duplication of `Client::state_at`.
 	pub fn replace_backend<T: Backend>(self, backend: T) -> State<T> {
@@ -579,6 +585,7 @@ impl<B: Backend> State<B> {
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn set_storage(&mut self, a: &Address, key: H256, value: H256) -> trie::Result<()> {
+		trace!(target: "state", "set_storage({}:{} to {})", a, key.hex(), value.hex());
 		if self.storage_at(a, &key)? != value {
 			self.require(a, false)?.set_storage(key, value)
 		}
@@ -625,16 +632,13 @@ impl<B: Backend> State<B> {
 		-> Result<Executed, ExecutionError>
 	{
 		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
-		let vm_factory = self.factories.vm.clone();
-
-		let mut e = Executive::new(self, env_info, engine, &vm_factory);
+		let mut e = Executive::new(self, env_info, engine);
 
 		match virt {
 			true => e.transact_virtual(t, options),
 			false => e.transact(t, options),
 		}
 	}
-
 
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.

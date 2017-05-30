@@ -139,11 +139,12 @@ export default class Input extends Component {
           step={ step }
           style={ style }
           tabIndex={ tabIndex }
-          type={ type }
           value={ parseI18NString(this.context, value || defaultValue) }
         >
           { this.renderCopyButton() }
-          <input />
+          <input
+            type={ type }
+          />
           { children }
         </SemanticInput>
       </LabelWrapper>
