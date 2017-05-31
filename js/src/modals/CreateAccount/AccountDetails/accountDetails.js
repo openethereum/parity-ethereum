@@ -102,51 +102,47 @@ export default class AccountDetails extends Component {
       />
     );
     const label = (
-     <FormattedMessage
+      <FormattedMessage
         id='createAccount.accountDetails.phrase.label'
         defaultMessage='owner recovery phrase'
       />
     );
 
     if (!isConfirming) {
-      return [
-        (
-          <Input
-            allowCopy
-            hint={ hint }
-            label={ label }
-            readOnly
-            value={ phrase }
-          />
-        ), (
-          <div className={ styles.backupPhrase }>
-            <FormattedMessage
-              id='createAccount.accountDetails.phrase.backup'
-              defaultMessage='Please back up the recovery phrase now. Make sure to keep it private and secure, it allows full and unlimited access to the account.'
-            />
-          </div>
-        )
-      ];
-    }
-
-    return [
-      (
+      return [(
         <Input
-          allowPaste={ isTest }
-          error={ backupPhraseError }
+          allowCopy
           hint={ hint }
           label={ label }
-          onChange={ this.onEditRecoveryPhrase }
-          value={ backupPhrase }
+          readOnly
+          value={ phrase }
         />
       ), (
         <div className={ styles.backupPhrase }>
           <FormattedMessage
-            id='createAccount.accountDetails.phrase.backupConfirm'
-            defaultMessage='Type your recovery phrase now.'
+            id='createAccount.accountDetails.phrase.backup'
+            defaultMessage='Please back up the recovery phrase now. Make sure to keep it private and secure, it allows full and unlimited access to the account.'
           />
         </div>
-      )
-    ];
+      )];
+    }
+
+    return [(
+      <Input
+        allowPaste={ isTest }
+        error={ backupPhraseError }
+        hint={ hint }
+        label={ label }
+        onChange={ this.onEditRecoveryPhrase }
+        value={ backupPhrase }
+      />
+    ), (
+      <div className={ styles.backupPhrase }>
+        <FormattedMessage
+          id='createAccount.accountDetails.phrase.backupConfirm'
+          defaultMessage='Type your recovery phrase now.'
+        />
+      </div>
+    )];
   }
 }

@@ -65,6 +65,6 @@ export default {
       id='errors.invalidKey'
       defaultMessage='the raw key needs to be hex, 64 characters in length and contain the prefix "0x"'
     />
-  ),
+  )
 
 };
