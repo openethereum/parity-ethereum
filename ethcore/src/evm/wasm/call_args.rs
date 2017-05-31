@@ -20,43 +20,43 @@ use util::{U256, H160};
 
 /// Input part of the wasm call descriptor
 pub struct CallArgs {
-    /// Receiver of the transaction
-    pub address: [u8; 20],
+	/// Receiver of the transaction
+	pub address: [u8; 20],
 
-    /// Sender of the transaction
-    pub sender: [u8; 20],
+	/// Sender of the transaction
+	pub sender: [u8; 20],
 
-    /// Original transaction initiator
-    pub origin: [u8; 20],
+	/// Original transaction initiator
+	pub origin: [u8; 20],
 
-    /// Transfer value
-    pub value: [u8; 32],
+	/// Transfer value
+	pub value: [u8; 32],
 
-    /// call/create params
-    pub data: Vec<u8>,
+	/// call/create params
+	pub data: Vec<u8>,
 }
 
 impl CallArgs {
-    /// New contract call payload with known parameters
-    pub fn new(address: H160, sender: H160, origin: H160, value: U256, data: Vec<u8>) -> Self {
-        let mut descriptor = CallArgs {
-            address: [0u8; 20],
-            sender: [0u8; 20],
-            origin: [0u8; 20],
-            value: [0u8; 32],
-            data: data,
-        };
+	/// New contract call payload with known parameters
+	pub fn new(address: H160, sender: H160, origin: H160, value: U256, data: Vec<u8>) -> Self {
+		let mut descriptor = CallArgs {
+			address: [0u8; 20],
+			sender: [0u8; 20],
+			origin: [0u8; 20],
+			value: [0u8; 32],
+			data: data,
+		};
 
-        descriptor.address.copy_from_slice(&*address);
-        descriptor.sender.copy_from_slice(&*sender);
-        descriptor.origin.copy_from_slice(&*origin);
-        value.to_big_endian(&mut descriptor.value);
+		descriptor.address.copy_from_slice(&*address);
+		descriptor.sender.copy_from_slice(&*sender);
+		descriptor.origin.copy_from_slice(&*origin);
+		value.to_big_endian(&mut descriptor.value);
 
-        descriptor
-    }
+		descriptor
+	}
 
-    /// Total call payload length in linear memory
-    pub fn len(&self) -> u32 {
-        self.data.len() as u32 + 92
-    }
+	/// Total call payload length in linear memory
+	pub fn len(&self) -> u32 {
+		self.data.len() as u32 + 92
+	}
 }
