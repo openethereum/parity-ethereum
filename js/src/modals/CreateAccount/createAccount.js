@@ -61,6 +61,12 @@ const TITLES = {
       defaultMessage='account information'
     />
   ),
+  backup: (
+    <FormattedMessage
+      id='createAccount.title.backupPhrase'
+      defaultMessage='confirm recovery phrase'
+    />
+  ),
   import: (
     <FormattedMessage
       id='createAccount.title.importAccount'
@@ -80,7 +86,7 @@ const TITLES = {
     />
   )
 };
-const STAGE_NAMES = [TITLES.type, TITLES.create, TITLES.info];
+const STAGE_NAMES = [TITLES.type, TITLES.create, TITLES.info, TITLES.backup];
 const STAGE_IMPORT = [TITLES.type, TITLES.import, TITLES.info];
 const STAGE_RESTORE = [TITLES.restore, TITLES.info];
 const STAGE_QR = [TITLES.type, TITLES.qr, TITLES.info];
