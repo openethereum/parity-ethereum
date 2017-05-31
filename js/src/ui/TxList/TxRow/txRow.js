@@ -348,8 +348,6 @@ class TxRow extends Component {
           />
         );
       }
-
-      return 'pending';
     }
 
     if (blockNumber) {
@@ -365,9 +363,9 @@ class TxRow extends Component {
           />
         );
       }
-
-      return 'pending';
     }
+
+    return 'pending';
   }
 
   cancelTx = () => {
