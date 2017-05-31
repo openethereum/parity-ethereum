@@ -74,7 +74,7 @@ pub trait Ext {
 	fn balance(&self, address: &Address) -> trie::Result<U256>;
 
 	/// Returns the hash of one of the 256 most recent complete blocks.
-	fn blockhash(&self, number: &U256) -> H256;
+	fn blockhash(&mut self, number: &U256) -> H256;
 
 	/// Creates new contract.
 	///

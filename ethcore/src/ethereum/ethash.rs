@@ -28,6 +28,7 @@ use engines::Engine;
 use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp};
+use env_info::LastHashes;
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
@@ -252,60 +253,46 @@ impl Engine for Arc<Ethash> {
 //		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number(), header.difficulty(), header.gas_limit());
 	}
 
-	fn on_new_block(&self, block: &mut ExecutedBlock) {
+	fn on_new_block(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>) -> Result<(), Error> {
+		let parent_hash = block.fields().header.parent_hash().clone();
+		try!(::engines::common::push_last_hash(block, last_hashes, self, &parent_hash));
 		if block.fields().header.number() == self.ethash_params.dao_hardfork_transition {
-			// TODO: enable trigger function maybe?
-//			if block.fields().header.gas_limit() <= 4_000_000.into() {
-				let state = block.fields_mut().state;
-				for child in &self.ethash_params.dao_hardfork_accounts {
-					let beneficiary = &self.ethash_params.dao_hardfork_beneficiary;
-					let res = state.balance(child)
-						.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty));
-
-					if let Err(_) = res {
-						warn!("Unable to apply DAO hardfork due to database corruption.");
-						warn!("Your node is now likely out of consensus.");
-					}
-				}
-//			}
+			let state = block.fields_mut().state;
+			for child in &self.ethash_params.dao_hardfork_accounts {
+				let beneficiary = &self.ethash_params.dao_hardfork_beneficiary;
+				try!(state.balance(child)
+					.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty)));
+			}
 		}
+		Ok(())
 	}
 
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
-	fn on_close_block(&self, block: &mut ExecutedBlock) {
+	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		let reward = self.ethash_params.block_reward;
 		let fields = block.fields_mut();
 
 		// Bestow block reward
-		let res = fields.state.add_balance(
+		fields.state.add_balance(
 			fields.header.author(),
 			&(reward + reward / U256::from(32) * U256::from(fields.uncles.len())),
 			CleanupMode::NoEmpty
-		);
-
-		if let Err(e) = res {
-			warn!("Failed to give block reward: {}", e);
-		}
+		)?;
 
 		// Bestow uncle rewards
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
-			let res = fields.state.add_balance(
+			fields.state.add_balance(
 				u.author(),
 				&(reward * U256::from(8 + u.number() - current_number) / U256::from(8)),
 				CleanupMode::NoEmpty
-			);
-
-			if let Err(e) = res {
-				warn!("Failed to give uncle reward: {}", e);
-			}
+			)?;
 		}
 
 		// Commit state so that we can actually figure out the state root.
-		if let Err(e) = fields.state.commit() {
-			warn!("Encountered error on state commit: {}", e);
-		}
+		fields.state.commit()?;
+		Ok(())
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
@@ -741,7 +728,7 @@ mod tests {
 	fn difficulty_frontier() {
 		let spec = new_homestead_test();
 		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+		let ethash = Ethash::new(spec.params().clone(), ethparams, BTreeMap::new());
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(1000000);
@@ -759,7 +746,7 @@ mod tests {
 	fn difficulty_homestead() {
 		let spec = new_homestead_test();
 		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+		let ethash = Ethash::new(spec.params().clone(), ethparams, BTreeMap::new());
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(1500000);
@@ -780,7 +767,7 @@ mod tests {
 			ecip1010_pause_transition: 3000000,
 			..get_default_ethash_params()
 		};
-		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+		let ethash = Ethash::new(spec.params().clone(), ethparams, BTreeMap::new());
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(3500000);
@@ -814,7 +801,7 @@ mod tests {
 			ecip1010_continue_transition: 5000000,
 			..get_default_ethash_params()
 		};
-		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+		let ethash = Ethash::new(spec.params().clone(), ethparams, BTreeMap::new());
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(5000102);
@@ -859,7 +846,7 @@ mod tests {
 	#[test]
 	fn gas_limit_is_multiple_of_determinant() {
 		let spec = new_homestead_test();
-		let ethash = Ethash::new(spec.params, get_default_ethash_params(), BTreeMap::new());
+		let ethash = Ethash::new(spec.params().clone(), get_default_ethash_params(), BTreeMap::new());
 		let mut parent = Header::new();
 		let mut header = Header::new();
 		header.set_number(1);
@@ -903,7 +890,7 @@ mod tests {
 	fn difficulty_max_timestamp() {
 		let spec = new_homestead_test();
 		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+		let ethash = Ethash::new(spec.params().clone(), ethparams, BTreeMap::new());
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(1000000);
@@ -931,7 +918,7 @@ mod tests {
 		header.set_number(parent_header.number() + 1);
 		header.set_gas_limit(100_001.into());
 		header.set_difficulty(ethparams.minimum_difficulty);
-		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+		let ethash = Ethash::new(spec.params().clone(), ethparams, BTreeMap::new());
 		assert!(ethash.verify_block_family(&header, &parent_header, None).is_ok());
 
 		parent_header.set_number(9);
@@ -986,7 +973,7 @@ mod tests {
 			nonce: U256::zero(),
 		}.sign(keypair.secret(), None).into();
 
-		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+		let ethash = Ethash::new(spec.params().clone(), ethparams, BTreeMap::new());
 		assert!(ethash.verify_transaction_basic(&tx1, &header).is_ok());
 		assert!(ethash.verify_transaction_basic(&tx2, &header).is_ok());
 
