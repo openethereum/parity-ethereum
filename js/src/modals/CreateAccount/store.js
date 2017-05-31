@@ -24,6 +24,7 @@ const FAKEPATH = 'C:\\fakepath\\';
 const STAGE_SELECT_TYPE = 0;
 const STAGE_CREATE = 1;
 const STAGE_INFO = 2;
+const STAGE_CONFIRM_BACKUP = 3;
 
 export default class Store {
   @observable accounts = null;
@@ -33,6 +34,7 @@ export default class Store {
   @observable gethAccountsAvailable = [];
   @observable gethAddresses = [];
   @observable gethImported = [];
+  @observable isBackupPhraseValid = false;
   @observable isBusy = false;
   @observable isWindowsPhrase = false;
   @observable name = '';
@@ -41,6 +43,7 @@ export default class Store {
   @observable passwordHint = '';
   @observable passwordRepeat = '';
   @observable phrase = '';
+  @observable backupPhrase = '';
   @observable qrAddress = null;
   @observable rawKey = '';
   @observable rawKeyError = ERRORS.nokey;
@@ -98,6 +101,12 @@ export default class Store {
     return this.password === this.passwordRepeat
       ? null
       : ERRORS.noMatchPassword;
+  }
+
+  @computed get backupPhraseError () {
+    return this.phrase === this.backupPhrase
+      ? null
+      : ERRORS.noMatchBackupPhrase;
   }
 
   @computed get qrAddressValid () {
@@ -186,6 +195,10 @@ export default class Store {
       this.name = name;
       this.nameError = nameError;
     });
+  }
+
+  @action setBackupPhrase = (backupPhrase) => {
+    this.backupPhrase = backupPhrase;
   }
 
   @action setPassword = (password) => {
@@ -448,7 +461,8 @@ export default class Store {
 }
 
 export {
-  STAGE_CREATE,
   STAGE_INFO,
+  STAGE_CONFIRM_BACKUP,
+  STAGE_CREATE,
   STAGE_SELECT_TYPE
 };

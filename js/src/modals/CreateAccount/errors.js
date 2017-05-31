@@ -46,6 +46,13 @@ export default {
     />
   ),
 
+  noMatchBackupPhrase: (
+    <FormattedMessage
+      id='errors.noMatchBackupPhrase'
+      defaultMessage='the supplied recovery phrase does not match'
+    />
+  ),
+
   noName: (
     <FormattedMessage
       id='errors.noName'
@@ -58,5 +65,6 @@ export default {
       id='errors.invalidKey'
       defaultMessage='the raw key needs to be hex, 64 characters in length and contain the prefix "0x"'
     />
-  )
+  ),
+
 };

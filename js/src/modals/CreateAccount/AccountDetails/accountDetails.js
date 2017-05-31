@@ -25,7 +25,12 @@ import styles from '../createAccount.css';
 @observer
 export default class AccountDetails extends Component {
   static propTypes = {
+    isConfirming: PropTypes.bool,
     createStore: PropTypes.object.isRequired
+  }
+
+  static defaultPropTypes = {
+    isConfirming: false
   }
 
   render () {
@@ -78,31 +83,70 @@ export default class AccountDetails extends Component {
     );
   }
 
+  onEditRecoveryPhrase = () => {
+    console.log('type');
+  }
+
   renderPhrase () {
-    const { phrase } = this.props.createStore;
+    const { isConfirming } = this.props;
+    const { isTest, phrase, backupPhrase, backupPhraseError } = this.props.createStore;
 
     if (!phrase) {
       return null;
     }
 
-    return (
-      <Input
-        allowCopy
-        hint={
-          <FormattedMessage
-            id='createAccount.accountDetails.phrase.hint'
-            defaultMessage='the account recovery phrase'
-          />
-        }
-        label={
-          <FormattedMessage
-            id='createAccount.accountDetails.phrase.label'
-            defaultMessage='owner recovery phrase (keep private and secure, it allows full and unlimited access to the account)'
-          />
-        }
-        readOnly
-        value={ phrase }
+    const hint = (
+      <FormattedMessage
+        id='createAccount.accountDetails.phrase.hint'
+        defaultMessage='the account recovery phrase'
       />
     );
+    const label = (
+     <FormattedMessage
+        id='createAccount.accountDetails.phrase.label'
+        defaultMessage='owner recovery phrase'
+      />
+    );
+
+    if (!isConfirming) {
+      return [
+        (
+          <Input
+            allowCopy
+            hint={ hint }
+            label={ label }
+            readOnly
+            value={ phrase }
+          />
+        ), (
+          <div className={ styles.backupPhrase }>
+            <FormattedMessage
+              id='createAccount.accountDetails.phrase.backup'
+              defaultMessage='Please back up the recovery phrase now. Make sure to keep it private and secure, it allows full and unlimited access to the account.'
+            />
+          </div>
+        )
+      ];
+    }
+
+    return [
+      (
+        <Input
+          allowPaste={ isTest }
+          error={ backupPhraseError }
+          hint={ hint }
+          label={ label }
+          onChange={ this.onEditRecoveryPhrase }
+          value={ backupPhrase }
+        />
+      ), (
+        <div className={ styles.backupPhrase }>
+          <FormattedMessage
+            id='createAccount.accountDetails.phrase.backupConfirm'
+            defaultMessage='Type your recovery phrase now.'
+          />
+        </div>
+      )
+    ];
   }
 }

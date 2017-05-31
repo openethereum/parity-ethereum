@@ -37,7 +37,7 @@ import NewImport from './NewImport';
 import NewQr from './NewQr';
 import RawKey from './RawKey';
 import RecoveryPhrase from './RecoveryPhrase';
-import Store, { STAGE_CREATE, STAGE_INFO, STAGE_SELECT_TYPE } from './store';
+import Store, { STAGE_CREATE, STAGE_INFO, STAGE_SELECT_TYPE, STAGE_CONFIRM_BACKUP } from './store';
 import TypeIcon from './TypeIcon';
 import print from './print';
 import recoveryPage from './recoveryPage.ejs';
@@ -215,12 +215,20 @@ class CreateAccount extends Component {
         return (
           <AccountDetails createStore={ this.createStore } />
         );
+
+      case STAGE_CONFIRM_BACKUP:
+        return (
+          <AccountDetails
+            createStore={ this.createStore }
+            isConfirming
+          />
+        );
     }
   }
 
   renderDialogActions () {
     const { restore } = this.props;
-    const { createType, canCreate, isBusy, stage } = this.createStore;
+    const { createType, canCreate, isBusy, stage, isBackupPhraseValid } = this.createStore;
 
     const cancelBtn = (
       <Button
@@ -281,8 +289,8 @@ class CreateAccount extends Component {
               createType === 'fromNew'
                 ? (
                   <FormattedMessage
-                    id='createAccount.button.create'
-                    defaultMessage='Create'
+                    id='createAccount.button.next'
+                    defaultMessage='Next'
                   />
                 )
                 : (
@@ -292,7 +300,7 @@ class CreateAccount extends Component {
                   />
                 )
             }
-            onClick={ this.onCreate }
+            onClick={ createType === 'fromNew' ? this.createStore.nextStage : this.onCreate }
           />
         ];
 
@@ -322,10 +330,43 @@ class CreateAccount extends Component {
                 defaultMessage='Done'
               />
             }
-            onClick={ this.onClose }
+            onClick={ createType === 'fromNew' ? this.createStore.nextStage : this.onClose }
+          />
+        ];
+
+      case STAGE_CONFIRM_BACKUP:
+        return [
+          backBtn,
+          <Button
+            disabled={ !isBackupPhraseValid }
+            icon={ <DoneIcon /> }
+            key='done'
+            label={
+              <FormattedMessage
+                id='createAccount.button.create'
+                defaultMessage='Create'
+              />
+            }
+            onClick={ this.onCreateNew }
           />
         ];
     }
+  }
+
+  onCreateNew = () => {
+    this.createStore.setBusy(true);
+
+    return this.createStore
+      .createAccount(this.vaultStore)
+      .then(() => {
+        this.createStore.setBusy(false);
+        this.props.onUpdate && this.props.onUpdate();
+        this.onClose();
+      })
+      .catch((error) => {
+        this.createStore.setBusy(false);
+        this.props.newError(error);
+      });
   }
 
   onCreate = () => {
