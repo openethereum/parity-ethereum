@@ -92,7 +92,7 @@ export default class Api extends EventEmitter {
   }
 
   get provider () {
-    return this._provider;
+    return this._provider.provider;
   }
 
   get shh () {
@@ -108,7 +108,7 @@ export default class Api extends EventEmitter {
   }
 
   get transport () {
-    return this._provider;
+    return this.provider;
   }
 
   get web3 () {

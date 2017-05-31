@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Http as Transport } from '../transport';
+import { Ws as Transport } from '../transport';
 
 export default class Ws extends Transport {
   send = (method, params, callback) => {
