@@ -17,10 +17,10 @@
 import { TEST_HTTP_URL, mockHttp } from '../../../../test/mockRpc';
 import { isBigNumber } from '../../../../test/types';
 
-import Http from '../../transport/http';
+import { Http, PromiseWrapper } from '../../provider';
 import Eth from './eth';
 
-const instance = new Eth(new Http(TEST_HTTP_URL, -1));
+const instance = new Eth(new PromiseWrapper(new Http(TEST_HTTP_URL, -1)));
 
 describe('rpc/Eth', () => {
   const address = '0x63Cf90D3f0410092FC0fca41846f596223979195';

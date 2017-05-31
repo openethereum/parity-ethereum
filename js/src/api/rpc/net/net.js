@@ -17,23 +17,23 @@
 import { outNumber } from '../../format/output';
 
 export default class Net {
-  constructor (transport) {
-    this._transport = transport;
+  constructor (provider) {
+    this._provider = provider;
   }
 
   listening () {
-    return this._transport
-      .execute('net_listening');
+    return this._provider
+      .send('net_listening');
   }
 
   peerCount () {
-    return this._transport
-      .execute('net_peerCount')
+    return this._provider
+      .send('net_peerCount')
       .then(outNumber);
   }
 
   version () {
-    return this._transport
-      .execute('net_version');
+    return this._provider
+      .send('net_version');
   }
 }

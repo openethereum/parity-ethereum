@@ -23,7 +23,7 @@ import Api from './api';
 
 import './dev.parity.html';
 
-const api = new Api(new Api.Transport.Http('/rpc/'));
+const api = new Api(new Api.Provider.Http('/rpc/'));
 
 window.parity = {
   Api,

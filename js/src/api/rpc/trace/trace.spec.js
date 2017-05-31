@@ -16,10 +16,10 @@
 
 import { TEST_HTTP_URL, mockHttp } from '../../../../test/mockRpc';
 
-import Http from '../../transport/http';
+import { Http, PromiseWrapper } from '../../provider';
 import Trace from './trace';
 
-const instance = new Trace(new Http(TEST_HTTP_URL, -1));
+const instance = new Trace(new PromiseWrapper(new Http(TEST_HTTP_URL, -1)));
 
 describe('api/rpc/Trace', () => {
   let scope;

@@ -30,10 +30,10 @@ export default class SecureApi extends Api {
   _dappsUrl = null;
   _wsUrl = null;
 
-  static getTransport (url, sysuiToken, protocol) {
+  static getProvider (url, sysuiToken, protocol) {
     const proto = protocol() === 'https:' ? 'wss:' : 'ws:';
 
-    return new Api.Transport.Ws(`${proto}//${url}`, sysuiToken, false);
+    return new Api.Provider.Ws(`${proto}//${url}`, sysuiToken, false);
   }
 
   // Returns a protocol with `:` at the end.
@@ -41,11 +41,11 @@ export default class SecureApi extends Api {
     return window.location.protocol;
   }
 
-  constructor (url, nextToken, getTransport = SecureApi.getTransport, protocol = SecureApi.protocol) {
+  constructor (url, nextToken, getProvider = SecureApi.getProvider, protocol = SecureApi.protocol) {
     const sysuiToken = store.get('sysuiToken');
-    const transport = getTransport(url, sysuiToken, protocol);
+    const provider = getProvider(url, sysuiToken, protocol);
 
-    super(transport);
+    super(provider);
 
     this._wsUrl = url;
     this.protocol = protocol;
@@ -55,7 +55,8 @@ export default class SecureApi extends Api {
       .map((token) => ({ value: token, tried: false }));
 
     // When the transport is closed, try to reconnect
-    transport.on('close', this.connect, this);
+    console.log('this.provider', this.provider);
+    this.provider.on('close', this.connect, this);
 
     this.connect();
   }
@@ -105,7 +106,7 @@ export default class SecureApi extends Api {
   }
 
   get isConnected () {
-    return this._transport.isConnected;
+    return this.provider.isConnected;
   }
 
   get needsToken () {
@@ -113,7 +114,7 @@ export default class SecureApi extends Api {
   }
 
   get secureToken () {
-    return this._transport.token;
+    return this.provider.token;
   }
 
   /**
@@ -260,10 +261,10 @@ export default class SecureApi extends Api {
     const token = this._sanitiseToken(_token);
 
     // Update the token in the transport layer
-    this.transport.updateToken(token, false);
+    this.provider.updateToken(token, false);
     log.debug('connecting with token', token);
 
-    const connectPromise = this.transport.connect()
+    const connectPromise = this.provider.connect()
       .then(() => {
         log.debug('connected with', token);
 

@@ -16,8 +16,9 @@
 
 import EventEmitter from 'eventemitter3';
 
-import { Http, Ws } from './transport';
 import Contract from './contract';
+import { PromiseWrapper, Http as HttpProvider, Ws as WsProvider } from './provider';
+import { Http as HttpTransport, Ws as WsTransport } from './transport';
 
 import { Db, Eth, Parity, Net, Personal, Shh, Signer, Trace, Web3 } from './rpc';
 import Subscriptions from './subscriptions';
@@ -26,24 +27,28 @@ import { isFunction } from './util/types';
 // import { LocalAccountsMiddleware } from './local';
 
 export default class Api extends EventEmitter {
-  constructor (transport, allowSubscriptions = true) {
+  constructor (provider, allowSubscriptions = true) {
     super();
 
-    if (!transport || !isFunction(transport.execute)) {
-      throw new Error('EthApi needs transport with execute() function defined');
+    if (!provider || (!isFunction(provider.send) && !isFunction(provider.execute))) {
+      throw new Error('Api needs provider with send() function');
     }
 
-    this._transport = transport;
+    if (!isFunction(provider.send)) {
+      console.warn(new Error('deprecated: Api needs provider with send() function, old-style Transport found instead'));
+    }
 
-    this._db = new Db(transport);
-    this._eth = new Eth(transport);
-    this._net = new Net(transport);
-    this._parity = new Parity(transport);
-    this._personal = new Personal(transport);
-    this._shh = new Shh(transport);
-    this._signer = new Signer(transport);
-    this._trace = new Trace(transport);
-    this._web3 = new Web3(transport);
+    this._provider = new PromiseWrapper(provider);
+
+    this._db = new Db(this._provider);
+    this._eth = new Eth(this._provider);
+    this._net = new Net(this._provider);
+    this._parity = new Parity(this._provider);
+    this._personal = new Personal(this._provider);
+    this._shh = new Shh(this._provider);
+    this._signer = new Signer(this._provider);
+    this._trace = new Trace(this._provider);
+    this._web3 = new Web3(this._provider);
 
     if (allowSubscriptions) {
       this._subscriptions = new Subscriptions(this);
@@ -62,7 +67,7 @@ export default class Api extends EventEmitter {
         })
         .catch(() => null);
 
-      transport.addMiddleware(middleware);
+      provider.addMiddleware(middleware);
     }
   }
 
@@ -86,6 +91,10 @@ export default class Api extends EventEmitter {
     return this._personal;
   }
 
+  get provider () {
+    return this._provider.provider;
+  }
+
   get shh () {
     return this._shh;
   }
@@ -99,7 +108,7 @@ export default class Api extends EventEmitter {
   }
 
   get transport () {
-    return this._transport;
+    return this.provider;
   }
 
   get web3 () {
@@ -160,8 +169,14 @@ export default class Api extends EventEmitter {
 
   static util = util
 
+  static Provider = {
+    Http: HttpProvider,
+    Ws: WsProvider
+  }
+
+  // NOTE: kept for backwards compatibility
   static Transport = {
-    Http: Http,
-    Ws: Ws
+    Http: HttpTransport,
+    Ws: WsTransport
   }
 }

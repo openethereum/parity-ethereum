@@ -67,7 +67,7 @@ describe('api/transport/Http', () => {
       scope = mockHttp([{ method: 'eth_call', reply: { result: RESULT } }]);
 
       return transport
-        .execute('eth_call', 1, 2, 3, 'test')
+        .execute('eth_call', [1, 2, 3, 'test'])
         .then((_result) => {
           result = _result;
         });
