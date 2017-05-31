@@ -31,6 +31,7 @@ pub struct Informant {
 	instruction: u8,
 	gas_cost: U256,
 	gas_used: U256,
+	stack_pop: usize,
 	stack: Vec<U256>,
 	memory: Vec<u8>,
 	storage: HashMap<H256, H256>,
@@ -77,8 +78,7 @@ impl trace::VMTracer for Informant {
 		self.pc = pc;
 		self.instruction = instruction;
 		self.gas_cost = *gas_cost;
-		let len = self.stack.len();
-		self.stack.truncate(len - stack_pop);
+		self.stack_pop = stack_pop;
 		true
 	}
 
@@ -96,6 +96,9 @@ impl trace::VMTracer for Informant {
 		);
 
 		self.gas_used = gas_used;
+
+		let len = self.stack.len();
+		self.stack.truncate(len - self.stack_pop);
 		self.stack.extend_from_slice(stack_push);
 
 		if let Some((pos, data)) = mem_diff {
@@ -119,6 +122,7 @@ impl trace::VMTracer for Informant {
 			sub.pc += 1;
 			sub.instruction = 0;
 			sub.gas_cost = 0.into();
+			sub.stack_pop = 0;
 			let gas_used = sub.gas_used;
 			trace::VMTracer::trace_executed(&mut sub, gas_used, &[], None, None);
 		}
