@@ -91,6 +91,11 @@ class List extends Component {
     const { account, isDisabled, owners } = item;
     const { handleAddSearchToken, link } = this.props;
 
+    console.log("account", account);
+    if (account === '0x00a329c0648769A73afAc7F9381E08FB43dBEA72') {
+      return null;
+    }
+
     return (
       <Summary
         account={ account }
