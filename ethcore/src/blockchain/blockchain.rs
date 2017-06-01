@@ -892,7 +892,7 @@ impl BlockChain {
 
 	/// Get the transition to the epoch the given block hash is part of.
 	pub fn epoch_transition_for(&self, block_hash: H256) -> Option<EpochTransition> {
-		let details = otry!(self.block_details(&hash));
+		let details = otry!(self.block_details(&block_hash));
 
 		let target_num = details.number - details.epoch_delta;
 		let mut cur_hash = block_hash;
@@ -906,7 +906,7 @@ impl BlockChain {
 
 			if canon_hash == cur_hash {
 				// epoch transition was a canonical ancestor.
-				let target_hash = otry!(self.block_hash(target_number));
+				let target_hash = otry!(self.block_hash(target_num));
 
 				return self.epoch_transition(target_num, target_hash);
 			}
@@ -921,18 +921,15 @@ impl BlockChain {
 	}
 
 	/// Write a pending epoch transition by block hash.
-	pub fn insert_pending_transition(&self, batch: &mut DBTransaction, hash: H256, t: PendingTransition) {
+	pub fn insert_pending_transition(&self, batch: &mut DBTransaction, hash: H256, t: PendingEpochTransition) {
 		batch.write(db::COL_EXTRA, &hash, &t);
 	}
 
-	/// Remove a pending epoch transition by block hash.
-	pub fn remove_pending_transition(&self, batch: &mut DBTransaction, hash: H256) -> Option<PendingTransition> {
-		let val: Option<PendingEpochTransition> = self.db.read(db::COL_EXTRA, key: &hash);
-		if val.is_some() {
-			batch.delete::<PendingEpochTransition, _>(db::COL_EXTRA, &hash);
-		}
-
-		val
+	/// Get a pending epoch transition by block hash.
+	// TODO: implement removal safely: this can only be done upon finality of a block
+	// that _uses_ the pending transition.
+	pub fn get_pending_transition(&self, hash: H256) -> Option<PendingEpochTransition> {
+		self.db.read(db::COL_EXTRA, &hash)
 	}
 
 	/// Add a child to a given block. Assumes that the block hash is in

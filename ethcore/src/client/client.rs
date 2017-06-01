@@ -32,7 +32,7 @@ use util::kvdb::*;
 // other
 use basic_types::Seal;
 use block::*;
-use blockchain::{BlockChain, BlockProvider, EpochTransition, TreeRoute, ImportRoute};
+use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};
 use blockchain::extras::TransactionAddress;
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
@@ -42,7 +42,7 @@ use client::{
 	ChainNotify, PruningInfo, ProvingBlockChainClient,
 };
 use encoded;
-use engines::Engine;
+use engines::{Engine, EpochTransition};
 use env_info::EnvInfo;
 use env_info::LastHashes;
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
@@ -260,9 +260,26 @@ impl Client {
 		{
 			let chain = client.chain.read();
 			let gh = spec.genesis_header();
-			if chain.epoch_transition(0, spec.genesis_header().hash()).is_none() {
+			if chain.epoch_transition(0, gh.hash()).is_none() {
 				trace!(target: "client", "No genesis transition found.");
-				client.generate_epoch_proof(&gh, &*chain, None);
+
+				let proof = client.with_proving_caller(BlockId::Genesis, |call| client.engine.genesis_epoch_data(call));
+				let proof = match proof {
+					Ok(proof) => proof,
+					Err(e) => {
+						warn!("Error generating genesis epoch data. Snapshots generated may not be complete.");
+						Vec::new()
+					}
+				};
+
+				let mut batch = DBTransaction::new();
+				chain.insert_epoch_transition(&mut batch, 0, EpochTransition {
+					block_hash: gh.hash(),
+					block_number: 0,
+					proof: proof,
+				});
+
+				client.db.read().write_buffered(batch);
 			}
 		}
 
@@ -578,7 +595,8 @@ impl Client {
 							.map(|(_, t)| t.proof)
 							.expect("At least one epoch entry (genesis) always stored; qed");
 
-						let current_verifier = self.engine.epoch_verifier(&header, &current_epoch_data)?;
+						let current_verifier = self.engine.epoch_verifier(&header, &current_epoch_data)
+							.known_confirmed()?;
 						let current_verifier = AncientVerifier::new(self.engine.clone(), current_verifier);
 
 						verify_with(&current_verifier)?;
@@ -601,6 +619,7 @@ impl Client {
 	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &[u8]) -> ImportRoute where B: IsBlock + Drain {
 		let number = block.header().number();
 		let parent = block.header().parent_hash().clone();
+		let header = block.header().clone(); // TODO: optimize and avoid copy.
 		let chain = self.chain.read();
 
 		// Commit results
@@ -613,32 +632,6 @@ impl Client {
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
 		let mut batch = DBTransaction::new();
-
-		// generate validation proof if the engine requires them.
-		// TODO: make conditional?
-		let entering_new_epoch = {
-			use engines::EpochChange;
-			match self.engine.signals_epoch_end(block.header(), Some(block_data), Some(&receipts)) {
-				EpochChange::Yes => {
-					// write pending transition to DB.
-					unimplemented!()
-				},
-				EpochChange::No => {},
-				EpochChange::Unsure(_) => {
-					warn!(target: "client", "Detected invalid engine implementation.");
-					warn!(target: "client", "Engine claims to require more block data, but everything provided.");
-				}
-			}
-
-			let transition_store = unimplemented!();
-			let is_epoch_end = self.engine.is_epoch_end(
-				block.header(),
-				|hash| chain.block_header(hash),
-				&transition_store,
-			);
-
-			is_epoch_end.map(|finality_proof| (block.header().clone(), finality_proof))
-		};
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
@@ -661,61 +654,98 @@ impl Client {
 		// Final commit to the DB
 		self.db.read().write_buffered(batch);
 		chain.commit();
+
+		// check for epoch end. do this after writing first batch so we can prove
+		// transactions on the block's state.
+		// TODO: work these changes into the existing DBTransaction.
+		self.check_epoch_end_signal(&header, block_data, &receipts, &chain);
+		self.check_epoch_end(&header, &chain);
+
 		self.update_last_hashes(&parent, hash);
 
 		if let Err(e) = self.prune_ancient(state, &chain) {
 			warn!("Failed to prune ancient state data: {}", e);
 		}
 
-		if let Some(header, finality) = entering_new_epoch {
-			self.generate_epoch_proof(&header, &chain, finality);
-		}
-
 		route
 	}
 
-	// generate an epoch transition proof at the given block. Provide finality proof if necessary.
-	fn generate_epoch_proof(&self, header: &Header, chain: &BlockChain, finality: Option<Vec<u8>>) {
-		use std::cell::RefCell;
-		use std::collections::BTreeSet;
+	// check for epoch end signal and write pending transition if it occurs.
+	// state for the given block must be available.
+	fn check_epoch_end_signal(&self, header: &Header, block: &[u8], receipts: &[Receipt], chain: &BlockChain) {
+		use engines::EpochChange;
 
-		let mut batch = DBTransaction::new();
 		let hash = header.hash();
-		debug!(target: "client", "Generating validation proof for new epoch at block {}", hash);
+		match self.engine.signals_epoch_end(header, Some(block), Some(&receipts)) {
+			EpochChange::Yes(proof) => {
+				use engines::epoch::PendingTransition;
+				use engines::Proof;
 
-		// proof is two-part: engine-specific data and optional finality proof.
-		let read_values = RefCell::new(BTreeSet::new());
-		let block_id = BlockId::Hash(hash.clone());
-		let proof = {
-			let call = |a, d| {
-				let tx = self.contract_call_tx(block_id, a, d);
-				let (result, items) = self.prove_transaction(tx, block_id)
-					.ok_or_else(|| format!("Unable to make call to generate epoch proof."))?;
+				let proof = match proof {
+					Proof::Known(proof) => proof,
+					Proof::WithState(with_state) =>
+						match self.with_proving_caller(BlockId::Hash(hash), with_state) {
+							Ok(proof) => proof,
+							Err(e) => {
+								warn!(target: "client", "Failed to generate transition proof for block {}: {}", hash, e);
+								warn!(target: "client", "Snapshots produced by this client may be incomplete");
 
-				let items = items.into_iter().map(|x| x.to_vec()).collect();
-				Ok((result, items))
-			};
+								Vec::new()
+							}
+						},
+				};
 
-			self.engine.epoch_proof(&header, &call)
-		};
+				// write pending transition to DB.
+				let mut batch = DBTransaction::new();
 
-		// insert into database, using the generated proof.
-		match proof {
-			Ok(proof) => {
-				chain.insert_epoch_transition(&mut batch, header.number(), EpochTransition {
-					block_hash: hash.clone(),
-					block_number: header.number(),
-					proof: proof,
-					finality_proof: finality,
-				});
+				let pending = PendingTransition { proof: proof };
+				chain.insert_pending_transition(&mut batch, hash, pending);
 
 				self.db.read().write_buffered(batch);
-			}
-			Err(e) => {
-				warn!(target: "client", "Error generating epoch change proof for block {}: {}", hash, e);
-				warn!(target: "client", "Snapshots generated by this node will be incomplete.");
+			},
+			EpochChange::No => {},
+			EpochChange::Unsure(_) => {
+				warn!(target: "client", "Detected invalid engine implementation.");
+				warn!(target: "client", "Engine claims to require more block data, but everything provided.");
 			}
 		}
+	}
+
+	// check for ending of epoch and write transition if it occurs.
+	fn check_epoch_end<B>(&self, header: &Header, chain: &BlockChain) {
+		let is_epoch_end = self.engine.is_epoch_end(
+			header,
+			|hash| chain.block_header(hash),
+			|hash| chain.get_pending_transition(hash), // TODO: limit to current epoch.
+		);
+
+		if let Some(proof) = is_epoch_end {
+			debug!(target: "client", "Epoch transition at block {}", header.hash());
+
+			let mut batch = DBTransaction::new();
+			chain.insert_epoch_transition(&mut batch, header.number(), EpochTransition {
+				block_hash: header.hash(),
+				block_number: header.number(),
+				proof: proof,
+			});
+			self.db.read().write_buffered(batch);
+		}
+	}
+
+	// use a state-proving closure for the given block.
+	fn with_proving_caller<F, T>(&self, id: BlockId, with_call: F) -> T
+		where F: FnOnce(&::engines::Call) -> T
+	{
+		let call = |a, d| {
+			let tx = self.contract_call_tx(id, a, d);
+			let (result, items) = self.prove_transaction(tx, id)
+				.ok_or_else(|| format!("Unable to make call. State unavailable?"))?;
+
+			let items = items.into_iter().map(|x| x.to_vec()).collect();
+			Ok((result, items))
+		};
+
+		with_call(&call)
 	}
 
 	// prune ancient states until below the memory limit or only the minimum amount remain.

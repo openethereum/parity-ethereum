@@ -60,7 +60,7 @@ impl AncientVerifier {
 
 		// ancient import will only use transitions obtained from the snapshot.
 		if let Some(transition) = chain.epoch_transition(header.number(), header.hash()) {
-			let (v, _) = self.engine.epoch_verifier(&header, &transition.proof)?;
+			let (v, _) = self.engine.epoch_verifier(&header, &transition.proof).known_confirmed()?;
 			*self.cur_verifier.write() = v;
 		}
 

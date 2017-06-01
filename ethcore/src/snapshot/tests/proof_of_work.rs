@@ -83,7 +83,6 @@ fn chunk_and_restore(amount: u64) {
 	// restore it.
 	let new_db = Arc::new(kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)));
 	let new_chain = BlockChain::new(Default::default(), &genesis, new_db.clone());
-	let new_state = StateDB::new(journaldb::new(new_db.clone(), Algorithm::Archive, None), 0);
 	let mut rebuilder = SNAPSHOT_MODE.rebuilder(new_chain, new_db.clone(), &manifest).unwrap();
 
 	let reader = PackedReader::new(&snapshot_path).unwrap().unwrap();
@@ -94,7 +93,7 @@ fn chunk_and_restore(amount: u64) {
 		rebuilder.feed(&chunk, engine.as_ref(), &flag).unwrap();
 	}
 
-	rebuilder.finalize(new_state, engine.as_ref()).unwrap();
+	rebuilder.finalize(engine.as_ref()).unwrap();
 	drop(rebuilder);
 
 	// and test it.

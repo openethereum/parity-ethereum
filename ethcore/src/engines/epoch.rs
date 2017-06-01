@@ -29,10 +29,8 @@ pub struct Transition {
 	pub block_hash: H256,
 	/// Block number at which the transition occurred.
 	pub block_number: u64,
-	/// "transition/epoch" proof from the engine.
+	/// "transition/epoch" proof from the engine combined with a finality proof.
 	pub proof: Vec<u8>,
-	/// Finality proof, if necessary.
-	pub finality_proof: Option<Vec<u8>>,
 }
 
 impl Encodable for Transition {
@@ -94,8 +92,10 @@ pub trait EpochVerifier: Send + Sync {
 	}
 
 	/// Check a finality proof against this epoch verifier.
-	fn check_finality_proof(&self, _proof: &[u8]) -> Result<(), Error> {
-		Ok(())
+	/// Returns `Some(hash)` if the proof proves finality of that hash.
+	/// Returns `None` if the proof doesn't prove anything.
+	fn check_finality_proof(&self, _proof: &[u8]) -> Option<H256> {
+		None
 	}
 }
 
@@ -105,15 +105,4 @@ pub struct NoOp;
 impl EpochVerifier for NoOp {
 	fn epoch_number(&self) -> u64 { 0 }
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
-}
-
-/// Stores pending transitions.
-pub trait PendingTransitionStore {
-	/// Insert a pending transition by block hash.
-	fn insert(&mut self, H256, PendingTransition);
-
-	/// Remove a pending transition by block hash. Should only be called when
-	/// that block reaches finality. Once a transition has been removed
-	/// it cannot be removed again.
-	fn remove(&mut self, H256) -> Option<PendingTransition>;
 }

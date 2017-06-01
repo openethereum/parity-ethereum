@@ -195,8 +195,6 @@ pub fn restore(
 		secondary.feed(&snappy_buffer[..len], engine, &flag)?;
 	}
 
-	let jdb = state.finalize(manifest.block_number, manifest.block_hash)?;
-	let state_db = StateDB::new(jdb, 0);
-
-	secondary.finalize(state_db, engine)
+	state.finalize(manifest.block_number, manifest.block_hash)?;
+	secondary.finalize(engine)
 }
