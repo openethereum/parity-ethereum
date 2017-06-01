@@ -52,7 +52,11 @@ impl<F> Oracle for StandardOracle<F>
 
 // helper trait for broadcasting a block to take a snapshot at.
 trait Broadcast: Send + Sync {
+	// take a snapshot optimistically at this block.
 	fn take_at(&self, num: Option<u64>);
+
+	// attempt to solidify snapshot now that confirmations have rolled in.
+	fn solidify(&self, num: Option<u64>);
 }
 
 impl Broadcast for Mutex<IoChannel<ClientIoMessage>> {
@@ -68,6 +72,19 @@ impl Broadcast for Mutex<IoChannel<ClientIoMessage>> {
 			warn!("Snapshot watcher disconnected from IoService: {}", e);
 		}
 	}
+
+	fn solidify(&self, num: Option<u64>) {
+		let num = match num {
+			Some(n) => n,
+			None => return,
+		};
+
+		trace!(target: "snapshot_watcher", "broadcast: {}", num);
+
+		if let Err(e) = self.lock().send(ClientIoMessage::SolidifySnapshot(num)) {
+			warn!("Snapshot watcher disconnected from IoService: {}", e);
+		}
+	}
 }
 
 /// A `ChainNotify` implementation which will trigger a snapshot event
@@ -76,16 +93,28 @@ pub struct Watcher {
 	oracle: Box<Oracle>,
 	broadcast: Box<Broadcast>,
 	period: u64,
-	history: u64,
+	create_delay: u64,
+	propagate_delay: u64,
 }
 
 impl Watcher {
 	/// Create a new `Watcher` which will trigger a snapshot event
 	/// once every `period` blocks, but only after that block is
-	/// `history` blocks old.
-	pub fn new<F>(client: Arc<Client>, sync_status: F, channel: IoChannel<ClientIoMessage>, period: u64, history: u64) -> Self
-		where F: 'static + Send + Sync + Fn() -> bool
-	{
+	/// `create_delay` blocks old.
+	///
+	/// The created snapshot will be "solidified" once that block
+	/// is "propagate_delay" blocks old.
+	///
+	/// `create_delay` and `propagate_delay` should be sufficiently far
+	/// enough apart so that creation finishes well before propagation.
+	pub fn new<F: 'static + Send + Sync + Fn() -> bool>(
+		client: Arc<Client>,
+		sync_status: F,
+		channel: IoChannel<ClientIoMessage>,
+		period: u64,
+		create_delay: u64,
+		propagate_delay: u64
+	) -> Self {
 		Watcher {
 			oracle: Box::new(StandardOracle {
 				client: client,
@@ -93,7 +122,8 @@ impl Watcher {
 			}),
 			broadcast: Box::new(Mutex::new(channel)),
 			period: period,
-			history: history,
+			create_delay: create_delay,
+			propagate_delay: propagate_delay,
 		}
 	}
 }
@@ -113,16 +143,26 @@ impl ChainNotify for Watcher {
 
 		trace!(target: "snapshot_watcher", "{} imported", imported.len());
 
-		let highest = imported.into_iter()
+		let numbers: Vec<_> = imported.into_iter()
 			.filter_map(|h| self.oracle.to_number(h))
-			.filter(|&num| num >= self.period + self.history)
-			.map(|num| num - self.history)
-			.filter(|num| num % self.period == 0)
-			.fold(0, ::std::cmp::max);
+			.collect();
 
-		match highest {
+		let find_highest = |delay| {
+			numbers.iter()
+			    .filter(|&&num| num >= self.period + delay)
+				.map(|num| num - delay)
+				.filter(|num| num % self.period == 0)
+				.fold(0, ::std::cmp::max)
+		};
+
+		match find_highest(self.create_delay) {
 			0 => self.broadcast.take_at(None),
-			_ => self.broadcast.take_at(Some(highest)),
+			take_at => self.broadcast.take_at(Some(take_at)),
+		}
+
+		match find_highest(self.propagate_delay) {
+			0 => self.broadcast.solidify(None),
+			solidify_at => self.broadcast.solidify(Some(solidify_at)),
 		}
 	}
 }
@@ -147,25 +187,32 @@ mod tests {
 		fn is_major_importing(&self) -> bool { false }
 	}
 
-	struct TestBroadcast(Option<u64>);
+	struct TestBroadcast(Option<u64>, Option<u64>);
 	impl Broadcast for TestBroadcast {
 		fn take_at(&self, num: Option<u64>) {
 			if num != self.0 {
-				panic!("Watcher broadcast wrong number. Expected {:?}, found {:?}", self.0, num);
+				panic!("take_at wrong number. Expected {:?}, found {:?}", self.0, num);
+			}
+		}
+
+		fn solidify(&self, num: Option<u64>) {
+			if num != self.1 {
+				panic!("solidify wrong number. Expected {:?}, found {:?}", self.1, num);
 			}
 		}
 	}
 
 	// helper harness for tests which expect a notification.
-	fn harness(numbers: Vec<u64>, period: u64, history: u64, expected: Option<u64>) {
+	fn harness(numbers: Vec<u64>, period: u64, create_delay: u64, propagate_delay: u64, broadcast: TestBroadcast) {
 		let hashes: Vec<_> = numbers.clone().into_iter().map(|x| H256::from(U256::from(x))).collect();
 		let map = hashes.clone().into_iter().zip(numbers).collect();
 
 		let watcher = Watcher {
 			oracle: Box::new(TestOracle(map)),
-			broadcast: Box::new(TestBroadcast(expected)),
+			broadcast: Box::new(broadcast),
 			period: period,
-			history: history,
+			create_delay: create_delay,
+			propagate_delay: propagate_delay,
 		};
 
 		watcher.new_blocks(
@@ -183,21 +230,23 @@ mod tests {
 
 	#[test]
 	fn should_not_fire() {
-		harness(vec![0], 5, 0, None);
+		harness(vec![0], 5, 0, 0, TestBroadcast(None, None));
 	}
 
 	#[test]
 	fn fires_once_for_two() {
-		harness(vec![14, 15], 10, 5, Some(10));
+		harness(vec![14, 15], 10, 5, 10, TestBroadcast(Some(10), None));
+		harness(vec![25, 35], 10, 7, 5, TestBroadcast(None, Some(30)));
 	}
 
 	#[test]
 	fn finds_highest() {
-		harness(vec![15, 25], 10, 5, Some(20));
+		harness(vec![15, 25], 10, 5, 7, TestBroadcast(Some(20), None));
+		harness(vec![15, 25], 10, 3, 5, TestBroadcast(None, Some(20)));
 	}
 
 	#[test]
 	fn doesnt_fire_before_history() {
-		harness(vec![10, 11], 10, 5, None);
+		harness(vec![10, 11], 10, 5, 5, TestBroadcast(None, None));
 	}
 }

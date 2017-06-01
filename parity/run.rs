@@ -59,8 +59,8 @@ use url;
 // how often to take periodic snapshots.
 const SNAPSHOT_PERIOD: u64 = 10000;
 
-// how many blocks to wait before starting a periodic snapshot.
-const SNAPSHOT_HISTORY: u64 = 100;
+// how many blocks to wait before starting to propagate a periodic snapshot.
+const SNAPSHOT_HISTORY: u64 = 1000;
 
 // Number of minutes before a given gas price corpus should expire.
 // Light client only.
@@ -713,7 +713,8 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 				move || is_major_importing(Some(sync.status().state), client.queue_info()),
 				service.io().channel(),
 				SNAPSHOT_PERIOD,
-				SNAPSHOT_HISTORY,
+				cmd.pruning_history, // take snapshot after `--pruning-history`.
+				SNAPSHOT_HISTORY, // and propagate it if still accurate after this amount.
 			));
 
 			service.add_notify(watcher.clone());

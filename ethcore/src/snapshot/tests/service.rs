@@ -76,9 +76,16 @@ fn restored_is_equivalent() {
 	};
 
 	let service = Service::new(service_params).unwrap();
-	service.take_snapshot(&client, NUM_BLOCKS as u64).unwrap();
 
-	let manifest = service.manifest().unwrap();
+	// create snapshot.
+	service.take_snapshot(&client, NUM_BLOCKS as u64).expect("failed to take snapshot");
+	assert!(service.manifest().is_none());
+
+	let canon_hash = client.block_hash(::ids::BlockId::Number(NUM_BLOCKS as u64)).expect("failed to get block hash");
+
+	// make it available (under the assumption of more confirmations)
+	service.solidify(NUM_BLOCKS as u64, canon_hash).expect("failed to solidify snapshot.");
+	let manifest = service.manifest().expect("failed to get manifest");
 
 	service.init_restore(manifest.clone(), true).unwrap();
 	assert!(service.init_restore(manifest.clone(), true).is_ok());

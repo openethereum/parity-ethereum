@@ -20,7 +20,7 @@ use util::*;
 use io::*;
 use spec::Spec;
 use error::*;
-use client::{Client, ClientConfig, ChainNotify};
+use client::{BlockChainClient, Client, ClientConfig, ChainNotify};
 use miner::Miner;
 
 use snapshot::ManifestData;
@@ -47,6 +47,8 @@ pub enum ClientIoMessage {
 	FeedBlockChunk(H256, Bytes),
 	/// Take a snapshot for the block with given number.
 	TakeSnapshot(u64),
+	/// Solidify the pending snapshot for the block with given number.
+	SolidifySnapshot(u64),
 	/// New consensus message received.
 	NewMessage(Bytes)
 }
@@ -222,6 +224,13 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 					debug!(target: "snapshot", "Failed to initialize periodic snapshot thread: {:?}", e);
 				}
 			},
+			ClientIoMessage::SolidifySnapshot(num) => {
+				if let Some(canon_hash) = self.client.block_hash(::ids::BlockId::Number(num)) {
+					if let Err(e) = self.snapshot.solidify(num, canon_hash) {
+						warn!("Failed to solidify snapshot at block #{}: {}", num, e);
+					}
+				}
+			}
 			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
 				trace!(target: "poa", "Invalid message received: {}", e);
 			},
