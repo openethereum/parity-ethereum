@@ -291,11 +291,19 @@ impl Engine for Arc<Ethash> {
 		// Bestow uncle rewards
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
-			fields.state.add_balance(
-				u.author(),
-				&(reward * U256::from(8 + u.number() - current_number) / U256::from(8)),
-				CleanupMode::NoEmpty
-			)?;
+			if eras == 0 {
+				fields.state.add_balance(
+					u.author(),
+					&(reward * U256::from(8 + u.number() - current_number) / U256::from(8)),
+					CleanupMode::NoEmpty
+				)
+			} else {
+				fields.state.add_balance(
+					u.author(),
+					&(reward / U256::from(32)),
+					CleanupMode::NoEmpty
+				)
+			}?;
 		}
 
 		// Commit state so that we can actually figure out the state root.
