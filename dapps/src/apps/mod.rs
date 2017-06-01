@@ -16,7 +16,7 @@
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use endpoint::{Endpoints, Endpoint};
 use page::PageEndpoint;
@@ -80,7 +80,7 @@ pub fn all_endpoints<F: Fetch>(
 	pages.insert("proxy".into(), ProxyPac::boxed(ui_address.clone(), dapps_domain));
 	pages.insert(WEB_PATH.into(), Web::boxed(ui_address.clone(), web_proxy_tokens.clone(), remote.clone(), fetch.clone()));
 
-	Arc::new(pages)
+	Arc::new(RwLock::new(pages))
 }
 
 fn insert<T : WebApp + Default + 'static>(pages: &mut BTreeMap<String, Box<Endpoint>>, id: &str, embed_at: Embeddable) {
