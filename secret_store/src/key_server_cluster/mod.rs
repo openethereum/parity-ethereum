@@ -36,6 +36,18 @@ pub use super::acl_storage::tests::DummyAclStorage;
 
 pub type SessionId = ServerKeyId;
 
+/// Session metadata.
+pub struct SessionMeta {
+	/// Key id.
+	pub id: SessionId,
+	/// Id of node, which has started this session.
+	pub master_node_id: NodeId,
+	/// Id of node, on which this session is running.
+	pub self_node_id: NodeId,
+	/// Session threshold.
+	pub threshold: usize,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 /// Errors which can occur during encryption/decryption session
 pub enum Error {
@@ -146,6 +158,7 @@ mod decryption_session;
 mod encryption_session;
 mod generation_session;
 mod io;
+mod jobs;
 pub mod math;
 mod message;
 mod signing_session;
