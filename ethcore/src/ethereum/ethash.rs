@@ -86,6 +86,8 @@ pub struct EthashParams {
 	pub ecip1010_pause_transition: u64,
 	/// Number of first block where ECIP-1010 ends.
 	pub ecip1010_continue_transition: u64,
+	/// Total block number for one ECIP-1017 era.
+	pub ecip1017_era_rounds: u64,
 	/// Maximum amount of code that can be deploying into a contract.
 	pub max_code_size: u64,
 	/// Number of first block where the max gas limit becomes effective.
@@ -124,6 +126,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			eip161d_transition: p.eip161d_transition.map_or(u64::max_value(), Into::into),
 			ecip1010_pause_transition: p.ecip1010_pause_transition.map_or(u64::max_value(), Into::into),
 			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(u64::max_value(), Into::into),
+			ecip1017_era_rounds: p.ecip1017_era_rounds.map_or(u64::max_value(), Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			max_gas_limit_transition: p.max_gas_limit_transition.map_or(u64::max_value(), Into::into),
 			max_gas_limit: p.max_gas_limit.map_or(U256::max_value(), Into::into),
@@ -270,8 +273,13 @@ impl Engine for Arc<Ethash> {
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		let reward = self.ethash_params.block_reward;
+		let mut reward = self.ethash_params.block_reward;
 		let fields = block.fields_mut();
+
+		let eras = fields.header.number() / self.ethash_params.ecip1017_era_rounds;
+		for _ in 0..eras {
+			reward = reward / U256::from(5) * U256::from(4);
+		}
 
 		// Bestow block reward
 		fields.state.add_balance(
