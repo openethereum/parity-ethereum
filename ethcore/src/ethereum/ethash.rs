@@ -276,7 +276,11 @@ impl Engine for Arc<Ethash> {
 		let mut reward = self.ethash_params.block_reward;
 		let fields = block.fields_mut();
 
-		let eras = fields.header.number() / self.ethash_params.ecip1017_era_rounds;
+		let eras = if fields.header.number() != 0 && fields.header.number() % self.ethash_params.ecip1017_era_rounds == 0 {
+			fields.header.number() / self.ethash_params.ecip1017_era_rounds - 1
+		} else {
+			fields.header.number() / self.ethash_params.ecip1017_era_rounds
+		};
 		for _ in 0..eras {
 			reward = reward / U256::from(5) * U256::from(4);
 		}
