@@ -19,8 +19,8 @@ use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::{VecDeque, BTreeSet, BTreeMap};
 use parking_lot::RwLock;
-use ethkey::{Public, Secret};
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, EncryptedDocumentKeyShadow};
+use ethkey::{Public, Secret, Signature};
+use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::{Cluster, ClusterData, ClusterView, ClusterConfiguration};
 use key_server_cluster::message::{self, Message, GenerationMessage, EncryptionMessage, DecryptionMessage, SigningMessage};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionImpl as GenerationSessionImpl,
@@ -224,7 +224,7 @@ impl ClusterSessions {
 	}
 
 	/// Create new decryption session.
-	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, cluster: Arc<ClusterView>) -> Result<Arc<DecryptionSessionImpl>, Error> {
+	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, cluster: Arc<ClusterView>, requester_signature: Option<Signature>) -> Result<Arc<DecryptionSessionImpl>, Error> {
 		let session_id = DecryptionSessionId::new(session_id, sub_session_id);
 
 		// some of nodes, which were encrypting secret may be down
@@ -237,13 +237,17 @@ impl ClusterSessions {
 		}
 
 		self.decryption_sessions.insert(master, session_id.clone(), cluster.clone(), move || DecryptionSessionImpl::new(DecryptionSessionParams {
-			id: session_id.id,
+			meta: SessionMeta {
+				id: session_id.id,
+				self_node_id: self.self_node_id.clone(),
+				master_node_id: master,
+				threshold: encrypted_data.threshold,
+			},
 			access_key: session_id.access_key,
-			self_node_id: self.self_node_id.clone(),
-			encrypted_data: encrypted_data,
+			key_share: encrypted_data,
 			acl_storage: self.acl_storage.clone(),
 			cluster: cluster,
-		}))
+		}, requester_signature))
 	}
 
 	/// Send decryption session error.

@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use ethkey::{Signature, recover};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage};
-use key_server_cluster::jobs::job_session::JobExecutor;
+use key_server_cluster::jobs::job_session::{JobPartialResponseAction, JobExecutor};
 
 /// Purpose of this job is to construct set of nodes, which have agreed to provide access to the given key for the given requestor.
 pub struct KeyAccessJob {
@@ -37,7 +37,7 @@ impl JobExecutor for KeyAccessJob {
 	type PartialJobResponse = bool;
 	type JobResponse = BTreeSet<NodeId>;
 
-	fn prepare_partial_request(&self) -> Result<Signature, Error> {
+	fn prepare_partial_request(&self, _node: &NodeId) -> Result<Signature, Error> {
 		Ok(self.signature.as_ref().expect("prepare_partial_request is only called on master nodes; new_on_master fills the signature; qed").clone())
 	}
 
@@ -45,8 +45,8 @@ impl JobExecutor for KeyAccessJob {
 		self.acl_storage.check(&recover(&partial_request, &self.id)?, &self.id).map_err(|_| Error::AccessDenied)
 	}
 
-	fn check_partial_response(&self, partial_response: &bool) -> Result<bool, Error> {
-		Ok(*partial_response)
+	fn check_partial_response(&self, partial_response: &bool) -> Result<JobPartialResponseAction, Error> {
+		Ok(if *partial_response { JobPartialResponseAction::Accept } else { JobPartialResponseAction::Reject })
 	}
 
 	fn compute_response(&self, partial_responses: &BTreeMap<NodeId, bool>) -> Result<BTreeSet<NodeId>, Error> {

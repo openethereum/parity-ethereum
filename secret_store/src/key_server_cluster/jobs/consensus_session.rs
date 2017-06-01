@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 use std::collections::BTreeSet;
 use std::sync::Arc;
-use ethkey::Signature;
+use ethkey::{Public, Signature, recover};
 use key_server_cluster::{Error, NodeId, SessionMeta, AclStorage};
 use key_server_cluster::message::ConsensusMessage;
 use key_server_cluster::jobs::job_session::{JobSession, JobSessionState, JobTransport, JobExecutor};
@@ -17,22 +17,25 @@ pub enum ConsensusSessionState {
 	Failed,
 }
 
-pub struct ConsensusSession<'a, ConsensusTransport: JobTransport<PartialJobRequest=Signature, PartialJobResponse=bool>, ComputationExecutor: JobExecutor, ComputationTransport: JobTransport<PartialJobRequest=ComputationExecutor::PartialJobRequest, PartialJobResponse=ComputationExecutor::PartialJobResponse>> {
+pub struct ConsensusSession<ConsensusTransport: JobTransport<PartialJobRequest=Signature, PartialJobResponse=bool>, ComputationExecutor: JobExecutor, ComputationTransport: JobTransport<PartialJobRequest=ComputationExecutor::PartialJobRequest, PartialJobResponse=ComputationExecutor::PartialJobResponse>> {
 	state: ConsensusSessionState,
-	meta: &'a SessionMeta,
-	consensus_job: JobSession<'a, KeyAccessJob, ConsensusTransport>,
-	computation_job: Option<JobSession<'a, ComputationExecutor, ComputationTransport>>,
-	dummy: PhantomData<(ComputationTransport, ComputationExecutor)>,
+	meta: SessionMeta,
+	requester: Option<Public>,
+	consensus_job: JobSession<KeyAccessJob, ConsensusTransport>,
+	computation_job: Option<JobSession<ComputationExecutor, ComputationTransport>>,
+	//dummy: PhantomData<(ComputationTransport, ComputationExecutor)>,
 }
 
-pub struct ConsensusSessionParams<'a, ConsensusTransport: JobTransport<PartialJobRequest=Signature, PartialJobResponse=bool>> {
-	meta: &'a SessionMeta,
+pub struct ConsensusSessionParams<ConsensusTransport: JobTransport<PartialJobRequest=Signature, PartialJobResponse=bool>> {
+	meta: SessionMeta,
 	acl_storage: Arc<AclStorage>,
 	consensus_transport: ConsensusTransport,
 }
 
-impl<'a, ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSession<'a, ConsensusTransport, ComputationExecutor, ComputationTransport> where ConsensusTransport: JobTransport<PartialJobRequest=Signature, PartialJobResponse=bool>, ComputationExecutor: JobExecutor, ComputationTransport: JobTransport<PartialJobRequest=ComputationExecutor::PartialJobRequest, PartialJobResponse=ComputationExecutor::PartialJobResponse> {
-	pub fn new_on_slave(params: ConsensusSessionParams<'a, ConsensusTransport>) -> Result<Self, Error> {
+impl<ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSession<ConsensusTransport, ComputationExecutor, ComputationTransport> where ConsensusTransport: JobTransport<PartialJobRequest=Signature, PartialJobResponse=bool>, ComputationExecutor: JobExecutor, ComputationTransport: JobTransport<PartialJobRequest=ComputationExecutor::PartialJobRequest, PartialJobResponse=ComputationExecutor::PartialJobResponse> {
+	pub fn new_on_slave(params: ConsensusSessionParams<ConsensusTransport>) -> Result<Self, Error> {
+		debug_assert!(params.meta.self_node_id != params.meta.master_node_id);
+
 		let consensus_job_executor = KeyAccessJob::new_on_slave(params.meta.id.clone(), params.acl_storage);
 		let consensus_job = JobSession::new(params.meta, consensus_job_executor, params.consensus_transport);
 		debug_assert!(consensus_job.state() == JobSessionState::Inactive);
@@ -40,34 +43,62 @@ impl<'a, ConsensusTransport, ComputationExecutor, ComputationTransport> Consensu
 		Ok(ConsensusSession {
 			state: ConsensusSessionState::WaitingForInitialization,
 			meta: params.meta,
+			requester: None,
 			consensus_job: consensus_job,
 			computation_job: None,
-			dummy: PhantomData,
+			//dummy: PhantomData,
 		})
 	}
 
-	pub fn new_on_master(params: ConsensusSessionParams<'a, ConsensusTransport>, signature: Signature) -> Result<Self, Error> {
+	pub fn new_on_master(params: ConsensusSessionParams<ConsensusTransport>, signature: Signature) -> Result<Self, Error> {
+		debug_assert!(params.meta.self_node_id == params.meta.master_node_id);
+
+		let requester = recover(&signature, &params.meta.id)?;
 		let consensus_job_executor = KeyAccessJob::new_on_master(params.meta.id.clone(), params.acl_storage, signature);
 		let consensus_job = JobSession::new(params.meta, consensus_job_executor, params.consensus_transport);
 
 		Ok(ConsensusSession {
 			state: ConsensusSessionState::WaitingForInitialization,
 			meta: params.meta,
+			requester: Some(requester),
 			consensus_job: consensus_job,
 			computation_job: None,
 			dummy: PhantomData,
 		})
 	}
 
+	pub fn state(&self) -> ConsensusSessionState {
+		self.state
+	}
+
+	pub fn requester(&self) -> Result<&Public, Error> {
+		self.requester.as_ref().ok_or(Error::InvalidStateForRequest)
+	}
+
+	pub fn result(&self) -> Result<ComputationExecutor::JobResponse, Error> {
+		debug_assert!(self.meta.self_node_id == self.meta.master_node_id);
+		if self.state != ConsensusSessionState::Finished {
+			return Err(Error::InvalidStateForRequest);
+		}
+
+		self.computation_job
+			.expect("we are on master node in finished state; computation_job is set on master node during initialization; qed")
+			.result()
+	}
+
 	pub fn initialize(&mut self, nodes: BTreeSet<NodeId>) -> Result<(), Error> {
 		let initialization_result = self.consensus_job.initialize(nodes);
+		self.state = ConsensusSessionState::EstablishingConsensus;
 		self.process_result(initialization_result)
 	}
 
 	pub fn on_consensus_message(&mut self, sender: &NodeId, message: &ConsensusMessage) -> Result<(), Error> {
 		let consensus_result = match message {
-			&ConsensusMessage::InitializeConsensusSession(ref message) =>
-				self.consensus_job.on_partial_request(sender, message.requestor_signature.clone().into()),
+			&ConsensusMessage::InitializeConsensusSession(ref message) => {
+				let signature = message.requestor_signature.clone().into();
+				self.requester = Some(recover(&signature, &self.meta.id)?);
+				self.consensus_job.on_partial_request(sender, signature)
+			},
 			&ConsensusMessage::ConfirmConsensusInitialization(ref message) =>
 				self.consensus_job.on_partial_response(sender, message.is_confirmed),
 		};
@@ -91,12 +122,10 @@ impl<'a, ConsensusTransport, ComputationExecutor, ComputationTransport> Consensu
 		}
 
 		let mut computation_job = JobSession::new(self.meta, executor, transport);
-		computation_job.initialize(consensus_nodes)?;
-
+		let computation_result = computation_job.initialize(consensus_nodes);
 		self.computation_job = Some(computation_job);
 		self.state = ConsensusSessionState::WaitingForPartialResults;
-
-		Ok(())
+		self.process_result(computation_result)
 	}
 
 	pub fn on_job_request(&mut self, node: &NodeId, request: ComputationExecutor::PartialJobRequest, executor: ComputationExecutor, transport: ComputationTransport) -> Result<(), Error> {
@@ -123,7 +152,20 @@ impl<'a, ConsensusTransport, ComputationExecutor, ComputationTransport> Consensu
 		self.process_result(computation_result)
 	}
 
-	pub fn on_node_timeout(&mut self, node: &NodeId) -> Result<(), Error> {
+	pub fn on_session_completed(&mut self, node: &NodeId) -> Result<(), Error> {
+		if node != &self.meta.master_node_id {
+			return Err(Error::InvalidMessage);
+		}
+		if self.state != ConsensusSessionState::ConsensusEstablished {
+			return Err(Error::InvalidStateForRequest);
+		}
+
+		self.state = ConsensusSessionState::Finished;
+
+		Ok(())
+	}
+
+	pub fn on_node_error(&mut self, node: &NodeId) -> Result<bool, Error> {
 		let timeout_result = match self.state {
 			ConsensusSessionState::WaitingForInitialization | ConsensusSessionState::Finished | ConsensusSessionState::Failed =>
 				Err(Error::ConsensusUnreachable),
@@ -144,7 +186,7 @@ impl<'a, ConsensusTransport, ComputationExecutor, ComputationTransport> Consensu
 		self.process_result(timeout_result)
 	}
 
-	pub fn on_session_timeout(&mut self) -> Result<(), Error> {
+	pub fn on_session_timeout(&mut self) -> Result<bool, Error> {
 		match self.state {
 			ConsensusSessionState::WaitingForInitialization | ConsensusSessionState::Finished | ConsensusSessionState::Failed |
 				ConsensusSessionState::EstablishingConsensus | ConsensusSessionState::ConsensusEstablished =>

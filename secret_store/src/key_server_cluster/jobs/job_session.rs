@@ -2,6 +2,17 @@ use std::marker::PhantomData;
 use std::collections::{BTreeSet, BTreeMap};
 use key_server_cluster::{Error, NodeId, SessionId, SessionMeta};
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+/// Partial rsponse action.
+pub enum JobPartialResponseAction {
+	/// Ignore this response.
+	Ignore,
+	/// Mark this response as reject.
+	Reject,
+	/// Accept this response.
+	Accept,
+}
+
 /// Job executor.
 pub trait JobExecutor {
 	type PartialJobRequest;
@@ -9,11 +20,11 @@ pub trait JobExecutor {
 	type JobResponse;
 
 	/// Prepare job request for given node.
-	fn prepare_partial_request(&self) -> Result<Self::PartialJobRequest, Error>;
+	fn prepare_partial_request(&self, node: &NodeId) -> Result<Self::PartialJobRequest, Error>;
 	/// Process partial request.
 	fn process_partial_request(&self, partial_request: Self::PartialJobRequest) -> Result<Self::PartialJobResponse, Error>;
 	/// Check partial response of given node.
-	fn check_partial_response(&self, partial_response: &Self::PartialJobResponse) -> Result<bool, Error>;
+	fn check_partial_response(&self, partial_response: &Self::PartialJobResponse) -> Result<JobPartialResponseAction, Error>;
 	/// Compute final job response.
 	fn compute_response(&self, partial_responses: &BTreeMap<NodeId, Self::PartialJobResponse>) -> Result<Self::JobResponse, Error>;
 }
@@ -43,9 +54,9 @@ pub enum JobSessionState {
 }
 
 /// Basic request-response session on a set of nodes.
-pub struct JobSession<'a, Executor: JobExecutor, Transport> where Transport: JobTransport<PartialJobRequest = Executor::PartialJobRequest, PartialJobResponse = Executor::PartialJobResponse> {
+pub struct JobSession<Executor: JobExecutor, Transport> where Transport: JobTransport<PartialJobRequest = Executor::PartialJobRequest, PartialJobResponse = Executor::PartialJobResponse> {
 	/// Session meta.
-	meta: &'a SessionMeta,
+	meta: SessionMeta,
 	/// Job executor.
 	executor: Executor,
 	/// Jobs transport.
@@ -74,9 +85,9 @@ struct ActiveJobSessionData<PartialJobResponse> {
 	responses: BTreeMap<NodeId, PartialJobResponse>,
 }
 
-impl<'a, Executor, Transport> JobSession<'a, Executor, Transport> where Executor: JobExecutor, Transport: JobTransport<PartialJobRequest = Executor::PartialJobRequest, PartialJobResponse = Executor::PartialJobResponse> {
+impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExecutor, Transport: JobTransport<PartialJobRequest = Executor::PartialJobRequest, PartialJobResponse = Executor::PartialJobResponse> {
 	/// Create new session.
-	pub fn new(meta: &'a SessionMeta, executor: Executor, transport: Transport) -> Self {
+	pub fn new(meta: SessionMeta, executor: Executor, transport: Transport) -> Self {
 		JobSession {
 			meta: meta,
 			executor: executor,
@@ -139,7 +150,7 @@ impl<'a, Executor, Transport> JobSession<'a, Executor, Transport> where Executor
 		};
 		for node in &active_data.requests {
 			if node != &self.meta.self_node_id {
-				self.transport.send_partial_request(&node, self.executor.prepare_partial_request()?)?;
+				self.transport.send_partial_request(&node, self.executor.prepare_partial_request(node)?)?;
 			} else {
 				waits_for_self = true;
 			}
@@ -151,7 +162,8 @@ impl<'a, Executor, Transport> JobSession<'a, Executor, Transport> where Executor
 
 		// if we are waiting for response from self => do it
 		if waits_for_self {
-			let partial_response = self.executor.process_partial_request(self.executor.prepare_partial_request()?)?;
+			let partial_request = self.executor.prepare_partial_request(&self.meta.self_node_id)?;
+			let partial_response = self.executor.process_partial_request(partial_request)?;
 			self.on_partial_response(&self.meta.self_node_id, partial_response)?;
 		}
 
@@ -189,23 +201,27 @@ impl<'a, Executor, Transport> JobSession<'a, Executor, Transport> where Executor
 			return Err(Error::InvalidNodeForRequest);
 		}
 		
-		if !self.executor.check_partial_response(&response).unwrap_or(false) {
-			active_data.rejects.insert(node.clone());
-			if active_data.requests.len() + active_data.responses.len() >= self.meta.threshold + 1 {
-				return Ok(());
-			}
+		match self.executor.check_partial_response(&response)? {
+			JobPartialResponseAction::Ignore => Ok(()),
+			JobPartialResponseAction::Reject => {
+				active_data.rejects.insert(node.clone());
+				if active_data.requests.len() + active_data.responses.len() >= self.meta.threshold + 1 {
+					return Ok(());
+				}
 
-			self.data.state = JobSessionState::Failed;
-			Err(Error::ConsensusUnreachable)
-		} else {
-			active_data.responses.insert(node.clone(), response);
+				self.data.state = JobSessionState::Failed;
+				Err(Error::ConsensusUnreachable)
+			},
+			JobPartialResponseAction::Accept => {
+				active_data.responses.insert(node.clone(), response);
 
-			if active_data.responses.len() < self.meta.threshold + 1 {
-				return Ok(());
-			}
+				if active_data.responses.len() < self.meta.threshold + 1 {
+					return Ok(());
+				}
 
-			self.data.state = JobSessionState::Finished;
-			Ok(())
+				self.data.state = JobSessionState::Finished;
+				Ok(())
+			},
 		}
 	}
 
@@ -251,7 +267,7 @@ mod tests {
 	use parking_lot::Mutex;
 	use ethkey::Public;
 	use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, DocumentKeyShare};
-	use super::{JobExecutor, JobTransport, JobSession, JobSessionState};
+	use super::{JobPartialResponseAction, JobExecutor, JobTransport, JobSession, JobSessionState};
 
 	struct SquaredSumJobExecutor;
 
@@ -260,9 +276,9 @@ mod tests {
 		type PartialJobResponse = u32;
 		type JobResponse = u32;
 
-		fn prepare_partial_request(&self) -> Result<u32, Error> { Ok(2) }
+		fn prepare_partial_request(&self, _n: &NodeId) -> Result<u32, Error> { Ok(2) }
 		fn process_partial_request(&self, r: u32) -> Result<u32, Error> { Ok(r * r) }
-		fn check_partial_response(&self, r: &u32) -> Result<bool, Error> { Ok(r % 2 == 0) }
+		fn check_partial_response(&self, r: &u32) -> Result<JobPartialResponseAction, Error> { if r % 2 == 0 { Ok(JobPartialResponseAction::Accept) } else { Ok(JobPartialResponseAction::Reject) } }
 		fn compute_response(&self, r: &BTreeMap<NodeId, u32>) -> Result<u32, Error> { Ok(r.values().fold(0, |v1, v2| v1 + v2)) }
 	}
 

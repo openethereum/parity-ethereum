@@ -36,6 +36,7 @@ pub use super::acl_storage::tests::DummyAclStorage;
 
 pub type SessionId = ServerKeyId;
 
+#[derive(Debug, Clone)]
 /// Session metadata.
 pub struct SessionMeta {
 	/// Key id.

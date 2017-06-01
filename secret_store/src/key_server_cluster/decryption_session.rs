@@ -22,15 +22,18 @@ use parking_lot::{Mutex, Condvar};
 use ethcrypto::ecies::encrypt;
 use ethcrypto::DEFAULT_MAC;
 use ethkey::{self, Secret, Public, Signature};
-use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, EncryptedDocumentKeyShadow};
+use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::consensus::Consensus;
-use key_server_cluster::consensus_session::{ConsensusSession, AclConsensusChecker, SessionParams as ConsensusSessionParams,
-	SessionState as ConsensusSessionState, SessionAction as ConsensusSessionAction};
 use key_server_cluster::math;
 use key_server_cluster::message::{Message, DecryptionMessage, DecryptionConsensusMessage, RequestPartialDecryption,
-	PartialDecryption, DecryptionSessionError, DecryptionSessionCompleted, ConsensusMessage};
+	PartialDecryption, DecryptionSessionError, DecryptionSessionCompleted, ConsensusMessage, InitializeConsensusSession,
+	ConfirmConsensusInitialization};
+use key_server_cluster::jobs::job_session::{JobExecutor, JobTransport};
+use key_server_cluster::jobs::key_access_job::KeyAccessJob;
+use key_server_cluster::jobs::decryption_job::{PartialDecryptionRequest, PartialDecryptionResponse, DecryptionJob};
+use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
 
 /// Decryption session API.
 pub trait Session: Send + Sync + 'static {
@@ -47,22 +50,34 @@ pub trait Session: Send + Sync + 'static {
 /// 3) partial decryption: every node which has succussfully checked access for the requestor do a partial decryption
 /// 4) decryption: master node receives all partial decryptions of the secret and restores the secret
 pub struct SessionImpl {
-	/// Encryption session id.
-	id: SessionId,
-	/// Decryption session access key.
-	access_key: Secret,
-	/// Public identifier of this node.
-	self_node_id: NodeId,
-	/// Encrypted data.
-	encrypted_data: DocumentKeyShare,
-	/// ACL storate to check access to the resource.
-	acl_storage: Arc<AclStorage>,
-	/// Cluster which allows this node to send messages to other nodes in the cluster.
-	cluster: Arc<Cluster>,
-	/// SessionImpl completion condvar.
-	completed: Condvar,
-	/// Mutable session data.
+	/// Session core.
+	core: SessionCore,
+	/// Session data.
 	data: Mutex<SessionData>,
+}
+
+/// Immutable session data.
+struct SessionCore {
+	/// Session metadata.
+	pub meta: SessionMeta,
+	/// Decryption session access key.
+	pub access_key: Secret,
+	/// Key share.
+	pub key_share: DocumentKeyShare,
+	/// Cluster which allows this node to send messages to other nodes in the cluster.
+	pub cluster: Arc<Cluster>,
+	/// SessionImpl completion condvar.
+	pub completed: Condvar,
+}
+
+/// Mutable session data.
+struct SessionData {
+	/// Consensus-based decryption session.
+	pub consensus_session: DecryptionConsensusSession,
+	/// Is shadow decryption requested?
+	pub is_shadow_decryption: Option<bool>,
+	/// Decryption result.
+	pub result: Option<Result<EncryptedDocumentKeyShadow, Error>>,
 }
 
 /// Decryption session Id.
@@ -76,539 +91,345 @@ pub struct DecryptionSessionId {
 
 /// SessionImpl creation parameters
 pub struct SessionParams {
-	/// SessionImpl identifier.
-	pub id: SessionId,
-	/// SessionImpl access key.
+	/// Session metadata.
+	pub meta: SessionMeta,
+	/// Session access key.
 	pub access_key: Secret,
-	/// Id of node, on which this session is running.
-	pub self_node_id: Public,
-	/// Encrypted data (result of running encryption_session::SessionImpl).
-	pub encrypted_data: DocumentKeyShare,
+	/// Key share.
+	pub key_share: DocumentKeyShare,
 	/// ACL storage.
 	pub acl_storage: Arc<AclStorage>,
 	/// Cluster
 	pub cluster: Arc<Cluster>,
 }
 
-#[derive(Debug, Clone)]
-/// Partial decryption result.
-struct PartialDecryptionResult {
-	/// Shadow point.
-	pub shadow_point: Public,
-	/// Decryption shadow coefficient, if requested.
-	pub decrypt_shadow: Option<Vec<u8>>,
+type DecryptionConsensusSession = ConsensusSession<DecryptionConsensusTransport, DecryptionJob, DecryptionJobTransport>;
+
+/// Decryption consensus transport.
+struct DecryptionConsensusTransport {
+	/// Session id.
+	id: SessionId,
+	/// Session access key.
+	access_key: Secret,
+	/// Cluster.
+	cluster: Arc<Cluster>,
 }
 
-/// Mutable data of encryption (distributed key generation) session.
-struct SessionData {
-	/// Current state of the session.
-	state: SessionState,
+impl JobTransport for DecryptionConsensusTransport {
+	type PartialJobRequest=Signature;
+	type PartialJobResponse=bool;
 
-	// === Values, filled when session initialization just starts ===
-	/// Reference to the node, which has started this session.
-	master: Option<NodeId>,
-	/// Public key of requestor.
-	requestor: Option<Public>,
-	/// Is shadow decryption requested?
-	is_shadow_decryption: Option<bool>,
-	/// Decryption consensus group.
-	consensus: Option<Consensus<PartialDecryptionResult>>,
+	fn send_partial_request(&self, node: &NodeId, request: Signature) -> Result<(), Error> {
+		self.cluster.send(node, Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(DecryptionConsensusMessage {
+			session: self.id.clone().into(),
+			sub_session: self.access_key.clone().into(),
+			message: ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
+				requestor_signature: request.into(),
+			})
+		})))
+	}
 
-	// === Values, filled when consensus is establishing ===
-	/// Consensus session.
-	consensus_session: Option<ConsensusSession<AclConsensusChecker>>,
-
-	/// === Values, filled during final decryption ===
-	/// Decrypted secret
-	decrypted_secret: Option<Result<EncryptedDocumentKeyShadow, Error>>,
+	fn send_partial_response(&self, node: &NodeId, response: bool) -> Result<(), Error> {
+		self.cluster.send(node, Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(DecryptionConsensusMessage {
+			session: self.id.clone().into(),
+			sub_session: self.access_key.clone().into(),
+			message: ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
+				is_confirmed: response,
+			})
+		})))
+	}
 }
 
-#[derive(Debug, Clone, PartialEq)]
-/// Decryption session data.
-pub enum SessionState {
-	// === Initialization states ===
-	/// Every node starts in this state.
-	WaitingForInitialization,
-	/// Establishing consensus.
-	EstablishingConsensus,
-	/// Consensus established
-	EstablishedConsensus,
+/// Decryption job transport
+struct DecryptionJobTransport {
+	/// Session id.
+	id: SessionId,
+	//// Session access key.
+	access_key: Secret,
+	/// Cluster.
+	cluster: Arc<Cluster>,
+}
 
-	// === Decryption states ===
-	/// Waiting for partial decrypion request.
-	WaitingForPartialDecryptionRequest,
-	/// Waiting for partial decryption responses.
-	WaitingForPartialDecryption,
+impl JobTransport for DecryptionJobTransport {
+	type PartialJobRequest=PartialDecryptionRequest;
+	type PartialJobResponse=PartialDecryptionResponse;
 
-	// === Final states of the session ===
-	/// Decryption session is finished for this node.
-	Finished,
-	/// Decryption session is failed for this node.
-	Failed,
+	fn send_partial_request(&self, node: &NodeId, request: PartialDecryptionRequest) -> Result<(), Error> {
+		self.cluster.send(node, Message::Decryption(DecryptionMessage::RequestPartialDecryption(RequestPartialDecryption {
+			session: self.id.clone().into(),
+			sub_session: self.access_key.clone().into(),
+			request_id: request.id.into(),
+			is_shadow_decryption: request.is_shadow_decryption,
+			nodes: request.other_nodes_ids.into_iter().map(Into::into).collect(),
+		})))
+	}
+
+	fn send_partial_response(&self, node: &NodeId, response: PartialDecryptionResponse) -> Result<(), Error> {
+		self.cluster.send(node, Message::Decryption(DecryptionMessage::PartialDecryption(PartialDecryption {
+			session: self.id.clone().into(),
+			sub_session: self.access_key.clone().into(),
+			request_id: response.request_id.into(),
+			shadow_point: response.shadow_point.into(),
+			decrypt_shadow: response.decrypt_shadow,
+		})))
+	}
 }
 
 impl SessionImpl {
 	/// Create new decryption session.
-	pub fn new(params: SessionParams) -> Result<Self, Error> {
-		check_encrypted_data(&params.self_node_id, &params.encrypted_data)?;
+	pub fn new(params: SessionParams, requester_signature: Option<Signature>) -> Result<Self, Error> {
+		debug_assert!((params.meta.self_node_id == params.meta.master_node_id) == requester_signature.is_some());
+
+		use key_server_cluster::generation_session::{check_cluster_nodes, check_threshold};
+
+		// check that common_point and encrypted_point are already set
+		if params.key_share.common_point.is_none() || params.key_share.encrypted_point.is_none() {
+			return Err(Error::NotStartedSessionId);
+		}
+
+		// check nodes and threshold
+		let nodes = params.key_share.id_numbers.keys().cloned().collect();
+		check_cluster_nodes(&params.meta.self_node_id, &nodes)?;
+		check_threshold(params.key_share.threshold, &nodes)?;
+
+		let consensus_transport = DecryptionConsensusTransport {
+			id: params.meta.id.clone(),
+			access_key: params.access_key.clone(),
+			cluster: params.cluster.clone(),
+		};
 
 		Ok(SessionImpl {
-			id: params.id,
-			access_key: params.access_key,
-			self_node_id: params.self_node_id,
-			encrypted_data: params.encrypted_data,
-			acl_storage: params.acl_storage,
-			cluster: params.cluster,
-			completed: Condvar::new(),
+			core: SessionCore {
+				meta: params.meta,
+				access_key: params.access_key,
+				key_share: params.key_share,
+				cluster: params.cluster,
+				completed: Condvar::new(),
+			},
 			data: Mutex::new(SessionData {
-				state: SessionState::WaitingForInitialization,
-				master: None,
-				requestor: None,
+				consensus_session: match requester_signature {
+					Some(requester_signature) => ConsensusSession::new_on_master(ConsensusSessionParams {
+						meta: params.meta.clone(),
+						acl_storage: params.acl_storage.clone(),
+						consensus_transport: consensus_transport,
+					}, requester_signature)?,
+					None => ConsensusSession::new_on_slave(ConsensusSessionParams {
+						meta: params.meta.clone(),
+						acl_storage: params.acl_storage.clone(),
+						consensus_transport: consensus_transport,
+					})?,
+				},
 				is_shadow_decryption: None,
-				consensus: None,
-				consensus_session: None,
-				decrypted_secret: None,
-			})
+				result: None,
+			}),
 		})
-	}
-
-	/// Get current session state.
-	pub fn state(&self) -> SessionState {
-		self.data.lock().state.clone()
 	}
 
 	#[cfg(test)]
 	/// Get this node id.
 	pub fn node(&self) -> &NodeId {
-		&self.self_node_id
+		&self.core.meta.self_node_id
 	}
 
 	#[cfg(test)]
 	/// Get this session access key.
 	pub fn access_key(&self) -> &Secret {
-		&self.access_key
+		&self.core.access_key
 	}
 
 	#[cfg(test)]
 	/// Get decrypted secret
 	pub fn decrypted_secret(&self) -> Option<Result<EncryptedDocumentKeyShadow, Error>> {
-		self.data.lock().decrypted_secret.clone()
+		self.data.lock().result.clone()
 	}
 
-	/// Initialize decryption session.
+	/// Initialize decryption session on master node.
 	pub fn initialize(&self, requestor_signature: Signature, is_shadow_decryption: bool) -> Result<(), Error> {
 		let mut data = self.data.lock();
+		data.consensus_session.initialize(self.core.key_share.id_numbers.keys().cloned().collect())?;
 
-		// check state
-		if data.state != SessionState::WaitingForInitialization {
-			return Err(Error::InvalidStateForRequest);
-		}
+		if data.consensus_session.state() == ConsensusSessionState::ConsensusEstablished {
+			self.core.disseminate_jobs(&mut data.consensus_session, is_shadow_decryption)?;
 
-		// recover requestor signature
-		let requestor_public = ethkey::recover(&requestor_signature, &self.id)?;
-
-		// update state
-		data.master = Some(self.self_node_id.clone());
-		data.state = SessionState::EstablishingConsensus;
-		data.requestor = Some(requestor_public);
-		data.is_shadow_decryption = Some(is_shadow_decryption);
-
-		// create consensus session
-		let mut consensus = Consensus::new(self.encrypted_data.threshold, self.encrypted_data.id_numbers.keys().cloned().collect())?;
-		let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
-			id: self.id.clone(),
-			self_node_id: self.self_node_id.clone(),
-			master_node_id: self.self_node_id.clone(),
-			consensus_checker: AclConsensusChecker::new(self.acl_storage.clone()),
-		})?;
-
-		// start consensus session
-		let consensus_action = consensus_session.initialize(requestor_signature, &mut consensus)?;
-		data.consensus = Some(consensus);
-		data.consensus_session = Some(consensus_session);
-
-		// process consensus action
-		SessionImpl::process_consensus_session_action(&self.id, &self.access_key, &self.cluster, &self.completed, &mut *data, consensus_action)?;
-
-		// if single node is required to sign message, proceed
-		if data.state == SessionState::EstablishedConsensus {
-			SessionImpl::start_waiting_for_partial_decryption(&self.self_node_id, &self.id, &self.access_key, &self.cluster, &self.encrypted_data, &mut *data)?;
-			SessionImpl::do_decryption(&self.access_key, &self.encrypted_data, &mut *data)?;
-			self.completed.notify_all();
+			debug_assert!(data.consensus_session.state() == ConsensusSessionState::Finished);
+			data.is_shadow_decryption = Some(is_shadow_decryption);
+			data.result = Some(Ok(data.consensus_session.result()?));
+			self.core.completed.notify_all();
 		}
 
 		Ok(())
+	}
+
+	/// Process decryption message.
+	pub fn process_message(&self, sender: &NodeId, message: &DecryptionMessage) -> Result<(), Error> {
+		match message {
+			&DecryptionMessage::DecryptionConsensusMessage(ref message) =>
+				self.on_consensus_message(sender, message),
+			&DecryptionMessage::RequestPartialDecryption(ref message) =>
+				self.on_partial_decryption_requested(sender, message),
+			&DecryptionMessage::PartialDecryption(ref message) =>
+				self.on_partial_decryption(sender, message),
+			&DecryptionMessage::DecryptionSessionError(ref message) =>
+				self.on_session_error(sender, message),
+			&DecryptionMessage::DecryptionSessionCompleted(ref message) =>
+				self.on_session_completed(sender, message),
+		}
 	}
 
 	/// When consensus-related message is received.
-	pub fn on_consensus_message(&self, sender: NodeId, message: &DecryptionConsensusMessage) -> Result<(), Error> {
-		debug_assert!(self.id == *message.session);
-		debug_assert!(self.access_key == *message.sub_session);
+	pub fn on_consensus_message(&self, sender: &NodeId, message: &DecryptionConsensusMessage) -> Result<(), Error> {
+		debug_assert!(self.core.meta.id == *message.session);
+		debug_assert!(self.core.access_key == *message.sub_session);
 
 		let mut data = self.data.lock();
+		let is_establishing_consensus = data.consensus_session.state() == ConsensusSessionState::EstablishingConsensus;
+		data.consensus_session.on_consensus_message(&sender, &message.message)?;
 
-		// if we are waiting for initialization
-		if data.state == SessionState::WaitingForInitialization {
-			data.master = Some(sender.clone());
-			data.state = SessionState::EstablishingConsensus;
-			data.consensus = Some(Consensus::new(self.encrypted_data.threshold, self.encrypted_data.id_numbers.keys().cloned().collect())?);
-			data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
-				id: self.id.clone(),
-				self_node_id: self.self_node_id.clone(),
-				master_node_id: sender.clone(),
-				consensus_checker: AclConsensusChecker::new(self.acl_storage.clone()),
-			})?);
-		}
-
-		// check state
-		if data.state != SessionState::EstablishingConsensus {
-			// consensus is already established => mark node as confirmed (for restart case) and ignore
-			return data.consensus.as_mut().map(|consensus| consensus.accept_offer(&sender)).unwrap_or(Ok(()));
-		}
-
-		// process message
-		let consensus_action = {
-			let mut data = data.deref_mut();
-			let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidStateForRequest)?;
-			match message.message {
-				ConsensusMessage::InitializeConsensusSession(ref message) => {
-					// check state
-					if data.state != SessionState::EstablishingConsensus {
-						return Err(Error::InvalidStateForRequest);
-					}
-					let requestor = ethkey::recover(&message.requestor_signature, &self.id)?;
-					let consensus_action = consensus_session.on_initialize_session(sender, &requestor)?;
-					data.requestor = Some(requestor);
-					consensus_action
-				},
-				ConsensusMessage::ConfirmConsensusInitialization(ref message) => {
-					let consensus = data.consensus.as_mut().ok_or(Error::InvalidStateForRequest)?;
-					if data.state != SessionState::EstablishingConsensus {
-						// consensus is already established => mark node as confirmed (for restart case) and ignore
-						return consensus.offer_response(&sender, message.is_confirmed);
-					}
-					consensus_session.on_confirm_initialization(sender, message.is_confirmed, consensus)?
-				},
-			}
-		};
-		SessionImpl::process_consensus_session_action(&self.id, &self.access_key, &self.cluster, &self.completed, &mut *data, consensus_action)?;
-
-		// if consensus is established and we are on master node => ask for partial decryption
-		if data.state != SessionState::EstablishedConsensus {
+		let is_consensus_established = data.consensus_session.state() == ConsensusSessionState::ConsensusEstablished;
+		if self.core.meta.self_node_id != self.core.meta.master_node_id || !is_establishing_consensus || !is_consensus_established {
 			return Ok(());
 		}
-		SessionImpl::start_waiting_for_partial_decryption(&self.self_node_id, &self.id, &self.access_key, &self.cluster, &self.encrypted_data, &mut *data)
+
+		let is_shadow_decryption = data.is_shadow_decryption
+			.expect("we are on master node; on master node is_shadow_decryption is filled in initialize(); on_consensus_message follows initialize (state check in consensus_session); qed");
+		self.core.disseminate_jobs(&mut data.consensus_session, is_shadow_decryption)
 	}
 
-	pub fn on_partial_decryption_requested(&self, sender: NodeId, message: &RequestPartialDecryption) -> Result<(), Error> {
-		debug_assert!(self.id == *message.session);
-		debug_assert!(self.access_key == *message.sub_session);
-		debug_assert!(sender != self.self_node_id);
-
-		// check message
-		if message.nodes.len() != self.encrypted_data.threshold + 1 {
-			return Err(Error::InvalidMessage);
-		}
+	/// When partial decryption is requested.
+	pub fn on_partial_decryption_requested(&self, sender: &NodeId, message: &RequestPartialDecryption) -> Result<(), Error> {
+		debug_assert!(self.core.meta.id == *message.session);
+		debug_assert!(self.core.access_key == *message.sub_session);
+		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		let mut data = self.data.lock();
+		let requester = data.consensus_session.requester()?.clone();
+		let decryption_job = DecryptionJob::new_on_slave(self.core.meta.self_node_id.clone(), self.core.access_key.clone(), requester, self.core.key_share.clone());
+		let decryption_transport = self.core.decryption_transport();
 
-		// check state
-		if data.master != Some(sender) {
-			return Err(Error::InvalidMessage);
-		}
-		if data.state == SessionState::EstablishingConsensus {
-			// for slave nodes consensus is established when partial decryption request is received
-			data.state = SessionState::WaitingForPartialDecryptionRequest;
-		}
-		if data.state != SessionState::WaitingForPartialDecryptionRequest {
-			return Err(Error::InvalidStateForRequest);
-		}
-
-		// calculate shadow point
-		let decryption_result = {
-			let requestor = data.requestor.as_ref().expect("requestor public is filled during initialization; WaitingForPartialDecryptionRequest follows initialization; qed");
-			let nodes = message.nodes.iter().cloned().map(Into::into).collect();
-			do_partial_decryption(&self.self_node_id, &requestor, message.is_shadow_decryption, &nodes, &self.access_key, &self.encrypted_data)?
-		};
-		self.cluster.send(&sender, Message::Decryption(DecryptionMessage::PartialDecryption(PartialDecryption {
-			session: self.id.clone().into(),
-			sub_session: self.access_key.clone().into(),
-			request_id: message.request_id.clone(),
-			shadow_point: decryption_result.shadow_point.into(),
-			decrypt_shadow: decryption_result.decrypt_shadow,
-		})))?;
-
-		// master could ask us for another partial decryption in case of restart
-		// => no state change is required
-
-		Ok(())
+		data.consensus_session.on_job_request(&sender, PartialDecryptionRequest {
+			id: message.request_id.clone().into(),
+			is_shadow_decryption: message.is_shadow_decryption,
+			other_nodes_ids: message.nodes.iter().cloned().map(Into::into).collect(),
+		}, decryption_job, decryption_transport)
 	}
 
 	/// When partial decryption is received.
-	pub fn on_partial_decryption(&self, sender: NodeId, message: &PartialDecryption) -> Result<(), Error> {
-		debug_assert!(self.id == *message.session);
-		debug_assert!(self.access_key == *message.sub_session);
-		debug_assert!(sender != self.self_node_id);
+	pub fn on_partial_decryption(&self, sender: &NodeId, message: &PartialDecryption) -> Result<(), Error> {
+		debug_assert!(self.core.meta.id == *message.session);
+		debug_assert!(self.core.access_key == *message.sub_session);
+		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		let mut data = self.data.lock();
+		data.consensus_session.on_job_response(sender, PartialDecryptionResponse {
+			request_id: message.request_id.clone().into(),
+			shadow_point: message.shadow_point.clone().into(),
+			decrypt_shadow: message.decrypt_shadow.clone(),
+		})?;
 
-		// check state
-		if data.state != SessionState::WaitingForPartialDecryption {
-			return Err(Error::InvalidStateForRequest);
+		if data.consensus_session.state() != ConsensusSessionState::Finished {
+			return Ok(());
 		}
 
-		// remember partial signature
-		{
-			let consensus = data.consensus.as_mut().ok_or(Error::InvalidStateForRequest)?;
-			consensus.job_response_received(&sender, &message.request_id.clone().into(), PartialDecryptionResult {
-				shadow_point: message.shadow_point.clone().into(),
-				decrypt_shadow: message.decrypt_shadow.clone(),
-			})?;
-
-			// check if we have enough shadow points to decrypt the secret
-			if !consensus.is_completed() {
-				return Ok(());
-			}
-		}
-
-		// notify all other nodes about session completion
-		self.cluster.broadcast(Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(DecryptionSessionCompleted {
-			session: self.id.clone().into(),
-			sub_session: self.access_key.clone().into(),
+		self.core.cluster.broadcast(Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(DecryptionSessionCompleted {
+			session: self.core.meta.id.clone().into(),
+			sub_session: self.core.access_key.clone().into(),
 		})))?;
 
-		// do decryption
-		SessionImpl::do_decryption(&self.access_key, &self.encrypted_data, &mut *data)?;
-		self.completed.notify_all();
+		data.result = Some(Ok(data.consensus_session.result()?));
+		self.core.completed.notify_all();
 
 		Ok(())
 	}
 
 	/// When session is completed.
-	pub fn on_session_completed(&self, sender: NodeId, message: &DecryptionSessionCompleted) -> Result<(), Error> {
-		debug_assert!(self.id == *message.session);
-		debug_assert!(self.access_key == *message.sub_session);
-		debug_assert!(sender != self.self_node_id);
+	pub fn on_session_completed(&self, sender: &NodeId, message: &DecryptionSessionCompleted) -> Result<(), Error> {
+		debug_assert!(self.core.meta.id == *message.session);
+		debug_assert!(self.core.access_key == *message.sub_session);
+		debug_assert!(sender != &self.core.meta.self_node_id);
 
-		let mut data = self.data.lock();
-
-		if data.master != Some(sender) {
-			return Err(Error::InvalidMessage);
-		}
-		// it is up to master node to decide when to complete session
-		// => we could only fail if already failed
-		if data.state == SessionState::Failed {
-			return Err(Error::InvalidStateForRequest);
-		}
-
-		// update state
-		data.state = SessionState::Finished;
-
-		Ok(())
+		self.data.lock().consensus_session.on_session_completed(sender)
 	}
 
 	/// When error has occured on another node.
-	pub fn on_session_error(&self, sender: NodeId, message: &DecryptionSessionError) -> Result<(), Error> {
+	pub fn on_session_error(&self, sender: &NodeId, message: &DecryptionSessionError) -> Result<(), Error> {
+		self.process_node_error(Some(&sender), &message.error)
+	}
+
+	/// Process error from the other node.
+	fn process_node_error(&self, node: Option<&NodeId>, error: &String) -> Result<(), Error> {
 		let mut data = self.data.lock();
+		match {
+			match node {
+				Some(node) => data.consensus_session.on_node_error(node),
+				None => data.consensus_session.on_session_timeout(),
+			}
+		} {
+			Ok(false) => Ok(()),
+			Ok(true) => match self.core.disseminate_jobs(&mut data.consensus_session,
+				data.is_shadow_decryption.expect("on_node_error returned true; this means that jobs must be REsent; this means that jobs already have been sent; jobs are sent when is_shadow_decryption.is_some(); qed")) {
+				Ok(()) => Ok(()),
+				Err(err) => {
+					warn!("{}: decryption session failed with error: {:?} from {:?}", &self.core.meta.self_node_id, error, node);
 
-		warn!("{}: decryption session failed with error: {:?} from {}", &self.self_node_id, message.error, sender);
-
-		data.state = SessionState::Failed;
-		data.decrypted_secret = Some(Err(Error::Io(message.error.clone())));
-		self.completed.notify_all();
-
-		Ok(())
-	}
-
-	/// Process nested consensus session action.
-	fn process_consensus_session_action(id: &SessionId, access_key: &Secret, cluster: &Arc<Cluster>, completed: &Condvar, data: &mut SessionData, action: ConsensusSessionAction) -> Result<(), Error> {
-		match action {
-			ConsensusSessionAction::BroadcastMessage(message) => {
-				cluster.broadcast(Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(DecryptionConsensusMessage {
-					session: id.clone().into(),
-					sub_session: access_key.clone().into(),
-					message: message,
-				})))?
+					data.result = Some(Err(err));
+					self.core.completed.notify_all();
+					Err(err)
+				}
 			},
-			ConsensusSessionAction::SendMessage(to, message) => {
-				cluster.send(&to, Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(DecryptionConsensusMessage {
-					session: id.clone().into(),
-					sub_session: access_key.clone().into(),
-					message: message,
-				})))?
+			Err(err) => {
+				warn!("{}: decryption session failed with error: {:?} from {:?}", &self.core.meta.self_node_id, error, node);
+
+				data.result = Some(Err(err));
+				self.core.completed.notify_all();
+				Err(err)
 			},
-			ConsensusSessionAction::CheckStatus => (),
 		}
-
-		match data.consensus_session.as_ref()
-			.expect("we are processing consensus session action; action is a result of processing message by session; qed")
-			.state() {
-			ConsensusSessionState::Finished => data.state = SessionState::EstablishedConsensus,
-			ConsensusSessionState::Failed => {
-				data.state = SessionState::Failed;
-				data.decrypted_secret = Some(Err(Error::ConsensusUnreachable));
-				completed.notify_all();
-			},
-			_ => (),
-		}
-
-		Ok(())
-	}
-
-	fn start_waiting_for_partial_decryption(self_node_id: &NodeId, session_id: &SessionId, access_key: &Secret, cluster: &Arc<Cluster>, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
-		if data.master.as_ref() != Some(self_node_id) {
-			// if we are on the slave node, wait for partial decryption requests
-			data.state = SessionState::WaitingForPartialDecryptionRequest;
-			return Ok(());
-		}
-
-		// update state
-		data.state = SessionState::WaitingForPartialDecryption;
-
-		// send jobs to all selected nodes
-		let consensus = data.consensus.as_mut().expect("consensus is created on initialization phase; partial decryption phase follows initialization; qed");
-		consensus.activate()?;
-		let (request_id, mut confirmed_nodes) = consensus.select_nodes(self_node_id).map(|(r, n)| (r.clone(), n.clone()))?;
-
-		// send requests
-		for node in confirmed_nodes.iter().filter(|n| n != &self_node_id) {
-			consensus.job_request_sent(node)?;
-			cluster.send(node, Message::Decryption(DecryptionMessage::RequestPartialDecryption(RequestPartialDecryption {
-				session: session_id.clone().into(),
-				sub_session: access_key.clone().into(),
-				request_id: request_id.clone().into(),
-				is_shadow_decryption: data.is_shadow_decryption.expect("is_shadow_decryption on master node is filled in initialization; we are on master node; qed"),
-				nodes: confirmed_nodes.iter().cloned().map(Into::into).collect(),
-			})))?;
-		}
-
-		// confirmation from this node, if this node is in consensus group
-		if confirmed_nodes.remove(self_node_id) {
-			let decryption_result = {
-				let requestor = data.requestor.as_ref().expect("requestor public is filled during initialization; WaitingForPartialDecryption follows initialization; qed");
-				let is_shadow_decryption = data.is_shadow_decryption.expect("is_shadow_decryption is filled during initialization; WaitingForPartialDecryption follows initialization; qed");
-				do_partial_decryption(self_node_id, &requestor, is_shadow_decryption, &confirmed_nodes, access_key, &encrypted_data)?
-			};
-
-			consensus.job_request_sent(self_node_id)?;
-			consensus.job_response_received(self_node_id, &request_id, decryption_result)?;
-		}
-
-		Ok(())
-	}
-
-	fn do_decryption(access_key: &Secret, encrypted_data: &DocumentKeyShare, data: &mut SessionData) -> Result<(), Error> {
-		// decrypt the secret using shadow points
-		let job_responses = data.consensus.as_ref()
-			.expect("consesus is filled in initialization phase; decryption phase follows initialization phase")
-			.job_responses()?;
-		let joint_shadow_point = math::compute_joint_shadow_point(job_responses.values().map(|s| &s.shadow_point))?;
-		let encrypted_point = encrypted_data.encrypted_point.as_ref().expect("checked at the beginning of the session; immutable; qed");
-		let common_point = encrypted_data.common_point.as_ref().expect("checked at the beginning of the session; immutable; qed");
-		let decrypted_secret = math::decrypt_with_joint_shadow(encrypted_data.threshold, access_key, encrypted_point, &joint_shadow_point)?;
-		let is_shadow_decryption = data.is_shadow_decryption.expect("is_shadow_decryption is filled during initialization; decryption follows initialization; qed");
-		let (common_point, decrypt_shadows) = if is_shadow_decryption {
-			(
-				Some(math::make_common_shadow_point(encrypted_data.threshold, common_point.clone())?),
-				Some(job_responses.values()
-					.map(|s| s.decrypt_shadow.as_ref().expect("decrypt_shadow is filled during partial decryption; decryption follows partial decryption; qed").clone())
-					.collect())
-			)
-		} else {
-			(None, None)
-		};
-		data.decrypted_secret = Some(Ok(EncryptedDocumentKeyShadow {
-			decrypted_secret: decrypted_secret,
-			common_point: common_point,
-			decrypt_shadows: decrypt_shadows,
-		}));
-
-		// switch to completed state
-		data.state = SessionState::Finished;
-
-		Ok(())
 	}
 }
 
 impl ClusterSession for SessionImpl {
 	fn is_finished(&self) -> bool {
 		let data = self.data.lock();
-		data.state == SessionState::Failed
-			|| data.state == SessionState::Finished
+		data.consensus_session.state() == ConsensusSessionState::Failed
+			|| data.consensus_session.state() == ConsensusSessionState::Finished
 	}
 
 	fn on_node_timeout(&self, node: &NodeId) {
-		let mut data = self.data.lock();
-
-		let is_self_master = data.master.as_ref() == Some(&self.self_node_id);
-		let is_other_master = data.master.as_ref() == Some(node);
-		// if this is master node, we might have to restart
-		if is_self_master {
-			let is_restart_required = match data.consensus.as_mut() {
-				None => false,
-				Some(consensus) => match consensus.node_timeouted(node) {
-					Ok(false) => return,
-					Ok(true) => true,
-					Err(_) => false, //fall through
-				},
-			};
-			if is_restart_required {
-				if SessionImpl::start_waiting_for_partial_decryption(&self.self_node_id, &self.id, &self.access_key, &self.cluster, &self.encrypted_data, &mut *data).is_ok() {
-					return;
-				}
-			}
-		} else if !is_other_master {
-			// disconnected from non-master node on non-master node
-			// => this does not affect this session
-			return;
-		}
-		// else: disconnecting from master node means failure
-
-		warn!("{}: decryption session failed because {} connection has timeouted", &self.self_node_id, node);
-
-		data.state = SessionState::Failed;
-		data.decrypted_secret = Some(Err(Error::NodeDisconnected));
-		self.completed.notify_all();
+		// ignore error, only state matters
+		let _ = self.process_node_error(Some(node), &Error::NodeDisconnected.into());
 	}
 
 	fn on_session_timeout(&self) {
-		let mut data = self.data.lock();
-
-		let is_self_master = data.master.as_ref() == Some(&self.self_node_id);
-		// if this is master node, we might have to restart
-		if is_self_master {
-			let is_restart_required = match data.consensus.as_mut() {
-				None => false,
-				Some(consensus) => match consensus.session_timeouted() {
-					Ok(_) => true,
-					Err(_) => false,
-				},
-			};
-			if is_restart_required {
-				if SessionImpl::start_waiting_for_partial_decryption(&self.self_node_id, &self.id, &self.access_key, &self.cluster, &self.encrypted_data, &mut *data).is_ok() {
-					return;
-				}
-			}
-		}
-
-		warn!("{}: decryption session failed with timeout", &self.self_node_id);
-
-		data.state = SessionState::Failed;
-		data.decrypted_secret = Some(Err(Error::NodeDisconnected));
-		self.completed.notify_all();
+		// ignore error, only state matters
+		let _ = self.process_node_error(None, &Error::NodeDisconnected.into());
 	}
 }
 
 impl Session for SessionImpl {
 	fn wait(&self) -> Result<EncryptedDocumentKeyShadow, Error> {
 		let mut data = self.data.lock();
-		if !data.decrypted_secret.is_some() {
+		if !data.result.is_some() {
 			self.completed.wait(&mut data);
 		}
 
-		data.decrypted_secret.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when decrypted_secret.is_some(); qed")
+		data.result.as_ref()
+			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
 			.clone()
+	}
+}
+
+impl SessionCore {
+	pub fn decryption_transport(&self) -> DecryptionJobTransport {
+		DecryptionJobTransport {
+			id: self.meta.id.clone(),
+			access_key: self.access_key.clone(),
+			cluster: self.cluster.clone()
+		}
+	}
+
+	pub fn disseminate_jobs(&self, consensus_session: &mut DecryptionConsensusSession, is_shadow_decryption: bool) -> Result<(), Error> {
+		let decryption_job = DecryptionJob::new_on_master(self.meta.self_node_id.clone(), self.access_key.clone(), consensus_session.requester().clone(), self.key_share.clone(), is_shadow_decryption);
+		consensus_session.disseminate_jobs(decryption_job, self.decryption_transport())
 	}
 }
 
@@ -628,7 +449,6 @@ impl PartialOrd for DecryptionSessionId {
 	}
 }
 
-
 impl Ord for DecryptionSessionId {
 	fn cmp(&self, other: &Self) -> Ordering {
 		match self.id.cmp(&other.id) {
@@ -636,39 +456,6 @@ impl Ord for DecryptionSessionId {
 			r @ _ => r,
 		}
 	}
-}
-
-fn check_encrypted_data(self_node_id: &Public, encrypted_data: &DocumentKeyShare) -> Result<(), Error> {
-	use key_server_cluster::generation_session::{check_cluster_nodes, check_threshold};
-
-	// check that common_point and encrypted_point are already set
-	if encrypted_data.common_point.is_none() || encrypted_data.encrypted_point.is_none() {
-		return Err(Error::NotStartedSessionId);
-	}
-
-	let nodes = encrypted_data.id_numbers.keys().cloned().collect();
-	check_cluster_nodes(self_node_id, &nodes)?;
-	check_threshold(encrypted_data.threshold, &nodes)
-}
-
-
-fn do_partial_decryption(node: &NodeId, requestor_public: &Public, is_shadow_decryption: bool, participants: &BTreeSet<NodeId>, access_key: &Secret, encrypted_data: &DocumentKeyShare) -> Result<PartialDecryptionResult, Error> {
-	let node_id_number = &encrypted_data.id_numbers[node];
-	let node_secret_share = &encrypted_data.secret_share;
-	let other_id_numbers = participants.iter()
-		.filter(|id| *id != node)
-		.map(|id| &encrypted_data.id_numbers[id]);
-	let node_shadow = math::compute_node_shadow(node_secret_share, node_id_number, other_id_numbers)?;
-	let decrypt_shadow = if is_shadow_decryption { Some(math::generate_random_scalar()?) } else { None };
-	let common_point = encrypted_data.common_point.as_ref().expect("checked at the beginning of the session; immutable; qed");
-	let (shadow_point, decrypt_shadow) = math::compute_node_shadow_point(access_key, common_point, &node_shadow, decrypt_shadow)?;
-	Ok(PartialDecryptionResult {
-		shadow_point: shadow_point,
-		decrypt_shadow: match decrypt_shadow {
-			None => None,
-			Some(decrypt_shadow) => Some(encrypt(requestor_public, &DEFAULT_MAC, &**decrypt_shadow)?),
-		},
-	})
 }
 
 #[cfg(test)]

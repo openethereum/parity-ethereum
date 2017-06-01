@@ -29,14 +29,14 @@ use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use util::H256;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage};
-use key_server_cluster::cluster_sessions::{ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
+use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
 	DecryptionSessionWrapper, SigningSessionWrapper};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
 	SigningMessage, ConsensusMessage};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
 #[cfg(test)]
 use key_server_cluster::generation_session::SessionImpl as GenerationSessionImpl;
-use key_server_cluster::decryption_session::{Session as DecryptionSession, SessionState as DecryptionSessionState, DecryptionSessionId};
+use key_server_cluster::decryption_session::{Session as DecryptionSession, DecryptionSessionId};
 use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionState as EncryptionSessionState};
 use key_server_cluster::signing_session::{Session as SigningSession, SessionState as SigningSessionState, SigningSessionId};
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
@@ -559,7 +559,7 @@ impl ClusterCore {
 				connected_nodes.insert(data.self_key_pair.public().clone());
 
 				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes));
-				data.sessions.new_decryption_session(sender.clone(), session_id.clone(), sub_session_id.clone(), cluster)
+				data.sessions.new_decryption_session(sender.clone(), session_id.clone(), sub_session_id.clone(), cluster, None)
 			},
 			_ => {
 				data.sessions.decryption_sessions.get(&decryption_session_id)
@@ -568,26 +568,12 @@ impl ClusterCore {
 		};
 
 		loop {
-			match session.clone().and_then(|session| match message {
-				DecryptionMessage::DecryptionConsensusMessage(ref message) =>
-					session.on_consensus_message(sender.clone(), message),
-				DecryptionMessage::RequestPartialDecryption(ref message) => 
-					session.on_partial_decryption_requested(sender.clone(), message),
-				DecryptionMessage::PartialDecryption(ref message) => 
-					session.on_partial_decryption(sender.clone(), message),
-				DecryptionMessage::DecryptionSessionError(ref message) => 
-					session.on_session_error(sender.clone(), message),
-				DecryptionMessage::DecryptionSessionCompleted(ref message) => 
-					session.on_session_completed(sender.clone(), message),
-			}) {
+			match session.clone().and_then(|session| session.process_message(&sender, &message)) {
 				Ok(_) => {
 					// if session is completed => stop
 					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
-					let session_state = session.state();
-					if session_state == DecryptionSessionState::Finished {
+					if session.is_finished() {
 						info!(target: "secretstore_net", "{}: decryption session completed", data.self_key_pair.public());
-					}
-					if session_state == DecryptionSessionState::Finished || session_state == DecryptionSessionState::Failed {
 						data.sessions.decryption_sessions.remove(&decryption_session_id);
 						break;
 					}
@@ -929,7 +915,7 @@ impl ClusterClient for ClusterClientImpl {
 
 		let access_key = Random.generate()?.secret().clone();
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.new_decryption_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), cluster)?;
+		let session = self.data.sessions.new_decryption_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), cluster, Some(requestor_signature))?;
 		session.initialize(requestor_signature, is_shadow_decryption)?;
 		Ok(DecryptionSessionWrapper::new(Arc::downgrade(&self.data), DecryptionSessionId::new(session_id, access_key), session))
 	}
