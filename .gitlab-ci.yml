@@ -593,9 +593,9 @@ js-test:
   tags:
     - rust
     - rust-stable
-js-test-node_7:
+js-test-node_8:
   stage: test
-  image: parity/rust-debian-node_7:gitlab-ci
+  image: parity/rust-debian-node_8:gitlab-ci
   before_script:
     - git submodule update --init --recursive
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
