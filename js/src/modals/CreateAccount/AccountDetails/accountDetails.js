@@ -26,11 +26,13 @@ import styles from '../createAccount.css';
 export default class AccountDetails extends Component {
   static propTypes = {
     isConfirming: PropTypes.bool,
+    withRequiredBackup: PropTypes.bool,
     createStore: PropTypes.object.isRequired
   }
 
   static defaultPropTypes = {
-    isConfirming: false
+    isConfirming: false,
+    withRequiredBackup: false
   }
 
   render () {
@@ -83,17 +85,39 @@ export default class AccountDetails extends Component {
     );
   }
 
-  onEditRecoveryPhrase = () => {
-    console.log('type');
+  renderRequiredBackup () {
+    const { phraseBackedUp, phraseBackedUpError } = this.props.createStore;
+
+    if (!this.props.withRequiredBackup) {
+      return null;
+    }
+
+    return (
+      <div>
+        <Input
+          error={ phraseBackedUpError }
+          hint={
+            <FormattedMessage
+              id='createAccount.accountDetails.phrase.hint'
+              defaultMessage='the account recovery phrase'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.accountDetails.phrase.backedUp'
+              defaultMessage='Type "I have written down the phrase" below to confirm it is backed up.'
+            />
+          }
+          onChange={ this.onEditPhraseBackedUp }
+          value={ phraseBackedUp }
+        />
+      </div>
+    );
   }
 
   renderPhrase () {
     const { isConfirming } = this.props;
-    const { isTest, phrase, backupPhrase, backupPhraseError } = this.props.createStore;
-
-    if (!phrase) {
-      return null;
-    }
+    const { isTest, phrase, backupPhraseError } = this.props.createStore;
 
     const hint = (
       <FormattedMessage
@@ -109,40 +133,55 @@ export default class AccountDetails extends Component {
     );
 
     if (!isConfirming) {
-      return [(
-        <Input
-          allowCopy
-          hint={ hint }
-          label={ label }
-          readOnly
-          value={ phrase }
-        />
-      ), (
-        <div className={ styles.backupPhrase }>
-          <FormattedMessage
-            id='createAccount.accountDetails.phrase.backup'
-            defaultMessage='Please back up the recovery phrase now. Make sure to keep it private and secure, it allows full and unlimited access to the account.'
+      if (!phrase) {
+        return null;
+      }
+
+      return (
+        <div>
+          <Input
+            allowCopy
+            hint={ hint }
+            label={ label }
+            readOnly
+            value={ phrase }
           />
+          <div className={ styles.backupPhrase }>
+            <FormattedMessage
+              id='createAccount.accountDetails.phrase.backup'
+              defaultMessage='Please back up the recovery phrase now. Make sure to keep it private and secure, it allows full and unlimited access to the account.'
+            />
+          </div>
+          { this.renderRequiredBackup() }
         </div>
-      )];
+      );
     }
 
-    return [(
-      <Input
-        allowPaste={ isTest }
-        error={ backupPhraseError }
-        hint={ hint }
-        label={ label }
-        onChange={ this.onEditRecoveryPhrase }
-        value={ backupPhrase }
-      />
-    ), (
-      <div className={ styles.backupPhrase }>
-        <FormattedMessage
-          id='createAccount.accountDetails.phrase.backupConfirm'
-          defaultMessage='Type your recovery phrase now.'
+    return (
+      <div>
+        <Input
+          allowPaste={ isTest }
+          error={ backupPhraseError }
+          hint={ hint }
+          label={ label }
+          onChange={ this.onEditPhrase }
+          value={ phrase }
         />
+        <div className={ styles.backupPhrase }>
+          <FormattedMessage
+            id='createAccount.accountDetails.phrase.backupConfirm'
+            defaultMessage='Type your recovery phrase now.'
+          />
+        </div>
       </div>
-    )];
+    );
+  }
+
+  onEditPhraseBackedUp = (ev) => {
+    this.props.createStore.setPhraseBackedUp(ev.target.value);
+  }
+
+  onEditPhrase = (ev) => {
+    this.props.createStore.setPhrase(ev.target.value);
   }
 }

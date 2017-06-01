@@ -34,7 +34,6 @@ export default class Store {
   @observable gethAccountsAvailable = [];
   @observable gethAddresses = [];
   @observable gethImported = [];
-  @observable isBackupPhraseValid = false;
   @observable isBusy = false;
   @observable isWindowsPhrase = false;
   @observable name = '';
@@ -43,7 +42,8 @@ export default class Store {
   @observable passwordHint = '';
   @observable passwordRepeat = '';
   @observable phrase = '';
-  @observable backupPhrase = '';
+  @observable backupPhraseAddress = null;
+  @observable phraseBackedUp = '';
   @observable qrAddress = null;
   @observable rawKey = '';
   @observable rawKeyError = ERRORS.nokey;
@@ -104,9 +104,15 @@ export default class Store {
   }
 
   @computed get backupPhraseError () {
-    return this.phrase === this.backupPhrase
+    return !this.backupPhraseAddress || this.address === this.backupPhraseAddress
       ? null
       : ERRORS.noMatchBackupPhrase;
+  }
+
+  @computed get phraseBackedUpError () {
+    return this.phraseBackedUp === 'I have written down the phrase'
+      ? null
+      : ERRORS.noMatchPhraseBackedUp;
   }
 
   @computed get qrAddressValid () {
@@ -114,12 +120,22 @@ export default class Store {
     return this._api.util.isAddressValid(this.qrAddress);
   }
 
+  @action clearPhrase = () => {
+    transaction(() => {
+      this.phrase = '';
+      this.phraseBackedUp = '';
+    });
+  }
+
   @action clearErrors = () => {
     transaction(() => {
+      this.address = '';
       this.description = '';
       this.password = '';
       this.passwordRepeat = '';
       this.phrase = '';
+      this.backupPhraseAddress = null;
+      this.phraseBackedUp = '';
       this.name = '';
       this.nameError = null;
       this.qrAddress = null;
@@ -197,8 +213,24 @@ export default class Store {
     });
   }
 
-  @action setBackupPhrase = (backupPhrase) => {
-    this.backupPhrase = backupPhrase;
+  @action setBackupPhraseAddress = (address) => {
+    this.backupPhraseAddress = address;
+  }
+
+  @action computeBackupPhraseAddress = () => {
+    return this._api.parity.phraseToAddress(this.phrase)
+      .then(address => {
+        this.setBackupPhraseAddress(address);
+        return address !== this.address;
+      })
+      .catch((error) => {
+        console.error('createAccount', error);
+        throw error;
+      });
+  }
+
+  @action setPhraseBackedUp = (backedUp) => {
+    this.phraseBackedUp = backedUp;
   }
 
   @action setPassword = (password) => {
@@ -226,6 +258,7 @@ export default class Store {
       .filter((part) => part.length);
 
     this.phrase = phraseParts.join(' ');
+    this.backupPhraseAddress = null;
   }
 
   @action setRawKey = (rawKey) => {
@@ -284,6 +317,7 @@ export default class Store {
       })
       .then(() => {
         this.setBusy(false);
+        this.clearPhrase();
       })
       .catch((error) => {
         this.setBusy(false);

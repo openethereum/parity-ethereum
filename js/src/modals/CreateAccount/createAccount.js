@@ -219,7 +219,10 @@ class CreateAccount extends Component {
         }
 
         return (
-          <AccountDetails createStore={ this.createStore } />
+          <AccountDetails
+            createStore={ this.createStore }
+            withRequiredBackup={ createType === 'fromNew' }
+          />
         );
 
       case STAGE_CONFIRM_BACKUP:
@@ -234,7 +237,7 @@ class CreateAccount extends Component {
 
   renderDialogActions () {
     const { restore } = this.props;
-    const { createType, canCreate, isBusy, stage, isBackupPhraseValid } = this.createStore;
+    const { createType, canCreate, isBusy, stage, phraseBackedUpError } = this.createStore;
 
     const cancelBtn = (
       <Button
@@ -328,6 +331,7 @@ class CreateAccount extends Component {
             )
             : null,
           <Button
+            disabled={ createType === 'fromNew' && !!phraseBackedUpError }
             icon={ <DoneIcon /> }
             key='done'
             label={
@@ -336,15 +340,13 @@ class CreateAccount extends Component {
                 defaultMessage='Done'
               />
             }
-            onClick={ createType === 'fromNew' ? this.createStore.nextStage : this.onClose }
+            onClick={ createType === 'fromNew' ? this.onConfirmPhraseBackup : this.onClose }
           />
         ];
 
       case STAGE_CONFIRM_BACKUP:
         return [
-          backBtn,
           <Button
-            disabled={ !isBackupPhraseValid }
             icon={ <DoneIcon /> }
             key='done'
             label={
@@ -359,15 +361,26 @@ class CreateAccount extends Component {
     }
   }
 
+  onConfirmPhraseBackup = () => {
+    this.createStore.clearPhrase();
+    this.createStore.nextStage();
+  }
+
   onCreateNew = () => {
     this.createStore.setBusy(true);
+    this.createStore.computeBackupPhraseAddress()
+      .then(err => {
+        if (err) {
+          this.createStore.setBusy(false);
+          return;
+        }
 
-    return this.createStore
-      .createAccount(this.vaultStore)
-      .then(() => {
-        this.createStore.setBusy(false);
-        this.props.onUpdate && this.props.onUpdate();
-        this.onClose();
+        return this.createStore.createAccount(this.vaultStore)
+          .then(() => {
+            this.createStore.setBusy(false);
+            this.props.onUpdate && this.props.onUpdate();
+            this.onClose();
+          });
       })
       .catch((error) => {
         this.createStore.setBusy(false);

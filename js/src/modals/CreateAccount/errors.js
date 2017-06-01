@@ -53,6 +53,13 @@ export default {
     />
   ),
 
+  noMatchPhraseBackedUp: (
+    <FormattedMessage
+      id='errors.noMatchPhraseBackedUp'
+      defaultMessage='type "I have written down the phrase"'
+    />
+  ),
+
   noName: (
     <FormattedMessage
       id='errors.noName'
