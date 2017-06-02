@@ -59,7 +59,7 @@ impl http::RequestMiddleware for Router {
 		let is_origin_set = req.headers().get::<header::Origin>().is_some();
 		let is_get_request = *req.method() == hyper::Method::Get;
 		let is_head_request = *req.method() == hyper::Method::Head;
-		let endpoint_borrow = self.endpoints.as_ref().unwrap().clone();
+		let endpoint_borrow = self.endpoints.as_ref().clone().unwrap();
 
 		trace!(target: "dapps", "Routing request to {:?}. Details: {:?}", url, req);
 
@@ -69,7 +69,7 @@ impl http::RequestMiddleware for Router {
 			// Handle invalid web requests that we can recover from
 			(ref path, SpecialEndpoint::None, Some((ref referer, ref referer_url)))
 				if referer.app_id == apps::WEB_PATH
-					&& Some(endpoint_borrow.read().unwrap()).map(|ep| ep.contains_key(apps::WEB_PATH)).unwrap_or(false)
+					&& endpoint_borrow.into_inner().map(|ep| ep.contains_key(apps::WEB_PATH)).unwrap_or(false)
 					&& !is_web_endpoint(path)
 				=>
 			{
@@ -88,9 +88,9 @@ impl http::RequestMiddleware for Router {
 					.map(|special| special.to_async_handler(path.clone().unwrap_or_default(), control))
 			},
 			// Then delegate to dapp
-			(Some(ref path), _, _) if Some(endpoint_borrow.read().unwrap()).map(|ep| ep.contains_key(&path.app_id)).unwrap_or(false) => {
+			(Some(ref path), _, _) if endpoint_borrow.into_inner().map(|ep| ep.contains_key(&path.app_id)).unwrap_or(false) => {
 				trace!(target: "dapps", "Resolving to local/builtin dapp.");
-				Some(Some(endpoint_borrow.read().unwrap())
+				Some(endpoint_borrow.into_inner()
 					.expect("endpoints known to be set; qed")
 					.get(&path.app_id)
 					.expect("endpoints known to contain key; qed")
