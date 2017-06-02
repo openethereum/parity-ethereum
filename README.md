@@ -1,4 +1,5 @@
 # [Parity](https://parity.io/parity.html)
+
 ### Fast, light, and robust Ethereum implementation
 
 ### [Download latest release](https://github.com/paritytech/parity/releases)
