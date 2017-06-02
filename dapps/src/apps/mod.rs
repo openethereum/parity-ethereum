@@ -16,7 +16,8 @@
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 
 use endpoint::{Endpoints, Endpoint};
 use page::PageEndpoint;

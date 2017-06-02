@@ -41,6 +41,7 @@ extern crate parity_dapps_glue as parity_dapps;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_reactor;
 extern crate parity_ui;
+extern crate parking_lot;
 
 #[macro_use]
 extern crate log;
@@ -106,7 +107,7 @@ pub struct Endpoints {
 impl Endpoints {
 	/// Returns a current list of app endpoints.
 	pub fn list(&self) -> Vec<apps::App> {
-		self.endpoints.read().unwrap().iter().filter_map(|(ref k, ref e)| {
+		self.endpoints.read().iter().filter_map(|(ref k, ref e)| {
 			e.info().map(|ref info| apps::App::from_info(k, info))
 		}).collect()
 	}
