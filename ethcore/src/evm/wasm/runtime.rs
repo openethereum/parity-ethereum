@@ -23,7 +23,7 @@ use byteorder::{LittleEndian, ByteOrder};
 use evm;
 
 use parity_wasm::interpreter;
-use util::{H256, Address};
+use util::{Address, H256, U256};
 
 use super::ptr::{WasmPtr, Error as PtrError};
 use super::call_args::CallArgs;
@@ -127,6 +127,46 @@ impl<'a> Runtime<'a> {
 		Ok(None)
 	}
 
+	/// Invoke create in the state runtime
+	pub fn create(&mut self, context: interpreter::CallerContext) 
+		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
+	{
+		//
+		// method signature:
+		//   fn create(endowment: *const u8, code_ptr: *const u8, code_len: u32, result_ptr: *mut u8) -> i32;
+		//
+
+		trace!(target: "wasm", "runtime: create contract");
+		let mut context = context;
+		let result_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		trace!(target: "wasm", "    result_ptr: {:?}", result_ptr);		
+		let code_len = context.value_stack.pop_as::<i32>()? as u32;
+		trace!(target: "wasm", "    code_len: {:?}", code_len);		
+		let code_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		trace!(target: "wasm", "    code_ptr: {:?}", code_ptr);		
+		let endowment = self.pop_u256(&mut context)?;
+		trace!(target: "wasm", "    val: {:?}", endowment);
+
+		let code = self.memory.get(code_ptr, code_len as usize)?;
+
+		let gas_left = self.gas_left()
+			.map_err(|_| interpreter::Error::Trap("Gas state error".to_owned()))?
+			.into();
+		
+		match self.ext.create(&gas_left, &endowment, &code, evm::CreateContractAddress::FromSenderAndCodeHash) {
+			evm::ContractCreateResult::Created(address, gas_left) => {
+				self.memory.set(result_ptr, &*address)?;
+				self.gas_counter = self.gas_limit - gas_left.low_u64();
+				trace!(target: "wasm", "runtime: create contract success");
+				Ok(Some(0i32.into()))
+			},
+			evm::ContractCreateResult::Failed => {
+				trace!(target: "wasm", "runtime: create contract fail");
+				Ok(Some((-1i32).into()))
+			}
+		}
+	}
+
 	/// Allocate memory using the wasm stack params
 	pub fn malloc(&mut self, context: interpreter::CallerContext) 
 		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
@@ -148,15 +188,23 @@ impl<'a> Runtime<'a> {
 	fn gas(&mut self, context: interpreter::CallerContext) 
 		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error> 
 	{
-		let prev = self.gas_counter;
-		let update = context.value_stack.pop_as::<i32>()? as u64;
-		if prev + update > self.gas_limit {
-			// exceeds gas
-			Err(interpreter::Error::Trap(format!("Gas exceeds limits of {}", self.gas_limit)))
-		} else {
-			self.gas_counter = prev + update;
+		let amount = context.value_stack.pop_as::<i32>()? as u64;
+		if self.charge_gas(amount) {
 			Ok(None)
+		} else {
+			Err(interpreter::Error::Trap(format!("Gas exceeds limits of {}", self.gas_limit)))			
 		}
+	}
+
+	fn charge_gas(&mut self, amount: u64) -> bool {
+		let prev = self.gas_counter;
+		if prev + amount > self.gas_limit {
+			// exceeds gas
+			false
+		} else {
+			self.gas_counter = prev + amount;
+			true
+		}		
 	}
 
 	fn h256_at(&self, ptr: WasmPtr) -> Result<H256, interpreter::Error> {
@@ -169,6 +217,12 @@ impl<'a> Runtime<'a> {
 		let ptr = WasmPtr::from_i32(context.value_stack.pop_as::<i32>()?)
 			.map_err(|_| interpreter::Error::Trap("Memory access violation".to_owned()))?;
 		self.h256_at(ptr)
+	}
+
+	fn pop_u256(&self, context: &mut interpreter::CallerContext) -> Result<U256, interpreter::Error> {
+		let ptr = WasmPtr::from_i32(context.value_stack.pop_as::<i32>()?)
+			.map_err(|_| interpreter::Error::Trap("Memory access violation".to_owned()))?;
+		self.h256_at(ptr).map(Into::into)
 	}
 
 	fn address_at(&self, ptr: WasmPtr) -> Result<Address, interpreter::Error> {
@@ -267,6 +321,9 @@ impl<'a> interpreter::UserFunctionExecutor for Runtime<'a> {
 			},
 			"_suicide" => {
 				self.suicide(context)
+			},
+			"_create" => {
+				self.create(context)
 			},
 			"_debug" => {
 				self.debug_log(context)

@@ -38,13 +38,13 @@ pub enum FakeCallType {
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct FakeCall {
-	call_type: FakeCallType,
-	gas: U256,
-	sender_address: Option<Address>,
-	receive_address: Option<Address>,
-	value: Option<U256>,
-	data: Bytes,
-	code_address: Option<Address>,
+	pub call_type: FakeCallType,
+	pub gas: U256,
+	pub sender_address: Option<Address>,
+	pub receive_address: Option<Address>,
+	pub value: Option<U256>,
+	pub data: Bytes,
+	pub code_address: Option<Address>,
 }
 
 /// Fake externalities test structure.
@@ -54,6 +54,7 @@ pub struct FakeCall {
 pub struct FakeExt {
 	pub store: HashMap<H256, H256>,
 	pub suicides: HashSet<Address>,
+	pub calls: HashSet<FakeCall>,
 	sstore_clears: usize,
 	depth: usize,
 	blockhashes: HashMap<U256, H256>,
@@ -62,7 +63,6 @@ pub struct FakeExt {
 	info: EnvInfo,
 	schedule: Schedule,
 	balances: HashMap<Address, U256>,
-	calls: HashSet<FakeCall>,
 }
 
 // similar to the normal `finalize` function, but ignoring NeedsReturn.

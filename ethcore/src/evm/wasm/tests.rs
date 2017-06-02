@@ -4,7 +4,7 @@ use std::io::Read;
 use std::sync::Arc;
 
 use ethcore_logger::init_log;
-use super::super::tests::FakeExt;
+use super::super::tests::{FakeExt, FakeCall, FakeCallType};
 use super::WasmInterpreter;
 use evm::{self, Evm, GasLeft};
 use action_params::{ActionParams, ActionValue};
@@ -235,4 +235,42 @@ fn suicide() {
 
 	assert_eq!(gas_left, U256::from(99_790));
 	assert!(ext.suicides.contains(&refund));
+}
+
+#[test]
+fn create() {
+	init_log();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(load_sample("creator.wasm")));
+	params.data = Some(vec![0u8, 2, 4, 8, 16, 32, 64, 128]);
+	params.value = ActionValue::transfer(1_000_000_000);
+
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+			GasLeft::Known(gas) => gas,
+			GasLeft::NeedsReturn { .. } => {
+				panic!("Create contract should not return anthing because ext always fails on creation");
+			},
+		}
+	};
+
+	trace!(target: "wasm", "fake_calls: {:?}", &ext.calls);
+	assert!(ext.calls.contains(
+		&FakeCall {
+			call_type: FakeCallType::Create,
+			gas: U256::from(99_859),
+			sender_address: None,
+			receive_address: None,
+			value: Some(1_000_000_000.into()),
+			data: vec![0u8, 2, 4, 8, 16, 32, 64, 128],
+			code_address: None,
+		}
+	));
+	assert_eq!(gas_left, U256::from(99_786));
 }
