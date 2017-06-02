@@ -377,6 +377,7 @@ class CreateAccount extends Component {
 
         return this.createStore.createAccount(this.vaultStore)
           .then(() => {
+            this.createStore.clearPhrase();
             this.createStore.setBusy(false);
             this.props.onUpdate && this.props.onUpdate();
             this.onClose();
@@ -405,6 +406,7 @@ class CreateAccount extends Component {
   }
 
   onClose = () => {
+    this.createStore.clearPhrase();
     this.props.onClose && this.props.onClose();
   }
 

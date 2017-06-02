@@ -317,7 +317,6 @@ export default class Store {
       })
       .then(() => {
         this.setBusy(false);
-        this.clearPhrase();
       })
       .catch((error) => {
         this.setBusy(false);
