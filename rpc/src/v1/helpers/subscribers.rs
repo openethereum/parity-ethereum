@@ -16,45 +16,75 @@
 
 //! A map of subscribers.
 
-use std::ops;
+use std::{ops, str};
 use std::collections::HashMap;
 use jsonrpc_macros::pubsub::{Subscriber, Sink, SubscriptionId};
+use rand::{Rng, StdRng};
+use v1::types::H128;
 
-#[derive(Clone, Debug)]
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct Id(H128);
+impl str::FromStr for Id {
+	type Err = <H128 as str::FromStr>::Err;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		Ok(Id(s.parse()?))
+	}
+}
+impl Id {
+	pub fn as_string(&self) -> String {
+		format!("{:?}", self.0)
+	}
+}
+
+#[derive(Clone)]
 pub struct Subscribers<T> {
-	next_id: u64,
-	subscriptions: HashMap<u64, T>,
+	rand: StdRng,
+	subscriptions: HashMap<Id, T>,
 }
 
 impl<T> Default for Subscribers<T> {
 	fn default() -> Self {
 		Subscribers {
-			next_id: 0,
+			rand: StdRng::new().expect("Valid random source is required."),
 			subscriptions: HashMap::new(),
 		}
 	}
 }
 
 impl<T> Subscribers<T> {
-	fn next_id(&mut self) -> u64 {
-		self.next_id += 1;
-		self.next_id
+	/// Create a new Subscribers with given random source.
+	#[cfg(test)]
+	pub fn new_test() -> Self {
+		Subscribers {
+			rand: ::rand::SeedableRng::from_seed([0usize].as_ref()),
+			subscriptions: HashMap::new(),
+		}
+	}
+
+	fn next_id(&mut self) -> Id {
+		let mut data = H128::default();
+		self.rand.fill_bytes(&mut data.0);
+		Id(data)
 	}
 
 	/// Insert new subscription and return assigned id.
 	pub fn insert(&mut self, val: T) -> SubscriptionId {
 		let id = self.next_id();
-		debug!(target: "pubsub", "Adding subscription id={}", id);
+		debug!(target: "pubsub", "Adding subscription id={:?}", id);
+		let s = id.as_string();
 		self.subscriptions.insert(id, val);
-		SubscriptionId::Number(id)
+		SubscriptionId::String(s)
 	}
 
 	/// Removes subscription with given id and returns it (if any).
 	pub fn remove(&mut self, id: &SubscriptionId) -> Option<T> {
 		trace!(target: "pubsub", "Removing subscription id={:?}", id);
 		match *id {
-			SubscriptionId::Number(id) => {
-				self.subscriptions.remove(&id)
+			SubscriptionId::String(ref id) => match id.parse() {
+				Ok(id) => self.subscriptions.remove(&id),
+				Err(_) => None,
 			},
 			_ => None,
 		}
@@ -65,20 +95,18 @@ impl <T> Subscribers<Sink<T>> {
 	/// Assigns id and adds a subscriber to the list.
 	pub fn push(&mut self, sub: Subscriber<T>) {
 		let id = self.next_id();
-		match sub.assign_id(SubscriptionId::Number(id)) {
+		match sub.assign_id(SubscriptionId::String(id.as_string())) {
 			Ok(sink) => {
 				debug!(target: "pubsub", "Adding subscription id={:?}", id);
 				self.subscriptions.insert(id, sink);
 			},
-			Err(_) => {
-				self.next_id -= 1;
-			},
+			Err(_) => {},
 		}
 	}
 }
 
 impl<T> ops::Deref for Subscribers<T> {
-	type Target = HashMap<u64, T>;
+	type Target = HashMap<Id, T>;
 
 	fn deref(&self) -> &Self::Target {
 		&self.subscriptions
