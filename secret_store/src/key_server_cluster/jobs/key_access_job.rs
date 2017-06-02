@@ -37,7 +37,7 @@ impl JobExecutor for KeyAccessJob {
 	type PartialJobResponse = bool;
 	type JobResponse = BTreeSet<NodeId>;
 
-	fn prepare_partial_request(&self, _node: &NodeId) -> Result<Signature, Error> {
+	fn prepare_partial_request(&self, _node: &NodeId, _nodes: &BTreeSet<NodeId>) -> Result<Signature, Error> {
 		Ok(self.signature.as_ref().expect("prepare_partial_request is only called on master nodes; new_on_master fills the signature; qed").clone())
 	}
 

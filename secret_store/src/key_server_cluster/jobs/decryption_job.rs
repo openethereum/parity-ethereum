@@ -1,9 +1,8 @@
-use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use ethkey::{Public, Secret};
 use ethcrypto::ecies::encrypt;
 use ethcrypto::DEFAULT_MAC;
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, DocumentKeyShare, EncryptedDocumentKeyShadow};
+use key_server_cluster::{Error, NodeId, DocumentKeyShare, EncryptedDocumentKeyShadow};
 use key_server_cluster::math;
 use key_server_cluster::jobs::job_session::{JobPartialResponseAction, JobExecutor};
 
@@ -21,8 +20,6 @@ pub struct DecryptionJob {
 	request_id: Option<Secret>,
 	/// Is shadow decryption requested.
 	is_shadow_decryption: Option<bool>,
-	/// Id of nodes, participating in decryption.
-	participants: Option<BTreeSet<NodeId>>,
 }
 
 /// Decryption job partial request.
@@ -46,29 +43,28 @@ pub struct PartialDecryptionResponse {
 }
 
 impl DecryptionJob {
-	pub fn new_on_slave(self_node_id: NodeId, access_key: Secret, requester: Public, key_share: DocumentKeyShare) -> Self {
+	pub fn new_on_slave(self_node_id: NodeId, access_key: Secret, requester: Public, key_share: DocumentKeyShare) -> Result<Self, Error> {
 		debug_assert!(key_share.common_point.is_some() && key_share.encrypted_point.is_some());
-		DecryptionJob {
+		Ok(DecryptionJob {
 			self_node_id: self_node_id,
 			access_key: access_key,
 			requester: requester,
 			key_share: key_share,
 			request_id: None,
 			is_shadow_decryption: None,
-			participants: None,
-		}
+		})
 	}
 
-	pub fn new_on_master(self_node_id: NodeId, access_key: Secret, requester: Public, key_share: DocumentKeyShare, is_shadow_decryption: bool, participants: BTreeSet<NodeId>) -> Self {
+	pub fn new_on_master(self_node_id: NodeId, access_key: Secret, requester: Public, key_share: DocumentKeyShare, is_shadow_decryption: bool) -> Result<Self, Error> {
 		debug_assert!(key_share.common_point.is_some() && key_share.encrypted_point.is_some());
-		DecryptionJob {
+		Ok(DecryptionJob {
 			self_node_id: self_node_id,
 			access_key: access_key,
 			requester: requester,
 			key_share: key_share,
+			request_id: Some(math::generate_random_scalar()?),
 			is_shadow_decryption: Some(is_shadow_decryption),
-			participants: Some(participants),
-		}
+		})
 	}
 }
 
@@ -77,15 +73,18 @@ impl JobExecutor for DecryptionJob {
 	type PartialJobResponse = PartialDecryptionResponse;
 	type JobResponse = EncryptedDocumentKeyShadow;
 
-	fn prepare_partial_request(&self, node: &NodeId) -> Result<PartialDecryptionRequest, Error> {
+	fn prepare_partial_request(&self, node: &NodeId, nodes: &BTreeSet<NodeId>) -> Result<PartialDecryptionRequest, Error> {
+		debug_assert!(nodes.len() == self.key_share.threshold + 1);
+
+		let request_id = self.request_id.as_ref()
+			.expect("prepare_partial_request is only called on master nodes; request_id is filed in constructor on master nodes; qed");
 		let is_shadow_decryption = self.is_shadow_decryption
 			.expect("prepare_partial_request is only called on master nodes; is_shadow_decryption is filed in constructor on master nodes; qed");
-		let mut other_nodes_ids = self.participants.as_ref()
-			.expect("prepare_partial_request is only called on master nodes; participants is filed in constructor on master nodes; qed")
-			.clone();
+		let mut other_nodes_ids = nodes.clone();
 		other_nodes_ids.remove(node);
 
 		Ok(PartialDecryptionRequest {
+			id: request_id.clone(),
 			is_shadow_decryption: is_shadow_decryption,
 			other_nodes_ids: other_nodes_ids,
 		})
@@ -105,6 +104,7 @@ impl JobExecutor for DecryptionJob {
 		let common_point = self.key_share.common_point.as_ref().expect("DecryptionJob is only created when common_point is known; qed");
 		let (shadow_point, decrypt_shadow) = math::compute_node_shadow_point(&self.access_key, &common_point, &node_shadow, decrypt_shadow)?;
 		Ok(PartialDecryptionResponse {
+			request_id: partial_request.id,
 			shadow_point: shadow_point,
 			decrypt_shadow: match decrypt_shadow {
 				None => None,
@@ -114,7 +114,7 @@ impl JobExecutor for DecryptionJob {
 	}
 
 	fn check_partial_response(&self, partial_response: &PartialDecryptionResponse) -> Result<JobPartialResponseAction, Error> {
-		if Some(partial_response.request_id) != self.request_id {
+		if Some(&partial_response.request_id) != self.request_id.as_ref() {
 			return Ok(JobPartialResponseAction::Ignore);
 		}
 		if self.is_shadow_decryption != Some(partial_response.decrypt_shadow.is_some()) {
