@@ -778,6 +778,10 @@ impl Configuration {
 	}
 
 	fn ws_origins(&self) -> Option<Vec<String>> {
+		if self.args.flag_unsafe_expose {
+			return None;
+		}
+
 		Self::parse_hosts(&self.args.flag_ws_origins)
 	}
 
@@ -1590,6 +1594,7 @@ mod tests {
 		assert_eq!(conf0.http_config().unwrap().hosts, None);
 		assert_eq!(&conf0.ws_config().unwrap().interface, "0.0.0.0");
 		assert_eq!(conf0.ws_config().unwrap().hosts, None);
+		assert_eq!(conf0.ws_config().unwrap().origins, None);
 		assert_eq!(&conf0.ui_config().interface, "0.0.0.0");
 		assert_eq!(conf0.ui_config().hosts, None);
 		assert_eq!(&conf0.secretstore_config().unwrap().interface, "0.0.0.0");
