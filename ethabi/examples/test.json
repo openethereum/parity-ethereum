@@ -1,0 +1,9 @@
+[{
+	"type":"function",
+	"inputs": [{
+		"name":"a",
+		"type":"bool"
+	}],
+	"name":"foo",
+	"outputs": []
+}]

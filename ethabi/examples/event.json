@@ -1,0 +1,14 @@
+[{
+	"type":"event",
+	"inputs": [{
+		"name": "a",
+		"type": "bool",
+		"indexed": true
+	},{
+		"name": "b",
+		"type": "address",
+		"indexed": false
+	}],
+	"name": "Event",
+	"anonymous": true 
+}]
