@@ -6,9 +6,9 @@ authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [dependencies]
-ethabi = "1.0"
 futures = "0.1"
 byteorder = "1.0"
+ethabi = { path = "../../ethabi" }
 ethcore-util = { path = "../../util" }
 
 [build-dependencies]
