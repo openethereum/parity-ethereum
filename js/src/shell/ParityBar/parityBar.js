@@ -16,7 +16,8 @@
 
 import { throttle } from 'lodash';
 import { observer } from 'mobx-react';
-import React, { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
@@ -238,6 +239,7 @@ class ParityBar extends Component {
               className={ styles.parityButton }
               icon={
                 <img
+                  alt='parityIcon'
                   className={ styles.parityIcon }
                   src={ imagesEthcoreBlock }
                 />

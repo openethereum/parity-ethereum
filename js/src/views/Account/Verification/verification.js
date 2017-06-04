@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -14,11 +15,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
 import { observable } from 'mobx';
+
+import {
+  LOADING,
+  QUERY_DATA,
+  POSTING_REQUEST, POSTED_REQUEST,
+  REQUESTING_CODE, QUERY_CODE,
+  POSTING_CONFIRMATION, POSTED_CONFIRMATION,
+  DONE
+} from './store';
+
+import GatherData from './GatherData';
+import SendRequest from './SendRequest';
+import QueryCode from './QueryCode';
+import SendConfirmation from './SendConfirmation';
+import Done from './Done';
 
 import { Button, IdentityIcon, Portal, RadioButtons } from '@parity/ui';
 import { CancelIcon, DoneIcon } from '@parity/ui/Icons';
@@ -93,21 +109,6 @@ const STEPS = [
     defaultMessage='Completed'
   />
 ];
-
-import {
-  LOADING,
-  QUERY_DATA,
-  POSTING_REQUEST, POSTED_REQUEST,
-  REQUESTING_CODE, QUERY_CODE,
-  POSTING_CONFIRMATION, POSTED_CONFIRMATION,
-  DONE
-} from './store';
-
-import GatherData from './GatherData';
-import SendRequest from './SendRequest';
-import QueryCode from './QueryCode';
-import SendConfirmation from './SendConfirmation';
-import Done from './Done';
 
 @observer
 class Verification extends Component {

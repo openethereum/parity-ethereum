@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { PropTypes } from 'react';
+import React from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { Checkbox } from '@parity/ui';
@@ -38,7 +39,7 @@ export default function TnC ({ hasAccepted, onAccept }) {
         <li>The user represents that the user has an adequate understanding of the risks, usage and intricacies of cryptographic tokens and blockchain-based open source software, eth platform and eth.</li>
         <li>The user acknowledges and agrees that, to the fullest extent permitted by any applicable law, the disclaimers of liability contained herein apply to any and all damages or injury whatsoever caused by or related to risks of, use of, or inability to use, Parity under any cause or action whatsoever of any kind in any jurisdiction, including, without limitation, actions for breach of warranty, breach of contract or tort (including negligence) and that Eth Core Limited shall be not liable for any indirect, incidental, special, exemplary or consequential damages, including for loss of profits, goodwill or data.</li>
         <li>Some jurisdictions do not allow the exclusion of certain warranties or the limitation or exclusion of liability for certain types of damages. Therefore, some of the above limitations in this section may not apply to a user. In particular, nothing in these terms shall affect the statutory rights of any user or exclude injury arising from any wilful misconduct or fraud of Eth Core Limited.</li>
-        <li>All rights reserved by Ethcore. Licensed to the public under the GPL v3 <a href='https://www.gnu.org/licenses/gpl-3.0.txt' target='_blank'>https://www.gnu.org/licenses/gpl-3.0.txt</a></li>
+        <li>All rights reserved by Ethcore. Licensed to the public under the GPL v3 <a href='https://www.gnu.org/licenses/gpl-3.0.txt' target='_blank' rel='noopener noreferrer'>https://www.gnu.org/licenses/gpl-3.0.txt</a></li>
       </ul>
 
       <h2>LONG VERSION</h2>
@@ -65,11 +66,11 @@ export default function TnC ({ hasAccepted, onAccept }) {
       <h3>Use of Parity by you</h3>
       <p>You agree to use Party only for purposes that are permitted by (a) these Terms and (b) any applicable law, regulation or generally accepted practices or guidelines in the relevant jurisdictions (including any laws regarding the export of data or software to and from the United Kingdom or other relevant countries).</p>
       <p>You agree that you will not engage in any activity that interferes with or disrupts Parity’s or EthCore’s Products’ functioning (or the networks which are connected to Parity).</p>
-      <p>Unless you have been specifically permitted to do so in a separate agreement with EthCore, you agree that you will not reproduce, duplicate, copy, sell, trade or resell the EthCore’s Products for any purpose unless than in accordance to the terms of the software licence terms available here: <a href='https://www.gnu.org/licenses/gpl-3.0.txt' target='_blank'>https://www.gnu.org/licenses/gpl-3.0.txt</a> (“Software Licence Terms”).</p>
+      <p>Unless you have been specifically permitted to do so in a separate agreement with EthCore, you agree that you will not reproduce, duplicate, copy, sell, trade or resell the EthCore’s Products for any purpose unless than in accordance to the terms of the software licence terms available here: <a href='https://www.gnu.org/licenses/gpl-3.0.txt' target='_blank' rel='noopener noreferrer'>https://www.gnu.org/licenses/gpl-3.0.txt</a> (“Software Licence Terms”).</p>
       <p>You agree that you are solely responsible for (and that EthCore has no responsibility to you or to any third party for) any breach of your obligations under these terms and for the consequences (including any loss or damage which EthCore may suffer) of any such breach.</p>
 
       <h3>Privacy and your personal information</h3>
-      <p>You agree to the use of your data (if any is gathered) in accordance with EthCore’s privacy policies: <a href='https://ethcore.io/legal.html' target='_blank'>https://ethcore.io/legal.html</a>. This policy explains how EthCore treats your personal information (if any is gathered), and protects your privacy, when you use EthCore’s Products.</p>
+      <p>You agree to the use of your data (if any is gathered) in accordance with EthCore’s privacy policies: <a href='https://ethcore.io/legal.html' target='_blank' rel='noopener noreferrer'>https://ethcore.io/legal.html</a>. This policy explains how EthCore treats your personal information (if any is gathered), and protects your privacy, when you use EthCore’s Products.</p>
 
       <h3>Content in Parity</h3>
       <p>You understand that all information and data (such as smart contracts, data files, written text, computer software, music, audio files or other sounds, photographs, videos or other images) which you may have access to as part of, or through your use of, EthCore’s Product are the sole responsibility of the person from which such content originated. All such information is referred to below as the “Content”.</p>
@@ -80,7 +81,7 @@ export default function TnC ({ hasAccepted, onAccept }) {
       <h3>Proprietary rights</h3>
       <p>You acknowledge and agree that EthCore own all legal right, title and interest in and to the Parity and EthCore’s Products, including any intellectual property rights which subsist in Parity and EthCore’s Products (whether those rights happen to be registered or not, and wherever in the world those rights may exist).</p>
       <p>Unless you have agreed otherwise in writing with EthCore, nothing in the Terms gives you a right to use any of EthCore’s trade names, trade marks, service marks, logos, domain names, and other distinctive brand features.</p>
-      <p>If you have been given an explicit right to use any of these brand features in a separate written agreement with EthCore, then you agree that your use of such features shall be in compliance with that agreement, any applicable provisions of these terms, and EthCore’s brand feature use guidelines as updated from time to time. These guidelines can be viewed online at <a href='https://ethcore.io/press.html' target='_blank'>https://ethcore.io/press.html</a>.</p>
+      <p>If you have been given an explicit right to use any of these brand features in a separate written agreement with EthCore, then you agree that your use of such features shall be in compliance with that agreement, any applicable provisions of these terms, and EthCore’s brand feature use guidelines as updated from time to time. These guidelines can be viewed online at <a href='https://ethcore.io/press.html' target='_blank' rel='noopener noreferrer'>https://ethcore.io/press.html</a>.</p>
       <p>EthCore acknowledges and agrees that it obtains no right, title or interest from you (or your licensors) under these terms in or to any content that you submit, post, transmit or display on, or through, Parity, including any intellectual property rights which subsist in that content (whether those rights happen to be registered or not, and wherever in the world those rights may exist). Unless you have agreed otherwise in writing with EthCore, you agree that you are responsible for protecting and enforcing those rights and that EthCore has no obligation to do so on your behalf.</p>
       <p>You agree that you shall not remove, obscure, or alter any proprietary rights notices (including copyright and trade mark notices) which may be affixed to or contained within Parity or EthCore’s Products.</p>
       <p>Unless you have been expressly authorized to do so in writing by EthCore, you agree that in using Parity, you will not use any trade mark, service mark, trade name, logo of any company or organization in a way that is likely or intended to cause confusion about the owner or authorized user of such marks, names or logos.</p>

@@ -360,7 +360,7 @@ export default class Contract {
 
   _getFilterOptions (event = null, _options = {}) {
     const optionTopics = _options.topics || [];
-    const signature = event && event.signature || null;
+    const signature = (event && event.signature) || null;
 
     // If event provided, remove the potential event signature
     // as the first element of the topics

@@ -16,10 +16,10 @@
 
 import BigNumber from 'bignumber.js';
 
-const PAGE_SIZE = 25;
-
 import util from '../../api/util';
 import { call } from './call';
+
+const PAGE_SIZE = 25;
 
 function _call (method, params, test, netVersion) {
   return call('account', method, params, test, netVersion);

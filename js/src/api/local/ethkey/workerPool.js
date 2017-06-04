@@ -16,6 +16,7 @@
 
 // Allow a web worker in the browser, with a fallback for Node.js
 const hasWebWorkers = typeof Worker !== 'undefined';
+// eslint-disable-next-line
 const KeyWorker = hasWebWorkers ? require('worker-loader!./worker')
                                 : require('./worker').KeyWorker;
 

@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const TYPES = ['raw', 'prefixed', 'fixedArray', 'array'];
-
 import { padU32 } from '../util/pad';
+
+const TYPES = ['raw', 'prefixed', 'fixedArray', 'array'];
 
 export default class Mediate {
   constructor (type, value) {
@@ -40,6 +40,9 @@ export default class Mediate {
           .reduce((total, mediate) => {
             return total + mediate.initLength();
           }, 0);
+
+      default:
+        return null;
     }
   }
 
@@ -62,6 +65,9 @@ export default class Mediate {
           .reduce((total, mediate) => {
             return total + mediate.initLength() + mediate.closingLength();
           }, 0);
+
+      default:
+        return null;
     }
   }
 
@@ -78,6 +84,9 @@ export default class Mediate {
       case 'prefixed':
       case 'array':
         return padU32(suffixOffset);
+
+      default:
+        return null;
     }
   }
 
@@ -102,8 +111,10 @@ export default class Mediate {
         const closings = this._value
           .map((mediate, idx) => mediate.closing(offset + Mediate.offsetFor(this._value, idx)).toString(16))
           .join('');
-
         return `${prefix}${inits}${closings}`;
+
+      default:
+        return null;
     }
   }
 

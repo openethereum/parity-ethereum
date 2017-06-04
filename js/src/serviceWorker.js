@@ -22,10 +22,10 @@ import toolbox from 'sw-toolbox';
 toolbox.router.any(/rawgit.com\/ethereum\/solc-bin(.+)list\.json$/, toolbox.networkFirst);
 toolbox.router.any(/rawgit.com\/ethereum\/solc-bin(.+)soljson(.+)\.js$/, toolbox.cacheFirst);
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
+self.addEventListener('install', (event) => { // eslint-disable-line
+  event.waitUntil(self.skipWaiting()); // eslint-disable-line
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+self.addEventListener('activate', (event) => { // eslint-disable-line
+  event.waitUntil(self.clients.claim()); // eslint-disable-line
 });

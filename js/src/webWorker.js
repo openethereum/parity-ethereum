@@ -23,11 +23,11 @@ registerPromiseWorker((msg) => {
   return handleMessage(msg);
 });
 
-self.compiler = {
+self.compiler = { // eslint-disable-line
   version: null,
   compiler: null
 };
-self.files = {};
+self.files = {}; // eslint-disable-line
 
 function handleMessage (message) {
   switch (message.action) {
@@ -75,13 +75,13 @@ function compile (data) {
 }
 
 function setFiles (files) {
-  const prevFiles = self.files;
+  const prevFiles = self.files; // eslint-disable-line
   const nextFiles = files.reduce((obj, file) => {
     obj[file.name] = file.sourcecode;
     return obj;
   }, {});
 
-  self.files = {
+  self.files = { // eslint-disable-line
     ...prevFiles,
     ...nextFiles
   };
@@ -92,18 +92,18 @@ function setFiles (files) {
 function getCompiler (build) {
   const { longVersion } = build;
 
-  if (self.compiler.version !== longVersion) {
-    self.compiler.version = longVersion;
-    self.compiler.compiler = SolidityUtils
+  if (self.compiler.version !== longVersion) { // eslint-disable-line
+    self.compiler.version = longVersion; // eslint-disable-line
+    self.compiler.compiler = SolidityUtils // eslint-disable-line
       .getCompiler(build)
       .then((compiler) => {
-        if (self.compiler.version === longVersion) {
-          self.compiler.compiler = compiler;
+        if (self.compiler.version === longVersion) { // eslint-disable-line
+          self.compiler.compiler = compiler; // eslint-disable-line
         }
 
         return compiler;
       });
   }
 
-  return Promise.resolve(self.compiler.compiler);
+  return Promise.resolve(self.compiler.compiler); // eslint-disable-line
 }

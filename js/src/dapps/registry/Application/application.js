@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -13,11 +14,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
-const muiTheme = getMuiTheme(lightBaseTheme);
 
 import CircularProgress from 'material-ui/CircularProgress';
 import { Card, CardText } from 'material-ui/Card';
@@ -33,6 +33,8 @@ import Lookup from '../Lookup';
 import Names from '../Names';
 import Records from '../Records';
 import Reverse from '../Reverse';
+
+const muiTheme = getMuiTheme(lightBaseTheme);
 
 export default class Application extends Component {
   static childContextTypes = {

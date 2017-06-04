@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import keycode from 'keycode';
-import React, { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
@@ -173,6 +174,7 @@ export default class TransactionPendingFormConfirm extends Component {
 
         case QR_SCAN:
         case QR_COMPLETED:
+        default:
           return null;
       }
     }
@@ -270,6 +272,7 @@ export default class TransactionPendingFormConfirm extends Component {
           );
 
         case QR_COMPLETED:
+        default:
           return null;
       }
     }

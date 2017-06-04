@@ -15,10 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import 'whatwg-fetch';
-
+import registerServiceWorker from '../registerServiceWorker';
 import es6Promise from 'es6-promise';
-es6Promise.polyfill();
-
 import React from 'react';
 import ReactDOM from 'react-dom';
 
@@ -42,6 +40,7 @@ import Application from './Application';
 import Dapp from './Dapp';
 import Dapps from './Dapps';
 
+es6Promise.polyfill();
 injectTapEventPlugin();
 
 if (process.env.NODE_ENV === 'development') {
@@ -92,3 +91,4 @@ ReactDOM.render(
   </ContextProvider>,
   document.querySelector('#container')
 );
+registerServiceWorker();

@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import React, { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import { isEqual } from 'lodash';
@@ -29,7 +30,7 @@ import styles from '../accounts.css';
 
 class Summary extends Component {
   static contextTypes = {
-    api: React.PropTypes.object
+    api: PropTypes.object
   };
 
   static propTypes = {
@@ -83,7 +84,7 @@ class Summary extends Component {
   }
 
   render () {
-    const { account, disabled, handleAddSearchToken, noLink } = this.props;
+    const { account, disabled, handleAddSearchToken, name, noLink } = this.props;
     const { tags } = account.meta;
 
     if (!account) {

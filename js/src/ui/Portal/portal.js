@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -15,7 +16,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 // TODO: semantic-ui-react exposes Portal component, use that
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import ReactPortal from 'react-portal';
 import keycode from 'keycode';
@@ -155,7 +156,7 @@ export default class Portal extends Component {
       onClose();
     }
 
-    this.stopEvent(event);
+    this.stopEvent(event); // eslint-disable-line
   }
 
   handleKeyDown = (event) => {
@@ -175,6 +176,9 @@ export default class Portal extends Component {
       case 'esc':
         event.preventDefault();
         return this.props.onClose();
+
+      default:
+        return null;
     }
   }
 

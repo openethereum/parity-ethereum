@@ -69,6 +69,9 @@ export function outBlock (block) {
         case 'timestamp':
           block[key] = outDate(block[key]);
           break;
+
+        default:
+          break;
       }
     });
   }
@@ -84,6 +87,8 @@ export function outChainStatus (status) {
           status[key] = status[key]
             ? status[key].map(outNumber)
             : status[key];
+          break;
+        default:
           break;
       }
     });
@@ -114,6 +119,8 @@ export function outHistogram (histogram) {
         case 'counts':
           histogram[key] = histogram[key].map(outNumber);
           break;
+        default:
+          break;
       }
     });
   }
@@ -132,6 +139,9 @@ export function outLog (log) {
 
       case 'address':
         log[key] = outAddress(log[key]);
+        break;
+
+      default:
         break;
     }
   });
@@ -201,6 +211,9 @@ export function outReceipt (receipt) {
         case 'contractAddress':
           receipt[key] = outAddress(receipt[key]);
           break;
+
+        default:
+          break;
       }
     });
   }
@@ -239,6 +252,9 @@ export function outSignerRequest (request) {
 
           request[key] = { type, details };
           break;
+
+        default:
+          break;
       }
     });
   }
@@ -260,6 +276,9 @@ export function outSyncing (syncing) {
 
         case 'blockGap':
           syncing[key] = syncing[key] ? syncing[key].map(outNumber) : syncing[key];
+          break;
+
+        default:
           break;
       }
     });
@@ -302,6 +321,9 @@ export function outTransaction (tx) {
         case 'to':
           tx[key] = outAddress(tx[key]);
           break;
+
+        default:
+          break;
       }
     });
   }
@@ -315,6 +337,9 @@ export function outSigningPayload (payload) {
       switch (key) {
         case 'address':
           payload[key] = outAddress(payload[key]);
+          break;
+
+        default:
           break;
       }
     });
@@ -340,6 +365,9 @@ export function outTrace (trace) {
           case 'refundAddress':
             trace.action[key] = outAddress(trace.action[key]);
             break;
+
+          default:
+            break;
         }
       });
     }
@@ -353,6 +381,9 @@ export function outTrace (trace) {
 
           case 'address':
             trace.action[key] = outAddress(trace.action[key]);
+            break;
+
+          default:
             break;
         }
       });
@@ -370,6 +401,9 @@ export function outTrace (trace) {
         case 'transactionPosition':
         case 'blockNumber':
           trace[key] = outNumber(trace[key]);
+          break;
+
+        default:
           break;
       }
     });
@@ -392,6 +426,9 @@ export function outTraceReplay (trace) {
       switch (key) {
         case 'trace':
           trace[key] = outTraces(trace[key]);
+          break;
+
+        default:
           break;
       }
     });

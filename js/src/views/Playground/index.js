@@ -19,14 +19,13 @@ import React from 'react';
 import { Route, Router, hashHistory } from 'react-router';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
-injectTapEventPlugin();
-
 import { initStore } from '@parity/shared/redux';
 import ContextProvider from '@parity/ui/ContextProvider';
 
 import { api } from './parity';
 import Playground from './playground';
 
+injectTapEventPlugin();
 const store = initStore(api, hashHistory);
 
 ReactDOM.render(

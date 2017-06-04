@@ -221,7 +221,7 @@ describe('api/contract/Contract', () => {
     let receipt;
 
     describe('success', () => {
-      before(() => {
+      beforeEach(() => {
         scope = mockHttp([
           { method: 'eth_getTransactionReceipt', reply: { result: null } },
           { method: 'eth_getTransactionReceipt', reply: { result: null } },
@@ -249,7 +249,7 @@ describe('api/contract/Contract', () => {
     });
 
     describe('error', () => {
-      before(() => {
+      beforeEach(() => {
         scope = mockHttp([{ method: 'eth_getTransactionReceipt', reply: { error: { code: -1, message: 'failure' } } }]);
       });
 
@@ -272,7 +272,7 @@ describe('api/contract/Contract', () => {
     let scope;
 
     describe('success', () => {
-      before(() => {
+      beforeEach(() => {
         scope = mockHttp([
           { method: 'eth_estimateGas', reply: { result: 1000 } },
           { method: 'parity_postTransaction', reply: { result: '0x678' } },
@@ -300,7 +300,7 @@ describe('api/contract/Contract', () => {
     let scope;
 
     describe('success', () => {
-      before(() => {
+      beforeEach(() => {
         scope = mockHttp([
           { method: 'eth_estimateGas', reply: { result: 1000 } },
           { method: 'parity_postTransaction', reply: { result: '0x678' } },

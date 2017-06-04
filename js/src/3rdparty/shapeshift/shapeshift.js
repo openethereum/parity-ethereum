@@ -92,7 +92,7 @@ export default function (rpc) {
 
           case 'failed':
             subscription.callback({
-              message: status.error,
+              message: result.status.error,
               fatal: true
             });
             unsubscribe(subscription.depositAddress);

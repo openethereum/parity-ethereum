@@ -129,6 +129,9 @@ export default class Personal {
           this._defaultAccount(true);
           this._listAccounts();
           return;
+
+        default:
+          return;
       }
     });
   }

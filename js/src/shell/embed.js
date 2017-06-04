@@ -15,10 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import 'whatwg-fetch';
-
+import registerServiceWorker from '../registerServiceWorker';
 import es6Promise from 'es6-promise';
-es6Promise.polyfill();
-
 import React from 'react';
 import ReactDOM from 'react-dom';
 
@@ -30,15 +28,15 @@ import { patchApi } from '@parity/shared/util/tx';
 import ContextProvider from '@parity/ui/ContextProvider';
 
 import SecureApi from '~/secureApi';
+import ParityBar from '~/shell/ParityBar';
 
 import '@parity/shared/environment';
 
 import '@parity/shared/assets/fonts/Roboto/font.css';
 import '@parity/shared/assets/fonts/RobotoMono/font.css';
 
+es6Promise.polyfill();
 injectTapEventPlugin();
-
-import ParityBar from '~/shell/ParityBar';
 
 // Test transport (std transport should be provided as global object)
 class FakeTransport {
@@ -105,3 +103,4 @@ ReactDOM.render(
   </ContextProvider>,
   document.querySelector('#container')
 );
+registerServiceWorker();

@@ -19,8 +19,6 @@ import React from 'react';
 import { IndexRedirect, Route, Router, hashHistory } from 'react-router';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
-injectTapEventPlugin();
-
 import { initStore } from '@parity/shared/redux';
 import ContextProvider from '@parity/ui/ContextProvider';
 
@@ -31,6 +29,8 @@ import SettingsParity from './Node';
 import SettingsProxy from './Proxy';
 import SettingsViews from './Views';
 import Settings from './settings';
+
+injectTapEventPlugin();
 
 const store = initStore(api, hashHistory);
 

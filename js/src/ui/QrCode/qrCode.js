@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -15,7 +16,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import qrcode from 'qrcode-generator/js/qrcode';
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 
 import { calculateType } from './qrSize';
 

@@ -19,13 +19,12 @@ import React from 'react';
 import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
-injectTapEventPlugin();
-
 import Application from './Application';
-
 import '@parity/shared/assets/fonts/Roboto/font.css';
 import '@parity/shared/assets/fonts/RobotoMono/font.css';
 import '../style.css';
+
+injectTapEventPlugin();
 
 ReactDOM.render(
   <AppContainer>

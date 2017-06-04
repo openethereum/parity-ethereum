@@ -219,7 +219,7 @@ export default class AddressSelectStore {
             index++;
 
             return {
-              index: parseInt(index),
+              index: parseInt(index, 10),
               ...value
             };
           });

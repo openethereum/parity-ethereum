@@ -38,7 +38,7 @@ export function parseAbiType (type) {
     const matches = arrayRegex.exec(type);
 
     const subtype = parseAbiType(matches[1]);
-    const M = parseInt(matches[2]) || null;
+    const M = parseInt(matches[2], 10) || null;
     const defaultValue = !M
       ? []
       : range(M).map(() => subtype.default);
@@ -57,7 +57,7 @@ export function parseAbiType (type) {
     const matches = lengthRegex.exec(type);
 
     const subtype = parseAbiType(matches[1]);
-    const length = parseInt(matches[2]);
+    const length = parseInt(matches[2], 10);
 
     return {
       ...subtype,
@@ -71,8 +71,8 @@ export function parseAbiType (type) {
     const matches = fixedLengthRegex.exec(type);
 
     const subtype = parseAbiType(matches[1]);
-    const M = parseInt(matches[2]);
-    const N = parseInt(matches[3]);
+    const M = parseInt(matches[2], 10);
+    const N = parseInt(matches[3], 10);
 
     return {
       ...subtype,
