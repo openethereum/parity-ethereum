@@ -356,6 +356,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethabi-cli"
+version = "1.1.0"
+dependencies = [
+ "docopt 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 1.1.0",
+ "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ethash"
 version = "1.7.0"
 dependencies = [
@@ -1576,6 +1586,7 @@ dependencies = [
  "daemonize 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-cli 1.1.0",
  "ethcore 1.7.0",
  "ethcore-devtools 1.7.0",
  "ethcore-io 1.7.0",
