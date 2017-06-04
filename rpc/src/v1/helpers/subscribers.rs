@@ -20,13 +20,13 @@ use std::{ops, str};
 use std::collections::HashMap;
 use jsonrpc_macros::pubsub::{Subscriber, Sink, SubscriptionId};
 use rand::{Rng, StdRng};
-use v1::types::H128;
+use v1::types::H64;
 
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub struct Id(H128);
+pub struct Id(H64);
 impl str::FromStr for Id {
-	type Err = <H128 as str::FromStr>::Err;
+	type Err = <H64 as str::FromStr>::Err;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		Ok(Id(s.parse()?))
@@ -64,7 +64,7 @@ impl<T> Subscribers<T> {
 	}
 
 	fn next_id(&mut self) -> Id {
-		let mut data = H128::default();
+		let mut data = H64::default();
 		self.rand.fill_bytes(&mut data.0);
 		Id(data)
 	}

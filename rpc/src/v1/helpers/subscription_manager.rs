@@ -156,7 +156,7 @@ mod tests {
 		let mut el = reactor::Core::new().unwrap();
 		let mut poll_manager = poll_manager();
 		let (id, rx) = poll_manager.subscribe(Default::default(), "hello".into(), Params::None);
-		assert_eq!(id, SubscriptionId::String("416d77337e24399dc7a5aa058039f72a".into()));
+		assert_eq!(id, SubscriptionId::String("416d77337e24399d".into()));
 
 		// then
 		poll_manager.tick().wait().unwrap();
