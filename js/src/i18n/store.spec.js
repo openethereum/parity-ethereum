@@ -22,7 +22,7 @@ import { LocaleStore } from './';
 let localeStore;
 
 describe('i18n/Store', () => {
-  before(() => {
+  beforeEach(() => {
     localeStore = LocaleStore.get();
     store.set(LS_STORE_KEY, 'testing');
   });
