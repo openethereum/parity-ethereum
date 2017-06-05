@@ -68,6 +68,7 @@ class Address extends Component {
           className={ styles.link }
           href={ etherscanUrl(address, false, netVersion) }
           target='_blank'
+          rel='noopener noreferrer'
         >
           <abbr
             title={ address }

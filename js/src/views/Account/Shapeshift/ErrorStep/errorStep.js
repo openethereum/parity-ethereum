@@ -37,7 +37,7 @@ export default class ErrorStep extends Component {
             id='shapeshift.errorStep.info'
             defaultMessage='The funds shifting via {shapeshiftLink} failed with a fatal error on the exchange. The error message received from the exchange is as follow:'
             values={ {
-              shapeshiftLink: <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a>
+              shapeshiftLink: <a href='https://shapeshift.io' target='_blank' rel='noopener noreferrer'>ShapeShift.io</a>
             } }
           />
         </div>

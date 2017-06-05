@@ -358,6 +358,9 @@ class WalletSettings extends Component {
             </div>
           </div>
         );
+
+      default:
+        return null;
     }
   }
 

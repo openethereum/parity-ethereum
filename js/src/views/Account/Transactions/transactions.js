@@ -104,7 +104,7 @@ class Transactions extends Component {
           id='account.transactions.poweredBy'
           defaultMessage='Transaction list powered by {etherscan}'
           values={ {
-            etherscan: <a href='https://etherscan.io/' target='_blank'>etherscan.io</a>
+            etherscan: <a href='https://etherscan.io/' target='_blank' rel='noopener noreferrer'>etherscan.io</a>
           } }
         />
       </div>

@@ -76,6 +76,7 @@ export default class Web extends Component {
           store={ this.store }
         />
         <iframe
+          title={ frameId }
           className={ styles.frame }
           frameBorder={ 0 }
           id={ frameId }

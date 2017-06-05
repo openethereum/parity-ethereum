@@ -134,7 +134,7 @@ export default class Faucet extends Component {
             : (
               <p>
                 <span>{ responseText }&nbsp;</span>
-                <a href={ txLink(responseTxHash, false, '42') } target='_blank'>
+                <a href={ txLink(responseTxHash, false, '42') } target='_blank' rel='noopener noreferrer'>
                   <ShortenedHash data={ responseTxHash } />
                 </a>
               </p>

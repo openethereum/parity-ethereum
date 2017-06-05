@@ -27,7 +27,7 @@ const ABI_TYPES = [
         defaultMessage='A standard {erc20} token'
         values={ {
           erc20: (
-            <a href='https://github.com/ethereum/EIPs/issues/20' target='_blank'>
+            <a href='https://github.com/ethereum/EIPs/issues/20' target='_blank' rel='noopener noreferrer'>
               <FormattedMessage
                 id='addContract.abiType.token.erc20'
                 defaultMessage='ERC 20'
@@ -55,7 +55,7 @@ const ABI_TYPES = [
         defaultMessage='Ethereum Multisig contract {link}'
         values={ {
           link: (
-            <a href='https://github.com/ethereum/dapp-bin/blob/master/wallet/wallet.sol' target='_blank'>
+            <a href='https://github.com/ethereum/dapp-bin/blob/master/wallet/wallet.sol' target='_blank' rel='noopener noreferrer'>
               <FormattedMessage
                 id='addContract.abiType.multisigWallet.link'
                 defaultMessage='see contract code'

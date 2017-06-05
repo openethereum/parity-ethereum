@@ -97,6 +97,8 @@ export default function (rpc) {
             });
             unsubscribe(subscription.depositAddress);
             return true;
+          default:
+            return true;
         }
       })
       .catch(() => {

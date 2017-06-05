@@ -235,6 +235,8 @@ class Verification extends Component {
       case 4:
         action = store.done;
         break;
+      default:
+        break;
     }
 
     return [

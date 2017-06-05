@@ -39,7 +39,7 @@ export default class AwaitingExchangeStep extends Component {
             id='shapeshift.awaitingExchangeStep.receivedInfo'
             defaultMessage='{shapeshiftLink} has received a deposit of -'
             values={ {
-              shapeshiftLink: <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a>
+              shapeshiftLink: <a href='https://shapeshift.io' target='_blank' rel='noopener noreferrer'>ShapeShift.io</a>
             } }
           />
         </div>

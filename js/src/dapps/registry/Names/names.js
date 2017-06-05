@@ -32,7 +32,7 @@ import { fromWei } from '../parity.js';
 import { clearError, reserve, drop } from './actions';
 import styles from './names.css';
 
-const useSignerText = (<p>Use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate the following changes.</p>);
+const useSignerText = (<p>Use the <a href='/#/signer' className={ styles.link } target='_blank' rel='noopener noreferrer'>Signer</a> to authenticate the following changes.</p>);
 
 const renderNames = (names) => {
   const values = Object.values(names);

@@ -25,7 +25,7 @@ let currentSender = '';
 let hasCurrentSenderChanged = false;
 
 export function getSender () {
-  currentSender;
+  return currentSender;
 }
 
 export function loadSender (api) {

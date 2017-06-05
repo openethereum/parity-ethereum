@@ -48,7 +48,7 @@ export default class DappCard extends Component {
         <Card
           focus={ focus }
           icon={ this.renderImage(image.url) }
-          name={ { title: id, value: manifest && manifest.name || id } }
+          name={ { title: id, value: (manifest && manifest.name) || id } }
           onClick={ this.handleOpen }
         >
           { this.renderVersion(manifest) }
@@ -73,7 +73,7 @@ export default class DappCard extends Component {
 
   renderImage (url) {
     return (
-      <img src={ url } />
+      <img src={ url } alt='url' />
     );
   }
 

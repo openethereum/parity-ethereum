@@ -277,6 +277,9 @@ class DeployContract extends Component {
           cancelBtn,
           createButton
         ];
+
+      default:
+        return null;
     }
   }
 
@@ -315,6 +318,9 @@ class DeployContract extends Component {
 
       case 'EXTRAS':
         return this.renderExtrasPage();
+
+      default:
+        return null;
     }
   }
 

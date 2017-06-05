@@ -78,7 +78,7 @@ export const loadTokens = () => (dispatch, getState) => {
     .tokenCount
     .call()
     .then((count) => {
-      const tokenCount = parseInt(count);
+      const tokenCount = parseInt(count, 10);
 
       dispatch(setTokenCount(tokenCount));
 
@@ -103,14 +103,14 @@ export const loadToken = (index) => (dispatch, getState) => {
 
   contractInstance
     .token
-    .call({}, [ parseInt(index) ])
+    .call({}, [ parseInt(index, 10) ])
     .then((result) => {
       const tokenOwner = result[4];
       const isTokenOwner = userAccounts
         .filter(a => a.address === tokenOwner)
         .length > 0;
       const data = {
-        index: parseInt(index),
+        index: parseInt(index, 10),
         address: result[0],
         tla: result[1],
         base: result[2].toNumber(),

@@ -61,7 +61,7 @@ export default class Settings extends Component {
               label: <FormattedMessage id='settings.proxy.label' />
             },
             {
-              icon: <img src={ imagesEthcoreBlock } className={ styles.imageIcon } />,
+              icon: <img src={ imagesEthcoreBlock } className={ styles.imageIcon } alt='ethcoreicon' />,
               label: <FormattedMessage id='settings.parity.label' />
             }
           ] }

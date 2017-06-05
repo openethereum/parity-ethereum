@@ -29,6 +29,7 @@ export default (state = initialState, action) => {
         ...state,
         error: null
       };
+    default:
   }
 
   if (isAction('names', 'reserve', action)) {

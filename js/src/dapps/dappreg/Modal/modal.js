@@ -72,6 +72,7 @@ export default class Modal extends Component {
               <img
                 className={ styles.closeIcon }
                 src={ CloseImage }
+                alt='closeIcon'
               />
             </div>
           </div>
@@ -99,6 +100,8 @@ export default class Modal extends Component {
 
             case 'close':
               onClick = this.handleClose;
+              break;
+            default:
               break;
           }
 

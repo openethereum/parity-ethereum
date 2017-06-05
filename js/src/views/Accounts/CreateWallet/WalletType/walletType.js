@@ -36,7 +36,7 @@ const TYPES = [
         defaultMessage='Create/Deploy a {link} Wallet'
         values={ {
           link: (
-            <a href={ walletSourceURL } target='_blank'>
+            <a href={ walletSourceURL } target='_blank' rel='noopener noreferrer'>
               <FormattedMessage
                 id='createWallet.type.multisig.link'
                 defaultMessage='standard multi-signature'

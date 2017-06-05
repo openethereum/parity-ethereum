@@ -87,7 +87,7 @@ class Views extends Component {
   renderViews () {
     const { settings } = this.props;
 
-    return Object.keys(settings.views).map((id) => {
+    return Object.keys(settings.views).forEach((id) => {
       const description = <FormattedMessage id={ `settings.views.${id}.description` } />;
       const label = <FormattedMessage id={ `settings.views.${id}.label` } />;
 

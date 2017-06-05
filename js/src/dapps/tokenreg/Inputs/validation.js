@@ -151,7 +151,7 @@ const validateTLA = (tla, contract, simple) => {
 };
 
 const validateUint = (uint) => {
-  if (!/^\d+$/.test(uint) || parseInt(uint) <= 0) {
+  if (!/^\d+$/.test(uint) || parseInt(uint, 10) <= 0) {
     return {
       error: ERRORS.invalidUint,
       valid: false
@@ -159,14 +159,14 @@ const validateUint = (uint) => {
   }
 
   return {
-    value: parseInt(uint),
+    value: parseInt(uint, 10),
     error: null,
     valid: true
   };
 };
 
 const validateDecimal = (decimal) => {
-  if (!/^\d+$/.test(decimal) || parseInt(decimal) < 0 || parseInt(decimal) > 18) {
+  if (!/^\d+$/.test(decimal) || parseInt(decimal, 10) < 0 || parseInt(decimal, 10) > 18) {
     return {
       error: ERRORS.invalidDecimal,
       valid: false
@@ -174,7 +174,7 @@ const validateDecimal = (decimal) => {
   }
 
   return {
-    value: parseInt(decimal),
+    value: parseInt(decimal, 10),
     error: null,
     valid: true
   };

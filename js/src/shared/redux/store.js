@@ -23,7 +23,6 @@ import { setApi } from './providers/apiActions';
 import { startCachingReverses } from './providers/registry/actions';
 import { init as initRequests } from './providers/requestsActions';
 import { load as loadWallet } from './providers/walletActions';
-import { setupWorker } from './providers/workerWrapper';
 
 import {
   Balances as BalancesProvider,
@@ -51,8 +50,6 @@ export default function (api, browserHistory, forEmbed = false) {
   store.dispatch(startCachingReverses());
   store.dispatch(loadWallet(api));
   store.dispatch(initRequests(api));
-
-  setupWorker(store);
 
   return store;
 }

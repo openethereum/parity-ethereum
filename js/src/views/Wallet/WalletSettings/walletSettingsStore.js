@@ -211,6 +211,9 @@ export default class WalletSettingsStore {
           case 'add_owner':
             this.wallet.owners.push(value);
             break;
+
+          default:
+            break;
         }
       });
     });

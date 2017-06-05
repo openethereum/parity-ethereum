@@ -50,6 +50,7 @@ class Hash extends Component {
           className={ styles.link }
           href={ etherscanUrl(hash, false, netVersion) }
           target='_blank'
+          rel='noopener noreferrer'
         >
           <abbr title={ hash }>{ shortened }</abbr>
         </a>

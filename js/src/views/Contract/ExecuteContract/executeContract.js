@@ -254,6 +254,9 @@ class ExecuteContract extends Component {
       case 'uint':
         valueError = validateUint(_value).valueError;
         break;
+
+      default:
+        break;
     }
 
     values[index] = value;

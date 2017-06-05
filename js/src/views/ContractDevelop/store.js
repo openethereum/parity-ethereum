@@ -434,8 +434,8 @@ export default class ContractDevelopStore {
         const match = regex.exec(error);
 
         const contract = match[1];
-        const row = parseInt(match[2]) - 1;
-        const column = parseInt(match[3]);
+        const row = parseInt(match[2], 10) - 1;
+        const column = parseInt(match[3], 10);
 
         const type = formal ? 'warning' : match[4].toLowerCase();
         const text = match[5];

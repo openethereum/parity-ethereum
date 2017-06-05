@@ -34,7 +34,7 @@ export default class Header extends Component {
         <div className={ styles.banner }>
           contract signature registry
         </div>
-        <img src={ blocks } />
+        <img src={ blocks } alt='blocks' />
         <div className={ styles.content }>
           <div className={ styles.hero }>
             { totalSignatures.toFormat(0) }

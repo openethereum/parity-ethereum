@@ -118,8 +118,9 @@ export default class Shapeshift extends Component {
         href='http://shapeshift.io'
         key='logo'
         target='_blank'
+        rel='noopener noreferrer'
       >
-        <img src={ shapeshiftLogo } />
+        <img src={ shapeshiftLogo } alt='dialogActions' />
       </a>
     );
     const cancelBtn = (
@@ -189,6 +190,9 @@ export default class Shapeshift extends Component {
             onClick={ this.onClose }
           />
         ];
+
+      default:
+        return null;
     }
   }
 
@@ -221,6 +225,9 @@ export default class Shapeshift extends Component {
         return (
           <CompletedStep store={ this.store } />
         );
+
+      default:
+        return null;
     }
   }
 
