@@ -414,9 +414,8 @@ linux-alpine:
   image: parity/rust-alpine:gitlab-ci
   before_script:
     - git submodule update --init --recursive
-    - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
-    - RUST_BACTRACE=1 cargo build -j 4 --features final --release
+    - cargo build -j 4 --features final --release
   tags:
     - rust
     - rust-alpine
@@ -424,7 +423,6 @@ linux-alpine:
     paths:
     - target/release/parity
     name: "x86_64-alpine-linux-musl"
-  allow_failure: true
 darwin:
   stage: build
   only:
