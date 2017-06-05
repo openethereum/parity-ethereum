@@ -14,25 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import PropTypes from 'prop-types';
-
-export function arrayOrObjectProptype () {
-  return PropTypes.oneOfType([
-    PropTypes.array,
-    PropTypes.object
-  ]);
+export function setWorker (worker) {
+  return {
+    type: 'setWorker',
+    worker
+  };
 }
 
-export function nullableProptype (type) {
-  return PropTypes.oneOfType([
-    PropTypes.oneOf([ null ]),
-    type
-  ]);
-}
-
-export function nodeOrStringProptype () {
-  return PropTypes.oneOfType([
-    PropTypes.node,
-    PropTypes.string
-  ]);
+export function setError (error) {
+  return {
+    type: 'setError',
+    error
+  };
 }

@@ -14,25 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import PropTypes from 'prop-types';
+import { handleActions } from 'redux-actions';
 
-export function arrayOrObjectProptype () {
-  return PropTypes.oneOfType([
-    PropTypes.array,
-    PropTypes.object
-  ]);
-}
+const initialState = {
+  worker: undefined,
+  error: null
+};
 
-export function nullableProptype (type) {
-  return PropTypes.oneOfType([
-    PropTypes.oneOf([ null ]),
-    type
-  ]);
-}
+export default handleActions({
+  setWorker (state, action) {
+    const { worker } = action;
 
-export function nodeOrStringProptype () {
-  return PropTypes.oneOfType([
-    PropTypes.node,
-    PropTypes.string
-  ]);
-}
+    return Object.assign({}, state, { worker: worker || null });
+  },
+
+  setError (state, action) {
+    const { error } = action;
+
+    return Object.assign({}, state, { error });
+  }
+}, initialState);
