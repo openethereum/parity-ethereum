@@ -413,7 +413,7 @@ linux-alpine:
   stage: test
   image: parity/rust-alpine:gitlab-ci
   only:
-    - alpine
+    - alpine-linux
     - master
     - triggers
   before_script:
