@@ -97,7 +97,7 @@ class TxRow extends Component {
               className={ styles.link }
               href={ txLink(tx.hash, false, netVersion) }
               target='_blank'
-              rel="noopener noreferrer"
+              rel='noopener noreferrer'
             >
               { `${tx.hash.substr(2, 6)}...${tx.hash.slice(-6)}` }
             </a>

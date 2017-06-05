@@ -32,7 +32,7 @@ export default class IdentityIcon extends Component {
       <img
         className={ styles.icon }
         src={ api.util.createIdentityImg(address, 4) }
-        alt="IdendityIcon"
+        alt='IdendityIcon'
       />
     );
   }

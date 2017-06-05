@@ -54,7 +54,7 @@ class AccountLink extends Component {
         <a
           href={ this.state.link }
           target='_blank'
-          rel="noopener noreferrer"
+          rel='noopener noreferrer'
           className={ `${styles.container} ${className}` }
         >
           { children || address }

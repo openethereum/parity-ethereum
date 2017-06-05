@@ -34,7 +34,7 @@ export default class IdentityIcon extends Component {
       <img
         className={ classes }
         src={ api.util.createIdentityImg(address, 3) }
-        alt="IdentityIcon"
+        alt='IdentityIcon'
       />
     );
   }

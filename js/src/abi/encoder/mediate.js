@@ -111,6 +111,7 @@ export default class Mediate {
         const closings = this._value
           .map((mediate, idx) => mediate.closing(offset + Mediate.offsetFor(this._value, idx)).toString(16))
           .join('');
+
         return `${prefix}${inits}${closings}`;
 
       default:

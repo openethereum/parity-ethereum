@@ -121,7 +121,7 @@ class TxHash extends Component {
     const { hash, netVersion, summary } = this.props;
 
     const hashLink = (
-      <a href={ txLink(hash, false, netVersion) } target='_blank' rel="noopener noreferrer">
+      <a href={ txLink(hash, false, netVersion) } target='_blank' rel='noopener noreferrer'>
         <ShortenedHash data={ hash } />
       </a>
     );
