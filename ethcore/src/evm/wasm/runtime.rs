@@ -157,7 +157,7 @@ impl<'a> Runtime<'a> {
 			evm::ContractCreateResult::Created(address, gas_left) => {
 				self.memory.set(result_ptr, &*address)?;
 				self.gas_counter = self.gas_limit - gas_left.low_u64();
-				trace!(target: "wasm", "runtime: create contract success");
+				trace!(target: "wasm", "runtime: create contract success (@{:?})", address);
 				Ok(Some(0i32.into()))
 			},
 			evm::ContractCreateResult::Failed => {
