@@ -4,7 +4,6 @@ const autoprefixer = require('autoprefixer');
 const path = require('path');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const CaseSensitivePathsPlugin = require('case-sensitive-paths-webpack-plugin');
 const InterpolateHtmlPlugin = require('react-dev-utils/InterpolateHtmlPlugin');
 const WatchMissingNodeModulesPlugin = require('react-dev-utils/WatchMissingNodeModulesPlugin');
@@ -188,41 +187,34 @@ module.exports = {
       // in development "style" loader enables hot editing of CSS.
       {
         test: /\.css$/,
-        use: ExtractTextPlugin.extract({
-            fallback: 'style-loader',
-            use: 'css-loader?modules,localIdentName="[name]-[local]-[hash:base64:6]"'
-        }),
+        use: [
+          require.resolve('style-loader'),
+          {
+            loader: require.resolve('css-loader'),
+            options: {
+              importLoaders: 1,
+            },
+          },
+          {
+            loader: require.resolve('postcss-loader'),
+            options: {
+              ident: 'postcss', // https://webpack.js.org/guides/migrating/#complex-options
+              plugins: () => [
+                require('postcss-flexbugs-fixes'),
+                autoprefixer({
+                  browsers: [
+                    '>1%',
+                    'last 4 versions',
+                    'Firefox ESR',
+                    'not ie < 9', // React doesn't support IE8 anyway
+                  ],
+                  flexbox: 'no-2009',
+                }),
+              ],
+            },
+          },
+        ],
       },
-      // {
-      //   test: /\.css$/,
-      //   use: [
-      //     require.resolve('style-loader'),
-      //     {
-      //       loader: require.resolve('css-loader'),
-      //       options: {
-      //         importLoaders: 1,
-      //       },
-      //     },
-      //     {
-      //       loader: require.resolve('postcss-loader'),
-      //       options: {
-      //         ident: 'postcss', // https://webpack.js.org/guides/migrating/#complex-options
-      //         plugins: () => [
-      //           require('postcss-flexbugs-fixes'),
-      //           autoprefixer({
-      //             browsers: [
-      //               '>1%',
-      //               'last 4 versions',
-      //               'Firefox ESR',
-      //               'not ie < 9', // React doesn't support IE8 anyway
-      //             ],
-      //             flexbox: 'no-2009',
-      //           }),
-      //         ],
-      //       },
-      //     },
-      //   ],
-      // },
       // ** STOP ** Are you adding a new loader?
       // Remember to add the new extension(s) to the "file" loader exclusion list.
     ],
@@ -257,12 +249,7 @@ module.exports = {
     // solution that requires the user to opt into importing specific locales.
     // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
     // You can remove this if you don't use Moment.js:
-    new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
-    // Utilize css modules
-    new ExtractTextPlugin({
-      filename: 'app.css',
-      allChunks: true
-    })
+    new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/)
   ],
   // Some libraries import Node modules but don't use them in the browser.
   // Tell Webpack to provide empty mocks for them so importing them works.
