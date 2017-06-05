@@ -684,6 +684,22 @@ mod tests {
 	}
 
 	#[test]
+	fn same_consensus_group_returned_after_second_selection() {
+		let mut session = make_master_consensus_session(1, None, None);
+		session.initialize(vec![NodeId::from(1), NodeId::from(2), NodeId::from(3)].into_iter().collect()).unwrap();
+		session.on_consensus_message(&NodeId::from(2), &ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
+			is_confirmed: true,
+		})).unwrap();
+		session.on_consensus_message(&NodeId::from(3), &ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
+			is_confirmed: true,
+		})).unwrap();
+
+		let consensus_group1 = session.select_consensus_group().unwrap().clone();
+		let consensus_group2 = session.select_consensus_group().unwrap().clone();
+		assert_eq!(consensus_group1, consensus_group2);
+	}
+
+	#[test]
 	fn consensus_session_complete_2_of_4() {
 		let mut session = make_master_consensus_session(1, None, None);
 		session.initialize(vec![NodeId::from(1), NodeId::from(2), NodeId::from(3), NodeId::from(3)].into_iter().collect()).unwrap();
@@ -737,6 +753,4 @@ mod tests {
 		assert_eq!(session.state(), ConsensusSessionState::Finished);
 		assert_eq!(session.result(), Ok(20));
 	}
-
-	// TODO: tests for select_consensus_group
 }
