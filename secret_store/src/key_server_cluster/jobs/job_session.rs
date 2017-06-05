@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, BTreeMap};
 use key_server_cluster::{Error, NodeId, SessionMeta};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-/// Partial rsponse action.
+/// Partial response action.
 pub enum JobPartialResponseAction {
 	/// Ignore this response.
 	Ignore,
@@ -10,6 +10,15 @@ pub enum JobPartialResponseAction {
 	Reject,
 	/// Accept this response.
 	Accept,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+/// Partial request action.
+pub enum JobPartialRequestAction<PartialJobResponse> {
+	/// Repond with reject.
+	Reject(PartialJobResponse),
+	/// Respond with this response.
+	Respond(PartialJobResponse),
 }
 
 /// Job executor.
@@ -21,7 +30,7 @@ pub trait JobExecutor {
 	/// Prepare job request for given node.
 	fn prepare_partial_request(&self, node: &NodeId, nodes: &BTreeSet<NodeId>) -> Result<Self::PartialJobRequest, Error>;
 	/// Process partial request.
-	fn process_partial_request(&self, partial_request: Self::PartialJobRequest) -> Result<Self::PartialJobResponse, Error>;
+	fn process_partial_request(&self, partial_request: Self::PartialJobRequest) -> Result<JobPartialRequestAction<Self::PartialJobResponse>, Error>;
 	/// Check partial response of given node.
 	fn check_partial_response(&self, partial_response: &Self::PartialJobResponse) -> Result<JobPartialResponseAction, Error>;
 	/// Compute final job response.
@@ -190,7 +199,10 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 		// if we are waiting for response from self => do it
 		if let Some(self_response) = self_response {
 			let self_node_id = self.meta.self_node_id.clone();
-			self.on_partial_response(&self_node_id, self_response)?;
+			match self_response {
+				JobPartialRequestAction::Respond(self_response) => self.on_partial_response(&self_node_id, self_response)?,
+				JobPartialRequestAction::Reject(self_response) => self.on_partial_response(&self_node_id, self_response)?,
+			}
 		}
 
 		Ok(())
@@ -207,8 +219,18 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 		if self.data.state != JobSessionState::Inactive && self.data.state != JobSessionState::Finished {
 			return Err(Error::InvalidStateForRequest);
 		}
-		self.data.state = JobSessionState::Finished;
-		self.transport.send_partial_response(node, self.executor.process_partial_request(request)?)
+
+		let partial_response = match self.executor.process_partial_request(request)? {
+			JobPartialRequestAction::Respond(partial_response) => {
+				self.data.state = JobSessionState::Finished;
+				partial_response
+			},
+			JobPartialRequestAction::Reject(partial_response) => {
+				self.data.state = JobSessionState::Failed;
+				partial_response
+			},
+		};
+		self.transport.send_partial_response(node, partial_response)
 	}
 
 	/// When partial request is received by master node.
@@ -300,7 +322,7 @@ pub mod tests {
 	use parking_lot::Mutex;
 	use ethkey::Public;
 	use key_server_cluster::{Error, NodeId, SessionId, SessionMeta};
-	use super::{JobPartialResponseAction, JobExecutor, JobTransport, JobSession, JobSessionState};
+	use super::{JobPartialResponseAction, JobPartialRequestAction, JobExecutor, JobTransport, JobSession, JobSessionState};
 
 	pub struct SquaredSumJobExecutor;
 
@@ -310,7 +332,7 @@ pub mod tests {
 		type JobResponse = u32;
 
 		fn prepare_partial_request(&self, _n: &NodeId, _nodes: &BTreeSet<NodeId>) -> Result<u32, Error> { Ok(2) }
-		fn process_partial_request(&self, r: u32) -> Result<u32, Error> { if r <= 10 { Ok(r * r) } else { Err(Error::InvalidMessage) } }
+		fn process_partial_request(&self, r: u32) -> Result<JobPartialRequestAction<u32>, Error> { if r <= 10 { Ok(JobPartialRequestAction::Respond(r * r)) } else { Err(Error::InvalidMessage) } }
 		fn check_partial_response(&self, r: &u32) -> Result<JobPartialResponseAction, Error> { if r % 2 == 0 { Ok(JobPartialResponseAction::Accept) } else { Ok(JobPartialResponseAction::Reject) } }
 		fn compute_response(&self, r: &BTreeMap<NodeId, u32>) -> Result<u32, Error> { Ok(r.values().fold(0, |v1, v2| v1 + v2)) }
 	}

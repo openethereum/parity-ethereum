@@ -537,11 +537,11 @@ mod tests {
 		(requester, clusters, acl_storages, sessions)
 	}
 
-	fn do_messages_exchange(clusters: &[Arc<DummyCluster>], sessions: &[SessionImpl]) {
-		do_messages_exchange_until(clusters, sessions, |_, _, _| false);
+	fn do_messages_exchange(clusters: &[Arc<DummyCluster>], sessions: &[SessionImpl]) -> Result<(), Error> {
+		do_messages_exchange_until(clusters, sessions, |_, _, _| false)
 	}
 
-	fn do_messages_exchange_until<F>(clusters: &[Arc<DummyCluster>], sessions: &[SessionImpl], mut cond: F) where F: FnMut(&NodeId, &NodeId, &Message) -> bool {
+	fn do_messages_exchange_until<F>(clusters: &[Arc<DummyCluster>], sessions: &[SessionImpl], mut cond: F) -> Result<(), Error> where F: FnMut(&NodeId, &NodeId, &Message) -> bool {
 		while let Some((from, to, message)) = clusters.iter().filter_map(|c| c.take_message().map(|(to, msg)| (c.node(), to, msg))).next() {
 			let session = &sessions[sessions.iter().position(|s| s.node() == &to).unwrap()];
 			if cond(&from, &to, &message) {
@@ -549,10 +549,12 @@ mod tests {
 			}
 
 			match message {
-				Message::Decryption(message) => session.process_message(&from, &message).unwrap(),
+				Message::Decryption(message) => session.process_message(&from, &message)?,
 				_ => unreachable!(),
 			}
 		}
+
+		Ok(())
 	}
 
 	#[test]
@@ -728,10 +730,10 @@ mod tests {
 				true
 			},
 			_ => false,
-		});
+		}).unwrap();
 
 		assert_eq!(sessions[0].on_partial_decryption(pd_from.as_ref().unwrap(), &pd_msg.clone().unwrap()).unwrap(), ());
-		assert_eq!(sessions[0].on_partial_decryption(pd_from.as_ref().unwrap(), &pd_msg.unwrap()).unwrap_err(), Error::InvalidStateForRequest);
+		assert_eq!(sessions[0].on_partial_decryption(pd_from.as_ref().unwrap(), &pd_msg.unwrap()).unwrap_err(), Error::InvalidNodeForRequest);
 	}
 
 	#[test]
@@ -739,7 +741,7 @@ mod tests {
 		let (_, _, _, sessions) = prepare_decryption_sessions();
 		assert!(sessions[0].decrypted_secret().is_none());
 		sessions[0].on_session_timeout();
-		assert!(sessions[0].decrypted_secret().unwrap().unwrap_err() == Error::NodeDisconnected);
+		assert_eq!(sessions[0].decrypted_secret().unwrap().unwrap_err(), Error::ConsensusUnreachable);
 	}
 
 	#[test]
@@ -765,11 +767,11 @@ mod tests {
 		acl_storages[1].prohibit(key_pair.public().clone(), SessionId::default());
 		sessions[0].initialize(false).unwrap();
 
-		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults);
+		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults).unwrap();
 
 		// 1st node disconnects => ignore this
 		sessions[0].on_node_timeout(sessions[1].node());
-		assert!(sessions[0].state() == ConsensusSessionState::WaitingForPartialResults);
+		assert_eq!(sessions[0].state(), ConsensusSessionState::EstablishingConsensus);
 	}
 
 	#[test]
@@ -777,11 +779,11 @@ mod tests {
 		let (_, clusters, _, sessions) = prepare_decryption_sessions();
 		sessions[0].initialize(false).unwrap();
 
-		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults);
+		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults).unwrap();
 
 		// 1 node disconnects => we still can recover secret
 		sessions[0].on_node_timeout(sessions[1].node());
-		assert!(sessions[0].state() == ConsensusSessionState::WaitingForPartialResults);
+		assert!(sessions[0].state() == ConsensusSessionState::EstablishingConsensus);
 
 		// 2 node are disconnected => we can not recover secret
 		sessions[0].on_node_timeout(sessions[2].node());
@@ -794,15 +796,15 @@ mod tests {
 		sessions[0].initialize(false).unwrap();
 
 		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults
-			&& sessions[0].data.lock().consensus_session.consensus_job().responses().len() == 2);
+			&& sessions[0].data.lock().consensus_session.computation_job().responses().len() == 2).unwrap();
 
 		// disconnects from the node which has already sent us its own shadow point
 		let disconnected = sessions[0].data.lock().
-			consensus_session.consensus_job().responses().keys()
+			consensus_session.computation_job().responses().keys()
 			.filter(|n| *n != sessions[0].node())
 			.cloned().nth(0).unwrap();
 		sessions[0].on_node_timeout(&disconnected);
-		assert!(sessions[0].state() == ConsensusSessionState::WaitingForPartialResults);
+		assert_eq!(sessions[0].state(), ConsensusSessionState::EstablishingConsensus);
 	}
 
 	#[test]
@@ -810,14 +812,14 @@ mod tests {
 		let (_, clusters, _, sessions) = prepare_decryption_sessions();
 		sessions[0].initialize(false).unwrap();
 
-		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults);
+		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults).unwrap();
 
 		// disconnects from the node which has already confirmed its participation
-		let disconnected = sessions[0].data.lock().consensus_session.consensus_job().requests().iter().cloned().nth(0).unwrap();
+		let disconnected = sessions[0].data.lock().consensus_session.computation_job().requests().iter().cloned().nth(0).unwrap();
 		sessions[0].on_node_timeout(&disconnected);
-		assert!(sessions[0].state() == ConsensusSessionState::WaitingForPartialResults);
-		assert!(sessions[0].data.lock().consensus_session.consensus_job().rejects().contains(&disconnected));
-		assert!(!sessions[0].data.lock().consensus_session.consensus_job().requests().contains(&disconnected));
+		assert_eq!(sessions[0].state(), ConsensusSessionState::EstablishingConsensus);
+		assert!(sessions[0].data.lock().consensus_session.computation_job().rejects().contains(&disconnected));
+		assert!(!sessions[0].data.lock().consensus_session.computation_job().requests().contains(&disconnected));
 	}
 
 	#[test]
@@ -825,7 +827,7 @@ mod tests {
 		let (_, clusters, _, sessions) = prepare_decryption_sessions();
 		sessions[0].initialize(false).unwrap();
 
-		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults);
+		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults).unwrap();
 
 		// disconnects from the node which has already confirmed its participation
 		sessions[1].on_node_timeout(sessions[2].node());
@@ -840,7 +842,7 @@ mod tests {
 		// now let's try to do a decryption
 		sessions[0].initialize(false).unwrap();
 
-		do_messages_exchange(&clusters, &sessions);
+		do_messages_exchange(&clusters, &sessions).unwrap();
 
 		// now check that:
 		// 1) 5 of 5 sessions are in Finished state
@@ -862,7 +864,7 @@ mod tests {
 		// now let's try to do a decryption
 		sessions[0].initialize(true).unwrap();
 
-		do_messages_exchange(&clusters, &sessions);
+		do_messages_exchange(&clusters, &sessions).unwrap();
 
 		// now check that:
 		// 1) 5 of 5 sessions are in Finished state
@@ -898,16 +900,11 @@ mod tests {
 		acl_storages[1].prohibit(key_pair.public().clone(), SessionId::default());
 		acl_storages[2].prohibit(key_pair.public().clone(), SessionId::default());
 
-		let node3 = sessions[3].node().clone();
-		do_messages_exchange_until(&clusters, &sessions, |from, _, _msg| from == &node3);
+		assert_eq!(do_messages_exchange(&clusters, &sessions).unwrap_err(), Error::ConsensusUnreachable);
 
-		// now check that:
-		// 1) 3 of 5 sessions are in Failed state
+		// check that 3 nodes have failed state
+		assert_eq!(sessions[0].state(), ConsensusSessionState::Failed);
 		assert_eq!(sessions.iter().filter(|s| s.state() == ConsensusSessionState::Failed).count(), 3);
-		// 2) 2 of 5 sessions are in WaitingForPartialDecryptionRequest state
-		assert_eq!(sessions.iter().filter(|s| s.state() == ConsensusSessionState::ConsensusEstablished).count(), 2);
-		// 3) 0 sessions have decrypted key value
-		assert!(sessions.iter().all(|s| s.decrypted_secret().is_none() || s.decrypted_secret().unwrap().is_err()));
 	}
 
 	#[test]
@@ -921,7 +918,7 @@ mod tests {
 		// now let's try to do a decryption
 		sessions[0].initialize(false).unwrap();
 
-		do_messages_exchange(&clusters, &sessions);
+		do_messages_exchange(&clusters, &sessions).unwrap();
 
 		// now check that:
 		// 1) 4 of 5 sessions are in Finished state

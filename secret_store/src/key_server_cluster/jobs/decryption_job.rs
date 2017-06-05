@@ -4,7 +4,7 @@ use ethcrypto::ecies::encrypt;
 use ethcrypto::DEFAULT_MAC;
 use key_server_cluster::{Error, NodeId, DocumentKeyShare, EncryptedDocumentKeyShadow};
 use key_server_cluster::math;
-use key_server_cluster::jobs::job_session::{JobPartialResponseAction, JobExecutor};
+use key_server_cluster::jobs::job_session::{JobPartialRequestAction, JobPartialResponseAction, JobExecutor};
 
 /// Decryption job.
 pub struct DecryptionJob {
@@ -90,7 +90,7 @@ impl JobExecutor for DecryptionJob {
 		})
 	}
 
-	fn process_partial_request(&self, partial_request: PartialDecryptionRequest) -> Result<PartialDecryptionResponse, Error> {
+	fn process_partial_request(&self, partial_request: PartialDecryptionRequest) -> Result<JobPartialRequestAction<PartialDecryptionResponse>, Error> {
 		if partial_request.other_nodes_ids.len() != self.key_share.threshold
 			|| partial_request.other_nodes_ids.contains(&self.self_node_id)
 			|| partial_request.other_nodes_ids.iter().any(|n| !self.key_share.id_numbers.contains_key(n)) {
@@ -103,14 +103,14 @@ impl JobExecutor for DecryptionJob {
 		let decrypt_shadow = if partial_request.is_shadow_decryption { Some(math::generate_random_scalar()?) } else { None };
 		let common_point = self.key_share.common_point.as_ref().expect("DecryptionJob is only created when common_point is known; qed");
 		let (shadow_point, decrypt_shadow) = math::compute_node_shadow_point(&self.access_key, &common_point, &node_shadow, decrypt_shadow)?;
-		Ok(PartialDecryptionResponse {
+		Ok(JobPartialRequestAction::Respond(PartialDecryptionResponse {
 			request_id: partial_request.id,
 			shadow_point: shadow_point,
 			decrypt_shadow: match decrypt_shadow {
 				None => None,
 				Some(decrypt_shadow) => Some(encrypt(&self.requester, &DEFAULT_MAC, &**decrypt_shadow)?),
 			},
-		})
+		}))
 	}
 
 	fn check_partial_response(&self, partial_response: &PartialDecryptionResponse) -> Result<JobPartialResponseAction, Error> {
