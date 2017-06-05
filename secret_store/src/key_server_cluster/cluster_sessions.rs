@@ -269,8 +269,9 @@ impl ClusterSessions {
 	}
 
 	/// Create new signing session.
-	pub fn new_signing_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, cluster: Arc<ClusterView>) -> Result<Arc<SigningSessionImpl>, Error> {
+	pub fn new_signing_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, cluster: Arc<ClusterView>, requester_signature: Option<Signature>) -> Result<Arc<SigningSessionImpl>, Error> {
 		let session_id = SigningSessionId::new(session_id, sub_session_id);
+
 		// some of nodes, which were encrypting secret may be down
 		// => do not use these in signing session
 		let mut encrypted_data = self.key_storage.get(&session_id.id).map_err(|e| Error::KeyStorage(e.into()))?;
@@ -281,13 +282,17 @@ impl ClusterSessions {
 		}
 
 		self.signing_sessions.insert(master, session_id.clone(), cluster.clone(), move || SigningSessionImpl::new(SigningSessionParams {
-			id: session_id.id,
+			meta: SessionMeta {
+				id: session_id.id,
+				self_node_id: self.self_node_id.clone(),
+				master_node_id: master,
+				threshold: encrypted_data.threshold,
+			},
 			access_key: session_id.access_key,
-			self_node_id: self.self_node_id.clone(),
-			encrypted_data: encrypted_data,
+			key_share: encrypted_data,
 			acl_storage: self.acl_storage.clone(),
 			cluster: cluster,
-		}))
+		}, requester_signature))
 	}
 
 	/// Send signing session error.

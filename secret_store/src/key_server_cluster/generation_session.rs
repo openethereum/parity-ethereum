@@ -267,6 +267,26 @@ impl SessionImpl {
 		}
 	}
 
+	/// Process single message.
+	pub fn process_message(&self, sender: &NodeId, message: &GenerationMessage) -> Result<(), Error> {
+		match message {
+			&GenerationMessage::InitializeSession(ref message) =>
+				self.on_initialize_session(sender.clone(), message),
+			&GenerationMessage::ConfirmInitialization(ref message) =>
+				self.on_confirm_initialization(sender.clone(), message),
+			&GenerationMessage::CompleteInitialization(ref message) =>
+				self.on_complete_initialization(sender.clone(), message),
+			&GenerationMessage::KeysDissemination(ref message) =>
+				self.on_keys_dissemination(sender.clone(), message),
+			&GenerationMessage::PublicKeyShare(ref message) =>
+				self.on_public_key_share(sender.clone(), message),
+			&GenerationMessage::SessionError(ref message) =>
+				self.on_session_error(sender.clone(), message),
+			&GenerationMessage::SessionCompleted(ref message) => 
+				self.on_session_completed(sender.clone(), message),
+		}
+	}
+
 	/// When session initialization message is received.
 	pub fn on_initialize_session(&self, sender: NodeId, message: &InitializeSession) -> Result<(), Error> {
 		debug_assert!(self.id == *message.session);

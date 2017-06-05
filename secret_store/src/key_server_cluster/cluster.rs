@@ -38,7 +38,7 @@ use key_server_cluster::generation_session::{Session as GenerationSession, Sessi
 use key_server_cluster::generation_session::SessionImpl as GenerationSessionImpl;
 use key_server_cluster::decryption_session::{Session as DecryptionSession, DecryptionSessionId};
 use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionState as EncryptionSessionState};
-use key_server_cluster::signing_session::{Session as SigningSession, SessionState as SigningSessionState, SigningSessionId};
+use key_server_cluster::signing_session::{Session as SigningSession, SigningSessionId};
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
 
@@ -418,22 +418,7 @@ impl ClusterCore {
 
 		let mut is_queued_message = false;
 		loop {
-			match session.clone().and_then(|session| match message {
-				GenerationMessage::InitializeSession(ref message) =>
-					session.on_initialize_session(sender.clone(), message),
-				GenerationMessage::ConfirmInitialization(ref message) =>
-					session.on_confirm_initialization(sender.clone(), message),
-				GenerationMessage::CompleteInitialization(ref message) =>
-					session.on_complete_initialization(sender.clone(), message),
-				GenerationMessage::KeysDissemination(ref message) =>
-					session.on_keys_dissemination(sender.clone(), message),
-				GenerationMessage::PublicKeyShare(ref message) =>
-					session.on_public_key_share(sender.clone(), message),
-				GenerationMessage::SessionError(ref message) =>
-					session.on_session_error(sender.clone(), message),
-				GenerationMessage::SessionCompleted(ref message) => 
-					session.on_session_completed(sender.clone(), message),
-			}) {
+			match session.clone().and_then(|session| session.process_message(&sender, &message)) {
 				Ok(_) => {
 					// if session is completed => stop
 					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
@@ -618,7 +603,7 @@ impl ClusterCore {
 				connected_nodes.insert(data.self_key_pair.public().clone());
 
 				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes));
-				data.sessions.new_signing_session(sender.clone(), session_id.clone(), sub_session_id.clone(), cluster)
+				data.sessions.new_signing_session(sender.clone(), session_id.clone(), sub_session_id.clone(), cluster, None)
 			},
 			_ => {
 				data.sessions.signing_sessions.get(&signing_session_id)
@@ -628,28 +613,12 @@ impl ClusterCore {
 
 		let mut is_queued_message = false;
 		loop {
-			match session.clone().and_then(|session| match message {
-				SigningMessage::SigningConsensusMessage(ref message) =>
-					session.on_consensus_message(sender.clone(), message),
-				SigningMessage::SigningGenerationMessage(ref message) =>
-					session.on_generation_message(sender.clone(), message),
-				SigningMessage::RequestPartialSignature(ref message) => 
-					session.on_partial_signature_requested(sender.clone(), message),
-				SigningMessage::PartialSignature(ref message) => 
-					session.on_partial_signature(sender.clone(), message),
-				SigningMessage::SigningSessionError(ref message) => 
-					session.on_session_error(sender.clone(), message),
-				SigningMessage::SigningSessionCompleted(ref message) => 
-					session.on_session_completed(sender.clone(), message),
-			}) {
+			match session.clone().and_then(|session| session.process_message(&sender, &message)) {
 				Ok(_) => {
 					// if session is completed => stop
 					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
-					let session_state = session.state();
-					if session_state == SigningSessionState::Finished {
+					if session.is_finished() {
 						info!(target: "secretstore_net", "{}: signing session completed", data.self_key_pair.public());
-					}
-					if session_state == SigningSessionState::Finished || session_state == SigningSessionState::Failed {
 						data.sessions.signing_sessions.remove(&signing_session_id);
 						break;
 					}
@@ -926,8 +895,8 @@ impl ClusterClient for ClusterClientImpl {
 
 		let access_key = Random.generate()?.secret().clone();
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.new_signing_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), cluster)?;
-		session.initialize(requestor_signature, message_hash)?;
+		let session = self.data.sessions.new_signing_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), cluster, Some(requestor_signature))?;
+		session.initialize(message_hash)?;
 		Ok(SigningSessionWrapper::new(Arc::downgrade(&self.data), SigningSessionId::new(session_id, access_key), session))
 	}
 

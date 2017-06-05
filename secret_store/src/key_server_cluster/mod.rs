@@ -153,8 +153,6 @@ impl Into<String> for Error {
 
 mod cluster;
 mod cluster_sessions;
-mod consensus;
-mod consensus_session;
 mod decryption_session;
 mod encryption_session;
 mod generation_session;

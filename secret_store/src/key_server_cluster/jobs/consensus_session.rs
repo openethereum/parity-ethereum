@@ -40,6 +40,8 @@ pub struct ConsensusSession<ConsensusTransport: JobTransport<PartialJobRequest=S
 	requester: Option<Public>,
 	/// Consensus establish job.
 	consensus_job: JobSession<KeyAccessJob, ConsensusTransport>,
+	/// Consensus group.
+	consensus_group: BTreeSet<NodeId>,
 	/// Computation job.
 	computation_job: Option<JobSession<ComputationExecutor, ComputationTransport>>,
 }
@@ -78,6 +80,7 @@ impl<ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSes
 			meta: params.meta,
 			requester: requester,
 			consensus_job: consensus_job,
+			consensus_group: BTreeSet::new(),
 			computation_job: None,
 		})
 	}
@@ -139,23 +142,34 @@ impl<ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSes
 		self.process_result(consensus_result)
 	}
 
-	/// Disseminate jobs from master node.
-	pub fn disseminate_jobs(&mut self, executor: ComputationExecutor, transport: ComputationTransport) -> Result<(), Error> {
+	/// Select nodes for processing partial requests.
+	pub fn select_consensus_group(&mut self) -> Result<&BTreeSet<NodeId>, Error> {
 		debug_assert!(self.meta.self_node_id == self.meta.master_node_id);
 		if self.state != ConsensusSessionState::ConsensusEstablished {
 			return Err(Error::InvalidStateForRequest);
 		}
 
-		let consensus_nodes = self.consensus_job.result().expect("disseminate_jobs is only called on master node when consensus is established; qed");
-		let is_self_in_consensus = consensus_nodes.contains(&self.meta.self_node_id);
-		let mut consensus_nodes: BTreeSet<_> = consensus_nodes.into_iter().take(self.meta.threshold + 1).collect();
-		if is_self_in_consensus {
-			consensus_nodes.remove(&self.meta.master_node_id);
-			consensus_nodes.insert(self.meta.master_node_id.clone());
+		if self.consensus_group.is_empty() {
+			let consensus_group = self.consensus_job.result()?;
+			let is_self_in_consensus = consensus_group.contains(&self.meta.self_node_id);
+			self.consensus_group = consensus_group.into_iter().take(self.meta.threshold + 1).collect();
+
+			if is_self_in_consensus {
+				self.consensus_group.remove(&self.meta.master_node_id);
+				self.consensus_group.insert(self.meta.master_node_id.clone());
+			}
 		}
 
+		Ok(&self.consensus_group)
+	}
+
+	/// Disseminate jobs from master node.
+	pub fn disseminate_jobs(&mut self, executor: ComputationExecutor, transport: ComputationTransport) -> Result<(), Error> {
+		let consensus_group = self.select_consensus_group()?.clone();
+		self.consensus_group.clear();
+
 		let mut computation_job = JobSession::new(self.meta.clone(), executor, transport);
-		let computation_result = computation_job.initialize(consensus_nodes);
+		let computation_result = computation_job.initialize(consensus_group);
 		self.computation_job = Some(computation_job);
 		self.state = ConsensusSessionState::WaitingForPartialResults;
 		self.process_result(computation_result)
@@ -239,7 +253,9 @@ impl<ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSes
 				} else {
 					// it is used by current computation job
 					// => restart is required if there are still enough nodes
+					self.consensus_group.clear();
 					self.state = ConsensusSessionState::EstablishingConsensus;
+
 					let consensus_result = self.consensus_job.on_node_error(node);
 					let is_consensus_established = self.consensus_job.state() == JobSessionState::Finished;
 					(is_consensus_established, consensus_result)
@@ -260,6 +276,8 @@ impl<ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSes
 			// in some states this error is fatal
 			ConsensusSessionState::WaitingForInitialization | ConsensusSessionState::EstablishingConsensus | ConsensusSessionState::ConsensusEstablished => {
 				let _ = self.consensus_job.on_session_timeout();
+
+				self.consensus_group.clear();
 				self.state = ConsensusSessionState::EstablishingConsensus;
 				return self.process_result(Err(Error::ConsensusUnreachable)).map(|_| unreachable!());
 			},
@@ -273,6 +291,7 @@ impl<ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSes
 			.clone();
 		assert!(!timeouted_nodes.is_empty()); // timeout should not ever happen if no requests are active && we are waiting for responses
 
+		self.consensus_group.clear();
 		for timeouted_node in timeouted_nodes {
 			let timeout_result = self.consensus_job.on_node_error(&timeouted_node);
 			self.state = ConsensusSessionState::EstablishingConsensus;
@@ -702,4 +721,6 @@ mod tests {
 		assert_eq!(session.state(), ConsensusSessionState::Finished);
 		assert_eq!(session.result(), Ok(20));
 	}
+
+	// TODO: tests for select_consensus_group
 }

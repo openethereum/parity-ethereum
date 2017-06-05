@@ -63,6 +63,9 @@ struct SessionCore {
 	pub completed: Condvar,
 }
 
+/// Decryption consensus session type.
+type DecryptionConsensusSession = ConsensusSession<DecryptionConsensusTransport, DecryptionJob, DecryptionJobTransport>;
+
 /// Mutable session data.
 struct SessionData {
 	/// Consensus-based decryption session.
@@ -96,8 +99,6 @@ pub struct SessionParams {
 	pub cluster: Arc<Cluster>,
 }
 
-type DecryptionConsensusSession = ConsensusSession<DecryptionConsensusTransport, DecryptionJob, DecryptionJobTransport>;
-
 /// Decryption consensus transport.
 struct DecryptionConsensusTransport {
 	/// Session id.
@@ -108,31 +109,6 @@ struct DecryptionConsensusTransport {
 	cluster: Arc<Cluster>,
 }
 
-impl JobTransport for DecryptionConsensusTransport {
-	type PartialJobRequest=Signature;
-	type PartialJobResponse=bool;
-
-	fn send_partial_request(&self, node: &NodeId, request: Signature) -> Result<(), Error> {
-		self.cluster.send(node, Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(DecryptionConsensusMessage {
-			session: self.id.clone().into(),
-			sub_session: self.access_key.clone().into(),
-			message: ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
-				requestor_signature: request.into(),
-			})
-		})))
-	}
-
-	fn send_partial_response(&self, node: &NodeId, response: bool) -> Result<(), Error> {
-		self.cluster.send(node, Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(DecryptionConsensusMessage {
-			session: self.id.clone().into(),
-			sub_session: self.access_key.clone().into(),
-			message: ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
-				is_confirmed: response,
-			})
-		})))
-	}
-}
-
 /// Decryption job transport
 struct DecryptionJobTransport {
 	/// Session id.
@@ -141,31 +117,6 @@ struct DecryptionJobTransport {
 	access_key: Secret,
 	/// Cluster.
 	cluster: Arc<Cluster>,
-}
-
-impl JobTransport for DecryptionJobTransport {
-	type PartialJobRequest=PartialDecryptionRequest;
-	type PartialJobResponse=PartialDecryptionResponse;
-
-	fn send_partial_request(&self, node: &NodeId, request: PartialDecryptionRequest) -> Result<(), Error> {
-		self.cluster.send(node, Message::Decryption(DecryptionMessage::RequestPartialDecryption(RequestPartialDecryption {
-			session: self.id.clone().into(),
-			sub_session: self.access_key.clone().into(),
-			request_id: request.id.into(),
-			is_shadow_decryption: request.is_shadow_decryption,
-			nodes: request.other_nodes_ids.into_iter().map(Into::into).collect(),
-		})))
-	}
-
-	fn send_partial_response(&self, node: &NodeId, response: PartialDecryptionResponse) -> Result<(), Error> {
-		self.cluster.send(node, Message::Decryption(DecryptionMessage::PartialDecryption(PartialDecryption {
-			session: self.id.clone().into(),
-			sub_session: self.access_key.clone().into(),
-			request_id: response.request_id.into(),
-			shadow_point: response.shadow_point.into(),
-			decrypt_shadow: response.decrypt_shadow,
-		})))
-	}
 }
 
 impl SessionImpl {
@@ -434,6 +385,56 @@ impl SessionCore {
 		let requester = consensus_session.requester()?.clone();
 		let decryption_job = DecryptionJob::new_on_master(self.meta.self_node_id.clone(), self.access_key.clone(), requester, self.key_share.clone(), is_shadow_decryption)?;
 		consensus_session.disseminate_jobs(decryption_job, self.decryption_transport())
+	}
+}
+
+impl JobTransport for DecryptionConsensusTransport {
+	type PartialJobRequest=Signature;
+	type PartialJobResponse=bool;
+
+	fn send_partial_request(&self, node: &NodeId, request: Signature) -> Result<(), Error> {
+		self.cluster.send(node, Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(DecryptionConsensusMessage {
+			session: self.id.clone().into(),
+			sub_session: self.access_key.clone().into(),
+			message: ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
+				requestor_signature: request.into(),
+			})
+		})))
+	}
+
+	fn send_partial_response(&self, node: &NodeId, response: bool) -> Result<(), Error> {
+		self.cluster.send(node, Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(DecryptionConsensusMessage {
+			session: self.id.clone().into(),
+			sub_session: self.access_key.clone().into(),
+			message: ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
+				is_confirmed: response,
+			})
+		})))
+	}
+}
+
+impl JobTransport for DecryptionJobTransport {
+	type PartialJobRequest=PartialDecryptionRequest;
+	type PartialJobResponse=PartialDecryptionResponse;
+
+	fn send_partial_request(&self, node: &NodeId, request: PartialDecryptionRequest) -> Result<(), Error> {
+		self.cluster.send(node, Message::Decryption(DecryptionMessage::RequestPartialDecryption(RequestPartialDecryption {
+			session: self.id.clone().into(),
+			sub_session: self.access_key.clone().into(),
+			request_id: request.id.into(),
+			is_shadow_decryption: request.is_shadow_decryption,
+			nodes: request.other_nodes_ids.into_iter().map(Into::into).collect(),
+		})))
+	}
+
+	fn send_partial_response(&self, node: &NodeId, response: PartialDecryptionResponse) -> Result<(), Error> {
+		self.cluster.send(node, Message::Decryption(DecryptionMessage::PartialDecryption(PartialDecryption {
+			session: self.id.clone().into(),
+			sub_session: self.access_key.clone().into(),
+			request_id: response.request_id.into(),
+			shadow_point: response.shadow_point.into(),
+			decrypt_shadow: response.decrypt_shadow,
+		})))
 	}
 }
 
