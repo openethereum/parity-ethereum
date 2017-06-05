@@ -410,26 +410,22 @@ linux-aarch64:
     name: "aarch64-unknown-linux-gnu_parity"
   allow_failure: true
 linux-alpine:
-  stage: test
+  stage: build
   image: parity/rust-alpine:gitlab-ci
-  only:
-    - alpine-linux
-    - master
-    - triggers
   before_script:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
     - rustup show
     - export RUST_BACKTRACE=1
-    - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
+    - cargo build -j $(nproc) --features final --release
   tags:
     - rust
     - rust-alpine
   artifacts:
     paths:
-    - target//release/parity
-    name: "x86_64-musl-alpine-gnu_parity"
+    - target/release/parity
+    name: "x86_64-alpine-linux-musl"
   allow_failure: true
 darwin:
   stage: build
