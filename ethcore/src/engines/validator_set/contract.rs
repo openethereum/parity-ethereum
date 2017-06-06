@@ -24,7 +24,7 @@ use futures::Future;
 use native_contracts::ValidatorReport as Provider;
 
 use client::{Client, BlockChainClient};
-use engines::Call;
+use engines::{Call, Engine};
 use header::{Header, BlockNumber};
 
 use super::ValidatorSet;
@@ -66,18 +66,26 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.default_caller(id)
 	}
 
-	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> ::engines::EpochChange
-	{
-		self.validators.is_epoch_end(header, block, receipts)
+	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
+		self.validators.genesis_epoch_data(header, call)
 	}
 
-	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
-		self.validators.epoch_proof(header, caller)
+	fn is_epoch_end(&self, first: bool, chain_head: &Header) -> Option<Vec<u8>> {
+		self.validators.is_epoch_end(first, chain_head)
 	}
 
-	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(u64, super::SimpleList), ::error::Error> {
-		self.validators.epoch_set(header, proof)
+	fn signals_epoch_end(
+		&self,
+		first: bool,
+		header: &Header,
+		block: Option<&[u8]>,
+		receipts: Option<&[Receipt]>,
+	) -> EpochChange {
+		self.validators.signals_epoch_end(first, header, block, receipts)
+	}
+
+	fn epoch_set(&self, first: bool, engine: &Engine, header: &Header, proof: &[u8]) -> Result<(SimpleList, bool), ::error::Error> {
+		self.validators.epoch_set(first, header, proof)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {

@@ -20,7 +20,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use util::{Arc, Bytes, H256, Address, HeapSizeOf};
 
-use engines::Call;
+use engines::{Call, Engine};
 use header::{Header, BlockNumber};
 use super::{ValidatorSet, SimpleList};
 
@@ -52,18 +52,16 @@ impl ValidatorSet for TestSet {
 		Box::new(|_, _| Err("Test set doesn't require calls.".into()))
 	}
 
-	fn is_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[::receipt::Receipt]>)
+	fn is_epoch_end(&self, _first: bool, _chain_head: &Header) -> Option<Vec<u8>> { None }
+
+	fn signals_epoch_end(&self, _: bool, _: &Header, _: Option<&[u8]>, _: Option<&[::receipt::Receipt]>)
 		-> ::engines::EpochChange
 	{
 		::engines::EpochChange::No
 	}
 
-	fn epoch_proof(&self, _header: &Header, _caller: &Call) -> Result<Vec<u8>, String> {
-		Ok(Vec::new())
-	}
-
-	fn epoch_set(&self, _header: &Header, _: &[u8]) -> Result<(u64, SimpleList), ::error::Error> {
-		Ok((0, self.validator.clone()))
+	fn epoch_set(&self, _: bool, _: &Engine, _: &Header, _: &[u8]) -> Result<(SimpleList, bool), ::error::Error> {
+		(self.validator.clone(), false)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, _: &Call) -> bool {

@@ -18,7 +18,7 @@
 
 use util::{H256, Address, HeapSizeOf};
 
-use engines::Call;
+use engines::{Call, Engine};
 use header::Header;
 use super::ValidatorSet;
 
@@ -53,18 +53,22 @@ impl ValidatorSet for SimpleList {
 		Box::new(|_, _| Err("Simple list doesn't require calls.".into()))
 	}
 
-	fn is_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[::receipt::Receipt]>)
+	fn is_epoch_end(&self, first: bool, _chain_head: &Header) -> Option<Vec<u8>> {
+		match first {
+			true => Some(Vec::new()), // allow transition to fixed list, and instantly
+			false => None,
+		}
+	}
+
+	fn signals_epoch_end(&self, _: bool, _: &Header, _: Option<&[u8]>, _: Option<&[::receipt::Receipt]>)
 		-> ::engines::EpochChange
 	{
 		::engines::EpochChange::No
 	}
 
-	fn epoch_proof(&self, _header: &Header, _caller: &Call) -> Result<Vec<u8>, String> {
-		Ok(Vec::new())
-	}
 
-	fn epoch_set(&self, _header: &Header, _: &[u8]) -> Result<(u64, SimpleList), ::error::Error> {
-		Ok((0, self.clone()))
+	fn epoch_set(&self, first: bool, _: &Engine, _: &Header, _: &[u8]) -> Result<(SimpleList, bool), ::error::Error> {
+		(self.validators.clone(), false)
 	}
 
 	fn contains_with_caller(&self, _bh: &H256, address: &Address, _: &Call) -> bool {

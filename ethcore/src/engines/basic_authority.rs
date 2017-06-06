@@ -183,26 +183,25 @@ impl Engine for BasicAuthority {
 		verify_external(header, &*self.validators)
 	}
 
-	// the proofs we need just allow us to get the full validator set.
-	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Bytes, Error> {
-		self.validators.epoch_proof(header, caller)
-			.map_err(|e| EngineError::InsufficientProof(e).into())
-	}
-
-	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> EpochChange
+	fn signals_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[Receipt]>)
+		-> super::EpochChange
 	{
-		self.validators.is_epoch_end(header, block, receipts)
+		// don't bother signalling even though a contract might try.
+		super::EpochChange::No
 	}
 
-	fn epoch_verifier(&self, header: &Header, proof: &[u8]) -> Result<Box<super::EpochVerifier>, Error> {
-		// extract a simple list from the proof.
-		let (num, simple_list) = self.validators.epoch_set(header, proof)?;
+	fn is_epoch_end(
+		&self,
+		_chain_head: &Header,
+		_chain: &Headers,
+		_transition_store: &super::PendingTransitionStore,
+	) -> Option<Vec<u8>> {
+		// only immediate transitions.
+		None
+	}
 
-		Ok(Box::new(EpochVerifier {
-			epoch_number: num,
-			list: simple_list,
-		}))
+	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> ConstructedVerifier<'a> {
+		ConstructedVerifier::Trusted(Box::new(self::epoch::NoOp))
 	}
 
 	fn register_client(&self, client: Weak<Client>) {
