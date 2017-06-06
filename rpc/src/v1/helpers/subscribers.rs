@@ -95,12 +95,9 @@ impl <T> Subscribers<Sink<T>> {
 	/// Assigns id and adds a subscriber to the list.
 	pub fn push(&mut self, sub: Subscriber<T>) {
 		let id = self.next_id();
-		match sub.assign_id(SubscriptionId::String(id.as_string())) {
-			Ok(sink) => {
-				debug!(target: "pubsub", "Adding subscription id={:?}", id);
-				self.subscriptions.insert(id, sink);
-			},
-			Err(_) => {},
+		if let Ok(sink) = sub.assign_id(SubscriptionId::String(id.as_string())) {
+			debug!(target: "pubsub", "Adding subscription id={:?}", id);
+			self.subscriptions.insert(id, sink);
 		}
 	}
 }
