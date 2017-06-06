@@ -56,7 +56,7 @@
     "lint:js": "eslint --ignore-path .gitignore ./src/",
     "lint:js:cached": "eslint --cache --ignore-path .gitignore ./src/",
     "lint:js:fix": "eslint --fix --ignore-path .gitignore ./src/",
-    "start": "yarn run clean && yarn install && yarn start:app",
+    "start": "node_modules/yarn/bin/yarn run clean && node_modules/yarn/bin/yarn install && node_modules/yarn/bin/yarn start:app",
     "start:app": "node scripts/start.js",
     "test": "NODE_ENV=test mocha --compilers ejs:ejsify 'src/**/*.spec.js'",
     "test:coverage": "NODE_ENV=test istanbul cover _mocha -- --compilers ejs:ejsify 'src/**/*.spec.js'",
