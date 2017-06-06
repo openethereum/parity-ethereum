@@ -66,6 +66,8 @@ linux-snap:
   only:
     - snap
     - beta
+    - tags
+    - triggers
   script:
     - rm -rf *snap
     - cd scripts
@@ -593,9 +595,9 @@ js-test:
   tags:
     - rust
     - rust-stable
-js-test-node_7:
+js-test-node_8:
   stage: test
-  image: parity/rust-debian-node_7:gitlab-ci
+  image: parity/rust-debian-node_8:gitlab-ci
   before_script:
     - git submodule update --init --recursive
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
@@ -610,6 +612,7 @@ test-rust-beta:
   stage: test
   only:
     - triggers
+    - master
   image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
@@ -626,6 +629,7 @@ test-rust-nightly:
   stage: test
   only:
     - triggers
+    - master
   image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
@@ -645,6 +649,7 @@ js-release:
     - beta
     - stable
     - tags
+    - triggers
   image: parity/rust:gitlab-ci
   before_script:
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
@@ -660,6 +665,7 @@ push-release:
   stage: push-release
   only:
     - tags
+    - triggers
   image: parity/rust:gitlab-ci
   script:
     - rustup default stable
