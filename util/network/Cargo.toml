@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 log = "0.3"
-mio = { git = "https://github.com/paritytech/mio" }
+mio = "0.6.8"
 bytes = "0.3.0"
 rand = "0.3.12"
 time = "0.1.34"

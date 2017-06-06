@@ -26,14 +26,22 @@ export default class SecureApi extends Api {
   _isConnecting = false;
   _needsToken = false;
   _tokens = [];
+  _uiApi = null;
 
   _dappsUrl = null;
   _wsUrl = null;
+  _url = null;
 
-  static getProvider (url, sysuiToken, protocol) {
+  static getTransport (url, sysuiToken, protocol) {
+    const transportUrl = SecureApi.transportUrl(url, protocol);
+
+    return new Api.Provider.Ws(transportUrl, sysuiToken, false);
+  }
+
+  static transportUrl (url, protocol) {
     const proto = protocol() === 'https:' ? 'wss:' : 'ws:';
 
-    return new Api.Provider.Ws(`${proto}//${url}`, sysuiToken, false);
+    return `${proto}//${url}`;
   }
 
   // Returns a protocol with `:` at the end.
@@ -41,22 +49,23 @@ export default class SecureApi extends Api {
     return window.location.protocol;
   }
 
-  constructor (url, nextToken, getProvider = SecureApi.getProvider, protocol = SecureApi.protocol) {
+  constructor (uiUrl, nextToken, getTransport = SecureApi.getTransport, protocol = SecureApi.protocol) {
     const sysuiToken = store.get('sysuiToken');
-    const provider = getProvider(url, sysuiToken, protocol);
+    const transport = getTransport(uiUrl, sysuiToken, protocol);
 
-    super(provider);
+    super(transport);
 
-    this._wsUrl = url;
     this.protocol = protocol;
+    this._url = uiUrl;
+    this._uiApi = new Api(new Api.Provider.Http(`${this.protocol()}//${this._url}/rpc`, 0), false);
+    this._wsUrl = uiUrl;
     // Try tokens from localStorage, from hash and 'initial'
     this._tokens = uniq([sysuiToken, nextToken, 'initial'])
       .filter((token) => token)
       .map((token) => ({ value: token, tried: false }));
 
     // When the transport is closed, try to reconnect
-    console.log('this.provider', this.provider);
-    this.provider.on('close', this.connect, this);
+    transport.on('close', this.connect, this);
 
     this.connect();
   }
@@ -106,7 +115,7 @@ export default class SecureApi extends Api {
   }
 
   get isConnected () {
-    return this.provider.isConnected;
+    return this._transport.isConnected;
   }
 
   get needsToken () {
@@ -114,27 +123,7 @@ export default class SecureApi extends Api {
   }
 
   get secureToken () {
-    return this.provider.token;
-  }
-
-  /**
-   * Configure the current API with the given values
-   * (`signerPort`, `dappsInterface`, `dappsPort`, ...)
-   */
-  configure (configuration) {
-    const { dappsInterface, dappsPort, signerPort, wsPort } = configuration;
-
-    if (dappsInterface) {
-      this._dappsUrl = `${dappsInterface}:${this._dappsAddress.port}`;
-    }
-
-    if (dappsPort) {
-      this._dappsUrl = `${this.hostname}:${dappsPort}`;
-    }
-
-    if (signerPort || wsPort) {
-      this._wsUrl = `${this.hostname}:${signerPort || wsPort}`;
-    }
+    return this._transport.token;
   }
 
   connect () {
@@ -190,7 +179,7 @@ export default class SecureApi extends Api {
    * otherwise (HEAD request to the Node)
    */
   isNodeUp () {
-    return fetch(`${this.protocol()}//${this._wsUrl}`, { method: 'HEAD', mode: 'no-cors' })
+    return fetch(`${this.protocol()}//${this._url}/api/ping`, { method: 'HEAD' })
       .then(
         (r) => r.status === 200,
         () => false
@@ -241,7 +230,6 @@ export default class SecureApi extends Api {
         // If correct and valid token, wait until the Node is ready
         // and resolve as connected
         return this._waitUntilNodeReady()
-          .then(() => this._fetchSettings())
           .then(() => true);
       })
       .catch((error) => {
@@ -260,11 +248,16 @@ export default class SecureApi extends Api {
     // Sanitize the token first
     const token = this._sanitiseToken(_token);
 
-    // Update the token in the transport layer
-    this.provider.updateToken(token, false);
-    log.debug('connecting with token', token);
+    const connectPromise = this._fetchSettings()
+      .then(() => {
+        // Update the URL and token in the transport layer
+        this.transport.url = SecureApi.transportUrl(this._wsUrl, this.protocol);
+        this.transport.updateToken(token, false);
 
-    const connectPromise = this.provider.connect()
+        log.debug('connecting with token', token);
+
+        return this.transport.connect();
+      })
       .then(() => {
         log.debug('connected with', token);
 
@@ -319,12 +312,12 @@ export default class SecureApi extends Api {
   _fetchSettings () {
     return Promise
       .all([
-        this.parity.dappsUrl(),
-        this.parity.wsUrl()
+        this._uiApi.parity.dappsUrl(),
+        this._uiApi.parity.wsUrl()
       ])
       .then(([dappsUrl, wsUrl]) => {
         this._dappsUrl = dappsUrl;
-        this._wsUrl = dappsUrl;
+        this._wsUrl = wsUrl;
       });
   }
 

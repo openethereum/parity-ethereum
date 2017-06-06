@@ -30,6 +30,7 @@ pub struct Informant {
 	pc: usize,
 	instruction: u8,
 	gas_cost: U256,
+	gas_used: U256,
 	stack: Vec<U256>,
 	memory: Vec<u8>,
 	storage: HashMap<H256, H256>,
@@ -82,6 +83,19 @@ impl trace::VMTracer for Informant {
 	}
 
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
+		println!(
+			"{{\"pc\":{pc},\"op\":{op},\"gas\":{gas},\"gasCost\":{gas_cost},\"memory\":{memory},\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
+			pc = self.pc,
+			op = self.instruction,
+			gas = display::u256_as_str(&(gas_used + self.gas_cost)),
+			gas_cost = display::u256_as_str(&self.gas_cost),
+			memory = self.memory(),
+			stack = self.stack(),
+			storage = self.storage(),
+			depth = self.depth,
+		);
+
+		self.gas_used = gas_used;
 		self.stack.extend_from_slice(stack_push);
 
 		if let Some((pos, data)) = mem_diff {
@@ -91,18 +105,6 @@ impl trace::VMTracer for Informant {
 		if let Some((pos, val)) = store_diff {
 			self.storage.insert(pos.into(), val.into());
 		}
-
-		println!(
-			"{{\"pc\":{pc},\"op\":{op},\"gas\":{gas},\"gasCost\":{gas_cost},\"memory\":{memory},\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
-			pc = self.pc,
-			op = self.instruction,
-			gas = display::u256_as_str(&gas_used),
-			gas_cost = display::u256_as_str(&self.gas_cost),
-			memory = self.memory(),
-			stack = self.stack(),
-			storage = self.storage(),
-			depth = self.depth,
-		);
 	}
 
 	fn prepare_subtrace(&self, _code: &[u8]) -> Self where Self: Sized {
@@ -111,6 +113,16 @@ impl trace::VMTracer for Informant {
 		vm
 	}
 
-	fn done_subtrace(&mut self, _sub: Self) where Self: Sized {}
+	fn done_subtrace(&mut self, mut sub: Self) where Self: Sized {
+		if sub.depth == 1 {
+			// print last line with final state:
+			sub.pc += 1;
+			sub.instruction = 0;
+			sub.gas_cost = 0.into();
+			let gas_used = sub.gas_used;
+			trace::VMTracer::trace_executed(&mut sub, gas_used, &[], None, None);
+		}
+	}
+
 	fn drain(self) -> Option<trace::VMTrace> { None }
 }

@@ -259,9 +259,10 @@ export default class Status {
       .all(statusPromises)
       .then(([nodeKind, netPeers, clientVersion, netVersion, netChain]) => {
         const isTest = [
-          '2', // morden
-          '3', // ropsten
-          '42' // kovan
+          '2',  // morden
+          '3',  // ropsten,
+          '17', // devchain
+          '42'  // kovan
         ].includes(netVersion);
 
         const nodeKindFull = nodeKind &&
