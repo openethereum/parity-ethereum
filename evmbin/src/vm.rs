@@ -24,6 +24,8 @@ use ethcore::action_params::ActionParams;
 
 /// VM execution informant
 pub trait Informant: trace::VMTracer {
+	/// Set initial gas.
+	fn set_gas(&mut self, _gas: U256) {}
 	/// Display final result.
 	fn finish(&mut self, result: Result<Success, Failure>);
 }
@@ -40,6 +42,8 @@ pub struct Success {
 
 /// Execution failed
 pub struct Failure {
+	/// Used gas
+	pub gas_used: U256,
 	/// Internal error
 	pub error: EvmTestError,
 	/// Duration
@@ -49,6 +53,7 @@ pub struct Failure {
 /// Execute VM with given `ActionParams`
 pub fn run<T: trace::VMTracer>(vm_tracer: &mut T, spec: spec::Spec, params: ActionParams) -> Result<Success, Failure> {
 	let mut test_client = EvmTestClient::new(spec).map_err(|error| Failure {
+		gas_used: 0.into(),
 		error,
 		time: Duration::from_secs(0)
 	})?;
@@ -65,6 +70,7 @@ pub fn run<T: trace::VMTracer>(vm_tracer: &mut T, spec: spec::Spec, params: Acti
 			time: duration,
 		}),
 		Err(e) => Err(Failure {
+			gas_used: initial_gas,
 			error: e,
 			time: duration,
 		}),

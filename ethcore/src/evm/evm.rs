@@ -76,7 +76,7 @@ impl From<Box<trie::TrieError>> for Error {
 impl From<builtin::Error> for Error {
 	fn from(err: builtin::Error) -> Self {
 		Error::BuiltIn(err.0)
-	}	
+	}
 }
 
 impl fmt::Display for Error {

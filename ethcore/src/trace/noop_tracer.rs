@@ -72,7 +72,7 @@ pub struct NoopVMTracer;
 
 impl VMTracer for NoopVMTracer {
 	/// Trace the preparation to execute a single instruction.
-	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _stack_pop: usize, _gas_cost: &U256) -> bool { false }
+	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: &U256) -> bool { false }
 
 	/// Trace the finalised execution of a single instruction.
 	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
@@ -81,7 +81,7 @@ impl VMTracer for NoopVMTracer {
 	fn prepare_subtrace(&self, _code: &[u8]) -> Self { NoopVMTracer }
 
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
-	fn done_subtrace(&mut self, _sub: Self) {}
+	fn done_subtrace(&mut self, _sub: Self, _is_successful: bool) {}
 
 	/// Consumes self and returns all VM traces.
 	fn drain(self) -> Option<VMTrace> { None }
