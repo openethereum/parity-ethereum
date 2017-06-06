@@ -26,14 +26,22 @@ export default class SecureApi extends Api {
   _isConnecting = false;
   _needsToken = false;
   _tokens = [];
+  _uiApi = null;
 
   _dappsUrl = null;
   _wsUrl = null;
+  _url = null;
 
   static getTransport (url, sysuiToken, protocol) {
+    const transportUrl = SecureApi.transportUrl(url, protocol);
+
+    return new Api.Transport.Ws(transportUrl, sysuiToken, false);
+  }
+
+  static transportUrl (url, protocol) {
     const proto = protocol() === 'https:' ? 'wss:' : 'ws:';
 
-    return new Api.Transport.Ws(`${proto}//${url}`, sysuiToken, false);
+    return `${proto}//${url}`;
   }
 
   // Returns a protocol with `:` at the end.
@@ -41,14 +49,16 @@ export default class SecureApi extends Api {
     return window.location.protocol;
   }
 
-  constructor (url, nextToken, getTransport = SecureApi.getTransport, protocol = SecureApi.protocol) {
+  constructor (uiUrl, nextToken, getTransport = SecureApi.getTransport, protocol = SecureApi.protocol) {
     const sysuiToken = store.get('sysuiToken');
-    const transport = getTransport(url, sysuiToken, protocol);
+    const transport = getTransport(uiUrl, sysuiToken, protocol);
 
     super(transport);
 
-    this._wsUrl = url;
     this.protocol = protocol;
+    this._url = uiUrl;
+    this._uiApi = new Api(new Api.Transport.Http(`${this.protocol()}//${this._url}/rpc`, 0), false);
+    this._wsUrl = uiUrl;
     // Try tokens from localStorage, from hash and 'initial'
     this._tokens = uniq([sysuiToken, nextToken, 'initial'])
       .filter((token) => token)
@@ -116,26 +126,6 @@ export default class SecureApi extends Api {
     return this._transport.token;
   }
 
-  /**
-   * Configure the current API with the given values
-   * (`signerPort`, `dappsInterface`, `dappsPort`, ...)
-   */
-  configure (configuration) {
-    const { dappsInterface, dappsPort, signerPort, wsPort } = configuration;
-
-    if (dappsInterface) {
-      this._dappsUrl = `${dappsInterface}:${this._dappsAddress.port}`;
-    }
-
-    if (dappsPort) {
-      this._dappsUrl = `${this.hostname}:${dappsPort}`;
-    }
-
-    if (signerPort || wsPort) {
-      this._wsUrl = `${this.hostname}:${signerPort || wsPort}`;
-    }
-  }
-
   connect () {
     if (this._isConnecting) {
       return;
@@ -189,7 +179,7 @@ export default class SecureApi extends Api {
    * otherwise (HEAD request to the Node)
    */
   isNodeUp () {
-    return fetch(`${this.protocol()}//${this._wsUrl}`, { method: 'HEAD', mode: 'no-cors' })
+    return fetch(`${this.protocol()}//${this._url}/api/ping`, { method: 'HEAD' })
       .then(
         (r) => r.status === 200,
         () => false
@@ -240,7 +230,6 @@ export default class SecureApi extends Api {
         // If correct and valid token, wait until the Node is ready
         // and resolve as connected
         return this._waitUntilNodeReady()
-          .then(() => this._fetchSettings())
           .then(() => true);
       })
       .catch((error) => {
@@ -259,11 +248,16 @@ export default class SecureApi extends Api {
     // Sanitize the token first
     const token = this._sanitiseToken(_token);
 
-    // Update the token in the transport layer
-    this.transport.updateToken(token, false);
-    log.debug('connecting with token', token);
+    const connectPromise = this._fetchSettings()
+      .then(() => {
+        // Update the URL and token in the transport layer
+        this.transport.url = SecureApi.transportUrl(this._wsUrl, this.protocol);
+        this.transport.updateToken(token, false);
 
-    const connectPromise = this.transport.connect()
+        log.debug('connecting with token', token);
+
+        return this.transport.connect();
+      })
       .then(() => {
         log.debug('connected with', token);
 
@@ -318,12 +312,12 @@ export default class SecureApi extends Api {
   _fetchSettings () {
     return Promise
       .all([
-        this.parity.dappsUrl(),
-        this.parity.wsUrl()
+        this._uiApi.parity.dappsUrl(),
+        this._uiApi.parity.wsUrl()
       ])
       .then(([dappsUrl, wsUrl]) => {
         this._dappsUrl = dappsUrl;
-        this._wsUrl = dappsUrl;
+        this._wsUrl = wsUrl;
       });
   }
 
