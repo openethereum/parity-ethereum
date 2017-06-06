@@ -115,7 +115,7 @@ export default class SecureApi extends Api {
   }
 
   get isConnected () {
-    return this._transport.isConnected;
+    return this.provider.isConnected;
   }
 
   get needsToken () {
@@ -123,7 +123,7 @@ export default class SecureApi extends Api {
   }
 
   get secureToken () {
-    return this._transport.token;
+    return this.provider.token;
   }
 
   connect () {
@@ -252,11 +252,11 @@ export default class SecureApi extends Api {
       .then(() => {
         // Update the URL and token in the transport layer
         this.transport.url = SecureApi.transportUrl(this._wsUrl, this.protocol);
-        this.transport.updateToken(token, false);
+        this.provider.updateToken(token, false);
 
         log.debug('connecting with token', token);
 
-        return this.transport.connect();
+        return this.provider.connect();
       })
       .then(() => {
         log.debug('connected with', token);
