@@ -23,9 +23,11 @@ import Api from './api';
 
 import './dev.parity.html';
 
-const api = new Api(new Api.Provider.Http('/rpc/'));
+const web3Provider = new Api.Provider.Http('/rpc/');
+const api = new Api(web3Provider);
 
 window.parity = {
   Api,
-  api
+  api,
+  web3Provider
 };

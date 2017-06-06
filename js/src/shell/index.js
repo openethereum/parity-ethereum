@@ -67,7 +67,7 @@ ContractInstances.get(api);
 
 const store = initStore(api, hashHistory);
 
-window.secureApi = api;
+window.web3Provider = api.provider;
 
 const dapps = [].concat(viewsDapps, builtinDapps);
 
