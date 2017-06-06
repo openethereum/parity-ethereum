@@ -26,7 +26,7 @@ use std::time::{Instant, Duration};
 use util::{RwLock};
 use ethstore::{
 	SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
-	random_string, SecretVaultRef, StoreAccountRef,
+	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,
 };
 use ethstore::dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
@@ -36,10 +36,10 @@ pub use ethstore::ethkey::Signature;
 pub use ethstore::{Derivation, IndexDerivation, KeyFile};
 
 /// Type of unlock.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 enum Unlock {
 	/// If account is unlocked temporarily, it should be locked after first usage.
-	Temp,
+	OneTime,
 	/// Account unlocked permantently can always sign message.
 	/// Use with caution.
 	Perm,
@@ -116,8 +116,13 @@ type AccountToken = String;
 /// Account management.
 /// Responsible for unlocking accounts.
 pub struct AccountProvider {
+	/// For performance reasons some methods can re-use unlocked secrets.
+	unlocked_secrets: RwLock<HashMap<StoreAccountRef, OpaqueSecret>>,
+	/// Unlocked account data.
 	unlocked: RwLock<HashMap<StoreAccountRef, AccountData>>,
+	/// Address book.
 	address_book: RwLock<AddressBook>,
+	/// Dapps settings.
 	dapps_settings: RwLock<DappsSettingsStore>,
 	/// Accounts on disk
 	sstore: Box<SecretStore>,
@@ -125,6 +130,8 @@ pub struct AccountProvider {
 	transient_sstore: EthMultiStore,
 	/// Accounts in hardware wallets.
 	hardware_store: Option<HardwareWalletManager>,
+	/// When unlocking permanently on for some time store a raw secret instead of password.
+	fast_unlock: bool,
 }
 
 /// Account management settings.
@@ -133,6 +140,8 @@ pub struct AccountProviderSettings {
 	pub enable_hardware_wallets: bool,
 	/// Use the classic chain key on the hardware wallet.
 	pub hardware_wallet_classic_key: bool,
+	/// Use fast, but unsafe unlock
+	pub fast_unlock: bool,
 }
 
 impl Default for AccountProviderSettings {
@@ -140,6 +149,7 @@ impl Default for AccountProviderSettings {
 		AccountProviderSettings {
 			enable_hardware_wallets: false,
 			hardware_wallet_classic_key: false,
+			fast_unlock: true,
 		}
 	}
 }
@@ -158,24 +168,28 @@ impl AccountProvider {
 			}
 		}
 		AccountProvider {
+			unlocked_secrets: RwLock::new(HashMap::new()),
 			unlocked: RwLock::new(HashMap::new()),
 			address_book: RwLock::new(AddressBook::new(&sstore.local_path())),
 			dapps_settings: RwLock::new(DappsSettingsStore::new(&sstore.local_path())),
 			sstore: sstore,
 			transient_sstore: transient_sstore(),
 			hardware_store: hardware_store,
+			fast_unlock: settings.fast_unlock,
 		}
 	}
 
 	/// Creates not disk backed provider.
 	pub fn transient_provider() -> Self {
 		AccountProvider {
+			unlocked_secrets: RwLock::new(HashMap::new()),
 			unlocked: RwLock::new(HashMap::new()),
 			address_book: RwLock::new(AddressBook::transient()),
 			dapps_settings: RwLock::new(DappsSettingsStore::transient()),
 			sstore: Box::new(EthStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory load always succeeds; qed")),
 			transient_sstore: transient_sstore(),
 			hardware_store: None,
+			fast_unlock: false,
 		}
 	}
 
@@ -509,10 +523,7 @@ impl AccountProvider {
 
 	/// Helper method used for unlocking accounts.
 	fn unlock_account(&self, address: Address, password: String, unlock: Unlock) -> Result<(), Error> {
-		// verify password by signing dump message
-		// result may be discarded
 		let account = self.sstore.account_ref(&address)?;
-		let _ = self.sstore.sign(&account, &password, &Default::default())?;
 
 		// check if account is already unlocked pernamently, if it is, do nothing
 		let mut unlocked = self.unlocked.write();
@@ -520,6 +531,16 @@ impl AccountProvider {
 			if let Unlock::Perm = data.unlock {
 				return Ok(())
 			}
+		}
+
+		if self.fast_unlock && unlock != Unlock::OneTime {
+			// verify password and get the secret
+			let secret = self.sstore.raw_secret(&account, &password)?;
+			self.unlocked_secrets.write().insert(account.clone(), secret);
+		} else {
+			// verify password by signing dump message
+			// result may be discarded
+			let _ = self.sstore.sign(&account, &password, &Default::default())?;
 		}
 
 		let data = AccountData {
@@ -534,7 +555,7 @@ impl AccountProvider {
 	fn password(&self, account: &StoreAccountRef) -> Result<String, SignError> {
 		let mut unlocked = self.unlocked.write();
 		let data = unlocked.get(account).ok_or(SignError::NotUnlocked)?.clone();
-		if let Unlock::Temp = data.unlock {
+		if let Unlock::OneTime = data.unlock {
 			unlocked.remove(account).expect("data exists: so key must exist: qed");
 		}
 		if let Unlock::Timed(ref end) = data.unlock {
@@ -553,7 +574,7 @@ impl AccountProvider {
 
 	/// Unlocks account temporarily (for one signing).
 	pub fn unlock_account_temporarily(&self, account: Address, password: String) -> Result<(), Error> {
-		self.unlock_account(account, password, Unlock::Temp)
+		self.unlock_account(account, password, Unlock::OneTime)
 	}
 
 	/// Unlocks account temporarily with a timeout.
@@ -564,16 +585,24 @@ impl AccountProvider {
 	/// Checks if given account is unlocked
 	pub fn is_unlocked(&self, address: Address) -> bool {
 		let unlocked = self.unlocked.read();
+		let unlocked_secrets = self.unlocked_secrets.read();
 		self.sstore.account_ref(&address)
-			.map(|r| unlocked.get(&r).is_some())
+			.map(|r| unlocked.get(&r).is_some() || unlocked_secrets.get(&r).is_some())
 			.unwrap_or(false)
 	}
 
 	/// Signs the message. If password is not provided the account must be unlocked.
 	pub fn sign(&self, address: Address, password: Option<String>, message: Message) -> Result<Signature, SignError> {
 		let account = self.sstore.account_ref(&address)?;
-		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
-		Ok(self.sstore.sign(&account, &password, &message)?)
+		match self.unlocked_secrets.read().get(&account) {
+			Some(secret) => {
+				Ok(self.sstore.sign_with_secret(&secret, &message)?)
+			},
+			None => {
+				let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
+				Ok(self.sstore.sign(&account, &password, &message)?)
+			}
+		}
 	}
 
 	/// Signs message using the derived secret. If password is not provided the account must be unlocked.

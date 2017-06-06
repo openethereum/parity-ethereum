@@ -777,6 +777,7 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 	let account_settings = AccountProviderSettings {
 		enable_hardware_wallets: cfg.enable_hardware_wallets,
 		hardware_wallet_classic_key: spec == &SpecType::Classic,
+		fast_unlock: cfg.enable_fast_unlock,
 	};
 	let account_provider = AccountProvider::new(
 		Box::new(EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?),
