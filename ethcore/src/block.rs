@@ -265,7 +265,7 @@ impl<'x> OpenBlock<'x> {
 		let mut r = OpenBlock {
 			block: ExecutedBlock::new(state, tracing),
 			engine: engine,
-			last_hashes: last_hashes,
+			last_hashes: last_hashes.clone(),
 		};
 
 		r.block.header.set_parent_hash(parent.hash());
@@ -278,7 +278,7 @@ impl<'x> OpenBlock<'x> {
 		let gas_floor_target = cmp::max(gas_range_target.0, engine.params().min_gas_limit);
 		let gas_ceil_target = cmp::max(gas_range_target.1, gas_floor_target);
 		engine.populate_from_parent(&mut r.block.header, parent, gas_floor_target, gas_ceil_target);
-		engine.on_new_block(&mut r.block);
+		engine.on_new_block(&mut r.block, last_hashes)?;
 		Ok(r)
 	}
 
@@ -373,7 +373,9 @@ impl<'x> OpenBlock<'x> {
 
 		let unclosed_state = s.block.state.clone();
 
-		s.engine.on_close_block(&mut s.block);
+		if let Err(e) = s.engine.on_close_block(&mut s.block) {
+			warn!("Encountered error on closing the block: {}", e);
+		}
 		if let Err(e) = s.block.state.commit() {
 			warn!("Encountered error on state commit: {}", e);
 		}
@@ -397,7 +399,9 @@ impl<'x> OpenBlock<'x> {
 	pub fn close_and_lock(self) -> LockedBlock {
 		let mut s = self;
 
-		s.engine.on_close_block(&mut s.block);
+		if let Err(e) = s.engine.on_close_block(&mut s.block) {
+			warn!("Encountered error on closing the block: {}", e);
+		}
 
 		if let Err(e) = s.block.state.commit() {
 			warn!("Encountered error on state commit: {}", e);

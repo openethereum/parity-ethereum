@@ -413,7 +413,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
 		match id {
-			BlockId::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params.account_start_nonce)),
+			BlockId::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params().account_start_nonce)),
 			_ => None,
 		}
 	}
@@ -747,7 +747,7 @@ impl BlockChainClient for TestBlockChainClient {
 			value: U256::default(),
 			data: data,
 		};
-		let network_id = Some(self.spec.params.network_id);
+		let network_id = Some(self.spec.params().network_id);
 		let sig = self.spec.engine.sign(transaction.hash(network_id)).unwrap();
 		let signed = SignedTransaction::new(transaction.with_signature(sig, network_id)).unwrap();
 		self.miner.import_own_transaction(self, signed.into())

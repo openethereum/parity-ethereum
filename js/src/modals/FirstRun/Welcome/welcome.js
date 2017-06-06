@@ -46,7 +46,7 @@ export default class FirstRun extends Component {
         <p>
           <FormattedMessage
             id='firstRun.welcome.description'
-            defaultMessage='As part of a new installation, the next few steps will guide you through the process of setting up you Parity instance and your associated accounts. Our aim is to make it as simple as possible and to get you up and running in record-time, so please bear with us. Once completed you will have -'
+            defaultMessage='As part of a new installation, the next few steps will guide you through the process of setting up your Parity instance and your associated accounts. Our aim is to make it as simple as possible and to get you up and running in record-time, so please bear with us. Once completed you will have -'
           />
         </p>
         <div>

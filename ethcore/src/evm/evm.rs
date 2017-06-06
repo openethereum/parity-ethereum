@@ -82,16 +82,15 @@ impl From<builtin::Error> for Error {
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use self::Error::*;
-		let message = match *self {
-			OutOfGas => "Out of gas",
-			BadJumpDestination { .. } => "Bad jump destination",
-			BadInstruction { .. } => "Bad instruction",
-			StackUnderflow { .. } => "Stack underflow",
-			OutOfStack { .. } => "Out of stack",
-			BuiltIn { .. } => "Built-in failed",
-			Internal(ref msg) => msg,
-		};
-		message.fmt(f)
+		match *self {
+			OutOfGas => write!(f, "Out of gas"),
+			BadJumpDestination { destination } => write!(f, "Bad jump destination {:x}", destination),
+			BadInstruction { instruction } => write!(f, "Bad instruction {:x}",  instruction),
+			StackUnderflow { instruction, wanted, on_stack } => write!(f, "Stack underflow {} {}/{}", instruction, wanted, on_stack),
+			OutOfStack { instruction, wanted, limit } => write!(f, "Out of stack {} {}/{}", instruction, wanted, limit),
+			BuiltIn(name) => write!(f, "Built-in failed: {}", name),
+			Internal(ref msg) => write!(f, "Internal error: {}", msg),
+		}
 	}
 }
 
