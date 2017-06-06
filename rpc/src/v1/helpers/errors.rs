@@ -16,10 +16,6 @@
 
 //! RPC Error codes and error objects
 
-macro_rules! rpc_unimplemented {
-	() => (Err(::v1::helpers::errors::unimplemented(None)))
-}
-
 use std::fmt;
 use rlp::DecoderError;
 use ethcore::error::{Error as EthcoreError, CallError, TransactionError};
