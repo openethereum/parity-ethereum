@@ -99,8 +99,9 @@ Account Options:
                                    deriving key from the password (bigger is more
                                    secure) (default: {flag_keys_iterations}).
   --no-hardware-wallets            Disables hardware wallet support. (default: {flag_no_hardware_wallets})
-  --fast-unlock                    Use way faster unlocking mode. This setting causes raw secrets to be stored
-                                   unprotected in memory. (default: {flag_fast_unlock})
+  --fast-unlock                    Use drasticly faster unlocking mode. This setting causes
+                                   raw secrets to be stored unprotected in memory,
+                                   so use with care. (default: {flag_fast_unlock})
 
 UI Options:
   --force-ui                       Enable Trusted UI WebSocket endpoint,

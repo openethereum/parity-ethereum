@@ -67,5 +67,5 @@ pub use self::secret_store::{
 pub use self::random::random_string;
 pub use self::parity_wordlist::random_phrase;
 
-/// A opaque wrapper for secret.
+/// An opaque wrapper for secret.
 pub struct OpaqueSecret(::ethkey::Secret);
