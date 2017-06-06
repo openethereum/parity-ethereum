@@ -15,6 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::U256;
+use evm::ReturnData;
+
+const MAX_RETURN_WASTE_BYTES: usize = 16384;
 
 pub trait Memory {
 	/// Retrieve current size of the memory
@@ -36,6 +39,8 @@ pub trait Memory {
 	/// Retrieve writeable part of memory
 	fn writeable_slice(&mut self, offset: U256, size: U256) -> &mut[u8];
 	fn dump(&self);
+	/// Convert memory into return data.
+	fn into_return_data(self, offset: U256, size: U256) -> ReturnData;
 }
 
 /// Checks whether offset and size is valid memory range
@@ -108,6 +113,21 @@ impl Memory for Vec<u8> {
 		if size > self.len() {
 			Memory::resize(self, size)
 		}
+	}
+
+	fn into_return_data(mut self, offset: U256, size: U256) -> ReturnData {
+		let mut offset = offset.low_u64() as usize;
+		let size = size.low_u64() as usize;
+		if !is_valid_range(offset, size) {
+			return ReturnData::empty()
+		}
+		if self.len() - size > MAX_RETURN_WASTE_BYTES {
+			{ let _ =  self.drain(..offset); }
+			self.truncate(size);
+			self.shrink_to_fit();
+			offset = 0;
+		}
+		ReturnData::new(self, offset, size)
 	}
 }
 
