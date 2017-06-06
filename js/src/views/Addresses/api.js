@@ -17,8 +17,5 @@
 import Api from '@parity/api';
 
 const web3Provider = (window.parity && window.parity.web3Provider) || (window.parent && window.parent.web3Provider);
-const api = new Api(web3Provider);
 
-export {
-  api
-};
+export default new Api(web3Provider);

@@ -25,7 +25,7 @@ import ContractInstances from '@parity/shared/contracts';
 import { initStore } from '@parity/shared/redux';
 import ContextProvider from '@parity/ui/ContextProvider';
 
-import { api } from './parity';
+import api from './api';
 import Address from './address';
 
 ContractInstances.get(api);

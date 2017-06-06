@@ -24,7 +24,7 @@ injectTapEventPlugin();
 import { initStore } from '@parity/shared/redux';
 import ContextProvider from '@parity/ui/ContextProvider';
 
-import { api } from './parity';
+import api from './api';
 import Playground from './playground';
 
 const store = initStore(api, hashHistory);
