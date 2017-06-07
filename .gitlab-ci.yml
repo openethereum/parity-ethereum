@@ -66,6 +66,8 @@ linux-snap:
   only:
     - snap
     - beta
+    - tags
+    - triggers
   script:
     - rm -rf *snap
     - cd scripts
