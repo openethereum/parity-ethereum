@@ -38,15 +38,31 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Option
 	headers.set_raw("X-Content-Type-Options", vec![b"nosniff".to_vec()]);
 
 	// Embedding header:
-	if let Some(embeddable_on) = embeddable_on {
-		headers.set_raw(
-			"X-Frame-Options",
-			vec![format!("ALLOW-FROM http://{}", address(&embeddable_on)).into_bytes()]
-			);
+	if let Some(ref embeddable_on) = embeddable_on {
+		headers.set_raw("X-Frame-Options", vec![
+			format!("ALLOW-FROM http://{}", address(embeddable_on)).into_bytes()
+		]);
 	} else {
 		// TODO [ToDr] Should we be more strict here (DENY?)?
 		headers.set_raw("X-Frame-Options",  vec![b"SAMEORIGIN".to_vec()]);
 	}
+
+	// Content Security Policy headers
+	headers.set_raw("Content-Security-Policy", vec![
+		b"img-src 'self' 'unsafe-inline' data: blob:;".to_vec(),
+		b"style-src 'self' 'unsafe-inline' data: blob:;".to_vec(),
+		b"default-src 'self';".to_vec(),
+		b"sandbox allow-same-origin allow-forms allow-modals allow-popups allow-presentation allow-scripts;".to_vec(),
+		b"form-action 'none';".to_vec(),
+		match embeddable_on {
+			Some((ref host, ref port)) if host == "127.0.0.1" => {
+				format!("frame-ancestors {} {};", address(&(host.to_owned(), *port)), address(&("localhost".to_owned(), *port)))
+			},
+			Some(ref embed) => format!("frame-ancestors {};", address(embed)),
+			None => format!("frame-ancestors 'none';"),
+		}.into_bytes(),
+		b"block-all-mixed-content;".to_vec(),
+	]);
 }
 
 
