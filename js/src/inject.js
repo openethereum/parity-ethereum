@@ -36,7 +36,6 @@ window.parity = {
   api
 };
 
-
 /** INJECT WEB3 **/
 const http = new Web3.providers.HttpProvider('/rpc/');
 const web3 = new Web3(http);
