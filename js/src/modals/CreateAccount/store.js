@@ -91,7 +91,7 @@ export default class Store {
   }
 
   @computed get hasAddress () {
-    return !!(this.address.length);
+    return !!(this.address);
   }
 
   @computed get hasPhrase () {
