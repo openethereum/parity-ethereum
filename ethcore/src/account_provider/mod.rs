@@ -132,6 +132,8 @@ pub struct AccountProvider {
 	hardware_store: Option<HardwareWalletManager>,
 	/// When unlocking permanently on for some time store a raw secret instead of password.
 	fast_unlock: bool,
+	/// Disallowed accounts.
+	blacklisted_accounts: Vec<Address>,
 }
 
 /// Account management settings.
@@ -142,6 +144,8 @@ pub struct AccountProviderSettings {
 	pub hardware_wallet_classic_key: bool,
 	/// Use fast, but unsafe unlock
 	pub fast_unlock: bool,
+	/// Disallowed accounts.
+	pub blacklisted_accounts: Vec<Address>,
 }
 
 impl Default for AccountProviderSettings {
@@ -150,6 +154,7 @@ impl Default for AccountProviderSettings {
 			enable_hardware_wallets: false,
 			hardware_wallet_classic_key: false,
 			fast_unlock: true,
+			blacklisted_accounts: vec![],
 		}
 	}
 }
@@ -167,15 +172,23 @@ impl AccountProvider {
 				Err(e) => debug!("Error initializing hardware wallets: {}", e),
 			}
 		}
+
+		// Remove blacklisted accounts from address book.
+		let mut address_book = AddressBook::new(&sstore.local_path());
+		for addr in &settings.blacklisted_accounts {
+			address_book.remove(*addr);
+		}
+
 		AccountProvider {
 			unlocked_secrets: RwLock::new(HashMap::new()),
 			unlocked: RwLock::new(HashMap::new()),
-			address_book: RwLock::new(AddressBook::new(&sstore.local_path())),
+			address_book: RwLock::new(address_book),
 			dapps_settings: RwLock::new(DappsSettingsStore::new(&sstore.local_path())),
 			sstore: sstore,
 			transient_sstore: transient_sstore(),
 			hardware_store: hardware_store,
 			fast_unlock: settings.fast_unlock,
+			blacklisted_accounts: settings.blacklisted_accounts,
 		}
 	}
 
@@ -190,6 +203,7 @@ impl AccountProvider {
 			transient_sstore: transient_sstore(),
 			hardware_store: None,
 			fast_unlock: false,
+			blacklisted_accounts: vec![],
 		}
 	}
 
@@ -211,6 +225,10 @@ impl AccountProvider {
 	/// Does not unlock account!
 	pub fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error> {
 		let account = self.sstore.insert_account(SecretVaultRef::Root, secret, password)?;
+		if self.blacklisted_accounts.contains(&account.address) {
+			self.sstore.remove_account(&account, password)?;
+			return Err(SSError::InvalidAccount.into());
+		}
 		Ok(account.address)
 	}
 
@@ -237,6 +255,10 @@ impl AccountProvider {
 	/// Import a new presale wallet.
 	pub fn import_wallet(&self, json: &[u8], password: &str) -> Result<Address, Error> {
 		let account = self.sstore.import_wallet(SecretVaultRef::Root, json, password)?;
+		if self.blacklisted_accounts.contains(&account.address) {
+			self.sstore.remove_account(&account, password)?;
+			return Err(SSError::InvalidAccount.into());
+		}
 		Ok(Address::from(account.address).into())
 	}
 
@@ -248,7 +270,12 @@ impl AccountProvider {
 	/// Returns addresses of all accounts.
 	pub fn accounts(&self) -> Result<Vec<Address>, Error> {
 		let accounts = self.sstore.accounts()?;
-		Ok(accounts.into_iter().map(|a| a.address).collect())
+		Ok(accounts
+		   .into_iter()
+		   .map(|a| a.address)
+		   .filter(|address| !self.blacklisted_accounts.contains(address))
+		   .collect()
+		)
 	}
 
 	/// Returns addresses of hardware accounts.
@@ -450,6 +477,7 @@ impl AccountProvider {
 	pub fn accounts_info(&self) -> Result<HashMap<Address, AccountMeta>, Error> {
 		let r = self.sstore.accounts()?
 			.into_iter()
+			.filter(|a| !self.blacklisted_accounts.contains(&a.address))
 			.map(|a| (a.address.clone(), self.account_meta(a.address).ok().unwrap_or_default()))
 			.collect();
 		Ok(r)
@@ -748,7 +776,7 @@ impl AccountProvider {
 mod tests {
 	use super::{AccountProvider, Unlock, DappId};
 	use std::time::Instant;
-	use ethstore::ethkey::{Generator, Random};
+	use ethstore::ethkey::{Generator, Random, Address};
 	use ethstore::{StoreAccountRef, Derivation};
 	use util::H256;
 
@@ -962,5 +990,17 @@ mod tests {
 		ap.set_new_dapps_default_address(address).unwrap();
 		assert_eq!(ap.new_dapps_default_address().unwrap(), address);
 		assert_eq!(ap.dapp_default_address("app1".into()).unwrap(), address);
+	}
+
+	#[test]
+	fn should_not_return_blacklisted_account() {
+		// given
+		let mut ap = AccountProvider::transient_provider();
+		let acc = ap.new_account("test").unwrap();
+		ap.blacklisted_accounts = vec![acc];
+
+		// then
+		assert_eq!(ap.accounts_info().unwrap().keys().cloned().collect::<Vec<Address>>(), vec![]);
+		assert_eq!(ap.accounts().unwrap(), vec![]);
 	}
 }
