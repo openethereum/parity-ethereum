@@ -60,8 +60,8 @@ impl ValidatorSet for TestSet {
 		::engines::EpochChange::No
 	}
 
-	fn epoch_set(&self, _: bool, _: &Engine, _: &Header, _: &[u8]) -> Result<(SimpleList, bool), ::error::Error> {
-		(self.validator.clone(), false)
+	fn epoch_set(&self, _: bool, _: &Engine, _: &Header, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+		Ok((self.validator.clone(), None))
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, _: &Call) -> bool {

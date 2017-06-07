@@ -23,7 +23,7 @@ use account_provider::AccountProvider;
 use block::*;
 use builtin::Builtin;
 use spec::CommonParams;
-use engines::{Engine, EngineError, Seal, Call, EpochChange};
+use engines::{Engine, EngineError, Seal, Call, EpochChange, ConstructedVerifier};
 use error::{BlockError, Error};
 use evm::Schedule;
 use ethjson;
@@ -51,12 +51,10 @@ impl From<ethjson::spec::BasicAuthorityParams> for BasicAuthorityParams {
 }
 
 struct EpochVerifier {
-	epoch_number: u64,
 	list: SimpleList,
 }
 
 impl super::EpochVerifier for EpochVerifier {
-	fn epoch_number(&self) -> u64 { self.epoch_number.clone() }
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		verify_external(header, &self.list)
 	}
@@ -183,7 +181,11 @@ impl Engine for BasicAuthority {
 		verify_external(header, &*self.validators)
 	}
 
-	fn signals_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[Receipt]>)
+	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
+		self.validators.genesis_epoch_data(header, call)
+	}
+
+	fn signals_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[::receipt::Receipt]>)
 		-> super::EpochChange
 	{
 		// don't bother signalling even though a contract might try.
@@ -192,16 +194,31 @@ impl Engine for BasicAuthority {
 
 	fn is_epoch_end(
 		&self,
-		_chain_head: &Header,
-		_chain: &Headers,
+		chain_head: &Header,
+		_chain: &super::Headers,
 		_transition_store: &super::PendingTransitionStore,
 	) -> Option<Vec<u8>> {
-		// only immediate transitions.
-		None
+		let first = chain_head.number() == 0;
+
+		// finality never occurs so only apply immediate transitions.
+		self.validators.is_epoch_end(first, chain_head)
 	}
 
-	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> ConstructedVerifier<'a> {
-		ConstructedVerifier::Trusted(Box::new(self::epoch::NoOp))
+	fn epoch_verifier<'a>(&self, header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
+		let first = header.number() == 0;
+
+		match self.validators.epoch_set(first, self, header, proof) {
+			Ok((list, finalize)) => {
+				let verifier = Box::new(EpochVerifier { list: list });
+
+				// our epoch verifier will ensure no unverified verifier is ever verified.
+				match finalize {
+					Some(finalize) => ConstructedVerifier::Unconfirmed(verifier, proof, finalize),
+					None => ConstructedVerifier::Trusted(verifier),
+				}
+			}
+			Err(e) => ConstructedVerifier::Err(e),
+		}
 	}
 
 	fn register_client(&self, client: Weak<Client>) {

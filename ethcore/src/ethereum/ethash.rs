@@ -163,7 +163,6 @@ impl Ethash {
 // in the future, we might move the Ethash epoch
 // caching onto this mechanism as well.
 impl ::engines::EpochVerifier for Arc<Ethash> {
-	fn epoch_number(&self) -> u64 { 0 }
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
 		self.verify_block_unordered(header, None)
@@ -387,8 +386,8 @@ impl Engine for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn epoch_verifier(&self, _header: &Header, _proof: &[u8]) -> Result<Box<::engines::EpochVerifier>, Error> {
-		Ok(Box::new(self.clone()))
+	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> ::engines::ConstructedVerifier<'a> {
+		::engines::ConstructedVerifier::Trusted(Box::new(self.clone()))
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {

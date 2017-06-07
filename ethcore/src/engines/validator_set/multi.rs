@@ -18,7 +18,7 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
-use engines::{Call, EpochChange};
+use engines::{Call, Engine, EpochChange};
 use util::{Bytes, H256, Address, RwLock};
 use ids::BlockId;
 use header::{BlockNumber, Header};
@@ -84,7 +84,7 @@ impl ValidatorSet for Multi {
 	}
 
 	fn signals_epoch_end(&self, _first: bool, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> EpochChange
+		-> ::engines::EpochChange
 	{
 		let (set_block, set) = self.correct_set_by_number(header.number());
 		let first = set_block == header.number();
@@ -92,11 +92,11 @@ impl ValidatorSet for Multi {
 		set.signals_epoch_end(first, header, block, receipts)
 	}
 
-	fn epoch_set(&self, _first: bool, header: &Header, proof: &[u8]) -> Result<(SimpleList, bool), ::error::Error> {
+	fn epoch_set(&self, _first: bool, engine: &Engine, header: &Header, proof: &[u8]) -> Result<(super::SimpleList, Option<H256>), ::error::Error> {
 		let (set_block, set) = self.correct_set_by_number(header.number());
 		let first = set_block == header.number();
 
-		set.epoch_set(first, header, proof)
+		set.epoch_set(first, engine, header, proof)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {

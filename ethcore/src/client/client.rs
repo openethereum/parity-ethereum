@@ -263,7 +263,10 @@ impl Client {
 			if chain.epoch_transition(0, gh.hash()).is_none() {
 				trace!(target: "client", "No genesis transition found.");
 
-				let proof = client.with_proving_caller(BlockId::Genesis, |call| client.engine.genesis_epoch_data(call));
+				let proof = client.with_proving_caller(
+					BlockId::Number(0),
+					|call| client.engine.genesis_epoch_data(&gh, call)
+				);
 				let proof = match proof {
 					Ok(proof) => proof,
 					Err(e) => {
@@ -639,7 +642,7 @@ impl Client {
 		let mut state = block.drain();
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
-		let route = chain.insert_block(&mut batch, block_data, receipts);
+		let route = chain.insert_block(&mut batch, block_data, receipts.clone());
 
 		self.tracedb.read().import(&mut batch, TraceImportRequest {
 			traces: traces.into(),
@@ -684,7 +687,7 @@ impl Client {
 				let proof = match proof {
 					Proof::Known(proof) => proof,
 					Proof::WithState(with_state) =>
-						match self.with_proving_caller(BlockId::Hash(hash), with_state) {
+						match self.with_proving_caller(BlockId::Hash(hash), move |c| with_state(c)) {
 							Ok(proof) => proof,
 							Err(e) => {
 								warn!(target: "client", "Failed to generate transition proof for block {}: {}", hash, e);
@@ -712,11 +715,11 @@ impl Client {
 	}
 
 	// check for ending of epoch and write transition if it occurs.
-	fn check_epoch_end<B>(&self, header: &Header, chain: &BlockChain) {
+	fn check_epoch_end<'a>(&self, header: &'a Header, chain: &BlockChain) {
 		let is_epoch_end = self.engine.is_epoch_end(
 			header,
-			|hash| chain.block_header(hash),
-			|hash| chain.get_pending_transition(hash), // TODO: limit to current epoch.
+			&(|hash| chain.block_header(&hash)),
+			&(|hash| chain.get_pending_transition(hash)), // TODO: limit to current epoch.
 		);
 
 		if let Some(proof) = is_epoch_end {

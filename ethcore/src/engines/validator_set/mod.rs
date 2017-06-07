@@ -97,8 +97,8 @@ pub trait ValidatorSet: Send + Sync {
 		first: bool,
 		header: &Header,
 		block: Option<&[u8]>,
-		receipts: Option<&[Receipt]>,
-	) -> EpochChange;
+		receipts: Option<&[::receipt::Receipt]>,
+	) -> ::engines::EpochChange;
 
 	/// Recover the validator set from the given proof, the header, and
 	/// whether this header is first in its set.

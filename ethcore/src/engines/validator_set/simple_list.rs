@@ -67,8 +67,8 @@ impl ValidatorSet for SimpleList {
 	}
 
 
-	fn epoch_set(&self, first: bool, _: &Engine, _: &Header, _: &[u8]) -> Result<(SimpleList, bool), ::error::Error> {
-		(self.validators.clone(), false)
+	fn epoch_set(&self, first: bool, _: &Engine, _: &Header, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+		Ok((self.clone(), None))
 	}
 
 	fn contains_with_caller(&self, _bh: &H256, address: &Address, _: &Call) -> bool {

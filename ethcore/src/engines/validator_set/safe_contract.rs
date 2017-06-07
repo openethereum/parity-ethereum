@@ -22,7 +22,7 @@ use native_contracts::ValidatorSet as Provider;
 
 use util::*;
 use util::cache::MemoryLruCache;
-use rlp::{UntrustedRlp, RlpStream, DecoderError};
+use rlp::{UntrustedRlp, RlpStream};
 
 use basic_types::LogBloom;
 use client::{Client, BlockChainClient};
@@ -90,16 +90,21 @@ fn decode_proof(rlp: &UntrustedRlp) -> Result<(Header, Vec<Receipt>), ::error::E
 // given a provider and caller, generate proof. this will just be a state proof
 // of `getValidators`.
 fn prove_initial(provider: &Provider, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
-	let mut proof = None;
-	let caller = move |a, d| {
-		let (result, proof) = caller(a, d);
-		proof = Some(encode_first_proof(&proof));
-		result
+	use std::cell::RefCell;
+
+	let epoch_proof = RefCell::new(None);
+	let res = {
+		let caller = |a, d| {
+			let (result, proof) = caller(a, d)?;
+			*epoch_proof.borrow_mut() = Some(encode_first_proof(header, &proof));
+			Ok(result)
+		};
+
+		provider.get_validators(caller)
+			.wait()
 	};
 
-	provider.get_validators(caller)
-		.wait()
-		.map(|_| proof.expect("Proof always set after call; qed"))
+	res.map(|_| epoch_proof.into_inner().expect("epoch_proof always set after call; qed"))
 }
 
 impl ValidatorSafeContract {
@@ -164,7 +169,7 @@ impl ValidatorSafeContract {
 
 	// check receipts for log event. bloom should be `expected_bloom` for the
 	// header the receipts correspond to.
-	fn extract_event(&self, bloom: LogBloom, header: &Header, receipts: &[Receipt]) -> Option<SimpleList> {
+	fn extract_from_event(&self, bloom: LogBloom, header: &Header, receipts: &[Receipt]) -> Option<SimpleList> {
 		let check_log = |log: &LogEntry| {
 			log.address == self.address &&
 				log.topics.len() == 3 &&
@@ -211,7 +216,7 @@ impl ValidatorSafeContract {
 
 				match (nonce, validators) {
 					(Some(_), Some(validators)) => {
-						Some(validators)
+						Some(SimpleList::new(validators))
 					}
 					_ => {
 						debug!(target: "engine", "Successfully decoded log turned out to be bad.");
@@ -229,7 +234,8 @@ impl ValidatorSet for ValidatorSafeContract {
 		Box::new(move |addr, data| client.as_ref()
 			.and_then(Weak::upgrade)
 			.ok_or("No client!".into())
-			.and_then(|c| c.call_contract(id, addr, data)))
+			.and_then(|c| c.call_contract(id, addr, data))
+			.map(|out| (out, Vec::new()))) // generate no proofs in general
 	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
@@ -245,9 +251,9 @@ impl ValidatorSet for ValidatorSafeContract {
 	{
 		// transition to the first block of a contract requires finality but has no log event.
 		if first {
-			let provider = &self.provider;
-			let with_caller = Box::new(move |caller| prove_initial(provider, caller));
-			return ::engines::EpochChange::Yes(::engines::Proof::WithCaller(with_caller))
+			let (provider, header) = (self.provider.clone(), header.clone());
+			let with_caller: Box<Fn(&Call) -> _> = Box::new(move |caller| prove_initial(&provider, &header, caller));
+			return ::engines::EpochChange::Yes(::engines::Proof::WithState(with_caller))
 		}
 
 		// otherwise, we're checking for logs.
@@ -258,7 +264,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
 		match receipts {
 			None => ::engines::EpochChange::Unsure(::engines::Unsure::NeedsReceipts),
-			Some(receipts) => match self.extract_event(bloom, header, receipts) {
+			Some(receipts) => match self.extract_from_event(bloom, header, receipts) {
 				None => ::engines::EpochChange::No,
 				Some(_) => {
 					let proof = encode_proof(&header, receipts);
@@ -268,7 +274,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		}
 	}
 
-	fn epoch_set(&self, first: bool, engine: &Engine, header: &Header, proof: &[u8])
+	fn epoch_set(&self, first: bool, engine: &Engine, _header: &Header, proof: &[u8])
 		-> Result<(SimpleList, Option<H256>), ::error::Error>
 	{
 		use transaction::{Action, Transaction};
@@ -284,21 +290,21 @@ impl ValidatorSet for ValidatorSafeContract {
 
 			let env_info = ::env_info::EnvInfo {
 				number: old_header.number(),
-				author: old_header.author(),
-				difficulty: old_header.difficulty(),
+				author: *old_header.author(),
+				difficulty: *old_header.difficulty(),
 				gas_limit: PROVIDED_GAS.into(),
 				timestamp: old_header.timestamp(),
 				last_hashes: {
 					// this will break if we don't inclue all 256 last hashes.
-					let mut last_hashes = (0..256).map(|_| H256::default());
-					last_hashes[255] = old_header.parent_hash();
+					let mut last_hashes: Vec<_> = (0..256).map(|_| H256::default()).collect();
+					last_hashes[255] = *old_header.parent_hash();
 					Arc::new(last_hashes)
 				},
-				gas_used: 0,
+				gas_used: 0.into(),
 			};
 
 			// check state proof using given engine.
-			let addresses = self.provider.getValidators(move |a, d| {
+			let addresses = self.provider.get_validators(move |a, d| {
 				let from = Address::default();
 				let tx = Transaction {
 					nonce: engine.account_start_nonce(),
@@ -311,10 +317,10 @@ impl ValidatorSet for ValidatorSafeContract {
 
 				let res = ::state::check_proof(
 					&state_items,
-					old_header.state_root(),
-					tx,
+					*old_header.state_root(),
+					&tx,
 					engine,
-					env_info,
+					&env_info,
 				);
 
 				match res {
@@ -324,22 +330,26 @@ impl ValidatorSet for ValidatorSafeContract {
 				}
 			}).wait().map_err(::engines::EngineError::InsufficientProof)?;
 
-			Ok(SimpleList::new(addresses), Some(old_hash));
+			Ok((SimpleList::new(addresses), Some(old_hash)))
 		} else {
 			let (old_header, receipts) = decode_proof(&rlp)?;
 
 			// ensure receipts match header.
-			let found_root = ::util::triehash::ordered_trie_root(receipts);
-			if found_root != old_header.receipts_root() {
+			// TODO: optimize? these were just decoded.
+			let found_root = ::util::triehash::ordered_trie_root(
+				receipts.iter().map(::rlp::encode).map(|x| x.to_vec())
+			);
+			if found_root != *old_header.receipts_root() {
 				return Err(::error::BlockError::InvalidReceiptsRoot(
-					Mismatch(found_root, old_header.receipts_root())
-				));
+					Mismatch { expected: *old_header.receipts_root(), found: found_root }
+				).into());
 			}
 
-			let bloom = self.expected_bloom(old_header);
-			match self.extract_event(bloom, old_header, &receipts) {
+			let bloom = self.expected_bloom(&old_header);
+
+			match self.extract_from_event(bloom, &old_header, &receipts) {
 				Some(list) => Ok((list, Some(old_header.hash()))),
-				None => Err(::engines::EngineError::InsufficientProof("No log event in proof.")),
+				None => Err(::engines::EngineError::InsufficientProof("No log event in proof.".into()).into()),
 			}
 		}
 	}
@@ -499,6 +509,7 @@ mod tests {
 		let last_hash = client.best_block_header().hash();
 		let mut new_header = Header::default();
 		new_header.set_parent_hash(last_hash);
+		new_header.set_number(1); // so the validator set looks for a log.
 
 		// first, try without the parent hash.
 		let mut event = LogEntry {
@@ -508,12 +519,18 @@ mod tests {
 		};
 
 		new_header.set_log_bloom(event.bloom());
-		assert_eq!(engine.is_epoch_end(&new_header, None, None), EpochChange::No);
+		match engine.signals_epoch_end(&new_header, None, None) {
+			EpochChange::No => {},
+			_ => panic!("Expected bloom to be unrecognized."),
+		};
 
 		// with the last hash, it should need the receipts.
 		event.topics.push(last_hash);
 		new_header.set_log_bloom(event.bloom());
-		assert_eq!(engine.is_epoch_end(&new_header, None, None),
-			EpochChange::Unsure(Unsure::NeedsReceipts));
+
+		match engine.signals_epoch_end(&new_header, None, None) {
+			EpochChange::Unsure(Unsure::NeedsReceipts) => {},
+			_ => panic!("Expected bloom to be recognized."),
+		};
 	}
 }

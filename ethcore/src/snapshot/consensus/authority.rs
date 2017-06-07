@@ -131,7 +131,7 @@ impl SnapshotComponents for PoaSnapshot {
 			db: db,
 			had_genesis: false,
 			unverified_firsts: Vec::new(),
-			last_proofs: Vec::new(),
+			last_epochs: Vec::new(),
 		}))
 	}
 
@@ -194,7 +194,7 @@ impl ChunkRebuilder {
 			ConstructedVerifier::Trusted(v) => v,
 			ConstructedVerifier::Unconfirmed(v, finality_proof, hash) => {
 				match *last_verifier {
-					Some(last) => if last.check_finality_proof(finality_proof) != Some(hash) {
+					Some(ref last) => if last.check_finality_proof(finality_proof) != Some(hash) {
 						return Err(Error::BadEpochProof(header.number()).into());
 					},
 					None if header.number() != 0 => {
@@ -343,8 +343,6 @@ impl Rebuilder for ChunkRebuilder {
 	}
 
 	fn finalize(&mut self, engine: &Engine) -> Result<(), ::error::Error> {
-		use state::State;
-
 		if !self.had_genesis {
 			return Err(Error::WrongChunkFormat("No genesis transition included.".into()).into());
 		}
@@ -358,7 +356,7 @@ impl Rebuilder for ChunkRebuilder {
 		// we store all last verifiers, but not all firsts.
 		// match each unverified first epoch with a last epoch verifier.
 		let mut lasts_reversed = self.last_epochs.iter().rev();
-		for (header, finality_proof, hash) in self.unverified_firsts.into_iter().rev() {
+		for &(ref header, ref finality_proof, hash) in self.unverified_firsts.iter().rev() {
 			let mut found = false;
 			while let Some(last) = lasts_reversed.next() {
 				if last.0.number() < header.number() {
@@ -371,7 +369,7 @@ impl Rebuilder for ChunkRebuilder {
 			}
 
 			if !found {
-				return Err(Error::WrongChunkFormat("Inconsistent chunk ordering.").into());
+				return Err(Error::WrongChunkFormat("Inconsistent chunk ordering.".into()).into());
 			}
 		}
 
@@ -381,7 +379,7 @@ impl Rebuilder for ChunkRebuilder {
 		let &(ref header, ref last_epoch) = self.last_epochs.last()
 			.expect("last_epochs known to have at least one element by the check above; qed");
 
-		if header != target_header {
+		if header != &target_header {
 			last_epoch.verify_heavy(&target_header)?;
 		}
 

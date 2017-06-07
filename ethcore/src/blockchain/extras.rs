@@ -221,7 +221,7 @@ impl Encodable for BlockDetails {
 		s.append(&self.total_difficulty);
 		s.append(&self.parent);
 		s.append_list(&self.children);
-		s.append_(&self.epoch_depth);
+		s.append(&self.epoch_depth);
 	}
 }
 

@@ -514,7 +514,7 @@ impl BlockChain {
 					total_difficulty: header.difficulty(),
 					parent: header.parent_hash(),
 					children: vec![],
-					epoch_delta: 0, // genesis transitions to its own epoch.
+					epoch_depth: 0, // genesis transitions to its own epoch.
 				};
 
 				let mut batch = DBTransaction::new();
@@ -831,6 +831,7 @@ impl BlockChain {
 				total_difficulty: info.total_difficulty,
 				parent: header.parent_hash(),
 				children: Vec::new(),
+				epoch_depth: unimplemented!(),
 			};
 
 			let mut update = HashMap::new();
@@ -894,12 +895,12 @@ impl BlockChain {
 	pub fn epoch_transition_for(&self, block_hash: H256) -> Option<EpochTransition> {
 		let details = otry!(self.block_details(&block_hash));
 
-		let target_num = details.number - details.epoch_delta;
+		let target_num = details.number - details.epoch_depth;
 		let mut cur_hash = block_hash;
 
 		// loop back header by header until we find a canonical block.
 		// if we find one, we can use the canonical `block_hash`.
-		for i in 0..details.epoch_delta {
+		for i in 0..details.epoch_depth {
 			let number = details.number - i;
 
 			let canon_hash = otry!(self.block_hash(number));
@@ -912,7 +913,7 @@ impl BlockChain {
 			}
 
 			// update cur_hash
-			cur_hash = otry!(self.block_details(cur_hash)).parent;
+			cur_hash = otry!(self.block_details(&cur_hash)).parent;
 		}
 
 		// the loop has concluded but we found no canonical ancestors.
@@ -1218,9 +1219,9 @@ impl BlockChain {
 			total_difficulty: info.total_difficulty,
 			parent: parent_hash.clone(),
 			children: vec![],
-			epoch_delta: match self.epoch_transition(header.number().saturating_sub(1), parent_hash) {
+			epoch_depth: match self.epoch_transition(header.number().saturating_sub(1), parent_hash) {
 				Some(_) => 1,
-				None => parent_details.epoch_delta + 1,
+				None => parent_details.epoch_depth + 1,
 			},
 		};
 
@@ -2252,7 +2253,7 @@ mod tests {
 
 	#[test]
 	fn epoch_transitions_iter() {
-		use blockchain::extras::EpochTransition;
+		use ::engines::EpochTransition;
 
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();
@@ -2274,7 +2275,6 @@ mod tests {
 					block_hash: hash,
 					block_number: i + 1,
 					proof: vec![],
-					state_proof: vec![],
 				});
 				bc.commit();
 			}
@@ -2287,7 +2287,6 @@ mod tests {
 				block_hash: hash,
 				block_number: 1,
 				proof: vec![],
-				state_proof: vec![]
 			});
 
 			db.write(batch).unwrap();

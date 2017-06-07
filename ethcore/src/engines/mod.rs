@@ -112,14 +112,14 @@ pub type Call<'a> = Fn(Address, Bytes) -> Result<(Bytes, Vec<Vec<u8>>), String> 
 pub type Headers<'a> = Fn(H256) -> Option<Header> + 'a;
 
 /// Type alias for a function we can query pending transitions by block hash through.
-pub type PendingTransitionStore<'a> = Fn(H256) -> Option<PendingTransition>;
+pub type PendingTransitionStore<'a> = Fn(H256) -> Option<PendingTransition> + 'a;
 
 /// Proof generated on epoch change.
-pub enum Proof<'a> {
+pub enum Proof {
 	/// Known proof (exctracted from signal)
 	Known(Vec<u8>),
 	/// Extract proof from caller.
-	WithState(Box<Fn(&Call) -> Result<Vec<u8>, String> + 'a>),
+	WithState(Box<Fn(&Call) -> Result<Vec<u8>, String>>),
 }
 
 /// Generated epoch verifier.
@@ -145,14 +145,13 @@ impl<'a> ConstructedVerifier<'a> {
 }
 
 /// Results of a query of whether an epoch change occurred at the given block.
-#[derive(Debug, Clone, PartialEq)]
-pub enum EpochChange<'a> {
+pub enum EpochChange {
 	/// Cannot determine until more data is passed.
 	Unsure(Unsure),
 	/// No epoch change.
 	No,
 	/// The epoch will change, with proof.
-	Yes(Proof<'a>),
+	Yes(Proof),
 }
 
 /// More data required to determine if an epoch change occurred at a given block.
@@ -266,7 +265,7 @@ pub trait Engine : Sync + Send {
 	}
 
 	/// Genesis epoch data.
-	fn genesis_epoch_data(&self, _call: &Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
+	fn genesis_epoch_data(&self, _header: &Header, _call: &Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
 
 	/// Whether an epoch change is signalled at the given header but will require finality.
 	/// If a change can be enacted immediately then return `No` from this function but

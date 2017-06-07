@@ -35,11 +35,10 @@ pub struct Transition {
 
 impl Encodable for Transition {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(4)
+		s.begin_list(3)
 			.append(&self.block_hash)
 			.append(&self.block_number)
-			.append(&self.proof)
-			.append(&self.finality_proof)
+			.append(&self.proof);
 	}
 }
 
@@ -49,7 +48,6 @@ impl Decodable for Transition {
 			block_hash: rlp.val_at(0)?,
 			block_number: rlp.val_at(1)?,
 			proof: rlp.val_at(2)?,
-			finality_proof: rlp.val_at(3)?,
 		})
 	}
 }
@@ -63,7 +61,7 @@ pub struct PendingTransition {
 
 impl Encodable for PendingTransition {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append(&self.proof)
+		s.append(&self.proof);
 	}
 }
 
@@ -79,9 +77,6 @@ impl Decodable for PendingTransition {
 ///
 /// See docs on `Engine` relating to proving functions for more details.
 pub trait EpochVerifier: Send + Sync {
-	/// Get the epoch number.
-	fn epoch_number(&self) -> u64;
-
 	/// Lightly verify the next block header.
 	/// This may not be a header belonging to a different epoch.
 	fn verify_light(&self, header: &Header) -> Result<(), Error>;
@@ -103,6 +98,5 @@ pub trait EpochVerifier: Send + Sync {
 pub struct NoOp;
 
 impl EpochVerifier for NoOp {
-	fn epoch_number(&self) -> u64 { 0 }
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 }

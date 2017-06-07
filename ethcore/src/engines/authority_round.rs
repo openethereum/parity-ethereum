@@ -25,7 +25,7 @@ use rlp::{UntrustedRlp, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
-use engines::{Call, Engine, Seal, EngineError};
+use engines::{Call, Engine, Seal, EngineError, ConstructedVerifier};
 use header::{Header, BlockNumber};
 use error::{Error, TransactionError, BlockError};
 use evm::Schedule;
@@ -135,13 +135,11 @@ pub struct AuthorityRound {
 
 // header-chain validator.
 struct EpochVerifier {
-	epoch_number: u64,
 	step: Arc<Step>,
 	subchain_validators: SimpleList,
 }
 
 impl super::EpochVerifier for EpochVerifier {
-	fn epoch_number(&self) -> u64 { self.epoch_number.clone() }
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		// always check the seal since it's fast.
 		// nothing heavier to do.
@@ -413,27 +411,54 @@ impl Engine for AuthorityRound {
 		verify_external(header, &*self.validators, &*self.step)
 	}
 
-	// the proofs we need just allow us to get the full validator set.
-	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Bytes, Error> {
-		self.validators.epoch_proof(header, caller)
-			.map_err(|e| EngineError::InsufficientProof(e).into())
+	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
+		self.validators.genesis_epoch_data(header, call)
 	}
 
-	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+	fn signals_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
 		-> super::EpochChange
 	{
-		self.validators.is_epoch_end(header, block, receipts)
+		let first = header.number() == 0;
+		self.validators.signals_epoch_end(first, header, block, receipts)
 	}
 
-	fn epoch_verifier(&self, header: &Header, proof: &[u8]) -> Result<Box<super::EpochVerifier>, Error> {
-		// extract a simple list from the proof.
-		let (num, simple_list) = self.validators.epoch_set(header, proof)?;
+	fn is_epoch_end(
+		&self,
+		chain_head: &Header,
+		chain: &super::Headers,
+		transition_store: &super::PendingTransitionStore,
+	) -> Option<Vec<u8>> {
+		let first = chain_head.number() == 0;
 
-		Ok(Box::new(EpochVerifier {
-			epoch_number: num,
-			step: self.step.clone(),
-			subchain_validators: simple_list,
-		}))
+		// apply immediate transitions.
+		if let Some(change) = self.validators.is_epoch_end(first, chain_head) {
+			return Some(change)
+		}
+
+		// find most recently finalized block, then check transition store for pending transitions.
+		unimplemented!()
+	}
+
+	fn epoch_verifier<'a>(&self, header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
+		let first = header.number() == 0;
+
+		// TODO: extract validation from finalization proof.
+		let finality_proof = proof;
+
+		match self.validators.epoch_set(first, self, header, proof) {
+			Ok((list, finalize)) => {
+				let verifier = Box::new(EpochVerifier {
+					step: self.step.clone(),
+					subchain_validators: list,
+				});
+
+				match finalize {
+					Some(finalize) => ConstructedVerifier::Unconfirmed(verifier, finality_proof, finalize),
+					None => ConstructedVerifier::Trusted(verifier),
+				}
+			}
+			Err(e) => ConstructedVerifier::Err(e),
+		}
 	}
 
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> result::Result<(), Error> {

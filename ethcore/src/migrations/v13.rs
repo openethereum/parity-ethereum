@@ -66,10 +66,10 @@ impl Migration for ToV13 {
 	fn version(&self) -> u32 { 13 }
 
 	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
-		let mut batch = Batch::new(config, self.column);
+		let mut batch = Batch::new(config, col);
 
 		for (key, value) in source.iter(col).into_iter().flat_map(|inner| inner) {
-			self.progress.tick();
+			self.0.tick();
 			let mut value = value.to_vec();
 
 			if col == COL_EXTRA && key.len() == KEY_LEN && key[0] == DETAILS_KEY_INDEX {

@@ -47,7 +47,7 @@ impl AncientVerifier {
 
 	/// Verify the next block header, randomly choosing whether to do heavy or light
 	/// verification. If the block is the end of an epoch, updates the epoch verifier.
-	pub fn verify<R: Rng, F: Fn() -> Result<Box<EpochVerifier>, Error>>(
+	pub fn verify<R: Rng>(
 		&self,
 		rng: &mut R,
 		header: &Header,
@@ -60,7 +60,7 @@ impl AncientVerifier {
 
 		// ancient import will only use transitions obtained from the snapshot.
 		if let Some(transition) = chain.epoch_transition(header.number(), header.hash()) {
-			let (v, _) = self.engine.epoch_verifier(&header, &transition.proof).known_confirmed()?;
+			let v = self.engine.epoch_verifier(&header, &transition.proof).known_confirmed()?;
 			*self.cur_verifier.write() = v;
 		}
 

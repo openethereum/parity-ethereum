@@ -27,7 +27,7 @@ use client::{Client, BlockChainClient};
 use engines::{Call, Engine};
 use header::{Header, BlockNumber};
 
-use super::ValidatorSet;
+use super::{ValidatorSet, SimpleList};
 use super::safe_contract::ValidatorSafeContract;
 
 /// A validator contract with reporting.
@@ -51,7 +51,7 @@ impl ValidatorContract {
 	// could be `impl Trait`.
 	// note: dispatches transactions to network as well as execute.
 	// TODO [keorn]: Make more general.
-	fn transact(&self) -> Box<Call> {
+	fn transact(&self) -> Box<Fn(Address, Bytes) -> Result<Bytes, String>> {
 		let client = self.client.read().clone();
 		Box::new(move |a, d| client.as_ref()
 			.and_then(Weak::upgrade)
@@ -79,13 +79,13 @@ impl ValidatorSet for ValidatorContract {
 		first: bool,
 		header: &Header,
 		block: Option<&[u8]>,
-		receipts: Option<&[Receipt]>,
-	) -> EpochChange {
+		receipts: Option<&[::receipt::Receipt]>,
+	) -> ::engines::EpochChange {
 		self.validators.signals_epoch_end(first, header, block, receipts)
 	}
 
-	fn epoch_set(&self, first: bool, engine: &Engine, header: &Header, proof: &[u8]) -> Result<(SimpleList, bool), ::error::Error> {
-		self.validators.epoch_set(first, header, proof)
+	fn epoch_set(&self, first: bool, engine: &Engine, header: &Header, proof: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+		self.validators.epoch_set(first, engine, header, proof)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {
