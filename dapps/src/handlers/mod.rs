@@ -49,19 +49,41 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Option
 
 	// Content Security Policy headers
 	headers.set_raw("Content-Security-Policy", vec![
-		b"img-src 'self' 'unsafe-inline' data: blob:;".to_vec(),
-		b"style-src 'self' 'unsafe-inline' data: blob:;".to_vec(),
+		// Allow connecting to WS servers and HTTP(S) servers.
+		// We could be more restrictive and allow only RPC server URL.
+		b"connect-src http: https: ws: wss:;".to_vec(),
+		// Allow framing any content from HTTP(S).
+		// Again we could only allow embedding from RPC server URL.
+		// (deprecated)
+		b"frame-src 'self' http: https:;".to_vec(),
+		// Allow framing and web workers from HTTP(S).
+		b"child-src 'self' http: https:;".to_vec(),
+		// We allow data: blob: and HTTP(s) images.
+		// We could get rid of wildcarding HTTP and only allow RPC server URL.
+		// (http require for local dapps icons)
+		b"img-src 'self' 'unsafe-inline' data: blob: http: https:;".to_vec(),
+		// Allow style from data: blob: and HTTPS.
+		b"style-src 'self' 'unsafe-inline' data: blob: https:;".to_vec(),
+		// Allow fonts from data: and HTTPS.
+		b"font-src 'self' data: https:;".to_vec(),
+		// Allow inline scripts and scripts eval (webpack/jsconsole)
+		b"script-src 'self' 'unsafe-inline' 'unsafe-eval';".to_vec(),
+		// Restrict everything else to the same origin.
 		b"default-src 'self';".to_vec(),
+		// Run in sandbox mode (although it's not fully safe since we allow same-origin and script)
 		b"sandbox allow-same-origin allow-forms allow-modals allow-popups allow-presentation allow-scripts;".to_vec(),
+		// Disallow subitting forms from any dapps
 		b"form-action 'none';".to_vec(),
+		// Never allow mixed content
+		b"block-all-mixed-content;".to_vec(),
+		// Specify if the site can be embedded.
 		match embeddable_on {
 			Some((ref host, ref port)) if host == "127.0.0.1" => {
 				format!("frame-ancestors {} {};", address(&(host.to_owned(), *port)), address(&("localhost".to_owned(), *port)))
 			},
 			Some(ref embed) => format!("frame-ancestors {};", address(embed)),
-			None => format!("frame-ancestors 'none';"),
+			None => format!("frame-ancestors 'self';"),
 		}.into_bytes(),
-		b"block-all-mixed-content;".to_vec(),
 	]);
 }
 
