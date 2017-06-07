@@ -102,7 +102,7 @@ impl From<UiConfiguration> for HttpConfiguration {
 impl Default for UiConfiguration {
 	fn default() -> Self {
 		UiConfiguration {
-			enabled: true,
+			enabled: true && cfg!(feature = "ui-enabled"),
 			port: 8180,
 			interface: "127.0.0.1".into(),
 			hosts: Some(vec![]),
