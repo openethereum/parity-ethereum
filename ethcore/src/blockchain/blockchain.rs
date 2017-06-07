@@ -514,7 +514,6 @@ impl BlockChain {
 					total_difficulty: header.difficulty(),
 					parent: header.parent_hash(),
 					children: vec![],
-					epoch_depth: 0, // genesis transitions to its own epoch.
 				};
 
 				let mut batch = DBTransaction::new();
@@ -831,7 +830,6 @@ impl BlockChain {
 				total_difficulty: info.total_difficulty,
 				parent: header.parent_hash(),
 				children: Vec::new(),
-				epoch_depth: unimplemented!(),
 			};
 
 			let mut update = HashMap::new();
@@ -892,33 +890,43 @@ impl BlockChain {
 	}
 
 	/// Get the transition to the epoch the given block hash is part of.
+	///
+	/// Note that a block which transitions to a new epoch is not considered
+	/// part of that new epoch except in the case of the genesis.
 	pub fn epoch_transition_for(&self, block_hash: H256) -> Option<EpochTransition> {
-		let details = otry!(self.block_details(&block_hash));
+		// slow path: loop back block by block
+		for hash in otry!(self.ancestry_iter(block_hash)) {
+			let details = otry!(self.block_details(&hash));
+			let first = hash == block_hash;
 
-		let target_num = details.number - details.epoch_depth;
-		let mut cur_hash = block_hash;
+			// we're looking for transitions before the starting block unless
+			// that block is the genesis, since that "transitions" to its own epoch
+			let accept_number = |num| {
+				num == 0 || num < details.number + if first { 0 } else { 1 }
+			};
 
-		// loop back header by header until we find a canonical block.
-		// if we find one, we can use the canonical `block_hash`.
-		for i in 0..details.epoch_depth {
-			let number = details.number - i;
-
-			let canon_hash = otry!(self.block_hash(number));
-
-			if canon_hash == cur_hash {
-				// epoch transition was a canonical ancestor.
-				let target_hash = otry!(self.block_hash(target_num));
-
-				return self.epoch_transition(target_num, target_hash);
+			// look for transition in database.
+			if accept_number(details.number) {
+				if let Some(transition) = self.epoch_transition(details.number, hash) {
+					return Some(transition)
+				}
 			}
 
-			// update cur_hash
-			cur_hash = otry!(self.block_details(&cur_hash)).parent;
+			// canonical hash -> fast breakout:
+			// get the last epoch transition up to this block.
+			//
+			// if `block_hash` is canonical it will only return transitions up to
+			// the parent.
+			if otry!(self.block_hash(details.number)) == hash {
+				return self.epoch_transitions()
+					.map(|(_, t)| t)
+					.take_while(|t| accept_number(t.block_number))
+					.last()
+			}
 		}
 
-		// the loop has concluded but we found no canonical ancestors.
-		// use cur_hash and target num.
-		self.epoch_transition(target_num, cur_hash)
+		// should never happen as the loop will encounter genesis before concluding.
+		None
 	}
 
 	/// Write a pending epoch transition by block hash.
@@ -1211,18 +1219,11 @@ impl BlockChain {
 		parent_details.children.push(info.hash.clone());
 
 		// create current block details.
-		// epoch delta == number of ancestors ago the transition to current epoch was.
-		// only 0 for genesis because no other transition blocks are verified under the epoch
-		// they transition to.
 		let details = BlockDetails {
 			number: header.number(),
 			total_difficulty: info.total_difficulty,
 			parent: parent_hash.clone(),
 			children: vec![],
-			epoch_depth: match self.epoch_transition(header.number().saturating_sub(1), parent_hash) {
-				Some(_) => 1,
-				None => parent_details.epoch_depth + 1,
-			},
 		};
 
 		// write to batch

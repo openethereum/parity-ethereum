@@ -191,8 +191,6 @@ pub struct BlockDetails {
 	pub parent: H256,
 	/// List of children block hashes
 	pub children: Vec<H256>,
-	/// Blocks since a transition has occurred.
-	pub epoch_depth: BlockNumber,
 }
 
 impl HeapSizeOf for BlockDetails {
@@ -208,7 +206,6 @@ impl Decodable for BlockDetails {
 			total_difficulty: rlp.val_at(1)?,
 			parent: rlp.val_at(2)?,
 			children: rlp.list_at(3)?,
-			epoch_depth: rlp.val_at(4)?,
 		};
 		Ok(details)
 	}
@@ -221,7 +218,6 @@ impl Encodable for BlockDetails {
 		s.append(&self.total_difficulty);
 		s.append(&self.parent);
 		s.append_list(&self.children);
-		s.append(&self.epoch_depth);
 	}
 }
 
