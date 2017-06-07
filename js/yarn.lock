@@ -89,7 +89,7 @@
     react-markdown "2.4.4"
     rlp "2.0.0"
 
-"@parity/wordlist@1.0.1":
+"@parity/wordlist@^1.0.1":
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/@parity/wordlist/-/wordlist-1.0.1.tgz#c27e40e1ab3638a09ed53b4a2e81d531b5eb5a31"
 
