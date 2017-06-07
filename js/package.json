@@ -58,8 +58,8 @@
     "lint:js:fix": "eslint --fix --ignore-path .gitignore ./src/",
     "start": "npm run clean && npm install && npm run build:lib && npm run build:dll && npm run start:app",
     "start:app": "node webpack/dev.server",
-    "test": "NODE_ENV=test mocha --compilers ejs:ejsify 'src/**/*.spec.js'",
-    "test:coverage": "NODE_ENV=test istanbul cover _mocha -- --compilers ejs:ejsify 'src/**/*.spec.js'",
+    "test": "NODE_ENV=test mocha --compilers js:babel-core/register 'src/**/*.spec.js'",
+    "test:coverage": "NODE_ENV=test istanbul cover _mocha -- --compilers js:babel-core/register 'src/**/*.spec.js'",
     "test:e2e": "NODE_ENV=test mocha 'src/**/*.e2e.js'",
     "test:npm": "(cd .npmjs && npm i) && node test/npmParity && node test/npmJsonRpc && (rm -rf .npmjs/node_modules)",
     "prepush": "npm run lint:cached"
