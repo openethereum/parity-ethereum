@@ -4,5 +4,5 @@ test -f /usr/local/libexec/uninstall-parity.sh && /usr/local/libexec/uninstall-p
 killall -9 parity && sleep 5
 su $USER -c "open /Applications/Parity\ Ethereum.app"
 sleep 5
-su $USER -c "open http://127.0.0.1:8080/"
+su $USER -c "open http://127.0.0.1:8180/"
 exit 0
