@@ -39,12 +39,12 @@ const TEST_CONTEXT = SRC === 'parity'
   ? '../npm/parity/test/'
   : `../src/3rdparty/${SRC}/`;
 
-console.log(`Building ${LIBRARY} from library.${SRC}.js to .npmjs/${SRC}`);
+console.log(`Building ${LIBRARY} from libraries.js to .npmjs/${SRC}`);
 
 module.exports = {
   context: path.join(__dirname, '../src'),
   target: 'node',
-  entry: `library.${SRC}.js`,
+  entry: `libraries.js`,
   output: {
     path: OUTPUT_PATH,
     filename: 'library.js',
