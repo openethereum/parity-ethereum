@@ -91,7 +91,7 @@ linux-snap:
   artifacts:
     paths:
     - scripts/parity_*_amd64.snap
-name: "stable-x86_64-unknown-snap-gnu_parity"
+    name: "stable-x86_64-unknown-snap-gnu_parity"
 linux-stable-debian:
   stage: build
   image: parity/rust-debian:gitlab-ci
