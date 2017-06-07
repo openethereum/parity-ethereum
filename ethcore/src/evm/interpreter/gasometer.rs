@@ -173,7 +173,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 				let gas = Gas::from(schedule.sha3_gas) + (Gas::from(schedule.sha3_word_gas) * words);
 				Request::GasMem(gas, mem_needed(stack.peek(0), stack.peek(1))?)
 			},
-			instructions::CALLDATACOPY | instructions::CODECOPY => {
+			instructions::CALLDATACOPY | instructions::CODECOPY | instructions::RETURNDATACOPY => {
 				Request::GasMemCopy(default_gas, mem_needed(stack.peek(0), stack.peek(2))?, Gas::from_u256(*stack.peek(2))?)
 			},
 			instructions::EXTCODECOPY => {
