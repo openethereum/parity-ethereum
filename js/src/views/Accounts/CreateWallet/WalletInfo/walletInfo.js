@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { fromWei } from '@parity/api/util/wei';
+import { fromWei } from 'parity/api/util/wei';
 import { CompletedStep, IdentityIcon, CopyToClipboard } from '@parity/ui';
 
 import styles from '../createWallet.css';

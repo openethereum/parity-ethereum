@@ -19,8 +19,8 @@ import { observable, computed, action, transaction } from 'mobx';
 import React from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import Contract from '@parity/api/contract';
-import { toWei } from '@parity/api/util/wei';
+import Contract from 'parity/api/contract';
+import { toWei } from 'parity/api/util/wei';
 import Contracts from '@parity/shared/contracts';
 import { wallet as walletAbi } from '@parity/shared/contracts/abi';
 import { wallet as walletCode, walletLibrary as walletLibraryCode, walletLibraryRegKey, fullWalletCode } from '@parity/shared/contracts/code/wallet';

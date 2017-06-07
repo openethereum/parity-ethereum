@@ -16,7 +16,7 @@
 
 import sinon from 'sinon';
 
-import apiutil from '~/api/util';
+import apiutil from 'parity/api/util';
 
 import Registry from './registry';
 

@@ -17,7 +17,7 @@
 import BigNumber from 'bignumber.js';
 import { pick, range, uniq } from 'lodash';
 
-import { bytesToHex } from '@parity/api/util/format';
+import { bytesToHex } from 'parity/api/util/format';
 import { IconCache } from '@parity/ui';
 
 import builtinJson from '~/shared/config/dappsBuiltin.json';

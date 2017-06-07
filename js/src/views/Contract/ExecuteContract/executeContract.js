@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { toWei } from '@parity/api/util/wei';
+import { toWei } from 'parity/api/util/wei';
 import { MAX_GAS_ESTIMATION } from '@parity/shared/util/constants';
 import { validateAddress, validateUint } from '@parity/shared/util/validation';
 import { parseAbiType } from '@parity/shared/util/abi';

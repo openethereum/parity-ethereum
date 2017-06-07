@@ -16,7 +16,7 @@
 
 import { action, computed, observable, transaction } from 'mobx';
 
-import apiutil from '@parity/api/util';
+import apiutil from 'parity/api/util';
 
 import ERRORS from './errors';
 

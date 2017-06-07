@@ -19,7 +19,7 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import apiutil from '@parity/api/util';
+import apiutil from 'parity/api/util';
 
 import Balance from './balance';
 

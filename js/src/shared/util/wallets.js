@@ -19,8 +19,8 @@ import { intersection, range, uniq } from 'lodash';
 import store from 'store';
 
 import Abi from 'parity/abi';
-import Contract from '@parity/api/contract';
-import { bytesToHex, toHex } from '@parity/api/util/format';
+import Contract from 'parity/api/contract';
+import { bytesToHex, toHex } from 'parity/api/util/format';
 
 import WalletAbi from '../contracts/abi/wallet.json';
 import OldWalletAbi from '../contracts/abi/old-wallet.json';

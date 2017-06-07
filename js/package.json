@@ -160,7 +160,6 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
-    "@parity/api": "file:src/api",
     "@parity/dapps": "file:src/dapps",
     "@parity/jsonrpc": "file:src/jsonrpc",
     "@parity/shared": "file:src/shared",

@@ -20,7 +20,7 @@ import ReactTooltip from 'react-tooltip';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { bytesToHex } from '@parity/api/util/format';
+import { bytesToHex } from 'parity/api/util/format';
 import { confirmOperation, revokeOperation } from '@parity/shared/redux/providers/walletActions';
 import { Container, Dropdown, InputAddress, IdentityIcon, Progress } from '@parity/ui';
 import TxRow from '@parity/ui/TxList/TxRow';

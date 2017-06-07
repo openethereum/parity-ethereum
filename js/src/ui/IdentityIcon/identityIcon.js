@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { createIdentityImg } from '@parity/api/util/identity';
+import { createIdentityImg } from 'parity/api/util/identity';
 import { isNullAddress } from '@parity/shared/util/validation';
 
 import IconCache from '~/ui/IconCache';

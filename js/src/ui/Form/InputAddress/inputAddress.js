@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import util from '@parity/api/util';
+import util from 'parity/api/util';
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 import { isNullAddress } from '@parity/shared/util/validation';
 

@@ -17,7 +17,7 @@
 import { uniq, isEqual } from 'lodash';
 import { push } from 'react-router-redux';
 
-import { sha3 } from '@parity/api/util/sha3';
+import { sha3 } from 'parity/api/util/sha3';
 
 import { LOG_KEYS, getLogger } from '@parity/shared/config';
 import { notifyTransaction } from '@parity/shared/util/notifications';

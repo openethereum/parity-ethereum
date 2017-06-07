@@ -16,7 +16,7 @@
 
 import { action, computed, observable, transaction } from 'mobx';
 
-import apiutil from '@parity/api/util';
+import apiutil from 'parity/api/util';
 
 const ENDPOINT = 'http://faucet.kovan.network/api/';
 

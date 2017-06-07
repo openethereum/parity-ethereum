@@ -16,9 +16,9 @@
 
 import { isEqual, uniq } from 'lodash';
 
-import Contract from '@parity/api/contract';
-import { ERROR_CODES } from '@parity/api/transport/error';
-import { bytesToHex, toHex } from '@parity/api/util/format';
+import Contract from 'parity/api/contract';
+import { ERROR_CODES } from 'parity/api/transport/error';
+import { bytesToHex, toHex } from 'parity/api/util/format';
 import { newError } from '@parity/ui/Errors/actions';
 
 import { wallet as WALLET_ABI } from '~/shared/contracts/abi';
