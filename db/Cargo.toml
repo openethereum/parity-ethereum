@@ -14,10 +14,10 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 clippy = { version = "0.0.103", optional = true}
 ethcore-devtools = { path = "../devtools" }
 ethcore-ipc = { path = "../ipc/rpc" }
-rocksdb = { git = "https://github.com/ethcore/rust-rocksdb" }
+rocksdb = { git = "https://github.com/paritytech/rust-rocksdb" }
 semver = "0.5"
 ethcore-ipc-nano = { path = "../ipc/nano" }
-nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
+nanomsg = { git = "https://github.com/paritytech/nanomsg.rs.git" }
 crossbeam = "0.2"
 ethcore-util = { path = "../util" }
 
