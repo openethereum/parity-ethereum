@@ -6,7 +6,7 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-elastic-array = { git = "https://github.com/ethcore/elastic-array" }
+elastic-array = { git = "https://github.com/paritytech/elastic-array" }
 ethcore-bigint = { path = "../bigint" }
 lazy_static = "0.2"
 rustc-serialize = "0.3"
