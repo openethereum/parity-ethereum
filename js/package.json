@@ -160,7 +160,6 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
-    "@parity/abi": "file:src/abi",
     "@parity/api": "file:src/api",
     "@parity/dapps": "file:src/dapps",
     "@parity/jsonrpc": "file:src/jsonrpc",
@@ -179,6 +178,7 @@
     "loglevel": "1.4.1",
     "moment": "2.17.0",
     "napa": "2.3.0",
+    "parity": "^0.1.7",
     "promise-worker": "1.1.1",
     "react": "15.4.2",
     "react-dom": "15.4.2",

@@ -17,7 +17,7 @@
 import BigNumber from 'bignumber.js';
 import sinon from 'sinon';
 
-import Abi from '@parity/abi';
+import Abi from 'parity/abi';
 
 import { TEST_HTTP_URL, mockHttp } from '../../../test/mockRpc';
 

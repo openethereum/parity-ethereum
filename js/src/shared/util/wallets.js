@@ -18,7 +18,7 @@ import BigNumber from 'bignumber.js';
 import { intersection, range, uniq } from 'lodash';
 import store from 'store';
 
-import Abi from '@parity/abi';
+import Abi from 'parity/abi';
 import Contract from '@parity/api/contract';
 import { bytesToHex, toHex } from '@parity/api/util/format';
 

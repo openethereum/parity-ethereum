@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { toChecksumAddress } from '@parity/abi/util/address';
+import { toChecksumAddress } from 'parity/abi/util/address';
 
 import { isString } from '../util/types';
 
