@@ -69,9 +69,9 @@ linux-snap:
     - triggers
   script:
     - rm -rf *snap
+    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - cd scripts
     - rm -rf *snap
-    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - sed -i 's/master/'"$VER"'/g' snapcraft.yaml
     - snapcraft
     - cp scripts/parity_master_amd64.snap parity_"$VER"_amd64.snap
