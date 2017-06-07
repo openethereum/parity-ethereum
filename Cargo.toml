@@ -1,3 +1,4 @@
+
 [package]
 description = "Parity Ethereum client"
 name = "parity"
