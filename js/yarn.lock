@@ -2,27 +2,6 @@
 # yarn lockfile v1
 
 
-"@parity/abi@file:src/abi":
-  version "0.0.0"
-  dependencies:
-    bignumber.js "3.0.1"
-    js-sha3 "0.5.5"
-
-"@parity/api@file:src/api":
-  version "0.0.0"
-  dependencies:
-    "@parity/abi" "file:../abi"
-    "@parity/jsonrpc" "file:../jsonrpc"
-    bignumber.js "3.0.1"
-    blockies "0.0.2"
-    es6-error "4.0.0"
-    ethereumjs-tx "1.2.5"
-    eventemitter3 "2.0.2"
-    js-sha3 "0.5.5"
-    keythereum "0.4.6"
-    node-fetch "1.6.3"
-    secp256k1 "3.2.5"
-
 "@parity/dapps@file:src/dapps":
   version "0.0.0"
   dependencies:
@@ -30,9 +9,6 @@
     react-codemirror "^0.3.0"
     react-inspector paritytech/react-inspector
     validator "6.2.0"
-
-"@parity/jsonrpc@file:src/jsonrpc":
-  version "0.0.0"
 
 "@parity/shared@file:src/shared":
   version "0.0.0"
@@ -88,10 +64,6 @@
     react-element-to-jsx-string "6.0.0"
     react-markdown "2.4.4"
     rlp "2.0.0"
-
-"@parity/wordlist@1.0.1":
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/@parity/wordlist/-/wordlist-1.0.1.tgz#c27e40e1ab3638a09ed53b4a2e81d531b5eb5a31"
 
 JSONStream@^0.8.4:
   version "0.8.4"
@@ -5936,9 +5908,9 @@ param-case@2.1.x:
   dependencies:
     no-case "^2.2.0"
 
-parity@^0.1.7:
-  version "0.1.7"
-  resolved "https://registry.yarnpkg.com/parity/-/parity-0.1.7.tgz#8a818675b732d078f0ef3f16a35231d5d824f4f7"
+parity@^0.1.9:
+  version "0.1.9"
+  resolved "https://registry.yarnpkg.com/parity/-/parity-0.1.9.tgz#48320acf7f834ac6bbc7e0054648b0dd581daec8"
   dependencies:
     babel-plugin-webpack-alias "^2.1.2"
     bignumber.js "3.0.1"
@@ -8334,18 +8306,9 @@ ua-parser-js@^0.7.9:
   version "0.7.12"
   resolved "https://registry.yarnpkg.com/ua-parser-js/-/ua-parser-js-0.7.12.tgz#04c81a99bdd5dc52263ea29d24c6bf8d4818a4bb"
 
-uglify-js@2.8.22, uglify-js@^2.6, uglify-js@~2.8.22:
+uglify-js@2.8.22, uglify-js@^2.6, uglify-js@^2.7.5, uglify-js@~2.8.22:
   version "2.8.22"
   resolved "https://registry.yarnpkg.com/uglify-js/-/uglify-js-2.8.22.tgz#d54934778a8da14903fa29a326fb24c0ab51a1a0"
-  dependencies:
-    source-map "~0.5.1"
-    yargs "~3.10.0"
-  optionalDependencies:
-    uglify-to-browserify "~1.0.0"
-
-uglify-js@^2.7.5:
-  version "2.8.16"
-  resolved "https://registry.yarnpkg.com/uglify-js/-/uglify-js-2.8.16.tgz#d286190b6eefc6fd65eb0ecac6551e0b0e8839a4"
   dependencies:
     source-map "~0.5.1"
     yargs "~3.10.0"
@@ -8824,7 +8787,7 @@ yallist@^2.0.0:
   version "2.1.2"
   resolved "https://registry.yarnpkg.com/yallist/-/yallist-2.1.2.tgz#1c11f9218f076089a47dd512f93c6699a6a81d52"
 
-yargs-parser@^2.4.0, yargs-parser@^2.4.1:
+yargs-parser@^2.4.0:
   version "2.4.1"
   resolved "https://registry.yarnpkg.com/yargs-parser/-/yargs-parser-2.4.1.tgz#85568de3cf150ff49fa51825f03a8c880ddcc5c4"
   dependencies:
@@ -8837,7 +8800,7 @@ yargs-parser@^4.2.0:
   dependencies:
     camelcase "^3.0.0"
 
-yargs@4.7.1:
+yargs@4.7.1, yargs@^4.7.1:
   version "4.7.1"
   resolved "https://registry.yarnpkg.com/yargs/-/yargs-4.7.1.tgz#e60432658a3387ff269c028eacde4a512e438dff"
   dependencies:
@@ -8885,25 +8848,6 @@ yargs@^3.5.4, yargs@~3.10.0:
     cliui "^2.1.0"
     decamelize "^1.0.0"
     window-size "0.1.0"
-
-yargs@^4.7.1:
-  version "4.8.1"
-  resolved "https://registry.yarnpkg.com/yargs/-/yargs-4.8.1.tgz#c0c42924ca4aaa6b0e6da1739dfb216439f9ddc0"
-  dependencies:
-    cliui "^3.2.0"
-    decamelize "^1.1.1"
-    get-caller-file "^1.0.1"
-    lodash.assign "^4.0.3"
-    os-locale "^1.4.0"
-    read-pkg-up "^1.0.1"
-    require-directory "^2.1.1"
-    require-main-filename "^1.0.1"
-    set-blocking "^2.0.0"
-    string-width "^1.0.1"
-    which-module "^1.0.0"
-    window-size "^0.2.0"
-    y18n "^3.2.1"
-    yargs-parser "^2.4.1"
 
 yarn@^0.21.3:
   version "0.21.3"
