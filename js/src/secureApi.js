@@ -26,22 +26,39 @@ export default class SecureApi extends Api {
   _isConnecting = false;
   _needsToken = false;
   _tokens = [];
+  _uiApi = null;
 
-  _dappsInterface = null;
-  _dappsPort = 8545;
-  _signerPort = 8180;
+  _dappsUrl = null;
+  _wsUrl = null;
+  _url = null;
 
-  static getTransport (url, sysuiToken) {
-    return new Api.Transport.Ws(url, sysuiToken, false);
+  static getTransport (url, sysuiToken, protocol) {
+    const transportUrl = SecureApi.transportUrl(url, protocol);
+
+    return new Api.Transport.Ws(transportUrl, sysuiToken, false);
   }
 
-  constructor (url, nextToken, getTransport = SecureApi.getTransport) {
+  static transportUrl (url, protocol) {
+    const proto = protocol() === 'https:' ? 'wss:' : 'ws:';
+
+    return `${proto}//${url}`;
+  }
+
+  // Returns a protocol with `:` at the end.
+  static protocol () {
+    return window.location.protocol;
+  }
+
+  constructor (uiUrl, nextToken, getTransport = SecureApi.getTransport, protocol = SecureApi.protocol) {
     const sysuiToken = store.get('sysuiToken');
-    const transport = getTransport(url, sysuiToken);
+    const transport = getTransport(uiUrl, sysuiToken, protocol);
 
     super(transport);
 
-    this._url = url;
+    this.protocol = protocol;
+    this._url = uiUrl;
+    this._uiApi = new Api(new Api.Transport.Http(`${this.protocol()}//${this._url}/rpc`, 0), false);
+    this._wsUrl = uiUrl;
     // Try tokens from localStorage, from hash and 'initial'
     this._tokens = uniq([sysuiToken, nextToken, 'initial'])
       .filter((token) => token)
@@ -53,12 +70,30 @@ export default class SecureApi extends Api {
     this.connect();
   }
 
+  get _dappsAddress () {
+    if (!this._dappsUrl) {
+      return {
+        host: null,
+        port: 8545
+      };
+    }
+
+    const [host, port] = this._dappsUrl.split(':');
+
+    return {
+      host,
+      port: parseInt(port, 10)
+    };
+  }
+
   get dappsPort () {
-    return this._dappsPort;
+    return this._dappsAddress.port;
   }
 
   get dappsUrl () {
-    return `http://${this.hostname}:${this.dappsPort}`;
+    const { port } = this._dappsAddress;
+
+    return `${this.protocol()}//${this.hostname}:${port}`;
   }
 
   get hostname () {
@@ -66,15 +101,13 @@ export default class SecureApi extends Api {
       return 'dapps.parity';
     }
 
-    if (!this._dappsInterface || this._dappsInterface === '0.0.0.0') {
+    const { host } = this._dappsAddress;
+
+    if (!host || host === '0.0.0.0') {
       return window.location.hostname;
     }
 
-    return this._dappsInterface;
-  }
-
-  get signerPort () {
-    return this._signerPort;
+    return host;
   }
 
   get isConnecting () {
@@ -91,26 +124,6 @@ export default class SecureApi extends Api {
 
   get secureToken () {
     return this._transport.token;
-  }
-
-  /**
-   * Configure the current API with the given values
-   * (`signerPort`, `dappsInterface`, `dappsPort`, ...)
-   */
-  configure (configuration) {
-    const { dappsInterface, dappsPort, signerPort } = configuration;
-
-    if (dappsInterface) {
-      this._dappsInterface = dappsInterface;
-    }
-
-    if (dappsPort) {
-      this._dappsPort = dappsPort;
-    }
-
-    if (signerPort) {
-      this._signerPort = signerPort;
-    }
   }
 
   connect () {
@@ -166,9 +179,7 @@ export default class SecureApi extends Api {
    * otherwise (HEAD request to the Node)
    */
   isNodeUp () {
-    const url = this._url.replace(/wss?/, 'http');
-
-    return fetch(url, { method: 'HEAD' })
+    return fetch(`${this.protocol()}//${this._url}/api/ping`, { method: 'HEAD' })
       .then(
         (r) => r.status === 200,
         () => false
@@ -219,7 +230,6 @@ export default class SecureApi extends Api {
         // If correct and valid token, wait until the Node is ready
         // and resolve as connected
         return this._waitUntilNodeReady()
-          .then(() => this._fetchSettings())
           .then(() => true);
       })
       .catch((error) => {
@@ -238,11 +248,16 @@ export default class SecureApi extends Api {
     // Sanitize the token first
     const token = this._sanitiseToken(_token);
 
-    // Update the token in the transport layer
-    this.transport.updateToken(token, false);
-    log.debug('connecting with token', token);
+    const connectPromise = this._fetchSettings()
+      .then(() => {
+        // Update the URL and token in the transport layer
+        this.transport.url = SecureApi.transportUrl(this._wsUrl, this.protocol);
+        this.transport.updateToken(token, false);
 
-    const connectPromise = this.transport.connect()
+        log.debug('connecting with token', token);
+
+        return this.transport.connect();
+      })
       .then(() => {
         log.debug('connected with', token);
 
@@ -297,14 +312,12 @@ export default class SecureApi extends Api {
   _fetchSettings () {
     return Promise
       .all([
-        this.parity.dappsPort(),
-        this.parity.dappsInterface(),
-        this.parity.signerPort()
+        this._uiApi.parity.dappsUrl(),
+        this._uiApi.parity.wsUrl()
       ])
-      .then(([dappsPort, dappsInterface, signerPort]) => {
-        this._dappsPort = dappsPort.toNumber();
-        this._dappsInterface = dappsInterface;
-        this._signerPort = signerPort.toNumber();
+      .then(([dappsUrl, wsUrl]) => {
+        this._dappsUrl = dappsUrl;
+        this._wsUrl = wsUrl;
       });
   }
 

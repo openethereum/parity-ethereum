@@ -62,7 +62,7 @@ impl KeyPair {
 	}
 
 	pub fn from_secret_slice(slice: &[u8]) -> Result<KeyPair, Error> {
-		Self::from_secret(Secret::from_slice(slice)?)
+		Self::from_secret(Secret::from_unsafe_slice(slice)?)
 	}
 
 	pub fn from_keypair(sec: key::SecretKey, publ: key::PublicKey) -> Self {

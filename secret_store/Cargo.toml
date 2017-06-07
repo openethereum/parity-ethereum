@@ -35,6 +35,3 @@ ethcore-logger = { path = "../logger" }
 ethcrypto = { path = "../ethcrypto" }
 ethkey = { path = "../ethkey" }
 native-contracts = { path = "../ethcore/native_contracts" }
-
-[profile.release]
-debug = true

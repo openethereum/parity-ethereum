@@ -17,7 +17,8 @@
 //! Spec params deserialization.
 
 use uint::Uint;
-use hash::H256;
+use hash::{H256, Address};
+use bytes::Bytes;
 
 /// Spec params.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -59,26 +60,50 @@ pub struct Params {
 	/// See `CommonParams` docs.
 	#[serde(rename="eip86Transition")]
 	pub eip86_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip140Transition")]
+	pub eip140_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip210Transition")]
+	pub eip210_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip210ContractAddress")]
+	pub eip210_contract_address: Option<Address>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip210ContractCode")]
+	pub eip210_contract_code: Option<Bytes>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip210ContractGas")]
+	pub eip210_contract_gas: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip211Transition")]
+	pub eip211_transition: Option<Uint>,
 }
 
 #[cfg(test)]
 mod tests {
 	use serde_json;
+	use uint::Uint;
+	use util::U256;
 	use spec::params::Params;
 
 	#[test]
 	fn params_deserialization() {
 		let s = r#"{
-			"homesteadTransition": "0x118c30",
 			"maximumExtraDataSize": "0x20",
 			"networkID" : "0x1",
 			"chainID" : "0x15",
 			"subprotocolName" : "exp",
 			"minGasLimit": "0x1388",
-			"accountStartNonce": "0x00"
+			"accountStartNonce": "0x01"
 		}"#;
 
-		let _deserialized: Params = serde_json::from_str(s).unwrap();
-		// TODO: validate all fields
+		let deserialized: Params = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized.maximum_extra_data_size, Uint(U256::from(0x20)));
+		assert_eq!(deserialized.network_id, Uint(U256::from(0x1)));
+		assert_eq!(deserialized.chain_id, Some(Uint(U256::from(0x15))));
+		assert_eq!(deserialized.subprotocol_name, Some("exp".to_owned()));
+		assert_eq!(deserialized.min_gas_limit, Uint(U256::from(0x1388)));
+		assert_eq!(deserialized.account_start_nonce, Some(Uint(U256::from(0x01))));
 	}
 }

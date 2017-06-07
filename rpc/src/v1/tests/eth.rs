@@ -28,7 +28,7 @@ use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, ExternalMin
 use ethcore::account_provider::AccountProvider;
 use ethjson::blockchain::BlockChain;
 use io::IoChannel;
-use util::{U256, H256, Uint, Address, Hashable};
+use util::{U256, H256, Address, Hashable};
 
 use jsonrpc_core::IoHandler;
 use v1::impls::{EthClient, SigningUnsafeClient};
@@ -141,7 +141,7 @@ impl EthTester {
 			Default::default(),
 		);
 
-		let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner_service));
+		let dispatcher = FullDispatcher::new(client.clone(), miner_service.clone());
 		let eth_sign = SigningUnsafeClient::new(
 			&opt_account_provider,
 			dispatcher,

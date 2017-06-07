@@ -18,6 +18,7 @@
 //! method calls properly.
 
 mod eth;
+mod eth_pubsub;
 mod manage_network;
 mod net;
 mod parity;

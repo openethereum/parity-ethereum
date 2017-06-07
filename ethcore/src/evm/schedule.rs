@@ -24,6 +24,8 @@ pub struct Schedule {
 	pub have_delegate_call: bool,
 	/// Does it have a CREATE_P2SH instruction
 	pub have_create2: bool,
+	/// Does it have a REVERT instruction
+	pub have_revert: bool,
 	/// VM stack limit
 	pub stack_limit: usize,
 	/// Max number of nested calls/creates
@@ -101,6 +103,8 @@ pub struct Schedule {
 	pub no_empty: bool,
 	/// Kill empty accounts if touched.
 	pub kill_empty: bool,
+	/// Blockhash instruction gas cost.
+	pub blockhash_gas: usize,
 }
 
 impl Schedule {
@@ -120,6 +124,7 @@ impl Schedule {
 			exceptional_failed_code_deposit: true,
 			have_delegate_call: true,
 			have_create2: have_metropolis_instructions,
+			have_revert: have_metropolis_instructions,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -158,6 +163,7 @@ impl Schedule {
 			sub_gas_cap_divisor: Some(64),
 			no_empty: no_empty,
 			kill_empty: kill_empty,
+			blockhash_gas: if have_metropolis_instructions { 350 } else { 20 },
 		}
 	}
 
@@ -171,6 +177,7 @@ impl Schedule {
 			exceptional_failed_code_deposit: efcd,
 			have_delegate_call: hdc,
 			have_create2: false,
+			have_revert: false,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -209,6 +216,7 @@ impl Schedule {
 			sub_gas_cap_divisor: None,
 			no_empty: false,
 			kill_empty: false,
+			blockhash_gas: 20,
 		}
 	}
 }

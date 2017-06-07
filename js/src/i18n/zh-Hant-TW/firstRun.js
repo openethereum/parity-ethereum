@@ -40,7 +40,7 @@ export default {
   },
   welcome: {
     description: `作為初次安裝的一部分，下面的幾個步驟將指導你如何設定你的Parity和相關帳戶。我們的目標是使得使用Parity變得儘可能的簡單，讓你成功執行，所以請有點耐心。 一旦完成，你將擁有`,
-    // As part of a new installation, the next few steps will guide you through the process of setting up you Parity instance and your associated accounts.Our aim is to make it as simple as possible and to get you up and running in record-time, so please bear with us.Once completed you will have -
+    // As part of a new installation, the next few steps will guide you through the process of setting up your Parity instance and your associated accounts.Our aim is to make it as simple as possible and to get you up and running in record-time, so please bear with us.Once completed you will have -
     greeting: `歡迎使用Parity，這是執行以太坊節點的最快和最簡單的方式。`, // Welcome to Parity, the fastest and simplest way to run your node.
     next: `點選下一步繼續`, // Click Next to continue your journey.
     step: {

@@ -164,7 +164,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 			instructions::MSTORE8 => {
 				Request::GasMem(default_gas, mem_needed_const(stack.peek(0), 1)?)
 			},
-			instructions::RETURN => {
+			instructions::RETURN | instructions::REVERT => {
 				Request::GasMem(default_gas, mem_needed(stack.peek(0), stack.peek(1))?)
 			},
 			instructions::SHA3 => {
@@ -173,7 +173,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 				let gas = Gas::from(schedule.sha3_gas) + (Gas::from(schedule.sha3_word_gas) * words);
 				Request::GasMem(gas, mem_needed(stack.peek(0), stack.peek(1))?)
 			},
-			instructions::CALLDATACOPY | instructions::CODECOPY => {
+			instructions::CALLDATACOPY | instructions::CODECOPY | instructions::RETURNDATACOPY => {
 				Request::GasMemCopy(default_gas, mem_needed(stack.peek(0), stack.peek(2))?, Gas::from_u256(*stack.peek(2))?)
 			},
 			instructions::EXTCODECOPY => {
@@ -234,6 +234,9 @@ impl<Gas: CostType> Gasometer<Gas> {
 				let bytes = ((expon.bits() + 7) / 8) as usize;
 				let gas = Gas::from(schedule.exp_gas + schedule.exp_byte_gas * bytes);
 				Request::Gas(gas)
+			},
+			instructions::BLOCKHASH => {
+				Request::Gas(Gas::from(schedule.blockhash_gas))
 			},
 			_ => Request::Gas(default_gas),
 		};

@@ -25,7 +25,8 @@ use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use builtin::Builtin;
 use state::*;
-use evm::Schedule;
+use evm::{Schedule, Factory as EvmFactory};
+use factory::Factories;
 use engines::Engine;
 use ethereum;
 use ethereum::ethash::EthashParams;
@@ -56,6 +57,13 @@ impl TestEngine {
 			max_depth: max_depth,
 		}
 	}
+
+	pub fn new_metropolis() -> TestEngine {
+		TestEngine {
+			engine: ethereum::new_metropolis_test().engine,
+			max_depth: 0,
+		}
+	}
 }
 
 impl Engine for TestEngine {
@@ -72,7 +80,7 @@ impl Engine for TestEngine {
 	}
 
 	fn schedule(&self, _block_number: u64) -> Schedule {
-		let mut schedule = Schedule::new_frontier();
+		let mut schedule = self.engine.schedule(0);
 		schedule.max_depth = self.max_depth;
 		schedule
 	}
@@ -309,6 +317,13 @@ pub fn generate_dummy_empty_blockchain() -> BlockChain {
 pub fn get_temp_state() -> State<::state_db::StateDB> {
 	let journal_db = get_temp_state_db();
 	State::new(journal_db, U256::from(0), Default::default())
+}
+
+pub fn get_temp_state_with_factory(factory: EvmFactory) -> State<::state_db::StateDB> {
+	let journal_db = get_temp_state_db();
+	let mut factories = Factories::default();
+	factories.vm = factory;
+	State::new(journal_db, U256::from(0), factories)
 }
 
 pub fn get_temp_state_db() -> StateDB {

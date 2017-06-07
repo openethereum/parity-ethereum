@@ -200,7 +200,6 @@ pub fn message_hash(vote_step: VoteStep, block_hash: H256) -> H256 {
 mod tests {
 	use util::*;
 	use rlp::*;
-	use ethkey::Secret;
 	use account_provider::AccountProvider;
 	use header::Header;
 	use super::super::Step;
@@ -250,7 +249,7 @@ mod tests {
 	#[test]
 	fn generate_and_verify() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
+		let addr = tap.insert_account("0".sha3().into(), "0").unwrap();
 		tap.unlock_account_permanently(addr, "0".into()).unwrap();
 
 		let mi = message_info_rlp(&VoteStep::new(123, 2, Step::Precommit), Some(H256::default()));

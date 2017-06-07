@@ -17,7 +17,7 @@
 //! Evm interface.
 
 use std::{ops, cmp, fmt};
-use util::{U128, U256, U512, Uint, trie};
+use util::{U128, U256, U512, trie};
 use action_params::ActionParams;
 use evm::Ext;
 use builtin;
@@ -82,30 +82,83 @@ impl From<builtin::Error> for Error {
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use self::Error::*;
-		let message = match *self {
-			OutOfGas => "Out of gas",
-			BadJumpDestination { .. } => "Bad jump destination",
-			BadInstruction { .. } => "Bad instruction",
-			StackUnderflow { .. } => "Stack underflow",
-			OutOfStack { .. } => "Out of stack",
-			BuiltIn { .. } => "Built-in failed",
-			Internal(ref msg) => msg,
-		};
-		message.fmt(f)
+		match *self {
+			OutOfGas => write!(f, "Out of gas"),
+			BadJumpDestination { destination } => write!(f, "Bad jump destination {:x}", destination),
+			BadInstruction { instruction } => write!(f, "Bad instruction {:x}",  instruction),
+			StackUnderflow { instruction, wanted, on_stack } => write!(f, "Stack underflow {} {}/{}", instruction, wanted, on_stack),
+			OutOfStack { instruction, wanted, limit } => write!(f, "Out of stack {} {}/{}", instruction, wanted, limit),
+			BuiltIn(name) => write!(f, "Built-in failed: {}", name),
+			Internal(ref msg) => write!(f, "Internal error: {}", msg),
+		}
 	}
 }
 
 /// A specialized version of Result over EVM errors.
 pub type Result<T> = ::std::result::Result<T, Error>;
 
+
+/// Return data buffer. Holds memory from a previous call and a slice into that memory.
+#[derive(Debug)]
+pub struct ReturnData {
+	mem: Vec<u8>,
+	offset: usize,
+	size: usize,
+}
+
+impl ::std::ops::Deref for ReturnData {
+	type Target = [u8];
+	fn deref(&self) -> &[u8] {
+		&self.mem[self.offset..self.offset + self.size]
+	}
+}
+
+impl ReturnData {
+	/// Create empty `ReturnData`.
+	pub fn empty() -> Self {
+		ReturnData {
+			mem: Vec::new(),
+			offset: 0,
+			size: 0,
+		}
+	}
+	/// Create `ReturnData` from give buffer and slice.
+	pub fn new(mem: Vec<u8>, offset: usize, size: usize) -> Self {
+		ReturnData {
+			mem: mem,
+			offset: offset,
+			size: size,
+		}
+	}
+}
+
 /// Gas Left: either it is a known value, or it needs to be computed by processing
 /// a return instruction.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum GasLeft<'a> {
+#[derive(Debug)]
+pub enum GasLeft {
 	/// Known gas left
 	Known(U256),
-	/// Return instruction must be processed.
-	NeedsReturn(U256, &'a [u8]),
+	/// Return or Revert instruction must be processed.
+	NeedsReturn {
+		/// Amount of gas left.
+		gas_left: U256,
+		/// Return data buffer.
+		data: ReturnData,
+		/// Apply or revert state changes on revert.
+		apply_state: bool
+	},
+}
+
+/// Finalization result. Gas Left: either it is a known value, or it needs to be computed by processing
+/// a return instruction.
+#[derive(Debug)]
+pub struct FinalizationResult {
+	/// Final amount of gas left.
+	pub gas_left: U256,
+	/// Apply execution state changes or revert them.
+	pub apply_state: bool,
+	/// Return data buffer.
+	pub return_data: ReturnData,
 }
 
 /// Types that can be "finalized" using an EVM.
@@ -113,15 +166,19 @@ pub enum GasLeft<'a> {
 /// In practice, this is just used to define an inherent impl on
 /// `Reult<GasLeft<'a>>`.
 pub trait Finalize {
-	/// Consume the externalities, call return if necessary, and produce a final amount of gas left.
-	fn finalize<E: Ext>(self, ext: E) -> Result<U256>;
+	/// Consume the externalities, call return if necessary, and produce call result.
+	fn finalize<E: Ext>(self, ext: E) -> Result<FinalizationResult>;
 }
 
-impl<'a> Finalize for Result<GasLeft<'a>> {
-	fn finalize<E: Ext>(self, ext: E) -> Result<U256> {
+impl Finalize for Result<GasLeft> {
+	fn finalize<E: Ext>(self, ext: E) -> Result<FinalizationResult> {
 		match self {
-			Ok(GasLeft::Known(gas)) => Ok(gas),
-			Ok(GasLeft::NeedsReturn(gas, ret_code)) => ext.ret(&gas, ret_code),
+			Ok(GasLeft::Known(gas_left)) => Ok(FinalizationResult { gas_left: gas_left, apply_state: true, return_data: ReturnData::empty() }),
+			Ok(GasLeft::NeedsReturn {gas_left, data, apply_state}) => ext.ret(&gas_left, &data).map(|gas_left| FinalizationResult {
+				gas_left: gas_left,
+				apply_state: apply_state,
+				return_data: data,
+			}),
 			Err(err) => Err(err),
 		}
 	}
@@ -161,11 +218,11 @@ impl CostType for U256 {
 	}
 
 	fn overflow_add(self, other: Self) -> (Self, bool) {
-		Uint::overflowing_add(self, other)
+		self.overflowing_add(other)
 	}
 
 	fn overflow_mul(self, other: Self) -> (Self, bool) {
-		Uint::overflowing_mul(self, other)
+		self.overflowing_mul(other)
 	}
 
 	fn overflow_mul_shr(self, other: Self, shr: usize) -> (Self, bool) {
@@ -230,7 +287,7 @@ pub trait Evm {
 
 #[cfg(test)]
 mod tests {
-	use util::{U256, Uint};
+	use util::U256;
 	use super::CostType;
 
 	#[test]

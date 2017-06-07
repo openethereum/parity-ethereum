@@ -16,7 +16,7 @@
 
 //! Traces api implementation.
 
-use std::sync::{Weak, Arc};
+use std::sync::Arc;
 
 use rlp::UntrustedRlp;
 use ethcore::client::{MiningBlockChainClient, CallAnalytics, TransactionId, TraceId};
@@ -39,33 +39,33 @@ fn to_call_analytics(flags: Vec<String>) -> CallAnalytics {
 
 /// Traces api implementation.
 pub struct TracesClient<C, M> {
-	client: Weak<C>,
-	miner: Weak<M>,
+	client: Arc<C>,
+	miner: Arc<M>,
 }
 
 impl<C, M> TracesClient<C, M> {
 	/// Creates new Traces client.
 	pub fn new(client: &Arc<C>, miner: &Arc<M>) -> Self {
 		TracesClient {
-			client: Arc::downgrade(client),
-			miner: Arc::downgrade(miner),
+			client: client.clone(),
+			miner: miner.clone(),
 		}
 	}
 }
 
 impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'static, M: MinerService + 'static {
 	fn filter(&self, filter: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>, Error> {
-		Ok(take_weak!(self.client).filter_traces(filter.into())
+		Ok(self.client.filter_traces(filter.into())
 			.map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
 	}
 
 	fn block_traces(&self, block_number: BlockNumber) -> Result<Option<Vec<LocalizedTrace>>, Error> {
-		Ok(take_weak!(self.client).block_traces(block_number.into())
+		Ok(self.client.block_traces(block_number.into())
 			.map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
 	}
 
 	fn transaction_traces(&self, transaction_hash: H256) -> Result<Option<Vec<LocalizedTrace>>, Error> {
-		Ok(take_weak!(self.client).transaction_traces(TransactionId::Hash(transaction_hash.into()))
+		Ok(self.client.transaction_traces(TransactionId::Hash(transaction_hash.into()))
 			.map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
 	}
 
@@ -75,7 +75,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'stat
 			address: address.into_iter().map(|i| i.value()).collect()
 		};
 
-		Ok(take_weak!(self.client).trace(id)
+		Ok(self.client.trace(id)
 			.map(LocalizedTrace::from))
 	}
 
@@ -85,7 +85,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'stat
 		let request = CallRequest::into(request);
 		let signed = fake_sign::sign_call(&self.client, &self.miner, request)?;
 
-		take_weak!(self.client).call(&signed, block.into(), to_call_analytics(flags))
+		self.client.call(&signed, block.into(), to_call_analytics(flags))
 			.map(TraceResults::from)
 			.map_err(errors::from_call_error)
 	}
@@ -96,13 +96,13 @@ impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'stat
 		let tx = UntrustedRlp::new(&raw_transaction.into_vec()).as_val().map_err(|e| errors::invalid_params("Transaction is not valid RLP", e))?;
 		let signed = SignedTransaction::new(tx).map_err(errors::from_transaction_error)?;
 
-		take_weak!(self.client).call(&signed, block.into(), to_call_analytics(flags))
+		self.client.call(&signed, block.into(), to_call_analytics(flags))
 			.map(TraceResults::from)
 			.map_err(errors::from_call_error)
 	}
 
 	fn replay_transaction(&self, transaction_hash: H256, flags: Vec<String>) -> Result<TraceResults, Error> {
-		take_weak!(self.client).replay(TransactionId::Hash(transaction_hash.into()), to_call_analytics(flags))
+		self.client.replay(TransactionId::Hash(transaction_hash.into()), to_call_analytics(flags))
 			.map(TraceResults::from)
 			.map_err(errors::from_call_error)
 	}

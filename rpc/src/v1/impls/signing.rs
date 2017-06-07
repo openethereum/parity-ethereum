@@ -16,7 +16,7 @@
 
 //! Signing RPC implementation.
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use transient_hashmap::TransientHashMap;
 use util::{U256, Mutex};
 
@@ -55,8 +55,8 @@ enum DispatchResult {
 
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct SigningQueueClient<D> {
-	signer: Weak<SignerService>,
-	accounts: Option<Weak<AccountProvider>>,
+	signer: Arc<SignerService>,
+	accounts: Option<Arc<AccountProvider>>,
 	dispatcher: D,
 	pending: Arc<Mutex<TransientHashMap<U256, ConfirmationPromise>>>,
 }
@@ -94,8 +94,8 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 	/// Creates a new signing queue client given shared signing queue.
 	pub fn new(signer: &Arc<SignerService>, dispatcher: D, accounts: &Option<Arc<AccountProvider>>) -> Self {
 		SigningQueueClient {
-			signer: Arc::downgrade(signer),
-			accounts: accounts.as_ref().map(Arc::downgrade),
+			signer: signer.clone(),
+			accounts: accounts.clone(),
 			dispatcher: dispatcher,
 			pending: Arc::new(Mutex::new(TransientHashMap::new(MAX_PENDING_DURATION_SEC))),
 		}
@@ -113,7 +113,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 		};
 
 		let dispatcher = self.dispatcher.clone();
-		let signer = take_weakf!(self.signer);
+		let signer = self.signer.clone();
 		dispatch::from_rpc(payload, default_account, &dispatcher)
 			.and_then(move |payload| {
 				let sender = payload.sender();

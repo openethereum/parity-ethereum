@@ -20,7 +20,7 @@ use std::fmt;
 use std::str::FromStr;
 use serde::{Deserialize, Deserializer};
 use serde::de::{Error, Visitor};
-use util::{U256, Uint as U};
+use util::U256;
 
 /// Lenient uint json deserialization for test json files.
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]

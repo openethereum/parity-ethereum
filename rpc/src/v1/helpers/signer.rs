@@ -27,21 +27,21 @@ const TOKEN_LIFETIME_SECS: u32 = 3600;
 
 /// Manages communication with Signer crate
 pub struct SignerService {
+	is_enabled: bool,
 	queue: Arc<ConfirmationsQueue>,
 	web_proxy_tokens: Mutex<TransientHashMap<String, ()>>,
 	generate_new_token: Box<Fn() -> Result<String, String> + Send + Sync + 'static>,
-	address: Option<(String, u16)>,
 }
 
 impl SignerService {
 	/// Creates new Signer Service given function to generate new tokens.
-	pub fn new<F>(new_token: F, address: Option<(String, u16)>) -> Self
+	pub fn new<F>(new_token: F, is_enabled: bool) -> Self
 		where F: Fn() -> Result<String, String> + Send + Sync + 'static {
 		SignerService {
 			queue: Arc::new(ConfirmationsQueue::default()),
 			web_proxy_tokens: Mutex::new(TransientHashMap::new(TOKEN_LIFETIME_SECS)),
 			generate_new_token: Box::new(new_token),
-			address: address,
+			is_enabled: is_enabled,
 		}
 	}
 
@@ -69,20 +69,15 @@ impl SignerService {
 		self.queue.clone()
 	}
 
-	/// Returns signer address (if signer enabled) or `None` otherwise
-	pub fn address(&self) -> Option<(String, u16)> {
-		self.address.clone()
-	}
-
 	/// Returns true if Signer is enabled.
 	pub fn is_enabled(&self) -> bool {
-		self.address.is_some()
+		self.is_enabled
 	}
 
 	#[cfg(test)]
 	/// Creates new Signer Service for tests.
-	pub fn new_test(address: Option<(String, u16)>) -> Self {
-		SignerService::new(|| Ok("new_token".into()), address)
+	pub fn new_test(is_enabled: bool) -> Self {
+		SignerService::new(|| Ok("new_token".into()), is_enabled)
 	}
 }
 
