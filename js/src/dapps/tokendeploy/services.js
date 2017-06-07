@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { url as etherscanUrl } from '~/3rdparty/etherscan/links';
+import { url as etherscanUrl } from 'parity/3rdparty/etherscan/links';
 import * as abis from '@parity/shared/contracts/abi';
 
 import { api } from './parity';

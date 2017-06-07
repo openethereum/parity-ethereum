@@ -161,12 +161,10 @@
   },
   "dependencies": {
     "@parity/dapps": "file:src/dapps",
-    "@parity/jsonrpc": "file:src/jsonrpc",
     "@parity/shared": "file:src/shared",
     "@parity/shell": "file:src/shell",
     "@parity/ui": "file:src/ui",
     "@parity/views": "file:src/views",
-    "@parity/wordlist": "1.0.1",
     "es6-promise": "4.0.5",
     "flat": "2.0.1",
     "flow": "^0.2.3",

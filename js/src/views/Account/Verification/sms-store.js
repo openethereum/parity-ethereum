@@ -20,7 +20,7 @@ import phone from 'phoneformat.js';
 import SMSVerificationABI from '@parity/shared/contracts/abi/sms-verification.json';
 
 import VerificationStore, { LOADING, QUERY_DATA, QUERY_CODE, POSTED_CONFIRMATION, DONE } from './store';
-import { isServerRunning, hasReceivedCode, postToServer } from '~/3rdparty/sms-verification';
+import { isServerRunning, hasReceivedCode, postToServer } from 'parity/3rdparty/sms-verification';
 
 // name in the `BadgeReg.sol` contract
 const SMS_VERIFICATION = 'smsverification';

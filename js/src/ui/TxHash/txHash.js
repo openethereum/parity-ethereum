@@ -21,7 +21,7 @@ import { connect } from 'react-redux';
 
 import { DEFAULT_GAS } from '@parity/shared/util/constants';
 
-import { txLink } from '~/3rdparty/etherscan/links';
+import { txLink } from 'parity/3rdparty/etherscan/links';
 import Warning from '~/ui/Warning';
 import Progress from '~/ui/Progress';
 import ShortenedHash from '~/ui/ShortenedHash';

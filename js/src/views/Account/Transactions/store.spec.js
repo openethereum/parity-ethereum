@@ -17,7 +17,7 @@
 import BigNumber from 'bignumber.js';
 import sinon from 'sinon';
 
-import { mockget as mockEtherscan } from '~/3rdparty/etherscan/helpers.spec.js';
+import { mockget as mockEtherscan } from 'parity/3rdparty/etherscan/helpers.spec.js';
 import { ADDRESS, createApi } from './transactions.test.js';
 
 import Store from './store';

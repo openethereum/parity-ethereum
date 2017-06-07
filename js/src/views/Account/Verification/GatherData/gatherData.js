@@ -23,8 +23,8 @@ import { Checkbox, Form, Input } from '@parity/ui';
 import { DoneIcon, ErrorIcon, InfoIcon } from '@parity/ui/Icons';
 import { nullableProptype } from '@parity/shared/util/proptypes';
 
-import smsTermsOfService from '~/3rdparty/sms-verification/terms-of-service';
-import emailTermsOfService from '~/3rdparty/email-verification/terms-of-service';
+import smsTermsOfService from 'parity/3rdparty/sms-verification/terms-of-service';
+import emailTermsOfService from 'parity/3rdparty/email-verification/terms-of-service';
 
 import { howSMSVerificationWorks, howEmailVerificationWorks } from '../how-it-works';
 import styles from './gatherData.css';

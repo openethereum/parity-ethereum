@@ -28,6 +28,6 @@ if (isNode) {
   global.fetch = require('node-fetch');
 }
 
-import Etherscan from './3rdparty/etherscan';
+import Etherscan from 'parity/3rdparty/etherscan';
 
 export default Etherscan;

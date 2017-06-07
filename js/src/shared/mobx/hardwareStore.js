@@ -16,7 +16,7 @@
 
 import { action, computed, observable, transaction } from 'mobx';
 
-import Ledger from '~/3rdparty/ledger';
+import Ledger from 'parity/3rdparty/ledger';
 
 const HW_SCAN_INTERVAL = 5000;
 let instance = null;

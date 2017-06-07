@@ -23,7 +23,7 @@ import EmailVerificationABI from '@parity/shared/contracts/abi/email-verificatio
 import VerificationStore, {
   LOADING, QUERY_DATA, QUERY_CODE, POSTED_CONFIRMATION, DONE
 } from './store';
-import { isServerRunning, hasReceivedCode, postToServer } from '~/3rdparty/email-verification';
+import { isServerRunning, hasReceivedCode, postToServer } from 'parity/3rdparty/email-verification';
 
 const ZERO20 = '0x0000000000000000000000000000000000000000';
 
