@@ -75,6 +75,7 @@ module.exports = {
     alias: {
       '~': path.resolve(__dirname, '../src'),
       '@parity': path.resolve(__dirname, '../src'),
+      'parity': path.resolve(__dirname, '../node_modules/parity'),
       'secp256k1': path.resolve(__dirname, '../node_modules/secp256k1/js'),
       'keythereum': path.resolve(__dirname, '../node_modules/keythereum/dist/keythereum')
     },
