@@ -91,11 +91,11 @@ export default class Store {
   }
 
   @computed get hasAddress () {
-    return !!(this.address);
+    return this.address.length !== 0;
   }
 
   @computed get hasPhrase () {
-    return !!(this.phrase);
+    return this.phrase.length !== 0;
   }
 
   @computed get passwordRepeatError () {
@@ -116,7 +116,7 @@ export default class Store {
       this.passwordRepeat = '';
       this.phrase = '';
       this.name = '';
-      this.nameError = null;
+      this.nameError = ERRORS.noName;
       this.qrAddress = null;
       this.rawKey = '';
       this.rawKeyError = null;
@@ -254,6 +254,10 @@ export default class Store {
   }
 
   @action nextStage = () => {
+    if (this.stage === 0) {
+      this.clearErrors();
+    }
+
     this.stage++;
   }
 
@@ -262,6 +266,10 @@ export default class Store {
   }
 
   createAccount = (vaultStore) => {
+    if (!this.canCreate) {
+      return false;
+    }
+
     this.setBusy(true);
 
     return this

@@ -329,8 +329,6 @@ class CreateAccount extends Component {
   }
 
   onCreate = () => {
-    this.createStore.setBusy(true);
-
     return this.createStore
       .createAccount(this.vaultStore)
       .then(() => {
