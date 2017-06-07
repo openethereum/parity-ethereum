@@ -310,17 +310,13 @@ class CreateAccount extends Component {
   }
 
   onCreate = () => {
-    this.store.setBusy(true);
-
     return this.store
       .createAccount(this.vaultStore)
       .then(() => {
-        this.store.setBusy(false);
         this.store.nextStage();
         this.props.onUpdate && this.props.onUpdate();
       })
       .catch((error) => {
-        this.store.setBusy(false);
         this.props.newError(error);
       });
   }
