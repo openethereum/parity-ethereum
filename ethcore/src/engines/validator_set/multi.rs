@@ -23,7 +23,7 @@ use util::{Bytes, H256, Address, RwLock};
 use ids::BlockId;
 use header::{BlockNumber, Header};
 use client::{Client, BlockChainClient};
-use super::ValidatorSet;
+use super::{SystemCall, ValidatorSet};
 
 type BlockNumberLookup = Box<Fn(BlockId) -> Result<BlockNumber, String> + Send + Sync + 'static>;
 
@@ -70,6 +70,13 @@ impl ValidatorSet for Multi {
 	fn default_caller(&self, block_id: BlockId) -> Box<Call> {
 		self.correct_set(block_id).map(|set| set.default_caller(block_id))
 			.unwrap_or(Box::new(|_, _| Err("No validator set for given ID.".into())))
+	}
+
+	fn on_epoch_begin(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
+		let (set_block, set) = self.correct_set_by_number(header.number());
+		let first = set_block == header.number();
+
+		set.on_epoch_begin(first, header, call)
 	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {

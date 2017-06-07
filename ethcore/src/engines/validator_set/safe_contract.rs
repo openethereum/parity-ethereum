@@ -32,13 +32,13 @@ use ids::BlockId;
 use log_entry::LogEntry;
 use receipt::Receipt;
 
-use super::ValidatorSet;
+use super::{SystemCall, ValidatorSet};
 use super::simple_list::SimpleList;
 
 const MEMOIZE_CAPACITY: usize = 500;
 
 // TODO: ethabi should be able to generate this.
-const EVENT_NAME: &'static [u8] = &*b"ValidatorsChanged(bytes32,uint256,address[])";
+const EVENT_NAME: &'static [u8] = &*b"ValidatorsChanged(bytes32,address[])";
 
 lazy_static! {
 	static ref EVENT_NAME_HASH: H256 = EVENT_NAME.sha3();
@@ -132,18 +132,6 @@ impl ValidatorSafeContract {
 		}
 	}
 
-	/// Queries for the current validator set transition nonce.
-	fn get_nonce(&self, caller: &Call) -> Option<::util::U256> {
-		let caller = move |a, d| caller(a, d).map(|x| x.0);
-		match self.provider.transition_nonce(caller).wait() {
-			Ok(nonce) => Some(nonce),
-			Err(s) => {
-				debug!(target: "engine", "Unable to fetch transition nonce: {}", s);
-				None
-			}
-		}
-	}
-
 	// Whether the header matches the expected bloom.
 	//
 	// The expected log should have 3 topics:
@@ -175,7 +163,6 @@ impl ValidatorSafeContract {
 				log.topics.len() == 3 &&
 				log.topics[0] == *EVENT_NAME_HASH &&
 				log.topics[1] == *header.parent_hash()
-				// don't have anything to compare nonce to yet.
 		};
 
 		let event = Provider::contract(&self.provider)
@@ -203,26 +190,20 @@ impl ValidatorSafeContract {
 			Some(matched_event) => {
 				// decode log manually until the native contract generator is
 				// good enough to do it for us.
-				let &(_, _, ref nonce_token) = &matched_event.params[1];
-				let &(_, _, ref validators_token) = &matched_event.params[2];
+				let &(_, _, ref validators_token) = &matched_event.params[1];
 
-				let nonce: Option<U256> = nonce_token.clone().to_uint()
-					.map(H256).map(Into::into);
 				let validators = validators_token.clone().to_array()
 					.and_then(|a| a.into_iter()
 						.map(|x| x.to_address().map(H160))
 						.collect::<Option<Vec<_>>>()
-					);
+					)
+					.map(SimpleList::new);
 
-				match (nonce, validators) {
-					(Some(_), Some(validators)) => {
-						Some(SimpleList::new(validators))
-					}
-					_ => {
-						debug!(target: "engine", "Successfully decoded log turned out to be bad.");
-						None
-					}
+				if validators.is_none() {
+					debug!(target: "engine", "Successfully decoded log turned out to be bad.");
 				}
+
+				validators
 			}
 		}
 	}
@@ -236,6 +217,15 @@ impl ValidatorSet for ValidatorSafeContract {
 			.ok_or("No client!".into())
 			.and_then(|c| c.call_contract(id, addr, data))
 			.map(|out| (out, Vec::new()))) // generate no proofs in general
+	}
+
+	fn on_epoch_begin(&self, first: bool, _header: &Header, caller: &mut SystemCall) -> Result<(), ::error::Error> {
+		if first { return Ok(()) } // only signalled changes need to be noted.
+
+		self.provider.finalize_signal(caller)
+			.wait()
+			.map_err(::engines::EngineError::FailedSystemCall)
+			.map_err(Into::into)
 	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {

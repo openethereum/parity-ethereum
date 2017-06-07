@@ -39,6 +39,9 @@ use self::multi::Multi;
 
 use super::{Call, Engine};
 
+/// A system-calling closure. Enacts calls on a block's state from the system address.
+pub type SystemCall<'a> = FnMut(Address, Bytes) -> Result<Bytes, String> + 'a;
+
 /// Creates a validator set from spec.
 pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet> {
 	match spec {
@@ -74,6 +77,17 @@ pub trait ValidatorSet: Send + Sync {
 	fn count(&self, parent: &H256) -> usize {
 		let default = self.default_caller(BlockId::Hash(*parent));
 		self.count_with_caller(parent, &*default)
+	}
+
+	/// Signalling that a new epoch has begun.
+	///
+	/// All calls here will be from the `SYSTEM_ADDRESS`: 2^160 - 2
+	/// and will have an effect on the block's state.
+	/// The caller provided here may not generate proofs.
+	///
+	/// `first` is true if this is the first block in the set.
+	fn on_epoch_begin(&self, _first: bool, _header: &Header, _call: &mut SystemCall) -> Result<(), ::error::Error> {
+		Ok(())
 	}
 
 	/// Extract genesis epoch data from the genesis state and header.

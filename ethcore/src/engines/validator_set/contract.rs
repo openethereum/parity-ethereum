@@ -27,7 +27,7 @@ use client::{Client, BlockChainClient};
 use engines::{Call, Engine};
 use header::{Header, BlockNumber};
 
-use super::{ValidatorSet, SimpleList};
+use super::{ValidatorSet, SimpleList, SystemCall};
 use super::safe_contract::ValidatorSafeContract;
 
 /// A validator contract with reporting.
@@ -64,6 +64,10 @@ impl ValidatorContract {
 impl ValidatorSet for ValidatorContract {
 	fn default_caller(&self, id: ::ids::BlockId) -> Box<Call> {
 		self.validators.default_caller(id)
+	}
+
+	fn on_epoch_begin(&self, first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
+		self.validators.on_epoch_begin(first, header, call)
 	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {

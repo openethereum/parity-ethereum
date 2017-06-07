@@ -75,6 +75,8 @@ pub enum EngineError {
 	BadSealFieldSize(OutOfBounds<usize>),
 	/// Validation proof insufficient.
 	InsufficientProof(String),
+	/// Failed system call.
+	FailedSystemCall(String),
 }
 
 impl fmt::Display for EngineError {
@@ -87,6 +89,7 @@ impl fmt::Display for EngineError {
 			UnexpectedMessage => "This Engine should not be fed messages.".into(),
 			BadSealFieldSize(ref oob) => format!("Seal field has an unexpected length: {}", oob),
 			InsufficientProof(ref msg) => format!("Insufficient validation proof: {}", msg),
+			FailedSystemCall(ref msg) => format!("Failed to make system call: {}", msg),
 		};
 
 		f.write_fmt(format_args!("Engine error ({})", msg))
@@ -202,7 +205,13 @@ pub trait Engine : Sync + Send {
 	fn account_start_nonce(&self) -> U256 { self.params().account_start_nonce }
 
 	/// Block transformation functions, before the transactions.
-	fn on_new_block(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>) -> Result<(), Error> {
+	/// `epoch_begin` set to true if this block kicks off an epoch.
+	fn on_new_block(
+		&self,
+		block: &mut ExecutedBlock,
+		last_hashes: Arc<LastHashes>,
+		_epoch_begin: bool,
+	) -> Result<(), Error> {
 		let parent_hash = block.fields().header.parent_hash().clone();
 		common::push_last_hash(block, last_hashes, self, &parent_hash)
 	}
@@ -382,6 +391,52 @@ pub mod common {
 	use util::*;
 	use super::Engine;
 
+	/// Execute a call as the system address.
+	pub fn execute_as_system<E: Engine + ?Sized>(
+		block: &mut ExecutedBlock,
+		last_hashes: Arc<LastHashes>,
+		engine: &E,
+		contract_address: Address,
+		gas: U256,
+		data: Option<Bytes>,
+	) -> Result<Bytes, Error> {
+		let env_info = {
+			let header = block.fields().header;
+			EnvInfo {
+				number: header.number(),
+				author: header.author().clone(),
+				timestamp: header.timestamp(),
+				difficulty: header.difficulty().clone(),
+				last_hashes: last_hashes,
+				gas_used: U256::zero(),
+				gas_limit: gas,
+			}
+		};
+
+		let mut state = block.fields_mut().state;
+		let params = ActionParams {
+			code_address: contract_address.clone(),
+			address: contract_address.clone(),
+			sender: SYSTEM_ADDRESS.clone(),
+			origin: SYSTEM_ADDRESS.clone(),
+			gas: gas,
+			gas_price: 0.into(),
+			value: ActionValue::Transfer(0.into()),
+			code: state.code(&contract_address)?,
+			code_hash: state.code_hash(&contract_address)?,
+			data: data,
+			call_type: CallType::Call,
+		};
+		let mut ex = Executive::new(&mut state, &env_info, engine);
+		let mut substate = Substate::new();
+		let mut output = Vec::new();
+		if let Err(e) = ex.call(params, &mut substate, BytesRef::Flexible(&mut output), &mut NoopTracer, &mut NoopVMTracer) {
+			warn!("Encountered error on updating last hashes: {}", e);
+		}
+
+		Ok(output)
+	}
+
 	/// Push last known block hash to the state.
 	pub fn push_last_hash<E: Engine + ?Sized>(block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>, engine: &E, hash: &H256) -> Result<(), Error> {
 		if block.fields().header.number() == engine.params().eip210_transition {
@@ -389,39 +444,14 @@ pub mod common {
 			state.init_code(&engine.params().eip210_contract_address, engine.params().eip210_contract_code.clone())?;
 		}
 		if block.fields().header.number() >= engine.params().eip210_transition {
-			let env_info = {
-				let header = block.fields().header;
-				EnvInfo {
-					number: header.number(),
-					author: header.author().clone(),
-					timestamp: header.timestamp(),
-					difficulty: header.difficulty().clone(),
-					last_hashes: last_hashes,
-					gas_used: U256::zero(),
-					gas_limit: engine.params().eip210_contract_gas,
-				}
-			};
-			let mut state = block.fields_mut().state;
-			let contract_address = engine.params().eip210_contract_address;
-			let params = ActionParams {
-				code_address: contract_address.clone(),
-				address: contract_address.clone(),
-				sender: SYSTEM_ADDRESS.clone(),
-				origin: SYSTEM_ADDRESS.clone(),
-				gas: engine.params().eip210_contract_gas,
-				gas_price: 0.into(),
-				value: ActionValue::Transfer(0.into()),
-				code: state.code(&contract_address)?,
-				code_hash: state.code_hash(&contract_address)?,
-				data: Some(hash.to_vec()),
-				call_type: CallType::Call,
-			};
-			let mut ex = Executive::new(&mut state, &env_info, engine);
-			let mut substate = Substate::new();
-			let mut output = [];
-			if let Err(e) = ex.call(params, &mut substate, BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer) {
-				warn!("Encountered error on updating last hashes: {}", e);
-			}
+			let _ = execute_as_system(
+				block,
+				last_hashes,
+				engine,
+				engine.params().eip210_contract_address,
+				engine.params().eip210_contract_gas,
+				Some(hash.to_vec()),
+			)?;
 		}
 		Ok(())
 	}

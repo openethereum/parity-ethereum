@@ -337,6 +337,37 @@ impl Engine for AuthorityRound {
 		Seal::None
 	}
 
+	fn on_new_block(
+		&self,
+		block: &mut ExecutedBlock,
+		last_hashes: Arc<::env_info::LastHashes>,
+		epoch_begin: bool,
+	) -> Result<(), Error> {
+		let parent_hash = block.fields().header.parent_hash().clone();
+		::engines::common::push_last_hash(block, last_hashes.clone(), self, &parent_hash)?;
+
+		if !epoch_begin { return Ok(()) }
+
+		// genesis is never a new block, but might as well check.
+		let header = block.fields().header.clone();
+		let first = header.number() == 0;
+
+		let mut call = |to, data| {
+			let result = ::engines::common::execute_as_system(
+				block,
+				last_hashes.clone(),
+				self,
+				to,
+				U256::max_value(), // unbounded gas? maybe make configurable.
+				Some(data),
+			);
+
+			result.map_err(|e| format!("{}", e))
+		};
+
+		self.validators.on_epoch_begin(first, &header, &mut call)
+	}
+
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		let fields = block.fields_mut();
@@ -557,9 +588,9 @@ mod tests {
 		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b1 = b1.close_and_lock();
-		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b2 = b2.close_and_lock();
 
 		engine.set_signer(tap.clone(), addr1, "1".into());

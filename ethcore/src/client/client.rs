@@ -429,7 +429,16 @@ impl Client {
 			let last_hashes = self.build_last_hashes(header.parent_hash().clone());
 			let db = self.state_db.lock().boxed_clone_canon(header.parent_hash());
 
-			let enact_result = enact_verified(block, engine, self.tracedb.read().tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
+			let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
+			let enact_result = enact_verified(block,
+				engine,
+				self.tracedb.read().tracing_enabled(),
+				db,
+				&parent,
+				last_hashes,
+				self.factories.clone(),
+				is_epoch_begin,
+			);
 			let mut locked_block = enact_result.map_err(|e| {
 				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			})?;
@@ -1659,17 +1668,21 @@ impl MiningBlockChainClient for Client {
 		let engine = &*self.engine;
 		let chain = self.chain.read();
 		let h = chain.best_block_hash();
+		let best_header = &chain.block_header(&h)
+			.expect("h is best block hash: so its header must exist: qed");
 
+		let is_epoch_begin = chain.epoch_transition(best_header.number(), h).is_some();
 		let mut open_block = OpenBlock::new(
 			engine,
 			self.factories.clone(),
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().boxed_clone_canon(&h),
-			&chain.block_header(&h).expect("h is best block hash: so its header must exist: qed"),
+			best_header,
 			self.build_last_hashes(h.clone()),
 			author,
 			gas_range_target,
 			extra_data,
+			is_epoch_begin,
 		).expect("OpenBlock::new only fails if parent state root invalid; state root of best block's header is never invalid; qed");
 
 		// Add uncles
