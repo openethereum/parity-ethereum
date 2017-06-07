@@ -70,7 +70,7 @@ export default class Store {
         return !(this.nameError || this.walletFileError);
 
       case 'fromNew':
-        return !(this.nameError || this.passwordRepeatError) && this.hasAddress;
+        return !(this.nameError || this.passwordRepeatError) && this.hasAddress && this.hasPhrase;
 
       case 'fromPhrase':
         return !(this.nameError || this.passwordRepeatError || this.passPhraseError);
@@ -92,6 +92,10 @@ export default class Store {
 
   @computed get hasAddress () {
     return !!(this.address);
+  }
+
+  @computed get hasPhrase () {
+    return !!(this.phrase);
   }
 
   @computed get passwordRepeatError () {
