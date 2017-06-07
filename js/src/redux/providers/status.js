@@ -291,9 +291,10 @@ export default class Status {
         netPeers, clientVersion, netVersion, defaultExtraData, netChain, netPort, rpcSettings, enode, upgradeStatus
       ]) => {
         const isTest = [
-          '2', // morden
-          '3', // ropsten
-          '42' // kovan
+          '2',  // morden
+          '3',  // ropsten,
+          '17', // devchain
+          '42'  // kovan
         ].includes(netVersion);
 
         const longStatus = {

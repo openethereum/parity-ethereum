@@ -69,7 +69,7 @@ export default class Store {
         return !(this.nameError || this.walletFileError);
 
       case 'fromNew':
-        return !(this.nameError || this.passwordRepeatError);
+        return !(this.nameError || this.passwordRepeatError) && this.hasAddress && this.hasPhrase;
 
       case 'fromPhrase':
         return !(this.nameError || this.passwordRepeatError || this.passPhraseError);
@@ -90,6 +90,10 @@ export default class Store {
     return !!(this.address);
   }
 
+  @computed get hasPhrase () {
+    return this.phrase.length !== 0;
+  }
+
   @computed get passwordRepeatError () {
     return this.password === this.passwordRepeat
       ? null
@@ -102,7 +106,7 @@ export default class Store {
       this.passwordRepeat = '';
       this.phrase = '';
       this.name = '';
-      this.nameError = null;
+      this.nameError = ERRORS.noName;
       this.rawKey = '';
       this.rawKeyError = null;
       this.vaultName = '';
@@ -228,6 +232,10 @@ export default class Store {
   }
 
   @action nextStage = () => {
+    if (this.stage === 0) {
+      this.clearErrors();
+    }
+
     this.stage++;
   }
 
@@ -236,6 +244,10 @@ export default class Store {
   }
 
   createAccount = (vaultStore) => {
+    if (!this.canCreate) {
+      return false;
+    }
+
     this.setBusy(true);
 
     return this

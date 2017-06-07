@@ -89,7 +89,7 @@ describe('modals/CreateAccount/Store', () => {
         store.clearErrors();
 
         expect(store.name).to.equal('');
-        expect(store.nameError).to.be.null;
+        expect(store.nameError).not.to.be.null;
         expect(store.password).to.equal('');
         expect(store.passwordRepeatError).to.be.null;
         expect(store.rawKey).to.equal('');
@@ -293,6 +293,7 @@ describe('modals/CreateAccount/Store', () => {
       describe('createType === fromJSON/fromPresale', () => {
         beforeEach(() => {
           store.setCreateType('fromJSON');
+          store.setName('blah');
         });
 
         it('returns true on no errors', () => {
@@ -313,6 +314,9 @@ describe('modals/CreateAccount/Store', () => {
       describe('createType === fromNew', () => {
         beforeEach(() => {
           store.setCreateType('fromNew');
+          store.setAddress('0x0000000000000000000000000000000000000000');
+          store.setName('blah');
+          store.setPhrase('testing');
         });
 
         it('returns true on no errors', () => {
@@ -321,6 +325,12 @@ describe('modals/CreateAccount/Store', () => {
 
         it('returns false on nameError', () => {
           store.setName('');
+          expect(store.canCreate).to.be.false;
+        });
+
+        it('returns false on no phrase', () => {
+          store.setPhrase('');
+
           expect(store.canCreate).to.be.false;
         });
 
@@ -333,6 +343,7 @@ describe('modals/CreateAccount/Store', () => {
       describe('createType === fromPhrase', () => {
         beforeEach(() => {
           store.setCreateType('fromPhrase');
+          store.setName('name');
         });
 
         it('returns true on no errors', () => {
@@ -353,6 +364,8 @@ describe('modals/CreateAccount/Store', () => {
       describe('createType === fromRaw', () => {
         beforeEach(() => {
           store.setCreateType('fromRaw');
+          store.setName('name');
+          store.setRawKey('0x1000000000000000000000000000000000000000000000000000000000000000');
         });
 
         it('returns true on no errors', () => {
@@ -370,7 +383,7 @@ describe('modals/CreateAccount/Store', () => {
         });
 
         it('returns false on rawKeyError', () => {
-          store.setRawKey('testing');
+          store.setRawKey('0x1');
           expect(store.canCreate).to.be.false;
         });
       });
@@ -415,6 +428,9 @@ describe('modals/CreateAccount/Store', () => {
         createAccountFromPhraseSpy = sinon.spy(store, 'createAccountFromPhrase');
         createAccountFromRawSpy = sinon.spy(store, 'createAccountFromRaw');
         busySpy = sinon.spy(store, 'setBusy');
+
+        store.setName('name');
+        store.setPhrase('testing');
       });
 
       afterEach(() => {
@@ -432,6 +448,8 @@ describe('modals/CreateAccount/Store', () => {
 
       it('calls createAccountFromGeth on createType === fromGeth', () => {
         store.setCreateType('fromGeth');
+        store.setGethAccountsAvailable(GETH_ADDRESSES);
+        store.selectGethAccount(GETH_ADDRESSES[0]);
 
         return store.createAccount().then(() => {
           expect(createAccountFromGethSpy).to.have.been.called;
@@ -440,6 +458,8 @@ describe('modals/CreateAccount/Store', () => {
 
       it('calls createAccountFromWallet on createType === fromJSON', () => {
         store.setCreateType('fromJSON');
+        store.setName('name');
+        store.setWalletJson('{}');
 
         return store.createAccount().then(() => {
           expect(createAccountFromWalletSpy).to.have.been.called;
@@ -448,6 +468,9 @@ describe('modals/CreateAccount/Store', () => {
 
       it('calls createAccountFromPhrase on createType === fromNew', () => {
         store.setCreateType('fromNew');
+        store.setName('name');
+        store.setPhrase('phrase');
+        store.setAddress('0x1234567890123456789012345678901234567890');
 
         return store.createAccount().then(() => {
           expect(createAccountFromPhraseSpy).to.have.been.called;
@@ -456,6 +479,9 @@ describe('modals/CreateAccount/Store', () => {
 
       it('calls createAccountFromPhrase on createType === fromPhrase', () => {
         store.setCreateType('fromPhrase');
+        store.setName('name');
+        store.setPhrase('phrase');
+        store.setAddress('0x1234567890123456789012345678901234567890');
 
         return store.createAccount().then(() => {
           expect(createAccountFromPhraseSpy).to.have.been.called;
@@ -464,6 +490,8 @@ describe('modals/CreateAccount/Store', () => {
 
       it('calls createAccountFromWallet on createType === fromPresale', () => {
         store.setCreateType('fromPresale');
+        store.setName('name');
+        store.setWalletJson('{}');
 
         return store.createAccount().then(() => {
           expect(createAccountFromWalletSpy).to.have.been.called;
@@ -472,6 +500,8 @@ describe('modals/CreateAccount/Store', () => {
 
       it('calls createAccountFromRaw on createType === fromRaw', () => {
         store.setCreateType('fromRaw');
+        store.setName('name');
+        store.setRawKey('0x1000000000000000000000000000000000000000000000000000000000000000');
 
         return store.createAccount().then(() => {
           expect(createAccountFromRawSpy).to.have.been.called;
@@ -481,6 +511,9 @@ describe('modals/CreateAccount/Store', () => {
       it('moves account to vault when vaultName set', () => {
         store.setCreateType('fromNew');
         store.setVaultName('testing');
+        store.setName('name');
+        store.setAddress('0x1234567890123456789012345678901234567890');
+        store.setPhrase('phrase');
 
         return store.createAccount(vaultStore).then(() => {
           expect(vaultStore.moveAccount).to.have.been.calledWith('testing', ADDRESS);
@@ -489,6 +522,9 @@ describe('modals/CreateAccount/Store', () => {
 
       it('sets and rests the busy flag', () => {
         store.setCreateType('fromNew');
+        store.setName('name');
+        store.setAddress('0x1234567890123456789012345678901234567890');
+        store.setPhrase('phrase');
 
         return store.createAccount().then(() => {
           expect(busySpy).to.have.been.calledWith(true);
