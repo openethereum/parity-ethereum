@@ -69,17 +69,29 @@ linux-snap:
     - tags
     - triggers
   script:
-    - rm -rf *snap
+    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - cd scripts
+    - rm -rf *snap
+    - sed -i 's/master/'"$VER"'/g' snapcraft.yaml
+    - echo "Version:"$VER
     - snapcraft
+    - ls
+    - cp parity_master_amd64.snap parity_"$VER"_amd64.snap
+    - md5sum "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
+    - aws configure set aws_access_key_id $s3_key
+    - aws configure set aws_secret_access_key $s3_secret
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable|nightly)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
+    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/"parity_"$VER"_amd64.snap" --body "parity_"$VER"_amd64.snap"
+    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/"parity_"$VER"_amd64.snap.md5" --body "parity_"$VER"_amd64.snap.md5"
+    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1337/push-build/$CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu
+    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu
   tags:
     - rust
     - rust-stable
   artifacts:
     paths:
-    - scripts/parity_master_amd64.snap
-    name: "stable-x86_64-unknown-linux-gnu_parity-snap"
-  allow_failure: true
+    - scripts/parity_*_amd64.snap
+    name: "stable-x86_64-unknown-snap-gnu_parity"
 linux-stable-debian:
   stage: build
   image: parity/rust-debian:gitlab-ci
