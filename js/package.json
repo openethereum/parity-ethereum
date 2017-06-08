@@ -176,7 +176,7 @@
     "loglevel": "1.4.1",
     "moment": "2.17.0",
     "napa": "2.3.0",
-    "parity": "^0.2.3",
+    "parity": "^0.2.5",
     "promise-worker": "1.1.1",
     "react": "15.4.2",
     "react-dom": "15.4.2",
