@@ -39,7 +39,7 @@ pub struct EthashParams {
 	pub metropolis_difficulty_increment_divisor: Option<Uint>,
 	/// See main EthashParams docs.
 	#[serde(rename="durationLimit")]
-	pub duration_limit:Option<Uint>,
+	pub duration_limit: Option<Uint>,
 	/// See main EthashParams docs.
 	#[serde(rename="blockReward")]
 	pub block_reward: Uint,
