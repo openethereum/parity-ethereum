@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default class PromiseWrapper {
+export default class PromiseProvider {
   constructor (provider) {
     this.provider = provider;
   }
