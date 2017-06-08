@@ -710,6 +710,7 @@ mod tests {
 			flag_password: vec!["~/.safe/password.file".into()],
 			flag_keys_iterations: 10240u32,
 			flag_no_hardware_wallets: false,
+			flag_fast_unlock: false,
 
 			flag_force_ui: false,
 			flag_no_ui: false,
