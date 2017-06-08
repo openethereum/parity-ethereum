@@ -17,8 +17,8 @@
 import EventEmitter from 'eventemitter3';
 
 import Contract from './contract';
-import { PromiseWrapper, Http as HttpProvider, Ws as WsProvider } from './provider';
-import { Http as HttpTransport, Ws as WsTransport } from './transport';
+import { PromiseWrapper, Http as HttpProvider, WsSecure as WsSecureProvider } from './provider';
+import { Http as HttpTransport, WsSecure as WsSecureTransport } from './transport';
 
 import { Db, Eth, Parity, Net, Personal, Shh, Signer, Trace, Web3 } from './rpc';
 import Subscriptions from './subscriptions';
@@ -171,12 +171,12 @@ export default class Api extends EventEmitter {
 
   static Provider = {
     Http: HttpProvider,
-    Ws: WsProvider
+    WsSecure: WsSecureProvider
   }
 
   // NOTE: kept for backwards compatibility
   static Transport = {
     Http: HttpTransport,
-    Ws: WsTransport
+    WsSecure: WsSecureTransport
   }
 }

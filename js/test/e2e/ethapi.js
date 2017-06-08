@@ -29,5 +29,5 @@ export function createHttpApi () {
 }
 
 export function createWsApi () {
-  return createApi(new Api.Provider.Ws('ws://localhost:8546'));
+  return createApi(new Api.Provider.WsSecure('ws://localhost:8546'));
 }
