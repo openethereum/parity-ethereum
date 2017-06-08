@@ -27,6 +27,10 @@ import Summary from '../Summary';
 import styles from './list.css';
 
 class List extends Component {
+  static contextTypes = {
+    api: PropTypes.object
+  }
+
   static propTypes = {
     balances: PropTypes.object.isRequired,
     certifications: PropTypes.object.isRequired,
@@ -44,12 +48,19 @@ class List extends Component {
   };
 
   componentWillMount () {
+    const { parity } = this.context.api;
     const { accounts, fetchCertifiers, fetchCertifications } = this.props;
 
     fetchCertifiers();
     for (let address in accounts) {
       fetchCertifications(address);
     }
+
+    parity
+      .chain()
+      .then((chain) => {
+        this.chain = chain;
+      });
   }
 
   render () {
@@ -90,6 +101,10 @@ class List extends Component {
   renderSummary = (item) => {
     const { account, isDisabled, owners } = item;
     const { handleAddSearchToken, link } = this.props;
+
+    if (account.address === '0x00a329c0648769A73afAc7F9381E08FB43dBEA72' && this.chain === 'foundation') {
+      return null;
+    }
 
     return (
       <Summary
