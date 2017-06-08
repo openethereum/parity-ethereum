@@ -1,3 +1,23 @@
+## Parity [v1.6.8](https://github.com/paritytech/parity/releases/tag/v1.6.8) (2017-06-07)
+
+This release addresses:
+
+-
+
+Full changelog:
+
+- Disable compression for RLP strings [#5786](https://github.com/paritytech/parity/pull/5786)
+- Update Cid/multihash/ring/tinykeccak [#5785](https://github.com/paritytech/parity/pull/5785)
+- Block invalid account name creation [#5784](https://github.com/paritytech/parity/pull/5784)
+- Blacklist empty phrase account. [#5730](https://github.com/paritytech/parity/pull/5730)
+- Fixed default UI port for mac installer [#5782](https://github.com/paritytech/parity/pull/5782)
+- Bump mio [#5763](https://github.com/paritytech/parity/pull/5763)
+- Fix local transactions without condition. [#5716](https://github.com/paritytech/parity/pull/5716)
+- Recover from empty phrase in dev mode [#5698](https://github.com/paritytech/parity/pull/5698)
+- Fix from/into electrum in ethkey [#5686](https://github.com/paritytech/parity/pull/5686)
+- Export acc js [#4973](https://github.com/paritytech/parity/pull/4973)
+- Update expanse json with fork at block 600000 [#5351](https://github.com/paritytech/parity/pull/5351)
+
 ## Parity [v1.6.7](https://github.com/paritytech/parity/releases/tag/v1.6.7) (2017-05-18)
 
 This release addresses:
