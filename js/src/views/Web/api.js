@@ -14,25 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { TEST_HTTP_URL, mockHttp } from '../../../../test/mockRpc';
+import Api from '@parity/api';
 
-import { Http, PromiseProvider } from '../../provider';
-import Db from './db';
+const web3Provider = (window.parity && window.parity.web3Provider) || (window.parent && window.parent.web3Provider);
+const api = new Api(web3Provider);
 
-const instance = new Db(new PromiseProvider(new Http(TEST_HTTP_URL, -1)));
-
-describe('api/rpc/Db', () => {
-  let scope;
-
-  describe('putHex', () => {
-    beforeEach(() => {
-      scope = mockHttp([{ method: 'db_putHex', reply: { result: [] } }]);
-    });
-
-    it('formats the inputs correctly', () => {
-      return instance.putHex('db', 'key', '1234').then(() => {
-        expect(scope.body.db_putHex.params).to.deep.equal(['db', 'key', '0x1234']);
-      });
-    });
-  });
-});
+export {
+  api
+};

@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const api = window.parent.secureApi;
+import Api from '@parity/api';
 
-export {
-  api
-};
+const web3Provider = (window.parity && window.parity.web3Provider) || (window.parent && window.parent.web3Provider);
+
+export default new Api(web3Provider);

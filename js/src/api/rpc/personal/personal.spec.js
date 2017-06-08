@@ -16,10 +16,10 @@
 
 import { TEST_HTTP_URL, mockHttp } from '../../../../test/mockRpc';
 
-import { Http, PromiseWrapper } from '../../provider';
+import { Http, PromiseProvider } from '../../provider';
 import Personal from './personal';
 
-const instance = new Personal(new PromiseWrapper(new Http(TEST_HTTP_URL, -1)));
+const instance = new Personal(new PromiseProvider(new Http(TEST_HTTP_URL, -1)));
 
 describe('rpc/Personal', () => {
   const account = '0x63cf90d3f0410092fc0fca41846f596223979195';

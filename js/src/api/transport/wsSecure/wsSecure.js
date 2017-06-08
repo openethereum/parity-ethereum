@@ -21,7 +21,7 @@ import JsonRpcBase from '../jsonRpcBase';
 import TransportError from '../error';
 
 /* global WebSocket */
-export default class Ws extends JsonRpcBase {
+export default class WsSecure extends JsonRpcBase {
   constructor (url, token, autoconnect = true) {
     super();
 

@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export PromiseWrapper from './promiseWrapper';
+export PromiseProvider from './promise';
 
 export Http from './http';
-export Ws from './ws';
+export PostMessage from './postMessage';
+export WsSecure from './wsSecure';

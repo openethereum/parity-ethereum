@@ -14,16 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Ws from './ws';
+import Api from '@parity/api';
 
-const ws = new Ws('ws://localhost:8546/');
+const web3Provider = (window.parity && window.parity.web3Provider) || (window.parent && window.parent.web3Provider);
 
-describe('transport/Ws', () => {
-  it('connects and makes a call to web3_clientVersion', () => {
-    return ws.execute('web3_clientVersion').then((version) => {
-      const [client] = version.split('/');
-
-      expect(client === 'Geth' || client === 'Parity').to.be.ok;
-    });
-  });
-});
+export default new Api(web3Provider);
