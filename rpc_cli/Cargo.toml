@@ -1,5 +1,5 @@
 [package]
-authors = ["Ethcore <admin@parity.io>"]
+authors = ["Parity <admin@parity.io>"]
 description = "Parity Cli Tool"
 homepage = "http://parity.io"
 license = "GPL-3.0"
