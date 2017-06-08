@@ -82,7 +82,7 @@ export default {
     },
     apps: {
       description: `与整个底层网络交流的分布式应用。添加应用，管理你的应用库和与网络上的其他应用进行交互。`,
-      // Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and
+      // Decentralized applications that interact with the underlying network. Add applications, manage you application portfolio and
       // interact with application from around the network.
       label: `应用` // Applications
     },
@@ -108,7 +108,7 @@ export default {
     signer: {
       description: `这个应用安全交易管理区域，你可以通过任何从本应用和其他分布式应用发起的即将发送的交易`,
       // The secure transaction management area of the application where you can approve any outgoing transactions made
-      // from the application as well as those placed into the queue by distributed applications.
+      // from the application as well as those placed into the queue by decentralized applications.
       label: `Signer` // Signer
     },
     status: {

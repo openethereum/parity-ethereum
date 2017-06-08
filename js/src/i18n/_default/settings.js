@@ -69,7 +69,7 @@ export default {
       label: `Addressbook`
     },
     apps: {
-      description: `Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.`,
+      description: `Decentralized applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.`,
       label: `Applications`
     },
     contracts: {
@@ -85,7 +85,7 @@ export default {
       label: `Settings`
     },
     signer: {
-      description: `The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.`,
+      description: `The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by decentralized applications.`,
       label: `Signer`
     },
     status: {
