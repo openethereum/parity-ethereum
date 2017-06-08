@@ -16,10 +16,10 @@
 
 import { TEST_HTTP_URL, mockHttp } from '../../../../test/mockRpc';
 
-import { Http, PromiseWrapper } from '../../provider';
+import { Http, PromiseProvider } from '../../provider';
 import Web3 from './web3';
 
-const instance = new Web3(new PromiseWrapper(new Http(TEST_HTTP_URL, -1)));
+const instance = new Web3(new PromiseProvider(new Http(TEST_HTTP_URL, -1)));
 
 describe('api/rpc/Web3', () => {
   let scope;
