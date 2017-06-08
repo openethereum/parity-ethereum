@@ -16,7 +16,9 @@
 
 //! Finality proof generation and checking.
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
+use std::collections::hash_map::{HashMap, Entry};
+
 use util::{Address, H256};
 use header::Header;
 
@@ -25,6 +27,7 @@ use header::Header;
 pub struct UnknownValidator;
 
 /// Rolling finality checker for authority round consensus.
+/// Stores a chain of unfinalized hashes that can be pushed onto.
 pub struct RollingFinality {
 	headers: VecDeque<(H256, Address)>,
 	signers: HashSet<Address>,
@@ -42,9 +45,9 @@ impl RollingFinality {
 	}
 
 	/// Create a rolling finality checker from an iterator of hash, signer pairs in reverse.
-	/// This will take as many items from the iterator until a finalized block is found.
+	/// This will take the full unfinalized subchain from the iterator.
 	///
-	/// Fails if any provided signature isn't part of the set.
+	/// Fails if any provided signature isn't part of the signers set.
 	pub fn from_ancestry<I>(signers: HashSet<Address>, iterable: I) -> Result<Self, UnknownValidator>
 		where I: IntoIterator<Item=(H256, Address)>
 	{
@@ -53,11 +56,20 @@ impl RollingFinality {
 		for (hash, signer) in iterable {
 			if !checker.signers.contains(&signer) { return Err(UnknownValidator) }
 
-			checker.headers.push_front((hash, signer));
-			*checker.sign_count.entry(signer).or_insert(0) += 1;
-
 			// break when we've got our first finalized block.
-			if checker.sign_count.len() * 2 > checker.signers.len() { break }
+			{
+				let current_signed = checker.sign_count.len();
+				let would_be_finalized = (current_signed + 1) * 2 > checker.signers.len();
+
+				let entry = checker.sign_count.entry(signer);
+				if let (true, &Entry::Vacant(_)) = (would_be_finalized, &entry) {
+					break
+				}
+
+				*entry.or_insert(0) += 1;
+			}
+
+			checker.headers.push_front((hash, signer));
 		}
 
 		Ok(checker)
@@ -69,7 +81,7 @@ impl RollingFinality {
 	}
 
 	/// Get an iterator over stored hashes in order.
-	pub fn iter(&self) -> Iter { Iter(self.headers.iter()) }
+	pub fn unfinalized_hashes(&self) -> Iter { Iter(self.headers.iter()) }
 
 	/// Push a hash onto the rolling finality checker (implying `subchain_head` == head.parent)
 	///
@@ -77,8 +89,6 @@ impl RollingFinality {
 	/// Returns a list of all newly finalized headers.
 	// TODO: optimize with smallvec.
 	pub fn push_hash(&mut self, head: H256, signer: Address) -> Result<Vec<H256>, UnknownValidator> {
-		use std::collections::hash_map::Entry;
-
 		if !self.signers.contains(&signer) { return Err(UnknownValidator) }
 
 		self.headers.push_back((head, signer));
@@ -121,11 +131,44 @@ impl<'a> Iterator for Iter<'a> {
 
 #[cfg(test)]
 mod tests {
-	use util::Address;
+	use util::{Address, H256};
 	use super::RollingFinality;
 
 	#[test]
 	fn rejects_unknown_signer() {
+		let signers = (0..3).map(|_| Address::random()).collect();
+		let mut finality = RollingFinality::blank(signers);
+		assert!(finality.push_hash(H256::random(), Address::random()).is_err());
+	}
 
+	#[test]
+	fn finalize_multiple() {
+		let signers: Vec<_> = (0..6).map(|_| Address::random()).collect();
+
+		let mut finality = RollingFinality::blank(signers.clone().into_iter().collect());
+		let hashes: Vec<_> = (0..7).map(|_| H256::random()).collect();
+
+		// 3 / 6 signers is < 51% so no finality.
+		for (i, hash) in hashes.iter().take(6).cloned().enumerate() {
+			let i = i % 3;
+			assert!(finality.push_hash(hash, signers[i]).unwrap().len() == 0);
+		}
+
+		// after pushing a block signed by a fourth validator, the first four
+		// blocks of the unverified chain become verified.
+		assert_eq!(finality.push_hash(hashes[6], signers[4]).unwrap(),
+			vec![hashes[0], hashes[1], hashes[2], hashes[3]]);
+	}
+
+	#[test]
+	fn from_ancestry() {
+		let signers: Vec<_> = (0..6).map(|_| Address::random()).collect();
+		let hashes: Vec<_> = (0..12).map(|i| (H256::random(), signers[i % 6])).collect();
+
+		let finality = RollingFinality::from_ancestry(signers.into_iter().collect(),
+			hashes.iter().rev().cloned()).unwrap();
+
+		assert_eq!(finality.unfinalized_hashes().count(), 3);
+		assert_eq!(finality.subchain_head(), Some(hashes[11].0));
 	}
 }
