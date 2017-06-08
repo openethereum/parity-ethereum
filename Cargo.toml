@@ -28,7 +28,6 @@ fdlimit = "0.1"
 ws2_32-sys = "0.2"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-ethabi-cli = { path = "ethabi/cli" }
 ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
@@ -104,3 +103,4 @@ lto = false
 panic = "abort"
 
 [workspace]
+members = ["ethabi/cli"]
