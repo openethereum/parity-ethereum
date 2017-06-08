@@ -53,7 +53,7 @@ below to build from source.
 
 ## Build dependencies
 
-**Parity requires Rust version 1.16.0 to build**
+**Parity requires Rust version 1.17.0 to build**
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
