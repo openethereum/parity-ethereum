@@ -132,7 +132,7 @@ export default class RequestOrigin extends Component {
     }
 
     if (origin.type === 'signer') {
-      const session = origin.details && origin.details.session || origin.details;
+      const session = (origin.details && origin.details.session) || origin.details;
 
       return this.renderSigner(session);
     }
