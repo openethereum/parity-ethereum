@@ -16,70 +16,11 @@
 
 //! Evm factory.
 //!
-//! TODO: consider spliting it into two separate files.
-use std::fmt;
 use std::sync::Arc;
 use evm::Evm;
 use util::U256;
 use super::interpreter::SharedCache;
-
-#[derive(Debug, PartialEq, Clone)]
-/// Type of EVM to use.
-pub enum VMType {
-	/// JIT EVM
-	#[cfg(feature = "jit")]
-	Jit,
-	/// RUST EVM
-	Interpreter
-}
-
-impl fmt::Display for VMType {
-	#[cfg(feature="jit")]
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", match *self {
-			VMType::Jit => "JIT",
-			VMType::Interpreter => "INT"
-		})
-	}
-	#[cfg(not(feature="jit"))]
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", match *self {
-			VMType::Interpreter => "INT"
-		})
-	}
-}
-
-impl Default for VMType {
-	fn default() -> Self {
-		VMType::Interpreter
-	}
-}
-
-impl VMType {
-	/// Return all possible VMs (JIT, Interpreter)
-	#[cfg(feature = "jit")]
-	pub fn all() -> Vec<VMType> {
-		vec![VMType::Jit, VMType::Interpreter]
-	}
-
-	/// Return all possible VMs (Interpreter)
-	#[cfg(not(feature = "jit"))]
-	pub fn all() -> Vec<VMType> {
-		vec![VMType::Interpreter]
-	}
-
-	/// Return new jit if it's possible
-	#[cfg(not(feature = "jit"))]
-	pub fn jit() -> Option<Self> {
-		None
-	}
-
-	/// Return new jit if it's possible
-	#[cfg(feature = "jit")]
-	pub fn jit() -> Option<Self> {
-		Some(VMType::Jit)
-	}
-}
+use super::vmtype::VMType;
 
 /// Evm factory. Creates appropriate Evm.
 #[derive(Clone)]

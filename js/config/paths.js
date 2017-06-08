@@ -44,6 +44,7 @@ module.exports = {
   appBuild: resolveApp('build'),
   appPublic: resolveApp('public'),
   appHtml: resolveApp('public/index.html'),
+  // appIndexJs: resolveApp((process.env.EMBED === true || 1) ? 'src/shell/embed.js' : 'src/shell/index.js'),
   appIndexJs: resolveApp('src/shell/index.js'),
   appPackageJson: resolveApp('package.json'),
   appSrc: resolveApp('src'),

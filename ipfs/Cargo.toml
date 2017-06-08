@@ -11,5 +11,5 @@ ethcore-util = { path = "../util" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 rlp = { path = "../util/rlp" }
 mime = "0.2"
-cid = "0.2.1"
-multihash = "0.5"
+cid = "0.2"
+multihash = "0.6"
