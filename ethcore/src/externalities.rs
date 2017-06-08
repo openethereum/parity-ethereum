@@ -21,7 +21,7 @@ use state::{Backend as StateBackend, State, Substate};
 use engines::Engine;
 use env_info::EnvInfo;
 use executive::*;
-use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, CreateContractAddress};
+use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, CreateContractAddress, ReturnData};
 use types::executed::CallType;
 use types::transaction::UNSIGNED_SENDER;
 use trace::{Tracer, VMTracer};
@@ -212,7 +212,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 
 		// TODO: handle internal error separately
 		match ex.create(params, self.substate, self.tracer, self.vm_tracer) {
-			Ok(gas_left) => {
+			Ok((gas_left, _)) => {
 				self.substate.contracts_created.push(address.clone());
 				ContractCreateResult::Created(address, gas_left)
 			},
@@ -261,7 +261,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth);
 
 		match ex.call(params, self.substate, BytesRef::Fixed(output), self.tracer, self.vm_tracer) {
-			Ok(gas_left) => MessageCallResult::Success(gas_left),
+			Ok((gas_left, return_data)) => MessageCallResult::Success(gas_left, return_data),
 			_ => MessageCallResult::Failed
 		}
 	}
@@ -275,10 +275,10 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 	}
 
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
-	fn ret(mut self, gas: &U256, data: &[u8]) -> evm::Result<U256>
+	fn ret(mut self, gas: &U256, data: &ReturnData) -> evm::Result<U256>
 		where Self: Sized {
 		let handle_copy = |to: &mut Option<&mut Bytes>| {
-			to.as_mut().map(|b| **b = data.to_owned());
+			to.as_mut().map(|b| **b = data.to_vec());
 		};
 		match self.output {
 			OutputPolicy::Return(BytesRef::Fixed(ref mut slice), ref mut copy) => {
@@ -292,7 +292,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 				handle_copy(copy);
 
 				vec.clear();
-				vec.extend_from_slice(data);
+				vec.extend_from_slice(&*data);
 				Ok(*gas)
 			},
 			OutputPolicy::InitContract(ref mut copy) => {

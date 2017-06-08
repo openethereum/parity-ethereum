@@ -122,7 +122,7 @@ impl MemoryDB {
 	/// when the refs > 0.
 	pub fn raw(&self, key: &H256) -> Option<(DBValue, i32)> {
 		if key == &SHA3_NULL_RLP {
-			return Some((DBValue::from_slice(&NULL_RLP_STATIC), 1));
+			return Some((DBValue::from_slice(&NULL_RLP), 1));
 		}
 		self.data.get(key).cloned()
 	}
@@ -172,12 +172,10 @@ impl MemoryDB {
 	}
 }
 
-static NULL_RLP_STATIC: [u8; 1] = [0x80; 1];
-
 impl HashDB for MemoryDB {
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &SHA3_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP_STATIC));
+			return Some(DBValue::from_slice(&NULL_RLP));
 		}
 
 		match self.data.get(key) {

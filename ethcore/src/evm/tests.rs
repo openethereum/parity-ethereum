@@ -18,7 +18,7 @@ use util::*;
 use action_params::{ActionParams, ActionValue};
 use env_info::EnvInfo;
 use types::executed::CallType;
-use evm::{self, Ext, Schedule, Factory, GasLeft, VMType, ContractCreateResult, MessageCallResult, CreateContractAddress};
+use evm::{self, Ext, Schedule, Factory, GasLeft, VMType, ContractCreateResult, MessageCallResult, CreateContractAddress, ReturnData};
 use std::fmt::Debug;
 use tests::helpers::*;
 use types::transaction::SYSTEM_ADDRESS;
@@ -149,7 +149,7 @@ impl Ext for FakeExt {
 			data: data.to_vec(),
 			code_address: Some(code_address.clone())
 		});
-		MessageCallResult::Success(*gas)
+		MessageCallResult::Success(*gas, ReturnData::empty())
 	}
 
 	fn extcode(&self, address: &Address) -> trie::Result<Arc<Bytes>> {
@@ -167,7 +167,7 @@ impl Ext for FakeExt {
 		});
 	}
 
-	fn ret(self, _gas: &U256, _data: &[u8]) -> evm::Result<U256> {
+	fn ret(self, _gas: &U256, _data: &ReturnData) -> evm::Result<U256> {
 		unimplemented!();
 	}
 

@@ -31,7 +31,7 @@ use parity_wasm::{interpreter, elements};
 use parity_wasm::interpreter::ModuleInstanceInterface;
 use wasm_utils;
 
-use evm::{self, GasLeft};
+use evm::{self, GasLeft, ReturnData};
 use action_params::ActionParams;
 use self::runtime::Runtime;
 
@@ -127,9 +127,14 @@ impl evm::Evm for WasmInterpreter {
 			self.result.clear();
 			// todo: use memory views to avoid copy
 			self.result.extend(result.pop(&*runtime.memory())?);
+			let len = self.result.len();
 			Ok(GasLeft::NeedsReturn { 
 				gas_left: runtime.gas_left()?.into(), 
-				data: &self.result[..],
+				data: ReturnData::new(
+					::std::mem::replace(&mut self.result, Vec::with_capacity(DEFAULT_RESULT_BUFFER)), 
+					0, 
+					len,
+				),
 				apply_state: true,
 			})
 		}
