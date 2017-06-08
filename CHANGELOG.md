@@ -1,4 +1,4 @@
-## Parity [v1.6.8](https://github.com/paritytech/parity/releases/tag/v1.6.8) (2017-06-07)
+## Parity [v1.6.8](https://github.com/paritytech/parity/releases/tag/v1.6.8) (2017-06-08)
 
 This release addresses:
 
