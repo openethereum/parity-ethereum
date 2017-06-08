@@ -52,7 +52,6 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 const AUTH_HASH = '#/auth?';
-const parityUrl = process.env.PARITY_URL || '127.0.0.1:8546';
 
 let token = null;
 
@@ -60,7 +59,8 @@ if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
   token = qs.parse(window.location.hash.substr(AUTH_HASH.length)).token;
 }
 
-const api = new SecureApi(parityUrl, token);
+const uiUrl = window.location.host;
+const api = new SecureApi(uiUrl, token);
 
 patchApi(api);
 ContractInstances.get(api);

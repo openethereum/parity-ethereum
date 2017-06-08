@@ -97,10 +97,45 @@ impl fmt::Display for Error {
 /// A specialized version of Result over EVM errors.
 pub type Result<T> = ::std::result::Result<T, Error>;
 
+
+/// Return data buffer. Holds memory from a previous call and a slice into that memory.
+#[derive(Debug)]
+pub struct ReturnData {
+	mem: Vec<u8>,
+	offset: usize,
+	size: usize,
+}
+
+impl ::std::ops::Deref for ReturnData {
+	type Target = [u8];
+	fn deref(&self) -> &[u8] {
+		&self.mem[self.offset..self.offset + self.size]
+	}
+}
+
+impl ReturnData {
+	/// Create empty `ReturnData`.
+	pub fn empty() -> Self {
+		ReturnData {
+			mem: Vec::new(),
+			offset: 0,
+			size: 0,
+		}
+	}
+	/// Create `ReturnData` from give buffer and slice.
+	pub fn new(mem: Vec<u8>, offset: usize, size: usize) -> Self {
+		ReturnData {
+			mem: mem,
+			offset: offset,
+			size: size,
+		}
+	}
+}
+
 /// Gas Left: either it is a known value, or it needs to be computed by processing
 /// a return instruction.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum GasLeft<'a> {
+#[derive(Debug)]
+pub enum GasLeft {
 	/// Known gas left
 	Known(U256),
 	/// Return or Revert instruction must be processed.
@@ -108,7 +143,7 @@ pub enum GasLeft<'a> {
 		/// Amount of gas left.
 		gas_left: U256,
 		/// Return data buffer.
-		data: &'a [u8],
+		data: ReturnData,
 		/// Apply or revert state changes on revert.
 		apply_state: bool
 	},
@@ -122,6 +157,8 @@ pub struct FinalizationResult {
 	pub gas_left: U256,
 	/// Apply execution state changes or revert them.
 	pub apply_state: bool,
+	/// Return data buffer.
+	pub return_data: ReturnData,
 }
 
 /// Types that can be "finalized" using an EVM.
@@ -133,13 +170,14 @@ pub trait Finalize {
 	fn finalize<E: Ext>(self, ext: E) -> Result<FinalizationResult>;
 }
 
-impl<'a> Finalize for Result<GasLeft<'a>> {
+impl Finalize for Result<GasLeft> {
 	fn finalize<E: Ext>(self, ext: E) -> Result<FinalizationResult> {
 		match self {
-			Ok(GasLeft::Known(gas_left)) => Ok(FinalizationResult { gas_left: gas_left, apply_state: true }),
-			Ok(GasLeft::NeedsReturn {gas_left, data, apply_state}) => ext.ret(&gas_left, data).map(|gas_left| FinalizationResult {
+			Ok(GasLeft::Known(gas_left)) => Ok(FinalizationResult { gas_left: gas_left, apply_state: true, return_data: ReturnData::empty() }),
+			Ok(GasLeft::NeedsReturn {gas_left, data, apply_state}) => ext.ret(&gas_left, &data).map(|gas_left| FinalizationResult {
 				gas_left: gas_left,
 				apply_state: apply_state,
+				return_data: data,
 			}),
 			Err(err) => Err(err),
 		}

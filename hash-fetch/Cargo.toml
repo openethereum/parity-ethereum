@@ -7,7 +7,7 @@ version = "1.7.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethabi = "1.0.4"
+ethabi = "1.0"
 futures = "0.1"
 log = "0.3"
 mime = "0.2"

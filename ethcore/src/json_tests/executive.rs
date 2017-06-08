@@ -21,7 +21,7 @@ use executive::*;
 use engines::Engine;
 use env_info::EnvInfo;
 use evm;
-use evm::{Schedule, Ext, Finalize, VMType, ContractCreateResult, MessageCallResult, CreateContractAddress};
+use evm::{Schedule, Ext, Finalize, VMType, ContractCreateResult, MessageCallResult, CreateContractAddress, ReturnData};
 use externalities::*;
 use types::executed::CallType;
 use tests::helpers::*;
@@ -142,7 +142,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for TestExt<'a, T, V, B, E>
 			gas_limit: *gas,
 			value: value.unwrap()
 		});
-		MessageCallResult::Success(*gas)
+		MessageCallResult::Success(*gas, ReturnData::empty())
 	}
 
 	fn extcode(&self, address: &Address) -> trie::Result<Arc<Bytes>>  {
@@ -157,7 +157,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for TestExt<'a, T, V, B, E>
 		self.ext.log(topics, data)
 	}
 
-	fn ret(self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
+	fn ret(self, gas: &U256, data: &ReturnData) -> Result<U256, evm::Error> {
 		self.ext.ret(gas, data)
 	}
 

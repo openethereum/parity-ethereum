@@ -762,10 +762,6 @@ impl Configuration {
 	}
 
 	fn ui_hosts(&self) -> Option<Vec<String>> {
-		if self.args.flag_ui_no_validation {
-			return None;
-		}
-
 		self.hosts(&self.args.flag_ui_hosts, &self.ui_interface())
 	}
 
@@ -774,10 +770,18 @@ impl Configuration {
 	}
 
 	fn ws_hosts(&self) -> Option<Vec<String>> {
+		if self.args.flag_ui_no_validation {
+			return None;
+		}
+
 		self.hosts(&self.args.flag_ws_hosts, &self.ws_interface())
 	}
 
 	fn ws_origins(&self) -> Option<Vec<String>> {
+		if self.args.flag_unsafe_expose {
+			return None;
+		}
+
 		Self::parse_hosts(&self.args.flag_ws_origins)
 	}
 
@@ -1482,13 +1486,15 @@ mod tests {
 			port: 8180,
 			hosts: Some(vec![]),
 		});
+		assert!(conf0.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
 		assert_eq!(conf1.ui_config(), UiConfiguration {
 			enabled: true,
 			interface: "127.0.0.1".into(),
 			port: 8180,
-			hosts: None,
+			hosts: Some(vec![]),
 		});
+		assert_eq!(conf1.ws_config().unwrap().hosts, None);
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {
 			enabled: true,
@@ -1496,6 +1502,7 @@ mod tests {
 			port: 3123,
 			hosts: Some(vec![]),
 		});
+		assert!(conf2.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
 		assert_eq!(conf3.ui_config(), UiConfiguration {
 			enabled: true,
@@ -1503,6 +1510,7 @@ mod tests {
 			port: 8180,
 			hosts: Some(vec![]),
 		});
+		assert!(conf3.ws_config().unwrap().hosts.is_some());
 	}
 
 	#[test]
@@ -1590,6 +1598,7 @@ mod tests {
 		assert_eq!(conf0.http_config().unwrap().hosts, None);
 		assert_eq!(&conf0.ws_config().unwrap().interface, "0.0.0.0");
 		assert_eq!(conf0.ws_config().unwrap().hosts, None);
+		assert_eq!(conf0.ws_config().unwrap().origins, None);
 		assert_eq!(&conf0.ui_config().interface, "0.0.0.0");
 		assert_eq!(conf0.ui_config().hosts, None);
 		assert_eq!(&conf0.secretstore_config().unwrap().interface, "0.0.0.0");
