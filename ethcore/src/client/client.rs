@@ -1767,6 +1767,10 @@ impl EngineClient for Client {
 	fn broadcast_consensus_message(&self, message: Bytes) {
 		self.notify(|notify| notify.broadcast(message.clone()));
 	}
+
+	fn epoch_transition_for(&self, block_hash: H256) -> Option<::engines::EpochTransition> {
+		self.chain.read().epoch_transition_for(block_hash)
+	}
 }
 
 impl MayPanic for Client {

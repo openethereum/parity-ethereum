@@ -38,6 +38,8 @@ use state::CleanupMode;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
+mod finality;
+
 /// `AuthorityRound` params.
 pub struct AuthorityRoundParams {
 	/// Gas limit divisor.
