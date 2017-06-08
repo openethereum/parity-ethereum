@@ -72,6 +72,8 @@ pub struct CommonParams {
 	pub eip210_contract_code: Bytes,
 	/// Gas allocated for EIP-210 blockhash update.
 	pub eip210_contract_gas: U256,
+	/// Number of first block where EIP-211 (Metropolis: RETURNDATASIZE/RETURNDATACOPY) rules begin.
+	pub eip211_transition: BlockNumber,
 }
 
 impl From<ethjson::spec::Params> for CommonParams {
@@ -94,6 +96,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 				|| DEFAULT_BLOCKHASH_CONTRACT.from_hex().expect("Default BLOCKHASH contract is valid"),
 				Into::into),
 			eip210_contract_gas: p.eip210_contract_gas.map_or(1000000.into(), Into::into),
+			eip211_transition: p.eip211_transition.map_or(BlockNumber::max_value(), Into::into),
 		}
 	}
 }

@@ -75,6 +75,9 @@ pub struct Params {
 	/// See `CommonParams` docs.
 	#[serde(rename="eip210ContractGas")]
 	pub eip210_contract_gas: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip211Transition")]
+	pub eip211_transition: Option<Uint>,
 }
 
 #[cfg(test)]
