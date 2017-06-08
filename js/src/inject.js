@@ -25,15 +25,18 @@ import './dev.parity.html';
 /** WEB3 **/
 import Web3 from 'web3';
 import './dev.web3.html';
+/** WEB3PROVIDER **/
+const web3Provider = new Api.Provider.Http('/rpc/');
 
 es6Promise.polyfill();
 
 /** INJECT PARITY **/
-const api = new Api(new Api.Provider.Http('/rpc/'));
+const api = new Api(web3Provider);
 
 window.parity = {
   Api,
-  api
+  api,
+  web3Provider
 };
 
 /** INJECT WEB3 **/

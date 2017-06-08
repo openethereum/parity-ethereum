@@ -16,18 +16,9 @@
 
 import Api from 'parity/api';
 
-function createApi (transport) {
-  if (process.env.DEBUG) {
-    transport.setDebug(true);
-  }
+const web3Provider = (window.parity && window.parity.web3Provider) || (window.parent && window.parent.web3Provider);
+const api = new Api(web3Provider);
 
-  return new Api(transport);
-}
-
-export function createHttpApi () {
-  return createApi(new Api.Provider.Http('http://localhost:8545'));
-}
-
-export function createWsApi () {
-  return createApi(new Api.Provider.WsSecure('ws://localhost:8546'));
-}
+export {
+  api
+};

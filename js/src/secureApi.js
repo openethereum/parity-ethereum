@@ -35,7 +35,7 @@ export default class SecureApi extends Api {
   static getTransport (url, sysuiToken, protocol) {
     const transportUrl = SecureApi.transportUrl(url, protocol);
 
-    return new Api.Provider.Ws(transportUrl, sysuiToken, false);
+    return new Api.Provider.WsSecure(transportUrl, sysuiToken, false);
   }
 
   static transportUrl (url, protocol) {

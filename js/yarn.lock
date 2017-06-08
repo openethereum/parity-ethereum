@@ -5912,9 +5912,9 @@ param-case@2.1.x:
   dependencies:
     no-case "^2.2.0"
 
-parity@^0.2.5:
-  version "0.2.5"
-  resolved "https://registry.yarnpkg.com/parity/-/parity-0.2.5.tgz#1e52db4eec73b55da674e231a2381647c239e1f9"
+parity@^0.2.6:
+  version "0.2.6"
+  resolved "https://registry.yarnpkg.com/parity/-/parity-0.2.6.tgz#97f919545940f64261c2a971bb0b9285d5f780fb"
   dependencies:
     babel-plugin-webpack-alias "^2.1.2"
     bignumber.js "3.0.1"

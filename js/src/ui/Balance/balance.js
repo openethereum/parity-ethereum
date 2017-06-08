@@ -35,7 +35,7 @@ function Balance ({ balance, className, showOnlyEth, tokens }) {
 
       const isEthToken = token.native;
       const isFullToken = !showOnlyEth || isEthToken;
-      const hasBalance = balanceValue.gt(0);
+      const hasBalance = (balanceValue instanceof BigNumber) && balanceValue.gt(0);
 
       if (!hasBalance && !isEthToken) {
         return null;
