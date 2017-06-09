@@ -302,10 +302,11 @@ linux-armv6:
   only:
 #    - beta
 #    - tags
-#    - stable
+    - stable
     - triggers
   script:
-    - rustup install 1.16
+    -- rustup install 1.16.0-arm-unknown-linux-gnueabi
+    - rustup default 1.16.0-arm-unknown-linux-gnueabi
     - export CC=arm-linux-gnueabi-gcc
     - export CXX=arm-linux-gnueabi-g++
     - export HOST_CC=gcc
