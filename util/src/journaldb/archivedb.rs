@@ -243,6 +243,20 @@ mod tests {
 	}
 
 	#[test]
+	#[should_panic]
+	fn multiple_owed_removal_not_allowed() {
+		let mut jdb = ArchiveDB::new_temp();
+		let h = jdb.insert(b"foo");
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.contains(&h));
+		jdb.remove(&h);
+		jdb.remove(&h);
+		// commit_batch would call journal_under(),
+		// and we don't allow multiple owned removals.
+		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
+	}
+
+	#[test]
 	fn complex() {
 		// history is 1
 		let mut jdb = ArchiveDB::new_temp();
