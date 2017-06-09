@@ -185,11 +185,21 @@ impl Engine for BasicAuthority {
 		self.validators.genesis_epoch_data(header, call)
 	}
 
+	#[cfg(not(test))]
 	fn signals_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[::receipt::Receipt]>)
 		-> super::EpochChange
 	{
 		// don't bother signalling even though a contract might try.
 		super::EpochChange::No
+	}
+
+	#[cfg(test)]
+	fn signals_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> super::EpochChange
+	{
+		// in test mode, always signal even though they don't be finalized.
+		let first = header.number() == 0;
+		self.validators.signals_epoch_end(first, header, block, receipts)
 	}
 
 	fn is_epoch_end(

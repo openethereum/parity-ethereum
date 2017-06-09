@@ -499,6 +499,7 @@ impl Engine for AuthorityRound {
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
 		self.validators.genesis_epoch_data(header, call)
+			.map(|set_proof| combine_proofs(&set_proof, &[]))
 	}
 
 	fn signals_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
