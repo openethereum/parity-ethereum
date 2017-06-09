@@ -74,10 +74,10 @@ impl<C> ChainNotificationHandler<C> {
 		for subscriber in self.heads_subscribers.lock().values() {
 			for &(ref block, ref extra_info) in &blocks {
 				self.remote.spawn(subscriber
-					.notify(pubsub::Result::Header(RichHeader {
+					.notify(Ok(pubsub::Result::Header(RichHeader {
 						inner: block.into(),
 						extra_info: extra_info.clone(),
-					}))
+					})))
 					.map(|_| ())
 					.map_err(|e| warn!(target: "rpc", "Unable to send notification: {}", e))
 				);
