@@ -23,7 +23,7 @@ use account_provider::AccountProvider;
 use block::*;
 use builtin::Builtin;
 use spec::CommonParams;
-use engines::{Engine, EngineError, Seal, Call, EpochChange, ConstructedVerifier};
+use engines::{Engine, Seal, Call, ConstructedVerifier};
 use error::{BlockError, Error};
 use evm::Schedule;
 use ethjson;

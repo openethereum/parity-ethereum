@@ -26,16 +26,14 @@ use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockProvider};
 use engines::{Engine, EpochVerifier, EpochTransition};
-use env_info::EnvInfo;
 use ids::BlockId;
 use header::Header;
 use receipt::Receipt;
 use snapshot::{Error, ManifestData};
-use state_db::StateDB;
 
 use itertools::{Position, Itertools};
 use rlp::{RlpStream, UntrustedRlp};
-use util::{Address, Bytes, H256, KeyValueDB, DBValue};
+use util::{Bytes, H256, KeyValueDB};
 
 /// Snapshot creation and restoration for PoA chains.
 /// Chunk format:
@@ -48,8 +46,6 @@ use util::{Address, Bytes, H256, KeyValueDB, DBValue};
 ///
 /// The last item of the last chunk will be a list containing data for the warp target block:
 /// [header, transactions, uncles, receipts, parent_td].
-/// If this block is not a transition block, the epoch data should be the same as that
-/// for the last transition.
 pub struct PoaSnapshot;
 
 impl SnapshotComponents for PoaSnapshot {
@@ -69,6 +65,11 @@ impl SnapshotComponents for PoaSnapshot {
 		for (_, transition) in chain.epoch_transitions()
 			.take_while(|&(_, ref t)| t.block_number <= number)
 		{
+			// this can happen when our starting block is non-canonical.
+			if transition.block_number == number && transition.block_hash != block_at {
+				break
+			}
+
 			let header = chain.block_header_data(&transition.block_hash)
 				.ok_or(Error::BlockNotFound(transition.block_hash))?;
 
@@ -103,7 +104,7 @@ impl SnapshotComponents for PoaSnapshot {
 			.ok_or(Error::BlockNotFound(block_at))?;
 
 		rlps.push({
-			let mut stream = RlpStream::new_list(6);
+			let mut stream = RlpStream::new_list(5);
 			stream
 				.append(&block.header)
 				.append_list(&block.transactions)
@@ -331,8 +332,7 @@ impl Rebuilder for ChunkRebuilder {
 				}
 			}
 
-			let last_hashes: Vec<H256> = last_rlp.list_at(4)?;
-			let parent_td: ::util::U256 = last_rlp.val_at(5)?;
+			let parent_td: ::util::U256 = last_rlp.val_at(4)?;
 
 			let mut batch = self.db.transaction();
 			self.chain.insert_unordered_block(&mut batch, &block_data, receipts, Some(parent_td), true, false);
@@ -344,7 +344,7 @@ impl Rebuilder for ChunkRebuilder {
 		Ok(())
 	}
 
-	fn finalize(&mut self, engine: &Engine) -> Result<(), ::error::Error> {
+	fn finalize(&mut self, _engine: &Engine) -> Result<(), ::error::Error> {
 		if !self.had_genesis {
 			return Err(Error::WrongChunkFormat("No genesis transition included.".into()).into());
 		}

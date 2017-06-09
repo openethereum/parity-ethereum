@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// Epoch verifiers.
+//! Epoch verifiers and transitions.
 
 use error::Error;
-use header::{BlockNumber, Header};
+use header::Header;
 
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 use util::H256;

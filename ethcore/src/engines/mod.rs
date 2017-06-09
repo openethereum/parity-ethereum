@@ -37,7 +37,7 @@ pub use self::tendermint::Tendermint;
 
 use std::sync::Weak;
 
-use self::epoch::{Transition, PendingTransition};
+use self::epoch::PendingTransition;
 
 use account_provider::AccountProvider;
 use block::ExecutedBlock;

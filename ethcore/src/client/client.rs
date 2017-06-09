@@ -270,7 +270,7 @@ impl Client {
 				let proof = match proof {
 					Ok(proof) => proof,
 					Err(e) => {
-						warn!("Error generating genesis epoch data. Snapshots generated may not be complete.");
+						warn!(target: "client", "Error generating genesis epoch data: {}. Snapshots generated may not be complete.", e);
 						Vec::new()
 					}
 				};

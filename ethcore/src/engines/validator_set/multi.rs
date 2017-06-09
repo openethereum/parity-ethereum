@@ -18,7 +18,7 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
-use engines::{Call, Engine, EpochChange};
+use engines::{Call, Engine};
 use util::{Bytes, H256, Address, RwLock};
 use ids::BlockId;
 use header::{BlockNumber, Header};

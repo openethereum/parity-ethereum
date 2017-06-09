@@ -19,8 +19,7 @@
 use std::sync::Arc;
 
 use blockchain::BlockChain;
-use engines::{Engine, EpochVerifier, EpochChange};
-use error::Error;
+use engines::{Engine, EpochVerifier};
 use header::Header;
 
 use rand::Rng;

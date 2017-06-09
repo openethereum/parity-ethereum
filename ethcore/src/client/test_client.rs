@@ -788,7 +788,7 @@ impl EngineClient for TestBlockChainClient {
 
 	fn broadcast_consensus_message(&self, _message: Bytes) {}
 
-	fn epoch_transition_for(&self, block_hash: H256) -> Option<::engines::EpochTransition> {
+	fn epoch_transition_for(&self, _block_hash: H256) -> Option<::engines::EpochTransition> {
 		None
 	}
 }

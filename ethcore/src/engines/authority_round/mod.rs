@@ -154,6 +154,37 @@ impl super::EpochVerifier for EpochVerifier {
 		// nothing heavier to do.
 		verify_external(header, &self.subchain_validators, &*self.step)
 	}
+
+	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
+		macro_rules! otry {
+			($e: expr) => {
+				match $e {
+					Some(x) => x,
+					None => return None,
+				}
+			}
+		}
+
+		let mut finality_checker = RollingFinality::blank(self.subchain_validators.clone().into_inner());
+		let mut finalized = Vec::new();
+
+		let headers: Vec<Header> = otry!(UntrustedRlp::new(proof).as_list().ok());
+
+
+		for header in &headers {
+			// ensure all headers have correct number of seal fields so we can `verify_external`
+			// without panic.
+			//
+			// `verify_external` checks that signature is correct and author == signer.
+			if header.seal().len() != 2 { return None }
+			otry!(verify_external(header, &self.subchain_validators, &*self.step).ok());
+
+			let newly_finalized = otry!(finality_checker.push_hash(header.hash(), header.author().clone()).ok());
+			finalized.extend(newly_finalized);
+		}
+
+		if finalized.is_empty() { None } else { Some(finalized) }
+	}
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
