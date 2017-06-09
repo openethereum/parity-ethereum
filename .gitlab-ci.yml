@@ -59,6 +59,7 @@ linux-stable-debian:
     - triggers
   script:
     - rustup install 1.16
+    - rustup default 1.16.0-x86_64-unknown-linux-gnu
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - strip target/release/parity
     - export SHA3=$(target/release/parity tools hash target/release/parity)
@@ -95,6 +96,7 @@ linux-beta:
     - triggers
   script:
     - rustup install 1.16
+    - rustup default 1.16.0-x86_64-unknown-linux-gnu
     - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
   tags:
@@ -115,6 +117,7 @@ linux-nightly:
     - triggers
   script:
     - rustup install 1.16
+    - rustup default 1.16.0-x86_64-unknown-linux-gnu
     - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
   tags:
@@ -525,6 +528,7 @@ test-rust-stable:
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
     - rustup install 1.16
+    - rustup default 1.16.0-x86_64-unknown-linux-gnu
     - export RUST_BACKTRACE=1
     - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
   tags:
