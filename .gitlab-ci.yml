@@ -11,7 +11,7 @@ variables:
   CARGOFLAGS: ""
 cache:
   key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
-  untracked: true
+  untracked: false
 linux-stable:
   stage: build
   image: parity/rust:gitlab-ci
