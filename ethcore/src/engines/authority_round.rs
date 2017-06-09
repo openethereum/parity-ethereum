@@ -168,7 +168,10 @@ fn verify_external(header: &Header, validators: &ValidatorSet, step: &Step) -> R
 	} else {
 		let proposer_signature = header_signature(header)?;
 		let correct_proposer = validators.get(header.parent_hash(), header_step);
-		if !verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())? {
+		let is_invalid_proposer = *header.author() != correct_proposer ||
+			!verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
+
+		if is_invalid_proposer {
 			trace!(target: "engine", "verify_block_unordered: bad proposer for step: {}", header_step);
 			Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 		} else {
