@@ -34,7 +34,7 @@ export default class FirstRun extends Component {
       <div className={ styles.welcome }>
         <img
           src={ imagesEthcore }
-          alt='Ethcore Ltd.'
+          alt='Parity Ltd.'
           style={ LOGO_STYLE }
         />
         <p>
