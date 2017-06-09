@@ -14,13 +14,14 @@ cache:
   untracked: true
 linux-stable:
   stage: build
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   only:
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup install 1.16
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - strip target/release/parity
     - export SHA3=$(target/release/parity tools hash target/release/parity)
@@ -49,13 +50,14 @@ linux-stable:
     name: "stable-x86_64-unknown-linux-gnu_parity"
 linux-stable-debian:
   stage: build
-  image: ethcore/rust-debian:latest
+  image: parity/rust-debian:gitlab-ci
   only:
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup install 1.16
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - strip target/release/parity
     - export SHA3=$(target/release/parity tools hash target/release/parity)
@@ -84,13 +86,14 @@ linux-stable-debian:
     name: "stable-x86_64-unknown-debian-gnu_parity"
 linux-beta:
   stage: build
-  image: ethcore/rust:beta
+  image: parity/rust:gitlab-ci
   only:
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup install 1.16
     - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
   tags:
@@ -103,13 +106,14 @@ linux-beta:
   allow_failure: true
 linux-nightly:
   stage: build
-  image: ethcore/rust:nightly
+  image: parity/rust:gitlab-ci
   only:
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup install 1.16
     - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
   tags:
@@ -122,13 +126,13 @@ linux-nightly:
   allow_failure: true
 linux-centos:
   stage: build
-  image: ethcore/rust-centos:latest
-  only:
+  image: parity/rust-centos:gitlab-ci
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup install 1.16
     - export CXX="g++"
     - export CC="gcc"
     - export PLATFORM=x86_64-unknown-centos-gnu
@@ -153,13 +157,14 @@ linux-centos:
     name: "x86_64-unknown-centos-gnu_parity"
 linux-i686:
   stage: build
-  image: ethcore/rust-i686:latest
+  image: parity/rust-i686:gitlab-ci
   only:
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup install 1.16
     - export HOST_CC=gcc
     - export HOST_CXX=g++
     - export COMMIT=$(git rev-parse HEAD)
@@ -193,13 +198,14 @@ linux-i686:
   allow_failure: true
 linux-armv7:
   stage: build
-  image: ethcore/rust-armv7:latest
+  image: parity/rust-armv7:gitlab-ci
   only:
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup install 1.16
     - export CC=arm-linux-gnueabihf-gcc
     - export CXX=arm-linux-gnueabihf-g++
     - export HOST_CC=gcc
@@ -239,13 +245,14 @@ linux-armv7:
   allow_failure: true
 linux-arm:
   stage: build
-  image: ethcore/rust-arm:latest
+  image: parity/rust-arm:gitlab-ci
   only:
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup install 1.16
     - export CC=arm-linux-gnueabihf-gcc
     - export CXX=arm-linux-gnueabihf-g++
     - export HOST_CC=gcc
@@ -292,6 +299,7 @@ linux-armv6:
 #    - stable
     - triggers
   script:
+    - rustup install 1.16
     - export CC=arm-linux-gnueabi-gcc
     - export CXX=arm-linux-gnueabi-g++
     - export HOST_CC=gcc
@@ -324,13 +332,14 @@ linux-armv6:
   allow_failure: true
 linux-aarch64:
   stage: build
-  image: ethcore/rust-aarch64:latest
+  image: parity/rust-arm64:gitlab-ci
   only:
     - beta
     - tags
     - stable
     - triggers
   script:
+    - rustup install 1.16
     - export CC=aarch64-linux-gnu-gcc
     - export CXX=aarch64-linux-gnu-g++
     - export HOST_CC=gcc
@@ -375,6 +384,7 @@ darwin:
     - stable
     - triggers
   script: |
+      rustup install 1.16
       export COMMIT=$(git rev-parse HEAD)
       export PLATFORM=x86_64-apple-darwin
       cargo build -j 8 --features final --release #$CARGOFLAGS
@@ -414,6 +424,7 @@ windows:
     - stable
     - triggers
   script:
+    - rustup install 1.16
     - set PLATFORM=x86_64-pc-windows-msvc
     - set INCLUDE=C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;C:\vs2015\VC\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt
     - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
@@ -507,11 +518,12 @@ test-windows:
   allow_failure: true
 test-rust-stable:
   stage: test
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
+    - rustup install 1.16
     - export RUST_BACKTRACE=1
     - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
   tags:
@@ -533,7 +545,7 @@ test-rust-beta:
   stage: test
   only:
     - triggers
-  image: ethcore/rust:beta
+  image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
@@ -548,7 +560,7 @@ test-rust-nightly:
   stage: test
   only:
     - triggers
-  image: ethcore/rust:nightly
+  image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
@@ -565,7 +577,7 @@ js-release:
     - master
     - beta
     - stable
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   before_script:
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
     - echo $JS_FILES_MODIFIED
@@ -579,7 +591,7 @@ push-release:
   stage: push-release
   only:
     - tags
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   script:
     - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
     - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
