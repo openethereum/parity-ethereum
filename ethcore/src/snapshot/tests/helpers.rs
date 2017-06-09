@@ -26,7 +26,6 @@ use client::{BlockChainClient, Client};
 use engines::Engine;
 use snapshot::{StateRebuilder};
 use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
-use state_db::StateDB;
 
 use devtools::{RandomTempPath, GuardedTempResult};
 use rand::Rng;

@@ -23,10 +23,8 @@ use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
 use blockchain::BlockChain;
 use snapshot::{chunk_secondary, Error as SnapshotError, Progress, SnapshotComponents};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
-use state_db::StateDB;
 
 use util::{Mutex, snappy};
-use util::journaldb::{self, Algorithm};
 use util::kvdb::{self, KeyValueDB, DBTransaction};
 
 use std::sync::Arc;
