@@ -22,6 +22,7 @@ linux-stable:
     - triggers
   script:
     - rustup install 1.16
+    - rustup default 1.16.0-x86_64-unknown-linux-gnu
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - strip target/release/parity
     - export SHA3=$(target/release/parity tools hash target/release/parity)
