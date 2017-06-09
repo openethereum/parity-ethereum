@@ -239,6 +239,7 @@ mod tests {
 		jdb.commit_batch(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.contains(&h));
 		jdb.commit_batch(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.contains(&h));
 	}
 
 	#[test]
