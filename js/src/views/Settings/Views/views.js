@@ -97,7 +97,7 @@ class Views extends Component {
                 />,
                 <FormattedMessage
                   id='settings.views.apps.description'
-                  defaultMessage='Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.'
+                  defaultMessage='Decentralized applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.'
                 />
               )
             }
@@ -130,7 +130,7 @@ class Views extends Component {
                 />,
                 <FormattedMessage
                   id='settings.views.signer.description'
-                  defaultMessage='The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.'
+                  defaultMessage='The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by decentralized applications.'
                 />
               )
             }
