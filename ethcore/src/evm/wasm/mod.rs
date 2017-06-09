@@ -60,6 +60,8 @@ impl evm::Evm for WasmInterpreter {
 	fn exec(&mut self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result<GasLeft> {
 		use parity_wasm::elements::Deserialize;
 
+		trace!(target: "wasm", "Started wasm interpreter with code {:?}", params.code);
+
 		let env_instance = self.program.module("env")
 			// prefer explicit panic here
 			.expect("Wasm program to contain env module");
@@ -114,14 +116,21 @@ impl evm::Evm for WasmInterpreter {
 
 		
 			let module_instance = self.program.add_module("contract", contract_module)
-				.map_err(|err| evm::Error::from(RuntimeError::Interpreter(err)))?;
+				.map_err(|err| {
+					trace!(target: "wasm", "Error adding contract module: {:?}", err);
+					evm::Error::from(RuntimeError::Interpreter(err))
+				})?;
 
 			module_instance.execute_export("_call", execution_params)
-				.map_err(|err| evm::Error::from(RuntimeError::Interpreter(err)))?;
+				.map_err(|err| {
+					trace!(target: "wasm", "Error executing contract: {:?}", err);
+					evm::Error::from(RuntimeError::Interpreter(err))
+				})?;
 		}
 
 		let result = result::WasmResult::new(d_ptr);
 		if result.peek_empty(&*runtime.memory())? {
+			trace!(target: "wasm", "Contract execution result is empty.");
 			Ok(GasLeft::Known(runtime.gas_left()?.into()))
 		} else {
 			self.result.clear();

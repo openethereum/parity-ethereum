@@ -36,8 +36,8 @@ impl WasmResult {
 
 	/// Check if the result contains any data
 	pub fn peek_empty(&self, mem: &interpreter::MemoryInstance) -> Result<bool, RuntimeError> {
-		let result_ptr = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[8..12]);
-		Ok(result_ptr == 0)
+		let result_len = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[12..16]);
+		Ok(result_len == 0)
 	}
 
 	/// Consume the result ptr and return the actual data from wasm linear memory
