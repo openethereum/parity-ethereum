@@ -58,7 +58,7 @@ linux-stable-debian:
     - stable
     - triggers
   script:
-    - rustup install 1.16
+    - rustup install 1.16.0-x86_64-unknown-linux-gnu
     - rustup default 1.16.0-x86_64-unknown-linux-gnu
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - strip target/release/parity
@@ -90,12 +90,11 @@ linux-beta:
   stage: build
   image: parity/rust:gitlab-ci
   only:
-    - beta
     - tags
     - stable
     - triggers
   script:
-    - rustup install 1.16
+    - rustup install 1.16.0-x86_64-unknown-linux-gnu
     - rustup default 1.16.0-x86_64-unknown-linux-gnu
     - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
@@ -111,7 +110,6 @@ linux-nightly:
   stage: build
   image: parity/rust:gitlab-ci
   only:
-    - beta
     - tags
     - stable
     - triggers
@@ -136,7 +134,8 @@ linux-centos:
     - stable
     - triggers
   script:
-    - rustup install 1.16
+    - rustup install 1.16.0-x86_64-unknown-linux-gnu
+    - rustup default 1.16.0-x86_64-unknown-linux-gnu
     - export CXX="g++"
     - export CC="gcc"
     - export PLATFORM=x86_64-unknown-centos-gnu
@@ -168,7 +167,8 @@ linux-i686:
     - stable
     - triggers
   script:
-    - rustup install 1.16
+    - rustup install 1.16.0-i686-unknown-linux-gnu
+    - rustup default 1.16.0-i686-unknown-linux-gnu
     - export HOST_CC=gcc
     - export HOST_CXX=g++
     - export COMMIT=$(git rev-parse HEAD)
@@ -209,7 +209,8 @@ linux-armv7:
     - stable
     - triggers
   script:
-    - rustup install 1.16
+    - rustup install 1.16.0-armv7-unknown-linux-gnueabihf
+    - rustup default 1.16.0-armv7-unknown-linux-gnueabihf
     - export CC=arm-linux-gnueabihf-gcc
     - export CXX=arm-linux-gnueabihf-g++
     - export HOST_CC=gcc
@@ -256,7 +257,8 @@ linux-arm:
     - stable
     - triggers
   script:
-    - rustup install 1.16
+    - rustup install 1.16.0-arm-unknown-linux-gnueabihf
+    - rustup default 1.16.0-arm-unknown-linux-gnueabihf
     - export CC=arm-linux-gnueabihf-gcc
     - export CXX=arm-linux-gnueabihf-g++
     - export HOST_CC=gcc
@@ -343,7 +345,8 @@ linux-aarch64:
     - stable
     - triggers
   script:
-    - rustup install 1.16
+    - rustup install 1.16.0-aarch64-unknown-linux-gnu
+    - rustup default 1.16.0-aarch64-unknown-linux-gnu
     - export CC=aarch64-linux-gnu-gcc
     - export CXX=aarch64-linux-gnu-g++
     - export HOST_CC=gcc
@@ -388,7 +391,8 @@ darwin:
     - stable
     - triggers
   script: |
-      rustup install 1.16
+      rustup install 1.16.0-x86_64-apple-darwin
+      rustup default 1.16.0-x86_64-apple-darwin
       export COMMIT=$(git rev-parse HEAD)
       export PLATFORM=x86_64-apple-darwin
       cargo build -j 8 --features final --release #$CARGOFLAGS
@@ -428,7 +432,8 @@ windows:
     - stable
     - triggers
   script:
-    - rustup install 1.16
+    - rustup install 1.16.0-x86_64-pc-windows-msvc
+    - rustup default 1.16.0-x86_64-pc-windows-msvc
     - set PLATFORM=x86_64-pc-windows-msvc
     - set INCLUDE=C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;C:\vs2015\VC\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt
     - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
@@ -536,12 +541,14 @@ test-rust-stable:
     - rust-stable
 js-test:
   stage: test
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
     - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
   script:
+    - rustup install 1.16.0-x86_64-unknown-linux-gnu
+    - rustup default 1.16.0-x86_64-unknown-linux-gnu
     - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS lint since no JS files modified."; else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; fi
   tags:
     - rust
@@ -588,6 +595,8 @@ js-release:
     - echo $JS_FILES_MODIFIED
     - if [ $JS_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
   script:
+    - rustup install 1.16.0-x86_64-unknown-linux-gnu
+    - rustup default 1.16.0-x86_64-unknown-linux-gnu
     - echo $JS_FILES_MODIFIED
     - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS rebuild since no JS files modified."; else ./js/scripts/build.sh && ./js/scripts/release.sh; fi
   tags:
@@ -598,6 +607,8 @@ push-release:
     - tags
   image: parity/rust:gitlab-ci
   script:
+    - rustup install 1.16.0-x86_64-unknown-linux-gnu
+    - rustup default 1.16.0-x86_64-unknown-linux-gnu
     - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
     - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
   tags:
