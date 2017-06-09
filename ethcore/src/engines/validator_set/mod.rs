@@ -67,6 +67,7 @@ pub trait ValidatorSet: Send + Sync {
 		let default = self.default_caller(BlockId::Hash(*parent));
 		self.contains_with_caller(parent, address, &*default)
 	}
+
 	/// Draws an validator nonce modulo number of validators.
 	fn get(&self, parent: &H256, nonce: usize) -> Address {
 		let default = self.default_caller(BlockId::Hash(*parent));
@@ -114,7 +115,7 @@ pub trait ValidatorSet: Send + Sync {
 		receipts: Option<&[::receipt::Receipt]>,
 	) -> ::engines::EpochChange;
 
-	/// Recover the validator set from the given proof, the header, and
+	/// Recover the validator set from the given proof, the block number, and
 	/// whether this header is first in its set.
 	///
 	/// May fail if the given header doesn't kick off an epoch or
@@ -122,7 +123,7 @@ pub trait ValidatorSet: Send + Sync {
 	///
 	/// Returns the set, along with a flag indicating whether finality of a specific
 	/// hash should be proven.
-	fn epoch_set(&self, first: bool, engine: &Engine, header: &Header, proof: &[u8])
+	fn epoch_set(&self, first: bool, engine: &Engine, number: BlockNumber, proof: &[u8])
 		-> Result<(SimpleList, Option<H256>), ::error::Error>;
 
 	/// Checks if a given address is a validator, with the given function

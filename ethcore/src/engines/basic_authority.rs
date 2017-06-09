@@ -207,7 +207,7 @@ impl Engine for BasicAuthority {
 	fn epoch_verifier<'a>(&self, header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
 		let first = header.number() == 0;
 
-		match self.validators.epoch_set(first, self, header, proof) {
+		match self.validators.epoch_set(first, self, header.number(), proof) {
 			Ok((list, finalize)) => {
 				let verifier = Box::new(EpochVerifier { list: list });
 

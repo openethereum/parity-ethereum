@@ -19,7 +19,7 @@
 use util::{H256, Address, HeapSizeOf};
 
 use engines::{Call, Engine};
-use header::Header;
+use header::{BlockNumber, Header};
 use super::ValidatorSet;
 
 /// Validator set containing a known set of addresses.
@@ -67,7 +67,7 @@ impl ValidatorSet for SimpleList {
 	}
 
 
-	fn epoch_set(&self, first: bool, _: &Engine, _: &Header, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, first: bool, _: &Engine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
 		Ok((self.clone(), None))
 	}
 

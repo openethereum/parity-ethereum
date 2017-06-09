@@ -88,8 +88,8 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.signals_epoch_end(first, header, block, receipts)
 	}
 
-	fn epoch_set(&self, first: bool, engine: &Engine, header: &Header, proof: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
-		self.validators.epoch_set(first, engine, header, proof)
+	fn epoch_set(&self, first: bool, engine: &Engine, number: BlockNumber, proof: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+		self.validators.epoch_set(first, engine, number, proof)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {

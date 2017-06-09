@@ -16,11 +16,10 @@
 
 //! Finality proof generation and checking.
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{VecDeque};
 use std::collections::hash_map::{HashMap, Entry};
 
 use util::{Address, H256};
-use header::Header;
 
 /// Error indicating unknown validator.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -30,13 +29,13 @@ pub struct UnknownValidator;
 /// Stores a chain of unfinalized hashes that can be pushed onto.
 pub struct RollingFinality {
 	headers: VecDeque<(H256, Address)>,
-	signers: HashSet<Address>,
+	signers: Vec<Address>,
 	sign_count: HashMap<Address, usize>,
 }
 
 impl RollingFinality {
 	/// Create a blank finality checker under the given validator set.
-	pub fn blank(signers: HashSet<Address>) -> Self {
+	pub fn blank(signers: Vec<Address>) -> Self {
 		RollingFinality {
 			headers: VecDeque::new(),
 			signers: signers,
@@ -48,7 +47,7 @@ impl RollingFinality {
 	/// This will take the full unfinalized subchain from the iterator.
 	///
 	/// Fails if any provided signature isn't part of the signers set.
-	pub fn from_ancestry<I>(signers: HashSet<Address>, iterable: I) -> Result<Self, UnknownValidator>
+	pub fn from_ancestry<I>(signers: Vec<Address>, iterable: I) -> Result<Self, UnknownValidator>
 		where I: IntoIterator<Item=(H256, Address)>
 	{
 		let mut checker = RollingFinality::blank(signers);
@@ -145,7 +144,7 @@ mod tests {
 	fn finalize_multiple() {
 		let signers: Vec<_> = (0..6).map(|_| Address::random()).collect();
 
-		let mut finality = RollingFinality::blank(signers.clone().into_iter().collect());
+		let mut finality = RollingFinality::blank(signers.clone());
 		let hashes: Vec<_> = (0..7).map(|_| H256::random()).collect();
 
 		// 3 / 6 signers is < 51% so no finality.
@@ -165,7 +164,7 @@ mod tests {
 		let signers: Vec<_> = (0..6).map(|_| Address::random()).collect();
 		let hashes: Vec<_> = (0..12).map(|i| (H256::random(), signers[i % 6])).collect();
 
-		let finality = RollingFinality::from_ancestry(signers.into_iter().collect(),
+		let finality = RollingFinality::from_ancestry(signers.clone(),
 			hashes.iter().rev().cloned()).unwrap();
 
 		assert_eq!(finality.unfinalized_hashes().count(), 3);

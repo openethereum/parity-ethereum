@@ -194,7 +194,9 @@ impl ChunkRebuilder {
 			ConstructedVerifier::Trusted(v) => v,
 			ConstructedVerifier::Unconfirmed(v, finality_proof, hash) => {
 				match *last_verifier {
-					Some(ref last) => if last.check_finality_proof(finality_proof) != Some(hash) {
+					Some(ref last) =>
+						if last.check_finality_proof(finality_proof).map_or(false, |hashes| hashes.contains(&hash))
+					{
 						return Err(Error::BadEpochProof(header.number()).into());
 					},
 					None if header.number() != 0 => {
@@ -360,7 +362,7 @@ impl Rebuilder for ChunkRebuilder {
 			let mut found = false;
 			while let Some(last) = lasts_reversed.next() {
 				if last.0.number() < header.number() {
-					if last.1.check_finality_proof(&finality_proof) != Some(hash) {
+					if last.1.check_finality_proof(&finality_proof).map_or(false, |hashes| hashes.contains(&hash)) {
 						return Err(Error::BadEpochProof(header.number()).into());
 					}
 					found = true;

@@ -99,11 +99,11 @@ impl ValidatorSet for Multi {
 		set.signals_epoch_end(first, header, block, receipts)
 	}
 
-	fn epoch_set(&self, _first: bool, engine: &Engine, header: &Header, proof: &[u8]) -> Result<(super::SimpleList, Option<H256>), ::error::Error> {
-		let (set_block, set) = self.correct_set_by_number(header.number());
-		let first = set_block == header.number();
+	fn epoch_set(&self, _first: bool, engine: &Engine, number: BlockNumber, proof: &[u8]) -> Result<(super::SimpleList, Option<H256>), ::error::Error> {
+		let (set_block, set) = self.correct_set_by_number(number);
+		let first = set_block == number;
 
-		set.epoch_set(first, engine, header, proof)
+		set.epoch_set(first, engine, number, proof)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {

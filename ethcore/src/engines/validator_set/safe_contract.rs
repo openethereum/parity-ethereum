@@ -232,7 +232,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		prove_initial(&self.provider, header, call)
 	}
 
-	fn is_epoch_end(&self, first: bool, chain_head: &Header) -> Option<Vec<u8>> {
+	fn is_epoch_end(&self, _first: bool, _chain_head: &Header) -> Option<Vec<u8>> {
 		None // no immediate transitions to contract.
 	}
 
@@ -264,7 +264,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		}
 	}
 
-	fn epoch_set(&self, first: bool, engine: &Engine, _header: &Header, proof: &[u8])
+	fn epoch_set(&self, first: bool, engine: &Engine, _number: ::header::BlockNumber, proof: &[u8])
 		-> Result<(SimpleList, Option<H256>), ::error::Error>
 	{
 		use transaction::{Action, Transaction};

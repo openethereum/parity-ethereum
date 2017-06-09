@@ -87,9 +87,9 @@ pub trait EpochVerifier: Send + Sync {
 	}
 
 	/// Check a finality proof against this epoch verifier.
-	/// Returns `Some(hash)` if the proof proves finality of that hash.
+	/// Returns `Some(hashes)` if the proof proves finality of these hashes.
 	/// Returns `None` if the proof doesn't prove anything.
-	fn check_finality_proof(&self, _proof: &[u8]) -> Option<H256> {
+	fn check_finality_proof(&self, _proof: &[u8]) -> Option<Vec<H256>> {
 		None
 	}
 }

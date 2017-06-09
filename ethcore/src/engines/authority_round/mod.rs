@@ -19,24 +19,30 @@
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::Weak;
 use std::time::{UNIX_EPOCH, Duration};
-use util::*;
-use ethkey::{verify_address, Signature};
-use rlp::{UntrustedRlp, encode};
+
 use account_provider::AccountProvider;
 use block::*;
-use spec::CommonParams;
-use engines::{Call, Engine, Seal, EngineError, ConstructedVerifier};
-use header::{Header, BlockNumber};
-use error::{Error, TransactionError, BlockError};
-use evm::Schedule;
-use ethjson;
-use io::{IoContext, IoHandler, TimerToken, IoService};
 use builtin::Builtin;
-use transaction::UnverifiedTransaction;
 use client::{Client, EngineClient};
+use engines::{Call, Engine, Seal, EngineError, ConstructedVerifier};
+use error::{Error, TransactionError, BlockError};
+use ethjson;
+use evm::Schedule;
+use header::{Header, BlockNumber};
+use spec::CommonParams;
 use state::CleanupMode;
+use transaction::UnverifiedTransaction;
+
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
+
+use self::finality::RollingFinality;
+
+use ethkey::{verify_address, Signature};
+use io::{IoContext, IoHandler, TimerToken, IoService};
+use itertools::{self, Itertools};
+use rlp::{UntrustedRlp, encode};
+use util::*;
 
 mod finality;
 
@@ -133,6 +139,7 @@ pub struct AuthorityRound {
 	validate_score_transition: u64,
 	eip155_transition: u64,
 	validate_step_transition: u64,
+	finality_checker: Mutex<Option<RollingFinality>>,
 }
 
 // header-chain validator.
@@ -177,6 +184,20 @@ fn verify_external(header: &Header, validators: &ValidatorSet, step: &Step) -> R
 	}
 }
 
+fn combine_proofs(set_proof: &[u8], finality_proof: &[u8]) -> Vec<u8> {
+	let mut stream = ::rlp::RlpStream::new_list(2);
+	stream.append(&set_proof).append(&finality_proof);
+	stream.out()
+}
+
+fn destructure_proofs(combined: &[u8]) -> Result<(&[u8], &[u8]), Error> {
+	let rlp = UntrustedRlp::new(combined);
+	Ok((
+		rlp.at(0)?.data()?,
+		rlp.at(1)?.data()?,
+	))
+}
+
 trait AsMillis {
 	fn as_millis(&self) -> u64;
 }
@@ -212,6 +233,7 @@ impl AuthorityRound {
 				validate_score_transition: our_params.validate_score_transition,
 				eip155_transition: our_params.eip155_transition,
 				validate_step_transition: our_params.validate_step_transition,
+				finality_checker: Mutex::new(None),
 			});
 		// Do not initialize timeouts for tests.
 		if should_timeout {
@@ -468,17 +490,123 @@ impl Engine for AuthorityRound {
 			return Some(change)
 		}
 
-		// find most recently finalized block, then check transition store for pending transitions.
-		unimplemented!()
+		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+			Some(client) => client,
+			None => {
+				warn!(target: "engine", "Unable to check for epoch end: missing client ref.");
+				return None;
+			}
+		};
+
+		// find most recently finalized blocks, then check transition store for pending transitions.
+		let mut finality_checker = self.finality_checker.lock();
+
+		// re-initialize unless the last processed block was the parent hash.
+		if finality_checker.as_ref().map_or(false, |checker| checker.subchain_head() != Some(*chain_head.parent_hash())) {
+			*finality_checker = None;
+		}
+
+		let mut to_return = None;
+		{
+			let checker_ref;
+			match &mut *finality_checker {
+				&mut Some(ref mut checker) => checker_ref = checker,
+				x @ &mut None => {
+					// epoch_transition_for can be an expensive call, but in the absence of
+					// forks it will only need to be called for the block directly after
+					// epoch transition, in which case it will be O(1) and require a single
+					// DB lookup.
+					let last_transition = match client.epoch_transition_for(chain_head.hash()) {
+						Some(t) => t,
+						None => {
+							// this really should never happen :)
+							debug!(target: "engine", "No genesis transition found.");
+							return None;
+						}
+					};
+
+					let first = last_transition.block_number == 0;
+
+					// TODO: extract validation for finalization proof.
+					let (set_proof, _) = destructure_proofs(&last_transition.proof)
+						.expect("proof produced by this engine; therefore it is valid; qed");
+
+					let epoch_set = self.validators.epoch_set(
+						first,
+						self,
+						last_transition.block_number,
+						set_proof,
+					)
+						.ok()
+						.map(|(list, _)| list.into_inner())
+						.expect("proof produced by this engine; therefore it is valid; qed");
+
+					// build new finality checker from ancestry of chain head,
+					// not including chain head itself yet.
+					let mut hash = chain_head.parent_hash().clone();
+
+					// walk the chain within current epoch backwards.
+					// author == ec_recover(sig) known since
+					// the blocks are in the DB.
+					let ancestry_iter = itertools::repeat_call(move || {
+						chain(hash).map(|header| {
+							let res = (hash, header.author().clone());
+							hash = header.parent_hash().clone();
+							res
+						})
+					})
+						.while_some()
+						.take_while(|&(h, _)| h != last_transition.block_hash);
+
+					let finality_checker = match RollingFinality::from_ancestry(epoch_set, ancestry_iter) {
+						Ok(f) => f,
+						Err(_) => {
+							debug!(target: "engine", "inconsistent validator set within epoch");
+							return None;
+						}
+					};
+
+					*x = Some(finality_checker);
+					checker_ref = x.as_mut().expect("just set to Some; qed");
+				}
+			}
+
+			if let Ok(finalized) = checker_ref.push_hash(chain_head.hash(), *chain_head.author()) {
+				let mut finalized = finalized.into_iter();
+				while let Some(hash) = finalized.next() {
+					if let Some(pending) = transition_store(hash) {
+						let finality_proof = ::std::iter::once(hash)
+							.chain(finalized)
+							.chain(checker_ref.unfinalized_hashes())
+							.map(|hash| chain(hash)
+								.expect("these header fetched before when constructing finality checker; qed"))
+							.collect::<Vec<Header>>();
+
+						let finality_proof = ::rlp::encode_list(&finality_proof);
+						to_return = Some(combine_proofs(&pending.proof, &*finality_proof));
+						break
+					}
+				}
+			}
+		}
+
+		// wipe the finality checker on epoch end.
+		if to_return.is_some() {
+			*finality_checker = None;
+		}
+
+		to_return
 	}
 
 	fn epoch_verifier<'a>(&self, header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
 		let first = header.number() == 0;
 
-		// TODO: extract validation from finalization proof.
-		let finality_proof = proof;
+		let (set_proof, finality_proof) = match destructure_proofs(proof) {
+			Ok(x) => x,
+			Err(e) => return ConstructedVerifier::Err(e),
+		};
 
-		match self.validators.epoch_set(first, self, header, proof) {
+		match self.validators.epoch_set(first, self, header.number(), set_proof) {
 			Ok((list, finalize)) => {
 				let verifier = Box::new(EpochVerifier {
 					step: self.step.clone(),
