@@ -37,6 +37,15 @@ pub fn get_push_bytes(i: Instruction) -> usize {
 	(i - PUSH1 + 1) as usize
 }
 
+/// Returns number of bytes to read for `PUSHN` instruction or 0.
+pub fn push_bytes(i: Instruction) -> usize {
+	if is_push(i) {
+		get_push_bytes(i)
+	} else {
+		0
+	}
+}
+
 #[test]
 fn test_get_push_bytes() {
 	assert_eq!(get_push_bytes(PUSH1), 1);
