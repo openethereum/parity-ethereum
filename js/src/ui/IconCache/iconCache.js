@@ -16,7 +16,7 @@
 
 import { action, observable } from 'mobx';
 
-import { bytesToHex } from '@parity/api/util/format';
+import { bytesToHex } from 'parity/api/util/format';
 
 const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
 const API_PATH = '/api/content/';

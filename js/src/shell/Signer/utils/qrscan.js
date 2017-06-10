@@ -16,8 +16,8 @@
 
 import Transaction from 'ethereumjs-tx';
 
-import { inAddress, inHex, inNumber10 } from '@parity/api/format/input';
-import { sha3 } from '@parity/api/util/sha3';
+import { inAddress, inHex, inNumber10 } from 'parity/api/format/input';
+import { sha3 } from 'parity/api/util/sha3';
 
 export function createUnsignedTx (api, netVersion, transaction) {
   const { data, from, gas, gasPrice, to, value } = transaction;

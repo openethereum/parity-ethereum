@@ -19,7 +19,7 @@ import { observable, action, transaction } from 'mobx';
 import { flatMap, uniqBy } from 'lodash';
 import { FormattedMessage } from 'react-intl';
 
-import { sha3 } from '@parity/api/util/sha3';
+import { sha3 } from 'parity/api/util/sha3';
 import Contracts from '@parity/shared/contracts';
 
 const ZERO = /^(0x)?0*$/;

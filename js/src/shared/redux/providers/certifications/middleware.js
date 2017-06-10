@@ -16,7 +16,7 @@
 
 import { uniq, range, debounce } from 'lodash';
 
-import Contract from '@parity/api/contract';
+import Contract from 'parity/api/contract';
 import { getLogger, LOG_KEYS } from '@parity/shared/config';
 import Contracts from '@parity/shared/contracts';
 import CertifierABI from '@parity/shared/contracts/abi/certifier.json';

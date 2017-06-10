@@ -18,8 +18,8 @@ import { noop } from 'lodash';
 import { observable, computed, action, transaction } from 'mobx';
 import BigNumber from 'bignumber.js';
 
-import Contract from '@parity/api/contract';
-import { fromWei } from '@parity/api/util/wei';
+import Contract from 'parity/api/contract';
+import { fromWei } from 'parity/api/util/wei';
 import { getLogger, LOG_KEYS } from '@parity/shared/config';
 import { eip20 as tokenAbi, wallet as walletAbi } from '@parity/shared/contracts/abi';
 import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '@parity/shared/util/constants';

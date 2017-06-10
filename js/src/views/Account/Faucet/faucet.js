@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { txLink } from '~/3rdparty/etherscan/links';
+import { txLink } from 'parity/3rdparty/etherscan/links';
 import { Button, ModalBox, Portal, ShortenedHash } from '@parity/ui';
 import { CloseIcon, DialIcon, DoneIcon, ErrorIcon, SendIcon } from '@parity/ui/Icons';
 

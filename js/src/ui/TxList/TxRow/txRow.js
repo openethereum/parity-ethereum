@@ -20,7 +20,7 @@ import { FormattedMessage } from 'react-intl';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import { txLink } from '~/3rdparty/etherscan/links';
+import { txLink } from 'parity/3rdparty/etherscan/links';
 
 import DappLink from '~/ui/DappLink';
 import IdentityIcon from '~/ui/IdentityIcon';

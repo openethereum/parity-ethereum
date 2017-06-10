@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { url as externalUrl } from '~/3rdparty/etherscan/links';
+import { url as externalUrl } from 'parity/3rdparty/etherscan/links';
 
 const leading0x = /^0x/;
 

@@ -39,12 +39,12 @@ const TEST_CONTEXT = SRC === 'parity'
   ? '../npm/parity/test/'
   : `../src/3rdparty/${SRC}/`;
 
-console.log(`Building ${LIBRARY} from library.${SRC}.js to .npmjs/${SRC}`);
+console.log(`Building ${LIBRARY} from libraries.js to .npmjs/${SRC}`);
 
 module.exports = {
   context: path.join(__dirname, '../src'),
   target: 'node',
-  entry: `library.${SRC}.js`,
+  entry: `libraries.js`,
   output: {
     path: OUTPUT_PATH,
     filename: 'library.js',
@@ -74,8 +74,8 @@ module.exports = {
   resolve: {
     alias: {
       '~': path.resolve(__dirname, '../src'),
-      '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
       '@parity': path.resolve(__dirname, '../src'),
+      'parity': path.resolve(__dirname, '../node_modules/parity'),
       'secp256k1': path.resolve(__dirname, '../node_modules/secp256k1/js'),
       'keythereum': path.resolve(__dirname, '../node_modules/keythereum/dist/keythereum')
     },

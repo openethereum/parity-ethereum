@@ -21,7 +21,7 @@ import keycode, { codes } from 'keycode';
 import { FormattedMessage } from 'react-intl';
 import { observer } from 'mobx-react';
 
-import apiutil from '@parity/api/util';
+import apiutil from 'parity/api/util';
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 import { parseI18NString } from '@parity/shared/util/messages';
 import { validateAddress } from '@parity/shared/util/validation';

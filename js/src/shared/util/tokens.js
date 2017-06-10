@@ -17,7 +17,7 @@
 import { range } from 'lodash';
 import BigNumber from 'bignumber.js';
 
-import { sha3 } from '@parity/api/util/sha3';
+import { sha3 } from 'parity/api/util/sha3';
 import { IconCache } from '@parity/ui';
 
 import imagesEthereum from '~/shared/assets/images/contracts/ethereum-black-64x64.png';

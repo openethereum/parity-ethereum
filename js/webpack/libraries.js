@@ -30,9 +30,7 @@ module.exports = {
   context: path.join(__dirname, '../src'),
   entry: {
     // library
-    'inject': ['./inject.js'],
-    'web3': ['./web3.js'],
-    'parity': ['./parity.js']
+    'inject': ['./inject.js']
   },
   output: {
     path: path.join(__dirname, '../', DEST),
@@ -44,8 +42,8 @@ module.exports = {
   resolve: {
     alias: {
       '~': path.resolve(__dirname, '../src'),
-      '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
       '@parity': path.resolve(__dirname, '../src'),
+      'parity': path.resolve(__dirname, '../node_modules/parity'),
       'secp256k1': path.resolve(__dirname, '../node_modules/secp256k1/js'),
       'keythereum': path.resolve(__dirname, '../node_modules/keythereum/dist/keythereum')
     }

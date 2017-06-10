@@ -14,6 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Logging from './logging';
+import es6Promise from 'es6-promise';
+import Abi from 'parity/abi';
+import Api from 'parity/api';
 
-export default from './manager';
+es6Promise.polyfill();
+
+const isNode = typeof global !== 'undefined' && typeof global !== 'undefined';
+const isBrowser = typeof self !== 'undefined' && typeof self.window !== 'undefined';
+
+if (isBrowser) {
+  require('whatwg-fetch');
+}
+
+if (isNode) {
+  global.fetch = require('node-fetch');
+}
+
+export { Api, Abi };
+export { default as Etherscan } from 'parity/3rdparty/etherscan';
+export { default as JsonRpc } from 'parity/jsonrpc';
+export { default as ShapeShift } from 'parity/3rdparty/shapeshift';

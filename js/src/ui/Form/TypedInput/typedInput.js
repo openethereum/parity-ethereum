@@ -18,8 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { range } from 'lodash';
 import BigNumber from 'bignumber.js';
 
-import { fromWei, toWei } from '@parity/api/util/wei';
-import { bytesToHex } from '@parity/api/util/format';
+import { fromWei, toWei } from 'parity/api/util/wei';
+import { bytesToHex } from 'parity/api/util/format';
 import { ABI_TYPES, parseAbiType } from '@parity/shared/util/abi';
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 

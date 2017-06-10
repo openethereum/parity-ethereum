@@ -16,6 +16,6 @@
 
 module.exports = {
   test: /\.js$/,
-  include: /node_modules\/@parity\/(abi|api|dapps|jsonrpc|shared|shell|ui|views|wordlist)/,
+  include: /node_modules\/@parity\/(dapps|shared|shell|ui|views)/,
   use: 'babel-loader'
 };
