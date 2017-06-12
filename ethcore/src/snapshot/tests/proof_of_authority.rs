@@ -21,11 +21,9 @@ use std::sync::Arc;
 use std::str::FromStr;
 
 use account_provider::AccountProvider;
-use client::{Client, BlockChainClient, MiningBlockChainClient};
+use client::{Client, BlockChainClient};
 use ethkey::Secret;
-use engines::Seal;
 use futures::Future;
-use miner::MinerService;
 use native_contracts::test_contracts::ValidatorSet;
 use snapshot::tests::helpers as snapshot_helpers;
 use spec::Spec;
@@ -37,7 +35,7 @@ use util::kvdb;
 
 const PASS: &'static str = "";
 const TRANSITION_BLOCK_1: usize = 2; // block at which the contract becomes activated.
-const TRANSITION_BLOCK_2: usize = 6; // block at which the second contract activates.
+const TRANSITION_BLOCK_2: usize = 10; // block at which the second contract activates.
 
 macro_rules! secret {
 	($e: expr) => { Secret::from_slice(&$e.sha3()) }
@@ -101,45 +99,34 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 	{
 		// push a block with given number, signed by one of the signers, with given transactions.
 		let push_block = |signers: &[Address], n, txs: Vec<SignedTransaction>| {
-			use block::IsBlock;
+			let idx = n as usize % signers.len();
 
 			let engine = client.engine();
-			let idx = n as usize % signers.len();
 			engine.set_signer(accounts.clone(), signers[idx], PASS.to_owned());
+			engine.step();
 
 			trace!(target: "snapshot", "Pushing block #{}, {} txs, author={}", n, txs.len(), signers[idx]);
-
-			let mut open_block = client.prepare_open_block(signers[idx], (5_000_000.into(), 5_000_000.into()), Vec::new());
-			for tx in txs {
-				open_block.push_transaction(tx, None).unwrap();
-			}
-			let block = open_block.close_and_lock();
-			let seal = match engine.generate_seal(block.block()) {
-				Seal::Regular(seal) => seal,
-				_ => panic!("Unable to generate seal for dummy chain block #{}", n),
-			};
-			let block = block.seal(&*engine, seal).unwrap();
-
-			client.import_sealed_block(block).unwrap();
+			assert_eq!(client.chain_info().best_block_number, n);
 		};
 
 		// execution callback for native contract: push transaction to be sealed.
 		let nonce = RefCell::new(client.engine().account_start_nonce());
-		let exec = |addr, data| {
+
+		// create useless transactions vector so we don't have to dig in
+		// and force sealing.
+		let make_useless_transactions = || {
 			let mut nonce = nonce.borrow_mut();
 			let transaction = Transaction {
 				nonce: *nonce,
-				gas_price: 0.into(),
-				gas: 1_000_000.into(),
-				action: Action::Call(addr),
-				value: 0.into(),
-				data: data,
+				gas_price: 1.into(),
+				gas: 21_000.into(),
+				action: Action::Call(Address::new()),
+				value: 1.into(),
+				data: Vec::new(),
 			}.sign(&*RICH_SECRET, client.signing_network_id());
 
-			client.miner().import_own_transaction(&*client, transaction.into()).unwrap();
-
 			*nonce = *nonce + 1.into();
-			Ok(Vec::new())
+			vec![transaction]
 		};
 
 		let contract_1 = ValidatorSet::new(*CONTRACT_ADDR_1);
@@ -156,8 +143,12 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 				panic!("Bad test: issued epoch change before transition to contract.");
 			}
 
+			if (num as u64) < client.chain_info().best_block_number {
+				panic!("Bad test: issued epoch change before previous transition finalized.");
+			}
+
 			for number in client.chain_info().best_block_number + 1 .. num as u64 {
-				push_block(&cur_signers, number, vec![]);
+				push_block(&cur_signers, number, make_useless_transactions());
 			}
 
 			let pending = if manual {
@@ -167,22 +158,48 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 					false => &contract_1,
 				};
 
-				contract.set_validators(&exec, new_set.clone()).wait().unwrap();
-				client.ready_transactions()
-					.into_iter()
-					.map(|x| x.transaction)
-					.collect()
+				let mut pending = Vec::new();
+				{
+					let mut exec = |addr, data| {
+						let mut nonce = nonce.borrow_mut();
+						let transaction = Transaction {
+							nonce: *nonce,
+							gas_price: 0.into(),
+							gas: 1_000_000.into(),
+							action: Action::Call(addr),
+							value: 0.into(),
+							data: data,
+						}.sign(&*RICH_SECRET, client.signing_network_id());
+
+						pending.push(transaction);
+
+						*nonce = *nonce + 1.into();
+						Ok(Vec::new())
+					};
+
+					contract.set_validators(&mut exec, new_set.clone()).wait().unwrap();
+				}
+
+				pending
 			} else {
-				Vec::new()
+				make_useless_transactions()
 			};
 
+			// push transition block.
 			push_block(&cur_signers, num as u64, pending);
+
+			// push blocks to finalize transition
+			for finalization_count in 1.. {
+				if finalization_count * 2 > cur_signers.len() { break }
+				push_block(&cur_signers, (num + finalization_count) as u64, make_useless_transactions());
+			}
+
 			cur_signers = new_set;
 		}
 
 		// make blocks beyond.
 		for number in (client.chain_info().best_block_number..).take(blocks_beyond) {
-			push_block(&cur_signers, number + 1, vec![]);
+			push_block(&cur_signers, number + 1, make_useless_transactions());
 		}
 	}
 
@@ -206,7 +223,7 @@ fn fixed_to_contract() {
 
 	let client = make_chain(provider, 1, vec![
 		Transition::Manual(3, vec![addrs[2], addrs[3], addrs[5], addrs[7]]),
-		Transition::Manual(4, vec![addrs[0], addrs[1], addrs[4], addrs[6]]),
+		Transition::Manual(8, vec![addrs[0], addrs[1], addrs[4], addrs[6]]),
 	]);
 
 	assert_eq!(client.chain_info().best_block_number, 5);

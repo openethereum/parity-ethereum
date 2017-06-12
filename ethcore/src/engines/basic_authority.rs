@@ -244,7 +244,7 @@ impl Engine for BasicAuthority {
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
-		Some(Box::new(::snapshot::PoaSnapshot))
+		None
 	}
 }
 
