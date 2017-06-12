@@ -273,17 +273,10 @@ impl Engine for Arc<Ethash> {
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		let mut reward = self.ethash_params.block_reward;
+		let reward = self.ethash_params.block_reward;
 		let fields = block.fields_mut();
-
-		let eras = if fields.header.number() != 0 && fields.header.number() % self.ethash_params.ecip1017_era_rounds == 0 {
-			fields.header.number() / self.ethash_params.ecip1017_era_rounds - 1
-		} else {
-			fields.header.number() / self.ethash_params.ecip1017_era_rounds
-		};
-		for _ in 0..eras {
-			reward = reward / U256::from(5) * U256::from(4);
-		}
+		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, fields.header.number());
 
 		// Bestow block reward
 		fields.state.add_balance(
@@ -433,6 +426,18 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 	}
 }
 
+fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number:u64) -> (u64, U256){
+	let eras = if block_number != 0 && block_number % era_rounds == 0 {
+		block_number / era_rounds - 1
+	} else {
+		block_number / era_rounds
+	};
+	for _ in 0..eras {
+		reward = reward / U256::from(5) * U256::from(4);
+	}
+	(eras, reward)
+}
+
 #[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl Ethash {
 	fn calculate_difficulty(&self, header: &Header, parent: &Header) -> U256 {
@@ -544,7 +549,7 @@ mod tests {
 	use error::{BlockError, Error};
 	use header::Header;
 	use super::super::{new_morden, new_homestead_test};
-	use super::{Ethash, EthashParams, PARITY_GAS_LIMIT_DETERMINANT};
+	use super::{Ethash, EthashParams, PARITY_GAS_LIMIT_DETERMINANT, ecip1017_eras_block_reward};
 	use rlp;
 
 	#[test]
@@ -778,6 +783,42 @@ mod tests {
 
 		let difficulty = ethash.calculate_difficulty(&header, &parent_header);
 		assert_eq!(U256::from_str("1fc50f118efe").unwrap(), difficulty);
+	}
+
+	#[test]
+	fn has_valid_ecip1017_eras_block_reward() {
+		let ethparams = EthashParams {
+			// see ethcore/res/ethereum/classic.json
+			ecip1017_era_rounds: 5000000,
+			block_reward: U256::from_str("4563918244F40000").unwrap(),
+			..get_default_ethash_params()
+		};
+		let eras_rounds = ethparams.ecip1017_era_rounds;
+		let reward = ethparams.block_reward;
+		let block_number = 0;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		assert_eq!(0, eras);
+		assert_eq!(U256::from_str("4563918244F40000").unwrap(), reward);
+		let reward = ethparams.block_reward;
+		let block_number = 5000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		assert_eq!(0, eras);
+		assert_eq!(U256::from_str("4563918244F40000").unwrap(), reward);
+		let reward = ethparams.block_reward;
+		let block_number = 10000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		assert_eq!(1, eras);
+		assert_eq!(U256::from_str("3782DACE9D900000").unwrap(), reward);
+		let reward = ethparams.block_reward;
+		let block_number = 20000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		assert_eq!(3, eras);
+		assert_eq!(U256::from_str("2386F26FC1000000").unwrap(), reward);
+		let reward = ethparams.block_reward;
+		let block_number = 80000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		assert_eq!(15, eras);
+		assert_eq!(U256::from_str("271000000000000").unwrap(), reward);
 	}
 
 	#[test]
