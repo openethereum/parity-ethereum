@@ -1297,7 +1297,7 @@ dependencies = [
 [[package]]
 name = "nanomsg"
 version = "0.7.0"
-source = "git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.5#f94f2d4289d123e16a0c928f3e513533b282a8a2"
+source = "git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.5#8b91b0bcb30b195dcd1e9303c70929b52cdba798"
 dependencies = [
  "libc 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "nanomsg-sys 0.7.0 (git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.5)",
@@ -1306,7 +1306,7 @@ dependencies = [
 [[package]]
 name = "nanomsg-sys"
 version = "0.7.0"
-source = "git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.5#f94f2d4289d123e16a0c928f3e513533b282a8a2"
+source = "git+https://github.com/ethcore/nanomsg.rs.git?branch=parity-1.5#8b91b0bcb30b195dcd1e9303c70929b52cdba798"
 dependencies = [
  "gcc 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
