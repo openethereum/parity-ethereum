@@ -141,6 +141,7 @@ pub struct WsConfiguration {
 	pub origins: Option<Vec<String>>,
 	pub hosts: Option<Vec<String>>,
 	pub signer_path: PathBuf,
+	pub support_token_api: bool,
 	pub ui_address: Option<(String, u16)>,
 }
 
@@ -155,6 +156,7 @@ impl Default for WsConfiguration {
 			origins: Some(vec!["chrome-extension://*".into()]),
 			hosts: Some(Vec::new()),
 			signer_path: replace_home(&data_dir, "$BASE/signer").into(),
+			support_token_api: true,
 			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
 		}
 	}
@@ -207,9 +209,14 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let allowed_origins = into_domains(with_domain(conf.origins, domain, &[ui_address]));
 	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &[Some(ws_address)]));
 
-	let signer_path = conf.signer_path;
-	let signer_path = conf.ui_address.map(move |_| ::signer::codes_path(&signer_path));
-	let path = signer_path.as_ref().map(|p| p.as_path());
+	let signer_path;
+	let path = match conf.support_token_api && conf.ui_address.is_some() {
+		true => {
+			signer_path = ::signer::codes_path(&conf.signer_path);
+			Some(signer_path.as_path())
+		},
+		false => None
+	};
 	let start_result = rpc::start_ws(
 		&addr,
 		handler,

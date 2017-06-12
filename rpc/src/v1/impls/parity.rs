@@ -307,6 +307,11 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>, Error> {
+		// Return nothing if accounts are disabled (running as public node)
+		if self.accounts.is_none() {
+			return Ok(BTreeMap::new());
+		}
+
 		let transactions = self.miner.local_transactions();
 		let block_number = self.client.chain_info().best_block_number;
 		Ok(transactions
