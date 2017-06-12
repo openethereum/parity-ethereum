@@ -31,14 +31,7 @@ EXCLUDE="/usr/lib,\
 $HOME/.cargo,\
 $HOME/.multirust,\
 rocksdb,\
-secp256k1,\
-util/json-tests,\
-util/src/network/tests,\
-ethcore/src/evm/tests,\
-ethstore/tests,\
-target/debug/build,\
-target/release/build,\
-*.db
+secp256k1
 "
 
 rm -rf $KCOV_TARGET
@@ -46,10 +39,10 @@ mkdir -p $KCOV_TARGET
 echo "Cover RUST"
 for FILE in `find target/debug/deps ! -name "*.*"`
 do
-	$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET $FILE --verify
+	$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET $FILE
 done
 
-$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-* --verify
+$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-*
 echo "Cover JS"
 cd js
 npm install&&npm run test:coverage
