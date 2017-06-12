@@ -9,6 +9,7 @@ variables:
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
   CARGOFLAGS: ""
+  CI_SERVER_NAME: "GitLab CI"
 cache:
   key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
   untracked: true
