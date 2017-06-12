@@ -91,7 +91,7 @@ linux-beta:
   image: parity/rust:gitlab-ci
   only:
     - tags
-    - stable
+    #- stable
     - triggers
   script:
     - rustup install 1.16.0-x86_64-unknown-linux-gnu
@@ -111,7 +111,7 @@ linux-nightly:
   image: parity/rust:gitlab-ci
   only:
     - tags
-    - stable
+    #- stable
     - triggers
   script:
     - rustup install 1.16
@@ -129,6 +129,7 @@ linux-nightly:
 linux-centos:
   stage: build
   image: parity/rust-centos:gitlab-ci
+  only:
     - beta
     - tags
     - stable
@@ -167,8 +168,9 @@ linux-i686:
     - stable
     - triggers
   script:
-    - rustup install 1.16.0-i686-unknown-linux-gnu
-    - rustup default 1.16.0-i686-unknown-linux-gnu
+    - rustup install 1.16.0-x86_64-unknown-linux-gnu
+    - rustup default 1.16.0-x86_64-unknown-linux-gnu
+    - rustup target add i686-unknown-linux-gnu
     - export HOST_CC=gcc
     - export HOST_CXX=g++
     - export COMMIT=$(git rev-parse HEAD)
@@ -209,8 +211,9 @@ linux-armv7:
     - stable
     - triggers
   script:
-    - rustup install 1.16.0-armv7-unknown-linux-gnueabihf
-    - rustup default 1.16.0-armv7-unknown-linux-gnueabihf
+    - rustup install 1.16.0-x86_64-unknown-linux-gnu
+    - rustup default 1.16.0-x86_64-unknown-linux-gnu
+    - rustup target add armv7-unknown-linux-gnueabihf
     - export CC=arm-linux-gnueabihf-gcc
     - export CXX=arm-linux-gnueabihf-g++
     - export HOST_CC=gcc
@@ -257,8 +260,9 @@ linux-arm:
     - stable
     - triggers
   script:
-    - rustup install 1.16.0-arm-unknown-linux-gnueabihf
-    - rustup default 1.16.0-arm-unknown-linux-gnueabihf
+    - rustup install 1.16.0-x86_64-unknown-linux-gnu
+    - rustup default 1.16.0-x86_64-unknown-linux-gnu
+    - rustup target add arm-unknown-linux-gnueabihf
     - export CC=arm-linux-gnueabihf-gcc
     - export CXX=arm-linux-gnueabihf-g++
     - export HOST_CC=gcc
@@ -305,8 +309,9 @@ linux-armv6:
     - stable
     - triggers
   script:
-    -- rustup install 1.16.0-arm-unknown-linux-gnueabi
-    - rustup default 1.16.0-arm-unknown-linux-gnueabi
+    - rustup install 1.16.0-x86_64-unknown-linux-gnu
+    - rustup default 1.16.0-x86_64-unknown-linux-gnu
+    - rustup target add arm-unknown-linux-gnueabi
     - export CC=arm-linux-gnueabi-gcc
     - export CXX=arm-linux-gnueabi-g++
     - export HOST_CC=gcc
@@ -346,8 +351,9 @@ linux-aarch64:
     - stable
     - triggers
   script:
-    - rustup install 1.16.0-aarch64-unknown-linux-gnu
-    - rustup default 1.16.0-aarch64-unknown-linux-gnu
+    - rustup install 1.16.0-x86_64-unknown-linux-gnu
+    - rustup default 1.16.0-x86_64-unknown-linux-gnu
+    - rustup target add aarch64-unknown-linux-gnu
     - export CC=aarch64-linux-gnu-gcc
     - export CXX=aarch64-linux-gnu-g++
     - export HOST_CC=gcc
@@ -440,7 +446,7 @@ windows:
     - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS%
-    - rustup default 1.14.0-x86_64-pc-windows-msvc
+    #- rustup default 1.14.0-x86_64-pc-windows-msvc
     - cargo build --features final --release #%CARGOFLAGS%
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
     - target\release\parity.exe tools hash target\release\parity.exe > parity.sha3
