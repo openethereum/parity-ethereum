@@ -138,17 +138,25 @@ pub fn get_tier_idx (tier: GasPriceTier) -> usize {
 	}
 }
 
+/// EVM instruction details.
 #[derive(Copy, Clone, Default)]
 pub struct InstructionInfo {
+	/// Mnemonic
 	pub name: &'static str,
+	/// Additional number of bytes consumed by this instruction.
 	pub additional: usize,
+	/// Number of arguments it pops of the stack.
 	pub args: usize,
+	/// Number of arugments it pushes to the stack.
 	pub ret: usize,
+	/// Does it have any side effects (externalities).
 	pub side_effects: bool,
+	/// Gas pricing tier.
 	pub tier: GasPriceTier
 }
 
 impl InstructionInfo {
+	/// Creates a new `InstructionInfo`
 	pub fn new(name: &'static str, additional: usize, args: usize, ret: usize, side_effects: bool, tier: GasPriceTier) -> Self {
 		InstructionInfo {
 			name: name,
@@ -162,6 +170,7 @@ impl InstructionInfo {
 }
 
 lazy_static! {
+	/// An array of all supported instructions.
 	pub static ref INSTRUCTIONS: [InstructionInfo; 0x100] = {
 		let mut arr = [InstructionInfo::default(); 0x100];
 		arr[STOP as usize] =			InstructionInfo::new("STOP",			0, 0, 0, true, GasPriceTier::Zero);
