@@ -581,10 +581,12 @@ impl Engine for AuthorityRound {
 					// author == ec_recover(sig) known since
 					// the blocks are in the DB.
 					let ancestry_iter = itertools::repeat_call(move || {
-						chain(hash).map(|header| {
+						chain(hash).and_then(|header| {
+							if header.number() == 0 { return None }
+
 							let res = (hash, header.author().clone());
 							hash = header.parent_hash().clone();
-							res
+							Some(res)
 						})
 					})
 						.while_some()
