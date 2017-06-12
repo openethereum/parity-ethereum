@@ -607,19 +607,6 @@ js-test:
   tags:
     - rust
     - rust-stable
-js-test-node_8:
-  stage: test
-  image: parity/rust-debian-node_8:gitlab-ci
-  before_script:
-    - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
-    - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
-  script:
-    - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS lint since no JS files modified."; else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; fi
-  tags:
-    - rust
-    - rust-stable
-  allow_failure: true
 test-rust-beta:
   stage: test
   only:
