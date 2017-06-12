@@ -89,10 +89,9 @@ impl Memory for Vec<u8> {
 	}
 
 	fn write_slice(&mut self, offset: U256, slice: &[u8]) {
-		if !slice.is_empty() {
-			let off = offset.low_u64() as usize;
-			self[off..off+slice.len()].copy_from_slice(slice);
-		}
+		let off = offset.low_u64() as usize;
+
+		self[off..off+slice.len()].copy_from_slice(slice);
 	}
 
 	fn write(&mut self, offset: U256, value: U256) {
@@ -183,13 +182,6 @@ mod tests {
 			mem.write_slice(U256::from(0x1), slice);
 
 			assert_eq!(mem.read_slice(U256::from(0), U256::from(7)), "a67890g".as_bytes());
-		}
-
-		// write empty slice out of bounds
-		{
-			let slice = [];
-			mem.write_slice(U256::from(0x1000), &slice);
-			assert_eq!(mem.size(), 32);
 		}
 	}
 }
