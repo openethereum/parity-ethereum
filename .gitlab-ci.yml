@@ -135,8 +135,9 @@ linux-centos:
     - stable
     - triggers
   script:
-    - rustup install 1.16.0-x86_64-unknown-linux-gnu
-    - rustup default 1.16.0-x86_64-unknown-linux-gnu
+    #- rustup install 1.16.0-x86_64-unknown-linux-gnu
+    #- rustup default 1.16.0-x86_64-unknown-linux-gnu
+    - curl -sSf https://static.rust-lang.org/rustup.sh -o rustup.sh &&sh rustup.sh --disable-sudo --yes --revision=1.16.0
     - export CXX="g++"
     - export CC="gcc"
     - export PLATFORM=x86_64-unknown-centos-gnu
