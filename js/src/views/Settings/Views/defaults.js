@@ -59,6 +59,7 @@ const defaultViews = {
 
   contracts: {
     active: false,
+    onlyPersonal: true,
     icon: <ContactsIcon />,
     route: '/contracts',
     value: 'contract'
@@ -66,6 +67,7 @@ const defaultViews = {
 
   status: {
     active: false,
+    onlyPersonal: true,
     icon: <StatusIcon />,
     route: '/status',
     value: 'status'

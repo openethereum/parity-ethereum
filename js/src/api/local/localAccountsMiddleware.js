@@ -29,7 +29,7 @@ export default class LocalAccountsMiddleware extends Middleware {
     const register = this.register.bind(this);
 
     register('eth_accounts', () => {
-      return accounts.mapArray((account) => account.address);
+      return accounts.addresses();
     });
 
     register('eth_coinbase', () => {
@@ -37,13 +37,13 @@ export default class LocalAccountsMiddleware extends Middleware {
     });
 
     register('parity_accountsInfo', () => {
-      return accounts.mapObject(({ name }) => {
+      return accounts.map(({ name }) => {
         return { name };
       });
     });
 
     register('parity_allAccountsInfo', () => {
-      return accounts.mapObject(({ name, meta, uuid }) => {
+      return accounts.map(({ name, meta, uuid }) => {
         return { name, meta, uuid };
       });
     });
@@ -68,8 +68,29 @@ export default class LocalAccountsMiddleware extends Middleware {
       return transactions.hash(id) || Promise.resolve(null);
     });
 
+    register('parity_dappsList', () => {
+      return [];
+    });
+
     register('parity_defaultAccount', () => {
       return accounts.lastAddress;
+    });
+
+    register('parity_exportAccount', ([address, password]) => {
+      const account = accounts.get(address);
+
+      if (!password) {
+        password = '';
+      }
+
+      return account.isValidPassword(password)
+        .then((isValid) => {
+          if (!isValid) {
+            throw new Error('Invalid password');
+          }
+
+          return account.export();
+        });
     });
 
     register('parity_generateSecretPhrase', () => {
@@ -78,6 +99,10 @@ export default class LocalAccountsMiddleware extends Middleware {
 
     register('parity_getNewDappsAddresses', () => {
       return [];
+    });
+
+    register('parity_getNewDappsDefaultAddress', () => {
+      return accounts.lastAddress;
     });
 
     register('parity_hardwareAccountsInfo', () => {
@@ -102,16 +127,28 @@ export default class LocalAccountsMiddleware extends Middleware {
         });
     });
 
+    register('parity_newAccountFromWallet', ([json, password]) => {
+      if (!password) {
+        password = '';
+      }
+
+      return accounts.restoreFromWallet(JSON.parse(json), password);
+    });
+
     register('parity_setAccountMeta', ([address, meta]) => {
-      accounts.get(address).meta = meta;
+      accounts.getLazyCreate(address).meta = meta;
 
       return true;
     });
 
     register('parity_setAccountName', ([address, name]) => {
-      accounts.get(address).name = name;
+      accounts.getLazyCreate(address).name = name;
 
       return true;
+    });
+
+    register('parity_setNewDappsDefaultAddress', ([address]) => {
+      accounts.dappsDefaultAddress = address;
     });
 
     register('parity_postTransaction', ([tx]) => {
@@ -137,8 +174,30 @@ export default class LocalAccountsMiddleware extends Middleware {
       return [];
     });
 
+    register('parity_listOpenedVaults', () => {
+      return [];
+    });
+
     register('parity_listRecentDapps', () => {
       return {};
+    });
+
+    register('parity_listVaults', () => {
+      return [];
+    });
+
+    register('parity_wsUrl', () => {
+      // This is a hack, will be replaced by a `hostname` setting on the node itself
+      return `${window.location.hostname}:8546`;
+    });
+
+    register('parity_dappsUrl', () => {
+      // This is a hack, will be replaced by a `hostname` setting on the node itself
+      return `${window.location.hostname}:8545`;
+    });
+
+    register('parity_hashContent', () => {
+      throw new Error('Functionality unavailable on a public wallet.');
     });
 
     register('parity_killAccount', ([address, password]) => {
@@ -202,6 +261,10 @@ export default class LocalAccountsMiddleware extends Middleware {
 
         return {};
       });
+    });
+
+    register('signer_generateAuthorizationToken', () => {
+      return '';
     });
 
     register('signer_rejectRequest', ([id]) => {
