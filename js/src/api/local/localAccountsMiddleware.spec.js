@@ -32,7 +32,8 @@ class MockedTransport extends JsonRpcBase {
   }
 }
 
-describe('api/local/LocalAccountsMiddleware', function () {
+// Skip till all CI runs on Node 8+
+describe.skip('api/local/LocalAccountsMiddleware', function () {
   this.timeout(30000);
 
   let transport;
