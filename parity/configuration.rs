@@ -1248,6 +1248,7 @@ mod tests {
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
 			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
+			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,
 			interface: "127.0.0.1".into(),
