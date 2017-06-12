@@ -26,15 +26,19 @@ use v1::types::H64;
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Id(H64);
 impl str::FromStr for Id {
-	type Err = <H64 as str::FromStr>::Err;
+	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		Ok(Id(s.parse()?))
+		if s.starts_with("0x") {
+			Ok(Id(s[2..].parse().map_err(|e| format!("{}", e))?))
+		} else {
+			Err("The id must start with 0x".into())
+		}
 	}
 }
 impl Id {
 	pub fn as_string(&self) -> String {
-		format!("{:?}", self.0)
+		format!("0x{:?}", self.0)
 	}
 }
 
