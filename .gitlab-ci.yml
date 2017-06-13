@@ -93,6 +93,7 @@ linux-snap:
     paths:
     - scripts/parity_*_amd64.snap
     name: "stable-x86_64-unknown-snap-gnu_parity"
+  allow_failure: true  
 linux-stable-debian:
   stage: build
   image: parity/rust-debian:gitlab-ci
@@ -434,6 +435,7 @@ darwin:
   script: |
       export COMMIT=$(git rev-parse HEAD)
       export PLATFORM=x86_64-apple-darwin
+      rustup default stable
       cargo build -j 8 --features final --release #$CARGOFLAGS
       cargo build -j 8 --features final --release -p ethstore #$CARGOFLAGS
       rm -rf parity.md5
