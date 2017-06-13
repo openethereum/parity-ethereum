@@ -204,30 +204,23 @@ export default class Ws extends JsonRpcBase {
   }
 
   _extract = (result) => {
-    switch (result) {
-      // subscription format
-      case result.id && this._messages[result.id].subscription : {
-        // initial subscription : check if eth or parity subscription (avoid collidance of id's)
-        result.method === 'eth_subscribe'
-          ? this._eth_subscriptions[result.result] = result.id
-          : this._parity_subscriptions[result.result] = result.id;
-        // resolve promise with subscription id
-        this._messages[result.id].resolve(result.result);
-        return this._messages[result.id];
-      }
-      // normal format
-      case result.id : {
-        return this._messages[result.id];
-      }
-      // pubsub format
-      case result.params : {
-        return result.method === 'eth_subscribe'
-          ? this._messages[this._eth_subscriptions[result.params.subscription]]
-          : this._messages[this._parity_subscriptions[result.params.subscription]];
-      }
-      default : {
-        return;
-      }
+    // subscription format
+    if (result.id && this._messages[result.id].subscription) {
+      // initial subscription : check if eth or parity subscription (avoid collidance of id's)
+      result.method === 'eth_subscribe'
+        ? this._eth_subscriptions[result.result] = result.id
+        : this._parity_subscriptions[result.result] = result.id;
+      // resolve promise with subscription id
+      this._messages[result.id].resolve(result.result);
+      return this._messages[result.id];
+    // normal format
+    } else if (result.id) {
+      return this._messages[result.id];
+    // pubsub format
+    } else if (result.params) {
+      return result.method === 'eth_subscribe'
+        ? this._messages[this._eth_subscriptions[result.params.subscription]]
+        : this._messages[this._parity_subscriptions[result.params.subscription]];
     }
   }
 
