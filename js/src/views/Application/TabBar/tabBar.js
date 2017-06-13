@@ -99,11 +99,19 @@ function mapStateToProps (initState) {
   }));
 
   return (state) => {
+    const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
     const { views } = state.settings;
 
     const viewIds = Object
       .keys(views)
-      .filter((id) => views[id].fixed || views[id].active);
+      .filter((id) => {
+        const view = views[id];
+
+        const isEnabled = view.fixed || view.active;
+        const isAllowed = !view.onlyPersonal || availability === 'personal';
+
+        return isEnabled && isAllowed;
+      });
 
     if (isEqual(viewIds, filteredViewIds)) {
       return { views: filteredViews };

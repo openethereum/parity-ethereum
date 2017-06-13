@@ -17,23 +17,74 @@
 import Account from './account';
 import localStore from 'store';
 import { debounce } from 'lodash';
+import { decryptPrivateKey } from '../ethkey';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 const LS_STORE_KEY = '_parity::localAccounts';
 
 export default class Accounts {
+  persist = debounce(() => {
+    this._lastState = JSON.stringify(this);
+
+    localStore.set(LS_STORE_KEY, this);
+  }, 100);
+
   constructor (data = localStore.get(LS_STORE_KEY) || {}) {
+    this._lastState = JSON.stringify(data);
+
+    window.addEventListener('storage', ({ key, newValue }) => {
+      if (key !== LS_STORE_KEY) {
+        return;
+      }
+
+      if (newValue !== this._lastState) {
+        console.log('Data changed in a second tab, syncing state');
+
+        this.restore(JSON.parse(newValue));
+      }
+    });
+
+    this.restore(data);
+  }
+
+  restore (data) {
     const {
       last = NULL_ADDRESS,
-      store = []
+      dappsDefault = NULL_ADDRESS,
+      store = {}
     } = data;
 
-    this.persist = debounce(() => {
-      localStore.set(LS_STORE_KEY, this);
-    }, 100);
-
     this._last = last;
-    this._store = store.map((data) => new Account(this.persist, data));
+    this._dappsDefaultAddress = dappsDefault;
+    this._store = {};
+
+    if (Array.isArray(store)) {
+      // Recover older version that stored accounts as an array
+      store.forEach((data) => {
+        const account = new Account(this.persist, data);
+
+        this._store[account.address] = account;
+      });
+    } else {
+      Object.keys(store).forEach((key) => {
+        this._store[key] = new Account(this.persist, store[key]);
+      });
+    }
+  }
+
+  _addAccount = (account) => {
+    const { address } = account;
+
+    if (address in this._store && this._store[address].uuid) {
+      throw new Error(`Account ${address} already exists!`);
+    }
+
+    this._store[address] = account;
+    this.lastAddress = address;
+
+    this.persist();
+
+    return account.address;
   }
 
   create (secret, password) {
@@ -41,20 +92,19 @@ export default class Accounts {
 
     return Account
       .fromPrivateKey(this.persist, privateKey, password)
-      .then((account) => {
-        const { address } = account;
+      .then(this._addAccount);
+  }
 
-        if (this._store.find((account) => account.address === address)) {
-          throw new Error(`Account ${address} already exists!`);
+  restoreFromWallet (wallet, password) {
+    return decryptPrivateKey(wallet, password)
+      .then((privateKey) => {
+        if (!privateKey) {
+          throw new Error('Invalid password');
         }
 
-        this._store.push(account);
-        this.lastAddress = address;
-
-        this.persist();
-
-        return account.address;
-      });
+        return Account.fromPrivateKey(this.persist, privateKey, password);
+      })
+      .then(this._addAccount);
   }
 
   set lastAddress (value) {
@@ -65,18 +115,46 @@ export default class Accounts {
     return this._last;
   }
 
+  get dappsDefaultAddress () {
+    if (this._dappsDefaultAddress === NULL_ADDRESS) {
+      return this._last;
+    }
+
+    if (this._dappsDefaultAddress in this._store) {
+      return this._dappsDefaultAddress;
+    }
+
+    return NULL_ADDRESS;
+  }
+
+  set dappsDefaultAddress (value) {
+    this._dappsDefaultAddress = value.toLowerCase();
+  }
+
   get (address) {
     address = address.toLowerCase();
 
-    this.lastAddress = address;
-
-    const account = this._store.find((account) => account.address === address);
+    const account = this._store[address];
 
     if (!account) {
       throw new Error(`Account not found: ${address}`);
     }
 
+    this.lastAddress = address;
+
     return account;
+  }
+
+  getLazyCreate (address) {
+    address = address.toLowerCase();
+
+    this.lastAddress = address;
+
+    if (!(address in this._store)) {
+      this._store[address] = new Account(this.persist);
+    }
+
+    return this._store[address];
   }
 
   remove (address, password) {
@@ -108,26 +186,20 @@ export default class Accounts {
   removeUnsafe (address) {
     address = address.toLowerCase();
 
-    const index = this._store.findIndex((account) => account.address === address);
-
-    if (index === -1) {
-      return;
-    }
-
-    this._store.splice(index, 1);
+    delete this._store[address];
 
     this.persist();
   }
 
-  mapArray (mapper) {
-    return this._store.map(mapper);
+  addresses () {
+    return Object.keys(this._store);
   }
 
-  mapObject (mapper) {
+  map (mapper) {
     const result = {};
 
-    this._store.forEach((account) => {
-      result[account.address] = mapper(account);
+    Object.keys(this._store).forEach((key) => {
+      result[key] = mapper(this._store[key]);
     });
 
     return result;
@@ -136,6 +208,7 @@ export default class Accounts {
   toJSON () {
     return {
       last: this._last,
+      dappsDefault: this._dappsDefaultAddress,
       store: this._store
     };
   }

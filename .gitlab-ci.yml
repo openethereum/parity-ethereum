@@ -9,6 +9,7 @@ variables:
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
   CARGOFLAGS: ""
+  CI_SERVER_NAME: "GitLab CI"
 cache:
   key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
   untracked: true
@@ -92,6 +93,7 @@ linux-snap:
     paths:
     - scripts/parity_*_amd64.snap
     name: "stable-x86_64-unknown-snap-gnu_parity"
+  allow_failure: true  
 linux-stable-debian:
   stage: build
   image: parity/rust-debian:gitlab-ci
@@ -433,6 +435,7 @@ darwin:
   script: |
       export COMMIT=$(git rev-parse HEAD)
       export PLATFORM=x86_64-apple-darwin
+      rustup default stable
       cargo build -j 8 --features final --release #$CARGOFLAGS
       cargo build -j 8 --features final --release -p ethstore #$CARGOFLAGS
       rm -rf parity.md5
@@ -607,19 +610,6 @@ js-test:
   tags:
     - rust
     - rust-stable
-js-test-node_8:
-  stage: test
-  image: parity/rust-debian-node_8:gitlab-ci
-  before_script:
-    - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
-    - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
-  script:
-    - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS lint since no JS files modified."; else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; fi
-  tags:
-    - rust
-    - rust-stable
-  allow_failure: true
 test-rust-beta:
   stage: test
   only:
